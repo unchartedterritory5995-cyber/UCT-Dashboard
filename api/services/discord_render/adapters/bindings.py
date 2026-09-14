@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import threading
 
+from api.services.discord_render import observe
 from api.services.discord_render.adapters import bars as bars_adapter
 from api.services.discord_render.adapters import classes
 from api.services.discord_render.adapters import flow as flow_adapter
@@ -205,22 +206,143 @@ def stamp(ctx, content) -> str:
     return (text[:max(0, keep)].rstrip() + "\n" + suffix) if keep > 0 else suffix[:CONTENT_MAX]
 
 
+# ── the image PATCH: OI-29, and the close of C-04 ───────────────────────────
+#
+# ⛔⛔ 2.6 HARDENED THE TEXT PATH AND EVERY BYTE OF C-04'S EVIDENCE IS ON THE IMAGE PATH. The 23
+# `ATTACHMENT_NOT_FOUND` refusals and the 23 `10015` finals are all multipart chart PATCHes, and
+# none of them went through `delivery.py`. Two things here close it:
+#
+#   1. `delivery_edit_fn()` puts the image PATCH behind the same budget, retry, 429/5xx policy,
+#      size guard and class table as the text PATCH (`delivery.edit_image`);
+#   2. `_fold_attachments` deletes the mechanism outright: the context line's second PATCH
+#      re-uploads the BYTES instead of re-declaring ids it read off the first PATCH's response.
+#
+# ⭐ WHY (2) IS THE FIX AND NOT (1). `01`'s root-cause paragraph is careful: the ids go stale if
+# anything replaced the attachment between the two PATCHes, and the failure is deterministic (0 %
+# load correlation). No amount of retry policy helps a payload that is wrong every time. **An id
+# naming a part present in the same request cannot be stale** — so the class ends when we stop
+# sending ids for something we are not uploading, and only then.
+#
+# ⚠️ IT COSTS ONE RE-UPLOAD OF THE PNG, and that is the trade, stated rather than hidden. A house
+# chart is ~100-500 KB; the alternative priced at 23 measured deliveries that reached nobody.
+
+_IMAGES = "_delivered_images"
+#: Bound on what a context will hold for the fold. A multi-chart job delivers up to four images;
+#: past this the fold is skipped and RECORDED, never silently — a job that quietly stopped folding
+#: is C-04 back with no evidence that it returned.
+FOLD_MAX_BYTES = 8 * 1024 * 1024
+
+#: ⛔ THREAD-LOCAL, NOT MODULE-LEVEL. The runtime runs jobs on a worker pool; a shared "last
+#: failure" slot would report one member's delivery failure on another member's job, which is
+#: C-12 (a failure that cannot be tied to a request) manufactured by the fix for C-04.
+_LOCAL = threading.local()
+
+
+def last_delivery_failure():
+    """The most recent failed delivery ON THIS THREAD, or None. Read by `commands._last_edit_failure`."""
+    return getattr(_LOCAL, "delivery_failure", None)
+
+
+def _remember_images(ctx, images) -> None:
+    total = sum(len(b or b"") for b, _ in images)
+    with _LOCK:
+        if total > FOLD_MAX_BYTES:
+            setattr(ctx, _IMAGES, None)
+            observe.event("fold_skipped_too_large", cid=getattr(getattr(ctx, "job", None), "corr_id", None),
+                          outcome="skipped", detail=f"{total} bytes > {FOLD_MAX_BYTES}")
+            return
+        setattr(ctx, _IMAGES, list(images))
+
+
+def _fold_attachments(ctx, kw: dict) -> dict:
+    """Turn a re-declare-the-ids edit into a re-upload-the-bytes edit.
+
+    `run_chart_job._context_follow_up` passes `keep_attachments` — the ids off the first edit's
+    response. Those ids are exactly what C-04 is. If we still hold the bytes we sent, we send them
+    again and drop the ids; if we do not, we leave the edit alone and RECORD that we could not
+    fold, because a fold that silently did nothing is indistinguishable from one that worked."""
+    if "keep_attachments" not in kw:
+        return kw
+    images = getattr(ctx, _IMAGES, None)
+    cid = getattr(getattr(ctx, "job", None), "corr_id", None)
+    if not images:
+        observe.event("fold_unavailable", cid=cid, outcome="passthrough",
+                      detail="no bytes held; ids re-declared as before")
+        return kw
+    out = {k: v for k, v in kw.items() if k != "keep_attachments"}
+    if len(images) == 1:
+        out["png"], out["filename"] = images[0]
+    else:
+        out["pngs"] = list(images)
+    observe.event("attachments_folded", cid=cid, outcome="folded", detail=f"n={len(images)}")
+    return out
+
+
+def delivery_edit_fn():
+    """`discord_interactions.edit_original`'s signature, served by `delivery.py`.
+
+    This is what the V2 runtime is handed in place of the raw function, so the chart image travels
+    the same hardened path the failure sentence already does.
+
+    ⛔ THE KILL SWITCH IS READ PER CALL, not captured at construction. `get_runtime()` builds one
+    runtime and keeps it; a switch consulted once would make `DISCORD_RENDER_V2_ADAPTERS_ENABLED=0`
+    a lie for the life of the pod, which is the flag-that-reaches-nothing defect this repo has
+    paid for more than once."""
+    def _edit(app_id, token, *, content="", png=None, filename=None, components=None,
+              pngs=None, keep_attachments=None, deadline_s=None, cid: str = "", **ignored):
+        from api.services import discord_interactions as di
+        if not adapters_enabled():
+            return di.edit_original(app_id, token, content=content, png=png, filename=filename,
+                                    components=components, pngs=pngs,
+                                    keep_attachments=keep_attachments)
+        from api.services.discord_render import delivery
+        images = list(pngs) if pngs else ([(png, filename)] if png is not None else [])
+        if images:
+            res = delivery.edit_image(app_id, token, content=content, images=images,
+                                      components=components, deadline_s=deadline_s, cid=cid)
+        else:
+            res = delivery.edit_text(app_id, token, content=content, components=components,
+                                     attachments=keep_attachments, deadline_s=deadline_s, cid=cid)
+        _LOCAL.delivery_failure = None if res.ok else res
+        # ⛔ `res.message or True`, NEVER `res.message`. A 2xx with a body Discord did not make
+        # readable is a SUCCESS; returning its `None` would tell `JobContext.edit` the delivery
+        # failed and send the member a failure sentence under a chart that arrived.
+        return (res.message or True) if res.ok else False
+    return _edit
+
+
 def edit_fn(ctx):
-    """`ctx.edit`, with the stamp applied to whatever content is being sent.
+    """`ctx.edit`, with the stamp applied and the attachment ids folded away.
 
     ⛔ THE WRAPPER, NOT THE RENDER FUNCTION. `produce_chart` builds the content and knows nothing
     about adapters; stamping here means every path it can take — the fast cached reply, the
     stand-in, the final chart, the multi-chart — is labelled by construction rather than by
     remembering to label it at four call sites. That "remember at every site" is how C-06 produced
-    three unlabelled stand-ins."""
+    three unlabelled stand-ins.
+
+    ⛔ AND THE SAME ARGUMENT IS WHY THE FOLD LIVES HERE. It could have gone in
+    `run_chart_job._context_follow_up`, one layer down — but that is a PRE-V2 file, shared with the
+    path this programme guarantees is byte-for-byte unchanged. Folding in the wrapper closes the
+    class on the path V2 members take and touches nothing the old path can see."""
     inner = ctx.edit
     if not adapters_enabled():
         return inner
 
     def _edit(app_id, token, **kw):
+        kw = _fold_attachments(ctx, kw)
         if "content" in kw:
             kw = {**kw, "content": stamp(ctx, kw.get("content"))}
-        return inner(app_id, token, **kw)
+        images = list(kw.get("pngs") or []) or ([(kw["png"], kw.get("filename"))]
+                                                if kw.get("png") is not None else [])
+        kw.setdefault("deadline_s", _remaining(ctx))
+        kw.setdefault("cid", getattr(getattr(ctx, "job", None), "corr_id", "") or "")
+        sent = inner(app_id, token, **kw)
+        if sent and images:
+            _remember_images(ctx, images)
+        return sent
+    #: ⭐ Advertised so a caller that wants to know can ask, rather than inferring it from the
+    #: absence of a failure. Nothing in the pre-V2 path reads it, which is the point.
+    _edit.folds_attachments = True
     return _edit
 
 

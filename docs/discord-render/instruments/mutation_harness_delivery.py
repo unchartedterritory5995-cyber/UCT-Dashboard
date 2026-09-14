@@ -154,8 +154,10 @@ MUTATIONS = [
     # ── C-11: a result, with a class, always ───────────────────────────────
     {"name": "D19 a success carries a failure class (the class becomes furniture)",
      "file": DEL,
-     "old": "        return DeliveryResult(True, resp.status_code, None, \"\", reason=OK)\n",
-     "new": "        return DeliveryResult(True, resp.status_code, None, \"\", reason=OK, cls=\"internal\")\n",
+     "old": "        return DeliveryResult(True, resp.status_code, None, \"\", reason=OK,\n"
+            "                              message=body if isinstance(body, dict) else None)\n",
+     "new": "        return DeliveryResult(True, resp.status_code, None, \"\", reason=OK, cls=\"internal\",\n"
+            "                              message=body if isinstance(body, dict) else None)\n",
      "tests": [T + "test_a_delivery_that_worked_says_so_and_names_no_class"]},
     {"name": "D20 the result cannot say what it cost (attempts and waited are dropped)",
      "file": DEL,
@@ -167,17 +169,17 @@ MUTATIONS = [
     # ── the budget reaches the wire ────────────────────────────────────────
     {"name": "D21 the request timeout ignores what is left (a 10s call inside a 0.5s budget)",
      "file": DEL,
-     "old": "                    timeout_s=min(TIMEOUT_S, max(MIN_USEFUL_S, left)), attempt=attempt, cid=cid)\n",
-     "new": "                    timeout_s=TIMEOUT_S, attempt=attempt, cid=cid)\n",
+     "old": "                    timeout_s=min(ceiling_s, max(MIN_USEFUL_S, left)), attempt=attempt, cid=cid)\n",
+     "new": "                    timeout_s=ceiling_s, attempt=attempt, cid=cid)\n",
      "tests": [T + "test_the_request_timeout_is_the_smaller_of_the_ceiling_and_what_is_left"]},
     {"name": "D22 the first attempt is skipped with no budget left (C-11 with extra steps)",
      "file": DEL,
      "old": "        left = budget - (clock() - started)\n"
-            "        res = _once(method, url, payload, client,\n",
+            "        res = _once(method, url, payload, client, files=files,\n",
      "new": "        left = budget - (clock() - started)\n"
             "        if left < MIN_USEFUL_S:\n"
             "            break\n"
-            "        res = _once(method, url, payload, client,\n",
+            "        res = _once(method, url, payload, client, files=files,\n",
      "tests": [T + "test_the_first_attempt_runs_even_with_no_budget_left"]},
     {"name": "D23 content is not trimmed to the contract limit",
      "file": DEL,

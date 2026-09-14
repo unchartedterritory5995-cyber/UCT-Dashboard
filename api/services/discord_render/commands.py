@@ -71,6 +71,18 @@ _symbol_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_
 
 
 def _last_edit_failure():
+    """What the last failed edit on THIS thread was.
+
+    ⛔ THE DELIVERY LAYER IS ASKED FIRST, AND IT HAS TO BE. Since OI-29 the image PATCH goes
+    through `delivery.edit_image`, which records a full `DeliveryResult` — status, Discord's error
+    code, the named class and whether it was retryable. `di.last_edit_failure()` is the pre-V2
+    recorder and knows nothing about those deliveries, so reading it first would answer `None` for
+    every V2 image failure and the member would be told nothing about a delivery that failed. It is
+    kept as the fallback because the kill switch can still route through `di.edit_original`."""
+    from api.services.discord_render.adapters import bindings
+    res = bindings.last_delivery_failure()
+    if res is not None:
+        return res
     f = di.last_edit_failure()
     if not f:
         return None
@@ -81,7 +93,13 @@ def get_runtime() -> JobRuntime:
     global _runtime
     with _runtime_lock:
         if _runtime is None:
-            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=di.edit_original,
+            # ⛔ OI-29: the image PATCH goes through `delivery.py`, not through the raw
+            # `edit_original`. `delivery_edit_fn()` keeps that function's exact signature and
+            # return contract and re-reads the adapters kill switch on every call, so
+            # `DISCORD_RENDER_V2_ADAPTERS_ENABLED=0` still routes to the raw function — a switch
+            # captured at construction would be inert for the life of the pod.
+            from api.services.discord_render.adapters.bindings import delivery_edit_fn
+            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=delivery_edit_fn(),
                                   last_edit_failure=_last_edit_failure,
                                   commit=(os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12])
             _runtime.start()

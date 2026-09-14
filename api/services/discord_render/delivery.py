@@ -66,6 +66,31 @@ DEFAULT_BUDGET_S = 8.0
 MIN_USEFUL_S = 0.25
 #: Total tries, first attempt included. 03 §3.4: "max 3 tries, bounded by the deadline".
 MAX_ATTEMPTS = 3
+
+#: One image PATCH may take longer than one JSON PATCH, because it is carrying the chart.
+#: Measured basis: the pre-V2 `discord_interactions.edit_original` used a flat 15 s client
+#: timeout for the same request and produced no timeout failures in the fortnight `01` covers —
+#: the 23 failures were 4xx refusals, not slow uploads. 20 s is that number with headroom, and
+#: like every other timeout on this path it is a CEILING: `min(this, the budget left)` wins.
+IMAGE_TIMEOUT_S = 20.0
+
+#: The image delivery's own default budget. Larger than `DEFAULT_BUDGET_S` for the same reason,
+#: and still only a default — the job's remaining time is passed in as `deadline_s` and is the
+#: number that actually binds.
+IMAGE_BUDGET_S = 20.0
+
+#: Refuse an upload Discord would refuse, before spending a round trip on it.
+#:
+#: ⛔ 25 MiB IS DISCORD'S **BASELINE** (Tier-0) ATTACHMENT LIMIT, SO THIS GUARD CAN ONLY EVER
+#: REFUSE SOMETHING THE UNBOOSTED CASE WOULD ALSO REFUSE. A boosted guild allows more; refusing
+#: at the baseline is therefore conservative in the one direction that costs a member nothing,
+#: because a refusal here does NOT mean silence — `edit_image` falls back to a text edit that
+#: says what happened (C-11: a delivery failure must still end in a sentence).
+#:
+#: ⚠️ It is not a substitute for measuring. A house chart PNG is ~100-500 KB; anything within two
+#: orders of magnitude of this ceiling is a render defect, and `image_too_large` is the event that
+#: says so rather than a 40005 nobody can attribute.
+ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024
 #: Spread added to a server-dictated `retry_after`, drawn through `breakers.retry_delay` so
 #: there is still exactly one jitter authority. Without it every caller Discord rate-limited
 #: in the same bucket comes back in the same millisecond.
@@ -136,6 +161,13 @@ class DeliveryResult:
     retryable: bool = False
     retry_after: float | None = None   # what Discord asked for, when it asked
     dropped: tuple = ()                # parts refused pre-flight, e.g. ("components",)
+    #: The message Discord returned on a 2xx, when it returned a readable one.
+    #: ⛔ THIS EXISTS FOR ONE CALLER AND IT IS NOT AN INVITATION. `run_chart_job`'s context
+    #: follow-up reads `attachments` off the first edit's response to decide what to re-declare,
+    #: and that is the C-04 path. `edit_fn` hands this back so the pre-V2 call site keeps the
+    #: exact contract it has always had — while the wrapper above it makes the ids it derives
+    #: irrelevant by re-uploading the bytes. Do not start a second consumer of it.
+    message: dict | None = None
 
     @property
     def token_dead(self) -> bool:
@@ -302,6 +334,119 @@ def edit_text(app_id: str, token: str, *, content: str, components: list | None 
                  dropped=dropped, **policy)
 
 
+def edit_image(app_id: str, token: str, *, content: str, images, components: list | None = None,
+               client=None, deadline_s: float | None = None, cid: str = "",
+               **policy) -> DeliveryResult:
+    """PATCH @original with the chart **and** its text, in ONE multipart request (OI-29, C-04).
+
+    `images` is `[(png_bytes, filename), …]`. Returns a `DeliveryResult` whose `.message` is the
+    message Discord answered with, so the caller keeps the shape `edit_original` always returned.
+
+    ⛔⛔ THIS EXISTS BECAUSE 2.6 HARDENED THE TEXT PATH AND THE EVIDENCE IS ALL ON THE IMAGE PATH.
+    Every one of `01`'s 23 `ATTACHMENT_NOT_FOUND` refusals and 23 `10015` finals is image-PATCH
+    traffic, and none of it went through `delivery.py` — `discord_interactions.edit_original`
+    builds its own multipart with its own client, its own 4xx handling and **no retry policy at
+    all**. A delivery layer is only as wide as the call sites routed through it; "2.6 is done" was
+    true of the module and false of the class.
+
+    ⛔⛔ THE CONTENT AND THE IMAGE TRAVEL TOGETHER, AND THAT IS THE FIX, NOT AN OPTIMISATION.
+    C-04 is a SECOND PATCH that re-declares attachment ids read off the FIRST patch's response,
+    carrying none of the file bytes; if anything replaced the attachment in between, those ids are
+    stale and Discord answers `ATTACHMENT_NOT_FOUND` — 23 times, on both attempts, deterministically
+    (0 % load correlation). **An id that names a part present in the same request cannot be stale.**
+    So the way to close the class is not to validate the ids better; it is to stop sending ids that
+    refer to something we are not uploading.
+
+    ⛔ AND A REFUSED IMAGE STILL ENDS IN A SENTENCE. Too large, no Attach Files permission, a
+    component tree Discord will not take — every one of those falls back to a text edit naming the
+    class. C-11 measured 46 failures that produced no member message at all; a delivery that
+    declines to say anything is the defect, not the safe option.
+    """
+    url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
+    files, parts, oversize = _image_parts(images, cid=cid)
+    comps, dropped = _safe_components(components, cid=cid)
+    text = content[:contract.CONTENT_MAX]
+
+    if oversize or not files:
+        # ⛔ NO IMAGE TO SEND IS NOT THE SAME AS AN IMAGE WE REFUSED, and the two must not share a
+        # branch. `oversize` is a defect we name; an empty `images` is a caller asking for a text
+        # edit and is answered as one, with nothing dropped and nothing to apologise for.
+        if not oversize:
+            return edit_text(app_id, token, content=text, components=components, client=client,
+                             deadline_s=deadline_s, cid=cid, **policy)
+        observe.event("image_too_large", cid=cid, cls=class_for(TOO_LARGE), outcome="dropped",
+                      detail=f"{oversize} bytes > {ATTACHMENT_MAX_BYTES}")
+        res = edit_text(app_id, token, content=_no_image_text(text), components=components,
+                        client=client, deadline_s=deadline_s, cid=cid, **policy)
+        return replace(res, reason=TOO_LARGE, cls=class_for(TOO_LARGE),
+                       dropped=tuple(res.dropped) + ("image",))
+
+    payload: dict = {"content": text, "allowed_mentions": {"parse": []},
+                     "attachments": parts}
+    if comps is not None:
+        payload["components"] = comps
+    res = _send("patch", url, payload, client, files=files, cid=cid,
+                dropped=dropped, ceiling_s=IMAGE_TIMEOUT_S,
+                deadline_s=(IMAGE_BUDGET_S if deadline_s is None else deadline_s), **policy)
+    if res.ok or res.token_dead:
+        # ⛔ A DEAD TOKEN IS NOT RECOVERABLE BY SENDING SOMETHING ELSE THROUGH IT. Falling back to
+        # a text edit on a 10015 spends another round trip to be told the same thing.
+        return res
+
+    # The chart was refused, not the render. Say so — the member is the one waiting.
+    observe.event("image_refused", cid=cid, cls=res.cls, outcome=res.reason,
+                  status=str(res.status), detail=res.detail)
+    alt = edit_text(app_id, token, content=_no_image_text(text), client=client,
+                    deadline_s=deadline_s, cid=cid, **policy)
+    return replace(alt, reason=res.reason, cls=res.cls,
+                   dropped=tuple(alt.dropped) + tuple(dropped) + ("image",))
+
+
+def _image_parts(images, *, cid: str = "") -> tuple[dict, list, int]:
+    """`(files, attachments, oversize_bytes)`.
+
+    The attachment ids are the INDEXES of the parts in this same request, so they cannot name
+    something Discord no longer has — see `edit_image`'s second ⛔."""
+    files: dict = {}
+    parts: list = []
+    total = 0
+    for i, item in enumerate(images or []):
+        try:
+            data, filename = item
+        except (TypeError, ValueError):  # a caller handed us something that is not a pair
+            observe.event("image_bad_shape", cid=cid, outcome="dropped", detail=type(item).__name__)
+            continue
+        if not data:
+            continue
+        total += len(data)
+        files[f"files[{i}]"] = (str(filename), data, "image/png")
+        parts.append({"id": i, "filename": str(filename)})
+    if total > ATTACHMENT_MAX_BYTES:
+        return {}, [], total
+    return files, parts, 0
+
+
+#: What a member is told when the picture could not be attached but the reply still can be.
+#: ⛔ It names no exception and no status code — same rule as `contract.py`'s failure copy.
+NO_IMAGE_NOTE = "The chart could not be attached to this reply."
+
+
+def _no_image_text(content: str) -> str:
+    note = NO_IMAGE_NOTE
+    if not content:
+        return note
+    if content.endswith(note):
+        return content[:contract.CONTENT_MAX]
+    joined = f"{content}\n{note}"
+    if len(joined) <= contract.CONTENT_MAX:
+        return joined
+    # ⛔ THE NOTE IS KEPT AND THE CONTENT IS TRIMMED, never the other way round — the same rule
+    # `badge.stamp` states, for the same reason: the sentence that explains the degradation is
+    # exactly the one that must not be the casualty of a long reply.
+    keep = contract.CONTENT_MAX - len(note) - 1
+    return (content[:max(0, keep)].rstrip() + "\n" + note) if keep > 0 else note
+
+
 def followup(app_id: str, token: str, *, content: str, components: list | None = None,
              ephemeral: bool = True, attachments: list | None = None, client=None,
              deadline_s: float | None = None, cid: str = "", **policy) -> DeliveryResult:
@@ -391,7 +536,8 @@ def _result(resp) -> DeliveryResult:
     except Exception:  # noqa: BLE001
         body = None
     if resp.is_success:
-        return DeliveryResult(True, resp.status_code, None, "", reason=OK)
+        return DeliveryResult(True, resp.status_code, None, "", reason=OK,
+                              message=body if isinstance(body, dict) else None)
     reason = _reason_for(int(resp.status_code), code, body)
     return DeliveryResult(
         False, resp.status_code, code,
@@ -403,15 +549,22 @@ def _result(resp) -> DeliveryResult:
 
 
 def _once(method: str, url: str, payload: dict, client, *, timeout_s: float,
-          attempt: int, cid: str) -> DeliveryResult:
+          attempt: int, cid: str, files: dict | None = None) -> DeliveryResult:
     try:
         import httpx
         own = client is None
         c = client or httpx.Client(timeout=timeout_s)
         try:
-            resp = getattr(c, method)(url, content=json.dumps(payload),
-                                      headers={"Content-Type": "application/json"},
-                                      timeout=timeout_s)
+            if files:
+                # ⛔ MULTIPART, AND THE CONTENT-TYPE IS NOT OURS TO SET. httpx generates the
+                # boundary; writing a `Content-Type: multipart/form-data` header by hand omits it
+                # and Discord answers 400 on a body that is otherwise perfectly correct.
+                resp = getattr(c, method)(url, data={"payload_json": json.dumps(payload)},
+                                          files=files, timeout=timeout_s)
+            else:
+                resp = getattr(c, method)(url, content=json.dumps(payload),
+                                          headers={"Content-Type": "application/json"},
+                                          timeout=timeout_s)
             return _result(resp)
         finally:
             if own:
@@ -439,8 +592,9 @@ def _wait_for(res: DeliveryResult, attempt: int, rand) -> float:
 
 
 def _send(method: str, url: str, payload: dict, client=None, *, deadline_s: float | None = None,
-          cid: str = "", dropped: tuple = (), sleep=time.sleep, rand=random.random,
-          clock=time.monotonic) -> DeliveryResult:
+          cid: str = "", dropped: tuple = (), files: dict | None = None,
+          ceiling_s: float = TIMEOUT_S, sleep=time.sleep,
+          rand=random.random, clock=time.monotonic) -> DeliveryResult:
     """One delivery: up to `MAX_ATTEMPTS` tries, every wait bounded by the budget.
 
     ⛔ THE FIRST ATTEMPT ALWAYS RUNS, even with no budget left. Refusing it would be C-11 with
@@ -457,8 +611,8 @@ def _send(method: str, url: str, payload: dict, client=None, *, deadline_s: floa
                          cls=class_for(TRANSPORT))
     for attempt in range(1, max(1, MAX_ATTEMPTS) + 1):
         left = budget - (clock() - started)
-        res = _once(method, url, payload, client,
-                    timeout_s=min(TIMEOUT_S, max(MIN_USEFUL_S, left)), attempt=attempt, cid=cid)
+        res = _once(method, url, payload, client, files=files,
+                    timeout_s=min(ceiling_s, max(MIN_USEFUL_S, left)), attempt=attempt, cid=cid)
         if res.ok or not res.retryable or attempt >= max(1, MAX_ATTEMPTS):
             break
         wait = _wait_for(res, attempt, rand)

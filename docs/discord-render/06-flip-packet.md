@@ -166,7 +166,72 @@ restores a measured live defect (OI-21: a 60 s renderer client timeout over two 
 
 ---
 
-## 4. The first ten minutes
+## 4. The canary, then the first ten minutes
+
+### 4.0 ⛔ THE CANARY IS THE ADMIN CHANNEL, AND IT IS NOT OPTIONAL
+
+**Organic members exposed to V2 today: 0.** Everything built in this programme has run against the
+test channel and the harnesses; `/data/discord_render_jobs.db` does not exist in production, so no
+member has ever been served by this path. That number is the reason the canary exists — every
+measurement so far is of a rig, and the first honest measurement of the product is the first real
+member.
+
+**The order, and the whole point is that each step is reversible before the next one costs anyone
+anything:**
+
+| Step | Who is exposed | Leave it here for | What you are watching |
+|---|---|---|---|
+| 1 | You, in the private admin channel | **5 real sessions** (§4.4) | the chart arrives, once, with its controls |
+| 2 | The admin channel, normal use | one full RTH open (09:30–10:00 ET) | acks, the 10015 count, the stand-in count |
+| 3 | The guild | the rest of the session | the same, at ~750 members' volume |
+
+⛔ **Do not move to the next step on a clean interval alone.** A quiet ten minutes and a working
+system are the same observation when nobody is using it — count the *sessions*, not the minutes.
+That is the mistake this programme has already made once, with a shadow that logged at the right
+rate and said nothing.
+
+### 4.0b The first five sessions — what PASSES, stated before you look
+
+A session is one `/chart` by a real person in Discord, start to finish. All five must be true of
+all five sessions; **one failure of any row stops the canary and you roll back**, because the
+denominator is five and a 1-in-5 failure is a 20 % failure rate, not an anomaly.
+
+| # | Criterion | Where you read it |
+|---|---|---|
+| 1 | The member sees a chart, **once** — not a stand-in that never healed | the channel |
+| 2 | Ack under 3 s | `/renderhealth` → acks over 3 s must stay **0** |
+| 3 | Delivered under 8 s (S2 p99) | `/renderhealth` → delivered p99 |
+| 4 | **Zero** `10015` and **zero** `ATTACHMENT_NOT_FOUND` | `drender` events, `cls=ack_late` / `discord_rejected` |
+| 5 | Every degraded delivery carries its label; every failure ends in a sentence | the channel — read what the member reads |
+
+⚠️ Rows 4 and 5 are the two this programme exists for, and they are the two an interval-based check
+cannot see. Row 4 is C-04/C-02 (46 finals that reached nobody). Row 5 is C-06 and C-11.
+
+### 4.0c The verdict — the exact command
+
+```sh
+PUSH_SECRET=… python docs/discord-render/instruments/flip_verdict.py --confirm-observed
+```
+
+It reads `GET /api/discord/render-health` and prints a line per criterion, then **one** of three
+words:
+
+- `PASS` (exit 0) — every criterion held, across ≥ 5 sessions;
+- `FAIL` (exit 1) — a criterion was measured false. Roll back (§5), then diagnose;
+- `INCONCLUSIVE` (exit 2) — fewer than 5 sessions, a metric that could not be read, or the two
+  observed rows not confirmed. ⛔ **Not a pass and not a failure.** Collapsing it into either is the
+  defect `CoverageLine` exists to avoid: it means "go get more sessions", not "ship" and not
+  "roll back".
+
+⛔⛔ **`--confirm-observed` IS THE FLAG THAT SAYS YOU READ THE CHANNEL, AND WITHOUT IT THE ANSWER
+IS ALWAYS INCONCLUSIVE.** Criteria 1 and 5 are not in any metric — C-06's three unlabelled stand-ins
+were invisible to every counter in the system and obvious to anyone who read the message. The tool
+names both rows and refuses to score them, on purpose: a verdict that quietly graded 3 of 5 rows
+and printed PASS would be the instrument that hid them a second time.
+
+`python docs/discord-render/instruments/flip_verdict.py --self-check` proves it can fail — 13 cases,
+including the discriminator that a measured FAIL beats a short run (otherwise a real break inside
+the first four sessions files as "not enough data" and the canary carries on).
 
 ### 4.1 What to open
 

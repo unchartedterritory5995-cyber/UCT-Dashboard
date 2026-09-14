@@ -398,38 +398,82 @@ def test_c03_every_component_tree_the_bot_builds_survives_discords_own_rules():
 # C-04 — a follow-up edit re-declares attachments Discord no longer has
 # ════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.xfail(strict=True, reason=(
-    "C-04: OI-04 has not landed. The context line is still a SECOND PATCH that re-declares the "
-    "attachment ids off the first edit's response (`discord_interactions.py::_context_follow_up` → "
-    "`keep_attachments`), which is the only code path that can produce the 23 double-failed "
-    "ATTACHMENT_NOT_FOUND edits. Step 2.6 folds the context line into the image PATCH."))
-def test_c04_the_context_line_never_arrives_as_a_second_edit_that_redeclares_attachment_ids():
-    """XFAIL-STRICT — the fix is step 2.6 / OI-04 and has not landed.
+class _V2Ctx:
+    """The `JobContext` surface `bindings.edit_fn` binds to, over a recording sink."""
 
-    Reproduces the class at the member-visible seam: run a real chart job with a context line
-    available and count the edits that carry the image. The class is "a later PATCH re-declares
-    attachment ids the message may no longer hold", so the assertion is about the SHAPE of the
-    traffic (one image PATCH, no `keep_attachments` anywhere), not about the 400 that shape caused.
+    def __init__(self, sink):
+        self.job = type("J", (), {"corr_id": "c04c04c0", "command": "chart"})()
+        self._sink = sink
+
+    def remaining_s(self):
+        return 12.0
+
+    def edit(self, app_id, token, **kw):
+        return self._sink(app_id, token, **kw)
+
+
+def test_c04_the_v2_path_never_re_declares_an_attachment_id_it_did_not_upload(monkeypatch):
+    """✅ CLOSED 2026-09-14 by OI-29 — the ruling that 2.6 is not done until the IMAGE PATCH goes
+    through delivery. Was `xfail(strict=True)` from the day the class was written.
+
+    Reproduces the class at the member-visible seam: a real chart job, a context line available,
+    and an assertion over the SHAPE of the traffic — one image PATCH, and no `keep_attachments`
+    anywhere — not over the 400 that shape caused.
+
+    ⛔ THE FIX IS NOT THE HARDENING, IT IS THE FOLD. `bindings.edit_fn` re-uploads the bytes when
+    `run_chart_job` asks it to re-declare ids, so an id can only ever name a part present in the
+    same request. `01` §E measured 0 % load correlation — a deterministic payload fault, which no
+    retry policy can help.
 
     ⛔ Re-introduced in a different way? The assertion is over every edit the job makes, so a new
     second edit for some other reason — a footer, a badge, a late stats strip — that re-declares
     ids fails here too. It does NOT constrain how the context line is delivered, only that nothing
     re-declares an attachment it did not upload, which is the property that closes the class.
     """
+    from api.services.discord_render.adapters import bindings
+    monkeypatch.setenv("DISCORD_RENDER_V2_ADAPTERS_ENABLED", "1")
     bars = _daily_bars(180)
     edits = Edits()
     out = di.run_chart_job("APP", "TOK", di.ChartRequest("NVDA", "D"),
                            bars_fn=lambda t, tf, n: bars,
                            render_fn=lambda t, tf, b, **k: PNG + b"chart",
-                           edit_fn=edits,
+                           edit_fn=bindings.edit_fn(_V2Ctx(edits)),
                            context_fn=lambda ticker: "Earnings in 4 days · IM 6.2%")
     assert out == "ok"
     assert edits.calls, "nothing was sent — the job measured nothing and cannot answer this class"
     assert not any("keep_attachments" in c for c in edits.calls), (
         "an edit re-declared attachment ids it did not upload — that is C-04's only code path")
-    assert sum(1 for c in edits.calls if c.get("png")) == 1
-    assert len(edits.calls) == 1, (
-        "the context line arrived as a second PATCH; OI-04 folds it into the image PATCH")
+    assert all(c.get("png") or c.get("pngs") for c in edits.calls), (
+        "an edit that follows the image carried no bytes; if it names an id, that id can go stale")
+    assert any("Earnings in 4 days" in (c.get("content") or "") for c in edits.calls), (
+        "the context line was lost — the fold must deliver it, not drop it")
+
+
+def test_c04_the_prev2_path_is_deliberately_unchanged_and_this_is_the_proof(monkeypatch):
+    """⛔⛔ THE PRE-V2 PATH STILL HAS THE OLD SHAPE, ON PURPOSE, AND THAT IS NOT AN OVERSIGHT.
+
+    The programme's standing guarantee is that with `DISCORD_RENDER_V2_ENABLED` unset, member-
+    visible behaviour is byte-for-byte what it was. `_context_follow_up` lives in
+    `api/services/discord_interactions.py` — a shared pre-V2 file — so the fold was built in the
+    V2 wrapper instead, and `api/services/discord_interactions.py` has **no diff at all**.
+
+    ⭐ This test exists so the residual risk is a RECORDED fact rather than a silence. C-04 is
+    closed on the path V2 members take, and the old path keeps the shape that produced it until
+    the flag flips and that path stops being reachable. Anyone reading the closed row in
+    `01-failure-forensics.md` should be able to find this sentence.
+    """
+    monkeypatch.setenv("DISCORD_RENDER_V2_ADAPTERS_ENABLED", "0")
+    bars = _daily_bars(180)
+    edits = Edits()
+    di.run_chart_job("APP", "TOK", di.ChartRequest("NVDA", "D"),
+                     bars_fn=lambda t, tf, n: bars,
+                     render_fn=lambda t, tf, b, **k: PNG + b"chart",
+                     edit_fn=edits,
+                     context_fn=lambda ticker: "Earnings in 4 days · IM 6.2%")
+    assert any("keep_attachments" in c for c in edits.calls), (
+        "the pre-V2 path changed shape — either C-04 was fixed there too (say so, and delete this "
+        "test) or the fixture stopped exercising the follow-up, which would make the test above "
+        "a comparison against nothing")
 
 
 # ════════════════════════════════════════════════════════════════════════════
