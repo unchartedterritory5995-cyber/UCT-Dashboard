@@ -16,8 +16,8 @@ Patrick rules.
 
 | where | D1 is | |
 |---|---|---|
-| `owner-run.md:247` | `\| D1 \| G3-16(a) \| Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone?` | ← **this row** |
-| `glass-acceptance-steps.md:192` | `\| D1 \| **The no-drag door** \| With **VoiceOver** (iOS) / **TalkBack** (Android) running, reach the Actions button…` | a different check entirely |
+| `owner-run.md:247` | `\| D1-eye \| G3-16(a) \| Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone?` | ← **this row** |
+| `glass-acceptance-steps.md:192` | `\| D1-a11y \| **The no-drag door** \| With **VoiceOver** (iOS) / **TalkBack** (Android) running, reach the Actions button…` | a different check entirely |
 
 The Wire-vs-Journal question's real name is **G3-16**, and its ledger row is **D-27**.
 `glass-acceptance.md:172` — `| G3-16 | **Wire vs Journal in Home's fan** (D-27) | …`

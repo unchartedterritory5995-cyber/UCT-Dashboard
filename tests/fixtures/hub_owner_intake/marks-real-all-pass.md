@@ -244,7 +244,7 @@ without it is considerably harder than switching it on.
 
 | # | Row | Do this | What to record | Result |
 |---|---|---|---|---|
-| D1 | G3-16(a) | Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone? | ⛔ Note whether you are colour-blind and which type — "looks fine to me" answers this for one pair of eyes only. (b) is already measured BETTER: ΔE00 14.5 → 28.0. | ☑ DISTINGUISHABLE ☐ CONFUSABLE |
+| D1-eye | G3-16(a) | Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone? | ⛔ Note whether you are colour-blind and which type — "looks fine to me" answers this for one pair of eyes only. (b) is already measured BETTER: ΔE00 14.5 → 28.0. | ☑ DISTINGUISHABLE ☐ CONFUSABLE |
 | D2 | G3-2 | Settings → **Charts** → **JOYSTICK** → **High contrast** ON. Use the hub on a busy page. | Every ring, chip and readout stays legible against the live page behind the glass. ⭐ The mechanism is confirmed armed on a real device (`data-hub-contrast="high"`); only legibility is yours to judge. | ☑ PASS ☐ FAIL |
 | D3 | G3-5 | Load the Dashboard on a **Saturday or market holiday**. | The Catalysts tile is absent, the hub falls back to the route-derived mode, and you see the preview fan. Nothing pretends the section is there. | ☑ PASS ☐ FAIL |
 
@@ -271,10 +271,10 @@ would measure the phone, not the hub.)
 - **A1–A5, the A6 control block and the trace** close **G0-1** and **D4**, and unblock rollout
   stage 2's last glass gate. ⛔ A1 alone is D4; the trace alone is G0-1; neither is the other.
 - **B1–B9** close the G3 rows a mirror could not aim at.
-- **C1–C4** close **G2-1 / G2-2 / D1** (Android).
-- **D1–D3** close the judgement rows.
+- **C1–C4** close **G2-1 / G2-2 / D1-a11y** (Android).
+- **D1-eye, D2, D3** close the judgement rows.
 - **B10–B15** close the twelve steps D-42 had hidden, including `notebook`’s brand-new Reverse.
-- **Ci1–Ci3** close **G2-3 / G2-4** and the iOS half of **D1**.
+- **Ci1–Ci3** close **G2-3 / G2-4** and the iOS half of **D1-a11y**.
 
 ☠️ ~~**G2-3 / G2-4 (iOS VoiceOver) are NOT on this list and stay BLOCKED.**~~ — **superseded
 2026-09-13 by §C-iOS.** The sentence was right about the cause and wrong about the conclusion:

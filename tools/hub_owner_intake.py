@@ -48,17 +48,22 @@ SECTION_A_EXPECT = [
 SECTION_A_CONTROL = 5
 
 # A marked row: `| A1 | … | ☑ PASS ☐ FAIL |` or a struck box, or a written word.
-ROW_RE = re.compile(r"^\|\s*(?P<id>[A-E]i?\d+[a-z]?)\s*\|(?P<body>.*)\|\s*$", re.M)
+# ⚠️ A ROW ID MAY CARRY A QUALIFYING SUFFIX (`D1-eye`). Added 2026-09-14, because "D1" named FOUR
+# different checks across this programme's docs — the Wire-vs-Journal eye row here, the no-drag-door
+# accessibility row in `glass-acceptance-steps.md`, and two more inside completed evidence forms.
+# owner-run.md's OWN summary used both senses three lines apart. ⛔ Without the `-suffix` branch this
+# regex would not see the renamed row at all, and a row this cannot see is SILENTLY absent from box 2.
+ROW_RE = re.compile(r"^\|\s*(?P<id>[A-E]i?\d+[a-z]?(?:-[a-z0-9]+)?)\s*\|(?P<body>.*)\|\s*$", re.M)
 
 # ⚰️ A TICK BINDS TO THE WORD THAT FOLLOWS IT, NEVER THE ONE BEFORE. The first version also
 # accepted `\bPASS\b\s*(☑|☒)`, meaning to catch a "PASS ☑" ordering — and in the real cell shape
 # `☐ PASS ☑ FAIL` that pattern matched the FAIL tick and read a failed row as a PASS. Every row
 # then came back PASS or AMBIGUOUS and the discriminator control is what caught it. The sheet
 # writes `☑ PASS ☐ FAIL`, so the tick always precedes its label.
-# ⚰️ AND NOT EVERY ROW SAYS "PASS". Row **D1** (G3-16(a)) asks whether the Wire bubble can be
+# ⚰️ AND NOT EVERY ROW SAYS "PASS". Row **D1-eye** (G3-16(a)) asks whether the Wire bubble can be
 # told from the Journal bubble by sight, and its cell is `☐ DISTINGUISHABLE ☐ CONFUSABLE` —
 # deliberately, because "PASS" is a worse word for that question. Until 2026-09-14 this reader knew
-# only PASS/FAIL, so a CORRECTLY marked D1 read as UNMARKED, box 2 came back NOT TICKABLE naming a
+# only PASS/FAIL, so a CORRECTLY marked D1-eye read as UNMARKED, box 2 came back NOT TICKABLE naming a
 # row the owner had in fact answered, and the freeze did not lift. Measured against the real sheet:
 # 26 of 27 rows marked, D1 blocking. The sheet is the authority on its own vocabulary, so the
 # READER learns the word — the sheet is not rewritten to suit the tool, least of all mid-run while
@@ -356,14 +361,14 @@ def self_check() -> int:
 
     # 5b. ⛔ D1's OWN VOCABULARY. Without this the sheet's `☐ DISTINGUISHABLE ☐ CONFUSABLE` cell
     # reads UNMARKED on a correctly marked run and the freeze never lifts.
-    d1_pass = read_marks("| D1 | G3-16(a) | look | tell them apart | ☑ DISTINGUISHABLE ☐ CONFUSABLE |")
-    if d1_pass.get("D1") != "PASS":
+    d1_pass = read_marks("| D1-eye | G3-16(a) | look | tell them apart | ☑ DISTINGUISHABLE ☐ CONFUSABLE |")
+    if d1_pass.get("D1-eye") != "PASS":
         fails.append(f"a ticked DISTINGUISHABLE did not read PASS: {d1_pass}")
-    d1_fail = read_marks("| D1 | G3-16(a) | look | tell them apart | ☐ DISTINGUISHABLE ☑ CONFUSABLE |")
-    if d1_fail.get("D1") != "FAIL":
+    d1_fail = read_marks("| D1-eye | G3-16(a) | look | tell them apart | ☐ DISTINGUISHABLE ☑ CONFUSABLE |")
+    if d1_fail.get("D1-eye") != "FAIL":
         fails.append(f"a ticked CONFUSABLE did not read FAIL: {d1_fail}")
-    d1_blank = read_marks("| D1 | G3-16(a) | look | tell them apart | ☐ DISTINGUISHABLE ☐ CONFUSABLE |")
-    if d1_blank.get("D1") != "UNMARKED":
+    d1_blank = read_marks("| D1-eye | G3-16(a) | look | tell them apart | ☐ DISTINGUISHABLE ☐ CONFUSABLE |")
+    if d1_blank.get("D1-eye") != "UNMARKED":
         fails.append(f"an unticked D1 must stay UNMARKED, got {d1_blank}")
 
     # 5c. ⛔ A MISSING CONTROL BLOCK WITHHOLDS THE BOXES.

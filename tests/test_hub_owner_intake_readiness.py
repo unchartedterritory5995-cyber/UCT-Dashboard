@@ -44,7 +44,8 @@ def test_every_step_row_in_the_real_sheet_is_readable_by_the_tool():
     # sections A-E must all be represented; a missing section = a silently unscored block
     for prefix in ("A", "B", "C", "Ci", "D", "E"):
         assert any(i.startswith(prefix) for i in ids), f"no {prefix}-rows parsed from the sheet"
-    assert "A1" in ids and "D1" in ids
+    # ⚠️ D1 was renamed D1-eye on 2026-09-14 to break a four-way label collision.
+    assert "A1" in ids and "D1-eye" in ids
 
 
 def test_the_real_sheet_has_no_step_row_the_parser_misses():
@@ -156,3 +157,48 @@ def test_the_tools_own_self_check_passes():
     rc, out = _run("--self-check")
     assert rc == 0, out
     assert "SELF-CHECK PASS" in out
+
+# ── the D1 collision is resolved by suffix, and box 2 still counts the right set ────────────────
+def test_the_renamed_eye_row_parses_and_the_bare_label_is_gone():
+    """⚰️ "D1" named FOUR different checks across this programme's docs — and owner-run.md's own
+    summary used two of those senses three lines apart. The live pair now carry suffixes:
+    owner-run.md's eye row is D1-eye; glass-acceptance-steps.md's no-drag door is D1-a11y."""
+    marks = hoi.read_marks(OWNER_RUN.read_text(encoding="utf-8"))
+    assert "D1-eye" in marks, "the renamed row is invisible to the parser"
+    assert "D1" not in marks, "a bare D1 survives in owner-run.md — the collision is not resolved"
+
+
+def test_a_suffixed_id_is_not_a_special_case():
+    """CONTROL: the suffix branch must be general, not a hard-coded D1-eye."""
+    m = hoi.read_marks("| B7-foo | x | y | z | ☑ PASS ☐ FAIL |")
+    assert m.get("B7-foo") == "PASS"
+
+
+def test_box_two_counts_exactly_the_rows_closure_md_depends_on():
+    """closure.md box 2 rests on glass-acceptance.md's blocks; operationally box_two() counts every
+    B / C / Ci / D / E row of owner-run.md. Pin the SET, not the count — a count can stay 27 while
+    membership drifts, which is the defect this whole programme keeps rediscovering."""
+    marks = hoi.read_marks(OWNER_RUN.read_text(encoding="utf-8"))
+    b2 = hoi.box_two(marks)
+    expected = (
+        [f"B{i}" for i in range(1, 16)]
+        + [f"C{i}" for i in range(1, 5)]
+        + [f"Ci{i}" for i in range(1, 4)]
+        + ["D1-eye", "D2", "D3"]
+        + ["E1", "E2"]
+    )
+    seen = sorted(k for k in marks if k[0] in "BCDE")
+    assert seen == sorted(expected), f"box-2 row set drifted: {sorted(set(seen) ^ set(expected))}"
+    assert b2["rows"] == len(expected) == 27
+
+
+def test_box_two_still_refuses_an_incomplete_sheet_after_the_rename():
+    """CONTROL for the test above — a set-equality check passes just as happily on a tool that has
+    stopped refusing anything. Strip one mark and box 2 must go untickable and NAME the row."""
+    txt = OWNER_RUN.read_text(encoding="utf-8")
+    marked = re.sub(r"☐(\s*\w[\w-]*)", r"☑", txt, count=0)  # tick every first box
+    marked = re.sub(r"^\|(\s*D1-eye\s*)\|(.*)☑ DISTINGUISHABLE(.*)$",
+                    r"||☐ DISTINGUISHABLE", marked, flags=re.M)
+    b2 = hoi.box_two(hoi.read_marks(marked))
+    assert b2["tickable"] is False
+    assert "D1-eye" in b2["unmarked"], f"the stripped row was not named: {b2}"

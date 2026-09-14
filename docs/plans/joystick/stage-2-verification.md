@@ -160,71 +160,89 @@ column). A bare post wipes `handedness` and the rest.
 structural assertion green — one passed `message` where the component reads `msg`, one rendered for
 zero frames because its own action unmounted the host.
 
-## 5A · DRAFT — the Home fan's ring swap, checked on glass after it lands
+## 5A · The Home fan's ring swap, checked on glass after it lands
 
-> ⚠️ **DRAFT, 2026-09-14. Not yet an owner ruling, and deliberately not renumbered into the
-> sequence above.** It exists because steps 0–9 contain **no check of the fan's geometry at all**,
-> and stage 2 moves two bubbles between rings. Patrick rules on whether it becomes step 5f.
+> **Owner ruling R3, 2026-09-14: this is a real step.** It was drafted a day earlier because steps
+> 0–9 contain **no check of the fan's geometry at all**, and stage 2 moves two bubbles between
+> rings. Numbered 5A deliberately: steps 0–9 are **not renumbered**.
 
-**Why this is not covered by 5a–5e.** Those check the chip hint, the coach mark, the session hide,
-the Settings toggle and the edge tab. None of them looks at the fan. Yet stage 2 empties
-`PREVIEW_MODES`, and for `home` that is **not** a no-op:
+⛔ **Scored by hand, not by a tool.** `hub_owner_intake.py` reads `owner-run.md` and produces box 1
+and box 2 verdicts only; **no tool reads this document**. 5A's results are written into a record
+under `docs/plans/joystick/smoke-runs/` and then into `closure.md` box 5's evidence slot, by the
+operator who ran it.
+
+### Why 5a–5e do not cover this
+
+They check the chip hint, the coach mark, the session hide, the Settings toggle and the edge tab.
+None looks at the fan. Yet stage 2 empties `PREVIEW_MODES`, and for `home` that is **not** a no-op:
 
 | | stage 1 (projected) | stage 2 (projected) |
 |---|---|---|
 | ring 0 — OUTER | scan · chart · flow · breadth · **journal** | scan · chart · **breadth** · **wire** · flow |
 | ring 1 — inner | notebook · **wire** · calendar · voice | **journal** · notebook · calendar · voice |
 
-Nine bubbles either way; none added, none removed; Calendar survives. **`home.wire` and
-`home.journal` trade rings.**
+**Nine bubbles either way. None added, none removed. Calendar survives.** `home.wire` and
+`home.journal` trade rings.
 
-⛔ **And the neighbour that `glass-acceptance.md` G3-16 / ledger D-27 actually worries about does
-not exist until this ships.** D-27's own prose names Wire's worst colour neighbour as **Breadth**
-(`#5dcaa5`), *"which shares ring 0 with Wire"* — true of the **declared** fan, i.e. **stage 2**. At
-stage 1 Wire is in the inner ring and **never shares a ring with Breadth**. The measurement and
-the human eye have been looking at two different arrangements.
+⛔ **And the neighbour the colour evidence actually worries about does not exist until this ships.**
+Ledger **D-27** names Wire's worst dE00 neighbour as **Breadth** (`#5dcaa5`), *"which shares ring 0
+with Wire"* — true of the **declared** fan, i.e. **stage 2**. At stage 1 Wire sits in the **inner**
+ring and never shares a ring with Breadth at all. The measurement and the human eye have been
+pointed at two different arrangements. That is why 5A-2 below is a **new row** and not folded into
+G3-16 (owner ruling R2).
 
-### 5f (DRAFT) — Wire and Journal remain tellable apart after the swap
+### The rows
 
 | # | check | expected |
 |---|---|---|
-| 5f | On the Dashboard, open Home's fan. **Cover the labels.** (i) Can you tell **Wire** from **Journal**? (ii) Can you tell **Wire** from **Breadth**, now that they share the outer ring? | Both **DISTINGUISHABLE** |
+| 5A-1 | Open Home's fan. Count the bubbles and read the rings. | **Nine** bubbles. Outer: Scan · Chart · Breadth · **Wire** · Flow. Inner: **Journal** · Notebook · Calendar · Voice. **Calendar present.** |
+| 5A-2 | **NEW.** Cover the labels. Can you tell **Wire** from **Breadth**, now that they share the outer ring? | ☐ DISTINGUISHABLE ☐ CONFUSABLE |
+| 5A-3 | Cover the labels. Can you still tell **Wire** from **Journal**, now that they have traded rings? | ☐ DISTINGUISHABLE ☐ CONFUSABLE |
 
-**The probe — on real glass, and what to record:**
+### The probe, and its control
 
 ```
-1. Sign in via tools/smoke_login_link.py. Dashboard. Open Home's fan.
-2. Screenshot the fan with labels legible.  <- this is the CONTROL frame
-3. Screenshot again with the labels covered (thumb, tape, or a redaction pass).
-4. Answering from frame 3 ALONE, record:
-     Wire vs Journal   : ☐ DISTINGUISHABLE  ☐ CONFUSABLE
-     Wire vs Breadth   : ☐ DISTINGUISHABLE  ☐ CONFUSABLE
-5. Re-read frame 2 to confirm which bubble was which. If frame 2 and your answer in
-   frame 3 disagree about identity, the answer is CONFUSABLE — that disagreement IS
-   the finding.
+1. Sign in with tools/smoke_login_link.py. Dashboard. Open Home's fan.
+2. FRAME A — screenshot the fan with the labels legible.        <- the CONTROL
+3. FRAME B — screenshot it again with the labels covered
+             (thumb, tape, or a redaction pass over the text).
+4. Answering from FRAME B ALONE, record 5A-2 and 5A-3.
+5. Re-read FRAME A and confirm which bubble was which.
 ```
 
-⭐ **The control is frame 2, and it is not decoration.** A judgement made from a covered frame is
-only evidence if the uncovered frame proves the two bubbles were actually present and in the
-positions claimed. Without it, "I could tell them apart" is unfalsifiable — it would read the same
-if one of them had not rendered.
+⭐ **Frame A is the control and it is not decoration.** A judgement made from a covered frame is
+evidence only if the uncovered frame proves both bubbles were actually rendered, in the positions
+claimed. Without it, *"I could tell them apart"* is unfalsifiable — it reads identically if one of
+them never drew.
 
-⛔ **Assert the user-facing result, not the token.** The tokens are byte-identical at both stages
-(`--hub-mode-wire: #9FE887`, `--hub-mode-journal: #4FB833`, high-contrast `#D4FEE4`) — reading
-them back from the DOM proves nothing about whether a person can separate two circles on glass.
-The recorded result is the **human answer**, with the two frames attached.
+⭐ **And the control is what lets the probe return CONFUSABLE.** If Frame A and your Frame-B answer
+**disagree about which bubble is which, that disagreement IS the CONFUSABLE result** — it is the
+only way this check can come back negative, and a probe that cannot come back negative is not a
+probe. Record the disagreement verbatim, do not resolve it from memory.
 
-⛔ **MIRROR TRANSPORT CAVEAT — inline, because this row is untimed and therefore tempting.** A
-BrowserStack Live mirror floors at **260–427 ms per gesture** against `FLICK_MS = 120`, so flick,
-hold and scrub are INCONCLUSIVE-TRANSPORT there by construction. **Opening a fan is not one of
-those** — it is untimed, and a mirror can do it. ⚠️ But a mirror re-encodes the image, so **colour
-judgement through a mirror is not a colour judgement of the device.** This row is REAL GLASS ONLY;
-a mirror answer is recorded as **INCONCLUSIVE-TRANSPORT**, which is neither a pass nor a failure
-and must never trigger a rollback.
+⛔ **Assert the user-facing result, never structural state.** The recorded answer is the **human
+judgement plus the two frames**. Reading `--hub-mode-wire` back out of the DOM proves nothing: the
+tokens are byte-identical at both stages, so a token read would return "unchanged" whatever a
+person can or cannot see. Likewise 5A-1 is answered by **looking at the fan**, not by querying
+`registry.js` — the registry is what we changed, so asking it whether we changed it is circular.
 
-**If CONFUSABLE:** do not act unilaterally. `glass-acceptance.md`'s decision table (`:285`) already
-rules what each combination of G3-16(a) and G3-16(b) means, and the CONFUSABLE branches change a
-shipped colour token. That is an owner decision.
+### ⛔ REAL GLASS ONLY — the mirror transport caveat, inline
+
+A BrowserStack Live mirror has a **measured floor of 260–427 ms per gesture**, against the flick
+window declared in **`app/src/hub/constants.js`** (`FLICK_MS` — read it there; it is not restated
+here, and a hand-typed constant beside its source is the drift this feature has already paid for).
+On a mirror, flick, hold and scrub are **INCONCLUSIVE-TRANSPORT by construction**.
+
+**Opening a fan is untimed, so a mirror *can* do it** — but ⚠️ **a mirror re-encodes the image, so
+a colour judgement through a mirror is not a colour judgement of the device.** 5A-2 and 5A-3 are
+**real glass only**. A mirror answer is recorded as **INCONCLUSIVE-TRANSPORT**, which is neither a
+pass nor a failure and **must never trigger a rollback**.
+
+### If CONFUSABLE
+
+Do not act unilaterally. `glass-acceptance.md`'s decision table (`:285`) already rules what each
+combination of G3-16(a) and G3-16(b) means, and its CONFUSABLE branches change a shipped colour
+token. **That is an owner decision.** Record the answer, attach both frames, and stop.
 
 ---
 
