@@ -33,6 +33,7 @@ when it belongs to `chooseOutput`.
 | **a2** | plan-time vectors; reads fold to slot trees | ✅ **DONE** — `223f58ad2` (creation recorded), `66a4a5250` (reads fold) |
 | **a3** | the unroll | ✅ **DONE** — `06a2258e2` (acceptance, red), `a1de7a6f5` (green) |
 | **a4** | `for [i, x] in` over plan-time slots · `while` refused with its routing note · `for x in` over a series-sized source refused to item (c) | ⏳ **THIS SUB-STEP** |
+| **a4b** | **the accumulator fold** — a counted-`for` body of the shape `s := s op e` folds to a left-nested op chain | ⛔ **CENSUS FIRST, THEN A GO** — ruling R3 |
 | **a5** | reductions unrolled over written slots, each checked against Pine's `na` semantics, with the source recorded | ⛔ **SCOPE AWAITING OWNER CONFIRMATION** — see below |
 | **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
 | **a7** | shared contract, Python twin, both-lane agreement rail over 327 scripts, snapshots, suites, Python lane once, vite build | pending |
@@ -115,3 +116,119 @@ env closing pass resolves it once and records `pine:colour-value @90`. Making it
 refusal would cost the closing pass's restraint — an unread-but-**readable** binding
 stays silent, which is what stops a note appearing for every `len = 14` in every script.
 ⛔ **Owner ruling pending.** Recorded in the open-findings list, not resolved here.
+
+---
+
+# RULINGS R1–R3 — owner, chat, 2026-09-14
+
+These three were decided on the numbers in `tools/pine_iteration_census.py`, which
+reproduces the committed census counts exactly (1,004 · 92 · 34 · 116) and adds the
+column the census never had: **what the loop body does**.
+
+| form | uses | files | body shapes |
+|---|---|---|---|
+| `for i = a to b` | 1,004 | 149 | accumulates 379 · other 269 · writes-slot 255 · draws 101 |
+| `for x in` | 92 | 22 | other 52 · accumulates 22 · **writes-slot 13** · draws 5 |
+| `for [i, x] in` | 34 | 9 | other 23 · accumulates 9 · draws 2 · **writes-slot 0** |
+| `while` | 116 | 36 | writes-slot 53 · accumulates 30 · other 25 · draws 8 |
+
+⭐ **The `other` bucket was opened, not assumed** — 75 of 126 for-in bodies land in it.
+Leading tokens: `if` 65, `else` 17, then `obj.delete` 6, `imb.mitigated` 12,
+`fvg.raidx2` 6, `block.remove` 4, `line.delete` 4, `label.delete` 4, `table.cell` 5.
+**The dominant `for … in` body in this corpus iterates arrays of drawing objects and
+user-defined types, mutating fields or deleting them.** None of that is a number, so
+none of it is plan-time expressible on this lane.
+
+## R1 — `for … in` RETIRES FROM ITEM (a)
+
+**The F4 threshold (~20 admissible uses, pre-committed) applies to `for … in` exactly
+as it applied to `while`.** 13 of 92 `for x in` bodies write a slot; **0 of 34**
+`for [i, x] in` do. Both are under it. Neither D.1 nor D.2 is built in a4.
+
+⛔ **That a3's machinery makes the unroll cheap does not change the ruling.** The
+threshold is about whether the corpus exercises the form, not whether the form is easy.
+
+Instead, a4 makes these forms **refuse by name at the loop line**, replacing today's
+`pine:block` note plus a later, unrelated `array.get` refusal. Three cases, decided by
+what the SOURCE is:
+
+| case | source | code | routes to (c)? |
+|---|---|---|---|
+| **(i)** | a plan-time vector | `pine:collection` | ⛔ **no** — not a runtime-array case, and saying so would be a false sentence |
+| **(ii)** | series-sized / series-dependent | `pine:collection`, composing `seriesDependentMessage` | ✅ yes |
+| **(iii)** | a drawing array or a UDT array | the code its own CREATION already gives it | ⛔ **no** — outside BOTH lanes |
+
+⭐ **Case (iii)'s code was measured, not chosen.** `c = array.new_box(2)` already notes
+**`pine:drawing`** at creation; `c = array.new<Foo>(2)` already notes **`pine:type`**.
+The loop refusal reuses the same code so a reader sees one story, not two. Both are in
+the frozen 41-code table; no 42nd code was needed.
+
+### The 13 owed uses — reopened on member evidence, not on a hunch
+
+`python tools/pine_iteration_census.py --list "for x in" writes-slot`:
+
+| script | line | source |
+|---|---|---|
+| `ai-supertrend-x-pivot-percentile-strategy-pres…` | 259 | `lengths` |
+| `ict-killzones-pivots-tfo__d0b8be94f1.pine` | 768 | `str.split(timestamps_input, …)` |
+| `multi-timeframe-supply-demand-zones__a98a2ab367.pine` | 264, 276 | `SnD_Type` |
+| `volume-footprint-measuring-classical-indicators…` | 595, 784, 844, 1248, 1251, 1257, 1275, 1279, 1699 | `rws`, `fpBars`, `compsB`, `compsS`, `bps` |
+
+⭐ **They are concentrated, which strengthens the ruling rather than weakening it: 9 of
+the 13 are in ONE script and there are only 5 distinct scripts.** This is one author's
+idiom, not a corpus-wide form. **If a member script hits it, R1 is reopened on that
+evidence.**
+
+## R2 — `while` REFUSES AS `pine:collection` AT THE `while` LINE
+
+**Not a promoted `pine:block`.** Recorded so it is not re-argued:
+
+- `pine:block` is a **note** code emitted at sites unrelated to iteration. Promoting it
+  to a refusal would change its meaning everywhere it is emitted — wider than a4 is
+  entitled to be.
+- `pine:collection` is already the outcome-determining fact: the later read refuses
+  with it today. Moving it to the `while` line changes **where the sentence lands and
+  what it names**, not the verdict — so the two lanes' facts agreement
+  (`bothLanesAreTwoLanes` case 2, equal `refusals.length`) is preserved by
+  construction.
+
+The message names `while`, its line, and ruling F4 with its number (**15 of 116**).
+
+⚰️ **AND `while` CANNOT BE ACCEPTANCE-TESTED ON THIS CORPUS.** Every `while` user in
+`corpus/committed` is unreachable at its `while` line:
+`fibonacci-retracement-statistics-by-volprofex` and `ict-institutional-order-flow-fadi`
+both die on `pine:character` at an earlier line (non-ASCII in source), and
+`k-clustering`'s `while` at :132 sits inside a function body the walk never enters.
+`bigbeluga-smart-money-concepts` — the script the `other` bucket was sampled from —
+dies at `pine:character@25`, long before its `for obj in bin.ln` at :282. The
+message-text fixtures are therefore **synthetic and labelled synthetic in their test
+names**; the one corpus fixture measured to reach its loop line is
+`multi-timeframe-supply-demand-zones__a98a2ab367.pine:264`.
+
+## R3 — ACCUMULATORS OPEN AS SUB-STEP a4b
+
+**379 of 1,004 counted-`for` bodies accumulate — more than every other admitted shape
+combined**, and a3's unroll serves the 255 `writes-slot` cases and none of them.
+
+`s = 0.0 / for i = 0 to 2 / s := s + close[i]` is plan-time expressible **by
+construction** as `((0 + close[0]) + close[1]) + close[2]` — an ordinary expression
+tree, no new node type, no statement form, `maxLookback` and repaint decided by
+construction. **It is Mechanism A applied to a scalar instead of a vector.**
+
+⛔ **It is not a5.** a5's reductions are member calls over written slots; a4b is a loop
+body folding into a left-nested op chain. a5 may reuse a4b's fold — `array.sum` *is* an
+accumulator — and that is a5's business.
+
+**a4b is census-first.** Before any build estimate: classify the 379 by initial value,
+update operator and shape (`s := s op e` vs `s := f(s, e)`), whether `e` is plan-time
+expressible, nesting × iterations against the budget, and whether `s` is read elsewhere
+before the loop completes. Report the admissible fraction against the same F4-style
+threshold — **and if it is under 20, R1's logic applies to a4b too.**
+
+⚠️ **One measurement that reframes the frontier and was taken while choosing fixtures:**
+in a real corpus script an accumulator inside a `for` is **not** refused by name — the
+whole block is a `pine:block` note and the accumulator is never seen at all
+(`delta-volume-v21-by-kernel-phi__uP24atP4R0.pine:26`, inside the `for` at :25, carries
+no refusal). `pine:reassign` fires in the synthetic because the accumulated name is
+bound at top level and read by a `plot`. **The 379 are invisible today, not refused**,
+and a4b's census must count which of the two they are.

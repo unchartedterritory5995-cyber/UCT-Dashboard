@@ -139,7 +139,7 @@ for path in files:
         kind = classify(body_of(lines, i))
         bodies[form][kind] = bodies[form].get(kind, 0) + 1
         if src_expr is not None:
-            sources[form].setdefault(base, []).append((i + 1, src_expr[:60]))
+            sources[form].setdefault(base, []).append((i + 1, kind, src_expr[:52]))
 
 w = sys.stdout.buffer.write
 w(('files scanned: %d\n\n' % len(files)).encode())
@@ -150,9 +150,17 @@ for form in ('for i = a to b', 'for x in', 'for [i, x] in', 'while'):
     shapes = ', '.join('%s %d' % (k, v) for k, v in sorted(bodies[form].items(), key=lambda kv: -kv[1]))
     w(('%-19s  %5d  %6d  %s\n' % (form, uses, len(forms[form]), shapes)).encode())
 
+# `--list <form> [shape]` — every use, optionally only those of one body shape.
+# ⭐ The shape is printed for EVERY row even when filtering, so a listing can never be
+# mistaken for a different shape's set when it is pasted somewhere without its command.
 want = sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == '--list' else None
+only = sys.argv[3] if len(sys.argv) > 3 else None
 if want and want in sources:
-    w(('\nscripts using `%s`:\n' % want).encode())
-    for base in sorted(sources[want]):
-        for line_no, expr in sources[want][base]:
-            w(('  %-56s :%-5d %s\n' % (base[:56], line_no, expr)).encode('utf-8', 'replace'))
+    rows = [(b, ln, kind, expr) for b in sorted(sources[want])
+            for ln, kind, expr in sources[want][b]
+            if only is None or kind == only]
+    w(('\nscripts using `%s`%s: %d use(s)\n'
+       % (want, '' if only is None else ' with a `%s` body' % only, len(rows))).encode())
+    for base, line_no, kind, expr in rows:
+        w(('  %-46s :%-5d %-12s %s\n'
+           % (base[:46], line_no, kind, expr)).encode('utf-8', 'replace'))
