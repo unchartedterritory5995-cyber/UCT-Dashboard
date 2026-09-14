@@ -50,6 +50,7 @@
  * with itself forever.
  */
 import { describe, it, expect } from 'vitest'
+import { CHORDS } from './chords.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -65,16 +66,8 @@ const SRC = join(HERE, '..', '..')
  * excludes; a surface that omits it answers platform-alias variants it never
  * declared.
  */
-const CHORDS = [
-  {
-    id: 'SHIFT_F',
-    binding: 'flag-ticker',
-    key: 'F',
-    requires: ['shift'],
-    forbids: ['ctrl', 'alt', 'meta'],
-    why: 'flag the selected ticker. The 2026-08-28 collision fixture (HY-35).',
-  },
-]
+// ⛔ CP2: the table moved to ./chords.js so a SURFACE can read it. Imported, never
+// copied - two lists that must agree is the defect this table exists to prevent.
 
 /**
  * ⛔ SURFACES WHOSE Shift+F GUARD OMITS THE MODIFIER EXCLUSIONS, AS OF
@@ -137,6 +130,25 @@ function claimsOf(chord) {
 }
 
 /**
+ * Every surface that reads the chord from the TABLE instead of spelling it inline.
+ *
+ * ⛔ CP2 MOVES SURFACES FROM ONE DERIVATION TO THE OTHER, so the rail must count BOTH
+ * or its non-vacuity control fails the moment CP2 succeeds - which is exactly what it did
+ * on 2026-09-14. The population is what must stay >= 5; its COMPOSITION is what CP2
+ * changes, and it may only move one way: inline -> table.
+ */
+function tableReadersOf(chord) {
+  const out = []
+  for (const file of sourceFiles(SRC)) {
+    if (file.includes('.test.')) continue          // the rails reference it by nature
+    const src = readFileSync(file, 'utf8')
+    const rx = new RegExp('matchesChord\\s*\\([^,]+,\\s*' + chord.id + '\\b')
+    if (rx.test(src)) out.push(relative(SRC, file).split(String.fromCharCode(92)).join('/'))
+  }
+  return out
+}
+
+/**
  * ⛔ NORMALISATION IS THE POINT OF THE RAIL, not a detail.
  *
  * `Ctrl+Shift+F`, `Shift+Ctrl+F` and (on macOS) `Cmd+Shift+F` are ONE chord to a
@@ -159,8 +171,16 @@ describe('S2 CP1 — the derivation can see the live binding set', () => {
     const files = sourceFiles(SRC)
     expect(files.length).toBeGreaterThan(500)
     const claims = claimsOf(CHORDS[0])
-    expect(claims.length, 'no Shift+F guard was found — the parser is broken, ' +
-      'not the codebase').toBeGreaterThanOrEqual(5)
+    const readers = tableReadersOf(CHORDS[0])
+    // ⛔ THE POPULATION, not the inline half. CP2 moves surfaces off the inline
+    // derivation and onto the table; counting only inline guards makes this control
+    // fail the moment the work it is meant to protect actually lands.
+    expect(claims.length + readers.length,
+      'no Shift+F binding was found at all — the parser is broken, not the codebase')
+      .toBeGreaterThanOrEqual(5)
+    expect(readers.length,
+      'CP2 put at least one surface on the table; if this is 0 the table is unread again')
+      .toBeGreaterThanOrEqual(1)
   })
 
   it('CONTROL: the matcher reads the GUARD, not a bare mention of the letter', () => {
@@ -206,7 +226,11 @@ describe('S2 CP1 — no two bindings claim one chord', () => {
   it('the declared table and the live sources agree that Shift+F is flag-ticker', () => {
     const chord = CHORDS[0]
     const claims = claimsOf(chord)
-    const files = claims.map(c => c.file)
+    // ⛔ INLINE **OR** TABLE. CP2 moved GridChartCell onto the declared table, so it no
+    // longer spells the guard out - but it still BINDS the chord, which is what this
+    // assertion is protecting. Checking only the inline derivation would fail the moment
+    // the migration this packet exists to perform actually happens.
+    const files = claims.map(c => c.file).concat(tableReadersOf(chord))
     // The two surfaces that guard it correctly must still be there — if the
     // STRICT sites vanish, the baseline below stops meaning anything.
     expect(files).toContain('components/chart/pane/ChartPane.jsx')
@@ -251,9 +275,12 @@ describe('S2 CP1 — platform-alias variants reach no NEW surface', () => {
     const chord = CHORDS[0]
     const loose = claimsOf(chord)
       .filter(c => chord.forbids.some(m => !c.forbids.includes(m)))
-    // ⛔ Three of five, and the count is asserted so a silent drift in either
-    // direction is caught even if the file list somehow still matched.
+    // ⛔ Three of the five BINDING surfaces, and the count is asserted so a silent drift
+    // in either direction is caught even if the file list somehow still matched.
     expect(loose.length).toBe(LOOSE_MODIFIER_BASELINE.length)
-    expect(claimsOf(chord).length).toBeGreaterThanOrEqual(5)
+    // ⭐ The POPULATION is five; CP2 changes only how each member binds. A surface on the
+    // table cannot be loose by construction - `forbids` is enforced in one place - so a
+    // migration can only ever SHRINK the loose set, never hide it.
+    expect(claimsOf(chord).length + tableReadersOf(chord).length).toBeGreaterThanOrEqual(5)
   })
 })
