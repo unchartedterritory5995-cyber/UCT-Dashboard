@@ -271,6 +271,37 @@ deciding before that data is guessing. **Unblocks:** the indicator-condition FLI
 
 ---
 
+## PART E — ONE DECISION, and it is the only thing standing between Layer 1 and a first run
+
+### E1 · The Railway staged-change queue holds somebody else's change
+
+`terminal-next-monitor` needs two dashboard settings — **source repo**
+(`unchartedterritory5995-cyber/UCT-Dashboard`, branch `master`, repo root, no custom start command)
+and **cron** (`0,12,20,30 11,12,13,14,20,21 * * *`). Both were entered; **both are unapplied**, and
+`railway status --json` still reads `source.repo: null`, `cronSchedule: null`.
+
+⛔ The reason is not the settings. **Railway's staged-change queue is per-ENVIRONMENT**: one
+**Deploy** applies everything staged, and the queue also holds **`web` → `CHART_EDGE_SECRET`, one
+variable, "web will redeploy"** — not this programme's change. Deploying it would put another
+workstream's secret into production and restart `web`. Discarding it would destroy their work.
+**Neither was done.**
+
+**CHOOSE ONE:**
+
+- [ ] **E1-a** — *"`CHART_EDGE_SECRET` is mine / is fine; deploy both together."* One Deploy applies
+      the monitor's two settings **and** the web variable, and `web` restarts. Bound by the
+      one-master-merge-at-a-time rule: `web` must read SUCCESS before the next push.
+- [ ] **E1-b** — *"Leave the web change alone; apply the monitor's two settings by a
+      service-scoped path."* I would set them through Railway's API against
+      `serviceId 12d04e57-6a56-455e-b9ec-d46cf0864162` only, which never touches `web`.
+- [ ] **E1-c** — *"Leave it entirely; I will do it."* Layer 1 stays code-only until then, and the
+      Monday check stays a hand command.
+
+⚠️ Whichever you pick, **verify by `railway status --json`, never by the service card** — mid-attempt
+the card read *"3 Changes · Next in 11 hours"*, a next-run time for a cron that did not exist.
+
+---
+
 ## PART C — the one thing I need that is not a ruling
 
 ### C1 · Arming the four new CP3 sweeps

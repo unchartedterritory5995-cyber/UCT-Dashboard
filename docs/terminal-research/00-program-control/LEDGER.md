@@ -3740,6 +3740,31 @@ table decides what is due; a firing with nothing due exits quietly.
 service to the GitHub repo** and **set the cron**. Until then the service exists, is configured, and
 deploys nothing.
 
+#### ⛔⛔ ATTEMPTED IN THE BROWSER 2026-09-13 AND **BLOCKED BY A SHARED QUEUE** — nothing was applied
+
+Both settings were entered in the dashboard. Both were **staged, never applied**, and the CLI —
+the authority — still reads the service as unconfigured:
+
+```
+railway status --json     # serviceInstances -> terminal-next-monitor
+  source.repo : null   cronSchedule : null   nextCronRunAt : null   latestDeployment : null
+```
+
+⛔ **RAILWAY'S STAGED-CHANGE QUEUE IS PER-ENVIRONMENT, NOT PER-SERVICE.** The banner offers ONE
+**Deploy** for everything staged; the overflow menu offers only **Discard Changes**; the Details
+dialog has a per-service *Discard* and no per-service *Apply*. At that moment the queue also held
+**another workstream's change — `web` → `CHART_EDGE_SECRET`, one variable, "web will redeploy"**.
+Deploying would have pushed their secret to production and restarted `web`; discarding would have
+destroyed their staged work. **Neither was done — Railway was left exactly as found**, and the
+decision is the owner's.
+
+⭐ **AND THE CARD LIED, WHICH IS THE REUSABLE PART.** Mid-attempt the service card read
+*"3 Changes · Next in 11 hours"* — a next-run time for a cron that did not exist — while
+`railway status --json` read `cronSchedule: null`. The card was narrating a **staged intention**,
+and one click later the staged set was gone with nothing applied. Same shape as `--kv` describing
+a service's config rather than a running process: **read the artifact, never the surface that is
+describing what it is about to do.**
+
 **Cost:** one container waking ~16×/day for a few seconds each — a handful of CPU-seconds and no
 idle memory, because there is **no internal scheduler and no sleeping process**. Materially under
 $1/month at Railway's usage pricing; it bills only while a firing runs.

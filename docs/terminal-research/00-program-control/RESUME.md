@@ -14,6 +14,8 @@
 | §6 build queue | ✅ **EMPTY** — every numbered row DONE with its SHA. **AUTHORIZED-AND-UNBUILT = 0.** |
 | audit counts | DONE **11** · BLOCKED-DATA **5** · BLOCKED-OWNER **8** · BLOCKED-SPEC-READ **5** · BLOCKED-DEPENDENCY **2** · EXCLUDED **1** = **32**. ⛔ NOT-YET-CLASSIFIED **0**. |
 | S7 | **8 of 8 types registered; every CP3 merged and ARMED.** Seven dark sweeps ticking. |
+| self-monitoring | **Layer 0 LIVE · Layer 2 REGISTERED (next run 2026-09-19 09:30 CT) · Layer 1 code-merged but the Railway service has NO source and NO cron, so it has never run.** Read **§8**. |
+| owner's desk | **one decision + one dry run**: the Railway staged-change queue (it also holds `web` -> `CHART_EDGE_SECRET`, which is NOT ours), and the Layer 2 dry run from a fresh shell. |
 | next decision | **next weekend's dark read** — not a build. |
 
 ## 1. Reopen
@@ -149,6 +151,83 @@ unsigned gate line awaiting the owner's read, never something this programme may
 ⚠️ **Still open, and each is somebody's decision rather than a build:** F-S7-IC-2, F-S7-PL-2
 (PROVISIONAL — recommend KEEP), F-D2-3, F-CAT-2, F-D2-1, F-S7-RC-1, F-S7-RC-3, F-I1-2 (parked).
 PART D of `OWNER_INPUTS.md` carries the three that need a CHOOSE.
+
+
+## 8. The three self-monitoring layers — LAYER 0 LIVE · LAYER 2 ARMED · LAYER 1 CODE-ONLY
+
+> Built and merged 2026-09-13. **Layer 1 has never run and Layer 2 has never been exercised.**
+> Read this before assuming the programme already watches itself.
+
+| layer | what it is | state |
+|---|---|---|
+| **LAYER 0** — pre-push guard | `tools/pre_push_guard.py` + the hook at `$(git rev-parse --git-common-dir)/hooks/pre-push` | ✅ **LIVE, and it proved itself in production** — refused a real push at 135 s and allowed it at 157 s. UNREADABLE fails closed. `UCT_SKIP_PREPUSH_GUARD` is the logged bypass, for a human with a reason. |
+| **LAYER 1** — `terminal-next-monitor` | `api/terminal_next_monitor_main.py` · `api/routers/terminal_next_reports.py` · the `railway.json` monitor branch | ⚠️ **CODE MERGED, SERVICE NOT CONFIGURED.** The Railway service has **no source repo and no cron**, so it has never run and cannot run. Blocker below. |
+| **LAYER 2** — weekly autonomous run | `docs/terminal-research/00-program-control/WEEKLY_AUTONOMOUS_PROMPT.md` + `tools/terminal_next_weekly.cmd` | ✅ **REGISTERED AND ARMED** — Task Scheduler job **`UCT Terminal-Next Weekly`**, status `Ready`, next run **2026-09-19 09:30** local (CT), running `C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd`. ⚠️ **NEVER YET RUN** — see below. |
+
+### ⛔ LAYER 1 IS BLOCKED ON A SHARED RAILWAY QUEUE, NOT ON CODE
+
+Measured 2026-09-13 by CLI — which is the authority here, **not the page**:
+
+```
+railway status --json     # serviceInstances -> terminal-next-monitor
+  source.repo      : null
+  cronSchedule     : null
+  nextCronRunAt    : null
+  latestDeployment : null
+```
+
+Everything else the service needs is already in place (`railway variables --service
+terminal-next-monitor --kv`): `TERMINAL_NEXT_MONITOR_ENABLED=1` · `DISCORD_WEBHOOK_URL` (the ADMIN
+webhook) · `PUSH_SECRET` · `WEB_INTERNAL_URL`. **Only the source and the cron are missing.**
+
+Both were entered in the dashboard and both were **staged, never applied**. Railway's
+staged-change queue is **per-ENVIRONMENT, not per-service**: the banner offers ONE **Deploy** for
+everything staged, the overflow menu offers only **Discard Changes**, and the Details dialog has a
+per-service *Discard* but no per-service *Apply*.
+
+⛔ The queue also holds **another workstream's change — `web` -> `CHART_EDGE_SECRET`, one variable,
+"web will redeploy"**. Deploying would push their secret to production and restart `web`;
+discarding would destroy their staged work. **Neither was done. Railway was left exactly as
+found.** This is an owner decision: deploy both together knowingly, or apply the monitor's two
+settings by a service-scoped path.
+
+⭐ **VERIFY BY CLI, NEVER BY THE CARD.** The dashboard showed *"3 Changes · Next in 11 hours"* on
+the monitor card while `railway status --json` read `cronSchedule: null` — the card was narrating a
+staged intention, and one click later the staged set was gone with nothing applied. Same lesson as
+`--kv` versus a running process.
+
+### The two values to set, so nobody re-derives them
+
+1. **Source** -> GitHub repo `unchartedterritory5995-cyber/UCT-Dashboard`, branch **`master`**,
+   **root directory = repo root** and **no custom start command** — `railway.json`'s start command
+   already carries the monitor branch, gated on `TERMINAL_NEXT_MONITOR_ENABLED`.
+2. **Cron Schedule** -> `0,12,20,30 11,12,13,14,20,21 * * *`. Railway renders it as *"At 0, 12, 20
+   and 30 minutes past the hour, at 11:00, 12:00, 13:00, 14:00, 20:00 and 21:00 (UTC)"* — which is
+   the intended **superset**. ⛔ Railway allows ONE cron per service and its cron is **UTC**, so the
+   four ET schedules are selected in code by `due_jobs()` against the `SCHEDULE` table
+   (`catalyst` 07:20 · `ticking` 09:12 · `gate-check` 16:30 · `weekly` Sat 08:00, all ET). The
+   superset is what makes DST a non-event; **do not "tighten" the cron to match the ET times.**
+
+### ⛔ LAYER 2 IS ARMED BUT HAS NEVER RUN — and the dry run needs a FRESH SHELL
+
+The job exists and is `Ready`; `claude -p` has never been invoked against the prompt. **A dry run
+must not be launched from a session that is already holding these worktrees** — that would put a
+second Claude session on the same two trees and the same shared stash stack, which is the
+concurrency hazard this programme's own rules forbid. Run it from a shell with nothing else open:
+
+```
+C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd
+```
+
+It appends to `logs\terminal-next-weekly\YYYY-MM.log` (monthly rotation by filename, append-only) and **STOPS if the prompt
+file is missing** rather than running an empty prompt.
+
+⚠️ The job's command path points into the **`s7-price-level` worktree**. Do not remove that
+worktree without re-pointing the task, or the Saturday run dies silently.
+
+### Until Layer 1 runs, the Monday check in §2 is still a HAND command
+
+Nothing posts to admin Discord on its own yet. §2 is the whole morning check, and a person runs it.
 
 
 ## 1. BUILT — the roster
