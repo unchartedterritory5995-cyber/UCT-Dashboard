@@ -167,7 +167,7 @@ def test_an_admin_reads_the_queue_reports_and_dashboard(client, real_app, item_i
         reports = client.get(f"{BASE}/reports")
         assert client.get(f"{BASE}/reports/{'0' * 24}").status_code == 404
         assert client.get(f"{BASE}/queue/{'0' * 24}").status_code == 404
-        assert client.get(f"{BASE}/queue", params={"tab": "journal"}).status_code == 400
+        assert client.get(f"{BASE}/queue", params={"tab": "journal"}).status_code == 400  # journal-exclusion guard
     assert [i["item_id"] for i in items["items"]] == [item_id]
     assert counts["tabs"]["golden"]["open"] == 1
     assert detail.status_code == 200 and detail.json()["can_act"] is False

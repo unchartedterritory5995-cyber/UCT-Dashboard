@@ -95,7 +95,7 @@ def test_enqueue_is_idempotent_and_never_reopens_a_decided_item(db):
 def test_enqueue_refuses_unknown_tabs_and_empty_subjects(db):
     with store.write() as conn:
         with pytest.raises(review.InvalidReviewInput):
-            review.enqueue(conn, tab="journal", subject_ref="x", summary="y")
+            review.enqueue(conn, tab="journal", subject_ref="x", summary="y")  # journal-exclusion guard: the tab is REFUSED
         with pytest.raises(review.InvalidReviewInput):
             review.enqueue(conn, tab="golden", subject_ref="  ", summary="y")
 
@@ -259,7 +259,7 @@ def test_the_loader_imports_rows_reports_bad_lines_by_number_and_is_idempotent(d
                     "new_label": {"stance": "taking"}, "evidence": {"bars": "text+bars"}}),
         "",
         "{not json SECRET-QUOTE",
-        json.dumps({"tab": "journal", "subject_ref": "x", "summary": "y"}),
+        json.dumps({"tab": "journal", "subject_ref": "x", "summary": "y"}),  # journal-exclusion guard: refused input
         json.dumps({"tab": "vocabulary", "subject_ref": "vocab:kill_bar", "summary": "promote?",
                     "new": {"status": "approved"}}),
     ]
