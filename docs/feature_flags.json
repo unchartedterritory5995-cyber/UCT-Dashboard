@@ -81,6 +81,13 @@
       ],
       "note": ""
     },
+    "ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-CATALYST-MATCH CP3 (owner approval line 2, fingerprint 3ee80dc13). Arms the alert_taxonomy_catalyst_match_dark cron (17:30 ET weekdays -- DAILY, per the packet's §9 item 5, because the legacy dedup is per market DAY): the forward-only dark comparison against _fire_catalyst_alerts and _fire_mustknow_alerts. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). ⛔⛔ DRY RUN 2026-09-13 FOUND AN UPSTREAM OUTAGE, NOT A WIRING PROBLEM: projected N = 0 because the `catalysts` table holds NO ROWS AT ALL for 2026-09-09 through 2026-09-13, while the engine kept running and BILLING -- 130 LLM calls and $4.66 across 09-09..09-12 with zero rows written, against 59 calls / $2.02 / 125 rows (20 ranked) on 09-08. The cohort side is healthy (2 members with watchlists). Registered as F-CAT-1. ⚠️ UNTIL THAT IS FIXED THIS DARK RUN HAS NOTHING TO COMPARE and will record `no ranked rows` every day -- which must NOT be read as agreement."
+    },
     "ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED": {
       "status": "armed",
       "where": [
@@ -95,6 +102,20 @@
       ],
       "note": "GATE-S7-EVENT-PROXIMITY CP3 (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_event_proximity_dark cron -- 07:05 and 18:05 ET weekdays, the legacy path's own two slots -- running the FORWARD-ONLY dark comparison of the new event-proximity evaluator against calendar_alerts.run_prereport_alerts. ARMED 2026-09-12 17:29:02 UTC on `web`, owner-authorized for this one variable only. DEFAULT IS OFF BY DESIGN: it reads real member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of My Stocks x the day's reporters), so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). ⛔ CADENCE IS DAILY, NOT PER-MINUTE, unlike its price-level sibling: the legacy path's whole notion of time is a DATE, so a minute-by-minute sweep would re-ask a question whose answer cannot change until tomorrow. The report tool's staleness bound follows that (26h, not 180s) -- copying the sibling's number would report a healthy sweep as stalled every time. Verdict gate five full trading sessions; read with `tools/s7_price_level_report.py --ticking`, which covers BOTH dark runs. CP4 (all members) and the FLIP each need a new owner approval line."
     },
+    "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-INDICATOR-CONDITION CP3, approval line 3 -- the dependency-discharge line, fingerprint 4e8d3af5d. Its blocker, PRD-D2 section 9.5, is signed as GATE-D2 CP4 (3257cc319) and merged 404b808c5. Arms the alert_taxonomy_indicator_condition_dark cron (every minute, weekdays 09:00-16:59 ET): the forward-only dark comparison of each cohort member's active indicator_alerts row against the canonical book. ARMED 2026-09-13 20:48:30 UTC on `web`, owner-authorized as a SINGLE variable; the `--set` auto-redeployed (a FIFTH data point for the open auto-redeploy question) and the new boot was verified by artifact -- /api/health uptime 14s, and the boot line '[startup] S7 indicator-condition DARK comparison ENABLED' read from railway logs. EXPECT ZERO COMPARISONS AND THAT IS CORRECT, NOT A FAULT. The in-pod dry run measured cohort=6 and indicator_alerts active TOTAL=0 -- production holds no armed indicator alert at all, so projected N=0 with that reason. And of the 31 legacy addresses only ONE (close -> ohlcv.c) is comparable against the book's 142 metrics (F-S7-IC-1), so even a populated cohort would report thirty NOT COMPARABLE per predicate, never as agreement. The heartbeat is the liveness signal here, not the outcome counts."
+    },
+    "ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-POSITION-RISK CP3 (owner approval line 2, fingerprint ec2b197f8). Arms the alert_taxonomy_position_risk_dark cron (weekdays 09:00-16:59 ET, every minute, max_instances=1): the forward-only dark comparison of the new position-risk evaluator against awareness/rules.py's rule_stop_watch, over a read-only projection of j2_positions for the rollout:s7-dark cohort. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY -- the cron is mon-fri, and it was armed on a Sunday, so no heartbeat and no span before then is CORRECT and not a failed arming. DRY RUN 2026-09-13, read-only: 2 of 6 cohort members hold open positions, 14 rows, 13 symbols, 11 priced. The two unpriced are FXAIX and SPAXX -- Fidelity MUTUAL FUNDS, not exchange-listed, so no quote exists for them; they will be classified not_comparable (unpriced), never agreement."
+    },
     "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED": {
       "status": "armed",
       "where": [
@@ -102,12 +123,31 @@
       ],
       "note": "GATE-S7-PRICE-LEVEL CP3/CP3b (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_price_level_dark cron (weekdays 09:00-16:59 ET, every minute, max_instances=1) which runs the FORWARD-ONLY dark comparison of the new price-level evaluator against the legacy watchlist_alerts rule. ARMED 2026-09-12 14:58:47 UTC on `web`, owner-authorized for this one variable only. `--set` AUTO-REDEPLOYED (a new deployment appeared 2s later) -- the `web` behaviour, matching the 2026-09-09 measurement and not the 2026-08-30 chart-renderer one; that question stays unsettled and this is a third data point. Verified by ARTIFACT: web deploy SUCCESS, uptime reset at /api/health, and the running commit proved to contain `id=\"alert_taxonomy_price_level_dark\"` (CP3b 329a4a322 is its ancestor) -- not by a `--kv` readback, which says what the service is configured with and not what the process has. NOTE: the cron is mon-fri 09:00-16:59 ET, so there is NO heartbeat and NO span over the weekend; a report run before Monday says NO DATA and that is correct, not a failed arming. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of watchlist_alerts), so an unset variable must mean nothing runs -- the DESK_TSDR_ANNOUNCE_SHOWS contract, where the failure direction is silence rather than exposure. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). Arming it starts the dark run; the VERDICT GATE is five full trading sessions and the report is `python tools/s7_price_level_report.py`. The FLIP (delivery + legacy switch-off) and CP4 (all members) each need a new owner approval line -- this flag is NOT that."
     },
+    "ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-REGIME-CHANGE CP3 (owner approval line 2, fingerprint 9f0575340). Arms the alert_taxonomy_regime_change_dark cron (weekdays 04:00-20:59 ET, minute 7-59/20 -- SHADOWING the awareness scan's */20 with a 7-minute offset so each of its ledger appends is observed after it lands): the forward-only dark comparison against BOTH legacy emitters, awareness rule_regime_flip and voice_proactive_service.maybe_emit_regime_shift. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). ⛔⛔ IT MUST NEVER WRITE awareness_regime_snapshots -- the legacy does a read-then-APPEND there and a dark write would corrupt the prev_label the LIVE R4 rule reads next cycle. Verified in-pod after arming: newest ledger row is still the engine's own (id 2557, bull_correction, 2026-09-12 00:40), row count unchanged. A watermark on that id makes each row observable ONCE, so `agreed` cannot become a function of the sweep's cadence. DRY RUN 2026-09-13, read-only: the newest two ledger rows are BOTH 'bull_correction' -- no flip, a quiet tick and not a failure; 3 of 6 cohort members have stake (a position or a watchlist symbol)."
+    },
+    "ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-SCAN-MEMBERSHIP-CHANGE CP3 (owner approval line 2, fingerprint d0415f251). Arms the alert_taxonomy_scan_membership_dark cron (nightly, SWEEP_MINUTE_ET+20, derived from scan_evaluator's own constants): the forward-only dark comparison against screen_alerts.run_nightly, over a read-only projection of screen_alert_subs for the rollout:s7-dark cohort. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). DRY RUN 2026-09-13, read-only: PROJECTED N = 0, and the reason is that NO member of the s7-dark cohort holds a screen_alert_subs row -- nobody in the cohort has subscribed to a saved screen. That is an honest zero: the sweep will beat every night and record no spans until a cohort member subscribes. ⛔ It is NOT evidence the wiring is wrong."
+    },
     "ALPHA_GOLD_EOD_ENABLED": {
       "status": "armed",
       "note": "Set on flow-worker with the value 0 (read 2026-09-13), i.e. SET AND OFF - a recorded decision, not an accident. Status is `armed` per this file's own definition (set on at least one service; the VALUE is the decision), so read the value, not the status word. Corrected 2026-09-13: the ledger previously said off while Railway had it set, and tools/flag_ledger_audit.py is the only thing that reconciles intent with reality.",
       "where": [
         "flow-worker"
       ]
+    },
+    "ASKAI_WISDOM_RETRIEVAL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Ask-AI retrieval over Wisdom segments/principles, admin cohort wisdom-askai first. Owner flips (W1 §0.4c)."
     },
     "AUTHDB_BACKUP_ENABLED": {
       "status": "armed",
@@ -254,6 +294,11 @@
       ],
       "note": ""
     },
+    "CANONICAL_INDICATOR_AXIS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "GATE-D2 CP4 -- the indicator axis (PRD-D2 section 9.5, approval fingerprint 3257cc319; section 4 was RE-NUMBERED in the signing commit to add CP4, per the standing rule, because 9.5's scope matched none of CP1/CP2/CP3 -- all three were written for the stored-column form). Gates api/services/canonical/indicator_axis.py, a SECOND canonical address form `<indicator>[.<output>](<params>)@<timeframe>` that DECLARES and DESCRIBES and never computes: resolve() returns a computation descriptor and hands back the value FUNCTION, never a result. UNSET = OFF and that is the shipped state -- CP4 declares the axis; CONSUMING it is indicator-condition CP3's act under its own approval line. Merged 404b808c5 2026-09-13, classified ADDITIVE by reachable_paths(): indicator_axis is absent from flow-worker's 154-module closure (bars_fetch.py and bars_sqlite.py ARE in it, which is why the owner's 2026-09-13 ruling that the watch list is NOT widened means CP4 does not touch them). DO NOT ARM: arming is the owner's flip, and nothing reads this axis yet, so arming it would light a door with no room behind it."
+    },
     "CATALYST_AV_NEWS_ENABLED": {
       "status": "dark",
       "note": "Off 2026-09-02, and the precondition was CHECKED rather than assumed: CATALYST_AV_NEWS_KEY is set on no service, so _pull_av_news falls through to the shared ALPHAVANTAGE_API_KEY (which IS set on web). That is the free ~25 calls/day bucket already shared with the earnings-history widget - and this repo's own notes record that quota as already exhausted by the existing news aggregator. CATALYST_ENGINE_ENABLED is set, and the engine bursts every 5 minutes pre-market, so arming this would spend an exhausted budget on every refresh: it buys no sentiment and can starve a feature that works today. The code is wired and ready - set a dedicated or premium CATALYST_AV_NEWS_KEY and THEN arm this. Arming it without one is not a smaller version of the feature, it is failed calls.",
@@ -369,6 +414,13 @@
       ],
       "note": "Armed live 2026-09-06 (api/flow_worker_main.py:469-489), superseding ALPHA_GOLD_EOD_ENABLED on the adjacent cron slot (16:10 ET weekdays, 5 min after the now-dark Alpha Gold job). The scheduler job registers unconditionally and self-gates on this flag (api/cream_card.py:83) -- off means the job builds and posts nothing. Posts the day's highest-conviction AGGREGATE options-flow builds (curation-free, via live_massive_router.compute_cream) to Discord as an image-only card, filling the blind spot Top Flow (single prints) and the hand-curated Watchlist both had."
     },
+    "D2_SAMPLE_PERSIST_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "D2 CP3 durable dual-compute sample store. SET EXPLICITLY on web 2026-09-12 ~22:40 CDT, in-process read confirmed on the boot after. It is a KILL SWITCH so unset already defaults ON — set deliberately so \"on on purpose\" stays distinguishable from \"nobody set it\". Blanking it stops COLLECTION and never deletes a collected row (standing owner rule, railed). Merged 0b8cf4c41."
+    },
     "DARKPOOL_BIGBLOCK_ENABLED": {
       "status": "armed",
       "where": [
@@ -444,6 +496,20 @@
       ],
       "note": ""
     },
+    "DESK_PUBLIC_SHOWS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "exposure": "public",
+      "default": "sunday scans",
+      "values": [
+        "*",
+        "sunday scans"
+      ],
+      "note": "PUBLIC-EXPOSURE FLAG. Decides which routed show sections upload to YouTube as public rather than unlisted. LIVE VALUE IS THE WILDCARD '*' — every show publishes public, by the owner's decision recorded in owner_decision. The rail refuses a wildcard on a public-exposure flag UNLESS that field is present and dated: its job is to make the decision attributable, not to block it. The CODE default stays 'sunday scans', so an unset variable fails conservative. Blank makes nothing public.",
+      "owner_decision": "Owner decision 2026-08-19, reaffirmed 2026-09-13: all auto-recorded sessions publish public to YouTube."
+    },
     "DESK_SESSION_CHAPTERS_ENABLED": {
       "status": "armed",
       "where": [
@@ -463,7 +529,26 @@
       "where": [
         "web"
       ],
-      "note": ""
+      "note": "",
+      "exposure": "public",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ]
+    },
+    "DESK_TSDR_ANNOUNCE_SHOWS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "exposure": "public",
+      "default": "evening update",
+      "values": [
+        "evening update",
+        "sunday scans"
+      ],
+      "note": "PUBLIC-EXPOSURE FLAG. Which shows get announced to the PUBLIC TSDR Discord. Blank announces nothing — the failure direction is silence, never a leak."
     },
     "DISCORD_INDEX_CLOSE_ENABLED": {
       "status": "armed",
@@ -471,6 +556,24 @@
         "web"
       ],
       "note": ""
+    },
+    "RENDER_CACHE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "The artifact cache + coalescing (2.5, 03 §3.6), built on the branch and wired to NOTHING yet - no call site in runtime.py, commands.py or bindings.py reads it. An ENABLEMENT gate, not a kill switch: unset means OFF, because it ADDS behaviour and must not turn itself on in every environment the moment it merges. In-memory and per-process by design (this pod redeploys every ~8 minutes; durability was not built and is not implied). The cache key is (command, normalised args, DATA VINTAGE) - never the wall clock, or the same closed-market input would key differently every second and §3.10 determinism would be unobservable. Bounded by DISCORD_RENDER_CACHE_MAX_ENTRIES and DISCORD_RENDER_CACHE_BYTES (64 MiB default - the web pod HEAP, deliberately not §3.6's 512 MiB, which describes an on-volume cache that was not built). Owner flips it after it is wired.",
+      "owner": "owner"
+    },
+    "DISCORD_RENDER_LOOPWATCH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Kill switch for the event-loop stall probe (2.4b P2.9), default ON: unset means the probe runs. It measures the overshoot of its own sleep every 0.5 s on the ONE event loop web has - the loop whose blocking failed Discord's 3 s ack and the renderer's page load together, 37x more often than chance (C-02), and which nothing measured at all until now. Nothing is served from it; it feeds /renderhealth and the `loop_stalled` alert. There is nothing to protect by leaving a measurement off, which is why it is a kill switch and not an enablement gate. Started from the lifespan, and only when DISCORD_RENDER_V2_ENABLED is set - so while V2 is dark this costs nothing and reports `running: false`.",
+      "owner": "owner"
+    },
+    "DISCORD_RENDER_V2_ADAPTERS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Kill switch UNDER the V2 master, default ON: unset behaves as ON and there is nothing to kill while DISCORD_RENDER_V2_ENABLED is unset. Set it to 0 and the V2 chart handlers bind the raw upstream functions again (api/routers/discord_interactions.fetch_bars / fetch_ext_quote / discord_chart_house.render_house_chart) instead of the provider adapters, giving back the pre-adapter timeouts and no breakers - a rollback of P2.1 with no deploy. It is a SWITCH, never a delete: the adapter modules stay in place and keep their rails. Declared dark 2026-09-13 with the adapter layer (03 §3.8c). Owner flips it.",
+      "owner": "owner"
     },
     "DISCORD_RENDER_V2_ENABLED": {
       "status": "dark",
@@ -616,13 +719,6 @@
       ],
       "note": ""
     },
-    "J2_OCR_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Wave P OCR. Read as FLAG = \"J2_OCR_ENABLED\" then os.getenv(FLAG, \"0\") in api/services/journal_two/document_ocr_tesseract.py. ⛔⛔ IT WAS INVISIBLE TO THIS LEDGER UNTIL 2026-09-12: the AST index matched a string CONSTANT at the call site, and an env name held in a variable has none — so a LIVE, ARMED production flag had no entry and nothing could tell. Found when the index was generalised for Wave K. Read live from Railway the same day: J2_OCR_ENABLED=1 on web, unset on worker and bars-api."
-    },
     "J2_ATTACHMENT_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
@@ -636,6 +732,13 @@
         "web"
       ],
       "note": ""
+    },
+    "J2_OCR_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wave P OCR. Read as FLAG = \"J2_OCR_ENABLED\" then os.getenv(FLAG, \"0\") in api/services/journal_two/document_ocr_tesseract.py. ⛔⛔ IT WAS INVISIBLE TO THIS LEDGER UNTIL 2026-09-12: the AST index matched a string CONSTANT at the call site, and an env name held in a variable has none — so a LIVE, ARMED production flag had no entry and nothing could tell. Found when the index was generalised for Wave K. Read live from Railway the same day: J2_OCR_ENABLED=1 on web, unset on worker and bars-api."
     },
     "J2_SHARE_LINKS_ENABLED": {
       "status": "armed",
@@ -845,6 +948,13 @@
       ],
       "note": "Armed 2026-09-02 on web. Decided rather than left pending: the surface was complete and its safety property was verified against real data before the flip, not assumed. Measured read-only over C:/data/bars.db: 30 symbols x 2024-01-01..2026-06-30 returned a closed coverage receipt (18750 bars in window, 18750 answered, 0 not computable) and reported NO EDGE for close > sma(close,50) - 53.7% strategy against a 53.9% baseline - which is the behaviour of a backtester that is not flattering itself. The lookahead refusal fires by name on every screen reading a scalar we hold no history of (rs_rank, market_cap, pe_ttm), including a bar formula ANDed with one. Bounded and gated: require_paid, INLINE_MAX_SYMBOLS=50 above which it queues off the request thread, and a 1.2M-cell ceiling. The auth rail (tests/test_screener_auth_surface.py) SKIPS while the flag is off, so it was run with the flag on before arming: 213 backtest tests pass in both states, 0 skipped when on. Rollback is this variable alone."
     },
+    "SMOKE_LOGIN_LINK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "ARMED AND LIVE: set to 1 on web (read 2026-09-13). Admin-issued single-use login link for the synthetic smoke account, introduced by 35dca25fd (2026-09-12, another workstream). api/routers/auth.py:631 reads os.getenv('SMOKE_LOGIN_LINK_ENABLED', '') == '1', so the CODE default is off everywhere and the service value is what turns it on. Declared here to record what exists - the flip belongs to the workstream that shipped it. Its header states the four gates (admin session, this flag, a one-id allow-list, a single-use five-minute token) and that it grants no capability the issuing admin did not already have."
+    },
     "SNAPSHOT_DELTA_ENABLED": {
       "status": "armed",
       "where": [
@@ -865,6 +975,13 @@
         "web"
       ],
       "note": ""
+    },
+    "TERMINAL_NEXT_MONITOR_ENABLED": {
+      "status": "armed",
+      "where": [
+        "terminal-next-monitor"
+      ],
+      "note": "LAYER 1 -- selects the terminal-next-monitor branch of railway.json's startCommand, the same env-switch idiom BARS_API_ENABLED / FLOW_WORKER_ENABLED / WORKER_ENABLED use. Set 2026-09-13 on the NEW service `terminal-next-monitor` ONLY -- it must never be set on web, worker, bars-api, flow-worker or chart-renderer, where it would hijack their start command. The service posts read-only reports to the ADMIN Discord channel (DISCORD_WEBHOOK_URL); it measures nothing itself, fetching every number from web over the private network. ⚠️ ARMED BUT NOT YET DEPLOYING: two owner actions remain in the Railway dashboard, neither exposed by the CLI -- connect the service to the GitHub repo, and set the cron (0,12,20,30 11,12,13,14,20,21 * * * UTC, a deliberate SUPERSET of the ET schedule because Railway cron is UTC and ET shifts with DST). Until both are done the service exists, is configured, and runs nothing."
     },
     "THEME_ENGINE_ENABLED": {
       "status": "armed",
@@ -936,6 +1053,132 @@
       ],
       "note": ""
     },
+    "WISDOM_BADGES_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: 'UCT said' badges for Catalysts/Terminal. W1 ships the admin endpoint only. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_BRAINKB_PUBLISH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Wisdom publish into the Brain KB (D18 sequencing). Owner flips (W1 §0.4c). Read in api/services/wisdom/core/flags.py.",
+      "exposure": "public",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ]
+    },
+    "WISDOM_CAPTURE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom D12 daily archive capture jobs (stream S-A) kill switch. Internal: writes only R2 wisdom/ and wisdom.db. Read in api/services/wisdom/core/flags.py."
+    },
+    "WISDOM_CONTEXT_SNAPSHOT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom D11 CONTEXT_SNAPSHOT at call time (stream S-E). Read-only on existing stores; internal wisdom.db writes only."
+    },
+    "WISDOM_DESK_MARKERS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_DISCORD_LISTENER_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom Discord listener + backfill for the four author channels (stream S-C, W1 §2.1). REST only, authors only, member messages dropped before any write. Internal."
+    },
+    "WISDOM_DOSSIER_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: 'what UCT actually said' lines in AI ticker dossiers, dated and cited. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_EXTRACT_AUDIT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom weekly 50-segment second-pass extractor audit (stream S-D, W1 §6.5). Internal; disagreements go to the owner review queue."
+    },
+    "WISDOM_EXTRACT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom Batch extraction submit/reap (stream S-D). Spends Anthropic Batch budget under the hard WISDOM_EXTRACT_BUDGET_USD cap and the golden gate. Internal."
+    },
+    "WISDOM_INGEST_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "UCT Wisdom Loop MASTER switch (docs/wisdom/CONTRACTS.md §4). Every Wisdom job no-ops unless set. Internal ingest only, nothing member-visible. Read in api/services/wisdom/core/flags.py; armed by the Wisdom integrator after the Wave 1 merges."
+    },
+    "WISDOM_LEVEL_ALERTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "D20 level-reached alerts on open CALLs, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
+    },
+    "WISDOM_LOOKALIKE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "D20 daily 'looks like what TSDR buys' list, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
+    },
+    "WISDOM_METRICS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom metrics computation and the grounding eval (stream S-E, W1 Part 6). Internal; results shown on the admin dashboard only."
+    },
+    "WISDOM_MODELBOOK_DRAFTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Model Book / Setup Library drafts and the 17 playbooks, approval queue first (D19). Owner flips."
+    },
+    "WISDOM_OUTCOMES_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom OUTCOME engine over stated CALLs (stream S-E). Read-only on bars; internal wisdom.db writes only."
+    },
+    "WISDOM_PV_EXAMPLES_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: owner charts as Pattern Vision examples. Drafts only while the Pattern Intelligence Lab is paused. Owner flips."
+    },
+    "WISDOM_REPLAY_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom CALL-REPLAY against recorded UCT scan outputs (stream S-E, W1 §6.1-6.3). Internal metrics only."
+    },
+    "WISDOM_RETRIEVAL_INDEX_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom FTS5 retrieval index refresh inside wisdom.db (stream S-F). Internal; the Ask-AI consumer has its own member-visible flag."
+    },
+    "WISDOM_SOURCES_INGEST_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom transcript and Sunday Scans source ingest into wisdom.db (stream S-C). Published posts only, read-only on education.db and desk.db. Internal."
+    },
+    "WISDOM_VISION_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom chart-image vision reads (stream S-D, D13). Cost gate: 50 images first, then Batch. Internal; nothing auto-publishes."
+    },
+    "WISDOM_VOCAB_AUTOPROMOTE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom vocabulary auto-promotion at >=3 independent team-author uses (stream S-B, W1 §3.6). Internal; promotions land as provisional in the owner review queue."
+    },
+    "WISDOM_VOICE_PROFILE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: weekly Morning Wire voice-profile refresh from the full corpus (D18/D19). Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_WEEKLY_REPORT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "WEEKLY WISDOM REPORT delivery to the admin channel (stream S-F). Owner-facing only; first scheduled gate Sunday 2026-09-20."
+    },
+    "WISDOM_X_BACKFILL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom paid TwitterAPI.io backfill of the three tracked accounts (stream S-A). Spends money; internal only. Read in api/services/wisdom/core/flags.py."
+    },
     "WORKER_ENABLED": {
       "status": "armed",
       "where": [
@@ -943,52 +1186,13 @@
       ],
       "note": ""
     },
-    "SMOKE_LOGIN_LINK_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "ARMED AND LIVE: set to 1 on web (read 2026-09-13). Admin-issued single-use login link for the synthetic smoke account, introduced by 35dca25fd (2026-09-12, another workstream). api/routers/auth.py:631 reads os.getenv('SMOKE_LOGIN_LINK_ENABLED', '') == '1', so the CODE default is off everywhere and the service value is what turns it on. Declared here to record what exists - the flip belongs to the workstream that shipped it. Its header states the four gates (admin session, this flag, a one-id allow-list, a single-use five-minute token) and that it grants no capability the issuing admin did not already have."
-    },
-    "D2_SAMPLE_PERSIST_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "D2 CP3 durable dual-compute sample store. SET EXPLICITLY on web 2026-09-12 ~22:40 CDT, in-process read confirmed on the boot after. It is a KILL SWITCH so unset already defaults ON — set deliberately so \"on on purpose\" stays distinguishable from \"nobody set it\". Blanking it stops COLLECTION and never deletes a collected row (standing owner rule, railed). Merged 0b8cf4c41."
-    },
-    "ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "GATE-S7-POSITION-RISK CP3 (owner approval line 2, fingerprint ec2b197f8). Arms the alert_taxonomy_position_risk_dark cron (weekdays 09:00-16:59 ET, every minute, max_instances=1): the forward-only dark comparison of the new position-risk evaluator against awareness/rules.py's rule_stop_watch, over a read-only projection of j2_positions for the rollout:s7-dark cohort. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY -- the cron is mon-fri, and it was armed on a Sunday, so no heartbeat and no span before then is CORRECT and not a failed arming. DRY RUN 2026-09-13, read-only: 2 of 6 cohort members hold open positions, 14 rows, 13 symbols, 11 priced. The two unpriced are FXAIX and SPAXX -- Fidelity MUTUAL FUNDS, not exchange-listed, so no quote exists for them; they will be classified not_comparable (unpriced), never agreement."
-    },
-    "ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "GATE-S7-SCAN-MEMBERSHIP-CHANGE CP3 (owner approval line 2, fingerprint d0415f251). Arms the alert_taxonomy_scan_membership_dark cron (nightly, SWEEP_MINUTE_ET+20, derived from scan_evaluator's own constants): the forward-only dark comparison against screen_alerts.run_nightly, over a read-only projection of screen_alert_subs for the rollout:s7-dark cohort. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). DRY RUN 2026-09-13, read-only: PROJECTED N = 0, and the reason is that NO member of the s7-dark cohort holds a screen_alert_subs row -- nobody in the cohort has subscribed to a saved screen. That is an honest zero: the sweep will beat every night and record no spans until a cohort member subscribes. ⛔ It is NOT evidence the wiring is wrong."
-    },
-    "ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "GATE-S7-CATALYST-MATCH CP3 (owner approval line 2, fingerprint 3ee80dc13). Arms the alert_taxonomy_catalyst_match_dark cron (17:30 ET weekdays -- DAILY, per the packet's §9 item 5, because the legacy dedup is per market DAY): the forward-only dark comparison against _fire_catalyst_alerts and _fire_mustknow_alerts. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). ⛔⛔ DRY RUN 2026-09-13 FOUND AN UPSTREAM OUTAGE, NOT A WIRING PROBLEM: projected N = 0 because the `catalysts` table holds NO ROWS AT ALL for 2026-09-09 through 2026-09-13, while the engine kept running and BILLING -- 130 LLM calls and $4.66 across 09-09..09-12 with zero rows written, against 59 calls / $2.02 / 125 rows (20 ranked) on 09-08. The cohort side is healthy (2 members with watchlists). Registered as F-CAT-1. ⚠️ UNTIL THAT IS FIXED THIS DARK RUN HAS NOTHING TO COMPARE and will record `no ranked rows` every day -- which must NOT be read as agreement."
-    },
-    "ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "GATE-S7-REGIME-CHANGE CP3 (owner approval line 2, fingerprint 9f0575340). Arms the alert_taxonomy_regime_change_dark cron (weekdays 04:00-20:59 ET, minute 7-59/20 -- SHADOWING the awareness scan's */20 with a 7-minute offset so each of its ledger appends is observed after it lands): the forward-only dark comparison against BOTH legacy emitters, awareness rule_regime_flip and voice_proactive_service.maybe_emit_regime_shift. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). ⛔⛔ IT MUST NEVER WRITE awareness_regime_snapshots -- the legacy does a read-then-APPEND there and a dark write would corrupt the prev_label the LIVE R4 rule reads next cycle. Verified in-pod after arming: newest ledger row is still the engine's own (id 2557, bull_correction, 2026-09-12 00:40), row count unchanged. A watermark on that id makes each row observable ONCE, so `agreed` cannot become a function of the sweep's cadence. DRY RUN 2026-09-13, read-only: the newest two ledger rows are BOTH 'bull_correction' -- no flip, a quiet tick and not a failure; 3 of 6 cohort members have stake (a position or a watchlist symbol)."
-    },
-    "CANONICAL_INDICATOR_AXIS_ENABLED": {
+    "BREADTH_SERIES_ENDPOINT_ENABLED": {
       "status": "dark",
-      "where": [],
-      "note": "GATE-D2 CP4 -- the indicator axis (PRD-D2 section 9.5, approval fingerprint 3257cc319; section 4 was RE-NUMBERED in the signing commit to add CP4, per the standing rule, because 9.5's scope matched none of CP1/CP2/CP3 -- all three were written for the stored-column form). Gates api/services/canonical/indicator_axis.py, a SECOND canonical address form `<indicator>[.<output>](<params>)@<timeframe>` that DECLARES and DESCRIBES and never computes: resolve() returns a computation descriptor and hands back the value FUNCTION, never a result. UNSET = OFF and that is the shipped state -- CP4 declares the axis; CONSUMING it is indicator-condition CP3's act under its own approval line. Merged 404b808c5 2026-09-13, classified ADDITIVE by reachable_paths(): indicator_axis is absent from flow-worker's 154-module closure (bars_fetch.py and bars_sqlite.py ARE in it, which is why the owner's 2026-09-13 ruling that the watch list is NOT widened means CP4 does not touch them). DO NOT ARM: arming is the owner's flip, and nothing reads this axis yet, so arming it would light a door with no room behind it."
+      "where": [
+        "web"
+      ],
+      "owner": "breadth-charts programme",
+      "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition."
     }
   },
   "build_flags": {
@@ -1117,6 +1321,18 @@
       "baked_measured_on": "1c76f9f38",
       "last_changed": "never set",
       "note": "Unset and the read defaults ON (`?? '1'`), so the Catalysts UI is live. Setting it to '0' is the kill switch."
+    },
+    "VITE_CHART_RENDER_TOKEN_PREVIOUS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "operator",
+      "railway_value": "set (a SECRET, never recorded here)",
+      "baked_value": "the set value (present in the bundle, like its current-token sibling)",
+      "baked_measured_on": "9087bc196",
+      "last_changed": "2026-09-13 (set with the rotation in 1.1)",
+      "note": "The PREVIOUS render token, accepted alongside the current one so a rotation is not a flag-day. Read by app/src/lib/renderToken.js (the one guard the 14 /r/* pages share) and mirrored server-side by CHART_RENDER_TOKEN_PREVIOUS in api/routers/render_panels.py - set BOTH halves or neither. Empty would mean single-token acceptance, which is the steady state; it is set only for the window between baking a new token and retiring the old one, and scripts/render_token_retire.py (Monday) clears BOTH halves. ⚰️ This row said status dark / railway_value UNSET when it was first written, an hour after the rotation that set it - the ledger-drift defect CLAUDE.md records, re-committed by the person who had just read the rule. Corrected against `railway variables --service web --kv`, which is the only authority."
     },
     "VITE_DISCORD_CHART_APP_ID": {
       "status": "dark",

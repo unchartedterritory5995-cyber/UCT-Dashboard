@@ -717,18 +717,28 @@ def test_the_monday_command_tells_STALLED_apart_from_HEALTHY(monkeypatch, dbp):
 
     # A tick stamped NOW: healthy.
     _proj.run_dark_sweep(now=_t.time(), db_path=dbp)
-    text, code = rep.ticking(dbp)
-    assert "TICKING: YES" in text, text
+    text, code = rep.ticking_one(dbp, _pl_spec(rep))
+    assert _verdict(rep, text) == "YES", text
     assert code == 0
     assert "0 outcome rows is NORMAL early" in text, (
         "an early quiet store must not read as a fault")
 
     # The SAME store, with the stamp aged past two missed ticks: stalled.
-    _proj.run_dark_sweep(now=_t.time() - 3600, db_path=dbp)
-    text, code = rep.ticking(dbp)
-    assert "TICKING: NO" in text, text
-    assert code == 1, "a stall must exit non-zero"
-    assert "STALLED" in text
+    # ⛔ THE WINDOW IS FORCED OPEN, and that is not a convenience: each sweep now
+    # carries its OWN window, and a stale beat OUTSIDE the window is the
+    # schedule, not a stall. This suite runs on whatever day it runs on, so
+    # without pinning the window the assertion below tests the calendar rather
+    # than the tool — green Mon-Fri and red at the weekend.
+    real_window = rep._window
+    rep._window = lambda _hours, **_kw: (True, "Wed 10:00 ET")
+    try:
+        _proj.run_dark_sweep(now=_t.time() - 3600, db_path=dbp)
+        text, code = rep.ticking_one(dbp, _pl_spec(rep))
+        assert _verdict(rep, text) == "NO", text
+        assert code == 1, "a stall must exit non-zero"
+        assert "STALLED" in text
+    finally:
+        rep._window = real_window
 
 
 def test_the_monday_command_flags_an_empty_cohort_separately(monkeypatch, dbp):
@@ -742,8 +752,8 @@ def test_the_monday_command_flags_an_empty_cohort_separately(monkeypatch, dbp):
     spec.loader.exec_module(rep)
 
     _proj.run_dark_sweep(now=_t.time(), db_path=dbp)      # no admin rows at all
-    text, code = rep.ticking(dbp)
-    assert "TICKING: YES" in text
+    text, code = rep.ticking_one(dbp, _pl_spec(rep))
+    assert _verdict(rep, text) == "YES", text
     assert "projected=0" in text and "Arm one" in text, text
 
 
@@ -775,7 +785,7 @@ def test_the_report_tool_prints_only_ascii():
               "VALUES ('legacy:z',2,0,'{\"level_kind\":\"trendline\"}','[\"d1\"]',1,0,1,2)")
     c.commit(); c.close()
 
-    for text in (rep.render(rep.build(p), p), rep.ticking(p)[0]):
+    for text in (rep.render(rep.build(p), p), rep.ticking_one(p, _pl_spec(rep))[0]):
         assert text, "nothing rendered — this probe is broken, not green"
         text.encode("cp1252")          # raises UnicodeEncodeError if it regresses
 
@@ -835,26 +845,26 @@ def test_the_weekend_case_never_swallows_a_real_stall():
         def strftime(self, _f):
             return "FAKE"
 
-    real = rep._in_window
+    real = rep._window
 
     # INSIDE the window with no heartbeat -> loud, exit 1.
     monkey = {"wd": 2, "hour": 10}
-    rep._in_window = lambda: (True, "Wed 10:00 ET")
-    text, code = rep.ticking(p)
-    assert code == 1 and "TICKING: NO" in text, text
+    rep._window = lambda _hours, **_kw: (True, "Wed 10:00 ET")
+    text, code = rep.ticking_one(p, _pl_spec(rep))
+    assert code == 1 and _verdict(rep, text) == "NO", text
     assert "IS inside the window" in text
 
     # OUTSIDE the window with no heartbeat -> expected, exit 0.
-    rep._in_window = lambda: (False, "Sat 11:00 ET")
-    text, code = rep.ticking(p)
-    assert code == 0 and "TICKING: n/a" in text, text
+    rep._window = lambda _hours, **_kw: (False, "Sat 11:00 ET")
+    text, code = rep.ticking_one(p, _pl_spec(rep))
+    assert code == 0 and _verdict(rep, text) == "n/a", text
     assert "EXPECTED here, not a fault" in text
 
-    rep._in_window = real
+    rep._window = real
 
     # And the real clock helper agrees with datetime about which case today is.
     now = _dt.datetime.now()
-    inside, why = rep._in_window()
+    inside, why = rep._window((9, 16))
     assert isinstance(inside, bool) and why, "the helper must always give a reason"
 
     # ⛔ An unresolvable clock must NOT report "outside" -- that would silence a
@@ -869,7 +879,7 @@ def test_the_weekend_case_never_swallows_a_real_stall():
 
     builtins.__import__ = boom
     try:
-        inside, why = rep._in_window()
+        inside, why = rep._window((9, 16))
     finally:
         builtins.__import__ = real_import
     assert inside is True, (
@@ -893,13 +903,56 @@ def test_a_stalled_sweep_INSIDE_the_window_still_exits_nonzero(monkeypatch, dbp)
     monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
     _proj.run_dark_sweep(now=_t.time() - 7200, db_path=dbp)      # two hours stale
 
-    rep._in_window = lambda: (False, "Sat 11:00 ET")             # weekend, even so
-    text, code = rep.ticking(dbp)
-    assert code == 1, "a stale heartbeat is a stall whatever the day"
+    # ⚰️ REPAIRED 2026-09-13. This forced the window CLOSED and then asserted
+    # "a stale heartbeat is a stall whatever the day" — contradicting its own
+    # name. It was written when `_in_window()` was GLOBAL; the sweep table now
+    # gives each of the six its own window (`_window(hours)`), and a windowed
+    # sweep that stopped at its window's close and is now outside it has done
+    # nothing wrong. ⛔ The INTENT survives unchanged and is what is pinned: a
+    # sweep that beat and then stopped WHILE ITS OWN WINDOW WAS OPEN is loud.
+    # The opposite direction — and the unresolvable clock — stay pinned by
+    # `test_the_weekend_case_never_swallows_a_real_stall`.
+    # ⚠️ PROVISIONAL, owner: this NARROWS what --ticking calls a stall. A sweep
+    # that dies mid-window and is only checked after the close now reports 0.
+    # Recorded as F-S7-PL-2; the Monday 09:05 ET check is inside every window,
+    # which is why it is not a gap today.
+    rep._window = lambda _hours, **_kw: (True, "Wed 10:00 ET")          # its window IS open
+    text, code = rep.ticking_one(dbp, _pl_spec(rep))
+    assert code == 1, "a sweep that stopped inside its own window is a stall"
     assert "STALLED" in text
 
 
 # --- THE DRY-RUN TOOL: it must not be able to reach the live store ----------
+
+def _verdict(rep, text):
+    """The YES / NO / n/a verdict `ticking_one` reported, read off its own label.
+
+    ⚰️ The line was `TICKING: <verdict>` when there was one sweep; it is now
+    `<LABEL>  <verdict>` per sweep. ⛔ The LABEL IS DERIVED from the sweep table,
+    never retyped — a hand-typed "PRICE-LEVEL" here is the same
+    count-beside-the-source defect this repo keeps paying for.
+    """
+    label = _pl_spec(rep)[1]
+    for line in text.splitlines():
+        if line.startswith(label):
+            return line[len(label):].strip().split()[0]
+    raise AssertionError("no %s line in:\n%s" % (label, text))
+
+
+def _pl_spec(rep):
+    """The PRICE-LEVEL row of the report tool's declared sweep table.
+
+    ⚰️ This file tests the PRICE-LEVEL sweep. `--ticking` was generalised from
+    two bespoke functions into `ticking_one(db, spec)` over a declared `SWEEPS`
+    table plus `ticking_all()`; these assertions are about ONE sweep, so they
+    address one row. ⛔ DERIVED by key, never `SWEEPS[0]` — a positional index
+    would silently retarget the whole file the day a sweep is inserted above it.
+    """
+    for spec in rep.SWEEPS:
+        if spec[0] == "price_level":
+            return spec
+    raise AssertionError("the report tool no longer declares a price_level sweep")
+
 
 def _dryrun_mod():
     import importlib.util

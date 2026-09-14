@@ -1,0 +1,141 @@
+{
+  "_readme": [
+    "Wisdom Loop authors (§2.1). Only these four author CALLs. Authorship is FIXED by this file, never inferred from voice or style.",
+    "Discord user IDs are verified by measured authorship of the author's own channel (GET /channels/{id}/messages?limit=50 with the bot token, 2026-09-13), not by display name.",
+    "Aliases normalise Zoom speaker labels, Discord display names, Substack section owners and X handles. Matching is case-insensitive and exact (no fuzzy matching).",
+    "A fifth regular author becomes role=candidate, flagged to the owner review queue, and is NOT ingested until ruled.",
+    "Bots and webhooks (e.g. the 'UCT Intelligence' webhook user 1527044971553620088 posting in #tsdr) are never authors."
+  ],
+  "authors": [
+    {
+      "author_id": "tsdr",
+      "display_name": "Patrick (TSDR)",
+      "role": "owner",
+      "can_author_calls": true,
+      "discord_user_id": "339816805805588480",
+      "discord_username": "tsdrtrading",
+      "discord_verified": "46/50 most recent #tsdr messages (other 4 = UCT Intelligence webhook bot)",
+      "x_handle": "TSDR_Trading",
+      "aliases": [
+        "Patrick (TSDR)",
+        "Patrick TSDR)",
+        "Patrick (TSDR(",
+        "TSDR Trading",
+        "TSDR TRADING",
+        "tsdrtrading",
+        "TSDR_Trading",
+        "TSDR"
+      ],
+      "substack_sections": [
+        "TSDR's Weekly Outlook & Watchlist",
+        "INTRO",
+        "Earnings & Economic Calendar for the Week",
+        "Market Breadth Data",
+        "Index & ETFs"
+      ],
+      "substack_section_attribution_source": "signed section; unsigned sections per D4 ruling"
+    },
+    {
+      "author_id": "bracco",
+      "display_name": "Bracco",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "427798118935953410",
+      "discord_username": "braczyy",
+      "discord_verified": "50/50 most recent #bracco messages",
+      "x_handle": "Braczyy",
+      "aliases": [
+        "Bracco",
+        "Brac",
+        "Braczyy",
+        "braczyy",
+        "Braczzy"
+      ],
+      "substack_sections": [
+        "Bracco's Breakdown & Top Ideas"
+      ]
+    },
+    {
+      "author_id": "chartmaster",
+      "display_name": "Chartmaster",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "1203080759141736508",
+      "discord_username": "capt.joe_36972",
+      "discord_verified": "50/50 most recent #1chartmaster messages; matches the channel's member permission override",
+      "x_handle": "1ChartMaster",
+      "aliases": [
+        "Chartmaster",
+        "Chart Master",
+        "1ChartMaster",
+        "1chartmaster",
+        "EliteSwingTrader",
+        "capt.joe_36972",
+        "Joe Walburn"
+      ],
+      "substack_sections": []
+    },
+    {
+      "author_id": "manrav",
+      "display_name": "Manrav",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "806378356966424596",
+      "discord_username": "manrav",
+      "discord_verified": "50/50 most recent #manrav messages (bot read after the 2026-09-13 grant)",
+      "x_handle": null,
+      "aliases": [
+        "Manrav",
+        "manrav"
+      ],
+      "substack_sections": []
+    }
+  ],
+  "ambiguous_speaker_labels": [
+    {
+      "label": "Uncharted Territory",
+      "note": "The shared Zoom host account label (owner ruling 2026-09-13, CONTRACTS §8a.2). Golden v1 found it carrying Bracco's voice in session 348, so it is NOT an alias of any author. Resolve per session ONLY with cited evidence (session title/description, a self-introduction line, a first-person reference to a position matching that author's Sunday Scans positions, or a Discord message by that author in the same minute), logged on the source record. Insufficient evidence -> speaker 'team-unresolved' (MENTION only; never CALL, never PRINCIPLE attribution) and an attribution review item. Never default to TSDR or Bracco; never voice similarity alone; never dropped as an attendee."
+    },
+    {
+      "label": "Patrick",
+      "note": "A common given name AND the owner's first name. Any attendee called Patrick resolved to tsdr with can_author_calls=true. The owner's real Zoom labels are 'Patrick (TSDR)' and its bracket variants, which stay aliases. Owner ruling CONTRACTS §8a.2: resolve per session ONLY with cited evidence; with insufficient evidence the speaker is 'team-unresolved', which may author MENTION only — never CALL, never a PRINCIPLE attribution. Never default to an author.",
+      "was_alias_of": "tsdr",
+      "removed": "2026-09-13, S-B reviewer finding F1"
+    },
+    {
+      "label": "Blake",
+      "note": "A common given name and Bracco's first name; same failure as 'Patrick'. The handle forms Bracco/Brac/Braczyy stay aliases. Owner ruling CONTRACTS §8a.2: resolve per session ONLY with cited evidence; with insufficient evidence the speaker is 'team-unresolved', which may author MENTION only — never CALL, never a PRINCIPLE attribution. Never default to an author.",
+      "was_alias_of": "bracco",
+      "removed": "2026-09-13, S-B reviewer finding F1"
+    },
+    {
+      "label": "Manav",
+      "note": "A common given name, and one edit from 'Manrav'. It was carried as an ASR variant, but an ASR variant that is also somebody else's name cannot be told apart from that person by an exact match. Owner ruling CONTRACTS §8a.2: resolve per session ONLY with cited evidence; with insufficient evidence the speaker is 'team-unresolved', which may author MENTION only — never CALL, never a PRINCIPLE attribution. Never default to an author.",
+      "was_alias_of": "manrav",
+      "removed": "2026-09-13, S-B reviewer finding F1"
+    }
+  ],
+  "non_call_speakers": [
+    {
+      "label": "Ravi",
+      "role": "team_non_author",
+      "note": "partner (options flow). MENTION / PRINCIPLE only; not in the four §2.1 authors."
+    }
+  ],
+  "single_token_aliases_reviewed": {
+    "_why": "A single-token alphabetic alias is matched EXACTLY and case-insensitively against a Zoom display name, so if it is also a person's given name it silently attributes that person's words to a CALL author (reviewer finding F1, 2026-09-13). Every such alias must be listed here with a reason. tests/test_wisdom_authors_aliases.py fails BY NAME on any that is not — so the next 'Patrick' has to be argued for, not merely typed.",
+    "aliases": {
+      "TSDR": "the author_id itself, a handle not a name",
+      "tsdrtrading": "Discord username",
+      "Bracco": "the author_id itself; a stage name, nobody's given name in this room",
+      "Brac": "handle abbreviation of Bracco",
+      "Braczyy": "X handle / Discord username",
+      "braczyy": "Discord username, lowercase",
+      "Braczzy": "observed misspelling of the handle",
+      "Chartmaster": "the author_id itself, a stage name",
+      "EliteSwingTrader": "X display name",
+      "Manrav": "the author_id itself",
+      "manrav": "Discord username, lowercase"
+    }
+  }
+}

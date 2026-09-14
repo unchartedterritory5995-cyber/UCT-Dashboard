@@ -51,6 +51,7 @@ from api.routers import quote_of_the_day as quote_of_the_day_router
 from api.routers import ticker_search as ticker_search_router
 from api.routers import compare as compare_router
 from api.routers import breadth_monitor as breadth_monitor_router
+from api.routers import terminal_next_reports
 from api.routers import theme_performance as theme_performance_router
 from api.routers import groups as groups_router
 from api.routers import sector_strength as sector_strength_router
@@ -3115,6 +3116,7 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
         from api.services.alert_taxonomy import catalyst_match as _at_catalyst_match
         from api.services.alert_taxonomy import regime_change as _at_regime_change
+        from api.services.alert_taxonomy import indicator_condition as _at_indicator_cond
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3175,6 +3177,10 @@ async def lifespan(app: FastAPI):
         _at_scan_membership.register()
         _at_catalyst_match.register()
         _at_regime_change.register()
+        # GATE-S7-INDICATOR-CONDITION CP3 (approval line 3, the dependency-discharge
+        # line, fingerprint 4e8d3af5d). Its blocker -- PRD-D2 §9.5, signed as
+        # GATE-D2 CP4 (3257cc319) -- merged as 404b808c5.
+        _at_indicator_cond.register()
         logging.getLogger(__name__).info(
             "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
             "beyond document-arrival). A type appears here when its CP3 is "
@@ -3230,6 +3236,16 @@ async def lifespan(app: FastAPI):
         _buzz_boot.init_db()
     except Exception as e:
         logging.getLogger(__name__).warning(f"[buzz] store init skipped: {e}")
+
+    # -- UCT Wisdom Loop store (docs/wisdom/CONTRACTS.md §2.2) --
+    # Unconditional, idempotent DDL: a reader must never depend on the scheduler
+    # lock or a flag to find its tables (same reasoning as the buzz init above).
+    try:
+        from api.services.wisdom import registry as _wisdom_registry_boot
+        _wisdom_boot = _wisdom_registry_boot.init_stores()
+        print(f"[startup] wisdom.db ready (migrations applied this boot: {len(_wisdom_boot.get('applied', []))})")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"[wisdom] store init skipped: {e}")
 
     # Live-chat presence: coalesced snapshot broadcast every ~8s (ephemeral frames).
     # Single web process → the in-memory chat hub needs no external pub/sub.
@@ -5931,6 +5947,17 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] auth.db R2 backup scheduler ON (every 6h + daily 2:55am ET)")
 
+        # -- UCT Wisdom Loop jobs (docs/wisdom/CONTRACTS.md §2.2, §5) --
+        # Registered unconditionally, in their own try: every run re-reads
+        # WISDOM_INGEST_ENABLED and the job's own kill switch, so turning a job
+        # off needs no deploy, and a Wisdom failure cannot skip the jobs below.
+        try:
+            from api.services.wisdom import registry as _wisdom_registry_jobs
+            _wisdom_job_ids = _wisdom_registry_jobs.register_jobs(_scheduler)
+            print(f"[startup] wisdom jobs registered: {len(_wisdom_job_ids)} ({', '.join(_wisdom_job_ids)})")
+        except Exception as e:
+            print(f"[scheduler] wisdom registration error: {e}")
+
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
@@ -6966,6 +6993,44 @@ async def lifespan(app: FastAPI):
             print("[startup] S7 regime-change DARK comparison OFF "
                   "(set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)")
 
+        # GATE-S7-INDICATOR-CONDITION CP3 -- approval line 3, the
+        # dependency-discharge line (fingerprint 4e8d3af5d). Its blocker,
+        # PRD-D2 §9.5, is signed as GATE-D2 CP4 (3257cc319) and merged
+        # (404b808c5).
+        #
+        # ⛔⛔ THIRTY OF THIRTY-ONE PREDICATES ARE **NOT COMPARABLE** AND THAT IS
+        # THE EXPECTED READING, NOT A FAULT (F-S7-IC-1). The legacy lane's 31
+        # addresses and D2's 142 book metrics have an EMPTY intersection: one
+        # rename (close -> ohlcv.c) and thirty genuine absences. The sweep says
+        # so PER PREDICATE rather than letting a non-intersecting predicate
+        # score as LEGACY_ONLY, which would read as "the new lane is missing
+        # fires" for a question it was never able to be asked.
+        if os.environ.get("ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED", "0") == "1":
+            def _indicator_condition_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.indicator_condition_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] indicator-condition DARK sweep: "
+                          f"members={r.get('members')} alerts={r.get('alerts')} "
+                          f"observed={r.get('observed')} "
+                          f"not_comparable={r.get('not_comparable')} "
+                          f"outcomes={r.get('outcomes')}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] indicator-condition DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _indicator_condition_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_indicator_condition_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 indicator-condition DARK comparison ENABLED (every "
+                  "minute, weekdays 09:00-16:59 ET, no delivery)")
+        else:
+            print("[startup] S7 indicator-condition DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)")
+
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
@@ -7641,8 +7706,15 @@ async def lifespan(app: FastAPI):
         from api.services.discord_render import commands as _render_v2
         if _render_v2.enabled():
             _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
+            # ⛔ ON THE LOOP, NOT IN THE THREAD. The stall probe measures THIS event loop, and a
+            # task can only be created from it — `_render_v2.start` runs in `to_thread`, where
+            # `ensure_future` has no loop to attach to and would silently give back nothing
+            # (step 2.4b P2.9; C-02, where a blocked loop failed the ack and the renderer together
+            # and no instrument could see it).
+            from api.services.discord_render import loopwatch as _v2_loopwatch
+            _v2_loopwatch.start()
             print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
-                  f"abandoned={_v2_boot['abandoned']}")
+                  f"abandoned={_v2_boot['abandoned']} loopwatch={_v2_loopwatch.snapshot()['running']}")
     except Exception as _e:
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 
@@ -7983,6 +8055,7 @@ def health_cache(_admin: dict = Depends(require_admin)):
 
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
+app.include_router(terminal_next_reports.router)
 app.include_router(render_panels_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)
@@ -8226,6 +8299,11 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
+# UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
+# every route) and /api/internal/wisdom/<pkg>/* (require_push_secret). One loop so streams never edit main.py.
+from api.services.wisdom import registry as wisdom_registry  # noqa: E402
+for _wisdom_router in wisdom_registry.routers():
+    app.include_router(_wisdom_router)
 
 
 # -- Massive WS consumer health endpoint --------------------------------

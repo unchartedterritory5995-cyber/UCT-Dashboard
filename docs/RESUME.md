@@ -1,145 +1,270 @@
-# RESUME — restart checkpoint 2026-09-13 15:30 ET (Sunday)
+# RESUME — restart checkpoint 2026-09-13 20:45 ET (Sunday)
 
-Written by the **Discord render hardening** session. A fresh session with no memory continues from
-here. One command re-verifies everything: `C:\Users\Patrick\uct-worktrees\discord-render\scripts\resume.ps1`.
+Written by **Lane F** of the Discord render hardening programme (`docs/discord-render/`).
+
+⛔ **Every claim below names a SHA, a `file:line`, or the command it was measured with.** Anything
+that could not be verified while writing this is marked **UNVERIFIED** and says what would settle it.
+A resume file that asserts a state nobody can re-derive is how the last restart cost an hour.
+
+One command re-runs the checklist in §g:
+`powershell -ExecutionPolicy Bypass -File C:\Users\Patrick\uct-worktrees\discord-render\scripts\resume.ps1`
+— ⚠️ but read §g first: two of its pins are stale.
+
+⚠️⚠️ **EVERY SHA IN THIS FILE IS A STAMPED READING, NOT A STANDING FACT.** Five workstreams push to
+this repository; `origin/master` moved twice and `web` deployed twice while this file was being
+written (`e659454bb` → `cda883387`). Re-derive with §g before acting on any of them. The parts that
+do not churn — the lane map, the open decisions, the standing rules — are the parts to trust on
+sight.
 
 ---
 
-## a. HEAD state
+## a. Where the programme is
 
-| Worktree | Branch | HEAD | Pushed | Dirty |
-|---|---|---|---|---|
-| `C:\Users\Patrick\uct-worktrees\discord-render` (**this program**) | `discord-render-hardening` | the checkpoint commit on top of code tip `3f71d5364` ("Merge origin/master into discord-render-hardening (3 commits; no file overlap with 2.4a)") | yes — `origin/discord-render-hardening` = HEAD at checkpoint | no |
-| `C:\Users\Patrick\uct-dashboard` (main checkout) | `feat/catalyst-coverage-precision` | `270498f32` | — | **yes, 72 files — NOT this session's work**; the catalyst session must checkpoint it. Never `git add -A` there. |
-| `C:\Users\Patrick\uct-worktrees\_dr-master-506` | — | not a git repository any more (a half-removed provenance checkout) | — | owner: delete the directory |
+**Phase 2, step 2.4b P2 — merged to master and live-DARK.** Master merge 5 (`5ca4d5db2`) shipped the
+provider adapters, the member-facing stamp, the breaker and loop-stall alerts, the event-loop probe
+and shadow mode; the merge-5 record (`954309f0f`) and the frozen cross-lane contracts
+(`e659454bb`) followed. `docs/discord-render/05-progress.md` carries the measured deploy for each.
 
-Every other worktree (57 total) belongs to another session; `scripts/resume.ps1` prints each one's
-live branch, HEAD and dirty count instead of a table that would be stale by the time it is read.
-
-Production at checkpoint: master `404b808c5` (another session) — `web` SUCCESS 19:24:43 UTC;
-chart-renderer deployment `6090d306` SUCCESS 18:49:58 UTC; flow-worker untouched by this program.
-
-## b. What we were doing
-
-- **Discord render hardening** (this session) — Phase 2, step **2.4a built and committed, master merge 4 PARKED (not pushed)**. Detail below.
-- Notebook (Wave Q1 live, Wave K kill switch, roadmap) — another session; read `docs/notebook/wave-all-RESUME-HERE.md`.
-- Joystick hub — programme closed, launch docs; read `docs/plans/joystick/RESUME.md`.
-- S7 alert taxonomy / D2 canonical indicator axis — another session (`C:\Users\Patrick\uct-worktrees\s7-price-level`, pushed `404b808c5` today); it owes a `docs/feature_flags.json` entry for `CANONICAL_INDICATOR_AXIS_ENABLED`.
-- Wisdom Loop — another session (worktrees `wisdom/*` under `C:\Users\Patrick\uct-dashboard\.claude\worktrees\`).
-- Indicator ecosystem — another session; read `docs/runbooks/indicator-ecosystem-resume.md`.
-- Catalyst coverage precision — another session, main checkout (dirty, see §a).
-
-### Discord render hardening — in detail
-
-Home: `docs/discord-render/` — `LEDGER.md` (rules, merge ledger rows 1–11, OI table, loop log),
-`00`–`03` (map, forensics, baseline, architecture), `05-progress.md` (numbers after every merge).
-
-| Step | State |
-|---|---|
-| Phase 0 (map, forensics, baseline) · Phase 1 (architecture) | closed |
-| 2.1 runtime, durable jobs, failure contract, V2 command layer | **merged dark** — master merge 1 `740b79ad5` |
-| 2.2 observability (events, SLOs, alerts, purge, render-health, `/renderhealth` unregistered) | **merged dark** — master merge 2 `6d779dd47` |
-| 2.3 renderer hygiene/ceiling/correlation/pool + web headers | **merged** — master merge 3 `d32d14d60`; chart-renderer deployed `6090d306` (pool OFF) |
-| 2.4a symbol resolution at the ack (D-04) + `/flow` ETF partition (C-14), V2 only | **committed** `0e331168a` + docs `53b55e9e9` + row 11 `f41c185ef`; merged with master as `3f71d5364` — **NOT pushed** |
-| 2.4b market clock, freshness envelope + STALE badge, per-dependency timeouts + breakers (renderer/flow/quote), cached flow card ≤10 min, deploy-swap retry | not started |
-| 2.5 cache + coalescing · 2.6 delivery hardening · 2.7 visual spec + goldens · 2.8 a regression test per class | not started |
-| Phase 3 (load, chaos, determinism, weekend soak via Task Scheduler, real-Discord smoke) · Phase 4 (flip packet, runbook, final report) | not started |
-
-**Why merge 4 is parked:** while the merged-tree gate ran, master moved 3 commits (other sessions);
-the push guard refused. Re-merged as `3f71d5364` (no overlap). The gate on `3f71d5364` is
-**762 passed, 1 failed** — `tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared`
-names `CANONICAL_INDICATOR_AXIS_ENABLED`, added by master `404b808c5` (D2 CP4). Inherited, not this
-program's; provenance on a clean master checkout still to run.
-
-**The very next action** (in the discord-render worktree, Git Bash):
-
-1. `git fetch origin master && git merge --no-edit origin/master` (if master moved; check overlap with our 8 files first).
-2. Run the 26-file scoped gate (never repo-wide):
-   `python -m pytest tests/test_discord_render_symbols.py tests/test_chart_renderer_pool.py tests/test_chart_renderer_service.py tests/test_discord_render_correlation.py tests/test_discord_render_health_command.py tests/test_discord_render_observe.py tests/test_discord_render_health_endpoint.py tests/test_discord_render_v2_core.py tests/test_discord_render_v2_router.py tests/test_discord_render_fail_hooks.py tests/test_discord_render_bench.py tests/test_railway_env_logs.py tests/test_discord_chart.py tests/test_discord_chart_hotset.py tests/test_discord_chart_warm_budget.py tests/test_discord_activity.py tests/test_discord_chart_prefs.py tests/test_feature_flag_ledger.py tests/test_buzz_*.py -q -p no:cacheprovider`
-3. For any red: provenance on a detached checkout of the master tip (`git worktree add --detach <scratch> origin/master`, same test) — inherited means 0 new.
-4. Update ledger row 11 (merge base, gate numbers), commit, then the guarded push: master 0 ahead **and** `web` newest deployment terminal, then `git push origin HEAD:discord-render-hardening` and `git push origin HEAD:master`.
-5. Poll `web` for the new SHA; verify in-process with `docs/discord-render/instruments/pod_env_probe.py`; HTTP checks (health 200, bad-signature 401, render-health 401); ledger + `05`.
-6. Then 2.4b.
-
-Mutation harnesses for every step: `docs/discord-render/instruments/` (`python mutation_harness_<step>.py .`).
-
-## c. Open decisions (all logged in `docs/discord-render/LEDGER.md`, proceeding on the recommendation)
-
-| OI | Decision | Recommendation → state |
+| Step | State | Evidence |
 |---|---|---|
-| OI-01 | Invalid-symbol refusal vs "the universe is not a gate" | Refuse only when every authority misses — `/api/bars` decides after a static miss — ≤3 suggestions + background warm → **built 2.4a** |
-| OI-02 | Queue kind | Thread-backed bounded queue + SQLite → built |
-| OI-03 | Jobs in `web` or a worker service | Stay in `web` with durable resume → proceeding |
-| OI-04 | Context line = second PATCH | Fold into the image PATCH → 2.6 |
-| OI-05 | Warm cycle shares renderer slots | Background lane, ≤2 slots → lanes built; renderer cap built behind `RENDER_POOL_ENABLED` |
-| OI-06 | Unlabelled stand-in | Label it → 2.7 |
-| OI-07 | "Flow feed is reconnecting" for every cause | Per-class wording (built, V2) + cached card → 2.4b |
-| OI-08 | Alert destination | `DISCORD_RENDER_ALERT_WEBHOOK` ships blank; recommend dev server `#system-alerts` → **owner** |
-| OI-09 | `/renderhealth` registration | Register at flip (`tools/discord_chart_commands.py register --renderhealth`) → built, unregistered |
-| OI-10 | RTH cache TTL 30 s vs today's 120 s | Follow D-02 → 2.5 |
-| OI-11 | Flow target for `days=all` | Per-window targets from `02` → proceeding |
-| OI-12 | chart-renderer has no repo source | Deploy via `railway up` of a `git archive` of the merged commit; owner may connect the repo |
-| OI-13 | Render token was in renderer logs | Log fix shipped (`6090d306`) → **owner rotates `CHART_RENDER_TOKEN` + `VITE_CHART_RENDER_TOKEN`** |
-| OI-14 | ~77 web deploys/day | Out of scope, recorded |
-| OI-15 | flow-worker `/ticker-flow` has no time budget | Our side 10 s + cached card; their side is a partner file |
-| OI-16 | `/flow` ETF partition | Resolve from the symbol, V2 only → **built 2.4a** |
-| OI-17 | Renderer warm-up URL needs the render token | Hermetic warm shipped; owner may set `RENDER_WARM_URL` after OI-13 |
-| OI-18 | Hard-ceiling default 20 s would 504 renders web budgets longer | Ceiling = the request's declared budget; lower to 20 s after 2.4/2.6 re-budget |
+| Phase 0 (map, forensics, baseline) · Phase 1 (architecture) | closed | `docs/discord-render/00`–`03`, `LEDGER.md` Phase summaries |
+| 2.1 runtime · durable jobs · deadline · failure contract | merged dark | `740b79ad5` (LEDGER row 4) |
+| 2.2 observability · render-health · alerts | merged dark | `6d779dd47` (row 6) |
+| 2.3 renderer hygiene · hard ceiling · warm pool | merged; chart-renderer deployed | `d32d14d60` (row 8) + deployment `6090d306` (row 9) |
+| 2.4a symbol resolution · `/flow` ETF partition | merged dark | `d623baf1d` (row 11) |
+| 2.4b part 1 market clock + freshness envelope + breakers | on the branch | `9087bc196`, `4984e6207` (Phase 2 summary) |
+| **2.4b P2.1–P2.10 adapters, stamp, alerts, loopwatch, shadow** | **merged dark** | **`5ca4d5db2`** (row 14), gate 1,112 passed, 69/69 mutations red |
+| Cross-lane contracts frozen | **merged** | **`e659454bb`** — `api/services/discord_render/contracts.py` + `tests/test_discord_render_contracts.py` |
+| Shadow mode flipped ON + its record made interpretable | on the branch | `9a7043317` (`shadow.py`, `tests/test_discord_render_shadow.py`, `08-merge-queue.md`) |
+| P2.10 bench + wall clock + two instrument failures | on the branch | `ef8bdca06` (`05-progress.md`, `instruments/adapter_overhead_bench.py`) |
+| 2.5 cache · 2.6 delivery · 2.7 visual+goldens · 2.8 forensics regressions | **in flight, lanes B–E** | `docs/discord-render/07-execution-plan.md` §3 |
+| Phase 3 (canary, bench, RTH) · Phase 4 (the flip) | not started | — |
 
-## d. Processes to restart
+**Shadow mode is ON in production** (`RENDER_V2_SHADOW='1'`, read in-process — §c; flipped and
+ledgered by Lane A in `9a7043317`). That was 07 §6's "live and ON before Monday 09:30 ET" target, and
+it is met.
 
-**None for this program.** Nothing was running at checkpoint: no dev server, bench, soak, tunnel or
-watcher (the deploy pollers exited after their deploys finished). The weekend soak (Phase 3.4) is not
-armed yet.
+**Nothing a member can see has changed.** `DISCORD_RENDER_V2_ENABLED` is absent from the running
+process, and with it absent the interactions endpoint runs the pre-V2 path exactly
+(`api/services/discord_render/commands.py:49`, railed).
 
-Task Scheduler (registered, **survive the reboot on their own**, none belongs to this program): the
-`UCT Brain *`, `UCT Breadth *`, `UCT Morning Wire`, `UCT EOD Updater`, `UCT Market Ingest`,
-`UCT Clips - *`, `UCT Desk *`, `UCT RTH *`, `UCT-WaveQ1-*`, `UCT20 *` families (57 tasks at checkpoint).
-Nothing needs re-arming.
+---
 
-## e. Flags and env that matter (read live 2026-09-13)
+## b. The very next actions, in order, with their commands
 
-| Name | Where | Value | Meaning |
-|---|---|---|---|
-| `DISCORD_RENDER_V2_ENABLED` | web | **unset** (read in-process 18:47 UTC) | V2 off → every command runs the pre-V2 path |
-| `DISCORD_RENDER_V2_{CHART,FLOW,BUZZ,CONTROLS,SYMBOLS}_ENABLED` | web | unset (= on under the master) | per-command kill switches |
-| `DISCORD_RENDER_ALERT_WEBHOOK` | web | unset | alerts would be log events only |
-| `DISCORD_RENDER_ADMIN_USER_IDS` · `DISCORD_RENDER_OBSERVE_S` · `DISCORD_RENDER_ALERT_COOLDOWN_S` · `DISCORD_RENDER_DB_PATH` | web | unset (defaults) | |
-| `RENDER_POOL_ENABLED` | chart-renderer | **unset** (`/health` `pool_enabled: false`) | pool, recycle, background cap off |
-| `RENDER_HARD_TIMEOUT_S` · `RENDER_WARM_URL` · `RENDER_RECYCLE_AFTER` · `RENDER_RSS_CEILING_MB` · `RENDER_BACKGROUND_SLOTS` · `RENDER_POOL_KEYS` | chart-renderer | unset (defaults) | |
-| `/renderhealth` | Discord app | **not registered** | |
+**1 — Re-establish state before touching anything** (30 seconds; run these first after any restart):
 
-## f. Gotchas (pulled into one place)
+```sh
+cd C:/Users/Patrick/uct-worktrees/discord-render
+git fetch origin && git status --short && git rev-list --count HEAD..origin/master
+railway deployment list --service web --json | head -40      # newest SUCCESS + its commitHash
+python docs/discord-render/instruments/verify_merge.py <expected_sha_prefix>
+```
 
-- **Backend pytest is SCOPED** — name the files; `pytest tests/` (even with `-k`) OOMs this box at collection. A run with no totals line is not a run.
-- **One master merge at a time, repo-wide** — `web` SUCCESS before the next push; other sessions push constantly, so re-fetch right before pushing and refuse if master moved.
-- **flow-worker watch list** — pushes touching those files bounce the OPRA tape (permanent gap); after-hours/weekend only. Check with `python tools/flow_worker_watch_coverage.py`. This program touches none.
-- **chart-renderer has NO repo source** — deploy = `railway up <ABSOLUTE payload dir> --path-as-root --service chart-renderer --detach`, payload = `git -c core.autocrlf=false archive <sha> services/chart_renderer`; verify the image (`wc` of `/app/app.py`) and `/health` keys, not just SUCCESS.
-- **`railway ssh` from Windows** — Git Bash with `MSYS_NO_PATHCONV=1`; never from Python `subprocess` (the `.cmd` shim eats `"|"`); never discard stderr on a probe.
-- **Cloudflare 1010** blocks curl/python user agents on uctintelligence.com — send a browser `User-Agent`.
-- **Frontend `VITE_*` flags are baked at build**; a Railway variable change on web restarts it (verify the boot).
-- **Partner-owned files** (`OptionsFlow.jsx`, `api/live_massive_router.py`, `api/schwab_router.py`): minimal diffs, Ravi/Manrav ack first. This program only READS `live_massive_router.py`.
-- **Mutation proofs:** byte-restore by sha256, never `git checkout`; a harness control must be green; a rail the code under test can swallow (fail-open wrappers) is not a rail.
-- **`C:\data` is live data** on this box; tests are sandboxed by the repo-root `conftest.py` tripwire — never run tools against it outside pytest.
-- **Every commit gets a ledger row**; every master push carries a member-impact paragraph; everything ships dark and the owner flips.
+**2 — Read the shadow divergence, which is the one number the flip decision rests on.** Shadow has
+been recording since the flip of `RENDER_V2_SHADOW` earlier this session; it is worth the most
+through Monday's RTH:
 
-## g. Verification checklist (what `scripts/resume.ps1` runs)
+```sh
+python tools/railway_env_logs.py --filter drender
+# then count lines with "evt":"shadow" and "divergence":true
+```
 
-1. `git -C C:\Users\Patrick\uct-worktrees\discord-render status --porcelain` → empty.
-2. `git merge-base --is-ancestor 3f71d5364 HEAD` → true, and `HEAD == origin/discord-render-hardening`.
-3. `git rev-list --count HEAD..origin/master` → how far master moved (information).
-4. `railway deployment list --service web --json` → newest `SUCCESS`, and its commit contains `d32d14d60`.
-5. `railway deployment list --service chart-renderer --json` → newest `SUCCESS`.
-6. `GET https://uctintelligence.com/api/health` (browser UA) → 200.
-7. `POST https://uctintelligence.com/api/discord/interactions` with a bad signature → 401.
-8. `GET https://uctintelligence.com/api/discord/render-health` without the bearer → 401 (route live).
+`divergence` = V2 would have refused a symbol the old path went on to draw
+(`api/services/discord_render/shadow.py:94`). ⛔ Search the bare word `drender` — Railway's log
+search silently matches nothing for a bracketed phrase (`api/services/discord_render/observe.py:9-11`).
 
-## h. Owner hands (after reboot)
+**3 — Lane A integrates whatever lands first** through `docs/discord-render/08-merge-queue.md`. On
+the programme branch at 20:45 ET that queue lists **all five lanes B–F in flight, every one gated
+against `e659454bb`** — so re-read it on `discord-render-hardening`, not on master, where it may lag:
+`git show discord-render-hardening:docs/discord-render/08-merge-queue.md`. One master merge at a
+time; `web` SUCCESS and the running SHA confirmed in-process before the next push.
 
-- Delete `C:\Users\Patrick\uct-worktrees\_dr-master-506` (not a git repo; a shell delete was refused by the permission classifier).
-- Rotate `CHART_RENDER_TOKEN` (web) and `VITE_CHART_RENDER_TOKEN` (build) now that renderer logs are scrubbed (OI-13).
-- Choose the alert webhook destination (OI-08); optionally connect chart-renderer to the repo (OI-12) and set `RENDER_WARM_URL` (OI-17).
-- The S7/D2 session must declare `CANONICAL_INDICATOR_AXIS_ENABLED` in `docs/feature_flags.json` (it reds every gate that includes the flag-ledger rail).
-- The catalyst session must checkpoint the 72 uncommitted files in `C:\Users\Patrick\uct-dashboard`.
-- If `railway` commands fail after the reboot: `railway login` (and `railway link` in the worktree if asked).
-- Flag flips (V2, pool, `/renderhealth` registration) come at Phase 4 — not now.
+⛔ **A queue row is only "ready" if it names the SHA it was gated against**, and master moves under
+this branch every few minutes. Re-gate only what master's movement actually invalidates, and record
+which of the two happened (`08-merge-queue.md`'s own rules).
+
+**4 — The RTH baseline is still missing.** `02-baseline.md` is a closed-market bench and says so
+("RTH baseline pending (Monday)"). `tools/discord_render_bench.py` is the instrument.
+
+**5 — The flip, when the owner decides:** `docs/discord-render/06-flip-packet.md` — written to be
+read alone. Day-two operations: `docs/runbooks/discord-render-operations.md`.
+
+---
+
+## c. Live production state — measured 2026-09-13 20:44 ET / 2026-09-14 00:44 UTC
+
+| Fact | Value | Command |
+|---|---|---|
+| `web` newest deployment | **SUCCESS**, commit `cda883387887…`, created `2026-09-14T00:41:31.783Z` | `railway deployment list --service web --json` |
+| Running commit, **in-process** | `cda883387887` (= `origin/master` at the time of reading) | `railway ssh` probe (recipe in `06-flip-packet.md` §2.3) |
+| `DISCORD_RENDER_V2_ENABLED` | **absent** | same probe |
+| `RENDER_V2_SHADOW` | **`'1'`** | same probe |
+| `DISCORD_RENDER_V2_ADAPTERS_ENABLED` · `DISCORD_RENDER_LOOPWATCH_ENABLED` | absent (= ON; dormant while the master is off) | same probe |
+| `/data/discord_render_jobs.db` | **does not exist** — V2 has never run in production | same probe |
+| `DISCORD_RENDER_ALERT_WEBHOOK` | configured on `web` (private `#render-alerts`) | `railway variables --service web --kv`, key only |
+| `CHART_RENDER_TOKEN` + `CHART_RENDER_TOKEN_PREVIOUS` + both `VITE_` halves | all four present — **a rotation is in flight** | same |
+| chart-renderer | `RENDER_POOL_ENABLED=1`, `RENDER_WARM_URL` set | `railway variables --service chart-renderer --kv` |
+
+⭐ The **absent jobs database** is the proof that V2 has never run, and it is stronger than a zero job
+count — a zero count is also what a wrong query returns (`LEDGER.md`, post-restart close-out B).
+
+⚠️ **`--kv` is the service's CONFIG, not evidence the running process has it.** The five rows above
+marked "in-process" were read from the process; the `--kv` rows are configuration only, and are
+reported as such.
+
+**UNVERIFIED (and cheap to settle):** whether the Monday one-shot Task Scheduler job
+**`UCT Render Token Retire`** (2026-09-14 07:15 CT) is still registered and enabled. It clears only
+the `_PREVIOUS` pair, gated on Morning Wire having run that day (`LEDGER.md` step 1.1b). Settle with
+`schtasks /query /tn "UCT Render Token Retire"`.
+
+---
+
+## d. HEAD state, branches and the lanes
+
+| Checkout | Branch | State at 20:45 ET |
+|---|---|---|
+| `C:\Users\Patrick\uct-worktrees\discord-render` (**Lane A**, the programme) | `discord-render-hardening` | **`ef8bdca06`** — 1 ahead of `origin/master` (`cda883387`), which it has already merged. Two programme commits not yet on master: `9a7043317`, `ef8bdca06` |
+| `.claude/worktrees/agent-*` (**lanes B–F**) | `worktree-agent-<id>` | five branches, all created at `e659454bb` 2026-09-13 20:23 ET; **none had committed** when this was written. They are now 18 commits behind `origin/master` — re-measure with `git rev-list --count HEAD..origin/master` before gating anything |
+
+Lane ownership, and it is the rule that keeps two lanes off one file
+(`docs/discord-render/07-execution-plan.md` §3): **A** integration/merges/bench · **B** 2.5 artifact
+cache · **C** 2.6 delivery · **D** 2.7 badge + visual spec + goldens · **E** 2.8 + Step-3 harnesses
+(**no `api/**` change at all**) · **F** docs, runbook, flip packet, `docs/RESUME.md`.
+
+⛔ **A lane that needs a change in another lane's file writes a contract-change request in its ledger
+row and proceeds on its own side.** Never two lanes editing one file.
+
+⛔ The five frozen contracts are `api/services/discord_render/contracts.py` (merged at `e659454bb`);
+a change to any of them after the lanes are running is a **ledgered event with a reason**.
+
+---
+
+## e. Open decisions (OI) — the ones still open, with who owns them
+
+Full text for every row is `docs/discord-render/LEDGER.md` ("Owner decisions") and `03` §6. Closed
+since the last checkpoint: **OI-09** (`/renderhealth` registered, step 1.2b), **OI-12** +
+**OI-17** (renderer connected to the repo with watch path `services/chart_renderer/**`, pool and warm
+URL live, step 1.2), **OI-13** (token rotated, step 1.1b — see the Monday retire job),
+**OI-19** (dual-token acceptance, step 1.1a), **OI-21** / **OI-23** (built in P2.1).
+
+| OI | What is still open | Owner |
+|---|---|---|
+| OI-03 | web vs a dedicated worker service — revisit after 5 sessions of `resumed` data | programme, after the flip |
+| OI-04 | fold the context line into the image PATCH (kills the last attachment re-declaration) | **Lane C** (2.6) |
+| OI-06 | label the stand-in on the image **and** in the message | **Lane D** (2.7) |
+| OI-07 | per-class `/flow` wording shipped (2.1a); the **≤10-minute cached flow card is not built** — `grep cached api/services/discord_render/adapters/flow.py` returns nothing | Lane A / B |
+| OI-10 | D-02's 30 s RTH cache TTL vs today's 120 s — measure once 2.5 exists | **Lane B** (2.5) |
+| OI-11 | per-window `/flow` targets are set (1 → 4.4 s · 7 → 4.9 s · 30 → 8.7 s · all → 10.4 s); the RTH measurement is outstanding | Lane A, Monday |
+| OI-14 | ~77 `web` deploys/day is the root of C-01 for every feature on the pod | **recorded only — out of scope** |
+| OI-15 | flow-worker `/ticker-flow` has no internal time budget (partner file) | **flow-worker owner** — raised, not built here |
+| OI-18 | the renderer hard ceiling defaults to the request's declared budget; drop it to 20 s once web's attempts are re-budgeted inside the 15 s deadline and RTH p99 is measured | Lane A/C, after 2.6 |
+| OI-20 | the hygiene gate as an opt-in pre-commit hook (installing one reaches ~57 worktrees) | deferred, documented |
+| OI-22 | a quote failure is still indistinguishable from "no extended-hours print"; bounded now, the split needs `fetch_ext_quote` to raise (pre-V2 behaviour change) | **Lane E** (2.8) |
+| OI-24 | `discord-chart-produce` is spawned without `ids.carry`, so chart-production events are unattributable (pre-V2 file) | **Lane E** (2.8) |
+| OI-25 | the fixed 1.5 s bars retry lives in the caller; the binding passes `attempts=1` so they cannot multiply. Moving the loop is a pre-V2 change | **Lane E** (2.8) |
+| OI-26 | ⛔ the pre-push **secret scan has never run** for any worktree but one, and this is a **public repo**: `tools/secret_scrub.py` exists only on `feat/breadth-charts`. The hook prints "the secret scan did NOT run. This is not a pass." and proceeds | **`feat/breadth-charts` owner** — land the tool on master and every worktree's hook starts working |
+| OI-27 | `RENDER_V2_SHADOW` is **structurally undeclarable** in `docs/feature_flags.json` — the scanner only sees gates whose name contains `ENABLED`/`DISABLE`. Declared in `03` §3.8d + `LEDGER.md` instead | **flag-ledger programme** (widen `_GATE_MARKERS`) |
+
+⛔ **Step 1.3 is NOT done and is blocked two ways:** `#render-alerts` inherits ADMIN CHAT's access,
+which includes the **Contributor** role. The Claude browser extension is disconnected, and the bot
+token gets `403 Missing Access (50001)` on that private channel — granting access needs the very
+permission that is missing. ⚠️ Not a member-data exposure: the channel carries queue depths, latency
+percentiles, failure classes and correlation ids. Posting is unaffected (a webhook does not need read
+access), which is why the test alert landed. `LEDGER.md`, step 1.2b/1.3.
+
+---
+
+## f. Standing rules this programme runs under
+
+1. **ONE master merge at a time, repo-wide.** `web` SUCCESS **and** the running SHA confirmed
+   in-process before the next push. `python tools/pre_push_guard.py` enforces it and fails closed
+   (refuses while the newest `web` deployment is not a SUCCESS at least 150 s old).
+2. **Everything ships DARK behind a flag. The owner flips.**
+3. **Deploy tier is decided by the FILES, not the clock** — `docs/runbooks/deploy-windows.md` is the
+   single authority. Anything on flow-worker's watch list is weekend/after-hours only, because a
+   flow-worker restart drops the OPRA socket and Massive does not replay. Check with
+   `python tools/flow_worker_watch_coverage.py`; a red needs an ADDITIVE / BEHAVIOUR-CHANGING
+   classification written in the ledger row before the push.
+4. **Backend pytest is SCOPED — named files, ≤6 per lane, never `pytest tests/`, never `-k` over the
+   tree.** `-k` filters what *executes*; everything is still *collected*, and collection is where the
+   memory goes. The full gate runs in Lane A only, one at a time
+   (`07-execution-plan.md` §1). **No `npm ci` / `npx vitest` in a lane at all.**
+5. **A run with no totals line is not a run**, and the background-task exit code is not a verdict —
+   it has been measured wrong in both directions.
+6. **Write the line endings git already stores**, not what is on disk. `python tools/check_repo_hygiene.py`
+   (it was `clean: 9226 tracked file(s)` when this was written). ⛔ `git checkout -- <file>` is not
+   an undo; it discards everything uncommitted in that file.
+7. **Never `git add -A`** in a shared worktree; stage by path.
+8. ⛔⛔ **H15 — a failing post-deploy smoke is rolled back FIRST and diagnosed second**, and
+   **INCONCLUSIVE is not FAILED**.
+9. Partner-owned files (`OptionsFlow.jsx`, `live_massive_router.py`, `schwab_router.py`) are out of
+   scope for every lane; a minimal isolated diff, acked first, if ever unavoidable.
+10. **Machine constraint:** ~8.6 GB free of 31.8 GB with other sessions live. One gate at a time on
+    this box.
+
+---
+
+## g. Verification checklist — how to re-derive everything above
+
+| # | Check | Command |
+|---|---|---|
+| 1 | worktree clean; branch == `origin/discord-render-hardening` | `git status --short`, `git rev-parse HEAD origin/discord-render-hardening` |
+| 2 | master drift | `git rev-list --count HEAD..origin/master` (was **0**) |
+| 3 | `web` newest deployment SUCCESS + its commit | `railway deployment list --service web --json` |
+| 4 | the **running** commit and the flags, in-process | `06-flip-packet.md` §2.3, or `docs/discord-render/instruments/pod_env_probe.py` |
+| 5 | `/api/health` 200 + uptime · bad signature → 401 · render-health without the bearer → 401 | `docs/discord-render/instruments/verify_merge.py <sha>` |
+| 6 | chart-renderer ready | `docs/discord-render/instruments/renderer_health_probe.py` |
+| 7 | flow-worker untouched by this branch | `python tools/flow_worker_watch_coverage.py` |
+| 8 | line endings + tracked-file hygiene | `python tools/check_repo_hygiene.py` |
+
+⚠️⚠️ **`scripts/resume.ps1` HAS TWO STALE PINS AND THEY FAIL SOFT.** `scripts/resume.ps1:16-17` still
+read `$CodeTip = '3f71d5364'` and `$LastOnMaster = 'd32d14d60'`, consumed at `:66-67` and `:95-96` as
+*ancestor* checks. Both SHAs **are** ancestors of today's tip (measured), so both checks print green —
+and would keep printing green with the pod running a commit four merges old. ⭐ An ancestor test
+against a stale pin cannot detect the drift it exists to detect. Re-pin both to the current tip
+before trusting checks 2 and 4 of that script. **Lane F does not own `scripts/resume.ps1`** — this is
+recorded here and in Lane F's report as a change request for Lane A.
+
+---
+
+## h. Everything else on this machine
+
+Each programme keeps its own checkpoint; this file is the Discord render programme's:
+
+- Notebook Wave Q1 → `docs/notebook/wave-q1-RESUME-HERE.md` — **on master**
+- Joystick hub → `docs/plans/joystick/RESUME.md` — **on master** (programme CLOSED; one owner device
+  run outstanding)
+- Wisdom loop → `docs/wisdom/SESSION-STATE.md` — **on master**
+- Indicator ecosystem → `docs/runbooks/indicator-ecosystem-resume.md` — ⚠️ **NOT on master**; it
+  lives on `worktree-indicator-ecosystem` (`git show worktree-indicator-ecosystem:docs/runbooks/indicator-ecosystem-resume.md`)
+- Terminal-Next → `docs/terminal-research/00-program-control/LEDGER.md` — ⚠️ **NOT on master**; it
+  lives on `terminal-research` (`git show terminal-research:docs/terminal-research/00-program-control/LEDGER.md`),
+  and `docs/runbooks/deploy-windows.md:51-52` points at it by that path
+
+**The 2026-09-13 15:30 ET restart capture — 19 dirty checkouts captured and pushed, with the branch
+and SHA for each — is in the previous version of this file: `git show b4c9e9bcc:docs/RESUME.md`
+(§i).** It is not reproduced here because it is a completed one-off, and a stale copy of it is worse
+than a pointer to the real one.
+
+**Processes to restart: none.** Nothing in this programme runs locally. The `UCT *` Task Scheduler
+jobs resume on their own.
+
+---
+
+## i. Known gotchas that cost time last session
+
+- `railway ssh` from Windows: **Git Bash + `MSYS_NO_PATHCONV=1`**, the pipe quoted as `"|"`, and
+  `/opt/venv/bin/python` (bare `python3` in the pod is the Nix system python with no app deps).
+  Never Python `subprocess`; never discard stderr.
+- **Cloudflare 1010-blocks raw `curl`/`python` user agents** on `uctintelligence.com` — send a browser
+  `User-Agent`.
+- **A status code without a body check is not a measurement.** `GET /api/r/movers` returned 200 for a
+  made-up token because there is no such route and the SPA catch-all answered with HTML.
+- **`railway variables --set` has been measured both staging and auto-redeploying** on this project.
+  Set it, watch for a NEW BOOT by startup-line timestamp, then read the value in the process.
+- **`railway redeploy --service flow-worker` re-deploys the commit it is already on** and drops the
+  OPRA socket for nothing. The only discharge mechanism is a marker bump
+  (`docs/runbooks/deploy-windows.md`).
+- The Claude Code permission classifier refuses reading local credential stores, Railway
+  feature-flag writes and Railway service-config changes. Ask the owner; never route around.

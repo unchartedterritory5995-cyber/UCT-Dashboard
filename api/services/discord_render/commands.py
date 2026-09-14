@@ -71,6 +71,18 @@ _symbol_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_
 
 
 def _last_edit_failure():
+    """What the last failed edit on THIS thread was.
+
+    ⛔ THE DELIVERY LAYER IS ASKED FIRST, AND IT HAS TO BE. Since OI-29 the image PATCH goes
+    through `delivery.edit_image`, which records a full `DeliveryResult` — status, Discord's error
+    code, the named class and whether it was retryable. `di.last_edit_failure()` is the pre-V2
+    recorder and knows nothing about those deliveries, so reading it first would answer `None` for
+    every V2 image failure and the member would be told nothing about a delivery that failed. It is
+    kept as the fallback because the kill switch can still route through `di.edit_original`."""
+    from api.services.discord_render.adapters import bindings
+    res = bindings.last_delivery_failure()
+    if res is not None:
+        return res
     f = di.last_edit_failure()
     if not f:
         return None
@@ -81,7 +93,13 @@ def get_runtime() -> JobRuntime:
     global _runtime
     with _runtime_lock:
         if _runtime is None:
-            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=di.edit_original,
+            # ⛔ OI-29: the image PATCH goes through `delivery.py`, not through the raw
+            # `edit_original`. `delivery_edit_fn()` keeps that function's exact signature and
+            # return contract and re-reads the adapters kill switch on every call, so
+            # `DISCORD_RENDER_V2_ADAPTERS_ENABLED=0` still routes to the raw function — a switch
+            # captured at construction would be inert for the life of the pod.
+            from api.services.discord_render.adapters.bindings import delivery_edit_fn
+            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=delivery_edit_fn(),
                                   last_edit_failure=_last_edit_failure,
                                   commit=(os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12])
             _runtime.start()
@@ -199,18 +217,36 @@ def is_render_admin(interaction: dict) -> bool:
 async def _render_health_reply(interaction: dict) -> dict:
     """/renderhealth: ephemeral, answered inside the ack budget. The store read runs off the
     loop under HEALTH_BUDGET_S; the renderer state is the observer's cached reading, so no
-    HTTP probe of chart-renderer ever runs on the ack path."""
+    HTTP probe of chart-renderer ever runs on the ack path.
+
+    ⛔ READ-ONLY, INCLUDING WITH V2 OFF. It PEEKS `_runtime` and never calls `get_runtime()`:
+    starting the runtime from a health command would create the jobs database and the worker
+    threads as a side effect of asking how things are. That is also what makes the command safe to
+    register before the flip — it reports "V2 is off" instead of quietly turning it on. Mirrors
+    `GET /api/discord/render-health`."""
     if not is_render_admin(interaction):
         return _ephemeral("/renderhealth is for server admins.")
-    rt = get_runtime()
+    rt = _runtime                                        # peek: never build or start it from here
     obs = _observer
     renderer = obs.renderer if obs is not None and obs.renderer_at is not None else {"ready": None, "note": "not probed yet"}
     misses = obs.renderer_misses if obs is not None else 0
-    payload = await _bounded(lambda: observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses),
-                             HEALTH_BUDGET_S, None)
-    if payload is None:
+
+    def _payload():
+        from api.services.discord_render.jobs_store import JobsStore, default_path
+        store = rt.store if rt is not None else (JobsStore() if os.path.exists(default_path()) else None)
+        if store is None:
+            return None
+        return observe.health_payload(rt, store, renderer=renderer, renderer_misses=misses)
+
+    payload = await _bounded(_payload, HEALTH_BUDGET_S, "timeout")
+    if payload == "timeout":
         return _ephemeral(f"Render health did not answer within {HEALTH_BUDGET_S:g} s. "
                           "The same data: GET /api/discord/render-health.")
+    if payload is None:
+        return _ephemeral(f"Render V2 is **off** (`DISCORD_RENDER_V2_ENABLED` unset) and has never run "
+                          f"on this volume, so there is no job history yet. "
+                          f"Renderer: {(renderer or {}).get('note') or ('ready' if (renderer or {}).get('ready') else 'not probed')}. "
+                          f"Commit `{(os.environ.get('RAILWAY_GIT_COMMIT_SHA') or '?')[:12]}`.")
     return _ephemeral(observe.format_health_text(payload))
 
 
@@ -374,24 +410,34 @@ async def handle(interaction: dict, received: float) -> dict | None:
 # ── worker-side handlers ────────────────────────────────────────────────────
 
 def _chart_kwargs(ctx: JobContext, guild_id: str) -> dict:
-    from api.routers import discord_interactions as router
+    """⛔ THE UPSTREAMS COME FROM ADAPTERS, NOT FROM THE ROUTER'S RAW FUNCTIONS (P2.1, §3.8).
+
+    The callables have the same shapes `produce_chart` has always called — `(ticker, tf, n)`,
+    `(ticker)`, `(sym, tf, stats, options)`, `None` for "did not work" — so the render function is
+    unchanged and the pre-V2 path (which binds the raw functions in `discord_interactions.py`) is
+    untouched. What changes is behind them: every call is bounded by `min(the dependency's timeout,
+    the JOB's remaining time)`, behind its own breaker, and its `Result` is kept on the context so
+    the reason is available to the reply instead of being thrown away as a `None`."""
     from api.services import discord_chart_context as chart_context
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
-    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,
-                house_fn=house.render_house_chart if house.house_enabled() else None,
-                quote_fn=router.fetch_ext_quote,
+    from api.services.discord_render.adapters import bindings
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,
+                edit_fn=bindings.edit_fn(ctx),
+                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
+                quote_fn=bindings.quote_fn(ctx),
                 context_fn=chart_context.context_line if chart_context.enabled() else None,
                 components_fn=functools.partial(di.chart_components, guild_id=guild_id), fail_fn=ctx.fail)
 
 
 def _multi_kwargs(ctx: JobContext) -> dict:
-    from api.routers import discord_interactions as router
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
-    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,
-                house_fn=house.render_house_chart if house.house_enabled() else None,
-                quote_fn=router.fetch_ext_quote, components_fn=di.multi_components, fail_fn=ctx.fail)
+    from api.services.discord_render.adapters import bindings
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,
+                edit_fn=bindings.edit_fn(ctx),
+                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
+                quote_fn=bindings.quote_fn(ctx), components_fn=di.multi_components, fail_fn=ctx.fail)
 
 
 def _rebuilt(ctx: JobContext) -> dict:
@@ -446,11 +492,26 @@ def _handle_popup(ctx: JobContext):
 
 
 def _handle_flow(ctx: JobContext):
+    """⛔ THE FETCH GOES THROUGH THE ADAPTER; THE POSTING, THE CARD AND THE COPY DO NOT MOVE.
+
+    `run_flow_card_job` already exposes a `fetch_fn(ticker, days)` seam, so the adapter slots in
+    without touching the card render or the "no significant options flow" sentence. `fail_fn` is
+    wrapped because the router's `fail_cls` is a local a `fetch_fn` cannot set: without the wrapper
+    every flow failure would read `flow_error`, which is strictly worse than today. With it, the
+    member gets the class the adapter actually observed — the point of C-08."""
     from api.routers import discord_interactions as router
+    from api.services.discord_render.adapters import bindings
+    from api.services.discord_render.adapters.switch import adapters_enabled
     job, inter = ctx.job, _rebuilt(ctx)
     tkr, days = di.parse_flow_command(inter)
-    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit, fail_fn=ctx.fail,
-                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id, source=symbols.flow_source(tkr))
+    source = symbols.flow_source(tkr)
+    extra = {}
+    if adapters_enabled():
+        extra = {"fetch_fn": bindings.flow_fetch_fn(ctx, source=source),
+                 "fail_fn": bindings.flow_fail_fn(ctx)}
+    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=bindings.edit_fn(ctx),
+                             fail_fn=extra.pop("fail_fn", ctx.fail), timeout_s=FLOW_TIMEOUT_S,
+                             cid=job.corr_id, source=source, **extra)
     return "flow"
 
 

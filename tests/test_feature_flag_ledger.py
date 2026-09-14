@@ -42,8 +42,23 @@ VALID_STATUS = {"armed", "dark", "pending"}
 NEEDS_REASON = {"dark", "pending"}
 
 
+def _reject_duplicate_keys(pairs):
+    """⛔ R-3: the loader every other test in this file uses REFUSES a duplicated key rather than
+    silently keeping the last one. `test_no_flag_is_declared_twice` covers the same ground on
+    purpose — two independent rails, because on 2026-09-13 a duplicate slipped through while the
+    "every gate is declared" rail stayed green: `json.load` kept the last entry, which happened to
+    satisfy it. A rail that parses first is blind to the thing parsing hides."""
+    seen = {}
+    for k, v in pairs:
+        if k in seen:
+            raise ValueError(f"duplicate key {k!r} in docs/feature_flags.json — two sessions "
+                             "declared the same gate and the merge kept both")
+        seen[k] = v
+    return seen
+
+
 def _ledger() -> dict:
-    return json.loads(LEDGER_PATH.read_text(encoding="utf-8"))["flags"]
+    return json.loads(LEDGER_PATH.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)["flags"]
 
 
 def _gates_needing_declaration() -> dict:
@@ -83,8 +98,18 @@ def test_the_ledger_does_not_describe_gates_that_no_longer_exist():
     an env name held in a module constant. Before that the gate was invisible,
     so the entry genuinely looked like an entry for nothing — the rail was
     reporting its own blindness and blaming the ledger.
+
+    ⚰️ AND IT HAPPENED AGAIN, ONE AXIS OVER, ON 2026-09-13. This compared the ledger
+    against `gates()` alone, so the first two VISIBILITY flags to be declared —
+    `DESK_PUBLIC_SHOWS` and `DESK_TSDR_ANNOUNCE_SHOWS`, neither carrying an
+    ENABLED/DISABLE marker — were immediately reported as entries for gates that do not
+    exist. The rail would have demanded the deletion of the two entries added to close
+    the leak that published 27 paid sessions. Same shape, same sentence: **the rail was
+    reporting its own blindness and blaming the ledger.** The subtrahend is now the
+    UNION of both axes, so declaring a flag on either one can never read as rot.
     """
-    existing = set(ffi.gates(ffi.repo_roots(REPO), REPO))
+    roots = ffi.repo_roots(REPO)
+    existing = set(ffi.gates(roots, REPO)) | set(ffi.visibility_flags(roots, REPO))
     stale = sorted(set(_ledger()) - existing)
     assert not stale, (
         "docs/feature_flags.json declares gates the code does not read AT ALL. "
