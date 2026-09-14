@@ -316,6 +316,103 @@ story, and almost no change to what a member waits for.
 
 ---
 
+# Session 2 — what the 30x is NOT, settled by direct measurement
+
+⚠️ **Reconstructed from commit messages, `docs/breadth/DECISIONS.md` (D-044) and
+`docs/breadth/flow-worker-strand-timing.md`.** Session 2's own working notes were not
+written to this file at the time; every number below is quoted from an artifact that
+exists, and nothing is reconstructed from memory.
+
+The owner's ruling was to stop reasoning about the 30x and price each candidate:
+{encoder, gzip, memory, vCPU, contention, volume IO}.
+
+## The candidates, and what each one measured
+
+| candidate | measured | verdict |
+|---|---|---|
+| **encoder** | the whole post-reader bundle was 561.7 ms locally on the 8,000-day span — 14.3 % of a 3.9 s full-stack request | cannot carry a 30x here |
+| **GZip** | same bundle; compression is a fraction of it | ruled out |
+| **memory** | a real read's transient peak is **117.1 MB**, not the 616 MB / 1.36 M objects the first probe reported | ruled out |
+| **framework** | the difference between a function call and an HTTPS round trip, measured on the same box | ruled out |
+| **contention** | the same read: **224 ms settled** vs **17,480 ms three minutes after boot** — a **54x swing on identical code and identical bytes** | ⭐ **this is it** |
+
+⭐ **The conclusion, stated plainly because the owner asked for it plainly: the 30x is
+CONTENTION on the single uvicorn process**, not the encoder and not memory. One uvicorn
+process is one event loop and one anyio threadpool of 64, shared by every user and every
+background job on the pod; a deep read that lands during the post-boot warm storm queues
+behind all of it.
+
+## ⚰️ The manufactured finding, kept rather than deleted
+
+The first blob-memory probe held **all 174 parsed blobs at once** and reported 616 MB /
+1.36 M objects. The reader does `fetchall()` and then parses **one at a time**, so the
+real transient is 117.1 MB. The bad number is kept in the record, labelled, as the
+counterfactual — deleting it would leave the next reader without the reason the
+measurement is shaped the way it is.
+
+⚠️ **And `tracemalloc` inflated the timings 4.9x** (868 ms → 4,247 ms). Time and memory
+are measured in **separate process modes** for that reason, one measurement per process.
+
+## What shipped
+
+| commit | what |
+|---|---|
+| `7705c2d3b` | the production timing instrument (`api/services/breadth_timing.py`) — `Server-Timing` header + one structured `[breadth-timing]` log line, shipped as its own merge with the member-facing summary *"Internal: timing diagnostics on breadth history reads"* |
+| `685a19bdb` | fix shape (a), the numeric store — see **D-045** |
+
+⚰️ **The instrument's first version reported `reader_ms=0.0` for a reader that had just
+run.** The route is a plain `def`, so FastAPI runs it in the anyio threadpool and anyio
+**copies** the context; a `ContextVar.set()` in the worker is invisible to middleware on
+the event loop. The fix is a middleware-owned record mutated **in place** — a copied
+context still points at the same dict. **The unit rails passed throughout**, because they
+exercised an async stand-in and were structurally blind to the one boundary that mattered.
+
+---
+
+# Session 3 — materialise the reconstructed side, and make stacked pushes a rule
+
+⚠️ **Reconstructed from commit messages, D-045 and the runbooks**, as above.
+
+## What shipped
+
+| commit | what |
+|---|---|
+| `b4c141948` | `breadth_reconstructed_daily` — the reconstructed side stops being assembled per request and becomes a table with watermarks |
+| `f7e09f56c` | the migration tolerates a continuously-written input |
+| `725151fd3` | `idx_bdo_source_date(source, date, metric, c)` |
+
+The writers are enumerated in D-045; precedence (collector beats reconstructed) is
+asserted in the reader and railed, not left implied.
+
+## The stacked-push rule, promoted from a footnote
+
+Written into `docs/runbooks/deploy-windows.md`, `CLAUDE.md` and `docs/breadth/gates.md`,
+and enforced by an extended `tools/pre_push_guard.py`
+(`suspected_stacked_pushes(rows, window=STACK_WINDOW_SECONDS=300)`, `MIN_SETTLE_SECONDS
+= 150`), plus an hourly `--audit` via `tools/stacked_push_audit.ps1` and the Task
+Scheduler job `UCT-StackedPushAudit`.
+
+⚰️ **The incident it encodes:** `7705c2d3b` pushed at 12:29:23 UTC on a green guard;
+`9e2b93805` pushed **173 s later** while it was still BUILDING, marking it REMOVED
+mid-flight. A request in flight died with a 500 after 93 s and `/api/health` served 502
+for ~45 s.
+
+⭐ **The gap is a TIME gap, not a logic gap.** The guard reads the queue at the moment of
+the push and is correct at that moment; a build takes 3–5 minutes and a gate takes
+longer. *"The queue was clear when I started my gate"* is true and useless — **the wait
+is on the DEPLOY, not on the check.**
+
+⚠️ The audit reports **SUSPECTED**, never CONFIRMED: Railway's deployment list carries
+only `status` and `createdAt`, so it can show that two commits deployed closer together
+than a build takes and cannot show the first was still building. See Session 5 for a
+ground-truth method that can.
+
+## Deferred
+
+Pre-warm, by owner ruling — one heavy lane at a time.
+
+---
+
 # Session 4 — where the deep read goes now, measured in BYTES as well as milliseconds
 
 The materialised tables exist in production (verified on a refreshed `VACUUM INTO`
@@ -385,3 +482,177 @@ cold measurement.
 and return no bytes; the 6.09 MB reconstructed fetch **is** the payload (5.18 MB
 serialised). Those three are the read now.
 
+---
+
+# Session 5 — the gate that was not gating, and six settled samples
+
+## Wait-for-CI is not a gate — measured, not inferred
+
+Eight consecutive `web` deploys on 2026-09-14, 19:10Z–21:30Z. Each one **started before
+its own check suite finished**, including `7707b2241`, which was created **after** the
+Wait-for-CI toggle was already ON. The lead was **99–141 s** on every one of the eight.
+
+⚰️ **And the check set is not the workflow list.** GitHub lists **9** workflows for this
+repo; `.github/workflows/` holds **7**. Two are ghosts — run history, no file. Any design
+that enumerates "required checks" must derive them from the directory, never from the UI.
+
+⭐ **A toggle that is ON and not gating is worse than one that is OFF**, because every
+session downstream of it reasons as though the queue is protected. Session 6's Workstream
+4 replaces it with a promoted-branch gate.
+
+## The n=6 settled sample, and the finding in it
+
+With `settled := /api/health uptime_seconds >= 600`, six forced-cache-miss reads of the
+deep span. The result that redirected the programme:
+
+⚰️ **`post_reader_ms` exceeded `reader_ms` in all six.** The optimisation target had
+moved, and the shipped instrument could not say where either side spent its time — it
+reported two numbers and a total. That is what Session 6's Workstream 1 exists to fix.
+
+⚠️ **n=6 cannot bound a p95.** With six observations the 95th percentile rests entirely
+on the largest sample and has no upper confidence bound from data. Session 6 re-sampled
+at n=20 for exactly this reason.
+
+---
+
+# Session 6 — naming the post-reader cost, and a p95 that is actually estimable
+
+## Workstream 2 — n=20 settled window
+
+Against deployed `1216958ed`, window 22:23:04Z–22:38:25Z, uptime 708→1,629 s
+(**monotonic — no restart mid-window**), every sample a forced cache miss on a distinct
+`days=` key, all 200, `decoded_bytes` 681,973–681,975, `railway logs` streamed to
+`logs/session6-sample.log` every 5 samples (128 `[breadth-timing]` lines, 8 capture
+blocks) because the buffer is ~500 lines ≈ 10 minutes and a window longer than that
+loses its own evidence.
+
+| deep, n=20 | min | p50 | p90 | p95 | max | sd |
+|---|---|---|---|---|---|---|
+| wall (client) | 796.2 | **980.8** | 1,560.2 | **1,749.7** | 1,897.7 | 316.7 |
+| server `total_ms` | 526.9 | 696.3 | 1,224.5 | 1,429.0 | 1,496.4 | 281.2 |
+| `reader_ms` | 144.2 | 209.7 | 631.8 | 998.8 | 1,000.4 | 258.2 |
+| `post_reader_ms` | 377.6 | **433.0** | 549.1 | 581.5 | 742.1 | **89.4** |
+
+| shallow (days≈90–95), n=5 | min | p50 | p95 | max |
+|---|---|---|---|---|
+| wall | 258.8 | 301.4 | 603.3 | 675.2 |
+| `reader_ms` | 90.9 | 101.6 | 373.9 | 434.6 |
+| `post_reader_ms` | 24.0 | 27.2 | 52.2 | 58.2 |
+
+⭐ **p95 IS estimable at n=20.** The exact binomial CI puts the true p95 between order
+statistics 18 and 20 — **[1,540.0, 1,897.7] ms**, bounded by real observations on **both**
+sides. At n=6 there was no upper bound at all.
+
+⭐ **Post-reader is the steady half and the reader is the volatile one:** post sd 89.4 vs
+reader sd 258.2, and post exceeds reader in **17 of 20** (median ratio 2.09). The
+volatility is contention (Session 2); the floor is encoding.
+
+## Workstream 1 — where each half spends its time
+
+Nine reader phases and three post-reader phases, on the existing contextvar record. Local,
+against `VACUUM INTO` copies of the production databases, through the **real route**
+(TestClient, real middleware, plain-`def` route in the anyio threadpool).
+
+| phase | cold `cache=miss` | warm `cache=hit` |
+|---|---|---|
+| `merged_dates` | 21.0 | absent |
+| `collector_floor` | 8.4 | absent |
+| `anchor` | 0.003 | absent |
+| `numeric_fetch` | 11.3 | absent |
+| `reconstructed_fetch` | **99.0** | absent |
+| `merge_rows` | 8.4 | absent |
+| `adv_seed` | 2.1 | absent |
+| `derive` | **90.5** | absent |
+| `cache_set` | 0.017 | absent |
+| **reader_ms** | **248.2** | **0.0** |
+| `route_tail` | 34.1 | 0.02 |
+| `encode_render` | **525.5** | **582.8** |
+| `gzip_send` | 0.731 | 0.883 |
+| **post_reader_ms** | **563.3** | **586.8** |
+
+⭐ **`encode_render` is the dominant post-reader phase, and a cache hit does not touch
+it.** The cache stores the Python object; the route re-encodes it on every request. Split
+locally on the same payload:
+
+| | ms | bytes |
+|---|---|---|
+| `jsonable_encoder` | **481.1** | — |
+| `json.dumps` | 116.1 | 4,958,869 |
+| gzip level 9 | 158.0 | 577,540 |
+| gzip level 1 | 16.1 | 1,287,641 |
+
+⚰️ **GZip does not dominate, and the `*_list` question is moot twice over:** the lists
+are already absent from the wire (D-045's projection removed them), and no single key
+exceeds 4.5 % of the payload. What the encoder is paying for is **376,240 scalar cells**
+(4,703 rows x 80 keys) — ~1.28 us each. This is a per-value cost, not a byte-volume cost,
+which is why compressing harder does not help and why a pre-serialised response would.
+
+### Controls, all against the real route
+
+| control | result |
+|---|---|
+| (a) every phase > 0 on a deep `cache=miss`, none absent | **PASS** |
+| (b) phases account for 97.0 % of `reader_ms` (residual 7.5 ms) and 99.5 % of `post_reader_ms` (residual 3.0 ms) | **PASS** |
+| (c) on `cache=hit` the reader phases are **absent** and post-reader is still 586.8 ms | **PASS** |
+
+⭐ **A known-expensive read needs no shipped flag.** Emptying `breadth_snapshot_numeric`
+and `breadth_reconstructed_daily` on a **local copy** forces the legacy blob path:
+`reader_ms` 3,778.8 for **174 rows**, of which `numeric_fetch` is 3,563.1. Nothing was
+added to a paid route to make it slow on purpose.
+
+### Parity
+
+**EXACT.** sha256 `7695923c7e80d3abe7ca9a8692af3f6adf9295a8369ad033520d65f49b57cc6d` over
+**5,576,278 bytes** across spans 90/365/8000, 4,703 rows x 80 keys, identical between the
+instrumented tree and a real `origin/master` worktree. Controls: flipping one byte and
+truncating one byte each differ. ⚰️ The golden is a **worktree**, not a module swap — the
+change touches the router, which a module swap cannot cover.
+
+### Allocation
+
+**1,201 B per request** (tracemalloc, 200 requests) against a 4.96 MB payload the request
+already builds. `rss_after_mb` is reported to 0.1 MB; this cannot move it.
+
+---
+
+# Conventions this programme now runs on
+
+⛔ **Settled := `/api/health` `uptime_seconds` >= 600.** Never `/proc/uptime`, which is
+the CONTAINER's clock and keeps counting across an application restart — it reports a pod
+as settled while the process that serves the route has just booted.
+
+⛔ **Logs are streamed live to a file for any measurement window.** The `railway logs`
+buffer is ~500 lines ≈ 10 minutes; a window longer than that loses its own evidence.
+Capture during the window, not after it.
+
+⛔ **One measurement per process. Bytes measured, not inferred.**
+
+⛔ **No local number is ever quoted as a production improvement.**
+
+⛔ **One production sample is not a measurement** — >= 3 settled-pod, uptime-tagged
+samples, and >= 20 if a p95 is to be quoted.
+
+⛔ **An empty result is a failed invocation until proven otherwise.** Every rail that
+shells out carries a non-vacuity control, and the control's own mutation proof is run
+before the rail is called done.
+
+⛔ **Any instrument that could report work as free is declared as such BEFORE its number
+is shown.**
+
+## Appendix — the four false instruments, and the control that caught each
+
+⭐ **Kept as a list because the failures rhyme: every one of them priced real work at
+zero or at a number nobody had measured, and in every case the code was green.**
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 1 | RSS via `ctypes.windll.psapi.GetProcessMemoryInfo` | **0.0 MB** for a 114-second read | the call had no `argtypes`, so the 64-bit HANDLE was truncated. Fixed by setting `restype`/`argtypes` and **raising instead of returning 0** — which is why `rss_mb()` now returns `None`, reported as `unreadable` |
+| 2 | the `[breadth-timing]` probe, v1 | **`reader_ms=0.0`** for a reader that had just run | production. The unit rails used an **async** stand-in and were structurally blind: anyio copies the context into the threadpool worker, so the worker's `ContextVar.set()` never reached the middleware. Now proved end-to-end, with a control asserting the stand-in really crosses threads |
+| 3 | the blob-memory probe | **616 MB / 1.36 M objects** | reading what the reader actually does — `fetchall()` then parse **one at a time**. Real transient: 117.1 MB. Kept, labelled, as the counterfactual |
+| 4 | the phase formatter, v1 | **`cache_set=0.0`** and **`anchor=0.0`** for phases really costing 11–17 us and 1–4 us | the owner's control (a), *"every phase reports > 0"*. `.1f` rounded real work to the one string the instrument promises never to emit. `.3f` alone just moved the zero down two decimals; below its own resolution it now prints `<0.001` |
+| 4b | the phase reporter, `gzip_send` | **`gzip_send=absent`** for a stage that had run | measuring the instrument itself. Both the header and the main log line are emitted at `http.response.start`; `gzip_send` is only knowable after it. It now has its own line with its own wall total |
+| 4c | the W1 harness log capture | **an empty `LOGS` list**, i.e. `gzip_send: absent` again — while the values were visible on stderr in the same run | `record.getMessage() % record.args` double-applies the args and raises; the exception was swallowed. A non-vacuity assertion on the capture now fails the run instead |
+
+⚠️ **Two of these six were in instruments written to catch the others.** That is the
+argument for the standing rule: an instrument that could report work as free is declared
+as such before its number is shown.

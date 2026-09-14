@@ -115,7 +115,7 @@ function mountDialog(settings, onChange) {
   }
   return render(<Harness />)
 }
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
 
 /** One indicator's ROW in the dialog, OPENED.
  *
@@ -134,7 +134,16 @@ const openRowFor = (defId) => {
   expect(block, `no ACTIVE row for ${defId} — the list shows what the chart draws`).toBeTruthy()
   const expander = block.querySelector('[aria-expanded]')
   if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
-  return block
+  // ⭐ AND IT RETURNS THE FORM, NOT THE ROW. Chart Data renders the selected
+  // row's controls in the inspector beside the pane map rather than nested inside
+  // the row, so every caller below — all of which go looking for a field — wants
+  // the panel. The gesture that gets there is unchanged, and the returned element
+  // is verified to belong to the row that was just selected, so a stale selection
+  // cannot quietly hand back another indicator's fields.
+  const panel = document.body.querySelector('[data-inspector-for]')
+  expect(panel?.getAttribute('data-inspector-for'),
+    `the inspector is not showing ${defId}'s form`).toBe(block.getAttribute('data-row-id'))
+  return panel
 }
 
 /** One field row inside an indicator's open settings, addressed BY DECLARATION

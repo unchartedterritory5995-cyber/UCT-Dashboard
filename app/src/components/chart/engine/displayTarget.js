@@ -491,8 +491,13 @@ export function displayTargetOptions(instance, cs, defOf) {
  * `dataSeries` on different symbols print `QQQ` and `SPY` and need none either.
  * Only an actual collision is disambiguated, which is why an ordinary chart's
  * menu carries no suffixes at all.
+ *
+ * ⭐ EXPORTED FOR THE PANE MAP. Chart Data's left column names the same panes
+ * this menu names, and naming them twice is how `QQQ #2` in the menu becomes
+ * plain `QQQ` in the map that is supposed to explain it. One function, both
+ * surfaces — the rule `readout.js` already states for the legend.
  */
-function paneHostLabels(pool, lookup) {
+export function paneHostLabels(pool, lookup) {
   const labels = disambiguateLabels(pool.map((h) => ({
     defId: h.defId,
     instanceId: h.instanceId,
