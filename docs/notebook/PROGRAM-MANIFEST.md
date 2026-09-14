@@ -393,6 +393,32 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-14 — T-12'S OWNER-IDENTITY REQUIREMENT IS SATISFIED BY AN **ADMIN-ROLE** RUN (owner amendment)
+
+T-12's charter said the smoke is run *"by the owner, on his own device, signed in
+as himself"*. Amended by the owner, 2026-09-14:
+
+> **The owner-identity requirement is satisfied by an admin-role run on the rig
+> profile. The distinction that matters for T-12 is member-role vs admin-role,
+> not which human.**
+
+⭐ **The reason, and it is the useful part.** T-12 exists to prove the pre-launch
+surface works for the two ROLES that see different things — a member and an
+admin. "Which human" was never the property under test; it was shorthand for
+"an admin, on a real profile, driving the real UI". The rig profile is a real
+signed-in admin, so it satisfies exactly that. This closes the standing conflict
+between the charter's *"no agent may run it"* and the 2026-09-13 amendment that
+lets automation execute and the owner review the evidence.
+
+⛔ **What an admin-role rig run could still miss, named specifically rather than
+waved past** (owner asked for this): **step 7, Ask + citation**, if any Ask quota,
+entitlement or history is keyed to the ACCOUNT rather than the role. The rig
+account is admin and comped, so a per-account limit would read differently on the
+owner's own account. Every other step in 0–8 is role-shaped. If step 7 comes back
+green on the rig, that one step is worth a hand check.
+
+`--identity owner-rig` is the admin-role identity in `tools/t12_smoke_runner.py`.
+
 ### ⚖️ 2026-09-14 — USER-DEFINED TEMPLATES ARE **FREE** (owner ruling)
 
 S-07's spec could not settle this from the codebase, because **two shipped
