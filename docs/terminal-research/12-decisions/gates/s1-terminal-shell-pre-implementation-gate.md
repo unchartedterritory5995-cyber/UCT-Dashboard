@@ -24,9 +24,9 @@ started.
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
+APPROVED BY:      Claude (autonomous), under the owner's 2026-09-14 delegation
+APPROVED ON:      2026-09-14
+APPROVED AT SHA:  0a267d174
 SCOPE APPROVED:
 ```
 
