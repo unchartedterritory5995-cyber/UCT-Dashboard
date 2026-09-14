@@ -29,8 +29,8 @@
     },
     {
       "id": "t12-owner-profile-run",
-      "status": "pending",
-      "why": "UNBLOCKED: step 2 now falls back to the member's real path - click 'All notes', then the list toolbar's '+ New note'. The control was never missing and the regex was never wrong; the probe simply never navigated off the landing view, which only offers a create control on an EMPTY account.",
+      "status": "blocked",
+      "why": "BLOCKED - not because it failed, but because RETRYING CANNOT CHANGE IT. 7 PASS / 0 FAIL / 2 INCONCLUSIVE, parity with member-smoke. Both INCONCLUSIVEs are RUNNER gaps: step 7 does not yet drive the Ask scope switch and citation click (stated by the runner itself), and step 8 cannot reach a Delete button that is UNCONDITIONAL in the editor header (NoteEditorPage.jsx:1980) - by step 8 the run has opened a document viewer and is no longer on the note. Neither is a product limitation. Unblock when those two probes are built.",
       "timeout": 2400,
       "cmd": [
         "python",
@@ -42,7 +42,7 @@
         "--out",
         "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
       ],
-      "attempts": 0
+      "attempts": 1
     },
     {
       "id": "matrix-remainder",
