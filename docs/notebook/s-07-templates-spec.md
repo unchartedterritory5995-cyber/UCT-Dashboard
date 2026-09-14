@@ -760,3 +760,41 @@ that must turn it red; a rail whose mutation does not redden it is not finished.
    the valuation scaffold — the half of S-07 with a member-visible outcome on day one.
 3. Gap (a) after a ruling on U-1 and U-2. It is the larger build and it is blocked on two
    decisions this document is not entitled to make.
+
+
+---
+
+## ⛔ MERGE PRECONDITION — the flow-worker watch check is RED, and it must be traced before this merges
+
+`python tools/flow_worker_watch_coverage.py` on this branch:
+
+```
+[watch-coverage] base=origin/master reachable=154 watched=24 changed=7
+[watch-coverage] FAIL - flow-worker RUNS these files but will NOT redeploy for them:
+    api/services/journal_two/db.py
+  This push would leave flow-worker on the OLD code with every test green.
+```
+
+⚠️ Per `docs/runbooks/deploy-windows.md` a red here is a **REVIEW GATE, not a
+block** — but it is answered by TRACING, never by assuming, and this note records
+how far the trace has actually got:
+
+**What is established.** The change to `db.py` is purely additive: SQL comments
+plus one `CREATE TABLE IF NOT EXISTS` inside `_J2_SCHEMA`. A flow-worker left on
+old code would simply never create `j2_note_templates` — and nothing it runs reads
+that table, because the table is brand new and its only consumers are the five
+routes in this same branch.
+
+**What is NOT established, and must be before the merge.** `ensure_schema` /
+`_J2_SCHEMA` appear nowhere in `flow_worker_main.py`, `flow_gap_autofill.py` or
+`flow_admin_auth.py` — but that is **three files out of a 154-file reachable set**.
+The precedent this must match is the smoke-login change, which was cleared only
+after its import closure was walked to exactly one hop for exactly one symbol.
+
+⛔ **Do not force a flow-worker redeploy to "be safe".** A flow-worker restart
+drops the Massive OPRA socket and Massive does not replay: the tape gap is
+PERMANENT until the T+1 flat file. Paying that for a change that is provably inert
+is the worse error, and the runbook says so.
+
+**So the merge order is:** walk the closure → record INERT STRAND with the hop
+count, or touch a watched file deliberately → then merge. Not before.
