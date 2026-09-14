@@ -519,6 +519,34 @@ running the check.
 Each of these produced a confident, wrong reading in this programme. They are here because the
 next person to measure this system will reach for the same instrument.
 
+- **⛔⛔ A TRUE STATEMENT ABOUT THE WRONG ENDPOINT IS STILL A WRONG ANSWER.** The `#render-alerts`
+  access probe spent a full day reporting `STILL_BLOCKED`, hourly, correctly: `GET /channels/{id}`
+  really does answer `403 / 50001` for a channel the bot is not in. The question everyone actually
+  had — *which roles can see it?* — was answered by `GET /guilds/{id}/channels`, which returns
+  `permission_overwrites` for **every channel in the guild including ones the token cannot open**.
+  One call away, for a day. ⭐ **When a probe keeps returning the same refusal, ask whether a
+  different endpoint answers the question, before concluding the answer is "no".**
+- **⛔⛔ A RUNNER THAT COUNTS WHAT IT WAS ASKED TO DO, NOT WHAT IT DID.** `chaos_scenarios.py --real`
+  printed `ran=13 passed=13` while **six** of those scenarios had been refused by name and never
+  executed — the chunked-run defect, inside the instrument built to avoid it. `ran` now excludes
+  refused, and a refusal carries its reason. ⭐ The shape to distrust: any summary whose numerator
+  and denominator come from the same list rather than from what actually executed.
+- **⛔⛔ A TEST WHOSE VERDICT DEPENDS ON WHEN IT RUNS REPORTS THE CALENDAR.** Two suites written on a
+  Sunday were green all weekend and red at Monday's open — and the first thing one of those reds did
+  was **refuse a mutation harness's control run, so eighty mutation proofs did not happen** and
+  nothing said so. `clock_sweep.py` pins the product's market clock (`freshness.now_et()`, never the
+  OS clock — moving that would also move file mtimes and pytest's own bookkeeping) to four instants
+  spanning every session state and reports any test whose verdict differs. **1,220 observations,
+  CLEAN** — and that CLEAN is only worth stating because planting the old assertion back makes it
+  report the test by name. ⭐ **It is permanently in the gate** as
+  `tests/test_clock_sweep_in_the_gate.py`; before that wiring the string `clock_sweep` appeared
+  nowhere in the repo but its own filename, and an instrument nobody runs reads as coverage.
+- **A wrapper must not fight the script it wraps for that script's log file.** `UCT Render Token
+  Retire` reported `lastRun=07:15, LastTaskResult=1` and had **never done anything**: the `.cmd`
+  redirected stdout into the same path the Python script opens for append, so the script died on its
+  first `log()` call with `PermissionError` — and the crash handler died on the same line. ⭐ The
+  failure is invisible except by reading the log it could not write. Give the wrapper its own
+  `.wrapper.log` for wrapper-level failures and leave the script's log to the script.
 - **`observe.event` silently drops every field outside its allowlist.** Shadow mode ran for ~20
   minutes emitting `{"evt":"shadow","cmd":"chart","ms":12.3}` — lines at the right rate, with
   plausible latency, and **no content at all**, because `outcome` and `detail` were not in
