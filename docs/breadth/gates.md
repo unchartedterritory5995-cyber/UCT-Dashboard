@@ -356,3 +356,50 @@ Resident memory FELL. A pod does not OOM while giving memory back.
 **Rule this produced:** *a push is not clear until its web deploy reaches SUCCESS* —
 `docs/runbooks/deploy-windows.md` and `CLAUDE.md`.
 
+### Hourly stacked-push audit
+
+`python tools/pre_push_guard.py --audit` runs hourly (Task Scheduler job
+**`UCT-StackedPushAudit`**) and appends to **`logs/stacked-push-audit.log`**, which is
+gitignored. It reports
+SUSPECTED and never CONFIRMED: Railway's deployment list carries only `status` and
+`createdAt`, with no "reached SUCCESS at" timestamp, so it can show that two distinct
+commits were deployed closer together than a build takes and cannot show the first was
+still building.
+
+⭐ **Its first run is the reason §2 of the 2026-09-14 ruling exists.** Against the live
+list it found **six** suspected stacked pushes on 2026-09-14 alone — including four
+consecutive between 06:14 and 06:24 UTC — which is what turned "a stacked push
+happened to me" into "this is routine and the client hook is not holding".
+
+⛔ **WHY THE HOURLY OUTPUT DOES NOT WRITE ITSELF INTO THIS FILE, which is what was
+asked for.** A scheduled job appending to a TRACKED file leaves the tree permanently
+dirty, and `scripts/gate_shards.py` refuses a dirty tree — so an hourly writer would
+turn every gate run into an `INVALID` for a reason unrelated to the branch under test,
+which is exactly the "infrastructure failure collapsing into a code verdict" this repo
+keeps paying for. The log is gitignored; the table below is curated from it, and the
+table is the artifact. ⚠️ That is a tradeoff, not a solved problem: a finding reaches
+this file only when a session folds it in.
+
+⚠️ Once the `master deploy gate` workflow and Railway's Wait for CI are both on, this
+audit becomes a REGRESSION DETECTOR rather than a live problem report: a suspected
+stack after that date means the serialisation is not working, and the pair of hashes
+is the evidence to open with.
+
+| run (UTC) | suspected pairs | note |
+|---|---|---|
+| 2026-09-14 (first, manual) | 6 | `9e2b93805`/`7705c2d3b` 173 s · `98a18b969`/`7a2b54369` 294 s · `94798e838`/`59de6a14b` 172 s · `59de6a14b`/`e269f2b10` 202 s · `e269f2b10`/`956df0913` 214 s · `afef0bfde`/`2d7ae7795` 170 s |
+
+⚠️ **A WORKED FALSE POSITIVE, AND IT IS MINE.** The first scheduled run flagged
+`b4c141948` landing **234 s** after `db23f17e8` — and that push was compliant: the
+guard had reported *"SUCCESS on db23f17e8, 217s settled"* before it, i.e. the earlier
+deploy had **finished**. The heuristic cannot tell "landed 234 s later while the first
+was still building" from "landed 234 s later because the first took 200 s and then
+succeeded", because the list carries no completion time.
+
+⭐ **Do not fix this by narrowing the window.** The 2026-09-14 incident itself was
+**173 s**, so a window tight enough to exclude the false positive would also exclude
+the true positive it exists to catch. The right resolution is the one already in
+flight: once `master deploy gate` + Railway **Wait for CI** serialise pushes, a
+suspected stack becomes a REGRESSION SIGNAL to investigate rather than a number to
+tune — and investigating one costs a minute of reading two deploy records.
+

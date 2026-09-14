@@ -2505,6 +2505,16 @@ restart is expensive.
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
 
+⛔⛔ **NEVER `git push --no-verify`, AND NEVER `-n`.** It skips every hook, leaves
+no trace anywhere, and is the one path that looks exactly like the 2026-09-14
+stacked push that nobody could attribute. If a hook is wrong, fix the hook or use
+the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
+`logs/pre-push-guard-bypass.log` and is therefore reviewable. ⭐ Since 2026-09-14
+this is also belt-and-braces rather than the only line: the **`master deploy gate`**
+workflow serialises master pushes at GitHub (`concurrency: master-deploy`,
+`cancel-in-progress: false`) and Railway's **Wait for CI** holds the build until
+that run passes — a client hook asks every session to cooperate, and that does not.
+
 ⛔⛔ **A PUSH IS NOT CLEAR UNTIL ITS WEB DEPLOY REACHES `SUCCESS`. Any session
 seeing a deploy in BUILDING/DEPLOYING state must wait, even if the queue looked
 clear when it started its gate.** Owner ruling 2026-09-14, from a second
