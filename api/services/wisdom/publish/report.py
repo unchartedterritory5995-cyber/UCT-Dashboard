@@ -264,7 +264,47 @@ def _extractor(conn: sqlite3.Connection, metrics: dict) -> dict:
         d["metrics"] = _loads(d.pop("metrics_json"))
         runs.append(d)
     rates = [r for r in metrics.get("rows", []) if r["metric"] in ("extractor_precision", "extractor_recall")]
-    return {"eval_runs": runs, "rates": rates}
+    return {"eval_runs": runs, "rates": rates, "stability": _stability(runs)}
+
+
+def _stability(runs: list) -> dict:
+    """Per-type extractor stability, surfaced BY NAME in every weekly report.
+
+    ⛔ OWNER RULING, Wave 1.5 item 1 (2026-09-14): *"Add mean_jaccard per record type to the
+    extractor gate alongside precision/recall … Report it in every weekly report."*
+
+    ⭐ It is lifted out of `eval_runs` rather than left inside it because a number nobody has to
+    read is a number nobody reads. The 2026-09-14 measurement is the argument: whole-run
+    `mean_jaccard` 0.505 while PRINCIPLE agreed on 6 of ~30 — and PRINCIPLE is what D18 publishes
+    into the Brain KB under a named author. This block is what makes the unreproducible types
+    impossible to miss on the page that governs D18.
+
+    ⛔ A drift run that has never happened is "not computed yet", never 0 and never absent —
+    §0.6's rule for every rate in this report.
+    """
+    drift = next((r for r in runs if r.get("kind") == "extractor_drift"), None)
+    if not drift or not isinstance(drift.get("metrics"), dict):
+        return {"status": "not computed yet",
+                "why": "no extractor_drift evaluation has been recorded"}
+    m = drift["metrics"]
+    by_type = m.get("by_type") or {}
+    per_type = []
+    for rtype, slot in sorted(by_type.items()):
+        j = slot.get("jaccard")
+        per_type.append({
+            "record_type": rtype,
+            # ratio_text so stability reads like every other rate here: agreed/union with its n
+            "display": ratio_text(slot.get("agreed"), (slot.get("run_1", 0) + slot.get("run_2", 0)
+                                                       - slot.get("agreed", 0))),
+            "jaccard": j,
+            "below_floor": bool(slot.get("below_floor")),
+        })
+    return {"status": "computed", "extractor_version": drift.get("extractor_version"),
+            "segments": m.get("segments"), "n": drift.get("n"),
+            "mean_jaccard": m.get("mean_jaccard"), "floor": m.get("stability_floor"),
+            "below_floor": m.get("below_floor") or [],
+            "decision": (m.get("stability") or {}).get("decision"),
+            "per_type": per_type, "computed_at": drift.get("created_at")}
 
 
 def _costs(conn: sqlite3.Connection, start: date, end: date) -> dict:

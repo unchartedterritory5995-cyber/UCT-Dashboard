@@ -5,7 +5,7 @@ THE RULE, in one line: a request is submitted only while
 and the first request that would cross the line stops the run and reports. It
 never submits "just this one more".
 
-  * actual_to_date — wisdom_batches.cost_usd_actual for this extractor_version
+  * actual_to_date — wisdom_batches.cost_usd_actual across EVERY extractor_version
     (kinds extract + audit), accumulated at reap from each result's usage.
   * pending — requests written but not yet reaped (submitting / submitted / retry),
     at their stored estimate.
@@ -13,21 +13,38 @@ never submits "just this one more".
     with no cache discount, output tokens at the calibrated p90 for the model and
     effort (or DEFAULT_OUTPUT_TOKENS before a calibration exists).
 
-TWO CEILINGS, ONE CAP, WHICHEVER BINDS FIRST.
-  * per extractor_version — a new prompt/schema revision is a new run, and its own
-    spend is what the reporting view shows;
-  * across EVERY extractor_version — CONTRACTS §6.4 says `actual_to_date`, not
-    "actual to date for this version", and the owner tracks absolute dollars.
+ONE CAP — THE PROGRAM TOTAL. Owner ruling, 2026-09-14 (D-R2, confirming the
+reviewer against this stream's earlier rule):
 
-⛔ WHY THE SECOND CEILING EXISTS (reviewer finding, 2026-09-14; measured). The cap
-used to be per-version only, and `extractor_version` is sha256(system prompt ||
-schema || transport)[:8] — and the system prompt CARRIES THE SETUP VOCABULARY,
-which core.vocab serves from a live, actively-edited table. So approving one
-vocabulary name silently minted a new version whose spend was $0 and re-armed the
-whole cap, with nobody deciding anything: with $14.90 of a $15 cap spent, adding
-one name let three more $5 requests through. A ceiling a data edit can reset is not
-a hard stop (`lesson_a_flag_closes_one_door_a_capability_closes_all`). Raising the
-cap is now the only way to buy more, and that is an explicit, audited human act.
+    "The cap is ONE program-level total carried in the ledger across all extractor
+     versions, models and runs; per-version and per-run spend are reported as
+     sub-lines, never as separate budgets."
+
+So `actual_usd` / `pending_estimate_usd` (this version) and the per-run figures are
+REPORTING. `program_actual_usd` / `program_pending_estimate_usd` are the budget.
+
+⛔ WHY THE PER-VERSION BUDGET DIED (reviewer finding, 2026-09-14; measured).
+`extractor_version` is sha256(system prompt || schema || transport)[:8], and the
+system prompt CARRIES THE SETUP VOCABULARY, which core.vocab serves from a live,
+actively-edited table. So approving one vocabulary name silently minted a version
+whose spend was $0 and re-armed the whole cap, with nobody deciding anything: with
+$14.90 of a $15 cap spent, adding one name let three more $5 requests through. A
+ceiling a data edit can reset is not a hard stop
+(`lesson_a_flag_closes_one_door_a_capability_closes_all`). Raising the cap is now
+the only way to buy more, and that is an explicit, audited human act.
+
+⚰️ AND THE PER-VERSION CEILING WAS ALREADY DEAD CODE — it could never fire.
+Per-version rows are a SUBSET of the program rows (identical tables, one extra
+WHERE), so actual_v <= actual_p and pending_v <= pending_p, and the per-version sum
+can never cross the cap strictly before the program sum does. It was carried as a
+second "ceiling" for a day, and the rail that pinned it
+(`test_the_per_version_ceiling_still_binds_when_the_program_total_has_room`) only
+passed because it seeded ONE version, which makes the two sums EQUAL — a fixture
+that cannot distinguish the thing it is named after
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). Driven with two
+versions (60+5 and 40+5 against a $120 cap) the program ceiling is what stops it,
+every time. Removing the check is therefore behaviour-preserving, and the rail
+below now proves the domination rather than asserting it.
 
 WISDOM_EXTRACT_BUDGET_USD defaults to 120 ($80 catalog estimate
 × 1.5); a blank, non-numeric or non-positive value falls back to that default —
@@ -151,14 +168,16 @@ class BudgetDecision:
     requested_count: int
     stopped: bool
     reason: Optional[str]
-    #: the same cap measured across EVERY extractor_version (see the module docstring)
+    #: THE BUDGET — every extractor_version, model and run together (D-R2).
+    #: `actual_usd` / `pending_estimate_usd` above are this version's REPORTED sub-lines.
     program_actual_usd: float = 0.0
     program_pending_estimate_usd: float = 0.0
 
     @property
     def remaining_usd(self) -> float:
-        return round(min(self.cap_usd - self.actual_usd - self.pending_estimate_usd,
-                         self.cap_usd - self.program_actual_usd - self.program_pending_estimate_usd)
+        """What the PROGRAM has left. Never the per-version view: that is a sub-line,
+        and reporting a larger per-version remainder would read as money available."""
+        return round(self.cap_usd - self.program_actual_usd - self.program_pending_estimate_usd
                      - self.selected_estimate_usd, 6)
 
     def as_dict(self) -> dict:
@@ -200,15 +219,13 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
     running, allowed = 0.0, 0
     reason = None
     for est in estimates:
-        if actual + pending + running + float(est) > cap:
-            reason = (f"budget stop: actual ${actual:.2f} + pending ${pending:.2f} + selected ${running:.2f} "
-                      f"+ next ${float(est):.4f} > cap ${cap:.2f}")
-            break
-        # ⛔ the same cap across EVERY extractor_version: a prompt or vocabulary change
-        # must not hand the run a fresh budget (module docstring).
+        # ⛔ ONE CAP, and it is the PROGRAM total across every extractor_version, model and
+        # run (D-R2). A prompt or vocabulary change must not hand the run a fresh budget.
+        # The per-version figures travel on the decision for reporting and bind nothing.
         if p_actual + p_pending + running + float(est) > cap:
             reason = (f"budget stop (all extractor versions): actual ${p_actual:.2f} + pending ${p_pending:.2f} "
-                      f"+ selected ${running:.2f} + next ${float(est):.4f} > cap ${cap:.2f}")
+                      f"+ selected ${running:.2f} + next ${float(est):.4f} > cap ${cap:.2f} "
+                      f"[this version: actual ${actual:.2f} + pending ${pending:.2f}]")
             break
         running += float(est)
         allowed += 1
@@ -226,5 +243,6 @@ def snapshot(conn, extractor_version: str) -> dict:
     return {"extractor_version": extractor_version, "cap_usd": cap, "actual_usd": round(actual, 6),
             "pending_estimate_usd": round(pending, 6),
             "program_actual_usd": round(p_actual, 6), "program_pending_estimate_usd": round(p_pending, 6),
-            "remaining_usd": round(min(cap - actual - pending, cap - p_actual - p_pending), 6),
+            # ⛔ the PROGRAM remainder — the per-version numbers above are sub-lines (D-R2).
+            "remaining_usd": round(cap - p_actual - p_pending, 6),
             "batch_discount": BATCH_DISCOUNT, "prices_per_mtok": PRICES_PER_MTOK}

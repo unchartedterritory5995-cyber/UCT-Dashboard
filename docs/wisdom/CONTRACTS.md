@@ -33,7 +33,7 @@ maps disagreed. Each is settled here once.
 | 2 | Record types | `CALL · NEGATIVE_CALL · MENTION · PRINCIPLE · LEVEL · MARKET_SIGNAL` in `wisdom_records`; chart evidence lives in `wisdom_chart_images` | W1 §4.1 |
 | 3 | CALL authors | Four: `tsdr`, `bracco`, `manrav`, `chartmaster` (`docs/wisdom/authors.json`). Ravi = team, never CALL | W1 §2.1 |
 | 4 | Stream enum | Contract enum. No `owner_trade` / `owner_note` | D16b deferred (W1 Part 10) |
-| 5 | Incomplete / deletion threshold | coverage `< 0.98` | W1 §2.2 |
+| 5 | Incomplete / deletion threshold | **TWO RULES SINCE 2026-09-14, and they are not the same rule.** `incomplete` (the audit / re-transcription list) = an internal gap over **30 s** between the first and last speech cue, or a start over 30 s late; trailing dead air after a sign-off is **not** a shortfall. `coverage_ratio` stays the span measurement and the **Zoom delete gate keeps `< 0.98`** — the gap rule cannot see an end-truncation, and a Zoom delete has no recovery. One implementation: `api/services/transcript_coverage.py`. | W1 §2.2; owner ruling 2026-09-14 (`docs/wisdom/OVERNIGHT-CHECKPOINTS.md` checkpoint 11 is the measurement) |
 | 6 | Wave scope | Everything in W1 Part 8 streams is built in W1, dark | W1 Part 8, §9.1 |
 | 7 | Private store | File `WISDOM_PRIVATE_DB_PATH` (default `/data/wisdom_private.db`), key env `WISDOM_PRIVATE_KEY` (retired-key env `WISDOM_PRIVATE_KEYS_V1`), content-stream private fields ONLY | W1 §0.4d, Part 10 |
 | 8 | Job registration | Register every job unconditionally; each run re-reads its kill switch (off takes effect next tick, no deploy) | a flag-gated registration cannot be turned off without a deploy |
@@ -336,8 +336,14 @@ flags are internal and are armed by the integrator after the merges, in one vari
 - Zoom: store-and-verify before delete per §8a.6a (VTT, audio transcript, chat log, metadata → R2 under `wisdom/sources/zoom/<sha24(meeting_uuid)>/`; coverage ≥ 98 %; deletion blocked only until that succeeds), transcript pairing/stitching to the published MP4, and a multi-TRANSCRIPT regression test in `desk_session_insights.py`. Truncated videos follow §8a.6b (desk check first). `tools/wisdom/sources_zoom_transcript_repair.py` (PC-side, dry-run default) rebuilds one video's transcript via `POST /api/education/videos/{id}/insights-store` with `transcript` ONLY.
 - Sunday Scans: desk.db read-only through `desk_store`; the ingestion query requires `published_at > 0`; public-URL diff
   sets `published_check`; unsigned sections → `tsdr`, `attribution_source="D4 ruling"`.
-- Transcripts: education.db read-only through `education_service.get_transcript_cues` (never a hand regex); coverage
-  from cue span / YouTube length; `incomplete=1` below 0.98.
+- Transcripts: education.db read-only through `education_service.get_transcript_cues` (never a hand regex);
+  `coverage_ratio` from cue span / YouTube length (a stored measurement, NULL when the duration is unknown);
+  `incomplete=1` from the **internal-gap rule** (§0 #5), which needs no duration — so a row nobody has fetched a
+  duration for is now answerable instead of silently reading as complete. ⚰️ It was `< 0.98` until 2026-09-14, which
+  put two complete sessions (videos 254 and 221, 61.6 % and 92.3 %, zero internal gaps, 1742 s and 335 s of dead air
+  after their sign-offs) on the re-transcription list. ⛔ VAD is never disabled to raise a coverage number: the
+  221 tail probe with `vad_filter=False` returned `"All right."` **eleven times** — hallucinated text that would then
+  be extracted, scored and attributed to a named author. Rail: `tests/test_wisdom_sources_transcripts.py`.
 
 ### 6.4 S-D extraction and golden
 - Batch: own client `anthropic.Anthropic(api_key=..., timeout=llm_timeouts.seconds("WISDOM_EXTRACT_LLM_TIMEOUT_SECS", llm_timeouts.OFFLINE_JOB))`;
@@ -450,6 +456,16 @@ A run counts only with its totals line. Never `pytest tests/` unscoped. One test
         - the chat log;
         - the recording metadata JSON.
      2. **Verify** that the stored transcript covers >= 98 % of the published recording's duration.
+        ⛔⛔ **UNCHANGED BY THE 2026-09-14 COVERAGE RULING, DELIBERATELY.** That ruling governs the audit, which asks
+        "is there a hole in this transcript?"; this step asks the irreversible question "if I destroy the only copy,
+        have I lost anything?", and the internal-gap rule cannot answer it — by construction it cannot tell a
+        transcript truncated at the halfway mark from a session with a long outro, and a duration does not help
+        (duration says how much silence, never whether it was speech you lost). Adopting it here would authorise a
+        delete the span rule refuses. The new facts go into the page instead, so a correct alert on a healthy session
+        can be cleared in a minute rather than muted. Loosening this gate is an owner decision with a member-impact
+        paragraph, never a side effect of a measurement change. Reasoning in full at
+        `api/services/desk_session_insights.py::_trash_gate`; rail
+        `tests/test_desk_session_insights.py::test_the_new_gap_rule_does_not_loosen_the_zoom_delete_gate`.
    - **Blocking:** deletion is blocked only until that store-and-verify succeeds. It ships with a test.
    - **Also due today:** transcript-to-MP4 pairing (or stitching), a multi-TRANSCRIPT regression test, and the
      root cause of the 345 s truncation (fixed or filed).

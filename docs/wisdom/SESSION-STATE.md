@@ -7,6 +7,34 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 
 # Session state
 
+> ## ⚖️ OWNER RULINGS — 2026-09-14 morning. Wave 1 CLOSED on master; Wave 1.5 starts now.
+>
+> **Wave 1 is closed on master. The three scheduled gates stay open by design** (3 consecutive
+> sessions of capture health · first weekly report Sunday 2026-09-20 · D20 after CALL-REPLAY
+> n ≥ 100 and two weeks of silent scoring).
+>
+> | item | ruling |
+> |---|---|
+> | **D-R2** | The reviewer is right. **ONE program-level total**, carried in the ledger across all extractor versions, models and runs; per-version and per-run spend are **reported sub-lines, never separate budgets**. **Cap raised $15 → $40** for Wave 1.5's multi-pass extraction. Every run still prints spend-to-date against the cap and stops at it. Recorded in LEDGER.md with the reversal. |
+> | **HF token** | The line was left unfilled, and the owner's instruction is that this means **"text-only for now"**. ⛔ So diarization stays OFF and **the STT output as delivered stands** — 356 at 100.0 %, no speaker inferred anywhere. |
+> | **G-030** | Left blank, so **it stays in the Contradictions queue**. ⛔ **Both statements stay non-canonical and NOTHING about the 50 SMA publishes** — not to Brain KB, not to Ask-AI, not to a dossier, not to the voice profile. |
+> | **RESUME.md §3** | The cap instruction was wrong and is fixed: `--max-usd` is the **ledger-carried total**, not the remainder. Passing 15 last night was correct. |
+>
+> ⛔⛔ **WAVE 1.5 BLOCKS ANY D18 PUBLISH.** Items 1–5 must be done and the drift number must be in
+> the weekly report before Brain KB repair begins. Publication floor: no PRINCIPLE or
+> MARKET_SIGNAL publishes under a named author unless **stability = 1.0 (3/3)** AND confirmed or
+> provisional-with-evidence; 2/3 may surface only in the admin review queue.
+>
+> ⭐ **Order matters and the owner set it: reduce variance at the SOURCE first** (item 4 — tighter
+> schema, atomic segments, enums verbatim in the prompt), **re-measure drift on the SAME 10
+> segments**, and only then decide whether to buy N=3 voting. Item 6: print the projected
+> full-catalog 3-pass spend before starting it, and run it only if the schema change alone did not
+> solve it.
+>
+> **Next checkpoint: after tonight's LIVE daily chain run on Railway (after today's close, flags
+> dark), reporting per-step results, D12 capture counts (session 1 of 3) and the Discord catch-up
+> count from the four author channels.**
+
 > ## ⭐⭐ LATEST — THE OVERNIGHT RUN IS COMPLETE. All six steps done. 2026-09-14 05:00 CT
 >
 > **ALL SIX §8.4 MASTER MERGES ARE ON MASTER**, each with Railway `web` SUCCESS and a fresh-boot

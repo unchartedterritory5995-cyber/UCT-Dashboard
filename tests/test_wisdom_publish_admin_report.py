@@ -376,3 +376,46 @@ def test_the_queue_import_tool_loads_into_an_explicit_db_and_a_dry_run_writes_no
         assert conn.execute("SELECT COUNT(*) FROM wisdom_review_queue").fetchone()[0] == 1
     absent = _run_tool("publish_queue_import.py", "--db", str(db), "--file", str(tmp_path / "none.jsonl"))
     assert absent.returncode == 0 and json.loads(absent.stdout)["present"] is False
+
+
+# ── Wave 1.5 item 1: stability is reported in EVERY weekly report (owner ruling 2026-09-14) ──
+
+def test_the_weekly_report_names_per_type_stability_and_the_types_below_the_floor(db):
+    """⛔ "Report it in every weekly report." A number left inside `eval_runs` is a number
+    nobody reads, and this is the page that governs whether D18 may publish PRINCIPLE rows to
+    the Brain KB under a named author."""
+    from api.services.wisdom.extract import golden
+
+    with store.write() as conn:
+        golden.record_eval(conn, kind=golden.DRIFT_KIND, extractor_version="wx-v0-aaaaaaaa", n=10,
+                           metrics={"model": "claude-opus-5", "effort": "high", "segments": 10,
+                                    "mean_jaccard": 0.505, "stability_floor": 0.8,
+                                    "below_floor": ["MARKET_SIGNAL", "PRINCIPLE"],
+                                    "stability": {"decision": "accepted"},
+                                    "by_type": {
+                                        "CALL": {"run_1": 23, "run_2": 21, "agreed": 17,
+                                                 "jaccard": 0.630, "below_floor": True},
+                                        "PRINCIPLE": {"run_1": 30, "run_2": 28, "agreed": 6,
+                                                      "jaccard": 0.115, "below_floor": True}}})
+    with store.read() as conn:
+        doc = report.build_weekly(conn, now=datetime(2026, 9, 20, 20, tzinfo=ET))
+
+    st = doc["sections"]["extractor"]["stability"]
+    assert st["status"] == "computed"
+    assert st["mean_jaccard"] == 0.505 and st["floor"] == 0.8
+    assert st["below_floor"] == ["MARKET_SIGNAL", "PRINCIPLE"]
+    principle = next(r for r in st["per_type"] if r["record_type"] == "PRINCIPLE")
+    assert principle["below_floor"] is True
+    # ...and it renders as a rate WITH its n, like every other number in this report
+    assert principle["display"] == report.ratio_text(6, 30 + 28 - 6)
+    assert "%" in principle["display"] and principle["display"].startswith("6/")
+
+
+def test_stability_that_was_never_measured_reads_not_computed_yet_never_zero(db):
+    """⛔ §0.6: a metric that was never computed is listed as "not computed yet", never as zero.
+    Zero stability and unmeasured stability would license opposite decisions about D18."""
+    with store.read() as conn:
+        doc = report.build_weekly(conn, now=datetime(2026, 9, 20, 20, tzinfo=ET))
+    st = doc["sections"]["extractor"]["stability"]
+    assert st["status"] == "not computed yet"
+    assert "mean_jaccard" not in st and "0" not in str(st.get("why", ""))

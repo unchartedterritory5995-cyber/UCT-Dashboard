@@ -1811,3 +1811,64 @@ def test_an_mp4_can_never_trip_the_residual_check(fake_r2):
                            "status": "completed", "download_url": "http://x/m4a"}])
     out = si.archive_recording_to_r2("MEET/MEDIA", rec, _DL_356.__getitem__)
     assert len(out["vtt"]) == 2 and out["chat"] == [] and out["metadata"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-14 — the owner's coverage ruling reached the AUDIT, not this gate.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_the_new_gap_rule_does_not_loosen_the_zoom_delete_gate(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """⛔⛔ THE ONE THING THIS CHANGE MUST NOT DO.
+
+    Owner ruling 2026-09-14 makes "internal gaps only" the coverage rule, and under it a
+    transcript that runs 0 s .. 2,790 s of a 6,830 s recording with no hole in it is
+    COMPLETE — that is exactly video 254's shape and it was genuinely fine. But the gap
+    rule cannot tell that from a transcript truncated at the 41 % mark, and a Zoom delete
+    has no trash and no recovery ("Workshop with Stockbee" is gone). So this gate keeps
+    the 0.98 SPAN rule and the recording stays.
+
+    MUTANT: make `_trash_gate` authorise on the gap verdict — `zoom.deleted == ["UUIDGAP"]`
+    and this reds. Loosening it is an owner decision, never a side effect."""
+    v = _seed_session_video(title="Live Trading Session — September 12, 2026", meeting_uuid="UUIDGAP")
+    dense = [{"t": t, "text": f"line {t}"} for t in range(0, 2791, 10)]
+    edu.set_video_insights(v["id"], transcript=si._timestamped_block(dense),
+                           chapters=[{"t": 0, "title": "Open"}])
+
+    # control: the NEW rule really does call this transcript complete...
+    facts = si.coverage_rule.transcript_coverage(edu.get_transcript_cues(v["id"]), 6830)
+    assert facts["verdict"] == "complete" and facts["internal_gap_count"] == 0
+    # ...and the span the gate reads is nowhere near the threshold
+    assert facts["span_ratio"] == pytest.approx(2790 / 6830)
+    assert si.transcript_coverage(edu.get_transcript_cues(v["id"]), 6830) < si.COVERAGE_THRESHOLD
+
+    rec = {"recording_files": [_rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999)]}
+    zoom = _FakeZoom(rec, {})
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("coverage ")
+    assert zoom.deleted == []
+    assert not edu.get_video(v["id"])["zoom_cleaned"]
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
+
+
+def test_the_page_carries_the_gap_verdict_so_a_correct_alert_is_not_muted(edu_db, monkeypatch):
+    """⭐ A page that says only "covers 61.6%" is what sends an operator to re-transcribe a
+    healthy session — and then to mute the alert. It must carry the other rule's answer."""
+    from api.services import chart_health_alerts
+
+    sent = []
+    monkeypatch.setattr(chart_health_alerts, "emit",
+                        lambda key, sev, message, metadata=None: sent.append((message, metadata)) or True)
+    si._COVERAGE_ALERTED.discard(4242)
+    facts = si.coverage_rule.transcript_coverage([{"t": t} for t in range(0, 2791, 10)], 4532)
+    si._emit_coverage_alert(4242, "Live Trading Session", facts["span_ratio"], 4532, facts)
+
+    assert len(sent) == 1
+    message, meta = sent[0]
+    assert "covers 61.6%" in message                      # the span number, as before
+    assert "Internal-gap rule says COMPLETE" in message   # and the verdict that explains it
+    assert "NOT loosened" in message
+    assert meta["gap_verdict"] == "complete" and meta["largest_internal_gap_s"] == 10
+    assert meta["trailing_silence_s"] == pytest.approx(1742)
