@@ -1369,6 +1369,46 @@ Closing it requires building an instrument first — that is a task, not a looku
     there was to write both and verify the hashes match; the fix here is to say
     which branch a rule is live on, every time.
 
+31. ⛔⛔ **"198 OF 200 DEPLOYMENTS ARE `REMOVED`" WAS NOT EVIDENCE OF ANYTHING, AND
+    I REPORTED IT AS THE HEADLINE.** Only one deployment can be current, so every
+    older one is `REMOVED` **by construction**. A ratio that is forced by the
+    data model is not a measurement. ⭐ *A count that could not have come out any
+    other way is not a finding.*
+
+    **The real signal is the GAP, and it was measured properly afterwards** over
+    200 deployments spanning 2026-09-12 14:58Z → 2026-09-14 04:49Z:
+
+    | | deploys | median gap | started <5 min after the previous |
+    |---|---|---|---|
+    | before `4fb4f9daf` | 162 | 5.1 min | 78/161 (48%) |
+    | after `4fb4f9daf` | 38 | **3.6 min** | **26/37 (70%)** |
+
+    ⛔ **AND THE SECOND CONCLUSION WAS WRONG TOO.** That looks like the guard
+    failing — until you read the guard. `tools/pre_push_guard.py` (on master since
+    `4fb4f9daf`, 2026-09-13 17:27 CT) sets **`MIN_SETTLE_SECONDS = 150`**, so a
+    push 2.5 minutes after the previous deployment reached `SUCCESS` is
+    **permitted**. A 3.6-minute median is the guard working as designed, not
+    being bypassed. `core.hooksPath` is set to the real hooks directory, so the
+    hook is reached; the bypass is a logged env var, not `--no-verify`.
+
+    ⭐ **So the honest problem statement is different, and more useful than the one
+    I gave.** Nobody is breaking the rule. **Five workstreams each pushing under a
+    rule that permits a 2.5-minute cadence means production swaps almost
+    continuously** — and a rig measurement that takes two minutes has a real
+    chance of landing inside a swap. That is what cost the embed cell its first
+    attempt (`HTTP 502`, *"could not create the probe note"*), not somebody
+    violating the merge queue.
+
+    ⛔ **The fix therefore belongs in the instrument, not in the rule.** A cell
+    that meets a 502 measured nothing and must be re-run, never banked — which is
+    exactly the runner defect fixed the same night (exit 0 with an INCONCLUSIVE
+    verdict was being recorded as `done`).
+
+    ⚠️ Still genuinely missing, and NOT to be confused with the above:
+    `pre_push_guard.py` has **no `--self-check`**, so nobody has watched it refuse;
+    and its bypass log is `logs/pre-push-guard-bypass.log`, not the
+    `uct-q1-observe` location an owner ruling asked for.
+
 ### Rows added by §10
 
 | id | feature | status |
