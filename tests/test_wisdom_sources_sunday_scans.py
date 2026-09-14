@@ -285,3 +285,37 @@ def test_an_issue_that_parses_to_no_text_never_burns_a_canonical_r2_key(env):
     # control: a real issue on the same path still writes its canonical object
     ss.ingest_issue(_post(10, 1757100000))
     assert [k for k in env.objects if k.startswith("wisdom/sources/sunday_scans/")]
+
+
+def test_a_dry_run_writes_no_row_no_object_and_no_verdict(env):
+    """⛔ Owner reviewer checklist item 2 — "does any DRY RUN write an object, a row,
+    registry state, a page, or advance a watermark?" — "must be NO, and it must be
+    asserted EXPLICITLY, not left as an absence."
+
+    Discord and transcripts each had such a test; Sunday Scans had NONE, for either of
+    its two write paths. Both are covered here, and `verify` is checked AFTER a real
+    ingest so `published_check` has something it could have clobbered."""
+    post = _post(3, 1757200000)
+
+    ingest = ss.ingest_issue(post, dry_run=True)
+    assert ingest["action"] == "would_new"
+    assert _rows("SELECT * FROM wisdom_sources") == []
+    assert env.objects == {}
+    assert _rows("SELECT * FROM wisdom_chart_images") == []
+    assert _rows("SELECT * FROM wisdom_source_attributions") == []
+
+    ss.ingest_issue(post)                                   # control: the wet run DOES write
+    assert len(_rows("SELECT * FROM wisdom_sources")) == 1
+    objects_after_ingest = dict(env.objects)
+
+    res = ss.verify_issue(post, dry_run=True,
+                          fetch_body=lambda url: {"audience": "everyone", "raw": ISSUE_HTML})
+    assert res["result"] == "public_api_match"              # it still COMPUTES the verdict…
+    assert _rows("SELECT * FROM wisdom_sunday_scans_checks") == []          # …records nothing
+    assert _rows("SELECT published_check FROM wisdom_sources") == [{"published_check": "unchecked"}]
+    assert env.objects == objects_after_ingest              # and writes no new object
+
+    walk = ss.verify_recent(limit=1, dry_run=True, pace_s=0,
+                            fetch_body=lambda url: {"audience": "everyone", "raw": ISSUE_HTML})
+    assert walk["checked"] == 1
+    assert _rows("SELECT * FROM wisdom_sunday_scans_checks") == []
