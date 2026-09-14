@@ -791,7 +791,21 @@ export default function ChartSettingsModal({
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
-        className={styles.panel}
+        /* ⭐⭐ ONE TAB IS WIDER, AND THE MODAL RESIZES WHEN YOU SWITCH TO IT.
+           That trade is deliberate and it is the one this file's own width
+           comment refused in the other direction: widening ALL five tabs to suit
+           Chart Data would re-lay-out four tabs to fix one, so the width is a
+           MODIFIER on the tab that needs it. The cost is a visible resize on
+           entering and leaving Chart Data; the alternative was a pane map and a
+           settings form sharing a 560px column, which is the layout Concept D
+           exists to replace.
+
+           ⚠️ 880 IS THE TARGET, 720 THE FLOOR, AND `min()` IS WHAT MAKES THE
+           FLOOR REAL: `94vw` wins below ~936px of viewport, so a small laptop
+           gets a narrower modal rather than one that runs off the screen. Below
+           the floor the inspector's fixed 330px basis stops the columns from
+           collapsing into each other — `.cdLeft` gives the ground. */
+        className={`${styles.panel} ${activeTab === 'indicators' ? styles.panelWide : ''}`}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
@@ -884,7 +898,7 @@ export default function ChartSettingsModal({
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Chart Data'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"
