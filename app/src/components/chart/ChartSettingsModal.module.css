@@ -46,6 +46,11 @@
   animation: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
+/* ⭐ THE CHART DATA WIDTH. See the modifier's site in `ChartSettingsModal.jsx`
+   for why this is per-tab rather than global. The height is untouched — only
+   the column count changed. */
+.panelWide { width: min(880px, 94vw); }
+
 @keyframes pop {
   from { opacity: 0; transform: translateY(8px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0)   scale(1); }
@@ -811,7 +816,140 @@
    how a tab starts looking like a different app.
    ══════════════════════════════════════════════════════════════════════════ */
 
-.indTab { display: block; }
+/* ─── CHART DATA: THE TAB IS A COLUMN, AND THE COLUMNS SCROLL ────────────────
+   ⚰️ IT WAS `display: block`, AND `.body` WAS THE TAB'S ONLY SCROLL CONTAINER.
+   That was right for an accordion — one list, growing downward. Chart Data puts
+   the pane map and the inspector side by side, and the whole point is reading
+   them TOGETHER: with one outer scroller, opening a nine-field form scrolled the
+   map that explains it off the top of the panel.
+
+   ⛔ SO `.body` NO LONGER SCROLLS ON THIS TAB — the two columns do, each
+   independently. `.body` is already `flex: 1; min-height: 0` inside the fixed
+   `.panel` height, so this column has a DEFINITE height to divide; without the
+   `min-height: 0` below, `.cdCols` would size to its content and both columns
+   would grow instead of scrolling (the classic flexbox `min-height: auto` trap).
+
+   ⚠️ `.body` KEEPS `scrollbar-gutter: stable`. Its content is now exactly its
+   own height, so no bar appears there and no second gutter is reserved — the
+   rail in `ChartSettingsModal.indicators.test.jsx` counts the scroll containers
+   this tab actually has, and it is updated rather than worked around. */
+.indTab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.cdCols {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* LEFT — the chart's structure. It takes the slack, so the inspector's form
+   width stays constant as the modal narrows and the MAP is what gives ground. */
+.cdLeft {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: 14px;
+}
+
+/* RIGHT — the one selection. ⛔ A FIXED BASIS, NOT A PERCENTAGE: these are
+   label/control rows, and a form that reflows its control column every time the
+   modal is resized is harder to read than a narrower one that does not. 330px is
+   where the longest shipped field label ("Volume MA width") stops wrapping. */
+.cdRight {
+  flex: 0 0 330px;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  border-left: 1px solid var(--menu-divider, #202022);
+  padding-left: 16px;
+}
+
+/* ── ONE PANE: A HEADING AND A RAIL ──────────────────────────────────────────
+   ⭐ A RAIL, NOT A CARD. Boxing every pane reads as nine containers on a busy
+   chart (measured in the Concept D prototype); a 1px line down the gutter groups
+   just as unambiguously, costs no vertical space per group, and leaves the rows
+   inside on the same left edge as the headings above them. */
+.cdGroup + .cdGroup { margin-top: 16px; }
+.cdGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.cdGroupRows {
+  border-left: 1px solid var(--menu-divider, #202022);
+  padding-left: 12px;
+}
+
+/* ⛔ THE ORPHAN GROUP IS NOT AN ORDINARY PANE AND MUST NOT LOOK LIKE ONE. Its
+   members are not drawing at all; the accent rail is the one place on this tab
+   where gold means "look here" rather than "this is on". */
+.cdGroupOrphan .cdGroupRows { border-left-color: var(--menu-accent, #dcbb5e); }
+.cdGroupOrphan .sectionLabel { color: var(--menu-accent, #dcbb5e); }
+
+/* ⚠️ AND "NOT SHOWN" IS QUIET, NOT GOLD. It shares the orphan group's SHAPE —
+   a heading, a reason, a rail — because both answer "why is this not in a pane";
+   it must not share the accent, because nothing here needs attention. */
+.cdGroupHidden .cdGroupRows { border-left-style: dashed; }
+.cdOrphanWhy {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--menu-text-dim, #b3b3b9);
+}
+
+/* ── THE INSPECTOR ───────────────────────────────────────────────────────── */
+.cdInspector { padding: 2px 0 12px; }
+.cdInspectorHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--menu-divider, #202022);
+}
+.cdInspectorName {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--menu-text, #ededed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cdInspectorEmpty {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.cdInspectorEmpty p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--menu-text-faint, #93939a);
+}
+
+/* ⛔ THE INSPECTOR'S FIELDS ARE FLUSH LEFT. `.indRow`'s 28px indent existed to
+   clear the toggle column of the row it used to sit under; there is no toggle
+   above it here, so the indent would be a hanging margin against nothing. */
+.cdInspector .indRow { padding-left: 0; }
+
+/* ⚠️ AND THE SELECTED ROW DOES NOT BLEED INSIDE A RAIL. `.actBlockOpen` widens
+   itself 12px each side so an open card could sit proud of the flat list; inside
+   `.cdGroupRows` that reaches back across the rail and out the other side of it.
+   The surface is kept, the bleed is dropped — scoped here so the flat lists that
+   still use `.actBlockOpen` elsewhere are untouched. */
+.cdGroupRows .actBlockOpen {
+  margin-inline: 0;
+  padding-inline: 8px;
+}
 
 /* ── The ways in: search + New Formula, one compact row (§25/§26) ─────────── */
 .indTop {
