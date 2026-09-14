@@ -509,11 +509,10 @@ def history(metric: str, limit: int = 6000) -> dict:
     return out
 
 
-def distinct_dates() -> list:
-    """Sorted-ASC list of every session date carrying at least one TRUSTED-source
-    metric row. Feeds the Monitor's deep-history merge (which must know the full
-    set of reconstructed dates to build a window that reaches before the
-    collector floor). Empty on any error."""
+def distinct_dates_by_scan() -> list:
+    """The original definition: DISTINCT over the OHLC table. Kept as the FALLBACK
+    and as the parity reference — `test_the_materialised_date_set_equals_the_scan`
+    compares the two on the real production copy."""
     _ensure_init()
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
     try:
@@ -525,6 +524,42 @@ def distinct_dates() -> list:
             ).fetchall()]
     except Exception:
         return []
+
+
+def distinct_dates() -> list:
+    """Sorted-ASC list of every session date carrying at least one TRUSTED-source
+    metric row. Feeds the Monitor's deep-history merge.
+
+    ⭐ IT READS THE MATERIALISED TABLE, AND THAT IS THE BIGGEST REMAINING WIN ON THE
+    DEEP PATH. Measured on the production copy, Session 4: this call read
+    **11,329,088 bytes** — MORE than the materialised reconstructed table it exists
+    to index into (6,090,852) — because `SELECT DISTINCT date` still walked all
+    174,263 OHLC rows. Even the covering index has to scan every entry to produce a
+    DISTINCT. `breadth_reconstructed_daily` has exactly one row per such date, so
+    its PRIMARY KEY answers the same question over 4,701 rows.
+
+    ⛔ THE EQUIVALENCE IS PROVEN, NOT ASSUMED. Both sets are "dates with at least one
+    trusted row" — the builder writes a row precisely when `derive_reconstructed`
+    found closes, which is the same predicate — but same-predicate-by-reading is an
+    argument, and `test_the_materialised_date_set_equals_the_scan` is a measurement
+    against the real copy.
+
+    ⚠️ It falls back to the scan when the table is EMPTY (a store the migration has
+    not reached), never when it is merely short. A short table means a trusted write
+    bypassed the writer hooks AND the boot rebuild has not run, which the watermark
+    reports through `stale_reconstructed_dates()` and the audit names by date — that
+    is the mechanism for a gap, not a silent per-request re-scan.
+    """
+    _ensure_init()
+    try:
+        with _conn() as c:
+            rows = [r[0] for r in c.execute(
+                "SELECT date FROM breadth_reconstructed_daily ORDER BY date ASC").fetchall()]
+        if rows:
+            return rows
+    except Exception:
+        pass
+    return distinct_dates_by_scan()
 
 
 def closes_for_dates(dates) -> dict:

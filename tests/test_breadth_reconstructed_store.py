@@ -302,3 +302,46 @@ def test_an_already_materialised_store_skips_without_taking_a_backup():
     assert out.get("skipped") == "already materialised and not stale", out
     assert "backup" not in out
 
+# ── the date set moved onto the materialised table (Session 4) ────────────────
+
+def test_the_materialised_date_set_equals_the_scan():
+    """⛔ THE EQUIVALENCE THE OPTIMISATION RESTS ON, MEASURED. Both are "dates with
+    at least one trusted row" — the builder writes a row exactly when the derivation
+    found closes — but same-predicate-by-reading is an argument, not evidence."""
+    _seed_ohlc(DATES)
+    ohlc.set_ohlc("2015-09-09", "pct_above_50sma", 3, 3, 3, 3, source="close_recon")
+    scan = ohlc.distinct_dates_by_scan()
+    mat = ohlc.distinct_dates()
+    assert scan == mat, (scan, mat)
+    assert len(scan) == len(DATES) + 1, "non-vacuity: both must be non-trivial"
+
+
+def test_an_untrusted_row_is_in_NEITHER_set():
+    """The predicate is 'trusted', not 'present'. If the two disagreed here the
+    materialised set would quietly widen the deep window."""
+    _seed_ohlc(DATES)
+    ohlc.set_ohlc("2015-10-10", "pct_above_50sma", 4, 4, 4, 4)     # default = untrusted
+    assert "2015-10-10" not in ohlc.distinct_dates_by_scan()
+    assert "2015-10-10" not in ohlc.distinct_dates()
+
+
+def test_it_falls_back_to_the_scan_when_the_table_is_EMPTY():
+    """A store the migration has not reached must still serve, or shipping the read
+    path and the backfill in one deploy would be unsafe."""
+    _seed_ohlc(DATES)
+    with ohlc._conn() as c:
+        c.execute("DELETE FROM breadth_reconstructed_daily")
+        c.commit()
+    assert ohlc.distinct_dates() == ohlc.distinct_dates_by_scan() == sorted(DATES)
+
+
+def test_the_two_implementations_are_not_the_same_function():
+    """The control: if the fallback were wired to itself, every assertion above
+    would be comparing one function with itself and could never fail."""
+    assert ohlc.distinct_dates is not ohlc.distinct_dates_by_scan
+    _seed_ohlc(DATES)
+    with ohlc._conn() as c:                     # make them disagree on purpose
+        c.execute("DELETE FROM breadth_reconstructed_daily WHERE date = ?", (DATES[0],))
+        c.commit()
+    assert ohlc.distinct_dates() != ohlc.distinct_dates_by_scan(),         "the two must be capable of differing, or the parity test proves nothing"
+
