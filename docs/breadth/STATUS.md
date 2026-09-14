@@ -261,3 +261,25 @@ owner action, Phase 6.
   returned an edge 502 in 0.2s while `/api/health` read 200 with a rising uptime. Retried 5xx only, attempts recorded.
 - ⛔ **R1's master merge is NOT taken**: a deploy from another session was `BUILDING`, and the standing rule is one
   master merge at a time with `web` SUCCESS before the next push.
+
+## Phase 3 — B1, the dark series endpoint (2026-09-14)
+
+- `ce58497d2` — **not this programme's**: `VITE_CHART_RENDER_TOKEN_PREVIOUS` was read by `app/src/lib/renderToken.js:19`
+  (added `4821ec3f2`, OI-19 dual acceptance) with **no `ARG` in `Dockerfile.web`**. Railway drops an undeclared build
+  arg silently, so `PREVIOUS` baked as `''` and the dual-acceptance window never existed. Fixed here because it
+  reddened a shared rail; one ARG + its ENV mirror, nothing else.
+- `6e9c8dcaf` — `VITE_BREADTH_CHARTS_V2_ENABLED` declared as a build ARG ahead of V2-1. Its **ledger row is
+  deliberately deferred** to V2-1's first read (`test_no_stale_build_flag_rows` = `declared ⊆ names_read`).
+- B1 — `GET /api/breadth-monitor/series`, dark behind `BREADTH_SERIES_ENDPOINT_ENABLED`, ledger row in the same commit.
+  Contract: `docs/breadth/api-series.md`. Ruling: D-041.
+
+**Measured cost** (B1's marginal filter + project + encode, 8 keys; the history reader stubbed at full size because
+`C:\data\breadth_monitor.db` is 12 KB — schema only — and timing an empty table would flatter):
+
+| span | sessions | payload | cold p50 | cold p95 | warm |
+|---|---|---|---|---|---|
+| 365d | 252 | 15 KB | 8.8 ms | 11.4 ms | 5.8 ms |
+| 5y | 1,260 | 75 KB | 13.1 ms | 14.8 ms | 5.2 ms |
+| 2008– (18y) | 4,530 | 270 KB | 30.3 ms | 36.0 ms | 6.5 ms |
+
+→ **Downsampling deferred**: the ~1 s trigger is ~33× away.
