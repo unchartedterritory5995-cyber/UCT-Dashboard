@@ -155,11 +155,79 @@ def test_a_pipe_MASKS_a_nonzero_exit_code_and_here_is_the_proof():
         "true (pipefail on by default?), the CLAUDE.md rule can be relaxed, but "
         "verify it in the shell the runners are actually invoked from first")
 
-    # ⭐ AND THE SANCTIONED FORM RECOVERS IT: redirect, then read `$?`.
+    # ⚠️ REDIRECTING RECOVERS THE CODE INTO **STDOUT** — AND ONLY THERE.
     redirected = subprocess.run(
         ["bash", "-c", f"{failing} > /dev/null 2>&1; echo $?"],
         capture_output=True, text=True)
-    assert redirected.stdout.strip() == "7"
+    assert redirected.stdout.strip() == "7", "the code should be PRINTED"
+    # ⛔ …and this is the half nobody reads: the compound itself still exits 0.
+    assert redirected.returncode == 0, (
+        "if a trailing echo no longer owns the compound's status on this box, "
+        "re-read the rule — but verify it in the shell runners are invoked from")
+
+
+def test_a_TRAILING_ECHO_MASKS_IT_TOO_and_that_was_the_RECOMMENDED_recipe():
+    """⛔⛔ THE PIPE IS THE FAMOUS CASE; THE SEMICOLON IS THE QUIET ONE.
+
+    ``cmd; echo "EXIT: $?"`` PRINTS the runner's code and EXITS with the echo's.
+    A human reading the terminal sees the truth; anything reading the process's
+    exit status — a harness, a CI step, a wrapper — sees a pass.
+
+    ⚰️ FOURTH INSTANCE, 2026-09-13, AND IT WAS THE RECIPE CLAUDE.md RECOMMENDED.
+    The full 12-chunk lane after the ``feat/indicator-r0r1`` merge was run as
+    ``… > log 2>&1; echo "EXIT: $?"``. Its own log ended
+    ``VERDICT: FAIL — red chunks [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]`` and the
+    status reported back to the session was **0**. The run was read correctly only
+    because the VERDICT line exists and was read from the FILE.
+
+    ⭐ A rule that fixes the pipe and leaves the semicolon has fixed the EXAMPLE,
+    not the defect — so the corrected form is asserted here, not just written down.
+    """
+    import shlex
+    failing = f"{shlex.quote(sys.executable)} -c 'import sys; sys.exit(7)'"
+
+    # ⛔ the form that shipped in CLAUDE.md until 2026-09-13
+    trailing_echo = subprocess.run(
+        ["bash", "-c", f'{failing} > /dev/null 2>&1; echo "EXIT: $?"'],
+        capture_output=True, text=True)
+    assert "EXIT: 7" in trailing_echo.stdout, "the code should still be printed"
+    assert trailing_echo.returncode == 0, (
+        "the whole point: the compound exits 0 while printing 7")
+
+    # ✅ the corrected form — capture, print, exit with it
+    corrected = subprocess.run(
+        ["bash", "-c",
+         f'{failing} > /dev/null 2>&1; code=$?; echo "EXIT: $code"; exit $code'],
+        capture_output=True, text=True)
+    assert "EXIT: 7" in corrected.stdout
+    assert corrected.returncode == 7, (
+        "the corrected recipe must carry the runner's status out of the compound")
+
+    # ⭐ CONTROL — it must not invent a failure when the runner SUCCEEDS.
+    ok = f"{shlex.quote(sys.executable)} -c 'pass'"
+    passing = subprocess.run(
+        ["bash", "-c",
+         f'{ok} > /dev/null 2>&1; code=$?; echo "EXIT: $code"; exit $code'],
+        capture_output=True, text=True)
+    assert passing.returncode == 0 and "EXIT: 0" in passing.stdout
+
+
+def test_the_corrected_recipe_is_the_one_written_in_CLAUDE_md():
+    """⛔ A fix that lives only in a test is a fix the next session does not read.
+
+    The corrected shape must be in the file every session opens, and the broken
+    one must be marked broken there rather than quietly deleted — a reader who
+    remembers the old recipe needs to see it struck out, not vanish.
+    """
+    claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "code=$?" in claude and "exit $code" in claude, (
+        "the corrected bash recipe is not in CLAUDE.md")
+    assert "$code = $LASTEXITCODE" in claude, (
+        "the corrected PowerShell recipe is not in CLAUDE.md")
+    assert "LAST ELEMENT OF A COMPOUND COMMAND" in claude, (
+        "the sentence naming the general rule is not in CLAUDE.md")
+    assert 'ALSO WRONG' in claude, (
+        "the superseded `; echo $?` form should be shown AS WRONG, not removed")
 
 
 def test_the_pipe_rule_is_written_where_every_session_reads_it():

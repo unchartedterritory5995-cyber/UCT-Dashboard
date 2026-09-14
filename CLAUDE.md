@@ -1767,19 +1767,36 @@ Piping a runner into `| tail`, `| findstr`, `| Select-Object`, `| head` or
 `| grep` throws the runner's status away and replaces it with the filter's — and
 a filter that read some text always succeeds.
 
+⛔⛔ **AND THE SAME IS TRUE OF A SEMICOLON: THE LAST ELEMENT OF A COMPOUND COMMAND
+OWNS THE STATUS. NEVER END A VERIFICATION IN `echo`.** A pipe is the famous case;
+`cmd; echo $?` is the quiet one. It PRINTS the runner's code and then EXITS with
+the echo's — `0` — so a human reading the terminal sees the truth and anything
+reading the process's exit status sees a pass.
+
 ```bash
-# ⛔ WRONG — this reports tail's status, and tail always succeeds
+# ⛔ WRONG — tail's status, and tail always succeeds
 python tools/pytest_chunks.py 2>&1 | tail -30        # → 0, whatever happened
 
-# ✅ RIGHT — redirect, read the bare exit code, then read the file
+# ⛔ ALSO WRONG — this PRINTS the code and EXITS 0, because echo is last
 python tools/pytest_chunks.py > run.log 2>&1; echo "EXIT: $?"
+
+# ✅ RIGHT — capture it, print it, then exit with it
+python tools/pytest_chunks.py > run.log 2>&1; code=$?; echo "EXIT: $code"; exit $code
 tail -3 run.log        # the VERDICT line
 ```
 
 ```powershell
-# PowerShell: $LASTEXITCODE after the BARE command, never after a pipeline
+# ⛔ WRONG — $LASTEXITCODE is echoed, and the compound still ends 0
 python tools/pytest_chunks.py *> run.log ; $LASTEXITCODE
+
+# ✅ RIGHT — capture BEFORE anything else runs, then exit with it
+python tools/pytest_chunks.py *> run.log
+$code = $LASTEXITCODE; Write-Output "EXIT: $code"; exit $code
 ```
+
+⚠️ **`$LASTEXITCODE` IS CLOBBERED BY THE NEXT NATIVE COMMAND**, so capture it on
+the very next line — a `Get-Content run.log` in between and you are reading that
+instead.
 
 ⚰️ **MEASURED, TWICE, ON THE SAME TOOL.** On 2026-09-10 three OOM-killed pytest
 runs all read as clean because each was piped to `tail`. On 2026-09-12 the same
@@ -1792,7 +1809,17 @@ through `| tail -1`.
 ⭐ **THE RUNNER NOW PRINTS A `VERDICT:` LINE AS ITS LAST LINE** so a piped run is
 still legible — but that is a **mitigation, not a fix**. The exit code is still
 gone. Read both. `tests/test_pytest_chunks_runner.py` carries a reproduction of
-the masking so the next reader does not have to take this on trust.
+BOTH maskings — the pipe and the trailing `echo` — so the next reader does not
+have to take either on trust.
+
+⚰️ **THE FOURTH TIME, 2026-09-13, AND IT WAS THE RECOMMENDED RECIPE.** The full
+12-chunk lane after the `feat/indicator-r0r1` merge ran `… > log 2>&1; echo "EXIT:
+$?"` — the form this very section used to recommend. The runner's own log said
+`VERDICT: FAIL — red chunks [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]`, and the status
+reported back to the session was **`exit code 0`**, because `echo` was last. The
+lane was read correctly only because the VERDICT line exists and was read from the
+FILE. **A rule that fixes the pipe and leaves the semicolon has fixed the example,
+not the defect.**
 
 
 ## ⛔⛔ A FRESH WORKTREE, AND THE JUNCTION THAT DELETED A LIVE `node_modules`
