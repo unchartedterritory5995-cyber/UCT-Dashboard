@@ -715,6 +715,180 @@ the secondary-series colour palette is not started.
 3. **`MA(MA(x))` depth**, if wanted: the topological sort already handles it, so
    this is a test-and-confirm rather than a build.
 
+---
+
+# PHASE 5 — THE COLLAPSED ROW SAYS WHERE IT DRAWS AND HOW
+
+Starting HEAD `48ae4070e`; ending HEAD `284f8ff34` (+ this ledger). Two commits.
+Baseline re-verified before any edit: 4 failed / 10386 passed, build clean,
+fingerprint `ea9ebaeee302`.
+
+## BEHAVIOUR
+
+A collapsed row now answers *what is this, how is it drawn, where does it draw,
+and what does it read* — in one faint line beside the name:
+
+| row | summary |
+|---|---|
+| `QQQ` | `Line · Own pane` |
+| `QQQ` | `Candles · Own pane` |
+| `SPY` | `Line · QQQ` |
+| `SPY` | `Line · Pane unavailable` |
+| `Moving Average (Source)` | `Line · Own pane · Source: QQQ` |
+| `EMA 9`, `SMA 200`, `Volume`, `BB` | *(nothing)* |
+
+## HELPERS REUSED — NO SECOND OPINION ANYWHERE
+
+`resolveDisplayTarget`, `displayTargetOptions` (which already carries the
+`Pane unavailable` option flagged `missing`, and human pane-host labels),
+`resolvePlotStyle` + `PLOT_STYLE_CHOICES`, `sourceInputsOf` + `parseSource`, and
+`disambiguateLabels`. The OHLC capability answer was an IIFE inside the style
+control; it is now ONE module-level helper with two readers, because two copies
+are exactly how "Candles offered here and denied there" happens.
+
+⛔ **The silence is derived too.** `displayTargetOptions` returning EMPTY means a
+definition with one place to draw and one shape to draw in — nothing to orient
+anybody about. Not a list of ids to keep in step.
+
+⭐ **Duplicate rows now disambiguate** through the same authority the legend chips
+and the Display-in menu already use. This list was the ONE surface where two QQQ
+series both read `QQQ` — which is exactly the row a member opens to find out
+which is which. `QQQ #1` / `QQQ #2`, browser-confirmed.
+
+## ACCESSIBILITY
+
+The summary lives BESIDE the expander, never inside it. Nested in, it joins the
+button's accessible name — a screen reader announces "QQQ Line · Own pane" as the
+CONTROL's name and the row stops being addressable as `QQQ`. Railed twice: DOM
+containment, and an accessible-name check that also refuses an `aria-labelledby`
+back door. The expander's name stays the instance.
+
+## ⛔ CSS SCOPE (PART P) — EVERY SELECTOR TOUCHED
+
+| selector | owner | shared? | new? | can Conditions/InfoFields match it? |
+|---|---|---|---|---|
+| `.actMeta` | ChartSettingsIndicators | no — nothing else renders it | NEW | **no** |
+| `.actBlockOff .actMeta` | ChartSettingsIndicators | `.actBlockOff` is shared, `.actMeta` is not | NEW | **no** |
+| `.actHeadMeta .actName` | ChartSettingsIndicators | `.actName` is shared; `.actHeadMeta` is not | NEW | **no** |
+
+**Nothing else was modified.** `.actName`, `.actHead`, `.actLabel` and
+`.actBlock` stand exactly as they were — verified by diff and pinned by a rail
+that reads the stylesheet and asserts the shared `.actName` still carries
+`flex: 1 1 auto`, and that every rule shrinking it is scoped by `.actHeadMeta`.
+
+**Why the old bug cannot recur.** The overnight version wrote
+`.actName { flex: 0 1 auto }` GLOBALLY. The override is now reachable only
+through a modifier that `ChartSettingsIndicators` applies to a row that HAS a
+summary — so a component that renders no summary cannot match it, by class
+ownership rather than by `:has()` or a global selector. The rail fails if anyone
+globalises it again (bitten).
+
+## ⚠️ A CORRECTION TO THE BRIEF'S PREMISE
+
+**`ChartSettingsConditions.jsx` and `ChartSettingsInfoFields.jsx` do not exist on
+this branch.** They belong to the conditions/info-fields initiative that Phase 1
+deliberately did not port. On the originating branch each renders `styles.actName`
+once — which is where the shared-class claim comes from.
+
+So the `.actName` leak was **latent here, not active**: the global rule would have
+broken nothing today and everything the moment that initiative lands. The scoped
+fix is still exactly right; what changes is the evidence available for it.
+
+Browser-verified in its place:
+* the modal's tabs are Price Style · Canvas · Indicators · Header · Markers —
+  **no Conditions tab, no Info Fields tab**;
+* the **Header tab (which holds the Info Row)** contains **zero** elements using
+  any `act*` class — it is built from `hdrRowCtl` / `infoRowHead` / `modeRow`, so
+  the Indicators CSS cannot reach it at all.
+
+## ⚰️ THE DEFECT THE BROWSER FOUND, AND JSDOM COULD NOT
+
+With `.actName` scoped to `flex: 0 1 auto` and `.actMeta` also `0 1 auto`,
+**nothing in the row grew** — so every summarised row's trailing controls packed
+LEFT: measured 148 / 162 / 173px short of the right edge, while fixture rows sat
+flush. That is the known defect RELOCATED rather than fixed.
+
+Growing and shrinking are not opposites here: `.actMeta` must be `flex: 1 1 auto`
+so it absorbs the free space, with `min-width: 0` so it still ellipses when there
+is none.
+
+**Proven at three widths** — natural, 420px and 340px: every row, with a summary
+and without, is flush right (gap 0) and 39px tall; at the narrow ones the
+METADATA ellipses, longest first, and nothing wraps.
+
+## BROWSER PROOF (PART O) — on `pane-harness.html`, /charts never opened
+
+| # | scenario | result |
+|---|---|---|
+| 1 | QQQ · Line · Own pane | ✅ fixtures silent, modifier only on summarised rows |
+| 2-3 | switch to Candles | ✅ `Candles · Own pane`, live, no reopen |
+| 4-5 | SPY into QQQ's pane | ✅ `Line · QQQ` — the human label, never an id |
+| 6-7 | delete the host | ✅ `Line · Pane unavailable`, in place, no fallback to Own pane |
+| 8-9 | add MA(QQQ) | ✅ `Line · Own pane · Source: QQQ` |
+| 10-11 | hide QQQ | ✅ MA still reads `Source: QQQ` — visibility is ink |
+| 12-13 | repoint QQQ → NVDA | ✅ row becomes `NVDA`; the MA's own source is untouched |
+| 14 | duplicates | ✅ `QQQ #1` / `QQQ #2` |
+| 15 | Conditions tab | ⚠️ **does not exist on this branch** — see above |
+| 16 | Info Row (Header tab) | ✅ zero `act*` elements; no leakage possible |
+| 17 | preference writes | ✅ **refused: 0** throughout |
+
+## BITE CHECKS — six, each reverted
+
+| mutation | result |
+|---|---|
+| style dropped from the summary | 6 red |
+| pane dropped | 6 red |
+| source dropped | 2 red |
+| summary nested inside the expander | the 2 accessibility cases red |
+| scoped modifier removed | the modifier case red |
+| fixture-silence guard removed | the engine-row case red |
+| the GLOBAL `.actName` override restored | the stylesheet rail red |
+
+⚰️ **One came back green and is why there are 17 rails and not 16.** The obvious
+fixture case — EMA 9, SMA 200, Volume — passes for a DIFFERENT reason than it
+looks: those are LEGACY overlay rows, not engine-owned, so the summary refuses
+them on its first line and the `options.length` guard is never reached. Deleting
+that guard left the suite green. The added case uses `bb`, an engine definition
+with one place to draw, which is the guard's actual subject.
+
+## RESULTS
+
+| | |
+|---|---|
+| `src/components` | **4 failed / 10403 passed** vs Phase 4's 4 / 10386 — **+17, zero regressions** |
+| Build | ✅ |
+| StockChart | **untouched** (Part R) |
+
+## PART S — CANDLE-COLOUR CONTROL: DEFERRED, WITH THE REASON
+
+The writer (`setInstanceCandleColor`) and the resolver (`resolveCandleColors`,
+which already reads per-instance overrides) both exist from Phase 2. What does
+NOT exist is a route: the modal's `colorSwatch` addresses a target string
+`ind:<rowId>:<field>` which `splitIndTarget` resolves into an INPUT write. Candle
+colours are not inputs — they live in `instance.presentation`. Adding the control
+needs a new target namespace, a new branch in the modal's colour-apply path, and
+a UX decision about where two swatches sit and whether they are per-output. That
+is new plumbing plus new UX decisions, which Part S says to defer.
+
+## REMAINING UNIVERSAL DATA POLISH
+
+* per-instance candle colours (above)
+* a **Display in** control in the Indicators tab — the summary reports the pane,
+  and today that is changed from the legend/pane menu rather than this tab. Both
+  seams (`displayTargetOptions`, `setInstanceDisplayTarget`) are already in use
+  here, so it is roughly the size of the style control.
+* engine row labels still use the catalogue noun (`Moving Average (Source)`);
+  `instanceLabel` would give `MA (5)`. Phase 3 deliberately took only the
+  `labelFrom` half of that change.
+
+## RECOMMENDED PHASE 6
+
+1. **The Display-in control**, which closes the loop: every fact the summary
+   states would then be editable in the row that states it.
+2. Then per-instance candle colours, as the first deliberate step into the
+   secondary-series palette — with the target-namespace decision made explicitly
+   rather than in passing.
+
 ## STANDING FACTS
 
 - Local branch. **Nothing pushed, nothing deployed, nothing merged.**
