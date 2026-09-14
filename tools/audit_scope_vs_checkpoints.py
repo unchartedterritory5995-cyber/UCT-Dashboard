@@ -81,6 +81,16 @@ DECLARED: list[tuple] = [
      "names F-I1-1 and F-I1-4: this packet numbers FOLLOW-UPS, not checkpoints"),
     ("intelligence-layer", "slice 2", [], "none", UNNUMBERED,
      "names a component adoption; same packet, same absent roster"),
+    ("intelligence-layer", "slice 3", [], "none", UNNUMBERED,
+     "F-I1-2, signed 2026-09-14 under the owner's autonomy delegation, fingerprint "
+     "196e7a63d. Same packet, same absent roster: it numbers FOLLOW-UPS (F-I1-1..6), "
+     "not checkpoints, so a third slice is UNNUMBERED for the same reason the first "
+     "two are. ⛔ Closing this is a NUMBERING job on the packet, not a re-signing"),
+    ("s1-terminal-shell", "line 1", ["CP1"], "table", OK,
+     "signed 2026-09-14, fingerprint 0a267d174. ⚠️ ITS ROSTER IS AT §3, NOT §4 — "
+     "see F-GATE-2. The ID is unambiguous and the rule's INTENT (name a checkpoint, "
+     "never a system) is satisfied; only the rule's literal section number is wrong "
+     "for this packet"),
     ("s10-presentation-primitives", "line 1", [], "headings", UNNUMBERED,
      "it IS CP1 — the CP2 heading says 'the CP1 block above stands as granted' — "
      "but the scope text itself never says so"),
@@ -92,6 +102,12 @@ DECLARED: list[tuple] = [
     ("s12-rollout", "line 2", [], "none", UNNUMBERED, "names 'second migration'"),
     ("s2-command-search", "line 1", ["CP1"], "table", OK,
      "CP2 is shaped by OI-06 and is not authorised"),
+    ("s2-command-search", "line 2", ["CP2"], "table", OK,
+     "signed 2026-09-14, fingerprint 8c22ef76b. ⚠️ Line 1's note said 'CP2 is "
+     "shaped by OI-06 and is not authorised' — that held until OI-06 was ANSWERED BY "
+     "MEASUREMENT on 2026-09-14 (production telemetry, 29 users), which is what "
+     "released it. The note above is kept as-granted rather than edited, so the "
+     "sequence stays legible"),
     ("s4-context-bus", "line 1", ["CP1", "CP2", "CP7"], "table", OK, ""),
     ("s5-persistence-user-state", "line 1", ["CP1"], "table", OK,
      "⚠️ names CP1 but DESCRIBES an extraction the packet contains at no checkpoint — "
