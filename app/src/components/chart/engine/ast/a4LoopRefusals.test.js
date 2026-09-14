@@ -301,17 +301,36 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   // what makes it self-retiring: it fails today, passes when a4b folds, and is deleted
   // in that commit. An `it.fails` asserting `pine:reassign` fires would pass TODAY and
   // go red on success — a marker that lights up when the work is done is a trap.
-  run('⛔⛔ a4b — THE NEXT FRONTIER: a counted-`for` accumulator FOLDS instead of refusing', () => {
-    // `s := s + close[i]` over a bounded loop is plan-time expressible BY CONSTRUCTION
-    // — Mechanism A applied to a scalar instead of a vector — and 379 of 1,004
-    // counted-`for` bodies in the corpus have this shape, more than every other
-    // admitted shape combined.
+  // ⭐⭐ RULING R7 — a4b RETIRES, and this is its acceptance.
+  //
+  // The marker that stood here asserted the accumulator would FOLD. It will not be
+  // built: the a4b census put **1 of 379** accumulator bodies inside what could be
+  // unrolled, and that one runs a single iteration. That is under the F4 threshold by
+  // the same logic that retired `while` (15 of 116) and `for … in` (13 of 92, 0 of 34).
+  //
+  // ⛔ THE BINDING CONSTRAINT IS THE ITERATION COUNT, and the message has to say so,
+  // because that is what a reopening would have to change: only **63 of 379** of these
+  // loops have a bound this engine could settle. Seed, shape and escape are not what
+  // stops it — dropping each of those alone leaves 7, 50 and 9 admissible.
+  //
+  // ⚠️ SYNTHETIC, DELIBERATELY AND OF NECESSITY. Every corpus accumulator script tried
+  // is masked by an earlier refusal — delta-volume-v21 by `pine:request@36`,
+  // atr-stop-loss-indicator by `pine:module@7`, cumulative-volume-delta by
+  // `pine:request@12` — so nothing in the corpus reaches its accumulator at all. This
+  // fixture is built so nothing refuses before the loop.
+  run('⛔⛔ R7 · SYNTHETIC — a counted-`for` accumulator refuses AT THE LOOP, naming a4b', () => {
     const src = `${HEAD}s = 0.0\nfor i = 0 to 2\n    s := s + close[i]\nplot(s, "acc")\n`
-    const t = translatePine(src, { strict: true })
-    const acc = (t.outputs || []).find((o) => o.title === 'acc')
-    expect(acc, 'the accumulator plot survives at all').toBeTruthy()
-    expect(String(acc.formula), 'the fold is a left-nested op chain over the substituted indices')
-      .toMatch(/close\[1\]/)
+    const at = lineOf(src, 'for i = 0 to 2')
+    const all = refusalsOf(translatePine(src, { strict: true }))
+    // ⛔ REPLACED, NOT ADDED. The accumulator already refuses `pine:reassign`; R7 moves
+    // that sentence onto the loop and gives it a reason. It must not become two.
+    expect(all.length, 'one cause, one refusal — the sentence is replaced').toBe(1)
+    const r = all[0]
+    expect(r.line, 'the loop is what was not read, so the loop is what is named').toBe(at)
+    expect(r.text, 'the census number is in the sentence').toMatch(/1 of 379/)
+    expect(r.text, 'and the constraint a reopening would have to change')
+      .toMatch(/63 of 379/)
+    expect(r.text.toLowerCase()).not.toContain('not supported')
   })
 
   // ── permanent controls ───────────────────────────────────────────────────
