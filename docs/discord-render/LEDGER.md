@@ -792,3 +792,69 @@ across every text channel the token can enumerate — which is why 3.5's posting
 The hourly poll now reports `RENDER_ALERTS_ACL` beside `RENDER_ALERTS_ACCESS`, and
 `flip_preconditions` reads the ACL line: that precondition moved from **NOT MEASURABLE** to a
 **NOT MET** with a named fix.
+
+---
+
+### 2026-09-14 (afternoon) — the Discord admin pass, and four findings from executing it
+
+The owner opened a browser and handed the whole Discord-side list over. A1–A3 are **done and
+verified by API read-back, never by the UI's own banner**. A4 is two rows of fifteen, for a
+structural reason that turned out to be a flip blocker.
+
+| # | Action | Verified by |
+|---|---|---|
+| **A1** | `UCT Intelligence` (`1474903498700230668`) granted `MANAGE_CHANNELS` | `--whoami` → `CAN create channels · MANAGE_CHANNELS, …` |
+| **A2** | `Contributor` overwrite REMOVED from `#render-alerts`; bot given an overwrite | `--read-channel` → bot `allow=[VIEW_CHANNEL]`, `@everyone deny=[VIEW_CHANNEL]`, no Contributor. Probe: `RENDER_ALERTS_ACCESS ACCESS HTTP 200` + `RENDER_ALERTS_ACL ACL_OK` |
+| **A3** | `#render-smoke` = `1549129739048853544` created under ADMIN CHAT, private at creation | `--read-channel` → same two overwrites. **Organic members exposed 0** |
+
+⛔ **The role was found by ID, never by name — and that mattered.** Two roles match `UCT*`
+(`UCT Exporter` `1474870089873358902`, `UCT Intelligence` `1474903498700230668`). The API confirmed
+which name belongs to which id before anything was clicked.
+
+#### OI-33 — `MANAGE_CHANNELS` is not enough to edit an existing channel's overwrites
+
+All three API edits to `#render-alerts` returned **`403 / 50013 Missing Permissions`** *after* the
+grant landed. Editing permission overwrites is gated on **`MANAGE_ROLES`**; `MANAGE_CHANNELS` only
+covers creating a channel that carries overwrites. `--create-smoke` therefore also 403'd, and A3
+went through the browser — the owner's own stated fallback.
+
+⭐ **`MANAGE_ROLES` was deliberately NOT granted.** It would let the bot edit overwrites anywhere and
+manage every role below its own, on a 1,558-member production guild, to save a few browser clicks.
+The narrower path existed and was taken.
+
+⚠️ Discord's role picker **refuses to add a role holding `ADMINISTRATOR`** to a channel's access
+list — it already has access and the overwrite would be meaningless. So "add the ADMIN role
+explicitly" is not executable through that UI; ADMIN reaches both channels through `ADMINISTRATOR`,
+which is recorded rather than claimed as done.
+
+#### OI-34 — the chart/flow channel gate was ONE id, and that is why Gap 3 looked like traffic
+
+`cmd_channel_ok` compared against a single `CHART_FLOW_CHANNEL_ID`. Repointing it does not ADD a
+channel, it **MOVES** the command. So the posting half of 3.5 was unreachable except at the cost of
+taking `/chart`, `/charts` and `/flow` away from every member.
+
+⭐ **This closes Gap 3 properly.** The `/chart` shadow saw nothing because a member can only run
+`/chart` in one channel. The shadow report states in its own output that it cannot separate "nobody
+ran it" from "it is not being shadowed"; the channel gate separates them.
+
+#### OI-35 — there was no per-channel V2 flag, so there was no canary
+
+The flip packet said "the flag is per-channel per 2.1" and §4.0 said in capitals that the canary is
+the admin channel. `commands.enabled()` is **one global boolean**; `command_enabled()` splits by
+COMMAND. Flipping it as the packet instructed sends every member's `/chart` to V2 in the same
+instant — the member-channel flip, reserved to the owner, reached by following a section headed
+"canary".
+
+⛔ **The packet agreed with the spec and neither agreed with the code**, and nobody found out
+because the step had never been executed. `DISCORD_RENDER_V2_CHANNELS` is the narrowing control;
+unset means every channel, because a default of "none" makes a forgotten variable indistinguishable
+from a deliberate one.
+
+#### OI-36 — `/buzz` rendered correctly and reached nobody
+
+`/buzz` in `#render-smoke` → **"The application did not respond."** The renderer answered
+`200, 346 KB, ms=10738, prio=interactive` against Discord's 3 s ack deadline. **C-11 and S3,
+reproduced on demand**, on the pre-V2 path, with organic members exposed 0.
+
+⭐ The shadow recorded `outcome=agree` — **V2 would have done the same thing.** It is not a defect
+the flip fixes and is not counted as one. n=1: the failure is reachable; its rate is unmeasured.
