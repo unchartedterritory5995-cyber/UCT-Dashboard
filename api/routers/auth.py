@@ -507,12 +507,15 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/change-password")
-def change_pw(req: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+def change_pw(request: Request, req: ChangePasswordRequest, user: dict = Depends(get_current_user)):
     if len(req.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    if not change_password(user["id"], req.current_password, req.new_password):
+    # `request` is here ONLY to hand the service this session's cookie: changing your
+    # password signs out every OTHER device, and must not sign out the one you are on.
+    if not change_password(user["id"], req.current_password, req.new_password,
+                           keep_token=request.cookies.get("uct_session")):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
-    return {"ok": True}
+    return {"ok": True, "other_sessions_signed_out": True}
 
 
 # ── Two-factor authentication (TOTP + backup codes) ──────────────────────────
@@ -920,9 +923,15 @@ def admin_reset_password(req: AdminResetRequest, user: dict = Depends(get_curren
         new_hash = _bcrypt.hashpw(req.new_password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, row["id"]))
         conn.commit()
-        return {"ok": True, "email": req.email}
+        target_id = row["id"]
     finally:
         conn.close()
+    # ⛔ ALL of them. An admin reset exists for the compromised-account case; leaving the
+    # stolen sessions alive is the whole failure this closes. No caller session to spare —
+    # the admin's own session belongs to a different user_id and is untouched.
+    from api.services.auth_service import revoke_sessions as _revoke
+    revoked = _revoke(target_id, keep_token=None)
+    return {"ok": True, "email": req.email, "sessions_revoked": revoked}
 
 @router.post("/admin/verify-email")
 def admin_verify_email(req: dict, user: dict = Depends(get_current_user)):
@@ -1806,18 +1815,11 @@ def revoke_session(short_id: str, request: Request, user: dict = Depends(get_cur
 def revoke_other_sessions(request: Request, user: dict = Depends(get_current_user)):
     """Kill every session except the caller's own. Use this after suspecting
     a stolen cookie or when signing out of a lost device."""
-    current_token = request.cookies.get("uct_session") or ""
-    from api.services.auth_db import get_connection
-    conn = get_connection()
-    try:
-        cur = conn.execute(
-            "DELETE FROM sessions WHERE user_id = ? AND token != ?",
-            (user["id"], current_token),
-        )
-        conn.commit()
-        return {"ok": True, "revoked": cur.rowcount}
-    finally:
-        conn.close()
+    # One implementation, shared with the password-change paths, so the endpoint and they
+    # cannot drift into disagreeing about what "revoke" means.
+    from api.services.auth_service import revoke_sessions as _revoke
+    return {"ok": True, "revoked": _revoke(user["id"],
+                                           keep_token=request.cookies.get("uct_session") or "")}
 
 
 # ── Support ticket endpoints (admin) ───────────────────────────────────────
