@@ -287,13 +287,24 @@ cache is empty exactly when the first render after a deploy needs it most (C-01)
 *Built in 2.5 (Lane B).* Where it differs from the text above — stated rather than quietly dropped,
 which is how §3.6 and the code came to describe two different products in the first place (OI-31):
 
-- ⛔ **"Degraded artifacts are cached apart: stand-ins 60 s (the 2026-08-27 lesson), cached flow cards
-  only as a labelled fallback" is NOT BUILT.** The store has one TTL ladder and no notion of a
-  stand-in, because nothing can tell it which artifacts are stand-ins: that fact lives with the
-  caller that chose the stand-in, so the shorter TTL is a **wiring** decision for the handler step
-  (2.4/2.8), not a property this module can derive. Recorded as **OI-32** rather than implemented
-  here, because "cache the stand-in for 60 s" and "never cache a stand-in" are different answers and
-  the difference is the owner's, not a lane's.
+- ☠️ ~~**"Degraded artifacts are cached apart: stand-ins 60 s (the 2026-08-27 lesson)"**~~ — **STRUCK
+  2026-09-14 by owner ruling OI-32. A STAND-IN IS NEVER CACHED AT ALL.** Artifacts carry
+  `is_standin`, and **both** tiers refuse one; the refusal is counted (`refused_standin`,
+  `l2_refused_standin`) rather than silent.
+
+  ⭐ **Why "apart for 60 s" was the wrong compromise, in C-06's own numbers.** Three stand-ins went
+  out and **two never healed**. A stand-in is by definition the lower-quality picture, so caching
+  one serves it to every member who asks for the next TTL — and the coalescer fans a single
+  stand-in out to every follower at once, so the 60 seconds is not a small blast radius, it is the
+  mechanism that maximises it. The cost of refusing is **one extra render**.
+
+  ⛔ **The refusal is at BOTH tiers and not only at the door.** L2 is reachable directly — the
+  determinism runner does exactly that — so a guard living only in the tier above it would hold
+  for every caller who came the expected way and for none of the ones that matter.
+
+  ⚠️ The **cached flow card** half of the struck clause is a different question and is still open:
+  that one IS a labelled fallback by design (04 §5), and it is delivered by the `/flow` handler, not
+  by this store.
 - **`clear()` empties the heap only**; the durable tier goes only on `clear(l2=True)`. Stopping is
   never a delete against durable data (`feedback_kill_switch_never_a_delete`), and L2 is bounded by
   its own LRU rather than by anybody's sweep.

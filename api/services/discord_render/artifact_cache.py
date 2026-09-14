@@ -235,6 +235,15 @@ class Artifact:
     #: When WE cached it — wall clock, seconds. Eviction's authority, and NOT the data's age.
     stored_at: float = field(default_factory=time.time)
     provider: str | None = None
+    #: ⛔⛔ A STAND-IN IS NEVER CACHED (OI-32, owner ruling 2026-09-14). Both tiers refuse an
+    #: artifact carrying this, and the refusal is recorded rather than silent.
+    #:
+    #: ⭐ THE REASON IS C-06'S OWN MEASUREMENT: three stand-ins went out and **two never healed**.
+    #: A stand-in is by definition the lower-quality picture, so caching one serves it to every
+    #: member who asks for the next TTL — and the coalescer fans one stand-in out to every
+    #: follower at once. §3.6's "degraded artifacts are cached apart: stand-ins 60 s" does not
+    #: soften that; it industrialises it. The cost of refusing is ONE extra render.
+    is_standin: bool = False
 
     @property
     def stale(self) -> bool | None:
@@ -558,6 +567,12 @@ class VolumeCache:
     def put(self, key: CacheKey, artifact: Artifact) -> bool:
         """Write it durably, then bring the volume back inside its byte cap. Returns whether it
         landed — never raises, because a full or read-only disk must cost a hit, not a render."""
+        if artifact.is_standin:
+            # ⛔ OI-32, again and on purpose. L2 is reachable directly (the determinism runner does
+            # exactly that), so the refusal cannot live only in the tier above it — that would be a
+            # guard that holds for every caller who came the expected way.
+            self._bump("l2_refused_standin")
+            return False
         self._ensure_index()
         fp = fingerprint(key)
         try:
@@ -671,9 +686,12 @@ class VolumeCache:
     # ── introspection ───────────────────────────────────────────────────────
 
     def _bump(self, *names: str) -> None:
+        # ⛔ `setdefault`, not `+= 1` on a missing key. A counter added later — `l2_refused_standin`
+        # was — would otherwise raise a KeyError from inside a `put` that is documented never to
+        # raise, and it would raise only on the path nobody exercises until it matters.
         with self._lock:
             for n in names:
-                self._stats[n] += 1
+                self._stats[n] = self._stats.get(n, 0) + 1
 
     def stats(self) -> dict:
         self._ensure_index()
@@ -802,6 +820,12 @@ class ArtifactCache:
         the volume, and a volume that refuses the write still leaves a working in-memory cache. The
         two caps are different budgets over different resources; making one gate the other would
         give the smaller of them authority over both."""
+        if artifact.is_standin:
+            # ⛔ OI-32: refused at the DOOR, before either tier, so neither can be the one that
+            # remembered. Recorded — a cache that silently declines is indistinguishable from one
+            # that accepted and evicted.
+            self._stats["refused_standin"] = self._stats.get("refused_standin", 0) + 1
+            return
         k = fingerprint(key)
         size = artifact_bytes(artifact.data)
         with self._lock:

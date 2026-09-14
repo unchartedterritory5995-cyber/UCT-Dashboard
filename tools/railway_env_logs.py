@@ -64,12 +64,18 @@ def control(filter_: str, at: str, gql=None) -> int:
 
 def fetch(filter_: str, since: str, until: str, page: int = 1000, sleep_ms: int = 250,
           gql=None, log=print) -> list[dict]:
-    """All matching lines with since <= timestamp <= until, oldest first."""
+    """All matching lines with since <= timestamp <= until, oldest first.
+
+    The returned list carries `.exact` on the way out via `fetch.last_exact`: True when the
+    pager reached the end of the data, False when it stalled on a full page and the result is
+    therefore a FLOOR. ⛔ A caller that reports a count without reading it is reporting a
+    number it cannot stand behind."""
     gql = gql or forensics.gql
     # No clamp on a future --until: measured 2026-09-13, `anchorDate` 2099-01-01 returns the
     # newest rows exactly like "now" does. (Only the abandoned `beforeDate` form returned
     # nothing.) A clamp here would be a guard with nothing to guard, and its test could not fail.
     cursor = until
+    exact = True
     seen: set = set()
     out: list[dict] = []
     calls = 0
@@ -100,16 +106,34 @@ def fetch(filter_: str, since: str, until: str, page: int = 1000, sleep_ms: int 
         if oldest < since:
             break
         if oldest == last_oldest and fresh == 0:
-            # ⛔ No progress: a page made entirely of lines at one timestamp we have already
-            # seen. Stop and SAY so, rather than loop or silently truncate.
-            log(f"  STOPPED: no progress past {oldest}; results before it may be missing")
+            # ⛔⛔ TWO DIFFERENT THINGS LOOK IDENTICAL HERE, AND CALLING BOTH "STOPPED" MADE EVERY
+            # COUNT A FLOOR. A page with nothing new is either (a) the end of the data — the API
+            # had nothing more to give at this anchor — or (b) a cluster of lines sharing one
+            # timestamp that is wider than `page`, where paging really cannot advance.
+            #
+            # ⭐ THE DISCRIMINATOR IS WHETHER THE PAGE CAME BACK FULL. An UNDER-FULL page means the
+            # API returned everything it had, so there is nothing beyond it and the pull is EXACT.
+            # Only a FULL page that failed to advance is a genuine stall.
+            #
+            # ⚰️ Before this, a complete 8-row pull printed "results before it may be missing", the
+            # Monday shadow line had to report `>= 8` instead of `8`, and "nobody ran /chart" could
+            # not be separated from "the pager stopped early". An instrument that cannot say
+            # whether it saw everything turns every absence into an open question.
+            if len(rows) < page:
+                log(f"  EXHAUSTED at {oldest}: the API returned {len(rows)} of a requested {page}, "
+                    f"so there is nothing older to fetch — this pull is EXACT")
+            else:
+                exact = False
+                log(f"  STOPPED: no progress past {oldest} on a FULL page of {len(rows)}; "
+                    f"results before it may be missing — this pull is a FLOOR")
             break
         last_oldest = oldest
         cursor = oldest
         if sleep_ms:
             time.sleep(sleep_ms / 1000.0)
     out.sort(key=lambda r: r["timestamp"])
-    log(f"  {len(out)} line(s) in {calls} call(s)")
+    fetch.last_exact = exact
+    log(f"  {len(out)} line(s) in {calls} call(s) — {'EXACT' if exact else 'A FLOOR'}")
     return out
 
 
@@ -136,11 +160,20 @@ def main(argv=None, gql=None) -> int:
     names = service_names(gql=gql)
     rows = fetch(args.filter, args.since, args.until, page=args.page, sleep_ms=args.sleep_ms, gql=gql,
                  log=lambda m: print(m, file=sys.stderr))
+    exact = bool(getattr(fetch, "last_exact", True))
     with open(args.out, "w", encoding="utf-8") as fh:
+        # ⛔⛔ THE FIRST LINE SAYS WHETHER THE COUNT BELOW IT IS A COUNT OR A FLOOR, so a reader
+        # cannot quote a number the pull could not stand behind. It travels IN the file rather
+        # than on stderr because stderr is not what gets read a week later — and a consumer that
+        # does not know about it simply fails to parse one line, which every consumer already
+        # tolerates (they scan for their own shape).
+        fh.write(json.dumps({"_meta": {"exact": exact, "count": len(rows), "filter": args.filter,
+                                       "since": args.since, "until": args.until}}) + "\n")
         for r in rows:
             r["service"] = names.get(r.get("serviceId"), r.get("serviceId"))
             fh.write(json.dumps(r) + "\n")
-    print(f"wrote {len(rows)} line(s) -> {args.out}", file=sys.stderr)
+    print(f"wrote {len(rows)} line(s) -> {args.out} "
+          f"({'EXACT' if exact else 'A FLOOR — do not quote this as a count'})", file=sys.stderr)
     return EXIT_OK
 
 

@@ -446,6 +446,30 @@ next person to measure this system will reach for the same instrument.
   experience** — that is rule H14, and it cost 4.5 hours of app-wide broken navigation once.
 - **A file mtime moving is not a write.** Opening a WAL database read-only rewrites its `-shm`;
   judge a leak by the main `.db`'s content.
+- ⛔⛔ **A MUTATION THAT DID NOT APPLY IS A PROOF THAT DID NOT HAPPEN, AND `78/80 RED` READS LIKE A
+  NEAR-PERFECT SCORE.** Mutation **A29** — "the V2 handlers bind adapters and not the raw clients" —
+  sat stale through several merges because its anchor string had moved, so the harness skipped it
+  and printed the skip as a footnote under the number people quote. **Ruling, 2026-09-14:
+  NOT-APPLIED ≠ 0 FAILS the harness; it is never just printed**, and the count sits on the summary
+  line beside the RED count. Run the one-second dry check before committing to a 25-minute set.
+- **The log pager could not tell "the end of the data" from "a stall", so every count was a floor.**
+  `railway_env_logs.py` printed *"STOPPED: no progress past …"* for a complete pull, which made
+  `>= 8` the best the Monday shadow line could say — and left "nobody ran `/chart`" and "the pager
+  stopped early" indistinguishable. The discriminator is whether the page came back FULL; the
+  output file now carries a `_meta` header saying whether its own count is exact.
+- ⛔⛔ **A TEST THAT READS THE WALL CLOCK REPORTS THE CALENDAR.**
+  `test_bars_come_back_with_a_vintage_derived_from_the_newest_bar` asserted the session word was
+  `WEEKEND` or one of `CLOSED_STATES`. It was written on a Sunday, was green all weekend, and went
+  red at 04:00 ET Monday when the session became `pre` — **and the first thing that red did was
+  refuse the mutation harness's control run, so eighty mutation proofs did not happen.** The fix is
+  never a wider allow-list: the session word is a function of the clock, and `freshness` takes
+  `now=` precisely so the clock is an input you pass rather than a fact you inherit. Expect this
+  class to bite again at 09:30 and 16:00 ET.
+- **A shadow record for one command is not evidence about another.** Eight records, all `/flow`,
+  zero `/chart`: the hook was fine and there was simply no `/chart` traffic — but that took an
+  exact log pull *and* an end-to-end rail to establish, and neither existed at the time.
+  `tests/test_discord_render_shadow_reaches_chart.py` drives the real route with a real Ed25519
+  signature so the structural half can never be the open question again.
 
 ---
 

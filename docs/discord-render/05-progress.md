@@ -451,3 +451,32 @@ instead of tracking it), one a self-inflicted import path. Lane D never reported
 claims did not exist until re-measured; two of its mutations were mis-aimed and one of those named a
 real weakness in its own test. ⛔ **A lane's "done" is a claim, and the integrator's re-run is the
 measurement** — that rule earned its place three times tonight.
+
+### Gap 1 — the cache wired to the hot path (2026-09-14 05:0x ET)
+
+**2.5 was built and connected to nothing**, which meant every 3.1 number was a no-cache number and
+the flip packet described a product that did not exist. `bindings.house_fn` now goes
+L1 → L2 → render behind `RENDER_CACHE_ENABLED`.
+
+| | cache OFF | cache ON |
+|---|---|---|
+| renders for 100 asks over 20 symbols | 100 | **20** |
+| p50 | 2.49 ms | **0.02 ms** |
+| p95 | 2.64 ms | 7.04 ms |
+| hit rate | 0.0 % | **80.0 %** |
+
+⚠️ **The renderer is SIMULATED at 1.8 ms** (03 §2's p50 budget). This measures the CACHE's effect on
+the render path, not the renderer; the p95 rising is the misses plus the L2 write, which is the
+honest shape. An end-to-end number needs `--real`.
+
+⛔⛔ **THE VINTAGE IS IN THE KEY, AND THAT IS WHY A HIT CARRIES NO LABEL.** Two renders of one symbol
+at one data vintage are the same picture, so serving the stored one is not a degradation and
+labelling it would be the furniture 04 §2 forbids. The corollary is the load-bearing half: if the
+vintage ever leaves the key, the cache serves yesterday's chart under today's badge — which is why
+that is a mutation (`W2`) and not a comment.
+
+⭐ **Two instrument defects found while wiring it, both in checks I had just written.** The
+per-lookup cache tier was being derived from a process-wide counter (a global answering a
+per-request question), and the AST probe for "is the cache imported" read only `ImportFrom.module`
+— so `from … import artifact_cache`, which is the correct wiring, answered **no**. The second one
+was in `flip_preconditions.py` too: the flip gate could never have printed MET.

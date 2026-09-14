@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import threading
 
+from api.services.discord_render import artifact_cache
 from api.services.discord_render import badge as badge_mod
 from api.services.discord_render import observe
 from api.services.discord_render.adapters import bars as bars_adapter
@@ -115,16 +116,85 @@ def house_fn(ctx, inner=None):
 
     def _render(sym, tf, stats, options=None):
         prior = last_result(ctx, "bars")
-        r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
-            ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
-            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
-            envelope=prior.envelope if prior and prior.ok else None,
-            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. `produce_chart` already has its own
-            # second chance — the mplfinance stand-in — so a retry here buys a slower path to
-            # the same fallback while the member waits. Stated rather than inherited.
-            attempts=1), house_fn=inner))
-        return r.data if r.ok else None
+        envelope = prior.envelope if prior and prior.ok else None
+
+        def _produce():
+            r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
+                ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
+                corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+                envelope=envelope,
+                # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. `produce_chart` already has its own
+                # second chance — the mplfinance stand-in — so a retry here buys a slower path to
+                # the same fallback while the member waits. Stated rather than inherited.
+                attempts=1), house_fn=inner))
+            return r.data if r.ok else None
+
+        return _cached_render(ctx, sym, tf, options, envelope, _produce)
     return _render
+
+
+# ── 2.5 wired to the hot path (D-02, OI-31) ─────────────────────────────────
+
+def _cached_render(ctx, sym, tf, options, envelope, produce):
+    """L1 → L2 → render, behind `RENDER_CACHE_ENABLED`.
+
+    ⛔⛔ WITH THE FLAG OFF THIS IS `produce()` AND NOTHING ELSE — not a lookup that misses, not a
+    key computed and thrown away. The V2 path has to be byte-for-byte what it was before the cache
+    existed when the gate is off, and "we only did the cheap part" is how a flag stops being a flag.
+
+    ⛔⛔ THE VINTAGE IS IN THE KEY, AND THAT IS WHY A HIT NEEDS NO LABEL. Two renders of the same
+    symbol at the same data vintage are the same picture; serving the stored one is not a
+    degradation and marking it "served from a slower backup source" would be furniture — the exact
+    thing 04 §2 forbids. What a member is told about freshness comes from the ENVELOPE, which is
+    identical either way. ⚠️ The corollary is the load-bearing half: if the vintage ever stops being
+    part of the key, this comment becomes a lie and the cache starts serving yesterday's chart under
+    today's badge.
+
+    ⛔ A STAND-IN IS NEVER STORED (OI-32). It cannot reach here anyway — `house_fn` is the HOUSE
+    render and the stand-in is drawn by `produce_chart`'s own fallback — but the flag is set
+    explicitly rather than left to that argument, because "it cannot happen" is a claim about a
+    caller and callers change.
+    """
+    if not artifact_cache.enabled():
+        return produce()
+
+    key = artifact_cache.key_for("chart", {
+        "ticker": sym, "tf": tf,
+        # only the options that change the PICTURE; anything else would split the key space and
+        # quietly drop the hit rate to zero while every test still passed
+        "opts": artifact_cache.normalise_args({k: v for k, v in (options or {}).items()
+                                               if k in RENDER_KEY_OPTS}),
+    }, vintage=artifact_cache.vintage_of(envelope))
+
+    store = artifact_cache.store()
+    # ⛔ THE TIER IS MEASURED PER LOOKUP, NOT READ OFF A RUNNING TOTAL. A first version reported
+    # `l1` whenever the process had ever had a hit, which is a global counter answering a
+    # per-request question — and it would have made the flip packet's "cache hit rate L1/L2" a
+    # number that could not be wrong.
+    before = store.stats()
+    hit = store.get(key)
+    if hit is not None:
+        after = store.stats()
+        from_l2 = (after.get("l2_promotions", 0) > before.get("l2_promotions", 0)
+                   or after.get("l2_served_unpromoted", 0) > before.get("l2_served_unpromoted", 0))
+        observe.event("cache_hit", cid=getattr(getattr(ctx, "job", None), "corr_id", None),
+                      cmd="chart", sym=sym, tf=str(tf), outcome="hit",
+                      detail=f"tier={'l2' if from_l2 else 'l1'}")
+        return hit.data
+    observe.event("cache_miss", cid=getattr(getattr(ctx, "job", None), "corr_id", None),
+                  cmd="chart", sym=sym, tf=str(tf), outcome="miss")
+
+    budget = _remaining(ctx)
+    data = store.coalesce(key, produce, budget_s=budget if budget is not None else 0.0)
+    if data is not None:
+        store.put(key, artifact_cache.Artifact(data=data, envelope=envelope, provider="renderer"))
+    return data
+
+
+#: The render options that change the PICTURE. ⛔ Deliberately a small, named set: keying on the
+#: whole options dict would put a per-member preference blob in the key and give every member their
+#: own cache entry, which is a 0 % hit rate that no test would notice.
+RENDER_KEY_OPTS = ("style", "darkpool", "compare", "to", "ext", "bars", "instances")
 
 
 # ── /flow ───────────────────────────────────────────────────────────────────
