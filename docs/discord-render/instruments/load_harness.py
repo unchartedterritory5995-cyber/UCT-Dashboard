@@ -79,6 +79,84 @@ SHARED_ROOTS = ("/data", "c:\\data", "c:/data")
 #: Discord's per-channel message rate, conservatively. Overridable; reported either way.
 DELIVER_RATE_DEFAULT = 1.0
 
+# ── C2 · THE DEPTH GAUGE'S CADENCE, NAMED ONCE PER MODEL ────────────────────
+#
+# ⛔⛔ THE TWO DRIVERS SAMPLE QUEUE DEPTH ON DIFFERENT TRIGGERS, AND THAT IS WHY A DEPTH
+# NUMBER NEEDS ITS DENOMINATOR PRINTED BESIDE IT. The closed loop samples on a CLOCK; the open
+# loop samples every Nth ARRIVAL. Both are defensible and neither is obvious from the artifact.
+#
+# ⚰️ 2026-09-14: I read an OPEN-loop artifact against the CLOSED loop's 0.5 s cadence, computed
+# "3.5 % coverage", and published a finding about a starved event loop that did not exist. The
+# open-loop gauge had returned exactly what it is written to return. ⭐ An instrument reporting
+# a property of ITSELF as a property of what it measured — inside the pass about exactly that.
+# The artifact now states which cadence produced it, so the comparison cannot be made by hand.
+GAUGE_CLOSED_INTERVAL_S = 0.5      # closed loop: one sample every half second
+GAUGE_OPEN_EVERY_N = 10            # open loop: one sample every tenth arrival
+
+
+def gauge_meta(model: str, *, samples: int, elapsed_s: float, offers: int) -> dict:
+    """What the depth gauge could and could not have seen. ⛔ `sparse` is NOT `starved`."""
+    if model == CLOSED_LOOP:
+        trigger = f"every {GAUGE_CLOSED_INTERVAL_S}s"
+        expected = int(elapsed_s / GAUGE_CLOSED_INTERVAL_S) if elapsed_s > 0 else 0
+        window_s = GAUGE_CLOSED_INTERVAL_S
+    else:
+        trigger = f"every {GAUGE_OPEN_EVERY_N}th arrival"
+        expected = (offers // GAUGE_OPEN_EVERY_N) + 1 if offers else 0
+        # ⛔ THE HONEST NUMBER FOR AN ARRIVAL-DRIVEN GAUGE IS THE TIME BETWEEN SAMPLES, not a
+        # "coverage" percentage: at 0.6 arrivals/second, ten arrivals span ~17 SECONDS, and a
+        # queue that fills and drains inside that window is invisible however healthy the loop.
+        window_s = (elapsed_s / samples) if samples else None
+    return {
+        "trigger": trigger, "expected": expected, "actual": samples,
+        "coverage": round(samples / expected, 3) if expected else None,
+        "seconds_between_samples": round(window_s, 2) if window_s else None,
+        # A depth figure read off this gauge is a FLOOR. Stated in the artifact so a reader does
+        # not have to know which driver wrote it.
+        "depth_is_a_floor": True,
+    }
+
+
+# ── C3 · A LOAD MODEL THAT DOES NOT MODEL THE LOAD ──────────────────────────
+#
+# ⚰️ The first closed loop resolved refusals with NO delay, so thirty clients against the
+# per-member limit produced 521,654 attempts in 20 seconds and six acks over 3 s — a completely
+# plausible S1 FAIL manufactured entirely by the harness. A member told "slow down" does not
+# retry twenty-six thousand times a second.
+#
+# ⛔ A SPIN IS INCONCLUSIVE, NEVER A FAIL. "We measured a breach" and "the instrument measured
+# itself" are different facts, and collapsing them is the exit-code defect this file exists to
+# prevent. The ceiling is generous on purpose: it is here to catch three orders of magnitude,
+# not to police a busy loop.
+SPIN_TOLERANCE = 3.0
+
+
+def spin_check(model: str, *, offers: int, elapsed_s: float, concurrency=None,
+               think_s: float = 0.0, arrival_rate=None) -> tuple:
+    """(ok, reason). Did this run offer far more load than its own model can account for?"""
+    if elapsed_s <= 0 or offers <= 0:
+        return True, ""                      # nothing offered is `verdict`'s business, not this
+    observed = offers / elapsed_s
+    if model == CLOSED_LOOP:
+        if not concurrency:
+            return True, ""
+        # With think time t, N clients cannot exceed N/t offers per second however fast the
+        # service is. With t == 0 the model is unbounded BY DESIGN and there is nothing to check
+        # — which is itself worth saying out loud rather than silently passing.
+        if think_s <= 0:
+            return True, ("think_time=0 models a bot, not a member: the offered rate is bounded "
+                          "by service time alone and no spin ceiling applies")
+        ceiling = SPIN_TOLERANCE * concurrency / think_s
+    else:
+        if not arrival_rate:
+            return True, ""
+        ceiling = SPIN_TOLERANCE * arrival_rate
+    if observed > ceiling:
+        return False, (f"the harness offered {observed:,.1f} requests/second against a model "
+                       f"that allows at most {ceiling:,.1f} — this run measured the HARNESS, "
+                       f"not the system ({offers:,} offers in {elapsed_s:.1f}s)")
+    return True, ""
+
 
 def _repo_root() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[3]
@@ -656,7 +734,7 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
         while time.perf_counter() < end_at:
             queue_depth.append({"t": round(time.perf_counter() - started, 2),
                                 "inflight": inflight, **(rt.depth() or {})})
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(GAUGE_CLOSED_INTERVAL_S)
 
     try:
         await asyncio.gather(gauge(), *[client(i) for i in range(concurrency)])
@@ -677,9 +755,12 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
             pass
 
     mean_inflight = (sum(inflight_samples) / len(inflight_samples)) if inflight_samples else 0.0
+    _elapsed = time.perf_counter() - started
     return {"samples": samples, "kinds": kinds, "queue": rt.depth() if rt else {},
             "queue_depth": queue_depth, "runtime": rt,
-            "elapsed_s": time.perf_counter() - started,
+            "elapsed_s": _elapsed,
+            "gauge": gauge_meta(CLOSED_LOOP, samples=len(queue_depth), elapsed_s=_elapsed,
+                                offers=len(samples)),
             "concurrency": {"requested": concurrency, "think_s": think_s,
                             "peak_inflight": peak_inflight,
                             "mean_inflight": round(mean_inflight, 2),
@@ -742,7 +823,7 @@ async def drive(rate: float, seconds: float, *, members: int, handler_ms: float,
                                                       ticker=tickers[n % len(tickers)]), received)
             samples.append((time.perf_counter() - received) * 1000.0)
             kinds[_kind_of(reply)] = kinds.get(_kind_of(reply), 0) + 1
-            if n % 10 == 0:
+            if n % GAUGE_OPEN_EVERY_N == 0:
                 queue_depth.append({"t": round(time.perf_counter() - started, 2), **(rt.depth() or {})})
             n += 1
         # ⛔⛔ A REAL RUN IS NOT OVER WHEN THE LAST ACK RETURNS. S2 is measured from the ack to the
@@ -761,9 +842,12 @@ async def drive(rate: float, seconds: float, *, members: int, handler_ms: float,
             commands.stop()
         except Exception:  # noqa: BLE001 — teardown must never rewrite the verdict
             pass
+    _elapsed = time.perf_counter() - started
     return {"samples": samples, "kinds": kinds, "queue": rt.depth() if rt else {},
             "queue_depth": queue_depth, "runtime": rt,
-            "elapsed_s": time.perf_counter() - started}
+            "elapsed_s": _elapsed,
+            "gauge": gauge_meta(OPEN_LOOP, samples=len(queue_depth), elapsed_s=_elapsed,
+                                offers=len(samples))}
 
 
 def _kind_of(reply) -> str:
@@ -1086,6 +1170,58 @@ def self_check() -> int:
     except SystemExit as e:
         cases.append(("an unknown burst mode is refused BY NAME", "busiest3s" in str(e)))
 
+    # ── C3 · the spin ceiling (D-01 defect D3) ────────────────────────────
+    # ⚰️ THE RUN IT EXISTS FOR: 30 clients, 20 seconds, **521,654 attempts** — ~26,000/s — and six
+    # acks over 3 s that were entirely the harness. A member told "slow down" does not retry
+    # twenty-six thousand times a second.
+    _spin_ok, _spin_why = spin_check(CLOSED_LOOP, offers=521_654, elapsed_s=20.0,
+                                     concurrency=30, think_s=1.0)
+    cases.append(("the 521,654-attempt spin is CAUGHT by the offered-rate ceiling",
+                  _spin_ok is False and "measured the HARNESS" in _spin_why))
+    # ⛔ NON-VACUITY, AND IT IS THE HALF THAT KEEPS THE CEILING HONEST. A ceiling that also fires on
+    # the real 30-concurrent run would be raised until it fired on nothing. Those are its true
+    # numbers: 406 offers in 21.88 s.
+    _ok_real, _ = spin_check(CLOSED_LOOP, offers=406, elapsed_s=21.88, concurrency=30, think_s=1.0)
+    cases.append(("the REAL 30-concurrent run is NOT caught (non-vacuity)", _ok_real is True))
+    # ⛔ think_time=0 models a bot: the offered rate is bounded by service time alone, so there is
+    # nothing to check — and the harness SAYS so rather than passing silently.
+    _ok_bot, _why_bot = spin_check(CLOSED_LOOP, offers=999_999, elapsed_s=1.0, concurrency=30,
+                                   think_s=0.0)
+    cases.append(("think_time=0 declines to judge and says why",
+                  _ok_bot is True and "models a bot" in _why_bot))
+    _ok_open, _why_open = spin_check(OPEN_LOOP, offers=6000, elapsed_s=20.0, arrival_rate=0.6)
+    cases.append(("an open loop offering far more than its arrival rate is CAUGHT",
+                  _ok_open is False and "measured the HARNESS" in _why_open))
+    # the real design-burst run: 181 offers in 301.03 s against arrival_rate 0.6
+    _ok_burst, _ = spin_check(OPEN_LOOP, offers=181, elapsed_s=301.03, arrival_rate=0.6)
+    cases.append(("the REAL design-burst run is NOT caught (non-vacuity)", _ok_burst is True))
+    # ⛔ An empty run is `verdict`'s business (INCONCLUSIVE for too few samples), not this check's —
+    # a spin ceiling that also reported "no samples" would put two authorities on one verdict.
+    cases.append(("a run with no offers is not the spin check's business",
+                  spin_check(OPEN_LOOP, offers=0, elapsed_s=10.0, arrival_rate=0.6)[0] is True))
+
+    # ── C2 · the gauge publishes its own denominator ───────────────────────
+    _gc = gauge_meta(CLOSED_LOOP, samples=38, elapsed_s=21.88, offers=406)
+    _go = gauge_meta(OPEN_LOOP, samples=21, elapsed_s=301.03, offers=181)
+    cases.append(("the closed loop's gauge declares a CLOCK trigger",
+                  "0.5" in _gc["trigger"] and _gc["expected"] == 43))
+    cases.append(("the open loop's gauge declares an ARRIVAL trigger",
+                  "arrival" in _go["trigger"] and _go["expected"] == 19))
+    # ⛔⛔ THE CASE THAT WOULD HAVE STOPPED ME PUBLISHING A FALSE FINDING. On 2026-09-14 I computed
+    # "3.5 % coverage" for an OPEN-loop artifact by applying the CLOSED loop's 0.5 s cadence, and
+    # reported a starved event loop that did not exist. The two must not describe themselves
+    # identically, or the comparison stays available to be made by hand.
+    cases.append(("the two gauges do not describe themselves identically",
+                  _gc["trigger"] != _go["trigger"]))
+    # ⭐ For an arrival-driven gauge the honest number is the TIME BETWEEN SAMPLES, not a coverage
+    # percentage: ten arrivals at 0.6/s span ~17 s, and a queue that fills and drains inside that
+    # window is invisible however healthy the loop is.
+    cases.append(("an arrival-driven gauge reports seconds between samples",
+                  _go["seconds_between_samples"] is not None
+                  and _go["seconds_between_samples"] > 10.0))
+    cases.append(("every depth figure is labelled a FLOOR, whichever model produced it",
+                  _gc["depth_is_a_floor"] is True and _go["depth_is_a_floor"] is True))
+
     # ⛔⛔ THE EVALUATION RUNS LAST, AFTER EVERY APPEND — AND NOW IT IS ENFORCED RATHER THAN
     # OBSERVED. ⚰️ It used to sit in the MIDDLE: fifteen cases were appended after it and were
     # therefore counted by `len(cases)` and never checked. `--self-check` printed
@@ -1293,6 +1429,18 @@ def main(argv=None) -> int:
         stats, kinds = summarise(out["samples"]), out["kinds"]
         meta["elapsed_s"] = round(out["elapsed_s"], 2)
         meta["queue_at_end"] = out["queue"]
+        # ⛔ C2 — the depth gauge publishes its own denominator. A depth figure is a FLOOR and
+        # the artifact now says so, so nobody has to know which driver wrote it to judge one.
+        meta["gauge"] = out.get("gauge")
+        # ⛔⛔ C3 — a run that measured the HARNESS is INCONCLUSIVE, never a FAIL. Checked before
+        # any verdict is computed, because a spun run's percentiles are about the spin.
+        _ok, _why = spin_check(model, offers=len(out["samples"]), elapsed_s=out["elapsed_s"],
+                               concurrency=args.concurrency, think_s=args.think_time,
+                               arrival_rate=args.arrival_rate)
+        meta["spin_check"] = {"ok": _ok, "reason": _why}
+        if not _ok:
+            print(totals_line(stats, kinds, meta, INCONCLUSIVE, [_why]))
+            return INCONCLUSIVE
         # ⛔ A4: the artifact records WHICH MODEL produced it, in band. An artifact that
         # does not say is rejected by `read_labelled_artifact` rather than read hopefully.
         if out.get("concurrency"):
