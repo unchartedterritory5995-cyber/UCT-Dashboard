@@ -537,3 +537,36 @@ computes `stale = ledger − (gates ∪ visibility_flags)`, so a row for a flag 
 standalone "flags commit" could not have been green. The mirror rule sent `VITE_BREADTH_CHARTS_V2_ENABLED` the other
 way: `test_no_stale_build_flag_rows` asserts `declared ⊆ names_read(repo)`, so its **ledger row waits for V2-1's first
 read** while its Dockerfile `ARG`/`ENV` lands now (a spare ARG is inert, and nothing ties the ARG list to the ledger).
+
+### D-042 · The cost bound is NOT met, `bucket=` would not fix it, and the cause is the reader — B1 stays dark
+
+**Measured on production, 2026-09-14, member-smoke, off-peak**, through the existing paid monitor endpoint (same
+`get_history_deep`, heavier payload, so a strict upper bound on B1's read):
+
+| request | rows | payload | cold | warm |
+|---|---|---|---|---|
+| `days=90` (no `end`, the default Monitor view) | 90 | 146 KB | 1,018 ms | 166 ms |
+| `days=8000` (no `end`) | 4,703 | 4.96 MB | **54,923 ms** | 676 ms |
+| `days=365&end=2026-08-01` (teleport) | 365 | 455 KB | 10,498 ms | 1,912 ms |
+
+⛔ **D-035's trigger is breached by ~55×**, so by the standing rule downsampling is owed. **It is not implemented, and
+implementing it would be a fix that does not fix anything.** `bucket=` reduces the RESPONSE; the 55 s is spent in
+`get_history_deep` PRODUCING the 4,703 rows, entirely upstream of any bucketing. Every row must exist before it can be
+averaged into a week. Shipping `bucket=` here would lower the payload, leave the 55 s exactly where it is, and — worse —
+make the endpoint *look* bounded.
+
+⭐ **B1's own cost was never the problem and the two numbers should not be confused.** B1's marginal filter+project+
+encode is **30 ms** over 4,530 rows (D-041). The reader is ~1,800× that. A stubbed measurement was right about what it
+measured and silent about what dominates — which is why this second measurement was demanded, and why the answer
+inverted the decision.
+
+⚠️ **THIS IS PRE-EXISTING AND LIVE, AND IT IS NOT B1's.** `GET /api/breadth-monitor?days=8000` is a shipped, paid
+route; any member who asks the Monitor for a deep window pays 55 s on the ONE uvicorn process, which is the
+anyio-threadpool starvation class that caused the 2026-07-01 524 outage. `00-discovery` §7 already recorded the Time
+Navigator firing 32 sequential `days=150&end=…` calls and a 45 s rig timeout attributed to it — the same path, not yet
+named as a cost. **Raised, not fixed here**: a reader rewrite is not a Data Charts change and must not ride a UI branch.
+
+**Decision.** B1 **stays dark** — it is set on no service, so nothing is exposed and no member can reach it. The flag
+must NOT be enabled until the reader cost is addressed. `bucket=` is **not** implemented and is **not** the owed work;
+what is owed is one of: bound B1's span to the warm collector range, pre-warm the deep windows off the request path, or
+make `get_history_deep` cheap for a cold deep span. That choice is the owner's and is recorded as open.
