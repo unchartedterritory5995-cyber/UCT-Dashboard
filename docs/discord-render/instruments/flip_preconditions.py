@@ -68,6 +68,12 @@ import re
 import subprocess
 import sys
 
+try:
+    import evidence_contract as ec
+except ModuleNotFoundError:            # imported by path rather than from the instruments dir
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import evidence_contract as ec
+
 MET, NOT_MET, NOT_MEASURABLE = "MET", "NOT MET", "NOT MEASURABLE"
 ALL_MET, SOME_NOT_MET, SOME_UNMEASURABLE = 0, 1, 2
 
@@ -573,90 +579,77 @@ N_S2 = "S2 measured in --real mode and within SLO"
 
 
 def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
-    """⛔⛔ THIS ROW USED TO BE `MET if the files exist`, AND IT NEVER OPENED THEM.
+    """⛔⛔ THIS ROW USED TO BE `MET if the files exist`, AND THEN IT PICKED THE WRONG FILES.
 
-    ⚰️ 2026-09-14. Before that night there were no `--real` files, so the row correctly read
-    NOT MEASURABLE and everybody trusted it. The first `--real` runs were then produced — and all
-    three printed `TOTALS load_harness FAIL`, with S2 p50 at 14,855 ms against a 2,500 ms target.
-    The row flipped to **MET**, because five files now existed. **Producing failing evidence made
-    the gate greener**, on the single row that decides whether delivery meets its SLO, in the
-    instrument the flip packet calls "the authority".
+    ⚰️ Defect one, 2026-09-14. The row read `MET` because five `--real` files existed; it never
+    opened one. The first `--real` runs all printed `TOTALS load_harness FAIL` with S2 p50 at
+    14,855 ms against a 2,500 ms target — **producing failing evidence made the gate greener**, on
+    the row that decides whether delivery meets its SLO.
 
-    ⭐ Counting artifacts is not reading verdicts. The fix is to open every run and judge it against
-    the same ceilings `load_harness` itself uses, and to report the WORST — a flip is not authorised
-    by the existence of one good run beside three bad ones."""
-    real = sorted(ev.step3.glob("*real*.json")) if ev.step3.exists() else []
-    real = [p for p in real if "chaos" not in p.name]
-    if not real:
-        return _row(N_S2, NOT_MEASURABLE,
-                    "no --real run: every load figure so far is ACK-PATH ONLY (stub symbols, "
-                    "zero-cost handler) and says nothing about delivery")
-    judged, breaches, unreadable, wire = 0, [], [], []
-    for p in real:
-        d, why = _read_json(p)
-        if why:
-            unreadable.append(why)
-            continue
-        r = (d or {}).get("real") if isinstance(d, dict) else None
-        if not isinstance(r, dict):
-            unreadable.append(f"{p.name} (no `real` block)")
-            continue
-        e2e = r.get("end_to_end_ms") or {}
-        if not e2e or r.get("jobs") in (None, 0):
-            # ⛔ A run with no end-to-end block measured no delivery. That is not a pass.
-            unreadable.append(f"{p.name} (no end_to_end_ms/jobs)")
-            continue
-        # ⛔⛔ A WIRE-HOP RUN'S LATENCY IS THE THROTTLE, NOT THE SYSTEM. A run made with
-        # `--deliver-channel` writes to real Discord at `DELIVER_RATE_DEFAULT` (1/s), SERIALISED on
-        # purpose. Measured 2026-09-14: 23 jobs carrying 38.6 s of deliberate throttle came out at
-        # p50 12,370 ms — a number about Discord's rate limiter wearing an S2 label.
-        # ⭐ Its DELIVERY result is still evidence, and the strongest kind: 40 × HTTP 200 is how we
-        # know the wire hop works at all. So judge success, never latency, and SAY which.
-        if float(((r.get("deliver") or {}).get("throttle_s") or 0)) > 0:
-            wire.append(f"{p.name} (wire-hop: {(r.get('deliver') or {}).get('http_200', 0)}×200, "
-                        f"{float((r.get('deliver') or {}).get('throttle_s') or 0):.0f}s throttle)")
-            s = r.get("success_rate")
-            if s is not None and s < S5_FLOOR:
-                breaches.append(f"{p.name}: wire-hop S5 {s*100:.1f}% < {S5_FLOOR*100:.1f}%")
-            continue
-        # ⛔ NON-VACUITY, THE SECOND KIND. A run whose percentiles are all `null` breaches no
-        # ceiling — every comparison is skipped — so the old shape counted it as JUDGED and let it
-        # carry the row to MET. "Nothing exceeded the ceiling" and "nothing was measured" must
-        # never render as the same sentence. A judged run has to STATE at least one percentile and
-        # state its success rate.
-        stated = [f for f, _ in S2_CEILINGS if isinstance(e2e.get(f), (int, float))]
-        if not stated or not isinstance(r.get("success_rate"), (int, float)):
-            unreadable.append(f"{p.name} (states {len(stated)}/3 percentile(s), "
-                              f"success_rate={r.get('success_rate')!r})")
-            continue
-        judged += 1
+    ⚰️ Defect two, found the next day and worse, because it survived the fix. The repaired row
+    opened the files it found — but it found them with `glob("*real*.json")` minus anything named
+    "chaos". Measured against the directory as it stood, that expression admitted
+    `determinism-real-20runs.json` (not a load run at all), admitted the artifact its own report
+    calls VOID (`load-real-a-concurrent30.json` — filename says *concurrent30*, content says thirty
+    arrivals per SECOND), and **excluded `load-closedloop-30.json`, the run that supersedes it**,
+    because nobody typed "real" into that filename. The void run decided the verdict and its
+    replacement was invisible.
+
+    ⭐ SELECTION IS NOW CONTENT-ONLY, AND IT LIVES IN ONE PLACE — `evidence_contract`. This row asks
+    that module two SEPARATE questions, because they have different eligibility and always did:
+    latency is renderer-dependent and admission is not. A run against the mplfinance fallback is
+    first-class evidence about whether the queue refuses honestly and says NOTHING about how long a
+    member waits for a chart the production renderer would have drawn.
+
+    ⛔ S5's floor and meaning are untouched here (its ruling is still with the owner). What changed
+    is WHICH artifacts are allowed to speak to it, not what it says."""
+    lat = ec.select(ev.step3, ec.PURPOSE_S2_LATENCY)
+    adm = ec.select(ev.step3, ec.PURPOSE_ADMISSION)
+    if not lat.scanned:
+        return _row(N_S2, NOT_MEASURABLE, f"no evidence at {ev.step3}")
+
+    breaches: list[str] = []
+    for art, doc, _ in lat.admitted:
+        e2e = (ec.real_block(doc) or {}).get("end_to_end_ms") or {}
         for field, ceiling in S2_CEILINGS:
             v = e2e.get(field)
-            if v is not None and v > ceiling:
-                breaches.append(f"{p.name}: {field} {v:.0f}ms > {ceiling:.0f}ms")
-        s = r.get("success_rate")
-        if s is not None and s < S5_FLOOR:
-            worst = max((r.get("failures_by_class") or {}).items(),
+            if isinstance(v, (int, float)) and v > ceiling:
+                breaches.append(f"{art.name}: {field} {v:.0f}ms > {ceiling:.0f}ms")
+    for art, doc, _ in adm.admitted:
+        real = ec.real_block(doc) or {}
+        s = real.get("success_rate")
+        if isinstance(s, (int, float)) and s < S5_FLOOR:
+            worst = max((real.get("failures_by_class") or {}).items(),
                         key=lambda kv: kv[1], default=("?", 0))
-            breaches.append(f"{p.name}: S5 {s*100:.1f}% < {S5_FLOOR*100:.1f}% "
-                            f"(worst class: {worst[0]}×{worst[1]})")
-    # ⛔ NON-VACUITY. Files that could not be judged are not silently dropped: "we read nothing"
-    # and "everything passed" must never render as the same row.
-    if not judged:
+            breaches.append(f"{art.name}: S5 {s*100:.1f}% < {S5_FLOOR*100:.1f}% "
+                            f"(worst class: {worst[0]}x{worst[1]})")
+
+    # ⛔ NON-VACUITY, AND IT IS THE HALF THIS ROW KEEPS GETTING WRONG. Nothing admitted means nothing
+    # was judged; it must never render as the sentence a clean run renders as. Every exclusion is
+    # NAMED — a count alone would let "we skipped the only real run" hide behind "0 breaches".
+    if not lat.admitted and not adm.admitted:
         return _row(N_S2, NOT_MEASURABLE,
-                    f"{len(real)} --real file(s) but NONE could be judged: "
-                    + (', '.join(unreadable) if unreadable else
-                       f"{len(wire)} wire-hop run(s) only, whose latency is the throttle"))
+                    f"{lat.scanned} artifact(s) scanned, NONE admissible for S2 latency or "
+                    f"admission - " + (lat.excluded_note() or "all out of scope"))
     if breaches:
-        return _row(N_S2, NOT_MET,
-                    f"{judged} run(s) judged; {len(breaches)} breach(es) — " + " · ".join(breaches[:4])
-                    + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else "")
-                    + (f" | wire hop: {', '.join(wire)}" if wire else ""))
-    note = f"{judged} --real run(s), every percentile inside S2 and success ≥ {S5_FLOOR*100:.1f}%"
-    if wire:
-        note += f" · wire hop proven by {', '.join(wire)}"
-    if unreadable:
-        note += f" ⚠️ {len(unreadable)} file(s) unjudgeable: {', '.join(unreadable)}"
+        detail = (f"{len(lat.admitted)} judged for latency, {len(adm.admitted)} for admission; "
+                  f"{len(breaches)} breach(es) - " + " . ".join(breaches[:4])
+                  + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else ""))
+        if not lat.admitted:
+            detail += (" | LATENCY NOT MEASURED: " + (lat.excluded_note(limit=2) or "no eligible run"))
+        return _row(N_S2, NOT_MET, detail)
+    if not lat.admitted:
+        # ⛔ ADMISSION CLEAN IS NOT S2 MET. The row is named for delivery latency; passing the half
+        # that could be measured while the other half has no eligible artifact is exactly the
+        # "MET because something existed" shape this row was rebuilt to stop.
+        return _row(N_S2, NOT_MEASURABLE,
+                    f"admission clean on {len(adm.admitted)} run(s), but LATENCY has no eligible "
+                    f"artifact - " + (lat.excluded_note(limit=2) or "none in scope"))
+    note = (f"{len(lat.admitted)} run(s) judged: every percentile inside S2 and success "
+            f">= {S5_FLOOR*100:.1f}%")
+    extra = lat.excluded_note(limit=2)
+    if extra:
+        note += f" | skipped {extra}"
     return _row(N_S2, MET, note)
 
 
@@ -670,62 +663,67 @@ _CHAOS_STATES = (("REFUS", "refused"), ("PASS", "passed"), ("INCONCLUSIVE", "inc
 
 
 def check_chaos_real(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
-    """⛔ Same defect as S2's row, same fix: open the file and read the scenarios' own verdicts.
+    """⛔ Same two defects as S2's row, same two fixes: pick by CONTENT, then read the verdicts.
+
+    ⚰️ It selected with `glob("chaos*real*.json")`. `chaos-full.json` is a RIG run — every one of its
+    thirteen scenarios carries `mode: "rig"` and every one of them passed — so a file renamed
+    `chaos-full-real.json` would have carried this row to MET on thirteen stubbed passes. The
+    discriminator is each scenario's own `mode`, which the artifact already records.
 
     ⚠️ A REFUSED scenario is not a passed one. `chaos_scenarios --real` refuses the scenarios it
-    cannot stage for real (six of thirteen on 2026-09-14, each with a named reason), and the run
-    that once printed `ran=13 passed=13` while six never executed is the reason `ran` excludes
-    them. This row must not re-introduce that arithmetic from the outside."""
-    real = sorted(ev.step3.glob("chaos*real*.json")) if ev.step3.exists() else []
-    if not real:
+    cannot stage for real (six of thirteen on 2026-09-14, each with a named reason), and the run that
+    once printed `ran=13 passed=13` while six never executed is why `ran` excludes them. This row
+    must not re-introduce that arithmetic from the outside."""
+    sel = ec.select(ev.step3, ec.PURPOSE_CHAOS_REAL)
+    if not sel.admitted:
+        rig = [r.reason for r in sel.out_of_scope if "against the rig" in r.reason]
         return _row(N_CHAOS, NOT_MEASURABLE,
-                    "rig stubs are not evidence for renderer_down, bars_api_502, discord_429, "
-                    "oversized_attachment or mid_job_restart")
+                    (f"{len(rig)} rig-only chaos artifact(s) and no real-mode run - " + rig[0]
+                     if rig else
+                     "no chaos artifact ran against the production path: rig stubs are not evidence "
+                     "for renderer_down, bars_api_502, discord_429, oversized_attachment or "
+                     "mid_job_restart"))
     tally = {"passed": 0, "failed": 0, "inconclusive": 0, "refused": 0}
     unknown: list[str] = []
-    for p in real:
-        d, why = _read_json(p)
-        if why:
-            return _row(N_CHAOS, NOT_MEASURABLE, why)
-        if not isinstance(d, dict) or not d:
+    for art, doc, _ in sel.admitted:
+        if not isinstance(doc, dict) or not doc:
             return _row(N_CHAOS, NOT_MEASURABLE,
-                        f"{p.name} holds no scenarios ({type(d).__name__}) — an empty artifact is "
-                        f"not a clean run")
-        for name, row in d.items():
-            # ⛔ The key is `state` — read off the artifact, not guessed. My first version asked for
-            # `outcome`/`verdict`, matched nothing, and reported "no scenario actually ran" for a
-            # run that had passed seven. A false negative is cheaper than S2's false positive and
-            # is still a row that does not describe the world.
+                        f"{art.name} holds no scenarios - an empty artifact is not a clean run")
+        for name, row in doc.items():
+            # ⛔ The key is `state` - read off the artifact, not guessed. My first version asked for
+            # `outcome`/`verdict`, matched nothing, and reported "no scenario actually ran" for a run
+            # that had passed seven. A false negative is cheaper than S2's false positive and is
+            # still a row that does not describe the world.
             if isinstance(row, dict):
                 v = str(row.get("state") or row.get("outcome") or row.get("verdict") or "").upper()
             else:
                 # A metadata key (`"ran": 13`) is NOT a scenario. The old shape uppercased it and
-                # counted it as a FAILURE, so a well-formed artifact that grew a summary field
-                # would have read NOT MET for a reason nobody could find.
-                unknown.append(f"{p.name}:{name} is {type(row).__name__}, not a scenario")
+                # counted it as a FAILURE, so a well-formed artifact that grew a summary field would
+                # have read NOT MET for a reason nobody could find.
+                unknown.append(f"{art.name}:{name} is {type(row).__name__}, not a scenario")
                 continue
             bucket = next((b for needle, b in _CHAOS_STATES if needle in v), None)
             if bucket is None:
-                unknown.append(f"{p.name}:{name} state={v or '<empty>'!s}")
+                unknown.append(f"{art.name}:{name} state={v or '<empty>'!s}")
             else:
                 tally[bucket] += 1
     if unknown:
         return _row(N_CHAOS, NOT_MEASURABLE,
-                    f"{len(unknown)} entr(ies) this row cannot read — "
-                    + " · ".join(unknown[:4])
+                    f"{len(unknown)} entr(ies) this row cannot read - "
+                    + " . ".join(unknown[:4])
                     + (f" (+{len(unknown)-4} more)" if len(unknown) > 4 else "")
                     + f" | readable so far: {tally['passed']} passed, {tally['failed']} failed")
     if tally["failed"] or tally["inconclusive"]:
         return _row(N_CHAOS, NOT_MET,
-                    f"{tally['passed']} passed · {tally['failed']} failed · "
-                    f"{tally['inconclusive']} inconclusive · {tally['refused']} refused")
+                    f"{tally['passed']} passed . {tally['failed']} failed . "
+                    f"{tally['inconclusive']} inconclusive . {tally['refused']} refused")
     if not tally["passed"]:
         return _row(N_CHAOS, NOT_MEASURABLE,
-                    f"no scenario actually ran ({tally['refused']} refused) — an empty set is not "
+                    f"no scenario actually ran ({tally['refused']} refused) - an empty set is not "
                     f"a pass")
     return _row(N_CHAOS, MET,
                 f"{tally['passed']} scenario(s) passed for real, {tally['refused']} refused by name "
-                f"(refused ≠ passed)")
+                f"(refused != passed)")
 
 
 #: 3.5's script has 15 rows. A partial run is NOT MET, not MET-because-something-exists.
@@ -734,6 +732,27 @@ N_SMOKE = "3.5 real-Discord smoke"
 
 _SMOKE_MARKS = {"passed": r"✅\s*\*\*PASS", "failed": r"🔴\s*\*\*FAIL",
                 "notrun": r"⛔\s*\*\*NOT RUN", "partial": r"🟡\s*\*\*PARTIAL"}
+
+#: ⛔ WHAT MAKES AN INDEX THIS ROW'S INDEX IS WHAT IT SAYS, NOT WHERE IT SITS. The row used to find
+#: its evidence with `glob("smoke*/INDEX.md")`, so a run recorded in a directory named anything else
+#: was invisible and the row read NOT MEASURABLE beside a completed smoke - the same class of defect
+#: as S2's filename selector, one row down. A 3.5 index declares itself in its own title.
+_SMOKE_INDEX_MARK = re.compile(r"^#\s.*\b3\.5\b.*smoke", re.I | re.M)
+_SHOT_SUFFIXES = (".png", ".jpg", ".jpeg")
+
+
+def _smoke_indexes(ev: Evidence) -> tuple[list, list]:
+    """(declared 3.5 indexes, other INDEX.md files named so they are never silently ignored)."""
+    mine, other = [], []
+    for idx in sorted(ev.evidence_dir.glob("**/INDEX.md")):
+        text, why = _read_text(idx)
+        if why:
+            other.append((idx, why))
+        elif _SMOKE_INDEX_MARK.search(text or ""):
+            mine.append((idx, text))
+        else:
+            other.append((idx, "does not declare itself a 3.5 smoke index"))
+    return mine, other
 
 
 def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
@@ -753,37 +772,53 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
     what those pictures show. That is NOT MEASURABLE, and it names the index it wants."""
     if not ev.evidence_dir.exists():
         return _row(N_SMOKE, NOT_MEASURABLE, f"no evidence directory at {ev.evidence_dir}")
-    shots = [p for p in ev.evidence_dir.glob("smoke*/**/*")
-             if p.suffix.lower() in (".png", ".jpg", ".jpeg")]
-    indexes = sorted(ev.evidence_dir.glob("smoke*/INDEX.md"))
+    indexes, other = _smoke_indexes(ev)
+    # Screenshots are counted from the subtree of a DECLARED index, so the count describes the run
+    # this row is judging rather than every image under a directory whose name starts with "smoke".
+    shots = [q for idx, _ in indexes for q in idx.parent.rglob("*")
+             if q.suffix.lower() in _SHOT_SUFFIXES]
     if not indexes:
+        # ⛔ "SCREENSHOTS BUT NO INDEX" AND "NOTHING AT ALL" ARE DIFFERENT FACTS, and the row must
+        # keep saying which. An earlier version printed `NOT MET — only 0/15` over a directory of
+        # images, which asserts the smoke ran and failed; nobody had written down what those
+        # pictures show. Counted over the WHOLE evidence tree here — no name filter, because at this
+        # point there is no declared index to anchor to and a guess about directory names is what
+        # this rewrite exists to remove.
+        loose = [q for q in ev.evidence_dir.rglob("*") if q.suffix.lower() in _SHOT_SUFFIXES]
         script = ev.evidence_dir / "smoke-script.md"
         return _row(N_SMOKE, NOT_MEASURABLE,
-                    (f"{len(shots)} screenshot(s) but no INDEX.md — a screenshot is not a verdict"
-                     if shots else "no screenshots and no INDEX")
+                    (f"{len(loose)} screenshot(s) in the evidence tree but no INDEX.md declares a "
+                     f"3.5 smoke run — a screenshot is not a verdict" if loose else
+                     "no screenshots and no INDEX.md declaring a 3.5 smoke run")
+                    + f" (an index declares itself with a title matching {_SMOKE_INDEX_MARK.pattern!r})"
+                    + (f"; {len(other)} other index file(s): "
+                       + "; ".join(f"{i.name} in {i.parent.name} - {w}" for i, w in other[:3])
+                       if other else "")
                     + ("; the typed script is ready at evidence/smoke-script.md"
                        if script.exists() else "; no script written either"))
     # Count the rows the INDEX itself marks. ⛔ Read the verdict, never the artifact count.
     marks = {k: 0 for k in _SMOKE_MARKS}
-    unreadable: list[str] = []
-    for idx in indexes:
-        text, why = _read_text(idx)
-        if why:
-            unreadable.append(why)
-            continue
+    for _, text in indexes:
         for key, pattern in _SMOKE_MARKS.items():
             marks[key] += len(re.findall(pattern, text))
-    if unreadable:
-        return _row(N_SMOKE, NOT_MEASURABLE, "; ".join(unreadable))
     if not any(marks.values()):
         return _row(N_SMOKE, NOT_MEASURABLE,
                     f"{len(indexes)} INDEX file(s) carrying no row verdict at all — an index that "
                     f"marks nothing is prose, and prose is not a result")
+    # ⛔ A MARK IS NOT A ROW, and this index proves it: one cell reading `| 1–7, 10–15 | ⛔ NOT RUN |`
+    # covers THIRTEEN rows and matches the pattern ONCE. Every count below is therefore reported as
+    # marks, and `unaccounted` is what a reader actually needs — the rows no mark speaks for.
+    # ⭐ It cannot make this row greener: MET still requires SMOKE_ROWS_TOTAL individual PASS marks,
+    # so a range mark can only ever under-claim. What it stops is the opposite lie — "1 NOT RUN"
+    # printed beside thirteen rows nobody has run.
+    accounted = sum(marks.values())
+    unaccounted = max(0, SMOKE_ROWS_TOTAL - accounted)
     if marks["failed"]:
         return _row(N_SMOKE, NOT_MET,
-                    f"{marks['failed']} row(s) marked FAIL ({marks['passed']}/{SMOKE_ROWS_TOTAL} "
-                    f"PASS) — a smoke with a red row is a smoke that found something")
-    outstanding = marks["notrun"] + marks["partial"]
+                    f"{marks['failed']} FAIL mark(s) ({marks['passed']}/{SMOKE_ROWS_TOTAL} rows "
+                    f"marked PASS, {unaccounted} row(s) no mark speaks for) — a smoke with a red "
+                    f"row is a smoke that found something")
+    outstanding = marks["notrun"] + marks["partial"] + unaccounted
     if marks["passed"] >= SMOKE_ROWS_TOTAL and outstanding:
         # ⛔ MORE PASS MARKS THAN ROWS, WHILE ROWS ARE STILL UNRUN. Two partial indexes that both
         # claim row 1 would otherwise sum to 15 and carry the row to MET. The arithmetic, not the
@@ -798,9 +833,10 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
                     f"index(es), {len(shots)} screenshot(s), 0 outstanding")
     return _row(N_SMOKE, NOT_MET,
                 f"only {marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS "
-                f"({marks['notrun']} NOT RUN, {marks['partial']} PARTIAL, {len(shots)} "
-                f"screenshot(s), {len(indexes)} index(es)) — a partial smoke is not a smoke; the "
-                f"unrun rows are the ones nobody has seen fail")
+                f"({marks['notrun']} NOT RUN mark(s), {marks['partial']} PARTIAL, {unaccounted} "
+                f"row(s) no mark speaks for, {len(shots)} screenshot(s), {len(indexes)} index(es)) "
+                f"— a partial smoke is not a smoke; the unrun rows are the ones nobody has seen "
+                f"fail")
 
 
 N_ALERTS = "#render-alerts locked to admins"

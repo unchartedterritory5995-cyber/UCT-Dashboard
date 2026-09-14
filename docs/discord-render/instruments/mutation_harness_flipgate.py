@@ -126,6 +126,31 @@ if "--dry-check" in sys.argv:
     raise SystemExit(dry_check())
 '''
 
+#: ⛔ A 3.5 INDEX DECLARES ITSELF IN ITS OWN TITLE. The row used to find its evidence by directory
+#: name; it now reads the document. A fixture whose title does not declare the smoke is not a
+#: "minimal" fixture — it is a different case (an undeclared index), and there is a dedicated case
+#: for that below.
+SMOKE_TITLE = "# 3.5 — the real-Discord smoke (sandbox)\n\n"
+
+
+def labelled_load(*, real=None, model=fp.ec.CLOSED_LOOP, renderer=fp.ec.RENDERER_PRODUCTION,
+                  concurrency=30, arrival_rate=None, stats_n=400, **meta_over) -> dict:
+    """A load artifact wearing the labels `evidence_contract` requires, for varying one at a time.
+
+    ⛔ THE POINT OF THE DEFAULTS IS THAT A MUTATION CHANGES EXACTLY ONE THING. Every case that wants
+    to prove "an unlabelled model is refused" or "the fallback renderer cannot answer S2" overrides
+    that ONE key; everything else stays admissible, so a red case cannot be red for a second reason
+    nobody noticed (`lesson_mutations_can_cancel_each_other`)."""
+    meta = {"kind": fp.ec.KIND_LOAD, "model": model, "renderer": renderer,
+            "concurrency": concurrency, "arrival_rate": arrival_rate, "seconds": 20.0,
+            "mode": "real", "delivery": "none"}
+    meta.update(meta_over)
+    doc = {"meta": meta, "stats": {"n": stats_n, "p50": 1.0, "p95": 2.0, "p99": 3.0,
+                                   "over_1s": 0, "over_3s": 0}}
+    if real is not None:
+        doc["real"] = real
+    return doc
+
 
 def plant_passing_tree(root: pathlib.Path, soak_dir: pathlib.Path,
                        now: _dt.datetime | None = None) -> fp.Evidence:
@@ -172,20 +197,26 @@ def plant_passing_tree(root: pathlib.Path, soak_dir: pathlib.Path,
        json.dumps({"read_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "source": "in-process",
                    "v2_channels": [CANARY_ID], "commit": "0123456789ab"}, indent=2) + "\n")
 
-    # s2_measured — one --real run, every percentile inside its ceiling
+    # s2_measured — one --real run, every percentile inside its ceiling.
+    # ⛔ IT CARRIES ITS LABELS. Since D-02 the row selects on CONTENT through `evidence_contract`, so
+    # a fixture without `meta.model` / `meta.renderer` is not a weaker passing run — it is an
+    # artifact the row is RIGHT to refuse, and a base sandbox built that way would make every case
+    # below read NOT MEASURABLE for a reason that has nothing to do with the mutation.
     _w(root / "docs" / "discord-render" / "evidence" / "step3" / "load-real-a.json",
-       json.dumps({"real": {"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
-                            "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}}, indent=2))
+       json.dumps(labelled_load(
+           real={"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
+                 "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}), indent=2))
 
-    # chaos_real — scenarios that state their own verdict, including a refusal (refused ≠ passed)
+    # chaos_real — scenarios that state their own verdict AND their own mode, including a refusal
+    # (refused ≠ passed). `mode` is what tells a real run from a rig run; the filename never did.
     _w(root / "docs" / "discord-render" / "evidence" / "step3" / "chaos-real.json",
        json.dumps({"renderer_down": {"state": "pass", "mode": "real"},
                    "bars_api_502": {"state": "pass", "mode": "real"},
                    "flow_worker_unreachable": {"state": "refused", "mode": "real"}}, indent=2))
 
-    # smoke — an INDEX that marks all fifteen rows PASS and leaves nothing outstanding
+    # smoke — an INDEX that DECLARES ITSELF and marks all fifteen rows PASS, nothing outstanding
     _w(root / "docs" / "discord-render" / "evidence" / "smoke-sandbox" / "INDEX.md",
-       "# 3.5\n\n" + "".join(f"| {i} | step | ✅ **PASS** | shot{i}.jpg |\n"
+       SMOKE_TITLE + "".join(f"| {i} | step | ✅ **PASS** | shot{i}.jpg |\n"
                              for i in range(1, fp.SMOKE_ROWS_TOTAL + 1)))
     _w(root / "docs" / "discord-render" / "evidence" / "smoke-sandbox" / "shot1.jpg", "not-a-jpeg")
 
@@ -342,73 +373,132 @@ def _cases() -> list[Case]:
     # ── s2_measured ────────────────────────────────────────────────────────
     s2 = f"{D}/evidence/step3/load-real-a.json"
     three("s2_measured", s2,
-          lambda r, s: _w(r / s2, json.dumps(
-              {"real": {"end_to_end_ms": {"p50": 14854.7, "p95": 18117.2, "p99": 18836.4},
-                        "jobs": 139, "success_rate": 0.3571,
-                        "failures_by_class": {"queue_full": 81}}})),
+          lambda r, s: _w(r / s2, json.dumps(labelled_load(
+              real={"end_to_end_ms": {"p50": 14854.7, "p95": 18117.2, "p99": 18836.4},
+                    "jobs": 139, "success_rate": 0.3571,
+                    "failures_by_class": {"queue_full": 81}}))),
           "⚰️ THE REAL 2026-09-14 NUMBERS — the run whose existence used to make the row MET",
-          says_fail="p50 14855ms > 2500ms", says_gone="no --real run")
+          says_fail="p50 14855ms > 2500ms", says_gone="NONE admissible")
     cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
                    "a run that states jobs but NO percentile — 'nothing exceeded the ceiling' is "
                    "not 'nothing was measured'",
-                   lambda r, s: _w(r / s2, json.dumps(
-                       {"real": {"end_to_end_ms": {"over_15s": 3}, "jobs": 10,
-                                 "success_rate": None}})),
-                   says="NONE could be judged"))
+                   lambda r, s: _w(r / s2, json.dumps(labelled_load(
+                       real={"end_to_end_ms": {"over_15s": 3}, "jobs": 10,
+                             "success_rate": None}))),
+                   says="NONE admissible"))
     cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
                    "a --real artifact that is not JSON",
                    lambda r, s: _w(r / s2, "TOTALS load_harness FAIL\n"),
-                   says="not readable JSON"))
+                   says="unreadable"))
+    # ── s2_measured · the D-02 selector class ──────────────────────────────
+    # ⛔ FOUR CASES THE OLD FILENAME SELECTOR COULD NOT HAVE FAILED, because it never opened a label.
+    cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
+                   "⚰️ THE VOID ARTIFACT. Marked void in its own file, it must be SKIPPED, COUNTED "
+                   "and NAMED — the real one decided this row for a day",
+                   lambda r, s: _w(r / s2, json.dumps(labelled_load(
+                       real={"end_to_end_ms": {"p50": 14854.7, "p95": 18117.2, "p99": 18836.4},
+                             "jobs": 139, "success_rate": 0.3571,
+                             "failures_by_class": {"queue_full": 81}},
+                       void=True, void_reason="an open loop at 30 arrivals/second",
+                       superseded_by="load-closedloop-30.json"))),
+                   says="1 void"))
+    cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
+                   "⛔ renderer=fallback — eligible for admission, INCONCLUSIVE for latency, and "
+                   "the row must say WHY",
+                   lambda r, s: _w(r / s2, json.dumps(labelled_load(
+                       renderer=fp.ec.RENDERER_FALLBACK,
+                       real={"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
+                             "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}))),
+                   says="renderer=fallback; needs chart-renderer"))
+    cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
+                   "⛔ no load model — `rate` alone cannot distinguish arrivals/second from "
+                   "concurrency, and for a whole programme nobody could tell which they were reading",
+                   lambda r, s: _w(r / s2, json.dumps(labelled_load(
+                       model=None, concurrency=None, rate=30.0,
+                       real={"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
+                             "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}))),
+                   says="unlabelled load model"))
+    cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
+                   "⛔ a determinism artifact sitting in step3 — the old selector admitted "
+                   "`determinism-real-20runs.json` purely because its NAME held the word 'real'",
+                   lambda r, s: (_w(r / s2, "") or (r / s2).unlink(),
+                                 _w(r / f"{D}/evidence/step3/determinism-real-20runs.json",
+                                    json.dumps({"meta": {"fixture": "NVDA", "pinned_now": "x"},
+                                                "per_component": {"bars": "identical"},
+                                                "runs": 20}))),
+                   says="NONE admissible"))
 
     # ── chaos_real ─────────────────────────────────────────────────────────
     chaos = f"{D}/evidence/step3/chaos-real.json"
     three("chaos_real", chaos,
           lambda r, s: _w(r / chaos, json.dumps(
-              {"renderer_down": {"state": "fail", "detail": "silence, no named message"},
-               "bars_api_502": {"state": "pass"}})),
+              {"renderer_down": {"state": "fail", "mode": "real",
+                                 "detail": "silence, no named message"},
+               "bars_api_502": {"state": "pass", "mode": "real"}})),
           "a scenario that failed for real", says_fail="1 failed", says_gone="rig stubs are not evidence")
     cs.append(Case("chaos_real", UNREADABLE, NOT_MEASURABLE,
                    "every scenario REFUSED — an empty set is not a pass",
                    lambda r, s: _w(r / chaos, json.dumps(
-                       {"renderer_down": {"state": "refused"},
-                        "bars_api_502": {"state": "refused"}})),
+                       {"renderer_down": {"state": "refused", "mode": "real"},
+                        "bars_api_502": {"state": "refused", "mode": "real"}})),
                    says="no scenario actually ran"))
     cs.append(Case("chaos_real", UNREADABLE, NOT_MEASURABLE,
                    "a state word the row does not recognise — guessing is how an instrument "
                    "invents a finding",
                    lambda r, s: _w(r / chaos, json.dumps(
-                       {"renderer_down": {"state": "degraded-ish"}})),
+                       {"renderer_down": {"state": "degraded-ish", "mode": "real"}})),
                    says="cannot read"))
     cs.append(Case("chaos_real", UNREADABLE, NOT_MEASURABLE,
                    "a summary field beside the scenarios — the old shape scored `ran: 13` as a "
                    "FAILURE",
                    lambda r, s: _w(r / chaos, json.dumps(
-                       {"renderer_down": {"state": "pass"}, "ran": 13})),
+                       {"renderer_down": {"state": "pass", "mode": "real"}, "ran": 13})),
                    says="not a scenario"))
+    cs.append(Case("chaos_real", UNREADABLE, NOT_MEASURABLE,
+                   "⚰️ A RIG RUN RENAMED. Thirteen scenarios, thirteen passes, every one against a "
+                   "stub — the old `chaos*real*.json` glob would have carried the row to MET on it",
+                   lambda r, s: _w(r / chaos, json.dumps(
+                       {f"scenario_{i}": {"state": "pass", "mode": "rig"} for i in range(13)})),
+                   says="against the rig"))
 
     # ── smoke ──────────────────────────────────────────────────────────────
     idx = f"{D}/evidence/smoke-sandbox/INDEX.md"
     three("smoke", idx,
-          lambda r, s: _w(r / idx, "| 1 | /chart | ✅ **PASS** |\n| 8 | /buzz | 🔴 **FAIL** |\n"),
-          "an index with a red row", says_fail="marked FAIL",
+          lambda r, s: _w(r / idx, SMOKE_TITLE
+                          + "| 1 | /chart | ✅ **PASS** |\n| 8 | /buzz | 🔴 **FAIL** |\n"),
+          "an index with a red row", says_fail="FAIL mark",
           says_gone="a screenshot is not a verdict")
     cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
                    "2 of 15 rows PASS — a partial smoke is not a smoke",
-                   lambda r, s: _w(r / idx, "| 1 | ✅ **PASS** |\n| 5 | 🟡 **PARTIAL** |\n"
-                                            "| 2-15 | ⛔ **NOT RUN** |\n"),
+                   lambda r, s: _w(r / idx, SMOKE_TITLE
+                                   + "| 1 | ✅ **PASS** |\n| 5 | 🟡 **PARTIAL** |\n"
+                                     "| 2-15 | ⛔ **NOT RUN** |\n"),
                    says="only 1/15"))
     cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
                    "⛔ fifteen PASS marks spread over two indexes while rows are still NOT RUN — "
                    "the arithmetic flipping the row, not the evidence",
-                   lambda r, s: (_w(r / idx, "".join("| n | ✅ **PASS** |\n" for _ in range(8))),
+                   lambda r, s: (_w(r / idx, SMOKE_TITLE
+                                    + "".join("| n | ✅ **PASS** |\n" for _ in range(8))),
                                  _w(r / D / "evidence/smoke-second/INDEX.md",
-                                    "".join("| n | ✅ **PASS** |\n" for _ in range(8))
+                                    SMOKE_TITLE
+                                    + "".join("| n | ✅ **PASS** |\n" for _ in range(8))
                                     + "| rest | ⛔ **NOT RUN** |\n")),
                    says="double-counted"))
     cs.append(Case("smoke", UNREADABLE, NOT_MEASURABLE,
                    "an INDEX that marks nothing — prose is not a result",
-                   lambda r, s: _w(r / idx, "# 3.5\n\nWe ran some things and they looked fine.\n"),
+                   lambda r, s: _w(r / idx, SMOKE_TITLE
+                                   + "We ran some things and they looked fine.\n"),
                    says="carrying no row verdict"))
+    cs.append(Case("smoke", UNREADABLE, NOT_MEASURABLE,
+                   "⚰️ A COMPLETE INDEX IN A DIRECTORY NAMED SOMETHING ELSE. The old row globbed "
+                   "`smoke*/INDEX.md`, so it reported NOT MEASURABLE beside a finished run — and "
+                   "an index that does not declare itself is still not this row's evidence",
+                   lambda r, s: (_w(r / idx, "") or (r / idx).unlink(),
+                                 _w(r / D / "evidence/run-2026-09-15/INDEX.md",
+                                    "# notes from the session\n\n"
+                                    + "".join("| n | ✅ **PASS** |\n"
+                                              for _ in range(fp.SMOKE_ROWS_TOTAL)))),
+                   says="does not declare itself"))
 
     # ── render_alerts ──────────────────────────────────────────────────────
     alog = "<soak>/render-alerts-access.log"

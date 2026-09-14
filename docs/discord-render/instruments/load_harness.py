@@ -331,6 +331,46 @@ def _closed_loop_inflight_probe(*, n: int, seconds: float, service_s: float,
             "requested": n, "samples": len(samples)}
 
 
+#: The renderer a run actually used. ⛔ NOT a guess from configuration: `house_enabled()` is the
+#: same predicate the product uses to choose, so this label is what really drew the PNG.
+RENDERER_PRODUCTION, RENDERER_FALLBACK, RENDERER_UNKNOWN = "chart-renderer", "fallback", "unknown"
+
+
+def _renderer_identity() -> str:
+    try:
+        from api.services import discord_chart_house as _house
+        return RENDERER_PRODUCTION if _house.house_enabled() else RENDERER_FALLBACK
+    except Exception:  # noqa: BLE001
+        # ⛔ UNKNOWN is not FALLBACK. A reader must be able to tell "we measured the fallback" from
+        # "we could not tell what we measured"; collapsing them would let an unlabelled run pass as
+        # a known-inferior one, which is the more flattering of the two.
+        return RENDERER_UNKNOWN
+
+
+def mark_void(path, *, reason: str, superseded_by: str) -> dict:
+    """Mark a run artifact VOID in its own file — bytes written, sha256 reported.
+
+    ⛔⛔ VOID IS RETENTION, NOT DELETION. The 30-arrivals-per-second run is still the only overload
+    characterisation this programme has; deleting or moving it would destroy evidence to make a gate
+    tidy. It is instead labelled so every gate row SKIPS it and SAYS how many it skipped.
+
+    ⛔ Edited by tooling, never by hand: a JSON file a human edited is a file nobody can prove the
+    provenance of, and this one exists precisely to be excluded from judgement."""
+    import hashlib
+    p = pathlib.Path(path)
+    before = p.read_bytes()
+    d = json.loads(before.decode("utf-8"))
+    meta = d.setdefault("meta", {})
+    meta["void"] = True
+    meta["void_reason"] = reason
+    meta["superseded_by"] = superseded_by
+    out = (json.dumps(d, indent=2) + "\n").encode("utf-8")
+    p.write_bytes(out)
+    return {"path": str(p), "sha256_before": hashlib.sha256(before).hexdigest(),
+            "sha256_after": hashlib.sha256(out).hexdigest(),
+            "void_reason": reason, "superseded_by": superseded_by}
+
+
 def read_labelled_artifact(path) -> dict:
     """Load a run artifact, REFUSING one that does not say which load model produced it.
 
@@ -879,11 +919,29 @@ def main(argv=None) -> int:
                     help="writes per second; the throttle is part of the measurement")
     ap.add_argument("--drain-s", type=float, default=90.0,
                     help="how long to wait for the queue to finish after the last ack")
+    ap.add_argument("--mark-void", default="",
+                    help="mark a run artifact VOID in place (retained, never judged)")
+    ap.add_argument("--void-reason", default="")
+    ap.add_argument("--superseded-by", default="")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args(argv)
 
     if args.self_check:
         return self_check()
+    if args.mark_void:
+        if not args.void_reason or not args.superseded_by:
+            print("TOTALS load_harness INCONCLUSIVE --mark-void needs --void-reason and "
+                  "--superseded-by: a void with no reason is indistinguishable from a "
+                  "mistake, and the next reader cannot tell which")
+            return INCONCLUSIVE
+        res = mark_void(args.mark_void, reason=args.void_reason,
+                        superseded_by=args.superseded_by)
+        print(f"VOIDED {res['path']}")
+        print(f"  sha256 {res['sha256_before'][:16]} -> {res['sha256_after'][:16]}")
+        print(f"  reason: {res['void_reason']}")
+        print(f"  superseded_by: {res['superseded_by']}")
+        print("TOTALS load_harness --mark-void PASS 1 artifact marked void (RETAINED)")
+        return PASS
 
     # ⛔⛔ OI-37 — THE LOAD MODEL IS DECLARED, NEVER DEFAULTED.
     # The spec said "30 concurrent"; the harness drove 30 arrivals per second; nobody noticed for a
@@ -915,6 +973,17 @@ def main(argv=None) -> int:
             "rate": args.arrival_rate, "seconds": args.seconds, "members": args.members,
             "handler_ms": args.handler_ms, "symbols": args.symbols, "sandbox": str(tmp),
             "mode": "real" if args.real else "ack",
+            # ⛔⛔ IN-BAND LABELS, so a GATE NEVER HAS TO GUESS FROM A FILENAME (D-02 Part A).
+            # The S2 row used to select evidence with glob("*real*.json") and exclude it with
+            # `"chaos" not in p.name` — filename matching is the file-existence class wearing a
+            # different hat, and it both missed a valid run and judged a void one.
+            "kind": "load",
+            # ⭐ RENDERER IDENTITY IS FIRST CLASS (OI-39). `house_enabled()` is exactly
+            # bool(CHART_RENDERER_URL); with it unset the run draws mplfinance PNGs in-process and
+            # every latency is about a renderer production does not use.
+            "renderer": _renderer_identity(),
+            # ⛔ A void artifact is RETAINED (it is the overload characterisation) and NEVER judged.
+            "void": False, "void_reason": None, "superseded_by": None,
             # ⛔ STATED ON EVERY RUN, because it is the number the owner asks for on every report.
             "organic_members_exposed": 0,
             "delivery": "channel" if args.deliver_channel else ("none" if args.real else "noop")}
