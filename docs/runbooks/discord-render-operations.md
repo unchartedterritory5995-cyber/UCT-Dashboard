@@ -514,6 +514,113 @@ running the check.
 
 ---
 
+## 9e. Recycling the renderer pool — TWO paths, and they recycle different things
+
+⛔ **Do not read one as the other.** They differ in what they destroy, what they cost a member, and
+which counter on `/health` they move. Both live in `services/chart_renderer/app.py`, and both are
+inert unless `RENDER_POOL_ENABLED` is on — with the pool off there is no pool to recycle.
+
+| | **Organic** — the RSS / render ceiling | **On demand** — `POST /admin/pool/recycle` |
+|---|---|---|
+| Recycles | the whole **browser** (Chromium) and every spare context on it | exactly **one idle pooled page** |
+| Trigger | `slot.renders >= RENDER_RECYCLE_AFTER` (500) **or** container RSS over `RENDER_RSS_CEILING_MB` (2500), evaluated after every render (`_after_render`) | an operator calls the endpoint |
+| Member cost | none at the moment of retirement — the replacement Chromium is launched immediately and the old one closes only when its **last in-flight render finishes**. Measured +56 ms p50 at a recycle every 12 renders (`05-progress.md`) | none. It takes an **idle** page; a context handed to a render has already been removed from the pool, so there is nothing in the pool a render can be using |
+| Counter | `recycles` on `/health`, and `renders_since_recycle` resets | `page_recycles` on `/health` |
+| Log line | `pool: recycling chromium after N renders (rss_mb=…)` | `pool recycle cid=… recycled=… replaced_by=… idle=A->B browser=… reason=…` |
+
+⭐ **The counters are separate on purpose.** `recycles` and `renders_since_recycle` are how anyone
+reading `/health` (or `LEDGER.md`'s "evidence of a NEW browser") knows Chromium restarted. A page
+recycle that bumped `recycles` would make both of those stop meaning that.
+
+### Arming the on-demand lever
+
+**Two variables on `chart-renderer`, and it is off without both.** `RENDER_ADMIN_ENDPOINTS` is an
+*enablement* gate (it ADDS a lever), so **unset means OFF** — the opposite polarity to a kill switch
+like `RENDER_CACHE_ENABLED`'s neighbours in §9b, for the reason given there.
+
+```sh
+railway variables --service chart-renderer --set "RENDER_ADMIN_TOKEN=$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+railway variables --service chart-renderer --set "RENDER_ADMIN_ENDPOINTS=1"
+# then verify a NEW BOOT and read it IN-PROCESS — `--kv` is what the service is configured with,
+# which is not evidence the running process has it (CLAUDE.md: `--set` has been measured BOTH ways).
+```
+
+⛔ **`RENDER_ADMIN_TOKEN` is deliberately not `CHART_RENDERER_SECRET`.** The render secret is handed
+to `web` on every single render; an operator lever must not be reachable with a credential the
+render path already carries. An unset `RENDER_ADMIN_TOKEN` **locks** the lever (401), it does not
+open it.
+
+**Disarm:** `railway variables --service chart-renderer --unset RENDER_ADMIN_ENDPOINTS`. The gate is
+read per request, so the route goes back to 404 on the next call — no redeploy, and nothing about
+rendering changes either way.
+
+### Firing it
+
+chart-renderer has **no public domain** — it is reachable only on Railway's private network
+(`CHART_RENDERER_URL=http://chart-renderer.railway.internal:8080`), so the call is made from inside
+a pod. From the renderer's own shell:
+
+```sh
+railway ssh --service chart-renderer
+curl -sS -X POST http://127.0.0.1:8080/admin/pool/recycle \
+  -H "Authorization: Bearer $RENDER_ADMIN_TOKEN" \
+  -H "X-Correlation-Id: $(python -c 'import secrets;print(secrets.token_hex(4))')"
+```
+
+If `curl` is not in the image, the same call on the **standard library** — `services/chart_renderer/
+requirements.txt` is fastapi + uvicorn + pydantic + playwright and nothing else, so do not reach for
+`httpx` or `requests` here:
+
+```sh
+railway ssh --service chart-renderer -- python -c "import os,json,secrets,urllib.request as u; \
+q=u.Request('http://127.0.0.1:8080/admin/pool/recycle', method='POST', headers={ \
+'Authorization':'Bearer '+os.environ['RENDER_ADMIN_TOKEN'],'X-Correlation-Id':secrets.token_hex(4)}); \
+print(json.dumps(json.load(u.urlopen(q, timeout=30)), indent=1))"
+```
+
+⚠️ `urlopen` raises `HTTPError` on 401/404 rather than returning them — catch it, or you will read a
+traceback as "the service is down" when it is the gate answering correctly.
+
+From the `web` or `worker` pod instead, swap the host for `chart-renderer.railway.internal:8080`.
+
+⚠️ `X-Correlation-Id` must be **exactly 8 lowercase hex characters** or it is logged as `-` —
+the same rule `/render` uses, so a recycle can be joined to the renders around it in one log grep.
+
+### Reading the reply
+
+**200 is not by itself evidence anything was recycled.** Read `recycled` and `reason`:
+
+| Field | Means |
+|---|---|
+| `recycled` | the page that was taken: `id`, `width`/`height`/`scale`, `renders`, `age_s`. **`null` means nothing was taken** — `reason` says why |
+| `replaced_by` | the fresh page created in its place, through the same `_replenish` every spare context comes from |
+| `reason` | `null` on a clean recycle. `pool disabled`, `no live browser` or `pool empty` alongside `recycled: null` — each an **answer**, not an error, because the ruling forbids forcing one. ⚠️ It is also non-null **with** a `recycled` page when the replacement could not be created: the page went, the pool is one short, and `idle` will be one lower in `after` |
+| `before` / `after` | `size` (= `idle` + `in_use`), `in_use`, `idle`, `pages[]` (one entry per idle pooled page), `browser` (`id`, `connected`, `retired`, `renders_since_launch`), and all four counters |
+
+**What to check, and it is the whole point of the before/after pair:**
+
+- `before.browser.id == after.browser.id` ⇒ **Chromium was not restarted.** A replacement browser
+  answers `connected: true` just as happily, so the id is the only thing that settles it.
+- `before.idle == after.idle` and exactly one id in `before.pages` missing from `after.pages`
+  ⇒ **exactly one page**, not the pool.
+- `after.recycles == before.recycles` ⇒ nothing tripped the organic path while you were looking.
+
+⚠️ **Per-page `renders` is 0 for every idle page, by construction and not by accident.** A spare
+context serves exactly one render's page and is then closed, so a page still sitting in the pool has
+served none. The cumulative count that drives the organic ceiling is `browser.renders_since_launch`.
+
+⚠️ Two concurrent calls take two **different** pages (the entry is popped, so only one caller can
+get it); they never fight over one and never take the browser.
+
+### What it is for
+
+Determinism-across-recycle and the self-heal chaos row need a recycle they can **cause**. Before
+this, the only way to cause one was to restart the browser or the service, which drops every
+in-flight render — so the measurement changed the thing it was measuring. Owner ruling B1,
+2026-09-14.
+
+---
+
 ## 10. Measurement pitfalls — instruments on this path that have lied
 
 Each of these produced a confident, wrong reading in this programme. They are here because the
