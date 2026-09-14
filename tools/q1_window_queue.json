@@ -5,27 +5,48 @@
   "queue": [
     {
       "id": "trigger4-capture",
-      "status": "pending",
+      "status": "done",
       "timeout": 900,
       "why": "Three consecutive ANOMALY rows with no URL. Highest priority: it is the only open item that can fail the Sunday gate, and it blocks classifying INSTRUMENT / PRODUCT / FOREIGN.",
       "cmd": [
-        "python", "tools/q1_trigger4_capture.py",
-        "--profile", "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
-        "--out", "docs/notebook/trigger4-capture.md"
-      ]
+        "python",
+        "tools/q1_trigger4_capture.py",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/trigger4-capture.md"
+      ],
+      "result": {
+        "exit": 0,
+        "seconds": 21.5,
+        "tail": "(node:28392) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities. / (Use `node --trace-deprecation ...` to show where the warning was create"
+      }
     },
     {
       "id": "second-context-append",
-      "status": "pending",
+      "status": "done",
       "timeout": 1800,
       "why": "THE DISCRIMINATOR. The trace proved the append door's only durable write is recordLandedRevision into the landed ring, and that is exactly what both GREEN controls lack. Firing the append door from the SECOND context leaves ctx1's ring never learning the revision. PREDICTION ON THE RECORD: GREEN.",
       "cmd": [
-        "python", "tools/q1_f5_matrix.py",
-        "--second-writer", "--second-writer-door", "append_widget_embed",
-        "--family", "folder", "--ordering", "drain-first",
-        "--profile", "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
-        "--out", "docs/notebook/f5-second-context-append.md"
-      ]
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--second-writer",
+        "--second-writer-door",
+        "append_widget_embed",
+        "--family",
+        "folder",
+        "--ordering",
+        "drain-first",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/f5-second-context-append.md"
+      ],
+      "result": {
+        "exit": 0,
+        "seconds": 143.8,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T05:02:40.163380+00:00` \u00b7 5 request(s) carried the sentence (la"
+      }
     },
     {
       "id": "embed-re-run",
@@ -33,10 +54,16 @@
       "timeout": 1800,
       "why": "The RED cell, re-run. One reading is not a rate; the RED has been seen four times but never since the instrument faults were fixed.",
       "cmd": [
-        "python", "tools/q1_f5_matrix.py",
-        "--family", "append_widget_embed", "--ordering", "drain-first",
-        "--profile", "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
-        "--out", "docs/notebook/wave-q1-f5-production-matrix.md"
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "append_widget_embed",
+        "--ordering",
+        "drain-first",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
       ]
     },
     {
@@ -45,9 +72,13 @@
       "timeout": 3600,
       "why": "Fills the table. --resume skips cells already DECIDED (GREEN/RED/N-A) and re-runs only INCONCLUSIVE ones, because an INCONCLUSIVE cell measured nothing and banking it would leave a hole wearing a verdict's clothes.",
       "cmd": [
-        "python", "tools/q1_f5_matrix.py", "--resume",
-        "--profile", "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
-        "--out", "docs/notebook/wave-q1-f5-production-matrix.md"
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--resume",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
       ]
     },
     {
