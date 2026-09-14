@@ -293,3 +293,160 @@ every admitted shape **before** any fold exists.
 
 ⛔ **PAUSE POINT:** if any shape on Clouds' path — lines 30, 57, 59, 62, 64–84 —
 comes back undecidable, that is a stop, not a workaround.
+
+---
+
+# a1 — THE DECIDABILITY PROBE. NO FOLD. **Measured 2026-09-14, ~55 min of a 90 min estimate.**
+
+## a1.0 ⭐⭐ THE FINDING THAT COMES BEFORE THE TABLE: **WHERE CAN A LOOP LIVE?**
+
+Measured, not assumed:
+
+```
+NODE_TYPES (definition lane) =
+  num · series · op · call · offset · tf · sym · tf_live · str · symtext · textop
+```
+
+**There is no statement form and no collection form in the definition lane.** It
+is an expression language: `translatePine` lowers a script to ONE expression per
+output. Its own header states the contract — *"a statement is only ever REFUSED
+when it is on the path from a `plot()`/`alertcondition()` to its value; a statement
+nothing reaches is a NOTE, listed, never silently dropped"* — and
+`BLOCK_KEYWORDS = {if, for, while, switch}` throws `pine:block` when one is reached.
+
+The IR lane is the other half, and it was measured too:
+
+```
+buildRuntimeIr(uncharted-clouds.pine, tf:'D', forming:false)   — with and without symbol
+  ok         false
+  refusal    pine:collection @ 57
+  message    …outside the expression grammar this engine runs — `array.new`
+  statements 0
+```
+
+⭐ **THE TWO LANES REFUSE THE SAME GUARD AT DIFFERENT LINES**: the IR lane stops at
+the **creation** (57), the definition lane at the 21 **reads** (64–84). The IR lane
+already does what **F2** asks for — it names line 57. The definition lane's silence
+at 57 is therefore a **definition-lane defect against its own stated contract**: a
+statement nothing reaches must be a NOTE, and this one is neither refused nor
+noted. F2 is not a new requirement; it is that contract being enforced.
+
+## a1.0b ⛔ THE ONE DECISION THAT IS NOT ON FILE — **PAUSE POINT**
+
+(a)'s acceptance is that **the definition lane's** 21 refusals clear. That lane has
+no statements and no state, by design. So arrays and loops reach it one of two ways:
+
+| | mechanism | what it costs |
+|---|---|---|
+| **A** | **COMPILE-TIME UNROLLING.** A `for` whose iteration count is statically known, over an array whose size is statically known, unrolls to N ordinary expression trees. `array.new<float>(21)` becomes a plan-time vector of 21 expression slots; `array.set(arr, i, e)` writes slot `i`; `array.get(arr, 3)` **folds to slot 3's tree**. No new node type, no statements, no second interpreter. | Arrays are **plan-time vectors, not runtime objects**. A `push` whose count depends on a series can never be admitted — not "not yet", *never*, on this lane. |
+| **B** | **Put the IR lane on the pane path** — it already has statements and already reaches line 57. | That is ruling **D2**, and it is item **(c)**, not item (a). |
+
+⭐ **A IS THE LANE'S OWN IDIOM, ALREADY IN USE.** `switch` is the one block keyword
+the definition lane reduces today — *"reduced to its one live arm… the subject must
+be a string this script FIXES… anything else and every arm would have to exist at
+once, which is a menu rather than a column"*. A statically-bounded `for` is the
+same argument with a different keyword, and **static decidability is not a
+restriction bolted onto unrolling — it is the thing that makes unrolling possible.**
+A stays inside every design rule in §3: one evaluator, no re-parse, `maxLookback`
+and the repaint verdict decided before the tree runs (each slot is an ordinary
+expression tree, so they are decided **by construction**, which is the R-A2 proof
+in its strongest form — there is nothing new to prove about them).
+
+⛔ **But A forecloses something permanently and that is a ruling, not an
+implementation detail**, so it is put here rather than assumed.
+
+---
+
+## a1.1 `for i = a to b` — statically known iteration counts
+
+| | count |
+|---|---|
+| decidable **by this probe** | **124** |
+| not decidable here — name/expr this probe cannot fold | 631 |
+| not decidable here — `array.size(...)` | 216 |
+| **not decidable — series** | **33** |
+
+⚠️ The 631 are the instrument again (**F3**): this probe carries a *miniature* of
+`bindFoldableWindow`, not the engine's. What matters is the shape of the 124 it can
+see:
+
+```
+min 1   median 4   p90 31   max 4,998
+1–10 iterations   95        201–1,000   4
+11–50             19        >1,000      2
+51–200             4
+```
+
+⭐ **Loops in this corpus are SMALL.** 95 of 124 run ten times or fewer; the median
+is **4**. Unrolling a median loop costs four expression trees.
+
+## a1.2 The ceiling's unit is **unrolled nodes**, not iterations
+
+`iterations × nesting`, per file, over the loops this probe can resolve:
+
+| unrolled | file |
+|---|---|
+| **19,992** | `relative-volume-at-time__gei8CBKbc5` |
+| 8,000 | `volume-delta-oi-delta-kioseff-trading` |
+| 909 | `bollinger-band-width-percentile` |
+| 252 | `multi-timeframe-supply-demand-zones` |
+| *(all others < 250)* | |
+
+**Derived ceiling: `MAX_UNROLLED_NODES = 30,000`** — worst measured real **19,992**
+× 1.5, the same multiple and the same method as **R-Q** (worst real × 1.5).
+
+⛔ **AND ITS RE-DERIVATION CONDITION IS NAMED, NOT ASSUMED AWAY.** This probe
+resolved 124 of 1,004 loops, so 19,992 is a floor on the true max. It is
+nonetheless the right input *today*, because **a loop whose bound does not fold is
+refused and contributes zero unrolled nodes** — the ceiling only has to bound what
+is ADMITTED. At **a3**, with the engine's real folder, the max is re-measured and
+the constant re-derived in that commit. Exceeding it records **`loopTooLong` by
+line**, never a `NaN`.
+
+## a1.3 `while` — F4's threshold, applied
+
+| guard shape | n | share | admissible? |
+|---|---|---|---|
+| `array.size(...)` guard | 60 | 51.7% | **no** — needs a *termination proof* (the body must always shrink it), not a bound |
+| other / not decidable | 31 | 26.7% | no |
+| **counter vs literal** | **15** | **12.9%** | **yes** |
+| series guard | 10 | 8.6% | no |
+| | **116** | | |
+
+⭐⭐ **15 IS BELOW THE ~20 F4 PRE-COMMITTED, SO `while` REFUSES ENTIRELY IN (a)** and
+is routed with the count. The threshold was written down before the number was
+known, which is the only reason this reads as a rule being applied rather than a
+number being accommodated.
+
+⛔ The 60 `array.size` guards are the tempting ones and they are the reason the
+threshold exists: `while array.size(x) > 0` terminates only if the body always
+pops. That is a proof about the body, not a bound on the guard, and it is outside
+"static decidability" as §3 defines it.
+
+## a1.4 Array creation sizes
+
+| | count |
+|---|---|
+| creations seen | 1,526 |
+| size decidable **by this probe** | 450 |
+| size not decidable here | 1,076 |
+
+`min 0 · median 0 · max 3,000`. ⭐ **The median is 0** — the dominant idiom is
+`array.new_float(0)` then `push` in a loop, so **array size is usually decided by
+the loop bound, not by the creation argument**. That makes the bounded-size rule
+and the bounded-loop rule the same rule, which is a simplification worth having
+before a2 starts rather than after.
+
+## a1.5 Clouds' path — **every shape decidable**
+
+| line | shape | decidable? |
+|---|---|---|
+| 30 | `numLayers = 21` | **yes** — literal |
+| 57 | `array.new<float>(numLayers)` | **yes** — size folds to 21 |
+| 59 | `for i = 0 to numLayers - 1` | **yes** — 21 iterations |
+| 62 | `array.set(layerArray, i, …)` | **yes** — index is the loop variable, bounded by the loop |
+| 64–84 | `array.get(layerArray, 0…20)` | **yes** — constant indices |
+
+Unrolled cost: **21 nodes.** Against a 30,000 ceiling. **No shape on Clouds' path
+is undecidable**, so the §6 pause condition does not fire — the pause is a1.0b,
+which is a different question.
