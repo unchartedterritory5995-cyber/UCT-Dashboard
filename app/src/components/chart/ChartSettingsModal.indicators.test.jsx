@@ -296,7 +296,15 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     // row now, and adding REVIVES the tombstone rather than minting a stranger —
     // so the colour and period the member set are still theirs.
     search('moving average')
-    const row = result(/Moving Average/)
+    // ⚠️ ADDRESSED BY `data-def-id`, BECAUSE THERE ARE TWO MOVING AVERAGES NOW
+    // AND THAT IS BY DESIGN. `cs.overlays`' price MAs occupy the catalogue id
+    // `ma` and the name "Moving Average"; the engine definition is deliberately
+    // named "Moving Average (Source)" so a browse list never shows two rows a
+    // member cannot choose between. A NAME lookup matched both and threw — and a
+    // name is a moving subject anyway, which is the lesson the library suite
+    // already wrote down. The subject of this case is the LEGACY row, by id.
+    const row = screen.getAllByRole('option').find((o) => o.dataset.defId === 'ma')
+    expect(row, 'the legacy moving-average catalogue row is gone').toBeTruthy()
     // ⚠️ THE ROW READS "Active", AND CORRECTLY SO — three moving averages are
     // still drawn, so the ADD verb is the ＋ beside it rather than the row body.
     // (`isRowOn` for this row is "at least one live overlay", not "all four".)

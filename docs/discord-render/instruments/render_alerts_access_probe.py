@@ -65,6 +65,50 @@ def classify(status: int | None, code: int | None) -> int:
     return ERROR
 
 
+#: The guild `#render-alerts` lives in, and the role whose presence is the defect.
+GUILD_ID = os.environ.get("DISCORD_RENDER_GUILD_ID", "882293203485720596")
+CONTRIBUTOR_ROLE_ID = "1112808703389872188"
+VIEW_CHANNEL = 1 << 10
+
+ACL_OK, ACL_CONTRIBUTOR_ALLOWED, ACL_UNREADABLE = "acl_ok", "contributor_allowed", "acl_unreadable"
+
+
+def acl(guild_id: str = GUILD_ID, channel_id: str = CHANNEL_ID, *,
+        token: str | None = None, opener=urllib.request.urlopen) -> tuple[str, str]:
+    """What `#render-alerts`'s overwrites actually say — via the GUILD listing, not the channel.
+
+    ⛔⛔ THE BOT CANNOT `GET /channels/{id}` (50001) AND CAN STILL READ THAT CHANNEL'S OVERWRITES,
+    because `GET /guilds/{id}/channels` returns them for every channel in the guild. The probe spent
+    a day reporting `403 code 50001` — a true statement about the wrong endpoint — while the answer
+    it was actually after was one call away.
+
+    ⭐ That turns this from "we cannot tell" into a MEASUREMENT: the defect is a `Contributor` role
+    overwrite ALLOWING `VIEW_CHANNEL`, and its presence or absence is now a fact the hourly poll
+    reports rather than a permission error it reports instead."""
+    token = token or os.environ.get("DISCORD_BOT_TOKEN") or ""
+    if not token:
+        return ACL_UNREADABLE, "DISCORD_BOT_TOKEN is not set"
+    req = urllib.request.Request(f"{API}/guilds/{guild_id}/channels",
+                                 headers={"Authorization": f"Bot {token}", "User-Agent": UA})
+    try:
+        with opener(req, timeout=20) as resp:
+            chans = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:  # noqa: BLE001
+        return ACL_UNREADABLE, f"guild listing unreadable ({type(e).__name__})"
+    for ch in chans if isinstance(chans, list) else []:
+        if str(ch.get("id")) != str(channel_id):
+            continue
+        for ow in ch.get("permission_overwrites") or []:
+            if str(ow.get("id")) == CONTRIBUTOR_ROLE_ID and int(ow.get("allow") or 0) & VIEW_CHANNEL:
+                return ACL_CONTRIBUTOR_ALLOWED, (
+                    "Contributor is ALLOWED VIEW_CHANNEL on #render-alerts — step 1.3's exact "
+                    "defect, and it is the channel's ONLY allow overwrite")
+        return ACL_OK, "no Contributor allow overwrite remains"
+    # ⛔ ABSENT IS NOT CLEAN. A channel missing from the listing is one this token cannot enumerate,
+    # which says nothing about its overwrites.
+    return ACL_UNREADABLE, "the channel is not in the guild listing this token can see"
+
+
 def probe(channel_id: str = CHANNEL_ID, *, token: str | None = None,
           opener=urllib.request.urlopen) -> tuple[int, str]:
     token = token or os.environ.get("DISCORD_BOT_TOKEN") or ""
@@ -107,6 +151,10 @@ def self_check() -> int:
         failed += got != expect
         print(f"  {'ok  ' if got == expect else 'FAIL'} {name}"
               + ("" if got == expect else f"   (expected {expect}, got {got})"))
+    cases += [("an ACL state is one of the three named words",
+               ACL_OK != ACL_CONTRIBUTOR_ALLOWED != ACL_UNREADABLE)]
+    _blank, _why = acl(token="")
+    cases += [("no token makes the ACL UNREADABLE, never OK", _blank == ACL_UNREADABLE)]
     missing, _ = probe(token="")
     ok = missing == ERROR
     failed += not ok
@@ -125,6 +173,12 @@ def main(argv=None) -> int:
         return self_check()
     code, detail = probe(args.channel)
     print(f"RENDER_ALERTS_ACCESS {['ACCESS', 'ERROR', 'STILL_BLOCKED'][code]} {detail}")
+    # ⭐ The membership question and the ACL question are different, and the second one is the one
+    # step 1.3 is actually about — so it is reported whatever the first one answered.
+    state, why = acl()
+    print(f"RENDER_ALERTS_ACL {state.upper()} {why}")
+    if state == ACL_OK:
+        print("  → the Contributor overwrite is gone; step 1.3's product half is DONE.")
     if code == ACCESS:
         print("  → step 1.3 is unblocked: edit the channel's permission overwrites so the "
               "Contributor role cannot view it (LEDGER step 1.3).")

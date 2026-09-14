@@ -33,6 +33,48 @@ function _load() {
   return _promise
 }
 
+// ─── THE SYNCHRONOUS READ, FOR CODE THAT CANNOT HOLD A HOOK ─────────────
+//
+// ⭐⭐ THE ENGINE NEEDS THE FAMILY, NOT THE ROWS. `ohlcCapability` has to know
+// whether a canonical symbol is a security or one of our breadth pseudo-tickers,
+// and it runs inside the binder — no React, no effects, no await. This registry
+// is already module-level and already fetched once per session for the chart's
+// own use, so the answer is here; it simply had no non-hook door.
+//
+// ⛔⛔ AND IT FAILS CLOSED, WHICH IS THE WHOLE REASON IT IS THREE FUNCTIONS AND
+// NOT ONE BOOLEAN. `isBreadth` alone would answer FALSE both for "this is a
+// security" and for "the registry has not arrived yet", and a caller deciding
+// whether to draw candles cannot tell those apart — the second would silently
+// admit a breadth measure as an ordinary security for the first few hundred
+// milliseconds of every page load. `symbolFamily` answers `'unknown'` until the
+// registry is loaded, and the capability gate refuses `'unknown'`.
+
+/** Has the breadth registry landed? Until it has, nothing can be classified. */
+export function breadthRegistryReady() {
+  return !!_cache
+}
+
+/**
+ * `'breadth' | 'security' | 'unknown'` for a canonical symbol.
+ *
+ * ⚠️ `'security'` HERE MEANS "NOT ONE OF OURS", which is the only claim this
+ * registry can make. A symbol the bars route cannot serve is an AVAILABILITY
+ * fact and is answered elsewhere (`secondaryBars.SOURCE_STATUS`); this says only
+ * which family's semantics apply.
+ */
+export function symbolFamily(sym) {
+  if (!_cache) return 'unknown'
+  const key = sym ? String(sym).toUpperCase() : ''
+  if (!key) return 'unknown'
+  return _cache.map.has(key) ? 'breadth' : 'security'
+}
+
+/** Start the fetch without mounting a component — for a non-React caller that
+ *  wants the answer to become available. Safe to call repeatedly. */
+export function loadBreadthSymbols() {
+  return _load()
+}
+
 /** Returns { ready, isBreadth(sym), get(sym), groups }. */
 export default function useBreadthSymbols() {
   const [cache, setCache] = useState(_cache)

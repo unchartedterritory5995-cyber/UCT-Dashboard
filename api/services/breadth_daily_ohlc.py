@@ -19,6 +19,7 @@ it never contends with the EOD snapshot writer.
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import sqlite3
@@ -70,6 +71,35 @@ def _ensure_init() -> None:
                         PRIMARY KEY (date, metric)
                     )"""
                 )
+                # ⭐ THE MATERIALISED RECONSTRUCTED SIDE (Session 3). One row per
+                # reconstructed session, holding exactly what `closes_for_dates` +
+                # `values_asof` produce for it, so a deep window no longer assembles
+                # 174,187 OHLC rows into 4,529 rows on every cold request.
+                #
+                # ⛔ IT LIVES IN *THIS* DATABASE, NOT BESIDE THE COLLECTOR PROJECTION,
+                # and the reason is the one requirement that cannot be negotiated: the
+                # writers must update it IN THE SAME TRANSACTION as the OHLC rows it is
+                # derived from, and a transaction cannot span two SQLite files. Putting
+                # it in breadth_monitor.db would have made "same transaction" a phrase
+                # in a document rather than a property of the code.
+                #
+                # ⛔ AND IT IS A SEPARATE TABLE FROM breadth_snapshot_numeric, not a
+                # `source='reconstructed'` row in it. That table is keyed by date alone,
+                # so a collector row and a reconstructed row for one date could not
+                # coexist — whichever wrote last would silently win, and the precedence
+                # rule (collector beats reconstructed) would be enforced by write order
+                # instead of by code. Two tables let the merge ASSERT precedence.
+                c.execute(
+                    """CREATE TABLE IF NOT EXISTS breadth_reconstructed_daily (
+                        date           TEXT PRIMARY KEY,
+                        metrics        TEXT NOT NULL,   -- the pre-derivation row, as the reader builds it
+                        ohlc_watermark TEXT,            -- MAX(updated_at) of the trusted OHLC rows it was built from
+                        sentiment_watermark TEXT,       -- GLOBAL MAX(updated_at) of the sentiment store
+                        built_at       TEXT DEFAULT (datetime('now'))
+                    )"""
+                )
+                c.execute("CREATE INDEX IF NOT EXISTS idx_brd_watermark "
+                          "ON breadth_reconstructed_daily(ohlc_watermark)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_metric ON breadth_daily_ohlc(metric, date)")
                 # ⭐ (c) + (d) of the reader ranking, in ONE index. Both hot deep-read
                 # queries filter on `source`, which nothing indexed: `distinct_dates`
@@ -141,6 +171,8 @@ def update_intraday(session_date: str, metrics: dict) -> int:
                             (nh, nl, v, session_date, metric),
                         )
                     n += 1
+                if n:
+                    _rebuild_after_write(c, [session_date])
         except Exception:
             return 0
     return n
@@ -172,6 +204,11 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
                     "l=excluded.l, c=excluded.c, source=excluded.source, updated_at=datetime('now')",
                     (date, metric, o, h, l, c, source),
                 )
+                # ⚠️ Only a TRUSTED source can move the derivation. `set_ohlc`
+                # defaults to source='reconstruct', which `_TRUSTED_SOURCES` excludes
+                # — rebuilding on it would be work for a write the reader cannot see.
+                if source in _TRUSTED_SOURCES:
+                    _rebuild_after_write(conn, [date])
             return True
         except Exception:
             return False
@@ -219,9 +256,233 @@ def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = F
                     clean,
                 )
                 n = len(clean)
+                if n and source in _TRUSTED_SOURCES:
+                    _rebuild_after_write(conn, {r[0] for r in clean})
         except Exception:
             return 0
     return n
+
+
+
+# ── The materialised reconstructed side (Session 3) ───────────────────────────
+
+def sentiment_watermark() -> str:
+    """GLOBAL MAX(updated_at) across the sentiment store, or "" if unreadable.
+
+    ⛔ GLOBAL, NOT PER-DATE, and that is a correctness requirement rather than a
+    shortcut. `values_asof` FORWARD-FILLS: one weekly survey reading dated the 15th
+    is the value every session after it carries until the next reading. So a single
+    sentiment write can change the correct content of an unbounded range of
+    reconstructed rows, and a per-date watermark would mark exactly one of them
+    stale and quietly leave the rest wrong.
+
+    ⚰️ This was found by an existing rail, not by review. `test_sentiment_is_
+    overlaid_onto_reconstructed_rows` seeds OHLC first and sentiment second — the
+    materialised row was built before the survey existed and served without it.
+    The first version of this table watermarked only the OHLC side, which is the
+    input the design started from; sentiment is the second input and was missed.
+    """
+    try:
+        from api.services import breadth_sentiment_history as sent
+        with sent._conn() as c:
+            row = c.execute("SELECT MAX(updated_at) FROM breadth_sentiment").fetchone()
+        return (row[0] if row and row[0] else "") or ""
+    except Exception:
+        return ""
+
+
+def _sentiment_for(dates):
+    """Sentiment overlay for these dates, or {} if the store is unavailable.
+
+    Lazy import, matching the reader's own idiom, and it cannot cycle:
+    `breadth_sentiment_history` imports nothing from this module."""
+    try:
+        from api.services import breadth_sentiment_history as sent
+        return sent.values_asof(list(dates)) or {}
+    except Exception:
+        return {}
+
+
+def watermarks_for(c, dates) -> dict:
+    """{date: MAX(updated_at) over that date's TRUSTED rows}.
+
+    ⭐ THIS IS WHAT MAKES STALENESS DETECTABLE RATHER THAN HOPED-FOR. A derived
+    table whose only guarantee is "every writer remembered to call the rebuild" is
+    a table that is correct until somebody adds a seventh writer. The watermark
+    lets `stale_reconstructed_dates()` find a row whose inputs moved underneath it
+    no matter how it happened — including a write that bypassed this module
+    entirely, which is a real path (`breadth_ohlc_sync` INSERTs directly).
+    """
+    out = {}
+    ds = list(dates)
+    qs = ",".join("?" * len(_TRUSTED_SOURCES))
+    for i in range(0, len(ds), 400):
+        chunk = ds[i:i + 400]
+        dq = ",".join("?" * len(chunk))
+        for (d, w) in c.execute(
+            f"SELECT date, MAX(updated_at) FROM breadth_daily_ohlc "
+            f"WHERE date IN ({dq}) AND source IN ({qs}) GROUP BY date",
+            (*chunk, *_TRUSTED_SOURCES),
+        ).fetchall():
+            out[d] = w
+    return out
+
+
+def derive_reconstructed(c, dates) -> dict:
+    """{date: pre-derivation row} built FROM the OHLC store — the builder, and the
+    audit's reference. ⛔ Never the request path (`test_the_request_path_never_derives`).
+
+    It reproduces exactly what `_history_deep_uncached` used to assemble inline:
+    the trusted closes for the date, the sentiment overlay on top, and the
+    `_reconstructed` flag. Rolling metrics are deliberately NOT included — they are
+    a property of the WINDOW, not of the date, so `_derive_ascending` still runs
+    per request over the merged rows.
+    """
+    ds = [d for d in dates]
+    if not ds:
+        return {}
+    closes = {}
+    qs = ",".join("?" * len(_TRUSTED_SOURCES))
+    for i in range(0, len(ds), 400):
+        chunk = ds[i:i + 400]
+        dq = ",".join("?" * len(chunk))
+        for (d, m, cl) in c.execute(
+            f"SELECT date, metric, c FROM breadth_daily_ohlc "
+            f"WHERE date IN ({dq}) AND source IN ({qs})",
+            (*chunk, *_TRUSTED_SOURCES),
+        ).fetchall():
+            closes.setdefault(d, {})[m] = cl
+    sent = _sentiment_for(ds)
+    out = {}
+    for d in ds:
+        if d not in closes:
+            continue
+        row = dict(closes[d])
+        if sent.get(d):
+            row.update(sent[d])
+        row["_reconstructed"] = True
+        out[d] = row
+    return out
+
+
+def build_reconstructed(dates, c=None) -> int:
+    """Materialise these dates. Pass `c` to run INSIDE the caller's transaction."""
+    ds = [d for d in dates if d]
+    if not ds:
+        return 0
+
+    def _work(conn):
+        rows = derive_reconstructed(conn, ds)
+        if not rows:
+            return 0
+        marks = watermarks_for(conn, list(rows))
+        sw = sentiment_watermark()
+        conn.executemany(
+            "INSERT INTO breadth_reconstructed_daily "
+            "(date, metrics, ohlc_watermark, sentiment_watermark, built_at) "
+            "VALUES (?, ?, ?, ?, datetime('now')) "
+            "ON CONFLICT(date) DO UPDATE SET metrics=excluded.metrics, "
+            "ohlc_watermark=excluded.ohlc_watermark, "
+            "sentiment_watermark=excluded.sentiment_watermark, built_at=datetime('now')",
+            [(d, json.dumps(r), marks.get(d), sw) for d, r in rows.items()],
+        )
+        return len(rows)
+
+    if c is not None:
+        return _work(c)
+    _ensure_init()
+    with _WRITE_LOCK:
+        try:
+            with _conn() as conn:
+                n = _work(conn)
+                conn.commit()
+                return n
+        except Exception:
+            return 0
+
+
+def reconstructed_for_dates(dates) -> tuple:
+    """`({date: row}, misses)` read from the materialised table. No derivation."""
+    ds = [d for d in dates if d]
+    if not ds:
+        return {}, 0
+    _ensure_init()
+    out = {}
+    try:
+        with _conn() as c:
+            for i in range(0, len(ds), 400):
+                chunk = ds[i:i + 400]
+                dq = ",".join("?" * len(chunk))
+                for (d, mj) in c.execute(
+                    f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})",
+                    chunk,
+                ).fetchall():
+                    out[d] = json.loads(mj)
+    except Exception:
+        return {}, len(ds)
+    return out, 0
+
+
+def stale_reconstructed_dates(limit: int = 0, c=None) -> list:
+    """Dates whose stored watermark disagrees with the OHLC store's current one,
+    plus trusted dates with no materialised row at all. Sorted.
+
+    `c` runs the query on the caller's connection, which is what lets the ONE
+    writer that bypasses this module — `breadth_ohlc_sync._merge_from`, a direct
+    INSERT over an ATTACHed snapshot — keep its rebuild inside its own transaction
+    instead of racing it afterwards.
+    """
+    def _q(c):
+        return c.execute(
+            f"""SELECT o.date, MAX(o.updated_at) AS w, r.ohlc_watermark
+                FROM breadth_daily_ohlc o
+                LEFT JOIN breadth_reconstructed_daily r ON r.date = o.date
+                WHERE o.source IN ({qs})
+                GROUP BY o.date
+                HAVING r.ohlc_watermark IS NULL
+                    OR r.ohlc_watermark <> MAX(o.updated_at)
+                    OR COALESCE(r.sentiment_watermark, '') <> ?
+                ORDER BY o.date""",
+            (*_TRUSTED_SOURCES, sw),
+        ).fetchall()
+
+    qs = ",".join("?" * len(_TRUSTED_SOURCES))
+    sw = sentiment_watermark()
+    try:
+        if c is not None:
+            rows = _q(c)
+        else:
+            _ensure_init()
+            with _conn() as own:
+                rows = _q(own)
+    except Exception:
+        return []
+    out = [r[0] for r in rows]
+    return out[:limit] if limit else out
+
+
+def rebuild_stale(limit: int = 0) -> dict:
+    """Bring the materialised table back in step. Idempotent; safe to call often."""
+    stale = stale_reconstructed_dates(limit=limit)
+    if not stale:
+        return {"stale": 0, "built": 0}
+    return {"stale": len(stale), "built": build_reconstructed(stale)}
+
+
+def _rebuild_after_write(conn, dates) -> None:
+    """Writer hook: keep the derived table in step INSIDE the writer's transaction.
+
+    ⛔ Swallows its own exceptions. The OHLC write is the product; the derived
+    table is an optimisation with a watermark that makes any miss detectable and
+    `rebuild_stale()` to repair it. Failing a real breadth write to protect a cache
+    would be the wrong way round.
+    """
+    try:
+        ds = sorted({d for d in dates if d})
+        if ds:
+            build_reconstructed(ds, c=conn)
+    except Exception:
+        pass
 
 
 def history(metric: str, limit: int = 6000) -> dict:
@@ -248,11 +509,10 @@ def history(metric: str, limit: int = 6000) -> dict:
     return out
 
 
-def distinct_dates() -> list:
-    """Sorted-ASC list of every session date carrying at least one TRUSTED-source
-    metric row. Feeds the Monitor's deep-history merge (which must know the full
-    set of reconstructed dates to build a window that reaches before the
-    collector floor). Empty on any error."""
+def distinct_dates_by_scan() -> list:
+    """The original definition: DISTINCT over the OHLC table. Kept as the FALLBACK
+    and as the parity reference — `test_the_materialised_date_set_equals_the_scan`
+    compares the two on the real production copy."""
     _ensure_init()
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
     try:
@@ -264,6 +524,42 @@ def distinct_dates() -> list:
             ).fetchall()]
     except Exception:
         return []
+
+
+def distinct_dates() -> list:
+    """Sorted-ASC list of every session date carrying at least one TRUSTED-source
+    metric row. Feeds the Monitor's deep-history merge.
+
+    ⭐ IT READS THE MATERIALISED TABLE, AND THAT IS THE BIGGEST REMAINING WIN ON THE
+    DEEP PATH. Measured on the production copy, Session 4: this call read
+    **11,329,088 bytes** — MORE than the materialised reconstructed table it exists
+    to index into (6,090,852) — because `SELECT DISTINCT date` still walked all
+    174,263 OHLC rows. Even the covering index has to scan every entry to produce a
+    DISTINCT. `breadth_reconstructed_daily` has exactly one row per such date, so
+    its PRIMARY KEY answers the same question over 4,701 rows.
+
+    ⛔ THE EQUIVALENCE IS PROVEN, NOT ASSUMED. Both sets are "dates with at least one
+    trusted row" — the builder writes a row precisely when `derive_reconstructed`
+    found closes, which is the same predicate — but same-predicate-by-reading is an
+    argument, and `test_the_materialised_date_set_equals_the_scan` is a measurement
+    against the real copy.
+
+    ⚠️ It falls back to the scan when the table is EMPTY (a store the migration has
+    not reached), never when it is merely short. A short table means a trusted write
+    bypassed the writer hooks AND the boot rebuild has not run, which the watermark
+    reports through `stale_reconstructed_dates()` and the audit names by date — that
+    is the mechanism for a gap, not a silent per-request re-scan.
+    """
+    _ensure_init()
+    try:
+        with _conn() as c:
+            rows = [r[0] for r in c.execute(
+                "SELECT date FROM breadth_reconstructed_daily ORDER BY date ASC").fetchall()]
+        if rows:
+            return rows
+    except Exception:
+        pass
+    return distinct_dates_by_scan()
 
 
 def closes_for_dates(dates) -> dict:

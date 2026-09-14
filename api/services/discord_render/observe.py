@@ -273,9 +273,20 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
     snap["loop"] = _live_loop()
     if renderer_misses is None:
         renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
+    # ⛔⛔ THE CANARY SCOPE, READ OUT OF THE RUNNING PROCESS (A3).
+    # `railway variables --kv` shows what a service is CONFIGURED with, which is not evidence the
+    # running process has it — this project has measured a pod returning None for a variable `--kv`
+    # reported as set. `/renderhealth` runs INSIDE the process, so the list it prints is the list
+    # actually in force, and it is the only read that can settle "is the canary still admin-only?"
+    # ⚠️ An EMPTY tuple is not "off". Unset means V2 answers in EVERY channel, so the payload says
+    # `"all"` in that case rather than `[]`, which a reader would misread as "narrowed to nothing".
+    from api.services.discord_render import commands as _cmds
+    _chans = _cmds.v2_channels()
     return {
         "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12],
         "owner": getattr(runtime, "owner", None),
+        "v2_enabled": _cmds.enabled(),
+        "v2_channels": list(_chans) if _chans else "all",
         "queue": runtime.depth() if runtime is not None else None,
         "renderer": renderer,
         "slo": snap,
@@ -313,7 +324,14 @@ def format_health_text(payload: dict) -> str:
         renderer = f"NOT READY ({r.get('error') or r.get('status') or 'no answer'})"
     slo = payload.get("slo") or {}
     win = slo.get("windows") or {}
+    # ⭐ The scope line is SECOND, right under the commit, because it is the line an operator needs
+    # before they trust anything else on the screen: every number below is about whichever channels
+    # this says. "all" is spelled out rather than shown as an empty list.
+    chans = payload.get("v2_channels")
+    scope = ("every channel" if chans == "all" or not chans
+             else " ".join(f"<#{c}>" for c in chans))
     lines = [f"Render V2 · commit {payload.get('commit') or '?'} · {payload.get('owner') or 'runtime not started'}",
+             f"Scope: V2 {'ON' if payload.get('v2_enabled') else 'OFF'} · {scope}",
              (f"Queue: {q.get('interactive', 0)} waiting · {q.get('active', 0)} active of {q.get('workers', 0)} workers"
               f" · background {q.get('background', 0)}") if q else "Queue: runtime not started",
              f"Renderer: {renderer}"]

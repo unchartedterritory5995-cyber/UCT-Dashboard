@@ -659,10 +659,21 @@ def test_the_four_flow_causes_do_not_collapse_into_one_sentence():
 def test_an_empty_tape_is_a_successful_answer_and_not_a_failure():
     """⛔ A quiet session with no significant options flow is TRUE, and the router has the sentence
     for it. Classing it as a failure would put a correct answer in the failure counters and lose the
-    window phrase the sentence needs — the C-08 mistake pointed the other way."""
+    window phrase the sentence needs — the C-08 mistake pointed the other way.
+
+    ⚰️ AND THIS TEST READ THE WALL CLOCK TOO. It asserted `reason() is None` against a fixture
+    whose window ends on Friday 2026-09-11 — true all weekend, false from Monday's open, when that
+    vintage is correctly judged STALE. The product was right and the test was reporting the
+    calendar. The claim it is actually making is about `ok` and the CONTRACT COUNT, so the stale
+    verdict is asserted where it belongs instead of being asserted away.
+    """
     r = flow.fetch(flow.FlowRequest("NVDA", remaining_s=12.0),
                    remote=lambda *a: _flow_payload(contracts=0), local=_raises(AssertionError("no")))
-    assert r.ok is True and r.reason() is None
+    assert r.ok is True, "an empty tape is a successful answer"
+    # ⛔ `STALE` IS NOT A FAILURE REASON HERE — it is a label on a delivered answer (S8). What must
+    # never appear is a FATAL reason, which is what would put a correct answer in the failure
+    # counters. Asserting `reason() is None` conflated the two and tied the test to the clock.
+    assert r.reason() not in R.FATAL_REASONS, f"an empty tape was classed as a failure: {r.reason()}"
     assert r.meta["contract_count"] == 0, "how the caller tells, without a failure class"
     assert r.data["window"]["end"] == "2026-09-11", "the window the router's sentence needs"
 

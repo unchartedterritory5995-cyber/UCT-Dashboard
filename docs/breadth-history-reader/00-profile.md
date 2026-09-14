@@ -313,3 +313,75 @@ is a twentieth of the bill. Optimising it first would produce a visible diff, a 
 story, and almost no change to what a member waits for.
 
 ⚠️ Still not a candidate: capping `days=` on the monitor route (owner ruling, D-043).
+
+---
+
+# Session 4 — where the deep read goes now, measured in BYTES as well as milliseconds
+
+The materialised tables exist in production (verified on a refreshed `VACUUM INTO`
+copy: `breadth_snapshots` 175, `breadth_snapshot_numeric` 175, `breadth_daily_ohlc`
+174,263, `breadth_reconstructed_daily` 4,701, every file `quick_check: ok`, every
+table breadth history). 4,703 rows x 80 keys should read in tens of milliseconds.
+
+⭐ **BYTES READ, NOT JUST MILLISECONDS.** Time on this box is a property of a warm
+page cache; bytes are not. Each phase reports `GetProcessIoCounters.ReadTransferCount`,
+so "which file did this touch" is a measurement.
+
+## Before
+
+| phase (on the request path) | ms | bytes read |
+|---|---|---|
+| **`merged_dates` / `distinct_dates`** | 96.6 | **11,329,088** |
+| SQL fetch `breadth_snapshot_numeric` | 11.3 | 368,640 |
+| SQL fetch `breadth_reconstructed_daily` | 99.5 | 6,090,852 |
+| merge + precedence + row-dict | 17.5 | 0 |
+| adv_decline seed | 2.2 | 37,064 |
+| `derive_ascending` | 142.5 | 0 |
+| serialise (route-level) | 112.0 | 0 |
+| **on-path total** | **499.0** | **17,825,644** |
+| reference read, same process | 362.2 | 17,882,612 |
+
+⛔ **The date lookup read MORE than the table it exists to index into.**
+`SELECT DISTINCT date` still walked all 174,263 OHLC rows — a covering index still
+has to scan every entry to produce a DISTINCT — while `breadth_reconstructed_daily`
+holds exactly one row per such date behind a PRIMARY KEY.
+
+## After
+
+| phase | ms | bytes read |
+|---|---|---|
+| `merged_dates` / `distinct_dates` | **9.0** | **127,176** |
+| SQL fetch `breadth_snapshot_numeric` | 10.8 | 368,640 |
+| SQL fetch `breadth_reconstructed_daily` | 87.0 | 6,090,852 |
+| merge + precedence + row-dict | 12.3 | 0 |
+| adv_decline seed | 2.4 | 37,064 |
+| `derive_ascending` | 119.2 | 0 |
+| serialise (route-level) | 78.2 | 0 |
+| **on-path total** | **318.9** | **6,623,732** |
+| reference read, same process | 241.5 | 6,680,700 |
+
+**89x fewer bytes for the date set; 2.7x fewer for the whole read.**
+
+⭐ **What the request path no longer touches, measured in the same run rather than
+asserted:** `closes_for_dates` 233.7 ms / 8,753,252 bytes and sentiment
+`values_asof` 56.2 ms / 1,513,459 bytes — both now **zero** on the request path. The
+26 MB OHLC table and the sentiment history are off it entirely; what remains is the
+two materialised tables and their indexes.
+
+⚠️ **The decomposition reconciles at 132 %**, over-counting because it re-runs reads
+the single reference read does once, and because it includes route-level serialise
+which `get_history_deep` does not perform.
+
+⚠️ **The cold-cache run was NOT reproduced locally.** Windows has no ready
+`drop_caches`, and copying a file to force a cold read pulls it into the cache on the
+way. What IS cache-independent is the bytes column, and a cold read cannot cost less
+than the bytes it must fetch: the floor fell from 17.8 MB to 6.6 MB, and from 105.7 MB
+before the projection existed. The production first-after-boot sample remains the real
+cold measurement.
+
+## What is left, and why it is not obviously reducible
+
+`derive_ascending` (119 ms) and serialise (78 ms) are CPU over 4,703 rows x 80 keys
+and return no bytes; the 6.09 MB reconstructed fetch **is** the payload (5.18 MB
+serialised). Those three are the read now.
+

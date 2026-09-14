@@ -437,7 +437,12 @@ describe('the price overlays keep their z-order across the migration', () => {
     // overlay it currently sits below, and LWC z-stacks by insertion.
     expect(engineRegistry.listDefinitions()
       .filter(d => d.placement?.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
+        // ⭐ `movingAverage` DECLARES `onPrice`, so it joins the price overlays —
+        // and it lands LAST because `listDefinitions()` is registration order and
+        // this order IS z-order. `MA(Close)` belongs on the candles, which is what
+        // a moving average has always been.
+        'movingAverage'])
   })
 
   it('the binder inserts them in registry order regardless of the instance list\'s order', () => {

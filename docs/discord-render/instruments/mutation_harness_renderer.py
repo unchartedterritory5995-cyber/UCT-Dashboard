@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve()
+
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
 P = "tests/test_chart_renderer_pool.py::"
 C = "tests/test_discord_render_correlation.py::"
 APP = "services/chart_renderer/app.py"
@@ -32,9 +40,14 @@ MUTATIONS = [
      "old": "        png, meta = await asyncio.wait_for(render_png(req), timeout=ceiling)\n",
      "new": "        png, meta = await render_png(req)\n",
      "tests": [P + "test_the_hard_ceiling_cuts_a_hung_render_with_a_504"]},
+    # ⭐ RE-AIMED 2026-09-14 at `safe_cid`, which is now the ONE definition. B1's admin lever
+    # repeated the old inline expression verbatim, so this anchor briefly matched TWO places —
+    # AMBIGUOUS, not stale, and an exact single replacement was impossible. The fix was to collapse
+    # the duplicate rather than lengthen the anchor: a longer anchor would have restored the
+    # mutation while leaving two copies of a log-injection guard free to drift apart.
     {"name": "A4 correlation id logged unvalidated", "file": APP,
-     "old": '    cid = x_correlation_id if _CID.match(x_correlation_id or "") else "-"\n',
-     "new": '    cid = x_correlation_id or "-"\n',
+     "old": '    return raw if _CID.match(raw or "") else "-"\n',
+     "new": '    return raw or "-"\n',
      "tests": [P + "test_one_render_line_carries_the_correlation_id_and_only_the_path"]},
     {"name": "A5 background cap removed", "file": APP,
      "old": '        if priority == "background":\n            await _bg_slots.acquire()\n',
@@ -81,8 +94,10 @@ MUTATIONS = [
      "new": "    if True:\n        return _warm_hot_charts(",
      "tests": [C + "test_the_warm_cycle_renders_as_background_and_leaves_nothing_bound"]},
     {"name": "B4 house render sends no correlation headers", "file": "api/services/discord_chart_house.py",
-     "old": '                           headers={"X-Render-Secret": secret, **render_ids.render_headers()})\n',
-     "new": '                           headers={"X-Render-Secret": secret})\n',
+     # re-aimed 2026-09-14: the headers moved into a `_hdrs` local (the edge token is added
+     # conditionally after it). Same intent — send no correlation headers.
+     "old": '                _hdrs = {"X-Render-Secret": secret, **render_ids.render_headers()}\n',
+     "new": '                _hdrs = {"X-Render-Secret": secret}\n',
      "tests": [C + "test_the_house_render_sends_the_headers_only_when_bound_and_scrubs_the_error_body"]},
     {"name": "B5 house render logs the renderer body raw", "file": "api/services/discord_chart_house.py",
      "old": "r.status_code, sym, tf, attempt, render_observe.scrub(r.text)[:160])",

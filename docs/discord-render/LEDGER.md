@@ -713,3 +713,336 @@ for want of budget and then sitting past the deadline sleeping between the refus
 structural rather than another patch: every sleep on the retry path is bounded by the remaining
 deadline, and a docstring that promises "inside the same budget" is a TESTED claim.
 
+
+### Test channel + `#render-alerts` — the permission question, ANSWERED (2026-09-14)
+
+Owner ruling: create `#render-smoke` myself if the bot carries `MANAGE_CHANNELS`, and fix
+`#render-alerts` while holding it. **It does not.** Read from the live token
+(`discord_channel_admin.py --whoami`, run under `railway run --service web`):
+
+```
+bot: UCT Intelligence#3332 id=1474900505917653142
+  guild 882293203485720596 'Uncharted Territory': CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+  guild 1524909611054792786 'UCT Intelligence':   CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+```
+
+Four permissions, in both guilds. No `MANAGE_CHANNELS`, no `ADMINISTRATOR`. So the bot can post
+where it is already present and can do nothing else — it cannot create the smoke channel and it
+cannot edit any channel's overwrites.
+
+⛔⛔ **AND GRANTING `MANAGE_CHANNELS` ALONE WILL NOT FIX `#render-alerts`, WHICH IS THE OPPOSITE OF
+WHAT THE RULING ASSUMED — the ruling's own distinction is what says so.** `MANAGE_CHANNELS` lets a
+bot edit channels it can SEE. `#render-alerts` answers `403 / 50001 Missing Access`, and 50001 is
+**membership**: the channel carries an `@everyone` deny on `VIEW_CHANNEL` and no overwrite admitting
+the bot, so it is invisible to it whatever server-level permissions it holds. Two different fixes:
+
+| Want | Needs |
+|---|---|
+| the bot to CREATE `#render-smoke` (unblocks 3.5) | `MANAGE_CHANNELS` on the bot's role |
+| the bot to FIX `#render-alerts`'s overwrites | `MANAGE_CHANNELS` **and** an overwrite on that channel admitting the bot — or `ADMINISTRATOR` |
+
+⭐ **Worth stating because it inverts the cheaper-looking option.** Granting `ADMINISTRATOR` fixes
+both in one action and is the larger grant; granting `MANAGE_CHANNELS` fixes only the first and
+leaves `#render-alerts` needing a second, per-channel action. The smaller grant is not the smaller
+job, and that is only visible once "can it" and "can it here" are asked separately.
+
+⚠️ `--create-smoke` is written, self-checked and **unused**: it writes the overwrites at creation
+(never as a second call, so there is no window where `@everyone` can see the channel) and then
+`GET`s the channel and prints what Discord actually stored. It runs the moment the permission
+exists.
+
+### Step 1.3 — the defect is now MEASURED, not inferred (2026-09-14)
+
+⛔⛔ **THE PROBE SPENT A DAY REPORTING A TRUE STATEMENT ABOUT THE WRONG ENDPOINT.**
+`GET /channels/1548783155354403046` answers `403 / 50001 Missing Access`, which the probe faithfully
+reported hourly as STILL_BLOCKED. But `GET /guilds/{id}/channels` returns
+`permission_overwrites` **for every channel in the guild**, including ones the token cannot open —
+so the answer step 1.3 actually wanted was one call away the whole time.
+
+Read live, 2026-09-14:
+
+| Channel | `@everyone` | Other overwrites |
+|---|---|---|
+| `#render-alerts` | **VIEW DENY** | **`Contributor` VIEW ALLOW** — and it is the ONLY allow |
+| `#alert-test` | VIEW DENY | `Contributor` VIEW ALLOW |
+| `#dev-kitchen` | VIEW DENY | none — genuinely admin-only |
+
+⛔ **So `#render-alerts` is not "visible to Contributor among others". Contributor is the only role
+it is visible to.** Admins see it through `ADMINISTRATOR`, which overrides overwrites; the channel
+grants view to exactly one role and that role is the one it must not. The fix is to REMOVE that
+overwrite.
+
+⭐ **And this is why the roles had to be resolved rather than listed.** The id `1112808703389872188`
+appears on nearly every private channel in the guild; it reads like a broad member role until you
+ask for its name.
+
+⚠️ **The bot cannot do it, and the reason is two independent gaps, not one.** It holds
+`VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY` and nothing else — no
+`MANAGE_CHANNELS` — and it has no overwrite on that channel, so even with `MANAGE_CHANNELS` it
+would still answer 50001. Recorded because the intuition runs the other way: the smaller-sounding
+grant fixes neither half on its own.
+
+⭐ **No channel in the guild is both bot-postable and not Contributor-visible.** `#dev-kitchen` is
+the only text channel with no role re-allowed to view, and the bot is not in it. That is measured
+across every text channel the token can enumerate — which is why 3.5's posting half and the
+`--real` delivery hop are genuinely blocked rather than merely inconvenient.
+
+The hourly poll now reports `RENDER_ALERTS_ACL` beside `RENDER_ALERTS_ACCESS`, and
+`flip_preconditions` reads the ACL line: that precondition moved from **NOT MEASURABLE** to a
+**NOT MET** with a named fix.
+
+---
+
+### 2026-09-14 (afternoon) — the Discord admin pass, and four findings from executing it
+
+The owner opened a browser and handed the whole Discord-side list over. A1–A3 are **done and
+verified by API read-back, never by the UI's own banner**. A4 is two rows of fifteen, for a
+structural reason that turned out to be a flip blocker.
+
+| # | Action | Verified by |
+|---|---|---|
+| **A1** | `UCT Intelligence` (`1474903498700230668`) granted `MANAGE_CHANNELS` | `--whoami` → `CAN create channels · MANAGE_CHANNELS, …` |
+| **A2** | `Contributor` overwrite REMOVED from `#render-alerts`; bot given an overwrite | `--read-channel` → bot `allow=[VIEW_CHANNEL]`, `@everyone deny=[VIEW_CHANNEL]`, no Contributor. Probe: `RENDER_ALERTS_ACCESS ACCESS HTTP 200` + `RENDER_ALERTS_ACL ACL_OK` |
+| **A3** | `#render-smoke` = `1549129739048853544` created under ADMIN CHAT, private at creation | `--read-channel` → same two overwrites. **Organic members exposed 0** |
+
+⛔ **The role was found by ID, never by name — and that mattered.** Two roles match `UCT*`
+(`UCT Exporter` `1474870089873358902`, `UCT Intelligence` `1474903498700230668`). The API confirmed
+which name belongs to which id before anything was clicked.
+
+#### OI-33 — `MANAGE_CHANNELS` is not enough to edit an existing channel's overwrites
+
+All three API edits to `#render-alerts` returned **`403 / 50013 Missing Permissions`** *after* the
+grant landed. Editing permission overwrites is gated on **`MANAGE_ROLES`**; `MANAGE_CHANNELS` only
+covers creating a channel that carries overwrites. `--create-smoke` therefore also 403'd, and A3
+went through the browser — the owner's own stated fallback.
+
+⭐ **`MANAGE_ROLES` was deliberately NOT granted.** It would let the bot edit overwrites anywhere and
+manage every role below its own, on a 1,558-member production guild, to save a few browser clicks.
+The narrower path existed and was taken.
+
+⚠️ Discord's role picker **refuses to add a role holding `ADMINISTRATOR`** to a channel's access
+list — it already has access and the overwrite would be meaningless. So "add the ADMIN role
+explicitly" is not executable through that UI; ADMIN reaches both channels through `ADMINISTRATOR`,
+which is recorded rather than claimed as done.
+
+#### OI-34 — the chart/flow channel gate was ONE id, and that is why Gap 3 looked like traffic
+
+`cmd_channel_ok` compared against a single `CHART_FLOW_CHANNEL_ID`. Repointing it does not ADD a
+channel, it **MOVES** the command. So the posting half of 3.5 was unreachable except at the cost of
+taking `/chart`, `/charts` and `/flow` away from every member.
+
+⭐ **This closes Gap 3 properly.** The `/chart` shadow saw nothing because a member can only run
+`/chart` in one channel. The shadow report states in its own output that it cannot separate "nobody
+ran it" from "it is not being shadowed"; the channel gate separates them.
+
+#### OI-35 — there was no per-channel V2 flag, so there was no canary
+
+The flip packet said "the flag is per-channel per 2.1" and §4.0 said in capitals that the canary is
+the admin channel. `commands.enabled()` is **one global boolean**; `command_enabled()` splits by
+COMMAND. Flipping it as the packet instructed sends every member's `/chart` to V2 in the same
+instant — the member-channel flip, reserved to the owner, reached by following a section headed
+"canary".
+
+⛔ **The packet agreed with the spec and neither agreed with the code**, and nobody found out
+because the step had never been executed. `DISCORD_RENDER_V2_CHANNELS` is the narrowing control;
+unset means every channel, because a default of "none" makes a forgotten variable indistinguishable
+from a deliberate one.
+
+#### OI-36 — `/buzz` rendered correctly and reached nobody
+
+`/buzz` in `#render-smoke` → **"The application did not respond."** The renderer answered
+`200, 346 KB, ms=10738, prio=interactive` against Discord's 3 s ack deadline. Pre-V2 path, organic
+members exposed 0.
+
+⚠️ **Filed first as "C-11 reproduced live", and that was wrong.** C-11 is *a delivery failure or
+crash ends with nothing said* and is ✅ CLOSED on the **V2 runtime**, mutation-proved. This is the
+**pre-V2** path and it is an **ack missing 3 s** — the **C-02** family, whose load half is the part
+still open pending 3.1 `--real`. Recorded because filing a live failure against a closed class
+asserts a regression in work that was proved, and sends the next reader to the wrong code.
+
+⭐ The shadow recorded `outcome=agree` — **V2 would have done the same thing.** It is not a defect
+the flip fixes and is not counted as one. n=1: the failure is reachable; its rate is unmeasured, and
+no mechanism is asserted — the handler's documented shape is to defer immediately, and the shadow
+line shows `pre=5`, so "the defer was chosen" and "the defer arrived in time" are different claims
+and only the first is evidenced.
+
+#### A5 — the browser sweep found one more, and it is NOT being taken tonight
+
+**OI-12's blocking premise is stale.** It reads *"`chart-renderer` has no repo source; it deploys
+with `railway up` from a local directory"* and recommends connecting the service to the repo with
+watch path `services/chart_renderer/**`. The source **is** tracked now:
+
+```
+services/chart_renderer/{Dockerfile,app.py,edge_scope.py,requirements.txt,serve.py}
+```
+
+So the recommendation is executable, and it is a Railway-dashboard change — exactly the kind of
+"needs browser" item A5 asks for.
+
+⚰️⚰️ **AND THEN THE DASHBOARD SAID IT WAS ALREADY DONE.** I wrote the paragraph above — "unblocked,
+deliberately not taken tonight" — and then read the only authority on watch patterns, which is the
+Railway dashboard. `chart-renderer` settings, measured 2026-09-14 15:45 ET:
+
+```
+Source Repo:  unchartedterri...   (connected)
+Watch Paths:  services/chart_renderer/**
+```
+
+**OI-12 is CLOSED — already done, by somebody, at some point, with exactly the watch path it
+recommends.** Both halves of its premise are false: there IS repo source and it is NOT deploying
+only by `railway up`.
+
+⛔ **THE CLI CANNOT SETTLE THIS AND ITS SILENCE LOOKS LIKE AN ANSWER.** `railway deployment list
+--service chart-renderer` shows every master commit as **SKIPPED**, and "non-SKIPPED deployments: 0"
+across the whole listed window. That is equally consistent with "not connected" and with "connected
+and nothing touched the watch path" — and none of those commits touched
+`services/chart_renderer/**`. Counting SKIPPEDs is not reading a verdict; it is the same defect as
+reading a deployment list by SHA and never reading the `status` column.
+
+⭐ **The operational consequence is immediate and would otherwise have been a surprise:** B1 touches
+`services/chart_renderer/app.py`, so tonight's merge **WILL redeploy chart-renderer**. That is
+acceptable after the close and is in fact how B1 reaches production — but it had to be planned
+rather than discovered, and `08` §8.3 ("chart-renderer is its own deploy") is stale in the runbook.
+
+#### ⚰️ MY OWN ERROR — I pushed 8 minutes before the close, having decided not to
+
+**What happened.** At 15:20 ET I reasoned explicitly that the 16:00 merge window was right and that
+pushing early was not worth a member-facing blip during RTH — and wrote that down. I set a
+background timer to 16:00:30 whose entire purpose was to gate the push. I then **never waited for
+it** (it was still counting when this was written) and pushed at **~15:49 ET**, believing from a
+mental estimate of elapsed time that it was 16:18.
+
+| | |
+|---|---|
+| push | ~15:49 ET |
+| `chart-renderer` SUCCESS | 19:49:15Z = **15:49 ET** |
+| `web` SUCCESS | 19:52:54Z = **15:52 ET** |
+| the close | 16:00 ET |
+
+**The cost, measured rather than assumed.** A `web` restart (~1 min `/api/*` blip, documented in
+`deploy-windows.md`) and a `chart-renderer` restart in the last eight minutes of RTH.
+`/api/health` 200 with `uptime_seconds=107` afterwards. **No scheduled task was due between 15:45
+and 15:55 ET**, so no APScheduler slot was lost. No member-visible outage was found — but see below
+for how weak that last clause is.
+
+⛔ **AND THE FIRST CHECK I RAN FOR HARM WAS ITSELF WRONG.** I pulled logs filtered on `502` and got
+18 hits, every one of them a **millisecond field** (`19:41:44,502`) rather than a status code. A
+filter that cannot distinguish a timestamp from an HTTP status could never have seen a real 502, so
+"no 502s found" was not a measurement. Recorded because it is the same defect as every other
+instrument in §10: *an absence is only evidence if the instrument could have seen a presence.*
+
+⭐ **THE LESSON, AND IT IS NOT "BE MORE CAREFUL".** Across this session I estimated elapsed time
+perhaps a dozen times and was consistently ~25 minutes fast; every reading of the actual clock
+surprised me. The failure is not that the estimate was wrong — estimates are wrong — it is that
+**I had built the correct mechanism and then routed around it.** A clock-gate only works if the gate
+is what releases the action. An estimate that happens to agree with you is not a check, and a timer
+you do not wait for is a comment.
+
+⛔ **Standing correction for the rest of this programme: no scheduled action fires on a remembered
+time. Read the clock in the same tool call that takes the action, or let the timer's own completion
+be the trigger.**
+
+### 2026-09-14 — the 15:49 rule breach, and the guard that now refuses it
+
+**Breach.** A master push at **15:49 ET**, eleven minutes inside the RTH window, after the
+integrator had reasoned the merge should wait for the close, written that decision down, and set a
+timer to enforce it. The timer was never waited on; the push went on a mental estimate of elapsed
+time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted in the last minutes of
+the session. `/api/health` 200 afterwards; no scheduled task was due between 15:45 and 15:55, so no
+APScheduler slot was lost.
+
+**Fix.** `tools/pre_push_guard.py` now refuses a master push between **09:25 and 16:05 ET on trading
+days** unless every changed path is on the daytime-cleared list, which is **derived from
+`docs/runbooks/deploy-windows.md` Tier 1 and re-read at test time** so it cannot drift from the
+runbook. Replayed against the incident's own minute and diff:
+
+```
+the 15:49 push (api/ + tests + docs)  ->  REFUSE
+  not cleared:  api/services/discord_interactions.py
+  next allowed: 2026-09-14 16:05:00 ET — in 15m 48s
+a docs-only push at the same minute   ->  OK
+an empty diff  /  git did not answer  ->  REFUSE
+```
+
+⭐ **It fails closed in every unknown case**, and that is the half that matters: an empty diff and an
+unanswered git are refusals, not exemptions — *an empty result is a failed invocation until proven
+otherwise*. An unreadable clock refuses too, because a guard that passes when it cannot tell the
+time reports "fine" precisely when it has stopped working.
+
+⭐ **The clock is the product's own.** `freshness` is imported and asked exactly one question — *is
+this a trading day?* — with a rail that fails if a holiday table is ever pasted into the guard. The
+09:25–16:05 window is deliberately WIDER than the session and is the guard's own policy, so it is
+not a second copy of `session_state`.
+
+**Override** is an exact value (`UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART`), separate from
+the queue bypass — a test proves skipping the queue check does not also buy an RTH restart — and it
+is logged.
+
+⚠️ **Open:** `deploy-windows.md` documents the queue guard and has no section on the clock guard.
+Flagged by the lane rather than edited, to avoid a collision; it is the integrator's to write.
+
+### 2026-09-14 — the harm check that could not have seen harm
+
+The `502` filter used to check the breach matched **millisecond fields** (`19:41:44,502`), so "no
+502s found" was never a measurement. `tools/deploy_blip_check.py` replaces it with a
+**structured-field** parser whose forms are derived from what `api/**` actually logs, with the
+mandatory pair proved: a real `HTTP 502` line is **counted**; `19:41:44,502` is **not**; and a
+discriminator line carrying both (`19:41:44,502 … status=200`) parses to **200**.
+
+⭐ `-> N` is deliberately EXCLUDED as a status form: it appears 18 times in `api/**` and most are
+prose arrows, so accepting it would re-commit the original defect in a narrower costume.
+Three-valued, and **INCONCLUSIVE rather than CLEAN** when no line in the window carries a status at
+all — including when the log pull was a FLOOR rather than EXACT.
+
+### 2026-09-14 — OI-37 closed, and queue sizing derived from twenty days of real arrivals
+
+**OI-37.** The harness's `--rate` was ARRIVALS PER SECOND; every spec that used it said
+"concurrent". `--rate 30` offered about **fifteen times** the load that was asked for, so the
+headline "30 concurrent: success 35.7 %, 81 `queue_full`" was answering a different question.
+That figure is **VOID as labelled** and retained only as *overload characterisation at arrival-rate
+30/s*. `--concurrency N` (closed loop) and `--arrival-rate R` (open loop) are now separate,
+mutually exclusive, and **have no default** — a run that does not say which question it is asking
+does not run. `--rate` is removed rather than aliased.
+
+At the **spec'd** load — 30 concurrent, think-time 1 s: **S1 PASSES** (`acks_over_3s = 0`), **S2 is
+inside budget on all three percentiles** (4.9 / 2,560 / 4,507 ms), and **S5 fails at 96.4 %** with
+all 13 failures `queue_full`.
+
+⛔ **Three defects in my own work, all found by running the thing:**
+
+- The self-check's evaluation loop sat in the MIDDLE of its appends. **Fifteen pre-existing cases
+  were counted and never evaluated** — `cases=20 failed=0` with five actually checked. The count
+  rose and the checking did not, which is the flip-gate defect in a second instrument.
+- `peak <= N` was satisfied by a mutation that blinded the gauge to `0`. An upper bound cannot tell
+  "never exceeded N" from "never saw anything".
+- The first closed loop **hot-spun**: refusals resolved instantly, so 30 clients against the
+  per-member throttle produced **521,654 attempts in 20 s** and six acks over 3 s — a plausible S1
+  FAIL that was entirely the harness. ⭐ OI-37's own mistake in miniature: a load model that does
+  not model the load. `--think-time` exists because of it.
+
+**Queue sizing.** The pod records no arrivals at all — no access log for the interactions endpoint,
+no jobs database in production, ~16 days of log retention. Arrivals were read instead from **Discord
+channel history**, whose `interaction_metadata.id` is Discord's own millisecond stamp and has no
+retention limit.
+
+Measured over **19.94 days** (a FLOOR — 88 channels, most `403/50001`; `#chart-flow-requests`,
+the only channel `/chart` runs in, was **EXACT**):
+
+**301 arrivals · 15.1/day · arrivals-per-second MAX 1 · busiest 60 s = 4 · busiest 10 s = 2 ·
+only 0.92 % of minutes have any arrival at all.**
+
+Design burst (3× the busiest 10 s) = **0.6 arrivals/second**. Little's Law at the conservative
+service basis gives **c = 4 workers** and a **queue depth of 0** backlog; depth ≥ 6 admits a whole
+design burst without refusing anyone.
+
+⭐⭐ **So `queue_full` at high load is CORRECT BEHAVIOUR, decisively.** The run that produced 81 of
+them offered **fifty times** the design burst; even the closed-loop 30-concurrent run offers about
+fourteen times it, and answers with an immediate honest refusal to 3.6 % while serving everyone
+else inside SLO.
+
+⛔ **What actually fails is the S5 floor, because it counts an honest refusal as a failure.** That
+is an owner question, not something to tune away: at fourteen times the design burst, is refusing
+3.6 % a breach or the system working? **Recommendation: measure S5 at the design burst and report
+overload separately as a refusal rate.**

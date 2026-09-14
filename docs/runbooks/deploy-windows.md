@@ -44,6 +44,48 @@ It prints what flow-worker reaches, what it watches, and what this branch change
 Exit 1 means a change is stranded. It does not decide the tier for you — read its
 output against the watch list.
 
+## ⛔ REVIEW-GATE-BY-DESIGN — a red from the coverage rail was NEVER a deploy block
+
+> **`flow-worker deploy coverage` exits 0 and reports through a `::warning::` annotation
+> and the job summary. A red there requires a written classification; it has never blocked
+> a merge, and as of 2026-09-14 it can no longer block a deploy either.**
+
+⚰️ **The rule below said this from the start and the exit code said otherwise.** The
+workflow ran `python tools/flow_worker_watch_coverage.py`, which exits non-zero on a RED,
+so GitHub recorded a deliberate review signal as a **FAILED CHECK**. That was harmless
+while nothing consumed check status — and became load-bearing the moment Railway's
+**"Wait for CI"** was considered, because it waits on **all** GitHub checks. Enabling it
+would have converted this rail into a hard deploy block for essentially every backend
+change.
+
+**Measured before changing it** (last 50 master runs per workflow, 2026-09-14):
+
+| workflow | pass rate on master | class |
+|---|---|---|
+| Options Flow guard | 50/50 | hard check, healthy |
+| wisdom rails | 50/50 | hard check, healthy |
+| Joystick device suite | 5/5 | hard check, healthy (scheduled + narrow paths) |
+| OCR Linux version cert | 1/1 | hard check, healthy (narrow paths) |
+| vite build args | 39/50 | hard check — **recovered**; newest failure 03:59Z, green since |
+| master deploy gate | 4/5 | hard check, healthy (the one failure was its own first run) |
+| **flow-worker deploy coverage** | **44/50** | **REVIEW GATE** — all 6 "failures" were correctly-classified ADDITIVE breadth merges |
+| Clock parity fixture | 0 on master | **ghost** — no file on master (lives on `feat/indicator-r0r1`) |
+| Perplexity spike diagnostic (temporary) | 0 on master | **ghost** — file deleted; 2 runs on a since-deleted branch |
+
+⛔ **GITHUB'S WORKFLOW LIST IS NOT THE CHECK SET, and reading it as one would have sent
+somebody hunting for two files that do not exist.** The API lists **nine** workflows;
+`.github/workflows/` on master holds **seven**. GitHub keeps a workflow in the list once
+it has run history, even after its file is deleted — so the last two cannot run on master
+and need no disabling. They were about to be "disabled" here before the tree was checked
+against the list.
+
+⭐ **No hard check was permanently red**, which is what made option 1 viable: exactly ONE
+workflow needed its semantics corrected, and nothing needed disabling.
+
+⚠️ **The script keeps its non-zero exit.** Run locally it still fails, which is what a
+developer's own run should do. The neutralisation is in the workflow only — at the one
+place where an exit code was being mistaken for a deploy verdict.
+
 ## Interpretation — what a red from the coverage rail requires
 
 Owner ruling, 2026-09-11. **The coverage rail is a REVIEW GATE. A red does not block a
@@ -272,14 +314,105 @@ two-second-old SUCCESS is a coin flip, not a settled service.
 ⛔ **IT FAILS CLOSED.** CLI missing, unauthenticated, project unlinked, hook file absent — all
 REFUSE. A guard that fails open reports "fine" precisely when it has stopped working.
 
+⚠️ **AND IT ALREADY REFUSED EVERY STATE THE 2026-09-14 INCIDENT INVOLVED** — `decide()` returns
+REFUSE for `BUILDING`, `DEPLOYING`, `FAILED`, `CRASHED`, `REMOVED`, an empty status, an unreadable
+state and a too-young SUCCESS, each with its own rail in `tests/test_pre_push_guard.py`. **How the
+12:32 push got past it was NOT determined**: the guard blob was byte-identical on that branch
+(`6c717a33d`), the hook lives in the shared `.git/hooks` so every worktree on this machine has it,
+and `logs/pre-push-guard-bypass.log` recorded nothing. `git push --no-verify` skips hooks entirely
+and leaves no trace, which is the one path that would look exactly like this. ⛔ **Do not "harden"
+the unreachable branch into a warning to close this** — it is already the strictest thing it can
+be, and softening it would trade a real guarantee for the appearance of a fix. `--audit` below
+exists because prevention was already there and something defeated it, so the next occurrence
+should at least be VISIBLE.
+
 ⛔ **IT DOES NOT REQUIRE THE DEPLOYED COMMIT TO BE YOURS.** `SUCCESS` on another workstream's commit
 still means the pod is settled, which is the property that matters. Requiring your own parent would
 refuse every legitimate push in a repo five workstreams share.
 
 ```sh
 python tools/pre_push_guard.py          # 0 = safe, 1 = refuse, prints the state
+python tools/pre_push_guard.py --audit  # after the fact: SUSPECTED stacked pushes
 UCT_SKIP_PREPUSH_GUARD=1 git push …     # deliberate override, APPENDED to logs/pre-push-guard-bypass.log
 ```
+
+⚠️ **`--audit` is a HEURISTIC and says so in its own output.** Railway's deployment list carries
+only `status` and `createdAt` — there is no per-deployment "reached SUCCESS at" timestamp — so it
+can report that two distinct commits were deployed closer together than a build takes, which is
+what a stacked push looks like, and it cannot prove the first was still building. It prints
+**SUSPECTED**, never CONFIRMED.
+
+### ⛔⛔ A PUSH IS NOT CLEAR UNTIL ITS WEB DEPLOY REACHES `SUCCESS`
+
+> **A push is not clear until its web deploy reaches SUCCESS. Any session seeing a deploy in
+> BUILDING/DEPLOYING state must wait, even if the queue looked clear when it started its gate.**
+
+Owner ruling, 2026-09-14, from a SECOND occurrence eight days after the guard was built.
+
+⚰️ **The incident.** `7705c2d3b` was pushed at **12:29:23 UTC** with the guard green
+(*"web is SUCCESS on 00b029552, 333s settled"*). At **12:32:16 UTC** — 173 seconds later, while
+that build was still `BUILDING` — another workstream pushed `9e2b93805`, which marked the first
+deployment `REMOVED` mid-flight. A production request that was in flight at that moment died with
+a **500 after 93 s**, and `/api/health` returned **502** for roughly 45 s until the new pod came
+up. It recovered on its own.
+
+⭐ **The gap the rule closes is a TIME gap, not a logic gap.** The guard reads the queue at the
+moment of the push and is correct at that moment; a build takes ~3–5 minutes, and nothing in a
+point-in-time check covers the window that opens immediately afterwards. "The queue was clear when
+I started my gate" is true and useless — the gate takes minutes, and the queue is a property of
+the instant you push, not of the instant you began.
+
+⚠️ **So the wait is on the DEPLOY, not on the check.** After a green guard, the pusher owns the
+queue until their deploy is `SUCCESS`; anybody else who reads `BUILDING` or `DEPLOYING` waits,
+regardless of what their own guard said earlier.
+
+### ✅ AND THE CLOCK IS MECHANICAL TOO, SINCE 2026-09-14
+
+`tools/pre_push_guard.py` now refuses a master push **between 09:25 and 16:05 ET on trading days**
+unless **every** changed path is Tier 1.
+
+⚰️ **Why it exists.** On 2026-09-14 a session reasoned that a merge should wait for the 16:00 close,
+wrote that decision down, set a timer to enforce it — and pushed at **15:49** anyway, on a mental
+estimate of elapsed time that had drifted about twenty-five minutes. `web` and `chart-renderer` both
+restarted inside the last minutes of the session. **The rule was known, agreed and written down, and
+the mechanism to enforce it had been built and then bypassed.** A clock-gate only works if the gate
+is what releases the action; an estimate that happens to agree with you is not a check.
+
+**What it does:**
+
+| situation | verdict |
+|---|---|
+| RTH, diff entirely Tier 1 (docs/markdown, `tests/**`, `tools/**`, `scripts/**`, `app/**`) | **OK** |
+| RTH, one path outside Tier 1 | **REFUSE**, naming the path and the next allowed time |
+| RTH, diff came back EMPTY | **REFUSE** — an empty result is a failed invocation, not a clean one |
+| RTH, git did not answer | **REFUSE** — an unread diff is never exempt |
+| the market clock cannot be read | **REFUSE** — a guard that passes when it cannot tell the time reports "fine" exactly when it has stopped working |
+| outside 09:25–16:05, or a weekend/holiday | OK (the queue check still applies) |
+
+⛔ **The cleared list is DERIVED FROM TIER 1 ABOVE and re-read at test time**, so editing this
+document moves the guard. Do not maintain a second copy of it in the tool — that is the
+second-authority defect this runbook already carries three examples of.
+
+⛔ **The trading-day answer comes from the product's own `freshness` module**, asked exactly one
+question. The 09:25–16:05 window is deliberately WIDER than the session at both ends and is this
+guard's own policy; re-deriving `session_state` inside the tool would be the second copy.
+
+**Override**, and it is deliberately awkward:
+
+```sh
+UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART
+```
+
+An exact value, not `=1`. It is **separate from `UCT_SKIP_PREPUSH_GUARD`** — a test proves that
+skipping the one-merge-at-a-time queue check does **not** also buy an RTH restart — and every use is
+appended to `logs/pre-push-guard-bypass.log` as `CLOCK-WINDOW`. An override exists so that it is a
+deliberate act, not so that it is the way past a red.
+
+**Checking harm after a restart:** `tools/deploy_blip_check.py` reads a log pull and counts HTTP
+statuses **by structured field**. ⚰️ It replaces a check that grepped for `502` and matched the
+**millisecond field** of a timestamp (`19:41:44,502`) — eighteen hits, none of them a status, and
+"no 502s found" was therefore never a measurement. It is three-valued and reports **INCONCLUSIVE,
+never CLEAN**, when no line in the window carries a status at all or when the pull was a FLOOR.
 
 ### Installing it (advisory to the other workstreams)
 

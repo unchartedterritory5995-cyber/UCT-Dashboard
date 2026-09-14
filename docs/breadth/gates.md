@@ -322,3 +322,96 @@ this repo has committed six times in one session. Fix the read; keep the one aut
 ⚠️ The same applies to destructuring (`const {VITE_X} = import.meta.env`) and to
 `Object.entries(import.meta.env)` — Vite's own docs say so, and neither is visible to the
 index either.
+
+---
+
+## ⛔⛔ A STACKED PUSH KILLED A LIVE REQUEST AND A HEALTH CHECK — 2026-09-14
+
+**Two hashes and two times, because the timeline is the whole finding.**
+
+| UTC | what |
+|---|---|
+| 12:29:23 | `7705c2d3b` (breadth request timing, §2b) pushed. Guard green: *"web is SUCCESS on `00b029552`, 333s settled — safe to push."* |
+| ~12:33 | deployment reports SUCCESS; a production `days=8000` smoke is issued |
+| **12:32:16** | **`9e2b93805` pushed by another workstream — 173 s after the first, while it was still `BUILDING`** |
+| 12:34:42 | the new pod boots; the first deployment is marked `REMOVED` |
+| ~12:35:03 | the in-flight request dies: **HTTP 500 after 93,491 ms** |
+| ~12:35:15 | **`/api/health` → 502** |
+| ~12:36:00 | five consecutive probes → 200. Recovered without intervention. |
+
+⭐ **THE FIRST DIAGNOSIS WAS WRONG AND THE COST OF ACTING ON IT WOULD HAVE BEEN REAL.** A 500 on a
+paid route followed by a 502 reads as *"the deep read OOM'd the pod"*, which is a plausible,
+alarming, and entirely fabricated conclusion — H15 would have had me revert a correct merge.
+⛔ What settled it was reading the DEPLOYMENT LIST rather than the symptom: a second deployment
+existed, created after mine, with mine marked `REMOVED`. The pod never crashed; it was replaced.
+
+⚠️ **`railway logs` could not have answered it.** The buffer holds ~500 lines and began at the new
+pod's boot — the evidence from the instance that served the request was already gone when the
+question was asked. Read the deployment list first; it outlives the pod.
+
+⭐ **And the memory hypothesis was disproved rather than dropped**: the timing instrument shipped
+in that very merge recorded `rss_before_mb=3032.5 rss_after_mb=2959.7` across the 114-second read.
+Resident memory FELL. A pod does not OOM while giving memory back.
+
+**Rule this produced:** *a push is not clear until its web deploy reaches SUCCESS* —
+`docs/runbooks/deploy-windows.md` and `CLAUDE.md`.
+
+### Hourly stacked-push audit
+
+`python tools/pre_push_guard.py --audit` runs hourly (Task Scheduler job
+**`UCT-StackedPushAudit`**) and appends to **`logs/stacked-push-audit.log`**, which is
+gitignored. It reports
+SUSPECTED and never CONFIRMED: Railway's deployment list carries only `status` and
+`createdAt`, with no "reached SUCCESS at" timestamp, so it can show that two distinct
+commits were deployed closer together than a build takes and cannot show the first was
+still building.
+
+⭐ **Its first run is the reason §2 of the 2026-09-14 ruling exists.** Against the live
+list it found **six** suspected stacked pushes on 2026-09-14 alone — including four
+consecutive between 06:14 and 06:24 UTC — which is what turned "a stacked push
+happened to me" into "this is routine and the client hook is not holding".
+
+⛔ **WHY THE HOURLY OUTPUT DOES NOT WRITE ITSELF INTO THIS FILE, which is what was
+asked for.** A scheduled job appending to a TRACKED file leaves the tree permanently
+dirty, and `scripts/gate_shards.py` refuses a dirty tree — so an hourly writer would
+turn every gate run into an `INVALID` for a reason unrelated to the branch under test,
+which is exactly the "infrastructure failure collapsing into a code verdict" this repo
+keeps paying for. The log is gitignored; the table below is curated from it, and the
+table is the artifact. ⚠️ That is a tradeoff, not a solved problem: a finding reaches
+this file only when a session folds it in.
+
+⚠️ Once the `master deploy gate` workflow and Railway's Wait for CI are both on, this
+audit becomes a REGRESSION DETECTOR rather than a live problem report: a suspected
+stack after that date means the serialisation is not working, and the pair of hashes
+is the evidence to open with.
+
+| run (UTC) | suspected pairs | note |
+|---|---|---|
+| 2026-09-14 (first, manual) | 6 | `9e2b93805`/`7705c2d3b` 173 s · `98a18b969`/`7a2b54369` 294 s · `94798e838`/`59de6a14b` 172 s · `59de6a14b`/`e269f2b10` 202 s · `e269f2b10`/`956df0913` 214 s · `afef0bfde`/`2d7ae7795` 170 s |
+
+⚠️ **A WORKED FALSE POSITIVE, AND IT IS MINE.** The first scheduled run flagged
+`b4c141948` landing **234 s** after `db23f17e8` — and that push was compliant: the
+guard had reported *"SUCCESS on db23f17e8, 217s settled"* before it, i.e. the earlier
+deploy had **finished**. The heuristic cannot tell "landed 234 s later while the first
+was still building" from "landed 234 s later because the first took 200 s and then
+succeeded", because the list carries no completion time.
+
+⭐ **Do not fix this by narrowing the window.** The 2026-09-14 incident itself was
+**173 s**, so a window tight enough to exclude the false positive would also exclude
+the true positive it exists to catch. The right resolution is the one already in
+flight: once `master deploy gate` + Railway **Wait for CI** serialise pushes, a
+suspected stack becomes a REGRESSION SIGNAL to investigate rather than a number to
+tune — and investigating one costs a minute of reading two deploy records.
+
+### Wait for CI — the two-push verification (2026-09-14)
+
+**Push B of this test was made with `UCT_SKIP_PREPUSH_GUARD=1` on purpose.** The
+client guard would have refused it, and refusing it is not what needed proving: the
+whole reason for the GitHub-side gate is that a client hook cannot stop a session
+that bypasses it. Bypassing it deliberately is the only honest test of the
+server-side serialisation.
+
+| UTC | event |
+|---|---|
+| (filled in below by the run) | |
+

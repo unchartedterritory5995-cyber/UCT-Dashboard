@@ -480,3 +480,104 @@ per-lookup cache tier was being derived from a process-wide counter (a global an
 per-request question), and the AST probe for "is the cache imported" read only `ImportFrom.module`
 — so `from … import artifact_cache`, which is the correct wiring, answered **no**. The second one
 was in `flip_preconditions.py` too: the flip gate could never have printed MET.
+
+---
+
+## 2026-09-14, 13:30–16:00 ET — the Discord admin pass, and two flip blockers
+
+The owner handed the whole Discord-side list over with a live browser. A1–A3 finished and were
+**verified by API read-back rather than by the UI's own banner** — twice the UI said something had
+changed and only the read-back said what Discord actually stored.
+
+| | |
+|---|---|
+| **A1** `MANAGE_CHANNELS` granted | `--whoami` → `CAN create channels` |
+| **A2** `#render-alerts` | `Contributor` overwrite **removed**, bot given one, `@everyone` still DENY. Probe: `ACCESS HTTP 200` + `ACL_OK`. **Precondition row MET** |
+| **A3** `#render-smoke` `1549129739048853544` | private at creation, **organic members exposed 0** |
+| **delivery hop** | `DELIVERY OK http=200 attachments=1` — a real post carrying a PNG |
+
+### The two things that would have gone wrong
+
+**OI-34.** `/chart`, `/charts`, `/flow` were gated to ONE channel id. Repointing
+`CHART_FLOW_CHANNEL_ID` MOVES the commands rather than adding a channel — 1,558 members lose all
+three. It is now an allowlist whose FIRST entry is the member-facing one the nudge names.
+
+**OI-35.** There was **no per-channel V2 flag**, though the packet said "per-channel per 2.1" and
+§4.0 said the canary is the admin channel. `commands.enabled()` is one global boolean. Flipping as
+instructed would have been the member-channel flip — the owner's decision — reached by following a
+section headed "canary". `DISCORD_RENDER_V2_CHANNELS` narrows it; **unset means every channel**, so
+its absence reads as "there is no canary", never "the canary is off".
+
+⭐ **Both were invisible from the code and from the docs, because the docs agreed with the spec and
+the spec disagreed with the code.** Neither survived thirty seconds of actually typing the command.
+That is the whole argument for 3.5 existing.
+
+### Two instruments that were lying, found the same way
+
+- **`clock_sweep.py` was in no gate at all.** The string appeared nowhere in the repo but its own
+  filename — built, CLEAN over 1,220 observations, referenced by nothing. Now
+  `tests/test_clock_sweep_in_the_gate.py`.
+- **`UCT Render Token Retire` had never run.** `lastRun=07:15, LastTaskResult=1`; its `.cmd`
+  redirected stdout into the same file the Python script opens for append, so the script died on its
+  first `log()` call and the crash handler died on the same line. C-13's rotation half has been
+  waiting on a job that could not write its own log.
+
+### Honest state at the close
+
+**3.5 is 2 rows of 15.** One pass (`/renderhealth`, which also prints the running commit — the
+product is its own SHA oracle), one real failure (`/buzz` → *"The application did not respond"*
+while the renderer answered `200, 346 KB, ms=10738`). Thirteen rows were blocked on OI-34, not on a
+decision.
+
+---
+
+## 2026-09-14, evening — the gate's own gate (lane A1)
+
+The 16:30 fix said **three** rows had the count-the-files shape (S2, chaos, 3.5) and that all three
+now read verdicts. That sentence was right about those three and wrong about the total. Re-reading
+every `check_*` against `origin/master` found **two more**, and both were measured rather than
+argued — the old module was extracted with `git show`, imported, and called.
+
+| Row | What it actually did | Measured |
+|---|---|---|
+| `/chart` is shadowed (structural) | `MET if rail.exists()` — it never opened the file | printed **MET** on the real tree; prints MET for a `touch`ed empty file |
+| mutation NOT-APPLIED = 0 | globbed the harnesses, ran each with `--dry-check` **and no root argument**, and read the absence of the string `NOT APPLIED` as success | printed **MET, "every mutation applies exactly once", having checked ZERO** |
+
+⛔ **The mutation row is the worse of the two, and not because of the false MET.** `origin/master`
+carries **11** `mutation_harness*.py`, and **9 of them declare no `--dry-check` handler at all**.
+The row invoked every one as `[python, <harness>, "--dry-check"]` with no root argument, so
+`--dry-check` *was* `sys.argv[1]` and those nine resolved a repo root literally named `--dry-check`;
+the other two fall back to `parents[3]`. All eleven then died in `harness_guard` — the calling tree
+carries no sandbox marker — printing a refusal banner, which contains no `NOT APPLIED` string, so
+silence read as success. Two of the nine — `mutation_harness_cache.py` and
+`mutation_harness_delivery.py` — take no positional root either and ignore the flag entirely, so in a
+tree carrying a `.mutation-sandbox` marker, which is precisely where anybody runs a mutation harness,
+that row would not merely have failed to check them: it would have started a full mutation run
+against the caller's working tree, from inside a precondition check.
+
+⚠️ **This paragraph first said "eleven of the thirteen", typed rather than counted, and is corrected
+here rather than quietly fixed.** Eleven is the total; nine is the count that cannot answer. A
+hand-typed count beside the list that owns it is the defect the rest of this programme keeps paying
+for, and writing one into the entry recording a counting bug is worth leaving visible.
+
+⭐ **OI-29 asked for exactly this check and it is only now answerable.** *"Every harness in
+`docs/discord-render/instruments/` should be checked for the same shape"* — the row that claimed to
+do it could not: **9 of 12 harnesses declare no `--dry-check` handler at all**, and the fixed row now
+names all nine rather than counting their silence as a pass. Against the real tree it reads
+`169 anchor(s) verified, but: 9 harness(es) answer no --dry-check: …`.
+
+The fix is structural rather than five more patches: every row reads a verdict from evidence content,
+absence is NOT MEASURABLE, unparseable evidence is NOT MEASURABLE **with the reason named**, and every
+row carries **three** mutation controls — plant a pass ⇒ MET, plant a failure ⇒ NOT MET, delete the
+evidence ⇒ NOT MEASURABLE. The third is not decoration: a row hardcoded to `return NOT_MET` satisfies
+every plant-a-failure control and is exactly as useless as the row that counted files.
+`mutation_harness_flipgate.py` (56 cases over 11 rows, planting only into `mkdtemp()`) runs inside
+`--self-check` **and** inside `tests/test_flip_gate_cannot_lie.py`, so a regression costs an ordinary
+scoped pytest run. A new **canary scope** row reads the running V2 allowlist from a read-back artifact
+and compares it to the ids 06 declares — offline, never `railway`.
+
+⚠️ **Two statements elsewhere still need the integrator's hand**, because this lane does not own
+those files: `06-flip-packet.md:51` carries `/chart is shadowed (structural) | ✅ MET`, which was the
+existence check (the *empirical* half of that cell — the first `/chart` shadow records, 19:58Z — is
+separate evidence and stands); and `06-flip-packet.md:58` reads *"Four rows NOT MET, three NOT
+MEASURABLE"* against a table holding three and two.

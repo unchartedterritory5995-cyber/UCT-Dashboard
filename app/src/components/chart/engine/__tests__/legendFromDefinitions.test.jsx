@@ -1312,6 +1312,10 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
       + 'can see it — a headless capture has no cursor, and ChartRender hides the legend '
       + 'outright); an ADDITION is a number in the readout nobody decided on.')
       .toEqual([
+        // ⭐ the twenty-first — registry-native, and named from its SOURCE.
+        'dataSeries::value',
+        // ⭐ and the twenty-second: one definition, any numeric source.
+        'movingAverage::ma',
         // the ten Task 2 declared…
         'adx::adx', 'atrBands::middle', 'avwap::avwap', 'bb::middle', 'cci::cci',
         'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',
@@ -1587,7 +1591,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     return []
   }
 
-  it('⭐ TWO RSIs at different periods draw TWO lines, in ONE pane, with TWO chips', async () => {
+  it('⭐ TWO RSIs at different periods draw TWO lines, in TWO panes, with TWO chips', async () => {
     const two = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
       settingsOverride={legendAlways(TWO_RSI())} alwaysShowLegend />)
     const labels = (await offCursorChips(two)).map(t => t.split(' ')[0])
@@ -1603,22 +1607,44 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const twoPanes = paneIndices()
     two.unmount(); cleanup(); H.reset()
 
-    // ⛔ ONE PANE, NOT TWO — `orderedPaneKeys` dedupes by `def.id`, so both land
-    // on the pane keyed 'rsi' and share its 0..100 scale. That is the v1 ruling
-    // and it is the display a fast/slow RSI trader wants; a pane-count change
-    // here is a regression, not a feature, because the pane manifest is what the
-    // pixel gate diffs.
+    // ⚰️ THE v1 RULING, REVERSED DELIBERATELY IN P2.0c — AND THIS CASE IS WHERE
+    // IT WAS ASSERTED, SO THIS IS WHERE THE REVERSAL IS RECORDED.
+    //
+    // It used to read "ONE PANE, NOT TWO": `orderedPaneKeys` deduped by `def.id`
+    // and `resolvePlacement` looked a pane up by `def.id`, so both instances
+    // landed on the pane keyed `'rsi'` and shared its 0..100 scale. Its guard
+    // below said that if this ever became two panes, the v1 premise had moved and
+    // every pane-manifest expectation in `tools/chart_parity_cases.json` had to be
+    // re-derived — STOP and report. It has moved, it was reported, and the guard
+    // did its job: nothing here changed by accident.
+    //
+    // ⭐⭐ WHY IT MOVED. A pane is now keyed by the INSTANCE that hosts it, because
+    // "Display in: <another series>" has to name a HOST, and a definition cannot be
+    // a host — two direct series over two different instruments would have shared
+    // one rectangle and one scale no matter which instruments they carried. Two
+    // own-pane instances of one definition are two panes for the same reason.
+    //
+    // ✅ AND THE GUARD'S STATED CONSEQUENCE WAS MEASURED BEFORE ACCEPTING IT, not
+    // waved away: `tools/chart_parity_cases.json` holds 52 cases, **0** of which
+    // carry two instances of one definition, and the file stores no pane keys,
+    // no pane manifests and no stretch factors at all — manifests are produced at
+    // RUNTIME by `paneLayout.paneManifest`. So no case's pane GEOMETRY changes.
+    // What a parity run would now report differently is the KEY STRING inside a
+    // runtime manifest, which is a rename, not a rectangle.
     const one = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
       settingsOverride={legendAlways(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))}
       alwaysShowLegend />)
     expect((await offCursorChips(one)).length, 'the one-RSI control drew nothing').toBe(1)
     expect(H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor),
       'the control drew more than one RSI line').toHaveLength(1)
-    expect(twoPanes, 'the duplicate created a SECOND pane. `orderedPaneKeys` dedupes by defId '
-      + '(paneLayout) and `resolvePlacement` resolves `const key = def.id`, so if this is now '
-      + 'two panes the v1 premise moved and every pane-manifest expectation in '
-      + '`tools/chart_parity_cases.json` has to be re-derived — STOP and report.')
-      .toEqual(paneIndices())
+    // ⛔⛔ AND THE ASSERTION IS INVERTED, NOT DELETED. "Two instances, two panes"
+    // is a claim with the same force as the one it replaces: the duplicate must
+    // occupy a pane the single-RSI control does NOT, or the host-key widening
+    // reached the layout and stopped short of the renderer.
+    expect(twoPanes.size, 'two own-pane instances must now occupy TWO panes — a pane is keyed '
+      + 'by its HOST INSTANCE (P2.0c), so a duplicate that still shared one rectangle would mean '
+      + '`orderedPaneKeys` widened and `resolvePlacement` did not')
+      .toBe(paneIndices().size + 1)
     expect(twoPanes.size, 'the fixture drew into a single pane — "one pane, not two" is vacuous')
       .toBeGreaterThan(1)
     one.unmount()
@@ -1812,12 +1838,17 @@ describe('the indicator pane prints its own name and value, top-left', () => {
   /** The pane readouts, in DOM order. Structural — read by the data attribute
    *  the rows carry, never by matching the text a case is about to assert. */
   const paneRows = (view) => [...view.container.querySelectorAll('[data-pane-legend]')]
+  /** ⚠️ BY PANE KEY, WHICH IS THE HOST INSTANCE ID (P2.0c) — not the definition.
+   *  A pane belongs to the instance that hosts it, so a chart built from a LEGACY
+   *  toggle labels its pane `legacy:rsi`, the id the migrator projected. The cases
+   *  below say so out loud rather than spelling a definition and relying on the
+   *  two having been the same string. */
   const paneRow = (view, key) => view.container.querySelector(`[data-pane-legend="${key}"]`)
 
   it('an RSI pane carries `RSI(14)` and the hovered value', async () => {
     const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
-    const row = paneRow(view, 'rsi')
+    const row = paneRow(view, 'legacy:rsi')
     expect(row, 'the RSI pane printed no readout at all').toBeTruthy()
     // ⚠️ THE LABEL COMES FROM `legendParams`, NOT FROM THIS FILE. RSI declares
     // `legendParams: ['period']`, which is what puts the 14 in parentheses — the
@@ -1844,13 +1875,13 @@ describe('the indicator pane prints its own name and value, top-left', () => {
     // that reason and it had to come back out.
     const rows = paneRows(view).map((el) => el.dataset.paneLegend)
     expect(rows.length, 'expected one readout per indicator pane').toBe(2)
-    expect(rows).toEqual(['rsi', 'macd'])
+    expect(rows).toEqual(['legacy:rsi', 'legacy:macd'])
   })
 
   it('a pane prints EVERY chip-bearing plot and no other — MACD, SIG, no histogram', async () => {
     const view = draw(mergeChartSettings({ indicators: { macd: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'macd::macd': 2.5, 'macd::signal': 1.75 }))
-    const row = paneRow(view, 'macd')
+    const row = paneRow(view, 'legacy:macd')
     expect(row.textContent).toContain('MACD')
     expect(row.textContent).toContain('SIG')
     // ⛔ THE HISTOGRAM IS THE CONTROL. It declares `legend: { hide: true }`, so a

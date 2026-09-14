@@ -342,6 +342,37 @@ jobs go through `uct-clips/tools/heavy_lock.py`.
 
 ---
 
+### 8.5 ⛔⛔ The bot does NOT get `MANAGE_ROLES`. Channel permission work is a browser task.
+
+**Owner ruling, 2026-09-14 (OI-33).** The render bot holds `MANAGE_CHANNELS`. It does **not** hold
+`MANAGE_ROLES` and must not be given it.
+
+**What that means in practice, measured rather than assumed:**
+
+| Task | Bot | Why |
+|---|---|---|
+| read any channel's overwrites | ✅ `discord_channel_admin.py --list-channels` | `GET /guilds/{id}/channels` returns overwrites for **every** channel, including ones the token cannot open |
+| post, attach files | ✅ | proven by a real post: `DELIVERY OK http=200 attachments=1` |
+| **create** a channel carrying overwrites | ❌ **403 `50013`** | Discord requires `MANAGE_ROLES` to set overwrites, even at creation |
+| **edit** an existing channel's overwrites | ❌ **403 `50013`** | same |
+
+⭐ **`MANAGE_CHANNELS` was granted expecting it to cover both, and it covers neither.** The two 403s
+are the measurement; do not re-derive this from the permission's name.
+
+⛔ **Do NOT "fix" a 50013 by granting `MANAGE_ROLES`.** It would let the bot rewrite overwrites on
+**any** channel in a 1,558-member guild and manage every role beneath its own — a standing
+capability, bought to save a few clicks on a task performed a handful of times a year. The trade is
+wrong even though the error message points straight at it.
+
+**So: channel creation and overwrite edits are done in the browser**, under the T-12 charter (the
+owner's session, real pointer and keyboard, screenshots per step), and then **read back by API** —
+`discord_channel_admin.py --read-channel <id>` — because the request is not the evidence and the
+Discord UI has twice reported a change that the read-back described differently.
+
+⚠️ And `50001 Missing Access` is **membership**, not permission level: a bot with every permission
+in the guild still gets 50001 on a channel it has no overwrite on. Those two error codes send you
+to two different fixes.
+
 ## 9. Routine operations
 
 **Find everything about one job.** Take the `cid` from the member's failure message, then:
@@ -415,11 +446,245 @@ path most likely to look like the fix.
 
 ---
 
+## 9b. The artifact cache — two tiers, one flag
+
+`RENDER_CACHE_ENABLED` on `web`. **An enablement gate, so unset means OFF** — it ADDS behaviour and
+must not switch itself on in every environment the moment it merges. (Contrast `HUB_PREVIEW_ENABLED`
+elsewhere in this repo, which is a KILL switch and therefore defaults ON. The polarity is not a
+style choice: a kill switch must not confuse "nobody set it" with "somebody shut it down".)
+
+| Tier | Where | Bound | Survives a restart |
+|---|---|---|---|
+| **L1** | process heap | `DISCORD_RENDER_CACHE_MEM_BYTES`, 64 MiB | no |
+| **L2** | the Railway volume, `DISCORD_RENDER_CACHE_DIR` (`/data/discord_render_cache`) | `DISCORD_RENDER_CACHE_BYTES`, 512 MiB, LRU **by bytes** | **yes** |
+
+A lookup is L1 → L2 → render; an L2 hit promotes into L1. ⛔ **L1 eviction never reaches L2 and L2
+eviction never reaches L1** — they are different budgets over different resources.
+
+**Why L2 exists at all:** this pod's median deployment serves **8.4 minutes**, so an in-memory cache
+is empty exactly when the first render after a deploy needs it most. That is the same measurement
+that made in-memory look sufficient, read the other way round.
+
+⛔⛔ **THE DATA'S VINTAGE IS PART OF THE KEY, AND EVERYTHING ELSE FOLLOWS FROM THAT.** Two renders of
+one symbol at one vintage are the same picture, so a hit is not a degradation and carries **no
+label** — a badge on a cache hit would be furniture. ⚠️ If the vintage ever leaves the key, the cache
+serves yesterday's chart under today's badge. That is mutation `W2`, not a comment.
+
+⛔ **A stand-in is never cached** (OI-32). Both tiers refuse an artifact carrying `is_standin` and
+count the refusal (`refused_standin`, `l2_refused_standin`). C-06 measured three stand-ins of which
+two never healed; caching one serves it to everyone for a TTL and the coalescer fans it out to every
+follower at once.
+
+**Reading it:** `artifact_cache.store().stats()` — `hits`, `misses`, `l2_promotions`,
+`l2_served_unpromoted`, `refused_oversize`, `refused_standin`, `coalesced_followers`.
+⛔ A hit rate of **zero over zero lookups is not a bad cache, it is no measurement**; the tooling
+reports `None` there and so should you.
+
+**Turning it off:** unset `RENDER_CACHE_ENABLED`. With it off the render path is `produce()` and
+nothing else — not a lookup that misses, not a key computed and thrown away
+(`test_with_the_flag_off_the_render_path_is_byte_for_byte_what_it_was`).
+⛔ `clear()` empties the heap only. The durable tier goes only on `clear(l2=True)` — stopping
+something is never a delete against durable data.
+
+---
+
+## 9c. Shadow mode, and how to read the line
+
+`RENDER_V2_SHADOW=1` on `web`. It records what V2's **acknowledgement decision** would have been,
+after the member's reply has already been returned, on a pool. It changes nothing a member sees.
+
+```sh
+python tools/railway_env_logs.py --filter drender \
+    --since <ISO> --until <ISO> --out shadow.jsonl
+python docs/discord-render/instruments/shadow_report.py shadow.jsonl
+```
+
+**What the line says, field by field:**
+
+| Field | Meaning |
+|---|---|
+| `records: N` | how many interactions were shadowed. ⛔ If the pull was truncated this prints `>= N` — a FLOOR, not a count |
+| `agree` | V2 would have done what the old path did |
+| `divergence` | V2 would have REFUSED a symbol the old path drew. **This is the number the flip rests on** |
+| `could_not_tell` | V2 could not resolve the symbol — ⛔ **never summed with `agree`**; "we agreed" and "we could not tell" both produce zero refusals and only this separates them |
+| `budget` | the shadow gave up inside its 0.6 s budget: a MISSING sample, not a fast one |
+| `error` | the shadow itself failed |
+
+⛔⛔ **A DIVERGENCE COUNT OF ZERO IS MEANINGLESS WITHOUT ITS DENOMINATOR.** Zero over 8 records and
+zero over 800 are the same headline and different facts. The sample size prints first for that
+reason.
+
+⛔ **A command with no records is not a clean command.** "Nobody ran it" and "it is not being
+shadowed" are indistinguishable from the line alone — the report says so rather than implying
+health. Settling it takes an EXACT pull *plus*
+`tests/test_discord_render_shadow_reaches_chart.py`, which drives the real route with a real
+Ed25519 signature.
+
+**What would block a flip:** a divergence class implying V2 would have produced a **WRONG** chart —
+not a slower or a degraded one. Those are forensics rows.
+
+---
+
+## 9d. Rollback — one variable, and what each one costs
+
+| Want to stop | Set | Reaches members | Redeploy? |
+|---|---|---|---|
+| **V2 entirely** | unset `DISCORD_RENDER_V2_ENABLED` on `web` | next interaction | no — read per call |
+| one command only | `DISCORD_RENDER_V2_{CHART,FLOW,BUZZ,CONTROLS}_ENABLED=0` | next interaction | no |
+| the adapters, keeping V2 | `DISCORD_RENDER_V2_ADAPTERS_ENABLED=0` | next job | no — read per call |
+| the cache | unset `RENDER_CACHE_ENABLED` | next render | no |
+| shadow recording | `RENDER_V2_SHADOW=0` | next interaction | no |
+
+⛔ **Verify the RUNNING PROCESS, never `--kv`.** `--kv` shows what the service is configured with,
+which is not evidence the process has it — and `railway variables --set` has been measured both
+staging and auto-redeploying on this project. Read it in-process over `railway ssh`.
+
+⛔ **A failing post-deploy smoke is rolled back FIRST and diagnosed second** (rule H15). And
+**INCONCLUSIVE is not FAILED** — rolling back on an unmeasured deploy teaches everyone to stop
+running the check.
+
+---
+
+## 9e. Recycling the renderer pool — TWO paths, and they recycle different things
+
+⛔ **Do not read one as the other.** They differ in what they destroy, what they cost a member, and
+which counter on `/health` they move. Both live in `services/chart_renderer/app.py`, and both are
+inert unless `RENDER_POOL_ENABLED` is on — with the pool off there is no pool to recycle.
+
+| | **Organic** — the RSS / render ceiling | **On demand** — `POST /admin/pool/recycle` |
+|---|---|---|
+| Recycles | the whole **browser** (Chromium) and every spare context on it | exactly **one idle pooled page** |
+| Trigger | `slot.renders >= RENDER_RECYCLE_AFTER` (500) **or** container RSS over `RENDER_RSS_CEILING_MB` (2500), evaluated after every render (`_after_render`) | an operator calls the endpoint |
+| Member cost | none at the moment of retirement — the replacement Chromium is launched immediately and the old one closes only when its **last in-flight render finishes**. Measured +56 ms p50 at a recycle every 12 renders (`05-progress.md`) | none. It takes an **idle** page; a context handed to a render has already been removed from the pool, so there is nothing in the pool a render can be using |
+| Counter | `recycles` on `/health`, and `renders_since_recycle` resets | `page_recycles` on `/health` |
+| Log line | `pool: recycling chromium after N renders (rss_mb=…)` | `pool recycle cid=… recycled=… replaced_by=… idle=A->B browser=… reason=…` |
+
+⭐ **The counters are separate on purpose.** `recycles` and `renders_since_recycle` are how anyone
+reading `/health` (or `LEDGER.md`'s "evidence of a NEW browser") knows Chromium restarted. A page
+recycle that bumped `recycles` would make both of those stop meaning that.
+
+### Arming the on-demand lever
+
+**Two variables on `chart-renderer`, and it is off without both.** `RENDER_ADMIN_ENDPOINTS` is an
+*enablement* gate (it ADDS a lever), so **unset means OFF** — the opposite polarity to a kill switch
+like `RENDER_CACHE_ENABLED`'s neighbours in §9b, for the reason given there.
+
+```sh
+railway variables --service chart-renderer --set "RENDER_ADMIN_TOKEN=$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+railway variables --service chart-renderer --set "RENDER_ADMIN_ENDPOINTS=1"
+# then verify a NEW BOOT and read it IN-PROCESS — `--kv` is what the service is configured with,
+# which is not evidence the running process has it (CLAUDE.md: `--set` has been measured BOTH ways).
+```
+
+⛔ **`RENDER_ADMIN_TOKEN` is deliberately not `CHART_RENDERER_SECRET`.** The render secret is handed
+to `web` on every single render; an operator lever must not be reachable with a credential the
+render path already carries. An unset `RENDER_ADMIN_TOKEN` **locks** the lever (401), it does not
+open it.
+
+**Disarm:** `railway variables --service chart-renderer --unset RENDER_ADMIN_ENDPOINTS`. The gate is
+read per request, so the route goes back to 404 on the next call — no redeploy, and nothing about
+rendering changes either way.
+
+### Firing it
+
+chart-renderer has **no public domain** — it is reachable only on Railway's private network
+(`CHART_RENDERER_URL=http://chart-renderer.railway.internal:8080`), so the call is made from inside
+a pod. From the renderer's own shell:
+
+```sh
+railway ssh --service chart-renderer
+curl -sS -X POST http://127.0.0.1:8080/admin/pool/recycle \
+  -H "Authorization: Bearer $RENDER_ADMIN_TOKEN" \
+  -H "X-Correlation-Id: $(python -c 'import secrets;print(secrets.token_hex(4))')"
+```
+
+If `curl` is not in the image, the same call on the **standard library** — `services/chart_renderer/
+requirements.txt` is fastapi + uvicorn + pydantic + playwright and nothing else, so do not reach for
+`httpx` or `requests` here:
+
+```sh
+railway ssh --service chart-renderer -- python -c "import os,json,secrets,urllib.request as u; \
+q=u.Request('http://127.0.0.1:8080/admin/pool/recycle', method='POST', headers={ \
+'Authorization':'Bearer '+os.environ['RENDER_ADMIN_TOKEN'],'X-Correlation-Id':secrets.token_hex(4)}); \
+print(json.dumps(json.load(u.urlopen(q, timeout=30)), indent=1))"
+```
+
+⚠️ `urlopen` raises `HTTPError` on 401/404 rather than returning them — catch it, or you will read a
+traceback as "the service is down" when it is the gate answering correctly.
+
+From the `web` or `worker` pod instead, swap the host for `chart-renderer.railway.internal:8080`.
+
+⚠️ `X-Correlation-Id` must be **exactly 8 lowercase hex characters** or it is logged as `-` —
+the same rule `/render` uses, so a recycle can be joined to the renders around it in one log grep.
+
+### Reading the reply
+
+**200 is not by itself evidence anything was recycled.** Read `recycled` and `reason`:
+
+| Field | Means |
+|---|---|
+| `recycled` | the page that was taken: `id`, `width`/`height`/`scale`, `renders`, `age_s`. **`null` means nothing was taken** — `reason` says why |
+| `replaced_by` | the fresh page created in its place, through the same `_replenish` every spare context comes from |
+| `reason` | `null` on a clean recycle. `pool disabled`, `no live browser` or `pool empty` alongside `recycled: null` — each an **answer**, not an error, because the ruling forbids forcing one. ⚠️ It is also non-null **with** a `recycled` page when the replacement could not be created: the page went, the pool is one short, and `idle` will be one lower in `after` |
+| `before` / `after` | `size` (= `idle` + `in_use`), `in_use`, `idle`, `pages[]` (one entry per idle pooled page), `browser` (`id`, `connected`, `retired`, `renders_since_launch`), and all four counters |
+
+**What to check, and it is the whole point of the before/after pair:**
+
+- `before.browser.id == after.browser.id` ⇒ **Chromium was not restarted.** A replacement browser
+  answers `connected: true` just as happily, so the id is the only thing that settles it.
+- `before.idle == after.idle` and exactly one id in `before.pages` missing from `after.pages`
+  ⇒ **exactly one page**, not the pool.
+- `after.recycles == before.recycles` ⇒ nothing tripped the organic path while you were looking.
+
+⚠️ **Per-page `renders` is 0 for every idle page, by construction and not by accident.** A spare
+context serves exactly one render's page and is then closed, so a page still sitting in the pool has
+served none. The cumulative count that drives the organic ceiling is `browser.renders_since_launch`.
+
+⚠️ Two concurrent calls take two **different** pages (the entry is popped, so only one caller can
+get it); they never fight over one and never take the browser.
+
+### What it is for
+
+Determinism-across-recycle and the self-heal chaos row need a recycle they can **cause**. Before
+this, the only way to cause one was to restart the browser or the service, which drops every
+in-flight render — so the measurement changed the thing it was measuring. Owner ruling B1,
+2026-09-14.
+
+---
+
 ## 10. Measurement pitfalls — instruments on this path that have lied
 
 Each of these produced a confident, wrong reading in this programme. They are here because the
 next person to measure this system will reach for the same instrument.
 
+- **⛔⛔ A TRUE STATEMENT ABOUT THE WRONG ENDPOINT IS STILL A WRONG ANSWER.** The `#render-alerts`
+  access probe spent a full day reporting `STILL_BLOCKED`, hourly, correctly: `GET /channels/{id}`
+  really does answer `403 / 50001` for a channel the bot is not in. The question everyone actually
+  had — *which roles can see it?* — was answered by `GET /guilds/{id}/channels`, which returns
+  `permission_overwrites` for **every channel in the guild including ones the token cannot open**.
+  One call away, for a day. ⭐ **When a probe keeps returning the same refusal, ask whether a
+  different endpoint answers the question, before concluding the answer is "no".**
+- **⛔⛔ A RUNNER THAT COUNTS WHAT IT WAS ASKED TO DO, NOT WHAT IT DID.** `chaos_scenarios.py --real`
+  printed `ran=13 passed=13` while **six** of those scenarios had been refused by name and never
+  executed — the chunked-run defect, inside the instrument built to avoid it. `ran` now excludes
+  refused, and a refusal carries its reason. ⭐ The shape to distrust: any summary whose numerator
+  and denominator come from the same list rather than from what actually executed.
+- **⛔⛔ A TEST WHOSE VERDICT DEPENDS ON WHEN IT RUNS REPORTS THE CALENDAR.** Two suites written on a
+  Sunday were green all weekend and red at Monday's open — and the first thing one of those reds did
+  was **refuse a mutation harness's control run, so eighty mutation proofs did not happen** and
+  nothing said so. `clock_sweep.py` pins the product's market clock (`freshness.now_et()`, never the
+  OS clock — moving that would also move file mtimes and pytest's own bookkeeping) to four instants
+  spanning every session state and reports any test whose verdict differs. **1,220 observations,
+  CLEAN** — and that CLEAN is only worth stating because planting the old assertion back makes it
+  report the test by name. ⭐ **It is permanently in the gate** as
+  `tests/test_clock_sweep_in_the_gate.py`; before that wiring the string `clock_sweep` appeared
+  nowhere in the repo but its own filename, and an instrument nobody runs reads as coverage.
+- **A wrapper must not fight the script it wraps for that script's log file.** `UCT Render Token
+  Retire` reported `lastRun=07:15, LastTaskResult=1` and had **never done anything**: the `.cmd`
+  redirected stdout into the same path the Python script opens for append, so the script died on its
+  first `log()` call with `PermissionError` — and the crash handler died on the same line. ⭐ The
+  failure is invisible except by reading the log it could not write. Give the wrapper its own
+  `.wrapper.log` for wrapper-level failures and leave the script's log to the script.
 - **`observe.event` silently drops every field outside its allowlist.** Shadow mode ran for ~20
   minutes emitting `{"evt":"shadow","cmd":"chart","ms":12.3}` — lines at the right rate, with
   plausible latency, and **no content at all**, because `outcome` and `detail` were not in
@@ -457,6 +722,19 @@ next person to measure this system will reach for the same instrument.
   `>= 8` the best the Monday shadow line could say — and left "nobody ran `/chart`" and "the pager
   stopped early" indistinguishable. The discriminator is whether the page came back FULL; the
   output file now carries a `_meta` header saying whether its own count is exact.
+- ⛔⛔ **"EXACT" AND "A FLOOR" ARE DIFFERENT NUMBERS AND AN INSTRUMENT MUST SAY WHICH IT HAS.**
+  `railway_env_logs.py` printed *"STOPPED: no progress past …"* for a pull that had simply reached
+  the end of the data, so **every** count it produced was a floor — and "nobody ran `/chart`" could
+  not be told from "the pager stopped early". The discriminator is whether the page came back FULL;
+  an under-full page means the API returned everything it had. The output file now carries a
+  `_meta` header stating whether its own count is exact, and `shadow_report.py` reads it rather
+  than trusting a `--pager-stopped` flag someone remembered to pass.
+- ⛔⛔ **AN ABSENCE IN ONE COMMAND'S RECORDS SAYS NOTHING ABOUT THE HOOK UNTIL YOU MUTATE IT.**
+  Zero `/chart` shadow records beside eight `/flow` ones has two explanations — no traffic, or no
+  hook — and reasoning cannot separate them. What did: an EXACT log pull (8 interactions, all
+  `/flow`, one 11-second burst) **plus** a rail that drives the real route with a real Ed25519
+  signature, parametrised over both commands, **plus** two mutations that make it red. Prose was
+  not enough at any point.
 - ⛔⛔ **A TEST THAT READS THE WALL CLOCK REPORTS THE CALENDAR.**
   `test_bars_come_back_with_a_vintage_derived_from_the_newest_bar` asserted the session word was
   `WEEKEND` or one of `CLOSED_STATES`. It was written on a Sunday, was green all weekend, and went
@@ -470,6 +748,38 @@ next person to measure this system will reach for the same instrument.
   exact log pull *and* an end-to-end rail to establish, and neither existed at the time.
   `tests/test_discord_render_shadow_reaches_chart.py` drives the real route with a real Ed25519
   signature so the structural half can never be the open question again.
+
+---
+
+## 10b. Standing rules for anyone operating this
+
+### ⛔⛔ NEVER POST INTO A CHANNEL WHOSE OVERWRITES YOU HAVE NOT READ **THIS SESSION**
+
+Owner ruling, 2026-09-14. Before any automated write to a Discord channel — a smoke run, a bench,
+a backfill, a test post — read that channel's permission overwrites and confirm who can see it:
+
+```sh
+railway run -p <project> -e production -s web \
+  python docs/discord-render/instruments/discord_channel_admin.py --read-channel <id>
+```
+
+It prints the overwrites **as Discord holds them**, role by role, allow and deny named rather than
+as a bitmask.
+
+⭐ **Why "this session" and not "once".** A channel's overwrites are edited by people, and the cost
+of being wrong is asymmetric: a read costs one API call, and a mistake puts bot traffic — or a
+degraded chart, or a failure message with a correlation id in it — in front of members. A channel
+that was private last week is not evidence about today.
+
+⛔ **The request that created a channel is not evidence either.** Discord can accept a create and
+apply the overwrites differently from what was asked — an unknown role id, a permission the caller
+cannot grant. `--create-smoke` therefore always follows the create with a `GET` and prints what
+came back; that read-back is the evidence, not the payload that was sent.
+
+⛔ **403 `50001 Missing Access` is MEMBERSHIP, not permission level.** A bot can hold Administrator
+and still get 50001 for a channel it is not in. `--whoami` reports what the token's roles GRANT;
+`--read-channel` reports what a given channel ANSWERS. Collapsing the two sends you to grant a
+permission that was never the problem.
 
 ---
 

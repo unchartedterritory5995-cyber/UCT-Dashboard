@@ -3438,12 +3438,30 @@ async def lifespan(app: FastAPI):
         import threading as _th
 
         def _breadth_numeric_backfill():
+            _log = logging.getLogger(__name__)
             try:
                 from api.services import breadth_numeric_migration as _mig
-                out = _mig.backfill()
-                logging.getLogger(__name__).info("[startup] breadth numeric projection: %s", out)
+                _log.info("[startup] breadth numeric projection: %s", _mig.backfill())
             except Exception:
-                logging.getLogger(__name__).exception("[startup] breadth numeric backfill failed")
+                _log.exception("[startup] breadth numeric backfill failed")
+            try:
+                from api.services import breadth_numeric_migration as _mig
+                _log.info("[startup] breadth reconstructed side: %s",
+                          _mig.backfill_reconstructed())
+            except Exception:
+                _log.exception("[startup] breadth reconstructed backfill failed")
+            # ⭐ AND THEN THE INCREMENTAL PASS, EVERY BOOT. The writer hooks keep the
+            # derived table in step in normal operation; this catches whatever
+            # happened while this pod was not running — a collector push to another
+            # instance, a sync merge, a hand-run admin recompute. It is a no-op when
+            # nothing drifted, and the watermark is what makes "nothing drifted" a
+            # measurement rather than an assumption.
+            try:
+                from api.services import breadth_daily_ohlc as _ohlc
+                _log.info("[startup] breadth reconstructed rebuild_stale: %s",
+                          _ohlc.rebuild_stale())
+            except Exception:
+                _log.exception("[startup] breadth reconstructed rebuild_stale failed")
 
         _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
                    daemon=True).start()

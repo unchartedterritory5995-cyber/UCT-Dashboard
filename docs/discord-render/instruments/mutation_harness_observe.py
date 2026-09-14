@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve()
+
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
 O = "tests/test_discord_render_observe.py::"
 H = "tests/test_discord_render_health_command.py::"
 A = "tests/test_discord_activity.py::"
@@ -44,8 +52,10 @@ MUTATIONS = [
      "new": "    from api.routers import discord_interactions as _r\n    renderer = _r._renderer_health()\n",
      "tests": [H + "test_an_admin_gets_the_health_privately"]},
     {"name": "M7 /renderhealth ignores its budget (store read on the loop)", "file": CMD,
-     "old": "    payload = await _bounded(lambda: observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses),\n                             HEALTH_BUDGET_S, None)\n",
-     "new": "    payload = observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses)\n",
+     # re-aimed 2026-09-14: the lambda became a named `_payload` closure and the sentinel became
+     # "timeout". Same intent — call it straight, on the loop, with no budget around it.
+     "old": '    payload = await _bounded(_payload, HEALTH_BUDGET_S, "timeout")\n',
+     "new": "    payload = _payload()\n",
      "tests": [H + "test_a_slow_store_gets_an_honest_answer_inside_the_budget"]},
     {"name": "M8 shutdown leaves the observer running", "file": CMD,
      "old": "    if obs is not None:\n        obs.stop()\n", "new": "    pass\n",

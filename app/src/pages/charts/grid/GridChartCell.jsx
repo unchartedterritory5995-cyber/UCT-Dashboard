@@ -30,6 +30,11 @@ import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
 import { TF_ORDER, shortcutClaimsKey } from '../../../components/chart/keyboardShortcuts'
+import { chordById, matchesChord } from '../../command/chords.js'
+
+// ⛔ Resolved ONCE at module scope: a lookup inside the handler would re-scan the
+// table on every keystroke, and a miss would silently disable the binding.
+const SHIFT_F = chordById('SHIFT_F')
 
 // Labels for the timeframe bar. Order comes from TF_ORDER so the bar and the
 // keyboard ladder can never drift apart (mirrors ChartWidget.jsx exactly).
@@ -200,7 +205,12 @@ function GridChartCell({
     // never hijack into type-to-search.
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.tagName === 'SELECT' || tgt.isContentEditable)) return
     // ⛔ `!e.repeat`: a held chord auto-repeats ~30x/sec and this is a TOGGLE.
-    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // S2 CP2 - this surface reads the DECLARED chord table instead of spelling the
+    // modifier set out inline. Behaviour is identical by construction and proved so
+    // over the whole modifier matrix in chords.identity.test.js.
+    // ⛔ `!e.repeat` stays HERE, not in the table: a held chord auto-repeats ~30x/sec
+    // and this binding is a TOGGLE. That is a property of the binding, not the chord.
+    if (matchesChord(e, SHIFT_F) && !e.repeat) {
       if (!sym) return   // empty cell: flagging null would poison the Flagged list
       e.preventDefault(); e.stopPropagation()
       const willFlag = !isFlagged(sym)

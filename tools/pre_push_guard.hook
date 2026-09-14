@@ -5,23 +5,45 @@
 # written in CLAUDE.md ("ONE MASTER MERGE AT A TIME, REPO-WIDE") and was not
 # followed: three pushes in eight minutes on 2026-09-13 served 502s.
 #
-# Bypass:  UCT_SKIP_PREPUSH_GUARD=1 git push ...    (logged)
+# Also refuses a master push inside the 09:25-16:05 ET window on a trading day,
+# unless the whole diff is cleared for daytime by docs/runbooks/deploy-windows.md.
+#
+# Bypass:  UCT_SKIP_PREPUSH_GUARD=1 git push ...                       (the QUEUE, logged)
+#          UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push (the CLOCK, logged)
 # Install: python tools/pre_push_guard.py --install   (or copy this file)
 
 # Only guard pushes whose DESTINATION is master.
+#
+# `local_sha`/`remote_sha` are captured so the guard can diff EXACTLY what this
+# push would land on master, rather than guessing from `origin/master...HEAD` —
+# the clock guard's daytime exemption is a claim about that diff, and a diff
+# computed against a stale local `origin/master` is a claim about a different push.
 guarded=0
-while read -r _local_ref _local_sha remote_ref _remote_sha; do
+local_sha=""
+remote_sha=""
+while read -r _local_ref l_sha remote_ref r_sha; do
   case "$remote_ref" in
-    refs/heads/master|refs/heads/main) guarded=1 ;;
+    refs/heads/master|refs/heads/main) guarded=1; local_sha="$l_sha"; remote_sha="$r_sha" ;;
   esac
 done
 [ "$guarded" = "1" ] || exit 0
+
+# All-zero remote sha = master does not exist remotely; fall back to the default range.
+case "$remote_sha" in
+  *[!0]*) : ;;
+  *) remote_sha="" ;;
+esac
+args=""
+if [ -n "$remote_sha" ] && [ -n "$local_sha" ]; then
+  args="--base $remote_sha --head $local_sha"
+fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 for cand in "$root/tools/pre_push_guard.py" \
             "$root/../uct-worktrees/s7-price-level/tools/pre_push_guard.py"; do
   if [ -f "$cand" ]; then
-    python "$cand" || exit 1
+    # shellcheck disable=SC2086
+    python "$cand" $args || exit 1
     exit 0
   fi
 done

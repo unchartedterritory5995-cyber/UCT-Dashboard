@@ -126,7 +126,17 @@ describe('the VWAP row is DERIVED from the definition, not written here', () => 
     // A type with no control renders NOTHING rather than rendering wrong — a
     // control that writes nowhere is the defect this whole task is retiring.
     expect(fieldFromInput({ key: 's', label: 'S', type: 'string' })).toBe(null)
-    expect(fieldFromInput({ key: 'src', label: 'Src', type: 'source' })).toBe(null)
+    // ⭐⭐ `source` CAME OFF THAT LIST WHEN IT ACQUIRED A REAL CONTROL (P2.1).
+    // While no shipped definition declared one, `null` was the honest answer;
+    // `dataSeries` declares one and is member-facing, so "renders nothing" would
+    // mean an instance whose INSTRUMENT cannot be changed.
+    //
+    // ⛔ AND THE DESCRIPTOR CARRIES NO OPTIONS, which is the difference from an
+    // enum. An enum's choices are declared and identical on every chart; a
+    // source's depend on what else is ON this chart and on what the member
+    // searches for, so `SourceField` builds the list live from settings.
+    expect(fieldFromInput({ key: 'src', label: 'Src', type: 'source' }))
+      .toEqual({ key: 'src', label: 'Src', type: 'source' })
   })
 })
 

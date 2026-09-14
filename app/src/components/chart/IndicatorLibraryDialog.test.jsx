@@ -9,6 +9,7 @@ import { catalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 // ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
 //
@@ -26,8 +27,16 @@ import * as engineRegistry from './engine/nativeRegistry'
 
 /** Every row the DIALOG offers, in render order — the union it actually makes.
  *  ⛔ DERIVED, NEVER TYPED: a row added to either list arrives here for free,
- *  which is the property the hand-typed section list this suite replaced lost. */
-const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows()]
+ *  which is the property the hand-typed section list this suite replaced lost.
+ *
+ *  ⛔⛔ MINUS `LIBRARY_HIDDEN_IDS`, AND THAT SUBTRACTION IS ITSELF DERIVED. A
+ *  definition cannot simply be left out of `catalogRows()` — that is the shipped
+ *  manifest two consumers assert against id-for-id — so it is listed there and
+ *  subtracted at the consumer, as a written claim. Reading the same constant the
+ *  dialog reads keeps this expectation honest without re-typing the exception;
+ *  the case below is what stops the constant from quietly growing. */
+const OFFERED = () => [...BUILT_IN_ROWS,
+  ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
 
 // ─── THE BROWSE / ADD SURFACE (spec §6) ─────────────────────────────────────
 //
@@ -60,6 +69,29 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // …and the carved-out section is one of them. A list built from definitions
     // alone drops it — the regression B3 Task 11 refused.
     expect(optionIds()).toContain('volumeProfile')
+  })
+
+  it('⛔⛔ A HIDDEN DEFINITION IS IN THE MANIFEST AND NOT IN THE DIALOG', () => {
+    // ⭐ `dataSeries` plots whatever it is pointed at, so a row reading "Data
+    // Series" — offering to plot `close` in a pane of its own — means nothing to
+    // anybody. Its member-facing rows are `QQQ` and `UCTA50`, and they arrive
+    // through symbol search carrying the source that gives the row its meaning.
+    //
+    // ⛔ BOTH HALVES, because either alone is satisfiable by the wrong fix. In
+    // the manifest (so the id-for-id consumers still see it) AND absent from the
+    // dialog (so no member is offered a row that means nothing).
+    expect(catalogRows().map((r) => r.id),
+      'dataSeries left the shipped manifest — the exclusion belongs at the consumer',
+    ).toContain('dataSeries')
+    open()
+    expect(optionIds()).not.toContain('dataSeries')
+  })
+
+  it('⛔ …and the exclusion has not quietly grown', () => {
+    // The constant is what `OFFERED()` subtracts, so an id added to it silently
+    // removes a row from every count above WITHOUT failing one of them. This is
+    // the case that notices.
+    expect([...LIBRARY_HIDDEN_IDS]).toEqual(['dataSeries'])
   })
 
   it('shows the long name and the one-line blurb, not the chip abbreviation', () => {

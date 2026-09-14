@@ -19,6 +19,14 @@ from pathlib import Path
 # the repository. The positional root is still supported; it just has to look like one.
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("-")]
 ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3]
+
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
 T = "tests/test_discord_render_adapters.py::"
 TR = "tests/test_discord_render_result.py::"
 CALL = "api/services/discord_render/adapters/_call.py"
@@ -44,15 +52,22 @@ FORENSICS = "tests/test_discord_render_forensics.py"
 TRT = T
 
 MUTATIONS = [
-    # ⚰️ A49-A53 RETIRED 2026-09-14, NOT DELETED FOR CONVENIENCE. They proved five
-    # properties of the footer that `bindings` used to compose itself: a healthy delivery
-    # is not stamped, the badge is the envelope's sentence and not a second copy, the stamp
-    # is not appended twice, the CONTENT is trimmed rather than the stamp, and a degraded
-    # delivery keeps the id. C-06 moved that composition into `badge.py`, where Lane D's
-    # harness already proves every one of them: B3, B2, B13, B12 and B5 respectively.
-    # ⛔ RE-AIMING THEM HERE WOULD HAVE MADE A SECOND COPY OF EACH GUARD, and three copies
-    # of a rule cannot be mutation-proved (`lesson_a_guard_repeated_is_a_guard_unproved`).
-    # The property is still proved. It is proved ONCE, in the module that owns the copy.
+    # ⚰️ A49-A53 RETIRED 2026-09-14, NOT DELETED FOR CONVENIENCE. They proved five properties of
+    # the footer that `bindings` used to compose itself. C-06 moved that composition into
+    # `badge.py`, so re-aiming them here would have made a SECOND COPY of each guard — and three
+    # copies of a rule cannot be mutation-proved (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    #
+    # ⛔ EACH RETIREMENT NAMES ITS SUCCESSOR SO A READER CAN VERIFY THE GUARD RATHER THAN TRUST
+    # THIS COMMENT, and `tests/test_mutation_harness_anchors.py::test_the_retired_mutations_name_
+    # _their_successors` asserts every id below really exists in the badge harness:
+    #
+    #   A49 a healthy delivery is stamped too        retired → covered by B3   (Lane D, 925b3e08d)
+    #   A50 the badge is a second copy of the sentence retired → covered by B2   (Lane D, 925b3e08d)
+    #   A51 the stamp is appended on every edit      retired → covered by B13  (Lane D, 925b3e08d)
+    #   A52 the STAMP is trimmed instead of the content retired → covered by B12  (Lane D, 925b3e08d)
+    #   A53 a degraded delivery loses the id         retired → covered by B5   (Lane D, 925b3e08d)
+    #
+    # The properties are still proved. They are proved ONCE, in the module that owns the copy.
     # ── the spine ──────────────────────────────────────────────────────────
     {"name": "A1 the dependency timeout wins over the job deadline (the 60s-behind-15s defect)",
      "file": CALL,
@@ -283,8 +298,12 @@ MUTATIONS = [
      # ⚰️ RE-ANCHORED 2026-09-14. OI-29 made `attempts=1` explicit at this binding site, which moved
      # the closing paren onto a later line and left this mutation matching NOTHING — reported as
      # `NOT APPLIED (0 matches)`, i.e. a proof that did not happen, inside a run that printed 73/80.
-     "old": "            envelope=prior.envelope if prior and prior.ok else None,\n",
-     "new": "            envelope=None,\n",
+     # ⚰️ RE-ANCHORED TWICE IN ONE DAY, BY THE SAME PERSON WHO ADDED THE NEXT GUARD. OI-29 moved
+     # the closing paren; Gap 1's cache wiring then hoisted the envelope into a local and left
+     # `envelope=envelope,` at the call site. ⭐ Both times it was caught by `--dry-check` in the
+     # gate rather than at the end of a 25-minute run — which is the whole argument for the gate.
+     "old": "                envelope=envelope,\n",
+     "new": "                envelope=None,\n",
      "tests": [T + "test_the_render_is_stamped_with_the_vintage_of_the_bars_it_drew"]},
     {"name": "A33 a failed fetch is handed on as if it worked", "file": BIND,
      # ⚰️ RE-ANCHORED 2026-09-14. `attempts=1)))` used to appear ONCE; OI-29 states the attempt

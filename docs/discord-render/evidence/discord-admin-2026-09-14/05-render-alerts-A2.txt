@@ -1,0 +1,6 @@
+=== A2.1 bot role UCT Intelligence -> explicit View/Send/Attach/ReadHistory
+SET OVERWRITE FAILED http=403 code=50013
+=== A2.2 ADMIN role -> explicit View/Send/ReadHistory
+SET OVERWRITE FAILED http=403 code=50013
+=== A2.3 REMOVE the Contributor overwrite
+DEL OVERWRITE FAILED http=403 code=50013

@@ -1,0 +1,4 @@
+CHANNEL 1548783155354403046: #render-alerts type=0 parent=1000971430202187846
+  overwrites, as DISCORD holds them:
+    role 1474903498700230668: allow=[VIEW_CHANNEL] deny=[-]
+    role 882293203485720596: allow=[-] deny=[VIEW_CHANNEL]

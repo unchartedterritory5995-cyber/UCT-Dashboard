@@ -833,26 +833,40 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
         coll_rows = {}
 
     recon_needed = [d for d in window if d not in coll_rows]
+    # ⭐ THE MATERIALISED RECONSTRUCTED SIDE. This used to assemble 174,187 OHLC
+    # rows into 4,529 rows on every cold request; it is now one indexed read of
+    # pre-built rows. ⛔ The derivation is NOT the fallback here — it is the
+    # BUILDER, and `test_the_request_path_never_derives` fails if this path ever
+    # calls it. A date with no materialised row is reported, not silently rebuilt
+    # at member expense.
+    recon_rows: dict = {}
+    recon_missing = 0
     try:
         from api.services import breadth_daily_ohlc as ohlc
-        recon_closes = ohlc.closes_for_dates(recon_needed)
+        recon_rows, recon_missing = ohlc.reconstructed_for_dates(recon_needed)
+        absent = [d for d in recon_needed if d not in recon_rows]
+        if absent:
+            from api.services import breadth_timing
+            breadth_timing.note(reconstructed_missing=len(absent))
     except Exception:
-        recon_closes = {}
-    try:
-        from api.services import breadth_sentiment_history as sent
-        sent_map = sent.values_asof(recon_needed)
-    except Exception:
-        sent_map = {}
+        recon_rows = {}
 
     result_asc = []
     for d in window:
+        # ⛔ PRECEDENCE, ASSERTED RATHER THAN IMPLIED: where both a collector row and
+        # a reconstructed row exist for one date, the COLLECTOR row wins. That is
+        # today's behaviour and it is why the two live in separate tables — a single
+        # date-keyed table would have let whichever wrote last decide.
+        # Rail: `test_a_collector_row_beats_a_reconstructed_row_for_the_same_date`.
         if d in coll_rows:
             row = dict(coll_rows[d])
+        elif d in recon_rows:
+            # Pre-built: the closes, the sentiment overlay and the `_reconstructed`
+            # provenance flag are all stored together, so this is a dict copy rather
+            # than a per-request assembly out of the OHLC store.
+            row = dict(recon_rows[d])
         else:
-            row = dict(recon_closes.get(d, {}))
-            if sent_map.get(d):
-                row.update(sent_map[d])          # survey/exposure where archives have it
-            row["_reconstructed"] = True         # provenance for the UI
+            continue                             # no row for this date, from either side
         row["date"] = d
         result_asc.append(row)
 

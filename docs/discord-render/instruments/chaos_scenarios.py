@@ -621,6 +621,117 @@ def scenario_restart_three_in_flight(store) -> tuple[bool, str]:
     return True, f"{resumed} of {len(jobs)} accounted for on resume"
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# `--real` — the same scenarios, with the break induced in the WIRE instead of
+# in an injected exception.
+#
+# ⛔⛔ IT IS NOT AVAILABLE FOR EVERY SCENARIO, AND THE ONES IT CANNOT DO SAY SO RATHER THAN QUIETLY
+# RUNNING THE RIG VERSION AND CALLING IT REAL. A scenario that silently downgrades is worse than one
+# that refuses: the report would carry the word "real" over a stub.
+#
+#   renderer_down   ✅ real — the adapter is pointed at an unreachable host, so httpx, the timeout
+#                   and the breaker are all the production ones
+#   bars_api_502    ✅ real — same shape, a real transport failure rather than a raised RuntimeError
+#   mid_job_restart ✅ already real — the store, the lease and the expiry are the production code
+#   discord_429     ⛔ NOT AVAILABLE — inducing a real 429 means deliberately exceeding Discord's
+#                   rate limit on a live app. That is a self-inflicted outage for a measurement
+#   oversized_attachment ⛔ NOT AVAILABLE WITHOUT A CHANNEL — a real 40005 needs a real upload, and
+#                   there is no channel that is both bot-postable and not member-visible
+#
+# ⭐ WHAT `--real` BUYS WHERE IT APPLIES: an injected exception proves the HANDLER classifies what
+# it is told; an unreachable host proves the ADAPTER classifies what the network actually did. Those
+# are different claims, and only the second one has ever been wrong in production.
+# ════════════════════════════════════════════════════════════════════════════
+
+#: A host that cannot resolve. ⛔ `.invalid` is reserved by RFC 2606 — it can never be registered,
+#: so this cannot one day become somebody's real server.
+UNREACHABLE = "https://renderer.invalid.uct-chaos"
+
+REAL_CAPABLE = ("renderer_down", "bars_api_502", "mid_job_restart", "restart_three_in_flight",
+                "renderer_breaker_open", "ten_invalid_symbols", "clock_boundaries")
+REAL_REFUSED = {
+    "discord_429": "inducing a real 429 means deliberately exceeding Discord's rate limit on a "
+                   "live app — a self-inflicted outage for a measurement",
+    "oversized_attachment": "a real 40005 needs a real upload, and no channel is both "
+                            "bot-postable and not member-visible",
+    "flow_worker_unreachable": "flow-worker's real endpoint is the OPRA tape's service; pointing "
+                               "a load at it during a session is not a chaos test, it is a risk",
+    "stale_bars": "the break is a DATA vintage, not a wire failure — there is nothing to make real",
+    "bars_slow": "a real SLOW upstream is not the same as a real DEAD one, and only a server we "
+                 "control can be reliably slow. Real network latency VARIES, which would make the "
+                 "budget assertion flaky — the injected delay is the more precise instrument for "
+                 "this specific claim, and `bars_api_502` covers the real-wire case",
+    "discord_gateway_dropped": "a real dead token means an EXPIRED interaction token, and an "
+                               "interaction token is minted by Discord when a human runs a "
+                               "command — there is no way to obtain an expired one on demand",
+}
+
+
+def real_renderer_down(store) -> tuple[bool, str]:
+    """C-06 / C-02 with a REAL unreachable host: real httpx, real timeout, real breaker."""
+    import os
+    from api.services.discord_render.adapters import _call, classes, renderer as renderer_ad
+
+    member = Member()
+    prev = os.environ.get("CHART_RENDERER_URL")
+    os.environ["CHART_RENDERER_URL"] = UNREACHABLE
+
+    def handler(ctx):
+        # ⛔ NO `house_fn=` — the adapter loads the REAL `render_house_chart`, which really tries to
+        # reach `CHART_RENDERER_URL`. Passing a stub here is what makes a scenario rig-only.
+        res = renderer_ad.fetch(renderer_ad.RenderRequest("NVDA", "D", remaining_s=ctx.remaining_s()))
+        if res.ok:
+            ctx.edit(ctx.job.app_id, ctx.job.token, content="NVDA", png=res.data, filename="c.png")
+            return "ok"
+        ctx.fail(classes.for_result("renderer", res), f"renderer {res.reason()}")
+        return "render_failed"
+
+    _call.reset_for_tests()
+    try:
+        rt = _runtime(store, handler, member)
+        started, job = time.time(), _job("real001")
+        rt.run_job(job)
+        return _judge(store, member, job, started)
+    finally:
+        if prev is None:
+            os.environ.pop("CHART_RENDERER_URL", None)
+        else:
+            os.environ["CHART_RENDERER_URL"] = prev
+
+
+def real_bars_api_502(store) -> tuple[bool, str]:
+    """C-10 with a REAL failing fetch: the bars adapter's own client against an unreachable host."""
+    import httpx
+
+    from api.services.discord_render.adapters import _call, bars as bars_ad, classes
+
+    member = Member()
+
+    def fetch_fn(ticker, tf, n):
+        # a real socket attempt, not a raised RuntimeError — so the class comes from what the
+        # network did rather than from what a test decided to raise
+        with httpx.Client(timeout=3.0) as c:
+            c.get(UNREACHABLE + "/api/bars")
+        return None
+
+    def handler(ctx):
+        res = bars_ad.fetch(bars_ad.BarsRequest("NVDA", "D", remaining_s=ctx.remaining_s(),
+                                                attempts=1), fetch_fn=fetch_fn)
+        if res.ok:
+            return "ok"
+        ctx.fail(classes.for_result("bars", res), f"bars {res.reason()}")
+        return "no_bars"
+
+    _call.reset_for_tests()
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("real002")
+    rt.run_job(job)
+    return _judge(store, member, job, started)
+
+
+REAL_OVERRIDES = {"renderer_down": real_renderer_down, "bars_api_502": real_bars_api_502}
+
+
 SCENARIOS = {
     "renderer_down": (scenario_renderer_down, "C-06 / C-02"),
     "flow_worker_unreachable": (scenario_flow_worker_unreachable, "C-08"),
@@ -764,6 +875,18 @@ def self_check() -> int:
         # the control: prove the coverage check can actually see a gap
         cases.append(("the coverage check can see a gap",
                       "a_scenario_that_does_not_exist" not in SCENARIOS))
+        # ⛔⛔ `--real` MUST NOT SILENTLY DOWNGRADE. Every scenario is either upgradeable,
+        # already real, or REFUSED BY NAME — a scenario in none of those three buckets would
+        # run its rig version under a `--real` banner, which puts the word "real" over a stub
+        # in the report that decides the flip.
+        _unclassified = [n for n in SCENARIOS
+                         if n not in REAL_OVERRIDES and n not in REAL_REFUSED
+                         and n not in REAL_CAPABLE]
+        cases.append((f"every scenario has a --real disposition (unclassified: {_unclassified or 'none'})", not _unclassified))
+        cases.append(("a refused scenario carries its reason",
+                      all(v and len(v) > 20 for v in REAL_REFUSED.values())))
+        cases.append(("the real overrides are real scenarios",
+                      all(n in SCENARIOS for n in REAL_OVERRIDES)))
     finally:
         store.close()
 
@@ -783,6 +906,9 @@ def main(argv=None) -> int:
     ap.add_argument("--only", default="", help="comma-separated scenario names")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--out", default="")
+    ap.add_argument("--real", action="store_true",
+                    help="induce the break in the WIRE where that is possible; refuse "
+                         "the scenarios where it is not, by name")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args(argv)
 
@@ -808,6 +934,20 @@ def main(argv=None) -> int:
         from api.services.discord_render.jobs_store import JobsStore
         for name in wanted:
             fn, cls = SCENARIOS[name]
+            mode = "rig"
+            if args.real:
+                # ⛔⛔ REFUSED, NOT SILENTLY DOWNGRADED. A scenario that cannot be made real reports
+                # `refused` with the reason; running the rig version under a `--real` banner would
+                # put the word "real" over a stub in the report that decides the flip.
+                if name in REAL_REFUSED:
+                    results[name] = {"class": cls, "state": "refused", "mode": "real",
+                                     "detail": REAL_REFUSED[name], "ms": 0.0}
+                    print(f"  {'REFUSED':13} {name:26} {cls:12} {REAL_REFUSED[name]}")
+                    continue
+                if name in REAL_OVERRIDES:
+                    fn, mode = REAL_OVERRIDES[name], "real"
+                elif name in REAL_CAPABLE:
+                    mode = "real (already exercises the production path)"
             store = JobsStore(str(db.parent / f"{name}.db"))
             t0 = time.perf_counter()
             try:
@@ -817,9 +957,10 @@ def main(argv=None) -> int:
                 state, detail = "inconclusive", f"{type(e).__name__}: {e}"
             finally:
                 store.close()
-            results[name] = {"class": cls, "state": state, "detail": detail,
+            results[name] = {"class": cls, "state": state, "detail": detail, "mode": mode,
                              "ms": round((time.perf_counter() - t0) * 1000.0, 1)}
-            print(f"  {state.upper():13} {name:26} {cls:12} {detail}")
+            print(f"  {state.upper():13} {name:26} {cls:12} {detail}"
+                  + (f"  [{mode}]" if mode != "rig" else ""))
     except Exception as e:  # noqa: BLE001
         print(f"TOTALS chaos_scenarios INCONCLUSIVE ran={len(results)} "
               f"setup_failed={type(e).__name__}: {e}")
@@ -828,15 +969,22 @@ def main(argv=None) -> int:
     if args.out:
         pathlib.Path(args.out).write_text(json.dumps(results, indent=2), encoding="utf-8")
 
-    ran = len(results)
+    # ⛔⛔ A REFUSED SCENARIO IS NOT A PASSED SCENARIO, AND `ran` MUST NOT COUNT IT.
+    # ⚰️ The first `--real` run printed `ran=13 passed=13` while SIX scenarios had been refused and
+    # never executed. The report that decides the flip would have carried "13/13 in real mode" for
+    # seven that ran — the chunked-test-run defect, inside the instrument built to avoid it.
     failed = [n for n, r in results.items() if r["state"] == "fail"]
     unmeasured = [n for n, r in results.items() if r["state"] == "inconclusive"]
+    refused = [n for n, r in results.items() if r["state"] == "refused"]
+    ran = len(results) - len(refused)
+    passed = ran - len(failed) - len(unmeasured)
     code = FAIL if failed else (INCONCLUSIVE if (unmeasured or ran == 0) else PASS)
     label = {PASS: "PASS", FAIL: "FAIL", INCONCLUSIVE: "INCONCLUSIVE"}[code]
-    print(f"TOTALS chaos_scenarios {label} ran={ran} passed={ran - len(failed) - len(unmeasured)} "
-          f"failed={len(failed)} inconclusive={len(unmeasured)}"
+    print(f"TOTALS chaos_scenarios {label} ran={ran} passed={passed} "
+          f"failed={len(failed)} inconclusive={len(unmeasured)} refused={len(refused)}"
           + (f" failing={failed}" if failed else "")
-          + (f" unmeasured={unmeasured}" if unmeasured else ""))
+          + (f" unmeasured={unmeasured}" if unmeasured else "")
+          + (f" refused_names={refused}" if refused else ""))
     return code
 
 
