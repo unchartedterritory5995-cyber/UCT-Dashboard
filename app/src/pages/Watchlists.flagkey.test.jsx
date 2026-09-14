@@ -142,3 +142,47 @@ test('holding Shift+F flags ONCE, not once per auto-repeat', async () => {
   // would appear not to "stick". Exactly one call is the whole contract.
   expect(flagSpy.toggle).toHaveBeenCalledTimes(1)
 })
+
+
+// ── F-S2-1 — the PLATFORM ACCELERATOR chord must not write to the flag list ──
+//
+// ⚰️ Measured on `feb7ba1f8`: five surfaces claimed Shift+F and disagreed about which
+// modifiers they answered. ChartPane and GridChartCell excluded ctrl/alt/meta; this
+// page, TickerPopup and ThemeTrackerPage did not — so a member reaching for
+// Ctrl+Shift+F / Cmd+Shift+F got a SILENT write to their flag list on three screens
+// and nothing on two. HY-35's class in the form the 2026-08-28 ownership fix missed.
+//
+// ⛔ BEHAVIOUR, NOT SHAPE. `pages/command/chordCollision.test.js` derives the guard set
+// from SOURCE and is how the defect was found — but it reads text, so it would stay
+// green if the exclusions were present and the handler fired anyway. These cases fire
+// the real events and assert the decision a member feels: did my flag list change?
+
+test.each([
+  ['Ctrl', { ctrlKey: true }],
+  ['Cmd', { metaKey: true }],
+  ['Alt', { altKey: true }],
+])('%s+Shift+F does NOT touch the flag list', async (_label, mods) => {
+  const user = userEvent.setup()
+  render(<Watchlists pickList="user:wl1" pickName="Momentum Plays" />)
+  await user.click(screen.getByText('AAPL'))
+
+  fireEvent.keyDown(window, { key: 'F', code: 'KeyF', shiftKey: true, ...mods })
+
+  expect(flagSpy.toggle).not.toHaveBeenCalled()
+  expect(flagSpy.remove).not.toHaveBeenCalled()
+})
+
+test('CapsLock + Ctrl+Shift+F is refused, and the same casing WITHOUT it still flags', async () => {
+  // ⭐ Both halves in one case on purpose: the refusal has to be about the MODIFIER.
+  // A guard that had simply stopped answering lowercase would pass the first
+  // assertion and fail the member exactly as the original defect did.
+  const user = userEvent.setup()
+  render(<Watchlists pickList="user:wl1" pickName="Momentum Plays" />)
+  await user.click(screen.getByText('AAPL'))
+
+  fireEvent.keyDown(window, { key: 'f', code: 'KeyF', shiftKey: true, ctrlKey: true })
+  expect(flagSpy.toggle).not.toHaveBeenCalled()
+
+  fireEvent.keyDown(window, { key: 'f', code: 'KeyF', shiftKey: true })
+  expect(flagSpy.toggle).toHaveBeenCalledWith('AAPL')
+})
