@@ -104,11 +104,24 @@ re-derive them in under a minute; the flag rows are what matter and they are wha
 
 ---
 
-## 1. The one variable
+## 1. The variables — there are TWO, and the order matters
 
 ```sh
-DISCORD_RENDER_V2_ENABLED=1        # service: web.  Nothing else has to change.
+DISCORD_RENDER_V2_CHANNELS=<canary id>   # service: web.  SET THIS FIRST.
+DISCORD_RENDER_V2_ENABLED=1              # service: web.  Only then.
 ```
+
+⚰️ ~~"The one variable … nothing else has to change."~~ **That was true until OI-35 and is now the
+most dangerous sentence this document could carry.** `DISCORD_RENDER_V2_ENABLED` alone has **no
+channel dimension**: setting it sends every member's `/chart` in `#chart-flow-requests` to V2 in the
+same instant. That is the member-channel flip — the one decision reserved to the owner — reached by
+following a section headed "the one variable".
+
+⛔ **UNSET `DISCORD_RENDER_V2_CHANNELS` MEANS EVERY CHANNEL**, not "no canary". The gate's
+`canary scope` row exists to catch exactly this and currently reads:
+
+> *the running process narrows to NOTHING — and OI-35 defines an empty `DISCORD_RENDER_V2_CHANNELS`
+> as EVERY CHANNEL, so this is the member flip, not a canary.*
 
 With it unset, `api/services/discord_render/commands.py:49` returns `False` and the interactions
 endpoint runs the pre-V2 path exactly. With it set, the V2 branch owns `/chart`, `/c`, `/charts`,
