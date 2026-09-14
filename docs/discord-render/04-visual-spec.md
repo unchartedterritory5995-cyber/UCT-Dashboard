@@ -244,6 +244,9 @@ comes from `contract.FAILURE_CLASSES` or `Envelope.badge`, through `badge.py`.
 `ChartRender.jsx` → `goldens/render_urls.json` (§2b, §6b). The standing strict-xfail
 `test_c07_the_house_render_url_carries_the_data_vintage_so_the_image_can_say_it_is_stale` in
 `tests/test_discord_render_forensics.py` now XPASSes and is the integrator's to remove.
+`mutation_harness_badge.py`: **38/38 RED**, green control before and after, every restore
+sha-verified — Q1–Q3 on the quality clause and V1–V6 on the vintage, V1 being "send a bare date and
+let the page phrase the warning", which is the decision §2b exists to hold.
 ⚠️ **Stated honestly: the PAGE half is covered by `app/src/pages/ChartRender.stale.test.jsx`, which
 has not been RUN** — the lane's worktree had no `app/node_modules` and this box has been OOM-swept
 by an `npm ci` before. Everything from `build_render_url` down to the golden is executed and green;
