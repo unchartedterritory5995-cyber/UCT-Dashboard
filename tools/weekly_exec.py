@@ -23,6 +23,7 @@ Two subcommands, one job each:
   weekly_exec.py tests <file> [<file> ...]   named test FILES, never a directory
   weekly_exec.py pod <report>                one DECLARED read-only pod report
   weekly_exec.py health                      GET /api/health with a browser agent
+  weekly_exec.py memory [ceiling]            percent physical memory used; 1 = at/over
 
 Exit codes: whatever the child returns, except **2 = REFUSED by this guard**, which is
 never confusable with a test failure (pytest uses 1 for failures, 2 for interrupted —
@@ -142,13 +143,61 @@ def cmd_health(args: list[str]) -> int:
     return 0
 
 
+def cmd_memory(args: list[str]) -> int:
+    """Percent of physical memory in use, for section 1's memory gate.
+
+    WHY THIS EXISTS: the gate is declared "CHECKED FIRST OF ALL" and the narrow profile
+    denies `systeminfo`, with no allow-listed substitute - so every run either skipped it
+    silently or stopped on it. The weekly run itself reported that on 2026-09-14, and it
+    is the F-L2-1 shape one layer down: a check that CANNOT RUN looks identical to one
+    that PASSED.
+
+    Exit 0 under the ceiling, 1 at or over it, REFUSED if it cannot be measured - three
+    states, because "I could not read the memory" is not "there is memory".
+    """
+    ceiling = 70.0
+    if args:
+        try:
+            ceiling = float(args[0])
+        except ValueError:
+            return _refuse("ceiling must be a number, got %r" % args[0])
+    used = None
+    try:
+        import ctypes
+
+        class _MS(ctypes.Structure):
+            _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+        m = _MS()
+        m.dwLength = ctypes.sizeof(_MS)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
+            used = float(m.dwMemoryLoad)
+    except Exception:                                    # noqa: BLE001
+        pass
+    if used is None:
+        try:
+            info = {}
+            for line in open("/proc/meminfo"):
+                k, v = line.split(":", 1)
+                info[k] = float(v.strip().split()[0])
+            tot, avail = info["MemTotal"], info.get("MemAvailable", info.get("MemFree", 0))
+            used = 100.0 * (tot - avail) / tot
+        except Exception:                                # noqa: BLE001
+            return _refuse("cannot read physical memory on this platform")
+    print("MEMORY %.1f%% used (ceiling %.0f%%)" % (used, ceiling))
+    return 0 if used < ceiling else 1
+
+
 def main(argv=None) -> int:
     a = list(sys.argv[1:] if argv is None else argv)
     if "pytest" in sys.modules and argv is None:
         a = []
     if not a:
         print(__doc__.strip().splitlines()[0])
-        print("usage: weekly_exec.py tests <file> [...] | pod <report> | health")
+        print("usage: weekly_exec.py tests <file> [...] | pod <report> | health | memory")
         return REFUSED
     sub, rest = a[0], a[1:]
     if sub == "tests":
@@ -157,6 +206,8 @@ def main(argv=None) -> int:
         return cmd_pod(rest)
     if sub == "health":
         return cmd_health(rest)
+    if sub == "memory":
+        return cmd_memory(rest)
     return _refuse("unknown subcommand %r" % sub)
 
 

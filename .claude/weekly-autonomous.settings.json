@@ -35,7 +35,11 @@
     "There is deliberately no `defaultMode` key: this CLI's --permission-mode takes",
     "acceptEdits|auto|bypassPermissions|manual|dontAsk|plan and none of them is 'default'. Rather",
     "than ship a key whose value was never verified, the deny-by-default behaviour is carried by",
-    "--permission-prompts none, which WAS verified by probe."
+    "--permission-prompts none, which WAS verified by probe.",
+    "The `memory` subcommand exists because section 1's memory gate is declared CHECKED FIRST OF ALL",
+    "and `systeminfo` is DENIED here with no substitute - so every run either skipped the gate",
+    "silently or stopped on it. The weekly run reported that itself on 2026-09-14. A check that",
+    "cannot run looks identical to one that passed."
   ],
   "permissions": {
     "allow": [
