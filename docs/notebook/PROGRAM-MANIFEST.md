@@ -1181,6 +1181,77 @@ Closing it requires building an instrument first — that is a task, not a looku
       rig that was already correct. Caught by running my own instructions.
       ⭐ *Write the handoff, then follow it as if you had never seen it.*
 
+24. ⛔⛔ **THE SECRET SCAN HAD NEVER RUN IN ANY WORKTREE, AND THE HOOK SAID SO
+    EVERY TIME.** The pre-push hook printed *"tools/secret_scrub.py not found in
+    this worktree — the secret scan did NOT run. This is not a pass."* That
+    warning was correct for months. Its cause was a path: the fallback candidate
+    was `$root/../uct-worktrees/breadth-charts/...` where `$root` is the
+    **worktree** root, so from any worktree under `uct-worktrees/` it expanded to
+    `uct-worktrees/uct-worktrees/...` — a doubled path that cannot exist. The
+    scan was therefore skipped for **exactly the checkouts that lack the file**,
+    which is every worktree.
+
+    ⭐ **The warning branch is what made it survive.** It was written to be
+    honest — "this is not a pass" — and being visible, it became furniture: a
+    broken path read as a considered exemption. Fixed by deriving the primary
+    checkout from `git rev-parse --git-common-dir` (the main `.git` from any
+    worktree), so it survives a rename. Retrospective scan of the 131 commits
+    pushed that day: **0 findings**.
+
+    ⛔ **AND THE CONTROL WAS THE WRONG SHAPE, WHICH NEARLY PRODUCED A SECOND
+    FINDING.** A planted `ghp_` token did **not** fire, and the scanner was one
+    sentence away from being reported broken. It is not: it hunts three shapes on
+    purpose — session cookie by name, cookie header, authorization header — a
+    narrowing recorded in the file because an earlier draft returned 68 findings
+    of which 1 was real, and a muted scanner reads as coverage. A control using
+    an in-scope shape fires and exits 1. *The instrument was the first suspect
+    and this time it was innocent.*
+
+25. ⛔⛔ **THE REMOUNT DEFECT, AND THE RECOVERY BLIND SPOT SITTING BEHIND IT.**
+    `settleLandedSave` asks `sameAuthoredContent(acked, current)` — the server's
+    accepted copy against the editor's current copy. On a remount **both sides of
+    that comparison are the server**, because the editor was just rebuilt from
+    it. The answer is `true` for a reason that has nothing to do with the member,
+    and what follows is one transaction that writes the record clean at the
+    server's newer baseline and passes `intent = null`, which deletes every
+    queued entry for the note.
+
+    ⭐ **The blast radius is larger than "the drain deleted it", and the audit is
+    what found it.** `recover()` admits only a DIRTY record, and `listOutbox` has
+    exactly three non-test callers — the drain, the pending count, the blocked
+    badge — **none of them a recovery surface**. So in the exact state this
+    defect produces, the same cheap flag that authorises the discard also
+    suppresses the offer-back. Verified independently, not taken on report.
+
+    ⛔ Reproduced at unit level in `remountNeverDiscardsUnsent.test.js` (RED, with
+    a control and a discriminator green) and the fix drafted, applied once to
+    prove it turns that rail 3/3 green, then **restored and HELD** pending the
+    production cell. ⭐ The same run established that the remount fix does **not**
+    fix the supersede hazard — `supersedeProvesContent.test.js` stayed red
+    through it. **Two independent defects, not one seen twice.**
+
+26. ⚖️ **A RAIL CONTRADICTED THE RULING IT EXISTS TO SERVE.** `f5Freeze.test.js`
+    armed on *"zero INCONCLUSIVE rows"*; the ruling lifts the freeze when every
+    cell is *"green or named"* — and a **named rig limitation renders as
+    `INCONCL`**. As written the rail would have refused to lift the freeze
+    permanently, because the pdf.js caret limitation is not going to stop being
+    true. Amended and recorded without asking, per the standing ruling.
+
+    ⭐ The distinction the amendment turns on:
+    INCONCLUSIVE-because-nobody-looked and
+    INCONCLUSIVE-because-this-rig-cannot-look are different facts wearing one
+    glyph. A cell counts as *named* only if a limitation is written down for it
+    in `q1-product-followups.md`; an unexplained INCONCLUSIVE still blocks, which
+    is what stops "named" becoming a way to wave the table through.
+
+27. ⚰️ **"NOTHING WAS SENT FOR 120 s" WAS THE INSTRUMENT'S BUDGET, NOT THE
+    PRODUCT'S BEHAVIOUR.** The drain wait is `for _ in range(48)` ×
+    `wait_for_timeout(2500)` — **exactly 120 s**. So the number that looked like
+    a measured ceiling is the moment the rig stopped watching, and nothing
+    establishes what happens at 121 s. Recorded in `F5P-1` that way rather than
+    as *"it never sends"*, which is the stronger claim the number cannot carry.
+    ⭐ **A round number that equals your own timeout is a reading of your loop.**
+
 ### Rows added by §10
 
 | id | feature | status |
