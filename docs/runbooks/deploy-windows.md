@@ -272,14 +272,57 @@ two-second-old SUCCESS is a coin flip, not a settled service.
 ⛔ **IT FAILS CLOSED.** CLI missing, unauthenticated, project unlinked, hook file absent — all
 REFUSE. A guard that fails open reports "fine" precisely when it has stopped working.
 
+⚠️ **AND IT ALREADY REFUSED EVERY STATE THE 2026-09-14 INCIDENT INVOLVED** — `decide()` returns
+REFUSE for `BUILDING`, `DEPLOYING`, `FAILED`, `CRASHED`, `REMOVED`, an empty status, an unreadable
+state and a too-young SUCCESS, each with its own rail in `tests/test_pre_push_guard.py`. **How the
+12:32 push got past it was NOT determined**: the guard blob was byte-identical on that branch
+(`6c717a33d`), the hook lives in the shared `.git/hooks` so every worktree on this machine has it,
+and `logs/pre-push-guard-bypass.log` recorded nothing. `git push --no-verify` skips hooks entirely
+and leaves no trace, which is the one path that would look exactly like this. ⛔ **Do not "harden"
+the unreachable branch into a warning to close this** — it is already the strictest thing it can
+be, and softening it would trade a real guarantee for the appearance of a fix. `--audit` below
+exists because prevention was already there and something defeated it, so the next occurrence
+should at least be VISIBLE.
+
 ⛔ **IT DOES NOT REQUIRE THE DEPLOYED COMMIT TO BE YOURS.** `SUCCESS` on another workstream's commit
 still means the pod is settled, which is the property that matters. Requiring your own parent would
 refuse every legitimate push in a repo five workstreams share.
 
 ```sh
 python tools/pre_push_guard.py          # 0 = safe, 1 = refuse, prints the state
+python tools/pre_push_guard.py --audit  # after the fact: SUSPECTED stacked pushes
 UCT_SKIP_PREPUSH_GUARD=1 git push …     # deliberate override, APPENDED to logs/pre-push-guard-bypass.log
 ```
+
+⚠️ **`--audit` is a HEURISTIC and says so in its own output.** Railway's deployment list carries
+only `status` and `createdAt` — there is no per-deployment "reached SUCCESS at" timestamp — so it
+can report that two distinct commits were deployed closer together than a build takes, which is
+what a stacked push looks like, and it cannot prove the first was still building. It prints
+**SUSPECTED**, never CONFIRMED.
+
+### ⛔⛔ A PUSH IS NOT CLEAR UNTIL ITS WEB DEPLOY REACHES `SUCCESS`
+
+> **A push is not clear until its web deploy reaches SUCCESS. Any session seeing a deploy in
+> BUILDING/DEPLOYING state must wait, even if the queue looked clear when it started its gate.**
+
+Owner ruling, 2026-09-14, from a SECOND occurrence eight days after the guard was built.
+
+⚰️ **The incident.** `7705c2d3b` was pushed at **12:29:23 UTC** with the guard green
+(*"web is SUCCESS on 00b029552, 333s settled"*). At **12:32:16 UTC** — 173 seconds later, while
+that build was still `BUILDING` — another workstream pushed `9e2b93805`, which marked the first
+deployment `REMOVED` mid-flight. A production request that was in flight at that moment died with
+a **500 after 93 s**, and `/api/health` returned **502** for roughly 45 s until the new pod came
+up. It recovered on its own.
+
+⭐ **The gap the rule closes is a TIME gap, not a logic gap.** The guard reads the queue at the
+moment of the push and is correct at that moment; a build takes ~3–5 minutes, and nothing in a
+point-in-time check covers the window that opens immediately afterwards. "The queue was clear when
+I started my gate" is true and useless — the gate takes minutes, and the queue is a property of
+the instant you push, not of the instant you began.
+
+⚠️ **So the wait is on the DEPLOY, not on the check.** After a green guard, the pusher owns the
+queue until their deploy is `SUCCESS`; anybody else who reads `BUILDING` or `DEPLOYING` waits,
+regardless of what their own guard said earlier.
 
 ### Installing it (advisory to the other workstreams)
 
