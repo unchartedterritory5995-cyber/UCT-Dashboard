@@ -1,0 +1,115 @@
+# Rig credential hygiene
+
+> **Credentials and session cookies never appear in logs, scratchpads, commit messages, or
+> tool output. If one leaks, report immediately, stop using that session, and rotate the
+> credential.**
+
+That is the whole rule. The rest of this file is how to obey it and what to do when it is
+broken, because it has been broken once and the way it broke was not obvious.
+
+## The incident this encodes — 2026-09-13
+
+`tools/breadth_widget_ab.py` crashed during teardown: the Breadth widget keeps polling, and
+a request still in flight when the Playwright context closes raises inside the route
+handler. The traceback was printed.
+
+**A Playwright error embeds the request headers of the call that failed, and one of those
+headers is `Cookie:`.** A live `MEMBER_SMOKE` session token went into a run log and into the
+agent's own tool output. Nothing in the harness was logging credentials on purpose; the
+harness was logging an *error*, and the error was carrying one.
+
+⛔ **So the rule is not "don't log secrets". It is "don't print raw exceptions".** Anyone
+obeying the first phrasing would have written exactly the code that leaked.
+
+## Obeying it
+
+- **Never print a raw Playwright or HTTP exception.** Use `tools/secret_scrub.brief(exc)` —
+  type plus first line, scrubbed, no call log.
+- **Anything else headed for a log, a file, or a tool result goes through `scrub()` first.**
+  It redacts `Cookie` / `Set-Cookie` / `Authorization`, and any field whose name contains
+  `token`, `secret`, `password`, `api_key`, `session` or `auth` — prefixes included.
+- **One scrubber, not one per rig.** `tools/secret_scrub.py` is the only copy; import it.
+  Three scrubbers means only one of them ever gets the next fix
+  (`lesson_a_guard_repeated_is_a_guard_unproved`).
+- **Rig output lives only under a gitignored path** — for the breadth rigs that is
+  `docs/breadth/screenshots/` and `docs/breadth/measurements/` (see that directory's
+  `.gitignore`; this repo is PUBLIC). Delete run logs at teardown, including on exceptions
+  — a `finally`, not the happy path.
+- **Scan before you walk away:**
+
+      python tools/secret_scrub.py --self-check          # proves the scanner can fail
+      python tools/secret_scrub.py --scan <dir> [...]    # exit 1 on any finding
+
+  It reports `kind: path:line` and **never the matched value**, so the scan output is itself
+  safe to paste.
+
+## If one leaks
+
+1. **Say so immediately.** Do not finish the task first.
+2. **Stop using that session.** Do not keep driving a rig with a token you have published.
+3. **Rotate the credential**, and remember that on this app **changing a password does not
+   invalidate sessions** — `admin/reset-password` only writes `password_hash`. Kill the
+   sessions explicitly: log in with the new value, then
+   `POST /api/auth/sessions/revoke-others`, which deletes every session but the caller's.
+   Re-run it; a second call returning `revoked: 0` is the proof that none survive.
+4. **Verify the leaked token is dead** — one read-only request, expect `401`. That is the
+   only permitted use of a leaked token.
+5. **Delete the artifacts**, then `--scan` to confirm, then record it in `DECISIONS.md`.
+
+6. **Re-point the rig at the new value** — see *After rotating* below; `setx` alone does not
+   reach a session that is already running.
+
+⚠️ **A leaked token also survives in the conversation transcript**, which you cannot delete.
+Deleting the log files is necessary and not sufficient — rotation is what actually closes it.
+
+## After rotating: `setx` does not reach a running agent
+
+`setx` writes `HKCU\Environment`. A process that is **already running** — and every shell it spawns — inherited its
+environment before that write, so a rotated credential is invisible to the session that rotated it. The rig then
+presents the **old** password and fails to authenticate, which looks like a broken rotation and is not one.
+
+Either restart the agent, or read the value from the registry at spawn time:
+
+```python
+import os, subprocess, sys, winreg
+with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+    val, _ = winreg.QueryValueEx(k, "MEMBER_SMOKE_PASSWORD")
+env = dict(os.environ); env["MEMBER_SMOKE_PASSWORD"] = val
+subprocess.run([sys.executable, *sys.argv[1:]], env=env)      # print NAMES only, never values
+```
+
+⭐ Same rule as reading the wire instead of the call site: **verify what the PROCESS received, not what the command
+said.** The rotation succeeded and every later run would still have presented the dead password.
+
+## The hooks
+
+`core.hooksPath` points every worktree at `uct-dashboard/.git/hooks`. Two are installed:
+
+- **`pre-commit`** — refuses to stage a credential-shaped value. Catching it here means it never enters history at
+  all, so no rewrite is needed.
+- **`pre-push`** — scans exactly the commits the push would publish, for **every** destination, then runs the existing
+  master-only Railway 502 guard. ⛔ **A pushed secret is public even if you delete it afterwards** — this repo is
+  public, so rotate first and rewrite second, never the reverse.
+
+Both locate `tools/secret_scrub.py` from the pushing worktree. If it is absent, `pre-push` prints a **visible warning
+saying the scan did not run** and allows the push — it must not block worktrees that legitimately do not have the file
+yet, and a silent skip would read as a pass (`lesson_a_rails_important_half_can_be_opt_in`). That branch disappears
+once the file is on master.
+
+Both hooks read git's ref lines from stdin, which git sends **once**, so `pre-push` captures it up front and replays
+it to each check via a heredoc — a `while read` in a pipeline runs in a subshell and its variables never escape.
+
+## Known rig traps (all measured 2026-09-13 on the `/charts` A/B)
+
+Four ways this harness produced a confident wrong answer before it produced a right one. Each is a class, not a bug.
+
+| Trap | What it looked like | The rule |
+|---|---|---|
+| **The intro overlay** | `innerText` readiness said "rendered" while the ~9.3 s cinematic intro covered the whole viewport, the widget behind it. Text compared IDENTICAL, **100 % of pixels differed**. | **Present is not showing.** Gate readiness on the intro being gone; click Skip. The pixel count was the only thing that noticed. |
+| **The wrong organ** | The readiness probe waited for a `<canvas>` and timed out four times over a perfectly rendered widget — this heatmap is DOM tiles; the treemap canvas is a different view. | Ask the **product's own question** (`lesson_did_it_render_needs_the_products_own_answer`). A detector that cannot see a working product reports INCONCLUSIVE forever. |
+| **Animated chrome** | A full-page pixel diff of an unchanged page differs by ~2,200 scattered pixels at 1280 — the gold `UIcon` shimmer and the voice orb animate. | Make **text** the verdict and pixels supporting. Text is what a registry controls and is immune to animation. |
+| **Page chrome drifting** | Whole-page text reported a one-line difference: `9+`, the Community unread badge, which arrived between captures. | **Scope to the subtree under test.** Any long-lived chrome eventually differs between two runs minutes apart, and a verdict that reds on somebody else's notification stops being read. |
+
+⚠️ And one that is not the harness: an **edge 502 in 0.2 s** (an immediate refusal, not a timeout) while `/api/health`
+read 200 with a rising uptime. Health is a proxy; it was green over a login path that was not. Retry **5xx only**,
+record the attempt count, and never retry a 4xx — that is a real refusal.
