@@ -1489,6 +1489,32 @@ Closing it requires building an instrument first — that is a task, not a looku
     so the drain's supersede branch is reachable **only** in the clean state).
     Two refusals, both correct, both against the brief.
 
+33. ⛔⛔ **THE FIX FOR THE 10:00 COLLISION DID NOT CLOSE THE RACE - IT CLOSED
+    THE HALF THAT WAS VISIBLE.** Near miss, 2026-09-14 02:00.
+
+    The sampler fired at **02:00:01**. The rig-window guard said **CLEAR at
+    02:00:24** and the runner immediately took the profile for a canary. It was
+    right *that* time - the sampler finished in ~20 s and its 03:00 ET row
+    landed - but it was right **by luck**.
+
+    ⛔ The guard's `Running` arm was added precisely because a started task's
+    `NextRunTime` jumps forward, making "due in 115 min" read as CLEAR. But
+    Windows sets `State=Running` a moment **after** the trigger, so a poll inside
+    that gap sees `Ready` for a task that is about to take the one profile. The
+    guard could only ever catch a task **already visibly running**.
+
+    ⭐ **A state is a sample; a timestamp is a fact.** The guard now also refuses
+    when a Q1 task **STARTED** within `JUST_RAN_COOLDOWN_SECONDS` (180), whatever
+    the state says. Railed both directions against an injected scheduler: the
+    24-second near-miss refuses, 179 s refuses, 181 s clears, 40 min clears, and a
+    visibly-`Running` task still refuses.
+
+    ⚠️ **The lesson is about the shape of the first fix, not the race.** It
+    was written from one incident and it fixed exactly what that incident showed -
+    a task caught mid-run. Nobody asked what the scheduler reports in the seconds
+    *before* that state exists. **A fix derived from a single observed failure
+    covers the failure, not the mechanism.**
+
 ### Rows added by §10
 
 | id | feature | status |

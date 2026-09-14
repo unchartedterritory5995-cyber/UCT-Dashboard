@@ -679,6 +679,23 @@ RIG_TASKS = ("UCT-WaveQ1-Observe", "UCT-WaveQ1-Canary", "UCT Wave Q1 Window Chec
 WINDOW_MINUTES = 60
 
 
+# ⛔⛔ A TASK THAT *JUST STARTED* CAN STILL READ `Ready`.
+#
+# ⚰️ Near miss, 2026-09-14 02:00. The sampler fired at 02:00:01 and this guard
+# said CLEAR at 02:00:24 - a 24-second margin. It was right that time (the run
+# finished in ~20s and its row landed), but it was right by luck: Windows sets
+# `State=Running` a moment AFTER the trigger, so a poll inside that gap sees
+# `Ready` for a task that is about to take the profile. That is the same race
+# that cost the 10:00 observation row, surviving the fix that was supposed to
+# close it - the `Running` check only catches a task already visibly running.
+#
+# ⭐ So the clock is used as well as the state: a Q1 task that STARTED within
+# the cooldown is treated as still holding the profile, whatever the state says.
+# Cheap, conservative, and it fails in the safe direction - the cost of waiting
+# three minutes is nothing; the cost of being wrong is a hole in the K window.
+JUST_RAN_COOLDOWN_SECONDS = 180
+
+
 def rig_window_refusal(now=None, query=None):
     """The reason to refuse, or None when the window is clear.
 
@@ -696,7 +713,7 @@ def rig_window_refusal(now=None, query=None):
                 "Get-ScheduledTask | Where-Object { $_.TaskName -match 'WaveQ1|Wave Q1' } | "
                 "ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
                 "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime; "
-                "state=[string]$_.State} } | ConvertTo-Json"
+                "last=$i.LastRunTime; state=[string]$_.State} } | ConvertTo-Json"
             )
             out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                                  capture_output=True, text=True, encoding="utf-8",
@@ -730,6 +747,30 @@ def rig_window_refusal(now=None, query=None):
         #
         # ⭐ "Due soon" and "happening now" are different facts, and the second
         # one is the dangerous one.
+        started = row.get("last")
+        if started:
+            txt_s = str(started)
+            stamp_s = None
+            if txt_s.startswith("/Date("):
+                try:
+                    stamp_s = datetime.datetime.fromtimestamp(
+                        int(txt_s[6:].split(")")[0].split("+")[0]) / 1000)
+                except (ValueError, IndexError):
+                    stamp_s = None
+            else:
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%m/%d/%Y %I:%M:%S %p", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        stamp_s = datetime.datetime.strptime(txt_s.split(".")[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+            if stamp_s is not None:
+                since = (now - stamp_s).total_seconds()
+                if 0 <= since < JUST_RAN_COOLDOWN_SECONDS:
+                    return (name + " STARTED " + str(int(since)) + "s ago and may still hold the "
+                            "one signed-in profile. A task that just started can still read "
+                            "`Ready`, so the state alone is not enough. Wait "
+                            + str(int(JUST_RAN_COOLDOWN_SECONDS - since)) + "s.")
         if str(row.get("state") or "").strip().lower() == "running":
             return (name + " is RUNNING RIGHT NOW and holds the one signed-in profile. "
                     "Wait for it to finish — taking the profile from it loses that "
