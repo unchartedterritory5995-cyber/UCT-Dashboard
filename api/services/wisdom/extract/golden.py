@@ -327,6 +327,10 @@ def source_for_record(record: dict) -> dict:
 # ── matching and scoring ─────────────────────────────────────────────────────
 
 def _tokens(text: Optional[str]) -> set:
+    """All-word tokens for SIMILARITY scoring — keeps `$`, `%` and `.`, so `$nvda`,
+    `30%` and `1.5r` survive as single tokens. Its counterpart for the fuzzy-agreement
+    lens is `_key_tokens`, which deliberately strips those; the two had the same name
+    until 2026-09-14 and this one lost."""
     return set(_WORD.findall(str(text or "").casefold()))
 
 
@@ -686,7 +690,26 @@ def _polarity_conflict(text_a: str, text_b: str) -> bool:
     return False
 
 
-def _tokens(text: str) -> set:
+def _key_tokens(text: Optional[str]) -> set:
+    """Content words for the FUZZY-AGREEMENT lens: short words dropped, and the
+    regex deliberately excludes `$ % .` so wording differences dominate.
+
+    ⛔ RENAMED FROM `_tokens`, WHICH IS WHAT IT USED TO SHADOW. There were two
+    top-level `_tokens` definitions in this module — this one at line 689 and the
+    similarity scorer's at 329 — and Python keeps the LAST, so `match_segment`'s
+    `_jaccard(_tokens(...), _tokens(...))` had been running THIS function since
+    c9d6af653. The two are not interchangeable:
+
+        "Buy $NVDA above 30% on a 1.5R stop"
+        scorer intended : ['$nvda', '1.5r', '30%', 'a', 'above', 'buy', 'on', 'stop']
+        actually got    : ['above', 'buy', 'nvda', 'stop']
+
+    ⚠️ In a TRADING extraction gate that is the worst possible loss: the cashtag
+    loses its `$`, and the percentage and the R-multiple disappear entirely — the
+    three token classes that carry the trade. Same defect class as the `_parse_mdy`
+    incident (`api/live_massive_router.py`, 2026-09-01): two top-level definitions,
+    the later one winning, every call site written against the earlier.
+    """
     return {w for w in _KEY_WORD_RE.findall(str(text or "").casefold()) if len(w) > 2}
 
 
@@ -714,12 +737,12 @@ def _fuzzy_agreed(a_keys: list, b_keys: list) -> int:
     pool = list(b_keys)
     agreed = 0
     for key in a_keys:
-        target = _tokens(key[1] if len(key) > 1 else "")
+        target = _key_tokens(key[1] if len(key) > 1 else "")
         best_i, best = None, 0.0
         for i, other in enumerate(pool):
             if other[0] != key[0]:
                 continue
-            cand = _tokens(other[1] if len(other) > 1 else "")
+            cand = _key_tokens(other[1] if len(other) > 1 else "")
             if _polarity_conflict(key[1] if len(key) > 1 else "",
                                   other[1] if len(other) > 1 else ""):
                 continue          # opposite advice is never the same claim reworded
