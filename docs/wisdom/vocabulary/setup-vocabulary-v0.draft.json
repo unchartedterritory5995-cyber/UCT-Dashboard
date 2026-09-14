@@ -1,152 +1,797 @@
 {
-  "_readme": [
-    "UCT Setup Vocabulary v0 — DRAFT, owner approval pending. Nothing may carry a setup_name outside the APPROVED list; until approval every entry is status=candidate.",
-    "D9 ANSWERED YES (owner, 2026-09-13): the authors' own names are canonical. This vocabulary is the ONE setup-name authority; the six existing lists (setupGroups.js, setupCatalog.js, desk _SETUP_TAXONOMY, pattern_vision FOCUSED_SETUPS, voice_chart_vision list, curriculum glossary) and pattern-engine ids MAP to it via wisdom_vocab_maps (W1) and derive from it later (W6). It must never become a seventh list.",
-    "Built ONLY from the Session 0 samples (Sunday Scans 2026-08-30 + 2026-09-06; Zoom edu_videos 355 live session + 356 workshop, both 2026-09-11). Names are spelled as the authors use them.",
-    "definition_quote is verbatim ONLY for Sunday Scans (a free, publicly published newsletter). Transcript-sourced evidence is a LOCATOR (edu_videos id + cue timestamp) plus a paraphrase, because this repository is public and the live sessions / workshops are paid content. The verbatim sentences are in the Session 0 report and in the gitignored samples.",
-    "kind: setup = an entry/trigger pattern · level = a price reference that setups key off · market_signal = a context read about the market, never a ticker setup.",
-    "maps_to records which EXISTING registries already name the same idea: desk = api/services/desk_session_insights.py::_SETUP_TAXONOMY (26), engine = pattern_engine detector _PATTERN_ID (85). A null is a real gap, not an omission.",
-    "evidence_strength: strong = used as a name in 2+ segments or defined; thin = one passing use. Thin entries need an owner definition before approval."
-  ],
-  "version": "v0-draft",
-  "built_at": "2026-09-13",
-  "entries": [
-    {"name": "Oops Reversal", "aliases_as_used": ["oops", "oops reversal", "baby oops"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Then I was at my daughter’s school on Wednesday morning and missed the most beautiful oops reversal!",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "PLTR (Daily)"}, {"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "MDB (Daily): 'Ideally entry was just under or right at $400 on the oops.'"}, {"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "approach prose: 'Give me an oops.'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:39:33]", "paraphrase": "passes on a 'baby oops' as too small"}],
-     "maps_to": {"desk": "Oops Reversal", "engine": null}},
-    {"name": "20EMA Tap", "aliases_as_used": ["tap of the 20EMA", "held the 20ema", "shakes out to the 20MA", "tapping into the 20"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Give me some sideways and a tap of the 20EMA.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "SNOW (Daily): 'steadily held the 20ema'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[02:28:10]", "paraphrase": "a wedge-up that shakes out into the 20 and is followed by a gap through the prior day's high defines the stop"}],
-     "maps_to": {"desk": "20 EMA Pullback", "engine": "pullback_to_21ema (NOTE: engine uses the 21 EMA; the authors say 20)"}},
-    {"name": "Inside Day", "aliases_as_used": ["inside day", "double inside days", "tight inside day"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Now we have an inside day and a higher low at a rising 20EMA? I mean come on this is worthy of attention imo!",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "ALM (Daily): 'Double inside days above all MAs'"}, {"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "ANF (Daily): 'Double inside days after monster ER gap up'"}],
-     "maps_to": {"desk": null, "engine": "inside_bar_breakout (breakout variant only)"}},
-    {"name": "Remount", "aliases_as_used": ["remount", "remount after an undercut", "trying to remount the 50th SMA"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Give me a clean retest or remount after and undercut.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "RBRK (Daily): 'want to see a higher low and remount the $100 level'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:40:45]", "paraphrase": "AMZN trying to remount the 50SMA"}],
-     "maps_to": {"desk": "Remount", "engine": "remount"}},
-    {"name": "Undercut & Rally (U&R)", "aliases_as_used": ["undercut", "undercut of 930", "pull back, undercut 11 bucks, and hold"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": null,
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "approach prose: 'remount after and undercut'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:36:06]", "paraphrase": "an undercut of 930 on LITE would be a buy"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:14:08]", "paraphrase": "PURR: the candle they waited for — pull back, undercut $11, and hold"}],
-     "maps_to": {"desk": "U&R (Undercut & Rally)", "engine": "u_and_r"}},
-    {"name": "Breakout Retest", "aliases_as_used": ["retest of the base highs", "retest of this breakout spot", "clean retest"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Bought the earnings gap up and retest of the base highs.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "P (Daily): 'gave a really awesome retest of this breakout spot'"}],
-     "maps_to": {"desk": null, "engine": null}},
-    {"name": "Go Signal", "aliases_as_used": ["GO SIGNAL", "go signal", "actionable go signals"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "If you bought the go signal on SNDK you are up 20% in 5 sessions.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "TEM (Daily): 'Keep an eye on the hourly for a GO SIGNAL.'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[01:51:21]", "paraphrase": "MRNA hourly candle 'is your go signal' — entry 135, stop 130"}],
-     "maps_to": {"desk": "Go Signal", "engine": null},
-     "note": "Used on an HOURLY trigger over a daily setup in both samples — the timeframe pair is part of the definition the owner should confirm."},
-    {"name": "High Volume Close (HVC)", "aliases_as_used": ["HVC", "the HVC", "HVC spot", "through the HVC"], "kind": "level", "evidence_strength": "strong",
-     "definition_quote": "$61.25 the HVC.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "BFLY (Daily): 'tried again through the HVC on Thursday'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:24:50]", "paraphrase": "CHPT right at the HVC spot, building out"}],
-     "maps_to": {"desk": "High Volume Edge (NAME CONFLICT — the authors say Close, the taxonomy says Edge)", "engine": null}},
-    {"name": "Wedge Pop", "aliases_as_used": ["wedge pop", "wedging up"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Nice wedge pop on Friday and going to be watching on the next pullback.",
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[02:27:18]–[02:31:30]", "paraphrase": "Q&A on how much of a pullback/higher-low to want after a wedge-up; examples SPCX, TTAN (a failed version), RDDT, TWLO, SHOP"}],
-     "maps_to": {"desk": "Wedge Pop", "engine": null}},
-    {"name": "Wedge Drop", "aliases_as_used": ["wedge drop"], "kind": "setup", "evidence_strength": "thin",
-     "definition_quote": null,
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[02:06:38]", "paraphrase": "raised half-jokingly as the bear case on the index"}],
-     "maps_to": {"desk": "Wedge Drop", "engine": null}},
-    {"name": "Kicker Candle", "aliases_as_used": ["kicker candle"], "kind": "setup", "evidence_strength": "thin",
-     "definition_quote": null,
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[01:01:38]", "paraphrase": "HPE's move today is like a kicker candle"}],
-     "maps_to": {"desk": "Kicker Candle", "engine": null}},
-    {"name": "Failed Breakdown", "aliases_as_used": ["failed breakdown", "fake breakdown"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "What 50SMA am I right?! Failed breakdown below $460 with strong candle.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "NBIS (Daily, Bracco): 'WGMI looking like a big failed breakdown'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:21:16]", "paraphrase": "failed breakdowns like SPY's are generally positive"}],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "Distinct from U&R? Owner to rule whether this is an alias or its own setup."},
-    {"name": "Open Bull Gap", "aliases_as_used": ["open bull gap", "hold of the bull gap", "bull gap low", "gap support"], "kind": "level", "evidence_strength": "strong",
-     "definition_quote": "I like the open bull gap from the beginning of august.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "QQQ: 'Another hold of the bull gap early in the week.'"}, {"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "TWLO: 'Look at those massive open bull gaps.'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:09:07]", "paraphrase": "today's bull gap low will matter going forward"}],
-     "maps_to": {"desk": "Gap Support", "engine": null}},
-    {"name": "Launchpad", "aliases_as_used": ["launchpad spot", "Prospect and Launchpad"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Big bullish engulfing on earnings to hold all MAs, higher low and getting tight at the launchpad spot.",
-     "evidence": [{"stream": "workshop", "source_ref": "edu_videos:356", "locator": "[00:02:56] (Ravi)", "paraphrase": "GLW as 'prospect and launchpad'"}],
-     "maps_to": {"desk": "Launchpad", "engine": null}},
-    {"name": "IPO Base", "aliases_as_used": ["IPO base", "double bottom IPO base", "IPO AVWAP"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "IPO base and starting to build on the right side.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "CBRS (Daily): 'interesting double bottom IPO base look'"}, {"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "SKHY (Daily): 'many just viewing this as an IPO base'"}],
-     "maps_to": {"desk": "IPO Base", "engine": null}},
-    {"name": "Range Breakout", "aliases_as_used": ["took out the range", "big expansion day out of range"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Bought on Friday as it took out the range.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "CRCL (Daily): 'Big expansion day Thursday out of range and tight inside day on Friday.'"}],
-     "maps_to": {"desk": "Flat Base Breakout (approximate)", "engine": "range_detection / rectangle (approximate)"}},
-    {"name": "Flag", "aliases_as_used": ["flag out", "flagging out", "brief few day flag", "hourly flag"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "I want this to flag out just a bit more and give us a solid spot.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "SNOW (Daily): 'Flagging out a bit and looking for another push higher.'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:23:40]", "paraphrase": "watching how ETHA builds its flag with higher lows"}],
-     "maps_to": {"desk": "Bull Flag", "engine": "bull_flag"}},
-    {"name": "Red to Green", "aliases_as_used": ["red to green", "green to red (inverse)"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Give me a gap down and red to green and I am ready!",
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[01:08:23]", "paraphrase": "HOOD clean red to green"}],
-     "maps_to": {"desk": null, "engine": null}},
-    {"name": "Earnings Gap Up", "aliases_as_used": ["ER gap up", "earnings gap up", "ER gapper", "earnings breakout spot"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "Always interesting that folks are willing to buy an ER gap down (RBRK) and less willing to buy a gap up. When statistically the gap ups are significantly more favorable catalysts for continuation.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "ANF (Daily): 'Double inside days after monster ER gap up'"}, {"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "ESTC (Daily): 'Nice ER gapper that I will track.'"}],
-     "maps_to": {"desk": "Power Earnings Gap / News/Earnings Gapper", "engine": "power_earnings_gap"},
-     "note": "The samples never say 'PEG'; the authors say 'ER gap up'. The owner should rule whether this IS PEG."},
-    {"name": "Delayed Reaction", "aliases_as_used": ["delayed reaction", "3-day delayed reaction"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "In play for delayed reaction.",
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:56:03]", "paraphrase": "a ~3-day delayed reaction, to be discussed with Pradeep"}],
-     "maps_to": {"desk": null, "engine": null}},
-    {"name": "Shakeout", "aliases_as_used": ["shakeout below the range", "brief shakeout", "shakes out to the 20MA"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": "The fail and quick burst is one of the best things you can see and use to manage risk and time opportunities.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "AMZN (Daily): 'after the shakeout Thursday below the range and then show of strength on Friday'"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[02:30:27]", "paraphrase": "TWLO channels up, shakes out to the 20MA, runs"}],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "Overlaps U&R and 20EMA Tap. Owner to rule whether it is a setup or a component of one."},
-    {"name": "Mid-Range Pivot", "aliases_as_used": ["mid-range pivot"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": null,
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:34:50]", "paraphrase": "OWNER-COINED ('what I call a little mid-range pivot'): price dangles below a mid-range level (IGV ~103), builds out, then pushes through"}, {"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:37:32]", "paraphrase": "applied to USO"}],
-     "maps_to": {"desk": null, "engine": null}},
-    {"name": "30 Min Pivot", "aliases_as_used": ["30 min pivot"], "kind": "setup", "evidence_strength": "thin",
-     "definition_quote": "Got TQQQ Monday on the 30 min pivot.",
-     "evidence": [],
-     "maps_to": {"desk": "30-Minute Pivot", "engine": null}},
-    {"name": "Brian Shannon Special", "aliases_as_used": ["Bryan Shannon special (ASR)", "Brian Chanan special (ASR)", "Brian Chan special (ASR)"], "kind": "setup", "evidence_strength": "strong",
-     "definition_quote": null,
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:09:44]–[00:09:51]", "paraphrase": "a gap up INTO an intermediate downtrend (Brian Shannon's pattern); applied to SPY at [00:27:57] as a gap into stacked, flattening MAs"}],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "An external trader's name spoken by ASR three different wrong ways in one session. The alias table must carry the ASR variants."},
-    {"name": "VCP", "aliases_as_used": ["VCP ish action"], "kind": "setup", "evidence_strength": "thin",
-     "definition_quote": "Want to see it tighten up a tad and form VCP ish action here in the %$15-$17 area.",
-     "evidence": [],
-     "maps_to": {"desk": null, "engine": "vcp"}},
-    {"name": "Bear Gap", "aliases_as_used": ["bear gap", "bear gap resistance"], "kind": "level", "evidence_strength": "strong",
-     "definition_quote": "And stalled toward the end of the week at the bear gap above.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "QQQ: 'a harsh rejection at the bear gap resistance on Friday'"}],
-     "maps_to": {"desk": null, "engine": null}},
-    {"name": "AVWAP", "aliases_as_used": ["all time high and July low AVWAP's", "IPO AVWAP", "swing high AVWAP's"], "kind": "level", "evidence_strength": "strong",
-     "definition_quote": "Think notable that SNDK is trading above both the all time high and July low AVWAP’s right now as many late stage tops break out of ranges and then reject those swing high AVWAP’s.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "SPCX (Daily): 'sitting right smack on the IPO AVWAP'"}],
-     "maps_to": {"desk": null, "engine": "avwap_reclaim"}},
-    {"name": "Psyche Level", "aliases_as_used": ["$100 psyche level", "$100 Livermore level"], "kind": "level", "evidence_strength": "strong",
-     "definition_quote": "A clear area to risk against and presence of buyers and $100 psyche level.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "P (Daily): 'Give me some tightness around $100 Livermore level'"}],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "'Livermore level' and 'psyche level' both name a round number; owner to confirm they are one level type."},
-    {"name": "Theme Hot Potato", "aliases_as_used": ["theme hot potato"], "kind": "market_signal", "evidence_strength": "strong",
-     "definition_quote": "On Monday it’s crypto stocks, the next it is biotech, then it is software, the next its cybersecurity, then its oil and gas stocks, and finally MAGS.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-fcd", "locator": "SMH: 'theme hot potato continues it was just semis turn, for now!'"}],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "OWNER-COINED market-regime term (fast daily theme rotation). A candidate S7 regime alert."},
-    {"name": "Kill Bar", "aliases_as_used": ["KILL BAR", "kill candle"], "kind": "market_signal", "evidence_strength": "strong",
-     "definition_quote": "Essentially, until we get another “KILL BAR” I see no reason to be negative.",
-     "evidence": [{"stream": "sunday_scans", "source_ref": "substack:/p/sunday-scans-d40", "locator": "XBI: 'Not exactly a kill candle on Friday but darn close to it.'"}],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "Needs an owner definition (which index, what range/volume) before it can become an S7 alert type."},
-    {"name": "Follow Through Day", "aliases_as_used": ["Follow Through Day spots", "Follow Through Day gap"], "kind": "market_signal", "evidence_strength": "strong",
-     "definition_quote": "The Nasdaq unable to make highs and struggling at the Follow Through Day spots.",
-     "evidence": [],
-     "maps_to": {"desk": null, "engine": null},
-     "note": "An existing O'Neil term. The wire already has FTD rulings (project_wire_ftd_undercut_ruling_2026_08_25) — consume, don't redefine."},
-    {"name": "Moving Average Sandwich", "aliases_as_used": ["moving average sandwich"], "kind": "market_signal", "evidence_strength": "thin",
-     "definition_quote": null,
-     "evidence": [{"stream": "zoom_live", "source_ref": "edu_videos:355", "locator": "[00:28:05]–[00:28:12]", "paraphrase": "SPY gapping into the 9, 20 and 5-day with the 50 below"}],
-     "maps_to": {"desk": null, "engine": null}}
-  ]
+ "_readme": [
+  "UCT Setup Vocabulary v0 — DRAFT, owner approval pending. Nothing may carry a setup_name outside the APPROVED list; until approval every entry is status=candidate.",
+  "D9 ANSWERED YES (owner, 2026-09-13): the authors' own names are canonical. This vocabulary is the ONE setup-name authority; the six existing lists (setupGroups.js, setupCatalog.js, desk _SETUP_TAXONOMY, pattern_vision FOCUSED_SETUPS, voice_chart_vision list, curriculum glossary) and pattern-engine ids MAP to it via wisdom_vocab_maps (W1) and derive from it later (W6). It must never become a seventh list.",
+  "Built ONLY from the Session 0 samples (Sunday Scans 2026-08-30 + 2026-09-06; Zoom edu_videos 355 live session + 356 workshop, both 2026-09-11). Names are spelled as the authors use them.",
+  "definition_quote is verbatim ONLY for Sunday Scans (a free, publicly published newsletter). Transcript-sourced evidence is a LOCATOR (edu_videos id + cue timestamp) plus a paraphrase, because this repository is public and the live sessions / workshops are paid content. The verbatim sentences are in the Session 0 report and in the gitignored samples.",
+  "kind: setup = an entry/trigger pattern · level = a price reference that setups key off · market_signal = a context read about the market, never a ticker setup.",
+  "maps_to records which EXISTING registries already name the same idea: desk = api/services/desk_session_insights.py::_SETUP_TAXONOMY (26), engine = pattern_engine detector _PATTERN_ID (85). A null is a real gap, not an omission.",
+  "evidence_strength: strong = used as a name in 2+ segments or defined; thin = one passing use. Thin entries need an owner definition before approval.",
+  "⛔ QUOTE-FREE (W1 §0.4f / D1). This repository is public. The verbatim `definition_quote` fields and the quoted tails of 25 evidence locators were REDACTED on 2026-09-13 during the golden-v1 freeze: the repo-wide leaked-quote check found 8 golden quotes reproduced here, in a paid-source draft that the approved v1 file had already superseded. Locators stay; source text does not. tools/wisdom/golden_leak_check.py is the rail that stops it coming back."
+ ],
+ "version": "v0-draft",
+ "built_at": "2026-09-13",
+ "entries": [
+  {
+   "name": "Oops Reversal",
+   "aliases_as_used": [
+    "oops",
+    "oops reversal",
+    "baby oops"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "PLTR (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "MDB (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "approach prose"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:39:33]",
+     "paraphrase": "passes on a 'baby oops' as too small"
+    }
+   ],
+   "maps_to": {
+    "desk": "Oops Reversal",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "20EMA Tap",
+   "aliases_as_used": [
+    "tap of the 20EMA",
+    "held the 20ema",
+    "shakes out to the 20MA",
+    "tapping into the 20"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "SNOW (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:28:10]",
+     "paraphrase": "a wedge-up that shakes out into the 20 and is followed by a gap through the prior day's high defines the stop"
+    }
+   ],
+   "maps_to": {
+    "desk": "20 EMA Pullback",
+    "engine": "pullback_to_21ema (NOTE: engine uses the 21 EMA; the authors say 20)"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Inside Day",
+   "aliases_as_used": [
+    "inside day",
+    "double inside days",
+    "tight inside day"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "ALM (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "ANF (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": "inside_bar_breakout (breakout variant only)"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Remount",
+   "aliases_as_used": [
+    "remount",
+    "remount after an undercut",
+    "trying to remount the 50th SMA"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "RBRK (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:40:45]",
+     "paraphrase": "AMZN trying to remount the 50SMA"
+    }
+   ],
+   "maps_to": {
+    "desk": "Remount",
+    "engine": "remount"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Undercut & Rally (U&R)",
+   "aliases_as_used": [
+    "undercut",
+    "undercut of 930",
+    "pull back, undercut 11 bucks, and hold"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "approach prose"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:36:06]",
+     "paraphrase": "an undercut of 930 on LITE would be a buy"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:14:08]",
+     "paraphrase": "PURR: the candle they waited for — pull back, undercut $11, and hold"
+    }
+   ],
+   "maps_to": {
+    "desk": "U&R (Undercut & Rally)",
+    "engine": "u_and_r"
+   }
+  },
+  {
+   "name": "Breakout Retest",
+   "aliases_as_used": [
+    "retest of the base highs",
+    "retest of this breakout spot",
+    "clean retest"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "P (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Go Signal",
+   "aliases_as_used": [
+    "GO SIGNAL",
+    "go signal",
+    "actionable go signals"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "TEM (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[01:51:21]",
+     "paraphrase": "MRNA hourly candle 'is your go signal' — entry 135, stop 130"
+    }
+   ],
+   "maps_to": {
+    "desk": "Go Signal",
+    "engine": null
+   },
+   "note": "Used on an HOURLY trigger over a daily setup in both samples — the timeframe pair is part of the definition the owner should confirm.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "High Volume Close (HVC)",
+   "aliases_as_used": [
+    "HVC",
+    "the HVC",
+    "HVC spot",
+    "through the HVC"
+   ],
+   "kind": "level",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "BFLY (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:24:50]",
+     "paraphrase": "CHPT right at the HVC spot, building out"
+    }
+   ],
+   "maps_to": {
+    "desk": "High Volume Edge (NAME CONFLICT — the authors say Close, the taxonomy says Edge)",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Wedge Pop",
+   "aliases_as_used": [
+    "wedge pop",
+    "wedging up"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:27:18]–[02:31:30]",
+     "paraphrase": "Q&A on how much of a pullback/higher-low to want after a wedge-up; examples SPCX, TTAN (a failed version), RDDT, TWLO, SHOP"
+    }
+   ],
+   "maps_to": {
+    "desk": "Wedge Pop",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Wedge Drop",
+   "aliases_as_used": [
+    "wedge drop"
+   ],
+   "kind": "setup",
+   "evidence_strength": "thin",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:06:38]",
+     "paraphrase": "raised half-jokingly as the bear case on the index"
+    }
+   ],
+   "maps_to": {
+    "desk": "Wedge Drop",
+    "engine": null
+   }
+  },
+  {
+   "name": "Kicker Candle",
+   "aliases_as_used": [
+    "kicker candle"
+   ],
+   "kind": "setup",
+   "evidence_strength": "thin",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[01:01:38]",
+     "paraphrase": "HPE's move today is like a kicker candle"
+    }
+   ],
+   "maps_to": {
+    "desk": "Kicker Candle",
+    "engine": null
+   }
+  },
+  {
+   "name": "Failed Breakdown",
+   "aliases_as_used": [
+    "failed breakdown",
+    "fake breakdown"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "NBIS (Daily, Bracco)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:21:16]",
+     "paraphrase": "failed breakdowns like SPY's are generally positive"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Distinct from U&R? Owner to rule whether this is an alias or its own setup.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Open Bull Gap",
+   "aliases_as_used": [
+    "open bull gap",
+    "hold of the bull gap",
+    "bull gap low",
+    "gap support"
+   ],
+   "kind": "level",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "QQQ"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "TWLO"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:09:07]",
+     "paraphrase": "today's bull gap low will matter going forward"
+    }
+   ],
+   "maps_to": {
+    "desk": "Gap Support",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Launchpad",
+   "aliases_as_used": [
+    "launchpad spot",
+    "Prospect and Launchpad"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "workshop",
+     "source_ref": "edu_videos:356",
+     "locator": "[00:02:56] (Ravi)",
+     "paraphrase": "GLW as 'prospect and launchpad'"
+    }
+   ],
+   "maps_to": {
+    "desk": "Launchpad",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "IPO Base",
+   "aliases_as_used": [
+    "IPO base",
+    "double bottom IPO base",
+    "IPO AVWAP"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "CBRS (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "SKHY (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": "IPO Base",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Range Breakout",
+   "aliases_as_used": [
+    "took out the range",
+    "big expansion day out of range"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "CRCL (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": "Flat Base Breakout (approximate)",
+    "engine": "range_detection / rectangle (approximate)"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Flag",
+   "aliases_as_used": [
+    "flag out",
+    "flagging out",
+    "brief few day flag",
+    "hourly flag"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "SNOW (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:23:40]",
+     "paraphrase": "watching how ETHA builds its flag with higher lows"
+    }
+   ],
+   "maps_to": {
+    "desk": "Bull Flag",
+    "engine": "bull_flag"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Red to Green",
+   "aliases_as_used": [
+    "red to green",
+    "green to red (inverse)"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[01:08:23]",
+     "paraphrase": "HOOD clean red to green"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Earnings Gap Up",
+   "aliases_as_used": [
+    "ER gap up",
+    "earnings gap up",
+    "ER gapper",
+    "earnings breakout spot"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "ANF (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "ESTC (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": "Power Earnings Gap / News/Earnings Gapper",
+    "engine": "power_earnings_gap"
+   },
+   "note": "The samples never say 'PEG'; the authors say 'ER gap up'. The owner should rule whether this IS PEG.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Delayed Reaction",
+   "aliases_as_used": [
+    "delayed reaction",
+    "3-day delayed reaction"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:56:03]",
+     "paraphrase": "a ~3-day delayed reaction, to be discussed with Pradeep"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Shakeout",
+   "aliases_as_used": [
+    "shakeout below the range",
+    "brief shakeout",
+    "shakes out to the 20MA"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "AMZN (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:30:27]",
+     "paraphrase": "TWLO channels up, shakes out to the 20MA, runs"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Overlaps U&R and 20EMA Tap. Owner to rule whether it is a setup or a component of one.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Mid-Range Pivot",
+   "aliases_as_used": [
+    "mid-range pivot"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:34:50]",
+     "paraphrase": "OWNER-COINED ('what I call a little mid-range pivot'): price dangles below a mid-range level (IGV ~103), builds out, then pushes through"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:37:32]",
+     "paraphrase": "applied to USO"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   }
+  },
+  {
+   "name": "30 Min Pivot",
+   "aliases_as_used": [
+    "30 min pivot"
+   ],
+   "kind": "setup",
+   "evidence_strength": "thin",
+   "evidence": [],
+   "maps_to": {
+    "desk": "30-Minute Pivot",
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Brian Shannon Special",
+   "aliases_as_used": [
+    "Bryan Shannon special (ASR)",
+    "Brian Chanan special (ASR)",
+    "Brian Chan special (ASR)"
+   ],
+   "kind": "setup",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:09:44]–[00:09:51]",
+     "paraphrase": "a gap up INTO an intermediate downtrend (Brian Shannon's pattern); applied to SPY at [00:27:57] as a gap into stacked, flattening MAs"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "An external trader's name spoken by ASR three different wrong ways in one session. The alias table must carry the ASR variants."
+  },
+  {
+   "name": "VCP",
+   "aliases_as_used": [
+    "VCP ish action"
+   ],
+   "kind": "setup",
+   "evidence_strength": "thin",
+   "evidence": [],
+   "maps_to": {
+    "desk": null,
+    "engine": "vcp"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Bear Gap",
+   "aliases_as_used": [
+    "bear gap",
+    "bear gap resistance"
+   ],
+   "kind": "level",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "QQQ"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "AVWAP",
+   "aliases_as_used": [
+    "all time high and July low AVWAP's",
+    "IPO AVWAP",
+    "swing high AVWAP's"
+   ],
+   "kind": "level",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "SPCX (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": "avwap_reclaim"
+   },
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Psyche Level",
+   "aliases_as_used": [
+    "$100 psyche level",
+    "$100 Livermore level"
+   ],
+   "kind": "level",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "P (Daily)"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "'Livermore level' and 'psyche level' both name a round number; owner to confirm they are one level type.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Theme Hot Potato",
+   "aliases_as_used": [
+    "theme hot potato"
+   ],
+   "kind": "market_signal",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "SMH"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "OWNER-COINED market-regime term (fast daily theme rotation). A candidate S7 regime alert.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Kill Bar",
+   "aliases_as_used": [
+    "KILL BAR",
+    "kill candle"
+   ],
+   "kind": "market_signal",
+   "evidence_strength": "strong",
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "XBI"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Needs an owner definition (which index, what range/volume) before it can become an S7 alert type.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Follow Through Day",
+   "aliases_as_used": [
+    "Follow Through Day spots",
+    "Follow Through Day gap"
+   ],
+   "kind": "market_signal",
+   "evidence_strength": "strong",
+   "evidence": [],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "An existing O'Neil term. The wire already has FTD rulings (project_wire_ftd_undercut_ruling_2026_08_25) — consume, don't redefine.",
+   "definition_locator": "Session 0 samples; source text not committed (W1 §0.4f / D1: locators only)"
+  },
+  {
+   "name": "Moving Average Sandwich",
+   "aliases_as_used": [
+    "moving average sandwich"
+   ],
+   "kind": "market_signal",
+   "evidence_strength": "thin",
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:28:05]–[00:28:12]",
+     "paraphrase": "SPY gapping into the 9, 20 and 5-day with the 50 below"
+    }
+   ],
+   "maps_to": {
+    "desk": null,
+    "engine": null
+   }
+  }
+ ]
 }

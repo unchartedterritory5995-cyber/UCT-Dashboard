@@ -15,6 +15,7 @@ rather than inferring them from three status codes.
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 
 import pytest
 from fastapi import FastAPI
@@ -192,11 +193,37 @@ def test_from_after_to_is_400(monkeypatch, stub_history):
     assert r.status_code == 400 and "after" in r.json()["detail"]
 
 
-def test_span_over_the_ceiling_is_400_and_names_it(monkeypatch, stub_history):
+def test_span_over_the_session_cap_is_400_and_names_the_cap(monkeypatch, stub_history):
+    """⛔ The cap is what makes a cold deep read unreachable (D-042), so it is checked
+    BEFORE the read — a post-read rejection has already paid the 55 s it prevents."""
     _on(monkeypatch)
     r = _app().get(URL, params={"keys": "breadth_score", "from": "1990-01-01", "to": "2026-01-06"})
     assert r.status_code == 400
-    assert str(rt._SERIES_DAY_CEILING) in r.json()["detail"], "the ceiling must be in the message"
+    assert str(rt.series_max_sessions()) in r.json()["detail"], "the cap must be in the message"
+    assert not stub_history, "the reader ran before the cap rejected — the cap is decorative"
+
+
+def test_a_full_cap_span_is_never_rejected_for_being_a_few_holidays_long(monkeypatch, stub_history):
+    """×1.6 is deliberately generous in the safe direction: a genuine 365-session request
+    must not 400 because a year holds ~252 sessions in 365 calendar days."""
+    _on(monkeypatch)
+    days = rt.series_max_calendar_days()
+    frm = (date.fromisoformat("2026-01-06") - timedelta(days=days - 1)).isoformat()
+    assert _app().get(URL, params={"keys": "breadth_score", "from": frm,
+                                   "to": "2026-01-06"}).status_code == 200
+
+
+def test_the_cap_is_configurable(monkeypatch, stub_history):
+    _on(monkeypatch)
+    monkeypatch.setenv("BREADTH_SERIES_MAX_SESSIONS", "30")
+    assert rt.series_max_sessions() == 30
+    r = _app().get(URL, params={"keys": "breadth_score", "from": "2025-01-01", "to": "2026-01-06"})
+    assert r.status_code == 400 and "30-session" in r.json()["detail"]
+
+
+def test_a_bad_cap_value_falls_back_rather_than_crashing(monkeypatch):
+    monkeypatch.setenv("BREADTH_SERIES_MAX_SESSIONS", "not-a-number")
+    assert rt.series_max_sessions() == rt._SERIES_DEFAULT_SESSIONS
 
 
 def test_defaults_when_from_and_to_are_omitted(monkeypatch, stub_history):
