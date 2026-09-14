@@ -15,8 +15,23 @@ ATTENDEE, and an attendee's name is never stored — not in a segment, not in th
 R2 text. raw_sha256 is the sha of the education.db transcript (change detection
 only; a hash reveals no name).
 
-Coverage = last cue start / video duration (edu_videos.duration). NULL when the
-duration is unknown; incomplete = 1 below 0.98 (CONTRACTS §0 #5).
+COVERAGE (owner ruling 2026-09-14; the rule itself lives in
+`api/services/transcript_coverage.py` and nothing here re-implements it):
+  * `coverage_ratio` — UNCHANGED: last cue start / edu_videos.duration, NULL when the
+    duration is unknown. It is a stored MEASUREMENT (CONTRACTS §0 #5) and keeps its
+    meaning so a column read yesterday still means what it meant.
+  * `incomplete` — NOW THE GAP RULE: 1 when the transcript has an internal gap over 30 s
+    between its first and last cue (or begins over 30 s late), 0 when it does not.
+    Trailing dead air after a sign-off is no longer a shortfall.
+⚰️ `incomplete` used to be `coverage_ratio < 0.98`, which had two measured faults: it put
+complete sessions on the re-transcription list because the recording kept rolling after
+everyone said goodbye (videos 254 and 221, 61.6 % and 92.3 %, zero internal gaps), and —
+the worse half — it scored a row with NO duration as 0, i.e. COMPLETE, so every one of the
+314 catalog rows read as fine because nobody had fetched a duration yet. The gap rule
+needs no duration, so an unmeasurable row is now answerable rather than silently passing.
+⛔ A verdict this rule cannot reach (a single cue) maps to `incomplete = 1`: a list a human
+reads is the safe place for "cannot tell", and 0 would be a saturated instrument reporting
+"no problem".
 """
 from __future__ import annotations
 
@@ -28,9 +43,12 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
+from api.services import transcript_coverage as coverage_rule
 from api.services.wisdom.core import authors, ids, timeutil
 
 COVERAGE_THRESHOLD = 0.98
+#: Re-exported, never re-typed — the rule has one owner (`transcript_coverage.py`).
+MAX_INTERNAL_GAP_S = coverage_rule.MAX_INTERNAL_GAP_S
 NORMALIZER_VERSION = "transcript-speakers-v1"
 WINDOW_MAX_S = 90
 WINDOW_MAX_CHARS = 1800
@@ -75,12 +93,16 @@ def duration_seconds(value) -> Optional[int]:
 
 
 def coverage_ratio(cues: list[dict], duration_s: Optional[int]) -> Optional[float]:
-    if not duration_s or duration_s <= 0:
-        return None
-    if not cues:
-        return 0.0
-    last = max(int(c.get("t") or 0) for c in cues)
-    return round(min(1.0, last / float(duration_s)), 4)
+    """The stored span measurement (CONTRACTS §0 #5). ⛔ Not the completeness verdict —
+    that is `coverage_verdict` below. Derived from the shared rule, never recomputed.
+    Rounded because this one is STORED; the delete gate reads the unrounded value."""
+    raw = coverage_rule.span_ratio(cues, duration_s)
+    return None if raw is None else round(raw, 4)
+
+
+def coverage_verdict(cues: list[dict], duration_s: Optional[int]) -> dict:
+    """Every coverage fact for one transcript, from the single shared implementation."""
+    return coverage_rule.transcript_coverage(cues, duration_s)
 
 
 _GUEST_PATTERNS = (
@@ -410,11 +432,13 @@ def ingest_video(video_id: int, *, dry_run: bool = False, r2_module=None,
     segments, text = build_segments(cues, chapters, resolve)
     resolution_json = speaker_resolution(cues, resolve)
     duration = duration_seconds(v.get("duration"))
-    coverage = coverage_ratio(cues, duration)
-    incomplete = 1 if coverage is not None and coverage < COVERAGE_THRESHOLD else 0
+    facts = coverage_verdict(cues, duration)
+    coverage = coverage_ratio(cues, duration)   # the stored, rounded span measurement
+    incomplete = 0 if facts["passes"] else 1   # inconclusive (passes=None) -> on the list
     result = {"id": vid, "action": plan["action"], "stream": stream, "version": version,
               "source_id": source_id, "segments": len(segments), "coverage_ratio": coverage,
-              "incomplete": incomplete, "guests": len(guests),
+              "incomplete": incomplete, "coverage_verdict": facts["verdict"],
+              "coverage_reason": facts["reason"], "guests": len(guests),
               "ambiguous_labels": len(json.loads(resolution_json)["labels"]) if resolution_json else 0}
     if dry_run:
         result["action"] = f"would_{plan['action']}"
@@ -490,7 +514,14 @@ def transcript_coverage(conn) -> dict:
         b["incomplete"] += int(r["incomplete"] or 0)
         b["unmeasurable"] += 1 if r["coverage_ratio"] is None else 0
     return {
+        # ⚠️ `threshold` describes `coverage_ratio` (the stored span measurement) and is NOT
+        # what `incomplete` is computed from any more. Both are named so a reader cannot
+        # take one for the other — that conflation is the whole reason 254 and 221 spent a
+        # night being re-transcribed.
         "threshold": COVERAGE_THRESHOLD,
+        "rule": f"incomplete = an internal gap over {MAX_INTERNAL_GAP_S}s between the first "
+                f"and last cue, or a start over {MAX_INTERNAL_GAP_S}s late "
+                f"(owner ruling 2026-09-14); coverage_ratio is the legacy span measurement",
         "sources": len(rows),
         "incomplete_total": sum(b["incomplete"] for b in by_stream.values()),
         "unmeasurable_total": sum(b["unmeasurable"] for b in by_stream.values()),
