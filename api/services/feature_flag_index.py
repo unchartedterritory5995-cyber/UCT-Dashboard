@@ -38,6 +38,55 @@ def is_gate(name: str) -> bool:
     return any(m in name for m in _GATE_MARKERS) or name.endswith("_ON")
 
 
+# ── Visibility flags — a SECOND axis, and the one that was invisible ─────────
+# ⚰️ 2026-09-13: `DESK_PUBLIC_SHOWS` decided whether a PAID Zoom session became a
+# searchable public YouTube video, and **no rail could see it**. Two independent
+# reasons, which is why it survived: `is_gate()` is false for it (no ENABLED /
+# DISABLE in the name), and the ledger rail only asks about gates. It was set to
+# the wildcard `*` on 2026-08-19 and 27 paid sessions published public until the
+# 2026-09-13 revert.
+#
+# ⛔ A gate is "does this feature run". A VISIBILITY flag is "who can see the
+# output", and the blast radius of getting it wrong is not an outage — it is paid
+# content on the open internet, which cannot be un-published.
+#
+# The markers are DECISION words. The exclusions are the other three kinds of
+# name that carry them and decide nothing: a DESTINATION (`*_URL`, `*_CHANNEL`,
+# anything WEBHOOK), a CREDENTIAL (`*_SECRET`, `*_TOKEN`, `*_KEY`), and a
+# LOCATION (`*_PATH`, `*_BASE`, `*_ID`). Measured against the real census this
+# yields 4 flags and excludes exactly `DESK_ANNOUNCE_DB_PATH`,
+# `DISCORD_CHART_PUBLIC_KEY` and `UCT_PUBLIC_BASE` — a path, a signing key and a
+# base URL.
+#
+# ⚠️ RESIDUAL, stated rather than hidden: this is a NAME test. A new flag that
+# decides public exposure without one of these words in its name is not caught.
+# That is a smaller hole than the one it closes, and naming it here is the only
+# honest way to carry it.
+_VISIBILITY_MARKERS = ("PUBLIC", "ANNOUNCE", "PUBLISH", "VISIBILITY", "BROADCAST")
+_NOT_A_DECISION = ("_URL", "_URI", "_SECRET", "_TOKEN", "_KEY", "_ID", "_IDS",
+                   "_PATH", "_MODEL", "_CHANNEL", "_BASE", "_WEBHOOK")
+
+
+def is_visibility_flag(name: str) -> bool:
+    """True for an env name whose VALUE decides who can see the output."""
+    upper = name.upper()
+    if "WEBHOOK" in upper:
+        return False
+    if any(upper.endswith(suffix) for suffix in _NOT_A_DECISION):
+        return False
+    return any(marker in upper for marker in _VISIBILITY_MARKERS)
+
+
+def visibility_flags(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any]]:
+    """`scan` narrowed to the names that decide public exposure.
+
+    ⛔ Narrowed from `scan`, never from `gates` — `gates` cannot see a flag whose
+    name carries no ENABLED/DISABLE marker, which is exactly how the one that
+    published paid sessions stayed invisible.
+    """
+    return {k: v for k, v in scan(roots, base).items() if is_visibility_flag(k)}
+
+
 def _os_aliases(tree: ast.AST) -> set[str]:
     """Every local name this file's `import os [as X]` statements bind.
 

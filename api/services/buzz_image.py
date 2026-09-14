@@ -257,14 +257,15 @@ def _render_uncached(window: str = "open", *, client=None) -> bytes | None:
         own = client is None
         c = client or httpx.Client(timeout=RENDER_TIMEOUT_S)
         try:
-            r = c.post(f"{renderer}/render", headers={"X-Render-Secret": secret}, json={
+            from api.services.discord_render import ids as render_ids, observe as render_observe
+            r = c.post(f"{renderer}/render", headers={"X-Render-Secret": secret, **render_ids.render_headers()}, json={
                 "url": url, "selector": "#buzz-export",
                 "width": BOARD_W, "height": BOARD_H, "scale": SCALE,
                 "settle_ms": 400, "ready_js": READY_JS, "ready_timeout_ms": 15000,
                 "probe_js": PROBE_JS,
             })
             if not r.is_success:
-                log.warning("[buzz] render HTTP %s: %s", r.status_code, r.text[:160])
+                log.warning("[buzz] render HTTP %s: %s", r.status_code, render_observe.scrub(r.text)[:160])
                 return None
             if not r.content.startswith(b"\x89PNG"):
                 log.warning("[buzz] render returned non-PNG")

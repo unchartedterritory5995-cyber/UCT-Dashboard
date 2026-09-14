@@ -39,7 +39,206 @@ sees any of it until a master merge row says otherwise.
 
 | # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 4 | 2026-09-13 | branch tip after `7f230fbe9` (merge of `origin/master` `506eeee6d` into the branch) + this ledger commit, fast-forwarded to master | **Master merge 1**: rows 1–3 + the Phase 0 close-out `a3b9074ef` | 26 files vs master (listed by `git diff --name-only origin/master..HEAD`): `api/main.py`, `api/routers/discord_interactions.py`, `api/services/discord_interactions.py`, `api/services/discord_render/*` (7), `docs/discord-render/*` (6), `docs/feature_flags.json`, 7 test files, 3 tools | as rows 1–3; nothing new | **none** — `tools/flow_worker_watch_coverage.py` on the merged tree: `reachable=154 watched=24 changed=26 OK` | merged tree: **494 passed, 1 failed**. The failure is `test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared` naming four `ALERT_TAXONOMY_*_DARK_ENABLED` gates — **inherited**: the same test fails identically on a clean checkout of master's tip `506eeee6d` (S7 alert-taxonomy commits `5fa4b4582` `edebd8bf0` `1bfd54069` `fd3c6aaaa`). Not this program's flags to declare; **0 new failures**. | no hot-path change with the flag unset (bench re-run is a flag-on row in `05`) | **pending push** — to be filled with Railway `web` status and the running `RAILWAY_GIT_COMMIT_SHA` read in-process | **Nothing members can see changes.** This adds the Discord render V2 code switched off (`DISCORD_RENDER_V2_ENABLED` unset), the program's documents, and three diagnostic tools. With the switch off, `/chart`, `/flow`, `/buzz` and the chart buttons run exactly the code they run today, and a test fails if V2 is even consulted with the switch off. Two small changes run for everyone and neither is visible: the chart-controls row in servers with Discord Activities enabled is split instead of truncated (no production server has Activities enabled), and a failed Discord edit now records its status code for diagnosis. Like any `api/` change, the push restarts `web`, `worker` and `bars-api` — roughly a minute of API blips — and does **not** restart flow-worker. Rollback: leave the flag unset (already the case), or revert the merge commit and push. |
+| 4 | 2026-09-13 | branch tip after `7f230fbe9` (merge of `origin/master` `506eeee6d` into the branch) + this ledger commit, fast-forwarded to master | **Master merge 1**: rows 1–3 + the Phase 0 close-out `a3b9074ef` | 26 files vs master (listed by `git diff --name-only origin/master..HEAD`): `api/main.py`, `api/routers/discord_interactions.py`, `api/services/discord_interactions.py`, `api/services/discord_render/*` (7), `docs/discord-render/*` (6), `docs/feature_flags.json`, 7 test files, 3 tools | as rows 1–3; nothing new | **none** — `tools/flow_worker_watch_coverage.py` on the merged tree: `reachable=154 watched=24 changed=26 OK` | merged tree: **494 passed, 1 failed**. The failure is `test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared` naming four `ALERT_TAXONOMY_*_DARK_ENABLED` gates — **inherited**: the same test fails identically on a clean checkout of master's tip `506eeee6d` (S7 alert-taxonomy commits `5fa4b4582` `edebd8bf0` `1bfd54069` `fd3c6aaaa`). Not this program's flags to declare; **0 new failures**. | no hot-path change with the flag unset (bench re-run is a flag-on row in `05`) | **MERGED `740b79ad5`** (fast-forward `506eeee6d..740b79ad5`, 17:14:57 UTC). `web` SUCCESS 17:17:20 UTC, running `RAILWAY_GIT_COMMIT_SHA=740b79ad52aa…` read in-process, `/api/health` uptime 62 s, `DISCORD_RENDER_V2_ENABLED` absent from the process. flow-worker **SKIPPED**. ⚠️ **Another session pushed to master inside this deploy window** (`2b94fba2f` + merge `f34ce660b`, S7 price-level, created 17:17:01 UTC): Railway marked this program's `web`/`worker`/`bars-api` deployments REMOVED and served `f34ce660b`; a bad-signature probe got a 502 during their swap. **Final state, re-measured 17:23 UTC:** running `f34ce660b798b6ca5` (`740b79ad5` verified an ancestor), health 200, probe `401 invalid request signature` ×3 in 0.18–0.43 s, V2 flag still unset, flow-worker SKIPPED on both pushes. Smoke PASS on the final pod; the 502 was INCONCLUSIVE (their swap), not a failure — no rollback (H15). | **Nothing members can see changes.** This adds the Discord render V2 code switched off (`DISCORD_RENDER_V2_ENABLED` unset), the program's documents, and three diagnostic tools. With the switch off, `/chart`, `/flow`, `/buzz` and the chart buttons run exactly the code they run today, and a test fails if V2 is even consulted with the switch off. Two small changes run for everyone and neither is visible: the chart-controls row in servers with Discord Activities enabled is split instead of truncated (no production server has Activities enabled), and a failed Discord edit now records its status code for diagnosis. Like any `api/` change, the push restarts `web`, `worker` and `bars-api` — roughly a minute of API blips — and does **not** restart flow-worker. Rollback: leave the flag unset (already the case), or revert the merge commit and push. |
+
+### Step 2.2 on the branch (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 5 | 2026-09-13 | `2509cc0de` | 2.2 — observability: scrubbed `drender` events (exceptions through `observe.exception`), SLOs from the jobs table, alert rules per `03` §3.9, the observer thread (alerts, durable cooldown, hourly `store.purge`), `GET /api/discord/render-health`, the `/renderhealth` handler (built, **not registered**); stale `/flow` command-list assertion corrected | `api/services/discord_render/{observe (new),commands,jobs_store,runtime}.py` · `api/routers/discord_interactions.py` (`_renderer_health`, render-health route) · `api/services/discord_interactions.py` (`build_renderhealth_command`, `build_commands(renderhealth=False)`) · `tools/discord_chart_commands.py` (`--renderhealth`) · `tests/test_discord_render_{observe,health_endpoint,health_command}.py` (new) · `tests/test_discord_activity.py` | no new gate (the flag-ledger rail agrees). Config, inert while V2 is off: `DISCORD_RENDER_ALERT_WEBHOOK` (blank = alerts are `drender` log events only, OI-08) · `DISCORD_RENDER_ADMIN_USER_IDS` (blank = the admin bit only) · `DISCORD_RENDER_OBSERVE_S` (60) · `DISCORD_RENDER_ALERT_COOLDOWN_S` (1800) | none — no file on flow-worker's watch list; re-verified on the merged tree before merge 2 | 11 files: **458 passed, 1 failed** — the inherited `ALERT_TAXONOMY_*` flag-ledger red (row 4); **0 new**. The `test_discord_activity.py` assertion had been red on master since `08cadbba9` (2026-09-06, `/flow` joined the default set; the test was last touched 2026-09-01) — provenance by `git show`, corrected, mutation M0 proves it can fire. Mutation proofs **18/18 red**, restores sha-verified, control green (19 node ids) | n/a — no member-path change with V2 off | **branch only** (ships in master merge 2) | None while `DISCORD_RENDER_V2_ENABLED` is unset: the observer starts only with the V2 runtime, and `/renderhealth` is not registered. The one thing that exists regardless is `GET /api/discord/render-health`, which answers 401 without the PUSH_SECRET bearer and with it only reads (railed: it never starts V2 and never creates the jobs database). |
+
+### Master merge 2 — dark 2.2 (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 6 | 2026-09-13 | branch tip after `72cfddf87` (merge of `origin/master` `d6ac61816` into the branch, 22 commits, no file overlap) + this ledger commit, fast-forwarded to master | **Master merge 2**: row 5 (`2509cc0de`) + docs `6864b051f` | 14 files vs master (`git diff --name-only origin/master..HEAD`): `api/routers/discord_interactions.py`, `api/services/discord_interactions.py`, `api/services/discord_render/{commands,jobs_store,observe,runtime}.py`, `docs/discord-render/{03-architecture,05-progress,LEDGER}.md`, `tests/test_discord_activity.py`, `tests/test_discord_render_{observe,health_endpoint,health_command}.py`, `tools/discord_chart_commands.py` | as row 5; nothing new | **none** — `tools/flow_worker_watch_coverage.py` on the merged tree: `reachable=154 watched=24 changed=14 OK` | merged tree `72cfddf87`, 13 scoped files: **479 passed, 0 failed**. Row 4's inherited flag-ledger red is gone — master's own commits now declare the `ALERT_TAXONOMY_*` gates (7 entries on `origin/master`). | no member-path change with the flag unset | **MERGED `6d779dd47`** (fast-forward `d6ac61816..6d779dd47`, 18:03:56 UTC; `web` was SUCCESS on `d6ac61816` and master 0 ahead, checked in the same call). `web` BUILDING 18:04:21 → DEPLOYING 18:05:48 → **SUCCESS 18:06:09 UTC**. Running `RAILWAY_GIT_COMMIT_SHA=6d779dd47d1f`, read from `/proc/1/environ` of the running process; `/api/health` 200, uptime 33 s; interactions bad-signature `401` ×3 (0.11–1.80 s); `GET /api/discord/render-health` without the bearer `401 unauthorized` — the new route answering; `DISCORD_RENDER_V2_ENABLED` and `DISCORD_RENDER_ALERT_WEBHOOK` absent. flow-worker **SKIPPED**; `bars-api` SUCCESS; `worker` SUCCESS (re-read after 18:07 UTC). No other push inside the window. | **Nothing members can see changes.** This adds the monitoring half of the Discord render V2 code, which stays switched off (`DISCORD_RENDER_V2_ENABLED` unset). With it off, `/chart`, `/flow`, `/buzz` and the chart buttons run exactly today's code; the new background monitor only starts with V2, so it does not run; the admin `/renderhealth` command is written but not registered, so nobody sees a new command. One new read-only endpoint, `GET /api/discord/render-health`, exists for the owner and answers 401 to anyone without the push secret. One test assertion that had been wrong since 2026-09-06 is corrected. Like any `api/` change, the push restarts `web`, `worker` and `bars-api` — about a minute of API blips — and does **not** restart flow-worker. Rollback: revert the merge and push; there is no flag to flip because nothing is on. |
+
+### Step 2.3 on the branch (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 7 | 2026-09-13 | `a353596ce` | 2.3 — chart-renderer log hygiene (C-13), hard ceiling, correlation log line and `/health` counters (**unconditional**); the pool behind `RENDER_POOL_ENABLED`; web sends `X-Correlation-Id` / `X-Render-Priority` and scrubs the renderer's error body | `services/chart_renderer/app.py` · `api/services/discord_render/{ids,runtime}.py` · `api/services/{discord_chart_house,buzz_image,discord_interactions}.py` · `tests/test_chart_renderer_pool.py` · `tests/test_discord_render_correlation.py` (new) | `RENDER_POOL_ENABLED` (chart-renderer, default OFF — not in `docs/feature_flags.json`, whose rail scans `api/ scripts/ tools/` only) · renderer config, inert until set: `RENDER_HARD_TIMEOUT_S`, `RENDER_WARM_URL` (OI-17), `RENDER_RECYCLE_AFTER` (500), `RENDER_RSS_CEILING_MB` (2500), `RENDER_BACKGROUND_SLOTS` (2), `RENDER_POOL_KEYS` (4) | none for flow-worker (no watched file; re-verified on the merged tree). **chart-renderer is a separate deploy** (`railway up` of a `git archive` of the merged commit, weekend). Classification: **ADDITIVE** for the unconditional tier — scrubbed logs, a ceiling above every budget a request declares, one more log line, more `/health` keys. A restart drops any in-flight render (on a Sunday afternoon, warm-cycle renders). | 18 files: **519 passed**. Mutation proofs **22/22 red** (12 renderer, 10 web), restores sha-verified, control green. Real-Chromium measurement in `05`. | local, hermetic: legacy p50 537 ms → pool with spares 440 ms. In production the flag is off, so no change. | **branch only** | web: none — two request headers the running renderer ignores, and scrubbed warning text. chart-renderer: none visible — the same PNGs; its logs stop carrying the render token; a render that hangs past its own budget now gets a 504 instead of holding the request until web's 60 s client timeout. |
+
+### Master merge 3 — 2.3, web half (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 8 | 2026-09-13 | branch tip `a69dfc574` + this ledger commit, fast-forwarded to master (master had not moved since `6d779dd47`; nothing to merge) | **Master merge 3**: row 7 (`a353596ce`) + docs `a69dfc574` | 12 files vs master: `api/services/{buzz_image,discord_chart_house,discord_interactions}.py`, `api/services/discord_render/{ids,runtime}.py`, `docs/discord-render/{01-failure-forensics,03-architecture,05-progress,LEDGER}.md`, `services/chart_renderer/app.py`, `tests/test_chart_renderer_pool.py`, `tests/test_discord_render_correlation.py` | as row 7 | **none** — watch coverage on the tip: `reachable=154 watched=24 changed=12 OK`. `services/chart_renderer/app.py` rides along in the repo, but no push deploys chart-renderer; it ships separately once `web` is verified (row 9). | tip `a69dfc574`, 25 scoped files: **724 passed, 0 failed** | no member-path change (V2 unset, pool off) | **MERGED `d32d14d60`** (fast-forward `6d779dd47..d32d14d60`, 18:44:29 UTC; `web` SUCCESS on `6d779dd47` and master 0 ahead, checked in the same call). `web` BUILDING 18:44:42 → DEPLOYING 18:46:50 → **SUCCESS 18:47:11 UTC**. Running `RAILWAY_GIT_COMMIT_SHA=d32d14d604ee`, read in-process; `/api/health` 200, uptime 61 s; bad-signature `401` ×3 (0.20–0.26 s); render-health without the bearer `401`; V2 flag and alert webhook absent. flow-worker **SKIPPED**; `bars-api` SUCCESS, `worker` SUCCESS (re-read 18:49 UTC). | **Nothing members can see changes.** `web`'s chart renders now send the renderer two request headers — one identifying a V2 request, one marking the warm cycle as background work. The renderer running today ignores both, and the updated renderer only acts on them once its pool is switched on, which it is not. Two warning lines that could quote the chart page's address now strip it before logging. `/chart`, `/flow`, `/buzz` and the chart buttons produce the same replies as today. The push restarts `web`, `worker` and `bars-api` (about a minute of API blips) and does **not** restart flow-worker. The chart-renderer update is its own deploy right after (row 9). Rollback: revert and push. |
+
+### chart-renderer deploy — 2.3 renderer half (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 9 | 2026-09-13 | `railway up --path-as-root` of `git archive a69dfc574 -- services/chart_renderer` (byte-identical at master `d32d14d60`, checked in the deploy call) | **chart-renderer deploy** for row 7 | `services/chart_renderer/{Dockerfile,app.py,requirements.txt}` — payload sha256 matched the committed blobs, 0 CR bytes | none — `RENDER_POOL_ENABLED` unset (pool OFF) | not a flow-worker deploy. **ADDITIVE** (row 7). A restart drops in-flight renders: Sunday afternoon, warm-cycle traffic only. | covered by row 8's gate (724 passed, includes `test_chart_renderer_{pool,service}.py`) | in production after the deploy: p95 2,300 ms over the first 7 renders (warm cycle, pool off) — no change is expected with the pool off | **SUCCESS**, deployment `6090d306` (BUILDING 18:48:34 → DEPLOYING 18:49:16 → **SUCCESS 18:49:58 UTC**; replaced `a4b1e594` of 2026-09-01). **Image:** `/app/app.py` 584 lines / 23,944 bytes = the payload (`railway ssh` dropped `-l`, so `wc` printed all three counts; the byte count is the stronger match). **`/health`, read from the web pod:** 19 keys where there were 3 (`ok, browser, allowed`); `ready: true`, `pool_enabled: false`, `launch_error: null`, 0 timeouts, 0 failures, RSS 790 MB. **Log:** 9 render lines, each `cid=- path=/r/chart status=200 prio=background ready=True` — web's warm cycle marking itself background, end to end; **0 unredacted `token=`**. No render failed, so the hygiene fix was not exercised in production; the real-Playwright proof is in `05`. | None visible: the same charts. The renderer's logs no longer carry the render token, which unblocks the rotation in **OI-13** (owner). |
+
+### Step 2.4a on the branch (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 10 | 2026-09-13 | `0e331168a` | 2.4a — symbol resolution at the ack (D-04, OI-01) and the `/flow` ETF partition (C-14), **V2 path only** | `api/services/discord_render/symbols.py` (new) · `api/services/discord_render/commands.py` · `api/routers/discord_interactions.py` (`run_flow_card_job(..., source="stocks")`) · `tests/test_discord_render_symbols.py` (new) | `DISCORD_RENDER_V2_SYMBOLS_ENABLED` — kill switch under the V2 master, default ON. Its name is built at run time, so the flag-ledger scan cannot see it; it is recorded here and in `03` §3.8. | none — no watched file changed. `symbols.py` *imports* `api/massive_processor.py` (on flow-worker's watch list) without changing it; re-verified on the merged tree. | 26 files: **763 passed**. Mutation proofs **22/22 red** on the second run; the first run found two rails that could not fail (S4, S9 — loop log), both fixed. Production-data probe in `05`. | invalid symbol: baseline 1.5 s end-to-end with no suggestions (`02`). Now the static check takes 0–23 ms, plus `/api/bars` `no_data` in 109–310 ms measured from outside. The end-to-end ack is a flag-on bench row (Phase 3). | **branch only** | None while `DISCORD_RENDER_V2_ENABLED` is unset. With V2 on: an unknown or uncarried symbol gets a private "No chart data for …" with up to three suggestions in under a second, instead of a public "no bars" reply; `/flow` for an ETF or index shows its real flow instead of "no significant options flow" (**behaviour change**, OI-16). The pre-V2 `/flow` path still reads `stocks` (railed). |
+
+### Master merge 4 — 2.4a, dark (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 11 | 2026-09-13 | branch tip after `cee1b269b` (merge of `origin/master` `553d36432` into the branch, 14 commits, no file overlap) + this ledger commit, fast-forwarded to master | **Master merge 4**: row 10 (`0e331168a`) + docs `53b55e9e9` | 8 files vs master: `api/routers/discord_interactions.py`, `api/services/discord_render/{commands,symbols}.py`, `docs/discord-render/{01-failure-forensics,03-architecture,05-progress,LEDGER}.md`, `tests/test_discord_render_symbols.py` | as row 10 | **none** — watch coverage on the merged tree: `reachable=154 watched=24 changed=8 OK` | merged tree `cee1b269b`, 26 scoped files: **763 passed, 0 failed** | no member-path change with V2 unset | Parked at the 15:30 ET restart checkpoint (master moved during the gate; the guard refused), then resumed on the owner's close-out instruction: re-merged master `7bd9c8785` as `2b04c725a` — the S7/D2 session had declared `CANONICAL_INDICATOR_AXIS_ENABLED` itself, so the inherited red is gone. Gate on `2b04c725a`: **764 passed, 0 failed** (26 files); watch coverage OK. Pushed after this row; deploy measured in `05`, Merge 4. | **Nothing members can see changes.** This adds the symbol check and the ETF-aware `/flow` lookup to the Discord render V2 code, which stays switched off (`DISCORD_RENDER_V2_ENABLED` unset). With it off, `/chart`, `/flow`, `/buzz` and the chart buttons run exactly today's code, and `/flow` still reads the same flow partition it reads today (railed). The push restarts `web`, `worker` and `bars-api` (about a minute of API blips) and does **not** restart flow-worker. Rollback: revert and push. |
+
+### Post-restart Step 0 — re-orient and verify (2026-09-13, Sunday, 16:2x ET)
+
+The PC restarted; every PowerShell session was replaced. Verified before touching code — **all green**:
+
+| Check | Result |
+|---|---|
+| `discord-render` worktree | clean; `HEAD = origin/discord-render-hardening = b4c9e9bcc` |
+| Master drift during the restart | **none** — `git rev-list --count HEAD..origin/master` = 0, `origin/master` still `d623baf1d`. No rebase needed (0.3). |
+| Running `web` SHA | `d623baf1d836`, read from `/proc/1/environ` of the running process = master tip |
+| `web` · `worker` · `bars-api` | SUCCESS on `d623baf1d`; **no deploy in flight** on any service |
+| flow-worker | **SKIPPED** on both recent pushes — untouched, as designed |
+| chart-renderer | SUCCESS (`railway up`, 18:48 UTC); `/health` 200 `ready:true browser_connected:true pool_enabled:false renders_total:182 p95 2,570 ms rss 418 MB launch_error:null` |
+| `/api/health` · bad signature · `/api/discord/render-health` unauthenticated | 200 (uptime 475 s) · **401** · **401** |
+| Task Scheduler | **57** `UCT *` jobs present, all `Ready` |
+| `#render-alerts` (0.5) | one alert fired through the **real code path** — `Observer.run_once` → `evaluate_alerts` → durable `alert_due` → `post_webhook` → `record_alert` — on a **temporary** jobs DB so production's alert cooldown is not consumed: `breached:["ack_over_3s"] sent:["ack_over_3s"]` |
+| Other sessions' artifacts (0.4) | all four excluded files still on disk and untracked; the captured branches carry their reconstructed `docs/RESUME.md`. ⚠️ They are untracked but **not gitignored** — a `git add -A` in those worktrees would publish them to this **public** repo. The standing rule (memory `lesson_uct_dashboard_shared_worktree`) is already "never `git add -A`" there; left as-is rather than editing another session's shared git config. The owning sessions own their next steps. |
+
+### Post-restart close-out adds A and B (2026-09-13, Sunday)
+
+**B — was the Step 0 `ack_over_3s` breach real?** **No, and it could not have been.**
+`/data/discord_render_jobs.db` **does not exist** on the web pod (read in-process): V2 has never run in
+production, so there are zero job rows and no live path can produce an ack at all. The breach came from
+the single synthetic row (`ack_ms = 4200`) my probe wrote to a temporary database. No forensics row.
+⭐ The proof is the absent database, not a zero count — a zero count is also what a wrong path returns.
+
+**A — the three withheld files are now ignored, and a gate enforces it.**
+
+| Worktree | Entry added | Commit |
+|---|---|---|
+| `uct-worktrees/flow-nav-prefetch` | `app/.env.flowperf` | `423d7e6ee` → `perf/route-intent-prefetch` |
+| `uct-worktrees/options-desk` | `app/tests/fixtures/_raw_flow10.csv` | `f0571e102` → `feat/options-desk` |
+| `uct-intelligence` (private repo) | `data/uct_intelligence.pre_tsdr_import.bak` | `dd4ab93` → `master` |
+
+Each verified with `git check-ignore -v`; each noted in that worktree's reconstructed `docs/RESUME.md`;
+the files are untouched on disk. The spec doc and two resume files withheld as "credential-shaped" were
+**false positives** (loop log) and were pushed instead: `944231be4`.
+
+**The gate:** `tools/check_repo_hygiene.py` + `tests/test_repo_hygiene.py` — refuses any tracked file
+over 5 MB and any tracked `.env*` outside an allowlist, in `--staged` mode too so it can serve as a
+pre-commit hook. ⛔ It is an **allowlist**, not a bare limit: 15 files over 5 MB are already tracked
+(`api/patches-6-25.json` is 23.7 MB), so a bare limit would be red on arrival and muted within a week.
+⛔ And it **refuses rather than passing on an empty scan** — `git ls-files` from the wrong directory
+answers successfully with nothing, and every assertion over an empty list passes. Mutation proofs
+**5/5 red**, control green (8 tests). Self-check: `python tools/check_repo_hygiene.py --self-check`.
+
+### Step 1.1a — dual render-token acceptance (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 12 | 2026-09-13 | `4821ec3f2` | 1.1a — dual render-token acceptance, and one shared guard replacing 14 copies (OI-19) | `api/routers/render_panels.py` · `app/src/lib/renderToken.{js,test.js}` (new) · 14 × `app/src/pages/*Render.jsx` · `tests/test_render_token_rotation.py` (new) | none. Config, inert until set: `CHART_RENDER_TOKEN_PREVIOUS` (backend) · `VITE_CHART_RENDER_TOKEN_PREVIOUS` (build). With both unset the gate behaves byte-identically to today — dark by construction. | none — watch coverage `reachable=154 watched=24 changed=25 OK` | 28 scoped files: **780 passed**; frontend `renderToken.test.js` **6 passed**; all 14 pages parse under esbuild. Mutation proofs **8/8 red** (5 backend, 3 frontend), restores sha-verified, controls green. | n/a — no render path timing change | *(after the push)* | None. The token check moves into one shared module and gains the ability to accept a previous token during a rotation; with no previous token set, every page and the `/api/r/*` gate accept exactly what they accept today. |
+
+⭐ **Why the guard moved rather than being edited fourteen times.** Each page carried its own
+`const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''` and `if (TOKEN && token !== TOKEN)`.
+Fourteen copies cannot be mutation-proved (memory `lesson_a_guard_repeated_is_a_guard_unproved`) and
+a rotation would have to edit all fourteen correctly. `app/src/lib/renderToken.js` is now the one copy.
+
+### Step 1.1b — the rotation itself (2026-09-13, Sunday, ~16:30 ET)
+
+⚠️ **The stated blocker did not exist, and the opposite was true.** The rotation was parked because
+"Morning Wire holds the live token and rotating breaks Monday's 07:35 wire". Measured against
+production before touching anything: Morning Wire's `.env` token was **already being refused**
+(`GET /api/r/econ` → **403**) while Railway's token returned 200. The wire's Substack panels have
+been failing that gate for some time. Rotating could not break what was already broken, and fixing
+that file is an improvement to Monday's wire rather than a risk to it.
+
+⛔ **And the first probe of this said the opposite.** `GET /api/r/movers` returned **200 for a
+made-up token** — there is no `/r/movers` route, so the request fell through to the SPA catch-all
+and answered 200 with an HTML page. Re-probed against real routes (`/r/econ`, `/r/themes`) with a
+content-type check, the gate was working correctly all along. A status code without a body check is
+not a measurement (same family as the broker_sync 405).
+
+| What | Evidence |
+|---|---|
+| New token generated | `secrets.token_urlsafe(24)`, 32 chars, never printed — fingerprints only |
+| Applied | ONE `railway variables --set` on `web` carrying all four values, so ONE rebuild: `CHART_RENDER_TOKEN` + `VITE_CHART_RENDER_TOKEN` → new (`fp c6cc0765`), `…_PREVIOUS` ×2 → old (`fp 15bec268`) |
+| No breakage window | Each pod is self-consistent (its own backend token + its own bundle); the swap is per-pod and atomic. Deploy BUILDING 20:36:09 → SUCCESS **20:37:30 UTC** |
+| Dual acceptance live | `/api/r/econ`: new → **200 JSON**, old → **200 JSON**, made-up → **403 REFUSED** |
+| Morning Wire config | `morning-wire/.env` rewritten atomically, one line; 54 lines / 30 keys / no duplicates / no malformed lines afterwards; now `fp c6cc0765` → **200** where it was 403 |
+| End-to-end proof | `substack.panelshot.render_panels` — the wire's OWN renderer — against production: `econ` 116 KB and `themes` 949 KB PNGs in 10.8 s. The page only sets `window.__panelReady` after the token is accepted, so a PNG **is** the proof. |
+| Renderer logs | 496 lines, **0** containing `token=` in any form; 244 render lines all `path=/r/chart` with no query. C-13 closed in production. |
+| Log rail | `tests/test_render_token_never_logged.py` (`a8872fbc5`) — AST over the renderer and both web senders; fails if any logging call is handed a URL without `scrub()`/`url_path()`. Includes a planted-violation control. |
+| Retire job | Task Scheduler **`UCT Render Token Retire`**, Monday 2026-09-14 **07:15 CT = 08:15 ET**, one-shot, `StartWhenAvailable`, 30-min limit → `uct-q1-observe/render_token_retire.cmd`. Gated on `morning_wire_state.json::last_run_date == today`; aborts if the CURRENT token is not already 200; idempotent; posts the outcome to `#render-alerts`. Opt out with `render_token_retire.disabled`. |
+| Retire job proven today | Ran it live: `WIRE MARKER ABSENT — last_run_date=2026-09-11 today=2026-09-13. Changing nothing.` exit 0, all four variables unchanged, skip notice posted. The gate is measured, not assumed. |
+
+### Step 1.2 — renderer repo connection + warm pool, and `/renderhealth` made safe to register (2026-09-13)
+
+**Railway service config, applied field by field** (a combined mutation returned HTTP 400: the
+`Builder` enum has only `HEROKU · NIXPACKS · PAKETO · RAILPACK` — there is no `DOCKERFILE` value,
+Railway resolves that from `dockerfilePath`):
+
+| Setting | Value |
+|---|---|
+| `rootDirectory` | `services/chart_renderer` |
+| `watchPatterns` | `["services/chart_renderer/**"]` — **set BEFORE connecting**, because an empty list on a repo-connected service means "rebuild on every push" (CLAUDE.md) |
+| `dockerfilePath` · `healthcheckPath` · `healthcheckTimeout` | `Dockerfile` · `/health` · 300 |
+| `source.repo` | `unchartedterritory5995-cyber/UCT-Dashboard` @ `master` |
+
+⭐ **The scoping is proven, not assumed:** the very next master push (`834034622`, then `d31b78b750`)
+arrived as **SKIPPED** on chart-renderer — neither touched `services/chart_renderer/**`.
+
+**Pool live** (`RENDER_POOL_ENABLED=1`, `RENDER_WARM_URL` set as a Railway reference
+`${{web.CHART_RENDER_TOKEN}}`, so no human or log ever handles the value):
+
+| Measurement | Result |
+|---|---|
+| Boot warm | `chromium launched (pool)` 20:41:17.049 → `warm render path=/r/chart ok` 20:41:19.461 → `pool: warm complete`. **2.41 s**, and the real `/r/chart` page rendered — an unauthorised page has no `#chart-export`, so "ok" also proves the token reference resolved. |
+| First render after boot | **1,184 ms** — no cold start. The documented pre-warm behaviour was a 20–40 s first render after every deploy. |
+| Five renders | 1,096–1,184 ms, median 1,140, `p95_render_ms` 1,180; all valid PNGs, `X-Chart-Ready: true`; 0 failures, 0 timeouts |
+| Spare-context pool | `pool_hits 5 / pool_misses 1` — only the warm render missed |
+| RSS | 528 MB, against a 2,500 MB recycle ceiling |
+| Token in logs | 0 occurrences of `token=` in any form |
+
+**Self-heal, measured by killing the browser** (`pkill` inside the renderer container):
+
+| Step | Result |
+|---|---|
+| After the kill | `browser_connected: false`, RSS **528 → 120 MB** — Chromium genuinely gone |
+| Next renders | all 5 succeeded, **1,004–1,074 ms**, 0 failures, 0 timeouts |
+| Evidence of a NEW browser | `renders_since_recycle` reset (7 → 2) and RSS returned to 533 MB — `_current_slot()` saw `is_connected()` false and relaunched |
+
+⚠️ `ready` stays `true` while `browser_connected` is `false`: `ready` means "a render sent now will be
+served" (and it was), and the pool relaunches on demand. `browser_connected` is the field that tells
+the truth about the browser. Recorded so nobody reads `ready` as a browser liveness check.
+
+**`/renderhealth` made safe to register before the flip.** It was unregistered, and registering it
+with V2 off would have produced a visibly broken admin command: the router only consults V2 when the
+flag is on, and the handler called `get_runtime()`, which would have STARTED the runtime and created
+the jobs database as a side effect of asking how things are. Now the router answers this one command
+whatever the flag says (read-only admin diagnostic, most useful *before* the flip), and the handler
+PEEKS `_runtime` and opens a store only if the database already exists — mirroring
+`GET /api/discord/render-health`. Two new rails cover the flag-off path.
+
+### Step 1.2b — `/renderhealth` registered · Step 1.3 — blocked (2026-09-13)
+
+**`/renderhealth` is registered.** Commands here are **per-guild, not global** (`GET
+/applications/{id}/commands` → `[]`; the guild set held `chart, c, chartsettings, buzz, flow`), so a
+`--global` PUT would have given every member a *second* copy of every command. Registered into
+`882293203485720596` only, after `89c6b12bf` was SUCCESS so the code that answers it was already live:
+
+    chart · c · chartsettings · buzz · flow · renderhealth (default_member_permissions "8")
+
+The other five are byte-identical to what was there. Live state at the end of Step 1: running
+`89c6b12bf1de`, `/api/health` 200, `/api/discord/render-health` 401 unauthenticated, V2 flag still
+absent, alert webhook present, flow-worker **SKIPPED** on both pushes.
+
+**Step 1.3 (`#render-alerts` must be invisible to Contributor) — NOT DONE, blocked two ways.**
+
+1. The Claude browser extension is disconnected since the restart, so the Discord UI is unavailable.
+2. The API route does not work either: `DISCORD_BOT_TOKEN` is the **same app** that serves `/chart`
+   (`UCT Intelligence`, `1474900505917653142`), and it gets **403 `Missing Access` (50001)** on
+   `GET /channels/1548783155354403046`. It is not a member of that private channel and cannot edit
+   its overwrites. Granting it access needs the same permission that is missing.
+
+⚠️ Not a data-exposure issue: `#render-alerts` carries operational figures (queue depth, latency
+percentiles, failure classes, correlation ids) and no member data. The webhook is unaffected —
+posting does not require channel read access, which is why the test alert landed.
 
 ## Owner decisions (OI-xx)
 
@@ -48,7 +247,7 @@ Full context for every row is in `03-architecture.md` §6.
 
 | OI | Question | Recommendation | Proceeding on |
 |---|---|---|---|
-| OI-01 | D-04 refuses an unknown symbol in <1 s, but v20 measured that the universe is not a gate (AEHL, TCEHY, FNMA, BTC-USD chart and none are in it). | Refuse only when every authority (entity master, universe, bars store, breadth, index, delisted) misses; suggest ≤3 and start a background warm so a re-run of a real ticker works. | the recommendation (built in 2.4) |
+| OI-01 | D-04 refuses an unknown symbol in <1 s, but v20 measured that the universe is not a gate (AEHL, TCEHY, FNMA, BTC-USD chart and none are in it). | Refuse only when every authority (entity master, universe, bars store, breadth, index, delisted) misses; suggest ≤3 and start a background warm so a re-run of a real ticker works. | built in 2.4a, with one authority added after measuring production: after every static authority misses, `/api/bars` decides — only its `symbol_not_carried` answer refuses (^GSPC is in no static authority yet charts). The v20 premise is stale: BTC-USD and FNMA are `no_data` on `/api/bars` today, so refusing them matches what `/chart` already gives. |
 | OI-02 | D-01 allows an asyncio queue. | Thread-backed bounded queue + dedicated executor, because the class being closed is event-loop saturation. SQLite persistence exactly as D-01. | the recommendation (built in 2.1) |
 | OI-03 | Stay in `web` or move jobs to a dedicated worker service? | Stay in `web` with durable resume; revisit after 5 sessions of `resumed` data. | stay in `web` |
 | OI-04 | The context line is a second PATCH that re-declares attachment ids. | Fold it into the image PATCH; drop it for that message when it is late. | the recommendation (2.6) |
@@ -56,7 +255,7 @@ Full context for every row is in `03-architecture.md` §6.
 | OI-06 | The mplfinance stand-in says different things from the house chart and is unlabelled (4.8 % of baseline runs). | Label it on the image and in the message. | the recommendation (2.7) |
 | OI-07 | `/flow` said "the flow feed is reconnecting" for timeouts, 500s and restarts alike. | Per-class wording + a ≤10-minute cached card labelled as cached. | per-class wording built (2.1a, V2 only); cached card in 2.4 |
 | OI-08 | Alert destination. | New `DISCORD_RENDER_ALERT_WEBHOOK`, ships blank; recommend the dev server's `#system-alerts`. | ships blank |
-| OI-09 | `/renderhealth` registration changes the app's command set. | Register at flip time (admin-only); the HTTP endpoint is the read path until then. | not registered |
+| OI-09 | `/renderhealth` registration changes the app's command set. | Register at flip time (admin-only); the HTTP endpoint is the read path until then. | built in 2.2, **not registered**: `tools/discord_chart_commands.py register --renderhealth` at flip |
 | OI-10 | D-02's RTH TTL (30 s) is shorter than today's 120 s daily TTL. | Follow D-02; the durable cache and the background lane absorb the extra renders; measure in `05`. | D-02 |
 | OI-11 | Flow target = baseline × 0.5 may be unreachable for `days=all` (cost is flow-worker compute in a partner file). | Per-window targets from `02` (1 → 4.4 s · 7 → 4.9 s · 30 → 8.7 s · all → 10.4 s). | per-window targets |
 | OI-12 | `chart-renderer` has no repo source; it deploys with `railway up` from a local directory. | Deploy from a clean checkout of the exact merged commit, weekend/after-hours; recommend connecting the service to the repo with watch path `services/chart_renderer/**` (owner action). | clean-checkout `railway up` in a window |
@@ -64,6 +263,10 @@ Full context for every row is in `03-architecture.md` §6.
 | OI-14 | ~77 web deploys/day (1,077 in 14 days, median pod life 8.4 min) is the root of C-01 for every feature on the pod. | Out of this program's scope; recorded with the measurement. | recorded only |
 | OI-15 | flow-worker `/ticker-flow` has no internal time budget (2026-09-11: Massive OI fallback >60 s while web gave up at 30 s). | Our side: 10 s timeout + cached card + honest class. Their side (partner file): a budget inside `_compute_ticker_flow`. | our side only |
 | OI-16 | `/flow` hardcodes `source=stocks`, so every ETF answers "no significant options flow" (SPY 0 vs **182** contracts with `etfs`, QQQ 0 vs 136, SMH 0 vs 83; measured 2026-09-13). | Resolve the partition from the symbol (ETF → `etfs`) via the shared resolver; railed with SPY/QQQ fixtures. Behaviour-changing for members (ETF flow appears), so behind the V2 flag. | the recommendation (2.4) |
+| OI-17 | §3.7's boot warm renders `/r/chart?fixedbars=…`, but the page refuses a request without the render token (`ChartRender.jsx`: `TOKEN && token !== TOKEN` → "unauthorized") and chart-renderer does not hold `CHART_RENDER_TOKEN`. | Always warm with a hermetic render (Chromium launch + one canvas screenshot, no network); also render `RENDER_WARM_URL` when it is set. Recommend the owner set `RENDER_WARM_URL=https://uctintelligence.com/r/chart?sym=NVDA&tf=D&fixedbars=nvda-d&token=<render token>` on chart-renderer **after** the rotation in OI-13 — copying a credential between services is the owner's call. | hermetic warm shipped; `RENDER_WARM_URL` unset |
+| OI-18 | §3.7 sets `RENDER_HARD_TIMEOUT_S` to 20 s by default, but web budgets 15 s then 25 s of readiness per attempt (`discord_chart_house._ATTEMPTS`) on top of 21/31 s of navigation, so a 20 s ceiling would 504 renders that succeed today. | Default the ceiling to the budget the request declares (2 × readiness + 6 s navigation + settle + 10 s): only a hang is cut, and no render that succeeds today changes. Lower it to 20 s once web's attempts are re-budgeted inside the 15 s deadline (2.4/2.6) and the RTH p99 is measured. | request-declared ceiling; env unset |
+| OI-19 | The close-out plan puts dual-token acceptance on **chart-renderer**. Measured in code: chart-renderer **never validates the render token** — it navigates to whatever URL it is handed. The token is checked in two places, both on **web**: `app/src/pages/*Render.jsx` (14 pages; `ChartRender.jsx:76` reads `import.meta.env.VITE_CHART_RENDER_TOKEN`, baked at BUILD time, compared at `:778`) and `api/routers/render_panels.py:61` (`CHART_RENDER_TOKEN`, the `/api/r/*` payload gate). A `CHART_RENDER_TOKEN_PREVIOUS` on the renderer would be read by nothing. | Put dual acceptance where the check is: accept `VITE_CHART_RENDER_TOKEN` **or** `VITE_CHART_RENDER_TOKEN_PREVIOUS` in the render pages, and `CHART_RENDER_TOKEN` **or** `CHART_RENDER_TOKEN_PREVIOUS` in `render_panels.py`. Ship that first (additive, dark-safe), then one `web` rebuild flips new+previous together — no window where a sender's token is rejected, because the new bundle accepts both. Monday's job clears only the `_PREVIOUS` pair. | the recommendation (built in 1.1) |
+| OI-20 | The hygiene gate can run as a **pre-commit hook** (`--staged`), which would enforce it at the moment of `git add -A` rather than at gate time. But git hooks live in the **shared** git directory: installing one reaches all ~57 worktrees and every concurrent session at once, and a hook that misfires (no `python` on that shell's PATH) blocks every session's commits. | Ship the gate as a **test rail** now (shared through git, cannot break anyone's commit), and leave the hook opt-in: `git config core.hooksPath .githooks` after copying the one-liner from the runbook. Revisit as a hook once it has a week of green in the gate. | gate rail now; hook documented, not installed |
 
 ## Loop log
 
@@ -91,6 +294,15 @@ is not walked into twice.
 | Phase 0 | The shell loop's `"$SPW\\$name.jsonl"` escaped the dollar, so every filter wrote to one file literally named `env$name.jsonl`. | The printed output path. | A Python driver builds paths; no Windows path goes through shell interpolation. |
 | Phase 0 | A rail for "a future `--until` is clamped to now" stayed **green under mutation**: a future `anchorDate` returns rows normally (measured), so nothing depended on the clamp. | Mutation E3. | Removed the clamp and its test rather than keep a guard that cannot fire. |
 | Phase 0 | With the no-progress guard mutated out, paging looped forever and pytest's timeout killed the process: **no totals line**, so the harness could not score it. | Mutation E4 read "NO TOTALS LINE". | The fake raises after a call cap, so a runaway fails like an assertion; re-run red. (Harness run twice; no third.) |
+| 2.2 | The structured-event patch script refused its first run: three `log.exception("drender evt=…")` sites were outside its replacement list, and its own leftover check stopped it before writing. Converting them exposed a leak class: `log.exception` on a failed Discord edit writes the httpx traceback, which carries the webhook URL — the live 15-minute interaction token. | The script's `FILE NOT WRITTEN` guard. | `observe.exception` writes a scrubbed traceback; an AST rail forbids `log.exception` anywhere in the package; a runtime crash test asserts the token never reaches `caplog.text`. The script's second run wrote both files; no third. |
+| 2.2 | The first alert rules read the last hour for everything and paged on a single renderer probe; `03` §3.9 specifies a 30-minute p95, a 5-minute failure burst and two consecutive probes. 14 mutations had already gone red — against the wrong windows. | Re-reading §3.9 against the code before committing. | Windows fixed to the spec, four more rails (M14–M17); §3.9 now records what 2.2 built and what waits for 2.4 (breaker-open). |
+| Merge 2 | The post-deploy probe called `railway ssh` from Python's `subprocess` via `shutil.which` — on Windows the `.cmd` shim, so `cmd.exe` read the quoted `\|` as a local pipe ("The system cannot find the path specified"). A Git Bash retry printed nothing: MSYS path conversion rewrote `/opt/venv/bin/python` and `/proc/1/environ`. The HTTP checks had passed; only the in-process read was missing. | `VERIFY: FAIL` with `pod: NO ANSWER`, then an empty retry. | Stopped after two. Used merge 1's recorded recipe (`MSYS_NO_PATHCONV=1 railway ssh -s web echo <b64> "\|" base64 -d "\|" /opt/venv/bin/python`) with the probe as a file: answered first time. |
+| 2.4a | The production-data probe of `symbols.py` printed nothing: its `2>/dev/null` threw away the traceback. Run again with stderr showing, it failed in my loader, not in the code under test: on Python 3.12, a `@dataclass` in a module loaded by `spec_from_file_location` looks the module up in `sys.modules`, and I never registered it. The real module is imported normally in production. | An empty result where JSON was expected; the second run showed the traceback. | Registered the module before `exec_module`; a probe never discards stderr. The third run used a changed instrument, not a repeat. |
+| 2.4a | Two of 22 mutations stayed **green**. **S4:** the "swap" case in the one-edit test was APPL → AAPL, which is a substitution — only one position differs — so deleting the transposition branch changed nothing (the docstring example was wrong the same way). **S9:** the kill-switch test made `resolve` raise, but the check fails open, so the exception was swallowed and the request queued exactly as it would with the switch honoured. | The harness verdict `GREEN UNDER MUTATION`. | S4: a real adjacent swap (NDVA → NVDA) plus a two-position non-swap; docstring corrected. S9: the fake records calls and the test asserts none happened. Harness re-run; a rail whose failure the code under test swallows is not a rail. |
+| Step 0 | The restart capture withheld three files for "credential-shaped content". All three were **false positives**: the scanner's `sk-[A-Za-z0-9_-]{20,}` matched hyphenated slugs — `v2-ri`**`sk-register-and`**`-directives.md` and `feat/de`**`sk-sharpen-workshop-card`**. One session's reconstructed resume and a design doc were withheld for nothing. | Reading each match **in context** rather than trusting the hit count. | Verified in context, then committed and pushed (`944231be4` on `feat/catalyst-coverage-precision`). ⭐ A secret regex anchored on a two-letter prefix inside a hyphen-rich corpus is an instrument that manufactures findings; the fix for the next capture is a boundary (`(?<![A-Za-z0-9-])sk-`) plus an entropy floor, not a longer block list. |
+| 1.1a | The patch that rewired the 14 render pages detected each file's line ending **from disk** and wrote that back. Git stores these files LF; the working copies were CRLF, so every file came back as a whole-file rewrite — `918` changed lines on `ChartRender.jsx` instead of 2. A 14-file whole-file diff would have conflicted with every other session touching those pages. | `git diff --numstat` after the patch: 14 files, every line changed. | Normalised all 14 back to LF (a byte transform, never a `git checkout`), re-measured: **2 lines changed per file**. ⭐ The rule the script had wrong: an EOL-preserving patch must write the ending the **index** stores, not the one it finds on disk — on a box with `core.autocrlf=true` those differ by design. |
+| 2.4b | The SAME line-ending trap, a second time — `docs/feature_flags.json` came back as a 1,199-line whole-file diff after a 7-line edit. A Python `newline=""` round trip preserves what is ON DISK, and on this box git checks these files out CRLF while the index stores LF. | `git diff --numstat` again. | Normalised to LF; the diff became `0 7`. ⛔ **Standing rule, now that it has cost two edits:** any repo file written from Python on this box is written **LF**, matching the index — never "whatever was on disk". |
+| 2.4b | The merge with master produced a **duplicate** `ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED` in `docs/feature_flags.json`: I declared it (status `dark`) to unblock the gate, and the owning S7 session declared it in the same window (status `armed`). `json.load` keeps the LAST duplicate, so the "every gate is declared" rail passed while the file carried two entries — only `test_no_flag_is_declared_twice` caught it. | The scoped gate: 838 passed, 1 failed. | Removed mine, kept theirs: they own the flag and they know it is armed. ⭐ `lesson_a_clean_merge_can_still_duplicate_a_key`, exactly — and the reason two rails exist for one file. |
 
 ## Phase summaries
 
@@ -129,4 +341,16 @@ that next time these are queries.
 `fail_fn` hooks, V2 command layer, router branch, lifespan resume/release) — rows 1–3 above; **18
 mutations across three harnesses, every one red with a sha-verified restore and a green control**
 (7 on the 2.1 core and corrected tests, 8 on the V2 router/commands/lifespan, 3 on the log tool). **Next:** the first master merge (Phase 0 docs/tools + dark 2.1),
-then 2.2 observability (`observe.py` written, tests pending, uncommitted).
+then 2.2 observability — both done; see Phase 2.
+
+### Phase 2 — build (2026-09-13 →) · in progress
+
+- **2.1** runtime, durable jobs, deadline, failure contract, V2 command layer — merged **dark** in
+  master merge 1 (`740b79ad5`, row 4).
+- **2.2** observability — `2509cc0de` (row 5): every V2 line a scrubbed `drender` event; SLOs and
+  alert rules computed from the durable jobs table; alerts with a durable cooldown; hourly purge;
+  `GET /api/discord/render-health`; `/renderhealth` built but unregistered. Ships dark in master
+  merge 2.
+- **Next:** 2.3 renderer pool (chart-renderer, `railway up` from a clean checkout in a window, with
+  the token log fix that unblocks OI-13) · 2.4 symbol resolution, freshness, breakers, the ETF
+  partition (C-14).

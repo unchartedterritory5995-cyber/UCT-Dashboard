@@ -59,8 +59,10 @@ export const CHART_GROUPS = [
       { key: 'qqq_close',     label: 'QQQ' },
       { key: 'vix',           label: 'VIX' },
       { key: 'mcclellan_osc', label: 'McClellan Osc' },
-      { key: 'stage2_count',  label: 'Stage 2 Count' },
-      { key: 'stage4_count',  label: 'Stage 4 Count' },
+      // A-34: the MA-stack qualifier the Monitor and Views already carry — these
+      // are not Weinstein stage classifications.
+      { key: 'stage2_count',  label: 'Stage 2 (MA Stack)' },
+      { key: 'stage4_count',  label: 'Stage 4 (MA Stack)' },
       { key: 'rsp_spy_ratio', label: 'RSP/SPY (Equal-Wt)' },
       { key: 'iwm_qqq_ratio', label: 'IWM/QQQ (Small-Cap)' },
       { key: 'vxn',           label: 'VXN (Nasdaq)' },
@@ -213,6 +215,42 @@ export function unitOf(key) {
   return METRIC_UNITS[key] ?? UNIT.COUNT
 }
 
+// ── Reporting cadence ─────────────────────────────────────────────────────────
+// Surveys published once a week — the same set `heatmapMetrics.FFILL_KEYS` may
+// carry forward. A reading a few sessions old is the survey's cadence, not a
+// stopped feed; everything else prints every session.
+export const WEEKLY_METRICS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim'])
+
+/** Sessions a metric's latest reading may trail the newest row before the readout dates it (A-10). */
+export function staleAllowance(key) {
+  return WEEKLY_METRICS.has(key) ? 7 : 1
+}
+
+// ── Reference lines ───────────────────────────────────────────────────────────
+// Canonical levels belong to the METRIC that defines them (D-009). A line draws
+// whenever a metric that owns it is plotted, on that metric's axis — so a hand
+// edit keeps it (A-03), and two families' lines never share one axis (A-02).
+// adv_decline_cum keeps the flat line the A/D Line preset already drew (D-030).
+const PARITY = { at: 1, label: 'parity' }
+const THRUST = { at: 2, label: 'thrust' }
+const VIX_20 = { at: 20, label: '20' }
+const FLAT = { at: 0, label: 'flat' }
+
+export const METRIC_REF_LINES = {
+  ratio_5day: [PARITY, THRUST],
+  ratio_10day: [PARITY, THRUST],
+  up_vol_ratio: [PARITY],
+  cboe_putcall: [PARITY],
+  avg_10d_cpc: [PARITY],
+  cnn_fear_greed: [{ at: 25, label: 'fear' }, { at: 75, label: 'greed' }],
+  vix: [VIX_20],
+  vxn: [VIX_20],
+  avg_10d_vix: [VIX_20],
+  avg_10d_vxn: [VIX_20],
+  adv_decline: [FLAT],
+  adv_decline_cum: [FLAT],
+}
+
 // ── Axis framing ──────────────────────────────────────────────────────────────
 // Families whose axis frames its own data instead of including zero. The split
 // is magnitude vs level: a count of stocks or a percent above a moving average
@@ -343,10 +381,6 @@ export const CHART_PRESETS = [
     // Volume is what separates a thrust from a bounce; the preset had counts
     // and ratios but nothing measuring what was behind them.
     metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'up_vol_ratio'],
-    lines: [
-      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
-      { unit: UNIT.RATIO, at: 2.0, label: 'thrust' },
-    ],
   },
   {
     id: 'highs-lows',
@@ -379,7 +413,6 @@ export const CHART_PRESETS = [
     // The daily put/call takes 39 distinct values over 151 sessions and reads
     // as noise. On a shared axis the 10-day average is the spine of it.
     metrics: ['vix', 'cboe_putcall', 'avg_10d_cpc'],
-    lines: [{ unit: UNIT.RATIO, at: 1.0, label: 'parity' }],
   },
   {
     id: 'sentiment',
@@ -387,17 +420,12 @@ export const CHART_PRESETS = [
     group: 'Volatility & Sentiment',
     hint: 'CNN Fear/Greed and the AAII bull-bear spread — contrarian positioning.',
     metrics: ['cnn_fear_greed', 'aaii_spread'],
-    lines: [
-      { unit: UNIT.PCT, at: 25, label: 'fear' },
-      { unit: UNIT.PCT, at: 75, label: 'greed' },
-    ],
   },
   {
     id: 'ad-line',
     label: 'A/D Line',
     hint: 'The cumulative advance-decline line against the index — price highs the line will not confirm.',
     metrics: ['adv_decline_cum', 'sp500_close'],
-    lines: [{ unit: UNIT.CUM, at: 0, label: 'flat' }],
     // adv_decline_cum keeps only 55% of its travel in the default 90-day
     // window, climbing monotonically from 5,781 with the April trough at -995
     // off-screen — the divergence this preset exists to show is not in frame.
@@ -423,10 +451,6 @@ export const CHART_PRESETS = [
     group: 'Momentum',
     hint: 'Up versus down volume against net advancers — conviction behind the advance, not just its width.',
     metrics: ['up_vol_ratio', 'adv_decline'],
-    lines: [
-      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
-      { unit: UNIT.NET, at: 0, label: 'flat' },
-    ],
   },
   {
     id: 'highs-lows-pct',
@@ -444,7 +468,6 @@ export const CHART_PRESETS = [
     group: 'Volatility & Sentiment',
     hint: 'Nasdaq against broad volatility, with the 10-day trend.',
     metrics: ['vix', 'vxn', 'avg_10d_vix'],
-    lines: [{ unit: UNIT.VIX, at: 20, label: '20' }],
   },
   {
     id: 'setup-supply',
@@ -685,30 +708,34 @@ export function axisForUnit(selected, unit, axisByKey) {
 }
 
 /**
- * Reference lines that should actually draw, with the axis each belongs to.
+ * Reference lines that should actually draw, each with the axis it belongs to.
  *
- * Two things are filtered out. A line whose family has no series would sit on
- * an axis with nothing on it. And on an auto-framed family a line outside the
- * data would expand the axis to reach it — ECharts grows an axis to contain a
- * markLine — undoing the framing in scaleForUnit. Anchored families already
- * include zero, so there the line draws regardless and may extend the top,
- * which is what EXTREMES_BAND already does for MA Breadth.
+ * On an auto-framed family a line outside the data would expand the axis to reach
+ * it — ECharts grows an axis to contain a markLine — undoing scaleForUnit, so it is
+ * suppressed, and so is a line whose extent is unknown. Anchored families already
+ * include zero; there the line draws regardless, which is what EXTREMES_BAND
+ * already does for MA Breadth.
  *
  * @param selected  metric keys currently plotted
- * @param lines     the preset's `lines`, or []
  * @param extentOf  (unit) => [min, max] over visible rows, or null when unknown
  */
-export function resolveLines(selected, lines, extentOf) {
-  if (!selected?.length || !lines?.length) return []
+export function resolveLines(selected, extentOf) {
+  if (!selected?.length) return []
   const { axisByKey } = resolveAxes(selected)
+  const drawn = new Set()
   const out = []
-  for (const line of lines) {
-    if (!selected.some(k => unitOf(k) === line.unit)) continue
-    if (scaleForUnit(line.unit)) {
-      const extent = extentOf(line.unit)
-      if (!extent || line.at < extent[0] || line.at > extent[1]) continue
+  for (const key of selected) {
+    const unit = unitOf(key)
+    for (const line of METRIC_REF_LINES[key] ?? []) {
+      const id = `${unit}|${line.at}|${line.label}`
+      if (drawn.has(id)) continue
+      if (scaleForUnit(unit)) {
+        const extent = extentOf(unit)
+        if (!extent || line.at < extent[0] || line.at > extent[1]) continue
+      }
+      drawn.add(id)
+      out.push({ unit, at: line.at, label: line.label, axis: axisByKey[key] ?? 0 })
     }
-    out.push({ ...line, axis: axisForUnit(selected, line.unit, axisByKey) })
   }
   return out
 }
