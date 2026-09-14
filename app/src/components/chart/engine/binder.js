@@ -580,6 +580,23 @@ export function createBinder({ chart, LWC }) {
     // ids in it are refused below instead of spun on.
     const { ordered, cyclic } = orderByDependency(instances, (id) => registry.getDefinition(id))
 
+    // ── WHO IS READ BY SOMEBODY ELSE ─────────────────────────────────
+    //
+    // ⛔⛔ VISIBILITY IS INK, NOT EXISTENCE. The hidden-skip below exists because
+    // computing what nobody draws is a full pass over the bar set for nothing —
+    // and that stays true for a hidden instance nobody reads, and STOPS being
+    // true the moment one does. Hiding a QQQ series must not silently take
+    // `MA(QQQ)` down with it: the eye icon is about what is DRAWN.
+    const dependedOn = new Set()
+    for (const inst of instances) {
+      if (!inst || inst.hidden === true) continue
+      const idef = registry.getDefinition(inst.defId)
+      for (const [, value] of sourceInputsOf(idef, inst)) {
+        const parsed = parseSource(value)
+        if (parsed && parsed.kind === 'instance') dependedOn.add(parsed.instanceId)
+      }
+    }
+
     for (const inst of ordered) {
       if (!inst || typeof inst.instanceId !== 'string') continue
       // A HIDDEN instance is computed by NOBODY. `planBindings` drops it on its
@@ -594,7 +611,7 @@ export function createBinder({ chart, LWC }) {
       // line's antialiasing on one scanline. It did not fully explain that flake
       // (see the runbook's "a diff confined to one scanline" note), but it was
       // wasted work either way.
-      if (inst.hidden === true) continue
+      if (inst.hidden === true && !dependedOn.has(inst.instanceId)) continue
       const def = registry.getDefinition(inst.defId)
       if (!def) continue
       computedIds.add(inst.instanceId)

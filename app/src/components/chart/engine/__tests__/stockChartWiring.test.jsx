@@ -1455,8 +1455,8 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
       // one number. What is unusual is only that the chip is NAMED FROM ITS
       // SOURCE, so a member reads `QQQ` rather than `Series`.
       .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries',
-        'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+        'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -3914,8 +3914,8 @@ describe('the Flip-B machinery, live (Task 10)', () => {
       // never a legacy block, never a `cs.indicators` section, never a toggle — so
       // the set grew again with no flip and nothing to migrate.
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-        'ichimoku', 'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
-        'williamsR'])
+        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -4111,7 +4111,13 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // here exactly as it is from the library list, and `offered()` reads the same
     // constant the menu reads so this expectation cannot drift from it.
     const offered = () => catalogRows().filter(r => !LIBRARY_HIDDEN_IDS.includes(r.id))
-    expect(items).toHaveLength(18)
+    // ⭐ NINETEEN AT P2.1's SIBLING. `movingAverage` DOES reach this menu, and the
+    // contrast with `dataSeries` is the point: a per-DEFINITION toggle means
+    // something for an average (turn on a moving average) and nothing for a
+    // passthrough (a line of this chart's own close labelled "Series"). One is
+    // offered, the other is subtracted, and both answers come from the same
+    // constant rather than from a hand-picked list.
+    expect(items).toHaveLength(19)
     expect(items).toHaveLength(offered().length)
     expect(items.map(i => i.id)).toEqual(offered().map(r => 'ind-' + r.id))
     expect(items.map(i => i.label)).toEqual(offered().map(r => r.shortName))

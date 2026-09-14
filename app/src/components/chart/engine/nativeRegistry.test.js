@@ -110,6 +110,11 @@ const TOO_SHORT = {
   // can be "too short" for it — an empty column really does hold nothing finite.
   // Every other number above is a window this definition does not have.
   dataSeries: 0,
+  // ⭐ `ma` COUNTS ITS SOURCE'S BARS, NOT THE CHART'S — the sweep feeds it a
+  // gapless series, so the boundary is simply the period (5). A window is emitted
+  // only when it is FULL of finite values, which is the same rule `computeSMA`
+  // applies to bars.
+  movingAverage: 4,
 }
 
 const BARS = makeBars(300)
@@ -164,7 +169,10 @@ const ENGINE_REL = 'app/src/components/chart/engine'
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists 17 natives and 1 server definition — EIGHTEEN, across two lanes', () => {
+  it('lists 18 natives and 1 server definition — NINETEEN, across two lanes', () => {
+    // ⭐ `movingAverage` IS THE EIGHTEENTH, and the first whose input is a SERIES
+    // rather than the bars: `MA(Close)`, `MA(Volume)` and `MA(QQQ)` are one
+    // definition pointed at different sources.
     // ⭐⭐ `dataSeries` IS THE SEVENTEENTH NATIVE, and the first that computes
     // NOTHING. It hands its source through unchanged so a symbol, a breadth
     // measure or another indicator's output can be plotted directly — one
@@ -173,12 +181,13 @@ describe('native registry — membership', () => {
     // this case is the one that reads as prose.
     expect(NATIVE_DEFS.map(d => d.id).sort()).toEqual([
       'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-      'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+      'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsi', 'sar', 'stoch',
+      'vwap', 'williamsR',
     ])
     expect(listDefinitions().map(d => d.id).sort()).toEqual([
       'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-      'ichimoku', 'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
-      'williamsR',
+      'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
+      'stoch', 'vwap', 'williamsR',
     ])
   })
 
@@ -289,7 +298,12 @@ const JULY_LEGACY_DEFAULTS = {
 // ⭐ `dataSeries` JOINS THEM (P2.1) — it did not exist in July, has no legacy
 // toggle and no `cs.indicators` section, so there is nothing for it to migrate
 // FROM. The coverage case below proves that claim rather than taking it on trust.
-const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries']
+// ⭐ `movingAverage` JOINS THEM, AND FOR A DIFFERENT REASON THAN THE OTHER FOUR.
+// Those were never in `cs.indicators`; this one is not there either, because the
+// shipped price moving averages live in `cs.overlays` — a different legacy shape
+// with no instance id, no placement and no presentation. The engine definition is
+// ADDITIVE beside them, not a migration OF them, so it has no July row to mirror.
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage']
 
 describe('the July defaults table', () => {
   it('covers every MIGRATED definition and nothing else — a missing row is a silent no-op', () => {

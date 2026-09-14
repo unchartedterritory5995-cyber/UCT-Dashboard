@@ -551,7 +551,12 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
     // candles' pane, so both belong here and neither declares a height. The
     // claim is TOTAL — every price-target definition, whenever it was authored —
     // so it is asserted as a set plus the shipped five in their z-order.
-    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    // ⭐ `movingAverage` IS THE EIGHTH. It declares `onPrice`, so it draws inside
+    // the candles' pane and — like the seven before it — declares no height of
+    // its own. A height here would reserve vertical space for something that
+    // never has a pane.
+    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
+      'atrBands', 'movingAverage'])
     for (const id of overlays) {
       expect(getDefinition(id).placement.pane, `${id} declares a pane`).toBeUndefined()
     }

@@ -911,6 +911,66 @@ const RAW_DEFS = [
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
     ]),
 
+  // ── MOVING AVERAGE ───────────────────────────────────────────────────────
+  //
+  // ⭐⭐ THE FIRST DEFINITION WHOSE INPUT IS A SERIES, AND THE ONLY ONE THIS PHASE
+  // NEEDS. `MA(Close)`, `MA(Volume)`, `MA(RSI)` and `MA(MACD.signal)` are the SAME
+  // indicator with different numeric sources — which is the whole point. Building
+  // an "RSI Moving Average" would have been a second implementation of an average
+  // and a third place for the maths to drift.
+  //
+  // ⚠️ IT DOES NOT REPLACE THE LEGACY PRICE MAs. `cs.overlays` still holds the
+  // shipped SMA/EMA-on-close overlays, computed in `StockChart` exactly as they
+  // are today: they have no instance id, no placement and no presentation, and
+  // migrating them is a separate decision with its own backward-compatibility
+  // story. This is ADDITIVE — an old chart gains nothing and loses nothing.
+  //
+  // ⚠️ `domainBehavior: 'inherit'` IS THE ANALYTICAL CLAIM, not a convenience.
+  // An average of a 0-100 series is itself 0-100; an average of volume is not
+  // bounded by anything. Saying so in metadata is what lets `MA(RSI)` read against
+  // RSI's ladder without the renderer knowing what an RSI is — and what stops a
+  // FUTURE transform that does not preserve its domain (a difference, a ratio)
+  // from inheriting one it has no right to.
+  ({
+    ...nativeDef('movingAverage', 'movingAverage',
+      // ⚠️ NAMED APART FROM THE LEGACY ROW ON PURPOSE. `cs.overlays`' price moving
+      // averages already occupy the catalogue id `ma` and the name "Moving
+      // Average", and two rows reading the same in a browse list is a control a
+      // user cannot choose between. Consolidating the two is a migration with its
+      // own backward-compatibility story (see the block comment above); until
+      // then the capability IS the distinguishing word.
+      { name: 'Moving Average (Source)', shortName: 'MA', category: 'Trend', legendParams: ['period'],
+        description: 'The average of any series — price, volume, or another indicator output.',
+        tags: ['trend', 'smoothing', 'derived'] },
+      // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.
+      // `MA(Close)` belongs on the candles — it is what a moving average has
+      // always been — so the STATIC declaration says so and MA-on-close needs no
+      // special handling to look like the shipped overlay. The DERIVED cases
+      // (`MA(RSI)`, `MA(Volume)`) are resolved from the SOURCE by
+      // `displayTarget.resolveDisplayTarget`, which is where a default that
+      // depends on other state belongs. Declaring `pane` instead would have given
+      // every MA-on-close its own empty pane by default, which is the one answer
+      // nobody wants.
+      onPrice,
+      [
+        // ⛔ THE SOURCE IS AN INPUT, WHICH IS WHY CHANGING IT RECOMPUTES. It rides
+        // `inst.inputs` like `period`, so `inputsSignature` already invalidates the
+        // memo when it changes and nothing had to be taught that a source is
+        // special. A source held anywhere else would have needed its own
+        // invalidation rule, and that rule would eventually be wrong.
+        { key: 'source', type: 'source', label: 'Source', default: 'close' },
+        periodInput('period', 'Period', 5, 1, 400),
+        { key: 'maType', type: 'enum', label: 'Type', default: 'sma',
+          options: [['sma', 'SMA'], ['ema', 'EMA']] },
+        colorInput('color', 'Color', '#f0b90b'),
+      ],
+      [
+        { key: 'ma', label: 'MA', style: 'line', color: '$color', width: 1, role: 'primary',
+          legend: { decimals: 2 } },
+      ]),
+    domainBehavior: 'inherit',
+  }),
+
   // ── DIRECT SERIES ─────────────────────────────────────────────
   //
   // ⭐⭐ THE DEFINITION THAT IS NOT AN INDICATOR. Every other native in this file
@@ -1017,6 +1077,59 @@ const RAW_DEFS = [
  * implementation of an indicator, which is the thing the golden fixtures exist
  * to prevent.
  */
+/**
+ * SMA and EMA over a PLAIN NUMERIC SERIES, not over bars.
+ *
+ * ⚠️ NaN IS A GAP, NOT A ZERO, AND THE WARM-UP IS WHY THIS IS NOT `reduce`. Every
+ * source has a head of NaNs — RSI(14) has fourteen — so an average that treated
+ * them as values would emit a number for a window that is mostly nothing. A
+ * window is emitted only when it is FULL of finite values, which is the same rule
+ * `computeSMA` applies to bars and the reason `MA(5, RSI(14))` starts at bar 18
+ * rather than bar 4.
+ *
+ * ⚠️ RETURNS `{value}` POINTS, NOT RAW NUMBERS, because that is what `toColumn`
+ * reads (`points[i].value`) and what every other compute in this file emits. A
+ * raw-number array type-checks, computes correctly and lands as an ALL-NaN
+ * column — silent, and measured: the MA drew nothing with no error anywhere.
+ */
+function smaOfSeries(src, period, n) {
+  const out = new Array(n)
+  const p = Math.max(1, Math.floor(period) || 1)
+  let sum = 0
+  let have = 0
+  for (let i = 0; i < n; i++) {
+    const v = src[i]
+    if (Number.isFinite(v)) { sum += v; have++ } else { sum = 0; have = 0; continue }
+    if (have > p) { const drop = src[i - p]; if (Number.isFinite(drop)) sum -= drop; have-- }
+    if (have === p) out[i] = { value: sum / p }
+  }
+  return out
+}
+
+/** ⚠️ SEEDED ON THE FIRST FULL SMA WINDOW, which is what `computeEMA` does for
+ *  bars — seeding on the first finite value instead would make the head of the
+ *  series depend on where the source's warm-up happened to end. */
+function emaOfSeries(src, period, n) {
+  const out = new Array(n)
+  const p = Math.max(1, Math.floor(period) || 1)
+  const k = 2 / (p + 1)
+  let prev = null
+  let sum = 0
+  let have = 0
+  for (let i = 0; i < n; i++) {
+    const v = src[i]
+    if (!Number.isFinite(v)) { prev = null; sum = 0; have = 0; continue }
+    if (prev === null) {
+      sum += v; have++
+      if (have === p) { prev = sum / p; out[i] = { value: prev } }
+      continue
+    }
+    prev = v * k + prev * (1 - k)
+    out[i] = { value: prev }
+  }
+  return out
+}
+
 const NATIVE_COMPUTE = {
   rsi: (bars, p) => ({ rsi: computeRSI(bars, p.period) }),
 
@@ -1109,6 +1222,19 @@ const NATIVE_COMPUTE = {
   //
   // ⚠️ `Number.isFinite` GATES EVERY VALUE for the same reason: a NaN in the
   // source is a gap in the output, not a number.
+  movingAverage: (bars, p, ctx) => {
+    const n = Array.isArray(bars) ? bars.length : 0
+    // ⛔⛔ NOT `Array.isArray`. A resolved column is a **Float64Array** — `toColumn`
+    // has always built one — and `Array.isArray(new Float64Array(3))` is FALSE.
+    // The first live run had a perfectly good RSI source of 10,203 values and
+    // returned an all-NaN column, silently: no error, no warning, just an MA that
+    // never bound because `hasAnyFinite` said no. Indexable-with-a-length is the
+    // honest test, and it accepts a plain array too.
+    const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
+    if (!src) return { ma: new Array(n) }
+    return { ma: p.maType === 'ema' ? emaOfSeries(src, p.period, n) : smaOfSeries(src, p.period, n) }
+  },
+
   dataSeries: (bars, p, ctx) => {
     const n = Array.isArray(bars) ? bars.length : 0
     const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null

@@ -207,6 +207,8 @@ const SHIPPED_COLUMNS = Object.freeze({
   // other definition because `columnKeys` is a pure read of the DECLARATION — who
   // FILLS the column is `computeFor`'s business, and for this one it is the binder.
   dataSeries: ['value'],
+  // ⭐ ONE COLUMN. An average of any series is still one number per bar.
+  movingAverage: ['ma'],
 })
 
 describe('columnKeys — plots ∪ events', () => {

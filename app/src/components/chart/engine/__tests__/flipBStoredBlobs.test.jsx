@@ -293,8 +293,8 @@ describe('the blob shapes themselves — without these the cases below prove not
       // block, no `cs.indicators` section, no toggle. Registry-native, and the set
       // grew with no flip happening.
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-        'ichimoku', 'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
-        'williamsR'])
+        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
   })
 })
 

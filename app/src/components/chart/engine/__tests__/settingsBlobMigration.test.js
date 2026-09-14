@@ -225,7 +225,7 @@ describe('a blob written before the engine existed', () => {
     // the record of.
     expect(SHIPPED_STACK_ORDER.slice(9))
       .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
-        'dataSeries', 'rsLine'])
+        'movingAverage', 'dataSeries', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -443,7 +443,7 @@ describe('a blob written before the engine existed', () => {
     // ⭐ `dataSeries` IS APPENDED LIKE THE THREE BEFORE IT — authored after the
     // stack order shipped, so `computeShippedStackOrder` puts it at the end by
     // design rather than inserting it into an order members already have.
-    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'dataSeries', 'rsLine'])
+    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'movingAverage', 'dataSeries', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

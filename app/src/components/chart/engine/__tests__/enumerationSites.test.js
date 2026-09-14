@@ -1638,6 +1638,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'ichimoku::kijun', 'ichimoku::tenkan',
       'macd::macd', 'macd::signal',
       'mfi::mfi',
+      // ⭐ `movingAverage` — THE FIRST DEFINITION WHOSE INPUT IS A SERIES rather
+      // than the bars. `MA(Close)`, `MA(Volume)` and `MA(QQQ)` are ONE definition
+      // with different numeric sources, which is the whole point of the source
+      // grammar: it is not a second average, it is the same one pointed elsewhere.
+      'movingAverage::ma',
       'obv::obv',
       // TEN AT PHASE C TASK 13. `rsLine` takes its own PANE, and a pane whose
       // crosshair prints nothing is a value you cannot read. Kept an EQUALITY, so a
@@ -1679,7 +1684,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // registering a chip for it. Registry-native means engine-lane, always.
     const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine',
       'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
-      'dataSeries']
+      'dataSeries', 'movingAverage']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -2626,6 +2631,9 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // it. An empty refs list is therefore not a gap in this table, it is the
     // whole truth about it.
     dataSeries: [],
+    // ⭐ `movingAverage` — additive beside `cs.overlays`, never a migration of it,
+    // so there is no deleted block whose refs this row would name.
+    movingAverage: [],
   }
   /**
    * The definitions that never had a hand-written block to retire.
@@ -2638,7 +2646,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
    * fail by NAME for any definition that genuinely did have a block and has
    * quietly lost its refs or its compute.
    */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries']
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries', 'movingAverage']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2647,7 +2655,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, rsLine: null, dataSeries: null,
+    avwap: null, atrBands: null, rsLine: null, dataSeries: null, movingAverage: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2937,7 +2945,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 18,
+      flipSetSize: 19,
       mutableSets: [],
     })
   })
@@ -3259,9 +3267,16 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     // Non-vacuity: every price overlay really was visited, by name. SEVEN since
     // Phase C Task 14 — `avwap` and `atrBands` draw inside the candles' pane too,
     // so A6 covers them and this count is what says so.
-    expect(checked).toBe(7)
+    // ⭐ EIGHT AT P2.1: `movingAverage` declares `onPrice`, so it is the eighth
+    // price overlay — and, like the seven before it, declares no pane height.
+    expect(checked).toBe(8)
     expect(engineRegistry.listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
+        // ⭐ `movingAverage` DECLARES `onPrice`, so it joins the price overlays —
+        // and it lands LAST because `listDefinitions()` is registration order and
+        // this order IS z-order. `MA(Close)` belongs on the candles, which is what
+        // a moving average has always been.
+        'movingAverage'])
     // …and the predicate catches the thing it is for.
     expect(reserves({ placement: { target: 'price', pane: { height: 0.15 } } })).toBe(true)
     // …and the file it used to read really is gone, so nobody re-points it back.
