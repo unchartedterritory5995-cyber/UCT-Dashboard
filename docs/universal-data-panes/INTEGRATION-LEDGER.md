@@ -152,6 +152,153 @@ code: `bars_auth`, `bars.py`, `bars_api_main`, `ticker_search`, `worker_main`,
 the prewarm/auth changes and their tests are the **stale duplicates**. Master's
 deployed Phase 1.5 state stands.
 
+---
+
+# PHASE 2 — REGISTRY AUDIT + THE INSTANCE WRITERS
+
+Starting HEAD `663e621ce`; ending HEAD `d6f9c8861`. One commit created.
+Baseline re-verified before any edit: **2 failed / 3962 passed / 4 skipped**,
+build clean, tree clean, fingerprint `ea9ebaeee302`.
+
+## ⛔ THE HEADLINE: THE REGISTRY SLICE WAS BUILT, MEASURED, AND REVERTED
+
+It was not skipped. `dataSeries` was added to master's registry and its rails
+taken green, and then removed again for three reasons that only appeared once it
+existed. **The work is written down here precisely so Phase 3 does not repeat the
+audit.**
+
+### The minimal delta — FOUR edits, not the branch's 259 lines
+
+The branch's `nativeRegistry.js` diff carries `movingAverage`, its
+`smaOfSeries`/`emaOfSeries` helpers and a comment rewrite, none of which
+`dataSeries` needs. The irreducible change is:
+
+1. `nativeRegistry.js` — the `dataSeries` entry appended to `RAW_DEFS`:
+   `nativeDef('dataSeries','dataSeries', {name:'Data Series', shortName:'Series',
+   category:'Data', tags:[…], labelFrom:'source'}, autoPane(0.15),
+   [{key:'source',type:'source',default:'close'}, colorInput('color',…)],
+   [{key:'value',label:'Value',style:'line',…}])` plus
+   `domainBehavior:'inherit'` and `passthrough:true`.
+2. `nativeRegistry.js` — the `dataSeries` NATIVE_COMPUTE entry: copies
+   `ctx.source` value-by-value, `Number.isFinite` gated, empty column when the
+   source has not resolved (a gap, never a zero).
+3. `nativeRegistry.js` — `computeFor` hands the ctx to the native lane:
+   `fn(series, resolveInputs(def, inputs), ctx)`. **Provably inert for the 16
+   shipped natives**, which declare `(bars, p)`; the server and AST lanes were
+   already given it.
+4. `registrySizes.js` — `'dataSeries'` in `SHIPPED_DEF_IDS.native`. Every count
+   derives, so the manifest moves exactly one line.
+
+### What master already had — the pleasant half
+
+`autoPane`, `colorInput`, `onPrice` and `nativeDef` all exist, and `nativeDef`
+spreads `...meta` so `labelFrom` rides along. `domainBehavior:'inherit'` is
+already read by slice A's `sourceRef.js`. And **`type: 'source'` is already
+master's vocabulary**: `defSchema` validates it explicitly, and
+`indicatorRegistry.fieldFromInput` deliberately returns `null` for it.
+
+### The measurement
+
+The minimal delta moves **31 rails across 16 files** — not the 48/20 Phase 1
+measured for the blanket copy, because the parameter-sweep and flip-parity breaks
+were branch drift rather than `dataSeries`. All 31 were worked through. The
+registry's own rails were taken fully green (`nativeRegistry.test.js` **170/170**)
+by porting the branch's honest fixes: a `ctxFor(def)` harness that supplies a
+synthetic series to any definition DECLARING a `source` input (derived from the
+declaration, never a list of ids), `WARMUP.dataSeries = 0` (an identity transform
+has no window), and `NOT_A_MIGRATION` gaining the id (no July section exists for
+it). **That result is itself the proof the compute path is correct**: the
+per-definition sweep computed `dataSeries` and got finite values.
+
+And `discoveryCatalog.test.js` went from **24 failed / 16 passed** to
+**8 failed / 32 passed**. The creation path is a pure settings mutation and needs
+no binder, so the registry alone unblocks it. Of the residual 8: two need
+`setInstanceDisplayTarget` (**landed below**), five need legend labelling through
+`readout`, one needs `movingAverage`.
+
+### ⛔⛔ THE THREE REASONS IT WAS REVERTED
+
+1. **It would render for nobody.** Master's binder builds its ctx as
+   `{sym, tf}` — **nothing populates `ctx.source`**. Measured, not inferred:
+   *"the engine bound nothing for dataSeries"*. The branch's resolution block is
+   only ~40 lines, but it needs instance DEPENDENCY ORDERING (a source that is
+   another instance's output must compute first) and a `secondary` bar map that
+   **StockChart supplies** — and the branch's `binder.js` is a whole-file rewrite
+   (1758+/852−, one hunk) that imports `conditions` and `infoFields`, the separate
+   initiative. Master's `binder.js` is byte-identical to the merge base, so the
+   divergence is entirely branch-side and the rewrite is not portable.
+2. **Its source input would have no control.** `enumerationSites` asserts *every*
+   declared input of *every* definition is reachable from the generated dialog,
+   and `fieldFromInput` returns `null` for `type: 'source'`. Closing it means a
+   source control — and `ChartSettingsIndicators.jsx` renders only
+   `color | toggle | number | select`, so teaching `fieldFromInput` the case
+   would make the rail PASS while the member still had no control. **That is the
+   exact lie the rail exists to catch**, and that file is off-limits this phase.
+3. **It would surface a dead row to members.** `catalogRows()` derives from
+   `listDefinitions()` and `IndicatorLibraryDialog` unions it **unfiltered** —
+   `LIBRARY_HIDDEN_IDS` exists in ported code but nothing reads it yet. A "Data
+   Series" row would appear in the library and draw nothing.
+
+⚠️ **One rail states the design question outright** and it is the owner's, not
+mine: *"the native lane is exactly the set of definitions that have [a legacy
+toggle]. A third-lane definition would break it, correctly — somebody has to
+decide what a legacy toggle means."* `dataSeries` is native and has no legacy
+toggle. On the branch this never surfaced because its binder made the definition
+draw. Landing it here means deciding that question, in `stockChartWiring`'s
+`seen === REGISTRY_SIZES.native` equality.
+
+## SLICE — `d6f9c8861` · the presentation and placement writers
+
+| | |
+|---|---|
+| New files | `engine/presentation.js`, `engine/displayTarget.js` |
+| Modified | `engine/instanceControls.js` (+5 writers), `engine/readout.js` (+`disambiguateLabels`; `siblingSuffixes` gains an OPTIONAL arg) |
+| New rails | `displayTarget.test.js` (15, ported) + `instanceWriters.test.js` (**22, written here**) |
+| Engine suite | 2 failed / **3999** passed (+37, zero regressions) |
+
+Writers added: `setInstancePlotStyle`, `setInstanceDisplayTarget`,
+`setInstancePanePosition`, `setInstanceDotSize`, `setInstanceCandleColor`. Each
+goes through `withInstances`, mutates ONE instance by id, returns a new object,
+and **refuses by IDENTITY** (`next === cs`) so a caller can test a rejected write
+— a fresh equal copy would pass `toEqual` and mark the settings dirty on every
+rejected keystroke. No persistence boundary touched; no workspace blob written
+directly.
+
+⛔ **Additive only.** The branch also rewrites `removeInstance`,
+`setInstanceHidden`, a legacy-volume helper and `readout.chipsFrom`; those are
+existing master behaviour with their own rails and were left behind. The single
+change to an existing function is `siblingSuffixes(inputsList, ignoreKeys)` —
+absent means an empty skip set and a byte-identical result.
+
+⚠️ **The 22 new rails were bite-checked**, one mutation at a time, each reverted:
+removing the self-guest guard, the pane-position validation, the style vocabulary
+check and the unknown-instance guard each turned EXACTLY the named case red. The
+branch's own writer rails could not be used whole: they are welded to binder
+cases master cannot run (`lastValueHorizontal` is a style its binder does not
+know — measured at 8 writer cases passing, 6 binder cases failing), and editing
+a ported test to drop the failing half is how a rail stops meaning anything.
+
+## NEXT BLOCKER, AND WHAT IT GATES
+
+**Binder source resolution** — `ctx.source`. It gates, in order: the registry
+definition rendering at all, then `ohlcCapability.js`, then candles, then the
+row-summary UX. It cannot be done without touching `StockChart.jsx` (the
+`secondary` bar map) and without a decision on instance dependency ordering.
+**StockChart is now the true gate**, which it was not at the end of Phase 1.
+
+`presentation.js` and `displayTarget.js` are now IN. `ohlcCapability.js` remains
+out: its census asserts exactly one definition may wear candles, which needs
+`dataSeries` to exist, and its family classifier needs `symbolFamily` from
+`useBreadthSymbols`.
+
+## RECOMMENDED PHASE 3 SCOPE
+
+One decision first, then one slice. The decision is question 2 above: **where
+does a source control live?** Until a member can change a source, `dataSeries`
+cannot honestly ship. The slice is then binder source resolution + the registry
++ the library filter, together — because each of the three is what makes the
+other two honest, and any one of them alone is a definition that lies.
+
 ## STANDING FACTS
 
 - Local branch. **Nothing pushed, nothing deployed, nothing merged.**
