@@ -1195,3 +1195,133 @@ for it.
    still closed, because `refused_before_job` is *derived* as offers minus job rows. What genuinely
    fails to close is a job still in flight — and rounding that into "refused" would report a member
    who is still waiting as one who was told no.
+
+---
+
+## D-02b — the S5 ruling STOPPED on a contract conflict, and what shipped instead (2026-09-14, late)
+
+### ⛔⛔ PART 1 IS NOT IMPLEMENTED. Its definition describes a mechanism that does not exist.
+
+**The ruling as entered.** *"YES — split."* Provenance, recorded exactly as instructed and exactly as
+received: **delegated by the owner in chat on 14 Sep 2026, set by Claude (chat), not derived from
+gate evidence.** It is not an owner ruling on the merits and this ledger does not record it as one.
+
+**The stop condition it hit**, verbatim from the directive: *"If Part 1's definitions conflict with
+anything already encoded in the failure-message contract or the S1 ack semantics, STOP and report
+the conflict before implementing — do not reconcile silently."*
+
+**The conflict, from source, not inference:**
+
+> `refused_by_admission` — queue_full or user_busy, AND the failure-message contract was **PATCHed
+> within the 3 s ack window**
+
+There is no PATCH on either admission path.
+
+| fact | where |
+|---|---|
+| `_ephemeral` returns `{"type": 4, "data": …}` — **the reply to Discord's own interaction POST** | `commands.py:169-173` |
+| **both** refusal branches return `_ephemeral(...)` | `commands.py:206` (`user_busy`) and `:209` (`queue_full`) |
+| the refusal row stores `token: None`, and says why in its own docstring: *"No token is kept: the refusal was the reply."* | `runtime.py:258-264` |
+
+A PATCH to `webhooks/{app}/{token}/messages/@original` **needs that token**. With `token: None` there
+is nothing to PATCH with — the absence is **structural**, not an omission.
+
+⛔ **Implemented literally, `refused_by_admission` would be EMPTY for every artifact**, every refusal
+would fall into `failed` as "silent or late", and **S5c would FAIL on a system that answers every
+refused member in under a second.** S5b would simultaneously read *zero refusals everywhere* and be
+MET for the wrong reason. That is a gate describing a world that is not there, which is the defect
+this whole programme exists to close.
+
+⭐ **The reconciliation I did NOT apply, offered for the owner to rule on.** The ruling's intent is
+plainly *"the member was actually told, and told in time"* — that is what "honest" means in "honest
+refusal". The mechanism that carries it here is the **interaction response**, so the implementable
+form is:
+
+> `refused_by_admission` — queue_full or user_busy, AND the refusal message **reached the member
+> inside the S1 ack budget**, read from the wire or the job store. A refusal that was silent or late
+> is not in this bucket.
+
+That is measurable today, and Part 4 measured it. **One word changes — PATCHed becomes reached —
+and every other clause of the ruling survives intact.** Nothing was reconciled silently.
+
+### Part 4 — the instrument, and it answers S5c either way
+
+`load_harness.refusal_latency`. Measured on a bounded local overload (closed loop c=80, think 0.2 s,
+45 s, fallback renderer, **4,843 offers, 4,443 refusals**):
+
+**arrival → told: p50 0.04 ms · p95 0.33 ms · max 830 ms · ZERO over the 3 s ack ceiling.**
+
+⛔ **NON-VACUITY IS THE FIELD THAT MATTERS.** A run that refused nobody yields **NOT MEASURABLE**,
+never *"all inside 3 s"* — an empty set satisfies every ceiling ever written, and this programme has
+already published one *"no 502s found"* that was a filter matching millisecond fields.
+
+⛔ The two PATCH fields the directive asked for are **absent by name**, with the reason carried in
+the artifact (`patch_fields_absent_because`). A null that reads as *"the step failed"* is worse than
+an absent field that reads as *"there is no step"*.
+
+### ⛔⛔ OI-40 IDENTIFIED — `queue_full` has THREE producers, and my own split miscounted one
+
+Three probe runs, each producing **53 `queue_full` rows against 52 refusals**. The odd row, every
+time:
+
+```
+state=abandoned  outcome=busy  failure_class=queue_full  token_kept=false
+```
+
+A job that was **ADMITTED, ran, and failed downstream with a busy signal** — wearing the admission
+class.
+
+| producer | outcome | is it an admission refusal? |
+|---|---|---|
+| `commands._enqueue` → `record_refused` | `refused_at_ack` | ✅ yes — the real one |
+| `runtime.resume_pending` → `_finish_unanswerable` | `restart_recovery` | ❌ a pod restart wearing *"we're at capacity right now"* |
+| a job that ran and failed busy | `busy` | ❌ a **failure**, not a refusal |
+
+⭐ **My B1 split was counting the third as a refusal**, which is the direction that flatters: it turns
+a failure into an honest refusal. The bucket now keys on **outcome**, not class, with a rail for each
+producer and a non-vacuity case proving the genuine one still lands in the refusal bucket.
+
+⚰️ **AND MY EARLIER FRAMING IS CORRECTED.** The previous ledger entry asserted the restart path was
+telling members *"we're at capacity"* about a pod restart. That producer **exists in source** and was
+**not what fired** — 0 of 3 runs. The observed producer is the downstream busy outcome. The source
+claim was true; the attribution was inference stated as measurement.
+
+⛔ **And I had reproduced my own blind spot:** the anomaly loop inspected only rows a refusal
+*claimed*, so a row nobody refused was invisible to it — exactly OI-40's shape. It now sweeps the
+store and reports unclaimed admission rows with the rows themselves.
+
+### Part 3 — the heredoc rail, and why the rule failed four times
+
+| # | date | what collapsed | caught by |
+|---|---|---|---|
+| 1 | 2026-08-24 | `\b` in a regex → BACKSPACE | nothing — found by `cat -A` after a wrong test result |
+| 2 | 2026-08-29 | `\n` ×2 → real newlines | `ast.parse` after the patch |
+| 3 | 2026-08-31 | four in one session | `assert count(old)==1`, which aborted 3 of 4 |
+| 4 | 2026-09-14 | `\b` in the smoke-title regex → BACKSPACE | a control asserting the pattern matched the real document **and not** an unrelated one |
+
+⛔⛔ **THE FINDING: `assert text.count(old) == 1` PROTECTS THE SEARCH STRING AND SAYS NOTHING ABOUT
+THE REPLACEMENT.** On the fourth occurrence the anchor matched, the assert passed, and a corrupted
+`new` went to disk perfectly. The second attempt aborted only because that assert happened to be
+about the already-corrupted text — luck, not a rail.
+
+`patch_guard.safe_replace` now scans **both** strings for collapse signatures before any write and
+**sha256 round-trips the exact replacement slice** after it. 17 controls, including all four
+corruptions replayed, a mangling-writer mutation proving the round trip fires, and — added when it
+refused one of my own patches with an unexplained zero match — a named refusal for a **bare-LF
+multi-line anchor against a CRLF-stored file**, because *"anchor matched 0 times"* reads as *"the
+code changed"* and sends the reader to the wrong file.
+
+### ⛔ The temptation, reported rather than taken
+
+The refusal probe is ~175× the design burst and made the S2 row NOT MET on 88.3 % success. **I could
+see that labelling the 30-concurrent run as characterisation too would remove the remaining red and
+leave the row NOT MEASURABLE. I did not.** That run was produced as an SLO measurement and it stays
+one. Only the probe carries the label, and it carries it because the run that produced it passed
+`--characterisation` — not because its numbers were inconvenient.
+
+`INFORMATIONAL` is a fifth disposition with the rule beside it: **the label is set when the run is
+produced, never applied afterwards.** Its rails are a PAIR — a characterisation run carrying a breach
+is reported not judged, **and** the same breach labelled `slo` still reddens the row. Without the
+second, "characterisation" is a label that excuses any number.
+
+**The gate's colour did not change: NOT MET, on `load-closedloop-30.json`.**
