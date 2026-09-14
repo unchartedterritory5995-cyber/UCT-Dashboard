@@ -1,0 +1,10 @@
+PROBE token_present=True
+PROBE no-bearer      -> 401 (expect 401)
+PROBE wrong-bearer   -> 401 (expect 401)
+PROBE GET            -> 404 (expect 404)
+PROBE correct-bearer -> 200 (expect 200)
+PROBE recycled={'id': 'page-00001', 'width': 1336, 'height': 710, 'scale': 2.0, 'renders': 0, 'age_s': 66.851}
+PROBE reason=None
+PROBE before={"pool_enabled": true, "browser": {"id": "browser-0001", "connected": true, "retired": false, "renders_since_launch": 1}, "size": 1, "in_use": 0, "idle": 1, "pages": [{"id": "page-00001", "width": 1336, "height": 710, "s
+PROBE after ={"pool_enabled": true, "browser": {"id": "browser-0001", "connected": true, "retired": false, "renders_since_launch": 1}, "size": 1, "in_use": 0, "idle": 1, "pages": [{"id": "page-00002", "width": 1336, "height": 710, "s
+PROBE browser_same=True (browser-0001 -> browser-0001)

@@ -943,3 +943,106 @@ you do not wait for is a comment.
 ⛔ **Standing correction for the rest of this programme: no scheduled action fires on a remembered
 time. Read the clock in the same tool call that takes the action, or let the timer's own completion
 be the trigger.**
+
+### 2026-09-14 — the 15:49 rule breach, and the guard that now refuses it
+
+**Breach.** A master push at **15:49 ET**, eleven minutes inside the RTH window, after the
+integrator had reasoned the merge should wait for the close, written that decision down, and set a
+timer to enforce it. The timer was never waited on; the push went on a mental estimate of elapsed
+time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted in the last minutes of
+the session. `/api/health` 200 afterwards; no scheduled task was due between 15:45 and 15:55, so no
+APScheduler slot was lost.
+
+**Fix.** `tools/pre_push_guard.py` now refuses a master push between **09:25 and 16:05 ET on trading
+days** unless every changed path is on the daytime-cleared list, which is **derived from
+`docs/runbooks/deploy-windows.md` Tier 1 and re-read at test time** so it cannot drift from the
+runbook. Replayed against the incident's own minute and diff:
+
+```
+the 15:49 push (api/ + tests + docs)  ->  REFUSE
+  not cleared:  api/services/discord_interactions.py
+  next allowed: 2026-09-14 16:05:00 ET — in 15m 48s
+a docs-only push at the same minute   ->  OK
+an empty diff  /  git did not answer  ->  REFUSE
+```
+
+⭐ **It fails closed in every unknown case**, and that is the half that matters: an empty diff and an
+unanswered git are refusals, not exemptions — *an empty result is a failed invocation until proven
+otherwise*. An unreadable clock refuses too, because a guard that passes when it cannot tell the
+time reports "fine" precisely when it has stopped working.
+
+⭐ **The clock is the product's own.** `freshness` is imported and asked exactly one question — *is
+this a trading day?* — with a rail that fails if a holiday table is ever pasted into the guard. The
+09:25–16:05 window is deliberately WIDER than the session and is the guard's own policy, so it is
+not a second copy of `session_state`.
+
+**Override** is an exact value (`UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART`), separate from
+the queue bypass — a test proves skipping the queue check does not also buy an RTH restart — and it
+is logged.
+
+⚠️ **Open:** `deploy-windows.md` documents the queue guard and has no section on the clock guard.
+Flagged by the lane rather than edited, to avoid a collision; it is the integrator's to write.
+
+### 2026-09-14 — the harm check that could not have seen harm
+
+The `502` filter used to check the breach matched **millisecond fields** (`19:41:44,502`), so "no
+502s found" was never a measurement. `tools/deploy_blip_check.py` replaces it with a
+**structured-field** parser whose forms are derived from what `api/**` actually logs, with the
+mandatory pair proved: a real `HTTP 502` line is **counted**; `19:41:44,502` is **not**; and a
+discriminator line carrying both (`19:41:44,502 … status=200`) parses to **200**.
+
+⭐ `-> N` is deliberately EXCLUDED as a status form: it appears 18 times in `api/**` and most are
+prose arrows, so accepting it would re-commit the original defect in a narrower costume.
+Three-valued, and **INCONCLUSIVE rather than CLEAN** when no line in the window carries a status at
+all — including when the log pull was a FLOOR rather than EXACT.
+
+### 2026-09-14 — OI-37 closed, and queue sizing derived from twenty days of real arrivals
+
+**OI-37.** The harness's `--rate` was ARRIVALS PER SECOND; every spec that used it said
+"concurrent". `--rate 30` offered about **fifteen times** the load that was asked for, so the
+headline "30 concurrent: success 35.7 %, 81 `queue_full`" was answering a different question.
+That figure is **VOID as labelled** and retained only as *overload characterisation at arrival-rate
+30/s*. `--concurrency N` (closed loop) and `--arrival-rate R` (open loop) are now separate,
+mutually exclusive, and **have no default** — a run that does not say which question it is asking
+does not run. `--rate` is removed rather than aliased.
+
+At the **spec'd** load — 30 concurrent, think-time 1 s: **S1 PASSES** (`acks_over_3s = 0`), **S2 is
+inside budget on all three percentiles** (4.9 / 2,560 / 4,507 ms), and **S5 fails at 96.4 %** with
+all 13 failures `queue_full`.
+
+⛔ **Three defects in my own work, all found by running the thing:**
+
+- The self-check's evaluation loop sat in the MIDDLE of its appends. **Fifteen pre-existing cases
+  were counted and never evaluated** — `cases=20 failed=0` with five actually checked. The count
+  rose and the checking did not, which is the flip-gate defect in a second instrument.
+- `peak <= N` was satisfied by a mutation that blinded the gauge to `0`. An upper bound cannot tell
+  "never exceeded N" from "never saw anything".
+- The first closed loop **hot-spun**: refusals resolved instantly, so 30 clients against the
+  per-member throttle produced **521,654 attempts in 20 s** and six acks over 3 s — a plausible S1
+  FAIL that was entirely the harness. ⭐ OI-37's own mistake in miniature: a load model that does
+  not model the load. `--think-time` exists because of it.
+
+**Queue sizing.** The pod records no arrivals at all — no access log for the interactions endpoint,
+no jobs database in production, ~16 days of log retention. Arrivals were read instead from **Discord
+channel history**, whose `interaction_metadata.id` is Discord's own millisecond stamp and has no
+retention limit.
+
+Measured over **19.94 days** (a FLOOR — 88 channels, most `403/50001`; `#chart-flow-requests`,
+the only channel `/chart` runs in, was **EXACT**):
+
+**301 arrivals · 15.1/day · arrivals-per-second MAX 1 · busiest 60 s = 4 · busiest 10 s = 2 ·
+only 0.92 % of minutes have any arrival at all.**
+
+Design burst (3× the busiest 10 s) = **0.6 arrivals/second**. Little's Law at the conservative
+service basis gives **c = 4 workers** and a **queue depth of 0** backlog; depth ≥ 6 admits a whole
+design burst without refusing anyone.
+
+⭐⭐ **So `queue_full` at high load is CORRECT BEHAVIOUR, decisively.** The run that produced 81 of
+them offered **fifty times** the design burst; even the closed-loop 30-concurrent run offers about
+fourteen times it, and answers with an immediate honest refusal to 3.6 % while serving everyone
+else inside SLO.
+
+⛔ **What actually fails is the S5 floor, because it counts an honest refusal as a failure.** That
+is an owner question, not something to tune away: at fourteen times the design burst, is refusing
+3.6 % a breach or the system working? **Recommendation: measure S5 at the design burst and report
+overload separately as a refusal rate.**

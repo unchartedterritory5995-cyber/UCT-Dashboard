@@ -2053,6 +2053,57 @@ def _retry_note(flags: list[str]) -> str:
 
 # ── Public entry point ───────────────────────────────────────────────────────
 
+#: Member-facing names for the eight evidence domains. ⛔ A CLOSED VOCABULARY is what
+#: makes a derived refusal safe: the sentence can only ever be assembled from these
+#: strings and a symbol, so it cannot carry a fabricated number or a Buy/Sell directive
+#: no matter what the model returned.
+_DOMAIN_LABEL = {
+    "news": "news", "analyst": "analyst coverage", "financials": "financials",
+    "estimates": "estimates", "ownership": "ownership", "filings": "SEC filings",
+    "rating": "ratings", "earnings": "earnings",
+}
+
+
+def _english_list(items: list[str]) -> str:
+    items = [i for i in items if i]
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def derive_refusal_reason(sym: str, evidence: list[dict] | None,
+                          domains: list[str] | None) -> str:
+    """F-I1-2 — say WHAT IS MISSING, derived from the evidence state.
+
+    ⛔⛔ DERIVED, NEVER MODEL-AUTHORED. The gate line is explicit: *"the named reason
+    must be DERIVED from why the answer could not be grounded — the absent domain, the
+    empty evidence bundle, the out-of-scope question class — never a model-authored
+    explanation of its own refusal."* So this reads the bundle and the domain list and
+    assembles a sentence from `_DOMAIN_LABEL` plus the symbol. Nothing the model wrote
+    reaches it.
+
+    ⭐ WHY THAT MATTERS MORE HERE THAN ANYWHERE ELSE. Slice 1 found that a fabricated
+    number placed inside a refusal sentence passed every mechanical check, because the
+    checker could not see that field. It can now — but F-I1-2 makes refusals SAY MORE,
+    which would have made that hole bigger. Deriving the sentence closes it by
+    construction instead of policing it: there is no free text to police.
+
+    ⚠️ It returns "" when it has nothing specific to say, and the caller keeps the
+    generic refusal. An empty return is honest; an invented specific is not.
+    """
+    ev = evidence or []
+    if not ev:
+        return ("I have no evidence for %s at all — nothing was retrieved, so there is "
+                "nothing to answer from." % sym)
+    present = [d for d in _DOMAIN_ORDER if d in set(domains or [])]
+    if not present:
+        return ""
+    labels = _english_list([_DOMAIN_LABEL[d] for d in present])
+    return ("What I can read for %s covers %s. The answer is not in it." % (sym, labels))
+
+
 def _result(*, sym: str, question: str = "", entity=None, evidence: Optional[list[dict]] = None,
            domains: Optional[list[str]] = None, response_state: str = "refuse", summary: str = "",
            key_facts: Optional[list[dict]] = None, interpretation: str = "",
@@ -2069,7 +2120,20 @@ def _result(*, sym: str, question: str = "", entity=None, evidence: Optional[lis
     # pre-Slice-2 branches, tests) that only knows the old boolean shape.
     insufficient_evidence = response_state in ("refuse", "ask_for_clarification")
     if response_state == "refuse":
-        insufficient_evidence_reason = refusal_reason
+        # F-I1-2: NAME the missing thing -- but only where nothing already names it.
+        #
+        # ⚰️ THE FIRST VERSION OF THIS REPLACED EVERY REFUSAL SENTENCE, and the
+        # existing suite caught it doing real harm: a COST-BUDGET refusal ("usage
+        # limit") became "nothing was retrieved", which tells a member there is no data
+        # when the truth is the service stopped spending. Two others lost a more
+        # specific reason than the derived one ("No recent UCT-verified ...").
+        #
+        # ⭐ The intent is to enrich a refusal that says NOTHING, never to overwrite one
+        # that already says something. A caller-supplied reason is itself derived -- from
+        # a budget, an error, an empty verified set -- and is strictly better informed
+        # about its own cause than this function can be.
+        insufficient_evidence_reason = (
+            refusal_reason or derive_refusal_reason(sym, evidence, domains))
     elif response_state == "ask_for_clarification":
         insufficient_evidence_reason = clarification_question
     else:

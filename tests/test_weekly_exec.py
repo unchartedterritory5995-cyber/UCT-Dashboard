@@ -154,6 +154,37 @@ def test_a_non_numeric_ceiling_is_REFUSED(capsys):
     assert "must be a number" in capsys.readouterr().err
 
 
+# ── the clock that lied ──────────────────────────────────────────
+
+@pytest.mark.parametrize("when,closed,why", [
+    ((2026, 9, 14, 8, 59), False, "Monday, one minute before the window"),
+    ((2026, 9, 14, 9, 0), True, "Monday 09:00 - the window opens closed"),
+    ((2026, 9, 14, 14, 26), True, "the instant three commits were actually pushed"),
+    ((2026, 9, 14, 15, 59), True, "Monday, one minute before it lifts"),
+    ((2026, 9, 14, 16, 0), False, "Monday 16:00 - open again"),
+    ((2026, 9, 12, 11, 0), False, "Saturday - no window at a weekend"),
+    ((2026, 9, 13, 11, 0), False, "Sunday"),
+])
+def test_the_push_window_is_decided_at_a_NAMED_instant(when, closed, why):
+    """⚰️ The bug was a time READING, not a time RULE: `TZ=America/New_York date` in Git
+    Bash ignores TZ and prints UTC labelled GMT, so 14:49 ET read as 18:49 and a hold
+    until 16:05 was arithmetic-ed away. A rail that reads the same clock proves nothing,
+    so every case here is a fixed instant."""
+    import datetime as _dt
+    assert W.push_window_closed(_dt.datetime(*when)) is closed, why
+
+
+def test_et_reports_and_its_exit_code_matches_its_sentence(capsys):
+    rc = W.cmd_et([])
+    out = capsys.readouterr().out
+    assert "UTC" in out and "ET" in out
+    assert (rc == 1) == ("CLOSED" in out), "the exit code and the sentence must agree"
+
+
+def test_et_takes_no_arguments(capsys):
+    assert W.cmd_et(["now"]) == W.REFUSED
+
+
 # ── the happy path still works ──────────────────────────────────────────────
 
 def test_a_named_test_file_is_accepted_and_run(monkeypatch):

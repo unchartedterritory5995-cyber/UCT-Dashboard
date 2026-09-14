@@ -1,8 +1,23 @@
 #!/usr/bin/env python
-"""Refuse a push to master while the last `web` deployment is not settled.
+"""Refuse a push to master while the market is open, or while `web` is mid-swap.
 
     python tools/pre_push_guard.py            # exit 0 = safe to push, 1 = refuse
     python tools/pre_push_guard.py --json
+
+TWO GUARDS, TWO DIFFERENT FAILURES:
+
+  1. **THE CLOCK** (owner ruling A2, 2026-09-14). A master push restarts `web`
+     and `chart-renderer`. Doing that inside the session is a member-visible
+     event, so it is refused between **09:25 and 16:05 ET on trading days**
+     unless the diff is entirely within the paths `docs/runbooks/deploy-windows.md`
+     clears for daytime. ⚰️ **THE CLOCK IS ENFORCED IN THE TOOL, NOT IN ANYONE'S
+     HEAD.** On 2026-09-14 the integrator reasoned that a push should wait for
+     the 16:00 close, wrote that decision down, set a background timer to gate
+     it — and pushed at **15:49 ET** anyway, acting on a mental estimate of
+     elapsed time that had drifted ~25 minutes. `web` and `chart-renderer` both
+     restarted in the last eight minutes of RTH. A decision written down is not
+     a decision enforced.
+  2. **THE QUEUE** — the one-merge-at-a-time rule, below.
 
 ⚰️ **THE RULE WAS ALREADY WRITTEN AND IT WAS NOT FOLLOWED.** `CLAUDE.md` carries
 *"ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the next
@@ -40,13 +55,16 @@ commit still means the pod is settled, which is the property that matters for
 *your* push. Requiring your own parent would refuse every legitimate push in a
 repo five workstreams share.
 
-**Bypass** — deliberate, loud, and logged:
+**Bypass** — deliberate, loud, and logged. ⛔ TWO SEPARATE OVERRIDES, ON PURPOSE:
+overriding "the pod is mid-swap" is not the same act as overriding "the market is
+open", and one variable for both would let a reflex for the cheap one silently
+buy the expensive one.
 
-    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master
+    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master                  # the QUEUE
+    UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push …         # the CLOCK
 
 Every bypass appends to `logs/pre-push-guard-bypass.log` with the user, the time
-and the deployment state that was overridden, so a bypass is a record rather than
-a silence.
+and the state that was overridden, so a bypass is a record rather than a silence.
 """
 from __future__ import annotations
 
@@ -259,6 +277,198 @@ def _iso(s):
         return None
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# GUARD 2 — THE CLOCK (owner ruling A2, 2026-09-14)
+# ═════════════════════════════════════════════════════════════════════════════
+
+#: The closed window, ET, on trading days. Half-open: 09:25:00 is refused,
+#: 16:05:00 is allowed. Owner ruling A2, verbatim: "refuses any master push
+#: between 09:25 and 16:05 ET on trading days".
+RTH_GUARD_OPEN = (9, 25)
+RTH_GUARD_CLOSE = (16, 5)
+
+#: ⛔ AN EXACT VALUE, NOT `=1`. Typing this is an act; typing `1` is a reflex.
+CLOCK_OVERRIDE_ENV = "UCT_DEPLOY_WINDOW_OVERRIDE"
+CLOCK_OVERRIDE_VALUE = "I-ACCEPT-AN-RTH-RESTART"
+
+# ⛔⛔ DERIVED FROM `docs/runbooks/deploy-windows.md`, NOT INVENTED. The runbook is
+# the single authority on push timing; these two lines are quoted from it verbatim
+# (lines 13-14 at 2026-09-14):
+#
+#     ### Tier 1 — push any time
+#     Docs, markdown, `tests/**`, `tools/**`, `scripts/**`, and frontend (`app/**`).
+#
+# and the sentence under them that says what that costs:
+#
+#     These restart **web only** (and only if web's watch paths match — see below). Cost:
+#     `/api/*` blips for roughly a minute […] Acceptable.
+#
+# "Docs, markdown" is two clauses, so BOTH are honoured: anything under `docs/`,
+# and any `.md` file wherever it lives. ⚠️ If the runbook's Tier 1 list moves, this
+# tuple is wrong the same day — `tests/test_pre_push_guard.py` reads the runbook and
+# fails when the two disagree, so the drift is caught rather than inherited.
+CLEARED_PREFIXES = ("docs/", "tests/", "tools/", "scripts/", "app/")
+CLEARED_SUFFIXES = (".md",)
+
+
+def _freshness():
+    """THE market clock — `api/services/discord_render/freshness.py`.
+
+    ⛔⛔ IMPORTED, NEVER COPIED. A second "is the market open" is the defect this
+    repo has paid for repeatedly (`lesson_a_second_authority_over_one_value`), and
+    the holiday set in particular has exactly one owner: `freshness.is_holiday`
+    imports `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` rather than keeping a table.
+
+    ⭐ THE IMPORT IS LAZY AND THAT IS THE WHOLE COST STORY. Importing `freshness`
+    itself is 0.05 s / ~100 modules — nothing. But `session_state` calls
+    `is_holiday`, which pulls `api.services.bars_fetch` (and through it fastapi,
+    httpx, the massive client): **1.26 s and ~1,200 modules, measured**. That is
+    paid once per weekday guard run and is the price of asking the real clock
+    instead of writing a second one. It is deliberately NOT paid at module import,
+    so `--audit` and the unit tests never touch it.
+
+    ⚠️ Those modules compute `/data/...` paths at import; none of them OPEN a file,
+    so this import is filesystem-inert (audited by AST, 2026-09-14). If that ever
+    stops being true, this becomes the wrong door and the right answer is to move
+    the holiday set, not to copy it.
+    """
+    root = str(ROOT)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from api.services.discord_render import freshness
+    return freshness
+
+
+def read_clock(now: "dt.datetime | None" = None) -> dict:
+    """What the market clock says, or UNREADABLE and why.
+
+    ⛔ It answers exactly ONE question from `freshness`: *is today a trading day?*
+    The 09:25/16:05 window is this guard's own deploy policy and is deliberately
+    NOT `session_state == "rth"` — the window is wider than the session on both
+    ends, and re-deriving the session here would be the second copy."""
+    try:
+        fr = _freshness()
+        state = fr.session_state(now)
+        # `_et` is freshness's own naive/aware normaliser. Re-implementing the two
+        # lines it contains would put a second authority on "what time is it in ET".
+        now_et = fr._et(now)
+        trading = state not in (fr.WEEKEND, fr.HOLIDAY)
+    except Exception as e:                                   # noqa: BLE001
+        return {"state": UNREADABLE,
+                "why": "%s: %s" % (type(e).__name__, str(e)[:160] or "no detail")}
+    return {"state": "READ", "session": state, "trading_day": trading, "now_et": now_et}
+
+
+def changed_paths(base: str | None = None, head: str | None = None) -> "list[str] | None":
+    """Repo-relative paths this push would land on master, or **None** when git
+    could not say.
+
+    ⛔⛔ `None` AND `[]` ARE DIFFERENT AND THE DIFFERENCE IS THE GUARD. An empty
+    result is a failed invocation until proven otherwise: a diff that comes back
+    empty because the pathspec resolved wrong, or because the range was nonsense,
+    would otherwise read as "nothing outside the cleared list" — i.e. the exemption
+    would fire hardest exactly when the measurement broke."""
+    exe = shutil.which("git")
+    if not exe:
+        return None
+    rng = "%s...%s" % (base or "origin/master", head or "HEAD")
+    try:
+        r = subprocess.run([exe, "-C", str(ROOT), "diff", "--name-only", "--no-renames", rng],
+                           capture_output=True, text=True, timeout=60,
+                           encoding="utf-8", errors="replace")
+    except Exception:                                        # noqa: BLE001
+        return None
+    if r.returncode != 0:
+        return None
+    return sorted({ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()})
+
+
+def is_cleared(path: str) -> bool:
+    """Is one path cleared for a daytime push by the runbook's Tier 1 list?"""
+    p = path.replace("\\", "/").lstrip("./")
+    return p.startswith(CLEARED_PREFIXES) or p.lower().endswith(CLEARED_SUFFIXES)
+
+
+def uncleared_paths(paths) -> list[str]:
+    return sorted(p for p in paths if not is_cleared(p))
+
+
+def next_allowed_et(now_et: "dt.datetime") -> "dt.datetime":
+    """The concrete instant this push stops being refused: today's 16:05 ET.
+
+    A refusal only ever happens INSIDE the window on a trading day, so the next
+    allowed instant is always the window's close on the same date."""
+    return now_et.replace(hour=RTH_GUARD_CLOSE[0], minute=RTH_GUARD_CLOSE[1],
+                          second=0, microsecond=0)
+
+
+def _hhmm(t) -> str:
+    return "%02d:%02d" % t
+
+
+def decide_clock(clock: dict, paths) -> tuple[str, str]:
+    """(verdict, reason). Pure — the tests drive it directly, no git and no import."""
+    if clock.get("state") == UNREADABLE:
+        # ⛔ THE LOAD-BEARING BRANCH. A guard that passes when it cannot tell the
+        # time is not a guard — it reports "fine" precisely when it has stopped
+        # working, which is how 15:49 became 16:00 in somebody's head.
+        return REFUSE, ("cannot determine the market clock (%s). REFUSING: a guard that "
+                        "passes when it cannot tell the time is not a guard.\n"
+                        "  next allowed:   UNKNOWN — fix the clock, or override deliberately "
+                        "with %s=%s" % (clock.get("why"), CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE))
+
+    now_et = clock["now_et"]
+    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
+    if not clock.get("trading_day"):
+        return OK, ("%s is not a trading day (session=%s) — the %s-%s ET deploy window "
+                    "does not apply." % (stamp, clock.get("session"),
+                                         _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)))
+
+    hm = (now_et.hour, now_et.minute)
+    if not (RTH_GUARD_OPEN <= hm < RTH_GUARD_CLOSE):
+        return OK, ("%s is outside the %s-%s ET deploy window — safe to restart web."
+                    % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)))
+
+    # ── inside the window on a trading day: only the runbook's Tier 1 gets through
+    if paths is None:
+        why = ("the changed-path set could not be read (git did not answer), so the diff "
+               "CANNOT be shown to be cleared")
+        listed = "  not cleared:    UNKNOWN — git did not answer; an unread diff is never exempt"
+    else:
+        unclear = uncleared_paths(paths)
+        if paths and not unclear:
+            return OK, ("%s is inside the %s-%s ET window, but all %d changed path(s) are "
+                        "cleared for daytime by docs/runbooks/deploy-windows.md Tier 1 "
+                        "(docs/markdown, tests/**, tools/**, scripts/**, app/**)."
+                        % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), len(paths)))
+        if not paths:
+            why = ("the diff is EMPTY, which is a failed measurement rather than a cleared "
+                   "one — an empty result is a failed invocation until proven otherwise")
+            listed = "  not cleared:    UNKNOWN — the diff came back empty; that is not the same as clean"
+        else:
+            shown = unclear[:6]
+            more = "" if len(unclear) <= 6 else " (+%d more)" % (len(unclear) - 6)
+            why = ("%d of %d changed path(s) are NOT cleared for a daytime push"
+                   % (len(unclear), len(paths)))
+            listed = "  not cleared:    %s%s" % (", ".join(shown), more)
+
+    nxt = next_allowed_et(now_et)
+    secs = max(0, int((nxt - now_et).total_seconds()))
+    return REFUSE, "\n".join([
+        "REFUSING A MASTER PUSH — the market is open and this diff is not cleared for daytime.",
+        "  refused:        a push whose destination is master (it restarts web and chart-renderer)",
+        "  now:            %s  (session=%s, a trading day)" % (stamp, clock.get("session")),
+        "  window:         %s-%s ET on trading days" % (_hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)),
+        "  why:            %s" % why,
+        listed,
+        "  next allowed:   %s  — in %dm %02ds" % (nxt.strftime("%Y-%m-%d %H:%M:%S ET"),
+                                                  secs // 60, secs % 60),
+        "  cleared today:  docs/markdown, tests/**, tools/**, scripts/**, app/**  "
+        "(docs/runbooks/deploy-windows.md, Tier 1)",
+        "  deliberate override: %s=%s" % (CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE),
+    ])
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--json", action="store_true")
@@ -266,6 +476,10 @@ def main(argv=None) -> int:
                     help="prove the guard can refuse AND allow, without touching the CLI")
     ap.add_argument("--audit", action="store_true",
                     help="after the fact: report SUSPECTED stacked pushes in the recent list")
+    ap.add_argument("--base", default=None,
+                    help="the remote sha/ref the push lands on (default: origin/master)")
+    ap.add_argument("--head", default=None,
+                    help="the local sha being pushed (default: HEAD)")
     # ⛔ argv is a PARAMETER, and under pytest it defaults to EMPTY rather than
     # `sys.argv`. Without that, argparse eats pytest's own flags and raises
     # SystemExit(2) — the test would be exercising argparse, not the guard.
@@ -277,12 +491,47 @@ def main(argv=None) -> int:
     if a.audit:
         return _audit()
 
+    # ── THE CLOCK first: it costs no network, and it is the one the owner ruled on.
+    clock = read_clock()
+    paths = changed_paths(a.base, a.head)
+    cverdict, creason = decide_clock(clock, paths)
+    clock_overridden = (cverdict != OK
+                        and os.environ.get(CLOCK_OVERRIDE_ENV, "").strip() == CLOCK_OVERRIDE_VALUE)
+
+    if cverdict != OK and not clock_overridden and not a.json:
+        # ⛔ Return BEFORE asking Railway anything. A refused push has no queue
+        # question to answer, and a guard that still spends 2s on the CLI teaches
+        # everyone that the refusal is slow rather than that it is right.
+        print("[pre-push] %s" % creason)
+        return 1
+
     dep = latest_deployment()
     verdict, reason = decide(dep)
 
     if a.json:
-        print(json.dumps({"verdict": verdict, "reason": reason, "deployment": dep}, indent=1))
-        return 0 if verdict == OK else 1
+        print(json.dumps({
+            "verdict": OK if (verdict == OK and cverdict == OK) else REFUSE,
+            "clock": {"verdict": cverdict, "reason": creason,
+                      "session": clock.get("session"), "trading_day": clock.get("trading_day"),
+                      "now_et": clock["now_et"].isoformat() if clock.get("now_et") else None,
+                      "changed_paths": paths,
+                      "uncleared": None if paths is None else uncleared_paths(paths)},
+            "queue": {"verdict": verdict, "reason": reason, "deployment": dep},
+        }, indent=1))
+        return 0 if (verdict == OK and cverdict == OK) else 1
+
+    if clock_overridden:
+        # ⛔ LOUD. A window override is a member-visible restart during the session;
+        # it should never scroll past unread.
+        _log_bypass({"status": "CLOCK-WINDOW", "commit": clock.get("session")}, creason)
+        print("=" * 78)
+        print("[pre-push] ⚠️  DEPLOY WINDOW OVERRIDDEN via %s" % CLOCK_OVERRIDE_ENV)
+        print("[pre-push] ⚠️  RESTARTING web AND chart-renderer DURING THE SESSION.")
+        print("[pre-push] ⚠️  Logged to %s" % BYPASS_LOG)
+        print("[pre-push] what was overridden:\n%s" % creason)
+        print("=" * 78)
+    else:
+        print("[pre-push] %s" % creason)
 
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):
         _log_bypass(dep, reason)

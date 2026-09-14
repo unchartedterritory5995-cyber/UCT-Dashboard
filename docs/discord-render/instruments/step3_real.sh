@@ -46,17 +46,17 @@ run () {                      # run <name> <logfile> <command...>
 
 run "3.1a real 30 concurrent x 20 symbols" "$L/load-a.log" \
   python -u docs/discord-render/instruments/load_harness.py --real \
-  --rate 30 --seconds 20 --members 30 --tickers "$T" --drain-s 180 \
+  --concurrency 30 --seconds 20 --members 30 --tickers "$T" --drain-s 180 \
   --out "$E/load-real-a-concurrent30.json" $DELIVER
 
 run "3.1b real 100 burst" "$L/load-b.log" \
   python -u docs/discord-render/instruments/load_harness.py --real \
-  --rate 100 --seconds 1 --members 30 --tickers "$T" --min-samples 20 --drain-s 240 \
+  --arrival-rate 100 --seconds 1 --members 30 --tickers "$T" --min-samples 20 --drain-s 240 \
   --out "$E/load-real-b-burst100.json" $DELIVER
 
 run "3.1c real 1/s x 10 min" "$L/load-c.log" \
   python -u docs/discord-render/instruments/load_harness.py --real \
-  --rate 1 --seconds 600 --members 20 --tickers "$T" --drain-s 120 \
+  --arrival-rate 1 --seconds 600 --members 20 --tickers "$T" --drain-s 120 \
   --out "$E/load-real-c-sustained.json" $DELIVER
 
 run "3.2 chaos --real" "$L/chaos.log" \
