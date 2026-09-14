@@ -762,12 +762,19 @@ def test_the_corruption_checks_can_see_a_good_entry_first(tmp_path):
 @pytest.mark.parametrize("damage", ["truncate_payload", "flip_a_payload_byte", "garbage_header",
                                     "empty_file", "no_header_terminator", "header_claims_another_key",
                                     "stale_is_not_a_verdict", "unknown_payload_kind",
-                                    "a_format_version_we_cannot_read"])
+                                    "a_format_version_we_cannot_read",
+                                    "header_declares_no_length", "header_declares_no_sha"])
 def test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served(tmp_path, damage):
-    """⛔⛔ "DETECTED AND TREATED AS A MISS, NEVER SERVED" — nine ways a file can be wrong, each of
-    which a naive reader would serve as a chart. A truncated write and a flipped byte are the two
-    the integrity fields exist for: LENGTH catches the first, SHA-256 catches the second, and
-    neither catches both."""
+    """⛔⛔ "DETECTED AND TREATED AS A MISS, NEVER SERVED" — eleven ways a file can be wrong, each of
+    which a naive reader would hand back as a chart.
+
+    ⭐ THE TWO INTEGRITY FIELDS ARE NOT TWO COPIES OF ONE GUARD, and the last two cases are what
+    proves it (`lesson_a_guard_repeated_is_a_guard_unproved`). SHA-256 is the DETECTOR: it catches a
+    flipped byte, and it catches a truncation too, so a length check could never be proved against
+    damaged bytes alone. What LENGTH catches that the digest cannot is a **malformed header** — one
+    that declares no length at all — and symmetrically a header that declares no digest is caught
+    only by the digest check. Each field therefore has a case only it can fail, which is the
+    difference between two guards and one guard written twice."""
     key = _seed(tmp_path)
     path = _entry_path(tmp_path, key)
     blob = path.read_bytes()
@@ -799,6 +806,14 @@ def test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served(tmp_path,
     elif damage == "a_format_version_we_cannot_read":
         header["v"] = ac._FORMAT_VERSION + 1
         path.write_bytes(json.dumps(header).encode() + b"\n" + payload)
+    elif damage == "header_declares_no_length":
+        header.pop("len")                                # the digest still matches the payload
+        path.write_bytes(json.dumps(header).encode() + b"\n" + payload)
+    elif damage == "header_declares_no_sha":
+        header.pop("sha256")                             # the length still matches the payload
+        path.write_bytes(json.dumps(header).encode() + b"\n" + payload)
+    else:
+        pytest.fail(f"no damage was applied for {damage!r}; the case would pass vacuously")
 
     c = _restart(tmp_path)
     assert c.get(key, now=RTH_NOW) is None, f"{damage} was SERVED"   # never raises, never serves
