@@ -10,6 +10,7 @@ Contents:
 4. [Measurements](#4-measurements) — rig output
 5. [Screenshots](#5-screenshots)
 6. [New findings beyond the brief](#6-new-findings)
+7. [Post-C3 member pass at 768 and 390](#7-post-c3-member-pass-at-768-and-390-2026-09-13-master-a9290e7f4) — after the corrective merges
 
 The instrument is `tools/breadth_charts_rig.py` (committed with this doc; `--self-check`
 proves its verdicts can fail). Raw numbers: `docs/breadth/measurements/before.json`.
@@ -517,3 +518,70 @@ More popover: `role="listbox"` of `role="option"` buttons with no arrow-key hand
 toggles: no `aria-expanded`. Notable Extremes: no `aria-pressed`. The chart: no accessible name
 or description, and no keyboard path to zoom, pan or read values. Readout chips are correct
 (`aria-pressed`, spelled-out `aria-label`).
+
+---
+
+## 7. Post-C3 member pass at 768 and 390 (2026-09-13, master `a9290e7f4`)
+
+Captured with the same rig and the same member-smoke account as §4, against production **after** C1, C2 and C3 were
+live. Frames and measurements are local (`screenshots/after-c3/<width>/`, `measurements/after-c3*.json`) — the repo is
+public and breadth history is paid (D-018). This does NOT replace §4: the Phase 0 before-state at all four widths is
+complete (23 states × 4 widths, 98 frames) and is the baseline Phase 4's A/B compares against. Writing a post-C3 capture
+into `screenshots/before/` would have made that comparison C3-against-C3.
+
+### A-19 landed: controls under 44 px at 390 px
+
+Every captured state improved, none regressed — 17 of 17.
+
+| state | before | after |
+|---|---|---|
+| default | 4 | 1 |
+| picker-expanded | 65 | 30 |
+| mixed-family | 7 | 1 |
+| tooltip | 7 | 1 |
+| thrust-full-365 | 7 | 1 |
+| preset-full-ma-term-structure | 8 | 1 |
+| (every other captured state) | 2–5 | 1 |
+
+**What the residual is.** Every remaining entry is an 18 × 18 native `<input type="checkbox">` — the metric rows and the
+follow-through toggle. Each sits inside a `<label>` (`.metricItem`, `.ftdToggle`) that C3 gives
+`min-height: var(--tap-min)` on the touch tier, and a click anywhere in a label toggles its input, so the member's tap
+target is the 44 px row. A 44 px checkbox GLYPH would be wrong; the row is the control. Recorded as a residual, not a
+failure.
+
+### ⚠️ Out of scope, and worth someone's attention: 66 API calls to reach this tab at 768
+
+At 768 the Breadth page lands on **Monitor**, whose Time Navigator fires a walk of **32 sequential
+`/api/breadth-monitor?days=150&end=…&anchor=le` requests** back to 2008-03-18 on page load — 66 API calls before a member
+can click Data Charts. Measured identically in the before-state run (`before.json`, 768: 66 page-load calls, 32 deep),
+so it is pre-existing and not caused by this program; Monitor is explicitly out of this program's scope.
+
+It is not harmless. On 2026-09-13 it cost this pass a capture: with the pod also serving other sessions, the Data Charts
+tab's own `days=365` call did not return inside the rig's 45 s wait and the 768 segment had to be re-run on its own.
+A member on a tablet pays the same queue. Raised for the Monitor owner; not a collector ask (the storm is frontend).
+
+At 390 the page lands on Daily, which costs 40 calls and no deep walk, and the tab switch painted in 480 ms.
+
+## §8 The `/charts` Breadth widget has no phone surface (measured 2026-09-13)
+
+R1 unified the metric registry, and the `/charts` **Breadth widget** is the second surface that reads it — the heatmap
+tiles it draws are `HM_METRICS`. Verifying it at the programme's two member widths turned up a structural fact worth
+recording, because it will otherwise be re-discovered as a bug.
+
+**Below 640 px, `ChartsWorkspace` bypasses react-grid-layout entirely and renders `MobileWorkspace`, which understands
+CHART widgets only.** A workspace holding a Breadth widget renders, at 390 px, as *"No chart in this layout yet."* with
+an "Open a chart" button. The widget is not small, not clipped, not slow — **it does not exist at that width**.
+
+Consequences, stated so nobody re-opens this:
+
+- **Registry unification has no mobile surface to verify.** The 390 px A/B is NOT APPLICABLE, not a gap and not a
+  failed capture. The instrument reports it as a named state (`mobile-workspace`), never as a timeout, because calling
+  a missing surface a broken harness is how a real gap gets filed as flakiness.
+- **This is not a Data Charts defect and not this programme's to fix.** Data Charts is a `/breadth` sub-tab and has its
+  own phone layout, which §4–§7 measured. Whether the `/charts` workspace should render non-chart widgets on a phone is
+  a Charts-Hub product question, owned there.
+- The desktop verification stands on its own: at 1280 px the widget's rendered text is **identical** across a build
+  from `origin/master` and a build of this branch (752 chars, 99 lines, widget-scoped).
+
+⚠️ The screenshot of the 390 px state is kept under `docs/breadth/screenshots/registry-unification/` (gitignored — the
+repo is public and these draw paid data). It is the evidence for the sentence above, not decoration.

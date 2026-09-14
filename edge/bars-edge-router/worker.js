@@ -39,12 +39,26 @@ const BARS_TIMEOUT_MS = 8000;
 const TOKEN_VERSION = 1;
 const COOKIE_NAME = "uct_chart_edge";
 const ENTITLEMENT_BARS = "bars";
+const ENTITLEMENT_SERVICE = "service";
 const CLOCK_SKEW_LEEWAY_SECONDS = 60;
+
+/**
+ * The header carrying a per-render MACHINE capability.
+ *
+ * ⛔ A HEADER, NEVER THE COOKIE, AND NEVER THE URL. The cookie is the MEMBER
+ * transport; reusing it for machines would make a leaked render token a member
+ * token. A query parameter would put the credential into every log, analytics
+ * row and cache key on the path.
+ */
+const SERVICE_HEADER = "x-chart-edge-token";
 
 export const VALID = "EDGE_ENTITLEMENT_VALID";
 export const MISSING = "EDGE_ENTITLEMENT_MISSING";
 export const EXPIRED = "EDGE_ENTITLEMENT_EXPIRED";
 export const INVALID = "EDGE_ENTITLEMENT_INVALID";
+export const SERVICE_VALID = "EDGE_SERVICE_VALID";
+export const SERVICE_EXPIRED = "EDGE_SERVICE_EXPIRED";
+export const SERVICE_INVALID = "EDGE_SERVICE_INVALID";
 
 /** Read one cookie out of a Cookie header without a parser dependency. */
 export function readCookie(cookieHeader, name) {
@@ -101,7 +115,7 @@ function b64uToBytes(text) {
  * ⛔ SIGNATURE BEFORE PARSE. The payload is attacker-controlled until the HMAC
  * says otherwise, so nothing reads it until then.
  */
-export async function classifyToken(token, secret, nowSeconds) {
+export async function classifyToken(token, secret, nowSeconds, expectEnt = ENTITLEMENT_BARS) {
   if (!token) return MISSING;
   if (!secret) return INVALID;      // token present, no key to judge it with
 
@@ -137,8 +151,44 @@ export async function classifyToken(token, secret, nowSeconds) {
   const now = Number.isFinite(nowSeconds) ? nowSeconds : Math.floor(Date.now() / 1000);
   if (now >= payload.exp) return EXPIRED;
   if (payload.iat > now + CLOCK_SKEW_LEEWAY_SECONDS) return INVALID;
-  if (payload.ent !== ENTITLEMENT_BARS) return INVALID;
+  // ⛔ The entitlement must be the one the CALLER asked for — this is what stops
+  // a render capability being replayed as a member session, and vice versa.
+  if (payload.ent !== expectEnt) return INVALID;
   return VALID;
+}
+
+/**
+ * The single classification for one request: member first, then machine.
+ *
+ * ⛔⛔ ROUTE SHAPE IS NEVER AUTHORITY. Nothing here reads `warm=1`, `bars=600`,
+ * `bars=2`, the User-Agent, the ticker or the path — only cryptographic proof.
+ * The renderer's requests look EXACTLY like a member's, which is precisely why
+ * shape cannot be allowed to mean trust.
+ *
+ * PRECEDENCE, deterministic and asserted:
+ *   1. valid member cookie            → EDGE_ENTITLEMENT_VALID  (a real person wins)
+ *   2. valid service header           → EDGE_SERVICE_VALID
+ *   3. a service header that was PRESENT but did not verify → SERVICE_EXPIRED/INVALID
+ *   4. a member cookie that was PRESENT but did not verify   → EXPIRED/INVALID
+ *   5. nothing at all                 → EDGE_ENTITLEMENT_MISSING
+ *
+ * ⭐ Failure is reported against whichever credential was actually PRESENTED, so
+ * the shadow logs say which trust path is breaking rather than collapsing both
+ * into one number.
+ */
+export async function classifyRequest(request, secret, nowSeconds) {
+  const cookieTok = readCookie(request.headers.get("cookie"), COOKIE_NAME);
+  const serviceTok = request.headers.get(SERVICE_HEADER);
+
+  const memberCls = await classifyToken(cookieTok, secret, nowSeconds, ENTITLEMENT_BARS);
+  if (memberCls === VALID) return VALID;
+
+  const serviceCls = await classifyToken(serviceTok, secret, nowSeconds, ENTITLEMENT_SERVICE);
+  if (serviceCls === VALID) return SERVICE_VALID;
+
+  if (serviceTok) return serviceCls === EXPIRED ? SERVICE_EXPIRED : SERVICE_INVALID;
+  if (cookieTok) return memberCls === EXPIRED ? EXPIRED : INVALID;
+  return MISSING;
 }
 
 export default {
@@ -159,8 +209,7 @@ export default {
     // must still be served exactly as before. An observability feature that can
     // break traffic is worse than no observability.
     try {
-      const raw = readCookie(request.headers.get("cookie"), COOKIE_NAME);
-      const cls = await classifyToken(raw, env && env.CHART_EDGE_SECRET);
+      const cls = await classifyRequest(request, env && env.CHART_EDGE_SECRET);
       // ⚠️ SAFE FIELDS ONLY: a classification and a route family. No token, no
       // cookie, no secret, no session id, no user id, no email. The ticker is
       // already in the URL these logs accompany, so `family` is all that is
@@ -174,6 +223,9 @@ export default {
       const stripped = stripEdgeCookie(request.headers.get("cookie"));
       if (stripped === null) headers.delete("cookie");
       else headers.set("cookie", stripped);
+      // ⛔ The render capability dies at the edge that verifies it. bars-api has
+      // no use for it and must never become a place it can be replayed from.
+      headers.delete(SERVICE_HEADER);
     } catch (_e) {
       // Deliberately silent: shadow mode owes production nothing.
     }

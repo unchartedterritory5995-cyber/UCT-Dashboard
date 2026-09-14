@@ -66,9 +66,18 @@ COOKIE_NAME = "uct_chart_edge"
 #: influence the historical edge cache this phase is forbidden to touch.
 COOKIE_PATH = "/api/bars"
 
-#: Entitlement class. One value today; the field exists so a future "delayed
-#: bars" or "intraday" tier is a value change rather than a format change.
+#: Entitlement class — WHO the bearer is, not what they may read.
+#:
+#: ⛔⛔ TWO TRUST PATHS, TWO VALUES, AND THEY MUST NEVER BE INTERCHANGEABLE.
+#: `bars` is a MEMBER whose session satisfied the canonical entitlement. `service`
+#: is ONE trusted machine render. They travel differently (cookie vs header),
+#: live for different lengths of time, and `verify()` below refuses a token whose
+#: `ent` is not the one the caller asked for — so a service token pasted into the
+#: member cookie is INVALID, and vice versa. Collapsing them into one value would
+#: make a long-lived member token a renderer credential the moment either
+#: transport leaked.
 ENTITLEMENT_BARS = "bars"
+ENTITLEMENT_SERVICE = "service"
 
 #: Default TTL. DELIBERATELY CONSERVATIVE AND DELIBERATELY NOT THE FINAL
 #: PRODUCTION VALUE — the owner approves that before enforcement. 15 minutes is
@@ -76,6 +85,19 @@ ENTITLEMENT_BARS = "bars"
 #: which re-mints, so a short life costs no extra round trip while capping how
 #: long a downgraded/cancelled member keeps edge access.
 DEFAULT_TTL_SECONDS = 900
+
+#: Default TTL for a RENDER (machine) token — deliberately much shorter than the
+#: member's, because a service token is a capability for ONE render rather than a
+#: session.
+#:
+#: ⭐ MEASURED, NOT COPIED. Production renders of `/r/chart` complete in ~1.7-2.2 s
+#: warm; the slow paths observed were 15.5 s and 28.1 s (a readiness timeout),
+#: against a render budget whose own ceiling is `ready_timeout_ms` (34 s default)
+#: plus settle. 120 s covers the whole worst-case render — request, Chromium
+#: startup, page load, the all-timeframe warm chain and capture — with room to
+#: spare, while keeping the replay window two orders of magnitude below the
+#: member token's 900 s.
+DEFAULT_RENDER_TTL_SECONDS = 120
 
 #: Tolerance for clock skew between the web pod and Cloudflare's edge. Small,
 #: and applied only to "not yet valid", never to expiry.
@@ -101,6 +123,18 @@ def ttl_seconds() -> int:
     return value if value > 0 else DEFAULT_TTL_SECONDS
 
 
+def render_ttl_seconds() -> int:
+    """TTL for a per-render service token. Same read-at-call-time rule as above."""
+    raw = (os.environ.get("CHART_EDGE_RENDER_TOKEN_TTL_SECONDS") or "").strip()
+    if not raw:
+        return DEFAULT_RENDER_TTL_SECONDS
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_RENDER_TTL_SECONDS
+    return value if value > 0 else DEFAULT_RENDER_TTL_SECONDS
+
+
 def _secret() -> str:
     return (os.environ.get("CHART_EDGE_SECRET") or "").strip()
 
@@ -119,7 +153,23 @@ def _sign(payload_b64: str, secret: str) -> str:
                           hashlib.sha256).digest())
 
 
-def mint(entitlement: str = ENTITLEMENT_BARS, now: Optional[int] = None) -> Optional[str]:
+def mint_service(now: Optional[int] = None) -> Optional[str]:
+    """A capability for ONE trusted render, minted by the web backend.
+
+    ⛔⛔ THE TRUST BELONGS TO THE INVOCATION, NOT THE ROUTE. `/r/chart` is a
+    PUBLIC page — anyone can load it — so the page itself can never be trusted and
+    is never handed this. Only the backend that decided to render mints one, and
+    it reaches the headless browser as a request header for that render alone.
+    Anybody who opens `/r/chart` themselves still classifies MISSING, which is a
+    rail in `tests/test_chart_edge_render_handoff.py`.
+
+    ⭐ SAME SIGNER, SAME SECRET, DIFFERENT ENTITLEMENT — no second crypto system.
+    """
+    return mint(ENTITLEMENT_SERVICE, now=now, ttl=render_ttl_seconds())
+
+
+def mint(entitlement: str = ENTITLEMENT_BARS, now: Optional[int] = None,
+         ttl: Optional[int] = None) -> Optional[str]:
     """Return a signed token, or None when no secret is configured.
 
     ⚠️ NONE IS THE SAFE ANSWER, NOT AN EXCEPTION. An unconfigured
@@ -132,7 +182,8 @@ def mint(entitlement: str = ENTITLEMENT_BARS, now: Optional[int] = None) -> Opti
     if not secret:
         return None
     issued = int(now if now is not None else time.time())
-    payload = {"v": TOKEN_VERSION, "iat": issued, "exp": issued + ttl_seconds(),
+    lifetime = ttl if ttl is not None else ttl_seconds()
+    payload = {"v": TOKEN_VERSION, "iat": issued, "exp": issued + lifetime,
                "ent": entitlement}
     # `separators` keeps the token compact; `sort_keys` makes it byte-stable so
     # a test can compare two mints of the same instant.
@@ -157,7 +208,8 @@ def is_entitled(user: dict, plan: Optional[str] = None) -> bool:
     return meets_plan_gate(resolved, list(PAID_PLANS))
 
 
-def verify(token: Optional[str], now: Optional[int] = None) -> Tuple[str, Optional[dict]]:
+def verify(token: Optional[str], now: Optional[int] = None,
+           expect: str = ENTITLEMENT_BARS) -> Tuple[str, Optional[dict]]:
     """Classify a token exactly as the Worker does. Returns (classification, payload).
 
     ⭐ THIS EXISTS SO THE TWO IMPLEMENTATIONS CAN BE PROVEN EQUAL. The verifier
@@ -207,6 +259,10 @@ def verify(token: Optional[str], now: Optional[int] = None) -> Tuple[str, Option
     # of clock skew between two clouds is normal and must not read as an attack.
     if iat > current + CLOCK_SKEW_LEEWAY_SECONDS:
         return "INVALID", payload
-    if payload.get("ent") != ENTITLEMENT_BARS:
+    # ⛔ THE ENTITLEMENT MUST BE THE ONE THE CALLER ASKED FOR. This is what keeps
+    # the two trust paths from becoming one: the member cookie is verified with
+    # expect="bars" and the render header with expect="service", so neither
+    # transport can carry the other's credential.
+    if payload.get("ent") != expect:
         return "INVALID", payload
     return "VALID", payload

@@ -312,3 +312,44 @@ deliberately distinguishable from a healthy loop: a probe that never ran must ne
 interactions route delegating to `_dispatch_interaction` and returning its reply **unchanged**; the
 shadow beside it is gated on `RENDER_V2_SHADOW`, also absent, and a rail asserts the reply survives
 even when the shadow setup raises.
+
+---
+
+## P2.10 bench — what the adapter layer costs, three ways (2026-09-13, 20:3x ET)
+
+`docs/discord-render/instruments/adapter_overhead_bench.py`, 300 calls per case, one upstream
+stubbed to a fixed 1 ms so the **only** variable is the layer. `--self-check` first: a deliberately
+injected 4 ms showed up as 1.54 → 5.99 ms, so the bench can see a cost before any small number from
+it is believed.
+
+| Case | p50 | p95 | max |
+|---|---|---|---|
+| **raw** (the pre-V2 binding) | 1.520 ms | 1.613 ms | 1.798 ms |
+| **adapters** (V2 default) | **1.525 ms** | 1.836 ms | 2.220 ms |
+| **switch_0** (`DISCORD_RENDER_V2_ADAPTERS_ENABLED=0`) | **1.520 ms** | 1.643 ms | 1.949 ms |
+
+**Overhead: +0.005 ms at the median, +0.42 ms at the worst** — against an 8 s bars budget and a 20 s
+render ceiling. ⭐ **`switch_0` matches `raw` to three decimals**, which is the measured proof that
+the kill switch is a real rollback and not a comment: it hands back the raw function, and a bench
+case says so rather than a docstring.
+
+⚠️ **This is not the end-to-end bench and does not replace it.** `tools/discord_render_bench.py`
+runs in the web pod against the real renderer and bars store; that is what `02-baseline.md` is made
+of. This isolates the one question the end-to-end bench cannot answer cleanly because its variance is
+dominated by the network: what does wrapping a call in a pool submit, a breaker and a `Result` add?
+
+---
+
+## Wall clock (owner brief §4)
+
+| Merge | Step | Start (ET) | End | Gate | Deploy wait | Active work |
+|---|---|---|---|---|---|---|
+| 5 | 2.4b P2.1–P2.10 | ~17:10 | 20:07 | 6 m 38 s (1,112 tests) | ~2 min | the balance — authorship + 69 mutation runs |
+| 5a | merge-5 record | 20:07 | 20:12 | n/a (docs) | ~2 min | ~3 min |
+| 6 | frozen contracts + `07`/`08` | 20:12 | 20:25 | 20 s (166 tests) | ~3 min incl. **one push refused** by master's own pre-push guard (a deploy was in flight — the queue working) | ~10 min |
+| 7 | shadow ON + interpretability | 20:25 | 20:40 | 7 s (78 tests) | ~2 min | ~11 min |
+
+⭐ **Where the time actually went, and the fix already applied:** merge 5 spent more wall clock on
+gate + deploy than on authorship, which is what the lane plan (`07-execution-plan.md`) exists to
+reclaim. Merges 6 and 7 ran with five lanes working in parallel underneath them, so the deploy waits
+cost nothing.
