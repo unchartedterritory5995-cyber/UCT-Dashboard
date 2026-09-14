@@ -47,11 +47,13 @@ obeying the first phrasing would have written exactly the code that leaked.
 
 1. **Say so immediately.** Do not finish the task first.
 2. **Stop using that session.** Do not keep driving a rig with a token you have published.
-3. **Rotate the credential**, and remember that on this app **changing a password does not
-   invalidate sessions** — `admin/reset-password` only writes `password_hash`. Kill the
-   sessions explicitly: log in with the new value, then
-   `POST /api/auth/sessions/revoke-others`, which deletes every session but the caller's.
-   Re-run it; a second call returning `revoked: 0` is the proof that none survive.
+3. **Rotate the credential.** ✅ **Since `bd68c4147` (2026-09-14) every password-writing path
+   revokes sessions**: admin reset and the forgot-password link revoke ALL; a self-service
+   change keeps only the calling device. So a rotation now closes the sessions by itself.
+   ⚰️ This step used to read *"changing a password does not invalidate sessions"*, and that
+   was true and load-bearing — it is the defect D-038 found and D-039 shipped the fix for.
+   **Still verify rather than assume:** `POST /api/auth/sessions/revoke-others` and check a
+   second call returns `revoked: 0`, which is the proof that none survive.
 4. **Verify the leaked token is dead** — one read-only request, expect `401`. That is the
    only permitted use of a leaked token.
 5. **Delete the artifacts**, then `--scan` to confirm, then record it in `DECISIONS.md`.
@@ -113,3 +115,11 @@ Four ways this harness produced a confident wrong answer before it produced a ri
 ⚠️ And one that is not the harness: an **edge 502 in 0.2 s** (an immediate refusal, not a timeout) while `/api/health`
 read 200 with a rising uptime. Health is a proxy; it was green over a login path that was not. Retry **5xx only**,
 record the attempt count, and never retry a 4xx — that is a real refusal.
+
+## Test fixtures: `.internal`, never `.invalid`
+
+The smoke account's domain is `.internal` for a reason that reaches past this runbook: `EmailStr`'s validator
+**refuses special-use domains by name**, so `*.invalid` and `*.example` are rejected at the schema boundary while
+`.internal` (RFC 8375) passes. A fixture using them fails only where a request crosses Pydantic — so service-level
+tests pass and the one endpoint test fails, which reads as a flaky sixth test rather than a wrong fixture. The rule
+and the incident are in `docs/breadth/gates.md` ("Never commit on red").

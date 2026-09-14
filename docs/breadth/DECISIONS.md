@@ -478,3 +478,24 @@ gate that applies is the scoped backend suite: 6/6 in the new rail and **312 pas
 reach. Flow-worker is an **INERT STRAND**, traced rather than assumed: its closure takes exactly one symbol from
 `auth_service` (`validate_session`, via `flow_gap_autofill.py:45` → `flow_admin_auth.py:24`) and this change touches
 it in zero lines, so forcing a redeploy would buy a permanent OPRA tape gap for no behavioural difference.
+
+### D-040 · `DESK_PUBLIC_SHOWS='*'` is the owner's decision, is ledgered, and must not be "fixed"
+
+**Decision.** Public YouTube publishing of live sessions, workshops and evening updates is **deliberate** — owner
+decision 2026-08-19, reaffirmed 2026-09-13. The 2026-09-13 change that unlisted them was the error and was reverted on
+the owner's confirmation. `DESK_PUBLIC_SHOWS='*'` on `web` is the intended live value.
+
+**Verified, not assumed** (2026-09-14, this tree at master): `tests/test_visibility_flag_ledger.py` → **16 passed**, and
+`python tools/flag_ledger_audit.py --visibility` → **FINDINGS: 0** with `web: DESK_PUBLIC_SHOWS='*'` read live. The
+ledger already declares it `status: armed`, `values: ['*', 'sunday scans']`, with an `owner_decision` field — and the
+rail permits a wildcard on a public-exposure flag **precisely because** that field is present. So the shape is the
+intended one, the same shape `J2_OCR_ENABLED` uses.
+
+⛔ **Do not narrow this flag, and do not file it as an exposure.** A later session reading an incident framing will be
+tempted to "fix" a wildcard on a flag named PUBLIC — that would unlist the owner's public catalogue and would look
+like diligence. The rail is the authority and it is green; a finding here means the LEDGER drifted, never that the
+flag is wrong.
+
+⚠️ **This entry exists because I got it wrong in exactly that direction** — I read the incident framing, treated a
+deliberate decision as an exposure, and reported it as one. The correction is recorded here rather than only in a
+conversation so the next reader meets it beside the flag.
