@@ -31,6 +31,12 @@ carries its own argument — read them before re-deriving anything.
 
 ## How to check the state is still what this says
 
+- [ ] **Install the secret scrub tool so the pre-push hook actually scans.**
+  `git show origin/feat/breadth-charts:tools/secret_scrub.py > tools/secret_scrub.py`
+  then `python tools/secret_scrub.py --self-check`. Without it every push prints
+  *"the secret scan did NOT run. This is not a pass."* and goes out unscanned into
+  a PUBLIC repo. See the section below — do not edit or disable the hook.
+
 ```bash
 cd C:/Users/Patrick/uct-dashboard/.claude/worktrees/indicator-ecosystem
 
@@ -76,21 +82,68 @@ not a typo). `--self-check` proves the check can fail.
 | `EvidenceTab.doors.test.js` | `app/src/components/chart/builder/` | — |
 | `vendorTruth.test.js` · `vendorNote.test.js` (divergence ledger) | `app/src/components/chart/engine/ast/` | — |
 
-### The two Python failures are INHERITED and are not ours
+### ⛔⛔ THE PRE-PUSH SECRET SCAN DOES NOT RUN IN THIS WORKTREE — AND THAT IS NOT A PASS
+
+Master's `pre-push` hook (arrived with `4fb4f9daf`, *LAYER 0: the 502 rule made
+mechanical*) runs two checks. The second — the 502 rule — is master-only and does
+not apply to a feature-branch push. The **first is a secret scan**, and on every
+push from this worktree it prints:
+
+```
+[pre-push] WARNING: tools/secret_scrub.py not found in this worktree —
+[pre-push]          the secret scan did NOT run. This is not a pass.
+```
+
+⭐ **The hook is behaving exactly as written and must NOT be edited or disabled.**
+It looks for `tools/secret_scrub.py` at the worktree root and at one sibling
+(`../uct-worktrees/breadth-charts/tools/secret_scrub.py`); the tool is on the
+breadth-charts branch and **not yet on master**, so a worktree branched off master
+does not have it. The hook deliberately warns instead of blocking, with its own
+comment citing `lesson_a_rails_important_half_can_be_opt_in`, so that worktrees
+which legitimately lack the file are not wedged.
+
+⛔ **What that means in practice: every push from here has been UNSCANNED.** This
+repo is **public**, and the hook exists because on 2026-09-13 a live member session
+token reached a run log and was committed as a test fixture. A pushed secret is
+public even if deleted afterwards. "The scan did not run" and "the scan found
+nothing" look identical in the terminal if you are skimming, which is the whole
+reason the warning is worded the way it is.
+
+⭐ **THE FIX IS TO INSTALL THE TOOL, NOT TO QUIETEN THE HOOK.** Copy it in from the
+branch that owns it, once per worktree:
+
+```bash
+git show origin/feat/breadth-charts:tools/secret_scrub.py > tools/secret_scrub.py
+python tools/secret_scrub.py --self-check     # prove it can refuse
+```
+
+⚠️ It is untracked here on purpose — it belongs to another lane and this branch
+must not carry a copy that then drifts from the original. Re-copy it after any
+`git worktree add`, and re-read it from origin rather than from a stale local file.
+
+### ✅ RETIRED 2026-09-13 — the two inherited Python reds are GREEN
+
+This section said **"do not chase them and do not claim repo-green"** about:
 
 ```
 tests/test_ast_interpret.py::test_the_escape_census_ZERO_is_ATTRIBUTABLE_and_the_reconciliation_says_so
 tests/test_ast_conformance.py::test_the_guarded_census_offers_each_case_to_the_DOOR_ITS_CLAIM_IS_ABOUT
 ```
 
-Both reproduce at HEAD with our files reverted; both are green outside pytest and
-red under the repo-root `conftest.py`. Full repro, both outputs and the evidence
-are in **`requests.md`** at the repo root, addressed to the session that owns the
-conftest. **Do not chase them and do not claim repo-green.**
+**Both pass on the merged tree.** Measured after merging `origin/master`
+`da0803baa` into `feat/indicator-r0r1`: the scoped Python lane went from *339
+passed / 2 failed* to **364 passed / 5 skipped / 0 failed**. Master fixed the
+repo-root `conftest.py` interaction underneath them; neither was ever ours.
 
-A third, `tests/test_no_shadowed_definitions.py`
-(`ticker_explain._DOMAIN_FETCHERS` bound twice), is already on the known-issues
-list.
+⛔ **The instruction is retired with them.** A live "do not chase" note about a red
+that no longer exists is budget spent on nothing, and worse, it teaches the next
+session that a green run must be wrong. If either reappears, it is a NEW finding
+against a named commit, not this one returning.
+
+The third, `tests/test_no_shadowed_definitions.py`
+(`ticker_explain._DOMAIN_FETCHERS` bound twice), is **also fixed** — both this
+branch and master deleted the double binding independently, and the merge kept one
+comment for it (see the merge commit `30783526f`).
 
 ---
 
