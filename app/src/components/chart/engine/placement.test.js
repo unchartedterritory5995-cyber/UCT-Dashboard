@@ -445,7 +445,12 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
       // other price overlay it reserves no vertical space of its own.
       'movingAverage'])
     for (const d of priceDefs) {
-      const p = resolvePlacement({ instanceId: `i:${d.id}`, defId: d.id }, d, ctx)
+      // ⚠️ THE SAME INSTANCE THE LAYOUT WAS BUILT FROM. This passed a
+      // DIFFERENT id (`i:<def>`) than the `inst(d.id)` above, and got away with it
+      // only while panes were keyed by DEFINITION. Pane keys are host instance ids
+      // (P2.0c), so two identities for one subject now resolve to no pane at all —
+      // which is the fixture being wrong, not the resolver.
+      const p = resolvePlacement(inst(d.id), d, ctx)
       expect(p.autoscale, `${d.id} may not drag the candles' autoscale`).toBe('exclude')
       expect(p.scaleOptions, `${d.id} must still assert nothing on the candles' scale`).toBeNull()
     }
@@ -455,7 +460,12 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
     const paneDefs = registry.listDefinitions().filter(d => d.placement.target === 'pane')
     expect(paneDefs.length).toBeGreaterThan(0)
     for (const d of paneDefs) {
-      const p = resolvePlacement({ instanceId: `i:${d.id}`, defId: d.id }, d, ctx)
+      // ⚠️ THE SAME INSTANCE THE LAYOUT WAS BUILT FROM. This passed a
+      // DIFFERENT id (`i:<def>`) than the `inst(d.id)` above, and got away with it
+      // only while panes were keyed by DEFINITION. Pane keys are host instance ids
+      // (P2.0c), so two identities for one subject now resolve to no pane at all —
+      // which is the fixture being wrong, not the resolver.
+      const p = resolvePlacement(inst(d.id), d, ctx)
       expect(p.autoscale, `${d.id} OWNS its band's scale and must drive it`).toBe('default')
     }
   })

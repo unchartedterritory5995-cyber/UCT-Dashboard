@@ -535,7 +535,13 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     const h = openChart()
     const { paneLayout } = await sync(h, ['rsi', 'macd'])
 
-    const keyAt = new Map(paneLayout.panes.map((p) => [p.index, p.key]))
+    // ⚠️ MAPPED BACK TO THE DEFINITION, EXACTLY AS `StockChart` DOES. Pane keys
+    // are host INSTANCE ids (P2.0c) and the right-click menu is definition-shaped,
+    // so the call site translates through the layout's own `defByKey`. This case
+    // is about REAL RECTANGLES, not about key units — it reproduces the shipped
+    // call so the geometry claim keeps its subject.
+    const keyAt = new Map(paneLayout.panes.map(
+      (p) => [p.index, paneLayout.defByKey.get(p.key) || p.key]))
     const panes = h.raw.panes().map((p, i) => ({ key: keyAt.get(i) || null, height: p.getHeight() }))
     const at = (y) => resolveChartRegionFromPanes({
       x: 300, y, width: 600, height: CHART_H, axisWidth: 0, timeAxisHeight: 0,
@@ -964,7 +970,15 @@ describe('paneMargins.js and paneMarginsProjection.js are RETIRED, not renamed',
       chartHeight: CHART_H, hasVolumeBand: true, separatorPx: SEPARATOR_PX,
     })
     expect(Object.keys(layout.bands)).toEqual(['macd', 'rsi', 'volume', 'main'])
-    expect(layout.panes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    // ⭐⭐ AND THE TWO ANSWERS ARE IN DIFFERENT UNITS ON PURPOSE (P2.0c). `bands`
+    // is the `'bands'`-mode geometry and stays keyed by DEFINITION — its readers
+    // ask definition questions (a scale named after one, a right-click region).
+    // `panes` are keyed by the HOST INSTANCE, because a pane belongs to the
+    // instance that hosts it: two own-pane instances of one definition are two
+    // panes, not one shared rectangle. `defByKey` is the bridge, and asserting
+    // both here is what keeps the split deliberate.
+    expect(layout.panes.map((p) => p.key)).toEqual(['legacy:rsi', 'legacy:macd'])
+    expect(layout.panes.map((p) => layout.defByKey.get(p.key))).toEqual(['rsi', 'macd'])
     // The two readings agree: the stack the bands reserve is the stack the panes
     // fill, to the pixel, separators included.
     // `bands.volume.bottom` is the volume band's distance from the BOTTOM of
