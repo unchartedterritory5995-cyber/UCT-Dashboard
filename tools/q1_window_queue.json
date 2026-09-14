@@ -5,7 +5,7 @@
   "queue": [
     {
       "id": "post-merge-canary",
-      "status": "pending",
+      "status": "done",
       "timeout": 1200,
       "why": "Standing post-master-merge step: SUCCESS -> three-way -> DEPLOY row -> Q1 canary. The merge afef0bfde is SUCCESS and the DEPLOY row is written; this is the canary. It runs FIRST next window because a merge is unverified until the rig has seen the live bundle.",
       "cmd": [
@@ -13,7 +13,14 @@
         "tools/window_check.py",
         "--profile",
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
-      ]
+      ],
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 111.1,
+        "tail": "ok   4 door `tags` moved the baseline under the queued entry: run **#34** \u21d2 `DOORS[34 % 4]` = **`tags`** \u00b7 PUT **200** in **1** attempt(s) \u00b7 baseline `None` \u2192 `2026-09-14T07:01:10.014100+00:00` \u00b7 queued sends that beat it: **3**",
+        "inconclusive": false
+      }
     },
     {
       "id": "trigger4-capture",
@@ -87,7 +94,7 @@
     },
     {
       "id": "t12-owner-profile-run",
-      "status": "pending",
+      "status": "done",
       "why": "UNBLOCKED by owner amendment 2026-09-14: an admin-role run on the rig profile satisfies the owner-identity requirement, because the distinction T-12 tests is member-role vs admin-role, not which human is signed in. `--identity owner-rig` is the admin-role identity.",
       "timeout": 2400,
       "cmd": [
@@ -100,7 +107,13 @@
         "--out",
         "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
       ],
-      "attempts": 0
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 40.8,
+        "tail": "(node:16956) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities. / (Use `node --trace-deprecation ...` to show where the warning was create",
+        "inconclusive": false
+      }
     },
     {
       "id": "matrix-remainder",
