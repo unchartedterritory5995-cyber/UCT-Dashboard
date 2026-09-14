@@ -17,6 +17,7 @@
     "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > ⛔ ENTERING EDIT MODE IS NOT A RESIZE",
     "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > ⛔⛔ every key the product READS survives the strip",
     "src/components/chart/engine/ast/pine.blindCorpus.test.js > ⭐⭐ an offer a member can TAKE, not retype > ⏳ the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
     "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
@@ -84,6 +85,18 @@
       "removed_in": "Deploy B docs commit",
       "why": "It stopped failing in the 2026-09-11T07-36-04 gate. Removed only after confirming it is FIXED and not SILENTLY SKIPPED — the distinction the gate manifest itself asks for. Verified by running the file alone: 12 tests execute and all five of its own planted-cut controls PASS (PLANTED CUT / dynamic edge / worker edge / tracked-vs-untracked orphan / allow-list guards), so the sweep can still detect an orphan. A baseline row left in place for a test that now passes is a slot a real failure can occupy unnoticed.",
       "verified_by": "npx vitest run src/components/screener/reachable.test.js -> 12 passed (12)"
+    }
+  ],
+  "expected_red_note": "DELIBERATE reproductions added by a branch, red BECAUSE the defect is real. NOT the same as `failures`, which is a measurement OF MASTER ('Nothing here is the hub's'). Each entry names the fix it waits on. An entry that turns GREEN is STALE and fails the gate.",
+  "expected_red": [
+    "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > ⛔⛔ DOES NOT discard the member's words when the landed save lacks them"
+  ],
+  "additions": [
+    {
+      "added": "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+      "added_at": "2026-09-14",
+      "why": "MASTER'S, not this branch's. reachable.test.js reds on app/src/lib/context/focusDivergence.js, which landed in 76c62c494 ('S4 CP1: the divergence detector - read-only, mounts nothing'), is present on origin/master, and is touched by NO commit on this branch. Already documented in CLAUDE.md as R-29 for the S4 workstream, and verified here rather than taken from the doc. A baseline that lacks it reports a phantom regression to every branch.",
+      "verified_by": "git cat-file -e origin/master:<path>; git diff --name-only <base>..HEAD | grep -c focusDivergence -> 0"
     }
   ]
 }

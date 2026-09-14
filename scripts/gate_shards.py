@@ -115,13 +115,31 @@ def load_baseline() -> dict:
     return json.loads(BASELINE.read_text(encoding="utf-8"))
 
 
-def compare_failures(observed: list[str], baseline: list[str]) -> dict:
-    """What this run changed about the failing set. `new` is the only one that can block a merge."""
+def compare_failures(observed: list[str], baseline: list[str],
+                     expected_red: list[str] | None = None) -> dict:
+    """What this run changed about the failing set. `new` is the only one that can block a merge.
+
+    ⛔⛔ TWO KINDS OF KNOWN RED, AND COLLAPSING THEM LOSES THE DISTINCTION THAT
+    MATTERS. `failures` is a measurement OF MASTER — this file's own invariant is
+    "Nothing here is the hub's". `expected_red` is the opposite: a DELIBERATE
+    reproduction this branch added, red BECAUSE the defect is real, carrying the
+    fix it waits on. A reproduction filed under `failures` would corrupt the
+    baseline's meaning; one filed nowhere hands every other workstream a phantom
+    regression to chase.
+
+    ⭐ STRICT IN BOTH DIRECTIONS: an `expected_red` that is NOT observed has been
+    FIXED, and its entry is stale — that fails, because a stale entry is a slot a
+    real failure can occupy unnoticed. Same discipline the baseline already
+    applies to a `failures` row that starts passing.
+    """
     obs, base = set(observed), set(baseline)
+    exp = set(expected_red or [])
     return {
         "observed_count": len(obs),
         "baseline_count": len(base),
-        "new": sorted(obs - base),               # ⛔ regressions — the gate's actual verdict
+        "new": sorted(obs - base - exp),          # ⛔ regressions — the gate's actual verdict
+        "expected_red_seen": sorted(obs & exp),   # red on purpose, named, not blocking
+        "expected_red_stale": sorted(exp - obs),  # ⛔ GREEN now — the entry must go
         "no_longer_failing": sorted(base - obs),  # informational: fixed, or silently stopped running
         "matches_baseline": obs == base,
     }
@@ -429,7 +447,8 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "failures": failures,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
-        "vs_baseline": compare_failures(failures, base.get("failures") or []),
+        "vs_baseline": compare_failures(failures, base.get("failures") or [],
+                                        base.get("expected_red") or []),
         "do_not_build": do_not_build_sweep(),
     }
 
@@ -598,6 +617,25 @@ def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
     v = manifest.get("vs_baseline") or {}
     new = v.get("new") or []
     stale = v.get("no_longer_failing") or []
+    exp_seen = v.get("expected_red_seen") or []
+    exp_stale = v.get("expected_red_stale") or []
+    # ⛔⛔ A DELIBERATE RED THAT HAS TURNED GREEN IS A FAILURE, NOT A RELIEF. Its
+    # defect is fixed, so the entry is stale — and a stale entry is a slot a real
+    # failure can occupy unnoticed. Named, so the next reader knows what to delete.
+    if exp_stale:
+        say("", err=True)
+        say("  GATE: EXPECTED-RED entr(ies) are GREEN now, so their defect is fixed", err=True)
+        say("  and the entry must be removed, citing the fix that did it:", err=True)
+        for _e in exp_stale:
+            say("    - " + _e, err=True)
+        return EXIT_NEW_FAILURES
+    if exp_seen:
+        # ⭐ Named, never silent: a deliberate red nobody can see is
+        # indistinguishable from one nobody noticed.
+        say("", err=True)
+        say("  (expected-red, not blocking — deliberate reproductions carrying the fix "
+            "they wait on: " + ", ".join(e.split(" > ")[0] for e in exp_seen) + ")",
+            err=True)
     if new:
         say(f"\n  GATE: {len(new)} NEW failure(s) against the baseline — exit {EXIT_NEW_FAILURES}.\n"
             f"  Classify each by direction before treating it as a regression: a failure the BASE\n"
