@@ -44,6 +44,48 @@ It prints what flow-worker reaches, what it watches, and what this branch change
 Exit 1 means a change is stranded. It does not decide the tier for you — read its
 output against the watch list.
 
+## ⛔ REVIEW-GATE-BY-DESIGN — a red from the coverage rail was NEVER a deploy block
+
+> **`flow-worker deploy coverage` exits 0 and reports through a `::warning::` annotation
+> and the job summary. A red there requires a written classification; it has never blocked
+> a merge, and as of 2026-09-14 it can no longer block a deploy either.**
+
+⚰️ **The rule below said this from the start and the exit code said otherwise.** The
+workflow ran `python tools/flow_worker_watch_coverage.py`, which exits non-zero on a RED,
+so GitHub recorded a deliberate review signal as a **FAILED CHECK**. That was harmless
+while nothing consumed check status — and became load-bearing the moment Railway's
+**"Wait for CI"** was considered, because it waits on **all** GitHub checks. Enabling it
+would have converted this rail into a hard deploy block for essentially every backend
+change.
+
+**Measured before changing it** (last 50 master runs per workflow, 2026-09-14):
+
+| workflow | pass rate on master | class |
+|---|---|---|
+| Options Flow guard | 50/50 | hard check, healthy |
+| wisdom rails | 50/50 | hard check, healthy |
+| Joystick device suite | 5/5 | hard check, healthy (scheduled + narrow paths) |
+| OCR Linux version cert | 1/1 | hard check, healthy (narrow paths) |
+| vite build args | 39/50 | hard check — **recovered**; newest failure 03:59Z, green since |
+| master deploy gate | 4/5 | hard check, healthy (the one failure was its own first run) |
+| **flow-worker deploy coverage** | **44/50** | **REVIEW GATE** — all 6 "failures" were correctly-classified ADDITIVE breadth merges |
+| Clock parity fixture | 0 on master | **ghost** — no file on master (lives on `feat/indicator-r0r1`) |
+| Perplexity spike diagnostic (temporary) | 0 on master | **ghost** — file deleted; 2 runs on a since-deleted branch |
+
+⛔ **GITHUB'S WORKFLOW LIST IS NOT THE CHECK SET, and reading it as one would have sent
+somebody hunting for two files that do not exist.** The API lists **nine** workflows;
+`.github/workflows/` on master holds **seven**. GitHub keeps a workflow in the list once
+it has run history, even after its file is deleted — so the last two cannot run on master
+and need no disabling. They were about to be "disabled" here before the tree was checked
+against the list.
+
+⭐ **No hard check was permanently red**, which is what made option 1 viable: exactly ONE
+workflow needed its semantics corrected, and nothing needed disabling.
+
+⚠️ **The script keeps its non-zero exit.** Run locally it still fails, which is what a
+developer's own run should do. The neutralisation is in the workflow only — at the one
+place where an exit code was being mistaken for a deploy verdict.
+
 ## Interpretation — what a red from the coverage rail requires
 
 Owner ruling, 2026-09-11. **The coverage rail is a REVIEW GATE. A red does not block a
