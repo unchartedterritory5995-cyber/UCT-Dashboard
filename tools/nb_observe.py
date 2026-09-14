@@ -344,6 +344,7 @@ def main() -> int:
 
     from playwright.sync_api import sync_playwright
     errors: list[str] = []
+    http_fail: list[str] = []
     proc = endpoint = None
     try:
         proc, endpoint, _ = wc.spawn_rig()
@@ -355,8 +356,43 @@ def main() -> int:
             # evaluating is caught. A broken flipped bundle fails before the
             # offline layer would ever run, and that is the 2am case this exists
             # to notice.
+            # ⛔⛔ "2 console errors" IS NOT ACTIONABLE. Owner ruling 2026-09-14,
+            # after three consecutive ANOMALY rows whose entire content was
+            # "Failed to load resource: the server responded with a status of 401 ()".
+            # A resource-load console message does NOT carry the URL in its text --
+            # the URL is in the message's LOCATION, and the method and status are only
+            # on the response. So three listeners, not one.
+            def _on_console(m):
+                if m.type != "error":
+                    return
+                loc = m.location or {}
+                where = str(loc.get("url") or "")
+                line = loc.get("lineNumber")
+                # ⭐ the location of a resource-load error is the JS that ISSUED it,
+                # which is the closest thing to an initiator the page will give us.
+                tail = f"  [issued by {where[:110]}:{line}]" if where else "  [no location]"
+                errors.append(f"console.error: {m.text}{tail}")
+
+            def _on_response(r):
+                # ⛔ Recorded BESIDE the console count, never added to it: trigger 4
+                # reads that count and widening it would change the gate's meaning
+                # while claiming to improve its logging.
+                try:
+                    if r.status >= 400:
+                        http_fail.append(f"{r.request.method} {r.url[:120]} -> {r.status}")
+                except Exception:  # noqa: BLE001
+                    pass
+
+            def _on_requestfailed(r):
+                try:
+                    http_fail.append(f"{r.method} {r.url[:120]} -> FAILED ({r.failure})")
+                except Exception:  # noqa: BLE001
+                    pass
+
             page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
-            page.on("console", lambda m: errors.append(f"console.error: {m.text}") if m.type == "error" else None)
+            page.on("console", _on_console)
+            page.on("response", _on_response)
+            page.on("requestfailed", _on_requestfailed)
 
             page.goto(wc.PROD + "/journal/notebook", wait_until="domcontentloaded")
             page.wait_for_timeout(9000)
@@ -402,8 +438,22 @@ def main() -> int:
                 return 0
 
             reasons = []
-            if errors:
-                reasons.append(f"{len(errors)} console/page error(s): {errors[0][:90]}")
+            if errors or http_fail:
+                # ⭐ The COUNT stays the console/page count (trigger 4's column).
+                # The HTTP failures are named beside it so the row can be acted on
+                # without taking a rig window to reproduce it.
+                bits = []
+                if errors:
+                    bits.append(errors[0][:150])
+                if http_fail:
+                    seen, uniq = set(), []
+                    for h in http_fail:
+                        if h not in seen:
+                            seen.add(h)
+                            uniq.append(h)
+                    more = f" (+{len(uniq) - 3} more)" if len(uniq) > 3 else ""
+                    bits.append("HTTP: " + " ; ".join(uniq[:3]) + more)
+                reasons.append(f"{len(errors)} console/page error(s): " + "  |  ".join(bits))
             if unk.get("identities"):
                 reasons.append(
                     f"UNKNOWN INTERNAL identity opted in ({unk.get('identities')}): "
