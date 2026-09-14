@@ -318,15 +318,23 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   // atr-stop-loss-indicator by `pine:module@7`, cumulative-volume-delta by
   // `pine:request@12` — so nothing in the corpus reaches its accumulator at all. This
   // fixture is built so nothing refuses before the loop.
-  run('⛔⛔ R7 · SYNTHETIC — a counted-`for` accumulator refuses AT THE LOOP, naming a4b', () => {
+  it('⛔⛔ R7 · SYNTHETIC — a counted-`for` accumulator refuses with a4b\'s reason', () => {
     const src = `${HEAD}s = 0.0\nfor i = 0 to 2\n    s := s + close[i]\nplot(s, "acc")\n`
-    const at = lineOf(src, 'for i = 0 to 2')
+    // ⭐ R7a — THE LINE IS THE `:=`, NOT THE `for`, AND THAT IS THE RULING.
+    // The reassignment fact lives at the `:=`; R4 and R8 both put the refusal where
+    // the fact is, and the SENTENCE names the loop. Candidate (i) — reordering the
+    // body walk so the refusal lands on the `for` — was rejected: it touches every
+    // statement branch that walks a body, which is the most likely place for a fifth
+    // ordering defect to ship silently, and it buys a line that agrees with the
+    // sentence no better than this one does.
+    const at = lineOf(src, 's := s + close[i]')
     const all = refusalsOf(translatePine(src, { strict: true }))
-    // ⛔ REPLACED, NOT ADDED. The accumulator already refuses `pine:reassign`; R7 moves
-    // that sentence onto the loop and gives it a reason. It must not become two.
+    // ⛔ REPLACED, NOT ADDED. The accumulator already refused `pine:reassign`; R7 gives
+    // that sentence a reason. It must not become two.
     expect(all.length, 'one cause, one refusal — the sentence is replaced').toBe(1)
     const r = all[0]
-    expect(r.line, 'the loop is what was not read, so the loop is what is named').toBe(at)
+    expect(r.line, 'the reassignment fact lives at the `:=`').toBe(at)
+    expect(r.text, 'and the sentence names the loop it could not fold').toMatch(/`for`/)
     expect(r.text, 'the census number is in the sentence').toMatch(/1 of 379/)
     expect(r.text, 'and the constraint a reopening would have to change')
       .toMatch(/63 of 379/)

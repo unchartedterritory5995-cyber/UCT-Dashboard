@@ -10507,6 +10507,12 @@ export function translatePine(source, opts = {}) {
       isFunction: false,
       message: `${REFUSALS[guard]}${extra ? ` — ${extra}` : ''}`,
       at: at || null,
+      // ⭐ R7a — THE EXTRA IS KEPT ALONGSIDE THE COMPOSED MESSAGE. A later marker
+      // that must re-place this refusal at a different LINE can then carry the same
+      // REASON forward instead of falling back to the bare guard text. Without it,
+      // re-forcing means re-composing, and re-composing means losing whatever the
+      // first caller knew.
+      reason: extra || null,
     })
   }
 
@@ -11123,7 +11129,25 @@ export function translatePine(source, opts = {}) {
     const missed = toks.find((t) => !ctx.consumed.has(t.index))
     const why = unfoldable.get(name)
     if (missed) {
-      forceOpaque(name, 'pine:reassign', locate(missed), `\`${name}\``)
+      // ⭐⭐ R7a — RE-PLACE THE LINE, KEEP THE REASON.
+      //
+      // ⚰️ THIS OVERWRITE IS THE FOURTH READ/OVERWRITE ORDERING DEFECT OF THE SAME
+      // SHAPE IN THIS PROGRAMME (a3 size-before-unroll · a4 forceOpaque/prior.kind ·
+      // R7 forceOpaque/mutator · this). It is deliberate and the comment above says
+      // why it must overwrite — but overwriting the LOCATION was never a reason to
+      // discard the REASON. A counted-`for` accumulator was forced opaque a moment
+      // ago carrying ruling R7's sentence (the census numbers and the binding
+      // constraint), and this line replaced it with the bare "a name that is
+      // reassigned later cannot be folded into one expression".
+      //
+      // ⭐ The line it picks is right and is kept: `missed` is the `:=` token, and
+      // the reassignment fact lives exactly there. So the refusal now names the
+      // line where the reassignment is AND carries the reason that explains it —
+      // line and sentence agreeing about the same fact, which is the criterion R8
+      // was decided on.
+      const held = env.get(name)
+      const reason = held && held.kind === 'opaque' && held.reason ? held.reason : `\`${name}\``
+      forceOpaque(name, 'pine:reassign', locate(missed), reason)
     } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
       forceOpaque(name, why.guard,
         { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
