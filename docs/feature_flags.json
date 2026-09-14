@@ -479,6 +479,12 @@
       ],
       "note": ""
     },
+    "DISCORD_RENDER_LOOPWATCH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Kill switch for the event-loop stall probe (2.4b P2.9), default ON: unset means the probe runs. It measures the overshoot of its own sleep every 0.5 s on the ONE event loop web has - the loop whose blocking failed Discord's 3 s ack and the renderer's page load together, 37x more often than chance (C-02), and which nothing measured at all until now. Nothing is served from it; it feeds /renderhealth and the `loop_stalled` alert. There is nothing to protect by leaving a measurement off, which is why it is a kill switch and not an enablement gate. Started from the lifespan, and only when DISCORD_RENDER_V2_ENABLED is set - so while V2 is dark this costs nothing and reports `running: false`.",
+      "owner": "owner"
+    },
     "DISCORD_RENDER_V2_ADAPTERS_ENABLED": {
       "status": "dark",
       "where": [],

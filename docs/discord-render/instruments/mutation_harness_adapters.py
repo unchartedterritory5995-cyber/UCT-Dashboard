@@ -31,6 +31,9 @@ B = "tests/test_discord_render_adapter_boundary.py::"
 BA = "tests/test_discord_render_breaker_alerts.py::"
 LW = "api/services/discord_render/loopwatch.py"
 LT = "tests/test_discord_render_loopwatch.py::"
+SH = "api/services/discord_render/shadow.py"
+ST = "tests/test_discord_render_shadow.py::"
+RT = "api/routers/discord_interactions.py"
 TRT = T
 
 MUTATIONS = [
@@ -228,6 +231,40 @@ MUTATIONS = [
      "old": "        return max(0.0, self.deadline_s - ((now if now is not None else time.time()) - self.created_at))\n",
      "new": "        return max(0.0, self.deadline_s)\n",
      "tests": [TRT + "test_the_remaining_budget_counts_down_from_the_ack"]},
+
+    # ── P2.10: shadow mode ─────────────────────────────────────────────────
+    {"name": "A62 the shadow turns itself on everywhere it merges", "file": SH,
+     "old": '    return str(os.environ.get(ENV, "")).strip().lower() in ("1", "true", "yes", "on")\n',
+     "new": '    return str(os.environ.get(ENV, "")).strip().lower() not in ("0", "false", "no", "off")\n',
+     "tests": [ST + "test_it_is_OFF_unless_explicitly_turned_on"]},
+    {"name": "A63 an unanswerable verdict is counted as a divergence", "file": SH,
+     "old": "    refused = [v.symbol for v in verdicts if getattr(v, \"status\", None) == symbols.UNKNOWN]\n",
+     "new": "    refused = [v.symbol for v in verdicts if getattr(v, \"status\", None) != symbols.KNOWN]\n",
+     "tests": [ST + "test_an_unanswerable_verdict_is_not_a_divergence_either"]},
+    {"name": "A64 a refusal against a non-defer counts as a divergence", "file": SH,
+     "old": '    out["divergence"] = bool(refused) and (pre_v2_reply or {}).get("type") in (5, 6)\n',
+     "new": '    out["divergence"] = bool(refused)\n',
+     "tests": [ST + "test_a_reply_that_was_not_a_defer_is_not_a_divergence"]},
+    {"name": "A65 the shadow ignores its own budget", "file": SH,
+     "old": "            if (now() - started) > SHADOW_BUDGET_S:\n", "new": "            if False:\n",
+     "tests": [ST + "test_past_its_own_budget_it_stops_rather_than_making_anyone_wait"]},
+    {"name": "A66 a failing authority breaks the shadow instead of the sample", "file": SH,
+     "old": "            except Exception as e:  # noqa: BLE001 — a shadow must never affect the request it shadows\n",
+     "new": "            except ValueError as e:\n",
+     "tests": [ST + "test_a_resolver_that_raises_is_a_missing_sample_not_an_exception"]},
+    {"name": "A67 the shadow can break the request it shadows", "file": RT,
+     "old": "    except Exception:  # noqa: BLE001 — a shadow that can break the request it shadows is worse than none\n"
+            "        pass\n",
+     "new": "    except ValueError:\n        pass\n",
+     "tests": [ST + "test_the_route_still_returns_the_dispatchers_reply_unchanged"]},
+    {"name": "A68 a shadow failing on every request leaves no trace", "file": SH,
+     "old": '        observe.event("shadow", outcome="error", detail=type(e).__name__)\n',
+     "new": "        pass\n",
+     "tests": [ST + "test_the_work_on_the_pool_thread_reports_its_own_failure"]},
+    {"name": "A69 the route submits the bare function, bypassing the report", "file": RT,
+     "old": "            _shadow_pool.submit(_shadow.run_safely, seen,\n",
+     "new": "            _shadow_pool.submit(_shadow.observe_ack, seen,\n",
+     "tests": [ST + "test_the_route_submits_the_reporting_wrapper_not_the_bare_function"]},
 
     # ── P2.9: the event-loop stall probe ───────────────────────────────────
     {"name": "A56 an unrun probe reads as a healthy loop", "file": LW,

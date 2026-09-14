@@ -382,6 +382,41 @@ unchanged and the pre-V2 path is untouched — the P2 ground rule. What the path
 call bounded, breakered, and its `Result` kept on the job context, so the reason survives instead of
 being discarded at three separate layers.
 
+### 3.8d Shadow mode — `RENDER_V2_SHADOW=1` (P2.10, 2026-09-13)
+
+Set it with `DISCORD_RENDER_V2_ENABLED` **still unset**. The pre-V2 path serves the member exactly
+as today; alongside it, `api/services/discord_render/shadow.py` records the acknowledgement V2
+*would* have returned, as a `drender evt=shadow` line. The flip is then a decision made on
+production traffic rather than on a bench.
+
+⛔⛔ **IT COMPARES THE ACK, AND ONLY THE ACK.** Not the chart, not the delivery, not the queue.
+Running the V2 producer in shadow would mean a second render per request on the pod that has one
+event loop and one shared thread pool — that is C-02, caused deliberately, to measure something a
+bench already answers. What a bench *cannot* answer is the ack decision on real traffic: which
+symbols members actually type, and which of them V2 would refuse where the old path drew something.
+
+⛔⛔ **IT CANNOT DELIVER, BY CONSTRUCTION.** Nothing in the module names `app_id`, the interaction
+token, the runtime, the jobs store or `edit`, and a rail asserts that from its own parse tree rather
+than from a comment. It runs **after** the reply object exists, on a thread, inside its own 0.4 s
+budget, so it cannot delay, alter or fail the member's request. Past the budget it records `budget`
+and stops — a missing sample, never a slow ack.
+
+⛔ **AND A FUTURE NOBODY READS SWALLOWS EVERYTHING.** The route submits and never calls `.result()`,
+so an exception in the shadow reaches nobody: the member is safe, and a shadow failing on *every*
+interaction would leave no trace at all — the silent-failure shape this programme exists to close,
+re-created by the mechanism that protects the member. `run_safely` is the guard that reports it.
+⚰️ Found by a mutation that stayed green: narrowing the ROUTE's `except Exception` changed nothing,
+because the route never sees that exception.
+
+The number to watch through a session is **`divergence`**: V2 would have refused a symbol the old
+path went on to draw. `UNANSWERABLE` is deliberately not counted — the symbol check fails OPEN, so
+V2 would have let it through exactly as the old path did, and counting it would inflate the one
+number the flip decision rests on.
+
+⚠️ **Declared HERE and not in `docs/feature_flags.json` (OI-27):** the ledger's scanner only sees a
+gate whose name contains `ENABLED` or `DISABLE`, so the owner's literal is structurally undeclarable
+there. Renaming the flag to suit the tool would make the ledger green and the spec wrong.
+
 ### 3.9 Observability (C-12)
 
 - **Correlation id** = 8 hex chars of `sha1(interaction_id)` — deterministic, shown to the member,
