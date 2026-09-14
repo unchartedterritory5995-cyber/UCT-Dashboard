@@ -1,0 +1,45 @@
+{
+ "label": "QUIET TAPE - NOT A MEASUREMENT (parts pre-warm, version frozen)",
+ "rows": [
+  {
+   "run": 1,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1029.0,
+   "uptime_after": 1061.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 2629.5999999940395,
+   "picks_ms": 2852.5999999940395,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29820920"
+   ],
+   "wire_bytes_flow": 534584,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29820920&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29820920&part=TICKE"
+   ],
+   "certifying": false,
+   "diag": {
+    "url": "/options-flow",
+    "len": 3852,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  }
+ ]
+}

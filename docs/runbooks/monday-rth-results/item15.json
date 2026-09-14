@@ -1,0 +1,88 @@
+{
+  "item": 15,
+  "title": "Anomalies — 502s, empty panels, stale versions, drilldowns to tape, holding page, login",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:23:55-04:00",
+  "finished_et": "2026-09-14T11:00:00-04:00",
+  "raw": {
+    "coverage": "454 health+aggregate-health samples at 10 s cadence, 09:23:55 - 10:57:41 ET, plus the captured flow-worker log stream and every rig run",
+    "anomalies": [
+      {
+        "id": "A1",
+        "severity": "member-visible",
+        "what": "~45-second 502 window straight into the market open",
+        "when_et": "09:29:45, 09:29:55, 09:30:05, 09:30:30 (4 consecutive samples)",
+        "evidence": "health_status=502 and agg_status=502, body 'error code: 502'; recovered by 09:30:31 with uptime=22 s",
+        "cause": "web pod swap. Railway deployment 1d75954c73 'merge(wisdom): master into feat/wisdom-loop before the item-4 measurement push' reached SUCCESS at 13:27:22Z (09:27:22 ET) — ANOTHER WORKSTREAM PUSHED TO MASTER DURING RTH.",
+        "note": "This is exactly the cost the project's deploy rules exist to prevent, and it landed in the single worst minute of the trading day. Five further web deployments are recorded in the hour before it (12:29Z, 12:32Z, 12:51Z, 12:59Z, 13:27Z)."
+      },
+      {
+        "id": "A2",
+        "severity": "instrument-visible",
+        "what": "intermittent single-request failures — RemoteDisconnected and ConnectionAborted",
+        "when_et": ["09:32:53", "09:33:52", "10:00:50", "10:02:50", "10:14:16",
+                    "10:14:48", "10:15:21", "10:40:46", "10:41:48", "10:42:25", "10:45:21"],
+        "evidence": "11 samples where one of the two endpoints returned no response; the other endpoint answered 200 in the same sample on most of them",
+        "rate": "11 of 454 samples (2.4%) had at least one failed leg; combined with A1, 15 of 454 (3.3%) were not clean",
+        "note": "Never two consecutive full failures outside the A1 deploy window, so this reads as isolated connection resets rather than an outage. Also the likely cause of item 9 run 1's discarded 67-second first paint."
+      },
+      {
+        "id": "A3",
+        "severity": "product",
+        "what": "stale_served climbed from 0 to 98 over the session and is still climbing",
+        "when_et": "first non-zero at 09:36:08 (0 -> 3); 98 by 10:57:41",
+        "evidence": "stats_process_local.stale_served, sampled continuously; rises in steps of 1-18",
+        "cause_corroborated_by_item_13": "the legacy whole-D fallback (data?days=1) answered with an OLDER version than the parts on EVERY storm run measured — 29823247 vs 29823253, 29823251 vs 29823255, 29823254 vs 29823256, 29823258 vs 29823259, 29823259 vs 29823261",
+        "note": "⚠️ MY OWN RIG TRAFFIC CONTRIBUTES TO THIS COUNTER. Several step increases coincide with my probe batches. I have NOT attempted to separate my share, so the absolute 98 must not be read as member impact — the meaningful part is the direction and the corroborated mechanism, not the count."
+      },
+      {
+        "id": "A4",
+        "severity": "product",
+        "what": "Search cannot build its product for two of the three head names",
+        "when_et": "10:50:03 (NVDA), 10:53:07 (MU)",
+        "evidence": "[flow-search] NVDA/stocks warm TOO_BIG total=27208ms why=seconds>20 kb=1165 rows=8001; MU/stocks warm TOO_BIG total=21276ms why=seconds>20 kb=570 rows=4001; search_warm reports failed=2, cooling_off=['MU','NVDA']",
+        "note": "Full treatment in item 14. A member searching NVDA or MU gets a 503 and the legacy tape every time, and the 600 s cooldown means retrying cannot help."
+      },
+      {
+        "id": "A5",
+        "severity": "unrelated to flow, but logged",
+        "what": "Schwab OAuth token refresh failing continuously",
+        "evidence": "1,788 lines of '[schwab] Token refresh failed: 400 {\"error\":\"unsupported_token_type\" ... Refresh token is invalid, expired...}' in the captured flow-worker log stream",
+        "rate": "roughly every 90-100 seconds, throughout",
+        "note": "Not an Options Flow defect and outside this run's scope. Recorded because it is by far the loudest error in the logs and will bury anything else a future reader greps for — and because a refresh token that is 'invalid, expired' does not fix itself."
+      },
+      {
+        "id": "A6",
+        "severity": "observation",
+        "what": "one steady roll with prepare_ms = 0",
+        "when_et": "10:13:17, version 29823253",
+        "evidence": "prepare_ms=0 with handoff_ms=6325 — the whole cost of that roll was handoff",
+        "note": "Not treated as an error; it is the roll whose 6,325 ms handoff matched probe run 2's 6,340 ms client-side version stall almost exactly (item 13)."
+      }
+    ],
+    "explicitly_checked_and_CLEAN": {
+      "empty_panels": "none observed. Every rig run that reached the page rendered its shell, and picks rendered on 20 of 20 storm-probe runs, 6 of 6 item-10 runs and 4 of 4 warm-re-entry runs.",
+      "build_failures": "0 on every one of the 454 samples",
+      "parts_rejected_missing": "0 on every one of the 454 samples",
+      "parts_cache_depth": "10 on every sample; never drained, never grew",
+      "pass2_skipped": "false on all 89 steady rolls",
+      "version_sequence": "29823210 through 29823298 contiguous, no gaps — no roll was lost or skipped",
+      "holding_page": "HTTP 200 at 09:22:14 ET, title 'UCT Intelligence — Coming soon'",
+      "login": "member-smoke authenticated role=member on every attempt across ~40 logins; the 5/min limiter was never tripped (the rig paces itself)",
+      "drilldowns_falling_to_the_tape": "the legacy tape IS being hit (item 13's storm path), but always as a fallback alongside a successful parts path, never as the only source. No run ended up tape-only."
+    }
+  },
+  "guards": [
+    {"guard": "continuous coverage, not spot checks",
+     "verdict": "pass",
+     "observed": "454 samples at 10 s across 94 minutes; gaps only where the endpoint itself failed, and those are the anomalies"},
+    {"guard": "an empty anomaly list would be reported as such",
+     "verdict": "pass",
+     "observed": "it is not empty; six anomalies are recorded. The item's own instruction that 'raw.anomalies: [] is a valid answer' did not apply today."},
+    {"guard": "my own traffic distinguished from the product's",
+     "verdict": "partial",
+     "observed": "Done for A1/A2 (sampler-side, unambiguous). NOT done for A3 — stale_served is a server counter my rig also increments, and I have flagged that in the row rather than quoting the number as member impact."}
+  ],
+  "notes": "THE ONE THAT MATTERS MOST IS A1, and it is not a product defect: another workstream pushed to master at 09:27 ET and members got 502s for about 45 seconds across the market open. The hard rules for this session forbid exactly that, and the deploy's own commit message says it was made 'before the item-4 measurement push' — i.e. by a session that knew this measurement was happening.\n\nA3 and A4 are the two genuine product findings, and both are developed properly in items 13 and 14 rather than here.\n\nNOTHING ROSE TO AN INCIDENT under this run's definition. No member-facing error was ongoing at any point after 09:30:31; the tape never stalled; the parts cache never drained; build_failures stayed at 0 for 94 straight minutes; the holding page and login were healthy throughout. A1 had already self-recovered before it could be acted on, and its cause was a deploy rather than a fault, so INCIDENT.md was not written and the session continued — which is what the run prompt directs for the 'another workstream pushes' case specifically."
+}

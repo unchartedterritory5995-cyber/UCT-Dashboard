@@ -1,0 +1,77 @@
+========================================================================
+Options Flow cold first paint - RTH CERTIFYING RUN
+base=https://uctintelligence.com  runs=6  account=member-smoke@uctintelligence.internal
+throttling: NONE (no network or CPU throttle applied)
+========================================================================
+
+PATH B - IN-APP NAVIGATION (started on /dashboard, CLICKED the nav entry;
+         no intro, so this is the page's own cost)
+run 1 | shell=595ms | picks=2276ms | flow_req=5 | wire=131870B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29823238']
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB
+        DIAG url=/options-flow shell=True picks=True bodylen=3686
+        pod age at start=1676s  after=1700s
+run 2 | shell=626ms | picks=1040ms | flow_req=5 | wire=131870B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29823238']
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823238&part=TICKE
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823238&part=CONV
+        DIAG url=/options-flow shell=True picks=True bodylen=4616
+        pod age at start=1700s  after=1720s
+run 3 | shell=474ms | picks=3945ms | flow_req=14 | wire=870699B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29823236', '29823238', '29823239']
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB
+        flow: data?days=1
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=boots
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=TOP_P
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=CONV
+        flow: data?days=1&v=29823239
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=TICKE
+        flow: data?days=1&v=29823239
+        DIAG url=/options-flow shell=True picks=True bodylen=4611
+        pod age at start=1720s  after=1742s
+run 4 | shell=487ms | picks=1024ms | flow_req=5 | wire=134015B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29823239']
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=TICKE
+        DIAG url=/options-flow shell=True picks=True bodylen=4611
+        pod age at start=1742s  after=1761s
+run 5 | shell=489ms | picks=3372ms | flow_req=5 | wire=134015B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29823239']
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB
+        DIAG url=/options-flow shell=True picks=True bodylen=4611
+        pod age at start=1762s  after=1783s
+run 6 | shell=648ms | picks=1764ms | flow_req=5 | wire=134015B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29823239']
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB
+        DIAG url=/options-flow shell=True picks=True bodylen=4611
+        pod age at start=1783s  after=1803s
+------------------------------------------------------------------------
+PATH A first content                   no usable runs - NOTHING MEASURED
+PATH B shell                           median=   542ms  worst=   648ms  n=6  wire median=134015B
+PATH B picks (the TOP_PICKS product)   median=  2020ms  worst=  3945ms  n=6  wire median=134015B
+[!] RTH CERTIFYING RUN
+saved: scratchpad/monday-rth/rig-item10.json

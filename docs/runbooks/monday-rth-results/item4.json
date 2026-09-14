@@ -1,0 +1,63 @@
+{
+  "item": 4,
+  "title": "rolls_steady[] first live read ever — first 10 steady rolls in full",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:23:55-04:00",
+  "finished_et": "2026-09-14T09:39:40-04:00",
+  "raw": {
+    "rolls_steady_was_empty_until": "2026-09-14T09:30:05-04:00",
+    "first_non_zero_observed_et": "2026-09-14T09:30:30.902502-04:00",
+    "first_roll_server_log_line": "2026-09-14 13:30:18,034 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823210 in 8242ms",
+    "first_roll_server_time_et": "2026-09-14T09:30:18-04:00",
+    "sampler_cadence_s": 10,
+    "sampler_file": "scratchpad/monday-rth/health-samples.jsonl",
+    "full_dump_file": "scratchpad/monday-rth/rolls-first10.json",
+    "pre_open_version_frozen_at": 29822328,
+    "rolls": [
+      {"version": 29823210, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 8.25, "handoff_ms": 7,  "prepare_ms": 8242, "bucket_bound_s": 18.03, "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:30:30.902502-04:00", "_sample_n": 38},
+      {"version": 29823211, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 0.58, "handoff_ms": 1,  "prepare_ms": 575,  "bucket_bound_s": 4.91,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:31:11.757788-04:00", "_sample_n": 43},
+      {"version": 29823212, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 0.43, "handoff_ms": 1,  "prepare_ms": 434,  "bucket_bound_s": 4.33,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:32:11.706877-04:00", "_sample_n": 49},
+      {"version": 29823213, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 0.99, "handoff_ms": 1,  "prepare_ms": 991,  "bucket_bound_s": 1.30,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:33:10.682747-04:00", "_sample_n": 51},
+      {"version": 29823214, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 1.13, "handoff_ms": 2,  "prepare_ms": 1133, "bucket_bound_s": 3.79,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:34:34.336394-04:00", "_sample_n": 54},
+      {"version": 29823215, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 0.78, "handoff_ms": 1,  "prepare_ms": 777,  "bucket_bound_s": 4.51,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:35:29-04:00", "_sample_n": 57},
+      {"version": 29823216, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 1.88, "handoff_ms": 1,  "prepare_ms": 1876, "bucket_bound_s": 7.59,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:36:18-04:00", "_sample_n": 59},
+      {"version": 29823217, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 1.98, "handoff_ms": 1,  "prepare_ms": 1982, "bucket_bound_s": 4.05,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:37:08-04:00", "_sample_n": 62},
+      {"version": 29823218, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 1.02, "handoff_ms": 2,  "prepare_ms": 1013, "bucket_bound_s": 6.21,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:38:13-04:00", "_sample_n": 65},
+      {"version": 29823219, "kind": "steady_state_roll", "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "observed_s": 2.29, "handoff_ms": 12, "prepare_ms": 2277, "bucket_bound_s": 3.46,  "pass2_skipped": false, "_first_seen_et": "2026-09-14T09:39:15-04:00", "_sample_n": 68}
+    ],
+    "fields_not_exposed_by_this_endpoint": {
+      "builds": "not per-roll; only the cumulative stats_process_local.builds counter, which ran 5 -> 18 across these ten rolls",
+      "build_failures": "not per-roll; cumulative counter, constant at 0 throughout",
+      "parts_rejected_missing": "not per-roll; cumulative counter, constant at 0 throughout",
+      "cache_entry_count": "not per-roll; parts cache read 10 on every one of the 89 samples",
+      "csv_provider_share": "NOT EXPOSED anywhere in /api/flow/aggregate-health. There is no csv_provider key in the payload. Recorded as not-exposed rather than zero."
+    },
+    "cumulative_counters_across_the_ten_rolls": {
+      "builds": {"before": 5, "after": 18},
+      "build_failures": {"before": 0, "after": 0},
+      "parts_rejected_missing": {"before": 0, "after": 0},
+      "stale_served": {"before": 0, "after": 0},
+      "declined_busy": {"before": 2, "after": 2},
+      "parts_cache_entries": {"min_seen": 10, "max_seen": 10}
+    }
+  },
+  "guards": [
+    {"guard": "roll data captured while still in the pod's bounded ring",
+     "verdict": "pass",
+     "observed": "a 10 s sampler was started at 09:23:55 ET, before the first roll; all 10 rolls were captured as they appeared and are unioned by identity, so none was lost to ring eviction"},
+    {"guard": "no deploy during the run",
+     "verdict": "fail",
+     "observed": "ANOTHER WORKSTREAM PUSHED TO MASTER DURING RTH. Railway deployment 1d75954c73 ('merge(wisdom): master into feat/wisdom-loop before the item-4 measurement push') reached SUCCESS at 13:27:22Z = 09:27:22 ET, and the web pod swapped at ~09:29:45-09:30:31 ET. /api/health returned 502 for ~45 s across the open. Five further web deployments are recorded in the hour before it (12:29Z, 12:32Z, 12:51Z, 12:59Z, 13:27Z)."},
+    {"guard": "the roll numbers are nonetheless uncontaminated by that restart",
+     "verdict": "pass",
+     "observed": "MEASURED, not assumed. stats_process_local.requests held at 528 and cache_hits at 539 continuously across web's restart (samples 34->38) while builds and prepare.prepared kept climbing. A restarted process resets those counters; they did not reset. The prepare/roll machinery therefore lives on flow-worker (reached through web's proxy), which did not restart -- its apscheduler line is continuous from 12:23Z. So the roll series is a warm-process series throughout."},
+    {"guard": "first roll is a genuine steady-state roll, not a boot artefact",
+     "verdict": "pass",
+     "observed": "kind='steady_state_roll', and the serving process was warm (see above). The separate boot roll is the single rolls_startup entry, kind='startup_catchup', v=29822328, prepare_ms=25156."},
+    {"guard": "all ten rolls recorded verbatim, not summarised",
+     "verdict": "pass",
+     "observed": "every field the endpoint emits per roll is reproduced above"}
+  ],
+  "notes": "THE HEADLINE OF THIS ITEM IS handoff_ms. Across the first ten steady rolls it read 7, 1, 1, 1, 2, 1, 1, 1, 2, 12 ms -- max 12 ms, p50 1 ms -- and blocked_by was null on every one. Item 12 is scoped to rolls with handoff_ms > 500; at the open there were none, and nothing was ever blocked. prepare_ms: the first roll of the session cost 8242 ms, then the series settled to 434-2277 ms (p50 of the first ten ~1073 ms). The 8242 ms is the first roll after a frozen pre-open tape, i.e. the largest delta the process had to absorb, not a cold process. Three fields the run prompt asks for are NOT exposed per-roll by this endpoint -- builds, build_failures, parts_rejected_missing -- and csv_provider share is not exposed at all; the cumulative counters are given instead and the gap is named rather than filled. Correction made before filing: rolls 6-10 were first written here with bucket_bound_s: null, which was my transcription and not a reading. Re-read from the samples, every one of the ten carries a value (4.51, 7.59, 4.05, 6.21, 3.46), and observed_s for 29823218/29823219 is 1.02/2.29, not 1.01/2.28. The table above is the corrected one."
+}

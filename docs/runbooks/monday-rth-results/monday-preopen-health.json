@@ -1,0 +1,197 @@
+{
+ "captured_at_et": "2026-09-14T09:23:55.850018-04:00",
+ "http_status": 200,
+ "payload": {
+  "enabled": true,
+  "bundle": "/app/app/dist/flow-facts.cjs",
+  "bundle_exists": true,
+  "node": "/root/.nix-profile/bin/node",
+  "available": true,
+  "warm": true,
+  "current_version": 29822328,
+  "view": [
+   "stocks",
+   1,
+   "Last1"
+  ],
+  "entries": [
+   {
+    "key": "('stocks', 1, 'Last1')",
+    "version": 29822328,
+    "gz_bytes": 2486648
+   },
+   {
+    "key": "('stocks', 5, 'Last5')",
+    "version": 29822328,
+    "gz_bytes": 2328111
+   },
+   {
+    "key": "('stocks', 20, 'Last20')",
+    "version": 29822328,
+    "gz_bytes": 1785209
+   }
+  ],
+  "stats_process_local": {
+   "requests": 525,
+   "cache_hits": 536,
+   "builds": 5,
+   "build_failures": 0,
+   "parts_rejected_missing": 0,
+   "stale_served": 0,
+   "declined_busy": 2,
+   "last_build": {
+    "ms": 3691,
+    "json_bytes": 16589366,
+    "raw_rows": 50000,
+    "selected_rows": 50000,
+    "trades": 17252,
+    "date_filter": "Last5",
+    "at": 1789340159.9654279
+   },
+   "endpoint_requests": 0,
+   "_last_alert_bad": false
+  },
+  "parts": {
+   "enabled": true,
+   "entries": [
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "all_directional"
+     ],
+     "version": 29822328,
+     "gz_bytes": 494079
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "all_trades"
+     ],
+     "version": 29822328,
+     "gz_bytes": 1090454
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "ALL_SYMS"
+     ],
+     "version": 29822328,
+     "gz_bytes": 2515
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "WATCH"
+     ],
+     "version": 29822328,
+     "gz_bytes": 406842
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "UOA_TRADES"
+     ],
+     "version": 29822328,
+     "gz_bytes": 957
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "darkPool"
+     ],
+     "version": 29822328,
+     "gz_bytes": 22
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "bootstrap"
+     ],
+     "version": 29822328,
+     "gz_bytes": 128183
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "TOP_PICKS"
+     ],
+     "version": 29822328,
+     "gz_bytes": 41528
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "CONV"
+     ],
+     "version": 29822328,
+     "gz_bytes": 65163
+    },
+    {
+     "key": [
+      "stocks",
+      1,
+      "Last1",
+      "TICKER_DB"
+     ],
+     "version": 29822328,
+     "gz_bytes": 299663
+    }
+   ],
+   "max": 24
+  },
+  "reason": null,
+  "warm_whole": true,
+  "warm_parts": true,
+  "prepare": {
+   "enabled": true,
+   "prepared": 1,
+   "declined": 0,
+   "failed": 0,
+   "last_version": 29822328,
+   "last_ms": 25156,
+   "last_error": null
+  },
+  "rolls_steady": [],
+  "rolls_startup": [
+   {
+    "version": 29822328,
+    "kind": "startup_catchup",
+    "blocked_by": null,
+    "blocked_pass": null,
+    "blocked_held_ms": null,
+    "observed_s": 25.52,
+    "handoff_ms": 360,
+    "prepare_ms": 25156,
+    "bucket_bound_s": 123.64,
+    "pass2_skipped": false
+   }
+  ],
+  "search_warm": {
+   "built": 0,
+   "failed": 0,
+   "declined": 0,
+   "already": 0,
+   "last_ms": null,
+   "in_flight": [],
+   "cooling_off": []
+  }
+ }
+}

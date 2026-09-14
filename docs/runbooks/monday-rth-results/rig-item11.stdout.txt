@@ -1,0 +1,13 @@
+run 1 | FLOW warm commits=10   bytes=14546732  reqs=14  moved=True picks=True
+        | UCT20     commits=32   bytes=14008763  reqs=15  moved=True
+run 2 | FLOW warm commits=14   bytes=36122248  reqs=14  moved=True picks=True
+        | UCT20     commits=31   bytes=14032149  reqs=15  moved=True
+run 3 | FLOW warm commits=10   bytes=16538716  reqs=12  moved=True picks=True
+        | UCT20     commits=31   bytes=20680923  reqs=16  moved=True
+run 4 | FLOW warm commits=23   bytes=2347405   reqs=31  moved=True picks=True
+        | UCT20     commits=31   bytes=13910403  reqs=29  moved=True
+--------------------------------------------------------------------
+n=4  FLOW warm  commits p50=14  bytes p50=16538716
+      UCT20      commits p50=31  bytes p50=14032149
+      FLOW beats UCT20 on commits: True   on bytes: False
+saved: scratchpad/monday-rth/rig-item11.json

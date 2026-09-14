@@ -1,0 +1,256 @@
+{
+ "label": "RTH CERTIFYING RUN",
+ "rows": [
+  {
+   "run": 1,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1676.0,
+   "uptime_after": 1700.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 595.3000000119209,
+   "picks_ms": 2275.5999999940395,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823238"
+   ],
+   "wire_bytes_flow": 131870,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "len": 3686,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  },
+  {
+   "run": 2,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1700.0,
+   "uptime_after": 1720.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 625.5,
+   "picks_ms": 1039.9000000059605,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823238"
+   ],
+   "wire_bytes_flow": 131870,
+   "flow_urls": [
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823238&part=TICKE",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823238&part=CONV"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "len": 4616,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  },
+  {
+   "run": 3,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1720.0,
+   "uptime_after": 1742.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 473.90000000596046,
+   "picks_ms": 3945.4000000059605,
+   "flow_requests": 14,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823236",
+    "29823238",
+    "29823239"
+   ],
+   "wire_bytes_flow": 870699,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB",
+    "data?days=1",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=boots",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=TOP_P",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=CONV",
+    "data?days=1&v=29823239",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=TICKE",
+    "data?days=1&v=29823239"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "len": 4611,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  },
+  {
+   "run": 4,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1742.0,
+   "uptime_after": 1761.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 487.2000000178814,
+   "picks_ms": 1023.7000000178814,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823239"
+   ],
+   "wire_bytes_flow": 134015,
+   "flow_urls": [
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823239&part=TICKE"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "len": 4611,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  },
+  {
+   "run": 5,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1762.0,
+   "uptime_after": 1783.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 488.90000000596046,
+   "picks_ms": 3372,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823239"
+   ],
+   "wire_bytes_flow": 134015,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "len": 4611,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  },
+  {
+   "run": 6,
+   "path": "B",
+   "role": "member",
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1783.0,
+   "uptime_after": 1803.0,
+   "start_route": "/dashboard",
+   "url_changed": true,
+   "observer_attached": true,
+   "shell_ms": 648.4000000059605,
+   "picks_ms": 1764.2000000178814,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823239"
+   ],
+   "wire_bytes_flow": 134015,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "len": 4611,
+    "shell": true,
+    "picks": true,
+    "vis": "visible"
+   }
+  }
+ ]
+}

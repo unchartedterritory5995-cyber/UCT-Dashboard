@@ -1,0 +1,39 @@
+{
+  "item": 6,
+  "title": "First prepare_ms after the open; is any steady-state roll over 30 s?",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:30:18-04:00",
+  "finished_et": "2026-09-14T09:48:00-04:00",
+  "raw": {
+    "first_prepare_ms_after_the_open": 8242,
+    "first_roll_version": 29823210,
+    "server_log_line": "2026-09-14 13:30:18,034 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823210 in 8242ms",
+    "server_time_et": "2026-09-14T09:30:18-04:00",
+    "steady_rolls_over_30s": [],
+    "steady_rolls_over_10s": [],
+    "max_steady_prepare_ms_seen": 8242,
+    "prepare_ms_first_ten": [8242, 575, 434, 991, 1133, 777, 1876, 1982, 1013, 2277],
+    "prepare_ms_after_the_first_roll": {"min": 434, "max": 2277, "p50_of_rolls_2_to_10": 1073},
+    "boot_artefact_on_this_pod_today": {
+      "kind": "startup_catchup",
+      "version": 29822328,
+      "prepare_ms": 25156,
+      "handoff_ms": 360,
+      "observed_s": 25.52,
+      "bucket_bound_s": 123.64
+    }
+  },
+  "guards": [
+    {"guard": "any steady-state roll over 30 s is flagged",
+     "verdict": "pass",
+     "observed": "none. The largest steady prepare_ms observed all session is 8242 ms (8.2 s), on the first roll; every subsequent roll is under 2.3 s. Nothing to flag."},
+    {"guard": "the first roll is genuinely steady-state, not boot",
+     "verdict": "pass",
+     "observed": "kind='steady_state_roll'; and the serving process was continuous across web's restart (item 4 guard 3), so it is not a cold-process number"},
+    {"guard": "the 110 s figure can be checked against today's pod",
+     "verdict": "unevaluated",
+     "observed": "See notes -- no 110 s value appears anywhere in today's telemetry, so there is nothing here to confirm or refute it against."}
+  ],
+  "notes": "VERDICT ON THE PARKED 110 s: nothing observed today requires unparking it. No steady-state roll came close to 30 s, so on this session's evidence the 110 s remains a boot artefact and not a steady-state cost. BUT I am flagging a discrepancy rather than quietly reconciling it: the boot artefact actually present on this pod today is 25,156 ms (25.2 s), not 110 s. The value 110 s appears nowhere in any payload, log line or roll record I captured. So this item does not confirm the 110 s number -- it confirms that today's boot cost 25.2 s and today's steady rolls cost 0.4-8.2 s. Whoever wrote '110 s' was describing a different pod, a different day, or a different measurement, and the close run should not treat my result as having validated that specific figure."
+}

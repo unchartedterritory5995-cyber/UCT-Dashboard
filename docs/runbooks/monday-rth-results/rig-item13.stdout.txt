@@ -1,0 +1,12 @@
+============================================================================
+RTH live tape 2026-09-14 | pod 2353.0s (floor 120.0)
+  run 1  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@1265ms TP@1211ms lag=54ms rendered=True
+  run 2  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@1074ms TP@1054ms lag=19ms rendered=True
+  run 3  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@2393ms TP@2376ms lag=16ms rendered=True
+  run 4  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@833ms TP@678ms lag=155ms rendered=True
+  run 5  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@1045ms TP@1018ms lag=27ms rendered=True
+  run 6  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@1252ms TP@1213ms lag=39ms rendered=True
+----------------------------------------------------------------------------
+  accepted=6  STORM=0  clean=6  picks rendered=6/6
+  runs with root mounted MORE THAN ONCE (remount signature): 0
+  saved: scratchpad/monday-rth/rig-item13.json

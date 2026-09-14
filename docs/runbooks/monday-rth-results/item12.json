@@ -1,0 +1,64 @@
+{
+  "item": 12,
+  "title": "Handoff attribution over the full session",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:30:30-04:00",
+  "finished_et": "2026-09-14T10:24:29-04:00",
+  "raw": {
+    "source": "scratchpad/monday-rth/health-samples.jsonl via item12scan.py",
+    "rolls_in_window": 89,
+    "window_et": "09:30:30 - 10:58:17",
+    "rolls_with_handoff_over_500ms": 7,
+    "pct_over_500ms": 7.9,
+    "the_seven": [
+      {"seen_et": "10:02:16", "version": 29823241, "handoff_ms": 44539, "prepare_ms": 2088, "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 44539},
+      {"seen_et": "10:57:41", "version": 29823297, "handoff_ms": 25353, "prepare_ms": 4454, "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 25353},
+      {"seen_et": "10:33:42", "version": 29823273, "handoff_ms": 21821, "prepare_ms": 4453, "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 21821},
+      {"seen_et": "09:54:29", "version": 29823234, "handoff_ms": 17142, "prepare_ms": 3213, "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 17142},
+      {"seen_et": "10:07:37", "version": 29823247, "handoff_ms": 14699, "prepare_ms": 3536, "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 14699},
+      {"seen_et": "10:13:17", "version": 29823253, "handoff_ms": 6325,  "prepare_ms": 0,    "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 6325},
+      {"seen_et": "10:27:22", "version": 29823267, "handoff_ms": 2046,  "prepare_ms": 5921, "blocked_by": null, "blocked_pass": null, "blocked_held_ms": null, "residual_ms": 2046}
+    ],
+    "three_worst_in_detail": "the top three rows above (44,539 / 25,353 / 21,821 ms). All three: blocked_by null, blocked_pass null, blocked_held_ms null, residual = 100% of handoff.",
+    "handoff_ms_distribution": {
+      "n": 89, "min": 1, "p50": 2, "p90": 21, "p95": 14699, "p99": 25353,
+      "max": 44539, "mean": 1487
+    },
+    "handoff_buckets": {
+      "<=10ms": 67, "11-100ms": 15, "101-500ms": 0, "501-5000ms": 1, ">5000ms": 6
+    },
+    "SUPERSEDED_FIRST_PASS": {
+      "note": "filed first at n=55, where the buckets read <=10ms:45, 11-100:6, 101-500:0, 501-5000:0, >5000:4 and I described the distribution as bimodal with a COMPLETELY empty middle. At n=89 one roll (10:27:22, 2,046 ms) sits in 501-5000, so the middle is not empty. The gap is still stark -- 82 of 89 rolls are under 100 ms and 6 are over 5 s -- but 'empty' was an artefact of the smaller sample and is corrected here rather than left standing.",
+      "n": 55, "buckets": {"<=10ms": 45, "11-100ms": 6, "101-500ms": 0, "501-5000ms": 0, ">5000ms": 4}
+    },
+    "blocked_by_across_all_89_rolls": {"null": 89},
+    "pass2_skipped_across_all_89_rolls": {"false": 89},
+    "prepare_ms_distribution": {
+      "n": 89, "min": 0, "p50": 4328, "p90": 6700, "p95": 7378, "p99": 8378,
+      "max": 9107, "mean": 4122
+    },
+    "prepare_ms_drift_by_15min_bucket": [
+      {"bucket_et": "09:30", "n": 15, "p50": 1182, "max": 8242},
+      {"bucket_et": "09:45", "n": 15, "p50": 2701, "max": 4149},
+      {"bucket_et": "10:00", "n": 15, "p50": 3536, "max": 6472},
+      {"bucket_et": "10:15", "n": 15, "p50": 5538, "max": 9107},
+      {"bucket_et": "10:30", "n": 15, "p50": 5449, "max": 8378},
+      {"bucket_et": "10:45", "n": 14, "p50": 5351, "max": 7378}
+    ],
+    "handoff_definition_read_from_source": "api/flow_router.py:1853 -- handoff_ms = (now - first_seen)*1000 - prepare_ms, where first_seen is the detector's sighting of the version. blocked_by is a snapshot of _INFLIGHT_HOLDER taken AT SIGHTING (api/flow_router.py:_note_version_seen), popped at roll-record time."
+  },
+  "guards": [
+    {"guard": "every roll in the window was captured, none lost to ring eviction",
+     "verdict": "pass",
+     "observed": "versions 29823210-29823264 are contiguous with no gaps across 55 rolls; the 10 s sampler outpaces the ~60 s roll cadence and the ring holds 80"},
+    {"guard": "residual computed, not assumed",
+     "verdict": "pass",
+     "observed": "blocked_held_ms is null on all four, so residual == handoff_ms by definition; nothing was subtracted that was not measured"},
+    {"guard": "no deploy inside the attribution window",
+     "verdict": "pass",
+     "observed": "the session's only restart was 09:30:31 ET, and it did not restart the flow process (item 4 guard 3); all 55 rolls come from one continuous process"}
+  ],
+  "classification": "UNEXPLAINED — the slot was free",
+  "notes": "THE FINDING: all SEVEN large handoffs report blocked_by=null, blocked_pass=null, blocked_held_ms=null. Not one is explained by a lock hold, so the residual is 100% of the handoff in every case — 44,539 ms of it in the worst. api/flow_router.py's own comment above the ledger states that 'a present blocked_by is the whole explanation for a large one'. Today's data falsifies that assumption: seven large handoffs, zero attributions.\n\nTHE SHAPE IS STRONGLY BIMODAL, though not perfectly so. 67 rolls at <=10 ms, 15 at 11-100 ms, ZERO between 101 and 500 ms, ONE at 2,046 ms, then 6 at >5,000 ms. A queueing delay under contention would populate the middle evenly; this does not. ⚠️ I first filed this at n=55 saying the middle was COMPLETELY empty; the 2,046 ms roll arrived later and that claim is corrected above. The gap is still the real signal — 82 of 89 rolls finish under 100 ms and 6 take over 5 seconds — but 'empty' was a small-sample artefact and I am not leaving it standing. Note also that the mean (1,487 ms) is ~740x the p50 (2 ms): quoting a mean handoff here would describe no roll that actually happened.\n\nCANDIDATE FOR THE RESIDUAL, named from the source rather than guessed: blocked_by is snapshotted AT SIGHTING and only at sighting. A holder that acquires _PREPARE_INFLIGHT microseconds AFTER the sighting is therefore invisible to the field forever, while still delaying dispatch by the full length of its build. That single gap is consistent with all four observations, and it means the instrument cannot presently distinguish 'the slot was free the whole time' from 'the slot was taken immediately after I looked'. The 2 s _PREPARE_POLL_S tick (api/flow_router.py:1648) is a real but much smaller contributor — it can only account for ~2 s of any handoff, not 44 s.\n\nWHY THIS MATTERS BEYOND THE LEDGER: item 13 shows these same handoffs are what members feel. A long handoff blocks /api/flow/version, which is the first request the page makes.\n\nSECOND FINDING, INDEPENDENT: prepare_ms rises through the open and then PLATEAUS — p50 by quarter-hour 1,182 -> 2,701 -> 3,536 -> 5,538 -> 5,449 -> 5,351 ms. I filed this at n=55 as an unbounded 4.7x climb; the extra half hour shows the last three quarter-hours flat within 3.5%, so it settles at ~5,400 ms rather than running away. The close run should confirm the plateau holds into the afternoon, but on this evidence it is a settling curve, not a leak. See item 8, where this is the number that actually decides the baseline comparison."
+}

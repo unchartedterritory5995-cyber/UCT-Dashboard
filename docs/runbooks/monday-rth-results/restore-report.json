@@ -1,0 +1,24 @@
+{
+    "restored_at":  "2026-09-12T19:49:09.7257500-05:00",
+    "saved":  {
+                  "ScreenSaveActive":  "1",
+                  "ScreenSaverIsSecure":  "0",
+                  "ScreenSaveTimeOut":  "900",
+                  "EnableGoodbye":  null,
+                  "SchemeGuid":  "381b4222-f694-41f0-9685-ff5bb260df2e",
+                  "MonitorTimeoutAC":  0,
+                  "StandbyTimeoutAC":  0
+              },
+    "now":  {
+                "ScreenSaveActive":  "1",
+                "ScreenSaverIsSecure":  "0",
+                "ScreenSaveTimeOut":  "900",
+                "EnableGoodbye":  null,
+                "SchemeGuid":  "381b4222-f694-41f0-9685-ff5bb260df2e",
+                "MonitorTimeoutAC":  0,
+                "StandbyTimeoutAC":  0
+            },
+    "mismatches":  [
+
+                   ]
+}

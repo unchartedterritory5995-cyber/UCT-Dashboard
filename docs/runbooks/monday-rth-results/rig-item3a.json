@@ -1,0 +1,46 @@
+{
+ "label": "QUIET TAPE - NOT A MEASUREMENT (parts pre-warm, version frozen)",
+ "rows": [
+  {
+   "run": 1,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1210.0,
+   "uptime_after": 1230.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "mutation",
+   "first_content_ms": 12840.399999976158,
+   "wall_ms": 18869.371200009482,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29822328"
+   ],
+   "current_version_after": "{\"version\":29822328}",
+   "wire_bytes_flow": 534537,
+   "flow_urls": [
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29822328&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29822328&part=TICKE"
+   ],
+   "certifying": false,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 4086,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  }
+ ]
+}

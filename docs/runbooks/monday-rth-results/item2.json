@@ -1,0 +1,104 @@
+{
+  "item": 2,
+  "title": "Full pre-open /api/flow/aggregate-health snapshot",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:21:21-04:00",
+  "finished_et": "2026-09-14T09:29:10-04:00",
+  "raw": {
+    "snapshot_file": "scratchpad/monday-rth/monday-preopen-health.json",
+    "captured_at_et": "2026-09-14T09:23:55.850018-04:00",
+    "http_status": 200,
+    "payload": {
+      "enabled": true,
+      "bundle": "/app/app/dist/flow-facts.cjs",
+      "bundle_exists": true,
+      "node": "/root/.nix-profile/bin/node",
+      "available": true,
+      "warm": true,
+      "current_version": 29822328,
+      "view": ["stocks", 1, "Last1"],
+      "entries": [
+        {"key": "('stocks', 1, 'Last1')",  "version": 29822328, "gz_bytes": 2486648},
+        {"key": "('stocks', 5, 'Last5')",  "version": 29822328, "gz_bytes": 2328111},
+        {"key": "('stocks', 20, 'Last20')","version": 29822328, "gz_bytes": 1785209}
+      ],
+      "stats_process_local": {
+        "requests": 525,
+        "cache_hits": 528,
+        "builds": 5,
+        "build_failures": 0,
+        "parts_rejected_missing": 0,
+        "stale_served": 0,
+        "declined_busy": 2,
+        "last_build": {
+          "ms": 3691,
+          "json_bytes": 16589366,
+          "raw_rows": 50000,
+          "selected_rows": 50000,
+          "trades": 17252,
+          "date_filter": "Last5",
+          "at": 1789340159.9654279
+        },
+        "endpoint_requests": 0,
+        "_last_alert_bad": false
+      },
+      "parts": {
+        "enabled": true,
+        "max": 24,
+        "entries": [
+          {"key": ["stocks",1,"Last1","all_directional"], "version": 29822328, "gz_bytes": 494079},
+          {"key": ["stocks",1,"Last1","all_trades"],      "version": 29822328, "gz_bytes": 1090454},
+          {"key": ["stocks",1,"Last1","ALL_SYMS"],        "version": 29822328, "gz_bytes": 2515},
+          {"key": ["stocks",1,"Last1","WATCH"],           "version": 29822328, "gz_bytes": 406842},
+          {"key": ["stocks",1,"Last1","UOA_TRADES"],      "version": 29822328, "gz_bytes": 957},
+          {"key": ["stocks",1,"Last1","darkPool"],        "version": 29822328, "gz_bytes": 22},
+          {"key": ["stocks",1,"Last1","TICKER_DB"],       "version": 29822328, "gz_bytes": 299663},
+          {"key": ["stocks",1,"Last1","CONV"],            "version": 29822328, "gz_bytes": 65163},
+          {"key": ["stocks",1,"Last1","bootstrap"],       "version": 29822328, "gz_bytes": 128183},
+          {"key": ["stocks",1,"Last1","TOP_PICKS"],       "version": 29822328, "gz_bytes": 41528}
+        ]
+      },
+      "reason": null,
+      "warm_whole": true,
+      "warm_parts": true,
+      "prepare": {
+        "enabled": true,
+        "prepared": 1,
+        "declined": 0,
+        "failed": 0,
+        "last_version": 29822328,
+        "last_ms": 25156,
+        "last_error": null
+      },
+      "rolls_steady": [],
+      "rolls_startup": [
+        {
+          "version": 29822328,
+          "kind": "startup_catchup",
+          "blocked_by": null,
+          "blocked_pass": null,
+          "blocked_held_ms": null,
+          "observed_s": 25.52,
+          "handoff_ms": 360,
+          "prepare_ms": 25156,
+          "bucket_bound_s": 123.64,
+          "pass2_skipped": false
+        }
+      ],
+      "search_warm": {
+        "built": 0, "failed": 0, "declined": 0, "already": 0,
+        "last_ms": null, "in_flight": [], "cooling_off": []
+      }
+    }
+  },
+  "guards": [
+    {"guard": "snapshot captured pre-open (before 09:30 ET)",
+     "verdict": "pass", "observed": "09:23:55 ET"},
+    {"guard": "HTTP 200 and parseable JSON", "verdict": "pass", "observed": "200, parsed"},
+    {"guard": "payload recorded in full, not summarised",
+     "verdict": "pass",
+     "observed": "every key of the response is reproduced above and byte-copied to monday-preopen-health.json"}
+  ],
+  "notes": "rolls_steady is EMPTY pre-open, which is expected and is the baseline item 4 measures against -- item 4's question is when it first becomes non-zero. The only roll on the pod is a single rolls_startup entry of kind 'startup_catchup' with prepare_ms=25156 (25.2 s). Flagging one thing for the close run so it is not misread: the run prompt's item 6 refers to a parked '110 s' boot artefact, and the boot prepare actually visible on this pod is 25.2 s, not 110 s. Those are different numbers and I did not reconcile them -- the 110 s figure is not present anywhere in today's payload. A session-long sampler (scratchpad/monday-rth/poller.py -> health-samples.jsonl, 10 s cadence) was started at 09:27 ET because rolls_steady is a bounded ring on the pod: a roll that is not sampled while it is still in the ring cannot be recovered afterwards."
+}

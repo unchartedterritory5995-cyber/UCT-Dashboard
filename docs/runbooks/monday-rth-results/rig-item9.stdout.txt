@@ -1,0 +1,81 @@
+========================================================================
+Options Flow cold first paint - RTH CERTIFYING RUN
+base=https://uctintelligence.com  runs=6  account=member-smoke@uctintelligence.internal
+throttling: NONE (no network or CPU throttle applied)
+========================================================================
+
+PATH A - DIRECT LOAD (the intro animation PLAYS and is excluded
+         by the detector; ~9.3s of wall time is not the page)
+run 1 | first_content=67434ms | flow_req=8 | wire=716562B | parts=TOP_PICKS,bootstrap
+        role=member visible=visible part_versions=['29823241'] current_after={"version":29823242}
+        observer=True detected_via=raf
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: data?days=1
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        DIAG path=/options-flow bodylen=1487 vis=visible wall=75619ms
+        pod age at start=n/a  after=1991s
+        !! INCONCLUSIVE - a deploy invalidated this run (uptime unreadable (health 502 during a swap reads like this)). DISCARDED from the summary.
+run 2 | first_content=9979ms | flow_req=8 | wire=814668B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member visible=visible part_versions=['29823243'] current_after={"version":29823244}
+        observer=True detected_via=mutation
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: data?days=1
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823243&part=TICKE
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823243&part=CONV
+        DIAG path=/options-flow bodylen=4608 vis=visible wall=16070ms
+        pod age at start=1991s  after=2035s
+run 3 | first_content=10095ms | flow_req=5 | wire=142569B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member visible=visible part_versions=['29823243', '29823244'] current_after={"version":29823244}
+        observer=True detected_via=raf
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=TICKE
+        DIAG path=/options-flow bodylen=4608 vis=visible wall=18590ms
+        pod age at start=2035s  after=2057s
+run 4 | first_content=10104ms | flow_req=5 | wire=144501B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member visible=visible part_versions=['29823244'] current_after={"version":29823244}
+        observer=True detected_via=mutation
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=TICKE
+        DIAG path=/options-flow bodylen=4608 vis=visible wall=22003ms
+        pod age at start=2058s  after=2081s
+run 5 | first_content=12296ms | flow_req=3 | wire=28240B | parts=TOP_PICKS,bootstrap
+        role=member visible=visible part_versions=['29823245'] current_after={"version":29823245}
+        observer=True detected_via=mutation
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: version
+        DIAG path=/options-flow bodylen=1521 vis=visible wall=19913ms
+        pod age at start=2081s  after=2133s
+run 6 | first_content=16169ms | flow_req=5 | wire=56480B | parts=TOP_PICKS,bootstrap
+        role=member visible=visible part_versions=['29823245'] current_after={"version":29823246}
+        observer=True detected_via=mutation
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        DIAG path=/options-flow bodylen=4614 vis=visible wall=23989ms
+        pod age at start=2133s  after=2179s
+------------------------------------------------------------------------
+PATH A first content                   median= 10104ms  worst= 16169ms  n=5  wire median=142569B
+                                       1 run(s) DISCARDED as INCONCLUSIVE (deploy swap or a cold pod):
+                                         run 1: uptime unreadable (health 502 during a swap reads like this)
+PATH B shell                           no usable runs - NOTHING MEASURED
+PATH B picks (the TOP_PICKS product)   no usable runs - NOTHING MEASURED
+[!] RTH CERTIFYING RUN
+saved: scratchpad/monday-rth/rig-item9.json

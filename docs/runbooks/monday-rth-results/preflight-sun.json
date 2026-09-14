@@ -1,0 +1,116 @@
+{
+    "phase":  "sun",
+    "verdict":  "GO",
+    "started_local":  "2026-09-13T19:00:04.3329439-05:00",
+    "started_et":  "2026-09-13T20:00:04.3329439",
+    "pod_age_s":  24,
+    "fail_count":  0,
+    "warn_count":  1,
+    "checks":  [
+                   {
+                       "check":  "on AC power",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "no battery present (desktop) - always on AC",
+                       "fix":  ""
+                   },
+                   {
+                       "check":  "network up",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "ICMP to 1.1.1.1 OK",
+                       "fix":  "Check the network connection."
+                   },
+                   {
+                       "check":  "/api/health 200",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "HTTP 200, pod age 24s",
+                       "fix":  "Check production is up."
+                   },
+                   {
+                       "check":  "railway auth valid",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "via railway CLI session (~/.railway/config.json); whoami=True status=True",
+                       "fix":  "Open a terminal, run:  railway login    then:  schtasks /run /tn \"UCT RTH Preflight Monday\""
+                   },
+                   {
+                       "check":  "railway token not expiring soon",
+                       "ok":  false,
+                       "fatal":  false,
+                       "detail":  "accessToken expires 2026-09-13 20:51 ET (51 min); a refreshToken is present and the CLI rolls it",
+                       "fix":  "If railway commands start failing:  railway login"
+                   },
+                   {
+                       "check":  "MEMBER_SMOKE_* present",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "both names set (values never read out)",
+                       "fix":  "setx MEMBER_SMOKE_EMAIL ... ; setx MEMBER_SMOKE_PASSWORD ..."
+                   },
+                   {
+                       "check":  "member-smoke login 200 role=member",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "HTTP 200 role=member  (ONE login only - the endpoint is rate limited 5/min)",
+                       "fix":  "Check the member-smoke account still exists and is not locked."
+                   },
+                   {
+                       "check":  "free memory \u003e= 3 GB",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "11.61 GB free",
+                       "fix":  "Close memory-hungry processes."
+                   },
+                   {
+                       "check":  "no runaway process",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "none over 4 GB",
+                       "fix":  "Stop the process before the open."
+                   },
+                   {
+                       "check":  "screen not locked",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "no LogonUI - session is unlocked",
+                       "fix":  "unlock the screen"
+                   },
+                   {
+                       "check":  "task \u0027UCT RTH Open\u0027 armed",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "state=Ready next=9/14/2026 8:20:00 AM",
+                       "fix":  "Re-arm per the runbook."
+                   },
+                   {
+                       "check":  "task \u0027UCT RTH Close\u0027 armed",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "state=Ready next=9/14/2026 3:20:00 PM",
+                       "fix":  "Re-arm per the runbook."
+                   },
+                   {
+                       "check":  "worktree clean",
+                       "ok":  true,
+                       "fatal":  false,
+                       "detail":  "clean",
+                       "fix":  "git status - commit or stash before the run."
+                   },
+                   {
+                       "check":  "0 behind origin/master",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "was 274 behind; fast-forwarded to 9fe247cb0",
+                       "fix":  ""
+                   },
+                   {
+                       "check":  "no leftover rig browser",
+                       "ok":  true,
+                       "fatal":  true,
+                       "detail":  "none",
+                       "fix":  "Stop-Process the listed ms-playwright processes."
+                   }
+               ]
+}

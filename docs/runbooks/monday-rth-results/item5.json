@@ -1,0 +1,65 @@
+{
+  "item": 5,
+  "title": "Pre-warming under a live tape — pass 2, cache depth, build failures",
+  "status": "measured",
+  "top_finding": false,
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:30:05-04:00",
+  "finished_et": "2026-09-14T09:48:00-04:00",
+  "raw": {
+    "primary_instrument": "the per-roll pass2_skipped flag in /api/flow/aggregate-health, which is log-independent",
+    "pass2_skipped_across_every_steady_roll_seen": {"false": 14, "true": 0},
+    "blocked_by_across_every_steady_roll_seen": {"null": 14},
+    "parts_cache_entry_count": {
+      "distinct_values_seen_across_89_samples": [10],
+      "verdict": "constant at 10; never drained"
+    },
+    "build_failures": {"distinct_values_seen": [0], "verdict": "constant at 0"},
+    "parts_rejected_missing": {"distinct_values_seen": [0], "verdict": "constant at 0"},
+    "stale_served": {"distinct_values_seen": [0]},
+    "declined_busy": {"before_open": 2, "at_0948": 2, "verdict": "no new declines under the live tape"},
+    "secondary_instrument_server_logs": {
+      "caveat": "the Railway log buffer is capped (~500 lines / ~1 h) and my capture cycles twice reported '+500 new', i.e. the buffer had fully turned over between drains, so the log stream HAS HOLES. Absence of a log line is therefore NOT evidence of a missing warm.",
+      "window_et": "09:29-09:45",
+      "flow_prepare_lines": 14,
+      "first_paint_warmed_lines": 7,
+      "remainder_warmed_lines": 7,
+      "pairing": "7 of 7 -- every roll for which a 'first paint warmed' line survived in the captured stream ALSO has its matching 'remainder warmed' line. There is no instance of a first-paint warm without a remainder warm.",
+      "rolls_with_both_lines": [29823210, 29823212, 29823213, 29823214, 29823217, 29823218, 29823219],
+      "rolls_with_neither_line": [29823211, 29823215, 29823216],
+      "why_neither": "capture holes, not skipped passes -- pass2_skipped is false for all three, and neither the first-paint nor the remainder line survived for them, which is the signature of a dropped log window rather than a half-completed warm",
+      "lines": [
+        "09:30:19 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823210 in 8242ms",
+        "09:30:19 [api.flow_router] [flow-prepare] remainder warmed v=29823210 in 234ms",
+        "09:32:04 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823212 in 434ms",
+        "09:32:05 [api.flow_router] [flow-prepare] remainder warmed v=29823212 in 303ms",
+        "09:33:02 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823213 in 991ms",
+        "09:33:03 [api.flow_router] [flow-prepare] remainder warmed v=29823213 in 1458ms",
+        "09:34:04 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823214 in 1133ms",
+        "09:34:06 [api.flow_router] [flow-prepare] remainder warmed v=29823214 in 2013ms",
+        "09:37:04 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823217 in 1982ms",
+        "09:37:06 [api.flow_router] [flow-prepare] remainder warmed v=29823217 in 2759ms",
+        "09:38:06 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823218 in 1013ms",
+        "09:38:08 [api.flow_router] [flow-prepare] remainder warmed v=29823218 in 1389ms",
+        "09:39:04 [api.flow_router] [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=29823219 in 2277ms",
+        "09:39:06 [api.flow_router] [flow-prepare] remainder warmed v=29823219 in 2205ms"
+      ],
+      "remainder_warm_ms": [234, 303, 1458, 2013, 2759, 1389, 2205]
+    }
+  },
+  "guards": [
+    {"guard": "pass 2 ran on every roll",
+     "verdict": "pass",
+     "observed": "pass2_skipped=false on 14/14 distinct steady rolls. This is read off the pod's own per-roll record, so it does not inherit the log buffer's holes."},
+    {"guard": "parts cache stayed at 10 under load",
+     "verdict": "pass",
+     "observed": "10 on every one of the 89 samples taken between 09:23:55 and 09:48; no other value ever observed"},
+    {"guard": "build_failures stayed 0",
+     "verdict": "pass", "observed": "0 on every sample; builds counter rose 5 -> 18+"},
+    {"guard": "parts_rejected_missing stayed 0", "verdict": "pass", "observed": "0 on every sample"},
+    {"guard": "log evidence is complete enough to stand alone",
+     "verdict": "fail",
+     "observed": "It is not, and it is not relied on. The Railway buffer turned over fully between two of my drains, so three rolls have no surviving log lines. This is recorded as a limitation of MY capture, not as a product finding; the pass2_skipped flag is what carries the conclusion."}
+  ],
+  "notes": "Pass 2 did NOT fail and the cache did NOT drain, so this is not the top finding. The load-bearing evidence is pass2_skipped=false on 14/14 rolls, which is independent of my lossy log capture -- I deliberately did not conclude anything from the three rolls whose log lines I lost, because an absent line here means my buffer rolled, not that the pod skipped a pass. Worth carrying to item 12: remainder-warm cost is drifting upward within the session (234, 303, 1458, 2013, 2759, 1389, 2205 ms) while the parts cache stays pinned at 10 and nothing is ever blocked. That is a pass-2 cost trend, not a member-visible one, since handoff_ms stayed at 1-12 ms throughout."
+}

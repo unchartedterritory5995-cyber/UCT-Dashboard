@@ -1,0 +1,49 @@
+{
+  "item": 10,
+  "title": "Cold first paint, path B (in-app navigation, no intro) — THE HEADLINE",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T10:00:30-04:00",
+  "finished_et": "2026-09-14T10:06:45-04:00",
+  "raw": {
+    "rig_out": "scratchpad/monday-rth/rig-item10.json",
+    "rig_stdout": "scratchpad/monday-rth/rig-item10.stdout.txt",
+    "label": "RTH CERTIFYING RUN",
+    "runs_requested": 6,
+    "runs_valid": 6,
+    "runs_discarded": 0,
+    "shell_ms": {"samples": [595.3, 625.5, 473.9, 487.2, 488.9, 648.4],
+                 "median": 542, "min": 473.9, "worst": 648.4},
+    "picks_ms": {"samples": [2275.6, 1039.9, 3945.4, 1023.7, 3372.0, 1764.2],
+                 "median": 2020, "min": 1023.7, "worst": 3945.4},
+    "wire_bytes_flow": {"samples": [131870, 131870, 870699, 134015, 134015, 134015],
+                        "median": 134015},
+    "per_run": [
+      {"run": 1, "shell_ms": 595.3, "picks_ms": 2275.6, "flow_requests": 5,  "wire_bytes": 131870, "part_versions": ["29823238"], "parts_served": ["CONV","TICKER_DB","TOP_PICKS","bootstrap"], "picks_rendered": true, "shell_rendered": true, "url_changed": true, "uptime_before": 1676, "uptime_after": 1700, "deploy_swapped": false},
+      {"run": 2, "shell_ms": 625.5, "picks_ms": 1039.9, "flow_requests": 5,  "wire_bytes": 131870, "part_versions": ["29823238"], "parts_served": ["CONV","TICKER_DB","TOP_PICKS","bootstrap"], "picks_rendered": true, "shell_rendered": true, "url_changed": true, "uptime_before": 1700, "uptime_after": 1720, "deploy_swapped": false},
+      {"run": 3, "shell_ms": 473.9, "picks_ms": 3945.4, "flow_requests": 14, "wire_bytes": 870699, "part_versions": ["29823236","29823238","29823239"], "parts_served": ["CONV","TICKER_DB","TOP_PICKS","bootstrap"], "picks_rendered": true, "shell_rendered": true, "url_changed": true, "uptime_before": 1720, "uptime_after": 1742, "deploy_swapped": false, "THE_STORM_RUN": true},
+      {"run": 4, "shell_ms": 487.2, "picks_ms": 1023.7, "flow_requests": 5,  "wire_bytes": 134015, "part_versions": ["29823239"], "parts_served": ["CONV","TICKER_DB","TOP_PICKS","bootstrap"], "picks_rendered": true, "shell_rendered": true, "url_changed": true, "uptime_before": 1742, "uptime_after": 1761, "deploy_swapped": false},
+      {"run": 5, "shell_ms": 488.9, "picks_ms": 3372.0, "flow_requests": 5,  "wire_bytes": 134015, "part_versions": ["29823239"], "parts_served": ["CONV","TICKER_DB","TOP_PICKS","bootstrap"], "picks_rendered": true, "shell_rendered": true, "url_changed": true, "uptime_before": 1762, "uptime_after": 1783, "deploy_swapped": false},
+      {"run": 6, "shell_ms": 648.4, "picks_ms": 1764.2, "flow_requests": 5,  "wire_bytes": 134015, "part_versions": ["29823239"], "parts_served": ["CONV","TICKER_DB","TOP_PICKS","bootstrap"], "picks_rendered": true, "shell_rendered": true, "url_changed": true, "uptime_before": 1783, "uptime_after": 1803, "deploy_swapped": false}
+    ],
+    "transport": "parts on every run -- no whole-D and no data?days=1 request occurred in any of the six runs",
+    "version_at_paint_vs_current": "runs 1,2 painted at 29823238; runs 4,5,6 at 29823239; run 3 spanned three versions mid-load (29823236 -> 29823238 -> 29823239)"
+  },
+  "guards": [
+    {"guard": "pod age >= 120 s on every run", "verdict": "pass", "observed": "1676-1803 s"},
+    {"guard": "no deploy during the runs",
+     "verdict": "pass",
+     "observed": "deploy_swapped=false on all six; uptime monotonic 1676 -> 1803 s; the sampler independently shows the session's only restart was at 09:30:31 ET, half an hour earlier"},
+    {"guard": "zero runs rejected (no re-run required)", "verdict": "pass", "observed": "6 of 6 valid"},
+    {"guard": "no intro animation on this path",
+     "verdict": "pass",
+     "observed": "path B starts on /dashboard and CLICKS the Options Flow nav entry; url_changed=true on every run"},
+    {"guard": "picks actually rendered, not merely requested",
+     "verdict": "pass",
+     "observed": "picks_rendered=true on 6 of 6, measured by DOM mutation, and picks_ms is a real timing on every run"},
+    {"guard": "runs spread across the roll cycle",
+     "verdict": "partial",
+     "observed": "issued back to back; the ~20 s per-run cadence against a ~60 s roll cycle gives incidental phase coverage, and run 3 happens to capture the roll-during-load case. Not the deliberate phasing the item specifies."}
+  ],
+  "notes": "THE HEADLINE: a returning member navigating in-app to Options Flow on a live RTH tape gets the shell in 542 ms (median, worst 648 ms) and the TOP_PICKS product in 2020 ms (median, worst 3945 ms), on 134 KB of wire, entirely over parts. Picks rendered on 6 of 6 runs. The bimodal no-picks failure did NOT reproduce in any of these runs. Run 3 is the single most informative run of the session and feeds item 13: a version roll landed mid-load and the client re-fetched across three versions -- 14 requests instead of 5, 870 KB instead of 134 KB, 6.5x the bytes -- and STILL rendered picks, at 3945 ms. That is the storm shape, it is real, it is caused by a roll arriving during load, and on this evidence it degrades the number rather than breaking the render."
+}

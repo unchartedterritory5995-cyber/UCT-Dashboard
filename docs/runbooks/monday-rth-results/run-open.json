@@ -1,0 +1,19 @@
+{
+    "phase":  "open",
+    "verdict":  "failed",
+    "exit_code":  1,
+    "started_local":  "2026-09-12T19:39:04.6195686-05:00",
+    "finished_local":  "2026-09-12T19:41:57.8063026-05:00",
+    "wall_seconds":  173.2,
+    "started_et":  "2026-09-12T20:39:04.6195686",
+    "prompt_file":  "docs\\runbooks\\rth-smoke-prompt.md",
+    "health_url":  "https://uctintelligence.com/api/health",
+    "log":  "C:\\Users\\Patrick\\uct-worktrees\\flow-watch-rail\\logs\\rth-2026-09-12-open.log",
+    "refusals":  [
+
+                 ],
+    "warnings":  [
+                     "weekend run allowed explicitly (-AllowWeekend): Saturday"
+                 ],
+    "host_name":  "DESKTOP-1NPCBSM"
+}

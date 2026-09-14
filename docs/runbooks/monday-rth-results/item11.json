@@ -1,0 +1,56 @@
+{
+  "item": 11,
+  "title": "Warm re-entry — does it still beat UCT20 on commits and bytes?",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T10:30:00-04:00",
+  "finished_et": "2026-09-14T10:45:22-04:00",
+  "raw": {
+    "instrument": "scratchpad/monday-rth/warm_reentry_probe.py (written for this item -- see notes)",
+    "rig_out": ["scratchpad/monday-rth/rig-item11.json",
+                "scratchpad/monday-rth/rig-item11-settle3s.json"],
+    "method": "one browser context per run. Visit /options-flow (cold, makes the next visit warm), click away to /dashboard, then CLICK back to /options-flow -- that return is the warm re-entry. Then click away again and click /uct-20. Commits counted via a __REACT_DEVTOOLS_GLOBAL_HOOK__ onCommitFiberRoot shim installed before boot; bytes via a streaming fetch wrapper, not getEntriesByType.",
+    "primary_batch_settle_9000ms": {
+      "n": 4,
+      "flow_warm": {"commits": [10, 14, 10, 23], "commits_p50": 14,
+                    "bytes": [14546732, 36122248, 16538716, 2347405], "bytes_p50": 16538716,
+                    "reqs": [14, 14, 12, 31], "picks_present": [true, true, true, true],
+                    "url_changed": [true, true, true, true]},
+      "uct20":     {"commits": [32, 31, 31, 31], "commits_p50": 31,
+                    "bytes": [14008763, 14032149, 20680923, 13910403], "bytes_p50": 14032149,
+                    "reqs": [15, 15, 16, 29], "url_changed": [true, true, true, true]}
+    },
+    "control_batch_settle_3000ms": {
+      "n": 3,
+      "why": "the 9 s byte numbers varied 15x run to run, which is the signature of dwell-time polling rather than navigation cost. A shorter settle tests that.",
+      "flow_warm": {"commits": [10, 10, 10], "commits_p50": 10,
+                    "bytes": [21904016, 9484986, 1888395], "bytes_p50": 9484986,
+                    "reqs": [14, 12, 10]},
+      "uct20":     {"commits": [15, 17, 4], "commits_p50": 15,
+                    "bytes": [488050, 494562, 6120], "bytes_p50": 488050,
+                    "reqs": [10, 12, 3]}
+    },
+    "verdict_commits": "FLOW WARM BEATS UCT20 — 14 vs 31 at 9 s settle, 10 vs 15 at 3 s settle. Same direction in both windows, all 7 runs.",
+    "verdict_bytes": "FLOW WARM DOES NOT BEAT UCT20 — 16.5 MB vs 14.0 MB at 9 s, 9.5 MB vs 0.49 MB at 3 s. Same direction in both windows.",
+    "the_control_result_that_matters": "UCT20's byte total collapses 28x between the two settle windows (14.0 MB -> 0.49 MB) while Options Flow's stays in the same order of magnitude. So a large part of UCT20's 9 s figure is post-load polling, and the shorter window is the fairer read of navigation cost -- in which Options Flow is ~19x heavier, not ~1.2x."
+  },
+  "guards": [
+    {"guard": "warm, not cold",
+     "verdict": "pass",
+     "observed": "the same browser context and the same page object throughout; the measured visit is the SECOND arrival at /options-flow. A fresh context would have been a cache clear and would have measured cold paint again."},
+    {"guard": "clicked, never goto",
+     "verdict": "pass",
+     "observed": "url_changed=true on every measured navigation in both batches; the goto fallback was never used on a measured leg"},
+    {"guard": "picks actually rendered on the warm re-entry",
+     "verdict": "pass", "observed": "picks_present=true on 4 of 4 in the primary batch"},
+    {"guard": "no deploy during the runs",
+     "verdict": "pass", "observed": "the session's only restart was 09:30:31 ET; these ran 10:30-10:45"},
+    {"guard": "the byte comparison isolates navigation cost",
+     "verdict": "fail",
+     "observed": "It does not, and that is why the control batch exists. Both figures include whatever each page fetched during the settle window, and the two pages poll at different rates. The DIRECTION of the result is robust (same in both windows) but the MAGNITUDE is not a clean navigation-cost number for either page."},
+    {"guard": "compared against the recorded weekend figures",
+     "verdict": "unevaluated",
+     "observed": "There are none to compare against. 'warm re-entry' appears in exactly two files -- docs/runbooks/flow-worker-weekend-bundle.md and the run prompt -- and neither records the weekend's actual commit or byte numbers. So this is a fresh head-to-head measurement of the CLAIM, not a regression check against a prior run."}
+  ],
+  "notes": "THE STANDING CLAIM IS HALF FALSIFIED. 'Warm re-entry BEATS UCT20 on both' holds for commits and fails for bytes, measured twice with different settle windows and the same direction each time.\n\nCommits is the solid half: 14 vs 31 (9 s) and 10 vs 15 (3 s), with Options Flow's warm re-entry landing on exactly 10 commits in 3 of 3 control runs -- a tight, believable number.\n\nBytes is the half that fails, and the control makes it worse rather than better for Options Flow. At a 9 s settle the two look close (16.5 vs 14.0 MB) and it would be tempting to call it a wash. At a 3 s settle UCT20 drops to 0.49 MB while Options Flow is still at 9.5 MB. UCT20's 9 s figure was mostly polling; Options Flow's was mostly load. The honest statement is that warm re-entry to Options Flow costs roughly an order of magnitude more bytes than UCT20, not 1.2x.\n\nI WROTE THE INSTRUMENT FOR THIS ITEM, which is worth flagging. No existing tool measures warm re-entry -- the cold-paint rig deliberately uses a fresh context per run, which is the opposite of warm. The probe is in scratchpad, edits nothing in app/ or api/, and its technique is lifted from tools/postdeploy_client_smoke.py (the React commit shim) and the cold-paint rig (streaming byte capture, click-don't-goto). A close-run reader should treat the commit numbers as trustworthy and the byte numbers as directionally right but not a clean isolation.\n\nONE ODDITY, recorded not explained: control run 3 shows UCT20 at 4 commits / 6,120 bytes / 3 requests -- an order of magnitude below its other runs. Either the page was served entirely from cache on that pass or it had not finished arriving when the 3 s window closed. It is included in the raw data rather than dropped, and the p50 is used throughout so it does not distort the verdict."
+}

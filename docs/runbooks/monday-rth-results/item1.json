@@ -1,0 +1,86 @@
+{
+  "item": 1,
+  "title": "Pre-open pod state matches the weekend",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T09:21:21-04:00",
+  "finished_et": "2026-09-14T09:28:40-04:00",
+  "raw": {
+    "pod_age_s_at_first_read": 1188,
+    "pod_age_read_at_et": "2026-09-14T09:21:21.754070-04:00",
+    "health_payload": {
+      "status": "ok",
+      "wire_date": "2026-09-14",
+      "uptime_seconds": 1188,
+      "thread_count": 70,
+      "rss_mb": 1790.6
+    },
+    "flow_fast_date_scan": {
+      "service": "flow-worker",
+      "method": "railway ssh -> /opt/venv/bin/python, base64-piped probe, in-process os.environ read",
+      "raw_value": "1",
+      "fast_scan_live_read": true,
+      "flow_db_module": "/app/api/flow_db.py",
+      "note": "api/flow_db.py:292 is the only read site (`os.environ.get('FLOW_FAST_DATE_SCAN','0')=='1'`); the probe evaluates that exact expression in-process rather than reading the service config."
+    },
+    "other_flow_worker_env_in_process": {
+      "MASSIVE_WS_ENABLED": "1",
+      "FLOW_BACKUP_ENABLED": "1",
+      "FLOW_GAP_AUTOFILL_ENABLED": "1",
+      "MASSIVE_FLATFILES_ENABLED": null,
+      "FLOW_READS_PROXY_ENABLED": null,
+      "FLOW_PARTS_ENABLED": null
+    },
+    "parts_cache_entries": 10,
+    "parts_cache_max": 24,
+    "parts_cache_keys": ["all_directional", "all_trades", "ALL_SYMS", "WATCH",
+                         "UOA_TRADES", "darkPool", "TICKER_DB", "CONV",
+                         "bootstrap", "TOP_PICKS"],
+    "build_failures": 0,
+    "parts_rejected_missing": 0,
+    "stale_served": 0,
+    "declined_busy": 2,
+    "current_version": 29822328,
+    "holding_page": {
+      "path": "/",
+      "status": 200,
+      "title": "UCT Intelligence — Coming soon",
+      "at_et": "2026-09-14T09:22:14.222802-04:00"
+    },
+    "member_smoke_login": {
+      "status": 200,
+      "role": "member",
+      "account": "member-smoke@uctintelligence.internal",
+      "observed_via": "the two item-3 rig dry runs, which each authenticate and print role=member; no extra standalone login was spent, to stay clear of the 5/min limiter"
+    },
+    "log_window_actually_available": {
+      "service": "flow-worker",
+      "earliest_utc": "2026-09-14T12:23:07Z",
+      "latest_utc": "2026-09-14T13:24:07Z",
+      "earliest_et": "2026-09-14T08:23:07-04:00",
+      "latest_et": "2026-09-14T09:24:07-04:00",
+      "lines": 500,
+      "traceback_error_exception_critical_hits": 0,
+      "flatfile_backfill_gap_hits": 0
+    }
+  },
+  "guards": [
+    {"guard": "FLOW_FAST_DATE_SCAN read IN-PROCESS (not from service config)",
+     "verdict": "pass",
+     "observed": "flow-worker os.environ -> '1'; the read-site expression evaluates True"},
+    {"guard": "parts cache == 10",
+     "verdict": "pass", "observed": "10 entries (max 24)"},
+    {"guard": "build_failures == 0", "verdict": "pass", "observed": "0"},
+    {"guard": "parts_rejected_missing == 0", "verdict": "pass", "observed": "0"},
+    {"guard": "no overnight tracebacks",
+     "verdict": "unevaluated",
+     "observed": "`railway logs --service flow-worker` returns a capped buffer of 500 lines spanning 08:23-09:24 ET (61 minutes). There is no overnight window to read. Within the hour that IS available there are zero Traceback/ERROR/CRITICAL/Exception hits, but that is a one-hour statement and must not be quoted as an overnight one."},
+    {"guard": "T+1 flat-file backfill completed per logs",
+     "verdict": "unevaluated",
+     "observed": "Same capped buffer. Zero matches for flat-file/backfill/gap in 08:23-09:24 ET, which is consistent with the backfill having completed long before the window opened AND with it never having run. The available logs cannot distinguish those two, so this is recorded as unevaluated rather than pass. Note alongside: MASSIVE_FLATFILES_ENABLED reads null in-process on flow-worker."},
+    {"guard": "pod age >= 120 s", "verdict": "pass", "observed": "1188 s at first read"},
+    {"guard": "holding page live at /", "verdict": "pass", "observed": "HTTP 200, title 'UCT Intelligence - Coming soon'"},
+    {"guard": "member-smoke login 200 role=member", "verdict": "pass", "observed": "role=member on both rig dry runs"}
+  ],
+  "notes": "Two of the nine checks could not be evaluated, both for the same reason: the Railway log buffer for flow-worker is capped at 500 lines and reached back only one hour at the time of reading, so no overnight evidence exists to read. I did not substitute the one-hour window for the overnight one. MASSIVE_FLATFILES_ENABLED reading null in-process on flow-worker is recorded as an observation, not a finding -- the T+1 ingest may be gated elsewhere, and diagnosing that is outside this run's read-only scope and outside items 1-15."
+}

@@ -1,0 +1,20 @@
+============================================================================
+RTH live tape 2026-09-14 storm hunt | pod 2532.0s (floor 120.0)
+  run 1  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@3088ms TP@3009ms lag=79ms rendered=True
+  run 2  STORM fetches=12 dupes={"bootstrap": 3, "TOP_PICKS": 3} tape=3 | root 1/0 picks 1/0 | picks@7625ms TP@7247ms lag=378ms rendered=True
+  run 3  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@704ms TP@687ms lag=18ms rendered=True
+  run 4  STORM fetches=12 dupes={"bootstrap": 3, "TOP_PICKS": 3} tape=3 | root 1/0 picks 1/0 | picks@33334ms TP@32879ms lag=455ms rendered=True
+  run 5  STORM fetches=12 dupes={"bootstrap": 3, "TOP_PICKS": 3} tape=3 | root 1/0 picks 1/0 | picks@10245ms TP@9094ms lag=1151ms rendered=True
+  run 6  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@852ms TP@833ms lag=19ms rendered=True
+  run 7  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@874ms TP@718ms lag=156ms rendered=True
+  run 8  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@833ms TP@799ms lag=34ms rendered=True
+  run 9  clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@950ms TP@907ms lag=43ms rendered=True
+  run 10 clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@865ms TP@800ms lag=65ms rendered=True
+  run 11 STORM fetches=11 dupes={"bootstrap": 3, "TOP_PICKS": 3} tape=2 | root 1/0 picks 1/0 | picks@11542ms TP@11318ms lag=225ms rendered=True
+  run 12 clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@10890ms TP@10860ms lag=31ms rendered=True
+  run 13 STORM fetches=11 dupes={"bootstrap": 3, "TOP_PICKS": 3} tape=2 | root 1/0 picks 1/0 | picks@10658ms TP@10579ms lag=79ms rendered=True
+  run 14 clean fetches=5  dupes={}                   tape=0 | root 1/0 picks 1/0 | picks@962ms TP@925ms lag=37ms rendered=True
+----------------------------------------------------------------------------
+  accepted=14  STORM=5  clean=9  picks rendered=14/14
+  runs with root mounted MORE THAN ONCE (remount signature): 0
+  saved: scratchpad/monday-rth/rig-item13b.json

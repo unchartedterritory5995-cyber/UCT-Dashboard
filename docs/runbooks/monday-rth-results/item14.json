@@ -1,0 +1,57 @@
+{
+  "item": 14,
+  "title": "Search on the head names — NVDA, SPY, MU",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T10:49:34-04:00",
+  "finished_et": "2026-09-14T10:58:00-04:00",
+  "raw": {
+    "instrument": "scratchpad/monday-rth/search_probe.py (written for this item)",
+    "rig_out": "scratchpad/monday-rth/rig-item14.json",
+    "endpoint": "GET /api/flow/ticker-product/{SYM}?source=stocks&warm_only=1",
+    "account": "member-smoke, role=member",
+    "method": "fire warm_only=1 (the client gives up immediately and takes the legacy tape), then poll warm_only=1 to see whether the background build ever lands. Never holds a request open.",
+    "results": {
+      "NVDA": {
+        "first_response": {"status": 503, "ms": 384},
+        "polled_for_s": 180,
+        "ever_became_warm": false,
+        "server_outcome": "warm TOO_BIG total=27208ms :: csv_overrun@27208ms why=seconds>20 kb=1165 rows=8001",
+        "server_line": "14:50:03 UTC (10:50:03 ET) [flow-search] NVDA/stocks exceeds the warm budget (seconds>20) - declining so the lane stays available",
+        "verdict": "FAILS. Derive abandoned at 27.2 s against a 20 s budget; nothing cached; symbol placed in cooldown."
+      },
+      "SPY": {
+        "first_response": {"status": 503, "ms": 2088},
+        "became_warm_after_s": 7.8,
+        "ever_became_warm": true,
+        "verdict": "COMPLETES. Background build landed 7.8 s after the client gave up -- the work was NOT discarded, and the next search of SPY is a hit."
+      },
+      "MU": {
+        "first_response": {"status": 503, "ms": 258},
+        "polled_for_s": 180,
+        "ever_became_warm": false,
+        "server_outcome": "warm TOO_BIG total=21276ms :: csv_overrun@21276ms why=seconds>20 kb=570 rows=4001",
+        "server_line": "14:53:07 UTC (10:53:07 ET) [flow-search] MU/stocks exceeds the warm budget (seconds>20) - declining so the lane stays available",
+        "verdict": "FAILS. Derive abandoned at 21.3 s against a 20 s budget; nothing cached; symbol placed in cooldown."
+      }
+    },
+    "search_warm_state_after": {
+      "built": 1, "failed": 2, "declined": 0, "already": 0,
+      "last_ms": 21277, "in_flight": [], "cooling_off": ["MU", "NVDA"]
+    },
+    "cooldown": "FLOW_SEARCH_WARM_COOLDOWN_S, default 600 s (api/flow_router.py). A symbol whose warm failed sits out 10 minutes before anything retries it.",
+    "legacy_tape_fallback_cost_per_source_comment": "4,232 ms (api/flow_router.py:1002 docstring, measured on prod); a warm hit is 178-337 ms"
+  },
+  "guards": [
+    {"guard": "busy stretch", "verdict": "pass",
+     "observed": "10:49-10:58 ET, with the tape at ~26k Last1 rows and rolls every ~60 s"},
+    {"guard": "observation only, nothing mutated",
+     "verdict": "pass",
+     "observed": "only GETs. A warm build is a cache fill the product performs on every member search; no writes, no config changes."},
+    {"guard": "role is member, not admin", "verdict": "pass", "observed": "login returned role=member"},
+    {"guard": "the cause was read from the server, not inferred from the shape",
+     "verdict": "pass",
+     "observed": "CRITICAL HERE. From the client side alone, 'polled 180 s and never warmed' is equally consistent with a slow derive, a starved lock, or a version-keyed cache treadmill. I formed TWO hypotheses and BOTH were wrong: declined=0 rules out lock starvation, and _search_freshness is per-symbol (symbol_freshness = max_id.prune_generation), explicitly NOT the global version, which rules out the roll treadmill. The actual cause is a TOO_BIG budget rejection, and only the server log says so."}
+  ],
+  "notes": "ANSWERING THE ITEM'S MU QUESTION DIRECTLY, because the question contains an assumption that turns out to be wrong.\n\n'Does the derive still exceed 60 s?' -- No. It never gets near 60 s, because it is CUT OFF at a 20-second warm budget. MU was abandoned at 21.3 s, NVDA at 27.2 s.\n\n'Does the timeout discard the work, or does it complete after the client gives up?' -- Both answers occur, and which one you get depends on the symbol:\n  - SPY: the work COMPLETES after the client gives up. Warm at 7.8 s, cached, next search is a hit.\n  - NVDA and MU: the work is DISCARDED. TOO_BIG -> declined -> nothing cached -> the symbol enters a 600 s cooldown during which nothing will even retry it.\n\nSO TWO OF THE THREE HEAD NAMES CANNOT BUILD THEIR SEARCH PRODUCT AT ALL DURING RTH. A member searching NVDA or MU gets a 503 and the legacy tape (~4.2 s per the source's own measurement) every single time, and repeating the search cannot help them -- the cooldown guarantees the next 10 minutes are 503s too. That is not a slow path; it is a permanently degraded one for the busiest tickers, and it is worse precisely for the names most likely to be searched, because the thing that blows the budget is row count (NVDA 8,001 rows / 1,165 kB, MU 4,001 / 570 kB).\n\nThe cooldown is doing its job as designed -- the comment says it exists 'to stop one un-buildable symbol monopolising the single build lane' -- and the budget is protecting the lane. Both mechanisms are working. The consequence is still that Search's premium path is unavailable for the head names during exactly the hours it matters. Recording as an observation per the item's scope; the proposal belongs to the close run."
+}

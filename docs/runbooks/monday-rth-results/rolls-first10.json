@@ -1,0 +1,220 @@
+{
+ "sampler": {
+  "file": "scratchpad/monday-rth/health-samples.jsonl",
+  "samples": 82,
+  "first_sample_et": "2026-09-14T09:23:55.850018-04:00",
+  "last_sample_et": "2026-09-14T09:40:08.591705-04:00",
+  "cadence_s_nominal": 10
+ },
+ "restarts_detected": [
+  {
+   "at_et": "2026-09-14T09:30:31.730409-04:00",
+   "uptime_before": 1682,
+   "uptime_after": 22,
+   "sample_n": 39
+  }
+ ],
+ "rolls_startup": [
+  {
+   "version": 29822328,
+   "kind": "startup_catchup",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 25.52,
+   "handoff_ms": 360,
+   "prepare_ms": 25156,
+   "bucket_bound_s": 123.64,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:23:55.850018-04:00",
+   "_sample_n": 0
+  }
+ ],
+ "rolls_steady_count": 11,
+ "rolls_steady": [
+  {
+   "version": 29823210,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 8.25,
+   "handoff_ms": 7,
+   "prepare_ms": 8242,
+   "bucket_bound_s": 18.03,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:30:30.902502-04:00",
+   "_sample_n": 38
+  },
+  {
+   "version": 29823211,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 0.58,
+   "handoff_ms": 1,
+   "prepare_ms": 575,
+   "bucket_bound_s": 4.91,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:31:11.757788-04:00",
+   "_sample_n": 43
+  },
+  {
+   "version": 29823212,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 0.43,
+   "handoff_ms": 1,
+   "prepare_ms": 434,
+   "bucket_bound_s": 4.33,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:32:11.706877-04:00",
+   "_sample_n": 49
+  },
+  {
+   "version": 29823213,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 0.99,
+   "handoff_ms": 1,
+   "prepare_ms": 991,
+   "bucket_bound_s": 1.3,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:33:10.682747-04:00",
+   "_sample_n": 51
+  },
+  {
+   "version": 29823214,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 1.13,
+   "handoff_ms": 2,
+   "prepare_ms": 1133,
+   "bucket_bound_s": 3.79,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:34:34.336394-04:00",
+   "_sample_n": 54
+  },
+  {
+   "version": 29823215,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 0.78,
+   "handoff_ms": 1,
+   "prepare_ms": 777,
+   "bucket_bound_s": 4.51,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:35:29.044208-04:00",
+   "_sample_n": 57
+  },
+  {
+   "version": 29823216,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 1.88,
+   "handoff_ms": 1,
+   "prepare_ms": 1876,
+   "bucket_bound_s": 7.59,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:36:18.489594-04:00",
+   "_sample_n": 60
+  },
+  {
+   "version": 29823217,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 1.98,
+   "handoff_ms": 1,
+   "prepare_ms": 1982,
+   "bucket_bound_s": 4.05,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:37:08.541180-04:00",
+   "_sample_n": 65
+  },
+  {
+   "version": 29823218,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 1.02,
+   "handoff_ms": 2,
+   "prepare_ms": 1013,
+   "bucket_bound_s": 6.21,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:38:13.913600-04:00",
+   "_sample_n": 71
+  },
+  {
+   "version": 29823219,
+   "kind": "steady_state_roll",
+   "blocked_by": null,
+   "blocked_pass": null,
+   "blocked_held_ms": null,
+   "observed_s": 2.29,
+   "handoff_ms": 12,
+   "prepare_ms": 2277,
+   "bucket_bound_s": 3.46,
+   "pass2_skipped": false,
+   "_first_seen_et": "2026-09-14T09:39:15.248604-04:00",
+   "_sample_n": 77
+  }
+ ],
+ "prepare_ms_stats_all_steady": {
+  "n": 11,
+  "min": 434,
+  "p50": 1062,
+  "p90": 2277,
+  "p95": 8242,
+  "max": 8242,
+  "mean": 1851.1
+ },
+ "handoff_ms_stats_all_steady": {
+  "n": 11,
+  "min": 1,
+  "p50": 1,
+  "p90": 7,
+  "p95": 12,
+  "max": 12,
+  "mean": 2.9
+ },
+ "prepare_ms_samples": [
+  8242,
+  575,
+  434,
+  991,
+  1133,
+  777,
+  1876,
+  1982,
+  1013,
+  2277,
+  1062
+ ],
+ "handoff_ms_samples": [
+  7,
+  1,
+  1,
+  1,
+  2,
+  1,
+  1,
+  1,
+  2,
+  12,
+  3
+ ]
+}

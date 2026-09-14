@@ -1,0 +1,75 @@
+{
+  "item": 13,
+  "title": "TOP 10 / .of-picks and the request storm — the bimodal path-B finding",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T10:07:00-04:00",
+  "finished_et": "2026-09-14T10:22:00-04:00",
+  "raw": {
+    "rig_out": ["scratchpad/monday-rth/rig-item13.json",
+                "scratchpad/monday-rth/rig-item13b.json"],
+    "instrument": "tools/flow_storm_probe.py -- counts MOUNTS of .of-mroot/.of-picks/.of-tabs via MutationObserver, wraps fetch to record each request's initiator, status, X-Flow-Version and X-Flow-Part. Mounts, not requests, per the item's own discriminator.",
+    "totals": {
+      "probe_runs": 20, "storm_runs": 5, "clean_runs": 15,
+      "picks_rendered": "20 of 20",
+      "runs_with_root_mounted_more_than_once": 0
+    },
+    "plus_incidental": "item 10's run 3 was a 6th storm (14 requests, 870 KB, three part versions) caught by the cold-paint rig before the probe was run",
+    "storm_shape": {
+      "flow_requests": "11-12 (vs 5 clean)",
+      "duplicates": {"bootstrap": 3, "TOP_PICKS": 3},
+      "stray_legacy_tape_fetches_data_days_1": "2-3 (vs 0 clean)",
+      "wire_bytes": "870,699 in item 10's storm vs ~134,015 clean"
+    },
+    "the_five_storms": [
+      {"run": 2,  "version_request_ms": 6340,  "picks_mount_ms": 7625,  "root_mounts": 1, "picks_mounts": 1, "tape_resp_versions": ["29823247"], "part_resp_versions": ["29823253"]},
+      {"run": 4,  "version_request_ms": 32320, "picks_mount_ms": 33334, "root_mounts": 1, "picks_mounts": 1, "tape_resp_versions": ["29823251"], "part_resp_versions": ["29823254", "29823255"]},
+      {"run": 5,  "version_request_ms": 8602,  "picks_mount_ms": 10245, "root_mounts": 1, "picks_mounts": 1, "tape_resp_versions": ["29823254"], "part_resp_versions": ["29823256"]},
+      {"run": 11, "version_request_ms": 853,   "picks_mount_ms": 11542, "root_mounts": 1, "picks_mounts": 1, "tape_resp_versions": ["29823258"], "part_resp_versions": ["29823259"], "OUTLIER": "fast version, slow picks -- see notes"},
+      {"run": 13, "version_request_ms": 10084, "picks_mount_ms": 10658, "root_mounts": 1, "picks_mounts": 1, "tape_resp_versions": ["29823259"], "part_resp_versions": ["29823261"]}
+    ],
+    "clean_runs_picks_mount_ms": [3088, 704, 852, 874, 833, 950, 865, 10890, 962, 1265, 1074, 2393, 833, 1045, 1252],
+    "picks_lag_after_TOP_PICKS_arrives_ms": {
+      "clean": [16, 18, 19, 19, 27, 31, 34, 37, 39, 43, 54, 65, 79, 155, 156],
+      "storm": [79, 225, 378, 455, 1151]
+    },
+    "worked_example_run_2_timeline_ms": [
+      {"t": 908,  "done": 7248, "url": "/api/flow/version", "status": 200, "note": "6,340 ms to answer -- the stall"},
+      {"t": 910,  "done": 7246, "part": "bootstrap",  "status": 200, "respVersion": 29823253},
+      {"t": 910,  "done": 7247, "part": "TOP_PICKS",  "status": 200, "respVersion": 29823253},
+      {"t": 3916, "done": 7249, "part": "bootstrap",  "status": 200, "respVersion": 29823253, "note": "RETRY while the first is still pending"},
+      {"t": 3916, "done": 7249, "part": "TOP_PICKS",  "status": 200, "respVersion": 29823253, "note": "RETRY"},
+      {"t": 3917, "done": 7414, "url": "data?days=1", "status": 200, "respVersion": 29823247, "note": "LEGACY TAPE FALLBACK, and it answers with a STALE version"},
+      {"t": 7444, "done": 7598, "part": "bootstrap",  "status": 200, "respVersion": 29823253, "note": "third round, now with &v="},
+      {"t": 7445, "done": 7609, "part": "TOP_PICKS",  "status": 200, "respVersion": 29823253},
+      {"t": 7446, "done": 8165, "url": "data?days=1&v=29823253", "status": 200, "respVersion": 29823247},
+      {"t": 7655, "done": 7809, "part": "TICKER_DB",  "status": 200, "respVersion": 29823253},
+      {"t": 7656, "done": 7799, "part": "CONV",       "status": 200, "respVersion": 29823253},
+      {"t": 8359, "done": 8393, "url": "data?days=1&v=29823253", "status": 200, "respVersion": 29823247}
+    ],
+    "server_side_correlation": {
+      "claim": "a long handoff blocks /api/flow/version",
+      "evidence": "the roll first seen at 10:13:17 ET recorded handoff_ms=6325 (item 12). Probe run 2, starting ~10:12:47 ET, measured its /api/flow/version request taking 6,340 ms from inside the browser. 6,325 vs 6,340 ms.",
+      "second_instance": "item 10's storm run 3 fell in the window of the 10:02:16 roll, whose handoff_ms was 44,539 -- the largest of the session",
+      "caveat": "run 4's 32,320 ms version stall has NO matching handoff in the sampler (the two rolls bracketing it recorded handoff_ms of 6,325 and 1). So the correlation is strong but NOT complete, and something else can also stall the version endpoint."
+    },
+    "requests_never_completed": "two tape fetches (run 11 t=11628, run 13 t=10987) have done=null and status=null -- the response never arrived within the run. Recorded rather than tidied away."
+  },
+  "guards": [
+    {"guard": "mounts counted, not requests",
+     "verdict": "pass",
+     "observed": "MutationObserver on .of-mroot/.of-picks/.of-tabs; every run reports explicit mount/unmount counts"},
+    {"guard": "responses captured, not just requests",
+     "verdict": "pass",
+     "observed": "status, X-Flow-Version and X-Flow-Part recorded per request and correlated to it, so the causal chain is evidence rather than narration"},
+    {"guard": "pod age >= 120 s on every probe run",
+     "verdict": "pass", "observed": "2353-3085 s"},
+    {"guard": "no deploy during the probe runs",
+     "verdict": "pass", "observed": "deploy_swapped=false on all 20; only restart of the session was 09:30:31 ET"},
+    {"guard": "the storm actually reproduced (non-vacuity)",
+     "verdict": "pass",
+     "observed": "5 storms in 14 runs in the second batch. The first batch of 6 produced zero, so a single batch would have concluded 'does not reproduce' -- which is why the hunt was re-run."}
+  ],
+  "diagnosis": "NOT a remount. NOT a render gate. NOT a data-shape issue. It is a STALLED /api/flow/version REQUEST, which cascades into client retries and a legacy-tape fallback.",
+  "notes": "APPLYING THE ITEM'S OWN DISCRIMINATOR -- a render gate does not re-issue network calls, a remount does:\n- .of-mroot mounted EXACTLY ONCE in all 20 runs, storms included, and never unmounted. So it is not a remount, even though network calls are re-issued.\n- .of-picks also mounted exactly once per run, and mounted 16-1,151 ms after TOP_PICKS arrived. The table renders as soon as its data lands. So it is not a render gate.\n- picks rendered 20 of 20, including all five storms. The 'picks never render' half of the reported bimodality DID NOT REPRODUCE ONCE today. What reproduces is picks rendering LATE -- up to 33.3 s.\n\nTHE MECHANISM, read off the wire: /api/flow/version is the first request the page issues. When it stalls, the client fires bootstrap and TOP_PICKS again at ~3 s and again when version finally resolves (hence exactly 3x each), and falls back to the legacy whole-D tape (data?days=1). In 4 of the 5 storms, picks mount time tracks version-request duration almost exactly: 6,340->7,625 ms; 32,320->33,334 ms; 8,602->10,245 ms; 10,084->10,658 ms. The delay is in OBTAINING the data, not in rendering it.\n\nA FINDING INSIDE THE FINDING: the legacy-tape fallback answers with a STALE version every single time -- 29823247 when the parts were 29823253, 29823251 vs 29823255, 29823254 vs 29823256, 29823258 vs 29823259, 29823259 vs 29823261. So the degraded path is not merely slower, it serves older data than the path it is standing in for. This is almost certainly what the stale_served counter (0 -> 3 at 09:36) is recording.\n\nWHAT I COULD NOT EXPLAIN, stated rather than smoothed: run 11 stormed with a FAST version request (853 ms) and still took 11,542 ms to mount picks. The version-stall mechanism does not account for it, so there is at least one more path into the storm shape. And run 4's 32 s stall has no matching server-side handoff. Both are flagged for the close run rather than folded into the story.\n\nMEMBER IMPACT: cannot be quantified from server logs, because zero members loaded Options Flow today (item 7). Frequency on the rig is 5 in 14 dedicated runs plus 1 in 6 cold-paint runs -- roughly 1 load in 3 during this window -- but that is a rig rate on a busy tape, not a measured member rate."
+}

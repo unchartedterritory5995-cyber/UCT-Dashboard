@@ -1,0 +1,26 @@
+========================================================================
+Options Flow cold first paint - QUIET TAPE - NOT A MEASUREMENT (parts pre-warm, version frozen)
+base=https://uctintelligence.com  runs=1  account=member-smoke@uctintelligence.internal
+throttling: NONE (no network or CPU throttle applied)
+========================================================================
+
+PATH B - IN-APP NAVIGATION (started on /dashboard, CLICKED the nav entry;
+         no intro, so this is the page's own cost)
+run 1 | shell=498ms | picks=754ms | flow_req=5 | wire=534537B | parts=CONV,TICKER_DB,TOP_PICKS,bootstrap
+        role=member url_changed=True observer=True part_versions=['29822328']
+        flow: version
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29822328&part=CONV
+        flow: aggregate?source=stocks&days=1&date_filter=Last1&v=29822328&part=TICKE
+        DIAG url=/options-flow shell=True picks=True bodylen=4086
+        pod age at start=1251s  after=1271s
+------------------------------------------------------------------------
+PATH A first content                   no usable runs - NOTHING MEASURED
+PATH B shell                           median=   498ms  worst=   498ms  n=1  wire median=534537B
+PATH B picks (the TOP_PICKS product)   median=   754ms  worst=   754ms  n=1  wire median=534537B
+[!] QUIET TAPE - NOT A MEASUREMENT (parts pre-warm, version frozen)
+   Do NOT quote these as the member cold-paint number. On a quiet tape
+   the parts are already warm and the version never rolls, so this is a
+   best case no member hits during RTH. The rig is being proven, not the page.
+saved: scratchpad/monday-rth/rig-item3b.json

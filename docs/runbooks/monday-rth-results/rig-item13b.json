@@ -1,0 +1,1585 @@
+{
+ "label": "RTH live tape 2026-09-14 storm hunt",
+ "accepted": [
+  {
+   "run": 1,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 3088,
+   "top_picks_arrival_ms": 3009,
+   "picks_lag_ms": 79,
+   "versions": [
+    "29823252"
+   ]
+  },
+  {
+   "run": 2,
+   "shape": "STORM",
+   "dupes": {
+    "bootstrap": 3,
+    "TOP_PICKS": 3
+   },
+   "n_flow_fetches": 12,
+   "stray_tape": 3,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 7625,
+   "top_picks_arrival_ms": 7247,
+   "picks_lag_ms": 378,
+   "versions": [
+    "29823247",
+    "29823253"
+   ]
+  },
+  {
+   "run": 3,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 704,
+   "top_picks_arrival_ms": 687,
+   "picks_lag_ms": 18,
+   "versions": [
+    "29823253"
+   ]
+  },
+  {
+   "run": 4,
+   "shape": "STORM",
+   "dupes": {
+    "bootstrap": 3,
+    "TOP_PICKS": 3
+   },
+   "n_flow_fetches": 12,
+   "stray_tape": 3,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 33334,
+   "top_picks_arrival_ms": 32879,
+   "picks_lag_ms": 455,
+   "versions": [
+    "29823251",
+    "29823254",
+    "29823255"
+   ]
+  },
+  {
+   "run": 5,
+   "shape": "STORM",
+   "dupes": {
+    "bootstrap": 3,
+    "TOP_PICKS": 3
+   },
+   "n_flow_fetches": 12,
+   "stray_tape": 3,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 10245,
+   "top_picks_arrival_ms": 9094,
+   "picks_lag_ms": 1151,
+   "versions": [
+    "29823254",
+    "29823256"
+   ]
+  },
+  {
+   "run": 6,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 852,
+   "top_picks_arrival_ms": 833,
+   "picks_lag_ms": 19,
+   "versions": [
+    "29823257"
+   ]
+  },
+  {
+   "run": 7,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 874,
+   "top_picks_arrival_ms": 718,
+   "picks_lag_ms": 156,
+   "versions": [
+    "29823257"
+   ]
+  },
+  {
+   "run": 8,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 833,
+   "top_picks_arrival_ms": 799,
+   "picks_lag_ms": 34,
+   "versions": [
+    "29823257"
+   ]
+  },
+  {
+   "run": 9,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 950,
+   "top_picks_arrival_ms": 907,
+   "picks_lag_ms": 43,
+   "versions": [
+    "29823258"
+   ]
+  },
+  {
+   "run": 10,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 865,
+   "top_picks_arrival_ms": 800,
+   "picks_lag_ms": 65,
+   "versions": [
+    "29823258"
+   ]
+  },
+  {
+   "run": 11,
+   "shape": "STORM",
+   "dupes": {
+    "bootstrap": 3,
+    "TOP_PICKS": 3
+   },
+   "n_flow_fetches": 11,
+   "stray_tape": 2,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 11542,
+   "top_picks_arrival_ms": 11318,
+   "picks_lag_ms": 225,
+   "versions": [
+    "29823258",
+    "29823259"
+   ]
+  },
+  {
+   "run": 12,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 10890,
+   "top_picks_arrival_ms": 10860,
+   "picks_lag_ms": 31,
+   "versions": [
+    "29823260"
+   ]
+  },
+  {
+   "run": 13,
+   "shape": "STORM",
+   "dupes": {
+    "bootstrap": 3,
+    "TOP_PICKS": 3
+   },
+   "n_flow_fetches": 11,
+   "stray_tape": 2,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 10658,
+   "top_picks_arrival_ms": 10579,
+   "picks_lag_ms": 79,
+   "versions": [
+    "29823259",
+    "29823261"
+   ]
+  },
+  {
+   "run": 14,
+   "shape": "clean",
+   "dupes": {},
+   "n_flow_fetches": 5,
+   "stray_tape": 0,
+   "root_mounts": 1,
+   "root_unmounts": 0,
+   "picks_mounts": 1,
+   "picks_unmounts": 0,
+   "picks_rendered": true,
+   "picks_mount_ms": 962,
+   "top_picks_arrival_ms": 925,
+   "picks_lag_ms": 37,
+   "versions": [
+    "29823262"
+   ]
+  }
+ ],
+ "raw": [
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 681.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 3717
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 685.4000000059605,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823252",
+     "part": "bootstrap",
+     "done": 3060.7000000178814
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 688,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823252",
+     "part": "TOP_PICKS",
+     "done": 3008.800000011921
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB",
+     "t": 3142.800000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823252",
+     "part": "TICKER_DB",
+     "done": 3984.4000000059605
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+     "t": 3146.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823252",
+     "part": "CONV",
+     "done": 3970.2000000178814
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 673.3000000119209
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 673.4000000059605
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 3088.2000000178814
+    }
+   ],
+   "picksNow": true,
+   "run": 1,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2534.0,
+   "uptime_after": 2560.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 907.6999999880791,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 7248.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 909.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "bootstrap",
+     "done": 7246.299999982119
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 910.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "TOP_PICKS",
+     "done": 7246.5999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 3915.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "bootstrap",
+     "done": 7248.799999982119
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 3916,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "TOP_PICKS",
+     "done": 7249
+    },
+    {
+     "url": "/api/flow/data?days=1",
+     "t": 3916.7999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823247",
+     "part": null,
+     "done": 7414.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823253&part=bootstrap",
+     "t": 7444,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "bootstrap",
+     "done": 7598.399999976158
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823253&part=TOP_PICKS",
+     "t": 7445,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "TOP_PICKS",
+     "done": 7608.799999982119
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823253",
+     "t": 7445.799999982119,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823247",
+     "part": null,
+     "done": 8164.699999988079
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823253&part=TICKER_DB",
+     "t": 7654.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "TICKER_DB",
+     "done": 7808.5999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823253&part=CONV",
+     "t": 7655.699999988079,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "CONV",
+     "done": 7798.5999999940395
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823253",
+     "t": 8358.799999982119,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823247",
+     "part": null,
+     "done": 8393.199999988079
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 875.7999999821186
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 875.7999999821186
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 7624.5999999940395
+    }
+   ],
+   "picksNow": true,
+   "run": 2,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2560.0,
+   "uptime_after": 2589.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 468.10000002384186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 671
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 469.80000001192093,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "bootstrap",
+     "done": 670.7000000178814
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 470.80000001192093,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "TOP_PICKS",
+     "done": 687
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823253&part=TICKER_DB",
+     "t": 739.9000000059605,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "TICKER_DB",
+     "done": 871.3000000119209
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823253&part=CONV",
+     "t": 740.8000000119209,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823253",
+     "part": "CONV",
+     "done": 846
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 465
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 465
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 704.5
+    }
+   ],
+   "picksNow": true,
+   "run": 3,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2590.0,
+   "uptime_after": 2611.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 562,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 32882.30000001192
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 564.2000000178814,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823254",
+     "part": "bootstrap",
+     "done": 32868.40000000596
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 565.6000000238419,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823254",
+     "part": "TOP_PICKS",
+     "done": 32879.20000001788
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 7777.100000023842,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823254",
+     "part": "bootstrap",
+     "done": 32892.30000001192
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 7778.4000000059605,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823255",
+     "part": "TOP_PICKS",
+     "done": 33065.30000001192
+    },
+    {
+     "url": "/api/flow/data?days=1",
+     "t": 7779.300000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823251",
+     "part": null,
+     "done": 32928.20000001788
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823254&part=bootstrap",
+     "t": 32983.70000001788,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823255",
+     "part": "bootstrap",
+     "done": 33314.80000001192
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823254&part=TOP_PICKS",
+     "t": 32984.70000001788,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823255",
+     "part": "TOP_PICKS",
+     "done": 33282.40000000596
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823254",
+     "t": 32986,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823251",
+     "part": null,
+     "done": 33413.30000001192
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823254&part=TICKER_DB",
+     "t": 33365.70000001788,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823255",
+     "part": "TICKER_DB",
+     "done": 33555.10000002384
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823254&part=CONV",
+     "t": 33366.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823255",
+     "part": "CONV",
+     "done": 33527.80000001192
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823254",
+     "t": 33710.10000002384,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823251",
+     "part": null,
+     "done": 33744
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 558.3000000119209
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 558.4000000059605
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 33334
+    }
+   ],
+   "picksNow": true,
+   "run": 4,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2612.0,
+   "uptime_after": 2740.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 501.40000000596046,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 9103.5
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 504,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "bootstrap",
+     "done": 9096.300000011921
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 505.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "TOP_PICKS",
+     "done": 9093.700000017881
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 3510.800000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "bootstrap",
+     "done": 9098.600000023842
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 3526,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "TOP_PICKS",
+     "done": 9094.200000017881
+    },
+    {
+     "url": "/api/flow/data?days=1",
+     "t": 3528.2000000178814,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823254",
+     "part": null,
+     "done": 9247.5
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823256&part=bootstrap",
+     "t": 9666.200000017881,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "bootstrap",
+     "done": 10215
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823256&part=TOP_PICKS",
+     "t": 9667.300000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "TOP_PICKS",
+     "done": 9862.600000023842
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823256",
+     "t": 9668.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823254",
+     "part": null,
+     "done": 14825.90000000596
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823256&part=TICKER_DB",
+     "t": 10287.100000023842,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "TICKER_DB",
+     "done": 12748.300000011921
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823256&part=CONV",
+     "t": 10287.90000000596,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823256",
+     "part": "CONV",
+     "done": 12732.300000011921
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823256",
+     "t": 15057.800000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823254",
+     "part": null,
+     "done": 15091.300000011921
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 494.90000000596046
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 495
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 10244.90000000596
+    }
+   ],
+   "picksNow": true,
+   "run": 5,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2740.0,
+   "uptime_after": 2816.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 485.2999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 801.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 487.09999999403954,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "bootstrap",
+     "done": 811.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 488,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "TOP_PICKS",
+     "done": 833.1999999880791
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823257&part=TICKER_DB",
+     "t": 887.1999999880791,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "TICKER_DB",
+     "done": 1045.5
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823257&part=CONV",
+     "t": 888,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "CONV",
+     "done": 1009.8999999761581
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 482.89999997615814
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 482.89999997615814
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 851.7999999821186
+    }
+   ],
+   "picksNow": true,
+   "run": 6,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2817.0,
+   "uptime_after": 2839.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 479.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 1152.5
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 482.40000000596046,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "bootstrap",
+     "done": 853.6999999880791
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 484.2999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "TOP_PICKS",
+     "done": 717.9000000059605
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB",
+     "t": 911.2999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "TICKER_DB",
+     "done": 1201.7999999821186
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+     "t": 912.0999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "CONV",
+     "done": 1180.699999988079
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 475.90000000596046
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 475.90000000596046
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 874.4000000059605
+    }
+   ],
+   "picksNow": true,
+   "run": 7,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2839.0,
+   "uptime_after": 2861.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 501.59999999403954,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 796.5999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 505.59999999403954,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "bootstrap",
+     "done": 799
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 507.7999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "TOP_PICKS",
+     "done": 798.5999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823258&part=TICKER_DB",
+     "t": 871.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "TICKER_DB",
+     "done": 1068.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823258&part=CONV",
+     "t": 873.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823257",
+     "part": "CONV",
+     "done": 1026.5
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 482
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 482.09999999403954
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 832.5999999940395
+    }
+   ],
+   "picksNow": true,
+   "run": 8,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2862.0,
+   "uptime_after": 2884.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 533.2000000178814,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 879.6000000238419
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 535.3000000119209,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "bootstrap",
+     "done": 925.8000000119209
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 536.3000000119209,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "TOP_PICKS",
+     "done": 906.9000000059605
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823258&part=TICKER_DB",
+     "t": 1084.800000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "TICKER_DB",
+     "done": 1336
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823258&part=CONV",
+     "t": 1085.7000000178814,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "CONV",
+     "done": 1307.9000000059605
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 529.6000000238419
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 529.6000000238419
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 949.9000000059605
+    }
+   ],
+   "picksNow": true,
+   "run": 9,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2884.0,
+   "uptime_after": 2906.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 486.80000001192093,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 797.5999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 488.7000000178814,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "bootstrap",
+     "done": 798.3000000119209
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 489.59999999403954,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "TOP_PICKS",
+     "done": 800
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823258&part=TICKER_DB",
+     "t": 955,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "TICKER_DB",
+     "done": 1071.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823258&part=CONV",
+     "t": 956,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": "CONV",
+     "done": 1059.0999999940395
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 484.09999999403954
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 484.2000000178814
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 865
+    }
+   ],
+   "picksNow": true,
+   "run": 10,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2906.0,
+   "uptime_after": 2929.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 470.7999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 1323.699999988079
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 472.59999999403954,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "bootstrap",
+     "done": 1329.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 473.39999997615814,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "TOP_PICKS",
+     "done": 11317.699999988079
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823259&part=bootstrap",
+     "t": 11272.299999982119,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "bootstrap",
+     "done": 11462.09999999404
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823259&part=TOP_PICKS",
+     "t": 11273.09999999404,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "TOP_PICKS",
+     "done": 11461.59999999404
+    },
+    {
+     "url": "/api/flow/data?days=1",
+     "t": 11273.899999976158,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823258",
+     "part": null,
+     "done": 11508
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823259&part=TICKER_DB",
+     "t": 11580.299999982119,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "TICKER_DB",
+     "done": 11901.699999988079
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823259&part=CONV",
+     "t": 11581.199999988079,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "CONV",
+     "done": 11900.799999982119
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823259&part=bootstrap",
+     "t": 11626.699999988079,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "bootstrap",
+     "done": 11630.799999982119
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823259&part=TOP_PICKS",
+     "t": 11627.399999976158,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": "TOP_PICKS",
+     "done": 11638.59999999404
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823259",
+     "t": 11628,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": null,
+     "respVersion": null,
+     "part": null,
+     "done": null
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 468.39999997615814
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 468.39999997615814
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 11542.299999982119
+    }
+   ],
+   "picksNow": true,
+   "run": 11,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2929.0,
+   "uptime_after": 2964.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 10474.800000011921,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 10861.800000011921
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 10497.90000000596,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823260",
+     "part": "bootstrap",
+     "done": 10828.59999999404
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 10499.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823260",
+     "part": "TOP_PICKS",
+     "done": 10859.5
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TICKER_DB",
+     "t": 10938.09999999404,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823260",
+     "part": "TICKER_DB",
+     "done": 11169.700000017881
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=CONV",
+     "t": 10939,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823260",
+     "part": "CONV",
+     "done": 11104.800000011921
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 7426.5
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 7426.5999999940395
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 10890.300000011921
+    }
+   ],
+   "picksNow": true,
+   "run": 12,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2965.0,
+   "uptime_after": 3018.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 504.19999998807907,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 10587.899999976158
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 507.19999998807907,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823261",
+     "part": "bootstrap",
+     "done": 10588.299999982119
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 509.2999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823261",
+     "part": "TOP_PICKS",
+     "done": 10579.399999976158
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 10542.59999999404,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823261",
+     "part": "bootstrap",
+     "done": 10624.899999976158
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 10545,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823261",
+     "part": "TOP_PICKS",
+     "done": 10623
+    },
+    {
+     "url": "/api/flow/data?days=1",
+     "t": 10546.59999999404,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": 200,
+     "respVersion": "29823259",
+     "part": null,
+     "done": 10791.299999982119
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823261&part=TICKER_DB",
+     "t": 10699.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823261",
+     "part": "TICKER_DB",
+     "done": 10832.199999988079
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823261&part=CONV",
+     "t": 10702.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": 200,
+     "respVersion": "29823261",
+     "part": "CONV",
+     "done": 10816.5
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823261&part=bootstrap",
+     "t": 10983.199999988079,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": null,
+     "respVersion": null,
+     "part": null,
+     "done": null
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823261&part=TOP_PICKS",
+     "t": 10985.09999999404,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": null,
+     "respVersion": null,
+     "part": null,
+     "done": null
+    },
+    {
+     "url": "/api/flow/data?days=1&v=29823261",
+     "t": 10986.699999988079,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40664\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108984)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108198)",
+     "status": null,
+     "respVersion": null,
+     "part": null,
+     "done": null
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 499.09999999403954
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 499.19999998807907
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 10658.09999999404
+    }
+   ],
+   "picksNow": true,
+   "run": 13,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 3019.0,
+   "uptime_after": 3084.0
+  },
+  {
+   "fetches": [
+    {
+     "url": "/api/flow/version",
+     "t": 521,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at s (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:34948)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:35215\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109415)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": null,
+     "part": null,
+     "done": 892.0999999940395
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+     "t": 523.1999999880791,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823262",
+     "part": "bootstrap",
+     "done": 940.6999999880791
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+     "t": 524.5999999940395,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:40047\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109164)\n    at Do (https://uctintelligence.com/assets/index-DQot_mxg.js:9:109150)",
+     "status": 200,
+     "respVersion": "29823262",
+     "part": "TOP_PICKS",
+     "done": 924.6999999880791
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823262&part=TICKER_DB",
+     "t": 1006.7999999821186,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": null,
+     "respVersion": null,
+     "part": null,
+     "done": null
+    },
+    {
+     "url": "/api/flow/aggregate?source=stocks&days=1&date_filter=Last1&v=29823262&part=CONV",
+     "t": 1011.5,
+     "stack": "Error\n    at window.fetch (<anonymous>:10:26)\n    at F (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4569)\n    at Ko (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4153)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4808\n    at Array.map (<anonymous>)\n    at Or (https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:4800)\n    at https://uctintelligence.com/assets/OptionsFlow-C5QCMpIf.js:2:37822\n    at Qi (https://uctintelligence.com/assets/index-DQot_mxg.js:9:92944)\n    at nv (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108218)\n    at Ta (https://uctintelligence.com/assets/index-DQot_mxg.js:9:108102)",
+     "status": null,
+     "respVersion": null,
+     "part": null,
+     "done": null
+    }
+   ],
+   "mounts": [
+    {
+     "name": "root",
+     "event": "mount",
+     "t": 517.2999999821186
+    },
+    {
+     "name": "tabs",
+     "event": "mount",
+     "t": 517.2999999821186
+    },
+    {
+     "name": "picks",
+     "event": "mount",
+     "t": 961.5
+    }
+   ],
+   "picksNow": true,
+   "run": 14,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 3085.0,
+   "uptime_after": 3129.0
+  }
+ ]
+}

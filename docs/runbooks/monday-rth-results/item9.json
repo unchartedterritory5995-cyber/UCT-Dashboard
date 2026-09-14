@@ -1,0 +1,55 @@
+{
+  "item": 9,
+  "title": "Cold first paint, path A (direct load, intro-gated)",
+  "status": "measured",
+  "reason_if_not_measured": "",
+  "started_et": "2026-09-14T10:07:00-04:00",
+  "finished_et": "2026-09-14T10:17:00-04:00",
+  "raw": {
+    "rig_out": "scratchpad/monday-rth/rig-item9.json",
+    "rig_stdout": "scratchpad/monday-rth/rig-item9.stdout.txt",
+    "label": "RTH CERTIFYING RUN",
+    "runs_requested": 6,
+    "runs_valid": 5,
+    "runs_discarded": 1,
+    "first_content_ms_valid": [9979, 10095, 10104, 12296, 16169],
+    "first_content_ms_median": 10104,
+    "first_content_ms_worst": 16169,
+    "first_content_ms_min": 9979,
+    "wire_bytes_median": 142569,
+    "per_run": [
+      {"run": 1, "first_content_ms": 67434.4, "wall_ms": 75618.6, "flow_requests": 8, "wire_bytes": 716562, "part_versions": ["29823241"], "parts_served": ["TOP_PICKS", "bootstrap"], "detected_via": "raf", "uptime_before": null, "uptime_after": 1991, "deploy_swapped": true, "swap_reason": "uptime unreadable (health 502 during a swap reads like this)", "VALID": false},
+      {"run": 2, "first_content_ms": 9979.2,  "wall_ms": 16069.8, "flow_requests": 8, "wire_bytes": 814668, "part_versions": ["29823243"], "parts_served": ["CONV", "TICKER_DB", "TOP_PICKS", "bootstrap"], "detected_via": "mutation", "uptime_before": 1991, "uptime_after": 2035, "deploy_swapped": false, "VALID": true},
+      {"run": 3, "first_content_ms": 10095.0, "wall_ms": 18589.9, "flow_requests": 5, "wire_bytes": 142569, "part_versions": ["29823243", "29823244"], "parts_served": ["CONV", "TICKER_DB", "TOP_PICKS", "bootstrap"], "detected_via": "raf", "uptime_before": 2035, "uptime_after": 2057, "deploy_swapped": false, "VALID": true},
+      {"run": 4, "first_content_ms": 10103.8, "wall_ms": 22002.8, "flow_requests": 5, "wire_bytes": 144501, "part_versions": ["29823244"], "parts_served": ["CONV", "TICKER_DB", "TOP_PICKS", "bootstrap"], "detected_via": "mutation", "uptime_before": 2058, "uptime_after": 2081, "deploy_swapped": false, "VALID": true},
+      {"run": 5, "first_content_ms": 12295.9, "wall_ms": 19912.5, "flow_requests": 3, "wire_bytes": 28240,  "part_versions": ["29823245"], "parts_served": ["TOP_PICKS", "bootstrap"], "detected_via": "mutation", "uptime_before": 2081, "uptime_after": 2133, "deploy_swapped": false, "VALID": true},
+      {"run": 6, "first_content_ms": 16169.4, "wall_ms": 23989.3, "flow_requests": 5, "wire_bytes": 56480,  "part_versions": ["29823245"], "parts_served": ["TOP_PICKS", "bootstrap"], "detected_via": "mutation", "uptime_before": 2133, "uptime_after": 2179, "deploy_swapped": false, "VALID": true}
+    ],
+    "parts_served_from_cache_vs_built": "NOT SEPARABLE from the client. The rig records which parts were SERVED and at which version, but the response carries no cache-hit marker the browser can read. Server-side, stats_process_local.build_failures stayed 0 and the parts cache stayed at 10 throughout (item 5), and no roll reported a miss.",
+    "version_at_paint_vs_current": "every valid run painted at the then-current version; run 3 saw the version advance mid-load (29823243 -> 29823244) and still painted",
+    "intro_animation_share": {
+      "status": "DERIVED, NOT MEASURED",
+      "method": "the rig exposes no intro-duration field, so the intro's share cannot be read directly from a path-A run. It is inferred by differencing the two paths measured on the same tape in the same half hour: path A median 10104 ms (intro plays) minus path B median shell 542 ms (no intro) = ~9562 ms.",
+      "corroboration": "CLAUDE.md documents the intro as a ~9.3 s three-act animation, which the ~9.56 s difference is consistent with",
+      "page_own_cost_without_intro": "use path B (item 10): shell 542 ms median, picks 2020 ms median. Those ARE measured, and they are the honest 'page on its own' numbers."
+    }
+  },
+  "guards": [
+    {"guard": "pod age >= 120 s on every counted run",
+     "verdict": "pass",
+     "observed": "1991-2179 s across runs 2-6; run 1 had an unreadable uptime and was discarded"},
+    {"guard": "no deploy during the counted runs",
+     "verdict": "pass",
+     "observed": "deploy_swapped=false on all 5 counted runs; uptime rose monotonically 1991 -> 2179 s. The sampler confirms independently that the only restart of the session was at 09:30:31 ET, 37 minutes before these runs."},
+    {"guard": "the discarded run was discarded for cause, not to improve the number",
+     "verdict": "pass",
+     "observed": "run 1 was rejected BY THE RIG, not by me, on uptime being unreadable behind a transient 502. Its first_content was 67434 ms -- an outlier 4x the worst counted run -- so excluding it flatters the result, and it is reported here in full rather than dropped."},
+    {"guard": "fewer than half the runs rejected (no re-run required)",
+     "verdict": "pass", "observed": "1 of 6 rejected, below the half threshold"},
+    {"guard": "runs spread across the roll cycle",
+     "verdict": "partial",
+     "observed": "Runs were issued back to back rather than deliberately phased against the ~60 s roll cycle. Their start times and durations do spread them across different phases -- run 3 caught a mid-load version advance, which is the just-before-a-roll case -- but this was incidental coverage, not the designed sampling the item asks for."},
+    {"guard": "visible tab", "verdict": "pass", "observed": "the rig asserts visibility at runtime; all runs produced flow requests, which cannot happen in a hidden tab"}
+  ],
+  "notes": "Path A median first content is 10.1 s, worst 16.2 s, and roughly 9.5 s of that is the intro animation rather than the page. The page's own cost is item 10's number, not this one. Two observations worth carrying: (1) wire bytes vary 6x across runs on the same tape -- 28 KB, 56 KB, 143 KB, 145 KB, 815 KB -- and the two cheapest runs served only TOP_PICKS + bootstrap while the expensive ones also pulled CONV + TICKER_DB, so the transport is doing materially different work run to run; (2) run 1's 67 s is not counted but should not be forgotten -- a member hitting the same transient would have waited over a minute for first content."
+}

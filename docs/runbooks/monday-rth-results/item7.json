@@ -1,0 +1,51 @@
+{
+  "item": 7,
+  "title": "Members on parts — parts vs whole-D ratio over the first 30 minutes",
+  "status": "inconclusive",
+  "reason_if_not_measured": "There was no member traffic to Options Flow to measure. Zero /api/flow/* requests of ANY shape reached the service in 09:30-10:00 ET, so a parts-vs-whole-D ratio has no denominator. This is an absence of subjects, not an absence of instrument.",
+  "started_et": "2026-09-14T09:30:00-04:00",
+  "finished_et": "2026-09-14T09:58:00-04:00",
+  "raw": {
+    "window_et": "09:30:00 - 10:00:00",
+    "flow_worker_log_lines_in_window": 3032,
+    "flow_requests_in_window": {
+      "part": 0,
+      "whole_aggregate": 0,
+      "whole_data_days_1": 0,
+      "total": 0
+    },
+    "ratio_parts_to_whole_d": null,
+    "whole_d_requests_from_member_sessions": 0,
+    "user_agents_captured": "none -- the uvicorn access line on this service records client IP and path only, no User-Agent",
+    "non_vacuity_control": {
+      "question": "can this instrument see a browser-originated flow request at all?",
+      "answer": "yes",
+      "evidence": "the same access log captured my own item-3 rig dry runs at 09:21:29-09:24: 8 part= requests across bootstrap, TOP_PICKS, TICKER_DB and CONV, plus /api/flow/version, all 200. The parser was also corrected mid-run (see limitations) and re-verified against those lines.",
+      "why_this_matters": "without it, 'zero requests' and 'my regex is broken' are the same observation"
+    },
+    "site_context": "production is in COMING_SOON_MODE with 26 user accounts (per CLAUDE.md, measured 2026-09-12), which are admins and testers rather than a member population. Zero concurrent Options Flow users in a 30-minute window is consistent with that.",
+    "corroborating_web_side_signals": {
+      "note": "web emits no HTTP access log at all (only scheduler/app lines), so it cannot corroborate at the request level. What it does emit shows the size of the live population:",
+      "lines": [
+        "[alert_taxonomy] indicator-condition DARK sweep: members=6",
+        "[alert_taxonomy] position-risk DARK sweep: members=2",
+        "[awareness] scan complete: scanned_users=8"
+      ]
+    }
+  },
+  "guards": [
+    {"guard": "instrument can see browser-originated flow requests (non-vacuity)",
+     "verdict": "pass",
+     "observed": "8 rig part-requests visible in the same log at 09:21-09:24"},
+    {"guard": "the instrument is not measuring itself",
+     "verdict": "pass",
+     "observed": "CORRECTED DURING THE RUN. The first version of the classifier matched '/api/flow/aggregate-health' against its '/api/flow/aggregate' prefix and counted THIS SESSION'S OWN 10 s poller as 15 whole-D requests. The health endpoint is now excluded explicitly before any other test. Had that not been caught, this item would have reported a 65% whole-D member ratio that was entirely my own poller."},
+    {"guard": "requests could not have been served without reaching flow-worker",
+     "verdict": "unevaluated",
+     "observed": "Web proxies flow reads to flow-worker (aggregate-health's process-local counters are flow-worker's -- proven in item 4). If web ALSO holds a response cache in front of the proxy, a member request could in principle be answered without appearing in flow-worker's log. I have no evidence either way. What I can say is that the rig's two separate runs three minutes apart BOTH appeared in the log, so no such cache suppressed repeat requests in that instance."},
+    {"guard": "any whole-D request from a member session is a finding",
+     "verdict": "pass",
+     "observed": "none occurred; there is nothing to report"}
+  ],
+  "notes": "Recorded as INCONCLUSIVE rather than as a pass, deliberately. 'Zero whole-D requests from members' is technically true and reads like a clean result, but it is true because zero members loaded the page -- not because members loaded it and got parts. Those are very different facts and only the second one would be evidence that the parts transport is working for real users. The close run must not quote this as confirmation that members are on parts. What CAN be said: the parts transport works for a real member-role browser session, because the rig proved it end-to-end on this account at 09:21-09:24 and again in items 9-10. Re-measuring this item meaningfully needs either real member traffic or a deliberately scheduled member session during RTH."
+}

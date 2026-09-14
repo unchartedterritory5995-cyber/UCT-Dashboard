@@ -1,0 +1,250 @@
+{
+ "label": "RTH CERTIFYING RUN",
+ "rows": [
+  {
+   "run": 1,
+   "deploy_swapped": true,
+   "swap_reason": "uptime unreadable (health 502 during a swap reads like this)",
+   "uptime_before": null,
+   "uptime_after": 1991.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "raf",
+   "first_content_ms": 67434.40000000596,
+   "wall_ms": 75618.60639997758,
+   "flow_requests": 8,
+   "parts_served": [
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823241"
+   ],
+   "current_version_after": "{\"version\":29823242}",
+   "wire_bytes_flow": 716562,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "data?days=1",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 1487,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  },
+  {
+   "run": 2,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 1991.0,
+   "uptime_after": 2035.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "mutation",
+   "first_content_ms": 9979.199999988079,
+   "wall_ms": 16069.799699995201,
+   "flow_requests": 8,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823243"
+   ],
+   "current_version_after": "{\"version\":29823244}",
+   "wire_bytes_flow": 814668,
+   "flow_urls": [
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "data?days=1",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823243&part=TICKE",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823243&part=CONV"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 4608,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  },
+  {
+   "run": 3,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2035.0,
+   "uptime_after": 2057.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "raf",
+   "first_content_ms": 10095,
+   "wall_ms": 18589.87209998304,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823243",
+    "29823244"
+   ],
+   "current_version_after": "{\"version\":29823244}",
+   "wire_bytes_flow": 142569,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=TICKE"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 4608,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  },
+  {
+   "run": 4,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2058.0,
+   "uptime_after": 2081.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "mutation",
+   "first_content_ms": 10103.799999982119,
+   "wall_ms": 22002.843800000846,
+   "flow_requests": 5,
+   "parts_served": [
+    "CONV",
+    "TICKER_DB",
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823244"
+   ],
+   "current_version_after": "{\"version\":29823244}",
+   "wire_bytes_flow": 144501,
+   "flow_urls": [
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=CONV",
+    "aggregate?source=stocks&days=1&date_filter=Last1&v=29823244&part=TICKE"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 4608,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  },
+  {
+   "run": 5,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2081.0,
+   "uptime_after": 2133.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "mutation",
+   "first_content_ms": 12295.90000000596,
+   "wall_ms": 19912.5267000054,
+   "flow_requests": 3,
+   "parts_served": [
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823245"
+   ],
+   "current_version_after": "{\"version\":29823245}",
+   "wire_bytes_flow": 28240,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "version"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 1521,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  },
+  {
+   "run": 6,
+   "deploy_swapped": false,
+   "swap_reason": "",
+   "uptime_before": 2133.0,
+   "uptime_after": 2179.0,
+   "role": "member",
+   "visible_at_start": "visible",
+   "observer_attached": true,
+   "detected_via": "mutation",
+   "first_content_ms": 16169.399999976158,
+   "wall_ms": 23989.284699986456,
+   "flow_requests": 5,
+   "parts_served": [
+    "TOP_PICKS",
+    "bootstrap"
+   ],
+   "part_versions": [
+    "29823245"
+   ],
+   "current_version_after": "{\"version\":29823246}",
+   "wire_bytes_flow": 56480,
+   "flow_urls": [
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap",
+    "version",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=TOP_PICKS",
+    "aggregate?source=stocks&days=1&date_filter=Last1&part=bootstrap"
+   ],
+   "certifying": true,
+   "diag": {
+    "url": "/options-flow",
+    "title": "UCT Intelligence \u2014 Coming soon",
+    "len": 4614,
+    "vis": "visible",
+    "head": "UCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlo"
+   },
+   "path": "A"
+  }
+ ]
+}

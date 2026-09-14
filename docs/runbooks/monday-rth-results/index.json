@@ -1,0 +1,76 @@
+{
+  "run": "Monday RTH OPEN — items 1-15",
+  "date_et": "2026-09-14",
+  "session_started_et": "2026-09-14T09:20:53-04:00",
+  "session_finished_et": "2026-09-14T11:20:00-04:00",
+  "scope": "items 1-15 only. Items 16-23 (write-up, verdict, proposals) belong to the CLOSE run and were NOT started.",
+  "exit": 0,
+  "incident": false,
+  "incident_file_written": false,
+  "items": [
+    {"item": 1,  "file": "item1.json",  "status": "measured",     "one_line": "pod state matched the weekend on 7 of 9 checks; 2 UNEVALUATED because the Railway log buffer reaches back only ~1 h"},
+    {"item": 2,  "file": "item2.json",  "status": "measured",     "one_line": "full pre-open aggregate-health captured at 09:23:55 ET; rolls_steady empty, version frozen at 29822328"},
+    {"item": 3,  "file": "item3.json",  "status": "measured",     "one_line": "both rig paths dry-run and discarded by label; harness proven on observer, version/part reads and picks-mount timing"},
+    {"item": 4,  "file": "item4.json",  "status": "measured",     "one_line": "first steady roll ever: 09:30:18 ET, v29823210, prepare 8242 ms, handoff 7 ms; all 10 rolls verbatim"},
+    {"item": 5,  "file": "item5.json",  "status": "measured",     "one_line": "pass 2 ran on every roll (pass2_skipped false 14/14); cache pinned at 10; build_failures 0"},
+    {"item": 6,  "file": "item6.json",  "status": "measured",     "one_line": "first post-open prepare 8242 ms; no steady roll anywhere near 30 s; the 110 s figure appears nowhere in today's telemetry"},
+    {"item": 7,  "file": "item7.json",  "status": "inconclusive", "one_line": "ZERO member flow requests in 09:30-10:00 — no denominator. Instrument proven live by the rig's own requests."},
+    {"item": 8,  "file": "item8.json",  "status": "measured",     "one_line": "n=89. Session p50 4328 ms (-30.2%) but the STEADY-STATE PLATEAU is ~5400 ms (-12.9%) — quote the plateau"},
+    {"item": 9,  "file": "item9.json",  "status": "measured",     "one_line": "path A first content median 10104 ms / worst 16169 ms (n=5); ~9.5 s of that is the intro, DERIVED not measured"},
+    {"item": 10, "file": "item10.json", "status": "measured",     "one_line": "THE HEADLINE — shell 542 ms median / 648 worst; picks 2020 ms median / 3945 worst; 134 KB; parts only; 6/6 valid"},
+    {"item": 11, "file": "item11.json", "status": "measured",     "one_line": "standing claim HALF FALSIFIED: warm re-entry beats UCT20 on commits (14 vs 31) but NOT on bytes"},
+    {"item": 12, "file": "item12.json", "status": "measured",     "one_line": "7 of 89 rolls over 500 ms, worst 44539 ms; blocked_by null on ALL 89 — classification UNEXPLAINED"},
+    {"item": 13, "file": "item13.json", "status": "measured",     "one_line": "storm diagnosed: a STALLED /api/flow/version. Not a remount, not a render gate. Picks rendered 20/20."},
+    {"item": 14, "file": "item14.json", "status": "measured",     "one_line": "SPY warms in 7.8 s; NVDA and MU FAIL a 20 s budget (TOO_BIG) and enter a 600 s cooldown"},
+    {"item": 15, "file": "item15.json", "status": "measured",     "one_line": "6 anomalies incl. a ~45 s 502 window at the open caused by another workstream's master push"}
+  ],
+  "headline_findings": [
+    "ITEM 13 — the request storm is a STALLED /api/flow/version, not a remount and not a render gate. In 4 of 5 storms, picks-mount time tracks the version request's duration almost exactly. The legacy-tape fallback it triggers serves a STALE version every time.",
+    "ITEM 12 — every one of the 7 large handoffs reports blocked_by=null, so the ledger cannot explain its own worst cases. api/flow_router.py's comment asserting that blocked_by 'is the whole explanation for a large one' is falsified by today's data. Named candidate: blocked_by is snapshotted AT SIGHTING, so a holder that takes the slot immediately after is invisible forever.",
+    "ITEM 14 — Search cannot build its product for NVDA or MU during RTH. Both blow a 20 s warm budget (27.2 s / 21.3 s), the work is discarded, and a 600 s cooldown means retrying cannot help. Two of the three head names are permanently on the slow legacy path.",
+    "ITEM 8 — the improvement is real but much smaller than a naive read gives. Filed at n=60 it was -46.2%; at n=89 it is -30.2%; the steady-state plateau is -12.9%. Same session, same flag, different stopping point.",
+    "ITEM 11 — warm re-entry beats UCT20 on commits and LOSES on bytes by roughly an order of magnitude once dwell-time polling is controlled for.",
+    "ITEM 15 / A1 — another workstream pushed to master at 09:27 ET and members saw 502s for ~45 s across the market open."
+  ],
+  "corrections_made_during_the_run": [
+    "loganalyze.py first classified /api/flow/aggregate-health as a whole-D request, counting THIS SESSION'S OWN poller as 15 member whole-D calls. Fixed before item 7 was filed; had it stood, item 7 would have reported a 65% member whole-D ratio that was entirely my own instrument.",
+    "item 4 was first written with bucket_bound_s: null on rolls 6-10 — my transcription, not a reading. Re-read from the samples and corrected; all ten carry values.",
+    "item 12 was first filed at n=55 claiming the handoff distribution had a COMPLETELY empty middle. At n=89 one roll (2046 ms) sits in 501-5000 ms. Corrected in place, first pass retained.",
+    "item 8 was first filed at n=60 with a -46.2% headline. Corrected to -30.2% at n=89 and to -12.9% on the plateau, with both earlier passes retained because the spread between them is itself the finding.",
+    "item 14: I formed two hypotheses for why NVDA/MU never warmed (lock starvation; a version-keyed cache treadmill) and BOTH were wrong. declined=0 and a per-symbol freshness key ruled them out; the server log gave the real cause."
+  ],
+  "known_gaps": [
+    "item 1: 'no overnight tracebacks' and 'T+1 flat-file backfill completed' are UNEVALUATED — `railway logs` returns a capped ~500-line / ~1-hour buffer and there is no overnight window to read.",
+    "item 7: no member traffic existed, so parts-vs-whole-D has no denominator. Marked inconclusive, not passed.",
+    "items 9 and 10: runs were issued back-to-back rather than deliberately phased against the ~60 s roll cycle. Phase coverage was incidental.",
+    "item 9: the intro animation's share is DERIVED by differencing path A and path B, not measured — the rig exposes no intro-duration field.",
+    "item 11: no recorded weekend figures exist to regress against; both sides were measured fresh today. The byte comparison does not cleanly isolate navigation cost (control batch included).",
+    "item 13: run 11 stormed with a FAST version request and is unexplained by the version-stall mechanism; run 4's 32 s stall has no matching server-side handoff. At least one more path into the storm shape exists.",
+    "item 15 / A3: stale_served is a server counter my own rig also increments; I did not separate my share, so the absolute 98 is not member impact.",
+    "csv_provider share (asked for by items 4 and 8) is NOT EXPOSED anywhere in /api/flow/aggregate-health."
+  ],
+  "evidence_files": {
+    "health-samples.jsonl": "454+ samples of /api/health + /api/flow/aggregate-health at 10 s cadence from 09:23:55 ET. THE primary evidence base — rolls_steady is a bounded ring on the pod, so a roll not sampled while in the ring is unrecoverable. Items 4, 5, 6, 8, 12 and 15 all derive from this file.",
+    "flowworker-log-stream.jsonl": "deduped drain of the flow-worker log buffer every 4 min (the buffer itself holds only ~500 lines / ~1 h). HAS HOLES where the buffer turned over between drains — see item 5.",
+    "web-log-stream.jsonl": "same for web. Contains NO HTTP access lines — web logs only scheduler/app output, which is why item 7 had to use flow-worker's log.",
+    "rig-item*.json": "raw per-run rig output, one file per item, each referenced from its item's raw.rig_out",
+    "scripts": "probe.py, poller.py, logcap.py, weblogcap.py, analyze.py, loganalyze.py, correlate.py, dumprolls.py, item8scan.py, item12scan.py, anomalyscan.py, wait_for_rolls.py, warm_reentry_probe.py (written for item 11), search_probe.py (written for item 14)",
+    "total_size": "~9.1 MB, dominated by the three .jsonl capture streams. Kept in full deliberately: the close run must be able to finish the write-up from files alone, and the tape it describes is gone."
+  },
+  "still_running_at_handoff": {
+    "note": "LEFT RUNNING ON PURPOSE so the close run inherits continuous coverage rather than a gap. All three are read-only and append to scratchpad/monday-rth/.",
+    "poller.py": "budget 25200 s from ~09:27 ET (to ~16:27 ET), 10 s cadence",
+    "logcap.py": "budget 24000 s, flow-worker, 4 min cadence",
+    "weblogcap.py": "budget 24000 s, web, 4 min cadence",
+    "how_to_stop": "create the file scratchpad/monday-rth/STOP-POLLER; all three check for it each cycle and exit cleanly",
+    "consequence": "the copies under docs/runbooks/monday-rth-results/ are a SNAPSHOT taken ~11:20 ET; the scratchpad originals keep growing"
+  },
+  "hard_rules_observed": {
+    "no_master_push": "nothing was pushed. The commit is local and docs-only.",
+    "production_read_only": "no restarts, no --set, no variable changes. Every probe was a GET, plus read-only railway ssh/logs/deployment-list.",
+    "no_edits_to_OptionsFlow_or_flowLoadPolicy": "neither file was opened for edit; nothing under app/ or api/ was modified",
+    "no_projections": "no unmeasured row was interpolated or estimated. Unmeasured rows carry their reason.",
+    "member_smoke_default": "all rig runs used member-smoke (role=member). The admin smoke account was not used at all.",
+    "rate_limiter": "the rig paces its own logins; no 429 was seen across ~40 logins"
+  }
+}
