@@ -246,13 +246,24 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
  * yes. Folding that test in here would give one of the two callers the wrong
  * answer.
  *
+ * ⭐ `ignoreKeys` IS AN INPUT THE LABEL ALREADY SPELLS OUT. A definition that
+ * names itself from an input (`meta.labelFrom`) already prints that input's
+ * meaning, so appending it reads `QQQ (source sym:QQQ:close)` — the address
+ * restated as a discriminator on two rows that were never ambiguous. Excluding
+ * it falls through to the ordinal, which is thin but true.
+ *
+ * ⛔ OPTIONAL, AND ABSENT MEANS SKIP NOTHING. Every existing caller passes one
+ * argument and gets exactly the result it got before.
+ *
  * @param {object[]} inputsList one resolved-inputs object per sibling, in order
+ * @param {string[]} [ignoreKeys] inputs the label already spells out
  * @returns {string[]} one suffix per sibling, same order, each already spaced
  */
-export function siblingSuffixes(inputsList) {
+export function siblingSuffixes(inputsList, ignoreKeys) {
   const rows = (Array.isArray(inputsList) ? inputsList : [])
     .map(o => (o && typeof o === 'object' ? o : {}))
-  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].sort()
+  const skip = new Set(Array.isArray(ignoreKeys) ? ignoreKeys : [])
+  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].filter(k => !skip.has(k)).sort()
   const differing = keys.filter((k) => {
     const seen = new Set(rows.map(o => JSON.stringify(o[k])))
     return seen.size > 1
@@ -450,6 +461,77 @@ export function legendChips(bindings, seriesData, registry, instances) {
         text: label,
       })
     }
+  }
+  return out
+}
+
+// ─── PART E · TELLING TWO COPIES OF ONE DEFINITION APART ─────────────
+//
+// ⭐ ONE PURE FUNCTION, ADDED WITHOUT DISTURBING ANYTHING ABOVE. `displayTarget`
+// imports it so a "Display in" menu can tell two instances of one definition
+// apart. The originating branch also rewrote `chipsFrom` here; that rewrite is
+// existing master behaviour with its own rails and is NOT taken.
+
+/**
+ * ⭐⭐ THE ONE DISAMBIGUATOR, FOR EVERY SURFACE THAT NAMES INSTANCES.
+ *
+ * The legend calls it through `disambiguateSiblings` above; the "Display in"
+ * destination menu calls it directly (`displayTarget.displayTargetOptions`). One
+ * implementation is the only way those two can be guaranteed to word a member's
+ * two copies of QQQ the same, and a member reading `QQQ #2` in the menu has to
+ * find `QQQ #2` on the chart or the menu is pointing at nothing they can see.
+ *
+ * ⛔⛔ THE GROUP IS THE COLLIDING **LABEL**, NOT THE DEFINITION.
+ *
+ * ⚰️ MEASURED 2026-09-12 with QQQ, a second QQQ and SPY on one chart. Grouping by
+ * `defId::plotKey` put all three `dataSeries` rows in one group, the "do these
+ * already read apart?" guard saw 2 distinct labels against 3 rows and correctly
+ * declined to skip — and then suffixed the whole group, so SPY printed as
+ * `SPY #3`. An ordinal on a row that was never ambiguous is worse than no ordinal:
+ * it implies a `SPY #1` and `SPY #2` that do not exist.
+ *
+ * Scoping the group to the label makes the old guard unnecessary rather than
+ * merely correct — a group of one is skipped, and a group of two or more has
+ * identical labels by construction. `RSI(14)` and `RSI(7)` land in different
+ * groups and keep their own names; two `MACD` chips land together and get the
+ * suffix that names what differs.
+ *
+ * ⛔ AND `siblingSuffixes` ITSELF IS UNTOUCHED, deliberately: the pane context
+ * menu is a third caller whose rows all wear the same catalog noun, so for it the
+ * group is always ambiguous. Whether a group NEEDS suffixing is the caller's
+ * question — which is exactly what that function's header already says.
+ *
+ * @param {{defId: string, plotKey?: string, instanceId?: string, label: string,
+ *          inputs?: object}[]} rows
+ * @param {Function} [get] definition lookup, for the label-bearing-input rule
+ * @returns {string[]} one label per row, in order — unchanged where unambiguous
+ */
+export function disambiguateLabels(rows, get) {
+  const list = Array.isArray(rows) ? rows : []
+  const out = list.map((r) => (r && typeof r.label === 'string' ? r.label : ''))
+  const groups = new Map()
+  list.forEach((r, i) => {
+    if (!r) return
+    const k = `${r.defId}::${r.plotKey === undefined ? '' : r.plotKey}::${out[i]}`
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(i)
+  })
+
+  for (const idxs of groups.values()) {
+    // One row, or several rows for the SAME instance, is not an ambiguity —
+    // MACD's `macd` and `signal` chips are one indicator wearing two names.
+    const distinct = new Set(idxs.map((i) => list[i].instanceId))
+    if (idxs.length < 2 || distinct.size < 2) continue
+
+    // ⛔ THE LABEL-BEARING INPUT IS NOT A DISCRIMINATOR. A definition that names
+    // itself from an input (`meta.labelFrom`) already prints that input's meaning;
+    // appending it reads `QQQ (source sym:QQQ:close)`. See `siblingSuffixes`.
+    const def0 = typeof get === 'function' ? get(list[idxs[0]].defId) : null
+    const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
+      ? (def0.inputs || []).filter((i) => i && i.type === 'source').map((i) => i.key)
+      : []
+    const suffixes = siblingSuffixes(idxs.map((i) => list[i].inputs || {}), ignore)
+    idxs.forEach((rowIdx, n) => { out[rowIdx] = `${out[rowIdx]}${suffixes[n]}` })
   }
   return out
 }
