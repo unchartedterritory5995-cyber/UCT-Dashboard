@@ -165,3 +165,58 @@ describe("remount must not discard unsent work to adopt the server copy", () => 
       .toBe(T2)
   })
 })
+
+describe("putNoteWithIntent guards the STORE, not just the settle", () => {
+  // ⛔⛔ THIS RAIL EXISTS BECAUSE THE MUTATION GAUNTLET CAUGHT ME. M29 removes the
+  // `noteRecord.dirty` arm from `putNoteWithIntent` — and NOTHING went red. The
+  // guard was shipped inside Q1 fix 4 and was, by the programme's own standard,
+  // DECORATION: a second layer everyone would have believed in because it reads
+  // like defence in depth.
+  //
+  // ⭐ The settle-side guard (`unsentWork`) protects ONE caller. This one protects
+  // the CLASS — `putNoteWithIntent` has eight non-test callers, and any of them
+  // can delete a note's queued work by passing a null intent. It is worth having,
+  // and therefore worth railing at the layer it defends rather than through a
+  // caller that happens to exercise it.
+
+  it("⛔ a null intent does NOT delete a DIRTY note's queued work", async () => {
+    const entry = entryFor(MEMBER_BODY)
+    await putNoteWithIntent(db, {
+      noteId: "n1", title: "n1", subtitle: "", bodyJson: MEMBER_BODY,
+      baseUpdatedAt: T1, generation: 3, sessionId: "s1", localSavedAt: 20, dirty: 1,
+    }, entry)
+    await settleIdb(4)
+
+    // the shape every caller can produce: record written back, intent null
+    await putNoteWithIntent(db, {
+      noteId: "n1", title: "n1", subtitle: "", bodyJson: MEMBER_BODY,
+      baseUpdatedAt: T1, generation: 3, sessionId: "s1", localSavedAt: 21, dirty: 1,
+    }, null)
+    await settleIdb(4)
+
+    expect((await listOutbox(db)).some((e) => e.mutationId === entry.mutationId),
+      "a null intent deleted unsent work for a record that is still DIRTY — the "
+      + "store-layer guard is not load-bearing").toBe(true)
+  })
+
+  it("⭐ CONTROL — a null intent DOES clear a CLEAN note's queue", async () => {
+    // ⛔ Without this the guard could be "never delete anything", which would
+    // re-queue work the server already has, forever. The dirty flag must be what
+    // decides, not the null intent.
+    const entry = entryFor(MEMBER_BODY)
+    await putNoteWithIntent(db, {
+      noteId: "n1", title: "n1", subtitle: "", bodyJson: SERVER_BODY,
+      baseUpdatedAt: T2, generation: 3, sessionId: "s1", localSavedAt: 20, dirty: 0,
+    }, entry)
+    await settleIdb(4)
+
+    await putNoteWithIntent(db, {
+      noteId: "n1", title: "n1", subtitle: "", bodyJson: SERVER_BODY,
+      baseUpdatedAt: T2, generation: 3, sessionId: "s1", localSavedAt: 21, dirty: 0,
+    }, null)
+    await settleIdb(4)
+
+    expect((await listOutbox(db)).some((e) => e.mutationId === entry.mutationId),
+      "a clean, caught-up note kept a stale entry — the guard is too wide").toBe(false)
+  })
+})
