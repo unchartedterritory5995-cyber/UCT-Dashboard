@@ -286,3 +286,65 @@ HTML), and read carelessly it would have been published as a Wisdom auth leak.
 SPA shell (route absent), and `200` carrying JSON (an actual leak, of which there are none). A
 two-outcome probe would have called the SPA fallthrough a pass on the first run and a breach on
 the second, and both readings would have been wrong.
+
+---
+
+## Checkpoint 11 — STT. 356 rescued; 254 and 221 were never broken. 2026-09-14 04:21 CT
+
+Text-only `faster-whisper base.en` (int8, 4 threads, VAD on, `condition_on_previous_text=False`),
+resumable per video, run beside only the gate's sleeping poll loop. **13.7 GB free at launch.**
+⛔ No diarization: the owner answered NO, the HF token question is still open, and no speaker is
+inferred anywhere in the output — §8a's rule is evidence or `unresolved`.
+
+| id | video | duration | before | after | wall |
+|---|---|---|---|---|---|
+| **356** | `rKVAkk3811Q` | 6830 s | **4.2 %** (76 cues) | ✅ **100.0 %**, 1398 cues | 215 s |
+| 254 | `G80NM-hRoas` | 4532 s | 68.7 % (1009 cues, a **330 s internal hole**) | 61.6 %, 500 cues, **0 internal gaps** | 78 s |
+| 221 | `myuRq5qVOgI` | 4386 s | 92.8 % (1728 cues) | 92.3 %, 1040 cues, **0 internal gaps** | 126 s |
+
+**356 is the win and it was the real defect** — 288 seconds of a 6830-second session, now complete
+end to end: it opens *"we got some people joining in here"* and closes on *"Bye."*, with no
+internal gap anywhere.
+
+### ⭐ The coverage rule over-flags, and 254 and 221 are the proof
+
+Their numbers did not improve, and that is the finding rather than a failure. **Every second of
+their shortfall is AFTER the last word**, with zero internal gaps:
+
+```
+254   silence before first speech    0 s | after last speech  1742 s | internal gaps >=30s   0 s
+221   silence before first speech    1 s | after last speech   335 s | internal gaps >=30s   0 s
+```
+
+and the last cue in each is a sign-off — 254: *"All right, guys, ladies and gentlemen, have…"*;
+221: *"…catch you later guys"*. **The recording keeps rolling after everyone says goodbye.**
+
+⛔ **An absence is only evidence if the instrument could have seen a presence**, so the tails were
+re-driven with **VAD OFF**, which is the only way to prove the silence is silence:
+
+```
+254 [2780..3200]  55 chars  "Alright guys, ladies and gentlemen, have a great night."   (the sign-off, already captured)
+254 [4100..4532]   0 chars  silence — no speech at all
+221 [4040..4386] 183 chars  "...We'll see you guys tomorrow. Later guys." + "All right." x11
+```
+
+**So `cue_span / duration` measures "does speech reach the end of the file", not "did we capture
+the speech".** Two of the three videos on the re-transcription list were already complete. The
+discriminator that actually separates a lost session from a long outro is **internal gaps plus
+whether the last cue is a sign-off** — 356 failed on internal coverage (288 s of 6830 s); 254 and
+221 never did.
+
+⚠️ **AND DO NOT "FIX" COVERAGE BY TURNING VAD OFF.** The 221 probe is the warning in one line:
+with VAD disabled, dead air produced *"All right."* **eleven times** — whisper's hallucination
+loop on silence, the same class this repo already measured and killed with
+`condition_on_previous_text=False`. Disabling VAD would push 221's coverage toward 100 % by
+**manufacturing transcript text out of silence**, and that text would then be extracted, scored
+and attributed to a named author. A number that looks better while the artifact gets worse.
+
+**Recommendation (not applied — it changes the audit's own rule):** gate the under-98 % list on
+*internal* gaps, and treat a trailing gap that ends on a sign-off as complete. That would have cut
+this run from three videos to one.
+
+⛔ Output is `data/wisdom/audit/stt/` — **`data/` is gitignored** (`git check-ignore` verified), so
+no transcript text and none of the 180 MB of cached audio can reach the public repo (§0.4f).
+Nothing was written to wisdom.db, education.db or R2; the R2 reads were `head`/`get` only.
