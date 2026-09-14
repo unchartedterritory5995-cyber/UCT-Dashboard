@@ -51,7 +51,7 @@ is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 
 **VERDICT: NOT MET — do not flip.** Three rows NOT MET, four NOT MEASURABLE.
 
-⛔ **The single owner action that moves the most rows:** grant the bot's role
+⛔ ~~**The single owner action that moves the most rows:** grant the bot's role~~ — **DONE 2026-09-14**, verified by API (`CAN create channels`). Superseded; kept struck rather than deleted so a reader who remembers the ask does not re-issue it. Original text: grant the bot's role
 (`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**. That lets
 `discord_channel_admin.py --create-smoke` build `#render-smoke` with the bot inside it, which
 unblocks 3.5 **and** the `--real` delivery hop in one go. ⚠️ It does **not** fix `#render-alerts` —

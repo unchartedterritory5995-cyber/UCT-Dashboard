@@ -867,3 +867,25 @@ the flip fixes and is not counted as one. n=1: the failure is reachable; its rat
 no mechanism is asserted — the handler's documented shape is to defer immediately, and the shadow
 line shows `pre=5`, so "the defer was chosen" and "the defer arrived in time" are different claims
 and only the first is evidenced.
+
+#### A5 — the browser sweep found one more, and it is NOT being taken tonight
+
+**OI-12's blocking premise is stale.** It reads *"`chart-renderer` has no repo source; it deploys
+with `railway up` from a local directory"* and recommends connecting the service to the repo with
+watch path `services/chart_renderer/**`. The source **is** tracked now:
+
+```
+services/chart_renderer/{Dockerfile,app.py,edge_scope.py,requirements.txt,serve.py}
+```
+
+So the recommendation is executable, and it is a Railway-dashboard change — exactly the kind of
+"needs browser" item A5 asks for.
+
+⛔ **Deliberately not done tonight, and the reason is the point.** Connecting a live service to a
+repo changes its build context. `chart-renderer` serves every member's chart; the failure mode is
+*no charts for anyone*, there is no rehearsed rollback for it, and it is the one service tonight's
+`step3_real.sh` and B1's deploy both depend on. Reconfiguring it in the hour I most need it is a
+bet with no upside tonight — the existing `railway up` path works and is documented.
+
+⭐ The finding is the deliverable: **OI-12 is unblocked and should be scheduled into a quiet window
+with a rollback rehearsed**, not that it was executed at 15:30 on a Monday.
