@@ -631,7 +631,95 @@ which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every histor
 parses and immediately deletes. Every numeric key the Monitor grid shows — all ~70 of
 them, across all 174 rows — totals **0.25 MB**.
 
-**Ruled shape: a numeric store written on write** (D-045 work), never SQL-side JSON
-surgery. The drill endpoints keep reading the blobs by date; they are the only consumer
-that wants the lists.
+**Ruled shape: a numeric store written on write** — built and recorded as **D-045
+below**, never SQL-side JSON surgery. The drill endpoints keep reading the blobs by date;
+they are the only consumer that wants the lists.
 
+---
+
+## D-045 — the numeric store and the materialised reconstructed side (2026-09-14)
+
+**This is the record D-044 points at.** D-044 ruled the shape; this is what was built,
+which commits carry it, and what it measured. Every commit hash below was verified with
+`git log -1 --format=%s` before it was written down.
+
+### What was built
+
+| # | commit | what it added |
+|---|---|---|
+| 1 | `685a19bdb` | `breadth_snapshot_numeric(date PK, metrics, source, updated_at)` + `idx_bsn_source`. `numeric_of()` drops **exactly** the `*_list` keys; `_write_numeric()` takes the **caller's connection** so the projection is written inside the snapshot's own transaction; `delete_snapshot` removes both rows. |
+| 2 | `725151fd3` | `idx_bdo_source_date(source, date, metric, c)` — the covering index that closes follow-ups (c) `closes_for_dates` and (d) `distinct_dates`. |
+| 3 | `b4c141948` | `breadth_reconstructed_daily(date PK, metrics, ohlc_watermark, sentiment_watermark, built_at)` + `idx_brd_watermark`, with `build_reconstructed()`, `reconstructed_for_dates()`, `stale_reconstructed_dates()`, `rebuild_stale()` and `_rebuild_after_write()`. |
+| 4 | `f7e09f56c` | the reconstructed migration tolerates a continuously-written input: `_recon_fingerprint(c, since)` excludes concurrently-written dates, and an already-materialised store skips the backup rather than re-taking it. |
+| 5 | `5032b44a3` | the deep window's date set comes from the materialised table; `distinct_dates_by_scan()` is kept as the parity reference and the fallback. |
+
+⛔ **A JSON column, not ~70 typed columns.** `metrics` has no fixed schema — the newest
+production row carries 92 keys and older ones carry fewer — so a column list would be a
+SECOND AUTHORITY over "which metrics exist", and its failure mode is silent: a metric the
+collector starts writing tomorrow would simply not be stored and the reader would serve a
+column of nulls that reads as a quiet market.
+
+⛔ **"Numeric" names the PURPOSE, not a type filter.** The readers drop `*_list` and keep
+everything else, strings and nulls included. Filtering to int/float would produce a store
+that is *more* numeric and *less* correct, and the difference would surface as a missing
+Monitor column rather than as an error.
+
+⛔ **Precedence is asserted, not implied.** Where a collector row and a reconstructed row
+exist for one date, the **collector row wins**. That is why they are two tables: one
+date-keyed table would have let whichever wrote last decide.
+
+### The migration discipline
+
+`api/services/breadth_numeric_migration.py` — `backfill()`, `backfill_reconstructed()`,
+`audit()`, `audit_reconstructed()`, `_fingerprint()`, `_recon_fingerprint()`,
+`_write_marker()`. It **fingerprints its input before and after and refuses to run
+uninsured**: a `VACUUM INTO` backup is taken first (never a file copy — a plain copy of a
+WAL database omits whatever is still in the `-wal` sidecar and looks complete while
+lagging), and a marker in `DATA_DIR` makes it idempotent across boots.
+
+⚰️ **The first production run reported FAILED, and the migration was right to.** The
+fingerprint covered dates the collector was writing while the backfill ran, so input and
+output could not match by construction. The fix narrowed the fingerprint to exclude
+concurrently-written dates — **not** loosening the check.
+
+### What it measured
+
+Bands, because a single number from one box is not a result. Local, against `VACUUM INTO`
+copies of the production databases.
+
+| read | before | after |
+|---|---|---|
+| 105 rows (the default view's window) | 627.7 ms | **1.3 ms** |
+| deep 8,000-day, reader only | 1,860 ms (Session 1, blob path) | **248–413 ms** |
+| deep 8,000-day, bytes read on the request path | 105.7 MB → 17.8 MB | **6.62 MB** |
+| the date set alone (`merged_dates`) | 11,329,088 B | **127,176 B** — 89x |
+
+⭐ **The blob shape the whole programme turns on:** the average snapshot is 636,834 bytes,
+of which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every history read
+parsed and immediately deleted. Every numeric key the Monitor grid shows — ~70 of them
+across all 174 rows — totals **0.25 MB**.
+
+### Production, after
+
+`/api/breadth-monitor?days≈7900`, n=20, settled window (uptime 708→1,629 s, monotonic, no
+restart), every sample a forced cache miss on a distinct key, all 200:
+
+| | p50 | p95 | max |
+|---|---|---|---|
+| wall (client) | 980.8 ms | 1,749.7 ms | 1,897.7 ms |
+| server `total_ms` | 696.3 ms | 1,429.0 ms | 1,496.4 ms |
+
+**Against D-042's 54,923 ms cold: 56x at the median, 31x at p95.** The 95 % CI for the
+true p95 is [1,540.0, 1,897.7] ms, bounded by real observations on both sides.
+
+⚠️ **The 30x was never one thing, and this store is not what closed it.** Contention on
+the single uvicorn process is: the same read measured 224 ms settled and 17,480 ms three
+minutes after boot. The store removed the work; settling removed the queue. Both were
+needed and only the first is in this decision.
+
+### What is still open
+
+`post_reader_ms` now exceeds `reader_ms` in **17 of 20** settled samples (median ratio
+2.09). Session 6's per-phase instrument names the dominant post-reader phase as
+`encode_render`, of which `jsonable_encoder` is the largest part — see
+`docs/breadth-history-reader/00-profile.md`, Session 6.
