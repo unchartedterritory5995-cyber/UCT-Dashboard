@@ -57,6 +57,21 @@ INSIDE the window. Per-type staleness bounds, **derived from the sweep table, ne
 `PRICE-LEVEL=180s · EVENT-PROXIMITY=26h · POSITION-RISK=180s · SCAN-MEMBERSHIP=26h ·
 CATALYST-MATCH=26h · REGIME-CHANGE=1h · INDICATOR-COND=180s`.
 
+✅ **F-S7-TICK-1, FIXED `de2726473` — read this before chasing a `NO` on a Monday.** Until
+2026-09-14 the window model treated a sweep with no declared hours as *"inside the window all
+weekday"*, so the three sweeps that fire at FIXED times (`event-proximity` 07:05/18:05 weekdays,
+`scan-membership` 05:20 nightly, `catalyst-match` 17:30 weekdays) reported a hard **NO** whenever
+they were checked before their first firing of the week. Measured live at Mon 00:43 ET: all three
+said *"no heartbeat at all, and it IS inside the window"* while **every flag read `'1'` in-process**
+and their last scheduled firings were the previous Friday, ~55h back and outside their 26h bounds.
+
+⛔ **It was a WEEKLY false alarm, not a one-off:** `catalyst-match` fires 17:30, so every Monday
+both the 09:12 ET monitor post and the 16:30 ET gate check alarmed on a healthy sweep. The
+descriptors now declare their firing times and an un-fired sweep reports **n/a with the next firing
+named**, never a fault. ⚠️ One ambiguity is left deliberately: a sweep armed *after* its last
+scheduled firing still reads `NO` until its next one, because the store cannot tell *"armed ten
+minutes ago"* from *"died"*, and a grace period would silence a sweep on the morning it died.
+
 ⚠️ **F-S7-PL-2, PROVISIONAL:** per-sweep windows **narrow** what `--ticking` calls a stall — a
 sweep that dies mid-window and is only checked after the close now reports `0`. Recommendation:
 **keep the narrowing** (the alternative flags every sweep every weekend and gets muted). The 09:05

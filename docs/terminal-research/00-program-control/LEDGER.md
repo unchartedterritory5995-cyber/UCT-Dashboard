@@ -3838,6 +3838,77 @@ describing what it is about to do.**
 idle memory, because there is **no internal scheduler and no sleeping process**. Materially under
 $1/month at Railway's usage pricing; it bills only while a firing runs.
 
+## ⚰️ F-S7-TICK-1 — `--ticking` called three healthy sweeps DEAD, and would have done so every Monday
+
+**Observed 2026-09-14 00:43 ET.** The `--ticking` report, which the Layer 1 monitor posts to admin
+Discord at 09:12 ET and which the weekly run reads, said this about three of the seven dark sweeps:
+
+```
+EVENT-PROXIMITY  NO  -- no heartbeat at all, and it IS inside the window (Mon 00:43 ET).
+  Check ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1, the boot line, and the web log for a 'DARK sweep failed' line.
+SCAN-MEMBERSHIP  NO  -- ...
+CATALYST-MATCH   NO  -- ...
+```
+
+**Every word of the remediation was a dead end.** Ruled out by measurement, in this order:
+
+| hypothesis | how it died |
+|---|---|
+| the flags are off | all seven read **`'1'` in-process** on `web` (`railway ssh` → `os.environ`), not just in `--kv` |
+| the sweeps error out | no `DARK sweep failed` line; the jobs register at boot |
+| the sweeps are dead | **they had never been scheduled to run yet** |
+
+**Arm times against schedules settle it:**
+
+| sweep | cron | armed | first opportunity |
+|---|---|---|---|
+| event-proximity | 07:05 & 18:05 ET, **weekdays** | Sat 2026-09-12 13:29 ET | Mon 07:05 ET |
+| scan-membership | 05:20 ET, **every night** | Sun 2026-09-13 12:00 ET | Mon 05:20 ET |
+| catalyst-match | 17:30 ET, **weekdays** | Sun 2026-09-13 12:00 ET | Mon 17:30 ET |
+
+Not one had had a single scheduled firing since being armed. **Nothing was wrong with any of them.**
+
+### Root cause, and why it was weekly rather than a one-off
+
+`_window(hours)` treated **`hours is None` as "the whole weekday"**. The four per-minute sweeps
+declare an hours range and were judged correctly; the three that fire at FIXED TIMES declared
+nothing, so they read as *inside the window* at any hour of any weekday. Their last real firings
+were the previous **Friday** — ~55h back, far outside their 26h bounds.
+
+⛔ **The load-bearing case is `catalyst-match`, and it recurs.** It fires 17:30 weekdays, so on
+**every Monday** the 09:12 ET monitor post *and* the 16:30 ET gate check would have alarmed on a
+healthy sweep. A rail that cries wolf weekly gets muted, and a muted rail is not a rail.
+
+### The fix — `de2726473`
+
+Each descriptor now declares its firing times, and the question becomes **has a scheduled firing
+happened inside the staleness bound?** If not the sweep is **UNJUDGEABLE** — `n/a`, with the last
+firing, the shortfall and the next firing named — never a fault.
+
+⭐ **It corrects the opposite error in the same stroke.** `scan_membership`'s cron carries **no
+`day_of_week`** — it runs every night — but the blanket weekend branch returned `n/a` for it, so a
+nightly sweep that died on a Friday was invisible until Monday. The descriptor's cadence string
+said *"weekdays"*; **the cron disagreed, and the cron wins.** Declaring the firings narrows the
+false alarms and widens the real coverage at once.
+
+⚠️ **ONE AMBIGUITY REMAINS, AND IS NOT PAPERED OVER.** A sweep armed *after* its most recent
+scheduled firing still reads `NO` until its next one, because the heartbeat store cannot tell
+*"armed ten minutes ago"* from *"died"*. `scan-membership` is in exactly that state until 05:20 ET.
+**The tool does not know arm times and does not guess** — inventing a grace period would silence a
+genuinely dead sweep on the morning it died.
+
+Rails: `tests/test_s7_ticking_window_is_schedule_aware.py`, 12 cases including a non-vacuity
+control proving a stall is still reportable after the firing. Mutation-proved — restoring the
+whole-weekday model reds six. ⭐ The arity control in `test_s7_report_selfcheck_is_derived.py`
+caught the descriptor gaining a field, which is precisely what it was written for.
+
+### What Monday's check should expect
+
+The three will start ticking at **05:20 · 07:05 · 17:30 ET today**. A `NO` from any of them
+**after** those times is real and worth chasing.
+
+---
+
 ## ✅ LAYER 2 HARDENED — it can act, and it can no longer fail silently (2026-09-14)
 
 The first dry run produced three findings. All three are closed, and closing them produced two
