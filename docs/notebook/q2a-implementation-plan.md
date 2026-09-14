@@ -93,6 +93,155 @@ somewhere I did not look, and it changes §6's timing but not its content.
 
 ---
 
+## ⛔⛔ INVARIANT I1 — a cache refresh never moves the write path's baseline
+
+**Owner ruling, 2026-09-14.** This is a **stated invariant of the Q2-A spec**, settled
+**before any code is written** — not a guideline, not a hazard to be careful around.
+
+> ⛔⛔ **A cache refresh never writes `serverBase`, and never writes any other
+> baseline, for a note that has a dirty record OR a queued outbox entry. Reads
+> populate the read cache ONLY — never the write path's base.**
+
+"Any other baseline" is meant literally and is not a flourish: `baseUpdatedAt`, and the
+`STORE_NOTES` record itself, each stand in for the base in a case named below.
+
+### The scenario this forecloses, traced against the source
+
+1. The member has a dirty working copy of note X and a queued outbox entry.
+2. Another device **body-rewrites** X. The server's revision advances.
+3. Q2-A's read-cache refresh for X — a plain `GET` through `useJ2Note`
+   (`useJ2Notes.js:149-154`), no member intent anywhere in it — writes the fetched
+   copy into `serverBase`.
+4. The drain runs. `ringVouchedPlan` asks for the base first:
+
+   ```js
+   function ringVouchedPlan(mine, noteRec) {
+     const base = lastKnownServerCopy(noteRec)
+   ```
+   — `outboxDrain.js:171-172`, and for a dirty record that resolves to
+   `return rec.serverBase || null` (`serverChange.js:209`) — the value step 3 just
+   overwrote.
+5. `fresh` and `base` are now **the same document**, so the classifier answers
+   metadata-only:
+
+   ```js
+   if (json(fresh.bodyJson) === json(base.bodyJson)) return METADATA_ONLY
+   ```
+   — `serverChange.js:137`, which `ringVouchedPlan` turns into a rebase:
+   `return { plan: 'rebase', base, shape }` (`outboxDrain.js:183`).
+6. The drain rebases the member's queued body onto the other device's revision and
+   **sends it over their words.**
+
+**A READ PRODUCED A CLOBBER — no fork, no conflicted copy, no trace.** The mechanism is
+the one `ringVouchedPlan`'s own header already records for a different cause:
+*"'ours => rebase' ran before the diff was ever read, so when the server's change was an
+APPEND … the member's queued body was re-sent over it and the captured block was gone"*
+(`outboxDrain.js:156-159`).
+
+⭐ **The trap is written into the source, in the sentence Q2-A would otherwise satisfy:**
+
+> "⭐ A DIRTY RECORD CARRIES `serverBase`: what the server told us, captured at
+>  the clean→dirty transition and moved forward every time the server tells us
+>  something newer (an ack, a successful drain send) …"
+> — `serverChange.js:185-187` (quote truncated mid-line 187; the sentence continues
+>   *"It costs one extra body per UNSYNCED note"*)
+
+A cache refresh **is** "the server telling us something newer", and it is the one such
+event that carries no member intent at all. It must never count.
+
+### ⛔ "OR a queued entry" is part of the condition, not a synonym for "dirty"
+
+**A record can be CLEAN while an entry is still queued.** ⚠️ How production REACHES that
+state is not derived — the Wave Q1 cheap-answer audit records it as UNKNOWN and its Q1 rail
+seeds the state by hand (that rail is on the Wave K worktree, not this one, so it is named
+rather than cited). What IS readable in this tree is that the layer handles the state, and
+handles it by moving two baselines, **neither of which is `serverBase`** — so a condition
+written as *"while dirty"* would let both through:
+
+- **For a clean record the base IS the record.**
+  `if (!rec.dirty) return snapshotOfServerCopy(rec, usableBaseline(rec.baseUpdatedAt))`
+  — `serverChange.js:208`. A refresh that wrote the fetched copy into the `STORE_NOTES`
+  record, leaving `serverBase` untouched, moves the classifier's base anyway.
+- **A clean record's `baseUpdatedAt` can delete a queued entry on the clock alone.**
+  `landedBaseline` admits only a clean record — `if (!record || record.dirty) return null`
+  (`baseline.js:61`) — and the drain then discards on a pure timestamp comparison:
+  `if (isSupersededBaseline(entry.baseUpdatedAt, landed)) {` (`outboxDrain.js:467`), whose
+  whole test is `return ta < tb` (`baseline.js:87`). Advancing a clean record's
+  `baseUpdatedAt` from a read would therefore **delete** queued member words, under a
+  reported reason claiming *"a save this browser landed at …"* (`outboxDrain.js:474`) —
+  which this browser did not.
+
+⭐ **The state is not hypothetical: it is a PRECONDITION of a branch that is live today.**
+`landedBaseline` returns `null` for a dirty record (`baseline.js:61`), so the drain's
+supersede branch at `outboxDrain.js:467` is reachable **only** with a clean record beside a
+surviving queued entry. Whatever produces that pairing, the product already has a discard
+path written for it — and a read must not be allowed to feed it.
+
+### The writers of a baseline stay the ones that already exist
+
+Derived with `grep -n "serverBase" lib/offline/*.js` rather than typed:
+`useDurableNote.js:274` (`settleLandedSave`) · `useDurableNote.js:385-387` (the
+clean→dirty transition on the debounced persist) · `outboxDrain.js:64` (`settleSent`) ·
+`:98` and `:113` (`settleForked`) · `:204` (`rebaseEntry`) · `:247` (`mergeAppends`).
+Every one is an **ack, settle or fork of this browser's own write**. Q2-A adds none, and is
+never a source for `lastKnownServerCopy`. ⚠️ The same grep also hits `recoverLocalState.js:65`
+— a LOCAL `const serverBase = usableBaseline(server?.updatedAt)` consumed as a `baseUpdatedAt`
+at `:72`, `:84` and `:96`. Same name, different thing; it writes no record field, and it is
+not on the list above.
+
+⚰️ This supersedes the sentence §3 previously carried — *"The only writers of `serverBase`
+stay the two that exist today"* — which typed a count of **two** beside three names, over
+a set that greps to more sites than either number. **Do not restore a count here; re-grep.**
+
+### The rail is DAY ONE, and the traced scenario is its RED case
+
+**Q2-R3 lands with the first Q2-A module that can open the read-cache database (T3) —
+BEFORE a cache writer exists (T6), not beside it.** A rail written after the writer is a
+rail written to pass; a rail written first is a rail the writer has to satisfy.
+
+- **RED case:** the trace above, driven end to end — a dirty record with `serverBase` at
+  revision A, another device's **body rewrite** at revision B, a cache refresh for that
+  note, then `ringVouchedPlan`. Plus the clean-record variant named above: a clean record
+  beside a surviving queued entry, a refresh, then the drain's supersede branch.
+- ⛔ **The mutation that must redden it:** *make the cache refresh write the fetched server
+  copy into the write path's base* — in the cache writer, `rec.serverBase = fetched` (and,
+  for the clean-record variant, `putNoteWithIntent(db, { ...rec, ...fetched, baseUpdatedAt:
+  fetched.updatedAt }, entry)`). With that line in, `classifyServerChange` answers
+  `METADATA_ONLY`, `ringVouchedPlan` returns `plan: 'rebase'` where it returned `'fork'`,
+  the queued body is resent over the other device's words, and **Q2-R3 goes red.** Restore
+  from memory, verify byte-for-byte, re-run.
+- ⭐ **Non-vacuity control, Q2-R3c:** the same fixture with the refresh doing nothing must
+  stay GREEN and must assert a NAMED member (the plan for the note under test is `'fork'`),
+  never only a count — so R3 cannot pass by never reaching the drain (rule 14).
+
+⛔ **A rail that cannot fail is decoration.** Q2-R3 is not done when it is written; it is
+done when that mutation has been watched to redden it and the restore verified.
+
+### What this ruling changed, and what it did not
+
+- **Changed:** the rule is now a **spec invariant placed before the task breakdown**,
+  owner-ruled, rather than a rule argued inside §3's hazard discussion. §3 keeps the trace
+  and defers the rule to here, so one place owns it.
+- **Changed:** Q2-R3 moves from **T6 to day one (T3)** and gains the control Q2-R3c.
+- **Changed:** the condition is stated as **dirty OR queued**, and it covers
+  `baseUpdatedAt` and the `STORE_NOTES` record, not `serverBase` alone.
+- **Foreclosed:** the weaker shape — *allow the refresh to write the baseline and protect
+  it with a discipline rule enforced by a rail.* The owner ruled against it. The invariant
+  is the design; the rail proves the design rather than standing in for it.
+- ⚠️ **UNKNOWN — I could not determine this, and did not rewrite history to fit it.** I was
+  told this plan's author had chosen that weaker shape and separately flagged it as probably
+  wrong, preferring to skip the cache write while dirty. **No such passage exists in this
+  file.** `grep -n "discipline\|weaker\|probably wrong\|while dirty\|choice"` over
+  `q2a-implementation-plan.md` returned exactly one hit before this section was added —
+  *"Everything else in this plan is unchanged by that choice"*, in §2, about the
+  one-database-versus-two question. (No line number: a self-citation inside this file moves
+  every time the file is edited, which is how a stale one is born.) And §3 as it stands
+  already called the rule *"absolute"*. So nothing here was silently reversed; if
+  that draft exists it is somewhere I did not look. The ruling stands either way, and what it
+  changes is listed above.
+
+---
+
 ## 1. What ships, precisely
 
 ### The member-visible change
@@ -311,17 +460,25 @@ newer", and it must not be allowed to count.** Trace it:
 … the member's queued body was re-sent over it and the captured block was
 gone"*).
 
-**The rule, therefore, and it is absolute:**
+**The rule, therefore — and since 2026-09-14 it is no longer this section's to state:**
 
-> ⛔⛔ **The read cache never writes `serverBase`, never writes any record in
-> `STORE_NOTES`, and is never a source for `lastKnownServerCopy`.** It is a
-> render source and nothing else. The only writers of `serverBase` stay the two
-> that exist today: `useDurableNote.js:385-387` (the clean→dirty transition) and
-> `settleLandedSave` / `rebaseEntry`, each of which is an **ack of our own
-> write**.
+> ⛔⛔ This is **INVARIANT I1**, above, and I1 is the single authority over it: *a cache
+> refresh never writes `serverBase`, and never writes any other baseline, for a note that
+> has a dirty record OR a queued outbox entry; reads populate the read cache ONLY, never
+> the write path's base.* The read cache is a render source and nothing else, and is never
+> a source for `lastKnownServerCopy`.
 
-Rail **Q2-R3** is written for exactly this, with the mutation that reproduces
-steps 3–6.
+⚰️ **What changed here, marked rather than quietly rewritten.** This subsection used to
+state the rule itself and closed it with *"The only writers of `serverBase` stay the two
+that exist today"*, followed by three names. The owner's 2026-09-14 ruling promotes the
+rule to a **spec invariant, stated before the task breakdown and before any code**, and I1
+carries the writer list re-derived by grep instead of that count. Restating the rule here
+as well would put a second authority on one value — the exact defect this subsection is
+about. **The trace stays; the rule moved.**
+
+Rail **Q2-R3** is written for exactly this. Under I1 it is a **day-one** rail — it lands at
+T3, before the cache writer at T6 — and its RED case is steps 1–6 above, with the mutation
+I1 names.
 
 ### Two smaller interactions, named
 
@@ -456,7 +613,8 @@ are green first (`q1_mutation_gauntlet.py:22-24`).
 | **Q2-R1** | with the flag latched OFF, **no read-cache database is opened**, nothing is read, nothing is written — asserted against a spy `idbFactory` | delete the `offlineReadEnabled()` check in `openReadCache` |
 | **Q2-R1c** | ⭐ **CONTROL for R1** — the SAME rail, flag latched ON, asserts the open **does** happen and the spy saw `uct_notebook_read_<id>` by name | invert the guard (`!offlineReadEnabled()`); R1c reds while R1 stays green, so R1 cannot pass by never reaching the code |
 | **Q2-R2** | no Q2-A module imports `putNoteWithIntent`, `putConflict` or `putMeta`, and no write reaches `STORE_NOTES` — source rail (AST over the new modules) **plus** a behavioural rail with a spy on the Q1 db | make the cache writer call `putNoteWithIntent` |
-| **Q2-R3** | ⛔ **the clobber rail.** Fixture: a dirty record with `serverBase` = revision A; another device writes a **body rewrite** at revision B; a cache refresh for that note runs. Assert (a) `serverBase` and `baseUpdatedAt` are byte-identical before and after, and (b) `ringVouchedPlan` still returns `plan: 'fork'` | have the cache writer set `serverBase` from the fetched copy — the plan flips `fork` → `rebase` and the rail reds |
+| **Q2-R3** | ⛔⛔ **the clobber rail, and it is DAY ONE — it lands at T3, before any cache writer exists (INVARIANT I1).** Two fixtures. (a) DIRTY: a dirty record with `serverBase` = revision A; another device writes a **body rewrite** at revision B; a cache refresh for that note runs. Assert `serverBase` and `baseUpdatedAt` are byte-identical before and after, and `ringVouchedPlan` still returns `plan: 'fork'`. (b) CLEAN-BUT-QUEUED: a **clean** record beside a surviving queued entry; same refresh. Assert the record and its `baseUpdatedAt` are byte-identical after, and the drain does NOT take the supersede branch (`outboxDrain.js:467`) | ⛔ **make the cache refresh write the fetched server copy into the write path's base** — `rec.serverBase = fetched` for (a); `putNoteWithIntent(db, { ...rec, ...fetched, baseUpdatedAt: fetched.updatedAt }, entry)` for (b). (a) flips `fork` → `rebase` and the queued body is resent over the other device's words; (b) makes `isSupersededBaseline` true and the entry is deleted. Both red. Restore from memory, verify byte-for-byte, re-run |
+| **Q2-R3c** | ⭐ **CONTROL for R3, and R3 is not called done without it.** The same two fixtures with the refresh doing **nothing**: (a) must still reach `ringVouchedPlan` and return `'fork'` for the NAMED note under test, (b) must still reach the drain and keep the entry. Never asserted as a count — rule 14, *"an empty result is a failed invocation until proven otherwise"* | make the fixture builder queue no entry at all; R3 stays green over an empty set while R3c reds |
 | **Q2-R4** | the open order of §3, all four cases driven separately: dirty beats cache · server beats cache · cache beats the error page · no cache leaves `NoteEditorPage.jsx:1790` exactly as it is | swap branches 1 and 3 so the cache is consulted before the dirty record |
 | **Q2-R5** | eviction is LRU and enforced at **both** bounds, with a boundary control on each: 49 → 50 → 51 entries, and 24.9 MB → 25.1 MB | delete the byte bound and keep the count bound — the 25.1 MB case reds while the count cases stay green |
 | **Q2-R6** | a note over the per-entry ceiling is **not** cached and the refusal is recorded | remove the ceiling |
@@ -465,7 +623,7 @@ are green first (`q1_mutation_gauntlet.py:22-24`).
 | **Q2-R9** | a stale cache entry is **REPLACED, never forked**: `STORE_CONFLICTS` count is 0 before and after a refresh whose content differs (`wave-q2-PRD.md:204`) | route the cache writer through `putConflict` |
 | **Q2-R10** | every Q2-A telemetry event name in the client source is present in `_J2_TELEMETRY_EVENTS` (`api/routers/journal_two.py:71`), with the rail **reading the names out of the client source** rather than retyping them, as `telemetry.js:9-11` requires | add a client event name without the server allowlist entry |
 | **Q2-R11** | each event fires **once per its own scope** — per-browser for the opt-in-shaped one, per-tab for the rate-shaped one — mirroring the split `configServedEvent.js:23-31` argues for | make the per-tab event persist its marker in `localStorage`, or the per-browser one reset with the tab |
-| **Q2-R12** | ⭐ **second non-vacuity control, tool-side.** The eviction and telemetry fixtures assert a **named member** is present (`expect(keys).toContain(noteIdUnderTest)`), never only a count — per rule 14, *"an empty result is a failed invocation until proven otherwise"* | make the fixture builder return `[]`; every count-based assertion still passes, the named-member assertion reds |
+| **Q2-R12** | ⭐ **the tool-side non-vacuity control** (Q2-R1c and Q2-R3c are the other two; deliberately not numbered — an ordinal beside a list is what drifts when a control is added). The eviction and telemetry fixtures assert a **named member** is present (`expect(keys).toContain(noteIdUnderTest)`), never only a count — per rule 14, *"an empty result is a failed invocation until proven otherwise"* | make the fixture builder return `[]`; every count-based assertion still passes, the named-member assertion reds |
 
 ### Telemetry — denominators before the code
 
@@ -519,10 +677,10 @@ one RED (unpublished), one INCONCLUSIVE and 36 not-run cells
 |---|---|---|---|
 | **T1** | Extend `tools/q1_flag_default_sweep.py` to the `notebookFlag('notebook_offline_read_on')` reader and the "never latched ⇒ fallback `false`" default-site class; add its `--self-check` control. **Before any Q2-A code**, per decision 11 | — | the sweep already knows `notebookFlag`/`latchNotebookFlags` (`q1_flag_default_sweep.py:72-75`); this adds the second capability |
 | **T2** | `lib/offline/offlineReadFlag.js` — the one predicate `offlineReadEnabled()`. Rails **Q2-R1 + Q2-R1c** | T1 | ~30 lines; no constant |
-| **T3** | `lib/offline/readCacheDb.js` — open, get, put, delete, list-keys, `cacheMeta`. Rail **Q2-R2** | T2 | new file; `notebookDb.js` untouched |
+| **T3** | `lib/offline/readCacheDb.js` — open, get, put, delete, list-keys, `cacheMeta`. Rails **Q2-R2** and — ⛔ **DAY ONE, per INVARIANT I1** — **Q2-R3 + Q2-R3c**, written and mutation-proved HERE, before a cache writer exists | T2 | new file; `notebookDb.js` untouched. R3 drives the traced clobber against a stub refresh; the stub is what T6 must not break |
 | **T4** | eviction + the three bounds. Rails **Q2-R5, Q2-R6, Q2-R12** | T3 | |
 | **T5** | open-order case 1 (dirty working copy renders offline). Rail **Q2-R4** cases 1 and 4 | T2 | ⚠️ splittable — arguably a Q1 defect, see §3 |
-| **T6** | cache write on a successful `useJ2Note` read. Rails **Q2-R3, Q2-R9** | T3, T4 | ⛔ Q2-R3 is the one that must be mutation-proved first |
+| **T6** | cache write on a successful `useJ2Note` read. Rails **Q2-R9**, and it must land GREEN against **Q2-R3 + Q2-R3c** already in the tree from T3 | T3, T4 | ⛔ R3 is no longer written here — a rail authored beside the writer it guards is a rail authored to pass. This task satisfies I1; it does not get to define it |
 | **T7** | case 3 — the read-only cached render + dated banner in `NoteEditorPage.jsx`. Rails **Q2-R4** case 3, **Q2-R7** | T6 | explicitly blessed by `f5Freeze.test.js:10-14`; must not touch the excerpt call site or any settle |
 | **T8** | leader-only refresh. Rail **Q2-R8** | T6 | reuses `outboxLeader.js`'s Web Lock; adds no second election |
 | **T9** | the *Available offline* list section in `NotebookTab.jsx`, rendered only on a failed list request | T3, T7 | without it the feature is URL-only |
