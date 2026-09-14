@@ -929,3 +929,86 @@ edge when secure edge authorization arrives. Correct classification until then:
 - `/api/barspack/*` is currently `private` (interim). It is a genuinely global
   distribution mechanism and should move to the secure-edge architecture rather
   than stay private-only.
+
+---
+
+## OVERNIGHT SESSION — 2026-09-14 (member-facing Universal Data UX)
+
+### BOUNDARY FOR THIS SESSION
+LOCAL ONLY. No push, no deploy, no Railway, no Cloudflare, no master. Phase 1.5
+security work is FROZEN and was not touched. Main Trading not opened; fingerprint
+verified READ-ONLY at session start and unchanged: `40d361fa 5354 ea9ebaeee302`.
+
+### BRANCH
+`feat/overnight-universal-data-ux`, cut from `feat/universal-data-series`
+@ `f3c7cad9d`. ⛔ NOT rebased onto master: this branch is 66 ahead / 623 behind,
+and the Universal Data work exists ONLY here (`secondaryBars.js` and friends are
+absent from master). Reconciling that is a deliberate, separate decision.
+
+### PART A — UX AUDIT (observed live on `pane-harness.html`, not assumed)
+Findings, highest value first:
+
+1. ⛔⛔ **Chart Settings → Indicators said only the NAME.** `QQQ` and `SPY` sat in
+   the same flat list as `EMA 9` and `Volume` with nothing to say they are
+   INSTRUMENTS, in panes of their own, drawn as lines. Four questions a member had
+   to open the row to answer. **FIXED — slice 1 below.**
+2. Symbol rows in Add-to-Chart carry **no name**. `SPY` shows bare; the delisted
+   `KKD` right beneath it shows `KRISPY KREME DOUGHNUTS INC`. The field renders
+   when present, so the active-symbol path is not supplying it. OPEN.
+3. ETFs are labelled **`STOCK`** (`QQQ`, `SPY`). Honest word for a security, wrong
+   word for a fund, in a product whose members trade both. OPEN.
+4. Every secondary series draws the **same blue**. Two instruments in two panes are
+   visually identical. OPEN — needs a palette decision, see DEFERRED.
+5. Secondary values appear in the MAIN chart legend as well as their own pane's.
+   Possibly intended (one legend for everything); flagged, not touched. OPEN.
+
+### SLICE 1 — "where it draws and how", on the row  ✅ CHECKPOINTED
+`ChartSettingsIndicators.jsx` + `ChartSettingsModal.module.css`.
+
+Collapsed rows now read:
+```
+MA (5)   Line · Own pane · Source: QQQ
+QQQ      Candles · Own pane
+SPY      Line · Own pane
+```
+Fixtures (EMA 9/20, SMA 50/200, Volume) deliberately show NOTHING — "Line · Main
+chart" on all five is furniture, the same reasoning `typeBadge` already uses.
+
+⭐ It reads the SAME seams the expanded controls do — `resolveDisplayTarget`,
+`displayTargetOptions`, `resolvePlotStyle` — so the summary cannot drift from the
+selects directly beneath it. Verified live: flipping Plot style to Candles through
+the real control changed the row to `Candles · Own pane` immediately.
+
+⭐ `ohlcCapableFor(def, inst)` lifted out of `styleControls`'s IIFE to module scope
+so the summary and the style picker share ONE capability answer. No behaviour
+change; two readers, one authority.
+
+⚰️ **THE MISTAKE, AND WHAT CAUGHT IT.** First version nested the summary INSIDE the
+expander button. That put it in the button's ACCESSIBLE NAME — a screen reader
+would announce "QQQ Line · Own pane" as the control — and broke 14 rails that
+match that button's text against an anchored `/^QQQ$/`. The rails were RIGHT. Fixed
+by moving the span out of the button (`.actName` no longer grows; `.actMeta` takes
+the slack), not by loosening a single assertion.
+
+### TESTS AT THIS CHECKPOINT
+- `src/components/chart` full: **10 failed / 8971 passed / 4 skipped**.
+- Baseline, same tree with the two files stashed: **10 failed**. ZERO REGRESSION.
+- The 10 are pre-existing: 7 in `ChartToolbar.flipB` (order-dependent — they also
+  fail when run with `-t` in isolation at baseline) and 3 ratchet-style
+  (`ChartDrawingOverlay.surfaces`, `ast/manifestProse`, `ast/pine.blindCorpus`),
+  each confirmed red at baseline by stash-and-rerun.
+- `npx vite build` ✓ 15.27s.
+
+### DEFERRED (documented, NOT attempted)
+- **Series colour palette** (finding 4). Picking colours for secondary instruments
+  is a product decision with several plausible directions (rotate a palette? follow
+  the source? let the member pick on add?) and it touches stored instance state.
+  Owner decision — exactly the "meaningful product decision with multiple plausible
+  UX directions" STOP condition.
+- Main legend duplication (finding 5) — may be intended; needs the owner's read.
+
+### NEXT AUTHORIZED ACTION
+Finding 2 (symbol names in Add-to-Chart search) — presentation only, reads a field
+the row already renders for delisted names. Then finding 3 (ETF vs STOCK), which is
+a label derived from search data and needs a check of what the backend actually
+returns before any string is changed.

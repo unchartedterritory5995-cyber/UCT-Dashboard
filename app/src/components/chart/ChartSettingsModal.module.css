@@ -1010,6 +1010,33 @@
   white-space: nowrap;
 }
 .actName:hover .actLabel { color: var(--menu-accent, #e2c98a); }
+
+/* ─── WHERE IT DRAWS AND HOW, ON THE NAME ROW ────────────────────────────────
+   ⛔ FAINT ON PURPOSE. This is orientation, not a value — it must read as the
+   quiet half of the row and never compete with the indicator's own name, which
+   is the thing the eye is scanning for. Gold is reserved for active/important
+   state; this is neither.
+   ⛔ AND IT YIELDS FIRST. `flex: 0 1 auto` with `min-width: 0` means a long
+   destination ("Existing pane: QQQ") ellipses before the NAME does — the name is
+   the identity and must survive every width. */
+/* ⛔ THE NAME NO LONGER GROWS, because the meta sits BESIDE it rather than
+   inside it (see the JSX — inside, it became part of the button's accessible
+   name). The button hugs its text and the meta takes the slack, so the row reads
+   name-then-orientation left to right and the trailing controls stay put. The
+   gear remains the second way into the settings for anyone who misses the name. */
+.actName { flex: 0 1 auto; }
+.actMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--menu-text-faint, #6b6b6b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actBlockOff .actMeta { color: var(--menu-text-faint, #6b6b6b); opacity: 0.55; }
 .actBadge {
   flex: none;
   font-size: 9.5px;
