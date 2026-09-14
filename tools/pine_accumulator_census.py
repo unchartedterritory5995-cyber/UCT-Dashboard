@@ -317,6 +317,19 @@ for label, keep in AXES.items():
     w(('  %-20s alone %4d   drop it -> admissible becomes %4d\n'
        % (label, alone, len(without))).encode())
 
+# ⭐ AND THE TWO WEAKEST AXES DROPPED TOGETHER, because a reader comparing two single
+# relaxations will ask it, and the pair is not the sum of the parts.
+pair = [r for r in accum
+        if all(f(r) for k, f in AXES.items() if k not in ('bound knowable', 'no escape'))]
+w(('  %-20s             drop BOTH -> admissible becomes %4d\n'
+   % ('bound + escape', len(pair))).encode())
+
+# ⛔ THE CEILING. Anything that must be unrolled needs a settleable iteration count, so
+# no relaxation of the other axes can lift the admissible set above the BOUND bucket.
+w(('\nCEILING — any set requiring a settleable iteration count is capped at %d of %d\n'
+   % (sum(1 for r in accum if r['bound'] in ('literal', 'literal-derived')), len(accum)))
+  .encode())
+
 over = [r for r in adm if r['iters'] and r['iters'] * r['depth'] > MAX_UNROLLED_NODES]
 w(('  of those, over the %d-node ceiling: %d\n' % (MAX_UNROLLED_NODES, len(over))).encode())
 if adm:

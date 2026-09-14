@@ -96,32 +96,53 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
     expect(r.text).toMatch(/Runtime arrays are the IR lane's, item \(c\)/)
   })
 
-  // ⛔⛔ OPEN — R1(ii) IS NOT SATISFIED, AND a4 FOUND IT BY BUILDING a4.
+  // ⭐⭐ R8 — CLOSED. The routing gap a4 opened by relocating the refusal is fixed, and
+  // this case is a real assertion now rather than a marker.
   //
-  // R1(ii) says a series-sized source iterated by a loop must compose
-  // `seriesDependentMessage` and route to item (c). Measured, it does not: once the
-  // `for … in` touches the array, the LOOP's opaque replacement fires first and the
-  // array never reaches the size fold, so the refusal lands at the loop line carrying
-  // the loop's generic sentence — **and the routing to (c) is lost**.
+  // a4 moved the refusal onto the loop line, which was right for every shape except
+  // this one: a series-sized source iterated by a `for … in` got the loop's generic
+  // sentence, because the loop's opaque replacement fired before the size ever folded,
+  // and the routing to item (c) went with it. Routing is a hard requirement of
+  // Mechanism A's foreclosure, not a nicety.
   //
-  //   var a = array.new<float>(int(volume))      <- 4, the series dependency
-  //   for x in a                                 <- 5, pine:collection lands HERE
-  //       array.set(a, 0, close)
-  //   plot(array.get(a, 0))
+  // ⚖️ TWO CANDIDATES WERE BUILT AND MEASURED before one was chosen. Both gave exactly
+  // one refusal, both carried the routing, both left the verdicts alone:
   //
-  // ⭐ The relocation a4 shipped is what causes it: a better line, a worse sentence,
-  // for this one shape. The fix is for the loop's message to defer to the creation's
-  // when the source's size is series-dependent — which needs the size folded before
-  // the walk gives up on the block, i.e. the same engine-order change R4 declined.
-  // Recorded as owed under R1(ii) rather than patched with a guess.
-  run('⛔ OPEN · R1(ii) — a series-sized source ITERATED by a loop still routes to (c)', () => {
+  //   (i)  settle the size at the read, before the loop's sentence  -> pine:collection@4
+  //   (ii) re-locate the size refusal onto the loop line            -> pine:collection@5
+  //
+  // (i) wins on the third criterion — the line named is where the dependency IS.
+  // (ii) puts the refusal on line 5 while its own text reads "`int` at line 4", so the
+  // line and the message disagree and the member is pointed at the loop for a fact
+  // about the creation. Consistent with R4, which ruled the same way for the
+  // un-iterated case.
+  it('⭐⭐ R8 · a series-sized source ITERATED by a loop still routes to (c)', () => {
     const src = `${HEAD}var a = array.new<float>(int(volume))\nfor x in a\n`
       + '    array.set(a, 0, close)\nplot(array.get(a, 0))\n'
-    const r = refusalsOf(translatePine(src, { strict: true }))[0]
-    expect(r, 'something refuses').toBeTruthy()
-    expect(r.text, 'the series dependency is still named').toMatch(/depends on a series/)
-    expect(r.text, 'and it still routes to the lane that will serve it')
-      .toMatch(/Runtime arrays are the IR lane's, item \(c\)/)
+    const t = translatePine(src, { strict: true })
+    const all = refusalsOf(t)
+    // ⛔ ONE refusal, not two — the dependency REPLACES the loop's sentence (1.1).
+    expect(all.length, 'the dependency replaces the loop sentence, never joins it').toBe(1)
+    const r = all[0]
+    expect(r.guard).toBe('pine:collection')
+    expect(r.line, 'named at the creation, where the dependency is')
+      .toBe(lineOf(src, 'var a = array.new<float>(int(volume))'))
+    expect(r.text).toMatch(/depends on a series/)
+    expect(r.text).toMatch(/Runtime arrays are the IR lane's, item \(c\)/)
+    // …and the lenient lane still offers what it can, so R2's verdict rule holds.
+    expect(translatePine(src, {}).ok).toBe(true)
+  })
+
+  it('⛔⛔ CONTROL — R8 did NOT disturb the plan-time case, which still names the loop', () => {
+    // The whole risk of R8 is over-reach: settling the size at the read could have
+    // moved every loop refusal to a creation line. A plan-time source has a size that
+    // folds, so the fold is silent and the loop's sentence still wins.
+    const src = `${HEAD}var a = array.new<float>(3)\nfor i = 0 to 2\n    array.set(a, i, close + i)\n`
+      + 'var b = array.new<float>(3)\nfor x in a\n    array.set(b, 0, x)\nplot(array.get(b, 0))\n'
+    const all = refusalsOf(translatePine(src, { strict: true }))
+    expect(all.length).toBe(1)
+    expect(all[0].line).toBe(lineOf(src, 'for x in a'))
+    expect(all[0].text).toMatch(/13 of 92/)
   })
 
   // ── D.4 · `while`, ruling F4 ─────────────────────────────────────────────

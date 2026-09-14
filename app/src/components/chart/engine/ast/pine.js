@@ -5447,6 +5447,50 @@ export class Resolver {
     }
   }
 
+  /** ⭐⭐ THE ONE PLACE A VECTOR'S SIZE IS SETTLED. Returns the slot count, or throws
+   *  the foreclosure by name.
+   *
+   *  Factored out at R8 so the loop's refusal path and the read's can share it. ⛔ It
+   *  is a FACTORING, not a copy: a second constant-folder over the same tokens is the
+   *  defect this engine keeps paying for, and the two callers must never be able to
+   *  disagree about whether a size is settleable. */
+  foldVectorSize(vec) {
+    const prevEnv = this.env
+    this.env = vec.env || this.env
+    let n = null
+    try {
+      const r = this.resolve(vec.sizeNode)
+      if (r && r.type === 'num' && Number.isFinite(r.value)) n = Math.trunc(r.value)
+    } catch (err) {
+      // ⛔⛔ A SIZE THAT WILL NOT FOLD IS THE FORECLOSURE, AND IT SAYS SO BY
+      // NAME — the dependency, its line, and the item that will take it. Never
+      // "not supported", because that would be false: the IR lane has
+      // statements, and item (c) is the route.
+      const r2 = fromError(err)
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — `
+        + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
+          r2.token || 'a series', vec.line),
+        vec.at)
+    } finally { this.env = prevEnv }
+    if (n === null || n < 0) {
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — `
+        + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
+          'its size argument', vec.line),
+        vec.at)
+    }
+    if (n > VEC.MAX_VECTOR_SLOTS) {
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — \`${vec.arrayName}\` asks for ${n} slots and`
+        + ` this engine unrolls at most ${VEC.MAX_VECTOR_SLOTS}`,
+        vec.at)
+    }
+    vec.slots = new Array(n).fill(null)
+    vec.sizeFolded = true
+    return n
+  }
+
   resolveVectorRead(name, node) {
     const member = name.slice('array.'.length)
     const args = (node.args || []).filter((a) => !a.name)
@@ -5518,6 +5562,28 @@ export class Resolver {
       // `while` and the `for … in` fixtures. If a read needs to say more, it says
       // it in the ONE refusal's message, not in a second refusal.
       if (vec && vec.kind === 'opaque') {
+        // ⭐⭐ R8 — THE DEPENDENCY OUTRANKS THE BLOCK. If the array this opaque
+        // binding replaced had a size that was never settled, THAT is the fact the
+        // member needs: it names the series the size depends on, its line, and routes
+        // to item (c). The loop's sentence is true but downstream — the array was
+        // already unusable before the loop was reached.
+        //
+        // ⚰️ a4 shipped without this and lost the routing for exactly this shape: the
+        // loop's opaque replacement fired first, the size never folded, and a
+        // series-dependent array got a generic "filled by a block this engine could
+        // not read" with no route. Measured at R8 on both candidate fixes; this is
+        // candidate (i), chosen because the refusal it produces names the line where
+        // the DEPENDENCY is, which is what R4 already ruled for the un-iterated case.
+        //
+        // ⛔ Still exactly ONE refusal — this REPLACES the loop's, never adds to it.
+        // ⚖️ CANDIDATE (ii) WAS BUILT AND MEASURED HERE AND REJECTED, so the next
+        // reader does not re-propose it: catching this throw and re-locating it to
+        // `vec.at` puts the refusal on the LOOP line while its own sentence still
+        // says "`int` at line 4". Both candidates gave one refusal, the routing, and
+        // unchanged verdicts — the tiebreak is that (ii)'s line and text disagree.
+        if (vec.vector && vec.vector.sizeNode && !vec.vector.sizeFolded) {
+          this.foldVectorSize(vec.vector)   // throws the foreclosure, or settles it
+        }
         throw new PineRefusal(vec.guard, vec.message, vec.at || locate(node.tok))
       }
       const d = VEC.refuseUncreated(headName || 'this name')
@@ -5526,42 +5592,7 @@ export class Resolver {
 
     // The size folds through the ONE folder, with the whole environment in hand.
     let size = vec.slots.length
-    if (vec.sizeNode && !vec.sizeFolded) {
-      const prevEnv = this.env
-      this.env = vec.env || this.env
-      let n = null
-      try {
-        const r = this.resolve(vec.sizeNode)
-        if (r && r.type === 'num' && Number.isFinite(r.value)) n = Math.trunc(r.value)
-      } catch (err) {
-        // ⛔⛔ A SIZE THAT WILL NOT FOLD IS THE FORECLOSURE, AND IT SAYS SO BY
-        // NAME — the dependency, its line, and the item that will take it. Never
-        // "not supported", because that would be false: the IR lane has
-        // statements, and item (c) is the route.
-        const r2 = fromError(err)
-        throw new PineRefusal('pine:collection',
-          `${REFUSALS['pine:collection']} — `
-          + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
-            r2.token || 'a series', vec.line),
-          vec.at)
-      } finally { this.env = prevEnv }
-      if (n === null || n < 0) {
-        throw new PineRefusal('pine:collection',
-          `${REFUSALS['pine:collection']} — `
-          + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
-            'its size argument', vec.line),
-          vec.at)
-      }
-      if (n > VEC.MAX_VECTOR_SLOTS) {
-        throw new PineRefusal('pine:collection',
-          `${REFUSALS['pine:collection']} — \`${vec.arrayName}\` asks for ${n} slots and`
-          + ` this engine unrolls at most ${VEC.MAX_VECTOR_SLOTS}`,
-          vec.at)
-      }
-      vec.slots = new Array(n).fill(null)
-      vec.sizeFolded = true
-      size = n
-    }
+    if (vec.sizeNode && !vec.sizeFolded) size = this.foldVectorSize(vec)
 
     // ⭐⭐ a3 — APPLY EVERY PENDING UNROLL BEFORE ANY SLOT IS READ.
     if (vec.pending && vec.pending.length) this.applyUnrolls(vec)
@@ -10695,6 +10726,10 @@ export function translatePine(source, opts = {}) {
               + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
                 + ' depends on a series is the IR lane\'s, item (c).'),
             at: locate(first),
+            // ⭐ R8 — THE VECTOR THIS REPLACED IS KEPT, so the read can settle its
+            // size before speaking. A series-dependent size is a fact about the
+            // ARRAY that predates the loop, and it outranks the loop's sentence.
+            vector: prior,
           })
         }
       }
