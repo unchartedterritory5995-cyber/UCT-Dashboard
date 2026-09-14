@@ -259,10 +259,73 @@ def sweep(files=None) -> tuple[list[str], list[tuple[str, str, int, str]], list[
     hits: list[tuple[str, str, int, str]] = []
     files = list(files if files is not None else code_files())
     compiled = {k: [re.compile(p) for p in PROBES[k][0]] for k in covered}
+
+    # ── TWO-STAGE FILTER, so this can run inside the gate ───────────────────
+    # ! MEASURED 2026-09-13: 4,711 files / 62 MB against ~60 separate patterns is
+    # ~3.7 GB of regex scanning, and it took 85s standalone and TIMED OUT at the
+    # gate's 180s budget. The gate then printed "DID NOT RUN ... this is not a
+    # clean result" — a tooling failure wearing a verdict's clothes, on the one
+    # run of the week that decides keep-or-revert.
+    #
+    # * Almost no file contains ANY probe token, so one combined pass rejects the
+    # overwhelming majority in a single scan; the per-pattern loop then runs only
+    # on the handful that survive, purely to ATTRIBUTE the hit to an item.
+    # Correctness is unchanged by construction: a file the union cannot match
+    # cannot match any member of the union.
+    # ⛔ `.pattern`, NOT the compiled object. Interpolating a compiled pattern
+    # yields the literal text `re.compile('...')`, which produced
+    # `missing ), unterminated subpattern` — a union that cannot compile, and
+    # therefore a sweep that reports nothing at all.
+    # ⛔ A LITERAL PRE-FILTER, because the regex union was still the cost.
+    # Measured 2026-09-13: reading all 4,711 files (60 MB) takes 1.4s, so the
+    # remaining ~60s was 75-way regex ALTERNATION over every byte. Python's
+    # substring search is a different algorithm and runs at memory speed.
+    #
+    # ⭐ THE LITERALS ARE DERIVED FROM THE PATTERNS, never typed beside them —
+    # a hand-kept anchor list is the second authority this repo keeps paying for.
+    # Each pattern contributes its longest plain-literal run; a pattern with no
+    # usable literal (pure character classes) opts OUT of the fast path and is
+    # always run, so the filter can never silently drop a probe.
+    def _literal(pat: str) -> str:
+        best, cur, i = "", "", 0
+        while i < len(pat):
+            c = pat[i]
+            if c == "\\":
+                i += 2
+                if len(cur) > len(best):
+                    best = cur
+                cur = ""
+                continue
+            if c in "[](){}|?*+.^$":
+                if len(cur) > len(best):
+                    best = cur
+                cur = ""
+            else:
+                cur += c
+            i += 1
+        return max(best, cur, key=len)
+
+    anchors, always = [], []
+    for key, pats in compiled.items():
+        for pat in pats:
+            lit = _literal(pat.pattern)
+            (anchors.append(lit.lower()) if len(lit) >= 4 else always.append(key))
+    anchors = sorted(set(anchors))
+
+    union = re.compile("|".join(f"(?:{pat.pattern})"
+                                for pats in compiled.values() for pat in pats))
+
     for p in files:
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
+            continue
+        # Stage 1: cheap literal reject. Stage 2: the union. Stage 3: attribute.
+        # A pattern with no usable literal (`always`) skips stage 1 by design.
+        low = text.lower()
+        if not always and not any(a in low for a in anchors):
+            continue
+        if not union.search(text):
             continue
         try:
             rel = p.relative_to(REPO).as_posix()
@@ -348,6 +411,24 @@ def self_check() -> int:
     case("the browser-OCR probe is scoped to the client tree", ocr_scope == ("app/src",))
     case("an unscoped probe reports None rather than an empty tuple",
          scope_of("j2_theses") is None)
+
+    # ⛔ THE FAST PATH MUST NOT LOSE A HIT. The union pre-filter is only safe if
+    # every individual pattern is a member of it — prove it on the real probe
+    # table rather than trusting the construction.
+    allpats = [pat for k in PROBES for pat in PROBES[k][0]]
+    uni = re.compile("|".join(f"(?:{x})" for x in allpats))
+    samples = {
+        "j2_theses": "const t = 'j2_theses';",
+        "service worker": "navigator.serviceWorker.register('/x.js');",
+        "E2E encryption": "crypto.subtle.encrypt(a,k,d);",
+        "browser-side OCR": "import('tesseract.js')",
+        "auto-merge": "automerge",
+    }
+    missed = [n for n, txt in samples.items() if not uni.search(txt)]
+    case("the union pre-filter matches every construct a probe matches",
+         not missed)
+    case("...and rejects a file with none of them",
+         not uni.search("export const x = 1;\nfunction ordinary() { return null }\n"))
 
     print("self-check:", "PASS" if ok else "FAIL")
     return 0 if ok else 1

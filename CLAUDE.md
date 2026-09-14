@@ -1731,6 +1731,36 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⛔⛔ RESOURCE RULES — AT MOST **3** AGENTS ON THIS BOX, AND THE WHISPER JOB RUNS ALONE
+
+> **Owner ruling 2026-09-13, written from three separate self-inflicted failures in two days.**
+> Any deviation is stated in the next checkpoint, never hidden.
+
+- **Concurrency cap: at most 3 agents running at once, integrator included. Never more.**
+- **Before launching ANY agent, print free memory and the count of running agents, and REFUSE the
+  launch if the cap would be exceeded.** A cap nobody measures against is a preference.
+- **The STT / whisper job runs ALONE**, or beside at most ONE light agent (reading, ledger
+  writing) — never beside a test run, a scout, or a Batch collector.
+- `pytest` **scoped by named files only**; no `npm ci`; no full vitest; frontend tests chunked.
+- **Account-limit awareness:** track the reset time in `SESSION-STATE.md`. If the limit hits,
+  pause CLEANLY — commit and push every branch, bring SESSION-STATE current, record the reset
+  time — and resume at reset.
+
+⚰️ **THE EVIDENCE, all of it measured, none of it hypothetical:**
+
+| date | what was run at once | cost |
+|---|---|---|
+| 09-12 | three concurrent gates + an **unscoped** backend pytest | 11,854 MB RSS climbing; `app/node_modules` swept to **0 entries**, then the worktree's `.git` file destroyed — the tree stopped being a repository |
+| 09-12 | `--collect-only` alone, unscoped | **6.6 GB** — collection is where the memory goes, so `-k` does not help |
+| 09-13 | **13 agents + a 5-hour local whisper job** | the STT run was **killed for low memory**, and the same fan-out **burned the account limit**: 7 of 12 agents died mid-flight |
+
+⭐ **The 09-13 failure is the instructive one, because every individual rule was followed.** Each
+agent was told to scope its pytest; none of them ran anything reckless. What was never checked was
+the **aggregate** — thirteen well-behaved agents beside a job holding ~3 GB and four cores is still
+an OOM, and thirteen concurrent contexts is still an account limit. **Scoping each job does not
+bound the sum of the jobs.** The cap is on the sum, which is why it is a number and not a
+principle.
+
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
 ⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**

@@ -1,11 +1,45 @@
 ---
 id: WISDOM-LOOP-SESSION-STATE
 title: UCT Wisdom Loop — session state (SINGLE RESUME AUTHORITY)
-status: current — resumed after the restart; S-B MERGED TO MASTER
+status: current — OVERNIGHT AUTONOMOUS RUN in progress (owner plan 2026-09-13 23:30 CT)
 written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after merge 1
 ---
 
 # Session state
+
+> ## ⭐ LATEST — overnight autonomous run, resumed 2026-09-13 23:40 CDT (past the account-limit reset at 22:20 CT)
+>
+> **ON MASTER, all dark, each verified by artifact:** S-B rails `e5dfb23fb` · drift-#4 `2e6f3453e` ·
+> **S-A capture `fb62a44d9`** · exposure fix `d4281342c` · **exposure REVERSAL `75324ec78`**.
+>
+> **`DESK_PUBLIC_SHOWS="*"` is the owner's deliberate decision** (2026-08-19, reaffirmed 2026-09-13),
+> declared in `docs/feature_flags.json` with a dated `owner_decision` and railed on both the offline
+> and live halves. ⛔ **Leave it.** The 66 legacy videos stay as they are; the 3 gone videos
+> (`vslaRnO9G3E`, `hmGZSV_axHo`, `znjo804B_0k`) are reported only.
+>
+> ⛔⛔ **RESOURCE CAP — AT MOST 3 AGENTS ON THIS BOX, INTEGRATOR INCLUDED.** Written into CLAUDE.md
+> with the evidence. The whisper/STT job runs ALONE or beside one light agent. Print free memory and
+> the running-agent count before every launch and REFUSE the launch if the cap would be exceeded.
+> ⚰️ On 2026-09-13 a 13-agent fan-out beside the STT job killed the STT run for low memory AND burned
+> the account limit (7 of 12 agents died). Every individual agent was well-scoped; **the aggregate was
+> never checked. Scoping each job does not bound the sum of the jobs.**
+>
+> **ACCOUNT LIMIT:** reset observed at **22:20 CT**. If it hits again: pause CLEANLY — commit and push
+> every branch, bring this file current, record the next reset time — and resume at reset without
+> waiting for the owner.
+>
+> **ORDER OF WORK (owner plan, supersedes the earlier pace ruling):**
+> 1. Reviewers in PAIRS — pair 1 **S-C + S-E** (running), pair 2 **S-F1 + S-F2**, then S-D
+>    (scout → owed items on the branch → reviewer).
+> 2. Master merges serialized through the integrator, §8.4 order: **S-C → S-D → S-E → S-F1 → S-F2**.
+>    Rebase on current master immediately before each; gate on the MERGE; web SUCCESS between.
+> 3. P4 golden propagation + freeze — beside pair 2, **lands before S-D merges**.
+> 4. P5 golden gate — resume from checkpoint, **$4.45 of $15 already spent, do not restart from zero**.
+> 5. STT — re-issue the same command; **only when the box is otherwise idle**.
+> 6. Acceptance run §8.6, then the §9.1 Definition of Done walked line by line.
+>
+> **Nothing needs the owner except:** 007/008 ("unknown" is a valid answer), the G-030 rule in their
+> own words, and the HF token or "text-only for now".
 
 > ## ⭐ LATEST — merge 1 is live (2026-09-13 21:10:33Z)
 >
