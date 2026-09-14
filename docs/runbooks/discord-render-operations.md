@@ -594,7 +594,7 @@ the same rule `/render` uses, so a recycle can be joined to the renders around i
 |---|---|
 | `recycled` | the page that was taken: `id`, `width`/`height`/`scale`, `renders`, `age_s`. **`null` means nothing was taken** — `reason` says why |
 | `replaced_by` | the fresh page created in its place, through the same `_replenish` every spare context comes from |
-| `reason` | `null` on a successful recycle. Otherwise `pool disabled`, `no live browser`, or `pool empty` — each an **answer**, not an error, because the ruling forbids forcing one |
+| `reason` | `null` on a clean recycle. `pool disabled`, `no live browser` or `pool empty` alongside `recycled: null` — each an **answer**, not an error, because the ruling forbids forcing one. ⚠️ It is also non-null **with** a `recycled` page when the replacement could not be created: the page went, the pool is one short, and `idle` will be one lower in `after` |
 | `before` / `after` | `size` (= `idle` + `in_use`), `in_use`, `idle`, `pages[]` (one entry per idle pooled page), `browser` (`id`, `connected`, `retired`, `renders_since_launch`), and all four counters |
 
 **What to check, and it is the whole point of the before/after pair:**

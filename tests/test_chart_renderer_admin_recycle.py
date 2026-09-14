@@ -409,6 +409,29 @@ def test_an_in_flight_render_is_never_taken_and_the_answer_says_so(monkeypatch):
     assert launch.made[0].closed is False
 
 
+def test_a_replacement_that_could_not_be_created_is_reported_rather_than_implied(monkeypatch):
+    """The page WAS recycled and the pool is one short. Reporting a clean `recycled` with no word
+    about the missing replacement would leave the operator reading `idle` and blaming the diff."""
+    mod = _armed(monkeypatch)
+    launch = _launcher()
+    monkeypatch.setattr(mod, "_launch_browser", launch)
+
+    async def main():
+        await _fill_pool(mod)
+
+        async def refuse(**kw):
+            raise RuntimeError("out of memory")
+        launch.made[0].new_context = refuse
+        return (await _call(mod)).json()
+    body = asyncio.run(main())
+
+    assert body["recycled"] is not None and body["replaced_by"] is None
+    assert "replacement" in body["reason"]
+    assert body["after"]["idle"] == body["before"]["idle"] - 1
+    assert mod._stats.page_recycles == 1
+    assert launch.made[0].closed is False and len(launch.made) == 1
+
+
 def test_with_the_pool_off_it_says_so_and_never_launches_a_browser(monkeypatch):
     mod = _load(monkeypatch, RENDER_ADMIN_ENDPOINTS="1", RENDER_ADMIN_TOKEN=ADMIN)   # pool deliberately off
     launch = _launcher()
