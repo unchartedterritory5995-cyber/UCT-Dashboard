@@ -361,7 +361,13 @@ def main() -> int:
     ap.add_argument("--trial-model", default="claude-sonnet-5")
     ap.add_argument("--trial-segments", type=int, default=20)
     ap.add_argument("--drift-segments", type=int, default=10)
-    ap.add_argument("--max-usd", type=float, default=15.0)
+    #: ⛔ ONE PROGRAM-LEVEL TOTAL, carried in the ledger across every extractor_version,
+    #: model and run (owner ruling D-R2, 2026-09-14). It is NOT the remaining headroom:
+    #: SpendCap.reserve tests `spent + reserved + usd > max_usd` against the total the
+    #: ledger already carries, so passing the remainder would silently halve the budget
+    #: and truncate a run into an INCOMPLETE evaluation. Raised 15 -> 40 for Wave 1.5's
+    #: multi-pass extraction.
+    ap.add_argument("--max-usd", type=float, default=40.0)
     ap.add_argument("--concurrency", type=int, default=3)
     ap.add_argument("--poll-seconds", type=float, default=20.0)
     ap.add_argument("--batch-timeout-seconds", type=float, default=3 * 3600.0)

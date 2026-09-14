@@ -116,14 +116,52 @@ def test_a_new_extractor_version_does_not_re_arm_the_cap(wisdom_db):
     assert roomy.allowed_count == 3 and not roomy.stopped
 
 
-def test_the_per_version_ceiling_still_binds_when_the_program_total_has_room(wisdom_db):
-    """The two ceilings are independent; whichever binds first wins. Without this the
-    program ceiling could quietly replace the per-version one and nothing would notice."""
+def test_the_cap_is_the_PROGRAM_total_and_the_per_version_figures_bind_nothing(wisdom_db):
+    """⛔ OWNER RULING D-R2, 2026-09-14: "The cap is ONE program-level total carried in the
+    ledger across all extractor versions, models and runs; per-version and per-run spend are
+    reported as sub-lines, never as separate budgets."
+
+    ⚰️ THIS REPLACES `test_the_per_version_ceiling_still_binds_when_the_program_total_has_room`,
+    which asserted the opposite and PASSED ANYWAY — because it seeded exactly ONE version, and
+    with one version the per-version sums EQUAL the program sums, so the two ceilings are
+    indistinguishable and the assertion was about a difference the fixture could not create
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+    ⭐ Two versions is what makes the claim testable, and it shows the per-version ceiling was
+    never reachable: per-version rows are a SUBSET of the program rows (same tables, one extra
+    WHERE), so actual_v <= actual_p and pending_v <= pending_p, and the per-version sum cannot
+    cross the cap strictly before the program sum does. Removing that check was
+    behaviour-preserving; this rail is why we can say so rather than hope so.
+    """
     with store.write() as conn:
-        _seed(conn, "wx-v0-aaaaaaaa", 100.0, 10.0)
+        _seed(conn, "wx-v0-aaaaaaaa", 60.0, 5.0)
+        _seed(conn, "wx-v0-bbbbbbbb", 40.0, 5.0)      # program: 100 actual + 10 pending
     with store.read() as conn:
-        d = budget.select_within_budget(conn, "wx-v0-aaaaaaaa", [4.0] * 4, cap=120.0)
-    assert d.allowed_count == 2 and "all extractor versions" not in (d.reason or "")
+        d = budget.select_within_budget(conn, "wx-v0-aaaaaaaa", [4.0] * 6, cap=120.0)
+
+    # the sub-lines report THIS version and are visibly smaller than the budget...
+    assert (d.actual_usd, d.pending_estimate_usd) == (60.0, 5.0)
+    assert (d.program_actual_usd, d.program_pending_estimate_usd) == (100.0, 10.0)
+    # ...and the stop is the program total, which is what leaves room for exactly two.
+    assert d.allowed_count == 2 and d.stopped
+    assert "all extractor versions" in d.reason
+    assert "this version: actual $60.00" in d.reason, "the sub-line must stay visible in the stop"
+    # remaining is the PROGRAM remainder, never the roomier per-version view
+    assert d.remaining_usd == pytest.approx(120.0 - 100.0 - 10.0 - 8.0)
+
+
+def test_a_version_whose_own_spend_is_tiny_still_stops_on_the_program_total(wisdom_db):
+    """THE FAILING-DIRECTION CONTROL for the ruling: the danger is not a version that has
+    spent a lot, it is a FRESH one that has spent nothing while the program is at its cap.
+    That is exactly the vocabulary-edit hole — mint a version, spend $0, and a per-version
+    budget would hand it the whole cap again."""
+    with store.write() as conn:
+        _seed(conn, "wx-v0-aaaaaaaa", 119.0, 0.0)
+    with store.read() as conn:
+        d = budget.select_within_budget(conn, "wx-v0-ffffffff", [4.0], cap=120.0)
+    assert d.actual_usd == 0.0, "the new version's own spend is genuinely zero"
+    assert d.allowed_count == 0 and d.stopped
+    assert d.remaining_usd < 4.0
 
 
 def test_the_snapshot_reports_both_ceilings(wisdom_db):
