@@ -14,6 +14,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from api.services import breadth_monitor as breadth_monitor_module
 from api.services import breadth_timing, single_flight
 
 
@@ -257,6 +258,63 @@ def test_the_send_phase_is_reported_on_its_own_line_because_the_header_is_gone(c
     assert send, "the send phase was measured and then reported nowhere"
     assert "gzip_send=absent" not in send[0], send[0]
     assert "total_with_send_ms=" in send[0], send[0]
+
+
+def test_a_phase_whose_body_raises_still_records_its_span():
+    """⛔ THE RAIL FOR THE HAND-ROLLED `__enter__`/`__exit__` DEFECT. `merge_rows` was
+    written as `t = phase(...); t.__enter__()` … `t.__exit__(None, None, None)`, which
+    skips `__exit__` entirely when the body raises — so a merge that failed halfway
+    would report `merge_rows=absent`: the instrument going quiet at exactly the moment
+    something went wrong. `phase()` records in a `finally`, and this asserts it.
+
+    ⚠️ THIS TEST DOES NOT DETECT THE DEFECT, and saying so is the point. `phase()` was
+    never broken — the CALL SITE bypassed it — so reinstating the hand-rolled pair
+    leaves this green. It establishes the guarantee that makes the structural rail
+    below worth enforcing. The mutation proof is on that one; a reader who takes this
+    as the detector would have a rail that cannot fail.
+    """
+    breadth_timing._ctx.set(None)
+    breadth_timing.begin(span=8000)
+    with pytest.raises(ValueError):
+        with breadth_timing.phase("merge_rows"):
+            time.sleep(0.01)
+            raise ValueError("the merge blew up halfway")
+    rec = breadth_timing.get()
+    assert rec is not None
+    got = (rec.get("phases") or {}).get("merge_rows")
+    assert got is not None, "the phase went ABSENT because its body raised"
+    assert got > 5, f"the span was recorded but is wrong: {got}"
+
+
+def test_the_reader_wraps_its_phases_in_with_blocks_not_a_manual_pair():
+    """The structural half: the behaviour above is only reached if the reader actually
+    uses `with`. Read as an AST, never as text.
+
+    ⭐ AST, and the reason is specific rather than stylistic: the FIX's own comment
+    contains the words `__enter__` and `__exit__` (it explains why they are not used),
+    so a text search for them matches the explanation and fails the correct code —
+    this repo's "CODE, NEVER PROSE" rule, which it has re-learned six times. An AST
+    never sees a comment, so the needle cannot match its own justification.
+    """
+    import ast
+    import pathlib
+
+    src = pathlib.Path(breadth_monitor_module.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    manual = [n.attr for n in ast.walk(tree)
+              if isinstance(n, ast.Attribute) and n.attr in ("__enter__", "__exit__")]
+    assert not manual, f"a phase is entered/exited by hand: {manual}"
+
+    # ⛔ NON-VACUITY: an empty parse, or a module with no phases at all, would also
+    # produce an empty `manual` list. Prove the file really contains the construct.
+    withs = [n for n in ast.walk(tree)
+             if isinstance(n, ast.With)
+             for item in n.items
+             if isinstance(item.context_expr, ast.Call)
+             and isinstance(item.context_expr.func, ast.Attribute)
+             and item.context_expr.func.attr == "phase"]
+    assert len(withs) >= 9, f"expected the nine reader phases as with-blocks, found {len(withs)}"
+    assert "__exit__" in src, "the control itself is broken — the comment naming it is gone"
 
 
 def test_the_phase_sums_reconcile_with_the_measured_totals():
