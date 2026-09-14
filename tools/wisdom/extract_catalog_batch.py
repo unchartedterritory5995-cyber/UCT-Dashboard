@@ -33,8 +33,32 @@ DEFAULT_CHARS_PER_TOKEN = 3.6
 DEFAULT_SYSTEM_TOKENS = 4200
 DEFAULT_OUTPUT_P50 = 3000
 DEFAULT_OUTPUT_P90 = 6000
-CATEGORY_STREAM = {"Live Trading Sessions": "zoom_live", "LIVE TRAIDNG": "zoom_live",
+CATEGORY_STREAM = {"Live Trading Sessions": "zoom_live",
                    "Workshops & Fireside Chats": "workshop", "Interviews": "interview"}
+
+# Category labels are FREE TEXT on each transcript record (`data["category"]`), so both defects
+# folded here live in the DATA, not in code: a typo'd "LIVE TRAIDNG" (1 source, 54 segments) and
+# two casings of "Sharpen your trading skills" (1 source each). Folded on READ — the artifact and
+# the source records are left untouched (owner ruling R15, 2026-09-14).
+# ⛔ Keyed by casefold, so a third casing folds in without a code change.
+CATEGORY_ALIASES = {
+    "live traidng": "Live Trading Sessions",
+    "sharpen your trading skills": "Sharpen Your Trading Skills",
+}
+
+
+def normalize_category(raw):
+    """Fold a raw category label onto one canonical spelling. Returns falsy input unchanged.
+
+    ⛔ This runs BEFORE the CATEGORY_STREAM lookup, which is why "LIVE TRAIDNG" no longer needs
+    its own entry there: a typo mapped in two places is two authorities over one value, and the
+    second one goes stale silently. The stream assignment is unchanged either way — the alias
+    resolves to a key CATEGORY_STREAM already holds.
+    """
+    if not raw:
+        return raw
+    collapsed = " ".join(raw.split())
+    return CATEGORY_ALIASES.get(collapsed.casefold(), collapsed)
 
 
 def catalog(samples: pathlib.Path):
@@ -49,10 +73,11 @@ def catalog(samples: pathlib.Path):
         data = json.loads(path.read_text(encoding="utf-8"))
         cues = _parse_timestamped_block(data.get("transcript") or "")
         segs = segmenter.segment_transcript(cues, data.get("chapters") or [])
-        stream = CATEGORY_STREAM.get(data.get("category"), "education")
+        category = normalize_category(data.get("category"))
+        stream = CATEGORY_STREAM.get(category, "education")
         ref = f"edu_videos:{data.get('id')}"
         sources.append({"kind": "transcript", "stream": stream, "external_ref": ref, "title": data.get("title"),
-                        "category": data.get("category"), "segments": segs,
+                        "category": category, "segments": segs,
                         "source_id": ids.sha24(stream, ref), "raw_sha256": ids.sha256_text(data.get("transcript") or "")})
     for path in sorted((samples / "sunday_scans_html").glob("*.html")):
         html = path.read_text(encoding="utf-8")

@@ -103,14 +103,23 @@ mutation-proved (old collector reds 2 of 4). **S-E therefore has zero open block
 real fresh boot, not a cached answer) · `git merge-base --is-ancestor` confirms the commit is in
 what master serves, rather than inferred from the push.
 
-| # | merge | commit | web |
-|---|---|---|---|
-| 2 | S-A capture | `fb62a44d9` | SUCCESS |
-| 3 | S-C sources | `a64336c89` | SUCCESS |
-| 4 | S-D extract | `7a2b54369` | SUCCESS |
-| 5 | S-E evals | `98a18b969` | SUCCESS |
-| 6 | S-F1 admin | `49fdc1fbc` | SUCCESS |
-| 7 | **S-F2 publish** | **`fedd8dea1`** | **SUCCESS** |
+| # | merge | merge commit | deployed & verified tip | web |
+|---|---|---|---|---|
+| 2 | S-A capture | `fb62a44d9` | `fb62a44d9` | SUCCESS |
+| 3 | S-C sources | `a64336c89` | `a64336c89` | SUCCESS |
+| 4 | S-D extract | `7a2b54369` | `7a2b54369` | SUCCESS |
+| 5 | S-E evals | `98a18b969` | `98a18b969` | SUCCESS |
+| 6 | S-F1 admin | `b9b12b828` | `49fdc1fbc` | SUCCESS |
+| 7 | **S-F2 publish** | **`27921010f`** | **`fedd8dea1`** | **SUCCESS** |
+
+⚰️ **Rows 6 and 7 carried the DEPLOYED TIP in the "commit" column until 2026-09-14 (session 4,
+E4).** Both merges were followed by a fix commit before the deploy was verified, and the table
+recorded the fix. The merge SHAs are `b9b12b828` and `27921010f`; `49fdc1fbc` and `fedd8dea1` are
+the tips that reached Railway. Verified structurally, not by memory: `49fdc1fbc` is the **first
+parent** of `27921010f`, and each of rows 2–5 has two parents (a real merge) while `49fdc1fbc` and
+`fedd8dea1` have one. ⭐ Rows 2–5 were always correct — for those four the merge commit *was* the
+deployed tip, because no fix landed in between, which is exactly why the column heading read
+unambiguously right for four rows and wrong for two.
 
 **Gate: 987 passed, 1 skipped, 0 failed** (60 named files; the one skip is the vocab-authority
 probe that needs `WISDOM_ENGINE_DB`). It opened at **2 failed, 787 passed**.
@@ -490,12 +499,37 @@ LEVEL            1.000   1.000    0.000    0.600   0.600    0.000
 MARKET_SIGNAL    0.500   0.500    0.000    1.000   1.000    0.000
 MENTION          0.879   0.895   +0.015    1.000   1.000    0.000
 NEGATIVE_CALL    0.800   1.000   +0.200    0.667   0.833   +0.167
-PRINCIPLE        0.700   0.765   +0.065    0.933   0.867   -0.067
+PRINCIPLE        0.700   0.765   +0.065    0.933   0.867   -0.067      ⛔ WITHDRAWN — see below
 ```
 
-PRINCIPLE trades one miss for fewer inventions, which is the trade the tightening was for.
+⛔⛔ **CONFOUNDED — DO NOT CITE THE PRINCIPLE PRECISION/RECALL DELTA (recorded 2026-09-14
+session 2, narrowed and applied session 4).** `golden.py` bound `_tokens` twice at module level
+from `c9d6af653` (2026-09-14 12:09:48Z): the similarity scorer's at `:329` and the paraphrase
+lens's at `:689`. Python keeps the last, so `match_segment`'s PRINCIPLE similarity ran the
+**lens's** tokenizer. gate-run-1's reports are 09:35:44Z and 09:52:59Z (before); gate-run-2's is
+13:23:53Z (after). **The two runs were scored with different similarity functions, so
+P 0.700 → 0.765 and R 0.933 → 0.867 cannot be attributed to the schema change.** Master fixed the
+shadowing in `e56a11b3e`, merged here at `6c2b85749`. Re-scoring locally is impossible — the raw
+outputs were never persisted (only aggregates and record keys) — so closing it costs a $4.34
+re-run of the 57-segment gate phase. Owner ruling 2026-09-14: `Q3_RERUN: NO`, so the row stands
+withdrawn rather than re-measured, and **nothing was spent**.
+
+⭐⭐ **ONLY THE PRINCIPLE ROW IS AFFECTED. The other five rows stand as recorded.** Proved from
+source, not assumed: `match_segment` has two branches, and the **non-PRINCIPLE** branch
+(`golden.py:376-392`) matches on `pre_entity_type`, ticker equality, `stance` and `direction` —
+**it never calls `_tokens`**. The single `_tokens` call site in the function is `:404`, inside the
+PRINCIPLE branch. Scoring *scope* is `_overlap_ratio` over character spans (`:360-362`), also not
+token-based. So CALL, LEVEL, MARKET_SIGNAL, MENTION and NEGATIVE_CALL were scored identically in
+both runs.
+
+⭐ **The DRIFT numbers are NOT affected either** and stand as recorded: drift keys on
+`writer.Chunk.key` → `writer.normalize_quote_key`, which never calls `golden._tokens`.
+
 Records kept **882 -> 835**, unscored **763 -> 718**, cost **$4.8007 -> $4.3357**, cache read
 share **0.773 -> 0.877**. ⭐ The tighter schema is CHEAPER per record as well as steadier.
+⚠️ The sentence that stood here — *"PRINCIPLE trades one miss for fewer inventions, which is the
+trade the tightening was for"* — is withdrawn with the row it described. It read as the finding
+the whole schema change was for, which is precisely why it had to be struck rather than footnoted.
 
 ### ⛔ The finding the owner has to rule on: EVERY type is under the floor
 

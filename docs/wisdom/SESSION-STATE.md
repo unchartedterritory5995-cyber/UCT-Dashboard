@@ -17,13 +17,32 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 > |---|---|
 > | **D-R2** | The reviewer is right. **ONE program-level total**, carried in the ledger across all extractor versions, models and runs; per-version and per-run spend are **reported sub-lines, never separate budgets**. **Cap raised $15 → $40** for Wave 1.5's multi-pass extraction. Every run still prints spend-to-date against the cap and stops at it. Recorded in LEDGER.md with the reversal. |
 > | **HF token** | The line was left unfilled, and the owner's instruction is that this means **"text-only for now"**. ⛔ So diarization stays OFF and **the STT output as delivered stands** — 356 at 100.0 %, no speaker inferred anywhere. |
-> | **G-030** | Left blank, so **it stays in the Contradictions queue**. ⛔ **Both statements stay non-canonical and NOTHING about the 50 SMA publishes** — not to Brain KB, not to Ask-AI, not to a dossier, not to the voice profile. |
+> | **G-030** | Left blank, so **it stays in the Contradictions queue**. ⛔ **Both statements stay non-canonical and NOTHING about the 50 SMA publishes** — not to Brain KB, not to Ask-AI, not to a dossier, **not to a Model Book playbook draft, and not into the clip export's record list**. ⚰️ This read "not to the voice profile" until 2026-09-14 (session 4, R11): `voice.py` has **no PRINCIPLE path at all** (`voice.py:33-39`, `:44-79` read `wisdom_sources.title` and segment text), so that clause forbade nothing, while the two lanes that DO carry a PRINCIPLE — `modelbook.py:129-131` and `clips.py:45-48` — went unnamed. |
 > | **RESUME.md §3** | The cap instruction was wrong and is fixed: `--max-usd` is the **ledger-carried total**, not the remainder. Passing 15 last night was correct. |
 >
 > ⛔⛔ **WAVE 1.5 BLOCKS ANY D18 PUBLISH.** Items 1–5 must be done and the drift number must be in
 > the weekly report before Brain KB repair begins. Publication floor: no PRINCIPLE or
 > MARKET_SIGNAL publishes under a named author unless **stability = 1.0 (3/3)** AND confirmed or
 > provisional-with-evidence; 2/3 may surface only in the admin review queue.
+>
+> ⭐ **THE CONSUMER MAP, VERIFIED FROM SOURCE 2026-09-14 (session 3 §0b, applied session 4 R11).**
+> The floor has to be enforced at **four** points, because three different mechanisms reach these
+> record types and only one of them is `select_records`:
+>
+> | consumer | how it reaches PRINCIPLE / MARKET_SIGNAL | enforcement point |
+> |---|---|---|
+> | dossiers, Model Book drafts | `adapters/common.py:149` `select_records` | `common.select_records` |
+> | Brain KB rows | a **direct `wisdom_principles` SELECT**, `brainkb.py:83-86` — `select_records` never sees it | `brainkb.export_payload:189-201` |
+> | Ask-AI | the **FTS index**, `askai.py:73` → `retrieval.py:184-205` (docs built `:84-116`) | `retrieval.search` |
+> | clip export | untyped SQL over all six types, `clips.py:45-48`, **no feature flag** — gated only by `require_push_secret` (`routes.py:160-162`); metadata only, no text | `clips.clip_candidates` |
+>
+> ⛔ **`voice.py` has NO PRINCIPLE path** (`:33-39`, `:44-79`) and is not an enforcement point;
+> `voicefmt.corpus_documents:42-65` exports raw segment text, which no record-level floor reaches.
+> ⛔ **`modelbook.py:129-131` DOES have one** and was never named in the original wording.
+> ⛔⛔ **The review queue is NOT upstream of these lanes.** Brain KB, Ask-AI and dossiers each
+> reach a member without ever enqueueing, so "2/3 may surface only in the admin review queue"
+> requires a **paired `enqueue`** at the blocking site — otherwise a 2/3 record vanishes instead
+> of surfacing. `review.enqueue` (`review.py:112-139`) is idempotent via `item_id_for` (`:89-90`).
 >
 > ⭐ **Order matters and the owner set it: reduce variance at the SOURCE first** (item 4 — tighter
 > schema, atomic segments, enums verbatim in the prompt), **re-measure drift on the SAME 10
@@ -39,8 +58,13 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 >
 > **ALL SIX §8.4 MASTER MERGES ARE ON MASTER**, each with Railway `web` SUCCESS and a fresh-boot
 > `/api/health` before the next was pushed:
-> S-A `fb62a44d9` · S-C `a64336c89` · S-D `7a2b54369` · S-E `98a18b969` · S-F1 `49fdc1fbc` ·
-> **S-F2 `fedd8dea1`**. Master tip `fedd8dea1`, confirmed by `merge-base --is-ancestor`.
+> S-A `fb62a44d9` · S-C `a64336c89` · S-D `7a2b54369` · S-E `98a18b969` · S-F1 `b9b12b828` ·
+> **S-F2 `27921010f`**. Master tip `fedd8dea1`, confirmed by `merge-base --is-ancestor`.
+>
+> ⚰️ **The S-F1 and S-F2 entries read `49fdc1fbc` and `fedd8dea1` until 2026-09-14 (session 4, E4)**
+> — those are the DEPLOYED TIPS, each a fix commit that landed after its merge, not the merge
+> commits. `49fdc1fbc` is the first parent of `27921010f`. The master tip on that line is correct
+> and unchanged; it is the tip, and it is not merge 7.
 >
 > **PRODUCTION IS DARK, MEASURED NOT ASSUMED:** six services, 430 variables, **zero `WISDOM_*` set
 > anywhere**; `flag_ledger_audit` reports 0 in every category; **27 of 27 real Wisdom GET routes

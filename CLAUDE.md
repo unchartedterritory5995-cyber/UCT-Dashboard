@@ -1658,18 +1658,26 @@ timeout is never banked as permitted breakage, and provenance is `git show <sha>
 
 ## UCT Wisdom Loop — where its HARD RULES actually live
 
-⛔⛔ **The rules that govern the Wisdom programme are NOT in this file and NOT in git.**
-They are the owner's Wave 1 GO §0.4, at:
+⭐ **READ `docs/wisdom/HARD-RULES.md` — §0.4 verbatim, tracked, in this repo since 2026-09-14.**
+
+⛔⛔ **That file is a COPY and carries no authority.** The rules that GOVERN the Wisdom programme
+are the owner's Wave 1 GO §0.4, which is **not in git**, at:
 
 ```
 data/wisdom/WAVE1-PROMPT-v2.0.md   lines 15-24   (§11.3 at line 231 for secrets)
 ```
 
 ⚠️ **That path is GITIGNORED** (`.gitignore:11: data/`), so a fresh clone of this public repo
-does not contain them. It is ignored because `data/wisdom/` is the programme's quote-bearing
-tree — paid transcript text and golden labels — which §0.4f forbids in git; the GO text itself is
-policy prose and carries no quotes, so whether it should be split out into a tracked file is an
-open question for the owner (recon E1, 2026-09-14).
+does not contain it. It is ignored because `data/wisdom/` is the programme's quote-bearing tree —
+paid transcript text and golden labels — which §0.4f forbids in git. That is a property of the
+**directory**, not of §0.4's own text, which is policy prose.
+
+✅ **Resolved (recon E1 → owner ruling R1, 2026-09-14): the §0.4 block is now copied into
+`docs/wisdom/HARD-RULES.md` and tracked.** Only lines 15-24 and 231 were copied, and only after a
+scan for quoted spans, price levels, share counts, credential-shaped literals, emails and handles
+— whose one match was the string `11.3`, the section number of the secrets rule itself. ⛔ **The
+whole GO file is NOT safe to copy on that evidence**: the other ~37,000 bytes were never read, so
+the claim covers the copied block and nothing else.
 
 ⭐ **The in-repo restatement is `docs/wisdom/PROGRAM-MANIFEST.md` §0** (12 standing rules), and
 `docs/wisdom/CONTRACTS.md:110-121` carries the off-limits path list, which is LONGER than
