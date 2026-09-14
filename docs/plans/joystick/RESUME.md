@@ -16,15 +16,21 @@ attributable NEW failures** (next section). The **§4 freeze is
 in effect**: it must not be opened as a PR until Patrick's marked-up `owner-run.md` and trace are in
 and boxes 1 and 2 are ticked on evidence.
 
-## ✅ READY-AND-GATED — `640dcd8d1`, manifest `gate-runs/2026-09-13T15-55-29.md`
+## ✅ READY-AND-GATED — `2ae7e98aa`, manifest `gate-runs/2026-09-13T17-57-36.md`
+
+⚠️ **Supersedes the `640dcd8d1` / `15-55-29` run cited here until 2026-09-13.** Master had moved
+102 commits past the merge base, so master was **merged into** the branch (never rebased) — merge
+commit `2ae7e98aa`. 24 non-test `app/src` files outside the hub arrived with it, which is the
+stated re-gate trigger, so the gate was re-run. `640dcd8d1` is an ancestor of `2ae7e98aa`, not
+lost history — it is simply no longer the branch tip.
 
 **Zero attributable NEW.** Full six-shard gate, run on a box verified clear first
-(`foreign-shard=0, freeGB=12.7`):
+(pre-flight reading, not recorded in the manifest: `foreign-shard=0, freeGB=13.7`):
 
 ```
-tree   640dcd8d166e404545dad420b3ee4a52efdc664c  (start) -> same (end)
-files  1318 on disk — RECONCILES with the summed shard total
-totals 8 failed / 19,439 passed / 19,456
+tree   2ae7e98aa11b5f859a26b9bd4830b850ad22662c  (start) -> same (end)
+files  1325 on disk — RECONCILES with the summed shard total
+totals 8 failed / 19,489 passed / 19,506
 ```
 
 Baseline (`258c5609d`) has **7**; observed **8**; **NEW = 1**, and it is not this branch's:
@@ -40,7 +46,7 @@ on a tree containing none of this branch's changes. R-29 stays in `requests.md`,
 
 ⚰️ **The nine settings failures from the 08-02 run are GONE** — that run found 10 NEW, nine of them
 this branch's (`JoystickSettingsCard.test.jsx` ×8, `joystickSettingsControls.test.jsx` ×1). They
-were correct tests of the wrong stage; `640dcd8d1` updates them, and fixing them surfaced two real
+were correct tests of the wrong stage; `640dcd8d1` (now in `2ae7e98aa`) updates them, and fixing them surfaced two real
 defects recorded in that commit.
 
 ⛔ **READY-AND-GATED IS NOT MERGED.** The §4 freeze stands: the stage-2 PR stays unopened until
@@ -79,7 +85,7 @@ should now hold (*anyone who HAS the hub can reach the switch that turns it off*
 
 ## Next actions, in order
 
-### (a) ✅ DONE — fixed in `640dcd8d1` and re-gated clean (see READY-AND-GATED above)
+### (a) ✅ DONE — fixed in `640dcd8d1`, carried into `2ae7e98aa`, re-gated clean (see READY-AND-GATED above)
 
 Update `app/src/pages/settings/JoystickSettingsCard.test.jsx` (B6, 8 cases) and
 `app/src/pages/settings/joystickSettingsControls.test.jsx` (B13, 1 case) to the stage-2 rule, commit
