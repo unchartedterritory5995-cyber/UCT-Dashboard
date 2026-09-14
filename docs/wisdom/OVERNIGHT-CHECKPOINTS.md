@@ -348,3 +348,92 @@ this run from three videos to one.
 ⛔ Output is `data/wisdom/audit/stt/` — **`data/` is gitignored** (`git check-ignore` verified), so
 no transcript text and none of the 180 MB of cached audio can reach the public repo (§0.4f).
 Nothing was written to wisdom.db, education.db or R2; the R2 reads were `head`/`get` only.
+
+---
+
+## Checkpoint 12 — P5 golden gate COMPLETE. Accepted, and it found something. 2026-09-14 04:53 CT
+
+Resumed from the checkpoint, never from zero. **$11.6504 of the $15 cap** (this run: $7.197 —
+gate $4.8007, drift $1.0651, trial $1.3314). Neither forbidden batch was re-submitted;
+`msgbatch_01Kvf7Q9ZinucRR7xfKQTsnq` and `msgbatch_019NjdbTHu1eK3MXbW2zxMC7` both still read
+`collected: true` and were not touched. Three new batches, all collected, 0 errors, 0 transport
+errors, 0 `skipped_spend_cap`, 0 retried after max_tokens.
+
+⚠️ **A correction to RESUME.md §3**, which says to pass `--max-usd` equal to the *remaining* cap
+(15 − 4.45). `SpendCap.reserve` tests `spent + reserved + usd > max_usd` against the **carried**
+ledger total, so `--max-usd` is the TOTAL. Passing 10.55 would have left $6.10 of headroom, not
+$10.55, and the gate would have stopped part-way and recorded an INCOMPLETE evaluation. Passed 15.
+
+### The gate — dev split, golden-v1 `db3475c814ee`, 57 segments, `claude-opus-5` high
+
+```
+type             tp   fp   fn   precision (n)     recall (n)
+CALL             17    7    6   0.708 ( 24)      0.739 ( 23)
+LEVEL             6    0    4   1.000 (  6)      0.600 ( 10)
+MARKET_SIGNAL     3    3    0   0.500 (  6)      1.000 (  3)
+MENTION          51    7    0   0.879 ( 58)      1.000 ( 51)
+NEGATIVE_CALL     4    1    2   0.800 (  5)      0.667 (  6)
+PRINCIPLE        14    6    1   0.700 ( 20)      0.933 ( 15)
+```
+
+**decision `accepted`** — `baseline: true`, `compared_to: null`, `regressions: []`. ⛔ Read that
+honestly: this is the FIRST recorded evaluation for `wx-v0-74bafea0`, so "accepted" means *"there
+was nothing to regress against"*, not *"these numbers are good"*. 882 records kept, $0.0054 per
+record.
+
+⛔⛔ **AND THE HEADLINE NUMBERS COVER 14 % OF THE OUTPUT.** `golden.match_segment` scores a
+prediction only when its quote span **overlaps a golden label's span**:
+`scored = [p for p in predicted if any(_overlap_ratio(...) > 0 for s in spans)]`. So of **882
+records kept, 763 were never scored** — they are claims about paragraphs nobody labelled, and the
+gate is structurally blind to them. **Precision above is precision ON LABELLED TEXT; it does not
+bound the extractor's false-positive rate on the other 86 %.** A record invented about an
+unlabelled paragraph cannot appear as an `fp` here.
+
+### ⛔⛔ DRIFT IS THE FINDING: the extractor agrees with ITSELF half the time
+
+Same model, same effort, same 10 segments, run twice:
+
+```
+mean_jaccard        0.5046          identical_segments  3 of 10
+                 agreed   run_1   run_2
+CALL                17      23      21
+MENTION             93     117     116
+LEVEL                2       3       3
+MARKET_SIGNAL        4      17      19      <- ~24 % agreement
+PRINCIPLE            6      30      28      <- ~20 % agreement
+```
+
+`claude-opus-5` takes no temperature, so this is inherent run-to-run variance, not a
+misconfiguration. **PRINCIPLE and MARKET_SIGNAL are effectively not reproducible**: re-run the
+same session and you get a largely different set of principles.
+
+⭐ **Why this outranks the precision table.** PRINCIPLE rows are the ones destined for the Brain KB
+and Ask-AI under D18 — replacing the stale Bonde-credited rows with "dated, signed, linked Wisdom
+rows". A row that would not survive re-running the extractor on the same paragraph is not a
+finding about what the team teaches; it is a sample from a distribution. **Publishing it and
+citing it to a named author is the part that cannot be undone**, and nothing in the current design
+tells a reader which side of that line a given row is on.
+
+This is a measurement, not a proposal. It is recorded for the owner, and D18's adapters stay dark.
+
+### The smaller-model trial — VERDICT: NO SWITCH
+
+20 shared segments, `claude-sonnet-5` vs `claude-opus-5` scored on the same golden spans:
+
+| type | opus P | sonnet P | Δ precision | opus R | sonnet R |
+|---|---|---|---|---|---|
+| CALL | 0.583 | **0.778** | **+0.194** | 0.875 | 0.875 |
+| LEVEL | **1.000** | 0.667 | −0.333 | 0.333 | **0.667** |
+| MARKET_SIGNAL | 0.500 | 0.500 | 0.000 | 1.000 | 1.000 |
+| MENTION | **1.000** | 0.800 | −0.200 | 1.000 | 1.000 |
+| NEGATIVE_CALL | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 |
+| PRINCIPLE | **0.700** | 0.636 | −0.064 | 1.000 | 1.000 |
+
+Cost on those segments: opus **$1.7214** (289 records) · sonnet **$1.3314** (277) —
+**$0.004806 vs $0.005956 per kept record, ~19 % cheaper.**
+
+⛔ **Not a tie, so D5's condition is not met and the model does not change.** Sonnet wins CALL
+precision and loses LEVEL, MENTION and PRINCIPLE. The expected counts are 8, 3, 1, 4, 1 and 7 — a
+single record moves a rate by 12–100 points, so no cell here separates the models. The tool's own
+rule says the rest: *"a trial is not a gate evaluation: a smaller model becomes eligible only
+through a full gate run of its own."*
