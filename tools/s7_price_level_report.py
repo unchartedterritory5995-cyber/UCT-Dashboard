@@ -316,7 +316,7 @@ def _beat_row(db_path: str, table: str) -> dict | None:
         return None          # table absent = the sweep has never run once
 
 
-def ticking_one(db_path: str, spec) -> tuple[str, int]:
+def ticking_one(db_path: str, spec, *, now=None) -> tuple[str, int]:
     """One sweep's liveness, as TWO facts that fail separately.
 
     * TICKING — the heartbeat's wall-clock age. A sweep that died at 09:01
@@ -332,7 +332,7 @@ def ticking_one(db_path: str, spec) -> tuple[str, int]:
     beat = _beat_row(db_path, table)
 
     if beat is None:
-        inside, when = _window(hours, fires=fires, bound=bound)
+        inside, when = _window(hours, fires=fires, bound=bound, now=now)
         if not inside:
             return ("%-16s n/a -- %s; it runs %s.\n"
                     "  No heartbeat yet is EXPECTED here, not a fault."
@@ -385,7 +385,7 @@ def ticking_one(db_path: str, spec) -> tuple[str, int]:
         lines.append("  last market date observed: %s" % beat["last_market_date"])
 
     if not alive:
-        inside, when = _window(hours, fires=fires, bound=bound)
+        inside, when = _window(hours, fires=fires, bound=bound, now=now)
         if not inside:
             lines[0] = lines[0].replace(" NO  --", " n/a --", 1)
             lines.append("  ...but %s, so the gap is the schedule, not a stall. "
