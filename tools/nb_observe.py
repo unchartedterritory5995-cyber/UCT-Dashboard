@@ -453,7 +453,14 @@ def main() -> int:
                             uniq.append(h)
                     more = f" (+{len(uniq) - 3} more)" if len(uniq) > 3 else ""
                     bits.append("HTTP: " + " ; ".join(uniq[:3]) + more)
-                reasons.append(f"{len(errors)} console/page error(s): " + "  |  ".join(bits))
+                # ⛔ NEVER EMIT THE TABLE DELIMITER INTO A CELL. This joined with "  |  "
+                # for one night and made the row UNPARSEABLE: the flag cell carried a
+                # pipe, so the row read as 10 cells under a 9-column header and the
+                # gate DROPPED it - silently losing the only row that carried the URL
+                # the whole change was made to record.
+                # ⭐ The reader was also made tolerant, but a writer that emits its
+                # own delimiter is a hazard for every other reader too.
+                reasons.append(f"{len(errors)} console/page error(s): " + "  ·  ".join(bits))
             if unk.get("identities"):
                 reasons.append(
                     f"UNKNOWN INTERNAL identity opted in ({unk.get('identities')}): "

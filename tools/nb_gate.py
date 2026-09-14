@@ -199,6 +199,37 @@ def is_observation_row(cells: list[str]) -> bool:
     return bool(cells) and bool(_ROW_AT.match(cells[0].strip()))
 
 
+def split_cells(line: str, ncols: int | None = None) -> list[str]:
+    """A table line's cells, with a pipe INSIDE the LAST column put back.
+
+    !!!! THE SAMPLER WRITES A PIPE INTO THE FLAG CELL. `nb_observe.py` joins the
+    parts of an ANOMALY reason with `"  |  "`, so the row that finally carries
+    the failing URL reads
+
+        ... | 2 | **ANOMALY** - 2 console/page error(s): console.error: ...
+            [issued by https://.../api/barspack/manifest:0]  |  HTTP: GET
+            https://.../api/barspack/manifest -> 401 |
+
+    which is TEN cells under a NINE-column header. Measured against the live log
+    2026-09-14: the 01:00 ET row - the ONLY row that has ever carried a URL - was
+    dropped as `row ... has 10 cell(s) under a 9-column header`, so the ownership
+    ruling below would have had nothing to read.
+
+    ⭐ The surplus is put back into the LAST column and nowhere else, and only
+    when the caller says how many columns there are. Splitting the overflow
+    across the middle would shift every column one place - the `x[4]`/`x[6]`
+    defect this gate already paid for once - so the repair is deliberately the
+    narrowest one that can be correct: the flag cell is the last column, it is
+    the only free text the sampler writes, and the RAW pieces are rejoined with
+    the pipe they were split on, so the cell is byte-identical to what was
+    written.
+    """
+    raw = line.strip('|').split('|')
+    if ncols and ncols >= 1 and len(raw) > ncols:
+        raw = raw[:ncols - 1] + ['|'.join(raw[ncols - 1:])]
+    return [c.strip() for c in raw]
+
+
 def parsed_rows() -> tuple[list[dict], list[str]]:
     """Every observation row as {canonical column: value}, plus any complaints.
 
@@ -213,8 +244,13 @@ def parsed_rows() -> tuple[list[dict], list[str]]:
     for line in LOG.read_text(encoding='utf-8').splitlines():
         if not line.startswith('|') or line.startswith('|---'):
             continue
-        cells = [c.strip() for c in line.strip('|').split('|')]
-        if 'at (ET)' in line:
+        # ! The header decides the width, so it is split without one; a DATA row
+        # is split against the header it sits under, which is what lets a pipe
+        # inside the flag cell be put back instead of shifting every column.
+        is_header = 'at (ET)' in line
+        width = None if is_header or not keys or keys[-1] != 'flag' else len(keys)
+        cells = split_cells(line, width)
+        if is_header:
             keys = [canonical(c) for c in cells]
             unknown = [c for c, k in zip(cells, keys) if k is None]
             if unknown:
@@ -267,6 +303,142 @@ def is_skipped(rec: dict) -> bool:
     """
     return 'SKIPPED' in str(rec.get('flag', ''))
 
+
+# =============================================================================
+# TRIGGER 4 - OWNERSHIP OF THE FAILING REQUEST, NOT ITS SEVERITY.
+# Owner ruling 2026-09-14, approved as proposed:
+#   "Trigger-4 filter - filter by OWNERSHIP of the failing request's origin, not
+#    severity. A 401 from a request the Notebook doesn't issue is FOREIGN and
+#    recorded, not an ANOMALY; a 401 from anything the Notebook issues stays a
+#    trigger. Rail both directions."
+# =============================================================================
+# Three consecutive rows (2026-09-13 19:00, 21:00, 23:00 ET) read
+# `**ANOMALY** - 2 console/page error(s)` and the whole of their evidence was
+# `Failed to load resource: the server responded with a status of 401 ()`. A
+# STATUS cannot decide this: the same 401 is a foreign endpoint refusing an
+# unauthenticated prefetch AND the Notebook's own write being rejected. The
+# concrete case is `GET https://uctintelligence.com/api/barspack/manifest -> 401`
+# - the app shell's chart/bars prefetch (`app/src/utils/prefetchBars.js`, reached
+# from MoversSidebar / TickerPopup / FuturesStrip / CatalystTable), not the
+# Notebook.
+#
+# ⛔⛔ UNKNOWN IS NOT CLEAR. The sampler only learned to record the failing URL on
+# 2026-09-14; every row written before that names a COUNT and nothing else. An
+# un-attributable row STAYS a trigger. Scoring "we cannot tell" as "not ours" is
+# the same move as scoring an UNREADABLE close as absent, which this wave has
+# already made once (`_doc_text(None) == ''`).
+#
+# ⭐ ONE PREFIX SET, ONE PLACE, AND NOT A URL. Hard-coding `/api/barspack/manifest`
+# would leave the next foreign endpoint to be ruled on all over again. Ownership
+# is a RULE about which API surface the Notebook page issues.
+NOTEBOOK_REQUEST_PREFIXES = (
+    # The Journal-2.0 surface. The Notebook page IS this API, and so is the
+    # offline layer: `/api/j2/note`, `/api/j2/notes/...` and `/api/j2/telemetry`
+    # are the only endpoints `app/src/pages/journal-2-0/lib/offline/*.js` issues.
+    '/api/j2/',
+    # The Notebook's capability flags ride the ACCESS PAYLOAD - `notebookFlags.js`
+    # latches `notebook_offline_*` out of whatever `/api/auth/*` returns - so an
+    # auth request that fails IS a Notebook failure. It is the exact shape K-1's
+    # "an unreachable auth payload fails to OFF" is written against, and a 401
+    # there would be the wave silently deciding it may not write.
+    '/api/auth/',
+)
+
+# What the sampler writes beside the count, and how to read it back.
+# `nb_observe.py` emits `  [issued by <url>:<line>]` from the console message's
+# LOCATION, `  [no location]` when it has none, and
+# `HTTP: <METHOD> <url> -> <status> ; ...` with a ` (+N more)` tail when it had
+# to truncate the deduped failing-request list at three.
+_ISSUED_BY = re.compile(r'\[issued by (\S+?):(-?\d+|None|null|undefined)\]')
+_HTTP_ENTRY = re.compile(
+    r'\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+)\s+->', re.I)
+_TRUNCATED = re.compile(r'\(\+\d+ more\)')
+
+
+def request_ownership(origin: str) -> str:
+    """'notebook', 'foreign' or 'unknown' for ONE recorded request origin.
+
+    ⛔ THE THIRD ANSWER IS THE WHOLE POINT. A predicate that only answers "is it
+    ours?" turns every origin it cannot read into a foreign one, and this gate
+    would then clear a hole it never looked at. Foreign is only ever returned for
+    a path this rule can positively place on ANOTHER product's API surface.
+
+    Classification is by PATH: every request the rig sees is same-origin against
+    production, and a third-party host serving `/api/...` is foreign anyway.
+    """
+    s = (origin or '').strip().strip('.,;)]')
+    if not s:
+        return 'unknown'
+    m = re.match(r'(?:[a-z][a-z0-9+.-]*://[^/\s]*)?(/\S*)', s, re.I)
+    if not m:
+        return 'unknown'
+    path = m.group(1).split('?')[0].split('#')[0]
+    if any(path == p.rstrip('/') or path.startswith(p)
+           for p in NOTEBOOK_REQUEST_PREFIXES):
+        return 'notebook'
+    if path.startswith('/api/'):
+        # Another product's endpoint on the same host. `/api/barspack/...`,
+        # `/api/bars/...`, `/api/live-prices` - the app shell issues these on
+        # every page, the Notebook issues none of them.
+        return 'foreign'
+    # A bundle chunk (`/assets/index-*.js`), a page URL, anything else: this rule
+    # cannot place it, so it is not cleared.
+    return 'unknown'
+
+
+def console_attribution(flag_cell) -> dict:
+    """Who owns the failing requests ONE observation row recorded?
+
+    Returns {'verdict', 'origins', 'why'}. `verdict` is 'foreign' ONLY when the
+    row's own evidence accounts for where its errors came from and every one of
+    those origins is another product's.
+
+    ⛔ FAILURE-SAFE IN FOUR PLACES, each of which would otherwise clear a row
+    nobody has looked at:
+      · a row that names no origin at all (every row before 2026-09-14);
+      · `[no location]` - the console message had no location to attribute;
+      · ` (+N more)` - the sampler truncated the failing-request list at three,
+        so origins it did not print exist;
+      · `pageerror:` - a JS exception thrown by the page. It has no request
+        origin at all, and the page it was thrown on is `/journal/notebook`, so
+        it is the Notebook's however clean the HTTP list beside it looks.
+    """
+    cell = str(flag_cell or '')
+    if 'pageerror:' in cell:
+        return {'verdict': 'notebook', 'origins': [],
+                'why': 'a pageerror is an exception thrown by the Notebook page itself'}
+    origins, seen = [], set()
+    for m in _ISSUED_BY.finditer(cell):
+        if m.group(1) not in seen:
+            seen.add(m.group(1))
+            origins.append(m.group(1))
+    for m in _HTTP_ENTRY.finditer(cell):
+        if m.group(1) not in seen:
+            seen.add(m.group(1))
+            origins.append(m.group(1))
+    if not origins:
+        return {'verdict': 'unknown', 'origins': [],
+                'why': 'the row names no failing-request URL - it predates the '
+                       'sampler recording one, and unknown is not clear'}
+    if _TRUNCATED.search(cell):
+        return {'verdict': 'unknown', 'origins': origins,
+                'why': 'the row\'s failing-request list is TRUNCATED - origins it '
+                       'did not print exist'}
+    if '[no location]' in cell:
+        return {'verdict': 'unknown', 'origins': origins,
+                'why': 'a console error on this row carried NO location, so it '
+                       'cannot be attributed'}
+    kinds = [request_ownership(o) for o in origins]
+    if 'notebook' in kinds:
+        owned = [o for o, k in zip(origins, kinds) if k == 'notebook']
+        return {'verdict': 'notebook', 'origins': origins,
+                'why': 'Notebook-owned request(s) failed: ' + ', '.join(owned)}
+    if 'unknown' in kinds:
+        odd = [o for o, k in zip(origins, kinds) if k == 'unknown']
+        return {'verdict': 'unknown', 'origins': origins,
+                'why': 'origin(s) this gate cannot place: ' + ', '.join(odd)}
+    return {'verdict': 'foreign', 'origins': origins,
+            'why': 'every failing request is an endpoint the Notebook does not issue'}
 
 
 # =============================================================================
@@ -446,10 +618,23 @@ def main() -> int:
     # 2026-09-12 23:00 SKIP (production unreachable mid-deploy) carries 20 console
     # errors from a page that could not load, and `x[6]` is `outbox` under the
     # 9-column header anyway. Either fault alone printed REVERT.
-    errs = [x for x in observed if (number(x, 'console') or 0) > 0]
-    t4 = "PASS" if not errs else "FAIL"
+    # ⛔⛔ OWNERSHIP, NOT SEVERITY (owner ruling 2026-09-14). A row whose errors
+    # all come from endpoints the Notebook does not issue is FOREIGN: RECORDED
+    # with its URL below, and not blocking. It is never dropped - a hole that is
+    # invisible is worse than one that is attributed. Everything else - ours, or
+    # un-attributable - still fails, and the COUNT this reads is unchanged.
+    errs_all = [x for x in observed if (number(x, 'console') or 0) > 0]
+    errs, foreign_rows = [], []
+    for x_ in errs_all:
+        attr = console_attribution(x_.get('flag'))
+        (foreign_rows if attr['verdict'] == 'foreign' else errs).append((x_, attr))
+    foreign_note = ('' if not foreign_rows else
+                    f" - {len(foreign_rows)} FOREIGN row(s) recorded below, not blocking")
+    t4 = ("PASS" if not errs else "FAIL") + foreign_note
     if errs:
-        fails.append(f"trigger 4: console errors at {errs[0]['at']}")
+        fails.append(f"trigger 4: console errors at {errs[0][0]['at']} "
+                     f"({errs[0][1]['why']})")
+    errs = [x_ for x_, _ in errs]
 
     # =========================================================================
     # THREE POPULATIONS, PRINTED EVERY TIME, NEVER SUMMED. Owner ruling 2026-09-13.
@@ -554,6 +739,21 @@ do-not-build: {dnb}
     if fails:
         body += '## Why this is not a clean KEEP' + NLV + NLV
         body += NLV.join('- ' + f for f in fails) + NLV + NLV
+    # ⭐ FOREIGN ERRORS ARE PRINTED, ALWAYS. They do not block (owner ruling
+    # 2026-09-14), and a filter whose output nobody can see is a filter that
+    # deletes evidence. Each row names the URLs it was cleared on.
+    if foreign_rows:
+        body += ('## Foreign console errors - RECORDED, not blocking' + NLV + NLV
+                 + 'Trigger 4 filters by OWNERSHIP of the failing request, not by '
+                 + 'severity (owner ruling 2026-09-14). Every error on these rows '
+                 + 'came from an endpoint the Notebook does not issue, so they do '
+                 + 'not say REVERT - and they are named in full, because a hole '
+                 + 'that is invisible is worse than one that is attributed.'
+                 + NLV + NLV)
+        for x_, attr in foreign_rows:
+            body += ('- ' + str(x_.get('at')) + ' - '
+                     + ', '.join(attr['origins']) + NLV)
+        body += NLV
     if organic == 0:
         body += ('## !! What a KEEP over zero organic members does NOT mean' + NLV + NLV
                  + 'Every trigger reads clean when nobody has run the layer -- that is what '
