@@ -113,6 +113,9 @@ import { CARVED_OUT_ROWS, unwiredKeys, NOT_IN_BLOB } from './indicatorCatalog'
 // merge is POSITIONAL — see `chartDefaults`'s header) and simply stops being
 // listed and drawn.
 import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
+// ⭐ ONE NAMING AUTHORITY FOR THE SURFACES THAT NAME AN INSTANCE — the legend
+// chip, the "Display in" menu and this tab's rows.
+import { instanceLabel } from './engine/sourceRef'
 
 export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
@@ -517,7 +520,25 @@ export function listEngineIndicators(settings, registry) {
         // and "write the definition's mirror + its seeded instance".
         ...(instance ? { instanceId: instance.instanceId } : {}),
         engineOwned: true,
-        label: `${meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
+        // ⭐⭐ A DEFINITION THAT NAMES ITSELF FROM ITS SOURCE NAMES ITS ROWS THAT
+        // WAY TOO. `meta.name` is the CATALOGUE noun — right for "Relative
+        // Strength Index", and wrong for the one definition whose whole identity
+        // is what it was pointed at.
+        //
+        // ⚰️ MEASURED IN A BROWSER 2026-09-14, on the pane harness: a chart
+        // holding two QQQ series and one SPY showed FOUR rows all reading "Data
+        // Series", while the legend beside them correctly read `QQQ`. Fixing
+        // `chipLabel` alone is exactly half the defect the readout header warns
+        // about — there are two naming surfaces and they are not the same
+        // function. `instanceLabel` is the authority the chip already uses, so
+        // both say the same thing by reading the same declaration.
+        //
+        // ⛔ GATED ON `meta.labelFrom`, NEVER ON A DEFINITION ID. Every other row
+        // keeps its catalogue noun, and a future definition that names itself
+        // from an input inherits this with no edit here.
+        label: `${(instance && meta.labelFrom)
+          ? instanceLabel(def, instance)
+          : (meta.name || meta.shortName || def.id)}${sessionOnly ? ' (intraday only)' : ''}`,
         // The GROUP is the definition's short name, which is what the shipped tab
         // showed ("VWAP") — and it keeps the modal's section list derived from the
         // rows rather than hardcoded. Two instances share ONE section, which is

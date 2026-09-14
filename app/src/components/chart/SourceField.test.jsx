@@ -216,6 +216,49 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
     expect(sel.value).toBe('sym:QQQ:close')
   })
 
+  it('⭐⭐ THE ROW IS NAMED FROM ITS SOURCE, not "Data Series" four times', () => {
+    // ⚰️ MEASURED IN A BROWSER 2026-09-14, on the pane harness, and it is the
+    // half of the naming defect the chip fix did not cover: a chart holding two
+    // QQQ series and one SPY listed FOUR rows all reading "Data Series", while
+    // the legend beside them correctly read `QQQ`. Two naming surfaces, and they
+    // are not the same function.
+    let cs = addInstance(mergeChartSettings({}), 'dataSeries', registry)
+    cs = addInstance(cs, 'dataSeries', registry)
+    const ids = cs.indicatorInstances.filter((i) => i.defId === 'dataSeries').map((i) => i.instanceId)
+    const srcs = ['sym:QQQ:close', 'sym:SPY:close']
+    cs = {
+      ...cs,
+      indicatorInstances: cs.indicatorInstances.map((i) => {
+        const at = ids.indexOf(i.instanceId)
+        return at < 0 ? i : { ...i, inputs: { ...(i.inputs || {}), source: srcs[at] } }
+      }),
+    }
+    render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+    // ⛔ THE NAME ELEMENT, NOT THE BUTTON'S TEXT. `actName` is the expander
+    // BUTTON and it wraps both the name (`actLabel`) and the definition's
+    // shortName badge, so its `textContent` reads `QQQSeries` — two correct
+    // things concatenated, not a name. The badge is right to keep: it says WHAT
+    // KIND of row this is, while the label says WHICH ONE.
+    const names = [...document.body.querySelectorAll('[data-row-id]')]
+      .map((r) => (r.querySelector('[class*="actLabel"]')?.textContent || '').trim())
+      .filter(Boolean)
+    expect(names).toContain('QQQ')
+    expect(names).toContain('SPY')
+    expect(names.filter((n) => /Data Series/.test(n)),
+      'a direct series row is still wearing the catalogue noun').toEqual([])
+  })
+
+  it('⛔ …and an ORDINARY definition keeps its catalogue noun', () => {
+    // The gate is `meta.labelFrom`, not a definition id. RSI must be unaffected.
+    const cs = addInstance(mergeChartSettings({}), 'rsi', registry)
+    render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+    const names = [...document.body.querySelectorAll('[data-row-id]')]
+      .map((r) => (r.querySelector('[class*="actLabel"]')?.textContent || '').trim())
+    expect(names.some((n) => /Relative Strength/i.test(n))).toBe(true)
+  })
+
   it('⛔ …and the control the tab drew writes through the row patch', () => {
     const { cs } = withSeries('close')
     const seen = []
