@@ -41,7 +41,7 @@ const presOf = (src, title) => {
 }
 
 describe('a6.0 — `color.rgb`\'s literal alpha reaches presentation', () => {
-  run('⭐⭐ a 4-argument `color.rgb` carries its alpha as `opacity`', () => {
+  it('⭐⭐ a 4-argument `color.rgb` carries its alpha as `opacity`', () => {
     // 80% transparent is 0.2 opaque — the same 1 − t/100 the `color.new` path and the
     // legacy `transp=` path already use, so one carrier means one arithmetic.
     const p = presOf(`${HEAD}plot(close, "a", color=color.rgb(255, 0, 0, 80))\n`, 'a')
@@ -50,7 +50,7 @@ describe('a6.0 — `color.rgb`\'s literal alpha reaches presentation', () => {
     expect(p.opacity).toBeCloseTo(0.2, 5)
   })
 
-  run('⭐ CORPUS · atr-bands:120 — the white take-profit band is not opaque white', () => {
+  it('⭐ CORPUS · atr-bands:120 — the white take-profit band is not opaque white', () => {
     // ⚰️ THE SCRIPT THE DEFECT WAS FOUND ON. `color.rgb(255, 255, 255, 80)` on a band
     // whose whole job is to sit behind the price: drawn opaque it is the loudest thing
     // on the chart, which is the opposite of what the author asked for.
@@ -62,12 +62,21 @@ describe('a6.0 — `color.rgb`\'s literal alpha reaches presentation', () => {
     expect(o.presentation.opacity, '80% transparent is 0.2 opaque').toBeCloseTo(0.2, 5)
   })
 
-  run('⭐ CORPUS · atr-bands:116 — and the green upper band at 50', () => {
+  it('⭐ CORPUS · atr-bands:121 — the second band, a different colour, same alpha', () => {
+    // ⚰️ THIS CASE FIRST NAMED `Upper ATR Band` (:116, `color.rgb(0, 255, 0, 50)`) AND
+    // THAT LINE CANNOT CARRY IT — measured, not assumed. Both :116 and :117 refuse
+    // `pine:statement`, traced to line 83, so they arrive with `title: null` and no
+    // `presentation` at all. Their alpha is not dropped; the whole plot is refused for
+    // a reason that has nothing to do with colour.
+    // ⭐ So the second assertion moves to a line that exists, on a DIFFERENT colour, to
+    // keep the pair discriminating: if the alpha were hard-coded rather than read, one
+    // of these two would still be right and the other would not.
     const src = fs.readFileSync(path.join(CORPUS, 'atr-bands__ad60b125e6.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
-    const o = (t.outputs || []).find((x) => x.title === 'Upper ATR Band')
+    const o = (t.outputs || []).find((x) => x.title === 'Lower Take-Profit Band')
     expect(o, 'the band still translates').toBeTruthy()
-    expect(o.presentation.opacity).toBeCloseTo(0.5, 5)
+    expect(o.presentation.color).toBe('#FFFF00')
+    expect(o.presentation.opacity).toBeCloseTo(0.2, 5)
   })
 
   // ── controls, permanent ──────────────────────────────────────────────────

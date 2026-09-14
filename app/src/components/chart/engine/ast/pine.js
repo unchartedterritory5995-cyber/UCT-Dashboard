@@ -12025,10 +12025,34 @@ function staticColourOf(node, env, depth = 0) {
   return null
 }
 
-/** The opacity a `color.new(base, transp)` asks for, or null. */
-function colourNewAlpha(node) {
-  if (!node || node.type !== 'call' || node.name !== 'color.new') return null
-  const t = numberValue(((node.args || [])[1] || {}).value)
+/** The opacity a colour helper asks for, or null.
+ *
+ *  ⭐⭐ a6.0 / H.1 — `color.rgb(r, g, b, t)` CARRIES ITS FOURTH ARGUMENT TOO.
+ *
+ *  ⚰️ It did not, and the loss was silent and visual. `staticColourOf` parses that
+ *  argument and validates it — it returns null for a DYNAMIC one, deliberately — and
+ *  then hands back a 3-channel `#RRGGBB` with nowhere to put a literal one. So a band
+ *  authored at 80% transparent rendered fully opaque. Measured on
+ *  `atr-bands__ad60b125e6.pine:120`, whose take-profit band is
+ *  `color.rgb(255, 255, 255, 80)`: a series whose whole job is to sit behind the price,
+ *  drawn as the loudest thing on the chart. 56 of 328 corpus scripts feed a colour
+ *  helper into a `plot()`.
+ *
+ *  ⭐ ONE ARITHMETIC FOR THREE PATHS. `color.new`'s transparency, `color.rgb`'s fourth
+ *  argument and the legacy `transp=` argument all mean the same thing and all become
+ *  `1 - t / 100` here, so they cannot drift apart.
+ *
+ *  ⛔ NO NEW FIELD WAS NEEDED, and measuring the consumers before choosing is what
+ *  established that: `presentation.opacity` already exists, is already validated by
+ *  `defSchema`, and is already read by the renderer — it was added after Volume v2's
+ *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
+ *  dropped (`memberPaneDefinition.js:139`).
+ */
+function colourHelperAlpha(node) {
+  if (!node || node.type !== 'call') return null
+  const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
+  if (arity === null) return null
+  const t = numberValue(((node.args || [])[arity] || {}).value)
   return t === null ? null : Math.max(0, Math.min(1, 1 - t / 100))
 }
 
@@ -12114,8 +12138,8 @@ function colourConditional(node, env, depth = 0) {
   // The transparency of either branch, if they agree on one. Two DIFFERENT
   // opacities are a per-point alpha this schema has no field for; carrying one of
   // them would silently apply it to both.
-  const a = colourNewAlpha(node.yes)
-  const b = colourNewAlpha(node.no)
+  const a = colourHelperAlpha(node.yes)
+  const b = colourHelperAlpha(node.no)
   const opacity = (a !== null && b !== null && a === b) ? a : null
   return { test: node.test, up, down, opacity }
 }
@@ -12160,7 +12184,7 @@ function outputPresentation(args, ctx) {
     const flat = staticColourOf(c.value, ctx && ctx.env)
     if (flat) {
       pres.color = flat
-      const a = colourNewAlpha(c.value)
+      const a = colourHelperAlpha(c.value)
       if (a !== null) pres.opacity = a
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
