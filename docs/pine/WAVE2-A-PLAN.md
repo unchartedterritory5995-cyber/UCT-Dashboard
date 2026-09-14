@@ -301,3 +301,74 @@ a3's comment warned that moving the refusal off the read would turn `pine.commun
 `pine.guardCensus` and `pineStrictMode` (×3) red. **It did not** — a3 has since cleared
 the refusals those rails snapshot, so the relocation passed them untouched. The only
 metric movement was one guard in one script, `pine:collection` → `pine:drawing`.
+
+---
+
+# ✅ ITEM (a) IS COMPLETE — a1 … a4b, rulings R1 … R8
+
+| sub-step | outcome |
+|---|---|
+| **a1** | the decidability probe — `12cbdd289` |
+| **a2** | plan-time vectors; reads fold to slot trees — `223f58ad2`, `66a4a5250` |
+| **a3** | the unroll — `06a2258e2` (red), `a1de7a6f5` (green) |
+| **a4** | retired forms refuse at their own line — `af4606288` (red), `901e8165a`, `bfe7e2b4e` (R4–R6) |
+| **a4b** | **RETIRED, not built** — `1528c0149` (red), `394df1018` (R7a) |
+
+## What was RETIRED, and at what number
+
+| form | admissible | ruling |
+|---|---|---|
+| `while` | **15 of 116** | F4 |
+| `for x in` | **13 of 92** | R1 |
+| `for [i, x] in` | **0 of 34** | R1 |
+| counted-`for` accumulator | **1 of 379**, and that one runs a single iteration | R7 |
+
+⛔ **Four forms retired on measurement, none on taste.** Each refusal now carries its
+own number so a reopening starts from evidence.
+
+## The a4b ceiling, so a reopening starts from what would have to change
+
+**63 of 379** accumulator loops have an iteration count this engine could settle, and
+**that is a hard ceiling** — anything that must be unrolled needs one, so no relaxation
+of the other axes can lift the admissible set above it.
+
+| axis | alone | drop it → admissible |
+|---|---|---|
+| seed known | 321 | 7 |
+| shape `s := s op e` | 149 | 50 |
+| **bound knowable** | **63** | 106 |
+| no escape | 257 | 9 |
+| bound + escape dropped together | — | 134 |
+
+⚠️ The 106 and 134 figures come from dropping the bound requirement, and those loops
+cannot be unrolled at all — they are not a relaxation available to anyone.
+
+## R7a — the fix chosen, and the one rejected
+
+Candidate **(ii)** shipped: `forceOpaque` keeps its `extra` as `reason`, and the
+overwrite at `pine.js:11128` carries that reason forward instead of re-composing from
+the bare guard. The refusal lands on the `:=` — where the reassignment fact is — and
+its sentence names the `for`.
+
+⛔ Candidate **(i)**, reordering so `forceOpaque` runs before the body walk, was
+**rejected on blast radius**: it touches every statement branch that walks a body,
+which is the likeliest place for a fifth instance of the read/overwrite ordering class
+to ship silently, and it buys a line that agrees with the sentence no better.
+
+## ⛔ OWED — carried into item (c) or a later wave, not lost
+
+| owed | evidence |
+|---|---|
+| the **13** `for x in` writes-slot uses | all masked by an earlier refusal; the rail goes red if one becomes reachable |
+| **function-parameter** sources | `multi-timeframe-supply-demand-zones:264`, `SnD_Type` is a parameter, so a `param` binding rather than a vector |
+| **UDT-field-access** sources | `candelacharts-equal-highslows-eqheql__4485a6c447:135` — `for obj in store.ehl_ln` produces **nothing at the loop line, not even a `pine:block` note**, because the source is not a simple name. A gap in the loop-classification walk, not in R5 |
+| the **379** accumulators | with the 63 ceiling and the sensitivity table above |
+
+## Pending on the owner — H.1 … H.4
+
+| # | question |
+|---|---|
+| **H.1** | the alpha drop — 56 of 328 scripts feed a colour helper into `plot()` and a literal alpha is parsed, validated, then discarded |
+| **H.2** | whether the fill/drawing layer becomes a named wave-2 item — Clouds' visible artifact is its 20 `fill` calls |
+| **H.3** | whether `color.t` at Clouds :90 should be forced to a refusal rather than a note |
+| **H.4** | whether a member should be TOLD a loop body was dropped — `candelacharts…:135` iterates a drawing array, the body is discarded, the script still reaches 2 outputs, and nothing at the loop line says so |

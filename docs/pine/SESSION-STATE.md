@@ -164,6 +164,26 @@ chunk logs read: 12   failing cases: 92   failing files: 34
 | `VITE_CHART_RENDER_TOKEN_PREVIOUS` | the discord-render lane's undeclared build arg — named here so it is not lost |
 | 11b | another lane's, untouched |
 
+### ⚰️⚰️ THE READ/OVERWRITE ORDERING CLASS — four instances, one shape
+
+> **Any new site that reads a binding a block may force opaque is checked against this
+> class before commit.** In all four instances a correct, specific fact was computed
+> and then silently replaced by a less specific one, and **in none of them did anything
+> fail** — the run stayed green, the verdict stayed right, and only the sentence the
+> member reads was wrong.
+
+| # | site | what was computed | what replaced it |
+|---|---|---|---|
+| a3 | `resolveVectorRead` | slots written by the unroll | `size` sampled **before** `applyUnrolls`, so `push` was invisible |
+| a4 | the `BLOCK_KEYWORDS` branch | the vector's own refusal sentence | `forceOpaque` overwrote the binding, so `prior.kind === 'vector'` was never true and the branch was dead code |
+| R7 | same branch → the mutator walk | the accumulator's a4b sentence | the plain `pine:reassign` text |
+| **R7a** | `pine.js:11128` | ruling R7's reason (census numbers, binding constraint) | a re-compose from the bare guard, because the overwrite kept the LINE and dropped the REASON |
+
+⭐ **The tell is a site that re-places a refusal.** Re-placing a *location* is almost
+never a reason to discard the *reason*, and the three fixes all take the same shape:
+read the binding **before** you overwrite it, and carry forward what the first caller
+knew. `forceOpaque` now keeps its `extra` as `reason` so that is possible at all.
+
 ### Standing rules, one line each
 
 - ⛔⛔ **NO EDIT TO ANY FILE IS MADE THROUGH `bash`** — not a heredoc, not a patch
