@@ -159,7 +159,29 @@ sessions` is what stops a quiet week reading as agreement. **If any clause fails
 eligible; report it and move on.**
 ⛔ CP4 is **a tag assignment, not a code path** (`rollout.py`). It does not arm, flip, or deliver.
 
-### (b) D2 CP3 — serve the book path for the one reader
+### (b) S7 FLIP (member-facing) — ⛔ **DELETED. FLIPS REMAIN MANUAL.**
+
+The owner's 2026-09-14 instruction carried a member-facing flip criterion marked
+*"[DELETE THIS PARAGRAPH TO KEEP FLIPS MANUAL]"*. **It was deleted, deliberately**, and this
+record is what the bracket asked for.
+
+⛔ **Why.** A flip plus a legacy switch-off sends real alerts to real members from a lane that has
+never produced a single comparison row. As of 2026-09-14 the S7 dark reads had **not started** —
+three of the seven sweeps had not yet had one scheduled firing — so **zero** of the criteria the
+paragraph tested (`legacy_only == 0` across five further sessions, `not_comparable < 20%`) had any
+data behind them. Arming an automatic flip on an unmeasured population is not a judgement call.
+
+⛔ **And the rollback rail proposed with it is not symmetric with the harm.** *"If the 48 hours
+after a flip show any legacy-path fire with no matching new-type fire, revert"* means up to **two
+days of members not getting an alert they were entitled to** before anything reverts. A missed
+alert is not recoverable by a later revert.
+
+⭐ **Re-adding it is one paragraph and this file is the only place it belongs** — but the
+honest precondition is *"after the first type has run dark for five sessions and a human has read
+the four outcome columns once"*, not *"after the machinery exists"*. The machinery is two days old
+and produced four defects in the session that built it.
+
+### (c) D2 CP3 — serve the book path for the one reader
 
 > When the D2 sample gate reads **READY** — **≥ 200 AGREED rows, ≥ 1 full session, zero
 > inequality** — serve the book path for the one reader and keep the equality rail as a fixture
@@ -168,19 +190,33 @@ eligible; report it and move on.**
 ⛔ **Zero inequality is zero, not "a few".** One inequality means the two paths disagree about a
 value, and shipping the book path over a disagreement is exactly what D2 exists to prevent.
 
-### (c) Follow-ups that need no ruling
+### (d) A9 / A11 / A13 — CP1 behind the S12 admin tag
+
+> Each of A9, A11 and A13 may take **CP1 only**, behind the **S12 admin tag**, once **its own S7
+> type has reached CP4**. ⛔ **Member exposure only after that type flips** — and flips are not
+> in this file's gift, so in practice this stops at the admin tag until the owner acts.
+
+⛔ The precondition is the type's OWN CP4, not any type's. Reading it loosely would expose A11 on
+the strength of a different type's dark run.
+
+### (e) Follow-ups that need no ruling
 
 Any item in the register whose closer is **"docs only"** or **"test only"** *and* needs no owner
 ruling. ⛔ If closing it requires deciding anything — a convention, a threshold, a scope — it needs
 a ruling and is **not** in scope.
 
-### (d) Nothing else.
+### (f) Nothing else.
 
-⛔ **No flips. No legacy switch-offs. No new systems. No gate the owner has not read. No flag
-changes. No new signatures beyond the two pre-signed above.**
-⚠️ **FLIPS REMAIN THE OWNER'S.** This was offered and **declined** — the owner did not hand over the
-flip. If a type meets (a) and has since run dark cleanly, **report it as READY FOR THE OWNER**; do
-not flip it.
+⛔ **No flips. No legacy switch-offs. No new systems. No flag changes.** Anything not named in
+(a) and (c)–(e) is **not authorized**: **list it and move on**. A run that widens its own scope is
+the failure this whole programme is arranged to prevent, and there is nobody awake to catch it.
+
+⚠️ **FLIPS REMAIN THE OWNER'S — offered twice, declined twice** (2026-09-13 by the owner,
+2026-09-14 by this file under the owner's own delete-to-keep-manual bracket; see (b)). If a type
+meets (a) and has since run dark cleanly, **report it as READY FOR THE OWNER**; do not flip it.
+
+⛔ **AND NO FLIP MAY EVER RUN WHILE LAYER 1 OR LAYER 2 IS RED** — the owner's standing
+precondition, recorded here so it survives the paragraph that would use it.
 
 ---
 
@@ -192,6 +228,33 @@ not flip it.
 - which **`OWNER_INPUTS.md`** lines are still blank, and what each unblocks
 - if nothing was eligible: **say that plainly.** A run that built nothing because nothing qualified
   is a **successful run**, and reporting it as such is what keeps the next one trusted.
+
+**THE POST ENDS IN A FIXED SHAPE. Four lines, in this order, every week:**
+
+```
+RAN:      <units completed, each with its merge SHA - or "nothing was eligible">
+FLIPPED:  <none - flips are not in this file's gift; see section 3(b)>
+NEXT:     <what the next run will attempt, and what it is waiting on>
+OWNER ACTION NEEDED: NONE
+```
+
+⛔ **`OWNER ACTION NEEDED` IS THE ONLY LINE THE OWNER IS OBLIGED TO READ, SO IT MUST NEVER BE
+DECORATIVE.** Write `NONE` only when **every** path to completion can proceed without a human. If
+any path genuinely cannot, replace it with **one line naming exactly what and why** — not a
+category, not "several items", not a pointer to a document:
+
+```
+OWNER ACTION NEEDED: <the one thing> - <why no procedure can decide it>
+```
+
+⭐ **The test for that line is whether a procedure COULD decide it, not whether deciding is
+hard.** A threshold this file can state is not owner action. A fact behind a login, a contract, a
+deliberate deferral, and a member-facing flip are — because no criterion written here can
+manufacture consent, a credential, or a signature.
+
+⚠️ **A conservative default is NOT owner action.** When an unknown fact has a safe side, take
+it, say so under `NEXT:`, and keep the line at `NONE`. Blocking on a question that has a safe
+answer is how an autonomous run quietly becomes a manual one.
 
 ⛔ **Then the last line, alone: `STATUS: ...`** — see §0. Nothing after it.
 

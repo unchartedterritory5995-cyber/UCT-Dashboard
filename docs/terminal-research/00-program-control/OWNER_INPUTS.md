@@ -17,7 +17,31 @@ what this programme would do; it is not what it *has* done. Nothing here has bee
 
 ---
 
-## PART A — the four inputs that block a system today
+## ✅ PART A — RESOLVED 2026-09-14 WITHOUT THE OWNER. Kept for the record.
+
+> The owner's 2026-09-14 instruction converted these from questions into **procedures**. What each
+> became is recorded here; the form below is history.
+
+| was | is now |
+|---|---|
+| **A1 · OI-03(a) Massive tier** | **UNKNOWN-VERIFIED** — attempted in the browser, `massive.com/dashboard` redirects to signup, **not signed in**, no credential entered. → **conservative default: INDIVIDUAL tier, no member display.** |
+| **A2 · OI-03(b) FMP agreement** | **UNKNOWN-VERIFIED** — `site.financialmodelingprep.com/…/dashboard` redirects to `/register`. → **conservative default: NO agreement.** ⛔ And a licensing agreement is a **contract**, so even a signed-in dashboard might not settle it: absence from a dashboard is not absence of a contract. |
+| **A3 · OI-06 desk morning** | to be **derived from telemetry**, not asked. Queued — see RESUME. |
+| **A4 · browser checks** | **RUN** 2026-09-14 as admin via the smoke-login link. Bell PARTIAL, Ask-AI provenance PASS, S3 `/status` queued. `verification/2026-09-14/browser-checks.md`. |
+
+### ⛔ The consequence of the two conservative defaults, stated once
+
+**All 57 licensing-register rows are RESTRICTED, and S9 is built to ENFORCE that rather than to
+assume it away.** Per the owner's rule: *a conservative default that is wrong costs features; a
+permissive default that is wrong costs a licensing breach.*
+
+⭐ **This is a DEFAULT, not a finding**, and it must be re-read the moment either account can be
+opened — as **one unit**, because a per-row correction would leave the register in a state no
+single fact explains. Evidence: `verification/2026-09-14/OI-03-vendor-tier-and-licensing.md`.
+
+---
+
+## ⚰️ PART A (historical) — the four inputs that blocked a system
 
 ### A1 · OI-03(a) — the Massive data tier
 
