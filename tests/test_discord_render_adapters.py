@@ -389,14 +389,47 @@ def _bars(n=3, last=FRIDAY):
 
 
 def test_bars_come_back_with_a_vintage_derived_from_the_newest_bar():
-    """⛔ The payload carries no as_of, so it is derived HERE, once — not by every caller."""
+    """⛔ The payload carries no as_of, so it is derived HERE, once — not by every caller.
+
+    ⚰️ THIS TEST READ THE WALL CLOCK AND SO IT PASSED ALL WEEKEND AND FAILED ON MONDAY MORNING.
+    It asserted `r.session in CLOSED_STATES or == WEEKEND`, which is true whenever the suite happens
+    to run outside a session and false at 04:00 ET on a weekday (`session == 'pre'`). It was written
+    on a Sunday, it was green on a Sunday, and the first thing it did on a Monday was refuse the
+    mutation harness's control run — so eighty mutation proofs did not happen.
+
+    ⭐ The fix is not a wider allow-list. The session word is a FUNCTION OF THE CLOCK, and the whole
+    point of `freshness` is that the clock is an input you pass rather than a fact you inherit
+    (§3.8b). What this test is actually about is that the vintage comes from the newest BAR, so the
+    clock is pinned and the assertion becomes exact instead of permissive.
+    """
+    import datetime as dt
+    pinned = dt.datetime(2026, 9, 13, 11, 0, tzinfo=fr.ET)      # a Sunday: the session is closed
     r = bars.fetch(bars.BarsRequest("NVDA", "D", 200, corr_id="abcd1234", remaining_s=12.0),
                    fetch_fn=lambda t, tf, n: _bars())
     assert r.ok and len(r.data) == 3
     assert r.as_of is not None and r.as_of.startswith("2026-09-11")
-    assert r.session in fr.CLOSED_STATES or r.session == fr.WEEKEND
     assert r.corr_id == "abcd1234" and r.elapsed_ms is not None
     assert r.meta["bar_count"] == 3
+    # the session word, asked of a PINNED instant rather than of whenever the suite happened to run
+    assert fr.envelope("2026-09-11", tf="D", provider="disk", now=pinned).session_state == fr.WEEKEND
+
+
+def test_the_session_word_follows_the_clock_it_is_given_and_not_the_one_it_is_run_at():
+    """The general form of the bug above, as its own rail.
+
+    ⛔ A suite whose verdict depends on when it runs is a suite that reports the calendar. Every
+    instant below is a different session word, and the discriminator asserts they are not all the
+    same — which is what would happen if the injected clock reached nothing."""
+    import datetime as dt
+    words = {label: fr.envelope("2026-09-11", tf="D", provider="disk",
+                                now=dt.datetime(*when, tzinfo=fr.ET)).session_state
+             for label, when in {
+                 "sunday": (2026, 9, 13, 11, 0),
+                 "pre-open": (2026, 9, 14, 9, 29, 50),
+                 "rth": (2026, 9, 14, 10, 0),
+                 "post": (2026, 9, 14, 16, 30)}.items()}
+    assert words["sunday"] == fr.WEEKEND
+    assert len(set(words.values())) >= 3, f"the injected clock reaches nothing: {words}"
 
 
 def test_a_stale_vintage_labels_itself_without_anybody_asking():

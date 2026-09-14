@@ -22,7 +22,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[3]
+# ⛔ FLAGS ARE NOT PATHS. `sys.argv[1]` was taken as the repo root unconditionally, so
+# `--dry-check` resolved to a directory of that name and every mutation reported "file missing" —
+# an instrument reporting a property of its own argument parsing as a property of the repository.
+_ARGS = [a for a in sys.argv[1:] if not a.startswith("-")]
+ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3]
 DEL = "api/services/discord_render/delivery.py"
 BIND = "api/services/discord_render/adapters/bindings.py"
 CMD = "api/services/discord_render/commands.py"
@@ -30,6 +34,8 @@ REND = "api/services/discord_render/adapters/renderer.py"
 TESTS = "tests/test_discord_render_image_delivery.py"
 T = TESTS + "::"
 F = "tests/test_discord_render_forensics.py::"
+CW = "tests/test_discord_render_cache_wiring.py::"
+CACHE = "api/services/discord_render/artifact_cache.py"
 #: Green with every mutation reverted. `delivery.py` and `bindings.py` are both reached by the
 #: adapter-boundary suite, so a change that breaks the text path shows up here too.
 SUITE = [TESTS,
@@ -40,7 +46,9 @@ SUITE = [TESTS,
          "tests/test_discord_render_forensics.py",
          "tests/test_discord_render_vintage_producer.py",
          "tests/test_discord_render_vintage_url.py",
-         "tests/test_discord_render_badge.py"]
+         "tests/test_discord_render_badge.py",
+         "tests/test_discord_render_cache_wiring.py",
+         "tests/test_discord_render_artifact_cache.py"]
 
 MUTATIONS = [
     # ── M0: the NON-VACUITY CONTROL. Read this file's docstring before deleting it. ──
@@ -230,6 +238,53 @@ MUTATIONS = [
      "new": "        out[\"stale\"] = bool(envelope.stale)\n",
      "tests": ["tests/test_discord_render_vintage_producer.py::"
                "test_an_unknown_vintage_is_carried_as_unknown_and_never_as_fresh"]},
+    # ── Gap 1: the cache wired to the hot path, and OI-32 ──────────────────
+    {"name": "W1 the flag is ignored, so the cache is consulted with RENDER_CACHE_ENABLED unset",
+     "file": BIND,
+     "old": "    if not artifact_cache.enabled():\n        return produce()\n",
+     "new": "    if False:\n        return produce()\n",
+     "tests": [CW + "test_with_the_flag_off_the_render_path_is_byte_for_byte_what_it_was"]},
+    {"name": "W2 the vintage leaves the key (the cache serves yesterday under today's badge)",
+     "file": BIND,
+     "old": "    }, vintage=artifact_cache.vintage_of(envelope))\n",
+     "new": "    }, vintage=None)\n",
+     "tests": [CW + "test_a_new_vintage_is_a_new_entry_so_a_hit_can_never_serve_yesterdays_chart"]},
+    {"name": "W3 the whole options dict goes into the key (a 0 % hit rate nobody notices)",
+     "file": BIND,
+     "old": "        \"opts\": artifact_cache.normalise_args({k: v for k, v in (options or {}).items()\n"
+            "                                               if k in RENDER_KEY_OPTS}),\n",
+     "new": "        \"opts\": artifact_cache.normalise_args(dict(options or {})),\n",
+     "tests": [CW + "test_an_option_that_does_not_change_the_picture_does_not_split_the_key"]},
+    {"name": "W4 the render is never stored, so every lookup misses forever",
+     "file": BIND,
+     "old": "        store.put(key, artifact_cache.Artifact(data=data, envelope=envelope, provider=\"renderer\"))\n",
+     "new": "        pass\n",
+     "tests": [CW + "test_with_the_flag_on_a_second_identical_render_is_served_from_the_cache"]},
+    {"name": "W5 an option that changes the picture stops changing the key",
+     "file": BIND,
+     "old": "RENDER_KEY_OPTS = (\"style\", \"darkpool\", \"compare\", \"to\", \"ext\", \"bars\", \"instances\")\n",
+     "new": "RENDER_KEY_OPTS = ()\n",
+     "tests": [CW + "test_a_render_option_that_changes_the_picture_changes_the_key"]},
+    {"name": "W6 [OI-32] the heap tier caches a stand-in (C-06 institutionalised)",
+     "file": CACHE,
+     "old": "        if artifact.is_standin:\n"
+            "            # ⛔ OI-32: refused at the DOOR, before either tier, so neither can be the one that\n",
+     "new": "        if False:\n"
+            "            # ⛔ OI-32: refused at the DOOR, before either tier, so neither can be the one that\n",
+     "tests": [CW + "test_a_stand_in_is_never_stored_by_either_tier"]},
+    {"name": "W7 [OI-32] the volume tier caches a stand-in, so it survives a restart",
+     "file": CACHE,
+     "old": "        if artifact.is_standin:\n"
+            "            # ⛔ OI-32, again and on purpose. L2 is reachable directly (the determinism runner does\n",
+     "new": "        if False:\n"
+            "            # ⛔ OI-32, again and on purpose. L2 is reachable directly (the determinism runner does\n",
+     "tests": [CW + "test_the_volume_tier_refuses_a_stand_in_on_its_own"]},
+    {"name": "W8 the TTL stops shortening at the close (an RTH chart held into the post-session)",
+     "file": CACHE,
+     "old": "def ttl_s(state: str) -> float | None:\n",
+     "new": "def ttl_s(state: str) -> float | None:\n    return 3600.0\n",
+     "tests": [CW + "test_an_entry_cached_in_one_session_does_not_outlive_the_session_change"]},
+
     {"name": "V5 the producer fires with no envelope (every pre-V2 render URL moves)",
      "file": REND,
      "old": "    if envelope is None:\n        return dict(options or {})\n",
@@ -259,7 +314,34 @@ def run(tests):
     return "RED", out.strip().splitlines()[-1][:120]
 
 
+def dry_check() -> int:
+    """Does every mutation still find its anchor, exactly once? One second, no tests run.
+
+    ⛔ RUN THIS BEFORE A TWENTY-FIVE MINUTE SET. A stale anchor is a proof that did not happen,
+    and it is reported at the END, under the number people quote. Measured twice in two days: A29
+    sat stale for several merges, and then seven more went stale in one session because the
+    integrator's own patch moved the lines they anchored on."""
+    bad = []
+    for mut in MUTATIONS:
+        path = ROOT / mut["file"]
+        if not path.exists():
+            bad.append((mut["name"], "file missing"))
+            continue
+        text = path.read_bytes().decode("utf-8")
+        eol = "\r\n" if "\r\n" in text else "\n"
+        n = text.count(mut["old"].replace("\n", eol))
+        if n != 1:
+            bad.append((mut["name"], f"{n} matches"))
+    for name, why in bad:
+        print(f"  NOT APPLIED ({why}): {name}")
+    print(f"TOTALS mutation_harness_image_delivery --dry-check "
+          f"{'PASS' if not bad else 'FAIL'} mutations={len(MUTATIONS)} stale={len(bad)}")
+    return 0 if not bad else 1
+
+
 def main():
+    if "--dry-check" in sys.argv:
+        return dry_check()
     print(f"root: {ROOT}\n")
     control_first = run(SUITE)
     print(f"CONTROL (before)  {control_first[0]}  {control_first[1]}")

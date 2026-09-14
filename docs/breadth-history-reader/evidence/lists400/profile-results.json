@@ -1,0 +1,61 @@
+{
+  "corpus": {
+    "total": 4700,
+    "collector": 180,
+    "reconstructed": 4520,
+    "ohlc_rows": 90400,
+    "monitor_bytes": 28028928,
+    "ohlc_bytes": 16171008,
+    "first": "2008-09-08",
+    "last": "2026-09-11",
+    "width": 20,
+    "list_len": 400,
+    "avg_blob_bytes": 155716
+  },
+  "spans": {
+    "90": {
+      "rows_returned": 90,
+      "cold_ms": 279.7,
+      "cold_ms_2": 250.6,
+      "warm_ms": 0.0,
+      "ms_per_row": 3.108
+    },
+    "365": {
+      "rows_returned": 365,
+      "cold_ms": 357.6,
+      "cold_ms_2": 366.7,
+      "warm_ms": 0.0,
+      "ms_per_row": 0.98
+    },
+    "8000": {
+      "rows_returned": 4700,
+      "cold_ms": 813.2,
+      "cold_ms_2": 689.0,
+      "warm_ms": 0.0,
+      "ms_per_row": 0.173
+    }
+  },
+  "phases": {
+    "merged_dates": {
+      "ms": 44.6,
+      "n": 4700
+    },
+    "closes_for_dates": {
+      "ms": 143.4,
+      "dates": 4520,
+      "got": 4520
+    },
+    "sentiment_values_asof": {
+      "ms": 3.1,
+      "dates": 4520,
+      "got": 4520
+    },
+    "adv_decline_seed": {
+      "ms": 0.9
+    },
+    "derive_ascending": {
+      "ms": 82.0,
+      "rows": 4700
+    }
+  }
+}
