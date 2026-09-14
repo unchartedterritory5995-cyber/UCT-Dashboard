@@ -56,6 +56,12 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+# ⚠️ FLAT IMPORT, AND THE DOCKERFILE MUST COPY IT. The image has WORKDIR /app and
+# starts `uvicorn app:app`, so siblings are top-level modules — and it copies
+# files INDIVIDUALLY, so a new module that is not added to the Dockerfile is an
+# ImportError on boot, not a missing feature.
+from edge_scope import EDGE_TOKEN_HEADER, edge_token_targets
+
 log = logging.getLogger("chart-renderer")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -85,6 +91,13 @@ _launch_lock: asyncio.Lock | None = None
 _launch_error: str | None = None
 _warm_done = False
 _priority: contextvars.ContextVar[str] = contextvars.ContextVar("render_priority", default="interactive")
+
+# ⭐ A CONTEXTVAR, DELIBERATELY — the same mechanism `_priority` uses, and for a
+# stronger reason. The chart-edge capability must reach `_drive` WITHOUT becoming
+# a field on `RenderRequest`: that model is echoed in error paths and `scrub()`ed
+# log lines, and a credential that lives in a request body is a credential that
+# eventually gets logged. This one never leaves memory.
+_edge_token: contextvars.ContextVar[str] = contextvars.ContextVar("chart_edge_token", default="")
 
 
 def _env_int(name: str, default: int, lo: int, hi: int) -> int:
@@ -261,6 +274,23 @@ async def _drive(ctx, req: RenderRequest, meta: dict) -> bytes:
     ready_js = (req.ready_js or DEFAULT_READY_JS).replace("SEL", repr(req.selector))
     page = await ctx.new_page()
     page.set_default_timeout(req.ready_timeout_ms + 6000)
+
+    # ── the chart-edge render capability ────────────────────────────────────
+    # ⛔ PER-REQUEST ROUTING, NOT `set_extra_http_headers`. That would attach the
+    # credential to EVERY request this page makes — fonts, images, analytics, any
+    # third-party origin the page ever gains. The predicate below is the only
+    # thing that decides, and it says: same origin as the page, path under
+    # `/api/bars/`. Nothing else ever sees it.
+    _tok = _edge_token.get()
+    if _tok:
+        async def _attach_edge_token(route):
+            try:
+                await route.continue_(headers={**route.request.headers,
+                                               EDGE_TOKEN_HEADER: _tok})
+            except Exception:  # noqa: BLE001 — a render must never die for this
+                await route.continue_()
+        await page.route(lambda u: edge_token_targets(u, req.url), _attach_edge_token)
+
     await page.goto(req.url, wait_until="load")
     try:
         await page.wait_for_function(ready_js, timeout=req.ready_timeout_ms)
@@ -526,7 +556,8 @@ async def health():
 @app.post("/render")
 async def render(req: RenderRequest, request: Request, x_render_secret: str | None = Header(default=None),
                  x_correlation_id: str | None = Header(default=None),
-                 x_render_priority: str | None = Header(default=None)):
+                 x_render_priority: str | None = Header(default=None),
+                 x_chart_edge_token: str | None = Header(default=None)):
     check_secret(x_render_secret)
     check_url(req.url)
     cid = x_correlation_id if _CID.match(x_correlation_id or "") else "-"
@@ -535,6 +566,9 @@ async def render(req: RenderRequest, request: Request, x_render_secret: str | No
     started = time.perf_counter()
     status, ready, size = 500, None, None
     token = _priority.set(priority)
+    # ⚠️ Set AFTER `check_secret` — only a caller that already proved it is the
+    # trusted backend may hand this browser a capability.
+    edge_token = _edge_token.set((x_chart_edge_token or "").strip())
     try:
         png, meta = await asyncio.wait_for(render_png(req), timeout=ceiling)
         status, ready, size = 200, bool(meta.get("ready")), len(png)
@@ -552,6 +586,7 @@ async def render(req: RenderRequest, request: Request, x_render_secret: str | No
         raise HTTPException(502, scrub(f"render failed: {type(e).__name__}: {e}"))
     finally:
         _priority.reset(token)
+        _edge_token.reset(edge_token)
         ms = (time.perf_counter() - started) * 1000.0
         if status == 200:
             _stats.record(ms)

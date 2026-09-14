@@ -44,8 +44,14 @@ def _secret(monkeypatch):
     monkeypatch.delenv("CHART_EDGE_TOKEN_TTL_SECONDS", raising=False)
 
 
-def _classify_in_node(token: str, secret: str = SECRET, now: int | None = None) -> str:
-    """Ask the REAL Worker verifier what it thinks of this token."""
+def _classify_in_node(token: str, secret: str = SECRET, now: int | None = None,
+                      ent: str = "bars") -> str:
+    """Ask the REAL Worker verifier what it thinks of this token.
+
+    `ent` selects which trust path it is judged against — "bars" for a member
+    cookie, "service" for a render capability — mirroring the Python
+    `verify(expect=...)` argument.
+    """
     # ⚠️ VALUES TRAVEL BY ENVIRONMENT, NOT ARGV, for two reasons. The first is
     # correctness: `node -e` shifts `process.argv`, and the first version of this
     # helper used `slice(2)`, dropped an argument, and classified EVERYTHING
@@ -57,12 +63,13 @@ def _classify_in_node(token: str, secret: str = SECRET, now: int | None = None) 
     const tok = process.env.IT_TOKEN === "__NONE__" ? null : process.env.IT_TOKEN;
     const sec = process.env.IT_SECRET === "__NONE__" ? null : process.env.IT_SECRET;
     const now = process.env.IT_NOW === "__NONE__" ? undefined : Number(process.env.IT_NOW);
-    process.stdout.write(await classifyToken(tok, sec, now));
+    process.stdout.write(await classifyToken(tok, sec, now, process.env.IT_ENT));
     """
     env = dict(os.environ)
     env["IT_TOKEN"] = token if token is not None else "__NONE__"
     env["IT_SECRET"] = secret if secret else "__NONE__"
     env["IT_NOW"] = "__NONE__" if now is None else str(now)
+    env["IT_ENT"] = ent
     out = subprocess.run(
         [node, "--input-type=module", "-e", script],
         capture_output=True, text=True, timeout=60, env=env,
@@ -135,3 +142,47 @@ def test_the_two_implementations_agree_on_the_WHOLE_MATRIX():
         js = _classify_in_node(token, now=at)
         assert py == expected, f"python said {py} for {expected}"
         assert js == f"EDGE_ENTITLEMENT_{expected}", f"node said {js} for {expected}"
+
+
+# ── the MACHINE trust path, across both runtimes ────────────────────────────
+
+def test_a_PYTHON_minted_SERVICE_token_is_VALID_in_the_WORKER():
+    """⛔⛔ THE PHASE 1.5 EQUIVALENT OF THE HEADLINE. Python mints the render
+    capability; the REAL worker.js verifier judges it. If these ever disagree,
+    every chart image silently loses its machine identity."""
+    tok = cet.mint_service()
+    assert cet.verify(tok, expect=cet.ENTITLEMENT_SERVICE)[0] == "VALID"
+    assert _classify_in_node(tok, ent="service") == "EDGE_ENTITLEMENT_VALID"
+
+
+def test_the_ENTITLEMENTS_DO_NOT_CROSS_in_the_worker_either():
+    """⭐ The Python rail `test_the_two_trust_paths_CANNOT_BE_CONFUSED` asserted
+    this on one side; this asserts the JS verifier enforces the same separation,
+    which is the half that actually runs in production."""
+    member, service = cet.mint(), cet.mint_service()
+    # a member token judged as a machine → rejected
+    assert _classify_in_node(member, ent="service") == "EDGE_ENTITLEMENT_INVALID"
+    # a service token judged as a member → rejected
+    assert _classify_in_node(service, ent="bars") == "EDGE_ENTITLEMENT_INVALID"
+
+
+def test_the_NEGATIVE_CONTROL_for_service_tokens(monkeypatch):
+    monkeypatch.setenv("CHART_EDGE_SECRET", "a-different-secret")
+    tok = cet.mint_service()
+    assert _classify_in_node(tok, secret=SECRET, ent="service") == "EDGE_ENTITLEMENT_INVALID"
+
+
+def test_an_EXPIRED_service_token_reads_EXPIRED_in_the_worker():
+    tok = cet.mint_service(now=1_000_000)
+    later = 1_000_000 + cet.render_ttl_seconds() + 5
+    assert cet.verify(tok, now=later, expect=cet.ENTITLEMENT_SERVICE)[0] == "EXPIRED"
+    assert _classify_in_node(tok, now=later, ent="service") == "EDGE_ENTITLEMENT_EXPIRED"
+
+
+def test_a_TAMPERED_service_token_reads_INVALID_in_the_worker():
+    import base64
+    version, _body, sig = cet.mint_service().split(".")
+    forged = base64.urlsafe_b64encode(json.dumps(
+        {"v": 1, "iat": 0, "exp": 4102444800, "ent": "service"},
+        separators=(",", ":"), sort_keys=True).encode()).decode().rstrip("=")
+    assert _classify_in_node(f"{version}.{forged}.{sig}", ent="service") == "EDGE_ENTITLEMENT_INVALID"

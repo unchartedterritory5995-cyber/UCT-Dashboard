@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -227,11 +228,18 @@ def visibility_audit() -> dict:
         live = _values_for(service, set(public))
         checked[service] = live
         for name, value in live.items():
-            allowed = [str(a).strip().lower() for a in public[name].get("values", [])]
+            entry = public[name]
+            allowed = [str(a).strip().lower() for a in entry.get("values", [])]
             parts = [p.strip().lower() for p in value.split(",") if p.strip()]
-            if any(p in WILDCARDS for p in parts):
+            # ⭐ A wildcard is a DECISION, not automatically a defect (owner ruling 2026-09-13).
+            # It is a finding only when the ledger carries no dated `owner_decision` to attribute
+            # it to — which is precisely the 2026-08-19 state: the decision was real, and the
+            # record was missing, so for 25 days nobody could tell it from a leak.
+            decision = str(entry.get("owner_decision") or "").strip()
+            authorised = bool(decision) and bool(re.search(r"\b20\d{2}-\d{2}-\d{2}\b", decision))
+            if any(p in WILDCARDS for p in parts) and not authorised:
                 findings.append({"service": service, "flag": name, "value": value,
-                                 "why": "WILDCARD on a public-exposure flag"})
+                                 "why": "WILDCARD with no dated owner_decision in the ledger"})
             elif parts and allowed and not set(parts) <= set(allowed):
                 findings.append({"service": service, "flag": name, "value": value,
                                  "why": f"value outside the declared values {allowed}"})

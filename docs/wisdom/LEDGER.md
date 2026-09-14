@@ -173,11 +173,28 @@ fires only for one that has not. `put_immutable`, `get` and `list_prefix` all fu
 ⚠️ **Scope, stated rather than implied:** this is a *pytest* rail. A bare `python tools/...` run
 still reaches the live bucket, exactly as the conftest tripwire is a test-suite rail only.
 
-### Incident — 27 PAID sessions published PUBLIC to YouTube for 25 days (2026-08-19 → 2026-09-13)
+### Visibility escalation — `DESK_PUBLIC_SHOWS=*`: escalated, reverted, then REAFFIRMED by the owner
 
-**Not this program's defect. Found by this program's agent, fixed under owner priority override.**
-Recorded here because the finding, the measurement and the rail are this session's work, and
-because the way it was nearly missed is the reusable part.
+⭐⭐ **RESOLVED 2026-09-13: THE WILDCARD IS THE OWNER'S DELIBERATE DECISION AND IT STANDS.**
+Owner ruling, verbatim: *"that was me. All auto-recorded sessions post public was and is my
+deliberate visibility decision."* The 2026-09-13 revert was **reversed the same day**: all 28
+videos restored to public, `DESK_PUBLIC_SHOWS` set back to `*`, and the decision written into
+`docs/feature_flags.json` under `owner_decision`.
+
+⛔ **THE ESCALATION WAS STILL CORRECT, AND THE RECORD BELOW IS KEPT IN FULL.** A doc asserted a
+rule (*"Live Trading Sessions… stay unlisted"*), production did the opposite, and **nothing
+anywhere said which was intended**. Escalating that is the right behaviour; a session that sees
+paid content public and files it as a footnote is the failure mode (H14). What was actually
+missing was never a guard — it was a RECORD. That is the whole lesson and the whole fix.
+
+⭐ **The correction the owner made to the rail is the load-bearing one:** the first version
+REFUSED a wildcard outright. That would have made a legitimate business decision inexpressible,
+and a rail that forbids what the owner wants gets satisfied on Railway and never written down —
+which is precisely the state that produced 25 days of ambiguity. **The rail's job is to record
+intent, not to veto it.** A wildcard now costs one dated, attributable sentence.
+
+**Not this program's system. Found, escalated, reverted, restored and railed by this program's
+agent; the reusable part is how close it came to being a footnote.**
 
 **How it surfaced.** The P3 Track-A transcription agent ended an unrelated report with:
 *"Observed in passing, unverified as intentional: `DESK_PUBLIC_SHOWS=*` on `web`, so every show —
@@ -217,8 +234,8 @@ token, then split by CAUSE rather than by the literal predicate:**
 
 | set | n | disposition |
 |---|---|---|
-| desk-published (`meeting_uuid`), public, non-Sunday-Scans | **28** | **the leak** — all set to unlisted |
-| legacy back-catalog, public, non-Sunday-Scans | 66 | **UNTOUCHED** — predates the flag, never governed by it |
+| desk-published (`meeting_uuid`), public, non-Sunday-Scans | **28** | set unlisted, then **RESTORED to public** on the owner's reaffirmation — each verified, one field changed |
+| legacy back-catalog, public, non-Sunday-Scans | 66 | **UNTOUCHED throughout**, and the owner ruled they stay as they are. Table kept for reference only. |
 
 ⛔ **The literal instruction was "any non-Sunday-Scans video with `isUnlisted:false`", which is all
 94.** Applying it as written would have unlisted 23 Interviews, 9 Scanning and 8 Setups videos that
@@ -239,11 +256,13 @@ cause is **unattributed**; Railway exposes no variable history from the CLI.
 > `feat(desk): DESK_PUBLIC_SHOWS="*" uploads every show to YouTube as public`
 > *"Owner decision 2026-08-19: all auto-recorded sessions post public."*
 
-⛔ **That commit message and the owner's 2026-09-13 ruling ("the wildcard was NOT intentional")
-contradict each other, and this ledger does not resolve it.** Both are recorded; the later ruling
-governs. What is not in dispute: **the decision was never written into `docs/feature_flags.json`**,
-so 25 days later nothing in the repo could tell a deliberate setting from a leak — which is exactly
-the ambiguity that ledger exists to remove, and exactly the flag it could not see.
+✅ **The commit was RIGHT.** The owner confirmed on 2026-09-13 that the decision was his, made on
+2026-08-19 and unchanged since. ⚰️ The session's own first reading — recorded here as it was
+written — treated the commit message as a contradiction to be reported rather than resolved, which
+was the correct call with the information available and the wrong conclusion. **What was never in
+dispute is the only thing that actually failed: the decision was never written into
+`docs/feature_flags.json`**, so for 25 days nothing in the repo could tell a deliberate setting
+from a leak — and the flag was one the ledger's rail could not even see.
 
 **Three could not be changed**, listed with the exact reason rather than counted as done:
 `hmGZSV_axHo` and `znjo804B_0k` (Evening Update, Sep 10) and `vslaRnO9G3E` (Sunday Scans Aug 16 Pt 1)
@@ -286,6 +305,39 @@ exclusions widened to swallow everything (2) · predicate narrowed to nothing (2
 `gates()` instead of `scan()` (1) · the wildcard back in the ledger (4) · **the code default losing
 its space — the owner's typo, reproduced as a mutant (2)** · the live audit no longer flagging
 wildcards (1). Control: 15 passed.
+
+**Restore, 2026-09-13 (owner ruling).** All **28** desk-published videos set unlisted earlier that
+day were restored to `public` — each re-read from YouTube after the change, **exactly one field
+altered** (`privacyStatus`), 0 failures. ⛔ Driven from an **EXPLICIT id list**, not a re-derivation:
+"every desk non-Sunday-Scans video → public" would also have flipped the **46** that were already
+unlisted BEFORE the revert (pre-2026-08-19 sessions). The owner asked for a reversal of what this
+session changed, not a bulk re-publish, and an explicit list is the only way to guarantee that.
+
+**End state, verified in-process on the pod** (never from `--kv`): `DESK_PUBLIC_SHOWS = '*'`, all six
+routed sections resolve to **PUBLIC**, the 28 read `public` from YouTube, Sunday Scans untouched
+(3 public / 1 unlisted / 1 gone, unchanged), 66 legacy back-catalog left exactly as they were.
+`tools/flag_ledger_audit.py --visibility` → **0 findings** with the wildcard live, because it is
+now attributable.
+
+**Three `edu_videos` rows point at videos YouTube no longer returns — BROKEN DESK LINKS, reported
+only** (owner: report, do not act):
+
+| youtube_id | row | note |
+|---|---|---|
+| `vslaRnO9G3E` | Sunday Scans — Aug 16, 2026 (Part 1) | Part 2 (`5ARYCslLzwg`) is fine — a split upload lost half |
+| `hmGZSV_axHo` | Evening Update — September 10, 2026 | two rows for one evening, both gone |
+| `znjo804B_0k` | EVENING UPDATE — September 10, 2026 | duplicate of the above, different id |
+
+`videos.list` returns **no item** for all three even to the OWNING token, so they are deleted at
+YouTube rather than merely restricted. ⚠️ The Desk player will render three entries whose video
+cannot load. Whether the deletions were intentional is not knowable from this seat; the Sep-10 pair
+looks like one session uploaded twice and then cleaned up, which would make the surviving defect
+just the stale rows.
+
+⛔ **WISDOM-SIDE, UNCHANGED BY ANY OF THIS** (owner note, 2026-09-13): YouTube visibility does **not**
+change Wisdom's entitlement rule. Transcripts and Sunday Scans bodies served through Wisdom
+consumers remain **entitlement-checked per §0.4g** until the owner rules otherwise. A public video
+is not a licence to serve its transcript to a non-member.
 
 ⚠️ **RESIDUAL, stated rather than hidden:** the predicate is a NAME test. A future flag that decides
 public exposure without one of the marker words in its name is not caught. That is a smaller hole

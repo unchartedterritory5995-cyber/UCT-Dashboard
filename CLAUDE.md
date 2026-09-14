@@ -4176,11 +4176,27 @@ or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist —
 recording on the account auto-posts (titled by its webinar name); add a skip rule in
 `_route` if private/internal recordings ever need excluding.**
 
-**🔴 YouTube privacy is per-show and defaults to UNLISTED** (`privacy_for_section`,
-2026-08-09). Only a section matching `DESK_PUBLIC_SHOWS` (default `sunday scans`)
-uploads **public**; every other show — **Live Trading Sessions above all, which are
-paywalled** — stays unlisted. This is the one call that decides whether a paid session
-becomes a searchable video on the channel, so:
+**🔴 EVERY SHOW UPLOADS PUBLIC — owner decision 2026-08-19, reaffirmed 2026-09-13.**
+`DESK_PUBLIC_SHOWS=*` is live on `web`, so `privacy_for_section` returns `public` for
+every routed section: Live Trading Sessions, Workshops, Evening Updates, Thoughts on
+the Market, Post-Market Recaps and Sunday Scans alike. **The flag and its ledger entry
+govern, not this paragraph** — read `docs/feature_flags.json` → `DESK_PUBLIC_SHOWS`,
+whose `owner_decision` field carries the decision and its date.
+
+⚰️ **THIS SECTION SAID THE OPPOSITE UNTIL 2026-09-13**, and the cost of that is the
+reason the ledger entry now exists. It read *"only Sunday Scans uploads public; every
+other show — Live Trading Sessions above all, which are paywalled — stays unlisted"*,
+which had been false since 2026-08-19. An agent found the live wildcard, read this
+paragraph, and correctly escalated it as a paid-content leak; 27 videos were set
+unlisted and then restored when the owner confirmed the decision was his. ⭐ **Nothing
+was wrong with the escalation** — the doc asserted a rule, the world disagreed, and
+there was no record anywhere saying which was intended. **That is what
+`owner_decision` in the ledger is for, and why a wildcard now costs one dated
+sentence.**
+
+⛔ **The rule below is the MECHANISM, which is unchanged and still worth reading —**
+`_PUBLIC_SHOWS_DEFAULT` remains `sunday scans`, so an *unset* variable still fails
+conservative, and a blank value still makes nothing public:
 - It keys off the **routed SECTION**, not the hand-typed Zoom topic — the section is
   the canonical name `_RULES` already pins, so casing/pluralisation/double-space
   variants collapse to one answer. Keying it off the raw name would put a second
@@ -4193,21 +4209,20 @@ becomes a searchable video on the channel, so:
   it lands and defaults to unlisted. Mutation-checked three ways (guard deleted · call
   site stops passing privacy · client ignores the value it was handed) — the middle one
   is the "routing computed but never applied" failure this repo keeps rediscovering.
-- ⛔⛔ **THE RULE ABOVE IS CORRECT AND IT WAS NOT TRUE FOR 25 DAYS.**
-  `DESK_PUBLIC_SHOWS=*` was set on `web` on **2026-08-19** (`0894d7ac0`, whose message
-  cites an owner decision) and **27 paid sessions** — Live Trading Sessions, a paid
-  workshop, Evening Updates — uploaded **public and searchable** until the owner's
-  revert on 2026-09-13. Every rail was green throughout: the flag carries no
-  `ENABLED`/`DISABLE` marker, so `is_gate()` is false for it and the ledger rail never
-  asked. **A doc that states a rule no check enforces is a rule that lasts until
-  somebody changes a variable.** The checks that now exist, and which this paragraph and
-  they must be kept in step with:
-  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared
-  in `docs/feature_flags.json` with `exposure`/`default`/`values`, a wildcard refused,
-  declared values must name sections `_RULES`/`_HOST_AWARE` can actually produce) and
-  **`python tools/flag_ledger_audit.py --visibility`** (the live half — reads the
-  services and fails on a wildcard or an undeclared value, because the wildcard was
-  never in the repo and only the running service ever had it).
+- ⛔⛔ **A DOC THAT STATES A RULE NO CHECK ENFORCES IS A RULE THAT LASTS UNTIL SOMEBODY
+  CHANGES A VARIABLE.** For 25 days the live value and this file disagreed and nothing
+  could tell: the flag carries no `ENABLED`/`DISABLE` marker, so `is_gate()` is false for
+  it and the flag-ledger rail never asked about it at all. **Keep this section and the
+  two checks in step with each other:**
+  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared in
+  `docs/feature_flags.json` with `exposure`/`default`/`values`; a wildcard is refused
+  **unless** the entry carries a dated `owner_decision`; non-wildcard values must name
+  sections `_RULES`/`_HOST_AWARE` can actually produce; the declared default must equal
+  `_PUBLIC_SHOWS_DEFAULT`) and
+  **`python tools/flag_ledger_audit.py --visibility`** (the live half, and the only half
+  that can see this class at all — the wildcard was never in the repo; only the running
+  service ever had it. It applies the same authorised-wildcard rule to the live value).
+  ⭐ The rail records intent; it does not veto it. A wildcard costs one dated sentence.
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +

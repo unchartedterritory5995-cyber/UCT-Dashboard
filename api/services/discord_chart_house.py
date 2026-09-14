@@ -282,6 +282,24 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
         except Exception as e:  # noqa: BLE001 — overlay is decoration; never break the render
             log.warning("[discord-chart] dark-pool zones failed for %s: %s", sym, e)
     page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=opts)
+
+    # ── the chart-edge render capability ────────────────────────────────────
+    # ⛔⛔ THE TRUST IS IN THIS INVOCATION, NOT IN `/r/chart`. That page is PUBLIC —
+    # anyone may load it — so the page itself is never trusted and never carries
+    # this. Only here, where the backend has already decided to render, is a
+    # short-lived capability minted. It travels to the renderer as a HEADER: never
+    # in `page_url` (which is logged and quoted back in renderer errors) and never
+    # in the JSON body (same reason).
+    #
+    # ⚠️ NONE WHEN UNCONFIGURED, WHICH IS SAFE TODAY: the edge is in SHADOW mode,
+    # so a render carrying no capability classifies MISSING and is still served.
+    # This becomes load-bearing only at Phase 2 enforcement.
+    try:
+        from api import chart_edge_token as _cet
+        edge_tok = _cet.mint_service()
+    except Exception:  # noqa: BLE001 — a render must never fail for want of a token
+        edge_tok = None
+
     try:
         import httpx
         own = client is None
@@ -296,8 +314,10 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                     "probe_js": PROBE_JS,
                 }
                 from api.services.discord_render import ids as render_ids, observe as render_observe
-                r = c.post(f"{renderer}/render", json=body,
-                           headers={"X-Render-Secret": secret, **render_ids.render_headers()})
+                _hdrs = {"X-Render-Secret": secret, **render_ids.render_headers()}
+                if edge_tok:
+                    _hdrs["X-Chart-Edge-Token"] = edge_tok
+                r = c.post(f"{renderer}/render", json=body, headers=_hdrs)
                 if not r.is_success:
                     # Scrubbed: the renderer's error body can quote the page URL, render token included (C-13).
                     log.warning("[discord-chart] house render HTTP %s for %s %s (attempt %d): %s",
