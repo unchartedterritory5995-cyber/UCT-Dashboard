@@ -94,3 +94,95 @@ mutation-proved (old collector reds 2 of 4). **S-E therefore has zero open block
   the marked-predicate excuse laundered an UPDATE, and **a SQL COMMENT spelling `source = 'wisdom'`
   marked the site** — an analyser reading comments as code, which is the exact defect class this
   repo's "CODE, NEVER PROSE" rule exists for, committed by the rail written to enforce it.
+
+---
+
+## Checkpoint 8 — merge 7 (S-F2 publish) LANDED. All six §8.4 master merges complete. 2026-09-14 03:58 CT
+
+**`fedd8dea1` on master · Railway `web` SUCCESS · `/api/health` 200 with `uptime_seconds: 28`** (a
+real fresh boot, not a cached answer) · `git merge-base --is-ancestor` confirms the commit is in
+what master serves, rather than inferred from the push.
+
+| # | merge | commit | web |
+|---|---|---|---|
+| 2 | S-A capture | `fb62a44d9` | SUCCESS |
+| 3 | S-C sources | `a64336c89` | SUCCESS |
+| 4 | S-D extract | `7a2b54369` | SUCCESS |
+| 5 | S-E evals | `98a18b969` | SUCCESS |
+| 6 | S-F1 admin | `49fdc1fbc` | SUCCESS |
+| 7 | **S-F2 publish** | **`fedd8dea1`** | **SUCCESS** |
+
+**Gate: 987 passed, 1 skipped, 0 failed** (60 named files; the one skip is the vocab-authority
+probe that needs `WISDOM_ENGINE_DB`). It opened at **2 failed, 787 passed**.
+
+### What the gate caught, and it was not what merge 7 changed
+
+⭐⭐ **THE MERGE GATE EARNED ITS KEEP — a cross-stream defect no single stream could see.**
+S-E's grounding seam resolves S-F's retrieval through a `find_spec` seam. S-F2 made that module
+exist for the first time, and the seam had been calling it wrong since the day it was written:
+
+```
+seam status: ok
+CALL RAISED: TypeError: search() takes 1 positional argument but 2 were given
+```
+
+`search(query, *, tickers=(), limit=3, ...)` is keyword-only past `query`; the seam called
+`fn(query, k)`. `run_grounding` catches that **per question** into `retrieval_error` and carries on
+with `segments = []`, so the with_wisdom arm would have retrieved **nothing** for all 30 questions
+while the metric row still said `retrieval: ok` — the two arms identical **by construction**, and
+that published as `grounding_faithfulness` / `grounding_citation_validity` / `grounding_coverage`.
+The eval exists to ask whether wisdom retrieval grounds better than none. It would have answered
+"no difference", because it never asked.
+
+⛔ **Neither stream could have found this alone.** S-E's rails ran in a world where the module did
+not exist (every run took the `retrieval_module_absent` branch); S-F has no reason to call S-E's
+seam. It is reachable only where the two meet, which is this gate.
+
+**Fixed** by binding the signature ONCE before the seam may promise `ok`, and calling `limit=k` —
+the keyword every shipped caller already uses (`adapters/askai.py:73`). An unbindable search is now
+refused BY NAME (`retrieval_signature_mismatch`) and the arm runs without retrieval: *"we could not
+retrieve"* and *"retrieval added nothing"* are two facts a reader of the D-class metrics must never
+see collapsed.
+
+### And the rail that went red was right to, in the wrong place
+
+`test_the_with_arm_uses_retrieval_when_present_and_says_so_when_absent` asserted
+`retrieval_module_absent` against a real, un-faked seam. True only before S-F. ⭐ **A rail whose
+subject is "which files exist today" silently changes meaning under a merge** — nothing regressed;
+the world caught up with the seam's own docstring (*"S-F builds the module; until then None"*). It
+now DRIVES both branches, so it reads the same before and after S-F.
+
+⛔ **The hiding goes through `pytest.MonkeyPatch.context()`, never the `monkeypatch` fixture +
+`undo()`** — the `db` fixture requests that same instance to pin `WISDOM_DB_PATH`, and an undo
+would have unpinned the test database along with it.
+
+⭐ **Note what the old rail could not have caught even in the new world:** it asserted the *string*
+the seam returns, and the seam returned the right string. **Arity is not a shape and no validator
+sees it**, so the new rail asserts the CALL (CLAUDE.md, *"Contracts — verify against the RUNTIME
+CALL SITE, not a harness"*).
+
+**Mutants, each restored byte-exact and sha256-verified (never `git checkout`):**
+
+```
+S  seam back to fn(query, k) ............................. 2 failed, 7 passed
+T  bind check deleted, call left correct ................. 1 failed (the control ALONE), 8 passed
+U  _hide_retrieval made a no-op .......................... 1 failed (the branch rail), 8 passed
+   restored .............................................. 9 passed
+```
+
+T is the one that matters: it proves the control fires for its own reason and not as a side effect
+of S. **A guard nobody has seen fire is not a guard.**
+
+### Merge-7 provenance footer
+
+`weekly_embed` marks the embed **footer**, not the description (`EMBED_DESCRIPTION_MAX` truncates
+that from the end), and `deliver` asserts the marker immediately before
+`discord_notify._send_webhook` so a marking call dominates the send's own scope. Chose to **mark
+rather than exempt**: a Discord webhook is a delivery rather than a consumer table, so the rail
+arguably over-reached — but only one of those can be wrong in the direction that matters.
+
+⚠️ **Deviation to state plainly:** `scripts/deploy_watch.py --service web --sha …` printed **nothing
+and exited 0**. It was not used as evidence — the deploy was verified from
+`railway deployment list --json` polled to a terminal status, then from `/api/health`. Recorded
+because an empty result with a zero exit is this programme's most expensive shape, and the tool is
+currently unusable as invoked. Not fixed here; it is not Wisdom's file and merge 7 was in flight.
