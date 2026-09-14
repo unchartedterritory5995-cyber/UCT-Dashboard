@@ -32,7 +32,7 @@ when it belongs to `chooseOutput`.
 | **a1** | the decidability probe | ✅ **DONE** — `12cbdd289` |
 | **a2** | plan-time vectors; reads fold to slot trees | ✅ **DONE** — `223f58ad2` (creation recorded), `66a4a5250` (reads fold) |
 | **a3** | the unroll | ✅ **DONE** — `06a2258e2` (acceptance, red), `a1de7a6f5` (green) |
-| **a4** | **REVISED BY R1/R2** — no new iteration form is built. Every retired loop form (`for x in`, `for [i, x] in`, `while`) refuses **at its own line**, with the code its SOURCE determines, replacing today's `pine:block` note plus a later unrelated `array.get` refusal | ⏳ **THIS SUB-STEP** |
+| **a4** | **REVISED BY R1/R2** — no new iteration form is built. Every retired loop form (`for x in`, `for [i, x] in`, `while`) refuses **at its own line**, with the code its SOURCE determines, replacing today's `pine:block` note plus a later unrelated `array.get` refusal | ✅ **COMPLETE** — `af4606288` (red), `901e8165a` (green), `20ae2ddf6` (re-baseline), `bfe7e2b4e` (R4–R6). One item owed: **R1(ii)** |
 | **a4b** | **the accumulator fold** — a counted-`for` body of the shape `s := s op e` folds to a left-nested op chain | ⛔ **CENSUS FIRST, THEN A GO** — ruling R3 |
 | **a5** | reductions unrolled over written slots, each checked against Pine's `na` semantics, with the source recorded | ⛔ **SCOPE AWAITING OWNER CONFIRMATION** — see below |
 | **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
@@ -232,3 +232,72 @@ whole block is a `pine:block` note and the accumulator is never seen at all
 no refusal). `pine:reassign` fires in the synthetic because the accumulated name is
 bound at top level and read by a `plot`. **The 379 are invisible today, not refused**,
 and a4b's census must count which of the two they are.
+
+---
+
+# RULINGS R4–R6 — owner, chat, 2026-09-14 · a4 CLOSES
+
+Each was measured before it was asserted, and measuring changed two of the three.
+
+## R4 — a series-sized source refuses at its CREATION line, and that is CORRECT
+
+The refusal names the dependency **where the dependency is** — the size expression at
+the creation — with `pine:collection`, the composed `seriesDependentMessage`, the named
+dependency, and the routing to item (c). The `for` line is downstream of that fact.
+Requiring the loop line would mean folding sizes earlier: a change to **when sizes are
+settled**, which is an engine-order change a4 is not entitled to make.
+
+## R5 — a drawing or UDT source stays where it already speaks, and it NOTES
+
+⚰️ **R5's own wording said "stays where it already refuses". It does not refuse
+anywhere.** Measured: `ok=true`, **zero refusals**, a `pine:drawing` note at the
+creation and a `pine:block` note at the loop. A script that iterates a drawing array
+and plots nothing from it is not a failed translation; it is a translation with a line
+this lane does not draw, which is what a note is for.
+
+⚠️ **And the UDT note is on the `type` DECLARATION, not the array creation** —
+`pine:type@4` on `type Foo`, `pine:vector@6` on `array.new<Foo>`. That split is the
+honest one: what this lane cannot store is the **type**; the array is merely the first
+place it shows, and the array creation is separately recorded as an ordinary plan-time
+vector of `Foo` slots.
+
+## R6 — measured on all 13 owed uses, and the case is MOOT ON EVERY ONE
+
+There is no swap available, because an earlier refusal fires on all of them:
+
+| script | line | first refusal |
+|---|---|---|
+| `ai-supertrend-…-presenttrading__3b9db05a48` | 259 | `pine:declaration-strategy@5` |
+| `ict-killzones-pivots-tfo__d0b8be94f1` | 768 | `pine:character@250` |
+| `multi-timeframe-supply-demand-zones__a98a2ab367` | 264, 276 | `pine:no-output` (0 outputs) |
+| `volume-footprint-…__e15e52b27d` (9 uses) | 595 … 1699 | `pine:character@1572` |
+
+⭐ **So the moot-ness itself became the assertion** rather than the case being deleted.
+If any of these becomes reachable — `pine:character` is a source-encoding refusal a
+later wave may well close — the rail goes RED, which is exactly when R1 should be
+reopened on corpus evidence. A deleted case would have gone quiet instead.
+
+⚠️ `SnD_Type` at :264 is a **function parameter**, so even reachable it would exercise
+a `param` binding rather than a vector. **Recorded as owed under R1; a4 does not build
+parameter typing.**
+
+## ⛔ OWED — R1(ii) IS NOT SATISFIED, AND a4 FOUND IT BY BUILDING a4
+
+R1(ii) requires a series-sized source iterated by a loop to compose
+`seriesDependentMessage` and route to item (c). It does not. Once the `for … in`
+touches the array, the **loop's** opaque replacement fires first, the array never
+reaches the size fold, and the refusal lands at the loop line carrying the loop's
+generic sentence — **the routing to (c) is lost for that shape**.
+
+⭐ **The relocation a4 shipped is what causes it: a better line, a worse sentence, for
+this one shape.** The fix is for the loop's message to defer to the creation's when the
+source's size is series-dependent, which needs the size folded before the walk gives up
+on the block — the same engine-order change R4 declined. It is committed as its own
+open `it.fails` carrying the measurement, not patched with a guess.
+
+## The five snapshot rails are no longer sensitive
+
+a3's comment warned that moving the refusal off the read would turn `pine.community.guards`,
+`pine.guardCensus` and `pineStrictMode` (×3) red. **It did not** — a3 has since cleared
+the refusals those rails snapshot, so the relocation passed them untouched. The only
+metric movement was one guard in one script, `pine:collection` → `pine:drawing`.

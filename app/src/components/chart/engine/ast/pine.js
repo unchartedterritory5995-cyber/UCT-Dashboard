@@ -5507,6 +5507,16 @@ export class Resolver {
       // That is what keeps `bothLanesAreTwoLanes`'s equal-facts case true by
       // construction and the lenient verdict unchanged: this is an ordinary
       // per-output refusal, never a `hardRefusal`, so `blocked` is untouched.
+      //
+      // ⛔⛔ DO NOT ADD A SECOND REFUSAL HERE, and the temptation is real: it looks
+      // like the READ should also say something, since that is where the member's
+      // eye lands. It must not. Two refusals for one cause is the second-authority
+      // defect this repo keeps paying for — and mechanically, an added refusal
+      // changes `refusals.length`, which re-baselines every fixture that counts
+      // them and breaks the equal-facts agreement the two lanes rely on. Measured
+      // at a4: with the relocation in place `refusals.length` stays 1 on both the
+      // `while` and the `for … in` fixtures. If a read needs to say more, it says
+      // it in the ONE refusal's message, not in a second refusal.
       if (vec && vec.kind === 'opaque') {
         throw new PineRefusal(vec.guard, vec.message, vec.at || locate(node.tok))
       }

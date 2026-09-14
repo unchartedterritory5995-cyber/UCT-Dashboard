@@ -166,6 +166,14 @@ chunk logs read: 12   failing cases: 92   failing files: 34
 
 ### Standing rules, one line each
 
+- ⛔⛔ **NO EDIT TO ANY FILE IS MADE THROUGH `bash`** — not a heredoc, not a patch
+  script, not `sed`, not a here-string. **Every edit uses the file tools.** If a file
+  tool cannot make an edit, that is a **stop-and-report**, not a fallback to bash.
+  ⚰️ Eight incidents now: a quoted bash heredoc strips one backslash level, so a
+  Python patch script written through one arrives with `\n` where the file has a
+  literal backslash-n and every anchor silently misses. Two of the eight were in a
+  single session (2026-09-14, a4), at a cost of two cycles each; the previous rule
+  said "prefer the file tools", and preferring was not enough.
 - **Worktree ownership** — a session deletes only what it created; read
   `.uct-session-owner` first; no owner file is not permission.
 - **Never verify a runner through a pipe** — redirect, read the bare exit code,
