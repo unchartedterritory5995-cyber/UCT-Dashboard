@@ -1,0 +1,163 @@
+{
+  "at": "2026-09-14T17:48:27",
+  "tree_head_start": "1216958ed29aa263a91f7b3224e237ca4ecb7e03",
+  "tree_head_end": "1216958ed29aa263a91f7b3224e237ca4ecb7e03",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "2240e9c4945f9ad18047697a2845797d5612d443",
+  "shards": 6,
+  "excluded": [],
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 4,
+        "passed": 221,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 5,
+        "passed": 2851,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2856
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 2,
+        "passed": 222,
+        "skipped": 1,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 3093,
+        "skipped": 5,
+        "todo": 0,
+        "total": 3100
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 2,
+        "passed": 223,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 4052,
+        "skipped": 4,
+        "todo": 0,
+        "total": 4058
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 0,
+        "passed": 225,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3117,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3117
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 224,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2632,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2633
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 225,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 4174,
+        "skipped": 0,
+        "todo": 0,
+        "total": 4174
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 9,
+      "passed": 1340,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1350
+    },
+    "tests": {
+      "failed": 10,
+      "passed": 19919,
+      "skipped": 9,
+      "todo": 0,
+      "total": 19938
+    }
+  },
+  "test_files_on_disk": 1350,
+  "test_files_waived": 0,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/lib/presentation/presentationSingleFormatter.test.js > \u26a0\ufe0f formatPercent is DECLARED AND ADOPTED BY NOTHING \u2014 stated, not hidden > nothing outside lib/presentation imports formatPercent from S10",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only",
+    "src/surfaces/manifest.test.js > S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+  ],
+  "baseline_sha": "258c5609d529a1f247ae6ff2da266f8479742823",
+  "baseline_measured_at": "2026-09-10 (re-measured on origin/master 62a228e5d)",
+  "vs_baseline": {
+    "observed_count": 10,
+    "baseline_count": 7,
+    "new": [
+      "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+      "src/lib/presentation/presentationSingleFormatter.test.js > \u26a0\ufe0f formatPercent is DECLARED AND ADOPTED BY NOTHING \u2014 stated, not hidden > nothing outside lib/presentation imports formatPercent from S10",
+      "src/surfaces/manifest.test.js > S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+    ],
+    "no_longer_failing": [],
+    "matches_baseline": false
+  },
+  "do_not_build": {
+    "ran": true,
+    "clean": true,
+    "hits": [],
+    "output": "DO-NOT-BUILD sweep -- 20 item(s) checked across app/src, api, scripts, tools\n\nOK no DO-NOT-BUILD item has gained code in the swept trees."
+  }
+}

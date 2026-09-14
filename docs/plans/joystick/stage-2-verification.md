@@ -160,6 +160,74 @@ column). A bare post wipes `handedness` and the rest.
 structural assertion green — one passed `message` where the component reads `msg`, one rendered for
 zero frames because its own action unmounted the host.
 
+## 5A · DRAFT — the Home fan's ring swap, checked on glass after it lands
+
+> ⚠️ **DRAFT, 2026-09-14. Not yet an owner ruling, and deliberately not renumbered into the
+> sequence above.** It exists because steps 0–9 contain **no check of the fan's geometry at all**,
+> and stage 2 moves two bubbles between rings. Patrick rules on whether it becomes step 5f.
+
+**Why this is not covered by 5a–5e.** Those check the chip hint, the coach mark, the session hide,
+the Settings toggle and the edge tab. None of them looks at the fan. Yet stage 2 empties
+`PREVIEW_MODES`, and for `home` that is **not** a no-op:
+
+| | stage 1 (projected) | stage 2 (projected) |
+|---|---|---|
+| ring 0 — OUTER | scan · chart · flow · breadth · **journal** | scan · chart · **breadth** · **wire** · flow |
+| ring 1 — inner | notebook · **wire** · calendar · voice | **journal** · notebook · calendar · voice |
+
+Nine bubbles either way; none added, none removed; Calendar survives. **`home.wire` and
+`home.journal` trade rings.**
+
+⛔ **And the neighbour that `glass-acceptance.md` G3-16 / ledger D-27 actually worries about does
+not exist until this ships.** D-27's own prose names Wire's worst colour neighbour as **Breadth**
+(`#5dcaa5`), *"which shares ring 0 with Wire"* — true of the **declared** fan, i.e. **stage 2**. At
+stage 1 Wire is in the inner ring and **never shares a ring with Breadth**. The measurement and
+the human eye have been looking at two different arrangements.
+
+### 5f (DRAFT) — Wire and Journal remain tellable apart after the swap
+
+| # | check | expected |
+|---|---|---|
+| 5f | On the Dashboard, open Home's fan. **Cover the labels.** (i) Can you tell **Wire** from **Journal**? (ii) Can you tell **Wire** from **Breadth**, now that they share the outer ring? | Both **DISTINGUISHABLE** |
+
+**The probe — on real glass, and what to record:**
+
+```
+1. Sign in via tools/smoke_login_link.py. Dashboard. Open Home's fan.
+2. Screenshot the fan with labels legible.  <- this is the CONTROL frame
+3. Screenshot again with the labels covered (thumb, tape, or a redaction pass).
+4. Answering from frame 3 ALONE, record:
+     Wire vs Journal   : ☐ DISTINGUISHABLE  ☐ CONFUSABLE
+     Wire vs Breadth   : ☐ DISTINGUISHABLE  ☐ CONFUSABLE
+5. Re-read frame 2 to confirm which bubble was which. If frame 2 and your answer in
+   frame 3 disagree about identity, the answer is CONFUSABLE — that disagreement IS
+   the finding.
+```
+
+⭐ **The control is frame 2, and it is not decoration.** A judgement made from a covered frame is
+only evidence if the uncovered frame proves the two bubbles were actually present and in the
+positions claimed. Without it, "I could tell them apart" is unfalsifiable — it would read the same
+if one of them had not rendered.
+
+⛔ **Assert the user-facing result, not the token.** The tokens are byte-identical at both stages
+(`--hub-mode-wire: #9FE887`, `--hub-mode-journal: #4FB833`, high-contrast `#D4FEE4`) — reading
+them back from the DOM proves nothing about whether a person can separate two circles on glass.
+The recorded result is the **human answer**, with the two frames attached.
+
+⛔ **MIRROR TRANSPORT CAVEAT — inline, because this row is untimed and therefore tempting.** A
+BrowserStack Live mirror floors at **260–427 ms per gesture** against `FLICK_MS = 120`, so flick,
+hold and scrub are INCONCLUSIVE-TRANSPORT there by construction. **Opening a fan is not one of
+those** — it is untimed, and a mirror can do it. ⚠️ But a mirror re-encodes the image, so **colour
+judgement through a mirror is not a colour judgement of the device.** This row is REAL GLASS ONLY;
+a mirror answer is recorded as **INCONCLUSIVE-TRANSPORT**, which is neither a pass nor a failure
+and must never trigger a rollback.
+
+**If CONFUSABLE:** do not act unilaterally. `glass-acceptance.md`'s decision table (`:285`) already
+rules what each combination of G3-16(a) and G3-16(b) means, and the CONFUSABLE branches change a
+shipped colour token. That is an owner decision.
+
+---
+
 ## 6 · Write the evidence into box 5
 
 ⛔ **Box 5's evidence slot is filled from THIS run and only this run.** The stage-1 dry run
