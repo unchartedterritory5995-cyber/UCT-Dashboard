@@ -245,3 +245,44 @@ returns `{'found': 1, 'report': {'ok': False}}` — `found: 1` means the guard c
 `ok: False` is the verdict **on the plant**, which is success. Reading that nested `ok` inverts
 the test and calls a working guard broken. The predicate is now `found >= 1 AND report.ok is
 False`, which can only be satisfied by a guard that actually fired.
+
+---
+
+## Checkpoint 10 — the LIVE half: production is dark, and every route refuses. 2026-09-14 04:20 CT
+
+The §8.6 census above reads the repo. This reads **Railway and production**, because the ledger
+records intent and cannot see either.
+
+### Every WISDOM_* flag, on every service — names only, values are secrets (§11.3)
+
+```
+web                       247 vars, WISDOM_*: NONE
+worker                     56 vars, WISDOM_*: NONE
+bars-api                   30 vars, WISDOM_*: NONE
+flow-worker                67 vars, WISDOM_*: NONE
+chart-renderer             16 vars, WISDOM_*: NONE
+terminal-next-monitor      14 vars, WISDOM_*: NONE
+                                    TOTAL SET ANYWHERE: 0
+```
+
+**Six services, 430 variables, not one of them `WISDOM_*`.** Six master merges are on production
+and the program cannot do anything to a member: §0.4c holds by measurement, not by assertion.
+
+`python tools/flag_ledger_audit.py` (the whole-ledger live half) also reports **0** in every
+category: 0 fiction, 0 set-but-undeclared, 0 undeclared-and-off, 0 awaiting a decision.
+
+### Every Wisdom route, anonymously
+
+**27 real GET routes, all 401. None returns JSON to an anonymous caller.**
+
+⛔ **The route list is DERIVED from `registry.routers()`, not typed** — and that matters, because
+the first probe I ran used paths I had invented (`…/review/items`, `…/report/weekly`,
+`…/capture/status`) and **three of them came back `200`**. Not an auth hole: FastAPI had no such
+route, so the request fell through to the SPA catch-all and returned `<!doctype html>`. That is
+the exact tell CLAUDE.md records for the unmounted `broker_sync` router (`GET /connect` → 200
+HTML), and read carelessly it would have been published as a Wisdom auth leak.
+
+⭐ **So the probe now distinguishes three outcomes, not two:** `401` (gated), `200` carrying the
+SPA shell (route absent), and `200` carrying JSON (an actual leak, of which there are none). A
+two-outcome probe would have called the SPA fallthrough a pass on the first run and a breach on
+the second, and both readings would have been wrong.
