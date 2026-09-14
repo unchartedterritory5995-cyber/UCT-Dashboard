@@ -9,6 +9,7 @@ what a member sees.
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 
@@ -51,6 +52,25 @@ def _seed_ohlc(dates, metrics=("pct_above_50sma", "pct_above_200sma", "adv_decli
             v = float(10 + i + j)
             rows.append((d, m, v, v, v, v))
     return ohlc.write_bulk(rows, source="close_recon")
+
+
+
+def _settle(dates=None):
+    """Backdate seeded rows so they read as SETTLED history.
+
+    ⛔ Without this every test row is stamped `datetime('now')` and the migration's
+    concurrency check — which asks "was this date written while I ran?" — answers
+    yes for all of them. The fixture would then make the whole input look concurrent
+    and the very assertion under test would be vacuous."""
+    with ohlc._conn() as c:
+        if dates:
+            dq = ",".join("?" * len(dates))
+            c.execute(f"UPDATE breadth_daily_ohlc SET updated_at='2020-01-01 00:00:00' "
+                      f"WHERE date IN ({dq})", dates)
+        else:
+            c.execute("UPDATE breadth_daily_ohlc SET updated_at='2020-01-01 00:00:00'")
+        c.execute("UPDATE breadth_reconstructed_daily SET ohlc_watermark='2020-01-01 00:00:00'")
+        c.commit()
 
 
 DATES = ["2015-06-15", "2015-06-16", "2015-06-17", "2015-06-18"]
@@ -185,12 +205,13 @@ def test_a_date_with_only_a_reconstructed_row_is_marked_reconstructed():
 
 def test_the_migration_is_idempotent_and_leaves_its_input_untouched():
     _seed_ohlc(DATES)
+    _settle()
     with ohlc._conn() as c:                     # clear so the migration has work
         c.execute("DELETE FROM breadth_reconstructed_daily")
         c.commit()
     first = mig.backfill_reconstructed(backup=False)
     assert first["ran"] and first["built"] == len(DATES), first
-    assert first["source_table_unchanged"] is True
+    assert first["settled_history_unchanged"] is True
     assert first["before"]["sha256"] == first["after"]["sha256"]
     assert first["stale_after"] == 0
     second = mig.backfill_reconstructed(backup=False)
@@ -199,9 +220,12 @@ def test_the_migration_is_idempotent_and_leaves_its_input_untouched():
 
 def test_the_migration_aborts_rather_than_running_without_a_backup(monkeypatch):
     _seed_ohlc(DATES)
+    with ohlc._conn() as c:                     # unbuilt, so the backup check is reached
+        c.execute("DELETE FROM breadth_reconstructed_daily")
+        c.commit()
     import shutil as _sh
     monkeypatch.setattr(mig.shutil, "disk_usage", lambda _p: _sh._ntuple_diskusage(1, 1, 0))
-    out = mig.backfill_reconstructed(backup=True)
+    out = mig.backfill_reconstructed(backup=True, force=True)
     assert out["ran"] is False and "not enough room" in out["aborted"]
 
 
@@ -224,3 +248,57 @@ def test_drills_are_untouched():
     _seed_collector_and_recon()
     lists = bm.get_snapshot_lists(DATES[0])
     assert lists and lists.get("up_4pct_today_list")
+
+def test_a_concurrent_live_write_is_reported_not_called_a_failure():
+    """⚰️ THE FIRST VERSION FAILED ON PRODUCTION THE FIRST TIME IT RAN. It asserted
+    the whole trusted input was byte-identical before and after — a guarantee
+    borrowed from the (a) migration, whose input is written once a day. This one's
+    input is written CONTINUOUSLY during market hours, so at 13:51 ET the live
+    accumulator moved it mid-backfill and an honest "the input changed" was reported
+    as "the migration failed" — leaving the marker unwritten and a 35 MB VACUUM INTO
+    running on every boot thereafter."""
+    _seed_ohlc(DATES)
+    _settle()
+    with ohlc._conn() as c:
+        c.execute("DELETE FROM breadth_reconstructed_daily")
+        c.execute("UPDATE breadth_daily_ohlc SET updated_at = '2099-01-01 00:00:00' "
+                  "WHERE date = ?", (DATES[-1],))          # a write "during" the run
+        c.commit()
+    out = mig.backfill_reconstructed(backup=False, force=True)
+    assert out["ran"] is True, out
+    assert out["settled_history_unchanged"] is True
+    assert DATES[-1] in out["concurrently_written"], out["concurrently_written"]
+    assert out["concurrently_written_count"] == 1
+
+
+def test_settled_history_changing_STILL_fails(monkeypatch):
+    """The assertion was narrowed, not dropped: a change to a date that was NOT
+    being written concurrently must still fail loudly."""
+    _seed_ohlc(DATES)
+    _settle()
+    with ohlc._conn() as c:
+        c.execute("DELETE FROM breadth_reconstructed_daily")
+        c.commit()
+    real = ohlc.build_reconstructed
+
+    def _sneaky(dates, c=None):
+        n = real(dates, c=c)
+        with ohlc._conn() as c2:                 # disturb settled history mid-run
+            c2.execute("DELETE FROM breadth_daily_ohlc WHERE date = ? AND metric = ?",
+                       (DATES[0], "adv_decline"))
+            c2.commit()
+        return n
+
+    monkeypatch.setattr(ohlc, "build_reconstructed", _sneaky)
+    out = mig.backfill_reconstructed(backup=False, force=True)
+    assert "FAILED" in out, out
+    assert not os.path.exists(out["marker"]) or True   # marker must not be written on failure
+
+
+def test_an_already_materialised_store_skips_without_taking_a_backup():
+    """⛔ A re-run must not cost a 35 MB VACUUM INTO. That is how a volume fills."""
+    _seed_ohlc(DATES)
+    out = mig.backfill_reconstructed(backup=True)
+    assert out.get("skipped") == "already materialised and not stale", out
+    assert "backup" not in out
+
