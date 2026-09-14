@@ -4,6 +4,18 @@
   "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
   "queue": [
     {
+      "id": "post-merge-canary",
+      "status": "pending",
+      "timeout": 1200,
+      "why": "Standing post-master-merge step: SUCCESS -> three-way -> DEPLOY row -> Q1 canary. The merge afef0bfde is SUCCESS and the DEPLOY row is written; this is the canary. It runs FIRST next window because a merge is unverified until the rig has seen the live bundle.",
+      "cmd": [
+        "python",
+        "tools/window_check.py",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+      ]
+    },
+    {
       "id": "trigger4-capture",
       "status": "done",
       "timeout": 900,

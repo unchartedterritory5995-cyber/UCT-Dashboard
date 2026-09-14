@@ -163,13 +163,69 @@ def _log_bypass(dep: dict, reason: str) -> None:
         pass
 
 
+def self_check() -> int:
+    """A GUARD NOBODY HAS SEEN FAIL IS NOT A GUARD.
+
+    Owner ruling 2026-09-14: "a fake in-flight status blocks; SUCCESS passes;
+    CLI unavailable -> block with 'cannot verify,' never pass."
+
+    It was watched refusing AND allowing on a real push the same night - but an
+    OBSERVATION IS NOT A RAIL: nobody could re-prove it on demand, so the next
+    person to touch `decide` had nothing to run. `decide` is pure, so this drives
+    it directly instead of mocking the CLI.
+    """
+    fails = []
+
+    def case(name, dep, want, must_say=None, **kw):
+        verdict, reason = decide(dep, **kw)
+        ok = verdict == want and (must_say is None or must_say in reason)
+        print("  %s %s: %s - %s" % ("ok  " if ok else "FAIL", name, verdict, reason[:84]))
+        if not ok:
+            fails.append(name)
+
+    settled = MIN_SETTLE_SECONDS + 10
+    case("an in-flight deployment BLOCKS",
+         {"state": "READ", "status": "BUILDING", "commit": "abc123", "message": "another merge"},
+         REFUSE, "swap is in flight", now_age=settled)
+    case("a settled SUCCESS PASSES",
+         {"state": "READ", "status": "SUCCESS", "commit": "abc123", "message": "m"},
+         OK, "safe to push", now_age=settled)
+    case("an unreadable CLI BLOCKS, never passes",
+         {"state": UNREADABLE, "why": "railway not on PATH"}, REFUSE, "cannot read")
+    case("SUCCESS but too YOUNG blocks",
+         {"state": "READ", "status": "SUCCESS", "commit": "abc123", "message": "m"},
+         REFUSE, "draining", now_age=1)
+    case("SUCCESS with an unreadable AGE blocks",
+         {"state": "READ", "status": "SUCCESS", "commit": "abc123", "message": "m",
+          "createdAt": "not-a-date"}, REFUSE, "age is unreadable")
+
+    # THE DISCRIMINATOR. Without it every case above passes if `decide` were to
+    # return REFUSE unconditionally - which is the shape a panicked fix takes.
+    v, _ = decide({"state": "READ", "status": "SUCCESS", "commit": "c", "message": "m"},
+                  now_age=settled)
+    if v != OK:
+        print("  FAIL discriminator: decide() never returns OK - every rail above is vacuous")
+        fails.append("discriminator")
+    else:
+        print("  ok   discriminator: decide() can return OK, so the refusals mean something")
+
+    print("self-check:", "PASS" if not fails else "FAIL " + ", ".join(fails))
+    return 0 if not fails else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--self-check", action="store_true",
+                    help="prove the guard can refuse AND allow, without touching the CLI")
     # ⛔ argv is a PARAMETER, and under pytest it defaults to EMPTY rather than
     # `sys.argv`. Without that, argparse eats pytest's own flags and raises
     # SystemExit(2) — the test would be exercising argparse, not the guard.
     a = ap.parse_args([] if (argv is None and "pytest" in sys.modules) else argv)
+
+    # ⛔ Before anything shells out: the self-check must not need the CLI.
+    if a.self_check:
+        return self_check()
 
     dep = latest_deployment()
     verdict, reason = decide(dep)
