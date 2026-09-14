@@ -798,3 +798,44 @@ is the worse error, and the runbook says so.
 
 **So the merge order is:** walk the closure → record INERT STRAND with the hop
 count, or touch a watched file deliberately → then merge. Not before.
+
+
+### ✅ PRECONDITION DISCHARGED — traced to the call site, 2026-09-14
+
+**The closure was walked** (AST, 162 api modules from `api/flow_worker_main.py`).
+`api.services.journal_two.db` **IS** reachable, in five hops:
+
+```
+api.flow_worker_main -> api.auth_surface_check -> api.flow_proxy
+  -> api.services.auth_service -> api.services.auth_db -> api.services.journal_two.db
+```
+
+and it **IS CALLED** — `api/services/auth_db.py:903-904`:
+
+```python
+from api.services.journal_two.db import ensure_schema as _ensure_j2_schema
+_ensure_j2_schema(conn)
+```
+
+**Verdict: INERT STRAND — merge without forcing a flow-worker redeploy.** A stale
+flow-worker runs the OLD `_J2_SCHEMA`, so it simply does not create
+`j2_note_templates`. It never reads that table — the only consumers are the five
+web routes in this branch — and every statement is `CREATE TABLE IF NOT EXISTS`,
+so it cannot damage or shadow a table web has created. The failure direction is a
+table that is absent on a service that does not use it.
+
+⛔ **Forcing a redeploy to "be safe" is the worse error**: it drops the Massive
+OPRA socket, and Massive does not replay, so the tape gap is permanent until the
+T+1 flat file.
+
+⚰️ **AND MY FIRST TRACE WAS WRONG, BY A BLIND SPOT WORTH NAMING.** The script
+searched the closure for `ensure_schema(` and reported that `auth_db` does **not**
+reference it — because the call is `_ensure_j2_schema(conn)`, through an **aliased
+import**. A search for a CALL SYNTAX cannot see a call made through an alias, and
+it fails in the flattering direction: it reports "not reached", which is the
+answer that lets a merge through.
+
+⭐ Same family as *grep the consumer for the producer's name*. The fix is to
+resolve imports (including `as` bindings) rather than matching text — which is
+what `reachable.test.js` already does with an AST for the frontend, and what any
+future closure check here should copy instead of re-deriving.
