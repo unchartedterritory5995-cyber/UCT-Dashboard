@@ -78,14 +78,30 @@ function Host({ initial, seen }) {
   )
 }
 const show = (cs, seen) => render(<Host initial={cs} seen={seen} />)
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
 
 const rowFor = (re) => [...document.body.querySelectorAll('[data-row-id]')]
   .find((r) => re.test((r.querySelector('[class*="actLabel"]')?.textContent || '').trim()))
 const summaryOf = (re) => (rowFor(re)?.querySelector('[class*="actMeta"]')?.textContent || '').trim()
 const openRow = (re) => fireEvent.click(rowFor(re).querySelector('[aria-expanded]'))
-const displayIn = (re) => [...rowFor(re).querySelectorAll('select')]
-  .find((s) => /display in/i.test(s.getAttribute('aria-label') || ''))
+/** The INSPECTOR — the right-hand column, which is where a selected row's
+ *  controls now live.
+ *
+ *  ⭐ THE CONTROLS ARE THE SAME CONTROLS; only the column changed. Chart Data
+ *  moved the form out of the row and into a panel beside the pane map, so a
+ *  query scoped to `rowFor(...)` now finds the row's NAME and TOGGLE and nothing
+ *  else. `data-inspector-for` carries the row id, so these helpers still assert
+ *  that the form on screen belongs to the row that was selected — which is the
+ *  thing that actually mattered about scoping them to the row. */
+const inspector = () => document.body.querySelector('[data-inspector-for]')
+const displayIn = (re) => {
+  const panel = inspector()
+  // ⛔ AND IT MUST BE THIS ROW'S FORM. A stale selection would otherwise let a
+  // case assert against the control of whatever was selected before it.
+  if (!panel || !rowFor(re) || panel.getAttribute('data-inspector-for') !== rowFor(re).getAttribute('data-row-id')) return undefined
+  return [...panel.querySelectorAll('select')]
+    .find((s) => /display in/i.test(s.getAttribute('aria-label') || ''))
+}
 
 beforeEach(() => { clearSecondaryBars() })
 afterEach(() => { cleanup(); clearSecondaryBars() })

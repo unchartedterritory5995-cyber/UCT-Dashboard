@@ -415,3 +415,25 @@ server-side serialisation.
 |---|---|
 | (filled in below by the run) | |
 
+#### ⚰️ RESULT: **Wait for CI IS NOT GATING.** Measured 2026-09-14, Session 5.
+
+The two-push test was never needed, because the ordinary traffic already answered it.
+**Eight consecutive `web` deploys between 19:10Z and 21:30Z each started 99–141 s
+BEFORE their own check suite finished** — including `7707b2241`, which was created
+*after* the toggle was already ON. There is no run to fill the table in with; the
+mechanism the table was built to time does not fire.
+
+⛔ **A toggle that is ON and not gating is worse than one that is OFF.** Every session
+downstream of it reasons as though the queue is protected, and the client-side
+`tools/pre_push_guard.py` — which *is* working — then looks like belt-and-braces
+rather than the only line there is. Do not cite this section as evidence that master
+pushes are serialised at GitHub. They are not.
+
+⚰️ **And the check set is not the workflow list.** GitHub lists **9** workflows for
+this repo; `.github/workflows/` holds **7**. Two are ghosts — run history, no file. Any
+"required checks" list must be derived from the directory, never read off the UI.
+
+**Superseded by** the promoted-branch deploy gate — design in
+`docs/breadth/deploy-gate-v2.md`, branch `breadth/deploy-gate-v2`. Wait-for-CI is
+**not** to be toggled either way until that cutover is the owner's call.
+

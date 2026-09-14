@@ -12,6 +12,7 @@ import * as engineRegistry from '../nativeRegistry'
 import { computeIchimoku } from '../../indicators'
 import { makeBars } from './fakeChart'
 import ChartSettingsModal from '../../ChartSettingsModal'
+import { paneMap } from '../../chartDataMap'
 
 /** Enough bars that every declared period actually computes (senkouB is 52). */
 const BARS = makeBars(260)
@@ -431,7 +432,7 @@ describe('⭐ TASK 6 — one row per LIVE INSTANCE, and each row edits its own',
 })
 
 describe('…and it reaches the real dialog, not just the row builder', () => {
-  const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+  const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
 
   /** A blob with EVERY shipped definition, and the carved-out section, switched
    *  on — the widest active list the product can produce. */
@@ -479,7 +480,23 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
       .map((r) => r.label)
     expect(expected.length, 'the fixture switched nothing on — the comparison is vacuous')
       .toBeGreaterThan(15)
-    expect(activeLabels()).toEqual(expected)
+    // ⛔ MEMBERSHIP IS THE CLAIM, AND IT IS ASSERTED EXACTLY. Every row
+    // `listAllIndicators` produces is on screen, once, and nothing else is —
+    // which is what "derived, never a typed list" means.
+    expect([...activeLabels()].sort()).toEqual([...expected].sort())
+    expect(activeLabels().length, 'a row rendered twice').toBe(expected.length)
+    // ⭐ AND THE ORDER IS THE PANE MAP'S, WHICH IS THE CHART'S. Chart Data groups
+    // the list by the pane each row draws in, so flat `listAllIndicators` order
+    // stopped being the rendered order — deliberately. It is still DERIVED, from
+    // the same rows, through the one helper that does the grouping; asserting it
+    // against `paneMap` keeps this case pinning a real order rather than dropping
+    // the ordering claim because the shape changed.
+    const grouped = paneMap(
+      listAllIndicators(cs, engineRegistry, {}).filter((r) => r.path.kind !== 'indicator' || readEnabled(r)),
+      cs,
+      (id) => engineRegistry.getDefinition(id),
+    ).flatMap((g) => g.rows).map((r) => r.label)
+    expect(activeLabels()).toEqual(grouped)
   })
 
   it('⭐ MACD\'s two colours have a control now — the gap B3 measured and could not close', () => {
@@ -580,12 +597,24 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
     return sw
   }
 
-  /** One row's colour swatch for the `color` input, inside the OPEN settings. */
+  /** One row's colour swatch for the `color` input, in the SELECTED row's form.
+   *
+   *  ⭐ SELECTING THE ROW, THEN READING THE INSPECTOR IT CONTROLS. Chart Data
+   *  renders the form in the column beside the pane map rather than inside the
+   *  row, so the fields are no longer descendants of `block`. The gesture is the
+   *  same one a member makes and the assertion is the same assertion — and
+   *  `data-inspector-for` is checked against this row's id, so a stale selection
+   *  cannot let the case pass while reading the OTHER RSI's swatch, which is the
+   *  exact confusion these two cases exist to catch. */
   const colourSwatchIn = (block) => {
     const expander = block.querySelector('[aria-expanded]')
     if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
+    const panel = document.body.querySelector('[data-inspector-for]')
+    expect(panel?.getAttribute('data-inspector-for'),
+      'the inspector is showing a different row than the one that was selected')
+      .toBe(block.getAttribute('data-row-id'))
     const label = engineRegistry.getDefinition('rsi').inputs.find((i) => i.key === 'color').label
-    const row = [...block.querySelectorAll('[class*="indRow"]')]
+    const row = [...panel.querySelectorAll('[class*="indRow"]')]
       .find((r) => r.querySelector('[class*="indLabel"]')?.textContent === label)
     expect(row, 'the RSI row has no colour field — this case is asserting on nothing').toBeTruthy()
     const sw = row.querySelector('[data-color-swatch]')

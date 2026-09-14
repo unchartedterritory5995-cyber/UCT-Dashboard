@@ -72,6 +72,12 @@ import { symbolFamily } from '../../hooks/useBreadthSymbols'
 import { resolveDisplayTarget, displayTargetOptions } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
+// ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
+// `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
+// `StockChart` hands `computePaneLayout` — so this component never forms its own
+// opinion about where anything draws. See that file's header for why grouping
+// from a label or a summary string would be a lie nobody notices.
+import { paneMap } from './chartDataMap'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -86,6 +92,9 @@ import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanc
  * predicate survives because these rows still differ from an engine row in the
  * two places it is used — where their VALUES live, and which verb removes them.
  */
+/** The one inspector region, named once so the rows can point at it. */
+const CD_INSPECTOR_ID = 'chart-data-inspector'
+
 function isFixtureRow(row) {
   return row?.path?.kind === 'overlay' || row?.path?.kind === 'section'
 }
@@ -171,7 +180,7 @@ export default function ChartSettingsIndicators({
   // component is fresh on every open and the initial value IS the deep link. An
   // effect would open the row a frame LATER — a visible jump on a surface the
   // member reached by clicking a gear that promised to land there.
-  const [expanded, setExpanded] = useState(openRowId)   // rowId — ONE at a time (§11)
+  const [selected, setSelected] = useState(openRowId)   // rowId — ONE at a time (§11)
 
   /** The scroll region the rows live in — see `scrollDeepLinkIntoView`. */
   const listRef = useRef(null)
@@ -282,6 +291,16 @@ export default function ChartSettingsIndicators({
     [rows],
   )
 
+  // ─── AND THE SAME ROWS, GROUPED BY THE PANE THEY DRAW IN ──────────────────
+  //
+  // ⭐ ONE CALL, NO LOCAL RULES. Everything the left column knows about pane
+  // structure arrives here; there is no grouping logic in this file to drift
+  // from the renderer's.
+  const paneGroups = useMemo(
+    () => paneMap(activeRows, settings, (id) => registry?.getDefinition?.(id) || null),
+    [activeRows, settings, registry],
+  )
+
   /** Is this row's line DRAWN right now?
    *
    *  ⭐ THIS IS THE SPLIT THAT MAKES "TURN IT OFF" STOP MEANING "DELETE IT".
@@ -316,6 +335,25 @@ export default function ChartSettingsIndicators({
   // gate. What still differs per row kind is the VERB, and `removeRow` routes on
   // that directly.
 
+  /**
+   * Clear the selection only when the row that just left IS the selected one.
+   *
+   * ⚠️ IT USED TO CLEAR UNCONDITIONALLY, and that was correct for an accordion:
+   * the ✕ and the open form were on the same row, so removing it had to close it.
+   * The inspector is a PERSISTENT column — removing EMA 20 while reading RSI's
+   * settings would blank the panel the member is working in, for a row they did
+   * not touch. Measured in the harness: deleting the QQQ host emptied the
+   * inspector that was showing RSI.
+   *
+   * ⛔ THE SELECTION IS ALSO RESOLVED AGAINST THE LIVE ROWS EVERY RENDER, so a
+   * selected row that is removed empties the panel anyway. This is belt and
+   * braces for the one case that has a WRITE to make it explicit — not a second
+   * mechanism: both agree because both compare the same row id.
+   */
+  const deselectIfRemoved = useCallback((row) => {
+    setSelected((cur) => (cur === row.id ? null : cur))
+  }, [])
+
   const removeRow = useCallback((row) => {
     let next = settings
     // ⛔ A FIXTURE IS TOMBSTONED, NEVER SPLICED. `cs.overlays` is merged
@@ -331,7 +369,7 @@ export default function ChartSettingsIndicators({
     // delete button.
     if (isFixtureRow(row)) {
       onRowPatch?.(row, { removed: true })
-      setExpanded(null)
+      deselectIfRemoved(row)
       return
     }
     if (row.engineOwned) {
@@ -347,8 +385,8 @@ export default function ChartSettingsIndicators({
       // settings slice IS its existence — the same write its toggle makes.
       onRowPatch?.(row, { enabled: false })
     }
-    setExpanded(null)
-  }, [settings, onChange, onRowPatch, registry])
+    deselectIfRemoved(row)
+  }, [settings, onChange, onRowPatch, registry, deselectIfRemoved])
 
   // ─── DISCOVERY ────────────────────────────────────────────────────────────
   const results = useMemo(() => {
@@ -408,9 +446,60 @@ export default function ChartSettingsIndicators({
   }, [settings, onChange, registry])
 
   // ─── ONE ROW, COLLAPSED (§9 option B: toggle · name · colour · chevron) ────
+  // ⛔ THE SELECTION IS RESOLVED AGAINST THE LIVE ROWS, EVERY RENDER. A removed
+  // indicator leaves a selection pointing at nothing; resolving it here means the
+  // inspector empties by itself rather than needing an effect to chase the delete.
+  const selectedRow = activeRows.find((r) => r.id === selected) || null
+
+  /**
+   * One PANE, as a heading and a rail down its rows.
+   *
+   * ⭐ THE HEADING IS THE PANE'S NAME AND NOTHING ELSE. No `@host`, no instance
+   * id, no display-target string — `chartDataMap` already translated all of that
+   * into the name the legend and the destination menu use.
+   *
+   * ⛔ AND AN ORPHAN GROUP SAYS WHY IT EXISTS. "Needs attention" is the one
+   * group whose members are not drawing; leaving it looking like an ordinary pane
+   * would be the silent re-home the engine refuses to do.
+   */
+  const renderGroup = (group) => (
+    <section
+      key={group.id}
+      className={`${styles.cdGroup} ${group.kind === 'orphans' ? styles.cdGroupOrphan : ''} ${group.kind === 'hidden' ? styles.cdGroupHidden : ''}`}
+      data-pane-group={group.id}
+      data-pane-kind={group.kind}
+    >
+      <div className={styles.cdGroupHead}>
+        <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>{group.name}</span>
+        <span className={styles.indCount}>{group.rows.length}</span>
+      </div>
+      {group.kind === 'orphans' && (
+        <p className={styles.cdOrphanWhy}>
+          The pane these were drawn in is no longer on the chart. They have kept
+          their settings — give each one a new place to draw.
+        </p>
+      )}
+      {/* ⚰️ A DIFFERENT SENTENCE, BECAUSE IT IS A DIFFERENT SITUATION. These are
+          switched off, not broken, and the fix is the toggle on the row rather
+          than a new destination. Saying "no longer on the chart" here was the
+          defect the harness caught. */}
+      {group.kind === 'hidden' && (
+        <p className={styles.cdOrphanWhy}>
+          Switched off, so they have no pane right now. Turn one back on and its
+          pane comes back with it.
+        </p>
+      )}
+      <div className={styles.cdGroupRows}>{group.rows.map(renderActiveRow)}</div>
+    </section>
+  )
+
   const renderActiveRow = (row) => {
     const on = rowVisible(row)
-    const isOpen = expanded === row.id
+    // ⭐ SELECTED, NOT EXPANDED. The form it controls is the inspector on the
+    // right rather than a region nested inside this row — which is why the
+    // button carries `aria-controls`: `aria-expanded` without it would tell a
+    // screen reader something opened and leave it with no way to find what.
+    const isOpen = selected === row.id
     const colorFields = mainColorFields(row)
     const badge = typeBadge(row)
     const summary = placementSummary(row)
@@ -447,7 +536,8 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.actName}
             aria-expanded={isOpen}
-            onClick={() => setExpanded(isOpen ? null : row.id)}
+            aria-controls={CD_INSPECTOR_ID}
+            onClick={() => setSelected(row.id)}
           >
             <span className={styles.actLabel}>{row.label}</span>
             {badge && <span className={styles.actBadge}>{badge}</span>}
@@ -500,7 +590,8 @@ export default function ChartSettingsIndicators({
             type="button"
             className={`${styles.actChevron} ${isOpen ? styles.actChevronOpen : ''}`}
             aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${row.label} settings`}
-            onClick={() => setExpanded(isOpen ? null : row.id)}
+            aria-controls={CD_INSPECTOR_ID}
+            onClick={() => setSelected(row.id)}
           ><UIcon name="gear" size={15} gold={false} /></button>
           {/* ⭐ REMOVE, ON THE ROW (owner, after seeing the first build). The brief
               asked for Remove to live one level in, behind the expander, because
@@ -530,85 +621,112 @@ export default function ChartSettingsIndicators({
             onClick={() => removeRow(row)}
           ><UIcon name="x" size={15} gold={false} /></button>
         </div>
-        {isOpen && (
-          <div className={styles.actBody}>
-            {row.fields.map((f) => {
-              if (f.showIf && !f.showIf(row.values)) return null
-              const val = row.values?.[f.key]
-              const dis = !!f.disabled
-              // The reason has to reach a screen reader, not just a pointer — the
-              // rule this tab already followed, kept verbatim.
-              const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
-              const inert = dis
-                ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
-                : {}
-              return (
-                <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
-                  <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
-                  {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
-                  {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
-                  {f.type === 'toggle' && (
-                    <button
-                      type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
-                      {...inert}
-                      className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
-                      onClick={() => onRowPatch?.(row, { [f.key]: val === false })}
-                    ><span className={styles.toggleKnob} /></button>
-                  )}
-                  {f.type === 'number' && (
-                    <input
-                      type="number" className={styles.indNum} {...inert}
-                      min={f.min} max={f.max} step={f.step} value={val ?? ''}
-                      onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
-                    />
-                  )}
-                  {/* ⭐⭐ THE SOURCE CONTROL — the instrument this row plots.
-                      A `source` input is the only one whose choices depend on
-                      the chart rather than on the definition, so the widget
-                      builds its own list from live settings. See
-                      `SourceField.jsx`. */}
-                  {f.type === 'source' && (
-                    <SourceField
-                      row={row} field={f} value={val} settings={settings}
-                      registry={registry} inert={inert} styles={styles}
-                      onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
-                    />
-                  )}
-                  {f.type === 'select' && (
-                    <select
-                      className={styles.indSelect} {...inert} value={val ?? ''}
-                      onChange={(e) => {
-                        const raw = e.target.value
-                        const opt = f.options.find(([v]) => String(v) === raw)
-                        onRowPatch?.(row, { [f.key]: opt ? opt[0] : raw })
-                      }}
-                    >
-                      {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  )}
-                </div>
-              )
-            })}
-            {displayInControl(row)}
-            {styleControl(row)}
-            {/* ⭐ REMOVE LIVES HERE, ONE LEVEL IN (§14). A trash icon on a dense
-                collapsed list is one mis-click from deleting a configured
-                indicator; behind the expander it takes an intent. */}
-            {/* ⚰️ TWO THINGS STOOD HERE AND BOTH ARE RETIRED, IN ORDER.
-                (1) A "Built into every chart — turn it off above to hide it."
-                note, for the MA overlays and the volume pane, because the storage
-                could not remove them — the tombstone can, so it stopped being
-                true. (2) A labelled "Remove indicator" button, which the brief
-                asked for so that removal would not be one click away in a dense
-                list. The owner then asked for the ✕ on the row, and once that
-                shipped this was a SECOND door onto the same verb, two clicks
-                deeper, at the bottom of a form nobody scrolls to in order to
-                delete something. One verb, one control: the ✕ in the header. */}
-          </div>
-        )}
       </div>
     )
   }
+
+
+  /**
+   * THE INSPECTOR — everything about the ONE selected row.
+   *
+   * ⭐⭐ THIS IS THE ACCORDION BODY, MOVED, AND NOT A SECOND EDITOR. Every
+   * control below is the control that used to sit inside the expanded row: the
+   * same `row.fields` loop, the same `colorSwatch`, the same `displayInControl`
+   * and `styleControl`, the same `onRowPatch`. Concept D changed WHERE the form
+   * appears, never what writes it — so a rail that pinned "this select writes
+   * `setInstanceDisplayTarget`" is pinning the same select it always was.
+   *
+   * ⛔ AND THE SELECTION IS A ROW ID, NOT AN INDEX OR A DEFINITION. The left
+   * column can hold two rows of one definition in two different panes; anything
+   * coarser than the row id would edit whichever one came first.
+   */
+  const renderInspector = (row) => (
+    <div className={styles.cdInspector} data-inspector-for={row.id}>
+      <div className={styles.cdInspectorHead}>
+        <span className={styles.cdInspectorName}>{row.label}</span>
+        {typeBadge(row) && <span className={styles.actBadge}>{typeBadge(row)}</span>}
+      </div>
+          {row.fields.map((f) => {
+            if (f.showIf && !f.showIf(row.values)) return null
+            const val = row.values?.[f.key]
+            const dis = !!f.disabled
+            // The reason has to reach a screen reader, not just a pointer — the
+            // rule this tab already followed, kept verbatim.
+            const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
+            const inert = dis
+              ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
+              : {}
+            return (
+              <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
+                <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+                {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
+                {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
+                {f.type === 'toggle' && (
+                  <button
+                    type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
+                    {...inert}
+                    className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
+                    onClick={() => onRowPatch?.(row, { [f.key]: val === false })}
+                  ><span className={styles.toggleKnob} /></button>
+                )}
+                {f.type === 'number' && (
+                  <input
+                    type="number" className={styles.indNum} {...inert}
+                    min={f.min} max={f.max} step={f.step} value={val ?? ''}
+                    onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
+                  />
+                )}
+                {/* ⭐⭐ THE SOURCE CONTROL — the instrument this row plots.
+                    A `source` input is the only one whose choices depend on
+                    the chart rather than on the definition, so the widget
+                    builds its own list from live settings. See
+                    `SourceField.jsx`. */}
+                {f.type === 'source' && (
+                  <SourceField
+                    row={row} field={f} value={val} settings={settings}
+                    registry={registry} inert={inert} styles={styles}
+                    onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
+                  />
+                )}
+                {f.type === 'select' && (
+                  <select
+                    className={styles.indSelect} {...inert} value={val ?? ''}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      const opt = f.options.find(([v]) => String(v) === raw)
+                      onRowPatch?.(row, { [f.key]: opt ? opt[0] : raw })
+                    }}
+                  >
+                    {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                )}
+              </div>
+            )
+          })}
+          {displayInControl(row)}
+          {styleControl(row)}
+          {/* ⭐ REMOVE LIVES HERE, ONE LEVEL IN (§14). A trash icon on a dense
+              collapsed list is one mis-click from deleting a configured
+              indicator; behind the expander it takes an intent. */}
+          {/* ⚰️ TWO THINGS STOOD HERE AND BOTH ARE RETIRED, IN ORDER.
+              (1) A "Built into every chart — turn it off above to hide it."
+              note, for the MA overlays and the volume pane, because the storage
+              could not remove them — the tombstone can, so it stopped being
+              true. (2) A labelled "Remove indicator" button, which the brief
+              asked for so that removal would not be one click away in a dense
+              list. The owner then asked for the ✕ on the row, and once that
+              shipped this was a SECOND door onto the same verb, two clicks
+              deeper, at the bottom of a form nobody scrolls to in order to
+              delete something. One verb, one control: the ✕ in the header. */}
+    </div>
+  )
+
+  /** Nothing selected — say what the panel is for rather than showing a void. */
+  const renderInspectorEmpty = () => (
+    <div className={`${styles.cdInspector} ${styles.cdInspectorEmpty}`}>
+      <p>Select anything on the left to change its settings, style and where it draws.</p>
+    </div>
+  )
 
   /**
    * The collapsed row's one-line answer to *"what is this, how is it drawn, where
@@ -936,23 +1054,29 @@ export default function ChartSettingsIndicators({
         )}
       </div>
 
+      {/* ─── THE CHART, AND THE ONE THING SELECTED IN IT ────────────────────
+          ⭐⭐ LEFT IS STRUCTURE, RIGHT IS THE SELECTION. The left column answers
+          "what is on this chart and where does it draw" — a question the flat
+          list could only answer one row at a time, by opening each one. The
+          right answers "and what are its settings", for exactly one row, with
+          the room to show them side by side instead of stacked. */}
+      <div className={styles.cdCols}>
+        <div className={styles.cdLeft} ref={listRef}>
       {mode === 'active' ? (<>
-        {/* ─── ACTIVE ────────────────────────────────────────────────────── */}
-        <section className={styles.section}>
-          <div className={styles.indSectionHead}>
-            <span className={styles.sectionLabel} ref={volumeRef} style={{ marginBottom: 0 }}>
-              Active indicators
-            </span>
-            <span className={styles.indCount}>{activeRows.length}</span>
+        {/* ─── THE PANE MAP ──────────────────────────────────────────────── */}
+        {/* ⚠️ `volumeRef` STAYS WITH THE VOLUME GROUP. It is the modal's scroll
+            anchor for the Volume deep link, and the volume group is where Volume
+            now lives — putting the ref on the first heading instead would scroll
+            members to the top of the map and call it a deep link. */}
+        {activeRows.length === 0 ? (
+          <div className={styles.indEmpty}>
+            Nothing on this chart yet. <button type="button" className={styles.indEmptyLink} onClick={() => searchRef.current?.focus()}>Search above</button> to add something.
           </div>
-          {activeRows.length === 0 ? (
-            <div className={styles.indEmpty}>
-              No active indicators. <button type="button" className={styles.indEmptyLink} onClick={() => searchRef.current?.focus()}>Search above</button> to add one.
-            </div>
-          ) : (
-            <div ref={listRef} className={styles.actList}>{activeRows.map(renderActiveRow)}</div>
-          )}
-        </section>
+        ) : paneGroups.map((g) => (
+          g.id === 'volume'
+            ? <div key={g.id} ref={volumeRef}>{renderGroup(g)}</div>
+            : renderGroup(g)
+        ))}
 
         {/* ─── BROWSE BY CATEGORY (§19) ──────────────────────────────────── */}
         <section className={styles.section}>
@@ -1022,6 +1146,19 @@ export default function ChartSettingsIndicators({
           </section>
         )}
       </>)}
+        </div>
+        {/* ⛔ THE INSPECTOR IS ALWAYS MOUNTED, selected or not. It is the region
+            every row's `aria-controls` names, and a region that comes and goes is
+            one a screen reader cannot follow a reference to. */}
+        <div
+          className={styles.cdRight}
+          id={CD_INSPECTOR_ID}
+          role="region"
+          aria-label="Selected item settings"
+        >
+          {selectedRow ? renderInspector(selectedRow) : renderInspectorEmpty()}
+        </div>
+      </div>
     </div>
   )
 }
