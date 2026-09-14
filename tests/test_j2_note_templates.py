@@ -22,6 +22,7 @@ import os
 import re
 import sqlite3
 import tempfile
+import uuid
 from pathlib import Path
 
 import pytest
@@ -166,6 +167,101 @@ def test_no_note_template_route_declares_a_paid_dependency(app):
         assert "get_current_user" in names, (r.path, names)
         forbidden = {n for n in names if "paid" in n or "plan" in n or "admin" in n}
         assert not forbidden, (r.path, forbidden)
+
+
+def test_a_real_planless_member_drives_the_free_door_with_no_override(app, client, db_path, monkeypatch):
+    """The request a MEMBER makes, with NOTHING overridden: a real row in
+    `users`, a real row in `sessions`, a real `uct_session` cookie, and FastAPI
+    resolving `Depends(get_current_user)` for itself against that cookie.
+
+    It exists because the two rails above split this door between them and both
+    miss the middle. `_login_as` overrides `get_current_user`, and
+    `get_current_user_with_plan` NESTS `get_current_user` — so the override
+    still satisfies it and a planless member still gets 200 (the ⚠️ note on
+    `test_all_five_routes_answer_a_member_with_no_plan` records that
+    measurement). The structural rail catches that mutation by READING the
+    declarations; it never issues a request, so it cannot see a refusal a
+    handler makes for itself. This one drives the wire.
+
+    Reddened by BOTH halves of the gap:
+      * a gate that REFUSES a free member — the call answers 402/403, not 200;
+      * `Depends(get_current_user)` -> `Depends(get_current_user_with_plan)` on
+        the list route, which refuses nobody but ASKS WHAT THE MEMBER PAYS.
+        ⛔ That is the ONLY difference the half-added gate makes: at HTTP level
+        the two dependencies are indistinguishable for every member, free or
+        paid, which is precisely why a status-code-only rail cannot see it. A
+        free route must not consult a plan at all, so the plan lookup itself is
+        the observable. Mutation performed and reverted 2026-09-14; this test
+        went red on `plan_lookups == []`.
+
+    ⛔ NON-VACUITY — three controls, because every assertion below is satisfied
+    by an accident:
+      1. the same client with NO cookie gets 401, so the 200 is the cookie's
+         doing rather than a stray override (`dependency_overrides` is asserted
+         empty beside it);
+      2. the member is proved planless by the app's OWN predicate —
+         `meets_plan_gate(user, PAID_PLANS)` is False — which is also what rules
+         out the OTHER way to be entitled: a live trial grants paid access
+         through that same function (`trial.is_account_in_trial`, consulted at
+         its last branch). Zero `subscriptions` rows and role 'member' sit
+         underneath it as the raw readings;
+      3. the plan-lookup spy is proved able to FIRE, by calling
+         `get_current_user_with_plan` directly at the end. Without that,
+         "the plan was never looked up" passes for a spy patched onto a name
+         nothing calls.
+    """
+    from api.services import auth_service
+
+    # ── a real member, created the way signup creates one ───────────────────
+    member = auth_service.create_user(
+        f"free-member-{uuid.uuid4().hex[:12]}@example.test", "correct-horse-battery-staple",
+    )
+    uid = member["id"]
+
+    # Control 2 — genuinely planless, on four independent readings.
+    assert _rows(db_path, "SELECT * FROM subscriptions WHERE user_id = ?", (uid,)) == []
+    assert auth_service.get_user_plan(uid) == "free"
+    urows = _rows(db_path, "SELECT role FROM users WHERE id = ?", (uid,))
+    assert len(urows) == 1 and urows[0]["role"] == "member", urows
+    # ...and the load-bearing one: the predicate every paid gate in this app
+    # defers to REFUSES this member.
+    assert authmw.meets_plan_gate({**member, "plan": "free"}, sorted(authmw.PAID_PLANS)) is False
+
+    # The spy wraps (never replaces) the real lookup, so the request behaves
+    # byte-identically whether or not it is watched.
+    plan_lookups: list[str] = []
+    real_get_user_plan = authmw.get_user_plan
+
+    def _watched_get_user_plan(user_id):
+        plan_lookups.append(user_id)
+        return real_get_user_plan(user_id)
+
+    monkeypatch.setattr(authmw, "get_user_plan", _watched_get_user_plan)
+
+    # Control 1 — nothing is overridden, and without the cookie the chain refuses.
+    assert app.dependency_overrides == {}, app.dependency_overrides
+    assert client.get("/api/j2/note-templates").status_code == 401
+
+    # ── the request a member actually makes ─────────────────────────────────
+    client.cookies.set("uct_session", auth_service.create_session(uid))
+    r = client.get("/api/j2/note-templates")
+    assert r.status_code == 200, r.text
+    assert r.json() == {"templates": []}
+
+    # ...and it is really this member's door: a template created over the same
+    # cookie comes back to them, stored against the id the session resolved to.
+    t = _created(client, label="Made by a real member")
+    assert [x["id"] for x in client.get("/api/j2/note-templates").json()["templates"]] == [t["id"]]
+    stored = _rows(db_path, "SELECT user_id FROM j2_note_templates WHERE id = ?", (t["id"],))
+    assert len(stored) == 1 and stored[0]["user_id"] == uid, stored
+
+    # THE ASSERTION: nothing in that round trip asked what the member pays.
+    assert plan_lookups == [], plan_lookups
+
+    # Control 3 — the spy CAN fire, on the exact name the paid dependency calls,
+    # so the empty list above is a measurement rather than a miswiring.
+    authmw.get_current_user_with_plan(user=dict(member))
+    assert plan_lookups == [uid], plan_lookups
 
 
 # ── Identity: the key namespace ─────────────────────────────────────────────
