@@ -515,6 +515,206 @@ to OFFER it until a caller proves the source can mean one.
 4. Only then the overnight row-summary UX — still carrying the known global
    `.actName` defect recorded in the Phase 1 section.
 
+---
+
+# PHASE 4 — NAMING, CANDLES, AND AN AVERAGE OF ANY SERIES
+
+Starting HEAD `ee1d93172`; ending HEAD `b37202c32` (+ this ledger). Four commits.
+Baseline re-verified before any edit: 4 failed / 10243 passed, build clean,
+fingerprint `ea9ebaeee302`.
+
+Universal Data is no longer "plot another ticker". Both shapes are green:
+
+    direct source → presentation               (QQQ line, QQQ candles)
+    direct source → derived → presentation      (MA over a QQQ series)
+
+## PART A — AN AUTOMATIC NAME FOLLOWS ITS SOURCE (`7041c5c98`)
+
+⚰️ The Phase 3 browser finding: a QQQ series re-pointed at NVDA kept its label —
+the legend read `QQQ 218.29`, and 218.29 is NVDA's price.
+
+**The root cause was PROVENANCE, not precedence.** `instanceLabel` preferring a
+stored `display.name` is RIGHT — it is what makes a real choice like "Invesco QQQ
+Trust" stick. The defect was upstream in the WRITE: `createFromResult` stamped the
+catalogue's short name unconditionally, so a series whose source already derives
+`QQQ` got `display.name = 'QQQ'` — an automatic name wearing the shape of a chosen
+one. By the time it was stored, nothing downstream could tell them apart.
+
+**The contract, now enforced at the write:**
+
+| | |
+|---|---|
+| automatic name | a function of the CURRENT source, recomputed every read |
+| explicit name | stored, preserved, and still beats the derived one |
+
+`sourceRef.derivedSourceName` is exported so the write side can ask that question
+with the same derivation the read side uses. ⛔ It is not a second naming system:
+`instanceLabel` remains the one answer every surface reads. No custom-name
+feature was built (none existed to preserve); the precedence is asserted so a
+future naming control inherits it.
+
+⛔ **Identity never moves.** `instanceId` and `inputs.source` are untouched by a
+label change, and a label is never encoded into a source string — two display
+names would otherwise be two different sources and every binding would break on a
+rename.
+
+**Duplicate disambiguation runs after the derived name**, through the machinery
+that already existed: `QQQ #1 / QQQ #2`; re-point one to NVDA and BOTH read
+plainly because the collision ended; re-point it into an existing NVDA and the two
+NVDA series are told apart instead.
+
+## PARTS B/C/D — CANDLES (`616024da3`)
+
+⭐⭐ **A candle is a STYLE.** No candle instance type, no second source, no
+separate pane architecture, no extra registry definition. `sym:QQQ:close` still
+means the close and no `sym:QQQ:ohlc` exists.
+
+⛔⛔ **Eligibility is two claims and both are required:**
+1. the SOURCE is a canonical symbol whose provider FAMILY means o/h/l/c describe
+   one auction period, and
+2. the DEFINITION is a passthrough — its output IS that instrument.
+
+Either alone admits something false. (1) alone gives `MA(QQQ)` candles of QQQ's
+own bars in the average's pane. (2) alone gives a passthrough over a breadth
+measure candles of a number that never traded.
+
+⛔ **Not gated on the payload.** Breadth bars carry o/h/l/c, so "has four fields"
+would admit them. `symbolFamily` answers `'unknown'` until the registry lands and
+the gate REFUSES `'unknown'` — not-classified-yet is never "ordinary security".
+
+⭐ **One capability answer per instance, shared by three readers** — the plan (a
+`candles` style decides the SERIES TYPE), the style resolution (the clamp), and
+the payload production — so they cannot disagree about whether a stored style is
+honoured.
+
+⛔ **The payload is tagged** (`{kind:'ohlc', bars}`), never duck-typed, **and
+compute never sees one**: it is produced only for a binding whose PRESENTATION
+asked for candles, so a source reference still resolves through the scalar
+projection. `MA(QQQ)` reads `sym:QQQ:close` exactly as before.
+
+**Timestamp contract unchanged (Part D):** `clippedBarsFor` drops every bar
+outside the chart's domain, so each survivor is a real bar at ITS OWN `t`. No
+forward fill, no synthetic bar, no axis union. Railed: one hole in the secondary
+costs exactly one candle.
+
+**Candle colours default to the chart's own palette** via
+`resolveCandleColors(inst, plot, cs.candles)` — no new palette, appearance work
+not started.
+
+## PART E — `movingAverage` (`b37202c32`)
+
+`MA(Close)`, `MA(Volume)` and `MA(QQQ)` are ONE definition pointed at different
+sources — the same `type: 'source'` input, so the **same `SourceField`** edits it
+(Part H). No second source format, no MA-only picker, no second dependency graph.
+
+⛔ **Additive beside the legacy overlays, not a migration of them.** `cs.overlays`
+still holds the shipped SMA/EMA-on-close overlays, computed in StockChart exactly
+as before. An old chart gains nothing and loses nothing.
+
+⚰️ **A requirement this exposed, and the binder now meets.** Master skipped EVERY
+hidden instance before computing — sound, until something READS one: hiding a QQQ
+series silently took `MA(QQQ)` down with it. **Visibility is ink, not existence**,
+so a hidden instance is skipped only when nothing depends on it.
+
+⛔ **No silent fallback.** An explicit source that is missing draws NOTHING rather
+than averaging the bars in hand, which would answer confidently about the wrong
+instrument and look perfectly plausible.
+
+## PART G — DISCOVERY CATALOG: **40 / 40**
+
+On the branch's measuring suite, **byte-identical to the original** (sha256
+compared, not eyeballed): 24 failed / 16 passed before the registry → 39/40 at the
+end of Phase 3 → **40/40**. The measurement was not edited to reach the target.
+
+## PART O — THE STOCKCHART DELTA THIS PHASE
+
+**+13 / −2**, all in the candles commit; the naming and movingAverage commits
+touched it not at all.
+
+| hunk | why |
+|---|---|
+| `CandlestickSeries` into `engineLwc()` | the engine can only build what that object carries; a pool key whose constructor is missing resolves to `undefined` and the plot silently does not exist |
+| `ohlcFamilyOf: symbolFamily` on the binder ctx | the semantic half of the capability gate, read synchronously because the binder has no hooks |
+| one `useEffect` calling `loadBreadthSymbols()` | the oracle needs its registry and this chart must not assume a sibling mounted it — `ChartPane` does, the pane harness does not, and the gate fails closed to "no candles" without it |
+
+**Rejected again, explicitly:** the Conditions pipeline, InfoFields/`infoBusKey`,
+formula-builder intent, the six pane-coordinate defect fixes, viewLock band
+clamping, the drawing-toolbar offset, and the P2.0c legend rework.
+
+## BROWSER PROOF (PART L) — all 18 scenarios, on `pane-harness.html`
+
+Chrome had exited after Phase 3 and was restarted; the harness ran on my own port
+(:5203). **/charts was never opened.**
+
+| # | scenario | result |
+|---|---|---|
+| 1-2 | add QQQ, label correct | ✅ `QQQ`, one `/api/bars/QQQ` |
+| 3-5 | change source → NVDA | ✅ row AND legend read **NVDA 211.34** (NVDA's price), `src=sym:NVDA:close`, exactly one new fetch |
+| 6-7 | duplicates | ✅ **QQQ #1 / QQQ #2**, NVDA unsuffixed; **zero** fetches for both adds |
+| 8 | style control | ✅ present; `candles` offered for QQQ |
+| 8-10 | Line→Candles→Line→Candles | ✅ **zero** new fetches on every transition; same 3 instances |
+| — | candles really render | ✅ A/B zoom: red/green bodies as candles, a single blue line as line |
+| 11-12 | add MA(QQQ) | ✅ `inst:movingAverage:1`, `src=sym:QQQ:close`, **zero** fetches (reused cache) |
+| 13 | MA cannot choose candles | ✅ `Moving Average (Source)`: line/histogram/dots/area/lastValueHorizontal — **no candles** |
+| 14 | MA + QQQ same pane | ✅ display-in offers `QQQ #1/#2/#3`, `NVDA`, `MA (5)` |
+| 15 | UCTA50 cannot choose candles | ✅ **no candles** |
+| 16 | delete / re-add | ✅ 6→5→6, zero fetches |
+| 17 | runaway | ✅ **zero** fetches across a 10-second idle |
+| 18 | preference writes | ✅ **refused: 0** throughout |
+
+⭐ The negative census's sharpest evidence is that the SAME source behaved
+differently by definition: QQQ offered candles to the passthrough and refused
+them to the average over it.
+
+## BITE CHECKS
+
+| mutation | result |
+|---|---|
+| catalogue stamps the derived name again | 5 red (incl. the exact Phase 3 defect) |
+| disambiguation groups without the label | the MIXED-GROUP case red |
+| semantic family gate removed | breadth admitted, 2 red |
+| passthrough requirement removed | 3 red |
+| the clamp trusts the stored value | 4 red |
+| candlestick ctor out of `SERIES_CTOR` | the positive case red |
+| MA compute falls back to the chart's closes | 3 red |
+| dependency ordering → array order | 1 red |
+| a hidden source skipped even when read | 1 red |
+| `movingAverage` out of the shipped manifest | 7 red |
+
+⚠️ **Two did not bite and are reported as such.** Deleting the `FAMILY_UNKNOWN`
+guard changed nothing — an unknown family is ALSO refused by the family-membership
+test below it (redundant defence, not a hole). And a two-series duplicate case
+could not bite the grouping at all, because the pre-existing "all labels distinct"
+guard skips it either way; the file gained a THREE-series mixed case, which does.
+
+## RESULTS
+
+| | |
+|---|---|
+| Engine | 2 failed / 4124 passed (the two pre-existing ratchets) |
+| `src/components` | **4 failed / 10386 passed** vs Phase 3's 4 / 10243 — **+143, zero regressions** |
+| Build | ✅ |
+| eslint StockChart.jsx | 134 problems, unchanged from master; zero `no-undef` |
+| discoveryCatalog | **40/40** |
+
+## REMAINING BLOCKERS
+
+None for this scope. Known deferrals, unchanged: the overnight row-summary UX
+still carries the global `.actName` defect recorded in the Phase 1 section, and
+the secondary-series colour palette is not started.
+
+## RECOMMENDED PHASE 5
+
+1. **The row-summary UX**, finally — it is the last Universal Data UX piece and
+   the naming, placement and style seams it reads are all now in place. Fix the
+   `.actName` defect with a scoped modifier as part of landing it.
+2. **Per-instance candle colours**, if the owner wants a secondary instrument to
+   differ from the chart's own palette — `setInstanceCandleColor` already exists
+   from Phase 2 and `resolveCandleColors` already reads per-instance overrides;
+   only the control is missing.
+3. **`MA(MA(x))` depth**, if wanted: the topological sort already handles it, so
+   this is a test-and-confirm rather than a build.
+
 ## STANDING FACTS
 
 - Local branch. **Nothing pushed, nothing deployed, nothing merged.**
