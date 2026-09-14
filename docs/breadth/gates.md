@@ -254,3 +254,33 @@ push time, and would break the day this worktree is removed.
 ⭐ **If a pre-merge fix is ever needed again, resolve the scanner from a REF, not a checkout path** —
 `git show origin/master:tools/secret_scrub.py` into a temp file — so the hook depends on something git guarantees
 rather than on somebody's directory still existing.
+
+## Never commit on red — and never amend a merge
+
+Two rules from failures on the password-change fix (2026-09-13/14), not from theory.
+
+**1. The commit step runs the test file(s) its message claims, and refuses if the last result printed any failure. A
+message stating a count must match the run that produced it.**
+
+⚰️ `dd220b2aa` was authored against a run that printed `1 failed, 5 passed`, with a message claiming six passing. The
+run happened; its output was on screen; nothing in the sequence acted on it. That is the same disease as chaining
+`npx vitest … ; git commit …` — two calls, and the second is issued only after READING the first.
+
+⛔ **A fixture can be wrong for five tests and fatal for the sixth.** The cause there was a test domain:
+`AdminResetRequest.email` is an `EmailStr`, and the validator refuses special-use domains **by name** — `*.invalid`
+422s before the endpoint is ever reached, while `.internal` (RFC 8375) passes. The five service-level cases never
+touch Pydantic and passed regardless, so the suite looked 5/6 healthy rather than structurally wrong. **Check a
+fixture domain against the schema's validators before trusting it across both service-level and endpoint-level
+tests** — `*.invalid` and `*.example` are the two that look safest and are not.
+
+**2. After any `--amend`, print `git log -1 --format='%h %p %s'` and confirm the parent count is 1. Never amend a
+merge commit.**
+
+⚰️ The correction to the above was amended onto a MERGE commit (two parents), which left the red test in history and
+put the corrected message on the wrong object. It was caught only by reading the parent list. A branch that is still
+local can be restructured (`git reset --soft origin/master` then one commit); one that has been pushed cannot.
+
+⭐ **The push guards firing is the EXPECTED behaviour, not an exception.** On that same change the pre-push 502 guard
+refused twice — once for another session's `BUILDING` deploy, once for a SUCCESS only 143s settled — and each refusal
+came with master having moved, so the merge commit was rebuilt onto the new tip. **Rebuild onto the new tip; never
+`--force`, never `UCT_SKIP_PREPUSH_GUARD=1` to get past a refusal you did not expect.**

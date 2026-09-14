@@ -478,3 +478,62 @@ gate that applies is the scoped backend suite: 6/6 in the new rail and **312 pas
 reach. Flow-worker is an **INERT STRAND**, traced rather than assumed: its closure takes exactly one symbol from
 `auth_service` (`validate_session`, via `flow_gap_autofill.py:45` → `flow_admin_auth.py:24`) and this change touches
 it in zero lines, so forcing a redeploy would buy a permanent OPRA tape gap for no behavioural difference.
+
+### D-040 · `DESK_PUBLIC_SHOWS='*'` is the owner's decision, is ledgered, and must not be "fixed"
+
+**Decision.** Public YouTube publishing of live sessions, workshops and evening updates is **deliberate** — owner
+decision 2026-08-19, reaffirmed 2026-09-13. The 2026-09-13 change that unlisted them was the error and was reverted on
+the owner's confirmation. `DESK_PUBLIC_SHOWS='*'` on `web` is the intended live value.
+
+**Verified, not assumed** (2026-09-14, this tree at master): `tests/test_visibility_flag_ledger.py` → **16 passed**, and
+`python tools/flag_ledger_audit.py --visibility` → **FINDINGS: 0** with `web: DESK_PUBLIC_SHOWS='*'` read live. The
+ledger already declares it `status: armed`, `values: ['*', 'sunday scans']`, with an `owner_decision` field — and the
+rail permits a wildcard on a public-exposure flag **precisely because** that field is present. So the shape is the
+intended one, the same shape `J2_OCR_ENABLED` uses.
+
+⛔ **Do not narrow this flag, and do not file it as an exposure.** A later session reading an incident framing will be
+tempted to "fix" a wildcard on a flag named PUBLIC — that would unlist the owner's public catalogue and would look
+like diligence. The rail is the authority and it is green; a finding here means the LEDGER drifted, never that the
+flag is wrong.
+
+⚠️ **This entry exists because I got it wrong in exactly that direction** — I read the incident framing, treated a
+deliberate decision as an exposure, and reported it as one. The correction is recorded here rather than only in a
+conversation so the next reader meets it beside the flag.
+
+### D-041 · B1 ships the series endpoint dark, flag-first, cached under the existing prefix, with downsampling deferred on measurement
+
+**Decision.** `GET /api/breadth-monitor/series` is implemented to D-035's contract. Full contract, caps, defaults and
+cost table: **`docs/breadth/api-series.md`** — that file is the authority and this entry does not restate it.
+
+Four choices worth recording:
+
+**1. Flag-first is the mechanism, not a detail.** `require_series_flag` is declared before `require_paid` because
+FastAPI 0.115.6 resolves dependencies in declaration order (`fastapi/dependencies/utils.py:592`). Reversed, an
+anonymous probe gets 401/402 — which **advertises that a paid route exists** before it has shipped. The rail asserts
+the two POSITIONS rather than three status codes, because three green codes are also compatible with a route that 404s
+for an unrelated reason.
+
+**2. The row schema is the key authority, and the constraint is "a series is numbers."** D-035 allowed the chartMetrics
+registry or the row schema; the registry is JavaScript and this is Python, so citing it would mean a hand-typed copy —
+the exact second-authority defect R1 spent itself removing. The numeric test is also what keeps `*_list` ticker arrays
+out **by type**, rather than adding a second stripper beside the one already inside `get_history_deep`. ⭐ That came
+from a failing test, not from design: the first `series_known_keys` admitted any non-`date` key, and a stubbed history
+(which bypasses the real stripper) served a ticker array as a column. **A stub that bypasses a guard is how you find
+out the guard was the only thing holding a contract up.**
+
+**3. The cache key sits under `breadth_history_` deliberately.** Every snapshot write already calls
+`cache.delete_prefix("breadth_history_")`, so this needs no new invalidation path and none can be forgotten. Key order
+is normalised so a reordered `keys=` is the same cache entry.
+
+**4. Downsampling is DEFERRED, on measurement.** D-035's trigger was 2008– with 8 keys exceeding ~1 s cold. Measured:
+**30.3 ms p50 / 36.0 ms p95** over 4,530 sessions, ~33× under it. `bucket=` is not implemented.
+⚠️ **And the measurement is not the one D-035 asked for, which is why it says so.** `C:\data\breadth_monitor.db` on
+this box is **12 KB — schema only**; the real history is on Railway's volume. Timing "the local DB" would have measured
+an empty table and produced a flattering number, so the history reader was stubbed with a full-size row set to isolate
+what B1 *adds*. `get_history_deep`'s own cost is pre-existing, unchanged and separately cached.
+
+**The ledger row ships in this commit, not before it.** `test_the_ledger_does_not_describe_gates_that_no_longer_exist`
+computes `stale = ledger − (gates ∪ visibility_flags)`, so a row for a flag no code reads is rot by definition — a
+standalone "flags commit" could not have been green. The mirror rule sent `VITE_BREADTH_CHARTS_V2_ENABLED` the other
+way: `test_no_stale_build_flag_rows` asserts `declared ⊆ names_read(repo)`, so its **ledger row waits for V2-1's first
+read** while its Dockerfile `ARG`/`ENV` lands now (a spare ARG is inert, and nothing ties the ARG list to the ledger).

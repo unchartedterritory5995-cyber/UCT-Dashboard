@@ -21,11 +21,15 @@ member-visible change with its own DECISIONS line.
 
 ## Next
 
-1. **B1**, then **V2-1 … V2-5**, then Phase 4 (rig thresholds) and Phase 5/6. `COVERAGE.md` maps every
+1. ✅ **B1 done** — `GET /api/breadth-monitor/series`, dark, merged `5a0e224f4`, deploy `5582d6d4`.
+   Contract `docs/breadth/api-series.md`; ruling D-041. Verified 404 in production for anonymous and paid.
+2. **NEXT: V2-1**, then V2-2 … V2-5, then Phase 4 (rig thresholds) and Phase 5/6. `COVERAGE.md` maps every
    brief item to its home.
-2. Before any V2 work: confirm `VITE_BREADTH_CHARTS_V2_ENABLED` is declared in **`docs/feature_flags.json`**
-   (D-001 — `docs/frontend_feature_flags.json` is a typo wherever it appears), wired as a `Dockerfile.web`
-   build arg, and that the `VITE_` CI check passes.
+3. **V2-1's first commit must carry the `VITE_BREADTH_CHARTS_V2_ENABLED` LEDGER ROW**, in the same commit as
+   the first `import.meta.env.VITE_BREADTH_CHARTS_V2_ENABLED` read. ⛔ Not before:
+   `test_no_stale_build_flag_rows` asserts `declared ⊆ names_read(repo)`, so a row for a flag nothing reads
+   is stale by definition. Its `Dockerfile.web` ARG/ENV already landed (`6e9c8dcaf`) and the build-arg check
+   passes, so that half of D-001's precondition is done.
 
 ## Standing rules earned on this programme
 

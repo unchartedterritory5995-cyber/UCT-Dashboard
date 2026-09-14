@@ -188,22 +188,22 @@ def render(rep: dict, db_path: str) -> str:
 SWEEPS = (
     ("price_level", "PRICE-LEVEL", "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED",
      "price_level_sweep_heartbeat", "last_tick", (9, 16), 180,
-     "every minute, weekdays 09:00-16:59 ET"),
+     "every minute, weekdays 09:00-16:59 ET", None),
     ("event_proximity", "EVENT-PROXIMITY", "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED",
      "event_proximity_sweep_heartbeat", "last_tick", None, 26 * 3600,
-     "07:05 and 18:05 ET, weekdays"),
+     "07:05 and 18:05 ET, weekdays", (True, ((7, 5), (18, 5)))),
     ("position_risk", "POSITION-RISK", "ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED",
      "position_risk_heartbeat", "last_tick_at", (9, 16), 180,
-     "every minute, weekdays 09:00-16:59 ET"),
+     "every minute, weekdays 09:00-16:59 ET", None),
     ("scan_membership", "SCAN-MEMBERSHIP", "ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED",
      "scan_membership_heartbeat", "last_tick_at", None, 26 * 3600,
-     "nightly, 20 min after the scan sweep (~05:20 ET), weekdays"),
+     "nightly, 20 min after the scan sweep (~05:20 ET), EVERY day", (False, ((5, 20),))),
     ("catalyst_match", "CATALYST-MATCH", "ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED",
      "catalyst_match_heartbeat", "last_tick_at", None, 26 * 3600,
-     "17:30 ET, weekdays"),
+     "17:30 ET, weekdays", (True, ((17, 30),))),
     ("regime_change", "REGIME-CHANGE", "ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED",
      "regime_change_heartbeat", "last_tick_at", (4, 20), 3600,
-     "every 20 min behind the awareness scan, weekdays 04:00-20:59 ET"),
+     "every 20 min behind the awareness scan, weekdays 04:00-20:59 ET", None),
     # GATE-S7-INDICATOR-CONDITION CP3, approval line 3 (fingerprint 4e8d3af5d).
     # ⚠️ ITS OWN STALENESS BOUND, like every row here. It rides the RTH minute
     # cadence because an indicator condition is evaluated against forming bars,
@@ -211,7 +211,7 @@ SWEEPS = (
     # position-risk, and NOT a number copied for tidiness.
     ("indicator_condition", "INDICATOR-COND", "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED",
      "indicator_condition_heartbeat", "last_tick_at", (9, 16), 180,
-     "every minute, weekdays 09:00-16:59 ET"),
+     "every minute, weekdays 09:00-16:59 ET", None),
 )
 
 
@@ -233,17 +233,69 @@ def declared_sweep_count() -> int:
     return len(declared_sweeps())
 
 
-def _window(hours) -> tuple[bool, str]:
+def _firings_near(now, weekday_only, times, *, back=True, days=10):
+    """The most recent scheduled firing at or before NOW (or the next one after)."""
+    import datetime as _dt
+    best = None
+    for d in range(days):
+        day = (now - _dt.timedelta(days=d)) if back else (now + _dt.timedelta(days=d))
+        if weekday_only and day.weekday() >= 5:
+            continue
+        for h, m in times:
+            t = day.replace(hour=h, minute=m, second=0, microsecond=0)
+            if back and t <= now:
+                best = t if best is None else max(best, t)
+            elif not back and t > now:
+                best = t if best is None else min(best, t)
+        if best is not None:
+            return best
+    return None
+
+
+def _window(hours, *, fires=None, bound=None, now=None) -> tuple[bool, str]:
     """Is NOW inside this sweep's cron window? Returns the reason either way, so
-    no caller restates a schedule and the copies cannot drift."""
-    try:
-        from zoneinfo import ZoneInfo
-        import datetime as _dt
-        now = _dt.datetime.now(ZoneInfo("America/New_York"))
-    except Exception:                                   # noqa: BLE001
-        # ⛔ Never guess QUIET: an unresolvable clock must not silence a stall.
-        return (True, "could not resolve ET -- assuming inside the window")
+    no caller restates a schedule and the copies cannot drift.
+
+    ⚰️ **THE MONDAY FALSE ALARM.** `hours is None` used to mean "the whole
+    weekday", so the three sweeps that fire at FIXED TIMES read as inside the
+    window at any hour of any weekday. At Mon 00:39 ET that produced a hard `NO`
+    -- "no heartbeat at all, and it IS inside the window" -- for three sweeps
+    whose last scheduled firing was the previous FRIDAY, ~54h back and far
+    outside their 26h bound. Measured 2026-09-14: all three flags read `'1'`
+    in-process and nothing was wrong.
+
+    ⭐ A sweep cannot be stale before a firing it was never scheduled to make.
+    When a descriptor declares its firing times, the question becomes **has a
+    scheduled firing happened inside the staleness bound?** -- and if not, the
+    sweep is UNJUDGEABLE (n/a with the reason), never a fault. `catalyst_match`
+    fires 17:30 weekdays, so without this every Monday before 17:30 -- including
+    the 09:12 ET monitor post and the 16:30 gate check -- alarmed on a healthy
+    sweep. A rail that cries wolf weekly gets muted.
+    """
+    if now is None:
+        try:
+            from zoneinfo import ZoneInfo
+            import datetime as _dt
+            now = _dt.datetime.now(ZoneInfo("America/New_York"))
+        except Exception:                               # noqa: BLE001
+            # ⛔ Never guess QUIET: an unresolvable clock must not silence a stall.
+            return (True, "could not resolve ET -- assuming inside the window")
     stamp = now.strftime("%a %H:%M ET")
+
+    if fires is not None:
+        weekday_only, times = fires
+        last = _firings_near(now, weekday_only, times, back=True)
+        if last is None:
+            return (False, "it is %s and no scheduled firing has come round yet" % stamp)
+        age = (now - last).total_seconds()
+        if bound is not None and age > bound:
+            nxt = _firings_near(now, weekday_only, times, back=False)
+            return (False, "it is %s; the last scheduled firing was %s, %.1fh ago and "
+                           "past the %.0fh bound, so staleness cannot be judged -- next %s"
+                    % (stamp, last.strftime("%a %H:%M"), age / 3600.0, bound / 3600.0,
+                       nxt.strftime("%a %H:%M ET") if nxt else "unknown"))
+        return (True, stamp)
+
     if now.weekday() >= 5:
         return (False, "it is %s (weekend)" % stamp)
     if hours is not None and not (hours[0] <= now.hour <= hours[1]):
@@ -276,11 +328,11 @@ def ticking_one(db_path: str, spec) -> tuple[str, int]:
     ⛔ NEITHER IS INFERRED FROM THE OTHER, and "no rows yet" is never a fault.
     """
     import time as _t
-    key, label, flag, table, ts_col, hours, bound, cadence = spec
+    key, label, flag, table, ts_col, hours, bound, cadence, fires = spec
     beat = _beat_row(db_path, table)
 
     if beat is None:
-        inside, when = _window(hours)
+        inside, when = _window(hours, fires=fires, bound=bound)
         if not inside:
             return ("%-16s n/a -- %s; it runs %s.\n"
                     "  No heartbeat yet is EXPECTED here, not a fault."
@@ -333,7 +385,7 @@ def ticking_one(db_path: str, spec) -> tuple[str, int]:
         lines.append("  last market date observed: %s" % beat["last_market_date"])
 
     if not alive:
-        inside, when = _window(hours)
+        inside, when = _window(hours, fires=fires, bound=bound)
         if not inside:
             lines[0] = lines[0].replace(" NO  --", " n/a --", 1)
             lines.append("  ...but %s, so the gap is the schedule, not a stall. "
@@ -471,7 +523,7 @@ def _self_check() -> int:
         # Force "inside the window" so the weekend cannot mask the comparison —
         # otherwise this control passes on a Sunday for the wrong reason.
         _real_window = globals()["_window"]
-        globals()["_window"] = lambda hours: (True, "forced inside (self-check)")
+        globals()["_window"] = lambda *a, **kw: (True, "forced inside (self-check)")
         try:
             pl_text, pl_code = ticking_one(hb, spec_pl)
             cm_text, cm_code = ticking_one(hb, spec_cm)
@@ -487,7 +539,7 @@ def _self_check() -> int:
             print("SELF-CHECK FAIL: a stale beat inside the window did not say STALLED"); ok = False
 
         # A sweep whose table is absent, inside its window, must be NO — not n/a.
-        globals()["_window"] = lambda hours: (True, "forced inside (self-check)")
+        globals()["_window"] = lambda *a, **kw: (True, "forced inside (self-check)")
         try:
             miss_text, miss_code = ticking_one(hb, [s for s in SWEEPS
                                                     if s[0] == "position_risk"][0])
