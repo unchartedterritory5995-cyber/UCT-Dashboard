@@ -1,0 +1,117 @@
+{
+  "_why": "Staged cells, in priority order. The runner spends the window; you stage between windows. Order is DECISION VALUE: the cell that decides a fix beats the cell that fills a table.",
+  "_rail": "A window that opens with a pending entry and executes none is written into docs/notebook/q1-window-runs.md as an ANOMALY.",
+  "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
+  "queue": [
+    {
+      "id": "trigger4-capture",
+      "status": "done",
+      "timeout": 900,
+      "why": "Three consecutive ANOMALY rows with no URL. Highest priority: it is the only open item that can fail the Sunday gate, and it blocks classifying INSTRUMENT / PRODUCT / FOREIGN.",
+      "cmd": [
+        "python",
+        "tools/q1_trigger4_capture.py",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/trigger4-capture.md"
+      ],
+      "result": {
+        "exit": 0,
+        "seconds": 21.5,
+        "tail": "(node:28392) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities. / (Use `node --trace-deprecation ...` to show where the warning was create"
+      }
+    },
+    {
+      "id": "second-context-append",
+      "status": "done",
+      "timeout": 1800,
+      "why": "THE DISCRIMINATOR. The trace proved the append door's only durable write is recordLandedRevision into the landed ring, and that is exactly what both GREEN controls lack. Firing the append door from the SECOND context leaves ctx1's ring never learning the revision. PREDICTION ON THE RECORD: GREEN.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--second-writer",
+        "--second-writer-door",
+        "append_widget_embed",
+        "--family",
+        "folder",
+        "--ordering",
+        "drain-first",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/f5-second-context-append.md"
+      ],
+      "result": {
+        "exit": 0,
+        "seconds": 143.8,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T05:02:40.163380+00:00` \u00b7 5 request(s) carried the sentence (la"
+      }
+    },
+    {
+      "id": "embed-re-run",
+      "status": "done",
+      "timeout": 1800,
+      "why": "RE-STAGED on the recovered pod. Its first attempt 502'd because a foreign deploy was swapping; production is healthy again (/api/health 200, latest deployment SUCCESS). Owner order: matrix remainder -> embed re-run -> T-12.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "append_widget_embed",
+        "--ordering",
+        "drain-first",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 2,
+      "result": {
+        "exit": 0,
+        "seconds": 146.8,
+        "tail": "\u21d2 RED  offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T05:30:53.477225+00:00` \u00b7 3",
+        "inconclusive": false
+      }
+    },
+    {
+      "id": "t12-owner-profile-run",
+      "status": "pending",
+      "why": "UNBLOCKED by owner amendment 2026-09-14: an admin-role run on the rig profile satisfies the owner-identity requirement, because the distinction T-12 tests is member-role vs admin-role, not which human is signed in. `--identity owner-rig` is the admin-role identity.",
+      "timeout": 2400,
+      "cmd": [
+        "python",
+        "tools/t12_smoke_runner.py",
+        "--identity",
+        "owner-rig",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
+      ],
+      "attempts": 0
+    },
+    {
+      "id": "matrix-remainder",
+      "status": "pending",
+      "timeout": 3600,
+      "why": "Three attempts ended INCONCLUSIVE on a 502 at the LAST cell of each pass - but each pass DID measure cells (the table went from 6 recorded to 42). Re-staged LAST so it can never again sit ahead of a decision-value cell.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--resume",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 495.0,
+        "tail": "\u21d2 INCONCLUSIVE  could not create the probe note ({'err': 'HTTP 502'}) \u2014 nothing was measured",
+        "inconclusive": true
+      }
+    }
+  ],
+  "_order_note": "Priority is DECISION VALUE, not arrival. embed-re-run is minutes and confirms the RED on a recovered pod; T-12 is gate criterion C-7; the matrix remainder fills the table and is the only unbounded entry, so it goes last - it ate a whole window once by being ahead of a retry."
+}

@@ -1,8 +1,8 @@
 # NOTEBOOK PROGRAMME — RESUME HERE
 
-**Last verified against git:** `f49da5ed67a8` · **2026-09-13T19:14:22Z**
-**Restart checkpoint:** 2026-09-13 14:14 CT — a planned reboot closed every
-PowerShell and Claude Code session. Nothing was mid-flight; see §1.
+**Last verified against git:** `bd57ffaf7ab6` · **2026-09-13T22:13:07Z**
+**Sunday gate CLOSED KEEP 2026-09-13 18:05 ET** — the planned restart did NOT
+happen (uptime 49 h at the checkpoint); no scheduled run was missed.
 
 ---
 
@@ -133,11 +133,38 @@ both files). Manifest §10.17.
 | **F5** (freeze) | `uct-worktrees/notebook-k` | `feat/notebook-kill-switch` | `184c3b493` | Run the **discriminator** in the next clear rig window: `append_document_excerpt × drain-first`. Blocked on a named rig limitation — see §4. The 7×6 table resumes with `python tools/q1_f5_matrix.py --resume` |
 | **Sunday gate** | same | same | same | After **17:15 CT** read the verdict file and post it verbatim + config-served + `organic members exposed = 0` |
 | **T-12 / C-7** | same | same | same | `owner-rig` identity run still outstanding; steps 7 and 8 need the runner's selectors scoped. **C-7 FALSE** |
-| **R-1a** | `uct-worktrees/notebook-r4a` | `feat/notebook-wave-r` | `adbcbcdf8` | ⛔ **HELD** until F5's route-change question is settled — R-1a's scanner door fires from a route change by definition |
+| **R-1a** | `uct-worktrees/notebook-r4a` | `feat/notebook-wave-r` | base `adbcbcdf8` · **door landed on master in `046214a82`** | ⛔ **HELD** until F5's route-change question is settled — R-1a's scanner door fires from a route change by definition. ⭐ **The door is BUILT and DARK, not unbuilt**: `WAVE_R_CAPTURE_ON = false` (`app/src/widgets/captureRelease.js`). The hold is on a FLIP, not a build |
 | **R-3b / R-3c** | `uct-worktrees/notebook-r4a` | same | same | after R-1a |
 | **Wave S** | `uct-worktrees/notebook-s` | `feat/notebook-wave-s` | `adbcbcdf8` | S-07 available by judgment |
 | **Q2-A** | `uct-worktrees/notebook-q2a` | `feat/notebook-q2a-offline-read` | `adbcbcdf8` | available by judgment |
 | **docs/roadmap** | `uct-worktrees/notebook-flip` | `docs/notebook-roadmap` | `c01a10823` | the **15:00 canary runs `tools/window_check.py` FROM HERE** — keep it merged with master |
+
+⚠️ **`adbcbcdf8` IN THAT COLUMN IS A SHARED BASE, NOT A LOCATION.** Verified by
+`git log`, 2026-09-14: it is a **merge commit** — *"Merge remote-tracking branch
+'origin/master' into feat/notebook-kill-switch"* — which is **on `origin/master`**
+and is simply the point three worktrees were cut from. It is not where R-1a's
+code lives, and reading it that way sent one session looking for a door in the
+wrong tree. Where a row needs to name where something LANDED, it now says so
+explicitly beside the base (see R-1a). ⛔ Provenance is `git log -S <symbol>`, not
+the column you happened to read first.
+
+---
+
+## 3b. The Sunday gate — CLOSED **KEEP**, 2026-09-13 18:05 ET
+
+```
+VERDICT: KEEP — no independent member exposure; 0 blocked-baseline events
+         measured over 0 real members
+rows read: 22 (3 skipped)
+POPULATION: organic = 0 | synthetic = 1 | rig/owner = 1
+1 unexplained red PASS · 2 unattributable fork PASS
+3 outbox stuck >5 min PASS (canary 2026-09-13T20:00:01Z, outbox 0, 11/11)
+4 member console error PASS · do-not-build CLEAN
+```
+
+⭐ The window continues to **2026-09-19 00:45 ET**. Trigger 3 was `n/a` in the
+run itself and was wired to the canary's stamp afterwards; the line above is
+the corrected re-run against the same log.
 
 ---
 
@@ -223,6 +250,7 @@ content. **Provenance is `git show <sha>:<file>`, never `git status`.**
 | config-served column | live in the sampler; `0/0 — no member reported` on every row so far |
 | **organic members exposed** | **0** — nobody outside the rig has opened the Notebook in this window. Printed in every gate verdict and every end-of-day report until it changes |
 | synthetic member | the T-12 runs signed `member-smoke` in as a distinct identity. If an opt-in event appears, the qualifier becomes **"one synthetic member; zero organic members"** |
+| ⛔ **the 7 that were ours** | the sampler read `members 7` on 2026-09-13; **all seven were the T-12 smoke account**, proved from that account's own `/api/auth/export-data`. Rows are corrected in place with attribution; the sampler now reports **organic · synthetic · rig/owner**, by distinct identity, never summed |
 | ⛔ **consequence for K-1** | if the window closes with 0 organic members, K-1's precondition is **100% of a synthetic population**, and the packet must say so in those words |
 
 ---

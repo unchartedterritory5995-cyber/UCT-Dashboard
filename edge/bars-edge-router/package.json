@@ -1,0 +1,9 @@
+{
+  "name": "bars-edge-router",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker on uctintelligence.com/api/bars/* — canonical source. Tests: node --test",
+  "scripts": {
+    "test": "node --test"
+  }
+}

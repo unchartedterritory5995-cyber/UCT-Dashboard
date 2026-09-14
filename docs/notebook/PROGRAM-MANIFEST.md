@@ -393,6 +393,53 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-14 — T-12'S OWNER-IDENTITY REQUIREMENT IS SATISFIED BY AN **ADMIN-ROLE** RUN (owner amendment)
+
+T-12's charter said the smoke is run *"by the owner, on his own device, signed in
+as himself"*. Amended by the owner, 2026-09-14:
+
+> **The owner-identity requirement is satisfied by an admin-role run on the rig
+> profile. The distinction that matters for T-12 is member-role vs admin-role,
+> not which human.**
+
+⭐ **The reason, and it is the useful part.** T-12 exists to prove the pre-launch
+surface works for the two ROLES that see different things — a member and an
+admin. "Which human" was never the property under test; it was shorthand for
+"an admin, on a real profile, driving the real UI". The rig profile is a real
+signed-in admin, so it satisfies exactly that. This closes the standing conflict
+between the charter's *"no agent may run it"* and the 2026-09-13 amendment that
+lets automation execute and the owner review the evidence.
+
+⛔ **What an admin-role rig run could still miss, named specifically rather than
+waved past** (owner asked for this): **step 7, Ask + citation**, if any Ask quota,
+entitlement or history is keyed to the ACCOUNT rather than the role. The rig
+account is admin and comped, so a per-account limit would read differently on the
+owner's own account. Every other step in 0–8 is role-shaped. If step 7 comes back
+green on the rig, that one step is worth a hand check.
+
+`--identity owner-rig` is the admin-role identity in `tools/t12_smoke_runner.py`.
+
+### ⚖️ 2026-09-14 — USER-DEFINED TEMPLATES ARE **FREE** (owner ruling)
+
+S-07's spec could not settle this from the codebase, because **two shipped
+precedents in this repo give opposite answers** and both are live:
+
+| precedent | what it does | reading |
+|---|---|---|
+| `j2_note_saved_views` (`api/routers/journal_two.py`) | `Depends(get_current_user)` on all four routes | user-authored content, **free** |
+| `api/routers/user_definitions.py` | *"EVERYTHING HERE IS PAID (owner ruling). There is no free read: a definition list is user content on a premium surface."* | user-authored content, **paid** |
+
+⭐ **The ruling: FREE. `j2_note_saved_views` governs for Notebook templates;
+`user_definitions.py`'s paid ruling stays true for definitions and does not
+extend here.** The nine built-in templates are free today, so gating a member's
+own version of a free feature would make the paid tier the price of *personalising
+something they already have* — which is not what the premium surface is for.
+
+⛔ This is a scope ruling, not an implementation detail: it decides the store, the
+CRUD gate and two rails. It was escalated rather than guessed, and it is recorded
+in both places so neither precedent can be cited against it later —
+`docs/notebook/wave-S-decisions.md` carries the same entry.
+
 ### ⚖️ 2026-09-13 — T-12 MAY BE EXECUTED BY AUTOMATION (owner amendment)
 
 `T-12-prelaunch-smoke.md` said, in its own charter: *"Who runs it: the owner, on
@@ -1083,6 +1130,343 @@ Closing it requires building an instrument first — that is a task, not a looku
     rails the window rule, and `tests/test_window_check_auth.py` rails fault 2's
     twin in the canary, mutation-proved by restoring the `!= 200` guard.
 
+22. ⛔⛔ **AN INSTRUMENT COUNTED ITSELF AS THE POPULATION IT WAS MEASURING — our
+    own test account published as SEVEN INDEPENDENT MEMBERS.**
+
+    2026-09-13. The sampler's 15:00 and 17:00 ET rows read `members 7`. All seven
+    were the T-12 smoke account. The Sunday gate would have printed
+    **`organic members exposed = 7`** into the artifact the K window is judged
+    on — inverting the window's central claim on the one run of the week that
+    decides keep-or-revert.
+
+    **Two faults, and they compound:**
+
+    | # | the fault |
+    |---|---|
+    | 1 | the exclusion list held `smoke@…` but **not** `member-smoke@…` — two different accounts, 30 and 37 characters, one excluded and one not |
+    | 2 | the count was `indep.length` — **ROWS, not identities** — while the config-served column *immediately beside it* is explicitly *"BY IDENTITY, not by row: one member with six tabs is one member."* |
+
+    ⭐ **THE SAME FILE HELD TWO NOTIONS OF "MEMBER" IN ADJACENT COLUMNS, and the
+    looser one was the one that fed the verdict.** Neither column was wrong about
+    what it computed; they simply disagreed about what the word means, and
+    nothing made them answer to each other.
+
+    ⭐ **HOW IT WAS PROVED, and the method is reusable:**
+    `/api/auth/export-data` returns an account's **own** activity and is gated
+    only by `get_current_user` — so the smoke identity could read its own rows
+    **without the rig, without admin, and without waiting for a clear rig
+    window**. Its log held exactly those seven `notebook_offline_opt_in` events,
+    17:51:57 → 18:14:46 UTC, one for one with the seven T-12 runs.
+    ⛔ `tools/q1_member_attribution.py` deliberately **does not open the
+    Notebook**: doing so would emit another opt-in and inflate the very count
+    under investigation — *an instrument that changes what it measures*.
+
+    ⭐ **SEVEN OPT-INS FROM SEVEN FRESH BROWSER CONTEXTS IS EXPECTED, NOT A DEDUPE
+    FAILURE.** The dedupe marker is per tab/context by design. The events were
+    never wrong; calling them seven **members** was. Said in the log annotation
+    so nobody reads 7 as *"dedupe broke"* and goes hunting.
+
+    **The fix — three populations, by distinct identity, never summed:**
+    **ORGANIC** (a person who is not us — the only number the wave's claims may
+    be divided by) · **SYNTHETIC** (an account we provisioned — counted and
+    **shown**, never excluded into invisibility) · **RIG/OWNER**. Matched by
+    **full email**, never prefix or substring: a `startsWith('smoke')` test would
+    have caught `member-smoke@` only by luck, and a substring test would swallow
+    a real member whose address happened to contain one.
+
+    ⛔ **An unknown address on `@uctintelligence.internal` is raised as an
+    ANOMALY, never counted as organic.** That domain is reserved (RFC 8375) and
+    unroutable, so nobody outside this programme can hold one — a new one is a
+    synthetic account somebody provisioned without declaring it, and silence is
+    how that arrives.
+
+    ⛔ **The rows already written are corrected in place, not rewritten.** The
+    NUMBER is preserved — seven events really were recorded — and only the LABEL
+    is corrected, with every timestamp named and the correction attributed, in
+    the same style as the hand-written 10:00 row. Rows predating the split are
+    counted **separately** by the gate and named in the verdict.
+
+    ⭐ **RAILS:** `tests/test_member_populations.py` — including the pair that
+    matters, *a real organic member still reaches the verdict*. Narrowing what
+    counts must not make a real member invisible; that is the same failure
+    pointing the other way, and far worse.
+
+23. ⛔ **THREE MORE FROM THE SAME DAY, each small, each the same shape: a reader
+    that could not see evidence sitting next to it.**
+
+    - **The gate printed `n/a` beside a GREEN canary.** Trigger 3 (*outbox stuck
+      >5 min*) is the one trigger the sampler cannot fill — it runs opted out, so
+      its outbox is structurally zero. The Sunday canary drives a real queue and
+      had already reported `outbox 0`, 11/11 steps green, two hours before the
+      verdict was written. The verdict said the evidence did not exist.
+      ⭐ It now reads the canary's own stamp — and **refuses to overclaim in the
+      line itself**: a canary run lasts minutes, so it evidences *that the queue
+      settles*, not a five-minute observation. A stale canary (>30 h), a run that
+      died before the settle step, and no canary at all are three different
+      answers and none of them is a PASS.
+
+    - **The C-4 sweep timed out inside the gate** at 180 s and printed *"DID NOT
+      RUN … this is not a clean result"* — **a tooling failure wearing a
+      verdict's clothes.** Measured rather than guessed: reading 4,711 files /
+      60 MB costs **0.3 s**; matching 75 patterns costs **~66 s**, because a
+      75-way regex alternation runs at a few MB/s. The timeout landed while
+      another session's six-shard gate loaded the box. Budget is now 900 s —
+      ~10× the measured cost — and the gate has no deadline of its own, so
+      waiting is free while *being unable to say whether §8 is intact* is not.
+
+    - ⚰️ **A hash mismatch that was only line endings.** `tools/nb_gate.py`
+      differed between the repo and `origin/master` — 462 CRLF vs 0 — and was
+      byte-identical once normalised. Recorded rather than waved through: **a
+      hash mismatch is a finding until it is explained**, and "it's just CRLF" is
+      a conclusion, not an observation.
+
+    - ⚰️ **And the handoff contained the bug it was warning about.** The
+      pre-restart resume doc's own step 3 called `resolve_profile(None)` without
+      exporting `UCT_Q1_RIG_PROFILE`; run from a worktree whose `.worktrees/`
+      does not exist, it reports `exists: False, value: None` — and **absence
+      reads as OPTED IN**. A fresh session following the doc would have "fixed" a
+      rig that was already correct. Caught by running my own instructions.
+      ⭐ *Write the handoff, then follow it as if you had never seen it.*
+
+24. ⛔⛔ **THE SECRET SCAN HAD NEVER RUN IN ANY WORKTREE, AND THE HOOK SAID SO
+    EVERY TIME.** The pre-push hook printed *"tools/secret_scrub.py not found in
+    this worktree — the secret scan did NOT run. This is not a pass."* That
+    warning was correct for months. Its cause was a path: the fallback candidate
+    was `$root/../uct-worktrees/breadth-charts/...` where `$root` is the
+    **worktree** root, so from any worktree under `uct-worktrees/` it expanded to
+    `uct-worktrees/uct-worktrees/...` — a doubled path that cannot exist. The
+    scan was therefore skipped for **exactly the checkouts that lack the file**,
+    which is every worktree.
+
+    ⭐ **The warning branch is what made it survive.** It was written to be
+    honest — "this is not a pass" — and being visible, it became furniture: a
+    broken path read as a considered exemption. Fixed by deriving the primary
+    checkout from `git rev-parse --git-common-dir` (the main `.git` from any
+    worktree), so it survives a rename. Retrospective scan of the 131 commits
+    pushed that day: **0 findings**.
+
+    ⛔ **AND THE CONTROL WAS THE WRONG SHAPE, WHICH NEARLY PRODUCED A SECOND
+    FINDING.** A planted `ghp_` token did **not** fire, and the scanner was one
+    sentence away from being reported broken. It is not: it hunts three shapes on
+    purpose — session cookie by name, cookie header, authorization header — a
+    narrowing recorded in the file because an earlier draft returned 68 findings
+    of which 1 was real, and a muted scanner reads as coverage. A control using
+    an in-scope shape fires and exits 1. *The instrument was the first suspect
+    and this time it was innocent.*
+
+25. ⛔⛔ **THE REMOUNT DEFECT, AND THE RECOVERY BLIND SPOT SITTING BEHIND IT.**
+    `settleLandedSave` asks `sameAuthoredContent(acked, current)` — the server's
+    accepted copy against the editor's current copy. On a remount **both sides of
+    that comparison are the server**, because the editor was just rebuilt from
+    it. The answer is `true` for a reason that has nothing to do with the member,
+    and what follows is one transaction that writes the record clean at the
+    server's newer baseline and passes `intent = null`, which deletes every
+    queued entry for the note.
+
+    ⭐ **The blast radius is larger than "the drain deleted it", and the audit is
+    what found it.** `recover()` admits only a DIRTY record, and `listOutbox` has
+    exactly three non-test callers — the drain, the pending count, the blocked
+    badge — **none of them a recovery surface**. So in the exact state this
+    defect produces, the same cheap flag that authorises the discard also
+    suppresses the offer-back. Verified independently, not taken on report.
+
+    ⛔ Reproduced at unit level in `remountNeverDiscardsUnsent.test.js` (RED, with
+    a control and a discriminator green) and the fix drafted, applied once to
+    prove it turns that rail 3/3 green, then **restored and HELD** pending the
+    production cell. ⭐ The same run established that the remount fix does **not**
+    fix the supersede hazard — `supersedeProvesContent.test.js` stayed red
+    through it. **Two independent defects, not one seen twice.**
+
+26. ⚖️ **A RAIL CONTRADICTED THE RULING IT EXISTS TO SERVE.** `f5Freeze.test.js`
+    armed on *"zero INCONCLUSIVE rows"*; the ruling lifts the freeze when every
+    cell is *"green or named"* — and a **named rig limitation renders as
+    `INCONCL`**. As written the rail would have refused to lift the freeze
+    permanently, because the pdf.js caret limitation is not going to stop being
+    true. Amended and recorded without asking, per the standing ruling.
+
+    ⭐ The distinction the amendment turns on:
+    INCONCLUSIVE-because-nobody-looked and
+    INCONCLUSIVE-because-this-rig-cannot-look are different facts wearing one
+    glyph. A cell counts as *named* only if a limitation is written down for it
+    in `q1-product-followups.md`; an unexplained INCONCLUSIVE still blocks, which
+    is what stops "named" becoming a way to wave the table through.
+
+27. ⚰️ **"NOTHING WAS SENT FOR 120 s" WAS THE INSTRUMENT'S BUDGET, NOT THE
+    PRODUCT'S BEHAVIOUR.** The drain wait is `for _ in range(48)` ×
+    `wait_for_timeout(2500)` — **exactly 120 s**. So the number that looked like
+    a measured ceiling is the moment the rig stopped watching, and nothing
+    establishes what happens at 121 s. Recorded in `F5P-1` that way rather than
+    as *"it never sends"*, which is the stronger claim the number cannot carry.
+    ⭐ **A round number that equals your own timeout is a reading of your loop.**
+
+28. ⛔⛔ **R-1a IS NOT A GAP. THE DOOR IS BUILT, MERGED TO MASTER, AND DARK** —
+    and the row above still calls it 🔴 **gap**, which is this programme's single
+    most-repeated defect (§10 items 1, 2 and the S-07 row are all the same shape:
+    a doc asserting a hole the code had already filled).
+
+    Measured by `git show`, never `git status`: `9666842d0` (*"Wave R: the
+    Screener's capture door (R-1a) and send-a-chart-to-a-note (R-2e)"*, 741
+    insertions) and `046214a82` (*"gate all four capture doors behind a release
+    switch"*) are **both ancestors of `origin/master`**. The switch is
+    `app/src/widgets/captureRelease.js:46` — `export const WAVE_R_CAPTURE_ON =
+    false` — and the door ships with a 283-line rail,
+    `ScannerResults.journalDoor.test.jsx`.
+
+    ⭐ **So R-1a's remaining work is a FLAG FLIP AND ITS PRECONDITIONS, not a
+    build.** It stays HELD — the ruling holds it until the navigation cells are
+    green, and a `/screener` door is by construction the offline-route-change
+    case that `append_widget_embed × drain-first` has RED — but it is held at a
+    completely different point in its life than the row implies, and anyone
+    planning from that row would have rebuilt a door that already exists.
+
+    ⚰️ **AND MY OWN CHECK NEARLY REFUTED THE FINDING.** I grepped
+    `ScannerResults.jsx` for `WAVE_R_CAPTURE_ON` and got **0 at every revision,
+    including master** — because the constant lives in `captureRelease.js` and
+    the door only imports `captureEnabled`. The zero was real and meaningless: I
+    had grepped the CONSUMER for the PRODUCER'S NAME. Same shape as *read the
+    call site ≠ read the request*. ⭐ The tell was that the zero was identical at
+    five unrelated revisions — **a finding that does not vary across history is
+    usually a question that does not touch it.**
+
+    ⚠️ One thing still unsettled and NOT to be assumed: `wave-all-RESUME-HERE.md`
+    places R-1a in a different worktree at `adbcbcdf8`. That commit exists and
+    the door file exists there too. Whether that line describes this same code or
+    a second implementation is **UNKNOWN** and must be settled before anything
+    is merged toward it.
+
+29. ⛔⛔ **A FIX THAT CHANGES TWO VARIABLES DESTROYS THE ISOLATION THE CELL EXISTS
+    FOR.** Owner ruling, 2026-09-14 — recorded because the cheap fix and the
+    correct fix pointed in opposite directions and the cheap one looked better.
+
+    `second-writer-while-away` was written to the ruling's literal ordering —
+    *return to N, then reconnect* — and the return died with
+    `net::ERR_INTERNET_DISCONNECTED`, because `page.goto` is a **document load**
+    and the context was still offline by design.
+
+    ⭐ **The obvious repair was to make the return an SPA route change**, which
+    works offline, is one line, and is *more like what a member does*. It would
+    also have made the cell differ from its GREEN baseline in **two** ways at
+    once — the second writer **and** the return mechanism — so a colour change
+    could no longer have been attributed to either. The cell's entire value is
+    that it differs from `navigate-no-door` in exactly one thing.
+
+    The reconnect was moved to just after the second writer instead, leaving the
+    cell byte-identical to the GREEN baseline plus one variable. **The deviation
+    from the ruling's literal wording was recorded rather than done quietly**
+    (`f5-second-writer-while-away.md`), because a silent deviation in an
+    isolation experiment is indistinguishable from a mistake.
+
+    ⛔ **The general form:** when an experiment breaks, the repair must be checked
+    against the *comparison*, not just against the error. "Does this make it run?"
+    and "does this keep it comparable?" are different questions, and only the
+    second one protects the finding.
+
+30. ⛔⛔ **AN AMENDMENT TO A SHARED RAIL IS INVISIBLE TO EVERY OTHER WORKTREE
+    UNTIL IT MERGES — and it was reported here as though it were done.**
+
+    The F5 freeze's arming condition was amended on 2026-09-13 from *"zero
+    INCONCLUSIVE rows"* to *"every cell GREEN or NAMED"*, under the standing
+    ruling that a rail contradicting a ruling is amended and recorded. That
+    happened, `f5Freeze.test.js` went 6/6 green, and it was reported as settled.
+
+    It is settled **on one branch.** Measured 2026-09-14:
+
+    | where | `GREEN or NAMED` |
+    |---|---|
+    | `notebook-k` (`feat/notebook-kill-switch`) | **3** |
+    | `notebook-q2a` (`feat/notebook-q2a-offline-read`) | **0** |
+    | `origin/master` | **0** |
+
+    ⭐ **It was caught by a subagent planning Q2-A in its own worktree**, which
+    searched the repo for the amended wording, found nothing, and **struck the
+    citation rather than softening it** — exactly the right call, and it was right
+    about the tree it could see. Every other track is still planning against the
+    un-amended condition.
+
+    ⛔ **The general trap:** `f5Freeze.test.js` is a rail that *governs several
+    workstreams*, so amending it in one feature branch changes the rule for
+    nobody. The same is true of the settle, the drain, and the do-not-build
+    sweep. **A shared rail's amendment is not in force until it is on master**,
+    and until then the honest report is *"amended on branch X, not yet in force"*.
+
+    ⚠️ This is the same shape as the deployed-copy drift that keeps
+    `C:\Users\Patrick\uct-q1-observe\` out of step with `tools/` — one artifact,
+    two copies, and the one that matters is not the one being edited. The fix
+    there was to write both and verify the hashes match; the fix here is to say
+    which branch a rule is live on, every time.
+
+31. ⛔⛔ **"198 OF 200 DEPLOYMENTS ARE `REMOVED`" WAS NOT EVIDENCE OF ANYTHING, AND
+    I REPORTED IT AS THE HEADLINE.** Only one deployment can be current, so every
+    older one is `REMOVED` **by construction**. A ratio that is forced by the
+    data model is not a measurement. ⭐ *A count that could not have come out any
+    other way is not a finding.*
+
+    **The real signal is the GAP, and it was measured properly afterwards** over
+    200 deployments spanning 2026-09-12 14:58Z → 2026-09-14 04:49Z:
+
+    | | deploys | median gap | started <5 min after the previous |
+    |---|---|---|---|
+    | before `4fb4f9daf` | 162 | 5.1 min | 78/161 (48%) |
+    | after `4fb4f9daf` | 38 | **3.6 min** | **26/37 (70%)** |
+
+    ⛔ **AND THE SECOND CONCLUSION WAS WRONG TOO.** That looks like the guard
+    failing — until you read the guard. `tools/pre_push_guard.py` (on master since
+    `4fb4f9daf`, 2026-09-13 17:27 CT) sets **`MIN_SETTLE_SECONDS = 150`**, so a
+    push 2.5 minutes after the previous deployment reached `SUCCESS` is
+    **permitted**. A 3.6-minute median is the guard working as designed, not
+    being bypassed. `core.hooksPath` is set to the real hooks directory, so the
+    hook is reached; the bypass is a logged env var, not `--no-verify`.
+
+    ⭐ **So the honest problem statement is different, and more useful than the one
+    I gave.** Nobody is breaking the rule. **Five workstreams each pushing under a
+    rule that permits a 2.5-minute cadence means production swaps almost
+    continuously** — and a rig measurement that takes two minutes has a real
+    chance of landing inside a swap. That is what cost the embed cell its first
+    attempt (`HTTP 502`, *"could not create the probe note"*), not somebody
+    violating the merge queue.
+
+    ⛔ **The fix therefore belongs in the instrument, not in the rule.** A cell
+    that meets a 502 measured nothing and must be re-run, never banked — which is
+    exactly the runner defect fixed the same night (exit 0 with an INCONCLUSIVE
+    verdict was being recorded as `done`).
+
+    ⚠️ Still genuinely missing, and NOT to be confused with the above:
+    `pre_push_guard.py` has **no `--self-check`**, so nobody has watched it refuse;
+    and its bypass log is `logs/pre-push-guard-bypass.log`, not the
+    `uct-q1-observe` location an owner ruling asked for.
+
+32. ⛔⛔ **A SUBAGENT'S REPLY ABOUT ITS WORK IS NOT THE WORK — and I briefed a
+    second agent from the reply.**
+
+    A subagent that wrote the Q2-A plan volunteered, in its **reply**, that one
+    design decision was *"most likely to be wrong"* and that it had kept a weaker
+    option for a speculative reason. That was a good, honest self-assessment. It
+    was **not in the document**.
+
+    When the owner ruled on that hazard, I briefed the next agent to *"update the
+    plan so it no longer presents the weaker option as the chosen design"* — a
+    change to text that did not exist. Measured: `grep -in
+    "discipline rule|probably wrong|weaker"` over the committed plan returns
+    **0**, and §3 already called the rule *"absolute"*.
+
+    ⭐ **The agent refused to invent the reversal.** It recorded the ruling as
+    *promoting* the rule, marked the draft I described as UNKNOWN, and said so in
+    its reply. Had it complied, the plan would have carried a struck-through
+    "earlier choice" that was never made, and the next reader would have believed
+    a decision had been reversed.
+
+    ⛔ **The rule:** a reply is testimony about an artifact; the artifact is the
+    artifact. Quote the file before briefing anyone from it — including yourself.
+    Same family as *read the call site ≠ read the request* and *a comment claiming
+    agreement is not agreement*, with a new vector: **the claim came from a
+    conversation, and conversations are not greppable by the next reader.**
+
+    ⚠️ The same agent also cut a sentence I had supplied — *"that state is where
+    this programme has already been bitten"* — as unestablished, and grounded the
+    weaker true version instead (`landedBaseline` returns null for a dirty record,
+    so the drain's supersede branch is reachable **only** in the clean state).
+    Two refusals, both correct, both against the brief.
+
 ### Rows added by §10
 
 | id | feature | status |
@@ -1105,8 +1489,8 @@ when it is *reachable by a member or explicitly ruled not to be.*
 | C-4 | ✅ **TRUE** — §8 **DO-NOT-BUILD is untouched** | `tools/q1_do_not_build_sweep.py`, built 2026-09-13 by owner ruling and run in **every gate** from now on (wired into `scripts/gate_shards.py` and `tools/nb_gate.py`). ⭐ The roster is **parsed out of §8 at run time** — an item added tomorrow with no probe fails the sweep BY NAME, because *"I do not know how to check this one"* must never read as *"this one is clean"*. ⛔ This row used to say **22** items; the sweep reads **20** and no count is typed anywhere now — the list is the authority. Result: **0 matches** across `app/src`, `api`, `scripts`, `tools`. One legitimate match is exempted WITH its argument: `main.jsx:26` registers `/sw.js` only for a browser that already has a worker, which is what makes *"there is no service worker"* true |
 | C-5 | §9 **OPEN** rows are each resolved **or** deferred with an owner ruling | no row left silently open |
 | C-6 | ✅ **TRUE** — §6 **Wave T** rows each carry an owner answer | `wave-T-decisions.md`, one line each, **RATIFIED by the owner 2026-09-13**: *"nothing in T waits on me except flips"*. ⭐ The answers were recorded 2026-09-12; what closed C-6 was the ratification, because until then the file read as proposals a reader could not distinguish from decisions |
-| C-7 | ⏳ **OWNER-BOUND — READY, NOT RUN** — T-12 pre-launch smoke passes | it is the gate that outranks every row (§6). ⛔ **It cannot be agent-run, by its own charter:** *"Who runs it: the owner, on his own device, signed in as himself. This is not automation. Nothing in this repo runs it, and no agent may run it or fill in its results."* That is a direct conflict with the 2026-09-13 queue item *"run it today"*, raised rather than resolved either way. ⭐ **What was done instead, 2026-09-13:** its preconditions were corrected — prohibition 4 claimed `OFFLINE_DEFAULT_ON` is *false for every member* and the flip *blocked behind an open defect*, both false since 2026-09-12 00:45 ET, which would have had the owner smoking a path no member is on; and production was verified current (`/api/health` 200, `uptime_seconds` 113 on a fresh boot, no deploy in flight) so the run is not invalidated by a swap |
-| C-8 | Q1's 7-day window closed **KEEP** | `wave-q1-gate-verdict.md` |
+| C-7 | ⏳ **FALSE — 7 of 9 steps PASS** — T-12 pre-launch smoke passes | ⚖️ **No longer owner-bound**: the charter was amended by the owner 2026-09-13 (§7) so automation executes and the owner reviews the evidence. **Run and recorded**: `docs/notebook/t12-smoke-2026-09-13.md`, `member-smoke@uctintelligence.internal` in a fresh context, steps **0–6 PASS** (sign in through the real form · reach the Notebook by CLICKING · create a note · type → reload → **the sentence survived** · widget embed lands and survives a reload · search finds it and `zzqqxx` gives an honest empty state · a real PDF opens a page-rendered viewer). **BLOCKER:** steps 7 (Ask + citation) and 8 (trash/restore) are **INCONCLUSIVE with named runner limitations**, and the `owner-rig` identity run has not happened. Seven of nine is not a gate that passed. ⛔ One unexplained PRODUCT finding lives in that run: the member's first action returned `POST /api/j2/notes` **500 twice**, showing *"Couldn't create that note. Nothing was saved."*, with no deploy in flight | it is the gate that outranks every row (§6). ⛔ **It cannot be agent-run, by its own charter:** *"Who runs it: the owner, on his own device, signed in as himself. This is not automation. Nothing in this repo runs it, and no agent may run it or fill in its results."* That is a direct conflict with the 2026-09-13 queue item *"run it today"*, raised rather than resolved either way. ⭐ **What was done instead, 2026-09-13:** its preconditions were corrected — prohibition 4 claimed `OFFLINE_DEFAULT_ON` is *false for every member* and the flip *blocked behind an open defect*, both false since 2026-09-12 00:45 ET, which would have had the owner smoking a path no member is on; and production was verified current (`/api/health` 200, `uptime_seconds` 113 on a fresh boot, no deploy in flight) so the run is not invalidated by a swap |
+| C-8 | ⏳ **FALSE — the window is still open** — Q1's 7-day window closed **KEEP** | `wave-q1-gate-verdict.md`. ⭐ **2026-09-13 18:05 ET read KEEP** — all four triggers PASS, `do-not-build` CLEAN, **organic 0 · synthetic 1 · rig/owner 1**. **BLOCKER:** the window runs to **2026-09-19 00:45 ET**; one clean reading inside it is not the window closing. ⛔ And a KEEP over **zero organic members** is what clean looks like over an EMPTY SET — if the window closes this way, K-1's precondition is *100% of a synthetic population* and its packet must say so |
 | C-9 | The manifest's own rows are **`[m]` measured, not `[d]` claimed** | one `[d]` (S-05) survives with its stated reason |
 | C-10 | No capability is member-visible that the owner has not flipped | a rail per track; dark-means-dark |
 
