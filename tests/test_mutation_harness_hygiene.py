@@ -119,20 +119,112 @@ def test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any
             f"{min(write_lines)} — the guard must come first")
 
 
-@pytest.mark.parametrize("build,allowed,why", [
-    (lambda r: None, False, "a bare directory is not a git worktree"),
-    (_worktree, False, "a linked worktree with no marker has not been sacrificed"),
-    (lambda r: (_worktree(r), _marker(r, "")), False, "an empty marker is a reflex"),
+# Instruments that WRITE but are not mutate-and-restore harnesses, each with the reason.
+# ⛔ An exemption list drifts like any other artifact, so the rail below asserts that every
+# name here is a real file that really does write — a typo would exempt nothing and be
+# invisible (`lesson_a_gate_list_drifts_like_any_other_artifact`).
+NOT_MUTATORS = {
+    "anchor_check.py": "writes only tempfiles under --self-check; the gate path never writes",
+    "chaos_scenarios.py": "writes the evidence JSON the caller names with --out",
+    "clock_sweep.py": "writes a pytest plugin into a tempdir, plus --out evidence",
+    "determinism_runner.py": "writes the evidence JSON the caller names with --out",
+    "golden_capture.py": "regenerates a golden on purpose; that is its whole job",
+    "load_harness.py": "writes the evidence JSON the caller names with --out",
+    "run_env_logs.py": "writes its own log file, not a source file",
+    "soak_job.py": "writes its state file and the --out evidence",
+}
+
+
+def _writes_to_a_file(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Attribute) and node.func.attr in ("write_bytes",
+                                                                       "write_text"):
+            return True
+        if isinstance(node.func, ast.Name) and node.func.id == "open" and len(node.args) > 1:
+            mode = node.args[1]
+            if isinstance(mode, ast.Constant) and isinstance(mode.value, str) \
+                    and "w" in mode.value:
+                return True
+    return False
+
+
+def test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard():
+    """B4 says "any harness that can leave a mutation in a working-tree file" — that is not
+    the same set as `mutation_harness*.py`.
+
+    ⚰️ `prove_eol_gate.py` plants real line-ending flips in TRACKED files, and its ROOT was
+    the hard-coded literal `C:\\Users\\Patrick\\uct-worktrees\\discord-render` — the
+    integrator's tree — so running it from anywhere mutated that tree. It is guarded now.
+    """
+    writers, unguarded = [], []
+    for path in sorted(INSTRUMENTS.glob("*.py")):
+        if path.name == "harness_guard.py":
+            continue                       # it IS the guard; importing itself proves nothing
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            continue
+        if not _writes_to_a_file(tree):
+            continue
+        writers.append(path.name)
+        if path.name in NOT_MUTATORS:
+            continue
+        guarded = any(isinstance(n, ast.ImportFrom) and n.module == "harness_guard"
+                      for n in ast.walk(tree))
+        if not guarded:
+            unguarded.append(path.name)
+
+    # NON-VACUITY: if the AST probe found no writers, it is broken, not the tree clean.
+    assert len(writers) >= 10, f"only {len(writers)} writing instruments found: {writers}"
+
+    # The exemption list must describe reality, or it is exempting names nobody has.
+    for name in sorted(NOT_MUTATORS):
+        assert (INSTRUMENTS / name).exists(), f"{name} is exempted but does not exist"
+        assert name in writers, (
+            f"{name} is exempted from a rail it would not trip — a stale exemption")
+
+    assert not unguarded, (
+        "these instruments can write to a working-tree file and do not import the shared "
+        f"guard: {unguarded}. Either call guard()/require_throwaway_worktree(), or add the "
+        "file to NOT_MUTATORS with the reason it cannot leave a mutation behind.")
+
+
+@pytest.mark.parametrize("build,allowed,reason_fragment,why", [
+    (lambda r: None, False, "not a git worktree at all",
+     "a bare directory is not a git worktree"),
+    (_worktree, False, "has not been sacrificed",
+     "a linked worktree with no marker has not been sacrificed"),
+    (lambda r: (_worktree(r), _marker(r, "")), False, "does not contain the token",
+     "an empty marker is a reflex"),
     (lambda r: (_worktree(r), _marker(r, "keep this tree\n")), False,
-     "a marker without the token is not a decision"),
-    (lambda r: (_worktree(r), _marker(r)), True, "a marked linked worktree is a sandbox"),
-    (lambda r: ((r / ".git").mkdir(), _marker(r)), False,
+     "does not contain the token", "a marker without the token is not a decision"),
+    (lambda r: (_worktree(r), _marker(r)), True, "declares this tree throwaway",
+     "a marked linked worktree is a sandbox"),
+    (lambda r: ((r / ".git").mkdir(), _marker(r)), False, "MAIN CHECKOUT",
      "the MAIN CHECKOUT is refused even with a marker"),
 ])
-def test_the_guard_decides_each_tree_shape_correctly(tmp_path, build, allowed, why):
+def test_the_guard_decides_each_tree_shape_correctly(tmp_path, build, allowed,
+                                                     reason_fragment, why):
+    """⛔ The REASON is asserted, not just the verdict, and that is load-bearing.
+
+    ⚰️ Asserting `allowed` alone made the `marker_exists` branch unprovable: deleting it
+    let a tree with no marker fall through to the token check, which is also False when
+    the file does not exist, so the guard still refused and every assertion stayed green
+    (found by P03 of `prove_b45_rails.py`, GREEN UNDER MUTATION). That is
+    `lesson_a_guard_repeated_is_a_guard_unproved` — two guards where one suffices, and the
+    redundant one cannot be mutation-proved.
+
+    The branches are kept apart rather than merged because they send the operator to
+    different actions: "write the marker" vs "the marker you wrote says nothing". The
+    reason fragment is what makes that difference real behaviour instead of dead code.
+    """
     build(tmp_path)
     verdict = guard_mod.inspect_tree(tmp_path, env={})
     assert verdict.allowed is allowed, f"{why}: got {verdict.allowed} ({verdict.reason})"
+    assert reason_fragment in verdict.reason, (
+        f"{why}: the reason must say {reason_fragment!r}, got {verdict.reason!r}")
 
 
 def test_the_refusal_is_loud_exits_with_a_distinct_code_and_names_what_it_saw(tmp_path):

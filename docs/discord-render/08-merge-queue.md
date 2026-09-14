@@ -56,6 +56,80 @@ service is CONFIGURED with, which is not evidence the running process has it.
    BEHAVIOUR-CHANGING — weekend or not.
 4. **If master moves mid-gate more than twice on one merge:** rebase once more and, in parallel,
    write the coordination OI. Do not spend a third gate cycle before the OI is written.
+5. **The B5 anchor check runs BEFORE any harness, on every gate.** One command, below. It is a
+   read; it costs about a second.
+
+---
+
+## ⛔⛔ Mutation-harness hygiene — the B4/B5 gate step (owner rulings, 2026-09-14)
+
+> **B4:** *"any harness that can leave a mutation in a working-tree file must refuse to run unless
+> cwd is a throwaway worktree matching a known pattern. The integrator's tree is never a mutation
+> target. Enforce in code, not memory."*
+>
+> **B5:** *"Stale mutation anchors have bitten three times (A29, A32 x2). Add a gate step that lists
+> every mutation control whose anchor text no longer matches the source, before the harness runs —
+> NOT-APPLIED detection at gate time rather than after an 18-minute run."*
+
+### The gate step — run this before any harness, every time
+
+```sh
+python docs/discord-render/instruments/anchor_check.py .          # 0 = clean, 1 = defects, 2 = vacuous
+python docs/discord-render/instruments/anchor_check.py --self-check   # proves it can fail
+python -m pytest tests/test_mutation_harness_hygiene.py -q        # the rails for both
+```
+
+⚠️ **THERE IS NO SINGLE SCRIPTED GATE ENTRY POINT FOR THIS PROGRAMME, and that is a measurement,
+not an omission.** The scoped gate is a hand-assembled `pytest <named files>` run per lane, recorded
+in `LEDGER.md`'s gate column (`07-execution-plan.md` §1: *"scoped, ≤6 named files"*, `-k` and
+`pytest tests/` both forbidden). `scripts/gate_shards.py` is the joystick programme's six-shard
+vitest wrapper and governs nothing here. So B5 is wired in the two places that actually exist:
+
+1. **This checklist** — the command above, run by the integrator before accepting a lane.
+2. **In code, per harness** — `guard(ROOT, __file__)` is the first statement after `ROOT` in every
+   `mutation_harness*.py`. It refuses an unsacrificed tree (**exit 86**), then refuses to start an
+   18-minute run whose anchors are already stale (**exit 87**). That one is not a checklist item
+   anybody can forget.
+
+If a single scripted entry point is ever built, add `anchor_check.py` to it and delete item 1.
+
+### What B4 requires of a tree, and why a marker and not a name
+
+A harness may only mutate a tree that carries **`.mutation-sandbox`** at its root, containing the
+token `throwaway`, and whose `.git` is a **file** (a linked worktree, not the main checkout).
+
+⭐ **The marker is gitignored, and that is the entire argument.** No pull, merge, rebase,
+`git worktree add` or `git checkout` can put it in the integrator's tree — somebody has to stand in
+a throwaway worktree and write it. A name pattern (`.worktrees/`, `*-mutation`) is a claim *about* a
+tree: it survives a rename, it can be matched by accident, and when it is wrong it fails in the
+direction where the harness **runs**. The main checkout is refused structurally even with a marker.
+
+To sacrifice a worktree:
+
+```sh
+echo 'throwaway worktree - mutation harnesses may edit files here' > .mutation-sandbox
+```
+
+⛔ **Both overrides exist so that using one is a deliberate act, not so that it is the way past a
+red.** Each requires an exact value — `=1` and `=true` are refused — and each prints a banner naming
+the tree, so no evidence artifact can hide that it was used.
+
+| Override | Effect |
+|---|---|
+| `UCT_MUTATION_HARNESS_ALLOW_UNSAFE_TREE=i-accept-mutations-in-this-tree` | run a harness in a tree that is not a marked sandbox |
+| `UCT_MUTATION_HARNESS_STALE_ANCHORS_OK=i-know-some-anchors-are-stale` | start a run anyway when 1 of N anchors is stale and the rest are worth having |
+
+### What B5 reports, and the three outcomes it never collapses
+
+| Outcome | Meaning |
+|---|---|
+| **OK** | the anchor matches exactly once, and that occurrence is real code |
+| **STALE** | zero matches — **or** exactly one that lies entirely inside a comment or docstring, which would edit prose and could never make the rail fire. The two carry different sentences and are never merged |
+| **AMBIGUOUS** | more than one match. An exact single replacement is impossible. **A different defect from STALE**, and it must never read as "ok" — the harness reports both as the same `NOT APPLIED` line, so this checker is the only place they are distinguishable |
+| **UNREADABLE** | the anchor or its target could not be resolved (an f-string needle, a missing file). ⛔ A control that could not be READ is not a control that is FINE |
+
+Every non-OK control is reported **by name**, with the anchor's first line, never as a count alone.
+Zero controls enumerated is a **failed invocation (exit 2)**, never a quiet pass.
 
 ---
 

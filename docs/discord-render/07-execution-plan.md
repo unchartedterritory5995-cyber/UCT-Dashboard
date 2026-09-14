@@ -44,6 +44,13 @@ means **naming the files**.
 with serialised *verification* delivers it without re-running the incident. If a lane needs a wide
 gate it asks Lane A, which runs it when the box is quiet.
 
+⛔ **And a lane may not run a mutation harness in a tree it did not sacrifice.** B4/B5, owner
+rulings 2026-09-14: every `mutation_harness*.py` (and `prove_eol_gate.py`, which plants real flips
+in tracked files) now refuses unless the tree carries a `.mutation-sandbox` marker — **exit 86** —
+and refuses to start a run whose anchors are already stale — **exit 87**. The gate step is one read,
+`python docs/discord-render/instruments/anchor_check.py .`, and it runs **before any harness, every
+time**. Rules, overrides and the three outcomes it never collapses: `08-merge-queue.md`.
+
 ---
 
 ## 2. Dependency graph
