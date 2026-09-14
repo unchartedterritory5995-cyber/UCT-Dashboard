@@ -61,8 +61,8 @@ const CASES = [
     // ⭐ So the case is a `var` whose right-hand side the lane genuinely cannot
     // read — which is the shape line 57 actually was.
     branch: 'STATE_KEYWORDS — a `var` whose RHS the lane cannot read',
-    src: `${HEAD}var n = request.security(syminfo.tickerid, "D", close)\nplot(close)\n`,
-    find: 'var n = request.security',
+    src: `${HEAD}var c = color.t(color.red)\nplot(close)\n`,
+    find: 'var c = color.t',
   },
   {
     branch: 'the vector hook — a non-`var` creation',
@@ -81,24 +81,33 @@ const CASES = [
   },
 ]
 
-// ⚰️⚰️ THE RAIL FOUND A SECOND INSTANCE ON ITS FIRST RUN, AND IT IS NOT FIXED
-// HERE. `var n = request.security(…)` binds silently too: `stateBinding` accepts
-// anything that PARSES, and `request.security` parses fine — it is refused only
-// at resolve, so when nothing reads the name, nothing refuses and nothing notes.
-// Same shape as line 57, different namespace.
+// ✅ THE CLOSING PASS OVER `env` HAS LANDED, and the `it.fails` marker that stood
+// here is gone with it. `translatePine` now resolves every leftover binding once,
+// after the outputs, and notes the ones that REFUSE — so a right-hand side this
+// lane cannot read can no longer sit in `env` with no line anywhere in the result.
 //
-// ⛔ CLOSING THE CLASS NEEDS A CLOSING PASS over `env` at the end of the walk —
-// every name still bound to something never resolved and never noted gets a note
-// — and that is its own increment, not a change to smuggle into this one. It is
-// marked `it.fails` so it is VISIBLE and SELF-RETIRING: this line passes while
-// the defect exists and turns RED the day the closing pass lands, which is when
-// it should be deleted. A skipped test would have hidden it.
-const KNOWN_OPEN = new Set(['STATE_KEYWORDS — a `var` whose RHS the lane cannot read'])
+// ⚰️⚰️ AND THE CLAIM THIS COMMENT USED TO MAKE WAS MEASURED FALSE, WHICH IS THE
+// MORE USEFUL HALF. It said `var n = request.security(…)` "is refused only at
+// resolve, so when nothing reads the name, nothing refuses and nothing notes" —
+// and named it a second instance of the line-57 class. It is not one:
+//
+//     plot(request.security(syminfo.tickerid, "D", close))
+//         -> ok=true, outputs ["close"], no refusal, no note
+//
+// The lane READS that call (a same-symbol daily fold), so the binding is readable
+// and merely unused — which is `len = 14`, and the contract above says in as many
+// words that an unread-but-readable name needs no note. The case demanded a note
+// the contract forbids, so the ENGINE was right and the RAIL was wrong.
+//
+// ⛔ THAT IS THE SECOND TIME THIS FILE MADE EXACTLY THIS MISTAKE — the first was
+// `var n = 0`, recorded in the case above. Both times the fixture was written from
+// what the shape LOOKED like rather than from what the lane does with it. The case
+// now uses `color.t`, measured to refuse `pine:colour-value`, so it exercises the
+// branch it names. **Before asserting a lane cannot read something, read it.**
 
 describe('every statement branch records its binding, or refuses it by name', () => {
   for (const c of CASES) {
-    const run = KNOWN_OPEN.has(c.branch) ? it.fails : it
-    run(`⭐ ${c.branch}`, () => {
+    it(`⭐ ${c.branch}`, () => {
       const line = c.src.split('\n').findIndex((l) => l.includes(c.find)) + 1
       expect(line, `fixture no longer contains ${c.find}`).toBeGreaterThan(0)
       const t = translatePine(c.src, { mode: 'host' })
@@ -108,6 +117,32 @@ describe('every statement branch records its binding, or refuses it by name', ()
         .toBe(true)
     })
   }
+
+  it('⭐⭐ THE CLOSING PASS — an unread UNREADABLE binding is noted, by its own reason', () => {
+    // Not merely "a line appears": the note must carry the refusal's own guard, or
+    // the member is told a line is unread without being told what about it is.
+    const src = `${HEAD}c = color.t(color.red)\nplot(close)\n`
+    const t = translatePine(src, { mode: 'host' })
+    const note = (t.notes || []).find((n) => n.line === 2)
+    expect(note, 'line 2 is bound, never read, and must not be silent').toBeTruthy()
+    expect(note.code).toBe('pine:colour-value')
+  })
+
+  it('⛔⛔ THE OTHER HALF — an unread READABLE binding stays SILENT', () => {
+    // ⭐ The load-bearing half of the closing pass is what it does NOT report. A
+    // pass that noted every unread name would put a line in the result for every
+    // `len = 14` a real script carries, and the notes would stop being read.
+    const t = translatePine(`${HEAD}len = 14\nplot(close)\n`, { mode: 'host' })
+    expect((t.notes || []).filter((n) => n.line === 2)).toEqual([])
+  })
+
+  it('⛔ …and a binding an OUTPUT read is not re-reported', () => {
+    // The mark is taken in `resolveBinding`, the one choke point every read goes
+    // through. If it were missed, a name the script plainly uses would be noted as
+    // unread — which is worse than silence, because it is wrong rather than absent.
+    const t = translatePine(`${HEAD}len = 14\nplot(ta.sma(close, len))\n`, { mode: 'host' })
+    expect((t.notes || []).filter((n) => n.line === 2)).toEqual([])
+  })
 
   it('⛔⛔ CONTROL — the detector can return FALSE, so a pass means something', () => {
     // ⭐ The control is on the DETECTOR, which is the half that could silently

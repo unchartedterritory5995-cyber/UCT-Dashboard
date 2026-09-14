@@ -4529,6 +4529,14 @@ export class Resolver {
   }
 
   resolveBinding(bound, tok, name) {
+    // ⭐⭐ THE ONE CHOKE POINT EVERY BINDING READ GOES THROUGH, so the mark is
+    // taken here and nowhere else. `case 'bound'` and `resolveName` both funnel
+    // in, and the binding OBJECTS are shared out of `env`, so a mark set by one
+    // output's Resolver is visible to the closing pass over all of them.
+    // ⛔ It is set before the depth guard on purpose: a binding that was reached
+    // and refused for being too deep HAS been read, and re-resolving it in the
+    // closing pass would report the same exhaustion twice under a worse name.
+    if (bound && typeof bound === 'object') bound.read = true
     // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
     // frame that still has stack left to build it — a guard that overflows while
     // reporting an overflow reports nothing at all.
@@ -11142,6 +11150,68 @@ export function translatePine(source, opts = {}) {
       }
     }
     resolved.push(row)
+  }
+
+  // ─── ⭐⭐ THE CLOSING PASS OVER `env` ─────────────────────────────────────
+  //
+  // ⛔⛔ RECORDED OR REFUSED — NEVER ONLY IN `env`. A name can be bound by any of
+  // several statement branches (`STATE_KEYWORDS`, the `switch` reducer, the
+  // `if`-chain folder, the vector hook, the ordinary assignment path) and, if
+  // nothing ever reads it, never be resolved — so a right-hand side this lane
+  // cannot read produces NO refusal, NO note and NO line, and the script
+  // translates with a silent hole in it. `bindingsAreVisible.test.js` found the
+  // second instance of that class the day it was written.
+  //
+  // ⭐ WHAT IT DOES NOT DO IS THE LOAD-BEARING HALF. It does not report unread
+  // names: an unread but perfectly READABLE `len = 14` needs no note, and
+  // demanding one would put a line in the result for every helper a real script
+  // carries. It RESOLVES each leftover once and reports only what refuses — so
+  // the note means "this lane cannot read line N", which is the lane's own
+  // contract, and not "nothing used line N", which is the author's business.
+  //
+  // ⭐ IT RUNS AFTER THE OUTPUT LOOP because a binding an output read is read,
+  // and the marks are only complete once every output has resolved.
+  {
+    // A line already accounted for anywhere is left alone: the branch that
+    // recorded it gave a reason specific to the shape, and a second generic note
+    // on the same line would overwrite that reason in the reader's eye.
+    const accountedFor = new Set()
+    for (const n of notes) if (typeof n.line === 'number') accountedFor.add(n.line)
+    for (const r of resolved) {
+      if (typeof r.line === 'number') accountedFor.add(r.line)
+      if (r.refusal && typeof r.refusal.line === 'number') accountedFor.add(r.refusal.line)
+    }
+    for (const [, bound] of finalBindings) {
+      if (!bound || typeof bound !== 'object' || bound.read) continue
+      // `opaque` already carries its own sentence and its own line; `fn` and
+      // `param` are not values; a `vector` was noted at its creation (F2).
+      if (bound.kind !== 'expr' && bound.kind !== 'state') continue
+      const at = bound.at
+      if (!at || typeof at.line !== 'number' || accountedFor.has(at.line)) continue
+      // ⛔ THE BUDGET IS SHARED, NOT REFRESHED. This pass must never be able to
+      // buy a script a second translation's worth of work.
+      if (translateBudgetExpired()) break
+      const node = bound.kind === 'state' ? bound.seed : bound.node
+      if (!node) continue
+      const probe = new Resolver(env, table, declaredTypes,
+        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
+          strict: opts.strict === true,
+          basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
+          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
+          sourcePath: opts.sourcePath })
+      probe.env = (bound.kind === 'state' ? bound.seedEnv : bound.env) || env
+      try {
+        probe.resolve(node)
+      } catch (err) {
+        const r = fromError(err)
+        // The refusal's OWN sentence, at the BINDING's line — the refusal may
+        // locate itself at a token inside the right-hand side, and what the
+        // member needs named is the statement that is going unread.
+        notes.push({ ...r, code: r.guard, line: at.line, column: at.column,
+          index: at.index, token: at.token })
+        accountedFor.add(at.line)
+      }
+    }
   }
 
   // ⛔⛔ A CANDLE IS PASSTHROUGH ONLY IF **ALL FOUR** OF ITS ROLES ARE.
