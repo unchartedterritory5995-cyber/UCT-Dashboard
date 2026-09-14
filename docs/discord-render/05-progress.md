@@ -353,3 +353,45 @@ dominated by the network: what does wrapping a call in a pool submit, a breaker 
 gate + deploy than on authorship, which is what the lane plan (`07-execution-plan.md`) exists to
 reclaim. Merges 6 and 7 ran with five lanes working in parallel underneath them, so the deploy waits
 cost nothing.
+
+---
+
+## Master merges 6-11 — contracts, shadow ON, and five parallel lanes · 2026-09-13 evening
+
+| # | SHA | What | Gate | Running SHA |
+|---|---|---|---|---|
+| 6 | `e659454bb` | frozen cross-lane contracts + `07`/`08` | 166 passed | `e659454bb8f2` ✅ |
+| 7 | `2b3ffd637` | shadow ON; the record made interpretable | 24 passed | `2b3ffd637` ✅ |
+| 8 | `59a5b1c7a` | `resume.ps1` stale-pin fix | ran the script | — |
+| 9 | `48a73d4cc` | Lane B (2.5 cache) + Lane F (runbook, flip packet, RESUME) | 241 passed | — |
+| 11 | **`8c72dda27`** | Lanes C, D, E + the C-10 deadline fix | **973 passed, 3 xfailed, 0 failed** | **`8c72dda27bb8`** ✅ |
+
+**Live, read in-process after merge 11:** `RENDER_V2_SHADOW="1"` · `shadow.enabled()` True ·
+budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · render-health 401.
+
+### Wall clock
+
+| Merge | Start (ET) | End | Gate | Deploy wait | Notes |
+|---|---|---|---|---|---|
+| 5 | 17:10 | 20:07 | 6 m 38 s | ~2 m | serial; more clock on gate+deploy than on authorship |
+| 6 | 20:12 | 20:25 | 20 s | ~3 m | **one push refused** by master's own guard — a swap was in flight |
+| 7 | 20:25 | 20:40 | 7 s | ~2 m | five lanes authoring underneath |
+| 9 | 21:0x | 21:2x | 38 s | ~2 m | two lanes integrated in one push |
+| 11 | 21:2x | 22:0x | 1 m 17 s | ~2 m | three lanes + a production fix |
+
+⭐ **What the lane plan actually bought.** Merges 6-11 carried five lanes' output in the same wall
+clock that merge 5 spent on one step, and every deploy wait was absorbed by work happening
+elsewhere. ⚠️ **And the honest half:** two lanes were killed by the session rate limit, so the
+parallelism had a ceiling this run — five concurrent Opus agents plus the integrator is more than
+the session budget allows, which is a fact about the environment worth planning against next time,
+not a fact about the work.
+
+### What the lanes cost to verify, which is not zero
+
+Every lane's suite and harness was re-run by the integrator. Lane E's arrived with **5 failures** it
+never saw: four were its `FakeDelivery` double drifting behind a signature the integrator had
+changed an hour earlier (the contract-arity defect in miniature — a double that RESTATES a signature
+instead of tracking it), one a self-inflicted import path. Lane D never reported at all, so its
+claims did not exist until re-measured; two of its mutations were mis-aimed and one of those named a
+real weakness in its own test. ⛔ **A lane's "done" is a claim, and the integrator's re-run is the
+measurement** — that rule earned its place three times tonight.
