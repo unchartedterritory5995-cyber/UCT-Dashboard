@@ -3,8 +3,30 @@
 These ran from the session scratchpad; copied here so a cleaned `%TEMP%` cannot lose them. None is
 collected by pytest (no `test_` prefix). Run from the worktree root unless noted.
 
+## ⛔⛔ READ FIRST — every `mutation_harness*.py` is now GUARDED (B4/B5, owner rulings 2026-09-14)
+
+A mutation harness edits a real source file in place. Killed mid-run it **leaves the mutation
+behind** — which is what happened to `badge.py` in the integrator's tree. So:
+
+1. **A harness refuses to run outside a sacrificed worktree** (`harness_guard.py`, exit **86**).
+   In the throwaway worktree's root, once:
+   `echo 'throwaway worktree - mutation harnesses may edit files here' > .mutation-sandbox`
+   The marker is **gitignored**, so it can never arrive in another tree by checkout, and the main
+   checkout (`.git` is a directory) is refused even with one.
+2. **A harness refuses to start a run whose anchors are already stale** (`anchor_check.py`, exit
+   **87**) — NOT-APPLIED detection before the run, not 18 minutes into it.
+
+Run the gate step **before any harness**, every time:
+`python docs/discord-render/instruments/anchor_check.py .`
+
+Both overrides need an exact value and print a banner naming the tree — an override exists so that
+it is a deliberate act, not so that it is the way past a red. Full rules: `../08-merge-queue.md`.
+
 | File | What it is | How it is run |
 |---|---|---|
+| **`harness_guard.py`** | **B4** — the ONE refusal guard, imported by every harness, never copy-pasted. Also carries the B5 preflight. | `python <file>` runs its self-check (13 cases, refuse **and** allow) |
+| **`anchor_check.py`** | **B5** — the gate step. A READ over every harness's controls: OK / STALE / AMBIGUOUS / UNREADABLE, reported **by name**. Never imports a harness, never runs pytest, never writes. | `python <file> .` · `--verbose` · `--self-check` |
+| **`prove_b45_rails.py`** | the mutation proofs for B4 and B5's own rails (18) | `python -u <file> .` |
 | `mutation_harness.py` | 2.1a proofs (core + corrected tests) | `python <file> .` |
 | `mutation_harness_v2router.py` | 2.1b proofs (router, commands, lifespan) | `python <file> .` |
 | `mutation_harness_envlogs.py` | Phase 0 log-tool proofs | `python <file> .` |

@@ -26,6 +26,14 @@ _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SELF_CHECK = "--self-check" in sys.argv
 ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3]
 
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
+
 T = "tests/test_discord_render_badge.py::"
 G = "tests/test_discord_render_goldens.py::"
 V = "tests/test_discord_render_vintage_url.py::"

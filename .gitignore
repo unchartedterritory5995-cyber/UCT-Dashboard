@@ -161,3 +161,10 @@ docs/plans/joystick/gate-runs/INVALID-*.md
 # RTH scheduled-run logs - per-run, regenerated, and potentially large. The RESULTS
 # live in docs/runbooks/monday-rth-results/ and are committed; the transcript does not.
 /logs/
+
+# ⛔ B4 mutation-harness sandbox marker. A mutation harness refuses to run unless the tree
+# it is about to edit carries this file (see docs/discord-render/instruments/harness_guard.py).
+# It is ignored ON PURPOSE and that is the whole argument for a marker over a name pattern:
+# no pull, merge, rebase, `git worktree add` or `git checkout` can ever put it in the
+# integrator's tree. Somebody has to stand in a throwaway worktree and write it.
+.mutation-sandbox
