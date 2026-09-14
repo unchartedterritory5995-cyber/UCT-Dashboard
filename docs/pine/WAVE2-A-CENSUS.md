@@ -470,3 +470,61 @@ varied.
 produced.** `it.fails` makes the inversion mechanical rather than a promise: each
 case passes BECAUSE it fails, visibly in the reporter rather than hidden by a skip,
 and goes RED the day the slots are filled — which is the day the marker is deleted.
+
+## a3 — THE OUTCOME, AND THE TWO BUGS THE ACCEPTANCE FOUND
+
+**Clouds unrolls.** Both lanes: `ok=true`, **0 refusals**, the `pine:block` note at
+59 gone, 23 outputs of which 21 are the layer plots, **0 folding to `na`**, all 23
+mentioning the smoother. Layer 0 reads:
+
+```
+ema(close, 9) + (ema(close, 20) - ema(close, 9)) * (0 / (21 - 1))
+```
+
+### Bug 1 — the two tree languages, four letters apart
+
+`substConst` spliced `{type:'num'}` into a **parse** tree, and `resolve`'s switch
+has `case 'number'` with no `case 'num'`. Every index fell off the end of that
+switch, threw `pine:statement`, was swallowed by the fold's catch, and returned
+`idx=null` — so no slot was ever written while the translation reported `ok, 0
+refusals`. ⭐ **The probe printed `arg0type=num` — the type the substituter had
+just written.** An instrument reading back its own substitution says nothing about
+the language on the other side of the call.
+
+### Bug 2 — `size` was read before the unroll, so `push` was invisible
+
+`resolveVectorRead` captured `size = vec.slots.length` **above** `applyUnrolls`, so
+an unrolled `array.push` grew the vector after the range check had already run.
+Every read of `array.new<float>(0)` + push-in-a-loop refused with *"holds 0 slots
+and this reads index 0"* — true of the creation, wrong about the array. ⛔ **That
+is the corpus's DOMINANT idiom** (a1.4: median creation size **0**), and `set` was
+immune because its slots already existed — so the bug was invisible on Clouds and
+on every fixture written from it. Found by a control added while re-pointing a
+rail, not by the acceptance.
+
+### The acceptance condition, measured rather than assumed
+
+The ruling was: *the 21 `pine:collection` refusals clear and the next refusal names
+`color.t` at line 90*. The first half holds exactly. **The second half does not
+fire, and the reason is already on file:** `color.t` at 90 binds
+`bullUserTransparency`, which no output path ever reads, so the binding lives only
+in `env` and is never resolved. That is the **env-only-binding class** — the named
+a2/a3 follow-on (`bindingsAreVisible.test.js`), and the closing pass over `env` is
+exactly what will make line 90 speak. Clouds' remaining 20 notes are `fill` at
+118–137, carried as `pine:chart-only`, not refused.
+
+### Two fixtures were spent, and moved rather than weakened
+
+`vectorSilentNa` filled its array with `for i = 0 to 3` — which a3 made readable —
+and `bothLanesAreTwoLanes` used Clouds as the script the lanes disagree on, which
+a3 made them agree on. Both moved to the frontier (`while`, per F4) with their
+assertions untouched, and both gained the opposite case so the pair discriminates
+instead of agreeing with itself.
+
+### Corpus movement
+
+`corpus_metric.json`: **no verdict changed** — 266 scripts, host 31, screener 44,
+all as before. Two scripts changed their guard LIST (one drops `pine:collection`
+from both lanes; one now reaches it later). `lookback_agreement.json`:
+`distinct_trees_walked` **288 → 310** — the 22 newly-unrolled trees agree between
+both lookback authorities.

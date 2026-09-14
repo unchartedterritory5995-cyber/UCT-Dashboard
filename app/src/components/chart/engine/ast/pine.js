@@ -123,7 +123,7 @@ import SYMBOL_SCOPE from './symbolScope.json'
 // copies of "does an empty needle match" is the second-authority defect this repo
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
-import { TEXT_PREDICATE_FN } from './bind.js'
+import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
@@ -5351,6 +5351,94 @@ export class Resolver {
    * ⛔ EVERY REFUSAL HERE IS A THROW WITH A SENTENCE FROM `arrayVectors.js`, so
    * the wording has one owner and cannot drift between the sites that need it.
    */
+  /**
+   * ⭐⭐ a3 — UNROLL A RECORDED `for` INTO THIS VECTOR'S SLOTS.
+   *
+   * ⛔ THE BOUND FOLDS THROUGH `this.resolve` — the one folder — so a loop bound
+   * and a `ta.sma` window cannot disagree about what "constant" means, and R-J's
+   * input rule reaches loop bounds the day item (b) flips it, for free.
+   */
+  applyUnrolls(vec) {
+    const pending = vec.pending || []
+    vec.pending = null
+    for (const loop of pending) {
+      const prevEnv = this.env
+      this.env = new Map(loop.env)
+      try {
+        // ⭐ RESOLVE THROUGH THE ONE RESOLVER, THEN EVALUATE THROUGH THE ONE
+        // EVALUATOR. `resolve` builds a tree — `numLayers - 1` comes back as
+        // `op('-', [num 21, num 1])`, not a `num` — and `foldScalar` is what
+        // this engine already uses to turn such a tree into a window length.
+        // ⭐⭐ THREE FACTS THE LAST FOUR HOURS ESTABLISHED, recorded where the
+        // next reader needs them:
+        //  1. `this.resolve` BUILDS A TREE; it does not evaluate one.
+        //     `numLayers - 1` comes back as `op('-', [num 21, num 1])`.
+        //     `bind.js::foldScalar` is the evaluator this engine already uses
+        //     for a window length, and it is the one used here.
+        //  2. `this.resolveBinding(exprBinding(node, env, at), …)` IS NOT A
+        //     MID-RESOLUTION ENTRY POINT — it throws `pine:statement` even for
+        //     a plain `{type:'num'}`. The internal route is `this.resolve` with
+        //     `this.env` swapped, which is what this does.
+        //  3. (in `pendingUnrollFrom`) an array call's ARGUMENTS START AT TOKEN
+        //     4, not 3; token 3 is the comma after the target name.
+        const foldIn = (n, envMap) => {
+          if (!n) return null
+          const prev = this.env
+          if (envMap) this.env = envMap
+          try {
+            const v = foldScalar(this.resolve(n), {})
+            return Number.isFinite(v) ? Math.trunc(v) : null
+          } catch { return null } finally { this.env = prev }
+        }
+        const fold = (n) => foldIn(n, loop.env)
+        const lo = fold(loop.lo)
+        const hi = fold(loop.hi)
+        const step = loop.step ? fold(loop.step) : 1
+        if (lo === null || hi === null || step === null || step === 0) {
+          // ⛔⛔ THE FORECLOSURE, BY NAME. A bound this lane cannot settle is not
+          // "unsupported" — it is the IR lane's, and the sentence says which.
+          throw new PineRefusal('pine:collection',
+            `${REFUSALS['pine:collection']} — `
+            + VEC.seriesDependentMessage(`the bound of the loop filling \`${vec.arrayName}\``,
+              'its \`to\` expression', loop.line),
+            loop.at)
+        }
+        const count = Math.floor((hi - lo) / step) + 1
+        if (count <= 0) continue
+        // ⭐ THE CEILING IS IN UNROLLED NODES, derived in a1 from the corpus.
+        const cost = count * Math.max(1, loop.body.length)
+        if (cost > VEC.MAX_UNROLLED_NODES) {
+          throw new PineRefusal('pine:collection',
+            `${REFUSALS['pine:collection']} — the loop filling \`${vec.arrayName}\` would`
+            + ` unroll to ${cost} expression nodes and this engine unrolls at most`
+            + ` ${VEC.MAX_UNROLLED_NODES}`,
+            loop.at)
+        }
+        for (let v = lo; step > 0 ? v <= hi : v >= hi; v += step) {
+          // ⭐ THE LOOP VARIABLE IS SUBSTITUTED, NOT BOUND.
+          const iterEnv = new Map(loop.env)
+          const S = (n) => substConst(n, loop.varName, v)
+          for (const st of loop.body) {
+            if (st.kind === 'bind') {
+              iterEnv.set(st.name, exprBinding(S(st.node), new Map(iterEnv), loop.at))
+              continue
+            }
+            if (st.target !== vec.arrayName) continue
+            if (st.member === 'set') {
+              const idx = foldIn(S(st.args[0]), iterEnv)
+              if (idx === null || idx < 0 || idx >= vec.slots.length) continue
+              vec.slots[idx] = exprBinding(S(st.args[1]), new Map(iterEnv), loop.at)
+            } else if (st.member === 'push') {
+              if (vec.slots.length < VEC.MAX_VECTOR_SLOTS) {
+                vec.slots.push(exprBinding(S(st.args[0]), new Map(iterEnv), loop.at))
+              }
+            }
+          }
+        }
+      } finally { this.env = prevEnv }
+    }
+  }
+
   resolveVectorRead(name, node) {
     const member = name.slice('array.'.length)
     const args = (node.args || []).filter((a) => !a.name)
@@ -5437,6 +5525,20 @@ export class Resolver {
       size = n
     }
 
+    // ⭐⭐ a3 — APPLY EVERY PENDING UNROLL BEFORE ANY SLOT IS READ.
+    if (vec.pending && vec.pending.length) this.applyUnrolls(vec)
+
+    // ⚰⚰ AND RE-READ THE SIZE, BECAUSE `push` GROWS THE VECTOR.
+    // `size` above is the CREATION size; an unrolled `array.push` appends, so
+    // after the unroll the array's size is `slots.length` and nothing else.
+    // Reading it before this line refused every read of the corpus's DOMINANT
+    // idiom — `array.new<float>(0)` then push-in-a-loop, which the census
+    // measured as the MEDIAN creation shape — with `holds 0 slots and this
+    // reads index 0`, a sentence that is both true of the creation and wrong
+    // about the array. `set` was immune because its slots already existed, so
+    // the bug was invisible on Clouds and on every fixture written from it.
+    size = vec.slots.length
+
     if (member === 'size') return cNum(size)
 
     if (member === 'get' || member === 'first' || member === 'last') {
@@ -5463,7 +5565,10 @@ export class Resolver {
           VEC.unwrittenSlotMessage(vec.arrayName, k, vec.line), node.tok)
         return cOp('/', [cNum(0), cNum(0)])
       }
-      return vec.slots[k]
+      // ⭐ A SLOT HOLDS A BINDING, NOT A FINISHED NODE — so it resolves in the
+      // environment the loop iteration had, which is what makes `i` inside the
+      // body mean that iteration's constant.
+      return this.resolveBinding(vec.slots[k], node.tok, vec.arrayName)
     }
 
     if (member === 'sum' || member === 'max' || member === 'min') {
@@ -8801,6 +8906,127 @@ function tupleRefusalTail(call, names, env) {
  *          when this is not an array creation at all and the caller should carry
  *          on as before.
  */
+/**
+ * ⭐⭐ a3 — READ A `for` INTO A PENDING UNROLL, or answer `null`.
+ *
+ * Shape: `for <i> = <lo> to <hi> [by <step>]`, with a body of statements that are
+ * each either `name = expr` or `array.<write>(NAME, …)`.
+ *
+ * ⛔ THE BOUNDS ARE PARSED, NOT FOLDED. Folding needs the Resolver's folder, and
+ * there is exactly one of those. What comes back is a record the first read of an
+ * affected vector applies.
+ */
+/** ⭐ Replace one NAME with a constant throughout a PARSE tree.
+ *
+ *  ⛔ A pure rewrite, not an evaluator. In an unrolled body the loop variable is
+ *  not a variable — it is this iteration's number — so saying that structurally
+ *  is both simpler and more honest than teaching the resolver to find it in a
+ *  scope it never had.
+ *
+ *  ⚰⚰ THE NODE IT WRITES IS `number`, NOT `num`. THIS MODULE HAS TWO TREE
+ *  LANGUAGES AND THEY BOTH SPELL A LITERAL WITH FOUR LETTERS OF EACH OTHER:
+ *
+ *    parse tree   `{ type: 'number', value, tok }`   what `parsePrimary` emits
+ *                 `{ type: 'unary', op: '-', arg }`   and what `resolve` READS
+ *    output tree  `{ type: 'num', value }`            what `cNum` emits
+ *                 `{ type: 'op', name: 'u-', args }`  and what `foldScalar` reads
+ *
+ *  `resolve`'s switch has `case 'number'` and no `case 'num'`, so a canonical
+ *  node spliced into a parse tree falls off the end of that switch and throws
+ *  `pine:statement`. The a3 unroll shipped that bug for a whole session: every
+ *  `array.set` index folded to null, every slot stayed unwritten, and all 21 of
+ *  Clouds' layers rendered `na` while the translation reported `ok, 0 refusals`.
+ *  ⭐ The probe that found it printed `arg0type=num` — the type THIS FUNCTION had
+ *  just written. An instrument reading back its own substitution says nothing
+ *  about the language on the other side of the call.
+ *
+ *  The original name's `tok` is carried onto the replacement so a refusal raised
+ *  further in still names the member's line and not the loop header.
+ */
+function substConst(node, varName, value) {
+  if (!node || typeof node !== 'object') return node
+  if (Array.isArray(node)) return node.map((x) => substConst(x, varName, value))
+  if (node.type === 'name' && node.name === varName) {
+    const lit = { type: 'number', value: Math.abs(value), tok: node.tok }
+    return value < 0 ? { type: 'unary', op: '-', arg: lit, tok: node.tok } : lit
+  }
+  const out = {}
+  for (const k of Object.keys(node)) {
+    const v = node[k]
+    out[k] = (v && typeof v === 'object') ? substConst(v, varName, value) : v
+  }
+  return out
+}
+
+function pendingUnrollFrom(stmt, env) {
+  const hdr = stmt.header || []
+  if (!hdr.length || hdr[0].value !== 'for') return null
+  const eq = findTop(hdr, (x) => isPunct(x, '='))
+  if (eq !== 2 || !hdr[1] || hdr[1].kind !== 'ident') return null
+  const toIdx = hdr.findIndex((x, k) => k > eq && x.kind === 'ident' && x.value === 'to')
+  if (toIdx < 0) return null
+  const byIdx = hdr.findIndex((x, k) => k > toIdx && x.kind === 'ident' && x.value === 'by')
+  const hiEnd = byIdx > 0 ? byIdx : hdr.length
+  let lo = null
+  let hi = null
+  let step = null
+  try {
+    lo = parseWholeExpression(hdr.slice(eq + 1, toIdx))
+    hi = parseWholeExpression(hdr.slice(toIdx + 1, hiEnd))
+    step = byIdx > 0 ? parseWholeExpression(hdr.slice(byIdx + 1)) : null
+  } catch { return null }
+  if (!lo || !hi) return null
+
+  // ⛔ THE BODY IS CLASSIFIED NOW, so an unrecordable statement refuses the whole
+  // loop HERE rather than half-unrolling it later.
+  const body = []
+  for (const sub of (stmt.sub || [])) {
+    const toks = sub.header || []
+    if (!toks.length) continue
+    const head = toks[0]
+    if (head.kind === 'ident' && String(head.value).startsWith('array.')
+        && VEC.WRITE_MEMBERS.has(String(head.value).slice('array.'.length))
+        && isPunct(toks[1], '(') && toks[2] && toks[2].kind === 'ident') {
+      // array.<write>(NAME, a, b)
+      // ⚰️ THE ARGUMENTS START AT 4, NOT 3. Token 3 is the comma after the
+      // target name; slicing from there put an empty leading part into the
+      // splitter and `parseWholeExpression([])` threw into the catch, rejecting
+      // the whole loop with no reason printed. Measured 2026-09-14 on
+      // `array.set ( layerArray , i , layerValue )`.
+      const inner = toks.slice(4, toks.length - 1)
+      const parts = []
+      let depth = 0
+      let cur = []
+      for (const tk of inner) {
+        if (isPunct(tk, '(') || isPunct(tk, '[')) depth += 1
+        if (isPunct(tk, ')') || isPunct(tk, ']')) depth -= 1
+        if (depth === 0 && isPunct(tk, ',')) { parts.push(cur); cur = [] } else cur.push(tk)
+      }
+      if (cur.length) parts.push(cur)
+      let args = null
+      if (!parts.length || parts.some((p) => !p.length)) return null
+      try { args = parts.map((p) => parseWholeExpression(p)) } catch { return null }
+      body.push({ kind: 'write', member: String(head.value).slice('array.'.length),
+        target: toks[2].value, args, tok: head })
+      continue
+    }
+    const e = findTop(toks, (x) => isPunct(x, '='))
+    if (e > 0 && toks[e - 1] && toks[e - 1].kind === 'ident'
+        && !MUTATORS.has(String(toks[e].value))) {
+      let node = null
+      try { node = parseWholeExpression(toks.slice(e + 1)) } catch { return null }
+      body.push({ kind: 'bind', name: toks[e - 1].value, node, tok: toks[e - 1] })
+      continue
+    }
+    return null   // a shape this recorder does not read -> no unroll at all
+  }
+  if (!body.length) return null
+  const targets = new Set(body.filter((b) => b.kind === 'write').map((b) => b.target))
+  if (!targets.size) return null
+  return { varName: hdr[1].value, lo, hi, step, body, targets,
+    at: locate(hdr[0]), line: locate(hdr[0]) && locate(hdr[0]).line, env: new Map(env) }
+}
+
 function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
   if (!rhs || !rhs.length || !nameTok) return null
   const head = rhs[0]
@@ -10301,6 +10527,24 @@ export function translatePine(source, opts = {}) {
       continue
     }
     if (BLOCK_KEYWORDS.has(word)) {
+      // ⭐⭐ a3 — AN UNROLLABLE `for` IS RECORDED AGAINST THE VECTORS IT WRITES,
+      // and this branch is left entirely alone otherwise. A loop whose body this
+      // recorder cannot read, or that writes no vector, falls through to the
+      // note and the opaque forcing exactly as before — including every `while`
+      // and `switch`, which are not unrolled at all (F4: 15 of 116 `while`
+      // guards are admissible, below the pre-committed ~20, so `while` is out).
+      const pending = word === 'for' ? pendingUnrollFrom(stmt, env) : null
+      if (pending) {
+        let attached = 0
+        for (const name of pending.targets) {
+          const prior = env.get(name)
+          if (prior && prior.kind === 'vector') {
+            prior.pending = (prior.pending || []).concat([pending])
+            attached += 1
+          }
+        }
+        if (attached === pending.targets.size) continue
+      }
       notes.push(noteOf('pine:block', REFUSALS['pine:block'], first))
       // 🔴🔴 SILENT_WRONG_RESULT GUARD — a top-level `for`/`while`/switch this
       // walker cannot fold is exactly the case the closing pass (below) exists

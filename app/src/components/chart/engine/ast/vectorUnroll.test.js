@@ -26,11 +26,12 @@ const CLOUDS = fs.readFileSync(path.resolve(
 
 const LANES = [['strict', { strict: true }], ['lenient', {}]]
 
-/** ⛔ MARKER — delete this and the `run` indirection in the commit that fills the
- *  slots. Until then each case passes BECAUSE it fails, which is visible in the
- *  reporter rather than hidden by a skip. */
-const STILL_OPEN = true
-const run = STILL_OPEN ? it.fails : it
+// ✅ THE MARKER IS GONE. It was `const STILL_OPEN = true` / `const run =
+// STILL_OPEN ? it.fails : it`, committed at 06a2258e2 so the acceptance was on
+// record before the fix; these four cases passed BECAUSE they failed. The commit
+// that filled the slots deleted it, which is the whole point of writing it that
+// way — the inversion is mechanical, not a promise someone has to keep.
+const run = it
 
 describe('a3 — Clouds unrolls, and the slots hold real trees', () => {
   for (const [lane, opts] of LANES) {
