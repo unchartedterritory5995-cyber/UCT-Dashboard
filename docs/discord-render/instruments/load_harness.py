@@ -538,6 +538,9 @@ def main(argv=None) -> int:
                     help="drive the REAL path (symbols, bars, renderer, PNG) and judge S2, not S1")
     ap.add_argument("--deliver-channel", default="",
                     help="a PRIVATE test channel id: the delivery hop becomes a real Discord write")
+    ap.add_argument("--allow-fallback-renderer", action="store_true",
+                    help="measure the mplfinance fallback ON PURPOSE. Without this, --real refuses "
+                         "to run when CHART_RENDERER_URL is unset or unreachable (OI-39)")
     ap.add_argument("--deliver-rate", type=float, default=DELIVER_RATE_DEFAULT,
                     help="writes per second; the throttle is part of the measurement")
     ap.add_argument("--drain-s", type=float, default=90.0,
@@ -560,6 +563,41 @@ def main(argv=None) -> int:
         print("TOTALS load_harness INCONCLUSIVE --real with --symbols stub is a contradiction: "
               "the symbol check is part of what S2 pays for")
         return INCONCLUSIVE
+    if args.real and not args.allow_fallback_renderer:
+        # ⛔⛔ OI-39. `house_enabled()` is exactly `bool(CHART_RENDERER_URL)`, and production renders
+        # a house chart by screenshotting /r/chart on chart-renderer. With that variable unset the
+        # whole run silently draws mplfinance PNGs in-process instead — a real pipeline producing
+        # real bytes, measuring a DIFFERENT renderer. On 2026-09-14 that produced a full set of S2
+        # figures that had to be withdrawn.
+        # ⛔ Refusing is the only honest answer: a number about the wrong renderer is worse than no
+        # number, because it looks like the one that was asked for.
+        try:
+            from api.services import discord_chart_house as _house
+            _house_on = _house.house_enabled()
+        except Exception as e:  # noqa: BLE001
+            print(f"TOTALS load_harness INCONCLUSIVE could not determine the renderer: "
+                  f"{type(e).__name__}")
+            return INCONCLUSIVE
+        if not _house_on:
+            print("TOTALS load_harness INCONCLUSIVE --real without CHART_RENDERER_URL measures the "
+                  "mplfinance FALLBACK renderer, not production's chart-renderer. That also leaves "
+                  "house_fn unwired, so the artifact cache is unreachable and reports 0/0. "
+                  "Pass --allow-fallback-renderer only if the fallback IS what you meant to measure.")
+            return INCONCLUSIVE
+        # ⚠️ And the variable being SET is not the same as the renderer being REACHABLE:
+        # chart-renderer is private-network only, so from an operator's PC the name does not
+        # resolve and every render fails with getaddrinfo. Say so before burning the run.
+        import socket
+        from urllib.parse import urlparse
+        _host = urlparse(os.environ.get("CHART_RENDERER_URL", "")).hostname or ""
+        try:
+            socket.getaddrinfo(_host, None)
+        except Exception:  # noqa: BLE001
+            print(f"TOTALS load_harness INCONCLUSIVE CHART_RENDERER_URL names {_host!r}, which does "
+                  f"not resolve from here — chart-renderer is private-network only. Every render "
+                  f"would fail with getaddrinfo. Run this inside the private network, or measure S2 "
+                  f"from the canary instead.")
+            return INCONCLUSIVE
     deliver_stats: dict = {}
     # read BEFORE the sandbox is torn down and before any load — a cumulative counter
     # needs both ends to say anything about this run
