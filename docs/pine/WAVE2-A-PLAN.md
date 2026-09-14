@@ -32,7 +32,7 @@ when it belongs to `chooseOutput`.
 | **a1** | the decidability probe | ✅ **DONE** — `12cbdd289` |
 | **a2** | plan-time vectors; reads fold to slot trees | ✅ **DONE** — `223f58ad2` (creation recorded), `66a4a5250` (reads fold) |
 | **a3** | the unroll | ✅ **DONE** — `06a2258e2` (acceptance, red), `a1de7a6f5` (green) |
-| **a4** | `for [i, x] in` over plan-time slots · `while` refused with its routing note · `for x in` over a series-sized source refused to item (c) | ⏳ **THIS SUB-STEP** |
+| **a4** | **REVISED BY R1/R2** — no new iteration form is built. Every retired loop form (`for x in`, `for [i, x] in`, `while`) refuses **at its own line**, with the code its SOURCE determines, replacing today's `pine:block` note plus a later unrelated `array.get` refusal | ⏳ **THIS SUB-STEP** |
 | **a4b** | **the accumulator fold** — a counted-`for` body of the shape `s := s op e` folds to a left-nested op chain | ⛔ **CENSUS FIRST, THEN A GO** — ruling R3 |
 | **a5** | reductions unrolled over written slots, each checked against Pine's `na` semantics, with the source recorded | ⛔ **SCOPE AWAITING OWNER CONFIRMATION** — see below |
 | **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
