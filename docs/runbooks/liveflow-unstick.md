@@ -39,3 +39,36 @@ The physics did not change, so know what a mid-session push costs:
 
 ---
 *P0 landed 2026-07-06 evening: exec + drainingSeconds:30 + --timeout-graceful-shutdown 5 live on both services (`0cc854ec`); worker watch paths active. This line doubles as the negative watch-path smoke commit (docs-only → worker must NOT rebuild).*
+
+---
+
+## ⛔ FOR THE FLOW-WORKER WORKSTREAM — the coverage rail's CI exit code changed (2026-09-14)
+
+**`flow-worker deploy coverage` now exits 0 on a RED and reports through a `::warning::`
+annotation plus the GitHub job summary. The rail is unchanged; only its CI exit code is.**
+
+**Why it had to change.** `docs/runbooks/deploy-windows.md` has always said a red there is
+a REVIEW GATE requiring a written classification, never a block. The workflow ran
+`tools/flow_worker_watch_coverage.py` directly, which exits non-zero, so GitHub recorded
+that deliberate signal as a **failed check**. Harmless while nothing consumed check
+status — and load-bearing the moment Railway's **"Wait for CI"** entered the picture,
+because it waits on **all** checks. Enabling it would have turned this rail into a hard
+deploy block for essentially every backend change.
+
+**Measured, last 50 master runs:** 44 pass / 6 "fail" — and all six were correctly
+classified ADDITIVE breadth merges (`b4c141948`, `725151fd3`, `685a19bdb`, `7705c2d3b`,
+`2d7ae7795`, `bd68c4147`), each with a written strand classification in `docs/breadth/`.
+Not one was a real defect.
+
+⭐ **The signal is not weakened.** The same text now appears as a warning on the commit
+and in the job summary, which is more readable than a red X was — a reviewer previously
+had to open the run to learn whether a failure meant anything.
+
+⚠️ **The SCRIPT still exits non-zero.** `python tools/flow_worker_watch_coverage.py` run
+locally still fails, which is what a developer's own run should do. The neutralisation is
+in the workflow only, at the one place an exit code was being read as a deploy verdict.
+
+⚠️ **If you want this to be a hard block again**, the honest way is to say so in
+`deploy-windows.md` first and change the rule — not to restore the exit code and leave the
+runbook saying the opposite. That mismatch is what cost this day.
+
