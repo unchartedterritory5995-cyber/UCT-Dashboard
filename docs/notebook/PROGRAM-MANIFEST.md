@@ -1599,6 +1599,45 @@ Closing it requires building an instrument first — that is a task, not a looku
     dirty record"* is an instance. *"a guard proved at one call site is not proved
     for the class"* is the thing that finds the other three.
 
+36. ⚖️ **AN ALIASED CALL IS STILL A CALL — resolve the NAME, not the TEXT.**
+
+    > **A sweep for a call site resolves imports and aliases through the AST. A
+    > string search for the callee's own name is not a sweep, and its empty
+    > result is not a clean answer.**
+
+    ⚰️ **2026-09-14, and it failed in the flattering direction.** Closing S-07's
+    precondition, I swept for callers of `ensure_schema(` and got a count that let
+    me call the strand INERT. The real call site reads `_ensure_j2_schema(conn)`—
+    the same function, imported under a local alias — so the search was asking
+    whether anyone had typed a particular string, never whether anyone calls the
+    function.
+
+    ⭐ **The direction is the whole point.** A sweep that misses call sites
+    reports FEWER of them, so the answer arrives as *"nothing else does this"* — a
+    conclusion that ends an investigation rather than extending one. A sweep that
+    over-matches produces noise somebody has to read; this one produces silence
+    nobody thinks to question. Same family as **§10.7** (grepping the CONSUMER
+    for the PRODUCER's name, which returned 0 at five revisions for a finding that
+    was correct) and the `reachable.test.js` rule in CLAUDE.md: *an AST, never a
+    grep* — already learned once, in this repo, for this exact reason.
+
+    ⛔ **THE FIX, and it is mechanical:** resolve the binding. Parse the module,
+    follow `import { ensureSchema as _ensure_j2_schema }` / `from x import y as z`
+    to the imported NAME, and count calls on the resolved symbol with shadowing
+    respected. `singleWriterIndex.test.js` already does exactly this for
+    `StockChart.jsx`'s developing-bar writers (alias-resolved, shadowing honoured)
+    — that is the pattern to copy, not to reinvent.
+
+    ⚠️ **What this does NOT invalidate:** S-07's precondition really is
+    **INERT STRAND**, confirmed by the owner after the alias was resolved. The
+    finding was right; the *method* that produced it could not have known that,
+    and would have said the same thing had the strand been live.
+
+    ⭐ **The tell:** a sweep whose result is **zero** deserves the non-vacuity
+    control §10 already demands of every shelling-out rail — search for something you
+    KNOW is there first. An empty result is a failed invocation until proven
+    otherwise, and that rule does not stop at subprocess boundaries.
+
 ### Rows added by §10
 
 | id | feature | status |
