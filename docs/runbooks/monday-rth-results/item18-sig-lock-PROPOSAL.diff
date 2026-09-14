@@ -1,0 +1,112 @@
+PROPOSAL ONLY — NOT LANDED, NOT APPLIED. Monday 2026-09-14 RTH close run, item 18.
+
+Two changes to api/flow_router.py: one INSTRUMENT (names the residual) and one
+one-line CORRECTNESS fix (a candidate cause, falsifiable by the instrument).
+
+⛔ DEPLOY TIER: api/flow_router.py IS on flow-worker's watch list (confirmed by
+   `python tools/flow_worker_watch_coverage.py` and the mirror in
+   api/flow_worker_main.py). Landing this RESTARTS the OPRA consumer and gaps the
+   tape permanently until the T+1 flat file. AFTER-HOURS OR WEEKEND ONLY.
+
+⛔ Land the INSTRUMENT first, alone, and read one RTH session before landing the
+   fix. If the fix ships in the same window there is no before-picture, and this
+   becomes the sixth speculative fix in a thread that has already paid for five.
+
+
+--- a/api/flow_router.py
++++ b/api/flow_router.py
+@@ -200,6 +200,22 @@
+ _SIG_PROBE_SEC = 5.0
+
++# ── How long callers wait for _SIG_LOCK, and how long the probe itself takes ──
++#
++# Monday 2026-09-14 measured SEVEN rolls with handoff_ms > 500 (worst 44,539 ms)
++# and `blocked_by` NULL on all 89 — so the existing attribution, which watches
++# `_PREPARE_INFLIGHT`, cannot name any of them. It is watching the wrong lock.
++# `_current_version()` holds _SIG_LOCK across a SQLite read of flow.db, the same
++# database the OPRA consumer writes continuously during RTH, and EVERY caller
++# serialises on it: the /api/flow/version endpoint, the preparer's poll tick, and
++# _prepare_once's own first line — which runs BEFORE _INFLIGHT_HOLDER is set and
++# BEFORE t0 starts, so a wait here lands in handoff_ms, is absent from
++# prepare_ms, and leaves blocked_by null. That is today's reading exactly.
++#
++# ⛔ TWO SCALARS, HIGH-WATER ONLY, same discipline as the roll ledger: the
++# endpoint is unauthenticated and capped, so this is not a trace.
++_SIG_WAIT_MAX_MS = 0.0    # worst lock acquisition since the last roll
++_SIG_PROBE_MAX_MS = 0.0   # worst _data_signature() since the last roll
++
+
+ def _data_signature():
+@@ -238,17 +254,29 @@
+     global _SIG_LAST, _SIG_VERSION, _SIG_PROBED_AT
++    global _SIG_WAIT_MAX_MS, _SIG_PROBE_MAX_MS
+
+     bucket = int(time.time() // _VERSION_BUCKET_SEC) + _FORCE_BUMP_OFFSET * 10_000_000
+
+-    now = time.monotonic()
++    _t_before_lock = time.monotonic()
+     with _SIG_LOCK:
++        now = time.monotonic()
++        _SIG_WAIT_MAX_MS = max(_SIG_WAIT_MAX_MS, (now - _t_before_lock) * 1000)
+         # Inside the probe window, reuse the last decision. Never extend the
+         # freeze on an unprobed signature — if we have no version yet, fail open.
+         if _SIG_VERSION is not None and (now - _SIG_PROBED_AT) < _SIG_PROBE_SEC:
+             return _SIG_VERSION
+
++        _t_probe = time.monotonic()
+         sig = _data_signature()
+-        _SIG_PROBED_AT = now
++        _SIG_PROBE_MAX_MS = max(_SIG_PROBE_MAX_MS,
++                                (time.monotonic() - _t_probe) * 1000)
++        # ⛔ STAMP THE PROBE AT THE TIME IT FINISHED, NOT AT THE TIME THIS CALLER
++        # ARRIVED. `now` used to be read BEFORE `with _SIG_LOCK`, so a caller that
++        # waited 30 s for the lock recorded a probe 30 s in the past — and every
++        # caller after it then saw an expired window and re-probed, each holding
++        # the lock across its own database read. One slow probe became a probe
++        # storm that sustained itself until the read got fast again. That is a
++        # positive feedback loop and it fits the measured shape: handoffs are
++        # either ~2 ms or >5 s, with NOTHING between 101 and 500 ms.
++        _SIG_PROBED_AT = time.monotonic()
+
+         if sig != _SIG_LAST or _SIG_VERSION is None:
+             _SIG_LAST, _SIG_VERSION = sig, bucket
+
+
+--- and in _record_roll(), beside the existing three attribution scalars ---
+
+@@ (in the dict _record_roll appends to rolls_steady[])
+         "handoff_ms": ...,
++        # The residual's two candidate homes, high-water since the last roll.
++        # A large handoff with sig_wait_ms ~= handoff_ms names the lock;
++        # a large handoff with BOTH near zero exonerates it and the hunt moves on.
++        "sig_wait_ms": round(_SIG_WAIT_MAX_MS),
++        "sig_probe_ms": round(_SIG_PROBE_MAX_MS),
+
+    …then reset both to 0.0 at the end of _record_roll, so each roll reports its
+    own window rather than the high-water mark of the whole process.
+
+
+=== WHAT WOULD CONFIRM OR KILL THIS ===
+
+One RTH session with the INSTRUMENT ONLY, read off rolls_steady[] exactly as
+today's item 12 was:
+
+  CONFIRMS  a roll with handoff_ms > 5000 whose sig_wait_ms is the same order.
+            Then the residual is named, and the one-line fix is justified.
+  KILLS     a roll with handoff_ms > 5000 and sig_wait_ms ~0. Then _SIG_LOCK is
+            exonerated, the stall is somewhere else, and this diff is discarded
+            rather than "improved".
+
+⭐ NON-VACUITY: the instrument must be shown able to report a non-zero
+   sig_wait_ms at all before any zero means anything. The 5 s probe window makes
+   zeros the common case by design. Assert a non-zero reading is possible — e.g.
+   two threads calling _current_version() with a stubbed slow _data_signature()
+   in a unit test — or the field is decoration and an all-zeros session reads as
+   "the lock is innocent" when it may mean "the field never worked".
+
+=== WHY NOT JUST SHIP THE ONE-LINE FIX ===
+
+Because it would be the sixth speculative fix on a thread that has already paid
+for five, and it would be unfalsifiable afterwards: if handoffs improve, nobody
+can say whether this was the cause; if they do not, nobody can say whether the
+mechanism is wrong or merely secondary. The instrument makes it answerable.

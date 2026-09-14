@@ -71,7 +71,34 @@ Ship as part of a bundle; do not spend a tape gap on this alone.
       Projected with the flag on: p50 ≈ 4,800 ms. **Projected, never measured** — the
       1.3461 s → 0.0050 s figure is measured on prod data directly, but its effect on
       a whole roll is arithmetic until this row is filled in.
-      Measured p50 with flag ON: ______  (n=____, date ______)
+
+      ✅ **Measured p50 with flag ON: 5,400 ms** (steady-state plateau; n=89 rolls,
+      2026-09-14 RTH). **−799 ms / −12.9%** against the 6,199 ms baseline.
+
+      ⛔ **QUOTE THE PLATEAU, NOT THE SESSION p50** — the same session yields three
+      different headline numbers depending only on where you stop counting:
+
+      | window | p50 | delta |
+      |---|---|---|
+      | n=60, 09:30–10:29 | 3,334 ms | −46.2% |
+      | n=89, 09:30–10:58 | 4,328 ms | −30.2% |
+      | **steady-state plateau** | **~5,400 ms** | **−12.9%** ← the honest one |
+
+      `prepare_ms` RISES THEN FLATTENS across the open — quarter-hour p50 1,182 →
+      2,701 → 3,536 → 5,538 → 5,449 → 5,351 ms — because it tracks tape volume, and
+      Last1 `raw_rows` grew **52×** (503 → 26,107) in that hour. A p50 taken from the
+      open is weighted toward the cheapest builds of the day. The last three
+      quarter-hours agree within 3.5%, so the curve settles rather than running away.
+
+      ⚠️ **The comparison is still not like-for-like, and that is the baseline's gap,
+      not the measurement's:** the 2026-09-11 baseline records `n=25` and the flag
+      state but **not its tape volume or time of day**. −12.9% is the closest honest
+      read because it is the only one taken where the tape had stopped growing.
+      It is also *smaller* than the ~1.34 s component saving, which is coherent: the
+      component does save ~1.3 s, and a busier tape than the baseline's eats some of
+      it. The −46.2% read implied the flag bought twice what its own component can.
+      **To settle it properly, compare on `raw_rows`, not clock time.** Evidence:
+      `docs/runbooks/monday-rth-results/item8.json`.
 - [ ] Exclude `rolls_startup[]`; a generation predating the process is
       `startup_catchup`, not a roll.
 - [ ] Rollback: unset the var. It is a RUNTIME var on flow-worker (not a Vite
@@ -278,12 +305,26 @@ because pass 2 always returned `None`:
   post-flag counterpart. **The component is measured (1.4227 s → 0.0028 s); the roll is
   not.** Do not quote a roll-level improvement until this row is filled.
 
-      Measured p50 with flag ON: ______  (n=____, date ______)
+      ✅ Measured p50 with flag ON: **5,400 ms** steady-state plateau
+         (n=89, 2026-09-14). −12.9% vs 6,199 ms. See the checklist above for why the
+         plateau and not the session p50 (which reads −30.2%, or −46.2% at n=60).
 
-- **"No new exceptions across ≥5 rolls."** Zero exceptions observed, but only ONE
-  prepare cycle has run. Five rolls needs an active tape.
-- Cold first paint via the browser rig · handoff attribution (`blocked_by` /
-  `blocked_pass` / `blocked_held_ms`) over a full session.
+- ✅ **"No new exceptions across ≥5 rolls."** MEASURED on 89 steady rolls:
+  `build_failures` 0 and `parts_rejected_missing` 0 on every one of 454 samples,
+  parts cache pinned at 10, `pass2_skipped` false 89/89, versions 29823210–29823298
+  contiguous with no gaps. `item5.json` · `item15.json`.
+- ✅ Cold first paint via the browser rig — **path B shell 542 ms median / 648 ms
+  worst, picks 2,020 ms / 3,945 ms worst, 134 KB, parts on 6 of 6** (`item10.json`);
+  path A 10,104 ms median / 16,169 ms worst, of which ~9.5 s is the intro
+  (`item9.json`).
+- 🔴 Handoff attribution over a full session — **measured and it FALSIFIED the
+  standing hypothesis.** 7 of 89 rolls exceeded 500 ms (worst **44,539 ms**) and
+  `blocked_by` / `blocked_pass` / `blocked_held_ms` are **null on all 89**. Not one
+  large handoff is attributable to a lock hold, so residual is 100% of handoff in
+  every case. See "Component 3" above, whose expectation was that `blocked_by`
+  "should name it — or show the slot was free, which kills the hypothesis outright."
+  **It showed the slot was free.** `item12.json`, and the follow-up proposal in
+  `docs/runbooks/monday-rth-results/FINAL-REPORT.md` §18.
 
 ⚠️ One number worth watching Monday, recorded because it is not yet explained: the
 first prepare after the *bundle* boot took **110,929 ms**, while the first prepare
@@ -775,6 +816,17 @@ web rebuild. The backend half is independent and is read per request.
 
 ## Item 22 — GEX crosshair lag: SPIKE PLAN ONLY (not started)
 
+> ⚰️ **SUPERSEDED — THIS PLAN WAS EXECUTED ON 2026-09-13 AND THE THREAD IS CLOSED.**
+> Read **"Phase 2 — the crosshair lag: NO GEX-SPECIFIC LAG IS MEASURABLE"** further
+> down this file; it is the authority and this is the plan it ran. Kept because the
+> plan's step 5 and step 8 are referenced there. ⛔ Do not read the heading
+> "(not started)" as current state — two headings in one file disagreeing about
+> whether work has happened is exactly the second-authority defect this project keeps
+> paying for. The spike found a **crash** first (`fmtGex is not defined`, fixed in
+> `67566d999`, on master), then measured **60 fps locked** on the now-rendering chart.
+> The only thing still open is the owner's own DevTools trace on their own display —
+> item 24 of `options-flow-status.md`, an OWNER-DECISION, not a workstream task.
+
 1. **Surface / interaction:** `/options-flow` → GEX tab → "📈 Chart with Levels";
    continuous cursor movement across the plot for ~5 s. No other chart in the app lags.
 2. **It does NOT need RTH.** The lag is driven by per-frame redraw of the 8–12 GEX
@@ -1008,6 +1060,36 @@ protocol does not, the protocol is what is wrong, and it is `tools/gex_crosshair
 to fix.
 
 ## TOP 10 / request storm — NOT a client defect. It is the cold-pod fallback firing.
+
+> ### ⚰️ CORRECTED 2026-09-14 — the MECHANISM below is right; "cold pod" is TOO NARROW
+>
+> **The storm reproduced 5 times in 14 runs on a pod 2,353–3,085 s old**, plus once
+> more in the cold-paint rig — roughly **one load in three** during a live RTH window.
+> The section below concluded `0 / 8` storms on a warm pod and scoped the cost to
+> "**only in the ~2 minutes after a deploy**". That scoping is **falsified**: it was
+> measured on a Saturday, where the only way to make prehydrate miss a 3 s deadline
+> was to boot a cold pod.
+>
+> ⭐ **The client mechanism is unchanged and the diagnosis below still stands.**
+> `PREHYDRATE_FALLBACK_MS = 3000` fires, `_demandTape()` sets `tapeDemanded`, the
+> effect re-runs and re-issues both first-paint parts plus the legacy tape. What was
+> wrong was the list of things that can make the server miss 3 s. During RTH there is
+> a second trigger, and it is the common one: **`/api/flow/version` stalls for
+> 6.3–32.3 s**, taking the first-paint parts with it (they complete within ~3 ms of
+> it), because a roll is holding the lane server-side. In 4 of 5 storms picks-mount
+> time tracks the version request almost exactly, and one stall matched a
+> server-side `handoff_ms` to 15 ms: **6,325 ms server / 6,340 ms client**.
+>
+> ⛔ **So the trigger is the handoff residual (§18 of the RTH final report), not the
+> pod's age** — which changes the "NOT FIXED, deliberately" call below from "a
+> 2-minute post-deploy cost" to "a recurring RTH cost". The recommendation is still
+> **not to touch the 3 s threshold** (it remains the safety net that stops an empty
+> page), and the client handles the stale tape correctly — `shouldSkipStaleParse`
+> discards it unparsed. The cost is bytes and a duplicate round: **870,699 B against
+> 134,015 B clean, 6.5×**. Fix it upstream at the stall.
+>
+> Evidence: `docs/runbooks/monday-rth-results/item13.json` (20 probe runs, mounts
+> counted) and `item12.json` (the handoff distribution).
 
 Instrumented on path B, runtime injection only, no file edited for the diagnosis: a
 fetch wrapper capturing each request's initiator stack, dispatch time and returned
