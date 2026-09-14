@@ -442,3 +442,39 @@ failed on the paragraph explaining that rule; and the harness's new self-check h
 as a fixture, in a committed file, in a public repo — found by the scanner, which is the whole argument for having one.
 That commit reached no remote and was rewritten away. **The exempt files are now held to a stricter rule than the scan
 they are exempt from** (no long high-entropy literal), because an allowlist is exactly where a secret hides.
+
+### D-039 · The password-change session defect found by D-038 is fixed and live
+
+**Decision.** The defect D-038 recorded — on this app a password change writes `password_hash` and nothing else, so
+every stolen session survives it — shipped as its own corrective change on its own branch, gate and merge:
+`fix/password-change-revokes-sessions`, merged **`bd68c4147`**, deploy `7c380b6a` **SUCCESS** 2026-09-14T04:02:50Z.
+Member-facing: *"Security: changing your password now signs out all other devices."*
+
+`auth_service.revoke_sessions(user_id, keep_token=None)` is the one implementation, and
+`POST /api/auth/sessions/revoke-others` now calls it too so the endpoint and the password paths cannot drift.
+
+⛔ **THREE functions write a password, not two.** The one outside the original scope —
+`execute_password_reset`, the emailed forgot-password link — is the most important of the three: it is the path a
+locked-out or compromised member actually reaches for, and until this change it reset the password and left the
+attacker signed in. It revokes everything; there is no caller session to preserve. Self-service keeps only the calling
+device; admin reset keeps nothing.
+
+**Verified on the shipped build, not just in tests** (member-smoke, production): two live sessions → self-service
+change → **the device that changed it stayed 200 and the other device went 401**, with
+`other_sessions_signed_out: true` on the response. `revoke-others` through the new shared implementation: 3 alive →
+`revoked: 14` → caller 200, others 401/401.
+
+⚠️ **Two process failures on this change, both worth more than the fix.** The first commit was authored against a
+**RED run** — the last pytest before it printed `1 failed, 5 passed` and its message claimed six passing. The cause
+was a fixture domain: `AdminResetRequest.email` is an `EmailStr` and the validator refuses special-use domains, so
+`*.invalid` 422s before the endpoint is reached while `.internal` passes. **The five service-level cases never touch
+Pydantic and passed regardless — a fixture can be wrong for five tests and fatal for the sixth**, which is exactly the
+shape that makes a partial green read as a whole one. Second, the correction was `--amend`ed onto a MERGE commit
+rather than the fix, leaving the red test in history; the branch was local-only, so it was restructured into one
+commit on master. Neither reached a remote.
+
+⭐ **A backend-only change is NOT gated by the six-shard vitest gate**, which cannot see it — zero `app/` files. The
+gate that applies is the scoped backend suite: 6/6 in the new rail and **312 passed** across every auth surface it can
+reach. Flow-worker is an **INERT STRAND**, traced rather than assumed: its closure takes exactly one symbol from
+`auth_service` (`validate_session`, via `flow_gap_autofill.py:45` → `flow_admin_auth.py:24`) and this change touches
+it in zero lines, so forcing a redeploy would buy a permanent OPRA tape gap for no behavioural difference.
