@@ -39,6 +39,35 @@ scan did NOT run. This is not a pass."* The hook warns rather than blocks, by
 design, and was **not edited**. Installing the tool is now the first line of the
 resume checklist in `docs/runbooks/indicator-ecosystem-resume.md`.
 
+### ⚠️ THE RIG HELPERS WERE OOM-KILLED AFTER THE LANE — NOTHING WAS LOST
+
+The host stopped three of this session's background processes for low memory, all
+of them **after** the 12-chunk lane finished and every measurement above was
+recorded:
+
+| task | what it was |
+|---|---|
+| `b34txf73x` | the sandbox backend on `127.0.0.1:8129` — what the mobile audit and the pane captures drove |
+| `bquipw137` | the fixture server on `8124` |
+| `br96yaz3k` | the sink, in re-freeze mode |
+
+⭐ **No result depends on them still being up.** Every number in this document was
+taken while they were running and is committed; the branch was clean and pushed
+before they died. Confirmed after the kills: `git status` clean, `origin == local`
+at `fac0c40d9`, and both ports answer nothing.
+
+⛔ **So the audit sections above are a RECORD, not a running state.** Anything that
+drives a browser again — a re-audit, a fresh vendor capture — must start the
+backend first (`docs/pine/wip/rig/boot_rig.py`, with `UCT_RIG_DATA` pointing
+OUTSIDE any worktree; it refuses otherwise) and re-check the rig tab against the
+binding gate: own-text `Add to chart` **plus 0 studies**.
+
+⚰️ And the kills are themselves the box's standing hazard, arriving on cue: this
+machine OOM-kills long-lived processes under load, which is why the backend suite
+runs in twelve chunks and why one heavy process at a time is a rule rather than a
+preference. Three helpers dying immediately after a full lane is that rule being
+demonstrated, not a new fault.
+
 ### The post-merge verification, as measured
 
 | lane | result |
