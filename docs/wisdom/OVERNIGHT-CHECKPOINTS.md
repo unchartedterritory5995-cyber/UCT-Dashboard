@@ -508,3 +508,27 @@ whose drift is below 0.8)"*, and that CALL/MENTION/NEGATIVE_CALL/LEVEL keep sing
 their disagreement is genuinely about which calls exist, and the paraphrase lens does not apply
 to them. There is no cheap identity fix there; the only lever is more passes. Taken literally the
 rule triples the whole catalog bill rather than the teaching half.
+
+### Item 6 — the 3-pass projection, printed before anything is submitted
+
+Measured on `wx-v0-fc47bc97`: **$0.07607 per segment**, **$0.005192 per kept record** (batch,
+opus-5, effort high, cache read share 0.877, 0 errors).
+
+| | |
+|---|---|
+| documented 1-pass catalog estimate | **$80.00** (the basis of `WISDOM_EXTRACT_BUDGET_USD = 80 × 1.5`) |
+| implied segments at the measured rate | ~1,052 |
+| **3 passes** | **$240.00** |
+| `WISDOM_EXTRACT_BUDGET_USD` cap | $120.00 |
+| **over the cap by** | **$120.00** |
+
+⛔⛔ **A CALL RETURNS ALL SIX RECORD TYPES, so "3-pass on PRINCIPLE/MARKET_SIGNAL" is not
+purchasable as written.** Three passes over a source is three passes of everything in it. The
+lever is **which SOURCES get three passes**, not which types — teaching-heavy sources (workshops,
+Mental Game, interviews) are where PRINCIPLE lives, and 3-passing those while single-passing the
+rest is the shape that fits under the cap.
+
+⚠️ **Two numbers are owed before any submission** and neither is guessable from here: the
+per-source segment counts (the catalog is not on this box), and a re-based 1-pass estimate —
+$80 is documented, not measured, and the measured per-segment cost has fallen since it was
+written. "Likely under $80" is not a budget.
