@@ -526,6 +526,12 @@ class VolumeCache:
         if not isinstance(header, dict) or header.get("v") != _FORMAT_VERSION:
             raise ValueError("not a v%d artifact header" % _FORMAT_VERSION)
 
+        # ⭐ LENGTH AND SHA-256 ARE NOT TWO COPIES OF ONE GUARD, and it is worth saying which does
+        # what so nobody deletes the "redundant" one. SHA-256 is the DETECTOR of damaged BYTES — it
+        # catches a flipped byte, and it catches a truncation too. What each field catches ALONE is
+        # a malformed HEADER: one that declares no length, or one that declares no digest. Both
+        # cases are in the rails, which is what makes this two guards rather than one written twice
+        # (`lesson_a_guard_repeated_is_a_guard_unproved`).
         payload = blob[nl + 1:]
         declared = header.get("len")
         if not isinstance(declared, int) or declared != len(payload):
