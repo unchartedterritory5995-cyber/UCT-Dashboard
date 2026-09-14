@@ -943,3 +943,55 @@ you do not wait for is a comment.
 ⛔ **Standing correction for the rest of this programme: no scheduled action fires on a remembered
 time. Read the clock in the same tool call that takes the action, or let the timer's own completion
 be the trigger.**
+
+### 2026-09-14 — the 15:49 rule breach, and the guard that now refuses it
+
+**Breach.** A master push at **15:49 ET**, eleven minutes inside the RTH window, after the
+integrator had reasoned the merge should wait for the close, written that decision down, and set a
+timer to enforce it. The timer was never waited on; the push went on a mental estimate of elapsed
+time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted in the last minutes of
+the session. `/api/health` 200 afterwards; no scheduled task was due between 15:45 and 15:55, so no
+APScheduler slot was lost.
+
+**Fix.** `tools/pre_push_guard.py` now refuses a master push between **09:25 and 16:05 ET on trading
+days** unless every changed path is on the daytime-cleared list, which is **derived from
+`docs/runbooks/deploy-windows.md` Tier 1 and re-read at test time** so it cannot drift from the
+runbook. Replayed against the incident's own minute and diff:
+
+```
+the 15:49 push (api/ + tests + docs)  ->  REFUSE
+  not cleared:  api/services/discord_interactions.py
+  next allowed: 2026-09-14 16:05:00 ET — in 15m 48s
+a docs-only push at the same minute   ->  OK
+an empty diff  /  git did not answer  ->  REFUSE
+```
+
+⭐ **It fails closed in every unknown case**, and that is the half that matters: an empty diff and an
+unanswered git are refusals, not exemptions — *an empty result is a failed invocation until proven
+otherwise*. An unreadable clock refuses too, because a guard that passes when it cannot tell the
+time reports "fine" precisely when it has stopped working.
+
+⭐ **The clock is the product's own.** `freshness` is imported and asked exactly one question — *is
+this a trading day?* — with a rail that fails if a holiday table is ever pasted into the guard. The
+09:25–16:05 window is deliberately WIDER than the session and is the guard's own policy, so it is
+not a second copy of `session_state`.
+
+**Override** is an exact value (`UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART`), separate from
+the queue bypass — a test proves skipping the queue check does not also buy an RTH restart — and it
+is logged.
+
+⚠️ **Open:** `deploy-windows.md` documents the queue guard and has no section on the clock guard.
+Flagged by the lane rather than edited, to avoid a collision; it is the integrator's to write.
+
+### 2026-09-14 — the harm check that could not have seen harm
+
+The `502` filter used to check the breach matched **millisecond fields** (`19:41:44,502`), so "no
+502s found" was never a measurement. `tools/deploy_blip_check.py` replaces it with a
+**structured-field** parser whose forms are derived from what `api/**` actually logs, with the
+mandatory pair proved: a real `HTTP 502` line is **counted**; `19:41:44,502` is **not**; and a
+discriminator line carrying both (`19:41:44,502 … status=200`) parses to **200**.
+
+⭐ `-> N` is deliberately EXCLUDED as a status form: it appears 18 times in `api/**` and most are
+prose arrows, so accepting it would re-commit the original defect in a narrower costume.
+Three-valued, and **INCONCLUSIVE rather than CLEAN** when no line in the window carries a status at
+all — including when the log pull was a FLOOR rather than EXACT.
