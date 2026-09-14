@@ -385,7 +385,7 @@ async def _await_terminal(store, corr_id: str, deadline: float) -> str:
 
 async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, symbols_mode: str,
                             tickers: list, real: bool, deliver_channel: str,
-                            deliver_rate: float, drain_s: float,
+                            deliver_rate: float, drain_s: float, think_s: float = 1.0,
                             deliver_stats: dict | None = None) -> dict:
     """N virtual members, each issuing its next request only when its previous one RESOLVES.
 
@@ -453,13 +453,25 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
                                                                      time.perf_counter() + drain_s))
                     resolutions[state] = resolutions.get(state, 0) + 1
                 else:
-                    # ⛔ NO corr_id means the request was REFUSED at admission (queue_full, a
-                    # throttle, a bad symbol). That is a resolution — the member has their answer —
-                    # so the client is free immediately. Counting it as still-in-flight would
-                    # silently lower the offered load exactly when the system is under stress.
+                    # ⛔⛔ A REFUSED MEMBER IS FREE, BUT NOT INSTANTLY — AND THE FIRST VERSION OF
+                    # THIS LOOP GOT THAT WRONG. It resolved refusals with no delay, so 30 clients
+                    # hammering the per-member throttle produced **521,654 attempts in 20 seconds**
+                    # and six acks over 3 s. Those acks were MY spin, not the system: a real member
+                    # told "slow down" does not retry twenty-six thousand times a second.
+                    # ⭐ This is OI-37's own mistake in miniature — a load model that does not model
+                    # the load — so the think time is explicit, parameterised and recorded in the
+                    # artifact rather than tuned until the graph looks right.
                     resolutions["refused_at_admission"] = resolutions.get("refused_at_admission", 0) + 1
+                    if think_s > 0:
+                        await asyncio.sleep(think_s)
             finally:
                 inflight -= 1
+            if think_s > 0:
+                # Between requests: a closed-loop client with no think time models a BOT,
+                # not a member, and the offered load then depends on service time rather
+                # than on member behaviour. OUTSIDE the finally, so the member is not
+                # holding an in-flight slot while they are 'thinking'.
+                await asyncio.sleep(think_s)
 
     async def gauge() -> None:
         while time.perf_counter() < end_at:
@@ -489,7 +501,8 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
     return {"samples": samples, "kinds": kinds, "queue": rt.depth() if rt else {},
             "queue_depth": queue_depth, "runtime": rt,
             "elapsed_s": time.perf_counter() - started,
-            "concurrency": {"requested": concurrency, "peak_inflight": peak_inflight,
+            "concurrency": {"requested": concurrency, "think_s": think_s,
+                            "peak_inflight": peak_inflight,
                             "mean_inflight": round(mean_inflight, 2),
                             "resolutions": resolutions}}
 
@@ -838,6 +851,11 @@ def main(argv=None) -> int:
     ap.add_argument("--arrival-rate", type=float, default=None,
                     help="OPEN LOOP: interactions per second, scheduled on a clock "
                          "regardless of whether earlier ones finished")
+    ap.add_argument("--think-time", type=float, default=1.0,
+                    help="CLOSED LOOP: seconds a virtual member waits before its next "
+                         "request. 0 models a bot, not a member — and a refused client "
+                         "with no think time hot-spins the throttle (measured: 521,654 "
+                         "attempts in 20 s)")
     ap.add_argument("--concurrency", type=int, default=None,
                     help="CLOSED LOOP: N virtual members held in flight; each issues its "
                          "next request only when its previous one resolves")
@@ -890,7 +908,7 @@ def main(argv=None) -> int:
 
     sys.path.insert(0, str(_repo_root()))
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="drender-load-"))
-    meta = {"model": model, "arrival_rate": args.arrival_rate,
+    meta = {"model": model, "arrival_rate": args.arrival_rate, "think_time_s": args.think_time,
             "concurrency": args.concurrency,
             # ⛔ `rate` is kept in the artifact ONLY so an old reader does not silently
             # read None; `model` is the field that says what the number means.
@@ -955,7 +973,7 @@ def main(argv=None) -> int:
                 args.concurrency, args.seconds, members=args.members, symbols_mode=args.symbols,
                 tickers=_tickers, real=args.real, deliver_channel=args.deliver_channel,
                 deliver_rate=args.deliver_rate, drain_s=args.drain_s,
-                deliver_stats=deliver_stats))
+                think_s=args.think_time, deliver_stats=deliver_stats))
         else:
             out = asyncio.run(drive(args.arrival_rate, args.seconds, members=args.members,
                                     handler_ms=args.handler_ms, symbols_mode=args.symbols,
