@@ -194,7 +194,7 @@ def accept_gate():
     with store.write() as conn:
         golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version=prompt.extractor_version(), n=1,
                            metrics={"model": config.configured_model(), "effort": config.configured_effort(),
-                                    "golden_version": "gtest", "split": "dev",
+                                    "golden_version": "gtest", "golden_sha256": "c" * 64, "split": "dev",
                                     "per_type": {"MENTION": {"tp": 1, "fp": 0, "fn": 0, "precision": 1.0,
                                                              "recall": 1.0, "n_expected": 1,
                                                              "n_predicted_scored": 1}}})
@@ -298,12 +298,49 @@ def test_the_budget_stops_before_the_request_that_crosses_it_and_pages(env, monk
     assert none["status"] == "budget_stop" and none["selected"] == 0 and len(fake.messages.batches.created) == 1
 
 
+def _table_counts():
+    """Every table run_daily can write, counted — not just the one it is easiest to check."""
+    with store.read() as conn:
+        return {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                for t in ("wisdom_extract_requests", "wisdom_batches", "wisdom_records", "wisdom_segments",
+                          "wisdom_review_queue", "wisdom_eval_runs")}
+
+
 def test_a_dry_run_writes_nothing_and_calls_nothing(env, monkeypatch):
+    """⛔ REVIEWER FIX 2026-09-14. This asserted `rows() == {}` — ONE table
+    (wisdom_extract_requests) — so the OTHER dry-run write in run_daily was invisible:
+    mutating `segment_pending_sources`'s `if not dry_run and segments:` to `if segments:`
+    left this file GREEN at 26 passed, because the fixture pre-segments its only source
+    and `segment_pending_sources` therefore had nothing to write either way. A control
+    that cannot reach the code it guards asserts the defect
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+    So: a source with NO segments is planted, the dry run must leave it unsegmented,
+    EVERY table run_daily can write is counted, and no page is emitted. The control
+    below proves the same fixture DOES segment on a real run."""
     accept_gate()
+    with store.write() as conn:
+        conn.execute("INSERT INTO wisdom_sources (source_id, stream, external_ref, version, raw_sha256, "
+                     "published_at_et, ingest_version, ingested_at) VALUES ('src2', 'sunday_scans', 'test:2', 1, 'y', "
+                     "'2026-09-06T08:00:00-04:00', 't', '2026-09-06T09:00:00-04:00')")
+    loader = lambda source: {"kind": "sunday_scans", "text": "INTRO\nWatching UUUT over 55 now.\n"}  # noqa: E731
+    before = _table_counts()
+    assert before["wisdom_segments"] == 3, before      # non-vacuity: the planted source is UNsegmented
+
     monkeypatch.setattr(batch, "make_client", lambda: pytest.fail("a dry run built a client"))
-    out = batch.run_daily(ctx(dry_run=True))
-    assert out["status"] == "dry_run" and out["selected"] == 3 and rows() == {}
+    out = batch.run_daily(ctx(dry_run=True), loader=loader)
+
+    assert out["status"] == "dry_run" and out["selected"] == 3
     assert out["build"].get("tokens_char_estimated") == 3
+    assert out["segmentation"]["sources_segmented"] == 1, out["segmentation"]   # it DID walk the new source
+    assert _table_counts() == before, "a dry run wrote a row"
+    assert env.pages == [], env.pages
+
+    # CONTROL: the same source, the same loader, NOT a dry run -> segments land. Without
+    # this, "wisdom_segments did not grow" is satisfied by a loader that returns nothing.
+    real = batch.run_daily(ctx(), client=FakeClient(), loader=loader)
+    assert real["segmentation"]["sources_segmented"] == 1
+    assert _table_counts()["wisdom_segments"] > before["wisdom_segments"]
 
 
 # ── 3-4. reaping ─────────────────────────────────────────────────────────────

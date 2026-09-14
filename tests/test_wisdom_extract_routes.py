@@ -19,6 +19,7 @@ ADMIN_PATHS = ("/api/admin/wisdom/extract/batches", "/api/admin/wisdom/extract/g
 RECEIPT_PATH = "/api/internal/wisdom/extract/eval-runs"
 RECEIPT = {"kind": "extractor_golden", "run_id": "pc-run-7", "extractor_version": "wx-v0-aaaaaaaa",
            "model": "claude-opus-5", "effort": "high", "golden_version": "gv1", "split": "dev",
+           "golden_sha256": "a" * 64,
            "per_type": {"CALL": {"tp": 2, "fp": 2, "fn": 0, "precision": 1.0}}}
 
 

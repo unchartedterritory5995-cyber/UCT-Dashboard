@@ -17,6 +17,7 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 from __future__ import annotations
 
 import json
+import pathlib
 
 import pytest
 
@@ -401,3 +402,81 @@ def test_the_writer_completes_inside_the_callers_transaction_with_the_REAL_seams
     assert counts.get("vocab_candidate_recorded") == 1, counts
     with store.read() as conn:
         assert conn.execute("SELECT COUNT(*) FROM wisdom_vocab_candidate_uses").fetchone()[0] == 1
+
+
+# ── reviewer fixes, 2026-09-14 ───────────────────────────────────────────────
+
+def _src(guests):
+    return {"source_id": "s", "stream": "zoom_live", "host_author_id": "tsdr",
+            "guest_names_json": json.dumps(guests)}
+
+
+def test_a_speaker_label_is_matched_to_a_guest_only_on_whole_words():
+    """⛔ §8a.3: unattributable speech in a guest session is `unresolved` — never the
+    guest's. The guest branch matched on a bare `startswith` in EITHER direction, so the
+    label 'P' resolved to `guest:patricia-kim` with confidence 'medium', and D14 then let
+    that "guest" author MENTION and PRINCIPLE rows. authors.json's own readme says
+    matching is exact, no fuzzy matching. Third sighting of this class (drift #3, drift
+    #4, S-C's guest minting)."""
+    src, seg = _src(["Patricia Kim"]), {"speaker_label": None}
+    for label in ("P", "Pat", "patr", "Patricia Kimble", "Patrick"):
+        assert writer.resolve_author(label, seg, src) == (None, False, "low"), label
+    # ...and the cases the prefix rule was actually there for still resolve:
+    for label in ("Patricia Kim", "patricia kim (Guest)", "Patricia", "PATRICIA KIM"):
+        assert writer.resolve_author(label, seg, src) == ("guest:patricia-kim", True, "medium"), label
+    one = _src(["Qullamaggie"])
+    assert writer.resolve_author("Qullamaggie (Guest)", seg, one) == ("guest:qullamaggie", True, "medium")
+    for label in ("Q", "Qu", "Qullamaggies"):
+        assert writer.resolve_author(label, seg, one) == (None, False, "low"), label
+
+
+def test_an_unmapped_label_never_invents_anybody(db):
+    """The owner's checklist item 1, at the writer's own resolver: unmapped means
+    `unresolved`, never a new person and never the host."""
+    seg = {"speaker_label": None}
+    for label in ("Somebody Nobody Declared", "zz", "Uncharted Territory"):
+        author, is_guest, _ = writer.resolve_author(label, seg, _src([]))
+        assert author is None and is_guest is False, (label, author)
+
+
+def test_the_private_store_seam_is_declared_by_its_owner_and_still_reported():
+    """⛔ W1 §0.4d: only core/private.py, extract/writer.py and api/routers/wisdom_core.py
+    may reach the owner-private store. `seams.SEAMS` is PROBED with importlib, so a row
+    there IS a reach — and `tests/test_wisdom_bans.py::...[private_store]` was RED on this
+    branch because of it. The row moved to its owner rather than being renamed to dodge
+    the rail, and it must still appear in the report or the move lost a reading."""
+    from api.services.wisdom.core import bans
+
+    seams_file = pathlib.Path(seams.__file__)
+    rel = "api/services/wisdom/extract/seams.py"
+    found = bans.scan_source(rel, seams_file.read_text(encoding="utf-8"), ("private_store",))
+    assert found == [], [v.render() for v in found]
+    # CONTROL: the scanner CAN see this file — put the row back and it fires by name.
+    planted = seams_file.read_text(encoding="utf-8").replace(
+        'SEAMS: tuple[tuple[str, str, str], ...] = (',
+        'SEAMS: tuple[tuple[str, str, str], ...] = (\n    ("api.services.wisdom.core.private", "put_private", "x"),', 1)
+    assert [v.rail for v in bans.scan_source(rel, planted, ("private_store",))] == ["private_store"]
+    row = writer.private_seam_row()
+    assert row["module"] == "api.services.wisdom.core.private" and row["attr"] == "put_private"
+    report = {(r["module"], r["attr"]) for r in seams.seam_report()}
+    assert ("api.services.wisdom.core.private", "put_private") in report
+    assert ("api.services.wisdom.core.bars", "session_range") in report   # control: the table still reports
+
+
+def test_the_default_bar_range_seam_is_absent_so_every_inferred_ticker_is_downgraded(db):
+    """⛔ Every other F6 test passes `bar_range=` explicitly, so the PRODUCTION default
+    ("auto", through the seam) was covered by nothing. With no core.bars installed the
+    seam is None and the verdict must be `no_bar_source` — a not-a-pass."""
+    assert writer._bar_range("auto") is None, "core.bars exists now: this rail needs re-deriving"
+    seg, src = _loaded()
+    rec = make(record_type="CALL", quote="Watching TTTT over 55 for a breakout.", ticker_as_written="WWWT",
+               direction="long", stop=52.0)
+    with store.write() as conn:
+        counts = writer.write_output(conn, segment=seg, source=src, output={"records": [rec]},
+                                     extractor_version="v-bars", resolver=RESOLVER, private_put=None,
+                                     vocab_names=VOCAB)
+    assert counts["inferred_ticker_bar_range:no_bar_source"] == 1
+    assert counts["inferred_ticker_review:no_bar_source"] == 1
+    with store.read() as conn:
+        row, = [dict(r) for r in conn.execute("SELECT * FROM wisdom_records")]
+    assert row["record_type"] == "MENTION" and row["entity_id"] is None and row["ticker_inferred"] == 1

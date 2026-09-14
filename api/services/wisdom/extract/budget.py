@@ -13,8 +13,23 @@ never submits "just this one more".
     with no cache discount, output tokens at the calibrated p90 for the model and
     effort (or DEFAULT_OUTPUT_TOKENS before a calibration exists).
 
-The cap is per extractor_version: a new prompt/schema revision is a new run, with
-its own budget. WISDOM_EXTRACT_BUDGET_USD defaults to 120 ($80 catalog estimate
+TWO CEILINGS, ONE CAP, WHICHEVER BINDS FIRST.
+  * per extractor_version — a new prompt/schema revision is a new run, and its own
+    spend is what the reporting view shows;
+  * across EVERY extractor_version — CONTRACTS §6.4 says `actual_to_date`, not
+    "actual to date for this version", and the owner tracks absolute dollars.
+
+⛔ WHY THE SECOND CEILING EXISTS (reviewer finding, 2026-09-14; measured). The cap
+used to be per-version only, and `extractor_version` is sha256(system prompt ||
+schema || transport)[:8] — and the system prompt CARRIES THE SETUP VOCABULARY,
+which core.vocab serves from a live, actively-edited table. So approving one
+vocabulary name silently minted a new version whose spend was $0 and re-armed the
+whole cap, with nobody deciding anything: with $14.90 of a $15 cap spent, adding
+one name let three more $5 requests through. A ceiling a data edit can reset is not
+a hard stop (`lesson_a_flag_closes_one_door_a_capability_closes_all`). Raising the
+cap is now the only way to buy more, and that is an explicit, audited human act.
+
+WISDOM_EXTRACT_BUDGET_USD defaults to 120 ($80 catalog estimate
 × 1.5); a blank, non-numeric or non-positive value falls back to that default —
 a typo can never turn the cap off. The kill switch is WISDOM_EXTRACT_ENABLED.
 
@@ -136,10 +151,15 @@ class BudgetDecision:
     requested_count: int
     stopped: bool
     reason: Optional[str]
+    #: the same cap measured across EVERY extractor_version (see the module docstring)
+    program_actual_usd: float = 0.0
+    program_pending_estimate_usd: float = 0.0
 
     @property
     def remaining_usd(self) -> float:
-        return round(self.cap_usd - self.actual_usd - self.pending_estimate_usd - self.selected_estimate_usd, 6)
+        return round(min(self.cap_usd - self.actual_usd - self.pending_estimate_usd,
+                         self.cap_usd - self.program_actual_usd - self.program_pending_estimate_usd)
+                     - self.selected_estimate_usd, 6)
 
     def as_dict(self) -> dict:
         out = asdict(self)
@@ -147,16 +167,25 @@ class BudgetDecision:
         return out
 
 
-def spent_and_pending(conn, extractor_version: str) -> tuple[float, float]:
+def spent_and_pending(conn, extractor_version: Optional[str]) -> tuple[float, float]:
+    """(actual, pending) in USD. extractor_version None = every version — the program
+    total the second ceiling is measured against."""
     marks = ",".join("?" for _ in BUDGET_KINDS)
-    actual = conn.execute(
-        f"SELECT COALESCE(SUM(cost_usd_actual), 0) FROM wisdom_batches WHERE extractor_version = ? "
-        f"AND kind IN ({marks})", (extractor_version, *BUDGET_KINDS)).fetchone()[0]
     pmarks = ",".join("?" for _ in PENDING_STATUSES)
+    scope = "" if extractor_version is None else "extractor_version = ? AND "
+    vargs: tuple = () if extractor_version is None else (extractor_version,)
+    actual = conn.execute(
+        f"SELECT COALESCE(SUM(cost_usd_actual), 0) FROM wisdom_batches WHERE {scope}"
+        f"kind IN ({marks})", (*vargs, *BUDGET_KINDS)).fetchone()[0]
     pending = conn.execute(
-        f"SELECT COALESCE(SUM(est_cost_usd), 0) FROM wisdom_extract_requests WHERE extractor_version = ? "
-        f"AND status IN ({pmarks})", (extractor_version, *PENDING_STATUSES)).fetchone()[0]
+        f"SELECT COALESCE(SUM(est_cost_usd), 0) FROM wisdom_extract_requests WHERE {scope}"
+        f"status IN ({pmarks})", (*vargs, *PENDING_STATUSES)).fetchone()[0]
     return float(actual or 0.0), float(pending or 0.0)
+
+
+def program_spent_and_pending(conn) -> tuple[float, float]:
+    """Every extractor_version's spend together (CONTRACTS §6.4 `actual_to_date`)."""
+    return spent_and_pending(conn, None)
 
 
 def select_within_budget(conn, extractor_version: str, estimates: list[float], *,
@@ -166,6 +195,8 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
     cap = budget_cap_usd() if cap is None else float(cap)
     actual, pending = spent_and_pending(conn, extractor_version)
     pending = max(0.0, pending - exclude_pending_usd)
+    p_actual, p_pending = program_spent_and_pending(conn)
+    p_pending = max(0.0, p_pending - exclude_pending_usd)
     running, allowed = 0.0, 0
     reason = None
     for est in estimates:
@@ -173,16 +204,27 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
             reason = (f"budget stop: actual ${actual:.2f} + pending ${pending:.2f} + selected ${running:.2f} "
                       f"+ next ${float(est):.4f} > cap ${cap:.2f}")
             break
+        # ⛔ the same cap across EVERY extractor_version: a prompt or vocabulary change
+        # must not hand the run a fresh budget (module docstring).
+        if p_actual + p_pending + running + float(est) > cap:
+            reason = (f"budget stop (all extractor versions): actual ${p_actual:.2f} + pending ${p_pending:.2f} "
+                      f"+ selected ${running:.2f} + next ${float(est):.4f} > cap ${cap:.2f}")
+            break
         running += float(est)
         allowed += 1
     return BudgetDecision(cap_usd=cap, actual_usd=round(actual, 6), pending_estimate_usd=round(pending, 6),
                           selected_estimate_usd=round(running, 6), allowed_count=allowed,
-                          requested_count=len(estimates), stopped=allowed < len(estimates), reason=reason)
+                          requested_count=len(estimates), stopped=allowed < len(estimates), reason=reason,
+                          program_actual_usd=round(p_actual, 6),
+                          program_pending_estimate_usd=round(p_pending, 6))
 
 
 def snapshot(conn, extractor_version: str) -> dict:
     actual, pending = spent_and_pending(conn, extractor_version)
+    p_actual, p_pending = program_spent_and_pending(conn)
     cap = budget_cap_usd()
     return {"extractor_version": extractor_version, "cap_usd": cap, "actual_usd": round(actual, 6),
-            "pending_estimate_usd": round(pending, 6), "remaining_usd": round(cap - actual - pending, 6),
+            "pending_estimate_usd": round(pending, 6),
+            "program_actual_usd": round(p_actual, 6), "program_pending_estimate_usd": round(p_pending, 6),
+            "remaining_usd": round(min(cap - actual - pending, cap - p_actual - p_pending), 6),
             "batch_discount": BATCH_DISCOUNT, "prices_per_mtok": PRICES_PER_MTOK}

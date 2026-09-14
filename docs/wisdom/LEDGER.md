@@ -801,3 +801,79 @@ All declared in `ca0b9b801` with their read site in `api/services/wisdom/core/fl
 | `WISDOM_DOSSIER_ENABLED` | **yes** — owner flips | dark | — |
 | `WISDOM_LEVEL_ALERTS_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
 | `WISDOM_LOOKALIKE_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
+
+---
+
+### S-D adversarial review — findings and fixes (branch `wisdom/w1-d-extract`, 2026-09-14)
+
+Reviewer ran on the branch AFTER `git merge feat/wisdom-loop` (§8b.1), i.e. with golden-v1
+frozen at `db3475c8…` and P4 landed. Six findings confirmed by EXECUTION and fixed on the
+branch; three reported and not fixed. Every fix is mutation-proved, restored byte-exact and
+verified by sha256 (never `git checkout`).
+
+| # | finding | severity | evidence | fixed |
+|---|---|---|---|---|
+| D-R1 | `extract/seams.py` trips the **private_store import-ban rail** — and the rail is RIGHT: `seam_report()` `importlib.import_module`s `core.private` from a module W1 §0.4d does not allow. Declared "pre-existing, not mine" by the merge-gate commit, but the file is S-D's and master would have taken a red rail. | blocks-merge | `tests/test_wisdom_bans.py` at HEAD: `1 failed, 378 passed` → after: `207 passed` on that file | ✅ row moved to its owner (`writer.private_seam_row`), still in `seam_report()` |
+| D-R2 | **The budget cap is per `extractor_version`, and `extractor_version` is a hash of the system prompt, which CARRIES THE SETUP VOCABULARY** — a live, DB-backed, actively-edited artifact. Approving one vocabulary name mints a version whose spend is $0 and re-arms the entire cap. §6.4 says `actual_to_date`, not "for this version". | blocks-merge (money) | executed: $14.90 of a $15 cap spent → one extra vocab name → `wx-v0-74bafea0` → `wx-v0-3637ea48`, `spent_and_pending` `(0.0, 0.0)`, **3 more $5 requests allowed** | ✅ same cap, two ceilings, whichever binds first; fails closed. ⚠️ **reverses this stream's earlier per-version-only rule and the test that pinned it — owner/integrator should confirm** |
+| D-R3 | The golden gate records `golden_version` **derived from the FILE NAME** and never the sha §8a.1 froze. Changed bytes under the same name are compared against a baseline measured on different records and still read "accepted"; the freeze was enforceable only by remembering `--frozen` on an offline verifier. | before-first-use | `golden_file()` returns `"golden-v1"` for any bytes at that path; `golden_sha256` appeared nowhere in `golden.py` | ✅ `golden.golden_sha256`, required on every gate run and receipt, and `decide_gate` keys the comparison on it — changed bytes are an honest new BASELINE |
+| D-R4 | The **dry-run rail asserted one table** (`wisdom_extract_requests`), and its fixture pre-segmented its only source, so `segment_pending_sources`'s dry-run guard was unreachable by the test. | before-first-use | mutant: `if not dry_run and segments:` → `if segments:` ⇒ `tests/test_wisdom_extract_batch.py` **26 passed, GREEN** | ✅ plants an UNsegmented source, counts all six writable tables, asserts no page, and carries a control proving a real run does segment |
+| D-R5 | `writer.resolve_author` matched a speaker label to a declared guest on a **bare prefix in either direction**, so the label `"P"` resolved to `guest:patricia-kim` at confidence `medium` — and D14 then lets that "guest" author records. §8a.3 says unattributable speech in a guest session is `unresolved`; authors.json says matching is exact, no fuzzy matching. Third sighting of this class (drift #3, drift #4, S-C's guest minting). | blocks-merge | executed: `'P'`, `'Pat'`, `'patr'` → `('guest:patricia-kim', True, 'medium')` | ✅ whole-word boundary in both directions; `Qullamaggie (Guest)` and `Patricia` still resolve |
+| D-R6 | `golden.split_for`'s fallback recomputed the split with a **different function** from §6.4's (`sha24(gid)` last-digit parity vs `int(sha256(gid)[:8],16)` even) — a second authority over one value. Latent (golden-v1 records carry `split`), which is why it was wrong for months. | follow-up | executed: **1007 / 2000** synthetic gids disagree | ✅ fallback is the contract formula; rail over 500 gids |
+
+**Reported, NOT fixed — deliberately:**
+
+* **D-R7 — `ticker_is_inferred` is case-INSENSITIVE, so §8a.4 silently never fires for a ticker
+  that is also an English word.** Executed: `ticker_is_inferred("Taking it over 55 with the stop
+  at 52.", "IT", None)` is `False`; same for ALL / ON / SO. Making the test case-sensitive would
+  call nearly every ticker on a lowercase ASR transcript inferred and flood the review queue.
+  Choosing needs a measurement against golden-v1, which is gitignored and absent from a
+  reviewer's worktree. Recorded in the function's own docstring rather than patched blind.
+* **D-R8 — §8a.5's `exit_price` / `exit_text` / `exit_date` columns exist in `wisdom-db-v0.sql`
+  and NOTHING in `api/services/wisdom/` reads or writes them.** `prompt.record_fields()` has no
+  exit field, and adding one would change the contract schema, hence `extractor_version`, hence
+  the frozen golden-v1 gate — the same constraint F6 was solved around. So §8a.5's reconciliation
+  has no input in W1. Not S-D's to fix inside the freeze; flagged to the integrator.
+* **D-R9 — a DRY-RUN `reap` still builds a real Anthropic client and calls
+  `client.messages.batches.retrieve`.** A read, not a write and not a spend, and the dry-run
+  contract (no row, object, registry state, page or watermark) holds. Noted because "a dry run
+  calls nothing" is how the batch suite's own docstring describes it.
+
+**Verified, and the claim needed refining:** the merge-gate commit's note that drift #4 has TWO
+independent closures and opening only ONE keeps the rail green is **true of the end-to-end
+written-records assertion, and understates the branch's coverage.** Measured: dropping "Patrick"
+from `ambiguous_speaker_labels` alone → `4 failed` (all in `test_wisdom_authors_aliases.py`);
+re-adding it to `tsdr`'s aliases AND declaring it reviewed, leaving it ambiguous → `5 failed`,
+one of them in S-D's own file (`test_the_collision_set_is_derived_and_contains_the_measured_case`
+— the derived sweep cannot be silenced by editing the data); opening BOTH → `2 failed`, including
+`test_an_attendee_called_Patrick_writes_zero_records_for_TSDR` by name.
+
+**Runs (totals lines, scoped by named file):**
+
+```
+S-D + S-B core + hygiene rails ......... 736 passed, 2 skipped in 144.47s
+S-D extract + store + ban rails ........ 440 passed, 1 skipped in 39.28s
+repo hygiene ........................... clean (9341 tracked, no line-ending flip)
+```
+
+The 2 skips are known and recorded: §8b.9 (`test_wisdom_core_private.py:280` — the D16a
+member-facing half, unrunnable until S-F lands `publish.adapters`) and the vocabulary
+engine re-measure that needs `WISDOM_ENGINE_DB`.
+
+**Mutants, each restored byte-exact and verified by sha256 (never `git checkout`):**
+
+```
+K  private seam row put back in the SEAMS table ........... 2 failed
+L  program-wide budget ceiling removed .................... 1 failed
+M  dry run writes segments ................................ 1 failed
+N  guest matched on a bare prefix again ................... 1 failed
+O  gate compares across different golden bytes ............ 1 failed
+P  golden_sha256 no longer required on a gate run ......... 1 failed
+Q  split fallback back to the sha24 last-digit formula .... 1 failed
+R  the auto bar-range seam hands back a permissive provider  1 failed
+```
+
+**Could not measure:** no Anthropic batch was submitted and no cost was incurred (owner rule);
+`data/wisdom/golden/golden-v1.jsonl` is gitignored and absent from this worktree, so neither the
+`db3475c8…` freeze sha nor any extractor metric was re-derived here — only the mechanism that
+records and compares it; and `WISDOM_EXTRACT_BUDGET_USD`'s live value on Railway was not read
+(no variable reads or writes were performed), so the $120 code default is what the rails measure.

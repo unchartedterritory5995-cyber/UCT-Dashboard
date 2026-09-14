@@ -173,10 +173,22 @@ def _resolver(resolver: Any) -> Optional[Callable]:
     return resolver
 
 
+#: W1 §0.4d: this module is one of the three that may reach the owner-private store, so the
+#: seam is DECLARED here and seams.seam_report() reads it from here. extract/seams.py may not
+#: name it — its table is probed with importlib, which is a reach.
+PRIVATE_SEAM = ("api.services.wisdom.core.private", "put_private",
+                "private fields (size_shares, open-position entry) are dropped and counted, never stored")
+
+
 def _private_put(private_put: Any) -> Optional[Callable]:
     if private_put == "auto":
-        return seams.seam("api.services.wisdom.core.private", "put_private")
+        return seams.seam(PRIVATE_SEAM[0], PRIVATE_SEAM[1])
     return private_put
+
+
+def private_seam_row() -> dict:
+    module, attr, fallback = PRIVATE_SEAM
+    return {"module": module, "attr": attr, "present": _private_put("auto") is not None, "fallback": fallback}
 
 
 def _bar_range(bar_range: Any) -> Optional[Callable]:
@@ -202,6 +214,27 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.casefold()).strip("-")[:40] or "unknown"
 
 
+def _names_this_guest(folded: str, guest: str) -> bool:
+    """Does this speaker label name that declared guest?
+
+    Equal, or one is the other's leading WHOLE WORDS — "Qullamaggie (Guest)" for the
+    guest "Qullamaggie", "Patricia" for "Patricia Kim". ⛔ NOT a bare prefix: this
+    matched on `startswith` alone, so the label "P" bound to `guest:patricia-kim` with
+    confidence "medium", and D14 then let that guest author records. §8a.3 says
+    unattributable speech in a guest session is `unresolved` — never the guest's — and
+    authors.json says matching is exact, no fuzzy matching. The same shape has now
+    shipped three times (drift #3, drift #4, S-C's guest minting), so the boundary is
+    checked in BOTH directions and short labels fall through to `unresolved`."""
+    g = guest.casefold().strip()
+    if not g or not folded:
+        return False
+    if folded == g:
+        return True
+    long, short = (folded, g) if len(folded) > len(g) else (g, folded)
+    # a prefix only counts when it ends the shorter side at a word boundary in the longer
+    return long.startswith(short) and not long[len(short)].isalnum()
+
+
 def resolve_author(label: Optional[str], segment: dict, source: dict) -> tuple[Optional[str], bool, Optional[str]]:
     """(author_id, is_guest, speaker_confidence). Authorship is fixed by authors.json and
     the source metadata, never inferred from voice (§2.1, D14, R6)."""
@@ -209,8 +242,7 @@ def resolve_author(label: Optional[str], segment: dict, source: dict) -> tuple[O
     if label:
         folded = label.strip().casefold()
         for guest in guests:
-            g = guest.casefold()
-            if folded == g or folded.startswith(g) or g.startswith(folded):
+            if _names_this_guest(folded, guest):
                 return f"guest:{_slug(guest)}", True, "medium"
         author = authors.author_for_alias(label)
         if author:
@@ -241,7 +273,22 @@ def ticker_is_inferred(quote: str, ticker: Optional[str], ticker_as_heard: Any) 
     not match ZZZTX) did not infer it. Nor did a quote carrying the ticker_as_heard form
     the prompt's R9 requires whenever a ticker was spoken as a word or a company name —
     which is what keeps "Nvidia looks good" out of this class. Everything else came from
-    an adjacent line."""
+    an adjacent line.
+
+    ⚠️ KNOWN, MEASURED BLIND SPOT (reviewer, 2026-09-14) — reported, deliberately NOT
+    patched here. The symbol test is case-INSENSITIVE, because ASR transcripts do not
+    reliably capitalise a spoken ticker. The cost is that a ticker which is also an
+    ordinary English word reads as "named by its own quote" whenever that word appears:
+    measured, `ticker_is_inferred("Taking it over 55 with the stop at 52.", "IT", None)`
+    is False, and so are ALL / ON / SO against quotes that never name the symbol. For
+    those tickers §8a.4 silently never fires — the same "a rule that quietly does
+    nothing" shape this module's header warns about. Making the test case-SENSITIVE is
+    not the fix: on a lowercase transcript it would call nearly every ticker inferred
+    and flood the review queue. Choosing between them needs a measurement against the
+    golden set, which is gitignored and absent from a reviewer's worktree, so an
+    unmeasured change here would be a forecast wearing a fix's clothes
+    (`lesson_an_acceptance_number_is_a_forecast_until_derived`).
+    """
     if not ticker:
         return False
     text = quote or ""

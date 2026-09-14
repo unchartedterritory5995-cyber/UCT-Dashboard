@@ -28,6 +28,7 @@ Every rate carries its n. A denominator of 0 records value NULL, never 0%.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import pathlib
 import re
@@ -46,6 +47,7 @@ CALIBRATION_KIND = "extractor_calibration"
 PRINCIPLE_SIMILARITY_MIN = 0.5
 SPLITS = ("dev", "test")
 _EXTRACTOR_VERSION_RE = re.compile(r"^wx-v\d+-[0-9a-f]{8}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _WORD = re.compile(r"[a-z0-9$%.]+")
 
 
@@ -60,6 +62,22 @@ def golden_file(data_dir) -> tuple[Optional[pathlib.Path], Optional[str]]:
     return None, None
 
 
+def golden_sha256(path) -> str:
+    """The sha256 of the golden file's BYTES — CONTRACTS §8a.1's freeze, which says every
+    gate run records "the golden version and sha it scored".
+
+    ⛔ WHY THE SHA AND NOT THE NAME (reviewer finding, 2026-09-14). `golden_version` came
+    from the FILE NAME: golden-v1.jsonl -> "golden-v1", which is true of any bytes anyone
+    puts at that path. So the gate's regression check could compare today's metrics against
+    a baseline measured on a DIFFERENT set of records and still say "accepted", and the
+    freeze was enforceable only by a human remembering to pass --frozen to an offline
+    verifier. A name that agrees with itself is not evidence
+    (`lesson_an_identity_join_is_not_a_correctness_check`). Now the sha is recorded on
+    every run and the comparison is keyed on it: change the bytes and the next run is an
+    honest new BASELINE, never a false pass."""
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
 def load_golden(path) -> list[dict]:
     out = []
     for line in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
@@ -69,10 +87,20 @@ def load_golden(path) -> list[dict]:
 
 
 def split_for(record: dict) -> str:
-    """The record's own split when it carries one; else sha24(gid) parity."""
+    """The record's own split when it carries one (CONTRACTS §6.4: consumers READ the
+    stored field and never recompute it).
+
+    ⛔ The fallback is for a record that carries no split at all, and it must be §6.4's
+    formula — `int(sha256(gid)[:8], 16)` even. It used to be the parity of the LAST hex
+    digit of sha24(gid), a different function of the same input that disagreed with the
+    contract on 1007 of 2000 synthetic gids — a coin flip, and a SECOND AUTHORITY over
+    one value (`lesson_a_second_authority_over_one_value`). It is unreachable for
+    golden-v1, whose records all carry `split`; that is exactly why it could be wrong
+    for months without anyone noticing."""
     if record.get("split") in SPLITS:
         return record["split"]
-    return "dev" if int(ids.sha24(record["gid"])[-1], 16) % 2 == 0 else "test"
+    digest = hashlib.sha256(str(record["gid"]).encode("utf-8")).hexdigest()
+    return "dev" if int(digest[:8], 16) % 2 == 0 else "test"
 
 
 @dataclass(frozen=True)
@@ -344,13 +372,17 @@ def _runs(conn, kind: str) -> list[dict]:
 
 
 def decide_gate(conn, *, extractor_version: str, model: str, effort: str, golden_version: str, split: str,
-                per_type: dict) -> dict:
+                per_type: dict, golden_sha256: str) -> dict:
     previous = None
     for run in _runs(conn, EVAL_KIND):
         m = run["metrics"]
         if (m.get("gate") or {}).get("decision") != "accepted":
             continue
         if m.get("golden_version") != golden_version or m.get("split") != split:
+            continue
+        # ⛔ the same NAME is not the same SET: comparing across different bytes is a
+        # regression check against records the previous run never saw (golden_sha256).
+        if m.get("golden_sha256") != golden_sha256:
             continue
         if run["extractor_version"] == extractor_version and m.get("model") == model and m.get("effort") == effort:
             continue
@@ -379,12 +411,16 @@ def record_eval(conn, *, kind: str, extractor_version: Optional[str], metrics: d
     now = now_iso or timeutil.iso_et(timeutil.now_et())
     payload = dict(metrics)
     if kind == EVAL_KIND:
-        for key in ("model", "effort", "golden_version", "split", "per_type"):
+        for key in ("model", "effort", "golden_version", "split", "per_type", "golden_sha256"):
             if key not in payload:
                 raise ValueError(f"an extractor_golden evaluation needs {key!r}")
+        # §8a.1: a run that cannot say WHICH BYTES it scored is not a gate run.
+        if not _SHA256_RE.match(str(payload["golden_sha256"] or "")):
+            raise ValueError("golden_sha256 must be the sha256 of the golden file's bytes")
         payload["gate"] = decide_gate(conn, extractor_version=extractor_version, model=payload["model"],
                                       effort=payload["effort"], golden_version=payload["golden_version"],
-                                      split=payload["split"], per_type=payload["per_type"])
+                                      split=payload["split"], per_type=payload["per_type"],
+                                      golden_sha256=payload["golden_sha256"])
     run_id = ids.sha24(kind, extractor_version, payload.get("model"), now, time.time_ns())
     conn.execute("INSERT INTO wisdom_eval_runs (run_id, kind, extractor_version, method_version, n, metrics_json, "
                  "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -393,6 +429,7 @@ def record_eval(conn, *, kind: str, extractor_version: Optional[str], metrics: d
         for rtype, m in payload["per_type"].items():
             slice_json = json.dumps({"record_type": rtype, "split": payload["split"], "model": payload["model"],
                                      "extractor_version": extractor_version, "golden_version": payload["golden_version"],
+                                     "golden_sha256": payload["golden_sha256"],
                                      "status": "combined"}, sort_keys=True)
             for metric, num, den in (("extractor_precision", m["tp"], m["tp"] + m["fp"]),
                                      ("extractor_recall", m["tp"], m["tp"] + m["fn"])):
@@ -420,7 +457,8 @@ def gate_status(conn, *, extractor_version: Optional[str] = None, model: Optiona
         gate = m.get("gate") or {}
         return {"accepted": gate.get("decision") == "accepted", "extractor_version": version, "model": model,
                 "effort": effort, "run_id": run["run_id"], "created_at": run["created_at"],
-                "golden_version": m.get("golden_version"), "gate": gate, "per_type": m.get("per_type"),
+                "golden_version": m.get("golden_version"), "golden_sha256": m.get("golden_sha256"),
+                "gate": gate, "per_type": m.get("per_type"),
                 "n": run["n"],
                 "reason": None if gate.get("decision") == "accepted" else "the latest evaluation is blocked"}
     return {"accepted": False, "extractor_version": version, "model": model, "effort": effort, "run_id": None,
@@ -440,6 +478,8 @@ def import_receipt(conn, receipt: dict, now_iso: Optional[str] = None) -> dict:
     model, golden_version, split = receipt.get("model"), receipt.get("golden_version"), receipt.get("split")
     if not isinstance(model, str) or not isinstance(golden_version, str) or split not in SPLITS:
         raise ValueError("receipt needs model, golden_version and a dev/test split")
+    if not _SHA256_RE.match(str(receipt.get("golden_sha256") or "")):
+        raise ValueError("receipt needs the golden_sha256 it scored (§8a.1)")
     if receipt.get("effort") not in prompt.EFFORTS:
         raise ValueError("receipt effort is not a valid effort")
     for run in _runs(conn, EVAL_KIND):
@@ -460,6 +500,7 @@ def import_receipt(conn, receipt: dict, now_iso: Optional[str] = None) -> dict:
     if not per_type:
         raise ValueError("receipt has no per_type counts")
     metrics = {"model": model, "effort": receipt["effort"], "golden_version": golden_version, "split": split,
+               "golden_sha256": receipt["golden_sha256"],
                "per_type": per_type, "receipt_id": receipt_id, "source": "receipt",
                "cost_usd": receipt.get("cost_usd"), "measured_at": receipt.get("created_at")}
     out = record_eval(conn, kind=EVAL_KIND, extractor_version=version, metrics=metrics,

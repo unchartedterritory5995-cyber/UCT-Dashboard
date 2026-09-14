@@ -83,7 +83,6 @@ def _seed(conn, version, actual, pending):
 def test_the_request_that_crosses_the_cap_is_the_first_one_refused(wisdom_db):
     with store.write() as conn:
         _seed(conn, "wx-v0-aaaaaaaa", 100.0, 10.0)
-        _seed(conn, "wx-v0-bbbbbbbb", 500.0, 500.0)
     with store.read() as conn:
         decision = budget.select_within_budget(conn, "wx-v0-aaaaaaaa", [4.0, 4.0, 4.0, 0.5], cap=120.0)
     assert decision.actual_usd == 100.0 and decision.pending_estimate_usd == 10.0
@@ -92,6 +91,50 @@ def test_the_request_that_crosses_the_cap_is_the_first_one_refused(wisdom_db):
     with store.read() as conn:
         exact = budget.select_within_budget(conn, "wx-v0-aaaaaaaa", [10.0], cap=120.0)
     assert exact.allowed_count == 1 and not exact.stopped  # equal to the cap is allowed; over is not
+
+
+def test_a_new_extractor_version_does_not_re_arm_the_cap(wisdom_db):
+    """⛔ REVIEWER FIX 2026-09-14, and it reverses this stream's earlier per-version-only
+    rule. `extractor_version` is sha256(system prompt || schema || transport)[:8] and the
+    SYSTEM PROMPT CARRIES THE SETUP VOCABULARY, which core.vocab serves from a live,
+    actively-edited table. So approving one vocabulary name minted a version whose spend
+    was $0 and handed the run the WHOLE cap again, with nobody deciding anything.
+    CONTRACTS §6.4 says `actual_to_date`, not "for this version"."""
+    with store.write() as conn:
+        _seed(conn, "wx-v0-aaaaaaaa", 14.9, 0.0)
+    with store.read() as conn:
+        fresh = budget.select_within_budget(conn, "wx-v0-bbbbbbbb", [5.0] * 3, cap=15.0)
+    assert fresh.actual_usd == 0.0, "the per-version view still reports the new version's own spend"
+    assert fresh.program_actual_usd == pytest.approx(14.9)
+    assert fresh.allowed_count == 0 and fresh.stopped
+    assert "all extractor versions" in fresh.reason and "cap $15.00" in fresh.reason
+    assert fresh.remaining_usd == pytest.approx(0.1)
+    # CONTROL: under a cap the PROGRAM total fits, the new version still runs — the
+    # ceiling stops spending, not every new version.
+    with store.read() as conn:
+        roomy = budget.select_within_budget(conn, "wx-v0-bbbbbbbb", [5.0] * 3, cap=120.0)
+    assert roomy.allowed_count == 3 and not roomy.stopped
+
+
+def test_the_per_version_ceiling_still_binds_when_the_program_total_has_room(wisdom_db):
+    """The two ceilings are independent; whichever binds first wins. Without this the
+    program ceiling could quietly replace the per-version one and nothing would notice."""
+    with store.write() as conn:
+        _seed(conn, "wx-v0-aaaaaaaa", 100.0, 10.0)
+    with store.read() as conn:
+        d = budget.select_within_budget(conn, "wx-v0-aaaaaaaa", [4.0] * 4, cap=120.0)
+    assert d.allowed_count == 2 and "all extractor versions" not in (d.reason or "")
+
+
+def test_the_snapshot_reports_both_ceilings(wisdom_db):
+    with store.write() as conn:
+        _seed(conn, "wx-v0-aaaaaaaa", 10.0, 1.0)
+        _seed(conn, "wx-v0-bbbbbbbb", 20.0, 2.0)
+    with store.read() as conn:
+        snap = budget.snapshot(conn, "wx-v0-aaaaaaaa")
+    assert snap["actual_usd"] == 10.0 and snap["pending_estimate_usd"] == 1.0
+    assert snap["program_actual_usd"] == 30.0 and snap["program_pending_estimate_usd"] == 3.0
+    assert snap["remaining_usd"] == pytest.approx(snap["cap_usd"] - 33.0)
 
 
 def test_a_retry_already_counted_as_pending_is_not_counted_twice(wisdom_db):

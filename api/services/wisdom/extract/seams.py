@@ -8,6 +8,16 @@ is missing. Each caller names its fallback beside the call.
 
 SEAMS is the full list; the admin /gate route and the final report print it, so
 "which fallback is running" is a reading, never an assumption.
+
+⛔ ONE SEAM IS NOT IN THIS TABLE, ON PURPOSE: the owner-private store. W1 §0.4d
+says only core/private.py, extract/writer.py and api/routers/wisdom_core.py may
+REACH it, and a table entry here is a reach — seam_report() calls seam() on every
+row, and seam() does importlib.import_module. Naming it here made
+`tests/test_wisdom_bans.py::...[private_store]` RED, and the rail was right: the
+admin /gate route imported core.private through this module. The row is declared
+by its owner instead (writer.private_seam_row) and appended at report time, so the
+import happens inside a module §0.4d allows. Renaming the string to dodge the rail
+would have kept the reach and lost the alarm.
 """
 from __future__ import annotations
 
@@ -26,8 +36,7 @@ SEAMS: tuple[tuple[str, str, str], ...] = (
      "no candidate row is written; setup_name_raw stays on the record so S-B can backfill"),
     ("api.services.wisdom.core.entities", "resolve",
      "no resolver: every CALL is downgraded to MENTION with a counted reason (W1 §4.2)"),
-    ("api.services.wisdom.core.private", "put_private",
-     "private fields (size_shares, open-position entry) are dropped and counted, never stored"),
+    # (the owner-private store's row is declared by writer.private_seam_row — see the module docstring)
     ("api.services.wisdom.core.bars", "session_range",
      "no bar source: an INFERRED ticker cannot pass the §8a.4 bar-range check, so every one is "
      "stored as a MENTION with entity_id NULL and a review item, verdict no_bar_source"),
@@ -56,7 +65,13 @@ def seam(module: str, attr: str) -> Optional[Callable]:
 
 
 def seam_report() -> list[dict]:
-    return [
+    """Every seam and whether it is present — including the private store's, which is
+    read from its owner (§0.4d) rather than probed from here."""
+    from api.services.wisdom.extract import writer   # local: writer imports this module
+
+    rows = [
         {"module": module, "attr": attr, "present": seam(module, attr) is not None, "fallback": fallback}
         for module, attr, fallback in SEAMS
     ]
+    rows.append(writer.private_seam_row())
+    return rows

@@ -140,10 +140,15 @@ def per_type(tp, fp, fn):
                         "recall": golden._rate(tp, tp + fn), "n_expected": tp + fn, "n_predicted_scored": tp + fp}}
 
 
-def record(conn, version, model, pt, when, golden_version="gv1"):
+#: §8a.1 — a gate run records the sha of the BYTES it scored, not just the file's name.
+GSHA = "a" * 64
+GSHA2 = "b" * 64
+
+
+def record(conn, version, model, pt, when, golden_version="gv1", golden_sha256=GSHA):
     return golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version=version, n=9, now_iso=when,
                               metrics={"model": model, "effort": "high", "golden_version": golden_version,
-                                       "split": "dev", "per_type": pt})
+                                       "split": "dev", "per_type": pt, "golden_sha256": golden_sha256})
 
 
 def test_baseline_then_regression_blocks_and_a_tie_is_accepted(db):
@@ -186,6 +191,7 @@ def test_metrics_rows_carry_counts_and_null_rates(db):
 def test_a_receipt_is_re_derived_and_idempotent(db):
     receipt = {"kind": golden.EVAL_KIND, "run_id": "pc-run-1", "extractor_version": "wx-v0-aaaaaaaa",
                "model": "claude-opus-5", "effort": "high", "golden_version": "gv1", "split": "dev",
+               "golden_sha256": GSHA,
                "per_type": {"CALL": {"tp": 3, "fp": 1, "fn": 0, "precision": 0.99, "recall": 0.99}}}
     with store.write() as conn:
         first = golden.import_receipt(conn, receipt)
@@ -197,7 +203,10 @@ def test_a_receipt_is_re_derived_and_idempotent(db):
         for bad in ({**receipt, "kind": "other"}, {**receipt, "extractor_version": "nope"},
                     {**receipt, "run_id": "x2", "per_type": {"CALL": {"tp": -1, "fp": 0, "fn": 0}}},
                     {**receipt, "run_id": "x3", "per_type": {"NOT_A_TYPE": {"tp": 1, "fp": 0, "fn": 0}}},
-                    {**receipt, "run_id": "x4", "effort": "turbo"}):
+                    {**receipt, "run_id": "x4", "effort": "turbo"},
+                    # §8a.1: a receipt that cannot say WHICH BYTES it scored is not a gate run
+                    {**receipt, "run_id": "x5", "golden_sha256": "not-a-sha"},
+                    {k: v for k, v in receipt.items() if k != "golden_sha256"} | {"run_id": "x6"}):
             with pytest.raises(ValueError):
                 golden.import_receipt(conn, bad)
 
@@ -213,3 +222,70 @@ def test_drift_and_calibration_summaries():
     c = golden.calibration(usages, [300, 300, 300, 300], model="claude-opus-5", effort="high", system_tokens=700)
     assert c["output_tokens_p50"] in (200, 300) and c["output_tokens_p90"] == 400 and c["n"] == 4
     assert c["cache_read_share"] == 0.9 and c["chars_per_body_token"] == pytest.approx(1200 / 1200)
+
+
+# ── §8a.1: the gate is keyed on the BYTES, not the file name (reviewer fix, 2026-09-14) ──
+
+def test_the_same_golden_name_with_different_bytes_is_a_new_baseline_never_a_comparison(db):
+    """⛔ `golden_version` comes from the FILE NAME, so "golden-v1" is true of any bytes
+    anyone puts at that path. Comparing a new run against a baseline measured on a
+    DIFFERENT record set and calling it "no regression" is an identity join wearing a
+    correctness check. The honest answer to changed bytes is a fresh BASELINE."""
+    with store.write() as conn:
+        base = record(conn, "wx-v0-aaaaaaaa", "claude-opus-5", per_type(8, 2, 2), "2026-09-13T10:00:00-04:00")
+        # same name, same split, same model — WORSE numbers, and DIFFERENT bytes
+        edited = record(conn, "wx-v0-bbbbbbbb", "claude-opus-5", per_type(1, 9, 9), "2026-09-13T10:01:00-04:00",
+                        golden_sha256=GSHA2)
+        # and the control: the SAME bytes still compare, so this is not "never compares"
+        same = record(conn, "wx-v0-cccccccc", "claude-opus-5", per_type(1, 9, 9), "2026-09-13T10:02:00-04:00")
+    assert base["gate"]["baseline"] is True
+    assert edited["gate"] == {"decision": "accepted", "baseline": True, "compared_to": None, "regressions": []}
+    assert same["gate"]["decision"] == "blocked" and same["gate"]["compared_to"] == base["run_id"]
+
+
+def test_a_gate_run_cannot_be_recorded_without_the_sha_it_scored(db):
+    with store.write() as conn:
+        for bad in ({"model": "m", "effort": "high", "golden_version": "gv1", "split": "dev",
+                     "per_type": per_type(1, 0, 0)},
+                    {"model": "m", "effort": "high", "golden_version": "gv1", "split": "dev",
+                     "per_type": per_type(1, 0, 0), "golden_sha256": ""},
+                    {"model": "m", "effort": "high", "golden_version": "gv1", "split": "dev",
+                     "per_type": per_type(1, 0, 0), "golden_sha256": "deadbeef"}):
+            with pytest.raises(ValueError):
+                golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version="wx-v0-aaaaaaaa", n=1, metrics=bad)
+        # CONTROL: the same call with a real sha is recordable, so the three above fail for their reason
+        ok = golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version="wx-v0-aaaaaaaa", n=1,
+                                metrics={"model": "m", "effort": "high", "golden_version": "gv1", "split": "dev",
+                                         "per_type": per_type(1, 0, 0), "golden_sha256": GSHA})
+    assert ok["gate"]["decision"] == "accepted"
+
+
+def test_gate_status_reports_the_sha_it_scored(db):
+    with store.write() as conn:
+        record(conn, "wx-v0-aaaaaaaa", "claude-opus-5", per_type(8, 2, 2), "2026-09-13T10:00:00-04:00")
+        status = golden.gate_status(conn, extractor_version="wx-v0-aaaaaaaa", model="claude-opus-5", effort="high")
+    assert status["accepted"] and status["golden_sha256"] == GSHA
+
+
+def test_the_split_fallback_is_the_contract_formula_not_a_second_one(tmp_path):
+    """CONTRACTS §6.4: split = dev when int(sha256(gid)[:8], 16) is even. The stored field
+    wins; the fallback must not be a DIFFERENT function of the same input."""
+    import hashlib
+    assert golden.split_for({"gid": "g001", "split": "test"}) == "test"      # stored wins
+    disagree = 0
+    for i in range(500):
+        gid = f"g{i:04d}"
+        want = "dev" if int(hashlib.sha256(gid.encode()).hexdigest()[:8], 16) % 2 == 0 else "test"
+        if golden.split_for({"gid": gid}) != want:
+            disagree += 1
+    assert disagree == 0, f"{disagree}/500 gids disagree with the contract formula"
+
+
+def test_golden_sha256_reads_the_bytes(tmp_path):
+    import hashlib
+    f = tmp_path / "golden-v1.jsonl"
+    one = b'{"gid":"g1"}\n'
+    f.write_bytes(one)
+    assert golden.golden_sha256(f) == hashlib.sha256(one).hexdigest()
+    f.write_bytes(one + b'{"gid":"g2"}\n')
+    assert golden.golden_sha256(f) != hashlib.sha256(one).hexdigest()

@@ -94,6 +94,8 @@ def load_gate_segments(data_dir: pathlib.Path, split: str):
         items.append({"segment": slot["segment"], "source": golden.source_for_record(slot["records"][0]),
                       "expected": expected, "gids": [r["gid"] for r in slot["records"]]})
     return {"golden_version": golden_version, "golden_file": path.name, "records": len(records),
+            # §8a.1: the gate records the golden version AND the sha of the bytes it scored.
+            "golden_sha256": golden.golden_sha256(path),
             "segments": items, "unplaced": unplaced, "missing_samples": missing}
 
 
@@ -387,12 +389,14 @@ def main() -> int:
                                                    effort=effort), model, batch=args.transport == "batch") if items else 0
     print(f"extractor_version {version}  model {model}  effort {effort}  transport {args.transport}  "
           f"vocabulary {prompt.vocabulary_source()}")
-    print(f"golden {data['golden_file']} ({data['golden_version']}): {data['records']} {args.split} records -> "
+    print(f"golden {data['golden_file']} ({data['golden_version']} sha {data['golden_sha256'][:12]}): "
+          f"{data['records']} {args.split} records -> "
           f"{len(items)} segments; unplaced {data['unplaced']}; missing samples {data['missing_samples']}")
     print(f"worst case per request ${worst_one:.2f}; phases {phases}; total cap ${args.max_usd:.2f}"
           f"{'; PILOT (--limit): nothing is recorded' if pilot else ''}")
     report = {"extractor_version": version, "model": model, "effort": effort, "transport": args.transport,
-              "split": args.split, "golden_version": data["golden_version"], "golden_records": data["records"],
+              "split": args.split, "golden_version": data["golden_version"],
+              "golden_sha256": data["golden_sha256"], "golden_records": data["records"],
               "segments": len(items), "unplaced": data["unplaced"], "missing_samples": data["missing_samples"],
               "pilot": pilot, "phases": {}}
     if args.dry_run:
@@ -431,7 +435,8 @@ def main() -> int:
                 out = golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version=version,
                                          n=metrics["n_expected"],
                                          metrics={"model": model, "effort": effort, "transport": args.transport,
-                                                  "golden_version": data["golden_version"], "split": args.split,
+                                                  "golden_version": data["golden_version"],
+                                                  "golden_sha256": data["golden_sha256"], "split": args.split,
                                                   "per_type": metrics["per_type"], "summary": summary,
                                                   "unplaced": data["unplaced"], "segments": len(items),
                                                   "vocabulary_source": prompt.vocabulary_source()})
@@ -440,6 +445,7 @@ def main() -> int:
                   f"regressions={out['gate'].get('regressions')})")
             receipt = {"kind": golden.EVAL_KIND, "run_id": out["run_id"], "extractor_version": version,
                        "model": model, "effort": effort, "golden_version": data["golden_version"],
+                       "golden_sha256": data["golden_sha256"],
                        "split": args.split, "per_type": {k: {"tp": v["tp"], "fp": v["fp"], "fn": v["fn"]}
                                                          for k, v in metrics["per_type"].items()},
                        "cost_usd": summary["cost_usd"], "created_at": out["created_at"]}
