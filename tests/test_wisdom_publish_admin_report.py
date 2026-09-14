@@ -16,7 +16,7 @@ import re
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 
@@ -157,17 +157,63 @@ def test_calls_capture_costs_contradictions_and_gates_come_from_the_store(db):
     s = built["sections"]
     assert s["calls"]["n"] == 2 and s["calls"]["by_type"]["CALL"] == {
         "confirmed": 1, "provisional": 1, "rejected": 0, "combined": 2}
-    assert {d["dataset"]: d["consecutive_ok_sessions"] for d in s["capture_health"]["datasets"]} == {
-        "tweets": 0, "wire": 3}
+    streaks = {d["dataset"]: d["consecutive_ok_sessions"] for d in s["capture_health"]["datasets"]}
+    # The SEEDED datasets carry their real streaks. `wire` is the defect-distinguishing
+    # one: three healthy sessions were seeded, and the nested capture.health_table shape
+    # scores it 0 unless _expand_health_table normalises it first.
+    assert streaks["wire"] == 3 and streaks["tweets"] == 0
     assert s["costs"]["this_week"] == {"batches": 1, "actual_usd": 1.25, "pending_estimate_usd": 0}
     assert s["costs"]["budget_cap_usd"] == 120
     assert s["contradictions"]["open_n"] == 1 and s["review_queue"]["tabs"]["contradictions"]["open"] == 1
     gates = {g["gate"].split(":")[0]: g for g in s["scheduled_gates"]["gates"]}
-    assert "1/2 (50.0%)" in gates["Capture health"]["evidence"]
+    # ONE dataset is at 3+ consecutive ok sessions, and the denominator is every dataset
+    # in the table — an empty dataset must stay counted or a single healthy one reads "met".
+    assert gates["Capture health"]["evidence"].endswith(f"1/{len(streaks)} "
+                                                        f"({100.0 / len(streaks):.1f}%)")
+    assert len(streaks) >= 2 and gates["Capture health"]["status"] == "in progress"
     assert gates["First WEEKLY WISDOM REPORT (W1 §9.1)"]["status"] == "met"
     md = report.render_weekly_markdown(built)
     assert "**Recommended ruling:** Keep both non-canonical" in md
     assert "SECRET-THESIS-TEXT" not in md  # the report lists fields, never a record's text
+
+
+def test_the_nested_capture_health_table_is_read_not_scored_as_all_null(db, monkeypatch):
+    """S-A's capture.health_table returns ONE NESTED entry per dataset; the local
+    fallback returns one FLAT row per (dataset, session). The report consumes both.
+
+    ⚰️ Before _expand_health_table the nested shape had no top-level `health`, so
+    EVERY dataset scored health=None / streak 0 and the D12 gate could never be met.
+    This plants the nested shape directly, so it reds whether or not S-A is built."""
+    nested = [
+        {"dataset": "wire", "family": "wire", "n": 3,
+         "latest": {"session_date": "2026-09-18", "health": "ok", "row_count": 120},
+         "sessions": [{"session_date": "2026-09-18", "health": "ok", "row_count": 120,
+                       "trailing_median": 118},
+                      {"session_date": "2026-09-17", "health": "ok", "row_count": 119,
+                       "trailing_median": 118},
+                      {"session_date": "2026-09-16", "health": "ok", "row_count": 121,
+                       "trailing_median": 118}]},
+        {"dataset": "tweets", "family": "x", "n": 1,
+         "latest": {"session_date": "2026-09-18", "health": "zero", "row_count": 0},
+         "sessions": [{"session_date": "2026-09-18", "health": "zero", "row_count": 0,
+                       "trailing_median": 40}]},
+        # a REGISTERED dataset that has never run — it must stay in the table
+        {"dataset": "never_ran", "family": "x", "n": 0, "latest": None, "sessions": []},
+    ]
+    monkeypatch.setattr(report, "_optional_callable", lambda module, attr: (lambda conn, days=10: nested))
+    with store.read() as conn:
+        cap = report._capture(conn, date(2026, 9, 20))
+    rows = {d["dataset"]: d for d in cap["datasets"]}
+    assert cap["source"] == "capture.health_table"
+    # the healthy dataset is READ, not flattened to None
+    assert rows["wire"]["consecutive_ok_sessions"] == 3
+    assert (rows["wire"]["health"], rows["wire"]["row_count"]) == ("ok", 120)
+    assert rows["wire"]["session_date"] == "2026-09-18" and rows["wire"]["trailing_median"] == 118
+    # a broken dataset still scores 0, so the expansion is not a blanket pass
+    assert rows["tweets"]["consecutive_ok_sessions"] == 0 and rows["tweets"]["health"] == "zero"
+    # and the never-run dataset keeps its place in the gate's denominator
+    assert rows["never_ran"]["consecutive_ok_sessions"] == 0
+    assert rows["never_ran"]["health"] is None and cap["n_datasets"] == 3
 
 
 def test_one_unreadable_section_names_its_error_and_the_rest_render(db, monkeypatch):
@@ -204,6 +250,31 @@ def test_a_dry_run_stores_a_preview_and_sends_nothing(db, sent, monkeypatch):
     out = report.run_weekly(_ctx(dry_run=True))
     assert (out["variant"], out["delivery"], out["delivery_note"]) == ("preview", "skipped", "dry run: nothing sent")
     assert sent == []
+
+
+def test_a_dry_run_never_touches_the_final_row_or_delivers(db, sent, monkeypatch):
+    """⛔ CONTRACTS reviewer checklist 2: a dry run's non-effect is asserted EXPLICITLY,
+    never left as an absence. The report_id hashes the variant, so a preview and a final
+    are different rows — this pins that, rather than trusting it."""
+    monkeypatch.setenv("WISDOM_WEEKLY_REPORT_ENABLED", "1")
+    real = report.run_weekly(_ctx(run_id="real"))
+    assert real["delivery"] == "sent" and len(sent) == 1
+    with store.read() as conn:
+        before = dict(conn.execute(
+            "SELECT report_id, markdown, run_id, delivery_status, delivered_at "
+            "FROM wisdom_reports WHERE variant = 'final'").fetchone())
+
+    dry = report.run_weekly(_ctx(dry_run=True, run_id="dryrun"))
+
+    with store.read() as conn:
+        after = dict(conn.execute(
+            "SELECT report_id, markdown, run_id, delivery_status, delivered_at "
+            "FROM wisdom_reports WHERE variant = 'final'").fetchone())
+        variants = sorted(r["variant"] for r in conn.execute("SELECT variant FROM wisdom_reports"))
+    assert after == before, "the dry run rewrote the FINAL report row"
+    assert len(sent) == 1, "the dry run delivered"
+    # it wrote its own preview row and ONLY that
+    assert dry["report_id"] != real["report_id"] and variants == ["final", "preview"]
 
 
 def test_the_flag_off_stores_the_final_report_and_sends_nothing(db, sent, monkeypatch):

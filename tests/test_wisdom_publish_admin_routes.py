@@ -80,6 +80,61 @@ def test_every_publish_route_is_mounted_on_the_real_app(real_app):
     assert "/api/admin/wisdom/core/status" in paths  # control: the probe sees the neighbouring router
 
 
+def _dependency_names(route) -> set:
+    """Every dependency callable reachable from a mounted route, nested ones included."""
+    dependant = getattr(route, "dependant", None)
+    names, stack = set(), list(getattr(dependant, "dependencies", []) or [])
+    while stack:
+        dep = stack.pop()
+        if dep.call is not None:
+            names.add(getattr(dep.call, "__name__", str(dep.call)))
+        stack.extend(dep.dependencies)
+    return names
+
+
+def _wisdom_routes(app, prefix: str) -> list:
+    return [r for r in app.routes if getattr(r, "path", "").startswith(prefix)]
+
+
+def test_every_mounted_wisdom_admin_route_carries_require_admin(real_app):
+    """⛔ /api/admin/wisdom is NOT covered by AdminGuardMiddleware, so Depends(require_admin)
+    IS the gate — and the enumerated per-route checks below are a HAND-WRITTEN list.
+
+    This walks what is actually MOUNTED instead: a route added without the dependency
+    is caught even though no test names it. It also covers the sub-routers stream S-F2
+    mounts under /adapters at import time, which nothing else on this branch can see."""
+    from api.middleware.admin_guard import GUARDED_PREFIXES
+
+    assert not any(p.startswith("/api/admin/wisdom") for p in GUARDED_PREFIXES), \
+        "the middleware now covers /api/admin/wisdom; this rail's premise changed"
+    routes = _wisdom_routes(real_app, "/api/admin/wisdom")
+    assert len(routes) >= 8, f"probe found only {len(routes)} admin wisdom routes"  # non-vacuity
+    ungated = [(sorted(getattr(r, "methods", []) or []), r.path) for r in routes
+               if not ({"require_admin", "require_owner"} & _dependency_names(r))]
+    assert ungated == [], f"mounted /api/admin/wisdom routes with no admin gate: {ungated}"
+
+
+def test_every_mounted_wisdom_internal_route_carries_the_push_secret(real_app):
+    """The machine surface's mirror of the rule above (CONTRACTS §0 ruling 14)."""
+    routes = _wisdom_routes(real_app, "/api/internal/wisdom")
+    assert len(routes) >= 1, f"probe found only {len(routes)} internal wisdom routes"  # non-vacuity
+    ungated = [(sorted(getattr(r, "methods", []) or []), r.path) for r in routes
+               if "require_push_secret" not in _dependency_names(r)]
+    assert ungated == [], f"mounted /api/internal/wisdom routes with no push secret: {ungated}"
+
+
+def test_the_gate_probe_can_actually_see_a_missing_dependency(real_app):
+    """CONTROL. Without this, both rails above pass by answering 'no' to everything —
+    a _dependency_names that returned an empty set for every route would read green."""
+    gated = [r for r in _wisdom_routes(real_app, "/api/admin/wisdom")
+             if "require_admin" in _dependency_names(r)]
+    assert gated, "the probe resolved require_admin on no route at all"
+    # a route the probe must NOT claim is admin-gated
+    health = [r for r in real_app.routes if getattr(r, "path", "") == "/api/health"]
+    assert health, "control route /api/health is not mounted"
+    assert "require_admin" not in _dependency_names(health[0])
+
+
 # ── 2. anonymous and member callers ─────────────────────────────────────────
 
 def test_an_anonymous_caller_is_refused_everywhere(client, item_id, monkeypatch):

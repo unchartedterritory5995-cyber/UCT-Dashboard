@@ -177,10 +177,40 @@ def _consecutive_ok(rows: list) -> dict:
     return out
 
 
+def _expand_health_table(rows: list) -> list:
+    """capture.health_table returns ONE NESTED entry per registered dataset —
+    ``{'dataset', 'latest', 'sessions': [run rows], ...}`` — while the local
+    fallback returns one FLAT row per (dataset, session). Normalise to flat rows
+    so `_consecutive_ok` and the latest-per-dataset pick read the same shape
+    either way.
+
+    ⚰️ Written because the nested shape carries no top-level `health` /
+    `session_date` / `row_count`, so every dataset scored `health=None` and a
+    streak of 0 no matter how healthy capture actually was — which silently
+    pinned the D12 capture-health gate at 0/N forever.
+
+    ⛔ A dataset with NO runs keeps a placeholder row rather than vanishing: the
+    gate's denominator is `len(datasets)`, so dropping the empty ones would let
+    one healthy dataset read as "met" while the rest had never captured."""
+    flat: list = []
+    for r in rows:
+        sessions = r.get("sessions")
+        if not isinstance(sessions, list):
+            flat.append(r)
+            continue
+        dataset = r.get("dataset")
+        if not sessions:
+            flat.append({"dataset": dataset, "session_date": None, "row_count": None,
+                         "trailing_median": None, "health": None})
+            continue
+        flat.extend({**s, "dataset": dataset} for s in sessions)
+    return flat
+
+
 def _capture(conn: sqlite3.Connection, today: date) -> dict:
     fn = _optional_callable("api.services.wisdom.capture", "health_table")
     if fn is not None:
-        rows = [dict(r) for r in (fn(conn, days=10) or [])]
+        rows = _expand_health_table([dict(r) for r in (fn(conn, days=10) or [])])
         source = "capture.health_table"
     else:
         since = (today - timedelta(days=21)).isoformat()
