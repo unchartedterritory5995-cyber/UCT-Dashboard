@@ -3838,6 +3838,72 @@ describing what it is about to do.**
 idle memory, because there is **no internal scheduler and no sleeping process**. Materially under
 $1/month at Railway's usage pricing; it bills only while a firing runs.
 
+## ✅ LAYER 2 HARDENED — it can act, and it can no longer fail silently (2026-09-14)
+
+The first dry run produced three findings. All three are closed, and closing them produced two
+findings of their own that are worth more than the fixes.
+
+### ⛔⛔ A PERMISSION PREFIX CANNOT END MID-TOKEN — and the rule that works is the one that permits the hazard
+
+Probed headless against **Claude Code 2.1.270**, because the flags and the matching semantics are
+both things this programme had never measured:
+
+| rule | against | result |
+|---|---|---|
+| `Bash(python -m pytest tests/test_:*)` | `python -m pytest tests/test_terminal_next_env_check.py -q` | **DENIED** |
+| `Bash(python tools/terminal_next_env_check.py:*)` | the same tool, whole token | **ALLOWED** |
+| `Bash(railway variables --service web --kv)` under the profile | — | **DENIED**, while the same command runs fine in an ordinary session |
+
+⭐ **So `deny` is demonstrably in force from the profile, and `allow` matches only at whole-token
+boundaries.** The consequence is the uncomfortable part: the only pytest rule that matches a named
+file is `Bash(python -m pytest tests/:*)`, which **also** matches the bare `pytest tests/` that
+reached 18 GB and was OOM-killed; and the only rule that matches one pod reporter is
+`Bash(railway ssh --service web:*)`, which is an **unrestricted shell on the production pod**.
+
+⛔ **A constraint that cannot be expressed in the permission layer does not become optional — it
+moves.** `tools/weekly_exec.py` holds both (named `test_*.py` files only, never a directory, no
+`-k`; a declared read-only pod-report table; one pinned health URL), the raw forms are DENIED, and
+`tests/test_weekly_exec.py` proves it with a non-vacuity control showing the guard still accepts a
+legitimate file.
+
+⚠️ **Transitive trust is recorded rather than hidden:** allow-listing `python tools/<x>.py` grants
+whatever that tool does, including its subprocesses. `flag_ledger_audit.py` shells `railway
+variables`, which the model cannot run directly. Accepted because that tool is read-only; it is
+**not** a licence to allow-list a tool that writes.
+
+⚠️ **And `--settings` is ADDITIVE to the operator's own settings.** The allow list can therefore be
+widened from outside this file; the **deny list cannot**. That is why the deny list carries the
+hard boundaries (`schtasks`, `railway redeploy|variables|up|run`, credential paths, `git reset`,
+`git stash`, `git worktree remove`, `rm`) rather than relying on allow-list omission.
+
+### F-L2-1 — CLOSED. The exit code now means something
+
+The prompt's **§0** requires a final `STATUS:` line; `tools/weekly_status.py` maps it to a process
+exit code. `RAN` and `STOPPED-NOTHING-READY` are **0**; `STOPPED-ENV` 3; `STOPPED-ERROR` 4; **no
+status line at all is 5**; a webhook that is unset is 2 and no run starts.
+
+⛔ **Exit 5 is the whole point.** A crashed, truncated, killed or permission-starved run leaves
+exactly the shape that used to read as success. Mutation-proved — `NO_STATUS = 0` reds three tests
+by name.
+
+⭐⭐ **AND IT CAUGHT A REAL FAULT ON ITS FIRST OUTING, WHICH IS BETTER EVIDENCE THAN THE FIXTURES.**
+The first run under the new runner failed at the child invocation — `cmd /c` eats the outer quote
+pair when the command *and* its arguments are quoted, so claude never launched and the report was
+empty. The runner returned **5**. Under the old runner that identical failure recorded `exit=0`.
+The curl post went out anyway and Discord answered `{"message": "Unknown Webhook", "code": 10015}`
+— proof the reporting path reached Discord's API independently of the run, and that the browser
+User-Agent cleared Cloudflare.
+
+### The reporter is outside Claude, and cannot be talked out of reporting
+
+`tools/terminal_next_weekly.cmd` posts status + log path + exit code itself, every run, via `curl`
+with a browser User-Agent, from **`UCT_TERMINAL_NEXT_WEBHOOK`** (Windows-side, `setx`). ⛔ The
+variable is **cleared in a child process** before `claude -p` starts, so the model cannot read the
+webhook even in principle — a mechanical guarantee rather than an instruction. ⛔ Unset means
+**exit 2 and no run**: a run that could not report its own outcome is not begun.
+
+---
+
 ### LAYER 2 — `WEEKLY_AUTONOMOUS_PROMPT.md` · docs `761c29fbc`
 
 Fed verbatim to `claude -p`, Saturdays **09:30 CT**, Task Scheduler job **UCT Terminal-Next Weekly**

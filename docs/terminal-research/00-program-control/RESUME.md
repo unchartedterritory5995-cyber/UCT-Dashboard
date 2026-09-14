@@ -14,8 +14,8 @@
 | §6 build queue | ✅ **EMPTY** — every numbered row DONE with its SHA. **AUTHORIZED-AND-UNBUILT = 0.** |
 | audit counts | DONE **11** · BLOCKED-DATA **5** · BLOCKED-OWNER **8** · BLOCKED-SPEC-READ **5** · BLOCKED-DEPENDENCY **2** · EXCLUDED **1** = **32**. ⛔ NOT-YET-CLASSIFIED **0**. |
 | S7 | **8 of 8 types registered; every CP3 merged and ARMED.** Seven dark sweeps ticking. |
-| self-monitoring | ✅ **ALL THREE LIVE.** Layer 0 refused two real pushes · Layer 1 deployed and posted its first admin-Discord report · Layer 2 registered and dry-run (stopped at §1, changed nothing). Read **§8**. |
-| owner's desk | ⚠️ **Layer 2 still cannot report**: the sandbox it launches into has no egress to admin Discord, and **F-L2-1** makes a stopped run record `exit=0`. Layer 1 is unblocked and needs nothing. |
+| self-monitoring | ✅ **ALL THREE LIVE.** Layer 0 refused four real pushes · Layer 1 deployed and posted its first admin-Discord report · Layer 2 hardened: narrow profile, meaningful exit code, its own reporter. Read **§8**. |
+| owner's desk | **ONE COMMAND**: `setx UCT_TERMINAL_NEXT_WEBHOOK "<admin webhook url>"`. Until it is set the weekly runner **refuses to start** (exit 2) rather than run something it could not report. Nothing else is waiting. |
 | next decision | **next weekend's dark read** — not a build. |
 
 ## 1. Reopen
@@ -184,7 +184,7 @@ PART D of `OWNER_INPUTS.md` carries the three that need a CHOOSE.
 |---|---|---|
 | **LAYER 0** — pre-push guard | `tools/pre_push_guard.py` + the hook at `$(git rev-parse --git-common-dir)/hooks/pre-push` | ✅ **LIVE, and it proved itself in production** — refused a real push at 135 s and allowed it at 157 s. UNREADABLE fails closed. `UCT_SKIP_PREPUSH_GUARD` is the logged bypass, for a human with a reason. |
 | **LAYER 1** — `terminal-next-monitor` | `api/terminal_next_monitor_main.py` · `api/routers/terminal_next_reports.py` · the `railway.json` monitor branch | ✅ **LIVE 2026-09-14 00:25Z.** Source `unchartedterritory5995-cyber/UCT-Dashboard`@`master`, cron `0,12,20,30 11,12,13,14,20,21 * * *`, deploy SUCCESS on `e659454bb`, first manual run posted to admin Discord. |
-| **LAYER 2** — weekly autonomous run | `docs/terminal-research/00-program-control/WEEKLY_AUTONOMOUS_PROMPT.md` + `tools/terminal_next_weekly.cmd` | ✅ **REGISTERED AND ARMED** — Task Scheduler job **`UCT Terminal-Next Weekly`**, status `Ready`, next run **2026-09-19 09:30** local (CT), running `C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd`. ✅ **DRY-RUN 2026-09-13 19:06–19:10** — stopped at §1, built nothing, touched nothing. Three findings below. |
+| **LAYER 2** — weekly autonomous run | prompt + `tools/terminal_next_weekly.cmd` + `tools/weekly_exec.py` + `tools/weekly_status.py` + `.claude/weekly-autonomous.settings.json` | ✅ **REGISTERED, HARDENED, DRY-RUN.** Task Scheduler `UCT Terminal-Next Weekly`, `Ready`, next run **2026-09-19 09:30 CT**. Narrow permissions profile; a STATUS line sets the exit code; the runner posts to admin Discord itself. ⚠️ Needs `UCT_TERMINAL_NEXT_WEBHOOK` set once — see below. |
 
 ### ✅ LAYER 1 IS LIVE — applied 2026-09-14 00:25Z, and the CLI is the proof
 
@@ -241,41 +241,81 @@ pressing Deploy. ⛔ **Nothing of theirs was ever deployed or discarded by this 
    superset is what makes DST a non-event; **do not "tighten" the cron to match the ET times.**
 
 
-### ✅ LAYER 2 HAS NOW BEEN DRY-RUN — and it found three things
+### ✅ LAYER 2 CAN NOW ACT, AND CAN NO LONGER FAIL SILENTLY
 
-Run 2026-09-13 19:06–19:10 via `schtasks /Run`. It **stopped at §1 exactly as written**: nothing
-built, merged, pushed or flagged; both trees byte-identical afterwards; `stash@{0}` *"broker-sync
-WIP"* present and untouched. The layer's refusal path works.
+Three things changed on 2026-09-14. Each closes one of the findings the first dry run produced.
 
-⭐ **It caught the `ahead 99` false alarm by itself**, before the fix was written — *"`git
-rev-list --count origin/master..HEAD` is 0 … worth knowing so next week's run doesn't stop on it."*
-That is the best evidence this layer earns its keep.
+**1 · A narrow permissions profile — `.claude/weekly-autonomous.settings.json`**
 
-**Three findings, and two of them make the layer silent:**
-
-1. ⛔ **FOUR OF THE EIGHT CHECKS WERE DENIED BY THE SANDBOX PROFILE.** `railway`, `schtasks`,
-   `pytest` and network egress are all refused, and a non-interactive run can approve nothing.
-   **As registered, the Saturday job stops here every week.**
-2. ⛔⛔ **THE FAILURE NOTICE COULD NOT REACH ADMIN DISCORD.** §1 and §4 route every outcome to
-   `DISCORD_WEBHOOK_URL`; with no egress and no permission to read the variable there was no
-   destination. The log file was the only copy. **A stop that cannot report is a silent stop**,
-   which is the single failure this layer exists to prevent.
-3. ⚠️ **F-L2-1 — THE RUNNER REPORTED `exit=0` FOR A RUN THAT STOPPED.** `claude -p` exits 0
-   having successfully written a report *about refusing to proceed*, so Task Scheduler records
-   **success**. Until that is fixed, `Last Result: 0` on this job means **nothing**. Registered as
-   a follow-up; deliberately **not** fixed in the same pass that found it.
-
-⚠️ The job's command path points into the **`s7-price-level` worktree**. Do not remove that
-worktree without re-pointing the task, or the Saturday run dies silently.
-
-⚠️ **Running it by hand from a session that already holds these worktrees is the concurrency
-hazard** — two Claude sessions, two trees, one shared stash stack. The 2026-09-13 run was launched
-that way deliberately and behaved, but that was a choice made with the risk understood, not a
-precedent. From a fresh shell:
+Launched by the runner as:
 
 ```
-C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd
+claude -p --settings <profile> --add-dir <docs-worktree> --permission-prompts none --output-format text
 ```
+
+`--permission-prompts none` is what makes it deny-by-default: anything unmatched would have
+prompted, and a prompt nobody can answer becomes a denial. ⛔ **`deny` beats `allow`, and that is
+load-bearing** — `--settings` is **additive** to the operator's own settings, so the allow list
+could be widened from outside this file. The deny list cannot be.
+
+⛔⛔ **A PERMISSION PREFIX CANNOT END MID-TOKEN — measured, not assumed.** Probed headless against
+Claude Code 2.1.270: `Bash(python -m pytest tests/test_:*)` **did not match** a real named-file
+run and was DENIED. The only rule that matches is `Bash(python -m pytest tests/:*)` — which also
+matches the bare `pytest tests/` that reached 18 GB and was OOM-killed. The same holds for
+`Bash(railway ssh --service web "/opt/...` : a prefix cannot end inside a quoted argument, so the
+only workable rule grants an **unrestricted shell on the production pod**.
+
+⭐ **The rule that works is the rule that permits the hazard**, so both constraints moved into
+code: `tools/weekly_exec.py`, whose raw equivalents are DENIED.
+
+| the run needs | it runs |
+|---|---|
+| trees clean + published | `python tools/terminal_next_env_check.py` |
+| a named test | `python tools/weekly_exec.py tests tests/test_<name>.py` |
+| a pod report | `python tools/weekly_exec.py pod ticking｜report｜gate-check` |
+| production health | `python tools/weekly_exec.py health` |
+
+⚠️ **TRANSITIVE TRUST, STATED RATHER THAN HIDDEN:** allow-listing `python tools/<x>.py` grants
+whatever that tool does, including its subprocesses — `flag_ledger_audit.py` shells `railway
+variables`, which is denied to the model directly. Accepted because that tool is read-only by
+construction; **not** a licence to allow-list a tool that writes.
+
+⚠️ **CHECK 6 (Task Scheduler) IS OUT OF SCOPE HEADLESS, BY DESIGN.** `schtasks` is denied; the run
+never needs it; and the run executing at all is the proof the job fired. It reports `n/a`, never
+"passed" — a check that cannot be performed must never be dressed up as one that did.
+
+**2 · F-L2-1 — an exit code that means something**
+
+The prompt's **§0** now requires the last line printed to be exactly one of four tokens.
+`tools/weekly_status.py` reads it; the runner exits with it.
+
+| status | meaning | exit |
+|---|---|---|
+| `RAN` | a pre-authorized unit completed | **0** |
+| `STOPPED-NOTHING-READY` | nothing was eligible — a successful run | **0** |
+| `STOPPED-ENV` | a check failed; nothing attempted | 3 |
+| `STOPPED-ERROR` | it tried and something broke | 4 |
+| *(no STATUS line)* | crash, truncation, kill, permission starvation | **5** |
+| *(webhook unset)* | the runner refused to start a run it could not report | 2 |
+
+⛔ **EXIT 5 IS THE POINT.** A crashed or permission-starved run leaves exactly that shape, and it
+is what used to read as success. Mutation-proved: setting `NO_STATUS = 0` reds three tests by name.
+
+**3 · The runner reports on its own, outside Claude**
+
+`tools/terminal_next_weekly.cmd` posts status + log path + exit code to admin Discord with `curl`
+and a browser User-Agent (Cloudflare answers a default agent with `error code: 1010`), on **every**
+run. ⭐ **That post does not depend on the Claude run succeeding, having egress, or reading
+anything.** The webhook comes from **`UCT_TERMINAL_NEXT_WEBHOOK`**, Windows-side:
+
+```
+setx UCT_TERMINAL_NEXT_WEBHOOK "https://discord.com/api/webhooks/<id>/<token>"
+```
+
+⛔ **Unset = exit 2 and no run starts.** A run that could not report its own outcome is not
+started. ⛔ And the variable is **cleared in a child process** (`tools/weekly_claude_child.cmd`)
+before `claude -p` is launched, so the model cannot read the webhook even in principle — a
+mechanical guarantee, not an instruction.
 
 ### Until Layer 1 runs, the Monday check in §2 is still a HAND command
 
