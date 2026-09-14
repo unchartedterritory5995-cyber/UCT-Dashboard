@@ -34,41 +34,38 @@ the command is right and this section is what drifted.
 *do* about them differs — one is a defect to fix, the other is evidence to go and get — but neither
 is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 
-### Reading as of 2026-09-14 13:45 ET — **organic members exposed to V2: 0**
+### Reading as of 2026-09-14 16:32 ET — **organic members exposed to V2: 0**
 
-| Precondition | State | Evidence — the file or command that settles it |
+⛔⛔ **THIS TABLE WAS LYING ON ITS MOST IMPORTANT ROW UNTIL 16:30 TONIGHT.** `check_s2_measured`
+was `MET if the --real files exist`; it never opened them. The first `--real` runs in this
+programme's history all printed `TOTALS load_harness FAIL`, and the row flipped to **MET** because
+five files now sat on disk. **Producing failing evidence made the gate greener.** Three rows had
+that shape (S2, chaos, 3.5) and all three now read verdicts. The reading below is the fixed tool.
+
+| Precondition | State | Evidence |
 |---|---|---|
-| zero xfails in the forensics suite | ✅ MET | `tests/test_discord_render_forensics.py` — 0 `@pytest.mark.xfail` decorators; C-04/C-06/C-07 all closed this cycle |
-| every forensics class closed with a commit | 🔴 **NOT MET** | `01-failure-forensics.md` class table: 11/14 marked ✅. Open: **C-02** (the load half needs `--real`), **C-09** (the warm cycle still blows its 20 s budget — observed live during RTH today), **C-13** (OI-13 token rotation is the owner's) |
-| the artifact cache is wired to the hot path | ✅ MET | `adapters/bindings.py::_cached_render` · `tests/test_discord_render_cache_wiring.py` (11 cases) · bench `evidence/step3/cache-bench-off-vs-on.txt` — 80 % hit rate, 100 renders → 20 |
-| soak clean for ≥ 24 h | ⚪ NOT MEASURABLE | `C:\Users\Patrick\uct-render-soak\soak.log` — 51 clean ticks of the 90 a 24 h window needs. ⛔ A clean short run is not a clean run: a soak asks whether anything GROWS |
-| `/chart` is shadowed (structural) | ✅ MET | `tests/test_discord_render_shadow_reaches_chart.py` — the real route, a real Ed25519 signature, parametrised over chart AND flow; 2 mutations red |
-| **S2** measured in `--real` mode and within SLO | ⚪ **NOT MEASURABLE** | **No `--real` run exists.** Every load figure so far is ACK-PATH ONLY — `--symbols stub`, zero-cost handler, no chart rendered, no PATCH sent. `load_harness --real` is built and self-checked (17 cases); it runs after 16:00 ET |
-| chaos passed in `--real` mode | ⚪ NOT MEASURABLE | `evidence/step3/chaos-full.json` is 13/13 against rig stubs, which is not evidence for renderer_down, bars_api_502, discord_429, oversized_attachment or mid_job_restart |
-| 3.5 real-Discord smoke | ⚪ NOT MEASURABLE | `evidence/smoke-script.md` is written; **no channel exists that is both bot-postable and not Contributor-visible** — measured across every text channel the token can enumerate |
-| `#render-alerts` locked to admins | 🔴 **NOT MET** | `render_alerts_access_probe.py` → `RENDER_ALERTS_ACL CONTRIBUTOR_ALLOWED`. `Contributor` is the channel's **only** view-allow overwrite. The bot cannot fix it: no `MANAGE_CHANNELS` **and** no membership |
-| mutation NOT-APPLIED = 0 | ✅ MET | `tests/test_mutation_harness_anchors.py` in the gate — `--dry-check` on every harness, `stale=0` read from the totals line; 38/38 and 75/75 anchors live |
+| zero xfails in the forensics suite | ✅ MET | 0 `@pytest.mark.xfail` decorators |
+| every forensics class closed with a commit | 🔴 **NOT MET** | 11/14. Open: **C-02**, **C-09**, **C-13** |
+| the artifact cache is wired to the hot path | ✅ MET | `bindings` imports `artifact_cache` ⚠️ but see OI-38 — it did **not engage** under `--real` |
+| soak clean for ≥ 24 h | ⚪ NOT MEASURABLE | **61** clean ticks of the 90 a 24 h window needs |
+| `/chart` is shadowed (structural) | ✅ MET | and now **empirically** — the first `/chart` shadow records ever, 2026-09-14 19:58Z |
+| **S2** measured in `--real` and within SLO | 🔴 **NOT MET** | 3 runs judged, **9 breaches**. Worst: `p50 14,855 ms > 2,500 ms`, `S5 35.7% (queue_full×81)` — **at 30 arrivals/second**. ⭐ At **1/s** (3.1c) S2 is **MET on all three percentiles**: p50 3.5 ms · p95 1,748 ms · p99 6,692 ms, 593 charts delivered |
+| chaos passed in `--real` | ✅ MET | 7 scenarios passed for real, **6 refused by name** (refused ≠ passed) |
+| 3.5 real-Discord smoke | 🔴 **NOT MET** | **only 2/15 rows PASS.** A partial smoke is not a smoke |
+| `#render-alerts` locked to admins | ✅ MET | no `Contributor` allow overwrite — fixed 2026-09-14 |
+| mutation NOT-APPLIED = 0 | ⚪ NOT MEASURABLE | pass `--run-mutations`. ⭐ `anchor_check` reads **316/316 ok, stale=0, ambiguous=0** |
 
-**VERDICT: NOT MET — do not flip.** Three rows NOT MET, four NOT MEASURABLE.
+**VERDICT: NOT MET — do not flip.** Four rows NOT MET, three NOT MEASURABLE.
 
-⚰️ ~~**The single owner action that moves the most rows:** grant the bot's role
-(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**.~~
-**DONE 2026-09-14**, verified by API — `--whoami` reports `CAN create channels`. Kept struck rather
-than deleted so a reader who remembers the ask does not re-issue it.
+⭐ **The S2 row is the one to read carefully, because its headline and its meaning differ.** Every
+failure in every load phase was **`queue_full`** — never a timeout, never a render error, never a
+breaker trip. `acks_over_3s` was **0 in all three phases**, so S1 held at 30 arrivals/second. The
+bounded queue refusing excess work with an immediate named refusal is the design working; the SLO
+counts those refusals as failures because the member got no chart, which is also correct.
 
-**What it actually unblocked, measured rather than predicted:**
-
-- ✅ `#render-smoke` = `1549129739048853544` exists, private at creation, **organic members exposed 0**.
-- ✅ The `--real` delivery hop: proven by a real post carrying a PNG — `DELIVERY OK http=200
-  attachments=1`. `step3_real.sh --deliver-channel 1549129739048853544`.
-- ⛔ **It did NOT let the bot create that channel.** `--create-smoke` returned `403 / 50013`:
-  creating a channel *with overwrites* also needs **`MANAGE_ROLES`**, and so does editing an
-  existing channel's overwrites (**OI-33**). `MANAGE_ROLES` was deliberately **not** granted — it
-  would let the bot rewrite overwrites anywhere and manage every role beneath its own on a
-  1,558-member production guild, to save a few browser clicks. Both channels were finished in the
-  browser instead.
-- ⚠️ And it did **not** fix `#render-alerts`, exactly as predicted — 50001 there is *membership*.
-  That was fixed separately by removing the `Contributor` overwrite and giving the bot one.
+⚠️ **And 3.1a's load is ~15× what the brief asked for (OI-37):** "30 concurrent" was implemented as
+`--rate 30` = 30 arrivals **per second**. Both numbers are real; only one of them is the test that
+was specified.
 
 ### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
 
