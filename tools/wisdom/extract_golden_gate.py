@@ -40,6 +40,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import extract_common as common  # noqa: E402
+import gate_records  # noqa: E402
 
 TRIAL_KIND = "extractor_trial"
 CACHE_WRITE_FACTOR = 1.25
@@ -139,7 +140,7 @@ def interpret(message, cost: float) -> dict:
     return out
 
 
-def validate_into(result: dict, item: dict, vocab: set) -> dict:
+def validate_into(result: dict, item: dict, vocab: set, *, keep_raw: bool = False) -> dict:
     from api.services.wisdom.extract import writer
 
     if "output" in result:
@@ -151,7 +152,13 @@ def validate_into(result: dict, item: dict, vocab: set) -> dict:
         except Exception as exc:  # our validator failing is a tool bug, never a model miss
             result["error"] = f"validate: {type(exc).__name__}: {str(exc)[:300]}"
             result["transport_error"] = True
-    result.pop("output", None)
+    raw = result.pop("output", None)
+    # ⛔ R12: the raw output used to die on this line, which is why a validator bug was as
+    # undiagnosable offline as a scorer bug. It is now MOVED, not kept in place, and under a
+    # private key that `gate_records.persist_phase` strips again the moment it has written it —
+    # so nothing downstream of persistence can see it and every aggregate stays byte-identical.
+    if keep_raw and raw is not None:
+        result[gate_records.RAW_KEY] = raw
     return result
 
 
@@ -248,7 +255,7 @@ def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: s
 
 
 def run_phase(client, items: list, *, model: str, effort: str, spend: SpendCap, phase: str, transport: str,
-              concurrency: int, poll_s: float, timeout_s: float) -> list:
+              concurrency: int, poll_s: float, timeout_s: float, keep_raw: bool = False) -> list:
     from api.services.wisdom.extract import config, prompt
 
     system_text = prompt.system_prompt()
@@ -294,7 +301,8 @@ def run_phase(client, items: list, *, model: str, effort: str, spend: SpendCap, 
         if not pending:
             break
     for i, item in enumerate(items):
-        res = validate_into(results[i] if results[i] is not None else {"skipped": "not sent"}, item, vocab)
+        res = validate_into(results[i] if results[i] is not None else {"skipped": "not sent"}, item, vocab,
+                            keep_raw=keep_raw)
         results[i] = res
         print(f"  {phase} {model} {item['segment']['segment_id'][:10]} effort={res.get('effort')} "
               f"${res.get('cost', 0.0):.4f} kept={len(res.get('kept') or [])} "
@@ -390,6 +398,15 @@ def main() -> int:
     #: which becomes golden-v1.1 the moment that file lands — so an operator who wants the
     #: OLD set back (to compare two golden versions on one extractor) has to be able to ask.
     ap.add_argument("--golden-file", default="", help="e.g. golden-v1.jsonl (default: the newest present)")
+    #: R12 (owner ruling 2026-09-14). ON by default, because the failure it prevents is silent:
+    #: a run that discards its inputs looks identical to one that kept them until the day you
+    #: need to re-score it, and by then the only remedy is paying for the run again ($4.34 for
+    #: the 57-segment gate phase). --no-persist-records exists so the cost can be measured, not
+    #: so it can be skipped.
+    ap.add_argument("--no-persist-records", dest="persist_records", action="store_false", default=True,
+                    help="do NOT keep this run's validated records (R12); aggregates are unaffected either way")
+    ap.add_argument("--gate-runs-dir", default=str(gate_records.DEFAULT_ROOT),
+                    help="where persisted runs go; must stay inside the gitignored data/wisdom tree (§0.4f)")
     args = ap.parse_args()
 
     common.bootstrap(args.db)
@@ -398,6 +415,14 @@ def main() -> int:
 
     out_dir = common.out_path(str(pathlib.Path(args.out_dir) / "x")).parent
     (out_dir / "receipts").mkdir(parents=True, exist_ok=True)
+    #: ⛔ Minted ONCE, at the start, and used for the persisted directory. The report's own
+    #: filename stamps at the END of the run, so it cannot serve as the run's identity — the two
+    #: are joined by `gate_run_id`, which the report carries.
+    gate_run_id = common.stamp()
+    persist_records = bool(args.persist_records) and not args.dry_run
+    #: out_path refuses anything inside the shared data root (C:\data), which is the guard that
+    #: keeps a persisted run out of the owner's live files.
+    gate_runs_root = common.out_path(str(pathlib.Path(args.gate_runs_dir) / "x")).parent
     store.init_db()
     model = args.model or config.configured_model()
     effort = args.effort or config.configured_effort()
@@ -416,7 +441,8 @@ def main() -> int:
           f"{len(items)} segments; unplaced {data['unplaced']}; missing samples {data['missing_samples']}")
     print(f"worst case per request ${worst_one:.2f}; phases {phases}; total cap ${args.max_usd:.2f}"
           f"{'; PILOT (--limit): nothing is recorded' if pilot else ''}")
-    report = {"extractor_version": version, "model": model, "effort": effort, "transport": args.transport,
+    report = {"gate_run_id": gate_run_id, "records_persisted": persist_records,
+              "extractor_version": version, "model": model, "effort": effort, "transport": args.transport,
               "split": args.split, "golden_version": data["golden_version"],
               "golden_sha256": data["golden_sha256"], "golden_records": data["records"],
               "golden_null_rows": data["null_rows"],
@@ -432,13 +458,25 @@ def main() -> int:
     client = batch.make_client()
     receipts = []
     phase_kw = dict(spend=spend, transport=args.transport, concurrency=args.concurrency, poll_s=args.poll_seconds,
-                    timeout_s=args.batch_timeout_seconds)
+                    timeout_s=args.batch_timeout_seconds, keep_raw=persist_records)
+    persist_kw = dict(extractor_version=version, model=model, effort=effort, transport=args.transport)
+    if persist_records:
+        print(f"persisting validated records to {gate_records.run_dir(gate_runs_root, gate_run_id)}"
+              f"  (R12: an E5-class scoring bug re-scores offline for $0.00)")
 
     def complete(summary, n):
         return summary["skipped_spend_cap"] == 0 and summary["transport_errors"] == 0 and summary["calls"] == n
 
     if "gate" in phases:
         results = run_phase(client, items, model=model, effort=effort, phase="gate", **phase_kw)
+        if persist_records:
+            got = gate_records.persist_phase(gate_runs_root, run_id=gate_run_id, phase="gate", items=items,
+                                             results=results, manifest_extra={
+                                                 "split": args.split, "golden_version": data["golden_version"],
+                                                 "golden_sha256": data["golden_sha256"], "pilot": pilot},
+                                             **persist_kw)
+            print(f"  persisted {got['records']} records over {got['segments']} segments "
+                  f"({got['raw_outputs']} raw outputs)")
         scores = segment_scores(items, results)
         common.write_json(out_dir / f"segment-scores-{tag}.json", scores)
         common.write_json(out_dir / f"keys-{tag}.json", keys_by_segment(items, results))
@@ -466,6 +504,12 @@ def main() -> int:
                                                   "unplaced": data["unplaced"], "segments": len(items),
                                                   "vocabulary_source": prompt.vocabulary_source()})
             entry.update(run_id=out["run_id"], gate=out["gate"])
+            if persist_records:
+                # the eval run_id only exists AFTER scoring, so it is folded in rather than
+                # used as the directory name — otherwise a pilot or an INCOMPLETE phase, which
+                # never records an eval, would have nowhere to persist to at all.
+                gate_records.note_manifest(gate_runs_root, gate_run_id, eval_run_id=out["run_id"],
+                                           gate_decision=out["gate"].get("decision"))
             print(f"  gate decision: {out['gate']['decision']} (baseline={out['gate'].get('baseline')}, "
                   f"regressions={out['gate'].get('regressions')})")
             receipt = {"kind": golden.EVAL_KIND, "run_id": out["run_id"], "extractor_version": version,
@@ -514,6 +558,10 @@ def main() -> int:
             print("\ndrift: no gate record keys for this model, effort and version; skipped")
         else:
             results = run_phase(client, drift_items, model=model, effort=effort, phase="drift", **phase_kw)
+            if persist_records:
+                got = gate_records.persist_phase(gate_runs_root, run_id=gate_run_id, phase="drift",
+                                                 items=drift_items, results=results, **persist_kw)
+                print(f"  persisted {got['records']} drift records over {got['segments']} segments")
             second = keys_by_segment(drift_items, results)
             # ⚰️ THE SECOND RUN'S KEYS USED TO BE COMPUTED AND THROWN AWAY, so the only surviving
             # evidence for a drift number was the aggregate it produced. When the 2026-09-14 run
@@ -558,6 +606,15 @@ def main() -> int:
             print("\ntrial: no gate scores for this model, effort and version; skipped")
         else:
             results = run_phase(client, trial_items, model=args.trial_model, effort=effort, phase="trial", **phase_kw)
+            if persist_records:
+                # ⚠️ the trial phase runs a DIFFERENT model, so its rows carry args.trial_model,
+                # not `model` — persisting them under the gate's model would make the run
+                # unreadable exactly where a model comparison is the question being asked.
+                got = gate_records.persist_phase(gate_runs_root, run_id=gate_run_id, phase="trial",
+                                                 items=trial_items, results=results,
+                                                 extractor_version=version, model=args.trial_model,
+                                                 effort=effort, transport=args.transport)
+                print(f"  persisted {got['records']} trial records over {got['segments']} segments")
             trial_scores = segment_scores(trial_items, results)
             ids = [it["segment"]["segment_id"] for it in trial_items]
             base = golden.score([base_scores[s] for s in ids])
