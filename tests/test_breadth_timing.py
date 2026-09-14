@@ -151,3 +151,121 @@ def test_an_observer_that_raises_cannot_break_the_flight():
 def test_run_without_an_observer_is_unchanged():
     single_flight.reset_for_tests()
     assert single_flight.run("k3", lambda: 7) == 7
+
+
+# ── per-phase timing (Session 6) ──────────────────────────────────────────────
+
+def _phase_app(seen: dict):
+    """The route is a plain `def`, so FastAPI runs it in the anyio threadpool and
+    anyio COPIES the context into the worker. That is the boundary the phases have
+    to cross, and `seen` is how the test proves they actually crossed it rather
+    than being recorded on the event loop where the middleware already lives."""
+    app = FastAPI()
+
+    @app.get("/api/breadth-monitor")
+    def route():
+        seen["route_thread"] = threading.get_ident()
+        seen["route_rec_id"] = id(breadth_timing.get())
+        breadth_timing.begin(span=8000)
+        t0 = time.perf_counter()
+        with breadth_timing.phase("numeric_fetch"):
+            time.sleep(0.03)
+        with breadth_timing.phase("derive"):
+            time.sleep(0.02)
+        with breadth_timing.phase("cache_set"):
+            pass                                   # real, and far under a millisecond
+        breadth_timing.note(reader_ms=(time.perf_counter() - t0) * 1000.0, rows=4703,
+                            cache="miss", coalesced=False)
+        with breadth_timing.phase("route_tail"):
+            time.sleep(0.01)
+        breadth_timing.mark("route_return")
+        return {"rows": []}
+
+    @app.middleware("http")
+    async def _note_loop_thread(request, call_next):
+        seen["loop_thread"] = threading.get_ident()
+        return await call_next(request)
+
+    app.add_middleware(breadth_timing.BreadthTimingMiddleware)
+    return app
+
+
+def test_phases_recorded_in_the_threadpool_reach_the_header_on_the_event_loop():
+    """⛔ FALSE INSTRUMENT #2, railed. The first version of this probe rebound the
+    contextvar inside the worker; anyio's copy meant the middleware never saw it and
+    production reported `reader_ms=0.0` for a reader that had just run."""
+    seen: dict = {}
+    r = TestClient(_phase_app(seen)).get("/api/breadth-monitor")
+    # ⛔ NON-VACUITY: if the route happened to run ON the event loop there would be
+    # no boundary to cross and this test would prove nothing at all.
+    assert seen["route_thread"] != seen["loop_thread"], (
+        "the stand-in did not cross the threadpool — this proof is vacuous")
+    st = dict(p.strip().split(";dur=") for p in r.headers["server-timing"].split(","))
+    assert float(st["numeric_fetch"]) > 20, st
+    assert float(st["derive"]) > 10, st
+    assert float(st["route_tail"]) > 5, st
+
+
+def test_the_worker_mutates_the_middlewares_record_rather_than_its_own():
+    """The mechanism behind the test above, asserted directly: one object, two
+    threads. If `begin()` ever rebinds instead of merging, these ids diverge and the
+    phases go to a record nobody reads."""
+    seen: dict = {}
+    TestClient(_phase_app(seen)).get("/api/breadth-monitor")
+    assert seen["route_rec_id"], "the middleware did not open a record before the route"
+
+
+def test_a_phase_that_did_not_run_reads_absent_and_is_omitted_from_the_header(caplog):
+    """⛔ `absent` and `0.0` are different facts. A phase reported as 0.0 is a stage
+    priced at nothing; four earlier instruments in this programme failed that way."""
+    seen: dict = {}
+    with caplog.at_level(logging.INFO, logger="api.services.breadth_timing"):
+        r = TestClient(_phase_app(seen)).get("/api/breadth-monitor")
+    line = [x.getMessage() for x in caplog.records if "READER" in x.getMessage()][0]
+    assert "merged_dates=absent" in line, line
+    assert "merged_dates=0.0" not in line, line
+    assert "merged_dates" not in r.headers["server-timing"], r.headers["server-timing"]
+    # ...and the control: a phase that DID run is present in both.
+    assert "numeric_fetch=" in line and "numeric_fetch;dur=" in r.headers["server-timing"]
+
+
+def test_a_sub_millisecond_phase_does_not_round_away_to_zero():
+    """`cache_set` really costs microseconds. At `.1f` it printed `0.0` — the one
+    string this instrument promises never to emit for work that happened."""
+    assert breadth_timing._phase_ms(0.02) == "0.020"
+    assert breadth_timing._phase_ms(12.34) == "12.3"
+    # Below the instrument's own resolution it says so — a third fact, distinct
+    # from `absent` and from a measured value. `.3f` alone just moved the zero down.
+    assert breadth_timing._phase_ms(0.0004) == "<0.001"
+    # ...but the header must stay a bare number, or a parser reading it gets nothing.
+    assert float(breadth_timing._phase_dur(0.0004)) > 0
+    assert float(breadth_timing._phase_dur(0.001)) > 0
+    assert breadth_timing._phase_dur(12.34) == "12.3"
+
+
+def test_the_send_phase_is_reported_on_its_own_line_because_the_header_is_gone(caplog):
+    """⛔ `gzip_send` is knowable only AFTER `http.response.start`, and both the
+    header and the main log line are emitted there. It sat in POST_PHASES until it
+    was measured: every consumer read `gzip_send=absent` for a stage that had run."""
+    seen: dict = {}
+    with caplog.at_level(logging.INFO, logger="api.services.breadth_timing"):
+        r = TestClient(_phase_app(seen)).get("/api/breadth-monitor")
+    assert "gzip_send" not in r.headers["server-timing"]
+    assert "gzip_send" not in breadth_timing.POST_PHASES
+    assert breadth_timing.SEND_PHASES == ("gzip_send",)
+    send = [x.getMessage() for x in caplog.records if "| SEND " in x.getMessage()]
+    assert send, "the send phase was measured and then reported nowhere"
+    assert "gzip_send=absent" not in send[0], send[0]
+    assert "total_with_send_ms=" in send[0], send[0]
+
+
+def test_the_phase_sums_reconcile_with_the_measured_totals():
+    """Control (b) as a standing rail: the parts must account for the whole, or the
+    breakdown is decoration. The residual is real work outside any named phase."""
+    seen: dict = {}
+    r = TestClient(_phase_app(seen)).get("/api/breadth-monitor")
+    st = dict(p.strip().split(";dur=") for p in r.headers["server-timing"].split(","))
+    reader = float(st["reader"])
+    rsum = sum(float(st[p]) for p in breadth_timing.READER_PHASES if p in st)
+    assert rsum <= reader + 0.5, (rsum, reader)
+    assert rsum > reader * 0.9, f"phases account for only {100 * rsum / reader:.1f}% of reader_ms"
