@@ -97,6 +97,7 @@ import {
   getDefinition as getNativeDefinition,
   listDefinitions as listNativeDefinitions,
 } from './nativeRegistry'
+import { parsePaneOfTarget } from './sourceRef'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 // Re-exported so engine code has ONE import for everything instance-shaped. The
@@ -642,11 +643,44 @@ export function validateInstance(inst, registry, ctx) {
     if (inst.placement !== undefined && inst.placement !== null) {
       if (!isPlainObject(inst.placement)) {
         errors.push(`placement: expected an object, got ${fmt(inst.placement)}`)
-      } else if (inst.placement.target !== undefined && !PLACEMENT_TARGETS.includes(inst.placement.target)) {
+      } else if (inst.placement.target !== undefined
+        && !PLACEMENT_TARGETS.includes(inst.placement.target)
+        // ⭐⭐ AND THE FOURTH FORM, WHICH IS AN INSTANCE'S ALONE. `PLACEMENT_TARGETS`
+        // is the vocabulary a DEFINITION declares — 'price', 'pane', 'volume' — and
+        // it must stay that way: a definition naming another instance's pane would
+        // be a definition that cannot be registered without a chart. But an
+        // INSTANCE may also name a pane by its OWNER (`@inst:dataSeries:1`), which
+        // is what "Display in: QQQ" means, and `parsePaneOfTarget` is the one
+        // reader of that grammar.
+        //
+        // 🐛 IT USED TO BE REJECTED, AND THE INSTANCE WAS DROPPED FOR IT. Every
+        // other participant already agreed the form was legal —
+        // `isWritableDisplayTarget` accepts it, `setInstanceDisplayTarget` writes
+        // it, `resolveDisplayTarget` resolves it and `placement.js` renders it — so
+        // the member's chosen pane was stored, shown by the control and the row
+        // summary, and then thrown away by the validator on the very next read.
+        // Worse than invisible: with the instance gone, `StockChart`'s
+        // `liveStoredDefIds` no longer saw a live `movingAverage`, so the LEGACY
+        // TOGGLE projected `legacy:movingAverage` in its place — a DIFFERENT
+        // average, of this chart's own close, under the same name in the legend.
+        // A member who set `MA(QQQ)` and moved it into QQQ's pane read AAPL's
+        // average labelled MA. That is the one failure shape this engine treats as
+        // a lie by construction.
+        //
+        // ⛔ THE GRAMMAR IS CHECKED, NOT THE REFERENT. Whether that owner still
+        // exists is a question this function cannot answer — it validates ONE
+        // instance and has no list — and it is already answered elsewhere on
+        // purpose: an orphaned target is PRESERVED and reported "Pane unavailable"
+        // rather than healed, and `placement.js` fails closed for the pane itself.
+        // Dropping the instance here would be the silent healing that decision
+        // exists to refuse.
+        && !parsePaneOfTarget(inst.placement.target)) {
         errors.push(
           `placement.target: unknown target ${fmt(inst.placement.target)} — expected one of: ` +
-          `${list(PLACEMENT_TARGETS)}. An instance may legally OVERRIDE its definition's target ` +
-          `(a user moving an overlay into its own pane), but only to a target the binder knows.`,
+          `${list(PLACEMENT_TARGETS)}, or \`@<instanceId>\` naming the pane another instance ` +
+          `owns. An instance may legally OVERRIDE its definition's target (a user moving an ` +
+          `overlay into its own pane, or into the pane a series it names already has), but only ` +
+          `to a target the binder knows.`,
         )
       }
     }
