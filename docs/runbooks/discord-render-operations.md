@@ -74,7 +74,7 @@ answering badly means `web`'s copy would very likely answer the same way (`flow.
 | **The durable jobs table** | `/data/discord_render_jobs.db` on **web's** volume; override `DISCORD_RENDER_DB_PATH` (`api/services/discord_render/jobs_store.py:62-63`) | Its own SQLite file, WAL, one writer thread, so a lock here can never wait on `bars.db` or `auth.db` (`03` §3.3) |
 | Schema | `03` §3.3 — one row per job: `corr_id` PK, timings (`ack_ms`, `queue_ms`, `first_image_ms`, `final_ms`), `state`, `outcome`, `failure_class`, `quality`, the lease, `pod_boot_ts`, `commit` | **This table IS the SLO store and the forensic record.** Every number `/renderhealth` prints is a query over it |
 | Interaction tokens | in the row, **nulled at terminal state**, purged at 16 minutes | A 15-minute bearer. Never copy a row wholesale into a document or a chat |
-| Retention | 30 days, swept by the observer's hourly `store.purge()` (`03` §3.9) | |
+| Retention | 30 days without tokens (`03` §3.3), swept by the observer's hourly `store.purge()` (`03` §3.9) | |
 | Alert cooldowns | the same database — **durable on purpose** | An in-memory cooldown resets every 8 minutes and would page on every pod |
 | Artifact cache | `/data/discord_render_cache/` when 2.5 ships (`03` §3.6) | **Not built yet.** Do not go looking for it |
 
