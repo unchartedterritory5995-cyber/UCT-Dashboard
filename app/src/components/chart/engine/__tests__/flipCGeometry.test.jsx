@@ -296,8 +296,13 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     // historical — it never shipped, so there is no pre-Flip-C picture of it — and
     // the loop is a self-consistency check for it while it stays a transcription
     // check for the nine that did ship. Kept as an equality, not a floor.
-    expect(checked).toBe(10)
-    expect(ids).toHaveLength(10)
+    // ⭐ ELEVEN AT P2.1. `dataSeries` declares `autoPane`, so it joins the `pane`
+    // target — and like `rsLine` its `before` is DERIVED rather than historical,
+    // because it never shipped and has no pre-Flip-C picture. The loop stays a
+    // transcription check for the nine that did ship and a self-consistency check
+    // for the two that did not.
+    expect(checked).toBe(11)
+    expect(ids).toHaveLength(11)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {

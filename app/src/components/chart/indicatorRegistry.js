@@ -113,6 +113,10 @@ import { CARVED_OUT_ROWS, unwiredKeys, NOT_IN_BLOB } from './indicatorCatalog'
 // merge is POSITIONAL — see `chartDefaults`'s header) and simply stops being
 // listed and drawn.
 import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
+// ⭐ ONE NAMING AUTHORITY FOR THE SURFACES THAT NAME AN INSTANCE — the legend
+// chip, the "Display in" menu and this tab's rows.
+import { instanceLabel } from './engine/sourceRef'
+import { disambiguateLabels } from './engine/readout'
 
 export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
@@ -183,8 +187,16 @@ function optionPair(option) {
  *
  * This function is the whole of what a per-indicator `*_FIELDS` array used to
  * be, written once instead of once per indicator. Returns `null` for an input
- * type the tab has no control for (`string`, `source`) — those render nothing
- * rather than rendering wrong, and B4's generated dialog is where they land.
+ * type the tab has no control for (`string`) — those render nothing rather than
+ * rendering wrong.
+ *
+ * ⭐⭐ `source` USED TO BE ON THAT LIST, AND IT CAME OFF WHEN IT ACQUIRED A REAL
+ * CONTROL. While no shipped definition declared one the honest answer was `null`;
+ * `dataSeries` declares one and is member-facing, so "renders nothing" would mean
+ * an instance whose INSTRUMENT cannot be changed. The generated-control census
+ * (`enumerationSites`) asserts every declared input is reachable, and it is the
+ * rail that would have caught a field descriptor returned for a control the tab
+ * cannot draw — which is why the descriptor and the renderer landed together.
  */
 export function fieldFromInput(input) {
   if (!input || typeof input.key !== 'string' || !input.key) return null
@@ -196,6 +208,14 @@ export function fieldFromInput(input) {
       return { ...base, type: 'toggle' }
     case 'enum':
       return { ...base, type: 'select', options: (input.options || []).map(optionPair) }
+    // ⛔ A SOURCE CARRIES NO OPTIONS, AND THAT IS THE DIFFERENCE FROM AN ENUM.
+    // An enum's choices are declared by the definition and are the same on every
+    // chart; a source's depend on what else is ON this chart (another instance's
+    // output) and on what the member searches for (a symbol). So the descriptor
+    // names the TYPE only, and the control builds its own list from the live
+    // settings through `sourceRef.sourceOptions`.
+    case 'source':
+      return { ...base, type: 'source' }
     case 'int':
     case 'float':
       return {
@@ -501,7 +521,25 @@ export function listEngineIndicators(settings, registry) {
         // and "write the definition's mirror + its seeded instance".
         ...(instance ? { instanceId: instance.instanceId } : {}),
         engineOwned: true,
-        label: `${meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
+        // ⭐⭐ A DEFINITION THAT NAMES ITSELF FROM ITS SOURCE NAMES ITS ROWS THAT
+        // WAY TOO. `meta.name` is the CATALOGUE noun — right for "Relative
+        // Strength Index", and wrong for the one definition whose whole identity
+        // is what it was pointed at.
+        //
+        // ⚰️ MEASURED IN A BROWSER 2026-09-14, on the pane harness: a chart
+        // holding two QQQ series and one SPY showed FOUR rows all reading "Data
+        // Series", while the legend beside them correctly read `QQQ`. Fixing
+        // `chipLabel` alone is exactly half the defect the readout header warns
+        // about — there are two naming surfaces and they are not the same
+        // function. `instanceLabel` is the authority the chip already uses, so
+        // both say the same thing by reading the same declaration.
+        //
+        // ⛔ GATED ON `meta.labelFrom`, NEVER ON A DEFINITION ID. Every other row
+        // keeps its catalogue noun, and a future definition that names itself
+        // from an input inherits this with no edit here.
+        label: `${(instance && meta.labelFrom)
+          ? instanceLabel(def, instance)
+          : (meta.name || meta.shortName || def.id)}${sessionOnly ? ' (intraday only)' : ''}`,
         // The GROUP is the definition's short name, which is what the shipped tab
         // showed ("VWAP") — and it keeps the modal's section list derived from the
         // rows rather than hardcoded. Two instances share ONE section, which is
@@ -514,6 +552,36 @@ export function listEngineIndicators(settings, registry) {
         enabled,
       })
     }
+  }
+
+  // ── TWO COPIES OF ONE DEFINITION MUST NOT PRINT ONE NAME ────────────────
+  //
+  // ⭐⭐ THROUGH THE SAME AUTHORITY EVERY OTHER SURFACE USES. The legend chips and
+  // the "Display in" menu already read `disambiguateLabels`, so two QQQ series
+  // read `QQQ #1` and `QQQ #2` there. This list was the one place they both read
+  // `QQQ` — which is exactly the row a member opens to find out which is which.
+  //
+  // ⛔ AND IT IS THE HELPER, NOT A COPY OF ITS RULE. A second suffix grammar here
+  // would word the same duplicate differently from the legend beside it, which is
+  // the drift this phase exists to avoid.
+  const engineRows = rows.filter((r) => r && r.engineOwned && r.instanceId)
+  if (engineRows.length > 1) {
+    const byId = new Map()
+    for (const inst of (Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : [])) {
+      if (inst && inst.instanceId) byId.set(inst.instanceId, inst)
+    }
+    const suffixed = disambiguateLabels(
+      engineRows.map((r) => ({
+        defId: r.defId,
+        plotKey: '',
+        instanceId: r.instanceId,
+        label: r.label,
+        inputs: (byId.get(r.instanceId) || {}).inputs || {},
+      })),
+      (id) => ((registry && typeof registry.getDefinition === 'function')
+        ? registry.getDefinition(id) : null),
+    )
+    engineRows.forEach((r, n) => { r.label = suffixed[n] })
   }
   return rows
 }

@@ -438,7 +438,12 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
   it('every PRICE-target definition resolves to exclude — def by def', () => {
     const priceDefs = registry.listDefinitions().filter(d => d.placement.target === 'price')
     // If this list ever empties, every assertion below is vacuous.
-    expect(priceDefs.map(d => d.id)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    expect(priceDefs.map(d => d.id)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
+      'atrBands',
+      // ⭐ `movingAverage` DECLARES `onPrice` TOO. `MA(Close)` belongs on the
+      // candles — it is what a moving average has always been — and like every
+      // other price overlay it reserves no vertical space of its own.
+      'movingAverage'])
     for (const d of priceDefs) {
       const p = resolvePlacement({ instanceId: `i:${d.id}`, defId: d.id }, d, ctx)
       expect(p.autoscale, `${d.id} may not drag the candles' autoscale`).toBe('exclude')

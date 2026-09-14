@@ -64,6 +64,14 @@ import {
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
+import SourceField from './SourceField'
+import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/presentation'
+import { ohlcCapabilityOf } from './engine/ohlcCapability'
+import { anyCachedBars } from './engine/secondaryBars'
+import { symbolFamily } from '../../hooks/useBreadthSymbols'
+import { resolveDisplayTarget, displayTargetOptions } from './engine/displayTarget'
+import { sourceInputsOf, parseSource } from './engine/sourceRef'
+import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -108,6 +116,26 @@ function typeBadge(row) {
   if (!short) return null
   const label = String(row.label || '')
   return label.toLowerCase().includes(String(short).toLowerCase()) ? null : short
+}
+
+/**
+ * Is this instance's source genuinely OHLC-bearing?
+ *
+ * ⭐ ONE CAPABILITY ANSWER, TWO READERS. It began as an IIFE inside the style
+ * control; the COLLAPSED row's summary needs the same answer, and a second copy
+ * is how "Candles" ends up offered in one place and denied in the other.
+ *
+ * ⚠️ `anyCachedBars` IS THE WINDOW-AGNOSTIC READ: this tab knows the INSTRUMENT
+ * and never the chart's timeframe, so asking for a specific (tf, bars) window
+ * would make the answer flicker with the chart.
+ */
+function ohlcCapableFor(def, inst) {
+  if (!inst || !def) return false
+  const declared = sourceInputsOf(def, inst)
+  if (!declared.length) return false
+  const parsed = parseSource(declared[0][1])
+  if (!parsed || parsed.kind !== 'symbol') return false
+  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
 }
 
 export default function ChartSettingsIndicators({
@@ -385,6 +413,7 @@ export default function ChartSettingsIndicators({
     const isOpen = expanded === row.id
     const colorFields = mainColorFields(row)
     const badge = typeBadge(row)
+    const summary = placementSummary(row)
     return (
       <div
         key={row.id}
@@ -398,7 +427,14 @@ export default function ChartSettingsIndicators({
            definition, and that absence is itself the distinction. */
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
       >
-        <div className={styles.actHead}>
+        {/* ⛔⛔ THE MODIFIER IS THE WHOLE FIX FOR THE KNOWN DEFECT. The overnight
+            version made `.actName` stop growing GLOBALLY — and that class is
+            shared with `ChartSettingsConditions` and `ChartSettingsInfoFields`,
+            neither of which has a metadata sibling to take the freed space, so
+            their trailing controls would pack left. Scoped here instead: the
+            modifier is applied only to a row that HAS a summary, so a component
+            that never renders one can never match the rule. */}
+        <div className={`${styles.actHead} ${summary ? styles.actHeadMeta : ''}`}>
           <button
             type="button" role="switch" aria-checked={on} aria-label={`Toggle ${row.label}`}
             className={`${styles.toggle} ${styles.actToggle} ${on ? styles.toggleOn : ''}`}
@@ -416,6 +452,17 @@ export default function ChartSettingsIndicators({
             <span className={styles.actLabel}>{row.label}</span>
             {badge && <span className={styles.actBadge}>{badge}</span>}
           </button>
+          {/* ⭐ INLINE, NOT A SECOND LINE. Seven rows already fill this panel; a
+              subtitle on each pushes BROWSE off the bottom and turns a dense list
+              into a settings page.
+              ⛔⛔ AND OUTSIDE THE BUTTON, WHICH IS NOT A LAYOUT DETAIL. Inside it,
+              this text joins the expander's ACCESSIBLE NAME — a screen reader
+              then announces "QQQ Line · Own pane" as the CONTROL's name, and the
+              row stops being addressable as `QQQ`. Rails across this suite match
+              that button against an anchored `/^QQQ$/` and went red the moment it
+              was nested inside; they were right, and this is the fix rather than
+              the rails being loosened. */}
+          {summary && <span className={styles.actMeta}>{summary}</span>}
           {/* ⭐ THE SWATCH IS THE COLOUR PICKER, NOT A DOT. It is the modal's own
               `colorSwatch` — same target encoding (`ind:<rowId>:<field>`), same
               pop-out panel, same writer — so the most-changed setting on the tab
@@ -515,6 +562,18 @@ export default function ChartSettingsIndicators({
                       onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
                     />
                   )}
+                  {/* ⭐⭐ THE SOURCE CONTROL — the instrument this row plots.
+                      A `source` input is the only one whose choices depend on
+                      the chart rather than on the definition, so the widget
+                      builds its own list from live settings. See
+                      `SourceField.jsx`. */}
+                  {f.type === 'source' && (
+                    <SourceField
+                      row={row} field={f} value={val} settings={settings}
+                      registry={registry} inert={inert} styles={styles}
+                      onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
+                    />
+                  )}
                   {f.type === 'select' && (
                     <select
                       className={styles.indSelect} {...inert} value={val ?? ''}
@@ -530,6 +589,8 @@ export default function ChartSettingsIndicators({
                 </div>
               )
             })}
+            {displayInControl(row)}
+            {styleControl(row)}
             {/* ⭐ REMOVE LIVES HERE, ONE LEVEL IN (§14). A trash icon on a dense
                 collapsed list is one mis-click from deleting a configured
                 indicator; behind the expander it takes an intent. */}
@@ -548,6 +609,212 @@ export default function ChartSettingsIndicators({
       </div>
     )
   }
+
+  /**
+   * The collapsed row's one-line answer to *"what is this, how is it drawn, where
+   * does it draw, and what does it read?"*.
+   *
+   * ⛔⛔ THE LIST USED TO SAY ONLY THE NAME, and for an indicator that was enough
+   * — everyone knows where RSI draws. Universal Data broke it: `QQQ` and `SPY`
+   * sit in the same flat list as `EMA 9` and `Volume` with nothing to say they
+   * are INSTRUMENTS, in panes of their own, drawn as lines. Four questions a
+   * member had to open the row to answer.
+   *
+   * ⭐⭐ IT READS THE SAME SEAMS THE EXPANDED CONTROLS DO — `resolveDisplayTarget`,
+   * `displayTargetOptions`, `resolvePlotStyle`, `sourceInputsOf` — so it cannot
+   * drift from the controls directly beneath it. A second opinion here would be a
+   * lie the moment either seam moved, and it is the kind of lie nobody notices
+   * because the collapsed row is the one nobody opens.
+   *
+   * ⛔ NOTHING FOR THE FIXTURES, deliberately. "Line · Main chart" on all four
+   * moving averages and the volume pane is furniture: identical on every one of
+   * them, and already obvious. `displayTargetOptions` returning EMPTY is exactly
+   * the test — a definition with one place to draw has nothing to orient anybody
+   * about — so the silence is DERIVED rather than a list of ids to keep in step.
+   *
+   * ⛔ AND NO `Source:` WHEN THE NAME ALREADY IS THE SOURCE. `QQQ · Line ·
+   * Source: QQQ` says it twice, and `meta.labelFrom === 'source'` is precisely
+   * that case (Phase 4).
+   */
+  const placementSummary = useCallback((row) => {
+    if (!row || !row.engineOwned || !row.instanceId) return null
+    const def = registry?.getDefinition?.(row.defId)
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return null
+
+    const defOf = (id) => registry?.getDefinition?.(id) || null
+    const options = displayTargetOptions(inst, settings, defOf)
+    // A plain price overlay has one place to draw and one shape to draw in. The
+    // expanded row offers it nothing; so does this.
+    if (!options.length) return null
+
+    const where = resolveDisplayTarget(inst, settings)
+    const parts = []
+
+    // HOW — the primary plot's RESOLVED style, named exactly as the select names
+    // it, so the two cannot word the same state differently.
+    const styleCtx = { target: where, ohlcCapable: ohlcCapableFor(def, inst) }
+    const primary = (def.plots || []).find((pl) => availableStyles(pl, styleCtx).length > 0)
+    if (primary) {
+      const style = resolvePlotStyle(inst, primary, styleCtx)
+      const choice = PLOT_STYLE_CHOICES.find((c) => c.value === style)
+      if (choice) parts.push(choice.label)
+    }
+
+    // WHERE — the chosen destination's own label. ⛔ A STORED HOST THAT HAS SINCE
+    // BEEN DELETED IS CARRIED AS `missing`, and saying so is the whole point: the
+    // row must read "Pane unavailable", never silently claim somewhere it is not
+    // and never quietly fall back to Own pane.
+    const missing = options.find((o) => o.missing) || null
+    const chosen = options.find((o) => o.value === where) || missing
+    if (chosen && chosen.label) parts.push(chosen.label)
+
+    // WHAT IT READS — only when the name does not already say it.
+    if (!(def.meta && def.meta.labelFrom === 'source')) {
+      const declared = sourceInputsOf(def, inst)
+      const parsed = declared.length ? parseSource(declared[0][1]) : null
+      if (parsed && parsed.kind === 'symbol' && parsed.symbol
+          && !String(row.label || '').toUpperCase().includes(String(parsed.symbol).toUpperCase())) {
+        // ⛔ THE SYMBOL ALONE. `Source: QQQ · close · numeric` is the engine
+        // talking to itself; the field is noise in a legend-shaped line.
+        parts.push(`Source: ${parsed.symbol}`)
+      }
+    }
+    return parts.length ? parts.join(' · ') : null
+  }, [settings, registry])
+
+  /**
+   * The DISPLAY-IN control — WHERE this instance draws.
+   *
+   * ⭐⭐ THE SAME STATE THE COLLAPSED SUMMARY REPORTS, seen from the other side.
+   * `placementSummary` reads `resolveDisplayTarget` + `displayTargetOptions`;
+   * this writes through `setInstanceDisplayTarget` and offers exactly what that
+   * same `displayTargetOptions` returns. Two views of one value — there is no
+   * summary-specific state and no editor-specific target vocabulary, so the two
+   * cannot disagree about where a series is.
+   *
+   * ⛔ EVERY VALIDATION IS THE HELPER'S, NOT THIS FILE'S. It already refuses the
+   * instance ITSELF (a series that named its own pane would be its own guest and
+   * would vanish), skips tombstones, and offers only pane OWNERS — which is what
+   * makes a placement cycle unconstructible through this menu. Re-checking any of
+   * that here would be a second rule to keep in step.
+   *
+   * ⛔⛔ AND AN ORPHANED TARGET IS SHOWN, DISABLED — NEVER SILENTLY HEALED. When
+   * the pane a series was sent to is deleted, the member's placement is PRESERVED
+   * (a render must not mutate saved state), so the helper lists it first flagged
+   * `missing` and this renders it as the selected, un-pickable current state. A
+   * control that quietly displayed "Own pane" would tell the member their line is
+   * fine while it draws nothing, and picking the value already shown would be a
+   * no-op — which is exactly how the original defect hid.
+   */
+  const displayInControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const inst = findInstance(settings, row.instanceId)
+    if (!inst) return null
+    const defOf = (id) => registry?.getDefinition?.(id) || null
+    // ⛔ THE SAME EMPTY-MEANS-NOTHING-TO-SAY TEST THE SUMMARY USES. A definition
+    // with one place to draw gets no control, derived rather than hard-coded, so
+    // the legacy overlays and the volume pane gain nothing from this phase.
+    const options = displayTargetOptions(inst, settings, defOf)
+    if (!options.length) return null
+
+    const where = resolveDisplayTarget(inst, settings)
+    const current = options.some((o) => o.value === where) ? where : ''
+
+    return (
+      <div className={styles.indRow} key="display-in">
+        <span className={styles.indLabel}>Display in</span>
+        <select
+          className={styles.indSelect}
+          value={current}
+          aria-label={`${row.label} display in`}
+          onChange={(e) => {
+            const next = setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry)
+            // ⛔ REFUSED BY IDENTITY. The writer returns the SAME object when it
+            // will not act, so this is how a rejected write stays a no-op instead
+            // of marking the settings dirty.
+            if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+          }}
+        >
+          {options.map((o) => (
+            <option
+              key={o.value}
+              value={o.value}
+              disabled={o.missing === true}
+            >
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    )
+  }, [settings, registry, onChange])
+
+  /**
+   * The PLOT STYLE control — how this output draws, as opposed to what it reads.
+   *
+   * ⭐⭐ STYLE IS NOT AN INPUT, which is why it is not in `row.fields`. Inputs are
+   * declared by the definition and identical on every chart; a style is a
+   * per-INSTANCE presentation choice, written through `setInstancePlotStyle` —
+   * the canonical writer — and stored beside the instance, never in its inputs.
+   *
+   * ⛔⛔ AND CANDLES ARE OFFERED ONLY WHEN THE SOURCE CAN MEAN THEM. Every other
+   * style is a property of the OUTPUT — any column can be drawn as an area — and
+   * this one is a property of what the output READS: four fields describing one
+   * auction period. A dropdown that offered Candles over an RSI, a formula or a
+   * breadth measure would be a dropdown that lies.
+   *
+   * ⭐ `anyCachedBars` IS THE WINDOW-AGNOSTIC READ: this tab knows the INSTRUMENT
+   * and never the chart's timeframe, so asking for a specific (tf, bars) window
+   * would make the offer flicker with the chart. `symbolFamily` is the same
+   * provider-family authority the binder gates on, so the menu and the renderer
+   * cannot disagree about what is capable.
+   */
+  const styleControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const def = registry?.getDefinition?.(row.defId)
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return null
+
+    const ohlcCapable = ohlcCapableFor(def, inst)
+
+    const target = resolveDisplayTarget(inst, settings)
+    const styleCtx = { target, ohlcCapable }
+    const plots = Array.isArray(def.plots) ? def.plots : []
+    const restyleable = plots.filter((pl) => availableStyles(pl, styleCtx).length > 0)
+    if (!restyleable.length) return null
+
+    // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
+    // inside a panel already titled `QQQ`, is furniture.
+    const single = restyleable.length === 1
+
+    return restyleable.map((plot) => {
+      const style = resolvePlotStyle(inst, plot, styleCtx)
+      const choices = availableStyles(plot, styleCtx)
+      const label = single ? 'Plot style' : `${plot.label || plot.key} style`
+      return (
+        <div className={styles.indRow} key={`style-${plot.key}`}>
+          <span className={styles.indLabel}>{label}</span>
+          <select
+            className={styles.indSelect}
+            value={style}
+            aria-label={`${row.label} ${single ? 'plot style' : `${plot.key} plot style`}`}
+            onChange={(e) => {
+              const next = setInstancePlotStyle(
+                settings, row.instanceId, e.target.value, registry,
+                single ? undefined : plot.key,
+              )
+              if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+            }}
+          >
+            {PLOT_STYLE_CHOICES.filter((c) => choices.includes(c.value)).map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+      )
+    })
+  }, [settings, registry, onChange])
 
   // ─── ONE CATALOGUE RESULT ─────────────────────────────────────────────────
   const renderResult = (row) => {

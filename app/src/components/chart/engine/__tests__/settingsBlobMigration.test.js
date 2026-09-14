@@ -193,7 +193,12 @@ describe('a blob written before the engine existed', () => {
     // `computePaneMargins` never gave it a band, so it is APPENDED by
     // `computeShippedStackOrder` like every other later definition rather than
     // inserted into the frozen head. Naming it keeps both lines below equalities.
-    const NEVER_A_SHIPPED_PANE = ['rsLine']
+    // ⭐ `dataSeries` JOINS IT (P2.1) for the same reason and a different history:
+    // it is a pane definition that NEVER shipped a legacy pane, because it did not
+    // exist. It is registry-native — there is no hardcoded block, no legacy
+    // toggle and no stored blob that ever named it — so it can have no place in a
+    // stack order that already shipped.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
       expect(paneIds, `NEVER_A_SHIPPED_PANE names ${id}, which is not a pane definition`)
@@ -213,8 +218,14 @@ describe('a blob written before the engine existed', () => {
     // record of WHICH ones, and the first five may never move: they are the
     // shipped z-order. `rsLine` is last and is a PANE, which is exactly what
     // `computeShippedStackOrder` appending rather than inserting means.
+    // ⭐ `dataSeries` LANDS BEFORE `rsLine`, AND THE ORDER IS THE EVIDENCE: it is
+    // a NATIVE, appended after the natives that precede it, while `rsLine` is the
+    // SERVER lane and registers after the whole native table. Registry order, not
+    // alphabetical and not hand-chosen — which is the property this literal is
+    // the record of.
     expect(SHIPPED_STACK_ORDER.slice(9))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'rsLine'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
+        'movingAverage', 'dataSeries', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -429,7 +440,10 @@ describe('a blob written before the engine existed', () => {
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
-    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'rsLine'])
+    // ⭐ `dataSeries` IS APPENDED LIKE THE THREE BEFORE IT — authored after the
+    // stack order shipped, so `computeShippedStackOrder` puts it at the end by
+    // design rather than inserting it into an order members already have.
+    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'movingAverage', 'dataSeries', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

@@ -287,6 +287,24 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // overlay was REMOVED (default set 5→4) and the watermark went sizeScale 1.0→1.25
       // + weight 700→500. Value/structure edits to CHART_DEFAULTS only; no
       // per-definition door changed behaviour. INVESTIGATED, not regenerated.
-      .toBe('a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b')
+      // 2026-09-14: re-pinned for `dataSeries` (P2.1) — a REGISTRY ADDITION, not a
+      // door change. `corpus()` walks `listDefinitions()`, so an eighteenth
+      // definition adds two elements per base and the digest necessarily moves.
+      // ⛔ INVESTIGATED, NOT REGENERATED, and here is the measurement: the corpus
+      // rebuilt with `dataSeries` SKIPPED digests to
+      // `a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b` — the
+      // previous pin, byte for byte. Every pre-existing definition's enable /
+      // input / disable blobs are therefore untouched, and the only difference is
+      // the new definition's own elements. `dataSeries` declares no `int` input,
+      // so it contributes the enable and disable elements and no third.
+      // 2026-09-14: re-pinned for `movingAverage` — a REGISTRY ADDITION, not a door
+      // change, exactly like `dataSeries` above. ⛔ INVESTIGATED, NOT REGENERATED:
+      // the corpus rebuilt with `movingAverage` SKIPPED digests to
+      // `6db73b47e8ae168b0b7fddbc718825f497a0ead6e6c98faae8b610d6e6147643` — the
+      // previous pin, byte for byte — so every pre-existing definition's
+      // enable/input/disable blobs are untouched. It contributes THREE elements
+      // per base rather than two, because unlike `dataSeries` it declares an `int`
+      // input (`period`) and the corpus exercises one.
+      .toBe('523c1defa43139d49bc9eb211a80a64e7fb58a583432ede3910bd3ed914a09f0')
   })
 })

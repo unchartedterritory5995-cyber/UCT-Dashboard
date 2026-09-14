@@ -551,7 +551,12 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
     // candles' pane, so both belong here and neither declares a height. The
     // claim is TOTAL — every price-target definition, whenever it was authored —
     // so it is asserted as a set plus the shipped five in their z-order.
-    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    // ⭐ `movingAverage` IS THE EIGHTH. It declares `onPrice`, so it draws inside
+    // the candles' pane and — like the seven before it — declares no height of
+    // its own. A height here would reserve vertical space for something that
+    // never has a pane.
+    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
+      'atrBands', 'movingAverage'])
     for (const id of overlays) {
       expect(getDefinition(id).placement.pane, `${id} declares a pane`).toBeUndefined()
     }
@@ -568,7 +573,12 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
    * `filter(id => OSC.includes(id))` would go on passing if one of the nine
    * disappeared, which is the whole thing this case is for.
    */
-  const NEVER_A_SHIPPED_PANE = ['rsLine']
+  // ⭐ `dataSeries` JOINS IT (P2.1) for the same reason and a different history:
+  // it is a pane definition that NEVER shipped a legacy pane, because it did not
+  // exist. It is registry-native — there is no hardcoded block, no legacy
+  // toggle and no stored blob that ever named it — so it can have no place in a
+  // stack order that already shipped.
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
     const paneDefs = listDefinitions().filter(d => d.placement.target === 'pane')

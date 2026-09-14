@@ -242,8 +242,15 @@ describe('the catalog covers every settings section, and nothing else', () => {
   })
 
   it('splits by placement target, not by a hand-written list', () => {
-    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'rsLine'])
-    expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    // ⭐ `dataSeries` IS A PANE DEFINITION TOO (`autoPane`), and it lands before
+    // `rsLine` because `listDefinitions()` is `natives ++ server` and order is
+    // z-order. Asserted in the equality rather than filtered out, for the reason
+    // the note below gives: this catalog is what the Add-Indicator dialog reads,
+    // and a definition missing from it is a definition nobody can reach.
+    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'rsLine'])
+    expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
+      // ⭐ `movingAverage` declares `onPrice` and lands last, in registration order.
+      'atrBands', 'movingAverage'])
     // ⭐ `rsLine` (Phase C Task 13) is a PANE definition and lands at the END of
     // the oscillator list, because `listDefinitions()` is now `natives ++ server`
     // and order is z-order. It is asserted in the equality above rather than
@@ -643,6 +650,27 @@ describe('the library needs a sentence per indicator, and the schema already all
       adx: 'non-repainting',
       obv: 'non-repainting',
       donchian: 'non-repainting',
+      // ⭐⭐ JUDGED, NOT INHERITED (P2.1). `dataSeries` is an IDENTITY transform: it
+      // emits its source's value at its source's timestamp and has no window, no
+      // seed and no forward reference, so there is nothing that could be revised
+      // by a later bar. It is the strongest non-repainting case in this table —
+      // weaker than every other row only in that it does no arithmetic at all.
+      //
+      // ⚠️ AND THE CLAIM IS ABOUT THE TRANSFORM, NOT THE SOURCE. If it is pointed
+      // at a repainting indicator's output, THAT output carries the verdict; a
+      // passthrough cannot launder it, and it cannot add one either.
+      dataSeries: 'non-repainting',
+      // ⭐⭐ JUDGED, NOT INHERITED. An average over a CLOSED window of already-final
+      // values is decided the moment the last bar in that window closes — no
+      // forward reference, no seed that a later bar revises. `smaOfSeries` emits a
+      // window only when it is FULL of finite values, and `emaOfSeries` seeds on
+      // the first full SMA window, so neither reaches backwards.
+      //
+      // ⚠️ AND THE CLAIM IS ABOUT THE TRANSFORM, NOT THE SOURCE — the same rule
+      // `dataSeries` states above. `MA(ichimoku.chikou)` would inherit CHIKOU's
+      // verdict, because the thing that repaints is the input, and an average
+      // cannot launder it.
+      movingAverage: 'non-repainting',
       avwap: 'non-repainting',
       atrBands: 'non-repainting',
       rsLine: 'non-repainting',

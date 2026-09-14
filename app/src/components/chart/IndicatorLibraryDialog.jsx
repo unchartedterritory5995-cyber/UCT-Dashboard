@@ -79,6 +79,7 @@ import { liveOverlays, isVolumeRemoved, isOverlayRemoved, newOverlay } from './c
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -266,8 +267,22 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // now. They are unioned HERE rather than inside `catalogRows()` for the reason
   // written beside them: that function is the shipped DEFINITION manifest and two
   // railed consumers assert against it id-for-id.
+  //
+  // ⛔⛔ AND `LIBRARY_HIDDEN_IDS` IS SUBTRACTED HERE, NOT OMITTED UPSTREAM.
+  // `catalogRows()` is the shipped DEFINITION manifest and two railed consumers
+  // assert against it id-for-id, so a definition cannot be left out of it — it
+  // has to be listed there and subtracted HERE, as a written claim. Its one
+  // member is `dataSeries`: it plots whatever it is pointed at, so a row reading
+  // "Data Series", offering to plot `close` in a pane of its own, means nothing
+  // to anybody. Its member-facing rows are `QQQ` and `UCTA50`, which carry the
+  // source that gives it meaning — and those arrive through symbol search, not
+  // through this list.
   const all = useMemo(
-    () => [...BUILT_IN_ROWS, ...catalogRows(registry), ...userCatalogRows(registry)],
+    () => [
+      ...BUILT_IN_ROWS,
+      ...catalogRows(registry).filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
+      ...userCatalogRows(registry),
+    ],
     [registry, generation],
   )
   const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])

@@ -635,6 +635,58 @@
 }
 .indNum:disabled, .indSelect:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* ─── SOURCE FIELD ─────────────────────────────────────────────────────────
+   The control for an input of type `source`. ADDITIVE ONLY: every class below
+   is new and scoped to this widget. Nothing here redefines .indRow, .indLabel,
+   .indSelect or any other shared class — a global tweak made for one tab is how
+   the other two tabs silently lose their layout. */
+.sourceField {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;             /* so a long symbol name can shrink, not overflow */
+}
+.sourceSearch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 172px;             /* the search is wider than the select it opens from */
+}
+.sourceSearch .indNum { width: 100%; }
+.sourceHint {
+  font-size: 10px;
+  color: var(--menu-text-dim, var(--text-muted, #8c8674));
+}
+.sourceResults {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 132px;
+  overflow-y: auto;
+  border: 1px solid var(--menu-border, var(--border, #2e3127));
+  border-radius: var(--radius-sm);
+  background: var(--menu-input-bg, var(--bg-elevated, #16181c));
+}
+.sourceResults:empty { display: none; }
+.sourceResult {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--menu-text, var(--text-bright, #e0dac8));
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.sourceResult:hover, .sourceResult:focus-visible {
+  background: var(--menu-hover, rgba(255, 255, 255, 0.06));
+}
+.sourceResult span { color: var(--menu-text-dim, var(--text-muted, #8c8674)); }
+
 /* Info Row field picker (Header tab) — an "Add Field" button beside the label opens a
    searchable, scrollable field menu. */
 .infoRowHead {
@@ -973,6 +1025,57 @@
   text-align: left;
   cursor: pointer;
 }
+/* ─── WHERE IT DRAWS AND HOW, ON THE NAME ROW ────────────────────────────────
+   ⛔ FAINT ON PURPOSE. This is ORIENTATION, not a value — it must read as the
+   quiet half of the row and never compete with the indicator's own name, which
+   is the thing the eye scans for. Gold is reserved for active/important state;
+   this is neither. No pill, no badge, no second line: a dense terminal list.
+
+   ⛔ AND IT TAKES THE SLACK, WHICH IS LOAD-BEARING AND WAS MEASURED THE HARD WAY.
+   The scoped rule below stops the NAME growing; if the meta does not grow in its
+   place, NOTHING in the row grows and the trailing controls pack left — the very
+   defect this feature is known for, relocated rather than fixed. Measured in a
+   browser: with `flex: 0 1 auto` here, summarised rows sat 148-173px short of the
+   right edge while fixture rows were flush. jsdom cannot see it.
+
+   ⛔ `min-width: 0` IS WHAT MAKES IT YIELD ANYWAY. Growing and shrinking are not
+   opposites here: the meta absorbs the free space, and when there is none a long
+   destination ("Pane unavailable", "Source: UCTA50") ellipses rather than pushing
+   the controls off — the NAME is the identity and must survive every width. */
+.actMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--menu-text-faint, var(--menu-text-dim, var(--text-muted, #6b6b6b)));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A row whose indicator is switched off dims its orientation with it. */
+.actBlockOff .actMeta { opacity: 0.55; }
+
+/* ─── THE SCOPED HALF OF THE LAYOUT, AND WHY IT IS SCOPED ────────────────────
+   ⚰️⚰️ THE OVERNIGHT VERSION WROTE `.actName { flex: 0 1 auto }` GLOBALLY, and
+   that is the one known defect of this feature. `.actName` is SHARED: on the
+   branch where Conditions and Info Fields live, `ChartSettingsConditions` and
+   `ChartSettingsInfoFields` each render it too — and NEITHER has a metadata
+   sibling to take the freed space, so with nothing growing, their trailing
+   controls pack left instead of staying right-aligned. jsdom has no layout, so
+   no test on that branch could see it.
+
+   ⛔ SO THE RULE IS SCOPED BY EXPLICIT CLASS OWNERSHIP, not by `:has()` and not
+   by a global override. `.actHeadMeta` is applied by `ChartSettingsIndicators`
+   ONLY to a row that actually has a summary; a component that never renders one
+   cannot match this selector, today or when those two components land. The
+   shared `.actName` rule above is left exactly as it was.
+
+   ⭐ AND THE MODIFIER IS CONDITIONAL WITHIN INDICATORS TOO — a fixture row (EMA
+   9, Volume) renders no summary, so it keeps `flex: 1 1 auto` and looks
+   byte-identical to before this feature existed. */
+.actHeadMeta .actName { flex: 0 1 auto; }
+
 .actLabel {
   font-size: 12.5px;
   font-weight: 600;
