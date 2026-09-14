@@ -402,3 +402,223 @@ then 2.2 observability — both done; see Phase 2.
 - **Next:** P2.2 (per-upstream timeouts wired into the deadline arithmetic end to end) → P2.10, then
   2.5 artifact cache + coalescing · 2.6 Discord delivery hardening · 2.7 visual spec + goldens ·
   2.8 close every forensics class.
+
+---
+
+## Lane C — OI-28 (adopted) and the C-10 budget close-out (2026-09-14)
+
+Branch **`lane-c-budget`**, worktree `C:\Users\Patrick\uct-worktrees\lane-c-budget`, cut from
+`4eec5e0aa`. **Not merged, not deployed, no flag touched.** Rows appended at the end of this file
+by agreement; nothing above was edited.
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| C1 | 2026-09-14 | `d98cfd38b` | **OI-28 adopted** — the two chart-renderer loaders make their own `edge_scope` path entry | `tests/test_chart_renderer_{service,pool}.py` | none | none — tests only | `test_chart_renderer_service.py` **6 passed** (was 6 failed) · `test_chart_renderer_pool.py` **16 passed** (was 16 failed) · `test_chart_renderer_dualstack.py` 13 passed · all three together **35 passed** | n/a | **branch only** | None. Test-side only; `services/chart_renderer/app.py` is byte-identical to master, so the deployed renderer image is unaffected and no renderer deploy is implied. |
+| C2 | 2026-09-14 | `ca1eb4e61` | **C-10 close-out** — `_Budget` + a module-level `_attempt`, so the per-attempt derivation is the only shape the source allows; the retry backoff moved inside the budget | `api/services/discord_render/adapters/_call.py` · `tests/test_discord_render_adapters.py` · `docs/discord-render/instruments/mutation_harness_adapters.py` | none | **none** — `tools/flow_worker_watch_coverage.py` on this tree: `base=origin/master reachable=154 watched=24 changed=5` → `OK`. Re-run on the merged tree before any master push. | 23 discord-render files: **600 passed, 3 xfailed** | not benched — V2 is off, so no member path changes. The measurement that matters is the simulated one below. | **branch only** | None while `DISCORD_RENDER_V2_ENABLED` is unset. With V2 on: a multi-attempt upstream hop can no longer outlive the job deadline, so a member is never left waiting on a call that was already answered. |
+| C3 | 2026-09-14 | `988983466` | two adapter mutations repaired (A5 re-indented by C2; **A29 stale since P2.6/P2.7**) + the NOT-APPLIED count put on the harness summary line | `docs/discord-render/instruments/mutation_harness_adapters.py` | none | none | control suite 134 passed (adapters + result + boundary); all 80 `old` patterns verified to match exactly once before the run | n/a | **branch only** | None — instrument only. |
+
+**Mutation harness, full run on `988983466` (`python -u docs/discord-render/instruments/mutation_harness_adapters.py .`, exit 0), verbatim:**
+
+```
+CONTROL (before)  GREEN    warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...
+CONTROL (after)   GREEN    warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+80/80 mutations RED, 0 NOT APPLIED (a NOT APPLIED proves nothing)
+```
+
+The five that are this lane's, each RED with a sha-verified byte restore: **A76** (the budget
+computed once per call) · **A76b** (the attempt runner handed the once-per-call float again) ·
+**A76c** (the backoff slept on top of the budget instead of inside it) · **A76d** (the wait on the
+future outliving the upstream's own timeout) · **A76e** (Lane E's own C-10 guard defanged back to
+an `xfail`). ⛔ **A76e writes `tests/test_discord_render_forensics.py`, which this lane does not
+edit in the repo** — the harness restores the bytes it captured first under a `sha256` check in a
+`finally`, nothing of it is committed, and `git status` was clean after the run. Without it the
+permanence rail would be a gate nobody has seen fire.
+
+### C-10: what "not allowed to stay lucky" turned out to mean
+
+The integration fix re-derived the remaining budget inside each attempt and was **correct**. What
+it was not is **safe**, and two things were still open:
+
+1. **The wrong version was one token away.** The attempt body was a closure inside `guarded`, so
+   `eff` — the whole-call float — was a live name beside `left`, and `submit(fn, eff)` would have
+   read as obviously right while restoring the N × deadline overrun. Closed structurally:
+   `_Budget` is an object whose only accessor subtracts the clock, and `_attempt` is **module-level**
+   (`__code__.co_freevars == ()`), so `eff` is not a name that exists inside it. Handing it a float
+   now raises `AttributeError` on the first line instead of overrunning quietly.
+2. ⚰️ **A SECOND OVERRUN, IN THE DOCSTRING THE WHOLE TIME.** `_call`'s header has always promised
+   *"the retry, with jitter, INSIDE the same budget"*; the code slept the full jittered delay
+   regardless of what was left. Lane E's guard cannot see it — it passes `sleep=lambda _s: None`.
+   Measured on a virtual clock: **3 attempts / 2 s deadline / a 1.5 s upstream spent 2.7–3.7 s**.
+   The first attempt ate 1.5 s, attempts 2 and 3 were correctly REFUSED for want of budget, and the
+   hop then sat past its deadline **sleeping between the refusals**, having already answered the
+   member. `_Budget.wait()` clamps each delay to what remains.
+   (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.)
+
+**The owner's test, measured:** `attempts=3`, a 2 s deadline, a 1.5 s-per-attempt upstream →
+**2.000 s spent, exactly**, one upstream call handed the whole 2.000 s. With the once-per-call
+derivation restored it is **5.000 s** — the same shape as the 4.6 s Lane E's chaos harness measured
+live. Also asserted across `attempts=1,2,3,5`: the ceiling is a property of the DEADLINE, never of
+the retry count.
+
+⛔ **Tolerance is ZERO, and that is not a boast.** `guarded` takes `now=` and `sleep=`, so the
+timing is measured on a virtual clock with no wall clock in the arithmetic. A stopwatch assertion
+on this box would need slack wide enough to hide the very overrun it is looking for. A control
+(`test_real_wall_time_is_not_what_these_measure`) asserts the run costs under a second of real
+time, so a `now=`/`sleep=` that stopped being honoured cannot pass quietly.
+
+⚠️ **A deliberate non-change, recorded so it is a decision and not an oversight.** `wait()` clamps
+to `remaining()`, not to `remaining() - MIN_USEFUL_S`. The tighter clamp would preserve one more
+attempt in a narrow window (remaining between 0.25 s and the drawn delay), but that attempt would
+be handed 0.25–0.65 s against an 8 s dependency — barely above the 0.25 s this module already calls
+useless — and it would burn a bounded pool thread on a call that cannot connect. Either clamp
+satisfies the deadline; this one is left as the simpler of the two. If a measurement ever says
+otherwise, it is a one-token change with A76c already guarding it.
+
+### OI-28: who introduced it, and why "6 failures" was only a third of it
+
+**Commit `7c8554dfd` — *feat(edge): per-render service capability — the machine trust path
+(Phase 1.5)*, session `01MhvqVHAhZ8zhoyMYvuVnxj`.** It added
+`from edge_scope import EDGE_TOKEN_HEADER, edge_token_targets` to
+`services/chart_renderer/app.py` (correct — the renderer image has `WORKDIR /app` and the
+Dockerfile copies modules flat) and gave `tests/test_chart_edge_render_scope.py` a `sys.path` entry,
+but never gave one to the two loaders that `exec_module` that file.
+
+⭐ **It is green in company and red alone, which is why a careful commit said *"Failure set matches
+untouched master"* and meant it.** pytest IMPORTS every selected module before running anything, in
+file order, and `test_chart_renderer_dualstack.py` sorts first and makes the entry at module level —
+so the whole glob `tests/test_chart_renderer_*.py` passes **35/35** while two thirds of it cannot
+stand up by itself. Measured on this tree, each file in its own process:
+
+| run | before | after |
+|---|---|---|
+| `tests/test_chart_renderer_service.py` alone | **6 failed** | 6 passed |
+| `tests/test_chart_renderer_pool.py` alone | **16 failed** | 16 passed |
+| `tests/test_chart_renderer_dualstack.py` alone | 13 passed | 13 passed |
+| all three together | 35 passed *(the masking)* | 35 passed |
+
+So the OI's "6 failures" is the `service` file run on its own; the true inherited red is **22**.
+The four files that decide it are byte-identical to `origin/master`, so this reproduction IS the
+clean-master reproduction — no second checkout was needed and none was made.
+
+⛔ **The flat import is not the bug and was not touched.** The fix is a path entry in each loader,
+which is the surrounding idiom: `test_chart_renderer_dualstack.py` already makes it for `serve`,
+and `test_discord_render_forensics.py::_renderer_module` already makes it for `app`.
+
+### The INTEGRATOR's half — the exact `adapters/bindings.py` edit, not made here
+
+`adapters/bindings.py` is Lane A's and Lane C did not edit it. This is the patch the owner's ruling
+asks for — *"make attempts explicit at every binding site with a comment"*.
+
+**There are four binding sites**, and only one of them states its attempt count today:
+
+| site | today | why it needs to say so |
+|---|---|---|
+| `bars_fn` | `attempts=1`, with a comment (OI-25) | already explicit — leave it |
+| `quote_fn` | silent; inherits `quote.ATTEMPTS = 1` | inherited, therefore right by luck |
+| `house_fn` | silent; inherits `renderer.ATTEMPTS = 1` | inherited, therefore right by luck |
+| `flow_fetch_fn` | silent; inherits `flow.ATTEMPTS = 1` | inherited, therefore right by luck |
+
+⚠️ **Precondition: three of the four Request dataclasses cannot carry the argument yet.** Only
+`BarsRequest` has an `attempts` field. Hunks 1–3 add it; hunk 4 is the binding sites themselves.
+All four files are Lane A's.
+
+**Hunk 1 — `api/services/discord_render/adapters/quote.py`**
+
+```python
+ class QuoteRequest:
+     ticker: str
+     corr_id: str | None = None
+     remaining_s: float | None = None
++    #: Override `ATTEMPTS`. ⛔ Every binding site states its own number; an attempt count that is
++    #: right by inheritance is right by luck (OI-29).
++    attempts: int | None = None
+```
+```python
+     outcome = _call.guarded(NAME, lambda _timeout_s: quote_fn(req.ticker),
+                             dep_timeout_s=TIMEOUT_S, remaining_s=req.remaining_s,
+-                            corr_id=req.corr_id, attempts=ATTEMPTS, provider="massive")
++                            corr_id=req.corr_id,
++                            attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))),
++                            provider="massive")
+```
+
+**Hunk 2 — `api/services/discord_render/adapters/renderer.py`** — the same field on `RenderRequest`
+(after `envelope`), and in `fetch`:
+```python
+-        attempts=ATTEMPTS, provider=NAME)
++        attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))), provider=NAME)
+```
+
+**Hunk 3 — `api/services/discord_render/adapters/flow.py`** — the same field on `FlowRequest`, and
+in `fetch`, **on the REMOTE leg only**:
+```python
+-        attempts=ATTEMPTS, provider="flow_worker", timeout_on=_client_timeouts(),
++        attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))),
++        provider="flow_worker", timeout_on=_client_timeouts(),
+```
+⛔ The in-process leg's `attempts=1` is already a literal and must stay 1: a second local recompute
+inside one member's budget buys nothing, and the fallback IS the retry.
+
+**Hunk 4 — `api/services/discord_render/adapters/bindings.py`**, three sites:
+
+```python
+     def _fetch(ticker):
+         r = record(ctx, "quote", quote_adapter.fetch(quote_adapter.QuoteRequest(
+-            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
++            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
++            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. The ext-hours chip is decoration: a member
++            # waits for the chart, not for this, so a retry spends the CHART's budget on a field
++            # that can simply be omitted. Stated rather than inherited from `quote.ATTEMPTS` —
++            # the C-10 overrun was invisible in production only because one site happened to pass
++            # 1 for an unrelated reason (OI-25/OI-29).
++            attempts=1)))
+```
+```python
+         r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
+             ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
+             corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+-            envelope=prior.envelope if prior and prior.ok else None), house_fn=inner))
++            envelope=prior.envelope if prior and prior.ok else None,
++            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. `render_house_chart` already runs its own
++            # settle/ready ladder inside a single call, so a retry here is OI-21's 105-second
++            # overrun in a different shape: two 20 s renders behind a 15 s deadline.
++            attempts=1), house_fn=inner))
+```
+```python
+         r = record(ctx, "flow", flow_adapter.fetch(flow_adapter.FlowRequest(
+             ticker=ticker, days=str(days), source=source, top_n=top_n,
+-            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
++            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
++            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. This adapter already has a SECOND leg — the
++            # in-process fallback — so a retry would mean up to four flow-worker round trips plus
++            # a local recompute inside one member's budget. The fallback is the retry.
++            attempts=1)))
+```
+
+⭐ **An existing rail gets stronger for free, and the integrator should know why it might go red.**
+`tests/test_discord_render_forensics.py::test_c10_the_bars_hop_is_bounded_and_its_retry_is_jittered_not_a_fixed_wait`
+parses `bindings.py` and asserts **every** `attempts=<constant>` there is `1`. Today it covers ONE
+site; after this patch it covers FOUR. ⚠️ It also means a future site that genuinely needs 2 will
+turn that rail red — which is a prompt to re-read OI-25, not a broken test.
+
+⚠️ **The honest cost of this patch:** three sites will now restate a number that also lives in the
+adapter constant, which is a second authority over one value. That is the trade the ruling makes on
+purpose — after C-10, a binding site's attempt count is a safety property of that site, and the
+adapter constant becomes the fallback for callers who have no opinion. The rail above is what keeps
+the two from drifting silently.
+
+### OI-29 — new, raised by this lane
+
+> **A NOT-APPLIED mutation is a proof that did not happen, and this programme has been reading it
+> as a footnote.** The adapters harness reported **78/80 RED** with two `NOT APPLIED (0 matches)`
+> lines beneath it. One (A5) was four hours old and mine. The other (**A29 — the chart handler goes
+> back to the raw client**) has been stale since P2.6/P2.7, when `edit_fn=ctx.edit` became
+> `edit_fn=bindings.edit_fn(ctx)` and the `return dict(...)` line re-wrapped: it has matched nothing
+> for several merges, so *"the V2 handlers bind adapters and not the raw clients"* has been asserted
+> by a test whose mutation control was silently absent. Both repaired in `988983466`; the
+> NOT-APPLIED count now sits on the summary line beside the RED count, in the same sentence, so the
+> two cannot be read apart again. **Every harness in `docs/discord-render/instruments/` should be
+> checked for the same shape** — a dry run that asserts each `old` matches exactly once costs
+> seconds and needs no test run at all.
