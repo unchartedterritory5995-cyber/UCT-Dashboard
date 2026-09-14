@@ -1484,7 +1484,7 @@ def test_fetch_ticker_choices_uses_the_dashboards_search_and_never_raises(monkey
     real = inspect.signature(ts.ticker_search)
     seen = {}
 
-    def fake(q, limit, type):
+    def fake(q, limit, type, uct_session=None):
         seen.update(q=q, limit=limit, type=type)
         return {"results": [{"ticker": "NVDA", "name": "NVIDIA Corp"}, {"ticker": "NVAX", "name": None}]}
     # The stand-in carries the REAL signature. The old `lambda q, limit` matched the call site
@@ -1492,11 +1492,18 @@ def test_fetch_ticker_choices_uses_the_dashboards_search_and_never_raises(monkey
     # leaked in as an object and every autocomplete answered [] for six days (178 logged
     # failures, 08-31 10:38 to 09-06 14:47 ET). A fake that mirrors the caller cannot catch a
     # caller that is wrong about the callee.
+    # ⚠️ `uct_session` JOINED THAT SIGNATURE in the 2026-09-13 chart-data security
+    # port: the route reads the cookie to decide whether to include UCT’s paid
+    # breadth rows. THIS RAIL CAUGHT IT — the double had drifted the moment the
+    # real function grew a parameter, which is the whole reason it compares
+    # signatures instead of arguments. An in-process caller (this one) passes no
+    # cookie and therefore sees no breadth rows, which is correct: those symbol
+    # names are the enumeration half of paid data.
     assert set(inspect.signature(fake).parameters) == set(real.parameters)
     monkeypatch.setattr(ts, "ticker_search", fake)
     assert rt.fetch_ticker_choices("NV") == [{"name": "NVDA - NVIDIA Corp", "value": "NVDA"}, {"name": "NVAX", "value": "NVAX"}]
     assert all(not hasattr(v, "default") for v in seen.values()), "a Query() object reached the search"
-    def boom(q, limit, type):
+    def boom(q, limit, type, uct_session=None):
         raise RuntimeError("universe missing")
     monkeypatch.setattr(ts, "ticker_search", boom)
     assert rt.fetch_ticker_choices("NV") == []

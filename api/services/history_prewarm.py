@@ -27,6 +27,18 @@ _ENABLED = os.environ.get("HISTORY_PREWARM_ENABLED", "0") == "1"
 # Go THROUGH Cloudflare (the public domain), never the origin directly, or the edge / Cache
 # Reserve is never stocked. Cloudflare 1010-blocks non-browser UAs, so send a browser UA.
 _BASE = os.environ.get("HISTORY_PREWARM_BASE", "https://uctintelligence.com").rstrip("/")
+
+
+def _svc_headers() -> dict:
+    """The service token — `/api/bars-history` is paid now.
+
+    ⚠️ This sweep stocks the SHARED edge cache, which still serves cache HITs with
+    no entitlement check. That gap is the secure-edge phase’s to close; the sweep is
+    default-OFF (`HISTORY_PREWARM_ENABLED=0`) and the credential here only lets it
+    reach the now-gated origin when it is deliberately enabled.
+    """
+    from api.bars_auth import bars_service_headers
+    return bars_service_headers()
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36 uct-history-prewarm")
 _PACE = float(os.environ.get("HISTORY_PREWARM_PACE_SECS", "0.4"))          # gap between requests
@@ -93,7 +105,7 @@ def prewarm_pass() -> dict:
             for sym in syms:
                 url = f"{_BASE}/api/bars-history/{sym}?tf={tf}&bars={_FULL[tf]}&d={d}"
                 try:
-                    r = cli.get(url)
+                    r = cli.get(url, headers=_svc_headers())
                     stats["requests"] += 1
                     cf = (r.headers.get("cf-cache-status") or "").upper()
                     if cf == "HIT":

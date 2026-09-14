@@ -198,7 +198,13 @@ def _bars_over_http(ticker: str) -> list:
     import requests
     port = os.environ.get(PORT_ENV, "").strip() or "8000"
     url = f"http://127.0.0.1:{port}/api/bars/{ticker}?tf=W&bars={BARS_COUNT}"
-    r = requests.get(url, timeout=HTTP_TIMEOUT_S)
+    # ⛔ THE SERVICE TOKEN, BECAUSE THIS IS AN HTTP CALL AND `/api/bars` IS NOW
+    # PAID. Trusted server code with no member session to present — it reaches its
+    # OWN pod over loopback — and without the bearer it would simply have started
+    # 401-ing into the `status >= 400` branch above, silently costing every COT
+    # proxy series its price context.
+    from api.bars_auth import bars_service_headers
+    r = requests.get(url, timeout=HTTP_TIMEOUT_S, headers=bars_service_headers())
     if r.status_code >= 400:
         logger.warning("[cot_prewarm] bars %s over loopback HTTP -> %s", ticker, r.status_code)
         return []

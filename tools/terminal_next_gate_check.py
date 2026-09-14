@@ -86,15 +86,32 @@ class S7DarkRead(Gate):
             from api.services.alert_taxonomy import db as _db  # noqa: F401
         except Exception as e:                          # noqa: BLE001
             return UNREADABLE, f"taxonomy store unreachable: {e}", None
+        # ⚰️ THE COUNT AND THE BOUNDS ARE DERIVED FROM THE SWEEP TABLE ITSELF.
+        # This read "for ALL SIX armed dark sweeps" and hand-listed which bound
+        # belonged to which type — it went stale the moment indicator-condition
+        # became the seventh, in the same commit that added it. A hand-typed
+        # count beside the source that owns it is this programme's most-repeated
+        # defect, and a gate message is exactly where nobody re-checks it.
+        try:
+            import importlib.util as _ilu
+            _s = _ilu.spec_from_file_location(
+                "_sweeps", str(pathlib.Path(__file__).resolve().parent
+                               / "s7_price_level_report.py"))
+            _m = _ilu.module_from_spec(_s)
+            _s.loader.exec_module(_m)
+            _detail = ", ".join(
+                "%s=%s" % (x[1], ("%ds" % x[6]) if x[6] < 3600 else ("%dh" % (x[6] // 3600)))
+                for x in _m.SWEEPS)
+            _n = len(_m.SWEEPS)
+        except Exception as _e:                          # noqa: BLE001
+            _detail, _n = "UNREADABLE (%s)" % _e, "?"
         return NOT_READY, (
             f"{self.flag}={armed}; session count and liveness are read by "
-            "tools/s7_price_level_report.py --ticking, which owns the staleness bounds "
-            "for ALL SIX armed dark sweeps and derives them per type: 180s for the "
-            "per-minute ones (price-level, position-risk), 3600s for regime-change "
-            "(*/20 behind the awareness scan), 26h for the daily ones "
-            "(event-proximity, scan-membership, catalyst-match). ⛔ They differ BY "
-            "DESIGN — a 180s bound applied to a daily sweep reports a healthy run as "
-            "stalled every time, and a liveness command that cries wolf gets ignored."), None
+            f"tools/s7_price_level_report.py --ticking, which owns the staleness bounds "
+            f"for all {_n} armed dark sweeps and derives them per type: {_detail}. "
+            "⛔ They differ BY DESIGN — a 180s bound applied to a daily sweep reports a "
+            "healthy run as stalled every time, and a liveness command that cries wolf "
+            "gets ignored."), None
 
 
 class S7CP3Unbuilt(Gate):
@@ -137,7 +154,11 @@ GATES = [
     # ⛔ THE SEVENTH IS STILL UNBUILT and its approval line is VOID until its
     # precondition merges — a different state from the six above, deliberately
     # not flattened into them.
-    S7CP3Unbuilt("indicator-condition", depends="D2 §9.5 CP1"),
+    # ⚰️ WAS S7CP3Unbuilt(depends="D2 §9.5 CP1") until 2026-09-13. That
+    # dependency is DISCHARGED: PRD-D2 §9.5 is signed as GATE-D2 CP4
+    # (3257cc319) and merged (404b808c5), and CP3 is signed by its own
+    # approval line 3 (4e8d3af5d). It is now a dark read like its siblings.
+    S7DarkRead("indicator-condition", "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED"),
 ]
 
 

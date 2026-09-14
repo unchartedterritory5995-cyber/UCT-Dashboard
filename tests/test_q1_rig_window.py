@@ -102,3 +102,40 @@ def test_the_guarded_task_list_covers_every_rig_driver():
     # genuinely clear — the false-refusal half of the same mistake.
     assert "UCT-WaveQ1-Gate" not in m.RIG_TASKS
     assert m.WINDOW_MINUTES == 60
+
+
+def test_a_task_that_is_RUNNING_RIGHT_NOW_is_refused(tmp_path):
+    """⛔⛔ THE HOLE THAT COST A SAMPLER RUN, 2026-09-13.
+
+    The guard asked only when the NEXT run is due — and once a task STARTS, its
+    NextRunTime jumps to the following slot. So at 10:05, with the 10:00 sampler
+    still running, it read *"next run 12:00, 115 minutes away"* and said CLEAR.
+    The F5 matrix took the one signed-in profile out from under it: the sampler
+    died mid-import, its task sat in `Running` for an hour, and the 10:00
+    observation row was never written. The heartbeat then read
+    `267009 = SCHED_S_TASK_RUNNING`, which the Sunday gate correctly reports as
+    *"the window is UNOBSERVED, not clean"*.
+
+    ⭐ "Due soon" and "happening now" are different facts, and the second is the
+    dangerous one.
+    """
+    m = _matrix()
+    why = m.rig_window_refusal(NOW, _q(
+        '[{"name":"UCT-WaveQ1-Observe","next":"2026-09-13T12:00:00","state":"Running"}]'))
+    assert why and "RUNNING RIGHT NOW" in why
+    # ⭐ CONTROL: the SAME next-run time with the task idle is a clear window, or
+    # the assertion above would pass on the time alone and measure nothing new.
+    assert m.rig_window_refusal(NOW, _q(
+        '[{"name":"UCT-WaveQ1-Observe","next":"2026-09-13T12:00:00","state":"Ready"}]')) is None
+
+
+def test_the_running_check_is_case_and_whitespace_tolerant():
+    """Task Scheduler reports its state through several shapes depending on how
+    it is asked; a guard that only recognises one spelling is a guard that is
+    off whenever the other one comes back."""
+    m = _matrix()
+    for spelling in ("Running", "running", " RUNNING ", "Running "):
+        why = m.rig_window_refusal(NOW, _q(
+            '[{"name":"UCT-WaveQ1-Canary","next":"2026-09-13T23:00:00","state":"'
+            + spelling + '"}]'))
+        assert why and "RUNNING RIGHT NOW" in why, spelling
