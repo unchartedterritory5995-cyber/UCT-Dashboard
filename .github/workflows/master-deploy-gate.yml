@@ -1,3 +1,6 @@
+# promotion-gate: yes — the deploy-correctness set (secret scan, shadowed definitions,
+#   VITE build args, the offline flag ledger, line endings). It has no path filter on
+#   master, so it runs for every candidate and its absence is a fault, not a skip.
 # Serialise master deploys AT THE SOURCE, and run the fast checks while doing it.
 #
 # ⛔ WHY THIS EXISTS RATHER THAN A BETTER HOOK. `tools/pre_push_guard.py` already

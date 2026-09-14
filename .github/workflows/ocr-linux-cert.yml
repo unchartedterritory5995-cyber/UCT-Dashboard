@@ -1,3 +1,7 @@
+# promotion-gate: no — it is a MEASUREMENT, and it says so itself: "IT SETS NO BAR."
+#   It prints a delta for the owner to read and carries a continue-on-error step. A
+#   job with no pass/fail criterion cannot gate anything; treating it as a gate would
+#   be inventing a bar the file explicitly refuses to set.
 # P2-LINUX-OCR-VERSION-CERT — the 5.3.0 measurement, on a Linux that is not this box.
 #
 # ⛔⛔ WHY THIS FILE EXISTS. Production runs Tesseract 5.3.0 (Debian bookworm);

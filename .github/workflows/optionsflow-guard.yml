@@ -1,3 +1,6 @@
+# promotion-gate: yes — a red here means the live performance wiring was removed by a
+#   stale-buffer commit. The page keeps working and freezes for ~2 seconds on every
+#   visit; nothing else surfaces it. Narrow and fast by design, so it cannot cry wolf.
 # Options Flow wiring guard.
 #
 # OptionsFlow.jsx is edited through the GitHub web UI. Twice on 2026-07-25 a save

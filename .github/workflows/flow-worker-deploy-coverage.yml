@@ -1,3 +1,7 @@
+# promotion-gate: no — REVIEW GATE BY OWNER RULING (b9acfddbd). It exits 0 on a red
+#   specifically so it can never block a deploy; gating on it would rebuild the exact
+#   coupling that ruling removed. Measured 2026-09-14: 6 of the last 50 master runs
+#   "failed" here, and every one was a correctly-classified ADDITIVE breadth merge.
 # Does a change to api/** actually reach flow-worker?
 #
 # flow-worker deploys on a NARROW watch list of ~21 specific api/*.py files while
