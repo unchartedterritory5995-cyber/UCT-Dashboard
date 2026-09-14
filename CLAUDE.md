@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
+- **Deployment:** Railway, **SIX services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
