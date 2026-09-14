@@ -51,22 +51,50 @@ The standing question was *do members customize at all?* **Nine of seventeen div
 largest cluster**, and blob size spans 111→6731 bytes. ⛔ **P5 and P6 are NOT answering a need
 nobody has** — the premise under them holds. ⚠️ Again n = 17.
 
-## 5 · ⛔ TWO OF THE FOUR OI-21 QUERIES CANNOT BE RUN — THE TABLES DO NOT EXIST
+## 5 · ⚰⚰ RETRACTED 2026-09-14 — **F-OI21-1 WAS WRONG. BOTH TABLES EXIST.**
 
-| specified | reality in production |
-|---|---|
-| `calendar_alerts_fired` | **ABSENT.** What exists: `indicator_alert_fires`, `indicator_alert_rev`, `indicator_alerts`, `user_alerts`, `watchlist_alerts` |
-| `ai_search_log` | **ABSENT — and there is no ai/search table of any name.** `SELECT name FROM sqlite_master WHERE name LIKE '%ai\_%' OR '%search%'` returns **nothing** |
+> **The original claim, struck:** ~~"Two of the four OI-21 queries cannot be run — the tables
+> do not exist. `calendar_alerts_fired` ABSENT; `ai_search_log` ABSENT, and there is no
+> ai/search table of any name."~~
 
-⚰️ **OI-21 named two tables that were never created**, and the PRD sized two S6 decisions against
-them — the S6/S7 alert boundary (§5.2) and *"is personal grounding worth extending"*. Both were
-resting on queries that cannot be run. **A query specified against a table nobody checked exists is
-the hand-typed-name defect, one level up.** Registered as **F-OI21-1**.
+**Measured across every database under `/data`, not one:**
 
-⭐ The S6/S7 boundary question is still answerable from the tables that DO exist; the AI-lane
-question is not answerable from `auth.db` at all, because nothing logs it there.
+| table | where it actually lives | rows |
+|---|---|---|
+| `ai_search_log` | **`ai_search_log.db`** | **79** |
+| `calendar_alerts_fired` | **`calendar_alerts.db`** | **956** |
+| `page_views` | `auth.db` | 4,949 |
+| `calendar_seen` | `auth.db` | 16 |
+| `charts_workspace_layout` | *(correctly not a table — it is a `pref_key` value inside `user_preferences`, 186 rows)* | — |
 
----
+### ⛔ THE CAUSE: I RESOLVED AGAINST ONE DATABASE. THERE ARE **65**.
+
+```
+SQLITE DATABASES UNDER /data: 65
+   ai_search_log.db · calendar_alerts.db · auth.db · bars.db · cot.db · flow.db · …
+```
+
+The original check ran `SELECT name FROM sqlite_master` against **`auth.db` only**, then
+reported absence from that one file as absence from the product. ⭐ **The instrument
+reported its own scope as a property of the repo** — the fourth time in one day, and the
+most consequential, because this one was *filed as a finding* and asserted that two S6
+decisions were sized on unrunnable queries.
+
+### ⭐ What the near-miss would have cost
+
+The follow-up task was to **annotate two S6 decisions as "UNSIZED until re-measured."** That
+annotation would have been **false**, and it would have sat in the S6 documents marking sound
+work as unsound. **A wrong finding is worse than no finding**, because it is acted upon.
+
+### What is actually true
+
+**All four OI-21 queries are runnable.** The S6 decisions they size — the S6/S7 alert
+boundary (§5.2) and *"is personal grounding worth extending"* — are **not** unsized. They
+have real populations behind them: 956 alert rows and 79 AI-search rows.
+
+⚠️ Those populations are **small**, which is a separate and honest caveat: 79 AI-search
+rows over a 29-member roster is an existence check, not a rate — the same limit that applies
+to every number in this document.
 
 ## 6 · The OI-06 answer, derived
 
