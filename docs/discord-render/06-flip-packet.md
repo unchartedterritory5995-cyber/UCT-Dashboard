@@ -69,11 +69,27 @@ was specified.
 
 ### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
 
-**S2 HAS NOT BEEN MEASURED.** Every load figure this programme has produced ran `--symbols stub`
-through a zero-cost handler: no symbol resolved, no bars fetched, no chart rendered, no PATCH sent.
-Those numbers are real and they are about **S1, the acknowledgement path, and nothing else.**
-⛔ Do not read them in a row labelled S2, and do not let the ack-path p99 stand in for a delivery
-number — they are measurements of different things that happen to share a unit.
+⚰️ ~~**S2 HAS NOT BEEN MEASURED.**~~ **It has, as of 2026-09-14 after the close.** This paragraph
+used to say every load figure ran `--symbols stub` through a zero-cost handler — no symbol resolved,
+no bars fetched, no chart rendered — and that those were S1 numbers wearing an S2 label. That was
+true for the whole programme until tonight and is kept because the distinction still matters.
+
+**What S2 now is, measured over 601 real jobs at 1 arrival/second:**
+
+| | measured | target | |
+|---|---|---|---|
+| p50 | **3.5 ms** | 2,500 ms | ✅ |
+| p95 | **1,748 ms** | 5,000 ms | ✅ |
+| p99 | **6,692 ms** | 8,000 ms | ✅ |
+| success | 98.67 % | 99.5 % | 🔴 short by 8 jobs, **all `queue_full`** |
+
+⛔ **And the same system at 30 arrivals/second: p50 14,855 ms, success 35.7 %.** Both numbers are
+real. Which one describes the product depends entirely on the arrival rate, and nothing like 30/s
+has ever been observed on a guild of 1,558 members.
+
+⛔ **Do not quote either figure without its rate.** An S2 number without an arrival rate beside it
+is the same defect as an ack-path p99 in a row labelled S2 — a measurement of a different thing
+that happens to share a unit.
 
 ---
 

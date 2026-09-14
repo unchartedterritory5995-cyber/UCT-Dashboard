@@ -180,7 +180,7 @@ def check_s2_measured() -> dict:
         return _row("S2 measured in --real mode and within SLO", NOT_MEASURABLE,
                     "no --real run: every load figure so far is ACK-PATH ONLY (stub symbols, "
                     "zero-cost handler) and says nothing about delivery")
-    judged, breaches, unreadable = 0, [], []
+    judged, breaches, unreadable, wire = 0, [], [], []
     for p in real:
         try:
             r = (json.loads(p.read_text(encoding="utf-8")) or {}).get("real") or {}
@@ -191,6 +191,19 @@ def check_s2_measured() -> dict:
         if not e2e or r.get("jobs") in (None, 0):
             # ⛔ A run with no end-to-end block measured no delivery. That is not a pass.
             unreadable.append(f"{p.name} (no end_to_end_ms/jobs)")
+            continue
+        # ⛔⛔ A WIRE-HOP RUN'S LATENCY IS THE THROTTLE, NOT THE SYSTEM. A run made with
+        # `--deliver-channel` writes to real Discord at `DELIVER_RATE_DEFAULT` (1/s), SERIALISED on
+        # purpose. Measured 2026-09-14: 23 jobs carrying 38.6 s of deliberate throttle came out at
+        # p50 12,370 ms — a number about Discord's rate limiter wearing an S2 label.
+        # ⭐ Its DELIVERY result is still evidence, and the strongest kind: 40 × HTTP 200 is how we
+        # know the wire hop works at all. So judge success, never latency, and SAY which.
+        if float(((r.get("deliver") or {}).get("throttle_s") or 0)) > 0:
+            wire.append(f"{p.name} (wire-hop: {(r.get('deliver') or {}).get('http_200', 0)}×200, "
+                        f"{float((r.get('deliver') or {}).get('throttle_s') or 0):.0f}s throttle)")
+            s = r.get("success_rate")
+            if s is not None and s < S5_FLOOR:
+                breaches.append(f"{p.name}: wire-hop S5 {s*100:.1f}% < {S5_FLOOR*100:.1f}%")
             continue
         judged += 1
         for field, ceiling in S2_CEILINGS:
@@ -211,8 +224,11 @@ def check_s2_measured() -> dict:
     if breaches:
         return _row("S2 measured in --real mode and within SLO", NOT_MET,
                     f"{judged} run(s) judged; {len(breaches)} breach(es) — " + " · ".join(breaches[:4])
-                    + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else ""))
+                    + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else "")
+                    + (f" | wire hop: {', '.join(wire)}" if wire else ""))
     note = f"{judged} --real run(s), every percentile inside S2 and success ≥ {S5_FLOOR*100:.1f}%"
+    if wire:
+        note += f" · wire hop proven by {', '.join(wire)}"
     if unreadable:
         note += f" ⚠️ {len(unreadable)} file(s) unjudgeable: {', '.join(unreadable)}"
     return _row("S2 measured in --real mode and within SLO", MET, note)

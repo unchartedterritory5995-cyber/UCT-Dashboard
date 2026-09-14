@@ -5,11 +5,11 @@
     "members": 5,
     "handler_ms": 0.0,
     "symbols": "real",
-    "sandbox": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\drender-load-egkqve8y",
+    "sandbox": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\drender-load-5xybk9bj",
     "mode": "real",
     "organic_members_exposed": 0,
     "delivery": "channel",
-    "elapsed_s": 30.01,
+    "elapsed_s": 42.1,
     "queue_at_end": {
       "interactive": 0,
       "background": 0,
@@ -20,54 +20,55 @@
   },
   "stats": {
     "n": 31,
-    "p50": 0.05229999078437686,
-    "p95": 0.08480000542476773,
-    "p99": 0.1284000463783741,
-    "max": 0.1284000463783741,
-    "mean": 0.057483871182006215,
+    "p50": 0.5667000077664852,
+    "p95": 1.9683000282384455,
+    "p99": 485.05620000651106,
+    "max": 485.05620000651106,
+    "mean": 16.33014516236501,
     "over_1s": 0,
     "over_3s": 0
   },
   "kinds": {
-    "immediate": 31
+    "deferred": 23,
+    "immediate": 8
   },
   "samples_ms": [
-    0.041599967516958714,
-    0.07930002175271511,
-    0.04650000482797623,
-    0.06340001709759235,
-    0.1284000463783741,
-    0.05229999078437686,
-    0.0638000201433897,
-    0.07400003960356116,
-    0.06589997792616487,
-    0.06120000034570694,
-    0.08480000542476773,
-    0.09579997276887298,
-    0.04099996294826269,
-    0.06350001785904169,
-    0.055800017435103655,
-    0.04080001963302493,
-    0.05189998773857951,
-    0.06319995736703277,
-    0.04959997022524476,
-    0.06829999620094895,
-    0.045599997974932194,
-    0.03609998384490609,
-    0.04339998122304678,
-    0.0659999786876142,
-    0.036699988413602114,
-    0.05000003147870302,
-    0.05820003570988774,
-    0.05000003147870302,
-    0.032999960239976645,
-    0.034800032153725624,
-    0.03709999145939946
+    485.05620000651106,
+    0.5162999732419848,
+    0.5203000036999583,
+    1.1428999714553356,
+    0.6984000210650265,
+    0.5478000384755433,
+    0.7001999765634537,
+    0.6757000228390098,
+    0.7182999979704618,
+    0.5667000077664852,
+    0.3601000062189996,
+    0.4095000331290066,
+    0.5423999973572791,
+    0.33650000113993883,
+    0.408099964261055,
+    0.430300016887486,
+    0.46060001477599144,
+    0.7259999983943999,
+    0.629899965133518,
+    0.4618000239133835,
+    0.6563999922946095,
+    1.2949000229127705,
+    0.712999957613647,
+    0.5496999947354198,
+    0.9554999996908009,
+    0.3937000292353332,
+    0.4746000049635768,
+    1.9683000282384455,
+    0.4605999565683305,
+    0.7255000527948141,
+    2.134299953468144
   ],
   "queue_depth": [
     {
-      "t": 0.0,
-      "interactive": 0,
+      "t": 0.49,
+      "interactive": 1,
       "background": 0,
       "active": 0,
       "workers": 6,
@@ -75,30 +76,126 @@
     },
     {
       "t": 10.01,
-      "interactive": 0,
+      "interactive": 2,
       "background": 0,
-      "active": 0,
+      "active": 6,
       "workers": 6,
       "bg_running": 0
     },
     {
-      "t": 20.02,
-      "interactive": 0,
+      "t": 20.01,
+      "interactive": 2,
       "background": 0,
-      "active": 0,
+      "active": 6,
       "workers": 6,
       "bg_running": 0
     },
     {
-      "t": 30.01,
-      "interactive": 0,
+      "t": 30.0,
+      "interactive": 2,
       "background": 0,
-      "active": 0,
+      "active": 6,
       "workers": 6,
       "bg_running": 0
     },
     {
-      "t": 30.01,
+      "t": 30.0,
+      "interactive": 2,
+      "background": 0,
+      "active": 6,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 31.01,
+      "interactive": 2,
+      "background": 0,
+      "active": 6,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 32.01,
+      "interactive": 1,
+      "background": 0,
+      "active": 6,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 33.02,
+      "interactive": 1,
+      "background": 0,
+      "active": 6,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 34.03,
+      "interactive": 1,
+      "background": 0,
+      "active": 6,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 35.04,
+      "interactive": 0,
+      "background": 0,
+      "active": 6,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 36.05,
+      "interactive": 0,
+      "background": 0,
+      "active": 5,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 37.06,
+      "interactive": 0,
+      "background": 0,
+      "active": 4,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 38.08,
+      "interactive": 0,
+      "background": 0,
+      "active": 4,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 39.09,
+      "interactive": 0,
+      "background": 0,
+      "active": 3,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 40.1,
+      "interactive": 0,
+      "background": 0,
+      "active": 2,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 41.1,
+      "interactive": 0,
+      "background": 0,
+      "active": 1,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 42.1,
       "interactive": 0,
       "background": 0,
       "active": 0,
@@ -107,19 +204,29 @@
     }
   ],
   "real": {
-    "deliver": {},
-    "end_to_end_ms": {
-      "p50": null,
-      "p95": null,
-      "p99": null,
-      "over_15s": 0
+    "deliver": {
+      "throttle_s": 38.581988000136334,
+      "http_200": 40
     },
-    "success_rate": null,
-    "jobs": 0,
+    "end_to_end_ms": {
+      "p50": 12369.8,
+      "p95": 16144.6,
+      "p99": 16284.8,
+      "over_15s": 8
+    },
+    "success_rate": 1.0,
+    "jobs": 23,
     "acks_over_3s": 0,
     "failures_by_class": {},
     "stuck": 0,
-    "by_command": {},
+    "by_command": {
+      "chart": {
+        "p50": 12369.8,
+        "p95": 16144.6,
+        "p99": 16284.8,
+        "over_15s": 8
+      }
+    },
     "cache": {
       "hits": 0,
       "misses": 0,
@@ -128,7 +235,38 @@
       "l2_served_unpromoted": 0,
       "refused_standin": 0
     },
-    "breakers": {},
+    "breakers": {
+      "bars": {
+        "name": "bars",
+        "state": "closed",
+        "consecutive_failures": 0,
+        "recent_failures": 0,
+        "recent_calls": 10,
+        "trips": 0,
+        "short_circuits": 0,
+        "opened_for_s": null
+      },
+      "quote": {
+        "name": "quote",
+        "state": "closed",
+        "consecutive_failures": 0,
+        "recent_failures": 0,
+        "recent_calls": 5,
+        "trips": 0,
+        "short_circuits": 0,
+        "opened_for_s": null
+      },
+      "renderer": {
+        "name": "renderer",
+        "state": "closed",
+        "consecutive_failures": 0,
+        "recent_failures": 0,
+        "recent_calls": 5,
+        "trips": 0,
+        "short_circuits": 0,
+        "opened_for_s": null
+      }
+    },
     "renderer": {
       "reachable": false,
       "ready": false,
