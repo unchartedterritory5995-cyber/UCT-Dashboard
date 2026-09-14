@@ -340,6 +340,30 @@ dominated by the network: what does wrapping a call in a pool submit, a breaker 
 
 ---
 
+## Wave 2 (2026-09-14, from `4eec5e0aa`) — the rulings, and what each one cost
+
+Started **01:00 ET Monday**. The Step-3 window is overnight and closes at RTH open, so the order is
+by leverage: OI-29 first (it is the original bug), the other three in parallel lanes, Step 3 as soon
+as the tree is stable, docs last.
+
+### Scheduled, before any code — so they run whether or not the session survives
+
+| Task | Cadence | What it does | First run |
+|---|---|---|---|
+| `UCT Render Soak` | every 15 min from 00:00 local | 13-minute soak appending to one state file; drift in queue depth / threads / RSS / unclosed leases | proved by hand: `PASS samples=9 … metrics[queue_depth=ok,rss_mb=ok,stale_leases=ok,stuck_jobs=ok,threads=ok]` |
+| `UCT Render Alerts Access Probe` | hourly | the owner-hand item: can the bot see `#render-alerts` yet | `STILL_BLOCKED HTTP 403 code 50001` |
+
+⚰️ **The access probe found a defect in itself on its first real run, and its own three-way exit
+codes are the only reason.** It answered `ERROR HTTP 403 code None`, not `STILL_BLOCKED`: Discord
+requires a `User-Agent` and Cloudflare refuses the request at the edge without one, with an HTML
+body and no Discord error code — **which looks exactly like a permissions refusal.** A two-valued
+probe would have reported "still blocked" every hour forever, against a question it was not asking.
+
+⭐ Same shape as the soak's own rule and the `CoverageLine` rule: *could not measure* is a third
+answer, and collapsing it into either neighbour is how an instrument starts lying quietly.
+
+---
+
 ## Wall clock (owner brief §4)
 
 | Merge | Step | Start (ET) | End | Gate | Deploy wait | Active work |

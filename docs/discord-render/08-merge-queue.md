@@ -78,6 +78,36 @@ standing guard. Lane F found `scripts/resume.ps1` printing green off two stale p
 ancestor test against a stale pin cannot detect the drift it exists to detect, in the one command a
 restarting session runs.
 
+---
+
+## Wave 2 (2026-09-14, from `4eec5e0aa`) — the rulings
+
+**Three agents plus the integrator**, which is the cap the rate-limit ruling set. Each lane owns a
+disjoint file set and its own worktree and branch; the integrator merges, and **re-runs each lane's
+scoped gate in its own session** before accepting it.
+
+| Lane | Ruling | Branch | Files it owns |
+|---|---|---|---|
+| **A** (integrator) | **OI-29** — the image PATCH through `delivery.py`; C-04 closed | in `discord-render` | `delivery.py`, `adapters/bindings.py`, `commands.py`, the new image-delivery suite + harness, `01`, `06`, the runbook |
+| **B** | **OI-31** — L1 memory + L2 volume, 512 MiB LRU by bytes | `lane-b-cache` | `artifact_cache.py`, its suite + harness, `03` §3.6 |
+| **C** | **OI-28** (adopt the renderer reds) + the per-attempt budget made structural | `lane-c-budget` | `adapters/_call.py`, the adapter suite + harness, the `edge_scope` import, `test_chart_renderer_*` |
+| **D** | **C-07** — `?stale=` end-to-end, or removed from the contract with the reason ledgered | `lane-d-vintage` | `discord_chart_house.build_render_url`, `badge.py`, goldens, `04` |
+
+⛔ **One overlap, resolved by contract rather than by two lanes editing one file.** C-06's closure
+needs the stand-in label on the same footer LINE as vintage and provenance — because
+`badge.stamp` recognises its own previous stamp by the trailing `· id <cid>` and cuts exactly one
+line, so a label on a second line survives onto the *healed* chart as a stale warning. That is C-06
+inverted and worse than the bug. `render_footer` is the one place that line is composed, so Lane D
+was asked for a keyword-only `quality` clause rather than having the integrator re-type `_SEP` and
+`_ID` into `bindings.py` — which would be a second authority over the one string a member reads.
+
+⛔ **`tests/test_discord_render_forensics.py` is the integrator's file and no lane may touch it.**
+Lanes prove their closures in their own files; the integrator removes each strict xfail on the
+lane's evidence. Two lanes editing the file that records what is still open is exactly how a
+programme loses track of what is still open.
+
+---
+
 ⛔ **Why "verified, not trusted" is in every row.** Lane D never reported, so its claims did not
 exist; Lane E's report was cut off mid-sentence. Both harnesses and every suite were re-run by the
 integrator on the integrated tree. Lane E's suite arrived with **5 failures** — four were the

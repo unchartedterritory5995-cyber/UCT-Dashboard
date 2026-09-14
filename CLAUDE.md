@@ -1658,6 +1658,35 @@ timeout is never banked as permitted breakage, and provenance is `git show <sha>
 
 ## Worktree Directory
 
+### ⛔⛔ AGENT CONCURRENCY — MAXIMUM 3 AGENTS PLUS THE INTEGRATOR, ON THIS ACCOUNT
+
+> **At most THREE concurrent agents plus the integrating session. Every agent commits at every
+> green checkpoint and pushes its branch. The integrator runs the scoped gate on every agent
+> branch in its OWN session before accepting it — an agent's "done" without a gate run in the
+> integrator's session is not done.**
+
+Owner ruling, 2026-09-13, from two measured losses in one session of the discord-render programme:
+
+| What happened | Cost |
+|---|---|
+| Five concurrent Opus agents plus an integrator exceeded the **session rate limit** | Two lanes were killed mid-flight |
+| One of them had **committed nothing** | Its work existed only in a dead worktree and had to be salvaged and re-verified by hand |
+| The other had committed, but arrived carrying **5 failing tests it never saw** | It reported "done"; the integrator found the reds |
+
+⭐ **The three clauses are one rule, not three, and each covers a different half of the same
+failure.** The cap stops the limit being hit. *Commit-and-push at every checkpoint* means a lane
+killed at the limit loses a checkpoint's work, not a lane's. *The integrator gates it itself*
+means a lane that never ran its own suite cannot report green on the strength of having intended
+to — which is what "5 failing tests it never saw" actually was.
+
+⛔ **A lane's self-report is evidence, never a verdict.** The integrator re-runs the scoped suite
+on the branch, in its own session, and reads the totals line. This is the same rule as
+*"a test run without a totals line is not a run"*, one level up: **a gate run in a session you
+cannot see is a gate you did not run.**
+
+⚠️ It is a cap on CONCURRENCY, not on total agents — three at a time, as many waves as the work
+needs. Dispatching a fourth because "this one is small" is how five happened.
+
 ### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
 
 > **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
