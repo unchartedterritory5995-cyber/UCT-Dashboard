@@ -129,6 +129,22 @@ def channel_edit_fn(channel_id: str, *, rate: float, stats: dict):
     return _edit
 
 
+def counting_edit_fn(stats: dict):
+    """A delivery that goes nowhere and SAYS SO. Used by `--real` when no channel is given.
+
+    ⛔ It still records what it was asked to send, because "the artifact was produced" is the half
+    of S2 this mode CAN measure — everything up to the wire. What it cannot measure is the wire, and
+    the totals line prints `delivery=none` so that is never mistaken for a delivery that worked."""
+    def _edit(app_id, token, *, content="", png=None, filename=None, pngs=None, **kw):
+        n = len(pngs) if pngs else (1 if png is not None else 0)
+        stats["artifacts"] = stats.get("artifacts", 0) + n
+        stats["edits"] = stats.get("edits", 0) + 1
+        stats["bytes"] = stats.get("bytes", 0) + sum(
+            len(b or b"") for b, _ in (pngs or ([(png, filename)] if png is not None else [])))
+        return {"id": "noop", "attachments": [{"id": i} for i in range(n)]}
+    return _edit
+
+
 def collect_real_metrics(rt, deliver_stats: dict) -> dict:
     """Everything the ruling asks a `--real` run to record, read from the artifacts rather than
     from counters this harness kept itself."""
@@ -265,9 +281,16 @@ async def drive(rate: float, seconds: float, *, members: int, handler_ms: float,
             handlers[key] = _busy
 
     rt = commands.get_runtime()
+    _dstats = deliver_stats if deliver_stats is not None else {}
     if deliver_channel:
-        rt.edit_fn = channel_edit_fn(deliver_channel, rate=deliver_rate,
-                                     stats=deliver_stats if deliver_stats is not None else {})
+        rt.edit_fn = channel_edit_fn(deliver_channel, rate=deliver_rate, stats=_dstats)
+    elif real:
+        # ⛔⛔ A `--real` RUN WITH NO CHANNEL MUST NOT REACH DISCORD AT ALL. The runtime's default
+        # `edit_fn` PATCHes `/webhooks/{app}/{token}/messages/@original`, and this harness's tokens
+        # are FABRICATED — so without this branch a 100-interaction burst fires a hundred invalid
+        # bearer tokens at Discord's live API and measures their 401 handler. The ack-only mode was
+        # safe only because its handler was stubbed and never delivered; `--real` runs the real one.
+        rt.edit_fn = counting_edit_fn(_dstats)
     queue_depth: list[dict] = []
     samples: list[float] = []
     kinds: dict[str, int] = {}
@@ -431,6 +454,20 @@ def self_check() -> int:
              _e2e(None, None, None, jobs=5), INCONCLUSIVE)):
         got, _r = judge_s2(metrics)
         cases.append((name, got == want))
+    # ⛔⛔ THE PROPERTY THAT KEEPS A `--real` RUN OFF DISCORD'S LIVE API. Asserted from the
+    # SOURCE of `drive`, because the alternative is running it — and running it is the thing this
+    # case exists to make safe. The tokens this harness mints are fabricated; a hundred of them
+    # against `/webhooks/{app}/{token}` would measure Discord's 401 handler.
+    import inspect as _i
+    _src = _i.getsource(drive)
+    cases.append(("--real without a channel installs the no-op delivery",
+                  "elif real:" in _src and "counting_edit_fn" in _src))
+    cases.append(("--real WITH a channel installs the throttled real one",
+                  "if deliver_channel:" in _src and "channel_edit_fn" in _src))
+    _st = {}
+    counting_edit_fn(_st)("app", "tok", content="x", png=b"12345", filename="a.png")
+    cases.append(("the no-op delivery still records the artifact it was handed",
+                  _st.get("artifacts") == 1 and _st.get("bytes") == 5))
     # ⛔ a hit rate of zero over zero lookups is NO MEASUREMENT, not a bad cache
     cases.append(("an empty cache reports `None`, never 0.0",
                   (collect_real_metrics(_NoRt(), {}).get("cache") or {}).get("hit_rate") is None))
