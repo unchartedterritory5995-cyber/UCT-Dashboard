@@ -169,8 +169,8 @@ Each class gets a fix in Phase 2 and a regression test before it is closed (`05-
 | **C-03** | Discord rejects the whole component tree (invalid emoji, duplicate id, >100 chars) | 33 × COMPONENT_INVALID_EMOJI | 2.6 pre-flight validation | components test forbids U+25B2 (2.1a, mutation-proved) · validator rail (2.6) |
 | **C-04** | A follow-up edit re-declares attachments Discord no longer has | 23 double-failed ATTACHMENT_NOT_FOUND, 0 % load correlation | OI-29: the image PATCH through `delivery.edit_image`; the ids folded away | ✅ **CLOSED on the V2 path, `649ccccf3`** — `test_c04_the_v2_path_never_re_declares_an_attachment_id_it_did_not_upload` (was xfail-strict) + `tests/test_discord_render_image_delivery.py`, 21/21 mutations red · real-Discord 3.5 still owed |
 | **C-05** | A FastAPI route function called in-process leaks a `Query()` default | 178 autocomplete failures, 6 days | 2.4 service functions only + import rail | autocomplete fake bound to the real signature (2.1a, mutation-proved) |
-| **C-06** | A render that drew nothing costs 40 s of retries, then an unlabelled stand-in | 258 blank + 84 near-empty; 3 stand-ins, 2 never healed; 4.8 % in bench | 2.3 renderer pool + hard timeout · 2.7 labelled stand-in | 2.3 / 2.7 (pending) |
-| **C-07** | Data or wall-clock shown as current when it is not | footer wall clock, header live quote: 27 of 85 closed-market cases differ run-to-run | 2.4 freshness envelope, vintage stamp, STALE badge | 2.4 / determinism 3.3 (pending) |
+| **C-06** | A render that drew nothing costs 40 s of retries, then an unlabelled stand-in | 258 blank + 84 near-empty; 3 stand-ins, 2 never healed; 4.8 % in bench | 2.3 renderer pool + hard timeout · the label derived in the V2 wrapper from the recorded renderer failure | ✅ **CLOSED on the V2 path** — `test_c06_a_delivered_standin_says_so_in_the_message_a_member_reads` (was xfail-strict) **plus its two controls**: a healthy house chart carries no label (furniture), and a failure with no image is never called a simplified chart |
+| **C-07** | Data or wall-clock shown as current when it is not | footer wall clock, header live quote: 27 of 85 closed-market cases differ run-to-run | 2.4 freshness envelope · `?stale=` carrying the SENTENCE to the page · the V2 renderer adapter as its producer | ✅ **CLOSED on the V2 path** — `test_c07_…carries_the_data_vintage…` (was xfail-strict) · `test_discord_render_vintage_url.py` (byte-identical pre-V2 proof, executed against the old module) · `test_discord_render_vintage_producer.py` · `ChartRender.stale.test.jsx` 9/9 · determinism 3.3 still owed |
 | **C-08** | `/flow` failures misreported, and no time budget | 19 failures: 18 timeouts + 1 refused, all "reconnecting"; 9/11 flow-worker OI fallback >60 s | 2.1a per-class contract · 2.4 10 s budget + labelled cached card | `test_C08_*` (2.1a, mutation-proved) |
 | **C-09** | The warm cycle competes with members for the renderer | 4,785 over-budget cycles; ~3,300 renders/day | 2.1 background lane · 2.3 renderer background slots | 2.3 (pending) |
 | **C-10** | Cold bars storms hold the bars gate for 30 s | 42 `warm gate timed out` (per-deployment pass) | 2.4 per-hop timeouts + jitter | 2.4 (pending) |
@@ -216,6 +216,29 @@ that a component click or a later edit replaced the attachment between the two P
 the best reading of the evidence and has still never been tested against a real interaction token.
 The architecture removes the path either way, which is why the class closes; the hypothesis does
 not, and it is not claimed as settled.
+
+### ⛔⛔ "CLOSED ON THE V2 PATH" IS THE ONLY KIND OF CLOSED THIS PROGRAMME CAN DELIVER — read this once
+
+Three classes above now say *closed on the V2 path*, and the qualifier is load-bearing rather than
+defensive. Every one of C-04, C-06 and C-07 has its cause in a file the pre-V2 path shares —
+`_context_follow_up`'s second PATCH, `produce_chart`'s `fallback` outcome, `build_render_url`'s
+parameters — and this programme's standing guarantee is that with `DISCORD_RENDER_V2_ENABLED`
+unset, member-visible behaviour is byte-for-byte what it was.
+
+So each fix was built at the **V2 seam** instead: the attachment fold in `bindings.edit_fn`, the
+stand-in label derived from the recorded renderer `Result`, the vintage produced by the renderer
+adapter. `api/services/discord_interactions.py` has **no diff at all**, and
+`api/services/discord_chart_house.py` has zero deleted lines.
+
+⭐ **What that buys, and what it costs.** It buys a flip that cannot regress the path members are
+on today, and three classes that are genuinely gone the moment the flag goes on. It costs this:
+**until the flag flips, the old path still has the old shapes.** That is a real, bounded,
+deliberate residual risk, and it is pinned by a test
+(`test_c04_the_prev2_path_is_deliberately_unchanged_and_this_is_the_proof`) so nobody has to take
+this paragraph's word for it.
+
+⛔ **Do not read a ✅ in the table as "nobody can hit this today."** They can, on the pre-V2 path,
+at the rates `02-baseline.md` measured. The ✅ means the successor path does not.
 
 **Where the gaps are, stated once:** the member-facing split of the 764 house-render problems, the
 denominator for every rate, the command/ticker behind each Discord PATCH failure, and the count of

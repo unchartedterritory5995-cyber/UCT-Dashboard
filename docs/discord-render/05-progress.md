@@ -389,6 +389,7 @@ cost nothing.
 | 8 | `59a5b1c7a` | `resume.ps1` stale-pin fix | ran the script | — |
 | 9 | `48a73d4cc` | Lane B (2.5 cache) + Lane F (runbook, flip packet, RESUME) | 241 passed | — |
 | 11 | **`8c72dda27`** | Lanes C, D, E + the C-10 deadline fix | **973 passed, 3 xfailed, 0 failed** | **`8c72dda27bb8`** ✅ |
+| 12 | **`decd049c1`** | **OI-29** — the chart IMAGE through `delivery.edit_image`; C-04 closed by the attachment fold | **447 passed, 2 xfailed, 0 failed** (14 scoped files) · mutations **21/21 RED** | **`decd049c1c3b`** ✅ SUCCESS |
 
 **Live, read in-process after merge 11:** `RENDER_V2_SHADOW="1"` · `shadow.enabled()` True ·
 budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · render-health 401.
@@ -402,6 +403,7 @@ budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · r
 | 7 | 20:25 | 20:40 | 7 s | ~2 m | five lanes authoring underneath |
 | 9 | 21:0x | 21:2x | 38 s | ~2 m | two lanes integrated in one push |
 | 11 | 21:2x | 22:0x | 1 m 17 s | ~2 m | three lanes + a production fix |
+| 12 | 01:00 (Mon) | 01:38 | 42 s | ~4 m | OI-29 authored by the integrator while three lanes ran underneath. ⭐ **The mutation harness, not the gate, was the long pole: ~18 min per full run, and it had to run TWICE** — the first pass came back 19/21 and the two GREEN rows were real gaps in my own rails, not harness bugs |
 
 ⭐ **What the lane plan actually bought.** Merges 6-11 carried five lanes' output in the same wall
 clock that merge 5 spent on one step, and every deploy wait was absorbed by work happening

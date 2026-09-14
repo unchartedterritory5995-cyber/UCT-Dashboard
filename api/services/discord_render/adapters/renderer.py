@@ -45,6 +45,40 @@ class RenderRequest:
     envelope: Envelope | None = None
 
 
+def _with_vintage(options: dict, envelope: Envelope | None) -> dict:
+    """The render options, plus the vintage the page needs to stamp instead of a wall clock (C-07).
+
+    ⛔⛔ THIS IS C-07'S PRODUCER, AND WITHOUT IT THE WHOLE CHAIN IS BUILT AND WIRED TO NOTHING.
+    `build_render_url` emits `?stale=` only when the options carry a vintage, and `badge.vintage_param`
+    turns that into the one sentence the page draws — but *something* has to put the verdict in the
+    options, and nothing did. That is this repo's most-repeated defect shape, and the lane that built
+    the chain said so in its own report rather than letting it be discovered later.
+
+    ⭐ THE V2 PATH IS THE ONLY PRODUCER, ON PURPOSE. The envelope exists only here: the bars adapter
+    derives it and `bindings.house_fn` carries it onto the render request. The pre-V2 path has no
+    envelope to pass, so it passes neither key and its URL stays byte-for-byte what it was — which
+    is why the producer belongs in the adapter and not in `produce_chart`'s `house_opts`.
+
+    ⛔ AND IT NEVER OVERWRITES A CALLER'S OWN KEYS. A direct caller that already decided the vintage
+    keeps it; a second authority over one value is the defect this whole chain was built to remove.
+    """
+    if envelope is None:
+        return dict(options or {})
+    out = dict(options or {})
+    # ⛔ `in`, NOT `.get(...) is None` — `stale` is TRI-STATE, so a caller's deliberate `None`
+    # (we could not tell) is a real answer and must not be replaced by ours. `setdefault` happens
+    # to behave identically here (measured: it does not overwrite an explicit `None`), and the
+    # explicit membership test is kept only because it says out loud which question is being
+    # asked. ⚰️ An earlier version of this comment claimed `setdefault` was WRONG here. It is not,
+    # and a comment asserting a mechanism that does not exist is the defect this file's own
+    # docstrings keep warning about — so it is corrected rather than quietly deleted.
+    if "stale" not in out:
+        out["stale"] = envelope.stale
+    if "as_of" not in out and envelope.as_of_et:
+        out["as_of"] = envelope.as_of_et
+    return out
+
+
 def fetch(req: RenderRequest, *, house_fn=None) -> Result:
     """`Result.data` is PNG bytes. Never raises.
 
@@ -55,8 +89,9 @@ def fetch(req: RenderRequest, *, house_fn=None) -> Result:
     if house_fn is None:
         from api.services.discord_chart_house import render_house_chart as house_fn  # noqa: N813
 
+    options = _with_vintage(req.options, req.envelope)
     outcome = _call.guarded(
-        NAME, lambda _timeout_s: house_fn(req.ticker, req.tf, req.stats, dict(req.options)),
+        NAME, lambda _timeout_s: house_fn(req.ticker, req.tf, req.stats, dict(options)),
         dep_timeout_s=TIMEOUT_S, remaining_s=req.remaining_s, corr_id=req.corr_id,
         attempts=ATTEMPTS, provider=NAME)
     if _call.is_result(outcome):

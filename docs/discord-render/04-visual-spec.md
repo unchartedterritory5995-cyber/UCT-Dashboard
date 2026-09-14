@@ -247,10 +247,28 @@ comes from `contract.FAILURE_CLASSES` or `Envelope.badge`, through `badge.py`.
 `mutation_harness_badge.py`: **38/38 RED**, green control before and after, every restore
 sha-verified — Q1–Q3 on the quality clause and V1–V6 on the vintage, V1 being "send a bare date and
 let the page phrase the warning", which is the decision §2b exists to hold.
-⚠️ **Stated honestly: the PAGE half is covered by `app/src/pages/ChartRender.stale.test.jsx`, which
-has not been RUN** — the lane's worktree had no `app/node_modules` and this box has been OOM-swept
-by an `npm ci` before. Everything from `build_render_url` down to the golden is executed and green;
-the page's rendered text is written and unexecuted until somebody runs that one file.
+✅ **The page half has now been RUN** — `npx vitest run src/pages/ChartRender.stale.test.jsx` in the
+integrator's worktree (which has the packages): **Test Files 1 passed · Tests 9 passed**. Lane D's
+worktree had no `app/node_modules` and correctly refused to `npm ci` onto a box this project has
+already been OOM-swept by; it reported the gap instead of glossing it, which is what made closing it
+a one-command job.
+⚠️ `app/node_modules` here is a **junction** into another worktree — `Get-Item -Force` reports
+`LinkType: Junction`. ⛔ Never remove it with `Remove-Item -Recurse` or `rm -rf`: both follow the
+link and empty the TARGET, which has already cost this project 368 packages mid-programme.
+`cmd /c rmdir <link>` — no `/s` — is the only safe removal.
+
+✅ **AND C-07 NOW HAS A PRODUCER (integrator, same day).** Lane D's own report named the gap that
+would otherwise have made all of the above *built, tested, green and unwired*: `build_render_url`
+emits `?stale=` only when the options carry a vintage, and **nothing put one there**.
+`adapters/renderer._with_vintage` is that producer — it merges the bars envelope's verdict into the
+render options, never overwriting a caller's own, and returns the options untouched when there is
+no envelope, which is what keeps the pre-V2 URL byte-identical. Rail:
+`tests/test_discord_render_vintage_producer.py`, including the control that no envelope adds no
+keys, and a check that `bindings.house_fn` still passes the envelope at all.
+
+⭐ The producer lives in the **adapter**, not in `produce_chart`'s `house_opts` as the lane
+suggested, for the reason the whole programme keeps reaching for: the envelope exists only on the
+V2 path, so putting it there needs no change to a shared pre-V2 file.
 
 ⏳ **Open, and named so it is not mistaken for done:** `adapters/bindings.py` still holds its own
 `stamp_suffix` / `stamp` — the same rules, a second implementation. **Lane A swaps it over to

@@ -1,0 +1,18 @@
+Read from the RUNNING web process (railway ssh), 2026-09-14 ~01:50 ET / 05:50 UTC.
+Not from `railway variables --kv`, which shows what the SERVICE is configured with and is
+not evidence the process has it.
+
+PROBE {"sha_pid1": "0794772b96b9", "sha_inproc": "0794772b96b9",
+       "RENDER_V2_SHADOW": "1", "DISCORD_RENDER_V2_ENABLED": "<absent>",
+       "adapters_switch": "<absent>", "shadow_enabled": true,
+       "has_edit_image": true, "has_delivery_edit_fn": true, "has_fold": true,
+       "runtime_wired": true}
+
+sha_pid1 == sha_inproc is the control: it proves the ssh process carries the same
+environment as pid 1, which is what makes the rest of the row mean anything.
+0794772b96b9 is another session's commit; `decd049c1` (OI-29) is an ancestor of it —
+verified with `git merge-base --is-ancestor`, never inferred from the push.
+
+`runtime_wired` is the one that matters for OI-29: commands.get_runtime() hands the
+runtime `delivery_edit_fn()`, so the chart image PATCH goes through delivery.py in
+production. Built, tested, green AND reachable.

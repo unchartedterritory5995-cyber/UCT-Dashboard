@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import threading
 
+from api.services.discord_render import badge as badge_mod
 from api.services.discord_render import observe
 from api.services.discord_render.adapters import bars as bars_adapter
 from api.services.discord_render.adapters import classes
@@ -159,51 +160,69 @@ def flow_fetch_fn(ctx, *, source: str = "stocks", top_n: int = 15):
 # first freshness design would have drawn a badge on every chart all weekend (§3.8b), and a badge
 # that shows when nothing is wrong is not there on the day it matters.
 
-#: Discord's hard limit. The stamp is never the thing that gets trimmed — see `stamp`.
-CONTENT_MAX = 2000
+#: Discord's hard limit. The stamp is never the thing that gets trimmed — see `badge.stamp`.
+CONTENT_MAX = badge_mod.CONTENT_MAX
 
 
-def stamp_suffix(ctx) -> str:
-    """The one line appended to a degraded delivery, or `""` when there is nothing to say.
+def standin_class(ctx, *, has_image: bool) -> str | None:
+    """The failure class to label a stand-in with, or None when this is not a stand-in (C-06).
 
-    Order is vintage · provenance · id (04-visual-spec §4). Each clause has ONE owner: the badge is
-    `Envelope.badge`, never a second copy of that sentence."""
-    results = all_results(ctx)
-    parts = []
-    badge = next((r.badge for r in results.values() if r.stale is True and r.badge), None)
-    if badge:
-        parts.append(badge)
-    providers = {r.provider for r in results.values() if r.ok and r.provider in ("in_process", "cache")}
-    if providers:
-        # ⭐ Named, not "degraded". "a slower backup source" is something a member can act on;
-        # "degraded" is a word that means nothing to them and everything to us.
-        parts.append("served from a slower backup source")
-    if not parts:
-        return ""
-    cid = ctx.job.corr_id if getattr(ctx, "job", None) else None
-    return " · ".join(parts) + (f" · id {cid}" if cid else "")
+    ⛔⛔ A STAND-IN IS "THE HOUSE RENDERER WAS ASKED AND AN IMAGE WENT OUT ANYWAY", and that
+    conjunction is the whole definition. `produce_chart` asks the house renderer first and falls
+    back to the mplfinance drawing; the fallback is not a separate call this layer can see, so the
+    tell is a recorded renderer FAILURE beside a delivery that carries a picture.
+
+    ⭐ THIS IS WHY C-06's MEMBER-VISIBLE HALF COULD BE CLOSED WITHOUT TOUCHING `produce_chart`.
+    The outcome tag (`fallback`) lives in a pre-V2 file under the byte-for-byte guarantee — but the
+    same fact is already on the context, because `house_fn` records every renderer `Result`. The
+    wrapper can derive what the render function would have had to be asked to report.
+
+    ⛔ AND NOT ON A FAILURE. When the render fails and NO image goes out, the member gets the
+    failure contract's sentence; labelling that as a "simplified chart" would name a picture that
+    does not exist."""
+    if not has_image:
+        return None
+    r = last_result(ctx, "renderer")
+    if r is None or r.ok:
+        return None
+    return classes.for_result("renderer", r)
 
 
-def stamp(ctx, content) -> str:
-    """Append the stamp to a message, once.
+def stamp_suffix(ctx, *, has_image: bool = False) -> str:
+    """The one footer line for this context, or `""` when there is nothing to say.
 
-    ⛔ WHEN IT DOES NOT FIT, THE CONTENT IS TRIMMED AND THE STAMP IS KEPT. The other way round is
-    the S8 violation with extra steps: a 2,000-character reply whose last clause fell off is exactly
-    the unlabelled stand-in C-06 describes, and it would happen only on the longest — usually the
-    most degraded — replies.
+    ⛔ THIS IS A DERIVATION, NOT A SECOND COPY. It used to compose the sentence itself — badge,
+    backup clause and id, all spelled here — beside a `badge.py` that composed the same line and
+    was imported by nothing. It now asks `badge.render_footer`, which is the one owner.
 
-    ⛔ IDEMPOTENT. `produce_chart` edits the same message more than once (a stand-in, then the real
-    chart); appending on each pass would give a member the same warning twice and would not be
-    caught by a test that only ever calls it once."""
-    text = str(content or "")
-    suffix = stamp_suffix(ctx)
-    if not suffix or text.endswith(suffix):
-        return text
-    joined = f"{text}\n{suffix}" if text else suffix
-    if len(joined) <= CONTENT_MAX:
-        return joined
-    keep = CONTENT_MAX - len(suffix) - 2
-    return (text[:max(0, keep)].rstrip() + "\n" + suffix) if keep > 0 else suffix[:CONTENT_MAX]
+    ⭐ IT IS KEPT AS A NAME BECAUSE THE RAILS USE IT AS ONE. `test_the_edit_wrapper_stamps_every
+    _path_the_render_function_can_take` asserts `stamp_suffix(ctx) in content` — it DERIVES the
+    expected value rather than typing it, which is why it survived this change pointing at the
+    right property. Deleting the accessor would have forced those tests to hardcode the copy, and
+    a hardcoded expectation is the second authority all over again, one layer out."""
+    cls = standin_class(ctx, has_image=has_image)
+    return badge_mod.render_footer(
+        all_results(ctx),
+        ctx.job.corr_id if getattr(ctx, "job", None) else None,
+        quality=badge_mod.standin_label(cls) if cls else None)
+
+
+def stamp(ctx, content, *, has_image: bool = False) -> str:
+    """Append the one footer line to a message, once.
+
+    ⛔⛔ THE COPY IS `badge.py`'s AND NOT THIS MODULE'S. This used to compose its own suffix —
+    the badge sentence, the backup clause and the id, all spelled again here — beside a
+    `badge.py` that composed the same line and was imported by nothing. **Two authors over the one
+    sentence a member reads**, which is the defect the whole freshness design exists to remove, and
+    it survived because both copies agreed on the day they were written.
+
+    ⛔ ORDER IS QUALITY · VINTAGE · PROVENANCE · ID, ON ONE LINE (04 §4). One line, not two, and
+    that is load-bearing: `badge.stamp` recognises its own previous stamp by the trailing ` · id`
+    and cuts exactly ONE line, so a quality clause on a second line would survive onto the HEALED
+    chart as a stale warning. `produce_chart` edits the same message twice — stand-in, then the
+    real chart — so that is not a hypothetical.
+    """
+    return badge_mod.stamp(content, stamp_suffix(ctx, has_image=has_image))
 
 
 # ── the image PATCH: OI-29, and the close of C-04 ───────────────────────────
@@ -330,10 +349,14 @@ def edit_fn(ctx):
 
     def _edit(app_id, token, **kw):
         kw = _fold_attachments(ctx, kw)
-        if "content" in kw:
-            kw = {**kw, "content": stamp(ctx, kw.get("content"))}
         images = list(kw.get("pngs") or []) or ([(kw["png"], kw.get("filename"))]
                                                 if kw.get("png") is not None else [])
+        if "content" in kw:
+            # ⛔ `has_image` IS COMPUTED BEFORE THE STAMP, NOT AFTER. The stand-in label (C-06) is
+            # only correct on a delivery that actually carries a picture, and the fold above can
+            # turn a text-only edit into one — so the question has to be asked of the edit that is
+            # about to go out, never of the edit the caller wrote.
+            kw = {**kw, "content": stamp(ctx, kw.get("content"), has_image=bool(images))}
         kw.setdefault("deadline_s", _remaining(ctx))
         kw.setdefault("cid", getattr(getattr(ctx, "job", None), "corr_id", "") or "")
         sent = inner(app_id, token, **kw)
