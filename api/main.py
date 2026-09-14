@@ -3428,6 +3428,28 @@ async def lifespan(app: FastAPI):
         readiness.mark_done("hot_tier")
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
 
+    # ⭐ The breadth numeric projection: idempotent, marker-gated, and started on a
+    # daemon thread so a 111 MB VACUUM INTO backup can never hold up a boot. It
+    # refuses to run without that backup, and asserts with a before/after
+    # fingerprint that it did not touch `breadth_snapshots`. Until it has run the
+    # reader still serves correctly off the blobs — which is what makes shipping
+    # the read path and the backfill in one deploy safe.
+    try:
+        import threading as _th
+
+        def _breadth_numeric_backfill():
+            try:
+                from api.services import breadth_numeric_migration as _mig
+                out = _mig.backfill()
+                logging.getLogger(__name__).info("[startup] breadth numeric projection: %s", out)
+            except Exception:
+                logging.getLogger(__name__).exception("[startup] breadth numeric backfill failed")
+
+        _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
+                   daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the breadth backfill")
+
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
