@@ -525,6 +525,7 @@ ADMISSION_REFUSAL_CLASSES = frozenset({"queue_full"})
 
 
 def admission_split(rt, *, offers: int, refused_before_job_observed: int | None = None,
+                    offer_status: dict | None = None,
                     slo_p99_ms: float = 8000.0, window_s: float = 3600.0) -> dict:
     """served_in_slo | served_late | refused_by_admission | failed | unresolved, over OFFERS.
 
@@ -558,11 +559,23 @@ def admission_split(rt, *, offers: int, refused_before_job_observed: int | None 
                 served_late += 1
         elif state in TERMINAL_STATES:
             cls = str(r.get("failure_class") or "unclassified")
-            if cls in ADMISSION_REFUSAL_CLASSES:
+            outcome = str(r.get("outcome") or "")
+            # ⛔⛔ THE CLASS IS NOT ENOUGH — `queue_full` HAS THREE PRODUCERS AND ONLY ONE OF THEM IS
+            # AN ADMISSION REFUSAL. Measured 2026-09-14 across three identical probe runs, 53 rows
+            # against 52 refusals every time; the odd row reads
+            # `state=abandoned outcome=busy failure_class=queue_full` — a job that was ADMITTED,
+            # ran, and failed downstream with a busy signal. The other two producers are
+            # `record_refused` (`outcome=refused_at_ack`, the real one) and `resume_pending`
+            # (`outcome=restart_recovery`, a pod restart wearing "we're at capacity right now").
+            # ⭐ Counting by class alone put a job that was SERVED-then-failed into the refusal
+            # bucket, which is the direction that flatters: it turns a failure into an honest
+            # refusal. The outcome is what `record_refused` actually writes, so the outcome decides.
+            if cls in ADMISSION_REFUSAL_CLASSES and outcome == REFUSAL_EXPECTED_OUTCOME:
                 refused_rows += 1
             else:
                 failed += 1
-                failed_classes[cls] = failed_classes.get(cls, 0) + 1
+                key = cls if outcome in ("", REFUSAL_EXPECTED_OUTCOME) else f"{cls}/{outcome}"
+                failed_classes[key] = failed_classes.get(key, 0) + 1
     # ⛔ DERIVED FROM THE STORE, NOT FROM A COUNTER THIS HARNESS KEPT. An offer that never became a
     # job row was refused at the door — the per-member throttle answers before any work starts — and
     # the sandbox store holds only this run's rows, so the subtraction is exact.
@@ -588,15 +601,145 @@ def admission_split(rt, *, offers: int, refused_before_job_observed: int | None 
     # published rather than resolved in favour of whichever is more flattering.
     if refused_before_job_observed is not None:
         out["refused_before_job_row_observed"] = refused_before_job_observed
-        if refused_before_job_observed != refused_before_job:
+        gap = refused_before_job - refused_before_job_observed
+        # ⭐ THE GAP HAS A NAME NOW, AND THE CROSS-CHECK FINDING IT IS WHY. `refused_at_admission`
+        # counts offers where `rt.offer` was never REACHED (the per-member rate limit refuses
+        # earlier); `user_busy` is returned from INSIDE offer, so a corr_id is already registered
+        # while no job row is ever created. Three mechanisms, and the two counters straddle them.
+        # ⛔ An EXPLAINED gap closes the receipt; an unexplained one still does not.
+        user_busy = int((offer_status or {}).get("user_busy") or 0)
+        out["refusal_mechanisms"] = {
+            "rate_limited_before_offer": refused_before_job_observed,
+            "user_busy_inside_offer": user_busy,
+            "queue_full_with_row": refused_rows,
+            **{f"offer_returned_{k}": v for k, v in (offer_status or {}).items()},
+        }
+        if gap != user_busy:
             out["refused_before_job_row_mismatch"] = (
-                f"observed {refused_before_job_observed}, derived {refused_before_job} — the two "
-                f"counts disagree, so neither is evidence until the difference is explained")
+                f"observed {refused_before_job_observed}, derived {refused_before_job}, gap {gap} — "
+                f"{user_busy} user_busy refusal(s) account for "
+                f"{'all' if gap == user_busy else 'only part'} of it; the remainder is unexplained, "
+                f"so neither count is evidence until it is")
             out["closes"] = False
     if unknown:
         out["admission_classes_unknown_to_contract"] = unknown
         out["closes"] = False
     return out
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# D-02b PART 4 — WAS THE REFUSED MEMBER TOLD, AND TOLD IN TIME?
+#
+# ⛔⛔ THE DIRECTIVE ASKED FOR `t_patch_sent` AND `t_patch_acked`. THOSE STEPS DO NOT EXIST ON THIS
+# PATH, and the instrument says so rather than emitting two fields that are always null — a null
+# that reads as "the step failed" is worse than an absent field that reads as "there is no step".
+#
+# Established from source, quoted in the evidence doc:
+#   · `commands._enqueue` answers BOTH refusal paths with `_ephemeral(...)`, and `_ephemeral`
+#     returns `{"type": 4, "data": …}` — the response to Discord's own interaction POST;
+#   · `runtime.record_refused` stores `token: None`, with the reason in its docstring:
+#     "No token is kept: the refusal was the reply."
+#   · A PATCH to `webhooks/{app}/{token}/messages/@original` NEEDS that token. With `token: None`
+#     there is nothing to PATCH with — the absence is STRUCTURAL, not an omission.
+#
+# ⭐ So the honest measurement of "was the member told, and in time" is the ARRIVAL-TO-TOLD time,
+# which is the interaction reply latency, which S1 already bounds at 3 s. That is what this records.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: What a refusal's stored row is allowed to look like, read off `record_refused` rather than
+#: guessed. A row that disagrees is reported, never normalised.
+REFUSAL_EXPECTED_STATE = "messaged"
+REFUSAL_EXPECTED_OUTCOME = "refused_at_ack"
+
+
+def refusal_latency(rt, refusals: list, *, ack_ceiling_ms: float = HARD_CEILING_MS) -> dict:
+    """p50/p95/max of arrival→told for every refusal, joined to its job row by corr_id.
+
+    ⛔ NON-VACUITY IS THE WHOLE POINT. A run with zero refusals yields **NOT MEASURABLE**, never
+    "all inside 3 s" — this programme has already published one "no 502s found" that was a filter
+    matching millisecond fields, and an empty set satisfies every ceiling ever written."""
+    if not refusals:
+        return {"state": "NOT MEASURABLE",
+                "why": "zero refusals in this run — an empty set is not evidence that refusals are "
+                       "fast, and a load that refuses nobody cannot measure refusal latency",
+                "refusals": 0}
+    rows_by_corr = {}
+    try:
+        for r in (rt.store.recent(3600.0, limit=50_000) or []):
+            rows_by_corr[str(r.get("corr_id") or "")] = r
+    except Exception as e:  # noqa: BLE001
+        return {"state": "NOT MEASURABLE", "why": f"store unreadable: {type(e).__name__}: {e}",
+                "refusals": len(refusals)}
+
+    ms = sorted(float(x["ms"]) for x in refusals)
+    with_row, without_row = [], 0
+    classes: dict = {}
+    anomalies: list[str] = []
+    for x in refusals:
+        row = rows_by_corr.get(str(x.get("corr") or ""))
+        if row is None:
+            # ⛔ NOT AN ERROR — the per-member rate limit and `user_busy` refuse BEFORE a job row
+            # exists. It is the single biggest fact the split found and it is counted, not dropped.
+            without_row += 1
+            continue
+        cls = str(row.get("failure_class") or "unclassified")
+        classes[cls] = classes.get(cls, 0) + 1
+        with_row.append(x)
+        state, outcome = str(row.get("state") or ""), str(row.get("outcome") or "")
+        if state != REFUSAL_EXPECTED_STATE or outcome != REFUSAL_EXPECTED_OUTCOME:
+            # ⛔ OI-40's DECIDING FIELD. `record_refused` writes state=messaged/outcome=refused_at_ack.
+            # Anything else wearing an admission class came from a DIFFERENT producer — the restart
+            # path closes a job as `queue_full` too, which tells a member "we're at capacity right
+            # now" about a pod restart.
+            anomalies.append(f"{cls} row in state={state!r} outcome={outcome!r} — not "
+                             f"{REFUSAL_EXPECTED_STATE}/{REFUSAL_EXPECTED_OUTCOME}")
+        if row.get("token"):
+            anomalies.append(f"{cls} row kept a token — record_refused stores None")
+
+    # ⛔⛔ SWEEP THE STORE, NOT ONLY WHAT THE HARNESS SAW. The loop above inspects rows a refusal
+    # CLAIMED; a row no refusal claims is invisible to it — and that is precisely the shape OI-40
+    # describes, so an anomaly check blind to it would be an instrument reproducing its own blind
+    # spot. Measured 2026-09-14, twice, identically: 53 `queue_full` rows in the store against 52
+    # claimed. One row per run that `offer` did not produce.
+    claimed = {str(x.get("corr") or "") for x in refusals}
+    unclaimed = []
+    for cid, row in rows_by_corr.items():
+        if cid in claimed:
+            continue
+        if str(row.get("failure_class") or "") in ADMISSION_REFUSAL_CLASSES:
+            unclaimed.append({"corr_id": cid, "state": str(row.get("state") or ""),
+                              "outcome": str(row.get("outcome") or ""),
+                              "failure_class": str(row.get("failure_class") or ""),
+                              "token_kept": bool(row.get("token"))})
+
+    def _p(p: float):
+        if not ms:
+            return None
+        k = max(0, min(len(ms) - 1, int(round(p / 100.0 * (len(ms) - 1)))))
+        return ms[k]
+
+    over = [x for x in ms if x > ack_ceiling_ms]
+    return {
+        "state": "MEASURED",
+        "refusals": len(refusals),
+        "with_job_row": len(with_row), "without_job_row": without_row,
+        "classes": classes,
+        "arrival_to_told_ms": {"p50": _p(50), "p95": _p(95), "max": ms[-1] if ms else None},
+        "over_ack_ceiling": len(over), "ack_ceiling_ms": ack_ceiling_ms,
+        # ⭐ THE S5c QUESTION IN ONE FIELD: silent or late refusals. Silent is impossible on this
+        # path by construction (the refusal IS the reply, so a refusal that did not happen is a
+        # request that was not refused), so `late` is the whole of it.
+        "silent_or_late": len(over),
+        "anomalies": anomalies[:10], "anomaly_count": len(anomalies),
+        # ⛔ OI-40's COUNTER. An admission-class row nobody refused came from a producer other than
+        # `offer`. Reported with the rows themselves so the next reader can see WHICH producer,
+        # rather than being handed a number and an inference.
+        "unclaimed_admission_rows": len(unclaimed), "unclaimed_sample": unclaimed[:5],
+        # ⛔ NAMED SO NOBODY LOOKS FOR A FIELD THAT CANNOT EXIST.
+        "patch_fields_absent_because": "an admission refusal is the interaction response "
+                                       "(type 4); record_refused stores token=None, so there is "
+                                       "no PATCH to time",
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -669,11 +812,20 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
     corr_by_client: dict = {}
     _real_offer = rt.offer
 
+    offer_status: dict = {}
+
     def _offer(job):
         who = _CORR.get()
         if who:
             corr_by_client[who] = getattr(job, "corr_id", None)
-        return _real_offer(job)
+        # ⛔ THE STATUS IS RECORDED, NOT INFERRED. `offer` answers three ways and only one of
+        # them creates a job row: "queued" does, "full" does (record_refused), and
+        # "user_busy" does NOT — it returns from inside offer, so the corr_id above is
+        # already registered while no row will ever exist. That asymmetry is exactly the gap
+        # the split's cross-check reported and nobody could name.
+        status, position = _real_offer(job)
+        offer_status[status] = offer_status.get(status, 0) + 1
+        return status, position
 
     rt.offer = _offer
 
@@ -684,6 +836,7 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
     peak_inflight = 0
     inflight_samples: list[int] = []
     resolutions: dict = {}
+    refusals: list = []
     counter = {"n": 0}
     started = time.perf_counter()
     end_at = started + seconds
@@ -705,6 +858,16 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
                 samples.append((time.perf_counter() - received) * 1000.0)
                 kinds[_kind_of(reply)] = kinds.get(_kind_of(reply), 0) + 1
                 corr = corr_by_client.pop(who, None)
+                if _kind_of(reply) == "immediate":
+                    # ⛔⛔ AN ADMISSION REFUSAL IS THE INTERACTION RESPONSE, NOT A PATCH.
+                    # `commands._enqueue` answers both refusal paths with `_ephemeral(...)`,
+                    # which is `{"type": 4}` — the reply to Discord's own POST — and
+                    # `runtime.record_refused` stores `token: None` with the reason in the
+                    # docstring: "No token is kept: the refusal was the reply." So the member
+                    # is told INSIDE the ack, and `samples[-1]` IS the arrival-to-told time.
+                    # ⛔ There is no `t_patch_sent` to record on this path, and inventing one
+                    # would be a field that is always null being read as a step that failed.
+                    refusals.append({"ms": round(samples[-1], 2), "corr": corr})
                 if real and corr:
                     state = await _await_terminal(rt.store, corr, min(end_at + drain_s,
                                                                      time.perf_counter() + drain_s))
@@ -764,7 +927,9 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
             "concurrency": {"requested": concurrency, "think_s": think_s,
                             "peak_inflight": peak_inflight,
                             "mean_inflight": round(mean_inflight, 2),
-                            "resolutions": resolutions}}
+                            "resolutions": resolutions,
+                            "offer_status": offer_status},
+            "refusals": refusals}
 
 
 # ── the run ─────────────────────────────────────────────────────────────────
@@ -1101,8 +1266,12 @@ def self_check() -> int:
         def __init__(self, rows):
             self.store = _Store(rows)
 
-    def _row(state, *, final_ms=None, cls=None):
-        return {"state": state, "final_ms": final_ms, "failure_class": cls}
+    def _row(state, *, final_ms=None, cls=None, outcome=None):
+        # ⛔ The outcome defaults to what `record_refused` actually writes, so a case that does not
+        # care about provenance still builds a WELL-FORMED refusal rather than an ambiguous one.
+        return {"state": state, "final_ms": final_ms, "failure_class": cls,
+                "outcome": outcome if outcome is not None
+                else (REFUSAL_EXPECTED_OUTCOME if cls in ADMISSION_REFUSAL_CLASSES else "")}
 
     _rows = ([_row("delivered", final_ms=1200.0)] * 6
              + [_row("delivered", final_ms=12000.0)]
@@ -1118,6 +1287,23 @@ def self_check() -> int:
                   _sp["refused_with_job_row"] == 2))
     cases.append(("a non-admission class is a FAILURE, not a refusal",
                   _sp["failed"] == 1 and _sp["failed_by_class"].get("deadline") == 1))
+    # ⛔⛔ OI-40, AS A RAIL. `queue_full` has THREE producers and only `record_refused`'s is an
+    # admission refusal. A row reading `outcome=busy` is a job that was ADMITTED, ran, and failed
+    # downstream — counting it as a refusal turns a failure into an honest refusal, which is the
+    # direction that flatters. Measured on the real probe: 53 rows, 52 refusals, every run.
+    _sp_oi40 = admission_split(
+        _Rt(_rows + [_row("abandoned", cls="queue_full", outcome="busy")]), offers=13)
+    cases.append(("a queue_full row with outcome=busy is a FAILURE, not an admission refusal",
+                  _sp_oi40["refused_with_job_row"] == 2
+                  and _sp_oi40["failed_by_class"].get("queue_full/busy") == 1))
+    _sp_oi40b = admission_split(
+        _Rt(_rows + [_row("abandoned", cls="queue_full", outcome="restart_recovery")]), offers=13)
+    cases.append(("a queue_full row from the RESTART path is a FAILURE, not a refusal",
+                  _sp_oi40b["failed_by_class"].get("queue_full/restart_recovery") == 1))
+    # ⛔ NON-VACUITY: the genuine producer must STILL land in the refusal bucket, or the fix has
+    # simply emptied it and every refusal now reads as a failure.
+    cases.append(("a well-formed refused_at_ack row is STILL a refusal (non-vacuity)",
+                  _sp["refused_with_job_row"] == 2 and not _sp["failed_by_class"].get("queue_full")))
     # ⛔⛔ THE FINDING THIS SPLIT EXISTS FOR: an offer refused before any job row is invisible to
     # `success_rate` in BOTH directions. Measured on the 30-concurrent run: 406 offers, 360 job
     # rows, 46 refused at the door.
@@ -1144,6 +1330,19 @@ def self_check() -> int:
     _sp_ok = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=2)
     cases.append(("agreeing counts do NOT raise a mismatch (control)",
                   "refused_before_job_row_mismatch" not in _sp_ok and _sp_ok["closes"] is True))
+    # ⭐ THE GAP THE CROSS-CHECK FOUND, NOW NAMEABLE. A `user_busy` refusal registers a corr_id from
+    # inside `offer` and never creates a job row, so it sits between the two counters. An EXPLAINED
+    # gap closes the receipt; an unexplained one still must not.
+    _sp_ub = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=0,
+                             offer_status={"queued": 10, "user_busy": 2})
+    cases.append(("a gap fully explained by user_busy CLOSES the receipt",
+                  _sp_ub["closes"] is True
+                  and _sp_ub["refusal_mechanisms"]["user_busy_inside_offer"] == 2))
+    _sp_un = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=0,
+                             offer_status={"queued": 10, "user_busy": 1})
+    cases.append(("a gap only PARTLY explained does NOT close (non-vacuity)",
+                  _sp_un["closes"] is False
+                  and "only part" in _sp_un["refused_before_job_row_mismatch"]))
 
     # ── B2 · the three loads, DERIVED from the census and never retyped ────
     _census = _repo_root() / "docs" / "discord-render" / "evidence" / "arrivals-30d.json"
@@ -1169,6 +1368,56 @@ def self_check() -> int:
         cases.append(("an unknown burst mode is refused BY NAME", False))
     except SystemExit as e:
         cases.append(("an unknown burst mode is refused BY NAME", "busiest3s" in str(e)))
+
+    # ── Part 4 · refusal latency, and the non-vacuity that decides it ─────
+    _rl_empty = refusal_latency(_Rt([]), [])
+    # ⛔⛔ THE CASE THAT STOPS THIS INSTRUMENT LYING. A run that refused nobody must NOT report
+    # "every refusal was inside 3 s" — an empty set satisfies every ceiling ever written, and this
+    # programme has already published one "no 502s found" that was a filter matching milliseconds.
+    cases.append(("a run with ZERO refusals is NOT MEASURABLE, never 'all inside 3 s'",
+                  _rl_empty["state"] == "NOT MEASURABLE" and "empty set" in _rl_empty["why"]))
+    _refusals = [{"ms": 120.0, "corr": "a"}, {"ms": 300.0, "corr": "b"},
+                 {"ms": 4200.0, "corr": "c"}, {"ms": 90.0, "corr": None}]
+    _rows = [{"corr_id": "a", "state": "messaged", "outcome": "refused_at_ack",
+              "failure_class": "queue_full", "token": None},
+             {"corr_id": "b", "state": "messaged", "outcome": "refused_at_ack",
+              "failure_class": "queue_full", "token": None},
+             {"corr_id": "c", "state": "messaged", "outcome": "refused_at_ack",
+              "failure_class": "queue_full", "token": None}]
+    _rl = refusal_latency(_Rt(_rows), _refusals)
+    cases.append(("a refusal over the 3 s ack ceiling is counted as LATE",
+                  _rl["silent_or_late"] == 1 and _rl["over_ack_ceiling"] == 1))
+    cases.append(("a refusal with no job row is counted, never dropped",
+                  _rl["without_job_row"] == 1 and _rl["with_job_row"] == 3))
+    cases.append(("the arrival-to-told percentiles come out of the refusals only",
+                  _rl["arrival_to_told_ms"]["max"] == 4200.0))
+    # ⛔ NON-VACUITY for the late counter: a run whose refusals are all fast must report ZERO late,
+    # or "late" is a field that always fires and S5c would be red on a healthy system.
+    _rl_fast = refusal_latency(_Rt(_rows), _refusals[:2])
+    cases.append(("all-fast refusals report ZERO late (non-vacuity)",
+                  _rl_fast["silent_or_late"] == 0 and _rl_fast["state"] == "MEASURED"))
+    # ⛔⛔ OI-40's DECIDING FIELD. A row wearing an admission class but NOT written by
+    # `record_refused` came from the restart path, which tells a member "we're at capacity right
+    # now" about a pod restart.
+    _rl_odd = refusal_latency(_Rt([{"corr_id": "a", "state": "abandoned",
+                                    "outcome": "restart_recovery", "failure_class": "queue_full",
+                                    "token": None}]), [{"ms": 50.0, "corr": "a"}])
+    cases.append(("a queue_full row from the RESTART path is reported as an anomaly",
+                  _rl_odd["anomaly_count"] == 1
+                  and "restart_recovery" in _rl_odd["anomalies"][0]))
+    cases.append(("a well-formed refusal row raises NO anomaly (non-vacuity)",
+                  _rl["anomaly_count"] == 0))
+    # ⛔⛔ THE BLIND SPOT THE ANOMALY LOOP HAD. It inspects rows a refusal CLAIMED; a queue_full row
+    # nobody refused is invisible to it — which is exactly OI-40's shape, so a check blind to it
+    # would be an instrument reproducing its own blind spot.
+    _rl_orphan = refusal_latency(
+        _Rt(_rows + [{"corr_id": "z", "state": "abandoned", "outcome": "restart_recovery",
+                      "failure_class": "queue_full", "token": None}]), _refusals)
+    cases.append(("an admission-class row NO refusal claims is counted and shown",
+                  _rl_orphan["unclaimed_admission_rows"] == 1
+                  and _rl_orphan["unclaimed_sample"][0]["outcome"] == "restart_recovery"))
+    cases.append(("a store with no orphan rows reports ZERO unclaimed (non-vacuity)",
+                  _rl["unclaimed_admission_rows"] == 0))
 
     # ── C3 · the spin ceiling (D-01 defect D3) ────────────────────────────
     # ⚰️ THE RUN IT EXISTS FOR: 30 clients, 20 seconds, **521,654 attempts** — ~26,000/s — and six
@@ -1452,9 +1701,14 @@ def main(argv=None) -> int:
             # its 99.5 % floor; this says what the failures WERE, over offers rather than job rows.
             real_metrics["admission_split"] = admission_split(
                 out["runtime"], offers=len(out["samples"]),
+                offer_status=(out.get("concurrency") or {}).get("offer_status"),
                 refused_before_job_observed=(out.get("concurrency") or {})
                 .get("resolutions", {}).get("refused_at_admission") if out.get("concurrency")
                 else None)
+            # ⛔ D-02b Part 4 — was the refused member TOLD, and in time? NOT MEASURABLE when the
+            # run refused nobody, which is the honest answer and not "all inside 3 s".
+            real_metrics["refusal_latency"] = refusal_latency(
+                out["runtime"], out.get("refusals") or [])
         if args.out:
             pathlib.Path(args.out).write_text(json.dumps(
                 {"meta": meta, "stats": stats, "kinds": kinds, "samples_ms": out["samples"],
