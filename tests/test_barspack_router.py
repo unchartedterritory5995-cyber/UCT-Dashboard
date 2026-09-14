@@ -7,6 +7,20 @@ from fastapi.testclient import TestClient
 
 import api.services.data_sync as ds
 from api.routers.barspack_router import router
+import pytest
+from tests.authclients import sign_in_bars_caller
+
+# ⚠️ SIGNED IN AS A PAID MEMBER FOR EVERY REQUEST IN THIS MODULE.
+# The chart-data routes became paid in the 2026-09-13 security port, so these
+# BEHAVIOUR cases — written about serving, framing, timing and shedding, long
+# before any gate — would otherwise read `assert 401 == 200` and measure the gate
+# instead of the thing they exist for. `sign_in_bars_caller` substitutes the
+# IDENTITY and leaves the gate itself running (`tests/authclients.py`).
+@pytest.fixture(autouse=True)
+def _paid_bars_caller(monkeypatch):
+    sign_in_bars_caller(monkeypatch)
+
+
 
 
 def _client():

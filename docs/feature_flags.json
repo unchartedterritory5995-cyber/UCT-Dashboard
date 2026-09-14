@@ -95,6 +95,13 @@
       ],
       "note": "GATE-S7-EVENT-PROXIMITY CP3 (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_event_proximity_dark cron -- 07:05 and 18:05 ET weekdays, the legacy path's own two slots -- running the FORWARD-ONLY dark comparison of the new event-proximity evaluator against calendar_alerts.run_prereport_alerts. ARMED 2026-09-12 17:29:02 UTC on `web`, owner-authorized for this one variable only. DEFAULT IS OFF BY DESIGN: it reads real member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of My Stocks x the day's reporters), so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). ⛔ CADENCE IS DAILY, NOT PER-MINUTE, unlike its price-level sibling: the legacy path's whole notion of time is a DATE, so a minute-by-minute sweep would re-ask a question whose answer cannot change until tomorrow. The report tool's staleness bound follows that (26h, not 180s) -- copying the sibling's number would report a healthy sweep as stalled every time. Verdict gate five full trading sessions; read with `tools/s7_price_level_report.py --ticking`, which covers BOTH dark runs. CP4 (all members) and the FLIP each need a new owner approval line."
     },
+    "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-INDICATOR-CONDITION CP3, approval line 3 -- the dependency-discharge line, fingerprint 4e8d3af5d. Its blocker, PRD-D2 section 9.5, is signed as GATE-D2 CP4 (3257cc319) and merged 404b808c5. Arms the alert_taxonomy_indicator_condition_dark cron (every minute, weekdays 09:00-16:59 ET): the forward-only dark comparison of each cohort member's active indicator_alerts row against the canonical book. ARMED 2026-09-13 20:48:30 UTC on `web`, owner-authorized as a SINGLE variable; the `--set` auto-redeployed (a FIFTH data point for the open auto-redeploy question) and the new boot was verified by artifact -- /api/health uptime 14s, and the boot line '[startup] S7 indicator-condition DARK comparison ENABLED' read from railway logs. EXPECT ZERO COMPARISONS AND THAT IS CORRECT, NOT A FAULT. The in-pod dry run measured cohort=6 and indicator_alerts active TOTAL=0 -- production holds no armed indicator alert at all, so projected N=0 with that reason. And of the 31 legacy addresses only ONE (close -> ohlcv.c) is comparable against the book's 142 metrics (F-S7-IC-1), so even a populated cohort would report thirty NOT COMPARABLE per predicate, never as agreement. The heartbeat is the liveness signal here, not the outcome counts."
+    },
     "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED": {
       "status": "armed",
       "where": [
@@ -463,7 +470,13 @@
       "where": [
         "web"
       ],
-      "note": ""
+      "note": "",
+      "exposure": "public",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ]
     },
     "DISCORD_INDEX_CLOSE_ENABLED": {
       "status": "armed",
@@ -985,6 +998,11 @@
       ],
       "note": "GATE-S7-REGIME-CHANGE CP3 (owner approval line 2, fingerprint 9f0575340). Arms the alert_taxonomy_regime_change_dark cron (weekdays 04:00-20:59 ET, minute 7-59/20 -- SHADOWING the awareness scan's */20 with a 7-minute offset so each of its ledger appends is observed after it lands): the forward-only dark comparison against BOTH legacy emitters, awareness rule_regime_flip and voice_proactive_service.maybe_emit_regime_shift. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). ⛔⛔ IT MUST NEVER WRITE awareness_regime_snapshots -- the legacy does a read-then-APPEND there and a dark write would corrupt the prev_label the LIVE R4 rule reads next cycle. Verified in-pod after arming: newest ledger row is still the engine's own (id 2557, bull_correction, 2026-09-12 00:40), row count unchanged. A watermark on that id makes each row observable ONCE, so `agreed` cannot become a function of the sweep's cadence. DRY RUN 2026-09-13, read-only: the newest two ledger rows are BOTH 'bull_correction' -- no flip, a quiet tick and not a failure; 3 of 6 cohort members have stake (a position or a watchlist symbol)."
     },
+    "CANONICAL_INDICATOR_AXIS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "GATE-D2 CP4 -- the indicator axis (PRD-D2 section 9.5, approval fingerprint 3257cc319; section 4 was RE-NUMBERED in the signing commit to add CP4, per the standing rule, because 9.5's scope matched none of CP1/CP2/CP3 -- all three were written for the stored-column form). Gates api/services/canonical/indicator_axis.py, a SECOND canonical address form `<indicator>[.<output>](<params>)@<timeframe>` that DECLARES and DESCRIBES and never computes: resolve() returns a computation descriptor and hands back the value FUNCTION, never a result. UNSET = OFF and that is the shipped state -- CP4 declares the axis; CONSUMING it is indicator-condition CP3's act under its own approval line. Merged 404b808c5 2026-09-13, classified ADDITIVE by reachable_paths(): indicator_axis is absent from flow-worker's 154-module closure (bars_fetch.py and bars_sqlite.py ARE in it, which is why the owner's 2026-09-13 ruling that the watch list is NOT widened means CP4 does not touch them). DO NOT ARM: arming is the owner's flip, and nothing reads this axis yet, so arming it would light a door with no room behind it."
+    },
     "WISDOM_INGEST_ENABLED": {
       "status": "dark",
       "where": [],
@@ -1063,7 +1081,13 @@
     "WISDOM_BRAINKB_PUBLISH_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "MEMBER-VISIBLE when on: Wisdom publish into the Brain KB (D18 sequencing). Owner flips (W1 §0.4c). Read in api/services/wisdom/core/flags.py."
+      "note": "MEMBER-VISIBLE when on: Wisdom publish into the Brain KB (D18 sequencing). Owner flips (W1 §0.4c). Read in api/services/wisdom/core/flags.py.",
+      "exposure": "public",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ]
     },
     "ASKAI_WISDOM_RETRIEVAL_ENABLED": {
       "status": "dark",
@@ -1109,6 +1133,31 @@
       "status": "dark",
       "where": [],
       "note": "D20 daily 'looks like what TSDR buys' list, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
+    },
+    "DESK_PUBLIC_SHOWS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "exposure": "public",
+      "default": "sunday scans",
+      "values": [
+        "sunday scans"
+      ],
+      "note": "PUBLIC-EXPOSURE FLAG. Decides which routed show sections upload to YouTube as public rather than unlisted. Owner ruling 2026-09-13: public = Sunday Scans ONLY. Set to the wildcard '*' on 2026-08-19 (commit 0894d7ac0); 27 paid desk sessions published public until the 2026-09-13 revert, then set back to unlisted. A WILDCARD IS REFUSED by tests/test_visibility_flag_ledger.py. Blank makes nothing public, which is the safe direction."
+    },
+    "DESK_TSDR_ANNOUNCE_SHOWS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "exposure": "public",
+      "default": "evening update",
+      "values": [
+        "evening update",
+        "sunday scans"
+      ],
+      "note": "PUBLIC-EXPOSURE FLAG. Which shows get announced to the PUBLIC TSDR Discord. Blank announces nothing — the failure direction is silence, never a leak."
     }
   },
   "build_flags": {

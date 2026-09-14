@@ -25,7 +25,7 @@ import TreemapView from './breadth/views/TreemapView'
 import { TREEMAP_DEF } from './breadth/heatmapMetrics'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
+import { renderTokenOk } from '../lib/renderToken'
 // Newsletter export: drop treemap tiles that DUPLICATE the live exposure card
 // directly above it (score/exposure/index closes). The treemap reads yesterday's
 // breadth-collector snapshot, so those tiles can contradict the live card inside
@@ -69,7 +69,7 @@ export default function InternalsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     const jobs = []
     if (needBreadth) {
       jobs.push(fetch(`/api/r/breadth?token=${encodeURIComponent(token)}`).then((r) => (r.ok ? r.json() : {})).then(setBreadth).catch(() => setBreadth({})))

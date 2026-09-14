@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
+import { renderTokenOk } from '../lib/renderToken'
 const PER_SESSION = 4  // notable names per BMO/AMC per day
 
 const SESS = {
@@ -57,7 +57,7 @@ export default function CalendarRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     const jobs = [fetch('/api/calendar').then((r) => (r.ok ? r.json() : Promise.reject(r.status)))]
     if (fromToday) {
       const nextMon = new Date()

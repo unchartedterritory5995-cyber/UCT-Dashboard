@@ -31,6 +31,7 @@ import re
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from api.bars_auth import require_bars_access
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import breadth_monitor as svc
 from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
@@ -448,10 +449,18 @@ def purge_breadth_ohlc_reconstructed(request: Request):
 
 
 @router.get("/api/breadth-symbols")
-def get_breadth_symbols():
-    """Public catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart
-    UI can recognize them (daily-only, no live quote, breadth watermark) and group
-    them. No auth — the charts they power are free-tier, and this is only metadata."""
+def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
+    """Catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart UI can
+    recognize them (daily-only, no live quote, breadth watermark) and group them.
+
+    🔴 THIS SAID "No auth — the charts they power are free-tier, and this is
+    only metadata", and BOTH HALVES had stopped being true. Charts have been paid
+    since the 2026-07-19 free-tier decision (`AuthGuard.jsx`: only Morning Wire is
+    free), and "only metadata" is what made it the ENUMERATION half of a two-step:
+    an anonymous caller reads all 44 proprietary symbol names here, then reads
+    their full history from `/api/bars/{sym}`. Naming the product's own breadth
+    measures is not a lesser disclosure when the data behind them is what is sold.
+    """
     from api.services import breadth_symbols as bs
     return {
         "symbols": bs.list_breadth_symbols(),
