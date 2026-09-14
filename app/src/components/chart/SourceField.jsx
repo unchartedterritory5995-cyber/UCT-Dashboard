@@ -20,7 +20,7 @@
 // (`!@inst:…`) does not parse, takes no option, and lands there by construction.
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { sourceOptions, symbolSource, parseSource } from './engine/sourceRef'
+import { sourceOptions, symbolSource } from './engine/sourceRef'
 import useSymbolDiscovery from './useSymbolDiscovery'
 
 /** The sentinel that opens the symbol search. ⛔ It is never a stored value —
@@ -138,14 +138,4 @@ export default function SourceField({
       )}
     </div>
   )
-}
-
-/** What the collapsed control says, for a caller that needs the words without
- *  the widget. Exported for the row summary and for tests. */
-export function sourceFieldLabel(value, settings, defOf, selfInstanceId) {
-  const groups = sourceOptions(settings, defOf, selfInstanceId, value)
-  for (const g of groups) {
-    for (const o of g.options) if (o.value === value) return o.label
-  }
-  return parseSource(value) ? '' : 'Source unavailable'
 }

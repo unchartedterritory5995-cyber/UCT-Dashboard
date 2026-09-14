@@ -69,10 +69,10 @@ import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition } from './nativeRegistry'
-import { resolveDisplayTarget, isWritableDisplayTarget, legacyVolumeTarget } from './displayTarget'
-import { wouldCycle, severReferencesTo, parsePaneOfTarget } from './sourceRef'
+import { resolveDisplayTarget, isWritableDisplayTarget } from './displayTarget'
+import { parsePaneOfTarget } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
-         CANDLE_COLOR_KEYS, resolveCandleColors } from './presentation'
+         CANDLE_COLOR_KEYS } from './presentation'
 
 function resolveRegistry(registry) {
   if (typeof registry === 'function') return (id) => registry(id)
