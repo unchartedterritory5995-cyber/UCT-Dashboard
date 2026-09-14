@@ -11,7 +11,25 @@
 | `keys` | *(empty)* | canonical snake_case metric keys, comma separated. **Cap 8** — a 9th is `400`. Repeats are deduped and do not consume the budget twice. |
 | `to` | latest stored session | |
 | `from` | the **365 most recent stored sessions** ending at `to` | `from > to` → `400` |
-| span | — | calendar span capped at **8000 days** (the monitor endpoint's own `le=8000`, not a second ceiling). Over → `400` naming the ceiling. |
+| span | — | capped at **365 sessions** (`BREADTH_SERIES_MAX_SESSIONS`), enforced as **584 calendar days** = `365 × 1.6`. Over → `400` naming both numbers. |
+
+### The span cap, and why it is checked before the read
+
+A cold deep read of the breadth history costs **~55 s on the single web process** (D-042) — a
+pre-existing property of `get_history_deep`, not something B1 introduced. Until the reader has its
+own programme, that cost must be **unreachable from `/series` regardless of the flag**, so the cap
+exists to make it so rather than to express a view about how much history a chart should show.
+
+⛔ **The 400 is raised BEFORE the read.** Counting sessions requires reading them, so a post-read
+rejection has already paid the 55 s it exists to prevent — the check is therefore on calendar days,
+which are knowable from the request alone.
+
+⭐ **×1.6 is generous on purpose, in the safe direction.** A year holds ~252 sessions in 365
+calendar days, so a session cap enforced as an equal number of days would 400 a genuine full-span
+request. Erring wide admits at most a few hundred extra rows; erring narrow refuses the request the
+cap is sized to allow.
+
+The cap is raised when the reader work lands, not to satisfy a wider view.
 
 ## Response — `200 application/json`
 
@@ -52,6 +70,10 @@ Measured 2026-09-14, B1's **marginal** cost (filter + project + encode) over a f
 | 365d | 252 | 15 KB | 8.8 ms | 11.4 ms | 5.8 ms |
 | 5y | 1,260 | 75 KB | 13.1 ms | 14.8 ms | 5.2 ms |
 | 2008– (18y) | 4,530 | 270 KB | **30.3 ms** | **36.0 ms** | 6.5 ms |
+
+⚠️ **The 5y and 2008– rows are no longer reachable through `/series`** — the span cap above stops
+at 365 sessions. They stay in this table because they are what settled the downsampling question:
+the rows measure what B1 *adds*, and that answer does not change when the cap is raised.
 
 D-035's trigger was "if 2008– with 8 keys exceeds ~1 s cold, add server-side downsampling". It costs **30 ms** — ~33× under it — so **downsampling is deferred**, and `bucket=` is not implemented. Revisit if the payload rather than the time becomes the constraint (270 KB over a phone connection is the number to watch, not the CPU).
 
