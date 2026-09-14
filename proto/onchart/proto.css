@@ -1,0 +1,206 @@
+/* ── UCT on-chart plot management — prototype shell ─────────────────────────
+   Visual language lifted from the real app: tokens.css + chartDefaults.js.
+   NOTHING here is imported by the app. Standalone research surface only. */
+:root{
+  --ut-gold:#dcbb5e; --ut-gold-bright:#e9cd77; --ut-gold-dim:#dcbb5e15; --ut-gold-glow:#dcbb5e35;
+  --bg:#101012; --bg-surface:#17181b; --bg-elevated:#1d1f23; --bg-hover:#24262b;
+  --border:#2a2c31; --border-accent:#383b41;
+  --text:#f0efea; --text-muted:#cfcac0; --text-bright:#f8f7f3; --text-faint:#8c877d;
+  --gain:#2faf68; --loss:#df4646;
+  --menu-bg:#0e0e10; --menu-border:rgba(255,255,255,.09);
+  --menu-divider:rgba(255,255,255,.06); --menu-text:#ededed; --menu-text-dim:#b3b3b9;
+  --menu-hover:rgba(255,255,255,.055); --menu-shadow:rgba(0,0,0,.7);
+  --canvas:#17181a; --axis:#706b5e;
+  --font:'Instrument Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --legend-fs:11px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;-webkit-font-smoothing:antialiased}
+
+/* ── page chrome ─────────────────────────────────────────────────────────── */
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+.top h1{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0;color:var(--text-bright)}
+.top .tag{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ut-gold);
+  border:1px solid var(--ut-gold-glow);background:var(--ut-gold-dim);padding:2px 7px;border-radius:3px}
+.lede{color:var(--text-faint);font-size:12.5px;line-height:1.55;margin:6px 0 16px;max-width:76ch}
+.lede b{color:var(--text-muted);font-weight:600}
+a{color:var(--ut-gold);text-decoration:none}
+a:hover{color:var(--ut-gold-bright);text-decoration:underline}
+
+.bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar .sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+.bar label{font-size:11px;color:var(--text-faint);letter-spacing:.04em}
+.btn{font:inherit;font-size:11px;padding:4px 10px;border-radius:4px;cursor:pointer;
+  background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);transition:.12s}
+.btn:hover{background:var(--bg-hover);border-color:var(--border-accent);color:var(--text)}
+.btn[aria-pressed="true"]{background:var(--ut-gold-dim);border-color:var(--ut-gold-glow);color:var(--ut-gold-bright)}
+
+/* ── the chart ───────────────────────────────────────────────────────────── */
+.chartFrame{border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--canvas);
+  box-shadow:0 18px 40px -24px #000;transition:max-width .22s ease}
+.chartFrame.compact{max-width:420px}
+.chart{position:relative;user-select:none}
+.pane{position:relative;overflow:hidden;border-top:1px solid #212227}
+.pane:first-child{border-top:none}
+.pane canvas{display:block;width:100%;height:100%}
+
+/* the per-pane legend box */
+.paneLegend{position:absolute;top:5px;left:7px;z-index:4;display:grid;
+  grid-template-columns:max-content max-content 14px;column-gap:9px;row-gap:0;
+  justify-content:start;align-items:center;font-size:var(--legend-fs);line-height:1.05;
+  pointer-events:none;
+  /* ⭐ NO PANEL, NO BOX — legibility comes from a halo, which is the quietest
+     way to float text over candles. Zero chrome, guaranteed contrast. */
+  text-shadow:0 0 7px rgba(23,24,26,.96),0 0 3px rgba(23,24,26,.92),0 1px 2px rgba(0,0,0,.6)}
+.compact .paneLegend{--legend-fs:10px;column-gap:6px}
+
+/* ── THE ROW — the resting label. Shared by all three concepts. ──────────── */
+.row{display:grid;grid-template-columns:subgrid;grid-column:1/-1;align-items:center;
+  pointer-events:auto;cursor:default;border-radius:3px;
+  padding:1.5px 3px 1.5px 0;margin-left:-3px;
+  background:transparent;transition:background .1s linear}
+.row .name{display:flex;align-items:center;gap:5px;white-space:nowrap;min-width:0}
+/* the colour RAIL — the only chrome at rest, and the one identity anchor */
+.row .rail{flex:0 0 auto;width:2px;height:9px;border-radius:1px;background:var(--c);
+  margin-left:3px;transition:width .1s ease,height .1s ease,opacity .12s}
+.row .stem{color:var(--text-muted);font-weight:600;letter-spacing:.005em;
+  overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.compact .row .stem{max-width:92px}
+.row .args{color:var(--text-faint);font-weight:500;font-variant-numeric:tabular-nums}
+.row .src{color:var(--text-faint);font-weight:500;opacity:.8}
+.row .vals{display:flex;gap:7px;justify-content:flex-end;font-variant-numeric:tabular-nums}
+.row .v{color:var(--text-bright);font-weight:600}
+.row .v.tinted{color:var(--c2)}
+/* the ALWAYS-RESERVED affordance gutter: 14px, empty at rest → zero shift */
+.row .gut{display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .1s;color:var(--text-muted)}
+.row .gut svg{width:9px;height:9px;display:block}
+
+.row.hidden{opacity:.42}
+.row.hidden .vals{visibility:hidden}
+.row.hidden .rail{background:repeating-linear-gradient(180deg,var(--c) 0 2px,transparent 2px 4px)}
+.row.nocompute .v{color:var(--text-faint);font-style:italic;font-weight:500}
+
+/* multi-plot expansion */
+.sub{display:grid;grid-template-columns:subgrid;grid-column:1/-1;align-items:center;
+  pointer-events:auto;height:0;overflow:hidden;opacity:0;transition:height .12s ease,opacity .1s}
+.sub.open{height:15px;opacity:1}
+.compact .sub.open{height:14px}
+.sub .name{padding-left:11px}
+.sub .rail{height:7px}
+.sub .stem{color:var(--text-faint);font-weight:500}
+.sub .v{color:var(--text-muted);font-weight:500}
+
+/* pane caption — only when a pane hosts more than one instance */
+.paneTag{grid-column:1/-1;font-size:9px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--text-faint);opacity:.68;padding:0 0 2px 5px;pointer-events:none}
+
+/* ── shared popover (Concepts A & C) ─────────────────────────────────────── */
+.pop{position:fixed;z-index:60;min-width:216px;background:var(--menu-bg);
+  border:1px solid var(--menu-border);border-radius:6px;box-shadow:0 18px 44px -12px var(--menu-shadow);
+  padding:5px;font-size:12px;color:var(--menu-text);animation:popIn .1s ease-out}
+@keyframes popIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.pop .head{display:flex;align-items:center;gap:7px;padding:5px 7px 7px;border-bottom:1px solid var(--menu-divider);margin-bottom:4px}
+.pop .head .rail{width:2px;height:13px;border-radius:1px;background:var(--c);flex:0 0 auto}
+.pop .head .hname{font-weight:600;color:var(--text-bright);font-size:12px}
+.pop .head .hval{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--text-bright);font-weight:600}
+.pop .hsrc{font-size:10px;color:var(--text-faint);padding:0 7px 6px}
+.pop .grp{padding:3px 7px 6px}
+.pop .glab{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:5px}
+.pop .swatches{display:flex;gap:5px}
+.pop .sw{width:15px;height:15px;border-radius:3px;border:1px solid rgba(255,255,255,.14);cursor:pointer;padding:0}
+.pop .sw[aria-pressed="true"]{outline:1.5px solid var(--ut-gold);outline-offset:1.5px}
+.pop .it{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:4px;cursor:pointer;color:var(--menu-text);
+  font:inherit;font-size:12px;background:none;border:none;width:100%;text-align:left}
+.pop .it:hover{background:var(--menu-hover)}
+.pop .it .k{margin-left:auto;font-size:10px;color:var(--text-faint);letter-spacing:.03em}
+.pop .it.danger{color:#e98a84}
+.pop .it.danger:hover{background:rgba(196,31,45,.22)}
+.pop .div{height:1px;background:var(--menu-divider);margin:4px 2px}
+.pop .it svg{width:12px;height:12px;flex:0 0 auto;opacity:.8}
+.pop select{font:inherit;font-size:11px;background:#08080a;color:var(--menu-text);
+  border:1px solid var(--menu-border);border-radius:4px;padding:4px 6px;width:100%}
+
+/* ── drag feedback ───────────────────────────────────────────────────────── */
+.row.grabbable:hover .rail{width:3px;height:11px}
+.row.grabbable:hover{cursor:grab}
+.row.isDragged{opacity:.28}
+.ghost{position:fixed;z-index:80;pointer-events:none;background:rgba(14,14,16,.94);
+  border:1px solid var(--ut-gold-glow);border-radius:4px;padding:3px 8px 3px 5px;
+  font-size:11px;display:flex;align-items:center;gap:6px;color:var(--text-bright);font-weight:600;
+  box-shadow:0 10px 26px -8px #000}
+.ghost .rail{width:2px;height:10px;border-radius:1px;background:var(--c)}
+.dropTarget{position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:2px;
+  border:1px solid transparent;transition:background .1s,border-color .1s}
+.pane.valid .dropTarget{background:var(--ut-gold-dim);border-color:var(--ut-gold-glow)}
+.pane.armed .dropTarget{background:rgba(220,187,94,.14);border-color:var(--ut-gold)}
+.pane.invalid .dropTarget{background:rgba(223,70,70,.06);border-color:rgba(223,70,70,.3)}
+.pane.invalid::after{content:attr(data-refusal);position:absolute;right:9px;top:7px;z-index:9;
+  font-size:10px;color:#e98a84;background:rgba(24,12,12,.92);border:1px solid rgba(223,70,70,.4);
+  border-radius:3px;padding:2px 7px;pointer-events:none;max-width:60%}
+.seam{position:absolute;left:0;right:0;height:13px;z-index:6;pointer-events:none;opacity:0;transition:opacity .1s}
+.seam.armed{opacity:1}
+.seam .line{position:absolute;left:8px;right:8px;top:6px;height:1.5px;background:var(--ut-gold);
+  box-shadow:0 0 8px var(--ut-gold-glow)}
+.seam .cap{position:absolute;right:10px;top:-1px;font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:#1a1a12;background:var(--ut-gold);padding:1px 5px;border-radius:2px;font-weight:700}
+/* the left-edge park dock (Concept B — TC2000's pin, refined) */
+.dock{position:absolute;left:0;top:0;bottom:0;width:0;z-index:7;overflow:hidden;
+  background:linear-gradient(90deg,rgba(220,187,94,.14),transparent);
+  border-right:1px solid transparent;transition:width .14s ease,border-color .14s}
+.chart.dragging .dock{width:36px;border-right-color:var(--ut-gold-glow)}
+.chart.dragging .dock.armed{width:46px;background:linear-gradient(90deg,rgba(220,187,94,.3),transparent);
+  border-right-color:var(--ut-gold)}
+.dock .dockIcon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ut-gold);opacity:.9}
+.dock .dockCap{position:absolute;left:5px;bottom:10px;font-size:8px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ut-gold);opacity:.75;writing-mode:vertical-rl}
+/* parked rail (persisted, shown at rest once something is parked) */
+.parkRail{position:absolute;left:0;top:0;bottom:0;width:24px;z-index:8;display:flex;
+  flex-direction:column;gap:4px;padding:7px 0 0 5px;pointer-events:none}
+.parked{pointer-events:auto;cursor:pointer;width:15px;height:15px;border-radius:3px;
+  border:1px solid var(--border-accent);background:var(--bg-surface);position:relative}
+.parked::after{content:'';position:absolute;left:4px;top:3px;width:2px;height:8px;border-radius:1px;background:var(--c)}
+.parked:hover{border-color:var(--ut-gold);background:var(--bg-hover)}
+/* the remove well — only during a drag */
+.well{position:absolute;right:10px;bottom:10px;z-index:7;opacity:0;transform:translateY(5px);
+  transition:.14s;display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.05em;
+  text-transform:uppercase;color:#e98a84;border:1px dashed rgba(223,70,70,.45);
+  background:rgba(20,10,10,.8);padding:6px 10px;border-radius:5px;pointer-events:none}
+.chart.dragging .well{opacity:1;transform:none}
+.chart.dragging .well.armed{background:rgba(196,31,45,.32);border-style:solid;border-color:#df4646;color:#fff}
+
+/* ── Concept C command strip ─────────────────────────────────────────────── */
+.strip{position:absolute;left:50%;bottom:12px;transform:translate(-50%,8px);z-index:20;
+  display:flex;align-items:center;gap:2px;background:rgba(14,14,16,.95);
+  border:1px solid var(--menu-border);border-radius:7px;padding:4px 5px;
+  box-shadow:0 16px 40px -14px #000;opacity:0;pointer-events:none;transition:.14s;white-space:nowrap}
+.strip.open{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.strip .sel{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 6px;margin-right:3px;
+  border-right:1px solid var(--menu-divider);font-size:11px;color:var(--text-bright);font-weight:600;white-space:nowrap}
+.strip .sel .rail{width:2px;height:11px;border-radius:1px;background:var(--c)}
+.strip .sel .n{font-size:10px;color:var(--text-faint);font-weight:500}
+.strip .cmd{display:flex;align-items:center;gap:5px;font:inherit;font-size:11px;background:none;border:none;
+  color:var(--menu-text-dim);padding:5px 8px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.strip .cmd:hover{background:var(--menu-hover);color:var(--text-bright)}
+.strip .cmd.danger:hover{background:rgba(196,31,45,.25);color:#fff}
+.strip .cmd svg{width:12px;height:12px}
+.strip select{font:inherit;font-size:11px;background:#08080a;color:var(--menu-text);
+  border:1px solid var(--menu-border);border-radius:4px;padding:3px 5px}
+.row.selected{background:rgba(220,187,94,.13);box-shadow:inset 0 0 0 1px var(--ut-gold-glow)}
+.row.selected .rail{width:3px;height:11px;background:var(--ut-gold)}
+.row.selected .stem{color:var(--text-bright)}
+
+/* notes */
+.notes{margin-top:18px;border-top:1px solid var(--border);padding-top:14px;color:var(--text-faint);
+  font-size:12px;line-height:1.6;max-width:84ch}
+.notes h3{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-muted);margin:0 0 8px}
+.notes b{color:var(--text-muted)}
+.notes code{background:var(--bg-surface);border:1px solid var(--border);border-radius:3px;padding:1px 5px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--ut-gold)}
+.notes ul{margin:6px 0;padding-left:18px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:90;background:var(--menu-bg);
+  border:1px solid var(--ut-gold-glow);border-radius:5px;padding:7px 13px;font-size:11.5px;color:var(--text-bright);
+  box-shadow:0 14px 34px -12px #000;opacity:0;transition:.16s;pointer-events:none}
+.toast.on{opacity:1}
+.toast code{color:var(--ut-gold);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}

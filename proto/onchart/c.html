@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Concept C — Selection + Command Strip</title>
+<link rel="stylesheet" href="proto.css?v=1789425259">
+<style>
+/* ── CONCEPT C: click SELECTS. Verbs live in one strip, always in one place. ─ */
+.row:hover, .row.demoHover{background:rgba(255,255,255,.05);cursor:pointer}
+.row:hover .rail, .row.demoHover .rail{height:11px}
+.row:hover .stem, .row.demoHover .stem{color:var(--text-bright)}
+.row.parent:hover ~ .sub, .row.parent.demoHover ~ .sub, .row.parent.selected ~ .sub{height:15px;opacity:1}
+.row .gut{opacity:0!important}
+.chart.hasSel .row:not(.selected){opacity:.55}
+.chart.hasSel .row.hidden:not(.selected){opacity:.28}
+</style></head><body>
+<div class="wrap">
+  <div class="top"><h1>Concept C — Selection + Command Strip</h1><span class="tag">Track B · prototype</span>
+    <a href="index.html">← all concepts</a></div>
+  <p class="lede">Click a label to <b>select</b> it. The row takes a gold rail, the <b>plotted line itself lights up</b>
+  on the chart, and every other label dims — so you always know which line you are about to act on.
+  The verbs appear in <b>one strip in one fixed place</b>, never beside the label. <b>Shift-click</b> adds to the
+  selection and the strip acts on all of it — the only one of the three models that can hide or move four
+  things at once. Esc clears.</p>
+
+  <div class="bar">
+    <button class="btn" id="compact" aria-pressed="false">Compact width</button>
+    <span class="sep"></span>
+    <label>Force a state:</label>
+    <button class="btn" data-state="rest">Rest</button>
+    <button class="btn" data-state="hover">Hover</button>
+    <button class="btn" data-state="sel">Selected (RSI 14)</button>
+    <button class="btn" data-state="multi">Selected multi-plot</button>
+    <button class="btn" data-state="many">Multi-select (3)</button>
+    <span class="sep"></span>
+    <button class="btn" id="zoom" aria-pressed="false">1.55× view</button>
+    <button class="btn" id="reset">Reset fixture</button>
+  </div>
+
+  <div class="chartFrame" id="frame"><div class="chart" id="chart"></div></div>
+
+  <div class="notes"><h3>What this concept claims</h3>
+  <ul>
+    <li>The strongest idea here is not the strip — it is that <b>selection connects the label to its line</b>.
+      On a chart with eleven series that is the question a member actually has: <i>which one is this?</i></li>
+    <li>Verbs never appear beside a label, so the legend has <b>no hover chrome at all</b> — the quietest resting state of the three.</li>
+    <li>It is the only model that scales to <b>batch</b> operations (hide four MAs, move three series into one pane).</li>
+    <li><b>Cost, stated:</b> a click that only selects is a click that appears to do nothing, and the strip is
+      far from the label — a long mouse trip for a one-off Hide. It wins on a busy chart and loses on a simple one.</li>
+  </ul></div>
+</div>
+
+<script src="proto.js?v=1789425259"></script>
+<script>
+(function(){
+  var chart = document.getElementById('chart'), frame = document.getElementById('frame');
+  var model = UCT.clone(), sel = [];
+
+  function draw(){
+    UCT.render(chart, model, {});
+    model.forEach(function(i){ i.sel = sel.indexOf(i.id) >= 0; });
+    chart.querySelectorAll('.pane').forEach(function(p){ UCT.paint(p.querySelector('canvas'), model, p.dataset.pane); });
+    sel.forEach(function(id){ var r = chart.querySelector('.row[data-id="'+id+'"]'); if (r) r.classList.add('selected'); });
+    chart.classList.toggle('hasSel', sel.length > 0);
+    strip();
+  }
+
+  function strip(){
+    var old = chart.querySelector('.strip'); if (old) old.remove();
+    if (!sel.length) return;
+    var many = sel.length > 1;
+    var first = UCT.byId(model, sel[0]); if (!first) { sel = []; return; }
+    var allHidden = sel.every(function(id){ var i = UCT.byId(model,id); return i && i.hidden; });
+    var dests = many ? UCT.destinations(model, sel[0]) : UCT.destinations(model, first.id);
+
+    var el = document.createElement('div');
+    el.className = 'strip open'; el.style.setProperty('--c', many ? '#dcbb5e' : first.plots[0].color);
+    el.innerHTML =
+      '<span class="sel"><i class="rail"></i>' + (many ? sel.length + ' series' : UCT.labelOf(first))
+        + (many ? '' : '<span class="n">' + (first.src ? 'of ' + first.src : first.def) + '</span>') + '</span>'
+      + '<button class="cmd" data-act="hide">' + (allHidden ? UCT.I.eyeOff : UCT.I.eye)
+        + (allHidden ? 'Show' : 'Hide') + '</button>'
+      + '<span class="vdiv"></span>'
+      + '<span class="cmd" style="cursor:default">' + UCT.I.panes + 'Display in</span>'
+      + '<select data-act="move">' + dests.map(function(d){
+          return '<option value="'+d.value+'"'+(d.current&&!many?' selected':'')+(d.refusal&&!d.current?' disabled':'')
+            +'>'+d.label+'</option>'; }).join('') + '</select>'
+      + '<span class="vdiv"></span>'
+      + (many ? '' : '<button class="cmd" data-act="dup">' + UCT.I.copy + 'Duplicate</button>')
+      + '<button class="cmd" data-act="edit">' + UCT.I.sliders + (many ? 'Edit each…' : 'Edit in Chart Data…') + '</button>'
+      + '<span class="vdiv"></span>'
+      + '<button class="cmd danger" data-act="del">' + UCT.I.trash + '<span class="dl">Delete</span></button>';
+    chart.appendChild(el);
+
+    el.addEventListener('click', function(e){
+      var b = e.target.closest('.cmd[data-act]'); if (!b) return;
+      var a = b.dataset.act;
+      if (a === 'hide'){ sel.forEach(function(id){ var i = UCT.byId(model,id); if (i) i.hidden = !allHidden; });
+        UCT.toast('canonical write → <code>setInstanceHidden(cs, id, '+(!allHidden)+')</code> × ' + sel.length); draw(); }
+      else if (a === 'dup'){ UCT.toast('canonical write → <code>addInstance(cs, "'+first.def+'")</code>'); }
+      else if (a === 'edit'){ UCT.toast('opens Chart Data → <code>onOpenSettings("data:'+sel[0]+'")</code>'
+        + (many ? ' — first of ' + sel.length : '') + ' with this instance selected'); }
+      else if (a === 'del'){
+        var lab = b.querySelector('.dl');
+        if (!b.dataset.armed){ b.dataset.armed='1';
+          lab.textContent = 'Delete ' + (many ? sel.length + ' series' : UCT.labelOf(first)) + '?'; return; }
+        var gone = sel.slice();
+        model = model.filter(function(x){ return gone.indexOf(x.id) < 0; });
+        sel = []; UCT.toast('canonical write → <code>removeInstance(cs, id)</code> × ' + gone.length); draw(); }
+    });
+    var mv = el.querySelector('[data-act="move"]');
+    if (mv) mv.addEventListener('change', function(e){
+      sel.forEach(function(id){ UCT.setDisplayTarget(model, id, e.target.value); });
+      UCT.toast('canonical write → <code>setInstanceDisplayTarget(cs, id, "'+e.target.value+'")</code> × ' + sel.length);
+      draw();
+    });
+  }
+
+  chart.addEventListener('click', function(e){
+    if (e.target.closest('.strip')) return;
+    var r = e.target.closest('.row');
+    if (!r){ sel = []; draw(); return; }
+    var id = r.dataset.id;
+    if (e.shiftKey){ var n = sel.indexOf(id); if (n >= 0) sel.splice(n,1); else sel.push(id); }
+    else sel = (sel.length === 1 && sel[0] === id) ? [] : [id];
+    draw();
+  });
+  chart.addEventListener('contextmenu', function(e){
+    var r = e.target.closest('.row'); if (!r) return; e.preventDefault();
+    if (sel.indexOf(r.dataset.id) < 0) { sel = [r.dataset.id]; draw(); }
+    var inst = UCT.byId(model, r.dataset.id); UCT.closePops();
+    var p = document.createElement('div'); p.className = 'pop'; p.style.setProperty('--c', inst.plots[0].color);
+    p.innerHTML = '<div class="head"><i class="rail"></i><span class="hname">'
+      + (sel.length>1 ? sel.length+' series' : UCT.labelOf(inst)) + '</span></div>'
+      + '<button class="it" data-act="hide">'+UCT.I.eye+(inst.hidden?'Show':'Hide')+'</button>'
+      + '<button class="it" data-act="edit">'+UCT.I.sliders+'Edit in Chart Data…</button>'
+      + '<div class="div"></div>'
+      + '<button class="it danger" data-act="del">'+UCT.I.trash+'<span class="dl">Delete</span></button>';
+    UCT.place(p, e.clientX, e.clientY + 4);
+    p.addEventListener('click', function(ev){
+      var it = ev.target.closest('.it'); if (!it) return;
+      if (it.dataset.act === 'hide'){ sel.forEach(function(id){ var i=UCT.byId(model,id); if(i) i.hidden = !i.hidden; });
+        UCT.toast('canonical write → <code>setInstanceHidden(cs, id, …)</code>'); UCT.closePops(); draw(); }
+      else if (it.dataset.act === 'edit'){ UCT.closePops();
+        UCT.toast('opens Chart Data → <code>onOpenSettings("data:'+inst.id+'")</code>'); }
+      else if (it.dataset.act === 'del'){ var lab = it.querySelector('.dl');
+        if (!it.dataset.armed){ it.dataset.armed='1'; lab.textContent='Delete '+UCT.labelOf(inst)+'?'; return; }
+        model = model.filter(function(x){ return x.id !== inst.id; });
+        sel = sel.filter(function(x){ return x !== inst.id; });
+        UCT.toast('canonical write → <code>removeInstance(cs, "'+inst.id+'")</code>'); UCT.closePops(); draw(); }
+    });
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ sel = []; UCT.closePops(); draw(); }
+  });
+  document.addEventListener('mousedown', function(e){ if (!e.target.closest('.pop')) UCT.closePops(); });
+
+  document.getElementById('compact').addEventListener('click', function(){
+    var on = frame.classList.toggle('compact'); this.setAttribute('aria-pressed', on); draw(); });
+  document.getElementById('reset').addEventListener('click', function(){ model = UCT.clone(); sel = []; draw(); });
+  document.querySelectorAll('[data-state]').forEach(function(b){
+    b.addEventListener('click', function(){
+      chart.querySelectorAll('.demoHover').forEach(function(r){ r.classList.remove('demoHover'); });
+      var s = b.dataset.state;
+      if (s === 'rest'){ sel = []; draw(); }
+      if (s === 'hover'){ sel = []; draw(); chart.querySelector('.row[data-id="inst:spy"]').classList.add('demoHover'); }
+      if (s === 'sel'){ sel = ['inst:rsi']; draw(); }
+      if (s === 'multi'){ sel = ['inst:macd']; draw(); }
+      if (s === 'many'){ sel = ['inst:ma20a','inst:ma50a','inst:ma20q']; draw(); }
+    });
+  });
+  draw();
+  document.getElementById('zoom').addEventListener('click', function(){
+    var on = frame.style.zoom !== '1.55'; frame.style.zoom = on ? '1.55' : '';
+    this.setAttribute('aria-pressed', on); draw();
+  });
+  window.addEventListener('resize', draw);
+})();
+</script></body></html>

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Concept A — Click Popover</title>
+<link rel="stylesheet" href="proto.css?v=1789425259">
+<style>
+/* ── CONCEPT A: quiet at rest · one chevron on hover · one popover on click ── */
+.row:hover, .row.demoHover, .row:focus-visible{background:rgba(255,255,255,.055);outline:none}
+.row:hover .gut, .row.demoHover .gut, .row:focus-visible .gut{opacity:.95}
+.row:hover .rail, .row.demoHover .rail, .row:focus-visible .rail{height:11px}
+.row:hover .stem, .row.demoHover .stem{color:var(--text-bright)}
+.row:hover{cursor:pointer}
+.row.open{background:rgba(220,187,94,.1);box-shadow:inset 0 0 0 1px var(--ut-gold-glow)}
+.row.open .gut{opacity:1;color:var(--ut-gold);transform:rotate(180deg)}
+.row .gut{transition:opacity .1s,transform .12s}
+/* hovering a multi-plot parent unfolds its plot rows */
+.row.parent:hover ~ .sub[data-sub], .row.parent.demoHover ~ .sub, .row.parent.open ~ .sub{height:15px;opacity:1}
+.paneLegend:hover .sub{}
+</style></head><body>
+<div class="wrap">
+  <div class="top"><h1>Concept A — Click Popover</h1><span class="tag">Track B · prototype</span>
+    <a href="index.html">← all concepts</a></div>
+  <p class="lede">The label is the button. <b>Rest</b> shows a colour rail, a name and a value and nothing else.
+  <b>Hover</b> tints the row and reveals one chevron in a gutter that was always reserved — so nothing moves.
+  <b>Click</b> (or right-click) opens one compact popover of high-frequency verbs. <b>Drag</b> exists but is secondary.
+  Every action names the canonical writer it would call — watch the toast.</p>
+
+  <div class="bar">
+    <button class="btn" id="compact" aria-pressed="false">Compact width</button>
+    <button class="btn" id="novals" aria-pressed="false">Values off (no crosshair)</button>
+    <span class="sep"></span>
+    <label>Force a state for screenshots:</label>
+    <button class="btn" data-state="rest">Rest</button>
+    <button class="btn" data-state="hover">Hover</button>
+    <button class="btn" data-state="open">Open</button>
+    <button class="btn" data-state="multi">Multi-plot open</button>
+    <span class="sep"></span>
+    <button class="btn" id="zoom" aria-pressed="false">1.55× view</button>
+    <button class="btn" id="reset">Reset fixture</button>
+  </div>
+
+  <div class="chartFrame" id="frame"><div class="chart" id="chart"></div></div>
+
+  <div class="notes"><h3>What this concept claims</h3>
+  <ul>
+    <li>One verb-surface, two ways in (click and right-click open the <b>same</b> popover). Nothing to learn twice.</li>
+    <li>The hover affordance is a single 9px chevron in a permanently reserved 14px gutter — zero layout shift, zero icon cluster.</li>
+    <li><b>Hide</b> is a first-class toggle at the top of the popover. <b>Delete</b> sits below a rule and arms before it fires.</li>
+    <li>A multi-plot instance stays <b>one row and one instance</b>; hovering unfolds its plots as read-only sub-rows.</li>
+    <li><b>Edit in Chart Data</b> is the escape hatch to the full inspector, carrying this exact instanceId.</li>
+  </ul></div>
+</div>
+
+<script src="proto.js?v=1789425259"></script>
+<script>
+(function(){
+  var chart = document.getElementById('chart'), frame = document.getElementById('frame');
+  var model = UCT.clone(), noVals = false;
+
+  function draw(){
+    UCT.render(chart, model, { gut: UCT.I.chevron, hideValues: noVals });
+  }
+  draw();
+
+  // ── the popover ─────────────────────────────────────────────────────────
+  var openId = null;
+  function closeAll(){ UCT.closePops(); openId = null;
+    chart.querySelectorAll('.row.open').forEach(function(r){ r.classList.remove('open'); }); }
+
+  function popover(inst, x, y){
+    closeAll(); openId = inst.id;
+    var row = chart.querySelector('.row[data-id="'+inst.id+'"]'); if (row) row.classList.add('open');
+    var p = document.createElement('div');
+    p.className = 'pop'; p.style.setProperty('--c', inst.plots[0].color);
+    var last = inst.plots[0].series[UCT.N-1];
+    var where = inst.target === 'price' ? 'Price pane'
+      : inst.target === 'pane' ? 'Its own pane'
+      : UCT.labelOf(UCT.byId(model, inst.target.slice(1))) + ' pane';
+    var dests = UCT.destinations(model, inst.id);
+    var srcLine = (inst.src ? 'Average of ' + inst.src : (inst.def === 'dataSeries' ? 'sym:' + inst.stem + ':close' : inst.def))
+      + ' · ' + (inst.pres === 'candles' ? 'candles' : 'line');
+
+    p.innerHTML =
+      '<div class="head"><i class="rail"></i><span class="hname">'+UCT.labelOf(inst)+'</span>'
+      + '<span class="hval">'+(inst.hidden||noVals?'':(isFinite(last)?last.toFixed(inst.plots[0].dec):'—'))+'</span></div>'
+      + '<div class="hsrc">'+srcLine+'</div>'
+      + '<button class="it" data-act="hide">'+(inst.hidden?UCT.I.eyeOff:UCT.I.eye)
+        + (inst.hidden?'Show on chart':'Hide on chart')+'<span class="k">H</span></button>'
+      + '<div class="grp"><div class="glab">Colour</div><div class="swatches">'
+        + ['#dcbb5e','#5ea8f7','#2faf68','#df4646','#c07be0','#d8d3c6'].map(function(c){
+            return '<button class="sw" data-color="'+c+'" style="background:'+c+'" aria-pressed="'
+              + (c.toLowerCase()===inst.plots[0].color.toLowerCase()) + '" aria-label="'+c+'"></button>'; }).join('')
+        + '</div></div>'
+      + '<div class="grp"><div class="glab">Display in</div><select data-act="move">'
+        + dests.map(function(d){
+            return '<option value="'+d.value+'"'+(d.current?' selected':'')+(d.refusal&&!d.current?' disabled':'')
+              + '>'+d.label+(d.current?'  ✓':'')+'</option>'; }).join('')
+        + '</select></div>'
+      + '<div class="div"></div>'
+      + '<button class="it" data-act="edit">'+UCT.I.sliders+'Edit in Chart Data…<span class="k">↵</span></button>'
+      + '<button class="it" data-act="dup">'+UCT.I.copy+'Duplicate</button>'
+      + '<button class="it" data-act="alert">'+UCT.I.bell+'Add alert…</button>'
+      + '<div class="div"></div>'
+      + '<button class="it danger" data-act="del">'+UCT.I.trash+'<span class="dl">Delete</span></button>';
+
+    UCT.place(p, x, y);
+
+    p.addEventListener('click', function(e){
+      var sw = e.target.closest('.sw');
+      if (sw){ inst.plots[0].color = sw.dataset.color;
+        UCT.wrote({writer:'setInstancePlotStyle', id:inst.id, value:'{color:"'+sw.dataset.color+'"}'});
+        draw(); closeAll(); return; }
+      var it = e.target.closest('.it'); if (!it) return;
+      var a = it.dataset.act;
+      if (a === 'hide'){ inst.hidden = !inst.hidden;
+        UCT.wrote({writer:'setInstanceHidden', id:inst.id, value:inst.hidden}); draw(); closeAll(); }
+      else if (a === 'edit'){ closeAll();
+        UCT.toast('opens Chart Data → <code>onOpenSettings("data:'+inst.id+'")</code> with this instance selected'); }
+      else if (a === 'dup'){ UCT.wrote({writer:'addInstance', id:inst.def}); closeAll();
+        UCT.toast('canonical write → <code>addInstance(cs, "'+inst.def+'")</code> — declared defaults, not a copy'); }
+      else if (a === 'alert'){ closeAll(); UCT.toast('opens the indicator alert popover on <code>'+inst.id+'::'+inst.plots[0].key+'</code>'); }
+      else if (a === 'del'){
+        var lab = it.querySelector('.dl');
+        if (!it.dataset.armed){ it.dataset.armed = '1'; lab.textContent = 'Delete ' + UCT.labelOf(inst) + '?'; return; }
+        model = model.filter(function(x){ return x.id !== inst.id; });
+        UCT.wrote({writer:'removeInstance', id:inst.id}); draw(); closeAll();
+      }
+    });
+    p.querySelector('[data-act="move"]').addEventListener('change', function(e){
+      UCT.setDisplayTarget(model, inst.id, e.target.value, UCT.wrote); draw(); closeAll();
+    });
+  }
+
+  // ── events ──────────────────────────────────────────────────────────────
+  function rowOf(e){ var r = e.target.closest('.row'); return r ? UCT.byId(model, r.dataset.id) : null; }
+  chart.addEventListener('click', function(e){
+    var inst = rowOf(e); if (!inst) { closeAll(); return; }
+    var r = e.target.closest('.row').getBoundingClientRect();
+    if (openId === inst.id) { closeAll(); return; }
+    popover(inst, r.left - 4, r.bottom + 5);
+  });
+  chart.addEventListener('contextmenu', function(e){
+    var inst = rowOf(e); if (!inst) return; e.preventDefault();
+    popover(inst, e.clientX, e.clientY + 4);
+  });
+  document.addEventListener('mousedown', function(e){ if (!e.target.closest('.pop') && !e.target.closest('.row')) closeAll(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAll(); });
+
+  // ── demo state switches ─────────────────────────────────────────────────
+  document.getElementById('compact').addEventListener('click', function(){
+    var on = frame.classList.toggle('compact'); frame.classList.toggle('compact', on);
+    this.setAttribute('aria-pressed', on); draw();
+  });
+  document.getElementById('novals').addEventListener('click', function(){
+    noVals = !noVals; this.setAttribute('aria-pressed', noVals); draw();
+  });
+  document.getElementById('reset').addEventListener('click', function(){ model = UCT.clone(); closeAll(); draw(); });
+  document.querySelectorAll('[data-state]').forEach(function(b){
+    b.addEventListener('click', function(){
+      closeAll(); chart.querySelectorAll('.demoHover').forEach(function(r){ r.classList.remove('demoHover'); });
+      var s = b.dataset.state;
+      if (s === 'hover') chart.querySelector('.row[data-id="inst:rsi"]').classList.add('demoHover');
+      if (s === 'multi') chart.querySelector('.row[data-id="inst:macd"]').classList.add('demoHover');
+      if (s === 'open'){ var inst = UCT.byId(model,'inst:rsi');
+        var r = chart.querySelector('.row[data-id="inst:rsi"]').getBoundingClientRect();
+        popover(inst, r.left - 4, r.bottom + 5); }
+    });
+  });
+  document.getElementById('zoom').addEventListener('click', function(){
+    var on = frame.style.zoom !== '1.55'; frame.style.zoom = on ? '1.55' : '';
+    this.setAttribute('aria-pressed', on); draw();
+  });
+  window.addEventListener('resize', draw);
+})();
+</script></body></html>

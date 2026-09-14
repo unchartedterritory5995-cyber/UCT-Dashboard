@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Concept B — Direct Manipulation</title>
+<link rel="stylesheet" href="proto.css?v=1789425259">
+<style>
+/* ── CONCEPT B: the label is a HANDLE. Drag is the primary verb. ─────────── */
+.row:hover, .row.demoHover{background:rgba(255,255,255,.05);cursor:grab}
+.row:hover .rail, .row.demoHover .rail{width:4px;height:12px}
+.row:hover .stem, .row.demoHover .stem{color:var(--text-bright)}
+.row:hover .gut, .row.demoHover .gut{opacity:.45}
+.row.parent:hover ~ .sub, .row.parent.demoHover ~ .sub{height:15px;opacity:1}
+.row.selected{background:rgba(220,187,94,.12)}
+</style></head><body>
+<div class="wrap">
+  <div class="top"><h1>Concept B — Direct Manipulation</h1><span class="tag">Track B · prototype</span>
+    <a href="index.html">← all concepts</a></div>
+  <p class="lede">The label is a <b>handle</b>, not a button. Hover widens the colour rail into a grip.
+  <b>Drag</b> is the primary verb: onto a pane to join it, onto a seam to make a new pane, into the
+  left <b>Park</b> dock to hide it, into the <b>Remove</b> well to delete it. Click selects and flashes the line;
+  double-click opens Chart Data; right-click is the short accessible twin of every drag.
+  Try dragging <b>SPY</b> onto the RSI pane, or <b>MA 20</b> off the price pane onto a seam.</p>
+
+  <div class="bar">
+    <button class="btn" id="compact" aria-pressed="false">Compact width</button>
+    <span class="sep"></span>
+    <label>Force a state:</label>
+    <button class="btn" data-state="rest">Rest</button>
+    <button class="btn" data-state="hover">Hover (grip)</button>
+    <button class="btn" data-state="drag">Dragging + valid</button>
+    <button class="btn" data-state="armed">Valid drop armed</button>
+    <button class="btn" data-state="invalid">Invalid drop</button>
+    <button class="btn" data-state="newpane">New-pane seam</button>
+    <button class="btn" data-state="park">Park dock armed</button>
+    <span class="sep"></span>
+    <button class="btn" id="zoom" aria-pressed="false">1.55× view</button>
+    <button class="btn" id="reset">Reset fixture</button>
+  </div>
+
+  <div class="chartFrame" id="frame"><div class="chart" id="chart"></div></div>
+
+  <div class="notes"><h3>What this concept claims</h3>
+  <ul>
+    <li>Placement is <b>spatial</b>, so it needs no menu, no words and no mental model — you put the line where you want it.</li>
+    <li>Both TC2000 and TradingView already do this; dragging a legend title between panes is an <b>established convention</b>, not a novelty.</li>
+    <li><b>Park</b> (TC2000's "pin", refined) makes Hide a <b>place</b> rather than a state — a parked series is visibly still on the chart, one click from returning. This is the single best idea in TC2000.</li>
+    <li>Remove is a <b>far corner</b> you must travel to, which is what makes it feel deliberately destructive without a dialog.</li>
+    <li><b>Cost, stated:</b> drag is undiscoverable on its own and unusable by keyboard. The right-click menu is not optional here — it is the twin that makes the model legal.</li>
+  </ul></div>
+</div>
+
+<script src="proto.js?v=1789425259"></script>
+<script>
+(function(){
+  var chart = document.getElementById('chart'), frame = document.getElementById('frame');
+  var model = UCT.clone(), parked = [], sel = null;
+
+  function draw(){
+    UCT.render(chart, model, { gut: UCT.I.grip, rowClass: 'grabbable' });
+    var rail = chart.querySelector('.parkRail');
+    rail.innerHTML = parked.map(function(id){
+      var i = UCT.byId(model, id); if (!i) return '';
+      return '<button class="parked" data-park="'+id+'" title="Restore '+UCT.labelOf(i)+'" style="--c:'+i.plots[0].color+'"></button>';
+    }).join('');
+    if (sel){ var r = chart.querySelector('.row[data-id="'+sel+'"]'); if (r) r.classList.add('selected'); }
+  }
+  draw();
+
+  // ── drag machinery ──────────────────────────────────────────────────────
+  var drag = null;
+  chart.addEventListener('mousedown', function(e){
+    var rowEl = e.target.closest('.row'); if (!rowEl || e.button !== 0) return;
+    var inst = UCT.byId(model, rowEl.dataset.id); if (!inst) return;
+    var sx = e.clientX, sy = e.clientY, started = false, ghost = null;
+    e.preventDefault();
+
+    function arm(ev){
+      var panes = Array.prototype.slice.call(chart.querySelectorAll('.pane'));
+      var seams = Array.prototype.slice.call(chart.querySelectorAll('.seam'));
+      var dock = chart.querySelector('.dock'), well = chart.querySelector('.well');
+      panes.forEach(function(p){ p.classList.remove('valid','armed','invalid'); p.removeAttribute('data-refusal'); });
+      seams.forEach(function(s){ s.classList.remove('armed'); });
+      dock.classList.remove('armed'); well.classList.remove('armed');
+      drag.drop = null;
+
+      var cr = chart.getBoundingClientRect();
+      var lx = ev.clientX - cr.left, ly = ev.clientY - cr.top;
+      var wr = well.getBoundingClientRect();
+      if (ev.clientX >= wr.left-14 && ev.clientY >= wr.top-14){ well.classList.add('armed'); drag.drop = {kind:'remove'}; }
+      else if (lx < 44){ dock.classList.add('armed'); drag.drop = {kind:'park'}; }
+      else {
+        // a seam wins inside 9px of a boundary → new pane
+        var hit = null;
+        seams.forEach(function(s){ var r = s.getBoundingClientRect();
+          if (ev.clientY >= r.top && ev.clientY <= r.bottom) hit = s; });
+        if (hit){ hit.classList.add('armed'); drag.drop = {kind:'newpane'}; }
+        else {
+          var here = UCT.paneOf(inst);
+          panes.forEach(function(p){
+            var key = p.dataset.pane;
+            var mine = key === here;
+            var itself = key === inst.id;
+            if (mine || itself){ p.classList.add('invalid');
+              p.setAttribute('data-refusal', itself ? 'a series cannot host itself' : 'it is already here'); }
+            else p.classList.add('valid');
+          });
+          var over = panes.find(function(p){ var r = p.getBoundingClientRect();
+            return ev.clientY >= r.top && ev.clientY <= r.bottom; });
+          if (over && over.classList.contains('valid')){
+            over.classList.remove('valid'); over.classList.add('armed');
+            drag.drop = {kind:'pane', key: over.dataset.pane};
+          }
+        }
+      }
+    }
+
+    function move(ev){
+      if (!started && Math.abs(ev.clientX-sx) + Math.abs(ev.clientY-sy) < 5) return;
+      if (!started){
+        started = true; drag = { inst: inst };
+        chart.classList.add('dragging'); document.body.style.cursor = 'grabbing';
+        rowEl.classList.add('isDragged');
+        ghost = document.createElement('div'); ghost.className = 'ghost';
+        ghost.style.setProperty('--c', inst.plots[0].color);
+        ghost.innerHTML = '<i class="rail"></i>' + UCT.labelOf(inst);
+        document.body.appendChild(ghost);
+      }
+      ghost.style.left = (ev.clientX + 12) + 'px'; ghost.style.top = (ev.clientY + 10) + 'px';
+      arm(ev);
+    }
+    function up(){
+      document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+      document.body.style.cursor = '';
+      if (!started){ // a plain click: select + flash the line
+        sel = (sel === inst.id) ? null : inst.id;
+        model.forEach(function(i){ i.sel = (i.id === sel); });
+        draw(); return;
+      }
+      chart.classList.remove('dragging'); if (ghost) ghost.remove();
+      var d = drag && drag.drop; drag = null;
+      if (!d){ draw(); return; }
+      if (d.kind === 'remove'){ model = model.filter(function(x){ return x.id !== inst.id; });
+        parked = parked.filter(function(p){ return p !== inst.id; });
+        UCT.wrote({writer:'removeInstance', id:inst.id}); }
+      else if (d.kind === 'park'){ inst.hidden = true; if (parked.indexOf(inst.id) < 0) parked.push(inst.id);
+        UCT.wrote({writer:'setInstanceHidden', id:inst.id, value:true}); }
+      else if (d.kind === 'newpane'){ UCT.setDisplayTarget(model, inst.id, 'pane', UCT.wrote); }
+      else if (d.kind === 'pane'){
+        UCT.setDisplayTarget(model, inst.id, d.key === 'price' ? 'price' : '@' + d.key, UCT.wrote); }
+      draw();
+    }
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+  });
+
+  // restore a parked series
+  chart.addEventListener('click', function(e){
+    var p = e.target.closest('.parked'); if (!p) return;
+    var inst = UCT.byId(model, p.dataset.park); if (!inst) return;
+    inst.hidden = false; parked = parked.filter(function(x){ return x !== inst.id; });
+    UCT.wrote({writer:'setInstanceHidden', id:inst.id, value:false}); draw();
+  });
+
+  // double-click → full inspector
+  chart.addEventListener('dblclick', function(e){
+    var r = e.target.closest('.row'); if (!r) return;
+    UCT.toast('opens Chart Data → <code>onOpenSettings("data:'+r.dataset.id+'")</code>');
+  });
+
+  // right-click → the short accessible twin of every drag
+  chart.addEventListener('contextmenu', function(e){
+    var rowEl = e.target.closest('.row'); if (!rowEl) return; e.preventDefault();
+    var inst = UCT.byId(model, rowEl.dataset.id); UCT.closePops();
+    var dests = UCT.destinations(model, inst.id).filter(function(d){ return !d.refusal; });
+    var p = document.createElement('div'); p.className = 'pop';
+    p.style.setProperty('--c', inst.plots[0].color);
+    p.innerHTML = '<div class="head"><i class="rail"></i><span class="hname">'+UCT.labelOf(inst)+'</span></div>'
+      + '<div class="grp"><div class="glab">Move to</div><select data-act="move">'
+        + '<option value="">Choose a pane…</option>'
+        + dests.map(function(d){ return '<option value="'+d.value+'">'+d.label+'</option>'; }).join('')
+        + '</select></div>'
+      + '<button class="it" data-act="park">'+UCT.I.pin+'Park (hide)</button>'
+      + '<button class="it" data-act="edit">'+UCT.I.sliders+'Edit in Chart Data…</button>'
+      + '<div class="div"></div>'
+      + '<button class="it danger" data-act="del">'+UCT.I.trash+'<span class="dl">Delete</span></button>';
+    UCT.place(p, e.clientX, e.clientY + 4);
+    p.addEventListener('click', function(ev){
+      var it = ev.target.closest('.it'); if (!it) return;
+      if (it.dataset.act === 'park'){ inst.hidden = true; if (parked.indexOf(inst.id)<0) parked.push(inst.id);
+        UCT.wrote({writer:'setInstanceHidden', id:inst.id, value:true}); UCT.closePops(); draw(); }
+      else if (it.dataset.act === 'edit'){ UCT.closePops();
+        UCT.toast('opens Chart Data → <code>onOpenSettings("data:'+inst.id+'")</code>'); }
+      else if (it.dataset.act === 'del'){
+        var lab = it.querySelector('.dl');
+        if (!it.dataset.armed){ it.dataset.armed='1'; lab.textContent='Delete '+UCT.labelOf(inst)+'?'; return; }
+        model = model.filter(function(x){ return x.id !== inst.id; });
+        UCT.wrote({writer:'removeInstance', id:inst.id}); UCT.closePops(); draw(); }
+    });
+    p.querySelector('select').addEventListener('change', function(ev){
+      if (!ev.target.value) return;
+      UCT.setDisplayTarget(model, inst.id, ev.target.value, UCT.wrote); UCT.closePops(); draw();
+    });
+  });
+  document.addEventListener('mousedown', function(e){ if (!e.target.closest('.pop')) UCT.closePops(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') UCT.closePops(); });
+
+  // ── demo state switches ─────────────────────────────────────────────────
+  function clearDemo(){
+    chart.classList.remove('dragging');
+    chart.querySelectorAll('.demoHover,.isDragged').forEach(function(r){ r.classList.remove('demoHover','isDragged'); });
+    chart.querySelectorAll('.pane').forEach(function(p){ p.classList.remove('valid','armed','invalid'); p.removeAttribute('data-refusal'); });
+    chart.querySelectorAll('.seam').forEach(function(s){ s.classList.remove('armed'); });
+    var d = chart.querySelector('.dock'); if (d) d.classList.remove('armed');
+    document.querySelectorAll('.ghost').forEach(function(g){ g.remove(); });
+  }
+  function fakeGhost(id){
+    var i = UCT.byId(model, id); var r = chart.querySelector('.row[data-id="'+id+'"]').getBoundingClientRect();
+    var g = document.createElement('div'); g.className='ghost'; g.style.setProperty('--c', i.plots[0].color);
+    g.innerHTML = '<i class="rail"></i>' + UCT.labelOf(i);
+    g.style.left = (r.left + 150) + 'px'; g.style.top = (r.top + 150) + 'px';
+    document.body.appendChild(g);
+    chart.querySelector('.row[data-id="'+id+'"]').classList.add('isDragged');
+  }
+  document.querySelectorAll('[data-state]').forEach(function(b){
+    b.addEventListener('click', function(){
+      clearDemo(); UCT.closePops();
+      var s = b.dataset.state;
+      if (s === 'hover') chart.querySelector('.row[data-id="inst:spy"]').classList.add('demoHover');
+      if (s === 'drag' || s === 'armed' || s === 'invalid' || s === 'newpane' || s === 'park'){
+        chart.classList.add('dragging'); fakeGhost('inst:spy');
+        chart.querySelectorAll('.pane').forEach(function(p){
+          if (p.dataset.pane === 'inst:qqq'){ p.classList.add('invalid'); p.setAttribute('data-refusal','it is already here'); }
+          else p.classList.add('valid'); });
+      }
+      if (s === 'armed'){ var t = chart.querySelector('.pane[data-pane="inst:rsi"]');
+        t.classList.remove('valid'); t.classList.add('armed'); }
+      if (s === 'invalid'){ var q = chart.querySelector('.pane[data-pane="inst:qqq"]');
+        q.classList.add('invalid'); }
+      if (s === 'newpane') chart.querySelector('.seam[data-seam="2"]').classList.add('armed');
+      if (s === 'park') chart.querySelector('.dock').classList.add('armed');
+    });
+  });
+  document.getElementById('compact').addEventListener('click', function(){
+    var on = frame.classList.toggle('compact'); this.setAttribute('aria-pressed', on); draw();
+  });
+  document.getElementById('reset').addEventListener('click', function(){
+    model = UCT.clone(); parked = []; sel = null; clearDemo(); draw(); });
+  document.getElementById('zoom').addEventListener('click', function(){
+    var on = frame.style.zoom !== '1.55'; frame.style.zoom = on ? '1.55' : '';
+    this.setAttribute('aria-pressed', on); draw();
+  });
+  window.addEventListener('resize', draw);
+})();
+</script></body></html>

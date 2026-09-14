@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Track B — On-chart plot management</title>
+<link rel="stylesheet" href="proto.css?v=1789425259">
+<style>
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:18px 0 26px}
+.card{border:1px solid var(--border);border-radius:6px;background:var(--bg-surface);padding:16px 16px 14px;
+  transition:.14s;display:block;color:inherit}
+.card:hover{border-color:var(--ut-gold-glow);background:var(--bg-elevated);text-decoration:none;transform:translateY(-1px)}
+.card h2{font-size:14px;margin:0 0 3px;color:var(--text-bright);font-weight:600}
+.card .verb{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ut-gold);margin-bottom:9px}
+.card p{margin:0;font-size:12px;line-height:1.55;color:var(--text-faint)}
+.card .url{margin-top:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:var(--text-muted);opacity:.7}
+table{border-collapse:collapse;width:100%;font-size:12px;margin:10px 0 4px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);font-weight:600}
+td{color:var(--text-muted)}
+td:first-child{color:var(--text-faint);white-space:nowrap}
+.rec{border-left:2px solid var(--ut-gold);background:var(--ut-gold-dim);padding:12px 14px;border-radius:0 5px 5px 0;margin:16px 0}
+.rec b{color:var(--ut-gold-bright)}
+</style></head><body>
+<div class="wrap">
+  <div class="top"><h1>On-chart plot &amp; indicator management</h1><span class="tag">Track B · research</span></div>
+  <p class="lede">Three genuinely different interaction models for managing a plotted series directly from its
+  label. All three share <b>one resting label design</b> and <b>one set of canonical writers</b> — they differ only
+  in what hover, click and drag mean. Every fixture is the same: eleven instances across five panes, including a
+  duplicate QQQ, a hidden MA, a three-plot MACD, a long indicator name and a plot that computes nothing.</p>
+
+  <div class="cards">
+    <a class="card" href="a.html"><div class="verb">click → popover</div>
+      <h2>Concept A — Click Popover</h2>
+      <p>The label is a button. One chevron on hover in a permanently reserved gutter; one compact popover of
+      high-frequency verbs on click or right-click. Drag is secondary.</p>
+      <div class="url">/a.html</div></a>
+    <a class="card" href="b.html"><div class="verb">drag → placement</div>
+      <h2>Concept B — Direct Manipulation</h2>
+      <p>The label is a handle. Drag onto a pane, onto a seam for a new pane, into the left Park dock to hide,
+      into the Remove well to delete. Right-click is the accessible twin.</p>
+      <div class="url">/b.html</div></a>
+    <a class="card" href="c.html"><div class="verb">click → select</div>
+      <h2>Concept C — Selection + Command Strip</h2>
+      <p>Click selects; the plotted line lights up and every other label dims. Verbs live in one strip in one
+      fixed place. Shift-click acts on several series at once.</p>
+      <div class="url">/c.html</div></a>
+  </div>
+
+  <div class="rec"><b>Recommendation: Concept A as the spine, Concept B's drag and Concept C's selection glow folded in.</b>
+  They are not exclusive. A is the discoverable default; B's drag is a conventional accelerator both TC2000 and
+  TradingView already teach; C's "selected label lights its line" is the single best idea for a chart carrying
+  eleven series and costs one canvas redraw.</div>
+
+  <h3 style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-muted);margin:22px 0 2px">
+  The resting label, decided once</h3>
+  <table>
+    <tr><th>Part</th><th>Treatment</th><th>Why</th></tr>
+    <tr><td>colour rail</td><td>2×9px bar in the plot colour, 3px left margin</td>
+      <td>The one piece of chrome at rest, and the only identity anchor that survives a hidden row and an
+      off-crosshair row with no value.</td></tr>
+    <tr><td>name stem</td><td><code style="color:var(--text-muted)">--text-muted</code>, 600</td>
+      <td>Neutral. Eleven coloured names is a rainbow; the rail already carries the colour.</td></tr>
+    <tr><td>parameters</td><td><code style="color:var(--text-faint)">--text-faint</code>, 500, tabular</td>
+      <td>Typographic hierarchy inside the name: <b>RSI</b> is the thing, <b>14</b> is a detail.</td></tr>
+    <tr><td>source</td><td><code>· QQQ</code> in faint ink</td>
+      <td>Only on derived series. It is the relationship, not part of the name.</td></tr>
+    <tr><td>value</td><td><code style="color:var(--text-bright)">--text-bright</code>, 600, tabular, right-aligned</td>
+      <td>The brightest thing in the legend, in a shared column, because reading it is the label's primary job.</td></tr>
+    <tr><td>multi-plot</td><td>one row, values tinted per plot; sub-rows unfold on hover</td>
+      <td>Instance-oriented interaction, plot-oriented values — without ever implying three instances.</td></tr>
+    <tr><td>hidden</td><td>42% opacity, dashed rail, value suppressed</td>
+      <td>Still present and still actionable; the dashed rail says <i>hidden</i> without a word or an icon.</td></tr>
+    <tr><td>affordance gutter</td><td>14px, always reserved, empty at rest</td>
+      <td>Nothing can move on hover if the space was always there.</td></tr>
+  </table>
+</div>
+</body></html>
