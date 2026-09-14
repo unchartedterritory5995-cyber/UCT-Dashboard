@@ -550,6 +550,13 @@ const OWN_SYMBOL_NAMES = new Set([
  *  so the only thing between it and reading that script was seeing through one
  *  call. A script was being refused for wrapping its own ticker in the function
  *  Pine gives you for exactly that purpose. */
+// ⭐⭐ WAVE 2 (a) — MECHANISM A. An array is a PLAN-TIME VECTOR of expression
+// slots; the module holds the admitted member set, the element types, and every
+// refusal SENTENCE so the wording cannot drift between the sites that need it.
+// ⛔ It imports nothing from here, so there is no cycle: it returns refusal
+// DESCRIPTORS and this file builds the `PineRefusal`.
+import * as VEC from './arrayVectors.js'
+
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
 const NAMESPACE_GUARD = Object.freeze({
@@ -8588,6 +8595,83 @@ function tupleRefusalTail(call, names, env) {
     + '. Writing it WITHOUT the brackets says more about why'
 }
 
+/**
+ * ⭐⭐ WAVE 2 (a) — `array.new…(n)` READ AS A PLAN-TIME VECTOR, in ONE place.
+ *
+ * Called from BOTH statement branches that can bind one — the `var` branch and
+ * the ordinary-assignment branch — because they are genuinely different code
+ * paths in this walk and a second copy of this reading is exactly the drift this
+ * engine keeps paying for.
+ *
+ * @returns the vector binding · `false` when it refused and recorded · `null`
+ *          when this is not an array creation at all and the caller should carry
+ *          on as before.
+ */
+function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
+  if (!rhs || !rhs.length || !nameTok) return null
+  const head = rhs[0]
+  // ⚠️ MEASURED: the tokeniser gives `array.new` as ONE ident, not three tokens.
+  if (!head || head.kind !== 'ident' || !String(head.value).startsWith('array.')) return null
+  const member = String(head.value).slice('array.'.length)
+
+  if (VEC.DRAWING_MEMBERS.has(member)) {
+    // ⛔ A TYPED DRAWING ARRAY IS DRAWING, NOT DATA — refused at CREATION.
+    // `array.new_label(64)` is a request for sixty-four labels; admitting the
+    // container and refusing the draw would accept a shape whose only purpose is
+    // the thing this item does not do. 299 calls across 60 files in the census.
+    markOpaque(nameTok.value, 'pine:drawing', locate(head), `\`${nameTok.value}\``)
+    notes.push(noteOf('pine:drawing',
+      `${REFUSALS['pine:drawing']} — \`array.${member}\` makes an array OF drawings,`
+      + ' which is the drawing layer rather than a value a column can read',
+      head))
+    return false
+  }
+  if (!VEC.CREATE_MEMBERS.has(member)) return null
+
+  let argStart = 1
+  let generic = null
+  if (rhs[argStart] && isPunct(rhs[argStart], '<')) {
+    const close = rhs.findIndex((t, i) => i > argStart && isPunct(t, '>'))
+    if (close > 0) {
+      generic = rhs.slice(argStart + 1, close).map((t) => t.value).join('')
+      argStart = close + 1
+    }
+  }
+  if (!rhs[argStart] || !isPunct(rhs[argStart], '(')) return null
+  const inner = rhs.slice(argStart + 1, rhs.length - 1)
+  let sizeNode = null
+  // ⭐ THE SIZE IS STORED UNRESOLVED. Folding it here would be a second
+  // constant-folder over the same tokens; the Resolver already has the one this
+  // engine uses, and it runs with the whole environment in hand.
+  try { sizeNode = inner.length ? parseWholeExpression(inner) : null } catch { sizeNode = null }
+  const at = locate(nameTok)
+  // ⛔⛔ F2 — THE CREATION IS RECORDED, WHATEVER HAPPENS NEXT. Before this, a
+  // `var x = array.new<float>(21)` produced NOTHING: not a refusal, not a note,
+  // no line in the result. The lane's own contract is that a statement nothing
+  // reaches is "a NOTE, listed, never silently dropped", and the IR lane already
+  // named this line while this one said nothing at all. A binding that lives only
+  // in `env` is invisible to every reader of the result, so the note is what makes
+  // the plan record real.
+  notes.push(noteOf('pine:vector',
+    `\`${nameTok.value}\` is an array this engine reads as a PLAN-TIME VECTOR of`
+    + ` \`${VEC.elementTypeOf(member, generic)}\` slots, ${isVar ? 'persisting across bars' : 'rebuilt each bar'}`
+    + ' — its size and every index must be known before the chart runs',
+    nameTok))
+  return {
+    ...VEC.makeVector({
+      size: 0,
+      elemType: VEC.elementTypeOf(member, generic),
+      persists: !!isVar,
+      at,
+      line: at && at.line,
+      env: new Map(env),
+    }),
+    sizeNode,
+    member,
+    arrayName: nameTok.value,
+  }
+}
+
 function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   const arms = []
   let fallback = null
@@ -9928,6 +10012,20 @@ export function translatePine(source, opts = {}) {
       // ⭐ THE SAME BINDING THE BODY WALKER MAKES — see `stateBinding`. ⛔ And the
       // same `varip` exclusion, for the same reason: it persists across INTRABAR
       // TICKS, which a closed-bar engine cannot reproduce at all.
+      // ⭐⭐ WAVE 2 (a) — AND THIS IS WHERE `var x = array.new…(n)` REALLY GOES.
+      //
+      // ⚰️ It was invisible before, and not for the reason anyone guessed: the
+      // parser makes an ordinary call node for `array.new(...)` — only RESOLVE
+      // refuses a collection — so `stateBinding` accepted it silently, stored it
+      // as state, and nothing was refused, noted or recorded. The lane's own
+      // contract says a statement nothing reaches is "a NOTE, listed, never
+      // silently dropped"; this one was dropped. Measured on
+      // `uncharted-clouds.pine` line 57 by instrumenting the walk, 2026-09-14.
+      if (word === 'var' && nameTok && eq > 0) {
+        const vec = vectorFromRhs(toks.slice(eq + 1), nameTok, true, env, notes, markOpaque)
+        if (vec) { env.set(nameTok.value, vec); continue }
+        if (vec === false) continue
+      }
       if (word === 'var' && nameTok && eq > 0) {
         try {
           env.set(nameTok.value, stateBinding(
@@ -10231,6 +10329,24 @@ export function translatePine(source, opts = {}) {
       if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
         const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
         if (built) { env.set(nameTok.value, built); continue }
+      }
+      // ⭐⭐ WAVE 2 (a) — `name = array.new…(n)` BECOMES A PLAN-TIME VECTOR.
+      //
+      // ⛔⛔ AND IT IS RECORDED HERE WHATEVER HAPPENS NEXT (F2). Before this, a
+      // `var x = array.new<float>(21)` produced NOTHING — not a refusal, not a
+      // note, no line in the result — while the lane's own contract says a
+      // statement nothing reaches is "a NOTE, listed, never silently dropped".
+      // The IR lane already named that line; this lane did not. Measured on
+      // `uncharted-clouds.pine` line 57, 2026-09-14.
+      //
+      // ⭐ THE SIZE IS STORED UNRESOLVED AND FOLDED LATER, by the one folder the
+      // Resolver already uses. Folding it here would be a second constant-folder
+      // over the same tokens, which is the rule this engine keeps paying for.
+      // ⭐⭐ WAVE 2 (a) — a non-`var` `name = array.new…(n)` becomes a vector.
+      {
+        const vec = vectorFromRhs(rhs, nameTok, false, env, notes, markOpaque)
+        if (vec) { env.set(nameTok.value, vec); recordTop(stmt, nameTok.value); continue }
+        if (vec === false) continue   // refused and recorded (a drawing array)
       }
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)
