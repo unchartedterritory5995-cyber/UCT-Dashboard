@@ -931,3 +931,28 @@ Rewriting `extraction-output-v0.schema.json` with `json.dumps(indent=2)` to chan
 produced **384 added / 53 removed**. Restored and redone as a targeted text edit: **3 changed
 lines**. Same content, same tests, and a diff a human can actually review — the same defect the
 CRLF ruling (R-2) names, arrived at through formatting instead of line endings.
+
+### 4. A mutation harness whose anchors match NOTHING reports a clean sweep
+
+⛔⛔ **The most dangerous of the three, found by the golden-v1.1 subagent.** `golden.py` is
+**CRLF on disk and LF in the stored blob** (`core.autocrlf=true`). Five multi-line literal
+anchors therefore matched **0 times**, the mutations silently did not happen — and the run
+printed the same thing it prints when every rail catches every mutant.
+
+⭐ **"The anchor matched nothing" and "the rail caught the mutant" are indistinguishable in the
+output.** A harness can report nine of nine caught having changed not one byte of the subject.
+Any harness in this repo that does a literal multi-line string match against a source file has
+this latent; the fix is to match on normalised text, restore the original BYTES, and **assert the
+anchor count is exactly 1 before mutating** — an anchor that matches zero times must be a hard
+error, never a skipped mutant.
+
+### 5. And a filter tuned for one purpose silently disabled another that reused it
+
+The paraphrase lens's antonym guard was installed, tested, and dead for one of its two cases.
+`_polarity_conflict` took the token sets `_tokens` had already built, and `_tokens` drops words
+of two characters or fewer — so `up` was never in them and the (up, down) pair could not fire.
+"size down when the regime turns hostile" and "size up when the regime turns friendly" went on
+merging **with the guard in place and apparently working**, because the never/always case passed.
+
+⭐ A filter that is correct for similarity (short words are noise) is wrong for polarity (the
+short words ARE the meaning). The guard now tokenises for itself, and the docstring says why.
