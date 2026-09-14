@@ -590,6 +590,10 @@ def main(argv=None) -> int:
 # Exit codes. 2 is the refused/invalid run above; these two are the verdict of a VALID run.
 EXIT_NO_NEW = 0
 EXIT_NEW_FAILURES = 1
+# ⛔ ITS OWN CODE. A suite that did not run every file and a suite that found a
+# regression are different facts, and a caller that cannot tell them apart will
+# eventually treat one as the other.
+EXIT_DID_NOT_RECONCILE = 3
 
 
 def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
@@ -614,6 +618,36 @@ def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
     disagree — a stale baseline in the harmless direction — that is said out loud rather than
     silently collapsed into either answer.
     """
+    # ⛔⛔ THE COVERAGE CHECK IS PART OF THE VERDICT, NOT DECORATION.
+    # `file_count_reconciles` was computed and RENDERED into the manifest from the
+    # day this wrapper was written, and read by NOTHING: a run whose shards
+    # executed 1,016 of 1,178 files printed 'DOES NOT RECONCILE' and still exited 0
+    # with 'no NEW failures'. That is failure mode #2 in this file's own docstring -
+    # a partial suite fails in the FLATTERING direction, because fewer files run
+    # means fewer failures found. count_waived_files() already removes the only
+    # legitimate cause of a shortfall, so this cannot cry wolf.
+    #
+    # ⭐ It runs BEFORE the baseline comparison on purpose. If the suite did not
+    # execute every file, the observed failing set is INCOMPLETE, so `new: 0` is not
+    # a green verdict - it is an unanswered question wearing one.
+    if manifest.get("file_count_reconciles") is False:
+        disk = manifest.get("test_files_on_disk")
+        waived = manifest.get("test_files_waived") or 0
+        ran = ((manifest.get("summed") or {}).get("files") or {}).get("total")
+        expected = (disk - waived) if isinstance(disk, int) else None
+        say("", err=True)
+        say(f"  GATE: DOES NOT RECONCILE - exit {EXIT_DID_NOT_RECONCILE}.", err=True)
+        say(f"  {ran} test file(s) ran; {disk} on disk minus {waived} waived = "
+            f"{expected} expected.", err=True)
+        say("  Per shard (a shortfall is usually ONE shard, not a spread):", err=True)
+        for s in manifest.get("per_shard") or []:
+            say(f"    shard {s.get('shard')}: "
+                f"{(s.get('files') or {}).get('total')} file(s)", err=True)
+        say("  No baseline comparison is reported: the failing set is incomplete,",
+            err=True)
+        say("  and a partial suite finds fewer failures and reads as a pass.", err=True)
+        return EXIT_DID_NOT_RECONCILE
+
     v = manifest.get("vs_baseline") or {}
     new = v.get("new") or []
     stale = v.get("no_longer_failing") or []

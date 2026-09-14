@@ -705,3 +705,63 @@ def test_the_rail_can_fail_a_non_vacuity_control():
     assert unexplained(explained) == [], (
         'the pairing check cannot tell an EXPLAINED entry apart — a check that '
         'answers no to everything passes for the wrong reason')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# The coverage check is part of the VERDICT. It was computed and rendered from
+# day one and read by nothing, so a short run exited 0 saying 'no NEW failures'.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _reconcile_manifest(reconciles: bool) -> dict:
+    """
+    A manifest whose baseline comparison is CLEAN in every direction, so the only
+    thing these cases differ by is coverage. If the verdict changes, coverage is
+    what changed it.
+    """
+    return {
+        'file_count_reconciles': reconciles,
+        'test_files_on_disk': 1352,
+        'test_files_waived': 0,
+        'summed': {'files': {'total': 1352 if reconciles else 1016}},
+        'per_shard': [{'shard': i, 'files': {'total': 225}} for i in range(1, 7)],
+        'vs_baseline': {'new': [], 'no_longer_failing': [],
+                        'expected_red_seen': [], 'expected_red_stale': []},
+    }
+
+
+def test_a_run_that_does_not_reconcile_exits_non_zero_even_with_a_clean_baseline():
+    """
+    ⛔ THE FLATTERING DIRECTION. Fewer files run means fewer failures found, so
+    a short run produces `new: []` and reads exactly like a pass.
+    """
+    import scripts.gate_shards as gs
+    code = gs.verdict_exit_code(_reconcile_manifest(False), say=lambda *a, **k: None)
+    assert code != 0, 'a short run must not exit 0'
+    assert code == gs.EXIT_DID_NOT_RECONCILE, (
+        'a short run needs its OWN code - it is not the same fact as a regression')
+
+
+def test_the_same_manifest_that_reconciles_exits_zero():
+    """
+    The control. Without it the case above could pass because verdict_exit_code
+    rejects everything - a check that answers no to any question.
+    """
+    import scripts.gate_shards as gs
+    code = gs.verdict_exit_code(_reconcile_manifest(True), say=lambda *a, **k: None)
+    assert code == gs.EXIT_NO_NEW, f'a clean, reconciling run must exit 0, got {code}'
+
+
+def test_the_short_run_message_names_the_counts_and_the_shards():
+    """
+    ⛔ A refusal that does not say WHAT was missed cannot be acted on, and gets
+    waived. Names and counts, not a bare verdict.
+    """
+    import scripts.gate_shards as gs
+    lines = []
+    gs.verdict_exit_code(_reconcile_manifest(False),
+                         say=lambda m='', **k: lines.append(str(m)))
+    blob = chr(10).join(lines)
+    assert '1016' in blob, 'must say how many ran'
+    assert '1352' in blob, 'must say how many were expected'
+    assert 'shard 1' in blob and 'shard 6' in blob, 'must break it down per shard'
