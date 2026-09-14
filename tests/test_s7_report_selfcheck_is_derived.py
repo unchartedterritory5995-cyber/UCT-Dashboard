@@ -42,16 +42,16 @@ def _load():
 
 
 def _throwaway(rep):
-    """An eighth descriptor shaped exactly like a real row of the table.
+    """An extra descriptor shaped exactly like a real row of the table.
 
     ⛔ Derived from a REAL row's arity so it cannot drift from the tuple shape:
     a hand-built 8-tuple would keep passing after the descriptor gains a field.
     """
     real = rep.declared_sweeps()[0]
-    assert len(real) == 8, f"descriptor shape changed ({len(real)} fields) — update this control"
+    assert len(real) == 9, f"descriptor shape changed ({len(real)} fields) — update this control"
     return ("throwaway_selfcheck", "THROWAWAY", "ALERT_TAXONOMY_THROWAWAY_DARK_ENABLED",
             "throwaway_heartbeat", "last_tick_at", (9, 16), 180,
-            "never scheduled — a self-check control only")
+            "never scheduled — a self-check control only", None)
 
 
 # ───────────────────────────────────────── the count follows its source
