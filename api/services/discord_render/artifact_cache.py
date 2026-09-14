@@ -87,7 +87,14 @@ _UNKNOWN_VINTAGE = "\x00unknown"
 
 
 def enabled() -> bool:
-    """`RENDER_CACHE_ENABLED` (§3.11), read per call so the kill switch needs no redeploy."""
+    """`RENDER_CACHE_ENABLED` (§3.11), read per call so a flip needs no redeploy.
+
+    ⛔ AN **ENABLEMENT GATE**, NOT A KILL SWITCH — unset means OFF, and the polarity below says so.
+    The distinction is not pedantry: a kill switch defaults ON because "nobody set it" and "somebody
+    deliberately shut it down" must not be indistinguishable; an enablement gate defaults OFF because
+    it ADDS behaviour and must not turn itself on in every environment the moment it merges. This
+    docstring called it a kill switch while the code did the opposite, which is the kind of
+    disagreement that gets read rather than run."""
     return str(os.environ.get("RENDER_CACHE_ENABLED", "")).strip().lower() in ("1", "true", "yes", "on")
 
 
