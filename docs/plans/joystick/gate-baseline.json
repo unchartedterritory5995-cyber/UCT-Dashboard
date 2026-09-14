@@ -98,5 +98,13 @@
       "why": "MASTER'S, not this branch's. reachable.test.js reds on app/src/lib/context/focusDivergence.js, which landed in 76c62c494 ('S4 CP1: the divergence detector - read-only, mounts nothing'), is present on origin/master, and is touched by NO commit on this branch. Already documented in CLAUDE.md as R-29 for the S4 workstream, and verified here rather than taken from the doc. A baseline that lacks it reports a phantom regression to every branch.",
       "verified_by": "git cat-file -e origin/master:<path>; git diff --name-only <base>..HEAD | grep -c focusDivergence -> 0"
     }
-  ]
+  ],
+  "expected_red_reasons": {
+    "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > ⛔⛔ DOES NOT discard the member's words when the landed save lacks them": {
+      "why": "supersede compares TIMESTAMPS where it must prove CONTENT. A landed save that lacks the member's words can still carry the newer clock, so the newer-wins test discards words the server never held. The reproduction is red because the defect is real on master today.",
+      "waits_on": "NOT YET WRITTEN - no fix SHA exists. Q1 fix 4 (landed-ring putMeta never overwrites a dirty record) is a DIFFERENT defect and does NOT turn this green; the gate run on the fix-4 merge still observed it red, which is the evidence for that sentence rather than an assumption.",
+      "named_at": "2026-09-14",
+      "if_it_turns_green": "the entry is STALE and compare_failures fails the gate by design - remove it and cite the fix that did it."
+    }
+  }
 }

@@ -30,7 +30,7 @@
     {
       "id": "t12-owner-profile-run",
       "status": "blocked",
-      "why": "BLOCKED - not because it failed, but because RETRYING CANNOT CHANGE IT. 7 PASS / 0 FAIL / 2 INCONCLUSIVE, parity with member-smoke. Both INCONCLUSIVEs are RUNNER gaps: step 7 does not yet drive the Ask scope switch and citation click (stated by the runner itself), and step 8 cannot reach a Delete button that is UNCONDITIONAL in the editor header (NoteEditorPage.jsx:1980) - by step 8 the run has opened a document viewer and is no longer on the note. Neither is a product limitation. Unblock when those two probes are built.",
+      "why": "Only the owner's OWN profile could show owner-only surfaces; the ruling named that limit and accepted the admin-role run in its place.",
       "timeout": 2400,
       "cmd": [
         "python",
@@ -42,13 +42,15 @@
         "--out",
         "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
       ],
-      "attempts": 1
+      "attempts": 1,
+      "blocked_on": "nothing \u2014 the owner-identity requirement was satisfied by the admin-role run",
+      "release_when": "Superseded: ruling 2026-09-14 accepted an admin-role run on the rig profile. Kept, not deleted, so the entry cannot be mistaken for work still owed."
     },
     {
       "id": "matrix-remainder",
       "status": "blocked",
       "timeout": 3600,
-      "why": "BLOCKED ON PURPOSE. Its remaining INCONCLUSIVE cells are the excerpt and fact families, both NAMED permanent limitations (L-1, L-2). Three passes moved the count 16 -> 16. A retry loop is only honest when the thing it retries is capable of a different answer. Re-arm only if a limitation lifts.",
+      "why": "Running the remainder first would spend window minutes on cells the fix is about to change, and the rig window is the scarcest resource in this programme.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -57,13 +59,15 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
-      ]
+      ],
+      "blocked_on": "the fix4 re-run, which rewrites five of the cells this would otherwise re-read",
+      "release_when": "fix4-production-re-run reaches a DECIDED verdict on all five cells."
     },
     {
       "id": "fix4-production-re-run",
       "status": "blocked",
       "timeout": 2700,
-      "why": "BLOCKED until Q1 fix 4 is MERGED AND DEPLOYED. Production serves the deployed bundle, so running this before the deploy would measure the OLD code and bank a RED against a fix that is not there. Unblock only after the DEPLOY row reads SUCCESS. This is the ruling's production proof: the five first-context append cells must go GREEN.",
+      "why": "The five cells must load the bundle that CONTAINS the fix. Running them against the old bundle would reproduce the RED and read as the fix having failed.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -73,7 +77,9 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
-      ]
+      ],
+      "blocked_on": "Railway web SUCCESS on the commit carrying Q1 fix 4",
+      "release_when": "`railway deployment list --service web --json` shows SUCCESS on a commit that has bc005b70c as an ancestor. Then set status=pending."
     }
   ],
   "_order_note": "Priority is DECISION VALUE, not arrival. embed-re-run is minutes and confirms the RED on a recovered pod; T-12 is gate criterion C-7; the matrix remainder fills the table and is the only unbounded entry, so it goes last - it ate a whole window once by being ahead of a retry."

@@ -634,3 +634,74 @@ def test_the_reconcile_SUBTRACTS_waived_files(tmp_path):
     assert count_waived_files((), root=src) == 0
     # …and a glob CAN match more than one when it is meant to.
     assert count_waived_files(("**/*.test.js",), root=src) == 2
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# The expected_red note claims each entry names the fix it waits on. Until
+# 2026-09-14 the entries were bare strings naming neither, so the note was a
+# claim about the data rather than a property of it.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _baseline():
+    p = pathlib.Path(__file__).resolve().parents[1] / 'docs/plans/joystick/gate-baseline.json'
+    return json.loads(p.read_text(encoding='utf-8'))
+
+
+def unexplained(baseline: dict) -> list[str]:
+    """expected_red entries with no reason beside them.
+
+    ⛔ ONE implementation, shared by the rail and by its control. A control
+    that re-implements the predicate agrees with ITSELF and says nothing about
+    the thing under test — which is R-05 exactly: the contract test whose
+    harness restated the contract, so both agreed and neither matched the
+    product.
+    """
+    reasons = baseline.get('expected_red_reasons', {})
+    return [e for e in baseline.get('expected_red', []) if e not in reasons]
+
+
+def test_every_expected_red_entry_names_a_reason_and_what_it_waits_on():
+    """
+    ⛔ A DELIBERATE RED NOBODY CAN EXPLAIN IS INDISTINGUISHABLE FROM ONE NOBODY
+    NOTICED. compare_failures takes set(expected_red), so the entries must stay
+    hashable strings - the reason therefore lives BESIDE the list, keyed by the
+    same string, and this rail is what stops the two drifting apart.
+    """
+    b = _baseline()
+    reasons = b.get('expected_red_reasons', {})
+    missing = unexplained(b)
+    assert not missing, (
+        'expected_red entr(ies) with no reason beside them: ' + repr(missing))
+    for entry, r in reasons.items():
+        assert r.get('why', '').strip(), entry
+        assert r.get('waits_on', '').strip(), entry
+
+
+def test_a_reason_for_an_entry_that_is_not_declared_red_is_also_a_drift():
+    """
+    The other direction: a reason left behind after its entry was removed reads
+    as documentation of a red that is no longer declared. Strict both ways, the
+    same discipline compare_failures already applies to a stale entry.
+    """
+    b = _baseline()
+    orphaned = [k for k in b.get('expected_red_reasons', {})
+                if k not in set(b.get('expected_red', []))]
+    assert not orphaned, (
+        'reason(s) with no matching expected_red entry: ' + repr(orphaned))
+
+
+def test_the_rail_can_fail_a_non_vacuity_control():
+    """
+    ⛔ An empty expected_red list satisfies both rails above for free, so on a
+    day with nothing declared they would pass while proving nothing. This asserts
+    the pairing logic actually rejects an unexplained entry.
+    """
+    planted = {'expected_red': ['x > y > z'], 'expected_red_reasons': {}}
+    assert unexplained(planted) == ['x > y > z'], (
+        'the pairing check cannot detect an unexplained entry')
+    explained = {'expected_red': ['x > y > z'],
+                 'expected_red_reasons': {'x > y > z': {'why': 'w', 'waits_on': 'n'}}}
+    assert unexplained(explained) == [], (
+        'the pairing check cannot tell an EXPLAINED entry apart — a check that '
+        'answers no to everything passes for the wrong reason')
