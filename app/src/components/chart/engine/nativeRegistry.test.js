@@ -103,9 +103,44 @@ const TOO_SHORT = {
   // ── Phase C Task 14 ──
   avwap: 0,       // computes from bar 0, like VWAP — the anchor is the only gate
   atrBands: 14,   // needs period + 1 = 15, exactly like the ATR underneath it
+  // ── P2.1 ──
+  // ⭐⭐ ZERO, AND IT IS A CLAIM RATHER THAN A GAP IN THE TABLE. `dataSeries` is
+  // an IDENTITY transform: it has no window, so it has no warm-up, and one bar
+  // with one source value is already computable. Zero is the only length that
+  // can be "too short" for it — an empty column really does hold nothing finite.
+  // Every other number above is a window this definition does not have.
+  dataSeries: 0,
+  // ⭐ `ma` COUNTS ITS SOURCE'S BARS, NOT THE CHART'S — the sweep feeds it a
+  // gapless series, so the boundary is simply the period (5). A window is emitted
+  // only when it is FULL of finite values, which is the same rule `computeSMA`
+  // applies to bars.
+  movingAverage: 4,
 }
 
 const BARS = makeBars(300)
+
+/**
+ * The compute ctx a definition needs to produce anything.
+ *
+ * ⭐ A DEFINITION WITH A `source` INPUT READS A SERIES, NOT BARS, so computing it
+ * with no ctx measures nothing — every column comes back NaN and the cases below
+ * would be asserting that an unconfigured series draws a blank line, which it
+ * should. These rails are about whether the MATHS works, so this supplies the
+ * series the binder resolves in production. Every other definition ignores the
+ * ctx exactly as it does in production, because JavaScript discards an argument
+ * a function does not declare.
+ *
+ * ⛔ DERIVED FROM THE DECLARATION, NEVER A LIST OF IDS. A hand-written
+ * `['dataSeries']` would stop being true the moment a second source-taking
+ * definition lands, and it would fail as a baffling all-NaN column rather than
+ * as a missing row.
+ */
+const ctxFor = (def, n) => {
+  const takesSource = (def.inputs || []).some(i => i && i.type === 'source')
+  if (!takesSource) return undefined
+  const len = Number.isFinite(n) ? n : BARS.length
+  return { source: Array.from({ length: len }, (_, i) => 100 + Math.sin(i / 6) * 5) }
+}
 
 /** The repo root, found by walking up. Under this environment's vite transform
  *  the module URL is an `http:` one, so building a path from it throws "The URL
@@ -134,14 +169,25 @@ const ENGINE_REL = 'app/src/components/chart/engine'
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists 16 natives and 1 server definition — SEVENTEEN, across two lanes', () => {
+  it('lists 18 natives and 1 server definition — NINETEEN, across two lanes', () => {
+    // ⭐ `movingAverage` IS THE EIGHTEENTH, and the first whose input is a SERIES
+    // rather than the bars: `MA(Close)`, `MA(Volume)` and `MA(QQQ)` are one
+    // definition pointed at different sources.
+    // ⭐⭐ `dataSeries` IS THE SEVENTEENTH NATIVE, and the first that computes
+    // NOTHING. It hands its source through unchanged so a symbol, a breadth
+    // measure or another indicator's output can be plotted directly — one
+    // definition instead of a security lane, a breadth lane and whatever came
+    // next. Spelled by name here as well as in `SHIPPED_DEF_IDS` on purpose:
+    // this case is the one that reads as prose.
     expect(NATIVE_DEFS.map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
-      'macd', 'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
+      'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsi', 'sar', 'stoch',
+      'vwap', 'williamsR',
     ])
     expect(listDefinitions().map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
-      'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
+      'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
+      'stoch', 'vwap', 'williamsR',
     ])
   })
 
@@ -249,7 +295,15 @@ const JULY_LEGACY_DEFAULTS = {
  * fires whenever a row is missing would silently absolve the NEXT migration that
  * forgot one, which is exactly what the coverage test below exists to catch.
  */
-const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine']
+// ⭐ `dataSeries` JOINS THEM (P2.1) — it did not exist in July, has no legacy
+// toggle and no `cs.indicators` section, so there is nothing for it to migrate
+// FROM. The coverage case below proves that claim rather than taking it on trust.
+// ⭐ `movingAverage` JOINS THEM, AND FOR A DIFFERENT REASON THAN THE OTHER FOUR.
+// Those were never in `cs.indicators`; this one is not there either, because the
+// shipped price moving averages live in `cs.overlays` — a different legacy shape
+// with no instance id, no placement and no presentation. The engine definition is
+// ADDITIVE beside them, not a migration OF them, so it has no July row to mirror.
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage']
 
 describe('the July defaults table', () => {
   it('covers every MIGRATED definition and nothing else — a missing row is a silent no-op', () => {
@@ -322,12 +376,12 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
   })
 
   it('returns exactly one column per data-bearing plot key', () => {
-    const cols = computeFor(def, BARS, {})
+    const cols = computeFor(def, BARS, {}, ctxFor(def))
     expect(Object.keys(cols).sort()).toEqual([...columnKeys(def)].sort())
   })
 
   it('returns input-length columns of plain numbers', () => {
-    const cols = computeFor(def, BARS, {})
+    const cols = computeFor(def, BARS, {}, ctxFor(def))
     for (const [key, col] of Object.entries(cols)) {
       expect(col.length, `${id}.${key} length`).toBe(BARS.length)
       for (let i = 0; i < col.length; i++) {
@@ -337,7 +391,7 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
   })
 
   it('a computable series has a finite value in every column', () => {
-    const cols = computeFor(def, BARS, {})
+    const cols = computeFor(def, BARS, {}, ctxFor(def))
     for (const [key, col] of Object.entries(cols)) {
       expect(hasAnyFinite(col), `${id}.${key}`).toBe(true)
     }
@@ -345,7 +399,7 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
 
   it('a too-short series yields all-NaN columns with hasAnyFinite false', () => {
     const n = TOO_SHORT[id]
-    const cols = computeFor(def, makeBars(n), {})
+    const cols = computeFor(def, makeBars(n), {}, ctxFor(def, n))
     for (const [key, col] of Object.entries(cols)) {
       expect(col.length, `${id}.${key} length`).toBe(n)
       expect(hasAnyFinite(col), `${id}.${key}`).toBe(false)
@@ -354,7 +408,7 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
   })
 
   it('ONE more bar makes it computable — the boundary is exact', () => {
-    const cols = computeFor(def, makeBars(TOO_SHORT[id] + 1), {})
+    const cols = computeFor(def, makeBars(TOO_SHORT[id] + 1), {}, ctxFor(def, TOO_SHORT[id] + 1))
     expect(Object.values(cols).some(hasAnyFinite), `${id} still empty`).toBe(true)
   })
 })
@@ -402,7 +456,7 @@ describe('MACD needs NO column hold — the B1 pixel-parity mask is retired', ()
 describe('Parabolic SAR', () => {
   it('does not leak isUptrend into any column', () => {
     const def = getDefinition('sar')
-    const cols = computeFor(def, BARS, {})
+    const cols = computeFor(def, BARS, {}, ctxFor(def))
     // ⭐ THREE COLUMNS SINCE PHASE C, NOT ONE — and this line USED TO READ
     // `toEqual(['sar'])`. `priceCrossedSar` and `trendFlipped` are `sar`'s two
     // declared EVENTS, and events are columns (spec §3.1); `registerDefinitions`
@@ -935,7 +989,7 @@ describe('the `ast` lane REGISTERS, and the gates it registers through', () => {
     const res = validateUserDefinitions([astDef('sma(close, 20)')])
     expect(res.errors, JSON.stringify(res.errors)).toEqual([])
     const [def] = res.defs
-    const cols = computeFor(def, BARS, {})
+    const cols = computeFor(def, BARS, {}, ctxFor(def))
     expect(Object.keys(cols)).toEqual(['out'])
     expect(cols.out.length).toBe(BARS.length)
     expect(hasAnyFinite(cols.out), 'the ast lane computed nothing').toBe(true)

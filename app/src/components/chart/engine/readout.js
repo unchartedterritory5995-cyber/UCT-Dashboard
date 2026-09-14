@@ -103,8 +103,55 @@ function resolveRegistry(registry) {
  *  resolved against THIS instance's inputs (falling back to the definition's
  *  declared defaults, which is what "unset means current default" means
  *  everywhere else in the engine). */
-function chipLabel(def, plot, inputs) {
+/** The chip's leading text: an explicit label, or shortName + declared params
+ *  resolved against THIS instance's inputs (falling back to the definition's
+ *  declared defaults, which is what "unset means current default" means
+ *  everywhere else in the engine). */
+/**
+ * `sym:QQQ:close` → `QQQ`, for a definition that declares `meta.labelFrom`.
+ *
+ * ⛔ PARSED HERE RATHER THAN IMPORTED, and the duplication is deliberate and
+ * one line long. This module's header is *"pure, no LWC, no DOM"* and it is the
+ * formatting pipeline the LEGACY lane shares; pulling in `sourceRef` would drag
+ * the whole source grammar — `parseSource`, the gravestone rules, the instance
+ * resolver — into a function that needs the characters between two colons.
+ * `symbolSource()` builds exactly `sym:<SYMBOL>:<field>` and `canonicalSymbol`
+ * refuses a symbol containing `:`, so the middle segment IS the symbol.
+ *
+ * ⚠️ ANYTHING ELSE ANSWERS `null` and the ordinary stem applies — a bar field
+ * (`close`) and an instance source (`@inst:rsi:1::rsi`) both have names that are
+ * somebody else's to give.
+ */
+function sourceStemOf(def, inputs) {
+  const declared = (def.inputs || []).find((i) => i && i.type === 'source')
+  if (!declared) return null
+  const raw = (inputs && inputs[declared.key] !== undefined) ? inputs[declared.key] : declared.default
+  if (typeof raw !== 'string' || !raw.startsWith('sym:')) return null
+  const parts = raw.split(':')
+  return parts.length === 3 && parts[1] ? parts[1] : null
+}
+
+function chipLabel(def, plot, inputs, displayName) {
   if (plot.legend && typeof plot.legend.label === 'string') return plot.legend.label
+  // ⭐⭐ `meta.labelFrom: 'source'` — THE ONE DEFINITION WHOSE NAME IS NOT ITS OWN.
+  // `dataSeries` plots whatever it is pointed at, so every instance of it would
+  // print the same chip: a member with QQQ, SPY and UCTA50 on screen would read
+  // "Series" three times. The stem comes from the SOURCE instead.
+  //
+  // ⚠️ SPELLED HERE AS WELL AS IN `sourceRef.instanceLabel` BECAUSE THERE ARE TWO
+  // NAMING SURFACES AND THEY ARE NOT THE SAME FUNCTION — measured in a browser on
+  // the originating branch: fixing `instanceLabel` alone left the pane legend
+  // reading "Series 714.88" over a QQQ line. `instanceLabel` names an INSTANCE in
+  // the source picker; this names a PLOT in the chip strip and the pane readout.
+  // They agree by reading the same declaration rather than by one calling the
+  // other — this module is pure and imports no source grammar.
+  if (def.meta && def.meta.labelFrom === 'source') {
+    // ⭐ A STORED DISPLAY NAME FIRST. An instance added through a catalogue door
+    // carries one; one created any other way names itself from its source.
+    if (typeof displayName === 'string' && displayName) return displayName
+    const fromSource = sourceStemOf(def, inputs)
+    if (fromSource) return fromSource
+  }
   const name = (def.meta && def.meta.shortName) || def.id
   const params = (def.meta && def.meta.legendParams) || []
   if (!params.length) return name
@@ -160,7 +207,7 @@ function resolvePlotColor(plot, inputs, def) {
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
  *        order the entries were given.
  */
-export function chipsFrom(entries, seriesData, registry, inputsFor) {
+export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor) {
   const get = resolveRegistry(registry)
   const out = []
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
@@ -209,7 +256,8 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
     // definition default alone.
     const resolved = resolvePlotColor(plot, inputs, def)
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
-    const label = chipLabel(def, plot, inputs)
+    const label = chipLabel(def, plot, inputs,
+      typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null)
 
     out.push({
       defId: def.id,
@@ -223,7 +271,7 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
     })
     inputsByChip.set(out.length - 1, inputs)
   }
-  return disambiguateSiblings(out, inputsByChip)
+  return disambiguateSiblings(out, inputsByChip, registry)
 }
 
 /**
@@ -246,13 +294,24 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
  * yes. Folding that test in here would give one of the two callers the wrong
  * answer.
  *
+ * ⭐ `ignoreKeys` IS AN INPUT THE LABEL ALREADY SPELLS OUT. A definition that
+ * names itself from an input (`meta.labelFrom`) already prints that input's
+ * meaning, so appending it reads `QQQ (source sym:QQQ:close)` — the address
+ * restated as a discriminator on two rows that were never ambiguous. Excluding
+ * it falls through to the ordinal, which is thin but true.
+ *
+ * ⛔ OPTIONAL, AND ABSENT MEANS SKIP NOTHING. Every existing caller passes one
+ * argument and gets exactly the result it got before.
+ *
  * @param {object[]} inputsList one resolved-inputs object per sibling, in order
+ * @param {string[]} [ignoreKeys] inputs the label already spells out
  * @returns {string[]} one suffix per sibling, same order, each already spaced
  */
-export function siblingSuffixes(inputsList) {
+export function siblingSuffixes(inputsList, ignoreKeys) {
   const rows = (Array.isArray(inputsList) ? inputsList : [])
     .map(o => (o && typeof o === 'object' ? o : {}))
-  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].sort()
+  const skip = new Set(Array.isArray(ignoreKeys) ? ignoreKeys : [])
+  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].filter(k => !skip.has(k)).sort()
   const differing = keys.filter((k) => {
     const seen = new Set(rows.map(o => JSON.stringify(o[k])))
     return seen.size > 1
@@ -287,10 +346,20 @@ export function siblingSuffixes(inputsList) {
  * what keeps this out of the existing chart assertions, which are written against
  * single-instance legends.
  */
-function disambiguateSiblings(chips, inputsByChip) {
+function disambiguateSiblings(chips, inputsByChip, registry) {
+  // ⛔⛔ THE LABEL IS PART OF THE GROUP KEY, AND THAT IS WHAT MAKES A MIXED GROUP
+  // BEHAVE. Grouping on `defId::plotKey` alone was the same sentence while every
+  // definition named itself from its own metadata: either every chip in a group
+  // collided (MACD, whose plots carry explicit `legend.label`s) or none did
+  // (`RSI(14)` vs `RSI(7)`), and the guard below covered the second case. A
+  // definition that names itself from its SOURCE breaks that: QQQ, SPY, UCTA50
+  // and a second QQQ are ONE defId and plotKey with three distinct names, so the
+  // old key suffixed all four — `SPY #2` for a name nothing collided with.
+  // Keying by label puts only the two QQQs together, which is the grouping
+  // `disambiguateLabels` already uses, so the two naming surfaces agree.
   const groups = new Map()
   for (let i = 0; i < chips.length; i++) {
-    const k = `${chips[i].defId}::${chips[i].plotKey}`
+    const k = `${chips[i].defId}::${chips[i].plotKey}::${chips[i].label}`
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k).push(i)
   }
@@ -309,7 +378,20 @@ function disambiguateSiblings(chips, inputsByChip) {
 
     // The suffix grammar lives in `siblingSuffixes` above — CALLED here, so the
     // legend and the pane menu cannot word two copies of one indicator differently.
-    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}))
+    //
+    // ⛔⛔ THE LABEL-BEARING INPUT IS NOT A DISCRIMINATOR. A definition that names
+    // itself from an input (`meta.labelFrom: 'source'`) already PRINTS that
+    // input's meaning, so appending it reads `QQQ (source sym:QQQ:close)` — the
+    // canonical address restated as a suffix on rows whose labels already differ.
+    // Excluding it falls through to the ordinal, which is thin but true. Same
+    // rule as `disambiguateLabels`, spelled from the same declaration so the two
+    // naming surfaces cannot word a duplicate differently.
+    const def0 = registry && typeof registry.getDefinition === 'function'
+      ? registry.getDefinition(chips[idxs[0]].defId) : null
+    const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
+      ? (def0.inputs || []).filter(i => i && i.type === 'source').map(i => i.key)
+      : []
+    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}), ignore)
 
     idxs.forEach((chipIdx, n) => {
       const label = `${chips[chipIdx].label}${suffixes[n]}`
@@ -346,7 +428,14 @@ export function engineChips(bindings, seriesData, registry, instances) {
     const inst = byId.get(instanceId)
     return (inst && inst.inputs) || null
   }
-  return chipsFrom(entries, seriesData, registry, inputsFor)
+  // ⭐ THE STORED DISPLAY NAME, BY INSTANCE — the same per-instance read
+  // `inputsFor` makes, for the same reason: two copies of one definition can
+  // carry two names, and `cs.indicators[defId]` cannot express that.
+  const displayFor = (_defId, instanceId) => {
+    const inst = byId.get(instanceId)
+    return (inst && inst.display && inst.display.name) || null
+  }
+  return chipsFrom(entries, seriesData, registry, inputsFor, displayFor)
 }
 
 /**
@@ -421,7 +510,12 @@ export function legendChips(bindings, seriesData, registry, instances) {
       if (!plot || !plot.legend || plot.legend.hide === true) continue
       const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
       if (bound) { out.push({ ...bound, hidden: false, computed: true }); continue }
-      const label = chipLabel(def, plot, inputs)
+      // ⛔ THE SECOND NAMING SURFACE, AND IT MUST READ THE SAME DECLARATION.
+      // This walks the INSTANCE LIST so a hidden instance still has a chip to
+      // un-hide from, and it formats its own label — so a `labelFrom` definition
+      // fixed only in `chipsFrom` would still print "Series" for a hidden QQQ.
+      const label = chipLabel(def, plot, inputs,
+        (inst.display && inst.display.name) || null)
       out.push({
         defId: def.id,
         plotKey: plot.key,
@@ -450,6 +544,77 @@ export function legendChips(bindings, seriesData, registry, instances) {
         text: label,
       })
     }
+  }
+  return out
+}
+
+// ─── PART E · TELLING TWO COPIES OF ONE DEFINITION APART ─────────────
+//
+// ⭐ ONE PURE FUNCTION, ADDED WITHOUT DISTURBING ANYTHING ABOVE. `displayTarget`
+// imports it so a "Display in" menu can tell two instances of one definition
+// apart. The originating branch also rewrote `chipsFrom` here; that rewrite is
+// existing master behaviour with its own rails and is NOT taken.
+
+/**
+ * ⭐⭐ THE ONE DISAMBIGUATOR, FOR EVERY SURFACE THAT NAMES INSTANCES.
+ *
+ * The legend calls it through `disambiguateSiblings` above; the "Display in"
+ * destination menu calls it directly (`displayTarget.displayTargetOptions`). One
+ * implementation is the only way those two can be guaranteed to word a member's
+ * two copies of QQQ the same, and a member reading `QQQ #2` in the menu has to
+ * find `QQQ #2` on the chart or the menu is pointing at nothing they can see.
+ *
+ * ⛔⛔ THE GROUP IS THE COLLIDING **LABEL**, NOT THE DEFINITION.
+ *
+ * ⚰️ MEASURED 2026-09-12 with QQQ, a second QQQ and SPY on one chart. Grouping by
+ * `defId::plotKey` put all three `dataSeries` rows in one group, the "do these
+ * already read apart?" guard saw 2 distinct labels against 3 rows and correctly
+ * declined to skip — and then suffixed the whole group, so SPY printed as
+ * `SPY #3`. An ordinal on a row that was never ambiguous is worse than no ordinal:
+ * it implies a `SPY #1` and `SPY #2` that do not exist.
+ *
+ * Scoping the group to the label makes the old guard unnecessary rather than
+ * merely correct — a group of one is skipped, and a group of two or more has
+ * identical labels by construction. `RSI(14)` and `RSI(7)` land in different
+ * groups and keep their own names; two `MACD` chips land together and get the
+ * suffix that names what differs.
+ *
+ * ⛔ AND `siblingSuffixes` ITSELF IS UNTOUCHED, deliberately: the pane context
+ * menu is a third caller whose rows all wear the same catalog noun, so for it the
+ * group is always ambiguous. Whether a group NEEDS suffixing is the caller's
+ * question — which is exactly what that function's header already says.
+ *
+ * @param {{defId: string, plotKey?: string, instanceId?: string, label: string,
+ *          inputs?: object}[]} rows
+ * @param {Function} [get] definition lookup, for the label-bearing-input rule
+ * @returns {string[]} one label per row, in order — unchanged where unambiguous
+ */
+export function disambiguateLabels(rows, get) {
+  const list = Array.isArray(rows) ? rows : []
+  const out = list.map((r) => (r && typeof r.label === 'string' ? r.label : ''))
+  const groups = new Map()
+  list.forEach((r, i) => {
+    if (!r) return
+    const k = `${r.defId}::${r.plotKey === undefined ? '' : r.plotKey}::${out[i]}`
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(i)
+  })
+
+  for (const idxs of groups.values()) {
+    // One row, or several rows for the SAME instance, is not an ambiguity —
+    // MACD's `macd` and `signal` chips are one indicator wearing two names.
+    const distinct = new Set(idxs.map((i) => list[i].instanceId))
+    if (idxs.length < 2 || distinct.size < 2) continue
+
+    // ⛔ THE LABEL-BEARING INPUT IS NOT A DISCRIMINATOR. A definition that names
+    // itself from an input (`meta.labelFrom`) already prints that input's meaning;
+    // appending it reads `QQQ (source sym:QQQ:close)`. See `siblingSuffixes`.
+    const def0 = typeof get === 'function' ? get(list[idxs[0]].defId) : null
+    const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
+      ? (def0.inputs || []).filter((i) => i && i.type === 'source').map((i) => i.key)
+      : []
+    const suffixes = siblingSuffixes(idxs.map((i) => list[i].inputs || {}), ignore)
+    idxs.forEach((rowIdx, n) => { out[rowIdx] = `${out[rowIdx]}${suffixes[n]}` })
   }
   return out
 }

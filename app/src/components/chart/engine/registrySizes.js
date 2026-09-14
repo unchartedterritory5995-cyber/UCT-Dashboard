@@ -58,6 +58,19 @@ export const SHIPPED_DEF_IDS = Object.freeze({
   native: Object.freeze([
     'rsi', 'macd', 'bb', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
     'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
+    // ⭐⭐ THE FIRST DEFINITION THAT IS ITS SOURCE. Every id above names a
+    // CALCULATION; `dataSeries` names none — it hands its source through
+    // unchanged so a symbol, a breadth measure or another indicator's output can
+    // be plotted directly. It ships like any other native because it IS one;
+    // what is unusual is only that its member-facing name comes from its source
+    // rather than from this manifest. Last, in REGISTRATION order.
+    // ⭐ THE FIRST DEFINITION WHOSE INPUT IS A SERIES rather than the bars.
+    // `MA(Close)`, `MA(Volume)` and `MA(RSI)` are ONE definition with different
+    // numeric sources — which is the whole point of the source grammar. In
+    // registration order, which is why it sits here rather than filed
+    // alphabetically.
+    'movingAverage',
+    'dataSeries',
   ]),
   server: Object.freeze(['rsLine']),
   ast: Object.freeze([]),

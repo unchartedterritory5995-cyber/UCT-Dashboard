@@ -10,6 +10,7 @@ import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED, lege
 // against: `REGISTRY_SIZES` is a hand-written manifest's arithmetic, not the set
 // the loop iterated.
 import { REGISTRY_SIZES } from '../registrySizes'
+import { LIBRARY_HIDDEN_IDS } from '../../discoveryCatalog'
 
 // ─── The wiring test (Task 7) ───────────────────────────────────────────────
 //
@@ -1450,8 +1451,12 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // a user cannot put a name to. The literal is WIDENED and stays an equality:
     // a chip-bearing definition that stops being one still fails here.
     expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
-      .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
-        'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      // ⭐ `dataSeries` BEARS A CHIP LIKE ANY OTHER LINE — it draws one and prints
+      // one number. What is unusual is only that the chip is NAMED FROM ITS
+      // SOURCE, so a member reads `QQQ` rather than `Series`.
+      .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries',
+        'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -3905,8 +3910,12 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // ⭐ SEVENTEEN AT PHASE C TASK 13: `rsLine` is the first `compute.kind:
     // 'server'` definition, so the set grew again with no flip and no block.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      // ⭐ EIGHTEEN AT P2.1: `dataSeries` is the first REGISTRY-NATIVE definition —
+      // never a legacy block, never a `cs.indicators` section, never a toggle — so
+      // the set grew again with no flip and nothing to migrate.
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
+        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -4095,10 +4104,27 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // ⭐ EIGHTEEN AT PHASE C TASK 13 — `rsLine` reaches the right-click menu with
     // no edit to the menu, on the SERVER lane, which is the same proof one lane
     // further out.
-    expect(items).toHaveLength(18)
-    expect(items).toHaveLength(catalogRows().length)
-    expect(items.map(i => i.id)).toEqual(catalogRows().map(r => 'ind-' + r.id))
-    expect(items.map(i => i.label)).toEqual(catalogRows().map(r => r.shortName))
+    // ⭐ STILL EIGHTEEN AT P2.1, AND THAT IS THE CLAIM RATHER THAN AN OVERSIGHT.
+    // The registry grew to nineteen rows; this menu offers a toggle on the
+    // DEFINITION, and `dataSeries` has no meaning as one — switching it on would
+    // draw a line of this chart's own close labelled "Series". It is subtracted
+    // here exactly as it is from the library list, and `offered()` reads the same
+    // constant the menu reads so this expectation cannot drift from it.
+    const offered = () => catalogRows().filter(r => !LIBRARY_HIDDEN_IDS.includes(r.id))
+    // ⭐ NINETEEN AT P2.1's SIBLING. `movingAverage` DOES reach this menu, and the
+    // contrast with `dataSeries` is the point: a per-DEFINITION toggle means
+    // something for an average (turn on a moving average) and nothing for a
+    // passthrough (a line of this chart's own close labelled "Series"). One is
+    // offered, the other is subtracted, and both answers come from the same
+    // constant rather than from a hand-picked list.
+    expect(items).toHaveLength(19)
+    expect(items).toHaveLength(offered().length)
+    expect(items.map(i => i.id)).toEqual(offered().map(r => 'ind-' + r.id))
+    expect(items.map(i => i.label)).toEqual(offered().map(r => r.shortName))
+    // ⛔ AND THE SUBTRACTION REALLY REMOVED SOMETHING — otherwise this case is
+    // the old one wearing a filter that does nothing.
+    expect(catalogRows().map(r => r.id)).toContain('dataSeries')
+    expect(items.map(i => i.id)).not.toContain('ind-dataSeries')
     // …and the A7 diff, spelled out where a reviewer sees it.
     expect(items.find(i => i.id === 'ind-bb').label).toBe('BB')
     expect(items.find(i => i.id === 'ind-stoch').label).toBe('Stoch')

@@ -56,6 +56,27 @@ function bars(n = 1500) {
 
 const BARS = bars(1500)
 
+/**
+ * The compute ctx a definition needs to produce anything.
+ *
+ * ⭐ A DEFINITION WHOSE INPUT IS A SERIES READS THE CTX, NOT THE BARS, so sweeping
+ * it with none measures nothing: every column comes back NaN and every case below
+ * would report "drew NOTHING" about an indicator that was never given anything to
+ * average. This rail is about whether the MATHS holds at every value the form
+ * accepts, so it supplies the series the binder resolves in production.
+ *
+ * ⛔ DERIVED FROM THE DECLARATION, NEVER A LIST OF IDS — a hand-written
+ * `['movingAverage']` stops being true the moment a second source-taking
+ * definition lands, and fails as a baffling all-NaN column rather than a missing
+ * row.
+ */
+const ctxFor = (def, n) => {
+  const takesSource = (def.inputs || []).some((i) => i && i.type === 'source')
+  if (!takesSource) return undefined
+  const len = Number.isFinite(n) ? n : BARS.length
+  return { source: Array.from({ length: len }, (_, i) => 100 + Math.sin(i / 6) * 5) }
+}
+
 const NUMERIC = new Set(['int', 'float'])
 
 /** Definitions that cannot draw on this fixture, and why. Narrow on purpose. */
@@ -133,7 +154,7 @@ describe('every declared plot draws something, at every value the form accepts',
           continue
         }
         it(label, () => {
-          const cols = computeFor(def, BARS, { ...defaultsOf(def), [input.key]: v })
+          const cols = computeFor(def, BARS, { ...defaultsOf(def), [input.key]: v }, ctxFor(def))
           for (const k of keys) {
             expect(cols[k], `${def.id}.${k} missing from computeFor output`).toBeTruthy()
             expect(hasAnyFinite(cols[k]),
@@ -154,7 +175,7 @@ describe('every declared plot draws something, at every value the form accepts',
           const b = corner === 'min' ? i.min : i.max
           if (Number.isFinite(b)) combo[i.key] = b
         }
-        const cols = computeFor(def, BARS, combo)
+        const cols = computeFor(def, BARS, combo, ctxFor(def))
         for (const k of keys) {
           expect(hasAnyFinite(cols[k]),
             `${def.id}.${k} drew NOTHING with every input at its ${corner}: `
@@ -172,7 +193,7 @@ describe('no accepted value makes a compute throw', () => {
     it(`${def.id} survives its whole declared range`, () => {
       for (const input of inputs) {
         for (const v of valuesFor(input)) {
-          expect(() => computeFor(def, BARS, { ...defaultsOf(def), [input.key]: v }),
+          expect(() => computeFor(def, BARS, { ...defaultsOf(def), [input.key]: v }, ctxFor(def)),
             `${def.id} threw on ${input.key}=${v}`).not.toThrow()
         }
       }
@@ -187,7 +208,7 @@ describe('every column is index-aligned to the bars it was computed over', () =>
     const keys = plotKeys(def)
     if (!keys.length || CANNOT_DRAW_HERE[def.id]) continue
     it(`${def.id} returns full-length columns`, () => {
-      const cols = computeFor(def, BARS, defaultsOf(def))
+      const cols = computeFor(def, BARS, defaultsOf(def), ctxFor(def))
       for (const k of keys) {
         expect(cols[k].length, `${def.id}.${k} is not bar-aligned`).toBe(BARS.length)
       }

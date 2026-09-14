@@ -34,6 +34,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent, within } from '@testing-library/react'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 // ⚠️ A SIGNED-IN USER, AND A REAL `createContext`. `useUserDefinitions` reads
 // `useContext(AuthContext)` and hands SWR a NULL KEY without a user — so a file
@@ -286,7 +287,14 @@ describe('🔴 a formula the gates refuse SAYS SO, in the gate\'s own words', ()
     open()
     await settle()
     const ids = optionIds()
-    for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]) {
+    // ⛔ MINUS `LIBRARY_HIDDEN_IDS`. `dataSeries` is in the shipped manifest and
+    // deliberately NOT in this list — it plots whatever it is pointed at, so a
+    // row reading "Data Series" means nothing to a member; its rows are `QQQ`
+    // and `UCTA50`, and they arrive through symbol search. The exclusion is
+    // asserted in `IndicatorLibraryDialog.test.jsx`; this sweep subtracts it so a
+    // definition that REALLY fell out of the library still fails here.
+    for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]
+      .filter((id) => !LIBRARY_HIDDEN_IDS.includes(id))) {
       expect(ids, `${shipped} fell out of the library`).toContain(shipped)
     }
     expect(ids).toContain('volumeProfile')

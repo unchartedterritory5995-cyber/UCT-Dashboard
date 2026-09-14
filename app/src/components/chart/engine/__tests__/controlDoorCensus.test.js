@@ -691,6 +691,32 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'OWN settings blob (ChartPane stored/onStore), never the member\'s /charts ' +
        'widget: a panel opened to READ a hit list must not put an instance on the ' +
        'chart they were already using'],
+      ['app/src/testing/panes/paneHarness.jsx',
+       '⭐ THE PANE-IDENTITY LIVE HARNESS, and it is LEDGERED rather than excluded '
+       + 'on purpose. It is a dev-server-only probe — no app route imports it, and '
+       + '`vite build` takes index.html as its only input, so it cannot ship — but it '
+       + 'IS a surface that addresses one instanceId, and this census asks who can say '
+       + '"which copy", not who ships. It exists because the strongest unit case can '
+       + 'stay green through a ruling that reverses it: a mock answering `panes()` with '
+       + 'one frozen pane makes "one pane" and "two panes" the same measurement. This '
+       + 'drives the REAL StockChart against the REAL renderer through the same doors '
+       + 'every shipped surface uses. ⚰️ IT EARNED ITS KEEP AGAIN AT P2.1: it found a '
+       + 'live naming defect no unit case had — four settings rows all reading "Data '
+       + 'Series" while the legend beside them correctly read QQQ. ⛔ IT WRITES '
+       + 'NOTHING: `onSettingsPersist` takes every settings write into page state, and '
+       + 'its own `fetch` wrapper severs /api/auth/preferences in both directions.'],
+      ['app/src/components/chart/discoveryCatalog.js',
+       '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
+       + 'rather than a ninth door. A catalogue result becomes a chart series by '
+       + 'composing two existing writers: `addInstance` mints the instance and '
+       + '`setInstanceInput` points it at `sym:QQQ:close`. ⛔ THE SECOND CALL IS WHY '
+       + 'it needs the per-instance door at all — the source belongs to ONE copy, and '
+       + 'doors 1-7 all take `legacyInstanceId(defId)` and therefore always mean the '
+       + 'first. Adding QQQ twice has to produce two instances pointing at the same '
+       + 'canonical source, which is unsayable through any per-DEFINITION door. '
+       + '⚠️ It also reads `findInstance` to identify the instance it just minted — '
+       + 'by set difference, never by position: after a delete the list ENDS with a '
+       + 'tombstone, and the positional version addressed the corpse (measured).'],
       ['app/src/components/chart/indicatorRegistry.js',
        '⭐ NEW AT chart-UX-walls TASK 6 — applyRowPatch routes a settings row that names ' +
        'a USER-ADDED instance at setInstanceInput. Before Task 6 a generated row was per ' +

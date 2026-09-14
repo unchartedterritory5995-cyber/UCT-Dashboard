@@ -56,6 +56,17 @@ import {
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
+import {
+  sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
+} from './sourceRef'
+import { projectionFor, clippedBarsFor } from './symbolProjection'
+import { ohlcCapabilityOf, barHasOhlc } from './ohlcCapability'
+import { resolvePlotStyle, resolveCandleColors } from './presentation'
+
+/** Monotonic id stamped on each resolved source column, so a consumer's memo key
+ *  can name the exact array it computed against. Non-enumerable, so it can never
+ *  reach a settings blob or a JSON payload. */
+let SOURCE_SERIAL = 0
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -63,6 +74,12 @@ const SERIES_CTOR = {
   histogram: 'HistogramSeries',
   area: 'AreaSeries',
   baseline: 'BaselineSeries',
+  // ⚠️ THE BINDER CAN ONLY BUILD WHAT THIS TABLE NAMES, and a pool key absent
+  // from it resolves to `undefined`: `addSeries(undefined, …)` throws, `attempt`
+  // swallows it, and the result is an orphaned binding — a plot that plans,
+  // computes, and then silently does not exist. `engineLwc()` in StockChart must
+  // carry the constructor this names, or the same hole opens one file over.
+  candlestick: 'CandlestickSeries',
 }
 
 /**
@@ -86,6 +103,60 @@ const SERIES_CTOR = {
  * `>= 0` is green, matching the legacy comparison exactly. A whitespace point
  * carries no colour, which is correct: there is no bar to colour.
  */
+// ─── THE ONE COMPOUND PAYLOAD ─────────────────────────────────────
+//
+// ⛔⛔ TAGGED, NOT DUCK-TYPED. `payload.bars !== undefined` would be a contract
+// nobody declared, and a Float64Array that grew a property would silently change
+// lanes. `kind` is the only thing any reader tests.
+//
+// ⛔ AND COMPUTE NEVER SEES ONE. `columns` feeds two consumers: the renderer,
+// and the source resolution that hands a numeric column to `computeFor`. An OHLC
+// payload is produced only for a binding whose PRESENTATION asked for candles,
+// and a source reference always resolves through the scalar projection — so
+// `MA(QQQ)` reads `sym:QQQ:close` exactly as it did.
+const OHLC_KIND = 'ohlc'
+
+/** A tagged OHLC payload for one visual binding. */
+function ohlcPayload(bars) {
+  return { kind: OHLC_KIND, bars: Array.isArray(bars) ? bars : [] }
+}
+
+/** Is this binding payload the coordinated bar shape rather than a column? */
+function isOhlcPayload(v) {
+  return !!v && typeof v === 'object' && v.kind === OHLC_KIND
+}
+
+/**
+ * Canonical bars → LWC `CandlestickData`.
+ *
+ * ⛔ THE BAR'S OWN `t`, NEVER THE PRIMARY'S. `clippedBarsFor` has already dropped
+ * every bar outside the chart's time domain, so each survivor is a real bar of
+ * the secondary instrument at its own timestamp. Rewriting it would attribute one
+ * instrument's auction to another's bar.
+ *
+ * ⛔ AND NO SIGN COLOURS. `colorMode: 'sign'` paints a histogram bar from the
+ * value's sign; a candle's colour is its own up/down option and is LWC's to
+ * decide from open vs close. Threading the scalar machinery through here would
+ * paint every candle one colour and call it a feature.
+ */
+function toOhlcPoints(payload, adjustTime) {
+  const bars = payload && Array.isArray(payload.bars) ? payload.bars : []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i]
+    const time = adjustTime(b.t)
+    // A bar the capability probe admitted may still be individually incomplete —
+    // whitespace, exactly as a NaN column position becomes whitespace.
+    if (!Number.isFinite(b.o) || !Number.isFinite(b.h)
+      || !Number.isFinite(b.l) || !Number.isFinite(b.c)) {
+      out[i] = { time }
+      continue
+    }
+    out[i] = { time, open: b.o, high: b.h, low: b.l, close: b.c }
+  }
+  return out
+}
+
 function toPoints(column, bars, adjustTime, signColors) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
@@ -492,7 +563,41 @@ export function createBinder({ chart, LWC }) {
     // cannot be computed must not take the paint down with it.
     const columns = new Map()
     const computedIds = new Set()
+
+    // ⭐⭐ BARS FOR ANY CANONICAL SYMBOL AN INSTANCE NAMES, AS DATA. The binder
+    // never fetches — `sync` runs inside a paint — so this arrives already
+    // resolved, exactly as `bars` does. Absent is not an error: it is a chart
+    // with no symbol sources, and every lookup simply misses.
+    const secondary = ctx.secondary && typeof ctx.secondary.get === 'function'
+      ? ctx.secondary : null
+
+    // ⛔⛔ DEPENDENCY ORDER, NOT ARRAY ORDER. The loop below used to walk
+    // `instances` as stored — which is the order they were ADDED — and that was
+    // correct only by accident: a definition reading another instance's output
+    // would compute against a column that did not exist yet and silently draw
+    // nothing. `orderByDependency` is Kahn's algorithm over the edges that exist
+    // and nothing more; a cycle is REPORTED rather than sorted around, and the
+    // ids in it are refused below instead of spun on.
+    const { ordered, cyclic } = orderByDependency(instances, (id) => registry.getDefinition(id))
+
+    // ── WHO IS READ BY SOMEBODY ELSE ─────────────────────────────────
+    //
+    // ⛔⛔ VISIBILITY IS INK, NOT EXISTENCE. The hidden-skip below exists because
+    // computing what nobody draws is a full pass over the bar set for nothing —
+    // and that stays true for a hidden instance nobody reads, and STOPS being
+    // true the moment one does. Hiding a QQQ series must not silently take
+    // `MA(QQQ)` down with it: the eye icon is about what is DRAWN.
+    const dependedOn = new Set()
     for (const inst of instances) {
+      if (!inst || inst.hidden === true) continue
+      const idef = registry.getDefinition(inst.defId)
+      for (const [, value] of sourceInputsOf(idef, inst)) {
+        const parsed = parseSource(value)
+        if (parsed && parsed.kind === 'instance') dependedOn.add(parsed.instanceId)
+      }
+    }
+
+    for (const inst of ordered) {
       if (!inst || typeof inst.instanceId !== 'string') continue
       // A HIDDEN instance is computed by NOBODY. `planBindings` drops it on its
       // first line (`if (inst.hidden === true) continue`), before it ever asks
@@ -506,12 +611,70 @@ export function createBinder({ chart, LWC }) {
       // line's antialiasing on one scanline. It did not fully explain that flake
       // (see the runbook's "a diff confined to one scanline" note), but it was
       // wasted work either way.
-      if (inst.hidden === true) continue
+      if (inst.hidden === true && !dependedOn.has(inst.instanceId)) continue
       const def = registry.getDefinition(inst.defId)
       if (!def) continue
       computedIds.add(inst.instanceId)
 
-      const sig = inputsSignature(inst.inputs)
+      // ⛔ A CYCLE COMPUTES NOTHING. It is not an error the member can see yet,
+      // but it is never a partial answer either: the instance is skipped whole.
+      if (cyclic.has(inst.instanceId)) continue
+
+      // ── THE SOURCE, RESOLVED INTO A NUMERIC SERIES ───────────────────────
+      //
+      // Three families, and the definition never learns which one it got:
+      //   a BAR FIELD  — read off the chart's own bars.
+      //   an INSTANCE  — a lookup in `columns`, which the dependency order above
+      //                  guarantees is already filled. The key is the same string
+      //                  `bindingKey` writes, so a source reference and a computed
+      //                  column cannot drift apart.
+      //   a SYMBOL     — projected from the canonical secondary bar bundle.
+      //
+      // ⛔⛔ AN UNSUPPLIED SYMBOL IS `null`, WHICH IS NOT-COMPUTABLE — NEVER THE
+      // CHART'S OWN BARS. Falling back to the bars in hand would answer
+      // confidently about the WRONG INSTRUMENT, which is the one failure here
+      // that looks exactly like success.
+      let sourceCols = null
+      let sourceSig = ''
+      for (const [key, value] of sourceInputsOf(def, inst)) {
+        const parsed = parseSource(value)
+        let series = null
+        if (parsed && parsed.kind === 'bar') series = barFieldSeries(bars, parsed.field)
+        else if (parsed && parsed.kind === 'instance') {
+          series = columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
+        } else if (parsed && parsed.kind === 'symbol') {
+          const entry = secondary ? secondary.get(parsed.symbol) : null
+          const secBars = entry && Array.isArray(entry.bars) && entry.bars.length ? entry.bars : null
+          // ⭐ EXACT-t ALIGNMENT, NO FORWARD FILL — `projectionFor` aligns the
+          // secondary's own timestamps to the chart's and leaves a missing bar as
+          // a GAP. A hole is the truth; a carried-forward value is a price that
+          // never traded.
+          series = secBars ? projectionFor(secBars, parsed.field, bars) : null
+        }
+        sourceCols = sourceCols || {}
+        sourceCols[key] = series
+        // ⭐ THE COLUMN'S IDENTITY IS THE INVALIDATION KEY, and it costs nothing.
+        // A recomputed source is a NEW array, so the consumer's memo misses and it
+        // recomputes; a source that only changed COLOUR or PANE returns the very
+        // same array from its own memo, so the consumer hits and does not. The
+        // dependency invalidation rule is therefore not a rule anybody has to
+        // maintain — it is object identity.
+        sourceSig += `${key}${value}`
+        if (series) {
+          if (!series.__srcId) {
+            SOURCE_SERIAL += 1
+            try { Object.defineProperty(series, '__srcId', { value: SOURCE_SERIAL, enumerable: false }) }
+            catch { /* a frozen column keeps its place in the signature below */ }
+          }
+          sourceSig += `#${series.__srcId || 0}`
+        }
+      }
+      // ⛔ THE PRIMARY SOURCE IS THE FIRST DECLARED ONE. `ctx.source` is what a
+      // single-source definition reads; `ctx.sources` carries them all by input
+      // key for the day one takes two.
+      const primarySource = sourceCols ? sourceCols[Object.keys(sourceCols)[0]] : null
+
+      const sig = inputsSignature(inst.inputs) + sourceSig
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === bars && memo.sig === sig) {
@@ -523,7 +686,8 @@ export function createBinder({ chart, LWC }) {
         // line registered, enabled and permanently blank — a definition that
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
-        const r = attempt(() => registry.computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf }))
+        const r = attempt(() => registry.computeFor(def, bars, inst.inputs,
+          { sym: ctx.sym, tf: ctx.tf, source: primarySource, sources: sourceCols }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -537,19 +701,74 @@ export function createBinder({ chart, LWC }) {
           computeMemo.delete(inst.instanceId)
         }
       }
+      // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
+      //
+      // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved
+      // presentation is `candles`, the source is a canonical SYMBOL, and
+      // `ohlcCapabilityOf` says that symbol's PROVIDER FAMILY means an auction
+      // period by those four fields. Absent `ctx.ohlcFamilyOf` nothing is
+      // capable — fail closed, because "not classified yet" must never read as
+      // "ordinary security".
+      const ohlcBarsForPlot = (definition, instance, plotKey) => {
+        const declared = sourceInputsOf(definition, instance)
+        if (!declared.length) return null
+        const parsed = parseSource(declared[0][1])
+        if (!parsed || parsed.kind !== 'symbol') return null
+        const entry = secondary ? secondary.get(parsed.symbol) : null
+        const cap = ohlcCapabilityOf(definition, parsed, entry, ctx.ohlcFamilyOf)
+        if (!cap.ok) return null
+        const plot = (definition.plots || []).find((pl) => pl && pl.key === plotKey)
+        if (!plot) return null
+        // ⛔ THE SAME RESOLUTION THE PLAN MADE, with the same capability answer —
+        // a stored `candles` the source cannot mean is clamped to a line in both
+        // places, so the series type and its payload can never disagree.
+        if (resolvePlotStyle(instance, plot, { ohlcCapable: true }) !== 'candles') return null
+        return clippedBarsFor(entry.bars, bars)
+      }
+
       for (const plotKey of Object.keys(cols)) {
-        columns.set(bindingKey(inst.instanceId, plotKey), cols[plotKey])
+        // ⭐⭐ THE ONE PLACE A BINDING BECOMES COMPOUND. The column above was
+        // computed exactly as it always is — this does not replace a CALCULATION,
+        // it replaces what the RENDERER is handed for an output whose presentation
+        // asked for candles and whose source can mean them. Everything upstream
+        // (the projection, `computeFor`, the memo) is untouched, which is why
+        // `MA(QQQ)` and a QQQ line are byte-identical.
+        const ohlcBars = ohlcBarsForPlot(def, inst, plotKey)
+        columns.set(bindingKey(inst.instanceId, plotKey),
+          ohlcBars ? ohlcPayload(ohlcBars) : cols[plotKey])
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
 
     const hasData = (key) => {
       const col = columns.get(key)
+      // ⭐ "IS THERE ANYTHING TO DRAW" HAS TWO SHAPES NOW. `hasAnyFinite` walks a
+      // numeric column and would read an OHLC payload as EMPTY — which would drop
+      // the binding before the renderer ever saw it, silently, with the bars
+      // sitting right there in the cache.
+      if (isOhlcPayload(col)) return col.bars.some(barHasOhlc)
       return col !== undefined && registry.hasAnyFinite(col)
     }
 
     // ── 2. Ask the pool what should happen ──
-    const { bind, release } = planBindings(instances, registry, held, { hasData })
+    // ⭐⭐ ONE CAPABILITY ANSWER PER INSTANCE, ASKED ONCE AND SHARED. The plan
+    // needs it (a `candles` style decides the SERIES TYPE), the style resolution
+    // needs it (the clamp refuses what the source cannot mean), and the payload
+    // production needs it. Three readers of one answer, so they cannot disagree
+    // about whether a member's stored style is honoured.
+    const ohlcCapableFor = (instance) => {
+      const idef = registry.getDefinition(instance && instance.defId)
+      if (!idef) return false
+      const declared = sourceInputsOf(idef, instance)
+      if (!declared.length) return false
+      const parsed = parseSource(declared[0][1])
+      if (!parsed || parsed.kind !== 'symbol') return false
+      const entry = secondary ? secondary.get(parsed.symbol) : null
+      return ohlcCapabilityOf(idef, parsed, entry, ctx.ohlcFamilyOf).ok
+    }
+    const { bind, release } = planBindings(instances, registry, held, {
+      hasData, ohlcCapable: ohlcCapableFor,
+    })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
     // instance's first VISIBLE plot BEFORE the hidden-plot skip below ever
@@ -578,6 +797,16 @@ export function createBinder({ chart, LWC }) {
      *  moved. `adjustTime` is part of the key because it is what stamps every
      *  `time`; it is a stable `useCallback` in `StockChart`, so this hits. */
     const pointsFor = (b, column) => {
+      // ⭐ ONE ADAPTER, TWO SHAPES. The memo is keyed on the payload's IDENTITY
+      // exactly as it is on a column's, so a candle binding that did not change
+      // re-uses its points for the same reason a line does.
+      if (isOhlcPayload(column)) {
+        const m0 = pointMemo.get(b.key)
+        if (m0 && m0.column === column && m0.adjustTime === adjustTime) return m0.points
+        const pts = toOhlcPoints(column, adjustTime)
+        pointMemo.set(b.key, { column, bars, adjustTime, up: null, down: null, points: pts })
+        return pts
+      }
       const sc = signColorsForPlot(b.plot)
       const up = sc ? sc.up : null
       const down = sc ? sc.down : null
@@ -632,6 +861,13 @@ export function createBinder({ chart, LWC }) {
         // option set, so without this the engine would re-show a hidden series on
         // the next paint — roughly once a second in extended hours.
         indicatorsHidden: ctx.indicatorsHidden === true,
+        // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
+        // chart's own palette the default: `cs.candles` is the member's candle
+        // colour, so a secondary instrument wears it until they override it on
+        // this instance. No new palette, no second source of truth.
+        candleColors: b.poolKey === 'candlestick'
+          ? resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles)
+          : null,
       })
       if (!options) { orphan(b); continue }
 

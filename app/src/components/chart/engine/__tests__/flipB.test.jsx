@@ -254,8 +254,14 @@ describe('Flip B — the set itself', () => {
     // `atrBands` are the first definitions that never were one, so the set grew
     // with no flip happening at all. That distinction is the whole of §A5.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      // ⭐⭐ `dataSeries` IS THE EIGHTEENTH, AND IT IS THE FIRST OWNED DEFINITION
+      // WITH NO LEGACY ANCESTRY AT ALL. `avwap` and `atrBands` were the first that
+      // were never a migrated BLOCK; this one was never a hardcoded anything — no
+      // block, no `cs.indicators` section, no toggle. Registry-native, and the set
+      // grew with no flip happening.
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
+        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
     // ⭐ B5 TASK 13: this line used to read `ENGINE_MIGRATED_DEF_IDS` on the left
     // and `ENGINE_FLIPPED_DEF_IDS` on the right — the subset relation. With both
     // literals deleted the honest form is the one that can still FAIL: everything
