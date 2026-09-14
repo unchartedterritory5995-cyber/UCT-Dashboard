@@ -879,3 +879,55 @@ R  the auto bar-range seam hands back a permissive provider  1 failed
 `db3475c8…` freeze sha nor any extractor metric was re-derived here — only the mechanism that
 records and compares it; and `WISDOM_EXTRACT_BUDGET_USD`'s live value on Railway was not read
 (no variable reads or writes were performed), so the $120 code default is what the rails measure.
+
+---
+
+## Wave 1.5 — two ways a MUTATION HARNESS destroyed work in a shared worktree, 2026-09-14
+
+Both found by executing, both inside the repo's own standing rule *"restore byte-exact, never
+`git checkout`"* — which turns out to assume something nobody wrote down.
+
+### 1. Byte-exact restore is a TIME MACHINE when the tree has two writers
+
+⛔ **The standing rule assumes ONE writer.** A subagent's harness captured `golden.py`'s bytes
+once at the start of its run and restored those exact bytes after each mutant. The integrator's
+edits landed *inside that window*, so the restore silently reverted them — and the harness's own
+check passed, because the sha matched the bytes IT had captured. **The failure is invisible from
+inside the instrument: the restore succeeds, the sha agrees, and somebody else's work is gone.**
+
+Lost and re-applied: `_ANTONYMS` and `_polarity_conflict` in `extract/golden.py`.
+
+⭐ **The fix is not "don't mutate" — it is to re-read immediately before each mutant, and to
+ABORT rather than restore when the file moved under you.** Restoring is only safe when the bytes
+on disk are the bytes you mutated; otherwise the correct action is to leave the file alone and
+say so. The subagent rewrote its harness that way and named the rule better than the warning it
+was given.
+
+### 2. `write_text()` on a CRLF file re-translates the newlines, and the harness then eats itself
+
+⚰️ The integrator's own harness, ten minutes later, in the other direction. It read `writer.py`
+as BYTES, decoded to text (keeping `\r\n`), mutated, and wrote back with `write_text()` — which
+on Windows translates every `\n` to `\r\n`, turning each existing `\r\n` into `\r\r\n`. The
+read-back no longer matched what it thought it had written, so it concluded **a concurrent
+writer had touched the file** and aborted *"leaving the file as found"* — which left **the
+mutant in the working tree** and 832 doubled line endings behind it.
+
+⛔ Three lessons, and the third is the general one:
+- **Bytes in, bytes out.** A harness that mutates source must `read_bytes`/`write_bytes`
+  throughout; text mode silently rewrites the file's line endings.
+- **An abort path must restore, not merely stop.** "Leaving the file as found" is the wrong
+  default when what you found is your own mutant.
+- ⭐ **A concurrency check can fire on your own corruption.** This one reported another writer
+  when there was none — the instrument diagnosed the world for a fault in itself
+  (`lesson_an_instrument_can_reproduce_its_own_blind_spot`). It was caught only because the next
+  command grepped for the mutant instead of trusting the harness's summary.
+
+⚠️ Repaired at byte level rather than with `git checkout`, which would have destroyed the
+uncommitted Wave 1.5 item 4 work in the same file. `tools/check_repo_hygiene.py` clean afterwards.
+
+### 3. And a reformat is a correct, unreviewable edit
+
+Rewriting `extraction-output-v0.schema.json` with `json.dumps(indent=2)` to change three fields
+produced **384 added / 53 removed**. Restored and redone as a targeted text edit: **3 changed
+lines**. Same content, same tests, and a diff a human can actually review — the same defect the
+CRLF ruling (R-2) names, arrived at through formatting instead of line endings.
