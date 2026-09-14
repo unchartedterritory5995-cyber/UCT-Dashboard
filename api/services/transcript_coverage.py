@@ -112,6 +112,13 @@ STT_VAD_RATIONALE = (
 )
 #: Measured 2026-09-11 on the render pipeline and re-used by the overnight STT run: the
 #: hallucination LOOP class VAD does not cover. N=12 -> 1/12 distinct and clean.
+#: ⚠️ RECORDED, NOT ENFORCED — and said so rather than left to look like a guard, because
+#: "a rule no check enforces lasts until somebody changes it". The committed STT call site
+#: (`tools/desk_transcript_gapfill.py::transcribe`) does NOT pass this kwarg at all, so
+#: faster-whisper's default (True) is what a gap-fill run uses today. Railing it would
+#: change that tool's transcription behaviour, which is a separate decision with its own
+#: evidence; this constant states the setting the overnight run used and no more.
+#: FOLLOW-UP: decide whether the gap-fill tool should pass it, then rail whichever answer.
 STT_CONDITION_ON_PREVIOUS_TEXT = False
 
 _VERDICTS = ("complete", "incomplete", "inconclusive")
