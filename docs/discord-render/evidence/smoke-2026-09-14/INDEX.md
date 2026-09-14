@@ -70,6 +70,21 @@ it" from "it is not being shadowed"; the channel gate is what tells them apart.
 
 ---
 
+## ⚠️ A method constraint 3.5's script does not mention: ephemeral replies do not survive a reload
+
+`/renderhealth`, `/buzz` and every refusal reply are **ephemeral**. Discord renders those
+client-side only — they are **gone after any page reload or navigation**, and the channel then looks
+empty. Both rows above were read live and are described here verbatim; the screenshots were lost to
+a reload before they were written to disk, which is a mistake in method, not in the result.
+
+⛔ **For the remaining rows: save each screenshot to disk in the same action that takes it, before
+any navigation.** And keep the log line beside it — the `drender` event and the `chart-renderer`
+line are the durable half, they carry the timings a screenshot cannot, and they survive everything.
+
+⭐ This is also why row 8's finding is solid despite the lost image: `status=200 ms=10738` and
+`The application did not respond` are two independent observations of the same event, and the log
+one is the one that says *why*.
+
 ## What "done" means, and what this run is
 
 Not done. Two of fifteen rows attempted, one pass, one real failure found. The remaining thirteen
