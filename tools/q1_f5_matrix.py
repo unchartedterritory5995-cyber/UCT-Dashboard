@@ -461,6 +461,24 @@ FORCE_NAV = {"on": False, "path": "/charts"}
 # overwrites the dirty record and deletes its intent, on the ordinary navigation
 # path every member takes.
 NO_DOOR = {"on": False, "path": "/charts"}
+
+# ⛔⛔ THE CELL THAT ISOLATES THE VARIABLE — SECOND-WRITER-WHILE-AWAY.
+#
+# navigate-no-door came back GREEN: leaving the note and returning, with work
+# queued and NO door fired, does not cost the member their words. So navigation
+# alone is safe and the RED cells differ in something else.
+#
+# ⭐ The remaining difference is whether THE SERVER'S COPY CHANGED while the
+# member was away. This cell changes exactly that and nothing else: same queue,
+# same route away, same return, same release — but while the first context is
+# away and offline, a SECOND browser context signed in as the same account moves
+# note N's folder through the member's own door.
+#
+# ⛔ It must be a second CONTEXT, not a second tab. Measured 2026-09-13 against a
+# throwaway browser on a temp profile: two CDP browser contexts see NOTHING of
+# each other's localStorage or IndexedDB. A second tab in the same context shares
+# the durable copy and the Web Lock, which is a different experiment entirely.
+SECOND_WRITER = {"on": False, "path": "/charts"}
 SPA_RETURN = {"on": False}
 
 WARM_ROUTES = {
@@ -940,7 +958,82 @@ def _baseline_in(body: str):
     return m.group(2) if m.group(2) is not None else None
 
 
+rig_ref = {}
+
+SECOND_WRITER_ME_JS = """async () => {
+  const r = await fetch('/api/auth/me', {credentials:'include'});
+  const ct = r.headers.get('content-type') || '';
+  // ⛔ `ok` IS NOT PROOF: this app serves an SPA catch-all, so a wrong path comes
+  // back 200 text/html. Only JSON counts as an answer.
+  return {status: r.status, json: ct.includes('application/json')};
+}"""
+
+SECOND_WRITER_REV_JS = """async (id) => {
+  // A READ, not a door. The rule against scripted fetches governs how the
+  // PRODUCT is driven; the door below is the member's own control. This only
+  // asks the server what revision it now holds, which no surface reports.
+  const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+  if (!r.ok) return null;
+  const j = await r.json().catch(() => null);
+  return j && j.note ? j.note.updatedAt : null;
+}"""
+
+
+def second_writer_door(page, base, note_id, log):
+    """A SECOND context, signed in as the same rig account, moves note N's folder
+    while the first context is away and offline.
+
+    ⛔⛔ EVERY FAILURE HERE IS INCONCLUSIVE, NEVER GREEN. A second writer that
+    wrote nothing leaves the cell with no variable at all, and the run would then
+    measure the navigate-no-door case a second time and report it as this one —
+    a fixture that cannot distinguish is not a rail. So the revision is read
+    before and after, and an unmoved revision refuses the cell.
+
+    ⛔ The session cookie is carried across programmatically and is never printed,
+    logged, or written to the table. It is the rig identity, which is the only
+    identity this programme is allowed to drive.
+    """
+    browser = page.context.browser
+    if browser is None:
+        return {"ok": False, "why": "no Browser handle behind this context - cannot open a second writer"}
+    cookies = page.context.cookies()
+    if not cookies:
+        return {"ok": False, "why": "the rig context carried no cookies - a signed-out second writer changes nothing"}
+    ctx2 = browser.new_context()
+    try:
+        ctx2.add_cookies(cookies)
+        p2 = ctx2.new_page()
+        p2.goto(base + "/journal/notebook?note=" + note_id, wait_until="domcontentloaded")
+        me = p2.evaluate(SECOND_WRITER_ME_JS)
+        if not (isinstance(me, dict) and me.get("status") == 200 and me.get("json")):
+            return {"ok": False,
+                    "why": ("the second context is NOT signed in (/api/auth/me " + str(me) + ") - "
+                            "it would have changed nothing and the cell would have read GREEN "
+                            "for the wrong reason")}
+        p2.wait_for_timeout(6000)
+        before = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
+        res = p2.evaluate(rig_ref["rig"].REAL_DOOR_JS, {"door": "folder", "value": None})
+        log("      second writer door: " + str(res))
+        if not (isinstance(res, dict) and res.get("ok")):
+            return {"ok": False,
+                    "why": "the second context could not open the folder door: " + str((res or {}).get("why", res))}
+        p2.wait_for_timeout(6000)
+        after = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
+        if not after or after == before:
+            return {"ok": False,
+                    "why": ("the second writer fired the folder door but the server's revision did "
+                            "not move (" + str(before) + " -> " + str(after) + ") - this cell has no variable")}
+        return {"ok": True, "via": "SECOND CONTEXT - folder door (member's own control)",
+                "server_before": before, "server_after": after}
+    finally:
+        try:
+            ctx2.close()
+        except Exception:  # noqa: BLE001
+            log("      (the second context would not close cleanly)")
+
+
 def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
+    rig_ref["rig"] = rig
     from_cell = time.time()
     offline = rig._offliner(cdp)
     sentence = f"{SENTINEL} {family} {ordering.split(' (')[0]} {stamp} the member's offline words"
@@ -1110,9 +1203,18 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         landed_before = [p for p in posts
                          if p.get("carries_sentence") and isinstance(p.get("status"), int)
                          and 200 <= p["status"] < 300]
-        offline(False)
+        # ⛔ THE ORDER IS THE EXPERIMENT. Every other cell reconnects here and
+        # then fires its door. Second-writer-while-away must stay OFFLINE while
+        # the other device writes — that is what "while away" means — and
+        # reconnects only after returning to the note, exactly as ruled:
+        # queue offline · navigate away · second writer moves the server ·
+        # return · reconnect · drain.
+        if not SECOND_WRITER["on"]:
+            offline(False)
         before_door = len(landed_before)
-        if NO_DOOR["on"]:
+        if SECOND_WRITER["on"]:
+            res = second_writer_door(page, base, note_id, log)
+        elif NO_DOOR["on"]:
             # ⛔ NOTHING IS FIRED. The navigation already happened above; this
             # cell's whole content is the absence of a door.
             res = {"ok": True, "via": "NO DOOR — navigation only"}
@@ -1135,7 +1237,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         page.wait_for_timeout(5000)
 
         # For an append family the row only counts if its OWN endpoint was hit.
-        if family in APPEND and not NO_DOOR["on"]:
+        if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
             hit = [p for p in posts if ENDPOINT[family] in p["u"]]
             if not hit:
                 return {"verdict": "INCONCLUSIVE",
@@ -1200,7 +1302,18 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # ⭐ So the cell does what a member does next: it leaves the note. That
         # releases the entry to the drain WITHOUT firing any door, which is the
         # only way this experiment can reach the question it is asking.
-        if NO_DOOR["on"]:
+        # ⛔ RECONNECT ONLY NOW, and only for this cell. The member came back to a
+        # note whose server copy moved while they were away, and only then did the
+        # transport return.
+        if SECOND_WRITER["on"]:
+            offline(False)
+            log("      reconnected AFTER returning to the note (this cell's ordering)")
+        # ⛔⛔ THE EDITOR OWNS ITS OWN NOTE, so the drain SKIPS it (`excludeNoteId`)
+        # and sitting on the note is a state in which queued words never leave.
+        # Both of these cells therefore do what a member does next — leave —
+        # which releases the entry WITHOUT firing any door in this context.
+        # ⭐ Identical in both cells, so it cannot be the difference between them.
+        if NO_DOOR["on"] or SECOND_WRITER["on"]:
             page.goto(f"{base}/journal/notebook", wait_until="domcontentloaded")
             page.wait_for_timeout(5000)
             log("      released the note (editor closed) so the drain may take the entry")
@@ -1285,7 +1398,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
 
         # Did the door's own node survive the drain? Only an append family has one.
         node_ok, node_note = True, ""
-        if family in APPEND and not NO_DOOR["on"]:
+        if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
             marks = {"append_widget_embed": "widgetEmbed",
                      "append_financial_fact": "financialFact",
                      "append_document_excerpt": "documentExcerpt"}
@@ -1383,6 +1496,11 @@ def main() -> int:
                     help="leave the note and come back WITHOUT firing any door. The "
                          "cell that separates navigation from the append families. "
                          "A CONTROLLED EXPERIMENT, never a table row.")
+    ap.add_argument("--second-writer", metavar="PATH", nargs="?", const="/charts",
+                    help="queue an offline edit, leave the note, have a SECOND signed-in "
+                         "browser context move the note's folder while away, return, "
+                         "reconnect, drain. Isolates 'the server moved' from 'we "
+                         "navigated'. A CONTROLLED EXPERIMENT, never a table row.")
     ap.add_argument("--spa-return", action="store_true",
                     help="come back to the Notebook by SPA route change instead "
                          "of a document load. A CONTROLLED EXPERIMENT, never a row.")
@@ -1395,6 +1513,15 @@ def main() -> int:
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
 
+    if args.second_writer:
+        SECOND_WRITER["on"] = True
+        SECOND_WRITER["path"] = args.second_writer
+        WARM_ROUTES.clear()
+        for f in list(METADATA) + list(APPEND):
+            WARM_ROUTES[f] = args.second_writer
+        print(f"⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to "
+              f"{args.second_writer}, a SECOND signed-in context moves the folder, return, "
+              f"reconnect, drain. CONTROLLED EXPERIMENT, not a table row.")
     if args.navigate_no_door:
         NO_DOOR["on"] = True
         NO_DOOR["path"] = args.navigate_no_door
@@ -1588,7 +1715,8 @@ def main() -> int:
                     res = {"verdict": "INCONCLUSIVE",
                            "why": f"the cell raised {type(e).__name__}: {str(e)[:200]}"}
                 print(f"   ⇒ {res['verdict']}  {res['why'][:150]}")
-                if FORCE_NAV["on"] or SPA_RETURN["on"] or NO_DOOR["on"]:
+                if (FORCE_NAV["on"] or SPA_RETURN["on"] or NO_DOOR["on"]
+                        or SECOND_WRITER["on"]):
                     # ⛔ A FORCED-NAV CELL IS NOT A TABLE CELL. It answers a
                     # different question, and banking it would put an answer to
                     # the wrong question in the artifact the freeze lifts on.
