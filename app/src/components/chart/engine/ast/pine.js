@@ -9064,6 +9064,36 @@ function substConst(node, varName, value) {
  *  send them to wait for a lane that was never going to serve them. The routing
  *  belongs to `seriesDependentMessage`, which composes it where it is true.
  */
+/** ⭐⭐ R7 — WHY A COUNTED `for`'s ACCUMULATOR IS NOT FOLDED, with its number.
+ *
+ *  `s := s + close[i]` over a bounded loop IS plan-time expressible in principle —
+ *  `((0 + close[0]) + close[1]) + close[2]`, Mechanism A applied to a scalar instead
+ *  of a vector — and 379 of 1,004 counted-`for` bodies in the corpus have this shape,
+ *  more than every other admitted shape combined. It is still not built, because
+ *  being expressible in principle is not the threshold: **1 of 379** of those bodies
+ *  is admissible once seed, shape, bound and escape all have to hold at once, and
+ *  that one runs a single iteration (ruling R7, on the F4 logic that retired `while`
+ *  at 15 of 116 and `for … in` at 13 of 92).
+ *
+ *  ⛔ THE SENTENCE NAMES THE BINDING CONSTRAINT, NOT JUST THE VERDICT. Only **63 of
+ *  379** of these loops have an iteration count this engine could settle, and that —
+ *  not the accumulator's shape — is what a reopening would have to change. Dropping
+ *  the other three requirements one at a time leaves 7, 50 and 9 admissible; dropping
+ *  the bound requirement leaves 106, but those are precisely the loops nothing can
+ *  unroll. Telling a member "this is not folded" without that is telling them a
+ *  verdict they cannot act on.
+ */
+function accumulatorNote(stmt) {
+  const hdr = stmt.header || []
+  if (!hdr[0] || hdr[0].value !== 'for') return null
+  if (hdr.some((tok) => tok && tok.kind === 'ident' && tok.value === 'in')) return null
+  return 'a running total built inside a `for` is not folded into one expression on'
+    + ' this lane — of 1,004 counted `for` loops in the reference corpus 379 do this,'
+    + ' and only 1 of 379 has a seed, an update shape, an iteration count and a scope'
+    + ' this engine can settle all at once (ruling R7). The binding constraint is the'
+    + ' ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs'
+}
+
 function loopFormNote(stmt) {
   const hdr = stmt.header || []
   const word = hdr[0] && hdr[0].value
@@ -10700,7 +10730,13 @@ export function translatePine(source, opts = {}) {
         // expression — a`, which is true of a scalar and says nothing about an array
         // whose slots are unknown.
         const prior = env.get(name)
-        forceOpaque(name, 'pine:reassign', locate(first), name)
+        // ⭐ R7 — a SCALAR accumulator gets the reason, not just the verdict. A vector
+        // target takes the array sentence a few lines down; this is the other branch,
+        // and `accumulatorNote` returns null for anything that is not a counted `for`,
+        // so an `if`/`switch`/`while` target keeps the plain sentence it had.
+        const accWhy = prior && prior.kind === 'vector' ? null : accumulatorNote(stmt)
+        forceOpaque(name, 'pine:reassign', locate(first),
+          accWhy ? `\`${name}\` — ${accWhy}` : name)
         // ⛔⛔ AND A VECTOR IS REPLACED OUTRIGHT, NOT MERELY MARKED.
         //
         // ⚰️ `forceOpaque` records the refusal for the SCALAR path, and the
