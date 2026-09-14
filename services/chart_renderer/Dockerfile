@@ -10,7 +10,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ImportError at boot, which takes the renderer down rather than degrading.
 COPY app.py .
 COPY edge_scope.py .
+COPY serve.py .
 
 ENV PORT=8080
-# `::` — Railway's private network is IPv6-only; binding 0.0.0.0 is unreachable from web.
-CMD ["sh", "-c", "exec uvicorn app:app --host :: --port ${PORT}"]
+# ⚰️ WAS: `uvicorn app:app --host :: --port ${PORT}` — right instinct, wrong
+# implementation. Railway's private network IS IPv6 (so `0.0.0.0` would be
+# unreachable from web), but `--host ::` is IPv6-ONLY: CPython's asyncio forces
+# IPV6_V6ONLY on every AF_INET6 server socket. Railway's healthcheck probe
+# arrives over IPv4, so it could never connect — 11 failed attempts against a
+# healthy, already-rendering app, with ZERO `GET /health` lines to show for it.
+# `serve.py` binds ONE dual-stack socket (IPv6 + IPv4) and hands it to uvicorn.
+CMD ["sh", "-c", "exec python -u serve.py"]
