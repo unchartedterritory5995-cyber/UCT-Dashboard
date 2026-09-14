@@ -41,6 +41,7 @@ import { isIndicatorEnabled } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 // ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
 //
@@ -58,7 +59,10 @@ import { evaluateFormula } from './builder/FormulaField'
 
 /** Every row the DIALOG offers from the SHIPPED lists, in render order. The
  *  member's own formulas are appended by the cases that install one. */
-const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows()]
+// ⛔ MINUS `LIBRARY_HIDDEN_IDS` — the same subtraction the dialog makes, read
+// from the same constant so this expectation cannot drift from it. See
+// `IndicatorLibraryDialog.test.jsx`, which asserts the exclusion itself.
+const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
 
 const USER_ID = 'u_a1b2c3d4e5f6'
 const OTHER_ID = 'u_ffffffffffff'
@@ -165,7 +169,14 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     install(memberFormula('20-bar average'))
     open()
     const ids = optionIds()
-    for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]) {
+    // ⛔ MINUS `LIBRARY_HIDDEN_IDS`. `dataSeries` is in the shipped manifest and
+    // deliberately NOT in this list — it plots whatever it is pointed at, so a
+    // row reading "Data Series" means nothing to a member; its rows are `QQQ`
+    // and `UCTA50`, and they arrive through symbol search. The exclusion is
+    // asserted in `IndicatorLibraryDialog.test.jsx`; this sweep subtracts it so a
+    // definition that REALLY fell out of the library still fails here.
+    for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]
+      .filter((id) => !LIBRARY_HIDDEN_IDS.includes(id))) {
       expect(ids, `${shipped} fell out of the library`).toContain(shipped)
     }
     expect(ids).toContain('volumeProfile')
