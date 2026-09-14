@@ -299,6 +299,222 @@ cannot honestly ship. The slice is then binder source resolution + the registry
 + the library filter, together — because each of the three is what makes the
 other two honest, and any one of them alone is a definition that lies.
 
+---
+
+# PHASE 3 — THE HONEST DIRECT-SERIES VERTICAL SLICE
+
+Starting HEAD `05698e2c1`; ending HEAD `ba8247286`. Four commits.
+Baseline re-verified before any edit: engine 2 failed / 3999 passed / 4 skipped,
+build clean, tree clean, fingerprint `ea9ebaeee302`.
+
+**The slice is closed end to end**: a member picks a source → the registry
+understands `dataSeries` → settings hold the canonical source string → StockChart
+supplies the canonical secondary bars → the binder resolves `ctx.source` → the
+native compute passes the scalar through → presentation and placement draw it in
+its own pane. Verified in a browser, not only in tests.
+
+## ⛔ FIRST, A CORRECTION TO PHASES 1–2
+
+Their "vs master" diffs used the **stale local `master` ref** (`00227bc0e`),
+which is behind `origin/master` (`025be081e`, the actual branch base). That ref's
+merge base with the feature branches is `00227bc0e`; the true one is `0ee7176c9`.
+Every branch-vs-master file list in those phases was therefore INFLATED with
+master's own commits in between.
+
+Re-derived against `0ee7176c9`, the conclusions that mattered survive: the
+branch's `binder.js` really is a whole-file rewrite (1758+/852−) and master's
+really is byte-identical to the merge base. What changed is the StockChart
+audit — see below, and note that `app/src/components/chart/StockChart.jsx` does
+not exist; the real file is **`app/src/components/StockChart.jsx`**.
+
+## PART A — THE STOCKCHART AUDIT
+
+Branch delta: **35 hunks, +636/−38** on a 17,297-line file, with master
+independently at +222/−3 since the merge base.
+
+**Ported (4 edits, +38/−1):** the `useSecondarySources` import; the hook call
+after `barCount`; `secondary: secondarySources` in the binder sync ctx; and
+`secondarySources` in `updateChart`'s dependency array. Plus one earlier line:
+`LIBRARY_HIDDEN_IDS` subtracted from the right-click Indicators submenu.
+
+**Rejected, explicitly:** the Conditions pipeline (candle colour, background
+shading, markers, `normaliseConditions`, `conditionActions`,
+`conditionShadingPrimitive`); InfoFields and `infoBusKey`; formula-builder
+intent; six pane-coordinate defect fixes ("the candles' own pane, not pane 0");
+`viewLock` band clamping; the drawing-toolbar `--uct-top-pane-h` offset; and the
+P2.0c legend/right-click pane-identity rework.
+
+## PARTS F/G/H — THE RUNTIME SEAM (`92e7c20ad`)
+
+`computeFor` hands the ctx to the native lane — the server and AST lanes already
+had it. Inert for the shipped natives, which declare `(bars, p)`; asserted over
+the whole registry rather than assumed.
+
+The binder resolves a source into a numeric series: a **bar field** off the
+chart's own bars, an **instance output** via `bindingKey`, or a **symbol**
+projected from the canonical secondary bundle with exact-t alignment and no
+forward fill. An unsupplied symbol is `null` — never the chart's own bars, which
+is the one failure here that looks exactly like success.
+
+**Dependency order, not array order.** The compute loop now walks
+`sourceRef.orderByDependency` (Kahn's algorithm, ported in slice A). A cycle is
+reported and refused whole. ⭐ Part H asked whether ordering was needed at all
+for V1: it is needed the moment a source is another instance's output, and the
+canonical helper already existed, so nothing was invented.
+
+The memo key gains the source by **object identity** (`__srcId`, non-enumerable,
+so it can never reach a settings blob).
+
+## PARTS B/C/D/E/J/K/O — DEFINITION AND CONTROL (`91f4c0f05`)
+
+`dataSeries`: `labelFrom: 'source'`, `autoPane(0.15)`, `domainBehavior:
+'inherit'`, `passthrough: true`, one `source` input, one `value` plot. Id is
+`dataSeries` and not `series` because `'series'` is an AST node type and
+`ast/lint.test.js` asserts no literal in `lint.js` equals a shipped definition id.
+
+**The source control is real.** `fieldFromInput` returns a descriptor for
+`type: 'source'` AND `SourceField.jsx` renders it: one compact `<select>` of
+grouped options (price fields, other instances' outputs, the current symbol) plus
+a "Search symbol…" row opening an inline search over the existing discovery
+endpoint. `symbolSource()` is the one writer of `sym:<TICKER>:<field>`.
+
+⛔ **A descriptor without a renderer would have passed the census** —
+`enumerationSites` reads the descriptor, not the DOM. Both halves landed
+together, and a bite check later proved this was not hypothetical (below).
+
+**Library visibility:** `LIBRARY_HIDDEN_IDS` is subtracted at the CONSUMER (the
+dialog and the right-click submenu), never omitted from `catalogRows()`, which is
+the shipped manifest two consumers assert id-for-id. Both halves railed, and the
+constant itself is pinned so it cannot quietly grow.
+
+**PART K — the legacy-toggle invariant is refined, not deleted.** "native
+definition" and "had a legacy toggle" were the same set only while every
+definition was a migrated block. `dataSeries` joins `NEVER_MIGRATED` beside
+`avwap`/`atrBands`/`rsLine` — a table this repo already had for this distinction
+— with `REFS: []` and `COMPUTES: null`. The gated cases still fail BY NAME for
+any definition that genuinely had a block and lost its refs or compute.
+
+**Seventeen census rails across fifteen files** moved, each narrowly, each with a
+reason. None weakened: no equality became a subset check, no exclusion a
+wildcard.
+
+⚰️ **The hash rail was investigated, not regenerated.** `perInstanceDoor`'s corpus
+walks `listDefinitions()`, so an eighteenth definition moves it by construction.
+Proof it moved for that reason ONLY: the corpus rebuilt with `dataSeries` skipped
+digests to `a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b` —
+the previous pin, byte for byte.
+
+⚠️ **A badge was judged:** `dataSeries` is `non-repainting` in the strongest
+sense — an identity transform with no window, seed or forward reference. The
+claim is about the TRANSFORM: pointed at a repainting output, THAT output carries
+the verdict.
+
+## PARTS I/R — STOCKCHART SUPPLIES THE BARS (`7605c0010`)
+
+It reuses `instFetcher`, the fetch lane the component already owned, with its
+in-flight registry and switch-abort. `secondaryBars` dedupes by
+`(symbol, tf, bars)`. It reads `cs.indicatorInstances`, NOT `engineInstancesRef`,
+because that ref is filled by an effect declared BELOW it — the first-render
+defect only a real-component test can see. The map is a dependency, not a ref.
+
+`secondarySourceLive.test.jsx` (22) is the branch's real-component harness,
+re-pointed from `movingAverage` to `dataSeries`. Two expectations were RE-DERIVED
+and both got sharper: the pane (own pane, since `dataSeries` declares `autoPane`;
+scale still `right`) and the gap count (an identity transform loses EXACTLY one
+value, so `drawn === full - 1` replaces a loose bound).
+
+## PART P — THE BROWSER, AND WHAT IT FOUND (`ba8247286`)
+
+Run on `pane-harness.html` at `localhost:5203` (my own port; :5173, :5188, :5199
+and the :8000 backend were left alone). **/charts was never opened.**
+
+| Scenario | Result |
+|---|---|
+| Add QQQ | ✅ drew in its own pane, legend `QQQ 714.88` |
+| Renders as a direct secondary series | ✅ `src=sym:QQQ:close`, own scale 680–760 |
+| Duplicate QQQ | ✅ allowed; **third add issued ZERO new `/api/bars/` requests** |
+| Add SPY | ✅ second pane, independent |
+| Source control shows the instrument | ✅ `sym:QQQ:close`, plus the other instance's output and the search door |
+| Change source via search | ✅ → `sym:NVDA:close`, **exactly one** new request |
+| Own pane / main chart | ✅ own pane verified; price target available via Display-in |
+| Preference writes | ✅ **refused: 0** across every scenario |
+| Main Trading | ✅ untouched, `ea9ebaeee302` before and after |
+
+⚰️ **THE DEFECT IT FOUND, which every unit rail missed:** four settings rows all
+reading **"Data Series"** while the legend beside them correctly read `QQQ`. The
+chip surface had been fixed and the ROW surface had not — the same
+two-naming-surfaces trap, mirrored. Fixed narrowly (`listEngineIndicators` names
+an instance row through `instanceLabel`, gated on `meta.labelFrom`), railed, and
+re-verified live: rows now read `QQQ` and `SPY`.
+
+## ⚠️ AN OPEN PRODUCT QUESTION — THE TOP PHASE 4 ITEM
+
+**A re-pointed series keeps the name it was added under.** Measured: after
+changing a QQQ series' source to NVDA, the legend read **`QQQ 218.29`** — 218.29
+is NVDA's price. The data is right and the NAME is stale.
+
+This is by DESIGN, not a bug I introduced: `instanceLabel` prefers the stored
+`display.name` (written by `createDirectSeries` at add time) over the derived
+source stem, and `chipLabel` follows the same precedence. Deciding what should
+win when the source changes — keep the added name, clear it on a source write, or
+always derive — is a product/architecture decision, so it is recorded here rather
+than changed unilaterally.
+
+## BITE CHECKS (PART S)
+
+| Mutation | Result |
+|---|---|
+| native ctx pass-through removed | 7 of 11 red |
+| binder symbol resolution removed | 3 red |
+| binder falls back to the chart's own bars | 1 red |
+| dependency ordering → array order | 1 red |
+| source descriptor removed | 4 red |
+| **source RENDERER removed, descriptor kept** | **GREEN — a real gap** |
+| library hiding removed | 4 red |
+| right-click submenu hiding removed | 1 red |
+| `dataSeries` out of `NEVER_MIGRATED` | 1 red |
+| secondary cache/dedupe bypassed | suite UNRUNNABLE (runaway fetch kills the worker) |
+
+⚰️ The sixth is why `SourceField.test.jsx` gained two cases that render the REAL
+modal, open the row and operate the control; it now goes red for that mutation.
+The tenth is reported as it happened: the guard is load-bearing to the point that
+removing it hangs the app, but no named rail reports it cleanly — that is
+evidence of a kind, and weaker than a failing assertion.
+
+## RESULTS
+
+| | |
+|---|---|
+| Engine | 2 failed / 4011 passed (the two pre-existing ratchets) |
+| `src/components` | **4 failed / 10243 passed** vs Phase 2's 4 / 10175 — **+68, zero regressions** |
+| Build | ✅ `app/dist` has index.html + q1-probe.html; **no pane-harness** |
+| eslint StockChart.jsx | 134 problems before, 134 after; **zero `no-undef`** |
+| discoveryCatalog | **39/40** (was 24 failed / 16 passed before the registry) |
+
+The one residual discoveryCatalog failure needs `movingAverage` — a separate
+definition Part E says not to port. That file is a measuring instrument here and
+is deliberately NOT committed.
+
+## OHLC / CANDLES — EXPLICITLY DEFERRED (PART M)
+
+Not landed. `ohlcCapability.js` needs `symbolFamily` from `useBreadthSymbols` and
+the binder's `ohlcFamilyOf` oracle, plus the `SERIES_CTOR` table entry in
+StockChart. Line-only direct series is complete and honest, which Part M names as
+acceptable. `presentation.PLOT_STYLES` already RECOGNISES `candles` so a stored
+value resolves rather than silently reading as `line`; `availableStyles` refuses
+to OFFER it until a caller proves the source can mean one.
+
+## RECOMMENDED PHASE 4
+
+1. **Decide the naming question above** — it is one sentence of product intent
+   and it blocks nothing else, but it is member-visible today.
+2. **OHLC/candles**: `symbolFamily` + `ohlcCapability.js` + `ohlcFamilyOf` on the
+   binder ctx + `SERIES_CTOR`. Self-contained now that the vertical exists.
+3. **`movingAverage`**, which closes discoveryCatalog to 40/40 and is the second
+   definition proving the source model is general rather than fitted to one case.
+4. Only then the overnight row-summary UX — still carrying the known global
+   `.actName` defect recorded in the Phase 1 section.
+
 ## STANDING FACTS
 
 - Local branch. **Nothing pushed, nothing deployed, nothing merged.**
