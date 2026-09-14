@@ -1760,6 +1760,31 @@ INCIDENT REPORT.** Every commit had been pushed; the branch was recreated from
 `origin` byte-for-byte. The next one may not be so lucky. Full forensics:
 `docs/runbooks/indicator-ecosystem-resume.md`.
 
+## ⛔⛔ A MANIFEST IS EDITED AS TEXT — NEVER ROUND-TRIPPED THROUGH A SERIALISER
+
+**Owner ruling, 2026-09-14.** To add or change one entry in `closedTable.json` —
+or any manifest under `app/src/components/chart/engine/ast/*.json` — **insert the
+text at the right place, preserving the file's own formatting.** Never
+`load → mutate → dump` to change part of a document.
+
+⚰️ **MEASURED THE DAY THE RULE WAS WRITTEN.** A script added ONE entry by
+`json.loads` → mutate → `json.dumps(indent=1)` and produced **3,272 insertions and
+3,265 deletions for an eight-line addition**. Every line of a 3,277-line manifest
+moved. Nothing was lost, and that is exactly the problem: the content was correct,
+the JSON parsed, and the damage was entirely in the artifact — an unreviewable
+diff, `git blame` attributing the whole file to one commit, and a guaranteed
+whole-file conflict for the next concurrent edit.
+
+⭐ **THE RAIL:** `app/src/components/chart/engine/ast/manifestFormatting.test.js`.
+Every manifest there is exactly `JSON.stringify(obj, null, 2)` once the handful of
+hand-made blank separator lines are ignored, so a re-serialisation at any other
+indent, with ASCII escaping, or with reordered keys fails at once instead of
+arriving as a 3,000-line diff. The set under test is **read from the directory**,
+never typed, so a manifest added next week is guarded the day it lands. It carries
+a control that re-serialises the real file and asserts the check SEES it.
+
+⚠️ It is not a style test. It exists because the failure is invisible in review.
+
 ## ⛔⛔ NEVER VERIFY A RUNNER THROUGH A PIPE — THE PIPE OWNS THE EXIT CODE
 
 **Owner ruling, 2026-09-12.** A pipeline's exit status is the **last** command's.
