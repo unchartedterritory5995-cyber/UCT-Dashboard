@@ -104,7 +104,18 @@ def run_entry(entry: dict, log=print) -> dict:
         if "⇒" in ln or "VERDICT" in ln:
             verdict = ln.strip()
     tail = verdict or " / ".join(out.strip().splitlines()[-2:])[:300]
-    return {"exit": code, "seconds": round(secs, 1), "tail": tail}
+    # ⛔⛔ EXIT 0 IS NOT A MEASUREMENT. A cell that could not create its probe note
+    # because production was mid-deploy prints "⇒ INCONCLUSIVE ... nothing was
+    # measured" and exits **0**, and the first version of this runner banked that
+    # as `done` on the exit code alone — the wrapper's exit reported as the
+    # suite's result, which is a lesson this programme has already paid for once.
+    #
+    # ⭐ INCONCLUSIVE is not a failure either. It means the cell measured NOTHING,
+    # so the right response is to put it back in the queue, not to mark it
+    # finished and not to mark it broken.
+    inconclusive = "INCONCLUSIVE" in out
+    return {"exit": code, "seconds": round(secs, 1), "tail": tail,
+            "inconclusive": inconclusive}
 
 
 def spend_window(once: bool, log=print) -> int:
@@ -141,14 +152,29 @@ def spend_window(once: bool, log=print) -> int:
         if is_open and todo:
             entry = todo[0]
             res = run_entry(entry, log)
-            entry["status"] = "done" if res["exit"] == 0 else "failed"
+            tries = int(entry.get("attempts", 0)) + 1
+            entry["attempts"] = tries
+            if res.get("inconclusive"):
+                # ⛔ NOTHING WAS MEASURED, so nothing is banked. Back in the queue
+                # — an INCONCLUSIVE cell is not done and is not broken, and
+                # banking it would leave a hole wearing a verdict's clothes.
+                # Bounded, because a cell that cannot be measured three times is
+                # telling us something the queue cannot fix by retrying.
+                entry["status"] = "pending" if tries < 3 else "inconclusive"
+                outcome = f"INCONCLUSIVE (attempt {tries}" + (
+                    ", requeued)" if tries < 3 else ", giving up — needs a human)")
+            elif res["exit"] == 0:
+                entry["status"] = "done"
+                outcome = "ok"
+            else:
+                entry["status"] = "failed"
+                outcome = "exit " + str(res["exit"])
             entry["result"] = res
             save_queue(q)
             executed_here += 1
-            append_log(f"| {opened_at:%Y-%m-%d %H:%M} | `{entry.get('id')}` | "
-                       f"{'ok' if res['exit'] == 0 else 'exit ' + str(res['exit'])} | "
+            append_log(f"| {opened_at:%Y-%m-%d %H:%M} | `{entry.get('id')}` | {outcome} | "
                        f"{res['tail'][:200].replace('|', '/')} |")
-            log(f"   ⇒ {entry.get('id')}: exit {res['exit']} in {res['seconds']}s")
+            log(f"   ⇒ {entry.get('id')}: {outcome} in {res['seconds']}s")
             continue
 
         if not todo:
