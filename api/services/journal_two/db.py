@@ -854,6 +854,63 @@ CREATE TABLE IF NOT EXISTS j2_note_saved_views (
 CREATE INDEX IF NOT EXISTS idx_j2_note_saved_views_user
     ON j2_note_saved_views(user_id, deleted_at, sort_order);
 
+-- Wave S / S-07(a): USER-DEFINED NOTEBOOK TEMPLATES. Modelled on
+-- j2_note_saved_views directly above (user-scoped, named, ordered, soft
+-- deleted) -- NOT on the user_preferences `watchlist_templates` idiom, and
+-- that refusal is not this table's invention. It is recorded twice already,
+-- for content of exactly this shape:
+--   api/services/user_definitions.py:25-30 -- "`user_preferences` has NO SIZE
+--     LIMIT and NO DELETE ROUTE. A store for content a user can author in a
+--     loop needs both, and inheriting neither is how a table becomes
+--     unbounded quietly."
+--   the j2_capture_inbox comment below -- "A TABLE, not a preference -- prefs
+--     have no delete route and no size cap".
+-- A template body is a TipTap doc, the largest thing a member can author, and
+-- a member can author them in a loop. So: a per-row delete, a server-side
+-- byte cap and a server-side count cap (all three in note_templates.py).
+--
+-- `key` is the DEEP-LINK IDENTITY (/journal/notebook?new=<key>), minted
+-- server-side as 'u_<12 hex>' -- never accepted from the client. Built-in
+-- keys are stable API (notebookTemplates.js:19-20) and none of them can live
+-- in the `u_` namespace, so getTemplate() can resolve built-ins first and
+-- user rows second with no ambiguity and a member cannot shadow 'daily-prep'.
+--
+-- ⛔ The unique index deliberately does NOT include `deleted_at`: a tombstoned
+-- row keeps its key forever. That is the point -- a deep link that resolved to
+-- one template must never later resolve to a different one. It costs nothing,
+-- because the key is randomly minted per row and never derived from the label,
+-- so deleting and re-saving "under the same name" already produces a new key.
+-- (The alternative, UNIQUE(user_id, key, deleted_at), is a trap in SQLite:
+-- NULLs compare distinct, so every LIVE row would be exempt from the
+-- constraint the index exists to enforce.)
+--
+-- ⛔ There is deliberately NO template_id/template_key column on j2_notes.
+-- A template's output is COPIED into body_json at create time
+-- (noteCreation.js:69 -- `bodyJson: tpl.build(ctx),`) and nothing points back,
+-- so deleting a template already cannot break a note made from it. Adding
+-- such a column would manufacture the very dependency that property provides
+-- for free (S-07 spec §2.5, non-goal N-10).
+CREATE TABLE IF NOT EXISTS j2_note_templates (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    key         TEXT NOT NULL,          -- 'u_<12 hex>', server-minted
+    label       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    when_text   TEXT NOT NULL DEFAULT '',
+    family      TEXT NOT NULL DEFAULT 'mine',
+    tags_json   TEXT NOT NULL DEFAULT '[]',
+    body_json   TEXT NOT NULL,          -- the frozen TipTap doc
+    title_text  TEXT NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    deleted_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_templates_user
+    ON j2_note_templates(user_id, deleted_at, sort_order);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_note_templates_key
+    ON j2_note_templates(user_id, key);
+
 -- Capture inbox: hotkey captures during the session land here and get placed
 -- into notes while writing after the close. A row is one staged widgetEmbed
 -- (params + search line + optional archived image); placing it into a note

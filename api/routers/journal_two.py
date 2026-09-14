@@ -2083,6 +2083,90 @@ def delete_saved_view_endpoint(view_id: str, user: dict = Depends(get_current_us
     return {"ok": True}
 
 
+# ── Wave S / S-07(a): user-defined Notebook templates ───────────────────────
+# ⛔ FREE — `Depends(get_current_user)`, never a paid dependency. Owner ruling
+# 2026-09-14: two shipped precedents disagreed (`/saved-views` free vs
+# user_definitions.py paid) and `/saved-views` — the surface these routes are
+# modelled on, three declarations above — governs. The nine built-in templates
+# are not gated; gating the member's own version of a free feature is a
+# different product decision. Railed behaviourally in
+# tests/test_j2_note_templates.py.
+#
+# The static path is declared BEFORE the parameterised one on purpose: FastAPI
+# matches in declaration order and "/note-templates" must never be swallowed by
+# "/note-templates/{template_id}".
+from api.services.journal_two import note_templates
+
+
+@router.get("/note-templates")
+def list_note_templates_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"templates": note_templates.list_note_templates(user["id"])}
+
+
+@router.post("/note-templates")
+def create_note_template_endpoint(
+    body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    # `key` is minted server-side and deliberately NOT read off the body — a
+    # member-supplied key could shadow a built-in ('daily-prep'), whose keys
+    # are stable API (notebookTemplates.js:19-20).
+    try:
+        t = note_templates.create_note_template(
+            user["id"],
+            label=body.get("label"),
+            body_json=body.get("bodyJson"),
+            description=body.get("description"),
+            when_text=body.get("when"),
+            tags=body.get("tags"),
+            title_text=body.get("titleText"),
+            family=body.get("family"),
+        )
+    except note_templates.TemplateValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"template": t}
+
+
+@router.get("/note-templates/{template_id}")
+def get_note_template_endpoint(
+    template_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    t = note_templates.get_note_template(user["id"], template_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.put("/note-templates/{template_id}")
+def update_note_template_endpoint(
+    template_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        t = note_templates.update_note_template(
+            user["id"], template_id,
+            label=body.get("label"),
+            description=body.get("description"),
+            when_text=body.get("when"),
+            tags=body.get("tags"),
+            body_json=body.get("bodyJson"),
+            title_text=body.get("titleText"),
+        )
+    except note_templates.TemplateValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.delete("/note-templates/{template_id}")
+def delete_note_template_endpoint(
+    template_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    ok = note_templates.delete_note_template(user["id"], template_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
 # ── Wave F (Financial Fact / Snapshot Ledger) ───────────────────────────────
 from api.services.journal_two import note_facts, fact_current_value
 

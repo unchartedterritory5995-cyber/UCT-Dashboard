@@ -30,7 +30,15 @@ const RICH_CTX = {
 }
 
 describe('notebook templates catalog', () => {
-  it('exports exactly the eight planned templates (stable keys)', () => {
+  // ⛔ The number in this name is INTERPOLATED from KEYS, never typed. It read
+  // "exactly the eight planned templates" while KEYS below listed nine and the
+  // assertion was correct — a green rail publishing the wrong count in its own
+  // name, which is the most convincing wrong artifact available (the source
+  // header and section marker said "eight" too; both fixed in the same pass).
+  // Control: KEYS must be non-trivial, or toEqual(KEYS) would pass over an
+  // emptied array and this name would announce "exactly the 0".
+  it(`exports exactly the ${KEYS.length} planned templates (stable keys)`, () => {
+    expect(KEYS.length).toBeGreaterThan(1)
     expect(TEMPLATES.map((t) => t.key)).toEqual(KEYS)
   })
 

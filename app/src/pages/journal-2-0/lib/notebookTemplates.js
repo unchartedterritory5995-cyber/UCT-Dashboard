@@ -2,8 +2,14 @@
  * Journal 2.0 — Notebook template library (V1 of the templates plan:
  * docs/superpowers/specs/2026-07-12-notebook-templates-plan.md).
  *
- * Eight firm-authored, data-aware TipTap scaffolds in three families
- * (Rituals / Around a trade / Mindset). Each `build(ctx)` returns a fresh,
+ * Firm-authored, data-aware TipTap scaffolds. ⭐ Measure the catalog, don't
+ * quote it: the templates are the `TEMPLATES` array below and the families are
+ * `FAMILIES` right above it. (This line read "Eight ... in three families
+ * (Rituals / Around a trade / Mindset)" while the arrays held nine templates
+ * in four families — the missing one being 'Thesis & research', a whole family
+ * absent from a sentence a reader would take as the roster. A hand-typed count
+ * beside the list it describes is this repo's most-repeated defect.) Each
+ * `build(ctx)` returns a fresh,
  * valid TipTap doc; `ctx` comes from lib/templateContext.js and every field
  * is optional — a template must always produce a sane doc with a bare `{}`
  * (graceful blanks: no data ⇒ the prompt scaffold, never an error).
@@ -31,7 +37,7 @@ export const FAMILIES = [
   { key: 'mind', label: 'Mindset' },
 ]
 
-// ── The eight templates ───────────────────────────────────────────────────────
+// ── The templates (count them here; never restate it) ─────────────────────────
 
 export const TEMPLATES = [
   {
