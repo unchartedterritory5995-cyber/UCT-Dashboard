@@ -69,22 +69,59 @@ function lineOf(src, needle) {
 
 describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   // ── D.3 · a source whose SIZE depends on a series ────────────────────────
-  // ⛔ STILL OPEN. A series-sized source refuses at its CREATION line today, with the
-  // right code and the right routing — `seriesDependentMessage` composes it — but not
-  // at the `for`. The size folds at RESOLVE time, so the walk that sees the loop
-  // cannot yet tell a series-sized source from a plan-time one. Closing it means
-  // folding the size earlier, which is a change to when sizes are settled and not a
-  // message change.
-  run('⭐⭐ SYNTHETIC · D.3 — `for x in <series-sized>` refuses at the `for`, routing to (c)', () => {
-    const src = `${HEAD}var a = array.new<float>(int(volume))\nfor x in a\n    array.set(a, 0, close)\nplot(close)\n`
-    const at = lineOf(src, 'for x in a')
+  // ⭐⭐ RULING R4 (owner, 2026-09-14) — THE CREATION LINE IS THE RIGHT PLACE, and this
+  // case asserts it rather than treating it as a shortfall.
+  //
+  // A series-sized source refuses where the DEPENDENCY IS — the size expression at the
+  // creation — with `pine:collection`, the composed `seriesDependentMessage`, and the
+  // routing to item (c). The `for` line is downstream of that fact: by the time the
+  // loop is reached the array is already unusable, and moving the sentence there would
+  // name the loop for a problem the loop did not cause. Requiring the loop line would
+  // mean folding sizes earlier — a change to WHEN sizes are settled, which is an
+  // engine-order change a4 is not entitled to make.
+  //
+  // ⛔ The assertion does not weaken: it still names the code, the sentence and the
+  // line. Only the line it names changed, and it changed to the true one.
+  it('⭐⭐ SYNTHETIC · D.3 / R4 — a series-sized source refuses at its CREATION, routing to (c)', () => {
+    // No loop touches the array: the size is folded at the read, fails, and the
+    // refusal names the DEPENDENCY where the dependency is.
+    const src = `${HEAD}var a = array.new<float>(int(volume))\nplot(array.get(a, 0))\n`
+    const at = lineOf(src, 'var a = array.new<float>(int(volume))')
     const r = refusalsOf(translatePine(src, { strict: true })).find((x) => x.line === at)
-    expect(r, `nothing refuses at line ${at}, the \`for\` itself`).toBeTruthy()
+    expect(r, `nothing refuses at line ${at}, the creation`).toBeTruthy()
     expect(r.guard).toBe('pine:collection')
-    // The routing sentence already exists in `seriesDependentMessage`; a4's work is
-    // making the LOOP carry it instead of a later read.
     expect(r.text).toMatch(/depends on a series/)
+    // ⭐ The dependency is named, not merely reported — `int` is what will not fold.
+    expect(r.text).toMatch(/`int`/)
     expect(r.text).toMatch(/Runtime arrays are the IR lane's, item \(c\)/)
+  })
+
+  // ⛔⛔ OPEN — R1(ii) IS NOT SATISFIED, AND a4 FOUND IT BY BUILDING a4.
+  //
+  // R1(ii) says a series-sized source iterated by a loop must compose
+  // `seriesDependentMessage` and route to item (c). Measured, it does not: once the
+  // `for … in` touches the array, the LOOP's opaque replacement fires first and the
+  // array never reaches the size fold, so the refusal lands at the loop line carrying
+  // the loop's generic sentence — **and the routing to (c) is lost**.
+  //
+  //   var a = array.new<float>(int(volume))      <- 4, the series dependency
+  //   for x in a                                 <- 5, pine:collection lands HERE
+  //       array.set(a, 0, close)
+  //   plot(array.get(a, 0))
+  //
+  // ⭐ The relocation a4 shipped is what causes it: a better line, a worse sentence,
+  // for this one shape. The fix is for the loop's message to defer to the creation's
+  // when the source's size is series-dependent — which needs the size folded before
+  // the walk gives up on the block, i.e. the same engine-order change R4 declined.
+  // Recorded as owed under R1(ii) rather than patched with a guess.
+  run('⛔ OPEN · R1(ii) — a series-sized source ITERATED by a loop still routes to (c)', () => {
+    const src = `${HEAD}var a = array.new<float>(int(volume))\nfor x in a\n`
+      + '    array.set(a, 0, close)\nplot(array.get(a, 0))\n'
+    const r = refusalsOf(translatePine(src, { strict: true }))[0]
+    expect(r, 'something refuses').toBeTruthy()
+    expect(r.text, 'the series dependency is still named').toMatch(/depends on a series/)
+    expect(r.text, 'and it still routes to the lane that will serve it')
+      .toMatch(/Runtime arrays are the IR lane's, item \(c\)/)
   })
 
   // ── D.4 · `while`, ruling F4 ─────────────────────────────────────────────
@@ -119,43 +156,92 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
       .not.toMatch(/item \(c\)/)
   })
 
-  // ⛔ STILL OPEN, and for a reason the synthetic could not have shown: this loop's
-  // source `SnD_Type` is a FUNCTION PARAMETER (declared at :262), so at the loop it
-  // is a `param` binding rather than a vector, and the vector-opaque path never
-  // fires. The one corpus fixture that reaches its loop line is therefore also the
-  // one that needs a path the synthetics do not exercise.
-  run('⭐ CORPUS · R1(i) — multi-timeframe-supply-demand-zones:264 refuses at its `for`', () => {
-    // ⭐ The ONE corpus fixture measured to reach its loop line: today it carries
-    // `note:pine:block` at 264, so the walk sees the loop and declines it silently.
-    const src = fs.readFileSync(
-      path.join(CORPUS, 'multi-timeframe-supply-demand-zones__a98a2ab367.pine'), 'utf8')
-    const r = refusalsOf(translatePine(src, { strict: true })).find((x) => x.line === 264)
-    expect(r, 'nothing refuses at 264, where `for i in SnD_Type` is').toBeTruthy()
+  // ⭐⭐ RULING R6 (owner, 2026-09-14) — MEASURED, AND THE CASE IS MOOT ON ALL 13.
+  //
+  // R6 said: measure first, and if an earlier refusal fires before the loop is
+  // reached, the loop line is never the frontier on that script — swap in another of
+  // the 13 owed uses. Measured on every one of the 13, and **there is no swap
+  // available**, because an earlier refusal fires on all of them:
+  //
+  //   ai-supertrend-…-presenttrading__3b9db05a48   :259   pine:declaration-strategy@5
+  //   ict-killzones-pivots-tfo__d0b8be94f1         :768   pine:character@250
+  //   multi-timeframe-supply-demand-zones__a98a…   :264   pine:no-output (0 outputs)
+  //   volume-footprint-…__e15e52b27d  (×9 uses)    :595…  pine:character@1572
+  //
+  // ⭐ SO THE MOOT-NESS ITSELF BECOMES THE ASSERTION, rather than the case being
+  // deleted. If any of these scripts ever becomes reachable — the `pine:character`
+  // class is a source-encoding refusal that a later wave may well close — this goes
+  // RED, which is precisely the moment R1 should be reopened on corpus evidence.
+  // A deleted case would have gone quiet instead.
+  //
+  // ⚠️ `SnD_Type` at :264 is also a FUNCTION PARAMETER, so even reachable it would
+  // exercise a `param` binding rather than a vector. That is recorded as owed under
+  // R1 and is NOT built here: a4 does not do parameter typing.
+  it('⭐ CORPUS / R6 — all 13 owed `for x in` uses are refused EARLIER, so none can test the loop line', () => {
+    const CASES = [
+      ['ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine', 'pine:declaration-strategy'],
+      ['ict-killzones-pivots-tfo__d0b8be94f1.pine', 'pine:character'],
+      ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:character'],
+      ['multi-timeframe-supply-demand-zones__a98a2ab367.pine', 'pine:no-output'],
+    ]
+    for (const [name, expected] of CASES) {
+      const src = fs.readFileSync(path.join(CORPUS, name), 'utf8')
+      const t = translatePine(src, { strict: true })
+      const first = (t.refusals || [])[0]
+      expect(first, `${name} now refuses nothing — reopen R1 on this evidence`).toBeTruthy()
+      expect(first.guard,
+        `${name}'s first refusal changed; if the loop is now reachable, reopen R1`)
+        .toBe(expected)
+    }
   })
 
   // ── R1 case (iii) · a source that is outside BOTH lanes ──────────────────
-  // ⛔ STILL OPEN. A drawing array is never a `vector` binding — `array.new_box`
-  // notes `pine:drawing` and marks the name opaque at CREATION — so the loop's
-  // vector-opaque replacement has nothing to replace. The refusal it needs is a
-  // different one from the one a4 moved.
-  run('⭐⭐ SYNTHETIC · R1(iii) — a DRAWING array reuses the source\'s own code', () => {
+  // ⭐⭐ RULING R5 (owner, 2026-09-14) — IT STAYS WHERE IT ALREADY SPEAKS.
+  //
+  // A drawing array is never a `vector` binding: `array.new_box` marks the name opaque
+  // at CREATION and records `pine:drawing` there, so the loop's vector-opaque
+  // replacement has no binding to carry a sentence for. The creation site is the
+  // honest placement — it is where the object's kind is decided.
+  //
+  // ⚰️ AND THE MEASUREMENT CORRECTED THE RULING'S OWN WORDING, which is recorded
+  // rather than smoothed over. R5 says it "stays where it already refuses"; measured,
+  // it does not refuse ANYWHERE — `ok=true`, zero refusals, a `pine:drawing` NOTE at
+  // the creation and a `pine:block` note at the loop. A script that iterates a drawing
+  // array and plots nothing from it is not a failed translation; it is a translation
+  // with a line this lane does not draw, which is exactly what a note is for.
+  it('⭐⭐ SYNTHETIC · R1(iii) / R5 — a DRAWING array NOTES at its creation, naming the kind', () => {
     // ⭐ Measured: `c = array.new_box(2)` already notes `pine:drawing` at its creation.
     // The loop refusal uses the SAME code, so a reader sees one story rather than two.
     const src = `${HEAD}c = array.new_box(2)\nfor b in c\n    box.delete(b)\nplot(close)\n`
-    const at = lineOf(src, 'for b in c')
-    const r = refusalsOf(translatePine(src, { strict: true })).find((x) => x.line === at)
-    expect(r, `nothing refuses at line ${at}`).toBeTruthy()
-    expect(r.guard).toBe('pine:drawing')
-    // ⛔ Outside BOTH lanes, so it must NOT be routed to item (c) either.
-    expect(r.text).not.toMatch(/item \(c\)/)
+    const t = translatePine(src, { strict: true })
+    const at = lineOf(src, 'c = array.new_box(2)')
+    const note = (t.notes || []).find((n) => n.line === at && n.code === 'pine:drawing')
+    expect(note, `no pine:drawing note at line ${at}, the creation`).toBeTruthy()
+    // ⭐ It names the OBJECT KIND, not just "a drawing" — a member has to know which
+    // of their constructs this is about.
+    expect(note.message).toMatch(/array\.new_box/)
+    // ⛔ Outside BOTH lanes, so it must NOT be routed to item (c) either: item (c) is
+    // the runtime-array lane, and a box is not an array problem.
+    expect(note.message).not.toMatch(/item \(c\)/)
+    expect(note.message.toLowerCase()).not.toContain('not supported')
   })
 
-  run('⭐⭐ SYNTHETIC · R1(iii) — a UDT array reuses `pine:type`, its own creation code', () => {
+  it('⭐⭐ SYNTHETIC · R1(iii) / R5 — a UDT array NOTES `pine:type` at the TYPE declaration', () => {
+    // ⚠️ AT THE `type` DECLARATION, NOT THE ARRAY CREATION, and the distinction is the
+    // honest one: what this lane cannot store is the TYPE, and the array is merely the
+    // first place that shows. Measured — `pine:type@4` on `type Foo`, `pine:vector@6`
+    // on the `array.new<Foo>` line, so the array creation IS recorded, separately, as
+    // an ordinary plan-time vector of `Foo` slots.
     const src = `${HEAD}type Foo\n    float a\nc = array.new<Foo>(2)\nfor f in c\n    f.a := 1.0\nplot(close)\n`
-    const at = lineOf(src, 'for f in c')
-    const r = refusalsOf(translatePine(src, { strict: true })).find((x) => x.line === at)
-    expect(r, `nothing refuses at line ${at}`).toBeTruthy()
-    expect(r.guard).toBe('pine:type')
+    const t = translatePine(src, { strict: true })
+    const at = lineOf(src, 'type Foo')
+    const note = (t.notes || []).find((n) => n.line === at && n.code === 'pine:type')
+    expect(note, `no pine:type note at line ${at}, the type declaration`).toBeTruthy()
+    expect(note.message.toLowerCase()).not.toContain('not supported')
+    // …and the array creation is separately visible, so neither line is silent.
+    const vec = (t.notes || []).find(
+      (n) => n.code === 'pine:vector' && n.line === lineOf(src, 'c = array.new<Foo>(2)'))
+    expect(vec, 'the array creation is recorded too').toBeTruthy()
   })
 
   // ── the paired form, which the corpus does not exercise at all ───────────
@@ -173,13 +259,32 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   })
 
   // ── a4b's own red acceptance, written now so the frontier is on record ───
+  //
+  // ⚠️⚠️ THIS MARKER IS SYNTHETIC BY NECESSITY, AND THE INSTRUCTION TO ANCHOR IT TO A
+  // NAMED CORPUS SCRIPT CANNOT BE MET — measured, not assumed. The ask was for an
+  // `it.fails` asserting `pine:reassign` on a named accumulator script at a named
+  // line. Three corpus accumulator scripts were run on the strict lane:
+  //
+  //   delta-volume-v21-by-kernel-phi__uP24atP4R0  :26   reassign [] — pine:request@36
+  //   atr-stop-loss-indicator__LOfv1FvRhL         :25   reassign [] — pine:module@7
+  //   cumulative-volume-delta__c772250751         :17   reassign [] — pine:request@12
+  //
+  // ⛔ `pine:reassign` fires on NONE of them. In a real script the accumulator sits
+  // inside a `for` the walk declines, so it is never resolved and never refused — the
+  // block is a `pine:block` NOTE and the accumulator is INVISIBLE, not refused. The
+  // refusal appears only when the accumulated name is bound at top level and read by
+  // an output, which is the synthetic below. **The 379 are invisible today**, and
+  // a4b's census must count which of the two each one is.
+  //
+  // ⭐ And the marker asserts the POST-a4b state, not the present one, because that is
+  // what makes it self-retiring: it fails today, passes when a4b folds, and is deleted
+  // in that commit. An `it.fails` asserting `pine:reassign` fires would pass TODAY and
+  // go red on success — a marker that lights up when the work is done is a trap.
   run('⛔⛔ a4b — THE NEXT FRONTIER: a counted-`for` accumulator FOLDS instead of refusing', () => {
-    // ⚰️ This is a4b's marker, not a4's, and it is written here so the frontier is a
-    // committed assertion rather than a sentence in a report. `s := s + close[i]` over
-    // a bounded loop is plan-time expressible BY CONSTRUCTION — it is Mechanism A
-    // applied to a scalar instead of a vector — and 379 of 1,004 counted-`for` bodies
-    // in the corpus have this shape, which is more than every other admitted shape
-    // combined.
+    // `s := s + close[i]` over a bounded loop is plan-time expressible BY CONSTRUCTION
+    // — Mechanism A applied to a scalar instead of a vector — and 379 of 1,004
+    // counted-`for` bodies in the corpus have this shape, more than every other
+    // admitted shape combined.
     const src = `${HEAD}s = 0.0\nfor i = 0 to 2\n    s := s + close[i]\nplot(s, "acc")\n`
     const t = translatePine(src, { strict: true })
     const acc = (t.outputs || []).find((o) => o.title === 'acc')
