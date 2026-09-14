@@ -752,3 +752,43 @@ job, and that is only visible once "can it" and "can it here" are asked separate
 (never as a second call, so there is no window where `@everyone` can see the channel) and then
 `GET`s the channel and prints what Discord actually stored. It runs the moment the permission
 exists.
+
+### Step 1.3 — the defect is now MEASURED, not inferred (2026-09-14)
+
+⛔⛔ **THE PROBE SPENT A DAY REPORTING A TRUE STATEMENT ABOUT THE WRONG ENDPOINT.**
+`GET /channels/1548783155354403046` answers `403 / 50001 Missing Access`, which the probe faithfully
+reported hourly as STILL_BLOCKED. But `GET /guilds/{id}/channels` returns
+`permission_overwrites` **for every channel in the guild**, including ones the token cannot open —
+so the answer step 1.3 actually wanted was one call away the whole time.
+
+Read live, 2026-09-14:
+
+| Channel | `@everyone` | Other overwrites |
+|---|---|---|
+| `#render-alerts` | **VIEW DENY** | **`Contributor` VIEW ALLOW** — and it is the ONLY allow |
+| `#alert-test` | VIEW DENY | `Contributor` VIEW ALLOW |
+| `#dev-kitchen` | VIEW DENY | none — genuinely admin-only |
+
+⛔ **So `#render-alerts` is not "visible to Contributor among others". Contributor is the only role
+it is visible to.** Admins see it through `ADMINISTRATOR`, which overrides overwrites; the channel
+grants view to exactly one role and that role is the one it must not. The fix is to REMOVE that
+overwrite.
+
+⭐ **And this is why the roles had to be resolved rather than listed.** The id `1112808703389872188`
+appears on nearly every private channel in the guild; it reads like a broad member role until you
+ask for its name.
+
+⚠️ **The bot cannot do it, and the reason is two independent gaps, not one.** It holds
+`VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY` and nothing else — no
+`MANAGE_CHANNELS` — and it has no overwrite on that channel, so even with `MANAGE_CHANNELS` it
+would still answer 50001. Recorded because the intuition runs the other way: the smaller-sounding
+grant fixes neither half on its own.
+
+⭐ **No channel in the guild is both bot-postable and not Contributor-visible.** `#dev-kitchen` is
+the only text channel with no role re-allowed to view, and the bot is not in it. That is measured
+across every text channel the token can enumerate — which is why 3.5's posting half and the
+`--real` delivery hop are genuinely blocked rather than merely inconvenient.
+
+The hourly poll now reports `RENDER_ALERTS_ACL` beside `RENDER_ALERTS_ACCESS`, and
+`flip_preconditions` reads the ACL line: that precondition moved from **NOT MEASURABLE** to a
+**NOT MET** with a named fix.

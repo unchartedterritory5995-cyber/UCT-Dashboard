@@ -189,17 +189,25 @@ def check_render_alerts_locked() -> dict:
     log = SOAK_LOG.parent / "render-alerts-access.log"
     if not log.exists():
         return _row("#render-alerts locked to admins", NOT_MEASURABLE, "no access-probe log")
-    tail = [L for L in log.read_text(encoding="utf-8", errors="replace").splitlines()
-            if "RENDER_ALERTS_ACCESS" in L]
-    last = tail[-1] if tail else ""
-    if "STILL_BLOCKED" in last:
-        return _row("#render-alerts locked to admins", NOT_MEASURABLE,
-                    "the bot cannot see the channel, so it cannot read or set the overwrites "
-                    "(403/50001) — this is the owner-hand item, not a product gap")
-    if "ACCESS" in last:
-        return _row("#render-alerts locked to admins", NOT_MET,
-                    "the bot can now see the channel: remove Contributor and re-check")
-    return _row("#render-alerts locked to admins", NOT_MEASURABLE, last[:80] or "no reading")
+    lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+    # ⛔⛔ READ THE **ACL** LINE, NOT THE ACCESS LINE. The access line answers "can the bot see the
+    # channel", which is a fact about the bot; this precondition is about who ELSE can see it. The
+    # probe reads the overwrites through the GUILD listing, which works even while
+    # `GET /channels/{id}` answers 403 — so "we cannot tell" stopped being the honest answer the
+    # moment that call was tried.
+    acl = [L for L in lines if "RENDER_ALERTS_ACL" in L]
+    if acl:
+        last = acl[-1]
+        if "CONTRIBUTOR_ALLOWED" in last:
+            return _row("#render-alerts locked to admins", NOT_MET,
+                        "Contributor is ALLOWED VIEW_CHANNEL and is the channel's ONLY allow "
+                        "overwrite — the fix is to remove it (owner-hand: the bot has neither "
+                        "MANAGE_CHANNELS nor membership)")
+        if "ACL_OK" in last:
+            return _row("#render-alerts locked to admins", MET, "no Contributor allow overwrite")
+        return _row("#render-alerts locked to admins", NOT_MEASURABLE, last[:100])
+    return _row("#render-alerts locked to admins", NOT_MEASURABLE,
+                "the probe has not written an ACL line yet (an older probe build)")
 
 
 CHECKS = (check_no_xfails, check_forensics_closed, check_cache_wired, check_soak_24h,
