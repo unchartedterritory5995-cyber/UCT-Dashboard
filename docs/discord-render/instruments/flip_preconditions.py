@@ -155,34 +155,157 @@ def check_mutations_applied(run: bool = False) -> dict:
 
 # ── rows this tool cannot reach, named rather than assumed ──────────────────
 
+#: S2's ceilings, and S5's floor. Mirrors `load_harness.py:224` — the one place that judges a run.
+S2_CEILINGS = (("p50", 2500.0), ("p95", 5000.0), ("p99", 8000.0))
+S5_FLOOR = 0.995
+
+
 def check_s2_measured() -> dict:
+    """⛔⛔ THIS ROW USED TO BE `MET if the files exist`, AND IT NEVER OPENED THEM.
+
+    ⚰️ 2026-09-14. Before that night there were no `--real` files, so the row correctly read
+    NOT MEASURABLE and everybody trusted it. The first `--real` runs were then produced — and all
+    three printed `TOTALS load_harness FAIL`, with S2 p50 at 14,855 ms against a 2,500 ms target.
+    The row flipped to **MET**, because five files now existed. **Producing failing evidence made
+    the gate greener**, on the single row that decides whether delivery meets its SLO, in the
+    instrument the flip packet calls "the authority".
+
+    ⭐ Counting artifacts is not reading verdicts. The fix is to open every run and judge it against
+    the same ceilings `load_harness` itself uses, and to report the WORST — a flip is not authorised
+    by the existence of one good run beside three bad ones."""
     ev = ROOT / "docs" / "discord-render" / "evidence" / "step3"
     real = sorted(ev.glob("*real*.json")) if ev.exists() else []
-    return _row("S2 measured in --real mode and within SLO",
-                MET if real else NOT_MEASURABLE,
-                f"{len(real)} --real run(s)" if real else
-                "no --real run: every load figure so far is ACK-PATH ONLY (stub symbols, "
-                "zero-cost handler) and says nothing about delivery")
+    real = [p for p in real if "chaos" not in p.name]
+    if not real:
+        return _row("S2 measured in --real mode and within SLO", NOT_MEASURABLE,
+                    "no --real run: every load figure so far is ACK-PATH ONLY (stub symbols, "
+                    "zero-cost handler) and says nothing about delivery")
+    judged, breaches, unreadable = 0, [], []
+    for p in real:
+        try:
+            r = (json.loads(p.read_text(encoding="utf-8")) or {}).get("real") or {}
+        except Exception as e:  # noqa: BLE001
+            unreadable.append(f"{p.name} ({type(e).__name__})")
+            continue
+        e2e = r.get("end_to_end_ms") or {}
+        if not e2e or r.get("jobs") in (None, 0):
+            # ⛔ A run with no end-to-end block measured no delivery. That is not a pass.
+            unreadable.append(f"{p.name} (no end_to_end_ms/jobs)")
+            continue
+        judged += 1
+        for field, ceiling in S2_CEILINGS:
+            v = e2e.get(field)
+            if v is not None and v > ceiling:
+                breaches.append(f"{p.name}: {field} {v:.0f}ms > {ceiling:.0f}ms")
+        s = r.get("success_rate")
+        if s is not None and s < S5_FLOOR:
+            worst = max((r.get("failures_by_class") or {}).items(),
+                        key=lambda kv: kv[1], default=("?", 0))
+            breaches.append(f"{p.name}: S5 {s*100:.1f}% < {S5_FLOOR*100:.1f}% "
+                            f"(worst class: {worst[0]}×{worst[1]})")
+    # ⛔ NON-VACUITY. Files that could not be judged are not silently dropped: "we read nothing"
+    # and "everything passed" must never render as the same row.
+    if not judged:
+        return _row("S2 measured in --real mode and within SLO", NOT_MEASURABLE,
+                    f"{len(real)} --real file(s) but NONE could be judged: {', '.join(unreadable)}")
+    if breaches:
+        return _row("S2 measured in --real mode and within SLO", NOT_MET,
+                    f"{judged} run(s) judged; {len(breaches)} breach(es) — " + " · ".join(breaches[:4])
+                    + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else ""))
+    note = f"{judged} --real run(s), every percentile inside S2 and success ≥ {S5_FLOOR*100:.1f}%"
+    if unreadable:
+        note += f" ⚠️ {len(unreadable)} file(s) unjudgeable: {', '.join(unreadable)}"
+    return _row("S2 measured in --real mode and within SLO", MET, note)
 
 
 def check_chaos_real() -> dict:
+    """⛔ Same defect as S2's row, same fix: open the file and read the scenarios' own verdicts.
+
+    ⚠️ A REFUSED scenario is not a passed one. `chaos_scenarios --real` refuses the scenarios it
+    cannot stage for real (six of thirteen on 2026-09-14, each with a named reason), and the run
+    that once printed `ran=13 passed=13` while six never executed is the reason `ran` excludes
+    them. This row must not re-introduce that arithmetic from the outside."""
     ev = ROOT / "docs" / "discord-render" / "evidence" / "step3"
     real = sorted(ev.glob("chaos*real*.json")) if ev.exists() else []
-    return _row("chaos passed in --real mode", MET if real else NOT_MEASURABLE,
-                f"{len(real)} --real chaos run(s)" if real else
-                "rig stubs are not evidence for renderer_down, bars_api_502, discord_429, "
-                "oversized_attachment or mid_job_restart")
+    if not real:
+        return _row("chaos passed in --real mode", NOT_MEASURABLE,
+                    "rig stubs are not evidence for renderer_down, bars_api_502, discord_429, "
+                    "oversized_attachment or mid_job_restart")
+    passed = failed = inconclusive = refused = 0
+    for p in real:
+        try:
+            d = json.loads(p.read_text(encoding="utf-8")) or {}
+        except Exception:  # noqa: BLE001
+            return _row("chaos passed in --real mode", NOT_MEASURABLE,
+                        f"{p.name} could not be read")
+        for _name, row in d.items():
+            # ⛔ The key is `state` — read off the artifact, not guessed. My first version asked for
+            # `outcome`/`verdict`, matched nothing, and reported "no scenario actually ran" for a
+            # run that had passed seven. A false negative is cheaper than S2's false positive and
+            # is still a row that does not describe the world.
+            v = str((row or {}).get("state") or (row or {}).get("outcome")
+                    or (row or {}).get("verdict") or "").upper() \
+                if isinstance(row, dict) else str(row).upper()
+            if "REFUS" in v:
+                refused += 1
+            elif "PASS" in v:
+                passed += 1
+            elif "INCONCLUSIVE" in v:
+                inconclusive += 1
+            elif v:
+                failed += 1
+    if failed or inconclusive:
+        return _row("chaos passed in --real mode", NOT_MET,
+                    f"{passed} passed · {failed} failed · {inconclusive} inconclusive · "
+                    f"{refused} refused")
+    if not passed:
+        return _row("chaos passed in --real mode", NOT_MEASURABLE,
+                    f"no scenario actually ran ({refused} refused) — an empty set is not a pass")
+    return _row("chaos passed in --real mode", MET,
+                f"{passed} scenario(s) passed for real, {refused} refused by name "
+                f"(refused ≠ passed)")
+
+
+#: 3.5's script has 15 rows. A partial run is NOT MET, not MET-because-something-exists.
+SMOKE_ROWS_TOTAL = 15
 
 
 def check_smoke() -> dict:
+    """⛔ SCREENSHOTS ARE NOT A VERDICT EITHER, and this row had two defects at once.
+
+    ⚰️ It globbed `smoke/**/*.png` — one hard-coded directory, one hard-coded extension. The 2026-09-14
+    run wrote `smoke-2026-09-14/*.jpg`, so a real run with real screenshots reported NOT MEASURABLE.
+    A gate that cannot see the evidence it asks for teaches everyone to stop producing it.
+
+    ⛔ And counting screenshots would repeat the S2 defect one row down: 3.5 has FIFTEEN rows, and
+    two of them passing is not the smoke passing. The INDEX is the verdict, so this reads the
+    INDEX."""
     ev = ROOT / "docs" / "discord-render" / "evidence"
-    shots = sorted(ev.glob("smoke/**/*.png")) if ev.exists() else []
-    script = ev / "smoke-script.md"
-    if shots:
-        return _row("3.5 real-Discord smoke", MET, f"{len(shots)} screenshot(s) under evidence/smoke/")
-    return _row("3.5 real-Discord smoke", NOT_MEASURABLE,
-                "no screenshots" + ("; the typed script is ready at evidence/smoke-script.md"
-                                    if script.exists() else "; no script written either"))
+    if not ev.exists():
+        return _row("3.5 real-Discord smoke", NOT_MEASURABLE, "no evidence directory")
+    shots = [p for p in ev.glob("smoke*/**/*")
+             if p.suffix.lower() in (".png", ".jpg", ".jpeg")]
+    indexes = sorted(ev.glob("smoke*/INDEX.md"))
+    if not shots and not indexes:
+        script = ev / "smoke-script.md"
+        return _row("3.5 real-Discord smoke", NOT_MEASURABLE,
+                    "no screenshots and no INDEX" +
+                    ("; the typed script is ready at evidence/smoke-script.md"
+                     if script.exists() else "; no script written either"))
+    # Count the rows the INDEX itself marks as passed. ⛔ Read the verdict, never the artifact count.
+    passed = notrun = 0
+    for idx in indexes:
+        text = idx.read_text(encoding="utf-8", errors="replace")
+        passed += len(re.findall(r"✅\s*\*\*PASS", text))
+        notrun += len(re.findall(r"⛔\s*\*\*NOT RUN", text))
+    if passed >= SMOKE_ROWS_TOTAL:
+        return _row("3.5 real-Discord smoke", MET,
+                    f"{passed}/{SMOKE_ROWS_TOTAL} rows PASS across {len(indexes)} index(es), "
+                    f"{len(shots)} screenshot(s)")
+    return _row("3.5 real-Discord smoke", NOT_MET,
+                f"only {passed}/{SMOKE_ROWS_TOTAL} rows PASS "
+                f"({len(shots)} screenshot(s), {len(indexes)} index(es)) — a partial smoke is not "
+                f"a smoke; the unrun rows are the ones nobody has seen fail")
 
 
 def check_render_alerts_locked() -> dict:

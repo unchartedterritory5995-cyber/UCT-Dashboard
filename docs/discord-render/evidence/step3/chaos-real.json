@@ -4,7 +4,7 @@
     "state": "pass",
     "detail": "named message in 0.6s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id real001 \u00b7 retry?'",
     "mode": "real",
-    "ms": 606.8
+    "ms": 655.5
   },
   "flow_worker_unreachable": {
     "class": "C-08",
@@ -25,14 +25,14 @@
     "state": "pass",
     "detail": "named message in 0.2s: \"/chart NVDA failed \u2014 market data for this symbol couldn't be loaded \u00b7 id real002 \u00b7 retry?\"",
     "mode": "real",
-    "ms": 153.3
+    "ms": 207.7
   },
   "renderer_breaker_open": {
     "class": "C-02",
     "state": "pass",
     "detail": "named message in 0.0s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id chaos007 \u00b7 retry?' \u00b7 upstream not called",
     "mode": "real (already exercises the production path)",
-    "ms": 2.3
+    "ms": 5.4
   },
   "stale_bars": {
     "class": "C-07 / S8",
@@ -67,27 +67,27 @@
     "state": "pass",
     "detail": "10/10 refused at the ack, none reached the renderer",
     "mode": "real (already exercises the production path)",
-    "ms": 582.4
+    "ms": 857.4
   },
   "clock_boundaries": {
     "class": "C-07 / \u00a73.8b",
     "state": "pass",
     "detail": "09:29:50 pre-open=pre/stale=False \u00b7 09:30:10 post-open=rth/stale=True \u00b7 16:00:00 close=post/stale=True \u00b7 a holiday (Thanksgiving)=holiday/stale=True",
     "mode": "real (already exercises the production path)",
-    "ms": 174.2
+    "ms": 157.3
   },
   "mid_job_restart": {
     "class": "C-01",
     "state": "pass",
     "detail": "artifact in 0.0s",
     "mode": "real (already exercises the production path)",
-    "ms": 4.1
+    "ms": 4.9
   },
   "restart_three_in_flight": {
     "class": "C-01",
     "state": "pass",
     "detail": "3 of 3 accounted for on resume",
     "mode": "real (already exercises the production path)",
-    "ms": 5.0
+    "ms": 6.0
   }
 }

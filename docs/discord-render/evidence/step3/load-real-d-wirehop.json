@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "rate": 1.0,
+    "seconds": 30.0,
+    "members": 5,
+    "handler_ms": 0.0,
+    "symbols": "real",
+    "sandbox": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\drender-load-egkqve8y",
+    "mode": "real",
+    "organic_members_exposed": 0,
+    "delivery": "channel",
+    "elapsed_s": 30.01,
+    "queue_at_end": {
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    }
+  },
+  "stats": {
+    "n": 31,
+    "p50": 0.05229999078437686,
+    "p95": 0.08480000542476773,
+    "p99": 0.1284000463783741,
+    "max": 0.1284000463783741,
+    "mean": 0.057483871182006215,
+    "over_1s": 0,
+    "over_3s": 0
+  },
+  "kinds": {
+    "immediate": 31
+  },
+  "samples_ms": [
+    0.041599967516958714,
+    0.07930002175271511,
+    0.04650000482797623,
+    0.06340001709759235,
+    0.1284000463783741,
+    0.05229999078437686,
+    0.0638000201433897,
+    0.07400003960356116,
+    0.06589997792616487,
+    0.06120000034570694,
+    0.08480000542476773,
+    0.09579997276887298,
+    0.04099996294826269,
+    0.06350001785904169,
+    0.055800017435103655,
+    0.04080001963302493,
+    0.05189998773857951,
+    0.06319995736703277,
+    0.04959997022524476,
+    0.06829999620094895,
+    0.045599997974932194,
+    0.03609998384490609,
+    0.04339998122304678,
+    0.0659999786876142,
+    0.036699988413602114,
+    0.05000003147870302,
+    0.05820003570988774,
+    0.05000003147870302,
+    0.032999960239976645,
+    0.034800032153725624,
+    0.03709999145939946
+  ],
+  "queue_depth": [
+    {
+      "t": 0.0,
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 10.01,
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 20.02,
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 30.01,
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    },
+    {
+      "t": 30.01,
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    }
+  ],
+  "real": {
+    "deliver": {},
+    "end_to_end_ms": {
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "over_15s": 0
+    },
+    "success_rate": null,
+    "jobs": 0,
+    "acks_over_3s": 0,
+    "failures_by_class": {},
+    "stuck": 0,
+    "by_command": {},
+    "cache": {
+      "hits": 0,
+      "misses": 0,
+      "hit_rate": null,
+      "l2_promotions": 0,
+      "l2_served_unpromoted": 0,
+      "refused_standin": 0
+    },
+    "breakers": {},
+    "renderer": {
+      "reachable": false,
+      "ready": false,
+      "error": "ConnectError"
+    },
+    "renderer_delta": {
+      "renders_total": null,
+      "recycles": null,
+      "timeouts": null,
+      "failures": null,
+      "pool_hits": null,
+      "pool_misses": null,
+      "rss_mb_after": null,
+      "rss_mb_before": null
+    }
+  }
+}

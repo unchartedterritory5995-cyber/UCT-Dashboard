@@ -270,8 +270,16 @@ def interaction(n: int, *, members: int, ticker: str = "NVDA") -> dict:
     single-member load run stops measuring the ack path after twelve interactions and starts
     measuring the rate limiter — a harness that produces a beautiful flat p99 by refusing the load
     it was asked to apply."""
+    # ⛔⛔ THE CHANNEL MUST BE ONE THE COMMAND IS ALLOWED IN, OR THE RUN MEASURES THE CHANNEL GATE.
+    # ⚰️ 2026-09-14: this was the literal "2". Run locally with no env that is fine — the gate is
+    # unrestricted when `CHART_FLOW_CHANNEL_ID` is unset. Run under `railway run --service web` it
+    # inherits PRODUCTION's allowlist, "2" is not on it, and all 31 interactions came back as an
+    # immediate channel nudge: `replies={"immediate": 31}`, zero jobs, S2 unmeasured.
+    # ⭐ The harness reported INCONCLUSIVE rather than PASS ("S2 was not measured, which is not the
+    # same as met"), which is the only reason this was caught rather than banked as a fast p99.
     return {"id": f"{9_000_000_000_000_000_000 + n}", "type": 2, "application_id": "harness-app",
-            "token": f"harness-token-{n}", "guild_id": "1", "channel_id": "2",
+            "token": f"harness-token-{n}", "guild_id": "1",
+            "channel_id": os.environ.get("HARNESS_CHANNEL_ID", "2"),
             "member": {"user": {"id": f"member-{n % max(1, members)}"}},
             "data": {"name": "chart", "options": [{"name": "ticker", "value": ticker}]}}
 
