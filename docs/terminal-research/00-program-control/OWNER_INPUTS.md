@@ -26,7 +26,7 @@ what this programme would do; it is not what it *has* done. Nothing here has bee
 |---|---|
 | **A1 · OI-03(a) Massive tier** | **UNKNOWN-VERIFIED** — attempted in the browser, `massive.com/dashboard` redirects to signup, **not signed in**, no credential entered. → **conservative default: INDIVIDUAL tier, no member display.** |
 | **A2 · OI-03(b) FMP agreement** | **UNKNOWN-VERIFIED** — `site.financialmodelingprep.com/…/dashboard` redirects to `/register`. → **conservative default: NO agreement.** ⛔ And a licensing agreement is a **contract**, so even a signed-in dashboard might not settle it: absence from a dashboard is not absence of a contract. |
-| **A3 · OI-06 desk morning** | to be **derived from telemetry**, not asked. Queued — see RESUME. |
+| **A3 · OI-06 desk morning** | ✅ **DERIVED FROM TELEMETRY 2026-09-14**, production `/data/auth.db` (29 users). Manifest order = **session-opener** order (`/dashboard` first, 22 of 50 admin session-days), tiebroken by total views; S2's default command = *open the dashboard*. ⛔ The external-tool half of OI-06 is **structurally unanswerable** from our own `page_views` — telemetry records this app only — so it falls to shipped behaviour: **no external-tool affordance, no TradingView alerts assumed.** `verification/2026-09-14/OI-06-telemetry-derived-defaults.md`. |
 | **A4 · browser checks** | **RUN** 2026-09-14 as admin via the smoke-login link. Bell PARTIAL, Ask-AI provenance PASS, S3 `/status` queued. `verification/2026-09-14/browser-checks.md`. |
 
 ### ⛔ The consequence of the two conservative defaults, stated once
