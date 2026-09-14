@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextvars
 import json
 import os
 import pathlib
@@ -284,6 +285,215 @@ def interaction(n: int, *, members: int, ticker: str = "NVDA") -> dict:
             "data": {"name": "chart", "options": [{"name": "ticker", "value": ticker}]}}
 
 
+# ── the load model (OI-37) ──────────────────────────────────────────────────
+
+OPEN_LOOP, CLOSED_LOOP = "open_loop", "closed_loop"
+
+
+def _closed_loop_inflight_probe(*, n: int, seconds: float, service_s: float,
+                                release_early: bool = False) -> dict:
+    """A5 — exercise the closed-loop accounting against a stub service of known duration.
+
+    ⚠️ THIS IS A MINIATURE OF `drive_closed_loop`'s accounting, not the function itself: the real
+    loop is bound to the V2 runtime and cannot run inside a sub-second self-check. It is stated
+    here rather than hidden because a copy is a second authority — the guard against drift is that
+    the REAL run reports the same three fields (`peak_inflight`, `mean_inflight`, `requested`), so a
+    divergence shows up the first time a real run is read.
+
+    `release_early=True` is the deliberately broken variant: it decrements the in-flight counter at
+    dispatch instead of at completion, which is precisely what an open loop wearing a concurrency
+    label looks like. If the control cannot tell that apart, it is measuring nothing."""
+    inflight = 0
+    peak = 0
+    samples: list[int] = []
+
+    async def _client():
+        nonlocal inflight, peak
+        end = time.perf_counter() + seconds
+        while time.perf_counter() < end:
+            inflight += 1
+            peak = max(peak, inflight)
+            samples.append(inflight)
+            if release_early:
+                inflight -= 1
+                await asyncio.sleep(service_s)
+            else:
+                try:
+                    await asyncio.sleep(service_s)
+                finally:
+                    inflight -= 1
+
+    async def _go():
+        await asyncio.gather(*[_client() for _ in range(n)])
+
+    asyncio.run(_go())
+    return {"peak": peak, "mean": round(sum(samples) / len(samples), 2) if samples else 0.0,
+            "requested": n, "samples": len(samples)}
+
+
+def read_labelled_artifact(path) -> dict:
+    """Load a run artifact, REFUSING one that does not say which load model produced it.
+
+    ⛔⛔ A4. Before OI-37 every artifact carried `rate` and nothing else, so a reader could not tell
+    30-arrivals-per-second from 30-concurrent — and for a whole programme nobody did. An unlabelled
+    artifact is not a weaker measurement, it is an ambiguous one, and the cheapest moment to refuse
+    it is when it is read rather than when it is quoted in a flip decision."""
+    d = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+    meta = d.get("meta") or {}
+    model = meta.get("model")
+    if model not in (OPEN_LOOP, CLOSED_LOOP):
+        raise ValueError(
+            f"{pathlib.Path(path).name}: no load model recorded (meta.model={model!r}). "
+            f"Pre-OI-37 artifacts are AMBIGUOUS — `rate` alone cannot distinguish "
+            f"arrivals/second from concurrency. Re-run it; do not infer.")
+    if model == CLOSED_LOOP and meta.get("concurrency") is None:
+        raise ValueError(f"{pathlib.Path(path).name}: closed_loop without a concurrency")
+    if model == OPEN_LOOP and meta.get("arrival_rate") is None:
+        raise ValueError(f"{pathlib.Path(path).name}: open_loop without an arrival_rate")
+    return d
+
+
+def label_of(meta: dict) -> str:
+    """The one-line description that must sit beside any number from this harness."""
+    m = meta.get("model")
+    if m == CLOSED_LOOP:
+        return f"closed loop, concurrency={meta.get('concurrency')}, {meta.get('seconds')}s"
+    if m == OPEN_LOOP:
+        return f"open loop, arrival_rate={meta.get('arrival_rate')}/s, {meta.get('seconds')}s"
+    return "UNLABELLED — model unknown"
+
+#: A job is finished when the store says so. Mirrors `jobs_store.TERMINAL_STATES` — imported
+#: rather than retyped so a new terminal state cannot leave a client waiting forever.
+_CORR: "contextvars.ContextVar[str]" = contextvars.ContextVar("harness_client", default="")
+
+
+async def _await_terminal(store, corr_id: str, deadline: float) -> str:
+    """Block until this job reaches a terminal state, or the deadline passes.
+
+    ⛔ THIS IS WHAT MAKES THE LOOP CLOSED. A virtual member who has asked for a chart is not
+    available to ask for another until the chart arrives (or visibly fails). Returning at the ACK
+    would model a member who fires and forgets, which is the open-loop model wearing a
+    concurrency label — and at ~1 ms acks, 30 such clients would offer ~30,000 arrivals/second."""
+    from api.services.discord_render.jobs_store import TERMINAL_STATES
+    while time.perf_counter() < deadline:
+        row = store.get(corr_id) if store is not None else None
+        if row and str(row.get("state") or "") in TERMINAL_STATES:
+            return str(row.get("state"))
+        await asyncio.sleep(0.05)
+    return "deadline"
+
+
+async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, symbols_mode: str,
+                            tickers: list, real: bool, deliver_channel: str,
+                            deliver_rate: float, drain_s: float,
+                            deliver_stats: dict | None = None) -> dict:
+    """N virtual members, each issuing its next request only when its previous one RESOLVES.
+
+    ⛔⛔ OI-37. The spec said "30 concurrent" and the harness drove 30 ARRIVALS PER SECOND — about
+    fifteen times the offered load that was asked for. Under an open-loop model the queue is handed
+    work at a rate nothing throttles, so `queue_full` is guaranteed at a high enough R and says
+    nothing about whether the queue is sized correctly. Under a closed loop the offered load is
+    bounded by N and by service time, which is the question admission control is actually about."""
+    from api.services.discord_render import commands, symbols
+
+    if symbols_mode == "stub":
+        commands.symbols.resolve = lambda sym, **kw: symbols.Resolution(  # type: ignore[attr-defined]
+            ok=True, symbol=sym.upper(), unknown=[], suggestions=())
+
+    rt = commands.get_runtime()
+    _dstats = deliver_stats if deliver_stats is not None else {}
+    if deliver_channel:
+        rt.edit_fn = channel_edit_fn(deliver_channel, rate=deliver_rate, stats=_dstats)
+    elif real:
+        rt.edit_fn = counting_edit_fn(_dstats)
+
+    # ⭐ Capture each client's corr_id WITHOUT changing behaviour: `offer` is wrapped, and the
+    # client identity travels in a ContextVar so interleaved awaits cannot cross the wires.
+    corr_by_client: dict = {}
+    _real_offer = rt.offer
+
+    def _offer(job):
+        who = _CORR.get()
+        if who:
+            corr_by_client[who] = getattr(job, "corr_id", None)
+        return _real_offer(job)
+
+    rt.offer = _offer
+
+    samples: list[float] = []
+    kinds: dict = {}
+    queue_depth: list = []
+    inflight = 0
+    peak_inflight = 0
+    inflight_samples: list[int] = []
+    resolutions: dict = {}
+    counter = {"n": 0}
+    started = time.perf_counter()
+    end_at = started + seconds
+
+    async def client(idx: int) -> None:
+        nonlocal inflight, peak_inflight
+        who = f"c{idx}"
+        _CORR.set(who)
+        while time.perf_counter() < end_at:
+            n = counter["n"]
+            counter["n"] = n + 1
+            inflight += 1
+            peak_inflight = max(peak_inflight, inflight)
+            inflight_samples.append(inflight)
+            received = time.perf_counter()
+            try:
+                reply = await commands.handle(
+                    interaction(n, members=members, ticker=tickers[n % len(tickers)]), received)
+                samples.append((time.perf_counter() - received) * 1000.0)
+                kinds[_kind_of(reply)] = kinds.get(_kind_of(reply), 0) + 1
+                corr = corr_by_client.pop(who, None)
+                if real and corr:
+                    state = await _await_terminal(rt.store, corr, min(end_at + drain_s,
+                                                                     time.perf_counter() + drain_s))
+                    resolutions[state] = resolutions.get(state, 0) + 1
+                else:
+                    # ⛔ NO corr_id means the request was REFUSED at admission (queue_full, a
+                    # throttle, a bad symbol). That is a resolution — the member has their answer —
+                    # so the client is free immediately. Counting it as still-in-flight would
+                    # silently lower the offered load exactly when the system is under stress.
+                    resolutions["refused_at_admission"] = resolutions.get("refused_at_admission", 0) + 1
+            finally:
+                inflight -= 1
+
+    async def gauge() -> None:
+        while time.perf_counter() < end_at:
+            queue_depth.append({"t": round(time.perf_counter() - started, 2),
+                                "inflight": inflight, **(rt.depth() or {})})
+            await asyncio.sleep(0.5)
+
+    try:
+        await asyncio.gather(gauge(), *[client(i) for i in range(concurrency)])
+        if real:
+            deadline = time.perf_counter() + drain_s
+            while time.perf_counter() < deadline:
+                d = rt.depth() or {}
+                queue_depth.append({"t": round(time.perf_counter() - started, 2),
+                                    "inflight": inflight, **d})
+                if not (d.get("interactive") or d.get("active") or d.get("background")):
+                    break
+                await asyncio.sleep(1.0)
+    finally:
+        rt.offer = _real_offer
+        try:
+            commands.stop()
+        except Exception:  # noqa: BLE001
+            pass
+
+    mean_inflight = (sum(inflight_samples) / len(inflight_samples)) if inflight_samples else 0.0
+    return {"samples": samples, "kinds": kinds, "queue": rt.depth() if rt else {},
+            "queue_depth": queue_depth, "runtime": rt,
+            "elapsed_s": time.perf_counter() - started,
+            "concurrency": {"requested": concurrency, "peak_inflight": peak_inflight,
+                            "mean_inflight": round(mean_inflight, 2),
+                            "resolutions": resolutions}}
+
+
 # ── the run ─────────────────────────────────────────────────────────────────
 
 async def drive(rate: float, seconds: float, *, members: int, handler_ms: float,
@@ -465,9 +675,94 @@ def self_check() -> int:
     cases.append(("one four-second member is not hidden by 99 fast ones",
                   stats["max"] == 5000.0 and stats["over_3s"] == 1 and stats["p50"] == 10.0))
 
-    for name, ok in cases:
-        print(f"  {'ok  ' if ok else 'FAIL'} {name}")
-    failed = [n for n, ok in cases if not ok]
+    # ── OI-37: the load model is declared, recorded, and actually held ──────────────────
+    import tempfile as _tf
+    _dir = pathlib.Path(_tf.mkdtemp(prefix="drender-label-"))
+
+    def _write(meta):
+        q = _dir / f"a{len(list(_dir.iterdir()))}.json"
+        q.write_text(json.dumps({"meta": meta, "stats": {}}), encoding="utf-8")
+        return q
+
+    def _refuses(meta):
+        try:
+            read_labelled_artifact(_write(meta))
+            return False
+        except ValueError:
+            return True
+
+    cases.append(("a closed-loop artifact is accepted and labelled",
+                  read_labelled_artifact(_write({"model": CLOSED_LOOP, "concurrency": 30,
+                                                 "seconds": 60})) is not None))
+    # ⛔ THE LOAD-BEARING ROW: a pre-OI-37 artifact carries `rate` and no model. It must be
+    # REFUSED, not read hopefully — that ambiguity is the whole defect.
+    cases.append(("a pre-OI-37 artifact (rate, no model) is REFUSED",
+                  _refuses({"rate": 30.0, "seconds": 20})))
+    cases.append(("closed_loop without a concurrency is REFUSED",
+                  _refuses({"model": CLOSED_LOOP, "seconds": 60})))
+    cases.append(("open_loop without an arrival_rate is REFUSED",
+                  _refuses({"model": OPEN_LOOP, "seconds": 60})))
+    # ⛔ non-vacuity for the three refusals: the reader must be able to ACCEPT something, or
+    # "it refused" is just a function that always raises.
+    cases.append(("the reader can still accept a valid open-loop artifact",
+                  read_labelled_artifact(_write({"model": OPEN_LOOP, "arrival_rate": 1.0,
+                                                 "seconds": 600})) is not None))
+    cases.append(("the label names the model and its parameter",
+                  label_of({"model": CLOSED_LOOP, "concurrency": 30, "seconds": 20})
+                  == "closed loop, concurrency=30, 20s"
+                  and "open loop" in label_of({"model": OPEN_LOOP, "arrival_rate": 30.0,
+                                               "seconds": 20})))
+    # ⛔ the two models must not render the same string — a label that cannot distinguish them
+    # would satisfy every row above while leaving the reader exactly where OI-37 found them.
+    cases.append(("the two models do not describe themselves identically",
+                  label_of({"model": CLOSED_LOOP, "concurrency": 30, "seconds": 20})
+                  != label_of({"model": OPEN_LOOP, "arrival_rate": 30.0, "seconds": 20})))
+
+    # A5 — the in-flight accounting, exercised through the REAL client loop with a stub handler.
+    _held = _closed_loop_inflight_probe(n=4, seconds=0.6, service_s=0.05)
+    # ⛔ BOUNDED ON BOTH SIDES. `peak <= N` alone is satisfied by a blinded gauge reporting 0 —
+    # measured: a mutation setting `peak = 0` left this row green. An upper bound cannot tell
+    # "never exceeded N" from "never saw anything", which is this programme's oldest lesson.
+    cases.append(("closed loop reaches EXACTLY N in flight, never more",
+                  _held["peak"] == 4))
+    cases.append(("closed loop actually HOLDS N in flight under saturation",
+                  _held["mean"] >= 3.0))
+    # ⛔ control for the control: a deliberately broken client that releases BEFORE completion
+    # must break the mean, or the row above passes for a loop that never held anything.
+    _broken = _closed_loop_inflight_probe(n=4, seconds=0.6, service_s=0.05, release_early=True)
+    cases.append(("releasing before completion is CAUGHT by the mean",
+                  _broken["mean"] < 3.0))
+
+    # ⛔⛔ THE CLI CONTRACT IS PART OF THE MEASUREMENT, so it is checked here and not only by hand.
+    # ⚰️ A mutation that deleted the "exactly one model" guard left this self-check GREEN, because
+    # the guard lives in `main()` and nothing here had ever called it. A guard with no control is
+    # the defect OI-37 exists to record, so it would have been the second instance in one file.
+    # ⛔ ASSERT THE REASON, NOT THE EXIT CODE. `main()` returns INCONCLUSIVE for several unrelated
+    # causes, so `== INCONCLUSIVE` alone passes whether or not the model guard exists — measured:
+    # deleting the guard left these rows green. The verdict must name the thing under test.
+    import contextlib as _ctx
+    import io as _io
+
+    def _main_says(argv: list) -> str:
+        buf = _io.StringIO()
+        with _ctx.redirect_stdout(buf):
+            code = main(argv)
+        return f"{code}|{buf.getvalue()}"
+
+    _neither = _main_says(["--seconds", "1"])
+    _both = _main_says(["--arrival-rate", "1", "--concurrency", "5", "--seconds", "1"])
+    _old = _main_says(["--rate", "30", "--seconds", "1"])
+    _zero = _main_says(["--concurrency", "0", "--seconds", "1"])
+    cases.append(("no load model given is refused BY NAME",
+                  _neither.startswith(f"{INCONCLUSIVE}|") and "neither load model" in _neither))
+    cases.append(("both load models given is refused BY NAME",
+                  _both.startswith(f"{INCONCLUSIVE}|") and "both load model" in _both))
+    cases.append(("the removed --rate flag is refused BY NAME, not silently re-read",
+                  _old.startswith(f"{INCONCLUSIVE}|") and "--rate is ambiguous" in _old))
+    cases.append(("--concurrency 0 is refused BY NAME",
+                  _zero.startswith(f"{INCONCLUSIVE}|") and "concurrency must be" in _zero))
+
+
     # ── `--real`'s own judgements, which must be able to go both ways ──────
     _e2e = lambda p50, p95, p99, jobs=10, rate=1.0: {  # noqa: E731
         "end_to_end_ms": {"p50": p50, "p95": p95, "p99": p99}, "jobs": jobs,
@@ -514,6 +809,15 @@ def self_check() -> int:
     cases.append(("an empty cache reports `None`, never 0.0",
                   (collect_real_metrics(_NoRt(), {}).get("cache") or {}).get("hit_rate") is None))
 
+    # ⛔⛔ THE EVALUATION RUNS LAST, AFTER EVERY APPEND.
+    # ⚰️ It used to sit in the MIDDLE: fifteen cases were appended after it and were
+    # therefore counted by `len(cases)` and never checked. `--self-check` printed
+    # `cases=20 failed=0` while five were evaluated — the count rose, the checking did
+    # not. Same shape as the flip gate rows that reported MET off file existence.
+    for name, ok in cases:
+        print(f"  {'ok  ' if ok else 'FAIL'} {name}")
+    failed = [n for n, ok in cases if not ok]
+
     print(f"TOTALS load_harness --self-check {'PASS' if not failed else 'FAIL'} "
           f"cases={len(cases)} failed={len(failed)}"
           + (f" reasons={'; '.join(failed)}" if failed else ""))
@@ -524,7 +828,19 @@ def self_check() -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--rate", type=float, default=4.0, help="interactions per second")
+    # ⛔⛔ OI-37. `--rate` is GONE, not aliased. It meant arrivals per second, the spec
+    # said "30 concurrent", and the two were read as the same thing for a whole
+    # programme — 30/s is about fifteen times 30-concurrent for this service. A silent
+    # alias would preserve exactly the ambiguity that produced the wrong measurement, so
+    # the old flag now ERRORS and names its two replacements.
+    ap.add_argument("--rate", type=float, default=None,
+                    help=argparse.SUPPRESS)
+    ap.add_argument("--arrival-rate", type=float, default=None,
+                    help="OPEN LOOP: interactions per second, scheduled on a clock "
+                         "regardless of whether earlier ones finished")
+    ap.add_argument("--concurrency", type=int, default=None,
+                    help="CLOSED LOOP: N virtual members held in flight; each issues its "
+                         "next request only when its previous one resolves")
     ap.add_argument("--seconds", type=float, default=60.0)
     ap.add_argument("--members", type=int, default=40, help="distinct member ids to rotate through")
     ap.add_argument("--handler-ms", type=float, default=0.0,
@@ -551,9 +867,34 @@ def main(argv=None) -> int:
     if args.self_check:
         return self_check()
 
+    # ⛔⛔ OI-37 — THE LOAD MODEL IS DECLARED, NEVER DEFAULTED.
+    # The spec said "30 concurrent"; the harness drove 30 arrivals per second; nobody noticed for a
+    # whole programme because one flag called `--rate` could be read as either. There is now no
+    # default and no alias: a run must say which question it is asking, or it does not run.
+    if args.rate is not None:
+        print("TOTALS load_harness INCONCLUSIVE --rate is ambiguous and has been REMOVED (OI-37). "
+              "It meant arrivals/second, and the spec it was used against said 'concurrent'. "
+              "Use --arrival-rate R (open loop) or --concurrency N (closed loop).")
+        return INCONCLUSIVE
+    if (args.arrival_rate is None) == (args.concurrency is None):
+        which = "both" if args.arrival_rate is not None else "neither"
+        print(f"TOTALS load_harness INCONCLUSIVE {which} load model given. Pass exactly one of "
+              f"--arrival-rate R (open loop: arrivals on a clock, independent of completion) or "
+              f"--concurrency N (closed loop: N in flight, next request on resolution). "
+              f"There is no default — a number whose model is unstated is not a measurement.")
+        return INCONCLUSIVE
+    model = CLOSED_LOOP if args.concurrency is not None else OPEN_LOOP
+    if args.concurrency is not None and args.concurrency < 1:
+        print("TOTALS load_harness INCONCLUSIVE --concurrency must be >= 1")
+        return INCONCLUSIVE
+
     sys.path.insert(0, str(_repo_root()))
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="drender-load-"))
-    meta = {"rate": args.rate, "seconds": args.seconds, "members": args.members,
+    meta = {"model": model, "arrival_rate": args.arrival_rate,
+            "concurrency": args.concurrency,
+            # ⛔ `rate` is kept in the artifact ONLY so an old reader does not silently
+            # read None; `model` is the field that says what the number means.
+            "rate": args.arrival_rate, "seconds": args.seconds, "members": args.members,
             "handler_ms": args.handler_ms, "symbols": args.symbols, "sandbox": str(tmp),
             "mode": "real" if args.real else "ack",
             # ⛔ STATED ON EVERY RUN, because it is the number the owner asks for on every report.
@@ -608,15 +949,27 @@ def main(argv=None) -> int:
         sandbox(tmp)
         enable_v2()
         rend_before = renderer_health() if args.real else {}
-        out = asyncio.run(drive(args.rate, args.seconds, members=args.members,
-                                handler_ms=args.handler_ms, symbols_mode=args.symbols,
-                                tickers=[t.strip().upper() for t in args.tickers.split(",") if t.strip()],
-                                real=args.real, deliver_channel=args.deliver_channel,
-                                deliver_rate=args.deliver_rate, drain_s=args.drain_s,
-                                deliver_stats=deliver_stats))
+        _tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+        if model == CLOSED_LOOP:
+            out = asyncio.run(drive_closed_loop(
+                args.concurrency, args.seconds, members=args.members, symbols_mode=args.symbols,
+                tickers=_tickers, real=args.real, deliver_channel=args.deliver_channel,
+                deliver_rate=args.deliver_rate, drain_s=args.drain_s,
+                deliver_stats=deliver_stats))
+        else:
+            out = asyncio.run(drive(args.arrival_rate, args.seconds, members=args.members,
+                                    handler_ms=args.handler_ms, symbols_mode=args.symbols,
+                                    tickers=_tickers,
+                                    real=args.real, deliver_channel=args.deliver_channel,
+                                    deliver_rate=args.deliver_rate, drain_s=args.drain_s,
+                                    deliver_stats=deliver_stats))
         stats, kinds = summarise(out["samples"]), out["kinds"]
         meta["elapsed_s"] = round(out["elapsed_s"], 2)
         meta["queue_at_end"] = out["queue"]
+        # ⛔ A4: the artifact records WHICH MODEL produced it, in band. An artifact that
+        # does not say is rejected by `read_labelled_artifact` rather than read hopefully.
+        if out.get("concurrency"):
+            meta["concurrency_observed"] = out["concurrency"]
         real_metrics = (collect_real_metrics(out["runtime"], deliver_stats, rend_before)
                         if args.real else {})
         if args.out:
