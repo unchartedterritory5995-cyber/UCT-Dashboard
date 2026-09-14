@@ -522,3 +522,46 @@ Given after merge 1 (S-B → master `e5dfb23fb`). §8a still stands; these are a
    because `api.services.wisdom.publish.adapters` does not exist, so the half that covers
    member-facing OUTPUT has never executed. **The Definition of Done line for the import-ban rails
    is not checked until it passes un-skipped.**
+
+---
+
+## 8c. Owner rulings at checkpoint 3 (2026-09-13)
+
+1. **S-A's capture-run finding must close BEFORE S-A merges.** Five requirements, all of them:
+   1. **The route authenticates and authorizes.** ⚠️ Correction to the ruling's premise, recorded
+      because the requirement should rest on the real state: the route is **already
+      authenticated** — every route in `api/routers/wisdom_capture.py`, reads included, carries
+      `Depends(require_admin)` (`:29`, `:46`, `:65`), and `tests/test_wisdom_capture_routes.py`
+      covers it. The hazard is **not** a missing gate. It is (a) an **unbounded `as_of`**, validated
+      only by `dt.date.fromisoformat`, and (b) a **destructive-by-consequence write** sitting behind
+      the same gate as a read. Authorization therefore means: the write variant
+      (`dry_run=false`, and any explicit `as_of`) is gated **more tightly than a read**, and `as_of`
+      is **bounded relative to today** — a future date is refused outright.
+   2. **A watermark advances only on a write whose object passed a non-empty + checksum check.**
+      Zero rows must never move a watermark. A watermark moved to a future epoch makes every
+      subsequent run read `lo >= hi` → `rows=0` → a P1 page every night while capturing nothing.
+   3. **Canonical keys are written once, via a staging key + a verified move — never directly.**
+      ⚠️ Note for whoever implements it: `core/r2.py` has **no delete function, by design**, so the
+      "move" is put-to-staging → verify (`head_object` + sha256 metadata) → copy to canonical →
+      verify. The staging object is left in place; that is the cost of having no delete path, and it
+      is the right trade. `core/r2.py` is integrator-owned — the copy primitive lands there.
+   4. **A regression test plants the attack and asserts it is REFUSED** — the future `as_of`, and
+      the empty-payload write to a canonical key.
+   5. **The ledger row names the finding.**
+2. **Every one of the other seven scout findings gets a verdict with evidence.** VERIFIED, REFUTED
+   or COULD-NOT-TEST. **None gets "probably fine."**
+3. **The unmeasured-audit gap closes structurally, not by argument.** The empty `wisdom_publish_log`
+   is accepted as *today's* argument. The durable fix: **every Wisdom publish adapter (Part 5) writes
+   a provenance marker on every write**, and **a CI check fails if any adapter code path can write to
+   a consumer table without it**. Only then is the shape-based audit a real audit rather than a
+   search for a marker nobody was required to write. **Ships with S-F2 publish**; a ledger note
+   carries it until then.
+4. **The S-D end-to-end assertion (drift #4c) is owed at the S-D merge** and is written into S-D's
+   Definition of Done in the manifest so it cannot be forgotten. The S-B regression test asserts at
+   the layer that decides authorship; S-D owns the record WRITER, so only S-D can assert that a
+   session containing an attendee named "Patrick" produces **zero rows** attributed to the owner.
+5. **Diarization: a straight answer is due at the next checkpoint** — does a working diarization path
+   exist in this environment, yes or no. If no, the plan is named explicitly: **install** (which
+   library, and whether the network policy allows it), an **external service** (which, and what it
+   costs), or **transcript-only with turn-structure heuristics**.
+   ⛔ **Track A does not stall on it: run STT to full coverage FIRST, diarize SECOND.**

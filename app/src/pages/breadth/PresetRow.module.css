@@ -151,7 +151,9 @@
    LAYOUT (padding, font-size, flex, overflow) deliberately does not
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
-  .btn {
+  .btn,
+  .item {
+    /* each preset in the More list is a finger target too (A-19) */
     min-height: var(--tap-min);
   }
 }

@@ -51,6 +51,7 @@ from api.routers import quote_of_the_day as quote_of_the_day_router
 from api.routers import ticker_search as ticker_search_router
 from api.routers import compare as compare_router
 from api.routers import breadth_monitor as breadth_monitor_router
+from api.routers import terminal_next_reports
 from api.routers import theme_performance as theme_performance_router
 from api.routers import groups as groups_router
 from api.routers import sector_strength as sector_strength_router
@@ -8054,6 +8055,7 @@ def health_cache(_admin: dict = Depends(require_admin)):
 
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
+app.include_router(terminal_next_reports.router)
 app.include_router(render_panels_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)

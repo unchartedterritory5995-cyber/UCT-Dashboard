@@ -35,7 +35,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Query
 
 _log = logging.getLogger("uvicorn.error")
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
@@ -220,6 +220,49 @@ async def _lifespan(app: FastAPI):
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
     from api.routers.bars import serve_bars, serve_bars_history
+    # 🔴 THIS SERVICE IS PUBLICLY ROUTABLE. Railway serves it at a public domain as
+    # well as on private networking, so every data route below is directly reachable
+    # from the internet and a gate on the web pod alone would protect one of TWO doors.
+    #
+    # 🔴🔴 THE DATA ROUTES BELOW ARE DELIBERATELY UNGATED, AND THIS COMMENT IS THE
+    # RECEIPT. The obvious change — `Depends(require_bars_service)` on them — was
+    # shipped on 2026-09-13 and TOOK PRODUCTION DOWN. Do not re-add it from reading
+    # the source tree; read this first.
+    #
+    # ⛔ THE FALSE PREMISE. This block used to say "no browser ever calls it — the
+    # frontend is same-origin only". That is true of the REPO and FALSE of the
+    # DEPLOYMENT: an EDGE ROUTE forwards member traffic for `/api/bars/{ticker}` on
+    # the app's own domain straight to THIS service, verbatim. `app/src` really does
+    # contain no absolute bars host — which is exactly why a source-only audit
+    # concluded the opposite and shipped a gate in front of every paying member.
+    #
+    # ⭐ THE PROOF, measured in production, not reasoned from the tree:
+    #   1. A browser fetch of a RELATIVE `/api/bars/AAPL?…&_cb=<tag>` arrived in THIS
+    #      service's logs still carrying `_cb` — a param the web pod's proxy never
+    #      forwards (`_proxy_bars_to_tier` sends only tf/bars/since/to/warm). So the
+    #      caller was the BROWSER, not the web pod.
+    #   2. On the app's own domain, `POST /api/bars/warm` answers 405 and
+    #      `/api/bars/_debug_source/X` answers a JSON 404 — THIS app's shapes. The web
+    #      app defines both routes and would have answered them.
+    #   3. `warm=1` reached here too, though `_bars_proxy_should_route` keeps every
+    #      warm local — more traffic than the proxy can explain.
+    #
+    # ⛔ CONSEQUENCE: a service-credential gate here is a gate on every member's
+    # chart, because a browser cannot present `PUSH_SECRET` and must never be asked
+    # to. Equities/ETFs/indices all 401'd; only breadth survived, because the edge
+    # keeps `UCT*` on the web pod. Until edge entitlement exists, the member question
+    # is answered on the WEB pod and this tier stays open.
+    #
+    # ⭐ WHAT STILL HOLDS, so this is not a retreat: the WEB pod gates the member
+    # surface (`require_bars_access`) and the WORKER gates the deep 20 GB store
+    # (`require_bars_service`) — the worker is NOT edge-routed, so its gate costs
+    # members nothing. `/api/coverage` KEEPS its gate below for the same reason:
+    # measured on the app's own domain, `/api/coverage` resolves to the web pod
+    # (SPA fallback), so the edge does not route it and no member needs it.
+    #
+    # ⭐ HEALTH AND READY STAY OPEN DELIBERATELY: Railway’s healthcheck presents no
+    # credential, and gating it would fail the deploy rather than secure anything.
+    from api.bars_auth import require_bars_service
 
     def _health():
         return {"alive": True, "service": "bars-api",
@@ -238,7 +281,7 @@ def _build_app() -> FastAPI:
         return {"ready": True, "service": "bars-api", "pending": []}
 
     @app.get("/api/coverage")
-    def coverage():
+    def coverage(_svc: dict = Depends(require_bars_service)):
         # Ground-truth universe warmth: how many tickers this tier holds per TF +
         # a freshness sample. This is how "instant everything" is MEASURED (watch
         # d_tickers climb toward the ~22-26k full universe) rather than hoped.
@@ -264,6 +307,9 @@ def _build_app() -> FastAPI:
         st["cap_universe_size"] = len(sample) if sample else None
         return st
 
+    # ⛔ NO GATE HERE ON PURPOSE — the edge routes member browsers to this route.
+    # See the block at the top of `_build_app`. Re-adding a credential here is a
+    # production outage, not a hardening.
     @app.get("/api/bars/{ticker}")
     def bars_route(
         ticker: str,
@@ -275,6 +321,7 @@ def _build_app() -> FastAPI:
     ):
         return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
 
+    # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")
     def bars_history_route(
         ticker: str,

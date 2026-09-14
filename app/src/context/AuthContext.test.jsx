@@ -105,9 +105,18 @@ describe('AuthContext fetchUser — transient vs definitive session-check failur
     await act(async () => { fireEvent.click(screen.getByText('retry')) })
 
     // The blip must not have logged anyone out or downgraded the plan.
-    expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev')
-    expect(screen.getByTestId('plan')).toHaveTextContent('pro')
-    expect(screen.getByTestId('transient')).toHaveTextContent('false')
+    // ⚰️ AND `transient` BELONGS IN THE WAIT TOO. The fix above moved `user` and
+    // `plan` inside a `waitFor` and left this third read synchronous — so the
+    // same race survived on the one value the test is named for, and it failed
+    // once in a six-shard gate on 2026-09-13 (green 3/3 alone and again in a
+    // re-run of its own shard). `authTransient` is written by its own update,
+    // which React 19 can flush after `act` resolves. All three are still
+    // demanded; only the sampling moment changes.
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev')
+      expect(screen.getByTestId('plan')).toHaveTextContent('pro')
+      expect(screen.getByTestId('transient')).toHaveTextContent('false')
+    })
   })
 
   it('network throw on a REFETCH with a logged-in user → user PRESERVED too', async () => {

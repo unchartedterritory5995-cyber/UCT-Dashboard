@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useId } from 'react'
 import useSWR from 'swr'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import ReactECharts from 'echarts-for-react'
@@ -77,6 +77,9 @@ export default function BreadthCharts() {
   const { prefs, setPref } = usePreferences()
 
   const [expanded, setExpanded] = useState({})
+  // A-24: each group toggle names the list it opens.
+  const pickerId = useId()
+  const groupListId = group => `${pickerId}-${group.replace(/[^a-z0-9]+/gi, '-')}`
   // A-35: the window is built on the Eastern date, re-read when the tab becomes
   // visible so a tab left open overnight follows the calendar. A date the member
   // typed is an override and stays where they put it.
@@ -530,6 +533,9 @@ export default function BreadthCharts() {
               return (
                 <button
                   key={g.group}
+                  type="button"
+                  aria-expanded={Boolean(expanded[g.group])}
+                  aria-controls={groupListId(g.group)}
                   className={`${styles.groupBtn} ${expanded[g.group] ? styles.groupBtnActive : ''}`}
                   onClick={() => toggleGroup(g.group)}
                 >
@@ -544,11 +550,13 @@ export default function BreadthCharts() {
           </div>
 
           {CHART_GROUPS.map(g => expanded[g.group] && (
-            <div key={g.group} className={styles.metricList}>
+            <div key={g.group} id={groupListId(g.group)} className={styles.metricList}>
               {/* A-22: the toggle draws only MA Breadth's lines, so it appears only there. */}
               {g.group === 'MA Breadth' && (
                 <div className={styles.extremesRow}>
                   <button
+                    type="button"
+                    aria-pressed={Boolean(notableExtremes[g.group])}
                     className={`${styles.extremesBtn} ${notableExtremes[g.group] ? styles.extremesBtnActive : ''}`}
                     onClick={() => toggleExtremes(g.group)}
                   >

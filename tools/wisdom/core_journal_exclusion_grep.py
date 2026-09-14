@@ -44,6 +44,13 @@ TERM_RE = re.compile("|".join(re.escape(t) for t in TERMS), re.IGNORECASE)
 JOURNAL_SENSE_RE = re.compile(r"journal|j2|notebook|broker", re.IGNORECASE)
 #: SQLite's own vocabulary. PRAGMA journal_mode is the write-ahead log, not the Journal.
 SQLITE_JOURNAL_RE = re.compile(r"journal_mode", re.IGNORECASE)
+#: The MORNING WIRE's own ledger file, `morning-wire data/wire_journal` — a different
+#: product's artifact that happens to share the word. It is named in `wire_inputs.py` in a
+#: dict of PC-only sources Wisdom declares it does NOT read, so flagging it reports the
+#: opposite of what is true. Same carve-out shape as journal_mode, and for the same reason.
+#: ⛔ OCCURRENCE-scoped, never line-scoped: only these exact spellings are removed before
+#: the sense test, so `wire_journal and the J2 journal` on one line still reads as journal.
+FOREIGN_JOURNAL_RE = re.compile(r"wire_journal", re.IGNORECASE)
 PROGRAM_GLOBS = (
     "api/services/wisdom/**/*",
     "api/routers/wisdom_*.py",
@@ -117,7 +124,8 @@ def kind_of(relpath: str) -> str:
 
 
 def sense_of(line: str) -> str:
-    return "journal" if JOURNAL_SENSE_RE.search(SQLITE_JOURNAL_RE.sub("", line)) else "other"
+    stripped = FOREIGN_JOURNAL_RE.sub("", SQLITE_JOURNAL_RE.sub("", line))
+    return "journal" if JOURNAL_SENSE_RE.search(stripped) else "other"
 
 
 def classify(relpath: str, line: str, *, prose: bool = False) -> str:

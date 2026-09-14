@@ -66,13 +66,14 @@ const seriesNamed = (opt, name) => opt.series.find(s => s.name === name)
 // markLines, not data. Counting plotted metrics means excluding them.
 const realSeries = opt => opt.series.filter(s => !s.name.startsWith('__'))
 
-/** Presets without a `group` are pills; the rest live behind the More popover. */
+const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Presets without a `group` are pills; the rest are buttons in the More list (A-24, D-032). */
 const clickPreset = name => {
   const pill = screen.queryByRole('button', { name })
   if (pill) return fireEvent.click(pill)
   fireEvent.click(screen.getByRole('button', { name: /^More/ }))
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return fireEvent.click(screen.getByRole('option', { name: new RegExp(escaped) }))
+  return fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}`) }))
 }
 
 describe('preset chips', () => {
@@ -99,7 +100,7 @@ describe('preset chips', () => {
       'Volume Thrust', 'Froth & Extension',
       'Vol Complex', 'Sentiment Extremes',
     ]) {
-      expect(screen.getByRole('option', { name: new RegExp(label.replace('/', '\\/')) }))
+      expect(screen.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}`) }))
         .toBeInTheDocument()
     }
   })
