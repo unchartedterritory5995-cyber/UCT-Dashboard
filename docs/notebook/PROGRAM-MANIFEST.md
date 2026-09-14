@@ -1252,6 +1252,41 @@ Closing it requires building an instrument first — that is a task, not a looku
     as *"it never sends"*, which is the stronger claim the number cannot carry.
     ⭐ **A round number that equals your own timeout is a reading of your loop.**
 
+28. ⛔⛔ **R-1a IS NOT A GAP. THE DOOR IS BUILT, MERGED TO MASTER, AND DARK** —
+    and the row above still calls it 🔴 **gap**, which is this programme's single
+    most-repeated defect (§10 items 1, 2 and the S-07 row are all the same shape:
+    a doc asserting a hole the code had already filled).
+
+    Measured by `git show`, never `git status`: `9666842d0` (*"Wave R: the
+    Screener's capture door (R-1a) and send-a-chart-to-a-note (R-2e)"*, 741
+    insertions) and `046214a82` (*"gate all four capture doors behind a release
+    switch"*) are **both ancestors of `origin/master`**. The switch is
+    `app/src/widgets/captureRelease.js:46` — `export const WAVE_R_CAPTURE_ON =
+    false` — and the door ships with a 283-line rail,
+    `ScannerResults.journalDoor.test.jsx`.
+
+    ⭐ **So R-1a's remaining work is a FLAG FLIP AND ITS PRECONDITIONS, not a
+    build.** It stays HELD — the ruling holds it until the navigation cells are
+    green, and a `/screener` door is by construction the offline-route-change
+    case that `append_widget_embed × drain-first` has RED — but it is held at a
+    completely different point in its life than the row implies, and anyone
+    planning from that row would have rebuilt a door that already exists.
+
+    ⚰️ **AND MY OWN CHECK NEARLY REFUTED THE FINDING.** I grepped
+    `ScannerResults.jsx` for `WAVE_R_CAPTURE_ON` and got **0 at every revision,
+    including master** — because the constant lives in `captureRelease.js` and
+    the door only imports `captureEnabled`. The zero was real and meaningless: I
+    had grepped the CONSUMER for the PRODUCER'S NAME. Same shape as *read the
+    call site ≠ read the request*. ⭐ The tell was that the zero was identical at
+    five unrelated revisions — **a finding that does not vary across history is
+    usually a question that does not touch it.**
+
+    ⚠️ One thing still unsettled and NOT to be assumed: `wave-all-RESUME-HERE.md`
+    places R-1a in a different worktree at `adbcbcdf8`. That commit exists and
+    the door file exists there too. Whether that line describes this same code or
+    a second implementation is **UNKNOWN** and must be settled before anything
+    is merged toward it.
+
 ### Rows added by §10
 
 | id | feature | status |
