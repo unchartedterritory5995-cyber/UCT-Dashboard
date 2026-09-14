@@ -283,3 +283,17 @@ owner action, Phase 6.
 | 2008– (18y) | 4,530 | 270 KB | 30.3 ms | 36.0 ms | 6.5 ms |
 
 → **Downsampling deferred**: the ~1 s trigger is ~33× away.
+
+### B1 merged and live (2026-09-14 01:24 ET / 2026-09-14T05:24:57Z)
+
+- Merge **`5a0e224f4`** · deploy **`5582d6d4`** SUCCESS 2026-09-14T05:21:36Z · commits `ce58497d2` (render-token
+  ARG, not ours), `6e9c8dcaf` (V2 build arg), `256e7dcd2` (B1).
+- Gate: **437 passed**, scoped backend suite (backend-only change — the six-shard vitest gate cannot see it).
+- Delta rule: **Rule 1** — D was 1 file (`tools/terminal_next_weekly.cmd`), `api/**` 0, tests 0, `app/**` 0,
+  overlap 0, nothing the endpoint imports. Merge and push, no re-gate.
+- Flow-worker: **not exposed** — watch coverage OK; the router is not in its import closure and `api/services/cache.py`,
+  which is, is untouched.
+- **Post-deploy dark verification** (evidence: `docs/breadth/screenshots/deploys/5a0e224f4/b1-dark-verification.json`):
+  `/api/breadth-monitor/series` → **404 anonymous**, **404 member-smoke (paid)**; `/api/breadth-monitor?days=5` →
+  **200, 5 rows**, unaffected. ⚠️ No free-tier smoke account exists on this box, so that caller class is covered by the
+  offline rail (`test_flag_unset_is_404_for_every_caller_class[FREE_MEMBER]`) rather than in production.
