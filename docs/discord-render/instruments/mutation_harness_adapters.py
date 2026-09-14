@@ -35,6 +35,7 @@ SH = "api/services/discord_render/shadow.py"
 ST = "tests/test_discord_render_shadow.py::"
 RT = "api/routers/discord_interactions.py"
 FT = "tests/test_discord_render_forensics.py::"
+FORENSICS = "tests/test_discord_render_forensics.py"
 TRT = T
 
 MUTATIONS = [
@@ -48,26 +49,56 @@ MUTATIONS = [
     {"name": "A2 a call with no time left is started anyway", "file": CALL,
      "old": "    if eff < MIN_USEFUL_S:\n", "new": "    if False:\n",
      "tests": [T + "test_a_call_with_no_useful_time_left_is_refused_without_touching_the_upstream"]},
-    {"name": "A3 the function gets the constant, not the effective budget", "file": CALL,
-     "old": "        fut = pool(name).submit(fn, left)\n",
-     "new": "        fut = pool(name).submit(fn, dep_timeout_s)\n",
+    {"name": "A3 the function gets a dependency constant, not the effective budget", "file": CALL,
+     "old": "    fut = pool(name).submit(fn, left)\n",
+     "new": "    fut = pool(name).submit(fn, 8.0)\n",
      "tests": [T + "test_the_function_is_handed_the_effective_timeout_not_the_constant"]},
     # C-10, found by Lane E's chaos harness: the budget was computed once per CALL, so an N-attempt
     # hop could spend N x the deadline (measured 4.6 s against 2 s).
     {"name": "A76 the budget is computed once per call, so N attempts spend N budgets", "file": CALL,
-     "old": "        left = eff - (now() - started)\n"
-            "        if left < MIN_USEFUL_S:\n"
-            "            raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {eff:.3f}s budget\")\n",
-     "new": "        left = eff\n",
-     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call"]},
+     "old": "    left = budget.remaining()\n"
+            "    if left < MIN_USEFUL_S:\n"
+            "        raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {budget.total_s:.3f}s budget\")\n",
+     "new": "    left = budget.total_s\n",
+     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call",
+               T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline",
+               T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    # ⭐ A76 proves the ARITHMETIC is load-bearing; A76b-e prove the SHAPE that keeps it
+    # un-rewritable is load-bearing too. Lane C, OI-29: "the live guard was luck".
+    {"name": "A76b the attempt runner is handed the once-per-call float again", "file": CALL,
+     "old": "    job_budget = _Budget(eff, started, now)\n",
+     "new": "    job_budget = eff\n",
+     "tests": [T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline",
+               T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    {"name": "A76c the retry backoff is slept on top of the budget instead of inside it", "file": CALL,
+     "old": "        sleep(max(0.0, min(seconds, self.remaining())))\n",
+     "new": "        sleep(seconds)\n",
+     "tests": [T + "test_the_retry_backoff_is_slept_inside_the_budget_and_never_on_top_of_it",
+               T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline"]},
+    {"name": "A76d the wait on the future outlives the budget the upstream was given", "file": CALL,
+     "old": "        return fut.result(timeout=left)\n",
+     "new": "        return fut.result(timeout=budget.total_s)\n",
+     "tests": [T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    # ⛔ A76e mutates LANE E's forensics file, which this lane does not edit in the repo. The harness
+    # writes it, runs, then restores the bytes captured first with a sha256 check in a `finally`;
+    # nothing of it is ever committed, and `git status` is clean after a run. Without it the
+    # permanence rail is a gate nobody has seen fire (`lesson_gate_that_cannot_fail`).
+    {"name": "A76e Lane E's own C-10 guard is defanged back to an xfail", "file": FORENSICS,
+     "old": "def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():\n",
+     "new": "@pytest.mark.xfail(reason=\"MUTANT\")\n"
+            "def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():\n",
+     "tests": [T + "test_lane_es_own_c10_guard_is_still_in_the_suite_and_still_armed"]},
     {"name": "A4 the breaker is bypassed", "file": CALL,
-     "old": "        value = breakers.call(name, _once, attempts=attempts, retry_on=retry_on, sleep=sleep)\n",
-     "new": "        value = _once()\n",
+     "old": "        value = breakers.call(name, lambda: _attempt(name, fn, job_budget),\n",
+     "new": "        value = _attempt(name, fn, job_budget)\n        _bypassed = dict(\n",
      "tests": [T + "test_an_open_breaker_refuses_without_calling_the_dependency",
                T + "test_the_renderer_breaker_finally_has_a_caller"]},
+    # ⚠️ Re-indented when `_once` became the module-level `_attempt` (Lane C, OI-29). A stale `old`
+    # here does not fail — it reports NOT APPLIED, which reads as a line in a long report rather
+    # than as a hole in the coverage. Read the NOT-APPLIED count, never just the RED count.
     {"name": "A5 abandoned calls are not counted", "file": CALL,
-     "old": "            with _POOL_LOCK:\n                _ABANDONED[name] = _ABANDONED.get(name, 0) + 1\n",
-     "new": "            pass\n",
+     "old": "        with _POOL_LOCK:\n            _ABANDONED[name] = _ABANDONED.get(name, 0) + 1\n",
+     "new": "        pass\n",
      "tests": [T + "test_an_abandoned_call_is_reported_separately_from_a_failure"]},
     {"name": "A6 one pool for every dependency (C-02 restored)", "file": CALL,
      "old": "            p = cf.ThreadPoolExecutor(max_workers=POOL_SIZE.get(name, DEFAULT_POOL_SIZE),\n"
@@ -205,14 +236,24 @@ MUTATIONS = [
      "new": "        return outcome\n",
      "tests": [T + "test_a_timed_out_symbol_check_also_fails_open"]},
     # ── the wiring: built-tested-green-and-unwired is this programme's costliest shape ──────
+    # ⚠️ STALE SINCE P2.6/P2.7 AND FOUND ONLY BY READING THE NOT-APPLIED LINE (Lane C, OI-29).
+    # `edit_fn=ctx.edit` became `edit_fn=bindings.edit_fn(ctx)` when the stamp landed, and the
+    # `return dict(...)` line re-wrapped; the mutation has been reporting NOT APPLIED (0 matches)
+    # ever since, so this proof has not run for several merges. It is now anchored on the
+    # `context_fn` line, which exists ONLY in `_chart_kwargs` — `_multi_kwargs` is otherwise
+    # near-identical, and a pattern matching both would report NOT APPLIED (2 matches) instead.
     {"name": "A29 the chart handler goes back to the raw client", "file": CMD,
-     "old": "    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png, edit_fn=ctx.edit,\n"
+     "old": "    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,\n"
+            "                edit_fn=bindings.edit_fn(ctx),\n"
             "                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,\n"
-            "                quote_fn=bindings.quote_fn(ctx),\n",
+            "                quote_fn=bindings.quote_fn(ctx),\n"
+            "                context_fn=chart_context.context_line if chart_context.enabled() else None,\n",
      "new": "    from api.routers import discord_interactions as router\n"
-            "    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,\n"
+            "    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png,\n"
+            "                edit_fn=ctx.edit,\n"
             "                house_fn=house.render_house_chart if house.house_enabled() else None,\n"
-            "                quote_fn=router.fetch_ext_quote,\n",
+            "                quote_fn=router.fetch_ext_quote,\n"
+            "                context_fn=chart_context.context_line if chart_context.enabled() else None,\n",
      "tests": [T + "test_the_v2_handlers_bind_adapters_and_not_the_raw_clients",
                T + "test_commands_no_longer_names_a_raw_upstream_function"]},
     {"name": "A30 a context that cannot say its budget is given 'plenty'", "file": BIND,
@@ -450,7 +491,12 @@ def main():
     control_last = run([T.rstrip(":"), TR.rstrip(":"), B.rstrip(":")])
     print(f"\nCONTROL (after)   {control_last[0]}  {control_last[1]}")
     red = sum(1 for _, v, _ in results if v == "RED")
-    print(f"\n{red}/{len(results)} mutations RED")
+    # ⛔ THE NOT-APPLIED COUNT GOES ON THE SUMMARY LINE, BESIDE THE RED ONE. A mutation whose `old`
+    # has gone stale runs nothing and proves nothing, and "78/80 RED" reads like a near-perfect
+    # score rather than like two proofs that did not happen. A29 sat stale for several merges
+    # because the only place it was reported was a footnote under the number people quote.
+    na = sum(1 for _, v, _ in results if v.startswith("NOT APPLIED"))
+    print(f"\n{red}/{len(results)} mutations RED, {na} NOT APPLIED (a NOT APPLIED proves nothing)")
     bad = [(n, v) for n, v, _ in results if v != "RED"]
     for n, v in bad:
         print(f"  *** {v}: {n}")

@@ -389,6 +389,37 @@ cost nothing.
 | 8 | `59a5b1c7a` | `resume.ps1` stale-pin fix | ran the script | — |
 | 9 | `48a73d4cc` | Lane B (2.5 cache) + Lane F (runbook, flip packet, RESUME) | 241 passed | — |
 | 11 | **`8c72dda27`** | Lanes C, D, E + the C-10 deadline fix | **973 passed, 3 xfailed, 0 failed** | **`8c72dda27bb8`** ✅ |
+| 12 | **`decd049c1`** | **OI-29** — the chart IMAGE through `delivery.edit_image`; C-04 closed by the attachment fold | **447 passed, 2 xfailed, 0 failed** (14 scoped files) · mutations **21/21 RED** | **`decd049c1c3b`** ✅ SUCCESS |
+| 13 | **`e269f2b10`** | Lanes B (two-tier cache), C (OI-28 + the budget made structural), D (C-07 end to end) · C-06 + C-07's producer · **Step 3** | **617 passed, 0 failed, 0 xfailed** (21 scoped files, chart-renderer included) · mutations **30/30** (A) + **56/56** (B) + **80/80** (C) + **38/38** (D) | **`e269f2b10464`** ✅ SUCCESS, verified in-process |
+
+### Step 3 — measured, 2026-09-14 01:30–03:40 ET
+
+| Run | Result | SLO |
+|---|---|---|
+| **3.1** load, 50/s × 20 s over 20 symbols | 1,001 samples · p50 1 ms · p95 40 ms · **p99 102 ms** · max 334 ms · **0 acks over 3 s** | S1: p99 ≤ 1,000 ms, zero over 3 s — **met** |
+| **3.1** 200-interaction burst | 200 samples · p50 0 ms · p95 2 ms · p99 5 ms · max 321 ms · 0 over 3 s | **met** |
+| **3.1** sustained 1/s × 10 min | 601 samples · p50/p95/p99 1 ms · max 296 ms · 0 over 3 s | **met** |
+| **3.2** chaos | **13/13 PASS**, 0 failed, 0 inconclusive | every scenario ends in an artifact or a NAMED message |
+| **3.3** determinism | **20 runs, 6/6 components identical**, incl. the L1→L2 round trip | §3.10 — the same closed-market input renders the same pixels |
+| **3.4** soak | registered and running every 15 min; at 03:45 ET **262 samples, no drift** on queue depth, threads, RSS, stale leases | — |
+| **3.5** real-Discord smoke | ⛔ **NOT RUN** — needs a human to type commands in the test channel | — |
+
+⛔⛔ **THE CHAOS HARNESS SHIPPED WITH FIVE SCENARIOS AND THE BRIEF NAMED TWELVE, AND NOTHING SAID
+SO.** A chaos suite running green over half its scope reports a system as exercised that is not —
+the same defect as a chunked test run quoting a total. The other seven were written; `REQUIRED` is
+now the brief's own list and `--self-check` fails if the table does not cover it.
+
+⭐ **Two runtime defects were found by scenarios written expecting to pass**, which is the whole
+argument for writing them. (1) A dead token was spoken to **twice**: `ctx.fail`'s refused delivery
+was never recorded, so `_finalize` could not tell the token was dead — 23 measured `10015`s are 46
+requests that could never land. (2) The oversized-image fallback named no class and carried no id,
+so a member quoting it back gave us nothing to look up; `_judge` asked for a NAMED message and was
+right to.
+
+⚠️ **What the load numbers are NOT.** `--symbols stub` and `--handler-ms 0` mean this measures the
+ACK PATH — parse, gates, rate check, enqueue — against S1, and nothing else. It says nothing about
+S2 (delivery), because no chart was rendered and no PATCH was sent. The end-to-end number needs
+3.5 and a real renderer.
 
 **Live, read in-process after merge 11:** `RENDER_V2_SHADOW="1"` · `shadow.enabled()` True ·
 budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · render-health 401.
@@ -402,6 +433,7 @@ budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · r
 | 7 | 20:25 | 20:40 | 7 s | ~2 m | five lanes authoring underneath |
 | 9 | 21:0x | 21:2x | 38 s | ~2 m | two lanes integrated in one push |
 | 11 | 21:2x | 22:0x | 1 m 17 s | ~2 m | three lanes + a production fix |
+| 12 | 01:00 (Mon) | 01:38 | 42 s | ~4 m | OI-29 authored by the integrator while three lanes ran underneath. ⭐ **The mutation harness, not the gate, was the long pole: ~18 min per full run, and it had to run TWICE** — the first pass came back 19/21 and the two GREEN rows were real gaps in my own rails, not harness bugs |
 
 ⭐ **What the lane plan actually bought.** Merges 6-11 carried five lanes' output in the same wall
 clock that merge 5 spent on one step, and every deploy wait was absorbed by work happening

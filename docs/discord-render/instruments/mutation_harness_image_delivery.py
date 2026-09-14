@@ -26,15 +26,21 @@ ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).reso
 DEL = "api/services/discord_render/delivery.py"
 BIND = "api/services/discord_render/adapters/bindings.py"
 CMD = "api/services/discord_render/commands.py"
+REND = "api/services/discord_render/adapters/renderer.py"
 TESTS = "tests/test_discord_render_image_delivery.py"
 T = TESTS + "::"
+F = "tests/test_discord_render_forensics.py::"
 #: Green with every mutation reverted. `delivery.py` and `bindings.py` are both reached by the
 #: adapter-boundary suite, so a change that breaks the text path shows up here too.
 SUITE = [TESTS,
          "tests/test_discord_render_delivery.py",
          "tests/test_discord_render_adapters.py",
          "tests/test_discord_render_adapter_boundary.py",
-         "tests/test_discord_render_v2_core.py"]
+         "tests/test_discord_render_v2_core.py",
+         "tests/test_discord_render_forensics.py",
+         "tests/test_discord_render_vintage_producer.py",
+         "tests/test_discord_render_vintage_url.py",
+         "tests/test_discord_render_badge.py"]
 
 MUTATIONS = [
     # ── M0: the NON-VACUITY CONTROL. Read this file's docstring before deleting it. ──
@@ -171,6 +177,66 @@ MUTATIONS = [
      "old": "            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=delivery_edit_fn(),\n",
      "new": "            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=di.edit_original,\n",
      "tests": [T + "test_the_v2_runtime_is_actually_handed_the_delivery_backed_edit"]},
+
+    # ── C-06: the stand-in says so, in the message, and ONLY when it is one ─
+    {"name": "C1 the stand-in label is never composed (three unlabelled stand-ins return)",
+     "file": BIND,
+     "old": "        quality=badge_mod.standin_label(cls) if cls else None)\n",
+     "new": "        quality=None)\n",
+     "tests": [F + "test_c06_a_delivered_standin_says_so_in_the_message_a_member_reads"]},
+    {"name": "C2 every chart is labelled a stand-in (the label becomes furniture)",
+     "file": BIND,
+     "old": "    if not has_image:\n        return None\n    r = last_result(ctx, \"renderer\")\n"
+            "    if r is None or r.ok:\n        return None\n",
+     "new": "    if not has_image:\n        return None\n    r = last_result(ctx, \"renderer\")\n"
+            "    if False:\n        return None\n",
+     "tests": [F + "test_c06_a_house_chart_carries_no_stand_in_label_and_that_is_the_control"]},
+    {"name": "C3 a failure with no image is called a simplified chart (naming an artifact "
+             "that does not exist)",
+     "file": BIND,
+     "old": "    if not has_image:\n        return None\n    r = last_result(ctx, \"renderer\")\n",
+     "new": "    if False:\n        return None\n    r = last_result(ctx, \"renderer\")\n",
+     "tests": [F + "test_c06_a_failure_with_no_image_is_never_called_a_simplified_chart"]},
+    {"name": "C4 bindings composes the footer itself again (two authors over one sentence)",
+     "file": BIND,
+     "old": "    return badge_mod.stamp(content, stamp_suffix(ctx, has_image=has_image))\n",
+     "new": "    text = str(content or \"\")\n"
+            "    suffix = stamp_suffix(ctx, has_image=has_image)\n"
+            "    return f\"{text}\\n{suffix}\" if suffix else text\n",
+     "tests": ["tests/test_discord_render_adapters.py::"
+               "test_when_it_does_not_fit_the_CONTENT_is_trimmed_and_the_STAMP_is_kept"]},
+
+    # ── C-07: the producer, without which the whole chain is unwired ───────
+    {"name": "V1 the vintage producer is removed (built, tested, green and reachable by nobody)",
+     "file": REND,
+     "old": "    if envelope is None:\n        return dict(options or {})\n",
+     "new": "    return dict(options or {})\n    if envelope is None:\n        return dict(options or {})\n",
+     "tests": ["tests/test_discord_render_vintage_producer.py::"
+               "test_a_stale_envelope_reaches_the_render_call_as_a_vintage_the_url_can_carry"]},
+    {"name": "V2 the producer is built but the render call still gets the raw options",
+     "file": REND,
+     "old": "        NAME, lambda _timeout_s: house_fn(req.ticker, req.tf, req.stats, dict(options)),\n",
+     "new": "        NAME, lambda _timeout_s: house_fn(req.ticker, req.tf, req.stats, dict(req.options)),\n",
+     "tests": ["tests/test_discord_render_vintage_producer.py"]},
+    {"name": "V3 the producer overwrites a caller's own vintage (a second authority)",
+     "file": REND,
+     "old": "    if \"stale\" not in out:\n        out[\"stale\"] = envelope.stale\n",
+     "new": "    out[\"stale\"] = envelope.stale\n",
+     "tests": ["tests/test_discord_render_vintage_producer.py::"
+               "test_a_callers_own_vintage_is_never_overwritten"]},
+    {"name": "V4 an unknown vintage is coerced to fresh (the tri-state collapses)",
+     "file": REND,
+     "old": "        out[\"stale\"] = envelope.stale\n",
+     "new": "        out[\"stale\"] = bool(envelope.stale)\n",
+     "tests": ["tests/test_discord_render_vintage_producer.py::"
+               "test_an_unknown_vintage_is_carried_as_unknown_and_never_as_fresh"]},
+    {"name": "V5 the producer fires with no envelope (every pre-V2 render URL moves)",
+     "file": REND,
+     "old": "    if envelope is None:\n        return dict(options or {})\n",
+     "new": "    if envelope is None:\n        return {**dict(options or {}), \"stale\": False}\n",
+     "tests": ["tests/test_discord_render_vintage_producer.py::"
+               "test_no_envelope_leaves_the_options_untouched_which_is_the_prev2_guarantee",
+               "tests/test_discord_render_vintage_url.py"]},
 ]
 
 

@@ -46,6 +46,10 @@ class FlowRequest:
     top_n: int = 15
     corr_id: str | None = None
     remaining_s: float | None = None
+    #: Override `ATTEMPTS`. ⛔ Every binding site states its own number; an attempt count
+    #: that is right by INHERITANCE is right by luck, and C-10's overrun reached production
+    #: unnoticed only because one site happened to pass 1 for an unrelated reason (OI-25/29).
+    attempts: int | None = None
 
 
 def _remote(ticker: str, days: str, source: str, timeout_s: float):
@@ -104,7 +108,8 @@ def fetch(req: FlowRequest, *, remote=_remote, local=_local) -> Result:
     outcome = _call.guarded(
         NAME, lambda timeout_s: remote(req.ticker, req.days, req.source, timeout_s),
         dep_timeout_s=TIMEOUT_S, remaining_s=req.remaining_s, corr_id=req.corr_id,
-        attempts=ATTEMPTS, provider="flow_worker", timeout_on=_client_timeouts(),
+        attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))),
+        provider="flow_worker", timeout_on=_client_timeouts(),
         unreachable_on=_unreachable())
     if not _call.is_result(outcome):
         data, elapsed_ms = outcome

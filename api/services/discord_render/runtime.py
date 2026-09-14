@@ -152,10 +152,20 @@ class JobContext:
         return sent
 
     def fail(self, cls: str, detail: str = "") -> bool:
-        """Report a failure the member must see. Sends the contract message now."""
+        """Report a failure the member must see. Sends the contract message now.
+
+        ⛔⛔ A REFUSED FAILURE MESSAGE IS ITSELF A DELIVERY FAILURE, AND IT HAS TO BE RECORDED.
+        Without this, `_finalize` sees `last_delivery_failure is None`, cannot tell that the token
+        is dead, and sends the same message down the same dead token a second time — 23 measured
+        `10015`s become 46 requests that could never land. Found by the chaos scenario for exactly
+        this case, which reported "a dead token was spoken to 2 times"."""
         self.failure_class = contract.normalize_class(cls)
         self.failure_detail = str(detail or "")[:200]
-        ok = self.runtime.send_failure(self.job, self.failure_class)
+        res = self.runtime.send_failure_result(self.job, self.failure_class)
+        ok = bool(getattr(res, "ok", res))
+        if not ok and res is not None and not isinstance(res, bool):
+            with self._lock:
+                self.last_delivery_failure = res
         self.messaged = self.messaged or ok
         return ok
 
@@ -308,6 +318,11 @@ class JobRuntime:
         return min(delivery_mod.DEFAULT_BUDGET_S, max(delivery_mod.MIN_USEFUL_S, left))
 
     def send_failure(self, job: Job, cls: str) -> bool:
+        """Did the failure message land? ⭐ Kept as the boolean every existing caller reads; the
+        RESULT form below is what a caller needs when the reason matters."""
+        return bool(getattr(self.send_failure_result(job, cls), "ok", False))
+
+    def send_failure_result(self, job: Job, cls: str):
         content = contract.failure_content(job.label, cls, job.corr_id)
         comps = contract.failure_components(job.corr_id)
         budget = self._failure_budget(job)
@@ -321,7 +336,7 @@ class JobRuntime:
                                           deadline_s=budget, cid=job.corr_id)
         observe.event("failure_message", cid=job.corr_id, cmd=job.command, cls=cls,
                       outcome="sent" if res.ok else "refused", status=f"{res.status}:{res.code}")
-        return bool(res.ok)
+        return res
 
     # ── threads ─────────────────────────────────────────────────────────────
     def _writer_loop(self) -> None:
@@ -451,7 +466,18 @@ class JobRuntime:
             # Nothing reached the member and nothing said so. Say so now, if Discord will take it.
             cls = ctx.failure_class or ("ack_late" if (failure is not None and getattr(failure, "token_dead", False)) else "internal")
             fields["failure_class"] = cls
-            told = False if cls == "ack_late" else self.send_failure(job, cls)
+            # ⛔⛔ A TOKEN ALREADY MEASURED DEAD IS NOT SPOKEN TO A SECOND TIME. `10015` is terminal
+            # — `delivery.TERMINAL_CODES` says so and `edit_image` already refuses to follow one
+            # with a text fallback for the same reason. Without this, a job whose `ctx.fail` was
+            # refused by a dead token comes back here with a `failure_class` set, skips the
+            # `ack_late` branch, and spends another round trip to be told the same thing. `01` §C
+            # measured 23 of these, so it is 23 requests that could never land.
+            #
+            # ⚠️ ONLY ON A MEASURED `token_dead`, never on a generic failure: a 500 or a timeout on
+            # the first attempt is exactly the case where trying again is right, and collapsing
+            # those two would turn this into silence (C-11).
+            token_dead = failure is not None and bool(getattr(failure, "token_dead", False))
+            told = False if (cls == "ack_late" or token_dead) else self.send_failure(job, cls)
             state = "messaged" if told else "abandoned"
         self.store.finish(job.corr_id, state, owner=self.owner, **fields)
         self._release_user(job)
