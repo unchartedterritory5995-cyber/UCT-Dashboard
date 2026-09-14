@@ -128,6 +128,32 @@ def test_the_pod_command_is_built_from_the_declared_argv_not_the_caller(monkeypa
     assert seen["env"].get("MSYS_NO_PATHCONV") == "1"
 
 
+# ── the memory gate, which had no runnable command at all ───────────────────
+
+def test_memory_is_measurable_and_reports_a_percent(capsys):
+    """⛔ The gate is declared CHECKED FIRST OF ALL and `systeminfo` is denied, so before
+    this there was NO allow-listed way to run it. A check that cannot run looks exactly
+    like one that passed - the F-L2-1 shape, one layer down. Found by the weekly run."""
+    rc = W.cmd_memory([])
+    out = capsys.readouterr().out
+    assert rc in (0, 1), rc
+    assert "MEMORY" in out and "% used" in out
+
+
+def test_an_impossible_ceiling_fails_so_the_gate_can_actually_stop_a_run(capsys):
+    """NON-VACUITY: a gate that always returns 0 is not a gate."""
+    assert W.cmd_memory(["1"]) == 1
+
+
+def test_a_generous_ceiling_passes():
+    assert W.cmd_memory(["100"]) == 0
+
+
+def test_a_non_numeric_ceiling_is_REFUSED(capsys):
+    assert W.cmd_memory(["lots"]) == W.REFUSED
+    assert "must be a number" in capsys.readouterr().err
+
+
 # ── the happy path still works ──────────────────────────────────────────────
 
 def test_a_named_test_file_is_accepted_and_run(monkeypatch):
