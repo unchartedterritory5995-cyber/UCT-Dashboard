@@ -82,7 +82,8 @@ _inflight: Dict[str, _Call] = {}
 _counts = {"leaders": 0, "collapsed": 0, "timeouts": 0}
 
 
-def run(key: str, fn: Callable[[], Any], wait: float | None = None) -> Any:
+def run(key: str, fn: Callable[[], Any], wait: float | None = None,
+        on_role: Callable[[str], None] | None = None) -> Any:
     """Run `fn()` once per in-flight `key`; concurrent callers share the result.
 
     The first caller for a key is the LEADER and runs `fn`. Callers arriving
@@ -92,6 +93,14 @@ def run(key: str, fn: Callable[[], Any], wait: float | None = None) -> Any:
     ⛔ Followers re-raise the leader's exception OBJECT, so a failure is shared
     rather than silently retried by each follower in turn — a stampede of retries
     against something already failing is the same pile-up wearing a different hat.
+
+    `on_role` is told `"leader"` or `"follower"` for THIS call, under the same lock
+    that decides it. ⛔ It exists because the alternative — diffing the `collapsed`
+    counter around the call — is wrong precisely when it matters: two arrivals on
+    one key each see the other's increment, so the instrument misattributes under
+    the exact concurrency it was built to observe. A callback cannot: the decision
+    and the report are the same critical section. It is fully optional, and it is
+    wrapped so an observer that raises can never break the flight it is watching.
     """
     with _lock:
         call = _inflight.get(key)
@@ -104,6 +113,7 @@ def run(key: str, fn: Callable[[], Any], wait: float | None = None) -> Any:
             call.followers += 1
             _counts["collapsed"] += 1
             leader = False
+    _tell(on_role, "leader" if leader else "follower")
 
     if leader:
         try:
@@ -132,6 +142,17 @@ def run(key: str, fn: Callable[[], Any], wait: float | None = None) -> Any:
     if call.error is not None:
         raise call.error
     return call.value
+
+
+
+def _tell(on_role: Callable[[str], None] | None, role: str) -> None:
+    """Report the role, never raise. An observer is not allowed to fail a flight."""
+    if on_role is None:
+        return
+    try:
+        on_role(role)
+    except Exception:
+        pass
 
 
 def inflight_keys() -> List[str]:

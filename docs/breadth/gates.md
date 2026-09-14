@@ -322,3 +322,37 @@ this repo has committed six times in one session. Fix the read; keep the one aut
 ⚠️ The same applies to destructuring (`const {VITE_X} = import.meta.env`) and to
 `Object.entries(import.meta.env)` — Vite's own docs say so, and neither is visible to the
 index either.
+
+---
+
+## ⛔⛔ A STACKED PUSH KILLED A LIVE REQUEST AND A HEALTH CHECK — 2026-09-14
+
+**Two hashes and two times, because the timeline is the whole finding.**
+
+| UTC | what |
+|---|---|
+| 12:29:23 | `7705c2d3b` (breadth request timing, §2b) pushed. Guard green: *"web is SUCCESS on `00b029552`, 333s settled — safe to push."* |
+| ~12:33 | deployment reports SUCCESS; a production `days=8000` smoke is issued |
+| **12:32:16** | **`9e2b93805` pushed by another workstream — 173 s after the first, while it was still `BUILDING`** |
+| 12:34:42 | the new pod boots; the first deployment is marked `REMOVED` |
+| ~12:35:03 | the in-flight request dies: **HTTP 500 after 93,491 ms** |
+| ~12:35:15 | **`/api/health` → 502** |
+| ~12:36:00 | five consecutive probes → 200. Recovered without intervention. |
+
+⭐ **THE FIRST DIAGNOSIS WAS WRONG AND THE COST OF ACTING ON IT WOULD HAVE BEEN REAL.** A 500 on a
+paid route followed by a 502 reads as *"the deep read OOM'd the pod"*, which is a plausible,
+alarming, and entirely fabricated conclusion — H15 would have had me revert a correct merge.
+⛔ What settled it was reading the DEPLOYMENT LIST rather than the symptom: a second deployment
+existed, created after mine, with mine marked `REMOVED`. The pod never crashed; it was replaced.
+
+⚠️ **`railway logs` could not have answered it.** The buffer holds ~500 lines and began at the new
+pod's boot — the evidence from the instance that served the request was already gone when the
+question was asked. Read the deployment list first; it outlives the pod.
+
+⭐ **And the memory hypothesis was disproved rather than dropped**: the timing instrument shipped
+in that very merge recorded `rss_before_mb=3032.5 rss_after_mb=2959.7` across the 114-second read.
+Resident memory FELL. A pod does not OOM while giving memory back.
+
+**Rule this produced:** *a push is not clear until its web deploy reaches SUCCESS* —
+`docs/runbooks/deploy-windows.md` and `CLAUDE.md`.
+

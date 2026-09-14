@@ -75,8 +75,8 @@
           "type": ["object", "null"], "additionalProperties": false,
           "required": ["statement", "category", "empirical_claim", "testable_claim"],
           "properties": {
-            "statement": { "type": "string", "description": "Near-verbatim restatement in the author's own terms." },
-            "category": { "enum": ["risk", "entry", "exit", "sizing", "psychology", "market_context", "scanning"] },
+            "statement": { "type": "string", "maxLength": 220, "description": "The rule in the author's own terms: AT MOST 30 WORDS, exactly ONE claim. Two rules are two records; never joined with 'and also', a semicolon, or a second sentence (R8a)." },
+            "category": { "enum": ["risk", "entry", "exit", "sizing", "psychology", "market_context", "scanning"], "description": "Exactly one of the listed values; the prompt lists them verbatim (R8a)." },
             "empirical_claim": { "type": "boolean" },
             "testable_claim": { "type": ["string", "null"], "description": "D15: the factual claim in testable form, or null." }
           }
@@ -84,7 +84,7 @@
         "market_signal": {
           "type": ["object", "null"], "additionalProperties": false,
           "required": ["name", "direction"],
-          "properties": { "name": { "type": "string" }, "direction": { "enum": ["bullish", "bearish", "neutral", null] } }
+          "properties": { "name": { "type": "string", "maxLength": 90, "description": "A SHORT NAME for the read, at most 12 words -- 'breadth washout', 'risk-off'. Not a sentence and not the quote (R8c)." }, "direction": { "enum": ["bullish", "bearish", "neutral", null] } }
         },
         "extraction_confidence": { "enum": ["high", "medium", "low"] },
         "notes": { "type": ["string", "null"] }

@@ -815,6 +815,8 @@ verified by sha256 (never `git checkout`).
 |---|---|---|---|---|
 | D-R1 | `extract/seams.py` trips the **private_store import-ban rail** — and the rail is RIGHT: `seam_report()` `importlib.import_module`s `core.private` from a module W1 §0.4d does not allow. Declared "pre-existing, not mine" by the merge-gate commit, but the file is S-D's and master would have taken a red rail. | blocks-merge | `tests/test_wisdom_bans.py` at HEAD: `1 failed, 378 passed` → after: `207 passed` on that file | ✅ row moved to its owner (`writer.private_seam_row`), still in `seam_report()` |
 | D-R2 | **The budget cap is per `extractor_version`, and `extractor_version` is a hash of the system prompt, which CARRIES THE SETUP VOCABULARY** — a live, DB-backed, actively-edited artifact. Approving one vocabulary name mints a version whose spend is $0 and re-arms the entire cap. §6.4 says `actual_to_date`, not "for this version". | blocks-merge (money) | executed: $14.90 of a $15 cap spent → one extra vocab name → `wx-v0-74bafea0` → `wx-v0-3637ea48`, `spent_and_pending` `(0.0, 0.0)`, **3 more $5 requests allowed** | ✅ same cap, two ceilings, whichever binds first; fails closed. ⚠️ **reverses this stream's earlier per-version-only rule and the test that pinned it — owner/integrator should confirm** |
+| D-R2 **RULING** | ⭐ **OWNER CONFIRMED THE REVERSAL, 2026-09-14.** Verbatim: *"the reviewer is right. The cap is ONE program-level total carried in the ledger across all extractor versions, models and runs; per-version and per-run spend are reported as sub-lines, never as separate budgets. Raise the program cap from $15 to $40 now that Wave 1.5 below needs multi-pass extraction; every run still prints spend-to-date against the cap and stops at it."* So the stream's earlier per-version-only rule and the test that pinned it are **superseded**, not merely overridden by a reviewer. | ruling | the reviewer's executed evidence above ($14.90 of $15 + one vocab name ⇒ 3 more $5 requests) | ✅ ONE ceiling. `select_within_budget` enforces the PROGRAM total only; `actual_usd`/`pending_estimate_usd` and the per-run ledger entries travel as REPORTED sub-lines and bind nothing; `remaining_usd` is the program remainder. Cap **$15 → $40** in `extract_golden_gate.py` and in the carried ledger ($11.6504 spent, $28.3496 headroom) |
+| D-R2 **and the ceiling was already dead code** | ⚰️ The per-version check could NEVER fire. Per-version rows are a SUBSET of the program rows (same tables, one extra `WHERE`), so `actual_v <= actual_p` and `pending_v <= pending_p`, and the per-version sum cannot cross the cap strictly before the program sum does. The rail that pinned it, `test_the_per_version_ceiling_still_binds_when_the_program_total_has_room`, passed only because it seeded **one** version — which makes the two sums EQUAL, so the fixture could not create the difference its own name asserts (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). | correctness of the record | driven with TWO versions (60+5 and 40+5, cap $120) the stop reason is the program one, every time | ✅ removing the check is **behaviour-preserving**, and that is now proved rather than hoped: the replacement rail seeds two versions, asserts the sub-lines stay visible in the stop reason, and a second rail drives the real hole — a FRESH version with $0 of its own spend against a program at its cap. Mutants: enforce per-version ⇒ **3 failed**; `remaining_usd` reports the per-version view ⇒ **3 failed**; restored byte-exact, sha256-verified, **18 passed** |
 | D-R3 | The golden gate records `golden_version` **derived from the FILE NAME** and never the sha §8a.1 froze. Changed bytes under the same name are compared against a baseline measured on different records and still read "accepted"; the freeze was enforceable only by remembering `--frozen` on an offline verifier. | before-first-use | `golden_file()` returns `"golden-v1"` for any bytes at that path; `golden_sha256` appeared nowhere in `golden.py` | ✅ `golden.golden_sha256`, required on every gate run and receipt, and `decide_gate` keys the comparison on it — changed bytes are an honest new BASELINE |
 | D-R4 | The **dry-run rail asserted one table** (`wisdom_extract_requests`), and its fixture pre-segmented its only source, so `segment_pending_sources`'s dry-run guard was unreachable by the test. | before-first-use | mutant: `if not dry_run and segments:` → `if segments:` ⇒ `tests/test_wisdom_extract_batch.py` **26 passed, GREEN** | ✅ plants an UNsegmented source, counts all six writable tables, asserts no page, and carries a control proving a real run does segment |
 | D-R5 | `writer.resolve_author` matched a speaker label to a declared guest on a **bare prefix in either direction**, so the label `"P"` resolved to `guest:patricia-kim` at confidence `medium` — and D14 then lets that "guest" author records. §8a.3 says unattributable speech in a guest session is `unresolved`; authors.json says matching is exact, no fuzzy matching. Third sighting of this class (drift #3, drift #4, S-C's guest minting). | blocks-merge | executed: `'P'`, `'Pat'`, `'patr'` → `('guest:patricia-kim', True, 'medium')` | ✅ whole-word boundary in both directions; `Qullamaggie (Guest)` and `Patricia` still resolve |
@@ -877,3 +879,80 @@ R  the auto bar-range seam hands back a permissive provider  1 failed
 `db3475c8…` freeze sha nor any extractor metric was re-derived here — only the mechanism that
 records and compares it; and `WISDOM_EXTRACT_BUDGET_USD`'s live value on Railway was not read
 (no variable reads or writes were performed), so the $120 code default is what the rails measure.
+
+---
+
+## Wave 1.5 — two ways a MUTATION HARNESS destroyed work in a shared worktree, 2026-09-14
+
+Both found by executing, both inside the repo's own standing rule *"restore byte-exact, never
+`git checkout`"* — which turns out to assume something nobody wrote down.
+
+### 1. Byte-exact restore is a TIME MACHINE when the tree has two writers
+
+⛔ **The standing rule assumes ONE writer.** A subagent's harness captured `golden.py`'s bytes
+once at the start of its run and restored those exact bytes after each mutant. The integrator's
+edits landed *inside that window*, so the restore silently reverted them — and the harness's own
+check passed, because the sha matched the bytes IT had captured. **The failure is invisible from
+inside the instrument: the restore succeeds, the sha agrees, and somebody else's work is gone.**
+
+Lost and re-applied: `_ANTONYMS` and `_polarity_conflict` in `extract/golden.py`.
+
+⭐ **The fix is not "don't mutate" — it is to re-read immediately before each mutant, and to
+ABORT rather than restore when the file moved under you.** Restoring is only safe when the bytes
+on disk are the bytes you mutated; otherwise the correct action is to leave the file alone and
+say so. The subagent rewrote its harness that way and named the rule better than the warning it
+was given.
+
+### 2. `write_text()` on a CRLF file re-translates the newlines, and the harness then eats itself
+
+⚰️ The integrator's own harness, ten minutes later, in the other direction. It read `writer.py`
+as BYTES, decoded to text (keeping `\r\n`), mutated, and wrote back with `write_text()` — which
+on Windows translates every `\n` to `\r\n`, turning each existing `\r\n` into `\r\r\n`. The
+read-back no longer matched what it thought it had written, so it concluded **a concurrent
+writer had touched the file** and aborted *"leaving the file as found"* — which left **the
+mutant in the working tree** and 832 doubled line endings behind it.
+
+⛔ Three lessons, and the third is the general one:
+- **Bytes in, bytes out.** A harness that mutates source must `read_bytes`/`write_bytes`
+  throughout; text mode silently rewrites the file's line endings.
+- **An abort path must restore, not merely stop.** "Leaving the file as found" is the wrong
+  default when what you found is your own mutant.
+- ⭐ **A concurrency check can fire on your own corruption.** This one reported another writer
+  when there was none — the instrument diagnosed the world for a fault in itself
+  (`lesson_an_instrument_can_reproduce_its_own_blind_spot`). It was caught only because the next
+  command grepped for the mutant instead of trusting the harness's summary.
+
+⚠️ Repaired at byte level rather than with `git checkout`, which would have destroyed the
+uncommitted Wave 1.5 item 4 work in the same file. `tools/check_repo_hygiene.py` clean afterwards.
+
+### 3. And a reformat is a correct, unreviewable edit
+
+Rewriting `extraction-output-v0.schema.json` with `json.dumps(indent=2)` to change three fields
+produced **384 added / 53 removed**. Restored and redone as a targeted text edit: **3 changed
+lines**. Same content, same tests, and a diff a human can actually review — the same defect the
+CRLF ruling (R-2) names, arrived at through formatting instead of line endings.
+
+### 4. A mutation harness whose anchors match NOTHING reports a clean sweep
+
+⛔⛔ **The most dangerous of the three, found by the golden-v1.1 subagent.** `golden.py` is
+**CRLF on disk and LF in the stored blob** (`core.autocrlf=true`). Five multi-line literal
+anchors therefore matched **0 times**, the mutations silently did not happen — and the run
+printed the same thing it prints when every rail catches every mutant.
+
+⭐ **"The anchor matched nothing" and "the rail caught the mutant" are indistinguishable in the
+output.** A harness can report nine of nine caught having changed not one byte of the subject.
+Any harness in this repo that does a literal multi-line string match against a source file has
+this latent; the fix is to match on normalised text, restore the original BYTES, and **assert the
+anchor count is exactly 1 before mutating** — an anchor that matches zero times must be a hard
+error, never a skipped mutant.
+
+### 5. And a filter tuned for one purpose silently disabled another that reused it
+
+The paraphrase lens's antonym guard was installed, tested, and dead for one of its two cases.
+`_polarity_conflict` took the token sets `_tokens` had already built, and `_tokens` drops words
+of two characters or fewer — so `up` was never in them and the (up, down) pair could not fire.
+"size down when the regime turns hostile" and "size up when the regime turns friendly" went on
+merging **with the guard in place and apparently working**, because the never/always case passed.
+
+⭐ A filter that is correct for similarity (short words are noise) is wrong for polarity (the
+short words ARE the meaning). The guard now tokenises for itself, and the docstring says why.

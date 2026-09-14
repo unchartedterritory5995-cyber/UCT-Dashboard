@@ -23,6 +23,7 @@ import time
 from datetime import datetime
 
 from api.services import desk_session_jobs, education_service
+from api.services import transcript_coverage as coverage_rule
 from api.services.zoom_client import select_largest_mp4
 
 # ── Observability (2026-07-02) ───────────────────────────────────────────────────
@@ -928,12 +929,15 @@ def build_paired_cues(plan: dict, fetch_text) -> list[dict]:
 
 
 def transcript_coverage(cues: list[dict], duration_s) -> "float | None":
-    """Last cue start / media duration, capped at 1.0. None = not measurable."""
-    if not duration_s or duration_s <= 0:
-        return None
-    if not cues:
-        return 0.0
-    return min(1.0, _max_cue_t(cues) / float(duration_s))
+    """Last cue start / media duration, capped at 1.0. None = not measurable.
+
+    ⛔ THIS IS THE SPAN RULE, NOT THE COVERAGE VERDICT, and since the owner's 2026-09-14
+    ruling those are different things — `api/services/transcript_coverage.py` owns the
+    arithmetic for both and its header carries the measurement. This name and float return
+    are kept because the delete gate below deliberately still authorises on the span (see
+    `_trash_gate`), and because `lesson_a_second_authority_over_one_value` says derive,
+    never restate: it is one call into the shared rule, not a second copy of it."""
+    return coverage_rule.span_ratio(cues, duration_s)
 
 
 def _duration_text_seconds(value) -> "int | None":
@@ -1092,8 +1096,15 @@ def _text_fetcher(zoom):
     return fetch
 
 
-def _emit_coverage_alert(vid: int, title: str, coverage: float, duration_s: int) -> None:
-    """One page per video per process (chart_health_alerts adds its own cooldown)."""
+def _emit_coverage_alert(vid: int, title: str, coverage: float, duration_s: int,
+                         facts: dict | None = None) -> None:
+    """One page per video per process (chart_health_alerts adds its own cooldown).
+
+    ⭐ The page now carries the INTERNAL-GAP verdict beside the span number, because after
+    2026-09-14 a sub-98% span is no longer evidence of a defect on its own: videos 254 and
+    221 measured 61.6% and 92.3% and were both complete, their whole shortfall being dead
+    air after a sign-off. Saying "covers 61.6%" and nothing else is what makes an operator
+    re-transcribe a healthy session — and then mute the alert."""
     if vid in _COVERAGE_ALERTED:
         return
     _COVERAGE_ALERTED.add(vid)
@@ -1102,13 +1113,24 @@ def _emit_coverage_alert(vid: int, title: str, coverage: float, duration_s: int)
         measured = (f"covers {coverage:.1%} of {duration_s}s (< {COVERAGE_THRESHOLD:.0%})"
                     if coverage is not None else
                     "could NOT BE MEASURED: the recording carries no media duration")
+        diagnosis = ""
+        if facts:
+            diagnosis = f" Internal-gap rule says {facts['verdict'].upper()}: {facts['reason']}."
+            if facts.get("verdict") == "complete":
+                diagnosis += (" So this is probably a long outro rather than a lost session — "
+                              "confirm the tail before authorising the delete; the span gate is "
+                              "deliberately NOT loosened for this case.")
         chart_health_alerts.emit(
             f"desk_transcript_coverage:{vid}", "critical",
             (f"Zoom recording KEPT for video #{vid} ({title or 'untitled'}): the stored transcript "
-             f"{measured}. Repair it "
+             f"{measured}.{diagnosis} Repair it "
              f"(tools/wisdom/sources_zoom_transcript_repair.py) before the recording is trashed."),
             {"video_id": vid, "coverage": round(coverage, 4) if coverage is not None else None,
-             "duration_s": duration_s},
+             "duration_s": duration_s,
+             "gap_verdict": (facts or {}).get("verdict"),
+             "largest_internal_gap_s": (facts or {}).get("largest_internal_gap_s"),
+             "leading_silence_s": (facts or {}).get("leading_silence_s"),
+             "trailing_silence_s": (facts or {}).get("trailing_silence_s")},
         )
     except Exception:
         pass
@@ -1120,7 +1142,29 @@ def _trash_gate(v: dict, uuid: str, rec: dict, fetch_text, results: list[dict]) 
     vid = v["id"]
     if not _coverage_guard_disabled():
         duration = _media_duration_seconds(vid, rec)
-        coverage = transcript_coverage(education_service.get_transcript_cues(vid), duration)
+        cues = education_service.get_transcript_cues(vid)
+        # ⛔⛔ THE DELETE GATE KEEPS THE STRICTER SPAN RULE. Deliberate, 2026-09-14, and the
+        # one place in this repo where the owner's new coverage rule is NOT the authority.
+        #
+        # The ruling ("internal gaps only; trailing dead air is not a shortfall") is right
+        # for the AUDIT, which asks "is this transcript usable, or is there a hole in it?"
+        # This gate asks a different and irreversible question: "if I destroy the only copy,
+        # have I lost anything?" — and the gap rule CANNOT answer it. By construction it
+        # cannot tell a transcript truncated at the end from a session with a long outro;
+        # both look like trailing dead air, and knowing the duration does not help (duration
+        # says how much silence, never whether it was speech you lost). Adopting it here
+        # would authorise deleting a Zoom recording whose transcript stops at the halfway
+        # mark, on the grounds that the half we kept has no holes in it. Zoom has no trash
+        # and no recovery: "Workshop with Stockbee" is gone (CONTRACTS §8a.6a).
+        #
+        # So: span >= 0.98 still authorises, `None` still refuses ("we could not measure it"
+        # is not a pass), and the NEW facts go into the page instead — an operator who sees
+        # "internal-gap rule says COMPLETE, 1742 s of trailing dead air" can clear it in a
+        # minute, which is what stops a correct alert from being muted. Loosening this gate
+        # is an owner decision with a member-impact paragraph, never a side effect of a
+        # measurement change.
+        facts = coverage_rule.transcript_coverage(cues, duration)
+        coverage = facts["span_ratio"]
         if coverage is None:
             # ⛔⛔ Reviewer R2, 2026-09-13. `coverage is None` means "we could not
             # measure it" — no MP4 window, no Zoom duration, no edu_videos duration.
@@ -1129,7 +1173,7 @@ def _trash_gate(v: dict, uuid: str, rec: dict, fetch_text, results: list[dict]) 
             # recording has not verified. "A layer that could not be READ is not a
             # layer that is EMPTY" — the recording stays, the owner is paged, and
             # nothing irreversible happens on a measurement we never took.
-            _emit_coverage_alert(vid, v.get("title") or "", None, None)
+            _emit_coverage_alert(vid, v.get("title") or "", None, None, facts)
             return False, "coverage is not measurable (no media duration)"
         if coverage < COVERAGE_THRESHOLD:
             # The recovery trap: a video with chapters and a truncated transcript
@@ -1141,14 +1185,16 @@ def _trash_gate(v: dict, uuid: str, rec: dict, fetch_text, results: list[dict]) 
                 print(f"[session-insights] repair transcript download failed (non-fatal): {te}")
                 fresh = []
             block = _timestamped_block(fresh) if fresh else ""
-            fresh_cov = transcript_coverage(_parse_timestamped_block(block), duration) if block else None
+            fresh_facts = (coverage_rule.transcript_coverage(_parse_timestamped_block(block), duration)
+                           if block else None)
+            fresh_cov = fresh_facts["span_ratio"] if fresh_facts else None
             if fresh_cov is not None and fresh_cov > coverage:
                 education_service.set_video_insights(vid, transcript=block)
                 results.append({"id": vid, "action": "transcript_repaired", "mode": plan["mode"],
                                 "coverage_before": round(coverage, 4), "coverage_after": round(fresh_cov, 4)})
-                coverage = fresh_cov
+                coverage, facts = fresh_cov, fresh_facts
             if coverage < COVERAGE_THRESHOLD:
-                _emit_coverage_alert(vid, v.get("title") or "", coverage, int(duration))
+                _emit_coverage_alert(vid, v.get("title") or "", coverage, int(duration), facts)
                 return False, f"coverage {coverage:.4f} < {COVERAGE_THRESHOLD}"
     if not _vtt_archive_disabled():
         try:

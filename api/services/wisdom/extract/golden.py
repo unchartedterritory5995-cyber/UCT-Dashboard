@@ -23,6 +23,21 @@ MATCHING (method golden-match-v0), per golden-bearing segment:
   * Golden labels are not exhaustive for a segment, so PRECISION IS SCOPED: only
     predictions whose quote overlaps a labelled quote in that segment count; the
     rest are reported as unscored, never silently dropped.
+  * NULL SEGMENTS (golden-v1.1) close that hole where a labeller could close it. A NULL
+    row asserts an ABSENCE over a span — "no CALL / no PRINCIPLE / no MARKET_SIGNAL is
+    here" — for a declared set of record types. A prediction landing in that span whose
+    pre_entity_type is one of those types is a FALSE POSITIVE, because the labeller read
+    the span and said there is nothing of that type in it.
+
+    ⛔ WHY THIS EXISTS (owner ruling, 2026-09-14). On golden-v1 the dev-split gate kept
+    882 records and SCORED 119: the other 763 were claims about paragraphs nobody had
+    labelled, so a record INVENTED about unlabelled text could not appear as a false
+    positive at all. The headline precision covered ~14% of the output. A positive label
+    can only ever make a MISS visible; only an anti-label can make an INVENTION visible.
+
+    ⛔ A NULL row is scored ONLY for the types it declares. A prediction of an undeclared
+    type inside a NULL span stays unscored — the labeller did not answer that question,
+    and answering it for them is how an instrument manufactures a finding.
 
 Every rate carries its n. A denominator of 0 records value NULL, never 0%.
 """
@@ -53,10 +68,27 @@ _WORD = re.compile(r"[a-z0-9$%.]+")
 
 # ── golden files ─────────────────────────────────────────────────────────────
 
-def golden_file(data_dir) -> tuple[Optional[pathlib.Path], Optional[str]]:
-    """golden-v1.jsonl when present, else the v0 draft (CONTRACTS §6.4)."""
+#: Newest first. A later set is preferred only because it is a SUPERSET of the one before
+#: it: golden-v1.1 is every golden-v1 row byte-identical plus the NULL segments, so a run
+#: that picks it up scores strictly more than it used to, never something different.
+#: ⛔ The version string is still only the FILE NAME. It is `golden_sha256` that says which
+#: bytes a run scored, and `decide_gate` compares on the sha — so promoting v1.1 here makes
+#: the next run an honest new BASELINE rather than a comparison against v1's numbers.
+GOLDEN_FILES = (("golden-v1.1.jsonl", "golden-v1.1"),
+                ("golden-v1.jsonl", "golden-v1"),
+                ("golden-v0.draft.jsonl", "golden-v0-draft"))
+
+
+def golden_file(data_dir, prefer: Optional[str] = None) -> tuple[Optional[pathlib.Path], Optional[str]]:
+    """The newest golden set present, or the one `prefer` names (CONTRACTS §6.4).
+
+    `prefer` is the file name ("golden-v1.jsonl"), so an operator can re-run the gate against
+    a SPECIFIC set — comparing v1 and v1.1 on the same extractor needs both to be runnable,
+    and "whatever is newest on disk" cannot express that."""
     base = pathlib.Path(data_dir) / "golden"
-    for name, version in (("golden-v1.jsonl", "golden-v1"), ("golden-v0.draft.jsonl", "golden-v0-draft")):
+    for name, version in GOLDEN_FILES:
+        if prefer and name != prefer:
+            continue
         if (base / name).exists():
             return base / name, version
     return None, None
@@ -114,6 +146,43 @@ class Expected:
     quote: str
 
 
+#: A golden-v1.1 NULL row: this span, and none of these types is in it.
+NULL_KIND = "null_segment"
+
+
+@dataclass(frozen=True)
+class NullSpan:
+    gid: str
+    quote: str
+    types: frozenset
+
+
+def is_null_record(record: dict) -> bool:
+    """⛔ ONE discriminator, and it is a declared `kind` rather than the shape of `expected`.
+    Shape-sniffing ("expected is a list, so it must be an anti-label") would make a row that
+    lost its `expected` key through an editing mistake read as a deliberate assertion of
+    absence — the worst possible direction for this particular field, because an accidental
+    NULL row turns every correct extraction inside it into a false positive."""
+    return record.get("kind") == NULL_KIND
+
+
+def null_types(record: dict) -> frozenset:
+    """The record types a NULL row asserts are absent. Anything outside `writer.RECORD_TYPES`
+    is dropped rather than trusted: a typo'd type name must narrow the claim, never widen it."""
+    declared = record.get("null_for")
+    if not isinstance(declared, list):
+        return frozenset()
+    return frozenset(t for t in declared if t in writer.RECORD_TYPES)
+
+
+def null_from_record(record: dict) -> Optional[NullSpan]:
+    types = null_types(record)
+    quote = record_quote(record)
+    if not (is_null_record(record) and types and quote):
+        return None
+    return NullSpan(str(record.get("gid")), quote, types)
+
+
 def sample_key(record: dict) -> Optional[str]:
     """The sample a label was drawn from. Discord samples are one file per channel, so the
     key names the message: 'discord/<channel>.jsonl#<message_id>'."""
@@ -159,6 +228,12 @@ def _expected_v1(record: dict) -> list[Expected]:
 
 
 def expected_from_record(record: dict) -> list[Expected]:
+    # ⛔ A NULL row yields NO expectation, and that is the whole point: it must contribute a
+    # SPAN (so predictions inside it become scorable) without contributing a label to match.
+    # If it leaked one Expected here, every NULL segment would also manufacture a false
+    # NEGATIVE for a record that was never supposed to be there.
+    if is_null_record(record):
+        return []
     if isinstance(record.get("expected"), dict):
         return _expected_v1(record)
     labels = record.get("labels") or {}
@@ -265,13 +340,26 @@ def _overlap_ratio(a: tuple[int, int], b: tuple[int, int]) -> float:
     return inter / shortest if shortest > 0 else 0.0
 
 
-def match_segment(expected: list[Expected], predicted: list, segment_text: str) -> dict:
+def match_segment(expected: list[Expected], predicted: list, segment_text: str,
+                  nulls: Iterable[NullSpan] = ()) -> dict:
     spans = []
     for e in expected:
         idx = segment_text.find(e.quote)
         if idx >= 0:
             spans.append((idx, idx + len(e.quote)))
-    scored = [p for p in predicted if any(_overlap_ratio((p.q_start, p.q_end), s) > 0 for s in spans)]
+    # ⛔ A NULL span that is NOT FOUND in this text contributes nothing and is reported, never
+    # treated as covering the whole segment. A span we cannot locate is a span we cannot say
+    # anything about (`lesson_a_swallowed_error_becomes_a_confident_finding`).
+    null_spans, null_missing = [], []
+    for n in nulls:
+        idx = segment_text.find(n.quote)
+        if idx >= 0:
+            null_spans.append(((idx, idx + len(n.quote)), n.types))
+        else:
+            null_missing.append(n.gid)
+    scored_at = [i for i, p in enumerate(predicted)
+                 if any(_overlap_ratio((p.q_start, p.q_end), s) > 0 for s in spans)]
+    scored = [predicted[i] for i in scored_at]
     tp, fp, fn = Counter(), Counter(), Counter()
     lenient_tp = Counter()
     used: set = set()
@@ -325,8 +413,30 @@ def match_segment(expected: list[Expected], predicted: list, segment_text: str) 
     for i, p in enumerate(scored):
         if i not in used:
             fp[p.pre_entity_type] += 1
+    # ── NULL segments: the other half of precision ───────────────────────────
+    # Only predictions the LABEL scope did not already reach are considered here, so a
+    # prediction that overlaps both a label and a NULL span is counted exactly once — by the
+    # label, which is the stronger evidence (it can still be a true positive).
+    in_label_scope = set(scored_at)
+    null_fp = Counter()
+    for i, p in enumerate(predicted):
+        if i in in_label_scope:
+            continue
+        for span, types in null_spans:
+            if p.pre_entity_type in types and _overlap_ratio((p.q_start, p.q_end), span) > 0:
+                fp[p.pre_entity_type] += 1
+                null_fp[p.pre_entity_type] += 1
+                break
+    # The DENOMINATOR for a null false-positive rate is segments, not rows: two NULL rows that
+    # land in one segment assert absence over one piece of text the extractor saw once.
+    declared_here = frozenset().union(*[t for _, t in null_spans]) if null_spans else frozenset()
+    null_declared = Counter(declared_here)
+    null_hit = Counter({t: 1 for t in declared_here if null_fp[t]})
     return {"tp": tp, "fp": fp, "fn": fn, "lenient_tp": lenient_tp, "scored_predictions": len(scored),
-            "unscored_predictions": len(predicted) - len(scored), "outcomes": outcomes}
+            "unscored_predictions": len(predicted) - len(scored) - sum(null_fp.values()),
+            "outcomes": outcomes, "null_fp": null_fp, "null_declared": null_declared,
+            "null_segments_with_fp": null_hit, "null_spans": len(null_spans),
+            "null_spans_not_found": null_missing}
 
 
 def _rate(num: int, den: int) -> Optional[float]:
@@ -335,7 +445,8 @@ def _rate(num: int, den: int) -> Optional[float]:
 
 def score(segment_results: Iterable[dict]) -> dict:
     tp, fp, fn, lenient = Counter(), Counter(), Counter(), Counter()
-    scored = unscored = 0
+    null_fp, null_declared, null_hit = Counter(), Counter(), Counter()
+    scored = unscored = null_segments = 0
     for r in segment_results:
         tp.update(r["tp"])
         fp.update(r["fp"])
@@ -343,16 +454,31 @@ def score(segment_results: Iterable[dict]) -> dict:
         lenient.update(r["lenient_tp"])
         scored += r["scored_predictions"]
         unscored += r["unscored_predictions"]
+        # .get, because a segment-scores file written before golden-v1.1 carries none of these
+        # and must still re-score to the same numbers it did on the day it was measured.
+        null_fp.update(r.get("null_fp") or {})
+        null_declared.update(r.get("null_declared") or {})
+        null_hit.update(r.get("null_segments_with_fp") or {})
+        null_segments += 1 if (r.get("null_spans") or 0) else 0
     per_type = {}
     for rtype in writer.RECORD_TYPES:
-        t, f_p, f_n = tp[rtype], fp[rtype], fn[rtype]
-        if not (t or f_p or f_n):
+        t, f_p, f_n, n_null = tp[rtype], fp[rtype], fn[rtype], null_declared[rtype]
+        # ⛔ n_null belongs in this condition. A type asserted absent across 44 segments and
+        # never hallucinated once has tp=fp=fn=0, and dropping it here would delete the single
+        # most useful measurement the NULL segments produce — "zero false positives, n=44" —
+        # leaving it indistinguishable from a type nobody asked about.
+        if not (t or f_p or f_n or n_null):
             continue
         per_type[rtype] = {"tp": t, "fp": f_p, "fn": f_n, "precision": _rate(t, t + f_p), "recall": _rate(t, t + f_n),
                            "n_expected": t + f_n, "n_predicted_scored": t + f_p,
-                           "type_ticker_recall": _rate(lenient[rtype], t + f_n)}
+                           "type_ticker_recall": _rate(lenient[rtype], t + f_n),
+                           "fp_null": null_fp[rtype], "null_segments": n_null,
+                           "null_segments_with_fp": null_hit[rtype],
+                           # share of NULL segments in which this type was invented at least once
+                           "null_fp_rate": _rate(null_hit[rtype], n_null)}
     return {"per_type": per_type, "n_expected": sum(tp.values()) + sum(fn.values()),
-            "scored_predictions": scored, "unscored_predictions": unscored}
+            "scored_predictions": scored, "unscored_predictions": unscored,
+            "null_segments": null_segments, "null_false_positives": sum(null_fp.values())}
 
 
 # ── recording and the gate ───────────────────────────────────────────────────
@@ -511,8 +637,117 @@ def import_receipt(conn, receipt: dict, now_iso: Optional[str] = None) -> dict:
 
 # ── drift and calibration ────────────────────────────────────────────────────
 
+#: Below this, a record type is not reproducible enough to publish under a named author,
+#: and Wave 1.5 item 2 sends it to N=3 stability voting instead of single-pass extraction.
+#: Owner ruling 2026-09-14. Measured on 2026-09-14 with golden-v1: PRINCIPLE 0.207,
+#: MARKET_SIGNAL 0.125 — both far under; CALL 0.630, MENTION 0.663.
+STABILITY_FLOOR = 0.8
+
+
+#: Free-text record keys. For these the key IS the statement, so a paraphrase is a different
+#: record by construction — see `_fuzzy_agreed`.
+FREE_TEXT_KEY_TYPES = ("PRINCIPLE", "MARKET_SIGNAL")
+#: Token-set overlap at which two free-text statements are treated as the same claim worded
+#: differently. Deliberately generous: this lens exists to put an UPPER bound on how much of the
+#: measured drift is paraphrase, so it should over-merge rather than under-merge.
+PARAPHRASE_TOKEN_OVERLAP = 0.6
+_KEY_WORD_RE = re.compile(r"[a-z0-9']+")
+
+
+#: ⛔ PAIRS WHOSE SWAP REVERSES THE ADVICE. A token-set overlap cannot see a negation:
+#: measured 2026-09-14, "never average down into a loser" vs "always average down into a loser"
+#: scores 0.667, and "size down when the regime turns hostile" vs "size up ... friendly" scores
+#: 0.625 — both over the 0.6 threshold, so both merged as "the same claim, reworded". For a
+#: PRINCIPLE that is the worst error available: the negation IS the teaching, and merging the two
+#: would report the extractor as STABLE at the moment it contradicted itself.
+#: ⭐ Antonym PAIRS, not a list of polarity words: a bare list refuses the legitimate paraphrase
+#: "the stop is your north star always", which adds `always` with no `never` to contradict.
+_ANTONYMS = (("never", "always"), ("up", "down"), ("long", "short"), ("buy", "sell"),
+             ("above", "below"), ("more", "less"), ("add", "trim"), ("tight", "wide"),
+             ("over", "under"), ("before", "after"), ("first", "last"))
+
+
+def _polarity_conflict(text_a: str, text_b: str) -> bool:
+    """True when one statement says a word and the other says its opposite.
+
+    ⚰️ IT TOKENIZES ITSELF, and that is the whole fix. The first version took the sets `_tokens`
+    had already built — and `_tokens` drops words of two characters or fewer, so `up` was never
+    in them and the (up, down) pair could not fire. "size down when the regime turns hostile"
+    and "size up when the regime turns friendly" went on merging, with the guard installed and
+    apparently working: the never/always case passed, so the guard looked alive.
+    ⭐ A filter tuned for one purpose (similarity, where short words are noise) silently disabled
+    another that reused it (polarity, where the short words ARE the meaning).
+    """
+    a = set(_KEY_WORD_RE.findall(str(text_a or "").casefold()))
+    b = set(_KEY_WORD_RE.findall(str(text_b or "").casefold()))
+    for x, y in _ANTONYMS:
+        if (x in a and y in b) or (y in a and x in b):
+            return True
+    return False
+
+
+def _tokens(text: str) -> set:
+    return {w for w in _KEY_WORD_RE.findall(str(text or "").casefold()) if len(w) > 2}
+
+
+def _fuzzy_agreed(a_keys: list, b_keys: list) -> int:
+    """Greedy count of free-text records that are THE SAME CLAIM worded differently.
+
+    ⛔ WHY THIS LENS EXISTS, and it is the most important thing about the drift number.
+    `writer.Chunk.key` is structured for CALL and MENTION — `(type, ticker, stance, direction)` —
+    but for PRINCIPLE and MARKET_SIGNAL it is `(type, normalize_quote_key(statement))`, and
+    `normalize_quote_key` only casefolds and collapses whitespace. So "your stop is your north
+    star" and "the stop is your north star" are DIFFERENT RECORDS, and two runs that found the
+    same principle and worded it differently score zero agreement.
+
+    ⭐ That means the measured 0.115 for PRINCIPLE conflates two things that call for opposite
+    responses: the extractor finding DIFFERENT principles (a real stability problem, and the
+    reason not to publish), and the extractor finding the SAME principle and rewording it (a
+    property of the identity function, which N=3 voting would pay 3x to average over without
+    fixing). Reporting only the strict number would buy the expensive answer to the cheap
+    problem (`lesson_an_identity_join_is_not_a_correctness_check`).
+
+    ⚠️ This is an UPPER bound on agreement, not a replacement identity: a generous threshold can
+    merge two genuinely different claims that share vocabulary. It is reported BESIDE the strict
+    figure, never instead of it.
+    """
+    pool = list(b_keys)
+    agreed = 0
+    for key in a_keys:
+        target = _tokens(key[1] if len(key) > 1 else "")
+        best_i, best = None, 0.0
+        for i, other in enumerate(pool):
+            if other[0] != key[0]:
+                continue
+            cand = _tokens(other[1] if len(other) > 1 else "")
+            if _polarity_conflict(key[1] if len(key) > 1 else "",
+                                  other[1] if len(other) > 1 else ""):
+                continue          # opposite advice is never the same claim reworded
+            union = target | cand
+            score = len(target & cand) / len(union) if union else 0.0
+            if score > best:
+                best_i, best = i, score
+        if best_i is not None and best >= PARAPHRASE_TOKEN_OVERLAP:
+            pool.pop(best_i)
+            agreed += 1
+    return agreed
+
+
 def drift(run_a: dict, run_b: dict) -> dict:
-    """run_x: {segment_id: [record keys]}. Multiset agreement per segment, by type."""
+    """run_x: {segment_id: [record keys]}. Multiset agreement per segment, and PER TYPE.
+
+    ⛔ PER-TYPE STABILITY IS A GATE METRIC (owner ruling, Wave 1.5 item 1), not a curiosity.
+    The 2026-09-14 measurement is why: a whole-run `mean_jaccard` of 0.505 hides that CALL and
+    MENTION are middling while PRINCIPLE agrees on 6 of ~30 and MARKET_SIGNAL on 4 of ~17 —
+    and PRINCIPLE is exactly what D18 would publish into the Brain KB under a named author.
+    One number averaged over types would have let the unreproducible half ship behind the
+    reproducible half (`lesson_a_hit_rate_is_meaningless_without_its_base_rate`).
+
+    ⭐ The per-type figure is a MULTISET Jaccard over record keys: agreed / (run_1 + run_2 −
+    agreed), where `agreed` is Σ min(a,b). Using the multiset rather than the key SET matters
+    because emitting the same principle twice is a different failure from emitting two
+    different ones, and a set would score both identically.
+    """
     segments = sorted(set(run_a) | set(run_b))
     identical, jaccards = 0, []
     by_type: dict = {}
@@ -526,8 +761,82 @@ def drift(run_a: dict, run_b: dict) -> dict:
             slot["run_1"] += a[key]
             slot["run_2"] += b[key]
             slot["agreed"] += min(a[key], b[key])
+    # ⛔ The SAME comparison under a paraphrase-tolerant identity, for the free-text types only.
+    # The gap between the two numbers is the answer to "how much of this drift is the extractor
+    # finding different things, and how much is it wording the same thing differently" — which
+    # decides whether N=3 voting is worth 3x the extraction bill (Wave 1.5 items 2 and 6).
+    for sid in segments:
+        a_free = [k for k in (run_a.get(sid) or []) if k and k[0] in FREE_TEXT_KEY_TYPES]
+        b_free = [k for k in (run_b.get(sid) or []) if k and k[0] in FREE_TEXT_KEY_TYPES]
+        for rtype in FREE_TEXT_KEY_TYPES:
+            a_t = [k for k in a_free if k[0] == rtype]
+            b_t = [k for k in b_free if k[0] == rtype]
+            if a_t or b_t:
+                by_type.setdefault(rtype, {"run_1": 0, "run_2": 0, "agreed": 0}).setdefault("agreed_paraphrase", 0)
+                by_type[rtype]["agreed_paraphrase"] += _fuzzy_agreed(a_t, b_t)
+    for slot in by_type.values():
+        union = slot["run_1"] + slot["run_2"] - slot["agreed"]
+        # ⛔ union == 0 means the type never appeared in EITHER run. That is "not measured",
+        # never "perfectly stable" — a 1.0 here would read as the best score in the table and
+        # would be the one type nobody looked at.
+        slot["jaccard"] = round(slot["agreed"] / union, 6) if union else None
+        slot["below_floor"] = bool(slot["jaccard"] is not None and slot["jaccard"] < STABILITY_FLOOR)
+        if "agreed_paraphrase" in slot:
+            # the same union, a looser identity: an UPPER bound on agreement, never the verdict
+            para_union = slot["run_1"] + slot["run_2"] - slot["agreed_paraphrase"]
+            slot["jaccard_paraphrase"] = round(slot["agreed_paraphrase"] / para_union, 6) if para_union else None
+            if slot["jaccard"] is not None and slot["jaccard_paraphrase"] is not None:
+                slot["paraphrase_share"] = round(slot["jaccard_paraphrase"] - slot["jaccard"], 6)
     return {"segments": len(segments), "identical_segments": identical,
-            "mean_jaccard": round(sum(jaccards) / len(jaccards), 6) if jaccards else None, "by_type": by_type}
+            "mean_jaccard": round(sum(jaccards) / len(jaccards), 6) if jaccards else None,
+            "by_type": by_type, "stability_floor": STABILITY_FLOOR,
+            "below_floor": sorted(t for t, s in by_type.items() if s["below_floor"])}
+
+
+def decide_stability(conn, *, extractor_version: str, model: str, effort: str, by_type: dict) -> dict:
+    """Does this version's per-type stability regress against the last accepted measurement?
+
+    ⛔ A SECOND GATE, DELIBERATELY SEPARATE FROM decide_gate. Drift is measured by re-running the
+    SAME segments the gate already ran and diffing the record keys, so it cannot exist until the
+    gate phase has produced its keys file — the ordering is forced, and folding stability into
+    `decide_gate` would mean deciding before the evidence exists. A version ships only when BOTH
+    decisions accept, which is what "a version that drops stability below the current baseline
+    does not ship" means operationally.
+
+    ⛔ ABSENT IS NOT PASSING. A type the previous run measured and this one did not is reported
+    as `not_measured`, never silently dropped from the comparison — that is how a regression
+    hides (`lesson_a_projection_drops_what_it_does_not_name`).
+    """
+    previous = None
+    for run in _runs(conn, DRIFT_KIND):
+        m = run["metrics"]
+        if (m.get("stability") or {}).get("decision") == "blocked":
+            continue
+        if run["extractor_version"] == extractor_version and m.get("model") == model and m.get("effort") == effort:
+            continue
+        previous = run
+        break
+    current = {t: s.get("jaccard") for t, s in (by_type or {}).items()}
+    floor_breaches = sorted(t for t, s in (by_type or {}).items() if s.get("below_floor"))
+    if previous is None:
+        return {"decision": "accepted", "baseline": True, "compared_to": None, "regressions": [],
+                "per_type_jaccard": current, "below_floor": floor_breaches}
+    regressions = []
+    old_types = (previous["metrics"].get("by_type") or {})
+    for rtype, old in old_types.items():
+        before = old.get("jaccard")
+        if before is None:
+            continue
+        after = current.get(rtype)
+        if after is None:
+            regressions.append({"record_type": rtype, "metric": "jaccard", "previous": before,
+                                "current": None, "why": "not_measured"})
+        elif after < before - 1e-9:
+            regressions.append({"record_type": rtype, "metric": "jaccard", "previous": before,
+                                "current": after, "why": "less stable than the baseline"})
+    return {"decision": "blocked" if regressions else "accepted", "baseline": False,
+            "compared_to": previous["run_id"], "compared_extractor_version": previous["extractor_version"],
+            "regressions": regressions, "per_type_jaccard": current, "below_floor": floor_breaches}
 
 
 def _percentile(values: list, pct: float) -> Optional[int]:

@@ -72,12 +72,12 @@ class SpendCap:
                                             "cap_usd": self.max_usd})
 
 
-def load_gate_segments(data_dir: pathlib.Path, split: str):
+def load_gate_segments(data_dir: pathlib.Path, split: str, golden_name: str = ""):
     from api.services.wisdom.extract import golden
 
-    path, golden_version = golden.golden_file(data_dir)
+    path, golden_version = golden.golden_file(data_dir, prefer=golden_name or None)
     if path is None:
-        raise SystemExit("INCONCLUSIVE: no golden set under <data-dir>/golden")
+        raise SystemExit(f"INCONCLUSIVE: no golden set {golden_name or ''} under <data-dir>/golden".replace("  ", " "))
     records = [r for r in golden.load_golden(path) if golden.split_for(r) == split]
     samples = data_dir / "samples"
     files, missing = {}, []
@@ -87,15 +87,18 @@ def load_gate_segments(data_dir: pathlib.Path, split: str):
             continue
         files[key] = golden.segments_for_sample(samples, key)
     placed, unplaced = golden.place(records, files)
-    items = []
+    items, null_rows = [], 0
     for segment_id in sorted(placed):
         slot = placed[segment_id]
         expected = [e for rec in slot["records"] for e in golden.expected_from_record(rec)]
+        # A NULL row carries no expectation; it carries a span the extractor must stay out of.
+        nulls = [n for n in (golden.null_from_record(rec) for rec in slot["records"]) if n]
+        null_rows += len(nulls)
         items.append({"segment": slot["segment"], "source": golden.source_for_record(slot["records"][0]),
-                      "expected": expected, "gids": [r["gid"] for r in slot["records"]]})
+                      "expected": expected, "nulls": nulls, "gids": [r["gid"] for r in slot["records"]]})
     return {"golden_version": golden_version, "golden_file": path.name, "records": len(records),
             # §8a.1: the gate records the golden version AND the sha of the bytes it scored.
-            "golden_sha256": golden.golden_sha256(path),
+            "golden_sha256": golden.golden_sha256(path), "null_rows": null_rows,
             "segments": items, "unplaced": unplaced, "missing_samples": missing}
 
 
@@ -323,10 +326,14 @@ def segment_scores(items, results) -> dict:
     out = {}
     for item, res in zip(items, results):
         res = res or {}
-        r = golden.match_segment(item["expected"], res.get("kept") or [], item["segment"]["text"])
+        r = golden.match_segment(item["expected"], res.get("kept") or [], item["segment"]["text"],
+                                 nulls=item.get("nulls") or ())
         out[item["segment"]["segment_id"]] = {
             "tp": dict(r["tp"]), "fp": dict(r["fp"]), "fn": dict(r["fn"]), "lenient_tp": dict(r["lenient_tp"]),
             "scored_predictions": r["scored_predictions"], "unscored_predictions": r["unscored_predictions"],
+            "null_fp": dict(r["null_fp"]), "null_declared": dict(r["null_declared"]),
+            "null_segments_with_fp": dict(r["null_segments_with_fp"]), "null_spans": r["null_spans"],
+            "null_spans_not_found": r["null_spans_not_found"],
             "cost": res.get("cost", 0.0), "kept": len(res.get("kept") or []), "error": res.get("error"),
             "stream": item["source"]["stream"]}
     return out
@@ -339,12 +346,17 @@ def keys_by_segment(items, results) -> dict:
 
 def print_table(title, per_type):
     print(f"\n{title}")
-    print(f"  {'type':<14} {'tp':>4} {'fp':>4} {'fn':>4}  precision (n)      recall (n)")
+    print(f"  {'type':<14} {'tp':>4} {'fp':>4} {'fn':>4}  precision (n)      recall (n)      "
+          f"null FP (segments)")
     for rtype, m in sorted(per_type.items()):
         p = "-" if m["precision"] is None else f"{m['precision']:.3f}"
         r = "-" if m["recall"] is None else f"{m['recall']:.3f}"
+        # The null column is printed as a COUNT over a named denominator, never as a bare rate:
+        # "0 of 44" and "no NULL segment declared this type" must not read the same.
+        n_null = m.get("null_segments") or 0
+        null = f"{m.get('fp_null', 0):>3} in {m.get('null_segments_with_fp', 0)}/{n_null}" if n_null else "     -"
         print(f"  {rtype:<14} {m['tp']:>4} {m['fp']:>4} {m['fn']:>4}  {p:>6} ({m['n_predicted_scored']:>3})     "
-              f"{r:>6} ({m['n_expected']:>3})")
+              f"{r:>6} ({m['n_expected']:>3})      {null}")
 
 
 def main() -> int:
@@ -361,13 +373,23 @@ def main() -> int:
     ap.add_argument("--trial-model", default="claude-sonnet-5")
     ap.add_argument("--trial-segments", type=int, default=20)
     ap.add_argument("--drift-segments", type=int, default=10)
-    ap.add_argument("--max-usd", type=float, default=15.0)
+    #: ⛔ ONE PROGRAM-LEVEL TOTAL, carried in the ledger across every extractor_version,
+    #: model and run (owner ruling D-R2, 2026-09-14). It is NOT the remaining headroom:
+    #: SpendCap.reserve tests `spent + reserved + usd > max_usd` against the total the
+    #: ledger already carries, so passing the remainder would silently halve the budget
+    #: and truncate a run into an INCOMPLETE evaluation. Raised 15 -> 40 for Wave 1.5's
+    #: multi-pass extraction.
+    ap.add_argument("--max-usd", type=float, default=40.0)
     ap.add_argument("--concurrency", type=int, default=3)
     ap.add_argument("--poll-seconds", type=float, default=20.0)
     ap.add_argument("--batch-timeout-seconds", type=float, default=3 * 3600.0)
     ap.add_argument("--limit", type=int, default=0, help="pilot: only the first N gate segments; nothing recorded")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--push-receipt", help="base URL; POSTs receipts to /api/internal/wisdom/extract/eval-runs")
+    #: Pin the golden set by FILE NAME. Default is the newest present (golden.GOLDEN_FILES),
+    #: which becomes golden-v1.1 the moment that file lands — so an operator who wants the
+    #: OLD set back (to compare two golden versions on one extractor) has to be able to ask.
+    ap.add_argument("--golden-file", default="", help="e.g. golden-v1.jsonl (default: the newest present)")
     args = ap.parse_args()
 
     common.bootstrap(args.db)
@@ -381,7 +403,7 @@ def main() -> int:
     effort = args.effort or config.configured_effort()
     version = prompt.extractor_version()
     tag = f"{model}-{effort}-{version}"
-    data = load_gate_segments(pathlib.Path(args.data_dir), args.split)
+    data = load_gate_segments(pathlib.Path(args.data_dir), args.split, args.golden_file)
     items = data["segments"][: args.limit] if args.limit else data["segments"]
     phases = [p.strip() for p in args.phases.split(",") if p.strip()]
     pilot = bool(args.limit)
@@ -390,13 +412,14 @@ def main() -> int:
     print(f"extractor_version {version}  model {model}  effort {effort}  transport {args.transport}  "
           f"vocabulary {prompt.vocabulary_source()}")
     print(f"golden {data['golden_file']} ({data['golden_version']} sha {data['golden_sha256'][:12]}): "
-          f"{data['records']} {args.split} records -> "
+          f"{data['records']} {args.split} records ({data['null_rows']} NULL) -> "
           f"{len(items)} segments; unplaced {data['unplaced']}; missing samples {data['missing_samples']}")
     print(f"worst case per request ${worst_one:.2f}; phases {phases}; total cap ${args.max_usd:.2f}"
           f"{'; PILOT (--limit): nothing is recorded' if pilot else ''}")
     report = {"extractor_version": version, "model": model, "effort": effort, "transport": args.transport,
               "split": args.split, "golden_version": data["golden_version"],
               "golden_sha256": data["golden_sha256"], "golden_records": data["records"],
+              "golden_null_rows": data["null_rows"],
               "segments": len(items), "unplaced": data["unplaced"], "missing_samples": data["missing_samples"],
               "pilot": pilot, "phases": {}}
     if args.dry_run:
@@ -422,7 +445,9 @@ def main() -> int:
         metrics = golden.score(list(scores.values()))
         summary = summarise(results)
         entry = {"per_type": metrics["per_type"], "summary": summary, "complete": complete(summary, len(items)),
-                 "unscored_predictions": metrics["unscored_predictions"]}
+                 "unscored_predictions": metrics["unscored_predictions"],
+                 "null_segments": metrics["null_segments"],
+                 "null_false_positives": metrics["null_false_positives"]}
         print_table(f"{args.split} split — {model} {effort} ({summary['calls']} calls, ${summary['cost_usd']:.4f}, "
                     f"{summary['records_kept']} records, errors {summary['errors']}, "
                     f"retried {summary['retried_after_max_tokens']})", metrics["per_type"])
@@ -446,8 +471,15 @@ def main() -> int:
             receipt = {"kind": golden.EVAL_KIND, "run_id": out["run_id"], "extractor_version": version,
                        "model": model, "effort": effort, "golden_version": data["golden_version"],
                        "golden_sha256": data["golden_sha256"],
-                       "split": args.split, "per_type": {k: {"tp": v["tp"], "fp": v["fp"], "fn": v["fn"]}
-                                                         for k, v in metrics["per_type"].items()},
+                       # ⛔ fp_null is carried BESIDE fp, never instead of it. `import_receipt`
+                       # re-derives precision from tp/fp alone, so a receipt that reported only the
+                       # null half would understate false positives on the pod by exactly the
+                       # predictions the positive labels already caught.
+                       "split": args.split,
+                       "per_type": {k: {"tp": v["tp"], "fp": v["fp"], "fn": v["fn"],
+                                        "fp_null": v.get("fp_null", 0),
+                                        "null_segments": v.get("null_segments", 0)}
+                                    for k, v in metrics["per_type"].items()},
                        "cost_usd": summary["cost_usd"], "created_at": out["created_at"]}
             common.write_json(out_dir / "receipts" / f"{out['run_id']}.json", receipt)
             receipts.append(receipt)
@@ -483,17 +515,39 @@ def main() -> int:
         else:
             results = run_phase(client, drift_items, model=model, effort=effort, phase="drift", **phase_kw)
             second = keys_by_segment(drift_items, results)
+            # ⚰️ THE SECOND RUN'S KEYS USED TO BE COMPUTED AND THROWN AWAY, so the only surviving
+            # evidence for a drift number was the aggregate it produced. When the 2026-09-14 run
+            # reported PRINCIPLE at 0.115 the obvious next question — is that different principles
+            # or the same ones reworded? — could not be answered without paying for the run again.
+            # A measurement that discards its own inputs cannot be diagnosed, only repeated.
+            common.write_json(out_dir / f"keys-drift-{tag}.json", second)
             drift = golden.drift({k: [tuple(x) for x in first[k]] for k in second},
                                  {k: [tuple(x) for x in v] for k, v in second.items()})
             drift.update(summary=summarise(results), model=model, effort=effort, transport=args.transport)
+            # ⛔ STABILITY IS A SHIPPING GATE (Wave 1.5 item 1). Decided BEFORE the row is
+            # recorded, so the stored drift run carries its own verdict and a later reader
+            # cannot mistake "measured" for "accepted".
+            with store.read() as conn:
+                drift["stability"] = golden.decide_stability(conn, extractor_version=version, model=model,
+                                                            effort=effort, by_type=drift["by_type"])
             if complete(drift["summary"], len(drift_items)) and not pilot:
                 with store.write() as conn:
                     golden.record_eval(conn, kind=golden.DRIFT_KIND, extractor_version=version, n=len(drift_items),
                                        metrics=drift)
             report["phases"]["drift"] = drift
             print(f"\ndrift over {drift['segments']} segments: identical {drift['identical_segments']}/"
-                  f"{drift['segments']}, mean jaccard {drift['mean_jaccard']}, by type {drift['by_type']}, "
+                  f"{drift['segments']}, mean jaccard {drift['mean_jaccard']}, "
                   f"cost ${drift['summary']['cost_usd']:.4f}")
+            print(f"  {'type':<14} {'run_1':>6} {'run_2':>6} {'agreed':>7}  jaccard   floor {golden.STABILITY_FLOOR}")
+            for rtype, slot in sorted(drift["by_type"].items()):
+                j = "  -   " if slot["jaccard"] is None else f"{slot['jaccard']:.3f}"
+                mark = "  BELOW FLOOR -> N=3 voting" if slot["below_floor"] else ""
+                print(f"  {rtype:<14} {slot['run_1']:>6} {slot['run_2']:>6} {slot['agreed']:>7}  {j}{mark}")
+            st = drift["stability"]
+            print(f"  stability decision: {st['decision']} (baseline={st['baseline']}, "
+                  f"compared_to={st['compared_to']}), below floor: {st['below_floor'] or 'none'}")
+            for r in st["regressions"]:
+                print(f"    REGRESSION {r['record_type']} jaccard {r['previous']} -> {r['current']} ({r['why']})")
 
     if "trial" in phases:
         scores_file = out_dir / f"segment-scores-{tag}.json"

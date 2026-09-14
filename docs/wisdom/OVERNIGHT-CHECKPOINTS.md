@@ -437,3 +437,98 @@ precision and loses LEVEL, MENTION and PRINCIPLE. The expected counts are 8, 3, 
 single record moves a rate by 12–100 points, so no cell here separates the models. The tool's own
 rule says the rest: *"a trial is not a gate evaluation: a smaller model becomes eligible only
 through a full gate run of its own."*
+
+---
+
+## Checkpoint 13 — Wave 1.5 item 4 MEASURED. The schema lever, isolated. 2026-09-14 07:50 CT
+
+Gate + drift on `wx-v0-fc47bc97`, pinned to `--golden-file golden-v1.jsonl` (sha `db3475c814ee`,
+57 segments) so it is like-for-like with the 2026-09-14 baseline on the SAME 10 drift segments.
+**$5.22 this run; $16.8725 of the $40 cap.**
+
+### ⭐⭐ The mean moved +0.002 while PRINCIPLE nearly TRIPLED
+
+```
+type             old      new    delta      old(agr/r1/r2)   new(agr/r1/r2)
+CALL            0.630    0.708   +0.079           17/23/21         17/21/20
+LEVEL           0.500    0.500   +0.000              2/3/3            3/5/4
+MARKET_SIGNAL   0.125    0.231   +0.106            4/17/19          6/15/17
+MENTION         0.664    0.638   -0.027         93/117/116       88/113/113
+PRINCIPLE       0.115    0.325   +0.210            6/30/28         13/26/27
+MEAN            0.505    0.507   +0.002
+```
+
+⛔ **This is item 1 justifying itself on its first real use.** A reader of `mean_jaccard` alone
+would conclude the schema change bought NOTHING. The type the whole wave exists for improved by
+**a factor of 2.8**, and the average could not see it because MENTION's 113 records per run swamp
+PRINCIPLE's 26 (`lesson_a_hit_rate_is_meaningless_without_its_base_rate`).
+
+### ⭐⭐ And most of the REMAINING drift is wording, not disagreement
+
+```
+PRINCIPLE       strict 0.325   paraphrase-tolerant 0.767   (agreed 13 -> 23)
+MARKET_SIGNAL   strict 0.231   paraphrase-tolerant 0.524   (agreed  6 -> 11)
+```
+
+Under an identity that treats a reworded claim as the same claim — with the antonym guard, so
+"never average down" and "always average down" are still counted as different — **PRINCIPLE
+reaches 0.767 against a 0.8 floor.** So roughly two thirds of what is left is the extractor
+finding the SAME teaching and saying it differently, not finding a different teaching.
+
+⛔ **That changes what N=3 voting is worth.** Voting matched on the STRICT key would pay 3x to
+average over a disagreement that is mostly in the identity function, not in the extraction. The
+owner's item 2 already specifies the right matcher — *"match records across runs by normalized
+statement + span overlap"* — and this measurement says that choice is doing most of the work,
+not the third pass.
+
+### Precision and recall barely moved, and mostly up
+
+```
+type             P old   P new      dP     R old   R new      dR
+CALL             0.708   0.692   -0.016    0.739   0.783   +0.043
+LEVEL            1.000   1.000    0.000    0.600   0.600    0.000
+MARKET_SIGNAL    0.500   0.500    0.000    1.000   1.000    0.000
+MENTION          0.879   0.895   +0.015    1.000   1.000    0.000
+NEGATIVE_CALL    0.800   1.000   +0.200    0.667   0.833   +0.167
+PRINCIPLE        0.700   0.765   +0.065    0.933   0.867   -0.067
+```
+
+PRINCIPLE trades one miss for fewer inventions, which is the trade the tightening was for.
+Records kept **882 -> 835**, unscored **763 -> 718**, cost **$4.8007 -> $4.3357**, cache read
+share **0.773 -> 0.877**. ⭐ The tighter schema is CHEAPER per record as well as steadier.
+
+### ⛔ The finding the owner has to rule on: EVERY type is under the floor
+
+On strict identity: CALL 0.708 · MENTION 0.638 · LEVEL 0.500 · MARKET_SIGNAL 0.231 ·
+PRINCIPLE 0.325. Item 2 says voting applies to *"PRINCIPLE and MARKET_SIGNAL (and any record type
+whose drift is below 0.8)"*, and that CALL/MENTION/NEGATIVE_CALL/LEVEL keep single-pass
+*"unless their measured drift says otherwise"*. **It says otherwise.**
+
+⚠️ But CALL, MENTION and LEVEL have STRUCTURED keys — `(type, ticker, stance, direction)` — so
+their disagreement is genuinely about which calls exist, and the paraphrase lens does not apply
+to them. There is no cheap identity fix there; the only lever is more passes. Taken literally the
+rule triples the whole catalog bill rather than the teaching half.
+
+### Item 6 — the 3-pass projection, printed before anything is submitted
+
+Measured on `wx-v0-fc47bc97`: **$0.07607 per segment**, **$0.005192 per kept record** (batch,
+opus-5, effort high, cache read share 0.877, 0 errors).
+
+| | |
+|---|---|
+| documented 1-pass catalog estimate | **$80.00** (the basis of `WISDOM_EXTRACT_BUDGET_USD = 80 × 1.5`) |
+| implied segments at the measured rate | ~1,052 |
+| **3 passes** | **$240.00** |
+| `WISDOM_EXTRACT_BUDGET_USD` cap | $120.00 |
+| **over the cap by** | **$120.00** |
+
+⛔⛔ **A CALL RETURNS ALL SIX RECORD TYPES, so "3-pass on PRINCIPLE/MARKET_SIGNAL" is not
+purchasable as written.** Three passes over a source is three passes of everything in it. The
+lever is **which SOURCES get three passes**, not which types — teaching-heavy sources (workshops,
+Mental Game, interviews) are where PRINCIPLE lives, and 3-passing those while single-passing the
+rest is the shape that fits under the cap.
+
+⚠️ **Two numbers are owed before any submission** and neither is guessable from here: the
+per-source segment counts (the catalog is not on this box), and a re-based 1-pass estimate —
+$80 is documented, not measured, and the measured per-segment cost has fallen since it was
+written. "Likely under $80" is not a budget.
