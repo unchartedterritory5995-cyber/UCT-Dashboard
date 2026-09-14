@@ -14,6 +14,10 @@
 # Scope is deliberately narrow — one stdlib-only script, no install step — so it
 # stays fast and cannot cry wolf. A workflow that cries wolf gets ignored, which
 # would defeat the point.
+#
+# ⛔ REVIEW-GATE-BY-DESIGN: a red here was NEVER a deploy block. The job exits 0 and
+# reports through a `::warning::` annotation and the job summary. See the step below
+# for why that changed on 2026-09-14.
 name: flow-worker deploy coverage
 
 on:
@@ -36,25 +40,62 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: flow-worker watch coverage
+      # ⛔⛔ THIS JOB EXITS 0 ON A RED, ON PURPOSE. IT IS A REVIEW GATE, NOT A BLOCK.
+      #
+      # `docs/runbooks/deploy-windows.md` has always said so: a red here REQUIRES A
+      # WRITTEN CLASSIFICATION (ADDITIVE vs BEHAVIOUR-CHANGING) and never blocks a
+      # merge. The script's exit code said otherwise, so GitHub recorded a
+      # deliberate review signal as a FAILED CHECK — and Railway's "Wait for CI"
+      # waits on ALL checks, so turning that on would have converted this rail into
+      # a hard deploy block for essentially every backend change. Measured
+      # 2026-09-14: 6 of the last 50 master runs "failed", and every one was a
+      # correctly-classified ADDITIVE breadth merge.
+      #
+      # ⭐ The SIGNAL IS NOT WEAKENED — it moves from a red X to a warning
+      # annotation on the commit plus the job summary, both carrying the same text.
+      # What changes is only whether a review gate can stop a deploy, which it was
+      # never supposed to do.
+      #
+      # ⚠️ The script keeps its non-zero exit: run locally it still fails, which is
+      # what a developer's own run should do. The neutralisation is HERE, at the
+      # one place where an exit code is mistaken for a deploy verdict.
+      - name: flow-worker watch coverage (review gate — never blocks)
+        id: coverage
         env:
           # The PR's real base. `github.event.before` is all-zeros on a new branch;
           # the script VERIFIES the ref resolves and falls back rather than
           # trusting it.
           FLOW_WATCH_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: python tools/flow_worker_watch_coverage.py
-
-      - name: Explain a failure
-        if: failure()
         run: |
-          echo "::error::This change touches files flow-worker RUNS but does not trigger its deploy — it would ship inert."
-          echo ""
-          echo "flow-worker watches ~21 specific api/*.py files (Railway dashboard is the"
-          echo "authority; the mirror is api/flow_worker_main.py's header). Anything else"
-          echo "under api/ deploys nothing to it."
-          echo ""
-          echo "  1. Touch a watched file in the same commit — editing the"
-          echo "     api/flow_worker_main.py header is the conventional trigger."
-          echo "  2. OR add the paths to flow-worker's watch list in the Railway dashboard,"
-          echo "     remembering a wider list means more tape gaps."
-          echo "  3. Run it locally: python tools/flow_worker_watch_coverage.py"
+          set +e
+          OUT=$(python tools/flow_worker_watch_coverage.py 2>&1)
+          CODE=$?
+          echo "$OUT"
+          {
+            echo "## flow-worker deploy coverage"
+            echo ""
+            if [ $CODE -eq 0 ]; then
+              echo "✅ Every changed file flow-worker runs is on its watch list."
+            else
+              echo "⚠️ **REVIEW GATE — this is not a failure and does not block the deploy.**"
+              echo ""
+              echo "This change touches files flow-worker RUNS but does not trigger its deploy,"
+              echo "so it would ship inert there. That is often CORRECT (an additive change to a"
+              echo "symbol flow-worker does not call), and \`deploy-windows.md\` requires a written"
+              echo "classification either way — ADDITIVE, or BEHAVIOUR-CHANGING and scheduled."
+              echo ""
+              echo '```'
+              echo "$OUT"
+              echo '```'
+              echo ""
+              echo "Options: touch a watched file in the same commit (the"
+              echo "\`api/flow_worker_main.py\` header is the conventional trigger), or widen"
+              echo "flow-worker's watch list in the Railway dashboard — remembering that a wider"
+              echo "list means more restarts, and each one gaps the OPRA tape permanently until"
+              echo "the T+1 flat file."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ $CODE -ne 0 ]; then
+            echo "::warning title=flow-worker deploy coverage::This change touches files flow-worker RUNS but does not trigger its deploy — it would ship inert. Classify it in writing (ADDITIVE or BEHAVIOUR-CHANGING) per docs/runbooks/deploy-windows.md. This is a review gate and does not block the deploy."
+          fi
+          exit 0
