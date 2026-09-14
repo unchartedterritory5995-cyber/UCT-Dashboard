@@ -211,6 +211,13 @@ exist. *"wire this door explicitly, don't assume it exists."*
 
 ### R-0 · THE RELEASE GATE — added 2026-09-11, during the deploy checklist
 
+⚖️ **R-0.6 — CLASS CHECK (owner, 2026-09-14). Before any fix merges, name the
+class it belongs to and check whether the same shape exists elsewhere. The fix
+ships only alongside that check's result: FIXED, or LISTED WITH A REASON.**
+⛔ A fix described by a file or a line, rather than by a shape, has not had this
+check. See §10.35 for the four instances that bought this rule.
+
+
 ⛔⛔ **Wave R was built with NO gate at all.** All four doors — the Scanner
 header door (R-1a), the ticker-menu "Send chart to note" (R-2e), and the
 `indexes` / `marketcontext` widgets — rendered unconditionally. The widgets were
@@ -1560,6 +1567,37 @@ Closing it requires building an instrument first — that is a task, not a looku
     'new note' … and not the one the product actually uses"* — and the class
     recurred one state along. **A fix written to the instance leaves the class
     open, and the class comes back wearing a different word.**
+
+35. ⚖️ **STANDING RULE, owner 2026-09-14 — NAME THE CLASS BEFORE THE FIX MERGES.**
+
+    > **Before any fix merges: name the class it belongs to, and check whether the
+    > same shape exists elsewhere. The instance fix ships only alongside that
+    > check's result — fixed, or listed with a reason.**
+
+    ⚰️ **Adopted because the same shape appeared FOUR TIMES in one night, and
+    three of those were fixes I had already written:**
+
+    | the class | the instance fixed | where it came back |
+    |---|---|---|
+    | a wrapper's exit is not the run's result | the runner banking an `INCONCLUSIVE` as `done · ok` | banking a **declared FAIL** as `done · ok`, hours later |
+    | a probe that knows the control but not the surface | T-12's regex learning `"+ Start a note"` | the same probe failing on a **populated** account |
+    | an exemption taught to one control | `EXPECTED_RED` at the gauntlet's **opening** control | the **closing** control still reporting FAIL |
+    | a guard proved at one call site | `settleLandedSave`'s `unsentWork` | `putNoteWithIntent`'s dirty guard, **railed by nothing** |
+
+    ⭐ **The last one is the sharpest, because the gauntlet found it and I would
+    not have.** M29 removed the store-layer guard and NOTHING went red: half of
+    Q1 fix 4 shipped as decoration that read exactly like defence in depth.
+
+    ⛔ **Why "listed with a reason" is part of the rule and not a softening.** The
+    check has to be allowed to answer *"it exists there too and we are not fixing
+    it today"* — otherwise the honest answer is expensive and the cheap answer is
+    to not look. A named, unfixed sibling is a debt; an unlooked-for one is a
+    surprise.
+
+    ⭐ **The tell, in your own writing:** a fix whose description names a FILE or a
+    LINE and not a SHAPE has not had this check. *"`settleLandedSave` overwrites a
+    dirty record"* is an instance. *"a guard proved at one call site is not proved
+    for the class"* is the thing that finds the other three.
 
 ### Rows added by §10
 
