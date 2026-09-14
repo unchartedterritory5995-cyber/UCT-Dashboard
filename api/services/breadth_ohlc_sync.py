@@ -287,6 +287,18 @@ def _merge_from(src_db: str) -> int:
             try:
                 cur = conn.execute(_MERGE_SQL)
                 adopted = cur.rowcount if cur.rowcount is not None else 0
+                # ⛔ THE ONE WRITER THAT BYPASSES `breadth_daily_ohlc`'s own API —
+                # it INSERTs directly over an ATTACHed snapshot — so the derived
+                # reconstructed table is kept in step by WATERMARK rather than by
+                # this function knowing which dates it adopted (`rowcount` is a
+                # count, not a date list). Same connection, so still one
+                # transaction; and the watermark would have caught a miss here even
+                # if this hook had never been added, which is exactly why the design
+                # does not rest on every writer remembering.
+                if adopted:
+                    stale = _store.stale_reconstructed_dates(c=conn)
+                    if stale:
+                        _store._rebuild_after_write(conn, stale)
                 conn.commit()
                 return adopted
             finally:
