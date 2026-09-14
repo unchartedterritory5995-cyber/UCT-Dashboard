@@ -57,3 +57,40 @@ rather than §8c.1.3's `put_verified` (the reviewer correctly refused to change 
 contract), and the R2 prefix is `wisdom/sources/zoom_vtt/` where §8a.6a.1 names `wisdom/sources/zoom/`.
 Both are integrator decisions; `core/r2.py` has no delete path, so a prefix change strands whatever
 is already written.
+
+---
+
+## Reviewers — pair 1 (S-C, S-E) and pair 2 (S-F1, S-F2), 2026-09-14 00:38–01:27 CT
+
+⭐ **The adjudication profile is the point.** The owner's instruction was that *"all N confirmed" is a red flag, not a clean bill* — a review that agrees with every scout candidate is a re-reading. Across the four streams the reviewers **refuted or downgraded 31 of 63** and found **23 findings no scout had**.
+
+| stream | verdict | adjudicated | VERIFIED | REFUTED | DOWNGRADED | NEW | blocks-merge | all fixed |
+|---|---|---|---|---|---|---|---|---|
+| S-C | SHIP-WITH-FOLLOW-UPS | 19 | 6 | 5 | 4 | 4 | 6 | yes |
+| S-E | FIX-BEFORE-MERGE | 20 | 1 | 6 | 5 | 8 | 3 | **NO** |
+| S-F1 | SHIP-WITH-FOLLOW-UPS | 11 | 0 | 4 | 1 | 5 | 1 | yes |
+| S-F2 publish | SHIP-WITH-FOLLOW-UPS | 13 | 0 | 6 | 1 | 6 | 2 | yes |
+| **total** | | **63** | **7** | **21** | **11** | **23** | **12** | |
+
+⭐ **S-E's one unfixed blocker was not S-E's to fix, and it was the best finding of the night.**
+E-5: the shared §7 rail `tests/test_cross_module_imports_resolve.py` was RED on `feat/wisdom-loop`
+and it was a **FALSE POSITIVE** — `_bindings` collected only `ast.Name` targets, so tuple unpacking
+bound nothing and two importable modules were reported as unresolved imports. That red had been
+carried as "a pre-existing non-Wisdom failure" in this programme's own ledger rows for weeks.
+The reviewer correctly refused to touch it (CONTRACTS §8.2 gives shared files to the integrator) and
+⛔ explicitly warned that the obvious fix — adding both names to `KNOWN_DEAD` — would permanently
+blind the rail at exactly the two names it was wrong about. Fixed by the integrator at `409b7dd74`;
+mutation-proved (old collector reds 2 of 4). **S-E therefore has zero open blockers.**
+
+**Each reviewer also refuted something it had raised itself**, which is the habit worth keeping:
+- **S-C / S05** — the archived Zoom metadata was said to leak a credential in `download_url`. It does
+  not: `zoom_client.download_text` sends the token as an `Authorization: Bearer` **header**. Read the
+  client, not the call site.
+- **S-F1 / F-N4** — D20's silent scorer running with `WISDOM_LEVEL_ALERTS_ENABLED=0` looked like an
+  ungated feature. It is the DESIGN: §0 ruling 13 builds D20 as a silent scorer and the enablement
+  gate needs ≥14 days of silent scoring, so the scorer MUST run while emission is off. The flag gates
+  EMISSION, in S-F2's module.
+- **S-F2** attacked its OWN provenance rail (committed hours earlier) and found two blockers in it:
+  the marked-predicate excuse laundered an UPDATE, and **a SQL COMMENT spelling `source = 'wisdom'`
+  marked the site** — an analyser reading comments as code, which is the exact defect class this
+  repo's "CODE, NEVER PROSE" rule exists for, committed by the rail written to enforce it.
