@@ -18,7 +18,29 @@ WHAT A RECORD HAS TO SURVIVE (each rejection or downgrade is COUNTED by name):
      resolver installed every CALL is downgraded — a ticker shape is not a
      resolution — and the reason says which case it was;
   7. R4: stance hindsight <=> hindsight true;
-  8. setup_vocab must be an approved vocabulary name, else null (raw name kept).
+  8. setup_vocab must be an approved vocabulary name, else null (raw name kept);
+  9. CONTRACTS §8a.4: a record whose ticker was INFERRED from an adjacent line carries
+     ticker_inferred=1, entity_confidence <= 0.5 and extraction_confidence='low', and
+     must PASS the bar-range sanity pass before storage — else it is stored as a
+     MENTION with entity_id NULL plus a review item.
+
+INFERRED TICKERS (§8a.4), and why it is decided here. The model output has no
+"ticker_inferred" field — adding one would change the contract schema, and therefore
+extractor_version, and therefore invalidate the frozen golden-v1 gate. So the writer
+derives it structurally from what it already holds: a ticker the RECORD'S OWN QUOTE
+does not name (neither the symbol, with or without a $, nor the ticker_as_heard form
+the prompt's R9 requires for a word or company name) came from somewhere else in the
+segment — a heading, a neighbouring line. That is exactly the class §8a.4 names.
+
+⛔ NOT-A-PASS IS THE FALLBACK, including "we could not check". With no bar source
+installed the check cannot run, and a rule that quietly does nothing when its input
+is missing is the F6 defect itself — a rule that LOOKS implemented and is not
+(`lesson_a_rails_important_half_can_be_opt_in`). This mirrors the rule directly above
+it: with no resolver installed every CALL is downgraded, and the reason says which
+case it was. The verdict is always named (`no_bar_source` / `no_stated_price` /
+`no_bars` / `bar_lookup_failed` / `out_of_range`), so "could not be read" never reads
+as "was wrong", and nothing is lost either way: the record is still stored, as a
+MENTION, with a review item pointing at it.
 
 PRIVATE FIELDS (D16a): size_shares, and entry on an OPEN position, never reach
 wisdom.db. They go to core.private.put_private; when that store is absent or
@@ -68,6 +90,18 @@ NUMERIC_FIELDS = ("entry", "stop", "size_shares", "stated_return_pct")
 PRIVATE_FIELDS = ("size_shares", "open_entry")
 TICKER_SHAPE = re.compile(r"^[A-Z]{1,5}(?:[.-][A-Z]{1,2})?$")
 _PULLBACK_ONLY = re.compile(r"(?i)\bpull\s*-?\s*backs?\b")
+#: §8a.4 required fields on an inferred ticker.
+INFERRED_ENTITY_CONFIDENCE_MAX = 0.5
+INFERRED_EXTRACTION_CONFIDENCE = "low"
+#: How far outside the session's own high/low a stated price may sit and still be
+#: "consistent with that ticker's bars that session". A DECLARED sanity band, not a
+#: measured threshold: a trigger above the day's high ("over 55") is ordinary, a price
+#: an order of magnitude away is a different instrument. It is deliberately generous
+#: because the check only ever runs on an INFERRED ticker and its failure is
+#: non-destructive — the record is stored as a MENTION with a review item, never dropped.
+BAR_RANGE_TOLERANCE = 0.25
+#: Not-a-pass verdicts, each naming WHY the pass did not happen (never one word for all).
+BAR_VERDICTS = ("pass", "out_of_range", "no_stated_price", "no_bar_source", "no_bars", "bar_lookup_failed")
 PROVENANCE_FIELDS = ("quote", "ticker_as_written", "ticker_as_heard", "direction", "stance", "setup_name_raw",
                      "setup_vocab", "timeframe", "trigger_timeframe", "trigger", "entry", "entry_zone", "stop",
                      "stop_text", "targets", "levels", "thesis", "confidence_language", "reason", "reason_class",
@@ -109,6 +143,8 @@ class Checked:
     record_hash: str
     hindsight: bool
     reasons: list = field(default_factory=list)
+    ticker_inferred: bool = False
+    bar_verdict: Optional[str] = None
 
     def key(self, pre_entity: bool = False) -> tuple:
         rtype = self.pre_entity_type if pre_entity else self.record_type
@@ -141,6 +177,14 @@ def _private_put(private_put: Any) -> Optional[Callable]:
     if private_put == "auto":
         return seams.seam("api.services.wisdom.core.private", "put_private")
     return private_put
+
+
+def _bar_range(bar_range: Any) -> Optional[Callable]:
+    """The session bar-range provider for §8a.4: (ticker, as_of) -> {"low": ..., "high": ...}
+    or None. The RULE lives here; only the bars are somebody else's."""
+    if bar_range == "auto":
+        return seams.seam("api.services.wisdom.core.bars", "session_range")
+    return bar_range
 
 
 # ── authorship ───────────────────────────────────────────────────────────────
@@ -190,6 +234,52 @@ def _canonical_hash(fields: dict, model_type: str) -> str:
                                      default=str).encode("utf-8")).hexdigest()
 
 
+def ticker_is_inferred(quote: str, ticker: Optional[str], ticker_as_heard: Any) -> bool:
+    """§8a.4: was this record's ticker taken from somewhere other than its own quote?
+
+    A quote that names the symbol (bare or $-prefixed, on a word boundary so ZZZT does
+    not match ZZZTX) did not infer it. Nor did a quote carrying the ticker_as_heard form
+    the prompt's R9 requires whenever a ticker was spoken as a word or a company name —
+    which is what keeps "Nvidia looks good" out of this class. Everything else came from
+    an adjacent line."""
+    if not ticker:
+        return False
+    text = quote or ""
+    if re.search(rf"(?<![A-Za-z0-9]){re.escape(ticker)}(?![A-Za-z0-9])", text, re.IGNORECASE):
+        return False
+    heard = str(ticker_as_heard or "").strip()
+    return not (heard and heard.casefold() in text.casefold())
+
+
+def _stated_prices(r: dict) -> list[float]:
+    """Every price the record states, in the form a session's high/low can be compared to."""
+    values = [_num(r.get("entry")), _num(r.get("stop"))]
+    values += [_num(z) for z in (r.get("entry_zone") or [])]
+    values += [_num((t or {}).get("price")) for t in (r.get("targets") or [])]
+    values += [_num((lv or {}).get("price")) for lv in (r.get("levels") or [])]
+    return [v for v in values if v is not None and v > 0]
+
+
+def bar_range_verdict(ticker: Optional[str], prices: list, as_of: Any, bar_range: Optional[Callable]) -> str:
+    """One of BAR_VERDICTS. Only "pass" is a pass; every other value names why not."""
+    if not prices:
+        return "no_stated_price"
+    if bar_range is None:
+        return "no_bar_source"
+    try:
+        window = bar_range(ticker, as_of)
+    except Exception:
+        log.exception("[wisdom-extract] bar-range lookup failed for %s", ticker)
+        return "bar_lookup_failed"
+    low = _num((window or {}).get("low"))
+    high = _num((window or {}).get("high"))
+    if low is None or high is None or low <= 0 or high < low:
+        return "no_bars"
+    floor = low / (1.0 + BAR_RANGE_TOLERANCE)
+    ceiling = high * (1.0 + BAR_RANGE_TOLERANCE)
+    return "pass" if all(floor <= p <= ceiling for p in prices) else "out_of_range"
+
+
 def _has_price_info(r: dict) -> bool:
     return any([
         r.get("entry") is not None, r.get("entry_zone"), r.get("stop") is not None, r.get("stop_text"),
@@ -199,7 +289,7 @@ def _has_price_info(r: dict) -> bool:
 
 
 def _check(raw: dict, *, text: str, segment: dict, source: dict, vocab: set, resolve: Optional[Callable],
-           as_of: Any, call_authors: frozenset, counts: Counter):
+           as_of: Any, call_authors: frozenset, counts: Counter, bar_range: Optional[Callable] = None):
     fields_order = prompt.record_fields()
     r = {name: raw.get(name) for name in fields_order}
     if any(name not in raw for name in fields_order):
@@ -308,6 +398,23 @@ def _check(raw: dict, *, text: str, segment: dict, source: dict, vocab: set, res
             else:
                 reasons.append("call_entity_unresolved")
 
+    # ── §8a.4 inferred tickers ───────────────────────────────────────────────
+    inferred = rtype in TICKER_TYPES and ticker_is_inferred(quote, ticker, r.get("ticker_as_heard"))
+    bar_verdict = None
+    if inferred:
+        counts["ticker_inferred"] += 1
+        r["extraction_confidence"] = INFERRED_EXTRACTION_CONFIDENCE
+        if isinstance(entity, dict):
+            confidence = _num(entity.get("confidence"))
+            entity = dict(entity, confidence=INFERRED_ENTITY_CONFIDENCE_MAX if confidence is None
+                          else min(confidence, INFERRED_ENTITY_CONFIDENCE_MAX))
+        bar_verdict = bar_range_verdict(ticker, _stated_prices(r), as_of, bar_range)
+        counts[f"inferred_ticker_bar_range:{bar_verdict}"] += 1
+        if bar_verdict != "pass":
+            entity = None            # entity_id (and its confidence) NULL — §8a.4
+            rtype = "MENTION"
+            reasons.append(f"inferred_ticker_not_bar_checked:{bar_verdict}")
+
     private: dict = {}
     if r.get("size_shares") is not None:
         private["size_shares"] = r["size_shares"]
@@ -326,11 +433,12 @@ def _check(raw: dict, *, text: str, segment: dict, source: dict, vocab: set, res
                    ticker=ticker, quote=quote, q_start=q_start, q_end=q_start + len(quote), author_id=author_id,
                    is_guest=is_guest, speaker_confidence=speaker_confidence,
                    entity=entity if isinstance(entity, dict) else None, private=private, record_hash=record_hash,
-                   hindsight=hindsight, reasons=reasons)
+                   hindsight=hindsight, reasons=reasons, ticker_inferred=inferred, bar_verdict=bar_verdict)
 
 
 def validate_output(output: Any, *, segment: dict, source: dict, resolver: Any = "auto",
-                    vocab_names: Optional[set] = None, as_of: Any = None) -> Validation:
+                    vocab_names: Optional[set] = None, as_of: Any = None,
+                    bar_range: Any = "auto") -> Validation:
     counts: Counter = Counter()
     if not isinstance(output, dict) or not isinstance(output.get("records"), list):
         counts["bad_output"] += 1
@@ -340,6 +448,7 @@ def validate_output(output: Any, *, segment: dict, source: dict, resolver: Any =
     text = segment.get("text") or ""
     vocab = set(vocab_names) if vocab_names is not None else {v["name"] for v in prompt.vocabulary()}
     resolve = _resolver(resolver)
+    bars = _bar_range(bar_range)
     call_authors = authors.call_authors()
 
     expanded: list[dict] = []
@@ -360,7 +469,7 @@ def validate_output(output: Any, *, segment: dict, source: dict, resolver: Any =
     seen: set = set()
     for raw in expanded:
         checked = _check(raw, text=text, segment=segment, source=source, vocab=vocab, resolve=resolve,
-                         as_of=as_of, call_authors=call_authors, counts=counts)
+                         as_of=as_of, call_authors=call_authors, counts=counts, bar_range=bars)
         if isinstance(checked, str):
             counts[f"reject:{checked}"] += 1
             continue
@@ -425,13 +534,39 @@ def _vocab_id(conn, name: Optional[str]) -> Optional[str]:
     return row[0] if row else None
 
 
+def _inferred_ticker_review_item(conn, *, checked: Checked, record_id: str, segment_id: str,
+                                 extractor_version: str, now: str) -> str:
+    """§8a.4's review item for an inferred ticker that did not pass the bar-range check.
+
+    One item per (segment, ticker, verdict) — a segment that mentions the same inferred
+    ticker five times is ONE thing for a human to look at, not five. The evidence is
+    quote-free and reads the REDACTED fields, so a private open-position entry that the
+    writer has already split out can never be copied back into the queue."""
+    item_id = ids.sha24("inferred_ticker", segment_id, extractor_version, checked.ticker or "",
+                        checked.bar_verdict or "")
+    summary = (f"Inferred ticker {checked.ticker} did not pass the bar-range check "
+               f"({checked.bar_verdict}): stored as MENTION with entity_id NULL (§8a.4)")
+    evidence = {"ticker": checked.ticker, "bar_verdict": checked.bar_verdict,
+                "model_record_type": checked.model_type, "stored_record_type": checked.record_type,
+                "stated_prices": _stated_prices(checked.fields),
+                "locator": f"segment:{segment_id}#{checked.q_start}-{checked.q_end}",
+                "extractor_version": extractor_version}
+    conn.execute(
+        "INSERT OR IGNORE INTO wisdom_review_queue (item_id, tab, subject_ref, summary, evidence_json, "
+        "recommendation, status, created_at) VALUES (?, 'extraction_audit', ?, ?, ?, ?, 'open', ?)",
+        (item_id, f"record:{record_id}", summary, json.dumps(evidence, sort_keys=True, default=str),
+         "Confirm the ticker against the adjacent line and that session's bars. Keep it a MENTION "
+         "unless both agree.", now))
+    return item_id
+
+
 def write_output(conn, *, segment: dict, source: dict, output: Any, extractor_version: str,
                  resolver: Any = "auto", private_put: Any = "auto", vocab_names: Optional[set] = None,
-                 now_iso: Optional[str] = None) -> dict:
+                 now_iso: Optional[str] = None, bar_range: Any = "auto") -> dict:
     """Persist one segment's output inside the caller's write transaction."""
     as_of = source.get("published_at_et") or source.get("recording_started_at_et")
     validation = validate_output(output, segment=segment, source=source, resolver=resolver,
-                                 vocab_names=vocab_names, as_of=as_of)
+                                 vocab_names=vocab_names, as_of=as_of, bar_range=bar_range)
     counts: Counter = Counter(validation.counts)
     put = _private_put(private_put)
     candidate = seams.seam("api.services.wisdom.core.vocab", "record_candidate")
@@ -466,17 +601,19 @@ def write_output(conn, *, segment: dict, source: dict, output: Any, extractor_ve
         conn.execute(
             "INSERT OR IGNORE INTO wisdom_records (record_id, record_type, segment_id, source_id, source_version, "
             "extractor_version, record_hash, author_id, is_guest, stated_at_et, stated_at_precision, event_at_text, "
-            "entity_id, ticker, ticker_as_written, ticker_as_heard, tickers_json, entity_confidence, direction, "
+            "entity_id, ticker, ticker_as_written, ticker_as_heard, ticker_inferred, tickers_json, entity_confidence, "
+            "direction, "
             "stance, setup_name_raw, vocab_id, timeframe, trigger_timeframe, trigger_text, entry, entry_zone_lo, "
             "entry_zone_hi, stop, stop_text, targets_json, levels_json, thesis, confidence_language_json, reason, "
             "reason_class, stated_outcome, stated_return_pct, hindsight, principle_key, market_signal_json, "
             "extraction_confidence, status, has_private, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-            "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'provisional', 0, ?)",
+            "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'provisional', 0, ?)",
             (record_id, ch.record_type, segment_id, segment.get("source_id"), segment.get("source_version"),
              extractor_version, ch.record_hash, ch.author_id, int(ch.is_guest), stated_at, precision,
              f.get("event_at_text"), entity.get("entity_id"), ch.ticker, f.get("ticker_as_written"),
-             f.get("ticker_as_heard"), json.dumps(f.get("tickers") or []), entity.get("confidence"),
+             f.get("ticker_as_heard"), int(ch.ticker_inferred),
+             json.dumps(f.get("tickers") or []), entity.get("confidence"),
              f.get("direction"), f.get("stance"), f.get("setup_name_raw"),
              _vocab_id(conn, f.get("setup_vocab")), f.get("timeframe"), f.get("trigger_timeframe"),
              f.get("trigger"), f.get("entry"), zone[0], zone[1], f.get("stop"), f.get("stop_text"),
@@ -487,6 +624,11 @@ def write_output(conn, *, segment: dict, source: dict, output: Any, extractor_ve
              f.get("extraction_confidence"), now))
         conn.execute("INSERT OR IGNORE INTO wisdom_extract_record_keys (dedupe_key, record_id, created_at) "
                      "VALUES (?, ?, ?)", (dedupe_key, record_id, now))
+
+        if ch.ticker_inferred and ch.bar_verdict != "pass":
+            _inferred_ticker_review_item(conn, checked=ch, record_id=record_id, segment_id=segment_id,
+                                         extractor_version=extractor_version, now=now)
+            counts[f"inferred_ticker_review:{ch.bar_verdict}"] += 1
 
         stored_private = False
         for name, value in ch.private.items():

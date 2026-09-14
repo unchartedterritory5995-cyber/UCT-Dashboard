@@ -351,19 +351,53 @@ def test_a_repeated_principle_reinforces_instead_of_duplicating(db):
             "reinforces", "states"]
 
 
+VOCAB_SEAM = ("api.services.wisdom.core.vocab", "record_candidate")
+
+
+def _seam_is(monkeypatch, fn):
+    real = seams.seam
+    monkeypatch.setattr(seams, "seam", lambda m, a: fn if (m, a) == VOCAB_SEAM else real(m, a))
+
+
 def test_new_setup_names_go_to_core_vocab_when_it_exists(db, monkeypatch):
     seg, src = _loaded()
     rec = make(record_type="MENTION", quote="Watching TTTT over 55 for a breakout.", ticker_as_written="TTTT",
                setup_name_raw="fresh coinage")
+    _seam_is(monkeypatch, None)
     with store.write() as conn:
         counts = writer.write_output(conn, segment=seg, source=src, output={"records": [rec]},
                                      extractor_version="v-a", resolver=RESOLVER, vocab_names=VOCAB)
     assert counts["vocab_candidate_pending_no_store"] == 1
     calls = []
-    real = seams.seam
-    monkeypatch.setattr(seams, "seam", lambda m, a: (lambda name, **kw: calls.append(name))
-                        if (m, a) == ("api.services.wisdom.core.vocab", "record_candidate") else real(m, a))
+    _seam_is(monkeypatch, lambda name, **kw: calls.append(name))
     with store.write() as conn:
         counts = writer.write_output(conn, segment=seg, source=src, output={"records": [rec]},
                                      extractor_version="v-b", resolver=RESOLVER, vocab_names=VOCAB)
     assert calls == ["fresh coinage"] and counts["vocab_candidate_recorded"] == 1
+
+
+def test_the_writer_completes_inside_the_callers_transaction_with_the_REAL_seams(db):
+    """⛔⛔ REGRESSION RAIL FOR A PROCESS DEADLOCK, and it can only fail by HANGING.
+
+    Every other test here injects a fake resolver and a fake vocab store, so none of
+    them ever touches the live core seams. Both of those open their OWN `store.write()`
+    (entities -> aliases.seed, vocab -> ensure_seeded), and write_output runs inside the
+    caller's transaction — which is exactly what batch.handle_result does in production.
+    Before store.write() learned to JOIN a transaction the same thread already holds,
+    this hung forever: no exception, no red test, just pytest-timeout killing the whole
+    process and taking the run's totals line with it.
+
+    It is deliberately given nothing to stub. If it stops completing, the writer can no
+    longer run in production at all."""
+    seg, src = _loaded()
+    rec = make(record_type="MENTION", quote="Watching TTTT over 55 for a breakout.", ticker_as_written="TTTT",
+               setup_name_raw="fresh coinage")
+    assert seams.seam(*VOCAB_SEAM) is not None, "core.vocab is absent — this rail proves nothing"
+    assert seams.seam("api.services.wisdom.core.entities", "resolve") is not None
+    with store.write() as conn:
+        counts = writer.write_output(conn, segment=seg, source=src, output={"records": [rec]},
+                                     extractor_version="v-c", vocab_names=VOCAB)
+    assert counts["written"] == 1
+    assert counts.get("vocab_candidate_recorded") == 1, counts
+    with store.read() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM wisdom_vocab_candidate_uses").fetchone()[0] == 1

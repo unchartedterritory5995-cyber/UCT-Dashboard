@@ -28,6 +28,9 @@ SEAMS: tuple[tuple[str, str, str], ...] = (
      "no resolver: every CALL is downgraded to MENTION with a counted reason (W1 §4.2)"),
     ("api.services.wisdom.core.private", "put_private",
      "private fields (size_shares, open-position entry) are dropped and counted, never stored"),
+    ("api.services.wisdom.core.bars", "session_range",
+     "no bar source: an INFERRED ticker cannot pass the §8a.4 bar-range check, so every one is "
+     "stored as a MENTION with entity_id NULL and a review item, verdict no_bar_source"),
     ("api.services.wisdom.core.aliases", "apply_aliases",
      "no ASR alias hints are added to transcript prompts"),
     ("api.services.wisdom.sources", "segment_payload",
