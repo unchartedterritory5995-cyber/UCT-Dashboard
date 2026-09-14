@@ -8246,6 +8246,24 @@ const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
 // the program walk
 // --------------------------------------------------------------------------- //
 
+/** ⛔⛔ `pine:chart-only` IS A NOTE CODE, NOT A REFUSAL CODE.
+ *
+ *  It has NO entry in `REFUSALS` (the frozen 41-code table above) and is never
+ *  thrown — every use is `noteOf('pine:chart-only', chartOnlyNote(word), tok)`,
+ *  pushed onto `notes`. A `fill` or a `bgcolor` does not stop a translation; it
+ *  is a line this lane does not draw, recorded with its own line number so the
+ *  member can see what was left behind.
+ *
+ *  ⚰️ Recorded here because a 2026-09-14 hand-off listed it among the refusal
+ *  codes and asked for its 'emitting refusal site'. Nothing in this repo makes
+ *  that mistake — `WAVE2-A-CENSUS.md:514` says "carried as `pine:chart-only`, not
+ *  refused", and `pine.presentation.test.js` and `pine.test.js` both assert it
+ *  arrives in `notes` — so this is a note at the definition rather than a
+ *  correction anywhere. ⭐ The distinction is load-bearing for item (a): Clouds'
+ *  twenty `fill` calls at 118-137 are the script's whole visible artifact, and
+ *  reading them as refusals would say the translation FAILED where it in fact
+ *  succeeded and declined to draw.
+ */
 const chartOnlyNote = (word) => `\`${word}\` paints on a chart; TradingView's own screener `
   + 'reads plot() and alertcondition() and nothing else, so this line is ignored here too'
 
