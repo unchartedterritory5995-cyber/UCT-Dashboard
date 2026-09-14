@@ -94,7 +94,11 @@ def quote_fn(ctx):
         return fetch_ext_quote
     def _fetch(ticker):
         r = record(ctx, "quote", quote_adapter.fetch(quote_adapter.QuoteRequest(
-            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
+            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. The ext-hours chip is decoration: a member
+            # waits for the CHART, not for this, so a retry spends the chart's budget on a field
+            # that can simply be omitted. Stated rather than inherited from `quote.ATTEMPTS`.
+            attempts=1)))
         return r.data if r.ok else None
     return _fetch
 
@@ -114,7 +118,11 @@ def house_fn(ctx, inner=None):
         r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
             ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
             corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
-            envelope=prior.envelope if prior and prior.ok else None), house_fn=inner))
+            envelope=prior.envelope if prior and prior.ok else None,
+            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. `produce_chart` already has its own
+            # second chance — the mplfinance stand-in — so a retry here buys a slower path to
+            # the same fallback while the member waits. Stated rather than inherited.
+            attempts=1), house_fn=inner))
         return r.data if r.ok else None
     return _render
 
@@ -140,7 +148,11 @@ def flow_fetch_fn(ctx, *, source: str = "stocks", top_n: int = 15):
     def _fetch(ticker, days):
         r = record(ctx, "flow", flow_adapter.fetch(flow_adapter.FlowRequest(
             ticker=ticker, days=str(days), source=source, top_n=top_n,
-            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
+            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. This adapter already has a SECOND leg —
+            # the in-process fallback — so a retry would mean up to four flow-worker round trips
+            # plus a local recompute inside one member's budget. The fallback IS the retry.
+            attempts=1)))
         # ⭐ An empty tape comes back as `ok` with `contract_count == 0` — the router reads that off
         # `contracts` and prints its own "no significant options flow …" sentence. A quiet session
         # is an answer, not a failure, and must not reach the failure counters.

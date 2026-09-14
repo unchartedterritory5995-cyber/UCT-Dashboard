@@ -1,0 +1,80 @@
+{
+  "renderer_down": {
+    "class": "C-06 / C-02",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id chaos001 \u00b7 retry?'",
+    "ms": 85.1
+  },
+  "flow_worker_unreachable": {
+    "class": "C-08",
+    "state": "pass",
+    "detail": "named message in 0.2s: '/flow SPY 30 failed \u2014 the options-flow service is unavailable \u00b7 id chaos002 \u00b7 retry?'",
+    "ms": 194.2
+  },
+  "bars_slow": {
+    "class": "C-10",
+    "state": "pass",
+    "detail": "named message in 2.0s: \"/chart NVDA failed \u2014 market data for this symbol couldn't be loaded \u00b7 id chaos003 \u00b7 retry?\" \u00b7 abandoned_calls[bars]=1",
+    "ms": 2008.9
+  },
+  "bars_api_502": {
+    "class": "C-10",
+    "state": "pass",
+    "detail": "named message in 0.0s: \"/chart NVDA failed \u2014 market data for this symbol couldn't be loaded \u00b7 id chaos006 \u00b7 retry?\"",
+    "ms": 4.3
+  },
+  "renderer_breaker_open": {
+    "class": "C-02",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id chaos007 \u00b7 retry?' \u00b7 upstream not called",
+    "ms": 3.6
+  },
+  "stale_bars": {
+    "class": "C-07 / S8",
+    "state": "pass",
+    "detail": "artifact in 0.0s \u00b7 labelled",
+    "ms": 1973.9
+  },
+  "discord_429": {
+    "class": "C-11",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 Discord is rate-limiting us \u00b7 id chaos004 \u00b7 retry?'",
+    "ms": 4.5
+  },
+  "discord_gateway_dropped": {
+    "class": "C-02 / C-11",
+    "state": "pass",
+    "detail": "terminal row on a dead token after 1 attempt(s), 0.0s",
+    "ms": 4.7
+  },
+  "oversized_attachment": {
+    "class": "C-11",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 Discord refused the message \u00b7 id chaos010 \u00b7 retry?' \u00b7 multipart attempts=0 \u00b7 text fallback=1",
+    "ms": 25.7
+  },
+  "ten_invalid_symbols": {
+    "class": "D-04 / S6",
+    "state": "pass",
+    "detail": "10/10 refused at the ack, none reached the renderer",
+    "ms": 63.0
+  },
+  "clock_boundaries": {
+    "class": "C-07 / \u00a73.8b",
+    "state": "pass",
+    "detail": "09:29:50 pre-open=pre/stale=False \u00b7 09:30:10 post-open=rth/stale=True \u00b7 16:00:00 close=post/stale=True \u00b7 a holiday (Thanksgiving)=holiday/stale=True",
+    "ms": 2.5
+  },
+  "mid_job_restart": {
+    "class": "C-01",
+    "state": "pass",
+    "detail": "artifact in 0.0s",
+    "ms": 6.8
+  },
+  "restart_three_in_flight": {
+    "class": "C-01",
+    "state": "pass",
+    "detail": "3 of 3 accounted for on resume",
+    "ms": 7.1
+  }
+}
