@@ -1435,6 +1435,38 @@ Closing it requires building an instrument first — that is a task, not a looku
     and its bypass log is `logs/pre-push-guard-bypass.log`, not the
     `uct-q1-observe` location an owner ruling asked for.
 
+32. ⛔⛔ **A SUBAGENT'S REPLY ABOUT ITS WORK IS NOT THE WORK — and I briefed a
+    second agent from the reply.**
+
+    A subagent that wrote the Q2-A plan volunteered, in its **reply**, that one
+    design decision was *"most likely to be wrong"* and that it had kept a weaker
+    option for a speculative reason. That was a good, honest self-assessment. It
+    was **not in the document**.
+
+    When the owner ruled on that hazard, I briefed the next agent to *"update the
+    plan so it no longer presents the weaker option as the chosen design"* — a
+    change to text that did not exist. Measured: `grep -in
+    "discipline rule|probably wrong|weaker"` over the committed plan returns
+    **0**, and §3 already called the rule *"absolute"*.
+
+    ⭐ **The agent refused to invent the reversal.** It recorded the ruling as
+    *promoting* the rule, marked the draft I described as UNKNOWN, and said so in
+    its reply. Had it complied, the plan would have carried a struck-through
+    "earlier choice" that was never made, and the next reader would have believed
+    a decision had been reversed.
+
+    ⛔ **The rule:** a reply is testimony about an artifact; the artifact is the
+    artifact. Quote the file before briefing anyone from it — including yourself.
+    Same family as *read the call site ≠ read the request* and *a comment claiming
+    agreement is not agreement*, with a new vector: **the claim came from a
+    conversation, and conversations are not greppable by the next reader.**
+
+    ⚠️ The same agent also cut a sentence I had supplied — *"that state is where
+    this programme has already been bitten"* — as unestablished, and grounded the
+    weaker true version instead (`landedBaseline` returns null for a dirty record,
+    so the drain's supersede branch is reachable **only** in the clean state).
+    Two refusals, both correct, both against the brief.
+
 ### Rows added by §10
 
 | id | feature | status |
