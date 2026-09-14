@@ -205,8 +205,11 @@ def describe(art: Artifact, doc=None) -> str:
         else:
             bits.append("UNLABELLED model")
         bits.append(f"renderer={art.renderer}")
-    if art.void:
-        bits.append("VOID")
+    # ⛔ An EXPRESSION, not an `if` statement, and that is deliberate: `_load_prelude`'s void GUARD
+    # is the line a mutation control has to be able to address on its own, and a second
+    # `if art.void:` in this display helper made the anchor ambiguous. Two textually identical lines
+    # where only one is load-bearing is how a mutation proves the wrong copy.
+    bits += ["VOID"] if art.void else []
     return f"{art.name} [{', '.join(bits)}]"
 
 
@@ -269,7 +272,11 @@ def admits(art: Artifact, doc, purpose: str) -> Ruling:
         return Ruling(INCONCLUSIVE,
                       f"{art.name}: ACK-PATH ONLY (no `real` block) — stub symbols and a zero-cost "
                       f"handler say nothing about delivery")
-    if art.model is None:
+    # ⛔ `not in MODELS`, deliberately spelled differently from the `is None` test in the S1 branch
+    # above. They are the same predicate and they are two SEPARATE rails, so each needs an anchor a
+    # single-line mutation can address on its own — a mutation that silently matched both would
+    # prove one guard while cancelling the other (`lesson_mutations_can_cancel_each_other`).
+    if art.model not in MODELS:
         return Ruling(INCONCLUSIVE,
                       f"{art.name}: unlabelled load model — `rate` alone cannot distinguish "
                       f"arrivals/second from concurrency, so this number describes no known load")
