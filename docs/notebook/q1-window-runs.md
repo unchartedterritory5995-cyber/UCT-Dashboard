@@ -19,3 +19,4 @@
 | 2026-09-14 02:03 | `t12-owner-profile-run` | ok | (node:16956) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url. |
 | 2026-09-14 02:03 | `matrix-remainder` | INCONCLUSIVE (attempt 2, requeued) | ⇒ INCONCLUSIVE  the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span prod |
 | 2026-09-14 02:03 | `matrix-remainder` | INCONCLUSIVE (attempt 3, giving up — needs a human) | ⇒ INCONCLUSIVE  the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span prod |
+| 2026-09-14 06:51 | `hero-six-cells` | ok | ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` · 5 request(s) carried the sentence (la |
