@@ -104,8 +104,15 @@ lane, so those shapes **refuse there by name** and point here. The limit is
 
 ## Item (a)'s acceptance, and where it actually landed
 
-**As ruled:** Clouds' 21 `pine:collection` refusals clear, and the next refusal names
-`color.t` at line 90.
+**As ruled, AMENDED by H.3 (owner, 2026-09-14):** Clouds' 21 `pine:collection` refusals
+clear, and **the next thing that SPEAKS names `color.t` at line 90**.
+
+⚰️ It read *"the next REFUSAL names `color.t` at line 90"* and that half could not be
+met without cost. `color.t` binds a name no output reads, so the env closing pass
+records it as a **note**; forcing it to a refusal would spend the closing pass's
+restraint — an unread-but-**readable** binding stays silent — which is the only thing
+stopping a note appearing for every `len = 14` in every script. **H.3 rules the note
+correct and amends the sentence rather than the engine.**
 
 **First half: green.** Clouds translates on both lanes — `ok=true`, 0 refusals, 23
 outputs, none folding to `na`.
@@ -115,7 +122,8 @@ forced. `color.t` at 90 binds `bullUserTransparency`, which no output path reads
 env closing pass resolves it once and records `pine:colour-value @90`. Making it a
 refusal would cost the closing pass's restraint — an unread-but-**readable** binding
 stays silent, which is what stops a note appearing for every `len = 14` in every script.
-⛔ **Owner ruling pending.** Recorded in the open-findings list, not resolved here.
+✅ **RULED H.3 (owner, 2026-09-14): the note is CORRECT and the acceptance sentence is
+what changed.** Both halves of item (a)'s acceptance are met as amended.
 
 ---
 
@@ -361,14 +369,48 @@ to ship silently, and it buys a line that agrees with the sentence no better.
 |---|---|
 | the **13** `for x in` writes-slot uses | all masked by an earlier refusal; the rail goes red if one becomes reachable |
 | **function-parameter** sources | `multi-timeframe-supply-demand-zones:264`, `SnD_Type` is a parameter, so a `param` binding rather than a vector |
-| **UDT-field-access** sources | `candelacharts-equal-highslows-eqheql__4485a6c447:135` — `for obj in store.ehl_ln` produces **nothing at the loop line, not even a `pine:block` note**, because the source is not a simple name. A gap in the loop-classification walk, not in R5 |
+| **UDT-field-access** sources | `candelacharts-equal-highslows-eqheql__4485a6c447:135` — `for obj in store.ehl_ln` produces **nothing at the loop line, not even a `pine:block` note**, because the source is not a simple name. A gap in the loop-classification walk, not in R5. ⭐ **Scheduled WITH H.4** — the same walk change announces a dropped body and closes this gap |
 | the **379** accumulators | with the 63 ceiling and the sensitivity table above |
 
-## Pending on the owner — H.1 … H.4
+## ✅ H.1 … H.4 — RULED (owner, chat, 2026-09-14)
 
-| # | question |
-|---|---|
-| **H.1** | the alpha drop — 56 of 328 scripts feed a colour helper into `plot()` and a literal alpha is parsed, validated, then discarded |
-| **H.2** | whether the fill/drawing layer becomes a named wave-2 item — Clouds' visible artifact is its 20 `fill` calls |
-| **H.3** | whether `color.t` at Clouds :90 should be forced to a refusal rather than a note |
-| **H.4** | whether a member should be TOLD a loop body was dropped — `candelacharts…:135` iterates a drawing array, the body is discarded, the script still reaches 2 outputs, and nothing at the loop line says so |
+### H.1 — ALPHA IS CARRIED · scheduled as **a6.0**
+
+A literal alpha on `color.rgb` / `color.new` is parsed, validated, and then **discarded**
+at `staticColourOf` (`pine.js:11743`, branches `11768–76` and `11786–97`) because the
+return is a 3-channel `#RRGGBB`. **`presentation` gains a carrier for a LITERAL alpha.**
+
+⭐ A **dynamic** alpha still returns `null` — the existing comment is right, a dynamic
+transparency makes the whole colour dynamic, and reading only the base hands the member
+one flat colour and loses the effect.
+
+⛔ **The carrier is chosen by MEASUREMENT of the consumers, not by taste.** Scope: **56
+of 328** scripts feed a colour helper into `plot()` (`tools/pine_colour_census.py`).
+
+### H.2 — THE FILL / DRAWING LAYER IS **item (j)'s** SCOPE
+
+Uncharted Clouds is already a named wave-2 item; its visible artifact — the 20 `fill()`
+calls at 118–137 — is **that item's rendering problem, not a new grammar item**. It is
+**not** added to the (a)–(j) order.
+
+⛔ **What a6 owes (j):** the `fill()` chart-only notes must **preserve their colour
+arguments**, alpha included per H.1, rather than dropping them — so (j) can consume the
+notes without re-parsing the source.
+
+⭐ **a6's "Clouds verbatim with colours intact" is therefore redefined precisely:** both
+lanes, 0 refusals, **and every plot presentation and every fill note carrying the colour
+the source authored, alpha included.**
+
+### H.3 — `color.t` STAYS A NOTE
+
+The env closing pass's restraint — an unread-but-**readable** binding stays silent — is
+load-bearing, and it is **not spent on one acceptance sentence**. Forcing `color.t` to a
+refusal would put a line in the result for every `len = 14` in every script.
+
+### H.4 — A DROPPED LOOP BODY IS ANNOUNCED, AS A NOTE, LATER
+
+A member whose `for … in` body is discarded should see a note **at the loop line** saying
+so. ⭐ Scheduled together with the owed **UDT-field-access** gap
+(`candelacharts-equal-highslows-eqheql__4485a6c447:135`), because the same
+loop-classification walk change serves both. **Not this session** — recorded as owed
+under R1 with this ruling.
