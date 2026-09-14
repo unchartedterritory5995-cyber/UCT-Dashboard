@@ -50,9 +50,9 @@
     },
     {
       "id": "embed-re-run",
-      "status": "pending",
+      "status": "done",
       "timeout": 1800,
-      "why": "The RED cell, re-run. One reading is not a rate; the RED has been seen four times but never since the instrument faults were fixed.",
+      "why": "RE-STAGED on the recovered pod. Its first attempt 502'd because a foreign deploy was swapping; production is healthy again (/api/health 200, latest deployment SUCCESS). Owner order: matrix remainder -> embed re-run -> T-12.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -64,13 +64,37 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
-      ]
+      ],
+      "attempts": 2,
+      "result": {
+        "exit": 0,
+        "seconds": 146.8,
+        "tail": "\u21d2 RED  offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T05:30:53.477225+00:00` \u00b7 3",
+        "inconclusive": false
+      }
+    },
+    {
+      "id": "t12-owner-profile-run",
+      "status": "pending",
+      "why": "UNBLOCKED by owner amendment 2026-09-14: an admin-role run on the rig profile satisfies the owner-identity requirement, because the distinction T-12 tests is member-role vs admin-role, not which human is signed in. `--identity owner-rig` is the admin-role identity.",
+      "timeout": 2400,
+      "cmd": [
+        "python",
+        "tools/t12_smoke_runner.py",
+        "--identity",
+        "owner-rig",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
+      ],
+      "attempts": 0
     },
     {
       "id": "matrix-remainder",
       "status": "pending",
       "timeout": 3600,
-      "why": "Fills the table. --resume skips cells already DECIDED (GREEN/RED/N-A) and re-runs only INCONCLUSIVE ones, because an INCONCLUSIVE cell measured nothing and banking it would leave a hole wearing a verdict's clothes.",
+      "why": "Three attempts ended INCONCLUSIVE on a 502 at the LAST cell of each pass - but each pass DID measure cells (the table went from 6 recorded to 42). Re-staged LAST so it can never again sit ahead of a decision-value cell.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -79,12 +103,15 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
-      ]
-    },
-    {
-      "id": "t12-owner-profile-run",
-      "status": "blocked",
-      "why": "NOT STAGED AS A COMMAND, deliberately. T-12's remaining gap is the OWNER-IDENTITY run, and the rig identity is not the owner's. The charter amendment lets automation execute T-12 and the owner review the evidence, but it does not make the rig account into the owner's account. Staging a command here would run the wrong identity and report it as the missing one. Needs an owner ruling on which identity satisfies it."
+      ],
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 495.0,
+        "tail": "\u21d2 INCONCLUSIVE  could not create the probe note ({'err': 'HTTP 502'}) \u2014 nothing was measured",
+        "inconclusive": true
+      }
     }
-  ]
+  ],
+  "_order_note": "Priority is DECISION VALUE, not arrival. embed-re-run is minutes and confirms the RED on a recovered pod; T-12 is gate criterion C-7; the matrix remainder fills the table and is the only unbounded entry, so it goes last - it ate a whole window once by being ahead of a retry."
 }
