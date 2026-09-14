@@ -13,11 +13,46 @@ read out of the running process by `/renderhealth` itself.
 
 ## Rows attempted
 
+### Run 1 — 14:50–15:10 ET, before OI-34 deployed
+
 | # | Step | Result | Evidence |
 |---|---|---|---|
-| 9 | `/renderhealth` | ✅ **PASS** — ephemeral, named the flag state and the running commit | `step09-renderhealth.png` |
-| 8 | `/buzz` | 🔴 **FAIL — "The application did not respond"** | `step08-buzz-no-response.png`, log lines below |
-| 1–7, 10–15 | `/chart`, `/charts`, `/flow` and everything downstream of them | ⛔ **NOT RUN — blocked, reason below** | — |
+| 9 | `/renderhealth` | ✅ **PASS** — ephemeral; named the flag state and the running commit `beace00e0024` | read live (ephemeral, see the method note) |
+| 8 | `/buzz` | 🔴 **FAIL — "The application did not respond"** | `step08-buzz-logs.jsonl` |
+| 1–7, 10–15 | `/chart`, `/charts`, `/flow` | ⛔ **NOT RUN — refused by the single-channel gate** | `step01-chart-refused-channel-gate.jpg` |
+
+### Run 2 — 15:58–16:12 ET, after OI-34 deployed on `56e9d3aec`
+
+| # | Step | Result | Evidence |
+|---|---|---|---|
+| 1 | `/chart ticker:NVDA` | ✅ **PASS** | `step01-chart-accepted-in-smoke-channel.jpg`, `step01-chart-NVDA-fresh-no-badge.jpg` |
+| 5 | `/flow ticker:SPY` | 🟡 **PARTIAL — an honest named refusal, not the C-14 assertion** | `step05-flow-SPY-named-refusal.jpg` |
+
+**Row 1 in full.** Delivered `NVDA · Daily` with a real house chart — candles, volume, MA overlays,
+the watermark (`NVIDIA Corporation / Technology / Semiconductors / AI | GPU Chips`), the catalyst
+sentence, and the control row `D · W · 60m · 5m · ⚙`. Renderer line:
+`path=/r/chart status=200 ms=2881 prio=interactive ready=True bytes=295597`.
+
+⭐ **AND NO BADGE OF ANY KIND**, which is the actual assertion. The script calls the fresh row "the
+one most likely to be skipped and the most important": three of the four badge states are about
+saying something, and this one is about saying **nothing**. A badge that appears when nothing is
+wrong is furniture, and furniture is not read on the day it matters.
+
+⭐ **The `/chart` shadow is now producing records.** Three `{"evt":"shadow","cmd":"chart",
+"outcome":"agree"}` lines at 19:58:13–20Z — the first `/chart` shadow evidence this programme has
+had. It did not appear because the hook was fixed; it appeared because OI-34 let a `/chart` run.
+
+**Row 5, stated honestly.** `/flow ticker:SPY` returned
+`⚠️ The flow feed is reconnecting — couldn't read SPY right now. Try again in a moment.`
+
+- ✅ As an **S3** observation this is a pass: a named, honest failure sentence, delivered inside the
+  deadline, with a member-actionable instruction. Never silence.
+- ⛔ As **row 5** it is NOT a pass. Row 5 asserts *real contracts, not "no significant options
+  flow"* — the C-14 ETF partition, the one member-visible correctness fix in the script. That was
+  not exercised. It also ran without `days:30`, so it was the default 1-session window.
+- ⚠️ **No cause is claimed for the reconnect.** The 16:00 close, `web`'s restart at 15:52, and an
+  unrelated feed event are all consistent with what was observed. Re-run row 5 properly before
+  reading anything into it.
 
 ---
 
