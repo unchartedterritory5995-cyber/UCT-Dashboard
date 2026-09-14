@@ -2291,8 +2291,8 @@
       "hostGuards": [
         "pine:function",
         "pine:reassign",
+        "pine:drawing",
         "pine:tuple",
-        "pine:collection",
         "pine:block",
         "pine:state",
         "pine:offset-literal"
