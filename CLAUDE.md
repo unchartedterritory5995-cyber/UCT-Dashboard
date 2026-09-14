@@ -1656,6 +1656,30 @@ a detached worktree at a named SHA and recorded in `docs/plans/joystick/60-phase
 timeout is never banked as permitted breakage, and provenance is `git show <sha>:<file>`, never
 `git status`. Both rules and the method are in this file above.
 
+## UCT Wisdom Loop — where its HARD RULES actually live
+
+⛔⛔ **The rules that govern the Wisdom programme are NOT in this file and NOT in git.**
+They are the owner's Wave 1 GO §0.4, at:
+
+```
+data/wisdom/WAVE1-PROMPT-v2.0.md   lines 15-24   (§11.3 at line 231 for secrets)
+```
+
+⚠️ **That path is GITIGNORED** (`.gitignore:11: data/`), so a fresh clone of this public repo
+does not contain them. It is ignored because `data/wisdom/` is the programme's quote-bearing
+tree — paid transcript text and golden labels — which §0.4f forbids in git; the GO text itself is
+policy prose and carries no quotes, so whether it should be split out into a tracked file is an
+open question for the owner (recon E1, 2026-09-14).
+
+⭐ **The in-repo restatement is `docs/wisdom/PROGRAM-MANIFEST.md` §0** (12 standing rules), and
+`docs/wisdom/CONTRACTS.md:110-121` carries the off-limits path list, which is LONGER than
+§0.4i's. Neither is the verbatim owner text.
+
+⚰️ Recorded because a briefing written on 2026-09-14 told its reader the Wisdom conventions were
+"mostly written in `CLAUDE.md`". A grep for `[Ww]isdom` over this file returned **0 occurrences
+in 378,192 bytes**. The repo-wide conventions (totals line, scoped pytest, mutation discipline)
+ARE here; nothing Wisdom-specific was, and this section is the pointer that was missing.
+
 ## Worktree Directory
 
 ### ⛔⛔ AGENT CONCURRENCY — MAXIMUM 3 AGENTS PLUS THE INTEGRATOR, ON THIS ACCOUNT

@@ -643,8 +643,13 @@ def import_receipt(conn, receipt: dict, now_iso: Optional[str] = None) -> dict:
 
 #: Below this, a record type is not reproducible enough to publish under a named author,
 #: and Wave 1.5 item 2 sends it to N=3 stability voting instead of single-pass extraction.
-#: Owner ruling 2026-09-14. Measured on 2026-09-14 with golden-v1: PRINCIPLE 0.207,
-#: MARKET_SIGNAL 0.125 — both far under; CALL 0.630, MENTION 0.663.
+#: Owner ruling 2026-09-14. Measured on 2026-09-14 with golden-v1, as the JACCARD this
+#: gate computes: PRINCIPLE 0.115, MARKET_SIGNAL 0.125 — both far under; CALL 0.630,
+#: MENTION 0.663.
+#: ⚰️ PRINCIPLE read 0.207 here until 2026-09-14 session 2, which is the DICE coefficient
+#: of the same counts (2x6/(30+28)); the other three were Jaccard. One of four attributed
+#: numbers computed by a different formula from the gate, in the docstring of the constant
+#: that governs the type the whole wave is about.
 STABILITY_FLOOR = 0.8
 
 
