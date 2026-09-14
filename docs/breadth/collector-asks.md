@@ -24,3 +24,25 @@ Ordered by member impact.
 Not asks, but recorded for whoever next touches the collector: the dashboard's 6× magnitude test used a hand-typed
 table of maxima that had drifted (one series' typed maximum was an order of magnitude below what is now served); the dashboard is replacing it with
 a runtime rule, so no range table needs maintaining on either side.
+
+---
+
+## Context, not an ask: the reader costs ~55 s for a deep cold window
+
+Measured in production 2026-09-14 (D-042): `GET /api/breadth-monitor?days=8000` returned
+4,703 rows in **54,923 ms** cold and 676 ms warm; a `days=365&end=…` teleport cost
+10,498 ms cold. That is **~11.7 ms per row** — for rows that are already stored. The cost
+is in the READ, not in the collection, and it is not the collector's fault.
+
+⭐ **Why it belongs in this file anyway:** the shape of what the collector writes is one of
+the inputs to that cost. Session 0 of the reader programme
+(`docs/breadth-history-reader/00-profile.md`) measured the code against a corpus shaped
+like production and found that the `*_list` ticker arrays stored inside each snapshot blob
+are **parsed on every history read and then deleted** — 3.8× on the default 90-day view, in
+work that the reader itself throws away.
+
+⚠️ **So this bounds what the collector can be asked for in the meantime.** A change that
+widens a snapshot row, or that adds rows to the deep past, makes the worst read worse — and
+that read is on a shipped, paid route. If a finding lands on the write side it will arrive
+here as a real ask with a number attached; until then this is context, so that nobody
+proposes a wider row without knowing what a row currently costs to read back.

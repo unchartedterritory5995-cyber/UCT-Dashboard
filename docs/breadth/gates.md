@@ -284,3 +284,41 @@ local can be restructured (`git reset --soft origin/master` then one commit); on
 refused twice — once for another session's `BUILDING` deploy, once for a SUCCESS only 143s settled — and each refusal
 came with master having moved, so the merge commit was rebuilt onto the new tip. **Rebuild onto the new tip; never
 `--force`, never `UCT_SKIP_PREPUSH_GUARD=1` to get past a refusal you did not expect.**
+
+## ⛔⛔ A COMPUTED `import.meta.env` READ IS UNDEFINED IN THE BUNDLE — and perfect in vitest
+
+> **Read a `VITE_*` flag as the full static literal — `import.meta.env.VITE_THING` — never
+> through a variable, a constant, or a computed key. Vite substitutes these TEXTUALLY at
+> build time; anything it cannot see as a literal is not substituted and is `undefined` in
+> the shipped bundle.**
+
+⚰️ **Committed 2026-09-14 on V2-1, and it would have shipped a flag that could never be on.**
+`app/src/pages/breadth/v2/flag.js` was written as:
+
+```js
+export const V2_FLAG = 'VITE_BREADTH_CHARTS_V2_ENABLED'
+export function v2Enabled(env = import.meta.env) { return env?.[V2_FLAG] === '1' }   // ⛔ WRONG
+```
+
+That form is **correct JavaScript and passes every frontend test**, because under vitest
+`import.meta.env` is an ordinary object and `vi.stubEnv` writes to it. In a production build
+there is no object to index — Vite has already replaced the literal reads and left this one
+alone — so the flag reads `undefined` for every member, forever, and the only symptom is a
+feature that never turns on.
+
+⭐ **WHAT CAUGHT IT IS THE LEDGER RAIL, AND THAT IS THE POINT.**
+`tests/test_vite_flag_ledger.py` compares the declared rows against
+`tools/vite_flag_index.names_read()`, which derives the names by reading the frontend. It
+reported *"docs/feature_flags.json declares build flags the frontend no longer reads:
+VITE_BREADTH_CHARTS_V2_ENABLED"* — a message about bookkeeping, whose real cause was a flag
+Vite could not bake. **The name the index cannot find is the name the bundler cannot
+substitute**, because both are looking for the same literal. A "stale row" report on a flag
+you just wired is not a ledger problem; it is this bug.
+
+⛔ **Do not add a second rail for it.** The index already fails on the dynamic form, and a
+source sweep for the literal would match its own documentation — the CODE-NEVER-PROSE trap
+this repo has committed six times in one session. Fix the read; keep the one authority.
+
+⚠️ The same applies to destructuring (`const {VITE_X} = import.meta.env`) and to
+`Object.entries(import.meta.env)` — Vite's own docs say so, and neither is visible to the
+index either.
