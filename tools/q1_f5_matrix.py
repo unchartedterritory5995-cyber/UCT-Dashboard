@@ -478,7 +478,7 @@ NO_DOOR = {"on": False, "path": "/charts"}
 # throwaway browser on a temp profile: two CDP browser contexts see NOTHING of
 # each other's localStorage or IndexedDB. A second tab in the same context shares
 # the durable copy and the Web Lock, which is a different experiment entirely.
-SECOND_WRITER = {"on": False, "path": "/charts"}
+SECOND_WRITER = {"on": False, "path": "/charts", "door": "folder"}
 SPA_RETURN = {"on": False}
 
 WARM_ROUTES = {
@@ -979,7 +979,7 @@ SECOND_WRITER_REV_JS = """async (id) => {
 }"""
 
 
-def second_writer_door(page, base, note_id, log):
+def second_writer_door(page, base, note_id, log, door="folder"):
     """A SECOND context, signed in as the same rig account, moves note N's folder
     while the first context is away and offline.
 
@@ -1012,8 +1012,19 @@ def second_writer_door(page, base, note_id, log):
                             "for the wrong reason")}
         p2.wait_for_timeout(6000)
         before = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
-        res = p2.evaluate(rig_ref["rig"].REAL_DOOR_JS, {"door": "folder", "value": None})
-        log("      second writer door: " + str(res))
+        if door == "folder":
+            res = p2.evaluate(rig_ref["rig"].REAL_DOOR_JS, {"door": "folder", "value": None})
+        else:
+            # \u26d4 THE APPEND DOOR LIVES ON /charts AND TARGETS "Current note",
+            # which resolves from localStorage 'uct.jw.lastNote' - written by the
+            # EDITOR when the note is opened. Two contexts share no localStorage,
+            # so opening N above is what makes "Current note" mean N here. Without
+            # it the chooser offers no such option and the cell would fail for a
+            # reason that has nothing to do with the product.
+            p2.goto(base + "/charts", wait_until="domcontentloaded")
+            p2.wait_for_timeout(7000)
+            res = drive_append(p2, door, base, log)
+        log("      second writer door (" + door + "): " + str(res))
         if not (isinstance(res, dict) and res.get("ok")):
             return {"ok": False,
                     "why": "the second context could not open the folder door: " + str((res or {}).get("why", res))}
@@ -1213,7 +1224,8 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             offline(False)
         before_door = len(landed_before)
         if SECOND_WRITER["on"]:
-            res = second_writer_door(page, base, note_id, log)
+            res = second_writer_door(page, base, note_id, log,
+                                     door=SECOND_WRITER["door"])
         elif NO_DOOR["on"]:
             # ⛔ NOTHING IS FIRED. The navigation already happened above; this
             # cell's whole content is the absence of a door.
@@ -1503,6 +1515,13 @@ def main() -> int:
                          "browser context move the note's folder while away, return, "
                          "reconnect, drain. Isolates 'the server moved' from 'we "
                          "navigated'. A CONTROLLED EXPERIMENT, never a table row.")
+    ap.add_argument("--second-writer-door", default="folder",
+                    choices=["folder", "append_widget_embed"],
+                    help="which door the SECOND context fires. `folder` is the settled "
+                         "metadata door (that cell is GREEN). `append_widget_embed` is the "
+                         "DISCRIMINATING cell: if firing the append door from a second "
+                         "context is GREEN, the first context's own handling of the append "
+                         "response is the mechanism.")
     ap.add_argument("--spa-return", action="store_true",
                     help="come back to the Notebook by SPA route change instead "
                          "of a document load. A CONTROLLED EXPERIMENT, never a row.")
@@ -1516,6 +1535,7 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.second_writer:
+        SECOND_WRITER["door"] = args.second_writer_door
         SECOND_WRITER["on"] = True
         SECOND_WRITER["path"] = args.second_writer
         WARM_ROUTES.clear()
