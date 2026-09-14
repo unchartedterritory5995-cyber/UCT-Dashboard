@@ -457,6 +457,19 @@ next person to measure this system will reach for the same instrument.
   `>= 8` the best the Monday shadow line could say — and left "nobody ran `/chart`" and "the pager
   stopped early" indistinguishable. The discriminator is whether the page came back FULL; the
   output file now carries a `_meta` header saying whether its own count is exact.
+- ⛔⛔ **"EXACT" AND "A FLOOR" ARE DIFFERENT NUMBERS AND AN INSTRUMENT MUST SAY WHICH IT HAS.**
+  `railway_env_logs.py` printed *"STOPPED: no progress past …"* for a pull that had simply reached
+  the end of the data, so **every** count it produced was a floor — and "nobody ran `/chart`" could
+  not be told from "the pager stopped early". The discriminator is whether the page came back FULL;
+  an under-full page means the API returned everything it had. The output file now carries a
+  `_meta` header stating whether its own count is exact, and `shadow_report.py` reads it rather
+  than trusting a `--pager-stopped` flag someone remembered to pass.
+- ⛔⛔ **AN ABSENCE IN ONE COMMAND'S RECORDS SAYS NOTHING ABOUT THE HOOK UNTIL YOU MUTATE IT.**
+  Zero `/chart` shadow records beside eight `/flow` ones has two explanations — no traffic, or no
+  hook — and reasoning cannot separate them. What did: an EXACT log pull (8 interactions, all
+  `/flow`, one 11-second burst) **plus** a rail that drives the real route with a real Ed25519
+  signature, parametrised over both commands, **plus** two mutations that make it red. Prose was
+  not enough at any point.
 - ⛔⛔ **A TEST THAT READS THE WALL CLOCK REPORTS THE CALENDAR.**
   `test_bars_come_back_with_a_vintage_derived_from_the_newest_bar` asserted the session word was
   `WEEKEND` or one of `CLOSED_STATES`. It was written on a Sunday, was green all weekend, and went
@@ -470,6 +483,38 @@ next person to measure this system will reach for the same instrument.
   exact log pull *and* an end-to-end rail to establish, and neither existed at the time.
   `tests/test_discord_render_shadow_reaches_chart.py` drives the real route with a real Ed25519
   signature so the structural half can never be the open question again.
+
+---
+
+## 10b. Standing rules for anyone operating this
+
+### ⛔⛔ NEVER POST INTO A CHANNEL WHOSE OVERWRITES YOU HAVE NOT READ **THIS SESSION**
+
+Owner ruling, 2026-09-14. Before any automated write to a Discord channel — a smoke run, a bench,
+a backfill, a test post — read that channel's permission overwrites and confirm who can see it:
+
+```sh
+railway run -p <project> -e production -s web \
+  python docs/discord-render/instruments/discord_channel_admin.py --read-channel <id>
+```
+
+It prints the overwrites **as Discord holds them**, role by role, allow and deny named rather than
+as a bitmask.
+
+⭐ **Why "this session" and not "once".** A channel's overwrites are edited by people, and the cost
+of being wrong is asymmetric: a read costs one API call, and a mistake puts bot traffic — or a
+degraded chart, or a failure message with a correlation id in it — in front of members. A channel
+that was private last week is not evidence about today.
+
+⛔ **The request that created a channel is not evidence either.** Discord can accept a create and
+apply the overwrites differently from what was asked — an unknown role id, a permission the caller
+cannot grant. `--create-smoke` therefore always follows the create with a `GET` and prints what
+came back; that read-back is the evidence, not the payload that was sent.
+
+⛔ **403 `50001 Missing Access` is MEMBERSHIP, not permission level.** A bot can hold Administrator
+and still get 50001 for a channel it is not in. `--whoami` reports what the token's roles GRANT;
+`--read-channel` reports what a given channel ANSWERS. Collapsing the two sends you to grant a
+permission that was never the problem.
 
 ---
 

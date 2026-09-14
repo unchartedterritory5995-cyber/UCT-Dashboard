@@ -713,3 +713,42 @@ for want of budget and then sitting past the deadline sleeping between the refus
 structural rather than another patch: every sleep on the retry path is bounded by the remaining
 deadline, and a docstring that promises "inside the same budget" is a TESTED claim.
 
+
+### Test channel + `#render-alerts` — the permission question, ANSWERED (2026-09-14)
+
+Owner ruling: create `#render-smoke` myself if the bot carries `MANAGE_CHANNELS`, and fix
+`#render-alerts` while holding it. **It does not.** Read from the live token
+(`discord_channel_admin.py --whoami`, run under `railway run --service web`):
+
+```
+bot: UCT Intelligence#3332 id=1474900505917653142
+  guild 882293203485720596 'Uncharted Territory': CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+  guild 1524909611054792786 'UCT Intelligence':   CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+```
+
+Four permissions, in both guilds. No `MANAGE_CHANNELS`, no `ADMINISTRATOR`. So the bot can post
+where it is already present and can do nothing else — it cannot create the smoke channel and it
+cannot edit any channel's overwrites.
+
+⛔⛔ **AND GRANTING `MANAGE_CHANNELS` ALONE WILL NOT FIX `#render-alerts`, WHICH IS THE OPPOSITE OF
+WHAT THE RULING ASSUMED — the ruling's own distinction is what says so.** `MANAGE_CHANNELS` lets a
+bot edit channels it can SEE. `#render-alerts` answers `403 / 50001 Missing Access`, and 50001 is
+**membership**: the channel carries an `@everyone` deny on `VIEW_CHANNEL` and no overwrite admitting
+the bot, so it is invisible to it whatever server-level permissions it holds. Two different fixes:
+
+| Want | Needs |
+|---|---|
+| the bot to CREATE `#render-smoke` (unblocks 3.5) | `MANAGE_CHANNELS` on the bot's role |
+| the bot to FIX `#render-alerts`'s overwrites | `MANAGE_CHANNELS` **and** an overwrite on that channel admitting the bot — or `ADMINISTRATOR` |
+
+⭐ **Worth stating because it inverts the cheaper-looking option.** Granting `ADMINISTRATOR` fixes
+both in one action and is the larger grant; granting `MANAGE_CHANNELS` fixes only the first and
+leaves `#render-alerts` needing a second, per-channel action. The smaller grant is not the smaller
+job, and that is only visible once "can it" and "can it here" are asked separately.
+
+⚠️ `--create-smoke` is written, self-checked and **unused**: it writes the overwrites at creation
+(never as a second call, so there is no window where `@everyone` can see the channel) and then
+`GET`s the channel and prints what Discord actually stored. It runs the moment the permission
+exists.
