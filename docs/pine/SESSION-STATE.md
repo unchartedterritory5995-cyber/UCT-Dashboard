@@ -1,208 +1,156 @@
 # Session state — `feat/indicator-r0r1`
 
-## ⭐⭐⭐ RESUME 2026-09-13 — read this first
+## ⭐⭐⭐ WAVE COMPLETE — AWAITING THE PR. READ THIS FIRST.
 
-**Session closed for an operator reboot. This section is authoritative; everything
-below it is history.**
-
-### 1. Where the work is
+**Nothing is in flight.** The branch is merged with master, verified, pushed, and
+the PR body is written. The only act left is a human opening the PR.
 
 | | |
 |---|---|
 | worktree | `C:\Users\Patrick\uct-worktrees\indicator-r0r1` |
 | branch | `feat/indicator-r0r1` |
-| last CODE commit | `c28808d4d` — *R-Q — the step ceiling, derived: 1,000,000 → 12,000,000, and v2 reads at 1D* |
-| tip | the commit that added THIS section, one above `c28808d4d` |
-| verify | `git -C C:/Users/Patrick/uct-worktrees/indicator-r0r1 status && git -C C:/Users/Patrick/uct-worktrees/indicator-r0r1 log --oneline -1` |
+| HEAD | **`acdf93455`** — open the PR from this |
+| merged master | **`da0803baa`**; the branch was level with master (behind 0) at merge time |
+| PR body | **`docs/pine/PR-BODY.md`** — paste it verbatim |
+| ⛔ | **no `gh pr create` was run, and no session should run it** |
 
-⛔ **The tree was CLEAN at shutdown and there is NO WIP PATCH.** R-Q landed green
-and was pushed; the next step had not been started, so nothing was shelved.
-`git status` must come back empty — if it does not, something touched this
-worktree while the session was down and that is a stop-and-ask, not a cleanup
-(worktree-ownership rule below).
+### ⚰️⚰️ THE ONE FINDING A READER OF THE FLAG LEDGER WOULD OTHERWISE MISS
 
-### 2. The exact next action
+**The member-pane flag could never have been switched on in production.** Fixed at
+**`e6ca532c6`**. `Dockerfile.web` declared no `ARG` for
+`VITE_PINE_MEMBER_PANE_ENABLED`; Railway hands each service variable to the build
+as a build arg and **drops an undeclared one silently**, so `=1` in Railway would
+have reached the bundle as `undefined`, `memberPaneEnabled()` would have returned
+`false` forever, and the whole wave would have been dark in production with every
+test, audit and ledger row saying it was ready to flip.
 
-> **Step-5 follow-through: wire the IR lane to read the R-K symbol object through
-> the same `symbolConstants` path the definition lane uses — one authority — then
-> re-run `buildRuntimeIr` on `uncharted-volume-v2.pine` told `forming=false` and
-> paste it verbatim.**
+⭐ It was caught by **master's** `tests/test_dockerfile_vite_build_args.py` on the
+merged tree — the argument for running the FULL lane after a merge and not only the
+scoped one: the scoped lanes are about the engine, and this lived in the deploy
+surface the engine ships on. `VITE_VOLUME_NUMERIC_PANE_ENABLED` was missing too and
+is fixed with it. ⛔ `VITE_CHART_RENDER_TOKEN_PREVIOUS` is the discord-render
+lane's (`4821ec3f2`) and is **named, not silenced**.
 
-- Estimate **45–60 min**, 2× stop at **2h**, **0 min elapsed** — the clock has not
-  started. R-Q is CLOSED (~3h against its own 4h stop) and needs nothing further.
-- The blocker this addresses is measured and named: `buildRuntimeIr` stops at
-  **v2:249**, `str.contains(syminfo.ticker, "/")`. The refusal is raised while
-  LOWERING, so passing `{ticker, exchange}` through `interpretOpts` changes
-  nothing — the fold has to happen before the lowering, the way `binder.sync` →
-  `computeFor` → `symbolConstantsWith` already does it for the definition lane.
-- ⛔ **If the IR lane is still not on the pane path after that, NAME the remaining
-  gap and stop chasing it.** It is not on the criterion (owner, 2026-09-13).
+### ⛔ Every push from this worktree was UNSCANNED
 
-### 3. WIP patch
+Master's `pre-push` hook (`4fb4f9daf`) looks for `tools/secret_scrub.py`, which is
+on the breadth-charts branch and not on master, so every push printed *"the secret
+scan did NOT run. This is not a pass."* The hook warns rather than blocks, by
+design, and was **not edited**. Installing the tool is now the first line of the
+resume checklist in `docs/runbooks/indicator-ecosystem-resume.md`.
 
-**None.** Nothing to re-apply. If a future session shelves work it goes in BOTH
-`scratchpad/<step>-wip.patch` and `docs/pine/wip/<step>-wip.patch`, and is
-re-applied with `git -C <worktree> apply docs/pine/wip/<step>-wip.patch`.
+### The post-merge verification, as measured
 
-### 4. Rig checklist — run this before any browser claim
-
-⭐ **RUN THEM FROM THE WORKTREE — the exact commands, from a fresh checkout or a
-scratchpad, no substitution needed:**
-
-```bash
-# 1. backend, SANDBOXED. ⛔ NOT port 8077: that has held a stale backend on the
-#    owner's LIVE C:\data, and C:\data exists on this box.
-#    The sandbox defaults OUTSIDE every worktree and REFUSES to resolve inside one.
-python docs/pine/wip/rig/boot_rig.py          # serves 127.0.0.1:8129
-curl -s http://127.0.0.1:8129/api/health      # expect {"status":"ok"...}
-
-# …or pin it explicitly:
-#   UCT_RIG_DATA=<dir outside every worktree> python docs/pine/wip/rig/boot_rig.py
-
-# 2. the account — ONLY if the sandbox is new (see the survival note below)
-curl -s -X POST http://127.0.0.1:8129/api/auth/signup -H "Content-Type: application/json" \
-  -d '{"email":"panetest@local.dev","password":"LocalTest2026!","display_name":"Pane Rig"}'
-
-# 3. the v2 fixture over CORS, for the paste-into-the-real-door route
-python docs/pine/wip/rig/fixture_server.py    # serves 127.0.0.1:8124/v2.pine
-```
-
-⭐⭐ **CHECK BEFORE YOU RECREATE — THE SANDBOX CAN SURVIVE A REBOOT.** This
-section used to say the sandbox was *"gone"* and to reinstall unconditionally.
-⚰️ **Measured on the first resume: it was wrong.** Windows does not clear
-`%TEMP%` on restart and the resumed session carried the same session id, so the
-scratchpad, the sandbox DB, the rig account and **both v2 definitions with their
-chart instances** were all still there. Reinstalling unconditionally throws away
-the state you were about to verify. The order is: start the backend, LIST what is
-there, and install only what is actually missing.
-
-```bash
-curl -s -c /tmp/rigck.txt -X POST http://127.0.0.1:8129/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"panetest@local.dev","password":"LocalTest2026!"}'
-curl -s -b /tmp/rigck.txt http://127.0.0.1:8129/api/user-definitions   # expect 2
-```
-
-⚠️ **`charts_workspace_layout` is stored as a JSON STRING.** A walker that treats
-it as an object finds `indicatorInstances: 0` and reads as "nothing is attached"
-when both instances are in fact there. Parse it before you believe it.
-
-**Both definitions, through the member's own door** (`/charts` → chart toolbar
-→ **Indicators** → **New formula** → **Import** tab → paste → **"Add this script
-to my chart"**):
-
-| id at shutdown | source | draws |
-|---|---|---|
-| `u_3ec24af8e7c6` | `tests/fixtures/member/uncharted-volume-v2.pine` verbatim | 4 cells |
-| `u_dd21a7ba8888` | the same script with `show_dcr_in_range_table` and `show_avg_volume` flipped `false → true` | 6 cells |
-
-⛔ The build must carry the flag: `VITE_PINE_MEMBER_PANE_ENABLED=1 npm run build`
-in `app/`, or the attach door does not exist.
-
-**Chrome:** the extension connection drops on reboot — nothing to do but
-reconnect. Then, before any write or screenshot, **re-read gate v2.1 on the
-driving tab**: `visibilityState === 'visible'` AND `availTop <= screenY` AND
-`screenY + outerHeight <= availTop + availHeight`.
-
-⚠️ **Activating the driving tab is not `Ctrl+2`.** The MCP window holds tabs
-outside its group, so the reliable move is: enumerate every Chrome window, focus
-each, send `^1`…`^9`, and stop when the window TITLE matches the page you want
-(`*complete trading desk*`). `focus_tab.ps1` in the scratchpad does this.
-
-**Rig tab, expected state:** `https://www.tradingview.com/chart/e3cTXatd/?symbol=AMEX%3ASPY`
-— *"UCT AGENT VISIT 2026-09-10 (disposable)"*, **0 studies**, and the chart's own
-visible, enabled **own-text `Add to chart`** button present. One read confirms the
-reconnect.
-
-⛔⛔ **THE BINDING GATE IS THOSE TWO FACTS, NOT "EDITOR CLOSED"** (owner, 2026-09-13).
-This line said *"0 studies, editor closed"* and that third clause is wrong: **the
-open Pine Editor with "Untitled script" is the OWNER'S, from reconnecting the
-extension, and it is to be left alone.** An editor being open says nothing about
-whether a capture is bound to a study — `0 studies` plus a live `Add to chart`
-does, and it is what every capture in this wave was actually gated on. A checklist
-demanding a closed editor would have this session close the owner's window to
-satisfy a condition that never measured the thing it names.
-
-### 5. Rulings this next action depends on — pointers only
-
-| ruling | recorded in |
+| lane | result |
 |---|---|
-| **R-Q** (step ceiling derived, 12,000,000) | commit `c28808d4d`; derivation in `app/src/components/chart/engine/ast/recurrenceSteps.measure.test.js`; constant + docblock in `ast/interpret.js`, mirrored in `api/services/ast_interpret.py` |
-| **R-K** (the symbol OBJECT, not the string; `syminfo.*` settled at bind time) | `app/src/components/chart/engine/ast/bind.js::symbolConstantsWith`; witnesses in `symbolScope.json::confirmed`; consumed via `nativeRegistry::bindConstsFor` |
-| **R-L** (the depth gate) | `app/src/components/chart/builder/memberPane/seriesCompare.js::depthVerdict` |
-| **R-M** (container resize) | exercised in commit `352cba711`; the DOM table layer's anchor is `objectTableDom.js::anchorStyle` |
-| **compareAll gate** | `seriesCompare.js::compareAll`; both branches driven in `engine/__tests__/pineTableVendorParity.test.js` |
-| **D1** (an `alertcondition` is not a plot) | `memberPane/memberPaneDefinition.js`, disclosure text on `meta.disclosures` |
-| **R-H** (two definitions) | the toggles-on second document, `pineTableVendorParity.test.js` |
+| `npm run test:engine` | 266 files · 5,407 passed · 32 skipped · 0 failed |
+| `chart/{engine,builder,pane}` | 356 files · 7,354 passed · 32 skipped · **5 failed in 3 files** · 0 timeouts |
+| the sweep suites alone | 4 files · 57 passed · 0 timeouts |
+| the ten rails | 10 files · 89 passed |
+| flag-off rails | 4 files · 36 passed |
+| `src/hooks` | 36 files · 273 passed · **1 failed** (R-P) |
+| Python, scoped (12 files) | **364 passed · 5 skipped · 0 failed** |
+| Python, full 12-chunk lane | **26,554 passed · 92 failed · killed chunks 0** |
+| corpus metric | **266 / 31 / 44**, re-derived at `59aee8f73`, file not rewritten |
+| vite build | exit 0; all three member sentences present in `dist/assets` |
 
-### 6. Remaining session-3 items, in order
+⭐ **THE TWO "DO NOT CHASE" REDS ARE GONE.** The runbook carried
+`test_the_escape_census_ZERO_is_ATTRIBUTABLE…` and
+`test_the_guarded_census_offers_each_case_to_the_DOOR_ITS_CLAIM_IS_ABOUT` as
+inherited HEAD reds. Both are **green** on the merged tree — master fixed the
+`conftest.py` interaction underneath them. **That runbook line is retired**
+(`f76a031b0`); do not re-add it and do not budget for them. If either returns it is
+a NEW finding against a named commit.
 
-1. ~~**R-Q**~~ — DONE, `c28808d4d`.
-2. **Step-5 follow-through** — the IR lane's `syminfo` wiring (section 2 above).
-3. **Item 4 — mobile audit** on `127.0.0.1:8129` with both definitions installed:
-   `tools/mobile_audit.py`, Chromium, viewport pinned at **390×844** and
-   **1024×768**, gate v2.1 on the audit tab, gestures scrub / pinch-zoom / scroll
-   / rotate, **two zoom levels per viewport = 4 images**. Pass per row requires:
-   no redraw artefacts; both tables anchored to their declared corners through
-   every gesture; no overlap with the price scale, the toolbar inset, or the
-   mobile joystick-hub region; no 29px frame. **Pass / UNTESTED stated per row;
-   nothing described as expected.**
-4. **Item 5 — merge `origin/master`** into the branch after a **fresh dry-run
-   against the current tip**; conflict list with one line each; scoped suites +
-   sweep-alone + rails post-merge; **Python lane one run at a time**; flag default
-   **OFF** on the merged tree; flag-off test green post-merge.
-5. **Item 6 — PR body**: title; what a member can and cannot see; flag name and
-   default; measured metrics with commit hashes; disclosed divergences and open
-   rows; every ruling with where it is recorded; what is deferred to wave 2
-   (arrays, loops, runtime inputs, nested text helpers, short-circuit evaluation,
-   `alertSets` wiring, `s := close` typing); the **worktree-ownership rule first
-   under process**; member-impact paragraph. ⛔ **No `gh pr create`.**
+### Every red, attributed by commit — not by the word "known"
 
-### 7. Suite baseline — compare against this, do not read it fresh
+**JS.** The 5 sweep reds are the pre-existing HEAD trio by name
+(`BuilderSheet.pine.test.jsx`, `ImportBox.thinkscript.test.jsx`,
+`pineBoxSuggestVoice.test.jsx` ×3), red before this branch and outside its diff.
+The 1 hooks red is **R-P extended**: `pollingSites.rail.test.js` names four bare
+polling sites its census does not hold — two predate the merge-base on BOTH sides
+(`floor2/hooks/useFloor.js` ×5, `hooks/useWatchlistIntelligence.js` ×1) and two
+arrived with master, `useBoundDrawingAlerts.js` (**`d26695853`**) and
+`useFilingWatch.js` (**`611bcf92e`**). The rail says *"Do NOT add a row to silence
+this"*; the reason belongs to whoever added the sites.
 
-**Scope:** `cd app && node node_modules/vitest/vitest.mjs run src/components/chart/engine src/components/chart/builder src/components/chart/pane`
+**Python, every failing file, measured with `git rev-list --count` against the
+merge-base `8be420d8f` — never by pattern:**
 
-```
-354 files → 7,316 passed · 32 skipped · 5 failed in 3 files · 0 timeouts
-```
+chunk logs read: 12   failing cases: 92   failing files: 34
 
-The five are the **pre-existing HEAD trio**, red before this branch and outside
-its diff:
+| file | cases | ours | master | attributed to |
+|---|---|---|---|---|
+| `api/routers/stream_bars_test.py` | 6 | 0 | 0 | **master** `2d121371f` — gated `api/routers/stream.py`; the test expects the ungated `503` and gets `401` |
+| `api/services/data_sync_test.py` | 2 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 8120fbc48 test(data-sync): the fixture wrote a close ten times above the high |
+| `api/services/test_ticker_search_entity_master_integration.py` | 1 | 0 | 0 | **master** `2d121371f` — same commit gated `ticker_search.py` |
+| `tests/test_alert_taxonomy_scan_membership_change_compare.py` | 3 | 0 | 2 | **master** `edebd8bf0` · `0c6caf25b` — S7 scan-membership-change CP1–CP3 |
+| `tests/test_alert_taxonomy_scan_membership_change_schema.py` | 2 | 0 | 2 | **master** `edebd8bf0` · `0c6caf25b` — S7 scan-membership-change CP1–CP3 |
+| `tests/test_calendar_actuals_patch.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch a19679c17 fix(wire): a row that has EPS can now gain its revenue leg â€” pending is field-by-field everywhere |
+| `tests/test_calendar_month.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 1214dc246 Modernize A5 (Events & Calendar) onto S3/D1/S8 for the four real event categories |
+| `tests/test_corp_actions_census.py` | 3 | 0 | 1 | **master** `9458ea641` — D5 CP1, the corporate-actions census |
+| `tests/test_cross_module_imports_resolve.py` | 1 | 0 | 0 | **master** `13fafce74` · `a353596ce` — a REAL dead import — `discord_render/commands.py:34` imports `INTERACTIVE` from a `runtime.py` that does not define it |
+| `tests/test_desk_session_recap.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 6bb3a43de Desk recaps: route Live Trading Sessions to dedicated recap channel |
+| `tests/test_dockerfile_vite_build_args.py` | 1 | 0 | 3 | **OURS — FIXED** `e6ca532c6` — two of the three undeclared flags were ours; `VITE_CHART_RENDER_TOKEN_PREVIOUS` is the discord-render lane’s (`4821ec3f2`) and is named, not silenced |
+| `tests/test_earnings_analysis.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 74be76814 earnings modal: the 20-30s wait was a 5000-bar fetch inside the request |
+| `tests/test_exposed_routes_gated.py` | 1 | 2 | 1 | **pre-merge-base** `74e0d302f` — the failure is a `TypeError: Header and str` at `api/flow_admin_auth.py:49`, whose blame is `74e0d302f` — an ANCESTOR of the merge-base, so it is on both sides. Our two commits on this FILE (`80a34f0b8`, `f7dcd9fe5`) touch a different test function: `git show <c> -- <file> | grep -c "test_the_gate_ladder…"` is **0** for both, and the failing function body blames to `ba905f796` |
+| `tests/test_flow_aggregate.py` | 5 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 0dd58f5c9 fix(flow): count member traffic apart from the warmer's own calls |
+| `tests/test_flow_worker_watch_coverage.py` | 1 | 0 | 2 | **master** `169c1fd53` — S7 price-level CP3 |
+| `tests/test_implied_backfill.py` | 15 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 94f29952d fix: the four red tests in the full backend sweep â€” three causes |
+| `tests/test_launch_hardening.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 8601d3604 fix(security): the admin guard was written, tested and never installed |
+| `tests/test_massive_ws_stop.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 9b4b456cc Tests: de-race the maxconn strike-reset assertion |
+| `tests/test_mutation_check.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch e82b31f57 Wave K Slice 5: the prompt boundary -- retrieved content is data, never instruction |
+| `tests/test_nb_observe.py` | 2 | 0 | 5 | **master** `eddea6a92` — deployed-copy drift check on the notebook gate |
+| `tests/test_no_cr_in_tracked_text_blobs.py` | 1 | 0 | 0 | **master** `b7a0c6f3b` — master’s own two rails disagree: `.gitattributes` declares `tools/wave_p_cert_corpus/manifest.json -text` on purpose, and this rail forbids a CR blob. Blob `a449287f8a82` is **byte-identical to master’s** |
+| `tests/test_preference_key_validation.py` | 1 | 0 | 3 | **master** `938d5acbf` — Deploy-B preference-key prep |
+| `tests/test_scan_screener_auth.py` | 3 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch c3f6945b5 test(auth): the route pin caught its own author â€” 19 â†’ 20, verified not rubber-stamped |
+| `tests/test_screener_wave2_analyst_store.py` | 9 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch b74beb0cd screener: eps-growth pairs (current, next) FY â€” floor out past years, widen past FMP's newest-first edge (final review) |
+| `tests/test_screener_wave2_earnings_dates.py` | 4 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch e6eb45f80 screener: earnings-date pull goes one-day-per-call with at-cap detection + ET clock |
+| `tests/test_shared_state_landmines.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 0f0752f4f fix(residuals): a real timeout bound, the fourth AUTH_DB_PATH claim, and a rev migration keyed on the TREE |
+| `tests/test_ticker_explain.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch ec095a23d Seam 29: thread analyst-source outage signal into Ask AI and Compare |
+| `tests/test_ticker_logos.py` | 5 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch b9e42ab5f fix: migrate profile2 off Finnhub to FMP stable/profile (Task 8) |
+| `tests/test_ticker_logos_prewarm.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 948883467 feat(calendar): background logo prewarmer over cap_universe |
+| `tests/test_ticker_meta.py` | 5 | 1 | 0 | **master** `553f6b68b` · `614036147` — the five failures are all `test_fmp_*`. Our one commit on the file (`1fb020b56`) is **+81 lines, 0 deletions** adding ONE new OTC-tier test and touches none of the five (grep count 0 each) and **0 lines mentioning `fmp`** in the code. The FMP return path blames to four commits; the two after the merge-base are both master’s |
+| `tests/test_two_engines_do_not_agree.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 1066caf07 fix(rail): my own test was green alone and red in company |
+| `tests/test_vite_flag_ledger.py` | 1 | 0 | 1 | **OURS — FIXED** `b0c26d3b6` — master’s new rail (`294fc28fe`) wants a `build_flags` row for every build-time VITE flag; two of the three named were ours and now have one. `VITE_CHART_RENDER_TOKEN_PREVIOUS` is the discord-render lane’s (`4821ec3f2`) — named, not guessed at |
+| `tests/test_web_capture_coverage.py` | 8 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch 37820c0dd Wave L Slice 1b: coverage travels with the evidence, and a captured passage stops pretending to be page 2 |
+| `tests/test_yf_guard_binds.py` | 1 | 0 | 0 | pre-merge-base — **0 commits on BOTH sides** since `8be420d8f` · last touch d2bd796fa Charts perf (instant-charts Phase 0+1): instrument index/breadth + cache indices |
 
-- `BuilderSheet.pine.test.jsx` — *the SAVED DOCUMENT is byte-identical…*
-- `ImportBox.thinkscript.test.jsx` — *the Pine door shows the offer and NO button*
-- `pineBoxSuggestVoice.test.jsx` — three cases
+✅ every failing file attributed — 0 with commits on our side that are not ours-and-fixed
 
-⚠️ **The sweep-scope TIMEOUTS are gone and should stay gone.** Six whole-repo
-source-sweep suites (`manifestProse` ×2, `EvidenceTab.doors` ×2, `flipCGeometry`,
-`memberPaneGate`) were tripping vitest's 15s default under load; R-Q's explicit
-timeouts on the `.measure.` suites removed the contention. If they come back they
-are a LOAD property, not a regression — prove it by re-running the same scope
-with `--exclude` on this wave's three new suites, which produced 3 of them before.
+### Wave 2 — the list, with what each is blocked on
 
-**Python:** `python -m pytest tests/test_ast_interpret.py -q` → **105 passed**
-(it asserts the step ceiling equal across lanes, read out of the JS source).
+| item | measured state |
+|---|---|
+| arrays, `for` loops, `color.t()` | 21 refusals at lines 64–84 of the Clouds script |
+| runtime inputs | R-J's rule is written (`_input_windows`, `INPUTS_ARE_FOLDED`); wave 2 lands on it |
+| nested text helpers | **0 of 266** scripts hit the refusal — measured low priority |
+| short-circuit evaluation | both sides always evaluate today |
+| IR-lane tuples | `runtime:tuple` at `v2:251`, an 8-value destructure the IR has no form for |
+| the IR lane on the pane path | ruling **D2** keeps it off; `reachable.test.js` carries the dated entry and its re-argued expiry |
+| `alertSets` wiring | precondition: the alert fires 25× only at **2,751 bars** of loaded history |
+| `s := close` typing | real Pine rejects it; we render `<if> + num + ""` |
+| 13 stale `ticker_meta` rows (**R-O**) + `BF.B` | one-liner against `_YF_EXCHANGE`; `BF.B` (`YHD`) is the genuine residual |
+| volume provenance | the one **open** divergence row; needs a provenance decision, not code |
+| `VITE_CHART_RENDER_TOKEN_PREVIOUS` | the discord-render lane's undeclared build arg — named here so it is not lost |
+| 11b | another lane's, untouched |
 
-⛔ **No Python lane run was in flight at shutdown.** Nothing to void.
-⚠️ **But another session's work was:** `uct-clips/tools/heavy_lock.py` labels
-`wisdom-f-publish` (a pytest run) and `wisdom-f-admin-vitest-2`, plus a
-`--shard=6/6` vitest in the `joystick-launch-close` worktree. **This session did
-not touch them** — they are not ours to kill — and the reboot will end them.
-Their owners will need to re-run.
+### Standing rules, one line each
 
-### 8. Standing rules, one line each
+- **Worktree ownership** — a session deletes only what it created; read
+  `.uct-session-owner` first; no owner file is not permission.
+- **Never verify a runner through a pipe** — redirect, read the bare exit code,
+  then read the file.
+- **One heavy process at a time** — one Python lane, and no vitest or vite build
+  beside it.
+- **Gate v2.1 on the driving tab** before every browser write and screenshot; the
+  binding gate is own-text `Add to chart` **plus 0 studies**, not "editor closed".
+- **Install `tools/secret_scrub.py`** before pushing, or the push is unscanned into
+  a public repo.
+- **Nothing to master**, nothing on Options Flow / joystick / screener lanes /
+  Manrav's work / 11b.
+- **⛔ NOT port 8077** — it has held a stale backend on the owner's live `C:\data`.
 
-- **Worktree ownership** — a session deletes only what it created in that same
-  session; read `.uct-session-owner` first; no owner file is not permission.
-- **Pipe rule** — never verify a runner through a pipe; redirect, read the bare
-  exit code, then read the file. A run with no totals line is not a run.
-- **One lane run at a time** — never two Python lanes; backend pytest is SCOPED,
-  never repo-wide (an unscoped run reached 18 GB and was OOM-killed).
-- **Gate v2.1 on the driving tab** — re-read before EVERY browser write and EVERY
-  screenshot, on the tab being driven, not on a sibling.
-- **Nothing to master.** No `gh pr create`. Branch pushes any time.
-
----
 ## ⭐⭐⭐ R-R — THE PHONE-TIER TABLE FIT. THE LAST RED ROW FROM ITEM 4 IS GREEN.
 
 Owner ruling, 2026-09-13, and it settles a choice item 4 measured but refused to
