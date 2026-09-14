@@ -1,0 +1,6 @@
+  PRIVATE? 1548783155354403046 #render-alerts  view re-allowed to roles: 1474903498700230668
+  PRIVATE? 1549129739048853544 #render-smoke  view re-allowed to roles: 1474903498700230668
+CHANNEL 1549129739048853544: #render-smoke type=0 parent=1000971430202187846
+  overwrites, as DISCORD holds them:
+    role 1474903498700230668: allow=[VIEW_CHANNEL] deny=[-]
+    role 882293203485720596: allow=[-] deny=[VIEW_CHANNEL]

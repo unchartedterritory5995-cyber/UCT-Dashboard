@@ -44,6 +44,32 @@ READ_HISTORY = 1 << 16
 #: Overwrite types, per Discord's schema.
 TYPE_ROLE, TYPE_MEMBER = 0, 1
 
+#: The one place a permission NAME becomes a bit. `--allow VIEW_CHANNEL,SEND_MESSAGES` is reviewable
+#: in a commit message and in a runbook; `--allow 52224` is not, and a typo in it is undetectable.
+PERM_BITS = {
+    "ADMINISTRATOR": ADMINISTRATOR, "MANAGE_CHANNELS": MANAGE_CHANNELS,
+    "VIEW_CHANNEL": VIEW_CHANNEL, "SEND_MESSAGES": SEND_MESSAGES,
+    "MANAGE_MESSAGES": MANAGE_MESSAGES, "ATTACH_FILES": ATTACH_FILES,
+    "READ_MESSAGE_HISTORY": READ_HISTORY,
+}
+
+
+def parse_perms(spec: str) -> int:
+    """Names -> a bitmask. ⛔ An UNKNOWN NAME RAISES; it never silently contributes zero.
+
+    A typo that quietly contributes nothing produces a request Discord happily accepts and a
+    read-back that looks like a permission was simply not granted — indistinguishable from the
+    grant having been refused. The two must stay distinguishable."""
+    bits = 0
+    for raw in (spec or "").split(","):
+        name = raw.strip().upper()
+        if not name:
+            continue
+        if name not in PERM_BITS:
+            raise ValueError(f"unknown permission {name!r}; known: {', '.join(sorted(PERM_BITS))}")
+        bits |= PERM_BITS[name]
+    return bits
+
 
 def _req(method: str, path: str, body: dict | None = None):
     token = os.environ.get("DISCORD_BOT_TOKEN") or ""
@@ -173,12 +199,34 @@ def create_smoke(guild_id: str, *, name: str, category_id: str | None,
         return ERROR
     bot_id = me.get("id")
 
+    # ⛔⛔ DISCORD REFUSES AN OVERWRITE THAT GRANTS WHAT THE BOT ITSELF DOES NOT HOLD (403 50013),
+    # and it refuses the WHOLE create — so one optimistic bit in this list costs the channel.
+    # Intersect with what the token actually has, and SAY which bits were dropped: silently
+    # narrowing would leave a channel that looks created-as-asked and behaves differently.
+    held = 0
+    status, guilds = _req("GET", "/users/@me/guilds")
+    if status == 200 and isinstance(guilds, list):
+        for g in guilds:
+            if str(g.get("id")) == str(guild_id):
+                held = int(g.get("permissions") or 0)
+                break
+    if held & ADMINISTRATOR:          # ADMINISTRATOR implies every bit
+        held = ~0
+    wanted = VIEW_CHANNEL | SEND_MESSAGES | ATTACH_FILES | MANAGE_MESSAGES | READ_HISTORY
+    bot_allow = wanted & held
+    dropped = wanted & ~held
+    if dropped:
+        print(f"  bot overwrite narrowed to what the token holds; NOT granting: "
+              f"{', '.join(describe(dropped))}")
+    if not bot_allow & VIEW_CHANNEL:
+        print("CREATE REFUSED: the bot cannot grant itself VIEW_CHANNEL, so it would be locked out "
+              "of the channel it just made.")
+        return BLOCKED
+
     overwrites = [
         # @everyone is the guild id, by Discord's own convention
         {"id": guild_id, "type": TYPE_ROLE, "allow": "0", "deny": str(VIEW_CHANNEL)},
-        {"id": bot_id, "type": TYPE_MEMBER, "allow": str(
-            VIEW_CHANNEL | SEND_MESSAGES | ATTACH_FILES | MANAGE_MESSAGES | READ_HISTORY),
-         "deny": "0"},
+        {"id": bot_id, "type": TYPE_MEMBER, "allow": str(bot_allow), "deny": "0"},
     ]
     if admin_role_id:
         overwrites.append({"id": admin_role_id, "type": TYPE_ROLE, "allow": str(
@@ -202,7 +250,47 @@ def create_smoke(guild_id: str, *, name: str, category_id: str | None,
     return read_channel(str(ch.get("id")))
 
 
+def set_overwrite(channel_id: str, target_id: str, *, kind: int, allow: int, deny: int) -> int:
+    """PUT one overwrite, then read the whole channel back.
+
+    ⛔ PUT REPLACES THE WHOLE OVERWRITE for that id — it is not a merge. Passing only the bit you
+    want to add silently drops every other bit that overwrite held, which reads in a diff as "we
+    granted one more thing" and in production as "we revoked three."""
+    status, body = _req("PUT", f"/channels/{channel_id}/permissions/{target_id}",
+                        {"type": kind, "allow": str(allow), "deny": str(deny)})
+    if status not in (200, 204):
+        print(f"SET OVERWRITE FAILED http={status} code={body.get('code')}")
+        return BLOCKED if body.get("code") in (50001, 50013) else ERROR
+    print(f"SET overwrite {target_id} on {channel_id}: "
+          f"allow=[{', '.join(describe(allow)) or '-'}] deny=[{', '.join(describe(deny)) or '-'}]")
+    print("  reading the channel back — the request is not the evidence:")
+    return read_channel(channel_id)
+
+
+def del_overwrite(channel_id: str, target_id: str) -> int:
+    """DELETE one overwrite, then read the whole channel back.
+
+    ⚠️ Deleting an overwrite does NOT deny — it makes that id INHERIT from the category. For a
+    channel whose @everyone is denied at the channel level, inheriting means no view; but if the
+    category ever re-allows, an absent overwrite follows it. Where the intent is "never", write an
+    explicit deny instead (`--set-overwrite ... --deny VIEW_CHANNEL`)."""
+    status, body = _req("DELETE", f"/channels/{channel_id}/permissions/{target_id}")
+    if status not in (200, 204):
+        print(f"DEL OVERWRITE FAILED http={status} code={body.get('code')}")
+        return BLOCKED if body.get("code") in (50001, 50013) else ERROR
+    print(f"DELETED overwrite {target_id} from {channel_id}")
+    print("  reading the channel back — the request is not the evidence:")
+    return read_channel(channel_id)
+
+
 def self_check() -> int:
+    def _raises(spec):
+        try:
+            parse_perms(spec)
+            return False
+        except ValueError:
+            return True
+
     cases = [
         ("ADMINISTRATOR implies manage-channels", can_manage_channels(ADMINISTRATOR) is True),
         ("the MANAGE_CHANNELS bit alone is enough", can_manage_channels(MANAGE_CHANNELS) is True),
@@ -213,6 +301,18 @@ def self_check() -> int:
         ("describe names nothing for zero", describe(0) == []),
         # ⛔ the discriminator: a check that always said CAN would pass rows 1-2 and fail this
         ("the check can answer CANNOT", can_manage_channels(READ_HISTORY) is False),
+        ("parse_perms names one bit", parse_perms("VIEW_CHANNEL") == VIEW_CHANNEL),
+        ("parse_perms ORs several", parse_perms("VIEW_CHANNEL,SEND_MESSAGES,ATTACH_FILES")
+         == (VIEW_CHANNEL | SEND_MESSAGES | ATTACH_FILES)),
+        ("parse_perms tolerates spacing and case",
+         parse_perms(" view_channel , Send_Messages ") == (VIEW_CHANNEL | SEND_MESSAGES)),
+        ("parse_perms of nothing is zero", parse_perms("") == 0),
+        # ⛔ the load-bearing one: a typo must RAISE, never contribute zero. Without this a
+        # misspelled bit is indistinguishable from Discord refusing to grant it.
+        ("parse_perms REFUSES an unknown name", _raises("VEIW_CHANNEL")),
+        ("parse_perms refuses a bare number", _raises("1024")),
+        ("parse_perms round-trips through describe",
+         describe(parse_perms("VIEW_CHANNEL,ATTACH_FILES")) == ["VIEW_CHANNEL", "ATTACH_FILES"]),
     ]
     failed = sum(not ok for _, ok in cases)
     for name, ok in cases:
@@ -234,11 +334,32 @@ def main(argv=None) -> int:
     ap.add_argument("--contributor-role", default="")
     ap.add_argument("--list-roles", action="store_true")
     ap.add_argument("--list-channels", action="store_true")
+    ap.add_argument("--set-overwrite", default="", help="target role/member id to PUT an overwrite for")
+    ap.add_argument("--del-overwrite", default="", help="target role/member id to DELETE")
+    ap.add_argument("--channel", default="", help="channel the overwrite edit applies to")
+    ap.add_argument("--allow", default="", help="comma-separated permission NAMES to allow")
+    ap.add_argument("--deny", default="", help="comma-separated permission NAMES to deny")
+    ap.add_argument("--member", action="store_true", help="the overwrite target is a member, not a role")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args(argv)
 
     if args.self_check:
         return self_check()
+    if args.set_overwrite or args.del_overwrite:
+        if not args.channel:
+            ap.error("--set-overwrite/--del-overwrite need --channel")
+        if args.del_overwrite:
+            return del_overwrite(args.channel, args.del_overwrite)
+        try:
+            allow, deny = parse_perms(args.allow), parse_perms(args.deny)
+        except ValueError as e:
+            ap.error(str(e))
+        if allow & deny:
+            # ⛔ Discord takes both without complaint and the result is not what either side reads
+            # as intended. Refuse rather than resolve it silently.
+            ap.error(f"the same permission is both allowed and denied: {describe(allow & deny)}")
+        return set_overwrite(args.channel, args.set_overwrite,
+                             kind=TYPE_MEMBER if args.member else TYPE_ROLE, allow=allow, deny=deny)
     if args.whoami:
         return whoami()
     if args.list_roles:

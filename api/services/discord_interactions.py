@@ -339,19 +339,42 @@ BUZZ_COMMAND = "buzz"
 FLOW_COMMAND = "flow"
 
 
+def cmd_channel_ids() -> tuple:
+    """The channels chart + flow requests are allowed in, in declared order.
+
+    CHART_FLOW_CHANNEL_ID wins; falls back to FLOW_CMD_CHANNEL_ID (the /flow channel,
+    already set). Blank = no restriction (dev/testing).
+
+    ⭐ COMMA-SEPARATED, and ORDER IS MEANINGFUL — the FIRST entry is the member-facing
+    channel (see `cmd_channel_id`). A single id parses to a one-element tuple, so a
+    deployment that sets one id behaves exactly as it did before this became a list.
+
+    ⛔ IT IS A LIST BECAUSE IT HAD TO BE A LIST TO TEST ANYTHING AT ALL (OI-34). While
+    this was one id, the only way to exercise /chart outside #chart-flow-requests was to
+    repoint the variable — which does not ADD a channel, it MOVES the command, taking it
+    away from every member in the guild. So the smoke channel and any admin canary were
+    unreachable except at the cost of a member-visible outage."""
+    raw = (os.environ.get("CHART_FLOW_CHANNEL_ID")
+           or os.environ.get("FLOW_CMD_CHANNEL_ID") or "")
+    return tuple(part for part in (p.strip() for p in raw.split(",")) if part)
+
+
 def cmd_channel_id() -> str:
-    """The channel chart + flow requests are restricted to (owner: #chart-flow-
-    requests). CHART_FLOW_CHANNEL_ID wins; falls back to FLOW_CMD_CHANNEL_ID (the
-    /flow channel, already set). Blank = no restriction (dev/testing)."""
-    return (os.environ.get("CHART_FLOW_CHANNEL_ID")
-            or os.environ.get("FLOW_CMD_CHANNEL_ID") or "").strip()
+    """The PRIMARY (member-facing) channel — the first declared id, or "" if unrestricted.
+
+    ⛔⛔ THE NUDGE MUST NAME THIS ONE AND NEVER A LATER ENTRY. The later entries are
+    private admin/smoke channels; telling a member to "please use <#…>" for a channel
+    they cannot see renders as a dead link and is a member-visible regression produced
+    entirely by a test-only addition."""
+    ids = cmd_channel_ids()
+    return ids[0] if ids else ""
 
 
 def cmd_channel_ok(interaction: dict) -> bool:
     """True if a gated command (/chart, /c, /charts, /flow) may run in this channel.
     Unset env = allowed anywhere."""
-    want = cmd_channel_id()
-    return (not want) or str(interaction.get("channel_id") or "") == want
+    allowed = cmd_channel_ids()
+    return (not allowed) or str(interaction.get("channel_id") or "") in allowed
 
 
 # Back-compat aliases — /flow's handler referenced these names first.
