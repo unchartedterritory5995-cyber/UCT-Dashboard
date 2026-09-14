@@ -492,14 +492,30 @@ def main() -> int:
             drift = golden.drift({k: [tuple(x) for x in first[k]] for k in second},
                                  {k: [tuple(x) for x in v] for k, v in second.items()})
             drift.update(summary=summarise(results), model=model, effort=effort, transport=args.transport)
+            # ⛔ STABILITY IS A SHIPPING GATE (Wave 1.5 item 1). Decided BEFORE the row is
+            # recorded, so the stored drift run carries its own verdict and a later reader
+            # cannot mistake "measured" for "accepted".
+            with store.read() as conn:
+                drift["stability"] = golden.decide_stability(conn, extractor_version=version, model=model,
+                                                            effort=effort, by_type=drift["by_type"])
             if complete(drift["summary"], len(drift_items)) and not pilot:
                 with store.write() as conn:
                     golden.record_eval(conn, kind=golden.DRIFT_KIND, extractor_version=version, n=len(drift_items),
                                        metrics=drift)
             report["phases"]["drift"] = drift
             print(f"\ndrift over {drift['segments']} segments: identical {drift['identical_segments']}/"
-                  f"{drift['segments']}, mean jaccard {drift['mean_jaccard']}, by type {drift['by_type']}, "
+                  f"{drift['segments']}, mean jaccard {drift['mean_jaccard']}, "
                   f"cost ${drift['summary']['cost_usd']:.4f}")
+            print(f"  {'type':<14} {'run_1':>6} {'run_2':>6} {'agreed':>7}  jaccard   floor {golden.STABILITY_FLOOR}")
+            for rtype, slot in sorted(drift["by_type"].items()):
+                j = "  -   " if slot["jaccard"] is None else f"{slot['jaccard']:.3f}"
+                mark = "  BELOW FLOOR -> N=3 voting" if slot["below_floor"] else ""
+                print(f"  {rtype:<14} {slot['run_1']:>6} {slot['run_2']:>6} {slot['agreed']:>7}  {j}{mark}")
+            st = drift["stability"]
+            print(f"  stability decision: {st['decision']} (baseline={st['baseline']}, "
+                  f"compared_to={st['compared_to']}), below floor: {st['below_floor'] or 'none'}")
+            for r in st["regressions"]:
+                print(f"    REGRESSION {r['record_type']} jaccard {r['previous']} -> {r['current']} ({r['why']})")
 
     if "trial" in phases:
         scores_file = out_dir / f"segment-scores-{tag}.json"

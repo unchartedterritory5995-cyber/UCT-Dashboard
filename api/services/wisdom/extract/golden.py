@@ -23,6 +23,21 @@ MATCHING (method golden-match-v0), per golden-bearing segment:
   * Golden labels are not exhaustive for a segment, so PRECISION IS SCOPED: only
     predictions whose quote overlaps a labelled quote in that segment count; the
     rest are reported as unscored, never silently dropped.
+  * NULL SEGMENTS (golden-v1.1) close that hole where a labeller could close it. A NULL
+    row asserts an ABSENCE over a span — "no CALL / no PRINCIPLE / no MARKET_SIGNAL is
+    here" — for a declared set of record types. A prediction landing in that span whose
+    pre_entity_type is one of those types is a FALSE POSITIVE, because the labeller read
+    the span and said there is nothing of that type in it.
+
+    ⛔ WHY THIS EXISTS (owner ruling, 2026-09-14). On golden-v1 the dev-split gate kept
+    882 records and SCORED 119: the other 763 were claims about paragraphs nobody had
+    labelled, so a record INVENTED about unlabelled text could not appear as a false
+    positive at all. The headline precision covered ~14% of the output. A positive label
+    can only ever make a MISS visible; only an anti-label can make an INVENTION visible.
+
+    ⛔ A NULL row is scored ONLY for the types it declares. A prediction of an undeclared
+    type inside a NULL span stays unscored — the labeller did not answer that question,
+    and answering it for them is how an instrument manufactures a finding.
 
 Every rate carries its n. A denominator of 0 records value NULL, never 0%.
 """
@@ -511,8 +526,28 @@ def import_receipt(conn, receipt: dict, now_iso: Optional[str] = None) -> dict:
 
 # ── drift and calibration ────────────────────────────────────────────────────
 
+#: Below this, a record type is not reproducible enough to publish under a named author,
+#: and Wave 1.5 item 2 sends it to N=3 stability voting instead of single-pass extraction.
+#: Owner ruling 2026-09-14. Measured on 2026-09-14 with golden-v1: PRINCIPLE 0.207,
+#: MARKET_SIGNAL 0.125 — both far under; CALL 0.630, MENTION 0.663.
+STABILITY_FLOOR = 0.8
+
+
 def drift(run_a: dict, run_b: dict) -> dict:
-    """run_x: {segment_id: [record keys]}. Multiset agreement per segment, by type."""
+    """run_x: {segment_id: [record keys]}. Multiset agreement per segment, and PER TYPE.
+
+    ⛔ PER-TYPE STABILITY IS A GATE METRIC (owner ruling, Wave 1.5 item 1), not a curiosity.
+    The 2026-09-14 measurement is why: a whole-run `mean_jaccard` of 0.505 hides that CALL and
+    MENTION are middling while PRINCIPLE agrees on 6 of ~30 and MARKET_SIGNAL on 4 of ~17 —
+    and PRINCIPLE is exactly what D18 would publish into the Brain KB under a named author.
+    One number averaged over types would have let the unreproducible half ship behind the
+    reproducible half (`lesson_a_hit_rate_is_meaningless_without_its_base_rate`).
+
+    ⭐ The per-type figure is a MULTISET Jaccard over record keys: agreed / (run_1 + run_2 −
+    agreed), where `agreed` is Σ min(a,b). Using the multiset rather than the key SET matters
+    because emitting the same principle twice is a different failure from emitting two
+    different ones, and a set would score both identically.
+    """
     segments = sorted(set(run_a) | set(run_b))
     identical, jaccards = 0, []
     by_type: dict = {}
@@ -526,8 +561,63 @@ def drift(run_a: dict, run_b: dict) -> dict:
             slot["run_1"] += a[key]
             slot["run_2"] += b[key]
             slot["agreed"] += min(a[key], b[key])
+    for slot in by_type.values():
+        union = slot["run_1"] + slot["run_2"] - slot["agreed"]
+        # ⛔ union == 0 means the type never appeared in EITHER run. That is "not measured",
+        # never "perfectly stable" — a 1.0 here would read as the best score in the table and
+        # would be the one type nobody looked at.
+        slot["jaccard"] = round(slot["agreed"] / union, 6) if union else None
+        slot["below_floor"] = bool(slot["jaccard"] is not None and slot["jaccard"] < STABILITY_FLOOR)
     return {"segments": len(segments), "identical_segments": identical,
-            "mean_jaccard": round(sum(jaccards) / len(jaccards), 6) if jaccards else None, "by_type": by_type}
+            "mean_jaccard": round(sum(jaccards) / len(jaccards), 6) if jaccards else None,
+            "by_type": by_type, "stability_floor": STABILITY_FLOOR,
+            "below_floor": sorted(t for t, s in by_type.items() if s["below_floor"])}
+
+
+def decide_stability(conn, *, extractor_version: str, model: str, effort: str, by_type: dict) -> dict:
+    """Does this version's per-type stability regress against the last accepted measurement?
+
+    ⛔ A SECOND GATE, DELIBERATELY SEPARATE FROM decide_gate. Drift is measured by re-running the
+    SAME segments the gate already ran and diffing the record keys, so it cannot exist until the
+    gate phase has produced its keys file — the ordering is forced, and folding stability into
+    `decide_gate` would mean deciding before the evidence exists. A version ships only when BOTH
+    decisions accept, which is what "a version that drops stability below the current baseline
+    does not ship" means operationally.
+
+    ⛔ ABSENT IS NOT PASSING. A type the previous run measured and this one did not is reported
+    as `not_measured`, never silently dropped from the comparison — that is how a regression
+    hides (`lesson_a_projection_drops_what_it_does_not_name`).
+    """
+    previous = None
+    for run in _runs(conn, DRIFT_KIND):
+        m = run["metrics"]
+        if (m.get("stability") or {}).get("decision") == "blocked":
+            continue
+        if run["extractor_version"] == extractor_version and m.get("model") == model and m.get("effort") == effort:
+            continue
+        previous = run
+        break
+    current = {t: s.get("jaccard") for t, s in (by_type or {}).items()}
+    floor_breaches = sorted(t for t, s in (by_type or {}).items() if s.get("below_floor"))
+    if previous is None:
+        return {"decision": "accepted", "baseline": True, "compared_to": None, "regressions": [],
+                "per_type_jaccard": current, "below_floor": floor_breaches}
+    regressions = []
+    old_types = (previous["metrics"].get("by_type") or {})
+    for rtype, old in old_types.items():
+        before = old.get("jaccard")
+        if before is None:
+            continue
+        after = current.get(rtype)
+        if after is None:
+            regressions.append({"record_type": rtype, "metric": "jaccard", "previous": before,
+                                "current": None, "why": "not_measured"})
+        elif after < before - 1e-9:
+            regressions.append({"record_type": rtype, "metric": "jaccard", "previous": before,
+                                "current": after, "why": "less stable than the baseline"})
+    return {"decision": "blocked" if regressions else "accepted", "baseline": False,
+            "compared_to": previous["run_id"], "compared_extractor_version": previous["extractor_version"],
+            "regressions": regressions, "per_type_jaccard": current, "below_floor": floor_breaches}
 
 
 def _percentile(values: list, pct: float) -> Optional[int]:

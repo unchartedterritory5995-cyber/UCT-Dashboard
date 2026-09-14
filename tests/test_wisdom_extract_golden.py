@@ -216,7 +216,7 @@ def test_drift_and_calibration_summaries():
     b = {"s1": [("CALL", "ZZZT", "taking", "long")], "s2": [("MENTION", "BBBT", None, None)], "s3": []}
     d = golden.drift(a, b)
     assert d["segments"] == 3 and d["identical_segments"] == 2
-    assert d["by_type"]["MENTION"] == {"run_1": 1, "run_2": 1, "agreed": 0}
+    assert d["by_type"]["MENTION"]["run_1"] == 1 and d["by_type"]["MENTION"]["agreed"] == 0
     assert d["mean_jaccard"] == pytest.approx((1 + 0 + 1) / 3)
     usages = [{"input_tokens": 100, "cache_read_input_tokens": 900, "output_tokens": o} for o in (100, 200, 300, 400)]
     c = golden.calibration(usages, [300, 300, 300, 300], model="claude-opus-5", effort="high", system_tokens=700)
@@ -289,3 +289,90 @@ def test_golden_sha256_reads_the_bytes(tmp_path):
     assert golden.golden_sha256(f) == hashlib.sha256(one).hexdigest()
     f.write_bytes(one + b'{"gid":"g2"}\n')
     assert golden.golden_sha256(f) != hashlib.sha256(one).hexdigest()
+
+
+# ── Wave 1.5 item 1: per-type stability is a SHIPPING GATE (owner ruling 2026-09-14) ──
+
+def test_stability_is_reported_PER_TYPE_because_one_average_hides_the_half_that_matters():
+    """⛔ THE MEASUREMENT THIS EXISTS FOR. On 2026-09-14 the whole-run `mean_jaccard` was 0.505,
+    which reads as "half-reproducible across the board". Per type it was nothing of the kind:
+    CALL 17/23/21 and MENTION 93/117/116 are middling, while PRINCIPLE agreed on 6 of ~30 and
+    MARKET_SIGNAL on 4 of ~17. PRINCIPLE is precisely what D18 publishes into the Brain KB under
+    a named author, so an average would have let the unreproducible half ship behind the
+    reproducible half.
+    """
+    stable = [("CALL", "ZZZT", "taking", "long")] * 4
+    a = {"s1": stable + [("PRINCIPLE", None, "p1", None), ("PRINCIPLE", None, "p2", None)]}
+    b = {"s1": stable + [("PRINCIPLE", None, "p3", None), ("PRINCIPLE", None, "p4", None)]}
+    d = golden.drift(a, b)
+
+    assert d["by_type"]["CALL"]["jaccard"] == pytest.approx(1.0)
+    assert d["by_type"]["PRINCIPLE"]["jaccard"] == pytest.approx(0.0)
+    # ...and the floor names the unreproducible type rather than averaging it away
+    assert d["by_type"]["PRINCIPLE"]["below_floor"] is True
+    assert d["by_type"]["CALL"]["below_floor"] is False
+    assert d["below_floor"] == ["PRINCIPLE"]
+    assert d["stability_floor"] == golden.STABILITY_FLOOR
+    # the average alone would have read as comfortably mid-table
+    assert 0.4 < d["mean_jaccard"] < 0.8
+
+
+def test_a_type_nobody_emitted_is_ABSENT_from_the_table_never_scored_1_point_0():
+    """⛔ A type neither run produced must not appear with a score. If it did it would post the
+    best number in the table, and the one type nobody looked at would read as the most
+    trustworthy — `lesson_a_saturated_instrument_reports_zero`, in the flattering direction.
+
+    ⚠️ Precisely what this proves: a type only enters `by_type` when a run emitted it, so the
+    absent case is handled by NOT BEING THERE. The `jaccard is None` branch beside it is
+    defensive against a future change to how keys are counted, and this rail does not claim to
+    exercise it — saying otherwise would be a rail asserting the adjacent thing.
+    """
+    d = golden.drift({"s1": [("CALL", "ZZZT", "t", "long")]}, {"s1": [("CALL", "ZZZT", "t", "long")]})
+    assert "PRINCIPLE" not in d["by_type"] and d["by_type"]["CALL"]["jaccard"] == pytest.approx(1.0)
+    empty = golden.drift({"s1": []}, {"s1": []})
+    assert empty["by_type"] == {} and empty["below_floor"] == []
+
+
+def test_a_version_that_gets_LESS_stable_than_the_baseline_does_not_ship(db):
+    """The owner's sentence, executable: "a version that drops stability below the current
+    baseline does not ship"."""
+    with store.write() as conn:
+        golden.record_eval(conn, kind=golden.DRIFT_KIND, extractor_version="wx-v0-aaaaaaaa", n=10,
+                           now_iso="2026-09-14T05:00:00-04:00",
+                           metrics={"model": "claude-opus-5", "effort": "high",
+                                    "by_type": {"CALL": {"jaccard": 0.9, "below_floor": False},
+                                                "PRINCIPLE": {"jaccard": 0.5, "below_floor": True}},
+                                    "stability": {"decision": "accepted"}})
+    with store.read() as conn:
+        worse = golden.decide_stability(conn, extractor_version="wx-v0-bbbbbbbb", model="claude-opus-5",
+                                        effort="high",
+                                        by_type={"CALL": {"jaccard": 0.7, "below_floor": True},
+                                                 "PRINCIPLE": {"jaccard": 0.5, "below_floor": True}})
+        better = golden.decide_stability(conn, extractor_version="wx-v0-cccccccc", model="claude-opus-5",
+                                         effort="high",
+                                         by_type={"CALL": {"jaccard": 0.95, "below_floor": False},
+                                                  "PRINCIPLE": {"jaccard": 0.85, "below_floor": False}})
+    assert worse["decision"] == "blocked"
+    assert [r["record_type"] for r in worse["regressions"]] == ["CALL"]
+    assert worse["regressions"][0]["previous"] == 0.9 and worse["regressions"][0]["current"] == 0.7
+    # CONTROL: an improvement is not a regression, or the gate would block every change.
+    assert better["decision"] == "accepted" and better["regressions"] == []
+    assert better["below_floor"] == []
+
+
+def test_a_type_the_baseline_measured_and_this_run_did_NOT_is_a_regression_not_a_silence(db):
+    """⛔ ABSENT IS NOT PASSING. Dropping a type from the comparison because this run has no
+    number for it is how a regression hides — the projection quietly stops naming the thing
+    that got worse (`lesson_a_projection_drops_what_it_does_not_name`)."""
+    with store.write() as conn:
+        golden.record_eval(conn, kind=golden.DRIFT_KIND, extractor_version="wx-v0-aaaaaaaa", n=10,
+                           now_iso="2026-09-14T05:00:00-04:00",
+                           metrics={"model": "claude-opus-5", "effort": "high",
+                                    "by_type": {"PRINCIPLE": {"jaccard": 0.9, "below_floor": False}},
+                                    "stability": {"decision": "accepted"}})
+    with store.read() as conn:
+        out = golden.decide_stability(conn, extractor_version="wx-v0-bbbbbbbb", model="claude-opus-5",
+                                      effort="high", by_type={"CALL": {"jaccard": 1.0, "below_floor": False}})
+    assert out["decision"] == "blocked"
+    assert out["regressions"] == [{"record_type": "PRINCIPLE", "metric": "jaccard",
+                                   "previous": 0.9, "current": None, "why": "not_measured"}]
