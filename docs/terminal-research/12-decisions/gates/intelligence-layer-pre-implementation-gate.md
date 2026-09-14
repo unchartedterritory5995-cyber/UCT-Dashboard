@@ -38,6 +38,17 @@ SCOPE APPROVED:   SLICE 2 — AskAiTab.jsx composes <Cited>/<Provenance> for its
                      mapping. NO other file.
 ```
 
+## ⛔ APPROVAL — SLICE 3 / F-I1-2 (third block; the two above remain as-granted)
+
+```
+APPROVED BY:      Claude (autonomous), under the owner's 2026-09-14 delegation
+APPROVED ON:      2026-09-14
+APPROVED AT SHA:  196e7a63d
+SCOPE APPROVED:
+```
+
+---
+
 **Why slice 2 exists:** slice 1's F-I1-1 rail found the violation it was built to find. `AskAiTab.jsx`
 renders its own citation list — `[E#]` marks, source, date and link in local CSS-module classes —
 while every sibling tab on the same page composes S8's primitives. ⭐ **This is the Phase-2
