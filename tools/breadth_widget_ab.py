@@ -271,11 +271,20 @@ def serve(dist: pathlib.Path):
 
 # ── capture ───────────────────────────────────────────────────────────────────
 
-def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password):
+def capture(dist, tag: str, out_dir: pathlib.Path, email, password, live: bool = False):
+    """`live=True` captures the DEPLOYED build straight from production — the post-deploy
+    smoke, where there is no second build to compare and the artifact under test is the
+    one members are served. The preference injection and the POST block are unchanged, so
+    the account is still never written to."""
     from playwright.sync_api import sync_playwright
-    httpd, port = serve(dist)
-    origin = f"http://127.0.0.1:{port}"
-    say(f"  [{tag}] serving {dist.name} at {origin} (identity verified)")
+    httpd = None
+    if live:
+        origin = BASE
+        say(f"  [{tag}] LIVE against {origin} (the deployed artifact)")
+    else:
+        httpd, port = serve(dist)
+        origin = f"http://127.0.0.1:{port}"
+        say(f"  [{tag}] serving {dist.name} at {origin} (identity verified)")
     rec = {"tag": tag, "origin": origin, "shots": {}, "proxied": 0,
            "pref_writes_blocked": 0, "pref_write_keys": [], "auth_probe": None,
            "ready": {}, "content": {}, "errors": []}
@@ -397,7 +406,8 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
                 ctx.close()
             browser.close()
     finally:
-        httpd.shutdown()
+        if httpd is not None:
+            httpd.shutdown()
     return rec
 
 
@@ -473,6 +483,8 @@ def main(argv=None) -> int:
     ap.add_argument("--before-dist", default="")
     ap.add_argument("--after-dist", default="")
     ap.add_argument("--tolerance", type=float, default=0.15)
+    ap.add_argument("--live", default="", metavar="TAG",
+                    help="capture the DEPLOYED build from production under this tag (post-deploy smoke)")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
@@ -486,6 +498,17 @@ def main(argv=None) -> int:
     out_dir = (REPO / a.out) if not os.path.isabs(a.out) else pathlib.Path(a.out)
     work = pathlib.Path(a.work) if a.work else pathlib.Path(os.environ.get("TEMP", "/tmp")) / "uct_ab"
     work.mkdir(parents=True, exist_ok=True)
+
+    if a.live:
+        rec = capture(None, a.live, out_dir, email, password, live=True)
+        ok = rec["auth_probe"] == 200 and any(v == "ok" for v in rec["ready"].values())
+        for w, st in rec["ready"].items():
+            say(f"  {w}px  {st}" + ("  (NOT APPLICABLE — MobileWorkspace)" if st == "mobile-workspace" else ""))
+        say(f"  auth {rec['auth_probe']} · proxied {rec['proxied']} · preference writes blocked "
+            f"{rec['pref_writes_blocked']} · errors {len(rec['errors'])}")
+        (out_dir / f"live-{a.live}.json").write_text(json.dumps(rec, indent=2))
+        say("LIVE SMOKE: " + ("widget renders on the deployed build" if ok else "INCONCLUSIVE"))
+        return 0 if ok else 2
 
     if a.build_both:
         # ⛔ Only the SWAP path needs a clean tree: it rewrites two tracked files and
