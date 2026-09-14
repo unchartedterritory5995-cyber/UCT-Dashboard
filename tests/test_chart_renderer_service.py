@@ -8,13 +8,38 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import sys
 
 import pytest
 
 _APP = pathlib.Path(__file__).resolve().parents[1] / "services" / "chart_renderer" / "app.py"
 
 
+def _renderer_dir_on_path() -> None:
+    """Put `services/chart_renderer/` on `sys.path` before `app.py` is exec'd.
+
+    ⛔ THE FLAT IMPORT IS CORRECT AND MUST NOT BE "FIXED" IN THE SERVICE. The renderer image
+    has `WORKDIR /app` and its Dockerfile copies modules INDIVIDUALLY and flat, so `app.py`
+    reaches its sibling as `from edge_scope import ...` with no package. Loading that file
+    from the repo is what needs the directory on the path — the same entry
+    `test_chart_renderer_dualstack.py` makes for `serve`, and the same one
+    `test_discord_render_forensics.py::_renderer_module` makes for `app`.
+
+    ⚰️ It was missing here from `7c8554dfd` (the Phase-1.5 edge-capability commit, session
+    `01MhvqVHAhZ8zhoyMYvuVnxj`), which added the flat import without a path entry: this file
+    was **6 failed** on a clean `origin/master` run of its own. It nevertheless read GREEN
+    whenever it was collected alongside `test_chart_renderer_dualstack.py`, whose
+    MODULE-LEVEL insert runs at collection and so fixed the path for everybody by accident.
+    A pass that depends on another file being selected is not a pass — which is why the
+    entry is made here, in the loader, rather than relied on from a neighbour.
+    """
+    here = str(_APP.parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+
+
 def _load(monkeypatch, secret="s3cret"):
+    _renderer_dir_on_path()
     monkeypatch.setenv("CHART_RENDERER_SECRET", secret)
     monkeypatch.setenv("RENDER_ALLOWED_HOSTS", "uctintelligence.com, web-production-05cb6.up.railway.app")
     spec = importlib.util.spec_from_file_location("chart_renderer_app", _APP)
