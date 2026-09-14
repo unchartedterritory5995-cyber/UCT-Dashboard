@@ -39,7 +39,7 @@ import { CARVED_OUT_ROWS } from './indicatorCatalog'
 // pass over a tab whose only door was broken, which is what these exist to catch.
 
 const base = (extra) => mergeChartSettings(JSON.stringify(extra || {}))
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
 const liveVwap = (cs) => (cs.indicatorInstances || []).find(i => i.defId === 'vwap' && !i.deleted)
 
@@ -474,7 +474,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // SLICED rather than split on ':' — a split would address row `legacy`.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} scrollTo="ind:legacy:vwap" />)
     // …and it lands on the Indicators tab without being told twice.
-    expect(screen.getByRole('tab', { name: 'Indicators' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'Chart Data' }).getAttribute('aria-selected')).toBe('true')
     const row = document.body.querySelector('[data-row-id="legacy:vwap"]')
     expect(row, 'the deep-linked row is not in the active list').toBeTruthy()
     expect(row.querySelector('[aria-expanded]').getAttribute('aria-expanded'),
@@ -518,10 +518,23 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
 // tab with nothing expanded. That is exactly the shape of bug a per-indicator
 // spot-check cannot catch, so this sweeps EVERY row the tab lists.
 describe('a gear deep link opens the row it names — every row, not a sample', () => {
-  /** The row ids that are actually expanded (a collapsed row renders no fields). */
-  const expandedRowIds = () => [...document.body.querySelectorAll('[data-row-id]')]
-    .filter((el) => el.querySelector('input,select'))
-    .map((el) => el.dataset.rowId)
+  /** The row id whose settings are ON SCREEN — at most one, as a list.
+   *
+   *  ⭐ IT ASKS THE INSPECTOR WHOSE FORM IT IS, which is a STRONGER claim than
+   *  the one it replaces. This used to be "the row element contains an input or a
+   *  select", a proxy for "this row is open" that held only while the form was
+   *  nested inside the row. Chart Data puts the form in a column beside the pane
+   *  map, so that proxy now reads `[]` for every row on a perfectly working deep
+   *  link — while `data-inspector-for` names the row the form actually belongs
+   *  to, which is what these cases were always trying to pin.
+   *
+   *  ⚠️ THE CALL SITES ARE UNCHANGED, deliberately: every `toEqual(['overlay-0'])`
+   *  below still reads as "the deep link opened exactly that row, and nothing
+   *  else". The defect this describe block exists to catch — the legend spelling
+   *  `ma:0` failing to reach the row this tab calls `overlay-0` — is caught here
+   *  exactly as before. */
+  const expandedRowIds = () => [...document.body.querySelectorAll('[data-inspector-for]')]
+    .map((el) => el.getAttribute('data-inspector-for'))
 
   const allRowIds = () => [...document.body.querySelectorAll('[data-row-id]')]
     .map((el) => el.dataset.rowId)

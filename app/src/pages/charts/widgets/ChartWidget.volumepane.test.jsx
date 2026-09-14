@@ -66,7 +66,7 @@ test('the workspace settings modal shows Separate pane as not-applicable', () =>
   render(<Wrap />)
 
   fireEvent.click(screen.getByRole('button', { name: 'Chart settings' }))
-  fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+  fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
   // ⚰️ THE TAB USED TO RENDER EVERY ROW'S FIELDS AT ONCE. The consolidated
   // Indicators tab lists what the chart draws, collapsed, and opens one row at a
   // time — so reaching the volume pane's own controls takes the gesture a member

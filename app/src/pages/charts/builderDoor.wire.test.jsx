@@ -204,7 +204,7 @@ async function openTheBuilderFromCharts(user) {
   await user.click(gear)
 
   // 2. The Indicators tab, which is where every indicator verb lives.
-  await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
+  await user.click(await screen.findByRole('tab', { name: 'Chart Data' }))
 
   // 3. 🔴 THE DOOR. Cut it and this line is what reds.
   await user.click(await screen.findByTestId('settings-new-formula'))
@@ -342,7 +342,7 @@ describe('/charts — the criteria builder has a door', () => {
     // And the door under test is genuinely inside Chart Settings, not on the chart.
     expect(screen.queryByTestId('settings-new-formula')).toBeNull()
     await user.click(gear)
-    await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
+    await user.click(await screen.findByRole('tab', { name: 'Chart Data' }))
     expect(await screen.findByTestId('settings-new-formula')).toBeInTheDocument()
   })
 })

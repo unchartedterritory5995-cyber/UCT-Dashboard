@@ -203,7 +203,7 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
   it('⭐⭐ a direct series row carries an operable Source control', () => {
     const { cs } = withSeries(symbolSource('QQQ', 'close'))
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
     openTheSeriesRow()
 
     // ⛔ FOUND BY ITS ACCESSIBLE NAME, which is how a member finds it too. A
@@ -234,7 +234,7 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
       }),
     }
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
     // ⛔ THE NAME ELEMENT, NOT THE BUTTON'S TEXT. `actName` is the expander
     // BUTTON and it wraps both the name (`actLabel`) and the definition's
     // shortName badge, so its `textContent` reads `QQQSeries` — two correct
@@ -253,7 +253,7 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
     // The gate is `meta.labelFrom`, not a definition id. RSI must be unaffected.
     const cs = addInstance(mergeChartSettings({}), 'rsi', registry)
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
     const names = [...document.body.querySelectorAll('[data-row-id]')]
       .map((r) => (r.querySelector('[class*="actLabel"]')?.textContent || '').trim())
     expect(names.some((n) => /Relative Strength/i.test(n))).toBe(true)
@@ -264,7 +264,7 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
     const seen = []
     render(<ChartSettingsModal open settings={cs} onChange={(next) => seen.push(next)}
                                onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
     openTheSeriesRow()
     const sel = screen.getAllByRole('combobox')
       .find((c) => /source/i.test(c.getAttribute('aria-label') || ''))

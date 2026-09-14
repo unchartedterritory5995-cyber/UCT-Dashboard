@@ -86,7 +86,7 @@ function Host({ initial, seen }) {
   )
 }
 const show = (cs, seen) => render(<Host initial={cs} seen={seen} />)
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
 
 /** The row block whose expander NAME is exactly this.
  *  ⛔ Anchored on purpose: that is the guarantee the summary must not break. */
@@ -100,9 +100,20 @@ const summaryOf = (re) => {
 }
 
 const openRow = (re) => fireEvent.click(rowFor(re).querySelector('[aria-expanded]'))
+/** The INSPECTOR — the right-hand column, which is where a selected row's
+ *  controls now live.
+ *
+ *  ⭐ THE CONTROLS ARE THE SAME CONTROLS; only the column changed. Chart Data
+ *  moved the form out of the row and into a panel beside the pane map, so a
+ *  query scoped to `rowFor(...)` now finds the row's NAME and TOGGLE and nothing
+ *  else. `data-inspector-for` carries the row id, so these helpers still assert
+ *  that the form on screen belongs to the row that was selected — which is the
+ *  thing that actually mattered about scoping them to the row. */
+const inspector = () => document.body.querySelector('[data-inspector-for]')
 const selectIn = (re, labelRe) => {
-  const row = rowFor(re)
-  return [...row.querySelectorAll('select')]
+  const panel = inspector()
+  if (!panel || panel.getAttribute('data-inspector-for') !== rowFor(re)?.getAttribute('data-row-id')) return undefined
+  return [...panel.querySelectorAll('select')]
     .find((s) => labelRe.test(s.getAttribute('aria-label') || ''))
 }
 
