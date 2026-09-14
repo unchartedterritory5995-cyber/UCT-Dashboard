@@ -11419,6 +11419,11 @@ export function translatePine(source, opts = {}) {
   // constant column is this engine's judgement about SCREENING, not about
   // drawing. The strict test is therefore "did anything fail to translate",
   // which is exactly `refusals.length === 0`, not "is everything usable".
+  // ⭐⭐ THIS LINE IS THE LANE. `opts.strict === true` is the ONLY thing that
+  // chooses between the two contracts — not `opts.mode` (which does not exist),
+  // and not `opts.host` (which belongs to `chooseOutput` and decides whether an
+  // alertcondition may be the first offer). See the `mode:` field below for the
+  // round of evidence that was voided by getting this wrong.
   const strict = opts.strict === true
   const lenientOk = usable.length > 0 && !blocked
   const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
@@ -11429,6 +11434,24 @@ export function translatePine(source, opts = {}) {
     // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT. A result that travels (into a
     // saved definition, a log, a test fixture) must not be ambiguous about which
     // question it answered.
+    //
+    // ⚰️⚰️ AND IT IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.** The
+    // string does not appear in this function's option handling at all, so
+    // `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
+    // LENIENT lane — and so does `{ mode: 'screener' }`.
+    //
+    // ⛔ That is not hypothetical: a session took every "both lanes agree"
+    // reading for item (a) by calling those two spellings, got perfect agreement
+    // because both calls were the same lane, and reported it as cross-lane
+    // evidence. The whole round was void. **An instrument that cannot
+    // distinguish its two inputs agrees with itself**, and this field is the
+    // thing that makes the mistake look reasonable: a reader sees `mode: 'host'`
+    // come OUT of a result and passes it back IN.
+    //
+    // ⭐ THE LANE SELECTOR IS `opts.strict === true`, read once, ~10 lines above.
+    // The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the false
+    // call verbatim rather than describing it, so the next reader who writes it
+    // again meets the test instead of the bug.
     mode: strict ? 'host' : 'screener',
     version,
     declaration,
@@ -11497,6 +11520,12 @@ function chooseOutput(rows, table, opts = {}) {
   // DELETION. A scan asks "when is this true", and an alertcondition IS a
   // condition by construction — it is still the right first offer THERE. What
   // changes is only the lane that has to put a line on a chart.
+  // ⚠️ THIS `host` IS NOT THE LANE, AND THE NAME INVITES THE MISREADING.
+  // `chooseOutput`'s option decides whether an `alertcondition` may be the first
+  // offer. The LANE is `translatePine`'s `opts.strict`, and the word 'host' also
+  // appears there as an OUTPUT value (`mode: strict ? 'host' : 'screener'`),
+  // which is what made a session pass `{mode:'host'}` back into `translatePine`
+  // and read one lane twice. Neither of those is this flag.
   const host = opts.host === true
   const ok = (r) => r.refusal === null && !r.hidden
       && !(host && r.kind === 'alertcondition')
