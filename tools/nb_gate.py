@@ -51,6 +51,21 @@ GATE_REPO = pathlib.Path(os.environ.get("NB_GATE_REPO", "") or _REPO_DEFAULT)
 def do_not_build() -> str:
     """One line for the verdict: did any DO-NOT-BUILD item gain code?
 
+    !! THE BUDGET IS 900s, AND THAT IS A MEASUREMENT, NOT A GUESS.
+
+    The sweep reads 4,711 files / 60 MB and matches 75 patterns; the read costs
+    0.3s and the matching costs ~66s, because a 75-way regex alternation runs at
+    a few MB/s. Standalone it takes 60-85s. At the gate's first budget of 180s it
+    TIMED OUT under a loaded box (another session's six-shard gate was running),
+    and the verdict printed "DID NOT RUN ... this is not a clean result" - a
+    TOOLING failure wearing a verdict's clothes, on the one run of the week that
+    decides keep-or-revert.
+
+    * 900s is ~10x the measured cost, which is headroom for a contended box
+    rather than a number chosen to make a red go away. The gate writes a file and
+    has no deadline of its own, so waiting is free; being unable to say whether
+    §8 is intact is not.
+
     !! IT IS NOT A TRIGGER. This gate decides whether to revert Wave Q1 over an
     OBSERVATION WINDOW; a static sweep of the repo says nothing about that
     window, and wiring it to the verdict would let a regex revert a healthy
@@ -62,7 +77,7 @@ def do_not_build() -> str:
     try:
         proc = subprocess.run([sys.executable, str(tool), '--quiet'], cwd=str(GATE_REPO),
                               capture_output=True, text=True, encoding='utf-8',
-                              errors='replace', timeout=180)
+                              errors='replace', timeout=900)
     except (OSError, subprocess.SubprocessError) as e:
         return f"DID NOT RUN - {type(e).__name__}: {e} (this is not a clean result)"
     out = ((proc.stdout or '') + (proc.stderr or '')).strip().splitlines()
@@ -134,6 +149,10 @@ _COLUMNS = {
     "at (et)": "at",
     "opt-in (member, old schema)": "optin_member_old",
     "latest opt-in (utc)": "latest_optin",
+    # Renamed 2026-09-13 when the column became three populations. The OLD
+    # spelling stays mapped: every row already in the log carries it, and a
+    # gate that cannot read its own history reports the window as unreadable.
+    "opt-ins by population (utc)": "latest_optin",
     "opt-in (windowed)": "optin_windowed",
     "config-served (members)": "config_served",
     "blocked-baseline": "blocked",
@@ -180,6 +199,37 @@ def is_observation_row(cells: list[str]) -> bool:
     return bool(cells) and bool(_ROW_AT.match(cells[0].strip()))
 
 
+def split_cells(line: str, ncols: int | None = None) -> list[str]:
+    """A table line's cells, with a pipe INSIDE the LAST column put back.
+
+    !!!! THE SAMPLER WRITES A PIPE INTO THE FLAG CELL. `nb_observe.py` joins the
+    parts of an ANOMALY reason with `"  |  "`, so the row that finally carries
+    the failing URL reads
+
+        ... | 2 | **ANOMALY** - 2 console/page error(s): console.error: ...
+            [issued by https://.../api/barspack/manifest:0]  |  HTTP: GET
+            https://.../api/barspack/manifest -> 401 |
+
+    which is TEN cells under a NINE-column header. Measured against the live log
+    2026-09-14: the 01:00 ET row - the ONLY row that has ever carried a URL - was
+    dropped as `row ... has 10 cell(s) under a 9-column header`, so the ownership
+    ruling below would have had nothing to read.
+
+    ⭐ The surplus is put back into the LAST column and nowhere else, and only
+    when the caller says how many columns there are. Splitting the overflow
+    across the middle would shift every column one place - the `x[4]`/`x[6]`
+    defect this gate already paid for once - so the repair is deliberately the
+    narrowest one that can be correct: the flag cell is the last column, it is
+    the only free text the sampler writes, and the RAW pieces are rejoined with
+    the pipe they were split on, so the cell is byte-identical to what was
+    written.
+    """
+    raw = line.strip('|').split('|')
+    if ncols and ncols >= 1 and len(raw) > ncols:
+        raw = raw[:ncols - 1] + ['|'.join(raw[ncols - 1:])]
+    return [c.strip() for c in raw]
+
+
 def parsed_rows() -> tuple[list[dict], list[str]]:
     """Every observation row as {canonical column: value}, plus any complaints.
 
@@ -194,8 +244,13 @@ def parsed_rows() -> tuple[list[dict], list[str]]:
     for line in LOG.read_text(encoding='utf-8').splitlines():
         if not line.startswith('|') or line.startswith('|---'):
             continue
-        cells = [c.strip() for c in line.strip('|').split('|')]
-        if 'at (ET)' in line:
+        # ! The header decides the width, so it is split without one; a DATA row
+        # is split against the header it sits under, which is what lets a pipe
+        # inside the flag cell be put back instead of shifting every column.
+        is_header = 'at (ET)' in line
+        width = None if is_header or not keys or keys[-1] != 'flag' else len(keys)
+        cells = split_cells(line, width)
+        if is_header:
             keys = [canonical(c) for c in cells]
             unknown = [c for c, k in zip(cells, keys) if k is None]
             if unknown:
@@ -249,8 +304,217 @@ def is_skipped(rec: dict) -> bool:
     return 'SKIPPED' in str(rec.get('flag', ''))
 
 
+# =============================================================================
+# TRIGGER 4 - OWNERSHIP OF THE FAILING REQUEST, NOT ITS SEVERITY.
+# Owner ruling 2026-09-14, approved as proposed:
+#   "Trigger-4 filter - filter by OWNERSHIP of the failing request's origin, not
+#    severity. A 401 from a request the Notebook doesn't issue is FOREIGN and
+#    recorded, not an ANOMALY; a 401 from anything the Notebook issues stays a
+#    trigger. Rail both directions."
+# =============================================================================
+# Three consecutive rows (2026-09-13 19:00, 21:00, 23:00 ET) read
+# `**ANOMALY** - 2 console/page error(s)` and the whole of their evidence was
+# `Failed to load resource: the server responded with a status of 401 ()`. A
+# STATUS cannot decide this: the same 401 is a foreign endpoint refusing an
+# unauthenticated prefetch AND the Notebook's own write being rejected. The
+# concrete case is `GET https://uctintelligence.com/api/barspack/manifest -> 401`
+# - the app shell's chart/bars prefetch (`app/src/utils/prefetchBars.js`, reached
+# from MoversSidebar / TickerPopup / FuturesStrip / CatalystTable), not the
+# Notebook.
+#
+# ⛔⛔ UNKNOWN IS NOT CLEAR. The sampler only learned to record the failing URL on
+# 2026-09-14; every row written before that names a COUNT and nothing else. An
+# un-attributable row STAYS a trigger. Scoring "we cannot tell" as "not ours" is
+# the same move as scoring an UNREADABLE close as absent, which this wave has
+# already made once (`_doc_text(None) == ''`).
+#
+# ⭐ ONE PREFIX SET, ONE PLACE, AND NOT A URL. Hard-coding `/api/barspack/manifest`
+# would leave the next foreign endpoint to be ruled on all over again. Ownership
+# is a RULE about which API surface the Notebook page issues.
+NOTEBOOK_REQUEST_PREFIXES = (
+    # The Journal-2.0 surface. The Notebook page IS this API, and so is the
+    # offline layer: `/api/j2/note`, `/api/j2/notes/...` and `/api/j2/telemetry`
+    # are the only endpoints `app/src/pages/journal-2-0/lib/offline/*.js` issues.
+    '/api/j2/',
+    # The Notebook's capability flags ride the ACCESS PAYLOAD - `notebookFlags.js`
+    # latches `notebook_offline_*` out of whatever `/api/auth/*` returns - so an
+    # auth request that fails IS a Notebook failure. It is the exact shape K-1's
+    # "an unreachable auth payload fails to OFF" is written against, and a 401
+    # there would be the wave silently deciding it may not write.
+    '/api/auth/',
+)
+
+# What the sampler writes beside the count, and how to read it back.
+# `nb_observe.py` emits `  [issued by <url>:<line>]` from the console message's
+# LOCATION, `  [no location]` when it has none, and
+# `HTTP: <METHOD> <url> -> <status> ; ...` with a ` (+N more)` tail when it had
+# to truncate the deduped failing-request list at three.
+_ISSUED_BY = re.compile(r'\[issued by (\S+?):(-?\d+|None|null|undefined)\]')
+_HTTP_ENTRY = re.compile(
+    r'\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+)\s+->', re.I)
+_TRUNCATED = re.compile(r'\(\+\d+ more\)')
+
+
+def request_ownership(origin: str) -> str:
+    """'notebook', 'foreign' or 'unknown' for ONE recorded request origin.
+
+    ⛔ THE THIRD ANSWER IS THE WHOLE POINT. A predicate that only answers "is it
+    ours?" turns every origin it cannot read into a foreign one, and this gate
+    would then clear a hole it never looked at. Foreign is only ever returned for
+    a path this rule can positively place on ANOTHER product's API surface.
+
+    Classification is by PATH: every request the rig sees is same-origin against
+    production, and a third-party host serving `/api/...` is foreign anyway.
+    """
+    s = (origin or '').strip().strip('.,;)]')
+    if not s:
+        return 'unknown'
+    m = re.match(r'(?:[a-z][a-z0-9+.-]*://[^/\s]*)?(/\S*)', s, re.I)
+    if not m:
+        return 'unknown'
+    path = m.group(1).split('?')[0].split('#')[0]
+    if any(path == p.rstrip('/') or path.startswith(p)
+           for p in NOTEBOOK_REQUEST_PREFIXES):
+        return 'notebook'
+    if path.startswith('/api/'):
+        # Another product's endpoint on the same host. `/api/barspack/...`,
+        # `/api/bars/...`, `/api/live-prices` - the app shell issues these on
+        # every page, the Notebook issues none of them.
+        return 'foreign'
+    # A bundle chunk (`/assets/index-*.js`), a page URL, anything else: this rule
+    # cannot place it, so it is not cleared.
+    return 'unknown'
+
+
+def console_attribution(flag_cell) -> dict:
+    """Who owns the failing requests ONE observation row recorded?
+
+    Returns {'verdict', 'origins', 'why'}. `verdict` is 'foreign' ONLY when the
+    row's own evidence accounts for where its errors came from and every one of
+    those origins is another product's.
+
+    ⛔ FAILURE-SAFE IN FOUR PLACES, each of which would otherwise clear a row
+    nobody has looked at:
+      · a row that names no origin at all (every row before 2026-09-14);
+      · `[no location]` - the console message had no location to attribute;
+      · ` (+N more)` - the sampler truncated the failing-request list at three,
+        so origins it did not print exist;
+      · `pageerror:` - a JS exception thrown by the page. It has no request
+        origin at all, and the page it was thrown on is `/journal/notebook`, so
+        it is the Notebook's however clean the HTTP list beside it looks.
+    """
+    cell = str(flag_cell or '')
+    if 'pageerror:' in cell:
+        return {'verdict': 'notebook', 'origins': [],
+                'why': 'a pageerror is an exception thrown by the Notebook page itself'}
+    origins, seen = [], set()
+    for m in _ISSUED_BY.finditer(cell):
+        if m.group(1) not in seen:
+            seen.add(m.group(1))
+            origins.append(m.group(1))
+    for m in _HTTP_ENTRY.finditer(cell):
+        if m.group(1) not in seen:
+            seen.add(m.group(1))
+            origins.append(m.group(1))
+    if not origins:
+        return {'verdict': 'unknown', 'origins': [],
+                'why': 'the row names no failing-request URL - it predates the '
+                       'sampler recording one, and unknown is not clear'}
+    if _TRUNCATED.search(cell):
+        return {'verdict': 'unknown', 'origins': origins,
+                'why': 'the row\'s failing-request list is TRUNCATED - origins it '
+                       'did not print exist'}
+    if '[no location]' in cell:
+        return {'verdict': 'unknown', 'origins': origins,
+                'why': 'a console error on this row carried NO location, so it '
+                       'cannot be attributed'}
+    kinds = [request_ownership(o) for o in origins]
+    if 'notebook' in kinds:
+        owned = [o for o, k in zip(origins, kinds) if k == 'notebook']
+        return {'verdict': 'notebook', 'origins': origins,
+                'why': 'Notebook-owned request(s) failed: ' + ', '.join(owned)}
+    if 'unknown' in kinds:
+        odd = [o for o, k in zip(origins, kinds) if k == 'unknown']
+        return {'verdict': 'unknown', 'origins': origins,
+                'why': 'origin(s) this gate cannot place: ' + ', '.join(odd)}
+    return {'verdict': 'foreign', 'origins': origins,
+            'why': 'every failing request is an endpoint the Notebook does not issue'}
+
+
+# =============================================================================
+# TRIGGER 3 - READ THE CANARY'S OWN STAMP, do not print `n/a` beside evidence.
+# =============================================================================
+# The sampler runs OPTED OUT, so its outbox is structurally zero and it can say
+# nothing about a stuck queue. Only the Sunday canary drives a real queue. Its
+# result was already being written - and this gate printed
+# `n/a - canary or member report only` beside it, on the one run of the week
+# that reads it. 2026-09-13: the canary ran GREEN at 20:00:01Z and the verdict
+# still said n/a.
+#
+# !! WHAT THE CANARY CAN AND CANNOT EVIDENCE, stated so nobody overclaims.
+# A canary run lasts minutes, not hours, so it cannot observe an item stuck for
+# more than five minutes. What it CAN observe is the condition whose absence
+# that trigger watches for: it queues real work offline, reconnects, and reports
+# whether the queue SETTLED. `outbox 0` at the settle step is positive evidence
+# that the drain is not stranding work; it is not a five-minute observation, and
+# the verdict line says so in those words.
+CANARY_FRESH_HOURS = 30
+_CANARY_HEAD = re.compile(r'^### ([a-z0-9-]+) \u2014 \*\*(20[0-9-]{8}T[0-9:]{8}Z)\*\*',
+                          re.M)
+
+
+def canary_queue_evidence(now=None):
+    """The newest canary run's queue reading, or None with a reason.
+
+    !! FRESHNESS IS PART OF THE READING. A canary from last Sunday says nothing
+    about this window, and an old green is the most flattering thing a stale
+    artifact can say.
+    """
+    if not RESUME.exists():
+        return None, f'no resume doc at {RESUME}'
+    text = RESUME.read_text(encoding='utf-8', errors='replace')
+    heads = list(_CANARY_HEAD.finditer(text))
+    if not heads:
+        return None, 'no canary section in the resume doc'
+    # Newest by STAMP, not by position: the doc is prepend-ordered today and
+    # that is a layout choice, not a guarantee.
+    head = max(heads, key=lambda m: m.group(2))
+    label, stamp = head.group(1), head.group(2)
+    try:
+        when = datetime.datetime.strptime(stamp, '%Y-%m-%dT%H:%M:%SZ')
+    except ValueError:
+        return None, f'canary stamp {stamp!r} is unparseable'
+    # tz-aware, then dropped to naive for comparison with the naive stamp —
+    # `utcnow()` is deprecated and warns into the gate's own output.
+    now = now or datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    age_h = (now - when).total_seconds() / 3600.0
+    if age_h > CANARY_FRESH_HOURS:
+        return None, (f'the newest canary is {label} @ {stamp}, '
+                      f'{age_h:.0f}h old - older than {CANARY_FRESH_HOURS}h, so it '
+                      f'says nothing about this window')
+
+    # chr(10) here, not the NLV bound inside main() — a module-level helper
+    # must not depend on a caller's local.
+    nxt = text.find(chr(10) + '### ', head.end())
+    body = text[head.end(): nxt if nxt != -1 else len(text)]
+
+    settle = re.search(r'the queue settled[^|]*\|([^|]*)\|', body)
+    if not settle:
+        return None, (f'canary {label} @ {stamp} wrote no queue-settled step - '
+                      f'the run did not reach it')
+    cell = settle.group(1)
+    m = re.search(r'outbox\s+\*\*(\d+)\*\*', cell)
+    if not m:
+        return None, f'canary {label} @ {stamp}: the settle step names no outbox count'
+    outbox = int(m.group(1))
+    mini = re.search(r'\*\*mini-canary\*\*\s*\|[^|]*?(\d+)/(\d+)\*\* steps green', body)
+    steps = f'{mini.group(1)}/{mini.group(2)}' if mini else 'unreported'
+    return {'label': label, 'stamp': stamp, 'outbox': outbox,
+            'steps': steps, 'age_h': age_h}, None
+
 def main() -> int:
     at = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-4))).strftime("%Y-%m-%d %H:%M ET")
+    NLV = chr(10)
     last_run, last_result = heartbeat()
     recs, gripes = parsed_rows()
     r = [x['_cells'] for x in recs]
@@ -333,97 +597,106 @@ def main() -> int:
     # serving; if fix 3 is an ancestor, the report predates the fix.
 
     # trigger 3 - NOT readable here, by construction
-    t3 = "n/a - canary or member report only"
+    ev, why = canary_queue_evidence()
+    if ev is None:
+        t3 = f'n/a - {why}'
+    elif ev['outbox'] == 0:
+        t3 = (f"PASS - canary `{ev['label']}` @ {ev['stamp']} queued real work "
+              f"offline and the queue SETTLED (outbox {ev['outbox']}, mini-canary "
+              f"{ev['steps']} green). \u26a0\ufe0f A canary run is minutes long, so this "
+              f"evidences that the drain does not strand work - it is not a "
+              f"five-minute observation")
+    else:
+        t3 = (f"FAIL - canary `{ev['label']}` @ {ev['stamp']} left "
+              f"**outbox {ev['outbox']}** at its settle step: the queue did NOT "
+              f"settle")
+        fails.append(f"trigger 3: the canary's queue did not settle "
+                     f"(outbox {ev['outbox']} at {ev['stamp']})")
 
     # trigger 4 - console errors seen by the rig (same bundle a member runs)
     # !!!! OBSERVED ROWS ONLY, and BY NAME. This read `x[6]` over EVERY row: the
     # 2026-09-12 23:00 SKIP (production unreachable mid-deploy) carries 20 console
     # errors from a page that could not load, and `x[6]` is `outbox` under the
     # 9-column header anyway. Either fault alone printed REVERT.
-    errs = [x for x in observed if (number(x, 'console') or 0) > 0]
-    t4 = "PASS" if not errs else "FAIL"
+    # ⛔⛔ OWNERSHIP, NOT SEVERITY (owner ruling 2026-09-14). A row whose errors
+    # all come from endpoints the Notebook does not issue is FOREIGN: RECORDED
+    # with its URL below, and not blocking. It is never dropped - a hole that is
+    # invisible is worse than one that is attributed. Everything else - ours, or
+    # un-attributable - still fails, and the COUNT this reads is unchanged.
+    errs_all = [x for x in observed if (number(x, 'console') or 0) > 0]
+    errs, foreign_rows = [], []
+    for x_ in errs_all:
+        attr = console_attribution(x_.get('flag'))
+        (foreign_rows if attr['verdict'] == 'foreign' else errs).append((x_, attr))
+    foreign_note = ('' if not foreign_rows else
+                    f" - {len(foreign_rows)} FOREIGN row(s) recorded below, not blocking")
+    t4 = ("PASS" if not errs else "FAIL") + foreign_note
     if errs:
-        fails.append(f"trigger 4: console errors at {errs[0]['at']}")
+        fails.append(f"trigger 4: console errors at {errs[0][0]['at']} "
+                     f"({errs[0][1]['why']})")
+    errs = [x_ for x_, _ in errs]
 
-    # ⭐ THE MEMBER COUNT COMES FROM THE SAMPLER, WHICH KNOWS IDENTITIES.
-    # The timing rule below is kept only as a fallback for rows written before
-    # the sampler recorded `members` - it cannot see the owner's own browsing,
-    # which is exactly how 14:00:28 was misread as the first member.
-    member_counts = []
+    # =========================================================================
+    # THREE POPULATIONS, PRINTED EVERY TIME, NEVER SUMMED. Owner ruling 2026-09-13.
+    # =========================================================================
+    # !!!! ONE `members` FIGURE IS WHAT PUBLISHED OUR OWN TEST ACCOUNT AS SEVEN
+    # INDEPENDENT MEMBERS. The sampler counted opt-in ROWS from any address not
+    # on a two-item exclusion list; the T-12 smoke account was not on it, and the
+    # 15:00 ET row read `members 7`. This gate would have printed
+    # `organic members exposed = 7` into the artifact the K window is judged on.
+    #
+    # * ORGANIC is a person who is not us -- the only number the wave's claims may
+    # be divided by. SYNTHETIC is an account we provisioned: it proves the path is
+    # reachable and proves nothing about adoption. RIG/OWNER is the instrument.
+    # They are three facts and they are never added together.
+    def _pop(cell, name):
+        """The count for one population, read from the row's own text."""
+        m = re.search(name + r'\s+(\d+)', cell)
+        return int(m.group(1)) if m else None
+
+    organic = synthetic = rigowner = 0
+    unknown_internal = 0
+    legacy_rows = 0
     for x_ in recs:
         cell = str(x_.get('latest_optin') or x_.get('optin_member_old') or '')
-        if "members " in cell:
-            try:
-                member_counts.append(int(cell.split("members ")[1].split()[0].strip("()")))
-            except (ValueError, IndexError):
-                pass
-    # !!!! THE IDENTITY COUNT WAS COMPUTED AND THROWN AWAY.
-    #
-    # This block used to assign `member` from the sampler's identity count and
-    # then OVERWRITE it unconditionally on the very next line, so the
-    # authoritative answer never reached the verdict file. Worse, the branch
-    # also emptied `cans`, so the timing fallback then ran against ZERO canary
-    # windows - and every canary opt-in would have been reported as a member.
-    #
-    # * IT SURVIVED BECAUSE A SECOND BUG HID IT. The fallback read the WHOLE
-    # cell (`2026-09-12 15:45:46 · members 0`), which no date parser
-    # accepts, and `is_rig` answers True for anything unparseable - never claim a
-    # member from a value you could not read. Fixing the parsing to address
-    # columns by name made the cell parse, and the hidden bug came straight out:
-    # the live log then read FIRST MEMBER OPT-IN 2026-09-12 15:45:46, on a row
-    # whose own identity count says `members 0`.
-    #
-    # * So the two answers are ordered, not merged. The sampler KNOWS identities;
-    # the timing rule only guesses from when an event landed, and it cannot see
-    # the owner's own browsing - which is exactly how 14:00:28 was misread as the
-    # first member. Identity wins whenever it is present.
-    if member_counts:
-        m = max(member_counts)
-        member = (f"none - 0 independent members ({len(member_counts)} row(s) "
-                  "counted by identity)"
-                  if m == 0 else f"{m} INDEPENDENT MEMBER OPT-IN(S) - see the log")
-    else:
-        # No row carries an identity count - every row predates the sampler
-        # learning to take one. Fall back to the timing rule, WITH its canary
-        # windows, and say in the line itself which rule answered.
-        cans = canary_times()
-        member = ("none - every opt-in is the rig" + chr(39) + "s ("
-                  + str(len(cans)) + " canary run(s) excluded; timing rule, "
-                  "no identity count in any row)")
-        for x in recs:
-            cell = str(x.get('latest_optin') or x.get('optin_member_old') or '')
-            stamp = cell.split(' ' + chr(183) + ' ')[0].strip()
-            if stamp not in ('-', '', chr(8212), '0') and not is_rig(stamp, cans):
-                member = ('FIRST MEMBER OPT-IN ' + stamp + ' (row ' + x['at']
-                          + ', timing rule)')
-                break
+        o = _pop(cell, 'organic')
+        if o is None:
+            # !! A ROW IN THE OLD `members N` SHAPE. Its number counted ROWS from
+            # every non-excluded address, so it is NOT an organic count and must
+            # not be read as one. Counted separately and reported, never folded in.
+            if 'members ' in cell:
+                legacy_rows += 1
+            continue
+        organic = max(organic, o)
+        synthetic = max(synthetic, _pop(cell, 'synthetic') or 0)
+        rigowner = max(rigowner, _pop(cell, 'rig/owner') or 0)
+        unknown_internal = max(unknown_internal, _pop(cell, 'UNKNOWN INTERNAL') or 0)
 
-    # !!!! ORGANIC MEMBERS. Owner ruling 2026-09-13: say it in every verdict
-    # and every end-of-day report until it changes.
-    #
-    # The sampler counts members BY IDENTITY and excludes the rig, the owner's
-    # own browser and the smoke account. What is left is an ORGANIC member: a
-    # person who is not us. Zero of them have opened the Notebook since the
-    # flip, and a window whose whole purpose is member exposure has to say so
-    # in the same breath as its verdict -- otherwise KEEP reads as 'a week of
-    # members found nothing' when it means 'nobody looked'.
-    #
-    # * A SYNTHETIC member is counted SEPARATELY and never folded in. The
-    # member-smoke account is provisioned by us, so an opt-in from it proves
-    # the path is reachable and proves nothing about adoption.
-    organic = 0 if not member_counts else max(member_counts)
+    member = (
+        'none - 0 organic members (nobody outside this programme has opened the '
+        'Notebook in this window)' if organic == 0
+        else str(organic) + ' ORGANIC MEMBER IDENTITY(S) - see the log'
+    )
     organic_line = (
         'organic members exposed = ' + str(organic)
-        + ('  (nobody outside the rig has opened the Notebook in this window)'
-           if organic == 0 else '  -- attributed by identity, see the log')
+        + '  |  synthetic = ' + str(synthetic)
+        + '  |  rig/owner = ' + str(rigowner)
+        + (('  |  !! UNKNOWN INTERNAL = ' + str(unknown_internal)) if unknown_internal else '')
+        + ('  (counted by distinct identity, never summed)')
     )
+    if legacy_rows:
+        organic_line += (NLV + '           ! ' + str(legacy_rows) + ' row(s) predate the '
+                         'three-population split and carry the old `members N` count, '
+                         'which counted ROWS from any non-excluded address. Those numbers '
+                         'are NOT organic counts and are excluded from the three above.')
 
     dnb = do_not_build()
     # ! AN UNREADABLE ROW IS NOT A CLEAN ONE. It does not make the wave bad, so it
     # does not say REVERT on its own - it says the reading is INCOMPLETE, which is
     # the third state this programme keeps having to re-learn.
     unreadable = bool(gripes)
-    verdict = "KEEP" if (hb_ok and not bad and not errs and not conf) else "REVERT"
+    stuck = isinstance(ev, dict) and ev.get("outbox", 0) > 0
+    verdict = "KEEP" if (hb_ok and not bad and not errs and not conf and not stuck) else "REVERT"
     if verdict == 'KEEP' and unreadable:
         verdict = 'INCOMPLETE - the log has rows this gate could not read; see below'
 
@@ -451,7 +724,7 @@ at:        {at}
 heartbeat: Last Run Time {last_run} | Last Result {last_result}
 rows read: {len(r)} ({len(skipped)} skipped){skip_note}  ({r[0][0] if r else 'none'} .. {r[-1][0] if r else 'none'})
 member:    {member}
-ORGANIC:   {organic_line}
+POPULATION: {organic_line}
 do-not-build: {dnb}
 
 | trigger | result |
@@ -462,10 +735,25 @@ do-not-build: {dnb}
 | 4 · member console error | {t4} |
 
 """
-    NLV = chr(10)
+    # (NLV is defined once, near the top of main() -- a second binding of the same value is the shape `lesson_a_second_authority_over_one_value` names.)
     if fails:
         body += '## Why this is not a clean KEEP' + NLV + NLV
         body += NLV.join('- ' + f for f in fails) + NLV + NLV
+    # ⭐ FOREIGN ERRORS ARE PRINTED, ALWAYS. They do not block (owner ruling
+    # 2026-09-14), and a filter whose output nobody can see is a filter that
+    # deletes evidence. Each row names the URLs it was cleared on.
+    if foreign_rows:
+        body += ('## Foreign console errors - RECORDED, not blocking' + NLV + NLV
+                 + 'Trigger 4 filters by OWNERSHIP of the failing request, not by '
+                 + 'severity (owner ruling 2026-09-14). Every error on these rows '
+                 + 'came from an endpoint the Notebook does not issue, so they do '
+                 + 'not say REVERT - and they are named in full, because a hole '
+                 + 'that is invisible is worse than one that is attributed.'
+                 + NLV + NLV)
+        for x_, attr in foreign_rows:
+            body += ('- ' + str(x_.get('at')) + ' - '
+                     + ', '.join(attr['origins']) + NLV)
+        body += NLV
     if organic == 0:
         body += ('## !! What a KEEP over zero organic members does NOT mean' + NLV + NLV
                  + 'Every trigger reads clean when nobody has run the layer -- that is what '
