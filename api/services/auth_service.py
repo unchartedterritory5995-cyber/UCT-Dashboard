@@ -185,6 +185,38 @@ def delete_session(token: str):
         conn.close()
 
 
+def revoke_sessions(user_id: str, keep_token: str | None = None) -> int:
+    """Delete every session for `user_id`, optionally sparing one. Returns how many went.
+
+    ⛔ **THIS IS THE STEP A PASSWORD CHANGE USED TO SKIP.** Changing a password writes
+    `password_hash` and nothing else, so before 2026-09-13 a member who changed their
+    password *because* they suspected a compromise kept every stolen session alive: the
+    attacker stayed signed in, and nothing told the member. Found while rotating a leaked
+    credential — step 1 alone would have changed a password and left every stolen session
+    live, and the only reason that rotation closed was a separate explicit revoke.
+
+    `keep_token` spares the caller's own session so self-service change does not sign a
+    member out of the device they are typing on. **The admin reset and the
+    forgot-password reset pass `None`**: neither has a caller session to preserve, and
+    the forgot-password path is the one a locked-out or compromised member actually uses.
+
+    ⛔ One implementation. `POST /api/auth/sessions/revoke-others` calls this too, so the
+    endpoint and the password paths cannot drift into disagreeing about what "revoke"
+    means (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    """
+    conn = get_connection()
+    try:
+        if keep_token:
+            cur = conn.execute(
+                "DELETE FROM sessions WHERE user_id = ? AND token != ?", (user_id, keep_token))
+        else:
+            cur = conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
 def cleanup_expired_sessions():
     conn = get_connection()
     try:
@@ -252,8 +284,13 @@ def get_user_plan(user_id: str) -> str:
     return "free"
 
 
-def change_password(user_id: str, current_password: str, new_password: str) -> bool:
-    """Change a user's password. Returns True on success, False if current password is wrong."""
+def change_password(user_id: str, current_password: str, new_password: str,
+                    keep_token: str | None = None) -> bool:
+    """Change a user's password. Returns True on success, False if current password is wrong.
+
+    On success every OTHER session for this user is revoked — see `revoke_sessions`. The
+    caller passes its own cookie as `keep_token` so the member stays signed in here.
+    """
     conn = get_connection()
     try:
         row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
@@ -264,9 +301,11 @@ def change_password(user_id: str, current_password: str, new_password: str) -> b
         new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
         conn.commit()
-        return True
     finally:
         conn.close()
+    # After the connection is closed, so the revoke never contends with this write.
+    revoke_sessions(user_id, keep_token=keep_token)
+    return True
 
 
 def list_all_users() -> list[dict]:
@@ -616,9 +655,13 @@ def execute_password_reset(token: str, new_password: str) -> bool:
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, row["user_id"]))
         conn.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (row["id"],))
         conn.commit()
-        return True
+        user_id = row["user_id"]
     finally:
         conn.close()
+    # ⛔ ALL of them. This is the forgot-password path — the one a member uses when they
+    # are locked out or compromised — and there is no caller session to preserve.
+    revoke_sessions(user_id, keep_token=None)
+    return True
 
 
 # ── Smoke-account login link (admin-issued, single-use) ──────────────────────
