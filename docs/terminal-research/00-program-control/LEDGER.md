@@ -3642,6 +3642,47 @@ The two UNKNOWN rows belong to the Desk and Journal-2.0 workstreams respectively
 
 ---
 
+## ✅ CROSS-PROGRAM ADVISORY — the pre-push SECRET SCAN skipped two real pushes, and its owner fixed it the same day
+
+> **Advisory, and already CLOSED by its owner.** Not Terminal-Next's hook. Owner: the
+> **`feat/breadth-charts`** workstream — `tools/secret_scrub.py` lives only on that branch
+> (`936da1aba`), and the hook is installed in the SHARED `.git/hooks/pre-push`, so it runs for
+> every worktree in the repo.
+
+**What was observed, 2026-09-13.** A push from the `terminal-research` worktree printed:
+
+```
+[pre-push] WARNING: tools/secret_scrub.py not found in this worktree —
+[pre-push]          the secret scan did NOT run. This is not a pass.
+```
+
+and the push proceeded unscanned. A second push with `MSYS_NO_PATHCONV=1` set (it is needed for
+`railway ssh` pod paths) resolved the scrubber to `C:\c\Users\Patrick\...` and **aborted the push**
+with a syntax-looking error. So within one hour the same hook was both skippable and a hard
+blocker, depending on an environment variable set for an unrelated tool.
+
+✅ **RE-MEASURED BEFORE WRITING THIS, AND IT IS FIXED.** The hook now derives the primary
+checkout from `git rev-parse --git-common-dir` rather than from `$root`, and its own comment
+records why: *"$root is the WORKTREE root, so \"$root/../uct-worktrees/...\" expanded to
+uct-worktrees/uct-worktrees/... from any worktree — a doubled path that cannot exist. The scan was
+skipped for exactly the checkouts that lack the file."* Walking the four candidate paths by hand
+from `terminal-research` now resolves on candidate 3, **with and without `MSYS_NO_PATHCONV=1`**,
+and the master push at `b8b5c0641` ran the scan silently.
+
+⛔ **THE RESIDUAL, WHICH IS THE PART WORTH KEEPING.** `tools/secret_scrub.py` is **not on
+master** — verified, `git cat-file -e origin/master:tools/secret_scrub.py` fails. Every worktree's
+secret scan therefore depends on a **sibling worktree existing at a specific path**. Remove or
+rename `uct-worktrees/breadth-charts` and the scan silently stops for the whole repo, including
+the tree that pushes to production. The hook's own comment says this branch *"disappears once
+tools/secret_scrub.py is on master"* — that merge is the real fix and it has not happened.
+
+⭐ **What makes this an advisory and not an incident is that the hook SAID SO.** It printed
+*"This is not a pass"* rather than a tick. A skipped rail that stays silent reads as a rail that
+passed — `lesson_a_rails_important_half_can_be_opt_in`. This one refused to lie about itself, and
+that is the only reason anybody noticed.
+
+---
+
 ## ⚠️ CROSS-PROGRAM ADVISORY — stacked master pushes served 502s through the swap
 
 > Observed 2026-09-13, 21:08–21:16 UTC, while this programme was running read-only verification.

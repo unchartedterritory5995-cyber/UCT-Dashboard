@@ -14,8 +14,8 @@
 | §6 build queue | ✅ **EMPTY** — every numbered row DONE with its SHA. **AUTHORIZED-AND-UNBUILT = 0.** |
 | audit counts | DONE **11** · BLOCKED-DATA **5** · BLOCKED-OWNER **8** · BLOCKED-SPEC-READ **5** · BLOCKED-DEPENDENCY **2** · EXCLUDED **1** = **32**. ⛔ NOT-YET-CLASSIFIED **0**. |
 | S7 | **8 of 8 types registered; every CP3 merged and ARMED.** Seven dark sweeps ticking. |
-| self-monitoring | **Layer 0 LIVE · Layer 2 REGISTERED (next run 2026-09-19 09:30 CT) · Layer 1 code-merged but the Railway service has NO source and NO cron, so it has never run.** Read **§8**. |
-| owner's desk | **one decision + one dry run**: the Railway staged-change queue (it also holds `web` -> `CHART_EDGE_SECRET`, which is NOT ours), and the Layer 2 dry run from a fresh shell. |
+| self-monitoring | **Layer 0 LIVE (refused two real pushes) · Layer 2 REGISTERED + DRY-RUN 2026-09-13, stopped at §1 and changed nothing · Layer 1 code-merged but the Railway service has NO source and NO cron, so it has never run.** Read **§8**. |
+| owner's desk | **one decision**: the Railway staged-change queue — it also holds `web` -> `CHART_EDGE_SECRET`, which is NOT ours (`OWNER_INPUTS` PART E). ⚠️ And Layer 2 cannot report: no egress to admin Discord, and **F-L2-1** makes a stopped run record `exit=0`. |
 | next decision | **next weekend's dark read** — not a build. |
 
 ## 1. Reopen
@@ -104,6 +104,28 @@ print(*[k for k,v in d['flags'].items() if v.get('status')=='armed'], sep=chr(10
 `python tools/flag_ledger_audit.py` compares the ledger against Railway itself. **0/0/0/0** at this
 commit.
 
+## 4b. ✅ ENVIRONMENT CHECK 1 IS NOW MECHANICAL — `tools/terminal_next_env_check.py` (`b8b5c0641`)
+
+> **"matching origin" means CONTAINED IN THE PUBLISH REF, never `origin/<branch>`.**
+
+`feat/s7-price-level` publishes to **master**, so `origin/feat/s7-price-level` is a stale ref it
+outruns permanently — measured at **`ahead 99`** with `git log origin/master..HEAD` **empty**. The
+old reading would have full-stopped the weekly run every Saturday on a clean tree.
+
+```
+python tools/terminal_next_env_check.py     # 0 PASS · 1 measured FAIL · 2 UNREADABLE
+```
+
+⛔ The publish ref is **DECLARED, never guessed** — `feat/s7-price-level → origin/master`,
+`terminal-research → origin/terminal-research`. Deriving it would pick the stale ref for exactly
+the branch the bug is about, and a blanket `origin/master` rule would fail the docs tree in the
+opposite direction. ⛔ And `merge-base --is-ancestor` exiting non-zero is **not** the same as "not
+an ancestor" — an unresolvable ref exits non-zero too, so the ref is resolved first and that case
+is **UNREADABLE**, not FAIL. Rail: `tests/test_terminal_next_env_check.py`, 9 cases, mutation-proved
+both ways.
+
+---
+
 ## 5. ⛔ What a session must NOT do
 
 1. **No unscoped `pytest tests/`.** Collection alone reached 6.6 GB; an unscoped run reached 18 GB
@@ -162,7 +184,7 @@ PART D of `OWNER_INPUTS.md` carries the three that need a CHOOSE.
 |---|---|---|
 | **LAYER 0** — pre-push guard | `tools/pre_push_guard.py` + the hook at `$(git rev-parse --git-common-dir)/hooks/pre-push` | ✅ **LIVE, and it proved itself in production** — refused a real push at 135 s and allowed it at 157 s. UNREADABLE fails closed. `UCT_SKIP_PREPUSH_GUARD` is the logged bypass, for a human with a reason. |
 | **LAYER 1** — `terminal-next-monitor` | `api/terminal_next_monitor_main.py` · `api/routers/terminal_next_reports.py` · the `railway.json` monitor branch | ⚠️ **CODE MERGED, SERVICE NOT CONFIGURED.** The Railway service has **no source repo and no cron**, so it has never run and cannot run. Blocker below. |
-| **LAYER 2** — weekly autonomous run | `docs/terminal-research/00-program-control/WEEKLY_AUTONOMOUS_PROMPT.md` + `tools/terminal_next_weekly.cmd` | ✅ **REGISTERED AND ARMED** — Task Scheduler job **`UCT Terminal-Next Weekly`**, status `Ready`, next run **2026-09-19 09:30** local (CT), running `C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd`. ⚠️ **NEVER YET RUN** — see below. |
+| **LAYER 2** — weekly autonomous run | `docs/terminal-research/00-program-control/WEEKLY_AUTONOMOUS_PROMPT.md` + `tools/terminal_next_weekly.cmd` | ✅ **REGISTERED AND ARMED** — Task Scheduler job **`UCT Terminal-Next Weekly`**, status `Ready`, next run **2026-09-19 09:30** local (CT), running `C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd`. ✅ **DRY-RUN 2026-09-13 19:06–19:10** — stopped at §1, built nothing, touched nothing. Three findings below. |
 
 ### ⛔ LAYER 1 IS BLOCKED ON A SHARED RAILWAY QUEUE, NOT ON CODE
 
@@ -208,22 +230,41 @@ staged intention, and one click later the staged set was gone with nothing appli
    (`catalyst` 07:20 · `ticking` 09:12 · `gate-check` 16:30 · `weekly` Sat 08:00, all ET). The
    superset is what makes DST a non-event; **do not "tighten" the cron to match the ET times.**
 
-### ⛔ LAYER 2 IS ARMED BUT HAS NEVER RUN — and the dry run needs a FRESH SHELL
+### ✅ LAYER 2 HAS NOW BEEN DRY-RUN — and it found three things
 
-The job exists and is `Ready`; `claude -p` has never been invoked against the prompt. **A dry run
-must not be launched from a session that is already holding these worktrees** — that would put a
-second Claude session on the same two trees and the same shared stash stack, which is the
-concurrency hazard this programme's own rules forbid. Run it from a shell with nothing else open:
+Run 2026-09-13 19:06–19:10 via `schtasks /Run`. It **stopped at §1 exactly as written**: nothing
+built, merged, pushed or flagged; both trees byte-identical afterwards; `stash@{0}` *"broker-sync
+WIP"* present and untouched. The layer's refusal path works.
+
+⭐ **It caught the `ahead 99` false alarm by itself**, before the fix was written — *"`git
+rev-list --count origin/master..HEAD` is 0 … worth knowing so next week's run doesn't stop on it."*
+That is the best evidence this layer earns its keep.
+
+**Three findings, and two of them make the layer silent:**
+
+1. ⛔ **FOUR OF THE EIGHT CHECKS WERE DENIED BY THE SANDBOX PROFILE.** `railway`, `schtasks`,
+   `pytest` and network egress are all refused, and a non-interactive run can approve nothing.
+   **As registered, the Saturday job stops here every week.**
+2. ⛔⛔ **THE FAILURE NOTICE COULD NOT REACH ADMIN DISCORD.** §1 and §4 route every outcome to
+   `DISCORD_WEBHOOK_URL`; with no egress and no permission to read the variable there was no
+   destination. The log file was the only copy. **A stop that cannot report is a silent stop**,
+   which is the single failure this layer exists to prevent.
+3. ⚠️ **F-L2-1 — THE RUNNER REPORTED `exit=0` FOR A RUN THAT STOPPED.** `claude -p` exits 0
+   having successfully written a report *about refusing to proceed*, so Task Scheduler records
+   **success**. Until that is fixed, `Last Result: 0` on this job means **nothing**. Registered as
+   a follow-up; deliberately **not** fixed in the same pass that found it.
+
+⚠️ The job's command path points into the **`s7-price-level` worktree**. Do not remove that
+worktree without re-pointing the task, or the Saturday run dies silently.
+
+⚠️ **Running it by hand from a session that already holds these worktrees is the concurrency
+hazard** — two Claude sessions, two trees, one shared stash stack. The 2026-09-13 run was launched
+that way deliberately and behaved, but that was a choice made with the risk understood, not a
+precedent. From a fresh shell:
 
 ```
 C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd
 ```
-
-It appends to `logs\terminal-next-weekly\YYYY-MM.log` (monthly rotation by filename, append-only) and **STOPS if the prompt
-file is missing** rather than running an empty prompt.
-
-⚠️ The job's command path points into the **`s7-price-level` worktree**. Do not remove that
-worktree without re-pointing the task, or the Saturday run dies silently.
 
 ### Until Layer 1 runs, the Monday check in §2 is still a HAND command
 

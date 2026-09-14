@@ -23,7 +23,12 @@ prevent, and there is nobody awake to catch it.
 Read `docs/terminal-research/00-program-control/RESUME.md` first — it is the entry point and it is
 current. Then run the **eight environment checks** from its §5 and the verification pass:
 
-1. both worktrees on their branches, clean, and matching origin
+1. both worktrees on their branches, **clean, and each HEAD CONTAINED IN ITS PUBLISH REF** —
+   run `python tools/terminal_next_env_check.py` (exit **0** PASS · **1** measured FAIL ·
+   **2** UNREADABLE). ⛔ **"matching origin" does NOT mean `origin/<branch>`.**
+   `feat/s7-price-level` publishes to **master**, so `origin/feat/s7-price-level` is a stale
+   ref it outruns permanently — measured 2026-09-13 at `ahead 99` with **zero** commits
+   actually unpublished. Reading it that way full-stops this run every week on a clean tree.
 2. `railway whoami` succeeds without prompting
 3. `app/node_modules` present and a real directory
 4. one **named** test file runs green, `PYTEST_EXIT` captured
@@ -40,6 +45,27 @@ results cannot be trusted, and the whole point of this file is trustworthy resul
 ⛔ **MEMORY GATE, CHECKED FIRST OF ALL:** if the box is above **70% memory used** at start, post
 that and exit **without building**. Three sessions once OOM-swept this machine and deleted a
 worktree; an autonomous run must never be the fourth.
+
+### ⚠️ WHAT THE FIRST DRY RUN FOUND (2026-09-13) — read this before trusting a quiet Saturday
+
+The run stopped at §1 exactly as written, built nothing, merged nothing, and left both trees and
+the shared stash untouched. **Three findings, and two of them make this layer silent:**
+
+1. ⛔ **FOUR OF THE EIGHT CHECKS WERE DENIED BY THE SANDBOX PROFILE** the job launches into —
+   `railway`, `schtasks`, `pytest` and network egress are all refused, and a non-interactive run
+   can approve nothing. As registered, the Saturday job stops here **every week**.
+2. ⛔⛔ **THE FAILURE NOTICE COULD NOT REACH ADMIN DISCORD.** §1 and §4 route every outcome to
+   `DISCORD_WEBHOOK_URL`; with no egress and no permission to read the variable there was **no
+   destination**. The log file was the only copy. **A stop that cannot report is a silent stop**,
+   which is the one failure mode this layer exists to prevent.
+3. ⚠️ **THE RUNNER REPORTED `exit=0` FOR A RUN THAT STOPPED.** `claude -p` exits 0 having
+   successfully written a report *about refusing to proceed*, so Task Scheduler records **success**.
+   Filed as **F-L2-1**; until it is fixed, `Last Result: 0` on this job means *nothing*.
+
+⭐ It also caught the `ahead 99` false alarm in check 1 independently, before the fix above was
+written — which is the best argument that this layer earns its keep once it can actually report.
+
+---
 
 ---
 
