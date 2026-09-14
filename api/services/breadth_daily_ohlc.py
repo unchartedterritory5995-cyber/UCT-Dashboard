@@ -71,6 +71,25 @@ def _ensure_init() -> None:
                     )"""
                 )
                 c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_metric ON breadth_daily_ohlc(metric, date)")
+                # ⭐ (c) + (d) of the reader ranking, in ONE index. Both hot deep-read
+                # queries filter on `source`, which nothing indexed: `distinct_dates`
+                # scanned the whole table for a DISTINCT, and `closes_for_dates` used
+                # the (date, metric) primary key and then re-tested `source` per row —
+                # 174,187 rows examined for one 8,000-day window.
+                #
+                # ⛔ IT CARRIES `metric` AND `c` SO IT COVERS, and that is the point
+                # rather than tidiness: a non-covering index still walks the table's
+                # b-tree for every row, which is precisely the part that is slow on a
+                # volume-backed filesystem. Measured on the production copy the plans
+                # become "SEARCH ... USING COVERING INDEX" for both queries.
+                #
+                # ⚠️ Locally this is only 1.2x (distinct_dates) and 1.4x
+                # (closes_for_dates) — a 26 MB database on NVMe with a warm page cache
+                # has little to gain. It is shipped for the case local hardware cannot
+                # show, and D-045's rule stands: no local number is quoted as a
+                # production improvement. Cost: 8.6 MB of index, 135 ms to build once.
+                c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_source_date "
+                          "ON breadth_daily_ohlc(source, date, metric, c)")
             _INIT_DONE = True
         except Exception:
             # Leave uninitialized; callers are all best-effort and no-op on failure.
