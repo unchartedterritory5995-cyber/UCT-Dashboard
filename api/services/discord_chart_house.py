@@ -260,7 +260,32 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         # locked close, on intraday it is the one number that matters.
         sess, px = tag
         params["exttag"] = f"{sess}:{float(px):.2f}"
+    vintage = _vintage_param(opts)
+    if vintage:
+        # C-07: the picture stamps the DATA's vintage, never the wall clock — so the same
+        # closed-market input renders the same pixels (03 §3.8, §3.10). LAST, so every URL
+        # that carries no vintage is byte-for-byte the URL it was before this existed.
+        params["stale"] = vintage
     return base_url.rstrip("/") + "/r/chart?" + urlencode(params)
+
+
+def _vintage_param(opts: dict) -> str | None:
+    """`?stale=`'s value, or None — and None without importing anything on the pre-V2 path.
+
+    ⛔ **THE SENTENCE HAS ONE AUTHOR AND IT IS NOT THIS MODULE.** `discord_render.badge` composes
+    it from `freshness.Envelope.badge`; here we only decide whether the caller supplied a vintage at
+    all. Spelling the wording again here — or sending a bare `as_of` for the page to phrase — is the
+    second-authority defect that put a wall clock and a stats strip a session apart on 2026-08-31.
+
+    ⛔ **THE PRE-V2 PATH PASSES NEITHER KEY**, so it leaves with `None` before the import, and its
+    URL is unchanged down to the byte. `discord_chart_prefs.render_options` returns no `stale` and
+    no `as_of`; `tests/test_discord_render_vintage_url.py` proves the whole matrix against the
+    version of this file on master rather than asserting it.
+    """
+    if "stale" not in opts and "as_of" not in opts:
+        return None
+    from api.services.discord_render import badge
+    return badge.vintage_param(opts)
 
 
 def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | None = None, *, client=None) -> bytes | None:
