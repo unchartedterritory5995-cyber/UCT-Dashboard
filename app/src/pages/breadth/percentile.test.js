@@ -1,6 +1,6 @@
 // app/src/pages/breadth/percentile.test.js
 import { describe, it, expect } from 'vitest'
-import { percentileOf, latestValue } from './percentile'
+import { percentileOf, latestValue, latestPoint, comparableCount } from './percentile'
 
 describe('percentileOf', () => {
   it('reports the share of observations at or below the value', () => {
@@ -37,5 +37,29 @@ describe('latestValue', () => {
   it('returns null when the metric is absent everywhere', () => {
     expect(latestValue(rows, 'nope')).toBeNull()
     expect(latestValue([], 'vix')).toBeNull()
+  })
+})
+
+describe('latestPoint', () => {
+  const rows = [
+    { date: '2026-08-06', vix: 15 },
+    { date: '2026-08-07', vix: 16 },
+    { date: '2026-08-10', vix: null },
+  ]
+
+  it('carries the row index and date of the newest numeric reading', () => {
+    expect(latestPoint(rows, 'vix')).toEqual({ value: 16, index: 1, date: '2026-08-07' })
+  })
+
+  it('returns null when nothing is numeric', () => {
+    expect(latestPoint(rows, 'nope')).toBeNull()
+    expect(latestPoint([], 'vix')).toBeNull()
+  })
+})
+
+describe('comparableCount', () => {
+  it('counts only the observations a percentile can compare against', () => {
+    expect(comparableCount([1, null, 2, undefined, NaN, 'x', 3])).toBe(3)
+    expect(comparableCount(undefined)).toBe(0)
   })
 })

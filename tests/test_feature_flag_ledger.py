@@ -83,8 +83,18 @@ def test_the_ledger_does_not_describe_gates_that_no_longer_exist():
     an env name held in a module constant. Before that the gate was invisible,
     so the entry genuinely looked like an entry for nothing — the rail was
     reporting its own blindness and blaming the ledger.
+
+    ⚰️ AND IT HAPPENED AGAIN, ONE AXIS OVER, ON 2026-09-13. This compared the ledger
+    against `gates()` alone, so the first two VISIBILITY flags to be declared —
+    `DESK_PUBLIC_SHOWS` and `DESK_TSDR_ANNOUNCE_SHOWS`, neither carrying an
+    ENABLED/DISABLE marker — were immediately reported as entries for gates that do not
+    exist. The rail would have demanded the deletion of the two entries added to close
+    the leak that published 27 paid sessions. Same shape, same sentence: **the rail was
+    reporting its own blindness and blaming the ledger.** The subtrahend is now the
+    UNION of both axes, so declaring a flag on either one can never read as rot.
     """
-    existing = set(ffi.gates(ffi.repo_roots(REPO), REPO))
+    roots = ffi.repo_roots(REPO)
+    existing = set(ffi.gates(roots, REPO)) | set(ffi.visibility_flags(roots, REPO))
     stale = sorted(set(_ledger()) - existing)
     assert not stale, (
         "docs/feature_flags.json declares gates the code does not read AT ALL. "

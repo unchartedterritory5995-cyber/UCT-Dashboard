@@ -1,0 +1,9 @@
+# ⛔ This repository is PUBLIC (verified 2026-09-13: GitHub API `visibility: public`).
+#
+# Breadth history is paid, member-only data (`require_paid` on /api/breadth-monitor since
+# 2026-08-09). Screenshots of the Data Charts tab draw that data, and the rig's measurement JSON
+# records the member session's requests. Both stay on the operator's disk and are never
+# committed. The docs in this directory describe them without reproducing the data.
+screenshots/
+measurements/
+mock/data/

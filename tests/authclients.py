@@ -107,6 +107,26 @@ def sign_in_flow_caller(monkeypatch, user: dict = PAID_MEMBER) -> dict:
     return user
 
 
+def sign_in_bars_caller(monkeypatch, user: dict = PAID_MEMBER) -> dict:
+    """The chart-data family's identity, which is NOT `get_current_user`.
+
+    `require_bars_access` reads the cookie itself through
+    `api.bars_auth.validate_session` — a `from` import, so the patch lands on
+    `bars_auth`'s OWN name, exactly as the flow sibling above explains. It also
+    resolves the plan through `bars_auth.get_user_plan`, so that is substituted
+    too: leaving the real lookup in would make a behaviour test depend on whatever
+    a test database happens to say about a fixture id.
+
+    ⛔ AND DELIBERATELY NOT "just send `Bearer PUSH_SECRET`", for the same reason
+    the flow helper gives: that authenticates as the MACHINE, so a test written
+    that way keeps passing even when the member path through the gate is broken.
+    """
+    import api.bars_auth as ba
+    monkeypatch.setattr(ba, "validate_session", lambda _cookie: dict(user))
+    monkeypatch.setattr(ba, "get_user_plan", lambda _uid: user.get("plan", "free"))
+    return user
+
+
 def _main_app():
     from api.main import app
     return app

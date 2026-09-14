@@ -16,7 +16,8 @@ the URL, so these must NOT be auth-gated. Shards are already gzipped; we set
 Content-Encoding: gzip so the browser transparently decompresses to JSON and the
 web GZip middleware skips re-compressing an already-encoded body.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from api.bars_auth import require_bars_access
 from fastapi.responses import Response
 from datetime import datetime
 
@@ -47,7 +48,7 @@ def _valid_date(s: str) -> bool:
 
 
 @router.get("/manifest")
-def manifest():
+def manifest(_access: dict = Depends(require_bars_access)):
     """Latest pack manifest, or {"available": false} (no-store) when no pack has
     been published yet — so the client keeps polling instead of caching absence."""
     body = data_sync.get_bytes(f"{_PREFIX}/latest.json")
@@ -58,7 +59,7 @@ def manifest():
 
 
 @router.get("/{date}/delta")
-def delta(date: str):
+def delta(date: str, _access: dict = Depends(require_bars_access)):
     """The day's small delta file (tail of every series) — immutable, gzipped.
     Declared before /{date}/{idx} so the literal 'delta' wins over the numeric
     shard route."""
@@ -71,7 +72,7 @@ def delta(date: str):
 
 
 @router.get("/{date}/hot")
-def hot(date: str):
+def hot(date: str, _access: dict = Depends(require_bars_access)):
     """The hot-set shard (the ~100 most-opened names) — immutable, gzipped.
     Declared before /{date}/{idx} so the literal 'hot' wins over the numeric
     shard route (same pattern as /{date}/delta). A first-visit browser ingests
@@ -85,7 +86,7 @@ def hot(date: str):
 
 
 @router.get("/{date}/{idx}")
-def shard(date: str, idx: str):
+def shard(date: str, idx: str, _access: dict = Depends(require_bars_access)):
     """One immutable gzipped shard. Validates the path so it can only ever
     address a barspack/<date>/<NNN>.json.gz key — never an arbitrary object."""
     if not _valid_date(date) or not idx.isdigit():

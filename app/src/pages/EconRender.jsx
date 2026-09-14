@@ -12,8 +12,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 function Row({ r }) {
   const fed = r.kind === 'fed'
   return (
@@ -47,7 +47,7 @@ export default function EconRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     fetch(`/api/r/econ?token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(setData)

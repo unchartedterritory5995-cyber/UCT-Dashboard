@@ -398,6 +398,26 @@ def main() -> int:
                           + ', timing rule)')
                 break
 
+    # !!!! ORGANIC MEMBERS. Owner ruling 2026-09-13: say it in every verdict
+    # and every end-of-day report until it changes.
+    #
+    # The sampler counts members BY IDENTITY and excludes the rig, the owner's
+    # own browser and the smoke account. What is left is an ORGANIC member: a
+    # person who is not us. Zero of them have opened the Notebook since the
+    # flip, and a window whose whole purpose is member exposure has to say so
+    # in the same breath as its verdict -- otherwise KEEP reads as 'a week of
+    # members found nothing' when it means 'nobody looked'.
+    #
+    # * A SYNTHETIC member is counted SEPARATELY and never folded in. The
+    # member-smoke account is provisioned by us, so an opt-in from it proves
+    # the path is reachable and proves nothing about adoption.
+    organic = 0 if not member_counts else max(member_counts)
+    organic_line = (
+        'organic members exposed = ' + str(organic)
+        + ('  (nobody outside the rig has opened the Notebook in this window)'
+           if organic == 0 else '  -- attributed by identity, see the log')
+    )
+
     dnb = do_not_build()
     # ! AN UNREADABLE ROW IS NOT A CLEAN ONE. It does not make the wave bad, so it
     # does not say REVERT on its own - it says the reading is INCOMPLETE, which is
@@ -431,6 +451,7 @@ at:        {at}
 heartbeat: Last Run Time {last_run} | Last Result {last_result}
 rows read: {len(r)} ({len(skipped)} skipped){skip_note}  ({r[0][0] if r else 'none'} .. {r[-1][0] if r else 'none'})
 member:    {member}
+ORGANIC:   {organic_line}
 do-not-build: {dnb}
 
 | trigger | result |
@@ -445,6 +466,15 @@ do-not-build: {dnb}
     if fails:
         body += '## Why this is not a clean KEEP' + NLV + NLV
         body += NLV.join('- ' + f for f in fails) + NLV + NLV
+    if organic == 0:
+        body += ('## !! What a KEEP over zero organic members does NOT mean' + NLV + NLV
+                 + 'Every trigger reads clean when nobody has run the layer -- that is what '
+                 + 'clean looks like over an EMPTY SET.' + NLV + NLV
+                 + '!!!! **CONSEQUENCE FOR K-1.** Its precondition is a config-served rate '
+                 + 'of 100% over the K window, measured by identity. If this window closes '
+                 + 'with zero organic members, that is **100% of a synthetic population**, '
+                 + 'and the K-1 flip packet must say so in those words rather than quoting '
+                 + 'a rate that sounds like fleet coverage.' + NLV + NLV)
     tail = [
         '- This file does not merge anything. A REVERT verdict is a reading for a person',
         '  to act on: merge the draft rollback PR for',
