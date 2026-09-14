@@ -11,6 +11,43 @@ from api.services import education_service as edu
 ET = ZoneInfo("America/New_York")
 
 
+class _FakeR2Bucket:
+    """In-memory stand-in for the wisdom/ R2 writer (api.services.wisdom.core.r2)."""
+
+    def __init__(self):
+        self.objects: dict = {}
+
+    def head_object(self, Bucket, Key):
+        if Key not in self.objects:
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+        return {"Metadata": {"sha256": self.objects[Key][1]}}
+
+    def put_object(self, Bucket, Key, Body, ContentType, Metadata):
+        assert Key not in self.objects, "overwrite attempted"
+        self.objects[Key] = (Body, Metadata["sha256"])
+
+
+@pytest.fixture(autouse=True)
+def fake_r2(monkeypatch):
+    """⛔ HERMETIC R2 FOR EVERY TEST IN THIS MODULE.
+
+    The publish path now archives the Zoom text artifacts before it trashes the cloud
+    copy (§8a.6a), so an orchestration test here reaches R2. This box carries real
+    DATA_SYNC_* credentials in its environment — that is how 16 fixture objects reached
+    the PRODUCTION bucket once. Credentials removed AND the client replaced, so a path
+    that bypasses core.r2 still finds nothing."""
+    for var in ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY", "DATA_SYNC_SECRET_KEY",
+                "DATA_SYNC_BUCKET"):
+        monkeypatch.delenv(var, raising=False)
+    from api.services.wisdom.core import r2
+
+    bucket = _FakeR2Bucket()
+    monkeypatch.setattr(r2, "_client_and_bucket", lambda: (bucket, "fake-bucket"))
+    return bucket
+
+
 def test_session_title_formats_et_date():
     # 2026-06-24T13:30:00Z == 09:30 ET, still June 24
     assert dds._session_title("2026-06-24T13:30:00Z") == "Live Trading Session — June 24, 2026"
@@ -146,10 +183,29 @@ from api.services import desk_session_jobs as q
 
 
 class _FakeZoom:
-    def __init__(self): self.deleted = []
+    """⛔ CONTRACTS §8a.6a (reviewer R5, 2026-09-13): this publish path deletes the Zoom
+    cloud copy when DESK_SESSION_CHAPTERS_ENABLED is off — which is its DEFAULT — so the
+    fake has to carry the recording surface the store-and-verify gate reads. Before R5 it
+    carried only `delete_recording`, and `test_process_pending_publishes_and_cleans`
+    asserted `deleted == ["U1"]` with nothing archived: a green test holding in place the
+    exact unrecoverable delete §8a.6a forbids."""
+    def __init__(self, rec=None, downloads=None):
+        self.deleted = []
+        self._rec = rec if rec is not None else {"recording_files": [
+            {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "id": "vtt-1",
+             "status": "completed", "download_url": "http://z/vtt"},
+            {"file_type": "CHAT", "recording_type": "chat_file", "id": "chat-1",
+             "status": "completed", "download_url": "http://z/chat"},
+        ]}
+        self._downloads = downloads if downloads is not None else {
+            "http://z/vtt": "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nhello\n",
+            "http://z/chat": "12:01:02 From Someone : hi",
+        }
     def stream_download(self, url, token, dest):
         with open(dest, "wb") as f: f.write(b"video")
         return dest
+    def get_recording_files(self, uuid): return self._rec
+    def download_text(self, url): return self._downloads.get(url, "")
     def delete_recording(self, uuid): self.deleted.append(uuid)
 
 
@@ -256,7 +312,7 @@ def test_wildcard_must_be_the_whole_entry_not_a_substring(edu_db, jobs_db, monke
     assert _privacy_after_publishing("LIVE TRADING TODAY", edu_db, jobs_db) == "unlisted"
 
 
-def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
+def test_process_pending_publishes_and_cleans(edu_db, jobs_db, fake_r2):
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     z = _FakeZoom(); yt = _FakeYT()
     out = dds.process_pending_jobs(zoom=z, youtube=yt)
@@ -265,7 +321,41 @@ def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
     assert len(vids) == 1 and vids[0]["title"] == "Live Trading Session — June 24, 2026"
     assert vids[0]["youtube_id"] == "VIDX"
     assert z.deleted == ["U1"]                      # Zoom copy trashed
+    # ⛔ …and ONLY because the text artifacts were stored first (§8a.6a). The VTT and the
+    # chat log are both required; the metadata JSON rides with them.
+    keys = sorted(fake_r2.objects)
+    assert any(k.endswith("/vtt-1.vtt") for k in keys), keys
+    assert any(k.endswith("/chat-1.chat.txt") for k in keys), keys
+    assert any("/recording-" in k and k.endswith(".json") for k in keys), keys
     assert yt.thumbs and yt.thumbs[0][0] == "VIDX" and yt.thumbs[0][1] > 1000  # branded thumb set
+
+
+def test_the_zoom_copy_is_kept_when_the_archive_cannot_complete(edu_db, jobs_db, monkeypatch):
+    """⛔ MUTANT-PROOF FOR THE SECOND DELETE PATH (reviewer R5).
+
+    A Zoom delete has no trash recovery, so a failed store means the recording stays.
+    Deleting `archive_before_trash`'s call in desk_daily_session, or making it return
+    True unconditionally, turns this red."""
+    from api.services import desk_session_insights as si
+    from api.services.wisdom.core import r2
+
+    class _DeadR2:
+        def head_object(self, Bucket, Key):
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+
+        def put_object(self, **_kw):
+            raise RuntimeError("R2 is down")
+
+    monkeypatch.delenv("DESK_SESSION_CHAPTERS_ENABLED", raising=False)
+    monkeypatch.setattr(r2, "_client_and_bucket", lambda: (_DeadR2(), "b"))
+    assert si.is_enabled() is False  # control: this IS the unguarded-delete branch
+    jobs_db.enqueue("U2", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    z = _FakeZoom(); yt = _FakeYT()
+    dds.process_pending_jobs(zoom=z, youtube=yt)
+    assert edu.list_videos(), "control: the video still publishes — only the trash is held"
+    assert z.deleted == []
 
 
 def test_thumbnail_failure_is_nonfatal(edu_db, jobs_db):

@@ -480,10 +480,19 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             # the original immediate-delete behaviour.
             from api.services import desk_session_insights
             if not desk_session_insights.is_enabled():
-                try:
-                    zoom.delete_recording(uuid)
-                except Exception:
-                    pass
+                # ⛔⛔ CONTRACTS §8a.6a: a Zoom delete has NO trash recovery, so nothing
+                # is deleted before its copy is stored — and that rule does not stop
+                # applying because DESK_SESSION_CHAPTERS_ENABLED is off (it defaults
+                # off). Store the VTTs, the chat log and the metadata in immutable R2
+                # first; anything short of a completed store keeps the recording.
+                ok, why = desk_session_insights.archive_before_trash(zoom, uuid)
+                if ok:
+                    try:
+                        zoom.delete_recording(uuid)
+                    except Exception:
+                        pass
+                else:
+                    print(f"[desk-sessions] Zoom recording KEPT for {uuid}: {why}")
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
             if created_now:                 # alert once, only on a genuinely-new publish
