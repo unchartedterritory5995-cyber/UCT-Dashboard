@@ -409,3 +409,29 @@ then 2.2 observability — both done; see Phase 2.
 - **Next:** P2.2 (per-upstream timeouts wired into the deadline arithmetic end to end) → P2.10, then
   2.5 artifact cache + coalescing · 2.6 Discord delivery hardening · 2.7 visual spec + goldens ·
   2.8 close every forensics class.
+
+## OI-31 — resolution (Lane B, step 2.5, 2026-09-14)
+
+⛔ Appended, never edited in place: this lane's ledger mandate was exactly one row, and the original
+OI-31 entry in the open-items table above is left standing as the record of what was believed at the
+time. Read them together — the row above is the finding, this one is the ruling.
+
+| # | What was wrong | How it was caught | Resolution |
+|---|---|---|---|
+| OI-31 | **`03` §3.6 and the built cache described two different products.** §3.6 specified an on-volume LRU by bytes at `DISCORD_RENDER_CACHE_DIR` (512 MiB); what shipped was an in-memory, per-process store that wrote nothing, and said so in a module docstring, in a test (`test_the_cache_is_in_memory_by_design_and_writes_nothing`) and in a mutation (B32, *"a durability layer nobody asked for is imported"*). | Lane B, which owned neither document and said so; ruled by the owner 2026-09-14. | **DECIDED: build what §3.6 says. The in-memory-only design is SUPERSEDED, not wrong-and-deleted** — it is recorded here because the reasoning behind it was sound and the conclusion was backwards, which is the only kind of mistake worth keeping. That reasoning: *the median pod serves 8.4 minutes (C-01), so durability is a separate decision.* ⭐ **The owner's inversion is the whole entry: an 8.4-minute pod is not the argument against durability, it is the argument FOR it.** `web` deploys ~77 times a day, so an in-memory cache is empty exactly when the first render after a deploy needs it most — the busiest minute the pod ever has. The old build's own consolation, *"what survives a restart is the KEY"*, is true and insufficient: determinism makes the hit POSSIBLE, durability makes it HAPPEN on the first request rather than the second. Built as two tiers — L1 heap (64 MiB), L2 volume (512 MiB, LRU by bytes), L1 → L2 → miss, an L2 hit promotes into L1, an L1 eviction never reaches the volume and an L2 eviction never reaches the heap. ONE expiry function (`expired_at`) called by both tiers, so "same TTL rules" is structural rather than two copies agreeing. Atomic write (tmp in the same directory → `fsync` → `os.replace`); the read verifies payload LENGTH, SHA-256, and that the file claims the key that was asked for — eleven damage cases are each a recorded miss, never served, never raised. The degraded-never-fresh guard is explicit at the deserialisation boundary: no envelope ⇒ `stale is None` (unknown, not fresh), and a `stale` that is neither a bool nor `null` is corruption rather than a verdict. §3.6 rewritten to the built product with a *"Where it differs"* paragraph rather than a silent edit. **Two non-additive changes named because they are not refactors:** (1) the heap cap moved off `DISCORD_RENDER_CACHE_BYTES` to `DISCORD_RENDER_CACHE_MEM_BYTES` — one variable cannot be two caps, and the collision ran the dangerous way, since an operator setting §3.6's documented 512 MiB for the volume would have raised the HEAP ceiling eightfold on a pod that OOMs members; nothing sets either name today. (2) L2's `/data/...` default must be an INLINE literal in the `os.environ.get` call — written as a named constant it read as a path no env var can move and took `conftest.shared_data_root_census()`'s `unpinnable` from **0 to 1**, measured, which is a path a test run resolves against the owner's live `C:\data`. ⛔ `contracts.py` UNCHANGED: `CacheKey`, `CachedArtifact` and `ArtifactStore` are satisfied exactly as frozen, so Lane A's wiring is unaffected. |
+
+⚠️ **Raised while doing the work, and NOT resolved here: the "degraded artifacts are cached apart"
+clause of §3.6** — stand-ins 60 s, cached flow cards only as a labelled fallback — **is not built,**
+**and this module cannot build it.** Nothing in the store can tell which artifacts are stand-ins:
+that fact lives with the caller that chose the stand-in, so the shorter TTL is a wiring decision for
+the handler step (2.4/2.8). It is flagged in §3.6 as **OI-32** and deliberately has no row of its own
+in the table above — this lane's mandate was one OI-31 row, and "cache the stand-in for 60 s" versus
+"never cache a stand-in" is the owner's answer to give, not a lane's. ⛔ It is named rather than
+quietly dropped, because a §3.6 clause describing behaviour no code has is exactly how OI-31 started.
+
+⚠️ **Also recorded rather than fixed: §3.6's `data_version` line named `session_state` as part of the
+chart key.** It is not in the key and must not be: the session is the wall clock wearing a hat, and
+with it in the key the same closed-market input re-keys at every session boundary, which makes
+§3.10's determinism guarantee unobservable. `key_for` cannot read a clock at all and
+`test_the_key_cannot_read_a_clock_at_all` is what makes that structural. §3.6 now says so in place of
+the old claim, with the reason beside it.
