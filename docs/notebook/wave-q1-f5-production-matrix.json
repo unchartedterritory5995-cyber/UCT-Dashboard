@@ -13,7 +13,7 @@
   },
   "append_document_excerpt|reload mid-flight (marker from a dead tab)": {
     "verdict": "INCONCLUSIVE",
-    "why": "could not create the probe note ({'err': 'HTTP 502'}) \u2014 nothing was measured"
+    "why": "the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span produced no selection. Last reading: ranges=1 collapsed=True anchor=#text( F5-MATRIX append_) focus=#text( F5-MATRIX append_). CDP-synthesised pointer input does not produce a text selection in this renderer"
   },
   "append_document_excerpt|settle-first": {
     "verdict": "N/A",
@@ -21,7 +21,7 @@
   },
   "append_document_excerpt|slow PUT (landed, ring populated)": {
     "verdict": "INCONCLUSIVE",
-    "why": "the `append_document_excerpt` door could not be set up: the PDF uploaded but no document row appeared ({'err': 502})"
+    "why": "the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span produced no selection. Last reading: ranges=1 collapsed=True anchor=#text( F5-MATRIX append_) focus=#text( F5-MATRIX append_). CDP-synthesised pointer input does not produce a text selection in this renderer"
   },
   "append_financial_fact|drain-first (the editor could NOT report local state)": {
     "verdict": "INCONCLUSIVE",

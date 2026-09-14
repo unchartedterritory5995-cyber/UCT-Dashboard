@@ -117,7 +117,7 @@
     },
     {
       "id": "matrix-remainder",
-      "status": "pending",
+      "status": "inconclusive",
       "timeout": 3600,
       "why": "Three attempts ended INCONCLUSIVE on a 502 at the LAST cell of each pass - but each pass DID measure cells (the table went from 6 recorded to 42). Re-staged LAST so it can never again sit ahead of a decision-value cell.",
       "cmd": [
@@ -129,11 +129,11 @@
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
-      "attempts": 1,
+      "attempts": 3,
       "result": {
         "exit": 0,
-        "seconds": 495.0,
-        "tail": "\u21d2 INCONCLUSIVE  could not create the probe note ({'err': 'HTTP 502'}) \u2014 nothing was measured",
+        "seconds": 550.0,
+        "tail": "\u21d2 INCONCLUSIVE  the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span prod",
         "inconclusive": true
       }
     }
