@@ -73,6 +73,14 @@ the value on the render URL, and `discord_chart_house.build_render_url` appends 
   before this existed. That claim is proved, not asserted:
   `tests/test_discord_render_vintage_url.py` executes `discord_chart_house.py` as it stood at
   `4eec5e0aa` out of git and compares `build_render_url` across eleven option shapes.
+- ⏳ **IT IS A CAPABILITY UNTIL SOMETHING PRODUCES IT, AND NOTHING DOES YET.** `build_render_url`
+  emits the vintage when `options` carries it, and no production call site puts it there — the one
+  seam is `house_opts` in `api/services/discord_interactions.py::produce_chart`, beside the
+  `exttag` block, where the newest bar is already in hand as `daily[-1]["t"]`:
+  `house_opts["stale"], house_opts["as_of"] = env.stale, env.as_of_et`. That file is not this lane's
+  and the wire is two lines. ⛔ Recorded here rather than left to be discovered, because
+  *built, tested, green and unwired* is this programme's most-repeated shape — `breakers.py` and
+  `freshness.py` were both exactly this for a step and a half.
 - ⚠️ **Stated residual:** the page keeps an older, stats-derived clause (`· data as of Aug 28`,
   from `?stats=`'s own `as_of`) for a caller that sends no verdict. When `?stale=` is present it
   **wins and that clause is suppressed**, so there is only ever one vintage sentence under a chart.
