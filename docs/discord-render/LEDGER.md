@@ -654,3 +654,62 @@ the two from drifting silently.
 > two cannot be read apart again. **Every harness in `docs/discord-render/instruments/` should be
 > checked for the same shape** — a dry run that asserts each `old` matches exactly once costs
 > seconds and needs no test run at all.
+
+---
+
+## Owner rulings, 2026-09-14 (Monday) — recorded before they were acted on
+
+### OI-32 — **never cache a stand-in** (DECIDED)
+
+Raised by Lane B, which correctly said its own module could not answer it: the store cannot tell
+which artifacts are stand-ins, because that fact lives with the caller that CHOSE one.
+
+**Ruling: artifacts carry `is_standin` in metadata and BOTH tiers refuse them.** §3.6's
+*"degraded artifacts are cached apart: stand-ins 60 s"* is removed with the reason.
+
+⭐ **Why "apart for 60 s" was the wrong compromise.** A stand-in is by definition the lower-quality
+artifact, so caching one means serving it to every member who asks in the next minute — and C-06
+measured **three stand-ins, two of which never healed**. A 60-second TTL does not soften that; it
+industrialises it, because the coalescer fans one stand-in out to every follower. The cost of the
+alternative is one extra render.
+
+### OI-28 — the correction, and the session that introduced it
+
+⛔ **The open item said SIX failures. The true inherited red is TWENTY-TWO** — `test_chart_renderer_
+service.py` 6 and `test_chart_renderer_pool.py` 16. The glob passes 35/35 because pytest imports
+every selected module at collection in file order, and `test_chart_renderer_dualstack.py` sorts
+first and makes the `sys.path` entry at module level — fixing the path for everybody **by
+accident**. Green in company, red alone.
+
+**Introduced by `7c8554dfd`** — *"feat(edge): per-render service capability — the machine trust path
+(Phase 1.5)"*, session **`01MhvqVHAhZ8zhoyMYvuVnxj`**. It added the flat `from edge_scope import …`
+to `services/chart_renderer/app.py` and gave `test_chart_edge_render_scope.py` a path entry, but not
+the two loaders that `exec_module` that file. The flat import is CORRECT for the renderer image
+(`WORKDIR /app`, modules copied flat) and was not touched; the fix is a path entry in each loader.
+
+⭐ **The lesson is the measurement, not the fix.** "Six failures" came from running the glob; the
+real number came from running each file in its own process. **A suite that is green in company and
+red alone is reporting its own collection order.**
+
+### Mutation A29 — NOT-APPLIED now FAILS the gate
+
+`A29` — *"the V2 handlers bind adapters and not the raw clients"* — had a stale anchor and was
+silently skipped through several merges, reported as a footnote under the number people quote:
+`78/80 RED` reads like a near-perfect score.
+
+**Ruling: NOT-APPLIED ≠ 0 fails the harness; it is never just printed.** Every harness already
+returns non-zero on a non-RED verdict; what was missing was the count on the summary line, and the
+one-second dry check before committing to a 25-minute run. Added to the runbook's measurement
+pitfalls.
+
+### The second budget overrun — a class, not an instance
+
+Found by Lane C **while measuring the first one**: `_call`'s header had always promised *"the retry,
+with jitter, INSIDE the same budget"*, and the code slept the full jittered delay regardless.
+Measured 3 attempts / 2 s deadline / 1.5 s upstream: **2.7–3.7 s spent**, refusing attempts 2 and 3
+for want of budget and then sitting past the deadline sleeping between the refusals. Now **2.000 s**.
+
+⛔ **This is the third instance of one class in the layer built to prevent it**, so the ruling is
+structural rather than another patch: every sleep on the retry path is bounded by the remaining
+deadline, and a docstring that promises "inside the same budget" is a TESTED claim.
+

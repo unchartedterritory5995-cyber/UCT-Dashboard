@@ -9,7 +9,59 @@ variable, and three commands.
 
 ---
 
-## 0. State at the time of writing — measured, not remembered
+## 0. ⛔⛔ THE GATE — and it is a COMMAND, not a checklist in this file
+
+```sh
+python docs/discord-render/instruments/flip_preconditions.py
+```
+
+**Exit 0 = every precondition MET · 1 = at least one NOT MET · 2 = at least one NOT MEASURABLE.**
+
+⛔⛔ **A CHECKLIST TYPED INTO A DOCUMENT IS A CHECKLIST THAT DRIFTS, AND THIS PROGRAMME HAS THE
+RECEIPT.** `docs/feature_flags.json` described an unreleased surface *while members were using it*
+for a full day, because a ledger records INTENT and cannot see the world. So the table below is
+**generated output pasted in with its date**, and the command is the authority. If they disagree,
+the command is right and this section is what drifted.
+
+### Authority
+
+| Flip | Who | When |
+|---|---|---|
+| `DISCORD_RENDER_V2_ENABLED=1`, **admin-only canary channel** | pre-authorised to the integrating session | **only** when the command prints `ALL MET` |
+| the **member-channel** flip | **the owner, and only the owner** | after reading the canary evidence |
+
+⛔ **NOT MEASURABLE blocks the flip exactly as NOT MET does.** They are kept apart because what you
+*do* about them differs — one is a defect to fix, the other is evidence to go and get — but neither
+is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
+
+### Reading as of 2026-09-14 04:20 ET — **organic members exposed to V2: 0**
+
+| Precondition | State | Evidence |
+|---|---|---|
+| zero xfails in the forensics suite | ✅ MET | 0 xfail decorators in `tests/test_discord_render_forensics.py` |
+| every forensics class closed with a commit | 🔴 NOT MET | 11/14; open: **C-02**, **C-09**, **C-13** |
+| the artifact cache is wired to the hot path | 🔴 NOT MET | `artifact_cache` has no importer on the hot path — 2.5 is built and unconnected |
+| soak clean for ≥ 24 h | ⚪ NOT MEASURABLE | 27 clean ticks; 90 needed |
+| `/chart` is shadowed (structural) | ✅ MET | `tests/test_discord_render_shadow_reaches_chart.py` drives the real route with a real Ed25519 signature |
+| **S2** measured in `--real` mode and within SLO | ⚪ NOT MEASURABLE | no `--real` run exists |
+| chaos passed in `--real` mode | ⚪ NOT MEASURABLE | rig stubs are not evidence for renderer_down, bars_api_502, discord_429, oversized_attachment, mid_job_restart |
+| 3.5 real-Discord smoke | ⚪ NOT MEASURABLE | no screenshots |
+| `#render-alerts` locked to admins | ⚪ NOT MEASURABLE | the bot cannot see the channel (403/50001) — owner-hand, not a product gap |
+| mutation NOT-APPLIED = 0 | ⚪ NOT MEASURABLE | pass `--run-mutations`, or read the merge row |
+
+**VERDICT: NOT MET — do not flip.**
+
+### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
+
+**S2 HAS NOT BEEN MEASURED.** Every load figure this programme has produced ran `--symbols stub`
+through a zero-cost handler: no symbol resolved, no bars fetched, no chart rendered, no PATCH sent.
+Those numbers are real and they are about **S1, the acknowledgement path, and nothing else.**
+⛔ Do not read them in a row labelled S2, and do not let the ack-path p99 stand in for a delivery
+number — they are measurements of different things that happen to share a unit.
+
+---
+
+## 0b. State at the time of writing — measured, not remembered
 
 Read **2026-09-13 20:44 ET / 2026-09-14 00:44 UTC**, from the running production process:
 

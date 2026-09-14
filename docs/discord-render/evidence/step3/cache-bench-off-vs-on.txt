@@ -1,0 +1,6 @@
+cache OFF              asked=100  renders=100  p50=  2.49ms p95=  2.64ms hit_rate=  0.0% l2_promotions=-
+cache ON               asked=100  renders=20   p50=  0.02ms p95=  7.04ms hit_rate= 80.0% l2_promotions=0
+
+renders avoided: 80 of 100  (80.0%)
+NOTE: the renderer is SIMULATED at 1.8 ms (03 §2's p50 budget). This measures the CACHE's
+      effect on the render path, not the renderer. An end-to-end number needs --real mode.

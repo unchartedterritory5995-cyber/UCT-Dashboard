@@ -11,6 +11,8 @@ that mirrors the caller cannot catch a caller that is wrong about the callee.
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from tools import railway_env_logs as envlogs
@@ -71,6 +73,50 @@ def test_a_page_that_cannot_advance_stops_and_says_so_instead_of_looping():
     envlogs.fetch('"x"', "2026-09-01T00:00:00Z", "2026-09-12T00:00:00Z", page=3, sleep_ms=0, gql=api, log=notes.append)
     assert len(api.calls) <= 3
     assert any("STOPPED: no progress" in n for n in notes), "a truncated result must announce itself"
+
+
+def test_a_complete_pull_is_reported_as_EXACT_not_as_a_floor():
+    """⛔⛔ THE DISCRIMINATOR BETWEEN "THE END" AND "A STALL", AND IT IS THE WHOLE POINT.
+
+    ⚰️ Both looked identical until 2026-09-14: a page with nothing new printed *"results before it
+    may be missing"* whether the API had run out of data or the pager genuinely could not advance.
+    So a complete 8-row pull had to be quoted as `>= 8`, and the Monday shadow line could not tell
+    "nobody ran /chart" from "the pager stopped early" — an instrument that cannot say whether it
+    saw everything turns every absence into an open question.
+
+    An UNDER-FULL page means the API returned everything it had at that anchor. (Railway's form is
+    anchor-inclusive and returns `limit + 1`, so "full" is `page + 1` rows — `RailwayLike` models
+    that, which is why this fixture uses two rows against a page of 5.)"""
+    api = RailwayLike([_row("2026-09-10T12:00:00Z", msg="a"), _row("2026-09-10T12:00:00Z", msg="b")])
+    notes = []
+    envlogs.fetch('"x"', "2026-09-01T00:00:00Z", "2026-09-12T00:00:00Z", page=5, sleep_ms=0,
+                  gql=api, log=notes.append)
+    assert any("EXACT" in n for n in notes), f"a complete pull was not called exact: {notes}"
+    assert not any("STOPPED" in n for n in notes), "a complete pull announced itself as truncated"
+    assert envlogs.fetch.last_exact is True
+
+
+def test_the_output_file_says_whether_its_own_count_is_exact(tmp_path):
+    """⛔ THE HEADER TRAVELS IN THE FILE, because stderr is not what gets read a week later, and a
+    consumer that has to be TOLD to pass `--pager-stopped` is a consumer that will forget once."""
+    out = tmp_path / "x.jsonl"
+    api = RailwayLike([_row("2026-09-10T12:00:00Z", msg="a")])
+    assert envlogs.main(["--filter", '"x"', "--since", "2026-09-01T00:00:00Z",
+                         "--until", "2026-09-12T00:00:00Z", "--out", str(out), "--page", "5"],
+                        gql=api) == envlogs.EXIT_OK
+    first = json.loads(out.read_text(encoding="utf-8").splitlines()[0])
+    assert first["_meta"]["exact"] is True and first["_meta"]["count"] == 1
+    # the control: the header must not be mistaken for a log row by anything reading the file
+    assert "timestamp" not in first
+
+
+def test_a_stalled_pull_says_so_in_the_file_too(tmp_path):
+    out = tmp_path / "x.jsonl"
+    api = RailwayLike([_row("2026-09-10T12:00:00Z", msg=f"burst {i}") for i in range(10)])
+    envlogs.main(["--filter", '"x"', "--since", "2026-09-01T00:00:00Z",
+                  "--until", "2026-09-12T00:00:00Z", "--out", str(out), "--page", "3"], gql=api)
+    first = json.loads(out.read_text(encoding="utf-8").splitlines()[0])
+    assert first["_meta"]["exact"] is False, "a stalled pull claimed its count was exact"
 
 
 def test_an_empty_first_page_is_announced():

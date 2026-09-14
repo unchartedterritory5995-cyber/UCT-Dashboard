@@ -46,6 +46,23 @@ BLOCKING = ("divergence", "error")
 _DEC = json.JSONDecoder()
 
 
+def pull_meta(text: str) -> dict | None:
+    """`railway_env_logs.py`'s `_meta` header, when the pull wrote one.
+
+    ⛔⛔ THE FILE SAYS WHETHER ITS OWN COUNT IS EXACT, AND THIS READS IT RATHER THAN ASKING THE
+    CALLER. A `--pager-stopped` flag is a person remembering to pass it, and the one time it
+    matters is the time nobody does. The flag still forces a floor — a caller may know something
+    the file does not — but it can no longer be the only way the truth arrives."""
+    for line in text.splitlines():
+        try:
+            obj = json.loads(line)
+        except Exception:  # noqa: BLE001
+            continue
+        if isinstance(obj, dict) and isinstance(obj.get("_meta"), dict):
+            return obj["_meta"]
+    return None
+
+
 def parse(text: str) -> list[dict]:
     """Every `evt=shadow` record in a log dump, however the line is wrapped.
 
@@ -155,6 +172,13 @@ def self_check() -> int:
                   len(parse(wrapped)) == 1 and parse(wrapped)[0]["cmd"] == "flow"))
     cases.append(("two records on one line are both read",
                   len(parse(text + "\n" + text)) == 2))
+    _exact = json.dumps({"_meta": {"exact": True, "count": 1}})
+    _floor = json.dumps({"_meta": {"exact": False, "count": 1}})
+    cases.append(("an EXACT pull's header is read", (pull_meta(_exact) or {}).get("exact") is True))
+    cases.append(("a FLOOR pull's header is read", (pull_meta(_floor) or {}).get("exact") is False))
+    cases.append(("a pull with no header reads as unknown, not as exact", pull_meta(text) is None))
+    # ⛔ the meta line must not be mistaken for a shadow record
+    cases.append(("the _meta header is not counted as a record", parse(_exact) == []))
     cases.append(("a divergence is a flip blocker",
                   report([rec(outcome="divergence")])[1] == 1))
     cases.append(("an error is a flip blocker", report([rec(outcome="error")])[1] == 1))
@@ -194,7 +218,14 @@ def main(argv=None) -> int:
     if not args.path:
         ap.error("give a log dump, or --self-check")
     text = open(args.path, encoding="utf-8", errors="replace").read()
-    out, code = report(parse(text), truncated=args.pager_stopped)
+    meta = pull_meta(text)
+    # ⛔ The file's own verdict, OR the caller's — a floor claimed by either is a floor. Only a
+    # pull that says `exact` AND a caller who did not override gets to print a bare count.
+    truncated = args.pager_stopped or (meta is not None and not meta.get("exact", True))
+    if meta is None and not args.pager_stopped:
+        print("  ⚠️ this pull carries no `_meta` header (an older railway_env_logs.py), so whether "
+              "it saw everything is UNKNOWN — treating the count as exact is a guess.")
+    out, code = report(parse(text), truncated=truncated)
     print(out)
     return code
 
