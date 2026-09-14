@@ -528,3 +528,56 @@ That is the whole argument for 3.5 existing.
 product is its own SHA oracle), one real failure (`/buzz` → *"The application did not respond"*
 while the renderer answered `200, 346 KB, ms=10738`). Thirteen rows were blocked on OI-34, not on a
 decision.
+
+---
+
+## 2026-09-14, evening — the gate's own gate (lane A1)
+
+The 16:30 fix said **three** rows had the count-the-files shape (S2, chaos, 3.5) and that all three
+now read verdicts. That sentence was right about those three and wrong about the total. Re-reading
+every `check_*` against `origin/master` found **two more**, and both were measured rather than
+argued — the old module was extracted with `git show`, imported, and called.
+
+| Row | What it actually did | Measured |
+|---|---|---|
+| `/chart` is shadowed (structural) | `MET if rail.exists()` — it never opened the file | printed **MET** on the real tree; prints MET for a `touch`ed empty file |
+| mutation NOT-APPLIED = 0 | globbed the harnesses, ran each with `--dry-check` **and no root argument**, and read the absence of the string `NOT APPLIED` as success | printed **MET, "every mutation applies exactly once", having checked ZERO** |
+
+⛔ **The mutation row is the worse of the two, and not because of the false MET.** `origin/master`
+carries **11** `mutation_harness*.py`, and **9 of them declare no `--dry-check` handler at all**.
+The row invoked every one as `[python, <harness>, "--dry-check"]` with no root argument, so
+`--dry-check` *was* `sys.argv[1]` and those nine resolved a repo root literally named `--dry-check`;
+the other two fall back to `parents[3]`. All eleven then died in `harness_guard` — the calling tree
+carries no sandbox marker — printing a refusal banner, which contains no `NOT APPLIED` string, so
+silence read as success. Two of the nine — `mutation_harness_cache.py` and
+`mutation_harness_delivery.py` — take no positional root either and ignore the flag entirely, so in a
+tree carrying a `.mutation-sandbox` marker, which is precisely where anybody runs a mutation harness,
+that row would not merely have failed to check them: it would have started a full mutation run
+against the caller's working tree, from inside a precondition check.
+
+⚠️ **This paragraph first said "eleven of the thirteen", typed rather than counted, and is corrected
+here rather than quietly fixed.** Eleven is the total; nine is the count that cannot answer. A
+hand-typed count beside the list that owns it is the defect the rest of this programme keeps paying
+for, and writing one into the entry recording a counting bug is worth leaving visible.
+
+⭐ **OI-29 asked for exactly this check and it is only now answerable.** *"Every harness in
+`docs/discord-render/instruments/` should be checked for the same shape"* — the row that claimed to
+do it could not: **9 of 12 harnesses declare no `--dry-check` handler at all**, and the fixed row now
+names all nine rather than counting their silence as a pass. Against the real tree it reads
+`169 anchor(s) verified, but: 9 harness(es) answer no --dry-check: …`.
+
+The fix is structural rather than five more patches: every row reads a verdict from evidence content,
+absence is NOT MEASURABLE, unparseable evidence is NOT MEASURABLE **with the reason named**, and every
+row carries **three** mutation controls — plant a pass ⇒ MET, plant a failure ⇒ NOT MET, delete the
+evidence ⇒ NOT MEASURABLE. The third is not decoration: a row hardcoded to `return NOT_MET` satisfies
+every plant-a-failure control and is exactly as useless as the row that counted files.
+`mutation_harness_flipgate.py` (56 cases over 11 rows, planting only into `mkdtemp()`) runs inside
+`--self-check` **and** inside `tests/test_flip_gate_cannot_lie.py`, so a regression costs an ordinary
+scoped pytest run. A new **canary scope** row reads the running V2 allowlist from a read-back artifact
+and compares it to the ids 06 declares — offline, never `railway`.
+
+⚠️ **Two statements elsewhere still need the integrator's hand**, because this lane does not own
+those files: `06-flip-packet.md:51` carries `/chart is shadowed (structural) | ✅ MET`, which was the
+existence check (the *empirical* half of that cell — the first `/chart` shadow records, 19:58Z — is
+separate evidence and stands); and `06-flip-packet.md:58` reads *"Four rows NOT MET, three NOT
+MEASURABLE"* against a table holding three and two.
