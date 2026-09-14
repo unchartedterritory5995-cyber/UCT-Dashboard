@@ -7865,6 +7865,13 @@ class _GZipSkipSSE(_GZipBase):
 # combined with orjson's already-smaller output the wire stays tiny. SSE + hashed
 # /assets/ keep bypassing gzip (unchanged).
 app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
+
+# ⭐ OUTERMOST ON PURPOSE, and added AFTER GZip so GZip runs INSIDE it. Compressing
+# the 5 MB deep-history payload is one of the stages this measures; a probe placed
+# inside the compressor would report the one number that is already known. Scoped to
+# the single path `/api/breadth-monitor` — see the module docstring.
+from api.services.breadth_timing import BreadthTimingMiddleware as _BreadthTiming  # noqa: E402
+app.add_middleware(_BreadthTiming)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
