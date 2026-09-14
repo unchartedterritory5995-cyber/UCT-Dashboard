@@ -11,6 +11,38 @@ date: 2026-09-13
 You are running **non-interactively**. Nobody will answer a question, so a question is a **stop**,
 not a prompt. When in doubt, do less and say so.
 
+## 0. ⛔⛔ THE LAST LINE OF YOUR REPORT IS A CONTRACT. PRINT IT OR THE RUN IS A SILENT FAILURE.
+
+**The final line of everything you print must be exactly one of these, and nothing else:**
+
+```
+STATUS: RAN
+STATUS: STOPPED-ENV
+STATUS: STOPPED-NOTHING-READY
+STATUS: STOPPED-ERROR
+```
+
+| status | means | runner exit |
+|---|---|---|
+| `STATUS: RAN` | a pre-authorized unit was completed | **0** |
+| `STATUS: STOPPED-NOTHING-READY` | checks passed, **nothing was eligible** — a successful run | **0** |
+| `STATUS: STOPPED-ENV` | an environment check failed; **nothing was attempted** | 3 |
+| `STATUS: STOPPED-ERROR` | you tried and something broke | 4 |
+| *(no STATUS line)* | crash, truncation, kill, permission starvation | **5** |
+
+⚰️ **WHY THIS EXISTS — F-L2-1.** `claude -p` exits **0** having successfully written a report
+*about refusing to proceed*. On 2026-09-13 this run stopped at §1, reached nobody, and Task
+Scheduler recorded **success**. `tools/weekly_status.py` now reads this line and sets the process
+exit code; a report without one is **exit 5**, never 0. **Omitting the line does not make the run
+look fine — it makes it look broken**, which is the correct direction.
+
+⭐ **YOU DO NOT POST TO DISCORD. THE RUNNER DOES.** `tools/terminal_next_weekly.cmd` posts the
+status, the log path and the exit code with `curl` from a Windows-side variable, on **every** run.
+That post does not depend on you succeeding, having egress, or reading anything — and you have no
+access to the webhook, deliberately. **Print your report; the runner delivers the verdict.**
+
+---
+
 ⛔⛔ **THE ONE RULE THAT OUTRANKS EVERY OTHER LINE HERE: IF IT IS NOT PRE-AUTHORIZED IN §3, YOU DO
 NOT BUILD IT.** Not "it is obviously fine", not "it is only a test", not "the owner would want it".
 An autonomous run that widens its own scope is the failure this whole programme is arranged to
@@ -22,6 +54,31 @@ prevent, and there is nobody awake to catch it.
 
 Read `docs/terminal-research/00-program-control/RESUME.md` first — it is the entry point and it is
 current. Then run the **eight environment checks** from its §5 and the verification pass:
+
+⛔ **YOU ARE RUNNING UNDER A NARROW PERMISSIONS PROFILE** —
+`.claude/weekly-autonomous.settings.json`, loaded by the runner. Anything not allow-listed is
+**denied outright** (`--permission-prompts none`), because nobody is awake to approve it. Use these
+and do not hunt for alternatives when one is refused — a refusal is the profile working:
+
+| you need | run exactly |
+|---|---|
+| trees clean + published | `python tools/terminal_next_env_check.py` |
+| a named test | `python tools/weekly_exec.py tests tests/test_<name>.py` |
+| a pod report | `python tools/weekly_exec.py pod ticking` · `pod report` · `pod gate-check` |
+| production health | `python tools/weekly_exec.py health` |
+| the flag ledger | `python tools/flag_ledger_audit.py` |
+| the doc-SHA rail | `python <docs-worktree>/tools/verify_doc_shas.py` |
+
+⛔ **RAW `pytest` AND RAW `railway ssh` ARE DENIED, ON PURPOSE.** A permission prefix cannot end
+mid-token, so the rule that would allow `pytest tests/test_x.py` also allows the bare
+`pytest tests/` that OOM-killed this box, and the rule that would allow one pod reporter also
+allows an unrestricted shell on the production pod. Both constraints live in
+`tools/weekly_exec.py` instead, where they are tested. **Go through the guard.**
+
+⚠️ **CHECK 6 (Task Scheduler) IS OUT OF SCOPE HEADLESS.** `schtasks` is denied by the profile —
+this run never needs to create or inspect a task, and **the fact that you are executing at all is
+the proof that the job fired.** Report it as `n/a (denied by profile, by design)`, **not** as a
+failed check. A check that cannot be performed must never be dressed up as one that passed.
 
 1. both worktrees on their branches, **clean, and each HEAD CONTAINED IN ITS PUBLISH REF** —
    run `python tools/terminal_next_env_check.py` (exit **0** PASS · **1** measured FAIL ·
@@ -37,10 +94,10 @@ current. Then run the **eight environment checks** from its §5 and the verifica
 7. production: `/api/health` 200; the eight flags read `1` **in-process**; flag audit 0/0/0/0; doc-SHA rail OK
 8. the other session's stash and the wisdom job present/absent — **touch neither**
 
-⛔ **A FAILED CHECK IS A FULL STOP.** Post the failure to the **admin** Discord webhook
-(`DISCORD_WEBHOOK_URL` — never `DISCORD_TSDR_WEBHOOK_URL`, which is the public ~750-member channel)
-and exit. Do not "work around" a red check; a run that begins on an unverified box is a run whose
-results cannot be trusted, and the whole point of this file is trustworthy results.
+⛔ **A FAILED CHECK IS A FULL STOP.** Say which check failed and what it returned, then end
+with `STATUS: STOPPED-ENV` and stop. Do not "work around" a red check; a run that begins on an
+unverified box is a run whose results cannot be trusted, and the whole point of this file is
+trustworthy results. ⚠️ You cannot post to Discord and must not try — the runner reports for you.
 
 ⛔ **MEMORY GATE, CHECKED FIRST OF ALL:** if the box is above **70% memory used** at start, post
 that and exit **without building**. Three sessions once OOM-swept this machine and deleted a
@@ -127,7 +184,7 @@ not flip it.
 
 ---
 
-## 4. Finish: post a summary to **admin** Discord
+## 4. Finish: PRINT the summary (the runner posts it), then the STATUS line
 
 - what ran, and the **SHA** of each merge
 - what is now **READY and needs the owner** (name the type, the numbers, and the line that would
@@ -135,6 +192,8 @@ not flip it.
 - which **`OWNER_INPUTS.md`** lines are still blank, and what each unblocks
 - if nothing was eligible: **say that plainly.** A run that built nothing because nothing qualified
   is a **successful run**, and reporting it as such is what keeps the next one trusted.
+
+⛔ **Then the last line, alone: `STATUS: ...`** — see §0. Nothing after it.
 
 ---
 
