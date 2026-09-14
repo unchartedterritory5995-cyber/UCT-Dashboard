@@ -140,3 +140,147 @@ and master's 14 incoming backend test files green (461 passed, 2 skipped). Three
 tests mount the real FastAPI app, which serves `app/dist/assets`, and this worktree has never run a frontend build.
 
 **Verdict: no failure attributable to this branch.** C3 merges.
+
+---
+
+## R1 registry unification (2026-09-13 19:27)
+
+Tree `59e1c9a76` at start **and** end · wrapper blob `2240e9c49` · **1,325 test files on disk, reconciles with the
+summed shard total** · **8 failing tests in 7 files, 19,498 passed**.
+
+| shard | test files | tests |
+|---|---|---|
+| 1 | 3 failed / 221 | 4 failed / 2,781 passed |
+| 2 | 1 failed / 221 | 1 failed / 3,037 passed |
+| 3 | 2 failed / 221 | 2 failed / 3,972 passed |
+| 4 | 0 failed / 221 | 0 failed / 3,080 passed |
+| 5 | 1 failed / 221 | 1 failed / 2,547 passed |
+| 6 | 0 failed / 220 | 0 failed / 4,081 passed |
+| **Σ** | **7 failed / 1,325** | **8 failed / 19,498 passed** |
+
+**Union diff — every failing file is a documented baseline row; none is new, none is this branch's.**
+
+| Failing file | In the baseline table? | Owner |
+|---|---|---|
+| `ChartDrawingOverlay.surfaces` | yes | charts drawings, `8de4da43b` |
+| `engine/ast/manifestProse` | yes | indicator manifest, `b280131b8` |
+| `engine/ast/pine.blindCorpus` | yes | Pine parity, `b1a901970` |
+| `screener/reachable` | yes | S4 context (R-29), `76c62c494` |
+| `hooks/pollingSites.rail` | yes | four sessions |
+| `ThemeTrackerPage.chartmount` | yes | charts, `7adfdda2b` (load-sensitive) |
+| `styles/tapFloor` | yes | Notebook Wave L, `5d3f5f1be` |
+
+Five load-sensitive baseline names were **green** this run (`EvidenceTab.doors`, `presentationSingleFormatter`,
+`importer/convert`, `iteratorGlobalFloor`, `desk/ArticlesSection.native`) — fewer failures than C3's 10-in-9, which is
+the load-sensitivity already recorded for them, not a fix.
+
+⚠️ **The wrapper reported "1 NEW failure" and it is MASTER'S, proved by direction, not by citing this document.**
+The wrapper compares against its own baseline `258c5609d` (re-measured on origin/master `62a228e5d`), which predates
+R-29 landing. `screener/reachable` run alone names exactly one module — `app/src/lib/context/focusDivergence.js` —
+which this branch does not touch: our whole `app/src` diff is the five R1 files, **zero** under `lib/context`. The
+module and every reference to it are master's (`76c62c494`, S4 CP1, 2026-09-12). A reachability verdict about that file
+cannot be moved by changes confined to `pages/breadth/`. ⛔ Add it to the wrapper's baseline citing `62a228e5d`; it
+blocks nothing.
+
+**Master moved 11 commits DURING the gate** (`9fe247cb0` → `e659454bb`). Delta `D` = 49 files, `app/**` = **0**,
+overlap with this branch's 13 files = **0**, our imports from `D` = **0**. `D`'s 14 "test" paths are **all backend
+pytest under `tests/`** — zero vitest — so they cannot move the vitest partition or change a vitest result.
+**Rule 1 fires: merge and push, no re-gate.**
+
+⚠️ The overlap number must be computed against the **merge base**, not `origin/master..HEAD`. Once master moves, that
+range replays master's own newer commits in reverse and reports a large fake overlap — it listed `api/main.py` and nine
+`discord_render` files here, none of which this branch has ever touched.
+
+**Verdict: no new failure attributable to R1. Passes.**
+
+---
+
+## The gate sequence, and the freeze is the part people get wrong
+
+Owner ruling, 2026-09-13. In order:
+
+1. **Merge master into the branch** — so the tree that gets gated is the tree that gets pushed.
+2. **Freeze the tree.** No commits, no doc edits, no `git add`, nothing, for the entire run.
+3. **Gate.**
+4. **Apply the delta rule** only if master moved *during* the gate.
+5. **Push the exact gated hash.**
+
+⛔ **Any edit during a gate voids it, by wrapper design.** `scripts/gate_shards.py` records the tree hash at both ends
+and refuses a run whose tree moved — *"the tree it ran against is not the tree it would report on"* — then clears the
+partial shard logs so an empty log directory can never later read as a completed run.
+
+⚰️ Written down because it happened: the R1 gate was started at `8a8718ec4` and finished at `936da1aba` because the
+session kept committing documentation into the same worktree while the six shards ran. Thirty minutes, void. **The
+wrapper was not being pessimistic — it was right**: docs committed mid-run are in the pushed tree but were never in the
+gated one, and nothing downstream could tell the difference.
+
+⭐ **Documentation you want to write during a run goes in a scratch file OUTSIDE the worktree** and is committed after
+the gate reports. A gate is ~35 minutes and the urge to fill it with "harmless" doc edits is the whole failure mode —
+there is no such thing as a harmless edit to a frozen tree.
+
+⛔ An `INVALID-*.md` manifest is **never** a signal about the branch. It is the environment, or the operator. Never
+merge on one, and never read one as a red.
+
+## Reading THIS run's diff: decide on the union, print per-shard for the record
+
+R1's gated tree merged 27 master commits carrying **14 incoming test files**. Vitest partitions by hashing spec paths,
+so a changed test-file SET moves files across shards by construction.
+
+- **A failure that changes shard is a MOVE, not a regression.**
+- **The union set is the only comparison that decides the merge** — which tests fail, not where they ran.
+- Print the per-shard table anyway, for the record and for anyone diagnosing a shard-local timeout.
+
+## Hook coverage while `tools/secret_scrub.py` lives on one branch (measured 2026-09-13)
+
+The pre-push secret scan needs that file. Where it actually resolves, tested by running the installed hook from each
+root:
+
+| Pushing from | Scan runs? |
+|---|---|
+| `uct-dashboard` (main checkout) | ✅ via the `../uct-worktrees/breadth-charts` fallback |
+| `uct-worktrees/breadth-charts` | ✅ locally |
+| `uct-worktrees/<sibling>` | ⚠️ **no** — prints the WARNING, allows the push |
+| `uct-dashboard/.claude/worktrees/*` (~12 agent worktrees) | ⚠️ **no** — same |
+
+Verified end-to-end from `uct-worktrees/notebook-flip`: the hook printed *"the secret scan did NOT run. This is not a
+pass."*, exited 0, and left that worktree clean.
+
+⛔ **It self-resolves as each worktree merges master after R1** — the file is then local and the real branch runs. It is
+deliberately NOT patched with more filesystem path guesses: a `$root/../<name>` guess is right for one layout and wrong
+for the agent-worktree layout, which would turn a visible warning into a *silent* miss on the roots it still got wrong.
+Pointing another worktree's hook at this branch's working tree would also mean executing an unrelated branch's code at
+push time, and would break the day this worktree is removed.
+
+⭐ **If a pre-merge fix is ever needed again, resolve the scanner from a REF, not a checkout path** —
+`git show origin/master:tools/secret_scrub.py` into a temp file — so the hook depends on something git guarantees
+rather than on somebody's directory still existing.
+
+## Never commit on red — and never amend a merge
+
+Two rules from failures on the password-change fix (2026-09-13/14), not from theory.
+
+**1. The commit step runs the test file(s) its message claims, and refuses if the last result printed any failure. A
+message stating a count must match the run that produced it.**
+
+⚰️ `dd220b2aa` was authored against a run that printed `1 failed, 5 passed`, with a message claiming six passing. The
+run happened; its output was on screen; nothing in the sequence acted on it. That is the same disease as chaining
+`npx vitest … ; git commit …` — two calls, and the second is issued only after READING the first.
+
+⛔ **A fixture can be wrong for five tests and fatal for the sixth.** The cause there was a test domain:
+`AdminResetRequest.email` is an `EmailStr`, and the validator refuses special-use domains **by name** — `*.invalid`
+422s before the endpoint is ever reached, while `.internal` (RFC 8375) passes. The five service-level cases never
+touch Pydantic and passed regardless, so the suite looked 5/6 healthy rather than structurally wrong. **Check a
+fixture domain against the schema's validators before trusting it across both service-level and endpoint-level
+tests** — `*.invalid` and `*.example` are the two that look safest and are not.
+
+**2. After any `--amend`, print `git log -1 --format='%h %p %s'` and confirm the parent count is 1. Never amend a
+merge commit.**
+
+⚰️ The correction to the above was amended onto a MERGE commit (two parents), which left the red test in history and
+put the corrected message on the wrong object. It was caught only by reading the parent list. A branch that is still
+local can be restructured (`git reset --soft origin/master` then one commit); one that has been pushed cannot.
+
+⭐ **The push guards firing is the EXPECTED behaviour, not an exception.** On that same change the pre-push 502 guard
+refused twice — once for another session's `BUILDING` deploy, once for a SUCCESS only 143s settled — and each refusal
+came with master having moved, so the merge commit was rebuilt onto the new tip. **Rebuild onto the new tip; never
+`--force`, never `UCT_SKIP_PREPUSH_GUARD=1` to get past a refusal you did not expect.**

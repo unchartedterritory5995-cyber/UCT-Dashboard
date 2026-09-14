@@ -34,6 +34,7 @@ LT = "tests/test_discord_render_loopwatch.py::"
 SH = "api/services/discord_render/shadow.py"
 ST = "tests/test_discord_render_shadow.py::"
 RT = "api/routers/discord_interactions.py"
+FT = "tests/test_discord_render_forensics.py::"
 TRT = T
 
 MUTATIONS = [
@@ -48,9 +49,17 @@ MUTATIONS = [
      "old": "    if eff < MIN_USEFUL_S:\n", "new": "    if False:\n",
      "tests": [T + "test_a_call_with_no_useful_time_left_is_refused_without_touching_the_upstream"]},
     {"name": "A3 the function gets the constant, not the effective budget", "file": CALL,
-     "old": "        fut = pool(name).submit(fn, eff)\n",
+     "old": "        fut = pool(name).submit(fn, left)\n",
      "new": "        fut = pool(name).submit(fn, dep_timeout_s)\n",
      "tests": [T + "test_the_function_is_handed_the_effective_timeout_not_the_constant"]},
+    # C-10, found by Lane E's chaos harness: the budget was computed once per CALL, so an N-attempt
+    # hop could spend N x the deadline (measured 4.6 s against 2 s).
+    {"name": "A76 the budget is computed once per call, so N attempts spend N budgets", "file": CALL,
+     "old": "        left = eff - (now() - started)\n"
+            "        if left < MIN_USEFUL_S:\n"
+            "            raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {eff:.3f}s budget\")\n",
+     "new": "        left = eff\n",
+     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call"]},
     {"name": "A4 the breaker is bypassed", "file": CALL,
      "old": "        value = breakers.call(name, _once, attempts=attempts, retry_on=retry_on, sleep=sleep)\n",
      "new": "        value = _once()\n",
@@ -257,6 +266,29 @@ MUTATIONS = [
             "        pass\n",
      "new": "    except ValueError:\n        pass\n",
      "tests": [ST + "test_the_route_still_returns_the_dispatchers_reply_unchanged"]},
+    {"name": "A73 the record reaches the log empty (fields outside the allowlist)", "file": SH,
+     "old": '    observe.event("shadow", cmd=command, ms=out["ms"], outcome=outcome(out), detail=detail(out))\n',
+     "new": '    observe.event("shadow", **{k: v for k, v in out.items() if v is not None})\n',
+     "tests": [ST + "test_the_record_actually_reaches_the_log_line",
+               ST + "test_every_field_the_shadow_emits_is_inside_the_allowlist"]},
+    {"name": "A74 the shadow gives up sooner than the path it models", "file": SH,
+     "old": "SHADOW_BUDGET_S = 0.6\n", "new": "SHADOW_BUDGET_S = 0.4\n",
+     "tests": [ST + "test_the_shadow_is_never_stricter_than_the_path_it_models"]},
+    {"name": "A75 could-not-tell is reported as agreement", "file": SH,
+     "old": '    if rec.get("unanswerable"):\n        return "could_not_tell"\n',
+     "new": '    if False:\n        return "could_not_tell"\n',
+     "tests": [ST + "test_the_emitted_outcome_word_separates_all_three_answers"]},
+    {"name": "A70 a divergence of zero becomes uninterpretable again", "file": SH,
+     "old": '    out["unanswerable"] = ",".join(unanswerable) if unanswerable else None\n',
+     "new": "    pass\n",
+     "tests": [ST + "test_the_record_separates_could_not_tell_from_agreed"]},
+    {"name": "A71 the record stops saying whether the authorities could answer", "file": SH,
+     "old": '    out["index_ready"] = _index_ready()\n', "new": "    pass\n",
+     "tests": [ST + "test_the_record_says_whether_the_authorities_could_answer_at_all"]},
+    {"name": "A72 an unaskable authority reports False instead of None", "file": SH,
+     "old": "    except Exception:  # noqa: BLE001\n        return None\n\n\ndef _tickers",
+     "new": "    except Exception:  # noqa: BLE001\n        return False\n\n\ndef _tickers",
+     "tests": [ST + "test_an_authority_that_cannot_be_asked_reports_None_not_False"]},
     {"name": "A68 a shadow failing on every request leaves no trace", "file": SH,
      "old": '        observe.event("shadow", outcome="error", detail=type(e).__name__)\n',
      "new": "        pass\n",

@@ -312,3 +312,110 @@ deliberately distinguishable from a healthy loop: a probe that never ran must ne
 interactions route delegating to `_dispatch_interaction` and returning its reply **unchanged**; the
 shadow beside it is gated on `RENDER_V2_SHADOW`, also absent, and a rail asserts the reply survives
 even when the shadow setup raises.
+
+---
+
+## P2.10 bench — what the adapter layer costs, three ways (2026-09-13, 20:3x ET)
+
+`docs/discord-render/instruments/adapter_overhead_bench.py`, 300 calls per case, one upstream
+stubbed to a fixed 1 ms so the **only** variable is the layer. `--self-check` first: a deliberately
+injected 4 ms showed up as 1.54 → 5.99 ms, so the bench can see a cost before any small number from
+it is believed.
+
+| Case | p50 | p95 | max |
+|---|---|---|---|
+| **raw** (the pre-V2 binding) | 1.520 ms | 1.613 ms | 1.798 ms |
+| **adapters** (V2 default) | **1.525 ms** | 1.836 ms | 2.220 ms |
+| **switch_0** (`DISCORD_RENDER_V2_ADAPTERS_ENABLED=0`) | **1.520 ms** | 1.643 ms | 1.949 ms |
+
+**Overhead: +0.005 ms at the median, +0.42 ms at the worst** — against an 8 s bars budget and a 20 s
+render ceiling. ⭐ **`switch_0` matches `raw` to three decimals**, which is the measured proof that
+the kill switch is a real rollback and not a comment: it hands back the raw function, and a bench
+case says so rather than a docstring.
+
+⚠️ **This is not the end-to-end bench and does not replace it.** `tools/discord_render_bench.py`
+runs in the web pod against the real renderer and bars store; that is what `02-baseline.md` is made
+of. This isolates the one question the end-to-end bench cannot answer cleanly because its variance is
+dominated by the network: what does wrapping a call in a pool submit, a breaker and a `Result` add?
+
+---
+
+## Wave 2 (2026-09-14, from `4eec5e0aa`) — the rulings, and what each one cost
+
+Started **01:00 ET Monday**. The Step-3 window is overnight and closes at RTH open, so the order is
+by leverage: OI-29 first (it is the original bug), the other three in parallel lanes, Step 3 as soon
+as the tree is stable, docs last.
+
+### Scheduled, before any code — so they run whether or not the session survives
+
+| Task | Cadence | What it does | First run |
+|---|---|---|---|
+| `UCT Render Soak` | every 15 min from 00:00 local | 13-minute soak appending to one state file; drift in queue depth / threads / RSS / unclosed leases | proved by hand: `PASS samples=9 … metrics[queue_depth=ok,rss_mb=ok,stale_leases=ok,stuck_jobs=ok,threads=ok]` |
+| `UCT Render Alerts Access Probe` | hourly | the owner-hand item: can the bot see `#render-alerts` yet | `STILL_BLOCKED HTTP 403 code 50001` |
+
+⚰️ **The access probe found a defect in itself on its first real run, and its own three-way exit
+codes are the only reason.** It answered `ERROR HTTP 403 code None`, not `STILL_BLOCKED`: Discord
+requires a `User-Agent` and Cloudflare refuses the request at the edge without one, with an HTML
+body and no Discord error code — **which looks exactly like a permissions refusal.** A two-valued
+probe would have reported "still blocked" every hour forever, against a question it was not asking.
+
+⭐ Same shape as the soak's own rule and the `CoverageLine` rule: *could not measure* is a third
+answer, and collapsing it into either neighbour is how an instrument starts lying quietly.
+
+---
+
+## Wall clock (owner brief §4)
+
+| Merge | Step | Start (ET) | End | Gate | Deploy wait | Active work |
+|---|---|---|---|---|---|---|
+| 5 | 2.4b P2.1–P2.10 | ~17:10 | 20:07 | 6 m 38 s (1,112 tests) | ~2 min | the balance — authorship + 69 mutation runs |
+| 5a | merge-5 record | 20:07 | 20:12 | n/a (docs) | ~2 min | ~3 min |
+| 6 | frozen contracts + `07`/`08` | 20:12 | 20:25 | 20 s (166 tests) | ~3 min incl. **one push refused** by master's own pre-push guard (a deploy was in flight — the queue working) | ~10 min |
+| 7 | shadow ON + interpretability | 20:25 | 20:40 | 7 s (78 tests) | ~2 min | ~11 min |
+
+⭐ **Where the time actually went, and the fix already applied:** merge 5 spent more wall clock on
+gate + deploy than on authorship, which is what the lane plan (`07-execution-plan.md`) exists to
+reclaim. Merges 6 and 7 ran with five lanes working in parallel underneath them, so the deploy waits
+cost nothing.
+
+---
+
+## Master merges 6-11 — contracts, shadow ON, and five parallel lanes · 2026-09-13 evening
+
+| # | SHA | What | Gate | Running SHA |
+|---|---|---|---|---|
+| 6 | `e659454bb` | frozen cross-lane contracts + `07`/`08` | 166 passed | `e659454bb8f2` ✅ |
+| 7 | `2b3ffd637` | shadow ON; the record made interpretable | 24 passed | `2b3ffd637` ✅ |
+| 8 | `59a5b1c7a` | `resume.ps1` stale-pin fix | ran the script | — |
+| 9 | `48a73d4cc` | Lane B (2.5 cache) + Lane F (runbook, flip packet, RESUME) | 241 passed | — |
+| 11 | **`8c72dda27`** | Lanes C, D, E + the C-10 deadline fix | **973 passed, 3 xfailed, 0 failed** | **`8c72dda27bb8`** ✅ |
+
+**Live, read in-process after merge 11:** `RENDER_V2_SHADOW="1"` · `shadow.enabled()` True ·
+budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · render-health 401.
+
+### Wall clock
+
+| Merge | Start (ET) | End | Gate | Deploy wait | Notes |
+|---|---|---|---|---|---|
+| 5 | 17:10 | 20:07 | 6 m 38 s | ~2 m | serial; more clock on gate+deploy than on authorship |
+| 6 | 20:12 | 20:25 | 20 s | ~3 m | **one push refused** by master's own guard — a swap was in flight |
+| 7 | 20:25 | 20:40 | 7 s | ~2 m | five lanes authoring underneath |
+| 9 | 21:0x | 21:2x | 38 s | ~2 m | two lanes integrated in one push |
+| 11 | 21:2x | 22:0x | 1 m 17 s | ~2 m | three lanes + a production fix |
+
+⭐ **What the lane plan actually bought.** Merges 6-11 carried five lanes' output in the same wall
+clock that merge 5 spent on one step, and every deploy wait was absorbed by work happening
+elsewhere. ⚠️ **And the honest half:** two lanes were killed by the session rate limit, so the
+parallelism had a ceiling this run — five concurrent Opus agents plus the integrator is more than
+the session budget allows, which is a fact about the environment worth planning against next time,
+not a fact about the work.
+
+### What the lanes cost to verify, which is not zero
+
+Every lane's suite and harness was re-run by the integrator. Lane E's arrived with **5 failures** it
+never saw: four were its `FakeDelivery` double drifting behind a signature the integrator had
+changed an hour earlier (the contract-arity defect in miniature — a double that RESTATES a signature
+instead of tracking it), one a self-inflicted import path. Lane D never reported at all, so its
+claims did not exist until re-measured; two of its mutations were mis-aimed and one of those named a
+real weakness in its own test. ⛔ **A lane's "done" is a claim, and the integrator's re-run is the
+measurement** — that rule earned its place three times tonight.

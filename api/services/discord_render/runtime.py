@@ -290,15 +290,35 @@ class JobRuntime:
                           outcome="restart_recovery", detail="told" if told else "token too old to answer")
 
     # ── delivery of the contract message ────────────────────────────────────
+    @staticmethod
+    def _failure_budget(job: Job) -> float:
+        """How long delivery may spend getting the failure message to the member.
+
+        ⛔⛔ IT IS **NOT** `job.remaining_s()`, AND THAT IS THE WHOLE POINT. The watchdog sends this
+        message *at* the deadline, so the job's remaining budget is ~0 at exactly the moment it is
+        needed — passing it would give delivery no time to retry, and would therefore suppress every
+        retry of the one message C-11 exists to guarantee. A member whose render failed would then
+        also not be told it failed, which is the silent failure the whole contract exists to remove.
+
+        ⭐ The right clock is the **interaction token's** remaining life: while the token lives the
+        message can still land, and once it dies no amount of budget helps. Capped at delivery's own
+        default so a fresh token cannot license an eight-minute retry loop, and floored at
+        `MIN_USEFUL_S` so a nearly-dead token still gets one honest attempt rather than none."""
+        left = TOKEN_LIFETIME_S - (time.time() - job.created_at)
+        return min(delivery_mod.DEFAULT_BUDGET_S, max(delivery_mod.MIN_USEFUL_S, left))
+
     def send_failure(self, job: Job, cls: str) -> bool:
         content = contract.failure_content(job.label, cls, job.corr_id)
         comps = contract.failure_components(job.corr_id)
+        budget = self._failure_budget(job)
         if job.interaction_type == COMPONENT_INTERACTION:
             # ⛔ Never PATCH @original under a control click: that message IS the chart the
             # member is looking at. Tell them privately instead.
-            res = self.delivery.followup(job.app_id, job.token, content=content, components=comps, ephemeral=True)
+            res = self.delivery.followup(job.app_id, job.token, content=content, components=comps,
+                                         ephemeral=True, deadline_s=budget, cid=job.corr_id)
         else:
-            res = self.delivery.edit_text(job.app_id, job.token, content=content, components=comps)
+            res = self.delivery.edit_text(job.app_id, job.token, content=content, components=comps,
+                                          deadline_s=budget, cid=job.corr_id)
         observe.event("failure_message", cid=job.corr_id, cmd=job.command, cls=cls,
                       outcome="sent" if res.ok else "refused", status=f"{res.status}:{res.code}")
         return bool(res.ok)

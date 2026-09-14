@@ -219,3 +219,69 @@ def test_the_COOKIE_PATH_does_not_reach_the_historical_cache_surfaces():
     assert not rfc6265_sends(p, "/api/bars-today-pack")
     assert not rfc6265_sends(p, "/api/barspack/manifest")
     assert not rfc6265_sends(p, "/api/coverage")
+
+
+# ── the MACHINE trust path (Phase 1.5) ──────────────────────────────────────
+
+def test_a_service_token_carries_the_SERVICE_entitlement():
+    assert _payload_of(cet.mint_service())["ent"] == cet.ENTITLEMENT_SERVICE
+
+
+def test_a_service_token_verifies_as_a_SERVICE_token():
+    assert cet.verify(cet.mint_service(), expect=cet.ENTITLEMENT_SERVICE)[0] == "VALID"
+
+
+def test_the_two_trust_paths_CANNOT_BE_CONFUSED():
+    """⛔⛔ THE HEADLINE OF PHASE 1.5.
+
+    A render capability replayed in the member cookie must be INVALID, and a
+    member's session token presented as a machine credential must be INVALID
+    too. Without this the short-lived machine token and the long-lived member
+    token become interchangeable, and the weaker transport sets the bar for both.
+    """
+    member = cet.mint()
+    service = cet.mint_service()
+    # the service token is not a member
+    assert cet.verify(service, expect=cet.ENTITLEMENT_BARS)[0] == "INVALID"
+    # the member token is not a machine
+    assert cet.verify(member, expect=cet.ENTITLEMENT_SERVICE)[0] == "INVALID"
+    # …and each is still valid in its own lane
+    assert cet.verify(member)[0] == "VALID"
+    assert cet.verify(service, expect=cet.ENTITLEMENT_SERVICE)[0] == "VALID"
+
+
+def test_the_service_token_carries_NO_identity_either():
+    assert set(_payload_of(cet.mint_service())) == {"v", "iat", "exp", "ent"}
+
+
+def test_the_render_TTL_is_much_SHORTER_than_the_member_TTL():
+    """⭐ A capability for ONE render, not a session. Measured against real
+    renders (~1.7-2.2 s warm, 28 s worst observed) with room to spare, while
+    keeping the replay window far below the member token's."""
+    p = _payload_of(cet.mint_service(now=5_000))
+    assert p["exp"] - p["iat"] == cet.DEFAULT_RENDER_TTL_SECONDS
+    assert cet.DEFAULT_RENDER_TTL_SECONDS < cet.DEFAULT_TTL_SECONDS
+
+
+def test_the_render_TTL_is_configurable(monkeypatch):
+    monkeypatch.setenv("CHART_EDGE_RENDER_TOKEN_TTL_SECONDS", "45")
+    assert cet.render_ttl_seconds() == 45
+    p = _payload_of(cet.mint_service(now=5_000))
+    assert p["exp"] - p["iat"] == 45
+
+
+@pytest.mark.parametrize("raw", ["", "0", "-9", "abc"])
+def test_a_NONSENSE_render_TTL_falls_back(monkeypatch, raw):
+    monkeypatch.setenv("CHART_EDGE_RENDER_TOKEN_TTL_SECONDS", raw)
+    assert cet.render_ttl_seconds() == cet.DEFAULT_RENDER_TTL_SECONDS
+
+
+def test_an_EXPIRED_service_token_is_EXPIRED():
+    tok = cet.mint_service(now=1_000_000)
+    later = 1_000_000 + cet.render_ttl_seconds() + 1
+    assert cet.verify(tok, now=later, expect=cet.ENTITLEMENT_SERVICE)[0] == "EXPIRED"
+
+
+def test_NO_SECRET_mints_no_service_token(monkeypatch):
+    monkeypatch.delenv("CHART_EDGE_SECRET", raising=False)
+    assert cet.mint_service() is None

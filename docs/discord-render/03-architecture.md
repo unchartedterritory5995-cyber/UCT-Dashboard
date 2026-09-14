@@ -156,9 +156,29 @@ discord_render_jobs(
   deadline; otherwise fail honestly with `rate_limited`. Per-route bucket memory.
 - **5xx / transport:** exponential backoff with jitter, 0.5 s → 1 s → 2 s, max 3 tries, bounded by
   the deadline.
-- **Size guard:** before upload, if the PNG exceeds `DISCORD_RENDER_ATTACH_MAX_BYTES` (default
-  8 MiB — the conservative floor), re-encode (optimize → 256-colour quantize → 0.75× downscale steps)
-  until it fits; record `resized`.
+- **Size guard:** before upload, if the attachments total more than `ATTACHMENT_MAX_BYTES`
+  (**25 MiB**, Discord's Tier-0 baseline), the image is **not sent** — `image_too_large` is
+  recorded with the byte count and the member gets the text edit plus *"The chart could not be
+  attached to this reply."* ⛔ It never silently ships a smaller picture.
+
+  ⚰️ **THIS SPECIFIED A RE-ENCODER — 8 MiB, then `optimize → 256-colour quantize → 0.75×
+  downscale` until it fits — AND THAT DESIGN IS SUPERSEDED (OI-29, 2026-09-14).** Three reasons,
+  in order of weight:
+
+  1. **A quantized, downscaled chart is an unlabelled stand-in**, which is the thing §4 of
+     `04-visual-spec.md` exists to forbid. A member handed a degraded picture with no label reads
+     it as the product — that is C-06, three times, two of which never healed. If we ever did
+     re-encode, it would have to carry a stand-in label, at which point it is no longer a quiet fix.
+  2. **8 MiB refuses uploads Discord would accept.** The baseline limit is 25 MiB; a floor set
+     three times lower costs a member their chart for nothing. Refusing at Discord's own number can
+     only ever refuse what Discord would also refuse.
+  3. **A measured house chart PNG is 100–500 KB**, so a re-encoder at either threshold is code
+     that never runs in production and therefore cannot be trusted the day it does. Anything within
+     two orders of magnitude of 25 MiB is a **render defect**, and `image_too_large` is the event
+     that says so — a re-encode would have hidden exactly that signal.
+
+  ⭐ The rule this leaves behind: **refusing loudly beats degrading quietly**, and the refusal is
+  only acceptable because it still ends in a sentence (C-11).
 - **Pre-flight validation of every component tree and payload**, locally, against Discord's
   rules: ≤5 rows, ≤5 buttons/row, select ≤25 options and ≤1 default, `custom_id` ≤100 and unique,
   label ≤80, placeholder ≤150, emoji drawn from an allow-list of real unicode emoji actually used

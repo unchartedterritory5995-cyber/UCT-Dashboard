@@ -33,16 +33,29 @@ class Clock:
 
 
 class FakeDelivery:
+    """⛔ THE DOUBLE TAKES THE REAL SIGNATURE, INCLUDING WHAT WAS JUST ADDED.
+
+    ⚰️ It did not, and that is how this broke: `send_failure` started passing `deadline_s` and
+    `cid`, and five tests failed with `unexpected keyword argument` — a double that restates a
+    signature instead of tracking it is the contract-arity defect in miniature. Rather than widen
+    it to `**kw` and lose the information, it now RECORDS both, so the tests below can assert the
+    budget was actually handed over."""
+
     def __init__(self, ok=True):
         self.ok = ok
         self.calls = []
+        self.budgets = []
 
-    def edit_text(self, app_id, token, *, content, components=None, client=None):
+    def edit_text(self, app_id, token, *, content, components=None, client=None,
+                  deadline_s=None, cid=None):
         self.calls.append(("edit_text", token, content, components))
+        self.budgets.append(("edit_text", deadline_s, cid))
         return DeliveryResult(self.ok, 200 if self.ok else 500)
 
-    def followup(self, app_id, token, *, content, components=None, ephemeral=True, client=None):
+    def followup(self, app_id, token, *, content, components=None, ephemeral=True, client=None,
+                 deadline_s=None, cid=None):
         self.calls.append(("followup", token, content, components))
+        self.budgets.append(("followup", deadline_s, cid))
         return DeliveryResult(self.ok, 200 if self.ok else 500)
 
 

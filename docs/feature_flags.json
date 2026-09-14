@@ -504,9 +504,11 @@
       "exposure": "public",
       "default": "sunday scans",
       "values": [
+        "*",
         "sunday scans"
       ],
-      "note": "PUBLIC-EXPOSURE FLAG. Decides which routed show sections upload to YouTube as public rather than unlisted. Owner ruling 2026-09-13: public = Sunday Scans ONLY. Set to the wildcard '*' on 2026-08-19 (commit 0894d7ac0); 27 paid desk sessions published public until the 2026-09-13 revert, then set back to unlisted. A WILDCARD IS REFUSED by tests/test_visibility_flag_ledger.py. Blank makes nothing public, which is the safe direction."
+      "note": "PUBLIC-EXPOSURE FLAG. Decides which routed show sections upload to YouTube as public rather than unlisted. LIVE VALUE IS THE WILDCARD '*' — every show publishes public, by the owner's decision recorded in owner_decision. The rail refuses a wildcard on a public-exposure flag UNLESS that field is present and dated: its job is to make the decision attributable, not to block it. The CODE default stays 'sunday scans', so an unset variable fails conservative. Blank makes nothing public.",
+      "owner_decision": "Owner decision 2026-08-19, reaffirmed 2026-09-13: all auto-recorded sessions publish public to YouTube."
     },
     "DESK_SESSION_CHAPTERS_ENABLED": {
       "status": "armed",
@@ -554,6 +556,12 @@
         "web"
       ],
       "note": ""
+    },
+    "RENDER_CACHE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "The artifact cache + coalescing (2.5, 03 §3.6), built on the branch and wired to NOTHING yet - no call site in runtime.py, commands.py or bindings.py reads it. An ENABLEMENT gate, not a kill switch: unset means OFF, because it ADDS behaviour and must not turn itself on in every environment the moment it merges. In-memory and per-process by design (this pod redeploys every ~8 minutes; durability was not built and is not implied). The cache key is (command, normalised args, DATA VINTAGE) - never the wall clock, or the same closed-market input would key differently every second and §3.10 determinism would be unobservable. Bounded by DISCORD_RENDER_CACHE_MAX_ENTRIES and DISCORD_RENDER_CACHE_BYTES (64 MiB default - the web pod HEAP, deliberately not §3.6's 512 MiB, which describes an on-volume cache that was not built). Owner flips it after it is wired.",
+      "owner": "owner"
     },
     "DISCORD_RENDER_LOOPWATCH_ENABLED": {
       "status": "dark",
@@ -1177,6 +1185,14 @@
         "worker"
       ],
       "note": ""
+    },
+    "BREADTH_SERIES_ENDPOINT_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "breadth-charts programme",
+      "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition."
     }
   },
   "build_flags": {

@@ -26,8 +26,17 @@ import os
 import time
 
 ENV = "RENDER_V2_SHADOW"
-#: Its own budget, well under the ack path's, because it runs BESIDE a reply that has already gone.
-SHADOW_BUDGET_S = 0.4
+#: ⛔⛔ IT MUST NOT BE STRICTER THAN THE PATH IT MODELS. This matches `commands.SYMBOL_BUDGET_S`
+#: (0.6 s), the budget the real V2 ack path gives the same symbol check.
+#:
+#: ⚰️ It was 0.4 s — "its own budget, well under the ack path's, because it runs beside a reply that
+#: has already gone" — which sounds careful and is wrong. A shadow that gives up sooner than the
+#: thing it models bails on exactly the slow lookups V2 would have completed, so it MISSES the
+#: refusals it exists to find and under-reports divergence in the one direction nobody would query.
+#: Caught by a local run coming back `outcome=budget` on a cold index, where the ack path's 0.6 s
+#: would have answered. It runs on a pool thread after the reply has gone, so the extra 200 ms costs
+#: a member nothing.
+SHADOW_BUDGET_S = 0.6
 
 
 def enabled() -> bool:
@@ -86,15 +95,75 @@ def observe_ack(interaction: dict, *, pre_v2_reply: dict | None, resolve=None, n
                 break
 
     refused = [v.symbol for v in verdicts if getattr(v, "status", None) == symbols.UNKNOWN]
+    unanswerable = [v.symbol for v in verdicts if getattr(v, "status", None) == symbols.UNANSWERABLE]
     out["symbols"] = len(tickers)
     out["would_refuse"] = ",".join(refused) if refused else None
+    # ⛔⛔ WITHOUT THIS, A DIVERGENCE OF ZERO IS UNINTERPRETABLE — and zero is the number the flip
+    # decision rests on. "V2 agreed with the old path" and "V2 could not tell" both produce no
+    # refusals, and only this count separates them. A run that recorded a quiet weekend of perfect
+    # agreement, when what actually happened was that every symbol check failed open, is an
+    # instrument reporting its own blind spot as a property of what it measured.
+    out["unanswerable"] = ",".join(unanswerable) if unanswerable else None
+    out["index_ready"] = _index_ready()
     out["pre_v2_type"] = (pre_v2_reply or {}).get("type")
     # ⭐ The single number worth watching through a session: how often V2 would have told a member
     # "I don't have that symbol" where the old path went ahead and drew something.
     out["divergence"] = bool(refused) and (pre_v2_reply or {}).get("type") in (5, 6)
     out["ms"] = round((now() - started) * 1000.0, 1)
-    observe.event("shadow", **{k: v for k, v in out.items() if v is not None})
+    # ⛔⛔ EMIT WITHIN `observe._FIELDS`, OR THE RECORD REACHES THE LOG EMPTY.
+    # ⚰️ `observe.event` keeps ONLY the fields in its allowlist and drops the rest **silently**. The
+    # first version of this passed `symbols`, `would_refuse`, `unanswerable`, `index_ready`,
+    # `divergence` and `pre_v2_type` — none of them allowlisted — so the line that actually reached
+    # production was `{"t":"drender","evt":"shadow","cmd":"chart","ms":12.3}`. Shadow mode ran live
+    # for twenty minutes producing content-free records that LOOKED like it was working, and
+    # Monday's data would have been worthless. Found by reading the emitter, not by watching the
+    # output: the line was there, so nothing looked wrong.
+    observe.event("shadow", cmd=command, ms=out["ms"], outcome=outcome(out), detail=detail(out))
     return out
+
+
+def outcome(rec: dict) -> str:
+    """The one greppable word. ⛔ `could_not_tell` is a SEPARATE outcome from `agree`, for the same
+    reason `unanswerable` is a separate field: a run of quiet agreement and a run where every check
+    failed open are the same zero, and only this distinguishes them."""
+    if rec.get("error"):
+        return "error"
+    if rec.get("divergence"):
+        return "divergence"
+    if rec.get("unanswerable"):
+        return "could_not_tell"
+    if rec.get("budget"):
+        return "budget"
+    return "agree"
+
+
+def detail(rec: dict) -> str:
+    """Compact, greppable, and inside the allowlist. `observe.scrub` still runs over it."""
+    idx = rec.get("index_ready")
+    return (f"n={rec.get('symbols', 0)}"
+            f" refuse={rec.get('would_refuse') or '-'}"
+            f" unans={rec.get('unanswerable') or '-'}"
+            f" idx={'1' if idx is True else '0' if idx is False else '?'}"
+            f" pre={rec.get('pre_v2_type')}")
+
+
+def _index_ready() -> bool | None:
+    """Whether the symbol authorities can answer at all, in THIS process.
+
+    ⚰️ ⛔ AND "THIS PROCESS" IS THE POINT, LEARNED THE HARD WAY 2026-09-13. A `railway ssh` probe
+    spawns a **different** Python from the uvicorn server (pid 569 vs pid 1) and imports every module
+    COLD — so `ticker_search_index.ready()` reads False there while the server has the index fully
+    loaded. A probe run that way reported every symbol as `unanswerable` and looked exactly like a
+    production defect; `/api/ticker-search?q=NV` through the real server returned real rows seconds
+    later. **A pod probe measures the probe's process.** Timing from one is an upper bound (which
+    `05-progress` already said); a VERDICT from one can be simply wrong.
+
+    Recorded on the shadow line so Monday's data says which process state produced it."""
+    try:
+        from api.services.discord_render import symbols
+        return bool(symbols._index_ready())
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _tickers(interaction: dict) -> list[str]:

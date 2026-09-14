@@ -730,7 +730,7 @@ def test_the_monday_command_tells_STALLED_apart_from_HEALTHY(monkeypatch, dbp):
     # without pinning the window the assertion below tests the calendar rather
     # than the tool — green Mon-Fri and red at the weekend.
     real_window = rep._window
-    rep._window = lambda _hours: (True, "Wed 10:00 ET")
+    rep._window = lambda _hours, **_kw: (True, "Wed 10:00 ET")
     try:
         _proj.run_dark_sweep(now=_t.time() - 3600, db_path=dbp)
         text, code = rep.ticking_one(dbp, _pl_spec(rep))
@@ -849,13 +849,13 @@ def test_the_weekend_case_never_swallows_a_real_stall():
 
     # INSIDE the window with no heartbeat -> loud, exit 1.
     monkey = {"wd": 2, "hour": 10}
-    rep._window = lambda _hours: (True, "Wed 10:00 ET")
+    rep._window = lambda _hours, **_kw: (True, "Wed 10:00 ET")
     text, code = rep.ticking_one(p, _pl_spec(rep))
     assert code == 1 and _verdict(rep, text) == "NO", text
     assert "IS inside the window" in text
 
     # OUTSIDE the window with no heartbeat -> expected, exit 0.
-    rep._window = lambda _hours: (False, "Sat 11:00 ET")
+    rep._window = lambda _hours, **_kw: (False, "Sat 11:00 ET")
     text, code = rep.ticking_one(p, _pl_spec(rep))
     assert code == 0 and _verdict(rep, text) == "n/a", text
     assert "EXPECTED here, not a fault" in text
@@ -916,7 +916,7 @@ def test_a_stalled_sweep_INSIDE_the_window_still_exits_nonzero(monkeypatch, dbp)
     # that dies mid-window and is only checked after the close now reports 0.
     # Recorded as F-S7-PL-2; the Monday 09:05 ET check is inside every window,
     # which is why it is not a gap today.
-    rep._window = lambda _hours: (True, "Wed 10:00 ET")          # its window IS open
+    rep._window = lambda _hours, **_kw: (True, "Wed 10:00 ET")          # its window IS open
     text, code = rep.ticking_one(dbp, _pl_spec(rep))
     assert code == 1, "a sweep that stopped inside its own window is a stall"
     assert "STALLED" in text
