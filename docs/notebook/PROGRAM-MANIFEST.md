@@ -393,6 +393,27 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-14 — USER-DEFINED TEMPLATES ARE **FREE** (owner ruling)
+
+S-07's spec could not settle this from the codebase, because **two shipped
+precedents in this repo give opposite answers** and both are live:
+
+| precedent | what it does | reading |
+|---|---|---|
+| `j2_note_saved_views` (`api/routers/journal_two.py`) | `Depends(get_current_user)` on all four routes | user-authored content, **free** |
+| `api/routers/user_definitions.py` | *"EVERYTHING HERE IS PAID (owner ruling). There is no free read: a definition list is user content on a premium surface."* | user-authored content, **paid** |
+
+⭐ **The ruling: FREE. `j2_note_saved_views` governs for Notebook templates;
+`user_definitions.py`'s paid ruling stays true for definitions and does not
+extend here.** The nine built-in templates are free today, so gating a member's
+own version of a free feature would make the paid tier the price of *personalising
+something they already have* — which is not what the premium surface is for.
+
+⛔ This is a scope ruling, not an implementation detail: it decides the store, the
+CRUD gate and two rails. It was escalated rather than guessed, and it is recorded
+in both places so neither precedent can be cited against it later —
+`docs/notebook/wave-S-decisions.md` carries the same entry.
+
 ### ⚖️ 2026-09-13 — T-12 MAY BE EXECUTED BY AUTOMATION (owner amendment)
 
 `T-12-prelaunch-smoke.md` said, in its own charter: *"Who runs it: the owner, on
@@ -1286,6 +1307,33 @@ Closing it requires building an instrument first — that is a task, not a looku
     the door file exists there too. Whether that line describes this same code or
     a second implementation is **UNKNOWN** and must be settled before anything
     is merged toward it.
+
+29. ⛔⛔ **A FIX THAT CHANGES TWO VARIABLES DESTROYS THE ISOLATION THE CELL EXISTS
+    FOR.** Owner ruling, 2026-09-14 — recorded because the cheap fix and the
+    correct fix pointed in opposite directions and the cheap one looked better.
+
+    `second-writer-while-away` was written to the ruling's literal ordering —
+    *return to N, then reconnect* — and the return died with
+    `net::ERR_INTERNET_DISCONNECTED`, because `page.goto` is a **document load**
+    and the context was still offline by design.
+
+    ⭐ **The obvious repair was to make the return an SPA route change**, which
+    works offline, is one line, and is *more like what a member does*. It would
+    also have made the cell differ from its GREEN baseline in **two** ways at
+    once — the second writer **and** the return mechanism — so a colour change
+    could no longer have been attributed to either. The cell's entire value is
+    that it differs from `navigate-no-door` in exactly one thing.
+
+    The reconnect was moved to just after the second writer instead, leaving the
+    cell byte-identical to the GREEN baseline plus one variable. **The deviation
+    from the ruling's literal wording was recorded rather than done quietly**
+    (`f5-second-writer-while-away.md`), because a silent deviation in an
+    isolation experiment is indistinguishable from a mistake.
+
+    ⛔ **The general form:** when an experiment breaks, the repair must be checked
+    against the *comparison*, not just against the error. "Does this make it run?"
+    and "does this keep it comparable?" are different questions, and only the
+    second one protects the finding.
 
 ### Rows added by §10
 

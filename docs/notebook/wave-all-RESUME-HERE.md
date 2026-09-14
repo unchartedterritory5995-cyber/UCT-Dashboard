@@ -133,11 +133,20 @@ both files). Manifest §10.17.
 | **F5** (freeze) | `uct-worktrees/notebook-k` | `feat/notebook-kill-switch` | `184c3b493` | Run the **discriminator** in the next clear rig window: `append_document_excerpt × drain-first`. Blocked on a named rig limitation — see §4. The 7×6 table resumes with `python tools/q1_f5_matrix.py --resume` |
 | **Sunday gate** | same | same | same | After **17:15 CT** read the verdict file and post it verbatim + config-served + `organic members exposed = 0` |
 | **T-12 / C-7** | same | same | same | `owner-rig` identity run still outstanding; steps 7 and 8 need the runner's selectors scoped. **C-7 FALSE** |
-| **R-1a** | `uct-worktrees/notebook-r4a` | `feat/notebook-wave-r` | `adbcbcdf8` | ⛔ **HELD** until F5's route-change question is settled — R-1a's scanner door fires from a route change by definition |
+| **R-1a** | `uct-worktrees/notebook-r4a` | `feat/notebook-wave-r` | base `adbcbcdf8` · **door landed on master in `046214a82`** | ⛔ **HELD** until F5's route-change question is settled — R-1a's scanner door fires from a route change by definition. ⭐ **The door is BUILT and DARK, not unbuilt**: `WAVE_R_CAPTURE_ON = false` (`app/src/widgets/captureRelease.js`). The hold is on a FLIP, not a build |
 | **R-3b / R-3c** | `uct-worktrees/notebook-r4a` | same | same | after R-1a |
 | **Wave S** | `uct-worktrees/notebook-s` | `feat/notebook-wave-s` | `adbcbcdf8` | S-07 available by judgment |
 | **Q2-A** | `uct-worktrees/notebook-q2a` | `feat/notebook-q2a-offline-read` | `adbcbcdf8` | available by judgment |
 | **docs/roadmap** | `uct-worktrees/notebook-flip` | `docs/notebook-roadmap` | `c01a10823` | the **15:00 canary runs `tools/window_check.py` FROM HERE** — keep it merged with master |
+
+⚠️ **`adbcbcdf8` IN THAT COLUMN IS A SHARED BASE, NOT A LOCATION.** Verified by
+`git log`, 2026-09-14: it is a **merge commit** — *"Merge remote-tracking branch
+'origin/master' into feat/notebook-kill-switch"* — which is **on `origin/master`**
+and is simply the point three worktrees were cut from. It is not where R-1a's
+code lives, and reading it that way sent one session looking for a door in the
+wrong tree. Where a row needs to name where something LANDED, it now says so
+explicitly beside the base (see R-1a). ⛔ Provenance is `git log -S <symbol>`, not
+the column you happened to read first.
 
 ---
 
