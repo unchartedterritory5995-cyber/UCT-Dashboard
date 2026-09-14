@@ -93,3 +93,77 @@ def test_the_evals_routes_are_mounted_and_admin_gated_on_the_real_app(real_app, 
             time.sleep(0.05)
         assert last["last"]["status"] == "ok" and last["last"]["result"] == {"stub": True}
     assert ran == [(True, False)]
+
+
+def _job_runs():
+    with store.read() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM wisdom_job_runs ORDER BY started_at")]
+
+
+def _await_last(client, run_id, deadline_s=10):
+    """Wait for THIS run's result. `_STATE['last']` is module-level and survives between
+    tests, so polling for "not None" reads the PREVIOUS run's verdict and passes for the
+    wrong reason — which is exactly how the first draft of this rail reported 'ok' for a
+    run that raised."""
+    deadline = time.time() + deadline_s
+    while time.time() < deadline:
+        last = client.get("/api/admin/wisdom/evals/run/last").json()["last"]
+        if last is not None and last.get("run_id") == run_id:
+            return last
+        time.sleep(0.05)
+    raise AssertionError(f"the on-demand run {run_id} never finished")
+
+
+def test_an_on_demand_run_that_writes_records_a_job_run_row_and_a_dry_run_records_none(
+        real_app, wisdom_db, monkeypatch):
+    """🔴 The route calls pipeline.run_daily DIRECTLY, so registry._run_job's ledger row —
+    which every SCHEDULED wisdom job gets — was never written. An admin-triggered WRITE that
+    leaves no durable trace is unauditable: _STATE['last'] is per-process and dies with the pod.
+    """
+    from fastapi.testclient import TestClient
+
+    from api.services.wisdom.evals import pipeline
+    from tests.authclients import ADMIN, signed_in_as
+
+    monkeypatch.setattr(pipeline, "run_daily", lambda ctx: {"stub": True})
+    client = TestClient(real_app, raise_server_exceptions=False)
+
+    with signed_in_as(ADMIN, real_app):
+        # CONTROL FIRST: a dry run computes and must leave the ledger untouched.
+        started = client.post("/api/admin/wisdom/evals/run?dry_run=true").json()
+        assert _await_last(client, started["run_id"])["status"] == "ok"
+        assert _job_runs() == []
+
+        started = client.post("/api/admin/wisdom/evals/run?dry_run=false&force=true").json()
+        last = _await_last(client, started["run_id"])
+    assert last["dry_run"] is False and last["ledgered"] is True
+    rows = _job_runs()
+    assert len(rows) == 1, rows
+    row = rows[0]
+    assert (row["job_id"], row["status"], row["forced"], row["dry_run"]) == \
+        ("wisdom_evals_on_demand", "ok", 1, 0)
+    assert row["run_id"] == last["run_id"] and row["started_at"] and row["finished_at"]
+    with store.read() as conn:
+        beats = [dict(r) for r in conn.execute("SELECT * FROM wisdom_job_heartbeats")]
+    assert [b["job_id"] for b in beats] == ["wisdom_evals_on_demand"]
+
+
+def test_a_failed_on_demand_run_is_recorded_as_failed_not_left_running(real_app, wisdom_db, monkeypatch):
+    """A ledger row stuck at 'running' forever is worse than none — it reads as in-flight."""
+    from fastapi.testclient import TestClient
+
+    from api.services.wisdom.evals import pipeline
+    from tests.authclients import ADMIN, signed_in_as
+
+    def boom(ctx):
+        raise RuntimeError("step exploded")
+
+    monkeypatch.setattr(pipeline, "run_daily", boom)
+    client = TestClient(real_app, raise_server_exceptions=False)
+    with signed_in_as(ADMIN, real_app):
+        started = client.post("/api/admin/wisdom/evals/run?dry_run=false").json()
+        last = _await_last(client, started["run_id"])
+    assert last["status"] == "failed"
+    rows = _job_runs()
+    assert len(rows) == 1 and rows[0]["status"] == "failed"
+    assert "step exploded" in (rows[0]["error"] or "")

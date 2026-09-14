@@ -160,6 +160,24 @@ def test_detections_inside_retention_are_judged_by_end_t_and_last_seen(patterns,
     assert adapter.check("AMD", day).verdict == "miss"          # first detected after the session ended
 
 
+def test_a_session_the_detector_never_ran_is_unproven_not_a_miss(patterns):
+    """🔴 covered=True hard-coded: a day the detector never ran counted as a proven MISS.
+
+    The two named rows span 09-09..09-11, so 09-12 sits INSIDE the 120-day retention and
+    AFTER the store floor — both existing gates wave it through — yet no detection window
+    covers it. The module's own contract says a miss means the source PROVABLY ran."""
+    adapter = replay.PatternDetections(patterns, now=datetime(2026, 9, 14, 12, tzinfo=ET))
+    never_ran = adapter.check("NVDA", datetime(2026, 9, 12).date())
+    assert (never_ran.verdict, never_ran.reason) == ("unproven", "no_detection_window_covers_the_session")
+    # CONTROL: a session the SAME store does cover still answers hit/miss, so the rail is
+    # not passing by calling everything unproven.
+    assert adapter.check("NVDA", datetime(2026, 9, 10).date()).verdict == "hit"
+    assert adapter.check("QQQ", datetime(2026, 9, 10).date()).verdict == "miss"
+    # and it agrees with its sibling that DOES demand a receipt (ScanHits), rather than
+    # answering the opposite word for the same fact.
+    assert never_ran.verdict == "unproven"
+
+
 def test_a_session_outside_the_120_day_prune_or_before_the_store_floor_is_unproven(patterns):
     old = replay.PatternDetections(patterns, now=datetime(2027, 3, 1, 12, tzinfo=ET)).check(
         "NVDA", datetime(2026, 9, 10).date())

@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import require_admin
 from api.services.wisdom import registry
-from api.services.wisdom.core import ids, store, timeutil
+from api.services.wisdom.core import heartbeat, ids, store, timeutil
 from api.services.wisdom.evals import metrics, pipeline
 
 router = APIRouter(prefix="/api/admin/wisdom/evals", tags=["wisdom"])
@@ -68,13 +68,40 @@ def evals_run(dry_run: bool = Query(True), force: bool = Query(False),
 
     def _go() -> None:
         started = timeutil.iso_et(timeutil.now_et())
+        # A WRITE with no ledger row is unauditable. registry._run_job records every scheduled
+        # run in wisdom_job_runs; this route calls the pipeline directly, so it records its own.
+        # A dry run computes and writes nothing, so it earns no row (and must not fake one).
+        ledgered = not dry_run
+        if ledgered:
+            try:
+                with store.write() as conn:
+                    conn.execute(
+                        "INSERT INTO wisdom_job_runs(run_id, job_id, due_key, started_at, status, forced, dry_run) "
+                        "VALUES (?, ?, NULL, ?, 'running', ?, 0)",
+                        (ctx.run_id, ctx.job_id, started, int(force)))
+                    heartbeat.beat(conn, ctx.job_id, "running", now_iso=started)
+            except Exception:
+                ledgered = False
         try:
             result = pipeline.run_daily(ctx)
             outcome = {"status": "ok", "result": result}
         except Exception as exc:
             outcome = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"[:2000]}
+        finished = timeutil.iso_et(timeutil.now_et())
+        if ledgered:
+            try:
+                with store.write() as conn:
+                    conn.execute(
+                        "UPDATE wisdom_job_runs SET finished_at = ?, status = ?, result_json = ?, error = ? "
+                        "WHERE run_id = ?",
+                        (finished, outcome["status"], json.dumps(outcome.get("result"), default=str)[:20000],
+                         outcome.get("error"), ctx.run_id))
+                    heartbeat.beat(conn, ctx.job_id, "ok" if outcome["status"] == "ok" else "failed",
+                                   error=outcome.get("error"), now_iso=finished)
+            except Exception:
+                pass
         outcome.update({"run_id": ctx.run_id, "dry_run": dry_run, "force": force, "started_at": started,
-                        "finished_at": timeutil.iso_et(timeutil.now_et())})
+                        "finished_at": finished, "ledgered": ledgered})
         with _RUN_LOCK:
             _STATE["last"] = outcome
             _STATE["running"] = False

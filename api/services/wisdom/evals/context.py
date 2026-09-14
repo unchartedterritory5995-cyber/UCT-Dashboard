@@ -316,8 +316,13 @@ def _p_catalysts(a: AsOf, env: ContextEnv) -> dict:
     source = "catalyst.store.get_for_date(session, ranked_only=False)"
     if row is None or row.get("rank") is None:
         return _ok({"listed": False}, source, a)
-    written = row.get("thesis_at") or row.get("refreshed_at")
-    if written and int(written) > int(a.stated.timestamp()):
+    # A row with NO write time cannot say whether it existed when the statement was made.
+    # Treating that absence as "known before" is a lookahead: it asserts `listed: True`
+    # (with a rank) as of a moment we have no evidence for. Unreadable is not empty.
+    written = next((row.get(k) for k in ("thesis_at", "refreshed_at") if row.get(k) is not None), None)
+    if written is None:
+        return _gap("catalyst_row_has_no_write_time")
+    if int(written) > int(a.stated.timestamp()):
         return _ok({"listed": False, "listed_later_same_session": True}, source, a)
     return _ok({"listed": True, "rank": row.get("rank"), "tag": row.get("tag"), "grade": row.get("grade"),
                 "catalyst_type": row.get("catalyst_type")}, source, a)

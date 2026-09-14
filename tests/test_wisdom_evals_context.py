@@ -141,6 +141,28 @@ def test_catalysts_listed_after_the_statement_do_not_count_as_listed():
     assert context.compute_snapshot(_call(), empty)["fields"]["catalysts"]["gap"] == "catalysts_no_rows_for_session"
 
 
+def test_a_catalyst_row_with_no_write_time_is_a_gap_never_listed_true():
+    """🔴 LOOKAHEAD: `thesis_at or refreshed_at` being absent was read as "known before".
+
+    thesis_at and refreshed_at are both nullable in catalysts.db, so this row is reachable.
+    With no write time the snapshot cannot say the ticker was on the list AT stated_at, and
+    asserting `listed: True` with a rank is a claim with no evidence behind it."""
+    now = datetime(2026, 8, 27, 18, tzinfo=ET)          # a week AFTER the statement
+    bare = {"ticker": "NVDA", "rank": 3, "tag": "earnings", "thesis_at": None, "refreshed_at": None}
+    env = context.ContextEnv(bars=_bars(), now=now, catalyst_rows=lambda d: [bare])
+    field = context.compute_snapshot(_call(), env)["fields"]["catalysts"]
+    assert field["value"] is None and field["gap"] == "catalyst_row_has_no_write_time"
+    # CONTROL 1: the same row WITH a write time before the statement still answers listed.
+    before = int(datetime(2026, 8, 20, 6, tzinfo=ET).timestamp())
+    stamped = context.ContextEnv(bars=_bars(), now=now,
+                                 catalyst_rows=lambda d: [dict(bare, thesis_at=before)])
+    assert context.compute_snapshot(_call(), stamped)["fields"]["catalysts"]["value"]["listed"] is True
+    # CONTROL 2: refreshed_at alone is a write time too — the gap is ABSENCE, not thesis_at.
+    only_refreshed = context.ContextEnv(bars=_bars(), now=now,
+                                        catalyst_rows=lambda d: [dict(bare, refreshed_at=before)])
+    assert context.compute_snapshot(_call(), only_refreshed)["fields"]["catalysts"]["value"]["listed"] is True
+
+
 def test_a_reader_that_raises_is_a_named_gap_not_a_crash():
     def boom(_):
         raise RuntimeError("store locked")

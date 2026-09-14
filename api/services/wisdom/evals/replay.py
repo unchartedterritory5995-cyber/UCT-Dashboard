@@ -250,12 +250,20 @@ class PatternDetections(_SqliteAdapter):
         floor = self._store_floor()
         if floor is None or end < floor:
             return Check(self.name, "unproven", iso, list_name=self.list_name, reason="before_store_floor")
+        # COVERAGE, not an assumption. A session is proven only when SOME tf='D' detection's
+        # window spans it — i.e. the daily pass was alive and writing across that session.
+        # Hard-coding covered=True made "the detector never ran that day" indistinguishable
+        # from "it ran and this ticker was not in it", and only the second is a miss.
+        covered = self.conn().execute(
+            "SELECT 1 FROM pattern_detections WHERE tf='D' AND detected_at<=? AND last_seen_at>=? LIMIT 1",
+            (end, start)).fetchone() is not None
         rows = self.conn().execute(
             "SELECT pattern_id, confidence FROM pattern_detections WHERE UPPER(sym)=? AND tf='D' AND end_t<=? "
             "AND detected_at<=? AND last_seen_at>=? ORDER BY confidence DESC",
             (ticker, session.year * 10000 + session.month * 100 + session.day, end, start)).fetchall()
-        return self._verdict(session, covered=True, row=rows[0] if rows else None,
-                             setups=[r["pattern_id"] for r in rows], reason_absent="")
+        return self._verdict(session, covered=covered, row=rows[0] if rows else None,
+                             setups=[r["pattern_id"] for r in rows],
+                             reason_absent="no_detection_window_covers_the_session")
 
 
 class ScanHits(_SqliteAdapter):
