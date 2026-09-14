@@ -56,8 +56,24 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install pytest
-        run: python -m pip install --quiet pytest
+      # ⚰️ THE FIRST RUN OF THIS GATE FAILED HERE, and the reason is worth keeping.
+      # `test_visibility_flag_ledger.py` is the OFFLINE half of the flag ledger — but
+      # three of its sixteen tests import `api.services.desk_daily_session` to check the
+      # declared show names against the sections the router can actually emit, and that
+      # module reaches httpx, numpy and Pillow. "Offline" meant "does not call Railway",
+      # not "does not import the app", and I read it as the latter.
+      #
+      # ⛔ The alternative — deselecting those three in CI — was rejected: a gate that
+      # silently skips the checks it cannot run is the opt-in-rail defect, and these are
+      # exactly the ones that catch a ledger describing sections that do not exist. Three
+      # wheels cost ~15 s.
+      #
+      # ⚠️ The coupling is real and accepted: a NEW third-party import on that path will
+      # break this gate and therefore block deploys until the list is updated. That is the
+      # right direction to fail — a new heavy dependency in the publish path is worth
+      # stopping for — but it is a cost, not a free lunch.
+      - name: Install the gate's dependencies
+        run: python -m pip install --quiet pytest httpx numpy pillow
 
       # ⛔ A PUSHED SECRET IS PUBLIC EVEN IF DELETED AFTERWARDS — this repo is
       # public. This is the same scanner the pre-push hook runs, here where
