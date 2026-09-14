@@ -1430,10 +1430,32 @@ Closing it requires building an instrument first — that is a task, not a looku
     exactly the runner defect fixed the same night (exit 0 with an INCONCLUSIVE
     verdict was being recorded as `done`).
 
-    ⚠️ Still genuinely missing, and NOT to be confused with the above:
-    `pre_push_guard.py` has **no `--self-check`**, so nobody has watched it refuse;
-    and its bypass log is `logs/pre-push-guard-bypass.log`, not the
-    `uct-q1-observe` location an owner ruling asked for.
+    ✅ **UPDATE, same night — IT HAS NOW BEEN WATCHED, IN BOTH DIRECTIONS**, by
+    an ordinary push rather than a contrived test. Pushing this programme's
+    tooling merge to master:
+
+    ```
+    [pre-push] the newest web deployment is DEPLOYING (2d7ae7795 …) — a swap is in
+               flight; pushing now marks it REMOVED mid-swap and members get a 502.
+    [pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.
+    ```
+
+    and four minutes later, unchanged and unforced:
+
+    ```
+    [pre-push] web is SUCCESS on 2d7ae7795, 167s settled — safe to push.
+    ```
+
+    ⭐ **So the guard bites, and its settle window is real** — 167 s against a
+    150 s floor. The override was **not** used. This also settles the question
+    §10.31 opened: the mechanism is not being bypassed, and the tight cadence is
+    the permitted one.
+
+    ⚠️ Still genuinely missing: `pre_push_guard.py` has no `--self-check`, so its
+    refusal has been *observed* but never *proved on demand* — an observation is
+    not a rail, and the next person to change it has nothing to run. And its
+    bypass log is `logs/pre-push-guard-bypass.log`, not the `uct-q1-observe`
+    location an owner ruling asked for.
 
 32. ⛔⛔ **A SUBAGENT'S REPLY ABOUT ITS WORK IS NOT THE WORK — and I briefed a
     second agent from the reply.**
