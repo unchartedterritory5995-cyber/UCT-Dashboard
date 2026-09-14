@@ -14,8 +14,8 @@
 | §6 build queue | ✅ **EMPTY** — every numbered row DONE with its SHA. **AUTHORIZED-AND-UNBUILT = 0.** |
 | audit counts | DONE **11** · BLOCKED-DATA **5** · BLOCKED-OWNER **8** · BLOCKED-SPEC-READ **5** · BLOCKED-DEPENDENCY **2** · EXCLUDED **1** = **32**. ⛔ NOT-YET-CLASSIFIED **0**. |
 | S7 | **8 of 8 types registered; every CP3 merged and ARMED.** Seven dark sweeps ticking. |
-| self-monitoring | **Layer 0 LIVE (refused two real pushes) · Layer 2 REGISTERED + DRY-RUN 2026-09-13, stopped at §1 and changed nothing · Layer 1 code-merged but the Railway service has NO source and NO cron, so it has never run.** Read **§8**. |
-| owner's desk | **one decision**: the Railway staged-change queue — it also holds `web` -> `CHART_EDGE_SECRET`, which is NOT ours (`OWNER_INPUTS` PART E). ⚠️ And Layer 2 cannot report: no egress to admin Discord, and **F-L2-1** makes a stopped run record `exit=0`. |
+| self-monitoring | ✅ **ALL THREE LIVE.** Layer 0 refused two real pushes · Layer 1 deployed and posted its first admin-Discord report · Layer 2 registered and dry-run (stopped at §1, changed nothing). Read **§8**. |
+| owner's desk | ⚠️ **Layer 2 still cannot report**: the sandbox it launches into has no egress to admin Discord, and **F-L2-1** makes a stopped run record `exit=0`. Layer 1 is unblocked and needs nothing. |
 | next decision | **next weekend's dark read** — not a build. |
 
 ## 1. Reopen
@@ -175,48 +175,58 @@ unsigned gate line awaiting the owner's read, never something this programme may
 PART D of `OWNER_INPUTS.md` carries the three that need a CHOOSE.
 
 
-## 8. The three self-monitoring layers — LAYER 0 LIVE · LAYER 2 ARMED · LAYER 1 CODE-ONLY
+## 8. The three self-monitoring layers — ALL THREE LIVE
 
-> Built and merged 2026-09-13. **Layer 1 has never run and Layer 2 has never been exercised.**
-> Read this before assuming the programme already watches itself.
+> Built and merged 2026-09-13, all three live by 2026-09-14 00:25Z. **The one thing still broken
+> is Layer 2's ability to REPORT** — see its section below.
 
 | layer | what it is | state |
 |---|---|---|
 | **LAYER 0** — pre-push guard | `tools/pre_push_guard.py` + the hook at `$(git rev-parse --git-common-dir)/hooks/pre-push` | ✅ **LIVE, and it proved itself in production** — refused a real push at 135 s and allowed it at 157 s. UNREADABLE fails closed. `UCT_SKIP_PREPUSH_GUARD` is the logged bypass, for a human with a reason. |
-| **LAYER 1** — `terminal-next-monitor` | `api/terminal_next_monitor_main.py` · `api/routers/terminal_next_reports.py` · the `railway.json` monitor branch | ⚠️ **CODE MERGED, SERVICE NOT CONFIGURED.** The Railway service has **no source repo and no cron**, so it has never run and cannot run. Blocker below. |
+| **LAYER 1** — `terminal-next-monitor` | `api/terminal_next_monitor_main.py` · `api/routers/terminal_next_reports.py` · the `railway.json` monitor branch | ✅ **LIVE 2026-09-14 00:25Z.** Source `unchartedterritory5995-cyber/UCT-Dashboard`@`master`, cron `0,12,20,30 11,12,13,14,20,21 * * *`, deploy SUCCESS on `e659454bb`, first manual run posted to admin Discord. |
 | **LAYER 2** — weekly autonomous run | `docs/terminal-research/00-program-control/WEEKLY_AUTONOMOUS_PROMPT.md` + `tools/terminal_next_weekly.cmd` | ✅ **REGISTERED AND ARMED** — Task Scheduler job **`UCT Terminal-Next Weekly`**, status `Ready`, next run **2026-09-19 09:30** local (CT), running `C:\Users\Patrick\uct-worktrees\s7-price-level\tools\terminal_next_weekly.cmd`. ✅ **DRY-RUN 2026-09-13 19:06–19:10** — stopped at §1, built nothing, touched nothing. Three findings below. |
 
-### ⛔ LAYER 1 IS BLOCKED ON A SHARED RAILWAY QUEUE, NOT ON CODE
-
-Measured 2026-09-13 by CLI — which is the authority here, **not the page**:
+### ✅ LAYER 1 IS LIVE — applied 2026-09-14 00:25Z, and the CLI is the proof
 
 ```
 railway status --json     # serviceInstances -> terminal-next-monitor
-  source.repo      : null
-  cronSchedule     : null
-  nextCronRunAt    : null
-  latestDeployment : null
+  source.repo   : unchartedterritory5995-cyber/UCT-Dashboard
+  cronSchedule  : 0,12,20,30 11,12,13,14,20,21 * * *
+  nextCronRunAt : 2026-09-14T11:00:00Z   = Mon 2026-09-14 07:00 ET
+  latestDeploy  : SUCCESS e659454bb
 ```
 
-Everything else the service needs is already in place (`railway variables --service
-terminal-next-monitor --kv`): `TERMINAL_NEXT_MONITOR_ENABLED=1` · `DISCORD_WEBHOOK_URL` (the ADMIN
-webhook) · `PUSH_SECRET` · `WEB_INTERNAL_URL`. **Only the source and the cron are missing.**
+**First run, triggered by hand from the Cron Runs tab:**
 
-Both were entered in the dashboard and both were **staged, never applied**. Railway's
-staged-change queue is **per-ENVIRONMENT, not per-service**: the banner offers ONE **Deploy** for
-everything staged, the overflow menu offers only **Discard Changes**, and the Details dialog has a
-per-service *Discard* but no per-service *Apply*.
+```
+Starting Container
+[monitor] ticking -> --ticking (exit 0) — all sweeps answered
+```
 
-⛔ The queue also holds **another workstream's change — `web` -> `CHART_EDGE_SECRET`, one variable,
-"web will redeploy"**. Deploying would push their secret to production and restart `web`;
-discarding would destroy their staged work. **Neither was done. Railway was left exactly as
-found.** This is an owner decision: deploy both together knowingly, or apply the monitor's two
-settings by a service-scoped path.
+⭐ **That line is evidence the post LANDED, not just that the job ran.** `run_job` calls `post()`
+*before* it prints, and `post()` prints `[monitor] discord post failed: …` on any exception and
+`NO ADMIN WEBHOOK SET` when the variable is empty. Neither appeared.
 
-⭐ **VERIFY BY CLI, NEVER BY THE CARD.** The dashboard showed *"3 Changes · Next in 11 hours"* on
-the monitor card while `railway status --json` read `cronSchedule: null` — the card was narrating a
-staged intention, and one click later the staged set was gone with nothing applied. Same lesson as
-`--kv` versus a running process.
+⛔ **AND THE COMMIT IN THE HEADER IS REAL, WHICH TOOK PROVING.** `running_commit()` reads
+`RAILWAY_GIT_COMMIT_SHA`, and that variable is **absent from `railway variables --kv`** for the
+monitor *and for `web`* — so its presence could not be assumed. Railway injects it into the
+**container at runtime**, invisible to the CLI's variable view: the running `web` container, built
+from the same commit, reports `e659454bb8f2` through `/api/discord/render-health`. Same repo, same
+commit, same injection — so the post header read ``commit `e659454bb` ``.
+
+⚠️ **THE 07:00 ET FIRING WILL DO NOTHING, AND THAT IS CORRECT.** The cron is a **superset**;
+`due_jobs()` decides what is actually due from the ET table. Nothing is due at 07:00, so that
+firing exits quietly and costs a second of CPU. **The first firing that does work is 11:20 UTC =
+07:20 ET — `catalyst`.** A quiet 07:00 is not a fault and must not be read as one.
+
+### How it was unblocked, recorded because the reasoning matters
+
+The blocker was never the settings — it was that Railway's staged-change queue is
+**per-ENVIRONMENT**, and it held another workstream's `web` → `CHART_EDGE_SECRET`. That resolved
+**by itself**: its owner applied their own change (web deployed `954309f0f`), leaving the queue
+empty. With nothing foreign staged, the Details dialog listed **only `terminal-next-monitor`, 3
+settings**, and its footer said only that service would redeploy — checked immediately before
+pressing Deploy. ⛔ **Nothing of theirs was ever deployed or discarded by this programme.**
 
 ### The two values to set, so nobody re-derives them
 
@@ -229,6 +239,7 @@ staged intention, and one click later the staged set was gone with nothing appli
    four ET schedules are selected in code by `due_jobs()` against the `SCHEDULE` table
    (`catalyst` 07:20 · `ticking` 09:12 · `gate-check` 16:30 · `weekly` Sat 08:00, all ET). The
    superset is what makes DST a non-event; **do not "tighten" the cron to match the ET times.**
+
 
 ### ✅ LAYER 2 HAS NOW BEEN DRY-RUN — and it found three things
 

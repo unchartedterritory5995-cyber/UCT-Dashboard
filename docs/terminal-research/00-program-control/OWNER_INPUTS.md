@@ -271,7 +271,7 @@ deciding before that data is guessing. **Unblocks:** the indicator-condition FLI
 
 ---
 
-## PART E — ONE DECISION, and it is the only thing standing between Layer 1 and a first run
+## ✅ PART E — RESOLVED 2026-09-14, NO ANSWER NEEDED. Kept for the record.
 
 ### E1 · The Railway staged-change queue holds somebody else's change
 
@@ -286,7 +286,18 @@ variable, "web will redeploy"** — not this programme's change. Deploying it wo
 workstream's secret into production and restart `web`. Discarding it would destroy their work.
 **Neither was done.**
 
-**CHOOSE ONE:**
+✅ **IT RESOLVED ITSELF AND THEN WAS APPLIED.** The chart-edge workstream applied its own
+`CHART_EDGE_SECRET` (web deployed `954309f0f`), leaving the queue empty. With nothing foreign
+staged, the two monitor settings were applied through the dashboard and the Details dialog listed
+**only `terminal-next-monitor`**. CLI readback: `source.repo` set, `cronSchedule` set,
+`nextCronRunAt` 2026-09-14T11:00:00Z, deploy SUCCESS on `e659454bb`, first run posted to admin
+Discord. ⛔ **Nothing belonging to another workstream was deployed or discarded.**
+
+⚰️ The three options below are kept because the CONSTRAINT is permanent even though this
+instance cleared: Railway's staged-change queue is per-environment, so any future dashboard change
+here can be blocked the same way by somebody else's staged work.
+
+~~**CHOOSE ONE:**~~
 
 - [ ] **E1-a** — *"`CHART_EDGE_SECRET` is mine / is fine; deploy both together."* One Deploy applies
       the monitor's two settings **and** the web variable, and `web` restarts. Bound by the

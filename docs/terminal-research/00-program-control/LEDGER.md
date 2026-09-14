@@ -3781,7 +3781,7 @@ table decides what is due; a firing with nothing due exits quietly.
 service to the GitHub repo** and **set the cron**. Until then the service exists, is configured, and
 deploys nothing.
 
-#### ⛔⛔ ATTEMPTED IN THE BROWSER 2026-09-13 AND **BLOCKED BY A SHARED QUEUE** — nothing was applied
+#### ⛔ BLOCKED ON THE FIRST ATTEMPT 2026-09-13 — and then APPLIED 2026-09-14 (see below)
 
 Both settings were entered in the dashboard. Both were **staged, never applied**, and the CLI —
 the authority — still reads the service as unconfigured:
@@ -3798,6 +3798,34 @@ dialog has a per-service *Discard* and no per-service *Apply*. At that moment th
 Deploying would have pushed their secret to production and restarted `web`; discarding would have
 destroyed their staged work. **Neither was done — Railway was left exactly as found**, and the
 decision is the owner's.
+
+#### ✅ LIVE 2026-09-14 00:25Z — source, cron, deploy and a first admin-Discord post
+
+```
+source.repo   : unchartedterritory5995-cyber/UCT-Dashboard   (branch master, repo root, no start cmd)
+cronSchedule  : 0,12,20,30 11,12,13,14,20,21 * * *
+nextCronRunAt : 2026-09-14T11:00:00Z  = Mon 2026-09-14 07:00 ET
+latestDeploy  : SUCCESS e659454bb
+first run     : [monitor] ticking -> --ticking (exit 0) — all sweeps answered
+```
+
+**How the blocker cleared:** the chart-edge workstream applied its OWN `CHART_EDGE_SECRET` (web
+deployed `954309f0f`), emptying the per-environment queue. The Details dialog was re-checked
+immediately before pressing Deploy and listed **only `terminal-next-monitor`, 3 settings**, footer
+*"terminal-next-monitor will redeploy"*. ⛔ Nothing of theirs was deployed or discarded here.
+
+⭐ **PROVING THE POST CARRIED THE COMMIT TOOK MORE THAN READING THE LOG.** `running_commit()`
+reads `RAILWAY_GIT_COMMIT_SHA`, which is **absent from `railway variables --kv`** for the monitor
+AND for `web` — so its presence could not be assumed, and a header reading `unknown` would have
+quietly defeated the "every post carries the running commit" requirement. Railway injects it into
+the **container at runtime**, invisible to the CLI: the running `web` container, same commit,
+answers `e659454bb8f2` at `/api/discord/render-health`. ⛔ The absence of a variable from a CLI
+listing is not evidence of its absence from the process — the same lesson as `--kv` versus a
+running process, one layer down.
+
+⚠️ **THE 07:00 ET FIRING DOES NOTHING BY DESIGN.** The cron is a superset; `due_jobs()` picks
+from the ET table, and the first firing with work is **11:20 UTC = 07:20 ET, `catalyst`**. A quiet
+07:00 must not be read as a dead service.
 
 ⭐ **AND THE CARD LIED, WHICH IS THE REUSABLE PART.** Mid-attempt the service card read
 *"3 Changes · Next in 11 hours"* — a next-run time for a cron that did not exist — while
