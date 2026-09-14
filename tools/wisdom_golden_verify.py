@@ -89,6 +89,7 @@ PROVENANCE = DOCS / "golden" / "golden-v0.provenance.json"
 AUTHORS_PATH = DOCS / "authors.json"
 SCHEMA_PATH = DOCS / "contracts" / "extraction-output-v0.schema.json"
 VOCAB_PATH = DOCS / "vocabulary" / "setup-vocabulary-v0.draft.json"
+RESOLUTIONS_PATH = DOCS / "speakers" / "session-resolutions-v1.json"
 
 RECORD_TYPES = ("CALL", "NEGATIVE_CALL", "MENTION", "PRINCIPLE", "LEVEL", "MARKET_SIGNAL")
 # wisdom-db-v0.sql wisdom_sources.stream CHECK
@@ -108,7 +109,20 @@ RELATIONS = frozenset(("reinforces", "contradicts", "qualifies", "same_sentence"
 PRIVATE_KEYS = frozenset(("size_shares", "open_entry", "derived_stop", "entry_as_heard", "size_as_heard",
                           "fills", "size_text", "trim_fraction"))
 MECHANICAL_ATTRIBUTION = frozenset(("speaker_label", "guest_speaker_label", "signed_section", "D4 ruling",
-                                    "discord_author_id"))
+                                    "discord_author_id",
+                                    # §8a.2: a table lookup against a committed, evidence-citing entry.
+                                    "session_resolution",
+                                    # the owner's own answer, which is the strongest authority there is.
+                                    "owner_ruling"))
+#: Methods that may be used ONLY on a label authors.json declares ambiguous. Letting either
+#: one appear on an ordinary label would turn the §8a.2 escape hatch into a way to hand any
+#: record any author with no source agreeing.
+AMBIGUOUS_ONLY_ATTRIBUTION = frozenset(("session_resolution", "owner_ruling"))
+TEAM_UNRESOLVED = "team-unresolved"
+#: §8b.7 — team-unresolved is out of the UCT-see rate and out of every publish path.
+TEAM_UNRESOLVED_EXCLUSIONS = ("uct_see_rate", "publish")
+#: §8a.4 — the ceiling on a ticker inferred from an adjacent line.
+INFERRED_ENTITY_CONFIDENCE_MAX = 0.5
 # transcripts/_index.json category -> wisdom stream
 CATEGORY_STREAM = {
     "Live Trading Sessions": "zoom_live", "LIVE TRAIDNG": "zoom_live", "Evening Update": "zoom_live",
@@ -387,9 +401,20 @@ def load_contracts() -> dict:
         alias[s["label"].lower()] = sid
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     vocab = json.loads(VOCAB_PATH.read_text(encoding="utf-8"))
+    ambiguous = frozenset(str(e["label"]).strip().lower()
+                          for e in authors.get("ambiguous_speaker_labels", []) if e.get("label"))
+    resolutions: dict[tuple[str, str], dict] = {}
+    if RESOLUTIONS_PATH.exists():
+        raw = json.loads(RESOLUTIONS_PATH.read_text(encoding="utf-8"))
+        kinds = frozenset(raw.get("evidence_kinds") or ())
+        for entry in raw.get("resolutions") or []:
+            cited = [ev for ev in (entry.get("evidence") or []) if (ev or {}).get("kind") in kinds]
+            resolutions[(str(entry.get("external_ref")), str(entry.get("label", "")).strip().lower())] = {
+                "author_id": entry.get("author_id"), "cited": cited}
     return {"alias": alias, "authors": by_id, "non_call": non_call,
             "call_authors": frozenset(k for k, v in by_id.items() if v.get("can_author_calls")),
             "schema": schema, "record_schema": schema["$defs"]["record"],
+            "ambiguous_labels": ambiguous, "session_resolutions": resolutions,
             "vocab": frozenset(e["name"] for e in vocab["entries"])}
 
 
@@ -614,7 +639,31 @@ def check_v1(records: list[dict], samples: pathlib.Path, contracts: dict,
             want_stream = CATEGORY_STREAM.get(category, "education") if category else None
             if want_stream and r["stream"] != want_stream:
                 bad(f"stream {r['stream']!r} but category {category!r} maps to {want_stream!r}")
-            if method == "speaker_label":
+            # ── §8a.2 RAIL: a label authors.json calls ambiguous is an alias of NOBODY ──
+            # ⚰️ This is the rail for the defect that produced the ruling: the shared Zoom host
+            # account was a tsdr alias, so 'speaker_label' quietly attributed another person's
+            # trade to the owner. Dropping the alias fixed the instance; this closes the door.
+            # A resolution must name THIS session and cite evidence, or the answer is nobody.
+            ambiguous = (spk or "").strip().lower() in contracts["ambiguous_labels"]
+            if ambiguous and method == "speaker_label":
+                bad(f"speaker label {spk!r} is declared ambiguous in authors.json: it is an alias of nobody "
+                    f"(§8a.2). Use session_resolution with cited evidence, or owner_ruling.")
+            if method in AMBIGUOUS_ONLY_ATTRIBUTION and not ambiguous:
+                bad(f"attribution method {method!r} is only for an ambiguous speaker label, but {spk!r} is not one")
+            if method == "session_resolution":
+                entry = contracts["session_resolutions"].get((ext, (spk or "").strip().lower()))
+                if entry is None:
+                    bad(f"no session resolution for {ext} + {spk!r} in {_rel(RESOLUTIONS_PATH)} (§8a.2)")
+                elif not entry["cited"]:
+                    bad(f"session resolution for {ext} + {spk!r} cites no evidence of a declared kind (§8a.2)")
+                else:
+                    expect_author = entry["author_id"]
+            elif method == "owner_ruling":
+                if r["author_id"] != TEAM_UNRESOLVED:
+                    bad(f"attribution method 'owner_ruling' on {r['author_id']!r}: the owner's recorded answer "
+                        f"here is UNKNOWN, so the author is {TEAM_UNRESOLVED!r} and nobody else")
+                expect_author = r["author_id"]
+            elif method == "speaker_label":
                 expect_author = contracts["alias"].get((spk or "").lower())
                 if expect_author is None:
                     bad(f"speaker label {spk!r} is not an alias in authors.json")
@@ -653,7 +702,19 @@ def check_v1(records: list[dict], samples: pathlib.Path, contracts: dict,
         # author rules
         author = r["author_id"]
         is_guest = r["is_guest"] is True
-        known_author = author in contracts["authors"] or author in contracts["non_call"]
+        known_author = (author in contracts["authors"] or author in contracts["non_call"]
+                        or author == TEAM_UNRESOLVED)
+        # ── §8b.7 RAIL: team-unresolved is MENTION only, and is out of the numbers ──
+        # An unknown speaker that can author a CALL is worse than no record: it puts a
+        # trade in somebody's mouth and then counts it in his hit rate.
+        if author == TEAM_UNRESOLVED:
+            if rt != "MENTION":
+                bad(f"{TEAM_UNRESOLVED} may author MENTION only (§8a.2/§8b.7), not {rt}")
+            excluded = (r["evidence"] or {}).get("excluded_from") or []
+            missing_ex = [x for x in TEAM_UNRESOLVED_EXCLUSIONS if x not in excluded]
+            if missing_ex:
+                bad(f"{TEAM_UNRESOLVED} record must declare evidence.excluded_from {list(TEAM_UNRESOLVED_EXCLUSIONS)}; "
+                    f"missing {missing_ex} (§8b.7)")
         if is_guest:
             if not str(author).startswith("guest:"):
                 bad("is_guest=true needs author_id 'guest:<name>'")
@@ -710,6 +771,20 @@ def check_v1(records: list[dict], samples: pathlib.Path, contracts: dict,
                 bad("LEVEL needs at least one stated price")
             if not entity.get("ticker"):
                 bad("LEVEL needs a resolved instrument (evidence.entity.ticker)")
+        # ── §8a.4 RAIL: a ticker inferred from an adjacent line pays for itself ──
+        # The column existed with no writer bound to it (F6), which is a rule that LOOKS
+        # implemented. Golden carries the fields, so the gate can score them.
+        if entity.get("inferred"):
+            conf = entity.get("entity_confidence")
+            if not isinstance(conf, (int, float)) or isinstance(conf, bool) or conf > INFERRED_ENTITY_CONFIDENCE_MAX:
+                bad(f"inferred ticker needs entity_confidence <= {INFERRED_ENTITY_CONFIDENCE_MAX} (§8a.4), got {conf!r}")
+            if e["extraction_confidence"] != "low":
+                bad(f"inferred ticker needs extraction_confidence 'low' (§8a.4), got {e['extraction_confidence']!r}")
+            passing = [b for b in ((r["evidence"] or {}).get("bars") or [])
+                       if b.get("ticker") == entity.get("ticker") and b.get("result") is True]
+            if entity.get("bar_range_pass") is not True or not passing:
+                bad(f"inferred ticker {entity.get('ticker')!r} must record a PASSING bar-range check on that "
+                    f"same ticker before storage (§8a.4); on failure it is a MENTION with no entity")
         if e["setup_vocab"] is not None and e["setup_vocab"] not in contracts["vocab"]:
             bad(f"setup_vocab {e['setup_vocab']!r} is not a Setup Vocabulary v0 name")
         # fields the contract defines as "as worded" must be verbatim
@@ -955,7 +1030,17 @@ def _write_atomic(path: pathlib.Path, text: str) -> None:
 
 
 def run(golden: pathlib.Path, samples: pathlib.Path, provenance_path: pathlib.Path | None,
-        review_queue: pathlib.Path | None, require_strata: bool, write_provenance: bool) -> int:
+        review_queue: pathlib.Path | None, require_strata: bool, write_provenance: bool,
+        frozen: str | None = None) -> int:
+    if frozen:
+        # ⛔ The freeze is a number in LEDGER.md, and a number in a document is a claim about a
+        # moment. This makes it a command: the set the gate scores is byte-identical to the set
+        # the owner froze, or the run stops.
+        got = hashlib.sha256(golden.read_bytes()).hexdigest()
+        if got != frozen.strip().lower():
+            print(f"FAIL — golden-v1 is not the frozen set: sha256={got} but --frozen said {frozen.strip().lower()}")
+            return 1
+        print(f"FROZEN OK — sha256={got}")
     records = load_records(golden)
     v1 = [r for r in records if "locator" in r]
     v0 = [r for r in records if "locator" not in r]
@@ -1162,6 +1247,97 @@ def self_check() -> int:
         for name, recs in v1_cases:
             code, probs = v1(recs)
             expect(f"v1 {name}", code, 1, probs[:1])
+        # ── §8a.2 / §8b.7 / §8a.4 — the rails P4 added, each with a control that passes ──
+        amb_label = next(iter(contracts["ambiguous_labels"]), None)
+        expect("authors.json declares at least one ambiguous label", bool(amb_label), True)
+        (dp / "transcripts" / "9.json").write_text(json.dumps({"id": 9, "category": "Live Trading Sessions",
+            "transcript": "[0:20] Uncharted Territory: fixture mention of GHI under the shared label."}),
+            encoding="utf-8")
+        idx = json.loads((dp / "transcripts" / "_index.json").read_text(encoding="utf-8"))
+        idx.append({"id": 9, "category": "Live Trading Sessions"})
+        (dp / "transcripts" / "_index.json").write_text(json.dumps(idx), encoding="utf-8")
+        shared = rec("T-6", "MENTION", "fixture mention of GHI under the shared label.", "transcripts/9.json",
+                     "edu_videos:9", "zoom_live", TEAM_UNRESOLVED,
+                     {"cue_t_s": 20, "speaker_label": "Uncharted Territory"}, "owner_ruling",
+                     evidence={"entity": {"ticker": "GHI"}, "excluded_from": list(TEAM_UNRESOLVED_EXCLUSIONS)})
+        code, probs = v1([shared])
+        expect("v1 control: an owner-ruled unknown speaker passes as a team-unresolved MENTION", code, 0, probs[:1])
+        # A session resolution passes ONLY against the committed, evidence-citing table.
+        resolved_key = next(iter(contracts["session_resolutions"]), None)
+        expect("session-resolutions table is loaded", bool(resolved_key), True)
+        ambiguous_cases = [
+            ("ambiguous label via speaker_label fails (the alias defect)",
+             [mutate(shared, evidence__attribution={"method": "speaker_label"}, author_id="tsdr")]),
+            ("owner_ruling that names a person fails",
+             [mutate(shared, author_id="tsdr")]),
+            ("session_resolution with no table entry fails",
+             [mutate(shared, evidence__attribution={"method": "session_resolution"}, author_id="tsdr")]),
+            ("session_resolution on a NON-ambiguous label fails",
+             [mutate(neg, evidence__attribution={"method": "session_resolution"})]),
+            # ⛔ PRINCIPLE, not CALL: a team-unresolved CALL is ALSO caught by the older
+            # can_author_calls rail, so a CALL case cannot tell this guard from that one.
+            # §8a.2 names both ("never CALL, never PRINCIPLE attribution") and only the
+            # PRINCIPLE half rests on this guard alone.
+            ("team-unresolved may not author a PRINCIPLE",
+             [mutate(shared, record_type="PRINCIPLE", expected__record_type="PRINCIPLE",
+                     expected__stance=None,
+                     expected__principle={"statement": "A fixture principle.", "category": "risk",
+                                          "empirical_claim": False, "testable_claim": None})]),
+            ("team-unresolved may not author a CALL either",
+             [mutate(shared, record_type="CALL", expected__record_type="CALL", expected__direction="long",
+                     expected__stance="in_it")]),
+            ("team-unresolved without the publish/see-rate exclusions fails",
+             [mutate(shared, evidence__excluded_from=["uct_see_rate"])]),
+        ]
+        for name, recs in ambiguous_cases:
+            code, probs = v1(recs)
+            expect(f"v1 {name}", code, 1, probs[:1])
+
+        # ⛔ A RAIL MUST FAIL FOR ITS OWN REASON. With the §8a.2 guard deleted, the two
+        # cases above still fail — on the older "not an alias in authors.json" rail — so
+        # they cannot tell whether the guard is there at all
+        # (`lesson_mutations_can_cancel_each_other`). These two reproduce the exact defect
+        # the ruling was written for and nothing else catches: a label declared ambiguous
+        # AND left in an alias list, and a resolution entry attached to an ordinary label.
+        def v1x(recs, over):
+            merged = dict(contracts)
+            merged.update(over)
+            code, probs, _ = check_v1(recs, dp, merged, None, load_categories(dp))
+            return code, probs
+
+        readded = {"alias": {**contracts["alias"], "uncharted territory": "tsdr"}}
+        code, probs = v1x([mutate(shared, evidence__attribution={"method": "speaker_label"},
+                                  author_id="tsdr")], readded)
+        expect("v1 an ambiguous label RE-ADDED to an alias list still resolves to nobody", code, 1, probs[:1])
+        planted = {"session_resolutions": {
+            **contracts["session_resolutions"],
+            ("edu_videos:7", "patrick (tsdr)"): {"author_id": "tsdr", "cited": [{"kind": "session_title"}]}}}
+        code, probs = v1x([mutate(neg, evidence__attribution={"method": "session_resolution"})], planted)
+        expect("v1 a session resolution attached to an ORDINARY label is refused", code, 1, probs[:1])
+
+        inferred = mutate(disc, gid="T-7", split=split_for("T-7"),
+                          expected__extraction_confidence="low", verification="text+bars",
+                          evidence__entity={"ticker": "XYZW", "inferred": True, "entity_confidence": 0.5,
+                                            "bar_range_pass": True},
+                          evidence__bars=[{"check": "inside the range", "ticker": "XYZW", "result": True}])
+        code, probs = v1([inferred])
+        expect("v1 control: a compliant §8a.4 inferred ticker passes", code, 0, probs[:1])
+        inferred_cases = [
+            ("inferred ticker with entity_confidence > 0.5 fails",
+             [mutate(inferred, evidence__entity={"ticker": "XYZW", "inferred": True, "entity_confidence": 0.8,
+                                                 "bar_range_pass": True})]),
+            ("inferred ticker without extraction_confidence 'low' fails",
+             [mutate(inferred, expected__extraction_confidence="high")]),
+            ("inferred ticker with no passing bar-range check fails",
+             [mutate(inferred, evidence__entity={"ticker": "XYZW", "inferred": True, "entity_confidence": 0.5},
+                     evidence__bars=[], verification="text-only")]),
+            ("inferred ticker whose bar check is on ANOTHER ticker fails",
+             [mutate(inferred, evidence__bars=[{"check": "inside the range", "ticker": "OTHER", "result": True}])]),
+        ]
+        for name, recs in inferred_cases:
+            code, probs = v1(recs)
+            expect(f"v1 {name}", code, 1, probs[:1])
+
         prov_rec = mutate(neg, status="provisional", evidence__attribution={"method": "adjacency"})
         expect("v1 provisional without a queue item fails", v1([prov_rec], subjects=set())[0], 1)
         expect("v1 control: provisional with a queue item passes", v1([prov_rec], subjects={"T-2"})[0], 0)
@@ -1197,6 +1373,8 @@ def main() -> int:
     ap.add_argument("--data-root", help="data/wisdom directory (default: this checkout, else another worktree)")
     ap.add_argument("--require-strata", action="store_true", help="check the W1 §2.4 stratification minimums")
     ap.add_argument("--write-provenance", action="store_true", help="accept drift and rewrite the provenance file")
+    ap.add_argument("--frozen", metavar="SHA256",
+                    help="refuse to run unless the golden file's sha256 is this (the LEDGER freeze, as a command)")
     args = ap.parse_args()
     if args.self_check:
         return self_check()
@@ -1213,7 +1391,7 @@ def main() -> int:
         provenance = REPO / provenance
     samples = pathlib.Path(args.samples) if args.samples else golden.parent.parent / "samples"
     queue = pathlib.Path(args.review_queue) if args.review_queue else golden.parent / "review-queue-v1.jsonl"
-    return run(golden, samples, provenance, queue, args.require_strata, args.write_provenance)
+    return run(golden, samples, provenance, queue, args.require_strata, args.write_provenance, args.frozen)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@
    "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
   },
   "split": "test",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "sunday_scans",
   "verification": "text+bars"
  },
@@ -355,7 +355,7 @@
    "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
   },
   "split": "test",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "zoom_live",
   "verification": "text+bars"
  },
@@ -555,7 +555,7 @@
    "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
   },
   "split": "dev",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "zoom_live",
   "verification": "text-only"
  },
@@ -680,7 +680,7 @@
   "verification": "text-only"
  },
  "G-035": {
-  "author_id": "tsdr",
+  "author_id": "team-unresolved",
   "locator": {
    "cue_t_s": 1314,
    "external_ref": "edu_videos:283",
@@ -688,14 +688,14 @@
    "speaker_label": "Uncharted Territory"
   },
   "quote_sha256": "dc46437d509aae9c88d0b128a558442857789a7f37c452a07b0d43e827154e03",
-  "record_type": "NEGATIVE_CALL",
+  "record_type": "MENTION",
   "span": {
    "char_end": 12066,
    "char_start": 12011,
    "text_sha256": "da730a273d1ad6c4e57bdcf3458856d3e35cdbc937aeae2f94f41adc66159a69"
   },
   "split": "test",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "zoom_live",
   "verification": "text-only"
  },
@@ -1020,7 +1020,7 @@
   "verification": "text+bars"
  },
  "G-052": {
-  "author_id": "tsdr",
+  "author_id": "team-unresolved",
   "locator": {
    "cue_t_s": 3458,
    "external_ref": "edu_videos:343",
@@ -1028,14 +1028,14 @@
    "speaker_label": "Uncharted Territory"
   },
   "quote_sha256": "08ee9383174889ceae0e61b0cb22acd6020527c167a90a14d177c89fb63a1fc6",
-  "record_type": "CALL",
+  "record_type": "MENTION",
   "span": {
    "char_end": 15723,
    "char_start": 15676,
    "text_sha256": "db6a55957e3470f06b9d8e4ba6d1b8538e0e3a5955b2d2059fb56ef00791bc27"
   },
   "split": "test",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "zoom_live",
   "verification": "text-only"
  },
@@ -1095,7 +1095,7 @@
    "text_sha256": "ab7bde045bbc325af90705f9beb0e90f8ffada9a90d5c84cd57bf09cc7929d85"
   },
   "split": "dev",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "zoom_live",
   "verification": "text+bars"
  },
@@ -1135,7 +1135,7 @@
    "text_sha256": "a6c46324f3286e083c51f9a2e8a5ac2dc37e3fe19c29060048ae5ae89b88d03b"
   },
   "split": "dev",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "zoom_live",
   "verification": "text+bars"
  },
@@ -1295,7 +1295,7 @@
    "text_sha256": "49a76e8a3ff791fa1e729e64fb5bb9f1243a0db8455ff5e8ce954bc54e7bdedf"
   },
   "split": "test",
-  "status": "provisional",
+  "status": "confirmed",
   "stream": "workshop",
   "verification": "text-only"
  },
