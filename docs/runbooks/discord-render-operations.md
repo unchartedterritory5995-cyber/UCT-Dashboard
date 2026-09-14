@@ -342,6 +342,37 @@ jobs go through `uct-clips/tools/heavy_lock.py`.
 
 ---
 
+### 8.5 ⛔⛔ The bot does NOT get `MANAGE_ROLES`. Channel permission work is a browser task.
+
+**Owner ruling, 2026-09-14 (OI-33).** The render bot holds `MANAGE_CHANNELS`. It does **not** hold
+`MANAGE_ROLES` and must not be given it.
+
+**What that means in practice, measured rather than assumed:**
+
+| Task | Bot | Why |
+|---|---|---|
+| read any channel's overwrites | ✅ `discord_channel_admin.py --list-channels` | `GET /guilds/{id}/channels` returns overwrites for **every** channel, including ones the token cannot open |
+| post, attach files | ✅ | proven by a real post: `DELIVERY OK http=200 attachments=1` |
+| **create** a channel carrying overwrites | ❌ **403 `50013`** | Discord requires `MANAGE_ROLES` to set overwrites, even at creation |
+| **edit** an existing channel's overwrites | ❌ **403 `50013`** | same |
+
+⭐ **`MANAGE_CHANNELS` was granted expecting it to cover both, and it covers neither.** The two 403s
+are the measurement; do not re-derive this from the permission's name.
+
+⛔ **Do NOT "fix" a 50013 by granting `MANAGE_ROLES`.** It would let the bot rewrite overwrites on
+**any** channel in a 1,558-member guild and manage every role beneath its own — a standing
+capability, bought to save a few clicks on a task performed a handful of times a year. The trade is
+wrong even though the error message points straight at it.
+
+**So: channel creation and overwrite edits are done in the browser**, under the T-12 charter (the
+owner's session, real pointer and keyboard, screenshots per step), and then **read back by API** —
+`discord_channel_admin.py --read-channel <id>` — because the request is not the evidence and the
+Discord UI has twice reported a change that the read-back described differently.
+
+⚠️ And `50001 Missing Access` is **membership**, not permission level: a bot with every permission
+in the guild still gets 50001 on a channel it has no overwrite on. Those two error codes send you
+to two different fixes.
+
 ## 9. Routine operations
 
 **Find everything about one job.** Take the `cid` from the member's failure message, then:
