@@ -86,6 +86,22 @@ HARD_MARGIN_S = 10.0
 
 _OFF = ("0", "false", "off", "no", "")
 _CID = re.compile(r"^[0-9a-f]{8}$")
+
+
+def safe_cid(raw: str | None) -> str:
+    """A correlation id is echoed into logs, so it is validated before it is echoed — ONE copy.
+
+    ⛔⛔ THERE WAS BRIEFLY A SECOND COPY AND THE ANCHOR CHECK IS WHAT FOUND IT. B1's admin lever
+    repeated this line verbatim, which made `mutation_harness_renderer.py :: A4` match two places:
+    an exact single replacement became impossible, so that control could no longer be applied at
+    all and would have reported NOT APPLIED at the end of an 18-minute run.
+
+    ⭐ A GUARD REPEATED IS A GUARD UNPROVED. The fix is one definition, not a longer anchor —
+    lengthening the anchor would have restored the mutation while leaving two copies of a
+    log-injection guard that can drift apart silently."""
+    return raw if _CID.match(raw or "") else "-"
+
+
 _URL_QUERY = re.compile(r"((?:https?|wss?)://[^\s\"'?#<>\\]+)\?[^\s\"'#<>\\]*")
 _SECRET_PARAM = re.compile(r"\b(token|secret|key|sig|signature)=[^&\s\"'<>\\]+", re.IGNORECASE)
 
@@ -709,7 +725,7 @@ async def render(req: RenderRequest, request: Request, x_render_secret: str | No
                  x_chart_edge_token: str | None = Header(default=None)):
     check_secret(x_render_secret)
     check_url(req.url)
-    cid = x_correlation_id if _CID.match(x_correlation_id or "") else "-"
+    cid = safe_cid(x_correlation_id)
     priority = "background" if (x_render_priority or "").strip().lower() == "background" else "interactive"
     ceiling = hard_timeout_s(req)
     started = time.perf_counter()
@@ -768,7 +784,7 @@ async def admin_pool_recycle(authorization: str | None = Header(default=None),
         raise HTTPException(404, "Not Found")
     if not _bearer_ok(authorization):
         raise HTTPException(401, "bad admin bearer")
-    cid = x_correlation_id if _CID.match(x_correlation_id or "") else "-"
+    cid = safe_cid(x_correlation_id)
     return await recycle_one_pooled_page(cid)
 
 

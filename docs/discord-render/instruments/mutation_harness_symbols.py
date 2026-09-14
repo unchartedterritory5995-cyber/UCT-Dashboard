@@ -67,8 +67,10 @@ MUTATIONS = [
      "new": '            f"I\'ve started looking it up.")[:1900]\n',
      "tests": [Y + "test_the_refusal_names_the_symbol_the_suggestions_and_the_id"]},
     {"name": "S13 the V2 flow handler drops the partition", "file": CMD,
-     "old": "timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id, source=symbols.flow_source(tkr))\n",
-     "new": "timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id)\n",
+     # re-aimed 2026-09-14: the partition is now resolved into a `source` local and the call
+     # carries `**extra`. Same intent — drop the partition on the way to the flow job.
+     "old": "                             cid=job.corr_id, source=source, **extra)\n",
+     "new": "                             cid=job.corr_id, **extra)\n",
      "tests": [Y + "test_the_v2_flow_handler_passes_the_resolved_partition"]},
     {"name": "S14 the flow job ignores the partition it is given", "file": "api/routers/discord_interactions.py",
      "old": '                params = {"symbol": ticker, "days": days, "source": source}\n',

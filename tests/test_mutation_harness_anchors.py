@@ -45,27 +45,48 @@ def test_every_mutation_anchor_still_matches_exactly_once(harness):
     ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
     `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
     matter drift into that state."""
-    path = INSTRUMENTS / harness
-    src = path.read_text(encoding="utf-8")
-    # ⛔⛔ ASK THE SOURCE BEFORE EXECUTING IT. A harness that does not KNOW about `--dry-check`
-    # does not refuse it — it ignores the flag and runs its FULL mutation set, which mutates
-    # `api/**` for twenty-five minutes. ⚰️ Measured: the first version of this test did exactly
-    # that, was killed mid-run, and left a mutation behind in `badge.py` — a test that can leave
-    # the tree modified is worse than no test, and it would have been committed by the next
-    # `git add`. The flag-dispatch line is the precondition for running the file at all.
-    if '"--dry-check" in sys.argv' not in src:
-        pytest.skip(f"{harness} does not dispatch --dry-check; NOT executed (it would run in full)")
-    r = subprocess.run([sys.executable, str(path), "--dry-check"], cwd=REPO,
-                       capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       timeout=180)
-    out = r.stdout + r.stderr
-    assert "TOTALS" in out, (
-        f"{harness} dispatches --dry-check but printed no totals line — and a run with no totals "
-        f"line is not a run:\n{out.strip()[-600:]}")
-    # ⛔ THE TOTALS LINE IS READ, NOT THE EXIT CODE. A runner that died at argument parsing exits 0
-    # with an empty report, and this repo has banked that as green before.
-    assert "stale=0" in out, f"{harness} has stale mutation anchors:\n{out.strip()[-1200:]}"
-    assert r.returncode == 0, f"{harness} --dry-check exited {r.returncode}:\n{out.strip()[-600:]}"
+    # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+    #
+    # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+    # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+    # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+    #
+    # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+    # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+    # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+    # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+    #
+    # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+    # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+    # that disagree about whether a harness may run is one rail too many.
+    sys.path.insert(0, str(INSTRUMENTS))
+    try:
+        import anchor_check
+    finally:
+        sys.path.pop(0)
+
+    controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+    assert not err, f"{harness}: {err}"
+    # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+    # and "everything matched" are the same green. An absence is only evidence if the instrument
+    # could have seen a presence.
+    assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+
+    bad = []
+    for c in controls:
+        if c.needle is None or c.target is None:
+            continue                      # UNREADABLE is reported by the gate step, not here
+        target = REPO / c.target
+        if not target.is_file():
+            bad.append(f"{c.name}: target {c.target} does not exist")
+            continue
+        outcome, raw, code, detail = anchor_check.classify(
+            target.read_text(encoding="utf-8", errors="replace"), c.needle)
+        if outcome != anchor_check.OK:
+            bad.append(f"{c.name}: {outcome} (raw={raw} code={code}) {detail}")
+    assert not bad, (
+        f"{harness} has anchors that no longer match exactly once in code:\n  "
+        + "\n  ".join(bad))
 
 
 @pytest.mark.parametrize("harness", ["mutation_harness_adapters.py",

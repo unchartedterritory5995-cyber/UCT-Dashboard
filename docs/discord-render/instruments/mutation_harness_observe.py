@@ -52,8 +52,10 @@ MUTATIONS = [
      "new": "    from api.routers import discord_interactions as _r\n    renderer = _r._renderer_health()\n",
      "tests": [H + "test_an_admin_gets_the_health_privately"]},
     {"name": "M7 /renderhealth ignores its budget (store read on the loop)", "file": CMD,
-     "old": "    payload = await _bounded(lambda: observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses),\n                             HEALTH_BUDGET_S, None)\n",
-     "new": "    payload = observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses)\n",
+     # re-aimed 2026-09-14: the lambda became a named `_payload` closure and the sentinel became
+     # "timeout". Same intent — call it straight, on the loop, with no budget around it.
+     "old": '    payload = await _bounded(_payload, HEALTH_BUDGET_S, "timeout")\n',
+     "new": "    payload = _payload()\n",
      "tests": [H + "test_a_slow_store_gets_an_honest_answer_inside_the_budget"]},
     {"name": "M8 shutdown leaves the observer running", "file": CMD,
      "old": "    if obs is not None:\n        obs.stop()\n", "new": "    pass\n",

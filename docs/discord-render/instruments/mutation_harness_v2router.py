@@ -38,7 +38,9 @@ MUTATIONS = [
      "tests": [R + "test_lifespan_starts_v2_before_serving_and_releases_leases_after"]},
     {"name": "R4 the router consults V2 with the flag off",
      "file": "api/routers/discord_interactions.py",
-     "old": "    if render_v2.enabled():\n        v2_response = await render_v2.handle(interaction, received)\n",
+     # re-aimed 2026-09-14: the condition grew `or _v2_always` (the /renderhealth exemption, which
+     # is answered whatever the flag says). Same intent — consult V2 unconditionally.
+     "old": "    if render_v2.enabled() or _v2_always:\n        v2_response = await render_v2.handle(interaction, received)\n",
      "new": "    if True:\n        v2_response = await render_v2.handle(interaction, received)\n",
      "tests": [R + "test_flag_off_never_consults_v2"]},
     {"name": "R5 per-command kill switch ignored",
@@ -58,8 +60,12 @@ MUTATIONS = [
      "tests": [CORE + "test_C01_a_superseded_worker_does_not_post_over_the_pod_that_reclaimed_it"]},
     {"name": "R8 the flow worker loses its short timeout",
      "file": "api/services/discord_render/commands.py",
-     "old": "                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id)\n",
-     "new": "                             cid=job.corr_id)\n",
+     # re-aimed 2026-09-14: the call was re-wrapped, so the timeout now shares a line with
+     # `fail_fn`. Same intent — remove the short flow timeout. ⛔ Deliberately a DIFFERENT line
+     # from S13's anchor in mutation_harness_symbols.py, which aims at the `source=` line of the
+     # same call: two controls on one call must not share an anchor or neither can be applied.
+     "old": '                             fail_fn=extra.pop("fail_fn", ctx.fail), timeout_s=FLOW_TIMEOUT_S,\n',
+     "new": '                             fail_fn=extra.pop("fail_fn", ctx.fail),\n',
      "tests": [R + "test_the_flow_worker_gets_the_short_timeout_the_cid_and_the_contract"]},
 ]
 
