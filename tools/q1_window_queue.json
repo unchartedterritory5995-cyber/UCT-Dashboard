@@ -29,8 +29,8 @@
     },
     {
       "id": "t12-owner-profile-run",
-      "status": "blocked",
-      "why": "BLOCKED, and its `done` was a LIE told by a defect in the runner: the T-12 run FAILED at steps 2/3 and exited 0, and the runner banked it as ok. That is fixed (a declared FAIL is now recorded as failed). Re-blocked because re-running changes nothing until T-12's STEP 2 PROBE is fixed: it only recognises the first-run 'Start a note' button, which renders solely on an account with NO notes, so it fails on every populated account. Unblock when the probe drives what a member drives - 'All notes', then the list toolbar.",
+      "status": "pending",
+      "why": "UNBLOCKED: step 2 now falls back to the member's real path - click 'All notes', then the list toolbar's '+ New note'. The control was never missing and the regex was never wrong; the probe simply never navigated off the landing view, which only offers a create control on an EMPTY account.",
       "timeout": 2400,
       "cmd": [
         "python",
@@ -42,7 +42,7 @@
         "--out",
         "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
       ],
-      "attempts": 1
+      "attempts": 0
     },
     {
       "id": "matrix-remainder",
