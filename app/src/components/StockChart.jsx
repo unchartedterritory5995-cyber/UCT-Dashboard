@@ -598,6 +598,7 @@ import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
+import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 
 const NOOP = () => {}
 
@@ -4856,10 +4857,18 @@ export default function StockChart({
     // of the hand-written list, not a refactor artefact.
     const indicatorsItem = {
       id: 'indicators', label: <><UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Indicators</>, kind: 'submenu',
-      submenu: catalogRows().map((row) => ({
-        id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
-        onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
-      })),
+      // ⛔⛔ MINUS `LIBRARY_HIDDEN_IDS`, FOR THE REASON THAT MAKES THIS A
+      // PER-DEFINITION MENU. Every entry here is a toggle on the DEFINITION, and
+      // `dataSeries` has no meaning as one: switching it on would draw a line of
+      // this chart's own close labelled "Series". It is configured per INSTANCE,
+      // from the source its instance carries, and its member-facing door is
+      // symbol search — the same reason it is subtracted from the library list.
+      submenu: catalogRows()
+        .filter((row) => !LIBRARY_HIDDEN_IDS.includes(row.id))
+        .map((row) => ({
+          id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
+          onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
+        })),
     }
     // "Overlay on volume": a PANE oscillator that is currently ON. `placement.target`
     // is what `resolvePlacement` reads, so the menu and the renderer agree by

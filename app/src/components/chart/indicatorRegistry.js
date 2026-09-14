@@ -183,8 +183,16 @@ function optionPair(option) {
  *
  * This function is the whole of what a per-indicator `*_FIELDS` array used to
  * be, written once instead of once per indicator. Returns `null` for an input
- * type the tab has no control for (`string`, `source`) — those render nothing
- * rather than rendering wrong, and B4's generated dialog is where they land.
+ * type the tab has no control for (`string`) — those render nothing rather than
+ * rendering wrong.
+ *
+ * ⭐⭐ `source` USED TO BE ON THAT LIST, AND IT CAME OFF WHEN IT ACQUIRED A REAL
+ * CONTROL. While no shipped definition declared one the honest answer was `null`;
+ * `dataSeries` declares one and is member-facing, so "renders nothing" would mean
+ * an instance whose INSTRUMENT cannot be changed. The generated-control census
+ * (`enumerationSites`) asserts every declared input is reachable, and it is the
+ * rail that would have caught a field descriptor returned for a control the tab
+ * cannot draw — which is why the descriptor and the renderer landed together.
  */
 export function fieldFromInput(input) {
   if (!input || typeof input.key !== 'string' || !input.key) return null
@@ -196,6 +204,14 @@ export function fieldFromInput(input) {
       return { ...base, type: 'toggle' }
     case 'enum':
       return { ...base, type: 'select', options: (input.options || []).map(optionPair) }
+    // ⛔ A SOURCE CARRIES NO OPTIONS, AND THAT IS THE DIFFERENCE FROM AN ENUM.
+    // An enum's choices are declared by the definition and are the same on every
+    // chart; a source's depend on what else is ON this chart (another instance's
+    // output) and on what the member searches for (a symbol). So the descriptor
+    // names the TYPE only, and the control builds its own list from the live
+    // settings through `sourceRef.sourceOptions`.
+    case 'source':
+      return { ...base, type: 'source' }
     case 'int':
     case 'float':
       return {

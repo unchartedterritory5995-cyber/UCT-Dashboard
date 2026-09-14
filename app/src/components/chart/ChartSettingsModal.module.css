@@ -635,6 +635,58 @@
 }
 .indNum:disabled, .indSelect:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* ─── SOURCE FIELD ─────────────────────────────────────────────────────────
+   The control for an input of type `source`. ADDITIVE ONLY: every class below
+   is new and scoped to this widget. Nothing here redefines .indRow, .indLabel,
+   .indSelect or any other shared class — a global tweak made for one tab is how
+   the other two tabs silently lose their layout. */
+.sourceField {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;             /* so a long symbol name can shrink, not overflow */
+}
+.sourceSearch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 172px;             /* the search is wider than the select it opens from */
+}
+.sourceSearch .indNum { width: 100%; }
+.sourceHint {
+  font-size: 10px;
+  color: var(--menu-text-dim, var(--text-muted, #8c8674));
+}
+.sourceResults {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 132px;
+  overflow-y: auto;
+  border: 1px solid var(--menu-border, var(--border, #2e3127));
+  border-radius: var(--radius-sm);
+  background: var(--menu-input-bg, var(--bg-elevated, #16181c));
+}
+.sourceResults:empty { display: none; }
+.sourceResult {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--menu-text, var(--text-bright, #e0dac8));
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.sourceResult:hover, .sourceResult:focus-visible {
+  background: var(--menu-hover, rgba(255, 255, 255, 0.06));
+}
+.sourceResult span { color: var(--menu-text-dim, var(--text-muted, #8c8674)); }
+
 /* Info Row field picker (Header tab) — an "Add Field" button beside the label opens a
    searchable, scrollable field menu. */
 .infoRowHead {

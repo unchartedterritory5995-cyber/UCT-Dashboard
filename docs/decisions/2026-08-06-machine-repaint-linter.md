@@ -111,10 +111,10 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 17
-plots 42
+definitions 18
+plots 43
 decided 1
-undecidable-hand-written 41
+undecidable-hand-written 42
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```

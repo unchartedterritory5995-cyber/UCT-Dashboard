@@ -58,6 +58,13 @@ export const SHIPPED_DEF_IDS = Object.freeze({
   native: Object.freeze([
     'rsi', 'macd', 'bb', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
     'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
+    // ⭐⭐ THE FIRST DEFINITION THAT IS ITS SOURCE. Every id above names a
+    // CALCULATION; `dataSeries` names none — it hands its source through
+    // unchanged so a symbol, a breadth measure or another indicator's output can
+    // be plotted directly. It ships like any other native because it IS one;
+    // what is unusual is only that its member-facing name comes from its source
+    // rather than from this manifest. Last, in REGISTRATION order.
+    'dataSeries',
   ]),
   server: Object.freeze(['rsLine']),
   ast: Object.freeze([]),

@@ -1312,6 +1312,8 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
       + 'can see it — a headless capture has no cursor, and ChartRender hides the legend '
       + 'outright); an ADDITION is a number in the readout nobody decided on.')
       .toEqual([
+        // ⭐ the twenty-first — registry-native, and named from its SOURCE.
+        'dataSeries::value',
         // the ten Task 2 declared…
         'adx::adx', 'atrBands::middle', 'avwap::avwap', 'bb::middle', 'cci::cci',
         'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',

@@ -64,6 +64,7 @@ import {
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
+import SourceField from './SourceField'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -513,6 +514,18 @@ export default function ChartSettingsIndicators({
                       type="number" className={styles.indNum} {...inert}
                       min={f.min} max={f.max} step={f.step} value={val ?? ''}
                       onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
+                    />
+                  )}
+                  {/* ⭐⭐ THE SOURCE CONTROL — the instrument this row plots.
+                      A `source` input is the only one whose choices depend on
+                      the chart rather than on the definition, so the widget
+                      builds its own list from live settings. See
+                      `SourceField.jsx`. */}
+                  {f.type === 'source' && (
+                    <SourceField
+                      row={row} field={f} value={val} settings={settings}
+                      registry={registry} inert={inert} styles={styles}
+                      onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
                     />
                   )}
                   {f.type === 'select' && (

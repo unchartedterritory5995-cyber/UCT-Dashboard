@@ -301,6 +301,11 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
    */
   const NOT_IN_THE_SHIPPED_LEGEND = [
     'rsLine::rsLine',
+    // ⭐ `dataSeries` POSTDATES THE SHIPPED LEGEND ENTIRELY — it is registry-native
+    // and there is no pre-B4 `legChips` entry for it to have dropped. Excluded
+    // here for exactly the reason the ten below are: this list is the membership
+    // half, and every name in it is still asserted to BE a declared chip.
+    'dataSeries::value',
     // ── the ten Task 2 gave a chip to, in the order the registry declares them ──
     'bb::middle', 'vwap::vwap', 'mfi::mfi', 'cci::cci', 'williamsR::williams_r',
     'adx::adx', 'obv::obv', 'donchian::middle', 'avwap::avwap', 'atrBands::middle',

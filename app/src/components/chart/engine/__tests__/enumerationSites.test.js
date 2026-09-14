@@ -1628,6 +1628,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'avwap::avwap',
       'bb::middle',
       'cci::cci',
+      // ⭐⭐ `dataSeries::value` IS THE TWENTY-FIRST, and it sits HERE because this
+      // list is sorted — the rail compares against `declared().sort()`. A direct
+      // series draws one line and prints one number; what is unusual is only that
+      // its chip is NAMED FROM ITS SOURCE (`meta.labelFrom`), so a member reads
+      // `QQQ` rather than `Series`. `sourceRef.instanceLabel` owns the words.
+      'dataSeries::value',
       'donchian::middle',
       'ichimoku::kijun', 'ichimoku::tenkan',
       'macd::macd', 'macd::signal',
@@ -1668,8 +1674,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // ⭐ SEVENTEEN AT TASK 2. The partition is unchanged in KIND — the legacy
     // half is still empty and still asserted empty — but the engine half is now
     // every definition there is, because every definition declares a chip.
+    // ⭐ `dataSeries` IS ON THE ENGINE LANE BY CONSTRUCTION — there is no legacy
+    // lane it could have come from, because there was never a hand-written block
+    // registering a chip for it. Registry-native means engine-lane, always.
     const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine',
-      'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands']
+      'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
+      'dataSeries']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -1843,7 +1853,22 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
-      const cols = engineRegistry.computeFor(def, PROBE_BARS, {})
+      // ⭐⭐ A DEFINITION WHOSE INPUT IS A SERIES READS THE CTX, NOT THE BARS, so
+      // computing it with none measures nothing: every column comes back NaN and
+      // this rail would be asserting that an unconfigured passthrough draws a
+      // blank line — which it should. The claim here is that the compute EXPORT
+      // is alive, so the probe supplies the series the binder resolves in
+      // production.
+      //
+      // ⛔ DERIVED FROM THE DECLARATION, NEVER A LIST OF IDS. A hand-written
+      // `['dataSeries']` stops being true the moment a second source-taking
+      // definition lands, and it fails as a baffling all-NaN column rather than
+      // as a missing row.
+      const takesSource = (def.inputs || []).some(i => i && i.type === 'source')
+      const probeCtx = takesSource
+        ? { source: PROBE_BARS.map((b, i) => 100 + Math.sin(i / 6) * 5) }
+        : undefined
+      const cols = engineRegistry.computeFor(def, PROBE_BARS, {}, probeCtx)
       expect(Object.keys(cols).sort(), `${def.id}: columns`)
         .toEqual([...engineRegistry.columnKeys(def)].sort())
       for (const [key, col] of Object.entries(cols)) {
@@ -2594,9 +2619,26 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     avwap: [],
     atrBands: [],
     rsLine: [],
+    // ⭐⭐ `dataSeries` — P2.1, AND THE STRONGEST CASE OF THIS ROW'S MEANING.
+    // `avwap`, `atrBands` and `rsLine` were definitions that never had a
+    // hand-written BLOCK; this one never had a hardcoded ANYTHING — no block, no
+    // `cs.indicators` section, no legacy toggle, no stored blob that ever named
+    // it. An empty refs list is therefore not a gap in this table, it is the
+    // whole truth about it.
+    dataSeries: [],
   }
-  /** The definitions that never had a hand-written block to retire. */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine']
+  /**
+   * The definitions that never had a hand-written block to retire.
+   *
+   * ⛔⛔ THIS IS THE DISTINCTION THAT KEEPS THE RAIL HONEST, and it is NOT a
+   * carve-out. "native definition" and "had a legacy toggle" were the same set
+   * for as long as every definition was a migrated block — so a rail could use
+   * either name and mean the other. They stopped being the same set here.
+   * Membership is a written claim with a reason, and the two cases below still
+   * fail by NAME for any definition that genuinely did have a block and has
+   * quietly lost its refs or its compute.
+   */
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2605,7 +2647,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, rsLine: null,
+    avwap: null, atrBands: null, rsLine: null, dataSeries: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2895,7 +2937,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 17,
+      flipSetSize: 18,
       mutableSets: [],
     })
   })

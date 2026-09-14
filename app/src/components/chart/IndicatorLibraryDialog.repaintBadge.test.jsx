@@ -54,6 +54,7 @@ import { REPAINT_MODES } from './engine/defSchema'
 import { parseFormula } from './engine/ast/parse'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 const base = () => mergeChartSettings(null)
 
@@ -151,6 +152,12 @@ describe('🔴 the library row badges the LINTER\'S measurement, per plot', () =
 
     open()
     for (const def of quiet) {
+      // ⛔ A HIDDEN DEFINITION HAS NO ROW TO CARRY A BADGE. `dataSeries` is
+      // subtracted from the library on purpose (see `IndicatorLibraryDialog.test.jsx`),
+      // so "no badge" is true of it in the strongest possible way — there is
+      // nothing to brand. Skipped here rather than asserted, because the claim of
+      // this case is about rows that EXIST and are unbranded.
+      if (LIBRARY_HIDDEN_IDS.includes(def.id)) continue
       const row = rowFor(def.id)
       expect(row, `${def.id} is missing from the library`).toBeTruthy()
       expect(badgeIn(row),

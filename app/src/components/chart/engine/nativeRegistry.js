@@ -910,6 +910,102 @@ const RAW_DEFS = [
       { key: 'middle', label: 'Close', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { decimals: 2 } },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
     ]),
+
+  // ── DIRECT SERIES ─────────────────────────────────────────────
+  //
+  // ⭐⭐ THE DEFINITION THAT IS NOT AN INDICATOR. Every other native in this file
+  // computes something FROM a series; this one IS its series. `QQQ` on an AAPL
+  // chart, `UCTA50`, `MACD.signal` lifted into its own pane — one definition, and
+  // the member-facing identity is the SOURCE rather than the definition.
+  //
+  // ⛔⛔ SOURCE-FAMILY BLIND, AND THAT IS THE WHOLE DESIGN. There is no `if
+  // breadth`, no `if security`, no symbol list. A security and a breadth
+  // pseudo-ticker differ in DISCOVERY metadata and in the string after `sym:` —
+  // nowhere else. `api/routers/bars.py` is the layer that knows what a symbol IS,
+  // and it stays the only one.
+  //
+  // ⚠️ WHY IT IS NOT A MOVING AVERAGE WITH `period: 1`. An average of one is an
+  // identity only by arithmetic accident, it carries a period control that means
+  // nothing, and it names itself "MA" in every legend, menu and settings row. A
+  // member plotting QQQ is not smoothing anything.
+  //
+  // ⛔⛔ AND WHY THE ID IS `dataSeries` AND NOT THE OBVIOUS `series`. `'series'` is
+  // already an AST NODE TYPE (`ast/parse.js` `NODE_TYPES`), and `ast/lint.test.js`
+  // proves the repaint linter has NO per-indicator exemption by asserting that no
+  // string literal in `lint.js` equals a shipped definition id. A definition
+  // called `series` makes that literal match forever, and the rail can no longer
+  // tell "the linter mentions an indicator" from "the linter mentions a node
+  // type" — it would go red on the true statement and stay red. The rail is worth
+  // more than the shorter id. MEASURED on the originating branch: naming it
+  // `series` failed that case with `expected ['series'] to deeply equal []`.
+  //
+  // ⚠️ AND WHY IT DECLARES `autoPane` RATHER THAN A FIXED SCALE. Its range is its
+  // source's: QQQ is ~715, UCTA50 is 0-100, a MACD signal straddles zero. A
+  // declared `scale` would be a claim about numbers this definition has never
+  // seen. `domainBehavior: 'inherit'` says the same thing to the scale system —
+  // the identity transform preserves its source's domain EXACTLY.
+  ({
+    ...nativeDef('dataSeries', 'dataSeries',
+      { name: 'Data Series', shortName: 'Series', category: 'Data',
+        description: 'Plots a numeric source directly, with no calculation applied — '
+          + 'the values exactly as they are.',
+        tags: ['series', 'source', 'derived'],
+        // ⛔ NO `legendParams`. The parameter that identifies this instance is its
+        // SOURCE, and a raw `sym:QQQ:close` in a legend chip is an address, not a
+        // name. `sourceRef.instanceLabel` reads `labelFrom` instead and derives
+        // `QQQ` from the parsed source — see its header.
+        labelFrom: 'source' },
+      autoPane(0.15),
+      [
+        // ⛔ THE SOURCE IS AN INPUT, WHICH IS WHY CHANGING IT RECOMPUTES. It rides
+        // `inst.inputs` like any parameter, so `inputsSignature` already
+        // invalidates the memo when it changes and nothing had to be taught that
+        // a source is special. A source held anywhere else would have needed its
+        // own invalidation rule, and that rule would eventually be wrong.
+        // ⭐ `type: 'source'` WAS ALREADY THE SCHEMA'S VOCABULARY before this
+        // definition existed — `defSchema` validates it — but nothing shipped
+        // declared one, so `indicatorRegistry.fieldFromInput` answered `null` and
+        // the tab drew nothing. This is the definition that made that answer
+        // wrong, and the source control landed in the same change.
+        { key: 'source', type: 'source', label: 'Source', default: 'close' },
+        colorInput('color', 'Color', '#4f9cf9'),
+      ],
+      [
+        // ⛔ `label: 'Series'` READ AS ENGINE VOCABULARY WHERE A MEMBER SEES IT.
+        // A plot label names an indicator's OUTPUT — `RSI (14) → RSI`,
+        // `MACD → MACD | SIG` — and in the source picker this one produced
+        // `QQQ → Series`, which says nothing the group has not already said and
+        // says it in the internal word. The passthrough's output is its value.
+        // ⚠️ `meta.shortName` IS STILL `Series`, deliberately: it is the generic
+        // stem for a series over an INSTANCE source, which has no symbol to be
+        // named after.
+        { key: 'value', label: 'Value', style: 'line', color: '$color', width: 1,
+          role: 'primary', legend: { decimals: 2 } },
+      ]),
+    domainBehavior: 'inherit',
+    // ⭐⭐ THE IDENTITY CLAIM, AND IT IS NOT `domainBehavior` SAID TWICE.
+    // `domainBehavior: 'inherit'` is a claim about RANGE — an average of a
+    // 0-100 series is still 0-100. This is the stronger and rarer claim that the
+    // output IS the source, unchanged: no window, no smoothing, no arithmetic.
+    //
+    // ⚰️ MEASURED IN A BROWSER 2026-09-13 — the defect that made this explicit.
+    // OHLC capability was asked of the instance's SOURCE, so `MA(sym:QQQ:close)`
+    // answered yes, was offered Candles, and drew QQQ'S OWN BARS in the moving
+    // average's pane: the legend read `MA(5) 714.88` against `QQQ 714.88`, the
+    // same number, and the average was gone. A candle is a presentation of an
+    // INSTRUMENT, so only a row whose output is that instrument may wear one.
+    //
+    // ⚠️ READ BY NOTHING ON THIS BRANCH YET — `ohlcCapability.js` is the consumer
+    // and it is not ported. The claim is declared now because it belongs to the
+    // definition, not to its reader, and because a definition that acquires the
+    // claim later acquires it by argument rather than by design.
+    //
+    // ⛔ DECLARED, NOT INFERRED, AND ABSENT MEANS NO. A future identity
+    // transform says so here; a difference, a ratio or a smoothing cannot
+    // acquire the claim by being named like one.
+    passthrough: true,
+  }),
+
 ]
 
 // ─── the compute adapter ─────────────────────────────────────────────────────
@@ -1000,6 +1096,32 @@ const NATIVE_COMPUTE = {
   // `computeFor` throwing here is what a mutation adding the row would have to
   // silence. See `test_a_single_symbol_rs_line_is_ONE_POINT_ZERO…` in
   // `tests/test_indicator_golden.py` for the number.
+  // ⭐⭐ THE PASSTHROUGH, AND IT READS `ctx.source` RATHER THAN `bars`. Every
+  // other entry in this table takes the chart's bars and computes something; this
+  // one copies the numeric series the binder already resolved from whatever the
+  // member pointed the instance at — a bar field, another indicator's output, or
+  // another symbol's close. That is what makes it source-blind.
+  //
+  // ⛔ NO SOURCE → AN ALL-EMPTY COLUMN, NEVER AN EXCEPTION AND NEVER ZEROS. A
+  // series whose source has not resolved yet is a GAP, and `toColumn` turns a
+  // hole into NaN, which is what the renderer and the warm-up rules already
+  // understand. Emitting 0 would draw a flat line at zero and look like data.
+  //
+  // ⚠️ `Number.isFinite` GATES EVERY VALUE for the same reason: a NaN in the
+  // source is a gap in the output, not a number.
+  dataSeries: (bars, p, ctx) => {
+    const n = Array.isArray(bars) ? bars.length : 0
+    const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
+    if (!src) return { value: new Array(n) }
+    const out = new Array(n)
+    const m = Math.min(src.length, n)
+    for (let i = 0; i < m; i++) {
+      const v = src[i]
+      if (Number.isFinite(v)) out[i] = { value: v }
+    }
+    return { value: out }
+  },
+
 }
 
 /**

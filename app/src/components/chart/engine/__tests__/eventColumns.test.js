@@ -202,6 +202,11 @@ const SHIPPED_COLUMNS = Object.freeze({
   // definition is covered by exactly the same rail as a native. Where the two
   // lanes differ is who FILLS the column, which is `computeFor`'s business.
   rsLine: ['rsLine'],
+  // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
+  // `value` carries whatever it was pointed at, unchanged. Written here like any
+  // other definition because `columnKeys` is a pure read of the DECLARATION — who
+  // FILLS the column is `computeFor`'s business, and for this one it is the binder.
+  dataSeries: ['value'],
 })
 
 describe('columnKeys — plots ∪ events', () => {
