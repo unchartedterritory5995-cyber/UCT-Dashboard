@@ -366,6 +366,54 @@ the instant you push, not of the instant you began.
 queue until their deploy is `SUCCESS`; anybody else who reads `BUILDING` or `DEPLOYING` waits,
 regardless of what their own guard said earlier.
 
+### ✅ AND THE CLOCK IS MECHANICAL TOO, SINCE 2026-09-14
+
+`tools/pre_push_guard.py` now refuses a master push **between 09:25 and 16:05 ET on trading days**
+unless **every** changed path is Tier 1.
+
+⚰️ **Why it exists.** On 2026-09-14 a session reasoned that a merge should wait for the 16:00 close,
+wrote that decision down, set a timer to enforce it — and pushed at **15:49** anyway, on a mental
+estimate of elapsed time that had drifted about twenty-five minutes. `web` and `chart-renderer` both
+restarted inside the last minutes of the session. **The rule was known, agreed and written down, and
+the mechanism to enforce it had been built and then bypassed.** A clock-gate only works if the gate
+is what releases the action; an estimate that happens to agree with you is not a check.
+
+**What it does:**
+
+| situation | verdict |
+|---|---|
+| RTH, diff entirely Tier 1 (docs/markdown, `tests/**`, `tools/**`, `scripts/**`, `app/**`) | **OK** |
+| RTH, one path outside Tier 1 | **REFUSE**, naming the path and the next allowed time |
+| RTH, diff came back EMPTY | **REFUSE** — an empty result is a failed invocation, not a clean one |
+| RTH, git did not answer | **REFUSE** — an unread diff is never exempt |
+| the market clock cannot be read | **REFUSE** — a guard that passes when it cannot tell the time reports "fine" exactly when it has stopped working |
+| outside 09:25–16:05, or a weekend/holiday | OK (the queue check still applies) |
+
+⛔ **The cleared list is DERIVED FROM TIER 1 ABOVE and re-read at test time**, so editing this
+document moves the guard. Do not maintain a second copy of it in the tool — that is the
+second-authority defect this runbook already carries three examples of.
+
+⛔ **The trading-day answer comes from the product's own `freshness` module**, asked exactly one
+question. The 09:25–16:05 window is deliberately WIDER than the session at both ends and is this
+guard's own policy; re-deriving `session_state` inside the tool would be the second copy.
+
+**Override**, and it is deliberately awkward:
+
+```sh
+UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART
+```
+
+An exact value, not `=1`. It is **separate from `UCT_SKIP_PREPUSH_GUARD`** — a test proves that
+skipping the one-merge-at-a-time queue check does **not** also buy an RTH restart — and every use is
+appended to `logs/pre-push-guard-bypass.log` as `CLOCK-WINDOW`. An override exists so that it is a
+deliberate act, not so that it is the way past a red.
+
+**Checking harm after a restart:** `tools/deploy_blip_check.py` reads a log pull and counts HTTP
+statuses **by structured field**. ⚰️ It replaces a check that grepped for `502` and matched the
+**millisecond field** of a timestamp (`19:41:44,502`) — eighteen hits, none of them a status, and
+"no 502s found" was therefore never a measurement. It is three-valued and reports **INCONCLUSIVE,
+never CLEAN**, when no line in the window carries a status at all or when the pull was a FLOOR.
+
 ### Installing it (advisory to the other workstreams)
 
 The hook lives in the **shared** `.git/hooks/` — one install covers every worktree of this
