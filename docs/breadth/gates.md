@@ -403,3 +403,15 @@ flight: once `master deploy gate` + Railway **Wait for CI** serialise pushes, a
 suspected stack becomes a REGRESSION SIGNAL to investigate rather than a number to
 tune — and investigating one costs a minute of reading two deploy records.
 
+### Wait for CI — the two-push verification (2026-09-14)
+
+**Push B of this test was made with `UCT_SKIP_PREPUSH_GUARD=1` on purpose.** The
+client guard would have refused it, and refusing it is not what needed proving: the
+whole reason for the GitHub-side gate is that a client hook cannot stop a session
+that bypasses it. Bypassing it deliberately is the only honest test of the
+server-side serialisation.
+
+| UTC | event |
+|---|---|
+| (filled in below by the run) | |
+
