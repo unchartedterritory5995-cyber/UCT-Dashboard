@@ -182,6 +182,15 @@ chunk logs read: 12   failing cases: 92   failing files: 34
 
 ## ⭐⭐⭐ WAVE 2 — NOT STARTED. THE ORDER IS THE OWNER'S.
 
+> ⭐ **THE SUB-STEP PLAN IS NOW A FILE: `docs/pine/WAVE2-A-PLAN.md`.** a1–a7, what
+> each one is, which are done and at which SHA, the reporting cadence, and the
+> (a)–(j) order restated with its provenance. ⚰️ It was written 2026-09-14 because
+> a session asked to read a5's scope out of the repo found **nothing** — the plan
+> had governed three sub-steps of real work while existing only in chat.
+> ⛔ a5's member set is marked AWAITING OWNER CONFIRMATION there: the source says
+> `REDUCE_MEMBERS` is `sum/max/min/avg`, and `stdev`/`includes` are unattested.
+
+
 ⛔ **NO ESTIMATES YET, DELIBERATELY.** The order below is a ruling; the numbers are
 not. An estimate typed before the first item is opened becomes the thing the work
 is measured against, and this programme has already paid for one of those
