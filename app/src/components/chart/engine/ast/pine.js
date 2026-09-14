@@ -4352,6 +4352,11 @@ export class Resolver {
      *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
      *  identical, which is the point: two contracts, one reading. */
     this.strict = opts.strict === true
+    /** ⭐ A NOTE SINK, DEFAULTING TO A NO-OP. The walk owns `notes`; the
+     *  Resolver never needed to add one before, so every other caller keeps
+     *  working unchanged. ⛔ It is a FUNCTION rather than an array, so one
+     *  resolver cannot accidentally share another's note list. */
+    this.noteSink = typeof opts.noteSink === 'function' ? opts.noteSink : () => {}
     /** ⭐⭐ THE BARS THIS TRANSLATION IS FOR. `interpret.js`'s 2026-09-01 ruling on
      *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
@@ -5339,6 +5344,139 @@ export class Resolver {
       tok ? locate(tok) : null)
   }
 
+  /**
+   * ⭐⭐ WAVE 2 (a) — READ A PLAN-TIME VECTOR. Returns a node, or `null` to let
+   * the caller fall through to the refusal it always had.
+   *
+   * ⛔ EVERY REFUSAL HERE IS A THROW WITH A SENTENCE FROM `arrayVectors.js`, so
+   * the wording has one owner and cannot drift between the sites that need it.
+   */
+  resolveVectorRead(name, node) {
+    const member = name.slice('array.'.length)
+    const args = (node.args || []).filter((a) => !a.name)
+      .map((a) => (a && a.value !== undefined ? a.value : a))
+    // ⚠️ THE ARGUMENT IS A `name` NODE AT THIS POINT, NOT A `bound` ONE — the
+    // parser makes `{ type: 'name', name, tok }` (pine.js:3585) and the binding
+    // lookup happens INSIDE `resolve` via `this.env.get(name)`. Reading
+    // `head.binding` first assumed the substituted shape and silently matched
+    // nothing, so every read fell through to the old refusal and all four rails
+    // failed identically — which is what made it look like the hook was in the
+    // wrong place rather than reading the wrong field.
+    const head = args[0]
+    const headName = head && (head.type === 'name' ? head.name
+      : head.type === 'bound' ? head.name : null)
+    const vec = head && head.type === 'bound'
+      ? head.binding
+      : (headName ? this.env.get(headName) : null)
+    // ⛔ THE READ RAIL (F2's other half). A name read as an array that has no
+    // recorded creation is a GUARD, never `na`: a silent `na` from a read that
+    // SUCCEEDED is indistinguishable from a member's own empty array.
+    if (!vec || vec.kind !== 'vector') {
+      if (!VEC.HANDLED.has(member)) return null
+      // ⛔⛔ AN OPAQUE BINDING ALREADY CARRIES THE RIGHT SENTENCE, AND IT IS NOT
+      // THIS ONE. When the block that FILLS an array is one this walk gave up
+      // on, `forceOpaque` has already recorded why, naming that block's line.
+      // Answering "nothing in this script creates it" there would be FALSE —
+      // the creation is at line 57 and recorded — and it would send a member
+      // looking for a missing declaration instead of at the loop. Measured on
+      // `uncharted-clouds.pine` the first time reads folded.
+      // ⏭️ AND IT FALLS THROUGH RATHER THAN THROWING ITS OWN, ON PURPOSE.
+      // Throwing the opaque binding's refusal gives the member a far better
+      // sentence — `pine:reassign` at line 59, naming `layerArray`, pointing at
+      // the loop that actually blocks the read instead of at the read. It was
+      // built, measured and then BACKED OUT of this commit: it moves Clouds from
+      // `pine:collection` ×21 at 64–84 to `pine:reassign` ×21 at 59, which turns
+      // five snapshot rails red (`pine.community.guards`, `pine.guardCensus`,
+      // `pineStrictMode` ×3).
+      // ⛔ Those rails are the "snapshot regen with movers stated" work item, and
+      // a3 unrolls line 59 — removing this refusal for Clouds entirely. Moving
+      // them twice, once for a message and once for the real change, is churn
+      // that makes the second diff unreadable. The better sentence lands with
+      // the regen.
+      if (vec && vec.kind === 'opaque') return null
+      const d = VEC.refuseUncreated(headName || 'this name')
+      throw new PineRefusal(d.guard, `${REFUSALS[d.guard]} — ${d.detail}`, locate(node.tok))
+    }
+
+    // The size folds through the ONE folder, with the whole environment in hand.
+    let size = vec.slots.length
+    if (vec.sizeNode && !vec.sizeFolded) {
+      const prevEnv = this.env
+      this.env = vec.env || this.env
+      let n = null
+      try {
+        const r = this.resolve(vec.sizeNode)
+        if (r && r.type === 'num' && Number.isFinite(r.value)) n = Math.trunc(r.value)
+      } catch (err) {
+        // ⛔⛔ A SIZE THAT WILL NOT FOLD IS THE FORECLOSURE, AND IT SAYS SO BY
+        // NAME — the dependency, its line, and the item that will take it. Never
+        // "not supported", because that would be false: the IR lane has
+        // statements, and item (c) is the route.
+        const r2 = fromError(err)
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — `
+          + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
+            r2.token || 'a series', vec.line),
+          vec.at)
+      } finally { this.env = prevEnv }
+      if (n === null || n < 0) {
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — `
+          + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
+            'its size argument', vec.line),
+          vec.at)
+      }
+      if (n > VEC.MAX_VECTOR_SLOTS) {
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — \`${vec.arrayName}\` asks for ${n} slots and`
+          + ` this engine unrolls at most ${VEC.MAX_VECTOR_SLOTS}`,
+          vec.at)
+      }
+      vec.slots = new Array(n).fill(null)
+      vec.sizeFolded = true
+      size = n
+    }
+
+    if (member === 'size') return cNum(size)
+
+    if (member === 'get' || member === 'first' || member === 'last') {
+      let k = member === 'first' ? 0 : (member === 'last' ? size - 1 : null)
+      if (k === null) {
+        const idx = this.resolve(args[1])
+        if (!idx || idx.type !== 'num' || !Number.isInteger(idx.value)) return null
+        k = idx.value
+      }
+      if (k < 0 || k >= size) {
+        const d = VEC.refuseOutOfRange(vec.arrayName, k, size)
+        throw new PineRefusal(d.guard, `${REFUSALS[d.guard]} — ${d.detail}`, locate(node.tok))
+      }
+      // ⭐ AN UNWRITTEN SLOT IS `na`, WHICH IS PINE'S OWN ANSWER for a sized
+      // creation nothing has filled — and it is distinguishable from a slot
+      // written with `na`, because `null` means "never written".
+      // ⛔ AND AN UNWRITTEN SLOT IS RECORDED. A plot that draws nothing because
+      // the array was never filled looks exactly like a plot that draws nothing
+      // because the data is missing, and only one of those is the member's own
+      // doing. Pine answers `na` here and so do we — the note is the difference
+      // between reproducing Pine and leaving a member guessing.
+      if (!vec.slots[k]) {
+        this.noteSink(VEC.UNWRITTEN_NOTE,
+          VEC.unwrittenSlotMessage(vec.arrayName, k, vec.line), node.tok)
+        return cOp('/', [cNum(0), cNum(0)])
+      }
+      return vec.slots[k]
+    }
+
+    if (member === 'sum' || member === 'max' || member === 'min') {
+      const written = vec.slots.filter(Boolean)
+      if (!written.length) return cOp('/', [cNum(0), cNum(0)])
+      if (member === 'sum') return written.reduce((a, b) => cOp('+', [a, b]))
+      const fn = member === 'max' ? 'max' : 'min'
+      return written.reduce((a, b) => cCall(fn, [a, b]))
+    }
+
+    return null
+  }
+
   resolve(node) {
     this.checkBudget(node && node.tok)
     switch (node.type) {
@@ -5928,6 +6066,14 @@ export class Resolver {
           `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
           locate(node.tok))
       }
+      // ⭐⭐ WAVE 2 (a) — AND THE SAME READ ON THIS PATH. A call arrives here as
+      // well as at the site further down, and a hook on only one of them is a
+      // capability that works in some expressions and not others. Measured:
+      // `plot(array.get(a, 0))` reaches THIS one.
+      if (ns === 'array') {
+        const folded = this.resolveVectorRead(name, node)
+        if (folded) return folded
+      }
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
@@ -6318,6 +6464,15 @@ export class Resolver {
           return { type: 'textop', name: bare, args: parts }
         }
       }
+    }
+    // ⭐⭐ WAVE 2 (a) — A PLAN-TIME VECTOR IS READ HERE, BEFORE THE NAMESPACE
+    // GUARD. `array.size` folds to the bound, `array.get(v, k)` folds to slot k's
+    // TREE. Anything this cannot fold falls through to the guard below and keeps
+    // the refusal it always had, which is why this is an early return and never a
+    // catch.
+    if (ns === 'array') {
+      const folded = this.resolveVectorRead(name, node)
+      if (folded) return folded
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
@@ -8363,14 +8518,53 @@ function consumeMutators(ctx, toks) {
 /** Every name a token span reassigns. */
 function mutatorTargets(toks) {
   const out = new Set()
-  for (let i = 1; i < toks.length; i += 1) {
+  // ⚰️⚰️ THE SCAN STARTS AT 0, NOT AT 1, AND THE `1` WAS A REAL DEFECT.
+  //
+  // The scalar form below reads `toks[i - 1]`, so it needs `i >= 1` and
+  // guards for it itself. The ARRAY form reads `toks[i + 2]`, and starting the
+  // whole loop at 1 meant an `array.set(...)` that is the FIRST token of a
+  // body was never examined at all.
+  //
+  // ⚰️ Measured 2026-09-14 by dumping both bodies side by side:
+  //   fixture  `array.set ( a , i , close )`            -> targets []
+  //   Clouds   `ratio = … layerValue = … array.set (…)` -> targets [layerArray]
+  // Clouds' body carries two assignments before the write, so it was
+  // accidentally immune. ⭐ The MINIMAL repro was more minimal than the real
+  // script, which is the only reason this surfaced.
+  for (let i = 0; i < toks.length; i += 1) {
     const tok = toks[i]
-    if (tok.kind === 'punct' && MUTATORS.has(tok.value) && toks[i - 1].kind === 'ident') {
+    if (i >= 1 && tok.kind === 'punct' && MUTATORS.has(tok.value)
+        && toks[i - 1].kind === 'ident') {
       out.add(toks[i - 1].value)
+    }
+    // ⭐⭐ WAVE 2 (a) — AN ARRAY IS MUTATED BY A CALL, NOT BY `:=`, AND THAT IS
+    // A SILENT-WRONG-RESULT HOLE THE MOMENT READS FOLD.
+    //
+    // ⚰️ MEASURED 2026-09-14, and it is why this exists. As soon as
+    // `array.get(v, k)` folded to a slot, `uncharted-clouds.pine` went from 21
+    // honest refusals to **ZERO refusals and 21 plots reading `na`** — because
+    // the `for` at line 59 that FILLS the array is a block this walk gives up
+    // on, and nothing connected the two. A member would have seen 21 blank
+    // plots and no sentence anywhere saying why.
+    //
+    // ⛔ `na` IS ONLY THE RIGHT ANSWER WHEN THE SCRIPT GENUINELY NEVER WRITES
+    // THE SLOT. When the writer is a block this lane could not read, the right
+    // answer is the refusal the block already earned — so the array joins the
+    // scalars this function forces opaque, and the read refuses by name.
+    if (tok.kind === 'ident' && String(tok.value).startsWith('array.')
+        && WRITE_LIKE_ARRAY_MEMBERS.has(String(tok.value).slice('array.'.length))
+        && toks[i + 1] && isPunct(toks[i + 1], '(')
+        && toks[i + 2] && toks[i + 2].kind === 'ident') {
+      out.add(toks[i + 2].value)
     }
   }
   return out
 }
+
+/** The `array.*` members that WRITE, for `mutatorTargets`. Derived from the one
+ *  set in `arrayVectors.js` so a member added there is covered here the same day
+ *  — a second hand-typed list is the drift this engine keeps paying for. */
+const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
 
 /** The parameter names of `f(a, b) =>`, or null if the header is not that shape. */
 function functionParams(toks, arrow) {
@@ -10124,6 +10318,31 @@ export function translatePine(source, opts = {}) {
       // pre-loop value `0` inside `screen`'s formula instead of refusing.
       for (const name of mutatorTargets(stmt.body)) {
         forceOpaque(name, 'pine:reassign', locate(first), name)
+        // ⛔⛔ AND A VECTOR IS REPLACED OUTRIGHT, NOT MERELY MARKED.
+        //
+        // ⚰️ `forceOpaque` records the refusal for the SCALAR path, and the
+        // vector binding survived it in `env` — so `array.get(a, k)` still
+        // found a vector and still folded slot k to `na`. Measured
+        // 2026-09-14: a fixture whose array is filled by a `for` came back
+        // **0 refusals, ok=true**, with nothing but a `pine:block` note to
+        // connect the empty plot to the loop. That is the silent-`na` hole
+        // `vectorSilentNa.test.js` is named for.
+        //
+        // ⭐ A vector whose writer this walk could not read is not a vector.
+        // It becomes opaque, and every read of it refuses by name.
+        const prior = env.get(name)
+        if (prior && prior.kind === 'vector') {
+          env.set(name, {
+            kind: 'opaque',
+            guard: 'pine:collection',
+            message: `${REFUSALS['pine:collection']} — `
+              + `\`${name}\` is filled by a block this engine could not read, so`
+              + ' its slots are unknown rather than empty. Unrolling a bounded'
+              + ' loop is item (a); a loop whose bound depends on a series is'
+              + ' the IR lane\'s, item (c).',
+            at: locate(first),
+          })
+        }
       }
       continue
     }
@@ -10509,6 +10728,7 @@ export function translatePine(source, opts = {}) {
     const resolver = new Resolver(env, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
         strict: opts.strict === true,
+        noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES BOTH RESOLVERS OR IT PROTECTS NEITHER. The object
         // pass below builds its own, and a hang there is just as fatal.
         basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,

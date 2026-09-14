@@ -60,6 +60,21 @@ export const HANDLED = Object.freeze(new Set([
   ...CREATE_MEMBERS, ...READ_MEMBERS, ...WRITE_MEMBERS, ...REDUCE_MEMBERS,
 ]))
 
+/** ⭐⭐ THE UNROLL CEILING, IN SLOTS — derived in a1 from the corpus, not chosen.
+ *
+ *  The unit is UNROLLED NODES, because that is what a plan-time vector costs:
+ *  worst measured real across 327 scripts was **19,992** (iterations x nesting,
+ *  `relative-volume-at-time`), and the ceiling is that x 1.5 — R-Q's multiple and
+ *  R-Q's method. ⚠️ RE-DERIVED AT a3 with the engine's real folder: a1's probe
+ *  resolved 124 of 1,004 loops, so 19,992 is a floor on the true max. It is the
+ *  right input today because a loop whose bound does not fold is REFUSED and
+ *  contributes zero — the ceiling only has to bound what is ADMITTED.
+ */
+export const MAX_UNROLLED_NODES = 30000
+
+/** A single vector may not itself exceed the ceiling. */
+export const MAX_VECTOR_SLOTS = MAX_UNROLLED_NODES
+
 /** The element type a creation declares, for the plan record. */
 export function elementTypeOf(member, generic) {
   if (generic) return String(generic)
@@ -141,3 +156,28 @@ export function refuseOutOfRange(arrName, index, size) {
       + ` reads index ${index}, which is outside it`,
   }
 }
+
+/** ⭐⭐ A READ OF AN UNWRITTEN SLOT IS CORRECT, AND A MEMBER SHOULD STILL SEE IT.
+ *
+ *  `array.new<float>(21)` fills twenty-one slots with `na`, and `array.get` on
+ *  one of them answers `na` — that is Pine's own behaviour and this engine
+ *  reproduces it exactly, so it is NOT a refusal. But a plot that draws nothing
+ *  because the array was never filled looks identical to a plot that draws
+ *  nothing because the data is missing, and only one of those is the member's
+ *  own doing.
+ *
+ *  ⛔ SO IT IS A NOTE, NOT SILENCE. The slot and the line are in the sentence,
+ *  because "your array was never filled" without a line is not something anyone
+ *  can act on.
+ */
+export const UNWRITTEN_NOTE = 'pine:vector-unwritten'
+
+export function unwrittenSlotMessage(arrName, index, createdLine) {
+  return TICK_NAME(arrName) + ' slot ' + index + ' was never written, so this reads `na`'
+    + (createdLine ? ' — the array is created at line ' + createdLine : '')
+    + '. That is what Pine answers for a sized array nothing has filled; it is'
+    + ' recorded so an empty plot can be told from a missing one.'
+}
+
+/** One place builds the back-ticked name, so no call site hand-rolls one. */
+function TICK_NAME(n) { return '`' + n + '`' }
