@@ -4142,6 +4142,21 @@ becomes a searchable video on the channel, so:
   it lands and defaults to unlisted. Mutation-checked three ways (guard deleted · call
   site stops passing privacy · client ignores the value it was handed) — the middle one
   is the "routing computed but never applied" failure this repo keeps rediscovering.
+- ⛔⛔ **THE RULE ABOVE IS CORRECT AND IT WAS NOT TRUE FOR 25 DAYS.**
+  `DESK_PUBLIC_SHOWS=*` was set on `web` on **2026-08-19** (`0894d7ac0`, whose message
+  cites an owner decision) and **27 paid sessions** — Live Trading Sessions, a paid
+  workshop, Evening Updates — uploaded **public and searchable** until the owner's
+  revert on 2026-09-13. Every rail was green throughout: the flag carries no
+  `ENABLED`/`DISABLE` marker, so `is_gate()` is false for it and the ledger rail never
+  asked. **A doc that states a rule no check enforces is a rule that lasts until
+  somebody changes a variable.** The checks that now exist, and which this paragraph and
+  they must be kept in step with:
+  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared
+  in `docs/feature_flags.json` with `exposure`/`default`/`values`, a wildcard refused,
+  declared values must name sections `_RULES`/`_HOST_AWARE` can actually produce) and
+  **`python tools/flag_ledger_audit.py --visibility`** (the live half — reads the
+  services and fails on a wildcard or an undeclared value, because the wildcard was
+  never in the repo and only the running service ever had it).
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
