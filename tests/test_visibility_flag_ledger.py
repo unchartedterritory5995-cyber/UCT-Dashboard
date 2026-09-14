@@ -1,4 +1,4 @@
-"""A flag that decides who can SEE the output must say so, and may never be a wildcard.
+"""A flag that decides who can SEE the output must say so, and a wildcard must be attributable.
 
 ⚰️ WHY THIS FILE EXISTS. On 2026-08-19 `DESK_PUBLIC_SHOWS` was set to `*`. From that
 day every auto-recorded Zoom session — paid Live Trading Sessions, a paid workshop,
@@ -24,7 +24,7 @@ internet, which is silent and **cannot be un-published**. They deserve different
 WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 1. a visibility flag with no ledger entry at all (the 2026-08-19 shape);
 2. a visibility flag declared without `exposure`, `default` or `values`;
-3. a WILDCARD in the declared default or values of a public-exposure flag;
+3. a WILDCARD on a public-exposure flag with no dated `owner_decision` to attribute it to;
 4. a declared value that names a show section the router cannot actually produce
    (so a section rename cannot leave the ledger quietly describing fiction);
 5. the derivation itself going vacuous — a broken predicate that finds nothing would
@@ -34,11 +34,12 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 ⛔ WHAT THIS CANNOT DO: it has no network. It enforces that the decision is WRITTEN and
 that the written decision is internally coherent — never that Railway agrees with it.
 `tools/flag_ledger_audit.py --visibility` is the half that reads the live services and
-refuses a wildcard THERE. Keep them separate so this suite stays offline.
+applies the same rule THERE. Keep them separate so this suite stays offline.
 """
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -122,19 +123,74 @@ def test_a_visibility_flag_declares_its_exposure_default_and_allowed_values(name
 # ── 3. the wildcard ─────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("name", sorted(_visibility_flags()))
-def test_a_public_exposure_flag_never_declares_a_wildcard(name):
-    """⛔ The exact 2026-08-19 value. A wildcard on a visibility flag means "everything
-    we produce, to everyone" — and the whole point of a per-show decision is that it is
-    made per show. If that is ever genuinely wanted it is a code change with a review,
-    not a one-character environment value nobody can see."""
-    entry = _ledger().get(name) or {}
+def test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision(name):
+    """A wildcard means "everything we produce, to everyone". That is a decision a person
+    makes, not a value that appears.
+
+    ⭐ OWNER RULING 2026-09-13, and it is the right correction to what this rail first did:
+    **the rail's job is to record intent, not to block it.** The first version refused `*`
+    outright — which would have made a legitimate, deliberate business decision
+    unexpressible, and the predictable result of a rail that forbids something the owner
+    wants is that someone sets it on Railway and never writes it down. That is exactly the
+    state that produced the 25-day ambiguity: the decision WAS made on 2026-08-19 and the
+    only thing missing was the record.
+
+    So the wildcard is allowed, and it costs an attributable sentence: `owner_decision`,
+    carrying a date. A wildcard WITHOUT it still fails — because then nobody can tell a
+    decision from a leak, which is the whole problem.
+    """
+    problem = wildcard_authorisation_error(_ledger().get(name) or {})
+    assert problem is None, f"{name}: {problem}"
+
+
+def wildcard_authorisation_error(entry: dict):
+    """The ONE implementation of "may this entry carry a wildcard?" — returns None or why not.
+
+    ⛔ It is a named function, called by BOTH the real-ledger test above and the synthetic-entry
+    test below, because the on-disk ledger is (correctly) AUTHORISED — so a test that only reads
+    it can never drive this rule's FAILING direction. The mutation harness proved exactly that:
+    neutering the check left all 15 tests green, because nothing ever asked it about an
+    UNauthorised entry. Same shape as the `_advanceable` survivor in S-A. A guard whose failing
+    branch no fixture can reach is not a guard.
+    """
     if entry.get("exposure") != "public":
-        return
-    bad = [v for v in [entry.get("default"), *entry.get("values", [])]
-           if isinstance(v, str) and v.strip().lower() in WILDCARDS]
-    assert not bad, (
-        f"{name} declares the wildcard {bad!r}. On 2026-08-19 this exact value turned every "
-        f"paid Zoom session into a public YouTube video for 25 days.")
+        return None
+    wildcards = [v for v in [entry.get("default"), *entry.get("values", [])]
+                 if isinstance(v, str) and v.strip().lower() in WILDCARDS]
+    if not wildcards:
+        return None
+    decision = (entry.get("owner_decision") or "").strip()
+    if not decision:
+        return (f"declares the wildcard {wildcards!r} with no `owner_decision`. A wildcard on a "
+                f"public-exposure flag is allowed ONLY as a recorded decision — otherwise it is "
+                f"indistinguishable from the 2026-08-19 state, which ran 25 days precisely "
+                f"because the decision was never written down.")
+    if not re.search(r"\b20\d{2}-\d{2}-\d{2}\b", decision):
+        return f"`owner_decision` must carry the DATE of the decision. Got: {decision!r}"
+    if len(decision) < 40:
+        return (f"`owner_decision` must say what was decided, not just that something was. "
+                f"Got {len(decision)} chars.")
+    return None
+
+
+def test_the_authorisation_rule_is_driven_in_its_FAILING_direction_too():
+    """CONTROL for the rule above, and it exists because a mutation SURVIVED without it.
+
+    The on-disk ledger is authorised, so the real-ledger test passes whether the rule works or
+    not. These synthetic entries are the only thing that makes it load-bearing.
+    """
+    ok = {"exposure": "public", "values": ["*"],
+          "owner_decision": "Owner decision 2026-08-19, reaffirmed 2026-09-13: all auto-recorded "
+                            "sessions publish public to YouTube."}
+    assert wildcard_authorisation_error(ok) is None                        # the live entry's shape
+    assert "no `owner_decision`" in wildcard_authorisation_error(
+        {k: v for k, v in ok.items() if k != "owner_decision"})            # the 2026-08-19 state
+    assert "DATE" in wildcard_authorisation_error(
+        {**ok, "owner_decision": "the owner approved this at some point and said it was fine"})
+    assert "what was decided" in wildcard_authorisation_error({**ok, "owner_decision": "2026-09-13"})
+    # ...and it stays silent where it should: no wildcard, or not a public-exposure flag.
+    assert wildcard_authorisation_error({"exposure": "public", "values": ["sunday scans"]}) is None
+    assert wildcard_authorisation_error({"exposure": "internal", "values": ["*"]}) is None
 
 
 # ── 4. declared values must name something the router can produce ───────────
@@ -153,6 +209,8 @@ def test_declared_show_values_name_real_router_sections():
     ledger = _ledger()
     for name in ("DESK_PUBLIC_SHOWS", "DESK_TSDR_ANNOUNCE_SHOWS"):
         for value in ledger[name]["values"]:
+            if value.strip().lower() in WILDCARDS:
+                continue   # a wildcard names every section by definition, not one of them
             assert any(value in s for s in sections), (
                 f"{name} declares {value!r}, which matches no section the router can produce: "
                 f"{sorted(sections)}")
@@ -172,10 +230,15 @@ def test_the_declared_default_matches_the_code_default():
     assert desk._PUBLIC_SHOWS_DEFAULT == "sunday scans"
 
 
-def test_the_default_publishes_only_sunday_scans():
-    """The owner's ruling, asserted against the real classifier rather than the docs.
+def test_the_CODE_default_still_fails_conservative_when_nothing_is_set():
+    """⭐ This pins the FALLBACK, not the live policy, and the distinction is the point.
 
-    Owner, 2026-09-13: "the wildcard was NOT intentional. Public = Sunday Scans only."
+    The live value is the wildcard `*` — every show publishes public, by the owner's decision
+    of 2026-08-19 reaffirmed 2026-09-13. That is a Railway VALUE. `_PUBLIC_SHOWS_DEFAULT` is
+    what runs when the variable is ABSENT — a fresh service, a typo'd name, a wiped
+    environment — and it must stay the conservative answer, so that losing the variable can
+    never silently widen exposure. An unset flag publishing everything would be the one
+    failure direction nobody would notice.
     """
     from api.services import desk_daily_session as desk
 
@@ -193,49 +256,63 @@ def test_the_default_publishes_only_sunday_scans():
 
 # ── the LIVE half — proven to fire, without touching production ─────────────
 
-def test_the_live_audit_catches_the_wildcard_that_actually_shipped(monkeypatch):
+def test_the_live_audit_flags_an_UNAUTHORISED_wildcard_and_passes_an_authorised_one(monkeypatch, tmp_path):
     """⛔ A GUARD NOBODY HAS SEEN FIRE IS NOT A GUARD (`lesson_gate_that_cannot_fail`).
 
-    The offline rails above cannot catch the real incident: the wildcard was never in the
-    repo. It existed only as a value on a live Railway service, which is why 25 days
-    passed with every rail green. `tools/flag_ledger_audit.py --visibility` is the half
-    that looks — so it has to be shown failing on the exact value that shipped, and
-    passing on the value that replaced it, without setting anything on production.
+    The offline rails cannot catch the real incident: the wildcard was never in the repo.
+    It existed only as a value on a live Railway service, which is why 25 days passed with
+    every rail green. `tools/flag_ledger_audit.py --visibility` is the half that looks.
+
+    ⭐ And since the owner's 2026-09-13 ruling it must distinguish two states that LOOK
+    IDENTICAL on the wire — the live value is `*` in both:
+      * `*` with a dated `owner_decision`  -> a recorded decision, CLEAN;
+      * `*` with none                      -> indistinguishable from a leak, FINDING.
+    A rail that cannot tell those apart is either useless (never fires) or a nuisance that
+    fires on the owner's own decision until someone mutes it. Both paths are driven here.
     """
-    import importlib.util
+    import importlib.util, json as _json
 
     spec = importlib.util.spec_from_file_location(
         "flag_ledger_audit_under_test", REPO / "tools" / "flag_ledger_audit.py")
     audit = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(audit)
-
     monkeypatch.setattr(audit, "_services", lambda: ("web",))
 
-    def live(values):
-        monkeypatch.setattr(audit, "_values_for", lambda service, wanted: dict(values))
+    def with_ledger(entry: dict, live_value: str):
+        """Point the tool at a crafted ledger + live value, exercising the REAL code path."""
+        docs = tmp_path / "docs"
+        docs.mkdir(exist_ok=True)
+        (docs / "feature_flags.json").write_text(
+            _json.dumps({"flags": {"DESK_PUBLIC_SHOWS": entry}}), encoding="utf-8")
+        monkeypatch.setattr(audit, "REPO", tmp_path)
+        monkeypatch.setattr(audit, "_values_for",
+                            lambda service, wanted: {"DESK_PUBLIC_SHOWS": live_value})
+        return audit.visibility_audit()
 
-    # 1. the value that actually shipped on 2026-08-19
-    live({"DESK_PUBLIC_SHOWS": "*"})
-    out = audit.visibility_audit()
-    assert len(out["findings"]) == 1, out
-    assert out["findings"][0]["why"].startswith("WILDCARD")
-    assert out["findings"][0]["flag"] == "DESK_PUBLIC_SHOWS"
+    AUTHORISED = {"exposure": "public", "default": "sunday scans", "values": ["*", "sunday scans"],
+                  "owner_decision": "Owner decision 2026-08-19, reaffirmed 2026-09-13: all "
+                                    "auto-recorded sessions publish public to YouTube."}
 
-    # 2. a wildcard hiding in a LIST — the shape a partial revert would leave
-    live({"DESK_PUBLIC_SHOWS": "sunday scans,*"})
-    assert len(audit.visibility_audit()["findings"]) == 1
+    # 1. THE 2026-08-19 STATE — the wildcard was live and nothing recorded the decision.
+    unrecorded = {k: v for k, v in AUTHORISED.items() if k != "owner_decision"}
+    out = with_ledger(unrecorded, "*")
+    assert len(out["findings"]) == 1 and "no dated owner_decision" in out["findings"][0]["why"], out
 
-    # 3. a value the ledger does not allow (a show quietly added to the public set)
-    live({"DESK_PUBLIC_SHOWS": "live trading sessions"})
-    f = audit.visibility_audit()["findings"]
+    # 2. an owner_decision with no DATE is not a record anybody can age — still a finding.
+    undated = {**AUTHORISED, "owner_decision": "the owner said it was fine at some point"}
+    assert len(with_ledger(undated, "*")["findings"]) == 1
+
+    # 3. CONTROL — the same live wildcard, properly recorded, is CLEAN.
+    assert with_ledger(AUTHORISED, "*")["findings"] == []
+
+    # 4. a value outside the declared set is still caught, wildcard or not.
+    f = with_ledger(AUTHORISED, "live trading sessions,mystery show")["findings"]
     assert len(f) == 1 and "outside the declared values" in f[0]["why"]
 
-    # 4. CONTROL — the value the owner ruled for is clean, so the checks above are
-    #    discriminating rather than simply always-red.
-    live({"DESK_PUBLIC_SHOWS": "sunday scans"})
-    assert audit.visibility_audit()["findings"] == []
+    # 5. CONTROL — a declared value is clean, so 4 is discriminating rather than always-red.
+    assert with_ledger(AUTHORISED, "sunday scans")["findings"] == []
 
-    # 5. CONTROL — an empty read must never be reported as clean.
+    # 6. CONTROL — an empty read is never reported as clean.
     monkeypatch.setattr(audit, "_values_for",
                         lambda service, wanted: (_ for _ in ()).throw(
                             audit.RailwayUnavailable("no variables")))

@@ -141,6 +141,11 @@ is in the commit but deploys separately (row 9).
 
 ## Step 2.4a — symbol resolution and the `/flow` partition, measured on production data (branch)
 
+⛔ **Scope, recorded because the plan line said otherwise (owner ruling R-1, 2026-09-13):** 2.4a
+shipped symbol resolution and the `/flow` ETF partition. It did **not** ship the freshness
+contract — the market clock, the envelope and the STALE rule were built in **2.4b**
+(`freshness.py`, `4984e6207`), and the session rule they settle on is `03` §3.8b.
+
 **How:** the branch's `symbols.py` (sha-verified upload to `/tmp`) run by a read-only probe in the
 `web` pod as a separate process — the real ticker-search snapshot (26,624 rows), cap universe
 (3,742), liquid-ETF list (100), `bars.db`, `entity_master.db`. Cold process: an upper bound. Plus
@@ -192,3 +197,159 @@ fixed on master by its owner):
 | Running commit, read in-process | `d623baf1d836` |
 | `/api/health` · bad signature · render-health without bearer | 200 · 401 · 401 |
 | V2 flag / alert webhook in the running process | both absent |
+
+---
+
+## Step 2.4b P2.1 — the provider adapters, and the hot path wired to them (branch)
+
+**What it is:** one module per upstream under `api/services/discord_render/adapters/`, each exposing
+`fetch(request) -> Result`. Timeouts, retries, breakers, fallback and the freshness stamp live there
+and nowhere else; the V2 handlers bind adapter-backed callables through `bindings.py` with the exact
+shapes `produce_chart` already calls, so the render function is unchanged and the pre-V2 path is
+untouched. Design and the per-adapter table: `03` §3.8c.
+
+### What reading the call sites found, before a single test ran
+
+Three of these are live defects. None was found by a test — they came from reading what the code
+does at the boundary, which is the same discipline as *read the wire, not the call site*.
+
+| # | Measured | Why it matters |
+|---|---|---|
+| **OI-21** | `discord_chart_house.RENDER_TIMEOUT_S` = **60 s**, over **two** attempts, behind a **15 s** job deadline | The watchdog fires at 15 s and tells the member the render failed; the request keeps a worker for up to another **105 s**. And `breakers.DEFAULTS["renderer"]`, tuned for this exact dependency, had **zero production callers** — built, tested, green and unwired. |
+| **OI-25** | `produce_chart._fetch` already retries twice with a **fixed 1.5 s** delay | An adapter retry on top would make **four** bars fetches per chart and sleep ~2.9 s inside a 15 s deadline. Both layers are individually correct; only the composition is wrong. |
+| **OI-22** | A quote failure is indistinguishable from "no extended-hours print" — swallowed at **three** layers | A quote outage looks like a quiet overnight, so no breaker can ever see it. The call also had **no timeout of any kind**, on the path that must answer Discord in 3 s. |
+| **OI-23** | **Three** unreconciled failure vocabularies (member contract · adapter taxonomy · the `/flow` router's inline classes) | A class in one and not the others renders as a generic apology — C-08 one level up. Closed by `adapters/classes.py`: `(upstream, reason) -> contract class`, total over the cross-product, raising on an unmapped pair rather than quietly becoming `internal`. |
+| **OI-24** | `discord-chart-produce` is spawned without `ids.carry` | Every `drender` event from inside a chart production is unattributable — on the one path where a member's complaint has to be traceable to a job. Queued for 2.8 (pre-V2 file). |
+
+### The properties, and the number each one is
+
+- **The ceiling is `min(dependency timeout, the JOB's remaining time)`** — `Job.remaining_s()`,
+  measured from `created_at` (the ack), not from when a worker picked the job up, because the queue
+  wait is time the member has already spent. §3.8's per-dependency numbers are the other half:
+  bars 8 s · quote 1.5 s · flow 10 s (connect 2 s) · renderer **20 s** · entity 0.6 s.
+- **A failure is a value with a named class**, never an exception and never a bare `None`. `stale`
+  and `cached` are deliberately **not** failures, because a labelled stand-in is a delivery (S8) and
+  counting it as one would hide a renderer outage inside a green success rate.
+- ⛔⛔ **`unreachable` and `upstream_error` are separate and must stay separate.** "We could not
+  reach it" and "it answered with an error" are a different sentence to a member, a different next
+  action for us, and they decide whether `/flow`'s in-process fallback runs at all — a 5xx means
+  flow-worker *answered*, and `web`'s copy would very likely answer the same. They were one `except`
+  for two weeks, which is C-08. ⚠️ **Found by writing the wiring, not by a test:** the first version
+  of this layer had them merged and the flow tests still passed, because every case in them happened
+  to want the same outcome.
+- ⭐ **An empty `/flow` tape is an answer, not a failure** — the same mistake pointed the other way.
+  A quiet session is true and useful, the router already has the sentence for it, and classing it as
+  a failure would put a correct answer in the failure counters and lose the window phrase the
+  sentence needs. It comes back `ok` with `contract_count == 0`. An empty **bars** answer *is* a
+  failure (`no_bars`) — there is no chart to draw. Same observation, different meaning, which is why
+  `classes.py` maps a **pair** and not a reason.
+- **One bounded pool per dependency** (`renderer`/`flow`/`bars` 4, `quote`/`entity` 2). A Python
+  thread cannot be cancelled, so a timeout means *we* stopped waiting; the bound is what keeps a
+  wedged upstream from consuming anything but its own threads — C-02's lesson, where member jobs and
+  the dashboard drained one shared pool of 64. `abandoned_calls()` reports them separately, because
+  an abandoned call is not a failure and no success/failure ratio can show it.
+- **The vintage is the data's, never the wall clock.** Bars: the newest bar's `t`. Flow:
+  `window.end`, **not** `query_date` — a card built from Friday's tape at Sunday noon would otherwise
+  stamp itself Sunday and read as live. The renderer has no vintage of its own and is given the
+  bars', so the picture is exactly as old as the data drawn in it (§3.10).
+- **The `/flow` fallback is conditional and every condition is a reason**: in-process only on a
+  transport error or an open breaker; never on a timeout (the budget is gone and the local leg is the
+  slower of the two); never after the remote leg *answered*; never below `LOCAL_MIN_S`. A served
+  fallback is a **degraded** delivery and carries why the first leg failed.
+
+### Rails
+
+`tests/test_discord_render_result.py` · `tests/test_discord_render_adapters.py` ·
+`tests/test_discord_render_failure_classes.py` · `tests/test_discord_render_adapter_boundary.py` —
+the boundary rail walks an **AST**, not a grep, and carries both halves: nothing outside `adapters/`
+may hold a network client, and the exemption list for the two legitimate transports
+(`delivery.py` §3.4, `observe.py` §3.9) must be exactly the modules that still need it.
+
+⭐ **The P2 ground rule is proved STRUCTURALLY, not by a golden.**
+`test_the_pre_v2_path_cannot_reach_the_adapters` asserts that neither `discord_interactions.py`
+imports the adapters package. A golden diff proves two runs agreed on the inputs somebody chose;
+this proves there is no path at all, for every input. The companion rail asserts `commands.py`
+*does* import them, so the layer cannot quietly become unwired.
+
+**Kill switch:** `DISCORD_RENDER_V2_ADAPTERS_ENABLED` — under the V2 master, **unset = ON**, read
+per call (railed), declared `dark`. Set it to `0` and the handlers bind the raw functions again: a
+rollback of P2.1 with no deploy, and a switch rather than a delete.
+
+---
+
+## Master merge 5 — 2.4b part 2 (P2.1–P2.10), dark · 2026-09-13 (Sunday, 20:1x ET)
+
+**Shipped (dark):** the provider adapters and the hot path wired to them; the member-facing stamp;
+the breaker and loop-stall alerts; the event-loop probe; shadow mode. Design in `03` §3.8c/§3.8d,
+the member-facing surface in `04-visual-spec.md`.
+
+**Gate on the merged tree** (after merging 43 master commits, with overlap on `CLAUDE.md`,
+`api/main.py` and `docs/feature_flags.json` — merged, not rebased, per the standing rule): 44 scoped
+files, **1,112 passed, 0 failed**. Hygiene gate clean (9,219 tracked files). Watch coverage `OK`
+(changed 39, none on flow-worker's list). Mutation proofs **69/69 red**, restores sha-verified,
+controls green either side. Secret scan **0 findings** over 39 paths, run by hand because the hook
+cannot run it here (OI-26).
+
+**Deploy, measured:**
+
+| Check | Result |
+|---|---|
+| Push | fast-forward to `5ca4d5db2`; master's own pre-push guard confirmed `web` SUCCESS and 769 s settled first |
+| `web` deployment | BUILDING → DEPLOYING → **SUCCESS** on `5ca4d5db2`, ~2 min |
+| Running commit, read in-process | **`5ca4d5db2385`** |
+| `/api/health` · bad signature · render-health unauthenticated | **200** · **401** · **401** |
+| flow-worker | **SKIPPED** on both pushes — the tape was never touched |
+| `DISCORD_RENDER_V2_ENABLED` · `RENDER_V2_SHADOW` · the two kill switches | **all absent** in the running process |
+| Renderer ceiling, read in-process | **20.0 s** (was effectively 60 s over two attempts behind a 15 s deadline — OI-21) |
+| `loopwatch.snapshot()` | `running: false`, `samples: 0`, `max_ms: null` |
+
+⭐ **That last row is the design working, not a defect.** The probe starts inside the V2 lifespan
+block, which is dark — so it costs nothing today and says so. `samples: 0` with `max_ms: null` is
+deliberately distinguishable from a healthy loop: a probe that never ran must never read as "fine".
+
+**Member impact: none.** Everything new is reachable only from `commands.py`, which runs only when
+`DISCORD_RENDER_V2_ENABLED` is set, and it is absent. The one change on the pre-V2 path is the
+interactions route delegating to `_dispatch_interaction` and returning its reply **unchanged**; the
+shadow beside it is gated on `RENDER_V2_SHADOW`, also absent, and a rail asserts the reply survives
+even when the shadow setup raises.
+
+---
+
+## P2.10 bench — what the adapter layer costs, three ways (2026-09-13, 20:3x ET)
+
+`docs/discord-render/instruments/adapter_overhead_bench.py`, 300 calls per case, one upstream
+stubbed to a fixed 1 ms so the **only** variable is the layer. `--self-check` first: a deliberately
+injected 4 ms showed up as 1.54 → 5.99 ms, so the bench can see a cost before any small number from
+it is believed.
+
+| Case | p50 | p95 | max |
+|---|---|---|---|
+| **raw** (the pre-V2 binding) | 1.520 ms | 1.613 ms | 1.798 ms |
+| **adapters** (V2 default) | **1.525 ms** | 1.836 ms | 2.220 ms |
+| **switch_0** (`DISCORD_RENDER_V2_ADAPTERS_ENABLED=0`) | **1.520 ms** | 1.643 ms | 1.949 ms |
+
+**Overhead: +0.005 ms at the median, +0.42 ms at the worst** — against an 8 s bars budget and a 20 s
+render ceiling. ⭐ **`switch_0` matches `raw` to three decimals**, which is the measured proof that
+the kill switch is a real rollback and not a comment: it hands back the raw function, and a bench
+case says so rather than a docstring.
+
+⚠️ **This is not the end-to-end bench and does not replace it.** `tools/discord_render_bench.py`
+runs in the web pod against the real renderer and bars store; that is what `02-baseline.md` is made
+of. This isolates the one question the end-to-end bench cannot answer cleanly because its variance is
+dominated by the network: what does wrapping a call in a pool submit, a breaker and a `Result` add?
+
+---
+
+## Wall clock (owner brief §4)
+
+| Merge | Step | Start (ET) | End | Gate | Deploy wait | Active work |
+|---|---|---|---|---|---|---|
+| 5 | 2.4b P2.1–P2.10 | ~17:10 | 20:07 | 6 m 38 s (1,112 tests) | ~2 min | the balance — authorship + 69 mutation runs |
+| 5a | merge-5 record | 20:07 | 20:12 | n/a (docs) | ~2 min | ~3 min |
+| 6 | frozen contracts + `07`/`08` | 20:12 | 20:25 | 20 s (166 tests) | ~3 min incl. **one push refused** by master's own pre-push guard (a deploy was in flight — the queue working) | ~10 min |
+| 7 | shadow ON + interpretability | 20:25 | 20:40 | 7 s (78 tests) | ~2 min | ~11 min |
+
+⭐ **Where the time actually went, and the fix already applied:** merge 5 spent more wall clock on
+gate + deploy than on authorship, which is what the lane plan (`07-execution-plan.md`) exists to
+reclaim. Merges 6 and 7 ran with five lanes working in parallel underneath them, so the deploy waits
+cost nothing.

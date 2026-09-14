@@ -7706,8 +7706,15 @@ async def lifespan(app: FastAPI):
         from api.services.discord_render import commands as _render_v2
         if _render_v2.enabled():
             _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
+            # ⛔ ON THE LOOP, NOT IN THE THREAD. The stall probe measures THIS event loop, and a
+            # task can only be created from it — `_render_v2.start` runs in `to_thread`, where
+            # `ensure_future` has no loop to attach to and would silently give back nothing
+            # (step 2.4b P2.9; C-02, where a blocked loop failed the ack and the renderer together
+            # and no instrument could see it).
+            from api.services.discord_render import loopwatch as _v2_loopwatch
+            _v2_loopwatch.start()
             print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
-                  f"abandoned={_v2_boot['abandoned']}")
+                  f"abandoned={_v2_boot['abandoned']} loopwatch={_v2_loopwatch.snapshot()['running']}")
     except Exception as _e:
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 

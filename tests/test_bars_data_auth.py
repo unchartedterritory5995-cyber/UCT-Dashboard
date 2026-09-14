@@ -211,30 +211,81 @@ def tier_app():
     return _build_app()
 
 
-@pytest.mark.parametrize("path", [
-    "/api/bars/UCTA50?tf=D&bars=3",
-    "/api/bars/AAPL?tf=D&bars=3",
-    "/api/bars-history/UCTA50?tf=D&bars=3",
-    "/api/coverage",
-])
-def test_the_PUBLIC_bars_tier_refuses_an_anonymous_caller(tier_app, path):
-    """🔴 THE BYPASS THIS WHOLE PASS EXISTS TO CLOSE.
+@pytest.fixture
+def tier_app_stubbed(monkeypatch):
+    """The tier app with its serve functions substituted.
 
-    Railway publishes this service at `bars-api-production-1052.up.railway.app`.
-    If it answers, every gate on the web pod is decoration: an attacker simply
-    asks the other host. This test fails if someone removes the tier's gate even
-    while `api.main:app` stays perfectly protected.
+    ⚠️ SUBSTITUTE BEFORE `_build_app()` RUNS. `_build_app` does
+    `from api.routers.bars import serve_bars, serve_bars_history` INSIDE the
+    function, binding both into the route closures at build time — a
+    `monkeypatch.setattr` applied afterwards reaches nothing
+    (`lesson_from_import_severs_a_module_from_its_guards`).
     """
-    r = TestClient(tier_app).get(path)
-    assert r.status_code == 401, (
-        f"the PUBLIC bars tier served {path} to an anonymous caller "
-        f"({r.status_code}) — the web pod's gate is bypassable by hostname")
+    seen = []
+
+    def _stub(ticker, tf, bars, *a, **k):
+        seen.append(ticker)
+        return {"ticker": ticker, "tf": tf, "bars": []}
+
+    import api.routers.bars as bars_router
+    monkeypatch.setattr(bars_router, "serve_bars", _stub)
+    monkeypatch.setattr(bars_router, "serve_bars_history", _stub)
+    from api.bars_api_main import _build_app
+    return _build_app(), seen
 
 
-def test_the_tier_admits_the_SERVICE_TOKEN(tier_app, monkeypatch):
-    """…and the web pod can still reach it, or charts lose their serving tier."""
+@pytest.mark.parametrize("path,sym", [
+    ("/api/bars/AAPL?tf=D&bars=3", "AAPL"),
+    ("/api/bars/UCTA50?tf=D&bars=3", "UCTA50"),
+    ("/api/bars-history/AAPL?tf=D&bars=3", "AAPL"),
+])
+def test_the_tier_DATA_routes_stay_OPEN_because_the_EDGE_ROUTES_MEMBERS_HERE(
+        tier_app_stubbed, path, sym):
+    """⚰️⚰️ THE OUTAGE RAIL. THIS TEST EXISTS BECAUSE THE OPPOSITE ONE SHIPPED.
+
+    Until 2026-09-13 this file asserted the tier REFUSED an anonymous caller, on
+    the reasoning that "no browser ever calls it — the frontend is same-origin
+    only". That is true of `app/src` and FALSE of production: an EDGE ROUTE
+    forwards member traffic for `/api/bars/{ticker}` on the app's own domain
+    straight to this service. The gate that satisfied the old rail refused every
+    paying member's equities, ETFs and indices in production. Breadth survived
+    only because the edge keeps `UCT*` on the web pod.
+
+    ⛔ SO THE ASSERTION IS INVERTED ON PURPOSE, and it is not "no auth is fine":
+    it pins that THIS tier is not the place to answer the member question while
+    the edge sends members here. The member gate lives on the WEB pod
+    (`require_bars_access`, sections 1-2 above) and the deep store is gated on
+    the WORKER, which is NOT edge-routed.
+
+    ⭐ AND IT ASSERTS REACHING THE DATA, not merely a non-401 — a 500 would
+    satisfy "not refused" while serving nobody.
+    """
+    app, seen = tier_app_stubbed
+    r = TestClient(app).get(path)
+    assert r.status_code == 200, (
+        f"the tier refused {path} ({r.status_code}) with no credential. The edge "
+        f"routes member browsers to this route and a browser cannot present "
+        f"PUSH_SECRET — this is the production outage of 2026-09-13, again.")
+    assert seen == [sym], f"the request never reached the serve layer: {seen!r}"
+
+
+def test_COVERAGE_keeps_its_gate_because_the_edge_does_NOT_route_it(tier_app):
+    """⭐ THE OTHER HALF, AND THE REASON THIS IS A SCALPEL NOT A RETREAT.
+
+    Measured on the app's own domain, `/api/coverage` resolves to the WEB pod
+    (it answers with the SPA fallback, which only the web app serves). So no
+    member ever reaches THIS app's `/api/coverage`, its gate costs nobody a
+    chart, and it keeps the tier's universe-warmth diagnostics off the internet.
+    """
+    assert TestClient(tier_app).get("/api/coverage").status_code == 401, (
+        "the tier's /api/coverage is anonymous — it is not edge-routed, so it "
+        "has no reason to be open")
+
+
+def test_the_tier_admits_the_SERVICE_TOKEN_on_the_gated_route(tier_app, monkeypatch):
+    """…and the trusted caller can still reach what stays gated."""
     monkeypatch.setenv("PUSH_SECRET", "s3cret-for-test")
-    r = TestClient(tier_app).get("/api/bars/AAPL?tf=D&bars=3",
+    r = TestClient(tier_app).get("/api/coverage",
                                  headers={"Authorization": "Bearer s3cret-for-test"})
     assert r.status_code != 401, "the tier refused its own trusted caller"
 
@@ -249,17 +300,17 @@ def test_the_tier_HEALTHCHECK_stays_open(tier_app):
 
 def test_a_WRONG_service_token_is_refused(tier_app, monkeypatch):
     monkeypatch.setenv("PUSH_SECRET", "s3cret-for-test")
-    r = TestClient(tier_app).get("/api/bars/AAPL?tf=D&bars=3",
+    r = TestClient(tier_app).get("/api/coverage",
                                  headers={"Authorization": "Bearer wrong"})
     assert r.status_code == 401
 
 
 def test_an_UNSET_secret_admits_NOBODY(tier_app, monkeypatch):
-    """⚠️ FAILS CLOSED, and the cost of that is bounded: `get_bars` falls back to
-    the web pod's own local serve whenever the tier does not answer usefully, so
-    a misconfigured secret costs a performance tier and never a chart."""
+    """⚠️ FAILS CLOSED on what remains gated: `_push_secret_ok` checks that a
+    secret is configured at all BEFORE comparing, so "no secret" can never
+    compare equal to an empty bearer."""
     monkeypatch.delenv("PUSH_SECRET", raising=False)
-    r = TestClient(tier_app).get("/api/bars/AAPL?tf=D&bars=3",
+    r = TestClient(tier_app).get("/api/coverage",
                                  headers={"Authorization": "Bearer "})
     assert r.status_code == 401
 

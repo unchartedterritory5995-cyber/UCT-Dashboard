@@ -177,3 +177,87 @@ owner action, Phase 6.
 >
 > Test-only, and not part of the Data Charts tab: `3512348c5` — `AuthContext.test.jsx` "503 on a refetch", the
 > `authTransient` read moved into the existing `waitFor` (React 19 late flush under load). No product code changed.
+
+## Phase 3 — C3 in production, and the member pass (2026-09-13)
+
+- Merge commit `a9290e7f4` (parents `9087bc196` master, `9d0512297` branch — a real merge, so the five C3 commits stay
+  individually visible). Pushed 21:39:56Z / **17:39:56 ET**; Railway web deploy `a442266e-b30d-4042-8c67-5530181a368b`
+  **SUCCESS 21:42:25Z / 17:42:25 ET**; `/api/health` uptime 16 → 28 → 40 s on the new boot.
+- **Post-deploy smoke** (member-smoke, 1280): the tab renders with no placeholder, four presets apply, the readout
+  populates, **zero console errors**, **exactly one** `/api/breadth-monitor?days=365` on the tab switch and **zero**
+  further data calls across 13 interactions, CLS 0.0 (0.0001 on a date change). Frames local, gitignored:
+  `screenshots/deploys/a9290e7f4/`.
+- **A-19 measured on the live build** (`00-discovery.md` §7, manifests in `screenshots/after-c3/<width>/`):
+
+| width | controls under 44 px, default state | picker expanded |
+|---|---|---|
+| 390 | 4 → **1** | 65 → **30** |
+| 768 | 14 → **1** | 77 → **30** |
+
+  17 of 17 states improved at each width, none regressed. Every residual is an 18 × 18 native checkbox glyph inside a
+  `<label>` row that now carries `min-height: var(--tap-min)` — the member's tap target is the 44 px row, so this is a
+  residual, not a failure.
+- ⚠️ **Out of scope, raised for the Monitor owner:** at 768 the Breadth page lands on Monitor, whose Time Navigator fires
+  32 sequential `days=150&end=…` requests back to 2008 on page load — 66 API calls before a member can reach Data Charts.
+  Pre-existing (identical in `before.json`), not caused by this program, and it cost this pass one capture: the tab's own
+  call missed a 45 s wait while the pod was busy, and 768 had to be re-run alone.
+
+## Phase 3 — R1 Task 1 (2026-09-13)
+
+- `0dd21c248` — `app/src/pages/breadth/heatmapRegistry.golden.{test.js,json}`. The golden pins what the heatmap
+  registry is today, before R1 moves it under `chartMetrics.js`: 53 rows (46 tiles, 16 drill keys), the treemap's 29
+  items, the 5 forward-filled keys and the 29 percentile keys, serialised field by field with `getTier`/`getFmt` by
+  source so an object rebuilt elsewhere still compares equal only if every field matches.
+- Generated once with `WRITE_HM_GOLDEN=1` on the pre-move tree, then re-run without it — 7 passed. Five controls prove
+  the comparison can fail (renamed label, dropped drill key, reordered list, changed tier function, nudged treemap
+  weight) plus a size floor so an empty serialisation cannot satisfy an empty golden.
+- `src/pages/breadth` green: 90 files, 1,007 tests. ⚠️ "Run its shard alone" is not addressable — Vitest partitions by
+  hashing spec paths and `vitest list` ignores `--shard` — so the directory was run instead, which is the superset.
+- Next: R1 Task 2 (`METRIC_META`), then Task 3 (the heatmap reads the registry), then gate and merge.
+
+## Security — member-smoke credential rotated (2026-09-13 18:50 ET / 22:50 UTC)
+
+- **Leak.** `tools/breadth_widget_ab.py` printed a raw Playwright teardown exception; its call log carried a live
+  `Cookie:` header, putting a `MEMBER_SMOKE` session token into a run log and the agent's tool output.
+- **Rotation** (18:38–18:45 ET): `POST /api/auth/admin/reset-password` → member login with the new value (200) →
+  `POST /api/auth/sessions/revoke-others` → **104 revoked**, control re-run **0**. Member-view probe
+  `/api/breadth-monitor?days=5` → **200**.
+- **Leaked token verified dead**: `/api/auth/me` → **401** (one read-only request, tokens redacted everywhere).
+- **Where the value was updated**: the operator's user environment only. All five Railway services swept by key name —
+  none carries `MEMBER_SMOKE_PASSWORD`. **No redeploy, no deploy in flight.**
+- ⚠️ `setx` does not reach a running agent: shells spawned by this session inherited the pre-rotation environment, so
+  rig runs read the value from the registry at run time until the agent restarts.
+- **Artifacts**: run logs and task outputs deleted; `git log -S` and `git grep` both clean across every commit and file.
+- **Hardening** `7117c87fa` — one shared scrubber (`tools/secret_scrub.py`), `brief(exc)` replaces raw exception
+  printing, `tests/test_secret_scrub.py` (6 passed) with a planted-leak non-vacuity control, and
+  `docs/runbooks/rig-credential-hygiene.md`. Ledger: D-038.
+
+## Phase 3 — R1 Task 3 (2026-09-13)
+
+- `6d944b8c8` — `heatmapMetrics.js` is a thin adapter: 46 tile heads lost their typed `label`/`drillKey`, 54 entries
+  preserved, `HM_METRICS = TILE_DEFS.map(named)`, `FFILL_KEYS = [...WEEKLY_METRICS]`. Section captions (`isHeader`)
+  keep their own text — they are the tile taxonomy and name no metric.
+- **The Task 1 golden passed 7/7 UNCHANGED and UNREGENERATED**, which is the acceptance criterion for all of R1
+  (D-037). One finding it forced: deriving `WEEKLY_METRICS` from `METRIC_META` alone reordered `FFILL_KEYS`
+  alphabetically, so the fix went into the source (derive from `ALL_METRICS` catalog order), not the fixture.
+- Green: 35 files / 465 tests across the breadth registry rails, the golden and every `/charts` widget.
+- **Master moved** `a9290e7f4` → `bd57ffaf7` (4 commits). Delta rule: incoming `app/**` = **0**, overlap = 0, import
+  edges = 0 → **Rule 3** — merge (`34f8f9cef`) + one targeted run by explicit file list, **28/28**. No full re-gate owed.
+
+### Section C — the `/charts` Breadth widget, verified across two builds
+
+`tools/breadth_widget_ab.py` (`f1ebc90d8`, corrected through `331df3c56`). The rig only navigates to `/breadth`, and
+`/charts` shows a Breadth widget only if `charts_workspace_layout` holds one — neither default layout does.
+
+- **1280px — TEXT IDENTICAL** (752 chars, 99 lines), widget-scoped. Both sides built from the same worktree and the
+  same `node_modules`, the two registry files swapped from `origin/master` and restored by bytes with the sha verified.
+- **390px — NOT APPLICABLE, and that is a product fact**: below 640px `ChartsWorkspace` bypasses react-grid-layout and
+  renders `MobileWorkspace`, which understands chart widgets only ("No chart in this layout yet."). The `/charts`
+  Breadth widget **has no phone surface**. Screenshot kept as the evidence.
+- **The account was never written to**: the layout is injected into the preferences GET; every preferences POST is
+  blocked and counted (`pref_writes_blocked`). `/api/auth/me` through the rewrite = 200 (the non-vacuity control).
+- Pixels reported but **not the verdict** — 0.37% at 1280 — because the gold icon shimmer and the voice orb animate.
+- ⚠️ Production was mid-churn from an unrelated workstream (5 web deploys in 16 min, `REMOVED`/`BUILDING`): login
+  returned an edge 502 in 0.2s while `/api/health` read 200 with a rising uptime. Retried 5xx only, attempts recorded.
+- ⛔ **R1's master merge is NOT taken**: a deploy from another session was `BUILDING`, and the standing rule is one
+  master merge at a time with `web` SUCCESS before the next push.
