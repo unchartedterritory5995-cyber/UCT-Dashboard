@@ -35,6 +35,7 @@ SH = "api/services/discord_render/shadow.py"
 ST = "tests/test_discord_render_shadow.py::"
 RT = "api/routers/discord_interactions.py"
 FT = "tests/test_discord_render_forensics.py::"
+FORENSICS = "tests/test_discord_render_forensics.py"
 TRT = T
 
 MUTATIONS = [
@@ -48,21 +49,48 @@ MUTATIONS = [
     {"name": "A2 a call with no time left is started anyway", "file": CALL,
      "old": "    if eff < MIN_USEFUL_S:\n", "new": "    if False:\n",
      "tests": [T + "test_a_call_with_no_useful_time_left_is_refused_without_touching_the_upstream"]},
-    {"name": "A3 the function gets the constant, not the effective budget", "file": CALL,
-     "old": "        fut = pool(name).submit(fn, left)\n",
-     "new": "        fut = pool(name).submit(fn, dep_timeout_s)\n",
+    {"name": "A3 the function gets a dependency constant, not the effective budget", "file": CALL,
+     "old": "    fut = pool(name).submit(fn, left)\n",
+     "new": "    fut = pool(name).submit(fn, 8.0)\n",
      "tests": [T + "test_the_function_is_handed_the_effective_timeout_not_the_constant"]},
     # C-10, found by Lane E's chaos harness: the budget was computed once per CALL, so an N-attempt
     # hop could spend N x the deadline (measured 4.6 s against 2 s).
     {"name": "A76 the budget is computed once per call, so N attempts spend N budgets", "file": CALL,
-     "old": "        left = eff - (now() - started)\n"
-            "        if left < MIN_USEFUL_S:\n"
-            "            raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {eff:.3f}s budget\")\n",
-     "new": "        left = eff\n",
-     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call"]},
+     "old": "    left = budget.remaining()\n"
+            "    if left < MIN_USEFUL_S:\n"
+            "        raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {budget.total_s:.3f}s budget\")\n",
+     "new": "    left = budget.total_s\n",
+     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call",
+               T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline",
+               T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    # ⭐ A76 proves the ARITHMETIC is load-bearing; A76b-e prove the SHAPE that keeps it
+    # un-rewritable is load-bearing too. Lane C, OI-29: "the live guard was luck".
+    {"name": "A76b the attempt runner is handed the once-per-call float again", "file": CALL,
+     "old": "    job_budget = _Budget(eff, started, now)\n",
+     "new": "    job_budget = eff\n",
+     "tests": [T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline",
+               T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    {"name": "A76c the retry backoff is slept on top of the budget instead of inside it", "file": CALL,
+     "old": "        sleep(max(0.0, min(seconds, self.remaining())))\n",
+     "new": "        sleep(seconds)\n",
+     "tests": [T + "test_the_retry_backoff_is_slept_inside_the_budget_and_never_on_top_of_it",
+               T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline"]},
+    {"name": "A76d the wait on the future outlives the budget the upstream was given", "file": CALL,
+     "old": "        return fut.result(timeout=left)\n",
+     "new": "        return fut.result(timeout=budget.total_s)\n",
+     "tests": [T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    # ⛔ A76e mutates LANE E's forensics file, which this lane does not edit in the repo. The harness
+    # writes it, runs, then restores the bytes captured first with a sha256 check in a `finally`;
+    # nothing of it is ever committed, and `git status` is clean after a run. Without it the
+    # permanence rail is a gate nobody has seen fire (`lesson_gate_that_cannot_fail`).
+    {"name": "A76e Lane E's own C-10 guard is defanged back to an xfail", "file": FORENSICS,
+     "old": "def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():\n",
+     "new": "@pytest.mark.xfail(reason=\"MUTANT\")\n"
+            "def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():\n",
+     "tests": [T + "test_lane_es_own_c10_guard_is_still_in_the_suite_and_still_armed"]},
     {"name": "A4 the breaker is bypassed", "file": CALL,
-     "old": "        value = breakers.call(name, _once, attempts=attempts, retry_on=retry_on, sleep=sleep)\n",
-     "new": "        value = _once()\n",
+     "old": "        value = breakers.call(name, lambda: _attempt(name, fn, job_budget),\n",
+     "new": "        value = _attempt(name, fn, job_budget)\n        _bypassed = dict(\n",
      "tests": [T + "test_an_open_breaker_refuses_without_calling_the_dependency",
                T + "test_the_renderer_breaker_finally_has_a_caller"]},
     {"name": "A5 abandoned calls are not counted", "file": CALL,
