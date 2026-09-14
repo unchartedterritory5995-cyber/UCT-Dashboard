@@ -1326,6 +1326,30 @@
       "baked_measured_on": "1c76f9f38",
       "last_changed": "never set",
       "note": "Unset; useFlowWebSocket falls back to window.location.host, which is correct in production. An override is a local-dev affordance."
+    },
+    "VITE_PINE_MEMBER_PANE_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "indicator r0/r1 programme",
+      "railway_value": "UNSET — never set on any service",
+      "baked_value": "undefined (the variable is not set, so the bundle has no value)",
+      "baked_measured_on": "e6ca532c6 — the commit that made a set value REACHABLE",
+      "last_changed": "2026-09-13 (row added; the flag itself has never been on)",
+      "note": "Whether a member's own translated Pine script may reach a chart pane. Read in ONE place, app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled, as `=== '1'` — absent, '', '0', 'true' and 'yes' are all OFF and only the literal '1' opens it; a build with no import.meta.env fails CLOSED. OFF is the only state any deploy has seen. ⚰️ UNTIL e6ca532c6 THIS FLAG COULD NOT HAVE BEEN TURNED ON AT ALL: Dockerfile.web declared no ARG for it, Railway drops an undeclared build arg silently, so `=1` would have reached the bundle as undefined and every test, audit and ledger row would still have said it was ready. Caught by tests/test_dockerfile_vite_build_args.py on the merged tree. Flipping it is a DEPLOY, not a variable change, because it is a build constant. The reader-level record is docs/frontend_feature_flags.json."
+    },
+    "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "indicator r0/r1 programme",
+      "railway_value": "UNSET — never set on any service",
+      "baked_value": "undefined (the variable is not set, so the bundle has no value)",
+      "baked_measured_on": "e6ca532c6 — same commit, same reason",
+      "last_changed": "2026-09-13 (row added; the flag itself has never been on)",
+      "note": "PLACEMENT, not a feature gate, and NOT the member-pane flag despite the word 'volume' in both names — read by app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled, it decides whether a definition already overlaid on the volume pane gets its OWN pane and right axis instead of the shared left one. Turning it on does nothing for uncharted-volume.pine. The collision cost a full re-read of resolvePlacement to rule out, which is why both flags now say in writing what the other one is not. Same Dockerfile ARG gap, fixed in the same commit."
     }
   }
 }
