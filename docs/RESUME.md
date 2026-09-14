@@ -1,4 +1,51 @@
-# RESUME — restart checkpoint 2026-09-13 20:45 ET (Sunday)
+# RESUME — restart checkpoint 2026-09-14 03:50 ET (Monday, pre-RTH)
+
+> ⭐ **THIS HEADER IS THE CURRENT ONE. The sections below it were written at 2026-09-13 20:45 ET
+> and are superseded where they disagree with §a0.** They are kept because §f (standing rules),
+> §h (the rest of the machine) and §i (gotchas) have not moved and are still the fastest read.
+
+## a0. Where it actually is, 2026-09-14 03:50 ET
+
+**Master `e269f2b10`, deployed SUCCESS, verified in the RUNNING process** (not `--kv`):
+`RENDER_V2_SHADOW='1'` · `DISCORD_RENDER_V2_ENABLED` **absent** · `delivery.edit_image`,
+`bindings._fold_attachments`, `renderer._with_vintage`, `badge.render_footer(quality=…)` and
+`JobRuntime.send_failure_result` all present · `l2_root` = `/data/discord_render_cache`.
+
+**Every forensics class this programme owns now has a PASSING regression test.** C-04, C-06 and
+C-07 were `xfail(strict=True)` at the last checkpoint; all three are closed **on the V2 path**, and
+`01-failure-forensics.md` has a section explaining exactly what that qualifier costs. Zero xfails
+remain in `tests/test_discord_render_forensics.py`.
+
+| Ruling | Landed | Where |
+|---|---|---|
+| **OI-29** — the chart IMAGE through `delivery.edit_image`; C-04 closed by the attachment fold | `decd049c1` | `delivery.py`, `adapters/bindings.py`, `commands.py` |
+| **C-06** — the stand-in label, derived in the V2 wrapper; `bindings` consumes `badge.py` at last | `b5a4e1a31` | `adapters/bindings.py` |
+| **C-07** — `?stale=` end to end **and its producer** | Lane D + `b5a4e1a31` | `discord_chart_house`, `badge.py`, `ChartRender.jsx`, `adapters/renderer.py` |
+| **OI-31** — the two-tier cache, L2 on the volume | Lane B | `artifact_cache.py`, `03` §3.6 |
+| **OI-28** — the chart-renderer reds adopted and fixed | Lane C | the renderer test loaders |
+| the per-attempt budget made structural, + a SECOND overrun in the retry backoff | Lane C | `adapters/_call.py` |
+| **Step 3** — load, chaos, determinism | `a82a2493c` | `docs/discord-render/evidence/step3/` |
+
+**Step 3 results:** load p99 **102 ms** against a 1,000 ms SLO with zero acks over 3 s · chaos
+**13/13** (the harness had 5 scenarios and the brief named 12 — the other 7 were written) ·
+determinism **20 runs, 6/6 identical** including an L1→L2 round trip.
+
+⛔ **NOT DONE, and it is the one thing standing between here and a flip packet that can be acted
+on: 3.5, the real-Discord smoke.** It needs a human to type commands in the private test channel;
+no agent can do it. Everything else in Step 3 is evidence about a rig.
+
+⛔ **Two scheduled jobs are running and their logs are the next thing to read:**
+`UCT Render Soak` (every 15 min → `C:\Users\Patrick\uct-render-soak\soak.log`) and
+`UCT Render Alerts Access Probe` (hourly, the owner-hand item → `render-alerts-access.log`;
+last read `STILL_BLOCKED HTTP 403 code 50001`).
+
+**The Monday line** comes from
+`python docs/discord-render/instruments/shadow_report.py <pull> --pager-stopped` after
+`tools/railway_env_logs.py --filter drender`. As of 05:40 UTC: **≥ 8 records, all `/flow`, all
+`agree`, p50/p95 0.1 ms, zero divergences — and zero `/chart` records**, which the tool refuses to
+read as clean.
+
+---
 
 Written by **Lane F** of the Discord render hardening programme (`docs/discord-render/`).
 
