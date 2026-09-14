@@ -581,11 +581,14 @@ forbids a CR blob while `.gitattributes` deliberately declares
 ### Diff
 
 ```
+$ git diff --stat origin/master...HEAD | tail -1
  1741 files changed, 764499 insertions(+), 2278 deletions(-)
-
-(measured at the close-out commit; the body's own commit and this line are
-the last two, so a reader re-running it should see this number)
 ```
+
+⚠️ Measured at **`52b93d025`**, the close-out commit. Re-running it now returns a
+few more insertions, because the commits that *record* this number are themselves
+part of it — the SHA is given so the figure is reproducible rather than a literal
+that drifts every time the document is touched.
 
 Against the merged master `da0803baa`, by area:
 
