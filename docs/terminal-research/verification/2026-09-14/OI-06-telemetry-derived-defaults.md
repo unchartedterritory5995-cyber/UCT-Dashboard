@@ -53,6 +53,8 @@ nobody has** — the premise under them holds. ⚠️ Again n = 17.
 
 ## 5 · ⚰⚰ RETRACTED 2026-09-14 — **F-OI21-1 WAS WRONG. BOTH TABLES EXIST.**
 
+> ⚠️ **RETRACTED → F-B-1.** The retracting finding is **F-B-1** (`12-decisions/gates/packet-b-schema-resolution-gate.md` §2): *a question that names its own scope will be obeyed to the letter, including into an error*. Every quotation of the original claim below is struck and kept, never deleted.
+
 > **The original claim, struck:** ~~"Two of the four OI-21 queries cannot be run — the tables
 > do not exist. `calendar_alerts_fired` ABSENT; `ai_search_log` ABSENT, and there is no
 > ai/search table of any name."~~

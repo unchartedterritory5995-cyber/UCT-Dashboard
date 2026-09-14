@@ -289,6 +289,42 @@ Grouped by the service whose volume they live on. "Owner" = the module that issu
 | `darkpool.db` | (`RAILWAY_VOLUME_MOUNT_PATH` join) | `api/darkpool_db.py` (+ `darkpool_records.py`, `darkpool_bigblock.py`) | `darkpool_trades`, `darkpool_today`, `darkpool_records`, `darkpool_bigblock_alerts` | WAL, busy 10 s |
 | `compass_eval.db` | `COMPASS_EVAL_DB` (`DATA_DIR` default **`"data"`, relative**) | `api/services/compass_eval/store.py` | `eval_runs`, `eval_scores`, `eval_cost` | WAL |
 
+### ⭐ ADDED 2026-09-14 — ten databases this inventory did not hold (Packet B CP3)
+
+⛔ **Every column below is DERIVED, not asserted.** Owner = the path-constructing
+site, found with comments stripped and a positive control (`calendar_alerts.db` →
+`api/services/calendar_alerts.py:29`, whose row was already here). Env var = read off
+that same line. Tables + liveness = a `mode=ro` `sqlite_master` read on the pod.
+
+⚠️ **`uct_intelligence.db` first matched 16 “openers” that were the dotted MODULE
+path `from uct_intelligence.db import get_connection`.** A filename that is also an
+import path is a false positive a plain grep cannot see; the rows below come from the
+sites that CONSTRUCT A FILESYSTEM PATH.
+
+| file | env var | owning module (path-constructing site) | tables | liveness |
+|---|---|---|---|---|
+| `alert_taxonomy.db` | (`DATA_DIR` join) | `api/services/alert_taxonomy/db.py:54` | `alert_trigger_registry`, `alert_predicates`, `alert_fires`, `_migrations`, `regime_change_*` … (17) | live · web |
+| `catalyst_news.db` | `CATALYST_NEWS_DB_PATH` | `api/services/catalyst/news_store.py:27` | `news_items` (779 rows) | live · web |
+| `company_news.db` | `COMPANY_NEWS_DB_PATH` | `api/services/news/store.py:31` | `news_items`, `news_tickers`, `news_source_health`, `news_ingest_stats`, `news_backfill_state`, `news_fts_*` (9) | live · web · **212 MB** |
+| `d2_dual_samples.db` | (`DATA_DIR` join) | `api/services/canonical/dual_sample_store.py:110` | `d2_dual_samples` | ⚠️ live but EMPTY — 16 KB, no rows |
+| `entity_master.db` | (`DATA_DIR` join) | `api/services/entity_master/schema.py:33` | `entities`, `entity_aliases`, `entity_vendor_symbols`, `entity_figi`, `entity_relations`, `entity_events` (44,780), `_migrations` | live · web |
+| `fundamentals_monitor.db` | `FUNDAMENTALS_MONITOR_DB` | `api/services/fundamentals_monitor.py:93` | `defect_state` (14), `monitor_meta` | live · web |
+| `pushed.db` | (derived from `flow.db`'s dirname) | `api/live_massive_router.py:5113` | `pushed_alerts` | ⛔ **live on FLOW-WORKER** (249,856 B, today). web's copy is FROZEN at the 2026-07-13 cutover (20,480 B, 2026-07-15) |
+| `theme_sets.db` | `THEME_SETS_DB_PATH` | `api/services/theme_sets.py:51` | `theme_sets` (3) | live · web |
+| `brain/data/uct_intelligence.db` | `UCT_INTEL_PATH=/data/brain` (live) · `BRAIN_DIR` | `api/services/brain_kb_service.py:40` + `brain_sync.py:105` | `earnings`, `knowledge_base`, `market_regimes`, `earnings_analytics` (41,785) … (31) | live · web · the installed Brain Pack |
+| `wisdom.db` | `WISDOM_DB_PATH` | `api/services/wisdom/core/store.py:43` | `wisdom_records`, `wisdom_sources`, `wisdom_segments`, `wisdom_authors`, `wisdom_migrations` … (58) | live · web |
+
+⛔⛔ **AND `/data` IS PER SERVICE.** This inventory, and every count in Packet B
+§3.1, describes **web's volume**. Measured 2026-09-14: **web 73** `.db` files ·
+**flow-worker 16** (incl. `flow.db` **9.18 GB**, live) · **bars-api 3** (incl. `bars.db`
+**24.6 GB**, live) · **worker / chart-renderer / terminal-next-monitor UNREADABLE**
+(two are serverless and asleep; one has no `/opt/venv/bin/python`). The two largest data
+assets in the product are on volumes no earlier measurement had looked at.
+
+⭐ **`oi_massive.db` is NOT missing.** Packet B §3.2 listed it as *“in the inventory,
+not on the pod”*; it is **live on flow-worker** (842 MB, mtime today). The inventory was
+right and the scope was wrong — F-B-1, one day later, in the same programme's own work.
+
 #### B. `flow-worker` service volume
 
 | DB file | Env override | Owner | Notes |

@@ -142,9 +142,15 @@ failure mean *"a defect was introduced"* rather than *"the list drifted"*.
 not — the theme row renders and the holding does not.
 
 ⛔ **Provenance, not `git status`:** reverting this packet's guard change by EDIT leaves
-those two failures **identical**, so the red is not inherited from this work. The last
-commit to touch the page is **`0b7570df4`** *("simpler customize — read-only Default +
-auto-saving presets")*, which postdates the test.
+those two failures **identical**, so the red is not inherited from this work.
+
+⚰️ **ATTRIBUTION CORRECTED 2026-09-14.** This first named **`0b7570df4`** — which is only
+the *last commit to touch the page*. `git log -S"firstThemeTicker"` names the commit that
+actually removed the auto-open the harness depends on: **`453ecc3ec`** (2026-09-05,
+*"feat(theme-sets): rebuilt editor — watchlist-style, in-widget, optimistic"*, +253/-115
+on that file). The behaviour was introduced by `3fe7b63e3` (2026-07-14) and is absent at
+HEAD; the test landed `7adfdda2b` (2026-08-05), a month before the removal.
+⭐ **Last-to-touch is a guess; the pickaxe is a measurement.**
 
 **Not fixed here.** This packet's own ThemeTrackerPage cases expand the theme first and are
 green; the diagnosis is written into that file so whoever owns the page has the answer

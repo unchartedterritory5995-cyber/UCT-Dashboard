@@ -128,11 +128,11 @@ name; a basename key silently drops one of them.
 | in the inventory, **not on the pod** | why, measured |
 |---|---|
 | `compass_eval.db` | its own row records `DATA_DIR` defaulting to a **relative** `"data"` — it is not expected under `/data` |
-| `oi_massive.db` | no file; unexplained, and recorded as such rather than deleted |
+| `oi_massive.db` | ⛔⛔ **CORRECTED 2026-09-14 — IT IS NOT MISSING.** Live on **flow-worker**, 842 MB, mtime today. The inventory was right; the scope was wrong. See §3.4. |
 
 ⚠️ **This is F-OI21-1's shape one level up.** The inventory is the thing a person consults
-instead of production, and it is incomplete — so consulting it can also return a confident
-wrong answer. **CP3 closes it; it is deliberately not built in this packet** (§4).
+instead of production, and it was incomplete — so consulting it could also return a confident
+wrong answer. ✅ **CP3 closed it on 2026-09-14** and the gap is now **1, not 10** (§3.5).
 
 ### 3.3 The phantom-query population: **zero**
 
@@ -176,6 +176,65 @@ only the winning file and made those two cases indistinguishable.
 string literal `'admin`. It is reported rather than swallowed because *"we could not check
 it"* and *"it is broken"* are different facts.
 
+### 3.4 · ⛔⛔ `/data` IS PER SERVICE — §3.1's counts are WEB'S VOLUME
+
+**Measured 2026-09-14, and it corrects this packet.** The programme's standing figure
+— *"/data holds 73 .db files, 63 live"* — is true of **one of six services**.
+
+| service | `.db` files under `/data` | notable |
+|---|---|---|
+| **web** | **73** (65 top-level, 63 live) | the volume §3.1 measured |
+| **flow-worker** | **16** | `flow.db` **9.18 GB**, live · `oi_massive.db` 842 MB · `oi_snapshots.db` 984 MB · 3 `flow_backups/` copies |
+| **bars-api** | **3** | `bars.db` **24.6 GB**, live — web's copy is far smaller |
+| worker | **UNREADABLE** | serverless, scaled to zero; SSH refused while idle |
+| chart-renderer | **UNREADABLE** | no `/opt/venv/bin/python` (different image) |
+| terminal-next-monitor | **UNREADABLE** | serverless, scaled to zero |
+
+⭐ **The two largest data assets in the product — `flow.db` and `bars.db` — are on
+volumes no measurement in this packet had looked at.** Told scope: one `/data`. Found
+scope: **three readable volumes and three UNREADABLE services**. Delta ≠ 0.
+
+⛔ **The three UNREADABLE services were NOT woken.** Sending a request to wake a
+serverless container is a production action, and *"we could not read it"* is a third state,
+not a zero.
+
+⚠️ **Two consequences this packet must own:**
+
+1. **`oi_massive.db` was reported missing and is not** (§3.2, corrected above). **F-B-1
+   recurring inside the packet that filed F-B-1**, one day later.
+2. **`pushed.db` on web is FROZEN**, mtime 2026-07-15 — right after the 2026-07-13
+   flow-worker cutover. The live one is on flow-worker (mtime today). A resolver pointed at
+   web alone would answer questions about `pushed_alerts` from a two-month-old file wearing
+   a live filename — the `BACKUP-ONLY` hazard, on the wrong volume rather than in a
+   `backups/` directory, where the existing classifier cannot see it.
+
+⛔ **`tools/sql_resolves.py` is therefore SINGLE-VOLUME until a `--service` sweep exists.**
+Its verdicts are correct about web and silent about the rest; the roster line it prints says
+73, and a reader must now read that as *web's* 73.
+
+### 3.5 · CP3 — DERIVED, and the gap closed 10 → 1
+
+Every one of the ten has a **non-ZERO opener** and is **live**, so all ten were added to
+`01-existing-system/database-and-infrastructure.md` with their env var, path-constructing
+site, tables and liveness. Reconciliation after:
+
+```
+live databases on the pod    : 63
+rows in the corpus inventory : 64   (was 55)
+in BOTH                      : 62   (was 53)
+absent from the inventory    :  1   (was 10)
+```
+
+The remaining **1** is `brain/data/uct_intelligence.db`, which IS in the inventory — keyed
+by its PATH, because two files share the basename. The reconciler matches bare basenames and
+cannot see it. **A reconciler limitation, stated rather than papered over**; fixing it is not
+this checkpoint's scope.
+
+⚠️ **One false-positive class, recorded because a grep cannot see it.**
+`uct_intelligence.db` first matched **16 "openers"** that were the dotted MODULE path
+`from uct_intelligence.db import get_connection`. A filename that is also an import path
+needs the sites that CONSTRUCT A FILESYSTEM PATH, which is what the added rows carry.
+
 ---
 
 ## 4 · Proposed checkpoints, so an approval line can name one
@@ -184,16 +243,15 @@ it"* and *"it is broken"* are different facts.
 |---|---|---|---|
 | **CP1** | `tools/sql_resolves.py` + `tests/test_sql_resolves_multi_database.py` — the multi-database, prepare-only resolver and its rail. **No existing instrument changed.** | measured at build: **none** (§5) | **M** |
 | **CP2** | `OWNER_INPUTS_REQUESTED.md` OI-21 — remove `` `auth.db`/`bars.db` `` and name the database **per table**. One table cell; `git diff --numstat` = `1 1`. | measured at build: **none** | **XS** |
-| **CP3** | *(PROPOSED, NOT BUILT)* close §3.2 — add the 10 missing databases to `database-and-infrastructure.md`, each with its env var, owning module and tables derived from source. | not measured | **M** |
+| **CP3** | ✅ **BUILT 2026-09-14** — the 10 rows added to `database-and-infrastructure.md`, every column derived (§3.5). Docs only. | measured: **none** | **M** |
 | **CP4** | ⛔ **REFUSED — DO NOT BUILD.** The phantom-table rail this packet was opened for. §3.3: population zero. | — | — |
 
 ⛔ **CP1, CP2 and CP3 are independently mergeable.** They share no file.
 
-⛔ **CP3 is written as a proposal and left unbuilt on purpose.** Filling ten inventory rows
-means asserting, for each, an env var and an owning module — claims about `api/**` that have
-to be derived from source, not from a DDL dump. Doing that inside a packet whose subject is
-*a confident wrong answer about where a table lives* would be the same mistake wearing a
-different hat.
+⭐ **CP3 was built the next day, by derivation rather than assertion.** The concern that
+held it back — that filling ten rows means ASSERTING an env var and an owning module — was
+answered by deriving both from the path-constructing site with comments stripped and a
+positive control, and by refusing to type anything the command did not return. §3.5.
 
 ---
 
