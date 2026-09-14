@@ -1,0 +1,93 @@
+{
+  "renderer_down": {
+    "class": "C-06 / C-02",
+    "state": "pass",
+    "detail": "named message in 0.6s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id real001 \u00b7 retry?'",
+    "mode": "real",
+    "ms": 606.8
+  },
+  "flow_worker_unreachable": {
+    "class": "C-08",
+    "state": "refused",
+    "mode": "real",
+    "detail": "flow-worker's real endpoint is the OPRA tape's service; pointing a load at it during a session is not a chaos test, it is a risk",
+    "ms": 0.0
+  },
+  "bars_slow": {
+    "class": "C-10",
+    "state": "refused",
+    "mode": "real",
+    "detail": "a real SLOW upstream is not the same as a real DEAD one, and only a server we control can be reliably slow. Real network latency VARIES, which would make the budget assertion flaky \u2014 the injected delay is the more precise instrument for this specific claim, and `bars_api_502` covers the real-wire case",
+    "ms": 0.0
+  },
+  "bars_api_502": {
+    "class": "C-10",
+    "state": "pass",
+    "detail": "named message in 0.2s: \"/chart NVDA failed \u2014 market data for this symbol couldn't be loaded \u00b7 id real002 \u00b7 retry?\"",
+    "mode": "real",
+    "ms": 153.3
+  },
+  "renderer_breaker_open": {
+    "class": "C-02",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id chaos007 \u00b7 retry?' \u00b7 upstream not called",
+    "mode": "real (already exercises the production path)",
+    "ms": 2.3
+  },
+  "stale_bars": {
+    "class": "C-07 / S8",
+    "state": "refused",
+    "mode": "real",
+    "detail": "the break is a DATA vintage, not a wire failure \u2014 there is nothing to make real",
+    "ms": 0.0
+  },
+  "discord_429": {
+    "class": "C-11",
+    "state": "refused",
+    "mode": "real",
+    "detail": "inducing a real 429 means deliberately exceeding Discord's rate limit on a live app \u2014 a self-inflicted outage for a measurement",
+    "ms": 0.0
+  },
+  "discord_gateway_dropped": {
+    "class": "C-02 / C-11",
+    "state": "refused",
+    "mode": "real",
+    "detail": "a real dead token means an EXPIRED interaction token, and an interaction token is minted by Discord when a human runs a command \u2014 there is no way to obtain an expired one on demand",
+    "ms": 0.0
+  },
+  "oversized_attachment": {
+    "class": "C-11",
+    "state": "refused",
+    "mode": "real",
+    "detail": "a real 40005 needs a real upload, and no channel is both bot-postable and not member-visible",
+    "ms": 0.0
+  },
+  "ten_invalid_symbols": {
+    "class": "D-04 / S6",
+    "state": "pass",
+    "detail": "10/10 refused at the ack, none reached the renderer",
+    "mode": "real (already exercises the production path)",
+    "ms": 582.4
+  },
+  "clock_boundaries": {
+    "class": "C-07 / \u00a73.8b",
+    "state": "pass",
+    "detail": "09:29:50 pre-open=pre/stale=False \u00b7 09:30:10 post-open=rth/stale=True \u00b7 16:00:00 close=post/stale=True \u00b7 a holiday (Thanksgiving)=holiday/stale=True",
+    "mode": "real (already exercises the production path)",
+    "ms": 174.2
+  },
+  "mid_job_restart": {
+    "class": "C-01",
+    "state": "pass",
+    "detail": "artifact in 0.0s",
+    "mode": "real (already exercises the production path)",
+    "ms": 4.1
+  },
+  "restart_three_in_flight": {
+    "class": "C-01",
+    "state": "pass",
+    "detail": "3 of 3 accounted for on resume",
+    "mode": "real (already exercises the production path)",
+    "ms": 5.0
+  }
+}

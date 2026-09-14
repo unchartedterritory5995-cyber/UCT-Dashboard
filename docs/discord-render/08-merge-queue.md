@@ -114,3 +114,18 @@ integrator on the integrated tree. Lane E's suite arrived with **5 failures** �
 `FakeDelivery` double drifting behind a signature the integrator had just changed (the contract-arity
 defect in miniature), one was a self-inflicted import path. None was a product defect, and none of
 that was knowable from the branch alone.
+
+---
+
+## Queued, 2026-09-14 13:44 ET — refused by the guard, not by the gate
+
+| Branch tip | What | Gate | Why it is waiting |
+|---|---|---|---|
+| `abda0e0d0` | step 1.3 measured: `#render-alerts`' ACL read through the guild listing; `flip_preconditions` reads it | hygiene clean; instruments self-checked; `flip_preconditions --self-check` 8/8 | **master's own pre-push guard refused** — another session's merge was in flight |
+
+⭐ **This is the queue working, and the refusal is the feature.** `[pre-push] ⛔ REFUSING THE PUSH.
+One master merge at a time, repo-wide.` Two merges inside one swap is what produced the 2026-09-12
+502 and a lost sampler row; the guard offers `UCT_SKIP_PREPUSH_GUARD=1` and **it was not used** —
+an override exists so that it is a deliberate act, not so that it is the way past a red.
+
+⚠️ Nothing about this branch changed. It is gated and ready; only the window moved.

@@ -22,6 +22,20 @@ hashed the same" is also what a broken producer that returns `None` twice says.
 
 ⛔ EXIT CODES ARE THREE: 0 identical · 1 a measured divergence · 2 could-not-measure.
 ⛔ A run with no totals line is not a run.
+
+⛔⛔ **A RENDERER RECYCLE CANNOT BE INDUCED ON DEMAND, AND THAT ROW STAYS UNMEASURED RATHER THAN
+FAKED.** `services/chart_renderer/app.py` retires the browser after `RENDER_RECYCLE_AFTER` renders
+(default **500**) or above `RENDER_RSS_CEILING_MB`; there is no trigger endpoint. The two ways to
+force one are both refused here:
+
+  * drive 500 renders — that is real load on the shared production renderer for a test;
+  * set `RENDER_RECYCLE_AFTER=1` on chart-renderer — a config change on a shared service that would
+    make **every member's** render recycle the browser, plus a redeploy.
+
+⭐ What CAN be measured, and where: `renderer_pool_smoke.py` runs a LOCAL Chromium with the recycle
+interval set freely — a real browser and a real recycle, on nobody's production. That is the honest
+form of this claim, and it does not cover the production pool's own state. Until it is run, the
+determinism-across-a-recycle row reads NOT MEASURABLE with this reason, never "clean".
 """
 from __future__ import annotations
 

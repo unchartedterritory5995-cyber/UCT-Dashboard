@@ -128,3 +128,51 @@ def test_the_railway_binary_is_resolved_with_which_not_a_shell():
     code_only = ast.unparse(tree)        #    docstrings, so they are blanked first
     assert "shutil.which" in code_only, "the code-only view lost the real call"
     assert "shell=True" not in code_only, "shell=True is in CODE, not just the docstring"
+
+# ── --audit: after-the-fact detection, added 2026-09-14 ───────────────────────
+# Prevention was already complete — BUILDING/DEPLOYING/FAILED/CRASHED/REMOVED/""
+# and UNREADABLE all REFUSE, each railed above — and something defeated it anyway.
+# These cover the detector, which exists so the NEXT occurrence is visible.
+
+def _row(commit, iso, status="SUCCESS"):
+    return {"status": status, "createdAt": iso, "meta": {"commitHash": commit}}
+
+
+def test_it_flags_two_distinct_commits_deployed_inside_the_window():
+    """The real 2026-09-14 incident, to the second."""
+    rows = [_row("9e2b93805", "2026-09-14T12:32:16.226Z"),
+            _row("7705c2d3b", "2026-09-14T12:29:23.531Z")]
+    hits = G.suspected_stacked_pushes(rows)
+    assert len(hits) == 1
+    assert hits[0]["newer"] == "9e2b93805" and hits[0]["older"] == "7705c2d3b"
+    assert 172 < hits[0]["gap_seconds"] < 174
+
+
+def test_railways_twin_row_for_ONE_push_is_not_a_stacked_push():
+    """⛔ Railway emits a REMOVED twin milliseconds from its SUCCESS for the SAME
+    commit. Counting that would make every single push the tightest stack in the
+    list, and the detector would be loudest exactly when nothing happened."""
+    rows = [_row("1d75954c7", "2026-09-14T13:27:22.520Z", "SUCCESS"),
+            _row("1d75954c7", "2026-09-14T13:27:21.990Z", "REMOVED")]
+    assert G.suspected_stacked_pushes(rows) == []
+
+
+def test_a_properly_spaced_pair_is_not_flagged():
+    rows = [_row("bbbbbbbbb", "2026-09-14T12:40:00.000Z"),
+            _row("aaaaaaaaa", "2026-09-14T12:29:00.000Z")]
+    assert G.suspected_stacked_pushes(rows) == []
+
+
+def test_the_detector_can_actually_fire_and_actually_stay_quiet():
+    """Non-vacuity in both directions: a window that catches nothing and a
+    detector that catches everything are the same useless instrument."""
+    rows = [_row("bbbbbbbbb", "2026-09-14T12:33:00.000Z"),
+            _row("aaaaaaaaa", "2026-09-14T12:29:00.000Z")]
+    assert G.suspected_stacked_pushes(rows, window=600), "must fire on a wide window"
+    assert not G.suspected_stacked_pushes(rows, window=60), "must be quiet on a narrow one"
+
+
+def test_unparseable_timestamps_are_skipped_rather_than_guessed():
+    rows = [_row("bbbbbbbbb", "not-a-date"), _row("aaaaaaaaa", "2026-09-14T12:29:00.000Z")]
+    assert G.suspected_stacked_pushes(rows) == []
+

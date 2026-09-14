@@ -713,3 +713,82 @@ for want of budget and then sitting past the deadline sleeping between the refus
 structural rather than another patch: every sleep on the retry path is bounded by the remaining
 deadline, and a docstring that promises "inside the same budget" is a TESTED claim.
 
+
+### Test channel + `#render-alerts` — the permission question, ANSWERED (2026-09-14)
+
+Owner ruling: create `#render-smoke` myself if the bot carries `MANAGE_CHANNELS`, and fix
+`#render-alerts` while holding it. **It does not.** Read from the live token
+(`discord_channel_admin.py --whoami`, run under `railway run --service web`):
+
+```
+bot: UCT Intelligence#3332 id=1474900505917653142
+  guild 882293203485720596 'Uncharted Territory': CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+  guild 1524909611054792786 'UCT Intelligence':   CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+```
+
+Four permissions, in both guilds. No `MANAGE_CHANNELS`, no `ADMINISTRATOR`. So the bot can post
+where it is already present and can do nothing else — it cannot create the smoke channel and it
+cannot edit any channel's overwrites.
+
+⛔⛔ **AND GRANTING `MANAGE_CHANNELS` ALONE WILL NOT FIX `#render-alerts`, WHICH IS THE OPPOSITE OF
+WHAT THE RULING ASSUMED — the ruling's own distinction is what says so.** `MANAGE_CHANNELS` lets a
+bot edit channels it can SEE. `#render-alerts` answers `403 / 50001 Missing Access`, and 50001 is
+**membership**: the channel carries an `@everyone` deny on `VIEW_CHANNEL` and no overwrite admitting
+the bot, so it is invisible to it whatever server-level permissions it holds. Two different fixes:
+
+| Want | Needs |
+|---|---|
+| the bot to CREATE `#render-smoke` (unblocks 3.5) | `MANAGE_CHANNELS` on the bot's role |
+| the bot to FIX `#render-alerts`'s overwrites | `MANAGE_CHANNELS` **and** an overwrite on that channel admitting the bot — or `ADMINISTRATOR` |
+
+⭐ **Worth stating because it inverts the cheaper-looking option.** Granting `ADMINISTRATOR` fixes
+both in one action and is the larger grant; granting `MANAGE_CHANNELS` fixes only the first and
+leaves `#render-alerts` needing a second, per-channel action. The smaller grant is not the smaller
+job, and that is only visible once "can it" and "can it here" are asked separately.
+
+⚠️ `--create-smoke` is written, self-checked and **unused**: it writes the overwrites at creation
+(never as a second call, so there is no window where `@everyone` can see the channel) and then
+`GET`s the channel and prints what Discord actually stored. It runs the moment the permission
+exists.
+
+### Step 1.3 — the defect is now MEASURED, not inferred (2026-09-14)
+
+⛔⛔ **THE PROBE SPENT A DAY REPORTING A TRUE STATEMENT ABOUT THE WRONG ENDPOINT.**
+`GET /channels/1548783155354403046` answers `403 / 50001 Missing Access`, which the probe faithfully
+reported hourly as STILL_BLOCKED. But `GET /guilds/{id}/channels` returns
+`permission_overwrites` **for every channel in the guild**, including ones the token cannot open —
+so the answer step 1.3 actually wanted was one call away the whole time.
+
+Read live, 2026-09-14:
+
+| Channel | `@everyone` | Other overwrites |
+|---|---|---|
+| `#render-alerts` | **VIEW DENY** | **`Contributor` VIEW ALLOW** — and it is the ONLY allow |
+| `#alert-test` | VIEW DENY | `Contributor` VIEW ALLOW |
+| `#dev-kitchen` | VIEW DENY | none — genuinely admin-only |
+
+⛔ **So `#render-alerts` is not "visible to Contributor among others". Contributor is the only role
+it is visible to.** Admins see it through `ADMINISTRATOR`, which overrides overwrites; the channel
+grants view to exactly one role and that role is the one it must not. The fix is to REMOVE that
+overwrite.
+
+⭐ **And this is why the roles had to be resolved rather than listed.** The id `1112808703389872188`
+appears on nearly every private channel in the guild; it reads like a broad member role until you
+ask for its name.
+
+⚠️ **The bot cannot do it, and the reason is two independent gaps, not one.** It holds
+`VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY` and nothing else — no
+`MANAGE_CHANNELS` — and it has no overwrite on that channel, so even with `MANAGE_CHANNELS` it
+would still answer 50001. Recorded because the intuition runs the other way: the smaller-sounding
+grant fixes neither half on its own.
+
+⭐ **No channel in the guild is both bot-postable and not Contributor-visible.** `#dev-kitchen` is
+the only text channel with no role re-allowed to view, and the bot is not in it. That is measured
+across every text channel the token can enumerate — which is why 3.5's posting half and the
+`--real` delivery hop are genuinely blocked rather than merely inconvenient.
+
+The hourly poll now reports `RENDER_ALERTS_ACL` beside `RENDER_ALERTS_ACCESS`, and
+`flip_preconditions` reads the ACL line: that precondition moved from **NOT MEASURABLE** to a
+**NOT MET** with a named fix.

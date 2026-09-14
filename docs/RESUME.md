@@ -1,4 +1,40 @@
-# RESUME — restart checkpoint 2026-09-14 03:50 ET (Monday, pre-RTH)
+# RESUME — restart checkpoint 2026-09-14 13:50 ET (Monday, midday)
+
+## a00. The midday state, and the four things that are blocked
+
+**Master `db23f17e8` is live and verified in-process.** Two further commits (`abda0e0d0`,
+`26a88d052`) are **gated, green and queued** — master's own pre-push guard refused them because
+another session's deploy was in flight, and the override was deliberately not used.
+
+| Ruling | State |
+|---|---|
+| Gap 1 — cache wired to the hot path | ✅ **merged**, 80 % hit rate on the bench, 8 mutations red |
+| Gap 3 — `/chart` shadow | ✅ **settled**: the hook fires (mutation-proved); the absence was real traffic absence, confirmed by an EXACT pull **and** by the chart production log |
+| OI-32 — never cache a stand-in | ✅ **merged**, refused at BOTH tiers |
+| NOT-APPLIED ≠ 0 | ✅ **fails in the gate** (`tests/test_mutation_harness_anchors.py`), one second, plus per-retirement cross-references |
+| Gap 2 — S2 in `--real` | 🟡 **built and self-checked, NOT RUN.** Needs a delivery channel |
+| Gap 4 — 3.5 smoke | 🔴 **blocked**: no channel is both bot-postable and not Contributor-visible |
+| Step 1.3 — `#render-alerts` | 🔴 **measured**: `Contributor` is the channel's ONLY view-allow overwrite |
+
+⛔⛔ **THE ONE OWNER ACTION THAT UNBLOCKS THE MOST:** grant the bot's role
+(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`** — then
+`discord_channel_admin.py --create-smoke` makes `#render-smoke` with itself inside it, and 3.5 plus
+the `--real` delivery hop both unblock. ⚠️ That grant does **not** fix `#render-alerts`: 50001 there
+is *membership*, and the bot has no overwrite on that channel. Two gaps, two fixes.
+
+**Flip gate: `NOT MET`** — `python docs/discord-render/instruments/flip_preconditions.py`.
+Three rows NOT MET, five NOT MEASURABLE, **organic members exposed 0**.
+
+**Shadow at 13:39 ET: 33 records, EXACT, all `/flow`, all agree, zero divergences, zero `/chart`.**
+No member ran `/chart` today — confirmed twice over.
+
+⚠️ **Live finding worth a look:** the warm cycle is still blowing its 20 s budget continuously
+(`hot warm hit its 20s budget after 20.0–22.8s, N chart(s) deferred`, many times an hour through
+RTH). That is **C-09**, still open, and it is happening now.
+
+---
+
+# RESUME — earlier checkpoint 2026-09-14 03:50 ET (Monday, pre-RTH)
 
 > ⭐ **THIS HEADER IS THE CURRENT ONE. The sections below it were written at 2026-09-13 20:45 ET
 > and are superseded where they disagree with §a0.** They are kept because §f (standing rules),
