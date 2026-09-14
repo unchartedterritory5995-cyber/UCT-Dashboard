@@ -5489,7 +5489,27 @@ export class Resolver {
       // them twice, once for a message and once for the real change, is churn
       // that makes the second diff unreadable. The better sentence lands with
       // the regen.
-      if (vec && vec.kind === 'opaque') return null
+      // ⭐⭐ a4 — THE OPAQUE BINDING'S OWN REFUSAL, AT ITS OWN LINE.
+      //
+      // When the block that FILLS an array is one this walk gave up on, the
+      // binding was already replaced by an `opaque` carrying the right sentence
+      // and the LOOP's location. Returning null here threw that away and let the
+      // read refuse instead — `array.get` at the read's line, which is the one
+      // construct in the script that is not the problem.
+      //
+      // ⚰️ a3 BUILT THIS, MEASURED IT AND BACKED IT OUT, because it moves Clouds
+      // from `pine:collection` ×21 at 64–84 to one refusal at 59 and turned five
+      // snapshot rails red. The comment it left said the better sentence lands
+      // with the regen. This is the regen: rulings R1 and R2 make the loop line
+      // the place the sentence belongs, and the rails are re-baselined beside it.
+      //
+      // ⭐ THE REFUSAL COUNT DOES NOT MOVE — one cause, one refusal, relocated.
+      // That is what keeps `bothLanesAreTwoLanes`'s equal-facts case true by
+      // construction and the lenient verdict unchanged: this is an ordinary
+      // per-output refusal, never a `hardRefusal`, so `blocked` is untouched.
+      if (vec && vec.kind === 'opaque') {
+        throw new PineRefusal(vec.guard, vec.message, vec.at || locate(node.tok))
+      }
       const d = VEC.refuseUncreated(headName || 'this name')
       throw new PineRefusal(d.guard, `${REFUSALS[d.guard]} — ${d.detail}`, locate(node.tok))
     }
@@ -8984,6 +9004,48 @@ function substConst(node, varName, value) {
   return out
 }
 
+/** ⭐⭐ a4 — WHY THIS LOOP WAS NOT READ, IN THE MEMBER'S OWN VOCABULARY.
+ *
+ *  Rulings R1 and R2 (owner, 2026-09-14) retired three iteration forms from item (a)
+ *  on the corpus numbers, under the same F4 threshold that retired `while`:
+ *
+ *      for x in         13 of 92 bodies write a slot   -> retired
+ *      for [i, x] in     0 of 34                       -> retired
+ *      while            15 of 116 guards admissible    -> retired (F4)
+ *
+ *  ⛔ THE NUMBER IS IN THE SENTENCE ON PURPOSE. "This form is not read" invites the
+ *  member to ask why; "13 of 92 uses in the reference corpus could be read, which is
+ *  below the threshold" tells them it was a measurement and not an oversight, and it
+ *  tells the next engineer which number to re-measure before reopening it.
+ *
+ *  ⛔ AND ONLY THE SERIES CASE ROUTES TO ITEM (c). A plan-time source is not a runtime
+ *  array, so pointing its author at the IR lane would be a FALSE sentence — it would
+ *  send them to wait for a lane that was never going to serve them. The routing
+ *  belongs to `seriesDependentMessage`, which composes it where it is true.
+ */
+function loopFormNote(stmt) {
+  const hdr = stmt.header || []
+  const word = hdr[0] && hdr[0].value
+  if (word === 'while') {
+    return 'a `while` loop is not unrolled on this lane — only 15 of 116 `while` uses'
+      + ' in the reference corpus have a bound this engine could settle before the'
+      + ' chart runs, below the threshold the form has to clear (ruling F4)'
+  }
+  if (word === 'for') {
+    const inAt = hdr.findIndex((tok) => tok && tok.kind === 'ident' && tok.value === 'in')
+    if (inAt > 0) {
+      const paired = hdr[1] && hdr[1].value === '['
+      const src = hdr.slice(inAt + 1).map((tok) => String(tok.value)).join('')
+      return `a \`for ${paired ? '[i, x]' : 'x'} in\` loop is not unrolled on this lane`
+        + (src ? ` — its source is \`${src}\`` : '')
+        + ' — only 13 of 92 `for x in` uses and 0 of 34 `for [i, x] in` uses in the'
+        + ' reference corpus have a body this lane could express (ruling R1); the rest'
+        + ' iterate drawing objects or user-defined types, which answer with no number'
+    }
+  }
+  return null
+}
+
 function pendingUnrollFrom(stmt, env) {
   const hdr = stmt.header || []
   if (!hdr.length || hdr[0].value !== 'for') return null
@@ -10587,6 +10649,16 @@ export function translatePine(source, opts = {}) {
       // silently folded `distDays` (mutated only inside this loop) to its
       // pre-loop value `0` inside `screen`'s formula instead of refusing.
       for (const name of mutatorTargets(stmt.body)) {
+        // ⚰️⚰️ READ THE BINDING BEFORE OVERWRITING IT. `forceOpaque` sets
+        // `env[name] = {kind:'opaque', …}`, so the `prior.kind === 'vector'` test
+        // below — the whole reason the vector-specific sentence exists — was reading
+        // the binding this line had ALREADY replaced. It was never once true, and the
+        // better message under it was dead code from the day it was written.
+        // Measured 2026-09-14 at a4: a `while`-filled array refused
+        // `pine:reassign — a name that is reassigned later cannot be folded into one
+        // expression — a`, which is true of a scalar and says nothing about an array
+        // whose slots are unknown.
+        const prior = env.get(name)
         forceOpaque(name, 'pine:reassign', locate(first), name)
         // ⛔⛔ AND A VECTOR IS REPLACED OUTRIGHT, NOT MERELY MARKED.
         //
@@ -10600,16 +10672,18 @@ export function translatePine(source, opts = {}) {
         //
         // ⭐ A vector whose writer this walk could not read is not a vector.
         // It becomes opaque, and every read of it refuses by name.
-        const prior = env.get(name)
         if (prior && prior.kind === 'vector') {
+          // ⭐ a4 — the sentence names the FORM when the form is why, and falls back
+          // to the general one otherwise (an `if` or a `switch` reaches here too).
+          const why = loopFormNote(stmt)
           env.set(name, {
             kind: 'opaque',
             guard: 'pine:collection',
             message: `${REFUSALS['pine:collection']} — `
               + `\`${name}\` is filled by a block this engine could not read, so`
-              + ' its slots are unknown rather than empty. Unrolling a bounded'
-              + ' loop is item (a); a loop whose bound depends on a series is'
-              + ' the IR lane\'s, item (c).',
+              + ' its slots are unknown rather than empty. '
+              + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
+                + ' depends on a series is the IR lane\'s, item (c).'),
             at: locate(first),
           })
         }

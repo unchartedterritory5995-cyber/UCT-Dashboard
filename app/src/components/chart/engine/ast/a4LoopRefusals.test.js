@@ -37,11 +37,23 @@ import { translatePine } from './pine.js'
 const CORPUS = path.resolve(__dirname, '../../../../../../corpus/committed')
 const HEAD = '//@version=6\nindicator("t", overlay=true)\nplot(close, "real")\n'
 
-/** ⛔ MARKER — delete this and the `run` indirection in the commit that moves the
- *  refusals onto the loop lines. Until then each case passes BECAUSE it fails, which
- *  is visible in the reporter rather than hidden by a skip. */
-const STILL_OPEN = true
-const run = STILL_OPEN ? it.fails : it
+/** ⛔ MARKERS, PER CASE — not one flag for the file.
+ *
+ *  a4 satisfied three of the eight cases and left five open, so a single `STILL_OPEN`
+ *  would have had to be flipped all-or-nothing and would have hidden exactly which
+ *  half landed. `run` marks a case still failing — it passes BECAUSE it fails, visible
+ *  in the reporter rather than hidden by a skip; `it` marks one a4 satisfied, and it
+ *  is a real assertion from that moment on.
+ *
+ *  ⭐ What a4 DID land: the refusal moved off the read and onto the loop line, with
+ *  `pine:collection` and a message naming the form and the ruling that retired it.
+ *  ⛔ What it did NOT: a series-sized source still refuses at its CREATION rather than
+ *  at the `for` (the size only folds at resolve time, so the walk cannot classify it);
+ *  a drawing or UDT array never reaches the vector-opaque path at all; and the corpus
+ *  fixture at :264 takes its source from a function PARAMETER, a different path again.
+ *  Each is named in its own case below rather than summarised away.
+ */
+const run = it.fails
 
 /** Every refusal in the result, as `guard@line`, plus its message. */
 const refusalsOf = (t) => (t.refusals || []).map((r) => ({
@@ -57,6 +69,12 @@ function lineOf(src, needle) {
 
 describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   // ── D.3 · a source whose SIZE depends on a series ────────────────────────
+  // ⛔ STILL OPEN. A series-sized source refuses at its CREATION line today, with the
+  // right code and the right routing — `seriesDependentMessage` composes it — but not
+  // at the `for`. The size folds at RESOLVE time, so the walk that sees the loop
+  // cannot yet tell a series-sized source from a plan-time one. Closing it means
+  // folding the size earlier, which is a change to when sizes are settled and not a
+  // message change.
   run('⭐⭐ SYNTHETIC · D.3 — `for x in <series-sized>` refuses at the `for`, routing to (c)', () => {
     const src = `${HEAD}var a = array.new<float>(int(volume))\nfor x in a\n    array.set(a, 0, close)\nplot(close)\n`
     const at = lineOf(src, 'for x in a')
@@ -70,7 +88,7 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   })
 
   // ── D.4 · `while`, ruling F4 ─────────────────────────────────────────────
-  run('⭐⭐ SYNTHETIC · D.4 — `while` refuses at the `while` line, naming F4', () => {
+  it('⭐⭐ SYNTHETIC · D.4 — `while` refuses at the `while` line, naming F4', () => {
     const src = `${HEAD}var a = array.new<float>(4)\ni = 0\nwhile i < 4\n`
       + '    array.set(a, i, close)\n    i := i + 1\nplot(array.get(a, 0))\n'
     const at = lineOf(src, 'while i < 4')
@@ -85,7 +103,7 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   })
 
   // ── R1 case (i) · a plan-time vector source ──────────────────────────────
-  run('⭐⭐ SYNTHETIC · R1(i) — `for x in <plan-time vector>` refuses, and does NOT route to (c)', () => {
+  it('⭐⭐ SYNTHETIC · R1(i) — `for x in <plan-time vector>` refuses, and does NOT route to (c)', () => {
     const src = `${HEAD}var a = array.new<float>(3)\nfor i = 0 to 2\n    array.set(a, i, close + i)\n`
       + 'var b = array.new<float>(3)\nfor x in a\n    array.set(b, 0, x)\nplot(array.get(b, 0))\n'
     const at = lineOf(src, 'for x in a')
@@ -101,6 +119,11 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
       .not.toMatch(/item \(c\)/)
   })
 
+  // ⛔ STILL OPEN, and for a reason the synthetic could not have shown: this loop's
+  // source `SnD_Type` is a FUNCTION PARAMETER (declared at :262), so at the loop it
+  // is a `param` binding rather than a vector, and the vector-opaque path never
+  // fires. The one corpus fixture that reaches its loop line is therefore also the
+  // one that needs a path the synthetics do not exercise.
   run('⭐ CORPUS · R1(i) — multi-timeframe-supply-demand-zones:264 refuses at its `for`', () => {
     // ⭐ The ONE corpus fixture measured to reach its loop line: today it carries
     // `note:pine:block` at 264, so the walk sees the loop and declines it silently.
@@ -111,6 +134,10 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   })
 
   // ── R1 case (iii) · a source that is outside BOTH lanes ──────────────────
+  // ⛔ STILL OPEN. A drawing array is never a `vector` binding — `array.new_box`
+  // notes `pine:drawing` and marks the name opaque at CREATION — so the loop's
+  // vector-opaque replacement has nothing to replace. The refusal it needs is a
+  // different one from the one a4 moved.
   run('⭐⭐ SYNTHETIC · R1(iii) — a DRAWING array reuses the source\'s own code', () => {
     // ⭐ Measured: `c = array.new_box(2)` already notes `pine:drawing` at its creation.
     // The loop refusal uses the SAME code, so a reader sees one story rather than two.
@@ -132,7 +159,7 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   })
 
   // ── the paired form, which the corpus does not exercise at all ───────────
-  run('⭐⭐ SYNTHETIC ONLY — `for [i, x] in` refuses at its line (0 of 34 corpus uses qualify)', () => {
+  it('⭐⭐ SYNTHETIC ONLY — `for [i, x] in` refuses at its line (0 of 34 corpus uses qualify)', () => {
     // ⚠️ LABELLED SYNTHETIC DELIBERATELY. Not one of the corpus's 34 `for [i, x] in`
     // uses has a slot-writing body, so there is no corpus fixture to name here and
     // dressing a synthetic as corpus evidence would be the thing this programme keeps
