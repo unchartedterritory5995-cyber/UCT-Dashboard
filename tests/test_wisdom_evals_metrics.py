@@ -256,6 +256,47 @@ def test_a_real_run_writes_every_part_once_and_is_idempotent(db):
     assert (_count("wisdom_replay_checks"), _count("wisdom_context_snapshots")) == (1, 1)
 
 
+class _Unreadable(_Adapter):
+    """A source that cannot be READ — the answer is about us, not about that session."""
+
+    def check(self, ticker, session):
+        return replay.Check(self.name, "unproven", session.isoformat(), reason="source_file_missing")
+
+
+class _SettledAbsence(_Adapter):
+    """A source that WAS read and simply recorded nothing that session — a permanent fact."""
+
+    def check(self, ticker, session):
+        return replay.Check(self.name, "unproven", session.isoformat(), reason="no_snapshot_for_date")
+
+
+def test_an_unreadable_source_is_re_asked_at_any_age_but_a_settled_absence_is_not(db):
+    """🔴 The retry horizon keyed on the RECORD'S SESSION date alone, so an older record whose
+    source was down on its single replay stayed unproven forever and left the denominator."""
+    with store.write() as conn:
+        _record(conn, stated_at_et="2026-08-12T10:00:00-04:00")      # 33 days before NOW
+    assert pipeline.run_replay(_ctx(), adapters=[_Unreadable()])["replayed"] == 1
+    # the source comes back: the old record MUST be asked again
+    again = pipeline.run_replay(_ctx(), adapters=[_Adapter(verdict="hit")])
+    assert again["replayed"] == 1 and again["levels"]["any:hit"] == 1
+    with store.read() as conn:
+        assert [r[0] for r in conn.execute("SELECT verdict FROM wisdom_replay_checks")] == ["hit"]
+
+
+def test_a_settled_absence_on_an_old_record_is_not_re_asked(db):
+    """CONTROL for the test above: without this, 'retry everything' would pass it too, and the
+    retry horizon would be dead code (every unproven record re-replayed against every source,
+    every night, forever)."""
+    with store.write() as conn:
+        _record(conn, stated_at_et="2026-08-12T10:00:00-04:00")
+    assert pipeline.run_replay(_ctx(), adapters=[_SettledAbsence()])["replayed"] == 1
+    assert pipeline.run_replay(_ctx(), adapters=[_Adapter(verdict="hit")])["replayed"] == 0
+    # and a RECENT record with the same settled absence still is re-asked (the horizon lives)
+    with store.write() as conn:
+        _record(conn, stated_at_et="2026-09-14T10:00:00-04:00")
+    assert pipeline.run_replay(_ctx(), adapters=[_SettledAbsence()])["replayed"] == 1
+
+
 def test_a_failed_part_does_not_stop_the_others_and_is_never_swallowed(db):
     with store.write() as conn:
         _record(conn)

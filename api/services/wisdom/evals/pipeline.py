@@ -105,14 +105,25 @@ def run_replay(ctx, *, db_path: Optional[str] = None, adapters: Optional[list] =
         with store.read(db_path) as conn:
             records = _records(conn)
             prior: dict = {}
-            for row in conn.execute("SELECT record_id, verdict, as_of FROM wisdom_replay_checks WHERE method_version=?",
-                                    (replay_mod.METHOD_VERSION,)):
+            for row in conn.execute(
+                    "SELECT record_id, verdict, as_of, reason FROM wisdom_replay_checks WHERE method_version=?",
+                    (replay_mod.METHOD_VERSION,)):
                 prior.setdefault(row["record_id"], []).append(dict(row))
             lookup = vocab or replay_mod.VocabLookup(conn)
             horizon = (now.date() - timedelta(days=retry_days)).isoformat()
+
+            def retry(check: dict) -> bool:
+                """Re-ask when a recent session may have filled in, OR when the last answer was
+                'we could not read the source' — that one is about US and can be settled later,
+                at any age. Keying only on the session date stranded every older record whose
+                source happened to be down on the single run that touched it."""
+                if check["verdict"] != "unproven":
+                    return False
+                return check["as_of"] >= horizon or replay_mod.is_source_unavailable(check.get("reason"))
+
             for rec in records:
                 done = prior.get(rec["record_id"])
-                if done and not any(c["verdict"] == "unproven" and c["as_of"] >= horizon for c in done):
+                if done and not any(retry(c) for c in done):
                     continue
                 results.append(replay_mod.replay_record(rec, adapters, lookup))
     finally:

@@ -39,6 +39,24 @@ DESK_TOP_N = 20                     # LeadershipTile.jsx / UCT20.jsx slice(0,20)
 PATTERN_RETENTION_DAYS = 120        # pattern_engine.memory.PRUNE_RETENTION_DAYS default
 
 
+#: An unproven verdict has two very different causes, and only one of them is permanent.
+#: These prefixes mean WE could not read the source (file absent, path unresolved, sqlite
+#: error, R2 unreachable, archive not backfilled yet) — a statement about our access, which a
+#: later run can settle. Every OTHER unproven reason ("no_snapshot_for_date",
+#: "before_store_floor", "outside_120d_retention", …) is a settled fact about a past session
+#: and re-asking it is waste.
+#: ⛔ Without this split the retry horizon keys on the RECORD'S SESSION DATE alone, so a source
+#: that was down during an older record's one and only replay is never asked again — the record
+#: stays unproven forever and silently leaves the see-rate denominator.
+SOURCE_UNAVAILABLE_REASONS = ("source_file_missing", "source_error:", "capture_archive_unreachable:",
+                              "capture_archive_missing")
+
+
+def is_source_unavailable(reason: Optional[str]) -> bool:
+    """True when an unproven verdict says 'we could not look', not 'we looked and it wasn't there'."""
+    return bool(reason) and str(reason).startswith(SOURCE_UNAVAILABLE_REASONS)
+
+
 class SourceUnavailable(RuntimeError):
     pass
 
