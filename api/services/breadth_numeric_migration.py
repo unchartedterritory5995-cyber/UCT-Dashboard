@@ -26,6 +26,7 @@ import shutil
 import time
 
 MARKER = ".breadth_numeric_v1"
+RECON_MARKER = ".breadth_reconstructed_v1"
 
 
 def _data_dir() -> str:
@@ -192,10 +193,148 @@ def audit() -> dict:
             "clean": not (missing or extra or mismatched or listy)}
 
 
+
+
+# ── Session 3: the reconstructed side ─────────────────────────────────────────
+
+def _recon_fingerprint(c) -> dict:
+    """Identity of the OHLC store's TRUSTED rows — the migration's INPUT."""
+    from api.services import breadth_daily_ohlc as ohlc
+    qs = ",".join("?" * len(ohlc._TRUSTED_SOURCES))
+    rows = c.execute(
+        f"SELECT date, COUNT(*), MAX(updated_at) FROM breadth_daily_ohlc "
+        f"WHERE source IN ({qs}) GROUP BY date ORDER BY date", ohlc._TRUSTED_SOURCES).fetchall()
+    h = hashlib.sha256()
+    for d, n, w in rows:
+        h.update(f"{d}:{n}:{w}|".encode())
+    return {"dates": len(rows), "sha256": h.hexdigest()[:16]}
+
+
+def backfill_reconstructed(force: bool = False, backup: bool = True,
+                           chunk: int = 400) -> dict:
+    """Materialise every reconstructed session date, once. Same shape as (a):
+    marker-gated, backed up with VACUUM INTO, and fingerprinted on both sides.
+
+    ⛔ The fingerprint here covers the INPUT (the trusted OHLC rows), because that
+    is what this migration must not disturb. It only ever writes to
+    `breadth_reconstructed_daily`, a table that did not exist before — but "it
+    should not have touched the source" is a claim, and the digest is the evidence.
+    """
+    from api.services import breadth_daily_ohlc as ohlc
+
+    out: dict = {"ran": False, "marker": os.path.join(_data_dir(), RECON_MARKER)}
+    if os.path.exists(out["marker"]) and not force:
+        out["skipped"] = "marker present"
+        return out
+
+    ohlc._ensure_init()
+    db = ohlc._db_path()
+    t0 = time.perf_counter()
+
+    with ohlc._conn() as c:
+        before = _recon_fingerprint(c)
+        out["before"] = before
+        out["rows_before"] = c.execute(
+            "SELECT COUNT(*) FROM breadth_reconstructed_daily").fetchone()[0]
+
+    if backup:
+        try:
+            size = os.path.getsize(db)
+            free = shutil.disk_usage(os.path.dirname(db) or ".").free
+            if free < size * 2:
+                out["aborted"] = ("not enough room for a VACUUM INTO backup: "
+                                  f"db={size}B free={free}B")
+                return out
+            dest_dir = os.path.join(_data_dir(), "backups")
+            os.makedirs(dest_dir, exist_ok=True)
+            dest = os.path.join(
+                dest_dir,
+                f"breadth_daily_ohlc-{time.strftime('%Y-%m-%d-%H%M%S')}-pre-reconstructed.db")
+            with ohlc._conn() as c:
+                c.execute("VACUUM INTO ?", (dest,))
+            out["backup"] = dest
+            out["backup_bytes"] = os.path.getsize(dest)
+        except Exception as e:
+            out["aborted"] = f"backup failed: {e!r}"
+            return out
+
+    dates = ohlc.distinct_dates()
+    out["candidate_dates"] = len(dates)
+    built = 0
+    # ⚠️ Chunked. Building ~4,700 rows in one statement list is fine; deriving them
+    # in one go is what holds 174,187 OHLC rows in memory at once, which is the
+    # exact transient (a) existed to remove. Do not "simplify" this to one call.
+    for i in range(0, len(dates), chunk):
+        built += ohlc.build_reconstructed(dates[i:i + chunk])
+    out["built"] = built
+
+    with ohlc._conn() as c:
+        after = _recon_fingerprint(c)
+        out["after"] = after
+        out["rows_after"] = c.execute(
+            "SELECT COUNT(*) FROM breadth_reconstructed_daily").fetchone()[0]
+    out["ms"] = round((time.perf_counter() - t0) * 1000, 1)
+
+    if after != before:
+        out["FAILED"] = "the trusted OHLC rows CHANGED during the backfill"
+        return out
+    out["source_table_unchanged"] = True
+    out["stale_after"] = len(ohlc.stale_reconstructed_dates())
+
+    try:
+        with open(out["marker"], "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"at": time.time(), "built": built}))
+    except Exception as e:
+        out["marker_write_failed"] = repr(e)
+    out["ran"] = True
+    try:
+        from api.services.cache import cache
+        cache.delete_prefix("breadth_history_")
+    except Exception:
+        pass
+    return out
+
+
+def audit_reconstructed(sample: int = 40) -> dict:
+    """Compare a fresh derivation against the table for a sampled set of dates.
+
+    ⭐ SAMPLED, and the sample is spread rather than taken off the front: a
+    contiguous head would only ever test the oldest sessions, which are the ones
+    least likely to have been rewritten. Reports mismatches BY DATE AND KEY.
+    """
+    from api.services import breadth_daily_ohlc as ohlc
+
+    dates = ohlc.distinct_dates()
+    if not dates:
+        return {"checked": 0, "clean": True, "mismatched": [], "note": "no reconstructed dates"}
+    step = max(1, len(dates) // max(sample, 1))
+    picked = dates[::step][:sample]
+    mismatched = []
+    with ohlc._conn() as c:
+        fresh = ohlc.derive_reconstructed(c, picked)
+    stored, _ = ohlc.reconstructed_for_dates(picked)
+    for d in picked:
+        want, got = fresh.get(d), stored.get(d)
+        if want is None and got is None:
+            continue
+        if want != got:
+            keys = sorted(set(want or {}) ^ set(got or {})) or [
+                k for k in (want or {}) if (want or {}).get(k) != (got or {}).get(k)]
+            mismatched.append({"date": d, "keys": keys[:12]})
+    return {"checked": len(picked), "of_dates": len(dates),
+            "mismatched": mismatched, "stale": len(ohlc.stale_reconstructed_dates(limit=50)),
+            "clean": not mismatched}
+
+
 if __name__ == "__main__":
     import sys
     if "--audit" in sys.argv:
         print(json.dumps(audit(), indent=1))
+    elif "--audit-reconstructed" in sys.argv:
+        print(json.dumps(audit_reconstructed(), indent=1))
+    elif "--reconstructed" in sys.argv:
+        print(json.dumps(backfill_reconstructed(force="--force" in sys.argv,
+                                                backup="--no-backup" not in sys.argv), indent=1))
     else:
         print(json.dumps(backfill(force="--force" in sys.argv,
                                   backup="--no-backup" not in sys.argv), indent=1))
