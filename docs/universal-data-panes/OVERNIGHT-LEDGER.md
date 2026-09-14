@@ -1012,3 +1012,54 @@ Finding 2 (symbol names in Add-to-Chart search) — presentation only, reads a f
 the row already renders for delisted names. Then finding 3 (ETF vs STOCK), which is
 a label derived from search data and needs a check of what the backend actually
 returns before any string is changed.
+
+### SLICE 2 — rails for the row summary  ✅ CHECKPOINTED
+`ChartSettingsModal.rowSummary.test.jsx`, 7 cases: presentation + pane, the
+summary FOLLOWING the real style control, nothing on the fixtures, no redundant
+`Source:`, breadth offered no Candles, a guest naming its host and then saying
+`Pane unavailable`, and the anchored expander-name rail.
+
+⚰️ TWO HARNESS MISTAKES, BOTH MINE, BOTH INSTRUCTIVE:
+1. `onChange={() => {}}` — `ChartSettingsModal` is CONTROLLED, so nothing
+   re-rendered and the "summary follows the control" case read the pre-change row.
+   It looked like the feature was stale; the harness was. Now stateful.
+2. The orphan case built its settings from the ORIGINAL object, which never
+   received the UI's write, so the guest was never a guest. Now the Host records
+   the live settings and the orphan is built from what the UI actually produced.
+
+BITE CHECKS (each reverted): summary returns null → 4 red. Summary nested back
+INSIDE the expander button → 6 red including the accessibility rail.
+⚠️ The first attempt at that second bite MUTATED THE WRONG `</button>` and came
+back all-green — a bite check that does not bite is not evidence. Re-done against
+the exact anchor, verified in the file, then re-run.
+
+### PART A FINDINGS 2 & 3 — ROOT-CAUSED, DELIBERATELY NOT FIXED
+Both are BACKEND DATA, not UI. Local `/api/ticker-search`:
+```
+q=SPY  → {"ticker":"SPY","name":null,"type":"stock"}
+       → {"ticker":"KKD","name":"KRISPY KREME DOUGHNUTS INC","type":"delisted"}
+q=QQQ  → {"ticker":"QQQ","name":null,"type":"stock"}
+```
+`symbolLibraryRow` shows a name only when `res.name !== res.id`, so active symbols
+render bare and delisted ones render fully — the UI is faithful; the data is
+missing. The same response is why an ETF is chipped `STOCK`.
+
+⛔ NOT ATTEMPTED OVERNIGHT, on purpose: the fix lives in `ticker_search.py` — the
+route with 14 frontend consumers and the "leaked `Query()` default broke every
+autocomplete for six days" history — and names likely require the provider-backed
+index (`MASSIVE_API_KEY`), i.e. a data-availability question, not a UI one.
+
+### STATE AT THIS CHECKPOINT
+`src/components/chart`: 10 failed / 8978 passed / 4 skipped. The 10 are the SAME
+pre-existing failures (7 `ChartToolbar.flipB`, 3 ratchet), each re-confirmed red at
+baseline. `vite build` ✓. Tree clean.
+
+### NEXT AUTHORIZED ACTION
+Parts D/E/F/G were AUDITED LIVE this session and are in good shape — duplicate
+naming (`QQQ #1`/`QQQ #2`, and #2 correctly reverts to `QQQ` when #1 is deleted),
+guest→host placement, orphan handling with no silent reattachment, and the OHLC
+gate (QQQ offers Candles; UCTA50 and MA(QQQ) do not). No defects found in them, so
+nothing was changed there — see NO FAKE PROGRESS.
+Remaining open items are the two DEFERRED product decisions (secondary-series
+colour palette; main-legend duplication) and the backend-data items above. All
+need the owner.
