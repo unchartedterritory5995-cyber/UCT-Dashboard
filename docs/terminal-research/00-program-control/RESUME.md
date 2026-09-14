@@ -311,7 +311,8 @@ The prompt's **§0** now requires the last line printed to be exactly one of fou
 | `STOPPED-ENV` | a check failed; nothing attempted | 3 |
 | `STOPPED-ERROR` | it tried and something broke | 4 |
 | *(no STATUS line)* | crash, truncation, kill, permission starvation | **5** |
-| *(webhook unset)* | the runner refused to start a run it could not report | 2 |
+| *(webhook unset, or a PLACEHOLDER)* | the runner refused to start a run it could not report | 2 |
+| *(post not delivered)* | the run was fine but Discord did not take the post | 6 |
 
 ⛔ **EXIT 5 IS THE POINT.** A crashed or permission-starved run leaves exactly that shape, and it
 is what used to read as success. Mutation-proved: setting `NO_STATUS = 0` reds three tests by name.
@@ -326,6 +327,20 @@ anything.** The webhook comes from **`UCT_TERMINAL_NEXT_WEBHOOK`**, Windows-side
 ```
 setx UCT_TERMINAL_NEXT_WEBHOOK "https://discord.com/api/webhooks/<id>/<token>"
 ```
+
+⛔ **A WRONG WEBHOOK WAS ITSELF A SILENT FAILURE, AND THAT IS NOW CLOSED.** Two holes, both
+found before the variable was ever set for real: the value was checked for **emptiness only**, so
+the placeholder `https://discord.com/api/webhooks/...` straight out of the instructions passed and
+posted into the void; and the post's **HTTP status was never read**, so a revoked or mistyped
+webhook answered 401/404 while `curl` exited 0 and the runner exited 0 with it. Now the prefix and
+a **numeric webhook id** are both checked (placeholder → exit 2, the run does not start), the
+status code is captured and Discord's **204** is required, and a failed delivery logs *"THIS RUN
+REPORTED TO NOBODY"* and yields **exit 6** — with a worse code (3/4/5) never downgraded to it.
+
+⚠️ **A BATCH TRAP WORTH KNOWING:** the status check was first written inside a parenthesised
+`if/else`. `cmd` expands `%VAR%` when it **parses** a block, so a value written by `set /p` in that
+same block reads as its OLD value — every post would have reported as undelivered. The report
+section runs at **top level** with `goto`s so nothing nests.
 
 ⛔ **Unset = exit 2 and no run starts.** A run that could not report its own outcome is not
 started. ⛔ And the variable is **cleared in a child process** (`tools/weekly_claude_child.cmd`)
