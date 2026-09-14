@@ -1,3 +1,80 @@
+# RESUME — restart checkpoint 2026-09-14 15:20 ET (Monday, pre-close)
+
+> ⭐ **THIS IS THE CURRENT HEADER.** Everything below it is superseded where it disagrees.
+
+## a00b. What the Discord admin pass changed, and the two flip blockers it uncovered
+
+The owner opened a browser and handed the whole Discord list over. **A1, A2 and A3 are DONE and
+verified by API read-back.** The `⛔⛔ ONE OWNER ACTION` block in §a00 below is **satisfied** —
+`MANAGE_CHANNELS` is granted — and the rest of that section's blocked rows have moved.
+
+| Was | Now |
+|---|---|
+| bot lacks `MANAGE_CHANNELS` | ✅ granted — `--whoami` says `CAN create channels` |
+| `#render-alerts` Contributor-visible | ✅ **overwrite removed**; probe says `RENDER_ALERTS_ACL ACL_OK`. Precondition row is **MET** |
+| no channel both bot-postable and not Contributor-visible | ✅ **`#render-smoke` = `1549129739048853544`** exists, private at creation, organic members exposed **0** |
+
+⛔⛔ **NEXT SESSION, READ THIS FIRST — two flip blockers, both found by executing the brief:**
+
+- **OI-34.** `/chart`, `/charts`, `/flow` were gated to **ONE** channel id. Repointing
+  `CHART_FLOW_CHANNEL_ID` MOVES the commands, it does not add — every member of a 1,558-member
+  guild loses all three. Fixed: it is now a comma-separated **allowlist**, first entry is the
+  member-facing one that the nudge names. ⭐ This is also the real answer to Gap 3: the `/chart`
+  shadow saw nothing because a member can only run `/chart` in one channel.
+- **OI-35.** There was **no per-channel V2 flag**. `commands.enabled()` is one global boolean;
+  `command_enabled()` splits by COMMAND. The flip packet said "per-channel per 2.1" and §4.0 said
+  the canary is the admin channel — both disagreed with the code, and agreed with each other.
+  Flipping as written = the member-channel flip. Fixed: `DISCORD_RENDER_V2_CHANNELS` narrows V2;
+  **unset means every channel**, so its absence is "there is no canary", never "the canary is off".
+
+⚠️ **OI-33:** `MANAGE_CHANNELS` is NOT enough to edit an existing channel's overwrites — that needs
+`MANAGE_ROLES` (403 `50013`). `MANAGE_ROLES` was deliberately **not** granted; A2 went through the
+browser instead. Do not "fix" this by granting it.
+
+⚠️ **OI-36:** `/buzz` in `#render-smoke` → **"The application did not respond"** while the renderer
+answered `200, 346 KB, ms=10738` against a 3 s ack deadline. **C-11 live, on the pre-V2 path.** The
+shadow said `outcome=agree`, so V2 would do the same — not a defect the flip fixes.
+
+### The queue as of 15:20 ET
+
+**9 commits on `discord-render-hardening`, gated and waiting for the 16:00 window.** Full scoped
+gate **798 passed / 9 skipped / 0 failed**; pre-V2 golden **0 drift**; mutations **3/3 + 4/4 RED**.
+Master moved two commits under the gate, touching only `.github/workflows/master-deploy-gate.yml` —
+**no overlap**, so the gate stands (08's no-overlap branch, not a stale green).
+
+⛔ **The canary flip is BLOCKED tonight and here is exactly why**, so nobody re-derives it:
+
+| Row | State | Can it clear tonight? |
+|---|---|---|
+| forensics **C-02** | 🟡 ack half closed; load half needs 3.1 `--real` | **yes — tonight's run** |
+| forensics **C-09** | 🔴 open; needs 3.1 `--real` to show the warm cycle yields | **yes — tonight's run** |
+| forensics **C-13** | 🟡 log hygiene shipped; **token rotation is OI-13, the owner's** | see below |
+| soak ≥ 24 h | 57/90 clean ticks, 15 min apart | **~23:40 ET** — reachable, late |
+| 3.5 smoke | 2 of 15 rows | partly |
+
+⭐ **C-13's rotation is NOT a manual owner chore — it is automated and it has been silently
+failing.** `UCT Render Token Retire` reported `lastRun=07:15, LastTaskResult=1` and had **never done
+anything**: its `.cmd` redirected stdout into `render_token_retire.run.log`, *the same file the
+Python script opens for append*, so the script died on its first `log()` call with `PermissionError`
+— and its crash handler died on the same line. The wrapper now writes to
+`render_token_retire.wrapper.log` (backup: `render_token_retire.cmd.bak-2026-09-14`). **The Morning
+Wire HAS run today** (`last_run_date = 2026-09-14`), so its precondition is satisfied and it can run
+after the close. The script itself is careful — it probes both tokens first and aborts if the
+current one is not accepted.
+
+### The 16:00 sequence, in order
+
+1. merge the 9 commits → `web` SUCCESS → verify the running SHA **in-process**
+   (⭐ `/renderhealth` in Discord prints the running commit — the product is its own SHA oracle)
+2. `CHART_FLOW_CHANNEL_ID=1546563720702853280,1549129739048853544` → new boot → verify in-process
+3. 3.5 rows 1–7 in `#render-smoke` (⛔ save every screenshot to disk in the same action — ephemeral
+   replies do **not** survive a reload)
+4. `bash docs/discord-render/instruments/step3_real.sh`
+5. `render_token_retire.cmd` (clears the leaked PREVIOUS token → C-13)
+6. `flip_preconditions.py`; flip **only** if every row prints MET
+
+---
+
 # RESUME — restart checkpoint 2026-09-14 13:50 ET (Monday, midday)
 
 ## a00. The midday state, and the four things that are blocked
