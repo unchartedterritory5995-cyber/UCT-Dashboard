@@ -480,3 +480,51 @@ per-lookup cache tier was being derived from a process-wide counter (a global an
 per-request question), and the AST probe for "is the cache imported" read only `ImportFrom.module`
 — so `from … import artifact_cache`, which is the correct wiring, answered **no**. The second one
 was in `flip_preconditions.py` too: the flip gate could never have printed MET.
+
+---
+
+## 2026-09-14, 13:30–16:00 ET — the Discord admin pass, and two flip blockers
+
+The owner handed the whole Discord-side list over with a live browser. A1–A3 finished and were
+**verified by API read-back rather than by the UI's own banner** — twice the UI said something had
+changed and only the read-back said what Discord actually stored.
+
+| | |
+|---|---|
+| **A1** `MANAGE_CHANNELS` granted | `--whoami` → `CAN create channels` |
+| **A2** `#render-alerts` | `Contributor` overwrite **removed**, bot given one, `@everyone` still DENY. Probe: `ACCESS HTTP 200` + `ACL_OK`. **Precondition row MET** |
+| **A3** `#render-smoke` `1549129739048853544` | private at creation, **organic members exposed 0** |
+| **delivery hop** | `DELIVERY OK http=200 attachments=1` — a real post carrying a PNG |
+
+### The two things that would have gone wrong
+
+**OI-34.** `/chart`, `/charts`, `/flow` were gated to ONE channel id. Repointing
+`CHART_FLOW_CHANNEL_ID` MOVES the commands rather than adding a channel — 1,558 members lose all
+three. It is now an allowlist whose FIRST entry is the member-facing one the nudge names.
+
+**OI-35.** There was **no per-channel V2 flag**, though the packet said "per-channel per 2.1" and
+§4.0 said the canary is the admin channel. `commands.enabled()` is one global boolean. Flipping as
+instructed would have been the member-channel flip — the owner's decision — reached by following a
+section headed "canary". `DISCORD_RENDER_V2_CHANNELS` narrows it; **unset means every channel**, so
+its absence reads as "there is no canary", never "the canary is off".
+
+⭐ **Both were invisible from the code and from the docs, because the docs agreed with the spec and
+the spec disagreed with the code.** Neither survived thirty seconds of actually typing the command.
+That is the whole argument for 3.5 existing.
+
+### Two instruments that were lying, found the same way
+
+- **`clock_sweep.py` was in no gate at all.** The string appeared nowhere in the repo but its own
+  filename — built, CLEAN over 1,220 observations, referenced by nothing. Now
+  `tests/test_clock_sweep_in_the_gate.py`.
+- **`UCT Render Token Retire` had never run.** `lastRun=07:15, LastTaskResult=1`; its `.cmd`
+  redirected stdout into the same file the Python script opens for append, so the script died on its
+  first `log()` call and the crash handler died on the same line. C-13's rotation half has been
+  waiting on a job that could not write its own log.
+
+### Honest state at the close
+
+**3.5 is 2 rows of 15.** One pass (`/renderhealth`, which also prints the running commit — the
+product is its own SHA oracle), one real failure (`/buzz` → *"The application did not respond"*
+while the renderer answered `200, 346 KB, ms=10738`). Thirteen rows were blocked on OI-34, not on a
+decision.

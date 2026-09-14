@@ -27,7 +27,7 @@ the command is right and this section is what drifted.
 
 | Flip | Who | When |
 |---|---|---|
-| `DISCORD_RENDER_V2_ENABLED=1`, **admin-only canary channel** | pre-authorised to the integrating session | **only** when the command prints `ALL MET` |
+| `DISCORD_RENDER_V2_CHANNELS=<canary id>` **then** `DISCORD_RENDER_V2_ENABLED=1` | pre-authorised to the integrating session | **only** when the command prints `ALL MET` |
 | the **member-channel** flip | **the owner, and only the owner** | after reading the canary evidence |
 
 ⛔ **NOT MEASURABLE blocks the flip exactly as NOT MET does.** They are kept apart because what you
@@ -51,11 +51,24 @@ is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 
 **VERDICT: NOT MET — do not flip.** Three rows NOT MET, four NOT MEASURABLE.
 
-⛔ **The single owner action that moves the most rows:** grant the bot's role
-(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**. That lets
-`discord_channel_admin.py --create-smoke` build `#render-smoke` with the bot inside it, which
-unblocks 3.5 **and** the `--real` delivery hop in one go. ⚠️ It does **not** fix `#render-alerts` —
-50001 there is *membership*, and the bot has no overwrite on that channel.
+⚰️ ~~**The single owner action that moves the most rows:** grant the bot's role
+(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**.~~
+**DONE 2026-09-14**, verified by API — `--whoami` reports `CAN create channels`. Kept struck rather
+than deleted so a reader who remembers the ask does not re-issue it.
+
+**What it actually unblocked, measured rather than predicted:**
+
+- ✅ `#render-smoke` = `1549129739048853544` exists, private at creation, **organic members exposed 0**.
+- ✅ The `--real` delivery hop: proven by a real post carrying a PNG — `DELIVERY OK http=200
+  attachments=1`. `step3_real.sh --deliver-channel 1549129739048853544`.
+- ⛔ **It did NOT let the bot create that channel.** `--create-smoke` returned `403 / 50013`:
+  creating a channel *with overwrites* also needs **`MANAGE_ROLES`**, and so does editing an
+  existing channel's overwrites (**OI-33**). `MANAGE_ROLES` was deliberately **not** granted — it
+  would let the bot rewrite overwrites anywhere and manage every role beneath its own on a
+  1,558-member production guild, to save a few browser clicks. Both channels were finished in the
+  browser instead.
+- ⚠️ And it did **not** fix `#render-alerts`, exactly as predicted — 50001 there is *membership*.
+  That was fixed separately by removing the `Contributor` overwrite and giving the bot one.
 
 ### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
 
@@ -120,10 +133,33 @@ pod still returned `None` for, because its redeploy had not swapped yet
 only on `chart-renderer` (2026-08-30), auto-redeploying on `web` (2026-09-09), with an explicit
 `railway redeploy` 16 s later REFUSED as "currently building". Do not assume which one you got.
 
-### 2.1 Set it
+### 2.1 Set it — **the narrowing variable FIRST, and in its own command**
 
 ```sh
+# 1. narrow V2 to the canary channel BEFORE the master flag exists.
+railway variables --service web --set "DISCORD_RENDER_V2_CHANNELS=1549129739048853544"
+# 2. only then arm the master flag.
 railway variables --service web --set "DISCORD_RENDER_V2_ENABLED=1"
+```
+
+⛔⛔ **ORDER IS LOAD-BEARING AND THIS SECTION USED TO GET IT WRONG.** Until 2026-09-14 this step
+set `DISCORD_RENDER_V2_ENABLED=1` **alone** and called the result an admin-only canary, while §4.0
+below said in capitals that the canary is the admin channel. Both cannot be true:
+`commands.enabled()` was one global boolean with **no channel dimension at all**, so that single
+command sends every member's `/chart` in `#chart-flow-requests` to V2 in the same instant. It is
+the member-channel flip — the one decision reserved to the owner — arrived at by following a
+section headed "canary". `DISCORD_RENDER_V2_CHANNELS` (OI-35) is what makes the narrowing real.
+
+⚠️ **Setting the master flag first, even for the seconds between two commands, is a member flip.**
+`--set` has been measured auto-redeploying on `web`, so the window is a real boot, not a race.
+
+⛔ **UNSET `DISCORD_RENDER_V2_CHANNELS` MEANS EVERY CHANNEL.** It narrows; it is not a second kill
+switch. Do not read its absence as "the canary is off" — read it as "there is no canary."
+
+**Verify the narrowing in the running process, not from `--kv`:**
+
+```sh
+railway run --service web -- python -c "from api.services.discord_render import commands as c; print(c.v2_channels(), c.enabled())"
 ```
 
 ### 2.2 Watch for a NEW BOOT — by timestamp, not by the command's exit code

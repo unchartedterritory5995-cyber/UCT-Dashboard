@@ -1,0 +1,7 @@
+[discord-chart] render failed NVDA D: render stub: deliberate failure
+[discord-chart] render failed NVDA D: render stub: deliberate failure
+scenarios captured: 17
+capture determinism: two back-to-back runs agree
+render URLs captured: 14 (2 carrying a vintage)
+drift against the stored golden: 0
+drift against the stored render-URL golden: 0
