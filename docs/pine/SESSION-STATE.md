@@ -201,11 +201,38 @@ vite build beside it. Backend pytest is scoped or chunked, never repo-wide.
 used is dead. The mobile-audit and vendor-capture sections in this document are a
 RECORD, not a running state. Before anything drives a browser:
 
+⛔⛔ **AND IT MUST NAME THE SANDBOX, OR YOU GET AN EMPTY RIG.** `boot_rig.py` with
+no `UCT_RIG_DATA` resolves its own safe default —
+`%TEMP%\uct-rig-8129\rig-data` — which is outside every worktree and therefore
+starts happily, **with no member, no definitions and no instances**. Measured
+2026-09-14 by following this checklist as it was written: the default sandbox held
+one system user (`__voice_kb__`) and two theme prefs. The rig the whole wave was
+built on is **this session's scratchpad `rig-data`**, and it is the one that
+survived the reboot.
+
 ```bash
-# UCT_RIG_DATA must resolve OUTSIDE any git worktree — boot_rig refuses otherwise,
-# by asking `git rev-parse --show-toplevel`, and the refusal names the worktree.
-python docs/pine/wip/rig/boot_rig.py        # then confirm the port answers
+# ⛔ the surviving sandbox, NOT the default — the default is empty and boots fine
+UCT_RIG_DATA="$TEMP/claude/C--Users-Patrick/<session-id>/scratchpad/rig-data" \
+  python docs/pine/wip/rig/boot_rig.py
+
+# it prints the sandbox it resolved — READ THAT LINE, it is the only confirmation
+#   [rig] sandbox C:\...\scratchpad\rig-data
+#   [rig] http://127.0.0.1:8129
 ```
+
+⭐ **CONFIRM THE CONTENT, NEVER THE PORT.** A 200 on `/api/health` says a backend
+is up, not that it is the right one. The check that discriminates:
+
+```bash
+# log in as panetest@local.dev, then:
+#   GET /api/user-definitions      -> 2 rows: u_dd21a7ba8888, u_3ec24af8e7c6
+#   GET /api/auth/preferences      -> charts_workspace_layout names both defIds
+```
+
+⚠️ `UCT_RIG_DATA` must still resolve OUTSIDE any git worktree — `boot_rig` refuses
+otherwise, asking `git rev-parse --show-toplevel`, and the refusal names the
+worktree. The scratchpad path satisfies that; so does the default. **Being safe is
+not the same as being right.**
 
 …then re-check the rig tab against the binding gate: own-text **`Add to chart`**
 plus **0 studies** by the corrected probe. ⛔ Not "the editor is closed" — an open
