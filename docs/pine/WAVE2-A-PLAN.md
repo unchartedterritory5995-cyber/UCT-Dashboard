@@ -34,7 +34,7 @@ when it belongs to `chooseOutput`.
 | **a3** | the unroll | ✅ **DONE** — `06a2258e2` (acceptance, red), `a1de7a6f5` (green) |
 | **a4** | **REVISED BY R1/R2** — no new iteration form is built. Every retired loop form (`for x in`, `for [i, x] in`, `while`) refuses **at its own line**, with the code its SOURCE determines, replacing today's `pine:block` note plus a later unrelated `array.get` refusal | ✅ **COMPLETE** — `af4606288` (red), `901e8165a` (green), `20ae2ddf6` (re-baseline), `bfe7e2b4e` (R4–R6). One item owed: **R1(ii)** |
 | **a4b** | **the accumulator fold** — a counted-`for` body of the shape `s := s op e` folds to a left-nested op chain | ⛔ **CENSUS FIRST, THEN A GO** — ruling R3 |
-| **a5** | reductions unrolled over written slots, each checked against Pine's `na` semantics, with the source recorded | ⛔ **SCOPE AWAITING OWNER CONFIRMATION** — see below |
+| **a5** | reductions unrolled over written slots | ⛔ **RETIRED — 0 of 209 uses admissible and reachable** (`683f2d076`); retirement not yet implemented, estimated 45 min |
 | **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
 | **a7** | shared contract, Python twin, both-lane agreement rail over 327 scripts, snapshots, suites, Python lane once, vite build | pending |
 
@@ -406,6 +406,51 @@ the source authored, alpha included.**
 The env closing pass's restraint — an unread-but-**readable** binding stays silent — is
 load-bearing, and it is **not spent on one acceptance sentence**. Forcing `color.t` to a
 refusal would put a line in the result for every `len = 14` in every script.
+
+---
+
+# a5 — RETIRED. 0 of 209 uses are admissible AND reachable
+
+`tools/pine_reduce_census.py` (`683f2d076`), both controls green — the stripper's, and
+the committed numbers it extends: **indexof 18/18 · sort 10/10**.
+
+| member | uses | files | receiver settled | reaches an output | in-loop | **admissible** |
+|---|---|---|---|---|---|---|
+| `sum` | 105 | 16 | 27 | 4 | 59 | **2** |
+| `max` | 33 | 17 | 12 | 0 | 8 | 0 |
+| `min` | 20 | 9 | 13 | 3 | 8 | 0 |
+| `avg` | 14 | 9 | 10 | 0 | 0 | 0 |
+| `indexof` | 18 | 7 | 9 | 0 | 9 | 0 |
+| `sort` | 10 | 7 | 5 | 0 | 1 | 0 |
+| `includes` | 5 | 2 | 5 | 0 | 4 | 0 |
+| `stdev` | 4 | 4 | **0** | 0 | 1 | 0 |
+
+**The binding constraint per member is the CONSUMER, not the receiver** — and that is
+the opposite of a4b, where BOUND bound everything. 81 of 209 uses have a settled
+receiver; only **7** reach a `plot()`/`alertcondition()` at all. The rest feed drawing
+objects and UDT fields, where this lane draws nothing anyway.
+
+⛔ **And the engine closes the remaining 2.** Both were run through the shipped door
+rather than judged from source:
+
+| use | engine's answer |
+|---|---|
+| `machine-learning-knn-based-strategy:154` — `prediction := array.sum(predictions)` | first refusal `pine:collection@133`; **nothing at all at :154**, never reached |
+| `machine-learning-lorentzian-classification:413` | first refusal `pine:module@7` — an `import`, the whole script hard-refused |
+
+Both masked by an earlier refusal — the same pattern as the 13 owed `for … in` uses and
+the corpus accumulators. **Admissible and reachable: 0 of 209.**
+
+⭐ **a5.3 (the `na`-semantics comparison) is SKIPPED, correctly**: it is scoped to the
+build set, and the build set is empty. Nothing about Pine's `na` behaviour needs
+settling for members that will not be folded.
+
+⚠️ **`stdev` and `includes` are attested after all** — 4 and 5 uses — so the hand-off
+was not inventing them; they were simply in no SOURCE list. They are retired with the
+rest, on their numbers.
+
+⛔ **Retirement means the same shape as R1 and R7:** the member call refuses by name at
+its own line, carrying its number. **Estimated 45 minutes**, not yet implemented.
 
 ### H.4 — A DROPPED LOOP BODY IS ANNOUNCED, AS A NOTE, LATER
 
