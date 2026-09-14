@@ -1,0 +1,21 @@
+=== design · 300s · 22:50:17Z ===
+bars_sanitize meta fetch failed for NVDA: corporate-action fetch for NVDA returned no answer (rate limit, transport error, or missing FMP_API_KEY) — this is NOT 'no splits declared'
+bars_sanitize meta fetch failed for AMD: corporate-action fetch for AMD returned no answer (rate limit, transport error, or missing FMP_API_KEY) — this is NOT 'no splits declared'
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+  S2 end-to-end: p50 4.4 ms · p95 514.4 ms · p99 7687.6 ms over 181 job(s)
+  success 1.0 · cache hit rate unmeasured (l2 promotions 0) · delivery {'artifacts': 181, 'edits': 181, 'bytes': 30146763}
+  B1 over 181 offer(s): served_in_slo 180 · served_late 1 · refused_by_admission 0 (0 before any job row) · failed 0 {} · ARITHMETIC CLOSES
+TOTALS load_harness PASS samples=181 p50=1ms p95=4ms p99=62ms max=614ms over_1s=0 over_3s=0 rate=0.6/s seconds=300.0 members=40 handler_ms=0.0 symbols=real replies={"deferred": 181}
+exit=0
+=== busiest10s · 600s · 22:55:20Z ===
+bars_sanitize meta fetch failed for NVDA: corporate-action fetch for NVDA returned no answer (rate limit, transport error, or missing FMP_API_KEY) — this is NOT 'no splits declared'
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)

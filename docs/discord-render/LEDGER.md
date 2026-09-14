@@ -1046,3 +1046,142 @@ else inside SLO.
 is an owner question, not something to tune away: at fourteen times the design burst, is refusing
 3.6 % a breach or the system working? **Recommendation: measure S5 at the design burst and report
 overload separately as a refusal rate.**
+
+---
+
+## D-02 — the evidence selector, the S5 split, and the self-defect rails (2026-09-14, evening)
+
+### ⛔⛔ The gate was choosing its evidence by FILENAME, and it was wrong in both directions
+
+`check_s2_measured` selected with `glob("*real*.json")` minus anything named `chaos`. Measured
+against `evidence/step3` as it stood, that one expression:
+
+- **admitted `determinism-real-20runs.json`** — no load run in it at all, matched on the word
+  "real" in a filename;
+- **admitted `load-real-a-concurrent30.json`** — the artifact its own report calls VOID. Name says
+  *concurrent30*; content says `rate: 30.0` with no model, i.e. **thirty arrivals per second**,
+  ~50× the derived design burst. Its `p50` of 14,855 ms decided the row;
+- **excluded `load-closedloop-30.json`** — the run that supersedes it at the specified load, because
+  nobody typed "real" into that filename.
+
+⭐ **A filename is a claim somebody typed; an artifact's labels are what the run recorded about
+itself.** A1 found **three** such selectors, not the zero the directive expected: S2, chaos
+(`chaos*real*.json` — `chaos-full.json` is a 13/13 **rig** run, so a rename would have carried that
+row to MET on thirteen stubs) and smoke (`smoke*/INDEX.md` — a finished run in a differently-named
+directory read as NOT MEASURABLE).
+
+### What replaced it
+
+`docs/discord-render/instruments/evidence_contract.py` — **one place** deciding what an artifact IS
+and what it may be used FOR. Four dispositions, never two: **ADMIT · VOID · OUT_OF_SCOPE ·
+INCONCLUSIVE**, so a row can say *"I skipped 1 void and 7 I could not interpret, and judged 1"*
+instead of reporting a clean verdict over a set it never read.
+
+⛔ **Latency and admission are separate purposes and always were.** A run against the mplfinance
+fallback says nothing about how long a member waits and everything about whether the queue refuses
+honestly — a refusal happens at admission, upstream of every renderer.
+
+⛔ **VOID IS RETENTION, NOT DELETION.** `load_harness --mark-void` writes the label into the file and
+reports sha256 before and after (`f14d3859d7f31efa → 173370ac28219fe2`). The 30/s run is still the
+only overload characterisation this programme has.
+
+⛔ **A rejected inference, recorded so it is not re-derived:** *"cache hits + misses == 0 while
+charts were delivered ⇒ the fallback drew them"* is **unsound** — `_cached_render` returns
+`produce()` untouched when `artifact_cache.enabled()` is False, so zero counters are equally
+consistent with the house renderer running with the cache flag off. An unlabelled artifact is
+**UNKNOWN**, and unknown is not fallback.
+
+**The S2 row's verdict did not get greener.** Before: NOT MET off a void artifact's latency. After:
+NOT MET because **S5 96.4 % < 99.5 %** on the one admissible closed-loop run, with **latency
+INCONCLUSIVE** and the reason stated. Same colour, true reason.
+
+Rails: `mutation_harness_flipgate` **62 cases** (was 56), all green; `mutation_harness_contract`
+**6/6 RED for their named case**, controls green both ends, restore sha256-verified, run in a
+throwaway worktree that was deleted afterwards. ⭐ `M6` is the non-vacuity control — it stops
+`select` ever admitting anything and the suite goes red, so the green above it is known to depend on
+artifacts being genuinely admitted rather than on universal exclusion.
+
+### B1 — the three-way split, and the denominator that was hiding
+
+`served_in_slo | served_late | refused_by_admission | failed | unresolved`, **over OFFERS**.
+
+⛔ **The denominator is the finding.** The 30-concurrent run held **360 job rows against 406
+offers**: 46 requests were refused *before a job row existed*, because `status == "user_busy"`
+returns an ephemeral without calling `record_refused`. Those 46 are invisible to `success_rate` in
+**both** directions — a system that refused every member at the door would report **100 % over zero
+jobs**. The receipt must close over offers or it says so.
+
+⛔ **S5's floor and definition are UNTOUCHED.** That ruling is the owner's (B5, below). What changed
+is which artifacts may speak to it and what the failures are broken down into.
+
+### B2/B3 — the loads real traffic supports, derived and never typed
+
+`--burst design | busiest10s | busiest60s` computes the arrival rate from `arrival_census` against
+the real arrivals artifact: **0.600 · 0.200 · 0.0667 per second**, with the derivation carried in
+`meta.burst` so the next reader can re-derive it rather than trust it.
+
+**At the design burst (0.6/s, 301-arrival census, 181 offers): 180 served in SLO, 1 served late,
+ZERO refused, ZERO failed. S5 = 100 %.**
+
+### ⛔ OI-40 — `queue_full` is overloaded, and one of its two meanings is false
+
+A 13-offer shake-out at the design burst recorded **one `queue_full`** while the interactive queue
+held at most **1 of 48** slots and six workers were idle. Thirteen offers cannot fill forty-eight,
+so `q.put_nowait` cannot have raised `queue.Full` — **that row did not come from `offer()`**. The
+other producer (`runtime.py:285`) closes a restart casualty as `queue_full`, telling a member
+*"we're at capacity right now"* about a pod restart. **Not asserted**: the deciding field is
+`outcome`, and that sandbox is gone.
+
+### ⛔ The gauge is blind — D-01's defect found again in a second instrument
+
+The `--real` driver's queue-depth gauge samples on a 0.5 s loop. On the 300-second design-burst run
+it produced **21 samples where ~602 were expected — 3.5 % coverage.** Every "max queue depth"
+figure this programme has published is therefore a floor, not a measurement. The arithmetic
+(13 offers < 48 slots) is what carries OI-40's conclusion, not the gauge.
+
+### Part C — the three self-defects, now rails
+
+| defect | rail | proof |
+|---|---|---|
+| D1 · the evaluation loop sat mid-appends; **15 cases counted, 5 evaluated** | `selfcheck.Cases` **seals** — an `add()` after the results are read RAISES; the totals line prints `declared/evaluated/failed` as three numbers | 6/6 controls, including a late append raising, an early one still working, and an EMPTY set failing |
+| D2 · `peak <= N` satisfied by a gauge blinded to 0 | equality bound **plus** a lower bound on the mean **plus** a broken-variant control | green; and the same disease re-found in the depth gauge (above) |
+| D3 · the first closed loop hot-spun — **521,654 attempts in 20 s**, six acks over 3 s | `--think-time` explicit, recorded, and asserted: a spinning loop is **INCONCLUSIVE**, never FAIL | a spin is caught, a healthy loop at the same concurrency is not (non-vacuity) |
+
+### Part D/E — the constants, and the canary
+
+All four sizing knobs are **UNSET** on `web`, so the code defaults run: **workers 6 · queue depth 48
+· bg 2 · per-member 2 in flight · 12 per 60 s**. Against the derivation (c = 4, depth ≥ 6),
+production already exceeds every axis. ⭐ **The sizing answer is "change nothing", and that is a
+result.**
+
+⛔ **`DISCORD_RENDER_V2_ENABLED` and `DISCORD_RENDER_V2_CHANNELS` are BOTH unset, and an empty scope
+means EVERY CHANNEL.** Enabling today is the member flip, not a canary; the gate already refuses it.
+The packet must state the ORDER: narrow first, verify **in the running process**, then enable.
+
+⚠️ **`FLOW_CMD_CHANNEL_ID` holds the narrower one-id value** while `CHART_FLOW_CHANNEL_ID` holds two.
+`cmd_channel_ids()` reads the two-id one first, so the allowlist is correct today — but blanking it
+would silently narrow `/chart` back to one channel mid-canary, with no error, and the symptom would
+read as a render problem.
+
+### ⛔ B5 — BLOCKED, AWAITING OWNER
+
+The directive's B5 ruling line was **left blank**. As instructed: B1–B4 are implemented and reported,
+B5 is **not decided here**, and no threshold or semantics of S5 has been changed. The question
+standing is *"at fourteen times the design burst, is refusing 3.6 % a breach or the system
+working?"* — and the design-burst measurement above (0 refusals in 181 offers) is the new evidence
+for it.
+
+### ⛔ Three defects in my own work, again
+
+1. **A shell heredoc collapsed `\b` to a literal BACKSPACE** inside a regex, which then matched
+   nothing. **Fourth occurrence of this trap in this programme.** Caught only by a control asserting
+   the pattern matches the real document *and* not an unrelated one. Anything carrying a backslash
+   is written with the editing tools now.
+2. **Substring anchor counting cannot see indentation** — `"    if art.void:"` occurs inside
+   `"        if art.void:"`, so a dry-check reported three matches for a line appearing once. Loud
+   in that direction; silent in the other, where it mutates the wrong branch. Anchors are whole
+   lines now.
+3. **My first non-vacuity control for the split could not fail.** Passing more offers than job rows
+   still closed, because `refused_before_job` is *derived* as offers minus job rows. What genuinely
+   fails to close is a job still in flight — and rounding that into "refused" would report a member
+   who is still waiting as one who was told no.
