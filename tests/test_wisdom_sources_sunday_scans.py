@@ -230,3 +230,58 @@ def test_no_substack_publisher_or_sunday_scan_publish_run_promo_import():
               or any(part in ("publish", "run", "promo") for part in n.split(".") if "sunday_scan" in n)]
     assert banned == []
     assert "api.services.substack_bodies" in names  # control: the scan sees the allowed public reader
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-13 — ADVERSARIAL REVIEW (S-C). R6: a verification verdict is pinned to
+# the bytes it was measured on, or it is a claim about a body nobody checked.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_a_new_version_does_not_inherit_a_verdict_earned_by_different_bytes(env):
+    """⛔ `published_check` used to be the newest verdict for the LINEAGE, whatever body
+    earned it. An owner edit after the Sunday verification then produced a v2 the public
+    API had never been compared against, carrying 'public_api_match' — a verification
+    claim about bytes nobody checked. MUTANT: drop the `raw_sha256` argument from
+    `_latest_check`'s call site and this reds."""
+    post = _post(1, 1757000000)
+    ss.ingest_issue(post)
+    ss.verify_issue(post, fetch_body=lambda url: {"audience": "everyone", "raw": ISSUE_HTML})
+    v1 = _rows("SELECT version, published_check FROM wisdom_sources ORDER BY version")
+    assert v1 == [{"version": 1, "published_check": "public_api_match"}]  # control
+
+    desk_store.save_post_body(1, {"body_raw": ISSUE_HTML + "<p>A LATE EDIT nobody verified</p>",
+                                  "body_html": "<p>x</p>", "display_title": "SUNDAY SCANS"})
+    assert ss.ingest_issue(post)["action"] == "changed"
+    rows = _rows("SELECT version, published_check FROM wisdom_sources ORDER BY version")
+    assert rows[1]["published_check"] == "unchecked"
+    assert rows[0]["published_check"] == "public_api_match"  # v1's verdict is untouched
+
+    # …and re-verifying the NEW body restores the verdict, so this is a pin, not a mute.
+    ss.verify_issue(post, fetch_body=lambda url: {
+        "audience": "everyone", "raw": ISSUE_HTML + "<p>A LATE EDIT nobody verified</p>"})
+    assert _rows("SELECT published_check FROM wisdom_sources WHERE version = 2") == [
+        {"published_check": "public_api_match"}]
+
+
+def test_an_issue_that_parses_to_no_text_never_burns_a_canonical_r2_key(env):
+    """⛔ R7. §8c.1.3 refuses an empty payload — and `put_verified`'s check is on `data`,
+    while every sources caller gzips FIRST, and gzip("") is 20 non-empty bytes. So the
+    guard could not fire here. wisdom R2 has no delete path, so an empty canonical key is
+    permanent. MUTANT: delete the `text.strip()` refusal in `common.put_raw_text`."""
+    from api.services.wisdom.sources import common
+
+    assert len(common.gzip_text("")) > 0          # control: the bytes ARE non-empty
+    post = _post(9, 1757000000, body="<div><span></span></div>")
+    assert ss.parse_issue("<div><span></span></div>")["text"] == ""   # control: reachable
+    with pytest.raises(ValueError, match="EMPTY raw object"):
+        ss.ingest_issue(post)
+    assert not [k for k in env.objects if k.startswith("wisdom/sources/sunday_scans/")]
+    assert _rows("SELECT * FROM wisdom_sources") == []     # nothing half-written either
+
+    # …and the walk records it as an error rather than dying on it.
+    walk = ss.ingest_all()
+    assert walk["written"] == 0 and [str(e["post_id"]) for e in walk["errors"]] == ["9"]
+
+    # control: a real issue on the same path still writes its canonical object
+    ss.ingest_issue(_post(10, 1757100000))
+    assert [k for k in env.objects if k.startswith("wisdom/sources/sunday_scans/")]

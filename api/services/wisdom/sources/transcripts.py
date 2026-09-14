@@ -105,6 +105,18 @@ def _is_team_or_author(name: str) -> bool:
     return bool(authors.author_for_alias(name)) or n in _team_labels()
 
 
+def _is_not_a_guest(name: str) -> bool:
+    """⛔ CONTRACTS §8a.2 / §8b.2 (reviewer R3, 2026-09-13). An AMBIGUOUS label is a
+    label that cannot name one person — the shared Zoom host account
+    ("Uncharted Territory") and the three bare given names. It is not an author, so
+    `author_for_alias` answers None; before this guard `guests_from` therefore read
+    "Workshop with Uncharted Territory" and MINTED `guest:uncharted-territory`, the
+    exact "the resolver invented a person" defect §8b.2 was written about, for the
+    third time in this programme. An ambiguous label is never a guest and never an
+    author: it is `team-unresolved`, resolved per session only with cited evidence."""
+    return _is_team_or_author(name) or authors.is_ambiguous_label(name)
+
+
 def guests_from(title: Optional[str], description: Optional[str] = None) -> list[str]:
     """Guest names from the session title (and @handles in the description).
 
@@ -127,7 +139,7 @@ def guests_from(title: Optional[str], description: Optional[str] = None) -> list
     out, seen = [], set()
     for name in found:
         key = name.casefold()
-        if key in seen or _is_team_or_author(name):
+        if key in seen or _is_not_a_guest(name):
             continue
         if key in {"the", "us", "me", "you", "him", "her", "them", "friends", "q&a"}:
             continue
@@ -165,6 +177,20 @@ def speaker_resolver(guests: list[str]) -> Callable[[Optional[str]], dict]:
     def resolve(label: Optional[str]) -> dict:
         if label is None:
             return {"kind": "unlabeled", "speaker_label": None, "author_id": None, "confidence": "low"}
+        # ⛔⛔ CONTRACTS §8a.2, FIRST — before the alias lookup, before team, before the
+        # guest match. An ambiguous label is the shared host account or a bare given
+        # name: it may be an AUTHOR speaking, so it must not be dropped as an attendee
+        # ("never dropped as an attendee", authors.json), and it may be somebody else,
+        # so it must not become an author or a minted guest either. Both wrong answers
+        # were live before this guard: with the label in the title it resolved to
+        # `guest:uncharted-territory` (an invented person), without it to `attendee`
+        # (the host's own words filed as anonymous). The stored label is the CONSTANT
+        # `team-unresolved`, never the raw text — "Patrick" is also an attendee's name
+        # and an attendee's name is never stored (W1 §0.4e).
+        if authors.is_ambiguous_label(label):
+            return {"kind": "team_unresolved", "speaker_label": authors.TEAM_UNRESOLVED,
+                    "author_id": authors.TEAM_UNRESOLVED, "confidence": "low",
+                    "ambiguous_label": str(label).strip()}
         author_id = None
         if external is not None:
             try:
@@ -238,10 +264,13 @@ def build_segments(cues: list[dict], chapters: list[dict], resolve: Callable) ->
     cur: Optional[dict] = None
     for item in items:
         who = resolve(item["label"])
-        key = (who["kind"], who["author_id"], who["speaker_label"])
+        # The raw ambiguous label separates two unresolved speakers into two windows.
+        # It is a WINDOW KEY only — never stored, never written to the R2 text.
+        key = (who["kind"], who["author_id"], who["speaker_label"], who.get("ambiguous_label"))
         chapter = chapter_at(item["t"])
         spoken = {"author": who["speaker_label"], "team": who["speaker_label"],
-                  "guest": who["speaker_label"], "attendee": "Attendee"}.get(who["kind"])
+                  "guest": who["speaker_label"], "attendee": "Attendee",
+                  "team_unresolved": authors.TEAM_UNRESOLVED}.get(who["kind"])
         line = f"[{_stamp(item['t'])}] " + (f"{spoken}: " if spoken else "") + item["text"]
         if cur is not None and (key != cur["key"] or item["t"] - cur["t_start_s"] >= WINDOW_MAX_S
                                 or cur["chars"] + len(item["text"]) > WINDOW_MAX_CHARS
@@ -272,6 +301,33 @@ def build_segments(cues: list[dict], chapters: list[dict], resolve: Callable) ->
             "text": " ".join(t for t in w["texts"] if t).strip(),
         })
     return segments, "\n".join(lines)
+
+
+def speaker_resolution(cues: list[dict], resolve: Callable) -> Optional[str]:
+    """The §8a.2 evidence log for `wisdom_sources.speaker_resolution_json`, or None.
+
+    ⛔ The column has existed in wisdom-db-v0.sql since the ruling and NOBODY WROTE IT
+    (reviewer R4b). It is what makes "resolved with cited evidence" auditable rather
+    than asserted: one entry per ambiguous label the session actually contains, what it
+    resolved to, and the evidence considered. This build cites NO per-session evidence,
+    so every entry is `team-unresolved` with an empty `evidence` list — which is the
+    honest record, and the thing an attribution-queue reader can act on."""
+    seen: dict[str, int] = {}
+    for item in split_speakers(cues):
+        who = resolve(item["label"])
+        if who["kind"] != "team_unresolved":
+            continue
+        label = who.get("ambiguous_label") or str(item["label"] or "")
+        seen[label] = seen.get(label, 0) + 1
+    if not seen:
+        return None
+    return json.dumps({
+        "rule": "CONTRACTS §8a.2",
+        "labels": [{"label": label, "cues": n, "resolved_to": authors.TEAM_UNRESOLVED,
+                    "evidence": [], "reason": "no per-session evidence is cited by this ingest; "
+                                              "MENTION only, attribution queue"}
+                   for label, n in sorted(seen.items())],
+    }, ensure_ascii=False, sort_keys=True)
 
 
 def _stamp(sec: int) -> str:
@@ -350,13 +406,16 @@ def ingest_video(video_id: int, *, dry_run: bool = False, r2_module=None,
     source_id = common.source_id_for(stream, external_ref, version)
     guests = guests_from(v.get("title"), v.get("description"))
     chapters = (education_service.get_insights(vid) or {}).get("chapters") or []
-    segments, text = build_segments(cues, chapters, speaker_resolver(guests))
+    resolve = speaker_resolver(guests)
+    segments, text = build_segments(cues, chapters, resolve)
+    resolution_json = speaker_resolution(cues, resolve)
     duration = duration_seconds(v.get("duration"))
     coverage = coverage_ratio(cues, duration)
     incomplete = 1 if coverage is not None and coverage < COVERAGE_THRESHOLD else 0
     result = {"id": vid, "action": plan["action"], "stream": stream, "version": version,
               "source_id": source_id, "segments": len(segments), "coverage_ratio": coverage,
-              "incomplete": incomplete, "guests": len(guests)}
+              "incomplete": incomplete, "guests": len(guests),
+              "ambiguous_labels": len(json.loads(resolution_json)["labels"]) if resolution_json else 0}
     if dry_run:
         result["action"] = f"would_{plan['action']}"
         return result
@@ -377,6 +436,7 @@ def ingest_video(video_id: int, *, dry_run: bool = False, r2_module=None,
             "guest_names_json": json.dumps(guests, ensure_ascii=False),
             "raw_r2_key": put["key"], "raw_sha256": raw_sha, "media_pointer": v.get("youtube_id"),
             "coverage_ratio": coverage, "incomplete": incomplete,
+            "speaker_resolution_json": resolution_json,
         })
         result["segments_written"] = common.insert_segments(conn, source_id, version, segments,
                                                             NORMALIZER_VERSION)

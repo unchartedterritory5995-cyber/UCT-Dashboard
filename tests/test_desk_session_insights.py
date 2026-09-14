@@ -365,6 +365,21 @@ _SUMMARY_JSON = json.dumps({
 _VTT = ("WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n"
         "Good morning, let's talk NVDA today.\n")
 
+# ⛔⛔ CONTRACTS §8a.6a + reviewer R2 (2026-09-13). The trash gate refuses a recording
+# whose coverage it CANNOT MEASURE, so a fixture that wants to reach the trash has to
+# carry a real published-MP4 window and a transcript that actually covers it.
+#
+# ⚰️ Why this fixture exists at all: before R2 these tests reached the trash precisely
+# BECAUSE they were unmeasurable — `coverage is None` short-circuited the guard and read
+# as a pass. Five green tests were therefore asserting the very delete §8a.6a forbids,
+# while the new rail beside them
+# (test_expired_wait_with_no_transcript_keeps_a_measurable_recording) asserted the
+# opposite for a measurable one. Both passed; the invariant was split by a `None`.
+_MP4_HOUR = {"file_type": "MP4", "id": "mp4-hour", "file_size": 9,
+             "recording_start": "2026-06-24T13:30:00Z", "recording_end": "2026-06-24T14:30:00Z",
+             "download_url": "http://x/mp4"}
+_VTT_FULL = _VTT + "\n2\n00:59:00.000 --> 00:59:04.000\nThat's the close, see you tomorrow.\n"
+
 
 class _FakeZoom:
     """Stubbed Zoom client: get_recording_files/download_text/delete_recording
@@ -426,10 +441,11 @@ def test_zoom_summary_path_stores_chapters_without_touching_llm_client(edu_db, c
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
         {"file_type": "SUMMARY", "recording_type": "summary_next_steps", "download_url": "http://x/next"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -484,10 +500,11 @@ def test_ticker_moments_disabled_flag_skips_the_call(edu_db, chapters_enabled, m
     v = _seed_session_video()
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -520,10 +537,11 @@ def test_ticker_moments_off_without_backfill_off_still_calls_the_api(
     v = _seed_session_video()
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     si.process_pending_session_insights(zoom=zoom)
 
@@ -564,10 +582,11 @@ def test_tickers_best_effort_failure_does_not_block_chapters(edu_db, chapters_en
     v = _seed_session_video(title="Live Trading Session — June 26, 2026", meeting_uuid="UUID3")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     si.process_pending_session_insights(zoom=zoom)
 
@@ -703,17 +722,25 @@ def test_summary_only_young_video_waits_for_transcript_no_trash(edu_db, chapters
     assert zoom.deleted == []  # recording NOT trashed
 
 
-def test_summary_only_expired_wait_stores_zoom_insights_and_trashes(edu_db, chapters_enabled, monkeypatch):
-    """Same shape (summary chapters, transcript still absent) but the video
-    has exhausted DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS — proceeds exactly as
-    before the fix: store the Zoom-derived insights (transcript absent),
-    trash the recording, mark zoom_cleaned. Better than losing the chapters
-    forever, bounded by the existing backstop."""
+def test_summary_only_expired_wait_stores_zoom_insights_and_keeps_the_recording(
+        edu_db, chapters_enabled, monkeypatch, pages):
+    """Same shape (summary chapters, transcript still absent) with the video past
+    DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS: the Zoom-derived insights are stored, but
+    the recording is KEPT.
+
+    ⚰️ This test used to assert `zoom.deleted == ["UUIDW2"]` and `zoom_cleaned == 1` —
+    a delete of the only copy of a session with NO transcript at all. CONTRACTS §8a.6a
+    (owner, 2026-09-13) replaced the expiry backstop: "deletion is blocked only until
+    store-and-verify succeeds", and an expiry is not a verification. It survived S-C's
+    new guard only because its fixture had no media duration, so coverage came back
+    `None` and the guard short-circuited (reviewer R2). The fixture now carries the
+    published MP4, the guard can measure, and the assertion is the ruling's."""
     monkeypatch.setenv("DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS", "0")  # max_wait=0 -> already expired
 
     v = _seed_session_video(title="Live Trading Session — July 2, 2026", meeting_uuid="UUIDW2")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         # still no transcript file.
     ]}
     zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON})
@@ -730,8 +757,11 @@ def test_summary_only_expired_wait_stores_zoom_insights_and_trashes(edu_db, chap
     ]
     assert row["transcript"] is None
     assert json.loads(row["ticker_moments"]) == []
-    assert zoom.deleted == ["UUIDW2"]
-    assert row["zoom_cleaned"] == 1
+    # ⛔ The ruling's half: insights stored, recording KEPT, owner paged.
+    assert zoom.deleted == []
+    assert not row["zoom_cleaned"]
+    assert any(r.get("id") == v["id"] and r.get("action") == "trash_refused" for r in out)
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
 
 
 def test_videos_missing_ticker_moments_query(edu_db):
@@ -906,10 +936,11 @@ def test_zoom_path_applies_polish_when_enabled(edu_db, chapters_enabled, monkeyp
     v = _seed_session_video(title="Live Trading Session — July 7, 2026", meeting_uuid="UUIDP1")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -939,10 +970,11 @@ def test_zoom_path_polish_rewrites_chapter_titles_when_provided(edu_db, chapters
     v = _seed_session_video(title="Live Trading Session — July 9, 2026", meeting_uuid="UUIDP3")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     si.process_pending_session_insights(zoom=zoom)
 
@@ -963,10 +995,11 @@ def test_zoom_path_polish_failure_keeps_zoom_text(edu_db, chapters_enabled, monk
     v = _seed_session_video(title="Live Trading Session — July 8, 2026", meeting_uuid="UUIDP2")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -1659,3 +1692,122 @@ def test_transcript_coverage_edges():
     assert si.transcript_coverage([{"t": 345, "text": "x"}], None) is None
     assert si.transcript_coverage([{"t": 345, "text": "x"}], 6830) == pytest.approx(345 / 6830)
     assert si.transcript_coverage([{"t": 9999, "text": "x"}], 6830) == 1.0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-13 — ADVERSARIAL REVIEW (S-C). Two ways the trash gate let an
+# unrecoverable delete through, each with a mutant that reds.
+# ═════════════════════════════════════════════════════════════════════════════
+
+_CHAT_FILE = {"file_type": "CHAT", "id": "chat-1", "file_extension": "TXT",
+              "recording_type": "chat_file", "status": "completed", "download_url": "http://x/chat"}
+
+
+def test_the_chat_log_is_archived_and_a_missing_one_refuses_the_trash(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """⛔ R1. §8a.6a.1 names FOUR artifacts; the gate stored three.
+
+    `_is_vtt_file` answers False for a CHAT file, so the chat log was never fetched,
+    never stored, and the recording was deleted anyway — with no Zoom trash recovery,
+    that chat log was gone. MUTANT: drop 'chat' from `archivable_text_files`, or delete
+    the stored-vs-expected count in `archive_recording_to_r2`, and this reds."""
+    rec = _rec_356(extra=[_CHAT_FILE])
+    v = _seed_session_video(title="Workshop", meeting_uuid="UUIDCHAT")
+    texts = dict(_DL_356, **{"http://x/chat": "12:01:02 From A Member : hi"})
+    zoom = _FakeZoom(rec, texts)
+
+    si.process_pending_session_insights(zoom=zoom)
+
+    prefix = f"wisdom/sources/zoom_vtt/{wisdom_ids.sha24('UUIDCHAT')}/"
+    assert f"{prefix}chat-1.chat.txt" in fake_r2.objects, sorted(fake_r2.objects)
+    assert zoom.deleted == ["UUIDCHAT"]  # control: a COMPLETE store still trashes
+
+
+def test_a_chat_log_that_cannot_be_downloaded_keeps_the_recording(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """The other half: an artifact the recording LISTS but we could not store is a
+    reason to keep the copy. 'we did not archive it' and 'there was none' are
+    different facts and only one of them may delete anything."""
+    rec = _rec_356(extra=[_CHAT_FILE])
+    v = _seed_session_video(title="Workshop", meeting_uuid="UUIDCHATBAD")
+    zoom = _FakeZoom(rec, dict(_DL_356, **{"http://x/chat": ""}))  # empty download
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("vtt_archive_failed")
+    assert zoom.deleted == []
+
+
+def test_an_unmeasurable_coverage_refuses_the_trash(edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """⛔ R2. `coverage is None` means WE COULD NOT MEASURE IT — no MP4 window, no Zoom
+    duration, no edu_videos duration. The old gate read that as a pass and deleted the
+    only copy; §8a.6a blocks deletion until store-and-verify SUCCEEDS, and an
+    unverifiable recording has not verified. MUTANT: restore
+    `if coverage is not None and coverage < THRESHOLD` and this reds."""
+    v = _seed_session_video(meeting_uuid="UUIDNODUR")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert si._media_duration_seconds(v["id"], rec) is None  # control: genuinely unmeasurable
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and "not measurable" in refused[0]["reason"]
+    assert zoom.deleted == []
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
+
+
+def test_control_zooms_own_duration_makes_it_measurable_again(edu_db, chapters_enabled, no_llm,
+                                                              fake_r2, pages):
+    """The fallback that keeps R2's refusal from stalling the real pipeline: Zoom's
+    top-level `duration` is MINUTES, and a recording carrying it is measurable."""
+    v = _seed_session_video(meeting_uuid="UUIDMIN")
+    rec = {"duration": 1, "recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    assert si._media_duration_seconds(v["id"], rec) == 60
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON,
+                           "http://x/vtt": _vtt_of((2, "open"), (59, "close"))})
+    si.process_pending_session_insights(zoom=zoom)
+    assert zoom.deleted == ["UUIDMIN"] and pages == []
+
+
+def test_an_unclassified_text_artifact_refuses_the_trash(edu_db, chapters_enabled, no_llm,
+                                                         fake_r2, pages):
+    """⛔ The residual check (replaces a tautological count that survived its own mutant).
+
+    Zoom's poll/Q&A export is a CSV of member answers. This build does not archive it —
+    so the honest answer is to keep the cloud copy and say why, never to delete content
+    we chose not to store. MUTANT: delete the `_TEXT_EXTENSIONS` residual loop in
+    `archive_recording_to_r2` and this reds."""
+    poll = {"file_type": "POLL", "id": "poll-1", "file_extension": "CSV", "status": "completed",
+            "download_url": "http://x/poll"}
+    v = _seed_session_video(title="Workshop", meeting_uuid="UUIDPOLL")
+    zoom = _FakeZoom(_rec_356(extra=[poll]), dict(_DL_356, **{"http://x/poll": "q,a\n1,yes\n"}))
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("vtt_archive_failed")
+    assert "POLL" in refused[0]["reason"]  # it names WHICH artifact, not just "failed"
+    assert zoom.deleted == []
+    # control: the SAME recording minus the poll file is a completed store
+    # (test_multi_transcript_regression_… proves the end-to-end trash on this fixture)
+    ok = si.archive_recording_to_r2("MEET/NOPOLL", _rec_356(), _DL_356.__getitem__)
+    assert len(ok["vtt"]) == 2 and ok["metadata"]
+
+
+def test_an_mp4_can_never_trip_the_residual_check(fake_r2):
+    """Narrowness control: media extensions are not text extensions, so an ordinary
+    recording with video and audio files archives cleanly."""
+    rec = _rec_356(extra=[{"file_type": "M4A", "id": "aud", "file_extension": "M4A",
+                           "status": "completed", "download_url": "http://x/m4a"}])
+    out = si.archive_recording_to_r2("MEET/MEDIA", rec, _DL_356.__getitem__)
+    assert len(out["vtt"]) == 2 and out["chat"] == [] and out["metadata"]

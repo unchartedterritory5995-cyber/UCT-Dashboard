@@ -330,12 +330,25 @@ def _et_from_epoch(value) -> Optional[str]:
         return None
 
 
-def _latest_check(conn, lineage: str) -> str:
+def _latest_check(conn, lineage: str, raw_sha256: Optional[str] = None) -> str:
+    """The public-URL verdict that belongs to THESE bytes, else 'unchecked'.
+
+    ⛔ Reviewer R6, 2026-09-13. `published_check` used to be the newest verdict for the
+    lineage, whatever body earned it. An owner edit after the Sunday verification then
+    produced a v2 the public API had never been compared against, carrying
+    'public_api_match' — a verification claim about bytes nobody checked
+    (lesson_a_comment_claiming_agreement_is_not_agreement). A verdict is pinned to the
+    `stored_sha256` it was measured on; a different sha is 'unchecked' until re-verified."""
     row = conn.execute(
-        "SELECT result FROM wisdom_sunday_scans_checks WHERE lineage_id = ? ORDER BY checked_at DESC LIMIT 1",
+        "SELECT result, stored_sha256 FROM wisdom_sunday_scans_checks WHERE lineage_id = ? "
+        "ORDER BY checked_at DESC LIMIT 1",
         (lineage,),
     ).fetchone()
-    return row["result"] if row else "unchecked"
+    if row is None:
+        return "unchecked"
+    if raw_sha256 is not None and row["stored_sha256"] != raw_sha256:
+        return "unchecked"
+    return row["result"]
 
 
 def ingest_issue(post: dict, *, dry_run: bool = False, r2_module=None) -> dict:
@@ -351,7 +364,7 @@ def ingest_issue(post: dict, *, dry_run: bool = False, r2_module=None) -> dict:
     lineage = common.lineage_id(STREAM, external_ref)
     with store.read() as conn:
         plan = common.plan_version(conn, STREAM, external_ref, raw_sha)
-        check = _latest_check(conn, lineage)
+        check = _latest_check(conn, lineage, raw_sha)
     if plan["action"] in ("unchanged", "reverted"):
         return {"post_id": post["id"], "action": plan["action"]}
     version = plan["version"]

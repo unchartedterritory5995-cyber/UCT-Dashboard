@@ -89,8 +89,11 @@ _SOURCE_COLUMNS = (
     "source_id", "stream", "external_ref", "version", "supersedes_source_id", "home_pointer",
     "published_at_et", "recording_started_at_et", "title", "show", "host_author_id",
     "guest_names_json", "raw_r2_key", "raw_sha256", "media_pointer", "coverage_ratio",
-    "incomplete", "published_check", "ingest_version", "ingested_at",
+    "incomplete", "published_check", "speaker_resolution_json", "ingest_version", "ingested_at",
 )
+# ⛔ `speaker_resolution_json` was in wisdom-db-v0.sql from the §8a.2 ruling and MISSING
+# from this projection, so a caller that set it wrote NOTHING and no error said so
+# (reviewer R4b; lesson_a_projection_drops_what_it_does_not_name).
 
 
 def insert_source(conn: sqlite3.Connection, row: dict) -> bool:
@@ -152,6 +155,17 @@ def put_raw_text(stream: str, external_ref: str, version: int, text: str, *, r2_
     and the next run retries."""
     if r2_module is None:
         from api.services.wisdom.core import r2 as r2_module
+    # ⛔ CONTRACTS §8c.1.3's empty-payload refusal CANNOT FIRE THROUGH THIS FUNCTION
+    # (reviewer R7, 2026-09-13). `core.r2.put_verified` refuses `if not data` — but every
+    # caller here gzips first, and gzip("") is 20 non-empty bytes, so an empty source
+    # would sail past the very guard the S-A ruling added and burn a canonical key that
+    # this module, by design, can never delete or rewrite. The check belongs on the TEXT,
+    # before compression. Reachable today: a Sunday Scans body that is all markup and no
+    # text parses to "" and would be written as the issue's canonical raw object.
+    if not (text or "").strip():
+        raise ValueError(
+            f"refusing to write an EMPTY raw object for {stream}:{external_ref} v{version}; "
+            f"wisdom R2 has no delete path, so an empty canonical key would be permanent")
     key = raw_r2_key(stream, external_ref, version)
     return r2_module.put_immutable(key, gzip_text(text), "application/gzip")
 

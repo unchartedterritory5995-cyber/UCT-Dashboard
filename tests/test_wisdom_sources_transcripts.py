@@ -226,3 +226,72 @@ def test_guests_come_from_the_title_and_never_include_team():
     assert tr.guests_from("BROS Discussing Stocks featuring @Bracco and @CregwithaG") == ["CregwithaG"]
     assert tr.guests_from("Fireside chat: Moonlight and Stocks with Bracco, TSDR and CregwithaG") == ["CregwithaG"]
     assert tr.guests_from("Live Trading Session — June 24, 2026") == []
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-13 — ADVERSARIAL REVIEW (S-C), reviewer checklist item 1:
+# "does the resolver INVENT an entity when a label is unmapped?"  It did. Twice.
+# CONTRACTS §8a.2 + §8b.2 (drift #3/#4 — "the resolver invented a person").
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_an_ambiguous_host_label_is_never_minted_into_a_guest():
+    """⛔ R3. `author_for_alias('Uncharted Territory')` answers None because the label is
+    AMBIGUOUS, so `guests_from` read it out of a title and `speaker_resolver` returned
+    author_id `guest:uncharted-territory` — an entity nobody declared, from a title
+    heuristic. MUTANT: revert `_is_not_a_guest` to `_is_team_or_author` and this reds."""
+    from api.services.wisdom.core import authors as wa
+
+    assert wa.is_ambiguous_label("Uncharted Territory")  # control: it IS the ruled label
+    assert tr.guests_from("Workshop with Uncharted Territory — Sept 11, 2026") == []
+    # control: a REAL guest in the identical title shape is still extracted
+    assert tr.guests_from("Workshop with Stockbee — Sept 11, 2026") == ["Stockbee"]
+
+
+@pytest.mark.parametrize("label", ["Uncharted Territory", "Patrick", "Blake", "Manav"])
+def test_every_ambiguous_label_resolves_to_team_unresolved(label):
+    """⛔ R4. §8a.2: insufficient evidence -> speaker `team-unresolved` (MENTION only),
+    and authors.json says in terms "never dropped as an attendee". Both wrong answers
+    were live: WITH the label in the title it became a minted guest, WITHOUT it an
+    anonymous attendee — so the host's own words were filed as a member's.
+    MUTANT: delete the `is_ambiguous_label` branch in `speaker_resolver.resolve`."""
+    from api.services.wisdom.core import authors as wa
+
+    got = tr.speaker_resolver([label])(label)   # the title-derived case, the worse one
+    assert got["kind"] == "team_unresolved"
+    assert got["author_id"] == wa.TEAM_UNRESOLVED
+    assert got["speaker_label"] == wa.TEAM_UNRESOLVED   # never the raw name: "Patrick" is
+    assert got["author_id"] not in {a["author_id"] for a in wa.authors()}  # also an attendee's
+    # control: an ordinary guest in the same call still resolves as a guest
+    guest = tr.speaker_resolver(["Stockbee"])("Stockbee")
+    assert guest["kind"] == "guest" and guest["author_id"] == "guest:stockbee"
+
+
+def test_an_ambiguous_speaker_never_reaches_a_segment_or_the_r2_text(env):
+    """End to end: the raw ambiguous label must not be stored in any column, and the
+    §8a.2 evidence log must be WRITTEN — `speaker_resolution_json` has existed in
+    wisdom-db-v0.sql since the ruling and nothing wrote it (R4b), partly because
+    `common._SOURCE_COLUMNS` did not name it, so a caller that set it wrote nothing."""
+    import gzip
+    import json as _json
+    from api.services.wisdom.core import authors as wa
+
+    v = _seed(title="Workshop with Uncharted Territory", category="Workshops & Fireside Chats",
+              cues=((5, "Uncharted Territory", "NVDA over 150 is the trigger"),
+                    (3550, "Patrick (TSDR)", "that is the close")), duration="1:00:00")
+    out = tr.ingest_video(v["id"])
+    assert out["action"] == "new" and out["ambiguous_labels"] == 1
+
+    seg = _rows("SELECT * FROM wisdom_segments WHERE source_id = ? ORDER BY ordinal", out["source_id"])
+    assert seg[0]["author_id"] == wa.TEAM_UNRESOLVED
+    assert seg[0]["speaker_label"] == wa.TEAM_UNRESOLVED
+    assert seg[1]["author_id"] == "tsdr"                      # control: the real author still resolves
+
+    src = _rows("SELECT * FROM wisdom_sources WHERE source_id = ?", out["source_id"])[0]
+    logged = _json.loads(src["speaker_resolution_json"])
+    assert [e["label"] for e in logged["labels"]] == ["Uncharted Territory"]
+    assert logged["labels"][0]["resolved_to"] == wa.TEAM_UNRESOLVED
+    assert logged["labels"][0]["evidence"] == []              # no evidence cited, and it says so
+
+    raw = gzip.decompress(env.objects[src["raw_r2_key"]][0]).decode("utf-8")
+    assert "guest:" not in raw
+    assert "NVDA over 150" in raw                             # control: the words are kept

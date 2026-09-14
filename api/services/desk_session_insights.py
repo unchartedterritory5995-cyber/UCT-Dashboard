@@ -947,10 +947,15 @@ def _duration_text_seconds(value) -> "int | None":
 
 
 def _media_duration_seconds(vid: int, rec: dict | None) -> "int | None":
-    """The published MP4's own window first; edu_videos.duration as the fallback."""
+    """The published MP4's own window first, then Zoom's own `duration` (MINUTES) on the
+    recording, then edu_videos.duration. None means NOT MEASURABLE — and per §8a.6a that
+    blocks the trash (see _trash_gate), so every fallback here is worth having."""
     win = _file_window(select_largest_mp4((rec or {}).get("recording_files")))
     if win:
         return int(round(win[1] - win[0]))
+    minutes = (rec or {}).get("duration")
+    if isinstance(minutes, (int, float)) and minutes > 0:
+        return int(round(float(minutes) * 60))
     try:
         return _duration_text_seconds((education_service.get_video(int(vid)) or {}).get("duration"))
     except Exception:
@@ -969,6 +974,46 @@ def _is_vtt_file(f: dict) -> bool:
         ft in _VTT_FILE_TYPES or rt in ("audio_transcript", "closed_caption") or ext == "VTT")
 
 
+# ⛔⛔ CONTRACTS §8a.6a.1 and the S-C Definition of Done both name FOUR artifacts that
+# must be in R2 before a Zoom cloud recording is trashed: "every TRANSCRIPT VTT ... the
+# audio transcript text ... THE CHAT LOG ... the recording metadata JSON". Reviewer R1
+# (2026-09-13) measured only three: `_is_vtt_file` answers False for a CHAT file
+# (file_type CHAT, extension TXT), so the chat log was never fetched, never stored, and
+# the recording was deleted anyway — a Zoom delete has no trash recovery, so that chat
+# log was gone. The gate below now REFUSES the trash unless every text artifact the
+# recording lists is archived; "we did not archive it" and "there was none" are
+# different facts and only one of them may delete anything.
+_CHAT_FILE_TYPES = ("CHAT",)
+#: Extensions that mean "this download is TEXT somebody wrote". Deliberately narrow —
+#: MP4/M4A can never match, so the residual check in archive_recording_to_r2 cannot fire
+#: on ordinary media. CSV is here for Zoom's poll/Q&A exports: they are member content
+#: this build does not archive, and the right answer to content we will not store is to
+#: refuse the irreversible delete, not to delete it quietly.
+_TEXT_EXTENSIONS = ("TXT", "VTT", "CSV")
+
+
+def _is_chat_file(f: dict) -> bool:
+    ft = (f.get("file_type") or "").upper()
+    rt = (f.get("recording_type") or "").lower()
+    return bool(f.get("download_url")) and (ft in _CHAT_FILE_TYPES or rt in ("chat_file", "chat"))
+
+
+def archivable_text_files(recording_json: dict) -> list[tuple[str, dict]]:
+    """[(category, recording_file)] for every text artifact §8a.6a.1 requires stored.
+
+    category is 'vtt' (TRANSCRIPT / CC / audio_transcript — the VTT and the audio
+    transcript text are the same Zoom artifact) or 'chat' (the chat log)."""
+    out: list[tuple[str, dict]] = []
+    for f in (recording_json or {}).get("recording_files") or []:
+        if not isinstance(f, dict):
+            continue
+        if _is_vtt_file(f):
+            out.append(("vtt", f))
+        elif _is_chat_file(f):
+            out.append(("chat", f))
+    return out
+
+
 def _redact(value):
     if isinstance(value, dict):
         return {k: _redact(v) for k, v in value.items()
@@ -982,31 +1027,52 @@ def _safe_key_part(value) -> str:
     return re.sub(r"[^A-Za-z0-9_=-]", "_", str(value or ""))[:128] or "file"
 
 
+_ARCHIVE_SUFFIX = {"vtt": (".vtt", "text/vtt"), "chat": (".chat.txt", "text/plain; charset=utf-8")}
+
+
 def archive_recording_to_r2(meeting_uuid: str, recording_json: dict, fetch_text) -> dict:
-    """Every raw VTT + the (secret-redacted) recording metadata JSON, immutably, under
-    wisdom/sources/zoom_vtt/<sha24(meeting_uuid)>/. Raises on any failure — the
-    caller then keeps the Zoom copy. A VTT whose key already holds DIFFERENT bytes
-    (Zoom regenerated it) is kept beside the first under a content-suffixed key,
-    never overwritten."""
+    """Every raw VTT, the chat log, and the (secret-redacted) recording metadata JSON,
+    immutably, under wisdom/sources/zoom_vtt/<sha24(meeting_uuid)>/. Raises on any
+    failure — the caller then keeps the Zoom copy. A file whose key already holds
+    DIFFERENT bytes (Zoom regenerated it) is kept beside the first under a
+    content-suffixed key, never overwritten."""
     # Wisdom's immutable R2 writer (CONTRACTS.md §6.3), imported lazily so this
     # Desk module pays nothing for it unless a trash is actually about to happen.
     from api.services.wisdom.core import ids as wisdom_ids, r2 as wisdom_r2
 
     prefix = f"wisdom/sources/zoom_vtt/{wisdom_ids.sha24(meeting_uuid)}/"
-    out = {"prefix": prefix, "vtt": [], "metadata": None}
-    for f in (recording_json or {}).get("recording_files") or []:
-        if not _is_vtt_file(f):
-            continue
+    out = {"prefix": prefix, "vtt": [], "chat": [], "metadata": None}
+    for category, f in archivable_text_files(recording_json):
+        suffix, content_type = _ARCHIVE_SUFFIX[category]
         data = (fetch_text(f["download_url"]) or "").encode("utf-8")
         if not data.strip():
-            raise ValueError(f"empty VTT download for recording file {f.get('id')}")
+            raise ValueError(f"empty {category} download for recording file {f.get('id')}")
         fid = _safe_key_part(f.get("id") or wisdom_ids.sha24(f["download_url"]))
         try:
-            res = wisdom_r2.put_immutable(f"{prefix}{fid}.vtt", data, "text/vtt")
+            res = wisdom_r2.put_immutable(f"{prefix}{fid}{suffix}", data, content_type)
         except wisdom_r2.R2ImmutableConflict:
             res = wisdom_r2.put_immutable(
-                f"{prefix}{fid}-{wisdom_ids.sha256_bytes(data)[:16]}.vtt", data, "text/vtt")
-        out["vtt"].append({"key": res["key"], "bytes": res["bytes"], "created": res["created"]})
+                f"{prefix}{fid}-{wisdom_ids.sha256_bytes(data)[:16]}{suffix}", data, content_type)
+        out[category].append({"key": res["key"], "bytes": res["bytes"], "created": res["created"]})
+    # ⛔ RESIDUAL CHECK — the one thing here that can actually fire.
+    # ⚰️ What stood here was `len(archived) != len(archivable_text_files(...))`, and it was
+    # TAUTOLOGICAL: the loop above appends exactly one object per entry that function
+    # returns, so the two counts are equal by construction. Deleting its raise left the
+    # whole desk suite green (104 passed) — a guard nobody can make fire is not a guard.
+    # The invariant that matters is a DIFFERENT sentence: a text-shaped artifact this
+    # recording lists and `archivable_text_files` does not classify means we do not know
+    # whether trashing loses it, and §8a.6a says the copy stays until a store SUCCEEDS.
+    # Fails safe (the recording is kept, the caller reports why) and fires the day Zoom
+    # adds a file type, instead of skipping it silently.
+    classified = {id(f) for _c, f in archivable_text_files(recording_json)}
+    for f in (recording_json or {}).get("recording_files") or []:
+        if not isinstance(f, dict) or id(f) in classified or not f.get("download_url"):
+            continue
+        if (f.get("file_extension") or "").upper() in _TEXT_EXTENSIONS:
+            raise ValueError(
+                f"unclassified text artifact {f.get('file_type')!r}/"
+                f"{f.get('file_extension')!r} (id {f.get('id')}) — refusing to call this a "
+                f"completed store for {meeting_uuid}")
     meta = json.dumps(_redact(recording_json or {}), sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False).encode("utf-8")
     res = wisdom_r2.put_immutable(f"{prefix}recording-{wisdom_ids.sha256_bytes(meta)[:16]}.json",
@@ -1033,12 +1099,16 @@ def _emit_coverage_alert(vid: int, title: str, coverage: float, duration_s: int)
     _COVERAGE_ALERTED.add(vid)
     try:
         from api.services import chart_health_alerts
+        measured = (f"covers {coverage:.1%} of {duration_s}s (< {COVERAGE_THRESHOLD:.0%})"
+                    if coverage is not None else
+                    "could NOT BE MEASURED: the recording carries no media duration")
         chart_health_alerts.emit(
             f"desk_transcript_coverage:{vid}", "critical",
             (f"Zoom recording KEPT for video #{vid} ({title or 'untitled'}): the stored transcript "
-             f"covers {coverage:.1%} of {duration_s}s (< {COVERAGE_THRESHOLD:.0%}). Repair it "
+             f"{measured}. Repair it "
              f"(tools/wisdom/sources_zoom_transcript_repair.py) before the recording is trashed."),
-            {"video_id": vid, "coverage": round(coverage, 4), "duration_s": duration_s},
+            {"video_id": vid, "coverage": round(coverage, 4) if coverage is not None else None,
+             "duration_s": duration_s},
         )
     except Exception:
         pass
@@ -1051,7 +1121,17 @@ def _trash_gate(v: dict, uuid: str, rec: dict, fetch_text, results: list[dict]) 
     if not _coverage_guard_disabled():
         duration = _media_duration_seconds(vid, rec)
         coverage = transcript_coverage(education_service.get_transcript_cues(vid), duration)
-        if coverage is not None and coverage < COVERAGE_THRESHOLD:
+        if coverage is None:
+            # ⛔⛔ Reviewer R2, 2026-09-13. `coverage is None` means "we could not
+            # measure it" — no MP4 window, no Zoom duration, no edu_videos duration.
+            # The old gate read that as a PASS and deleted the only copy. §8a.6a says
+            # deletion is blocked UNTIL store-and-verify SUCCEEDS; an unverifiable
+            # recording has not verified. "A layer that could not be READ is not a
+            # layer that is EMPTY" — the recording stays, the owner is paged, and
+            # nothing irreversible happens on a measurement we never took.
+            _emit_coverage_alert(vid, v.get("title") or "", None, None)
+            return False, "coverage is not measurable (no media duration)"
+        if coverage < COVERAGE_THRESHOLD:
             # The recovery trap: a video with chapters and a truncated transcript
             # used to go straight to the trash. Try the paired transcript first.
             plan = plan_transcript_for_mp4(rec)
@@ -1076,6 +1156,38 @@ def _trash_gate(v: dict, uuid: str, rec: dict, fetch_text, results: list[dict]) 
         except Exception as ae:
             print(f"[session-insights] VTT archive failed for video {vid}; recording kept: {ae}")
             return False, f"vtt_archive_failed: {type(ae).__name__}: {str(ae)[:200]}"
+    return True, "ok"
+
+
+def archive_before_trash(zoom, meeting_uuid: str) -> "tuple[bool, str]":
+    """THE gate for a delete that is NOT the insights pass (reviewer R5, 2026-09-13).
+
+    ⛔⛔ `desk_daily_session.process_pending_jobs` deletes the Zoom cloud recording the
+    moment the YouTube upload confirms, whenever `is_enabled()` is False — and
+    `is_enabled()` reads DESK_SESSION_CHAPTERS_ENABLED, which DEFAULTS OFF. So on a pod
+    without that variable the whole §8a.6a store-and-verify guard was unreachable: no
+    transcript, no VTT, no chat log, no metadata, `except Exception: pass` around the
+    delete, and `tests/test_desk_daily_session.py::test_process_pending_publishes_and_cleans`
+    asserting `z.deleted == ["U1"]` — a green test holding the defect in place.
+
+    Coverage cannot be checked at that moment (the transcript may not exist yet), so the
+    protection that CAN be given is the archive: every VTT, the chat log and the metadata
+    JSON into immutable R2 first. Anything that fails means the recording is KEPT — Zoom
+    storage is recoverable, a Zoom delete is not.
+
+    Returns (ok_to_delete, reason). Never raises."""
+    if _vtt_archive_disabled():
+        return True, "archive disabled"
+    try:
+        rec = zoom.get_recording_files(meeting_uuid)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"recording lookup failed: {type(exc).__name__}: {str(exc)[:200]}"
+    if rec is None:
+        return True, "recording already gone"
+    try:
+        archive_recording_to_r2(meeting_uuid, rec, _text_fetcher(zoom))
+    except Exception as exc:  # noqa: BLE001
+        return False, f"vtt_archive_failed: {type(exc).__name__}: {str(exc)[:200]}"
     return True, "ok"
 
 
