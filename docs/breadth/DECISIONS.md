@@ -573,7 +573,7 @@ make `get_history_deep` cheap for a cold deep span. That choice is the owner's a
 
 ---
 
-## D-043 — the reader is its own programme; `/series` is span-capped until it lands (2026-09-14)
+### D-043 — the reader is its own programme; `/series` is span-capped until it lands (2026-09-14)
 
 **Owner ruling.** D-042 left the choice open between three ways of closing the ~55 s cold deep read. The ruling splits
 it in two: the reader gets its **own programme** (it is a backend correctness/performance problem, not a Data Charts
@@ -606,7 +606,7 @@ find the constant before they find this file.
 
 ---
 
-## D-044 — `json_remove()` in SQL is a MEASURED ANTI-PATTERN, not a fix (2026-09-14)
+### D-044 — `json_remove()` in SQL is a MEASURED ANTI-PATTERN, not a fix (2026-09-14)
 
 **Recorded by owner ruling so nobody adopts it on plausibility.** It is the option that
 looks cheapest, needs no migration, and is the only one of the three candidates that makes
@@ -637,13 +637,13 @@ they are the only consumer that wants the lists.
 
 ---
 
-## D-045 — the numeric store and the materialised reconstructed side (2026-09-14)
+### D-045 — the numeric store and the materialised reconstructed side (2026-09-14)
 
 **This is the record D-044 points at.** D-044 ruled the shape; this is what was built,
 which commits carry it, and what it measured. Every commit hash below was verified with
 `git log -1 --format=%s` before it was written down.
 
-### What was built
+#### What was built
 
 | # | commit | what it added |
 |---|---|---|
@@ -668,7 +668,7 @@ Monitor column rather than as an error.
 exist for one date, the **collector row wins**. That is why they are two tables: one
 date-keyed table would have let whichever wrote last decide.
 
-### The migration discipline
+#### The migration discipline
 
 `api/services/breadth_numeric_migration.py` — `backfill()`, `backfill_reconstructed()`,
 `audit()`, `audit_reconstructed()`, `_fingerprint()`, `_recon_fingerprint()`,
@@ -682,7 +682,7 @@ fingerprint covered dates the collector was writing while the backfill ran, so i
 output could not match by construction. The fix narrowed the fingerprint to exclude
 concurrently-written dates — **not** loosening the check.
 
-### What it measured
+#### What it measured
 
 Bands, because a single number from one box is not a result. Local, against `VACUUM INTO`
 copies of the production databases.
@@ -699,7 +699,7 @@ of which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every his
 parsed and immediately deleted. Every numeric key the Monitor grid shows — ~70 of them
 across all 174 rows — totals **0.25 MB**.
 
-### Production, after
+#### Production, after
 
 `/api/breadth-monitor?days≈7900`, n=20, settled window (uptime 708→1,629 s, monotonic, no
 restart), every sample a forced cache miss on a distinct key, all 200:
@@ -717,9 +717,61 @@ the single uvicorn process is: the same read measured 224 ms settled and 17,480 
 minutes after boot. The store removed the work; settling removed the queue. Both were
 needed and only the first is in this decision.
 
-### What is still open
+#### What is still open
 
 `post_reader_ms` now exceeds `reader_ms` in **17 of 20** settled samples (median ratio
 2.09). Session 6's per-phase instrument names the dominant post-reader phase as
 `encode_render`, of which `jsonable_encoder` is the largest part — see
 `docs/breadth-history-reader/00-profile.md`, Session 6.
+
+---
+
+### D-046 · The `/series` span cap stays at 365 — the closing entry on the cap question (2026-09-14)
+
+**Owner decision, on the n=20 settled-window measurement.** D-043 capped `/series` at 365
+stored sessions (`BREADTH_SERIES_MAX_SESSIONS`) *"until the reader lands"*. The reader has
+landed (D-045). This is the entry that closes the question, and the answer is **no change**.
+
+#### The measurement the decision rests on
+
+`/api/breadth-monitor?days≈7900`, production, **n=20**, settled window (uptime 708→1,629 s,
+**monotonic — no restart**), every sample a forced cache miss on a **distinct** `days=` key,
+all `status=200`, `decoded_bytes` 681,973–681,975, logs streamed live to
+`logs/session6-sample.log` throughout.
+
+| deep, n=20 | min | p50 | p90 | **p95** | max | sd |
+|---|---|---|---|---|---|---|
+| client wall | 796.2 | **980.8** | 1,560.2 | **1,749.7** | 1,897.7 | 316.7 |
+| server `total_ms` | 526.9 | 696.3 | 1,224.5 | 1,429.0 | 1,496.4 | 281.2 |
+| `reader_ms` | 144.2 | 209.7 | 631.8 | 998.8 | 1,000.4 | 258.2 |
+| `post_reader_ms` | 377.6 | 433.0 | 549.1 | 581.5 | 742.1 | 89.4 |
+
+⭐ **p95 is estimable at this n, which is the whole reason the sample was run.** The exact
+binomial order-statistic interval places the true p95 between order statistics 18 and 20:
+**95 % CI [1,540.0 ms, 1,897.7 ms]** — bounded by real observations on *both* sides. At the
+n=6 of the previous attempt the empirical p95 *was* the maximum by construction, so quoting
+it would have been quoting the max with a statistic's name on it.
+
+#### Why the cap stays, in order of weight
+
+1. ⭐ **A lift exposes nothing anyone can request.** The UI's largest `days=` is **365**:
+   `Breadth.jsx:657` sends `MONITOR_WINDOW = 90` or one of `VIEWS_DAY_CHOICES = [90, 180,
+   365]`, and the Time Navigator (`useMonitorGrid.js:98`) sends `days=${stored.length}`
+   where `stored` is a slice of `BLOCK = 150`. Raising the cap to 1,000 changes what **no
+   member can ask for**. The deep path is reached by an `end=` teleport, not by a large span.
+2. **It would cost a master push for zero member-visible difference**, and a master push is
+   the scarce, serialising resource in this repo.
+3. ⛔ **The number that would justify a lift is not the number that improved.** The reader is
+   now cheap; the remaining cost has moved to `encode_render`, which grows linearly in rows.
+   Lifting the cap before the encoder is addressed raises the ceiling on the half that did
+   **not** get fixed.
+
+#### What would reopen it
+
+A member-facing feature that actually requests more than 365 sessions. Until one exists the
+cap is not a constraint anyone is hitting, and D-043's *"until the reader lands"* condition
+is satisfied without a change.
+
+⚠️ **Not a ratio.** Against D-042's 54,923 ms this is ~56x at the median and ~31x at p95,
+**reported as a band comparison**: D-042 is **n=1**, on a different pod state. The honest
+statement is that the two bands do not overlap — 54,923 ms against 796–1,898 ms.
