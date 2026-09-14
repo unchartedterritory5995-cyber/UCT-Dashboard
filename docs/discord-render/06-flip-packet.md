@@ -34,22 +34,28 @@ the command is right and this section is what drifted.
 *do* about them differs — one is a defect to fix, the other is evidence to go and get — but neither
 is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 
-### Reading as of 2026-09-14 04:20 ET — **organic members exposed to V2: 0**
+### Reading as of 2026-09-14 13:45 ET — **organic members exposed to V2: 0**
 
-| Precondition | State | Evidence |
+| Precondition | State | Evidence — the file or command that settles it |
 |---|---|---|
-| zero xfails in the forensics suite | ✅ MET | 0 xfail decorators in `tests/test_discord_render_forensics.py` |
-| every forensics class closed with a commit | 🔴 NOT MET | 11/14; open: **C-02**, **C-09**, **C-13** |
-| the artifact cache is wired to the hot path | 🔴 NOT MET | `artifact_cache` has no importer on the hot path — 2.5 is built and unconnected |
-| soak clean for ≥ 24 h | ⚪ NOT MEASURABLE | 27 clean ticks; 90 needed |
-| `/chart` is shadowed (structural) | ✅ MET | `tests/test_discord_render_shadow_reaches_chart.py` drives the real route with a real Ed25519 signature |
-| **S2** measured in `--real` mode and within SLO | ⚪ NOT MEASURABLE | no `--real` run exists |
-| chaos passed in `--real` mode | ⚪ NOT MEASURABLE | rig stubs are not evidence for renderer_down, bars_api_502, discord_429, oversized_attachment, mid_job_restart |
-| 3.5 real-Discord smoke | ⚪ NOT MEASURABLE | no screenshots |
-| `#render-alerts` locked to admins | ⚪ NOT MEASURABLE | the bot cannot see the channel (403/50001) — owner-hand, not a product gap |
-| mutation NOT-APPLIED = 0 | ⚪ NOT MEASURABLE | pass `--run-mutations`, or read the merge row |
+| zero xfails in the forensics suite | ✅ MET | `tests/test_discord_render_forensics.py` — 0 `@pytest.mark.xfail` decorators; C-04/C-06/C-07 all closed this cycle |
+| every forensics class closed with a commit | 🔴 **NOT MET** | `01-failure-forensics.md` class table: 11/14 marked ✅. Open: **C-02** (the load half needs `--real`), **C-09** (the warm cycle still blows its 20 s budget — observed live during RTH today), **C-13** (OI-13 token rotation is the owner's) |
+| the artifact cache is wired to the hot path | ✅ MET | `adapters/bindings.py::_cached_render` · `tests/test_discord_render_cache_wiring.py` (11 cases) · bench `evidence/step3/cache-bench-off-vs-on.txt` — 80 % hit rate, 100 renders → 20 |
+| soak clean for ≥ 24 h | ⚪ NOT MEASURABLE | `C:\Users\Patrick\uct-render-soak\soak.log` — 51 clean ticks of the 90 a 24 h window needs. ⛔ A clean short run is not a clean run: a soak asks whether anything GROWS |
+| `/chart` is shadowed (structural) | ✅ MET | `tests/test_discord_render_shadow_reaches_chart.py` — the real route, a real Ed25519 signature, parametrised over chart AND flow; 2 mutations red |
+| **S2** measured in `--real` mode and within SLO | ⚪ **NOT MEASURABLE** | **No `--real` run exists.** Every load figure so far is ACK-PATH ONLY — `--symbols stub`, zero-cost handler, no chart rendered, no PATCH sent. `load_harness --real` is built and self-checked (17 cases); it runs after 16:00 ET |
+| chaos passed in `--real` mode | ⚪ NOT MEASURABLE | `evidence/step3/chaos-full.json` is 13/13 against rig stubs, which is not evidence for renderer_down, bars_api_502, discord_429, oversized_attachment or mid_job_restart |
+| 3.5 real-Discord smoke | ⚪ NOT MEASURABLE | `evidence/smoke-script.md` is written; **no channel exists that is both bot-postable and not Contributor-visible** — measured across every text channel the token can enumerate |
+| `#render-alerts` locked to admins | 🔴 **NOT MET** | `render_alerts_access_probe.py` → `RENDER_ALERTS_ACL CONTRIBUTOR_ALLOWED`. `Contributor` is the channel's **only** view-allow overwrite. The bot cannot fix it: no `MANAGE_CHANNELS` **and** no membership |
+| mutation NOT-APPLIED = 0 | ✅ MET | `tests/test_mutation_harness_anchors.py` in the gate — `--dry-check` on every harness, `stale=0` read from the totals line; 38/38 and 75/75 anchors live |
 
-**VERDICT: NOT MET — do not flip.**
+**VERDICT: NOT MET — do not flip.** Three rows NOT MET, four NOT MEASURABLE.
+
+⛔ **The single owner action that moves the most rows:** grant the bot's role
+(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**. That lets
+`discord_channel_admin.py --create-smoke` build `#render-smoke` with the bot inside it, which
+unblocks 3.5 **and** the `--real` delivery hop in one go. ⚠️ It does **not** fix `#render-alerts` —
+50001 there is *membership*, and the bot has no overwrite on that channel.
 
 ### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
 
