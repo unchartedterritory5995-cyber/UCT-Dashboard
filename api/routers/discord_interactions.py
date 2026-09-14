@@ -315,6 +315,28 @@ def _channel_nudge() -> dict:
 
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
+    """The member's reply is produced by `_dispatch_interaction` and returned UNCHANGED.
+
+    ⛔⛔ THE SHADOW RUNS AFTER THE REPLY AND OFF THE LOOP (P2.10). With `RENDER_V2_SHADOW`
+    unset — which is every environment until the owner sets it — `shadow.enabled()` is
+    False and this wrapper is one comparison. With it set, the shadow is handed to a
+    thread AFTER the response object exists, so it cannot delay, alter, or fail the
+    member's reply: measuring the cost of measuring is the one thing a shadow must not do
+    on a pod with one event loop (C-02)."""
+    reply = await _dispatch_interaction(request, background)
+    try:
+        from api.services.discord_render import shadow as _shadow
+        seen = getattr(request.state, "drender_interaction", None)
+        if seen is not None and _shadow.enabled():
+            from api.services.discord_render.commands import _io_pool as _shadow_pool
+            _shadow_pool.submit(_shadow.run_safely, seen,
+                                reply if isinstance(reply, dict) else None)
+    except Exception:  # noqa: BLE001 — a shadow that can break the request it shadows is worse than none
+        pass
+    return reply
+
+
+async def _dispatch_interaction(request: Request, background: BackgroundTasks):
     import time as _time
     received = _time.perf_counter()        # the V2 ack SLO (S1) is measured from here
     key = _public_key()
@@ -331,6 +353,9 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         return JSONResponse(status_code=400, content={"error": "malformed body"})
     if not isinstance(interaction, dict):
         return JSONResponse(status_code=400, content={"error": "malformed body"})
+    # The parsed interaction, for the shadow wrapper above — the body is already consumed
+    # by the time it runs, and re-reading a Request body is not possible.
+    request.state.drender_interaction = interaction
 
     itype = interaction.get("type")
     if itype == 1:
