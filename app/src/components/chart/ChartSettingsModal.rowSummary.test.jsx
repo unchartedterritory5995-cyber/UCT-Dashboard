@@ -59,9 +59,15 @@ function withSeries(cs, symbol) {
 
 function withMA(cs, symbol) {
   prime(symbol)
-  let next = addInstance(cs, 'movingAverage', registry)
-  const id = next.indicatorInstances[next.indicatorInstances.length - 1].instanceId
-  next = setInstanceInput(next, id, 'source', symbolSource(symbol, 'close'), registry)
+  const added = addInstance(cs, 'movingAverage', registry)
+  // ⚰️ `lastCreatedInstance`, NEVER `list[length - 1]`. `addInstance` inserts in
+  // SHIPPED STACK ORDER, so the new instance is not necessarily last — taking the
+  // tail silently handed back a DIFFERENT instance and the source was written to
+  // the wrong series, which read as "the summary dropped its Source" rather than
+  // as a broken fixture. It is the same trap `discoveryCatalog` documents by set
+  // difference: predicting the slot is predicting the id wearing another hat.
+  const id = lastCreatedInstance(cs, added).instanceId
+  const next = setInstanceInput(added, id, 'source', symbolSource(symbol, 'close'), registry)
   return { cs: next, id }
 }
 

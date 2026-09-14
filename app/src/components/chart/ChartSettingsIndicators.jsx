@@ -71,7 +71,7 @@ import { anyCachedBars } from './engine/secondaryBars'
 import { symbolFamily } from '../../hooks/useBreadthSymbols'
 import { resolveDisplayTarget, displayTargetOptions } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
-import { setInstancePlotStyle } from './engine/instanceControls'
+import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -589,6 +589,7 @@ export default function ChartSettingsIndicators({
                 </div>
               )
             })}
+            {displayInControl(row)}
             {styleControl(row)}
             {/* ⭐ REMOVE LIVES HERE, ONE LEVEL IN (§14). A trash icon on a dense
                 collapsed list is one mis-click from deleting a configured
@@ -681,6 +682,73 @@ export default function ChartSettingsIndicators({
     }
     return parts.length ? parts.join(' · ') : null
   }, [settings, registry])
+
+  /**
+   * The DISPLAY-IN control — WHERE this instance draws.
+   *
+   * ⭐⭐ THE SAME STATE THE COLLAPSED SUMMARY REPORTS, seen from the other side.
+   * `placementSummary` reads `resolveDisplayTarget` + `displayTargetOptions`;
+   * this writes through `setInstanceDisplayTarget` and offers exactly what that
+   * same `displayTargetOptions` returns. Two views of one value — there is no
+   * summary-specific state and no editor-specific target vocabulary, so the two
+   * cannot disagree about where a series is.
+   *
+   * ⛔ EVERY VALIDATION IS THE HELPER'S, NOT THIS FILE'S. It already refuses the
+   * instance ITSELF (a series that named its own pane would be its own guest and
+   * would vanish), skips tombstones, and offers only pane OWNERS — which is what
+   * makes a placement cycle unconstructible through this menu. Re-checking any of
+   * that here would be a second rule to keep in step.
+   *
+   * ⛔⛔ AND AN ORPHANED TARGET IS SHOWN, DISABLED — NEVER SILENTLY HEALED. When
+   * the pane a series was sent to is deleted, the member's placement is PRESERVED
+   * (a render must not mutate saved state), so the helper lists it first flagged
+   * `missing` and this renders it as the selected, un-pickable current state. A
+   * control that quietly displayed "Own pane" would tell the member their line is
+   * fine while it draws nothing, and picking the value already shown would be a
+   * no-op — which is exactly how the original defect hid.
+   */
+  const displayInControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const inst = findInstance(settings, row.instanceId)
+    if (!inst) return null
+    const defOf = (id) => registry?.getDefinition?.(id) || null
+    // ⛔ THE SAME EMPTY-MEANS-NOTHING-TO-SAY TEST THE SUMMARY USES. A definition
+    // with one place to draw gets no control, derived rather than hard-coded, so
+    // the legacy overlays and the volume pane gain nothing from this phase.
+    const options = displayTargetOptions(inst, settings, defOf)
+    if (!options.length) return null
+
+    const where = resolveDisplayTarget(inst, settings)
+    const current = options.some((o) => o.value === where) ? where : ''
+
+    return (
+      <div className={styles.indRow} key="display-in">
+        <span className={styles.indLabel}>Display in</span>
+        <select
+          className={styles.indSelect}
+          value={current}
+          aria-label={`${row.label} display in`}
+          onChange={(e) => {
+            const next = setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry)
+            // ⛔ REFUSED BY IDENTITY. The writer returns the SAME object when it
+            // will not act, so this is how a rejected write stays a no-op instead
+            // of marking the settings dirty.
+            if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+          }}
+        >
+          {options.map((o) => (
+            <option
+              key={o.value}
+              value={o.value}
+              disabled={o.missing === true}
+            >
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    )
+  }, [settings, registry, onChange])
 
   /**
    * The PLOT STYLE control — how this output draws, as opposed to what it reads.
