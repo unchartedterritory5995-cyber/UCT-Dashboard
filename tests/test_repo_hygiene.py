@@ -68,6 +68,66 @@ def test_a_scan_that_succeeds_but_finds_almost_nothing_also_refuses(tmp_path):
     assert rc == 2 and "REFUSING TO PASS" in msg and "expected >=" in msg
 
 
+# ── line endings: they must match the blob git already stores (owner ruling R-2) ──────────────
+
+LF = b"a\nb\nc\n"
+CRLF = b"a\r\nb\r\nc\r\n"
+MIXED = b"a\r\nb\nc\r\n"          # the real shape of docs/plans/joystick/deferred.md
+
+
+@pytest.mark.parametrize("stored,incoming,why", [
+    (LF, CRLF, "an LF blob rewritten CRLF"),
+    (CRLF, LF, "a CRLF blob flattened to LF — the direction that bit twice"),
+    (MIXED, LF, "a MIXED blob flattened — a style comparison calls both sides 'crlf' and misses it"),
+    (None, CRLF, "a NEW file arriving CRLF, when this repo stores LF"),
+])
+def test_a_line_ending_flip_is_reported(stored, incoming, why):
+    assert hyg.eol_violation("x.md", stored, incoming) is not None, why
+
+
+@pytest.mark.parametrize("stored,incoming,why", [
+    (LF, LF, "unchanged"),
+    (CRLF, CRLF, "unchanged, and CRLF is correct for a CRLF-stored file"),
+    (None, LF, "a new LF file"),
+    (LF, b"a\nB\nc\nd\n", "a REAL edit — endings are not the only difference"),
+    (CRLF, b"a\r\nB\r\nc\r\nd\r\n", "a real edit on a CRLF-stored file"),
+    (LF, b"\x89PNG\x00\r\n", "binary: a NUL in the first 8 kB means the endings are not text"),
+    (LF, b"one line", "no newline at all — nothing to compare"),
+])
+def test_the_check_stays_quiet_on_everything_legitimate(stored, incoming, why):
+    """⛔ HALF THE PROOF. A check that fires on the right answer gets muted inside a week, and then
+    it protects nothing — which is exactly why this is not a bare "contains CRLF" ban."""
+    assert hyg.eol_violation("x.md", stored, incoming) is None, why
+
+
+def test_a_new_crlf_file_may_be_allowlisted_and_the_allowlist_is_exact():
+    assert hyg.eol_violation("app/public/flow-data.csv", None, CRLF) is None
+    assert hyg.eol_violation("app/public/flow-data.csv.bak", None, CRLF) is not None, (
+        "the allowlist is exact paths, never a prefix")
+
+
+def test_every_allowlisted_crlf_path_still_exists_and_is_still_crlf():
+    """An allowlist entry for a file that moved silently starts covering whatever lands at that
+    path next (`lesson_a_gate_list_drifts_like_any_other_artifact`)."""
+    for rel in sorted(hyg.CRLF_ALLOWED):
+        blob = hyg._blob(ROOT, f"HEAD:{rel}")
+        assert blob is not None, f"{rel} is in CRLF_ALLOWED but git holds nothing there"
+        assert b"\r\n" in blob, (
+            f"{rel} is no longer CRLF in git — drop it from CRLF_ALLOWED rather than leaving an "
+            "entry that would wave through a new CRLF file at that path")
+
+
+def test_the_line_ending_check_actually_examined_something():
+    """⛔ NON-VACUITY, and it is the one that matters here: `eol_violations` walks CHANGED paths, so
+    on a clean tree it inspects nothing and returns [] — indistinguishable from a working check.
+    This proves it can still see a flip in the REAL repository, using the blob git holds today."""
+    rel = sorted(hyg.CRLF_ALLOWED)[0]
+    stored = hyg._blob(ROOT, f"HEAD:{rel}")
+    assert stored and b"\r\n" in stored, "the fixture this rail depends on is no longer CRLF"
+    assert hyg.eol_violation(rel, stored, stored.replace(b"\r", b"")) is not None
+    assert hyg.eol_violations(ROOT, staged=True) == [], "nothing staged should be flipped right now"
+
+
 def test_the_self_check_passes_as_a_subprocess():
     p = subprocess.run([sys.executable, "tools/check_repo_hygiene.py", "--self-check"], cwd=ROOT,
                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)

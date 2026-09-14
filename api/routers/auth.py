@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, Depends, Upload
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
+from api import chart_edge_token
 from api.limiter import limiter
 from api.routers.waitlist import coming_soon_mode
 from api.services import totp_service
@@ -304,6 +305,7 @@ def signup(request: Request, req: SignupRequest, response: Response):
     ua = (request.headers.get("user-agent") or "")[:512]
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
+    _set_chart_edge_cookie(response, user, "free")
     user["email_verified"] = False
     return {"user": user, "plan": "free", **_access_payload(user, "free")}
 
@@ -339,6 +341,7 @@ def login(request: Request, req: LoginRequest, response: Response):
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(user["id"])
+    _set_chart_edge_cookie(response, user, plan)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -386,8 +389,11 @@ def logout(response: Response, token: str = Depends(get_session_token)):
 
 
 @router.get("/me")
-def me(user: dict = Depends(get_current_user)):
+def me(response: Response, user: dict = Depends(get_current_user)):
     plan = get_user_plan(user["id"])
+    # ⭐ THE REFRESH POINT. The app polls this, so the chart edge token is
+    # re-minted (or revoked) here on the cadence the client already runs.
+    _set_chart_edge_cookie(response, user, plan)
     sub = get_subscription(user["id"])
     return {
         "user": user,
@@ -2146,4 +2152,50 @@ def _set_session_cookie(response: Response, token: str):
         samesite="lax",
         path="/",
         max_age=30 * 24 * 60 * 60,  # 30 days
+    )
+
+
+def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
+    """Issue (or actively clear) the CHART EDGE ENTITLEMENT cookie.
+
+    ⭐ WHY IT RIDES THE AUTH RESPONSES INSTEAD OF TAKING ITS OWN ENDPOINT: the
+    client already calls `/api/auth/me`, and login/signup already return this
+    payload, so the token exists the moment a session does and refreshes on a
+    cadence the app performs anyway — no new route, no new round trip, nothing
+    new for the frontend to remember to call. Same reasoning the hub kill switch
+    gives for riding this payload.
+
+    ⛔⛔ THE `delete_cookie` BRANCH IS THE REVOCATION PATH AND IS NOT OPTIONAL.
+    A member who cancels, lapses or is downgraded otherwise keeps a signed token
+    until it expires, and the edge cannot know. Clearing it here means the very
+    next `/api/auth/me` — which the app polls — takes the artifact away, so the
+    exposure is bounded by the TTL instead of by the cookie's own max-age.
+
+    ⚠️ NEVER RETURNED IN THE BODY. HttpOnly cookie and nothing else: no response
+    field, no log line, no query parameter. The frontend has no use for a value
+    only the edge verifies, and anything the frontend can read is something an
+    XSS can exfiltrate.
+    """
+    try:
+        entitled = chart_edge_token.is_entitled(user, plan)
+        token = chart_edge_token.mint() if entitled else None
+    except Exception:  # noqa: BLE001
+        # ⛔ AN OPTIMISATION MUST NEVER COST A LOGIN. Anything wrong here means
+        # no edge token — invisible in Phase 1, one denial later, never a failed
+        # sign-in.
+        token = None
+
+    if not token:
+        response.delete_cookie(chart_edge_token.COOKIE_NAME,
+                               path=chart_edge_token.COOKIE_PATH)
+        return
+
+    response.set_cookie(
+        key=chart_edge_token.COOKIE_NAME,
+        value=token,
+        httponly=True,          # the edge reads it; page scripts never do
+        secure=COOKIE_SECURE,
+        samesite="lax",         # same-site XHR from the app; matches the session cookie
+        path=chart_edge_token.COOKIE_PATH,   # /api/bars only — see the module docstring
+        max_age=chart_edge_token.ttl_seconds(),
     )

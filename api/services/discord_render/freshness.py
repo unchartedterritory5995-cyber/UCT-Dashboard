@@ -18,6 +18,9 @@ that says "stale" all weekend teaches everyone to ignore the badge.
 
 ⛔ AND "UNKNOWN" IS NOT "FRESH". A payload with no `as_of` gets `stale=None`, which the caller must
 render as an absent badge rather than a clean bill of health.
+
+The prose version of these rules, so nobody re-introduces a fixed age budget, is
+`docs/discord-render/03-architecture.md` → "Freshness semantics" (owner ruling R-1, 2026-09-13).
 """
 from __future__ import annotations
 
