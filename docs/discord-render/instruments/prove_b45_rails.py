@@ -31,7 +31,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[3]
+_ARGS = [a for a in sys.argv[1:] if not a.startswith("-")]
+ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3]
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from harness_guard import require_throwaway_worktree  # noqa: E402
@@ -140,7 +141,7 @@ PROOFS = [
 ]
 
 
-def say(text: str = "") -> None:
+def say(text: str = "", **kw) -> None:
     """⚠️ Windows consoles are cp1252 and these proof names are not ASCII.
 
     ⚰️ The first run of this file DIED at `print("… ⭐ …")` with a UnicodeEncodeError, at
@@ -149,10 +150,11 @@ def say(text: str = "") -> None:
     Had the restore been in the reporting path instead, a harness proving the anti-left-
     behind-mutation guard would have left a mutation behind.
     """
+    kw.setdefault("flush", True)
     try:
-        print(text, flush=True)
+        print(text, **kw)
     except UnicodeEncodeError:
-        print(text.encode("ascii", "replace").decode("ascii"), flush=True)
+        print(text.encode("ascii", "replace").decode("ascii"), **kw)
 
 
 def sha(b: bytes) -> str:
@@ -176,8 +178,19 @@ def run() -> tuple[int, int, int, bool, str]:
 def main() -> int:
     results, ok_all = [], True
 
-    say(f"Proving {len(PROOFS)} mutations against {' '.join(SUITE)}\n")
-    for m in PROOFS:
+    # `--only P08,P15` re-proves a fixed rail without paying for all 18 again. ⚠️ A filtered
+    # run is NOT a full proof and says so in its own TOTALS line — never quote it as one.
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), "")
+    chosen = [m for m in PROOFS
+              if not only or any(m["name"].startswith(p.strip()) for p in only.split(","))]
+    if only and not chosen:
+        say(f"⛔ --only={only!r} selected ZERO proofs. That is a failed invocation, not a "
+            f"clean run.")
+        return 2
+
+    say(f"Proving {len(chosen)} of {len(PROOFS)} mutations against {' '.join(SUITE)}"
+        f"{f'  [--only={only}]' if only else ''}\n")
+    for m in chosen:
         path = ROOT / m["file"]
         original = path.read_bytes()
         text = original.decode("utf-8")
@@ -216,8 +229,10 @@ def main() -> int:
     say(f"CONTROL (restored tree): passed={passed} failed={failed} rc={rc} -> "
           f"{'GREEN' if control else 'NOT GREEN'}")
     reds = sum(1 for _, v, _ in results if v.startswith("RED (rail fired)"))
-    say(f"TOTALS: proofs={len(PROOFS)} red={reds} not_red={len(PROOFS) - reds} "
-          f"control={'green' if control else 'NOT GREEN'}")
+    partial = "  ** PARTIAL RUN - not a full proof **" if len(chosen) != len(PROOFS) else ""
+    say(f"TOTALS: proofs_run={len(chosen)} of {len(PROOFS)} red={reds} "
+          f"not_red={len(chosen) - reds} control={'green' if control else 'NOT GREEN'}"
+          f"{partial}")
     return 0 if ok_all else 1
 
 

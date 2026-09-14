@@ -256,10 +256,22 @@ def test_the_override_is_deliberate_and_a_near_miss_is_refused(tmp_path):
 
 def test_the_marker_is_gitignored_so_it_can_never_arrive_by_checkout():
     """The whole argument for a marker over a name pattern: no pull, merge, worktree add
-    or checkout can put it in the integrator's tree. That only holds if it is ignored."""
-    ignore = (REPO / ".gitignore").read_text(encoding="utf-8")
-    assert guard_mod.MARKER_NAME in ignore, (
-        f"{guard_mod.MARKER_NAME} must be in .gitignore or it can travel in a commit")
+    or checkout can put it in the integrator's tree. That only holds if it is ignored.
+
+    ⚰️ This asserted `MARKER_NAME in <the whole file>` and was GREEN UNDER MUTATION: a
+    commented-out `#.mutation-sandbox` still CONTAINS the marker name as a substring, so
+    the rail passed over a .gitignore that ignored nothing (found by P08 of
+    `prove_b45_rails.py`). It now asserts an actual ignore RULE.
+    """
+    lines = [ln.strip() for ln
+             in (REPO / ".gitignore").read_text(encoding="utf-8").splitlines()]
+    rules = [ln for ln in lines if ln and not ln.startswith("#")]
+
+    # NON-VACUITY: a .gitignore parsed down to nothing would satisfy nothing meaningful.
+    assert len(rules) > 10, f"only {len(rules)} ignore rules parsed — the reader is broken"
+    assert guard_mod.MARKER_NAME in rules, (
+        f"{guard_mod.MARKER_NAME} must be a live rule in .gitignore, not a comment, or the "
+        "marker can travel in a commit and land in the integrator's tree by checkout")
 
 
 def test_the_guard_self_check_proves_it_can_fail():
@@ -385,10 +397,25 @@ def test_an_unresolvable_anchor_is_UNREADABLE_and_never_OK(tmp_path):
 
 def test_a_stale_prelude_is_reported_as_its_own_control():
     """The harnesses require `text.count(pre_old) == 1` too, so a stale prelude is a
-    NOT APPLIED the checker would otherwise miss entirely."""
+    NOT APPLIED the checker would otherwise miss entirely.
+
+    ⚰️ This asserted only that the prelude list was non-empty and was GREEN UNDER MUTATION:
+    deleting the tuple-extraction branch fell through to the `elif pre is not None`
+    fallback, which still appends a prelude control — an UNREADABLE placeholder carrying no
+    anchor. The list stayed non-empty and the rail passed while the checker had stopped
+    reading preludes entirely (found by P15 of `prove_b45_rails.py`). Same shape as P03:
+    a branch subsumed by its own fallback cannot be proved by a presence check.
+    """
     preludes = [f for f in anchor_check.check_tree(REPO).findings
                 if f.control.kind == "prelude"]
     assert preludes, "no prelude controls were enumerated — the extractor is not reading them"
+
+    resolved = [f for f in preludes if f.control.needle is not None]
+    assert resolved, (
+        "prelude controls were enumerated but not one carried a resolvable anchor — the "
+        "extractor is producing placeholders, not controls")
+    assert any(f.outcome == anchor_check.OK for f in resolved), (
+        "no prelude anchor was actually classified against its source file")
 
 
 def test_the_gate_path_of_the_checker_never_writes_and_never_runs_a_test():
