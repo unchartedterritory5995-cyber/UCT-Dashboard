@@ -13,8 +13,12 @@ param([switch]$NoWindows)
 $ErrorActionPreference = 'Continue'
 $Repo = 'C:\Users\Patrick\uct-worktrees\discord-render'
 $Branch = 'discord-render-hardening'
-$CodeTip = '3f71d5364'
-$LastOnMaster = 'd32d14d60'
+# !!!! NO PINNED SHAs HERE, DELIBERATELY.
+# ! This file used to carry $CodeTip = '3f71d5364' and $LastOnMaster = 'd32d14d60', each consumed
+# by `git merge-base --is-ancestor`. Both were still ancestors of every later tip, so both printed
+# GREEN forever - and would have kept printing green with the pod four merges behind. An ancestor
+# test against a stale pin cannot detect the drift it exists to detect, and this is the one command
+# a restarting session is told to run. The expectations below are DERIVED from the refs instead.
 $Site = 'https://uctintelligence.com'
 $UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
 
@@ -62,9 +66,12 @@ else {
     $dirty = git status --porcelain 2>$null
     if ([string]::IsNullOrWhiteSpace(($dirty | Out-String))) { Ok 'worktree clean' } else { Bad "worktree dirty:`n$($dirty | Out-String)" }
 
-    # 2. code tip present, branch pushed
-    git merge-base --is-ancestor $CodeTip HEAD 2>$null
-    if ($LASTEXITCODE -eq 0) { Ok "HEAD contains code tip $CodeTip ($(git rev-parse --short HEAD))" } else { Bad "HEAD does not contain $CodeTip" }
+    # 2. branch pushed, and how far this checkout is from master - DERIVED, never pinned.
+    $localHead = (git rev-parse --short HEAD 2>$null | Out-String).Trim()
+    $remoteHead = (git rev-parse --short "origin/$Branch" 2>$null | Out-String).Trim()
+    if ($remoteHead -and $localHead -eq $remoteHead) { Ok "branch pushed ($localHead == origin/$Branch)" }
+    elseif ($remoteHead) { Bad "branch NOT pushed: local $localHead vs origin/$Branch $remoteHead" }
+    else { Bad "origin/$Branch not fetched - cannot tell whether this branch is pushed" }
     $fetched = Invoke-Bounded -Block { param($r) Set-Location $r; git fetch -q origin 2>&1; 'done' } -ArgList @($Repo) -Seconds 90
     if ($null -eq $fetched) { Bad 'git fetch timed out (network or credentials)' }
     $head = (git rev-parse HEAD).Trim()
@@ -92,8 +99,16 @@ foreach ($svc in @('web', 'chart-renderer')) {
     elseif ($status -eq 'ERROR') { Bad "${svc}: could not read deployments (railway login / railway link?)" }
     else { Bad "$svc newest deployment is $status $commit" }
     if ($svc -eq 'web' -and $commit) {
-        git -C $Repo merge-base --is-ancestor $LastOnMaster $commit 2>$null
-        if ($LASTEXITCODE -eq 0) { Ok "running web commit contains $LastOnMaster" } else { Bad "running web commit $commit does not contain $LastOnMaster (or is not fetched)" }
+        # !! THE QUESTION IS "IS THE POD AT MASTER'S TIP?", NOT "DOES IT CONTAIN SOME OLD SHA?".
+        # The old form asked the second and always answered yes. This one counts the gap, so a pod
+        # four merges behind says four.
+        $masterTip = (git -C $Repo rev-parse --short origin/master 2>$null | Out-String).Trim()
+        $behind = (git -C $Repo rev-list --count "$commit..origin/master" 2>$null | Out-String).Trim()
+        if (-not $masterTip) { Bad "origin/master not fetched - cannot compare the running pod" }
+        elseif ($commit -like "$masterTip*" -or $masterTip -like "$commit*") { Ok "web is AT master tip ($masterTip)" }
+        elseif ($behind -match '^\d+$' -and [int]$behind -eq 0) { Ok "web contains master tip (0 behind)" }
+        elseif ($behind -match '^\d+$') { Bad "web is $behind commit(s) BEHIND master ($commit vs $masterTip)" }
+        else { Bad "web commit $commit is not in this checkout - fetch, then re-run" }
     }
 }
 
