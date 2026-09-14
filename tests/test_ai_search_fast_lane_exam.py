@@ -414,7 +414,9 @@ def test_every_pack_the_router_can_emit_is_either_mapped_or_deliberate():
             added.add(node.args[0].value)
     # Packs with no agent-tool twin by design: no golden-set question requires
     # them, so mapping them would invent a satisfied gate.
-    no_twin = {"levels", "cot", "wire", "uct20", "insider"}
+    # "wisdom" (the Wisdom Loop "UCT SAID" block) has no agent tool: mapping it to
+    # ask_the_brain would credit the KB tool for a pack that never called it.
+    no_twin = {"levels", "cot", "wire", "uct20", "insider", "wisdom"}
     unmapped = sorted(added - set(runner._PACK_TOOL_ALIAS) - no_twin)
     assert not unmapped, f"packs with no tool alias and no exemption: {unmapped}"
 

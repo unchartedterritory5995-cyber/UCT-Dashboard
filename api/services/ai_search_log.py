@@ -227,7 +227,10 @@ def _grounding_tier(sources) -> str:
 # grounding we add must not be what disqualifies the answer. A live price is
 # garnish on an evergreen answer, not its substance; the packs below really do
 # go stale and still force time_sensitive.
-_LIVE_SOURCES = {"patterns", "flow", "movers", "tape"}
+# "wisdom": the Wisdom Loop block carries DATED team statements (calls, levels as
+# stated). An answer grounded on it is never indexed as evergreen memory, or a
+# month-old call would resurface as a timeless fact (CONTRACTS §6.6).
+_LIVE_SOURCES = {"patterns", "flow", "movers", "tape", "wisdom"}
 
 _EVERGREEN_RE = re.compile(
     r"\b(what (?:is|are|does|do)|who (?:is|are)|how (?:does|do|to)|explain|define|definition"
