@@ -16,6 +16,7 @@ from typing import Optional
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 AUTHORS_FILE = REPO_ROOT / "docs" / "wisdom" / "authors.json"
 DISCORD_SOURCES_FILE = REPO_ROOT / "docs" / "wisdom" / "discord-sources.json"
+SESSION_RESOLUTIONS_FILE = REPO_ROOT / "docs" / "wisdom" / "speakers" / "session-resolutions-v1.json"
 
 
 @functools.lru_cache(maxsize=1)
@@ -89,6 +90,49 @@ def author_for_alias(label: Optional[str]) -> Optional[str]:
         names = [author["author_id"], author.get("display_name") or ""] + list(author.get("aliases") or [])
         if any(name and key == name.strip().casefold() for name in names):
             return author["author_id"]
+    return None
+
+
+#: The only evidence kinds §8a.2 accepts for resolving an ambiguous label. A resolution
+#: citing anything else — "sounds like him", "he usually hosts" — is not a resolution.
+SESSION_EVIDENCE_KINDS = frozenset(
+    ("session_title", "self_introduction", "sunday_scans_position", "discord_same_minute"))
+
+
+@functools.lru_cache(maxsize=1)
+def load_session_resolutions() -> dict:
+    if not SESSION_RESOLUTIONS_FILE.exists():
+        return {"resolutions": []}
+    return json.loads(SESSION_RESOLUTIONS_FILE.read_text(encoding="utf-8"))
+
+
+def session_resolution(external_ref: Optional[str], label: Optional[str]) -> Optional[dict]:
+    """The §8a.2 per-session resolution for one ambiguous label, or None.
+
+    ⛔ Returns None unless the entry names an author AND cites at least one piece of
+    evidence of a declared kind. A resolution with an empty or invented evidence list is
+    NOT a resolution — it is the alias defect wearing a new field name, so it fails closed
+    and the caller gets `team-unresolved` (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+    """
+    if not external_ref or not label:
+        return None
+    key = str(label).strip().casefold()
+    for entry in load_session_resolutions().get("resolutions") or []:
+        if str(entry.get("external_ref") or "") != str(external_ref):
+            continue
+        if str(entry.get("label") or "").strip().casefold() != key:
+            continue
+        author_id = entry.get("author_id")
+        if not author_id or author_id == TEAM_UNRESOLVED:
+            return None
+        cited = [ev for ev in (entry.get("evidence") or [])
+                 if (ev or {}).get("kind") in SESSION_EVIDENCE_KINDS]
+        if not cited:
+            return None
+        # The resolution may only name somebody the authors file already knows.
+        if author_id not in {a["author_id"] for a in authors()}:
+            return None
+        return {"author_id": author_id, "evidence": cited, "external_ref": external_ref, "label": label}
     return None
 
 
