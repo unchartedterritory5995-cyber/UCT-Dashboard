@@ -528,3 +528,62 @@ all as before. Two scripts changed their guard LIST (one drops `pine:collection`
 from both lanes; one now reaches it later). `lookback_agreement.json`:
 `distinct_trees_walked` **288 → 310** — the 22 newly-unrolled trees agree between
 both lookback authorities.
+
+## CHECK 1 — DO CLOUDS' COLOURS DEPEND ON `color.t`? **NO, AND THE REASON MATTERS**
+
+The worry was a silent rendering difference: a layer emitted without its alpha,
+drawing opaque clouds where the author drew translucent ones. Measured on the
+shipped door, both lanes:
+
+```
+OUT[2]  handle="p1"   presentation={}  hidden=true  hiddenReason="author"
+OUT[22] handle="p21"  presentation={}  hidden=true  hiddenReason="author"
+```
+
+⭐ **The 21 layer plots carry no colour argument at all.** The author wrote
+`plot(array.get(layerArray, k), display=display.none, editable=false)` — they are
+invisible anchors, and the engine honours that (`hidden`, `hiddenReason:"author"`)
+while keeping each handle `p1`…`p21` so a band reader can still join them. There
+is no `droppedProps` key on an output; nothing is being dropped quietly.
+
+`bullUserTransparency` (`color.t`, 90–91) and `transparencyStep` (97) feed only
+`getBullFillColor`/`getBearFillColor`, and those are consumed only by `fill(...)`
+at 118–137 — carried as 20 `pine:chart-only` notes, each with its line.
+
+⛔ **So the colour fold is not what Clouds is missing. The FILL layer is.** The
+entire visible artifact of this script is the twenty fills; with a3 landed the
+pane draws two MAs and twenty-one correctly-hidden anchors — the author's script
+minus the clouds. That is the drawing layer's entry, and it is named here rather
+than fixed, because a colour fold would not move it by one pixel.
+
+### …but the class is real elsewhere: **56 of 328 scripts feed a colour helper to `plot()`**
+
+`tools/pine_colour_census.py` (own stripper, own control) over `corpus/committed`
++ `pine_oos` + the member scripts:
+
+| | |
+|---|---|
+| files scanned | **328** |
+| use `color.new` / `color.t` / `color.rgb` / `color.from_gradient` at all | **234** |
+| helper inside a **`plot()`** call | **56** |
+| helper inside `fill`/`bgcolor`/`barcolor`/`plotshape`/… | **85** |
+
+And on those 56 the alpha **is** silently dropped today. `atr-bands__ad60b125e6`:
+
+```
+src  plot(showTPBands ? scaledTPLong : na,  …, color=color.rgb(255, 255, 255, 80), linewidth=1)
+out  presentation={"color":"#FFFFFF","width":1}          ← the 80 is gone
+
+src  plot(showTPBands ? scaledTPShort : na, …, color=color.rgb(255, 255, 0, 80), linewidth=1)
+out  presentation={"color":"#FFFF00","width":1}          ← likewise
+```
+
+⭐ The engine folds the colour and discards the transparency argument, so a band
+the author drew at 80% transparent renders fully opaque. **That is exactly the
+silent difference the check was looking for — on a different 56 scripts.**
+
+⛔ **NOT IMPLEMENTED HERE.** The ruling made the colour fold conditional on check
+1, and check 1 is negative for Clouds. This is recorded as a finding for the owner
+to rule on rather than scope taken unasked; a plan-time colour fold with alpha
+preserved is a contained piece of work, and it does not drag `fill`/`bgcolor`
+semantics with it.
