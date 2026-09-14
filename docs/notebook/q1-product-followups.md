@@ -542,3 +542,45 @@ by name.
 offline window opens, the way `prepare_family` already does for the excerpt PDF),
 then re-run the six cells. Until then `hero` is an OPEN instrument gap, not a
 limitation.
+
+
+### ⚖️ CORRECTION, same night — `hero` is blocked by a PRODUCT affordance, not only by our fixture
+
+The entry above called `hero` *"an unfinished instrument — our fixture, fixable"*.
+That was right that the seed was never written and **wrong about why it could not
+be**. Traced to the line:
+
+| | |
+|---|---|
+| endpoint | `POST /api/j2/notes/{id}/hero` — exists, works |
+| its ONLY client caller | `HeroImagePicker.jsx:26` |
+| `HeroImagePicker`'s ONLY mount | `NoteEditorPage.jsx:2192`, inside `note.heroImageUrl ? (…) : null` |
+
+⭐⭐ **The hero uploader is gated behind already having a hero.** A note written in
+the Notebook cannot get a first hero image from the editor — the editor's own
+comment says so: *"Notes without one start straight at the title — no empty
+drop-zone."* Notes acquire heroes from other doors (the Desk "Save to journal"
+path; position creation, `GlobalAddPositionProvider.jsx:167`).
+
+**What that means for the table, and it is good news:** the seed may legitimately
+use the API, because `prepare_family`'s own charter already says
+**"SETUP IS ONLINE AND IS NOT THE DOOR"** — the same reason the excerpt cell
+uploads its PDF through the attachment input and only then drives the real
+selection. Seed the hero, and the picker renders, and the DOOR is then the
+member's own control exactly as the charter requires. So the six cells are
+measurable; they were never blocked by a rule.
+
+⛔ **And a PRODUCT OBSERVATION, offered as an observation and not filed as a
+defect** — this is the SECOND affordance found tonight that is gated on the state
+which makes it unreachable:
+
+| affordance | renders only when | consequence |
+|---|---|---|
+| "Start a note" (`ResearchHome.jsx:78`) | the account has **no** notes | a member with notes has no create control on the landing view |
+| the hero picker (`NoteEditorPage.jsx:2188`) | the note **already has** a hero | a member can never add a first one |
+
+⭐ Both were invisible to `member-smoke`, which is empty by charter, and both
+surfaced the moment T-12 ran against an identity **with state**. That is the
+owner's admin-role amendment earning its keep on its first run — and it suggests
+the class is worth a sweep: *an affordance gated on the state that makes it
+unnecessary.*
