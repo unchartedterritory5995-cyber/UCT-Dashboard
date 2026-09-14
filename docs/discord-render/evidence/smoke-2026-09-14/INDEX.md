@@ -21,7 +21,17 @@ read out of the running process by `/renderhealth` itself.
 
 ---
 
-## 🔴 Row 8 — a successful render that reached nobody (C-11, live, pre-V2)
+## 🔴 Row 8 — an ack that missed 3 s while the render succeeded (the C-02 family, pre-V2)
+
+⚠️ **This was first written up as "C-11 reproduced live". That was an over-claim and is corrected
+here.** C-11 is *"a delivery failure or crash ends with nothing said"* and is ✅ CLOSED on the **V2
+runtime** (`test_C11_*`, mutation-proved). What happened here is on the **pre-V2** path and is an
+**ack that missed Discord's 3 s deadline** — which is **C-02**, *"`web` saturation → Discord acks
+miss 3 s"*, the class whose load half is explicitly still open pending 3.1 in `--real`.
+
+⛔ **The distinction is not pedantic.** Filing this against a CLOSED class asserts a regression in
+work that was mutation-proved; filing it against C-02 says the open half is real and reachable.
+Those point at different code and at different people.
 
 ```
 19:10:20Z  drender  {"evt":"shadow","cmd":"buzz","ms":0.0,"outcome":"agree","detail":"n=0 ... pre=5"}
@@ -32,8 +42,13 @@ The board **rendered correctly** — HTTP 200, a 346 KB PNG — and took **10,73
 initial-ack deadline is **3 s**. The member saw `The application did not respond.`
 
 ⭐ **The shadow recorded `outcome=agree`, so V2 would have done the same thing.** This is not a
-defect the flip fixes, and it must not be counted as one. It is C-11 (46 finals reached nobody) and
-S3 (never silence) reproduced on demand, in a channel no member can see.
+defect the flip fixes, and it must not be counted as one.
+
+⚠️ **What is NOT established:** why the ack missed. The handler's documented shape is to return a
+type-5 defer immediately and edit later, and the shadow line records `pre=5` — so a defer *was*
+chosen. Whether it was returned late, or returned and not accepted, is not decidable from one
+observation, and no mechanism is asserted here. The renderer being 10.7 s deep in an `interactive`
+render at that moment is suggestive of contention (**C-09**), not proof of it.
 
 ⚠️ **n = 1.** One observation is not a rate (`lesson_two_points_do_not_establish_a_rate`). What is
 established is that the failure is *reachable*, not how often it happens. The web pod had booted at

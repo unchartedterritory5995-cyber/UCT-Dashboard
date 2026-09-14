@@ -853,8 +853,17 @@ from a deliberate one.
 #### OI-36 — `/buzz` rendered correctly and reached nobody
 
 `/buzz` in `#render-smoke` → **"The application did not respond."** The renderer answered
-`200, 346 KB, ms=10738, prio=interactive` against Discord's 3 s ack deadline. **C-11 and S3,
-reproduced on demand**, on the pre-V2 path, with organic members exposed 0.
+`200, 346 KB, ms=10738, prio=interactive` against Discord's 3 s ack deadline. Pre-V2 path, organic
+members exposed 0.
+
+⚠️ **Filed first as "C-11 reproduced live", and that was wrong.** C-11 is *a delivery failure or
+crash ends with nothing said* and is ✅ CLOSED on the **V2 runtime**, mutation-proved. This is the
+**pre-V2** path and it is an **ack missing 3 s** — the **C-02** family, whose load half is the part
+still open pending 3.1 `--real`. Recorded because filing a live failure against a closed class
+asserts a regression in work that was proved, and sends the next reader to the wrong code.
 
 ⭐ The shadow recorded `outcome=agree` — **V2 would have done the same thing.** It is not a defect
-the flip fixes and is not counted as one. n=1: the failure is reachable; its rate is unmeasured.
+the flip fixes and is not counted as one. n=1: the failure is reachable; its rate is unmeasured, and
+no mechanism is asserted — the handler's documented shape is to defer immediately, and the shadow
+line shows `pre=5`, so "the defer was chosen" and "the defer arrived in time" are different claims
+and only the first is evidenced.
