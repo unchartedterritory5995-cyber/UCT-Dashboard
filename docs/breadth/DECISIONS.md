@@ -570,3 +570,36 @@ named as a cost. **Raised, not fixed here**: a reader rewrite is not a Data Char
 must NOT be enabled until the reader cost is addressed. `bucket=` is **not** implemented and is **not** the owed work;
 what is owed is one of: bound B1's span to the warm collector range, pre-warm the deep windows off the request path, or
 make `get_history_deep` cheap for a cold deep span. That choice is the owner's and is recorded as open.
+
+---
+
+## D-043 — the reader is its own programme; `/series` is span-capped until it lands (2026-09-14)
+
+**Owner ruling.** D-042 left the choice open between three ways of closing the ~55 s cold deep read. The ruling splits
+it in two: the reader gets its **own programme** (it is a backend correctness/performance problem, not a Data Charts
+change, and must not ride a UI branch), and until that programme lands, **the cost is made unreachable rather than
+tolerated**.
+
+**Three parts, and each is deliberately in a different place:**
+
+1. **`/series` is capped at 365 sessions** — `BREADTH_SERIES_MAX_SESSIONS`, enforced as `365 × 1.6 = 584` calendar
+   days, `400` naming both numbers. A cold deep read is therefore unreachable from this endpoint **regardless of the
+   flag**, which is what lets B1 stay dark safely rather than dangerously.
+2. **The V2 hook refuses a wider span by constant** — the frontend does not discover the cap by receiving a `400`; it
+   declines to ask, off a single exported max-sessions constant, and renders "range not yet available". ⭐ Two
+   enforcement points for one rule is normally the second-authority defect; here the server's is the **guard** (it must
+   hold against any caller) and the client's is the **product** (a member should not see an error for a range the app
+   knows it cannot serve). Neither is derived from the other by copying a number — the hook owns its constant and the
+   server owns its env var, and they are allowed to disagree only in the direction of the client being stricter.
+3. ⛔ **`days=` on the live monitor route is NOT capped.** Time Navigator and Views depend on deep windows; capping it
+   would break shipped surfaces to protect against a cost those surfaces are already paying. The live route gets
+   **interim containment** (single-flight on the cache key) instead, as its own item off master.
+
+**Why the cap is checked before the read.** Counting sessions requires reading them. A post-read rejection has already
+spent the 55 s it exists to prevent, so the check is on **calendar days**, which the request alone settles.
+`test_span_over_the_session_cap_is_400_and_names_the_cap` asserts the reader never ran — without that assertion the cap
+is decorative and every other test still passes.
+
+⚠️ **The cap is raised when the reader work lands, not to satisfy a wider view.** That sentence is in
+`docs/breadth/api-series.md` and in the `400` body itself, because the next person to want five years of history will
+find the constant before they find this file.

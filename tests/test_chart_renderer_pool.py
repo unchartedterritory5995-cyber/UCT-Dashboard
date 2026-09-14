@@ -11,6 +11,7 @@ import asyncio
 import importlib.util
 import logging
 import pathlib
+import sys
 import time
 
 import pytest
@@ -27,7 +28,23 @@ _ENV = ("RENDER_POOL_ENABLED", "RENDER_HARD_TIMEOUT_S", "RENDER_RECYCLE_AFTER", 
         "RENDER_MAX_CONCURRENT", "RENDER_WARM_URL", "RENDER_RSS_CEILING_MB", "RENDER_POOL_KEYS")
 
 
+def _renderer_dir_on_path() -> None:
+    """`services/chart_renderer/` on `sys.path` before `app.py` is exec'd — see the long form
+    in `test_chart_renderer_service.py::_renderer_dir_on_path`. `app.py`'s flat
+    `from edge_scope import ...` is what its own image does (WORKDIR /app, files copied flat),
+    so the path entry belongs in the loader, not in the service.
+
+    ⚰️ Missing here from `7c8554dfd`: this file was **16 failed** run on its own against a
+    clean `origin/master`, and green whenever `test_chart_renderer_dualstack.py` happened to
+    be collected with it and made the entry at module level first.
+    """
+    here = str(_APP.parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+
+
 def _load(monkeypatch, secret="s3cret", **env):
+    _renderer_dir_on_path()
     monkeypatch.setenv("CHART_RENDERER_SECRET", secret)
     monkeypatch.setenv("RENDER_ALLOWED_HOSTS", "uctintelligence.com")
     for k in _ENV:

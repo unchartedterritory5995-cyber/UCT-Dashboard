@@ -29,7 +29,7 @@ restates a class in its own words.
 """
 from __future__ import annotations
 
-from api.services.discord_render import contract, contracts
+from api.services.discord_render import contract, contracts, freshness
 from api.services.discord_render.adapters.result import CACHED
 
 #: Discord's hard limit. Named here from the frozen contract rather than typed again, because two
@@ -97,6 +97,38 @@ def _vintage_clause(results: dict) -> str | None:
     return min(stale)[2] if stale else None
 
 
+def vintage_param(options) -> str | None:
+    """What `?stale=` carries on the house render URL, or `None` when there is nothing to say.
+
+    C-07's structural fix is **vintage, not wall clock** (03 §3.10): the page is told the DATA's
+    vintage and stamps that, so the same closed-market input renders the same pixels. The seam that
+    decides it is the URL the renderer is pointed at — `discord_chart_house.build_render_url` — and
+    this is the one function that turns a freshness verdict into the value it puts there.
+
+    ⛔⛔ **THE SENTENCE TRAVELS, NOT THE DATE.** The page draws what it is handed, verbatim. Sending
+    a bare `as_of` would mean the page composing `⚠ data as of … (stale)` for itself, which is a
+    second author for the one sentence a member reads — and two authors over one value is exactly
+    how the footer and the stats strip came to disagree on 2026-08-31. The sentence has ONE owner,
+    `freshness.Envelope.badge`; `render_badge` selects it and this hands it on unchanged.
+
+    ⛔ **AND IT IS COMPOSED BY THE ENVELOPE, NOT SPELLED AGAIN HERE.** The verdict arrives as the
+    tri-state `options["stale"]` with `options["as_of"]` beside it (what a caller holding an
+    `Envelope` already has: `env.stale` / `env.as_of_et`). Rather than interpolate the format
+    string a second time, that pair is put back into an `Envelope` and its own `badge` is read — so
+    a change to the wording still has exactly one place to happen.
+
+    ⛔ **UNKNOWN IS NOT STALE AND FRESH IS NOT A BADGE.** `stale=False` and `stale=None` both emit
+    nothing, via `render_badge`'s `is True` guard; so does a stale verdict with no readable `as_of`
+    (04 §2 — a warning with no timestamp in it says something is wrong and nothing about what).
+    Nothing emitted means no parameter at all, which is why the pre-V2 URL is byte-for-byte what it
+    was: that path passes neither key.
+    """
+    opts = options or {}
+    return render_badge(freshness.Envelope(
+        as_of_utc=None, as_of_et=(str(opts.get("as_of")).strip() if opts.get("as_of") else None),
+        provider=None, session_state="", age_s=None, budget_s=None, stale=opts.get("stale")))
+
+
 # ── provenance ──────────────────────────────────────────────────────────────
 
 def _is_backup(result) -> bool:
@@ -133,12 +165,25 @@ def standin_label(cls: str | None) -> str:
 
 # ── the footer ──────────────────────────────────────────────────────────────
 
-def render_footer(results: dict, corr_id: str | None) -> str:
+def render_footer(results: dict, corr_id: str | None, *, quality: str | None = None) -> str:
     """The ONE line appended to a degraded delivery, or `""` when there is nothing to say.
 
-    Order is **vintage · provenance · id** (04 §4), and it is that order because it is the order a
-    member needs it in: what is wrong with the data, then where the answer came from, then the
-    string they quote back to us.
+    Order is **quality · vintage · provenance · id** (04 §4), and it is that order because it is the
+    order a member needs it in: what the PICTURE is, then what is wrong with the data, then where
+    the answer came from, then the string they quote back to us.
+
+    ⛔⛔ **`quality` SHARES THIS LINE; IT DOES NOT GET ONE OF ITS OWN.** `produce_chart` edits the
+    same message twice — a stand-in, then the real chart — and `_drop_previous_stamp` recognises our
+    previous stamp by its trailing `· id <x>` and cuts exactly ONE line. A stand-in label on a
+    second line would therefore survive the edit that healed it, leaving "⚠ simplified chart" under
+    a chart that is no longer simplified: C-06 inverted, and worse than C-06, because a member who
+    has learnt to trust the label is now being lied to by it. Composing the clause at the call site
+    instead would mean re-typing `_SEP` and `_ID` — a second authority over the one string a member
+    reads, which is the defect `standin_label` exists to prevent. So it arrives here, and the one
+    place that composes this line composes all of it. (Lane A, C-06 closure.)
+
+    ⚠️ `quality=None` is the whole of the pre-existing behaviour: every call site that does not
+    pass it produces the byte-identical line it produced before the parameter existed.
 
     ⛔ **`id` IS ALWAYS PRESENT ON A DEGRADED DELIVERY.** It is the join to the durable jobs row and
     the only thing a member can give us that identifies their request. It is printed whenever we
@@ -148,7 +193,8 @@ def render_footer(results: dict, corr_id: str | None) -> str:
     ⛔ **AND NOTHING AT ALL WHEN NOTHING IS WRONG.** No `as_of` on a healthy chart, no "checked", no
     reassurance. An id on every delivery would be furniture with an id in it.
     """
-    parts = [p for p in (_vintage_clause(results),
+    parts = [p for p in (quality,
+                         _vintage_clause(results),
                          BACKUP_CLAUSE if any(_is_backup(r) for r in (results or {}).values()) else None)
              if p]
     if not parts:
@@ -208,8 +254,11 @@ class Badge:
     def render_badge(self, result) -> str | None:
         return render_badge(result)
 
-    def render_footer(self, results: dict, corr_id: str | None) -> str:
-        return render_footer(results, corr_id)
+    def render_footer(self, results: dict, corr_id: str | None, *, quality: str | None = None) -> str:
+        return render_footer(results, corr_id, quality=quality)
+
+    def vintage_param(self, options) -> str | None:
+        return vintage_param(options)
 
     def standin_label(self, cls: str | None) -> str:
         return standin_label(cls)

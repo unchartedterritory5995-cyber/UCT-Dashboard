@@ -20,6 +20,8 @@ import { todayET, shiftISO } from './breadth/sessionDates'
 import { spanDays, tickBoundary, formatSessionTick, formatTooltipDate } from './breadth/chartTicks'
 import { zoomWindowFrom, zoomValues } from './breadth/chartZoom'
 import { magnitudeGaps, describeGap } from './breadth/chartMagnitude'
+import { v2Enabled } from './breadth/v2/flag'
+import BreadthChartsV2 from './breadth/v2/BreadthChartsV2'
 import styles from './BreadthCharts.module.css'
 
 const PREF_KEY = 'breadth_charts_state'
@@ -68,7 +70,21 @@ function LoadProblem({ error, onRetry, inline = false }) {
   )
 }
 
+/**
+ * The one branch between the shipped Data Charts and the V2 shell.
+ *
+ * ⛔ IT IS A WRAPPER, NOT AN EARLY RETURN INSIDE V1. An early return above V1's hooks
+ * would make the hook list conditional — legal only because a build flag never changes
+ * between renders, which is exactly the kind of "true today" that breaks silently later.
+ * A wrapper keeps both bodies honest and, with the flag off, renders V1's tree with no
+ * extra element around it: the flag-off DOM is byte-identical, and
+ * `flagOff.golden.test.jsx` is the rail on that.
+ */
 export default function BreadthCharts() {
+  return v2Enabled() ? <BreadthChartsV2 /> : <BreadthChartsV1 />
+}
+
+function BreadthChartsV1() {
   const { data, isLoading, error, mutate } = useSWR('/api/breadth-monitor?days=365', jsonFetcher, {
     // An ended session or a lapsed plan is not fixed by asking again.
     shouldRetryOnError: shouldRetryLoad,
