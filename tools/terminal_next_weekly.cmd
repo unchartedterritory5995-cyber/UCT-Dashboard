@@ -64,7 +64,10 @@ if defined UCT_WEEKLY_FIXTURE_REPORT (
   REM TEST HOOK: use a fixture report instead of invoking claude. Never set in production.
   copy /y "%UCT_WEEKLY_FIXTURE_REPORT%" "%REPORT%" >nul
 ) else (
-  cmd /c "%REPO%\tools\weekly_claude_child.cmd" "%PROMPT%" "%PROFILE%" "%DOCS%" > "%REPORT%" 2>&1
+  REM cmd /c eats the outer quote pair when the command AND its arguments are
+  REM quoted, so the whole thing is wrapped in one more pair. Without it:
+  REM "The filename, directory name, or volume label syntax is incorrect."
+  cmd /c ""%REPO%\tools\weekly_claude_child.cmd" "%PROMPT%" "%PROFILE%" "%DOCS%"" > "%REPORT%" 2>&1
 )
 
 type "%REPORT%" >> "%LOG%"
