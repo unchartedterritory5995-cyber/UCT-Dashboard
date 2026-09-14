@@ -1996,6 +1996,21 @@ export default function Admin() {
               </span>
             </div>
           </div>
+          <div className={styles.healthItem}>
+            <span className={styles.healthLabel}>Wisdom Loop</span>
+            <div className={styles.healthSyncRow}>
+              <a
+                href="/admin/wisdom"
+                className="btn btn-secondary btn-sm"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+              >
+                Open Wisdom Admin
+              </a>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Review queue · metrics with n · capture · jobs · reports
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
