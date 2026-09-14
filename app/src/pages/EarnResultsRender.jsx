@@ -16,8 +16,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 const SESS = {
   AMC: { label: 'AFTER CLOSE', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
   BMO: { label: 'BEFORE OPEN', color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
@@ -149,7 +149,7 @@ export default function EarnResultsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     const t = setTimeout(() => { window.__panelReady = true }, 2400) // logos settle
     return () => clearTimeout(t)
   }, [token, payload])

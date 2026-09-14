@@ -69,7 +69,7 @@ CP3_SIGNED = {
     "regime_change": True,             # line 2, 9f0575340
     "scan_membership_change": True,    # line 2, d0415f251
     "catalyst_match": True,            # line 2, 3ee80dc13
-    "indicator_condition": False,      # CP1-CP2 merged; CP3 queued
+    "indicator_condition": True,       # line 3, 4e8d3af5d (dep discharged)
 }
 
 

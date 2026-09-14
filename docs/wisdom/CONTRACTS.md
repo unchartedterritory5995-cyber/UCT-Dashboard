@@ -100,7 +100,7 @@ Existing files a stream may edit (and only that stream):
 
 | File | Stream | Scope |
 |---|---|---|
-| `api/services/desk_session_insights.py` + `tests/test_desk_session_insights.py` | S-C | coverage guard, transcript↔MP4 pairing/stitching, raw VTT → R2 before trash |
+| `api/services/desk_session_insights.py` + `tests/test_desk_session_insights.py` | S-C | store-and-verify before Zoom delete (VTT + audio transcript + chat + metadata → R2, coverage ≥ 98 %), transcript↔MP4 pairing/stitching |
 | `api/routers/ai_search.py`, `api/services/ai_search_log.py`, `api/services/ai_search_eval/runner.py`, `app/src/pages/charts/widgets/AiSearchWidget.jsx` | S-F | flag-gated Wisdom retrieval block only |
 | `api/services/ai_search_dossier.py` | S-F | flag-gated `_wisdom_lines` only |
 | `api/services/ticker_mentions.py` | S-F | flag-gated provider, gated OUTSIDE the per-symbol cache |
@@ -333,10 +333,7 @@ flags are internal and are armed by the integrator after the merges, in one vari
   `core.authors`; non-author messages dropped before any write; quoted/replied member text stripped; 401/403 →
   `blocked_until = now + 1 h`; ≤ 5 pages per channel per tick; backfill resumable via `backfill_before`; reconcile the
   7,766 legacy classified messages by message id (`legacy_classified=1`, no re-classification of those).
-- Zoom: pairing + coverage guard + VTT archive in `desk_session_insights.py`; R2 key
-  `wisdom/sources/zoom_vtt/<sha24(meeting_uuid)>/<recording_file_id>.vtt`; a multi-TRANSCRIPT regression test.
-  `tools/wisdom/sources_zoom_transcript_repair.py` (PC-side, explicit, dry-run default) rebuilds one video's transcript
-  via `POST /api/education/videos/{id}/insights-store` with `transcript` ONLY.
+- Zoom: store-and-verify before delete per §8a.6a (VTT, audio transcript, chat log, metadata → R2 under `wisdom/sources/zoom/<sha24(meeting_uuid)>/`; coverage ≥ 98 %; deletion blocked only until that succeeds), transcript pairing/stitching to the published MP4, and a multi-TRANSCRIPT regression test in `desk_session_insights.py`. Truncated videos follow §8a.6b (desk check first). `tools/wisdom/sources_zoom_transcript_repair.py` (PC-side, dry-run default) rebuilds one video's transcript via `POST /api/education/videos/{id}/insights-store` with `transcript` ONLY.
 - Sunday Scans: desk.db read-only through `desk_store`; the ingestion query requires `published_at > 0`; public-URL diff
   sets `published_check`; unsigned sections → `tsdr`, `attribution_source="D4 ruling"`.
 - Transcripts: education.db read-only through `education_service.get_transcript_cues` (never a hand regex); coverage
@@ -352,7 +349,8 @@ flags are internal and are armed by the integrator after the merges, in one vari
   no per-type precision or recall regressed versus the previous accepted version (first version: thresholds recorded as baseline).
 - Golden set v1: ≥ 100, stratified by type and author, labelled from source text by a labeller that never sees the extractor
   prompt; `data/wisdom/golden/golden-v1.jsonl` (gitignored) + quote-free `docs/wisdom/golden/golden-v1.provenance.json`;
-  dev/test split by `sha24(gid)` parity.
+  dev/test split = `"dev"` when `int(sha256(gid)[:8], 16)` is even, else `"test"` (as built in golden v1). Consumers read
+  each record's stored `split` field and never recompute it.
 
 ### 6.5 S-E evals
 - Outcomes per manifest §7.3; bars via `bars_sqlite.get_bars_before/get_bars_since`, read-only; same-bar stop+target →
@@ -396,6 +394,69 @@ A run counts only with its totals line. Never `pytest tests/` unscoped. One test
 
 ---
 
+## 8a. Owner rulings at checkpoint 1 (2026-09-13) — binding on every stream
+
+1. **Golden freeze.** `golden-v1` is the 125-record set (117 confirmed, 8 provisional) after the §8a.4 propagation and a
+   passing re-run of all three verifier passes plus the leaked-quote check. It is frozen by the sha256 of
+   `data/wisdom/golden/golden-v1.jsonl`, recorded in LEDGER. The extractor gate scores against v1 exactly, and every
+   gate run records the golden version and sha it scored. Additions go to `golden-v1.1+` in a separate file.
+2. **Ambiguous host labels** (every label in `authors.json` `ambiguous_speaker_labels`, today "Uncharted Territory").
+   - **Resolve per session only with cited evidence:** the session title or description; a self-introduction line in
+     the transcript; a first-person reference to a position matching that author's Sunday Scans position list; or a
+     Discord message by that author in the same minute.
+   - **Log the evidence** in `wisdom_sources.speaker_resolution_json`.
+   - **Insufficient evidence →** speaker `team-unresolved`, which may author MENTION only (never CALL, never PRINCIPLE
+     attribution). The session goes to the attribution queue with the strongest partial evidence.
+   - **Never** default to TSDR or Bracco. **Never** resolve by voice similarity alone.
+   - **Retroactive:** every session carrying the label is re-resolved and every record from it re-tagged, golden
+     included; the count of author changes is reported.
+3. **Unattributable speech in a guest session (D14)** is stored with speaker `unresolved`, never as the guest's and
+   never as TSDR's.
+4. **Inferred tickers.**
+   - **Required fields:** a record whose ticker was inferred from an adjacent line carries `ticker_inferred=1`,
+     `entity_confidence <= 0.5` and `extraction_confidence='low'`.
+   - **Bar-range check:** it must pass the bar-range sanity pass (the stated price or setup is consistent with that
+     ticker's bars that session) before storage. On failure it is stored as a MENTION with `entity_id` NULL and a
+     review item. This is a permanent extractor rule.
+5. **Exits.**
+   - **Columns:** `wisdom_records` carries `exit_price`, `exit_text` and `exit_date` (a session).
+   - **Reconciliation:** the OUTCOME engine checks the stated exit against that session's bar range. Outside the range →
+     `wisdom_outcomes.exit_mismatch=1` plus a review item; never overwrite.
+   - **Privacy:** an exit price on an open position, or on a position closed within the last 20 sessions at publish
+     time, is content-stream private data (§0.4d). It goes to the private store and is redacted in every member-facing
+     publish path. The private-store property test covers `exit_price`.
+6a. **Zoom — owner correction, 2026-09-13.**
+   - **The fact:** Zoom cloud recordings are deleted ON PURPOSE after posting to the Desk and YouTube. "Workshop
+     with Stockbee" (2026-09-11) is not in Zoom trash and cannot be recovered. No session plans a Zoom trash
+     recovery, and none lists one as an owner task.
+   - **The pipeline fix (replaces the earlier "deletion guard"):** the delete-after-post workflow stays as it is.
+     Before the pipeline deletes a Zoom cloud recording it must first store, then verify:
+     1. **Store in R2** (`core.r2.put_immutable` under `wisdom/sources/zoom/<sha24(meeting_uuid)>/`):
+        - every TRANSCRIPT VTT, with speaker labels;
+        - the audio transcript text;
+        - the chat log;
+        - the recording metadata JSON.
+     2. **Verify** that the stored transcript covers >= 98 % of the published recording's duration.
+   - **Blocking:** deletion is blocked only until that store-and-verify succeeds. It ships with a test.
+   - **Also due today:** transcript-to-MP4 pairing (or stitching), a multi-TRANSCRIPT regression test, and the
+     root cause of the 345 s truncation (fixed or filed).
+6b. **Truncated transcripts — the desk check comes first, always.** Applies to every catalog video under 98 %
+   coverage.
+   1. **Desk check.** Search every Desk transcript store for the video by title, date, YouTube id and Zoom
+      recording id. A copy with >= 98 % coverage (cue endpoint) becomes the SOURCE. Record where it was and whether
+      it has speaker labels.
+   2. **Otherwise re-transcribe.** Transcribe the full-length audio with the Desk pipeline's STT path, then run
+      speaker diarization. Name the clusters by evidence only (§8a.2 rules); a cluster without enough evidence is
+      `unresolved`.
+   3. **Register and rebuild.** Either path: register a new SOURCE version replacing the stub, rebuild `edu_videos`
+      and chapters from it, re-extract, and put the speaker map in the attribution queue. Guest speech stays guest
+      (D14).
+6. **Checkpoints.**
+   - **Status table:** every checkpoint opens with one row per stream — stream, branch, last commit, tests, import-ban
+     checks, reviewer verdict, blockers, ETA to `feat/wisdom-loop`, ETA to master.
+   - **Every checkpoint also carries:** cost to date (API, Batch, storage) and Batch/backfill progress with ETA.
+   - **Continuity:** `SESSION-STATE.md` is current at each checkpoint.
+
 ## 8. Integration protocol
 
 1. A stream finishes on its own branch `wisdom/w1-<letter>-<slug>` with every commit tested and a final report:
@@ -405,3 +466,102 @@ A run counts only with its totals line. Never `pytest tests/` unscoped. One test
 3. Master merges: S-B → S-A → S-C → S-D → S-E → S-F, one at a time, each after `git fetch` + rebase, the flow-worker coverage
    classification, a check of other programs' in-flight merges, and outside 17:50–18:30 ET and ±3 min of an odd ET hour;
    the next waits for Railway `web` SUCCESS verified by `/api/health` uptime reset.
+
+---
+
+## 8b. Owner rulings at checkpoint 2 (2026-09-13) — binding on every stream
+
+Given after merge 1 (S-B → master `e5dfb23fb`). §8a still stands; these are additional.
+
+1. **A stream branch is brought current BEFORE its reviewer runs.** Every stream merges
+   `feat/wisdom-loop` into itself first, so **no reviewer ever verdicts a branch that predates an
+   owner ruling**. ⚰️ Written because S-B's reviewer could not quote §8a — the branch forked before
+   §8a existed — and merging that tip alone would have landed an `authors.json` on master in which
+   "Uncharted Territory" was still an alias of TSDR, the very thing §8a.2 reverses.
+
+2. **A data change and its code path ship in the SAME commit.** ⚰️ §8a.2 was first applied to the
+   data alone: moving the shared host label out of `aliases` stopped it resolving to TSDR and
+   started it resolving to **`guest:uncharted_territory`** — the resolver invented a person. A
+   ruling applied to one side of a data/code pair is not applied.
+   **Reviewer checklist item, mandatory on every stream:** *does the resolver invent an entity when
+   a label is unmapped?* The answer must be **no**. Unmapped means `unresolved`, never a new person.
+
+3. **The first-name attribution path is DELETED, not disabled.** A one-word alphabetic label can be
+   matched to an author only if it is declared in `authors.json` `single_token_aliases_reviewed`
+   with a reason; `core/authors.author_for_alias` enforces this at runtime, so re-adding a bare
+   given name to an alias list resolves to **nobody**, not to a CALL author. Removing the three
+   names fixed the instance; this closes the door.
+
+4. **Every guard carries a test that fails when the guard is removed** — the four import-ban rails
+   and the R2 test-isolation guard, and anything added later. `tests/test_wisdom_guard_mutation.py`
+   neuters each guard in-process and asserts the catch stops, with a CONTROL proving the plant is
+   real first. A mutation proof run by hand is a claim about a moment; the guard can be weakened the
+   next day and the old proof still reads true.
+
+5. **Re-measure "behind master" and sync `feat/wisdom-loop` IMMEDIATELY BEFORE every Wisdom master
+   merge**, not at checkpoint time — master moves under this program from the other workstreams
+   (three merges during merge 1's gate alone). **Every ledger row records the master SHA it merged
+   onto.**
+
+6. **G-030 (the 50SMA contradiction): do NOT write the proposed rule.** "The 50SMA is an entry
+   anchor only with confluence" is a **trading-philosophy ruling only the owner authors**. It is not
+   a PRINCIPLE record and not a vocabulary note. The pair stays in the Contradictions queue with the
+   analysis attached **as a recommendation, not a record**, until the owner states the rule in his
+   own words. G-030 stays non-canonical.
+
+7. **G-035 and G-052 default state until the owner answers:** speaker `team-unresolved`, **MENTION
+   only**, excluded from the UCT-see rate, and excluded from every publish path.
+
+8. **Follow-up findings close with the stream that owns them.** F6 (`ticker_inferred` has a column
+   but no writer binds the bar-range pass to it — the §8a.4 "inferred from adjacent line" rule)
+   **must close in S-D before S-D merges**. F7–F10 close before the stream that owns each merges.
+   F4 (the Substack rail covers imports and two path strings, not `subprocess`/HTTP) **stays open
+   with a ledger note until any Substack-adjacent surface exists**.
+
+9. **The D16a property test's member-facing half re-runs at the S-F merge.** It is SKIPPED today
+   because `api.services.wisdom.publish.adapters` does not exist, so the half that covers
+   member-facing OUTPUT has never executed. **The Definition of Done line for the import-ban rails
+   is not checked until it passes un-skipped.**
+
+---
+
+## 8c. Owner rulings at checkpoint 3 (2026-09-13)
+
+1. **S-A's capture-run finding must close BEFORE S-A merges.** Five requirements, all of them:
+   1. **The route authenticates and authorizes.** ⚠️ Correction to the ruling's premise, recorded
+      because the requirement should rest on the real state: the route is **already
+      authenticated** — every route in `api/routers/wisdom_capture.py`, reads included, carries
+      `Depends(require_admin)` (`:29`, `:46`, `:65`), and `tests/test_wisdom_capture_routes.py`
+      covers it. The hazard is **not** a missing gate. It is (a) an **unbounded `as_of`**, validated
+      only by `dt.date.fromisoformat`, and (b) a **destructive-by-consequence write** sitting behind
+      the same gate as a read. Authorization therefore means: the write variant
+      (`dry_run=false`, and any explicit `as_of`) is gated **more tightly than a read**, and `as_of`
+      is **bounded relative to today** — a future date is refused outright.
+   2. **A watermark advances only on a write whose object passed a non-empty + checksum check.**
+      Zero rows must never move a watermark. A watermark moved to a future epoch makes every
+      subsequent run read `lo >= hi` → `rows=0` → a P1 page every night while capturing nothing.
+   3. **Canonical keys are written once, via a staging key + a verified move — never directly.**
+      ⚠️ Note for whoever implements it: `core/r2.py` has **no delete function, by design**, so the
+      "move" is put-to-staging → verify (`head_object` + sha256 metadata) → copy to canonical →
+      verify. The staging object is left in place; that is the cost of having no delete path, and it
+      is the right trade. `core/r2.py` is integrator-owned — the copy primitive lands there.
+   4. **A regression test plants the attack and asserts it is REFUSED** — the future `as_of`, and
+      the empty-payload write to a canonical key.
+   5. **The ledger row names the finding.**
+2. **Every one of the other seven scout findings gets a verdict with evidence.** VERIFIED, REFUTED
+   or COULD-NOT-TEST. **None gets "probably fine."**
+3. **The unmeasured-audit gap closes structurally, not by argument.** The empty `wisdom_publish_log`
+   is accepted as *today's* argument. The durable fix: **every Wisdom publish adapter (Part 5) writes
+   a provenance marker on every write**, and **a CI check fails if any adapter code path can write to
+   a consumer table without it**. Only then is the shape-based audit a real audit rather than a
+   search for a marker nobody was required to write. **Ships with S-F2 publish**; a ledger note
+   carries it until then.
+4. **The S-D end-to-end assertion (drift #4c) is owed at the S-D merge** and is written into S-D's
+   Definition of Done in the manifest so it cannot be forgotten. The S-B regression test asserts at
+   the layer that decides authorship; S-D owns the record WRITER, so only S-D can assert that a
+   session containing an attendee named "Patrick" produces **zero rows** attributed to the owner.
+5. **Diarization: a straight answer is due at the next checkpoint** — does a working diarization path
+   exist in this environment, yes or no. If no, the plan is named explicitly: **install** (which
+   library, and whether the network policy allows it), an **external service** (which, and what it
+   costs), or **transcript-only with turn-structure heuristics**.
+   ⛔ **Track A does not stall on it: run STT to full coverage FIRST, diarize SECOND.**
