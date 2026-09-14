@@ -11,6 +11,8 @@ collected by pytest (no `test_` prefix). Run from the worktree root unless noted
 | `mutation_harness_observe.py` | 2.2 proofs (18) | `python <file> .` |
 | `mutation_harness_renderer.py` | 2.3 proofs (22: renderer + web correlation) | `python <file> .` |
 | `mutation_harness_symbols.py` | 2.4a proofs (22) | `python <file> .` |
+| `mutation_harness_adapters.py` | 2.4b P2.1 proofs (the adapters, the spine, the envelope, the wiring and the kill switch) | `python -u <file> .` — ⚠️ **`-u`**: without it the report sits in a pipe buffer until the process exits, which on a 40-mutation run looks exactly like a hang |
+| `prove_eol_gate.py` | R-2 end-to-end proof of the line-ending gate: plants a real flip in two CRLF-stored files, asserts RED in both modes, restores sha-verified, and measures the direction git ABSORBS | `python <file>` |
 | `renderer_pool_smoke.py` | real-Chromium measurement of the renderer pool (needs local Playwright) | `python <file> . 48` |
 | `verify_merge.py` | post-deploy HTTP checks (its in-process step is broken on Windows; use `pod_env_probe.py`) | `python <file> <sha>` |
 | `pod_env_probe.py` | reads `/proc/1/environ` of the RUNNING web process: commit, V2 flag, webhook | Git Bash: ``B64=$(base64 -w0 <file>); MSYS_NO_PATHCONV=1 railway ssh -s web echo "$B64" "\|" base64 -d "\|" /opt/venv/bin/python`` |

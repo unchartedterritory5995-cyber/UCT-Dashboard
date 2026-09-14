@@ -215,11 +215,130 @@ export function unitOf(key) {
   return METRIC_UNITS[key] ?? UNIT.COUNT
 }
 
+// ── The registry (R1, D-011, D-034) ───────────────────────────────────────────
+// One place for what a metric is CALLED, how often it reports, and where its record
+// begins or stops. The heatmap builds its tiles from here (Task 3); the Data Charts
+// picker is CHART_GROUPS and stays a separate, smaller list — entering the registry
+// is not entering the picker.
+//
+// ⛔ `label` and `short` are TWO FIELDS, not one value that drifted. The chart legend
+// has a row's width ("% Above 50SMA"); a heatmap tile has about sixty pixels
+// (">50 SMA"). Thirteen of the thirty-seven shared metrics differ on purpose, and the
+// R1 golden fails if that stops being true. Same for the group names: the picker's six
+// expandable sections are not the heatmap's seven tile sections (which include
+// Internals, a section the picker has no equivalent of), so the tile taxonomy stays in
+// the widget layer.
+//
+// ⛔ No `unit` here. METRIC_UNITS remains the one authority over the axis family; a
+// copy in this table would be the second-authority defect this program keeps naming.
+//
+// `coverage` is registry truth recorded before anything consumes it: V2-3 draws the
+// start-of-record marker and the staleness badge from these fields. `from` is the first
+// session the collector stored the metric; `lastReported` is a feed that stopped;
+// `note` is anything a member would need said in words.
+const W = 'weekly'
+
+/** Composites assembled from other stored fields — no column of their own in a row. */
+export const DERIVED_METRICS = new Set(['spy_ma_stack', 'qqq_ma_stack'])
+
+export const METRIC_META = {
+  aaii_bears: { label: 'AAII Bears', group: 'Sentiment', cadence: W },
+  aaii_bulls: { label: 'AAII Bulls', group: 'Sentiment', cadence: W },
+  aaii_neutral: { label: 'AAII Neutral', group: 'Sentiment', cadence: W },
+  aaii_spread: { label: 'Bull-Bear Spread', short: 'B-B Spread', group: 'Sentiment', cadence: W },
+  adv_decline: { label: 'Net Advancers', group: 'Primary Breadth' },
+  adv_decline_cum: { label: 'A/D Line', group: 'Primary Breadth' },
+  advancing: { short: 'Advancing', coverage: { from: '2026-03-16' } },
+  atr_ext_7: { label: '>7× ATR Ext (50SMA)', short: '>7× ATR Ext', group: 'Highs / Lows', drillKey: 'atr_ext_7_list', coverage: { from: '2026-01-02' } },
+  avg_10d_cpc: { label: 'P/C 10D Avg', group: 'Sentiment', coverage: { lastReported: '2026-08-18' } },
+  avg_10d_vix: { label: 'VIX 10D Avg', group: 'Regime', coverage: { from: '2026-01-02' } },
+  avg_10d_vxn: { label: 'VXN 10D Avg', group: 'Regime', coverage: { from: '2026-01-02' } },
+  breadth_score: { label: 'Health Score', short: 'Health', group: 'Score' },
+  cboe_putcall: { label: 'CBOE P/C', group: 'Sentiment', coverage: { lastReported: '2026-08-07' } },
+  cnn_fear_greed: { label: 'CNN Fear/Greed', short: 'CNN F/G', group: 'Sentiment' },
+  declining: { short: 'Declining', coverage: { from: '2026-03-16' } },
+  down_20pct_5d: { label: 'Dn 20%/5d', group: 'Primary Breadth', drillKey: 'down_20pct_5d_list' },
+  down_25pct_month: { label: 'Dn 25%/Mo', group: 'Primary Breadth' },
+  down_25pct_quarter: { label: 'Dn 25%/Qtr', group: 'Primary Breadth', drillKey: 'down_25pct_quarter_list' },
+  down_4pct_today: { label: 'Dn 4%+', group: 'Primary Breadth', drillKey: 'down_4pct_today_list' },
+  down_50pct_month: { label: 'Dn 50%/Mo', group: 'Primary Breadth', drillKey: 'down_50pct_month_list' },
+  down_from_open: { short: 'Down from Open', coverage: { note: 'stored but empty on every session so far' } },
+  down_on_volume: { short: 'Down on Volume', coverage: { from: '2026-08-31' } },
+  hi_ratio: { label: '% at 52W Highs (Close)', group: 'Highs / Lows' },
+  hvc_52w: { label: 'HVC (52W Vol Hi)', group: 'Highs / Lows', drillKey: 'hvc_52w_list', coverage: { note: 'a spiky count — 26 distinct values across the record' } },
+  is_ftd: { short: 'FTD', chartable: false },
+  iwm_qqq_ratio: { label: 'IWM/QQQ (Small-Cap)', group: 'Regime', coverage: { from: '2026-01-02' } },
+  lo_ratio: { label: '% at 52W Lows (Close)', group: 'Highs / Lows' },
+  magna_down: { label: 'Dn 13%/34d', group: 'Primary Breadth', drillKey: 'magna_down_list' },
+  magna_up: { label: 'Up 13%/34d', group: 'Primary Breadth', drillKey: 'magna_up_list' },
+  mcclellan_osc: { label: 'McClellan Osc', short: 'McClellan', group: 'Regime' },
+  naaim: { label: 'NAAIM', group: 'Sentiment', cadence: W, coverage: { note: 'the free feed lags the live index by about three months' } },
+  near_52w_high: { label: 'Within 5% of High', group: 'Highs / Lows' },
+  new_20d_highs: { label: '20D Highs (Close)', group: 'Highs / Lows', drillKey: 'new_20d_highs_list' },
+  new_20d_lows: { label: '20D Lows (Close)', group: 'Highs / Lows', drillKey: 'new_20d_lows_list' },
+  new_52w_highs: { label: '52W Highs (Close)', group: 'Highs / Lows', drillKey: 'new_52w_highs_list' },
+  new_52w_lows: { label: '52W Lows (Close)', group: 'Highs / Lows', drillKey: 'new_52w_lows_list' },
+  new_ath: { label: 'ATH Count (Close)', group: 'Highs / Lows', coverage: { from: '2026-08-06', note: 'before this the collector counted 52-week highs by another name' } },
+  pct_above_100sma: { label: '% Above 100SMA', short: '>100 SMA', group: 'MA Breadth' },
+  pct_above_10sma: { label: '% Above 10SMA', short: '>10 SMA', group: 'MA Breadth' },
+  pct_above_200sma: { label: '% Above 200SMA', short: '>200 SMA', group: 'MA Breadth' },
+  pct_above_20ema: { label: '% Above 20EMA', short: '>20 EMA', group: 'MA Breadth' },
+  pct_above_40sma: { label: '% Above 40SMA', short: '>40 SMA', group: 'MA Breadth' },
+  pct_above_50sma: { label: '% Above 50SMA', short: '>50 SMA', group: 'MA Breadth' },
+  pct_above_5sma: { label: '% Above 5SMA', short: '>5 SMA', group: 'MA Breadth' },
+  qqq_close: { label: 'QQQ', group: 'Regime', coverage: { from: '2026-01-02' } },
+  qqq_ma_stack: { short: 'QQQ MA', chartable: false },
+  ratio_10day: { label: '10D Ratio', group: 'Primary Breadth' },
+  ratio_5day: { label: '5D Ratio', group: 'Primary Breadth' },
+  rsp_spy_ratio: { label: 'RSP/SPY (Equal-Wt)', group: 'Regime', coverage: { from: '2026-01-02' } },
+  sp500_close: { label: 'S&P 500', group: 'Regime', coverage: { from: '2026-01-02' } },
+  spy_ma_stack: { short: 'SPY MA', chartable: false },
+  stage2_count: { label: 'Stage 2 (MA Stack)', group: 'Regime', coverage: { note: 'gaps: 343 of the stored sessions carry no value' } },
+  stage4_count: { label: 'Stage 4 (MA Stack)', group: 'Regime', coverage: { note: 'gaps: 343 of the stored sessions carry no value' } },
+  uct_exposure: { label: 'UCT Exposure', short: 'UCT Exp', group: 'Score', coverage: { from: '2026-02-20' } },
+  universe_count: { label: 'Universe Count', group: 'Primary Breadth' },
+  up_20pct_5d: { label: 'Up 20%/5d', group: 'Primary Breadth', drillKey: 'up_20pct_5d_list' },
+  up_25pct_month: { label: 'Up 25%/Mo', group: 'Primary Breadth' },
+  up_25pct_quarter: { label: 'Up 25%/Qtr', group: 'Primary Breadth', drillKey: 'up_25pct_quarter_list' },
+  up_4pct_today: { label: 'Up 4%+', group: 'Primary Breadth', drillKey: 'up_4pct_today_list' },
+  up_50pct_month: { label: 'Up 50%/Mo', group: 'Primary Breadth', drillKey: 'up_50pct_month_list' },
+  up_from_open: { short: 'Up from Open', coverage: { note: 'stored but empty on every session so far' } },
+  up_on_volume: { short: 'Up on Volume', coverage: { from: '2026-08-31' } },
+  up_vol_ratio: { label: 'Up/Down Volume', group: 'Primary Breadth' },
+  vix: { label: 'VIX', group: 'Regime', coverage: { from: '2026-01-02' } },
+  vxn: { label: 'VXN (Nasdaq)', group: 'Regime', coverage: { from: '2026-01-02' } },
+}
+
+/** The tile label — deliberately shorter than `label`; falls back to it, then to the key. */
+export const shortOf = key => METRIC_META[key]?.short ?? METRIC_META[key]?.label ?? LABEL_MAP[key] ?? key
+
+/** The `_list` field holding the names behind this metric's count, or undefined. */
+export const drillKeyOf = key => METRIC_META[key]?.drillKey
+
+/** 'weekly' for the surveys, 'daily' for everything the collector writes each session. */
+export const cadenceOf = key => METRIC_META[key]?.cadence ?? 'daily'
+
+/** False for the composites a line cannot draw (the MA stacks, the FTD flag). */
+export const isChartable = key => METRIC_META[key]?.chartable !== false
+
+/** What is known about where this metric's record starts or stops. `{}` when it is complete. */
+export const coverageOf = key => METRIC_META[key]?.coverage ?? {}
+
 // ── Reporting cadence ─────────────────────────────────────────────────────────
-// Surveys published once a week — the same set `heatmapMetrics.FFILL_KEYS` may
-// carry forward. A reading a few sessions old is the survey's cadence, not a
-// stopped feed; everything else prints every session.
-export const WEEKLY_METRICS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim'])
+// Derived from the registry, so the readout's staleness rule and the heatmap's
+// forward-fill list cannot drift apart — they were two typed copies of these five keys.
+// A reading a few sessions old is the survey's cadence, not a stopped feed.
+// ⛔ CATALOG ORDER, NOT ALPHABETICAL. `heatmapMetrics.FFILL_KEYS` is this set spread into
+// an array, and it read bulls → neutral → bears → spread → naaim: the order the AAII survey
+// is published in. METRIC_META is sorted by key, so deriving straight from it silently
+// reordered that artifact to bears → bulls → neutral, which the R1 golden caught. The fill
+// loop is order-independent, so nothing behaved differently — but an artifact that changes
+// for no reason is how a golden stops being trusted. Catalog order reproduces it exactly.
+export const WEEKLY_METRICS = new Set([
+  ...ALL_METRICS.map(m => m.key).filter(k => cadenceOf(k) === W),
+  // any weekly metric the picker does not offer (none today) still belongs in the set
+  ...Object.keys(METRIC_META).filter(k => cadenceOf(k) === W),
+])
 
 /** Sessions a metric's latest reading may trail the newest row before the readout dates it (A-10). */
 export function staleAllowance(key) {

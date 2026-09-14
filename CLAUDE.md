@@ -2140,6 +2140,21 @@ started". It was caught only because the log had no `Test Files` / `Tests` line 
 been trusted, a green gate would have been reported for a suite that never ran
 (`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
 
+⚰️⚰️ **SECOND SIGHTING, 2026-09-13 — recorded because this is NOT fixed and the shape
+inverted.** The six-shard gate on the stage-2 merge tip printed its own verdict:
+
+```
+GATE: 1 NEW failure(s) against the baseline — exit 1.
+GATE EXIT: 1
+[exited with code 0]
+```
+
+The background-task notification said **"completed (exit code 0)"**. The first sighting was
+*runner never ran, wrapper said 0*; this one is *gate ran and said **1**, wrapper still said 0*
+— so the wrapper's status is uninformative in **both** directions, not merely optimistic about
+startup. ⛔ **Nobody may treat this as a solved trap.** Read the manifest: the totals line, the
+file-count reconciliation, and the gate's own `GATE EXIT:` line. The task status is not a verdict.
+
 **Corollary — a CHUNKED run must be diffed against the full test-file list before its total is
 quoted.** The same gate was later split by directory to survive host memory pressure, and the chunk
 list covered 1,016 of 1,178 files — missing a known baseline row. A partial suite fails in the
@@ -2148,6 +2163,42 @@ flattering direction: fewer files run, fewer failures found. Count the files, no
 ```sh
 find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
 ```
+
+### ⛔⛔ Write a file with the line endings GIT ALREADY STORES — never "whatever was on disk" (Editing)
+
+> **Every repo file written from a script on this box is written with the endings of the blob git
+> holds for that path. For a new file that is LF. Gate: `python tools/check_repo_hygiene.py`.**
+
+Owner ruling **R-2**, 2026-09-13, after the same trap bit twice in one programme: a 2-line edit came
+back as a **918-line** diff, and a 7-line edit as a **1,199-line** one. Both times the edit was
+correct and unreviewable.
+
+**The mechanism, measured rather than assumed.** `core.autocrlf=true` on this box, and 7 of the
+9,135 tracked blobs were committed CRLF (`docs/plans/joystick/deferred.md` is **mixed** — 87 CRLF
+lines among LF ones). A Python round trip opened with `newline=""` faithfully preserves what is ON
+DISK, which for those paths is the opposite of what git stores.
+
+⚠️ **The trap is one-directional, and "never write CRLF" is the wrong lesson.** Writing CRLF over an
+LF-stored file is *cleaned on the way in*: `git diff` reports nothing at all and nothing wrong can
+reach a commit (measured on `docs/feature_flags.json` — numstat empty). The direction that destroys a
+diff is a **CRLF-stored or mixed blob flattened to LF**. So the rule is *match the stored blob*, not
+*avoid CRLF*.
+
+⭐ **The gate compares CR-stripped content, not a "style".** A bare CRLF ban would go red on
+`deferred.md` the moment somebody edited it *correctly* — and a check that fires on the right answer
+is muted within a week. A style comparison is not enough either: on a mixed file both sides answer
+"crlf" and a real flip slips through. `tools/check_repo_hygiene.py` reports a path only when the two
+sides are **identical once every CR is removed**, i.e. when endings are the *only* difference.
+`--staged` compares the index blob (what a commit would record, so it works as a pre-commit hook);
+the default mode compares the working file, which fires before `git add`. Rails:
+`tests/test_repo_hygiene.py` (11 quiet-cases beside the 4 firing ones, an exact-path allowlist check,
+and a non-vacuity case — the check walks CHANGED paths, so on a clean tree it inspects nothing and a
+broken one is indistinguishable from a working one). `--self-check` proves it can fail.
+
+⚰️ **And a related one, paid for in the same hour: `git checkout -- <file>` is not a restore.** Used
+to undo a one-line probe, it discarded an unrelated finished edit to the same file that had taken
+twenty minutes to write. Restore by writing back bytes you captured first and verifying the sha —
+`feedback_mutation_check_never_git_checkout`, which now has a second incident behind it.
 
 ### ⛔ Run the suite in its OWN tool call, before `git commit` — never in the same one (Testing)
 
@@ -4125,11 +4176,27 @@ or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist —
 recording on the account auto-posts (titled by its webinar name); add a skip rule in
 `_route` if private/internal recordings ever need excluding.**
 
-**🔴 YouTube privacy is per-show and defaults to UNLISTED** (`privacy_for_section`,
-2026-08-09). Only a section matching `DESK_PUBLIC_SHOWS` (default `sunday scans`)
-uploads **public**; every other show — **Live Trading Sessions above all, which are
-paywalled** — stays unlisted. This is the one call that decides whether a paid session
-becomes a searchable video on the channel, so:
+**🔴 EVERY SHOW UPLOADS PUBLIC — owner decision 2026-08-19, reaffirmed 2026-09-13.**
+`DESK_PUBLIC_SHOWS=*` is live on `web`, so `privacy_for_section` returns `public` for
+every routed section: Live Trading Sessions, Workshops, Evening Updates, Thoughts on
+the Market, Post-Market Recaps and Sunday Scans alike. **The flag and its ledger entry
+govern, not this paragraph** — read `docs/feature_flags.json` → `DESK_PUBLIC_SHOWS`,
+whose `owner_decision` field carries the decision and its date.
+
+⚰️ **THIS SECTION SAID THE OPPOSITE UNTIL 2026-09-13**, and the cost of that is the
+reason the ledger entry now exists. It read *"only Sunday Scans uploads public; every
+other show — Live Trading Sessions above all, which are paywalled — stays unlisted"*,
+which had been false since 2026-08-19. An agent found the live wildcard, read this
+paragraph, and correctly escalated it as a paid-content leak; 27 videos were set
+unlisted and then restored when the owner confirmed the decision was his. ⭐ **Nothing
+was wrong with the escalation** — the doc asserted a rule, the world disagreed, and
+there was no record anywhere saying which was intended. **That is what
+`owner_decision` in the ledger is for, and why a wildcard now costs one dated
+sentence.**
+
+⛔ **The rule below is the MECHANISM, which is unchanged and still worth reading —**
+`_PUBLIC_SHOWS_DEFAULT` remains `sunday scans`, so an *unset* variable still fails
+conservative, and a blank value still makes nothing public:
 - It keys off the **routed SECTION**, not the hand-typed Zoom topic — the section is
   the canonical name `_RULES` already pins, so casing/pluralisation/double-space
   variants collapse to one answer. Keying it off the raw name would put a second
@@ -4142,21 +4209,20 @@ becomes a searchable video on the channel, so:
   it lands and defaults to unlisted. Mutation-checked three ways (guard deleted · call
   site stops passing privacy · client ignores the value it was handed) — the middle one
   is the "routing computed but never applied" failure this repo keeps rediscovering.
-- ⛔⛔ **THE RULE ABOVE IS CORRECT AND IT WAS NOT TRUE FOR 25 DAYS.**
-  `DESK_PUBLIC_SHOWS=*` was set on `web` on **2026-08-19** (`0894d7ac0`, whose message
-  cites an owner decision) and **27 paid sessions** — Live Trading Sessions, a paid
-  workshop, Evening Updates — uploaded **public and searchable** until the owner's
-  revert on 2026-09-13. Every rail was green throughout: the flag carries no
-  `ENABLED`/`DISABLE` marker, so `is_gate()` is false for it and the ledger rail never
-  asked. **A doc that states a rule no check enforces is a rule that lasts until
-  somebody changes a variable.** The checks that now exist, and which this paragraph and
-  they must be kept in step with:
-  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared
-  in `docs/feature_flags.json` with `exposure`/`default`/`values`, a wildcard refused,
-  declared values must name sections `_RULES`/`_HOST_AWARE` can actually produce) and
-  **`python tools/flag_ledger_audit.py --visibility`** (the live half — reads the
-  services and fails on a wildcard or an undeclared value, because the wildcard was
-  never in the repo and only the running service ever had it).
+- ⛔⛔ **A DOC THAT STATES A RULE NO CHECK ENFORCES IS A RULE THAT LASTS UNTIL SOMEBODY
+  CHANGES A VARIABLE.** For 25 days the live value and this file disagreed and nothing
+  could tell: the flag carries no `ENABLED`/`DISABLE` marker, so `is_gate()` is false for
+  it and the flag-ledger rail never asked about it at all. **Keep this section and the
+  two checks in step with each other:**
+  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared in
+  `docs/feature_flags.json` with `exposure`/`default`/`values`; a wildcard is refused
+  **unless** the entry carries a dated `owner_decision`; non-wildcard values must name
+  sections `_RULES`/`_HOST_AWARE` can actually produce; the declared default must equal
+  `_PUBLIC_SHOWS_DEFAULT`) and
+  **`python tools/flag_ledger_audit.py --visibility`** (the live half, and the only half
+  that can see this class at all — the wildcard was never in the repo; only the running
+  service ever had it. It applies the same authorised-wildcard rule to the live value).
+  ⭐ The rail records intent; it does not veto it. A wildcard costs one dated sentence.
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
