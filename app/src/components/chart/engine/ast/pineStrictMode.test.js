@@ -21,21 +21,49 @@ import { interpret } from './interpret.js'
 /** The Clouds shape in miniature: two plots that translate, N that cannot.
  *  ⛔ Written out rather than read from the member's file so this rail owns its
  *  own input — a fixture that can be edited elsewhere is not a rail. */
+// ⚰️ THE FIXTURE WAS `array.get` UNTIL 2026-09-14, AND THIS RAIL WAS RIGHT
+// TO GO RED WHEN THAT CHANGED. Wave 2 item (a) made a sized array a PLAN-TIME
+// VECTOR, so `var a = array.new<float>(21)` plus 21 `array.get(a, k)` reads now
+// TRANSLATES: every slot is unwritten, so every read folds to `na` — which is
+// exactly what Pine answers for a sized array nothing has filled.
+//
+// ⛔ SO THE PREMISE MOVED, NOT THE RULE. The fixture moves to `matrix.*`,
+// which item (a) deliberately leaves refused, and the rail keeps testing what it
+// was built for: strict refuses a PARTIAL translation while lenient offers what
+// it can. Lowering the assertion instead would have been re-greening a rail.
 const cloudsShape = (layers) => {
   const head = '//@version=6\nindicator("cloud", overlay=true)\n'
     + 'fastMA = ta.ema(close, 9)\n'
     + 'slowMA = ta.ema(close, 20)\n'
     + 'plot(fastMA, "Fast MA")\n'
     + 'plot(slowMA, "Slow MA")\n'
-    + `var layerArray = array.new<float>(${layers})\n`
+    + `var layerGrid = matrix.new<float>(${layers}, 1)\n`
   let body = ''
   for (let i = 0; i < layers; i += 1) {
-    body += `p${i + 1} = plot(array.get(layerArray, ${i}), display=display.none, editable=false)\n`
+    body += `p${i + 1} = plot(matrix.get(layerGrid, ${i}, 0), display=display.none, editable=false)\n`
   }
   return head + body
 }
 
 const CLOUDS = cloudsShape(21)
+
+describe('⭐⭐ a vector-only script is DECIDABLE, and says what it left empty', () => {
+  it('⭐ strict says YES: unwritten slots are `na`, which is Pine\'s own answer', () => {
+    const src = '//@version=6' + String.fromCharCode(10)
+      + 'indicator("v", overlay=true)' + String.fromCharCode(10)
+      + 'plot(close, "real")' + String.fromCharCode(10)
+      + 'var a = array.new<float>(3)' + String.fromCharCode(10)
+      + 'plot(array.get(a, 1))' + String.fromCharCode(10)
+    const t = translatePine(src, { strict: true })
+    // ⛔ A LOST TRANSLATION IS ACCEPTABLE; A SILENT `na` IS NOT. This one is
+    // not lost and not silent: it translates, and it SAYS what it left empty.
+    expect(t.ok, 'a decidable vector script is not a partial translation').toBe(true)
+    const note = (t.notes || []).find((n) => n.code === 'pine:vector-unwritten')
+    expect(note, 'every unwritten-slot read is visible').toBeTruthy()
+    expect(note.message).toMatch(/slot 1 was never written/)
+    expect(note.line, 'the note carries the READ\'s line').toBe(5)
+  })
+})
 
 describe('⛔⛔ strict mode refuses a PARTIAL translation', () => {
   it('⭐⭐ the real Clouds shape: lenient says yes, strict says no', () => {

@@ -116,10 +116,26 @@ describe('the Pine guard census, by name', () => {
 // `pine.forLoopReassignSilentWrongResult.test.js`, and the 60-script OOS corpus
 // reaches the passthrough PATH on two scripts (each surfacing an earlier, more
 // specific refusal first, which is the better sentence to show).
+// ⭐⭐ TWO MOVERS, 2026-09-14, AND THEY MOVED IN OPPOSITE DIRECTIONS — which is
+// what makes this a capability landing rather than a baseline slipping.
+//
+//   `pine:collection`   JOINS this list. No published script reaches it any
+//                       more: wave 2 item (a) folds a sized array to a
+//                       plan-time vector, so scripts that used to stop at
+//                       their first `array.get` now run past it.
+//   `pine:constant-only` LEAVES it. Those same scripts run on and some of
+//                       them turn out to offer nothing that varies bar to
+//                       bar — so a guard that no corpus script had ever
+//                       reached is now reached, by scripts that could not
+//                       get far enough to reach it before.
+//
+// ⛔ THE METRIC DID NOT MOVE: 266 / 31 / 44, re-derived. Nothing is unlocked
+// end to end; what changed is WHICH guard fires first, which is exactly what
+// this census measures and why it is worth keeping.
 const EXPECTED_UNEXERCISED = [
   'pine:character',
+  'pine:collection',
   'pine:colour-value',
-  'pine:constant-only',
   'pine:declaration-library',
   'pine:drawing',
   'pine:empty',

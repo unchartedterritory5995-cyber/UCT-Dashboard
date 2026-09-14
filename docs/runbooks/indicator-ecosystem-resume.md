@@ -82,6 +82,46 @@ not a typo). `--self-check` proves the check can fail.
 | `EvidenceTab.doors.test.js` | `app/src/components/chart/builder/` | — |
 | `vendorTruth.test.js` · `vendorNote.test.js` (divergence ledger) | `app/src/components/chart/engine/ast/` | — |
 
+### ⛔⛔ A FILE WITH BACKSLASHES IS EDITED WITH THE FILE TOOLS, NEVER A HEREDOC
+
+**Owner ruling, 2026-09-14 — the FIFTH instance of one class.** Any file whose
+content contains a backslash or an escape sequence (\n, \t, a regex, a JS
+template literal, a Windows path) is written or patched with the **Write/Edit
+tools**. Never a bash heredoc, and never `python - <<EOF`.
+
+⚰️ **WHY, MEASURED.** The Bash tool strips one level of backslashes even from a
+QUOTED heredoc (`<<'PY'`). So:
+
+```
+written in the heredoc      arrives in the file      what Python then sees
+  \\n                          \n                       a REAL newline
+  \\\\u26d4                    \\u26d4                  an incomplete escape
+```
+
+It cost four failed edits in one session before it was named: a patch whose
+needle silently could not match, a `re` pattern that raised *incomplete escape
+\u*, a multi-line string literal broken across real newlines producing
+*unterminated string literal*, and a JS assertion rewritten with a newline where
+a two-character `\n` belonged. **Every one of them looked like a wrong anchor
+rather than a mangled one**, which is what made it expensive: the obvious next
+move is to re-read the target file, and the target file is fine.
+
+⭐ **THE CLASS, and why this sits beside the others.** It is the fourth sibling
+of the same defect: *a layer between you and the artifact changes the artifact,
+and the evidence of the change is in the layer you did not look at.*
+
+| # | rule | the layer that lied |
+|---|---|---|
+| 1 | CRLF pins in `.gitattributes` | checkout rewriting line endings |
+| 2 | never verify a runner through a pipe | the pipe owning the exit code |
+| 3 | the last element of a compound command owns the status | a trailing `echo` |
+| 4 | manifests are edited as text, never re-serialised | a serialiser reformatting 3,272 lines |
+| 5 | **this one** | the shell eating a backslash |
+
+⭐ Writing a helper script with the Write tool and then RUNNING it with Bash is
+the sanctioned pattern — the file tools put the bytes down exactly, and bash only
+ever invokes an interpreter on a path.
+
 ### ⛔⛔ THE PRE-PUSH SECRET SCAN DOES NOT RUN IN THIS WORKTREE — AND THAT IS NOT A PASS
 
 Master's `pre-push` hook (arrived with `4fb4f9daf`, *LAYER 0: the 502 rule made

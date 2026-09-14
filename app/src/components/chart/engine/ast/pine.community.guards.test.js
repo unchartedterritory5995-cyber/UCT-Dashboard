@@ -116,7 +116,14 @@ const REFUSES = Object.freeze({
   // place. They refuse now, and the refusal names the bounded form.
   '04-ut-bot-alerts.pine': ['pine:state', 15, '['],
   '05-chandelier-exit.pine': ['pine:state', 27, '['],
-  '22-daily-weekly-monthly-highs-lows.pine': ['pine:collection', 132, 'array.get'],
+  // ⭐⭐ MOVER, 2026-09-14 — THE GUARD ADVANCED. This was
+  // ['pine:collection', 132, 'array.get']: the script stopped at the first array
+  // READ. Wave 2 item (a) makes a sized array a plan-time vector, so that read
+  // folds and the script now runs on to a LATER, more specific refusal.
+  // ⛔ A refusal moving DEEPER into a script is a win, and it is recorded as one
+  // rather than re-baselined in silence: the member gets a sentence about what
+  // actually stops their script instead of about the first array they wrote.
+  '22-daily-weekly-monthly-highs-lows.pine': ['pine:constant-only', null, null],
   // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE as ['pine:request', 14,
   // 'request.security'] and it TRANSLATES now — ruling 3.5 (`29d64a2ef`, 2026-09-12):
   // its `request.security(syminfo.tickerid, "D", …)` names the engine's own base, so it
