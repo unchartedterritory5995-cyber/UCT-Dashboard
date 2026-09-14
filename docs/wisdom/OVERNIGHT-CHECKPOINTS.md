@@ -186,3 +186,62 @@ and exited 0**. It was not used as evidence — the deploy was verified from
 `railway deployment list --json` polled to a terminal status, then from `/api/health`. Recorded
 because an empty result with a zero exit is this programme's most expensive shape, and the tool is
 currently unusable as invoked. Not fixed here; it is not Wisdom's file and merge 7 was in flight.
+
+---
+
+## Checkpoint 9 — the §8.6 acceptance run. 11 PASS · 0 FAIL · 1 INCONCLUSIVE. 2026-09-14 04:05 CT
+
+Run in-process against a **sandbox** built from `conftest.shared_data_root_census()` —
+**77 pins applied, `unpinnable` 0**, so nothing resolved at the owner's live `C:\data`.
+⛔ The pins are derived and applied BEFORE the first `api.**` import, because these paths are
+captured at module import and `DATA_DIR` reaches only one of the 77.
+
+| # | check | verdict | evidence |
+|---|---|---|---|
+| 1 | daily chain end to end | **INCONCLUSIVE** | 9 steps: 6 ok, 2 skipped, 1 failed — `sources`, environmental only (see below) |
+| 2 | weekly chain dry run | PASS | 7 steps, 0 failed |
+| 2b | weekly report builds | PASS | `weekly-v1`, 8 sections |
+| 3 | every rate prints its n | PASS | `ratio_text(0,0)` = `'0/0'` — no percentage; `ratio_text(3,4)` = `'3/4 (75.0%)'` |
+| 3b | contract metric names declared | PASS | 11 in `EXPECTED_METRICS` |
+| 4 | job roster registers | PASS | **13 jobs** from `registry.job_specs()` |
+| 4b | heartbeat / chain-step / observation tables | PASS | all 4 present of 60 tables |
+| 5 | flag census | PASS | **24 `WISDOM_*` flags, every one `dark`, none set in env** |
+| 5b | the flag READER agrees | PASS | 25 predicates derived from the module itself; **none returns true** |
+| 6 | D20 built AND disabled | PASS | `score_silently` runs (`levels_scored: 0`); `level_alerts_enabled()` **False** |
+| 7 | provenance CI check | PASS | `ok=True`, **10 consumer write sites, 0 unmarked** |
+| 7b | that check can still FAIL | PASS | plants 1 unmarked write → audit finds 1, returns `ok=False` |
+
+⭐ **5b is the one worth keeping.** Reading the ledger tells you what was *declared* dark; asking
+the flag module's own predicates tells you what the code will actually *do*. They are two
+authorities over one value and the ledger is the one that drifts silently — this repo has already
+paid for that with `RESEARCH_TECHNICAL_TAB_ENABLED`. So the predicates are **derived from
+`vars(flags)`** (every zero-argument `*_enabled`), never typed, and a flag added tomorrow is
+covered the day it lands.
+
+### The one INCONCLUSIVE, stated as what it is
+
+```
+sources.run_daily: discord: DISCORD_BOT_TOKEN is not set; transcripts: OperationalError
+  {'discord': {'outcome': 'no_token'}, 'transcripts': {'error': 'no such table: edu_videos'}}
+```
+
+Both causes are **this box, not the code**: no Discord bot token in a sandbox that deliberately
+carries no secrets, and an unseeded `education.db`. ⛔ **Reported INCONCLUSIVE rather than PASS or
+FAIL, by name.** A sandbox cannot distinguish *"this code is broken"* from *"this box holds no
+credential"*, and collapsing those either manufactures a defect or hides one. Calling it a pass
+would be the worse error: it would record the daily chain as proven end to end when two of its
+nine steps were never exercised. Verifying `sources` needs either a real token or a seeded Desk
+table, and neither belongs in an unattended overnight run.
+
+⚠️ **Four of the first-run "failures" were MY HARNESS, not the product**, and are recorded because
+the distinction is the whole point: `flags.enabled(name)` does not exist (the module exposes one
+predicate per flag), `registry.JOBS` does not exist (`job_specs()`), `build_weekly` takes
+`(conn, *, now=)`, and a chain step's key is `"step"`, not `"name"` — which is why the first run
+printed `FAILED=[None]` and named nothing. ⭐ **A harness that guesses at an API produces findings
+about the harness.** None of those reached the table above.
+
+⚰️ **And 7b was reported FAIL once, wrongly, by me.** `self_check` PLANTS an unmarked write and
+returns `{'found': 1, 'report': {'ok': False}}` — `found: 1` means the guard caught the plant and
+`ok: False` is the verdict **on the plant**, which is success. Reading that nested `ok` inverts
+the test and calls a working guard broken. The predicate is now `found >= 1 AND report.ok is
+False`, which can only be satisfied by a guard that actually fired.
