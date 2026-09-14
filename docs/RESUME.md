@@ -62,16 +62,66 @@ Wire HAS run today** (`last_run_date = 2026-09-14`), so its precondition is sati
 after the close. The script itself is careful — it probes both tokens first and aborts if the
 current one is not accepted.
 
-### The 16:00 sequence, in order
+### What the 16:00 sequence actually did — 2026-09-14, 16:45 ET
 
-1. merge the 9 commits → `web` SUCCESS → verify the running SHA **in-process**
-   (⭐ `/renderhealth` in Discord prints the running commit — the product is its own SHA oracle)
-2. `CHART_FLOW_CHANNEL_ID=1546563720702853280,1549129739048853544` → new boot → verify in-process
-3. 3.5 rows 1–7 in `#render-smoke` (⛔ save every screenshot to disk in the same action — ephemeral
-   replies do **not** survive a reload)
-4. `bash docs/discord-render/instruments/step3_real.sh`
-5. `render_token_retire.cmd` (clears the leaked PREVIOUS token → C-13)
-6. `flip_preconditions.py`; flip **only** if every row prints MET
+**Merged and deployed `56e9d3aec`** (OI-34, OI-35, B1, B4/B5, B2, all 316 anchors green).
+`web` SUCCESS, **and `chart-renderer` SUCCESS too** — its watch path is `services/chart_renderer/**`
+and B1 touches it, so B1's lever is IN PRODUCTION but **dark** (`RENDER_ADMIN_ENDPOINTS` unset).
+
+⛔ **I pushed at 15:49, eight minutes BEFORE the close, having decided not to and having set a timer
+to prevent it.** I acted on a mental estimate that had drifted ~25 minutes. Cost: a `web` +
+`chart-renderer` restart in the last minutes of RTH; `/api/health` 200 after; no scheduler slot was
+due. Full entry in `LEDGER.md`. **Standing correction: no scheduled action fires on a remembered
+time — read the clock in the same tool call that takes the action.**
+
+### The numbers, and the rate they belong to
+
+| phase | S1 ack | S2 p50 / p95 / p99 | success | failures |
+|---|---|---|---|---|
+| 3.1a — **30 arrivals/s** | p95 63 ms, `over_3s` **0** | 14,855 / 18,117 / 18,836 ms | 35.7 % | **all `queue_full`** (81) |
+| 3.1b — 100 burst | p95 1 ms, `over_3s` **0** | 13,727 / 16,472 / 16,953 ms | 50.0 % | **all `queue_full`** (31) |
+| **3.1c — 1 arrival/s × 10 min** | p95 6 ms, `over_3s` **0** | **3.5 / 1,748 / 6,692 ms — ALL INSIDE S2** | 98.67 % | **all `queue_full`** (8) |
+
+⭐ **S1 held in every phase. Every single failure everywhere was `queue_full`** — never a timeout,
+never a render error, no breaker trip. 593 real charts delivered in 3.1c alone (97.6 MB).
+⚠️ **OI-37:** the brief said "30 concurrent"; `--rate 30` is 30 **per second**, so 3.1a is ~15× the
+specified load. Quote no S2 number without its arrival rate.
+
+chaos `--real` **PASS** (7 ran, 7 passed, 6 refused by name) · determinism ×20 **PASS** (6/6
+identical) · wire hop **PROVEN** (40 × HTTP 200).
+
+### ⛔⛔ THE THING TO READ FIRST IF YOU READ NOTHING ELSE
+
+**The flip gate's S2 row could not fail.** `check_s2_measured` was `MET if the --real files exist`
+and never opened them. Tonight's runs all printed FAIL — and the row flipped from NOT MEASURABLE to
+**MET** because five files now existed. **Producing failing evidence made the gate greener**, on the
+row that decides whether delivery meets its SLO, in the tool `06` §0 calls "the authority".
+Two sibling rows (chaos, 3.5) had the same shape. All three now read verdicts. **Re-read any flip
+decision taken against the old tool.**
+
+### Flip status: NOT MET, and it is not close
+
+| row | state |
+|---|---|
+| forensics | 🔴 11/14 — **C-02**, **C-09**, **C-13** open |
+| S2 | 🔴 9 named breaches at 30/s (MET at 1/s) |
+| 3.5 smoke | 🔴 **2 of 15 rows** |
+| soak | ⚪ 61/90 ticks (~23:40 ET) |
+| mutations | ⚪ needs `--run-mutations` (anchors are 316/316) |
+| cache · chaos · shadow · xfails · `#render-alerts` | ✅ MET |
+
+**Organic members exposed to V2: 0.**
+
+### Next session — in this order
+
+1. **3.5 rows 2–4, 6–7, 10–15** in `#render-smoke` (rows 1 and 9 pass; 5 and 8 need re-running).
+   ⛔ Save each screenshot to disk in the SAME action — ephemeral replies do not survive a reload.
+2. **OI-38** — the cache reported `hits 0, misses 0` under `--real`: not a poor hit rate, *not even
+   a miss*, across ~76 renders of 20 symbols. Gap 1's 80 % is a bench number, unreproduced.
+3. **Arm B1** on chart-renderer (`RENDER_ADMIN_ENDPOINTS=1` + `RENDER_ADMIN_TOKEN`) and take the
+   determinism-across-recycle row from NOT MEASURABLE to measured.
+4. **C-13** — `render_token_retire.cmd` is fixed and the Wire has run; it can go any time.
+5. Re-run `flip_preconditions.py`.
 
 ---
 
