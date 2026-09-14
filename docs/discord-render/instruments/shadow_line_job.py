@@ -34,6 +34,12 @@ UTC = _dt.timezone.utc
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 DEFAULT_OUT = pathlib.Path(r"C:\Users\Patrick\uct-render-soak")
 
+#: What `shadow_report.py` ACTUALLY prints when it has run. Read off the tool, not invented.
+#: ⛔ If shadow_report's summary wording changes, this must change with it — a run that
+#: really did produce a report must never be recorded as "did not run", because a line that
+#: cries wolf gets muted inside a week and then a real silent failure looks identical.
+SUMMARY_MARKERS = ("records:", "outcomes:", "TOTALS")
+
 #: mode -> (ET start hour:minute, ET end hour:minute or None for "now", jsonl name, label)
 #: ⚠️ `None` for the end means "up to the moment the job runs", which is the honest window
 #: for a line that fires mid-session. A fixed end on a mid-session line would claim to
@@ -96,9 +102,15 @@ def run(mode: str, out_dir: pathlib.Path, now_et: _dt.datetime | None = None) ->
                        encoding="utf-8", errors="replace")
     out = (q.stdout or "") + (q.stderr or "")
     print(out)
-    # ⛔ A run with no TOTALS line is not a run, whatever the exit code says.
-    if "TOTALS" not in out:
-        print("  ⛔ NO TOTALS LINE from shadow_report — this did not run.")
+    # ⛔ A run with no summary line is not a run, whatever the exit code says.
+    # ⚰️ This asked for the token "TOTALS" on its first fire and failed a run that had
+    # worked perfectly — shadow_report.py does not emit that word; it emits `records:` and
+    # `outcomes:`. The rule is right and the needle was invented rather than read off the
+    # tool, which is the same defect as a kill-switch env name nobody grepped: a check
+    # looking for the shape you EXPECT rather than the shape that EXISTS.
+    if not any(marker in out for marker in SUMMARY_MARKERS):
+        print(f"  ⛔ NO SUMMARY LINE from shadow_report (looked for {SUMMARY_MARKERS!r}) "
+              f"— this did not run.")
         return ERROR
     print(f"  EXITCODE={q.returncode}")
     return q.returncode
