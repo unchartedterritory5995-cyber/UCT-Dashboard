@@ -1063,3 +1063,48 @@ nothing was changed there — see NO FAKE PROGRESS.
 Remaining open items are the two DEFERRED product decisions (secondary-series
 colour palette; main-legend duplication) and the backend-data items above. All
 need the owner.
+
+### END OF SESSION — 2026-09-14
+
+**Branch** `feat/overnight-universal-data-ux` · **start** `f3c7cad9d` ·
+**end** `7f3f4a916` · working tree CLEAN · NOT pushed.
+
+Checkpoints, in order:
+1. `8614f230f` feat — the Indicators row says WHERE it draws and HOW
+2. `7f3f4a916` test — rails for the active-row summary
+
+**Files changed (4):**
+`app/src/components/chart/ChartSettingsIndicators.jsx`,
+`app/src/components/chart/ChartSettingsModal.module.css`,
+`app/src/components/chart/ChartSettingsModal.rowSummary.test.jsx` (new),
+`docs/universal-data-panes/OVERNIGHT-LEDGER.md`.
+
+**Final state** `src/components/chart`: 10 failed / 8978 passed / 4 skipped —
+identical failure set to baseline, each re-confirmed red with the work stashed.
+`vite build` ✓. Main Trading verified READ-ONLY at both ends of the session:
+`40d361fa 5354 ea9ebaeee302`, unchanged. `/charts` never opened.
+
+**Production / infrastructure: UNTOUCHED.** No push, no deploy, no Railway, no
+Cloudflare, no master. Phase 1.5 security work frozen exactly as left.
+
+### CANDIDATE, DELIBERATELY NOT TAKEN — "Source unavailable" in the summary
+The collapsed row now says `Pane unavailable`; it says nothing when a SOURCE is
+severed (it omits the source rather than mislabelling it, so it is never wrong —
+only silent). Surfacing it would match the pane treatment, BUT the select's own
+header records a browser-measured bug from 2026-09-13 in which EVERY direct series
+falsely read "Source unavailable" over a perfectly good `sym:SPY:close`. Repeating
+that class in the collapsed row — which every member sees without opening
+anything — is a worse failure than silence. Wants the `known` check the select
+already performs, wired deliberately, not overnight.
+
+### FOR THE OWNER — three decisions
+1. **Secondary-series colour.** Every added instrument draws the same blue.
+   Rotate a palette / inherit from source / ask on add? Touches stored instance
+   state, so it is a product decision, not a polish pass.
+2. **Main-legend duplication.** A series in its OWN pane also prints its value in
+   the MAIN chart legend. May well be intended (one legend for everything) —
+   untouched pending your read.
+3. **Symbol names + ETF-vs-STOCK** in Add-to-Chart: backend data
+   (`/api/ticker-search` returns `name: null`, `type: "stock"` for active
+   symbols). Needs the provider-backed name index and a change to a route with 14
+   consumers and a bad history. Not a UI fix.
