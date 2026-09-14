@@ -691,6 +691,18 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'OWN settings blob (ChartPane stored/onStore), never the member\'s /charts ' +
        'widget: a panel opened to READ a hit list must not put an instance on the ' +
        'chart they were already using'],
+      ['app/src/components/chart/discoveryCatalog.js',
+       '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
+       + 'rather than a ninth door. A catalogue result becomes a chart series by '
+       + 'composing two existing writers: `addInstance` mints the instance and '
+       + '`setInstanceInput` points it at `sym:QQQ:close`. ⛔ THE SECOND CALL IS WHY '
+       + 'it needs the per-instance door at all — the source belongs to ONE copy, and '
+       + 'doors 1-7 all take `legacyInstanceId(defId)` and therefore always mean the '
+       + 'first. Adding QQQ twice has to produce two instances pointing at the same '
+       + 'canonical source, which is unsayable through any per-DEFINITION door. '
+       + '⚠️ It also reads `findInstance` to identify the instance it just minted — '
+       + 'by set difference, never by position: after a delete the list ENDS with a '
+       + 'tombstone, and the positional version addressed the corpse (measured).'],
       ['app/src/components/chart/indicatorRegistry.js',
        '⭐ NEW AT chart-UX-walls TASK 6 — applyRowPatch routes a settings row that names ' +
        'a USER-ADDED instance at setInstanceInput. Before Task 6 a generated row was per ' +
