@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -104,8 +105,17 @@ def cmd_pod(args: list[str]) -> int:
     if argv is None:
         return _refuse("unknown report %r; known: %s" % (args[0], sorted(POD_REPORTS)))
     inner = "/opt/venv/bin/python " + " ".join(argv)
+    # A .cmd shim on Windows; the bare name will not resolve from subprocess without
+    # a shell. Found by the weekly run itself, 2026-09-14 - and it is the SAME defect
+    # CLAUDE.md's rule-14 table already records for deploy_watch.py v1, while
+    # flag_ledger_audit.py one directory over had already learned it. One tool knowing
+    # a lesson does not teach the next one.
+    exe = shutil.which("railway")
+    if exe is None:
+        # UNREADABLE, not "the pod said no" - a missing CLI is not a pod answer.
+        return _refuse("the `railway` CLI is not on PATH - cannot read the pod")
     env = dict(os.environ, MSYS_NO_PATHCONV="1")
-    r = subprocess.run(["railway", "ssh", "--service", "web", inner],
+    r = subprocess.run([exe, "ssh", "--service", "web", inner],
                        cwd=str(REPO), env=env)
     return r.returncode
 
