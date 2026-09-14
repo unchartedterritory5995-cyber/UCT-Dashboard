@@ -450,3 +450,23 @@ before a2 starts rather than after.
 Unrolled cost: **21 nodes.** Against a 30,000 ceiling. **No shape on Clouds' path
 is undecidable**, so the §6 pause condition does not fire — the pause is a1.0b,
 which is a different question.
+
+## a3 — THE ACCEPTANCE IS ON RECORD BEFORE THE FIX
+
+`app/src/components/chart/engine/ast/vectorUnroll.test.js`, committed while the
+unroll is still broken. Four cases per lane carry `it.fails` behind a single
+`STILL_OPEN` marker that the fix commit deletes; the fifth is a permanent control.
+
+⚰️ **WHY IT IS WRITTEN FIRST.** The first unroll attempt reported `ok=true,
+refusals=0` on Clouds and read as finished. It was not: all 21 layer plots had
+folded to `0 / 0` — `na` — because no slot was ever written. **"Zero refusals" was
+true and worthless.** So the acceptance is not the verdict, it is the CONTENT: a
+layer plot must resolve to a tree that still mentions the smoother it interpolates
+between (`/ema|sma/i` across 23 formulas — two MA plots plus twenty-one layers),
+and the 21 layers must be DISTINCT, or the loop ran once and the substitution never
+varied.
+
+⛔ **A test written after the fix would have been shaped by whatever the fix
+produced.** `it.fails` makes the inversion mechanical rather than a promise: each
+case passes BECAUSE it fails, visibly in the reporter rather than hidden by a skip,
+and goes RED the day the slots are filled — which is the day the marker is deleted.
