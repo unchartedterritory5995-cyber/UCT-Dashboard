@@ -78,11 +78,14 @@ const SRC = join(HERE, '..', '..')
  * `selectedSym` term is a STATE guard, not a modifier guard, so it answers
  * Ctrl+Shift+F exactly as the other loose sites do.
  */
-const LOOSE_MODIFIER_BASELINE = [
-  'components/TickerPopup.jsx',
-  'pages/ThemeTrackerPage.jsx',
-  'pages/Watchlists.jsx',
-]
+// ✅ EMPTY since 2026-09-14 — F-S2-1 CLOSED. The three surfaces that answered
+// Ctrl/Cmd+Shift+F (TickerPopup, ThemeTrackerPage, Watchlists) now carry the same
+// modifier exclusions ChartPane.jsx has always had.
+//
+// ⛔ DO NOT DELETE THIS LIST NOW THAT IT IS EMPTY. Both directions still run
+// against it: a NEW loose surface fails by name, and an empty baseline is what
+// makes that failure mean 'a defect was introduced' rather than 'the list drifted'.
+const LOOSE_MODIFIER_BASELINE = []
 
 // ── walking the live sources ────────────────────────────────────────────────
 
