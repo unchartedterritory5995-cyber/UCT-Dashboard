@@ -34,16 +34,21 @@ determinism **20 runs, 6/6 identical** including an L1→L2 round trip.
 on: 3.5, the real-Discord smoke.** It needs a human to type commands in the private test channel;
 no agent can do it. Everything else in Step 3 is evidence about a rig.
 
-⛔ **Two scheduled jobs are running and their logs are the next thing to read:**
-`UCT Render Soak` (every 15 min → `C:\Users\Patrick\uct-render-soak\soak.log`) and
-`UCT Render Alerts Access Probe` (hourly, the owner-hand item → `render-alerts-access.log`;
-last read `STILL_BLOCKED HTTP 403 code 50001`).
+⛔ **Three scheduled jobs are running and their logs are the next thing to read.** All three were
+fired by hand once and their output verified, so none of them is a job nobody has seen run:
 
-**The Monday line** comes from
-`python docs/discord-render/instruments/shadow_report.py <pull> --pager-stopped` after
-`tools/railway_env_logs.py --filter drender`. As of 05:40 UTC: **≥ 8 records, all `/flow`, all
-`agree`, p50/p95 0.1 ms, zero divergences — and zero `/chart` records**, which the tool refuses to
-read as clean.
+| Task | Cadence | Log |
+|---|---|---|
+| `UCT Render Soak` | every 15 min | `C:\Users\Patrick\uct-render-soak\soak.log` — at 02:20 ET, 5 ticks, 262 samples, **no drift** |
+| `UCT Render Alerts Access Probe` | hourly (the owner-hand item) | `render-alerts-access.log` — `STILL_BLOCKED HTTP 403 code 50001` |
+| `UCT Render Monday Shadow Line` | once, **07:45 local = 08:45 ET** | `monday-shadow-line.log` — pulls the `drender` logs and runs `shadow_report.py`, then appends every soak totals line |
+
+⭐ The third exists so the pre-09:30 line is produced **whether or not a session is alive to write
+it**. Read that log; do not re-derive it by hand.
+
+**The Monday line**, as of 05:40 UTC: **≥ 8 records, all `/flow`, all `agree`, p50/p95 0.1 ms, zero
+divergences — and zero `/chart` records**, which the tool refuses to read as clean. The `≥` is not
+decoration: `railway_env_logs.py` printed `STOPPED: no progress past …`, so the count is a FLOOR.
 
 ---
 
