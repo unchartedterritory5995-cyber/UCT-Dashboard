@@ -995,3 +995,54 @@ discriminator line carrying both (`19:41:44,502 … status=200`) parses to **200
 prose arrows, so accepting it would re-commit the original defect in a narrower costume.
 Three-valued, and **INCONCLUSIVE rather than CLEAN** when no line in the window carries a status at
 all — including when the log pull was a FLOOR rather than EXACT.
+
+### 2026-09-14 — OI-37 closed, and queue sizing derived from twenty days of real arrivals
+
+**OI-37.** The harness's `--rate` was ARRIVALS PER SECOND; every spec that used it said
+"concurrent". `--rate 30` offered about **fifteen times** the load that was asked for, so the
+headline "30 concurrent: success 35.7 %, 81 `queue_full`" was answering a different question.
+That figure is **VOID as labelled** and retained only as *overload characterisation at arrival-rate
+30/s*. `--concurrency N` (closed loop) and `--arrival-rate R` (open loop) are now separate,
+mutually exclusive, and **have no default** — a run that does not say which question it is asking
+does not run. `--rate` is removed rather than aliased.
+
+At the **spec'd** load — 30 concurrent, think-time 1 s: **S1 PASSES** (`acks_over_3s = 0`), **S2 is
+inside budget on all three percentiles** (4.9 / 2,560 / 4,507 ms), and **S5 fails at 96.4 %** with
+all 13 failures `queue_full`.
+
+⛔ **Three defects in my own work, all found by running the thing:**
+
+- The self-check's evaluation loop sat in the MIDDLE of its appends. **Fifteen pre-existing cases
+  were counted and never evaluated** — `cases=20 failed=0` with five actually checked. The count
+  rose and the checking did not, which is the flip-gate defect in a second instrument.
+- `peak <= N` was satisfied by a mutation that blinded the gauge to `0`. An upper bound cannot tell
+  "never exceeded N" from "never saw anything".
+- The first closed loop **hot-spun**: refusals resolved instantly, so 30 clients against the
+  per-member throttle produced **521,654 attempts in 20 s** and six acks over 3 s — a plausible S1
+  FAIL that was entirely the harness. ⭐ OI-37's own mistake in miniature: a load model that does
+  not model the load. `--think-time` exists because of it.
+
+**Queue sizing.** The pod records no arrivals at all — no access log for the interactions endpoint,
+no jobs database in production, ~16 days of log retention. Arrivals were read instead from **Discord
+channel history**, whose `interaction_metadata.id` is Discord's own millisecond stamp and has no
+retention limit.
+
+Measured over **19.94 days** (a FLOOR — 88 channels, most `403/50001`; `#chart-flow-requests`,
+the only channel `/chart` runs in, was **EXACT**):
+
+**301 arrivals · 15.1/day · arrivals-per-second MAX 1 · busiest 60 s = 4 · busiest 10 s = 2 ·
+only 0.92 % of minutes have any arrival at all.**
+
+Design burst (3× the busiest 10 s) = **0.6 arrivals/second**. Little's Law at the conservative
+service basis gives **c = 4 workers** and a **queue depth of 0** backlog; depth ≥ 6 admits a whole
+design burst without refusing anyone.
+
+⭐⭐ **So `queue_full` at high load is CORRECT BEHAVIOUR, decisively.** The run that produced 81 of
+them offered **fifty times** the design burst; even the closed-loop 30-concurrent run offers about
+fourteen times it, and answers with an immediate honest refusal to 3.6 % while serving everyone
+else inside SLO.
+
+⛔ **What actually fails is the S5 floor, because it counts an honest refusal as a failure.** That
+is an owner question, not something to tune away: at fourteen times the design burst, is refusing
+3.6 % a breach or the system working? **Recommendation: measure S5 at the design burst and report
+overload separately as a refusal rate.**
