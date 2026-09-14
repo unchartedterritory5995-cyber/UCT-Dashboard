@@ -114,7 +114,7 @@ describe('the member-pane gate', () => {
     expect(fs.readFileSync(path.join(REPO, named), 'utf8')).toContain(GATE_NAME)
   })
 
-  it('⚠️ VACUOUS TODAY: nothing reaches the renderer, so nothing has to consult the gate', () => {
+  it('⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail', () => {
     // The claim that becomes real tomorrow: any module that pulls in the member
     // runtime must also consult this gate. Today the left side is empty — which is
     // exactly what `pineRuntimeFrontendGate.test.js` enforces — so this asserts the
