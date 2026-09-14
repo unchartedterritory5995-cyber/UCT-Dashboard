@@ -116,6 +116,7 @@ import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
 // ⭐ ONE NAMING AUTHORITY FOR THE SURFACES THAT NAME AN INSTANCE — the legend
 // chip, the "Display in" menu and this tab's rows.
 import { instanceLabel } from './engine/sourceRef'
+import { disambiguateLabels } from './engine/readout'
 
 export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
@@ -551,6 +552,36 @@ export function listEngineIndicators(settings, registry) {
         enabled,
       })
     }
+  }
+
+  // ── TWO COPIES OF ONE DEFINITION MUST NOT PRINT ONE NAME ────────────────
+  //
+  // ⭐⭐ THROUGH THE SAME AUTHORITY EVERY OTHER SURFACE USES. The legend chips and
+  // the "Display in" menu already read `disambiguateLabels`, so two QQQ series
+  // read `QQQ #1` and `QQQ #2` there. This list was the one place they both read
+  // `QQQ` — which is exactly the row a member opens to find out which is which.
+  //
+  // ⛔ AND IT IS THE HELPER, NOT A COPY OF ITS RULE. A second suffix grammar here
+  // would word the same duplicate differently from the legend beside it, which is
+  // the drift this phase exists to avoid.
+  const engineRows = rows.filter((r) => r && r.engineOwned && r.instanceId)
+  if (engineRows.length > 1) {
+    const byId = new Map()
+    for (const inst of (Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : [])) {
+      if (inst && inst.instanceId) byId.set(inst.instanceId, inst)
+    }
+    const suffixed = disambiguateLabels(
+      engineRows.map((r) => ({
+        defId: r.defId,
+        plotKey: '',
+        instanceId: r.instanceId,
+        label: r.label,
+        inputs: (byId.get(r.instanceId) || {}).inputs || {},
+      })),
+      (id) => ((registry && typeof registry.getDefinition === 'function')
+        ? registry.getDefinition(id) : null),
+    )
+    engineRows.forEach((r, n) => { r.label = suffixed[n] })
   }
   return rows
 }

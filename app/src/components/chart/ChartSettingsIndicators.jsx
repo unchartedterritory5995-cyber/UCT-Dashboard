@@ -69,7 +69,7 @@ import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/
 import { ohlcCapabilityOf } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
 import { symbolFamily } from '../../hooks/useBreadthSymbols'
-import { resolveDisplayTarget } from './engine/displayTarget'
+import { resolveDisplayTarget, displayTargetOptions } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { setInstancePlotStyle } from './engine/instanceControls'
 
@@ -116,6 +116,26 @@ function typeBadge(row) {
   if (!short) return null
   const label = String(row.label || '')
   return label.toLowerCase().includes(String(short).toLowerCase()) ? null : short
+}
+
+/**
+ * Is this instance's source genuinely OHLC-bearing?
+ *
+ * ⭐ ONE CAPABILITY ANSWER, TWO READERS. It began as an IIFE inside the style
+ * control; the COLLAPSED row's summary needs the same answer, and a second copy
+ * is how "Candles" ends up offered in one place and denied in the other.
+ *
+ * ⚠️ `anyCachedBars` IS THE WINDOW-AGNOSTIC READ: this tab knows the INSTRUMENT
+ * and never the chart's timeframe, so asking for a specific (tf, bars) window
+ * would make the answer flicker with the chart.
+ */
+function ohlcCapableFor(def, inst) {
+  if (!inst || !def) return false
+  const declared = sourceInputsOf(def, inst)
+  if (!declared.length) return false
+  const parsed = parseSource(declared[0][1])
+  if (!parsed || parsed.kind !== 'symbol') return false
+  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
 }
 
 export default function ChartSettingsIndicators({
@@ -393,6 +413,7 @@ export default function ChartSettingsIndicators({
     const isOpen = expanded === row.id
     const colorFields = mainColorFields(row)
     const badge = typeBadge(row)
+    const summary = placementSummary(row)
     return (
       <div
         key={row.id}
@@ -406,7 +427,14 @@ export default function ChartSettingsIndicators({
            definition, and that absence is itself the distinction. */
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
       >
-        <div className={styles.actHead}>
+        {/* ⛔⛔ THE MODIFIER IS THE WHOLE FIX FOR THE KNOWN DEFECT. The overnight
+            version made `.actName` stop growing GLOBALLY — and that class is
+            shared with `ChartSettingsConditions` and `ChartSettingsInfoFields`,
+            neither of which has a metadata sibling to take the freed space, so
+            their trailing controls would pack left. Scoped here instead: the
+            modifier is applied only to a row that HAS a summary, so a component
+            that never renders one can never match the rule. */}
+        <div className={`${styles.actHead} ${summary ? styles.actHeadMeta : ''}`}>
           <button
             type="button" role="switch" aria-checked={on} aria-label={`Toggle ${row.label}`}
             className={`${styles.toggle} ${styles.actToggle} ${on ? styles.toggleOn : ''}`}
@@ -424,6 +452,17 @@ export default function ChartSettingsIndicators({
             <span className={styles.actLabel}>{row.label}</span>
             {badge && <span className={styles.actBadge}>{badge}</span>}
           </button>
+          {/* ⭐ INLINE, NOT A SECOND LINE. Seven rows already fill this panel; a
+              subtitle on each pushes BROWSE off the bottom and turns a dense list
+              into a settings page.
+              ⛔⛔ AND OUTSIDE THE BUTTON, WHICH IS NOT A LAYOUT DETAIL. Inside it,
+              this text joins the expander's ACCESSIBLE NAME — a screen reader
+              then announces "QQQ Line · Own pane" as the CONTROL's name, and the
+              row stops being addressable as `QQQ`. Rails across this suite match
+              that button against an anchored `/^QQQ$/` and went red the moment it
+              was nested inside; they were right, and this is the fix rather than
+              the rails being loosened. */}
+          {summary && <span className={styles.actMeta}>{summary}</span>}
           {/* ⭐ THE SWATCH IS THE COLOUR PICKER, NOT A DOT. It is the modal's own
               `colorSwatch` — same target encoding (`ind:<rowId>:<field>`), same
               pop-out panel, same writer — so the most-changed setting on the tab
@@ -571,6 +610,79 @@ export default function ChartSettingsIndicators({
   }
 
   /**
+   * The collapsed row's one-line answer to *"what is this, how is it drawn, where
+   * does it draw, and what does it read?"*.
+   *
+   * ⛔⛔ THE LIST USED TO SAY ONLY THE NAME, and for an indicator that was enough
+   * — everyone knows where RSI draws. Universal Data broke it: `QQQ` and `SPY`
+   * sit in the same flat list as `EMA 9` and `Volume` with nothing to say they
+   * are INSTRUMENTS, in panes of their own, drawn as lines. Four questions a
+   * member had to open the row to answer.
+   *
+   * ⭐⭐ IT READS THE SAME SEAMS THE EXPANDED CONTROLS DO — `resolveDisplayTarget`,
+   * `displayTargetOptions`, `resolvePlotStyle`, `sourceInputsOf` — so it cannot
+   * drift from the controls directly beneath it. A second opinion here would be a
+   * lie the moment either seam moved, and it is the kind of lie nobody notices
+   * because the collapsed row is the one nobody opens.
+   *
+   * ⛔ NOTHING FOR THE FIXTURES, deliberately. "Line · Main chart" on all four
+   * moving averages and the volume pane is furniture: identical on every one of
+   * them, and already obvious. `displayTargetOptions` returning EMPTY is exactly
+   * the test — a definition with one place to draw has nothing to orient anybody
+   * about — so the silence is DERIVED rather than a list of ids to keep in step.
+   *
+   * ⛔ AND NO `Source:` WHEN THE NAME ALREADY IS THE SOURCE. `QQQ · Line ·
+   * Source: QQQ` says it twice, and `meta.labelFrom === 'source'` is precisely
+   * that case (Phase 4).
+   */
+  const placementSummary = useCallback((row) => {
+    if (!row || !row.engineOwned || !row.instanceId) return null
+    const def = registry?.getDefinition?.(row.defId)
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return null
+
+    const defOf = (id) => registry?.getDefinition?.(id) || null
+    const options = displayTargetOptions(inst, settings, defOf)
+    // A plain price overlay has one place to draw and one shape to draw in. The
+    // expanded row offers it nothing; so does this.
+    if (!options.length) return null
+
+    const where = resolveDisplayTarget(inst, settings)
+    const parts = []
+
+    // HOW — the primary plot's RESOLVED style, named exactly as the select names
+    // it, so the two cannot word the same state differently.
+    const styleCtx = { target: where, ohlcCapable: ohlcCapableFor(def, inst) }
+    const primary = (def.plots || []).find((pl) => availableStyles(pl, styleCtx).length > 0)
+    if (primary) {
+      const style = resolvePlotStyle(inst, primary, styleCtx)
+      const choice = PLOT_STYLE_CHOICES.find((c) => c.value === style)
+      if (choice) parts.push(choice.label)
+    }
+
+    // WHERE — the chosen destination's own label. ⛔ A STORED HOST THAT HAS SINCE
+    // BEEN DELETED IS CARRIED AS `missing`, and saying so is the whole point: the
+    // row must read "Pane unavailable", never silently claim somewhere it is not
+    // and never quietly fall back to Own pane.
+    const missing = options.find((o) => o.missing) || null
+    const chosen = options.find((o) => o.value === where) || missing
+    if (chosen && chosen.label) parts.push(chosen.label)
+
+    // WHAT IT READS — only when the name does not already say it.
+    if (!(def.meta && def.meta.labelFrom === 'source')) {
+      const declared = sourceInputsOf(def, inst)
+      const parsed = declared.length ? parseSource(declared[0][1]) : null
+      if (parsed && parsed.kind === 'symbol' && parsed.symbol
+          && !String(row.label || '').toUpperCase().includes(String(parsed.symbol).toUpperCase())) {
+        // ⛔ THE SYMBOL ALONE. `Source: QQQ · close · numeric` is the engine
+        // talking to itself; the field is noise in a legend-shaped line.
+        parts.push(`Source: ${parsed.symbol}`)
+      }
+    }
+    return parts.length ? parts.join(' · ') : null
+  }, [settings, registry])
+
+  /**
    * The PLOT STYLE control — how this output draws, as opposed to what it reads.
    *
    * ⭐⭐ STYLE IS NOT AN INPUT, which is why it is not in `row.fields`. Inputs are
@@ -596,13 +708,7 @@ export default function ChartSettingsIndicators({
     const inst = findInstance(settings, row.instanceId)
     if (!def || !inst) return null
 
-    const ohlcCapable = (() => {
-      const declared = sourceInputsOf(def, inst)
-      if (!declared.length) return false
-      const parsed = parseSource(declared[0][1])
-      if (!parsed || parsed.kind !== 'symbol') return false
-      return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
-    })()
+    const ohlcCapable = ohlcCapableFor(def, inst)
 
     const target = resolveDisplayTarget(inst, settings)
     const styleCtx = { target, ohlcCapable }

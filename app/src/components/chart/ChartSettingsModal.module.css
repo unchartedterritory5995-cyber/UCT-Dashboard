@@ -1025,6 +1025,49 @@
   text-align: left;
   cursor: pointer;
 }
+/* ─── WHERE IT DRAWS AND HOW, ON THE NAME ROW ────────────────────────────────
+   ⛔ FAINT ON PURPOSE. This is ORIENTATION, not a value — it must read as the
+   quiet half of the row and never compete with the indicator's own name, which
+   is the thing the eye scans for. Gold is reserved for active/important state;
+   this is neither. No pill, no badge, no second line: a dense terminal list.
+
+   ⛔ AND IT YIELDS FIRST. `flex: 0 1 auto` plus `min-width: 0` means a long
+   destination ("Pane unavailable", "Source: UCTA50") ellipses before the NAME
+   does — the name is the identity and must survive every width. */
+.actMeta {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--menu-text-faint, var(--menu-text-dim, var(--text-muted, #6b6b6b)));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A row whose indicator is switched off dims its orientation with it. */
+.actBlockOff .actMeta { opacity: 0.55; }
+
+/* ─── THE SCOPED HALF OF THE LAYOUT, AND WHY IT IS SCOPED ────────────────────
+   ⚰️⚰️ THE OVERNIGHT VERSION WROTE `.actName { flex: 0 1 auto }` GLOBALLY, and
+   that is the one known defect of this feature. `.actName` is SHARED: on the
+   branch where Conditions and Info Fields live, `ChartSettingsConditions` and
+   `ChartSettingsInfoFields` each render it too — and NEITHER has a metadata
+   sibling to take the freed space, so with nothing growing, their trailing
+   controls pack left instead of staying right-aligned. jsdom has no layout, so
+   no test on that branch could see it.
+
+   ⛔ SO THE RULE IS SCOPED BY EXPLICIT CLASS OWNERSHIP, not by `:has()` and not
+   by a global override. `.actHeadMeta` is applied by `ChartSettingsIndicators`
+   ONLY to a row that actually has a summary; a component that never renders one
+   cannot match this selector, today or when those two components land. The
+   shared `.actName` rule above is left exactly as it was.
+
+   ⭐ AND THE MODIFIER IS CONDITIONAL WITHIN INDICATORS TOO — a fixture row (EMA
+   9, Volume) renders no summary, so it keeps `flex: 1 1 auto` and looks
+   byte-identical to before this feature existed. */
+.actHeadMeta .actName { flex: 0 1 auto; }
+
 .actLabel {
   font-size: 12.5px;
   font-weight: 600;
