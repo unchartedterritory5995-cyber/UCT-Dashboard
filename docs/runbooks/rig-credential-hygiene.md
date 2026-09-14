@@ -123,3 +123,36 @@ The smoke account's domain is `.internal` for a reason that reaches past this ru
 `.internal` (RFC 8375) passes. A fixture using them fails only where a request crosses Pydantic — so service-level
 tests pass and the one endpoint test fails, which reads as a flaky sixth test rather than a wrong fixture. The rule
 and the incident are in `docs/breadth/gates.md` ("Never commit on red").
+
+## The three caller classes
+
+Production verification covers **anonymous / free / paid**. Carrying a gap in one of them means
+a gate can be wrong for exactly the class nobody drives.
+
+| class | account | credentials |
+|---|---|---|
+| anonymous | — | no cookie |
+| **free** | `free-smoke@uctintelligence.internal` | `FREE_SMOKE_EMAIL` / `FREE_SMOKE_PASSWORD` |
+| paid | the member-smoke account | `MEMBER_SMOKE_EMAIL` / `MEMBER_SMOKE_PASSWORD` |
+| admin | `smoke@uctintelligence.internal` | `SMOKE_EMAIL` / `SMOKE_PASSWORD` |
+
+Free-smoke was created 2026-09-14 by the same path as the other synthetic accounts — the app's own
+`create_user` **in the web pod**, because `COMING_SOON_MODE=1` refuses `POST /api/auth/signup`. No new
+mechanism, no raw SQL against `users`. It carries **no** comped subscription, which is what makes it free.
+
+⭐ **The password was generated on the operator's machine and set over HTTPS afterwards**, via
+`POST /api/auth/admin/reset-password` — the pod created the account with a throwaway value that never
+left it. A credential passed as a `railway ssh` argument is visible in the pod's process table for the
+life of the call; an HTTPS body is not.
+
+⛔ Same standing rules as the other smoke accounts: it must hold **no** real position, note, watchlist
+entry or alert, and anything a run creates, that run removes. Credentials live in the operator's
+environment via `setx`, never in the repo, a log, a commit, or on Railway — no service reads them.
+
+**Verified at creation:** login 200 (plan free) · `/api/breadth-monitor` → **402** · dark
+`/api/breadth-monitor/series` → **404**.
+
+⚠️ The pod write took a `VACUUM INTO` backup first (`/data/backups/auth-2026-09-14-pre-free-smoke.db`,
+`quick_check: ok`, 28 users) and fingerprinted the users table either side: **28 → 29, exactly one id
+added, none removed**. A count rising by one is compatible with one row added and another silently
+rewritten; a set difference is not.

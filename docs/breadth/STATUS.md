@@ -297,3 +297,23 @@ owner action, Phase 6.
   `/api/breadth-monitor/series` → **404 anonymous**, **404 member-smoke (paid)**; `/api/breadth-monitor?days=5` →
   **200, 5 rows**, unaffected. ⚠️ No free-tier smoke account exists on this box, so that caller class is covered by the
   offline rail (`test_flag_unset_is_404_for_every_caller_class[FREE_MEMBER]`) rather than in production.
+
+### B1 cost bound — production upper bound via the monitor endpoint (2026-09-14, off-peak)
+
+`get_history_deep` caches its rows **300 s** (`cache.set(ck, out, ttl=300)`), the same window as B1's byte cache, so
+both expire together and the cold path is what matters. Cold was forced by varying `end=`, which changes the server
+cache key.
+
+| request | rows | payload | cold | warm |
+|---|---|---|---|---|
+| `days=90` no `end` | 90 | 146 KB | 1,018 ms | 166 ms |
+| `days=8000` no `end` | 4,703 | 4.96 MB | **54,923 ms** | 676 ms |
+| `days=365` + `end=` | 365 | 455 KB | 10,498 ms | 1,912 ms |
+
+→ **The ~1 s bound is breached by ~55×.** `bucket=` is NOT implemented because it cannot help: the cost is in producing
+the rows, upstream of any bucketing (D-042). **B1 stays dark**; the flag must not be enabled until the reader cost is
+addressed. The hazard is pre-existing and live on the shipped monitor route, not introduced by B1.
+
+⚠️ Earlier in the same session three heavy cold reads fired back-to-back all returned ~32–38 s regardless of span —
+**that flatness was contention on the single process, not the true per-span cost.** The split measurement above, with
+pauses, is the one to trust.
