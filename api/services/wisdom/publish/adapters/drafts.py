@@ -95,9 +95,19 @@ def decide(draft_id: str, *, decision: str, actor: str, note: Optional[str] = No
                      "WHERE draft_id = ? AND status IN ('draft', 'approved') AND published_ref IS NULL",
                      (at, actor, draft_id))
     from api.services import modelbook_service
+    from api.services.wisdom.publish.adapters import provenance
 
-    payload = common.parse_json(draft["payload_json"], {})
-    created = modelbook_service.create_setup_example(payload)
+    # §8c.3: the row that reaches modelbook.db carries the provenance marker. It rides in
+    # `notes` because `modelbook_service._EXAMPLE_FIELDS` filters an insert through its own
+    # column allowlist — a marker in a key that consumer drops is a marker that never
+    # arrives, and a row nobody can trace back is what made the old audit unfalsifiable.
+    citations = common.parse_json(draft["citations_json"], [])
+    payload = provenance.stamp(
+        common.parse_json(draft["payload_json"], {}), consumer="modelbook",
+        subject_ref=draft["subject_ref"], locator=citations[0] if citations else None,
+        flag_env="WISDOM_MODELBOOK_DRAFTS_ENABLED", text_field="notes")
+    created = modelbook_service.create_setup_example(
+        provenance.assert_marked(payload, what=f"modelbook_setup_examples from {draft_id}"))
     ref = f"modelbook_setup_examples:{created.get('id')}"
     with store.write() as conn:
         conn.execute("UPDATE wisdom_drafts SET status = 'published', published_ref = ?, updated_at = ? "

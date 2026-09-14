@@ -156,7 +156,13 @@ def test_badges_shape_window_and_exclusions(seeded, monkeypatch):
     now = datetime(2026, 9, 12, 12, 0, tzinfo=timeutil.ET)
     out = badges.badges_for(["nvda", "$AMD", "TSLA", "ZZZZ"], now=now)
     assert set(out) == {"NVDA"}
-    assert out["NVDA"] == {"kind": "call", "speaker": "TSDR", "stated_at": "2026-09-08T10:05:00-04:00",
-                           "label": "UCT said · provisional"}
+    from api.services.wisdom.publish.adapters import provenance
+
+    badge = dict(out["NVDA"])
+    # §8c.3: every badge carries the provenance marker; the rest of the shape is unchanged
+    assert provenance.parse(badge.pop(provenance.MARKER_KEY))["consumer"] == badges.CONSUMER
+    assert badge.pop("source") == provenance.SOURCE
+    assert badge == {"kind": "call", "speaker": "TSDR", "stated_at": "2026-09-08T10:05:00-04:00",
+                     "label": "UCT said · provisional"}
     assert badges.badges_for(["NVDA"], now=datetime(2026, 9, 30, 12, 0, tzinfo=timeutil.ET)) == {}
     assert badges.parse_tickers(" nvda, $amd ,, NVDA ") == ["NVDA", "AMD"]

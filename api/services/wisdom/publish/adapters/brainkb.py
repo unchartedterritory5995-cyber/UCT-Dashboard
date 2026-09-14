@@ -32,7 +32,7 @@ import pathlib
 from typing import Optional
 
 from api.services.wisdom.core import flags, ids, store, timeutil
-from api.services.wisdom.publish.adapters import common, kbrow
+from api.services.wisdom.publish.adapters import common, kbrow, provenance
 
 log = logging.getLogger(__name__)
 
@@ -100,8 +100,11 @@ def build_rows(conn) -> list[dict]:
             "source_ref": f"wisdom:principle:{p['principle_key']}", "kind": "principle",
             "subject_key": p["principle_key"], "category": _kb_category(p["category"]),
             "title": common.clip(f"{trader} — {date or 'undated'} — Principle: {statement}", 160),
-            "content": "\n".join((f"UCT said ({status}) — {trader}, {_source_phrase(sup)}, {date or 'undated'}.",
-                                  f"Source: {loc}", statement)),
+            "content": provenance.stamp_text(
+                "\n".join((f"UCT said ({status}) — {trader}, {_source_phrase(sup)}, {date or 'undated'}.",
+                           f"Source: {loc}", statement)),
+                consumer=CONSUMER, subject_ref=f"wisdom_principles:{p['principle_key']}",
+                locator=loc, flag_env=FLAG_ENV),
             "tags": ",".join(("wisdom", "principle", (p["category"] or "general").strip().lower(), status)),
             "trader": trader, "knowledge_epoch": _epoch(date), "provisional": int(status != "confirmed"),
         }))
@@ -122,9 +125,12 @@ def build_rows(conn) -> list[dict]:
             "source_ref": f"wisdom:lesson:{r['record_id']}", "kind": "lesson", "subject_key": r["record_id"],
             "category": "CASE_STUDY",
             "title": common.clip(f"{trader} — {date or 'undated'} — Lesson: {r['ticker'] or ''} {setup}", 160),
-            "content": "\n".join((f"UCT said ({status}) — {trader}, {_source_phrase(r)}, {date or 'undated'}.",
-                                  f"Source: {common.row_locator(r)}",
-                                  f"Lesson ({setup}, {r['direction'] or 'long'}, stated outcome: {outcome}): {words}")),
+            "content": provenance.stamp_text(
+                "\n".join((f"UCT said ({status}) — {trader}, {_source_phrase(r)}, {date or 'undated'}.",
+                           f"Source: {common.row_locator(r)}",
+                           f"Lesson ({setup}, {r['direction'] or 'long'}, stated outcome: {outcome}): {words}")),
+                consumer=CONSUMER, subject_ref=f"wisdom_records:{r['record_id']}",
+                locator=common.row_locator(r), flag_env=FLAG_ENV),
             "tags": ",".join(("wisdom", "lesson", r["vocab_id"] or "setup", status)),
             "trader": trader, "knowledge_epoch": _epoch(date), "provisional": int(status != "confirmed"),
         }))
@@ -182,9 +188,15 @@ def export_payload(*, enabled: Optional[bool] = None) -> dict:
             "SELECT source_ref FROM wisdom_kb_rows WHERE state = 'superseded' ORDER BY source_ref")]
     for row in active:
         row["source"] = kbrow.SOURCE
+    # FAIL CLOSED: a staged row whose content carries no provenance marker never leaves.
+    # It would land in the ENGINE KB as a row the shape-based audit could not find again,
+    # which is the whole defect §8c.3 closes. Dropped refs are reported, never silent.
+    unmarked = [r["source_ref"] for r in active if not provenance.is_marked(r["content"])]
+    active = [r for r in active if provenance.is_marked(r["content"])]
     return {
         "ok": True, "schema": EXPORT_SCHEMA, "enabled": enabled, "generated_at": common.now_iso(),
         "flag": FLAG_ENV, "priority": PRIORITY, "preview_count": len(active),
+        "marker": provenance.MARKER_VERSION, "unmarked_dropped": unmarked,
         "rows": active if enabled else [], "superseded_refs": superseded if enabled else [],
     }
 

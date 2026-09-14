@@ -23,7 +23,7 @@ PV_LIST = "pv_FOCUSED_SETUPS"
 
 
 def build_drafts(conn) -> list[dict]:
-    from api.services.wisdom.publish.adapters import common
+    from api.services.wisdom.publish.adapters import common, provenance
 
     setup_for = common.vocab_map(conn, PV_LIST)
     if not setup_for or not common.table_exists(conn, "wisdom_chart_images"):
@@ -44,10 +44,14 @@ def build_drafts(conn) -> list[dict]:
         status = "confirmed" if (img["status"] == "confirmed" and rec["status"] == "confirmed") else "provisional"
         ticker = common.normalize_ticker(rec["ticker"] or img["label_ticker"])
         asof = common.record_date(rec)
+        # §8c.3: the payload is stamped AT BUILD, not at some future insert. When the
+        # Pattern Intelligence Lab reopens and W5 writes this into `pattern_exemplars`,
+        # the marker is already in the row it writes — a marker added later is a marker
+        # the rows written in between never had.
         drafts.append({
             "subject_ref": f"wisdom_chart_images:{img['image_id']}",
             "title": common.clip(f"Pattern Vision exemplar — {setup} — {ticker} {asof or ''}", 200),
-            "payload": {
+            "payload": provenance.stamp({
                 "setup": setup, "image_id": img["image_id"], "origin": img["origin"],
                 # Sunday Scans charts are public; a session frame is not, so it travels by R2 key only
                 "public_url": img["public_url"] if img["origin"] == "sunday_scans" else None,
@@ -55,7 +59,8 @@ def build_drafts(conn) -> list[dict]:
                 "asof_date": asof, "record_id": rec["record_id"], "note": f"wisdom:{rec['record_id']}",
                 "by_user": "wisdom", "speaker": common.speaker(rec["author_id"]), "status": status,
                 "target": "pattern_vision.pattern_exemplars — NOT written in W1 (Pattern Intelligence Lab paused)",
-            },
+            }, consumer=CONSUMER, subject_ref=f"wisdom_chart_images:{img['image_id']}",
+                locator=common.row_locator(rec), flag_env=FLAG_ENV, text_field="note"),
             "citations": [common.row_locator(rec)],
             "provisional": status != "confirmed",
         })

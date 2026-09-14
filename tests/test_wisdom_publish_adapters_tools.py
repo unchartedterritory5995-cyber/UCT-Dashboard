@@ -50,7 +50,10 @@ def test_the_voice_corpus_dry_run_writes_nothing_and_the_write_is_tsdr_only(seed
     target = out_dir / "voice_corpus_2026-09-13.txt"
     assert done["written"] is True and pathlib.Path(done["path"]) == target.resolve()
     text = target.read_text(encoding="utf-8")
-    assert text.startswith("=== [SUNDAY SCAN] Sunday Scans 9/6 ===\nDate: 2026-09-06\n")
+    header, rest = text.split("\n", 1)
+    # §8c.3: the exported FILE carries the provenance marker, above the first block
+    assert voice_tool.voicefmt.provenance.parse(header)["consumer"] == "voice"
+    assert rest.startswith("=== [SUNDAY SCAN] Sunday Scans 9/6 ===\nDate: 2026-09-06\n")
     assert "passing on AMD" not in text and "momentum bursts" not in text   # Bracco and the guest are not his
     assert done["sha256"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
     assert _sha(db) == before  # opened read-only

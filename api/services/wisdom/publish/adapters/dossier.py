@@ -31,7 +31,7 @@ _STANCE = {
 
 
 def _lines_from(conn, sym: str, limit: int) -> list[str]:
-    from api.services.wisdom.publish.adapters import common
+    from api.services.wisdom.publish.adapters import common, provenance
 
     records = common.select_records(conn, types=("CALL", "NEGATIVE_CALL", "PRINCIPLE"), ticker=sym, limit=40)
     if not records:
@@ -56,7 +56,13 @@ def _lines_from(conn, sym: str, limit: int) -> list[str]:
         if not text or key in seen:
             continue
         seen.add(key)
-        lines.append(f"{LABEL} {common.speaker(r['author_id'])}: {text} ({common.status_label(r['status'])})")
+        # §8c.3: the marker rides at the end of the line, so the stored dossier bundle can
+        # be scanned for it. `locator=None` deliberately — this lane's firewall forbids
+        # dates, and a locator can carry one; the record ref is a hash and cannot.
+        mark = provenance.marker_text(consumer=CONSUMER, subject_ref=f"wisdom_records:{r['record_id']}",
+                                      locator=None, flag_env=FLAG_ENV)
+        lines.append(f"{LABEL} {common.speaker(r['author_id'])}: {text} "
+                     f"({common.status_label(r['status'])}) {mark}")
         if len(lines) >= limit:
             break
     return lines

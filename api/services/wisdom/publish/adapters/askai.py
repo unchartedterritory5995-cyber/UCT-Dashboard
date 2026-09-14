@@ -68,7 +68,7 @@ def wisdom_block(query: Optional[str], *, user_id: Optional[str], question_type:
         if not tickers and question_type not in ELIGIBLE_QUESTION_TYPES:
             return "", []
         from api.services.wisdom.publish import retrieval
-        from api.services.wisdom.publish.adapters import common
+        from api.services.wisdom.publish.adapters import common, provenance
 
         hits = retrieval.search(query, tickers=tickers, limit=MAX_HITS)
         if not hits:
@@ -79,8 +79,12 @@ def wisdom_block(query: Optional[str], *, user_id: Optional[str], question_type:
             date = common.et_date(h["stated_at"]) or "undated"
             status = common.status_label(h["status"])
             parts.append(f"[{who} · {date} · {status}] {common.clip(h['text'], SNIPPET_CHARS)} (cite: {h['locator']})")
+            # §8c.3: the citation the router records carries the marker, so an answer that
+            # cited Wisdom can be found again from the consumer's own side.
             cites.append({"locator": h["locator"], "speaker": who, "date": date, "status": status,
-                          "kind": h["doc_kind"]})
+                          "kind": h["doc_kind"],
+                          **provenance.marker(consumer=CONSUMER, subject_ref=h["doc_id"],
+                                              locator=h["locator"], flag_env=FLAG_ENV)})
         return HEADER + " | ".join(parts), cites
     except Exception:
         log.exception("[wisdom] Ask-AI Wisdom block failed; answering without it")

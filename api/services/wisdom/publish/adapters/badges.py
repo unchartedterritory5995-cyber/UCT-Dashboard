@@ -41,7 +41,7 @@ def parse_tickers(raw: Optional[str]) -> list[str]:
 def badges_for(tickers: Iterable[str], *, preview: bool = False, now: Optional[datetime] = None,
                days: Optional[int] = None) -> dict:
     from api.services.wisdom.core import store, timeutil
-    from api.services.wisdom.publish.adapters import common
+    from api.services.wisdom.publish.adapters import common, provenance
 
     flag_on = flags.badges_enabled()
     if not flag_on and not preview:
@@ -66,7 +66,10 @@ def badges_for(tickers: Iterable[str], *, preview: bool = False, now: Optional[d
         status = common.status_label(r["status"])
         badge = {"kind": "call" if r["record_type"] == "CALL" else "mention",
                  "speaker": common.speaker(r["author_id"]), "stated_at": r["stated_at_et"],
-                 "label": "UCT said" + (" · provisional" if status == "provisional" else "")}
+                 "label": "UCT said" + (" · provisional" if status == "provisional" else ""),
+                 # §8c.3: every badge a surface receives names the record behind it.
+                 **provenance.marker(consumer=CONSUMER, subject_ref=f"wisdom_records:{r['record_id']}",
+                                     locator=common.row_locator(r), flag_env=FLAG_ENV)}
         if not flag_on:
             badge["preview"] = True
         out[ticker] = badge

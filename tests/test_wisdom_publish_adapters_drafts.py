@@ -153,7 +153,11 @@ def test_the_voice_corpus_is_tsdr_only_and_in_the_archive_format(seeded):
     live = next(d for d in spoken if d["source_id"] == "srcLIVE")
     assert all("attendee" not in line for line in live["lines"])  # the attendee cue is dropped
     text = voicefmt.format_archive(written)
-    assert text.startswith("=== [SUNDAY SCAN] Sunday Scans 9/6 ===\nDate: 2026-09-06\n")
+    # §8c.3: one provenance marker line, ABOVE the first block morning-wire's parser reads
+    header, rest = text.split("\n", 1)
+    assert voicefmt.provenance.parse(header)["consumer"] == "voice"
+    assert rest.startswith("=== [SUNDAY SCAN] Sunday Scans 9/6 ===\nDate: 2026-09-06\n")
+    assert not voicefmt.provenance.is_marked(rest), "no document body may carry the marker"
     assert voicefmt.format_archive([]) == ""
 
 

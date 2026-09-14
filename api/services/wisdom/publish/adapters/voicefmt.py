@@ -20,9 +20,18 @@ transcripts as [ARTICLE] documents. A superseded source version is never exporte
 """
 from __future__ import annotations
 
+import importlib.util
+import pathlib
 import re
 import sqlite3
 from typing import Optional
+
+#: The marker module, loaded BY PATH so this file keeps its standard-library-only promise
+#: for the PC-side tool that loads THIS file by path. Bound to the name the §8c.3 check reads.
+_spec = importlib.util.spec_from_file_location(
+    "wisdom_provenance_for_voicefmt", pathlib.Path(__file__).resolve().parent / "provenance.py")
+provenance = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(provenance)
 
 OWNER_AUTHOR = "tsdr"
 WRITTEN_STREAMS = ("sunday_scans", "discord", "x")
@@ -57,8 +66,18 @@ def corpus_documents(conn: sqlite3.Connection, *, include_spoken: bool = False, 
 
 
 def format_archive(docs: list[dict]) -> str:
+    """The archive text, PREFACED by the provenance marker (§8c.3).
+
+    The marker is one line ABOVE the first `=== [KIND] title ===` header, so morning-wire's
+    block-scanning `_POST_RE` never sees it and no document's body carries it — a marker
+    inside a voice corpus would end up teaching the profile its own bookkeeping. It is still
+    in the file, which is what the audit reads."""
     blocks = []
     for d in docs:
         title = _HEADER_UNSAFE.sub(" ", d.get("title") or "").strip() or "untitled"
         blocks.append(f"=== [{d['kind']}] {title} ===\nDate: {d.get('date') or ''}\n" + "\n".join(d["lines"]))
-    return ("\n\n".join(blocks) + "\n") if blocks else ""
+    if not blocks:
+        return ""
+    mark = provenance.marker_text(consumer="voice", subject_ref=f"wisdom_segments:{OWNER_AUTHOR}",
+                                  locator=f"documents={len(docs)}", flag_env="WISDOM_VOICE_PROFILE_ENABLED")
+    return f"{mark}\n" + "\n\n".join(blocks) + "\n"

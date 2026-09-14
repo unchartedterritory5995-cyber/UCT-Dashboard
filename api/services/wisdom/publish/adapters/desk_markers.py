@@ -35,7 +35,7 @@ _KINDS = {"CALL": "call", "MENTION": "mention"}
 
 def wisdom_rows(sym: str) -> list[dict]:
     from api.services.wisdom.core import store
-    from api.services.wisdom.publish.adapters import common
+    from api.services.wisdom.publish.adapters import common, provenance
 
     ticker = common.normalize_ticker(sym)
     if not ticker:
@@ -59,6 +59,7 @@ def wisdom_rows(sym: str) -> list[dict]:
         who = common.speaker(r["author_id"])
         status = common.status_label(r["status"])
         line = common.clip(r["trigger_text"] or r["thesis"] or r["reason"] or r["seg_text"], 200)
+        locator = common.row_locator(r)
         out.append({
             "video_id": video_id,
             "youtube_id": r["media_pointer"] if video_id is not None else None,
@@ -66,8 +67,12 @@ def wisdom_rows(sym: str) -> list[dict]:
             "anchor_date": anchor,
             "t": int(r["t_start_s"]) if (video_id is not None and r["t_start_s"] is not None) else 0,
             "note": f"{who} ({status}): {line}",
-            "kind": _KINDS[r["record_type"]], "source": "wisdom", "status": status, "speaker": who,
-            "locator": common.row_locator(r),
+            "kind": _KINDS[r["record_type"]], "status": status, "speaker": who,
+            "locator": locator,
+            # §8c.3: the row a member's chart receives says, in one recognisable string,
+            # that Wisdom put it there, which record it came from and which flag let it out.
+            **provenance.marker(consumer=CONSUMER, subject_ref=f"wisdom_records:{r['record_id']}",
+                                locator=locator, flag_env=FLAG_ENV),
         })
     return out
 

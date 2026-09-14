@@ -44,7 +44,15 @@ EARLY = dt.datetime(2026, 9, 14, 19, 30, tzinfo=CT)
 LATE = dt.datetime(2026, 9, 14, 20, 56, tzinfo=CT)
 
 
-def _row(ref, title, content="Source: wisdom:srcX#segX@1s\nbody", **kw):
+#: Every real export row carries the §8c.3 provenance marker in its content — `brainkb`
+#: stamps it and `validate_export` refuses a row without one — so a fixture row that
+#: lacked it would be a shape production can no longer produce.
+MARKED_CONTENT = sync.provenance.stamp_text(
+    "Source: wisdom:srcX#segX@1s\nbody", consumer="brainkb", subject_ref="wisdom_principles:x",
+    locator="wisdom:srcX#segX@1s", flag_env="WISDOM_BRAINKB_PUBLISH_ENABLED")
+
+
+def _row(ref, title, content=MARKED_CONTENT, **kw):
     row = {"source_ref": ref, "category": "RULE", "title": title, "content": content, "tags": "wisdom",
            "trader": "TSDR", "knowledge_epoch": "2026", "priority": 3, "regime_context": "", "provisional": 1,
            "source": "wisdom"}
@@ -180,6 +188,26 @@ def test_legacy_rows_are_deactivated_only_from_a_reviewed_plan_with_the_flag(eng
     assert out["plan"]["legacy_deactivate"] == 3
     after = _kb(engine_kb)
     assert all(after[i]["active"] == 0 for i in legacy_ids) and len(after) >= 7
+    # §8c.3: the ONE write that touches a row Wisdom did not author is marked too, so an
+    # audit of the KB can see who retired it — and marked ONCE, not once per re-run.
+    for kb_id in legacy_ids:
+        found = sync.provenance.find_all(after[kb_id]["content"])
+        assert len(found) == 1 and found[0]["ref"] == f"knowledge_base:{kb_id}", after[kb_id]["content"]
+    sync.run_sync(str(engine_kb), _standard_export(), commit=True, now=EARLY, clock=lambda: EARLY,
+                  backup_dir=str(tmp_path / "bk2"), legacy_ids=legacy_ids, apply_legacy=True)
+    again = _kb(engine_kb)
+    assert all(len(sync.provenance.find_all(again[i]["content"])) == 1 for i in legacy_ids)
+
+
+def test_an_export_row_without_a_provenance_marker_is_refused(engine_kb):
+    """§8c.3 runtime guard. MUTATION: strip the marker; the whole sync must abort, because a
+    KB row with no marker is a row the shape-based audit can never find again."""
+    bare = _row("wisdom:principle:new", "New", content="Source: wisdom:srcX#segX@1s\nbody")
+    assert not sync.provenance.is_marked(bare["content"])
+    with pytest.raises(sync.SyncAborted, match="marker"):
+        sync.run_sync(str(engine_kb), _export([bare]))
+    # control: the same row WITH the marker is accepted
+    assert sync.run_sync(str(engine_kb), _export([_row("wisdom:principle:new", "New")]))["dry_run"] is True
 
 
 def test_an_export_with_a_bad_hash_or_priority_is_refused(engine_kb):

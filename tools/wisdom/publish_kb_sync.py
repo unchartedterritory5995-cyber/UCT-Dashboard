@@ -54,15 +54,18 @@ BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHT
 _SUNDAY_SCANS_INTAKE = "intake:substack_unchartedterritory_sunday_scans%"
 
 
-def _load_kbrow():
-    path = REPO / "api" / "services" / "wisdom" / "publish" / "adapters" / "kbrow.py"
-    spec = importlib.util.spec_from_file_location("wisdom_kbrow_standalone", path)
+def _load_by_path(module: str, filename: str):
+    path = REPO / "api" / "services" / "wisdom" / "publish" / "adapters" / filename
+    spec = importlib.util.spec_from_file_location(module, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
-kbrow = _load_kbrow()
+kbrow = _load_by_path("wisdom_kbrow_standalone", "kbrow.py")
+#: The marker module, bound to the name the §8c.3 check looks for. Standard-library only,
+#: like kbrow above, so this script still imports nothing from the `api` package.
+provenance = _load_by_path("wisdom_provenance_standalone", "provenance.py")
 
 
 class SyncAborted(RuntimeError):
@@ -102,6 +105,10 @@ def validate_export(export: dict) -> list[dict]:
             raise SyncAborted(f"export row {row['source_ref']} has no explicit knowledge_epoch")
         if kbrow.kb_row_sha(row) != row.get("content_sha256"):
             raise SyncAborted(f"export row {row['source_ref']} fails its content hash")
+        # §8c.3: a row with no provenance marker is a row the shape-based audit could
+        # never find again in the ENGINE KB. Refuse the whole sync rather than write one.
+        if not provenance.is_marked(row.get("content")):
+            raise SyncAborted(f"export row {row['source_ref']} carries no {provenance.MARKER_VERSION} marker")
     return rows
 
 
@@ -219,6 +226,7 @@ def run_sync(db_path: str, export: dict, *, commit: bool = False, now: Optional[
             p = plan(conn, export, legacy_ids=legacy)
             cols = _kb_columns(conn)
             for row in p["insert"]:
+                provenance.assert_marked(row.get("content"), what=f"knowledge_base INSERT {row['source_ref']}")
                 values = {"category": row["category"], "title": row["title"], "content": row["content"],
                           "tags": row.get("tags") or "", "trader": row.get("trader") or "",
                           "source_ref": row["source_ref"], "regime_context": row.get("regime_context") or "",
@@ -231,6 +239,7 @@ def run_sync(db_path: str, export: dict, *, commit: bool = False, now: Optional[
                     list(values.values()))
             stamp = ", updated_at = datetime('now')" if "updated_at" in cols else ""
             for kb_id, row in p["update"]:
+                provenance.assert_marked(row.get("content"), what=f"knowledge_base UPDATE {row['source_ref']}")
                 conn.execute(
                     "UPDATE knowledge_base SET category = ?, title = ?, content = ?, tags = ?, trader = ?, "
                     f"knowledge_epoch = ?, priority = 3, regime_context = ?, active = 1{stamp} "
@@ -242,8 +251,15 @@ def run_sync(db_path: str, export: dict, *, commit: bool = False, now: Optional[
             for kb_id in p["deactivate"]:
                 conn.execute(f"UPDATE knowledge_base SET active = 0{stamp} WHERE id = ? AND source = 'wisdom'", (kb_id,))
             for kb_id in p["legacy_deactivate"]:
-                conn.execute(f"UPDATE knowledge_base SET active = 0{stamp} WHERE id = ? AND source <> 'wisdom'",
-                             (kb_id,))
+                # §8c.3: the ONE write here that touches a row Wisdom did not author. It
+                # carries the marker too — appended to `content`, so an audit of the KB can
+                # see who retired the row, not merely that it is inactive. `AND active = 1`
+                # makes it idempotent: a re-run matches nothing and appends nothing.
+                mark = provenance.marker_text(consumer="brainkb", subject_ref=f"knowledge_base:{kb_id}",
+                                              locator="legacy_plan", flag_env="WISDOM_BRAINKB_PUBLISH_ENABLED")
+                conn.execute(
+                    f"UPDATE knowledge_base SET active = 0, content = content || ?{stamp} "
+                    "WHERE id = ? AND active = 1 AND source <> 'wisdom'", ("\n" + mark, kb_id))
             after = _counts(conn)
             if clock().astimezone(CT) >= deadline:
                 raise SyncAborted(f"reached {deadline_ct} CT before COMMIT; rolled back, nothing written")
@@ -293,18 +309,24 @@ def diff_report(db_path: str, export: dict) -> list[dict]:
 
 
 def archive_plan_sql(kb_ids: Iterable[int]) -> str:
+    """SQL an OPERATOR runs by hand. Still a code path that writes a consumer table, so it
+    carries the marker: the archive reason and the retired rows' `content` both take it, and
+    the plan's header states it, so nothing lands in the KB that the audit cannot trace."""
     ids = sorted({int(i) for i in kb_ids})
     id_list = ", ".join(str(i) for i in ids) or "NULL"
+    mark = provenance.marker_text(consumer="brainkb", subject_ref="knowledge_base:archive_plan",
+                                  locator="D18_archive_plan", flag_env="WISDOM_BRAINKB_PUBLISH_ENABLED")
     return "\n".join((
         "-- D18 archive plan. NOT EXECUTED by any Wisdom tool. Run only after the owner approves the",
         "-- review-queue diff and the admin-cohort swap has held. Take a backup first. No DELETE.",
+        f"-- {mark}",
         "BEGIN IMMEDIATE;",
         "CREATE TABLE IF NOT EXISTS knowledge_base_archive AS SELECT * FROM knowledge_base WHERE 0;",
         "ALTER TABLE knowledge_base_archive ADD COLUMN archived_at TEXT;  -- skip if it already exists",
         "ALTER TABLE knowledge_base_archive ADD COLUMN archive_reason TEXT;  -- skip if it already exists",
-        f"INSERT INTO knowledge_base_archive SELECT *, datetime('now'), 'D18 superseded by Wisdom' "
+        f"INSERT INTO knowledge_base_archive SELECT *, datetime('now'), 'D18 superseded by Wisdom {mark}' "
         f"FROM knowledge_base WHERE id IN ({id_list});",
-        f"UPDATE knowledge_base SET active = 0 WHERE id IN ({id_list});",
+        f"UPDATE knowledge_base SET active = 0, content = content || '\n{mark}' WHERE id IN ({id_list});",
         "COMMIT;",
     )) + "\n"
 
