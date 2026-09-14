@@ -599,6 +599,19 @@ Reserved names retired without ever being declared: `WISDOM_CAPTURE_SCANS_ENABLE
 
 Members' "This week in UCT" not before the admin loop has run four consecutive weeks and the owner reopens it. Nothing in W2–W6 starts without the W1 report.
 
+### Per-stream Definition of Done — additions carried from owner rulings
+
+These are **merge gates for the named stream**, not backlog. A stream does not merge until its own
+row here is satisfied; the ledger row for that merge names each one and how it was verified.
+
+| Stream | Owed | Why it cannot wait, and why it belongs to THIS stream |
+|---|---|---|
+| **S-A capture** ✅ **SATISFIED — merged `fb62a44d9`** | The capture-run finding closed to all five requirements in CONTRACTS §8c.1 — bounded `as_of`, a write variant gated more tightly than a read, a watermark that advances only past a non-empty + checksum check, canonical keys written via a staging key and a verified move rather than directly, and a regression test that plants the attack and asserts it is refused. Plus a verdict **with evidence** on each of the other seven scout findings — **none gets "probably fine"** (§8c.2). | An unbounded `as_of` on the write path can move a watermark to a future epoch (every later run reads `lo >= hi` → zero rows → a P1 page nightly while capturing nothing) and can burn an **empty object into an immutable canonical R2 key**, where `core/r2.py` has no delete by design. |
+| **S-D extract** | **The drift-#4 end-to-end assertion** (owner ruling, checkpoint 3): a session containing an attendee whose Zoom display name is a CALL author's given name produces **ZERO rows** attributed to that author. Asserted over **written records**, not over the resolver. | S-B's regression test asserts at the layer that *decides* authorship, which is the strongest claim available there and says so in the test. S-D owns the record WRITER, so S-D is the only stream that can assert the property the owner actually asked about. ⛔ Recorded here because a gap that lives only in a checkpoint reply is a gap that gets forgotten (`lesson_a_documented_workaround_is_not_a_recovery_path`). |
+| **S-D extract** | **F6:** `ticker_inferred` has a column but **no writer binds the bar-range pass to it**. §8a.4 requires an inferred ticker to carry `ticker_inferred=1`, `entity_confidence ≤ 0.5`, `extraction_confidence='low'` AND to pass the bar-range sanity check before storage, else be stored as a MENTION with `entity_id` NULL plus a review item. | The column without the writer is a rule that looks implemented and is not. |
+| **S-F publish (F2)** | **Every publish adapter writes a provenance marker on every write**, and **a CI check fails if any adapter code path can write to a consumer table without it** (§8c.3). | Until then the "did anything reach the member-facing tables?" audit is shape-based — it searches for a marker nobody was *required* to write, so a row published with no marker would not be caught. An empty `wisdom_publish_log` is today's argument, not a proof. |
+| **S-F publish (F2)** | The D16a private-store property test **re-runs un-skipped** at the S-F merge. The Definition-of-Done line for the import-ban rails is **not checked** until it passes with the adapters present (§8b.9). | Its member-facing half has never executed — `api.services.wisdom.publish.adapters` does not exist yet — so today it proves nothing about output. |
+
 ---
 
 ## 12. Decisions

@@ -2140,6 +2140,21 @@ started". It was caught only because the log had no `Test Files` / `Tests` line 
 been trusted, a green gate would have been reported for a suite that never ran
 (`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
 
+⚰️⚰️ **SECOND SIGHTING, 2026-09-13 — recorded because this is NOT fixed and the shape
+inverted.** The six-shard gate on the stage-2 merge tip printed its own verdict:
+
+```
+GATE: 1 NEW failure(s) against the baseline — exit 1.
+GATE EXIT: 1
+[exited with code 0]
+```
+
+The background-task notification said **"completed (exit code 0)"**. The first sighting was
+*runner never ran, wrapper said 0*; this one is *gate ran and said **1**, wrapper still said 0*
+— so the wrapper's status is uninformative in **both** directions, not merely optimistic about
+startup. ⛔ **Nobody may treat this as a solved trap.** Read the manifest: the totals line, the
+file-count reconciliation, and the gate's own `GATE EXIT:` line. The task status is not a verdict.
+
 **Corollary — a CHUNKED run must be diffed against the full test-file list before its total is
 quoted.** The same gate was later split by directory to survive host memory pressure, and the chunk
 list covered 1,016 of 1,178 files — missing a known baseline row. A partial suite fails in the

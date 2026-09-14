@@ -592,3 +592,31 @@ def test_the_grep_on_this_checkout_measures_and_finds_no_live_journal_reference_
     assert proc.returncode == 0, proc.stdout[-4000:] + proc.stderr
     assert "INCONCLUSIVE" not in proc.stdout
     assert "(code: 0," in proc.stdout
+
+
+def test_the_foreign_journal_carve_out_cannot_swallow_a_real_journal_reference(jgrep):
+    """`wire_journal` is the MORNING WIRE's ledger, not the Journal — and a carve-out with
+    no control is how an instrument goes blind.
+
+    ⚰️ `wire_inputs.py` names `morning-wire data/{wire_journal,...}` in a dict of PC-only
+    sources Wisdom declares it does NOT read, so flagging that line reported the opposite of
+    what was true. The fix strips the exact spelling before the sense test — the same shape
+    as the `journal_mode` carve-out that was already there.
+
+    ⛔ What this test exists to catch is the carve-out getting WIDER. Stripping by occurrence
+    keeps a mixed line honest; stripping by line (or matching a looser pattern like
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+    morning-wire one, and nothing else in the suite would notice.
+    """
+    sense_of = jgrep.sense_of
+
+    # the carve-out fires on exactly what it is for
+    assert sense_of('"wire_journal_and_ledgers": "morning-wire data/{wire_journal,open_book}"') == "other"
+    assert sense_of("conn.execute('PRAGMA journal_mode=WAL')") == "other"
+
+    # ...and on nothing else. Each of these MUST still read as journal sense.
+    assert sense_of("wire_journal and the J2 journal") == "journal", "occurrence-scoped, not line-scoped"
+    assert sense_of("from api.services.journal_two import db") == "journal"
+    assert sense_of("read wire_journal, then j2_trades") == "journal"
+    assert sense_of("wire_journal beside a notebook import") == "journal"
+    assert sense_of("broker fills") == "journal"
