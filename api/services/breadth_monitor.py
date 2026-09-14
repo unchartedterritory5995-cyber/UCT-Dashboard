@@ -385,10 +385,29 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
     invalidates.
     """
     from api.services.cache import cache
+    from api.services import single_flight
     # The latest window keeps its historical key (`breadth_history_{days}`) so the
     # common read and everything keyed to it are unchanged; a teleported window
     # gets a distinct key under the SAME prefix every write already invalidates.
     ck = f"breadth_history_{days}" if not end else f"breadth_history_{days}_{end}_{anchor}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    # ⛔ SINGLE-FLIGHT ON THE CACHE KEY. Concurrent readers of the SAME window
+    # collapse onto one computation instead of each paying it — see
+    # `api/services/single_flight.py` for the measurement (D-042) and for what
+    # this deliberately does NOT bound.
+    return single_flight.run(ck, lambda: _history_uncached(days, end, anchor, ck))
+
+
+def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> list:
+    """The leader's work for `get_history`. Never call this directly.
+
+    ⭐ It re-checks the cache first: a leader that finished between our miss and
+    our arrival has already stored the answer, and recomputing it would make the
+    collapse look like it worked while doing the work twice anyway.
+    """
+    from api.services.cache import cache
     hit = cache.get(ck)
     if hit is not None:
         return hit
@@ -644,7 +663,24 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
         return get_history(days, end, anchor)
 
     from api.services.cache import cache
+    from api.services import single_flight
     ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    # ⛔ SINGLE-FLIGHT ON THE CACHE KEY — this is the read D-042 measured at ~55 s
+    # cold, so a duplicate of it is the most expensive duplicate in the app.
+    return single_flight.run(ck, lambda: _history_deep_uncached(days, end, anchor, ck))
+
+
+def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> list:
+    """The leader's work for `get_history_deep`. Never call this directly.
+
+    ⭐ Its delegations to `get_history` are single-flighted in their own right,
+    under the PLAIN key — the two keys are distinct, so a deep leader waiting on a
+    plain leader is two different computations collapsing correctly, never a cycle.
+    """
+    from api.services.cache import cache
     hit = cache.get(ck)
     if hit is not None:
         return hit

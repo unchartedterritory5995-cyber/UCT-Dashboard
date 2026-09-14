@@ -1,0 +1,37 @@
+⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to /charts, a SECOND signed-in context moves the folder, return, reconnect, drain. CONTROLLED EXPERIMENT, not a table row.
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 1 cell(s) to run · stamp 2026-09-14T03-53-58Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+(node:2664) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False}
+
+═══ folder  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-14T03:54:23.165008+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-14T03:54:23.165008+00:00', 'marker': None, 'ring': ['2026-09-14T03:54:23.165008+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door: {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-14T03:54:23.165008+00:00', 'server_after': '2026-09-14T03:55:03.301586+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /21b276a732c847b29a2f98a8e4276702/opened→200 · PUT /21b276a732c847b29a2f98a8e4276702[92+00:00]→200 · POST /21b276a732c847b29a2f98a8e4276702/opened→200 · PUT /21b276a732c847b29a2f98a8e4276702+SENT[08+00:00]→None · PUT /21b276a732c847b29a2f98a8e4276702+SENT[08+00:00]→None · PUT /21b276a732c847b29a2f98a8e4276702+SENT[08+00:00]→None · POST /21b276a732c847b29a2f98a8e4276702/opened→200 · PUT /21b276a732c847b29a2f98a8e4276702+SENT[08+00:00]→409 · PUT /21b276a732c847b29a2f98a8e4276702+SENT[86+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 2, 'deleted': 2}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-14T03:54:23.165008+00:00` · 5 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+(node:24584) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → /c/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/d6f5abd6-b9f1-4421-8a3a-80f71a1017db/scratchpad/f5-second-writer.md

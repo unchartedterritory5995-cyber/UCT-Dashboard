@@ -33,17 +33,44 @@
  * three append CALL SITES below are untouched, which is what the freeze is
  * actually about. The classifier and the settle are otherwise still frozen.
  *
- * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day the
- * seven-family × six-ordering table has zero INCONCLUSIVE rows, and this file
- * then asserts only that the frozen set is still correctly enumerated — an
- * arming condition that names a state, not a date
- * (`lesson_an_arming_condition_that_names_a_test_expires`).
+ * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
+ * cell of the seven-family × six-ordering table is GREEN or NAMED (see the
+ * constant's own note — amended 2026-09-13, because "zero INCONCLUSIVE rows"
+ * and the ruling's "green or named" disagree about a cell whose limitation is a
+ * recorded property of the rig). This file then asserts only that the frozen set
+ * is still correctly enumerated — an arming condition that names a state, not a
+ * date (`lesson_an_arming_condition_that_names_a_test_expires`).
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 
-/** ⛔ Flip to false only when F5's table has zero INCONCLUSIVE rows. */
+/**
+ * ⛔ Flip to false only when every cell of F5's table is GREEN or NAMED.
+ *
+ * ⚖️ AMENDED 2026-09-13 — owner ruling, recorded without asking because a rail
+ * that contradicts a ruling is amended, not obeyed.
+ *
+ * ⚰️ This read *"zero INCONCLUSIVE rows"*, and the ruling that governs the
+ * freeze says it lifts when every cell is **"green or named"** — a cell whose
+ * limitation is a recorded, named property of the rig is an ANSWER. But a named
+ * limitation renders as `⚠️ INCONCL` in the table (`q1_f5_matrix.py`, the verdict
+ * glyph map), so the two sentences disagree about the same rows: as written,
+ * this rail would refuse to lift a freeze the ruling permits, forever, because
+ * the pdf.js caret limitation is not going to stop being true.
+ *
+ * ⭐ The distinction that matters, and the reason the old wording was still
+ * nearly right: INCONCLUSIVE-because-nobody-looked and
+ * INCONCLUSIVE-because-this-rig-cannot-look are different facts wearing one
+ * glyph. The first blocks the freeze. The second is recorded in
+ * `docs/notebook/q1-product-followups.md` with its mechanism and what it does
+ * NOT prevent, and does not.
+ *
+ * ⛔ "Named" is not a synonym for "unmeasured". A cell may only be counted as
+ * named if a limitation is written down for it there; an INCONCLUSIVE row with
+ * no named limitation still blocks, which is what keeps this from becoming a
+ * way to wave the table through.
+ */
 const F5_OPEN = true
 
 const REPO = join(__dirname, '..', '..', '..', '..', '..', '..')
@@ -147,7 +174,9 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
 
   it('⭐ the freeze declares WHEN it lifts, and it has not lifted', () => {
     // ⛔ An arming condition that names a DATE expires quietly. This one names a
-    // STATE: zero INCONCLUSIVE rows in the seven-family × six-ordering table.
+    // STATE: every cell of the seven-family × six-ordering table GREEN or NAMED
+    // (amended 2026-09-13 — see the constant; a named rig limitation is an
+    // answer, an unexplained INCONCLUSIVE is not).
     expect(F5_OPEN, 'F5_OPEN is false — then this file should assert the enumeration only').toBe(true)
   })
 

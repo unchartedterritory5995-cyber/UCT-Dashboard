@@ -199,29 +199,38 @@ def test_the_identity_count_is_the_authority_and_actually_reaches_the_verdict(tm
     sampler's answer never reached the verdict file; the branch also emptied the
     canary list, leaving the timing fallback with zero windows to exclude. It
     survived only because the fallback read the WHOLE cell — which no date parser
-    accepts, and `is_rig` answers True for anything unparseable. Addressing
-    columns by name made the cell parse, and the live log immediately reported
-    `FIRST MEMBER OPT-IN 2026-09-12 15:45:46` on a row whose own count says
-    `members 0`.
+    accepts, and `is_rig` answers True for anything unparseable.
+
+    ⚰️ **SUPERSEDED IN SHAPE, 2026-09-13, AND THE PROPERTY IS UNCHANGED.** The
+    `if member_counts:` branch this used to pin is gone: the gate now reads THREE
+    populations out of the row's own text (organic / synthetic / rig-owner) and
+    never computes a single "members" figure at all. That is a stronger version
+    of the same rule — the sampler's identity counts are the authority and they
+    reach the verdict — so the rail is re-pointed rather than deleted.
+
+    ⛔ A rail kept pinned to a structure the code no longer has fails for a reason
+    that is purely its own, and teaches the next reader to delete it.
     """
     monkeypatch.setenv("NB_OBSERVE_LOG", str(_live_shaped_log(tmp_path / "obs.md")))
     monkeypatch.setenv("NB_GATE_VERDICT", str(tmp_path / "verdict.md"))
     monkeypatch.setenv("NB_RESUME_DOC", str(tmp_path / "nonexistent-resume.md"))
+    monkeypatch.setenv("NB_GATE_REPO", str(tmp_path))
     gate = _load("nb_gate")
-    recs, _ = gate.parsed_rows()
-    # The fixture's rows carry `members 0`, so identity must answer and must say so.
-    cells = [str(x.get("latest_optin") or "") for x in recs]
-    assert any("members 0" in c for c in cells), cells
     src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
-    # ⭐ Pinned STRUCTURALLY: the timing fallback lives inside the `else`, so it
-    # cannot run while an identity count exists. A behavioural-only assertion
-    # here would pass again the moment somebody re-flattens the branches.
-    idx_if = src.index("if member_counts:")
-    idx_else = src.index("else:", idx_if)
-    idx_first = src.index("FIRST MEMBER OPT-IN", idx_if)
-    assert idx_else < idx_first, "the timing fallback must sit INSIDE the else branch"
-    # ...and the line names which rule answered, so a reader never has to guess.
-    assert "timing rule" in src
+
+    # the timing fallback and its canary windows are gone with the old branch;
+    # what must hold is that NO single "members" number is ever derived again.
+    assert "member_counts" not in src, "a single members figure is what published 7"
+    assert "organic members exposed = " in src
+    assert "counted by distinct identity, never summed" in src
+
+    # ⭐ DRIVEN, not merely grepped: the fixture's rows carry the OLD `members 0`
+    # shape, and the verdict must therefore report organic 0 WITHOUT reading that
+    # legacy number as an organic count.
+    gate.main()
+    out = (tmp_path / "verdict.md").read_text(encoding="utf-8")
+    assert "organic members exposed = 0" in out, out
+    assert "predate the three-population split" in out
 
 
 def test_the_timing_rule_still_answers_when_no_row_has_an_identity_count(tmp_path, monkeypatch):
