@@ -1335,6 +1335,40 @@ Closing it requires building an instrument first — that is a task, not a looku
     and "does this keep it comparable?" are different questions, and only the
     second one protects the finding.
 
+30. ⛔⛔ **AN AMENDMENT TO A SHARED RAIL IS INVISIBLE TO EVERY OTHER WORKTREE
+    UNTIL IT MERGES — and it was reported here as though it were done.**
+
+    The F5 freeze's arming condition was amended on 2026-09-13 from *"zero
+    INCONCLUSIVE rows"* to *"every cell GREEN or NAMED"*, under the standing
+    ruling that a rail contradicting a ruling is amended and recorded. That
+    happened, `f5Freeze.test.js` went 6/6 green, and it was reported as settled.
+
+    It is settled **on one branch.** Measured 2026-09-14:
+
+    | where | `GREEN or NAMED` |
+    |---|---|
+    | `notebook-k` (`feat/notebook-kill-switch`) | **3** |
+    | `notebook-q2a` (`feat/notebook-q2a-offline-read`) | **0** |
+    | `origin/master` | **0** |
+
+    ⭐ **It was caught by a subagent planning Q2-A in its own worktree**, which
+    searched the repo for the amended wording, found nothing, and **struck the
+    citation rather than softening it** — exactly the right call, and it was right
+    about the tree it could see. Every other track is still planning against the
+    un-amended condition.
+
+    ⛔ **The general trap:** `f5Freeze.test.js` is a rail that *governs several
+    workstreams*, so amending it in one feature branch changes the rule for
+    nobody. The same is true of the settle, the drain, and the do-not-build
+    sweep. **A shared rail's amendment is not in force until it is on master**,
+    and until then the honest report is *"amended on branch X, not yet in force"*.
+
+    ⚠️ This is the same shape as the deployed-copy drift that keeps
+    `C:\Users\Patrick\uct-q1-observe\` out of step with `tools/` — one artifact,
+    two copies, and the one that matters is not the one being edited. The fix
+    there was to write both and verify the hashes match; the fix here is to say
+    which branch a rule is live on, every time.
+
 ### Rows added by §10
 
 | id | feature | status |
