@@ -20,7 +20,32 @@ happened — a row that silently kept a stale green is the defect this column ex
 
 | # | Branch | Step | Gated against | Scoped gate | Mutations | Status |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | *(empty — all five lanes integrated, see below)* |
+| 11 | `discord-render-hardening` → `d0586beed` | **OI-34** channel allowlist · **OI-35** per-channel V2 · **B2** dated shadow lines · A1–A3 evidence | `beace00e0` | see below | 3/3 + 4/4 RED | **ready — merges first** |
+| 12 | `lane-b1-pool-recycle` | **B1** admin-only `POST /admin/pool/recycle` | — | — | — | agent running |
+| 13 | `lane-b45-harness-hygiene` | **B4** mutation-target refusal · **B5** stale-anchor gate step | — | — | — | agent running |
+
+⛔ **Row 11 goes first and it is not a preference.** B1's value is a determinism/chaos trigger,
+which is only reachable once V2 can be narrowed to a canary channel (OI-35) and `/chart` can run in
+a private channel at all (OI-34). Merging the lanes first would leave both untestable.
+
+---
+
+## OI-34 and OI-35 — two flip blockers found by trying to execute the brief
+
+Neither was visible from the code alone; both surfaced the moment a command was actually typed into
+a private channel. Recorded here because the flip packet's precondition table was written against
+**03-architecture's spec** rather than against the shipped code, and agreed with itself.
+
+| OI | What the brief assumed | What the code did | Cost if executed as written |
+|---|---|---|---|
+| **OI-34** | a smoke channel can be added | `cmd_channel_ok` compared against **one** id | repointing `CHART_FLOW_CHANNEL_ID` MOVES `/chart`, `/charts`, `/flow` — it does not add. Every member of a 1,558-member guild loses all three for the duration |
+| **OI-35** | "the flag is per-channel per 2.1" | `enabled()` is one global boolean; `command_enabled()` splits by **command** | flipping the "canary" sends every member's `/chart` to V2 in the same instant — the member-channel flip, reached by following an instruction that says canary |
+
+⭐ **OI-34 also closes Gap 3 properly.** The `/chart` shadow saw no traffic not because the hook was
+broken and not merely because "nobody ran it" — a member **can only run `/chart` in one channel**,
+`#chart-flow-requests`. The shadow report itself says it cannot tell those apart; the channel gate
+is what tells them apart. B3's ruling ("a traffic fact, stop investigating") is adopted, and this is
+the mechanism behind the traffic.
 
 ## Merged (this push)
 

@@ -120,10 +120,33 @@ pod still returned `None` for, because its redeploy had not swapped yet
 only on `chart-renderer` (2026-08-30), auto-redeploying on `web` (2026-09-09), with an explicit
 `railway redeploy` 16 s later REFUSED as "currently building". Do not assume which one you got.
 
-### 2.1 Set it
+### 2.1 Set it — **the narrowing variable FIRST, and in its own command**
 
 ```sh
+# 1. narrow V2 to the canary channel BEFORE the master flag exists.
+railway variables --service web --set "DISCORD_RENDER_V2_CHANNELS=1549129739048853544"
+# 2. only then arm the master flag.
 railway variables --service web --set "DISCORD_RENDER_V2_ENABLED=1"
+```
+
+⛔⛔ **ORDER IS LOAD-BEARING AND THIS SECTION USED TO GET IT WRONG.** Until 2026-09-14 this step
+set `DISCORD_RENDER_V2_ENABLED=1` **alone** and called the result an admin-only canary, while §4.0
+below said in capitals that the canary is the admin channel. Both cannot be true:
+`commands.enabled()` was one global boolean with **no channel dimension at all**, so that single
+command sends every member's `/chart` in `#chart-flow-requests` to V2 in the same instant. It is
+the member-channel flip — the one decision reserved to the owner — arrived at by following a
+section headed "canary". `DISCORD_RENDER_V2_CHANNELS` (OI-35) is what makes the narrowing real.
+
+⚠️ **Setting the master flag first, even for the seconds between two commands, is a member flip.**
+`--set` has been measured auto-redeploying on `web`, so the window is a real boot, not a race.
+
+⛔ **UNSET `DISCORD_RENDER_V2_CHANNELS` MEANS EVERY CHANNEL.** It narrows; it is not a second kill
+switch. Do not read its absence as "the canary is off" — read it as "there is no canary."
+
+**Verify the narrowing in the running process, not from `--kv`:**
+
+```sh
+railway run --service web -- python -c "from api.services.discord_render import commands as c; print(c.v2_channels(), c.enabled())"
 ```
 
 ### 2.2 Watch for a NEW BOOT — by timestamp, not by the command's exit code
