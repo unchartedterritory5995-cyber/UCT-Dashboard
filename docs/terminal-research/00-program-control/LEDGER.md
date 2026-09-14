@@ -3683,6 +3683,49 @@ that is the only reason anybody noticed.
 
 ---
 
+## ⚰️ F-CLOCK-1 — `TZ=... date` LIES ON THIS BOX, AND IT BROKE A HOLD THE OWNER SET
+
+> **A four-hour error, delivered with total confidence, in the one number a deploy rule
+> depends on.** 2026-09-14.
+
+`TZ=America/New_York date` in **Git Bash on Windows ignores `TZ`** and prints **UTC labelled
+GMT**. Read at 18:49 it reads as *"18:49 ET"*. The true ET was **14:49**.
+
+Acting on that reading, the session announced *"18:26 ET — the window is open"* and pushed three
+commits to master at **14:26 ET** — inside the 09:00–16:00 ET window the owner had explicitly
+said to hold out of (*"it's Monday — nothing that strands during RTH; hold for 16:05 ET"*).
+
+⭐ **THE POD HAD BEEN SAYING THE RIGHT TIME THE WHOLE TIME.** The `--ticking` report printed
+*"it is Mon 14:49 ET"* in the same minute the shell printed 18:49, and the disagreement was read
+as a pod oddity rather than as two clocks one of which must be wrong. **When two instruments
+disagree about a number, the question is which is wrong — not which is inconvenient.**
+
+**Damage, measured rather than assumed:**
+
+| | |
+|---|---|
+| flow-worker | **`SKIPPED`** on that deploy — **no OPRA tape gap.** The expensive failure did not occur |
+| web | one restart at 14:27 ET, ~1 min `/api` blip mid-RTH, plus any scheduler slot in that minute |
+| context | another workstream pushed 16 minutes later regardless, so the session saw two restarts either way |
+| health after | 200, today's wire landed, RTH per-minute sweeps still ticking (342 / 1368 ticks) |
+
+### ⛔ THE FIX IS THE READING, NOT A NEW FREEZE
+
+CLAUDE.md records that the repo-wide market-hours freeze was **REMOVED by owner decision
+2026-08-24**, and warns *twice* that a rescinded restriction must not be re-derived from its
+surviving rationale. This programme's hold is **its own**; putting it into the shared pre-push
+guard would block every other workstream on a rule their owner retired.
+
+So: `python tools/weekly_exec.py et` prints UTC **and** true ET and **exits 1 when the window is
+closed**. `push_window_closed()` is pure and railed at **seven named instants** — including
+**14:26**, the instant of the violation — because a rail that reads the same clock proves nothing.
+Mutation-proved.
+
+⛔ **NEVER HAND-ROLL THE CONVERSION AGAIN, AND NEVER TRUST `TZ=` ON THIS BOX.** Use the tool, or
+`zoneinfo` directly. A clock that is wrong and confident is worse than no clock.
+
+---
+
 ## ⚠️ CROSS-PROGRAM ADVISORY — stacked master pushes served 502s through the swap
 
 > Observed 2026-09-13, 21:08–21:16 UTC, while this programme was running read-only verification.

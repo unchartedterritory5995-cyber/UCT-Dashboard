@@ -143,6 +143,12 @@ both ways.
 
 ## 5. ⛔ What a session must NOT do
 
+0. ⛔⛔ **NEVER READ THE CLOCK WITH `TZ=America/New_York date`.** In Git Bash on this box it
+   **ignores `TZ` and prints UTC labelled GMT** — a silent four-hour error in the number the
+   push window depends on. It broke the 2026-09-14 hold (**F-CLOCK-1**): three commits went to
+   master at 14:26 ET believing it was 18:26. Use `python tools/weekly_exec.py et` — it prints
+   both clocks and **exits 1 when the window is closed**.
+
 1. **No unscoped `pytest tests/`.** Collection alone reached 6.6 GB; an unscoped run reached 18 GB
    and was OOM-killed. **Name the files.** `-k` does not scope — everything is still collected.
 2. **No `railway redeploy`.** A `--set` on `web` auto-redeploys (now **five** measurements). Verify
