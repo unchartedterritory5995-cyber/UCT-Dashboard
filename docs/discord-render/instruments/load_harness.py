@@ -145,7 +145,31 @@ def counting_edit_fn(stats: dict):
     return _edit
 
 
-def collect_real_metrics(rt, deliver_stats: dict) -> dict:
+def renderer_health() -> dict:
+    """chart-renderer's own `/health`. ⛔ Read BEFORE and AFTER a run, because `recycles` and
+    `renders_total` are CUMULATIVE COUNTERS: the after-value alone says what the pod has done since
+    it booted, not what this run did. A delta is the only attributable number."""
+    try:
+        from api.routers import discord_interactions as router
+        return router._renderer_health() or {}
+    except Exception as e:  # noqa: BLE001
+        return {"error": type(e).__name__}
+
+
+def renderer_delta(before: dict, after: dict) -> dict:
+    """What THIS run cost the renderer. `None` where either side could not be read — never 0,
+    which would read as "nothing happened"."""
+    out: dict = {}
+    for key in ("renders_total", "recycles", "timeouts", "failures", "pool_hits", "pool_misses"):
+        b, a = before.get(key), after.get(key)
+        out[key] = (a - b) if isinstance(b, (int, float)) and isinstance(a, (int, float)) else None
+    # a gauge, not a counter: the after-value is the reading that matters
+    out["rss_mb_after"] = after.get("rss_mb")
+    out["rss_mb_before"] = before.get("rss_mb")
+    return out
+
+
+def collect_real_metrics(rt, deliver_stats: dict, renderer_before: dict | None = None) -> dict:
     """Everything the ruling asks a `--real` run to record, read from the artifacts rather than
     from counters this harness kept itself."""
     from api.services.discord_render import breakers, observe
@@ -180,11 +204,11 @@ def collect_real_metrics(rt, deliver_stats: dict) -> dict:
         out["breakers"] = breakers.snapshot_all()
     except Exception as e:  # noqa: BLE001
         out["breakers"] = {"error": type(e).__name__}
-    try:
-        from api.routers import discord_interactions as router
-        out["renderer"] = router._renderer_health()
-    except Exception as e:  # noqa: BLE001
-        out["renderer"] = {"error": type(e).__name__}
+    after = renderer_health()
+    out["renderer"] = after
+    # ⛔ C-09's measurement: the warm cycle shares this renderer with members, so the recycles and
+    # timeouts THIS run caused are the attributable number — not the pod's lifetime totals.
+    out["renderer_delta"] = renderer_delta(renderer_before or {}, after)
     return out
 
 
@@ -464,6 +488,16 @@ def self_check() -> int:
                   "elif real:" in _src and "counting_edit_fn" in _src))
     cases.append(("--real WITH a channel installs the throttled real one",
                   "if deliver_channel:" in _src and "channel_edit_fn" in _src))
+    # ⛔ A DELTA OVER AN UNREADABLE READING IS `None`, NEVER 0 — a zero would report "the run
+    # caused no recycles" when what happened is that nobody could tell.
+    _d = renderer_delta({"recycles": 2, "renders_total": 10}, {"recycles": 5, "renders_total": 40})
+    cases.append(("a renderer delta subtracts the two ends",
+                  _d["recycles"] == 3 and _d["renders_total"] == 30))
+    _d2 = renderer_delta({}, {"recycles": 5})
+    cases.append(("an unreadable BEFORE makes the delta None, not the after-value",
+                  _d2["recycles"] is None))
+    _d3 = renderer_delta({"recycles": 2}, {"error": "x"})
+    cases.append(("an unreadable AFTER makes the delta None", _d3["recycles"] is None))
     _st = {}
     counting_edit_fn(_st)("app", "tok", content="x", png=b"12345", filename="a.png")
     cases.append(("the no-op delivery still records the artifact it was handed",
@@ -519,11 +553,15 @@ def main(argv=None) -> int:
               "the symbol check is part of what S2 pays for")
         return INCONCLUSIVE
     deliver_stats: dict = {}
+    # read BEFORE the sandbox is torn down and before any load — a cumulative counter
+    # needs both ends to say anything about this run
+    rend_before: dict = {}
     stats: dict = {"n": 0}
     kinds: dict = {}
     try:
         sandbox(tmp)
         enable_v2()
+        rend_before = renderer_health() if args.real else {}
         out = asyncio.run(drive(args.rate, args.seconds, members=args.members,
                                 handler_ms=args.handler_ms, symbols_mode=args.symbols,
                                 tickers=[t.strip().upper() for t in args.tickers.split(",") if t.strip()],
@@ -533,7 +571,8 @@ def main(argv=None) -> int:
         stats, kinds = summarise(out["samples"]), out["kinds"]
         meta["elapsed_s"] = round(out["elapsed_s"], 2)
         meta["queue_at_end"] = out["queue"]
-        real_metrics = collect_real_metrics(out["runtime"], deliver_stats) if args.real else {}
+        real_metrics = (collect_real_metrics(out["runtime"], deliver_stats, rend_before)
+                        if args.real else {})
         if args.out:
             pathlib.Path(args.out).write_text(json.dumps(
                 {"meta": meta, "stats": stats, "kinds": kinds, "samples_ms": out["samples"],
