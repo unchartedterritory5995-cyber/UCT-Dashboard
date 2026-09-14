@@ -57,3 +57,383 @@ rather than §8c.1.3's `put_verified` (the reviewer correctly refused to change 
 contract), and the R2 prefix is `wisdom/sources/zoom_vtt/` where §8a.6a.1 names `wisdom/sources/zoom/`.
 Both are integrator decisions; `core/r2.py` has no delete path, so a prefix change strands whatever
 is already written.
+
+---
+
+## Reviewers — pair 1 (S-C, S-E) and pair 2 (S-F1, S-F2), 2026-09-14 00:38–01:27 CT
+
+⭐ **The adjudication profile is the point.** The owner's instruction was that *"all N confirmed" is a red flag, not a clean bill* — a review that agrees with every scout candidate is a re-reading. Across the four streams the reviewers **refuted or downgraded 31 of 63** and found **23 findings no scout had**.
+
+| stream | verdict | adjudicated | VERIFIED | REFUTED | DOWNGRADED | NEW | blocks-merge | all fixed |
+|---|---|---|---|---|---|---|---|---|
+| S-C | SHIP-WITH-FOLLOW-UPS | 19 | 6 | 5 | 4 | 4 | 6 | yes |
+| S-E | FIX-BEFORE-MERGE | 20 | 1 | 6 | 5 | 8 | 3 | **NO** |
+| S-F1 | SHIP-WITH-FOLLOW-UPS | 11 | 0 | 4 | 1 | 5 | 1 | yes |
+| S-F2 publish | SHIP-WITH-FOLLOW-UPS | 13 | 0 | 6 | 1 | 6 | 2 | yes |
+| **total** | | **63** | **7** | **21** | **11** | **23** | **12** | |
+
+⭐ **S-E's one unfixed blocker was not S-E's to fix, and it was the best finding of the night.**
+E-5: the shared §7 rail `tests/test_cross_module_imports_resolve.py` was RED on `feat/wisdom-loop`
+and it was a **FALSE POSITIVE** — `_bindings` collected only `ast.Name` targets, so tuple unpacking
+bound nothing and two importable modules were reported as unresolved imports. That red had been
+carried as "a pre-existing non-Wisdom failure" in this programme's own ledger rows for weeks.
+The reviewer correctly refused to touch it (CONTRACTS §8.2 gives shared files to the integrator) and
+⛔ explicitly warned that the obvious fix — adding both names to `KNOWN_DEAD` — would permanently
+blind the rail at exactly the two names it was wrong about. Fixed by the integrator at `409b7dd74`;
+mutation-proved (old collector reds 2 of 4). **S-E therefore has zero open blockers.**
+
+**Each reviewer also refuted something it had raised itself**, which is the habit worth keeping:
+- **S-C / S05** — the archived Zoom metadata was said to leak a credential in `download_url`. It does
+  not: `zoom_client.download_text` sends the token as an `Authorization: Bearer` **header**. Read the
+  client, not the call site.
+- **S-F1 / F-N4** — D20's silent scorer running with `WISDOM_LEVEL_ALERTS_ENABLED=0` looked like an
+  ungated feature. It is the DESIGN: §0 ruling 13 builds D20 as a silent scorer and the enablement
+  gate needs ≥14 days of silent scoring, so the scorer MUST run while emission is off. The flag gates
+  EMISSION, in S-F2's module.
+- **S-F2** attacked its OWN provenance rail (committed hours earlier) and found two blockers in it:
+  the marked-predicate excuse laundered an UPDATE, and **a SQL COMMENT spelling `source = 'wisdom'`
+  marked the site** — an analyser reading comments as code, which is the exact defect class this
+  repo's "CODE, NEVER PROSE" rule exists for, committed by the rail written to enforce it.
+
+---
+
+## Checkpoint 8 — merge 7 (S-F2 publish) LANDED. All six §8.4 master merges complete. 2026-09-14 03:58 CT
+
+**`fedd8dea1` on master · Railway `web` SUCCESS · `/api/health` 200 with `uptime_seconds: 28`** (a
+real fresh boot, not a cached answer) · `git merge-base --is-ancestor` confirms the commit is in
+what master serves, rather than inferred from the push.
+
+| # | merge | commit | web |
+|---|---|---|---|
+| 2 | S-A capture | `fb62a44d9` | SUCCESS |
+| 3 | S-C sources | `a64336c89` | SUCCESS |
+| 4 | S-D extract | `7a2b54369` | SUCCESS |
+| 5 | S-E evals | `98a18b969` | SUCCESS |
+| 6 | S-F1 admin | `49fdc1fbc` | SUCCESS |
+| 7 | **S-F2 publish** | **`fedd8dea1`** | **SUCCESS** |
+
+**Gate: 987 passed, 1 skipped, 0 failed** (60 named files; the one skip is the vocab-authority
+probe that needs `WISDOM_ENGINE_DB`). It opened at **2 failed, 787 passed**.
+
+### What the gate caught, and it was not what merge 7 changed
+
+⭐⭐ **THE MERGE GATE EARNED ITS KEEP — a cross-stream defect no single stream could see.**
+S-E's grounding seam resolves S-F's retrieval through a `find_spec` seam. S-F2 made that module
+exist for the first time, and the seam had been calling it wrong since the day it was written:
+
+```
+seam status: ok
+CALL RAISED: TypeError: search() takes 1 positional argument but 2 were given
+```
+
+`search(query, *, tickers=(), limit=3, ...)` is keyword-only past `query`; the seam called
+`fn(query, k)`. `run_grounding` catches that **per question** into `retrieval_error` and carries on
+with `segments = []`, so the with_wisdom arm would have retrieved **nothing** for all 30 questions
+while the metric row still said `retrieval: ok` — the two arms identical **by construction**, and
+that published as `grounding_faithfulness` / `grounding_citation_validity` / `grounding_coverage`.
+The eval exists to ask whether wisdom retrieval grounds better than none. It would have answered
+"no difference", because it never asked.
+
+⛔ **Neither stream could have found this alone.** S-E's rails ran in a world where the module did
+not exist (every run took the `retrieval_module_absent` branch); S-F has no reason to call S-E's
+seam. It is reachable only where the two meet, which is this gate.
+
+**Fixed** by binding the signature ONCE before the seam may promise `ok`, and calling `limit=k` —
+the keyword every shipped caller already uses (`adapters/askai.py:73`). An unbindable search is now
+refused BY NAME (`retrieval_signature_mismatch`) and the arm runs without retrieval: *"we could not
+retrieve"* and *"retrieval added nothing"* are two facts a reader of the D-class metrics must never
+see collapsed.
+
+### And the rail that went red was right to, in the wrong place
+
+`test_the_with_arm_uses_retrieval_when_present_and_says_so_when_absent` asserted
+`retrieval_module_absent` against a real, un-faked seam. True only before S-F. ⭐ **A rail whose
+subject is "which files exist today" silently changes meaning under a merge** — nothing regressed;
+the world caught up with the seam's own docstring (*"S-F builds the module; until then None"*). It
+now DRIVES both branches, so it reads the same before and after S-F.
+
+⛔ **The hiding goes through `pytest.MonkeyPatch.context()`, never the `monkeypatch` fixture +
+`undo()`** — the `db` fixture requests that same instance to pin `WISDOM_DB_PATH`, and an undo
+would have unpinned the test database along with it.
+
+⭐ **Note what the old rail could not have caught even in the new world:** it asserted the *string*
+the seam returns, and the seam returned the right string. **Arity is not a shape and no validator
+sees it**, so the new rail asserts the CALL (CLAUDE.md, *"Contracts — verify against the RUNTIME
+CALL SITE, not a harness"*).
+
+**Mutants, each restored byte-exact and sha256-verified (never `git checkout`):**
+
+```
+S  seam back to fn(query, k) ............................. 2 failed, 7 passed
+T  bind check deleted, call left correct ................. 1 failed (the control ALONE), 8 passed
+U  _hide_retrieval made a no-op .......................... 1 failed (the branch rail), 8 passed
+   restored .............................................. 9 passed
+```
+
+T is the one that matters: it proves the control fires for its own reason and not as a side effect
+of S. **A guard nobody has seen fire is not a guard.**
+
+### Merge-7 provenance footer
+
+`weekly_embed` marks the embed **footer**, not the description (`EMBED_DESCRIPTION_MAX` truncates
+that from the end), and `deliver` asserts the marker immediately before
+`discord_notify._send_webhook` so a marking call dominates the send's own scope. Chose to **mark
+rather than exempt**: a Discord webhook is a delivery rather than a consumer table, so the rail
+arguably over-reached — but only one of those can be wrong in the direction that matters.
+
+⚠️ **Deviation to state plainly:** `scripts/deploy_watch.py --service web --sha …` printed **nothing
+and exited 0**. It was not used as evidence — the deploy was verified from
+`railway deployment list --json` polled to a terminal status, then from `/api/health`. Recorded
+because an empty result with a zero exit is this programme's most expensive shape, and the tool is
+currently unusable as invoked. Not fixed here; it is not Wisdom's file and merge 7 was in flight.
+
+---
+
+## Checkpoint 9 — the §8.6 acceptance run. 11 PASS · 0 FAIL · 1 INCONCLUSIVE. 2026-09-14 04:05 CT
+
+Run in-process against a **sandbox** built from `conftest.shared_data_root_census()` —
+**77 pins applied, `unpinnable` 0**, so nothing resolved at the owner's live `C:\data`.
+⛔ The pins are derived and applied BEFORE the first `api.**` import, because these paths are
+captured at module import and `DATA_DIR` reaches only one of the 77.
+
+| # | check | verdict | evidence |
+|---|---|---|---|
+| 1 | daily chain end to end | **INCONCLUSIVE** | 9 steps: 6 ok, 2 skipped, 1 failed — `sources`, environmental only (see below) |
+| 2 | weekly chain dry run | PASS | 7 steps, 0 failed |
+| 2b | weekly report builds | PASS | `weekly-v1`, 8 sections |
+| 3 | every rate prints its n | PASS | `ratio_text(0,0)` = `'0/0'` — no percentage; `ratio_text(3,4)` = `'3/4 (75.0%)'` |
+| 3b | contract metric names declared | PASS | 11 in `EXPECTED_METRICS` |
+| 4 | job roster registers | PASS | **13 jobs** from `registry.job_specs()` |
+| 4b | heartbeat / chain-step / observation tables | PASS | all 4 present of 60 tables |
+| 5 | flag census | PASS | **24 `WISDOM_*` flags, every one `dark`, none set in env** |
+| 5b | the flag READER agrees | PASS | 25 predicates derived from the module itself; **none returns true** |
+| 6 | D20 built AND disabled | PASS | `score_silently` runs (`levels_scored: 0`); `level_alerts_enabled()` **False** |
+| 7 | provenance CI check | PASS | `ok=True`, **10 consumer write sites, 0 unmarked** |
+| 7b | that check can still FAIL | PASS | plants 1 unmarked write → audit finds 1, returns `ok=False` |
+
+⭐ **5b is the one worth keeping.** Reading the ledger tells you what was *declared* dark; asking
+the flag module's own predicates tells you what the code will actually *do*. They are two
+authorities over one value and the ledger is the one that drifts silently — this repo has already
+paid for that with `RESEARCH_TECHNICAL_TAB_ENABLED`. So the predicates are **derived from
+`vars(flags)`** (every zero-argument `*_enabled`), never typed, and a flag added tomorrow is
+covered the day it lands.
+
+### The one INCONCLUSIVE, stated as what it is
+
+```
+sources.run_daily: discord: DISCORD_BOT_TOKEN is not set; transcripts: OperationalError
+  {'discord': {'outcome': 'no_token'}, 'transcripts': {'error': 'no such table: edu_videos'}}
+```
+
+Both causes are **this box, not the code**: no Discord bot token in a sandbox that deliberately
+carries no secrets, and an unseeded `education.db`. ⛔ **Reported INCONCLUSIVE rather than PASS or
+FAIL, by name.** A sandbox cannot distinguish *"this code is broken"* from *"this box holds no
+credential"*, and collapsing those either manufactures a defect or hides one. Calling it a pass
+would be the worse error: it would record the daily chain as proven end to end when two of its
+nine steps were never exercised. Verifying `sources` needs either a real token or a seeded Desk
+table, and neither belongs in an unattended overnight run.
+
+⚠️ **Four of the first-run "failures" were MY HARNESS, not the product**, and are recorded because
+the distinction is the whole point: `flags.enabled(name)` does not exist (the module exposes one
+predicate per flag), `registry.JOBS` does not exist (`job_specs()`), `build_weekly` takes
+`(conn, *, now=)`, and a chain step's key is `"step"`, not `"name"` — which is why the first run
+printed `FAILED=[None]` and named nothing. ⭐ **A harness that guesses at an API produces findings
+about the harness.** None of those reached the table above.
+
+⚰️ **And 7b was reported FAIL once, wrongly, by me.** `self_check` PLANTS an unmarked write and
+returns `{'found': 1, 'report': {'ok': False}}` — `found: 1` means the guard caught the plant and
+`ok: False` is the verdict **on the plant**, which is success. Reading that nested `ok` inverts
+the test and calls a working guard broken. The predicate is now `found >= 1 AND report.ok is
+False`, which can only be satisfied by a guard that actually fired.
+
+---
+
+## Checkpoint 10 — the LIVE half: production is dark, and every route refuses. 2026-09-14 04:20 CT
+
+The §8.6 census above reads the repo. This reads **Railway and production**, because the ledger
+records intent and cannot see either.
+
+### Every WISDOM_* flag, on every service — names only, values are secrets (§11.3)
+
+```
+web                       247 vars, WISDOM_*: NONE
+worker                     56 vars, WISDOM_*: NONE
+bars-api                   30 vars, WISDOM_*: NONE
+flow-worker                67 vars, WISDOM_*: NONE
+chart-renderer             16 vars, WISDOM_*: NONE
+terminal-next-monitor      14 vars, WISDOM_*: NONE
+                                    TOTAL SET ANYWHERE: 0
+```
+
+**Six services, 430 variables, not one of them `WISDOM_*`.** Six master merges are on production
+and the program cannot do anything to a member: §0.4c holds by measurement, not by assertion.
+
+`python tools/flag_ledger_audit.py` (the whole-ledger live half) also reports **0** in every
+category: 0 fiction, 0 set-but-undeclared, 0 undeclared-and-off, 0 awaiting a decision.
+
+### Every Wisdom route, anonymously
+
+**27 real GET routes, all 401. None returns JSON to an anonymous caller.**
+
+⛔ **The route list is DERIVED from `registry.routers()`, not typed** — and that matters, because
+the first probe I ran used paths I had invented (`…/review/items`, `…/report/weekly`,
+`…/capture/status`) and **three of them came back `200`**. Not an auth hole: FastAPI had no such
+route, so the request fell through to the SPA catch-all and returned `<!doctype html>`. That is
+the exact tell CLAUDE.md records for the unmounted `broker_sync` router (`GET /connect` → 200
+HTML), and read carelessly it would have been published as a Wisdom auth leak.
+
+⭐ **So the probe now distinguishes three outcomes, not two:** `401` (gated), `200` carrying the
+SPA shell (route absent), and `200` carrying JSON (an actual leak, of which there are none). A
+two-outcome probe would have called the SPA fallthrough a pass on the first run and a breach on
+the second, and both readings would have been wrong.
+
+---
+
+## Checkpoint 11 — STT. 356 rescued; 254 and 221 were never broken. 2026-09-14 04:21 CT
+
+Text-only `faster-whisper base.en` (int8, 4 threads, VAD on, `condition_on_previous_text=False`),
+resumable per video, run beside only the gate's sleeping poll loop. **13.7 GB free at launch.**
+⛔ No diarization: the owner answered NO, the HF token question is still open, and no speaker is
+inferred anywhere in the output — §8a's rule is evidence or `unresolved`.
+
+| id | video | duration | before | after | wall |
+|---|---|---|---|---|---|
+| **356** | `rKVAkk3811Q` | 6830 s | **4.2 %** (76 cues) | ✅ **100.0 %**, 1398 cues | 215 s |
+| 254 | `G80NM-hRoas` | 4532 s | 68.7 % (1009 cues, a **330 s internal hole**) | 61.6 %, 500 cues, **0 internal gaps** | 78 s |
+| 221 | `myuRq5qVOgI` | 4386 s | 92.8 % (1728 cues) | 92.3 %, 1040 cues, **0 internal gaps** | 126 s |
+
+**356 is the win and it was the real defect** — 288 seconds of a 6830-second session, now complete
+end to end: it opens *"we got some people joining in here"* and closes on *"Bye."*, with no
+internal gap anywhere.
+
+### ⭐ The coverage rule over-flags, and 254 and 221 are the proof
+
+Their numbers did not improve, and that is the finding rather than a failure. **Every second of
+their shortfall is AFTER the last word**, with zero internal gaps:
+
+```
+254   silence before first speech    0 s | after last speech  1742 s | internal gaps >=30s   0 s
+221   silence before first speech    1 s | after last speech   335 s | internal gaps >=30s   0 s
+```
+
+and the last cue in each is a sign-off — 254: *"All right, guys, ladies and gentlemen, have…"*;
+221: *"…catch you later guys"*. **The recording keeps rolling after everyone says goodbye.**
+
+⛔ **An absence is only evidence if the instrument could have seen a presence**, so the tails were
+re-driven with **VAD OFF**, which is the only way to prove the silence is silence:
+
+```
+254 [2780..3200]  55 chars  "Alright guys, ladies and gentlemen, have a great night."   (the sign-off, already captured)
+254 [4100..4532]   0 chars  silence — no speech at all
+221 [4040..4386] 183 chars  "...We'll see you guys tomorrow. Later guys." + "All right." x11
+```
+
+**So `cue_span / duration` measures "does speech reach the end of the file", not "did we capture
+the speech".** Two of the three videos on the re-transcription list were already complete. The
+discriminator that actually separates a lost session from a long outro is **internal gaps plus
+whether the last cue is a sign-off** — 356 failed on internal coverage (288 s of 6830 s); 254 and
+221 never did.
+
+⚠️ **AND DO NOT "FIX" COVERAGE BY TURNING VAD OFF.** The 221 probe is the warning in one line:
+with VAD disabled, dead air produced *"All right."* **eleven times** — whisper's hallucination
+loop on silence, the same class this repo already measured and killed with
+`condition_on_previous_text=False`. Disabling VAD would push 221's coverage toward 100 % by
+**manufacturing transcript text out of silence**, and that text would then be extracted, scored
+and attributed to a named author. A number that looks better while the artifact gets worse.
+
+**Recommendation (not applied — it changes the audit's own rule):** gate the under-98 % list on
+*internal* gaps, and treat a trailing gap that ends on a sign-off as complete. That would have cut
+this run from three videos to one.
+
+⛔ Output is `data/wisdom/audit/stt/` — **`data/` is gitignored** (`git check-ignore` verified), so
+no transcript text and none of the 180 MB of cached audio can reach the public repo (§0.4f).
+Nothing was written to wisdom.db, education.db or R2; the R2 reads were `head`/`get` only.
+
+---
+
+## Checkpoint 12 — P5 golden gate COMPLETE. Accepted, and it found something. 2026-09-14 04:53 CT
+
+Resumed from the checkpoint, never from zero. **$11.6504 of the $15 cap** (this run: $7.197 —
+gate $4.8007, drift $1.0651, trial $1.3314). Neither forbidden batch was re-submitted;
+`msgbatch_01Kvf7Q9ZinucRR7xfKQTsnq` and `msgbatch_019NjdbTHu1eK3MXbW2zxMC7` both still read
+`collected: true` and were not touched. Three new batches, all collected, 0 errors, 0 transport
+errors, 0 `skipped_spend_cap`, 0 retried after max_tokens.
+
+⚠️ **A correction to RESUME.md §3**, which says to pass `--max-usd` equal to the *remaining* cap
+(15 − 4.45). `SpendCap.reserve` tests `spent + reserved + usd > max_usd` against the **carried**
+ledger total, so `--max-usd` is the TOTAL. Passing 10.55 would have left $6.10 of headroom, not
+$10.55, and the gate would have stopped part-way and recorded an INCOMPLETE evaluation. Passed 15.
+
+### The gate — dev split, golden-v1 `db3475c814ee`, 57 segments, `claude-opus-5` high
+
+```
+type             tp   fp   fn   precision (n)     recall (n)
+CALL             17    7    6   0.708 ( 24)      0.739 ( 23)
+LEVEL             6    0    4   1.000 (  6)      0.600 ( 10)
+MARKET_SIGNAL     3    3    0   0.500 (  6)      1.000 (  3)
+MENTION          51    7    0   0.879 ( 58)      1.000 ( 51)
+NEGATIVE_CALL     4    1    2   0.800 (  5)      0.667 (  6)
+PRINCIPLE        14    6    1   0.700 ( 20)      0.933 ( 15)
+```
+
+**decision `accepted`** — `baseline: true`, `compared_to: null`, `regressions: []`. ⛔ Read that
+honestly: this is the FIRST recorded evaluation for `wx-v0-74bafea0`, so "accepted" means *"there
+was nothing to regress against"*, not *"these numbers are good"*. 882 records kept, $0.0054 per
+record.
+
+⛔⛔ **AND THE HEADLINE NUMBERS COVER 14 % OF THE OUTPUT.** `golden.match_segment` scores a
+prediction only when its quote span **overlaps a golden label's span**:
+`scored = [p for p in predicted if any(_overlap_ratio(...) > 0 for s in spans)]`. So of **882
+records kept, 763 were never scored** — they are claims about paragraphs nobody labelled, and the
+gate is structurally blind to them. **Precision above is precision ON LABELLED TEXT; it does not
+bound the extractor's false-positive rate on the other 86 %.** A record invented about an
+unlabelled paragraph cannot appear as an `fp` here.
+
+### ⛔⛔ DRIFT IS THE FINDING: the extractor agrees with ITSELF half the time
+
+Same model, same effort, same 10 segments, run twice:
+
+```
+mean_jaccard        0.5046          identical_segments  3 of 10
+                 agreed   run_1   run_2
+CALL                17      23      21
+MENTION             93     117     116
+LEVEL                2       3       3
+MARKET_SIGNAL        4      17      19      <- ~24 % agreement
+PRINCIPLE            6      30      28      <- ~20 % agreement
+```
+
+`claude-opus-5` takes no temperature, so this is inherent run-to-run variance, not a
+misconfiguration. **PRINCIPLE and MARKET_SIGNAL are effectively not reproducible**: re-run the
+same session and you get a largely different set of principles.
+
+⭐ **Why this outranks the precision table.** PRINCIPLE rows are the ones destined for the Brain KB
+and Ask-AI under D18 — replacing the stale Bonde-credited rows with "dated, signed, linked Wisdom
+rows". A row that would not survive re-running the extractor on the same paragraph is not a
+finding about what the team teaches; it is a sample from a distribution. **Publishing it and
+citing it to a named author is the part that cannot be undone**, and nothing in the current design
+tells a reader which side of that line a given row is on.
+
+This is a measurement, not a proposal. It is recorded for the owner, and D18's adapters stay dark.
+
+### The smaller-model trial — VERDICT: NO SWITCH
+
+20 shared segments, `claude-sonnet-5` vs `claude-opus-5` scored on the same golden spans:
+
+| type | opus P | sonnet P | Δ precision | opus R | sonnet R |
+|---|---|---|---|---|---|
+| CALL | 0.583 | **0.778** | **+0.194** | 0.875 | 0.875 |
+| LEVEL | **1.000** | 0.667 | −0.333 | 0.333 | **0.667** |
+| MARKET_SIGNAL | 0.500 | 0.500 | 0.000 | 1.000 | 1.000 |
+| MENTION | **1.000** | 0.800 | −0.200 | 1.000 | 1.000 |
+| NEGATIVE_CALL | 1.000 | 1.000 | 0.000 | 1.000 | 1.000 |
+| PRINCIPLE | **0.700** | 0.636 | −0.064 | 1.000 | 1.000 |
+
+Cost on those segments: opus **$1.7214** (289 records) · sonnet **$1.3314** (277) —
+**$0.004806 vs $0.005956 per kept record, ~19 % cheaper.**
+
+⛔ **Not a tie, so D5's condition is not met and the model does not change.** Sonnet wins CALL
+precision and loses LEVEL, MENTION and PRINCIPLE. The expected counts are 8, 3, 1, 4, 1 and 7 — a
+single record moves a rate by 12–100 points, so no cell here separates the models. The tool's own
+rule says the rest: *"a trial is not a gate evaluation: a smaller model becomes eligible only
+through a full gate run of its own."*

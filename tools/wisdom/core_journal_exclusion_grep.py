@@ -82,7 +82,51 @@ BAN_CHECK_PATHS = frozenset({
 BAN_CHECK_MARKER = "journal-exclusion guard"
 RULING_MARKERS = re.compile(
     r"part 10|d16b|d16a|deferred|exclu|out of scope|never|\bban|forbid|off-limits|do not|must not"
-    r"|refuse|not in scope|no journal|import-ban", re.IGNORECASE)
+    r"|refuse|not in scope|no journal|import-ban"
+    # ⚰️ 2026-09-14: the three DECLARATIONS §0.4b requires a module to carry — "NOTHING HERE
+    # READS JOURNAL / J2 / NOTEBOOK / BROKER DATA" — matched none of the markers above and were
+    # reported as live references. The rail was flagging the sentence that states the ban.
+    r"|nothing here reads|reads no|is read, matched", re.IGNORECASE)
+
+#: A journal term that appears ONLY inside a quoted string, where THAT STRING also carries the
+#: ruling marker, is a DECLARATION of the exclusion rather than a reach.
+#: ⛔ The marker requirement is what keeps this honest, and it is not decoration: a string literal
+#: can absolutely BE a reach — `sqlite3.connect("/data/j2.db")` is one, and it carries no ruling
+#: marker, so it is still caught. Without the marker this would exempt every hard-coded path.
+#: ⛔⛔ AND THE MARKER MUST BE INSIDE THE QUOTES, NOT ANYWHERE ON THE LINE. The first version of
+#: this exemption searched the whole line, and a planted probe walked straight through it:
+#:     open("/data/notebook.db")  # D16b deferred      -> classified ruling-text, exit 0
+#: A genuine read, laundered by appending a comment. Caught only because the exemption was
+#: mutation-tested against a deliberate laundering attempt rather than against the honest case
+#: alone — `lesson_an_over_refusal_is_invisible`'s mirror image: an over-PERMISSION is invisible too.
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+
+
+def _is_quoted_declaration(line: str) -> bool:
+    """Every journal term on this line sits inside a string that DECLARES the exclusion.
+
+    Two conditions, and both are load-bearing — each was added only after a planted probe
+    walked through the version without it:
+      1. removing the quoted spans leaves no journal term (so the term is not in live code);
+      2. EVERY quoted span carrying a term also carries the ruling marker ITSELF.
+
+    ⛔ (2) is per-span, not per-line and not over the concatenation. Measured:
+           open("/data/notebook.db"); _M = "D16b deferred"
+       passes a whole-line check and passes a joined-spans check, and it is a real read with
+       an alibi sitting next to it.
+    """
+    if sense_of(_QUOTED.sub("", line)) == "journal":
+        return False
+    spans = [s for s in _QUOTED.findall(line) if sense_of(s) == "journal"]
+    return bool(spans) and all(RULING_MARKERS.search(s) and not _LOOKS_LIKE_A_TARGET.search(s)
+                               for s in spans)
+
+
+#: ⛔ A span that looks like a PATH, a module or a table is never a declaration, whatever words it
+#: also contains. The probe that forced this was `open("/data/notebook.db D16b deferred")` — a real
+#: read wearing the marker INSIDE its own argument. Contrived (that path would not open), and closed
+#: anyway: an exemption is only as good as the most contrived thing that fits it.
+_LOOKS_LIKE_A_TARGET = re.compile(r"[/\\]|\.db\b|\.sqlite|\bimport\b|^[\w.]+$")
 
 
 def iter_files(root: pathlib.Path) -> list[pathlib.Path]:
@@ -132,6 +176,12 @@ def classify(relpath: str, line: str, *, prose: bool = False) -> str:
     if relpath in BAN_CHECK_PATHS or BAN_CHECK_MARKER in line.lower():
         return "ban-check"
     if (relpath.startswith("docs/wisdom/") or prose) and RULING_MARKERS.search(line):
+        return "ruling-text"
+    # ⚰️ The weekly report is REQUIRED to carry the sentence `"D16b: deferred. No Journal, J2,
+    # Notebook or broker-fill data is read…"` (W1 Part 10) — and that sentence lives in a dict
+    # literal, so it is CODE, not prose, and the clause above could never reach it. The rail was
+    # therefore red on the artifact the owner asked for, by construction.
+    if _is_quoted_declaration(line):
         return "ruling-text"
     return "live-reference"
 

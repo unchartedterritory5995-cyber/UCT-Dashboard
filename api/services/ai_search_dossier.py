@@ -194,6 +194,18 @@ def _recent_ts_qa(entity_ticker: str, limit: int = 4) -> list[str]:
         return []
 
 
+def _wisdom_lines(entity_ticker: str) -> list[str]:
+    """Wisdom Loop lane (dark; docs/wisdom/CONTRACTS.md §6.6): what the UCT team
+    durably said about the name — stances and principles, labelled, with prices,
+    levels and dates stripped at the source. Flag WISDOM_DOSSIER_ENABLED off returns
+    [] before any read, so the bundle and its source hash are unchanged."""
+    try:
+        from api.services.wisdom.publish.adapters import dossier as _wisdom_dossier
+        return _wisdom_dossier.wisdom_lines(entity_ticker)
+    except Exception:
+        return []
+
+
 def _gather_sources(entity_key: str, entity_type: str) -> tuple[str, str]:
     """Assemble the source bundle + its content hash. Ticker: desk data
     (fundamentals/analyst/insider) + KB + accumulated Q&A. Theme: KB + Q&A."""
@@ -213,6 +225,7 @@ def _gather_sources(entity_key: str, entity_type: str) -> tuple[str, str]:
                 pass
         parts += _evergreen_qa(sym)
         parts += _recent_ts_qa(sym)
+        parts += _wisdom_lines(sym)   # [] unless WISDOM_DOSSIER_ENABLED: bundle unchanged when off
         kb_q = f"{sym} business moat competitive advantage"
     else:
         name = entity_key.split(":", 1)[-1]

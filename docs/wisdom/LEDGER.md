@@ -445,6 +445,89 @@ no adapter ran in any mode.
 | §2.1 other trade-alert channels | #volume-alerts (Scripted Trading app), #uncharted-scanners (Uncharted Scanners app) and #test-chartmaster-alerts (ChartMaster Alerts app) are OUT OF SCOPE, not granted. | Read in the owner's Discord session 2026-09-13; every visible message is app-authored. |
 | §2.2 Zoom | **Recovery DROPPED (owner correction 2026-09-13):** Zoom cloud copies are deleted on purpose after posting; the Stockbee workshop is not in trash and is not an owner task. Replaced by the desk-transcript check (Step 0) for 356 and every video under 98 %, re-transcription + diarization where no full copy exists, and store-and-verify before delete (CONTRACTS §8a.6a–6b). | Measured S2S scopes: `cloud_recording:delete:meeting_recording:admin cloud_recording:read:list_recording_files:admin cloud_recording:read:recording:admin`; `GET /meetings/{uuid}/recordings` → 404, consistent with the intentional deletion. R2 `desk_audio/rKVAkk3811Q.m4a` exists (83,057,014 bytes). |
 
+### Golden-v1 FROZEN (P4 propagation + freeze) — 2026-09-14
+
+**Frozen by** `sha256(data/wisdom/golden/golden-v1.jsonl)` =
+`db3475c814eed4f878474d9f4d10c0ce6c39d633cc027e7f49483ed7ada4ade2`
+
+The freeze is a runnable command, not a note — the verifier refuses to run against any other bytes:
+
+```sh
+python tools/wisdom_golden_verify.py --golden <data-root>/golden/golden-v1.jsonl \
+  --provenance docs/wisdom/golden/golden-v1.provenance.json --require-strata \
+  --frozen db3475c814eed4f878474d9f4d10c0ce6c39d633cc027e7f49483ed7ada4ade2
+```
+
+**All four gates green on the frozen bytes** (re-run AFTER the mutation proofs below, on the restored file):
+
+| gate | command | totals line | exit |
+|---|---|---|---|
+| 1. self-check | `--self-check` | `SELF-CHECK PASS` | 0 |
+| 2. v0 defaults | *(no args)* | `records=30 (v0=30 v1=0)` · `PASS — provenance for 30 records` | 0 |
+| 3. v1 strata | `--golden … --require-strata` | `records=125 (v0=0 v1=125)` · `PASS — provenance for 125 records matches` · `STRATA PASS` | 0 |
+| 4. leaked-quote | `tools/wisdom/golden_leak_check.py` | `9086 tracked files, 125 quotes, min_windows=2, leaks=0` · `LEAK-CHECK PASS` | 0 |
+| rail | `pytest tests/test_wisdom_golden_freeze.py` | `15 passed` | 0 |
+| adjacent rails | `pytest tests/test_wisdom_authors_aliases.py tests/test_wisdom_core_speakers.py tests/test_wisdom_vocab_authority.py tests/test_wisdom_guard_mutation.py tests/test_cross_module_imports_resolve.py` | `91 passed, 1 skipped` | 0 |
+
+#### record-type × author — the frozen set (125 records, every one `confirmed`)
+
+Derived from the file, never typed. `(was N)` is the pre-propagation backup
+`golden/pre-propagation/golden-v1.jsonl.orig`; a cell with no `(was …)` did not move.
+
+| type | bracco | chartmaster | guest:buckethead | guest:zen | manrav | ravi | team-unresolved | tsdr | **total** |
+|---|---|---|---|---|---|---|---|---|---|
+| CALL | 10 | 3 | — | — | 5 | — | — | **21** _(was 22)_ | **39** _(was 40)_ |
+| NEGATIVE_CALL | 3 | — | — | — | — | — | — | **13** _(was 14)_ | **16** _(was 17)_ |
+| MENTION | 5 | 3 | — | — | 5 | 1 | **2** _(was 0)_ | 8 | **24** _(was 22)_ |
+| PRINCIPLE | 3 | 4 | 1 | 1 | 1 | — | — | 17 | **27** |
+| LEVEL | 2 | — | — | — | — | — | — | 9 | **11** |
+| MARKET_SIGNAL | 2 | — | — | — | — | — | — | 6 | **8** |
+| **total** | 25 | 10 | 1 | 1 | 11 | 1 | **2** _(was 0)_ | **74** _(was 76)_ | **125** |
+
+**The counts moved, and §8a.2 is why.** Two records changed author AND type: `G-035`
+(AVGO pass, was `NEGATIVE_CALL`/tsdr) and `G-052` (RKLB stop-out, was `CALL`/tsdr). The owner
+answered **"unknown"** on both at checkpoint 2 — a VALID answer that CLOSES them — so each is
+`speaker=team-unresolved`, `MENTION` only, `excluded_from=["uct_see_rate","publish"]`,
+attributed to nobody. ⛔ `team-unresolved` is **not** a person and must never be counted as one:
+its two records are out of the UCT-see rate and out of every publish path by declaration, and the
+verifier fails a `team-unresolved` record that omits either exclusion.
+
+Also folded in, with no count movement: eight records went `provisional → confirmed` as their
+checkpoint-2 items were ruled (`G-002 G-018 G-028 G-035 G-052 G-055 G-057 G-065`), so the frozen
+set carries **zero** provisional records.
+
+#### The three items that were NOT ours to decide
+
+| item | encoded as | where |
+|---|---|---|
+| **006** G-030 vs the 9/06 50SMA/20EMA line | G-030 stays **non-canonical**; both statements kept with dates. The proposed "50SMA is an entry anchor only with confluence" rule is written **nowhere** — not a PRINCIPLE, not a vocabulary note. It stays in the Contradictions queue **as a recommendation**, `owner_disposition: open`. | `review-queue-v1.jsonl` `RQ-v1-006` |
+| **007** G-035 AVGO pass | `team-unresolved`, `MENTION`, excluded from the see-rate and publish, attributed to nobody. | golden `G-035` |
+| **008** G-052 RKLB stop-out | same. | golden `G-052` |
+
+A grep for `confluence` across the frozen set returns **zero** records — the recommendation exists
+only as a queue recommendation, which is what the ruling asked for.
+
+#### Mutation proofs — every guard broken once, restored byte-exact by sha256
+
+⛔ Restored by writing back bytes captured in memory, **never `git checkout`** (which restores
+from the INDEX and would have silently discarded the WIP in this tree).
+
+| # | mutant | rail | verdict | restored sha256 equal |
+|---|---|---|---|---|
+| M1 | `G-035.record_type` → `NEGATIVE_CALL` | v1 strata pass | **exit 1** — `G-035: team-unresolved may author MENTION only (§8a.2/§8b.7), not NEGATIVE_CALL` | ✅ |
+| M2 | `G-018.evidence.entity.entity_confidence` `0.5` → `0.8` | v1 strata pass | **exit 1** — `G-018: inferred ticker needs entity_confidence <= 0.5 (§8a.4), got 0.8` | ✅ |
+| M3 | verifier §8a.2 guard `if ambiguous and method == "speaker_label":` → `if False and …` | `--self-check` | **exit 1** — `SELF-CHECK FAIL (1)` | ✅ |
+| M4 | longest golden quote planted into tracked `docs/wisdom/RESUME.md` | leaked-quote check | **exit 1** — `LEAK docs/wisdom/RESUME.md: G-061 (54 matching 24-char windows)` | ✅ |
+
+⚠️ **M3's first attempt was VACUOUS and read as a pass.** It replaced `if is_ambiguous:` — a string
+that does not occur in the verifier — so the file was unchanged, the self-check returned **0**, and
+the guard looked proved while nothing had been broken. The redo asserts `count(needle) == 1` and
+`mutated != original` **before** running the rail. *An empty result is a failed invocation until
+proven otherwise* — the non-vacuity control is what caught it, not the exit code.
+
+The `--frozen` lever carries its own control: the correct sha passes, and
+`--frozen 000…0` returns `FAIL — golden-v1 is not the frozen set`.
+
 ## Section 2 — merges to master
 
 | # | branch | tip SHA | merge SHA | flow-worker classification | web SUCCESS observed |
@@ -718,3 +801,79 @@ All declared in `ca0b9b801` with their read site in `api/services/wisdom/core/fl
 | `WISDOM_DOSSIER_ENABLED` | **yes** — owner flips | dark | — |
 | `WISDOM_LEVEL_ALERTS_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
 | `WISDOM_LOOKALIKE_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
+
+---
+
+### S-D adversarial review — findings and fixes (branch `wisdom/w1-d-extract`, 2026-09-14)
+
+Reviewer ran on the branch AFTER `git merge feat/wisdom-loop` (§8b.1), i.e. with golden-v1
+frozen at `db3475c8…` and P4 landed. Six findings confirmed by EXECUTION and fixed on the
+branch; three reported and not fixed. Every fix is mutation-proved, restored byte-exact and
+verified by sha256 (never `git checkout`).
+
+| # | finding | severity | evidence | fixed |
+|---|---|---|---|---|
+| D-R1 | `extract/seams.py` trips the **private_store import-ban rail** — and the rail is RIGHT: `seam_report()` `importlib.import_module`s `core.private` from a module W1 §0.4d does not allow. Declared "pre-existing, not mine" by the merge-gate commit, but the file is S-D's and master would have taken a red rail. | blocks-merge | `tests/test_wisdom_bans.py` at HEAD: `1 failed, 378 passed` → after: `207 passed` on that file | ✅ row moved to its owner (`writer.private_seam_row`), still in `seam_report()` |
+| D-R2 | **The budget cap is per `extractor_version`, and `extractor_version` is a hash of the system prompt, which CARRIES THE SETUP VOCABULARY** — a live, DB-backed, actively-edited artifact. Approving one vocabulary name mints a version whose spend is $0 and re-arms the entire cap. §6.4 says `actual_to_date`, not "for this version". | blocks-merge (money) | executed: $14.90 of a $15 cap spent → one extra vocab name → `wx-v0-74bafea0` → `wx-v0-3637ea48`, `spent_and_pending` `(0.0, 0.0)`, **3 more $5 requests allowed** | ✅ same cap, two ceilings, whichever binds first; fails closed. ⚠️ **reverses this stream's earlier per-version-only rule and the test that pinned it — owner/integrator should confirm** |
+| D-R3 | The golden gate records `golden_version` **derived from the FILE NAME** and never the sha §8a.1 froze. Changed bytes under the same name are compared against a baseline measured on different records and still read "accepted"; the freeze was enforceable only by remembering `--frozen` on an offline verifier. | before-first-use | `golden_file()` returns `"golden-v1"` for any bytes at that path; `golden_sha256` appeared nowhere in `golden.py` | ✅ `golden.golden_sha256`, required on every gate run and receipt, and `decide_gate` keys the comparison on it — changed bytes are an honest new BASELINE |
+| D-R4 | The **dry-run rail asserted one table** (`wisdom_extract_requests`), and its fixture pre-segmented its only source, so `segment_pending_sources`'s dry-run guard was unreachable by the test. | before-first-use | mutant: `if not dry_run and segments:` → `if segments:` ⇒ `tests/test_wisdom_extract_batch.py` **26 passed, GREEN** | ✅ plants an UNsegmented source, counts all six writable tables, asserts no page, and carries a control proving a real run does segment |
+| D-R5 | `writer.resolve_author` matched a speaker label to a declared guest on a **bare prefix in either direction**, so the label `"P"` resolved to `guest:patricia-kim` at confidence `medium` — and D14 then lets that "guest" author records. §8a.3 says unattributable speech in a guest session is `unresolved`; authors.json says matching is exact, no fuzzy matching. Third sighting of this class (drift #3, drift #4, S-C's guest minting). | blocks-merge | executed: `'P'`, `'Pat'`, `'patr'` → `('guest:patricia-kim', True, 'medium')` | ✅ whole-word boundary in both directions; `Qullamaggie (Guest)` and `Patricia` still resolve |
+| D-R6 | `golden.split_for`'s fallback recomputed the split with a **different function** from §6.4's (`sha24(gid)` last-digit parity vs `int(sha256(gid)[:8],16)` even) — a second authority over one value. Latent (golden-v1 records carry `split`), which is why it was wrong for months. | follow-up | executed: **1007 / 2000** synthetic gids disagree | ✅ fallback is the contract formula; rail over 500 gids |
+
+**Reported, NOT fixed — deliberately:**
+
+* **D-R7 — `ticker_is_inferred` is case-INSENSITIVE, so §8a.4 silently never fires for a ticker
+  that is also an English word.** Executed: `ticker_is_inferred("Taking it over 55 with the stop
+  at 52.", "IT", None)` is `False`; same for ALL / ON / SO. Making the test case-sensitive would
+  call nearly every ticker on a lowercase ASR transcript inferred and flood the review queue.
+  Choosing needs a measurement against golden-v1, which is gitignored and absent from a
+  reviewer's worktree. Recorded in the function's own docstring rather than patched blind.
+* **D-R8 — §8a.5's `exit_price` / `exit_text` / `exit_date` columns exist in `wisdom-db-v0.sql`
+  and NOTHING in `api/services/wisdom/` reads or writes them.** `prompt.record_fields()` has no
+  exit field, and adding one would change the contract schema, hence `extractor_version`, hence
+  the frozen golden-v1 gate — the same constraint F6 was solved around. So §8a.5's reconciliation
+  has no input in W1. Not S-D's to fix inside the freeze; flagged to the integrator.
+* **D-R9 — a DRY-RUN `reap` still builds a real Anthropic client and calls
+  `client.messages.batches.retrieve`.** A read, not a write and not a spend, and the dry-run
+  contract (no row, object, registry state, page or watermark) holds. Noted because "a dry run
+  calls nothing" is how the batch suite's own docstring describes it.
+
+**Verified, and the claim needed refining:** the merge-gate commit's note that drift #4 has TWO
+independent closures and opening only ONE keeps the rail green is **true of the end-to-end
+written-records assertion, and understates the branch's coverage.** Measured: dropping "Patrick"
+from `ambiguous_speaker_labels` alone → `4 failed` (all in `test_wisdom_authors_aliases.py`);
+re-adding it to `tsdr`'s aliases AND declaring it reviewed, leaving it ambiguous → `5 failed`,
+one of them in S-D's own file (`test_the_collision_set_is_derived_and_contains_the_measured_case`
+— the derived sweep cannot be silenced by editing the data); opening BOTH → `2 failed`, including
+`test_an_attendee_called_Patrick_writes_zero_records_for_TSDR` by name.
+
+**Runs (totals lines, scoped by named file):**
+
+```
+S-D + S-B core + hygiene rails ......... 736 passed, 2 skipped in 144.47s
+S-D extract + store + ban rails ........ 440 passed, 1 skipped in 39.28s
+repo hygiene ........................... clean (9341 tracked, no line-ending flip)
+```
+
+The 2 skips are known and recorded: §8b.9 (`test_wisdom_core_private.py:280` — the D16a
+member-facing half, unrunnable until S-F lands `publish.adapters`) and the vocabulary
+engine re-measure that needs `WISDOM_ENGINE_DB`.
+
+**Mutants, each restored byte-exact and verified by sha256 (never `git checkout`):**
+
+```
+K  private seam row put back in the SEAMS table ........... 2 failed
+L  program-wide budget ceiling removed .................... 1 failed
+M  dry run writes segments ................................ 1 failed
+N  guest matched on a bare prefix again ................... 1 failed
+O  gate compares across different golden bytes ............ 1 failed
+P  golden_sha256 no longer required on a gate run ......... 1 failed
+Q  split fallback back to the sha24 last-digit formula .... 1 failed
+R  the auto bar-range seam hands back a permissive provider  1 failed
+```
+
+**Could not measure:** no Anthropic batch was submitted and no cost was incurred (owner rule);
+`data/wisdom/golden/golden-v1.jsonl` is gitignored and absent from this worktree, so neither the
+`db3475c8…` freeze sha nor any extractor metric was re-derived here — only the mechanism that
+records and compares it; and `WISDOM_EXTRACT_BUDGET_USD`'s live value on Railway was not read
+(no variable reads or writes were performed), so the $120 code default is what the rails measure.

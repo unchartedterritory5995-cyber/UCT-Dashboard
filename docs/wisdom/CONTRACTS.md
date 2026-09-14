@@ -366,6 +366,19 @@ flags are internal and are armed by the integrator after the merges, in one vari
 - Admin page `/admin/wisdom` (admin cohort): review queue by tab, metrics with n beside every rate, capture health, job
   heartbeats, budget, flag states. `useSWR(key, jsonFetcher)`, no `refreshInterval`, UIcon only.
 - Every adapter: flag off → writes `wisdom_publish_log(action='would_publish')` previews only and changes nothing in the consumer.
+- **Provenance marker (§8c.3, SHIPPED with S-F2).** Every write an adapter makes into a consumer carries one
+  recognisable string, `adapters/provenance.py::MARKER_RE`:
+  `[wisdom-provenance-v1 consumer=<c> ref=<table:key> cite=<locator> flag=<ENV>]`. Text, not a column, because a
+  consumer owns its own schema (`modelbook_service._EXAMPLE_FIELDS` filters an insert; pattern_vision.db may not
+  gain a column while the Lab is paused), so the marker rides a free-text field, a row object, a prompt line or an
+  exported file. `provenance.py` is standard-library only: the PC-side tools load it BY PATH beside `kbrow.py`.
+  **The rail is `api/services/wisdom/publish/provenance_check.py`** (`python -m …provenance_check`, `--self-check`
+  proves it can fail), run in `.github/workflows/wisdom-rails.yml` and by `tests/test_wisdom_publish_provenance.py`.
+  It derives the CONSUMER-table set by subtracting the tables Wisdom's own `MIGRATIONS` create from the tables the
+  publish package and the publish tools write — ⛔ never a typed roster — and fails on any write site without a
+  dominating marking call. Runtime half: `validate_export` refuses an unmarked KB row, and `brainkb.export_payload`
+  drops one (fail closed, reported in `unmarked_dropped`). Only with this in place is the "did anything reach the
+  member-facing tables?" audit an audit rather than a search for a marker nobody was required to write.
 - Brain KB: `GET /api/internal/wisdom/publish/kb-export` + `tools/wisdom/publish_kb_sync.py` (dry-run default, backup first,
   one `BEGIN IMMEDIATE`, UPDATE/INSERT/`active=0`, never DELETE, `--db` explicit). Not scheduled while dark.
 - Retrieval: FTS5 `wisdom_segments_fts` inside wisdom.db (no embeddings — paid transcripts do not go to a third-party

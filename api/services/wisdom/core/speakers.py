@@ -5,7 +5,11 @@ normalize_speaker(label, title, description) -> author_id | 'guest:<slug>' | Non
   1. AMBIGUOUS (CONTRACTS §8a.2): the label is declared in authors.json
      `ambiguous_speaker_labels` — "Uncharted Territory", "Patrick", "Blake", "Manav".
      -> 'team-unresolved'. Checked FIRST, so an ambiguous label can never be read as an
-     author or invented as a guest.
+     author or invented as a guest. `resolve_session_speaker` is the ONE way past that
+     answer: a per-session entry in docs/wisdom/speakers/session-resolutions-v1.json that
+     names the session and cites evidence of a declared kind. `normalize_speaker` itself
+     never resolves one, so a caller that does not know which session it is in cannot
+     accidentally attribute the label to a person.
   2. An author: the label, or the label with Zoom decorations and a stray bracket removed,
      matches an alias in docs/wisdom/authors.json exactly (case-insensitive), through
      core.authors. "Patrick TSDR)" -> tsdr; "Brac" -> bracco.
@@ -92,3 +96,28 @@ def normalize_speaker(label, title: Optional[str] = None, description: Optional[
             return None
     slug = slugify(" ".join(tokens))
     return GUEST_PREFIX + slug if slug else None
+
+
+def resolve_session_speaker(label, external_ref: Optional[str] = None, title: Optional[str] = None,
+                            description: Optional[str] = None) -> tuple[Optional[str], Optional[dict]]:
+    """normalize_speaker, plus the §8a.2 per-session resolution for an ambiguous label.
+
+    Returns ``(speaker, resolution)``. ``resolution`` is the cited evidence when an
+    ambiguous label was resolved for THIS session, and None otherwise — the caller logs it
+    in ``wisdom_sources.speaker_resolution_json``, which is what the ruling asks for.
+
+    The ONLY way out of `team-unresolved` is an entry in
+    docs/wisdom/speakers/session-resolutions-v1.json naming this exact session and label
+    and citing evidence of a declared kind. No session, no entry, no evidence, a label that
+    does not match, or an author the authors file does not know → `team-unresolved`.
+    ⛔ It fails CLOSED on purpose: the previous defect was a resolver that answered with a
+    person when the data could not name one.
+    """
+    speaker = normalize_speaker(label, title, description)
+    if speaker != authors.TEAM_UNRESOLVED:
+        return speaker, None
+    for candidate in dict.fromkeys((str(label), clean_label(label))):
+        resolution = authors.session_resolution(external_ref, candidate)
+        if resolution:
+            return resolution["author_id"], resolution
+    return authors.TEAM_UNRESOLVED, None
