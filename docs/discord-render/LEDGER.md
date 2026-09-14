@@ -881,11 +881,27 @@ services/chart_renderer/{Dockerfile,app.py,edge_scope.py,requirements.txt,serve.
 So the recommendation is executable, and it is a Railway-dashboard change — exactly the kind of
 "needs browser" item A5 asks for.
 
-⛔ **Deliberately not done tonight, and the reason is the point.** Connecting a live service to a
-repo changes its build context. `chart-renderer` serves every member's chart; the failure mode is
-*no charts for anyone*, there is no rehearsed rollback for it, and it is the one service tonight's
-`step3_real.sh` and B1's deploy both depend on. Reconfiguring it in the hour I most need it is a
-bet with no upside tonight — the existing `railway up` path works and is documented.
+⚰️⚰️ **AND THEN THE DASHBOARD SAID IT WAS ALREADY DONE.** I wrote the paragraph above — "unblocked,
+deliberately not taken tonight" — and then read the only authority on watch patterns, which is the
+Railway dashboard. `chart-renderer` settings, measured 2026-09-14 15:45 ET:
 
-⭐ The finding is the deliverable: **OI-12 is unblocked and should be scheduled into a quiet window
-with a rollback rehearsed**, not that it was executed at 15:30 on a Monday.
+```
+Source Repo:  unchartedterri...   (connected)
+Watch Paths:  services/chart_renderer/**
+```
+
+**OI-12 is CLOSED — already done, by somebody, at some point, with exactly the watch path it
+recommends.** Both halves of its premise are false: there IS repo source and it is NOT deploying
+only by `railway up`.
+
+⛔ **THE CLI CANNOT SETTLE THIS AND ITS SILENCE LOOKS LIKE AN ANSWER.** `railway deployment list
+--service chart-renderer` shows every master commit as **SKIPPED**, and "non-SKIPPED deployments: 0"
+across the whole listed window. That is equally consistent with "not connected" and with "connected
+and nothing touched the watch path" — and none of those commits touched
+`services/chart_renderer/**`. Counting SKIPPEDs is not reading a verdict; it is the same defect as
+reading a deployment list by SHA and never reading the `status` column.
+
+⭐ **The operational consequence is immediate and would otherwise have been a surprise:** B1 touches
+`services/chart_renderer/app.py`, so tonight's merge **WILL redeploy chart-renderer**. That is
+acceptable after the close and is in fact how B1 reaches production — but it had to be planned
+rather than discovered, and `08` §8.3 ("chart-renderer is its own deploy") is stale in the runbook.
