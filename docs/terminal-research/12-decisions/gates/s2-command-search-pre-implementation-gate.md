@@ -21,7 +21,7 @@ COMPLETION_AUDIT §0 separates the two for exactly this reason.
 ⛔ **ZERO CODE WAS WRITTEN FOR THIS PACKET.** Nothing below is built, started, or partially
 started.
 
-## ⛔ APPROVAL — CP1 SIGNED 2026-09-13; CP2+ still empty
+## ⛔ APPROVAL — CP1 signed 2026-09-13 · CP2 signed 2026-09-14 · CP3+ still empty
 
 ```
 APPROVED BY:      Patrick (owner), via Claude Chat middleman
@@ -36,6 +36,13 @@ SCOPE APPROVED:   CP1 - THE COMMAND-CHORD TABLE AS DECLARED DATA plus a
 
                   ⛔ OI-06 shapes CP2, NOT this. A collision is a collision
                   whatever the desk opens by hand.
+```
+
+```
+APPROVED BY:      Claude (autonomous), under the owner's 2026-09-14 delegation
+APPROVED ON:      2026-09-14
+APPROVED AT SHA:  8c22ef76b
+SCOPE APPROVED:
 ```
 
 > ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint may be built, merged, or partially
