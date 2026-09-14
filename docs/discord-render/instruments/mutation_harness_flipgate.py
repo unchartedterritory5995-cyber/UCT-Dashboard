@@ -134,6 +134,7 @@ SMOKE_TITLE = "# 3.5 — the real-Discord smoke (sandbox)\n\n"
 
 
 def labelled_load(*, real=None, model=fp.ec.CLOSED_LOOP, renderer=fp.ec.RENDERER_PRODUCTION,
+                  purpose=fp.ec.PURPOSE_SLO,
                   concurrency=30, arrival_rate=None, stats_n=400, **meta_over) -> dict:
     """A load artifact wearing the labels `evidence_contract` requires, for varying one at a time.
 
@@ -141,7 +142,7 @@ def labelled_load(*, real=None, model=fp.ec.CLOSED_LOOP, renderer=fp.ec.RENDERER
     to prove "an unlabelled model is refused" or "the fallback renderer cannot answer S2" overrides
     that ONE key; everything else stays admissible, so a red case cannot be red for a second reason
     nobody noticed (`lesson_mutations_can_cancel_each_other`)."""
-    meta = {"kind": fp.ec.KIND_LOAD, "model": model, "renderer": renderer,
+    meta = {"kind": fp.ec.KIND_LOAD, "model": model, "renderer": renderer, "purpose": purpose,
             "concurrency": concurrency, "arrival_rate": arrival_rate, "seconds": 20.0,
             "mode": "real", "delivery": "none"}
     meta.update(meta_over)
@@ -418,6 +419,23 @@ def _cases() -> list[Case]:
                        real={"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
                              "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}))),
                    says="unlabelled load model"))
+    # ⛔⛔ A DELIBERATE OVERLOAD IS REPORTED, NEVER JUDGED — and the pair below is what stops that
+    # becoming a way out of a red. The first proves a characterisation artifact carrying a breach
+    # does NOT redden the row; the second proves the SAME artifact, labelled `slo`, DOES. Without
+    # the second, "characterisation" would be a label that excuses any number.
+    _breach = {"end_to_end_ms": {"p50": 14854.7, "p95": 18117.2, "p99": 18836.4},
+               "jobs": 139, "success_rate": 0.3571, "failures_by_class": {"queue_full": 81}}
+    cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
+                   "a CHARACTERISATION run carrying a breach is reported, not judged",
+                   lambda r, s: _w(r / s2, json.dumps(labelled_load(
+                       real=_breach, purpose="characterisation"))),
+                   says="informational, not judged"))
+    cs.append(Case("s2_measured", FAIL_PLANTED, NOT_MET,
+                   "⛔ NON-VACUITY: the SAME breach labelled `slo` DOES redden the row — otherwise "
+                   "'characterisation' is a label that excuses any number",
+                   lambda r, s: _w(r / s2, json.dumps(labelled_load(
+                       real=_breach, purpose="slo"))),
+                   says="p50 14855ms > 2500ms"))
     cs.append(Case("s2_measured", UNREADABLE, NOT_MEASURABLE,
                    "⛔ a determinism artifact sitting in step3 — the old selector admitted "
                    "`determinism-real-20runs.json` purely because its NAME held the word 'real'",

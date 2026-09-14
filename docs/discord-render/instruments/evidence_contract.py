@@ -88,6 +88,18 @@ VOID = "void"
 OUT_OF_SCOPE = "out_of_scope"
 #: In scope, and cannot yield a verdict for this purpose. The row must carry the reason out loud.
 INCONCLUSIVE = "inconclusive"
+#: A deliberate overload. REPORTED by the row, never judged by it.
+#
+# ⛔⛔ THE LABEL IS SET WHEN THE RUN IS PRODUCED, NEVER APPLIED TO AN ARTIFACT AFTERWARDS. What a run
+# was FOR is known only to whoever ran it; inferring it from the numbers would mean an artifact
+# becomes characterisation exactly when its numbers are inconvenient, which is how a gate learns to
+# excuse its own reds. `load_harness --characterisation` writes it in band at the moment of the run.
+#
+# ⚠️ AND IT IS NOT A WAY OUT OF A RED. Relabelling an existing artifact to quieten a row is the
+# temptation this comment exists to name: if a run was produced as an SLO measurement, it stays one.
+INFORMATIONAL = "informational"
+
+PURPOSE_SLO, PURPOSE_CHARACTERISATION = "slo", "characterisation"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -100,6 +112,7 @@ class Artifact:
     void: bool
     void_reason: str
     superseded_by: str
+    purpose: str             # "slo" (judge it) or "characterisation" (report it, never judge)
     labelled: bool           # did it declare `meta.kind`, or did we derive the kind from shape?
     unreadable: str          # non-empty ⇒ the file could not be parsed, and that is a finding
 
@@ -180,12 +193,17 @@ def load(path) -> tuple[Artifact, object | None]:
     try:
         doc = json.loads(p.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001
-        return Artifact(p, KIND_UNKNOWN, None, RENDERER_UNKNOWN, False, "", "", False,
-                        f"{type(e).__name__}: {e}"), None
+        # ⛔ KEYWORDS, NOT POSITION. This call was positional and a new field inserted mid-dataclass
+        # broke it instantly — caught by the self-check, which is the system working, but a
+        # positional constructor over ten fields is a trap that will be re-set by the next field.
+        return Artifact(path=p, kind=KIND_UNKNOWN, model=None, renderer=RENDERER_UNKNOWN,
+                        void=False, void_reason="", superseded_by="", purpose=PURPOSE_SLO,
+                        labelled=False, unreadable=f"{type(e).__name__}: {e}"), None
     meta = _meta(doc)
     return Artifact(
         path=p, kind=kind_of(doc), model=model_of(doc), renderer=renderer_of(doc),
         void=bool(meta.get("void")), void_reason=str(meta.get("void_reason") or ""),
+        purpose=str(meta.get("purpose") or "slo"),
         superseded_by=str(meta.get("superseded_by") or ""),
         labelled=meta.get("kind") in KINDS, unreadable="",
     ), doc
@@ -224,6 +242,11 @@ def _load_prelude(art: Artifact, doc) -> Ruling | None:
     if art.void:
         return Ruling(VOID, f"{art.name}: marked void — {art.void_reason or 'no reason recorded'}"
                       + (f" (superseded by {art.superseded_by})" if art.superseded_by else ""))
+    if art.purpose == PURPOSE_CHARACTERISATION:
+        return Ruling(INFORMATIONAL,
+                      f"{art.name}: labelled a deliberate overload when it was produced — its "
+                      f"numbers describe behaviour far above the design burst and are reported, "
+                      f"never judged against an SLO")
     return None
 
 
@@ -317,6 +340,7 @@ class Selection:
     """What a row is allowed to judge, and everything it is not — each named, never a bare count."""
     purpose: str
     admitted: list = dataclasses.field(default_factory=list)      # [(Artifact, doc, Ruling)]
+    informational: list = dataclasses.field(default_factory=list)  # [(Artifact, doc, Ruling)]
     voided: list = dataclasses.field(default_factory=list)        # [Ruling]
     inconclusive: list = dataclasses.field(default_factory=list)  # [Ruling]
     out_of_scope: list = dataclasses.field(default_factory=list)  # [Ruling]
@@ -355,6 +379,8 @@ def select(directory, purpose: str, *, pattern: str = "*.json") -> Selection:
         ruling = admits(art, doc, purpose)
         if ruling.disposition == ADMIT:
             sel.admitted.append((art, doc, ruling))
+        elif ruling.disposition == INFORMATIONAL:
+            sel.informational.append((art, doc, ruling))
         elif ruling.disposition == VOID:
             sel.voided.append(ruling)
         elif ruling.disposition == INCONCLUSIVE:

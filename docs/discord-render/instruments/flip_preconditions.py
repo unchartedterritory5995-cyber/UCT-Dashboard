@@ -605,6 +605,10 @@ def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
     is WHICH artifacts are allowed to speak to it, not what it says."""
     lat = ec.select(ev.step3, ec.PURPOSE_S2_LATENCY)
     adm = ec.select(ev.step3, ec.PURPOSE_ADMISSION)
+    # ⛔ A DELIBERATE OVERLOAD IS REPORTED, NEVER JUDGED — AND NEVER SILENTLY DROPPED EITHER. It is
+    # named in the row so a reader can see the row knew about it and chose not to judge it, which is
+    # the difference between a considered exclusion and evidence quietly going missing.
+    info = "; ".join(f"{a.name}" for a, _d, _r in adm.informational)
     if not lat.scanned:
         return _row(N_S2, NOT_MEASURABLE, f"no evidence at {ev.step3}")
 
@@ -628,13 +632,20 @@ def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
     # was judged; it must never render as the sentence a clean run renders as. Every exclusion is
     # NAMED — a count alone would let "we skipped the only real run" hide behind "0 breaches".
     if not lat.admitted and not adm.admitted:
+        # ⛔ The informational set is named HERE TOO. "Nothing admissible" over a directory holding a
+        # deliberate overload reads as an empty evidence tree unless the row says otherwise, and a
+        # row that hides what it declined to judge is the same defect as one that hides what it
+        # could not read.
         return _row(N_S2, NOT_MEASURABLE,
                     f"{lat.scanned} artifact(s) scanned, NONE admissible for S2 latency or "
-                    f"admission - " + (lat.excluded_note() or "all out of scope"))
+                    f"admission - " + (lat.excluded_note() or "all out of scope")
+                    + (f" | informational, not judged: {info}" if info else ""))
     if breaches:
         detail = (f"{len(lat.admitted)} judged for latency, {len(adm.admitted)} for admission; "
                   f"{len(breaches)} breach(es) - " + " . ".join(breaches[:4])
                   + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else ""))
+        if info:
+            detail += f" | informational, not judged: {info}"
         if not lat.admitted:
             detail += (" | LATENCY NOT MEASURED: " + (lat.excluded_note(limit=2) or "no eligible run"))
         return _row(N_S2, NOT_MET, detail)

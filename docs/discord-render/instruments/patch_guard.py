@@ -131,6 +131,17 @@ def safe_replace(path, old: str, new: str, *, expect: int = 1, whole_line: bool 
     before = p.read_bytes()
     text = before.decode("utf-8")
 
+    # ⛔⛔ A MULTI-LINE ANCHOR CANNOT MATCH A CRLF FILE, AND THE FAILURE IS SILENT.
+    # `core.autocrlf=true` on this box, so a decoded working file carries "\r\n" while an anchor
+    # typed in a script carries "\n". `text.count(old)` then returns 0 and the patch aborts —
+    # which is the lucky direction. The unlucky one is an anchor that happens to match somewhere
+    # else. Named here rather than left as a zero-match mystery, because "anchor matched 0 times"
+    # reads as "the code changed" and sends the reader to the wrong file.
+    if "\n" in old and "\r\n" in text and "\r\n" not in old:
+        raise PatchRefused(
+            f"{p.name}: the anchor spans lines with bare LF but this file is stored CRLF, so it "
+            f"can never match. Use whole_line=True with a single-line anchor, or the editing tool.")
+
     if whole_line:
         lines = text.split("\n")
         hits = [i for i, l in enumerate(lines) if l.rstrip() == old]
@@ -248,6 +259,20 @@ def self_check(out=print) -> int:
     res6 = safe_replace(f6, "    if x:", "    if y:", whole_line=True)
     cases.add("whole-line anchoring patches only the line that IS the anchor",
               f6.read_text(encoding="utf-8") == "    if y:\n        if x:\n" and res6["matched"] == 1)
+
+    # ── the CRLF multi-line anchor, which fails SILENTLY as a zero match ───
+    f7 = tmpdir / "crlf.txt"
+    f7.write_bytes(b"alpha\r\nbeta\r\ngamma\r\n")
+    try:
+        safe_replace(f7, "alpha\nbeta", "alpha\nBETA")
+        cases.add("a multi-line anchor against a CRLF file is REFUSED BY NAME", False)
+    except PatchRefused as e:
+        cases.add("a multi-line anchor against a CRLF file is REFUSED BY NAME", "CRLF" in str(e))
+    # ⛔ non-vacuity: a single-line anchor must still work on that same CRLF file, or the guard has
+    # simply banned patching CRLF files altogether.
+    res7 = safe_replace(f7, "beta", "BETA", whole_line=True)
+    cases.add("a single-line anchor still patches a CRLF file (non-vacuity)",
+              b"BETA" in f7.read_bytes() and res7["matched"] == 1)
 
     # ── heredoc_safe: judged by content, and it must say yes to something ──
     cases.add("a backslash is refused for a heredoc", heredoc_safe("a " + BS + "n b")[0] is False)

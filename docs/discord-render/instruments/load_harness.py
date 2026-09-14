@@ -1522,6 +1522,9 @@ def main(argv=None) -> int:
                     help="writes per second; the throttle is part of the measurement")
     ap.add_argument("--drain-s", type=float, default=90.0,
                     help="how long to wait for the queue to finish after the last ack")
+    ap.add_argument("--characterisation", action="store_true",
+                    help="this run deliberately drives load far above the design burst: label it "
+                         "INFORMATIONAL so no SLO row judges it")
     ap.add_argument("--burst", choices=BURST_MODES, default="",
                     help="derive --arrival-rate from the arrival census instead of typing one: "
                          "design (3x the busiest 10 s) | busiest10s | busiest60s")
@@ -1600,6 +1603,11 @@ def main(argv=None) -> int:
             # `"chaos" not in p.name` — filename matching is the file-existence class wearing a
             # different hat, and it both missed a valid run and judged a void one.
             "kind": "load",
+            # ⛔ A DELIBERATE OVERLOAD IS CHARACTERISATION, NOT AN SLO MEASUREMENT, and it says
+            # so IN BAND at the moment it is produced — never by relabelling an inconvenient
+            # artifact afterwards. The distinction is about what the run was FOR, which only the
+            # person who ran it knows, so it is a flag and not an inference from the numbers.
+            "purpose": "characterisation" if args.characterisation else "slo",
             # ⭐ RENDERER IDENTITY IS FIRST CLASS (OI-39). `house_enabled()` is exactly
             # bool(CHART_RENDERER_URL); with it unset the run draws mplfinance PNGs in-process and
             # every latency is about a renderer production does not use.
