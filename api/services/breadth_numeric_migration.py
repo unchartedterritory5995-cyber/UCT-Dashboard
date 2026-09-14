@@ -197,17 +197,46 @@ def audit() -> dict:
 
 # ── Session 3: the reconstructed side ─────────────────────────────────────────
 
-def _recon_fingerprint(c) -> dict:
-    """Identity of the OHLC store's TRUSTED rows — the migration's INPUT."""
+def _recon_fingerprint(c, since=None) -> tuple:
+    """`(digest, concurrently_written_dates)` for the OHLC store's TRUSTED rows.
+
+    ⚰️ THE FIRST VERSION OF THIS FAILED ON PRODUCTION THE FIRST TIME IT RAN, and it
+    was right to. It hashed every trusted date and asserted the digest was identical
+    before and after — a guarantee borrowed from the (a) migration, whose input
+    (`breadth_snapshots`) is written once a day at 16:15 ET. `breadth_daily_ohlc` is
+    written CONTINUOUSLY during market hours by the live accumulator, so a backfill
+    that takes five seconds at 13:51 ET will always see its input move, and the
+    honest conclusion "the input changed" gets reported as "the migration failed".
+
+    ⛔ The fix is NOT to drop the assertion. It is to ask the question the assertion
+    was actually for: *did anything change that was not being written concurrently?*
+    Dates whose newest trusted row is younger than `since` are separated out and
+    reported by name; every other date must hash identically. A migration that
+    disturbed settled history still fails loudly.
+    """
     from api.services import breadth_daily_ohlc as ohlc
     qs = ",".join("?" * len(ohlc._TRUSTED_SOURCES))
     rows = c.execute(
         f"SELECT date, COUNT(*), MAX(updated_at) FROM breadth_daily_ohlc "
         f"WHERE source IN ({qs}) GROUP BY date ORDER BY date", ohlc._TRUSTED_SOURCES).fetchall()
     h = hashlib.sha256()
+    concurrent = []
     for d, n, w in rows:
+        if since is not None and w and w >= since:
+            concurrent.append(d)
+            continue
         h.update(f"{d}:{n}:{w}|".encode())
-    return {"dates": len(rows), "sha256": h.hexdigest()[:16]}
+    return ({"dates": len(rows), "settled": len(rows) - len(concurrent),
+             "sha256": h.hexdigest()[:16]}, concurrent)
+
+
+def _write_marker(path: str, n: int) -> bool:
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"at": time.time(), "built": n}))
+        return True
+    except Exception:
+        return False
 
 
 def backfill_reconstructed(force: bool = False, backup: bool = True,
@@ -230,12 +259,23 @@ def backfill_reconstructed(force: bool = False, backup: bool = True,
     ohlc._ensure_init()
     db = ohlc._db_path()
     t0 = time.perf_counter()
+    # SQLite stores `datetime('now')` as UTC 'YYYY-MM-DD HH:MM:SS'; anything stamped
+    # at or after this instant was written while the migration was running.
+    since = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
 
     with ohlc._conn() as c:
-        before = _recon_fingerprint(c)
+        # ⭐ ALREADY DONE IS NOT A FAILURE, AND IT MUST NOT COST A BACKUP. Without
+        # this the marker-less re-run took a 35 MB VACUUM INTO on EVERY boot — the
+        # kind of cost that fills a volume quietly.
+        covered = c.execute("SELECT COUNT(*) FROM breadth_reconstructed_daily").fetchone()[0]
+        if covered and not ohlc.stale_reconstructed_dates(limit=1) and not force:
+            out["skipped"] = "already materialised and not stale"
+            out["rows_before"] = covered
+            _write_marker(out["marker"], covered)
+            return out
+        before, _ = _recon_fingerprint(c, since=since)
         out["before"] = before
-        out["rows_before"] = c.execute(
-            "SELECT COUNT(*) FROM breadth_reconstructed_daily").fetchone()[0]
+        out["rows_before"] = covered
 
     if backup:
         try:
@@ -269,23 +309,23 @@ def backfill_reconstructed(force: bool = False, backup: bool = True,
     out["built"] = built
 
     with ohlc._conn() as c:
-        after = _recon_fingerprint(c)
+        after, concurrent = _recon_fingerprint(c, since=since)
         out["after"] = after
+        out["concurrently_written"] = concurrent[:12]
+        out["concurrently_written_count"] = len(concurrent)
         out["rows_after"] = c.execute(
             "SELECT COUNT(*) FROM breadth_reconstructed_daily").fetchone()[0]
     out["ms"] = round((time.perf_counter() - t0) * 1000, 1)
 
-    if after != before:
-        out["FAILED"] = "the trusted OHLC rows CHANGED during the backfill"
+    if after["sha256"] != before["sha256"]:
+        out["FAILED"] = ("settled OHLC history CHANGED during the backfill "
+                         "(dates written concurrently are excluded and listed)")
         return out
-    out["source_table_unchanged"] = True
+    out["settled_history_unchanged"] = True
     out["stale_after"] = len(ohlc.stale_reconstructed_dates())
 
-    try:
-        with open(out["marker"], "w", encoding="utf-8") as fh:
-            fh.write(json.dumps({"at": time.time(), "built": built}))
-    except Exception as e:
-        out["marker_write_failed"] = repr(e)
+    if not _write_marker(out["marker"], built):
+        out["marker_write_failed"] = True
     out["ran"] = True
     try:
         from api.services.cache import cache
