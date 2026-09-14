@@ -178,3 +178,138 @@ depend on deep windows (owner ruling, D-043). The cap lives on `/series`, which 
 ⛔ And a standing caution for whoever picks this up: **this file's numbers are a local
 synthetic corpus.** Quote them as "the code costs X per row on an idle NVMe", never as
 "the breadth history takes X".
+
+---
+
+# Session 1 — the same profile, on the real data
+
+**Authorised by the owner 2026-09-14**: one production read, read-only, breadth tables only.
+`VACUUM INTO` to `/tmp/uctprof` in the web pod (never the live file, never the volume), gzip,
+base64, streamed out, **sha256-verified byte-for-byte against the pod's own checksum**, and
+the pod's temp copies deleted immediately afterwards (removal list printed, `still_exists:
+false` confirmed).
+
+| file | production | vacuumed | quick_check | tables remaining after the strip |
+|---|---|---|---|---|
+| `breadth_monitor.db` | 111,247,360 B | 111,067,136 B | `ok` | `breadth_snapshots` — **174 rows** |
+| `breadth_daily_ohlc.db` | 30,486,528 B | 26,292,224 B | `ok` | `breadth_daily_ohlc` — **174,187 rows** |
+| `breadth_sentiment_history.db` | 2,113,536 B | 1,990,656 B | `ok` | `breadth_sentiment` — **15,897 rows** |
+
+⛔ **Nothing was dropped, and that is a measurement, not an omission.** Each file holds
+exactly one table and every one is breadth history — no users, sessions, preferences,
+journal or anything member-identifying was ever in these files, so the strip had nothing to
+remove. The enumeration is printed above precisely so "there was nothing to drop" is on the
+record rather than indistinguishable from a strip that never ran.
+
+⚠️ The copy lives under the session temp directory (`uct-breadth-profile/prod`) —
+**outside the repository**, so it cannot be committed by accident. It is not gitignored; it
+is unreachable from git.
+
+## The blob shape — the finding the whole programme turns on
+
+| | |
+|---|---|
+| snapshot rows | **174** |
+| total blob bytes | **105.7 MB** |
+| **average blob** | **636,834 bytes per session** |
+| `*_list` payload | **105.3 MB** |
+| **`_list` share of every blob** | **99.7 %** |
+| list keys per row | 21.9 (22 in the newest row) |
+| tickers per row | **7,803** |
+
+**Every history read parses 636 KB per row and keeps 0.3 % of it.** The numeric keys — all
+70 of them, which is the entire Monitor grid — total **0.25 MB across all 174 rows**.
+
+## Cold reads, each in its OWN process
+
+⛔ One measurement per process, because the first draft ran nine reads in one and the
+"cold" 8000-day number came out at 3,608 ms — *higher* than the same read under cProfile
+(1,588 ms), which should be slower. Each read parses ~106 MB of JSON; by the ninth the
+allocator was carrying the previous eight. A number that moves with how much the harness
+has already done is a number about the harness.
+
+| span | rows | cold | ms/row |
+|---|---|---|---|
+| 90 days (the default Monitor view) | 90 | **868 ms** | 9.64 |
+| 365 days | 365 | **1,362 ms** | 3.73 |
+| 8000 days | 4,703 | **1,860 ms** | 0.40 |
+
+⭐ **ms/row FALLS as the span grows**, which is the opposite of what a per-row cost looks
+like. The expensive part is a near-fixed 105 MB of blob work that *every* span pays: the
+90-day default view pays almost as much as the 8,000-day teleport, then amortises it over
+52× fewer rows.
+
+## Phase table (8,000-day span)
+
+| phase | ms | share |
+|---|---|---|
+| **blob parse** (`json.loads` × 174) | **1,417** | **68.1 %** |
+| SQL fetch, OHLC (`closes_for_dates`, 4,529 dates) | 199 | 9.6 % |
+| **`_list` strip** (`del` the keys just parsed) | **119** | **5.7 %** |
+| SQL fetch, snapshots | 97 | 4.6 % |
+| `merged_dates` (`DISTINCT date … WHERE source IN`) | 73 | 3.5 % |
+| `_derive_ascending` (incl. the 15 warm-up rows) | 62 | 3.0 % |
+| serialise (route-level; `get_history_deep` does not do this) | 49 | 2.4 % |
+| `values_asof` (sentiment) | 48 | 2.3 % |
+| merge (build the row list) | 10 | 0.5 % |
+| `_adv_decline_seed_before` | 7 | 0.4 % |
+| **phase sum** | **2,081** | |
+| reference read, same process | 1,779 | **reconciles 117 %** |
+
+⚠️ **117 %, and the over-count is explained rather than filed off.** The decomposition
+re-fetches and re-parses the snapshot blobs on a second pass (the real read does it once),
+and it includes `serialise`, which happens in FastAPI and not inside `get_history_deep`.
+Removing serialise leaves 114 %.
+
+⭐ **The absolute ms move ±25 % between runs on this box; the SHARE does not.** Across four
+runs `blob_parse` measured 66.0 / 68.1 / 68.1 / 69.6 %, and parse + strip 73–75 %. The share
+is the finding; the absolute is a property of the machine.
+
+## The three fix shapes, measured — one of them is worse than doing nothing
+
+105 rows (the default view's window), best of three runs each, on the real blobs:
+
+| shape | ms | vs today |
+|---|---|---|
+| **today** — `SELECT metrics` → `json.loads` → `del` each `_list` | **627.7** | — |
+| **`json_remove()` in SQLite**, then parse the remainder | **1,563.6** | **2.49× SLOWER** |
+| **numeric-only column**, written once | **1.3** | **485× faster** |
+
+⛔ **JSON-path extraction in SQL is not a fix — it is a regression.** `json_remove` makes
+SQLite parse the 636 KB blob and serialise a new one, and Python still parses the result. It
+moves the cost and adds to it. This is the option that looks cheapest, needs no migration,
+and is the only one of the three that makes things worse; it is measured here so nobody
+adopts it on plausibility.
+
+⭐ The numeric projection of all 174 rows is **0.25 MB** and took **1,163 ms to build once** —
+about 7 ms per row, i.e. nothing on the collector's write path.
+
+## Re-ranked, against real numbers
+
+**(a) Stop parsing ticker arrays on numeric reads — CONFIRMED, and it is the bulk.**
+99.7 % of the bytes, 68 % of the time, 74 % with the strip. **Shape: a numeric store written
+on write** — a second column or a side table — **not** SQL-side JSON surgery (measured
+2.49× worse). The lists must stay reachable one date at a time: the drill endpoints read
+them (`breadth_monitor.py:1075`), so the fix keeps a by-date path, and the rail is a test
+asserting a history read never parses a `_list` key with a control proving the drill path
+still can.
+
+**(b) ⭐ NEW TOP OPEN QUESTION — the 30× the data does not explain.** The same read, on the
+same bytes, is **1,860 ms here and 54,923 ms in production** (D-042). It is not the data:
+this *is* production's data. Candidates, none yet measured: pod vCPU speed; contention on the
+one uvicorn process (40+ scheduled jobs plus every member); volume IO; and the part of D-042
+that is not in this number at all — FastAPI serialisation of 4,703 rows, GZip of a 5.18 MB
+payload, and the Cloudflare hop, since D-042 timed an HTTPS round trip end to end and this
+times a function call. ⚠️ **Until that is settled, no local number may be quoted as a
+production improvement.**
+
+**(c) `closes_for_dates` — 9.6 %.** Second-largest, linear in rows returned. After (a).
+
+**(d) `merged_dates` / `distinct_dates` — 3.5 %.** `SELECT DISTINCT date … WHERE source IN`
+over 174,187 rows with no index covering `source`. Cheap to fix, small to win.
+
+**(e) `_derive_ascending` — 3.0 %, and LAST, confirmed on real data.** The obvious CPU target
+is a twentieth of the bill. Optimising it first would produce a visible diff, a plausible
+story, and almost no change to what a member waits for.
+
+⚠️ Still not a candidate: capping `days=` on the monitor route (owner ruling, D-043).

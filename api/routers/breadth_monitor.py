@@ -513,8 +513,12 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         breadth_self_heal.maybe_auto_heal()
     except Exception:
         pass
+    from api.services import breadth_timing
+    breadth_timing.begin(span=days)
     try:
+        _t0 = time.perf_counter()
         rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
+        breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows))
         top = rows[0]["date"] if rows else None
         bounds = svc.date_bounds()
         return {

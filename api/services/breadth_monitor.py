@@ -664,13 +664,17 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
 
     from api.services.cache import cache
     from api.services import single_flight
+    from api.services import breadth_timing
     ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}"
     hit = cache.get(ck)
     if hit is not None:
+        breadth_timing.note(cache="hit")
         return hit
+    breadth_timing.note(cache="miss")
     # ⛔ SINGLE-FLIGHT ON THE CACHE KEY — this is the read D-042 measured at ~55 s
     # cold, so a duplicate of it is the most expensive duplicate in the app.
-    return single_flight.run(ck, lambda: _history_deep_uncached(days, end, anchor, ck))
+    return single_flight.run(ck, lambda: _history_deep_uncached(days, end, anchor, ck),
+                             on_role=lambda role: breadth_timing.note(coalesced=role == "follower"))
 
 
 def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> list:

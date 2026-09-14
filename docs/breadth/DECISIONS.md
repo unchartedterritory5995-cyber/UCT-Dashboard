@@ -603,3 +603,35 @@ is decorative and every other test still passes.
 ⚠️ **The cap is raised when the reader work lands, not to satisfy a wider view.** That sentence is in
 `docs/breadth/api-series.md` and in the `400` body itself, because the next person to want five years of history will
 find the constant before they find this file.
+
+---
+
+## D-044 — `json_remove()` in SQL is a MEASURED ANTI-PATTERN, not a fix (2026-09-14)
+
+**Recorded by owner ruling so nobody adopts it on plausibility.** It is the option that
+looks cheapest, needs no migration, and is the only one of the three candidates that makes
+the reader **worse**.
+
+Measured on the production copy, 105 rows (the default view's window), best of three runs:
+
+| shape | ms | vs today |
+|---|---|---|
+| **today** — `SELECT metrics` → `json.loads` → `del` each `_list` | **627.7** | — |
+| **`json_remove()` in SQLite**, then parse the remainder | **1,563.6** | ⛔ **2.49x SLOWER** |
+| **numeric-only column**, written once | **1.3** | ⭐ **485x faster** |
+
+⛔ **Why it loses, and the reason generalises past this endpoint:** `json_remove` makes
+SQLite parse the 636 KB blob and serialise a NEW one, and Python still parses the result.
+It does not remove the parse — it adds a second one in C and keeps the first. **Moving a
+cost into the database is only a win when the database can answer without materialising
+the thing you were trying to avoid materialising.**
+
+⭐ The blob shape that makes this matter: the average snapshot is **636,834 bytes**, of
+which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every history read
+parses and immediately deletes. Every numeric key the Monitor grid shows — all ~70 of
+them, across all 174 rows — totals **0.25 MB**.
+
+**Ruled shape: a numeric store written on write** (D-045 work), never SQL-side JSON
+surgery. The drill endpoints keep reading the blobs by date; they are the only consumer
+that wants the lists.
+
