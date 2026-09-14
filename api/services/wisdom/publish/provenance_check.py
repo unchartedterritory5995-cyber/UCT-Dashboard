@@ -40,9 +40,39 @@ A site is marked when EITHER
   * its guard scope — the innermost enclosing loop, else the enclosing function, else
     the module — contains a call to one of `provenance`'s marking functions at or before
     the site's line; or
-  * the SQL statement itself constrains to rows that already carry the marker
+  * the statement's OWN WHERE CLAUSE constrains it to rows that already carry the marker
     (`source = 'wisdom'`, `provenance.SQL_MARKED_PREDICATE`). Such a statement cannot
     reach an unmarked row, so flipping `active` on one needs no new marker.
+    ⛔ IN THE WHERE CLAUSE, not merely present in the statement, and never for an
+    INSERT. `UPDATE knowledge_base SET source = 'wisdom', content = ? WHERE id = ?`
+    contains the predicate and writes ANY row, marked or not; a SQL comment spelling it
+    does the same. Read as a bare substring, the excuse laundered exactly the shape this
+    rail exists to catch. `_sql_predicate_marked` strips comments, refuses INSERT /
+    REPLACE outright (a statement that CREATES its row cannot be constrained to rows
+    that already exist), and reads the predicate only after the statement's LAST
+    `WHERE` — an earlier one belongs to a subquery in a SET clause, which constrains
+    what is READ and not which rows are WRITTEN. Railed, with a control that keeps a
+    genuine `WHERE id = ? AND source = 'wisdom'` accepted, in
+    `tests/test_wisdom_publish_provenance.py`.
+
+⚠️ WHAT THIS CHECK CANNOT SEE — measured by planting each shape, 2026-09-14, and stated
+here rather than left for the next reader to rediscover. None is live in the package
+today; each is a way a FUTURE write path would pass unseen, so prefer the plain shapes.
+  * a table name interpolated into an f-string (`f"INSERT INTO {TABLE} …"`) — the
+    interpolation becomes ` ? ` and `_WRITE_SQL_RE` then finds no table at all;
+  * SQL assembled by concatenation across expressions, so no single literal holds a
+    contiguous `INSERT INTO <table>` — `self_check` uses precisely this to keep its own
+    planted statement out of the scan of this package, which is the demonstration;
+  * a consumer write called through a name the import map does not resolve to a module:
+    a local alias (`svc = modelbook_service; svc.create_x(...)`) or a dotted chain
+    (`api.services.modelbook_service.create_x(...)`);
+  * a consumer write whose function name begins with a verb outside `WRITE_VERBS` —
+    that tuple is TYPED, whatever "a property of English" suggests, and `register_`,
+    `mark_`, `log_`, `import_`, `purge_` and `promote_` are not in it.
+The scope rule is also an approximation in the permissive direction: a marking call
+anywhere earlier in the same function marks every write in that function, related or
+not. It is conservative in the other direction — a write moved into a helper loses its
+caller's marking call and is reported UNMARKED, which is the right way round.
 
 Run it: `python -m api.services.wisdom.publish.provenance_check` (exit 1 on a finding),
 `--json` for the full report, `--self-check` to prove the check can fail.
@@ -283,7 +313,7 @@ def scan_file(path: pathlib.Path, owned: set) -> list:
                 if table in _NOT_A_TABLE or table in owned or key in seen:
                     continue
                 seen.add(key)
-                if _sql_predicate_marked(text):
+                if _sql_predicate_marked(text, match):
                     sites.append(_site(path, node, "sql", table, True,
                                        "constrained to rows carrying the marker source", text))
                     continue
@@ -299,10 +329,40 @@ def scan_file(path: pathlib.Path, owned: set) -> list:
     return sites
 
 
-def _sql_predicate_marked(sql: str) -> bool:
+#: A SQL comment. Stripped before the marked-predicate test: text inside `/* … */` or
+#: after `--` is prose, and prose that happens to spell the predicate is the same
+#: "a regex finds prose" defect the AST walk exists to avoid, one layer down.
+_SQL_COMMENT_RE = re.compile(r"/\*.*?\*/|--[^\n]*", re.S)
+_WHERE_RE = re.compile(r"\bWHERE\b", re.I)
+#: Only a statement that FILTERS can be constrained to rows that already carry the
+#: marker. An INSERT/REPLACE creates the row it writes, so no predicate inside it can
+#: mean "this cannot reach an unmarked row" — it must carry a marking call instead.
+_FILTERING_VERBS = re.compile(r"^(UPDATE|DELETE)", re.I)
+
+
+def _sql_predicate_marked(sql: str, match: Optional[re.Match] = None) -> bool:
+    """True only when this statement's WHERE clause constrains it to marked rows.
+
+    ⛔ The predicate must be READ IN THE WHERE CLAUSE, never merely be present in the
+    statement. `UPDATE knowledge_base SET source = 'wisdom', content = ? WHERE id = ?`
+    contains the predicate and writes ANY row, marked or not — accepting it would have
+    let the one shape this rail exists to catch through wearing the rail's own excuse.
+    An INSERT is refused outright: it cannot be constrained to rows that already exist.
+    """
     from api.services.wisdom.publish.adapters import provenance
 
-    return bool(provenance.SQL_MARKED_PREDICATE.search(sql))
+    body = sql if match is None else sql[match.start():]
+    body = body.split(";", 1)[0] if match is not None else body
+    body = _SQL_COMMENT_RE.sub(" ", body)
+    verb = (match.group("verb") if match is not None else body.lstrip()[:6])
+    if not _FILTERING_VERBS.match(verb.strip()):
+        return False
+    wheres = list(_WHERE_RE.finditer(body))
+    if not wheres:
+        return False
+    # the LAST WHERE is the statement's own filter; an earlier one belongs to a subquery
+    # inside a SET clause, which constrains what is READ and not which rows are WRITTEN.
+    return bool(provenance.SQL_MARKED_PREDICATE.search(body[wheres[-1].end():]))
 
 
 # ── the report ───────────────────────────────────────────────────────────────

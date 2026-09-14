@@ -23,6 +23,7 @@ from __future__ import annotations
 import ast
 import json
 import pathlib
+import re
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -275,3 +276,164 @@ def test_the_provenance_module_imports_nothing_from_the_api_package():
             imported.add(node.module.split(".")[0])
     assert "api" not in imported, imported
     assert imported <= {"__future__", "json", "re", "typing"}, imported
+
+
+# ── the marked-predicate excuse, and the shape it must never launder ─────────
+#
+# `_sql_predicate_marked` is the ONE way a consumer write is accepted without a marking
+# call: a statement that constrains itself to rows already carrying `source = 'wisdom'`
+# cannot reach an unmarked row. The excuse is sound; reading it with a bare substring
+# search was not. `UPDATE knowledge_base SET source = 'wisdom', content = ? WHERE id = ?`
+# CONTAINS the predicate and writes ANY row — it wore the rail's own excuse. So did a SQL
+# comment that merely spells it. Each case below is paired with a control that must stay
+# accepted, so a fix that simply deleted the excuse cannot pass.
+
+def _audit_one(tmp_path, name, body):
+    planted = tmp_path / f"{name}.py"
+    planted.write_text(body, encoding="utf-8")
+    return provenance_check.audit([planted])
+
+
+_ACCEPTED_CONTROL = (
+    'def publish(conn, kb_id):\n'
+    '    conn.execute("UPDATE knowledge_base SET active = 0 WHERE id = ? AND source = ' + "'wisdom'" + '", (kb_id,))\n'
+)
+
+
+def test_the_marked_predicate_excuse_still_accepts_a_real_where_clause(tmp_path):
+    """CONTROL. Without this, deleting the excuse outright would pass every case below."""
+    report = _audit_one(tmp_path, "control_where", _ACCEPTED_CONTROL)
+    assert len(report["sites"]) == 1, report["sites"]
+    assert report["sites"][0]["marked"] is True
+    assert report["sites"][0]["why"] == "constrained to rows carrying the marker source"
+
+
+def test_a_set_clause_that_assigns_the_marker_source_does_not_excuse_the_write(tmp_path):
+    report = _audit_one(tmp_path, "set_clause", (
+        'def publish(conn, kb_id, content):\n'
+        '    conn.execute("UPDATE knowledge_base SET source = ' + "'wisdom'" + ', content = ? WHERE id = ?",\n'
+        '                 (content, kb_id))\n'))
+    assert len(report["unmarked"]) == 1, report["sites"]
+    assert report["unmarked"][0]["target"] == "knowledge_base"
+
+
+def test_a_sql_comment_spelling_the_predicate_does_not_excuse_the_write(tmp_path):
+    report = _audit_one(tmp_path, "sql_comment", (
+        'def publish(conn, content):\n'
+        '    conn.execute("INSERT INTO knowledge_base(title, content) '
+        '/* source = ' + "'wisdom'" + ' */ VALUES (?, ?)", ("t", content))\n'))
+    assert len(report["unmarked"]) == 1, report["sites"]
+
+
+def test_an_insert_is_never_excused_by_the_predicate(tmp_path):
+    """An INSERT creates the row it writes, so no predicate in it can mean
+    'this cannot reach an unmarked row'. It must carry a marking call instead."""
+    report = _audit_one(tmp_path, "insert_select", (
+        'def publish(conn):\n'
+        '    conn.execute("INSERT INTO knowledge_base(title) SELECT title FROM staging '
+        'WHERE source = ' + "'wisdom'" + '")\n'))
+    assert len(report["unmarked"]) == 1, report["sites"]
+
+
+def test_the_predicate_inside_a_set_subquery_does_not_excuse_the_outer_write(tmp_path):
+    report = _audit_one(tmp_path, "set_subquery", (
+        'def publish(conn, kb_id):\n'
+        '    conn.execute("UPDATE knowledge_base SET tags = (SELECT tags FROM staging '
+        'WHERE source = ' + "'wisdom'" + ') WHERE id = ?", (kb_id,))\n'))
+    assert len(report["unmarked"]) == 1, report["sites"]
+
+
+def test_the_live_publish_tools_still_pass_with_the_tightened_excuse(tmp_path):
+    """The four real `constrained` verdicts in publish_kb_sync.py are genuine WHERE
+    clauses and must survive — the tightening is not allowed to cost a false positive."""
+    report = provenance_check.audit()
+    excused = [s for s in report["sites"] if s["why"].startswith("constrained")]
+    assert report["ok"], report["unmarked"]
+    assert len(excused) == 4, excused
+    assert {s["file"] for s in excused} == {"tools/wisdom/publish_kb_sync.py"}
+
+
+# ── §8a.5: the exit columns never leave through a publish adapter ────────────
+#
+# `common.PUBLIC_RECORD_COLUMNS` is the allowlist every record read names its columns
+# from, and it is the only thing keeping `exit_price` / `exit_text` / `exit_date` out of
+# every adapter at once. ⛔ It is TYPED, and until this rail it had none: adding one
+# name to that tuple would have put a §8a.5 content-stream-private value into the Brain
+# KB, the Ask-AI block, the desk markers and the dossier in one edit, with a green suite.
+#
+# ⚠️ The D16a property test CANNOT cover this and must not be read as if it does.
+# §8a.5 says "the private-store property test covers `exit_price`"; measured, it does
+# not — `private.PRIVATE_FIELDS` is {size_shares, position_size, open_entry} and
+# `put_private` RAISES on `exit_price`, so the property fixture can neither store one
+# nor plant one in `wisdom_records`. Reported to the owner; this rail covers the
+# member-facing half (the publish package) that S-F2 owns.
+
+_DDL = REPO / "docs" / "wisdom" / "contracts" / "wisdom-db-v0.sql"
+
+
+def _wisdom_records_columns() -> list:
+    """Column names of `wisdom_records`, read from the base DDL — never typed here."""
+    text = _DDL.read_text(encoding="utf-8")
+    start = text.index("CREATE TABLE") + text[text.index("CREATE TABLE"):].index("wisdom_records")
+    body = text[start:]
+    body = body[: body.index("\n);")]
+    out = []
+    for line in body.splitlines()[1:]:
+        name = line.strip().split(" ")[0].strip(",")
+        if name and name.islower() and name.replace("_", "").isalnum() and not line.strip().startswith("--"):
+            out.append(name)
+    return out
+
+
+def _exit_columns() -> list:
+    return [c for c in _wisdom_records_columns() if c.startswith("exit_")]
+
+
+def test_the_column_derivation_actually_reads_the_schema(tmp_path):
+    """CONTROL. Every assertion below is over a derived set; an empty one satisfies them all."""
+    cols = _wisdom_records_columns()
+    assert len(cols) > 40, cols
+    assert set(common.PUBLIC_RECORD_COLUMNS) <= set(cols), set(common.PUBLIC_RECORD_COLUMNS) - set(cols)
+    assert _exit_columns() == ["exit_price", "exit_text", "exit_date"], _exit_columns()
+
+
+def test_the_public_record_allowlist_admits_no_exit_column():
+    """§8a.5: an exit price is content-stream private and is redacted in every
+    member-facing publish path. `PUBLIC_RECORD_COLUMNS` is where that is decided."""
+    leaked = sorted(set(_exit_columns()) & set(common.PUBLIC_RECORD_COLUMNS))
+    assert leaked == [], leaked
+
+
+def _files_naming_an_exit_column(paths) -> list:
+    hits = []
+    for path in paths:
+        source = pathlib.Path(path).read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+        docstrings = provenance_check._docstring_nodes(tree)
+        for node in ast.walk(tree):
+            for text, _line in provenance_check._sql_fragments(node, docstrings):
+                for col in _exit_columns():
+                    if re.search(r"\b" + col + r"\b", text):
+                        hits.append((str(path), col, text[:80]))
+    return hits
+
+
+def test_no_publish_adapter_or_tool_names_an_exit_column_in_sql():
+    paths = provenance_check.scanned_files()
+    assert len(paths) > 20, paths                       # CONTROL: the glob found the package
+    assert _files_naming_an_exit_column(paths) == [], _files_naming_an_exit_column(paths)
+
+
+def test_the_exit_column_scanner_can_actually_fire(tmp_path):
+    """CONTROL for the scan above: a planted read of an exit column IS reported, and a
+    planted read of an ALLOWED level column is NOT — so the scan distinguishes."""
+    bad = tmp_path / "planted_exit.py"
+    bad.write_text('def read(conn):\n'
+                   '    return conn.execute("SELECT record_id, exit_price FROM wisdom_records").fetchall()\n',
+                   encoding="utf-8")
+    good = tmp_path / "planted_levels.py"
+    good.write_text('def read(conn):\n'
+                    '    return conn.execute("SELECT record_id, entry, stop FROM wisdom_records").fetchall()\n',
+                    encoding="utf-8")
+    assert [h[1] for h in _files_naming_an_exit_column([bad])] == ["exit_price"]
+    assert _files_naming_an_exit_column([good]) == []
