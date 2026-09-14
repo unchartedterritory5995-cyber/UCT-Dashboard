@@ -513,8 +513,12 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         breadth_self_heal.maybe_auto_heal()
     except Exception:
         pass
+    from api.services import breadth_timing
+    breadth_timing.begin(span=days)
     try:
+        _t0 = time.perf_counter()
         rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
+        breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows))
         top = rows[0]["date"] if rows else None
         bounds = svc.date_bounds()
         return {
@@ -554,6 +558,37 @@ _SERIES_MAX_KEYS = 8
 #: Mirrors the monitor endpoint's own `le=8000` rather than inventing a second ceiling.
 _SERIES_DAY_CEILING = 8000
 _SERIES_DEFAULT_SESSIONS = 365
+
+
+def series_max_sessions() -> int:
+    """The span cap, in STORED SESSIONS. `BREADTH_SERIES_MAX_SESSIONS`, default 365.
+
+    ⛔ THIS EXISTS BECAUSE THE READER IS SLOW, NOT BECAUSE THE RESPONSE IS BIG (D-042).
+    A cold `get_history_deep` over a deep span costs ~55 s on the single uvicorn process —
+    measured on production — and that is spent PRODUCING rows, upstream of anything this
+    endpoint does with them. So the cap has to make a deep read UNREACHABLE, and it is
+    raised only when the reader work lands, never to satisfy a UI that wants more.
+    """
+    try:
+        v = int(os.getenv("BREADTH_SERIES_MAX_SESSIONS", "") or _SERIES_DEFAULT_SESSIONS)
+        return v if v > 0 else _SERIES_DEFAULT_SESSIONS
+    except ValueError:
+        return _SERIES_DEFAULT_SESSIONS
+
+
+def series_max_calendar_days(max_sessions: int | None = None) -> int:
+    """Calendar bound that admits `max_sessions` sessions and no deep read.
+
+    ⛔ CHECKED BEFORE THE READ, NOT AFTER. Counting sessions requires reading them, and a
+    post-read rejection has already paid the 55 s it exists to prevent — it would report
+    the problem instead of preventing it.
+
+    A year holds ~252 sessions in 365 calendar days (×1.448). ×1.6 is the conservative
+    direction: a full `max_sessions` request is NEVER rejected for being a few holidays
+    long, and the worst case admitted is ~1.1× the cap in sessions rather than the 4,703
+    that cost 55 s.
+    """
+    return int((max_sessions or series_max_sessions()) * 1.6)
 _SERIES_TTL = 300
 
 
@@ -646,7 +681,16 @@ def get_breadth_series(
         span_days = (date.fromisoformat(to_date) - date.fromisoformat(from_date)).days + 1
     except ValueError:
         raise HTTPException(status_code=400, detail="from/to must be YYYY-MM-DD")
-    if span_days > _SERIES_DAY_CEILING:
+    max_sessions = series_max_sessions()
+    max_days = series_max_calendar_days(max_sessions)
+    if span_days > max_days:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"span {span_days} days exceeds the {max_sessions}-session cap "
+                    f"({max_days} calendar days). The cap exists because a cold deep read "
+                    f"costs ~55s on the web process (D-042); it is raised when the reader "
+                    f"work lands, not to satisfy a wider view."))
+    if span_days > _SERIES_DAY_CEILING:                  # belt: the monitor route's own ceiling
         raise HTTPException(
             status_code=400,
             detail=f"span {span_days} days exceeds the {_SERIES_DAY_CEILING}-day ceiling")

@@ -85,6 +85,7 @@
 
 import { IND_TOKENS } from '../designTokens'
 import { paneMode } from './paneLayout'
+import { parsePaneOfTarget } from './sourceRef'
 
 /**
  * Each preset's canvas colour. Taken from `designTokens.IND_TOKENS[p].surface`,
@@ -322,7 +323,19 @@ export function resolvePlacement(instance, def, ctx) {
   // it resolves to nothing rather than to a guess.
   const instTarget = instance && instance.placement && instance.placement.target
   const defTarget = def.placement && def.placement.target
-  const target = (typeof instTarget === 'string' && instTarget)
+  // ⭐⭐ `c.targetOf` IS `displayTarget.resolveDisplayTarget`, AND IT OUTRANKS BOTH
+  // OF THE ABOVE. A DERIVED indicator's target is computed from its SOURCE —
+  // `MA(RSI)` belongs in RSI's pane — and neither the instance nor the definition
+  // says so. Reading the stored fields directly was correct while every target was
+  // static; it is blind to any answer that depends on the rest of the chart. This
+  // is what keeps ONE module deciding where an indicator draws, so the pane the
+  // control NAMES and the pane the series LANDS IN cannot disagree.
+  //
+  // ⚠️ THE FALLBACK KEEPS EVERY CALLER THAT PREDATES THIS WORKING UNCHANGED —
+  // a resolver called without the hook reads exactly what it always read.
+  const resolved = (typeof c.targetOf === 'function') ? c.targetOf(instance) : null
+  const target = (typeof resolved === 'string' && resolved)
+    || (typeof instTarget === 'string' && instTarget)
     || (typeof defTarget === 'string' && defTarget)
     || 'pane'
 
@@ -354,9 +367,71 @@ export function resolvePlacement(instance, def, ctx) {
   // list, because that toolbar control is what users actually toggle and a
   // snapshot taken at migration must not outrank it. B4 flips that authority when
   // the engine owns its own placement UI.
+  // ⭐⭐ A GUEST RESOLVES TO SOMEBODY ELSE'S PANE KEY. `'@inst:dataSeries:1'`
+  // means "the pane that instance hosts" — a SEMANTIC address, resolved to an
+  // index here and never stored as one. That is what makes a guest move when its
+  // host moves: the key it names does not change, only the index that key
+  // resolves to.
+  const follows = parsePaneOfTarget(target)
+  if (follows) {
+    if (paneMode() !== 'panes') return null
+    const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
+    let pane = panes ? panes.find((p) => p && p.key === follows) : null
+    // ⚠️ LEGACY `@<defId>` READ COMPATIBILITY. Pane keys are host INSTANCE ids,
+    // so a follow target written under the old definition vocabulary names no
+    // pane. Nothing shipped stores one — a target equal to the default has its key
+    // DELETED, which is the only way a derived `@` target is produced — but
+    // interpreting it costs three lines and removes a whole silent-disappearance
+    // class. FIRST matching host in pane order, which is exactly the single pane
+    // the old model would have had. An instance id always contains ':', so the two
+    // vocabularies cannot be confused for one another.
+    if (!pane && panes && !follows.includes(':')) {
+      const byDef = c.paneLayout && c.paneLayout.defByKey
+      pane = byDef ? panes.find((p) => p && byDef.get(p.key) === follows) : null
+    }
+    // ⛔⛔ NO PANE FOR THE HOST MEANS NO BINDING, NOT A GUESS. The host may be
+    // deleted, off, or not on this chart at all. Landing the guest in pane 0 would
+    // paint it over the candles on their own scale, and — far worse — a guest
+    // that silently re-homed onto ANOTHER instance's pane would be reading against
+    // a ladder nobody chose. An orphaned target is PRESERVED and reported "Pane
+    // unavailable" by the control; here it simply draws nothing until the member
+    // repairs it.
+    if (!pane || !Number.isInteger(pane.index)) return null
+    return {
+      paneIndex: pane.index,
+      // ⭐ THE HOST'S SCALE, BY NAME. Sharing `'right'` with the pane's host is the
+      // whole point of joining it — the guest has to be read against the host's
+      // ladder, not against a second axis of its own that happens to overlap.
+      scaleId: 'right',
+      // ⛔ AND IT ASSERTS NOTHING ON THAT SCALE. The host's margins and range are
+      // the host's; a guest that re-wrote them would move the line it is drawn
+      // beside. Same reasoning as a price overlay on the candles' axis.
+      scaleOptions: null,
+      autoscale: 'default',
+      lastValue: false,
+    }
+  }
+
   if (target !== 'pane' && target !== 'volume') return null
   if (typeof def.id !== 'string' || !def.id) return null
+  // ⭐ THE DEFINITION KEY. Two of the questions below are about the DEFINITION and
+  // stay keyed by it: the legacy `volumeOverlayIndicators` list (`cs` stores defIds
+  // there, and that list is READ-ONLY), and the `'bands'`-mode named scale plus its
+  // band, which exist to be byte-identical to the retired per-definition render
+  // blocks. Widening either would RENAME a scale nothing asked to rename.
   const key = def.id
+  // ⭐⭐ BUT THE PANE KEY IS THE HOST INSTANCE (P2.0c), AND IT IS A DIFFERENT KEY.
+  // The pane lookup read `def.id`, which meant every instance of one definition
+  // found the SAME pane — fine while a definition could only ever have one, and
+  // wrong the moment two instances each own theirs. An instance that resolved to
+  // `target: 'pane'` hosts its own; a guest never reaches here (it returned above).
+  //
+  // ⛔ IT IS NOT A SCALE ID. A real pane carries its own `'right'` axis, so the
+  // panes-mode branch below names no scale after anything; only `'bands'` mode
+  // does, and `'bands'` mode has no panes to host.
+  const paneKey = (instance && typeof instance.instanceId === 'string' && instance.instanceId)
+    ? instance.instanceId
+    : def.id
 
   // ── Overlaid into the volume pane, on its left axis ──
   if (c.volSeparatePane && asSet(c.volOverlaySet).has(key)) {
@@ -420,7 +495,7 @@ export function resolvePlacement(instance, def, ctx) {
   // paint straight over the candles.
   if (paneMode() === 'panes') {
     const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
-    const pane = panes ? panes.find((p) => p && p.key === key) : null
+    const pane = panes ? panes.find((p) => p && p.key === paneKey) : null
     if (!pane || !Number.isInteger(pane.index)) return null
     return {
       paneIndex: pane.index,

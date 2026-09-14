@@ -184,15 +184,23 @@ const NO_PANE_KEYS = Object.freeze([])
  * @param {object|null} layout `paneLayoutRef.current`
  * @returns {{key: string, index: number, chips: object[]}[]}
  */
-function paneReadoutRows(chips, layout) {
+function paneReadoutRows(chips, layout, hostOf) {
   const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
   if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
+  // ⭐⭐ GROUPED BY ACTUAL PANE MEMBERSHIP, NOT BY DEFINITION (P2.0c). This
+  // grouped on `c.defId` and matched it against `pane.key`, which was only ever
+  // right while a pane WAS a definition. With host-instance keys, two own-pane
+  // instances of one definition would otherwise put both chips in whichever pane
+  // matched first — one legend showing a value from a series that is not in it,
+  // which is worse than a missing chip because it reads as correct.
   const byKey = new Map()
   for (const c of chips) {
-    if (!c || c.hidden === true || typeof c.defId !== 'string') continue
-    const group = byKey.get(c.defId)
+    if (!c || c.hidden === true) continue
+    const key = hostOf ? hostOf(c) : null
+    if (typeof key !== 'string' || !key) continue
+    const group = byKey.get(key)
     if (group) group.push(c)
-    else byKey.set(c.defId, [c])
+    else byKey.set(key, [c])
   }
   const out = []
   for (const pane of panes) {
@@ -315,6 +323,11 @@ const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === unde
 let _engineLwc = null
 const engineLwc = () => (_engineLwc || (_engineLwc = {
   LineSeries, HistogramSeries, AreaSeries, BaselineSeries, LineStyle, LineType,
+  // ⚠️ THE ENGINE CAN ONLY BUILD WHAT THIS OBJECT CARRIES. `binder.SERIES_CTOR`
+  // names a constructor and reads it off HERE, so a series type absent from this
+  // literal resolves to `undefined`, `addSeries(undefined, …)` throws, `attempt`
+  // swallows it, and the plot plans, computes and then silently does not exist.
+  CandlestickSeries,
 }))
 
 // "Same % scale" comparison → transform the comparison's raw closes into the base's
@@ -598,6 +611,20 @@ import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
+// ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
+// INSTANCES and geometry; it has no `cs`, and the three questions below are all
+// answered FROM `cs` — who follows whom, who hosts a pane, and who still needs
+// one while hidden. So the call site is the only place that can ask them, and
+// asking them here is what keeps the layout a geometry module rather than a
+// second reader of chart settings.
+import {
+  paneFollowerKeys, paneOwnKeys, paneOwnersNeeded, volumeOverlayPaneKeys,
+  resolveDisplayTarget,
+} from './chart/engine/displayTarget'
+import { parsePaneOfTarget } from './chart/engine/sourceRef'
+import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
+import { useSecondarySources } from './chart/engine/useSecondarySources'
+import { symbolFamily, loadBreadthSymbols } from '../hooks/useBreadthSymbols'
 
 const NOOP = () => {}
 
@@ -4856,10 +4883,18 @@ export default function StockChart({
     // of the hand-written list, not a refactor artefact.
     const indicatorsItem = {
       id: 'indicators', label: <><UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Indicators</>, kind: 'submenu',
-      submenu: catalogRows().map((row) => ({
-        id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
-        onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
-      })),
+      // ⛔⛔ MINUS `LIBRARY_HIDDEN_IDS`, FOR THE REASON THAT MAKES THIS A
+      // PER-DEFINITION MENU. Every entry here is a toggle on the DEFINITION, and
+      // `dataSeries` has no meaning as one: switching it on would draw a line of
+      // this chart's own close labelled "Series". It is configured per INSTANCE,
+      // from the source its instance carries, and its member-facing door is
+      // symbol search — the same reason it is subtracted from the library list.
+      submenu: catalogRows()
+        .filter((row) => !LIBRARY_HIDDEN_IDS.includes(row.id))
+        .map((row) => ({
+          id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
+          onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
+        })),
     }
     // "Overlay on volume": a PANE oscillator that is currently ON. `placement.target`
     // is what `resolvePlacement` reads, so the menu and the renderer agree by
@@ -5553,6 +5588,68 @@ export default function StockChart({
   const _deepFirstPaint = backgroundWarm && !barsOverridePending
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
   const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : Math.max(fetchDepth, _fpBars)
+
+  // ─── BARS FOR EVERY CANONICAL SYMBOL THIS CHART'S INSTANCES NAME ─────────
+  //
+  // ⭐⭐ THE BINDER NEVER FETCHES. `sync` runs inside a paint, so a symbol source
+  // has to arrive as DATA exactly as `bars` does. This is the one place that
+  // turns "an instance names QQQ" into "QQQ's bars are in hand", and it reuses
+  // the fetch lane this component already owns — `instFetcher`, with its
+  // per-instance in-flight registry and its switch-abort — rather than opening a
+  // second one. `secondaryBars.js` holds the cache and dedupes by
+  // `(symbol, tf, bars)`, so two direct series on one symbol issue ONE request.
+  //
+  // ⛔⛔ IT READS `cs.indicatorInstances`, NOT `engineInstancesRef`, AND THE REASON
+  // IS EFFECT ORDER. That ref is populated by `updateChart`, which runs from an
+  // effect declared BELOW this one — so on first render the ref is still empty,
+  // no symbol is discovered, no request is made, and nothing afterwards
+  // re-triggers the lookup because `cs` has not changed. The series simply never
+  // appears.
+  //
+  // ⚠️ THE STORED LIST IS A SUPERSET OF THE ENGINE'S, and that is the right trade:
+  // `symbolsNeeded` ignores every source that is not a symbol, so the only
+  // difference is a tombstoned instance that still names one — one request for an
+  // instrument the member did configure, against a first paint that would
+  // otherwise draw nothing.
+  const _storedInstances = useCallback(() => cs.indicatorInstances, [cs])
+  // ⭐ WHICH PANE A CHIP BELONGS TO, IN PANE-KEY UNITS. Pane keys are host
+  // instance ids, so a chip's pane is: its own instance when it hosts one, or the
+  // host it follows. `resolveDisplayTarget` is the same authority the layout and
+  // the placement resolver both consume, so the legend cannot disagree with where
+  // the series actually drew — which is the failure mode that reads as correct.
+  const chipPaneHost = useCallback((chip) => {
+    const id = chip && chip.instanceId
+    if (typeof id !== 'string' || !id) return null
+    // ⛔⛔ THE ENGINE'S LIST, NOT `cs.indicatorInstances`. A LEGACY instance is
+    // PROJECTED by `migrateLegacyToInstances` at read time and was never stored,
+    // so looking it up in the blob finds nothing and its pane readout silently
+    // disappears — measured, as an RSI pane that printed no label at all. This is
+    // the same list the LAYOUT keyed its panes from, which is the only list that
+    // can answer "which pane is this chip in".
+    const inst = (engineInstancesRef.current || []).find((i) => i && i.instanceId === id)
+      || (cs.indicatorInstances || []).find((i) => i && i.instanceId === id)
+    if (!inst) return null
+    const target = resolveDisplayTarget(inst, cs)
+    if (target === 'pane') return id
+    return parsePaneOfTarget(target)
+  }, [cs])
+  const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
+  // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
+  // asynchronously; a ref would leave the chart painted with the empty map until
+  // something unrelated triggered another paint. The hook keeps the map's
+  // IDENTITY stable while nothing changes, which is what stops that dependency
+  // repainting continuously.
+  const secondarySources = useSecondarySources(
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+
+  // ⛔⛔ THE CAPABILITY ORACLE NEEDS ITS REGISTRY, AND THIS CHART MUST NOT ASSUME
+  // A SIBLING LOADED IT. `symbolFamily` answers `'unknown'` until the breadth
+  // registry has landed, and the OHLC gate REFUSES `'unknown'` — fail-closed, so
+  // a chart that never triggers the fetch would simply never offer candles, on
+  // every surface that does not happen to mount `ChartPane` (the pane harness is
+  // one). It is one module-level fetch per session, already shared with the
+  // symbol search and the breadth widgets, and calling it twice is a no-op.
+  useEffect(() => { try { loadBreadthSymbols() } catch { /* offline: stays unknown */ } }, [])
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -10248,7 +10345,30 @@ export default function StockChart({
     const paneLayout = computePaneLayout(engineInstances, {
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
-      excludeKeys: volOverlaySet,
+      // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
+      // list's own units); `excludeKeys` is matched against PANE KEYS, which are
+      // host instance ids. `volumeOverlayPaneKeys` is the same answer in the units
+      // this call site now speaks.
+      //
+      // ⭐⭐ AND A GUEST RESERVES NO PANE OF ITS OWN. A series drawn INSIDE another
+      // instance's pane must not also carve one — that would leave an empty
+      // rectangle and push every index below it out by one. `displayTarget` decides
+      // who follows whom; this consumes that answer rather than forming its own.
+      excludeKeys: new Set([
+        ...volumeOverlayPaneKeys(engineInstances, cs),
+        ...paneFollowerKeys(engineInstances, cs),
+      ]),
+      // ⭐ A HIDDEN HOST KEEPS ITS PANE WHILE SOMETHING VISIBLE DRAWS IN IT. Hiding
+      // QQQ must not take MA(QQQ) with it — the eye icon is about ink, not about
+      // existence.
+      keepKeys: paneOwnersNeeded(engineInstances, cs),
+      // ⭐⭐ AND THE ADDITIVE HALF: a definition whose DEFAULT is `price` still needs
+      // a pane when THIS instance's active placement resolved to `pane`.
+      // `excludeKeys` consumes `displayTarget`'s answer subtractively; this consumes
+      // the same answer in the other direction, so a writable placement is also a
+      // REALISABLE one. Without it "Display in: Own pane" stores correctly, reads
+      // back correctly, and draws nothing.
+      includeKeys: paneOwnKeys(engineInstances, cs),
       separatorPx: SEPARATOR_PX,
       firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,
@@ -10715,6 +10835,21 @@ export default function StockChart({
         enabled: engineNeeded,
         cs,
         instances: engineInstances,
+        // ⭐ THE THIRD SOURCE FAMILY'S DATA. Bars for any canonical symbol the
+        // instances name, already fetched and cached above. Absent is not an
+        // error: it is a chart with no symbol sources, and every lookup misses.
+        secondary: secondarySources,
+        // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
+        // half of `ohlcCapability`. The breadth registry is the same authority
+        // `api/routers/bars.py` routes on, read synchronously because the binder
+        // has no hooks; it answers `'unknown'` until it has loaded and the gate
+        // REFUSES `'unknown'`, so a breadth measure can never be mistaken for a
+        // security while the page is still starting.
+        //
+        // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
+        // No ticker, no prefix: the binder asks what KIND of thing this is, and
+        // `ohlcCapability` owns what each kind may be drawn as.
+        ohlcFamilyOf: symbolFamily,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
@@ -10746,6 +10881,15 @@ export default function StockChart({
         volOverlaySet,
         volSeparatePane,
         VOL_PANE_INDEX,
+        // ⭐⭐ THE RESOLVED TARGET, NOT THE DECLARED ONE. `resolvePlacement` read
+        // `instance.placement.target || def.placement.target` itself, which is fine
+        // for a static answer and blind to a DERIVED one: an average of QQQ belongs
+        // in QQQ's pane, and nothing in the definition or the instance says so — it
+        // is computed from the source. Handing the resolver `displayTarget`'s answer
+        // is what keeps ONE module deciding where an indicator draws, and it is the
+        // same authority the LAYOUT above consumes, so the pane that gets allocated
+        // and the pane that gets resolved cannot disagree.
+        targetOf: (inst) => resolveDisplayTarget(inst, cs),
         resolvePlacement,
         resolvePreset,
       })
@@ -11652,7 +11796,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, secondarySources])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -14373,7 +14517,16 @@ export default function StockChart({
       if (paneMode() === 'panes' && _layout) {
         let livePanes = []
         try { livePanes = chart.panes() } catch { livePanes = [] }
-        const keyAt = new Map(_layout.panes.map((p) => [p.index, p.key]))
+        // ⛔⛔ THE REGION IS NAMED BY THE **DEFINITION**, NOT BY THE PANE KEY.
+        // Pane keys are host INSTANCE ids (P2.0c); the right-click menu this feeds
+        // is definition-shaped end to end — `labelFor`, `indEnabled` and the
+        // catalogue row all take a defId — so handing it an instance id would open
+        // a menu for an indicator it cannot name. `defByKey` is the layout's own
+        // host → definition map, which is why it is published beside `panes`
+        // rather than reconstructed here from a key that is deliberately opaque.
+        const _defByKey = (_layout && _layout.defByKey) || null
+        const keyAt = new Map(_layout.panes.map(
+          (p) => [p.index, (_defByKey && _defByKey.get(p.key)) || p.key]))
         region = resolveChartRegionFromPanes({
           x: px, y: py, width: rect.width, height: rect.height,
           axisWidth, timeAxisHeight,
@@ -16783,7 +16936,7 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current).map((row) => (
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost).map((row) => (
         <div
           key={row.key}
           ref={(el) => {

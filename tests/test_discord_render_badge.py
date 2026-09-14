@@ -152,6 +152,48 @@ def test_the_footer_order_is_vintage_then_provenance_then_id():
     assert line.index("stale") < line.index("backup") < line.index("id ")
 
 
+def test_the_quality_clause_leads_the_line_and_shares_it():
+    """04 §4 — **quality · vintage · provenance · id**, on ONE line.
+
+    ⛔⛔ IT SHARES THE LINE BECAUSE `_drop_previous_stamp` CUTS EXACTLY ONE. `produce_chart` edits
+    the same message twice — a stand-in, then the real chart — so a stand-in label on a second line
+    would survive the edit that healed it, leaving "⚠ simplified chart" under a chart that is no
+    longer simplified. That is C-06 inverted, and worse than C-06: a member who has learnt to trust
+    the label is then being lied to by it.
+    """
+    results = {"bars": _stale(), "flow": R.ok({"ok": True}, provider="in_process")}
+    line = badge.render_footer(results, CID, quality=badge.standin_label("deadline"))
+    assert line == ("⚠ simplified chart — the chart service took too long"
+                    " · ⚠ data as of 2026-08-03 00:00 ET (stale)"
+                    " · served from a slower backup source · id 7f3a9c21")
+    assert "\n" not in line
+    assert line.index("simplified") < line.index("data as of") < line.index("backup") < line.index("id ")
+
+
+def test_a_quality_clause_alone_still_carries_the_id():
+    """A stand-in on otherwise healthy data is a degraded delivery, so it gets the string a member
+    quotes back to us — the one thing this line exists to carry."""
+    line = badge.render_footer({"bars": _fresh()}, CID, quality=badge.standin_label("renderer_unavailable"))
+    assert line == "⚠ simplified chart — the chart renderer is unavailable · id 7f3a9c21"
+
+
+def test_omitting_quality_leaves_every_existing_line_byte_identical():
+    """⛔ THE MUTATION CONTROL FOR THE PARAMETER ITSELF. If `quality=None` changed a single byte of
+    what today's call sites produce, the C-06 swap would be a behaviour change wearing a
+    refactor's clothes."""
+    cases = [
+        ({"bars": _stale()}, CID),
+        ({"bars": _stale(), "flow": R.ok({"ok": True}, provider="in_process")}, CID),
+        ({"bars": _fresh(), "renderer": R.ok(PNG, provider="renderer")}, CID),
+        ({}, CID),
+        ({"bars": _stale()}, None),
+    ]
+    for results, cid in cases:
+        assert badge.render_footer(results, cid, quality=None) == badge.render_footer(results, cid)
+    assert badge.render_footer({"bars": _stale()}, CID) != "", (
+        "the control: every comparison above would hold if the footer said nothing at all")
+
+
 def test_a_degraded_delivery_always_carries_the_id_a_member_quotes():
     """It is the join to the durable jobs row and the only string a member can give us that
     identifies their request."""
@@ -292,6 +334,45 @@ def test_an_unknown_class_cannot_leak_a_traceback_into_the_message():
     leak = "ConnectionResetError at https://renderer.internal/render?token=abc"
     assert badge.standin_label(leak) == "⚠ simplified chart — something went wrong on our side"
     assert badge.standin_label(None) == "⚠ simplified chart — something went wrong on our side"
+
+
+# ── 4b · the vintage that travels to the house page (C-07) ─────────────────
+
+def test_the_house_page_is_handed_the_envelopes_own_sentence():
+    """⛔⛔ THE SENTENCE, NOT THE DATE. `?stale=` carries what a member will read, composed once by
+    `Envelope.badge`. Handing the page a bare `as_of` would make it phrase the warning itself — a
+    second author over one value, and the reason the footer and the stats strip could disagree by a
+    whole session on 2026-08-31. Derived from the envelope, never typed, so a re-wording cannot
+    leave this test agreeing with a copy nobody ships."""
+    env = _stale().envelope
+    assert badge.vintage_param({"stale": env.stale, "as_of": env.as_of_et}) == env.badge
+    assert env.badge, "the fixture is not stale, so this asserts nothing"
+
+
+def test_nothing_travels_when_there_is_nothing_to_say():
+    """⛔ RARE, OR IT IS FURNITURE — and unknown is not fresh. Fresh, unknown, and a stale verdict
+    with no readable timestamp all send NO parameter, so the page draws no badge in each case."""
+    assert badge.vintage_param({"stale": False, "as_of": FRIDAY}) is None
+    assert badge.vintage_param({"stale": None, "as_of": FRIDAY}) is None
+    assert badge.vintage_param({"stale": True, "as_of": None}) is None
+    assert badge.vintage_param({"stale": True}) is None
+    assert badge.vintage_param({"as_of": AUGUST}) is None
+    assert badge.vintage_param({}) is None and badge.vintage_param(None) is None
+
+
+def test_a_truthy_verdict_that_is_not_True_is_refused():
+    """`stale` is three-valued on purpose (§3.8b). `is True` is the whole guard: `if stale:` reads
+    None as falsey and is right by accident, until somebody makes the unknown case explicit."""
+    for verdict in ("yes", 1, "true", [1]):
+        assert badge.vintage_param({"stale": verdict, "as_of": AUGUST}) is None
+
+
+def test_the_weekend_never_sends_a_badge_to_the_page():
+    """The R-1 defect at this seam: Friday's close is the right newest bar all weekend, so a chart
+    rendered on Saturday must carry no badge at all."""
+    env = fr.envelope(FRIDAY, tf="D", provider="disk", now=WEEKEND)
+    assert env.stale is False
+    assert badge.vintage_param({"stale": env.stale, "as_of": env.as_of_et}) is None
 
 
 # ── 5 · the contract this module is built against ──────────────────────────

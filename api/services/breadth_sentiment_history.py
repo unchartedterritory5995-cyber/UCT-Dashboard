@@ -149,6 +149,23 @@ def upsert_many(rows) -> int:
                     "source=excluded.source, updated_at=datetime('now')",
                     clean,
                 )
+            # ⛔ SENTIMENT IS THE SECOND INPUT TO A RECONSTRUCTED ROW, and a write
+            # here can change the correct content of an unbounded RANGE of them —
+            # `values_asof` forward-fills, so one survey reading is carried by every
+            # later session until the next one.
+            #
+            # ⚠️ IT CANNOT BE THE SAME TRANSACTION and the reason is physical: this
+            # is a different SQLite FILE, and a transaction does not span two. So
+            # this is a prompt rebuild, not an atomic one — and the honest guarantee
+            # comes from the other side: `breadth_reconstructed_daily` stores the
+            # sentiment store's global watermark, so a row built before this write
+            # reads as stale to `stale_reconstructed_dates()` whether or not this
+            # hook ran at all. The hook makes it fast; the watermark makes it true.
+            try:
+                from api.services import breadth_daily_ohlc as _ohlc
+                _ohlc.rebuild_stale()
+            except Exception:
+                pass
             return len(clean)
         except Exception:
             return 0

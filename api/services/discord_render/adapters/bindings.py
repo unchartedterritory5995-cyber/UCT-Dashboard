@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import threading
 
+from api.services.discord_render import artifact_cache
+from api.services.discord_render import badge as badge_mod
 from api.services.discord_render import observe
 from api.services.discord_render.adapters import bars as bars_adapter
 from api.services.discord_render.adapters import classes
@@ -93,7 +95,11 @@ def quote_fn(ctx):
         return fetch_ext_quote
     def _fetch(ticker):
         r = record(ctx, "quote", quote_adapter.fetch(quote_adapter.QuoteRequest(
-            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
+            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. The ext-hours chip is decoration: a member
+            # waits for the CHART, not for this, so a retry spends the chart's budget on a field
+            # that can simply be omitted. Stated rather than inherited from `quote.ATTEMPTS`.
+            attempts=1)))
         return r.data if r.ok else None
     return _fetch
 
@@ -110,12 +116,85 @@ def house_fn(ctx, inner=None):
 
     def _render(sym, tf, stats, options=None):
         prior = last_result(ctx, "bars")
-        r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
-            ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
-            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
-            envelope=prior.envelope if prior and prior.ok else None), house_fn=inner))
-        return r.data if r.ok else None
+        envelope = prior.envelope if prior and prior.ok else None
+
+        def _produce():
+            r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
+                ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
+                corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+                envelope=envelope,
+                # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. `produce_chart` already has its own
+                # second chance — the mplfinance stand-in — so a retry here buys a slower path to
+                # the same fallback while the member waits. Stated rather than inherited.
+                attempts=1), house_fn=inner))
+            return r.data if r.ok else None
+
+        return _cached_render(ctx, sym, tf, options, envelope, _produce)
     return _render
+
+
+# ── 2.5 wired to the hot path (D-02, OI-31) ─────────────────────────────────
+
+def _cached_render(ctx, sym, tf, options, envelope, produce):
+    """L1 → L2 → render, behind `RENDER_CACHE_ENABLED`.
+
+    ⛔⛔ WITH THE FLAG OFF THIS IS `produce()` AND NOTHING ELSE — not a lookup that misses, not a
+    key computed and thrown away. The V2 path has to be byte-for-byte what it was before the cache
+    existed when the gate is off, and "we only did the cheap part" is how a flag stops being a flag.
+
+    ⛔⛔ THE VINTAGE IS IN THE KEY, AND THAT IS WHY A HIT NEEDS NO LABEL. Two renders of the same
+    symbol at the same data vintage are the same picture; serving the stored one is not a
+    degradation and marking it "served from a slower backup source" would be furniture — the exact
+    thing 04 §2 forbids. What a member is told about freshness comes from the ENVELOPE, which is
+    identical either way. ⚠️ The corollary is the load-bearing half: if the vintage ever stops being
+    part of the key, this comment becomes a lie and the cache starts serving yesterday's chart under
+    today's badge.
+
+    ⛔ A STAND-IN IS NEVER STORED (OI-32). It cannot reach here anyway — `house_fn` is the HOUSE
+    render and the stand-in is drawn by `produce_chart`'s own fallback — but the flag is set
+    explicitly rather than left to that argument, because "it cannot happen" is a claim about a
+    caller and callers change.
+    """
+    if not artifact_cache.enabled():
+        return produce()
+
+    key = artifact_cache.key_for("chart", {
+        "ticker": sym, "tf": tf,
+        # only the options that change the PICTURE; anything else would split the key space and
+        # quietly drop the hit rate to zero while every test still passed
+        "opts": artifact_cache.normalise_args({k: v for k, v in (options or {}).items()
+                                               if k in RENDER_KEY_OPTS}),
+    }, vintage=artifact_cache.vintage_of(envelope))
+
+    store = artifact_cache.store()
+    # ⛔ THE TIER IS MEASURED PER LOOKUP, NOT READ OFF A RUNNING TOTAL. A first version reported
+    # `l1` whenever the process had ever had a hit, which is a global counter answering a
+    # per-request question — and it would have made the flip packet's "cache hit rate L1/L2" a
+    # number that could not be wrong.
+    before = store.stats()
+    hit = store.get(key)
+    if hit is not None:
+        after = store.stats()
+        from_l2 = (after.get("l2_promotions", 0) > before.get("l2_promotions", 0)
+                   or after.get("l2_served_unpromoted", 0) > before.get("l2_served_unpromoted", 0))
+        observe.event("cache_hit", cid=getattr(getattr(ctx, "job", None), "corr_id", None),
+                      cmd="chart", sym=sym, tf=str(tf), outcome="hit",
+                      detail=f"tier={'l2' if from_l2 else 'l1'}")
+        return hit.data
+    observe.event("cache_miss", cid=getattr(getattr(ctx, "job", None), "corr_id", None),
+                  cmd="chart", sym=sym, tf=str(tf), outcome="miss")
+
+    budget = _remaining(ctx)
+    data = store.coalesce(key, produce, budget_s=budget if budget is not None else 0.0)
+    if data is not None:
+        store.put(key, artifact_cache.Artifact(data=data, envelope=envelope, provider="renderer"))
+    return data
+
+
+#: The render options that change the PICTURE. ⛔ Deliberately a small, named set: keying on the
+#: whole options dict would put a per-member preference blob in the key and give every member their
+#: own cache entry, which is a 0 % hit rate that no test would notice.
+RENDER_KEY_OPTS = ("style", "darkpool", "compare", "to", "ext", "bars", "instances")
 
 
 # ── /flow ───────────────────────────────────────────────────────────────────
@@ -139,7 +218,11 @@ def flow_fetch_fn(ctx, *, source: str = "stocks", top_n: int = 15):
     def _fetch(ticker, days):
         r = record(ctx, "flow", flow_adapter.fetch(flow_adapter.FlowRequest(
             ticker=ticker, days=str(days), source=source, top_n=top_n,
-            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
+            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. This adapter already has a SECOND leg —
+            # the in-process fallback — so a retry would mean up to four flow-worker round trips
+            # plus a local recompute inside one member's budget. The fallback IS the retry.
+            attempts=1)))
         # ⭐ An empty tape comes back as `ok` with `contract_count == 0` — the router reads that off
         # `contracts` and prints its own "no significant options flow …" sentence. A quiet session
         # is an answer, not a failure, and must not reach the failure counters.
@@ -159,51 +242,69 @@ def flow_fetch_fn(ctx, *, source: str = "stocks", top_n: int = 15):
 # first freshness design would have drawn a badge on every chart all weekend (§3.8b), and a badge
 # that shows when nothing is wrong is not there on the day it matters.
 
-#: Discord's hard limit. The stamp is never the thing that gets trimmed — see `stamp`.
-CONTENT_MAX = 2000
+#: Discord's hard limit. The stamp is never the thing that gets trimmed — see `badge.stamp`.
+CONTENT_MAX = badge_mod.CONTENT_MAX
 
 
-def stamp_suffix(ctx) -> str:
-    """The one line appended to a degraded delivery, or `""` when there is nothing to say.
+def standin_class(ctx, *, has_image: bool) -> str | None:
+    """The failure class to label a stand-in with, or None when this is not a stand-in (C-06).
 
-    Order is vintage · provenance · id (04-visual-spec §4). Each clause has ONE owner: the badge is
-    `Envelope.badge`, never a second copy of that sentence."""
-    results = all_results(ctx)
-    parts = []
-    badge = next((r.badge for r in results.values() if r.stale is True and r.badge), None)
-    if badge:
-        parts.append(badge)
-    providers = {r.provider for r in results.values() if r.ok and r.provider in ("in_process", "cache")}
-    if providers:
-        # ⭐ Named, not "degraded". "a slower backup source" is something a member can act on;
-        # "degraded" is a word that means nothing to them and everything to us.
-        parts.append("served from a slower backup source")
-    if not parts:
-        return ""
-    cid = ctx.job.corr_id if getattr(ctx, "job", None) else None
-    return " · ".join(parts) + (f" · id {cid}" if cid else "")
+    ⛔⛔ A STAND-IN IS "THE HOUSE RENDERER WAS ASKED AND AN IMAGE WENT OUT ANYWAY", and that
+    conjunction is the whole definition. `produce_chart` asks the house renderer first and falls
+    back to the mplfinance drawing; the fallback is not a separate call this layer can see, so the
+    tell is a recorded renderer FAILURE beside a delivery that carries a picture.
+
+    ⭐ THIS IS WHY C-06's MEMBER-VISIBLE HALF COULD BE CLOSED WITHOUT TOUCHING `produce_chart`.
+    The outcome tag (`fallback`) lives in a pre-V2 file under the byte-for-byte guarantee — but the
+    same fact is already on the context, because `house_fn` records every renderer `Result`. The
+    wrapper can derive what the render function would have had to be asked to report.
+
+    ⛔ AND NOT ON A FAILURE. When the render fails and NO image goes out, the member gets the
+    failure contract's sentence; labelling that as a "simplified chart" would name a picture that
+    does not exist."""
+    if not has_image:
+        return None
+    r = last_result(ctx, "renderer")
+    if r is None or r.ok:
+        return None
+    return classes.for_result("renderer", r)
 
 
-def stamp(ctx, content) -> str:
-    """Append the stamp to a message, once.
+def stamp_suffix(ctx, *, has_image: bool = False) -> str:
+    """The one footer line for this context, or `""` when there is nothing to say.
 
-    ⛔ WHEN IT DOES NOT FIT, THE CONTENT IS TRIMMED AND THE STAMP IS KEPT. The other way round is
-    the S8 violation with extra steps: a 2,000-character reply whose last clause fell off is exactly
-    the unlabelled stand-in C-06 describes, and it would happen only on the longest — usually the
-    most degraded — replies.
+    ⛔ THIS IS A DERIVATION, NOT A SECOND COPY. It used to compose the sentence itself — badge,
+    backup clause and id, all spelled here — beside a `badge.py` that composed the same line and
+    was imported by nothing. It now asks `badge.render_footer`, which is the one owner.
 
-    ⛔ IDEMPOTENT. `produce_chart` edits the same message more than once (a stand-in, then the real
-    chart); appending on each pass would give a member the same warning twice and would not be
-    caught by a test that only ever calls it once."""
-    text = str(content or "")
-    suffix = stamp_suffix(ctx)
-    if not suffix or text.endswith(suffix):
-        return text
-    joined = f"{text}\n{suffix}" if text else suffix
-    if len(joined) <= CONTENT_MAX:
-        return joined
-    keep = CONTENT_MAX - len(suffix) - 2
-    return (text[:max(0, keep)].rstrip() + "\n" + suffix) if keep > 0 else suffix[:CONTENT_MAX]
+    ⭐ IT IS KEPT AS A NAME BECAUSE THE RAILS USE IT AS ONE. `test_the_edit_wrapper_stamps_every
+    _path_the_render_function_can_take` asserts `stamp_suffix(ctx) in content` — it DERIVES the
+    expected value rather than typing it, which is why it survived this change pointing at the
+    right property. Deleting the accessor would have forced those tests to hardcode the copy, and
+    a hardcoded expectation is the second authority all over again, one layer out."""
+    cls = standin_class(ctx, has_image=has_image)
+    return badge_mod.render_footer(
+        all_results(ctx),
+        ctx.job.corr_id if getattr(ctx, "job", None) else None,
+        quality=badge_mod.standin_label(cls) if cls else None)
+
+
+def stamp(ctx, content, *, has_image: bool = False) -> str:
+    """Append the one footer line to a message, once.
+
+    ⛔⛔ THE COPY IS `badge.py`'s AND NOT THIS MODULE'S. This used to compose its own suffix —
+    the badge sentence, the backup clause and the id, all spelled again here — beside a
+    `badge.py` that composed the same line and was imported by nothing. **Two authors over the one
+    sentence a member reads**, which is the defect the whole freshness design exists to remove, and
+    it survived because both copies agreed on the day they were written.
+
+    ⛔ ORDER IS QUALITY · VINTAGE · PROVENANCE · ID, ON ONE LINE (04 §4). One line, not two, and
+    that is load-bearing: `badge.stamp` recognises its own previous stamp by the trailing ` · id`
+    and cuts exactly ONE line, so a quality clause on a second line would survive onto the HEALED
+    chart as a stale warning. `produce_chart` edits the same message twice — stand-in, then the
+    real chart — so that is not a hypothetical.
+    """
+    return badge_mod.stamp(content, stamp_suffix(ctx, has_image=has_image))
 
 
 # ── the image PATCH: OI-29, and the close of C-04 ───────────────────────────
@@ -330,10 +431,14 @@ def edit_fn(ctx):
 
     def _edit(app_id, token, **kw):
         kw = _fold_attachments(ctx, kw)
-        if "content" in kw:
-            kw = {**kw, "content": stamp(ctx, kw.get("content"))}
         images = list(kw.get("pngs") or []) or ([(kw["png"], kw.get("filename"))]
                                                 if kw.get("png") is not None else [])
+        if "content" in kw:
+            # ⛔ `has_image` IS COMPUTED BEFORE THE STAMP, NOT AFTER. The stand-in label (C-06) is
+            # only correct on a delivery that actually carries a picture, and the fold above can
+            # turn a text-only edit into one — so the question has to be asked of the edit that is
+            # about to go out, never of the edit the caller wrote.
+            kw = {**kw, "content": stamp(ctx, kw.get("content"), has_image=bool(images))}
         kw.setdefault("deadline_s", _remaining(ctx))
         kw.setdefault("cid", getattr(getattr(ctx, "job", None), "corr_id", "") or "")
         sent = inner(app_id, token, **kw)

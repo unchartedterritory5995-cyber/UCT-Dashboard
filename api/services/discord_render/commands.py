@@ -56,6 +56,32 @@ def command_enabled(name: str) -> bool:
     return os.environ.get(f"DISCORD_RENDER_V2_{name.upper()}_ENABLED", "1").strip().lower() not in _OFF
 
 
+def v2_channels() -> tuple:
+    """The channels V2 may answer in, or () for "every channel" (OI-35).
+
+    ⛔⛔ WITHOUT THIS THERE IS NO CANARY. `enabled()` is one global boolean and
+    `command_enabled()` splits by COMMAND, not by channel — so flipping
+    DISCORD_RENDER_V2_ENABLED sends every member's /chart in #chart-flow-requests to V2
+    in the same instant. That is the member-channel flip, which is the owner's decision
+    and not a canary. 03-architecture §2.1 specified a per-channel flag; what shipped
+    had no channel dimension at all, and the flip packet's precondition table was
+    written against the spec rather than against the code.
+
+    ⛔ UNSET MEANS EVERY CHANNEL, deliberately: this is a NARROWING control, not a kill
+    switch. If it defaulted to "none" then a deployment that set DISCORD_RENDER_V2_ENABLED
+    and forgot this one would silently render V2 to nobody while every check said it was
+    on — off-and-unset being indistinguishable from off-on-purpose is the exact defect
+    the feature-flag ledger exists to prevent."""
+    raw = os.environ.get("DISCORD_RENDER_V2_CHANNELS", "")
+    return tuple(part for part in (p.strip() for p in raw.split(",")) if part)
+
+
+def channel_allowed(interaction: dict) -> bool:
+    """True if V2 may answer this interaction's channel."""
+    allowed = v2_channels()
+    return (not allowed) or str(interaction.get("channel_id") or "") in allowed
+
+
 # ── runtime singleton ───────────────────────────────────────────────────────
 
 _runtime: JobRuntime | None = None
@@ -279,6 +305,16 @@ async def handle(interaction: dict, received: float) -> dict | None:
     data = interaction.get("data") or {}
     name = data.get("name")
     cid_field = str(data.get("custom_id") or "")
+
+    # ⛔⛔ THE CANARY GATE (OI-35). Returning None hands the interaction back to the pre-V2
+    # branches, which is the documented fall-through contract — so a channel outside the
+    # canary behaves EXACTLY as it does today, including its autocomplete and its buttons.
+    # ⛔ /renderhealth is exempt on purpose: the router answers it whatever the master flag
+    # says, because it is a read-only admin diagnostic and it is most useful BEFORE and
+    # OUTSIDE the canary — that is how an admin watches the queue while V2 is still dark.
+    # Gating it here would silently break it in every channel the moment a canary is set.
+    if name != di.RENDERHEALTH_COMMAND and not channel_allowed(interaction):
+        return None
 
     # Autocomplete (type 4) cannot be deferred: answer inside a bounded budget, off the loop.
     if itype == 4 and command_enabled("chart") and (name in di.CHART_COMMAND_NAMES or name == di.FLOW_COMMAND):

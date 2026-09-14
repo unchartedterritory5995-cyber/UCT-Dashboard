@@ -46,6 +46,49 @@ why C-08 and C-06 both took two weeks to name.
 - **Text:** `Envelope.badge` — `⚠ data as of {as_of_et} ET (stale)`. One owner; the message content,
   the house page (`?stale=`) and the stand-in all read that, never a second copy of the sentence.
   `render_badge` **selects** it and does not compose it.
+
+### 2b. How it reaches the house page — `?stale=` carries the SENTENCE (C-07, closed 2026-09-14)
+
+`badge.vintage_param(options) -> str | None` is the one function that turns a freshness verdict into
+the value on the render URL, and `discord_chart_house.build_render_url` appends it as `?stale=`.
+`ChartRender.jsx` draws what it is handed and composes nothing.
+
+- ⛔⛔ **THE SENTENCE TRAVELS, NOT THE DATE**, and this is the clause to argue with before changing
+  it. 03 §3.8 sketches the parameter as `?stale=<as_of>`; §2 above assigns the sentence exactly one
+  owner, and those two cannot both be satisfied by sending a date — the page would have to phrase
+  the warning itself, which is a second author over the one value a member reads. That is precisely
+  the failure C-07 is made of: on 2026-08-31 a chart reached the public channel with the footer's
+  wall clock saying Monday beside a stats strip describing Friday. **The wording is
+  `Envelope.badge`'s, wherever it is drawn.** (04 owns the copy; where the two documents differ on
+  the shape of this parameter, this section is the newer decision and 03 §3.8 the older sketch.)
+- ⛔ **ABSENT IS THE DEFAULT, AND ABSENT COVERS THREE DIFFERENT FACTS.** No parameter is emitted for
+  a fresh verdict, for an unknown one (`stale is None`), or for a stale verdict with no readable
+  `as_of` — the same three cases §2 already refuses a badge for. So "we measured and it is fine" and
+  "we did not measure" look identical on the URL, which is correct: in both there is nothing to tell
+  a member, and it is what keeps the badge rare.
+- ⛔ **THE VERDICT IS THE TRI-STATE, NOT A TRUTHY VALUE.** `options["stale"]` must be literally
+  `True`; a truthy string or `1` is a caller who has not measured, and is refused.
+- ⛔ **IT IS APPENDED LAST, AND THAT IS BEHAVIOUR.** `urlencode` writes a dict in insertion order, so
+  trailing the parameter is what keeps every URL that carries no vintage byte-for-byte what it was
+  before this existed. That claim is proved, not asserted:
+  `tests/test_discord_render_vintage_url.py` executes `discord_chart_house.py` as it stood at
+  `4eec5e0aa` out of git and compares `build_render_url` across eleven option shapes.
+- ⏳ **IT IS A CAPABILITY UNTIL SOMETHING PRODUCES IT, AND NOTHING DOES YET.** `build_render_url`
+  emits the vintage when `options` carries it, and no production call site puts it there — the one
+  seam is `house_opts` in `api/services/discord_interactions.py::produce_chart`, beside the
+  `exttag` block, where the newest bar is already in hand as `daily[-1]["t"]`:
+  `house_opts["stale"], house_opts["as_of"] = env.stale, env.as_of_et`. That file is not this lane's
+  and the wire is two lines. ⛔ Recorded here rather than left to be discovered, because
+  *built, tested, green and unwired* is this programme's most-repeated shape — `breakers.py` and
+  `freshness.py` were both exactly this for a step and a half.
+- ⚠️ **Stated residual:** the page keeps an older, stats-derived clause (`· data as of Aug 28`,
+  from `?stats=`'s own `as_of`) for a caller that sends no verdict. When `?stale=` is present it
+  **wins and that clause is suppressed**, so there is only ever one vintage sentence under a chart.
+  Two would be the disagreement this whole class of bug is made of.
+- ⚠️ `/r/chart` is public, so this value is attacker-controlled in exactly the way `?bname=` and
+  `?company=` already are. React escapes it; the page additionally collapses whitespace, strips
+  control characters and bounds it to 96 characters, so it can only ever be one short line of text
+  in our own footer.
 - **A stale verdict with no readable `as_of_et` draws nothing.** A warning with no timestamp in it
   tells a member something is wrong and nothing about what.
 - **Never on a closed market unless the session is genuinely missed.** The session rule, not an age.
@@ -79,14 +122,28 @@ why C-08 and C-06 both took two weeks to name.
 
 ## 4. The footer
 
-`badge.render_footer(results, corr_id) -> str`. One line, and it only appears when it has something
-to say. Order: **vintage · provenance · id**.
+`badge.render_footer(results, corr_id, *, quality=None) -> str`. One line, and it only appears when
+it has something to say. Order: **quality · vintage · provenance · id**.
 
-    {Envelope.badge} · {provenance clause, only when not the usual source} · id {corr_id}
+    {standin_label} · {Envelope.badge} · {provenance clause, only when not the usual source} · id {corr_id}
+
+- ⛔⛔ **THE QUALITY CLAUSE SHARES THIS LINE; IT DOES NOT GET ONE OF ITS OWN.** `produce_chart`
+  edits the same message twice — a stand-in, then the real chart — and `stamp`'s de-duplicator
+  recognises our previous stamp by its trailing `· id <x>` and cuts exactly ONE line. A stand-in
+  label on a second line would therefore survive the edit that healed it, leaving "⚠ simplified
+  chart" under a chart that is no longer simplified: C-06 inverted, and worse than C-06, because a
+  member who has learnt to trust the label is then being lied to by it. Composing the clause at the
+  call site instead would mean re-typing the separator and the id form — a second authority over the
+  one string a member reads, which is the defect §3 exists to prevent. So it arrives as a parameter,
+  and the one place that composes this line composes all of it.
+- ⚠️ `quality=None` is the whole of the behaviour that existed before the parameter: every call site
+  that does not pass it produces the byte-identical line it produced before, and
+  `test_omitting_quality_leaves_every_existing_line_byte_identical` is the control on that.
 
 - ⚰️ **The vintage clause IS the badge sentence, not a bare `{as_of_et} ET`.** This file sketched
   the bare form while §2 assigned the sentence one owner — two shapes for one clause, in one
-  document. There is one sentence and `Envelope.badge` owns it.
+  document. There is one sentence and `Envelope.badge` owns it. ⭐ The same question came back a
+  second time one layer down, as *what does `?stale=` carry* — §2b, and it is answered the same way.
 - **Vintage, never the wall clock** (§3.10) — the same closed-market input must render the same
   pixels, which it cannot do if the footer carries "now".
 - **`id {corr_id}` is always present on a degraded or failed delivery** and is what a member quotes;
@@ -156,6 +213,25 @@ capture against the stored goldens at **zero drift**. What they are for, and wha
   committed binary that nobody can read is a fixture that cannot distinguish a render change from a
   library upgrade.
 
+### 6b. The render-URL golden — `goldens/render_urls.json`
+
+A **second** golden, from the same instrument (`capture_render_urls()`), over the URL the renderer
+is pointed at.
+
+- ⛔⛔ **IT IS SEPARATE BECAUSE THE REPLY GOLDEN CANNOT SEE THIS AT ALL.** That capture runs with
+  `house_fn` absent — deliberately, so nothing reaches the network — which means the house render
+  URL is never built on that path. A stale-render case added there would be green whatever
+  `build_render_url` did: coverage that is none
+  (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). Keeping the files apart also keeps
+  each one's claim readable — `prev2_replies.json` says *the pre-V2 reply has not moved*, and this
+  one says *this is what a member's picture is drawn from*.
+- **It captures both halves of the promise in one artifact:** nine URLs that carry no vintage and
+  must never move, two that carry the badge sentence, and three verdicts — fresh, unknown, and
+  stale-with-no-readable-timestamp — recorded for the **silence** they produce, so the absent badge
+  is pinned as deliberately as the present one.
+- The vintage in it is a fixed string, never computed from a clock (§3.10). A golden that re-derived
+  "yesterday" would go red every morning until somebody deleted it.
+
 ## 7. Status
 
 ✅ **The copy has one home (2.7, 2026-09-13).** `api/services/discord_render/badge.py` owns the
@@ -163,6 +239,36 @@ badge, the provenance clause, the footer order, the stand-in label and the stamp
 `tests/test_discord_render_badge.py` asserts the rendered text of each.
 ⛔ Do not add a fourth place that decides what a member reads — if a new surface needs a sentence, it
 comes from `contract.FAILURE_CLASSES` or `Envelope.badge`, through `badge.py`.
+
+✅ **C-07 is closed end to end (Lane D, 2026-09-14).** `badge.vintage_param` → `?stale=` →
+`ChartRender.jsx` → `goldens/render_urls.json` (§2b, §6b). The standing strict-xfail
+`test_c07_the_house_render_url_carries_the_data_vintage_so_the_image_can_say_it_is_stale` in
+`tests/test_discord_render_forensics.py` now XPASSes and is the integrator's to remove.
+`mutation_harness_badge.py`: **38/38 RED**, green control before and after, every restore
+sha-verified — Q1–Q3 on the quality clause and V1–V6 on the vintage, V1 being "send a bare date and
+let the page phrase the warning", which is the decision §2b exists to hold.
+✅ **The page half has now been RUN** — `npx vitest run src/pages/ChartRender.stale.test.jsx` in the
+integrator's worktree (which has the packages): **Test Files 1 passed · Tests 9 passed**. Lane D's
+worktree had no `app/node_modules` and correctly refused to `npm ci` onto a box this project has
+already been OOM-swept by; it reported the gap instead of glossing it, which is what made closing it
+a one-command job.
+⚠️ `app/node_modules` here is a **junction** into another worktree — `Get-Item -Force` reports
+`LinkType: Junction`. ⛔ Never remove it with `Remove-Item -Recurse` or `rm -rf`: both follow the
+link and empty the TARGET, which has already cost this project 368 packages mid-programme.
+`cmd /c rmdir <link>` — no `/s` — is the only safe removal.
+
+✅ **AND C-07 NOW HAS A PRODUCER (integrator, same day).** Lane D's own report named the gap that
+would otherwise have made all of the above *built, tested, green and unwired*: `build_render_url`
+emits `?stale=` only when the options carry a vintage, and **nothing put one there**.
+`adapters/renderer._with_vintage` is that producer — it merges the bars envelope's verdict into the
+render options, never overwriting a caller's own, and returns the options untouched when there is
+no envelope, which is what keeps the pre-V2 URL byte-identical. Rail:
+`tests/test_discord_render_vintage_producer.py`, including the control that no envelope adds no
+keys, and a check that `bindings.house_fn` still passes the envelope at all.
+
+⭐ The producer lives in the **adapter**, not in `produce_chart`'s `house_opts` as the lane
+suggested, for the reason the whole programme keeps reaching for: the envelope exists only on the
+V2 path, so putting it there needs no change to a shared pre-V2 file.
 
 ⏳ **Open, and named so it is not mistaken for done:** `adapters/bindings.py` still holds its own
 `stamp_suffix` / `stamp` — the same rules, a second implementation. **Lane A swaps it over to

@@ -1,0 +1,36 @@
+=== 3.1a 50 concurrent across 20 symbols ===
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+TOTALS load_harness PASS samples=1001 p50=1ms p95=40ms p99=102ms max=334ms over_1s=0 over_3s=0 rate=50.0/s seconds=20.0 members=50 handler_ms=0.0 symbols=stub replies={"deferred": 73, "immediate": 928}
+
+=== 3.1b 200 burst ===
+bars_sanitize meta fetch failed for NVDA: corporate-action fetch for NVDA returned no answer (rate limit, transport error, or missing FMP_API_KEY) — this is NOT 'no splits declared'
+bars_sanitize meta fetch failed for SPY: corporate-action fetch for SPY returned no answer (rate limit, transport error, or missing FMP_API_KEY) — this is NOT 'no splits declared'
+TOTALS load_harness PASS samples=200 p50=0ms p95=2ms p99=5ms max=321ms over_1s=0 over_3s=0 rate=200.0/s seconds=1.0 members=50 handler_ms=0.0 symbols=stub replies={"deferred": 54, "immediate": 146}
+
+=== 3.1c sustained 1/s for 10 min ===
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+TOTALS load_harness PASS samples=601 p50=1ms p95=1ms p99=1ms max=296ms over_1s=0 over_3s=0 rate=1.0/s seconds=600.0 members=40 handler_ms=0.0 symbols=stub replies={"deferred": 601}

@@ -276,7 +276,7 @@ function paneHeightFor(defId) {
  * order the list is in. `legendFromDefinitions.test.jsx` pins the two together;
  * one list, two readings.
  */
-function orderedPaneKeys(instances, excluded) {
+function orderedPaneKeys(instances, excluded, keep, include, defByKey) {
   const paneIds = paneTargetIds()
   const keys = []
   const seen = new Set()
@@ -305,11 +305,33 @@ function orderedPaneKeys(instances, excluded) {
     // re-solves to RSI=1, MACD=2 and MACD slides down to make room. Reserving an
     // empty pane instead would mean maintaining a fiction the library refuses to
     // hold, in a second place.
-    if (inst.hidden === true) continue
-    const id = inst.defId
-    if (typeof id !== 'string' || !paneIds.has(id)) continue
+    const id0 = inst.defId
+    // ⭐ …UNLESS SOMETHING VISIBLE DRAWS IN ITS PANE. A hidden RSI reserves
+    // nothing on its own account, and everything if `MA(RSI)` is still on screen.
+    // The eye is about INK, not about existence, so a host that still has a guest
+    // keeps the rectangle that guest is drawn in — see
+    // `displayTarget.paneOwnersNeeded`, which is where that question is answered.
+    if (inst.hidden === true && !(keep && keep.has(inst.instanceId))) continue
+    // ⭐⭐ THE PANE KEY IS THE HOST **INSTANCE**, NOT ITS DEFINITION (P2.0c).
+    // Keying by `defId` collapsed every own-pane instance of one definition into a
+    // single pane: two RSIs shared one, and two `dataSeries` would have shared one
+    // no matter which instruments they carried. A definition describes BEHAVIOUR
+    // and DEFAULTS; it is not a presentation container. Keys are DERIVED here and
+    // never persisted, so widening them is a realisation change, not a migration.
+    const id = inst.instanceId
+    if (typeof id !== 'string' || !id) continue
+    // Eligible because the DEFINITION asks for a pane by default, or because THIS
+    // INSTANCE's active placement resolved to one (`displayTarget.paneOwnKeys`).
+    // The second half is what makes "Display in: Own pane" realisable for a
+    // price-declared definition, which the UI has always been able to WRITE.
+    if (!paneIds.has(id0) && !(include && include.has(id))) continue
     if (excluded.has(id) || seen.has(id)) continue
     seen.add(id)
+    // ⚠️ THE DEFINITION IS CARRIED BESIDE THE KEY, not encoded into it. Pane
+    // HEIGHT is still a definition default (`paneHeightFor`), so the layout needs
+    // to get from a host back to the definition that supplies it — without the key
+    // having to be parseable, which would make it a format rather than an id.
+    if (defByKey) defByKey.set(id, id0)
     keys.push(id)
   }
 
@@ -556,13 +578,23 @@ export function computePaneLayout(instances, opts) {
   const mainPaneIndex = (Number.isInteger(o.mainPaneIndex)
     && o.mainPaneIndex >= 0 && o.mainPaneIndex < firstPaneIndex) ? o.mainPaneIndex : 0
 
-  const keys = orderedPaneKeys(instances, excluded)
+  // ⭐ THE ADDITIVE MIRROR OF `excludeKeys`. The caller already subtracts the
+  // instances `displayTarget` says need no pane of their own (followers, volume
+  // overlays); this is the same answer's other half — the ones an ACTIVE instance
+  // placement says DO need one. Absent, both behave exactly as before, so every
+  // existing caller is unchanged.
+  const keepKeys = o.keepKeys instanceof Set ? o.keepKeys : new Set(o.keepKeys || [])
+  const includeKeys = o.includeKeys instanceof Set ? o.includeKeys : new Set(o.includeKeys || [])
+  // key → defId, so a definition default can still be found from a host key.
+  const defByKey = new Map()
+  const keys = orderedPaneKeys(instances, excluded, keepKeys, includeKeys, defByKey)
+  const heightOf = (key) => paneHeightFor(defByKey.get(key))
 
   // Bottom-to-top, because that is the order the squeeze and both shaves run in
   // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
   // directly under the price area, exactly as the retired `PANES` put it last.
   const bottomToTop = [...keys].reverse()
-  const baseHeights = bottomToTop.map(paneHeightFor)
+  const baseHeights = bottomToTop.map(heightOf)
   if (hasVolumeBand) baseHeights.push(VOLUME_PANE_HEIGHT)
 
   const heightsC = stackHundredths(baseHeights)
@@ -571,7 +603,21 @@ export function computePaneLayout(instances, opts) {
   // ⭐ THE BAND MAP IS COMPUTED BEFORE ANY HEIGHT GUARD, because it does not need
   // a height and its consumers (a right-click resolver, the candles' own
   // margins) can be asked before the renderer can answer one.
-  const bands = bandMap(bottomToTop, heightsC, oscCount, hasVolumeBand)
+  // ⛔⛔ AND IT IS KEYED BY **DEFINITION**, NOT BY PANE KEY (P2.0c). `bands` is
+  // the `'bands'`-mode geometry: the stacked slices of pane 0 that exist when
+  // there are no real panes at all. Its readers ask DEFINITION questions —
+  // `placement.js` looks up a scale named after the definition, and the
+  // right-click region resolver is definition-shaped end to end. Widening this map
+  // to instance keys would rename every legacy scale and every right-click region,
+  // which is blast radius nobody asked for.
+  //
+  // ⚠️ TWO OWN-PANE INSTANCES OF ONE DEFINITION COLLIDE HERE, and that is the
+  // honest answer for a mode that has no panes to give them: a band is a slice of
+  // pane 0 named after a definition, and `'bands'` predates instances entirely.
+  // `PANE_MODE` is `'panes'`, so production never reaches it.
+  const bands = bandMap(
+    bottomToTop.map((k) => defByKey.get(k) || k), heightsC, oscCount, hasVolumeBand,
+  )
 
   if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
     return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
@@ -631,6 +677,11 @@ export function computePaneLayout(instances, opts) {
     mainPaneIndex,
     above,
     bands,
+    // ⭐ THE HOST → DEFINITION MAP, EXPOSED. `placement.js` needs it to honour a
+    // LEGACY `@<defId>` follow target deterministically — see its follower branch.
+    // Pane keys themselves are never persisted, so this is the only place the old
+    // vocabulary has to be interpreted, and it is a read, never a rewrite.
+    defByKey,
     // Top-to-bottom, so `index` is the LWC pane index a series is moved to.
     // `stretchFactor` IS the pixel height: stretch factors distribute the
     // AVAILABLE height (chart minus separators minus time axis), so a factor set

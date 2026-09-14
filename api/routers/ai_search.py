@@ -15,6 +15,7 @@ were silently multiplying the daily budgets on each one.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import json
 import os
@@ -2258,6 +2259,23 @@ def _brain_context(query: str, question_type: str | None, verdict_ask: bool) -> 
     )
 
 
+# ── Wisdom Loop "UCT SAID" block (dark; docs/wisdom/CONTRACTS.md §6.6) ──────
+# The asker rides a ContextVar so _grounded_system keeps its ONE-argument
+# signature (about ten tests monkeypatch it with `lambda q: ...`). The two public
+# endpoints set it around their call; anything that calls _grounded_system
+# without it (the eval harness, the personal lane) gets no Wisdom block. The gate
+# order — kill switch, then asker, then the wisdom-askai cohort — lives in the
+# adapter, read per call.
+_WISDOM_ASKER: contextvars.ContextVar = contextvars.ContextVar("ai_search_wisdom_asker", default=None)
+
+
+def _wisdom_context(query: str, meta: dict) -> tuple[str, list]:
+    from api.services.wisdom.publish.adapters import askai
+    return askai.wisdom_block(query, user_id=_WISDOM_ASKER.get(),
+                              question_type=meta.get("question_type"),
+                              query_tickers=meta.get("query_tickers") or [])
+
+
 def _grounded_system(query: str) -> tuple[str, str, dict]:
     ctx, salt, meta = _uct_context(query)
     # question_type drives the Phase-2 memory blend (and is captured in the log).
@@ -2281,6 +2299,20 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
             system += bctx
             if "playbook" not in meta["grounding_sources"]:
                 meta["grounding_sources"].append("playbook")
+    except Exception:
+        pass
+    # Wisdom Loop — dated, signed team statements. Dark unless the flag AND the
+    # asker's wisdom-askai cohort say otherwise; with either off this returns
+    # ("", []) before touching any store, so the output is byte-identical. The
+    # salt suffix keeps an answer cached before a flip from being served after it.
+    try:
+        wblock, wcites = _wisdom_context(query, meta)
+        if wblock:
+            system += wblock
+            if "wisdom" not in meta["grounding_sources"]:
+                meta["grounding_sources"].append("wisdom")
+            meta["wisdom_citations"] = wcites
+            salt = f"{salt or ''}|wisdom"
     except Exception:
         pass
     # Phase 2 — blend in the desk's OWN prior evergreen research (best-effort,
@@ -2601,7 +2633,13 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     _reserve(user_id, units)   # atomic check-and-reserve BEFORE the upstream call
     _record_request(mode, stream=False)
     history = _clean_history(body.history)
-    system, salt, meta = _grounded_system(body.query)
+    # The asker reaches the Wisdom block through a ContextVar (see _WISDOM_ASKER);
+    # reset even when grounding raises, so a pool thread never carries it over.
+    _wtok = _WISDOM_ASKER.set(str(user_id) if user_id else None)
+    try:
+        system, salt, meta = _grounded_system(body.query)
+    finally:
+        _WISDOM_ASKER.reset(_wtok)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
 
     def _search(m):
@@ -2837,7 +2875,11 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
     # memory embedding call are blocking, and this runs on the single shared loop
     # (the 524-outage surface). run_in_executor keeps the loop free.
     loop = asyncio.get_running_loop()
-    system, salt, meta = await loop.run_in_executor(None, _grounded_system, body.query)
+    # run_in_executor does NOT carry contextvars into the pool thread, so the asker
+    # for the Wisdom block is set inside a copied context that the call runs in.
+    _wctx = contextvars.copy_context()
+    _wctx.run(_WISDOM_ASKER.set, str(user_id) if user_id else None)
+    system, salt, meta = await loop.run_in_executor(None, _wctx.run, _grounded_system, body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
     # Proposal parse can hit the live quote (ambiguous verbs) — a blocking
     # Massive read that must never ride the shared event loop inside gen().

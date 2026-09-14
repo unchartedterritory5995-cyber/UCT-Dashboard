@@ -1,4 +1,219 @@
-# RESUME — restart checkpoint 2026-09-13 20:45 ET (Sunday)
+# RESUME — restart checkpoint 2026-09-14 15:20 ET (Monday, pre-close)
+
+> ⭐ **THIS IS THE CURRENT HEADER.** Everything below it is superseded where it disagrees.
+
+## a00b. What the Discord admin pass changed, and the two flip blockers it uncovered
+
+The owner opened a browser and handed the whole Discord list over. **A1, A2 and A3 are DONE and
+verified by API read-back.** The `⛔⛔ ONE OWNER ACTION` block in §a00 below is **satisfied** —
+`MANAGE_CHANNELS` is granted — and the rest of that section's blocked rows have moved.
+
+| Was | Now |
+|---|---|
+| bot lacks `MANAGE_CHANNELS` | ✅ granted — `--whoami` says `CAN create channels` |
+| `#render-alerts` Contributor-visible | ✅ **overwrite removed**; probe says `RENDER_ALERTS_ACL ACL_OK`. Precondition row is **MET** |
+| no channel both bot-postable and not Contributor-visible | ✅ **`#render-smoke` = `1549129739048853544`** exists, private at creation, organic members exposed **0** |
+
+⛔⛔ **NEXT SESSION, READ THIS FIRST — two flip blockers, both found by executing the brief:**
+
+- **OI-34.** `/chart`, `/charts`, `/flow` were gated to **ONE** channel id. Repointing
+  `CHART_FLOW_CHANNEL_ID` MOVES the commands, it does not add — every member of a 1,558-member
+  guild loses all three. Fixed: it is now a comma-separated **allowlist**, first entry is the
+  member-facing one that the nudge names. ⭐ This is also the real answer to Gap 3: the `/chart`
+  shadow saw nothing because a member can only run `/chart` in one channel.
+- **OI-35.** There was **no per-channel V2 flag**. `commands.enabled()` is one global boolean;
+  `command_enabled()` splits by COMMAND. The flip packet said "per-channel per 2.1" and §4.0 said
+  the canary is the admin channel — both disagreed with the code, and agreed with each other.
+  Flipping as written = the member-channel flip. Fixed: `DISCORD_RENDER_V2_CHANNELS` narrows V2;
+  **unset means every channel**, so its absence is "there is no canary", never "the canary is off".
+
+⚠️ **OI-33:** `MANAGE_CHANNELS` is NOT enough to edit an existing channel's overwrites — that needs
+`MANAGE_ROLES` (403 `50013`). `MANAGE_ROLES` was deliberately **not** granted; A2 went through the
+browser instead. Do not "fix" this by granting it.
+
+⚠️ **OI-36:** `/buzz` in `#render-smoke` → **"The application did not respond"** while the renderer
+answered `200, 346 KB, ms=10738` against a 3 s ack deadline. **C-11 live, on the pre-V2 path.** The
+shadow said `outcome=agree`, so V2 would do the same — not a defect the flip fixes.
+
+### The queue as of 15:20 ET
+
+**9 commits on `discord-render-hardening`, gated and waiting for the 16:00 window.** Full scoped
+gate **798 passed / 9 skipped / 0 failed**; pre-V2 golden **0 drift**; mutations **3/3 + 4/4 RED**.
+Master moved two commits under the gate, touching only `.github/workflows/master-deploy-gate.yml` —
+**no overlap**, so the gate stands (08's no-overlap branch, not a stale green).
+
+⛔ **The canary flip is BLOCKED tonight and here is exactly why**, so nobody re-derives it:
+
+| Row | State | Can it clear tonight? |
+|---|---|---|
+| forensics **C-02** | 🟡 ack half closed; load half needs 3.1 `--real` | **yes — tonight's run** |
+| forensics **C-09** | 🔴 open; needs 3.1 `--real` to show the warm cycle yields | **yes — tonight's run** |
+| forensics **C-13** | 🟡 log hygiene shipped; **token rotation is OI-13, the owner's** | see below |
+| soak ≥ 24 h | 57/90 clean ticks, 15 min apart | **~23:40 ET** — reachable, late |
+| 3.5 smoke | 2 of 15 rows | partly |
+
+⭐ **C-13's rotation is NOT a manual owner chore — it is automated and it has been silently
+failing.** `UCT Render Token Retire` reported `lastRun=07:15, LastTaskResult=1` and had **never done
+anything**: its `.cmd` redirected stdout into `render_token_retire.run.log`, *the same file the
+Python script opens for append*, so the script died on its first `log()` call with `PermissionError`
+— and its crash handler died on the same line. The wrapper now writes to
+`render_token_retire.wrapper.log` (backup: `render_token_retire.cmd.bak-2026-09-14`). **The Morning
+Wire HAS run today** (`last_run_date = 2026-09-14`), so its precondition is satisfied and it can run
+after the close. The script itself is careful — it probes both tokens first and aborts if the
+current one is not accepted.
+
+### What the 16:00 sequence actually did — 2026-09-14, 16:45 ET
+
+**Merged and deployed `56e9d3aec`** (OI-34, OI-35, B1, B4/B5, B2, all 316 anchors green).
+`web` SUCCESS, **and `chart-renderer` SUCCESS too** — its watch path is `services/chart_renderer/**`
+and B1 touches it, so B1's lever is IN PRODUCTION but **dark** (`RENDER_ADMIN_ENDPOINTS` unset).
+
+⛔ **I pushed at 15:49, eight minutes BEFORE the close, having decided not to and having set a timer
+to prevent it.** I acted on a mental estimate that had drifted ~25 minutes. Cost: a `web` +
+`chart-renderer` restart in the last minutes of RTH; `/api/health` 200 after; no scheduler slot was
+due. Full entry in `LEDGER.md`. **Standing correction: no scheduled action fires on a remembered
+time — read the clock in the same tool call that takes the action.**
+
+### The numbers, and the rate they belong to
+
+| phase | S1 ack | S2 p50 / p95 / p99 | success | failures |
+|---|---|---|---|---|
+| 3.1a — **30 arrivals/s** | p95 63 ms, `over_3s` **0** | 14,855 / 18,117 / 18,836 ms | 35.7 % | **all `queue_full`** (81) |
+| 3.1b — 100 burst | p95 1 ms, `over_3s` **0** | 13,727 / 16,472 / 16,953 ms | 50.0 % | **all `queue_full`** (31) |
+| **3.1c — 1 arrival/s × 10 min** | p95 6 ms, `over_3s` **0** | **3.5 / 1,748 / 6,692 ms — ALL INSIDE S2** | 98.67 % | **all `queue_full`** (8) |
+
+⭐ **S1 held in every phase. Every single failure everywhere was `queue_full`** — never a timeout,
+never a render error, no breaker trip. 593 real charts delivered in 3.1c alone (97.6 MB).
+⚠️ **OI-37:** the brief said "30 concurrent"; `--rate 30` is 30 **per second**, so 3.1a is ~15× the
+specified load. Quote no S2 number without its arrival rate.
+
+chaos `--real` **PASS** (7 ran, 7 passed, 6 refused by name) · determinism ×20 **PASS** (6/6
+identical) · wire hop **PROVEN** (40 × HTTP 200).
+
+### ⛔⛔ THE THING TO READ FIRST IF YOU READ NOTHING ELSE
+
+**The flip gate's S2 row could not fail.** `check_s2_measured` was `MET if the --real files exist`
+and never opened them. Tonight's runs all printed FAIL — and the row flipped from NOT MEASURABLE to
+**MET** because five files now existed. **Producing failing evidence made the gate greener**, on the
+row that decides whether delivery meets its SLO, in the tool `06` §0 calls "the authority".
+Two sibling rows (chaos, 3.5) had the same shape. All three now read verdicts. **Re-read any flip
+decision taken against the old tool.**
+
+### Flip status: NOT MET, and it is not close
+
+| row | state |
+|---|---|
+| forensics | 🔴 11/14 — **C-02**, **C-09**, **C-13** open |
+| S2 | 🔴 9 named breaches at 30/s (MET at 1/s) |
+| 3.5 smoke | 🔴 **2 of 15 rows** |
+| soak | ⚪ 61/90 ticks (~23:40 ET) |
+| mutations | ⚪ needs `--run-mutations` (anchors are 316/316) |
+| cache · chaos · shadow · xfails · `#render-alerts` | ✅ MET |
+
+**Organic members exposed to V2: 0.**
+
+### Next session — in this order
+
+1. **3.5 rows 2–4, 6–7, 10–15** in `#render-smoke` (rows 1 and 9 pass; 5 and 8 need re-running).
+   ⛔ Save each screenshot to disk in the SAME action — ephemeral replies do not survive a reload.
+2. **OI-38** — the cache reported `hits 0, misses 0` under `--real`: not a poor hit rate, *not even
+   a miss*, across ~76 renders of 20 symbols. Gap 1's 80 % is a bench number, unreproduced.
+3. **Arm B1** on chart-renderer (`RENDER_ADMIN_ENDPOINTS=1` + `RENDER_ADMIN_TOKEN`) and take the
+   determinism-across-recycle row from NOT MEASURABLE to measured.
+4. **C-13** — `render_token_retire.cmd` is fixed and the Wire has run; it can go any time.
+5. Re-run `flip_preconditions.py`.
+
+---
+
+# RESUME — restart checkpoint 2026-09-14 13:50 ET (Monday, midday)
+
+## a00. The midday state, and the four things that are blocked
+
+**Master `db23f17e8` is live and verified in-process.** Two further commits (`abda0e0d0`,
+`26a88d052`) are **gated, green and queued** — master's own pre-push guard refused them because
+another session's deploy was in flight, and the override was deliberately not used.
+
+| Ruling | State |
+|---|---|
+| Gap 1 — cache wired to the hot path | ✅ **merged**, 80 % hit rate on the bench, 8 mutations red |
+| Gap 3 — `/chart` shadow | ✅ **settled**: the hook fires (mutation-proved); the absence was real traffic absence, confirmed by an EXACT pull **and** by the chart production log |
+| OI-32 — never cache a stand-in | ✅ **merged**, refused at BOTH tiers |
+| NOT-APPLIED ≠ 0 | ✅ **fails in the gate** (`tests/test_mutation_harness_anchors.py`), one second, plus per-retirement cross-references |
+| Gap 2 — S2 in `--real` | 🟡 **built and self-checked, NOT RUN.** Needs a delivery channel |
+| Gap 4 — 3.5 smoke | 🔴 **blocked**: no channel is both bot-postable and not Contributor-visible |
+| Step 1.3 — `#render-alerts` | 🔴 **measured**: `Contributor` is the channel's ONLY view-allow overwrite |
+
+⛔⛔ **THE ONE OWNER ACTION THAT UNBLOCKS THE MOST:** grant the bot's role
+(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`** — then
+`discord_channel_admin.py --create-smoke` makes `#render-smoke` with itself inside it, and 3.5 plus
+the `--real` delivery hop both unblock. ⚠️ That grant does **not** fix `#render-alerts`: 50001 there
+is *membership*, and the bot has no overwrite on that channel. Two gaps, two fixes.
+
+**Flip gate: `NOT MET`** — `python docs/discord-render/instruments/flip_preconditions.py`.
+Three rows NOT MET, five NOT MEASURABLE, **organic members exposed 0**.
+
+**Shadow at 13:39 ET: 33 records, EXACT, all `/flow`, all agree, zero divergences, zero `/chart`.**
+No member ran `/chart` today — confirmed twice over.
+
+⚠️ **Live finding worth a look:** the warm cycle is still blowing its 20 s budget continuously
+(`hot warm hit its 20s budget after 20.0–22.8s, N chart(s) deferred`, many times an hour through
+RTH). That is **C-09**, still open, and it is happening now.
+
+---
+
+# RESUME — earlier checkpoint 2026-09-14 03:50 ET (Monday, pre-RTH)
+
+> ⭐ **THIS HEADER IS THE CURRENT ONE. The sections below it were written at 2026-09-13 20:45 ET
+> and are superseded where they disagree with §a0.** They are kept because §f (standing rules),
+> §h (the rest of the machine) and §i (gotchas) have not moved and are still the fastest read.
+
+## a0. Where it actually is, 2026-09-14 03:50 ET
+
+**Master `e269f2b10`, deployed SUCCESS, verified in the RUNNING process** (not `--kv`):
+`RENDER_V2_SHADOW='1'` · `DISCORD_RENDER_V2_ENABLED` **absent** · `delivery.edit_image`,
+`bindings._fold_attachments`, `renderer._with_vintage`, `badge.render_footer(quality=…)` and
+`JobRuntime.send_failure_result` all present · `l2_root` = `/data/discord_render_cache`.
+
+**Every forensics class this programme owns now has a PASSING regression test.** C-04, C-06 and
+C-07 were `xfail(strict=True)` at the last checkpoint; all three are closed **on the V2 path**, and
+`01-failure-forensics.md` has a section explaining exactly what that qualifier costs. Zero xfails
+remain in `tests/test_discord_render_forensics.py`.
+
+| Ruling | Landed | Where |
+|---|---|---|
+| **OI-29** — the chart IMAGE through `delivery.edit_image`; C-04 closed by the attachment fold | `decd049c1` | `delivery.py`, `adapters/bindings.py`, `commands.py` |
+| **C-06** — the stand-in label, derived in the V2 wrapper; `bindings` consumes `badge.py` at last | `b5a4e1a31` | `adapters/bindings.py` |
+| **C-07** — `?stale=` end to end **and its producer** | Lane D + `b5a4e1a31` | `discord_chart_house`, `badge.py`, `ChartRender.jsx`, `adapters/renderer.py` |
+| **OI-31** — the two-tier cache, L2 on the volume | Lane B | `artifact_cache.py`, `03` §3.6 |
+| **OI-28** — the chart-renderer reds adopted and fixed | Lane C | the renderer test loaders |
+| the per-attempt budget made structural, + a SECOND overrun in the retry backoff | Lane C | `adapters/_call.py` |
+| **Step 3** — load, chaos, determinism | `a82a2493c` | `docs/discord-render/evidence/step3/` |
+
+**Step 3 results:** load p99 **102 ms** against a 1,000 ms SLO with zero acks over 3 s · chaos
+**13/13** (the harness had 5 scenarios and the brief named 12 — the other 7 were written) ·
+determinism **20 runs, 6/6 identical** including an L1→L2 round trip.
+
+⛔ **NOT DONE, and it is the one thing standing between here and a flip packet that can be acted
+on: 3.5, the real-Discord smoke.** It needs a human to type commands in the private test channel;
+no agent can do it. Everything else in Step 3 is evidence about a rig.
+
+⛔ **Three scheduled jobs are running and their logs are the next thing to read.** All three were
+fired by hand once and their output verified, so none of them is a job nobody has seen run:
+
+| Task | Cadence | Log |
+|---|---|---|
+| `UCT Render Soak` | every 15 min | `C:\Users\Patrick\uct-render-soak\soak.log` — at 02:20 ET, 5 ticks, 262 samples, **no drift** |
+| `UCT Render Alerts Access Probe` | hourly (the owner-hand item) | `render-alerts-access.log` — `STILL_BLOCKED HTTP 403 code 50001` |
+| `UCT Render Monday Shadow Line` | once, **07:45 local = 08:45 ET** | `monday-shadow-line.log` — pulls the `drender` logs and runs `shadow_report.py`, then appends every soak totals line |
+
+⭐ The third exists so the pre-09:30 line is produced **whether or not a session is alive to write
+it**. Read that log; do not re-derive it by hand.
+
+**The Monday line**, as of 05:40 UTC: **≥ 8 records, all `/flow`, all `agree`, p50/p95 0.1 ms, zero
+divergences — and zero `/chart` records**, which the tool refuses to read as clean. The `≥` is not
+decoration: `railway_env_logs.py` printed `STOPPED: no progress past …`, so the count is a FLOOR.
+
+---
 
 Written by **Lane F** of the Discord render hardening programme (`docs/discord-render/`).
 

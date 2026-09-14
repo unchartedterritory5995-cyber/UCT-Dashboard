@@ -156,3 +156,26 @@ environment via `setx`, never in the repo, a log, a commit, or on Railway — no
 `quick_check: ok`, 28 users) and fingerprinted the users table either side: **28 → 29, exactly one id
 added, none removed**. A count rising by one is compatible with one row added and another silently
 rewritten; a set difference is not.
+
+## The standard for ANY write to a production user table
+
+The free-smoke account (2026-09-14) and the smoke account before it (2026-09-12) used the
+same sequence. It is the standard now rather than two coincidences:
+
+1. **`VACUUM INTO` a backup FIRST — never a file copy.** A plain copy of a WAL database
+   omits whatever is still in the `-wal` sidecar, so it looks complete and silently lags
+   the source. Verify `quick_check: ok` on the copy before proceeding.
+2. **Fingerprint the table before and after, and assert the SET DIFFERENCE.** ⛔ Not the
+   count: a count rising by one is compatible with one row added and another silently
+   rewritten; a set difference is not. Record `ids_added` and `ids_removed`, and expect
+   `ids_removed` to be empty.
+3. **Go through the app's own service functions** — the exact ones the product calls — never
+   raw SQL against `users` or `subscriptions`, so the row has the shape the rest of the app
+   already reads.
+4. **Generate the password on the operator's machine and set it over HTTPS afterwards.** A
+   credential passed as a `railway ssh` argument is visible in the pod's process table for
+   the life of the call; an HTTPS body is not.
+5. ⚠️ **Record where the backup is, and remember what it does not cover.**
+   `/data/backups/` is on the SAME volume as the database it backs up: it covers a logical
+   mistake — a bad write, a wrong `UPDATE`, a migration that did more than it meant to —
+   and nothing at all about losing the volume.

@@ -3428,6 +3428,46 @@ async def lifespan(app: FastAPI):
         readiness.mark_done("hot_tier")
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
 
+    # ⭐ The breadth numeric projection: idempotent, marker-gated, and started on a
+    # daemon thread so a 111 MB VACUUM INTO backup can never hold up a boot. It
+    # refuses to run without that backup, and asserts with a before/after
+    # fingerprint that it did not touch `breadth_snapshots`. Until it has run the
+    # reader still serves correctly off the blobs — which is what makes shipping
+    # the read path and the backfill in one deploy safe.
+    try:
+        import threading as _th
+
+        def _breadth_numeric_backfill():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import breadth_numeric_migration as _mig
+                _log.info("[startup] breadth numeric projection: %s", _mig.backfill())
+            except Exception:
+                _log.exception("[startup] breadth numeric backfill failed")
+            try:
+                from api.services import breadth_numeric_migration as _mig
+                _log.info("[startup] breadth reconstructed side: %s",
+                          _mig.backfill_reconstructed())
+            except Exception:
+                _log.exception("[startup] breadth reconstructed backfill failed")
+            # ⭐ AND THEN THE INCREMENTAL PASS, EVERY BOOT. The writer hooks keep the
+            # derived table in step in normal operation; this catches whatever
+            # happened while this pod was not running — a collector push to another
+            # instance, a sync merge, a hand-run admin recompute. It is a no-op when
+            # nothing drifted, and the watermark is what makes "nothing drifted" a
+            # measurement rather than an assumption.
+            try:
+                from api.services import breadth_daily_ohlc as _ohlc
+                _log.info("[startup] breadth reconstructed rebuild_stale: %s",
+                          _ohlc.rebuild_stale())
+            except Exception:
+                _log.exception("[startup] breadth reconstructed rebuild_stale failed")
+
+        _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
+                   daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the breadth backfill")
+
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
@@ -7865,6 +7905,13 @@ class _GZipSkipSSE(_GZipBase):
 # combined with orjson's already-smaller output the wire stays tiny. SSE + hashed
 # /assets/ keep bypassing gzip (unchanged).
 app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
+
+# ⭐ OUTERMOST ON PURPOSE, and added AFTER GZip so GZip runs INSIDE it. Compressing
+# the 5 MB deep-history payload is one of the stages this measures; a probe placed
+# inside the compressor would report the one number that is already known. Scoped to
+# the single path `/api/breadth-monitor` — see the module docstring.
+from api.services.breadth_timing import BreadthTimingMiddleware as _BreadthTiming  # noqa: E402
+app.add_middleware(_BreadthTiming)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

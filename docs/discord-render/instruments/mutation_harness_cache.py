@@ -1,4 +1,4 @@
-"""Mutation proofs for step 2.5 — the artifact cache and the coalescer (03 §3.6, §3.2).
+"""Mutation proofs for step 2.5 — the two-tier artifact cache and the coalescer (03 §3.6, §3.2).
 
 Same contract as `mutation_harness_adapters.py`, deliberately: one mutation at a time, an EXACT
 single replacement, EOL-aware, the file restored from the bytes captured before the edit and the
@@ -14,6 +14,18 @@ composed from the data's age; eviction reading insertion order instead of `store
 quietly demoted to an optimisation; a follower waiting without a budget; a leader's failure
 swallowed into a confident `None`.
 
+⭐ B32 ONWARDS ARE THE L2 TIER (OI-31): the volume never consulted; a hit served without being
+promoted; an L1 eviction reaching through and deleting the durable copy; the write going straight
+into the live path instead of through a tmp file and `os.replace`; each integrity field removed
+separately; a corrupt entry SERVED; the degraded-never-fresh guard laundering an absent envelope
+into a clean verdict; the volume's LRU evicting the newest; the two byte caps sharing one env name
+again; the root's default going unreadable by `conftest`'s sandbox derivation; and `clear()`
+becoming a delete against durable data.
+
+⚰️ B32 used to be "a durability layer nobody asked for is imported" — the mutation that proved the
+cache wrote NOTHING. It is gone with the rail it proved; the superseded design is recorded in
+`docs/discord-render/LEDGER.md` rather than deleted from the record.
+
 ⛔ A MUTATION THAT STAYS GREEN IS A FINDING ABOUT THE TEST, NOT SOMETHING TO DELETE FROM THIS LIST.
 
 Usage:  python docs/discord-render/instruments/mutation_harness_cache.py [repo-root]
@@ -25,6 +37,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[3]
+
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
 
 CACHE = "api/services/discord_render/artifact_cache.py"
 T = "tests/test_discord_render_artifact_cache.py::"
@@ -57,16 +77,18 @@ MUTATIONS = [
 
     # ── a miss is None, and never a stale hit ──────────────────────────────
     {"name": "B5 a miss raises, so every call site must wrap the cache", "file": CACHE,
-     "old": '            if entry is None:\n                self._stats["misses"] += 1\n                return None\n',
+     "old": "            if entry is None:\n                hit = None\n",
      "new": "            if entry is None:\n                raise KeyError(k)\n",
      "tests": [T + "test_a_miss_is_None_and_never_an_exception",
                T + "test_two_data_versions_are_two_entries_and_neither_serves_the_other"]},
     {"name": "B6 an expired entry is handed back for the caller to re-check", "file": CACHE,
-     "old": "            if self._expired(entry, now):\n", "new": "            if False:\n",
+     "old": "            elif self._expired(entry, now):\n", "new": "            elif False:\n",
      "tests": [T + "test_an_expired_entry_is_a_miss_not_a_hit_the_caller_must_recheck",
                T + "test_the_extended_session_gets_its_own_longer_ttl"]},
     {"name": "B7 one TTL for every session (a closed-market entry expires on a timer)", "file": CACHE,
-     "old": "        ttl = ttl_s(session_state(now))\n", "new": "        ttl = RTH_TTL_S\n",
+     # ⚠️ 4-space indent: the rule moved into the module-level `expired_at`, which is what makes
+     # "the same TTL rule at both tiers" structural rather than two copies agreeing.
+     "old": "    ttl = ttl_s(session_state(now))\n", "new": "    ttl = RTH_TTL_S\n",
      "tests": [T + "test_the_extended_session_gets_its_own_longer_ttl",
                T + "test_a_closed_session_entry_has_no_age_expiry_because_the_key_owns_that_boundary"]},
     {"name": "B8 the closed session invents a number the key already owns", "file": CACHE,
@@ -90,10 +112,10 @@ MUTATIONS = [
      "tests": [T + "test_a_week_old_chart_is_not_labelled_cached_thirty_seconds_ago"]},
     {"name": "B12 a hit refreshes stored_at (an LRU smuggled into the eviction field)", "file": CACHE,
      "prelude": ("import datetime as dt\n", "import dataclasses\nimport datetime as dt\n"),
-     "old": '            self._stats["hits"] += 1\n            return entry.artifact\n',
-     "new": '            self._stats["hits"] += 1\n'
-            "            entry.artifact = dataclasses.replace(entry.artifact, stored_at=_wall(now))\n"
-            "            return entry.artifact\n",
+     "old": '                self._stats["hits"] += 1\n                hit = entry.artifact\n',
+     "new": '                self._stats["hits"] += 1\n'
+            "                entry.artifact = dataclasses.replace(entry.artifact, stored_at=_wall(now))\n"
+            "                hit = entry.artifact\n",
      "tests": [T + "test_a_hit_does_not_refresh_stored_at"]},
 
     # ── bounded, deterministic eviction ────────────────────────────────────
@@ -115,13 +137,20 @@ MUTATIONS = [
      "old": "        while self._store and (len(self._store) > self._max_entries or self._bytes > self._max_bytes):\n",
      "new": "        while self._store and (len(self._store) > self._max_entries):\n",
      "tests": [T + "test_the_byte_cap_evicts_until_it_fits"]},
+    # ⚠️ B17/B18/B29 carry a following line in their anchor ON PURPOSE. `put` and `_promote` now
+    # hold byte-for-byte identical guards, so the short anchors matched TWICE (refused) or matched
+    # the WRONG method and passed. B18 did the second — it mutated `_promote` and stayed GREEN,
+    # which is the harness reporting a defect in itself rather than in the code.
     {"name": "B17 an oversized artifact empties the cache for room it will still not fit in",
      "file": CACHE,
-     "old": "            if size > self._max_bytes:\n", "new": "            if False:\n",
+     "old": "            if size > self._max_bytes:\n"
+            "                # ⛔ REFUSED, NOT ACCEPTED-AND-THEN-EVICTED. Accepting it would evict every other\n",
+     "new": "            if False:\n"
+            "                # ⛔ REFUSED, NOT ACCEPTED-AND-THEN-EVICTED. Accepting it would evict every other\n",
      "tests": [T + "test_an_artifact_larger_than_the_whole_cap_is_refused_and_evicts_nothing"]},
     {"name": "B18 a replaced key's bytes are counted twice", "file": CACHE,
-     "old": "            if k in self._store:\n                self._drop(k)\n",
-     "new": "            if False:\n                self._drop(k)\n",
+     "old": "                if k in self._store:\n                    self._drop(k)\n",
+     "new": "                if False:\n                    self._drop(k)\n",
      "tests": [T + "test_replacing_a_key_does_not_double_count_its_bytes"]},
     {"name": "B19 evicted bytes are never returned to the budget", "file": CACHE,
      "old": "    def _drop(self, k: str) -> None:\n        entry = self._store.pop(k, None)\n"
@@ -173,8 +202,10 @@ MUTATIONS = [
 
     # ── thread safety: the render workers are real threads ─────────────────
     {"name": "B29 put runs outside the lock", "file": CACHE,
-     "old": "        with self._lock:\n            if size > self._max_bytes:\n",
-     "new": "        if True:\n            if size > self._max_bytes:\n",
+     "old": "        with self._lock:\n            if size > self._max_bytes:\n"
+            "                # ⛔ REFUSED, NOT ACCEPTED-AND-THEN-EVICTED. Accepting it would evict every other\n",
+     "new": "        if True:\n            if size > self._max_bytes:\n"
+            "                # ⛔ REFUSED, NOT ACCEPTED-AND-THEN-EVICTED. Accepting it would evict every other\n",
      "tests": [T + "test_every_public_call_takes_the_lock"]},
     {"name": "B30 get runs outside the lock", "file": CACHE,
      "old": "        k = fingerprint(key)\n        with self._lock:\n            entry = self._store.get(k)\n",
@@ -186,17 +217,131 @@ MUTATIONS = [
      "new": "        if leader:\n            try:\n                with self._lock:\n                    value = produce()\n",
      "tests": [T + "test_the_lock_is_not_held_across_a_production"]},
 
-    # ── in-memory by design; the kill switch; one store ────────────────────
-    {"name": "B32 a durability layer nobody asked for is imported", "file": CACHE,
-     "old": "import hashlib\nimport os\n", "new": "import hashlib\nimport os\nimport sqlite3\n",
-     "tests": [T + "test_the_cache_is_in_memory_by_design_and_writes_nothing"]},
-    {"name": "B33 the kill switch is captured at import (rollback needs a redeploy)", "file": CACHE,
+    # ── L2: the tier that survives the restart (OI-31) ─────────────────────
+    {"name": "B32 L1 never consults L2, so every deploy empties the cache again", "file": CACHE,
+     "old": "        artifact = self._l2.get(key, now=now) if self._l2 is not None else None\n",
+     "new": "        artifact = None\n",
+     "tests": [T + "test_l2_survives_a_simulated_restart",
+               T + "test_an_l2_hit_promotes_into_l1_which_is_the_point_of_two_tiers"]},
+    {"name": "B33 an L2 hit is served but never promoted (two tiers become one slower tier)",
+     "file": CACHE,
+     "old": "        self._promote(k, artifact)\n", "new": "        pass\n",
+     "tests": [T + "test_an_l2_hit_promotes_into_l1_which_is_the_point_of_two_tiers"]},
+    {"name": "B34 an L1 eviction reaches through and deletes the durable copy", "file": CACHE,
+     "old": "    def _drop(self, k: str) -> None:\n        entry = self._store.pop(k, None)\n"
+            "        if entry is not None:\n            self._bytes -= entry.size\n",
+     "new": "    def _drop(self, k: str) -> None:\n        entry = self._store.pop(k, None)\n"
+            "        if entry is not None:\n            self._bytes -= entry.size\n"
+            "            if self._l2 is not None:\n                self._l2.discard(k)\n",
+     "tests": [T + "test_l1_eviction_does_not_evict_l2"]},
+    {"name": "B35 an artifact too big for the HEAP is promoted into it anyway", "file": CACHE,
+     "old": '            if size > self._max_bytes:\n                self._stats["l2_served_unpromoted"] += 1\n                return\n',
+     "new": '            if False:\n                self._stats["l2_served_unpromoted"] += 1\n                return\n',
+     "tests": [T + "test_an_artifact_too_large_for_the_heap_is_still_served_from_the_volume"]},
+
+    # ── the durable write is atomic ────────────────────────────────────────
+    {"name": "B36 the payload is written straight into the live path (a reader sees half an entry)",
+     "file": CACHE,
+     "old": "        tmp = os.path.join(shard, _TMP_PREFIX + uuid.uuid4().hex)\n",
+     "new": "        tmp = path\n",
+     "tests": [T + "test_the_live_path_is_only_ever_reached_by_an_atomic_replace"]},
+    {"name": "B37 a failed write leaves its tmp file behind", "file": CACHE,
+     "old": "        except BaseException:\n            try:\n                os.remove(tmp)\n"
+            "            except OSError:\n                pass\n            raise\n",
+     "new": "        except BaseException:\n            raise\n",
+     "tests": [T + "test_a_write_that_dies_leaves_the_previous_entry_whole_and_no_debris"]},
+    {"name": "B38 a volume that cannot be written raises into the render path", "file": CACHE,
+     "old": '        except OSError:\n            self._bump("l2_write_errors")\n            return False\n',
+     "new": "        except OSError:\n            raise\n",
+     "tests": [T + "test_a_volume_that_cannot_be_written_costs_a_hit_not_a_render",
+               T + "test_a_write_that_dies_leaves_the_previous_entry_whole_and_no_debris"]},
+
+    # ── corruption is a miss, never a served chart ─────────────────────────
+    {"name": "B39 the payload digest is not checked (a flipped byte is served as a chart)",
+     "file": CACHE,
+     "old": '        if not isinstance(digest, str) or hashlib.sha256(payload).hexdigest() != digest:\n',
+     "new": "        if False:\n",
+     "tests": [T + "test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served[flip_a_payload_byte]",
+               T + "test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served[header_declares_no_sha]"]},
+    {"name": "B40 the declared length is not checked (a malformed header is served)", "file": CACHE,
+     "old": "        if not isinstance(declared, int) or declared != len(payload):\n",
+     "new": "        if False:\n",
+     "tests": [T + "test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served[header_declares_no_length]"]},
+    {"name": "B41 the file's claimed key is not checked (a moved file serves another key)",
+     "file": CACHE,
+     "old": "        if claimed != (key.command, key.args, key.vintage):\n", "new": "        if False:\n",
+     "tests": [T + "test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served[header_claims_another_key]"]},
+    {"name": "B42 a corrupt entry raises at the render path instead of missing", "file": CACHE,
+     "old": "        except Exception:\n            # ⛔ EVERY failure of integrity lands here and is IDENTICAL to the caller: a miss. The\n",
+     "new": "        except KeyboardInterrupt:\n            # ⛔ EVERY failure of integrity lands here and is IDENTICAL to the caller: a miss. The\n",
+     "tests": [T + "test_a_damaged_entry_is_a_miss_and_not_an_exception_even_in_bulk"]},
+    {"name": "B43 a corrupt entry is left holding byte budget it can never be served from",
+     "file": CACHE,
+     "old": '            self._bump("l2_corrupt", "l2_misses")\n            self.discard(fp)\n            return None\n',
+     "new": '            self._bump("l2_corrupt", "l2_misses")\n            return None\n',
+     "tests": [T + "test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served[truncate_payload]"]},
+    {"name": "B44 an expired file on the volume outlives the heap's own expiry rule", "file": CACHE,
+     "old": "        if expired_at(artifact.stored_at, now):\n", "new": "        if False:\n",
+     "tests": [T + "test_the_same_expiry_rule_decides_both_tiers"]},
+
+    # ── degraded never fresh, at the deserialisation boundary ──────────────
+    {"name": "B45 an absent envelope is laundered into a clean verdict on the way out of the file",
+     "file": CACHE,
+     "old": "    if raw is None:\n        return None\n",
+     "new": '    if raw is None:\n        return Envelope(None, None, None, "rth", None, None, False)\n',
+     "tests": [T + "test_an_entry_with_no_envelope_comes_back_unknown_and_never_fresh"]},
+    {"name": "B46 a `stale` that is neither a verdict nor unknown is accepted as one", "file": CACHE,
+     "old": "    if env.stale is not None and not isinstance(env.stale, bool):\n"
+            "        raise ValueError(f\"stale={env.stale!r} is neither a verdict nor 'unknown'\")\n",
+     "new": "    pass\n",
+     "tests": [T + "test_a_damaged_entry_is_a_miss_recorded_and_discarded_never_served[stale_is_not_a_verdict]"]},
+
+    # ── the volume's own LRU, by BYTES ─────────────────────────────────────
+    {"name": "B47 the volume evicts the NEWEST entry", "file": CACHE,
+     "old": "            victim = min(self._index.items(), key=lambda kv: (kv[1][1], kv[0]))[0]\n",
+     "new": "            victim = max(self._index.items(), key=lambda kv: (kv[1][1], kv[0]))[0]\n",
+     "tests": [T + "test_l2_evicts_by_bytes_oldest_stored_at_first"]},
+    {"name": "B48 the volume's tie-break is dropped, so a dead pod's scan order decides", "file": CACHE,
+     "old": "            victim = min(self._index.items(), key=lambda kv: (kv[1][1], kv[0]))[0]\n",
+     "new": "            victim = min(self._index.items(), key=lambda kv: kv[1][1])[0]\n",
+     "tests": [T + "test_the_l2_tie_break_is_the_fingerprint_not_the_order_a_dead_pod_left_behind"]},
+    {"name": "B49 the volume's byte cap is not enforced", "file": CACHE,
+     "old": "        while self._index and self._bytes > self._max_bytes:\n", "new": "        while False:\n",
+     "tests": [T + "test_l2_evicts_by_bytes_oldest_stored_at_first",
+               T + "test_an_l2_eviction_does_not_evict_l1"]},
+    {"name": "B50 an oversized artifact empties the volume for room it will still not fit in",
+     "file": CACHE,
+     "old": "        if len(blob) > self._max_bytes:\n", "new": "        if False:\n",
+     "tests": [T + "test_an_artifact_larger_than_the_volume_cap_is_refused_and_evicts_nothing"]},
+
+    # ── the wiring: two caps, two names; a root a sandbox can move ─────────
+    {"name": "B51 the heap cap reads the VOLUME's env name again (512 MiB of heap on an OOM pod)",
+     "file": CACHE,
+     "old": '                              else os.environ.get("DISCORD_RENDER_CACHE_MEM_BYTES", L1_MAX_BYTES_DEFAULT))\n',
+     "new": '                              else os.environ.get("DISCORD_RENDER_CACHE_BYTES", L1_MAX_BYTES_DEFAULT))\n',
+     "tests": [T + "test_the_two_byte_caps_have_two_names_and_one_cannot_move_the_other"]},
+    {"name": "B52 the volume root stops reading its env var (no sandbox can move it off /data)",
+     "file": CACHE,
+     "old": '    return str(os.environ.get("DISCORD_RENDER_CACHE_DIR", "/data/discord_render_cache")).strip()\n',
+     "new": '    return "/data/discord_render_cache"\n',
+     "tests": [T + "test_the_l2_root_is_env_derived_with_a_data_default"]},
+    {"name": "B53 constructing the cache creates its directory under the shared data root",
+     "file": CACHE,
+     "old": "        self._root = str(root)\n",
+     "new": "        self._root = str(root)\n        os.makedirs(self._root, exist_ok=True)\n",
+     "tests": [T + "test_constructing_a_cache_touches_no_filesystem"]},
+    {"name": "B54 clear() deletes the durable copies too (a stop becomes a delete)", "file": CACHE,
+     "old": "        if l2 and self._l2 is not None:\n", "new": "        if self._l2 is not None:\n",
+     "tests": [T + "test_clear_is_not_a_delete_against_durable_data_unless_asked"]},
+
+    # ── the kill switch; one store ─────────────────────────────────────────
+    {"name": "B55 the kill switch is captured at import (rollback needs a redeploy)", "file": CACHE,
      "prelude": ('_UNKNOWN_VINTAGE = "\\x00unknown"\n',
                  '_UNKNOWN_VINTAGE = "\\x00unknown"\n_ENABLED_AT_IMPORT = False\n'),
      "old": '    return str(os.environ.get("RENDER_CACHE_ENABLED", "")).strip().lower() in ("1", "true", "yes", "on")\n',
      "new": "    return _ENABLED_AT_IMPORT\n",
      "tests": [T + "test_the_kill_switch_is_read_per_call_so_it_needs_no_redeploy"]},
-    {"name": "B34 every caller gets its own store (two half-useful hit rates)", "file": CACHE,
+    {"name": "B56 every caller gets its own store (two half-useful hit rates)", "file": CACHE,
      "old": "        if _DEFAULT is None:\n            _DEFAULT = ArtifactCache()\n        return _DEFAULT\n",
      "new": "        return ArtifactCache()\n",
      "tests": [T + "test_the_process_wide_store_is_one_store"]},

@@ -44,8 +44,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 GOLDEN = Path(__file__).resolve().parent / "goldens" / "prev2_replies.json"
+#: ⛔ A SEPARATE FILE, ON PURPOSE. `prev2_replies.json` has one job — proving the pre-V2 REPLY is
+#: byte-for-byte unchanged — and it says in this module's docstring that it must not pin V2 copy.
+#: The render URL is a different artifact answering a different question (what the renderer is
+#: pointed at, C-07), and mixing the two would leave one file with two purposes and a reader unsure
+#: which claim a drift belongs to.
+URL_GOLDEN = Path(__file__).resolve().parent / "goldens" / "render_urls.json"
 
 CAPTURE_VERSION = 1
+URL_CAPTURE_VERSION = 1
 
 # ── the fixed world ─────────────────────────────────────────────────────────
 #
@@ -303,6 +310,67 @@ def capture_twice() -> tuple[dict, dict]:
     return capture(), capture()
 
 
+# ── the render URL the renderer is pointed at (C-07) ────────────────────────
+#
+# ⛔⛔ THE STALE RENDER IS COVERED HERE BECAUSE IT CANNOT BE COVERED ABOVE. The reply golden runs
+# with `house_fn` absent — deliberately, so nothing reaches the network — which means the house URL
+# is never built on that path at all. A golden that could not see the parameter it is supposed to
+# cover would read as coverage and be none (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+#
+# ⭐ AND THIS ONE COVERS BOTH SIDES OF THE PROMISE IN ONE ARTIFACT: the vintage-bearing URLs are the
+# C-07 closure, and every row beside them carries no vintage and must never move.
+
+#: The vintage stamps below are FIXED strings, never computed from a clock — §3.10 again: the same
+#: closed-market input renders the same pixels, and a golden that re-derived "yesterday" would go
+#: red every morning for a reason nobody could act on.
+URL_BASE = {"base_url": "https://uctintelligence.com", "token": "RENDER-TOKEN"}
+URL_STATS = {"as_of": FIXED_TODAY, "close": 553.11, "day_pct": -3.47, "volume": 41_000_000}
+STALE_AT = "2026-09-04 16:00"
+
+URL_CASES = [
+    # ── no vintage: every one of these must be byte-identical forever ──────
+    ("daily/bare", ("NVDA", "D", None), {}),
+    ("daily/stats", ("NVDA", "D", URL_STATS), {}),
+    ("intraday/5-ext", ("AAPL", "5", URL_STATS), {"ext": True}),
+    ("intraday/30-no-ext", ("AAPL", "30", None), {"ext": False}),
+    ("weekly/heikin-dark", ("SPY", "W", URL_STATS),
+     {"stats": False, "preset": "dark", "indicators": {"heikinAshi": True}}),
+    ("daily/panned", ("NVDA", "D", URL_STATS), {"to": "2026-06-01", "bars": 240}),
+    ("breadth/uct-a5", ("UCTA5", "D", None), {"breadth": "pct_above_5sma"}),
+    ("daily/compare", ("NVDA", "D", URL_STATS), {"compare": ["spy", "qqq"]}),
+    ("daily/exttag", ("NVDA", "D", URL_STATS), {"exttag": ("post", 178.125)}),
+
+    # ── the C-07 cases: what a member's picture is told about its own data ──
+    ("stale/daily", ("NVDA", "D", URL_STATS), {"stale": True, "as_of": STALE_AT}),
+    ("stale/intraday-with-everything", ("AAPL", "5", URL_STATS),
+     {"ext": True, "compare": ["spy"], "preset": "dark", "stale": True, "as_of": STALE_AT}),
+    ("stale/verdict-false", ("NVDA", "D", URL_STATS), {"stale": False, "as_of": STALE_AT}),
+    ("stale/verdict-unknown", ("NVDA", "D", URL_STATS), {"stale": None, "as_of": STALE_AT}),
+    ("stale/no-readable-timestamp", ("NVDA", "D", URL_STATS), {"stale": True, "as_of": ""}),
+]
+
+
+def capture_render_urls() -> dict:
+    """Every render URL shape, including the stale one. No clock, no network, no env."""
+    from api.services.discord_chart_house import build_render_url
+
+    cases = {}
+    for name, (sym, tf, stats), opts in URL_CASES:
+        cases[name] = {
+            # ⛔ THROUGH JSON, NOT `deepcopy`. The stored golden has been through a JSON round trip
+            # and `("post", 178.125)` comes back a list; a fresh capture holding the tuple would
+            # drift against it forever on a difference that is the file format, not the product.
+            "options": json.loads(json.dumps(opts, sort_keys=True, default=str)),
+            "carries_vintage": "stale=" in build_render_url(sym, tf, stats, **URL_BASE,
+                                                            options=opts or None),
+            "url": build_render_url(sym, tf, stats, **URL_BASE, options=opts or None),
+        }
+    return {"version": URL_CAPTURE_VERSION,
+            "generated_by": "docs/discord-render/instruments/golden_capture.py",
+            "world": {"today": FIXED_TODAY, "stale_at": STALE_AT, "base": dict(URL_BASE)},
+            "cases": cases}
+
+
 def canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, indent=2, ensure_ascii=False, default=str)
 
@@ -393,9 +461,22 @@ def main() -> int:
             print("   ", line)
         return 1
     print("capture determinism: two back-to-back runs agree")
+
+    urls_first, urls_second = capture_render_urls(), capture_render_urls()
+    url_unstable = diff_paths(urls_first, urls_second)
+    if url_unstable:
+        print(f"*** THE RENDER-URL CAPTURE IS NOT DETERMINISTIC — {len(url_unstable)} field(s) moved")
+        for line in url_unstable[:20]:
+            print("   ", line)
+        return 1
+    stale_cases = sum(1 for c in urls_first["cases"].values() if c["carries_vintage"])
+    print(f"render URLs captured: {len(urls_first['cases'])} ({stale_cases} carrying a vintage)")
+
     if "--write" in sys.argv:
         write_golden(first)
+        write_golden(urls_first, URL_GOLDEN)
         print(f"wrote {GOLDEN.relative_to(ROOT)}")
+        print(f"wrote {URL_GOLDEN.relative_to(ROOT)}")
         return 0
     stored = load_golden()
     if stored is None:
@@ -405,7 +486,16 @@ def main() -> int:
     print(f"drift against the stored golden: {len(drift)}")
     for line in drift[:40]:
         print("   ", line)
-    return 0 if not drift else 1
+
+    stored_urls = load_golden(URL_GOLDEN)
+    if stored_urls is None:
+        print(f"*** no stored golden at {URL_GOLDEN.relative_to(ROOT)} — run with --write")
+        return 1
+    url_drift = diff_paths(stored_urls, urls_first)
+    print(f"drift against the stored render-URL golden: {len(url_drift)}")
+    for line in url_drift[:40]:
+        print("   ", line)
+    return 0 if not (drift or url_drift) else 1
 
 
 if __name__ == "__main__":

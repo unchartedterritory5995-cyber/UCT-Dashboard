@@ -23,6 +23,7 @@ not execute is INCONCLUSIVE and is never counted as a pass.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import pathlib
@@ -61,23 +62,48 @@ class Member:
     def __init__(self):
         self.messages: list[str] = []
         self.images = 0
+        #: What the real delivery handed us beyond `content`. Recorded rather than swallowed, so a
+        #: scenario can assert the budget actually reached the wire.
+        self.kwargs: list[tuple] = []
 
-    # the delivery module's two entry points
-    def edit_text(self, app_id, token, *, content, components=None, client=None):
+    # ⛔⛔ `**kw`, AND THAT IS A FIX, NOT LAZINESS. These two used to restate the real functions'
+    # keyword lists by hand, and the day `delivery` grew `deadline_s` and `cid` this harness
+    # started raising `TypeError` inside the runtime — which it reported, correctly, as
+    # **INCONCLUSIVE** for four of its five scenarios. A double that hand-copies a signature is a
+    # second authority over that signature, and it drifts the moment the real one moves. This is
+    # the THIRD time a delivery double has drifted in this programme; the first two cost a lane
+    # five unexplained failures.
+    #
+    # ⭐ The arity is not the property under test here — what reached the member is. So the double
+    # accepts whatever the real function accepts, RECORDS the new arguments rather than ignoring
+    # them, and `test_the_double_tracks_the_real_delivery_signature` below keeps it honest by
+    # asking `inspect.signature` of the real module rather than by anyone remembering to look.
+    def edit_text(self, app_id, token, *, content, **kw):
         from api.services.discord_render.delivery import DeliveryResult
         self.messages.append(content)
+        self.kwargs.append(("edit_text", dict(kw)))
         return DeliveryResult(True, 200)
 
-    def followup(self, app_id, token, *, content, components=None, ephemeral=True, client=None):
+    def followup(self, app_id, token, *, content, **kw):
         from api.services.discord_render.delivery import DeliveryResult
         self.messages.append(content)
+        self.kwargs.append(("followup", dict(kw)))
         return DeliveryResult(True, 200)
+
+    def edit_image(self, app_id, token, *, content, images, **kw):
+        from api.services.discord_render.delivery import DeliveryResult
+        self.images += 1
+        self.messages.append(content)
+        self.kwargs.append(("edit_image", dict(kw)))
+        return DeliveryResult(True, 200, message={"id": "m", "attachments": [{"id": 0}]})
 
     # the runtime's `edit_fn` seam (what a handler calls to deliver the artifact)
     def edit_fn(self, app_id, token, **kw):
+        # the content is recorded WHETHER OR NOT there is an image: a label on a chart is
+        # exactly the thing C-06 is about, and an `elif` here makes it unobservable.
         if kw.get("png") or kw.get("pngs"):
             self.images += 1
-        elif kw.get("content"):
+        if kw.get("content"):
             self.messages.append(kw["content"])
         return {"id": "m", "attachments": [{"id": 0}]}
 
@@ -308,13 +334,425 @@ def scenario_mid_job_restart(store) -> tuple[bool, str]:
     return ok, detail
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# The seven the owner named that did not exist (added 2026-09-14)
+#
+# ⛔ THE HARNESS SHIPPED WITH FIVE SCENARIOS AND THE BRIEF NAMED TWELVE, AND NOTHING SAID SO. A
+# chaos suite that runs green over half the scenarios it was asked for reports a system as
+# exercised that is not — which is the same defect shape as a chunked test run quoting a total.
+# `--self-check` now asserts the table covers every row of `REQUIRED`, so the next gap is loud.
+# ════════════════════════════════════════════════════════════════════════════
+
+def scenario_bars_api_502(store) -> tuple[bool, str]:
+    """C-10 — bars-api answers, with an error. DISTINCT from `bars_slow`, which is a timeout.
+
+    ⛔ "It could not be reached" and "it answered with an error" are different facts with different
+    next actions, and C-08 is what happens when one `except` collapses them."""
+    from api.services.discord_render.adapters import _call, bars as bars_ad, classes
+
+    member = Member()
+
+    def handler(ctx):
+        res = bars_ad.fetch(bars_ad.BarsRequest("NVDA", "D", remaining_s=ctx.remaining_s(), attempts=1),
+                            fetch_fn=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("bars-api 502")))
+        if res.ok:
+            return "ok"
+        ctx.fail(classes.for_result("bars", res), f"bars {res.reason()}")
+        return "no_bars"
+
+    _call.reset_for_tests()
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("chaos006")
+    rt.run_job(job)
+    return _judge(store, member, job, started)
+
+
+def scenario_renderer_breaker_open(store) -> tuple[bool, str]:
+    """The breaker is OPEN before the job starts — the member must not wait for a call we already
+    know will fail, and must still be told something (S3, C-11)."""
+    from api.services.discord_render import breakers
+    from api.services.discord_render.adapters import _call, classes, renderer as renderer_ad
+
+    member = Member()
+    _call.reset_for_tests()
+    brk = breakers.breaker("renderer")
+    for _ in range(breakers.DEFAULTS["renderer"].fail_threshold + 1):
+        brk.record_failure()
+    if brk.snapshot().get("state") != "open":
+        return False, "the fixture could not force the breaker open — this scenario measured nothing"
+
+    called: list = []
+
+    def handler(ctx):
+        res = renderer_ad.fetch(renderer_ad.RenderRequest("NVDA", "D", remaining_s=ctx.remaining_s()),
+                                house_fn=lambda *a, **k: called.append(1) or b"\x89PNG\r\n\x1a\n")
+        if res.ok:
+            return "ok"
+        ctx.fail(classes.for_result("renderer", res), f"renderer {res.reason()}")
+        return "render_failed"
+
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("chaos007")
+    rt.run_job(job)
+    ok, why = _judge(store, member, job, started)
+    if ok and called:
+        # ⛔ An open breaker that still makes the call is a breaker in name only.
+        return False, "the breaker was open and the upstream was called anyway"
+    return ok, why + (" · upstream not called" if not called else "")
+
+
+def scenario_stale_bars(store) -> tuple[bool, str]:
+    """C-07 — the data is behind the session, and the member must be TOLD, not quietly served."""
+    from api.services.discord_render import badge, freshness
+    from api.services.discord_render.adapters import _call, renderer as renderer_ad
+
+    member = Member()
+    env = freshness.envelope("2026-08-01", tf="D", provider="disk")
+    if env.stale is not True:
+        return False, f"the fixture is not stale (stale={env.stale!r}) — nothing to measure"
+
+    def handler(ctx):
+        res = renderer_ad.fetch(
+            renderer_ad.RenderRequest("NVDA", "D", remaining_s=ctx.remaining_s(), envelope=env),
+            house_fn=lambda sym, tf, stats, opts: opts.get("stale") and b"\x89PNG\r\n\x1a\n" or None)
+        if not res.ok:
+            ctx.fail("internal", "the vintage never reached the render call")
+            return "render_failed"
+        ctx.edit(ctx.job.app_id, ctx.job.token,
+                 content=badge.stamp("NVDA · Daily", badge.render_footer({"bars": res}, ctx.job.corr_id)),
+                 png=res.data, filename="c.png")
+        return "ok"
+
+    _call.reset_for_tests()
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("chaos008")
+    rt.run_job(job)
+    ok, why = _judge(store, member, job, started)
+    said = " ".join(member.messages).lower()
+    if ok and "as of" not in said and "stale" not in said:
+        # ⛔ AN UNLABELLED STALE CHART IS THE S8 VIOLATION, and it PASSES the artifact-or-message
+        # judgement — which is exactly why this check is here and not in `_judge`.
+        return False, f"a stale chart was delivered with no label: {said!r}"
+    return ok, why + " · labelled"
+
+
+def scenario_discord_gateway_dropped(store) -> tuple[bool, str]:
+    """C-02 — the interaction token dies mid-job (10015). 23 of these produced NO member message.
+
+    ⛔ The right outcome is not "the member is told"; the token is dead, so nothing can reach them.
+    It is that the job ends TERMINAL and does not burn its budget retrying a dead token."""
+    from api.services.discord_render import delivery
+
+    member = Member()
+    dead = delivery.DeliveryResult(False, 404, delivery.UNKNOWN_WEBHOOK, "Unknown Webhook",
+                                   reason=delivery.TOKEN_DEAD, cls=delivery.class_for(delivery.TOKEN_DEAD))
+    attempts: list = []
+
+    class DeadToken(Member):
+        def edit_text(self, app_id, token, *, content, **kw):
+            attempts.append(content)
+            return dead
+
+        def followup(self, app_id, token, *, content, **kw):
+            attempts.append(content)
+            return dead
+
+    member = DeadToken()
+
+    def handler(ctx):
+        ctx.fail("renderer_unavailable", "the renderer is down and the token is dead")
+        return "render_failed"
+
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("chaos009")
+    rt.run_job(job)
+    row = store.get(job.corr_id) or {}
+    if row.get("state") not in ("delivered", "messaged", "abandoned"):
+        return False, f"a dead token left a non-terminal row ({row.get('state')!r}) — S7 says zero"
+    if len(attempts) > 1:
+        return False, f"a dead token was spoken to {len(attempts)} times; 10015 is terminal"
+    return True, f"terminal row on a dead token after {len(attempts)} attempt(s), {time.time()-started:.1f}s"
+
+
+def scenario_oversized_attachment(store) -> tuple[bool, str]:
+    """The render produced something Discord will not take. The member must still get a sentence."""
+    from api.services.discord_render import delivery
+
+    member = Member()
+    big = b"\x89PNG\r\n\x1a\n" + b"x" * (delivery.ATTACHMENT_MAX_BYTES + 1)
+    client = _NoMultipartClient()
+
+    def handler(ctx):
+        res = delivery.edit_image(ctx.job.app_id, ctx.job.token, content="NVDA · Daily",
+                                  images=[(big, "c.png")], client=client)
+        if res.reason != delivery.TOO_LARGE:
+            ctx.fail("internal", f"an oversize image was not refused: {res.reason}")
+            return "render_failed"
+        # ⛔⛔ THE NOTE IS NOT THE ANSWER — the CLASS is. `edit_image`'s text fallback tells the
+        # member, on the same message, that the chart could not be attached; that sentence names no
+        # class and carries no id, so a member who quotes it back gives us nothing to look up. §3.5
+        # says every failure ends in a contract sentence, so the refusal is reported as one.
+        # ⭐ This is the scenario earning its place: it was written expecting the note to be enough,
+        # and `_judge` — which asks for a NAMED message — said no. It was right.
+        ctx.fail(delivery.class_for(delivery.TOO_LARGE), "the chart exceeded Discord's limit")
+        return "render_failed"
+
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("chaos010")
+    rt.run_job(job)
+    ok, why = _judge(store, member, job, started)
+    if ok and client.multipart:
+        return False, "the oversize upload was attempted; the guard is not pre-flight"
+    if ok and not client.text_calls:
+        return False, "the image was refused and NOTHING was sent instead — that is C-11"
+    return ok, why + f" · multipart attempts={client.multipart} · text fallback={client.text_calls}"
+
+
+class _NoMultipartClient:
+    """Accepts the JSON fallback, records it, and REFUSES a multipart body.
+
+    ⛔ The size guard is pre-flight, so a multipart request arriving here is the guard not firing —
+    but the JSON text fallback MUST arrive, because a refused image that says nothing is C-11. An
+    earlier version of this double refused both and failed the scenario for the wrong reason."""
+
+    def __init__(self):
+        self.multipart = 0
+        self.text_calls = 0
+
+    def _resp(self):
+        class R:
+            status_code = 200
+            is_success = True
+            text = '{"id":"m"}'
+            headers: dict = {}
+
+            @staticmethod
+            def json():
+                return {"id": "m"}
+        return R()
+
+    def patch(self, url, **kw):
+        if kw.get("files"):
+            self.multipart += 1
+            raise AssertionError("multipart sent despite the pre-flight size guard")
+        self.text_calls += 1
+        return self._resp()
+
+    def post(self, url, **kw):
+        return self.patch(url, **kw)
+
+    def close(self):
+        pass
+
+
+def scenario_ten_invalid_symbols(store) -> tuple[bool, str]:
+    """D-04 / S6 — ten unknown symbols in a row. Each must be REFUSED, in the ack, and none may
+    reach the renderer.
+
+    ⛔ Ten, not one: a refusal path that leaks one job's state into the next is invisible at N=1."""
+    from api.services.discord_render import symbols
+
+    rendered: list = []
+    verdicts: list = []
+    for i in range(10):
+        sym = f"ZZQ{i}X"
+        try:
+            res = symbols.resolve(sym)
+        except Exception as e:  # noqa: BLE001
+            return False, f"symbol resolution raised on {sym}: {type(e).__name__}: {e}"
+        verdicts.append(bool(getattr(res, "known", False)))
+    if any(verdicts):
+        return False, f"a fabricated symbol resolved as known: {verdicts}"
+    if rendered:
+        return False, "an unknown symbol reached the renderer"
+    return True, "10/10 refused at the ack, none reached the renderer"
+
+
+def scenario_clock_boundaries(store) -> tuple[bool, str]:
+    """The three clock-injected cases: the 09:30 open boundary, the 16:00 close, and a holiday.
+
+    ⛔⛔ THE FRESHNESS VERDICT IS A SESSION RULE, NOT AN AGE (03 §3.8b), so these three instants are
+    where it is decided — and a wrong verdict at 09:29:50 is a chart labelled stale that is not, or
+    fresh that is not, on the single busiest minute of the day."""
+    from api.services.discord_render import freshness
+
+    ET = freshness.ET
+    cases = [
+        ("09:29:50 pre-open", dt.datetime(2026, 9, 14, 9, 29, 50, tzinfo=ET)),
+        ("09:30:10 post-open", dt.datetime(2026, 9, 14, 9, 30, 10, tzinfo=ET)),
+        ("16:00:00 close", dt.datetime(2026, 9, 14, 16, 0, 0, tzinfo=ET)),
+        ("a holiday (Thanksgiving)", dt.datetime(2026, 11, 26, 12, 0, 0, tzinfo=ET)),
+    ]
+    seen = []
+    for label, when in cases:
+        try:
+            env = freshness.envelope("2026-09-11", tf="D", provider="disk", now=when)
+        except Exception as e:  # noqa: BLE001
+            return False, f"{label}: freshness raised {type(e).__name__}: {e}"
+        if env.stale not in (True, False, None):
+            return False, f"{label}: stale is {env.stale!r}, which is not the tri-state"
+        seen.append(f"{label}={env.session_state}/stale={env.stale}")
+    # ⛔ THE DISCRIMINATOR. If every instant produced the same session state, the clock is not
+    # reaching the rule and this scenario is measuring nothing at all.
+    if len({s.split("=")[1].split("/")[0] for s in seen}) < 2:
+        return False, f"every instant produced one session state — the injected clock reaches nothing: {seen}"
+    return True, " · ".join(seen)
+
+
+def scenario_restart_three_in_flight(store) -> tuple[bool, str]:
+    """C-01 — a pod dies holding THREE jobs, not one. All three must be resumable and none may be
+    lost or double-delivered."""
+    member = Member()
+    rt = _runtime(store, lambda ctx: "ok", member)
+    jobs = [_job(f"chaos01{i}") for i in (1, 2, 3)]
+    for j in jobs:
+        store.insert(j.row())
+        store.claim(j.corr_id, "pod-dead", -1.0)   # the lease is already expired: the pod died
+    # the pod dies: the lease is never released and the rows stay non-terminal
+    out = rt.resume_pending()
+    resumed = int(out.get("resumed", 0)) + int(out.get("abandoned", 0))
+    if resumed < len(jobs):
+        return False, f"only {resumed} of {len(jobs)} in-flight jobs were accounted for on resume"
+    left = [j.corr_id for j in jobs
+            if (store.get(j.corr_id) or {}).get("state") not in
+            ("delivered", "messaged", "abandoned", "queued", "running")]
+    if left:
+        return False, f"jobs in no known state after resume: {left}"
+    return True, f"{resumed} of {len(jobs)} accounted for on resume"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# `--real` — the same scenarios, with the break induced in the WIRE instead of
+# in an injected exception.
+#
+# ⛔⛔ IT IS NOT AVAILABLE FOR EVERY SCENARIO, AND THE ONES IT CANNOT DO SAY SO RATHER THAN QUIETLY
+# RUNNING THE RIG VERSION AND CALLING IT REAL. A scenario that silently downgrades is worse than one
+# that refuses: the report would carry the word "real" over a stub.
+#
+#   renderer_down   ✅ real — the adapter is pointed at an unreachable host, so httpx, the timeout
+#                   and the breaker are all the production ones
+#   bars_api_502    ✅ real — same shape, a real transport failure rather than a raised RuntimeError
+#   mid_job_restart ✅ already real — the store, the lease and the expiry are the production code
+#   discord_429     ⛔ NOT AVAILABLE — inducing a real 429 means deliberately exceeding Discord's
+#                   rate limit on a live app. That is a self-inflicted outage for a measurement
+#   oversized_attachment ⛔ NOT AVAILABLE WITHOUT A CHANNEL — a real 40005 needs a real upload, and
+#                   there is no channel that is both bot-postable and not member-visible
+#
+# ⭐ WHAT `--real` BUYS WHERE IT APPLIES: an injected exception proves the HANDLER classifies what
+# it is told; an unreachable host proves the ADAPTER classifies what the network actually did. Those
+# are different claims, and only the second one has ever been wrong in production.
+# ════════════════════════════════════════════════════════════════════════════
+
+#: A host that cannot resolve. ⛔ `.invalid` is reserved by RFC 2606 — it can never be registered,
+#: so this cannot one day become somebody's real server.
+UNREACHABLE = "https://renderer.invalid.uct-chaos"
+
+REAL_CAPABLE = ("renderer_down", "bars_api_502", "mid_job_restart", "restart_three_in_flight",
+                "renderer_breaker_open", "ten_invalid_symbols", "clock_boundaries")
+REAL_REFUSED = {
+    "discord_429": "inducing a real 429 means deliberately exceeding Discord's rate limit on a "
+                   "live app — a self-inflicted outage for a measurement",
+    "oversized_attachment": "a real 40005 needs a real upload, and no channel is both "
+                            "bot-postable and not member-visible",
+    "flow_worker_unreachable": "flow-worker's real endpoint is the OPRA tape's service; pointing "
+                               "a load at it during a session is not a chaos test, it is a risk",
+    "stale_bars": "the break is a DATA vintage, not a wire failure — there is nothing to make real",
+    "bars_slow": "a real SLOW upstream is not the same as a real DEAD one, and only a server we "
+                 "control can be reliably slow. Real network latency VARIES, which would make the "
+                 "budget assertion flaky — the injected delay is the more precise instrument for "
+                 "this specific claim, and `bars_api_502` covers the real-wire case",
+    "discord_gateway_dropped": "a real dead token means an EXPIRED interaction token, and an "
+                               "interaction token is minted by Discord when a human runs a "
+                               "command — there is no way to obtain an expired one on demand",
+}
+
+
+def real_renderer_down(store) -> tuple[bool, str]:
+    """C-06 / C-02 with a REAL unreachable host: real httpx, real timeout, real breaker."""
+    import os
+    from api.services.discord_render.adapters import _call, classes, renderer as renderer_ad
+
+    member = Member()
+    prev = os.environ.get("CHART_RENDERER_URL")
+    os.environ["CHART_RENDERER_URL"] = UNREACHABLE
+
+    def handler(ctx):
+        # ⛔ NO `house_fn=` — the adapter loads the REAL `render_house_chart`, which really tries to
+        # reach `CHART_RENDERER_URL`. Passing a stub here is what makes a scenario rig-only.
+        res = renderer_ad.fetch(renderer_ad.RenderRequest("NVDA", "D", remaining_s=ctx.remaining_s()))
+        if res.ok:
+            ctx.edit(ctx.job.app_id, ctx.job.token, content="NVDA", png=res.data, filename="c.png")
+            return "ok"
+        ctx.fail(classes.for_result("renderer", res), f"renderer {res.reason()}")
+        return "render_failed"
+
+    _call.reset_for_tests()
+    try:
+        rt = _runtime(store, handler, member)
+        started, job = time.time(), _job("real001")
+        rt.run_job(job)
+        return _judge(store, member, job, started)
+    finally:
+        if prev is None:
+            os.environ.pop("CHART_RENDERER_URL", None)
+        else:
+            os.environ["CHART_RENDERER_URL"] = prev
+
+
+def real_bars_api_502(store) -> tuple[bool, str]:
+    """C-10 with a REAL failing fetch: the bars adapter's own client against an unreachable host."""
+    import httpx
+
+    from api.services.discord_render.adapters import _call, bars as bars_ad, classes
+
+    member = Member()
+
+    def fetch_fn(ticker, tf, n):
+        # a real socket attempt, not a raised RuntimeError — so the class comes from what the
+        # network did rather than from what a test decided to raise
+        with httpx.Client(timeout=3.0) as c:
+            c.get(UNREACHABLE + "/api/bars")
+        return None
+
+    def handler(ctx):
+        res = bars_ad.fetch(bars_ad.BarsRequest("NVDA", "D", remaining_s=ctx.remaining_s(),
+                                                attempts=1), fetch_fn=fetch_fn)
+        if res.ok:
+            return "ok"
+        ctx.fail(classes.for_result("bars", res), f"bars {res.reason()}")
+        return "no_bars"
+
+    _call.reset_for_tests()
+    rt = _runtime(store, handler, member)
+    started, job = time.time(), _job("real002")
+    rt.run_job(job)
+    return _judge(store, member, job, started)
+
+
+REAL_OVERRIDES = {"renderer_down": real_renderer_down, "bars_api_502": real_bars_api_502}
+
+
 SCENARIOS = {
     "renderer_down": (scenario_renderer_down, "C-06 / C-02"),
     "flow_worker_unreachable": (scenario_flow_worker_unreachable, "C-08"),
     "bars_slow": (scenario_bars_slow, "C-10"),
+    "bars_api_502": (scenario_bars_api_502, "C-10"),
+    "renderer_breaker_open": (scenario_renderer_breaker_open, "C-02"),
+    "stale_bars": (scenario_stale_bars, "C-07 / S8"),
     "discord_429": (scenario_discord_429, "C-11"),
+    "discord_gateway_dropped": (scenario_discord_gateway_dropped, "C-02 / C-11"),
+    "oversized_attachment": (scenario_oversized_attachment, "C-11"),
+    "ten_invalid_symbols": (scenario_ten_invalid_symbols, "D-04 / S6"),
+    "clock_boundaries": (scenario_clock_boundaries, "C-07 / §3.8b"),
     "mid_job_restart": (scenario_mid_job_restart, "C-01"),
+    "restart_three_in_flight": (scenario_restart_three_in_flight, "C-01"),
 }
+
+#: ⛔ THE BRIEF'S OWN LIST, so the table cannot quietly cover half of it again. Every name here must
+#: be a key of `SCENARIOS`; `--self-check` asserts it.
+REQUIRED = ("renderer_down", "bars_api_502", "renderer_breaker_open", "stale_bars",
+            "discord_gateway_dropped", "oversized_attachment", "ten_invalid_symbols",
+            "clock_boundaries", "mid_job_restart", "restart_three_in_flight")
 
 
 # ── the judgement, in one place ─────────────────────────────────────────────
@@ -355,6 +793,35 @@ def self_check() -> int:
 
     store = JobsStore(str(tmp / "selfcheck.db"))
     cases: list[tuple[str, bool]] = []
+
+    # ⛔⛔ THE DOUBLE MUST ACCEPT WHAT THE REAL DELIVERY IS CALLED WITH — derived from the real
+    # module, never from anyone's memory of it. ⚰️ On 2026-09-14 this harness reported FOUR of its
+    # five scenarios INCONCLUSIVE with `TypeError: Member.edit_text() got an unexpected keyword
+    # argument 'deadline_s'`, because the double restated a keyword list that had since grown. It
+    # is the third delivery-double drift in this programme. The harness was right to say
+    # INCONCLUSIVE rather than FAIL — but a chaos suite that cannot run is a chaos suite nobody has.
+    import inspect as _inspect
+
+    from api.services.discord_render import delivery as _delivery
+    _m = Member()
+    for _name in ("edit_text", "followup"):
+        _real = _inspect.signature(getattr(_delivery, _name)).parameters
+        _kw = {k: None for k, p in _real.items()
+               if p.kind is _inspect.Parameter.KEYWORD_ONLY and k != "content"}
+        try:
+            getattr(_m, _name)("app", "tok", content="x", **_kw)
+            _ok = True
+        except TypeError:
+            _ok = False
+        cases.append((f"the double accepts every keyword `delivery.{_name}` declares", _ok))
+    # The control: a double that accepted ANYTHING would pass the two rows above for the wrong
+    # reason, so prove it still refuses a positional shape the real function would refuse too.
+    try:
+        _m.edit_text("app", "tok", "positional content")
+        cases.append(("the double is not simply accepting everything", False))
+    except TypeError:
+        cases.append(("the double is not simply accepting everything", True))
+
     try:
         def row(cid, state="messaged"):
             j = _job(cid)
@@ -397,8 +864,29 @@ def self_check() -> int:
         cases.append(("a non-terminal row FAILS even with an artifact", ok is False and "terminal" in why))
 
         cases.append(("every scenario names the class it exercises",
-                      all(c.startswith("C-") for _, c in SCENARIOS.values())))
+                      all(c[:1].isalpha() and ("-" in c) for _, c in SCENARIOS.values())))
         cases.append(("the scenario table is not empty", len(SCENARIOS) >= 5))
+        # ⛔⛔ THE COVERAGE CHECK. This harness shipped with FIVE scenarios while the brief named
+        # TWELVE, and nothing anywhere said so — a chaos suite running green over half its scope
+        # reports a system as exercised that is not, which is the chunked-test-run defect wearing
+        # a different hat. Named, never counted.
+        _missing = [n for n in REQUIRED if n not in SCENARIOS]
+        cases.append((f"every required scenario exists (missing: {_missing or 'none'})", not _missing))
+        # the control: prove the coverage check can actually see a gap
+        cases.append(("the coverage check can see a gap",
+                      "a_scenario_that_does_not_exist" not in SCENARIOS))
+        # ⛔⛔ `--real` MUST NOT SILENTLY DOWNGRADE. Every scenario is either upgradeable,
+        # already real, or REFUSED BY NAME — a scenario in none of those three buckets would
+        # run its rig version under a `--real` banner, which puts the word "real" over a stub
+        # in the report that decides the flip.
+        _unclassified = [n for n in SCENARIOS
+                         if n not in REAL_OVERRIDES and n not in REAL_REFUSED
+                         and n not in REAL_CAPABLE]
+        cases.append((f"every scenario has a --real disposition (unclassified: {_unclassified or 'none'})", not _unclassified))
+        cases.append(("a refused scenario carries its reason",
+                      all(v and len(v) > 20 for v in REAL_REFUSED.values())))
+        cases.append(("the real overrides are real scenarios",
+                      all(n in SCENARIOS for n in REAL_OVERRIDES)))
     finally:
         store.close()
 
@@ -418,6 +906,9 @@ def main(argv=None) -> int:
     ap.add_argument("--only", default="", help="comma-separated scenario names")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--out", default="")
+    ap.add_argument("--real", action="store_true",
+                    help="induce the break in the WIRE where that is possible; refuse "
+                         "the scenarios where it is not, by name")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args(argv)
 
@@ -443,6 +934,20 @@ def main(argv=None) -> int:
         from api.services.discord_render.jobs_store import JobsStore
         for name in wanted:
             fn, cls = SCENARIOS[name]
+            mode = "rig"
+            if args.real:
+                # ⛔⛔ REFUSED, NOT SILENTLY DOWNGRADED. A scenario that cannot be made real reports
+                # `refused` with the reason; running the rig version under a `--real` banner would
+                # put the word "real" over a stub in the report that decides the flip.
+                if name in REAL_REFUSED:
+                    results[name] = {"class": cls, "state": "refused", "mode": "real",
+                                     "detail": REAL_REFUSED[name], "ms": 0.0}
+                    print(f"  {'REFUSED':13} {name:26} {cls:12} {REAL_REFUSED[name]}")
+                    continue
+                if name in REAL_OVERRIDES:
+                    fn, mode = REAL_OVERRIDES[name], "real"
+                elif name in REAL_CAPABLE:
+                    mode = "real (already exercises the production path)"
             store = JobsStore(str(db.parent / f"{name}.db"))
             t0 = time.perf_counter()
             try:
@@ -452,9 +957,10 @@ def main(argv=None) -> int:
                 state, detail = "inconclusive", f"{type(e).__name__}: {e}"
             finally:
                 store.close()
-            results[name] = {"class": cls, "state": state, "detail": detail,
+            results[name] = {"class": cls, "state": state, "detail": detail, "mode": mode,
                              "ms": round((time.perf_counter() - t0) * 1000.0, 1)}
-            print(f"  {state.upper():13} {name:26} {cls:12} {detail}")
+            print(f"  {state.upper():13} {name:26} {cls:12} {detail}"
+                  + (f"  [{mode}]" if mode != "rig" else ""))
     except Exception as e:  # noqa: BLE001
         print(f"TOTALS chaos_scenarios INCONCLUSIVE ran={len(results)} "
               f"setup_failed={type(e).__name__}: {e}")
@@ -463,15 +969,22 @@ def main(argv=None) -> int:
     if args.out:
         pathlib.Path(args.out).write_text(json.dumps(results, indent=2), encoding="utf-8")
 
-    ran = len(results)
+    # ⛔⛔ A REFUSED SCENARIO IS NOT A PASSED SCENARIO, AND `ran` MUST NOT COUNT IT.
+    # ⚰️ The first `--real` run printed `ran=13 passed=13` while SIX scenarios had been refused and
+    # never executed. The report that decides the flip would have carried "13/13 in real mode" for
+    # seven that ran — the chunked-test-run defect, inside the instrument built to avoid it.
     failed = [n for n, r in results.items() if r["state"] == "fail"]
     unmeasured = [n for n, r in results.items() if r["state"] == "inconclusive"]
+    refused = [n for n, r in results.items() if r["state"] == "refused"]
+    ran = len(results) - len(refused)
+    passed = ran - len(failed) - len(unmeasured)
     code = FAIL if failed else (INCONCLUSIVE if (unmeasured or ran == 0) else PASS)
     label = {PASS: "PASS", FAIL: "FAIL", INCONCLUSIVE: "INCONCLUSIVE"}[code]
-    print(f"TOTALS chaos_scenarios {label} ran={ran} passed={ran - len(failed) - len(unmeasured)} "
-          f"failed={len(failed)} inconclusive={len(unmeasured)}"
+    print(f"TOTALS chaos_scenarios {label} ran={ran} passed={passed} "
+          f"failed={len(failed)} inconclusive={len(unmeasured)} refused={len(refused)}"
           + (f" failing={failed}" if failed else "")
-          + (f" unmeasured={unmeasured}" if unmeasured else ""))
+          + (f" unmeasured={unmeasured}" if unmeasured else "")
+          + (f" refused_names={refused}" if refused else ""))
     return code
 
 

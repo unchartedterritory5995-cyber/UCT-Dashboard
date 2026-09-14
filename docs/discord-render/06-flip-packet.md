@@ -9,7 +9,91 @@ variable, and three commands.
 
 ---
 
-## 0. State at the time of writing — measured, not remembered
+## 0. ⛔⛔ THE GATE — and it is a COMMAND, not a checklist in this file
+
+```sh
+python docs/discord-render/instruments/flip_preconditions.py
+```
+
+**Exit 0 = every precondition MET · 1 = at least one NOT MET · 2 = at least one NOT MEASURABLE.**
+
+⛔⛔ **A CHECKLIST TYPED INTO A DOCUMENT IS A CHECKLIST THAT DRIFTS, AND THIS PROGRAMME HAS THE
+RECEIPT.** `docs/feature_flags.json` described an unreleased surface *while members were using it*
+for a full day, because a ledger records INTENT and cannot see the world. So the table below is
+**generated output pasted in with its date**, and the command is the authority. If they disagree,
+the command is right and this section is what drifted.
+
+### Authority
+
+| Flip | Who | When |
+|---|---|---|
+| `DISCORD_RENDER_V2_CHANNELS=<canary id>` **then** `DISCORD_RENDER_V2_ENABLED=1` | pre-authorised to the integrating session | **only** when the command prints `ALL MET` |
+| the **member-channel** flip | **the owner, and only the owner** | after reading the canary evidence |
+
+⛔ **NOT MEASURABLE blocks the flip exactly as NOT MET does.** They are kept apart because what you
+*do* about them differs — one is a defect to fix, the other is evidence to go and get — but neither
+is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
+
+### Reading as of 2026-09-14 16:32 ET — **organic members exposed to V2: 0**
+
+⛔⛔ **THIS TABLE WAS LYING ON ITS MOST IMPORTANT ROW UNTIL 16:30 TONIGHT.** `check_s2_measured`
+was `MET if the --real files exist`; it never opened them. The first `--real` runs in this
+programme's history all printed `TOTALS load_harness FAIL`, and the row flipped to **MET** because
+five files now sat on disk. **Producing failing evidence made the gate greener.** Three rows had
+that shape (S2, chaos, 3.5) and all three now read verdicts. The reading below is the fixed tool.
+
+| Precondition | State | Evidence |
+|---|---|---|
+| zero xfails in the forensics suite | ✅ MET | 0 `@pytest.mark.xfail` decorators |
+| every forensics class closed with a commit | 🔴 **NOT MET** | 11/14. Open: **C-02**, **C-09**, **C-13** |
+| the artifact cache is wired to the hot path | ✅ MET | `bindings` imports `artifact_cache` ⚠️ but see OI-38 — it did **not engage** under `--real` |
+| soak clean for ≥ 24 h | ⚪ NOT MEASURABLE | **61** clean ticks of the 90 a 24 h window needs |
+| `/chart` is shadowed (structural) | ✅ MET | and now **empirically** — the first `/chart` shadow records ever, 2026-09-14 19:58Z |
+| **S2** measured in `--real` and within SLO | 🔴 **NOT MET** | 3 runs judged, **9 breaches**. Worst: `p50 14,855 ms > 2,500 ms`, `S5 35.7% (queue_full×81)` — **at 30 arrivals/second**. ⭐ At **1/s** (3.1c) S2 is **MET on all three percentiles**: p50 3.5 ms · p95 1,748 ms · p99 6,692 ms, 593 charts delivered |
+| chaos passed in `--real` | ✅ MET | 7 scenarios passed for real, **6 refused by name** (refused ≠ passed) |
+| 3.5 real-Discord smoke | 🔴 **NOT MET** | **only 2/15 rows PASS.** A partial smoke is not a smoke |
+| `#render-alerts` locked to admins | ✅ MET | no `Contributor` allow overwrite — fixed 2026-09-14 |
+| mutation NOT-APPLIED = 0 | ⚪ NOT MEASURABLE | pass `--run-mutations`. ⭐ `anchor_check` reads **316/316 ok, stale=0, ambiguous=0** |
+
+**VERDICT: NOT MET — do not flip.** Four rows NOT MET, three NOT MEASURABLE.
+
+⭐ **The S2 row is the one to read carefully, because its headline and its meaning differ.** Every
+failure in every load phase was **`queue_full`** — never a timeout, never a render error, never a
+breaker trip. `acks_over_3s` was **0 in all three phases**, so S1 held at 30 arrivals/second. The
+bounded queue refusing excess work with an immediate named refusal is the design working; the SLO
+counts those refusals as failures because the member got no chart, which is also correct.
+
+⚠️ **And 3.1a's load is ~15× what the brief asked for (OI-37):** "30 concurrent" was implemented as
+`--rate 30` = 30 arrivals **per second**. Both numbers are real; only one of them is the test that
+was specified.
+
+### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
+
+⚰️ ~~**S2 HAS NOT BEEN MEASURED.**~~ **It has, as of 2026-09-14 after the close.** This paragraph
+used to say every load figure ran `--symbols stub` through a zero-cost handler — no symbol resolved,
+no bars fetched, no chart rendered — and that those were S1 numbers wearing an S2 label. That was
+true for the whole programme until tonight and is kept because the distinction still matters.
+
+**What S2 now is, measured over 601 real jobs at 1 arrival/second:**
+
+| | measured | target | |
+|---|---|---|---|
+| p50 | **3.5 ms** | 2,500 ms | ✅ |
+| p95 | **1,748 ms** | 5,000 ms | ✅ |
+| p99 | **6,692 ms** | 8,000 ms | ✅ |
+| success | 98.67 % | 99.5 % | 🔴 short by 8 jobs, **all `queue_full`** |
+
+⛔ **And the same system at 30 arrivals/second: p50 14,855 ms, success 35.7 %.** Both numbers are
+real. Which one describes the product depends entirely on the arrival rate, and nothing like 30/s
+has ever been observed on a guild of 1,558 members.
+
+⛔ **Do not quote either figure without its rate.** An S2 number without an arrival rate beside it
+is the same defect as an ack-path p99 in a row labelled S2 — a measurement of a different thing
+that happens to share a unit.
+
+---
+
+## 0b. State at the time of writing — measured, not remembered
 
 Read **2026-09-13 20:44 ET / 2026-09-14 00:44 UTC**, from the running production process:
 
@@ -62,10 +146,33 @@ pod still returned `None` for, because its redeploy had not swapped yet
 only on `chart-renderer` (2026-08-30), auto-redeploying on `web` (2026-09-09), with an explicit
 `railway redeploy` 16 s later REFUSED as "currently building". Do not assume which one you got.
 
-### 2.1 Set it
+### 2.1 Set it — **the narrowing variable FIRST, and in its own command**
 
 ```sh
+# 1. narrow V2 to the canary channel BEFORE the master flag exists.
+railway variables --service web --set "DISCORD_RENDER_V2_CHANNELS=1549129739048853544"
+# 2. only then arm the master flag.
 railway variables --service web --set "DISCORD_RENDER_V2_ENABLED=1"
+```
+
+⛔⛔ **ORDER IS LOAD-BEARING AND THIS SECTION USED TO GET IT WRONG.** Until 2026-09-14 this step
+set `DISCORD_RENDER_V2_ENABLED=1` **alone** and called the result an admin-only canary, while §4.0
+below said in capitals that the canary is the admin channel. Both cannot be true:
+`commands.enabled()` was one global boolean with **no channel dimension at all**, so that single
+command sends every member's `/chart` in `#chart-flow-requests` to V2 in the same instant. It is
+the member-channel flip — the one decision reserved to the owner — arrived at by following a
+section headed "canary". `DISCORD_RENDER_V2_CHANNELS` (OI-35) is what makes the narrowing real.
+
+⚠️ **Setting the master flag first, even for the seconds between two commands, is a member flip.**
+`--set` has been measured auto-redeploying on `web`, so the window is a real boot, not a race.
+
+⛔ **UNSET `DISCORD_RENDER_V2_CHANNELS` MEANS EVERY CHANNEL.** It narrows; it is not a second kill
+switch. Do not read its absence as "the canary is off" — read it as "there is no canary."
+
+**Verify the narrowing in the running process, not from `--kv`:**
+
+```sh
+railway run --service web -- python -c "from api.services.discord_render import commands as c; print(c.v2_channels(), c.enabled())"
 ```
 
 ### 2.2 Watch for a NEW BOOT — by timestamp, not by the command's exit code

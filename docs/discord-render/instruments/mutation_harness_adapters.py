@@ -13,7 +13,20 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[3]
+# ⛔ FLAGS ARE NOT PATHS. `sys.argv[1]` was taken as the repo root unconditionally, so
+# `--dry-check` resolved to a directory named `--dry-check` and every mutation reported
+# "file missing" — an instrument reporting a property of its own argument parsing as a property of
+# the repository. The positional root is still supported; it just has to look like one.
+_ARGS = [a for a in sys.argv[1:] if not a.startswith("-")]
+ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3]
+
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
 T = "tests/test_discord_render_adapters.py::"
 TR = "tests/test_discord_render_result.py::"
 CALL = "api/services/discord_render/adapters/_call.py"
@@ -35,9 +48,26 @@ SH = "api/services/discord_render/shadow.py"
 ST = "tests/test_discord_render_shadow.py::"
 RT = "api/routers/discord_interactions.py"
 FT = "tests/test_discord_render_forensics.py::"
+FORENSICS = "tests/test_discord_render_forensics.py"
 TRT = T
 
 MUTATIONS = [
+    # ⚰️ A49-A53 RETIRED 2026-09-14, NOT DELETED FOR CONVENIENCE. They proved five properties of
+    # the footer that `bindings` used to compose itself. C-06 moved that composition into
+    # `badge.py`, so re-aiming them here would have made a SECOND COPY of each guard — and three
+    # copies of a rule cannot be mutation-proved (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    #
+    # ⛔ EACH RETIREMENT NAMES ITS SUCCESSOR SO A READER CAN VERIFY THE GUARD RATHER THAN TRUST
+    # THIS COMMENT, and `tests/test_mutation_harness_anchors.py::test_the_retired_mutations_name_
+    # _their_successors` asserts every id below really exists in the badge harness:
+    #
+    #   A49 a healthy delivery is stamped too        retired → covered by B3   (Lane D, 925b3e08d)
+    #   A50 the badge is a second copy of the sentence retired → covered by B2   (Lane D, 925b3e08d)
+    #   A51 the stamp is appended on every edit      retired → covered by B13  (Lane D, 925b3e08d)
+    #   A52 the STAMP is trimmed instead of the content retired → covered by B12  (Lane D, 925b3e08d)
+    #   A53 a degraded delivery loses the id         retired → covered by B5   (Lane D, 925b3e08d)
+    #
+    # The properties are still proved. They are proved ONCE, in the module that owns the copy.
     # ── the spine ──────────────────────────────────────────────────────────
     {"name": "A1 the dependency timeout wins over the job deadline (the 60s-behind-15s defect)",
      "file": CALL,
@@ -48,26 +78,56 @@ MUTATIONS = [
     {"name": "A2 a call with no time left is started anyway", "file": CALL,
      "old": "    if eff < MIN_USEFUL_S:\n", "new": "    if False:\n",
      "tests": [T + "test_a_call_with_no_useful_time_left_is_refused_without_touching_the_upstream"]},
-    {"name": "A3 the function gets the constant, not the effective budget", "file": CALL,
-     "old": "        fut = pool(name).submit(fn, left)\n",
-     "new": "        fut = pool(name).submit(fn, dep_timeout_s)\n",
+    {"name": "A3 the function gets a dependency constant, not the effective budget", "file": CALL,
+     "old": "    fut = pool(name).submit(fn, left)\n",
+     "new": "    fut = pool(name).submit(fn, 8.0)\n",
      "tests": [T + "test_the_function_is_handed_the_effective_timeout_not_the_constant"]},
     # C-10, found by Lane E's chaos harness: the budget was computed once per CALL, so an N-attempt
     # hop could spend N x the deadline (measured 4.6 s against 2 s).
     {"name": "A76 the budget is computed once per call, so N attempts spend N budgets", "file": CALL,
-     "old": "        left = eff - (now() - started)\n"
-            "        if left < MIN_USEFUL_S:\n"
-            "            raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {eff:.3f}s budget\")\n",
-     "new": "        left = eff\n",
-     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call"]},
+     "old": "    left = budget.remaining()\n"
+            "    if left < MIN_USEFUL_S:\n"
+            "        raise cf.TimeoutError(f\"{name}: {left:.3f}s left of a {budget.total_s:.3f}s budget\")\n",
+     "new": "    left = budget.total_s\n",
+     "tests": [FT + "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call",
+               T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline",
+               T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    # ⭐ A76 proves the ARITHMETIC is load-bearing; A76b-e prove the SHAPE that keeps it
+    # un-rewritable is load-bearing too. Lane C, OI-29: "the live guard was luck".
+    {"name": "A76b the attempt runner is handed the once-per-call float again", "file": CALL,
+     "old": "    job_budget = _Budget(eff, started, now)\n",
+     "new": "    job_budget = eff\n",
+     "tests": [T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline",
+               T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    {"name": "A76c the retry backoff is slept on top of the budget instead of inside it", "file": CALL,
+     "old": "        sleep(max(0.0, min(seconds, self.remaining())))\n",
+     "new": "        sleep(seconds)\n",
+     "tests": [T + "test_the_retry_backoff_is_slept_inside_the_budget_and_never_on_top_of_it",
+               T + "test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline"]},
+    {"name": "A76d the wait on the future outlives the budget the upstream was given", "file": CALL,
+     "old": "        return fut.result(timeout=left)\n",
+     "new": "        return fut.result(timeout=budget.total_s)\n",
+     "tests": [T + "test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows"]},
+    # ⛔ A76e mutates LANE E's forensics file, which this lane does not edit in the repo. The harness
+    # writes it, runs, then restores the bytes captured first with a sha256 check in a `finally`;
+    # nothing of it is ever committed, and `git status` is clean after a run. Without it the
+    # permanence rail is a gate nobody has seen fire (`lesson_gate_that_cannot_fail`).
+    {"name": "A76e Lane E's own C-10 guard is defanged back to an xfail", "file": FORENSICS,
+     "old": "def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():\n",
+     "new": "@pytest.mark.xfail(reason=\"MUTANT\")\n"
+            "def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():\n",
+     "tests": [T + "test_lane_es_own_c10_guard_is_still_in_the_suite_and_still_armed"]},
     {"name": "A4 the breaker is bypassed", "file": CALL,
-     "old": "        value = breakers.call(name, _once, attempts=attempts, retry_on=retry_on, sleep=sleep)\n",
-     "new": "        value = _once()\n",
+     "old": "        value = breakers.call(name, lambda: _attempt(name, fn, job_budget),\n",
+     "new": "        value = _attempt(name, fn, job_budget)\n        _bypassed = dict(\n",
      "tests": [T + "test_an_open_breaker_refuses_without_calling_the_dependency",
                T + "test_the_renderer_breaker_finally_has_a_caller"]},
+    # ⚠️ Re-indented when `_once` became the module-level `_attempt` (Lane C, OI-29). A stale `old`
+    # here does not fail — it reports NOT APPLIED, which reads as a line in a long report rather
+    # than as a hole in the coverage. Read the NOT-APPLIED count, never just the RED count.
     {"name": "A5 abandoned calls are not counted", "file": CALL,
-     "old": "            with _POOL_LOCK:\n                _ABANDONED[name] = _ABANDONED.get(name, 0) + 1\n",
-     "new": "            pass\n",
+     "old": "        with _POOL_LOCK:\n            _ABANDONED[name] = _ABANDONED.get(name, 0) + 1\n",
+     "new": "        pass\n",
      "tests": [T + "test_an_abandoned_call_is_reported_separately_from_a_failure"]},
     {"name": "A6 one pool for every dependency (C-02 restored)", "file": CALL,
      "old": "            p = cf.ThreadPoolExecutor(max_workers=POOL_SIZE.get(name, DEFAULT_POOL_SIZE),\n"
@@ -205,14 +265,24 @@ MUTATIONS = [
      "new": "        return outcome\n",
      "tests": [T + "test_a_timed_out_symbol_check_also_fails_open"]},
     # ── the wiring: built-tested-green-and-unwired is this programme's costliest shape ──────
+    # ⚠️ STALE SINCE P2.6/P2.7 AND FOUND ONLY BY READING THE NOT-APPLIED LINE (Lane C, OI-29).
+    # `edit_fn=ctx.edit` became `edit_fn=bindings.edit_fn(ctx)` when the stamp landed, and the
+    # `return dict(...)` line re-wrapped; the mutation has been reporting NOT APPLIED (0 matches)
+    # ever since, so this proof has not run for several merges. It is now anchored on the
+    # `context_fn` line, which exists ONLY in `_chart_kwargs` — `_multi_kwargs` is otherwise
+    # near-identical, and a pattern matching both would report NOT APPLIED (2 matches) instead.
     {"name": "A29 the chart handler goes back to the raw client", "file": CMD,
-     "old": "    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png, edit_fn=ctx.edit,\n"
+     "old": "    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,\n"
+            "                edit_fn=bindings.edit_fn(ctx),\n"
             "                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,\n"
-            "                quote_fn=bindings.quote_fn(ctx),\n",
+            "                quote_fn=bindings.quote_fn(ctx),\n"
+            "                context_fn=chart_context.context_line if chart_context.enabled() else None,\n",
      "new": "    from api.routers import discord_interactions as router\n"
-            "    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,\n"
+            "    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png,\n"
+            "                edit_fn=ctx.edit,\n"
             "                house_fn=house.render_house_chart if house.house_enabled() else None,\n"
-            "                quote_fn=router.fetch_ext_quote,\n",
+            "                quote_fn=router.fetch_ext_quote,\n"
+            "                context_fn=chart_context.context_line if chart_context.enabled() else None,\n",
      "tests": [T + "test_the_v2_handlers_bind_adapters_and_not_the_raw_clients",
                T + "test_commands_no_longer_names_a_raw_upstream_function"]},
     {"name": "A30 a context that cannot say its budget is given 'plenty'", "file": BIND,
@@ -225,12 +295,26 @@ MUTATIONS = [
      "tests": [T + "test_a_binding_returns_the_shape_produce_chart_expects_and_keeps_the_reason",
                T + "test_the_v2_handlers_bind_adapters_and_not_the_raw_clients"]},
     {"name": "A32 the render is not stamped with the bars it drew", "file": BIND,
-     "old": "            envelope=prior.envelope if prior and prior.ok else None), house_fn=inner))\n",
-     "new": "            envelope=None), house_fn=inner))\n",
+     # ⚰️ RE-ANCHORED 2026-09-14. OI-29 made `attempts=1` explicit at this binding site, which moved
+     # the closing paren onto a later line and left this mutation matching NOTHING — reported as
+     # `NOT APPLIED (0 matches)`, i.e. a proof that did not happen, inside a run that printed 73/80.
+     # ⚰️ RE-ANCHORED TWICE IN ONE DAY, BY THE SAME PERSON WHO ADDED THE NEXT GUARD. OI-29 moved
+     # the closing paren; Gap 1's cache wiring then hoisted the envelope into a local and left
+     # `envelope=envelope,` at the call site. ⭐ Both times it was caught by `--dry-check` in the
+     # gate rather than at the end of a 25-minute run — which is the whole argument for the gate.
+     "old": "                envelope=envelope,\n",
+     "new": "                envelope=None,\n",
      "tests": [T + "test_the_render_is_stamped_with_the_vintage_of_the_bars_it_drew"]},
     {"name": "A33 a failed fetch is handed on as if it worked", "file": BIND,
-     "old": "            attempts=1)))\n        return r.data if r.ok else None\n",
-     "new": "            attempts=1)))\n        return r.data\n",
+     # ⚰️ RE-ANCHORED 2026-09-14. `attempts=1)))` used to appear ONCE; OI-29 states the attempt
+     # count at every binding site, so the old anchor matched THREE places and reported
+     # `NOT APPLIED (2 matches)`. ⭐ A multi-match is the safer failure — it refuses rather than
+     # mutating an arbitrary one of them — but it is still a proof that did not happen. The anchor
+     # now includes the comment line unique to `bars_fn`.
+     "old": "            # fetches per chart and sleep ~2.9 s inside a 15 s deadline.\n"
+            "            attempts=1)))\n        return r.data if r.ok else None\n",
+     "new": "            # fetches per chart and sleep ~2.9 s inside a 15 s deadline.\n"
+            "            attempts=1)))\n        return r.data\n",
      "tests": [T + "test_a_failed_result_that_still_carries_data_is_not_handed_on_as_if_it_worked"]},
     {"name": "A34 the job's remaining time is not passed down", "file": BIND,
      "old": "            ticker=ticker, tf=tf, n=n, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),\n",
@@ -328,26 +412,6 @@ MUTATIONS = [
      "tests": [LT + "test_starting_it_off_the_loop_reports_not_running_rather_than_raising"]},
 
     # ── P2.6/P2.7: the stamp reaches the member ────────────────────────────
-    {"name": "A49 a healthy delivery is stamped too (the badge becomes furniture)", "file": BIND,
-     "old": "    if not parts:\n        return \"\"\n",
-     "new": "    if not parts:\n        parts = [\"checked\"]\n",
-     "tests": [T + "test_a_healthy_delivery_carries_no_stamp_at_all"]},
-    {"name": "A50 the badge is a second copy of the sentence, not the envelope's", "file": BIND,
-     "old": "    badge = next((r.badge for r in results.values() if r.stale is True and r.badge), None)\n",
-     "new": "    badge = \"(stale)\" if any(r.stale is True for r in results.values()) else None\n",
-     "tests": [T + "test_a_stale_delivery_is_labelled_with_the_envelopes_own_sentence"]},
-    {"name": "A51 the stamp is appended on every edit (the member is warned twice)", "file": BIND,
-     "old": "    if not suffix or text.endswith(suffix):\n", "new": "    if not suffix:\n",
-     "tests": [T + "test_the_stamp_is_idempotent_across_the_second_edit"]},
-    {"name": "A52 the STAMP is trimmed instead of the content (S8 with extra steps)", "file": BIND,
-     "old": "    keep = CONTENT_MAX - len(suffix) - 2\n"
-            "    return (text[:max(0, keep)].rstrip() + \"\\n\" + suffix) if keep > 0 else suffix[:CONTENT_MAX]\n",
-     "new": "    return joined[:CONTENT_MAX]\n",
-     "tests": [T + "test_when_it_does_not_fit_the_CONTENT_is_trimmed_and_the_STAMP_is_kept"]},
-    {"name": "A53 a degraded delivery loses the id a member would quote", "file": BIND,
-     "old": "    return \" · \".join(parts) + (f\" · id {cid}\" if cid else \"\")\n",
-     "new": "    return \" · \".join(parts)\n",
-     "tests": [T + "test_a_stale_delivery_is_labelled_with_the_envelopes_own_sentence"]},
     {"name": "A54 an edit with no content grows one", "file": BIND,
      "old": "        if \"content\" in kw:\n", "new": "        if True:\n",
      "tests": [T + "test_the_edit_wrapper_stamps_every_path_the_render_function_can_take"]},
@@ -409,7 +473,37 @@ def run(tests):
     return "RED", out.strip().splitlines()[-1][:120]
 
 
+def dry_check() -> int:
+    """Does every mutation still find its anchor, exactly once? One second, no tests run.
+
+    ⛔⛔ RUN THIS BEFORE COMMITTING TO A TWENTY-FIVE MINUTE SET. A stale anchor is a proof that did
+    not happen, and it is currently discovered at the END of the run, printed under the number
+    people quote — `73/80 RED` reads like a near-perfect score. ⚰️ Measured twice in two days: A29
+    sat stale for several merges, and then SEVEN more went stale in one session because the
+    integrator's own OI-29 patch moved the lines they anchored on. **The people most likely to
+    invalidate a mutation anchor are the people adding the next guard.**
+
+    Exit 1 on any anchor that matches anything other than exactly once."""
+    bad = []
+    for mut in MUTATIONS:
+        path = ROOT / mut["file"]
+        if not path.exists():
+            bad.append((mut["name"], "file missing")); continue
+        text = path.read_bytes().decode("utf-8")
+        eol = "\r\n" if "\r\n" in text else "\n"
+        n = text.count(mut["old"].replace("\n", eol))
+        if n != 1:
+            bad.append((mut["name"], f"{n} matches"))
+    for name, why in bad:
+        print(f"  NOT APPLIED ({why}): {name}")
+    print(f"TOTALS mutation_harness_adapters --dry-check "
+          f"{'PASS' if not bad else 'FAIL'} mutations={len(MUTATIONS)} stale={len(bad)}")
+    return 0 if not bad else 1
+
+
 def main():
+    if "--dry-check" in sys.argv:
+        return dry_check()
     print(f"root: {ROOT}\n")
     control_first = run([T.rstrip(":"), TR.rstrip(":"), B.rstrip(":")])
     print(f"CONTROL (before)  {control_first[0]}  {control_first[1]}")
@@ -450,7 +544,12 @@ def main():
     control_last = run([T.rstrip(":"), TR.rstrip(":"), B.rstrip(":")])
     print(f"\nCONTROL (after)   {control_last[0]}  {control_last[1]}")
     red = sum(1 for _, v, _ in results if v == "RED")
-    print(f"\n{red}/{len(results)} mutations RED")
+    # ⛔ THE NOT-APPLIED COUNT GOES ON THE SUMMARY LINE, BESIDE THE RED ONE. A mutation whose `old`
+    # has gone stale runs nothing and proves nothing, and "78/80 RED" reads like a near-perfect
+    # score rather than like two proofs that did not happen. A29 sat stale for several merges
+    # because the only place it was reported was a footnote under the number people quote.
+    na = sum(1 for _, v, _ in results if v.startswith("NOT APPLIED"))
+    print(f"\n{red}/{len(results)} mutations RED, {na} NOT APPLIED (a NOT APPLIED proves nothing)")
     bad = [(n, v) for n, v, _ in results if v != "RED"]
     for n, v in bad:
         print(f"  *** {v}: {n}")

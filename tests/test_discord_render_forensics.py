@@ -662,12 +662,8 @@ def test_c06_a_render_that_draws_nothing_is_bounded_by_the_jobs_remaining_time()
     assert _call.is_result(out) and out.reason() == R.DEADLINE
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "C-06: the stand-in is still unlabelled. `04-visual-spec.md` §3 requires the label in the "
-    "MESSAGE CONTENT (an image label is invisible on a phone thumbnail); `run_chart_job` sends the "
-    "bare headline for a `fallback` outcome. Step 2.6/2.7 owns the copy."))
-def test_c06_a_delivered_standin_says_so_in_the_message_a_member_reads():
-    """XFAIL-STRICT — the fix is 2.6/2.7 and has not landed.
+def test_c06_a_delivered_standin_says_so_in_the_message_a_member_reads(monkeypatch):
+    """✅ CLOSED 2026-09-14. Was `xfail(strict=True)`.
 
     Half two of the class, and the member-visible half: three stand-ins went out, two never healed,
     and none was labelled, so a member read a lower-quality chart as the product. Reproduced by
@@ -675,22 +671,68 @@ def test_c06_a_delivered_standin_says_so_in_the_message_a_member_reads():
 
     ⛔ Would it see a different re-introduction? It asserts on the delivered CONTENT, not on a flag
     or a log line, so a label that exists in the payload but never reaches the message — the exact
-    way this would be "fixed" and still be broken — still fails. It accepts any wording that names
-    the degradation, so it does not pin copy that 2.7 has not written yet.
+    way this would be "fixed" and still be broken — still fails.
+
+    ⭐ WHAT CLOSED IT WITHOUT TOUCHING `produce_chart`. The `fallback` outcome tag lives in a
+    pre-V2 file this programme may not change. But the same fact is already on the job context:
+    `bindings.house_fn` records the renderer's `Result`, so "the house renderer was asked and
+    failed, and an image went out anyway" is derivable in the V2 wrapper — and that conjunction is
+    exactly what a stand-in is.
     """
+    from api.services.discord_render.adapters import bindings
+    monkeypatch.setenv("DISCORD_RENDER_V2_ADAPTERS_ENABLED", "1")
     bars = _daily_bars(180)
     edits = Edits()
+    ctx = _V2Ctx(edits)
     out = di.run_chart_job("APP", "TOK", di.ChartRequest("NVDA", "D"),
                            bars_fn=lambda t, tf, n: bars,
                            render_fn=lambda t, tf, b, **k: PNG + b"standin",
-                           house_fn=lambda *a, **k: None,          # the house renderer drew nothing
-                           edit_fn=edits)
+                           # the house renderer drew nothing — bound through the adapter so the
+                           # failure is RECORDED, which is what the label is derived from
+                           house_fn=bindings.house_fn(ctx, inner=lambda *a, **k: None),
+                           edit_fn=bindings.edit_fn(ctx))
     assert out == "ok" and edits.calls, "no chart was delivered — nothing to judge"
-    delivered = [c for c in edits.calls if c.get("png")]
+    delivered = [c for c in edits.calls if c.get("png") or c.get("pngs")]
     assert delivered, "no image reached the member"
     said = " ".join(str(c.get("content") or "") for c in delivered).lower()
     assert any(w in said for w in ("simplified", "stand-in", "standin", "unavailable", "degraded")), (
         f"a stand-in was delivered with no label a member can see: {said!r}")
+
+
+def test_c06_a_house_chart_carries_no_stand_in_label_and_that_is_the_control(monkeypatch):
+    """⛔⛔ THE OPPOSITE FAILURE IS JUST AS REAL, AND IT IS THE ONE A TEST NORMALLY MISSES.
+
+    A label on every chart is furniture, and furniture is not there on the day it matters (04 §2).
+    The first freshness design would have drawn a badge on every chart all weekend. Without this
+    control, `stamp` could simply append the label unconditionally and the test above would pass.
+    """
+    from api.services.discord_render.adapters import bindings
+    monkeypatch.setenv("DISCORD_RENDER_V2_ADAPTERS_ENABLED", "1")
+    bars = _daily_bars(180)
+    edits = Edits()
+    ctx = _V2Ctx(edits)
+    di.run_chart_job("APP", "TOK", di.ChartRequest("NVDA", "D"),
+                     bars_fn=lambda t, tf, n: bars,
+                     render_fn=lambda t, tf, b, **k: PNG + b"never used",
+                     house_fn=bindings.house_fn(ctx, inner=lambda *a, **k: PNG + b"house"),
+                     edit_fn=bindings.edit_fn(ctx))
+    said = " ".join(str(c.get("content") or "") for c in edits.calls).lower()
+    assert "simplified" not in said, (
+        f"a healthy house chart was labelled a stand-in — the label is furniture: {said!r}")
+
+
+def test_c06_a_failure_with_no_image_is_never_called_a_simplified_chart(monkeypatch):
+    """⛔ THE LABEL NAMES A PICTURE. When the render fails and nothing is delivered, the member
+    gets the failure contract's sentence; calling that a "simplified chart" names an artifact that
+    does not exist, which is a different lie from the one C-06 describes but a lie all the same."""
+    from api.services.discord_render.adapters import bindings
+    from api.services.discord_render.adapters import result as R
+    monkeypatch.setenv("DISCORD_RENDER_V2_ADAPTERS_ENABLED", "1")
+    ctx = _V2Ctx(Edits())
+    bindings.record(ctx, "renderer", R.fail(R.EMPTY, provider="renderer"))
+    assert bindings.standin_class(ctx, has_image=True) is not None, (
+        "the fixture did not set up a stand-in, so the assertion below proves nothing")
+    assert bindings.standin_class(ctx, has_image=False) is None
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -733,12 +775,9 @@ def test_c07_a_weekend_daily_bar_is_judged_by_the_SESSION_not_by_its_age():
         "unknown vintage rendered as fresh — the bug the tri-state exists to prevent")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "C-07: the house page cannot draw the STALE badge because nothing tells it. 03 §3.8 specifies "
-    "`?stale=<as_of>` on `/r/chart`; `discord_chart_house.build_render_url` emits no vintage "
-    "parameter, so the image still carries only a wall-clock footer. Step 2.6/2.7."))
 def test_c07_the_house_render_url_carries_the_data_vintage_so_the_image_can_say_it_is_stale():
-    """XFAIL-STRICT — the member-visible half of C-07 has not landed.
+    """✅ CLOSED 2026-09-14. Was `xfail(strict=True)`; the marker turned the fix into an
+    `XPASS(strict)` failure the moment it landed, which is exactly what a strict xfail is for.
 
     The forensic evidence for this class is 27 of 85 closed-market cases differing run to run, the
     footer wall clock named as a cause. The structural fix is *vintage, not wall clock*: the page is

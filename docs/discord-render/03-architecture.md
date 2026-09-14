@@ -218,18 +218,96 @@ No stack trace, exception text or URL ever reaches a member (railed on the build
 
 ### 3.6 Artifact cache + coalescing (D-02, C-01)
 
-`api/services/discord_render/cache.py`, flag `RENDER_CACHE_ENABLED`.
+`api/services/discord_render/artifact_cache.py`, flag `RENDER_CACHE_ENABLED` (an **enablement
+gate**: unset means OFF).
 
-- **Key:** `sha1(command, normalized args incl. prefs signature, data_version)`. `data_version`
-  for a chart = `(last bar t, last close, session_state)`; for a flow card = `(window end,
-  contract_count, net bull/bear/unclassified)`.
+**Two tiers, one key space.** L1 is this process's heap; L2 is the Railway volume. Lookup is
+**L1 → L2 → miss**, and an **L2 hit promotes into L1**. ⭐ A cache that survives the 8-minute pod is
+a different product from one that does not: `web` deploys ~77 times a day, so an in-memory-only
+cache is empty exactly when the first render after a deploy needs it most (C-01).
+
+- **Key:** `sha1(command, normalized args incl. prefs signature, data_version)`. `data_version` is
+  the **data's vintage** — for a chart the newest bar's `t` (`freshness.Envelope.as_of_utc`, which
+  `vintage_of()` derives); for a flow card the window end. A caller may pass a richer stamp of its
+  own (`key_for(..., vintage=...)`) — the last close, a contract count, a net bull/bear/unclassified
+  split — and `key_for` is the one place a key is built.
+  ⛔ **`session_state` IS NOT PART OF THE KEY, and this line used to say it was.** The session is the
+  wall clock wearing a hat: with it in the key, the same closed-market input re-keys every time the
+  market crosses a boundary, and §3.10's determinism guarantee becomes unobservable because no two
+  runs share an entry to compare. `key_for` cannot read a clock at all, and
+  `test_the_key_cannot_read_a_clock_at_all` is what makes that structural rather than a convention.
+  The session still decides the TTL — at read time, below — which is the job it actually has.
 - **TTL by session state (D-02):** RTH 30 s · extended 120 s · closed until the next session open.
-- **On the volume:** `DISCORD_RENDER_CACHE_DIR` (default `/data/discord_render_cache/`), LRU by
-  bytes (`DISCORD_RENDER_CACHE_BYTES`, default 512 MiB). ⭐ A cache that survives the 8-minute pod
-  is a different product from one that does not.
-- **Cached reply stamp:** a hit within TTL posts with `cached 14:32:05 ET` in the message.
-- **Degraded artifacts are cached apart:** stand-ins 60 s (the 2026-08-27 lesson), cached flow
-  cards only as a labelled fallback.
+  Read off the session **at read time**, not the one the entry was stored in, and **one function
+  (`expired_at`) is called by both tiers** — "the same rules at both tiers" is a property of there
+  being one implementation, not a promise two copies make to each other.
+  ⛔ "Closed until the next session open" is enforced by the KEY, never by a timer: the next session
+  opening changes the data version, which changes the key. A number there would be a second
+  authority over a boundary the key already owns.
+- **L1, in the heap:** `DISCORD_RENDER_CACHE_MEM_BYTES` (default **64 MiB**) and
+  `DISCORD_RENDER_CACHE_MAX_ENTRIES` (default 256); eviction is oldest `stored_at` first, ties broken
+  by insertion sequence. ⛔ **Its own env name.** It read `DISCORD_RENDER_CACHE_BYTES` — the volume's
+  name — until 2026-09-14, and the collision ran in the dangerous direction: an operator setting the
+  documented 512 MiB for the volume would have raised the HEAP ceiling eightfold on a pod that OOMs
+  members when it runs out.
+- **L2, on the volume:** `DISCORD_RENDER_CACHE_DIR` (default `/data/discord_render_cache`), LRU by
+  **bytes** (`DISCORD_RENDER_CACHE_BYTES`, default 512 MiB), oldest `stored_at` first with the
+  **fingerprint** as the tie-break — L1's insertion counter restarts at zero on every pod, and an
+  eviction order that depends on who is asking is not an order. A **blank** `DISCORD_RENDER_CACHE_DIR`
+  turns L2 off and leaves L1 running: the fail direction of a missing volume is a smaller cache,
+  never a failed render.
+  ⛔ **An L1 eviction NEVER evicts L2, and an L2 eviction never evicts L1.** Two budgets over one key
+  space; the heap is 64 MiB shared with every dashboard request and fills constantly, the volume is
+  512 MiB nothing else wants. Both directions are railed.
+  ⛔ The `/data/...` default is an **inline literal in the `os.environ.get` call** and must stay one,
+  so the repo-root `conftest.py` can derive it (`shared_data_root_census`) and redirect a test run
+  away from the owner's live `C:\data`. Written as a named constant it took `unpinnable` from 0 to 1.
+- **Durability is atomic, and a damaged entry is a MISS:** the write is a tmp file in the same
+  directory, `fsync`, then `os.replace`, so a reader sees the whole previous entry or the whole new
+  one — never half of one. The read verifies the payload's **length** and **SHA-256** against the
+  header that travels with it, plus that the file claims the key that was asked for. A truncated
+  file, a flipped byte, an unparseable header, a version we cannot read, a file moved to another
+  name: every one is a recorded miss (`l2_corrupt`), **never served, never raised**, and the entry is
+  discarded rather than left holding byte budget it can never be served from.
+- **Degraded never fresh, at both tiers:** an artifact whose envelope says `stale is None` is
+  UNKNOWN, not fresh, and the round trip must preserve all three verdicts — through the heap and
+  through the file. On the L2 read path the guard is explicit: a header with no envelope
+  deserialises to `None`, and a `stale` that is neither a bool nor `null` is corruption rather than a
+  verdict (it would sail through `is None` as False and through truthiness as True).
+- **Coalescing** is part of the contract, not an optimisation (§3.2): identical work in flight shares
+  one production; a follower waits at most its **own** remaining budget and then gets a miss, never a
+  hang and never the leader's traceback. ⛔ An **L1 concern by construction** — a flight is in-process
+  work and a second pod cannot join it; pretending otherwise needs a lock on the volume, which is a
+  different product with a different failure mode (a stale lock file after a pod is killed).
+- **Cached reply stamp:** a hit within TTL posts with `cached 14:32:05 ET` in the message
+  (`Artifact.cached_stamp`, derived from `stored_at`). ⛔ `stored_at` and the envelope are **two
+  different numbers and both are kept**: a cache holding only the first hands back a week-old chart
+  stamped with the moment it was cached — true, and completely misleading.
+
+*Built in 2.5 (Lane B).* Where it differs from the text above — stated rather than quietly dropped,
+which is how §3.6 and the code came to describe two different products in the first place (OI-31):
+
+- ☠️ ~~**"Degraded artifacts are cached apart: stand-ins 60 s (the 2026-08-27 lesson)"**~~ — **STRUCK
+  2026-09-14 by owner ruling OI-32. A STAND-IN IS NEVER CACHED AT ALL.** Artifacts carry
+  `is_standin`, and **both** tiers refuse one; the refusal is counted (`refused_standin`,
+  `l2_refused_standin`) rather than silent.
+
+  ⭐ **Why "apart for 60 s" was the wrong compromise, in C-06's own numbers.** Three stand-ins went
+  out and **two never healed**. A stand-in is by definition the lower-quality picture, so caching
+  one serves it to every member who asks for the next TTL — and the coalescer fans a single
+  stand-in out to every follower at once, so the 60 seconds is not a small blast radius, it is the
+  mechanism that maximises it. The cost of refusing is **one extra render**.
+
+  ⛔ **The refusal is at BOTH tiers and not only at the door.** L2 is reachable directly — the
+  determinism runner does exactly that — so a guard living only in the tier above it would hold
+  for every caller who came the expected way and for none of the ones that matter.
+
+  ⚠️ The **cached flow card** half of the struck clause is a different question and is still open:
+  that one IS a labelled fallback by design (04 §5), and it is delivered by the `/flow` handler, not
+  by this store.
+- **`clear()` empties the heap only**; the durable tier goes only on `clear(l2=True)`. Stopping is
+  never a delete against durable data (`feedback_kill_switch_never_a_delete`), and L2 is bounded by
+  its own LRU rather than by anybody's sweep.
 
 ### 3.7 Renderer pool (C-06, C-09, C-13)
 

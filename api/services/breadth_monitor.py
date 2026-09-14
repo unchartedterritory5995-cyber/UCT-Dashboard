@@ -65,7 +65,61 @@ def init_db() -> None:
                 created_at TEXT DEFAULT (datetime('now'))
             )
         """)
+        # ⭐ THE NUMERIC PROJECTION — one row per session, the SAME dict a history
+        # read ends up with, minus nothing and plus nothing. Measured on the
+        # production copy: the blob averages 636,834 bytes of which 99.7 % is
+        # `*_list` ticker arrays that every history read parses and immediately
+        # deletes; the projection of all 174 sessions is 0.25 MB in total.
+        #
+        # ⛔ A JSON COLUMN, NOT ~70 TYPED COLUMNS, and the reason is drift rather
+        # than convenience. `metrics` has no fixed schema — the newest production
+        # row carries 92 keys and older ones carry fewer — so a column list would
+        # be a SECOND AUTHORITY over "which metrics exist", and the failure mode
+        # is silent: a metric the collector starts writing tomorrow would simply
+        # not be stored, and the reader would serve a column of nulls that looks
+        # like a quiet market. It is also the shape the readers already consume:
+        # `_history_uncached` does `json.loads(...)` then deletes the list keys,
+        # so reading this column IS that expression with the expensive half gone.
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS breadth_snapshot_numeric (
+                date       TEXT PRIMARY KEY,
+                metrics    TEXT NOT NULL,
+                source     TEXT NOT NULL DEFAULT 'collector',
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_bsn_source ON breadth_snapshot_numeric(source)")
         c.commit()
+
+
+# ── The numeric projection ────────────────────────────────────────────────────
+
+def numeric_of(metrics: dict) -> dict:
+    """The stored blob minus exactly the keys a history read throws away.
+
+    ⛔ "NUMERIC" NAMES THE PURPOSE, NOT A TYPE FILTER, and getting that backwards
+    breaks parity silently. The readers drop `*_list` and keep everything else —
+    including strings like `market_phase` and nulls. Filtering to int/float here
+    would produce a store that is *more* numeric and *less* correct, and the
+    difference would surface as a missing column in the Monitor rather than as an
+    error. One definition, used by the writer, the backfill, the readers and the
+    audit, so the four cannot disagree.
+    """
+    return {k: v for k, v in metrics.items() if not k.endswith("_list")}
+
+
+def _write_numeric(c, date_str: str, metrics: dict, source: str = "collector") -> None:
+    """Write the projection on the caller's connection, INSIDE their transaction.
+
+    ⛔ It takes the connection rather than opening its own precisely so it cannot
+    drift: a projection written in a second transaction can be lost while the blob
+    survives, and the two tables would then disagree with nothing to report it.
+    """
+    c.execute(
+        "INSERT OR REPLACE INTO breadth_snapshot_numeric (date, metrics, source, updated_at) "
+        "VALUES (?, ?, ?, datetime('now'))",
+        (date_str, json.dumps(numeric_of(metrics)), source),
+    )
 
 
 # ── Write ─────────────────────────────────────────────────────────────────────
@@ -77,6 +131,7 @@ def store_snapshot(date_str: str, metrics: dict) -> bool:
                 "INSERT OR REPLACE INTO breadth_snapshots (date, metrics) VALUES (?, ?)",
                 (date_str, json.dumps(metrics)),
             )
+            _write_numeric(c, date_str, metrics)
             c.commit()
         from api.services.cache import cache
         cache.delete_prefix("breadth_history_")  # fresh data → drop cached history
@@ -400,6 +455,59 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
     return single_flight.run(ck, lambda: _history_uncached(days, end, anchor, ck))
 
 
+
+def _metrics_for_dates(c, dates: list) -> tuple:
+    """`({date: metrics-without-_list}, blob_fallbacks)` for the given dates.
+
+    ⭐ THE PROJECTION IS READ FIRST AND THE BLOB COLUMN IS NEVER SELECTED unless a
+    date is missing from it. That is the whole optimisation and it is easy to lose
+    by accident: a `LEFT JOIN` that mentions `breadth_snapshots.metrics` in its
+    select list materialises all 636 KB per row even when nothing reads it, so the
+    two tables are queried separately on purpose.
+
+    ⚠️ THE FALLBACK IS COUNTED, NEVER SILENT. A date the backfill has not reached
+    still serves correctly off the blob — which is what makes the migration safe
+    to deploy before it has run — but a store that is quietly half-populated would
+    otherwise present as "the fix did nothing" with no way to tell that from "the
+    fix is wrong". The count rides the request timing line.
+    """
+    out: dict = {}
+    if not dates:
+        return out, 0
+    for i in range(0, len(dates), 400):
+        chunk = dates[i:i + 400]
+        dq = ",".join("?" * len(chunk))
+        for (d, mj) in c.execute(
+            f"SELECT date, metrics FROM breadth_snapshot_numeric WHERE date IN ({dq})", chunk
+        ).fetchall():
+            out[d] = json.loads(mj)
+    missing = [d for d in dates if d not in out]
+    # ⛔ COUNT THE ROWS THAT CAME BACK, NEVER THE DATES ASKED FOR. A deep window
+    # asks about thousands of RECONSTRUCTED dates that have no collector snapshot
+    # and are not supposed to have a projection either — scoring those as
+    # "missing" would report ~4,529 phantom gaps on a fully-backfilled store and
+    # make the instrument's loudest number its most meaningless one.
+    fallbacks = 0
+    for i in range(0, len(missing), 400):
+        chunk = missing[i:i + 400]
+        dq = ",".join("?" * len(chunk))
+        for (d, mj) in c.execute(
+            f"SELECT date, metrics FROM breadth_snapshots WHERE date IN ({dq})", chunk
+        ).fetchall():
+            m = json.loads(mj)
+            for k in [k for k in list(m.keys()) if k.endswith("_list")]:
+                del m[k]
+            out[d] = m
+            fallbacks += 1
+    try:
+        if fallbacks:
+            from api.services import breadth_timing
+            breadth_timing.note(numeric_miss=fallbacks)
+    except Exception:
+        pass
+    return out, fallbacks
+
+
 def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> list:
     """The leader's work for `get_history`. Never call this directly.
 
@@ -414,15 +522,19 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
     try:
         with _conn() as c:
             anchor_date = _resolve_anchor_date(c, end, anchor) if end else None
+            # ⛔ `metrics` is deliberately NOT in these select lists. Selecting it
+            # materialises ~636 KB per row into Python for a column the reader was
+            # only ever going to strip; the window's dates come from here and the
+            # values come from `_metrics_for_dates`.
             if anchor_date is not None:
                 rows = c.execute(
-                    "SELECT date, metrics, created_at FROM breadth_snapshots "
+                    "SELECT date, created_at FROM breadth_snapshots "
                     "WHERE date <= ? ORDER BY date DESC LIMIT ?",
                     (anchor_date, days + _ROLLING_WARMUP),
                 ).fetchall()
             else:
                 rows = c.execute(
-                    "SELECT date, metrics, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
+                    "SELECT date, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
                     (days + _ROLLING_WARMUP,),
                 ).fetchall()
             # The cumulative A/D line has no window — it is a running total from
@@ -440,14 +552,13 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
         print(f"[breadth_monitor] get_history error: {e}")
         return []
 
+    with _conn() as c:
+        by_date, _fallbacks = _metrics_for_dates(c, [r["date"] for r in rows])
     result = []
     for row in rows:
-        m = json.loads(row["metrics"])
+        m = dict(by_date.get(row["date"]) or {})
         m["date"] = row["date"]
         m["_created_at"] = row["created_at"]   # expose for "last updated" display
-        # Strip large list keys — served on demand via drill endpoint
-        for k in [k for k in list(m.keys()) if k.endswith("_list")]:
-            del m[k]
         result.append(m)
 
     # Need oldest-first to compute rolling windows, then reverse back
@@ -664,13 +775,17 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
 
     from api.services.cache import cache
     from api.services import single_flight
+    from api.services import breadth_timing
     ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}"
     hit = cache.get(ck)
     if hit is not None:
+        breadth_timing.note(cache="hit")
         return hit
+    breadth_timing.note(cache="miss")
     # ⛔ SINGLE-FLIGHT ON THE CACHE KEY — this is the read D-042 measured at ~55 s
     # cold, so a duplicate of it is the most expensive duplicate in the app.
-    return single_flight.run(ck, lambda: _history_deep_uncached(days, end, anchor, ck))
+    return single_flight.run(ck, lambda: _history_deep_uncached(days, end, anchor, ck),
+                             on_role=lambda role: breadth_timing.note(coalesced=role == "follower"))
 
 
 def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> list:
@@ -711,38 +826,47 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
     coll_rows: dict = {}
     try:
         with _conn() as c:
-            dq = ",".join("?" * len(window))
-            for (d, mj) in c.execute(
-                f"SELECT date, metrics FROM breadth_snapshots WHERE date IN ({dq})", window,
-            ).fetchall():
-                m = json.loads(mj)
-                for k in [k for k in list(m.keys()) if k.endswith("_list")]:
-                    del m[k]
-                coll_rows[d] = m
+            # Same rule as the plain reader: the projection first, the blob only
+            # for dates the backfill has not reached, and never both.
+            coll_rows, _fallbacks = _metrics_for_dates(c, list(window))
     except Exception:
         coll_rows = {}
 
     recon_needed = [d for d in window if d not in coll_rows]
+    # ⭐ THE MATERIALISED RECONSTRUCTED SIDE. This used to assemble 174,187 OHLC
+    # rows into 4,529 rows on every cold request; it is now one indexed read of
+    # pre-built rows. ⛔ The derivation is NOT the fallback here — it is the
+    # BUILDER, and `test_the_request_path_never_derives` fails if this path ever
+    # calls it. A date with no materialised row is reported, not silently rebuilt
+    # at member expense.
+    recon_rows: dict = {}
+    recon_missing = 0
     try:
         from api.services import breadth_daily_ohlc as ohlc
-        recon_closes = ohlc.closes_for_dates(recon_needed)
+        recon_rows, recon_missing = ohlc.reconstructed_for_dates(recon_needed)
+        absent = [d for d in recon_needed if d not in recon_rows]
+        if absent:
+            from api.services import breadth_timing
+            breadth_timing.note(reconstructed_missing=len(absent))
     except Exception:
-        recon_closes = {}
-    try:
-        from api.services import breadth_sentiment_history as sent
-        sent_map = sent.values_asof(recon_needed)
-    except Exception:
-        sent_map = {}
+        recon_rows = {}
 
     result_asc = []
     for d in window:
+        # ⛔ PRECEDENCE, ASSERTED RATHER THAN IMPLIED: where both a collector row and
+        # a reconstructed row exist for one date, the COLLECTOR row wins. That is
+        # today's behaviour and it is why the two live in separate tables — a single
+        # date-keyed table would have let whichever wrote last decide.
+        # Rail: `test_a_collector_row_beats_a_reconstructed_row_for_the_same_date`.
         if d in coll_rows:
             row = dict(coll_rows[d])
+        elif d in recon_rows:
+            # Pre-built: the closes, the sentiment overlay and the `_reconstructed`
+            # provenance flag are all stored together, so this is a dict copy rather
+            # than a per-request assembly out of the OHLC store.
+            row = dict(recon_rows[d])
         else:
-            row = dict(recon_closes.get(d, {}))
-            if sent_map.get(d):
-                row.update(sent_map[d])          # survey/exposure where archives have it
-            row["_reconstructed"] = True         # provenance for the UI
+            continue                             # no row for this date, from either side
         row["date"] = d
         result_asc.append(row)
 
@@ -924,6 +1048,7 @@ def patch_fields(date_str: str, values: dict) -> bool:
                 "UPDATE breadth_snapshots SET metrics = ? WHERE date = ?",
                 (json.dumps(m), date_str),
             )
+            _write_numeric(c, date_str, m)
             c.commit()
         from api.services.cache import cache
         cache.delete_prefix("breadth_history_")
@@ -945,6 +1070,7 @@ def delete_snapshot(date_str: str) -> bool:
             cur = c.execute(
                 "DELETE FROM breadth_snapshots WHERE date = ?", (date_str,)
             )
+            c.execute("DELETE FROM breadth_snapshot_numeric WHERE date = ?", (date_str,))
             c.commit()
         from api.services.cache import cache
         cache.delete_prefix("breadth_history_")

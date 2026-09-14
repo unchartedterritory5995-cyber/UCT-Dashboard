@@ -11,8 +11,10 @@ What must be true of every adapter, whatever it wraps:
 """
 from __future__ import annotations
 
+import ast
 import concurrent.futures as cf
 import datetime as dt
+import pathlib
 import time
 
 import pytest
@@ -59,6 +61,247 @@ def test_the_function_is_handed_the_effective_timeout_not_the_constant():
     # float would make a correct change look like a regression.
     assert len(seen) == 1 and 2.0 < seen[0] <= 2.5, seen
     assert seen[0] != 8.0, "the adapter was handed its own constant instead of the job's budget"
+
+
+# ── the budget, part 2: the WHOLE call fits, not each attempt (C-10) ─────────
+#
+# ⛔⛔ WHY A VIRTUAL CLOCK AND NOT A STOPWATCH. `guarded` takes `now=` and `sleep=`, so the thing
+# under test — how much TIME a multi-attempt hop spends against a deadline — can be measured with
+# no wall clock in it at all. The tolerance below is therefore ZERO, not a guess: on a contended
+# box a stopwatch assertion has to carry slack wide enough to hide the very overrun it is looking
+# for (the defect was 4.6 s against 2 s; a 0.5 s tolerance is fine, a 3 s one would pass the bug).
+# The stub still runs on the real pool in a real thread — only the ARITHMETIC is simulated, and the
+# future is already done by the time `fut.result(timeout=…)` is called, so the run takes
+# milliseconds of real time. `test_real_wall_time_is_not_what_these_measure` is the control.
+
+
+def _virtual_clock():
+    """`(now, advance, read)` over one mutable float. `advance` doubles as an injected `sleep`."""
+    t = [0.0]
+
+    def now():
+        return t[0]
+
+    def advance(seconds):
+        t[0] += max(0.0, float(seconds))
+
+    return now, advance, (lambda: t[0])
+
+
+def _honest_upstream(advance, cost_s=1.5, handed=None, exc=ConnectionError):
+    """An upstream that takes `cost_s` — or gives up at the budget it was handed, whichever comes
+    first — and then fails. ⛔ It HONOURS its argument on purpose: an upstream that ignored the
+    budget would make this test measure the stub's rudeness rather than the spine's arithmetic."""
+    def _fn(timeout_s):
+        if handed is not None:
+            handed.append(round(float(timeout_s), 6))
+        advance(min(cost_s, float(timeout_s)))
+        raise exc("upstream did not answer inside the budget it was given")
+    return _fn
+
+
+def test_three_attempts_against_a_two_second_deadline_never_outlive_the_deadline():
+    """⛔⛔ THE OWNER'S TEST FOR C-10, AND THE ONE THE FIX WAS NEVER MEASURED AGAINST.
+
+    Lane E's guard (`test_c10_…` in `test_discord_render_forensics.py`) runs TWO attempts and
+    passes `sleep=lambda _s: None`, so it proves the per-attempt derivation and is blind to the
+    retry backoff. Three attempts with the backoff actually slept is the case that was still
+    over-spending: the second and third attempts are correctly REFUSED for want of budget, and the
+    hop then sat past its deadline sleeping between the refusals, having already answered the
+    member. Both halves are needed for "the whole call fits", which is the property C-10 names.
+
+    Measured here, deterministically: 2.000 s spent of a 2.000 s budget, one upstream call, handed
+    the whole 2.000 s. Reintroduce the once-per-call derivation and it is **5.000 s** — the same
+    shape as the 4.6 s Lane E's chaos harness measured live.
+    """
+    deadline_s = 2.0
+    now, advance, spent = _virtual_clock()
+    handed = []
+
+    out = _call.guarded("bars", _honest_upstream(advance, 1.5, handed),
+                        dep_timeout_s=8.0, remaining_s=deadline_s, attempts=3,
+                        now=now, sleep=advance)
+
+    # NON-VACUITY: the upstream really was called, and it really did consume budget. A `guarded`
+    # that refused everything on the first line would satisfy a bare "spent <= deadline".
+    assert handed, "no attempt reached the upstream at all — this measured nothing"
+    assert spent() > 0.0, "no virtual time was consumed; the stub never ran"
+
+    assert _call.is_result(out) and out.reason() == R.TIMEOUT
+    # Tolerance: ZERO. There is no wall clock in this arithmetic, so there is nothing to be
+    # tolerant of — see the section note above.
+    assert spent() <= deadline_s, (
+        f"3 attempts spent {spent():.3f}s against a {deadline_s:.1f}s deadline — the member was "
+        "answered at the deadline and the call ran on past it (C-10)")
+    assert handed == [deadline_s], (
+        f"the upstream was handed {handed}; only the first attempt had budget left, and it should "
+        "have been handed the whole of it")
+    assert out.meta["budget_s"] == deadline_s and out.meta["attempts"] == 3
+
+
+@pytest.mark.parametrize("attempts", [1, 2, 3, 5])
+def test_no_number_of_attempts_can_buy_more_time_than_the_deadline(attempts):
+    """⛔ The ceiling is a property of the DEADLINE, not of the retry count. Asserted across the
+    ladder because the defect scaled with N: one attempt was always correct, which is exactly why
+    `bindings` passing `attempts=1` hid this in production (OI-25)."""
+    deadline_s = 2.0
+    now, advance, spent = _virtual_clock()
+    handed = []
+    out = _call.guarded("bars", _honest_upstream(advance, 1.5, handed),
+                        dep_timeout_s=8.0, remaining_s=deadline_s, attempts=attempts,
+                        now=now, sleep=advance)
+    assert handed, "no attempt reached the upstream"
+    assert _call.is_result(out)
+    assert spent() <= deadline_s, f"attempts={attempts} spent {spent():.3f}s of {deadline_s:.1f}s"
+
+
+def test_the_retry_backoff_is_slept_inside_the_budget_and_never_on_top_of_it():
+    """⛔ `_call`'s docstring has always said "the retry, with jitter, INSIDE the same budget"; the
+    code slept the full jittered delay regardless of what was left. A comment naming a mechanism is
+    a claim about a run (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`), so here is
+    the run: every delay actually handed to `sleep` is clamped to the budget that remained when it
+    was asked for, and their sum cannot push the call past the deadline."""
+    deadline_s = 2.0
+    now, advance, spent = _virtual_clock()
+    slept = []
+
+    def sleeper(seconds):
+        slept.append(round(float(seconds), 6))
+        advance(seconds)
+
+    _call.guarded("bars", _honest_upstream(advance, 1.5), dep_timeout_s=8.0,
+                  remaining_s=deadline_s, attempts=3, now=now, sleep=sleeper)
+
+    assert slept, "no retry delay was requested at all — this measured nothing"
+    # `breakers.retry_delay(1)` alone is 0.4-0.9 s and `retry_delay(2)` is 0.8-1.3 s: unclamped
+    # they total 1.2-2.2 s ON TOP of the 1.5 s the first attempt already spent.
+    assert sum(slept) <= deadline_s - 1.5 + 1e-9, (
+        f"the backoff slept {sum(slept):.3f}s after 1.5s of upstream time, inside a "
+        f"{deadline_s:.1f}s budget")
+    assert spent() <= deadline_s
+
+
+def test_real_wall_time_is_not_what_these_measure():
+    """The control for the section above: the virtual-clock tests must not be quietly sleeping.
+
+    If `sleep=` or `now=` ever stopped being honoured, these would start costing real seconds and
+    a wall-clock tolerance would creep back in to hide it."""
+    now, advance, spent = _virtual_clock()
+    t0 = time.perf_counter()
+    _call.guarded("bars", _honest_upstream(advance, 1.5), dep_timeout_s=8.0, remaining_s=2.0,
+                  attempts=3, now=now, sleep=advance)
+    real = time.perf_counter() - t0
+    assert spent() == pytest.approx(2.0, abs=1e-9), "the virtual clock did not advance as modelled"
+    assert real < 1.0, (
+        f"a fully-simulated 2 s hop took {real:.2f}s of real time — `now=`/`sleep=` are not being "
+        "honoured and these assertions are measuring the box, not the code")
+
+
+def test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows():
+    """⛔⛔ THE STRUCTURAL HALF: it is not enough that the current code re-derives the budget; the
+    once-per-call version must not be writable by accident.
+
+    ⚰️ It was, until this commit. The attempt body was a closure inside `guarded`, so `eff` — the
+    whole-call float — was a live name two characters away from `left`, and `submit(fn, eff)` would
+    have read as perfectly correct while restoring an N × deadline overrun that only a timing test
+    can see. The runner is now a MODULE-LEVEL function taking a `_Budget`, so `eff` is not a name
+    that exists inside it, and this rail reads that shape off the parse tree rather than trusting
+    the prose above it.
+
+    ⛔ Derived from the AST, never from a grep: `budget.remaining()` and `eff` both appear in this
+    module's own comments, and a text search over a file whose comments discuss the defect finds
+    the defect (`lesson_probe_names_must_be_derived_not_typed`).
+    """
+    tree = ast.parse(pathlib.Path(_call.__file__).read_text(encoding="utf-8"))
+    top = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+
+    # NON-VACUITY: the parse really is of this module and really did find its functions.
+    assert {"guarded", "budget", "_attempt", "pool"} <= set(top), sorted(top)
+
+    # (a) the attempt runner is module-level and closes over nothing at all.
+    assert _call._attempt.__code__.co_freevars == (), (
+        f"`_attempt` closes over {_call._attempt.__code__.co_freevars} — it has been moved back "
+        "inside `guarded`, where the once-per-call float is in scope again")
+
+    def _calls(node, attr):
+        return [n for n in ast.walk(node) if isinstance(n, ast.Call)
+                and isinstance(n.func, ast.Attribute) and n.func.attr == attr]
+
+    # (b) exactly one `submit(...)` in the whole module, and it is inside `_attempt`.
+    assert len(_calls(tree, "submit")) == 1, "a second place now hands work to a pool"
+    submits = _calls(top["_attempt"], "submit")
+    assert len(submits) == 1
+    sub = submits[0]
+    assert len(sub.args) == 2 and isinstance(sub.args[1], ast.Name), (
+        "the timeout handed to the upstream is not a plain local — read it again by hand")
+    handed = sub.args[1].id
+
+    # (c) that local is bound exactly once, from `<the budget>.remaining()`.
+    binds = [n for n in ast.walk(top["_attempt"]) if isinstance(n, ast.Assign)
+             and any(isinstance(t, ast.Name) and t.id == handed for t in n.targets)]
+    assert len(binds) == 1, f"`{handed}` is bound {len(binds)} times in `_attempt`"
+    src = binds[0].value
+    assert (isinstance(src, ast.Call) and isinstance(src.func, ast.Attribute)
+            and src.func.attr == "remaining"), (
+        f"`{handed}` is no longer derived from a live `.remaining()` read: "
+        f"{ast.dump(src)[:120]}")
+
+    # (d) the wait on the future is bounded by the SAME freshly-derived number.
+    waits = _calls(top["_attempt"], "result")
+    assert waits, "nothing waits on the future any more"
+    for w in waits:
+        kw = {k.arg: k.value for k in w.keywords}
+        assert isinstance(kw.get("timeout"), ast.Name) and kw["timeout"].id == handed, (
+            "the wait and the upstream's own timeout have drifted apart")
+
+    # (e) `guarded` hands the runner the BUDGET OBJECT, never a number.
+    runs = [n for n in ast.walk(top["guarded"]) if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name) and n.func.id == "_attempt"]
+    assert len(runs) == 1, f"`guarded` calls `_attempt` {len(runs)} times"
+    last = runs[0].args[-1]
+    assert isinstance(last, ast.Name), "the budget handed to an attempt is an expression, not the object"
+    made = [n for n in ast.walk(top["guarded"]) if isinstance(n, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == last.id for t in n.targets)
+            and isinstance(n.value, ast.Call) and isinstance(n.value.func, ast.Name)
+            and n.value.func.id == "_Budget"]
+    assert made, f"`{last.id}` is not a `_Budget` — a float can be handed to an attempt again"
+
+
+def test_the_attempt_runner_refuses_a_plain_number_instead_of_quietly_overrunning():
+    """⛔ The runtime half of the rail above, and the reason `_Budget` is an OBJECT rather than a
+    convention: handing an attempt the once-per-call float now fails on its first line, loudly and
+    immediately, instead of succeeding and spending N × the deadline."""
+    with pytest.raises(AttributeError):
+        _call._attempt("bars", lambda _t: "data", 2.0)
+
+
+def test_lane_es_own_c10_guard_is_still_in_the_suite_and_still_armed():
+    """⛔ KEEP LANE E'S GUARD PERMANENT (owner ruling). It was `xfail(strict=True)` while the gap
+    was open, and the fix turned it into an `XPASS(strict)` failure — which is exactly what strict
+    is for — so it was promoted to a plain regression guard. This asserts it is still there and has
+    not been quietly re-marked `xfail`/`skip`, which would swallow the next regression in silence.
+
+    ⛔ `tests/test_discord_render_forensics.py` is Lane E's file and is NOT edited from here; this
+    rail only READS it, so the two lanes cannot collide.
+    """
+    fp = pathlib.Path(__file__).resolve().parent / "test_discord_render_forensics.py"
+    tree = ast.parse(fp.read_text(encoding="utf-8"))
+    fns = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+
+    # NON-VACUITY: the forensics file really was read and really is the C-class suite. A count of
+    # `test_*` alone would be satisfied by any test file; the C-numbered family cannot be empty in
+    # the file that owns the failure classes.
+    c_classes = sorted(n for n in fns if n.startswith("test_c") and n[6:7].isdigit())
+    assert len(c_classes) >= 8, f"{fp.name} does not look like the forensics suite: {sorted(fns)}"
+
+    guard = "test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call"
+    assert guard in fns, (
+        f"{guard} has been removed from {fp.name}; the per-attempt budget has no end-to-end "
+        "wall-clock guard any more")
+    marks = [ast.unparse(d) for d in fns[guard].decorator_list]
+    assert not any("xfail" in m or "skip" in m for m in marks), (
+        f"{guard} has been defanged back to {marks} — a non-strict xfail swallows the fix and a "
+        "skip swallows the regression")
 
 
 # ── the breaker ─────────────────────────────────────────────────────────────
@@ -146,14 +389,47 @@ def _bars(n=3, last=FRIDAY):
 
 
 def test_bars_come_back_with_a_vintage_derived_from_the_newest_bar():
-    """⛔ The payload carries no as_of, so it is derived HERE, once — not by every caller."""
+    """⛔ The payload carries no as_of, so it is derived HERE, once — not by every caller.
+
+    ⚰️ THIS TEST READ THE WALL CLOCK AND SO IT PASSED ALL WEEKEND AND FAILED ON MONDAY MORNING.
+    It asserted `r.session in CLOSED_STATES or == WEEKEND`, which is true whenever the suite happens
+    to run outside a session and false at 04:00 ET on a weekday (`session == 'pre'`). It was written
+    on a Sunday, it was green on a Sunday, and the first thing it did on a Monday was refuse the
+    mutation harness's control run — so eighty mutation proofs did not happen.
+
+    ⭐ The fix is not a wider allow-list. The session word is a FUNCTION OF THE CLOCK, and the whole
+    point of `freshness` is that the clock is an input you pass rather than a fact you inherit
+    (§3.8b). What this test is actually about is that the vintage comes from the newest BAR, so the
+    clock is pinned and the assertion becomes exact instead of permissive.
+    """
+    import datetime as dt
+    pinned = dt.datetime(2026, 9, 13, 11, 0, tzinfo=fr.ET)      # a Sunday: the session is closed
     r = bars.fetch(bars.BarsRequest("NVDA", "D", 200, corr_id="abcd1234", remaining_s=12.0),
                    fetch_fn=lambda t, tf, n: _bars())
     assert r.ok and len(r.data) == 3
     assert r.as_of is not None and r.as_of.startswith("2026-09-11")
-    assert r.session in fr.CLOSED_STATES or r.session == fr.WEEKEND
     assert r.corr_id == "abcd1234" and r.elapsed_ms is not None
     assert r.meta["bar_count"] == 3
+    # the session word, asked of a PINNED instant rather than of whenever the suite happened to run
+    assert fr.envelope("2026-09-11", tf="D", provider="disk", now=pinned).session_state == fr.WEEKEND
+
+
+def test_the_session_word_follows_the_clock_it_is_given_and_not_the_one_it_is_run_at():
+    """The general form of the bug above, as its own rail.
+
+    ⛔ A suite whose verdict depends on when it runs is a suite that reports the calendar. Every
+    instant below is a different session word, and the discriminator asserts they are not all the
+    same — which is what would happen if the injected clock reached nothing."""
+    import datetime as dt
+    words = {label: fr.envelope("2026-09-11", tf="D", provider="disk",
+                                now=dt.datetime(*when, tzinfo=fr.ET)).session_state
+             for label, when in {
+                 "sunday": (2026, 9, 13, 11, 0),
+                 "pre-open": (2026, 9, 14, 9, 29, 50),
+                 "rth": (2026, 9, 14, 10, 0),
+                 "post": (2026, 9, 14, 16, 30)}.items()}
+    assert words["sunday"] == fr.WEEKEND
+    assert len(set(words.values())) >= 3, f"the injected clock reaches nothing: {words}"
 
 
 def test_a_stale_vintage_labels_itself_without_anybody_asking():
@@ -383,10 +659,21 @@ def test_the_four_flow_causes_do_not_collapse_into_one_sentence():
 def test_an_empty_tape_is_a_successful_answer_and_not_a_failure():
     """⛔ A quiet session with no significant options flow is TRUE, and the router has the sentence
     for it. Classing it as a failure would put a correct answer in the failure counters and lose the
-    window phrase the sentence needs — the C-08 mistake pointed the other way."""
+    window phrase the sentence needs — the C-08 mistake pointed the other way.
+
+    ⚰️ AND THIS TEST READ THE WALL CLOCK TOO. It asserted `reason() is None` against a fixture
+    whose window ends on Friday 2026-09-11 — true all weekend, false from Monday's open, when that
+    vintage is correctly judged STALE. The product was right and the test was reporting the
+    calendar. The claim it is actually making is about `ok` and the CONTRACT COUNT, so the stale
+    verdict is asserted where it belongs instead of being asserted away.
+    """
     r = flow.fetch(flow.FlowRequest("NVDA", remaining_s=12.0),
                    remote=lambda *a: _flow_payload(contracts=0), local=_raises(AssertionError("no")))
-    assert r.ok is True and r.reason() is None
+    assert r.ok is True, "an empty tape is a successful answer"
+    # ⛔ `STALE` IS NOT A FAILURE REASON HERE — it is a label on a delivered answer (S8). What must
+    # never appear is a FATAL reason, which is what would put a correct answer in the failure
+    # counters. Asserting `reason() is None` conflated the two and tied the test to the clock.
+    assert r.reason() not in R.FATAL_REASONS, f"an empty tape was classed as a failure: {r.reason()}"
     assert r.meta["contract_count"] == 0, "how the caller tells, without a failure class"
     assert r.data["window"]["end"] == "2026-09-11", "the window the router's sentence needs"
 

@@ -212,12 +212,60 @@ def self_check() -> int:
     print("self-check:", "PASS" if not fails else "FAIL " + ", ".join(fails))
     return 0 if not fails else 1
 
+#: A build takes ~3-5 minutes. Two DISTINCT commits deployed closer together than
+#: this almost certainly means the second was pushed while the first was still
+#: BUILDING — which is the 2026-09-14 incident's exact shape.
+STACK_WINDOW_SECONDS = 300
+
+
+def suspected_stacked_pushes(rows, window=STACK_WINDOW_SECONDS):
+    """Pairs of consecutive DISTINCT-commit deployments created within `window`.
+
+    ⛔ SUSPECTED, NEVER CONFIRMED, and the wording is load-bearing. Railway's
+    deployment list carries only `status` and `createdAt` — there is no
+    "reached SUCCESS at" timestamp — so this can show that two commits were
+    deployed closer together than a build takes, and it CANNOT show that the first
+    was still building. Reporting that as proof would be inventing a fact the data
+    does not carry.
+
+    ⚠️ Railway also emits two rows for one push (a REMOVED twin milliseconds from
+    its SUCCESS). Same commit is not a stacked push, so pairs are compared by
+    commit and identical ones are skipped rather than counted as the tightest
+    stack in the list.
+    """
+    out = []
+    seen = []
+    for d in rows:
+        meta = d.get("meta") or {}
+        seen.append(((meta.get("commitHash") or "")[:9], d.get("createdAt"), d.get("status")))
+    for (c1, t1, s1), (c2, t2, s2) in zip(seen, seen[1:]):
+        if not c1 or not c2 or c1 == c2:
+            continue
+        a1, a2 = _iso(t1), _iso(t2)
+        if a1 is None or a2 is None:
+            continue
+        gap = (a1 - a2).total_seconds()      # rows are newest-first
+        if 0 <= gap < window:
+            out.append({"newer": c1, "older": c2, "gap_seconds": round(gap, 1),
+                        "newer_at": t1, "older_at": t2,
+                        "newer_status": s1, "older_status": s2})
+    return out
+
+
+def _iso(s):
+    try:
+        return dt.datetime.fromisoformat((s or "").replace("Z", "+00:00"))
+    except Exception:
+        return None
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--self-check", action="store_true",
                     help="prove the guard can refuse AND allow, without touching the CLI")
+    ap.add_argument("--audit", action="store_true",
+                    help="after the fact: report SUSPECTED stacked pushes in the recent list")
     # ⛔ argv is a PARAMETER, and under pytest it defaults to EMPTY rather than
     # `sys.argv`. Without that, argparse eats pytest's own flags and raises
     # SystemExit(2) — the test would be exercising argparse, not the guard.
@@ -226,6 +274,8 @@ def main(argv=None) -> int:
     # ⛔ Before anything shells out: the self-check must not need the CLI.
     if a.self_check:
         return self_check()
+    if a.audit:
+        return _audit()
 
     dep = latest_deployment()
     verdict, reason = decide(dep)
@@ -245,6 +295,36 @@ def main(argv=None) -> int:
         print("[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.")
         print("[pre-push]    Wait, then push again. Deliberate override: %s=1" % BYPASS_ENV)
         return 1
+    return 0
+
+
+
+def _audit() -> int:
+    """Print SUSPECTED stacked pushes. Exit 0 always — this reports, never gates."""
+    exe = _railway()
+    if not exe:
+        print("[audit] the railway CLI is not on PATH — nothing read. This is not a clean result.")
+        return 0
+    try:
+        r = subprocess.run([exe, "deployment", "list", "--service", SERVICE, "--json"],
+                           capture_output=True, text=True, timeout=120, cwd=str(ROOT),
+                           encoding="utf-8", errors="replace")
+        rows = json.loads(r.stdout)
+        rows = rows if isinstance(rows, list) else rows.get("deployments", rows)
+    except Exception as e:                                   # noqa: BLE001
+        print("[audit] could not read the deployment list (%s). Not a clean result."
+              % type(e).__name__)
+        return 0
+    hits = suspected_stacked_pushes(rows)
+    print("[audit] %d deployment(s) read; window=%ds" % (len(rows), STACK_WINDOW_SECONDS))
+    if not hits:
+        print("[audit] no SUSPECTED stacked pushes in this window.")
+        return 0
+    for h in hits:
+        print("[audit] SUSPECTED stacked push: %s at %s landed %.0fs after %s at %s"
+              % (h["newer"], h["newer_at"], h["gap_seconds"], h["older"], h["older_at"]))
+    print("[audit] SUSPECTED, not confirmed: the list carries no 'reached SUCCESS at' time, "
+          "so this cannot show the older deploy was still building.")
     return 0
 
 

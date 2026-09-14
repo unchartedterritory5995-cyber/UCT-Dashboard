@@ -1,0 +1,134 @@
+# Serialise master deploys AT THE SOURCE, and run the fast checks while doing it.
+#
+# ⛔ WHY THIS EXISTS RATHER THAN A BETTER HOOK. `tools/pre_push_guard.py` already
+# refuses a push while `web` is BUILDING/DEPLOYING — every state, each with a rail —
+# and it still did not stop the 2026-09-14 incident: `7705c2d3b` was pushed at
+# 12:29:23 UTC on a green guard and `9e2b93805` landed 173 s later while it was
+# still building, marking the first REMOVED mid-flight. A request in flight died
+# with a 500 after 93 s and `/api/health` served 502 for ~45 s. How it got past the
+# hook was never determined; `git push --no-verify` skips hooks entirely and leaves
+# no trace, and no client-side check can close that.
+#
+# ⭐ A CLIENT HOOK ASKS EVERY SESSION TO COOPERATE. This does not ask. GitHub queues
+# runs in one concurrency group, and Railway's "Wait for CI" holds the build until
+# the run for that commit passes — so two pushes three minutes apart become two
+# builds in sequence, never a swap inside somebody's request.
+#
+# ⛔ `cancel-in-progress: false` IS THE WHOLE MECHANISM. The default (`true`) cancels
+# the older run when a newer one arrives, which is exactly backwards here: it would
+# let the SECOND push through first and abandon the first — the failure this is
+# built to prevent, wearing a green check.
+#
+# ⚠️ FAST ONLY, ON PURPOSE. Nothing here installs node, builds the frontend, or runs
+# a suite that takes minutes: every second spent here is a second the next pusher
+# waits. A gate that makes the queue slow gets bypassed, and a bypassed gate is
+# worse than none because it reads as coverage. The heavy suites stay where they
+# are (the six-shard gate, the scoped backend runs) and are the pusher's job.
+#
+# Measured build context: `web` builds from `Dockerfile.web` (the dashboard's
+# dockerfilePath overrides railway.json's NIXPACKS — read the build log, not the
+# config), and watch patterns are set per-service in the Railway dashboard.
+
+name: master deploy gate
+
+on:
+  push:
+    branches: [master, main]
+
+# One queue for the whole repository. Runs execute strictly one at a time and an
+# older run is never cancelled by a newer one.
+concurrency:
+  group: master-deploy
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Two commits so the secret scan has a range to look at; without this
+      # `HEAD^` does not resolve and the scan silently has nothing to scan.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # ⚰️ THE FIRST RUN OF THIS GATE FAILED HERE, and the reason is worth keeping.
+      # `test_visibility_flag_ledger.py` is the OFFLINE half of the flag ledger — but
+      # three of its sixteen tests import `api.services.desk_daily_session` to check the
+      # declared show names against the sections the router can actually emit, and that
+      # module reaches httpx, numpy and Pillow. "Offline" meant "does not call Railway",
+      # not "does not import the app", and I read it as the latter.
+      #
+      # ⛔ The alternative — deselecting those three in CI — was rejected: a gate that
+      # silently skips the checks it cannot run is the opt-in-rail defect, and these are
+      # exactly the ones that catch a ledger describing sections that do not exist. Three
+      # wheels cost ~15 s.
+      #
+      # ⚠️ The coupling is real and accepted: a NEW third-party import on that path will
+      # break this gate and therefore block deploys until the list is updated. That is the
+      # right direction to fail — a new heavy dependency in the publish path is worth
+      # stopping for — but it is a cost, not a free lunch.
+      - name: Install the gate's dependencies
+        run: python -m pip install --quiet pytest httpx numpy pillow
+
+      # ⛔ A PUSHED SECRET IS PUBLIC EVEN IF DELETED AFTERWARDS — this repo is
+      # public. This is the same scanner the pre-push hook runs, here where
+      # --no-verify cannot reach it.
+      #
+      # ⛔ `--scan` TAKES PATHS, NOT A COMMIT RANGE. The first version of this step
+      # passed `HEAD^..HEAD` and the tool dutifully reported
+      # "scanned 1 path(s) - 0 finding(s)" — it had scanned a filename that does not
+      # exist. A secret scan that cannot fail is worse than none, because the green
+      # check reads as coverage. Hence the file list AND the emptiness guard: an
+      # empty result is a failed invocation until proven otherwise.
+      - name: Secret scan (files this push changed)
+        run: |
+          FILES=$(git diff --name-only --diff-filter=d HEAD^ HEAD | tr '\n' ' ')
+          if [ -z "$FILES" ]; then
+            echo "::error::no changed files resolved from HEAD^..HEAD — the scan would be vacuous"
+            exit 1
+          fi
+          echo "scanning: $FILES"
+          python tools/secret_scrub.py --scan $FILES
+
+      # ⛔ Two top-level definitions of one name: Python keeps the last, and every
+      # call site written against the first is silently running the other. Master
+      # was RED on this for a shadowed `_tokens` in wisdom extraction that had been
+      # rescoring similarity since c9d6af653 — found by the sweep, not by review.
+      - name: No module shadows its own definitions
+        run: python -m pytest tests/test_no_shadowed_definitions.py -q
+
+      # ⛔ An undeclared VITE_* build arg bakes in as `undefined`, and every
+      # `=== '1'` read then reports "off on purpose" with a green suite and a 200
+      # health check. Nine of them shipped that way for four days.
+      - name: Every VITE_* reaches the build and has a ledger row
+        run: python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q
+
+      # The OFFLINE half of the flag ledger. ⚠️ `tools/flag_ledger_audit.py` is the
+      # live half and is deliberately NOT run here: it needs the Railway CLI and an
+      # authenticated project, which CI has neither of, and a check that cannot read
+      # its subject must not be able to report "clean".
+      - name: Visibility flags are declared (offline)
+        run: python -m pytest tests/test_visibility_flag_ledger.py -q
+
+      - name: Line endings match the stored blobs
+        run: python tools/check_repo_hygiene.py
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::The master deploy gate failed — Railway will not build this commit."
+          echo ""
+          echo "This gate is FAST and serialised: it holds the deploy queue, so fix"
+          echo "forward rather than pushing again on top of a red run."
+          echo ""
+          echo "Run the same checks locally:"
+          echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
+          echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
+          echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
+          echo "  python tools/check_repo_hygiene.py"

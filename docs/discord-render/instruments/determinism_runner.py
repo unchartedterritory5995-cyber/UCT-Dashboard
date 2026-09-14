@@ -22,6 +22,20 @@ hashed the same" is also what a broken producer that returns `None` twice says.
 
 ⛔ EXIT CODES ARE THREE: 0 identical · 1 a measured divergence · 2 could-not-measure.
 ⛔ A run with no totals line is not a run.
+
+⛔⛔ **A RENDERER RECYCLE CANNOT BE INDUCED ON DEMAND, AND THAT ROW STAYS UNMEASURED RATHER THAN
+FAKED.** `services/chart_renderer/app.py` retires the browser after `RENDER_RECYCLE_AFTER` renders
+(default **500**) or above `RENDER_RSS_CEILING_MB`; there is no trigger endpoint. The two ways to
+force one are both refused here:
+
+  * drive 500 renders — that is real load on the shared production renderer for a test;
+  * set `RENDER_RECYCLE_AFTER=1` on chart-renderer — a config change on a shared service that would
+    make **every member's** render recycle the browser, plus a redeploy.
+
+⭐ What CAN be measured, and where: `renderer_pool_smoke.py` runs a LOCAL Chromium with the recycle
+interval set freely — a real browser and a real recycle, on nobody's production. That is the honest
+form of this claim, and it does not cover the production pool's own state. Until it is run, the
+determinism-across-a-recycle row reads NOT MEASURABLE with this reason, never "clean".
 """
 from __future__ import annotations
 
@@ -155,7 +169,46 @@ PRODUCERS = {
     "failure_copy": produce_failure_copy,
     "components": produce_components,
     "standin_png": produce_standin_png,
+    "l1_to_l2_roundtrip": lambda: produce_l1_to_l2_roundtrip(),
 }
+
+
+def produce_l1_to_l2_roundtrip():
+    """The artifact a member gets when the heap tier has gone and the VOLUME answers (OI-31).
+
+    ⛔⛔ THIS IS THE DIMENSION THE OWNER NAMED AND THE ONE A PURE-FUNCTION SUITE CANNOT SEE.
+    Every other producer here is deterministic because it touches nothing — the real question for a
+    two-tier cache is whether the bytes and the labels a member receives are the SAME whether they
+    came from the heap or off the volume. They must be: a chart that says one thing warm and
+    another thing after a deploy is C-07 wearing a cache for a hat.
+
+    ⛔ The L1 eviction is forced through the store's own API, never by reaching into its internals —
+    a determinism check that constructs the state it is testing is testing its own constructor.
+    """
+    from api.services.discord_render import artifact_cache as ac
+
+    payload = b"\x89PNG\r\n\x1a\n" + bytes(range(256)) * 4
+    key = ac.key_for("chart", {"ticker": "NVDA", "tf": "D"}, vintage="2026-01-02")
+
+    # ⛔ L1 IS SHRUNK TO NOTHING RATHER THAN REACHED INTO. `max_bytes=1` means the entry cannot
+    # live in the heap tier at all, so the only thing that can answer a `get` is the volume — and
+    # the eviction is performed by the store's own policy, not by a test poking its internals. A
+    # determinism check that constructs the state it is testing is testing its own constructor.
+    store = ac.ArtifactCache(max_bytes=1, l2_dir=os.environ.get("DISCORD_RENDER_CACHE_DIR") or None)
+    if store._l2 is None:                                  # noqa: SLF001 - read-only assertion
+        return {"tier": "NO_L2", "note": "no volume tier configured; this component measures nothing"}
+    store.put(key, ac.Artifact(data=payload, envelope=None, stored_at=PINNED_NOW.timestamp()))
+    got = store.get(key)
+    if got is None:
+        return {"tier": "MISS", "note": "the volume tier did not answer after the heap tier refused"}
+    return {"tier": "l2",
+            "sha_of_bytes": hashlib.sha256(bytes(got.data)).hexdigest(),
+            # ⛔ THE TRI-STATE COMES BACK AS IT WENT IN. A round trip that turns `None` (unknown)
+            # into `False` (fresh) is the degraded-never-fresh guard failing at the one boundary
+            # nobody would look at — and it would look exactly like a healthy cache.
+            "stale_is_none": got.envelope is None,
+            "l2_promotions": store._stats["l2_promotions"],     # noqa: SLF001
+            "l2_served_unpromoted": store._stats["l2_served_unpromoted"]}   # noqa: SLF001
 
 
 def _fixture_bars(n: int) -> list[dict]:
@@ -283,7 +336,9 @@ def self_check() -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--gap", type=float, default=1.5,
-                    help="seconds between the two runs — long enough that a wall clock WOULD move")
+                    help="seconds between runs — long enough that a wall clock WOULD move")
+    ap.add_argument("--runs", type=int, default=2,
+                    help="how many runs to compare (every run is compared against the FIRST)")
     ap.add_argument("--only", default="", help="comma-separated component names")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--out", default="")
@@ -312,14 +367,29 @@ def main(argv=None) -> int:
     clocks: dict = {}
     try:
         _sandbox(tmp)
-        a = run_once(only)
-        time.sleep(max(0.0, args.gap))
-        b = run_once(only)
+        # ⛔ EVERY RUN IS COMPARED AGAINST THE FIRST, NOT AGAINST ITS PREDECESSOR. A chain of
+        # pairwise comparisons passes on a value that drifts by one bit per run — twenty runs of
+        # "identical to the last one" can end up nowhere near where it started.
+        runs = [run_once(only)]
+        for _ in range(max(2, args.runs) - 1):
+            time.sleep(max(0.0, args.gap))
+            runs.append(run_once(only))
+        a = runs[0]
         clocks = {k: v["clock_fields"] for k, v in a.items()}
-        code, per, reasons = compare(a, b)
+        code, per, reasons = INCONCLUSIVE, {}, []
+        for b in runs[1:]:
+            c, p, r = compare(a, b)
+            # worst verdict wins, and a DIFFERS anywhere is a DIFFERS overall
+            for name, state in p.items():
+                prior = per.get(name)
+                per[name] = state if prior in (None, "identical") else prior
+            code = c if (code == INCONCLUSIVE or c != PASS) and c != PASS else (code if code != INCONCLUSIVE else c)
+            reasons += [x for x in r if x not in reasons]
+        code = PASS if all(s == "identical" for s in per.values()) and per else (code or FAIL)
         if args.out:
             pathlib.Path(args.out).write_text(json.dumps(
-                {"meta": meta, "run_a": a, "run_b": b, "per_component": per}, indent=2), encoding="utf-8")
+                {"meta": {**meta, "runs": len(runs)}, "run_a": a, "runs": runs,
+                 "per_component": per}, indent=2), encoding="utf-8")
         for name, state in sorted(per.items()):
             print(f"  {state.upper():13} {name:18} {a[name]['sha256'] or a[name]['error']}")
     except Exception as e:  # noqa: BLE001

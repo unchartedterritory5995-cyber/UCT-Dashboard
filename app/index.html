@@ -71,6 +71,22 @@
          ⚠️ There is NO 300 face: Instrument Sans is a 400–700 variable font, so
          the old `0,300` in that URL already resolved to 400. Do not add one. ══ -->
     <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-sans-v4-latin.woff2" crossorigin />
+    <!-- ⛔ AND THE TAB FACE, WHICH IS THE ONE THE CHART AXIS ACTUALLY DRAWS IN.
+         `a475f5a55` self-hosted the axis font and preloaded the latin subset;
+         `cc945fc64` then introduced 'Instrument Sans Tab' (tabular figures, baked
+         in because canvas ignores font-variant-numeric) for that very axis and did
+         not extend the preload. So from 2026-08-13 the face was not requested until
+         the first chart tried to draw with it — and lightweight-charts bakes
+         whichever font resolves AT DRAW TIME into the axis canvas and never
+         repaints it. Measured: the parity gate's font probe reported 174 of 230
+         canvas text operations running before this family was ready, on clean
+         master as well as on any branch, which is `FontNotSettledError` and an
+         unrunnable gate. The same page is the headless Morning Wire → Substack
+         renderer, so the exposure self-hosting was adopted to remove had quietly
+         returned for the axis labels. One line, the same pattern as the line
+         above: same `as`/`type`/`crossorigin`, an asset already on disk and
+         already declared below. ══ -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-sans-v4-latin-tab.woff2" crossorigin />
     <style>
       /* latin-ext */
       @font-face {
@@ -154,6 +170,27 @@
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
     </style>
+    <!-- ⭐⭐ AND THE PRELOAD ALONE IS NOT ENOUGH — MEASURED, TWICE. A preload
+         fetches the BYTES; it does not ACTIVATE the FontFace. A CSS @font-face is
+         activated lazily, on first use for layout or paint, and
+         `document.fonts.check()` stays false until it is. 'Instrument Sans' gets
+         activated early for free because the SPA chrome renders text in it;
+         'Instrument Sans Tab' is used by NOTHING except the chart's canvas axis,
+         so the first `measureText` the chart issues is itself the activation
+         trigger and can only ever run unready. With the preload added and nothing
+         else, the gate's probe still reported exactly 1 unready op, every run.
+         With this line it reports 0 of 203 / 0 of 176 / 0 of 193, 0 reloads — the
+         signature `docs/runbooks/chart-parity-gate.md` records for a settled page.
+
+         ⚠️ IT IS NOT A DELAY AND IT BYPASSES NOTHING. Fire-and-forget at parse
+         time, awaited by no one; it asks the browser to activate a face the page
+         has already declared and already preloaded one line above.
+         `StockChart.jsx` ALREADY calls `document.fonts.load("11px 'Instrument Sans
+         Tab'")` for the same reason — but gated on `chartReady`, i.e. AFTER the
+         first axis is measured and drawn, which is why it has to force a repaint
+         afterwards. Doing it here as well means the face is usually ready for the
+         FIRST paint, so that repaint has nothing ragged to correct. ══ -->
+    <script>try { document.fonts && document.fonts.load && document.fonts.load("11px 'Instrument Sans Tab'") } catch (e) { /* no FontFaceSet: the @font-face still applies */ }</script>
 
     <!-- ── YouTube: warm DNS/TLS for the Desk video library + player ──
          Thumbnails come from i.ytimg.com; the IFrame Player API + embed come

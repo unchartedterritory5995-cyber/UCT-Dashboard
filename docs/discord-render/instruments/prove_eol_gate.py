@@ -4,14 +4,30 @@ Plants the exact trap twice — a CRLF-stored file flattened to LF, and an LF-st
 CRLF — and asserts the gate goes RED in both worktree and staged mode, with a sha256-verified
 restore around each. Never `git checkout`: that command destroyed an unrelated edit in this session,
 which is precisely why the standing rule exists.
+
+⛔ B4 (owner ruling 2026-09-14): this file plants real mutations in tracked working-tree files, so
+it refuses to run outside a sacrificed worktree exactly like every `mutation_harness*.py`.
+
+⚰️ ROOT used to be the hard-coded literal `C:\\Users\\Patrick\\uct-worktrees\\discord-render` — the
+INTEGRATOR'S TREE — so running this file from anywhere planted flips in that tree rather than in the
+one it was invoked from. *The integrator's tree is never a mutation target.* It now defaults to the
+worktree this file lives in, and takes an explicit root as argv[1].
 """
 from __future__ import annotations
 
 import hashlib
 import subprocess
 import sys
+from pathlib import Path
 
-ROOT = r"C:\Users\Patrick\uct-worktrees\discord-render"
+ROOT = str(Path(sys.argv[1]).resolve() if len(sys.argv) > 1
+           else Path(__file__).resolve().parents[3])
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import require_throwaway_worktree  # noqa: E402
+
+require_throwaway_worktree(ROOT, __file__)
+
 GATE = [sys.executable, "tools/check_repo_hygiene.py"]
 
 CASES = [

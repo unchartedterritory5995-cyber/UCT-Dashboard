@@ -1,0 +1,9 @@
+=== A2 verify: the render-alerts access probe
+RENDER_ALERTS_ACCESS ACCESS HTTP 200 — the bot can see the channel
+RENDER_ALERTS_ACL ACL_OK no Contributor allow overwrite remains
+  → the Contributor overwrite is gone; step 1.3's product half is DONE.
+  → step 1.3 is unblocked: edit the channel's permission overwrites so the Contributor role cannot view it (LEDGER step 1.3).
+
+=== A3: create #render-smoke, overwrites written AT CREATION
+  bot overwrite narrowed to what the token holds; NOT granting: MANAGE_MESSAGES
+CREATE FAILED http=403 code=50013

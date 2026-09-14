@@ -83,6 +83,77 @@ def budget(dep_timeout_s: float, remaining_s: float | None) -> float:
     return min(dep_timeout_s, max(0.0, remaining_s))
 
 
+class _Budget:
+    """The whole call's budget, and the ONLY way to get a number out of it is to ask the clock.
+
+    ⛔⛔ THIS CLASS EXISTS TO MAKE THE ONCE-PER-CALL DERIVATION UNWRITABLE, NOT MERELY UNWRITTEN.
+    ⚰️ The defect it closes: `guarded` computed the effective timeout once and handed that same
+    float to every attempt, so an N-attempt hop could spend N × the budget. Lane E's chaos harness
+    measured **4.6 s against a 2 s deadline**. The fix at integration re-derived the number inside
+    the attempt — correct, and one edit away from being undone, because the once-per-call float was
+    still sitting in scope with a name on it.
+
+    ⭐ So the attempt runner is handed THIS, never a float. `remaining()` subtracts the clock every
+    time it is called; there is no accessor that returns a stored per-attempt number, and
+    `total_s` is deliberately named for what it is — the whole call's ceiling, a REPORTING figure
+    (`budget_s` in the failure meta) and never a per-attempt one. Handing a float to `_attempt`
+    now raises `AttributeError` on the first line instead of quietly overrunning the deadline.
+
+    ⛔ `wait()` is the same rule for the retry backoff. `_call`'s own docstring has always
+    promised "the retry, with jitter, INSIDE the same budget" and the code did not do it: the
+    jittered delay was slept in full regardless of how much time was left, so a hop could refuse
+    every remaining attempt for want of budget and still sit past its deadline sleeping between
+    them. The upstream work was bounded; the CALL was not, and the member had already been
+    answered. (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.)
+    """
+
+    __slots__ = ("total_s", "_started", "_now")
+
+    def __init__(self, total_s: float, started: float, now):
+        self.total_s = total_s
+        self._started = started
+        self._now = now
+
+    def remaining(self) -> float:
+        """Seconds left of the whole call, read from the clock NOW. Can be zero or negative."""
+        return self.total_s - (self._now() - self._started)
+
+    def elapsed_ms(self) -> float:
+        return (self._now() - self._started) * 1000.0
+
+    def wait(self, seconds: float, sleep) -> None:
+        """Sleep `seconds`, or whatever is left of the budget — whichever is shorter."""
+        sleep(max(0.0, min(seconds, self.remaining())))
+
+
+def _attempt(name: str, fn, budget: _Budget):
+    """ONE attempt. The budget is read HERE, from the clock, and nowhere else.
+
+    ⛔⛔ MODULE-LEVEL ON PURPOSE — DO NOT MOVE IT BACK INSIDE `guarded`. As a closure it could see
+    `eff`, the whole-call float, and passing that to `submit` is a one-token edit that reads as
+    correct and silently restores the N × budget overrun. Out here `eff` is not a name that
+    exists, so the wrong version cannot be typed; `__code__.co_freevars` is `()` and
+    `test_the_per_attempt_budget_derivation_is_the_only_shape_the_source_allows` reads that from
+    the parse tree and fails by name if it ever stops being true.
+
+    ⭐ `budget` shadows the module-level `budget()` helper inside this function, deliberately: the
+    only budget reachable from an attempt is the live one.
+    """
+    left = budget.remaining()
+    if left < MIN_USEFUL_S:
+        raise cf.TimeoutError(f"{name}: {left:.3f}s left of a {budget.total_s:.3f}s budget")
+    fut = pool(name).submit(fn, left)
+    try:
+        return fut.result(timeout=left)
+    except cf.TimeoutError:
+        fut.cancel()                       # only helps if it never started; honest either way
+        with _POOL_LOCK:
+            _ABANDONED[name] = _ABANDONED.get(name, 0) + 1
+        raise
+    # ⛔ No `except Exception` here. The breaker must SEE the dependency's own failure, and a
+    # swallow at this level is how four causes became one sentence (C-08).
+
+
 def guarded(name: str, fn, *, dep_timeout_s: float, remaining_s: float | None = None,
             corr_id: str | None = None, attempts: int = 1, retry_on=(Exception,),
             timeout_on: tuple = (), unreachable_on: tuple = (), provider: str | None = None,
@@ -106,34 +177,28 @@ def guarded(name: str, fn, *, dep_timeout_s: float, remaining_s: float | None = 
         return fail(DEADLINE, provider=provider or name, corr_id=corr_id, elapsed_ms=0.0,
                     budget_s=round(eff, 3), dep_timeout_s=dep_timeout_s)
 
-    def _once():
-        # ⛔⛔ THE BUDGET IS RE-READ PER ATTEMPT, NOT ONCE PER CALL.
-        # ⚰️ It was computed once and handed to every attempt, so an N-attempt hop could spend N ×
-        # the budget: Lane E's chaos harness measured **4.6 s against a 2 s deadline** with the bars
-        # adapter's own `ATTEMPTS = 2`. The live blast radius was zero only by luck — `bindings`
-        # passes `attempts=1` for an unrelated reason (OI-25, the caller already retries) — so the
-        # layer built to stop an upstream overrunning the deadline would have overrun it itself the
-        # moment anyone used its own default. Found by a lane that could not fix it, in code this
-        # lane owns.
-        left = eff - (now() - started)
-        if left < MIN_USEFUL_S:
-            raise cf.TimeoutError(f"{name}: {left:.3f}s left of a {eff:.3f}s budget")
-        fut = pool(name).submit(fn, left)
-        try:
-            return fut.result(timeout=left)
-        except cf.TimeoutError:
-            fut.cancel()                       # only helps if it never started; honest either way
-            with _POOL_LOCK:
-                _ABANDONED[name] = _ABANDONED.get(name, 0) + 1
-            raise
-        # ⛔ No `except Exception` here. The breaker must SEE the dependency's own failure, and a
-        # swallow at this level is how four causes became one sentence (C-08).
+    # ⛔⛔ THE BUDGET IS RE-READ PER ATTEMPT, AND `_Budget` IS WHAT MAKES THAT THE ONLY PATH.
+    # ⚰️ `eff` was handed to every attempt, so an N-attempt hop could spend N × the budget — Lane
+    # E's chaos harness measured **4.6 s against a 2 s deadline** with the bars adapter's own
+    # `ATTEMPTS = 2`. The live blast radius was zero only by luck: `bindings` passes `attempts=1`
+    # for an unrelated reason (OI-25, the caller already retries), so the layer built to stop an
+    # upstream overrunning the deadline would have overrun it itself the moment anyone used its own
+    # default. ⭐ `eff` is used below for the DEADLINE pre-check only; from here on the single
+    # authority over "how long is there left" is `job_budget`, and the attempt runner is a
+    # module-level function that cannot see `eff` at all.
+    job_budget = _Budget(eff, started, now)
 
     try:
-        value = breakers.call(name, _once, attempts=attempts, retry_on=retry_on, sleep=sleep)
+        value = breakers.call(name, lambda: _attempt(name, fn, job_budget),
+                              attempts=attempts, retry_on=retry_on,
+                              # ⛔ THE BACKOFF IS INSIDE THE BUDGET TOO, which is what this module's
+                              # own docstring has always claimed. Without this a hop refuses its
+                              # remaining attempts for want of time and then sleeps past the
+                              # deadline anyway, having already answered the member.
+                              sleep=lambda s: job_budget.wait(s, sleep))
     except breakers.BreakerOpen:
         return fail(BREAKER_OPEN, provider=provider or name, corr_id=corr_id,
-                    elapsed_ms=(now() - started) * 1000.0, breaker=breakers.breaker(name).snapshot())
+                    elapsed_ms=job_budget.elapsed_ms(), breaker=breakers.breaker(name).snapshot())
     except (cf.TimeoutError, *timeout_on) as e:
         # ⛔ TWO KINDS OF TIMEOUT, ONE CLASS. `cf.TimeoutError` is US giving up on the wait;
         # `timeout_on` is the CLIENT giving up on the socket (`httpx.TimeoutException`). The member
@@ -143,18 +208,18 @@ def guarded(name: str, fn, *, dep_timeout_s: float, remaining_s: float | None = 
         # fallback rule ("do not start the slower leg when the budget is gone") read it as a
         # transport error and started the slower leg anyway. Caught by its own test.
         return fail(TIMEOUT, provider=provider or name, corr_id=corr_id,
-                    elapsed_ms=(now() - started) * 1000.0, budget_s=round(eff, 3),
+                    elapsed_ms=job_budget.elapsed_ms(), budget_s=round(job_budget.total_s, 3),
                     attempts=attempts, via="client" if not isinstance(e, cf.TimeoutError) else "wait")
     except unreachable_on as e:
         # ⛔ "COULD NOT REACH IT" IS NOT "IT ANSWERED WITH AN ERROR". Different sentence to a member,
         # different next action for us, and in the flow adapter it is what decides whether the
         # in-process fallback runs at all. C-08 was these two sharing one `except`.
         return fail(UNREACHABLE, provider=provider or name, corr_id=corr_id,
-                    elapsed_ms=(now() - started) * 1000.0, error=type(e).__name__)
+                    elapsed_ms=job_budget.elapsed_ms(), error=type(e).__name__)
     except Exception as e:  # noqa: BLE001 — named, not swallowed: the class reaches the member
         return fail(UPSTREAM_ERROR, provider=provider or name, corr_id=corr_id,
-                    elapsed_ms=(now() - started) * 1000.0, error=type(e).__name__)
-    return value, (now() - started) * 1000.0
+                    elapsed_ms=job_budget.elapsed_ms(), error=type(e).__name__)
+    return value, job_budget.elapsed_ms()
 
 
 def is_result(outcome) -> bool:

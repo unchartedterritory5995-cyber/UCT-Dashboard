@@ -37,11 +37,19 @@ BEHIND RENDER_POOL_ENABLED (default off): Chromium launched and warmed at boot b
 `ready`, a pre-created fresh context per viewport, a browser recycle after
 RENDER_RECYCLE_AFTER renders or RENDER_RSS_CEILING_MB, and `X-Render-Priority: background`
 capped at RENDER_BACKGROUND_SLOTS of RENDER_MAX_CONCURRENT so the warm cycle yields to members.
+
+BEHIND RENDER_ADMIN_ENDPOINTS=1 (default off, and 404 — not 403 — when off, so the route is
+indistinguishable from one that was never written): POST /admin/pool/recycle, bearer-gated on
+RENDER_ADMIN_TOKEN, recycles EXACTLY ONE pooled page so determinism-across-recycle and the
+self-heal chaos row have a real trigger with zero member impact. Owner ruling B1, 2026-09-14.
+Both recycle paths are documented in docs/runbooks/discord-render-operations.md §9e.
 """
 from __future__ import annotations
 
 import asyncio
 import contextvars
+import hmac
+import itertools
 import json
 import logging
 import math
@@ -78,6 +86,22 @@ HARD_MARGIN_S = 10.0
 
 _OFF = ("0", "false", "off", "no", "")
 _CID = re.compile(r"^[0-9a-f]{8}$")
+
+
+def safe_cid(raw: str | None) -> str:
+    """A correlation id is echoed into logs, so it is validated before it is echoed — ONE copy.
+
+    ⛔⛔ THERE WAS BRIEFLY A SECOND COPY AND THE ANCHOR CHECK IS WHAT FOUND IT. B1's admin lever
+    repeated this line verbatim, which made `mutation_harness_renderer.py :: A4` match two places:
+    an exact single replacement became impossible, so that control could no longer be applied at
+    all and would have reported NOT APPLIED at the end of an 18-minute run.
+
+    ⭐ A GUARD REPEATED IS A GUARD UNPROVED. The fix is one definition, not a longer anchor —
+    lengthening the anchor would have restored the mutation while leaving two copies of a
+    log-injection guard that can drift apart silently."""
+    return raw if _CID.match(raw or "") else "-"
+
+
 _URL_QUERY = re.compile(r"((?:https?|wss?)://[^\s\"'?#<>\\]+)\?[^\s\"'#<>\\]*")
 _SECRET_PARAM = re.compile(r"\b(token|secret|key|sig|signature)=[^&\s\"'<>\\]+", re.IGNORECASE)
 
@@ -120,6 +144,20 @@ def pool_enabled() -> bool:
     return os.environ.get("RENDER_POOL_ENABLED", "0").strip().lower() not in _OFF
 
 
+def admin_endpoints_enabled() -> bool:
+    """⭐ An ENABLEMENT gate, so unset means OFF: /admin/pool/recycle ADDS a lever and must not
+    switch itself on in every environment the moment it merges. Read PER REQUEST so the operator
+    can arm it with a variable; strictly "1" so a typo fails closed."""
+    return os.environ.get("RENDER_ADMIN_ENDPOINTS", "").strip() == "1"
+
+
+def admin_token() -> str:
+    """Read per request, for the same reason. Deliberately NOT CHART_RENDERER_SECRET: that one is
+    handed to `web` on every render, and an operator lever must not be reachable with a credential
+    the render path already carries."""
+    return os.environ.get("RENDER_ADMIN_TOKEN", "").strip()
+
+
 def scrub(text) -> str:
     """Every query string, and any token=/secret=/key= pair, removed from text bound for a log
     line or a response body. Applied to exception text, which is where the URL hides."""
@@ -141,7 +179,8 @@ class _Stats:
         self.timeouts = 0
         self.active = 0
         self.queued = 0
-        self.recycles = 0
+        self.recycles = 0           # BROWSER recycles — the organic RSS / RENDER_RECYCLE_AFTER path
+        self.page_recycles = 0      # POOLED-PAGE recycles — POST /admin/pool/recycle, one page each
         self.pool_hits = 0
         self.pool_misses = 0
         self.last_render_ms: float | None = None
@@ -342,14 +381,47 @@ async def render_png(req: RenderRequest) -> tuple[bytes, dict]:
 
 # ── the pool (RENDER_POOL_ENABLED) ──────────────────────────────────────────
 
+_browser_seq = itertools.count(1)
+_page_seq = itertools.count(1)
+
+
 class _BrowserSlot:
     def __init__(self, browser):
         self.browser = browser
+        # ⭐ The identity that proves a recycle did NOT restart Chromium. `_current_slot()` builds a
+        # NEW _BrowserSlot for every launch, so an unchanged `id` across an operation is evidence
+        # the same browser is still serving — stronger than `is_connected()`, which a replacement
+        # also answers True to.
+        self.id = f"browser-{next(_browser_seq):04d}"
         self.inflight = 0
         self.renders = 0
         self.retired = False
         self.closed = False
-        self.spare: dict = {}
+        self.spare: dict = {}       # viewport key -> _PooledPage
+
+
+class _PooledPage:
+    """One pre-created context standing by in `slot.spare`.
+
+    It is "a pooled page" in this service's sense: a spare context serves exactly ONE render's page
+    and is then closed (`_render_pooled`'s `finally` always `_close_quiet`s it, and the pool's test
+    double asserts a context is never asked for a second page). So `renders` is 0 while the page is
+    idle in the pool and 1 from the moment it leaves — the cumulative count the organic ceiling
+    reads is `slot.renders`, not this.
+    """
+    __slots__ = ("ctx", "id", "key", "created_at", "renders")
+
+    def __init__(self, ctx, key):
+        self.ctx = ctx
+        self.key = key
+        self.id = f"page-{next(_page_seq):05d}"
+        self.created_at = time.time()
+        self.renders = 0
+
+    def describe(self) -> dict:
+        w, h, scale = self.key
+        return {"id": self.id, "width": w, "height": h, "scale": scale,
+                "renders": self.renders, "age_s": round(time.time() - self.created_at, 3)}
 
 
 async def _current_slot() -> _BrowserSlot:
@@ -414,13 +486,13 @@ async def _replenish(slot: _BrowserSlot, key: tuple) -> None:
     if slot.retired or key in slot.spare:
         await _close_quiet(ctx)
     else:
-        slot.spare[key] = ctx
+        slot.spare[key] = _PooledPage(ctx, key)
 
 
 async def _close_slot(slot: _BrowserSlot) -> None:
     slot.closed = True
-    for ctx in list(slot.spare.values()):
-        await _close_quiet(ctx)
+    for page in list(slot.spare.values()):
+        await _close_quiet(page.ctx)
     slot.spare.clear()
     try:
         await slot.browser.close()
@@ -467,12 +539,14 @@ async def _render_pooled(req: RenderRequest, meta: dict) -> bytes:
         key = (req.width, req.height, round(float(req.scale), 2))
         ctx = None
         try:
-            ctx = slot.spare.pop(key, None)
-            if ctx is None:
+            pooled = slot.spare.pop(key, None)
+            if pooled is None:
                 _stats.pool_misses += 1
                 ctx = await slot.browser.new_context(viewport={"width": req.width, "height": req.height},
                                                      device_scale_factor=req.scale)
             else:
+                pooled.renders += 1      # a pooled page's own count, true the moment it leaves the pool
+                ctx = pooled.ctx
                 _stats.pool_hits += 1
             png = await _drive(ctx, req, meta)
             _warm_done = True                    # a real render proves the browser is warm
@@ -488,6 +562,96 @@ async def _render_pooled(req: RenderRequest, meta: dict) -> bytes:
             await _after_render(slot)
     finally:
         _release(priority)
+
+
+# ── the admin lever: recycle ONE pooled page on demand (RENDER_ADMIN_ENDPOINTS) ─────────────
+#
+# ⛔ THERE ARE TWO RECYCLE PATHS AND THEY RECYCLE DIFFERENT THINGS. Keep it that way:
+#   * ORGANIC — `_after_render` retires the whole BROWSER at RENDER_RECYCLE_AFTER renders or over
+#     RENDER_RSS_CEILING_MB, launches the replacement immediately, and closes the old one when its
+#     last in-flight render finishes. It bumps `_stats.recycles`.
+#   * ON DEMAND — this lever takes ONE idle pooled page, disposes of it through `_close_quiet` (the
+#     same disposal every other context on this service goes through) and re-creates its
+#     replacement through `_replenish` (the same creation every spare context goes through). It
+#     bumps `_stats.page_recycles`, never `_stats.recycles` — conflating them would make
+#     `renders_since_recycle` and the `recycles` counter on /health stop meaning "a new browser".
+#
+# ⭐ It cannot disturb an in-flight render BY CONSTRUCTION, not by checking: a context handed to a
+# render is `pop`ped out of `slot.spare` before the render starts, so everything still in
+# `slot.spare` is idle by definition. Nothing here launches, retires or closes a browser.
+
+
+def _pool_state() -> dict:
+    """What the pool holds right now. Reported before and after a recycle so the operator can see
+    exactly one page change and the browser not change at all."""
+    slot = _current
+    pages = [p.describe() for p in slot.spare.values()] if slot is not None else []
+    return {
+        "pool_enabled": pool_enabled(),
+        "browser": None if slot is None else {
+            "id": slot.id,
+            "connected": bool(slot.browser is not None and slot.browser.is_connected()),
+            "retired": slot.retired,
+            "renders_since_launch": slot.renders,
+        },
+        "size": len(pages) + (slot.inflight if slot is not None else 0),
+        "in_use": slot.inflight if slot is not None else 0,
+        "idle": len(pages),
+        "pages": pages,
+        "recycles": _stats.recycles,            # browser recycles (organic)
+        "page_recycles": _stats.page_recycles,  # pooled-page recycles (this lever)
+        "pool_hits": _stats.pool_hits,
+        "pool_misses": _stats.pool_misses,
+    }
+
+
+def _bearer_ok(authorization: str | None) -> bool:
+    """⛔ CONSTANT TIME, never `==`. A byte-by-byte `==` on a secret leaks its prefix to anyone who
+    can time this endpoint, and an operator lever is exactly the thing worth grinding at."""
+    token = admin_token()
+    given = ""
+    if authorization:
+        scheme, _, rest = authorization.partition(" ")
+        if scheme.strip().lower() == "bearer":
+            given = rest.strip()
+    # An unset RENDER_ADMIN_TOKEN matches nothing: fail closed rather than open a lever with no lock.
+    ok = hmac.compare_digest(given.encode("utf-8", "replace"), token.encode("utf-8", "replace"))
+    return bool(token) and ok
+
+
+async def recycle_one_pooled_page(cid: str) -> dict:
+    """Recycle EXACTLY ONE pooled page. Returns the report; never raises for a pool it cannot act
+    on — "there was nothing idle to take" is an answer, not an error, and forcing it would be the
+    one thing the ruling forbids."""
+    before = _pool_state()
+    report = {"ok": True, "corr_id": cid, "recycled": None, "replaced_by": None,
+              "reason": None, "before": before, "after": before}
+    slot = _current
+    if not pool_enabled():
+        report["reason"] = "pool disabled: RENDER_POOL_ENABLED is off, there is no pool to recycle"
+    elif slot is None or slot.closed or not slot.browser.is_connected():
+        report["reason"] = "no live browser: nothing has been pooled yet"
+    elif not slot.spare:
+        report["reason"] = ("pool empty: every pooled page is already in flight or none has been "
+                            "created — not taking one would disturb a render")
+    else:
+        # Oldest first, so repeated calls walk the pool instead of fighting over one entry.
+        key = min(slot.spare, key=lambda k: slot.spare[k].created_at)
+        pooled = slot.spare.pop(key)                 # out of the pool ⇒ no render can claim it now
+        report["recycled"] = pooled.describe()
+        await _close_quiet(pooled.ctx)               # the ONE disposal path on this service
+        await _replenish(slot, key)                  # the ONE creation path for a spare context
+        fresh = slot.spare.get(key)
+        report["replaced_by"] = fresh.describe() if fresh is not None else None
+        if fresh is None:
+            report["reason"] = "recycled, but the replacement context could not be created"
+        _stats.page_recycles += 1
+    report["after"] = _pool_state()
+    log.info("pool recycle cid=%s recycled=%s replaced_by=%s idle=%s->%s browser=%s reason=%s",
+             cid, (report["recycled"] or {}).get("id"), (report["replaced_by"] or {}).get("id"),
+             before["idle"], report["after"]["idle"],
+             (report["after"]["browser"] or {}).get("id"), report["reason"])
+    return report
 
 
 async def warm() -> None:
@@ -548,6 +712,7 @@ async def health():
         "renders_since_recycle": (_current.renders if _current is not None else 0) if pool else _stats.renders_total,
         "active": _stats.active, "queued": _stats.queued, "rss_mb": await asyncio.to_thread(_rss_mb),
         "last_render_ms": _stats.last_render_ms, "p95_render_ms": _stats.p95(), "recycles": _stats.recycles,
+        "page_recycles": _stats.page_recycles,
         "pool_hits": _stats.pool_hits, "pool_misses": _stats.pool_misses,
         "timeouts": _stats.timeouts, "failures": _stats.failures, "launch_error": _launch_error,
     }
@@ -560,7 +725,7 @@ async def render(req: RenderRequest, request: Request, x_render_secret: str | No
                  x_chart_edge_token: str | None = Header(default=None)):
     check_secret(x_render_secret)
     check_url(req.url)
-    cid = x_correlation_id if _CID.match(x_correlation_id or "") else "-"
+    cid = safe_cid(x_correlation_id)
     priority = "background" if (x_render_priority or "").strip().lower() == "background" else "interactive"
     ceiling = hard_timeout_s(req)
     started = time.perf_counter()
@@ -602,6 +767,34 @@ async def render(req: RenderRequest, request: Request, x_render_secret: str | No
         except (TypeError, ValueError):
             pass
     return Response(content=png, media_type="image/png", headers=headers)
+
+
+@app.post("/admin/pool/recycle")
+async def admin_pool_recycle(authorization: str | None = Header(default=None),
+                             x_correlation_id: str | None = Header(default=None)):
+    """Recycle exactly one pooled page. Owner ruling B1, 2026-09-14.
+
+    ⛔ 404 — NOT 403 — when RENDER_ADMIN_ENDPOINTS is not "1". With the gate off this route must be
+    indistinguishable from one that was never written: a 403 tells an unauthenticated caller that
+    an admin lever exists here and that the only thing between them and it is a credential.
+    ⛔ The gate is checked BEFORE the bearer, or the 404 would leak through the timing of a
+    credential check that only an armed service performs.
+    """
+    if not admin_endpoints_enabled():
+        raise HTTPException(404, "Not Found")
+    if not _bearer_ok(authorization):
+        raise HTTPException(401, "bad admin bearer")
+    cid = safe_cid(x_correlation_id)
+    return await recycle_one_pooled_page(cid)
+
+
+@app.api_route("/admin/pool/recycle", methods=["GET", "PUT", "PATCH", "DELETE", "OPTIONS"],
+               include_in_schema=False)
+async def _admin_pool_recycle_other_methods():
+    """⭐ Registering a path makes every OTHER method answer 405, which is itself a tell: a path
+    that does not exist answers 404 to everything. So every non-POST method answers 404 here too,
+    armed or not, and the route is invisible to a prober in both states."""
+    raise HTTPException(404, "Not Found")
 
 
 @app.on_event("shutdown")

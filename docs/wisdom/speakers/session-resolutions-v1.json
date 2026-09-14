@@ -1,0 +1,166 @@
+{
+  "_readme": [
+    "Per-session resolutions for the ambiguous speaker labels in authors.json (owner ruling CONTRACTS §8a.2).",
+    "QUOTE-FREE BY DESIGN. This repository is public. Nothing here carries transcript text, Discord message text,",
+    "a price, a share count or any position detail. Evidence is cited by IDENTIFIER only: an edu_videos cue second,",
+    "a discord:<channel_id>:<message_id>, or a substack section path.",
+    "",
+    "THE RULE (§8a.2). A label listed in authors.json `ambiguous_speaker_labels` is NOT an alias of anybody.",
+    "It resolves for ONE session at a time, and only on one of the four named evidence kinds:",
+    "  session_title | self_introduction | sunday_scans_position | discord_same_minute.",
+    "A session with no entry here resolves to 'team-unresolved', which may author MENTION only — never a CALL,",
+    "never a PRINCIPLE attribution. Never default to tsdr or bracco. Never resolve by voice similarity.",
+    "",
+    "⚠️ KNOWN LIMIT, recorded so it is not discovered as a surprise: the unit of resolution is the SESSION, which is",
+    "what the ruling says. A shared host account can hand over mid-session (edu_videos 332 is a measured example),",
+    "so a session resolution can be NARROWED later by adding `from_cue_t_s` / `to_cue_t_s` to an entry. Narrowing is",
+    "a safe change; widening one is not.",
+    "",
+    "⛔ An owner ruling on a SPECIFIC RECORD beats a session resolution. Two records carry one: golden G-035 and",
+    "G-052, where the owner answered 'unknown' at checkpoint 2 (items 007 and 008). They are team-unresolved BY",
+    "RULING and are never re-derived from the session entries below."
+  ],
+  "version": "v1",
+  "generated": "2026-09-13",
+  "ruling": "CONTRACTS §8a.2 (checkpoint 1) + §8b.2 (the data change and its code path ship together)",
+  "default_speaker": "team-unresolved",
+  "evidence_kinds": [
+    "session_title",
+    "self_introduction",
+    "sunday_scans_position",
+    "discord_same_minute"
+  ],
+  "resolutions": [
+    {
+      "external_ref": "edu_videos:283",
+      "session_date": "2026-07-09",
+      "label": "Uncharted Territory",
+      "author_id": "tsdr",
+      "evidence_kind": "discord_same_minute",
+      "evidence": [
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 5260,
+          "ticker": "NBIS",
+          "discord_ref": "discord:882459873823043655:1524783378577231923",
+          "delta_minutes": 0.7,
+          "basis": "the label states a first-person re-entry in the same name that this author's own channel posts in the same minute"
+        },
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 3103,
+          "ticker": "DOCN",
+          "discord_ref": "discord:882459873823043655:1524775140158738453",
+          "delta_minutes": 3.9,
+          "basis": "the label states a fill in the same name this author posts four minutes later"
+        }
+      ]
+    },
+    {
+      "external_ref": "edu_videos:327",
+      "session_date": "2026-08-17",
+      "label": "Uncharted Territory",
+      "author_id": "tsdr",
+      "evidence_kind": "discord_same_minute",
+      "evidence": [
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 2656,
+          "ticker": "UMAC",
+          "discord_ref": "discord:882459873823043655:1538904180570464286",
+          "basis": "buy stated under the label at the same stated price this author posts in his own channel"
+        },
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 2838,
+          "ticker": "UMAC",
+          "discord_ref": "discord:882459873823043655:1538904910207393854",
+          "basis": "the same-day reversal of that buy, and the two cues are spaced as the two messages are"
+        }
+      ]
+    },
+    {
+      "external_ref": "edu_videos:333",
+      "session_date": "2026-08-21",
+      "label": "Uncharted Territory",
+      "author_id": "tsdr",
+      "evidence_kind": "discord_same_minute",
+      "evidence": [
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 3411,
+          "ticker": "RBRK",
+          "discord_ref": "discord:882459873823043655:1540358777281319024",
+          "basis": "a first-person re-entry stated under the label at the price this author posts in his own channel"
+        }
+      ]
+    },
+    {
+      "external_ref": "edu_videos:340",
+      "session_date": "2026-08-27",
+      "label": "Uncharted Territory",
+      "author_id": "tsdr",
+      "evidence_kind": "discord_same_minute",
+      "evidence": [
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 2901,
+          "ticker": "OKTA",
+          "discord_ref": "discord:882459873823043655:1542529654177407127",
+          "delta_minutes": 0.7,
+          "basis": "buy stated under the label in the same minute this author posts it in his own channel"
+        },
+        {
+          "kind": "discord_same_minute",
+          "cue_t_s": 7982,
+          "ticker": "OKTA",
+          "discord_ref": "discord:882459873823043655:1542551044356050984",
+          "delta_minutes": 1.1,
+          "basis": "the average raise in the same name, one minute apart"
+        }
+      ]
+    },
+    {
+      "external_ref": "edu_videos:348",
+      "session_date": "2026-09-03",
+      "label": "Uncharted Territory",
+      "author_id": "bracco",
+      "evidence_kind": "sunday_scans_position",
+      "evidence": [
+        {
+          "kind": "sunday_scans_position",
+          "cue_t_s": 1089,
+          "ticker": "SKHY",
+          "substack_ref": "substack:/p/sunday-scans-fcd",
+          "section_path": "Bracco’s Breakdown & Top Ideas > SKHY (Daily)",
+          "basis": "the label states, in the first person, the trade this author signs in his own Sunday Scans section (golden G-002)"
+        },
+        {
+          "kind": "self_introduction",
+          "cue_t_s": 1675,
+          "basis": "the other host speaks in the same session under his OWN label, so the shared label is not his here"
+        }
+      ],
+      "note": "This session is the measured counterexample that ended the 'Uncharted Territory = tsdr' alias."
+    }
+  ],
+  "unresolved_sessions": [
+    {
+      "external_ref": "edu_videos:343",
+      "session_date": "2026-08-28",
+      "label": "Uncharted Territory",
+      "author_id": "team-unresolved",
+      "reason": "no evidence of any of the four §8a.2 kinds. The one same-day message from the candidate author's own channel does not name the instrument, so it cannot corroborate the speaker.",
+      "owner_ruling": "checkpoint-2 item 008 — the owner answered 'unknown'. Closed as team-unresolved by ruling."
+    },
+    {
+      "external_ref": "edu_videos:283",
+      "session_date": "2026-07-09",
+      "label": "Uncharted Territory",
+      "scope": "record",
+      "subject_ref": "G-035",
+      "author_id": "team-unresolved",
+      "owner_ruling": "checkpoint-2 item 007 — the owner answered 'unknown' for this record. A record-level ruling beats the session resolution above; G-035 is never re-derived from it."
+    }
+  ]
+}

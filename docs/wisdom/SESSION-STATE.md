@@ -7,6 +7,72 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 
 # Session state
 
+> ## ⚖️ OWNER RULINGS — 2026-09-14 morning. Wave 1 CLOSED on master; Wave 1.5 starts now.
+>
+> **Wave 1 is closed on master. The three scheduled gates stay open by design** (3 consecutive
+> sessions of capture health · first weekly report Sunday 2026-09-20 · D20 after CALL-REPLAY
+> n ≥ 100 and two weeks of silent scoring).
+>
+> | item | ruling |
+> |---|---|
+> | **D-R2** | The reviewer is right. **ONE program-level total**, carried in the ledger across all extractor versions, models and runs; per-version and per-run spend are **reported sub-lines, never separate budgets**. **Cap raised $15 → $40** for Wave 1.5's multi-pass extraction. Every run still prints spend-to-date against the cap and stops at it. Recorded in LEDGER.md with the reversal. |
+> | **HF token** | The line was left unfilled, and the owner's instruction is that this means **"text-only for now"**. ⛔ So diarization stays OFF and **the STT output as delivered stands** — 356 at 100.0 %, no speaker inferred anywhere. |
+> | **G-030** | Left blank, so **it stays in the Contradictions queue**. ⛔ **Both statements stay non-canonical and NOTHING about the 50 SMA publishes** — not to Brain KB, not to Ask-AI, not to a dossier, not to the voice profile. |
+> | **RESUME.md §3** | The cap instruction was wrong and is fixed: `--max-usd` is the **ledger-carried total**, not the remainder. Passing 15 last night was correct. |
+>
+> ⛔⛔ **WAVE 1.5 BLOCKS ANY D18 PUBLISH.** Items 1–5 must be done and the drift number must be in
+> the weekly report before Brain KB repair begins. Publication floor: no PRINCIPLE or
+> MARKET_SIGNAL publishes under a named author unless **stability = 1.0 (3/3)** AND confirmed or
+> provisional-with-evidence; 2/3 may surface only in the admin review queue.
+>
+> ⭐ **Order matters and the owner set it: reduce variance at the SOURCE first** (item 4 — tighter
+> schema, atomic segments, enums verbatim in the prompt), **re-measure drift on the SAME 10
+> segments**, and only then decide whether to buy N=3 voting. Item 6: print the projected
+> full-catalog 3-pass spend before starting it, and run it only if the schema change alone did not
+> solve it.
+>
+> **Next checkpoint: after tonight's LIVE daily chain run on Railway (after today's close, flags
+> dark), reporting per-step results, D12 capture counts (session 1 of 3) and the Discord catch-up
+> count from the four author channels.**
+
+> ## ⭐⭐ LATEST — THE OVERNIGHT RUN IS COMPLETE. All six steps done. 2026-09-14 05:00 CT
+>
+> **ALL SIX §8.4 MASTER MERGES ARE ON MASTER**, each with Railway `web` SUCCESS and a fresh-boot
+> `/api/health` before the next was pushed:
+> S-A `fb62a44d9` · S-C `a64336c89` · S-D `7a2b54369` · S-E `98a18b969` · S-F1 `49fdc1fbc` ·
+> **S-F2 `fedd8dea1`**. Master tip `fedd8dea1`, confirmed by `merge-base --is-ancestor`.
+>
+> **PRODUCTION IS DARK, MEASURED NOT ASSUMED:** six services, 430 variables, **zero `WISDOM_*` set
+> anywhere**; `flag_ledger_audit` reports 0 in every category; **27 of 27 real Wisdom GET routes
+> return 401** to an anonymous caller and none returns JSON.
+>
+> **§8.6 acceptance: 11 PASS · 0 FAIL · 1 INCONCLUSIVE** (the daily chain's `sources` step — no
+> local Discord token, unseeded `edu_videos`; environmental, reported as inconclusive not pass).
+>
+> **P5 COMPLETE — $11.6504 of $15.** Gate accepted on golden-v1 `db3475c814ee` (57 segments);
+> per-type precision/recall in checkpoint 12. **Trial verdict: NO SWITCH** (not a tie; sonnet ~19 %
+> cheaper per record, mixed on quality, tiny n). ⛔ Two caveats outrank the table: "accepted" is a
+> BASELINE with nothing to regress against, and **763 of 882 kept records were never scored**
+> because only predictions overlapping a labelled span are scorable.
+>
+> ⛔⛔ **THE FINDING THE OWNER SHOULD READ FIRST: drift `mean_jaccard 0.505`.** Same model, same
+> effort, same 10 segments, run twice — **PRINCIPLE agrees on 6 of ~30, MARKET_SIGNAL on 4 of ~17**.
+> Those are the record types D18 would publish into the Brain KB and Ask-AI under a named author.
+> A row that would not survive re-running the extractor on the same paragraph is a sample, not a
+> teaching. Measurement only; every publish adapter stays dark.
+>
+> **STT COMPLETE.** 356 rescued **4.2 % → 100.0 %** (1398 cues, no internal gaps). **254 and 221
+> were never broken** — their whole shortfall is dead air after a sign-off, 0 internal gaps, proved
+> by a VAD-off probe of both tails. ⚠️ The under-98 % rule over-flags; gate it on INTERNAL gaps.
+> ⛔ And never raise coverage by disabling VAD — the 221 probe hallucinated *"All right."* eleven
+> times out of silence.
+>
+> **Full detail: `docs/wisdom/OVERNIGHT-CHECKPOINTS.md`, checkpoints 8–12.**
+>
+> **STILL NEEDS THE OWNER:** the G-030 rule in his own words; the HF token or "text-only for now"
+> (STT ran text-only, which is consistent with his NO on diarization); and a ruling on S-D's
+> reviewer reversing the documented "cap is per `extractor_version`" decision (D-R2).
+
 > ## ⭐ LATEST — overnight autonomous run, resumed 2026-09-13 23:40 CDT (past the account-limit reset at 22:20 CT)
 >
 > **ON MASTER, all dark, each verified by artifact:** S-B rails `e5dfb23fb` · drift-#4 `2e6f3453e` ·
