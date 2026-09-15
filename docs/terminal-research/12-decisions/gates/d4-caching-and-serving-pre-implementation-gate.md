@@ -176,8 +176,64 @@ a `TTLCache` API change, that is the signal to stop and re-gate, not to bump the
 | **CP1** | The spec's §2.4 four rules written down as a **derived** rail — a test that enumerates every per-set cache key by AST (the SPEC §3.4 population) and fails when a NEW one appears that is not declared as a deliberate fast path or a batch-provider key. **No product code changes. No key renamed. No module touched.** | **no** — a test file only | **S** |
 | **CP2** | `watchlist_performance.py` adopts `wl_returns::{TICKER}::{as_of_date}` under the existing `wl_perf:` set key, which becomes a fast path. Per-ticker completeness replaces batch completeness (`cache_policy.set_by_completeness` moves inside the loop). | **no** — outside flow-worker's closure, verified §5 | **S** |
 | **CP3** | `theme_performance.py::live_returns_for_syms` adopts `theme_ts_extra::{TS_KEY}`; `groups.py::_TODAY_CACHE` is deleted in favour of `groups_today::{TICKER}` in the shared singleton. | ⚠️ **YES** — both modules are in flow-worker's import closure and neither is watched. See §5 | **S/M** |
-| **CP4** | `fundamentals`/`earnings_table` move to `fundamentals::{TICKER}::{period}`, giving the family an anchored prefix and making `delete_prefix` correct by construction rather than by comment. Touches the self-heal path and the stale-while-revalidate serve path. | **no** — neither file is in the closure | **M** |
+| **CP4** | ~~`fundamentals`/`earnings_table` move to `fundamentals::{TICKER}::{period}`, giving the family an anchored prefix and making `delete_prefix` correct by construction rather than by comment.~~ **UNBUILDABLE AS WRITTEN — see F-D4-1 below. A corrected assertion is PROPOSED there and is not approved.** | **no** — neither file is in the closure | **M** |
 | **CP5** | `ticker_logos.py`'s resolution decision (which source answered, or that all missed) becomes `ticker_logo::{TICKER}::{source}` in the addressed tier; the PNG bytes stay on disk. Negative caching via `cache_policy.set_by_completeness`. | **no** — not in the closure | **M** |
+
+### ⛔ F-D4-1 — CP4's assertion names a cache dimension that does not exist
+
+**Filed 2026-09-14. CP4 was STOPPED before a line was written, on a measurement.**
+
+The assertion presumes the family is keyed `fundamentals::{TICKER}::{period}` and frames CP4
+as giving it *"an anchored prefix"* — i.e. a rename. **It is not a rename.** Derived from the
+code, comments stripped, on `feat/s7-price-level`:
+
+| noun in the assertion | resolved against the code | verdict |
+|---|---|---|
+| `earnings_table` key | `f"earnings_table::{ticker}"` — **two segments**, at `earnings_table.py:586` and `:693` (plus invalidations at `:655`, `:671`) | **exists, different shape** |
+| `{period}` | appears **nowhere** in the family's key construction | ⛔ **UNRESOLVABLE** |
+| `fundamentals` key | `api/services/fundamentals.py` builds **no cache key in this family at all** — zero `earnings_table::`/`fundamentals::` sites, zero `cache.get/set/invalidate` sites | ⛔ **UNRESOLVABLE** |
+
+⛔ **A noun that cannot be resolved by command makes the assertion UNBUILDABLE-AS-WRITTEN.**
+Two of CP4's three nouns do not resolve. Building it would have meant inventing `{period}` and
+inventing a `fundamentals` cache key, then calling the result a rename.
+
+**What adding `{period}` would actually do — the collision proof.** `fundamentals_monitor.py`
+enumerates warm entries and recovers the ticker by splitting on the FIRST separator:
+
+```python
+for k in cache.keys_with_prefix("earnings_table::"):
+    t = k.split("::", 1)[1].upper() if "::" in k else ""
+```
+
+With a three-segment key, `k.split("::", 1)[1]` is **`"AAPL::Q1"`**, not `"AAPL"`. The monitor
+would not merely miss entries — it would manufacture **malformed ticker strings** and feed them
+into `check_ticker`, whose failures are then reported as data defects. ⭐ **The instrument would
+report a property of the key format as a property of the data**, which is the exact class this
+programme keeps re-committing.
+
+And on the serve path, a key gaining a dimension **splits one live cache entry into two**:
+every member-facing read misses once, and `earnings_table.py`'s own invalidation sites
+(`:655`, `:671`) go stale-by-construction because they invalidate the two-segment form.
+
+⚠️ **Honesty about the instrument used here:** the comment-strip pass changed nothing on this
+corpus — raw `grep` and code-only counts are identical (4 and 4, 1 and 1), so there were no
+prose occurrences to exclude and **the strip proves nothing on these files**. The finding rests
+on reading the four assignment sites and the parse, not on the filter.
+
+#### PROPOSED — not approved, not scheduled
+
+> **CP4′ (proposed).** `earnings_table`'s key stays **two-segment**. The unit becomes:
+> **(a)** give the family an anchored prefix by making the separator unambiguous, so
+> `delete_prefix("earnings_table::")` is correct by construction rather than by the comment
+> that currently warns `'A'` would over-match `AAPL`; **(b)** `fundamentals_monitor`'s
+> recovery becomes `rsplit`/an explicit parse with a control proving a malformed key is
+> REFUSED rather than silently upcased; **(c)** `fundamentals.py` is dropped from the scope
+> until someone names the key it is supposed to own.
+>
+> ⛔ **Whether the entry SHOULD vary by period is a design question the assertion presumed and
+> the code does not answer.** If it should, that is a cache-splitting change on a live
+> member-facing path and needs its own checkpoint, its own approval line, and a migration —
+> not a clause inside a rename. **Reported, not invented.**
 
 ⛔ **CP3 IS THE ONLY ONE THAT CAN STRAND, and it is named here rather than discovered at merge
 time.** §5 is the measurement.
