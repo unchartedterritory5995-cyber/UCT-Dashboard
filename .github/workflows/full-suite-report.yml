@@ -318,6 +318,15 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # F-CI-32 / F-CI-30. The derived flaky set asks "could any code change explain
+          # this test changing state?", and that question is `git diff <shaA> <shaB>` plus
+          # `git show <sha>:<workflow>` over commits a depth-1 checkout does not have.
+          # MEASURED ON THIS JOB ONLY first, deliberately: the twelve pytest shards are the
+          # expensive place to be wrong, and this is the one job that needs the history.
+          # With a shallow checkout the answer is UNREADABLE, which is NOT "comparable" --
+          # the set comes back empty and the gate behaves exactly as it did before.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -529,15 +538,45 @@ jobs:
               echo "::error title=baseline unreadable::results/$B/$f is not on ci-results"
             fi
           done
+          # ── F-CI-30: materialise the WHOLE record store so the flaky set can be DERIVED
+          # from it. There is no quarantine file here, and no file anybody can edit.
+          # ⛔ The CURRENT run is copied in beside the published ones, or this run's own
+          # flips could never be seen and the newest evidence would always be one run old.
+          mkdir -p allruns/results
+          git archive FETCH_HEAD results 2>/dev/null | tar -x -C allruns || \
+            echo "::warning title=record store unreadable::the flaky set will be EMPTY, and an empty set means every NEW entry fires the gate"
+          cp -r "extract/$GITHUB_RUN_ID" "allruns/results/$GITHUB_RUN_ID" 2>/dev/null || true
+          echo "record store: $(ls allruns/results 2>/dev/null | wc -l) run(s)"
           python tools/ci_inventory.py \
             --baseline "$B" --current "$GITHUB_RUN_ID" \
             --baseline-dir "base/$B" --current-dir "extract/$GITHUB_RUN_ID" \
+            --results-root allruns/results --repo . \
             --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
           cat diff.md
           cat diff.md >> "$GITHUB_STEP_SUMMARY"
           V=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['verdict'])" 2>/dev/null || echo UNREADABLE)
           echo "::notice title=baseline diff::$V (baseline $B)"
           cp "extract/$GITHUB_RUN_ID/diff.json" diff.json 2>/dev/null || true
+
+      - name: Derive the flaky set (F-CI-30)
+        if: always()
+        continue-on-error: true
+        run: |
+          set -e
+          # ⛔ ONE finding per flaky test, WRITTEN BY THE TOOL into the record — never by
+          # hand, and never a list anybody maintains. The set is re-derived from the record
+          # on every run, so a test leaves it the moment the evidence stops supporting it.
+          python tools/ci_inventory.py --flaky \
+            --results-root allruns/results --repo . \
+            --flaky-out "extract/$GITHUB_RUN_ID/flaky_findings.md" \
+            --out "extract/$GITHUB_RUN_ID/flaky.json" || true
+          if [ -f "extract/$GITHUB_RUN_ID/flaky_findings.md" ]; then
+            cat "extract/$GITHUB_RUN_ID/flaky_findings.md" >> "$GITHUB_STEP_SUMMARY"
+            N=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/flaky.json'))['flaky_size'])" 2>/dev/null || echo UNREADABLE)
+            echo "::notice title=derived flaky set::FLAKY_SIZE=$N — excluded from NEW, never re-run"
+          else
+            echo "::warning title=flaky set::not derived. NEW is reported in full, which is the safe direction."
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()

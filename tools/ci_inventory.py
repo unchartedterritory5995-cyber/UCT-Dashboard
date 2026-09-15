@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import re
 import sys
@@ -200,8 +201,17 @@ def failing_keys(pytest_text: str, vitest_text: str) -> set:
 
 
 def diff(baseline_failing: set, current_failing: set, current_ran: set,
-         current_summary: dict, baseline_summary=None) -> dict:
-    """NEW / FIXED / UNCHANGED / MISSING + a verdict. Never raises."""
+         current_summary: dict, baseline_summary=None, flaky=None,
+         flaky_previous=None) -> dict:
+    """NEW / FIXED / UNCHANGED / MISSING + a verdict. Never raises.
+
+    ⛔ **F-CI-30: `flaky` is SUBTRACTED FROM NEW, AND FROM NOTHING ELSE.** A flaky test is
+    not fixed, not forgiven and not re-run — it is a test whose result this suite cannot
+    tell apart from noise, so it must not be able to fire a gate. It still appears, by
+    name, in its own bucket and in `flaky_findings.md`.
+    ⭐ `flaky` arrives as a DERIVED set (see `flaky_set`). If it ever arrives from a file
+    somebody edits, that file is the finding.
+    """
     invalid = []
     s = current_summary or {}
     p = s.get("pytest") or {}
@@ -219,18 +229,24 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
         invalid.append("current: no junit testcases could be read — RAN is unknowable, "
                        "so FIXED and MISSING cannot be told apart")
 
+    flaky = set(flaky or ())
     unchanged = sorted(baseline_failing & current_failing)
-    new = sorted(current_failing - baseline_failing)
+    new_all = sorted(current_failing - baseline_failing)
+    new = [k for k in new_all if k not in flaky]
+    new_flaky = [k for k in new_all if k in flaky]
     gone = baseline_failing - current_failing
     fixed = sorted(k for k in gone if k in current_ran)
     missing = sorted(k for k in gone if k not in current_ran)
 
+    # ⛔ THE ARITHMETIC STILL CLOSES OVER **EVERY** ENTRY. Subtracting the flaky ones from
+    # NEW without carrying them in their own term would turn the reconciliation — the one
+    # check that proves nothing was silently dropped — into a check that cannot fail.
     arithmetic = ("baseline %d = unchanged %d + fixed %d + missing %d  |  "
-                  "current %d = unchanged %d + new %d"
+                  "current %d = unchanged %d + new %d + new-but-flaky %d"
                   % (len(baseline_failing), len(unchanged), len(fixed), len(missing),
-                     len(current_failing), len(unchanged), len(new)))
+                     len(current_failing), len(unchanged), len(new), len(new_flaky)))
     reconciles = (len(baseline_failing) == len(unchanged) + len(fixed) + len(missing)
-                  and len(current_failing) == len(unchanged) + len(new))
+                  and len(current_failing) == len(unchanged) + len(new) + len(new_flaky))
 
     if invalid:
         verdict = "INVALID"
@@ -240,13 +256,19 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
         verdict = "NEW_FAILURES"
     else:
         verdict = "NO_NEW_FAILURES"
+    prev_flaky = set(flaky_previous or ())
     return {"verdict": verdict, "new": new, "fixed": fixed, "unchanged": unchanged,
-            "missing": missing, "counts": {"new": len(new), "fixed": len(fixed),
-                                           "unchanged": len(unchanged),
-                                           "missing": len(missing),
-                                           "baseline": len(baseline_failing),
-                                           "current": len(current_failing),
-                                           "current_ran": len(current_ran)},
+            "missing": missing, "new_flaky": new_flaky,
+            "counts": {"new": len(new), "fixed": len(fixed),
+                       "unchanged": len(unchanged),
+                       "missing": len(missing),
+                       "baseline": len(baseline_failing),
+                       "current": len(current_failing),
+                       "current_ran": len(current_ran),
+                       "new_flaky": len(new_flaky),
+                       "flaky_size": len(flaky),
+                       "flaky_new": len(flaky - prev_flaky),
+                       "flaky_fixed": len(prev_flaky - flaky)},
             "arithmetic": arithmetic, "invalid_because": invalid}
 
 
@@ -284,9 +306,22 @@ def render_diff(d: dict, baseline_id: str, current_id: str) -> str:
     out += ["| NEW | FIXED | UNCHANGED | MISSING |", "|---|---|---|---|",
             "| **%d** | %d | %d | **%d** |" % (c["new"], c["fixed"], c["unchanged"],
                                                c["missing"]), "",
+            "| FLAKY_SIZE | FLAKY_NEW | FLAKY_FIXED | NEW-but-flaky |",
+            "|---|---|---|---|",
+            "| %d | %d | %d | %d |" % (c.get("flaky_size", 0), c.get("flaky_new", 0),
+                                       c.get("flaky_fixed", 0), c.get("new_flaky", 0)),
+            "",
             "`%s`" % d["arithmetic"], "",
             "⛔ MISSING is *in the baseline and not collected now* — coverage leaving, never "
-            "counted as FIXED.", ""]
+            "counted as FIXED.",
+            "⛔ NEW **excludes** the derived FLAKY set (F-CI-30). A flaky test is not fixed "
+            "and is never re-run — it is one whose result cannot be told from noise, so it "
+            "may not fire the gate. It is listed below by name, and in `flaky_findings.md`.",
+            ""]
+    if d.get("new_flaky"):
+        out += ["### NEW but FLAKY — excluded from the verdict, named anyway", ""]
+        out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["new_flaky"][:50]]
+        out.append("")
     if d["new"]:
         out += ["### NEW — failing now, not in the baseline", ""]
         out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["new"][:50]]
@@ -319,6 +354,336 @@ def render(inv: dict) -> str:
                    % (r["count"], r["suite"], r["kind"], r["signature"] or "—",
                       r["bucket"].replace("|", "\\|"), r["example"].replace("|", "\\|")[:70]))
     return "\n".join(out) + "\n"
+
+
+# ── F-CI-30 · THE DERIVED FLAKY SET ───────────────────────────────────────────────────
+#
+# ⛔⛔ **NOTHING HERE IS HAND-MAINTAINED. A FILE LISTING "KNOWN FLAKY TESTS" IS A FINDING,
+# NOT A FIX.** The set is re-derived from the record on every run, so a test leaves it the
+# moment the evidence stops supporting it, and nobody can quietly add one.
+#
+# The owner's rule (F-CI-30): a test is FLAKY if the record shows it in BOTH states across
+# >= 2 runs **at the same commit SHA**, or across consecutive runs whose diff touched no
+# file that test imports. It leaves the set after K = 5 consecutive stable runs. The gate
+# reports NEW **excluding** FLAKY, plus FLAKY_NEW / FLAKY_FIXED / FLAKY_SIZE.
+#
+# ⚠️⚠️ **AND THE SECOND LIMB, READ LITERALLY, IS WRONG — MEASURED.** Runs #18 and #19
+# differ by ONE file, `.github/workflows/full-suite-report.yml`, which no test imports. A
+# literal reading calls that pair equivalent, and **130 tests changed state across it** —
+# because the change was `setup-node` + `npm ci` inside the PYTEST job, the E CP21 fix that
+# gave the JS lane its modules back. Those are 129 real repairs and one real regression;
+# classifying them as flakes would have muted the single most valuable diff in this record.
+# ⭐ **So a workflow file is judged by WHICH JOB changed** — a change confined to `publish`
+# or `gate` cannot reach a test, a change inside a job that runs the suite obviously can —
+# and the test jobs are DERIVED from the workflow's own steps, never listed here.
+FLAKY_STABLE_RUNS = 5
+_SOURCE_GLOBS = ["*.py", "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs"]
+_INERT_SUFFIX = (".md",)
+_INERT_PREFIX = ("docs/",)
+
+
+def _git(args, repo="."):
+    """(rc, stdout). ⛔ Never raises: an unreadable git is UNREADABLE, not False."""
+    import subprocess
+    try:
+        p = subprocess.run(["git"] + args, cwd=repo, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=300)
+    except Exception as exc:                                    # noqa: BLE001
+        return 128, str(exc)
+    return p.returncode, (p.stdout or "")
+
+
+def source_references(path: str, sha: str, repo=".") -> list:
+    """Source files (NOT prose) that mention `path`'s module name, or None if unreadable.
+
+    ⛔ **CODE, NEVER PROSE.** The search is restricted to source extensions, so a module
+    named in CLAUDE.md or a build record is not a reference. This repo has paid for that
+    rule six times in one session.
+
+    ⭐ The direction of the approximation is deliberate: a false POSITIVE ("something
+    mentions it") only makes a pair non-equivalent, which suppresses a flaky claim. A
+    false negative would invent one. So a bare, over-broad token is the safe token.
+    """
+    token = pathlib.Path(path).stem
+    if not token:
+        return []
+    rc, out = _git(["grep", "-l", "-F", "-w", "--", token, sha, "--"] + _SOURCE_GLOBS
+                   + [":!node_modules/", ":!" + path], repo)
+    if rc not in (0, 1):                       # 1 = no match; anything else is unreadable
+        return None
+    return [l.strip() for l in out.splitlines() if l.strip()]
+
+
+def _load_yaml(text):
+    try:
+        import yaml
+    except ImportError:
+        return None
+    try:
+        return yaml.safe_load(text)
+    except Exception:                                           # noqa: BLE001
+        return None
+
+
+def _stable(obj) -> str:
+    """A comparable rendering of a parsed YAML subtree.
+
+    ⚰️ Keys are stringified first because **YAML 1.1 parses `on:` as the BOOLEAN True**,
+    so a GitHub workflow's top-level mapping mixes `bool` and `str` keys and
+    `json.dumps(sort_keys=True)` dies with *"'<' not supported between instances of 'bool'
+    and 'str'"*. Measured the first time this ran against the real workflow.
+    """
+    def keys_to_str(o):
+        if isinstance(o, dict):
+            return {str(k): keys_to_str(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [keys_to_str(v) for v in o]
+        return o
+    return json.dumps(keys_to_str(obj), sort_keys=True, default=str)
+
+
+#: the test tool as a COMMAND, at a command boundary. ⛔⛔ **CODE, NEVER PROSE — and this
+#: check broke that rule twice before it held.** Matching the whole job blob called `publish`
+#: a test job; matching a bare word then matched `# E CP6: pytest is now N shards` (a COMMENT
+#: inside a `run:` block) and `print("| pytest | %s |")` (a summary-table LABEL). Both are the
+#: publish job talking ABOUT the suite. `_command_text` strips comments and quoted strings
+#: first, and the token must sit where a command sits.
+_SUITE_TOOLS = ("pytest", "vitest", "jest")
+
+
+def _command_text(run: str) -> str:
+    """A `run:` block with prose removed: quoted strings and `#` comments.
+
+    ⭐ Over-stripping is the safe direction ONLY because `_TEST_NAME` carries the common
+    case — this repo's suite jobs are literally named `pytest` and `vitest`. A job that
+    invokes the suite from inside a quoted string AND is named nothing test-like would be
+    missed, and that is the one direction that could invent a flake; it is recorded here
+    rather than hidden.
+    """
+    t = re.sub(r"'[^'" + chr(10) + r"]*'", " ", run or "")
+    t = re.sub(r'"[^"' + chr(10) + r']*"', " ", t)
+    return re.sub(r"#[^" + chr(10) + r"]*", " ", t)
+
+
+def runs_suite(run: str) -> bool:
+    """Does this `run:` block INVOKE a test runner?
+
+    ⚰️ Decided by the PRECEDING TOKEN, not by position on the line. A
+    command-position regex missed `/usr/bin/time -v python -m pytest --collect-only`
+    — a real invocation behind a wrapper — and **that is the dangerous direction**: a
+    suite job read as a non-suite job makes a pair look comparable when it is not, and
+    invents flakes out of real regressions.
+
+    ⛔ The rule: a tool token whose previous token is a FLAG is an argument
+    (`ci_summarize.py --suite vitest`), except `-m`, which is how Python invokes a
+    module (`python -m pytest`). Everything else is a command.
+    """
+    for line in _command_text(run).splitlines():
+        toks = line.replace("|", " | ").replace(";", " ; ").split()
+        for i, tok in enumerate(toks):
+            low = tok.lower()
+            if low in _SUITE_TOOLS or (low == "npm" and "test" in toks[i + 1:i + 3]):
+                prev = toks[i - 1] if i else None
+                if prev is not None and prev.startswith("-") and prev != "-m":
+                    continue                    # an argument to something else
+                return True
+    return False
+#: …and a job whose NAME says it runs tests is treated as one whatever its steps look like.
+#: Generic, derived from the workflow's own naming — not a list of this repo's jobs.
+_TEST_NAME = re.compile(r"(^|[-_])(test|tests|pytest|vitest|suite|spec)([-_]|$)", re.I)
+
+
+def workflow_test_jobs(doc) -> set:
+    """Jobs that RUN THE SUITE, derived from their own steps. Never a hand-kept list.
+
+    ⛔ The failure direction is asymmetric and deliberate: calling a job a test job when it
+    is not only makes a pair non-comparable (no flake is claimed). MISSING a real test job
+    would let a genuine code-driven change be read as noise. So both a command match and a
+    name match count, and either one is enough.
+    """
+    out = set()
+    for name, job in ((doc or {}).get("jobs") or {}).items():
+        if _TEST_NAME.search(str(name)):
+            out.add(name)
+            continue
+        for step in (job or {}).get("steps") or []:
+            if isinstance(step, dict) and runs_suite(str(step.get("run") or "")):
+                out.add(name)
+                break
+    return out
+
+
+def workflow_change_reaches_tests(path: str, sha_a: str, sha_b: str, repo="."):
+    """(True/False/None, reason) — can this workflow edit have moved a test's outcome?
+
+    ⛔ None is UNREADABLE and the caller must treat it as "assume it can".
+    """
+    rc_a, ta = _git(["show", "%s:%s" % (sha_a, path)], repo)
+    rc_b, tb = _git(["show", "%s:%s" % (sha_b, path)], repo)
+    if rc_a != 0 or rc_b != 0:
+        return None, "%s is UNREADABLE at one of the two commits" % path
+    da, db = _load_yaml(ta), _load_yaml(tb)
+    if da is None or db is None:
+        return None, "%s could not be parsed as YAML (or PyYAML is absent)" % path
+    top_a = {k: v for k, v in da.items() if k != "jobs"}
+    top_b = {k: v for k, v in db.items() if k != "jobs"}
+    if _stable(top_a) != _stable(top_b):
+        return True, "%s changed OUTSIDE `jobs:` — every job sees that" % path
+    ja, jb = (da.get("jobs") or {}), (db.get("jobs") or {})
+    changed = {n for n in set(ja) | set(jb) if _stable(ja.get(n)) != _stable(jb.get(n))}
+    suite = workflow_test_jobs(db) | workflow_test_jobs(da)
+    hit = sorted(changed & suite)
+    if hit:
+        return True, "%s changed the suite-running job(s) %s" % (path, ", ".join(hit))
+    return False, "%s changed only %s, which run no tests" % (
+        path, ", ".join(sorted(changed)) or "nothing")
+
+
+def runs_equivalent(sha_a: str, sha_b: str, repo="."):
+    """(True/False/None, reason) — could ANY code change explain a state change?
+
+    ⛔ **UNREADABLE IS NOT EQUIVALENT.** A shallow checkout cannot diff two commits, and a
+    tool that shrugged there would start calling real regressions flaky on exactly the
+    runs where it can see least. F-CI-32's `fetch-depth: 0` is what feeds this.
+    """
+    if sha_a and sha_a == sha_b:
+        return True, "SAME SHA — the strongest form of the rule"
+    if not (sha_a and sha_b):
+        return None, "a run in this pair records no commit SHA"
+    rc, out = _git(["diff", "--name-only", sha_a, sha_b], repo)
+    if rc != 0:
+        return None, "the diff %s..%s is UNREADABLE (shallow checkout?)" % (sha_a[:9],
+                                                                            sha_b[:9])
+    reasons = []
+    for f in [l.strip() for l in out.splitlines() if l.strip()]:
+        if f.endswith(_INERT_SUFFIX) or f.startswith(_INERT_PREFIX):
+            continue
+        if f.startswith(".github/workflows/"):
+            reaches, why = workflow_change_reaches_tests(f, sha_a, sha_b, repo)
+            if reaches is None:
+                return None, why
+            if reaches:
+                reasons.append(why)
+            continue
+        if f.startswith(".github/"):
+            reasons.append("%s is CI configuration outside a workflow file" % f)
+            continue
+        refs = source_references(f, sha_b, repo)
+        if refs is None:
+            return None, "whether %s is referenced is UNREADABLE" % f
+        if refs:
+            reasons.append("%s is referenced by %d source file(s)" % (f, len(refs)))
+    if reasons:
+        return False, "; ".join(reasons[:3])
+    return True, "no changed file can reach a test"
+
+
+def flaky_set(runs, repo="."):
+    """The derived set, from a list of {n, id, sha, failing, ran} ordered by run number.
+
+    Returns {key: {"evidence": [(run_a, run_b), …], "retired": bool, "stable": int}}.
+    ⛔ Stateless by construction — re-derived from the record every time, so there is no
+    file anyone can edit to add a test to it.
+    """
+    evidence, pairs = {}, []
+    for a, b in zip(runs, runs[1:]):
+        eq, why = runs_equivalent(a.get("sha", ""), b.get("sha", ""), repo)
+        pairs.append({"a": a["n"], "b": b["n"], "equivalent": eq, "why": why})
+        if eq is not True:
+            continue
+        both_ran = a["ran"] & b["ran"]
+        for k in sorted((a["failing"] ^ b["failing"]) & both_ran):
+            evidence.setdefault(k, []).append((a["n"], b["n"]))
+    out = {}
+    for k, ev in evidence.items():
+        last = ev[-1][1]
+        after = [r for r in runs if r["n"] > last]
+        # ⛔ A run in which the test did not RUN does not extend a stable streak. "It was
+        # not collected" is not "it behaved."
+        stable = 0
+        state = None
+        for r in after:
+            if k not in r["ran"]:
+                stable = 0
+                state = None
+                continue
+            here = k in r["failing"]
+            if state is None or here == state:
+                state = here
+                stable += 1
+            else:
+                state = here
+                stable = 1
+        out[k] = {"evidence": ev, "stable": stable,
+                  "retired": stable >= FLAKY_STABLE_RUNS}
+    return out, pairs
+
+
+def render_flaky(derived, pairs, runs, previous=None) -> str:
+    """`flaky_findings.md` — one finding per flaky test, written by the tool."""
+    live = {k: v for k, v in derived.items() if not v["retired"]}
+    retired = {k: v for k, v in derived.items() if v["retired"]}
+    prev = set(previous or ())
+    out = ["# Flaky tests — DERIVED", "",
+           "⚠️ Written by `tools/ci_inventory.py --flaky`. **Not hand-edited, and not a "
+           "quarantine list**: it is re-derived from the record on every run, so a test "
+           "leaves it the moment the evidence stops supporting it.", "",
+           "**The rule (F-CI-30).** A test is FLAKY when the record shows it in BOTH "
+           "states across two runs that no code change can distinguish — the same commit "
+           "SHA, or a diff that cannot reach a test. It leaves after **%d** consecutive "
+           "stable runs. ⛔ There is NO rerun-on-failure anywhere in this pipeline."
+           % FLAKY_STABLE_RUNS, "",
+           "| FLAKY_SIZE | FLAKY_NEW | FLAKY_FIXED |", "|---|---|---|",
+           "| **%d** | %d | %d |" % (len(live), len(set(live) - prev),
+                                     len(prev - set(live))), "",
+           "## The pairs the record could compare", "",
+           "| runs | comparable | why |", "|---|---|---|"]
+    for p in pairs:
+        tag = {True: "**yes**", False: "no", None: "**UNREADABLE**"}[p["equivalent"]]
+        out.append("| #%s → #%s | %s | %s |" % (p["a"], p["b"], tag, p["why"]))
+    comparable = sum(1 for p in pairs if p["equivalent"] is True)
+    out += ["", "⛔ **%d of %d consecutive pairs were comparable.** A pair that is not "
+            "comparable contributes NO evidence in either direction — it cannot make a "
+            "test flaky and it cannot clear one." % (comparable, len(pairs)), ""]
+    if not live:
+        out += ["## No test qualifies", "",
+                "⭐ That is a statement about the EVIDENCE, not a clean bill of health: "
+                "with %d comparable pair(s) in the record, the set can only be as large "
+                "as what those pairs could show." % comparable, ""]
+    for k, v in sorted(live.items()):
+        out += ["## `%s` · `%s`" % (k[0], k[1]), "", "**%s**" % k[2], "",
+                "- changed state across: %s"
+                % ", ".join("#%s→#%s" % e for e in v["evidence"]),
+                "- consecutive stable runs since: **%d** of %d needed to leave the set"
+                % (v["stable"], FLAKY_STABLE_RUNS),
+                "- ⛔ excluded from NEW while it is here. It is **not fixed**, and it is "
+                "not re-run: it is a test whose result this suite cannot trust.", ""]
+    if retired:
+        out += ["## Left the set (%d consecutive stable runs)" % FLAKY_STABLE_RUNS, ""]
+        out += ["- `%s` · `%s` · %s" % k for k in sorted(retired)]
+        out.append("")
+    return "\n".join(out) + "\n"
+
+
+def collect_runs(root, repo="."):
+    """Every readable results/<run_id> record, ordered by run number."""
+    root = pathlib.Path(root)
+    runs = []
+    for d in sorted(p for p in root.glob("*") if p.is_dir()):
+        sp = d / "summary.json"
+        if not sp.is_file():
+            continue
+        try:
+            s = json.loads(sp.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        failing, ran, _ = load_record(d)
+        if not ran:
+            continue        # no junit = RAN unknowable = this run can witness nothing
+        runs.append({"id": d.name, "n": s.get("run_number") or 0,
+                     "sha": s.get("sha") or "", "failing": failing, "ran": ran})
+    runs.sort(key=lambda r: r["n"])
+    return runs
 
 
 def _self_check() -> int:
@@ -453,6 +818,89 @@ def _self_check() -> int:
     show("  ...and WITH a summary the same inputs are valid",
          diff({A, B}, {A, B}, RAN, GOOD)["verdict"], "NO_NEW_FAILURES")
 
+    # ── F-CI-30: the derived flaky set ────────────────────────────────────────────────
+    #
+    # ⛔ THE CONTROL THAT MATTERS IS THE PAIR THAT IS **NOT** COMPARABLE. Without it,
+    # "a flip makes a test flaky" is satisfied by a tool that calls every regression noise.
+    print()
+    for src, want, why in (
+            ("python -m pytest tests/ -q", True, "a real invocation"),
+            ("/usr/bin/time -v python -m pytest --collect-only -q x", True,
+             "behind a WRAPPER — the miss a command-position regex made"),
+            ("npx vitest run --reporter=json", True, "npx vitest"),
+            ("npm run test", True, "npm run test"),
+            ('echo "| pytest | ${{ needs.pytest.result }} |"', False,
+             "a summary-table LABEL — prose, not a command"),
+            ("# E CP6: pytest is now N shards.", False, "a COMMENT inside a run: block"),
+            ("python tools/ci_extract.py --pytest-log x.log", False, "a FLAG"),
+            ("cat extract/1/pytest_failures.txt", False, "a FILENAME"),
+            ("python tools/ci_summarize.py --suite vitest", False,
+             "an ARGUMENT to another tool")):
+        show("runs_suite: %s" % why, runs_suite(src), want)
+
+    def _wf(jobs, top=None):
+        doc = {"name": "w", "on": {"push": None}, "jobs": jobs}
+        doc.update(top or {})
+        return doc
+
+    SUITE = {"steps": [{"run": "python -m pytest tests/ -q"}]}
+    PUB = {"steps": [{"run": "python tools/ci_publish.py --push"}]}
+    show("workflow_test_jobs finds the suite job", sorted(workflow_test_jobs(
+        _wf({"runtests": SUITE, "publish": PUB}))), ["runtests"])
+    show("  ...and not the publishing job (non-vacuity: it found ONE)",
+         "publish" in workflow_test_jobs(_wf({"runtests": SUITE, "publish": PUB})), False)
+
+    # runs A and B, same three tests, one of which flips
+    A_, B_, C_ = ("pytest", "m", "a"), ("pytest", "m", "b"), ("pytest", "m", "c")
+    RUNS = [{"id": "1", "n": 1, "sha": "s1", "failing": {A_}, "ran": {A_, B_, C_}},
+            {"id": "2", "n": 2, "sha": "s1", "failing": {A_, B_}, "ran": {A_, B_, C_}}]
+    derived, pairs = flaky_set(RUNS)
+    show("SAME SHA + a flip -> FLAKY, by name", sorted(derived), [B_])
+    show("  ...and the pair says why", pairs[0]["why"][:8], "SAME SHA")
+    # ⛔ THE CONTROL: the identical flip across a pair that is NOT comparable is a
+    # REGRESSION, and must not enter the set. Different shas + no repo to diff = UNREADABLE.
+    RUNS2 = [dict(RUNS[0], sha="aaa"), dict(RUNS[1], sha="bbb")]
+    d2, p2 = flaky_set(RUNS2, repo="no-such-repo-dir")
+    show("an UNCOMPARABLE pair contributes NOTHING", sorted(d2), [])
+    show("  ...and it is reported UNREADABLE, never 'not equivalent'",
+         p2[0]["equivalent"], None)
+    # a test that did not RUN in one of the two runs cannot witness anything
+    RUNS3 = [{"id": "1", "n": 1, "sha": "s1", "failing": {A_}, "ran": {A_}},
+             {"id": "2", "n": 2, "sha": "s1", "failing": {A_, B_}, "ran": {A_, B_}}]
+    show("a test absent from one run's junit is NOT flaky", sorted(flaky_set(RUNS3)[0]), [])
+    # K = 5 retirement, and a run where it did not run breaks the streak.
+    # ⛔ The tail must hold B_ in the state the flip LEFT it in (failing). A tail that
+    # flips it back is not five stable runs — it is a sixth piece of evidence, and the
+    # first version of this fixture made exactly that mistake and read as a code defect.
+    tail = [{"id": str(i), "n": i, "sha": "s1", "failing": {A_, B_}, "ran": {A_, B_, C_}}
+            for i in range(3, 3 + FLAKY_STABLE_RUNS)]
+    d4, _ = flaky_set(RUNS + tail)
+    show("%d stable runs -> RETIRED" % FLAKY_STABLE_RUNS, d4[B_]["retired"], True)
+    d5, _ = flaky_set(RUNS + tail[:-1])
+    show("  ...and %d is not enough (non-vacuity)" % (FLAKY_STABLE_RUNS - 1),
+         d5[B_]["retired"], False)
+    gap = list(tail)
+    gap[2] = dict(gap[2], ran={A_, C_})
+    d6, _ = flaky_set(RUNS + gap)
+    show("a run where it was NOT COLLECTED breaks the streak", d6[B_]["retired"], False)
+
+    # the gate: NEW excludes FLAKY, and the arithmetic still closes over everything
+    dF = diff({A_}, {A_, B_, C_}, {A_, B_, C_}, GOOD, flaky={B_})
+    show("NEW excludes the flaky entry", dF["new"], [C_])
+    show("  ...and names it in its own bucket", dF["new_flaky"], [B_])
+    show("  ...so the verdict is still NEW_FAILURES on the real one",
+         dF["verdict"], "NEW_FAILURES")
+    dG = diff({A_}, {A_, B_}, {A_, B_}, GOOD, flaky={B_})
+    show("a run whose ONLY new entry is flaky -> NO_NEW_FAILURES",
+         dG["verdict"], "NO_NEW_FAILURES")
+    show("  ...and the arithmetic still reconciles",
+         dG["verdict"] != "DID_NOT_RECONCILE", True)
+    show("  ...and FLAKY_SIZE is reported", dG["counts"]["flaky_size"], 1)
+    # ⛔ NON-VACUITY: with an EMPTY flaky set the same inputs DO fire the gate, or
+    # "flaky is excluded" would be satisfied by a gate that never fires.
+    show("  ...and with NO flaky set the same run FAILS",
+         diff({A_}, {A_, B_}, {A_, B_}, GOOD)["verdict"], "NEW_FAILURES")
+
     print("SELF-CHECK:", "PASS" if ok else "FAIL")
     return OK if ok else FAIL
 
@@ -469,10 +917,47 @@ def main(argv=None) -> int:
     ap.add_argument("--baseline-dir")
     ap.add_argument("--current-dir")
     ap.add_argument("--out")
+    ap.add_argument("--flaky", action="store_true",
+                    help="derive the FLAKY set from every record under --results-root")
+    ap.add_argument("--repo", default=".",
+                    help="the code checkout the diffs are read from (needs full history)")
+    ap.add_argument("--flaky-out", help="write flaky_findings.md here")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
+
+    if a.flaky:
+        runs = collect_runs(a.results_root, a.repo)
+        if len(runs) < 2:
+            print("[ci-inventory] FLAKY: %d readable record(s) — a flake needs two runs "
+                  "to be visible at all. Nothing derived, and that is not a clean bill "
+                  "of health." % len(runs))
+            return OK
+        derived, pairs = flaky_set(runs, a.repo)
+        live = {k: v for k, v in derived.items() if not v["retired"]}
+        prev, _ = flaky_set(runs[:-1], a.repo)
+        prev_live = {k for k, v in prev.items() if not v["retired"]}
+        text = render_flaky(derived, pairs, runs, prev_live)
+        if a.flaky_out:
+            pathlib.Path(a.flaky_out).parent.mkdir(parents=True, exist_ok=True)
+            pathlib.Path(a.flaky_out).write_text(text, encoding="utf-8")
+            print("[ci-inventory] wrote %s" % a.flaky_out)
+        if a.out:
+            pathlib.Path(a.out).write_text(json.dumps(
+                {"flaky": ["|".join(k) for k in sorted(live)],
+                 "flaky_size": len(live),
+                 "flaky_new": len(set(live) - prev_live),
+                 "flaky_fixed": len(prev_live - set(live)),
+                 "stable_runs_to_leave": FLAKY_STABLE_RUNS,
+                 "runs": [r["n"] for r in runs],
+                 "pairs": pairs}, indent=2) + "\n", encoding="utf-8")
+            print("[ci-inventory] wrote %s" % a.out)
+        else:
+            print(text)
+        # ⛔ Deriving the set is never a failure: an empty set and a full one are both
+        # readings. The GATE is what fails, on NEW.
+        return OK
 
     if a.baseline or a.current:
         if not (a.baseline and a.current):
@@ -483,7 +968,18 @@ def main(argv=None) -> int:
         cdir = pathlib.Path(a.current_dir) if a.current_dir else root / a.current
         bf, _, bs = load_record(bdir)
         cf, cr, cs = load_record(cdir)
-        d = diff(bf, cf, cr, cs, bs)
+        # ⛔ The FLAKY set is DERIVED HERE, from the published record, not read from a
+        # file. If the record is not reachable the set is EMPTY — and an empty set means
+        # every NEW entry fires the gate, which is the safe direction.
+        flaky, flaky_prev = set(), set()
+        if root.is_dir():
+            runs = collect_runs(root, a.repo)
+            if len(runs) >= 2:
+                derived, _pairs = flaky_set(runs, a.repo)
+                flaky = {k for k, v in derived.items() if not v["retired"]}
+                prev, _ = flaky_set(runs[:-1], a.repo)
+                flaky_prev = {k for k, v in prev.items() if not v["retired"]}
+        d = diff(bf, cf, cr, cs, bs, flaky=flaky, flaky_previous=flaky_prev)
         text = render_diff(d, a.baseline, a.current)
         if a.out:
             import json as _json
@@ -493,7 +989,9 @@ def main(argv=None) -> int:
                  "baseline_run_id": a.baseline, "current_run_id": a.current,
                  "new": ["|".join(k) for k in d["new"]],
                  "missing": ["|".join(k) for k in d["missing"]],
-                 "fixed": ["|".join(k) for k in d["fixed"]]},
+                 "fixed": ["|".join(k) for k in d["fixed"]],
+                 "new_flaky": ["|".join(k) for k in d.get("new_flaky", [])],
+                 "flaky": ["|".join(k) for k in sorted(flaky)]},
                 indent=2) + "\n", encoding="utf-8")
             print("[ci-inventory] wrote %s" % a.out)
         print(text)
