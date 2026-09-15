@@ -559,9 +559,25 @@ export const LIBRARY_HIDDEN_IDS = Object.freeze([DIRECT_SERIES_DEF_ID])
 
 export function libraryRows(registry) {
   const out = []
+  // ⭐⭐ A ROW MAY YIELD ITS PLACE TO THE ONE THAT SUPERSEDES IT.
+  //
+  // There is no scoring here and there does not need to be: `matches()` is a
+  // boolean filter and the list renders in the order this function builds it, so
+  // "ranks above" IS "is pushed first". Built-ins came first unconditionally,
+  // which put the legacy price-only Moving Average above the source-capable one
+  // for every member who searched "moving average" — they took the first row and
+  // found no Source control, because that definition has none.
+  //
+  // ⛔ A POINTER, NOT A REORDERED LITERAL. `deferTo` names the row that should
+  // win, so the intent is declared next to the row it is about and stays true if
+  // either list is edited. Nothing else reads it, no id changes, and a saved
+  // chart cannot tell the difference.
+  const deferred = []
   for (const row of BUILT_IN_ROWS) {
-    out.push({ ...row, key: `builtin:${row.id}`, kind: 'builtin',
-      capability: CAPABILITY.CHARTABLE, capabilityReason: null, create: null })
+    const built = { ...row, key: `builtin:${row.id}`, kind: 'builtin',
+      capability: CAPABILITY.CHARTABLE, capabilityReason: null, create: null }
+    if (row.deferTo) deferred.push(built)
+    else out.push(built)
   }
   for (const row of catalogRows(registry)) {
     if (LIBRARY_HIDDEN_IDS.includes(row.id)) continue
@@ -570,6 +586,10 @@ export function libraryRows(registry) {
       // A carved-out row has no definition to instantiate either.
       create: row.carvedOut ? null : { via: CREATE_VIA.DEFINITION, defId: row.id } })
   }
+  // ⚠️ STILL PRESENT, JUST LATER. Hiding the legacy row would break every
+  // established workflow that reaches for it; it keeps its id, its behaviour and
+  // its place in the same category.
+  out.push(...deferred)
   for (const row of userCatalogRows(registry)) {
     out.push({ ...row, key: `formula:${row.id}`, kind: 'formula',
       capability: CAPABILITY.CHARTABLE, capabilityReason: null,

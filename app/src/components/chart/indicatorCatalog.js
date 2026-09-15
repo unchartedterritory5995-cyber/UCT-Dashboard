@@ -136,7 +136,14 @@ export const BUILT_IN_ROWS = Object.freeze([
     carvedOut: false,
     engineOwned: false,
     userDefined: false,
-    description: 'A simple or exponential average of closing price, drawn over the candles.',
+    description: 'Price-based moving average, drawn over the candles.',
+    // ⭐ THIS ROW YIELDS ITS PLACE TO THE CAPABLE ONE. Both are called "Moving
+    // Average" and both answer the search; this one is PRICE-ONLY, and a member
+    // who wants an average of QQQ needs the other one to be the row they reach
+    // first. `deferTo` is read by `libraryRows` and by nothing else — the id,
+    // the settings shape and every saved chart are untouched, because this is a
+    // browse-order statement and not a migration.
+    deferTo: 'movingAverage',
     // ⭐ THE SEARCH TERMS ARE THE POINT OF THIS ROW. `matches()` reads name, short
     // name, id, category and tags, so every way a member asks for this — "moving
     // average", "ma", "sma", "ema", "average" — has to be spelled somewhere. The
