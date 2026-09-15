@@ -6,7 +6,26 @@ the fetch. Session 9 builds and measures the **H1 page-cache fix**, investigates
 **query shape**, and puts a number on the **deploy gate**.
 
 Prior records: `00-profile.md` (Sessions 0–8), `session7-report.md`, `session8-report.md`,
-`docs/breadth/DECISIONS.md` (D-042 … D-048).
+`docs/breadth/DECISIONS.md` (D-042 … D-049).
+
+**Published page:** <https://claude.ai/artifact/1g78vRLmQjgtt7cJ4TRQm1> (private).
+
+---
+
+## The headline
+
+**The H1 page-cache fix works and is ON in production.** Measured across two production
+windows on identical work, with every prediction committed before the flag was set:
+
+| | OFF | ON | |
+|---|---|---|---|
+| worst cold read | 11,382.4 ms | **1,257.7 ms** | **×9.05** |
+| p90 | 3,052.0 ms | **842.0 ms** | ×3.62 |
+| read syscalls (floor) | 1,669 | **182** | ×9.17 |
+
+And two things that are **not** wins: the deploy gate installed after last week's outage
+**may not be gating** (§E.4), and the number that revealed it was one this report had
+invented rather than measured (§F.2 #23).
 
 ---
 
@@ -404,6 +423,16 @@ forbidden by the discipline that accompanies it.** This session did **not** pick
 **What was done instead:** the two authorised docs-only pushes were made **within the
 discipline** (≥300 s apart), and their queue waits recorded as a further non-contended
 baseline. They confirm the absence of queueing; they cannot demonstrate its presence.
+
+| push | commit | gate created | **queue wait** | gate total | result |
+|---|---|---|---|---|---|
+| 1 | `9f4263808` | 06:32:55Z | **3.0 s** | 133.0 s | success |
+| 2 | *(below)* | | | | |
+
+⭐ **Run 38, and the queue wait is still 3.0 s** — the same value as 34 of the first 36.
+The pre-push guard passed both of its checks explicitly (`outside the 09:25-16:05 ET deploy
+window`, `web is SUCCESS on 587ee51b2, 1913s settled`), which is worth recording: the guard
+that could not stop the 2026-09-14 incident **does** work when a session cooperates with it.
 
 > **DECISION FOR THE OWNER.** To actually exercise the concurrency group, one of the two
 > constraints has to give. The cheapest safe option is **not** a production push at all:
