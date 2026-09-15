@@ -54,4 +54,27 @@ MIGRATIONS: list[tuple[str, str]] = [
      " content_sha256 TEXT NOT NULL,"
      " counts_json TEXT NOT NULL DEFAULT '{}',"
      " seeded_at TEXT NOT NULL)"),
+    # ── Wave 1.5 item 3: the publication floor (owner ruling R10, 2026-09-14) ──
+    #
+    # ⛔⛔ A COLUMN, NEVER A FIELD. Stability must not enter the model's `fields` dict:
+    # writer._canonical_hash hashes `fields | {"record_type": ...}`, so a field would change
+    # every record_hash, every record_id, and defeat UNIQUE(segment_id, extractor_version,
+    # record_hash) — re-extraction would duplicate the whole corpus. As a column it disturbs
+    # nothing, and tests/test_wisdom_item3_floor.py pins record_hash/record_id across the
+    # migration to prove it.
+    #
+    # ⚠️ NULLABLE ON PURPOSE. Every record that exists has no stability measurement yet, and
+    # NULL must BLOCK (fail-closed). A NOT NULL DEFAULT 0.0 would be indistinguishable from a
+    # measured zero, and a DEFAULT 1.0 would silently publish every unmeasured record — the
+    # failure direction that cannot be walked back.
+    ("core_007_records_stability",
+     "ALTER TABLE wisdom_records ADD COLUMN stability REAL"),
+    # How many passes the score was computed over, so "1.0 from one run" and "1.0 from 3/3"
+    # are distinguishable. A ratio without its denominator is not a measurement.
+    ("core_008_records_stability_runs",
+     "ALTER TABLE wisdom_records ADD COLUMN stability_runs INTEGER"),
+    # The Brain KB lane reads wisdom_principles DIRECTLY (brainkb.py:83-86), never
+    # select_records, so the floor cannot reach it through wisdom_records alone.
+    ("core_009_principles_stability",
+     "ALTER TABLE wisdom_principles ADD COLUMN stability REAL"),
 ]
