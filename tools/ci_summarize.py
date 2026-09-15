@@ -1,9 +1,20 @@
 """Turn a vitest or pytest log into the JSON the `ci-results` branch carries.
 
-⛔⛔ **CI RESULTS ARE READ FROM THE REPO, NOT FROM GITHUB'S UI.** This machine has no `gh`
-CLI and no token, so a run whose only record is the Actions UI is **UNREADABLE** here — and
-"we could not look" has been mistaken for "nothing was wrong" in this programme before. The
-workflow writes this JSON onto an orphan branch and the next session reads it with `git`.
+⛔⛔ **CI RESULTS ARE READ FROM THE REPO.** The workflow writes this JSON onto an orphan
+branch and the next session reads it with `git` — a durable, committed, diffable record
+that outlives Actions log retention.
+
+⚰️ **THIS DOCSTRING USED TO SAY THE RESULT WAS "UNREADABLE" WITHOUT `gh` OR A TOKEN, AND
+THAT WAS FALSE (F-CI-2).** The repository is public, so `api.github.com` answers
+ANONYMOUSLY: `/repos/…` and `/actions/runs/…` return full run and job records with no
+credential at all. "I lack the tool I reached for" had been written down as "the thing
+cannot be read". ⚠️ What IS genuinely unreadable anonymously is the **log** endpoint —
+it returns **403** — so publishing the error text into the repo remains the only
+no-account path to detail. The unit is right; the reason on it was wrong.
+
+⛔ **THE JOB'S OUTCOME IS NOT IN THIS FILE.** A log cannot say whether the runner cancelled
+the job. `tools/ci_outcome.py` reads that from the runner's own verdict, and
+`ci_outcome.suite_ok()` composes the two.
 
 ⛔ **ZERO COLLECTED IS NOT ZERO FAILED.** A run that collected nothing — a bad glob, a
 crashed collector, an OOM before the first test — produces `passed=0, failed=0`, which is
@@ -43,8 +54,6 @@ _P_TOTALS = re.compile(
 _P_FAILFILE = re.compile(r"^FAILED\s+(\S+?)(?:::|\s|$)", re.M)
 _P_COLLECTED = re.compile(r"(\d+) (?:tests? )?collected")
 
-_OOM = re.compile(r"(Killed|out of memory|OOMKilled|exit code 137|MemoryError)", re.I)
-_TIMEOUT = re.compile(r"(timed out|timeout|The operation was canceled)", re.I)
 
 
 def _i(v):
@@ -55,7 +64,6 @@ def summarize(suite: str, text: str) -> dict:
     text = _ANSI.sub("", text)
     out = {"suite": suite, "collected": 0, "passed": 0, "failed": 0, "errored": 0,
            "skipped": 0, "wall_s": None, "failed_files": [], "totals_line_found": False,
-           "oom_or_timeout": bool(_OOM.search(text) or _TIMEOUT.search(text)),
            "runner_line": ""}
 
     if suite == "vitest":
@@ -89,8 +97,11 @@ def summarize(suite: str, text: str) -> dict:
         out["failed_files"] = sorted(set(_P_FAILFILE.findall(text)))
 
     # ⛔ THE THREE WAYS A RUN LIES GREEN, all folded into one honest flag.
-    out["ok"] = bool(out["totals_line_found"] and out["collected"] > 0
-                     and not out["oom_or_timeout"])
+    # ⛔ E CP5: the OUTCOME half of `ok` moved to tools/ci_outcome.py, which reads the
+    # RUNNER's verdict. This function sees only the LOG and must not pretend to know
+    # whether the job survived — that pretence is exactly what `oom_or_timeout` was.
+    # `ci_outcome.suite_ok(summary, outcome)` is the composition.
+    out["ok"] = bool(out["totals_line_found"] and out["collected"] > 0)
     return out
 
 
@@ -130,8 +141,6 @@ def _self_check() -> int:
     show("DIRTY pytest: failed + failed_files",
          (s["failed"], s["failed_files"]), (1, ["tests/test_a.py"]))
 
-    s = summarize("pytest", "Killed\n")
-    show("OOM is detected and is never ok", (s["oom_or_timeout"], s["ok"]), (True, False))
 
     s = summarize("pytest", "")
     show("EMPTY pytest: nothing collected, not ok",
