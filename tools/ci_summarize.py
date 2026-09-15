@@ -48,9 +48,22 @@ _V_TESTS = re.compile(r"Tests\s+(?:(\d+)\s+failed\D+)?(?:(\d+)\s+passed\D+)?"
 _V_DUR = re.compile(r"Duration\s+([\d.]+)s")
 _V_FAILFILE = re.compile(r"(?:FAIL|❯)\s+(\S+\.(?:test|spec)\.[jt]sx?)")
 
-_P_TOTALS = re.compile(
-    r"(?:(\d+) failed)?(?:[,\s]*)(?:(\d+) passed)?(?:[,\s]*)(?:(\d+) skipped)?"
-    r"(?:[,\s]*)(?:(\d+) error)?[^\n]*?in ([\d.]+)s")
+# ⚰️⚰️ E CP20 — THE OLD PATTERN WAS ALL-OPTIONAL AND MATCHED ALMOST ANYWHERE.
+# Every count group was `(?:…)?`, so the whole thing reduced to "…in <float>s" and matched
+# any line mentioning a duration. Against `tests-07` it matched and returned
+# `totals_line_found: True` with **passed=0 failed=0** — zeros that `ci_aggregate` then SUMS
+# into the suite total. ⛔ A partial match that yields zeros is worse than no match: it
+# reports fewer failures than there were, which is the flattering direction.
+# ⭐ A totals line must carry a DURATION *and at least one COUNT*. The counts are then read
+# individually, so their ORDER does not matter — run #16's line put `15192 warnings` between
+# `skipped` and `error`, which the positional pattern could not express.
+_P_SUMMARY_LINE = re.compile(
+    r"^(?=[^\n]*\bin [\d.]+s)(?=[^\n]*\b\d+ (?:failed|passed|skipped|error))[^\n]*$", re.M)
+_P_DUR = re.compile(r"\bin ([\d.]+)s")
+#: `\b` before the word matters: `9 xfailed` must not read as `9 failed`.
+def _count(line, word):
+    m = re.search(r"(\d+)\s+\b%s\b" % word, line)
+    return int(m.group(1)) if m else 0
 _P_FAILFILE = re.compile(r"^FAILED\s+(\S+?)(?:::|\s|$)", re.M)
 _P_COLLECTED = re.compile(r"(\d+) (?:tests? )?collected")
 
@@ -83,14 +96,30 @@ def summarize(suite: str, text: str) -> dict:
         c = _P_COLLECTED.search(text)
         if c:
             out["collected"] = _i(c.group(1))
-        tail = text.strip().splitlines()[-1] if text.strip() else ""
-        m = _P_TOTALS.search(tail)
-        if m:
+        # ⚰️⚰️ E CP20 — THIS READ ONLY THE LAST LINE, AND LOST A SHARD THAT RAN.
+        # Run #16's `tests-07` printed `37 failed, 2362 passed, 2 skipped, 15192 warnings,
+        # 1 error in 443.42s` at line **4,424 of 142,028** — and then 137,604 lines of
+        # background-thread noise (`[mem] rss_mb=…`, a logo prewarm) kept writing after
+        # pytest had finished. The totals line was in the log the whole time; this function
+        # was looking one line from the end.
+        # ⛔ The shard was reported as having produced NO totals, which made the suite
+        # ok:false for a reason that was not true and dropped 2,364 tests and 37 failures
+        # out of the published counts.
+        # ⭐ Same class as E CP18: a rule applied to one suite and not the other. The vitest
+        # branch above searches the WHOLE text; this one read a single line.
+        # The LAST match wins — a re-run or a nested summary must not be overridden by an
+        # earlier one.
+        hits = _P_SUMMARY_LINE.findall(text)
+        line = hits[-1].strip() if hits else ""
+        if line:
             out["totals_line_found"] = True
-            out["failed"], out["passed"] = _i(m.group(1)), _i(m.group(2))
-            out["skipped"], out["errored"] = _i(m.group(3)), _i(m.group(4))
-            out["wall_s"] = float(m.group(5))
-            out["runner_line"] = tail.strip()
+            out["failed"] = _count(line, "failed")
+            out["passed"] = _count(line, "passed")
+            out["skipped"] = _count(line, "skipped")
+            out["errored"] = _count(line, "error") or _count(line, "errors")
+            d = _P_DUR.search(line)
+            out["wall_s"] = float(d.group(1)) if d else None
+            out["runner_line"] = line
             if not out["collected"]:
                 out["collected"] = (out["passed"] + out["failed"]
                                     + out["skipped"] + out["errored"])
@@ -145,6 +174,33 @@ def _self_check() -> int:
     s = summarize("pytest", "")
     show("EMPTY pytest: nothing collected, not ok",
          (s["collected"], s["ok"]), (0, False))
+
+    # ⚰️ E CP20 — THE REAL LINE THAT WAS LOST, verbatim from run #16's `tests-07`, with the
+    # background-thread noise that followed it. 137,604 lines came after this in the log.
+    real = ("collected 2401 items\n"
+            "37 failed, 2362 passed, 2 skipped, 15192 warnings, 1 error in 443.42s (0:07:23)\n"
+            + "[mem] rss_mb=748.3 threads=21\n" * 500
+            + "[startup] logo_hires_v1: upgrade pass complete\n")
+    s = summarize("pytest", real)
+    show("totals line found 500 lines from the end", s["totals_line_found"], True)
+    show("...failed", s["failed"], 37)
+    show("...passed", s["passed"], 2362)
+    show("...skipped", s["skipped"], 2)
+    show("...errored, though `warnings` sits between skipped and error", s["errored"], 1)
+    show("...duration", s["wall_s"], 443.42)
+    # ⛔ CONTROL: a log with noise and NO totals line must still report false, or the check
+    # above proves only that the parser matches everything.
+    s = summarize("pytest", "[mem] rss_mb=748.3\n" * 200 + "some 12 things in 3.0s of prose\n")
+    show("CONTROL: noise with no counts is NOT a totals line", s["totals_line_found"], False)
+    # ⛔ The all-optional regression: a bare duration must not read as a totals line.
+    s = summarize("pytest", "warming caches in 12.5s\n")
+    show("CONTROL: a bare duration is NOT a totals line", s["totals_line_found"], False)
+    # ⛔ `9 xfailed` must not be read as 9 failed.
+    s = summarize("pytest", "1 failed, 2615 passed, 9 xfailed, 2 warnings in 25.00s\n")
+    show("xfailed is not read as failed", (s["failed"], s["passed"]), (1, 2615))
+    # ⛔ The LAST summary wins, so a re-run cannot be overridden by an earlier one.
+    s = summarize("pytest", "1 failed, 2 passed in 1.0s\nnoise\n5 failed, 9 passed in 2.0s\n")
+    show("the LAST summary line wins", (s["failed"], s["passed"]), (5, 9))
 
     print("SELF-CHECK: %s" % ("PASS" if ok else "FAIL"))
     return OK if ok else FAIL
