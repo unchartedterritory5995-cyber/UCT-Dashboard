@@ -169,6 +169,58 @@ def _git(args: list[str]) -> str:
                           encoding="utf-8", errors="replace", check=True).stdout.strip()
 
 
+# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═
+# ⛔⛔ THE RE-DERIVATION RULE, codified 2026-09-14.
+#
+#   A completed gate's verdict carries to a NEW tree WITHOUT re-running when the
+#   tree hash of every path the gate READS is identical between the gated tree and
+#   the new tree. Re-derive `vs_baseline` only. Always with a planted-failure
+#   control.
+#
+# ⭐ WHY IT IS ALLOWED AT ALL: the suite is a pure function of these paths. If
+# none of them moved, the observed failing set cannot have moved either, and only
+# the BASELINE can have changed - and `compare_failures` is a pure function of
+# (observed, baseline, expected_red).
+#
+# ⛔ WHY IT NEEDS A MEASURED PRECONDITION: on 2026-09-14 this was justified twice
+# by hashing `app/src` ALONE. That is the big one but it is not the whole read set,
+# and "I checked the obvious path" is how a flattering answer gets published. The
+# precondition is now a list, and the helper below is the only thing allowed to
+# answer it.
+# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═
+
+#: Every path the gate reads. `app/src` covers the tests, the sources under test
+#: and `src/test-setup.js` (vite.config.js's `setupFiles`), because a tree hash
+#: covers everything beneath it.
+GATE_READ_PATHS = (
+    "app/src",
+    "app/vite.config.js",
+    "app/package.json",
+    "app/package-lock.json",
+)
+
+
+def gate_read_identical(sha_a: str, sha_b: str, paths=GATE_READ_PATHS, run=None):
+    """(identical, differing) for the gate's read set between two commits.
+
+    ⛔ A path that is MISSING on one side and present on the other counts as
+    DIFFERING, not as equal-because-both-unreadable. Two absent paths hashing to
+    the same "" is the vacuous answer this check exists to refuse.
+    """
+    runner = run or (lambda argv: subprocess.run(
+        argv, cwd=REPO, capture_output=True, text=True,
+        encoding="utf-8", errors="replace"))
+    differing = []
+    for rel in paths:
+        a = runner(["git", "rev-parse", f"{sha_a}:{rel}"])
+        b = runner(["git", "rev-parse", f"{sha_b}:{rel}"])
+        ha = a.stdout.strip() if a.returncode == 0 else None
+        hb = b.stdout.strip() if b.returncode == 0 else None
+        if ha is None or hb is None or ha != hb:
+            differing.append(rel)
+    return (not differing), differing
+
+
 def tree_state() -> tuple[str, list[str]]:
     """(HEAD, dirty paths). Both halves matter: a clean tree at the wrong commit is still wrong."""
     head = _git(["rev-parse", "HEAD"])

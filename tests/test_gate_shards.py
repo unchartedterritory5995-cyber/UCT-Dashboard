@@ -765,3 +765,57 @@ def test_the_short_run_message_names_the_counts_and_the_shards():
     assert '1016' in blob, 'must say how many ran'
     assert '1352' in blob, 'must say how many were expected'
     assert 'shard 1' in blob and 'shard 6' in blob, 'must break it down per shard'
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# The re-derivation precondition. Justifying a carry-over by hashing app/src
+# ALONE is the flattering answer; the read set is a LIST and this is the only
+# thing allowed to answer it.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_the_read_set_names_the_config_and_the_lockfile_not_just_app_src():
+    """
+    ⛔ app/src is the big one, not the whole set. A vitest config or a
+    lockfile change alters what the suite DOES without touching a single test.
+    """
+    import scripts.gate_shards as gs
+    for rel in ('app/src', 'app/vite.config.js', 'app/package.json',
+                'app/package-lock.json'):
+        assert rel in gs.GATE_READ_PATHS, rel
+
+
+def test_identical_trees_permit_re_derivation():
+    import scripts.gate_shards as gs
+    class R:
+        def __init__(s, out, rc=0): s.stdout, s.returncode = out, rc
+    ok, diff = gs.gate_read_identical('A', 'B', paths=('x', 'y'),
+                                      run=lambda argv: R('same-hash'))
+    assert ok is True and diff == []
+
+
+def test_one_differing_path_refuses_and_NAMES_it():
+    """
+    The other direction, and it must say WHICH path - a refusal nobody can act
+    on gets waived.
+    """
+    import scripts.gate_shards as gs
+    class R:
+        def __init__(s, out, rc=0): s.stdout, s.returncode = out, rc
+    def run(argv):
+        return R('hash-b') if argv[-1].endswith(':y') and argv[-1].startswith('B') else R('hash-a')
+    ok, diff = gs.gate_read_identical('A', 'B', paths=('x', 'y'), run=run)
+    assert ok is False and diff == ['y'], diff
+
+
+def test_a_path_missing_on_one_side_is_DIFFERING_not_equal():
+    """
+    ⛔ Two absent paths must not hash to the same empty string and read as
+    equal. That is the vacuous answer this check exists to refuse.
+    """
+    import scripts.gate_shards as gs
+    class R:
+        def __init__(s, out, rc): s.stdout, s.returncode = out, rc
+    ok, diff = gs.gate_read_identical('A', 'B', paths=('gone',),
+                                      run=lambda argv: R('', 128))
+    assert ok is False and diff == ['gone']
