@@ -191,10 +191,11 @@ It redirects `DATA_DIR` and `BREADTH_OHLC_DB` into the scratchpad and replaces t
 provider client with one that RAISES, so a cache miss fails loudly instead of
 quietly computing on a short frame.
 
-⚠️ **That cache lives in a session-scoped scratchpad and is not durable.** Once it
-is cleaned, re-running any control — even an identical one — needs provider access
-again. If these windows are worth keeping, copy `phase2_data/grouped_ohlcv/` and
-`phase2_data/breadth_pit_reference.json` somewhere permanent before that happens.
+✅ **Already copied out of the scratchpad** — the scratchpad is session-scoped, and
+once cleaned, re-running even an identical control would have needed provider access
+again. The durable copy is **`C:\w\breadth-library-cache\`** (933 frames + the
+reference map + the driver scripts, 500 MB). Point `DATA_DIR` there to re-run
+offline. It is outside the repo and outside `C:\data`, so it touches nothing.
 
 ---
 
