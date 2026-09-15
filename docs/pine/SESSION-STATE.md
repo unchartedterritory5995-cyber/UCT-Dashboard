@@ -65,6 +65,49 @@
 > `app/src/components/chart/engine/placement.js` · `docs/feature_flags.json`.
 > **Measured before the branch was pushed, not discovered in the PR.**
 >
+> ✅ **1.1 and 1.2 DONE:** branch `wave1/indicator-r0r1` pushed, remote tip verified
+> `acdf934554d647aa0555caeb3da5ef713a5e8c8b`. **389** commits `da0803baa..acdf93455`.
+>
+> ⛔⛔ **1.3–1.5 BLOCKED — NEEDS THE OWNER'S HANDS. THE BROWSER HAS NO VIEWPORT.**
+> Every MCP tab reports `innerWidth = 0`, `innerHeight = 0`,
+> `document.hidden = true`, and a screenshot fails with *"Cannot take screenshot with
+> 0 width."* The window was **minimized** and was restored (`ShowWindow SW_RESTORE`
+> on the two minimized `Chrome_WidgetWin_1` windows of **pid 57780**, the owner's own
+> Chrome — **not** another workstream's rig; the other Chrome pids on this box were
+> left untouched deliberately). After the restore `document.hasFocus()` became
+> **true** but the content area is **still 0×0**.
+>
+> ⚠️ **AND A CLIPBOARD PERMISSION PROMPT IS NOW SITTING INVISIBLE ON TAB 1.**
+> `navigator.clipboard.readText()` timed out after 45 s
+> (*"CDP Runtime.evaluate timed out — the renderer may be frozen"*). A 0×0 window
+> cannot show the permission bubble, so it can be neither seen nor dismissed from
+> here. **Tab 2 is still responsive.** ⛔ The owner must give that Chrome window a
+> real size and dismiss/allow the prompt; nothing else unblocks it.
+>
+> ### ⭐ WHAT IS ALREADY STAGED, so the owner's step is small
+> Signed in as `unchartedterritory5995-cyber`; the compare page is open at
+> `master...wave1/indicator-r0r1?expand=1`; the **title** was set and read back
+> (109 chars, `Uncharted Volume v2 renders on a member's own chart — …`); the **body**
+> is on the system clipboard, round-trip verified, **41,193 chars**, `sha256
+> f965ff26…`.
+>
+> ⛔⛔ **USE THE WORKING-TREE PR-BODY.md, NOT THE ONE INSIDE `acdf93455` — MEASURED.**
+> The pinned commit **predates three commits to its own PR body**
+> (`21052944b`, `fac0c40d9`, `7ab3cedd9`). The one that matters is **`7ab3cedd9`,
+> R19's D2 correction**: the copy committed at `acdf93455` still says *"D2 (the IR
+> lane is off the pane path)"*, which R19 measured **inverted** — D2 is that a pane
+> acts on the **HOST lane's saved definition**, and the IR lane's exclusion is the
+> **consequence, not the ruling**. Opening the PR with the committed copy would
+> publish the sentence R19 corrected. Disk == HEAD blob byte-for-byte (`sha256
+> f965ff26…`, 41,669 bytes); the `acdf93455` copy is `sha256 adda1ce6…`.
+>
+> ⛔ **PART 3 (rig + capture) IS BLOCKED BY THE SAME CAUSE AND CANNOT BE WORKED
+> AROUND.** 3A.4 and 3B.2 require **screenshots** under `docs/pine/capture/`, and a
+> 0×0 window cannot produce one. Gate v2.1 also cannot be read without a viewport.
+> ⛔ Do **not** substitute a headless or JS-only reading for a capture — Wave 1's
+> tolerance is a **visual** comparison and *"a script written for a device and a
+> result gathered from a device are two different artifacts"*.
+>
 > ## ✅ (d) IS CLOSED — d1′ and d2 BUILT, d3 → H.7
 >
 > ✅ **d2 — the message rides beside the title.** Red `445b5cc4d` → fix
