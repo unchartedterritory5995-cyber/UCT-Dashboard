@@ -843,6 +843,56 @@
    just as unambiguously, costs no vertical space per group, and leaves the rows
    inside on the same left edge as the headings above them. */
 .cdGroup + .cdGroup { margin-top: 16px; }
+
+/* ── WHOLE-PANE REORDERING ────────────────────────────────────
+   ⚠️ QUIET AT REST. The grip and the arrows are chrome on every pane heading,
+   so they stay at `--menu-text-faint` until the row is hovered; a panel that
+   shows six live controls per heading reads as a toolbar, not a map. */
+.cdGroupHead[draggable='true'] { cursor: grab; }
+.cdGrip {
+  flex: none;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--menu-text-faint, #6b6b6b);
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.cdGroupHead:hover .cdGrip { opacity: 1; }
+
+.cdMove {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.cdGroupHead:hover .cdMove,
+.cdMove:focus-within { opacity: 1; }
+.cdMoveWrap { display: inline-flex; }
+.cdMoveBtn {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 5px;
+  color: var(--menu-text-dim, #b3b3b9);
+  cursor: pointer;
+}
+.cdMoveBtn:hover:not(:disabled) {
+  color: var(--menu-text, #ededed);
+  background: var(--menu-hover, rgba(255, 255, 255, 0.055));
+}
+.cdMoveBtn:disabled { opacity: 0.3; cursor: default; }
+
+/* The drag's only feedback: a gold rule where the pane would land, and the
+   pane being carried dimmed. No lift, no shadow, no animation. */
+.cdDropBefore { box-shadow: 0 -2px 0 -1px var(--menu-accent, #dcbb5e); }
+.cdDragging { opacity: 0.45; }
 .cdGroupHead {
   display: flex;
   align-items: center;

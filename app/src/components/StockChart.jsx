@@ -95,7 +95,10 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 // Flip C retired it.
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
+  defaultPaneKeys,
 } from './chart/engine/paneLayout'
+import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
 // strip is its second caller after `IndicatorSettingsDialog`;
@@ -3045,6 +3048,59 @@ export default function StockChart({
   )
 
   const containerRef = useRef(null)
+  /** The OUTER wrapper — the element that holds the chart container AND the
+   *  Price-owned chrome beside it (legend, drawing toolbar).
+   *  ⚠️ `--price-pane-top` MUST BE SET HERE, NOT ON `containerRef`. Custom
+   *  properties inherit DOWNWARD, and the legend is a SIBLING of the chart
+   *  container, not a descendant — so a value written on the container reaches
+   *  the canvases and nothing else. Measured in the harness: the variable was
+   *  being written every frame and `calc(28px + var(...))` still resolved to
+   *  28px, because the legend never saw it. */
+  const wrapperRef = useRef(null)
+
+  /**
+   * Publish where the PRICE pane starts, so Price-owned chrome sits on it.
+   *
+   * ⚰️ THE LEGEND AND THE DRAWING TOOLBAR WERE PINNED TO THE CONTAINER
+   * (`top: 28px` / `top: 4px`), which was indistinguishable from "pinned to the
+   * price pane" for as long as Price had to be the first pane. Put a pane above
+   * Price and the OHLC readout and every drawing tool stay at the top of the
+   * chart, hovering over somebody else's series — labelling the wrong pane and
+   * putting the tools nowhere near the candles they draw on.
+   *
+   * ⭐ MEASURED OFF THE RENDERER, IN THE SAMPLER THAT ALREADY RUNS. The same
+   * rule and the same frame as `pinPaneLegend`: sum the panes above, add their
+   * separators. Reading the layout's own arithmetic instead would be right at
+   * rest and wrong during a divider drag, which is the bug this sampler exists
+   * for.
+   *
+   * ⛔ A CSS VARIABLE, NOT REACT STATE. It is written straight to the DOM once
+   * per frame when it changes; routing a pixel through a re-render would fight
+   * the drag exactly as the volume legend's did before it moved here. Panes above
+   * Price are rare and the variable is `0px` on every chart that has none, so
+   * `calc(28px + 0px)` is what the un-arranged product computes.
+   */
+  const pinPriceChrome = useCallback(() => {
+    const chart = chartRef.current, host = wrapperRef.current
+    if (!chart || !host) return
+    let top = 0
+    try {
+      const idx = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
+      if (Number.isInteger(idx) && idx > 0) {
+        const panes = chart.panes ? chart.panes() : null
+        if (panes) {
+          for (let i = 0; i < idx && i < panes.length; i++) {
+            const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
+            top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
+          }
+        }
+      }
+    } catch { top = 0 }
+    const want = `${Math.round(top)}px`
+    if (host.style.getPropertyValue('--price-pane-top') !== want) {
+      host.style.setProperty('--price-pane-top', want)
+    }
+  }, [])
   const wmCtrlRef = useRef(null)        // watermark primitive controller
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive (price pane)
@@ -10462,7 +10518,6 @@ export default function StockChart({
     // draggable divider; overlay mode shares pane 0 via the layout's bands.
     const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
     const hasVolumeBand = showVolume && volData.length > 0 && !volSeparatePane
-    const VOL_PANE_INDEX = 1
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
     //
@@ -10521,7 +10576,33 @@ export default function StockChart({
         ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
         : [_idxPct, 100 - _idxPct])
       : (volSeparatePane ? [100 - _volPct, _volPct] : [100])
+    // ─── THE MEMBER'S PANE ARRANGEMENT ───────────────────────────
+    //
+    // ⭐ ASKED FOR ONCE, HERE, AND PASSED DOWN. `defaultPaneKeys` answers what
+    // panes exist (same filters the layout itself applies); `resolvePaneOrder`
+    // turns that plus `cs.paneOrder` into a top-to-bottom list. Geometry never
+    // reads settings and `paneOrder` never imports geometry — this is the one
+    // place the two meet.
+    //
+    // ⚠️ A CHART WITH NO STORED ARRANGEMENT RESOLVES TO PRICE · VOLUME · STACK,
+    // which is what `firstPaneIndex`/`mainPaneIndex` below already describe. The
+    // two agree by construction rather than by coincidence, and the identity is
+    // asserted in `__tests__/paneOrderLayout.test.js`.
+    const _paneKeySets = {
+      excludeKeys: new Set([
+        ...volumeOverlayPaneKeys(engineInstances, cs),
+        ...paneFollowerKeys(engineInstances, cs),
+      ]),
+      keepKeys: paneOwnersNeeded(engineInstances, cs),
+      includeKeys: paneOwnKeys(engineInstances, cs),
+    }
+    const _paneOrder = resolvePaneOrder(
+      cs,
+      defaultPaneKeys(engineInstances, _paneKeySets),
+      { volumePane: volSeparatePane },
+    )
     const paneLayout = computePaneLayout(engineInstances, {
+      order: _paneOrder,
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
       // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
@@ -10554,6 +10635,10 @@ export default function StockChart({
       mainPaneIndex: _hasIdxPane ? 1 : 0,
     })
     paneLayoutRef.current = paneLayout
+    // ⭐ WHERE THE VOLUME PANE ACTUALLY IS. A literal 1 until an arrangement could
+    // move it; the layout says now, and 1 is still the answer on every chart that
+    // has not been arranged.
+    const VOL_PANE_INDEX = Number.isInteger(paneLayout.volumeIndex) ? paneLayout.volumeIndex : 1
     // ⭐ AND THE PANE LIST GOES OUT TO THE RENDER, so each oscillator pane can
     // print its own name and value at its top-left. Guarded on a shallow compare
     // because this effect runs on every settings write and an unconditional
@@ -11004,6 +11089,32 @@ export default function StockChart({
     // binder for a flag-on chart with no instances, and the flag was on for
     // nobody — and it made the honest predicate look like a fallback. What is left
     // says exactly what it means: no instances, no binder, zero library calls.
+    // ─── REALISING AN ARRANGEMENT ───────────────────────────────────────────
+    //
+    // ⭐ TWO STEPS, AND THE ORDER OF THEM IS THE FIX. `prepare` makes the
+    // physical chart able to hold the arrangement BEFORE the binder creates
+    // anything into it; `settle` asserts the result afterwards. See
+    // `engine/paneRealization.js` for why a final slot is not a safe place to
+    // create a series, and what happens on a cold rebuild when they are confused.
+    const _paneRealize = {
+      order: _paneOrder,
+      paneCountRequired: paneLayout.paneCountRequired,
+      pinned: _hasIdxPane ? 1 : 0,
+      priceKey: PRICE_PANE,
+      volumeKey: volSeparatePane ? VOLUME_PANE : null,
+      paneOf: (key) => {
+        try {
+          if (key === PRICE_PANE) return candleSeriesRef.current?.getPane?.() || null
+          if (key === VOLUME_PANE) return volSeparatePane ? (volumeSeriesRef.current?.getPane?.() || null) : null
+          const bs = engineRef.current?.binder?.bindings?.()
+          if (!Array.isArray(bs)) return null
+          const hit = bs.find((x) => x && x.instanceId === key && x.series)
+          return hit ? hit.series.getPane() : null
+        } catch { return null }
+      },
+    }
+    prepareArrangement(chart, _paneRealize)
+
     const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
@@ -11073,6 +11184,13 @@ export default function StockChart({
         resolvePreset,
       })
     }
+    // …and now that every series exists, settle the final order and drop any
+    // placeholder the binder did not claim.
+    settleArrangement(chart, _paneRealize)
+    // ⚠️ MEASURE PRICE'S CHROME FROM THE **FINAL** POSITION, never the temporary
+    // one `prepare` left it in.
+    pinPriceChrome()
+
 
     // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────
     //
@@ -14569,9 +14687,15 @@ export default function StockChart({
       const layout = paneLayoutRef.current
       if (!chart || !container || !layout || !Array.isArray(layout.panes)) return
       const row = layout.panes.find((p) => p && p.key === key)
-      if (!row || !Number.isInteger(row.index) || row.index < 1) return
+      // ⚰️ `row.index < 1` REFUSED THE TOP PANE, and that was indistinguishable
+      // from "index 0 is Price, which has no pane readout" for as long as Price
+      // had to be first. Measured in the harness: with QQQ moved above Price its
+      // readout kept the CSS default and painted in the MIDDLE of the candles.
+      // 0 is a real pane now; a negative or non-integer index is still refused.
+      if (!row || !Number.isInteger(row.index) || row.index < 0) return
       const panes = chart.panes ? chart.panes() : null
       if (!panes || panes.length <= row.index) return
+      // The top pane starts at 0 — the loop below sums nothing, which is right.
       let top = 0
       for (let i = 0; i < row.index; i++) {
         const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
@@ -14613,6 +14737,8 @@ export default function StockChart({
           if (paneLegendRefs.current.size) {
             paneLegendRefs.current.forEach(pinPaneLegend)
           }
+          // …and the Price pane's own chrome, by the same rule, in the same frame.
+          pinPriceChrome()
           // Responsive vertical legend: measure its bottom against the price/volume
           // boundary (h0) and shed to fit. STAGE 1 — legend reaches the range-selector
           // band (which sits just above the boundary) → hide that bar. STAGE 2 — legend
@@ -14643,7 +14769,7 @@ export default function StockChart({
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -15701,7 +15827,7 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
+    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%

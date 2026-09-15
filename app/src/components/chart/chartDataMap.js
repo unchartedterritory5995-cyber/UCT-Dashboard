@@ -35,7 +35,8 @@
 import {
   resolveDisplayTarget, paneOwnerOf, paneOwnKeys, paneOwnersNeeded, paneHostLabels,
 } from './engine/displayTarget'
-import { isInstanceTombstone } from './instanceShape'
+import { isInstanceTombstone } from './instanceShape'
+import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
 
 /** The group ids that no instance hosts. */
 export const PRICE_GROUP = 'price'
@@ -72,6 +73,16 @@ export function paneMap(rows, settings, defOf) {
   const instances = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
 
   // ⭐ THE LIVE HOST SET — the two sets the chart itself allocates panes from.
+  // Volume is a PANE when the settings say so — OR when something is overlaid on
+  // it, because `StockChart` promotes it then whatever the setting says
+  // (`volSeparatePane = volInSeparatePane || volOverlaySet.size > 0`). Reading
+  // only the flag would draw a band in the map for a chart that has a real pane.
+  const separateVolume = settings?.volume?.separatePane === true
+    || instances.some((i) => {
+      if (!i || typeof i !== 'object' || i.hidden === true) return false
+      try { return resolveDisplayTarget(i, settings) === 'volume' } catch { return false }
+    })
+
   const live = new Set([
     ...paneOwnKeys(instances, settings),
     ...paneOwnersNeeded(instances, settings),
@@ -102,7 +113,13 @@ export function paneMap(rows, settings, defOf) {
     // of which, so this reads the row rather than matching ids.
     if (!row.engineOwned || !row.instanceId) {
       const volume = row.path && row.path.kind === 'section' && row.path.key === 'volume'
-      return { kind: volume ? 'volume' : 'price', host: null }
+      // ⛔⛔ A BANDED VOLUME IS NOT A PANE, AND THE MAP MUST NOT SAY IT IS.
+      // `cs.volume.separatePane` is the difference between a real
+      // lightweight-charts pane and a band drawn inside the candles' own. Showing
+      // a "Volume" heading for the band would offer a pane to reorder that the
+      // renderer never allocates — the same lie the hidden-host group exists to
+      // avoid, and the reason this reads the flag rather than the row.
+      return { kind: volume && separateVolume ? 'volume' : 'price', host: null }
     }
     const inst = byId.get(row.instanceId)
     if (!inst) return { kind: 'price', host: null }
@@ -133,8 +150,8 @@ export function paneMap(rows, settings, defOf) {
     return { kind: 'orphans', host: owner || null }
   }
 
-  const price = { id: PRICE_GROUP, kind: 'price', name: 'Price', rows: [] }
-  const volume = { id: VOLUME_GROUP, kind: 'volume', name: 'Volume', rows: [] }
+  const price = { id: PRICE_PANE, kind: 'price', name: 'Price', rows: [] }
+  const volume = { id: VOLUME_PANE, kind: 'volume', name: 'Volume', rows: [] }
   const orphans = { id: ORPHAN_GROUP, kind: 'orphans', name: 'Needs attention', rows: [] }
   const hidden = { id: HIDDEN_GROUP, kind: 'hidden', name: 'Not shown', rows: [] }
   const byHost = new Map()
@@ -169,6 +186,20 @@ export function paneMap(rows, settings, defOf) {
 
   // ⛔ AN EMPTY GROUP IS NOT RENDERED. Price with nothing on it is still the
   // chart's own candles, so it stays; the others are only real when occupied.
-  return [price, volume, ...byHost.values(), hidden, orphans]
+  // ─── AND THEY COME OUT IN THE ORDER THE CHART DRAWS THEM ──────────────
+  //
+  // ⭐ THE SAME `resolvePaneOrder` THE RENDERER READS, over the same key space.
+  // A map that listed panes in one order while the chart stacked them in another
+  // would be exactly the "plausible-looking guess" this file's header refuses.
+  //
+  // ⚠️ `hidden` AND `orphans` ARE NOT PANES and are never arranged: they are
+  // the two groups whose members are not drawing at all, so they sit at the end
+  // where a repair list belongs. `paneOrder` never contains their ids.
+  const panes = [price, ...(separateVolume ? [volume] : []), ...byHost.values()]
+  const order = resolvePaneOrder(settings, [...byHost.keys()], { volumePane: separateVolume })
+  const rank = new Map(order.map((k, i) => [k, i]))
+  panes.sort((a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9))
+
+  return [...panes, hidden, orphans]
     .filter((g) => g.rows.length > 0 || g.kind === 'price')
 }

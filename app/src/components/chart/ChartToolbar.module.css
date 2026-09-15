@@ -6,7 +6,11 @@
      the crosshair-legend data below it. Measured live: the flat legend's data text
      ("2026-…") sits 12px in from the chart wrapper, so the toolbar starts there too. */
   left: 12px;
-  top: 4px;
+  /* ⚰️ ON THE PRICE PANE, NOT ON THE CHART. The drawing tools act on the
+     candles, so they follow them: `--price-pane-top` is the measured top of the
+     price pane (see `StockChart.module.css`'s `.legend`). Unset on every chart
+     with nothing above Price, so this is the 4px it has always been. */
+  top: calc(4px + var(--price-pane-top, 0px));
   /* Clear the price scale on the right. LWC sizes it to the widest label in view
      (4-digit prices + padding run ~72px+), so 64px let the right-side action icons
      overlap the axis. The .tools row scrolls if the extra reservation crowds it. */

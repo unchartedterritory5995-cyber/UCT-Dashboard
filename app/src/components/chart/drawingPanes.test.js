@@ -310,3 +310,42 @@ describe('paneIndex / paneTop — what a drawing must be valued against', () => 
     expect(g.zones[0].paneTop).toBe(0)
   })
 })
+
+// ─── PRICE IS NOT ALWAYS THE FIRST PANE ─────────────────────────────
+//
+// ⚰️⚰️ `ChartDrawingOverlay.toPixel` TAKES `series.priceToCoordinate(price)`,
+// which answers in the SERIES' PANE's coordinates, and paints onto a canvas that
+// spans the WHOLE pane stack. Those were the same number for as long as the
+// candles had to be pane 0 — so no offset was ever added, and nothing noticed.
+//
+// Measured in the pane harness the moment a pane could sit above Price: with two
+// panes moved up, a horizontal line stored at 310 rendered against ~400 on the
+// axis, and the trendline and rectangle were displaced by the same amount. The
+// drawings had not moved; the pane under them had. The overlay now adds the
+// candle zone's own top, and THIS is the number it adds — so if the zone maths
+// ever stops accounting for the panes above Price, it fails here first.
+describe('⚰️ the candle zone starts below whatever is above it', () => {
+  const m = (candlePaneIndex) => resolveZones({
+    width: 600, height: 400, axisWidth: 60, timeAxisHeight: 28,
+    paneHeights: [100, 80, 180], separatorHeight: 1, candlePaneIndex,
+  })
+
+  it('⚰️ Price third → the zone top is every pane above it, plus separators', () => {
+    const z = rectForKey(m(2), PRICE)
+    expect(z.y0, 'the offset a drawing needs when two panes sit above Price')
+      .toBe(100 + 1 + 80 + 1)
+  })
+
+  it('⭐ Price first → zero, which is why nothing changed for existing charts', () => {
+    expect(rectForKey(m(0), PRICE).y0).toBe(0)
+  })
+
+  it('⭐ Price second → exactly the one pane above it', () => {
+    expect(rectForKey(m(1), PRICE).y0).toBe(101)
+  })
+
+  it('⛔ the zone still ENDS at its own pane bottom — it is not stretched', () => {
+    const z = rectForKey(m(2), PRICE)
+    expect(z.y1 - z.y0).toBe(180)
+  })
+})

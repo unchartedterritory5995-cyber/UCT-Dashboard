@@ -619,6 +619,49 @@ export default function ChartDrawingOverlay({
   }, [chartRef, seriesRef, volumeSeriesRef])
 
   /**
+   * THE TWO HALVES OF ONE TRANSFORM, AND THEY ARE INVERSES.
+   *
+   * ⭐⭐ A DRAWING'S PIXEL IS `pane-local y + that pane's zone top`. Both
+   * directions of that sentence live here, they arrived from different bugs, and
+   * neither is redundant:
+   *
+   *   FORWARD  (value → pixel)  `priceZoneTop()` below — `priceToCoordinate`
+   *     answers in the PANE's coordinates and this canvas spans the whole stack.
+   *   BACKWARD (pixel → value)  `paneValueAt()` below — `coordinateToPrice` asks
+   *     the same question in reverse, so a canvas y must LOSE the zone top first.
+   *
+   * ⛔ AND THE FORWARD HALF IS PRICE-SPECIFIC ON PURPOSE. `resolvePixels`
+   * OVERRIDES `toPixel`'s y for a pane-owned anchor (`p.paneY != null` →
+   * `fromPaneFraction(paneRect, p.paneY)`), so a drawing in the RSI pane is
+   * positioned from its zone RECT and never from `priceToCoordinate` at all.
+   * Generalising `priceZoneTop` to "the owner's zone" would therefore add an
+   * offset to a number nothing reads — and would be a second, competing answer
+   * to a question `fromPaneFraction` already answers correctly.
+   *
+   * The absolute top of the CANDLE pane, in this canvas' coordinates.
+   *
+   * ⭐ 0 ON EVERY CHART WHERE PRICE IS FIRST, which is why nothing needed it
+   * before panes could be reordered — and why adding it changes no existing
+   * drawing by a pixel.
+   */
+  const priceZoneTop = useCallback(() => {
+    try {
+      const r = rectForKey(paneGeomRef.current || measurePanes(), PRICE)
+      if (!r) return 0
+      // ⭐ `paneTop`, NOT `y0`, AND THE TWO ARE NOT SYNONYMS. A price scale
+      // answers in coordinates measured from the top of its PANE; `y0` is the top
+      // of the ZONE a drawing was dropped in. For the price zone they are the
+      // same edge in both volume layouts — but this offset INVERTS
+      // `priceToCoordinate`, so the pane's top is the number it actually means,
+      // and it is the same field `paneValueAt` subtracts going the other way.
+      // Reading the semantically exact one is what keeps the two directions
+      // provably inverse instead of coincidentally equal.
+      if (Number.isFinite(r.paneTop)) return r.paneTop
+      return Number.isFinite(r.y0) ? r.y0 : 0
+    } catch { return 0 }
+  }, [measurePanes])
+
+  /**
    * The SERIES whose price scale a drawing in this zone must be read against.
    *
    * ⚰️ WHY THIS EXISTS. A horizontal line drawn in the RSI or a breadth pane was
@@ -749,9 +792,26 @@ export default function ChartDrawingOverlay({
         if (H && H > 0) y = H * (sv.hi - price) / (sv.hi - sv.lo)
       }
       if (y == null) { try { y = series.priceToCoordinate(price) } catch {} }
+      // ⚰️⚰️ AND THE PRICE PANE'S OWN TOP, WHICH USED TO BE ZERO BY ACCIDENT.
+      // `priceToCoordinate` answers in the SERIES' PANE's coordinates; this
+      // canvas spans the WHOLE pane stack. Those two were the same number for as
+      // long as the candles had to be the first pane — so the offset was never
+      // written, and nothing noticed.
+      //
+      // Measured in the harness the moment a pane could sit above Price: with
+      // QQQ and RSI moved up, a horizontal line stored at 310 rendered against
+      // ~400 on the axis, and the trendline and rectangle were displaced by the
+      // same 207px — exactly the height of the two panes now above the candles.
+      // The drawings had not moved; the pane under them had.
+      //
+      // ⭐ THE ZONES ALREADY KNEW. `resolveZones` walks the pane stack and hands
+      // back the candle pane's absolute rect; this reads its top rather than
+      // introducing a second opinion about where Price starts. It is re-measured
+      // once per frame, so a divider drag and a reorder both land immediately.
+      if (y != null) y += priceZoneTop()
     }
     return { x, y }
-  }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx])
+  }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx, priceZoneTop])
 
   /**
    * Stored anchors -> pixels, ONE OUTPUT SLOT PER INPUT ANCHOR.
@@ -1649,6 +1709,43 @@ export default function ChartDrawingOverlay({
 
   // Trigger redraw when any drawing state changes
   useEffect(() => { redrawRef.current?.() }, [redraw])
+
+  // ─── …AND WHEN THE PANES THEMSELVES MOVE ─────────────────────────────
+  //
+  // ⚰️⚰️ A PANE REORDER CHANGES NONE OF THIS OVERLAY'S INPUTS. Not the
+  // drawings, not the bars, not the canvas size, not the visible range — so
+  // `redraw` never re-ran and the last paint simply stayed on screen while the
+  // panes moved underneath it. Measured in the harness: with Price sent to the
+  // bottom, its drawings kept the pixels they had and ended up lying across the
+  // QQQ pane. The transform was right; nothing had asked it to run again.
+  //
+  // ⭐ SO THE GEOMETRY IS THE TRIGGER. A cheap signature — which pane the candles
+  // are in, and every pane's height — sampled on an interval and compared as a
+  // string; a repaint is requested only when it actually differs. Pane moves and
+  // divider drags are the only things that change it, both are rare and
+  // deliberate, and the sample is two cross-boundary reads.
+  //
+  // ⚠️ AN INTERVAL, NOT A rAF. This must notice a change, not animate one: at
+  // 60fps it would do 60× the work to make a reorder land 280ms sooner than a
+  // member can perceive. The same reason `StockChart`'s pane-stretch sampler is
+  // an interval.
+  useEffect(() => {
+    let last = null
+    const id = setInterval(() => {
+      const chart = chartRef?.current
+      if (!chart) return
+      let sig = null
+      try {
+        const panes = typeof chart.panes === 'function' ? chart.panes() : null
+        if (!panes) return
+        const at = seriesRef?.current?.getPane?.()?.paneIndex?.()
+        sig = `${Number.isInteger(at) ? at : '-'}|${panes.map((p) => Math.round(p.getHeight?.() || 0)).join(',')}`
+      } catch { return }
+      if (last === null) { last = sig; return }
+      if (sig !== last) { last = sig; redrawRef.current?.() }
+    }, 300)
+    return () => clearInterval(id)
+  }, [chartRef, seriesRef])
 
   // ── Mouse helpers ──
   const getCanvasPos = (e) => {

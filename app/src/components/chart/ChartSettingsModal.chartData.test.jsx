@@ -25,7 +25,8 @@ import { symbolSource, paneOfTarget } from './engine/sourceRef'
 import { primeSecondaryBars, clearSecondaryBars } from './engine/secondaryBars'
 import { addInstance, setInstanceDisplayTarget, removeInstance } from './engine/instanceControls'
 import { listAllIndicators, readEnabled } from './indicatorRegistry'
-import { paneMap } from './chartDataMap'
+import { paneMap } from './chartDataMap'
+import { resolvePaneOrder, storedPaneOrder, PRICE_PANE } from './engine/paneOrder'
 
 vi.mock('../../hooks/useBreadthSymbols', async (importOriginal) => {
   const actual = await importOriginal()
@@ -52,9 +53,15 @@ function withDef(cs, defId) {
 
 /** ⚠️ STATEFUL: the modal is CONTROLLED, so a write is only visible once the new
  *  settings come back in. A no-op handler makes every live case below vacuous. */
-function Host({ initial }) {
+function Host({ initial, onSeen }) {
   const [cs, setCs] = useState(initial)
-  return <ChartSettingsModal open settings={cs} onChange={setCs} onClose={() => {}} />
+  return (
+    <ChartSettingsModal
+      open settings={cs}
+      onChange={(next) => { if (onSeen) onSeen(next); setCs(next) }}
+      onClose={() => {}}
+    />
+  )
 }
 const show = (cs) => render(<Host initial={cs} />)
 const openTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
@@ -313,6 +320,100 @@ describe('⚰️ the Track B deep link lands on the inline editor', () => {
     expect(a.id).not.toBe(b.id)
     render(<ChartSettingsModal open scrollTo={`data:${b.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
     expect(document.body.querySelector('[data-inspector-for]').getAttribute('data-inspector-for')).toBe(b.id)
+  })
+})
+
+describe('⚰️ whole panes can be reordered from the pane map', () => {
+  const paneIds = () => [...document.body.querySelectorAll('[data-pane-group]')]
+    .filter((g) => ['price', 'volume', 'pane'].includes(g.getAttribute('data-pane-kind')))
+    .map((g) => g.getAttribute('data-pane-group'))
+  /** The Move control on ONE pane's heading, found through the group it is in.
+   *  ⚠️ SCOPED TO THE GROUP, NOT MATCHED ON THE LABEL: `[aria-label*="Move"]`
+   *  also matches every row's "Remove …" button, which is how the orphan case
+   *  below first passed against a delete control. */
+  const paneEl = (id) => document.body.querySelector(`[data-pane-group="${id}"]`)
+  const moveBtn = (id, dir) => [...paneEl(id).querySelectorAll('button')]
+    .find((b) => new RegExp(`pane ${dir}$`, 'i').test(b.getAttribute('aria-label') || ''))
+
+  it('⚰️ Move up puts a pane ABOVE Price — and Move down brings it back', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    expect(paneIds()).toEqual([PRICE_PANE, r.id])
+
+    fireEvent.click(moveBtn(r.id, 'up'))
+    expect(paneIds(), 'the pane did not move above Price').toEqual([r.id, PRICE_PANE])
+
+    fireEvent.click(moveBtn(r.id, 'down'))
+    expect(paneIds()).toEqual([PRICE_PANE, r.id])
+  })
+
+  it('⭐ Price itself is orderable — and has no Remove', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect(moveBtn(PRICE_PANE, 'down')).toBeTruthy()
+    const price = document.body.querySelector('[data-pane-group="price"]')
+    expect(price.querySelector('[aria-label^="Remove Price"]'), 'Price offered a Remove').toBeFalsy()
+  })
+
+  it('⛔ the boundaries disable rather than wrap', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect(moveBtn(PRICE_PANE, 'up').disabled, 'the top pane could move up').toBe(true)
+    const rsiId = paneIds().find((k) => k !== PRICE_PANE)
+    expect(moveBtn(rsiId, 'down').disabled, 'the bottom pane could move down').toBe(true)
+  })
+
+  it('⛔⛔ Needs attention is NOT a pane and offers no reorder', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    cs = removeInstance(cs, host.id, registry)
+    show(cs); openTab()
+    const orphans = document.body.querySelector('[data-pane-kind="orphans"]')
+    expect(orphans, 'precondition: there is an orphan group').toBeTruthy()
+    expect([...orphans.querySelectorAll('button')]
+      .some((b) => /pane (up|down)$/i.test(b.getAttribute('aria-label') || '')),
+    'an orphan list offered a pane move').toBe(false)
+    expect(orphans.querySelector('[draggable="true"]'), 'an orphan list was draggable').toBeFalsy()
+  })
+
+  it('⚰️⚰️ moving a HOST pane carries its guests and rewrites no placement', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    const before = cs.indicatorInstances.map((i) => JSON.stringify(i.placement || null))
+
+    const seen = { cs: null }
+    render(<Host initial={cs} onSeen={(next) => { seen.cs = next }} />)
+    openTab()
+    fireEvent.click(moveBtn(host.id, 'up'))
+
+    const after = seen.cs
+    expect(after, 'the move wrote nothing').toBeTruthy()
+    // the guest travelled: it is still listed under its host
+    const hostGroup = [...document.body.querySelectorAll('[data-pane-group]')]
+      .find((g) => g.getAttribute('data-pane-group') === host.id)
+    expect([...hostGroup.querySelectorAll('[class*="actLabel"]')].map((n2) => n2.textContent.trim()))
+      .toContain('QQQ')
+    // ⛔ AND NOT ONE PLACEMENT CHANGED. Pane order and Display-in are separate
+    // facts; a reorder that rewrote targets would make the two fight.
+    expect(after.indicatorInstances.map((i) => JSON.stringify(i.placement || null))).toEqual(before)
+  })
+
+  it('⭐ the writer is canonical — the UI stores `paneOrder`, nothing else', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    const seen = { cs: null }
+    render(<Host initial={cs} onSeen={(next) => { seen.cs = next }} />)
+    openTab()
+    fireEvent.click(moveBtn(r.id, 'up'))
+    expect(storedPaneOrder(seen.cs)).toEqual([r.id, PRICE_PANE])
+    expect(resolvePaneOrder(seen.cs, [r.id])).toEqual([r.id, PRICE_PANE])
   })
 })
 

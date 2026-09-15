@@ -78,6 +78,10 @@ import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanc
 // opinion about where anything draws. See that file's header for why grouping
 // from a label or a summary string would be a lie nobody notices.
 import { paneMap } from './chartDataMap'
+// ⭐ THE ONE REORDER WRITER. Drag and Move up / Move down both end here, so the
+// two paths cannot produce different stored states — asserted in
+// `engine/__tests__/paneOrder.test.js`.
+import { movePane, movePaneTo } from './engine/paneOrder'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -184,7 +188,13 @@ export default function ChartSettingsIndicators({
   // component is fresh on every open and the initial value IS the deep link. An
   // effect would open the row a frame LATER — a visible jump on a surface the
   // member reached by clicking a gear that promised to land there.
-  const [selected, setSelected] = useState(openRowId)   // rowId — ONE at a time (§11)
+  const [selected, setSelected] = useState(openRowId)
+  // Drag state: the key being dragged, and the pane it would land above.
+  // ⚠️ A REF **AND** STATE. The ref is what the drag handlers read (they fire
+  // between renders); the state is only what paints the indicator.
+  const dragKeyRef = useRef(null)
+  const [dragging, setDragging] = useState(null)
+  const [dropBefore, setDropBefore] = useState(null)   // rowId — ONE at a time (§11)
 
   /** The scroll region the rows live in — see `scrollDeepLinkIntoView`. */
   const listRef = useRef(null)
@@ -462,16 +472,106 @@ export default function ChartSettingsIndicators({
    * group whose members are not drawing; leaving it looking like an ordinary pane
    * would be the silent re-home the engine refuses to do.
    */
+  // ─── WHOLE-PANE REORDERING ───────────────────────────────────
+  //
+  // ⛔⛔ A PANE MOVES; A SERIES DOES NOT. "Display in" changes which pane a
+  // SERIES draws in and rewrites its placement; this changes where a whole pane
+  // sits and rewrites nothing about any series in it. Guests travel with their
+  // host because they resolve to it — there is no second write to keep in step,
+  // which is exactly why the two features can share a panel without confusing
+  // each other.
+  //
+  // ⚠️ ONLY REAL PANES. `hidden` and `orphans` are lists of things that are not
+  // drawing; offering to reorder them would be offering a rectangle that does
+  // not exist.
+  const arrangeable = paneGroups.filter((g) => ['price', 'volume', 'pane'].includes(g.kind))
+  const arrangeableIds = new Set(arrangeable.map((g) => g.id))
+  const paneKeysNow = paneGroups.filter((g) => g.kind === 'pane').map((g) => g.id)
+  const paneOpts = { volumePane: arrangeable.some((g) => g.kind === 'volume') }
+  const canMove = (id, delta) => {
+    const at = arrangeable.findIndex((g) => g.id === id)
+    return at >= 0 && at + delta >= 0 && at + delta < arrangeable.length
+  }
+  const nudge = (id, delta) => {
+    const next = movePane(settings, paneKeysNow, id, delta, paneOpts)
+    if (next !== settings) onChange?.(next)
+  }
+  const dropOn = (id, beforeId) => {
+    const next = movePaneTo(settings, paneKeysNow, id, beforeId, paneOpts)
+    if (next !== settings) onChange?.(next)
+  }
+
   const renderGroup = (group) => (
     <section
       key={group.id}
-      className={`${styles.cdGroup} ${group.kind === 'orphans' ? styles.cdGroupOrphan : ''} ${group.kind === 'hidden' ? styles.cdGroupHidden : ''}`}
+      className={`${styles.cdGroup} ${group.kind === 'orphans' ? styles.cdGroupOrphan : ''} ${group.kind === 'hidden' ? styles.cdGroupHidden : ''} ${dropBefore === group.id ? styles.cdDropBefore : ''} ${dragging === group.id ? styles.cdDragging : ''}`}
       data-pane-group={group.id}
       data-pane-kind={group.kind}
     >
-      <div className={styles.cdGroupHead}>
+      <div
+        className={styles.cdGroupHead}
+        /* ⭐ THE HEADER IS THE HANDLE. Dragging a pane is a statement about the
+           pane, so the whole heading carries it rather than a grab dot that has
+           to be hunted for — and `draggable` is set only on a pane that can
+           actually move, so a repair list never starts a drag. */
+        draggable={arrangeableIds.has(group.id) || undefined}
+        onDragStart={arrangeableIds.has(group.id) ? (e) => {
+          dragKeyRef.current = group.id
+          try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', group.id) } catch { /* jsdom */ }
+          setDragging(group.id)
+        } : undefined}
+        onDragEnd={() => { dragKeyRef.current = null; setDragging(null); setDropBefore(null) }}
+        onDragOver={arrangeableIds.has(group.id) ? (e) => {
+          if (!dragKeyRef.current || dragKeyRef.current === group.id) return
+          e.preventDefault()
+          try { e.dataTransfer.dropEffect = 'move' } catch { /* jsdom */ }
+          setDropBefore(group.id)
+        } : undefined}
+        onDrop={arrangeableIds.has(group.id) ? (e) => {
+          e.preventDefault()
+          const from = dragKeyRef.current
+          dragKeyRef.current = null; setDragging(null); setDropBefore(null)
+          if (from && from !== group.id) dropOn(from, group.id)
+        } : undefined}
+      >
+        {arrangeableIds.has(group.id) && (
+          <span className={styles.cdGrip} aria-hidden="true" title="Drag to reorder this pane">≡</span>
+        )}
         <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>{group.name}</span>
         <span className={styles.indCount}>{group.rows.length}</span>
+        {/* ⭐ THE DETERMINISTIC PATH, AND THE SAME WRITER. Drag is the fast way;
+            these are the one that always works — keyboard-reachable, and
+            unambiguous about a one-place move. Disabled at the boundary rather
+            than hidden, so the control does not appear and vanish as a pane
+            travels. */}
+        {arrangeableIds.has(group.id) && (
+          <span className={styles.cdMove}>
+            {[[-1, 'up', 'top'], [1, 'down', 'bottom']].map(([d, word, edge]) => {
+              const off = !canMove(group.id, d)
+              // ⚰️ A DISABLED CONTROL OWES A REASON, TO A SCREEN READER TOO. The
+              // boundary buttons shipped with a bare `disabled` and
+              // `ChartSettingsModal.indicators.test.jsx` caught it — the same rail
+              // the inert FIELD controls already answer to, which is why this
+              // carries the identical four attributes and an `sr-only` span
+              // rather than a second convention.
+              const why = off ? `Already at the ${edge} of the chart` : null
+              const whyId = off ? `cd-move-why-${group.id}-${word}` : undefined
+              return (
+                <span key={word} className={styles.cdMoveWrap}>
+                  <button
+                    type="button" className={styles.cdMoveBtn}
+                    aria-label={`Move ${group.name} pane ${word}`}
+                    title={why || `Move pane ${word}`}
+                    disabled={off}
+                    {...(off ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
+                    onClick={() => nudge(group.id, d)}
+                  >{d < 0 ? '↑' : '↓'}</button>
+                  {off && <span id={whyId} className="sr-only">{why}</span>}
+                </span>
+              )
+            })}
+          </span>
+        )}
       </div>
       {group.kind === 'orphans' && (
         <p className={styles.cdOrphanWhy}>
