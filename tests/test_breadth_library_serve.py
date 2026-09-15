@@ -27,13 +27,19 @@ def seeded(tmp_path, monkeypatch):
                       ("2015-03-10", "net_new_high_low", 13, 13, -99, -99.0),
                       ("2015-03-11", "net_new_high_low", -99, 0, -99, 0.0)],
                      universe="us")
-    from api.services.cache import cache
-    with cache._lock:
-        cache._store.clear()
+    # ⚠️ CLEAR THE BREADTH CACHE, NOT THE SHARED ONE. Breadth now owns a dedicated
+    # TTLCache instance, so clearing `api.services.cache.cache` leaves a sealed
+    # series behind and the next test in the run serves it — which is how this
+    # fixture leaked into `test_breadth_daily_ohlc` the first time.
+    _clear()
     yield
     store._INIT_DONE = False
-    with cache._lock:
-        cache._store.clear()
+    _clear()
+
+
+def _clear():
+    with bs._breadth_cache._lock:
+        bs._breadth_cache._store.clear()
 
 
 def _closes(sym):
@@ -50,9 +56,7 @@ def test_each_universe_serves_its_own_numbers(seeded):
 def test_an_unpublished_universe_serves_nothing_rather_than_another_universes_rows(
         seeded, monkeypatch):
     monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "us")
-    from api.services.cache import cache
-    with cache._lock:
-        cache._store.clear()
+    _clear()
     assert bs.build_breadth_bars("US:A50")["bars"], "us is published"
     # ⛔ NASDAQ is dark: empty, never UCT's or US's numbers wearing NASDAQ's name.
     assert bs.build_breadth_bars("NASDAQ:A50")["bars"] == []
@@ -118,7 +122,34 @@ def test_a_pit_universe_never_appends_the_uct_live_candle(seeded, monkeypatch):
     """⛔ `breadth_live` measures the collector's universe; its intraday value on a
     US chart would be one universe's number painted on another's series."""
     monkeypatch.setattr(bs, "_live_map", lambda: {"pct_above_50sma": 99.9})
-    from api.services.cache import cache
-    with cache._lock:
-        cache._store.clear()
+    _clear()
     assert 99.9 not in set(_closes("US:A50").values())
+
+
+# ── cache isolation (§15) ────────────────────────────────────────────────────
+
+def test_breadth_holds_its_series_in_its_OWN_cache_not_the_shared_one(seeded):
+    """⛔ The shared singleton is bounded at 1,000 entries and is hammered by bars,
+    news and snapshot keys. A sealed breadth series is a LARGE value held for HOURS,
+    and the library projects 156 identities — so sharing would have them evicting
+    each other, each looking like the other's performance problem."""
+    from api.services.cache import cache as shared
+    with shared._lock:
+        shared._store.clear()
+
+    bs.build_breadth_bars("US:A50", "D", 400)
+
+    assert any(k.startswith("breadthdaily_") for k in bs._breadth_cache._store), \
+        "the sealed series did not land in the dedicated instance"
+    assert not any(k.startswith("breadthdaily_") for k in shared._store), \
+        "a breadth series leaked into the shared cache"
+
+
+def test_the_dedicated_instance_states_its_own_bound(seeded):
+    # `cache.py`'s rule: an instance whose working set is a known, derivable
+    # quantity states its OWN bound rather than inheriting the module default.
+    from api.services.cache import _MAX_SIZE as shared_default
+    assert bs._breadth_cache.max_size == bs._BREADTH_CACHE_MAX
+    assert bs._BREADTH_CACHE_MAX != shared_default
+    # and it comfortably holds the whole projected catalogue
+    assert bs._BREADTH_CACHE_MAX >= len(bs.library_rows())

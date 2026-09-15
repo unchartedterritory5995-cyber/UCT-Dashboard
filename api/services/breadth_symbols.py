@@ -498,9 +498,32 @@ def latest_quotes(syms: list[str]) -> dict:
 # (to keep the candle fresh) — but a full warm pass takes minutes, so entries expired
 # mid-pass and the loop rebuilt all ~40 symbols forever, a CPU-bound churn that starved
 # the single pod. Decoupling fixes both: long-lived sealed cache + always-live candle.
+# ⭐⭐ BREADTH GETS ITS OWN CACHE INSTANCE, for the reason `live_prices` already
+# has one (`cache.py`: "the instance that exists specifically to escape LRU
+# pressure"). The shared singleton is bounded at 1,000 entries and is hammered by
+# bars, news, snapshots and analyst keys; a sealed breadth series is a LARGE value
+# — thousands of candles — held for HOURS. Measured shape: ~4,700 candles per
+# series, and the library projects 156 identities across four universes.
+#
+# ⛔ SO THE HARM IS MUTUAL AND SILENT IF THEY SHARE. Breadth would evict the hot
+# bars keys it has no business touching, and bars would evict breadth series whose
+# rebuild costs seconds — each looking like the other's performance problem. An
+# instance whose working set is a KNOWN, DERIVABLE quantity states its own bound,
+# which is the rule `cache.py` writes down.
+#
+# ⚠️ ISOLATION ONLY — no routing change, no move to bars-api, no CDN change. Those
+# are architecture decisions with more than one valid answer and they are the
+# owner's.
+_BREADTH_CACHE_MAX = 512        # ~156 identities today, with room for the catalogue
+                                # to grow before the bound is the binding constraint
 _SEALED_TTL = 21600      # 6h; sealed history changes only at EOD — the warm loop's
                          # new-day check refreshes it promptly, this is just the ceiling.
 _WARM_GAP = 0.4          # seconds slept between warm builds so a cold pass never bursts
+
+#: The dedicated instance (see `_BREADTH_CACHE_MAX`). Module-level so every reader
+#: shares ONE store; a per-call instance would be a cache that never hits.
+from api.services.cache import TTLCache as _TTLCache   # noqa: E402
+_breadth_cache = _TTLCache(max_size=_BREADTH_CACHE_MAX)
 _bg_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="breadth-bars-refresh")
 _bg_inflight: set[str] = set()
 _bg_lock = threading.Lock()
@@ -601,7 +624,7 @@ def _refresh_series(sym: str, metric: str,
                     universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Recompute + cache the SEALED daily series for `sym`. Returns it ([] on failure).
     One daily build serves D/W/M (the serve fn resamples), so this is keyed per symbol."""
-    from api.services.cache import cache
+    cache = _breadth_cache
     try:
         series = _build_breadth_series(sym, metric, universe)
     except Exception as e:
@@ -659,7 +682,7 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
             return {"ticker": sym, "tf": tf, "bars": []}
         metric, universe = row["metric"], row["universe"]
 
-    from api.services.cache import cache
+    cache = _breadth_cache
     now = time.time()
     hit = cache.get(f"breadthdaily_{sym}")   # `sym` already carries the universe
     tier = "breadth-build"
@@ -703,7 +726,7 @@ def warm_breadth() -> dict:
     quiet instead of perpetually rebuilding. Builds are throttled (`_WARM_GAP`) so a cold
     pass never bursts and starves the pod's bars path."""
     from api.services import breadth_monitor
-    from api.services.cache import cache
+    cache = _breadth_cache
     # Latest sealed date, shared across all metrics (get_history is cached). When a new EOD
     # day lands this advances, so even a still-fresh cache is rebuilt to include it.
     latest = None
