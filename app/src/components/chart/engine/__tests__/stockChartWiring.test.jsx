@@ -1326,86 +1326,88 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(rsiChipColor(view)).toBe('#7b68ee')
   })
 
-  // ─── TRACK B · HOVER IDENTIFIES THE LINE ───────────────────────────
+  // ─── TRACK B · POINTING AT A LABEL DOES NOT TOUCH THE CHART ──────────
   //
-  // ⛔ DRIVEN THROUGH THE RENDERER, NOT THROUGH THE COMPONENT'S PROPS. The claim
-  // is about what lands on the SERIES — how much it is lifted, and whether the
-  // ORIGINAL comes back exactly — and the only honest place to read that is the
-  // `applyOptions` the chart actually received.
+  // ⚰️⚰️ THREE CASES STOOD HERE AND THEY PROVED A RETIRED FEATURE: that hovering
+  // a chip lifted ITS line by exactly one pixel, that the EXACT original width
+  // came back on the way out, and that the lift reached the renderer and nothing
+  // else. The measurement was sound and the code was careful — it read the width
+  // off the series so a member's own override survived the round trip — and the
+  // owner retired the idea anyway after using it in production (2026-09-14): a
+  // legend hover must not redraw the chart at all.
   //
-  // ⚠️ IT NEEDS A MOCK THAT REMEMBERS. `options()` answered `{}` forever until
-  // this pass; `liftSeries` reads `lineWidth` off the series and skips anything
-  // non-finite, so against a forgetful mock this case would pass while lifting
-  // nothing at all. See `makeSeries.__opts`.
+  // ⛔ THE RAIL IS INVERTED, NOT DELETED. The inverse is the stronger claim and it
+  // is the one that can regress silently: nothing about a legend hover is visible
+  // in the legend's own DOM, so only the renderer can say whether a pointer
+  // moving across nine labels is quietly re-styling nine series.
+  //
+  // ⚠️ AND IT NEEDS THE MOCK THAT REMEMBERS. `options()` answered `{}` forever
+  // until Track B; without `makeSeries.__opts` the width read below is `undefined`
+  // in both states and the case passes against a chart that was restyled.
   const rsiSeries = () => H.addSeriesCalls
     .find(c => c.options && c.options.priceScaleId === 'rsi').series
   const chipFor = (view, prefix) => [...view.container.querySelectorAll('[data-instance-id]')]
     .find(e => (e.textContent || '').startsWith(prefix))
-  const widthsAppliedTo = (series) => H.applyOptionsCalls
-    .filter(c => c.series === series && c.options && 'lineWidth' in c.options)
-    .map(c => c.options.lineWidth)
 
-  it('⭐⭐ hovering a chip lifts ITS line by exactly ONE pixel', async () => {
+  it('⛔⛔ A HOVER REACHES THE RENDERER NOT AT ALL', async () => {
     const view = draw({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
     await hoverLatest(view)
     const series = rsiSeries()
     const before = series.options().lineWidth
-    expect(Number.isFinite(before), 'the RSI series has no lineWidth — the lift would '
-      + 'skip it and this case would be vacuous').toBe(true)
+    expect(Number.isFinite(before), 'the RSI series has no lineWidth — the width '
+      + 'comparison below would hold between two `undefined`s').toBe(true)
 
-    H.applyOptionsCalls.length = 0
     const chip = chipFor(view, 'RSI(')
     expect(chip, 'no RSI chip to hover').toBeTruthy()
-    await act(async () => { fireEvent.mouseEnter(chip) })
-
-    // ⚰️ IT WAS +2 (capped at 6) AND READ AS A STYLE CHANGE RATHER THAN AS
-    // IDENTIFICATION. One pixel is enough to pick a line out of nine.
-    expect(widthsAppliedTo(series), 'the lift is not exactly +1')
-      .toEqual([before + 1])
-  })
-
-  it('⛔⛔ …and puts the EXACT original width back on the way out', async () => {
-    // The whole safety claim. A hover that restores a DERIVED width would
-    // normalise a member's own override the first time they pointed at the line;
-    // a hover that restored nothing would make "point at a line" a style change.
-    const view = draw({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
-    await hoverLatest(view)
-    const series = rsiSeries()
-    const before = series.options().lineWidth
-    const chip = chipFor(view, 'RSI(')
-
-    await act(async () => { fireEvent.mouseEnter(chip) })
-    expect(series.options().lineWidth, 'nothing was lifted').toBe(before + 1)
-    H.applyOptionsCalls.length = 0
-    await act(async () => { fireEvent.mouseLeave(chip) })
-
-    expect(widthsAppliedTo(series), 'the restore did not write the original width back')
-      .toEqual([before])
-    expect(series.options().lineWidth, 'the line is left thicker than it started')
-      .toBe(before)
-  })
-
-  it('⛔ A HOVER TOUCHES THE RENDERER AND NOTHING ELSE', async () => {
-    // ⛔ EPHEMERAL IS THE ENTIRE CONTRACT. The lift reads a width off the series and
-    // writes one back; it must not re-bind, re-draw or re-scale anything, because a
-    // hover that did would be a settings change wearing a pointer's clothes.
-    const view = draw({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
-    await hoverLatest(view)
-    const chip = chipFor(view, 'RSI(')
     H.applyOptionsCalls.length = 0
     H.setDataCalls.length = 0
     H.addSeriesCalls.length = 0
     H.scaleApplyCalls.length = 0
     await act(async () => { fireEvent.mouseEnter(chip) })
     await act(async () => { fireEvent.mouseLeave(chip) })
-    expect(H.setDataCalls, 'a hover re-set series data').toEqual([])
-    expect(H.addSeriesCalls, 'a hover created a series').toEqual([])
-    expect(H.scaleApplyCalls, 'a hover touched a price scale').toEqual([])
-    // …and every option it DID apply was a line width, on one series.
-    const keys = [...new Set(H.applyOptionsCalls.flatMap(c => Object.keys(c.options || {})))]
-    expect(keys, 'a hover applied something other than a line width').toEqual(['lineWidth'])
-    expect([...new Set(H.applyOptionsCalls.map(c => c.series))],
-      'a hover lifted more than the hovered instance').toHaveLength(1)
+
+    expect(H.applyOptionsCalls, 'a legend hover re-styled a series').toEqual([])
+    expect(H.setDataCalls, 'a legend hover re-set series data').toEqual([])
+    expect(H.addSeriesCalls, 'a legend hover created a series').toEqual([])
+    expect(H.scaleApplyCalls, 'a legend hover touched a price scale').toEqual([])
+    expect(series.options().lineWidth, 'the line is not the width it started at')
+      .toBe(before)
+  })
+
+  it('⛔ …and neither does a CLICK — it opens a menu, it does not restyle', async () => {
+    // The click is the whole interaction now, so it is the path most likely to
+    // acquire an "emphasise while the menu is open" flourish. It may not: the
+    // popover is the emphasis.
+    //
+    // ⚠️ "CHANGED SOMETHING", NOT "CALLED SOMETHING" — unlike the hover case
+    // above, which may reach the renderer not at all. Opening the popover is a
+    // STATE CHANGE, so `updateChart` runs again and the binder re-syncs every
+    // series it owns with the options they already carry. That is an ordinary
+    // idempotent repaint. What would be a regression is any option coming back
+    // from the click with a DIFFERENT value than the line had before it.
+    const view = draw({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+    await hoverLatest(view)
+    const series = rsiSeries()
+    const before = { ...series.options() }
+    expect(Number.isFinite(before.lineWidth), 'the RSI series has no lineWidth — vacuous')
+      .toBe(true)
+    const chip = chipFor(view, 'RSI(')
+    H.applyOptionsCalls.length = 0
+    await act(async () => { fireEvent.click(chip) })
+
+    // ⚠️ BY VALUE, NOT BY IDENTITY. `priceFormat` is an object LITERAL rebuilt on
+    // every sync, so an identity comparison calls an unchanged line "restyled" and
+    // this rail would fail on any re-render at all — which would teach the next
+    // reader to delete it rather than to trust it.
+    const same = (a, b) => Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b)
+    const changed = H.applyOptionsCalls
+      .filter(c => c.series === series)
+      .flatMap(c => Object.entries(c.options || {}))
+      .filter(([k, v]) => !same(v, before[k]))
+    expect(changed, 'opening the menu changed how the line it is about is drawn')
+      .toEqual([])
+    expect(series.options().lineWidth, 'the line is not the width it started at')
+      .toBe(before.lineWidth)
   })
 
   it('ENGINE draws the same chip, same text, same period', async () => {

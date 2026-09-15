@@ -2024,60 +2024,93 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(volRow(view)).toBeFalsy()
   })
 
-  it('a VISIBLE volume pane prints its value, as before', async () => {
-    // The control. Without it, "the row is always there" would pass on a build
-    // that never printed a volume figure at all.
+  it('a VISIBLE volume pane prints its value — the control for the rule above', async () => {
+    // ⚰️⚰️ THIS WAS VACUOUS AND ONLY THE CHEVRON'S RETIREMENT EXPOSED IT. It
+    // read `data-hidden` off a row it found by `[data-legend-row="volume"]` — and
+    // the row it was actually finding was the STRIP's control-only `LegendRow`,
+    // which carried no label and no value, so `textContent !== 'Vol'` held for the
+    // empty string. It never saw a volume figure at all. That row is gone with
+    // the control it existed to hold, and the case only failed then.
+    //
+    // ⭐ A REAL VOLUME IS NOW DELIVERED. `volLegendRowVisible` is
+    // `hidden || crosshairData.volume != null`, so a crosshair carrying no volume
+    // legitimately prints no row — which is exactly the state this harness was
+    // in. Reading the figure off the volume SERIES is what a hovering member does.
     const view = draw(mergeChartSettings({ volume: { separatePane: true, visible: true } }))
-    await settledLegend(view, crosshairWith())
+    // ⚠️ THE VOLUME SERIES IS A HISTOGRAM ON PANE 1, NOT A `priceScaleId:
+    // 'volume'` — with `separatePane` the bars take the new pane's `right` scale
+    // and share it with the volume MA line, which is the `LineSeries` beside it.
+    const vol = H.addSeriesCalls.find(c => String(c.ctor) === 'HistogramSeries' && c.paneIndex === 1)
+    expect(vol, 'no volume series was drawn — nothing could report a figure').toBeTruthy()
+    const ev = crosshairWith()
+    ev.seriesData.set(vol.series, { value: 69800000 })
+    await settledLegend(view, ev)
+
     const row = volRow(view)
+    expect(row, 'the volume row left the legend while the pane was VISIBLE').toBeTruthy()
     expect(row.getAttribute('data-hidden')).toBe('false')
-    expect(row.textContent.replace(/\s/g, '')).not.toBe('Vol')
+    expect(row.textContent.replace(/\s/g, ''), 'the row printed no figure')
+      .toMatch(/^V(ol)?69\.8M$/)
   })
 
-  it('⭐ the pane s own strip carries the SAME ONE DOOR', async () => {
-    // Owner: *"when I hover over this with my mouse the buttons should pop up on
-    // the right just like for RSI."* The strip's row carries NO label and NO value
-    // — the three readings beside it are already the volume pane's — so this
-    // asserts on the controls, and on the absence of a fourth `Vol 69.8M`.
+  it('⭐ the pane s own strip IS the door — no control cell, no button', async () => {
+    // ⚰️⚰️ THIS ASSERTED ON A CONTROL: three buttons (`Hide Volume` /
+    // `Volume settings` / `Remove Volume`), then one chevron labelled
+    // `Volume options`, carried by a `LegendRow` with no label and no value that
+    // existed only to hold them. The owner retired the revealed control after
+    // production use (2026-09-14) and the row went with it — with nothing to
+    // hold, it would have rendered an empty span.
+    //
+    // ⛔ THE STRIP ITSELF IS THE TRIGGER NOW, which is what the owner's original
+    // ask was really about: *"when I hover over this with my mouse"* — the thing
+    // being pointed at is the readings, not a cell to their right.
     const view = draw(mergeChartSettings({ volume: { separatePane: true, labelVisible: true } }))
     await settledLegend(view, crosshairWith())
     const box = strip(view)
     expect(box, 'the volume strip did not render').toBeTruthy()
-    const ctl = box.querySelector('[data-legend-ctl]')
-    expect(ctl, 'the strip has no control cell').toBeTruthy()
-    // ⚰️ THREE BUTTONS — `Hide Volume` / `Volume settings` / `Remove Volume` —
-    // STOOD HERE. Track B leaves ONE door on every legend surface, and the volume
-    // pane's verbs are rows of the popover it opens: Hide/Show, Edit in Chart
-    // Data, and an ARMING Delete. The pane keeps its own structure (it is
-    // `cs.volume`, not an engine instance, with no destinations and nothing to
-    // duplicate) and shares the surface, which is the unification that was safe
-    // to make tonight.
-    expect([...ctl.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Volume options'])
-    // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". `controlLabel` is what a screen
-    // reader and the tooltip get, and a row with an empty label would otherwise
-    // announce a button called " options".
+    expect(box.querySelector('[data-legend-ctl]'), 'a control cell is back on the strip')
+      .toBeFalsy()
+    expect(box.querySelectorAll('button'), 'a control button is back on the strip')
+      .toHaveLength(0)
+    expect(box.getAttribute('role')).toBe('button')
+    expect(box.getAttribute('tabindex')).toBe('0')
+    expect(box.getAttribute('aria-haspopup')).toBe('menu')
+    // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". This is what a screen reader and
+    // the tooltip get; an unnamed trigger announces a button called " options".
+    expect(box.getAttribute('aria-label')).toBe('Volume options')
+    // …and the strip still prints no fourth `Vol 69.8M` of its own.
     expect(box.textContent).not.toMatch(/Vol\s*$/)
   })
 
-  it('⛔ the strip s reveal is keyed on the STRIP, not on its row', () => {
-    // A CSS-ARTIFACT ASSERTION, and it has to be: the row carries no text, so its
-    // own `.flat:hover` has a zero-width hover target and the controls would be
-    // unreachable with a mouse. jsdom implements no pointer-events hit-testing, so
-    // a synthetic hover would pass either way — the same trap `IndicatorChip`'s
-    // suite documents.
+  it('⛔ the strip takes the SAME hover treatment every manageable row takes', () => {
+    // A CSS-ARTIFACT ASSERTION, and it still has to be one: jsdom implements no
+    // pointer-events hit-testing, so a synthetic hover passes against a strip no
+    // mouse could reach — the same trap `IndicatorChip`'s suite documents.
+    //
+    // ⚰️ IT ASSERTED `.volLegend:hover span[data-legend-ctl]`, the rule that
+    // revealed the control. There is nothing to reveal; what the strip owes the
+    // stylesheet now is the faint background and the pointer that tell a member
+    // this box is clickable at all.
     const css = readFileSync.call(fs, path.resolve(
       path.dirname(STOCK_CHART_PATH), 'StockChart.module.css'), 'utf8')
     const rule = stripComments(css)
-    expect(rule, 'nothing reveals the strip s controls on hover')
-      .toMatch(/\.volLegend:hover\s+span\[data-legend-ctl\]/)
+    expect(rule, 'a reveal rule is back — there is no control to reveal')
+      .not.toMatch(/\.volLegend:hover\s+span\[data-legend-ctl\]/)
+    expect(rule, 'the strip does not say it is clickable')
+      .toMatch(/\.volLegendLive\s*\{[^}]*cursor:\s*pointer/)
+    expect(rule.replace(/\s+/g, ''), 'the strip hover is not the shared legend treatment')
+      .toMatch(/\.volLegendLive:hover\{background:rgba\(255,255,255,0\.055\);\}/)
+    // ⛔ THE KEYBOARD RING IS `:focus-visible`, never `:focus` — a click leaves
+    // DOM focus on the strip, and a plain `:focus` ring would sit there behind
+    // whatever the member did next.
+    expect(rule, 'the strip rings on plain :focus').toMatch(/\.volLegendLive:focus\s*\{[^}]*outline:\s*none/)
+    expect(rule, 'the strip has no keyboard ring at all').toMatch(/\.volLegendLive:focus-visible\s*\{/)
     // ⚰️ THIS ASSERTED `.volLegItem { pointer-events: auto }` WITH THE CONTAINER
     // LEFT `none`, to keep the crosshair passing through the gaps between
-    // readings. It did exactly that — and made the gaps, the padding and the space
-    // the controls expand into DEAD, so the buttons vanished under a mouse that was
-    // travelling toward them. The rail is INVERTED rather than deleted: the WHOLE
-    // BOX must take the pointer, and putting it back on the items alone fails here.
-    expect(rule, 'the strip must be ONE hover region, not one island per reading')
+    // readings. It did exactly that — and made the gaps and the padding DEAD,
+    // which now means dead parts of the TRIGGER ITSELF. The rail is INVERTED
+    // rather than deleted: the WHOLE BOX must take the pointer.
+    expect(rule, 'the strip must be ONE region, not one island per reading')
       .toMatch(/\.volLegend\s*\{\s*pointer-events:\s*auto/)
     expect(/\.volLegItem\s*\{[^}]*pointer-events/.test(rule),
       'pointer-events is back on the items — that leaves the gaps between them dead')

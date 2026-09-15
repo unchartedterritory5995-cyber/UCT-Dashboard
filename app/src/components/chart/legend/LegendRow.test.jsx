@@ -27,61 +27,67 @@ const read = (rel) => readFileSync(path.resolve(HERE, rel), 'utf8')
 const handlers = () => ({ onOpen: vi.fn() })
 
 describe('LegendRow — the three verbs', () => {
-  it('renders label, value and ONE control while hovered', () => {
+  it('renders label and value, and NO control at all', () => {
+    // ⚰️⚰️ `Hide EMA 9` / `EMA 9 settings` / `Remove EMA 9`, then one chevron.
+    // Both generations are retired: the ROW is the control (owner, 2026-09-14,
+    // after production use of the chevron).
     const h = handlers()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical {...h} />)
     expect(screen.getByText('EMA 9')).toBeTruthy()
     expect(screen.getByText('319.82')).toBeTruthy()
-    // ⚰️ `Hide EMA 9` / `EMA 9 settings` / `Remove EMA 9` STOOD HERE. One
-    // affordance, one popover — and the destructive verb is no longer a
-    // neighbouring 11px icon.
-    const buttons = screen.getAllByRole('button')
-    expect(buttons).toHaveLength(1)
-    expect(buttons[0].getAttribute('aria-label')).toBe('EMA 9 options')
-    expect(buttons[0].getAttribute('aria-haspopup')).toBe('menu')
+    expect(screen.queryAllByRole('button', { hidden: true }).filter((b) => b.tagName === 'BUTTON'))
+      .toHaveLength(0)
   })
 
-  it('⭐ keeps the control MOUNTED and collapses it in CSS — never conditional', () => {
-    // ⚰️ THE FIRST DRAFT RENDERED THESE ONLY WHILE A REACT `hovered` PROP WAS
-    // TRUE, and that is precisely why they could not be clicked: `.legend` is
-    // `pointer-events: none`, so the gaps between the row's cells were not hit
-    // targets, the pointer "left" on the way to the buttons, and React tore them
-    // out mid-approach. Mounting always and collapsing the CELL is what keeps the
-    // gutter at zero without making the control depend on a hover signal — and
-    // it is the only way `:focus-within` can ever open it for a keyboard user.
+  it('⭐ the ROW is the trigger — role, tab order and an aria label that names it', () => {
     const h = handlers()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical {...h} />)
-    expect(screen.getByRole('button', { name: 'EMA 9 options' }), 'the control is conditional again')
-      .toBeTruthy()
+    const row = document.querySelector('[data-legend-row="ma:0"]')
+    expect(row.getAttribute('role')).toBe('button')
+    expect(row.getAttribute('tabindex')).toBe('0')
+    expect(row.getAttribute('aria-haspopup')).toBe('menu')
+    // ⛔ THE LABEL NAMES THE ROW. "Options" on six rows is six identical controls
+    // to a screen reader.
+    expect(row.getAttribute('aria-label')).toBe('EMA 9 options')
   })
 
-  it('⛔ ONE HANDLER OR NONE — a read-only mount gets an inert row', () => {
-    // ⚰️ THE GATE USED TO BE ALL-THREE-OR-NONE, because a row carrying two of
-    // three controls is a worse lie than one carrying none. With one door the
-    // gate is simply that door — and it still keeps the `/r/chart` export
-    // route's legend button-free and its 46 pixel-parity baselines still.
-    const { unmount } = render(
-      <LegendRow rowId="ma:0" label="EMA 9" value="1" vertical onHover={vi.fn()} />,
-    )
-    expect(screen.queryByRole('button'), 'a hover-only mount rendered a control').toBeNull()
-    unmount()
+  it('⛔ `controlLabel` still names the INSTANCE, not the plot', () => {
+    // ⭐ MACD IS WHY IT EXISTS. Its pane prints two rows — `MACD 2.3999` and
+    // `SIG 1.6272` — and both act on ONE instance, so `SIG`'s row must announce
+    // the thing the menu will act on. The control moved onto the row; the naming
+    // rule moved with it.
+    const h = handlers()
+    render(<LegendRow rowId="inst:macd" label="SIG" value="1.6272" controlLabel="MACD" vertical {...h} />)
+    const row = document.querySelector('[data-legend-row="inst:macd"]')
+    expect(row.getAttribute('aria-label')).toBe('MACD options')
+    expect(row.getAttribute('title')).toMatch(/^MACD/)
+  })
+
+  it('⛔ ONE HANDLER OR NONE — a read-only row is not even focusable', () => {
+    // ⛔ A ROW THAT OPENS NOTHING MUST NOT ANNOUNCE ITSELF AS A BUTTON or sit in
+    // the tab order. `/r/chart`, Model Book and a grid cell all render one, and
+    // for them the legend is plain text.
     render(<LegendRow rowId="ma:0" label="EMA 9" value="1" vertical />)
+    const row = document.querySelector('[data-legend-row="ma:0"]')
+    expect(row.getAttribute('role')).toBeNull()
+    expect(row.getAttribute('tabindex')).toBeNull()
+    expect(row.getAttribute('aria-haspopup')).toBeNull()
     expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('a hidden row is marked hidden for CSS, and the popover is still reachable', () => {
-    // ⚰️ `Show EMA 9` WAS AN ARIA-LABEL ON AN EYE. The direction now lives on
-    // the popover's Hide/Show row (`chipMenu.chipMenuItems`), which is the only
-    // place it can name the row AND state which way it goes. What the ROW still
-    // owes the stylesheet is `data-hidden`, which is what dims it and dashes its
-    // rail.
+    // ⛔ THE DIRECTION LIVES ON THE POPOVER'S Hide/Show ROW, which is the only
+    // place that can state it. What the ROW owes the stylesheet is `data-hidden`,
+    // which is what dims it.
     const h = handlers()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="" hidden vertical {...h} />)
-    expect(screen.getByRole('button', { name: 'EMA 9 options' })).toBeTruthy()
-    expect(document.querySelector('[data-legend-row="ma:0"]').getAttribute('data-hidden')).toBe('true')
+    const row = document.querySelector('[data-legend-row="ma:0"]')
+    expect(row.getAttribute('data-hidden')).toBe('true')
+    fireEvent.click(row)
+    expect(h.onOpen).toHaveBeenCalledTimes(1)
   })
 
-  it('the door fires with the ROW ID and stops the event reaching the chart', () => {
+  it('the row fires with the ROW ID, anchored to itself, and stops at the chart', () => {
     // ⛔ `stopPropagation` IS NOT TIDINESS. The chart wrapper underneath opens a
     // region menu on click; without it, opening a moving average's popover would
     // also open a menu about the region it sits on.
@@ -92,59 +98,54 @@ describe('LegendRow — the three verbs', () => {
         <LegendRow rowId="ma:2" label="SMA 50" value="316.68" vertical {...h} />
       </div>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'SMA 50 options' }))
-    expect(h.onOpen).toHaveBeenCalledWith('ma:2', expect.objectContaining({ x: expect.any(Number) }))
-    expect(onWrapper, 'a control click reached the chart underneath').not.toHaveBeenCalled()
+    const row = document.querySelector('[data-legend-row="ma:2"]')
+    row.getBoundingClientRect = () => ({ left: 12, bottom: 40, top: 22, right: 120, width: 108, height: 18 })
 
-    // ⭐ AND THE ROW BODY IS THE SAME DOOR — the label is the button, exactly as
-    // it is on an `IndicatorChip`. A right-click on it opens the same popover.
+    fireEvent.click(row)
+    // ⭐ ANCHORED TO THE ROW, NOT THE POINTER — a keyboard activation has no
+    // coordinates, so one anchor serves click, right-click and Enter alike.
+    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(onWrapper, 'a click reached the chart underneath').not.toHaveBeenCalled()
+
     h.onOpen.mockClear()
-    fireEvent.click(document.querySelector('[data-legend-row="ma:2"]'))
-    expect(h.onOpen).toHaveBeenCalledTimes(1)
-    fireEvent.contextMenu(document.querySelector('[data-legend-row="ma:2"]'))
-    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledTimes(2)
+    fireEvent.contextMenu(row)
+    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+
+    for (const key of ['Enter', ' ']) {
+      h.onOpen.mockClear()
+      fireEvent.keyDown(row, { key })
+      expect(h.onOpen, `${key} did not open the menu`).toHaveBeenCalledTimes(1)
+    }
     expect(onWrapper).not.toHaveBeenCalled()
   })
 
-  it('⭐ the row carries NO colour swatch, and hover still reports the HOVER KEY', () => {
-    // ⚰️ A RAIL STOOD HERE, and before that the row wore `style={{ color }}` on
-    // the whole box so the price pane's moving averages printed blue, purple and
-    // orange NAMES at 11px. Both are retired (owner, 2026-09-14).
-    // ⛔ THE HOVER KEY IS NOT THE ROW ID for a legacy moving average: the row is
-    // addressed by its STORED SLOT (`ma:2`) and the drawn series lives at a RENDER
-    // index, which differ the moment a tombstone is in the list.
+  it('⛔ the row carries NO colour swatch and NO hover handler at all', () => {
+    // ⚰️ THE ROW WORE `style={{ color }}`, then a 2×9px rail, then an `onHover`
+    // that lifted the drawn series by a pixel. All three are retired: the label is
+    // neutral text and hovering it reaches nothing but a CSS background.
     const h = handlers()
-    const onHover = vi.fn()
     const { container } = render(
-      <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical
-        hoverKey="ov:1" onHover={onHover} {...h} />)
+      <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical {...h} />)
     const row = container.querySelector('[data-legend-row="ma:2"]')
     expect(row.style.color, 'the row tints its own text with the line colour again').toBe('')
     expect(row.querySelector('i'), 'a colour rail is back in the row').toBeNull()
-    fireEvent.mouseEnter(row)
-    expect(onHover).toHaveBeenCalledWith('ov:1')
-    fireEvent.mouseLeave(row)
-    expect(onHover).toHaveBeenLastCalledWith(null)
+    const src = read('./LegendRow.jsx')
+    expect(src, 'a hover handler is back in the component').not.toMatch(/onMouseEnter|onMouseLeave/)
   })
 
-  it('⛔ the gutter takes NO WIDTH in either state — the legend cannot move', () => {
-    // The CSS artifact, because jsdom lays nothing out. `.vCtl` used to be
-    // `width: 0` at rest and `width: auto` on hover, which widened the legend's
-    // third track, moved its right edge and crept over the next gridline.
+  it('⛔ the gutter takes NO WIDTH — and the row hover cannot move the legend', () => {
+    // A CSS-ARTIFACT ASSERTION, because jsdom lays nothing out. The gutter held a
+    // control that was `width: 0 → auto`, then out-of-flow; it holds nothing now
+    // and is simply gone from the layout.
     const css = read('./LegendRow.module.css').replace(/\s+/g, '')
-    expect(css, 'the vertical gutter is back in the flow')
-      .toMatch(/\.vCtl\{[^}]*position:absolute;/)
-    expect(css, 'the horizontal gutter is back in the flow')
-      .toMatch(/\.flatCtl\{[^}]*position:absolute;/)
-    for (const sel of ['vCtl', 'flatCtl']) {
-      expect(css, `${sel} is visible at rest`).toMatch(new RegExp(`\\.${sel}\\{[^}]*opacity:0;`))
-      expect(css, `${sel} eats pointer events while invisible`)
-        .toMatch(new RegExp(`\\.${sel}\\{[^}]*pointer-events:none;`))
-    }
-    // ⛔ AND THE ROWS ARE THE CONTAINING BLOCK, or `left: 100%` resolves against
-    // something far away and the control lands in the wrong place.
-    expect(css).toMatch(/\.vRow\{[^}]*position:relative;/)
-    expect(css).toMatch(/\.flat\{[^}]*position:relative;/)
+    expect(css, 'the vertical gutter takes space again').toMatch(/\.vCtl\{display:none;\}/)
+    expect(css, 'a control strip is back').not.toMatch(/\.controls\{/)
+    expect(css, 'a control button is back').not.toMatch(/\.btn\{/)
+    // ⛔ AND THE HOVER TREATMENT PAINTS ONLY — no padding, no border, no margin,
+    // nothing that could reflow a row that is already laid out.
+    const hover = /\.rowLive:hover\{([^}]*)\}/.exec(css)
+    expect(hover, 'the manageable row has no hover treatment').toBeTruthy()
+    expect(hover[1]).toBe('background:rgba(255,255,255,0.055);')
   })
 
   it('🔴 the vertical variant is ONE row box holding THREE subgrid cells', () => {
@@ -182,15 +183,19 @@ describe('LegendRow — the CSS artifact', () => {
     return src.slice(at, src.indexOf('}', at) + 1)
   }
 
-  it('re-enables pointer events, on the row AND on the buttons', () => {
+  it('re-enables pointer events on the ROW — there are no buttons left', () => {
     const src = css()
-    // ⛔ THE ROW, NOT ITS CELLS. The row is the hover box now; a cell that
-    // re-enabled pointer events would not help, because the gaps between cells
-    // belong to the row.
-    for (const cls of ['.vRow', '.flat', '.btn']) {
+    // ⛔ THE ROW, NOT ITS CELLS. The row is the hover box AND the control now; a
+    // cell that re-enabled pointer events would not help, because the gaps
+    // between cells belong to the row.
+    for (const cls of ['.vRow', '.flat']) {
       expect(ruleBlock(src, cls), `${cls} does not re-enable pointer events`)
         .toMatch(/pointer-events:\s*auto/)
     }
+    // ⚰️ `.btn` WAS IN THIS LIST. There is no button: two generations of control
+    // lived on this row and both are retired.
+    expect(src, 'a control button rule is back in this stylesheet')
+      .not.toMatch(/\n\.btn\s*\{/)
   })
 
   it('⛔ …and the PARENT still disables them — the premise, not a stale memory', () => {
@@ -214,24 +219,28 @@ describe('LegendRow — the CSS artifact', () => {
     expect(block).toMatch(/grid-column:\s*1\s*\/\s*-1/)
   })
 
-  it('🔴 the reveal is `:has(:focus-visible)` — NEVER `:focus-within`', () => {
-    // ⚰️ MEASURED BY THE OWNER: click a row's eye, move to the next indicator, and
-    // BOTH rows showed their buttons. A mouse click leaves DOM focus on the
-    // button, `:focus-within` stays true for as long as it is there, and nothing
-    // takes it away — so the row you had just acted on stayed open behind the one
-    // you moved to and the legend claimed two rows were live at once.
+  it('🔴 the keyboard ring is `:focus-visible` — NEVER `:focus`, NEVER `:focus-within`', () => {
+    // ⚰️ THIS GUARDED A HOVER REVEAL; it guards a FOCUS RING now, for the same
+    // measured reason. MEASURED BY THE OWNER when it was a reveal: click a row's
+    // eye, move to the next indicator, and BOTH rows showed their buttons — a
+    // mouse click leaves DOM focus on the target, `:focus-within` stays true for
+    // as long as it is there, and nothing takes it away. A plain `:focus` ring
+    // would sit behind whatever the member moved to next in exactly that way.
     //
-    // ⛔ AND THE ANSWER IS NOT `blur()` ON CLICK, which would snatch the strip
-    // away from a KEYBOARD user the moment they activated anything in it — the
-    // exact population the focus rule exists for. `:focus-visible` is the
-    // distinction the platform already draws: set for tab-navigation, not for a
-    // pointer click. Both files that reveal a legend strip are checked, because
-    // they drifted apart once already.
+    // ⛔ AND THE ANSWER IS NOT `blur()` ON CLICK, which would snatch the ring away
+    // from a KEYBOARD user the moment they activated anything — the exact
+    // population the rule exists for. `:focus-visible` is the distinction the
+    // platform already draws: set for tab-navigation, not for a pointer click.
+    // Both legend stylesheets are checked, because they drifted apart once.
     for (const f of ['./LegendRow.module.css', './IndicatorChip.module.css']) {
-      const src = read(f)
-      expect(src, `${f} reveals on :focus-within — a clicked row will stay open`)
-        .not.toMatch(/:focus-within\s*\.?[\w-]*\s*\{|:focus-within\s+\./)
-      expect(src, `${f} lost its keyboard reveal entirely`).toMatch(/:has\(:focus-visible\)/)
+      // ⚠️ COMMENTS ARE STRIPPED FIRST. Both files keep a TOMBSTONE that quotes
+      // `:focus-within` and says why it was wrong; a whole-file read would fail
+      // on the explanation and the obvious "fix" would be to delete the record.
+      const flat = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, '')
+      expect(flat, `${f} lost its keyboard ring`).toMatch(/\.rowLive:focus-visible\{/)
+      expect(flat, `${f} rings on a mouse click too`).toMatch(/\.rowLive:focus\{outline:none;\}/)
+      expect(flat, `${f} uses :focus-within — it sticks after a mouse click`)
+        .not.toMatch(/:focus-within/)
     }
   })
 

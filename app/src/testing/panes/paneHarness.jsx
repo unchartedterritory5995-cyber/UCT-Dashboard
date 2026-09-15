@@ -101,6 +101,7 @@ window.fetch = (input, init) => {
   return realFetch(input, init)
 }
 
+const LEGEND_PARAM = new URLSearchParams(location.search).get('legend')
 const SYM = 'AAPL'
 const TF = 'D'
 
@@ -476,6 +477,14 @@ function Harness() {
               onWatermarkCommit={() => {}}
               lockWatermark
               alwaysShowLegend
+              /* ⭐ `?legend=vertical` / `?legend=horizontal` PUTS THE WORKSPACE
+                 LEGEND ON THIS PAGE. Without it `verticalLegend` is false and
+                 the chart renders its inline OHLC row, so the stacked table and
+                 the flat strip — two of the three legend layouts a member can
+                 actually choose — were unreachable here and could only be
+                 verified on a real workspace. Chart Settings → Header picks
+                 BETWEEN the two once this is on. */
+              verticalLegend={LEGEND_PARAM !== null}
             />
           ) : (
             <div style={{ padding: 12, color: '#8b93a1' }}>

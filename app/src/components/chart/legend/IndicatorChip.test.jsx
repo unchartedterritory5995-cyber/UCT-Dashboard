@@ -15,11 +15,14 @@ const LEGEND_CSS = readFileSync(
 /** The CSS with every run of whitespace gone — the artifact reads below compare
  *  DECLARATIONS, not formatting. */
 const flat = CSS.replace(/\s+/g, '')
-/** Everything BEFORE the first `@media` — the desktop/default cascade. Scoping
- *  matters in both directions: a default-block claim read over the whole file
- *  would be satisfied (or falsified) by a media-query rule that says the
- *  opposite deliberately. */
-const baseBlock = CSS.slice(0, CSS.indexOf('@media'))
+/** Everything BEFORE the first `@media`, whitespace-stripped — the desktop /
+ *  default cascade. Scoping matters in both directions: a default-block claim
+ *  read over the whole file would be satisfied (or falsified) by a media-query
+ *  rule that says the opposite deliberately. The hover and focus rules below are
+ *  read through THIS and not through `flat`, because the phone tier redefines
+ *  the chip entirely and a `.rowLive` rule hiding in there would not be the one
+ *  a desktop member gets. */
+const baseBlock = CSS.slice(0, CSS.indexOf('@media')).replace(/\s+/g, '')
 
 const CHIP = {
   defId: 'rsi', plotKey: 'rsi', instanceId: 'legacy:rsi',
@@ -70,74 +73,70 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(legendBlock, 'the `.legend` rule was not found — this gate read nothing').toContain('position: absolute')
   })
 
-  it('⛔ the reveal is CSS, and the control takes NO WIDTH in either state', () => {
-    // ⚰️ THIS ASSERTED `max-width: 0` UNTIL 2026-09-14. Collapsing a width is one
-    // way to keep a hovered chip from growing; it is not enough, because the
-    // OPEN state still took 26px and every chip after it slid right — and in the
-    // vertical legend the legend BOX widened and crept over the next gridline.
-    // Out of flow is the fix: the control contributes zero width at rest AND on
-    // hover, so no geometry can move.
-    expect(flat, 'the control is back in the flow — a hovered row will widen the legend')
-      .toMatch(/\.chipControls\{[^}]*position:absolute;/)
-    expect(flat, 'the control is not hidden at rest')
-      .toMatch(/\.chipControls\{[^}]*opacity:0;/)
-    // ⛔ `pointer-events` FLIPS WITH THE OPACITY. An invisible out-of-flow box
-    // still sits over the chart and would swallow the crosshair on every row.
-    expect(flat, 'an invisible control still eats pointer events over the chart')
-      .toMatch(/\.chipControls\{[^}]*pointer-events:none;/)
-    expect(flat, 'no :hover reveal — the control can never open with a mouse')
-      .toMatch(/\.chip:hover\.chipControls|\.chip:hover\s*\.chipControls/)
-    expect(CSS.replace(/\s+/g, ' '),
-      'no keyboard reveal — a keyboard user can tab into the control and never see it')
-      .toMatch(/\.chip:has\(:focus-visible\) \.chipControls/)
-    // ⛔ AND NOT `display: none`, which puts the control out of the tab order —
-    // at which point the keyboard reveal above is decorative.
-    // ⚠️ SCOPED TO THE DEFAULT BLOCK: the PHONE query legitimately hides it.
-    expect(baseBlock.replace(/\s+/g, ''),
-      'the resting state is `display:none`, so the control cannot be focused')
-      .not.toMatch(/\.chipControls\{[^}]*display:none;/)
+  it('⛔ THERE IS NO CONTROL — no chevron, no gutter, no reserved space', () => {
+    // ⚰️⚰️ TWO GENERATIONS OF CONTROL DIED HERE. First an eye/gear/✕ strip that
+    // collapsed `max-width: 0 → 82px`; then a single chevron that had to be taken
+    // out of flow to stop widening the legend, at which point it detached from
+    // its own label and, horizontally, sat over the next one. The owner retired
+    // the idea after production use: the ROW is the control.
+    expect(flat, 'a control strip is back in the stylesheet').not.toMatch(/\.chipControls\{/)
+    expect(flat, 'a control button is back in the stylesheet').not.toMatch(/\.chipBtn\{/)
+    expect(SRC, 'a chevron is back in the component').not.toMatch(/chevronDown/)
+    expect(SRC, 'a control button is back in the component').not.toMatch(/<button/)
   })
 
-  it('⛔ 44px on touch — the tap-target minimum, inside the canonical touch query', () => {
-    const touch = CSS.slice(CSS.indexOf('@media (max-width: 1024px)'))
-    expect(touch.length, 'there is no touch media query at all — this gate read nothing')
-      .toBeGreaterThan(80)
-    const block = touch.slice(0, touch.indexOf('@media', 10))
-    expect(block.replace(/\s+/g, ''),
-      'the controls are not 44px on touch — `--tap-min` is the app-wide minimum and a 16px '
-      + 'icon button is not reachable with a thumb')
-      .toMatch(/\.chipBtn\{[^}]*min-width:var\(--tap-min\);/)
-    expect(block.replace(/\s+/g, ''), 'the controls are not 44px TALL on touch')
-      .toMatch(/\.chipBtn\{[^}]*min-height:var\(--tap-min\);/)
-    // …and the row is OPEN there, because touch has no hover to open it with.
-    expect(block.replace(/\s+/g, ''),
-      'the control row stays collapsed on touch, where no `:hover` can ever fire')
-      .toMatch(/\.chipControls\{[^}]*opacity:1;/)
+  it('⭐ hover is a faint background and NOTHING else', () => {
+    // ⛔ THE ONLY THING A HOVER MAY DO. It must not reveal, must not move, must
+    // not tint gold and must not reach the renderer — the whole point of the
+    // retirement is that pointing at a label stops changing the chart.
+    expect(baseBlock, 'the manageable row has no hover treatment at all')
+      .toMatch(/\.rowLive:hover\{background:rgba\(255,255,255,0\.055\);\}/)
+    expect(baseBlock, 'the row does not advertise itself as interactive')
+      .toMatch(/\.rowLive\{cursor:pointer;\}/)
+    // ⛔ NO GOLD ON HOVER — gold is the selection/accent colour, and this is a
+    // passive affordance. The keyboard ring may use it; the hover may not.
+    const hoverRule = /\.rowLive:hover\{([^}]*)\}/.exec(baseBlock)
+    expect(hoverRule[1], 'the hover state uses the accent colour').not.toMatch(/dcbb5e|--accent/)
   })
 
-  it('⛔ the controls are RENDERED, not hook-gated — the first-paint trap, from SOURCE', () => {
-    // ⛔ THE ONE THAT MATTERS. `useMediaQuery` seeds from `matchMedia` at MOUNT and
-    // only updates on a `change` event; in a fixed mobile context that event never
-    // arrives, so a `useIsTouch()` branch renders the DESKTOP variant on a phone
-    // forever. Comment-stripped, because this file's own prose names all three.
-    const code = stripComments(SRC)
-    for (const hook of ['useIsTouch', 'useMediaQuery', 'useBreakpoint', 'useIsPhone']) {
-      expect(code, `${hook} decides what this component renders — that read is stale at first `
-        + 'paint and a phone gets the desktop chip').not.toContain(hook)
+  it('⛔ the keyboard gets a ring, the mouse does not', () => {
+    // `:focus-visible`, never `:focus` — a mouse click leaves DOM focus on the row,
+    // so a plain `:focus` ring would sit behind whatever the member moved to next.
+    // The same distinction the retired reveal rules drew, for the same reason.
+    expect(baseBlock).toMatch(/\.rowLive:focus\{outline:none;\}/)
+    expect(baseBlock).toMatch(/\.rowLive:focus-visible\{/)
+  })
+
+  it('⛔ nothing is rendered off a breakpoint hook — the first-paint trap, from SOURCE', () => {
+    // `useMediaQuery` seeds from `matchMedia` at MOUNT and only updates on a
+    // `change` event, so in a fixed mobile context a JS read renders the DESKTOP
+    // variant on a phone and never corrects itself. This file must not import one.
+    const src = stripComments(SRC)
+    for (const name of ['useIsTouch', 'useMediaQuery', 'useBreakpoint']) {
+      expect(src, `${name} is imported — a hook-gated variant is wrong at first paint`)
+        .not.toMatch(new RegExp(name))
     }
-    expect(code, 'the source probe read nothing — the stripper ate the file').toContain('chipControls')
+  })
+
+  it('⭐ the CHIP is the trigger: role, tab order and aria all on the chip itself', () => {
+    const { container } = draw()
+    const chip = container.querySelector('[data-instance-id]')
+    expect(container.querySelectorAll('button'), 'a control button is back').toHaveLength(0)
+    expect(chip.getAttribute('role')).toBe('button')
+    expect(chip.getAttribute('tabindex')).toBe('0')
+    expect(chip.getAttribute('aria-haspopup')).toBe('menu')
   })
 
   // ── wiring ────────────────────────────────────────────────────────────────
 
-  it('⭐ there is exactly ONE control, in the DOM with NO hover event', () => {
-    // ⚰️ THREE, UNTIL TRACK B. Three 11px targets with the destructive one
-    // 5px from the routine ones — and this file's own CSS carries the
-    // measurement that condemned that layout (one extra glyph in a live value
-    // moved every control 5.4px, so the box that was Settings a moment ago was
-    // Remove).
+  it('⛔ there are ZERO controls — the chip itself is the only target', () => {
+    // ⚰️ THREE, THEN ONE, THEN NONE. Each generation shrank the control and each
+    // kept the same problem: something had to appear, and appearing costs either
+    // layout (a collapsed gutter widened the legend) or adjacency (an out-of-flow
+    // one landed over the neighbour). Nothing appears now.
     const { container } = draw()
-    expect(container.querySelectorAll('button')).toHaveLength(1)
+    expect(container.querySelectorAll('button')).toHaveLength(0)
+    expect(container.querySelector('svg'), 'an icon is back in the chip').toBeNull()
   })
 
   it('…and the control strip adds NO TEXT — one element, one text node, still', () => {
@@ -149,43 +148,52 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(chip.textContent).toBe('RSI(14) 54.3')
   })
 
-  it('⭐⭐ the control opens the SAME popover the right-click does — one vocabulary', () => {
-    // The whole point of the change: a member who learns the affordance and a
-    // member who reflexively right-clicks land on the identical surface. Two
-    // menus with two row sets is the thing this replaces.
+  it('⭐⭐ clicking the chip opens the SAME popover the right-click does', () => {
     const { container, h } = draw()
-    fireEvent.click(container.querySelector('[aria-label="RSI(14) options"]'))
+    fireEvent.click(container.querySelector('[data-instance-id]'))
     expect(h.onMenu).toHaveBeenCalledTimes(1)
     // ⚠️ THE WHOLE ROW, not the id — one instance can own several chips.
     expect(h.onMenu.mock.calls[0][0]).toMatchObject({ instanceId: 'legacy:rsi', plotKey: 'rsi' })
   })
 
-  it('⛔ …and the control click STOPS at the chip', () => {
+  it('⭐ Enter and Space open it too — the row is a real menu trigger', () => {
+    for (const key of ['Enter', ' ']) {
+      cleanup()
+      const h = handlers()
+      const { container } = render(<IndicatorChip chip={CHIP} {...h} />)
+      fireEvent.keyDown(container.querySelector('[data-instance-id]'), { key })
+      expect(h.onMenu, `${key} did not open the menu`).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('⛔ …and the click STOPS at the chip', () => {
     // A click that keeps travelling reaches the chart wrapper and opens its
     // region menu beside ours.
     const spy = vi.fn()
     const h = handlers()
     const { container } = render(<div onClick={spy}><IndicatorChip chip={CHIP} {...h} /></div>)
-    fireEvent.click(container.querySelector('[aria-label="RSI(14) options"]'))
+    fireEvent.click(container.querySelector('[data-instance-id]'))
     expect(spy, 'the click reached the ancestor — the chart region menu opens too')
       .not.toHaveBeenCalled()
     expect(h.onMenu, 'the popover never opened — the absence above is vacuous').toHaveBeenCalled()
   })
 
-  it('a right-click opens the menu at the pointer, and eats the browser default', () => {
+  it('⭐ a right-click opens the menu anchored to the CHIP, and eats the browser default', () => {
     const { container, h } = draw()
     const chip = container.querySelector('[data-instance-id]')
+    chip.getBoundingClientRect = () => ({ left: 40, bottom: 90, top: 70, right: 160, width: 120, height: 20 })
     const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 44 })
     fireEvent(chip, ev)
-    // ⚠️ THE WHOLE ROW, not the id: one instance can own several chips (MACD's
-    // line and its signal), so an id alone cannot say WHICH chip was clicked and
-    // the caller would have to guess "the first one with this instance id".
     expect(h.onMenu).toHaveBeenCalledWith(
       expect.objectContaining({ instanceId: 'legacy:rsi', plotKey: 'rsi', label: 'RSI(14)' }),
-      { x: 120, y: 44 })
+      { x: 40, y: 93 })
+    // ⚰️ IT USED TO ANCHOR AT `{clientX, clientY}` — 120,44 here. A pointer anchor
+    // cannot serve a KEYBOARD activation, which has no coordinates at all, so the
+    // element's own rectangle serves every input and the menu always hangs off the
+    // thing it is about.
+    expect(h.onMenu.mock.calls[0][1]).not.toEqual({ x: 120, y: 44 })
     // ⛔ …AND IT EATS THE BROWSER DEFAULT. `useLongPress` does not call
-    // `preventDefault` for us, so without this line the native context menu opens
-    // ON TOP of ours.
+    // `preventDefault` for us, so without it the native menu opens ON TOP of ours.
     expect(ev.defaultPrevented, 'the native browser menu still opens over ours').toBe(true)
   })
 
@@ -218,13 +226,18 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
       .toHaveBeenCalledTimes(1)
   })
 
-  it('the control NAMES the chip — "options" on nine chips is nine identical controls', () => {
-    const labels = [...draw().container.querySelectorAll('button')]
-      .map(b => b.getAttribute('aria-label'))
-    expect(labels).toEqual(['RSI(14) options'])
-    // ⛔ AND IT ADVERTISES A MENU, so a screen reader announces that something
-    // opens rather than that something happens.
-    expect(draw().container.querySelector('button').getAttribute('aria-haspopup')).toBe('menu')
+  it('⛔ an interactive chip advertises a menu; a read-only one advertises nothing', () => {
+    const { container } = draw()
+    const chip = container.querySelector('[data-instance-id]')
+    expect(chip.getAttribute('aria-haspopup')).toBe('menu')
+    // ⛔ A READ-ONLY CHIP IS NOT A BUTTON AND IS NOT IN THE TAB ORDER. Announcing
+    // a control that opens nothing is worse than announcing plain text.
+    cleanup()
+    const { container: c2 } = render(<IndicatorChip chip={CHIP} />)
+    const inert = c2.querySelector('[data-instance-id]')
+    expect(inert.getAttribute('role')).toBeNull()
+    expect(inert.getAttribute('tabindex')).toBeNull()
+    expect(inert.getAttribute('aria-haspopup')).toBeNull()
   })
 
   it('⭐ the chip carries NO colour swatch, and no colour on its text', () => {
@@ -267,29 +280,19 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(chip.textContent).toBe('RSI(14) 54.3')
   })
 
-  it('⛔ …and a mount that brings only HOVER is still read-only', () => {
-    // ⚰️ THIS CASE USED TO SAY "a PARTIAL handler set renders none of them",
-    // because the gate was all-three-or-none. With one door the gate is simply
-    // that door — but the hover lift is a SEPARATE prop, and a mount that wants
-    // identification without management must not sprout a control that writes
-    // nowhere.
-    const { container } = render(<IndicatorChip chip={CHIP} onHover={vi.fn()} />)
-    expect(container.querySelectorAll('button')).toHaveLength(0)
-  })
-
-  it('⭐ hover reports the INSTANCE id, and reports null on the way out', () => {
-    const onHover = vi.fn()
-    const { container } = render(<IndicatorChip chip={CHIP} {...handlers()} onHover={onHover} />)
-    const chip = container.querySelector('[data-instance-id]')
-    fireEvent.mouseEnter(chip)
-    expect(onHover).toHaveBeenCalledWith('legacy:rsi')
-    fireEvent.mouseLeave(chip)
-    expect(onHover).toHaveBeenLastCalledWith(null)
+  it('⛔ A HOVER REACHES NOTHING — the prop is gone and no handler survives it', () => {
+    // ⚰️⚰️ `onHover` DROVE THE PLOT LIFT: a pixel added to the drawn series while
+    // the pointer sat on its label. The owner retired it after production use —
+    // hovering a legend must not mutate the chart. The component must not carry a
+    // mouse-enter/leave path at all, or a future caller will wire one back.
+    const src = stripComments(SRC)
+    expect(src, 'a hover handler is back in the component').not.toMatch(/onMouseEnter|onMouseLeave/)
+    expect(src, 'the hover prop is back in the signature').not.toMatch(/onHover/)
   })
 })
 
 describe('wave 10 — the body tap (tap-the-legend-name → editor)', () => {
-  it('fires onBodyTap with THE ROW on a body click, and the control never does', () => {
+  it('fires onBodyTap with THE ROW on a body click, and the popover never opens', () => {
     const h = handlers()
     const onBodyTap = vi.fn()
     const { container } = render(<IndicatorChip chip={CHIP} {...h} onBodyTap={onBodyTap} />)
@@ -301,12 +304,11 @@ describe('wave 10 — the body tap (tap-the-legend-name → editor)', () => {
     // SHELL UNCHANGED. The body click opens the popover on every mount that does
     // NOT pass this prop; the phone shell passes it and keeps its own study
     // editor sheet, exactly as before Track B.
-    expect(h.onMenu, 'the body tap also opened the popover — the phone shell now gets two')
+    expect(h.onMenu, 'the body tap also opened the popover — the phone shell gets two')
       .not.toHaveBeenCalled()
-    // a control click stops propagation — it must not ALSO count as a body tap
-    fireEvent.click(container.querySelector('[aria-label="RSI(14) options"]'))
-    expect(onBodyTap).toHaveBeenCalledTimes(1)
-    expect(h.onMenu).toHaveBeenCalledTimes(1)
+    // ⛔ …AND SUCH A CHIP IS NOT A MENU TRIGGER. It opens an editor, not a menu,
+    // so announcing `aria-haspopup="menu"` would be a lie.
+    expect(chip.getAttribute('aria-haspopup')).toBeNull()
   })
 
   it('⭐ without the prop the body OPENS THE POPOVER — the label is the button', () => {

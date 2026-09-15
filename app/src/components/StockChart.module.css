@@ -129,15 +129,21 @@
    fall through and needs no help. */
 .volLegend { pointer-events: auto; }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
-/* ⭐ HOVER THE STRIP, REVEAL ITS ROW'S CONTROLS (owner: "when I hover over this
-   with my mouse the buttons should pop up on the right just like for RSI").
-   The strip's `LegendRow` carries no label and no value, so it has no hoverable
-   area of its own — the readings to its left ARE its hover target.
-   ⛔ `span[data-legend-ctl]` RATHER THAN THE CLASS, for two reasons: `.flatCtl` is
-   hashed by CSS Modules and unnameable from here, and the extra element selector
-   puts this at (0,2,2) against `LegendRow`'s own (0,2,1) `.flat:hover .flatCtl`,
-   so it wins regardless of which stylesheet the bundler emits first. */
-.volLegend:hover span[data-legend-ctl] { max-width: 88px; opacity: 1; }
+/* ⚰️ A `.volLegend:hover span[data-legend-ctl]` REVEAL STOOD HERE. It existed
+   because the strip's control lived on a `LegendRow` carrying no text of its own,
+   so the row had no hoverable area and the STRIP had to do the revealing. There
+   is no control to reveal: the strip IS the trigger now, and it takes the same
+   treatment every other manageable row takes.
+   ⛔ A `border-radius` OF ITS OWN, because unlike a legend row this box has no
+   resting radius to inherit — and it is 2px, so the tint reads as a tint and not
+   as a card. */
+.volLegendLive { cursor: pointer; border-radius: 2px; }
+.volLegendLive:hover { background: rgba(255, 255, 255, 0.055); }
+.volLegendLive:focus { outline: none; }
+.volLegendLive:focus-visible {
+  outline: 1px solid rgba(220, 187, 94, 0.9);
+  outline-offset: 0;
+}
 /* ⚰️ THIS STRIP USED TO SHARE ITS COLOUR TOKEN WITH `.rangeBtn`, and the note here
    said "the two must always match". They no longer do, deliberately: the owner
    asked for the range buttons to be LEFT ALONE ("they look great") and for these
@@ -422,19 +428,20 @@
    Fixed width pushes every value to the same right edge (TC2000-style). */
 .legendVertical {
   display: grid;
-  /* ⭐⭐ THREE TRACKS: label · value · CONTROL GUTTER.
-     The third is `auto` and every row's control cell is EMPTY until that row is
-     hovered — so it measures 0 and the legend is byte-identical to what it was
-     before the controls existed. On hover the one filled cell gives the track a
-     width: the legend's own box grows to the RIGHT, and the label and value
-     columns, sized by their own content, do not move by a pixel. That is the
-     owner's rule — "the values stay in place, the border extends".
-     ⛔ EVERY ROW MUST EMIT THREE CELLS. A grid fills by ORDER, so a two-cell row
-     would let the next row's label land in the gutter and cascade the whole
-     legend one cell out of true; `.vlCtlPad` is the empty third cell for the rows
-     that carry no controls. */
+  /* ⭐⭐ THREE TRACKS: label · value · GUTTER — and the third is now ALWAYS
+     EMPTY. It held a control cell that filled on hover; the legend's own box grew
+     to the right while the label and value columns stayed put, which was the
+     owner's rule ("the values stay in place, the border extends"). The control is
+     retired, so the track measures 0 in every state and the rule holds by
+     construction rather than by careful sizing.
+     ⛔ EVERY ROW MUST STILL EMIT THREE CELLS. A grid fills by ORDER, so a
+     two-cell row would let the next row's label land in the gutter and cascade
+     the whole legend one cell out of true. `.vlCtlPad` is that empty third cell,
+     and `.chipGridCtl` / `.vCtl` are its `display: none` counterparts on the rows
+     that used to carry a control. */
   /* 🔴 `max-content max-content auto` — AND THE FIRST TWO ARE NOT `auto`, WHICH
-     IS A BUG FIX. An `auto` track is COMPRESSIBLE: when the control gutter opened,
+     IS A BUG FIX, KEPT THOUGH ITS TRIGGER IS GONE. An `auto` track is
+     COMPRESSIBLE: when the control gutter opened,
      the grid re-solved and took the space out of the label and value columns
      instead of out of thin air. Measured — tracks went `43.7 / 32.8 / 0` to
      `14.3 / 39.2 / 64`, and every label, every value, the date and the day-change

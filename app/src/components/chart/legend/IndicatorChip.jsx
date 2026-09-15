@@ -4,15 +4,21 @@ import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
 
 /**
- * ONE legend chip, and its ONE control.
+ * ONE legend chip. **The chip IS the control.**
  *
- * ⚰️⚰️ IT CARRIED AN EYE / GEAR / ✕ STRIP, AND TRACK B RETIRED IT. Three 11px
- * targets, revealed together on hover, with the one DESTRUCTIVE verb sitting
- * 4px from the routine one — on a chart that can carry eleven series that is
- * eleven chances to remove the wrong indicator with a control that never asked.
- * The replacement is ONE affordance that opens ONE popover, and the popover is
- * the same one right-click and long-press already opened, so there is exactly
- * one vocabulary for managing a plotted series. See `chipMenu.js`.
+ * ⚰️⚰️ TWO GENERATIONS OF CONTROL LIVED HERE AND BOTH ARE RETIRED.
+ *
+ *   1. An eye / gear / ✕ strip revealed on hover — three 11px targets with the
+ *      DESTRUCTIVE one four pixels from the routine one, on a strip that reflowed
+ *      under the pointer as a live number changed width.
+ *   2. Then a single chevron, which had to grow a gutter to live in. Collapsed it
+ *      moved the legend; floated out of flow it detached from its own label and,
+ *      in the horizontal strip, sat over the next one.
+ *
+ * ⭐⭐ THE ANSWER WAS THAT THE CONTROL WAS NEVER NEEDED. The chip already has a
+ * box, a name and a value; clicking it opens the popover. There is nothing to
+ * reveal, nothing to reserve space for, nothing to collide with, and the resting
+ * legend is the plain text it always wanted to be. See `chipMenu.js`.
  *
  * ⛔ IT MUST RENDER INSIDE `StockChart`'s legend container, AND THAT IS NOT A
  * LAYOUT PREFERENCE. `pages/ChartRender.jsx` injects
@@ -62,30 +68,33 @@ import styles from './IndicatorChip.module.css'
  * ~120 px box. That is the trade every charting product makes for a clickable
  * legend, and it is why the box is the CHIP and not the legend.
  *
- * ⛔ THE CONTROL IS IN THE DOM AT ALL TIMES AND REVEALED BY CSS. Rendering it
- * off `useIsTouch()` would put the desktop variant on a phone at first paint —
- * `useMediaQuery` seeds from `matchMedia` at MOUNT and only updates on a `change`
- * event, and in a fixed mobile context that event never comes. This file imports
- * no breakpoint hook at all, and the test asserts that absence from source.
+ * ⛔ NOTHING IS RENDERED OFF A BREAKPOINT HOOK. `useMediaQuery` seeds from
+ * `matchMedia` at MOUNT and only updates on a `change` event, so in a fixed
+ * mobile context a JS read renders the desktop variant on a phone and never
+ * corrects itself. This file imports no breakpoint hook at all, and the test
+ * asserts that absence from source.
  *
- * ⛔ ONE HANDLER, NOT THREE. A read-only mount (`showDrawingTools={false}`:
- * Model Book, a grid cell, the export route) passes no `onMenu` and gets an
- * inert chip with no control at all — the same gate the three-button strip used,
- * reduced to the one door that now exists.
+ * ⛔ ONE HANDLER. A read-only mount (`showDrawingTools={false}`: Model Book, a
+ * grid cell, the export route) passes no `onMenu` and gets an inert chip — no
+ * hover treatment, no pointer cursor, no role, not in the tab order.
  *
  * @param {object}   chip        a `readout.legendChips` row
  * @param {string}   [className] the caller's layout class (the vertical legend's)
- * @param {Function} [onMenu]    (chip, {x, y}) => void — the ONE door: the
- *   affordance button, a right-click, and a long-press all call it.
+ * @param {Function} [onMenu]    (chip, {x, y}) => void — the ONE door: a click,
+ *   a right-click, a long-press and Enter/Space all call it.
+ *   ⭐ THE ANCHOR IS THE CHIP'S OWN RECTANGLE, not the pointer. A menu anchored to
+ *   a cursor cannot be opened from a keyboard at all, and on a 20px row the two
+ *   land within a few pixels of each other anyway — so one anchor serves every
+ *   input and the menu always hangs off the thing it is about.
  *   ⚠️ THE WHOLE ROW, NOT THE ID. One instance can own SEVERAL chips (MACD's line
  *   and its signal), so an id alone cannot say which one was pointed at — and the
  *   popover's title, its `Hide <label>` row and the alert address it opens on are
  *   all per-PLOT. The row is already in hand here; the caller would otherwise
  *   have to look it up and pick the first, which is a guess.
- * @param {Function} [onHover]   (instanceId | null) => void — Track B's plot
- *   identification. EPHEMERAL: the caller lifts the drawn series and puts it back,
- *   and nothing is persisted. Desktop enhancement only; every verb stays reachable
- *   without it.
+ * ⚰️ `onHover` IS GONE. It drove the hover lift — a pixel added to the drawn
+ *   series while the pointer was on its label — which the owner retired after
+ *   production use: hovering a legend must not mutate the plot. Hover is now a
+ *   faint background on this element, in CSS, and reaches nothing.
  * @param {Function} [onBodyTap] (chip) => void — a plain tap/click on the chip
  *   BODY. Passed only by the phone shell, which has its own study editor sheet,
  *   and it WINS over the popover there so that surface is unchanged.
@@ -103,8 +112,25 @@ import styles from './IndicatorChip.module.css'
  *   DIFFERENCE. A mark when there is a measured problem, and nothing at all
  *   otherwise.
  */
+/** Where the popover hangs: under the chip's own left edge.
+ *
+ *  ⛔ THE ELEMENT, NOT THE POINTER. A keyboard activation has no `clientX`, and a
+ *  menu that opened at 0,0 for a keyboard user would be a menu they could not
+ *  find. `currentTarget` is the chip on every path — click, contextmenu,
+ *  long-press and keydown — so one anchor serves all four.
+ *
+ *  ⚠️ `+ 3` CLEARS THE ROW rather than covering the label the menu is about.
+ *  `ContextPopover` still clamps to the viewport from there, so an item near the
+ *  bottom edge flips up exactly as it always did. */
+function anchorOf(e) {
+  const el = e && e.currentTarget
+  const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+  if (r) return { x: r.left, y: r.bottom + 3 }
+  return { x: e?.clientX ?? 0, y: e?.clientY ?? 0 }
+}
+
 export default function IndicatorChip({
-  chip, className, onMenu, onHover, onBodyTap, repaint,
+  chip, className, onMenu, onBodyTap, repaint,
   // ⭐⭐ `grid` — THE VERTICAL LEGEND'S TWO-COLUMN VARIANT (owner, 2026-09-10).
   //
   // ⚰️ IN THE VERTICAL LEGEND THIS CHIP USED TO TAKE `.vlFull` — `grid-column:
@@ -133,7 +159,7 @@ export default function IndicatorChip({
     // popover and not the chart's region menu as well.
     e?.preventDefault?.()
     e?.stopPropagation?.()
-    onMenu(chip, { x: e?.clientX ?? 0, y: e?.clientY ?? 0 })
+    onMenu(chip, anchorOf(e))
   }
   const longPress = useLongPress(openMenu)
 
@@ -184,33 +210,41 @@ export default function IndicatorChip({
       )}
     </>
   )
-  // ⛔ A BUTTON WITH NO TEXT AT ALL — one `UIcon` SVG — so it cannot match a text
-  // predicate and does not change `textContent` by one character.
-  const controlStrip = interactive ? (
-    <span className={styles.chipControls}>
-      {/* ⚠️ THE `aria-label` NAMES THE CHIP. "Options" on nine chips is nine
-          identical controls to a screen reader; "RSI(14) options" is one. */}
-      <button
-        type="button"
-        className={styles.chipBtn}
-        aria-label={`${chip.label} options`}
-        aria-haspopup="menu"
-        onClick={(e) => { e.stopPropagation(); openMenu(e) }}
-      ><UIcon name="chevronDown" size={10} gold={false} /></button>
-    </span>
-  ) : null
-
   // ⭐ THE BODY OPENS THE POPOVER unless the mount brought its own tap
-  // destination (the phone shell's study editor). `stopPropagation` for the same
-  // reason the control does — a click on the chip must not also reach the chart
-  // wrapper underneath and open a region menu.
+  // destination (the phone shell's study editor). `stopPropagation` because a
+  // click on the chip must not also reach the chart wrapper underneath and open a
+  // region menu on top of ours.
   const onBody = typeof onBodyTap === 'function'
     ? (e) => { e.stopPropagation(); onBodyTap(chip) }
     : (interactive ? (e) => { e.stopPropagation(); openMenu(e) } : undefined)
 
-  const hoverProps = typeof onHover === 'function' ? {
-    onMouseEnter: () => onHover(chip.instanceId),
-    onMouseLeave: () => onHover(null),
+  /** The semantics of a menu trigger, or nothing at all.
+   *
+   *  ⛔ A READ-ONLY CHIP IS NOT FOCUSABLE AND CARRIES NO ROLE. Announcing a
+   *  button that opens nothing, and putting it in the tab order, is worse than
+   *  announcing plain text — which is exactly what an export-route or Model Book
+   *  chip is.
+   *
+   *  ⭐ ENTER AND SPACE OPEN IT. `role="button"` promises that, and a div-shaped
+   *  trigger gets neither for free. Space is `preventDefault`ed so the page does
+   *  not scroll out from under the menu that just opened. */
+  const triggerProps = interactive && typeof onBodyTap !== 'function' ? {
+    role: 'button',
+    tabIndex: 0,
+    'aria-haspopup': 'menu',
+    /* ⛔ AN EXPLICIT NAME, THOUGH THE CHIP HAS TEXT. Without it the accessible
+     *  name is the whole chip — `RSI(14) 63.4` — and the number moves with the
+     *  crosshair, so the control renames itself several times a second while a
+     *  screen-reader user is pointed at it. The LABEL is the stable half, and it
+     *  is the half the menu is about. Same shape as `LegendRow`'s, so the two
+     *  kinds of row in one legend announce alike. */
+    'aria-label': `${chip.label} options`,
+    onKeyDown: (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+      e.preventDefault()
+      e.stopPropagation()
+      openMenu(e)
+    },
   } : null
 
   // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
@@ -237,9 +271,12 @@ export default function IndicatorChip({
          the alignment this variant exists for — while the row is one continuous
          hover box. */
       <span
-        className={`${styles.chipGridRow} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        className={`${styles.chipGridRow} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
         style={{ '--chip-color': chip.color }}
-        {...hoverProps}
+        {...triggerProps}
+        {...(interactive ? longPress : null)}
+        onClick={onBody}
+        title={chipTitle}
       >
         <span
           className={`${cls} ${styles.chipGridLabel}`}
@@ -247,23 +284,24 @@ export default function IndicatorChip({
           data-plot-key={chip.plotKey}
           data-hidden={chip.hidden ? 'true' : 'false'}
           data-computed={chip.computed === false ? 'false' : undefined}
-          title={chipTitle}
-          {...(interactive ? longPress : null)}
-          onClick={onBody}
         >{chip.label}{marks}</span>
         {/* ⛔ THE CALLER'S CLASS IS ON THE ROW, NOT ON EACH CELL. The one it
             passes here is `.chipFolded` — `display: none` — and hiding one cell
-            of three would leave the value and the gutter occupying tracks with
-            nothing in front of them. */}
+            of three would leave the value occupying a track with nothing in front
+            of it. */}
         <span className={styles.chipGridVal}>{chipValueText}</span>
-        <span className={styles.chipGridCtl}>{controlStrip}</span>
+        {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
+            for the whole legend and fills by ORDER, so a two-cell row would let
+            the next row's label fall into the third track and cascade the legend
+            out of true. It measures zero and always did. */}
+        <span className={styles.chipGridCtl} />
       </span>
     )
   }
 
   return (
     <span
-      className={cls}
+      className={`${cls} ${interactive ? styles.rowLive : ''}`}
       data-instance-id={chip.instanceId}
       data-plot-key={chip.plotKey}
       /* The state, readable without a colour comparison — the DOM half of the
@@ -277,13 +315,12 @@ export default function IndicatorChip({
       data-computed={chip.computed === false ? 'false' : undefined}
       title={chipTitle}
       style={{ '--chip-color': chip.color }}
+      {...triggerProps}
       {...(interactive ? longPress : null)}
-      {...hoverProps}
       onClick={onBody}
     >
       {body}
       {marks}
-      {controlStrip}
     </span>
   )
 }

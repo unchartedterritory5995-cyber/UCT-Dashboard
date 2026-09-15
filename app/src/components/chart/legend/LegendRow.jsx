@@ -21,12 +21,17 @@
 // be the risk this change exists to avoid.
 //
 // ⚰️ THE COLOUR RAIL IS RETIRED (owner, 2026-09-14) — see `IndicatorChip.jsx`.
-// `color` is still accepted and still ignored for the TEXT; the row is neutral and
-// identification is the hover lift's job.
+// `color` is still accepted and still ignored for the TEXT; the row is neutral,
+// and "which line is this?" is answered by the popover the row opens, which names
+// it in words. ⚰️⚰️ NOT by the line: a +1px lift under the pointer answered it
+// for a day and was retired with the chevron — pointing at a label must not
+// redraw the chart.
 //
-// ⚰️⚰️ THE EYE / GEAR / ✕ STRIP IS GONE. Three 11px targets with the destructive
-// one beside the routine ones, on as many rows as the chart has series. One
-// affordance, one popover — see `chipMenu.js` and `IndicatorChip.jsx`.
+// ⚰️⚰️ TWO GENERATIONS OF CONTROL LIVED HERE AND BOTH ARE RETIRED — the eye /
+// gear / ✕ strip, then the single chevron that had to grow a gutter to live in.
+// **THE ROW IS THE CONTROL.** Click it, right-click it, or focus it and press
+// Enter. Nothing is revealed, nothing reserves space, nothing collides. See
+// `IndicatorChip.jsx` for the full account.
 //
 // ─── THE ROW IS ONE BOX, AND THAT IS STILL THE WHOLE BUG FIX ────────────────
 //
@@ -39,33 +44,47 @@
 // every row while the ROW ITSELF is one continuous hover box from the first
 // letter of the label to the last digit of the value, gaps included. Hover is
 // plain CSS `:hover` on that box; there is no hover state in React.
-import UIcon from '../../ui/UIcon'
 import styles from './LegendRow.module.css'
 
 /**
  * @param {string}   rowId        stable identity (`ma:2`, `volume`, an instanceId)
  * @param {string}   label        `EMA 9`, `Vol`
  * @param {string}   [value]      already formatted; empty renders an empty value cell
- * @param {string}   [color]      the line's colour — the RAIL wears it
+ * @param {string}   [color]      the line's colour. ⚰️ ACCEPTED AND UNUSED: the
+ *   rail that wore it is retired, and the row's text is deliberately neutral. It
+ *   stays in the signature because every caller passes it and the phone tier of
+ *   the CHIP still needs the same value — dropping it here would make the two
+ *   components' call sites disagree for no gain.
  * @param {boolean}  [hidden]     drawn dimmed, exactly like `.chipHidden`
  * @param {boolean}  [vertical]   subgrid row vs inline strip
- * @param {Function} [onOpen]     `(rowId, {x, y}) => void` — the ONE door. The
- *   affordance button, a click on the row body and a right-click all call it.
+ * @param {Function} [onOpen]     `(rowId, {x, y}) => void` — the ONE door. A
+ *   click, a right-click and Enter/Space on the focused row all call it.
+ *   ⭐ THE ANCHOR IS THE ROW'S OWN RECTANGLE, not the pointer — a keyboard
+ *   activation has no `clientX`, and one anchor then serves every input.
  *
  * ⛔ ONE HANDLER OR NONE — the same gate the three-verb strip used, reduced to the
  * one door that now exists. A read-only mount (Model Book, a grid cell, the
  * `/r/chart` export route) passes none and gets an inert row.
  */
 export default function LegendRow({
-  rowId, label, value, color, hidden = false, vertical = false,
-  // ⭐ THE LEGEND'S OWN TEXT INK, FOR THE CONTROL ONLY (owner: "make sure the
-  // buttons match the brightness of the OHLC labels").
+  rowId, label, value, hidden = false, vertical = false,
+  // ⚰️ `color` AND `baseColor` ARE ACCEPTED AND IGNORED.
   //
-  // ⛔ IT CANNOT BE `currentColor` AND IT CANNOT BE A TOKEN. The OHLC labels take
-  // `legendColor`, the colour a member picks in Chart Settings → Header, so a
-  // token would match on the default theme and drift the moment anybody changed
-  // it. This is the same value, from the same place, which is the only way
-  // "match" stays true.
+  // `color` inked the whole row, then the 2×9px rail before its name; `baseColor`
+  // inked the control strip in the member's own legend colour ("make sure the
+  // buttons match the brightness of the OHLC labels"). Neither has a subject: the
+  // row is neutral text and there is no control. They stay in the signature
+  // because six call sites pass them and removing them from all six is churn with
+  // no behaviour attached — the row already inherits the legend's ink.
+  // eslint-disable-next-line no-unused-vars
+  color,
+  // ⚰️ see above. It existed to ink the control strip
+  // in the member's own legend colour ("make sure the buttons match the
+  // brightness of the OHLC labels"); there is no control to ink. The prop stays in
+  // the signature because six call sites pass it and removing it from them is
+  // churn with no behaviour attached — the row's own text already inherits that
+  // colour from the legend it sits in.
+  // eslint-disable-next-line no-unused-vars
   baseColor,
   /** What the control CALLS this row, when that is not what the row is labelled.
    *
@@ -75,81 +94,66 @@ export default function LegendRow({
    *  the other reason: its row carries no text at all. Defaults to `label`. */
   controlLabel,
   onOpen,
-  /** `(hoverKey | null) => void` — Track B's plot identification. EPHEMERAL. */
-  onHover,
-  /** What `onHover` is called WITH, when that is not the row id.
-   *
-   *  ⛔ A LEGACY MOVING AVERAGE NEEDS THIS AND NOTHING ELSE DOES. Its `rowId` is
-   *  `ma:<storedSlot>` — the index in `cs.overlays`, which is what the hide and
-   *  remove verbs address — but the drawn series lives at
-   *  `overlaySeriesRefs.current[<renderIndex>]`, and the two differ the moment a
-   *  tombstone or the synthetic SMA 5 is in the list. Passing the render index as
-   *  a separate key is how one row addresses two different arrays without either
-   *  of them having to know about the other. Defaults to `rowId`, which is
-   *  correct for a pane readout (whose row id IS the instance id). */
-  hoverKey,
+  // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
+  // added to the drawn series while the pointer was on its label — retired by the
+  // owner after production use: hovering a legend must not mutate the plot.
+  // `hoverKey` existed only because a legacy MA's row id (`ma:<storedSlot>`) is
+  // not the index its drawn series lives at; with nothing to reach, the second
+  // address is not needed either.
 }) {
   const ctlName = controlLabel || label || 'this series'
   const interactive = typeof onOpen === 'function'
 
   // ⛔ `stopPropagation` ON EVERY DOOR, like the chip's: a click must not also
-  // reach the chart wrapper underneath and open a region menu.
+  // reach the chart wrapper underneath and open a region menu on top of ours.
+  //
+  // ⭐ AND THE ANCHOR IS THE ROW, NOT THE POINTER — `currentTarget` is the row on
+  // every path, so a keyboard activation lands in the same place a click does.
+  // `ContextPopover` clamps from there, so a row near the bottom still flips up.
   const fire = (e) => {
     e.stopPropagation()
     e.preventDefault?.()
-    onOpen(rowId, { x: e.clientX ?? 0, y: e.clientY ?? 0 })
+    const el = e.currentTarget
+    const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+    onOpen(rowId, r ? { x: r.left, y: r.bottom + 3 } : { x: e.clientX ?? 0, y: e.clientY ?? 0 })
   }
 
-  // ⭐ `data-legend-ctl` ON THE CONTROL CELL — a stable, UNHASHED hook. A host
-  // that wants the control revealed by a hover on ITSELF rather than on the row
-  // cannot name `.flatCtl`: it is a CSS-module class in this file and the
-  // generated name is not addressable from another stylesheet. The volume-pane
-  // strip needs exactly that (its `LegendRow` carries no text of its own, so the
-  // row has no hoverable area) and `StockChart.module.css` keys off this.
-  //
-  // ⛔ ALWAYS IN THE DOM, REVEALED BY CSS — never rendered off a hover flag.
-  //
-  // ⚰️ THE FIRST DRAFT RENDERED THESE ONLY WHILE `hovered` WAS TRUE, which is why
-  // they could not be clicked: React tore them out the instant the pointer
-  // crossed a column gap, mid-approach. Collapsed-but-present also keeps the
-  // control in the tab order and lets `:focus-within` open it for a keyboard
-  // user, which a conditionally-rendered control can never do.
-  const controls = interactive ? (
-    <span className={styles.controls}>
-      <button
-        type="button"
-        className={styles.btn}
-        aria-label={`${ctlName} options`}
-        aria-haspopup="menu"
-        title={`${ctlName} — click for options`}
-        onClick={fire}
-      ><UIcon name="chevronDown" size={10} gold={false} /></button>
-    </span>
-  ) : null
-
-  const tone = hidden ? styles.rowHidden : ''
-  const hoverProps = typeof onHover === 'function' ? {
-    onMouseEnter: () => onHover(hoverKey === undefined ? rowId : hoverKey),
-    onMouseLeave: () => onHover(null),
-  } : null
-  const bodyProps = interactive ? {
+  /** The semantics of a menu trigger, or nothing at all.
+   *
+   *  ⛔ A READ-ONLY ROW IS NOT FOCUSABLE AND CARRIES NO ROLE — announcing a button
+   *  that opens nothing is worse than announcing plain text, which is what an
+   *  export-route or Model Book row is.
+   *
+   *  ⛔ AND THE `aria-label` NAMES THE ROW, not the verb. "Options" on six rows is
+   *  six identical controls to a screen reader; `SIG`'s row names MACD, because
+   *  `controlLabel` is what says which INSTANCE the menu will act on. */
+  const trigger = interactive ? {
+    role: 'button',
+    tabIndex: 0,
+    'aria-haspopup': 'menu',
+    'aria-label': `${ctlName} options`,
+    title: `${ctlName} — click for options`,
     onClick: fire,
     onContextMenu: fire,
-    title: `${ctlName} — click for options`,
+    onKeyDown: (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+      e.preventDefault()
+      fire(e)
+    },
   } : null
 
-  // ─── HORIZONTAL: one inline span, control revealed after the value ─────────
+  const tone = hidden ? styles.rowHidden : ''
+
+  // ─── HORIZONTAL: one inline span. The span IS the target ───────────────
   if (!vertical) {
     return (
       <span
         className={`${styles.flat} ${tone} ${interactive ? styles.rowLive : ''}`}
         data-legend-row={rowId}
         data-hidden={hidden ? 'true' : 'false'}
-        {...hoverProps}
-        {...bodyProps}
+        {...trigger}
       >
         {label}{value ? <strong className={styles.flatVal}>{value}</strong> : null}
-        <span className={styles.flatCtl} data-legend-ctl style={{ color: baseColor }}>{controls}</span>
       </span>
     )
   }
@@ -160,15 +164,15 @@ export default function LegendRow({
       className={`${styles.vRow} ${tone} ${interactive ? styles.rowLive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
-      {...hoverProps}
-      {...bodyProps}
+      {...trigger}
     >
       <span className={styles.vLabel}>{label}</span>
       <span className={styles.vVal}>{value}</span>
-      {/* ⛔ THE CELL IS EMITTED WHETHER OR NOT IT HAS A CONTROL. It is the row's
-          third subgrid track, and a row that emitted two cells would leave the
-          legend's control column unclaimed on that line. */}
-      <span className={styles.vCtl} data-legend-ctl style={{ color: baseColor }}>{controls}</span>
+      {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
+          for the whole legend and fills by ORDER, so a row that emitted two cells
+          would let the next row's label fall into the third track and cascade the
+          whole legend out of true. It holds nothing now and measures zero. */}
+      <span className={styles.vCtl} />
     </span>
   )
 }
