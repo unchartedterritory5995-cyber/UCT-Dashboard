@@ -472,7 +472,96 @@ condition itself.
 
 ---
 
-# a7 — MEASURED, AWAITING A GO. Much of it already exists.
+# ✅ a7 — CLOSED by R12. The contract is four files, and the suite found one of ours.
+
+**Closed 2026-09-14.** All five sub-steps ran, each as its own block with its own
+estimate and 2× stop, each pushed before the next began.
+
+## The a7 report — eight lines
+
+1. **CONTRACT** — **four** committed files, not the twelve the scoping note named;
+   six of those names are generated into temp dirs and never committed, and *a
+   transient file is not a contract*. **R12: one field, `version`**, chosen by
+   majority and added **at the writer**, additive, proven by key-set (one key added,
+   none removed, all 54 rows byte-identical). `docs/pine/CONTRACT.md`.
+2. **RAIL** — `contractVersions.test.js` asserts the **value**, not the presence
+   (*"has a version"* is the adjacent property), asserts the field at the **writer**
+   (the half a regeneration can undo), and asserts no fifth spelling has appeared.
+   Mutation-proved both ways: field removed → RED; value `99` → RED, naming what it
+   found.
+3. **TWIN COVERAGE** — the oracle READS 8 fields, IGNORES 4, **DEMANDS none**:
+   **zero** read-but-not-always-written defects. Shared-reader files are reported
+   NOT DETERMINABLE rather than invented — the census's own first run reported
+   **219 false defects** including `pid`, `url` and `token`, and was fixed before
+   its number was trusted.
+4. **SUITE** — full vitest, **1473/10 files · 21,378/13 tests · 379s · 0 timeouts**.
+   All 13 reds classified by evidence: six recorded pre-existing, three provably
+   master's or the Notebook's, one environment (green alone, red in company), and
+   **two ours** — `reachable.test.js` (now registered, 0.2) and the Track F
+   collision (**R13**).
+5. **BUILD** — vite, alone, after every test process exited: **exit 0**, 18.21s.
+   Python twin, 25 files **by name** in two serial scopes with `check_scope_paths.py`
+   in front of each: **811 passed · 5 skipped · 1 xfailed · 0 failed**, both exit 0.
+6. **CAPTURE** — **still owed**, and the blocker is **not** the browser. The rig runs
+   (PID 18792, port 8129) and the sandbox is verified by content, but **no Clouds
+   definition exists**, and the pane would render **2 of 23** outputs (21
+   author-hidden, fills chart-only). A pixel comparison today would measure item
+   (j)'s gap, not a6's. It is **(j)'s precondition**.
+7. **OWED** — the list below, current as of this close.
+8. **PENDING ON THE OWNER** — H.4; the **Wave 1 PR from `acdf93455`** with
+   `docs/pine/PR-BODY.md` pasted verbatim, **still unopened**; the per-module veto on
+   the eight 0.2 register entries; and any ruling a7.2's findings call for.
+
+## ⛔ OWED at a7 close — carried, not lost
+
+| # | owed | measured state |
+|---|---|---|
+| 1 | **13 `for … in` uses** | reopened on member evidence, not a hunch (R1(ii)); R6 measured the case **MOOT on every one** |
+| 2 | **function-parameter sources** | a source that is a function parameter — not settleable at plan time |
+| 3 | **UDT-field-access sources** | R5: stays where it already speaks, and **notes** |
+| 4 | **accumulators — 1 of 379** | ceiling: **63 of 379** have a settleable bound (a4b) |
+| 5 | **the vendor capture** | blocker named above: no Clouds definition; 2 of 23 outputs. **(j)'s precondition** |
+| 6 | **a7.2 finding 1** | **13 scripts differ on refusal FACTS between lanes**, asserted as a SET so fixing one goes red. ⚰️ The shape is the opposite of expected: on several the **lenient lane refuses MORE than strict** (`uncharted-volume-v2`: strict 0 vs lenient 4 × `pine:function`). **Outputs agree on all 327**, so no column is lost either way. ⛔ **Worth a ruling, not a quiet fix.** |
+| 7 | **a7.2 finding 2** | exactly **one** script THROWS out of `translatePine` — `smart-money-breakouts-chartprime__ea79c79a67.pine`, `pine:statement`, **both lanes identically**. Already known and routed as a corpus item; asserted by exact name so the day it is fixed the rail goes red and the finding retires |
+| 8 | **a7.3 candidates** | **four written-but-unread** oracle fields — `_`, `distinct_trees_walked`, `hash`, `version`. ⛔ **Recorded, NOT removed**: a threshold governs what is built, never what is removed, and removal needs its own authority and its own commit. `version` is unread **by design** (R12: written before it is read) |
+| 9 | **a7.3 defects** | **none** — zero read-but-not-always-written across dedicated readers |
+| 10 | **six pre-existing reds** | `BuilderSheet.pine` ·1, `ImportBox.thinkscript` ·1, `pineBoxSuggestVoice` ·3, `pollingSites.rail` ·1 (R-P extended; the sites are master's `d26695853`, `611bcf92e`) |
+| 11 | **three provably not ours** | `tapFloor` — offender is the Notebook's own `CaptureDialog.module.css`, and this branch touches **0** files under `journal-2-0` · `ChartDrawingOverlay.surfaces` — rail **and** the source it reads are byte-identical to `da0803baa` · `ThemeTrackerPage.chartmount` — `vi.mock`s **both** `StockChart` and `ChartPane`, so this branch's `StockChart.jsx` edits cannot reach it |
+| 12 | **`AuthContext.test.jsx`** | **environment**, not defect — **green alone** (8/8) and red only in the full suite |
+| 13 | **`reachable.test.js`** | eight modules registered under 0.2 (dated, expiring at Wave 2 close, owner veto per module). **Still red for exactly one: `focusDivergence.js`, master's R-29** — not ours to register, and silencing another workstream's defect in our register is the one thing it must never do |
+| 14 | ⛔ **R13 — the Track F collision** | **OURS. A Wave 2 regression.** See below |
+
+## ⛔⛔ R13 — OWED, WITH THE ASSERTION VERBATIM
+
+```
+FAIL  src/components/chart/builder/paramSingleTranslation.test.js
+      > C2D.1 — a declared member input is NOT also a Track F parameter
+      > one Pine input gets exactly one control
+AssertionError: bullFloor is claimed twice: expected true to be false
+ ❯ src/components/chart/builder/paramSingleTranslation.test.js:199:78
+```
+
+**Attributed by BISECT, not by argument.** The consumer (`builderInputs.js`) has not
+moved since `b7e17572f` (2026-09-07), so one specimen
+(`mid_engagement__22-rsi-levels-regime-map`) was run through seven engines with only
+the translator swapped:
+
+| engine at | declared | Track F params | overlap |
+|---|---|---|---|
+| `8e71fbf12` (pre-wave-2) | 10 | **5** | **`[]`** |
+| `a1de7a6f5` (a3, the unroll) | 10 | **5** | **`[]`** |
+| **`bdc1050ad`** (the env closing pass) | 10 | **24** | **`bullFloor`, `regTol`, `bearCeil`** |
+| HEAD | 10 | 24 | the same three |
+
+⛔ **`bdc1050ad` is the cause.** Resolving bindings nothing reads took the specimen
+from 5 Track F parameters to 24, and three of the nineteen newly-surfaced ones are
+**also declared member inputs** — *two authorities over one input*, which is exactly
+what the rail exists to catch. Ruled **0.3**: fixed before item (b), own block, own
+estimate, red acceptance first.
+
+---
+
+# a7 — the evidence it was scoped from (kept; nothing built at this point)
 
 ⛔ **Evidence only — nothing built.** Recorded here because a plan that lives in chat
 gets reconstructed from memory, which is why this file exists at all.
@@ -512,16 +601,37 @@ than the plan line implies.
 error: that behaviour belongs to the 12-chunk *pytest* lane, not to one short vitest
 file. No shard count is needed.
 
-## Proposed sub-steps — for a go, not started
+## ✅ The sub-steps, as they actually ran
 
-| # | scope | estimate |
-|---|---|---|
-| **a7.1** | the shared contract stated AS a contract: who writes each artifact, who reads it, versioning made uniform (three spellings + one absence today), and a rail that fails when an artifact gains a field no reader knows | 45 min |
-| **a7.2** | the both-lane agreement rail extended 266 → 327, asserting per-script lane agreement on FACTS (equal `refusals.length`), budgeted by the 5s measurement | 40 min |
-| **a7.3** | the Python twin's coverage census — which of the 23 rails reads which artifact, and what is written but unguarded | 40 min |
-| **a7.4** | snapshots · suites · the Python lane once (filename-scoped, chunked) · vite build | 60 min |
-| **a7.5** | item (a) and wave-2(a) close-out records | 20 min |
-| | **total** | **205 min** |
+| # | scope | estimate | actual | commit |
+|---|---|---|---|---|
+| **a7.1** | the shared contract stated AS a contract, versioning made uniform, a rail that fails on an unknown version | 45 | **55** | `8281fbcf4` |
+| **a7.2** | the both-lane agreement rail extended 266 → 327, asserting lane agreement on FACTS | 40 | **45** | `029aa4c86` |
+| **a7.3** | the Python twin's coverage census — who reads what, and what is written but unguarded | 40 | **50** | `5925f0dec` |
+| **a7.4** | snapshots · suites · the Python lane once (filename-scoped) · vite build | 60 | **75** | `d1485c51e` |
+| **a7.5** | item (a) and wave-2(a) close-out records | 20 | *this block* | — |
+| | **total** | **205** | **~245** | |
+
+⭐ **Every sub-step came in over its estimate and every one stayed inside its 2×
+stop.** No estimate was revised mid-block in either direction. The overrun is
+concentrated where the measurement contradicted the scoping note — a7.1 found the
+contract was four files rather than twelve, and a7.4 found a regression nobody had
+budgeted for, which is the outcome a full suite is *for*.
+
+## ✅ THE ARC a1 → a7 IS COMPLETE
+
+| sub-step | what closed it |
+|---|---|
+| **a1** | the census — 327 scripts, the shapes (c) inherits named as an exact set |
+| **a2** | an array is a plan-time vector; a creation is RECORDED |
+| **a3** | the slots are filled — Clouds unrolls, the acceptance goes green |
+| **a4 / a4b** | four forms retired **on measurement**: `while` 15/116, `for x in` 13/92, `for [i,x] in` 0/34, accumulator 1/379. Rulings R1–R8 |
+| **a5** | R9/R9a — `sum`/`max`/`min` **fixed and kept**, `avg` folds, five refuse **by name with their census numbers** |
+| **a6 / a6.0** | R10 — the fill contract was already met via `presentation.fills`; a6.0 carried `color.rgb`'s alpha into `presentation.opacity` |
+| **a7** | R12 — the contract is four files; the twin is covered; the suite is measured and every red attributed |
+
+⛔ **Item (a) is closed. Wave 2 is NOT** — R13 is open (a defect this arc
+introduced and this arc's own rail caught), and items (b)–(e) have not started.
 
 ---
 

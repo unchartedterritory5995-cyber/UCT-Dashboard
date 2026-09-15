@@ -1,18 +1,45 @@
 # Session state — `feat/indicator-r0r1`
 
-## ⭐⭐⭐ WAVE COMPLETE — AWAITING THE PR. READ THIS FIRST.
+## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-**Nothing is in flight.** The branch is merged with master, verified, pushed, and
-the PR body is written. The only act left is a human opening the PR.
+> ### ⛔ NEXT: **R13**, then item (b).
+>
+> **R13 — the Track F collision.** A Wave 2 regression introduced by `bdc1050ad`
+> (the env closing pass) and caught by this branch's own rail,
+> `paramSingleTranslation.test.js`. Ruled **0.3**: fixed **before** item (b), in
+> its own block, with its own estimate and a **committed red acceptance first**.
+> The assertion verbatim, the bisect table and the mechanism are in
+> `docs/pine/WAVE2-A-PLAN.md` under *"R13 — OWED"*.
+>
+> **Then item (b) — time inputs.** ⛔ **Census before build, threshold before
+> estimate.** In that order, every time: this wave retired four loop forms on
+> measurement and kept three reduce members on measurement, and in both
+> directions the number came first.
+
+⚰️ **This header used to read "WAVE COMPLETE — nothing is in flight", and that
+described Wave 1.** Wave 2 has been in flight since 2026-09-14. A resume pointer
+that says nothing is happening is worse than none — it is the one line a resuming
+session trusts without checking.
+
+### Wave 1 — merged, verified, and the PR is STILL UNOPENED (owner's act)
 
 | | |
 |---|---|
 | worktree | `C:\Users\Patrick\uct-worktrees\indicator-r0r1` |
 | branch | `feat/indicator-r0r1` |
-| HEAD | **`acdf93455`** — open the PR from this |
+| Wave 1 HEAD | **`acdf93455`** — open the PR from this |
 | merged master | **`da0803baa`**; the branch was level with master (behind 0) at merge time |
 | PR body | **`docs/pine/PR-BODY.md`** — paste it verbatim |
 | ⛔ | **no `gh pr create` was run, and no session should run it** |
+
+### Wave 2 — item (a) CLOSED 2026-09-14; the wave is not
+
+| | |
+|---|---|
+| item (a) | ✅ **CLOSED** — arc a1 → a7, rulings R1–R12. See `WAVE2-A-PLAN.md` |
+| a7 | ✅ **CLOSED by R12** — contract, rail, twin coverage, suite, build; capture owed |
+| **open** | ⛔ **R13** (ours, a Wave 2 regression) · items (b)–(e) not started |
+| owner-pending | H.4 · the Wave 1 PR · the per-module veto on the eight 0.2 register entries · a ruling on a7.2 finding 1 (the lenient lane refusing MORE than strict on 13 scripts) |
 
 ### ⚰️⚰️ THE ONE FINDING A READER OF THE FLAG LEDGER WOULD OTHERWISE MISS
 
