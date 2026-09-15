@@ -183,10 +183,21 @@ def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: in
 
 
 def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
-                         window: int = 320) -> dict:
+                         window: int = 320, members: Optional[set] = None) -> dict:
     """PURE recompute for one date by SLICING the pre-loaded numpy frame — no fetching, no
     per-date allocation of the whole universe. Levels from the window's sessions strictly
-    before target; target's close folded in as the price (mirrors _metrics_at_close)."""
+    before target; target's close folded in as the price (mirrors _metrics_at_close).
+
+    ⭐ `members` IS THE UNIVERSE, AND IT IS APPLIED TO `prices` ALONE. When given, only
+    those tickers get a price, and `compute_metrics`' `have = ~isnan(px)` mask does the
+    rest — every metric, from the MA family to the counts to the highs and lows, is
+    computed over exactly that set. The LEVELS are still built from the whole matrix,
+    which is correct and not wasteful: a 50-day average of a member is the same number
+    whoever else is in the frame, and rebuilding the matrix per universe would triple
+    the work to get identical columns.
+
+    ⚠️ `None` means "every priced ticker", which is the pre-universe behaviour the UCT
+    path still uses."""
     import numpy as np
     from api.services import breadth_live as bl
     dp = frame["date_pos"]
@@ -205,9 +216,11 @@ def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
     last_c = closes[:, -1]
     last_v = vols[:, -1]
     prices = {tickers[i]: float(last_c[i]) for i in range(len(tickers))
-              if not np.isnan(last_c[i]) and last_c[i] > 0}
+              if not np.isnan(last_c[i]) and last_c[i] > 0
+              and (members is None or tickers[i] in members)}
     dvols = {tickers[i]: float(last_v[i]) for i in range(len(tickers))
-             if not np.isnan(last_v[i]) and last_v[i] > 0}
+             if not np.isnan(last_v[i]) and last_v[i] > 0
+             and (members is None or tickers[i] in members)}
     if not prices:
         return {"ok": False, "reason": "no prices on target"}
     metrics = bl.compute_metrics(levels, prices, dvols)
@@ -253,20 +266,55 @@ _SWEEP_STATE: dict = {"status": "idle"}
 
 def sweep_history(from_date: str, to_date: Optional[str] = None,
                   tickers: Optional[list[str]] = None, window: int = 320,
-                  batch: int = 4000) -> dict:
+                  batch: int = 4000, universe: Optional[str] = None) -> dict:
     """Backfill close-basis breadth history for [from_date, to_date]: load the deep frame
     ONCE, recompute every session, write close-to-close BODIES to breadth_daily_ohlc
     (source 'close_recon'). Bounded memory (numpy frame) + batched writes. This is the
-    workhorse — heavy, so run it in a background thread (run_sweep_async)."""
+    workhorse — heavy, so run it in a background thread (run_sweep_async).
+
+    ⭐⭐ `universe` IS THE ONLY THING THAT CHANGES BETWEEN UNIVERSES. Pass `us`,
+    `nasdaq` or `nyse` and the frame comes from `breadth_pit_frame` — the
+    survivorship-free grouped-daily matrix with a per-date member set — instead of
+    today's UCT ticker list. Everything after that line is IDENTICAL: the same
+    `recompute_from_frame`, the same `bl.compute_metrics`, the same
+    `derive_live_row`, the same close-to-close body construction, the same store.
+    There is no `sweep_us`, and there must never be one: four algorithms that are
+    supposed to agree are four chances to disagree.
+
+    ⛔ THE PER-DATE MEMBER SET IS APPLIED THROUGH `prices`, NOT THROUGH A SECOND
+    METRIC PATH. `compute_metrics` masks on `have = ~isnan(px)` and `px` is filled
+    only from the `prices` dict, so handing it one date's eligible members
+    restricts every metric it computes to that universe without the metric engine
+    learning that universes exist.
+
+    ⚠️ Omitting `universe` keeps the EXACT pre-universe behaviour — today's UCT
+    list, written to `universe='uct'`. Existing callers are untouched.
+    """
     from datetime import date as _date, timedelta as _td
     from api.services import breadth_live as bl
     from api.services import breadth_daily_ohlc, breadth_monitor
-    if tickers is None:
-        tickers, _ = bl.universe()
-    if not tickers:
-        return {"ok": False, "reason": "no universe"}
-    since = (_date.fromisoformat(from_date) - _td(days=560)).isoformat()  # ~1.6yr warmup for 200MA/52w
-    frame = load_deep_frame(tickers, since=since)
+    from api.services import breadth_universes as bu
+
+    uni = bu.normalize(universe)
+    pit_frame = None
+    if bu.is_pit(uni):
+        if tickers is not None:
+            return {"ok": False, "reason": f"{uni} builds its own universe per date; "
+                                           "an explicit ticker list is not accepted"}
+        bu.sweepable_range(uni, from_date, to_date)
+        from api.services import breadth_pit_frame as bpf
+        to_date = to_date or from_date
+        pit_frame = bpf.build_frame(uni, from_date, to_date, warmup_days=560)
+        if not pit_frame.get("ok"):
+            return {"ok": False, "reason": pit_frame.get("reason", "pit frame failed")}
+        frame, tickers = pit_frame, pit_frame["tickers"]
+    else:
+        if tickers is None:
+            tickers, _ = bl.universe()
+        if not tickers:
+            return {"ok": False, "reason": "no universe"}
+        since = (_date.fromisoformat(from_date) - _td(days=560)).isoformat()  # ~1.6yr warmup for 200MA/52w
+        frame = load_deep_frame(tickers, since=since)
     dates = frame["dates"]
     to_date = to_date or (dates[-1] if dates else from_date)
     # Start the derived-metric buffer ~15 sessions before from_date so ratios/score aren't
@@ -278,8 +326,15 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
     recent: list = []          # full derived rows, NEWEST-FIRST (derive_live_row wants that)
     rows: list = []
     computed = written = 0
+    # ⚠️ A PIT universe has a member set ONLY for the dates it was asked to sweep;
+    # the warm-up sessions before `from_date` exist to seed `recent`, and
+    # `recompute_from_frame` falls back to every priced name for those. That is the
+    # right trade: the warm-up rows are never stored, and building eligibility for
+    # 560 extra sessions would double the frame's cost to refine numbers nobody reads.
+    members_of = (pit_frame or {}).get("eligible") or {}
     for ds in sweep:
-        r = recompute_from_frame(frame, tickers, ds, window)
+        r = recompute_from_frame(frame, tickers, ds, window,
+                                 members=members_of.get(ds))
         if not r.get("ok"):
             continue
         base = dict(r["metrics"])
@@ -308,11 +363,14 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         import time as _time
         _time.sleep(0.02)     # yield between recomputes so the web pod stays healthy
         if len(rows) >= batch:
-            written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
+            written += breadth_daily_ohlc.write_bulk(rows, source="close_recon", universe=uni)
             rows = []
     if rows:
-        written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
-    return {"ok": True, "from": from_date, "to": to_date, "sessions": computed, "rows": written,
+        written += breadth_daily_ohlc.write_bulk(rows, source="close_recon", universe=uni)
+    coverage = {d: c for d, c in ((pit_frame or {}).get("coverage") or {}).items()}
+    return {"ok": True, "universe": uni,
+            "from": from_date, "to": to_date, "sessions": computed, "rows": written,
+            "coverage": coverage,
             "frame_names": frame.get("names"),
             "first_date": sweep[0] if sweep else None, "last_date": sweep[-1] if sweep else None}
 

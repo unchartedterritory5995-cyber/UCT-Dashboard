@@ -1494,16 +1494,56 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     return out
 
 
+_GROUPED_OHLCV_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "grouped_ohlcv")
+
+
+def _num(v) -> Optional[float]:
+    return float(v) if isinstance(v, (int, float)) else None
+
+
 def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
-    """{TICKER: {"c": close, "v": volume}} for ONE date — whole US market in one call,
-    keeping VOLUME for the liquidity proxy (get_grouped_daily_closes drops it).
+    """{TICKER: {"o","h","l","c","v"}} for ONE date — whole US market in one call.
+
     adjusted=False → RAW point-in-time price (what a historical $-price floor means).
-    Cached in-memory per (date, adjusted). {} on a non-trading day / error. (Phase-2
-    survivorship-free universe.)"""
+    adjusted=True  → split-adjusted to the current basis, which is the ONLY correct
+    basis for a moving average or a 52-week extreme measured ACROSS a window: a raw
+    frame puts a pre-split and a post-split price in the same average.
+
+    ⭐ FULL OHLC, NOT JUST CLOSE + VOLUME. The endpoint has always carried `o/h/l`;
+    this dropped them, so the store could serve `pct_above_*sma` and nothing that
+    needs a bar's range — new highs/lows measured intraday, ATR extension,
+    high-volume closes. Keeping four more floats per row costs one JSON field each
+    and removes the need for a SECOND whole-market fetcher later. Rows missing a
+    field carry `None` rather than a substituted close: a metric that needs a high
+    must be able to tell "no high" from "the high equalled the close".
+
+    ⛔ THE DURABLE TIER IS WHAT MAKES AN 18-YEAR SWEEP POSSIBLE. A settled past
+    date's ~8,000 rows are IMMUTABLE, so the file is written once and read forever;
+    without it every worker restart mid-backfill re-pays thousands of whole-market
+    fetches. Mirrors `get_grouped_daily_closes`' two-tier shape exactly (same
+    settled-cutoff rule, same atomic replace) rather than inventing a second
+    caching idiom. A RECENT date could still be forming, so it gets the in-memory
+    tier only and is never written to disk.
+
+    {} on a non-trading day / error — and an empty result is never cached, so a
+    holiday miss can't pin.
+    """
+    import json as _json
     ck = f"grouped_ohlcv_{day_iso}_{1 if adjusted else 0}"
     cached = cache.get(ck)
     if cached is not None:
         return cached
+    settled = day_iso < _grouped_settled_cutoff()
+    fpath = os.path.join(_GROUPED_OHLCV_DIR, f"{day_iso}_{1 if adjusted else 0}.json")
+    if settled:
+        try:
+            with open(fpath) as fh:
+                m = _json.load(fh)
+            if m:
+                cache.set(ck, m, ttl=604800)
+                return m
+        except Exception:
+            pass
     try:
         client = _get_client()
         adj = "true" if adjusted else "false"
@@ -1514,12 +1554,23 @@ def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
         return {}
     out: dict[str, dict] = {}
     for r in (data.get("results") or []):
-        tk, c, v = r.get("T"), r.get("c"), r.get("v")
+        tk, c = r.get("T"), r.get("c")
         if tk and isinstance(c, (int, float)) and c > 0:
-            out[str(tk).upper()] = {"c": float(c),
-                                    "v": float(v) if isinstance(v, (int, float)) else 0.0}
+            out[str(tk).upper()] = {
+                "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
+                "c": float(c), "v": _num(r.get("v")) or 0.0,
+            }
     if out:
-        cache.set(ck, out, ttl=(604800 if day_iso < _grouped_settled_cutoff() else 900))
+        cache.set(ck, out, ttl=(604800 if settled else 900))
+        if settled:
+            try:
+                os.makedirs(_GROUPED_OHLCV_DIR, exist_ok=True)
+                tmp = fpath + ".tmp"
+                with open(tmp, "w") as fh:
+                    _json.dump(out, fh)
+                os.replace(tmp, fpath)
+            except Exception:
+                pass
     return out
 
 

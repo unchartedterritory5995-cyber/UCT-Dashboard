@@ -20,11 +20,14 @@ it never contends with the EOD snapshot writer.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import sqlite3
 import threading
 from typing import Optional
+
+from api.services.breadth_universes import DEFAULT_UNIVERSE, normalize as _uni
 
 _WRITE_LOCK = threading.Lock()
 
@@ -63,14 +66,16 @@ def _ensure_init() -> None:
             with _conn() as c:
                 c.execute(
                     """CREATE TABLE IF NOT EXISTS breadth_daily_ohlc (
+                        universe TEXT NOT NULL DEFAULT 'uct',  -- breadth_universes id
                         date    TEXT NOT NULL,   -- 'YYYY-MM-DD' (ET session)
                         metric  TEXT NOT NULL,   -- breadth metric key, e.g. pct_above_50sma
                         o REAL, h REAL, l REAL, c REAL,
                         source  TEXT DEFAULT 'live',   -- 'live' | 'reconstruct'
                         updated_at TEXT DEFAULT (datetime('now')),
-                        PRIMARY KEY (date, metric)
+                        PRIMARY KEY (universe, date, metric)
                     )"""
                 )
+                _migrate_universe_column(c)
                 # ⭐ THE MATERIALISED RECONSTRUCTED SIDE (Session 3). One row per
                 # reconstructed session, holding exactly what `closes_for_dates` +
                 # `values_asof` produce for it, so a deep window no longer assembles
@@ -100,7 +105,8 @@ def _ensure_init() -> None:
                 )
                 c.execute("CREATE INDEX IF NOT EXISTS idx_brd_watermark "
                           "ON breadth_reconstructed_daily(ohlc_watermark)")
-                c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_metric ON breadth_daily_ohlc(metric, date)")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_metric "
+                          "ON breadth_daily_ohlc(universe, metric, date)")
                 # ⭐ (c) + (d) of the reader ranking, in ONE index. Both hot deep-read
                 # queries filter on `source`, which nothing indexed: `distinct_dates`
                 # scanned the whole table for a DISTINCT, and `closes_for_dates` used
@@ -119,11 +125,54 @@ def _ensure_init() -> None:
                 # show, and D-045's rule stands: no local number is quoted as a
                 # production improvement. Cost: 8.6 MB of index, 135 ms to build once.
                 c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_source_date "
-                          "ON breadth_daily_ohlc(source, date, metric, c)")
+                          "ON breadth_daily_ohlc(universe, source, date, metric, c)")
             _INIT_DONE = True
         except Exception:
             # Leave uninitialized; callers are all best-effort and no-op on failure.
             pass
+
+
+def _migrate_universe_column(c) -> None:
+    """Widen `(date, metric)` to `(universe, date, metric)`, once, in place.
+
+    ⭐⭐ IT COPIES COLUMNS AND INVENTS NOTHING. Every pre-existing row becomes
+    `universe='uct'` and keeps its o/h/l/c/source/updated_at byte for byte — this
+    is a KEY widening, not a reinterpretation. The published UCT history (174,263
+    rows back to 2008-01-02) must read identically after this runs, and the only
+    way to promise that is to never touch a value.
+
+    ⛔ SQLite CANNOT ALTER A PRIMARY KEY, so `ADD COLUMN universe` alone would
+    leave the old `PRIMARY KEY (date, metric)` in force — and that key makes two
+    universes sharing a date and metric a CONFLICT. The second universe's rows
+    would silently overwrite the first's through the existing
+    `ON CONFLICT(...) DO UPDATE`, which is the worst available failure: no error,
+    right shape, wrong numbers. Hence the table rebuild.
+
+    Idempotent: the presence of the column IS the migration marker, so a restart
+    mid-way either finds the old table (and redoes the whole copy in one
+    transaction) or the new one (and does nothing). No separate version row to
+    drift from reality.
+    """
+    cols = {r[1] for r in c.execute("PRAGMA table_info(breadth_daily_ohlc)").fetchall()}
+    if "universe" in cols or not cols:
+        return
+    c.execute("""CREATE TABLE breadth_daily_ohlc__v2 (
+                    universe TEXT NOT NULL DEFAULT 'uct',
+                    date    TEXT NOT NULL,
+                    metric  TEXT NOT NULL,
+                    o REAL, h REAL, l REAL, c REAL,
+                    source  TEXT DEFAULT 'live',
+                    updated_at TEXT DEFAULT (datetime('now')),
+                    PRIMARY KEY (universe, date, metric)
+                 )""")
+    c.execute("""INSERT INTO breadth_daily_ohlc__v2
+                    (universe, date, metric, o, h, l, c, source, updated_at)
+                 SELECT 'uct', date, metric, o, h, l, c, source, updated_at
+                 FROM breadth_daily_ohlc""")
+    moved = c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc__v2").fetchone()[0]
+    c.execute("DROP TABLE breadth_daily_ohlc")
+    c.execute("ALTER TABLE breadth_daily_ohlc__v2 RENAME TO breadth_daily_ohlc")
+    logging.getLogger("breadth_daily_ohlc").info("[breadth_daily_ohlc] universe migration: %s rows -> universe='uct'", moved)
 
 
 def _finite(v) -> Optional[float]:
@@ -134,13 +183,15 @@ def _finite(v) -> Optional[float]:
         return None
 
 
-def update_intraday(session_date: str, metrics: dict) -> int:
+def update_intraday(session_date: str, metrics: dict,
+                    universe: str = DEFAULT_UNIVERSE) -> int:
     """Roll today's OHLC from one live sample. For each finite metric value: first sample
     of the day seeds o=h=l=c; later samples extend h/l and set c (o is frozen). LIVE rows
     never overwrite a 'reconstruct' row's open — but reconstruct only writes PAST days, so
     they never collide with today. Returns the number of metrics updated."""
     if not session_date or not isinstance(metrics, dict):
         return 0
+    u = _uni(universe)
     _ensure_init()
     rows = [(k, _finite(v)) for k, v in metrics.items()]
     rows = [(k, v) for (k, v) in rows if v is not None]
@@ -152,14 +203,16 @@ def update_intraday(session_date: str, metrics: dict) -> int:
             with _conn() as c:
                 for (metric, v) in rows:
                     cur = c.execute(
-                        "SELECT o, h, l FROM breadth_daily_ohlc WHERE date=? AND metric=?",
-                        (session_date, metric),
+                        "SELECT o, h, l FROM breadth_daily_ohlc "
+                        "WHERE universe=? AND date=? AND metric=?",
+                        (u, session_date, metric),
                     ).fetchone()
                     if cur is None:
                         c.execute(
-                            "INSERT INTO breadth_daily_ohlc(date, metric, o, h, l, c, source, updated_at) "
-                            "VALUES(?,?,?,?,?,?, 'live', datetime('now'))",
-                            (session_date, metric, v, v, v, v),
+                            "INSERT INTO breadth_daily_ohlc"
+                            "(universe, date, metric, o, h, l, c, source, updated_at) "
+                            "VALUES(?,?,?,?,?,?,?, 'live', datetime('now'))",
+                            (u, session_date, metric, v, v, v, v),
                         )
                     else:
                         o, h, l = cur
@@ -167,11 +220,11 @@ def update_intraday(session_date: str, metrics: dict) -> int:
                         nl = v if (l is None or v < l) else l
                         c.execute(
                             "UPDATE breadth_daily_ohlc SET h=?, l=?, c=?, updated_at=datetime('now') "
-                            "WHERE date=? AND metric=?",
-                            (nh, nl, v, session_date, metric),
+                            "WHERE universe=? AND date=? AND metric=?",
+                            (nh, nl, v, u, session_date, metric),
                         )
                     n += 1
-                if n:
+                if n and u == DEFAULT_UNIVERSE:
                     _rebuild_after_write(c, [session_date])
         except Exception:
             return 0
@@ -179,35 +232,39 @@ def update_intraday(session_date: str, metrics: dict) -> int:
 
 
 def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
-             source: str = "reconstruct", overwrite_live: bool = False) -> bool:
+             source: str = "reconstruct", overwrite_live: bool = False,
+             universe: str = DEFAULT_UNIVERSE) -> bool:
     """Write one metric's OHLC for one PAST day (reconstruction). By default will NOT
     clobber a row already written by the live accumulator (`overwrite_live=False`), so a
     re-run can't stomp real intraday data with an estimate."""
     o, h, l, c = (_finite(o), _finite(h), _finite(l), _finite(c))
     if None in (o, h, l, c) or not date or not metric:
         return False
+    u = _uni(universe)
     _ensure_init()
     with _WRITE_LOCK:
         try:
             with _conn() as conn:
                 if not overwrite_live:
                     ex = conn.execute(
-                        "SELECT source FROM breadth_daily_ohlc WHERE date=? AND metric=?",
-                        (date, metric),
+                        "SELECT source FROM breadth_daily_ohlc "
+                        "WHERE universe=? AND date=? AND metric=?",
+                        (u, date, metric),
                     ).fetchone()
                     if ex is not None and ex[0] == "live":
                         return False
                 conn.execute(
-                    "INSERT INTO breadth_daily_ohlc(date, metric, o, h, l, c, source, updated_at) "
-                    "VALUES(?,?,?,?,?,?,?, datetime('now')) "
-                    "ON CONFLICT(date, metric) DO UPDATE SET o=excluded.o, h=excluded.h, "
+                    "INSERT INTO breadth_daily_ohlc"
+                    "(universe, date, metric, o, h, l, c, source, updated_at) "
+                    "VALUES(?,?,?,?,?,?,?,?, datetime('now')) "
+                    "ON CONFLICT(universe, date, metric) DO UPDATE SET o=excluded.o, h=excluded.h, "
                     "l=excluded.l, c=excluded.c, source=excluded.source, updated_at=datetime('now')",
-                    (date, metric, o, h, l, c, source),
+                    (u, date, metric, o, h, l, c, source),
                 )
                 # ⚠️ Only a TRUSTED source can move the derivation. `set_ohlc`
                 # defaults to source='reconstruct', which `_TRUSTED_SOURCES` excludes
                 # — rebuilding on it would be work for a write the reader cannot see.
-                if source in _TRUSTED_SOURCES:
+                if source in _TRUSTED_SOURCES and u == DEFAULT_UNIVERSE:
                     _rebuild_after_write(conn, [date])
             return True
         except Exception:
@@ -221,10 +278,12 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
 _TRUSTED_SOURCES = ("live", "intraday_recon", "close_recon")
 
 
-def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False) -> int:
+def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,
+               universe: str = DEFAULT_UNIVERSE) -> int:
     """Bulk-write reconstructed rows in ONE transaction (a sweep does 100k+). `rows` =
     [(date, metric, o, h, l, c)]. By default never overwrites a real 'live' wick row.
     Returns the number written."""
+    u = _uni(universe)
     _ensure_init()
     clean = []
     for r in rows:
@@ -235,7 +294,7 @@ def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = F
         o, h, l, c = _finite(o), _finite(h), _finite(l), _finite(c)
         if None in (o, h, l, c) or not d or not m:
             continue
-        clean.append((d, m, o, h, l, c, source))
+        clean.append((u, d, m, o, h, l, c, source))
     if not clean:
         return 0
     n = 0
@@ -245,19 +304,21 @@ def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = F
                 if not overwrite_live:
                     # skip any (date,metric) already carrying a real 'live' row
                     live_keys = {(row[0], row[1]) for row in conn.execute(
-                        "SELECT date, metric FROM breadth_daily_ohlc WHERE source='live'"
+                        "SELECT date, metric FROM breadth_daily_ohlc "
+                        "WHERE universe=? AND source='live'", (u,)
                     ).fetchall()}
-                    clean = [r for r in clean if (r[0], r[1]) not in live_keys]
+                    clean = [r for r in clean if (r[1], r[2]) not in live_keys]
                 conn.executemany(
-                    "INSERT INTO breadth_daily_ohlc(date, metric, o, h, l, c, source, updated_at) "
-                    "VALUES(?,?,?,?,?,?,?, datetime('now')) "
-                    "ON CONFLICT(date, metric) DO UPDATE SET o=excluded.o, h=excluded.h, "
+                    "INSERT INTO breadth_daily_ohlc"
+                    "(universe, date, metric, o, h, l, c, source, updated_at) "
+                    "VALUES(?,?,?,?,?,?,?,?, datetime('now')) "
+                    "ON CONFLICT(universe, date, metric) DO UPDATE SET o=excluded.o, h=excluded.h, "
                     "l=excluded.l, c=excluded.c, source=excluded.source, updated_at=datetime('now')",
                     clean,
                 )
                 n = len(clean)
-                if n and source in _TRUSTED_SOURCES:
-                    _rebuild_after_write(conn, {r[0] for r in clean})
+                if n and source in _TRUSTED_SOURCES and u == DEFAULT_UNIVERSE:
+                    _rebuild_after_write(conn, {r[1] for r in clean})
         except Exception:
             return 0
     return n
@@ -321,8 +382,8 @@ def watermarks_for(c, dates) -> dict:
         dq = ",".join("?" * len(chunk))
         for (d, w) in c.execute(
             f"SELECT date, MAX(updated_at) FROM breadth_daily_ohlc "
-            f"WHERE date IN ({dq}) AND source IN ({qs}) GROUP BY date",
-            (*chunk, *_TRUSTED_SOURCES),
+            f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs}) GROUP BY date",
+            (DEFAULT_UNIVERSE, *chunk, *_TRUSTED_SOURCES),
         ).fetchall():
             out[d] = w
     return out
@@ -348,8 +409,8 @@ def derive_reconstructed(c, dates) -> dict:
         dq = ",".join("?" * len(chunk))
         for (d, m, cl) in c.execute(
             f"SELECT date, metric, c FROM breadth_daily_ohlc "
-            f"WHERE date IN ({dq}) AND source IN ({qs})",
-            (*chunk, *_TRUSTED_SOURCES),
+            f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs})",
+            (DEFAULT_UNIVERSE, *chunk, *_TRUSTED_SOURCES),
         ).fetchall():
             closes.setdefault(d, {})[m] = cl
     sent = _sentiment_for(ds)
@@ -437,7 +498,7 @@ def stale_reconstructed_dates(limit: int = 0, c=None) -> list:
             f"""SELECT o.date, MAX(o.updated_at) AS w, r.ohlc_watermark
                 FROM breadth_daily_ohlc o
                 LEFT JOIN breadth_reconstructed_daily r ON r.date = o.date
-                WHERE o.source IN ({qs})
+                WHERE o.universe = '{DEFAULT_UNIVERSE}' AND o.source IN ({qs})
                 GROUP BY o.date
                 HAVING r.ohlc_watermark IS NULL
                     OR r.ohlc_watermark <> MAX(o.updated_at)
@@ -485,7 +546,8 @@ def _rebuild_after_write(conn, dates) -> None:
         pass
 
 
-def history(metric: str, limit: int = 6000) -> dict:
+def history(metric: str, limit: int = 6000,
+            universe: str = DEFAULT_UNIVERSE) -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
     only. A breadth metric's true intraday high/low can only come from sampling the actual
     value through the day (the live accumulator); daily-bar 'reconstruct' rows assume every
@@ -500,8 +562,9 @@ def history(metric: str, limit: int = 6000) -> dict:
         with _conn() as c:
             for (d, o, h, l, cl) in c.execute(
                 f"SELECT date, o, h, l, c FROM breadth_daily_ohlc "
-                f"WHERE metric=? AND source IN ({qmarks}) ORDER BY date DESC LIMIT ?",
-                (metric, *_TRUSTED_SOURCES, int(limit)),
+                f"WHERE universe=? AND metric=? AND source IN ({qmarks}) "
+                f"ORDER BY date DESC LIMIT ?",
+                (_uni(universe), metric, *_TRUSTED_SOURCES, int(limit)),
             ).fetchall():
                 out[d] = {"o": o, "h": h, "l": l, "c": cl}
     except Exception:
@@ -509,7 +572,7 @@ def history(metric: str, limit: int = 6000) -> dict:
     return out
 
 
-def distinct_dates_by_scan() -> list:
+def distinct_dates_by_scan(universe: str = DEFAULT_UNIVERSE) -> list:
     """The original definition: DISTINCT over the OHLC table. Kept as the FALLBACK
     and as the parity reference — `test_the_materialised_date_set_equals_the_scan`
     compares the two on the real production copy."""
@@ -519,8 +582,8 @@ def distinct_dates_by_scan() -> list:
         with _conn() as c:
             return [r[0] for r in c.execute(
                 f"SELECT DISTINCT date FROM breadth_daily_ohlc "
-                f"WHERE source IN ({qmarks}) ORDER BY date ASC",
-                _TRUSTED_SOURCES,
+                f"WHERE universe=? AND source IN ({qmarks}) ORDER BY date ASC",
+                (_uni(universe), *_TRUSTED_SOURCES),
             ).fetchall()]
     except Exception:
         return []
@@ -562,7 +625,7 @@ def distinct_dates() -> list:
     return distinct_dates_by_scan()
 
 
-def closes_for_dates(dates) -> dict:
+def closes_for_dates(dates, universe: str = DEFAULT_UNIVERSE) -> dict:
     """{ 'YYYY-MM-DD': {metric: close} } for the given dates — TRUSTED sources
     only, the CLOSE value of each metric's daily body (the reconstructed EOD
     reading). This is how a past Monitor row is reassembled: every metric the
@@ -581,8 +644,8 @@ def closes_for_dates(dates) -> dict:
                 dq = ",".join("?" * len(chunk))
                 for (d, m, cl) in c.execute(
                     f"SELECT date, metric, c FROM breadth_daily_ohlc "
-                    f"WHERE date IN ({dq}) AND source IN ({qs})",
-                    (*chunk, *_TRUSTED_SOURCES),
+                    f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs})",
+                    (_uni(universe), *chunk, *_TRUSTED_SOURCES),
                 ).fetchall():
                     out.setdefault(d, {})[m] = cl
     except Exception:
@@ -590,7 +653,8 @@ def closes_for_dates(dates) -> dict:
     return out
 
 
-def metric_before(metric: str, before: str) -> dict:
+def metric_before(metric: str, before: str,
+                  universe: str = DEFAULT_UNIVERSE) -> dict:
     """{ 'YYYY-MM-DD': close } for one metric, every TRUSTED date strictly before
     `before`. Used to seed the cumulative A/D line for a deep window from the
     reconstructed history that precedes it."""
@@ -602,8 +666,8 @@ def metric_before(metric: str, before: str) -> dict:
         with _conn() as c:
             return {d: cl for (d, cl) in c.execute(
                 f"SELECT date, c FROM breadth_daily_ohlc "
-                f"WHERE metric=? AND date < ? AND source IN ({qmarks})",
-                (metric, before, *_TRUSTED_SOURCES),
+                f"WHERE universe=? AND metric=? AND date < ? AND source IN ({qmarks})",
+                (_uni(universe), metric, before, *_TRUSTED_SOURCES),
             ).fetchall()}
     except Exception:
         return {}
@@ -671,22 +735,41 @@ def purge_reconstructed() -> int:
     with _WRITE_LOCK:
         try:
             with _conn() as c:
-                cur = c.execute("DELETE FROM breadth_daily_ohlc WHERE source='reconstruct'")
+                cur = c.execute("DELETE FROM breadth_daily_ohlc "
+                                "WHERE universe=? AND source='reconstruct'",
+                                (DEFAULT_UNIVERSE,))
                 return cur.rowcount or 0
         except Exception:
             return 0
 
 
-def stats() -> dict:
-    """Coverage summary for the admin/status surface."""
+def stats(universe: str = DEFAULT_UNIVERSE) -> dict:
+    """Coverage summary for the admin/status surface.
+
+    ⚠️ SCOPED TO ONE UNIVERSE, defaulting to UCT — so `/api/breadth-monitor/ohlc/status`
+    keeps answering exactly what it answered before universes existed. A total across
+    universes would silently change `first` the day a PIT sweep lands a 2008 US row,
+    and `backfill_tick` reads `first` to decide where to sweep next.
+    `by_universe` carries the wider picture beside it rather than inside those keys.
+    """
     _ensure_init()
+    u = _uni(universe)
     try:
         with _conn() as c:
-            total = c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc").fetchone()[0]
-            days = c.execute("SELECT COUNT(DISTINCT date) FROM breadth_daily_ohlc").fetchone()[0]
-            live = c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc WHERE source='live'").fetchone()[0]
-            rng = c.execute("SELECT MIN(date), MAX(date) FROM breadth_daily_ohlc").fetchone()
+            total = c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc WHERE universe=?",
+                              (u,)).fetchone()[0]
+            days = c.execute("SELECT COUNT(DISTINCT date) FROM breadth_daily_ohlc "
+                             "WHERE universe=?", (u,)).fetchone()[0]
+            live = c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc "
+                             "WHERE universe=? AND source='live'", (u,)).fetchone()[0]
+            rng = c.execute("SELECT MIN(date), MAX(date) FROM breadth_daily_ohlc "
+                            "WHERE universe=?", (u,)).fetchone()
+            by_uni = {row[0]: {"rows": row[1], "first": row[2], "last": row[3]}
+                      for row in c.execute(
+                          "SELECT universe, COUNT(*), MIN(date), MAX(date) "
+                          "FROM breadth_daily_ohlc GROUP BY universe").fetchall()}
         return {"rows": total, "days": days, "live_rows": live,
-                "recon_rows": total - live, "first": rng[0], "last": rng[1]}
+                "recon_rows": total - live, "first": rng[0], "last": rng[1],
+                "universe": u, "by_universe": by_uni}
     except Exception:
         return {"rows": 0, "days": 0}
