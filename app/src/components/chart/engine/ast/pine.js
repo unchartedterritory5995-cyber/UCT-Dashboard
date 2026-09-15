@@ -11364,6 +11364,54 @@ export function translatePine(source, opts = {}) {
    *  exactly one question — `Resolver.guardOffsetOfMutable`'s — and it must be
    *  taken here rather than derived during resolution, because "is this binding
    *  the final one" is a fact about the PROGRAM and not about the read. */
+  // ─── ⭐⭐ R22b / d1′ — A CHART-ONLY CALL INSIDE A BLOCK IS NOTED TOO ───────
+  //
+  // ⚰️ MEASURED: `alert()` at TOP LEVEL has always been noted `pine:chart-only`
+  // (`alert` is in `CHART_ONLY_CALLS`), and the same call one indent deeper produced
+  // **nothing** — no output, no refusal, no note. So did `bgcolor`, `plotshape` and
+  // the other four. The member wrote a line and the engine said nothing about it,
+  // which is the silence R22 rules is a defect.
+  //
+  // ⛔⛔ THIS PASS IS READ-ONLY AND THAT IS THE WHOLE OF ITS SAFETY (R22b). It reads
+  // `stmts` and pushes notes. It touches no binding, creates none, reads none through
+  // `env`, calls no resolver, and moves no refusal — so `refusals.length`, the refusal
+  // codes IN ORDER, and the output count are byte-identical with and without it, which
+  // the acceptance asserts on every specimen rather than taking on trust.
+  //
+  // ⭐ IT RUNS AFTER THE WALK, BESIDE IT, over the same `stmts` array — never inside
+  // it. The block walk is where TWO members of the read/overwrite ordering class live
+  // (`foldStatements` never learned destructures; every outer `var` a branch assigned
+  // went opaque as `pine:reassign`), and a note pass reaching into that machinery would
+  // be re-entering a defect class this programme has already paid for twice.
+  //
+  // ⭐ `sub` IS THE BLOCK TREE and it nests to arbitrary depth, so the recursion needs
+  // no depth limit of its own beyond the structure. Recursion starts at each top-level
+  // statement's `sub`, so a top-level call is never re-noted — and a line:column dedup
+  // sits behind that as belt and braces, because "exactly one note per call site" is
+  // the property a member actually experiences.
+  {
+    const seen = new Set()
+    for (const n of notes) {
+      if ((n.code || n.guard) === 'pine:chart-only') seen.add(`${n.line}:${n.column}`)
+    }
+    const visitNested = (list) => {
+      for (const s of (list || [])) {
+        const h = s.header || []
+        if (h[0] && h[0].kind === 'ident' && CHART_ONLY_CALLS.has(h[0].value)
+            && isPunct(h[1], '(')) {
+          const at = locate(h[0])
+          const key = at ? `${at.line}:${at.column}` : null
+          if (key && !seen.has(key)) {
+            seen.add(key)
+            notes.push(noteOf('pine:chart-only', chartOnlyNote(h[0].value), h[0]))
+          }
+        }
+        visitNested(s.sub)
+      }
+    }
+    for (const s of stmts) visitNested(s.sub)
+  }
+
   const finalBindings = new Map(env)
 
   /** ⭐ EVERY HANDLE `fill()` JOINS — the author's own statement that a plot is a

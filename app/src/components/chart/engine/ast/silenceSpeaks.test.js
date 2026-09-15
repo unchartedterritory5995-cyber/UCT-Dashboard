@@ -80,7 +80,7 @@ describe('R22 / d1 — the two silences speak', () => {
   // ⛔ That is a bigger change than the ruling priced: it reaches the block walk, the
   // same machinery whose two readers disagreeing is recorded at `destructureBindings`.
   // Left RED and unbuilt rather than half-landed.
-  it.fails('⭐⭐ a chart-only call INSIDE A BLOCK is noted, as it is at top level', () => {
+  it('⭐⭐ a chart-only call INSIDE A BLOCK is noted, as it is at top level', () => {
     const inBlock = 'indicator("x")\nif close > open\n'
       + '    alert("boom", alert.freq_once_per_bar)\nplot(close)\n'
     const t = translatePine(inBlock, {})
@@ -108,6 +108,16 @@ describe('R22 / d1 — the two silences speak', () => {
       + '    plotshape(close > open)\nplot(close)\n',
     'alert in nested if': 'indicator("x")\nif close > open\n    if high > low\n'
       + '        alert("deep", alert.freq_once_per_bar)\nplot(close)\n',
+    // ⭐⭐ THE SPECIMEN THAT MAKES R22b's CONSTRAINT EXERCISABLE. The four above
+    // bind no names, so a pass that reached into binding machinery would perturb
+    // nothing measurable on them and the byte-identical controls would pass a pass
+    // that broke the rule. ⚰️ Found by the mutation proof: forcing a binding opaque
+    // inside the pass left 14/14 green, because `close` is a builtin and there was
+    // no binding to touch. This one BINDS `v` and PLOTS it, so a pass that stepped
+    // on a binding moves the refusals and the controls see it.
+    'bgcolor in if, with a binding read by the plot':
+      'indicator("x")\nv = ta.sma(close, 14)\nif close > open\n'
+      + '    bgcolor(color.red)\nplot(v)\n',
   }
 
   /** Measured BEFORE d1′, so the controls pin real numbers rather than assumed ones. */
@@ -132,11 +142,18 @@ describe('R22 / d1 — the two silences speak', () => {
   })
 
   for (const [label, src] of Object.entries(NESTED)) {
-    it.fails(`⭐⭐ d1′ — ${label} is NOTED at its own line`, () => {
+    it(`⭐⭐ d1′ — ${label} is NOTED at its own line`, () => {
       const t = translatePine(src, {})
       const n = notesOf(t, 'pine:chart-only')
       expect(n.length, `${label}: still dropped without a word`).toBeGreaterThan(0)
-      const callLine = src.split('\n').findIndex((l) => /^\s{4,}\w/.test(l)) + 1
+      // ⚰️ v1 took "the first line indented 4+" as the call line. On the
+      // doubly-nested specimen that is the inner `if` (line 3), not the `alert`
+      // (line 4) — so it demanded a note one line above the call and reported the
+      // pass wrong when the pass was right. The line is found by the CALL now.
+      const CHART_ONLY = /^\s+(plotshape|plotchar|bgcolor|barcolor|fill|hline|alert)\s*\(/
+      const callLine = src.split('\n').findIndex((l) => CHART_ONLY.test(l)) + 1
+      expect(callLine, `${label}: the fixture has no indented chart-only call`)
+        .toBeGreaterThan(0)
       expect(n.map((x) => x.line)).toContain(callLine)
     })
   }
@@ -155,12 +172,26 @@ describe('R22 / d1 — the two silences speak', () => {
     }
   })
 
-  it('⛔⛔ CONTROL — DEDUP: a top-level call gets exactly ONE note, never two', () => {
-    // The pass must not re-note what the top-level walk already noted.
+  it('⛔⛔ CONTROL — DEDUP: every call site gets exactly ONE note, never two', () => {
+    // ⚰️ v1 of this control pinned only the TOP-LEVEL call — which the nested pass
+    // never visits, so defeating the dedup left it green. The mutation proof caught
+    // it (clear `seen`, walk twice: 14/14 still passed), which is precisely what a
+    // mutation proof is for. It now pins EVERY site, nested included, and that is
+    // where a double emit actually lands.
     const top = 'indicator("x")\nalert("boom", alert.freq_once_per_bar)\nplot(close)\n'
-    const n = notesOf(translatePine(top, {}), 'pine:chart-only')
-    expect(n.filter((x) => x.line === 2).length,
+    const topNotes = notesOf(translatePine(top, {}), 'pine:chart-only')
+    expect(topNotes.filter((x) => x.line === 2).length,
       'the top-level alert() is noted more than once').toBe(1)
+
+    for (const [label, src] of Object.entries(NESTED)) {
+      const n = notesOf(translatePine(src, {}), 'pine:chart-only')
+      const perLine = new Map()
+      for (const x of n) perLine.set(x.line, (perLine.get(x.line) || 0) + 1)
+      for (const [line, count] of perLine) {
+        expect(count, `${label}: line ${line} is noted ${count} times, not once`).toBe(1)
+      }
+      expect(n.length, `${label}: expected exactly one nested note`).toBe(1)
+    }
   })
 
   it('⛔ CONTROL — at TOP LEVEL it is already noted, and that must not move', () => {
