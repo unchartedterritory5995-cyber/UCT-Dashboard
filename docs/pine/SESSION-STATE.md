@@ -2,7 +2,28 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **(c)'s IR half — SCOPING ONLY. Not started.**
+> ### ⛔ NEXT: **item (d) — `alertSets`, census.** (c) is as closed as it can be.
+>
+> ✅ **(c)'s definition-lane half CLOSED (R18).** ⛔ **Its IR half is
+> BLOCKED-BY-ITS-OWN-GAP** and **no estimate is offered**: `EXPR.TUPLE` is declared
+> in the IR vocabulary and **lowered nowhere** (`STMT.FOR`, `STMT.WHILE`,
+> `EXPR.TUPLE`, `EXPR.ARRAY_OP` have **zero** mentions across `lower.js`,
+> `lowerIr.js`, `vm.js`). Scoping it means scoping the IR lowering programme,
+> which is wave-sized and not (c)'s to answer.
+>
+> ⛔⛔ **R18 did NOT reach the IR lane** — measured by byte-exact swap against
+> `a63e90c75~1`, every case identical before and after. The IR refuses the
+> destructure *before* the slot model applies, **including the UDF form the
+> definition lane has always carried**.
+>
+> ⚰️ **And item (c)'s own line is measured FALSE as stated:** *"closing the tuple
+> form is what lets D2 be revisited at all"*. `uncharted-volume-v2` refuses
+> `runtime:statement@249` — neither text nor tuple, and **two lines before** the
+> tuple at 251. The recorded `runtime:tuple@v2:251` is **stale** and not R18's
+> doing. Opened as **H.6** for the owner; the line is corrected in place once ruled.
+>
+> ⛔ The **56 `for` bounds** and **5 `input.time` defaults** routed to the IR lane
+> have **no IR path at all** today — R20's qualification understates it.
 >
 > ✅ **R18 LANDED** (`e97a1d1c3` red → `a63e90c75`): a security tuple is a vector of
 > slots. **(c)'s definition-lane half is CLOSED.** Re-baseline **374 files / 7,486

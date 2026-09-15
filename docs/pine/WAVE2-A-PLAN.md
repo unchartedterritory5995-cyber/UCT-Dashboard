@@ -1443,8 +1443,88 @@ for `request.security` and nothing else, and a control now asserts that boundary
 3. **ROUTED AND QUALIFIED** — R16's 10 bare-`input` uses already delivered and
    honoured; the 56 series-dependent `for` bounds and 5 `input.time` expression
    defaults carry D2's limit in place (R20).
-4. **PENDING** — (c)'s **IR half**, unscoped; H.4; H.5; the Wave 1 PR; the vendor
-   capture.
+4. **PENDING** — (c)'s **IR half**: see below; H.4; H.5; H.6; the Wave 1 PR; the
+   vendor capture.
+
+## ⛔ (c)'s IR HALF — **BLOCKED BY ITS OWN GAP**, and the gap is bigger than the tuple
+
+**Scoped 2026-09-15, measured, not proposed. Nothing built.**
+
+### 1.1 — what `buildRuntimeIr` does today
+
+⭐ **The IR's own vocabulary** (`runtime/ir.js`) is `STMT.{DECLARE, ASSIGN, IF, EMIT,
+EXPR}` and `EXPR.{NUM, SERIES, COLUMN, READ, HIST, BINARY, UNARY, TERNARY, CALL,
+BUILTIN, WINDOW, CARRIED}` — **not `NODE_TYPES`**. Beneath them sits a second list the
+file labels ***"declared, not yet lowerable"***: `STMT.{FOR, WHILE, BREAK, CONTINUE,
+FUNC, RETURN}` and `EXPR.{TUPLE, ARRAY_OP, OBJECT_OP}`.
+
+| case | IR lane |
+|---|---|
+| array-literal tuple | ⛔ `runtime:tuple@2` — *"a tuple — the runtime has no multiple-value form yet"* |
+| sibling-reader (synthetic) | ⛔ `runtime:tuple@2` — same |
+| **UDF tuple** (which the definition lane carries) | ⛔ `runtime:tuple@4` — **same** |
+| plain scalar `request.security` | ✅ `ok=true` |
+| R18 specimen 1 | ⛔ `runtime:tuple@15` |
+| R18 specimen 2 | ⛔ `pine:text-value@26` — an earlier gap |
+| R18 specimen 3 | ⛔ `pine:colour-value@39` — an earlier gap |
+| library tuple (`volatility-stop-mtf`) | ⛔ `runtime:declaration@15` — `import`; a library script |
+| `uncharted-volume-v2` | ⛔ `runtime:statement@249` |
+
+⛔⛔ **R18 CHANGED NOTHING HERE, AND THAT IS MEASURED, NOT ASSUMED.** The same probe was
+run against `a63e90c75~1` by byte-exact swap and restored (`sha256 99976bd7`): **every
+row is identical before and after**. The definition lane's slot model does not reach
+the IR lane, because the IR lane refuses the destructure *before* any of it applies —
+including the UDF form the definition lane has carried since before R18.
+
+**And `EXPR.TUPLE` is lowered nowhere:** `STMT.FOR`, `STMT.WHILE`, `EXPR.TUPLE` and
+`EXPR.ARRAY_OP` have **zero** mentions across `lower.js`, `lowerIr.js` and `vm.js`.
+Declared in the vocabulary, absent from every consumer.
+
+### 1.2 — ⚰️ THE DEFERRAL'S STATED PRECONDITION IS MEASURED **FALSE AS STATED**
+
+Two sites name what D2 waits on, and they do not agree:
+
+> **`paneGate.js`:** *"the IR lane stays as it is **until session 3's text layer**"*
+> **item (c)'s own plan line:** *"**Closing the tuple form is what lets D2 be
+> revisited at all.**"*
+
+⛔ **Neither is sufficient, and the measurement says so.** `uncharted-volume-v2` — the
+script both sentences are about — refuses `runtime:statement@249`, which is **neither**
+the text layer nor a tuple, and sits **two lines before** the tuple at 251. Closing the
+tuple form alone would move v2 not at all.
+
+⚠️ **AND THE RECORD IS STALE.** Item (c)'s line says the IR refuses *"`runtime:tuple` at
+`v2:251`"*. Measured today it refuses `runtime:statement@249` — the first refusal moved
+earlier at some point on this branch, and **not because of R18** (identical before and
+after). A refusal relocates and never joins, so the tuple at 251 is simply hidden behind
+it.
+
+**The capability D2 actually waits on is therefore larger than either sentence:** the
+IR lane must lower `EXPR.TUPLE`, **and** reach past `runtime:statement`, `pine:text-value`
+and `pine:colour-value` on the very scripts the pane is for.
+
+### 1.3 — the routed population has no IR path either
+
+⛔ The IR lane **does not carry a series-sized array today**: `STMT.FOR`, `STMT.WHILE`
+and `EXPR.ARRAY_OP` are declared and lowered nowhere. So the **56 series-dependent `for`
+bounds** and the **5 `input.time` expression defaults** routed to *"the IR lane's, item
+(c)"* have **no IR path at all** — R20's qualification (*"while ruling D2 stands the IR
+lane does not reach a pane"*) understates it: today the IR lane could not compute them
+even off-pane.
+
+### 1.4 — OUTCOME: **BLOCKED-BY-ITS-OWN-GAP**
+
+**(c)'s definition-lane half stays CLOSED** (R18). The IR half is **owed**, with the gap
+named: `EXPR.TUPLE` declared and unlowered, plus at least three earlier refusals on the
+member scripts. ⛔ **No estimate is offered**, because the gap is not one capability —
+scoping it means scoping the IR lowering programme itself, which is a wave-sized
+question and not item (c)'s to answer alone.
+
+⛔ **H.6 — OWNER QUESTION, OPEN:** item (c)'s plan line asserts a precondition for
+revisiting **D2** that measurement contradicts. Does D2's revisit wait on the tuple form
+(false as stated), on session 3's text layer (`paneGate.js`), or on the IR lowering
+programme as a whole (what the evidence shows)? **The line should be corrected in place
+once ruled.**
 
 ---
 
