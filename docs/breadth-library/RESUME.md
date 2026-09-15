@@ -8,7 +8,7 @@
 **CURRENT PHASE** Phase 5 complete (master reconciled · BL-008 implemented ·
 catalog + discovery · chart-data seam · cache isolation). **STATUS: complete, local, unpushed.**
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
-**HEAD** `efd814f5f` · **WORKING TREE** clean
+**HEAD** `5bc4aedd6` · **WORKING TREE** clean
 **STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `1ceb3c5c2` (merge `cc57099ca`)
 **BASELINE WORKTREE** `C:\b3` (detached at `5e88b38c4`, built)
 
