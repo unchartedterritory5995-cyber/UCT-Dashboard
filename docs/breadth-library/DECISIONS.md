@@ -632,3 +632,109 @@ delisted names participate at 41.7 % / 44.9 %, determinism and idempotency pass,
 missing-RAW refusal works and heals, cache reuse works, and 704 requests produced zero
 failures. **A50 at 2015-03-10 = 47.20, against a 47.23 reference.** None of that is in
 doubt; the arithmetic at chunk boundaries is.
+
+---
+
+### BL-022 · BL-021 RESOLVED — the smallest correct state, and why it was small
+
+**The invariant, now enforced:** `VALUE(metric, universe, D)` depends on canonical
+historical inputs and nothing else — not chunk size, not sweep start, not a restart, not
+a resume boundary, not a forward-seal tick.
+
+#### The audit that chose the design
+
+`ratio_5day` and `ratio_10day` are, exactly:
+
+    sum(up_4pct_today over the last 5 / 10 rows) / sum(down_4pct_today over the same)
+
+…read off `derive_live_row`'s `recent` buffer. So the **minimum canonical state** a
+chunk boundary must carry is two scalars per session for the previous 4 (R5) or 9 (R10)
+sessions. Nothing else. No frames, no reference map, no membership — *after* those
+primitives exist.
+
+Three designs were on the table:
+
+| design | verdict |
+|---|---|
+| **give the warm sessions their own member set** | ⭐ CHOSEN |
+| read the prior primitives from the durable store | ⛔ wrong direction — the grind walks BACKWARD, so at the start of chunk *N+1* the store holds dates *after* it, never before. It would fix the forward seal and leave the grind broken |
+| carry `recent` across calls in memory | ⛔ dies with the process; makes resume correctness depend on not restarting, which is the defect wearing a hat |
+
+⛔ **THE COST OBJECTION WAS ABOUT THE WRONG NUMBER.** The old comment read: *"building
+eligibility for 560 extra sessions would double the frame's cost to refine numbers
+nobody reads."* Two clauses true, one false — R5 and R10 are stored, are in V1, and ARE
+those numbers. And it was never 560 sessions: the 560-day span is the frame's
+**per-ticker** warm-up (200-day averages, 52-week extremes), which is the same number
+whoever else is in the universe and needs no membership at all. The rolling metrics need
+`WARM_SESSIONS` — **fifteen**.
+
+Measured cost over a full US grind: **~195 extra raw frames on ~9,185, about 2 %.**
+
+#### Defect B — OHLC continuity
+
+`_seed_carry_in` carries the last warm row into `prev`, so the first stored bar of an
+invocation opens at the previous session's close.
+
+⚠️ **A genuinely first date still opens at its own close**, and that is correct rather
+than a fallback: with no earlier session there is no prior close to open at. What
+changed is that the DATA decides it — does a warm session exist? — instead of where the
+loop began. "The first date of the series" and "the first date of this function call"
+are no longer the same thing.
+
+#### Proven on real provider data — every acceptance count zero
+
+US 2015-03-02 … 2015-06-30, 85 sessions, 3,315 rows, computed five ways:
+
+| | R5 mismatches | R10 | O/H/L/C |
+|---|---|---|---|
+| two chunks vs one sweep | **0** | **0** | **0** |
+| four chunks | **0** | **0** | **0** |
+| 85 one-date invocations (the forward-seal shape) | **0** | **0** | **0** |
+| interrupted + resumed | **0** | **0** | **0** |
+
+Boundary body at 2015-04-30: open **55.7** = prior close **55.7** (the old doji would
+have been 43.9). Non-stateful controls unmoved: A50 at 2015-03-10 still **47.20**, NETHL
+13 / −99 / −7, and `NETHL == NH − NL` with 0 violations over all 85 sessions.
+
+⚰️ **Both bite-checks bite.** `_seed_carry_in` is a named function precisely so a rail
+can disable it, and the offline fixture's eligible and whole-market populations differ
+3.3× because a fixture where they coincide passes against the broken code. Restore
+either old behaviour and the rails go red — verified.
+
+---
+
+### BL-023 · A provider failure is not a holiday
+
+`get_grouped_daily_ohlcv` wraps everything in `except Exception: return {}` — the right
+contract for a chart, the wrong one for a sweep, because it collapses three answers into
+one empty dict: the market was closed, the provider rate-limited us, the request timed
+out.
+
+⭐ **The fix is at the transport.** `get_grouped_daily_frame` returns `{rows, empty}` or
+raises `GroupedFrameError`. Once a failure RAISES, an empty frame genuinely means "the
+provider answered and there were no rows" — and the holiday question becomes safe to
+ask. The old function is untouched for its existing callers.
+
+It reuses `_typed_get` and the existing `Massive*` vendor error family rather than
+inventing an error model. Retries are **bounded (3), serial, 1/4/10 s** — a grind that
+answers throttling with more concurrency is how a shared API key gets exhausted for
+every other consumer on the pod. Rate-limited and transient retry; **auth and
+not-configured never do**; a 404 is a CLOSURE.
+
+⛔ **The cache cannot learn a lie.** A failure writes nothing, so a 429 can never be
+cached as "this date has zero securities" for the durable tier's seven-day TTL. A
+CONFIRMED closure IS durable — a `.closed` marker written only when the provider
+answered successfully with no rows on a settled date. Without it every replay re-asks
+about Thanksgiving 2013, and an offline replay cannot run at all.
+
+**RAW and ADJUSTED are atomic for a session.** The adjusted half failing now refuses the
+chunk exactly as the raw half does — it never did, so a dropped adjusted frame removed
+the session from `dates` and the sweep simply never computed it, with `max_gap` noticing
+only after twelve in a row. The refusal names the two causes apart, because "the
+provider errored" and "the provider answered with nothing on a day the market traded"
+are both refusals and are not the same incident.
+
+Verified live: **33 closure markers written, 22 frames fetched, 0 failures**, and every
+marker a genuine holiday. 14 offline rails cover all three states, the retry that
+recovers, the retry that exhausts, the permanent failures that are never retried, the
+malformed body, the poisoning case, the durable closure, and both walker refusals.

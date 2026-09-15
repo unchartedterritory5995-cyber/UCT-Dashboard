@@ -5,10 +5,10 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 11 — US DATA GATE, provider-backed: **NO-GO.** The provider
-path PASSED; `sweep_history` did not — BL-021, two chunk-boundary defects that corrupt
-`ratio_5day` / `ratio_10day` and every first-bar body. Phase 10 was blocked on provider
-access and is superseded. Phase 9 complete —
+**CURRENT PHASE** Phase 12 — BL-021 FIXED and the gate re-run: **GO FOR THE US
+HISTORICAL GRIND.** Every acceptance count is zero across one sweep / two chunks / four
+chunks / 85 one-date forward-seal invocations / interrupted+resumed. Phase 11 found the
+blocker; Phase 10 was blocked on provider access. Phase 9 complete —
 THE DARK PRODUCTION FOUNDATION is implemented:
 one publication gate, V1 as metadata, the daily forward seal, participation-only
 warming, and health. **STATUS: working local code. Nothing published, nothing ground,
@@ -1021,3 +1021,67 @@ Railway volume, no R2 write.
 eligibility contract, the values, the survivorship property, determinism, idempotency,
 the missing-RAW refusal, cache reuse and throughput are all proven and will not need
 re-proving from scratch — only the resume convergence and the two ratios.
+
+---
+
+## Phase 12 — BL-021 FIXED, gate re-run (2026-09-15) · **GO**
+
+**Branch** `feat/breadth-pit-foundation` · `1f5651c3e` → see below ·
+`origin/master` `d25a69b86` · tree clean.
+
+### What changed — BL-022 and BL-023
+
+| | |
+|---|---|
+| `breadth_pit_frame.WARM_SESSIONS = 15` | the rolling metrics' warm window, defined ONCE |
+| `build_frame` | resolves membership for those 15 sessions too; a warm date with no RAW frame refuses the chunk like any other |
+| `sweep_history` | imports the length rather than typing 15; `_seed_carry_in` carries the last warm row into `prev` |
+| `massive.get_grouped_daily_frame` | tri-state — rows / confirmed closure / `GroupedFrameError`; bounded serial retry 1-4-10 s |
+| `.closed` markers | a confirmed closure is durable; a failure never is |
+| `_sessions` / `build_frame` | the ADJUSTED half refuses too; RAW+ADJUSTED atomic per session |
+
+⛔ **The cost objection was about the wrong number.** The 560-day span is the frame's
+PER-TICKER warm-up and needs no membership; the rolling metrics need fifteen sessions.
+**~195 extra raw frames on ~9,185 — about 2 %.**
+
+### The acceptance run — real provider, corrected pipeline
+
+US 2015-03-02 … 2015-06-30 · 85 sessions · 3,315 rows · computed five ways:
+
+| | R5 | R10 | O/H/L/C |
+|---|---|---|---|
+| two chunks vs one sweep | **0** | **0** | **0** |
+| four chunks | **0** | **0** | **0** |
+| **85 one-date invocations** (the forward-seal shape) | **0** | **0** | **0** |
+| interrupted + resumed | **0** | **0** | **0** |
+
+Boundary body 2015-04-30: open **55.7** = prior close **55.7** (the doji would have been
+43.9). Controls unmoved: **A50 2015-03-10 = 47.20**, NETHL **13 / −99 / −7**, and
+`NETHL == NH − NL` with **0 violations** across all 85 sessions. Provider: 3 requests,
+40,280 cache hits, 1,433 confirmed closures, **0 failures**. UCT rows in all seven
+isolated stores: **0**.
+
+### Tests
+
+| | |
+|---|---|
+| `tests/test_breadth_chunk_invariance.py` | **9** — one/two/four chunks, 30 one-date invocations, R5, R10, full OHLC, the boundary open, the true-first date, and **both bite-checks** |
+| `tests/test_grouped_frame_failure_semantics.py` | **14** — three states, retry-recovers, retry-exhausts, permanent-never-retried, malformed body, cache poisoning, durable closure, both walker refusals |
+| backend `-k breadth` | **721 passed**, 12 skipped, 0 failed |
+| backend `-k "breadth or grouped or massive"` | **869 passed**, 1 failed |
+| ↳ that 1 | `test_massive_ws_stop` — reproduced with these changes STASHED; pre-existing, websocket worker, unrelated |
+| frontend | not run — no frontend code changed |
+
+### Grind estimate — unchanged
+
+~9,380 frames (9,185 + ~195 warm) × 0.31 s ≈ **48 min fetch** + ~28 min compute ≈
+**1.3 h**. Closure markers remove the repeated re-asking of holidays.
+
+### EXACT NEXT STEP
+
+**Authorise the US 2008 → present historical grind.** Nothing else is outstanding: the
+provider path, the eligibility contract, membership, survivorship, the values, chunk
+invariance, resume, forward-seal equivalence, the missing-RAW refusal, the
+failure/closure distinction, cache reuse, throughput and UCT parity are all proven on
+real data. The grind writes to an isolated artifact; publication stays a separate flag
+and a separate decision.
