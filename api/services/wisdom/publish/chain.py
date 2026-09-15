@@ -70,6 +70,11 @@ DAILY: tuple = (
     Step("adapters", "publish", (("api.services.wisdom.publish.adapters", "run_daily"),)),
     Step("level_alerts", "publish", (("api.services.wisdom.publish.level_alerts", "score_silently"),)),
     Step("lookalike", "publish", (("api.services.wisdom.publish.lookalike", "score_silently"),)),
+    # Wave 1.5 item 2. ⛔ BEFORE publication_floor, and the order is load-bearing: the floor reads
+    # `stability` and `stability_runs`, so a reconciliation that ran AFTER it would leave the floor
+    # judging yesterday's scores — every record blocked on a NULL the reconciler had just filled in.
+    # A no-op until MIN_RUNS compatible runs are persisted, which is the state on a fresh box.
+    Step("reconcile_stability", "extract", (("api.services.wisdom.extract.reconcile", "score_silently"),)),
     # ⛔⛔ Item 3's SECOND half, and it is not optional. The four filter sites BLOCK a below-floor
     # PRINCIPLE or MARKET_SIGNAL; this is what makes one SURFACE. The owner's rule is "2/3 may
     # surface only in the admin review queue", and the queue is NOT upstream of the Brain KB,
