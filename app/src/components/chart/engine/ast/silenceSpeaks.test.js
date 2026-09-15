@@ -61,15 +61,43 @@ describe('R22 / d1 — the two silences speak', () => {
     expect((translatePine(EXPR_MSG, {}).outputs || []).length).toBeGreaterThan(0)
   })
 
-  it.fails('⭐⭐ `alert()` is NOTED at its line — and the plots survive', () => {
-    const t = translatePine(read(ALERT_AND_PLOTS), {})
-    const n = notesOf(t, 'pine:runtime-only')
-    expect(n.length, '`alert()` is still dropped without a word').toBeGreaterThan(0)
-    expect(String(n[0].message)).toMatch(/alert/)
-    // ⭐ the doctrine, reused by reference — the same sentence `chartOnlyNote` carries
+  // ⚰️⚰️ R22's d1 PREMISE IS CORRECTED HERE BY MEASUREMENT, BEFORE ANY CODE MOVED.
+  // The ruling said *"`alert()` is dropped whole — 191 uses, 46 files: ok=true, no
+  // output, no refusal, no note"*, and the census that produced it counted call sites
+  // without asking WHERE they sit. Measured through the door:
+  //
+  //     alert()  at TOP LEVEL   -> pine:chart-only@2   ✅ already noted, correctly
+  //     alert()  inside an `if` -> (no note)           ⛔ the real gap
+  //     bgcolor  inside an `if` -> (no note)           ⛔ same gap
+  //     bgcolor/fill at top     -> pine:chart-only     ✅
+  //
+  // ⭐ `alert` IS ALREADY IN `CHART_ONLY_CALLS` (`pine.js` ≈1785) alongside
+  // `plotshape`, `plotchar`, `bgcolor`, `barcolor`, `fill` and `hline`. So d1 needs
+  // **no new note code** — `pine:runtime-only` is withdrawn, `pine:chart-only` is the
+  // right one and already exists — and the defect is not about `alert` at all:
+  // **a chart-only call inside a BLOCK is noted nowhere, for the whole set.**
+  //
+  // ⛔ That is a bigger change than the ruling priced: it reaches the block walk, the
+  // same machinery whose two readers disagreeing is recorded at `destructureBindings`.
+  // Left RED and unbuilt rather than half-landed.
+  it.fails('⭐⭐ a chart-only call INSIDE A BLOCK is noted, as it is at top level', () => {
+    const inBlock = 'indicator("x")\nif close > open\n'
+      + '    alert("boom", alert.freq_once_per_bar)\nplot(close)\n'
+    const t = translatePine(inBlock, {})
+    const n = notesOf(t, 'pine:chart-only')
+    expect(n.length, 'a chart-only call inside a block is still dropped without a word')
+      .toBeGreaterThan(0)
+    expect(n[0].line, 'the note must sit at the call\'s own line').toBe(3)
+  })
+
+  it('⛔ CONTROL — at TOP LEVEL it is already noted, and that must not move', () => {
+    // ⭐ The half that already works, pinned so d1 cannot "fix" it into existence
+    // twice or break it while reaching the block case.
+    const top = 'indicator("x")\nalert("boom", alert.freq_once_per_bar)\nplot(close)\n'
+    const n = notesOf(translatePine(top, {}), 'pine:chart-only')
+    expect(n.map((x) => x.line)).toEqual([2])
     expect(String(n[0].message))
       .toContain('reads plot() and alertcondition() and nothing else')
-    expect(n[0].line, 'the note must sit at the alert() line').toBeGreaterThan(0)
   })
 
   it.fails('⭐⭐ a message the engine cannot carry is NOTED, naming its shape', () => {
@@ -98,15 +126,20 @@ describe('R22 / d1 — the two silences speak', () => {
     expect(translatePine(EXPR_MSG, {}).ok).toBe(true)
   })
 
-  it('⛔ CONTROL — `pine:runtime-only` is a NOTE code and never a refusal code', () => {
-    // It must not appear in the frozen 41, and must never be thrown.
+  it('⛔ CONTROL — `pine:chart-only` stays a NOTE code and is never thrown', () => {
+    // ⭐ No new note code is added: `pine:runtime-only` was withdrawn once the
+    // measurement showed `alert` is already in `CHART_ONLY_CALLS`. This pins the
+    // existing code's note-only status, which is what d1 now relies on.
     const src = fs.readFileSync(path.join(
       REPO, 'app/src/components/chart/engine/ast/pine.js'), 'utf8')
-    const needle = ['pine', 'runtime-only'].join(':')
+    const needle = ['pine', 'chart-only'].join(':')
     expect(src.includes(`'${needle}':`),
-      `${needle} has an entry in REFUSALS — it must be note-only`).toBe(false)
+      `${needle} gained an entry in REFUSALS — it must stay note-only`).toBe(false)
     expect(src.includes(`PineRefusal('${needle}'`),
       `${needle} is thrown somewhere — it must never be`).toBe(false)
+    // …and the control can see a code that IS in the table, or it proves nothing.
+    expect(src.includes(`'${['pine', 'collection'].join(':')}':`),
+      'the sweep cannot see a real REFUSALS entry — it is not looking').toBe(true)
   })
 
   it('⛔ CONTROL — the doctrine sentence still has exactly ONE home', () => {
