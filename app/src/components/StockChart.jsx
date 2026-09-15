@@ -70,7 +70,8 @@ import ChartToolbar, { TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
-import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack } from './chart/volumePaneDrag'
+import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
+         legacyPairOwnsStack } from './chart/volumePaneDrag'
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
@@ -10832,7 +10833,45 @@ export default function StockChart({
           const volPane = volumeSeriesRef.current?.getPane?.()
           // Only (re)apply when the TARGET height changed — otherwise a periodic
           // data-poll re-run would snap the pane back and undo a user's drag.
-          if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
+          // ⚰️⚰️ AND IT MAY ONLY SPEAK WHEN THESE TWO PANES ARE THE WHOLE CHART.
+          // Stretch factors are RELATIVE, so the `(100 - pct, pct)` pair below only
+          // means "volume is pct% of the chart" while main and volume are the only
+          // panes. Add a third — a data series, an RSI, any own-pane indicator — and
+          // volume's real share silently becomes `pct / (100 + thirdStretch)`,
+          // because the third pane keeps the weight `computePaneLayout` gave it and
+          // that weight is on a DIFFERENT BASIS: the layout hands out PIXEL heights
+          // (463 / 154 / 81 on a 700px stack), this writer hands out PERCENTAGES.
+          // Two writers, two incompatible numbering systems, one relative field.
+          //
+          // ⛔⛔ MEASURED 2026-09-15 (`__tests__/volumeStretchThirdPane.test.js`):
+          // apply 22 with a third pane at 81 and the volume pane measures **12**,
+          // while `lastAppliedVolPctRef` still says 22. The 300ms drag sampler
+          // compares exactly those two numbers, `latchOnDrag` fires at a two-point
+          // gap, and within 1.5s of any real separator drag it latches 12 as the
+          // member's choice and PERSISTS IT GLOBALLY. The next pass applies 12
+          // against the same inflated denominator, measures ~7, latches that — the
+          // volume pane ratchets down while the third pane, which nothing writes,
+          // is left holding ~45% of the chart. That is the owner's live cluster:
+          // "Volume snaps back only when QQQ is in it" and "the new QQQ pane is
+          // enormous", one defect wearing two costumes.
+          //
+          // ⭐ SO THE CANONICAL LAYOUT OWNS THE STACK, AND IT ALREADY DID. `binder`
+          // ends EVERY sync with `applyPaneStretch(ctx.paneLayout)` — ungated by
+          // instance count — and that plan sizes volume correctly in both cases
+          // (measured: `[545, 154]` for two panes, `[463, 154, 81]` for three; 22%
+          // either way). A member's dragged height reaches it through
+          // `cs.paneSizes`, the one durable authority. This writer is redundant the
+          // moment the stack is bigger than the pair it can describe, so it stands
+          // down rather than fighting — and says it has NO OPINION, which is what
+          // makes the sampler bail (`applied == null`) instead of latching a gap
+          // that only ever existed because the two writers were counting
+          // differently.
+          const paneCount = (() => {
+            try { return (chart.panes() || []).length } catch { return 0 }
+          })()
+          if (mainPane && volPane && !legacyPairOwnsStack(paneCount, !!indexPaneSeriesRef.current)) {
+            lastAppliedVolPctRef.current = null
+          } else if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
             lastAppliedVolPctRef.current = pct
             if (indexPaneSeriesRef.current) {
               const idxPct = _idxPct

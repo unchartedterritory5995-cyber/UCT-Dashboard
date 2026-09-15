@@ -483,6 +483,15 @@ function Harness() {
             <StockChart
               sym={SYM}
               tf={TF}
+              /* ⚰️⚰️ MIRRORS PRODUCTION, AND ITS ABSENCE HID A WHOLE REGIME.
+                 `ChartPane` and `GridChartCell` both pass this unconditionally, so
+                 every production chart has a SEPARATE volume pane. Without it this
+                 page ran a 2-pane BANDED-volume chart — so every pane-ordering and
+                 pane-sizing pass proved here was proving the wrong topology, and
+                 the 3-pane regime the live 2026-09-15 failures live in was
+                 unreachable from the harness at all. */
+              volumeSeparatePane
+              blankVolume={false}
               /* ⭐ DRAWINGS, SO PANE ORDERING CAN BE PROVED AGAINST THEM. Price
                  drawings resolve their pane from the CANDLE SERIES, so the
                  question a reordered chart asks is whether they follow Price or
@@ -543,6 +552,11 @@ function Harness() {
       <ChartSettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        /* ⚠️ MIRRORS `pane/ChartPane.jsx:960`, WHICH IS THE ONLY OTHER MOUNT.
+           Without it `paneMap` and `movePane` ask the SETTINGS-ONLY volume
+           predicate, decide the separate volume pane is a band, and this page
+           reproduces a defect production does not have. */
+        volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
         settings={cs || mergeChartSettings({})}
         onChange={(next) => { setCs(next); say('settings write') }}
         onCreateFormula={() => { setSettingsOpen(false); setBuilderFor('indicator') }}
