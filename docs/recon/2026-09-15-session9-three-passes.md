@@ -131,6 +131,18 @@ so under `railway run` it took production's `DATA_DIR` and landed on this box's
 `C:\data\entity_master.db` — present, 86 KB, **untouched since 09-02**, holding nothing for these
 tickers.
 
+> ⚰️⚰️ **CORRECTED 2026-09-15 (session 10, R42). The mechanism above is WRONG and the truth is the
+> opposite.** `railway run` leaked nothing. The gate imports `conftest` deliberately
+> (`extract_common.py:39`, reached from `extract_golden_gate.py:412` before its first `api.*`
+> import), and `conftest.py:515` redirects `DATA_DIR` to a **fresh `mkdtemp` sandbox per process** —
+> including when the value is `/data`, because that abspaths to the shared root
+> (`conftest.py:505-508`). Each run therefore created a **brand-new EMPTY entity master** and read
+> that. Evidence: three sandbox databases whose mtimes match the three gate manifests to within
+> 0.3 s, each 86,016 bytes with **0 rows in every table**; the shared-root copy's sha256 is
+> unchanged. ⭐ The corrected lesson is better than the original: **a sandbox redirect protects
+> against writes by guaranteeing an empty read**, and the fail-closed CALL downgrade that follows is
+> indistinguishable from a corpus with no calls in it. See `docs/wisdom/HARD-RULES.md`, R42.
+
 **Bounded:** the gate table, the floor (PRINCIPLE and MARKET_SIGNAL are never demoted) and the R30
 audit are unaffected. Only the reconciler's per-type view is hit, and it is **recoverable offline
 for $0.00** — every row carries `pre_entity_key` beside `record_key` (129 rows differ; 99+28+2).

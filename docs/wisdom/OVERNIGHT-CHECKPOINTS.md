@@ -978,6 +978,18 @@ so under `railway run` it took production's `DATA_DIR` and landed on this box's
 2026-09-02**. It resolved nothing because it holds nothing for these tickers. Nothing wrote to it;
 its mtime is untouched.
 
+> ⚰️⚰️ **CORRECTED 2026-09-15 (session 10, R42). The mechanism above is WRONG and the truth is the
+> opposite.** `railway run` leaked nothing. The gate imports `conftest` deliberately
+> (`extract_common.py:39`, reached from `extract_golden_gate.py:412` before its first `api.*`
+> import), and `conftest.py:515` redirects `DATA_DIR` to a **fresh `mkdtemp` sandbox per process** —
+> including when the value is `/data`, because that abspaths to the shared root
+> (`conftest.py:505-508`). Each run therefore created a **brand-new EMPTY entity master** and read
+> that. Evidence: three sandbox databases whose mtimes match the three gate manifests to within
+> 0.3 s, each 86,016 bytes with **0 rows in every table**; the shared-root copy's sha256 is
+> unchanged. ⭐ The corrected lesson is better than the original: **a sandbox redirect protects
+> against writes by guaranteeing an empty read**, and the fail-closed CALL downgrade that follows is
+> indistinguishable from a corpus with no calls in it. See `docs/wisdom/HARD-RULES.md`, R42.
+
 ### What this does and does not contaminate — bounded, not hand-waved
 
 | consumer | keyed on | effect |
