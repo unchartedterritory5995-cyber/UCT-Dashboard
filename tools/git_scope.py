@@ -144,27 +144,45 @@ def main(argv=None) -> int:
         return 0
 
     branch, paths = current_branch(), staged_paths()
+    name, bad = violations(branch, paths, scopes) if paths else (None, [])
+
+    if args.warn:
+        # ⛔⛔ OBSERVE ONLY, AND A HEARTBEAT ON EVERY INVOCATION.
+        #
+        # This runs inside ANOTHER programme's shared pre-commit hook, so it must not be
+        # able to refuse anybody's commit while it is being trialled: it records and exits
+        # 0, always.
+        #
+        # ⛔ IT LOGS EVEN WHEN THERE IS NOTHING TO REPORT, and that is the load-bearing
+        # part. Session 13 measured that appending this call after the credential scan's
+        # `exit 0` makes it never run — and a never-run trial produces an EMPTY log, which
+        # under a "zero false positives" criterion reads as a pass. A check that promotes
+        # itself on silence is worse than no check. With a heartbeat, "it ran and saw
+        # nothing" and "it never ran" stop being the same observation.
+        #
+        # The promotion criterion is therefore about PRESENCE, not absence (SD-1.1 A2.2):
+        # >= 20 heartbeats from >= 2 workstreams over >= 24 h with zero WOULD-REFUSE rows.
+        verdict = ("no-scope" if name is None else
+                   "in-scope" if not bad else "WOULD-REFUSE")
+        WARN_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with WARN_LOG.open("a", encoding="utf-8", newline="\n") as fh:
+            fh.write(f"{datetime.datetime.now().isoformat(timespec='seconds')}\t"
+                     f"{branch or '(unborn)'}\t{len(paths)}\t{verdict}\t"
+                     f"{' '.join(bad)}\n")
+        if bad:
+            print(f"[git-scope] ⚠️ WARN ONLY — branch '{branch}' is scoped to '{name}' and "
+                  f"{len(bad)} staged path(s) fall outside it. The commit is NOT blocked.")
+            for p in bad:
+                print(f"    {p}")
+            print(f"  recorded to {WARN_LOG.relative_to(REPO)}")
+        return 0
+
     if not paths:
         return 0
-    name, bad = violations(branch, paths, scopes)
     if name is None:
         return 0
     if not bad:
         print(f"[git-scope] {branch}: {len(paths)} staged path(s), all inside '{name}'")
-        return 0
-    if args.warn:
-        # ⛔ OBSERVE ONLY. This runs inside ANOTHER programme's shared pre-commit hook,
-        # so it must not be able to refuse anybody's commit while it is being trialled.
-        # It records what it WOULD have refused and exits 0 — always.
-        WARN_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with WARN_LOG.open("a", encoding="utf-8", newline="\n") as fh:
-            fh.write(f"{datetime.datetime.now().isoformat(timespec='seconds')}\t"
-                     f"{branch}\tWOULD-REFUSE\t{' '.join(bad)}\n")
-        print(f"[git-scope] ⚠️ WARN ONLY — branch '{branch}' is scoped to '{name}' and "
-              f"{len(bad)} staged path(s) fall outside it. The commit is NOT blocked.")
-        for p in bad:
-            print(f"    {p}")
-        print(f"  recorded to {WARN_LOG.relative_to(REPO)}")
         return 0
 
     print(f"[git-scope] ⛔ REFUSING THE COMMIT. Branch '{branch}' is scoped to '{name}', "

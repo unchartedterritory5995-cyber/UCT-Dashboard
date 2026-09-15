@@ -127,3 +127,66 @@ def test_the_override_is_explicit_and_logged(tmp_path, monkeypatch):
     monkeypatch.setenv(git_scope.OVERRIDE, "1")
     assert git_scope.main([]) == 0
     assert (tmp_path / "logs" / "ov.log").exists(), "the override must be recorded"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SD-1.1 A2.2 — the heartbeat. An empty log must never be readable as a pass.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _warn_run(tmp_path, branch, staged, allow=("tools/breadth_",)):
+    """Run WARN mode against a throwaway repo and return the log's lines."""
+    import subprocess as _sp
+    repo = tmp_path / "r"
+    (repo / "tools").mkdir(parents=True)
+    (repo / ".git-scope").mkdir()
+    _sp.run(["git", "init", "-q", str(repo)], check=True)
+    for k, v in (("user.email", "t@t"), ("user.name", "t")):
+        _sp.run(["git", "-C", str(repo), "config", k, v], check=True)
+    (repo / ".git-scope" / "s.json").write_text(
+        json.dumps({"branches": ["breadth/"], "allow": list(allow)}), encoding="utf-8")
+    _sp.run(["git", "-C", str(repo), "checkout", "-q", "-b", branch], check=True)
+    for rel in staged:
+        f = repo / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("x", encoding="utf-8")
+        _sp.run(["git", "-C", str(repo), "add", rel], check=True)
+
+    import importlib.util as u
+    src = pathlib.Path(__file__).resolve().parents[1] / "tools" / "git_scope.py"
+    spec = u.spec_from_file_location("gs_tmp", src)
+    m = u.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    m.REPO = repo
+    m.SCOPE_DIR = repo / ".git-scope"
+    m.WARN_LOG = repo / "logs" / "git-scope-warn.log"
+    rc = m.main(["--warn"])
+    lines = (m.WARN_LOG.read_text(encoding="utf-8").splitlines()
+             if m.WARN_LOG.exists() else [])
+    return rc, lines
+
+
+def test_warn_mode_writes_a_heartbeat_even_when_everything_is_in_scope(tmp_path):
+    """⛔ THE POINT OF THE HEARTBEAT. Without it, "ran and saw nothing" and "never ran"
+    produce the identical artifact — an empty log — and the promotion criterion reads
+    the second as the first."""
+    rc, lines = _warn_run(tmp_path, "breadth/x", ["tools/breadth_ok.py"])
+    assert rc == 0
+    assert len(lines) == 1, f"expected one heartbeat, got {lines}"
+    assert "in-scope" in lines[0], lines[0]
+    assert "breadth/x" in lines[0] and "\t1\t" in lines[0], lines[0]
+
+
+def test_warn_mode_records_a_violation_without_blocking(tmp_path):
+    rc, lines = _warn_run(tmp_path, "breadth/x",
+                          ["tools/breadth_ok.py", "docs/plans/joystick/theirs.md"])
+    assert rc == 0, "WARN mode must never refuse a commit"
+    assert len(lines) == 1 and "WOULD-REFUSE" in lines[0], lines
+    assert "docs/plans/joystick/theirs.md" in lines[0], lines[0]
+
+
+def test_an_undeclared_branch_still_heartbeats(tmp_path):
+    """An undeclared branch is not a violation — but the trial still needs to know the
+    check ran, otherwise a repo full of undeclared branches looks like a dead hook."""
+    rc, lines = _warn_run(tmp_path, "someone-elses-branch", ["docs/whatever.md"])
+    assert rc == 0
+    assert len(lines) == 1 and "no-scope" in lines[0], lines

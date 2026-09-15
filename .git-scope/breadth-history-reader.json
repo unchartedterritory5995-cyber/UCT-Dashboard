@@ -6,7 +6,8 @@
     "written down, because a check that refuses everybody gets bypassed within a day.",
     "Written after a breadth commit used `git add -A` and swept in two joystick docs,",
     "silently normalising another programme's deliberate raw control bytes.",
-    "SD-1 (2026-09-15) authorised S1 (.gitattributes) and a second test file, so both are added to 'allow'. Widening the scope is a deliberate, reviewable act - the point of the declaration is that it says what this programme may touch, not that it never changes."
+    "SD-1 (2026-09-15) authorised S1 (.gitattributes) and a second test file, so both are added to 'allow'. Widening the scope is a deliberate, reviewable act - the point of the declaration is that it says what this programme may touch, not that it never changes.",
+    "SD-1.1 A2.3 authorised a correction to .github/workflows/master-deploy-gate.yml (its failure message asserted Railway would not build a red commit; measured false). Added to 'allow' so the scope checker permits it rather than being overridden."
   ],
   "branches": [
     "breadth/",
@@ -19,6 +20,7 @@
   "allow": [
     ".git-scope/",
     ".gitattributes",
+    ".github/workflows/master-deploy-gate.yml",
     "api/routers/breadth_monitor.py",
     "api/services/breadth_",
     "docs/breadth-history-reader/",

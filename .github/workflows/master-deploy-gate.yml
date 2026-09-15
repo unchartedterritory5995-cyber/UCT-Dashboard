@@ -13,9 +13,23 @@
 # no trace, and no client-side check can close that.
 #
 # ⭐ A CLIENT HOOK ASKS EVERY SESSION TO COOPERATE. This does not ask. GitHub queues
-# runs in one concurrency group, and Railway's "Wait for CI" holds the build until
-# the run for that commit passes — so two pushes three minutes apart become two
-# builds in sequence, never a swap inside somebody's request.
+# runs in one concurrency group, so two pushes three minutes apart become two gate
+# runs in sequence.
+#
+# ⚰️ THIS PARAGRAPH USED TO CONTINUE "…and Railway's 'Wait for CI' holds the build
+# until the run for that commit passes". THAT IS FALSE AND WAS FALSE WHEN WRITTEN.
+# Measured 2026-09-15 by reading the configuration: the toggle is the `checkSuites`
+# Boolean on `Environment.deploymentTriggers`, and it is **False on all six services**.
+# Railway starts building the moment the push lands, concurrently with this run.
+# `promote-production.yml`'s own header said so — eight deploys that each started
+# 99-141 s BEFORE their check suite finished — so two files in this directory
+# contradicted each other for weeks and the wrong one was the reassuring one.
+#
+# ⛔ WHAT THIS GATE ACTUALLY DOES TODAY: it serialises master pushes, and its verdict
+# decides whether `production` is PROMOTED. It does not decide whether Railway builds.
+# Until the watched branch is repointed at `production`, a RED gate still deploys —
+# measured: `beace00e0` failed this gate on 2026-09-14T19:00:49Z and Railway created a
+# `web` deployment for it in the SAME SECOND.
 #
 # ⛔ `cancel-in-progress: false` IS THE WHOLE MECHANISM. The default (`true`) cancels
 # the older run when a newer one arrives, which is exactly backwards here: it would
@@ -124,9 +138,15 @@ jobs:
       - name: Explain a failure
         if: failure()
         run: |
-          echo "::error::The master deploy gate failed — Railway will not build this commit."
+          echo "::error::The master deploy gate failed — Railway has ALREADY built this commit; production will not be promoted."
           echo ""
-          echo "This gate is FAST and serialised: it holds the deploy queue, so fix"
+          echo "⛔ READ THAT AGAIN: a red gate does NOT stop the deploy today."
+          echo "Railway's Wait-for-CI is OFF (checkSuites=False on all six services),"
+          echo "so the build started when you pushed. What this failure prevents is the"
+          echo "promotion of \`production\`. Until the watched branch is repointed at"
+          echo "\`production\`, the code IS live and a revert is a push, not a re-run."
+          echo ""
+          echo "This gate is FAST and serialised: it holds the promotion queue, so fix"
           echo "forward rather than pushing again on top of a red run."
           echo ""
           echo "Run the same checks locally:"
