@@ -250,6 +250,38 @@ jobs:
 
       # ⛔ A MISSING LOG IS NOT A GREEN SUITE. If a job died before writing one, the
       # summary must say `totals_line_found: false`, which is what an empty file yields.
+      # ⚰️ E CP8 — THIS STEP USED TO RUN *AFTER* `Summarise`, which CONSUMES the
+      # file it writes. `ci_aggregate --jobs jobs.json` read a path that did not
+      # exist yet, so every shard's `job_result` came back UNREADABLE and the suite
+      # could never report ok — no matter how the shards actually did.
+      # ⭐ It degraded HONESTLY rather than silently (the aggregator treats a missing
+      # payload as UNREADABLE, never as success), which is the only reason this was
+      # findable by reading the file instead of a 403-protected log.
+      # E CP5 — THE RUNNER'S VERDICT, not the log's text. The repo is public, so this
+      # endpoint answers with the workflow token or without one; either way it is the
+      # runner reporting on itself rather than a regex guessing from output.
+      - name: Fetch this run's job outcomes
+        if: always()
+        run: |
+          curl -sSL -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+            -o jobs.json || echo '{}' > jobs.json
+          # ⛔ GUARDED, and as a block rather than a one-liner. `|| echo '{}'` covers
+          # curl's EXIT CODE, not malformed output: a rate-limited or truncated body is
+          # written by -o and then raises here, failing the step and with it the whole
+          # publish job — the one job whose failure loses the entire record (F-CI-7).
+          # ⭐ A verification line must never be able to destroy the thing it verifies.
+          python - <<'PY' || true
+          import json
+          try:
+              d = json.load(open("jobs.json"))
+          except Exception as e:
+              d = {}
+              open("jobs.json", "w").write("{}")
+              print("jobs.json unreadable, reset to {}:", e)
+          print("jobs seen:", len(d.get("jobs", [])))
+          PY
+
       - name: Summarise
         run: |
           touch logs/vitest.log
@@ -277,17 +309,6 @@ jobs:
           cp collect_profile.json "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
           ls -la "extract/$GITHUB_RUN_ID"
-
-      # E CP5 — THE RUNNER'S VERDICT, not the log's text. The repo is public, so this
-      # endpoint answers with the workflow token or without one; either way it is the
-      # runner reporting on itself rather than a regex guessing from output.
-      - name: Fetch this run's job outcomes
-        if: always()
-        run: |
-          curl -sSL -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
-            -o jobs.json || echo '{}' > jobs.json
-          python -c "import json;d=json.load(open('jobs.json'));print('jobs seen:',len(d.get('jobs',[])))"
 
       - name: Build the record
         if: always()
