@@ -597,6 +597,12 @@ needs Railway credentials, and this session did not attempt it — **the product
 the owner's to confirm from Railway**, and until he does, "0 of 25 in production" is unmeasured
 rather than measured.
 
+> ✅ **CLOSED IN SESSION 9 (2026-09-15, owner ruling R24_VIA_RAILWAY_EXIT_CODES).** The
+> production half is now measured: **0 of 25 SET on `web`**, all ten member-visible ones
+> included. The paragraph above stands as the honest state at the time it was written and is
+> kept for that reason — see *"Session 9 — R24 is closed"* below for the method, which reads
+> presence by a child process's EXIT CODE and never lists, prints or compares a value.
+
 ⭐ **All four templated routes were genuinely probed**, with a placeholder id substituted, rather
 than skipped. A guard that fires before the lookup 401s on a nonexistent id, which is the
 evidence wanted — skipping them would have left 4 of 27 unmeasured while the run still said
@@ -756,3 +762,94 @@ because a checklist pointing at the wrong evening is worse than no checklist.
 ⛔⛔ **And a flip at that window would still write NOTHING**: `wisdom_records` is at **0 rows**,
 so there is nothing to extract from, reconcile, block or queue. The flip is only informative
 **after** the three passes exist. **Buy the run first.**
+
+
+## Session 9 — 2026-09-15: R24 is closed, the key has three sources, and pass 1 is in flight
+
+### R24 is CLOSED — production is dark, and now that is MEASURED
+
+> **0 of the 25 registry gates are SET on the production `web` service**, and that includes all
+> **10 member-visible** ones — `ASKAI_WISDOM_RETRIEVAL_ENABLED` among them.
+
+⛔⛔ **HOW IT WAS MEASURED, because the method is the only reason this was permissible at all.**
+Presence was read by **a child process's EXIT CODE**, one child per gate name: the process exits
+`0` if the variable is present and `1` if it is not, and **prints nothing either way**. No
+command that lists variables was run — not `railway variables`, not `env`, not `printenv`, not
+`Get-ChildItem env:` — and no value was printed, echoed, hashed, compared or written anywhere.
+⭐ The distinction that makes this safe is that **presence is a one-bit fact and a value is not**,
+and an exit code is the only channel narrow enough to carry the first without the second.
+
+⚠️ `railway run` **reads** the environment into a child process; it never sets, unsets or edits
+one. `railway variables --set` and every other write form remain forbidden.
+
+⛔ **A fresh measurement, not an inference from the local one.** The session-5 gate half was
+`--local`, which reads this machine and says nothing about Railway; the two agreeing is a result,
+not a method. The old paragraph above is marked rather than rewritten.
+
+### R34 — the OS credential store is a third key source, and it loses every tie
+
+`WISDOM_ANTHROPIC_API_KEY` -> `ANTHROPIC_API_KEY` -> keyring (`uct-wisdom` / `anthropic`).
+A tie goes to the **environment**: `railway run` and a one-off export are deliberate acts scoped
+to one process, while the store is ambient and applies to every run on the machine. `keyring` is
+**declared in `requirements.txt` and not installed here** — with it absent the gate behaves
+exactly as it did before R34 existed, which is the point and is railed both ways. The failure
+message names all three sources and **no value from any of them**.
+
+Mutation-proved: consulting the store BEFORE the environment reds exactly
+`test_the_environment_beats_the_store` — **1 failed, 13 passed** — restored byte-exact and
+sha256-verified. ⚠️ The anchor had to be encoded CRLF; `batch.py` is CRLF on disk and an
+LF-anchored mutation matches zero times and asserts out before touching the file. That is the
+fourth time this session family has paid for the same thing.
+
+### R35 — the settings-`env` fallback is DOCUMENTED, NEVER WRITTEN
+
+Owner ruling: DOCUMENT_ONLY. Two standing rules forbid it independently — §11.3 (a key never
+lives in a file; a value in the environment dies with the process, one in a settings file waits)
+and never self-granting through settings. ⭐ It is written down anyway because an undocumented
+path gets rediscovered and tried, and **the hazard is that it would work.**
+
+### Tier 1 safety, re-proved before spending
+
+`--db` overrides `WISDOM_DB_PATH` through `common.bootstrap` (`:41-46`) and refuses a shared
+root; `--max-usd` genuinely governs (`SpendCap` reads `args.max_usd`, not `budget_cap_usd()`);
+the gate imports no flags and calls neither `write_output` nor `private_put`. A dry run **under
+production variable injection** returned the same `wx-v0-fc47bc97` / `claude-opus-5` / `high`
+and cap $40 as the uninjected one — so injection changes nothing the gate does.
+
+`extractor_version` is **unchanged at `wx-v0-fc47bc97`** after R34, which is the check that
+matters: the key source is not part of the prompt, the contract or the transport, so it must not
+move the hash. It did not.
+
+### Step 4d exists BEFORE it is needed — and it has been seen to fail
+
+`tools/wisdom/rescore_offline.py` re-scores a finished phase from the persisted records for
+**$0.00** and compares it to that phase's own receipt; a disagreement STOPS the next purchase.
+It reuses `extract_golden_gate.segment_scores` -> `golden.score` by import — one authority, never
+a second implementation — so what it proves is exact: **the persisted records, run back through
+the live scoring path, reproduce the reported numbers.** Three exit codes: `0` MATCH, `1`
+MISMATCH, `2` INCONCLUSIVE, and an empty phase is INCONCLUSIVE **never** MATCH.
+
+⭐ Its vacuity control earned its place on the first run: the fixture put `stance` at the top
+level instead of inside `fields`, so `match_segment` matched nothing and the phase scored
+**tp = 0** while looking fully populated — and **every other assertion in the file passed on
+it**. 11 tests green.
+
+### Pass 1 is IN FLIGHT and has reported nothing — which is expected, not a fault
+
+Launched 03:51:34 CT under `railway run --service web` against `golden-v1.1.jsonl`, dev split,
+gate phase, cap $40.
+
+⚠️ **Its output file is 0 bytes and will stay that way until it exits.** `python` is invoked
+without `-u` and its stdout is a pipe through the railway shim, so the header — printed before
+any API call — sits in a 4-8 KB block buffer. **0 bytes is a buffering fact, not a progress
+fact**, and on this box a silent log is otherwise the signature of an OOM kill, so it was worth
+distinguishing rather than assuming: the process is alive, CPU is advancing (8.77 s -> 8.84 s
+across the poll interval) and it holds **one established TLS connection on :443**.
+
+The batch transport polls every 20 s with a **3-hour** ceiling (`--batch-timeout-seconds`), and
+receipts plus the persisted records are written only **after** the batch ends. So there is
+nothing on disk to read mid-flight by design.
+
+⛔ **Nothing downstream may be reported until it lands**: the reconciler needs three runs, the
+floor counts need records, and the cost actuals need the ledger. **Pass 2 is gated on 4d
+matching pass 1's own receipt exactly.**
