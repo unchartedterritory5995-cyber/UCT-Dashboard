@@ -31,7 +31,7 @@ import {
 import { parseBoundId } from './drawingAlertAnchors'
 import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
 import {
-  PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
+  PRICE, VOLUME, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
   toPaneFraction, fromPaneFraction,
 } from './drawingPanes'
 import {
@@ -618,6 +618,59 @@ export default function ChartDrawingOverlay({
     })
   }, [chartRef, seriesRef, volumeSeriesRef])
 
+  /**
+   * The SERIES whose price scale a drawing in this zone must be read against.
+   *
+   * ⚰️ WHY THIS EXISTS. A horizontal line drawn in the RSI or a breadth pane was
+   * labelled `514.80` — the price of QQQ at that pixel — over a pane whose axis
+   * runs 0-200 (owner, 2026-09-14, with a screenshot). Every anchor in this
+   * overlay resolved its value through `seriesRef`, the CANDLE series, because
+   * until panes existed there was only one scale on the chart. The pixel was
+   * right; the number was an answer to a question about a different pane.
+   *
+   * ⛔ THE VOLUME ZONE IS RESOLVED BY SERIES, NOT BY PANE. In the band layout the
+   * volume overlay shares pane 0 with the candles and is a different SCALE, so a
+   * pane lookup would hand back the candle series and reintroduce the bug for the
+   * default layout. The ref is already here for exactly this kind of question.
+   *
+   * ⚠️ AND IT ASKS THE PANE FOR ITS SERIES rather than being handed a map from
+   * `StockChart`. The chart is the authority on what is drawn where — a map built
+   * upstream would have to be rebuilt on every add, remove, move and re-order,
+   * and the one that went stale would be silently wrong rather than absent.
+   */
+  const seriesForZone = useCallback((zone) => {
+    if (!zone) return null
+    if (zone.key === PRICE) return seriesRef?.current || null
+    if (zone.key === VOLUME && volumeSeriesRef?.current) return volumeSeriesRef.current
+    if (!Number.isInteger(zone.paneIndex)) return null
+    try {
+      const panes = chartRef?.current?.panes?.() || []
+      const list = panes[zone.paneIndex]?.getSeries?.() || []
+      return list.length ? list[0] : null
+    } catch { return null }
+  }, [chartRef, seriesRef, volumeSeriesRef])
+
+  /**
+   * A canvas y → the value THAT PANE's own axis shows there, or null.
+   *
+   * ⛔ THE COORDINATE IS PANE-RELATIVE. `coordinateToPrice` is a question for the
+   * series' own pane, so a canvas y has to lose the pane's top edge first —
+   * measured in-browser on a three-pane chart, because getting it wrong is not a
+   * crash but a plausible-looking number, which is the same failure this whole
+   * function exists to end.
+   */
+  const paneValueAt = useCallback((zone, canvasY) => {
+    if (!zone || !Number.isFinite(canvasY)) return null
+    const series = seriesForZone(zone)
+    if (!series) return null
+    const y = zone.key === VOLUME && !Number.isInteger(zone.paneIndex)
+      ? canvasY
+      : canvasY - (zone.y0 || 0)
+    let v = null
+    try { v = series.coordinateToPrice(y) } catch { v = null }
+    return Number.isFinite(v) ? v : null
+  }, [seriesForZone])
+
   /** The zones the last paint used; measured on demand if a pointer arrives first. */
   const paneGeom = useCallback(() => {
     if (!paneGeomRef.current) paneGeomRef.current = measurePanes()
@@ -1151,6 +1204,47 @@ export default function ChartDrawingOverlay({
     // series for its own `IPriceFormatter`, so a drawing's price reads exactly
     // like the axis tag beside it. Built once here and handed down.
     const priceText = priceFormatterFor(seriesRef?.current)
+    /**
+     * ⭐⭐ A DRAWING IS VALUED AGAINST THE PANE IT IS IN, NOT AGAINST THE CANDLES.
+     *
+     * ⚰️ THE REPORT (owner, 2026-09-14): a horizontal line dropped in a breadth
+     * pane whose axis runs 0-200 printed `514.80` — QQQ's price at that pixel.
+     * Every anchor resolves its value through the CANDLE series, which was the
+     * only scale on the chart until panes existed; the pixel was right and the
+     * number answered a question about a different pane.
+     *
+     * ⛔ IT REPLACES THE VALUE ONLY FOR THE PAINT, and that is deliberate. The
+     * stored `price` is what a PRICE-anchored drawing tracks through a rescale,
+     * and the drag and hit-test paths resolve their own points — rewriting the
+     * value here would put a pane number into a field the price pane reads back.
+     * A pane drawing is anchored by `paneY` (a fraction of its zone), so nothing
+     * downstream needs the number this produces: it is a LABEL.
+     *
+     * ⚠️ A ZONE WITH NO RESOLVABLE SERIES CHANGES NOTHING. Mid-layout, or on a
+     * surface with no engine panes, this hands the points straight back — the
+     * old number, never a blank label and never a guess.
+     */
+    const revalueInPane = (pts, zone) => {
+      if (!zone || zone.key === PRICE || !pts.length) return pts
+      if (!seriesForZone(zone)) return pts
+      return pts.map((p) => {
+        if (!Number.isFinite(p.y)) return p
+        const v = paneValueAt(zone, p.y)
+        return v == null ? p : { ...p, price: v }
+      })
+    }
+    /** …and the label is formatted by that pane's own series, so the tag reads
+     *  exactly like the axis tag beside it — `8.00`, not `$8.00`. Per frame and
+     *  per zone; `priceText` stays the answer for the price pane. */
+    const zoneFmts = new Map()
+    const fmtFor = (zone) => {
+      if (!zone || zone.key === PRICE) return priceText
+      if (zoneFmts.has(zone.key)) return zoneFmts.get(zone.key)
+      const ser = seriesForZone(zone)
+      const f = ser ? priceFormatterFor(ser) : priceText
+      zoneFmts.set(zone.key, f)
+      return f
+    }
     // Boxes already placed, so two price labels at nearly the same level step
     // apart instead of printing on top of each other. Per frame, thrown away
     // with the frame — see `avoidOverlap`, which is deliberately not a solver.
@@ -1182,7 +1276,7 @@ export default function ChartDrawingOverlay({
       // The drawing's OWN pane rect, and the anchors resolved against it. Both are
       // needed before anything is painted: `paneY` is a fraction of this rect.
       const rect = rectForDrawing(d, geom)
-      const pts = resolvePixels(d.points || [], rect)
+      const pts = revalueInPane(resolvePixels(d.points || [], rect), rect)
       if (!pts.length) continue
       // Off-screen guard (Model Book): if this drawing's anchor bar — its setup
       // candle (rightmost point / rightBoundTime) — is outside the visible range,
@@ -1229,7 +1323,7 @@ export default function ChartDrawingOverlay({
         case 'horizontal':
           renderHorizontal(ctx, pts, rect, {
             showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel'),
-            ink, fmt: priceText, avoid: labelBoxes,
+            ink, fmt: fmtFor(rect), avoid: labelBoxes,
           })
           break
         case 'hray': {
@@ -1244,7 +1338,7 @@ export default function ChartDrawingOverlay({
           }
           renderHRay(ctx, pts, hrayRight, {
             showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel'),
-            ink, fmt: priceText, bounds: rect, avoid: labelBoxes,
+            ink, fmt: fmtFor(rect), bounds: rect, avoid: labelBoxes,
           })
           break
         }
@@ -1271,7 +1365,7 @@ export default function ChartDrawingOverlay({
         case 'fib':
         case 'fibext': {
           const paint = d.type === 'fibext' ? renderFibExtension : renderFib
-          const lines = paint(ctx, pts, rect, toPixelY, { drawing: d, fmt: priceText })
+          const lines = paint(ctx, pts, rect, toPixelY, { drawing: d, fmt: fmtFor(rect) })
           if (lines && lines.length) paintedBoxes.set(d.id, lines)
           break
         }
@@ -1291,7 +1385,7 @@ export default function ChartDrawingOverlay({
           const shown = measurePctOnly
             ? { ...d, showDollar: false, showPercent: true, showBars: false, showTime: false }
             : d
-          renderMeasure(ctx, pts, d, { lines: measureLines(shown, m, priceText), bounds: rect })
+          renderMeasure(ctx, pts, d, { lines: measureLines(shown, m, fmtFor(rect)), bounds: rect })
           break
         }
         case 'dateRange': {
