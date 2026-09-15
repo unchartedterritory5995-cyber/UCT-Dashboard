@@ -166,6 +166,26 @@ as it applied to `while`.** 13 of 92 `for x in` bodies write a slot; **0 of 34**
 ⛔ **That a3's machinery makes the unroll cheap does not change the ruling.** The
 threshold is about whether the corpus exercises the form, not whether the form is easy.
 
+> ### ⭐⭐ R18 SITS BESIDE THIS AND DOES NOT ERODE IT (2026-09-15)
+>
+> R18 builds `request.security`'s **array-literal argument** at 15 reachable uses,
+> which is under the threshold read on its own. **That is not a reversal of the
+> sentence above**, and the distinction is recorded at both ends so neither can be
+> cited for the other:
+>
+> | | R1 (here) | R18 (item (c)) |
+> |---|---|---|
+> | the FORM | `for … in` — **does not ship at all** | tuple destructure from `request.security` — **ships**, 193 uses, 20 reachable, **at** the threshold |
+> | what was asked for | build a form the corpus does not exercise | carry one **argument shape** of a form already carried for its ~103 other uses |
+> | needs | new machinery | **nothing** — same `parts`, same `securityAsNode`, **no 12th node type** |
+> | the argument rejected | *"a3's machinery makes it cheap"* | — R18 does **not** rest on cheapness either |
+>
+> ⛔ **"Cheap, so build" remains rejected.** R18's grounds are that **the form
+> clears the threshold and an argument shape of a shipping form is not a separate
+> form to threshold**. ⚠️ A future argument shape that needs a new node type, a new
+> mechanism, or its own breaker analysis **is** a separate form and is thresholded
+> on its own.
+
 Instead, a4 makes these forms **refuse by name at the loop line**, replacing today's
 `pine:block` note plus a later, unrelated `array.get` refusal. Three cases, decided by
 what the SOURCE is:
@@ -1242,12 +1262,52 @@ qualification they do not currently carry** — they promise item (c) will deliv
 something that, while D2 stands, cannot reach the surface a member sees. **Correcting
 those two in place is part of whichever verdict the owner rules**, not a separate task.
 
-⛔ **STOP — awaiting the owner's go.** Nothing built, nothing retired.
-**Build estimate if the array-literal form is ruled in: 70 min** (parse `[x,y]` in an
-argument position · expand to slots through the existing `parts` machinery · red
-acceptance on named scripts with the slot trees written out · mutation proof).
-**Retirement estimate if ruled out: 35 min** (one sentence at the `pine:tuple` site
-carrying form, 90/35 files, and the routing).
+## ✅ RULED (owner, 2026-09-15)
+
+### R18 — the threshold applies PER FORM; the array-literal argument is a SHAPE of a form that ships. **BUILD IT.**
+
+The form is **tuple destructure from `request.security`**: 193 uses, **20 reachable —
+at the threshold** — and already translated for the ~103 UDF-returning uses under the
+slot model. The array-literal argument (90 uses, 15 reachable) is an **argument shape**
+of that form: same `parts`, same `securityAsNode`, **no 12th node type, no new
+mechanism**.
+
+⛔ **Recorded so it cannot erode the threshold**, with the full comparison beside **R1**
+above: R1 rejected *"a3's machinery makes it cheap"* as grounds to build `for … in`,
+**and that stands**. R18 is **not** "cheap, so build" — it is *"the form already ships
+and clears the threshold; an argument shape of a shipping form is not a separate form
+to threshold."* ⚠️ A future argument shape needing a new node type, a new mechanism, or
+its own breaker analysis **is** a separate form and is thresholded on its own.
+
+**Estimate 70; 2× stop 140.**
+
+### R19 — D2's drift corrected in place; the collision renamed
+
+`PR-BODY:242` and `SESSION-STATE:330` carry **both halves** — a pane acts on the HOST
+lane's saved definition, and the screener lane is inadmissible by construction — with
+*"the IR lane is off the pane path"* kept as **the consequence it is**.
+`WAVE2-A-CENSUS:342` is corrected: D2 is the ruling that the IR lane is **not** on the
+pane path; putting it on is what D2 **defers**. The unrelated `plot.style_*` "D2" in
+`pine-presentation-spec.md` / `pine-v6-constants.md` is **renamed**, with a one-line
+note at each use. ⛔ Ruling D2's own name does not change.
+
+### R20 — the two routing sentences qualified in place
+
+The **56 series-dependent `for` bounds** (R1) and the **5 `input.time` expression
+defaults** (R16) are IR-lane work, **buildable off-pane, NOT deliverable to a pane
+while D2 stands**. Each gains that qualification so no member is promised a pane result
+D2 blocks. ⭐ R16's **10 bare-`input`** sentences are honoured as measured and are
+**not** touched.
+
+### R17 — CLOSED
+
+`high_engagement__20:10` carries **two** defects (a non-literal bar offset; an
+unresolvable request). Each surface reaches a different one first, and **a refusal
+relocates and never joins**, so exactly one survives per lane. Recorded under R14's
+residues as **refusal-relocation ordering**, not a semantic split.
+
+⛔ **H.5 — OWNER QUESTION, OPEN:** should a member be shown **both** defects on one
+line? Specimen: `high_engagement__20-ehlers-fisher-transform-cheatcountry.pine:10`.
 
 ---
 
