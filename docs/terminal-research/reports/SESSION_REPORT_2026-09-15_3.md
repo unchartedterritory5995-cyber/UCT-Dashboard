@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 15:04 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 15:41 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**26 commits** — thirteen docs, thirteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`
+**28 commits** — fourteen docs, fourteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`, `c89dd6b81`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -760,6 +760,68 @@ no — and not claimed as one.
 
 ⭐ **148 → ~185 is a MEASUREMENT improving, not a repository getting worse.**
 
+## 3x · ⭐⭐ RUN #17 HIT EVERY PREDICTION — and the record finally carries its evidence
+
+| E CP19 predicted | actual | |
+|---|---|---|
+| `shards_without_totals: []` | **`[]`** — all twelve | ✅ |
+| pytest `collected` ≈ 24,400 | **24,445** | ✅ |
+| pytest `failed` ≈ 185 | **185** | ✅ |
+| `contract_gaps: []` | **`[]`** | ✅ |
+| `pytest_failures.txt` present, non-ZERO | **45,850 bytes** | ✅ |
+| VERDICT RED | **RED** | ✅ |
+
+**Every detail path the record names now exists**, and the text is diagnosable:
+
+```
+tests.test_alert_user_admission | test_…BOTH_LANES_AGREE_on_the_bars | AssertionError: Regex pattern did not match.
+tests.pattern_engine.test_pattern_db_shared_root_guard | … | AssertionError: assert '/data/patterns.db' == '/home/runner…'
+```
+
+⭐ **148 → 185 is the measurement improving**, as E CP19 asked to have it read.
+
+## 3y · ⛔⛔ E CP20 — AND THE SAME RECORD SAYS `shards 0/12 · shards_failed: 12`
+
+The jobs API says all twelve pytest jobs **succeeded**, in run #17 exactly as in #16.
+**Proven from the record itself**, the two runs side by side:
+
+```
+#16  pytest  timed_out_basis=job_result=success, elapsed_s=96, cap_s=1200 …
+#17  pytest  timed_out_basis=no job matching 'pytest' in the jobs payload — UNREADABLE, not false
+```
+
+`jobs.json` came back **empty**. Two defects.
+
+**1 · The fetch was anonymous.** ⚰️ Its own comment read *"the repo is public, so this
+endpoint answers with the workflow token or without one"* — true of a single request, false
+of a shared runner IP against a 60-per-hour anonymous limit. Run #16 read 20 jobs; run #17
+read zero. Now authenticated (`actions: read` + the workflow token), and an **empty payload
+annotates** instead of passing as a quiet `|| echo '{}'` default.
+
+**2 · UNREADABLE was counted as FAILED.** The aggregator's `else:` branch swept every
+unreadable verdict into `shards_failed`, publishing `all_success=False (0/12)` for a run in
+which all twelve succeeded. ⛔ *"We could not read the verdict"* and *"the verdict was
+failure"* are different facts. ⭐ **`ci_outcome` said `UNREADABLE, not false` about the same
+payload, in the same record, three fields away** — two tools disagreed about honesty and the
+blunter one wrote the headline.
+
+`shards_unreadable` is now its own named bucket, `ok` stays False because we could not
+verify, and the basis says `runner_verdict_unreadable=N`. ⛔ The load-bearing control is the
+pair: a REAL failure must still land in `shards_failed`, or "unreadable is not failed" is
+satisfied by a function that never counts failures at all.
+
+### Prediction for run #18
+
+| field | prediction |
+|---|---|
+| `shards_success` | **12 of 12** |
+| `shards_unreadable` | **`[]`**, basis `runner_verdict_unreadable=0` |
+| pytest `collected` / `failed` | **~24,445 / ~185**, unchanged — CP20 touches nothing the tests do |
+| VERDICT | **RED** |
+
+⚠️ Falsifier: `shards_unreadable` non-empty again, meaning the fetch fails for some reason
+other than the rate limit — and the new annotation would name it, readable without an account.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -933,6 +995,8 @@ ran a job.
 | **F-CI-22** | **NEW, mine.** The record named six detail files and three did not exist — `ci_extract` pointed at a pre-sharding path, so 136 pytest failures reached the record with no text. `ci_record` now verifies every path it names. |
 | **F-CI-23** | **NEW, mine.** `ci_summarize` read only the LAST LINE of a pytest log, losing `tests-07`'s totals line at line 4,424 of 142,028; its all-optional pattern also matched a bare duration and returned zeros the aggregator sums. |
 | **F-CI-24** | **NEW, mine.** E CP18's own shard assertion was a second authority that passed on log-body noise while the summariser said otherwise. It now reads the summariser's verdict. |
+| **F-CI-25** | **NEW, mine.** The publish job's jobs-API fetch was anonymous and came back EMPTY in run #17, so every shard's runner verdict was unreadable. Authenticated, and an empty payload now annotates. |
+| **F-CI-26** | **NEW, mine, and the worse half.** `ci_aggregate` counted an UNREADABLE runner verdict as a FAILURE, publishing `0/12 success` for twelve jobs that succeeded — while `ci_outcome` called the same payload UNREADABLE three fields away. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -973,8 +1037,8 @@ explicit deploy instruction and a member-impact paragraph. **The park is lifted;
 front of them is not mine to open.**
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–30 nothing member-visible.**
-Row 31 is E CP19 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–31 nothing member-visible.**
+Row 32 is E CP20 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -991,8 +1055,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**31 rows, 31 OK, 0 STALE. 30 of 30 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **23 constraints SATISFIED**, 31 units, 0 MALFORMED,
+**32 rows, 32 OK, 0 STALE. 31 of 31 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **24 constraints SATISFIED**, 32 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
