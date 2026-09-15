@@ -1,0 +1,26 @@
+# The breadth reader's HOT PATH — the files that EXECUTE during a deep cold read.
+#
+# MEASURED, not derived from imports: a tracer (tools/breadth_hotpath.py) records
+# every api/ file whose code runs during GET /api/breadth-monitor?days=8000 on a
+# forced cache miss. threading.settrace_all_threads is required because a plain
+# `def` FastAPI route runs in the anyio THREADPOOL, not the calling thread.
+#
+# Why not the import closure: walking imports from the route reaches 169 files,
+# because the router imports the engine which imports auth which imports half the
+# app. On 2026-09-15 thirty-one commits landed on master in one day; a sample pool
+# keyed on that set would shatter continuously and never reach the n=59 that p95
+# needs. Eight files actually execute.
+#
+# LIMIT, stated: measured with require_paid overridden, so the AUTH dependency
+# chain is excluded. Auth runs BEFORE the handler's own timer starts, so it cannot
+# move the Server-Timing phases — it can move client-side wall_ms.
+#
+# Measured 2026-09-15 against 569485a12. Regenerate: python tools/breadth_hotpath.py
+api/main.py
+api/middleware/admin_guard.py
+api/routers/breadth_monitor.py
+api/services/breadth_daily_ohlc.py
+api/services/breadth_monitor.py
+api/services/breadth_timing.py
+api/services/cache.py
+api/services/single_flight.py

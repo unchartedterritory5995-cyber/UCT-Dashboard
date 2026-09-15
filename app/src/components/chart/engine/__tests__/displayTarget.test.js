@@ -106,7 +106,12 @@ describe('setInstanceDisplayTarget', () => {
 
   it('writes the canonical target and keeps the legacy list in step', () => {
     const next = setInstanceDisplayTarget(base(), 'legacy:rsi', 'volume', registry)
-    expect(next.indicatorInstances[0].placement).toEqual({ target: 'volume' })
+    // ⭐ 2026-09-15 — AND IT NOW RECORDS THAT A MEMBER CHOSE IT. `targetExplicit`
+    // is written WITH the target and never apart from it: a target without the
+    // marker is LEGACY state (read by the old `explicit !== declared` rule), and a
+    // marker without a target would be a claim about nothing. See
+    // `__tests__/displayTargetProvenance.test.js` for why inference was not enough.
+    expect(next.indicatorInstances[0].placement).toEqual({ target: 'volume', targetExplicit: true })
     expect(next.volumeOverlayIndicators).toEqual(['rsi'])
   })
 
@@ -125,7 +130,7 @@ describe('setInstanceDisplayTarget', () => {
 
     cs = setInstanceDisplayTarget(cs, 'legacy:rsi', 'volume', registry)
     expect(cs.indicatorInstances[0].placement, 'the pane position was erased by the move')
-      .toEqual({ position: 'above', target: 'volume' })
+      .toEqual({ position: 'above', target: 'volume', targetExplicit: true })
 
     cs = setInstanceDisplayTarget(cs, 'legacy:rsi', 'pane', registry)
     expect(cs.indicatorInstances[0].placement, 'it did not come home ABOVE price')
@@ -140,7 +145,7 @@ describe('setInstanceDisplayTarget', () => {
     // "a target it does not offer" now means a target that is not a target.
     const toPrice = setInstanceDisplayTarget(cs, 'legacy:rsi', 'price', registry)
     expect(toPrice).not.toBe(cs)
-    expect(toPrice.indicatorInstances[0].placement).toEqual({ target: 'price' })
+    expect(toPrice.indicatorInstances[0].placement).toEqual({ target: 'price', targetExplicit: true })
     expect(setInstanceDisplayTarget(cs, 'legacy:rsi', 'nowhere', registry)).toBe(cs)
     expect(setInstanceDisplayTarget(cs, 'inst:nope:9', 'volume', registry)).toBe(cs)
   })
