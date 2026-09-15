@@ -170,7 +170,12 @@ def main(argv=None) -> int:
         print(blob)
         return OK
 
-    print(json.dumps(profile_dirs()))
+    # ⚰️ E CP10 — EMITTED AS {dir, id} PAIRS, because GitHub Actions has NO
+    # `replace()` EXPRESSION FUNCTION. E CP7 used one to sanitise the artifact name and
+    # the WHOLE WORKFLOW was rejected before a single job started: run #7, 0 jobs,
+    # created == updated. The matrix carries a pre-sanitised id instead, so the workflow
+    # needs no string manipulation at all.
+    print(json.dumps([{"dir": d, "id": d.replace("/", "--")} for d in profile_dirs()]))
     return OK
 
 
