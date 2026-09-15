@@ -1688,6 +1688,43 @@ export default function ChartDrawingOverlay({
   // Trigger redraw when any drawing state changes
   useEffect(() => { redrawRef.current?.() }, [redraw])
 
+  // ─── …AND WHEN THE PANES THEMSELVES MOVE ─────────────────────────────
+  //
+  // ⚰️⚰️ A PANE REORDER CHANGES NONE OF THIS OVERLAY'S INPUTS. Not the
+  // drawings, not the bars, not the canvas size, not the visible range — so
+  // `redraw` never re-ran and the last paint simply stayed on screen while the
+  // panes moved underneath it. Measured in the harness: with Price sent to the
+  // bottom, its drawings kept the pixels they had and ended up lying across the
+  // QQQ pane. The transform was right; nothing had asked it to run again.
+  //
+  // ⭐ SO THE GEOMETRY IS THE TRIGGER. A cheap signature — which pane the candles
+  // are in, and every pane's height — sampled on an interval and compared as a
+  // string; a repaint is requested only when it actually differs. Pane moves and
+  // divider drags are the only things that change it, both are rare and
+  // deliberate, and the sample is two cross-boundary reads.
+  //
+  // ⚠️ AN INTERVAL, NOT A rAF. This must notice a change, not animate one: at
+  // 60fps it would do 60× the work to make a reorder land 280ms sooner than a
+  // member can perceive. The same reason `StockChart`'s pane-stretch sampler is
+  // an interval.
+  useEffect(() => {
+    let last = null
+    const id = setInterval(() => {
+      const chart = chartRef?.current
+      if (!chart) return
+      let sig = null
+      try {
+        const panes = typeof chart.panes === 'function' ? chart.panes() : null
+        if (!panes) return
+        const at = seriesRef?.current?.getPane?.()?.paneIndex?.()
+        sig = `${Number.isInteger(at) ? at : '-'}|${panes.map((p) => Math.round(p.getHeight?.() || 0)).join(',')}`
+      } catch { return }
+      if (last === null) { last = sig; return }
+      if (sig !== last) { last = sig; redrawRef.current?.() }
+    }, 300)
+    return () => clearInterval(id)
+  }, [chartRef, seriesRef])
+
   // ── Mouse helpers ──
   const getCanvasPos = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect()
