@@ -146,6 +146,23 @@ describe('R9 — the kept reduces fold, the rest refuse by name', () => {
       expect(refusals.map((r) => r.guard),
         `\`array.${member}\` is in REDUCE_MEMBERS, so it must not refuse`).toEqual([])
     }
+
+    // ⚰️⚰️ AND EACH ONE MUST ANSWER ITS OWN QUESTION — "does not refuse" is not enough,
+    // which the R9a mutation proved rather than argued. Deleting the `avg` branch did
+    // NOT make `avg` refuse: it fell through to the `min` branch and silently returned
+    // `min(min(0, 1), 2)`. The set-agreement check above stayed GREEN through that,
+    // because a member returning ANOTHER member's answer refuses nothing.
+    // ⛔ That is `lesson_a_guard_that_tests_the_adjacent_thing` exactly: the condition
+    // and the invariant are two sentences, and only the first was being checked.
+    const answers = new Map()
+    for (const member of REDUCE_MEMBERS) answers.set(member, readOf(`array.${member}(a)`).formula)
+    expect(answers.get('sum')).toBe('0 + 1 + 2')
+    expect(answers.get('avg')).toBe('(0 + 1 + 2) / 3')
+    expect(answers.get('max')).toBe('max(max(0, 1), 2)')
+    expect(answers.get('min')).toBe('min(min(0, 1), 2)')
+    expect(new Set(answers.values()).size,
+      'every reduce answers differently, so none can be silently serving another\'s branch')
+      .toBe(REDUCE_MEMBERS.size)
     // …and every REDUCE member is inside HANDLED, which is what the set is for.
     for (const member of REDUCE_MEMBERS) expect(HANDLED.has(member)).toBe(true)
   })
