@@ -517,7 +517,36 @@ function bandMap(bottomToTop, heightsC, oscCount, hasVolumeBand) {
     out[key] = { top: (100 - nextC) / 100, bottom: bottomC / 100 }
     bottomC = nextC
   }
-  out[MAIN_BAND_KEY] = { top: MAIN_TOP, bottom: bottomC / 100 }
+  // ⚰️⚰️ THE HEADROOM IS A SHARE OF THE CANDLE AREA, NOT OF THE WHOLE PLOT.
+  //
+  // This read `{ top: MAIN_TOP, ... }` — a flat 30% of the entire plot area,
+  // taken off the top no matter how little was left underneath. The candles get
+  // whatever remains after the stack, so the rule degrades without limit as the
+  // member adds panes, and `MAX_STACK_C` (69 hundredths) says so out loud: it
+  // permits a stack that leaves the candles ONE PERCENT of the chart.
+  //
+  // ⛔ THAT IS THE OWNER'S PRODUCTION SCREENSHOT. NVDA around 210 pressed into
+  // the bottom of its pane with the price scale reading to ~1600 — a series
+  // drawn in 15% of its pane needs a scale ~6.6x its own range. Measured before
+  // this fix, on `chartHeight: 700` with a banded volume, the candles' share of
+  // their own pane fell 0.550 → 0.471 → 0.357 → 0.151 → 0.022 as own panes were
+  // added; with a separate volume pane, 0.700 → 0.646 → 0.570 → 0.433 → 0.248.
+  //
+  // ⚠️ PRE-EXISTING, AND IN BOTH MODES. This arithmetic is byte-identical at
+  // `7ac0e0aee`, master before pane ordering merged, and the panes-mode
+  // translation in `computePaneLayout` reproduces it faithfully — which is why
+  // the §A6 "same absolute pixels" rails were green while the chart was wrong.
+  // Pane ordering did not break this; it made it REACHABLE, because own panes
+  // went from rare to one click. Arrangement is not a factor: Price's margins
+  // are identical with a pane above it and below it.
+  //
+  // ⭐ SO THE FIX IS APPLIED TO BOTH MODES, AND THE §A6 IDENTITY STILL HOLDS —
+  // it is a true statement about the cutover and must keep being one. `1 - osc`
+  // is the candle pane's share of the plot (`pane0HeightPx / mainHeightPx`), so
+  // `MAIN_TOP * (1 - osc)` here is the same absolute pixel row as `MAIN_TOP`
+  // taken inside that pane, which is what the panes-mode branch now uses.
+  const oscC = heightsC.slice(0, oscCount).reduce((a, b) => a + b, 0)
+  out[MAIN_BAND_KEY] = { top: MAIN_TOP * (1 - oscC / 100), bottom: bottomC / 100 }
   return out
 }
 
@@ -717,8 +746,49 @@ export function computePaneLayout(instances, opts) {
   // of. `above` still carries the other panes' heights unchanged, which is why
   // the volume pane no longer shrinks through the cutover.
   const pane0HeightPx = mainHeightPx - px(oscTotalC)
-  const mainTopPx = Math.round(MAIN_TOP * mainHeightPx)
-  const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
+  // ⚰️⚰️ THE HEADROOM BELONGS TO THE PANE IT IS APPLIED TO, NOT TO THE BUDGET.
+  //
+  // These two lines used to read
+  //
+  //     const mainTopPx    = Math.round(MAIN_TOP * mainHeightPx)
+  //     const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
+  //
+  // and the margins below divided them by `pane0HeightPx`. That mixes two frames
+  // of reference: the numerators are absolute pixels derived from the candle
+  // pane's BUDGET, while the denominator is the pane's ACTUAL height — and
+  // `pane0HeightPx = mainHeightPx - stack`. So every own pane the member adds
+  // shrinks the denominator while the numerator stands still, and the 30%
+  // headroom grows without limit until it swallows the plot.
+  //
+  // ⛔ MEASURED, on `chartHeight: 700` with a separate volume pane — the top
+  // margin and what is left to draw candles in:
+  //
+  //     0 own panes   top 0.300   drawable 0.700
+  //     1 own pane    top 0.354   drawable 0.646
+  //     2 own panes   top 0.430   drawable 0.570
+  //     3 own panes   top 0.567   drawable 0.433
+  //     4 own panes   top 0.752   drawable 0.248
+  //
+  // and with a BANDED volume, which inflates the bottom term the same way, four
+  // own panes leave drawable 0.022 — a 2% strip. That is the owner's production
+  // screenshot: NVDA around 210 pressed into the bottom of its pane with the
+  // price scale reading to ~1600, because a series drawn in 15% of a pane needs
+  // a scale ~6.6× its own range.
+  //
+  // ⚠️ PRE-EXISTING, NOT A PANE-ORDERING REGRESSION. This arithmetic is
+  // byte-identical at `7ac0e0aee`, master before Track A merged. Pane ordering
+  // did not break it; it made it REACHABLE, because own panes went from rare to
+  // one click. Arrangement is not a factor at all — measured, Price's margins
+  // are identical with QQQ above it and with QQQ below it. Only the SIZE of the
+  // stack matters.
+  //
+  // ⭐⭐ THE FIX IS THE FORM BANDS MODE ALREADY USES. `computePaneMargins` writes
+  // `{ top: MAIN_TOP, bottom: bottomC / 100 }` — fractions of the rectangle the
+  // series is actually drawn in. Panes mode was the outlier, so this makes the
+  // two modes agree rather than inventing a third rule, and it reproduces the
+  // no-stack case EXACTLY (top 0.300, bottom 0.150 banded / 0.000 separate),
+  // which is what the `price_plot` parity region reads.
+  const volumeFrac = volumeC / 100
   above[mainPaneIndex] = pane0HeightPx
 
   // ─── the non-oscillator heights, addressed by the slot they actually occupy ─
@@ -812,11 +882,16 @@ export function computePaneLayout(instances, opts) {
       // the candle rectangle lands on the same absolute pixels it does today.
       // That identity is what lets the `price_plot` parity region read 0.
       mainMargins: {
-        top: mainTopPx / pane0HeightPx,
-        bottom: 1 - (mainBottomPx / pane0HeightPx),
+        // Fractions of THIS pane — see the frame-of-reference note above.
+        top: MAIN_TOP,
+        bottom: volumeFrac,
       },
+      // ⛔ AND THE BAND AGREES WITH THEM BY CONSTRUCTION. The band occupies the
+      // bottom `volumeFrac` of the same pane, so its top margin is the candles'
+      // bottom edge. Deriving both from ONE term is what stops the band and the
+      // candles disagreeing about where the boundary is.
       volumeMargins: hasVolumeBand
-        ? { top: mainBottomPx / pane0HeightPx, bottom: 0 }
+        ? { top: 1 - volumeFrac, bottom: 0 }
         : null,
     },
   }
