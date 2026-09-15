@@ -18,6 +18,7 @@ screen, while the Python lane simply exploded. Both lanes now answer NaN.
 is a property no single-lane unit test can see.
 """
 import json
+import shutil
 import math
 import subprocess
 import sys
@@ -103,13 +104,29 @@ def js_results():
     try:
         # ⚠️ RUN FROM `app/`, never `--root app` — that spelling produces phantom
         # failures on this box and is a recorded trap.
+        # ⚰️⚰️ **`shell=True` WITH A LIST RAN NOTHING ON THE CI RUNNER.** On POSIX,
+        # `subprocess.run(LIST, shell=True)` execs `/bin/sh -c LIST[0]` and hands the
+        # REST to the shell as $0, $1 … — so `vitest run <spec>` never reached `npx`.
+        # On Windows the same call works (Python joins the list with `list2cmdline`),
+        # which is why this file passes on the dev box and compared NOTHING in CI.
+        # Measured on a POSIX shell: `sh -c "echo" "vitest" "run" "spec.js"` prints an
+        # EMPTY line and exits 0 — exactly what run #22's record shows for this test:
+        #     exit=0   stdout=   stderr=
+        # ⛔ And E CP23 read that as *"the two lanes do not agree"*. They were never
+        # compared. The fixture said so in those words; the reading was wrong.
+        npx = shutil.which("npx")
+        if not npx:
+            # ⛔ NOT A SKIP, for the same reason as below: a parity rail that goes
+            # quiet when its runner is missing passes forever while the lanes drift.
+            pytest.fail("npx is not on PATH, so the JS lane cannot run and NOTHING "
+                        "would be compared.")
         r = subprocess.run(
             # ⛔ NO `--reporter=basic`. This vitest resolves that as a CUSTOM
             # REPORTER MODULE and dies in `loadCustomReporterModule` before a
             # single test runs -- which looks exactly like "the spec is broken".
-            ["npx", "vitest", "run",
+            [npx, "vitest", "run",
              "src/components/chart/engine/ast/" + spec.name],
-            cwd=str(app), capture_output=True, text=True, timeout=420, shell=True,
+            cwd=str(app), capture_output=True, text=True, timeout=420,
         )
         if not out_f.exists():
             # ⛔ NOT A SKIP. If the JS lane cannot run, this file has compared
