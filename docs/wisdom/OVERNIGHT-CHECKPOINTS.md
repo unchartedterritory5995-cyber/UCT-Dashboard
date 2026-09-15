@@ -566,3 +566,45 @@ rest is the shape that fits under the cap.
 per-source segment counts (the catalog is not on this box), and a re-based 1-pass estimate —
 $80 is documented, not measured, and the measured per-segment cost has fallen since it was
 written. "Likely under $80" is not a budget.
+
+## ⭐⭐ WHAT "PRODUCTION IS DARK" MEANS — and the 2026-09-14 23:32 ET measurement
+
+⛔ **The definition changed on 2026-09-14 (session 5, owner ruling R18).** It is now three
+numbers, all derived, none typed:
+
+> **0 of the 25 registry gates set** (of which **10 are member-visible**), **0 switch-shaped env
+> vars read outside the registry**, and **27 of 27 Wisdom GET routes returning 401** to an
+> anonymous caller.
+
+⚰️ **The old line — "six services, 430 variables, zero `WISDOM_*` set anywhere" — is
+SUPERSEDED, and not merely restated.** It counted variables by NAME PREFIX, and the prefix is
+wrong: **`ASKAI_WISDOM_RETRIEVAL_ENABLED`** is the Ask-AI kill switch, it is **member-visible**,
+and it does not begin with `WISDOM_`. A prefix scan reports "zero WISDOM_* set" while that
+switch is lit. The gate list now comes from **`flags.GATES`**, the same registry the admin status
+page and the ledger rail read, which also carries `member_visible`.
+
+### The measurement — `scripts/wisdom_dark_check.py`, 2026-09-14 23:32 ET
+
+| half | result |
+|---|---|
+| routes (`--host https://uctintelligence.com`) | ⭐ **27 of 27 -> 401. 0 LIT, 0 unreachable.** Latency min 84 ms / median 113 ms / max 684 ms. Exit **0 (PASS)** |
+| gates (`--local`) | **0 of 25 set on this machine** |
+| off-registry switches | **0** |
+
+⛔ **The route half is a PRODUCTION measurement; the gate half is NOT.** `--local` reads this
+machine's environment, which says nothing about Railway. Reading production's variable state
+needs Railway credentials, and this session did not attempt it — **the production gate state is
+the owner's to confirm from Railway**, and until he does, "0 of 25 in production" is unmeasured
+rather than measured.
+
+⭐ **All four templated routes were genuinely probed**, with a placeholder id substituted, rather
+than skipped. A guard that fires before the lookup 401s on a nonexistent id, which is the
+evidence wanted — skipping them would have left 4 of 27 unmeasured while the run still said
+"checked".
+
+**How it was sent** (printed by the tool before any request left): GET only · no Authorization,
+no Cookie, no push secret · one request per route · 250 ms spacing · 10 s timeout · no retries ·
+status and byte-shape read, **no body stored or printed**.
+
+⚠️ A `User-Agent` is set, and that is deliberate rather than sloppy: Cloudflare 1010-blocks bare
+tool UAs, which would make every route read UNREACHABLE and the run read clean.

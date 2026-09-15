@@ -2,6 +2,18 @@
 
 Owner ruling R6 (2026-09-14): the "production is dark" claim becomes a committed instrument.
 
+⭐⭐ **THE DEFINITION (owner ruling R18, 2026-09-14).** "Production is dark" means three numbers:
+
+    0 of the 25 registry gates set (10 of which are member-visible),
+    0 switch-shaped env vars read outside the registry,
+    27 of 27 Wisdom GET routes returning 401 to an anonymous caller.
+
+**Measured 2026-09-14 23:32 ET against https://uctintelligence.com: 27/27 -> 401, 0 LIT,
+0 unreachable, exit 0.** ⛔ The ROUTE half is a production measurement. The GATE half is not:
+`--local` reads this machine, and reading production's variable state needs Railway credentials,
+which this tool does not use and this programme does not hold. Production gate state is the
+owner's to confirm from Railway.
+
 ⚰️ **WHAT IT REPLACES.** `docs/wisdom/SESSION-STATE.md` records, from 2026-09-14 05:00 CT:
 *"PRODUCTION IS DARK, MEASURED NOT ASSUMED: six services, 430 variables, zero `WISDOM_*` set
 anywhere; `flag_ledger_audit` reports 0 in every category; 27 of 27 real Wisdom GET routes return
@@ -211,27 +223,61 @@ def classify(route) -> str:
 
 # ── probing ──────────────────────────────────────────────────────────────────
 
-def probe(host: str, routes: list, timeout: float = 10.0) -> dict:
+#: Substituted into a templated path so every route is actually probed. ⛔ A guard that fires
+#: before the lookup 401s on a nonexistent id, which is exactly the evidence wanted; skipping
+#: templated routes would leave 4 of the 27 unmeasured while the run still said "checked".
+TEMPLATE_PLACEHOLDER = "darkcheck-probe"
+
+#: ⛔ One request per route, spaced. Not politeness — an unthrottled sweep of 27 admin paths from
+#: one IP is indistinguishable from probing, and Cloudflare may answer differently partway
+#: through, which would make the second half of the run measure the WAF rather than the app.
+SPACING_S = 0.25
+TIMEOUT_S = 10.0
+
+
+def probe_plan(host: str, routes: list) -> dict:
+    """What a run WOULD send. Printed before any request leaves, so it can be refused."""
+    return {
+        "host": host.rstrip("/"),
+        "routes": len(routes),
+        "method": "GET only",
+        "auth_headers": "NONE — no Authorization, no Cookie, no push secret",
+        "requests_per_route": 1,
+        "spacing_s": SPACING_S,
+        "timeout_s": TIMEOUT_S,
+        "retries": 0,
+        "templated_paths": sum(1 for r in routes if "{" in r["path"]),
+        "placeholder": TEMPLATE_PLACEHOLDER,
+        "bodies_read": "status and byte-shape only; no body is stored or printed",
+    }
+
+
+def probe(host: str, routes: list, timeout: float = TIMEOUT_S) -> dict:
     """Unauthenticated GETs only. ⛔ No credentials, ever — the point is what an anonymous caller sees."""
+    import time
     import urllib.error
     import urllib.request
 
     findings, checked = [], 0
-    for route in routes:
-        if "{" in route["path"]:
-            findings.append({"path": route["path"], "status": None, "verdict": "SKIPPED_TEMPLATE"})
-            continue
-        url = host.rstrip("/") + route["path"]
+    for i, route in enumerate(routes):
+        if i:
+            time.sleep(SPACING_S)
+        path = re.sub(r"\{[^}]+\}", TEMPLATE_PLACEHOLDER, route["path"])
+        url = host.rstrip("/") + path
+        # ⛔ No Authorization, no Cookie. The User-Agent is set only because Cloudflare 1010-blocks
+        # bare tool UAs, which would make every route read UNREACHABLE and the run read clean.
         req = urllib.request.Request(url, method="GET", headers={"User-Agent": "Mozilla/5.0 (wisdom-dark-check)"})
+        started = time.monotonic()
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 status, body = resp.status, resp.read(2048)
         except urllib.error.HTTPError as exc:
             status, body = exc.code, exc.read(2048)
         except Exception as exc:
-            findings.append({"path": route["path"], "status": None,
+            findings.append({"path": route["path"], "status": None, "ms": None,
                              "verdict": "UNREACHABLE", "detail": type(exc).__name__})
             continue
+        ms = round((time.monotonic() - started) * 1000)
         checked += 1
         looks_json = body.strip().startswith((b"{", b"["))
         # ⭐ 200-with-HTML is the SPA catch-all, i.e. the route is not mounted. That is not a leak,
@@ -244,7 +290,8 @@ def probe(host: str, routes: list, timeout: float = 10.0) -> dict:
             verdict = "SPA_CATCHALL"
         else:
             verdict = "LIT"
-        findings.append({"path": route["path"], "status": status, "verdict": verdict, "json": looks_json})
+        findings.append({"path": route["path"], "status": status, "ms": ms,
+                         "verdict": verdict, "json": looks_json})
     return {"checked": checked, "findings": findings}
 
 
@@ -357,15 +404,25 @@ def main() -> int:
               "half needs the Railway CLI and is a separate, deliberate act.")
 
     if args.host:
+        plan = probe_plan(args.host, routes)
+        result["probe_plan"] = plan
+        print("\nPROBE PLAN — exactly what will be sent:")
+        for k, v in plan.items():
+            print(f"  {k:<20} {v}")
         got = probe(args.host, routes)
         result["probe"] = got
         lit_routes = [f for f in got["findings"] if f["verdict"] == "LIT"]
         unreachable = [f for f in got["findings"] if f["verdict"] == "UNREACHABLE"]
-        print(f"\nPROBE {args.host}: {got['checked']} checked, {len(lit_routes)} LIT, "
-              f"{len(unreachable)} unreachable")
+        dark = [f for f in got["findings"] if f["verdict"] == "DARK"]
+        print(f"\nPROBE {args.host}: {got['checked']} checked, {len(dark)} DARK (401/403), "
+              f"{len(lit_routes)} LIT, {len(unreachable)} unreachable")
+        lat = [f["ms"] for f in got["findings"] if f.get("ms") is not None]
+        if lat:
+            print(f"  latency ms: min {min(lat)}  median {sorted(lat)[len(lat) // 2]}  max {max(lat)}")
+        # ⛔ status and path only — a body is never printed, whatever it contains.
         for f in got["findings"]:
-            if f["verdict"] not in ("DARK", "SKIPPED_TEMPLATE"):
-                print(f"  {f['verdict']:<16} {f.get('status')} {f['path']}")
+            mark = " " if f["verdict"] == "DARK" else "*"
+            print(f"  {mark} {str(f.get('status')):>4}  {str(f.get('ms')):>5}ms  {f['verdict']:<14} {f['path']}")
         if not got["checked"]:
             print("INCONCLUSIVE: nothing was reachable.")
             exit_code = INCONCLUSIVE
