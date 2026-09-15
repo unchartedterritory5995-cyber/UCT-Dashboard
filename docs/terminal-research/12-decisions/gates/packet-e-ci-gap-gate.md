@@ -63,7 +63,8 @@ the thing standing behind them.
 | CP | scope | strands? | size |
 |---|---|---|---|
 | **CP1** | `.github/workflows/full-suite-report.yml` — full vitest + full pytest, **report-only**, on push to `feat/s7-price-level` and PR to `master` | none | **S** |
-| **CP2** | *(NOT BUILT)* promote to a required check, once the criterion below is met | — | — |
+| **CP2** | `.github/workflows/full-suite-report.yml` — a `publish` job that writes each run's machine-readable result onto an orphan `ci-results` branch, so a result can be READ without an account | none | **S** |
+| **CP3** | *(NOT BUILT)* promote to a required check, once the criterion below is met | — | — |
 
 ### ⛔ It is report-only, and that is load-bearing
 
@@ -75,10 +76,28 @@ converts an unknown number of pre-existing failures into a merge-queue outage on
 morning.** The repo's own history says so: `gate_shards.py` exists because a gate that
 cannot distinguish an environment failure from a code failure gets muted.
 
-> **PROMOTION CRITERION, stated so it can be checked:** ≥1 **GREEN** run and ≥1 **RED** run
+> **CP3's PROMOTION CRITERION, stated so it can be checked:** ≥1 **GREEN** run and ≥1 **RED** run
 > recorded in the ledger. A gate nobody has seen fail is not a gate
 > (`lesson_gate_that_cannot_fail`); a gate nobody has seen pass is worse. Promotion is a
 > separate unit with its own approval line.
+
+### ⚰️ CP2 MEANT TWO DIFFERENT THINGS, AND THE SIGNING MANIFEST IS WHERE THAT BITES
+
+**This table declared `CP2` = *promote to a required check* while commit `e767a7aab` shipped
+under the title *"E CP2 — publish CI results into the repo"*.** Two different checkpoints,
+one id, one packet's roster.
+
+⛔ **A signature names a CHECKPOINT, never a packet** — that sentence is the first thing
+`tools/sign_manifest.txt` says about itself. An ambiguous id is therefore not a cosmetic
+problem: a manifest row reading `packet-e | CP2 | <hash>` would be a signature over a name
+with two referents, and nothing downstream could say which one the owner approved.
+
+**Resolved by renumbering the UNBUILT one**, which is the side that costs nothing: the
+promotion checkpoint has no commit, no ledger row and no artifact pointing at it, so moving
+it to **CP3** contradicts nothing. Renumbering the BUILT one was rejected — its id is
+already fixed in an immutable pushed commit message and in the CI run's display title, so
+the packet would permanently disagree with the record. ⭐ **When two names collide, renumber
+the side that nothing has bound yet.**
 
 ### Two traps the workflow encodes
 

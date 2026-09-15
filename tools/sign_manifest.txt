@@ -13,17 +13,37 @@
 # (an attribution correction, 0b7570df4 -> 453ecc3ec). Its real fingerprint is 72cda4cda.
 # That drift is exactly what the recompute is for.
 #
-# Order is the MERGE order and is load-bearing:
+# Order is the MERGE order and is load-bearing. The prose below is the REASON; the
+# `#!` directives under it are the same constraints in a form a machine reads, and
+# tools/merge_all.py enforces them against its own UNITS order (K CP3).
+#
+# WHY BOTH: prose alone drifts from the list it describes -- this programme's oldest
+# recurring defect. A directive nobody can read is no better. So the reason stays in
+# English, the constraint is derived, and a disagreement between the two is a refusal,
+# not a comment somebody skims past.
+#
 #   C before D   - same file (CLAUDE.md), different sections; never squash
 #   B before V   - V adds CP4 to B's roster
+#   E CP1 before E CP2 - CP2's publish job is appended to CP1's workflow file
+#   K CP2 before K CP3 - CP3 enforces constraints from inside CP2's own merge_all.py
 #   F-S2-1 LAST  - the only member-visible unit, merged alone
+#
+# Syntax: `#!after: <stem> <- <stem>` means the LEFT unit merges AFTER the right one.
+#         `#!last:  <stem>` means nothing may be ordered after it.
+#
+#!after: packet-d-nav-tabs-gate <- packet-c-instrument-and-claudemd-gate
+#!after: packet-v-multi-volume-gate <- packet-b-schema-resolution-gate
+#!after: e-cp2-build-record <- packet-e-ci-gap-gate
+#!after: k-cp3-build-record <- packet-k-two-command-signing-gate
+#!last: s2-accelerator-chord-pre-implementation-gate
 
 docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | CP1,CP2 | c443515eb
 docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md | CP1,CP2 | e279c828c
 docs/terminal-research/12-decisions/gates/packet-b-schema-resolution-gate.md | CP1,CP2,CP3 | a03e0cbf5
 docs/terminal-research/12-decisions/gates/packet-v-multi-volume-gate.md | CP4 | f94d7addc
 docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | CP2 | 21d6ad3e8
-docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | c90ad04d2
+docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | beeffe8e6
+docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | CP2 | 00eecb391
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
 docs/terminal-research/12-decisions/gates/packet-t-stale-test-gate.md | T-CP1 | 5179b2890
 docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | CP2 | f7e851d58
