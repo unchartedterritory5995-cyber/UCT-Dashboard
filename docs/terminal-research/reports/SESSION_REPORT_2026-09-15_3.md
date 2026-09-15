@@ -6,13 +6,15 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 08:49 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 09:32 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**4 commits** — two docs, two code (`0b92750fa`, `9ef64fd69`), plus the three held commits
-from session 2 (`dbc494828`, `f2251d398`, `0b92750fa`) **now pushed**. Nothing signed,
+**9 commits** — five docs, four code (`0b92750fa`, `9ef64fd69`, `e825a4df4` + the held
+`dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
+⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
+here — nothing was pushed to master. Nothing signed,
 nothing merged, nothing pushed to master.
 
 ## 2 · Prelude
@@ -126,6 +128,53 @@ parse failure is fixed.
 time.** ⛔ Nine jobs succeeding is not the same artifact as a totals line in a published
 record, and this session does not conflate them.
 
+## 3d · Run #8 — 19 of 20 green, and `publish` failed a THIRD time
+
+| | |
+|---|---|
+| jobs | **20** |
+| succeeded | **19** — all 12 shards, **all 5 profile jobs**, vitest, plan |
+| failed | **1 — `publish`, in 22 s** |
+| record on `ci-results` | **none** |
+
+⭐ **E CP10's fix is confirmed:** the parse failure is gone and **all four previously-failing
+slashed profile jobs succeeded** (run #6: 0 of 4).
+
+⛔ **But `publish` has now failed three runs running — 61 s, 13 s, 22 s — and no record has
+published since run #4.**
+
+## 3e · ⛔⛔ E CP11 — I PUT THE SAFETY NET AFTER THE TRAPEZE
+
+**E CP9's whole F-CI-7 fix was to write the phone-readable summary *before the push*.** That
+covers a **push** failure. ⛔ **Publish has been dying at ~22 s — long before step 11 of
+12 — so no summary was written either.**
+
+⭐⭐ **A fallback placed after the thing that fails is not a fallback.** I built the guard
+for the failure I imagined instead of the one that was happening, **and the evidence that it
+was failing early — 61 s, 13 s, 22 s — was in front of me each time.**
+
+**Fixed:** the skeleton summary is now the **third named step**, before any artifact is read,
+built only from `needs.*.result` — data that cannot be missing. It says in words that if
+nothing follows it, publish died before it could build the full record.
+
+**And a silent wrong answer, also provable from the file:** `download-artifact@v4` with
+`pattern:` and no `merge-multiple` nests **each artifact in its own subdirectory**. The real
+path is `shards/pytest-shard-tests-01/summary.json`; the aggregator was told
+`shards/tests-01/`. **Every shard would have read MISSING while all twelve were green.**
+`--dir-prefix` is now passed, not guessed, and both spellings are tried.
+
+⚠️ **Neither is claimed to be the 22-second crash.** The log is **403** and the `jobs` API
+returns an **empty `steps` array**, so the failing step is **UNREADABLE**. These are what
+reading the file proves. ⭐ **The skeleton summary is the part that matters most** — it makes
+the *next* failure readable without a log at all.
+
+### Prediction for run #9 — and `publish` is predicted UNKNOWN
+
+⭐ **Two prior predictions of `publish: success` were wrong.** A fourth confident guess would
+be a claim about a cause I still cannot read, so the build record says **UNKNOWN**. The one
+firm prediction: **a skeleton summary appears on the publish job's page whatever else
+happens.**
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -195,9 +244,17 @@ unblocks three units directly and five transitively.
 
 ## 5 · Shell-escaping incidents
 
-**One, and it was caught before the commit.** The E CP8 guard's escaped newlines collapsed
-into literal `\n` and broke the YAML; `yaml.safe_load` refused it and **nothing was
-committed**. Rewritten as a heredoc block and re-validated from the parse tree.
+⚠️ **TWO, not one — and the count in the first draft of this report was wrong.**
+
+1. The **E CP8 guard**: escaped newlines collapsed into literal `\n` and broke the YAML.
+   `yaml.safe_load` refused it and **nothing was committed**. Rewritten as a heredoc block.
+2. The **E CP11 patch**: a `\\\n` inside a heredoc collapsed, the assertion failed, and the
+   workflow half of the edit **did not apply** while the tool half did. Caught by the
+   assertion, redone through a **patch file**.
+
+⭐ Both failed **safely** — one refused by a validator, one by an assertion — and neither
+reached a commit. ⛔ But two in one session, after the rule was written down, says the rule
+is not the problem: **the inline escaped string is, and it has no legitimate use here.**
 
 ⚠️ That is **five** such incidents across three sessions. The rule now reads: multi-line
 edits go through a **patch file**, never an inline escaped string. Every edit this session
@@ -224,6 +281,8 @@ CP7 itself**, which never ran a job.
 | **F-CI-7** | **ADDRESSED** by E CP9 — the publisher retries, then fails non-zero, and writes the summary before attempting the push. Unproven until a run publishes. |
 | **F-CI-8** | **ADDRESSED** by a concurrency group (primary) + bounded retry (secondary). ⚠️ **UNTESTED-LIVE.** |
 | **F-CI-11** | **NEW, mine.** `replace()` is not an Actions expression function; E CP7 rejected the whole workflow. `yaml.safe_load` cannot see the expression layer and `actionlint` was UNREADABLE-TOOL. Guard added. |
+| **F-CI-12** | **NEW, mine.** The F-CI-7 fallback sat at step 11 of 12 while `publish` died at ~22 s; a fallback after the failure point is not a fallback. Skeleton summary moved to step 3. |
+| **F-CI-13** | **NEW, mine.** `download-artifact@v4 pattern:` without `merge-multiple` nests each artifact in its own directory, so every shard read MISSING — a silent wrong answer. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -250,9 +309,9 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 **PARKED.** **(a) F-MERGE-1 CLOSED — MET** (confirmed on the file, §2 P.1).
 **(b) pytest has produced a totals line in the record — UNMET** (§3c).
 
-The 21-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–20 nothing member-visible.**
-Row 21 (`s2-accelerator-chord`) is the chord change — Ctrl/Cmd/Alt+Shift+F stops silently
+The 23-row table with fingerprints and reader states is in the manifest; every row reads
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–22 nothing member-visible.**
+Row 23 (`s2-accelerator-chord`) is the chord change — Ctrl/Cmd/Alt+Shift+F stops silently
 flagging tickers on three screens. **This session merged and deployed nothing.**
 
 **[PHONE-OK]** — if `publish` failed again on run #8: open the repo's **Actions** tab → the
@@ -263,8 +322,8 @@ the top of that job's page **even when the push failed**. Tell me the verdict li
 
 ## 10 · Merge readiness
 
-**21 rows, 21 OK, 0 STALE. 20 of 20 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **12 constraints SATISFIED**, 21 units, 0 MALFORMED,
+**23 rows, 23 OK, 0 STALE. 22 of 22 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **15 constraints SATISFIED**, 23 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
@@ -273,9 +332,10 @@ the top of that job's page **even when the push failed**. Tell me the verdict li
 
 ## 11 · Three phone-readable sentences
 
-**The system that writes CI results into the repository could previously fail without
-leaving any trace at all; it now retries, and if it still cannot write it fails loudly and
-puts the result on the run's own summary page where a phone can read it.**
+**The part that writes CI results into the repository has now failed three times in a row
+and I still cannot see why, because the logs need a login; what I could fix is that it now
+writes a short status to the run's own page before it tries anything that can fail, so the
+next failure should be readable from a phone.**
 
 **I broke the build pipeline completely with a one-word fix — I used a text-replacing
 function that does not exist — and the checker I had available could not see that class of
