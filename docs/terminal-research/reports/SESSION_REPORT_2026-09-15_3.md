@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 16:22 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 16:58 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**30 commits** — fifteen docs, fifteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`, `c89dd6b81`, `aba219779`
+**32 commits** — sixteen docs, sixteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`, `c89dd6b81`, `aba219779`, `03ebbd7f7`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -892,6 +892,55 @@ thing: the measurement getting closer to the truth.** ⚠️ Falsifier: `LaneUna
 present at volume — which would mean `node_modules` was not what the lane lacked, and its
 message would say what is.
 
+## 3bb · E CP22 — the inventory is DERIVED, and the axis that matters is not the count
+
+The workflow header asks for this, and asks for it the wrong way:
+
+> *"…its output is the inventory. **Copy it into this header**, with a finding id per row."*
+
+⛔ A hand-typed table beside the artifact it describes is the defect this repository records
+over and over — the writer-index `FOUR`, the COT router's *"4 routes"* beside five, the setup
+catalog's *"24"* beside twenty-six — and here the artifact moves **every run**. So the
+inventory is derived by `tools/ci_inventory.py` and the header points at the tool.
+
+**Against run #18's published record:**
+
+```
+249 entries — 123 environment-shaped, 126 product-shaped
+```
+
+| n | kind | bucket |
+|---|---|---|
+| 48 | **ENV** | `AdmissionRefused: u_<id>: the lanes could not be compared (LaneUnavailable…` |
+| 18 | **ENV** | `ast_conformance.LaneUnavailable: the JS lane exited 1:` |
+| 15 | **ENV** | `failed on setup with "…LaneUnavailable: the JS lane exited 1:` |
+| 13 | PRODUCT | `failed on setup with "AssertionError: could not read the base blob…` |
+| 8 | **ENV** | `census failed: node:internal/modules/cjs/loader:<n>` |
+| 8 | PRODUCT | `KeyError: 'text_origin'` |
+| 8 | PRODUCT | `TypeError: 'NoneType' object is not subscriptable` |
+
+⭐ **"206 failures" is a true number and a misleading one.** *"126 product-shaped, 123
+environment-shaped"* is the sentence somebody can act on.
+
+⚠️ **What the tool claims, exactly:** `ENV` means the bucket's **TEXT** names a condition of
+the CI environment — never a verdict that the test would pass elsewhere. Only a run with that
+condition removed can say so, which is what run #19 is doing. **Every ENV row carries the
+matched signature** so the call can be checked rather than trusted. ⛔ **Unmatched is always
+PRODUCT**: a misfiled ENV row is a real failure nobody triages; a misfiled PRODUCT row costs
+somebody five minutes.
+
+⚰️ **And its first run against the real record over-counted — 272 where the files held 249.**
+`ci_extract` writes two shapes (pytest one line, vitest a header plus an indented body) and a
+per-line parser counted every vitest failure twice. ⭐ Caught by running it against the
+**published record** rather than the fixture it was written from — a fixture written by the
+same hand reproduces the same assumption. The cross-check now closes exactly: 226 pytest
+lines + 23 vitest headers = 249.
+
+⛔ **CP22 is an instrument and is not scored as a repair.** Its only prediction is about
+itself: run #19's inventory should show **fewer entries**, **far fewer environment-shaped**,
+and **product-shaped roughly unchanged or higher** — the same tests, finally able to say
+something about the code.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -1108,8 +1157,8 @@ explicit deploy instruction and a member-impact paragraph. **The park is lifted;
 front of them is not mine to open.**
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–32 nothing member-visible.**
-Row 33 is E CP21 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–33 nothing member-visible.**
+Row 34 is E CP22 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -1126,8 +1175,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**33 rows, 33 OK, 0 STALE. 32 of 32 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **25 constraints SATISFIED**, 33 units, 0 MALFORMED,
+**34 rows, 34 OK, 0 STALE. 33 of 33 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **26 constraints SATISFIED**, 34 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
