@@ -136,6 +136,33 @@ deploy per 20 minutes, **a yielding queue never lands at all.** It is not a wait
 a condition to notice, and the only lever is coordination between workstreams — **never the
 override, which would make our push the one that breaks somebody else's instrument.**
 
+#### ✅ OUTCOME — the queue DID drain, and the threshold was still exceeded
+
+**Four landings in 1 h 43 m** (16:32:54 → 18:18:46), each to SUCCESS, each on a green guard,
+**no override at any point.** Competing traffic over that span: **five foreign deploys** —
+`57113d1ac`, `263e54120`, `a4e845fe7`, `5efc1abc5`, `f0262e848` — from **two** other
+workstreams, arriving at **1 per 18.9 min**, above the 1-per-30-min threshold derived above.
+
+⭐ **So it drained despite exceeding the threshold, and the reason matters.** The threshold
+governs a **steady state**; a real arrival stream is bursty, and a FINITE queue only needs the
+gaps. Three foreign deploys landed inside fifteen minutes and then nothing for forty-two.
+**The threshold predicts whether a queue can drain INDEFINITELY, not whether THIS queue
+drains** — stating it as the latter would be a forecast dressed as a derivation.
+
+⛔ **AND A FOREIGN DEPLOY COSTS A YIELDING QUEUE TWICE.** It holds a burst slot for an hour
+**and resets the 610 s settle**, because the settle is measured against the NEWEST deploy, not
+against yours. `f0262e848` (17:55:13) did both: it re-occupied a slot *and* pushed M13's settle
+from 18:01:46 out to 18:05:23, **flipping the binding constraint from burst to settle
+mid-wait.** Budget ~10 minutes of settle per intrusion on top of the slot.
+
+⚰️ **MY OWN ERROR, recorded because it is this file's recurring shape.** At 17:45 I measured a
+thirty-minute gap with no foreign deploy, declared the burst over, and stood the livelock
+trigger down. Four minutes later `f0262e848` arrived. **Thirty minutes of silence is a sample,
+not a rate** — `lesson_two_points_do_not_establish_a_rate`, committed against my own threshold
+in the same hour I derived it. The honest reading was available and I did not take it: four
+arrivals over 57 minutes. ⭐ **A quiet interval is evidence about that interval and nothing
+else.**
+
 ⭐ That is not an argument for removing the exemption — an `app/`-only change genuinely is
 low-risk to push. It is the observation that **the exemption and the clause measure different
 things**, and only the person who did not get the exemption pays for it.
@@ -162,8 +189,9 @@ direction that makes a queue look slower than it is.
 ## R — READER
 
 ### R1 · M12 (sampler) landed, SUCCESS
-**`READY`** — held by the landing script, which pushes `breadth/sampler` → master after
-M14. **No clock**: it proceeds as soon as the newest deploy is SUCCESS and settled ≥ 600 s.
+✅ **`DONE`** — pushed `16:55:05`, **deploy `9f0c76f46` SUCCESS `16:57:35 ET`**, verified on
+`origin/master` by `ls-remote`, not by the push's exit code. Seven burst refusals preceded it
+(16:43:21 → 16:53:24), every one correct; **no override was used.**
 - Branch `breadth/sampler`, local tip `41bd58eb7`, **ahead of `origin/breadth/sampler` by 23** (master merged in for re-gating, plus the encoding fix below).
 - Re-gated 2026-09-15: master is ancestor; no file overlap with master's changes; hot-path diff **empty** (5 files, 0 under `api/`); **20 tests green** (17 + 3 added this session).
 - ⚠️ **The branch moved after Session 12 gated it.** `41bd58eb7` fixes a defect that would have shipped: see *Session 13 findings* below. Re-gated after the change.
@@ -178,7 +206,11 @@ M14. **No clock**: it proceeds as soon as the newest deploy is SUCCESS and settl
 > byte of the response.
 
 ### R2 · S1 registered; sampler producing lines; summary regenerated each run
-**`BLOCKED`** on R1 (the sampler's files are not on master until M12 lands).
+**`BLOCKED`** — ⚠️ **but no longer for the reason this line used to give.** It read *"blocked on
+R1 (the sampler's files are not on master until M12 lands)"*; **M12 landed at 16:57:35 and that
+condition is met.** The live blocker is the RUNNER'S LOCATION — see the subsection below. Left
+visible rather than silently rewritten, because the old reason being satisfied is exactly what
+would make somebody run the prepared command.
 - Task Scheduler: **no sampler job exists** — verified 2026-09-15 against the full task list. Proposed name `UCT Breadth Sampler`, matching the existing `UCT Breadth *` convention.
 - ⭐ The report tool now writes `docs/breadth-history-reader/sampler-summary.md` on every run and **survives this box's cp1252 console** (fixed `41bd58eb7`). Before that fix a scheduled run would have exited 1 with no file — R2 could not have been satisfied.
 
@@ -283,7 +315,11 @@ scheduler.
   run once the pod is past 600 s.
 
 ### R3 · M13 (resident copy, flag OFF) landed, SUCCESS
-**`READY`** — landing script, after R1.
+✅ **`DONE`** — pushed `18:05:34`, **deploy `3b50c46b9` SUCCESS `18:08:49 ET`**.
+⭐ **Flag state verified against Railway, not assumed:** `BREADTH_RESIDENT_RECON_ENABLED` is
+**absent** from `railway variables --service web --kv` — and the read was proved non-vacuous
+first (rc=0, 247 lines, `PUSH_SECRET` present, 4 other `BREADTH_*` vars returned), because a
+failed CLI call and an unset variable produce the same empty grep.
 - Branch `breadth/resident-recon`, local tip `acddfabca`, ahead of its remote by 11.
 - Re-gated 2026-09-15: parity **EXACT three ways** vs master `65899a8f7` — golden / flag OFF / flag ON all `sha256 7695923c…` over 5,576,278 bytes; 493 breadth + 187 ledger tests green.
 - Lands with `BREADTH_RESIDENT_RECON_ENABLED` **unset** (OFF). The flip is R5, not this.
@@ -419,7 +455,8 @@ recorded `UNREHEARSED` with the reason, after verifying the dashboard state it c
 ## S — REPO SAFETY
 
 ### S1 · `.gitattributes` for the blobs already stored with CR
-**`READY`** — built on `repo/git-scope`, **4th in the landing queue** (authorised by
+✅ **`DONE`** — landed with S13, `64269ffe5`, **deploy SUCCESS `18:18:46 ET`**. `.gitattributes`
+verified present on `origin/master` (70 lines). Built on `repo/git-scope` (authorised by
 SD-1.1 A2.1). 10 paths derived from the index; 8 rails, mutation-proved.
 - ⚰️ It corrects D-052 §6: no joystick document carries a control byte at HEAD or in its
   last fifteen commits. eol conversion rewrites CR and LF and nothing else, so it never
@@ -443,8 +480,9 @@ by SD-1.1 A2.2 and the code is built.
   in a throwaway repo.
 
 ### S3 · The unborn-branch defect fixed
-**`READY`** — same branch, same landing. `symbolic-ref` first, empty-tree diff for
-`staged_paths()`. 11 rails green on the branch after merging current master.
+✅ **`DONE`** — same branch, same landing (`64269ffe5`). `tools/git_scope.py` verified present
+on `origin/master`. `symbolic-ref` first, empty-tree diff for `staged_paths()`. 11 rails green
+on the branch after merging current master.
 
 ### S4 · A2.5 — gate the promotion RANGE, not just the tip
 **`NOT STARTED`** (accepted as a change by SD-1.1 A2.5; lands under M-docs **after** the
@@ -506,7 +544,7 @@ write.
 
 | | |
 |---|---|
-| Push windows | ⛔ **NONE — retired by owner ruling SD-1.1 A0.** The gates are a settled SUCCESS deploy (≥ 600 s) and the pre-push guard, which remains the authority. ⚠️ That guard *itself* still carries a 09:25–16:05 refusal; it is another programme's file — see A0.4 in the Session 13 report. |
+| Push windows | ⛔ **NONE — retired by owner ruling SD-1.1 A0.** The gates are a settled SUCCESS deploy (≥ 600 s) and the pre-push guard, which remains the authority. ✅ **A0.4 is CLOSED — and not by us.** The shared guard's clock clause was retired at the source on 2026-09-15 by the **discord-render** workstream under owner ruling **R18** (`5efc1abc5`): `tools/pre_push_guard.py:637` *"R18 — THE RTH DEPLOY WINDOW IS RETIRED, PROGRAMME-WIDE"*, and `:666` now **returns OK**. Verified with `git cat-file blob origin/master:…`, and observed live in every guard line from 17:23:52 onward. SD-1.1 A0.4 said report it and do not edit it; the owner-side change was made independently. ⛔ **The constants are KEPT deliberately** (`RTH_GUARD_OPEN`/`_CLOSE`, `:501-502`, per the note at `:659`) — **so a grep for them still reports a clock that no longer refuses.** Presence is not the predicate. ⚠️ **One stale line to REPORT, not fix:** the module docstring at `:11` still says the push *"is refused between 09:25 and 16:05 ET on trading days"*, which the file no longer does — a new instance of A0.4's own class, in the same shared file, so the same rule applies. |
 | Settle | **≥ 600 s** after any workstream's deploy |
 | Hot path | the **8 files a deep read executes** — `docs/breadth/reader-hotpath.txt` |
 | Pool flags | `rf_pagecache` (`POOL_FLAGS`); `rf_resident` joins it once M13 is live |
