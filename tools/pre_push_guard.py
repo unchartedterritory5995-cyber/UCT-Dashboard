@@ -102,7 +102,21 @@ def _railway() -> str | None:
     return shutil.which("railway")
 
 
-def latest_deployment() -> dict:
+#: One CLI read per process, shared by guard 2 (the newest row) and guard 3 (the
+#: cadence). ⛔ A MEMO, NOT A CACHE WITH A TTL: the guard runs once per push and
+#: exits, so "for the life of this process" is the only lifetime there is — and
+#: two reads seconds apart could disagree, which would let guard 2 and guard 3
+#: describe different worlds in the same refusal message.
+_ROWS_MEMO: dict = {}
+
+
+def _read_rows() -> dict:
+    if "v" not in _ROWS_MEMO:
+        _ROWS_MEMO["v"] = _read_rows_uncached()
+    return _ROWS_MEMO["v"]
+
+
+def _read_rows_uncached() -> dict:
     exe = _railway()
     if not exe:
         return {"state": UNREADABLE, "why": "the railway CLI is not on PATH"}
@@ -127,9 +141,19 @@ def latest_deployment() -> dict:
         rows = json.loads(r.stdout)
     except Exception:
         return {"state": UNREADABLE, "why": "railway CLI did not return JSON (not linked?)"}
+    rows = rows if isinstance(rows, list) else rows.get("deployments", rows)
     if not rows:
         return {"state": UNREADABLE, "why": "no deployments listed for service %r" % SERVICE}
-    d = rows[0]
+    return {"state": "READ", "rows": rows}
+
+
+def latest_deployment() -> dict:
+    """The newest row, shaped for `decide()`. Unchanged contract — guard 2's tests
+    drive this and `main()` still monkeypatch-substitutes it by name."""
+    raw = _read_rows()
+    if raw.get("state") != "READ":
+        return raw
+    d = raw["rows"][0]
     meta = d.get("meta") or {}
     return {"state": "READ", "status": d.get("status"), "createdAt": d.get("createdAt"),
             "commit": (meta.get("commitHash") or "")[:9],
@@ -275,6 +299,125 @@ def _iso(s):
         return dt.datetime.fromisoformat((s or "").replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# GUARD 3 — THE CADENCE (D-06 Part 0)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# ⛔ WHY GUARD 2 IS NOT ENOUGH. `decide()` reads ONE row — the newest — and asks
+# "is the pod settled?". It cannot see a BURST. On the night of 2026-09-15 the
+# newest row was SUCCESS and comfortably past `MIN_SETTLE_SECONDS` at several
+# moments when master was taking a commit every few minutes from four different
+# workstreams. Guard 2 would have said "safe to push" at each of them.
+#
+# ⛔ AND `suspected_stacked_pushes` ALREADY SAW IT AND GATED NOTHING. It has
+# existed since 2026-09-14 behind `--audit`, whose docstring says in as many
+# words: *"Exit 0 always — this reports, never gates."* A detector that cannot
+# refuse is a report nobody reads at push time. This is that detector, wired.
+#
+# ⚰️⚰️ A CORRECTION THIS RAIL IS BUILT ON, BECAUSE THE PREMISE WAS WRONG.
+# D-05 refused the merge citing *"six web deploys in 57 minutes, five of them
+# REMOVED — the signature of stacked pushes"*. The NO-GO was right. **The
+# inference was not.** Measured 2026-09-15 over the last 20 `web` deployments:
+# NINETEEN are REMOVED, including `3879b7369`, whose successor arrived **1,990 s
+# (33 minutes) later** — a deploy superseded half an hour on cannot have been
+# killed mid-build. On this service REMOVED means *"no longer the active
+# deploy"*, full stop; every superseded deploy ends there whatever the gap.
+# ⭐ So a REMOVED COUNT MEASURES NOTHING ABOUT STACKING, and a rail built on it
+# would fire on every healthy night. The signal in that same data is the RATE.
+#
+#: ⛔ N, AND WHERE IT COMES FROM — not a round number picked for feel.
+#: The only directly-measured 502 on this repo is 2026-09-14: `9e2b93805` pushed
+#: **173 s** after `7705c2d3b`, marking it REMOVED mid-flight; a request died with
+#: a 500 after 93 s and `/api/health` served 502 for ~45 s. `docs/runbooks/
+#: deploy-windows.md` puts a build at **3–5 minutes**. Railway publishes no
+#: "build finished at" timestamp, so the guard cannot know when a build ENDS — it
+#: can only refuse for longer than one can take. 600 s is 2x the documented
+#: maximum. ⚠️ The asymmetry decides the rounding: a false refusal costs a ten
+#: minute wait, a false allow costs a member-visible 502.
+RECENT_PUSH_WINDOW_SECONDS = 600
+
+#: ⛔ THE SECOND CLAUSE IS NOT THE FIRST ONE RESTATED. Recency catches the tight
+#: pair (223 s, 228 s on the 09-15 night). It is blind to the shape that actually
+#: stopped D-05: deploys 11, 18 and 19 minutes apart, each individually settled,
+#: from four workstreams that could not see each other. Three distinct commits
+#: inside an hour is not one person working — it is concurrent development, and
+#: the chance that a 3-5 minute build is in flight somewhere is material.
+#: ⭐ THIS CLAUSE ENCODES THE JUDGEMENT A SESSION COULD NOT MAKE FOR ITSELF. D-05
+#: reported that the missing precondition was "a human who can see all four
+#: workstreams"; the deployment list IS that view, and nothing was reading it.
+BURST_WINDOW_SECONDS = 3600
+BURST_MIN_DEPLOYS = 3
+
+
+def recent_deployments() -> dict:
+    """`{"state": READ, "rows": [{commit, createdAt, status}, ...]}` or UNREADABLE."""
+    raw = _read_rows()
+    if raw.get("state") != "READ":
+        return raw
+    rows = []
+    for d in raw["rows"]:
+        meta = d.get("meta") or {}
+        rows.append({"commit": (meta.get("commitHash") or "")[:9],
+                     "createdAt": d.get("createdAt"), "status": d.get("status"),
+                     "message": (meta.get("commitMessage") or "").split("\n")[0][:60]})
+    return {"state": "READ", "rows": rows}
+
+
+def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str, str]:
+    """(verdict, reason). Pure — the tests drive it directly.
+
+    ⛔ FAIL CLOSED on every unreadable path, including "rows came back but not one
+    timestamp parsed". An empty answer and a quiet master are the same shape from
+    here, and only one of them is safe."""
+    if dep.get("state") == UNREADABLE:
+        return REFUSE, ("cannot read the %s deployment list (%s). REFUSING: a cadence guard "
+                        "that fails open is quietest exactly when master is busiest."
+                        % (SERVICE, dep.get("why")))
+    now = now or dt.datetime.now(dt.timezone.utc)
+    rows = dep.get("rows") or []
+    # Dedupe by commit: Railway emits a REMOVED twin milliseconds from its SUCCESS
+    # for ONE push, and counting that as two deploys would double every burst.
+    seen: dict = {}
+    for r in rows:
+        t = _iso(r.get("createdAt"))
+        c = r.get("commit")
+        if not c or t is None:
+            continue
+        if c not in seen or t > seen[c][0]:
+            seen[c] = (t, r)
+    if rows and not seen:
+        return REFUSE, ("the %s deployment list carried %d row(s) and not one readable "
+                        "(commit, timestamp) pair — REFUSING rather than reading that as quiet."
+                        % (SERVICE, len(rows)))
+
+    # ── clause 1: RECENCY ────────────────────────────────────────────────────
+    for c, (t, r) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
+        age = (now - t).total_seconds()
+        if 0 <= age < RECENT_PUSH_WINDOW_SECONDS:
+            return REFUSE, ("a %s deploy landed %ds ago (%s %s) and a build takes 3-5 min — "
+                            "pushing inside that window is how a deploy is marked REMOVED "
+                            "mid-flight and members get a 502. Wait %ds."
+                            % (SERVICE, int(age), c, r.get("message") or "",
+                               int(RECENT_PUSH_WINDOW_SECONDS - age)))
+        break                                    # only the newest can be the recent one
+
+    # ── clause 2: BURST ──────────────────────────────────────────────────────
+    burst = [(c, t) for c, (t, _r) in seen.items()
+             if 0 <= (now - t).total_seconds() < BURST_WINDOW_SECONDS]
+    if len(burst) >= BURST_MIN_DEPLOYS:
+        newest = sorted(burst, key=lambda ct: ct[1], reverse=True)
+        return REFUSE, ("%d distinct %s deploys in the last %d min (%s) — master is under "
+                        "concurrent development and a build may be in flight from a session "
+                        "this one cannot see. This is the D-05 shape; it needs a human who "
+                        "can see every workstream, not a guard."
+                        % (len(burst), SERVICE, BURST_WINDOW_SECONDS // 60,
+                           ", ".join(c for c, _ in newest[:4])))
+
+    n_recent = len(burst)
+    return OK, ("%d %s deploy(s) in the last %d min, none inside %ds — master is quiet."
+                % (n_recent, SERVICE, BURST_WINDOW_SECONDS // 60, RECENT_PUSH_WINDOW_SECONDS))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -507,10 +650,16 @@ def main(argv=None) -> int:
 
     dep = latest_deployment()
     verdict, reason = decide(dep)
+    cad = recent_deployments()
+    kverdict, kreason = decide_cadence(cad)
 
     if a.json:
         print(json.dumps({
-            "verdict": OK if (verdict == OK and cverdict == OK) else REFUSE,
+            "verdict": OK if (verdict == OK and cverdict == OK and kverdict == OK) else REFUSE,
+            "cadence": {"verdict": kverdict, "reason": kreason,
+                        "recent_window_s": RECENT_PUSH_WINDOW_SECONDS,
+                        "burst_window_s": BURST_WINDOW_SECONDS,
+                        "burst_min": BURST_MIN_DEPLOYS},
             "clock": {"verdict": cverdict, "reason": creason,
                       "session": clock.get("session"), "trading_day": clock.get("trading_day"),
                       "now_et": clock["now_et"].isoformat() if clock.get("now_et") else None,
@@ -518,7 +667,7 @@ def main(argv=None) -> int:
                       "uncleared": None if paths is None else uncleared_paths(paths)},
             "queue": {"verdict": verdict, "reason": reason, "deployment": dep},
         }, indent=1))
-        return 0 if (verdict == OK and cverdict == OK) else 1
+        return 0 if (verdict == OK and cverdict == OK and kverdict == OK) else 1
 
     if clock_overridden:
         # ⛔ LOUD. A window override is a member-visible restart during the session;
@@ -534,13 +683,20 @@ def main(argv=None) -> int:
         print("[pre-push] %s" % creason)
 
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):
-        _log_bypass(dep, reason)
+        # ⛔ BOTH reasons are logged. Overriding a queue refusal and overriding a
+        # cadence refusal are different acts, and a log that records only the first
+        # cannot tell the reviewer which one was waved through.
+        _log_bypass(dep, "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason))
+                                   if v != OK) or reason)
         print("[pre-push] BYPASSED via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
         print("[pre-push] what was overridden: %s" % reason)
+        if kverdict != OK:
+            print("[pre-push] ...and the cadence guard: %s" % kreason)
         return 0
 
     print("[pre-push] %s" % reason)
-    if verdict != OK:
+    print("[pre-push] %s" % kreason)
+    if verdict != OK or kverdict != OK:
         print("[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.")
         print("[pre-push]    Wait, then push again. Deliberate override: %s=1" % BYPASS_ENV)
         return 1
