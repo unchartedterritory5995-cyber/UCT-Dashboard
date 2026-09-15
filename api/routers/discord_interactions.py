@@ -313,6 +313,59 @@ def _channel_nudge() -> dict:
                       else "Not available in this channel.")
 
 
+def _emit_ack_timing(request) -> dict | None:
+    """OI-42 — split the 3 s ack budget into the half we owned and the half we did not.
+
+    ⚰️ WHY THIS EXISTS. 2026-09-15, `#render-smoke`, ONE admin, NO load: `/flow` answered
+    "The application did not respond." Its handler is already defer-first and does no I/O
+    before the ack (`background.add_task` then `{"type": 5}`), so nothing IN the handler
+    could explain it. The starvation was BEFORE handler entry, and nothing measured that.
+
+    Two hops, emitted as ordinary `drender` events:
+      `send_to_entry` — Discord's `X-Signature-Timestamp` to our handler entry. This is the
+                        half that was invisible: transport plus anything that kept the ONE
+                        event loop from reaching this coroutine.
+      `entry_to_ack`  — handler entry to the reply object existing. This half was already
+                        measured as the S1 SLO; it is emitted beside the other so a reader
+                        sees which half spent the budget.
+
+    ⛔⛔ `send_to_entry` HAS ONE-SECOND RESOLUTION AND UNKNOWN CLOCK SKEW, and that is
+    stated here rather than discovered by someone trusting a 400 ms reading. Discord's
+    timestamp is integer UNIX SECONDS, and our clock is not synchronised to theirs. So:
+      * it CAN separate "we got it late" from "we were slow" at the multi-second scale,
+        which is the scale a missed 3 s ack lives at -- the case it was built for;
+      * it CANNOT be read as a sub-second latency figure, and a negative value means skew,
+        not time travel. Negative readings are emitted as-is rather than clamped, because a
+        clamped -800 ms renders as a healthy 0 and hides the skew.
+    ⭐ The loop-stall reading (`loopwatch`) is the corroborating instrument: a large
+    `send_to_entry` WITH a concurrent stall is starvation; without one it is transport.
+
+    Never raises: an observability path that can break the request it observes is worse
+    than no observability at all."""
+    try:
+        stashed = getattr(request.state, "drender_ack_t", None)
+        if not stashed:
+            return None
+        ts, entry_wall, entry_perf = stashed
+        import time as _t
+        from api.services.discord_render import ids, observe
+        seen = getattr(request.state, "drender_interaction", None) or {}
+        cmd = str(((seen.get("data") or {}).get("name")) or "") or None
+        entry_to_ack_ms = (_t.perf_counter() - entry_perf) * 1000.0
+        out = {"entry_to_ack_ms": entry_to_ack_ms}
+        observe.event("ack", cid=ids.current(), cmd=cmd, hop="entry_to_ack", ms=entry_to_ack_ms)
+        try:
+            send_to_entry_ms = (entry_wall - int(ts)) * 1000.0
+        except (TypeError, ValueError):
+            send_to_entry_ms = None          # unparsable header: absent, never zero
+        if send_to_entry_ms is not None:
+            out["send_to_entry_ms"] = send_to_entry_ms
+            observe.event("ack", cid=ids.current(), cmd=cmd, hop="send_to_entry", ms=send_to_entry_ms)
+        return out
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
     """The member's reply is produced by `_dispatch_interaction` and returned UNCHANGED.
@@ -324,6 +377,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
     member's reply: measuring the cost of measuring is the one thing a shadow must not do
     on a pod with one event loop (C-02)."""
     reply = await _dispatch_interaction(request, background)
+    _emit_ack_timing(request)
     try:
         from api.services.discord_render import shadow as _shadow
         seen = getattr(request.state, "drender_interaction", None)
@@ -356,6 +410,9 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
     # The parsed interaction, for the shadow wrapper above — the body is already consumed
     # by the time it runs, and re-reading a Request body is not possible.
     request.state.drender_interaction = interaction
+    # OI-42 — the two halves of the ack budget, stashed for the wrapper to emit.
+    # `received` is already the S1 start; what was never captured is the half BEFORE it.
+    request.state.drender_ack_t = (ts, _time.time(), received)
 
     itype = interaction.get("type")
     if itype == 1:
@@ -788,7 +845,17 @@ def render_health(request: Request):
                "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12]}
     renderer = _renderer_health()
     if store is None:
-        return {**payload, "renderer": renderer, "slo": None, "note": "no jobs database yet (V2 has never run on this volume)"}
+        # ⛔⛔ OI-42 — THE LOOP READING MUST SURVIVE THIS EARLY RETURN. `loopwatch` is wired
+        # at boot (`api/main.py`), is a kill switch so unset means ON, and measures exactly
+        # the event-loop starvation that costs a member their 3 s ack (C-02). Its reading is
+        # carried by `observe.health_payload`, which this branch never reaches — so on a pod
+        # with V2 off and no jobs database, which is EVERY production pod today, the
+        # instrument ran and its output was thrown away at the read boundary.
+        # ⚰️ Measured 2026-09-15: `/flow` missed its ack in `#render-smoke` with one admin and
+        # no load, and the one instrument that could have explained it reported nothing,
+        # because of this line. Built, wired, live, and unreachable.
+        return {**payload, "renderer": renderer, "slo": None, "loop": observe._live_loop(),
+                "note": "no jobs database yet (V2 has never run on this volume)"}
     obs = render_v2._observer                          # its consecutive-miss count, unless this reading is ready
     misses = obs.renderer_misses if obs is not None and not (renderer or {}).get("ready") else None
     return {**payload, **observe.health_payload(runtime, store, renderer=renderer, renderer_misses=misses)}
