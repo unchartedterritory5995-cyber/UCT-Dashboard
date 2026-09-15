@@ -1,3 +1,66 @@
+# ⛔ TRACK A ITEM 3 — BLOCKED ON AN ARCHITECTURE DECISION (not a bug to patch)
+
+**Measured 2026-09-15. HEAD 0c68badaf. Nothing changed for this item.**
+
+## The symptom
+
+Chart Data → Data → **+ Add** a blank Data Series, set *Display in = Own Pane*.
+Canonical intent is stored correctly, but no pane is ever realised and the
+unresolved Series plots the PRIMARY close on Price.
+
+## First divergence — PROVEN, do not re-derive
+
+TWO ADD PATHS MINT TWO DIFFERENT INSTANCE IDENTITIES, and one of them is
+silently dropped by normalisation.
+
+    catalogue / scenario add  → addInstance()          → `inst:dataSeries:1`
+    Chart Data browse "+ Add" → toggledRow()
+                              → setIndicatorEnabled()  → `legacy:dataSeries`
+
+Measured side by side in the harness, same chart, same definition:
+
+    inst:dataSeries:1   storedTarget=pane  resolved=pane  inOwn=true
+       → layoutPaneKeys ["inst:dataSeries:1@1"]  paneCountRequired=2
+       → paneHeights [586, 103]        ✅ its own pane
+
+    legacy:dataSeries   storedTarget=pane  (shown in the instance panel)
+       → engineInstances []            ❌ ABSENT from the normalised list
+       → layoutPaneKeys []  paneCountRequired=1
+       → paneHeights [690]             ❌ no pane
+
+So the chain is: browse-Add mints a LEGACY-shaped id → normalisation drops it →
+`paneOwnKeys` never sees it → no pane key → `paneCountRequired` stays 1.
+
+## What is NOT the cause
+
+⛔ `paneTargetIds()` is NOT the veto. `orderedPaneKeys` already reads
+`if (!paneIds.has(id0) && !(include && include.has(id))) continue` — the
+definition-level target gate IS overridable by `paneOwnKeys`. The precedence
+rule the brief asks for already exists and works; the instance simply never
+reaches it.
+
+## Why this was not fixed here
+
+The fix is a decision with blast radius across EVERY definition row in the
+library, not a local patch:
+
+  (a) make browse-Add use `addInstance` for instance-based definitions — changes
+      the identity minted by the main library door for every technical row; or
+  (b) make normalisation keep `legacy:<defId>` for definitions that have no
+      legacy settings row — changes what a legacy id MEANS.
+
+Both are product/architecture calls. Guessing one at the end of a long session
+is how the earlier half-finished work happened.
+
+## Also worth deciding at the same time
+
+The unresolved Series plots the PRIMARY CLOSE (its `source` input defaults to
+`'close'`). The owner's brief flags this as suspicious and asks whether
+"no source → no data" is the intended semantic. That question belongs with (a)/(b)
+because it is the same instance's lifecycle.
+
+---
+
 # NEXT UP — PANE HEIGHT PERSISTENCE (root-caused, NOT implemented)
 
 **Owner-reported, 2026-09-15.** Drag the separator to make an own pane taller;
