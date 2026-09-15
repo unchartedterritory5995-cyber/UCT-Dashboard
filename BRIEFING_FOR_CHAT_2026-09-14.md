@@ -742,3 +742,59 @@ AST**, so asserting a count beside a list the tool derives is the anti-pattern D
 kill. **Proposed: drop the number.** Not opened.
 
 ⛔ **Do not run the two commands yet** — F-MERGE-1 is unresolved and CI says RED.
+
+---
+
+## Session result 2026-09-15 (session 1 — F-MERGE-1 closed, signing reader, CI text, queue audit)
+
+**Full report: `docs/terminal-research/reports/SESSION_REPORT_2026-09-15_1.md`** (committed).
+ET `00:50 → 01:12 EDT Tue`. Both worktrees clean. **6 commits** — five docs, one code
+(`b70a874ed`, pushed to `feat/s7-price-level`). Nothing signed, merged, or pushed to master.
+
+### F-MERGE-1 is CLOSED, and the cause was one absent approval block
+
+`is_signed()` derived SIGNED from an **absence** — `target_span()` raises both when every
+block is filled and when there is **no block at all**, so a document with no approval block
+read as signed. Two such documents exist on disk. **One missing block produced both halves
+of the failure:** Packet A's commits would have merged **unapproved**, and
+`verify_manifest` showed them claimed by **no unit** so they would **never merge**.
+
+Now: `sign_gate.read_approval()` returns **SIGNED / UNSIGNED / MALFORMED**, 9 controls pass,
+and `merge_all` exits **3** on an unsignable unit. Packet A has a block (**A CP1**,
+`f6180b3da`), scoped to exactly two commits and three files, and stays CLOSED-AS-FINDING.
+**14 rows, 14 OK, 13 of 13 commits mapped, exit 0.**
+
+⛔ **Two things you asked for were measured and rejected before building.** SIGNED as
+*"equals the recomputed fingerprint"* would have invalidated **30 of 35** genuine approvals
+(only 5 re-derive from the current file — a fingerprint pins the bytes approved *at
+approval time*). And *"two blocks → MALFORMED"* would have condemned **13** correctly
+signed documents. Both implemented the way the corpus actually is.
+
+⚠️ Told-vs-found: *"the six caller-level tests"* → **8**. *"15/15 commits"* → **13/13** (the
+new commits are docs-worktree, outside the code branch).
+
+### The queue audit found one instruction that would have broken something
+
+**F-S6-1.** S6 CP2 says *"Calendar the only caller"* of `get_user_ticker_sets`. There are
+**three** production callers — Calendar (3 sites), the alert-taxonomy event-proximity
+projection, and `calendar_alerts`. A no-op proof scoped to Calendar would have **passed**
+while member-facing alerting changed underneath it. Struck; **CP2′ PROPOSED**.
+
+**BUILDABLE 6 · NEEDS-REWORD 2 · UNBUILDABLE 1 · NOT-AN-ASSERTION 4 = 13.**
+
+⛔ **"bell panel" has no referent** — the phrase appears nowhere in `docs/`; the only bell is
+`AlertBell` in the brand design system. **Which artifact did you mean?**
+
+**The COMPLETION_AUDIT recount was run:** `tools/harvest_followups.py` finds **50** distinct
+`F-*` ids against the file's recorded **31**. Stale by 19. Not updated — that is a build.
+
+### CI
+
+**E CP4 is built and pushed.** Run #3 was still running at report time, so the bucket table
+and the vitest classification are **UNREADABLE-PENDING**, not guessed. ⭐ One useful fact:
+job **logs** return **403** unauthenticated even on a public repo, while run *metadata* is
+anonymous — so publishing into `ci-results` really is the only no-account path to the error
+text. That re-justifies CP2/CP4 on a second ground.
+
+⛔ **The two commands stay PARKED.** Condition 1 (F-MERGE-1 closed) is **met**; condition 2
+(CI red diagnosed, every failing file classified) is **not**.
