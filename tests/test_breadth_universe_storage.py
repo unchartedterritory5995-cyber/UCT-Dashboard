@@ -107,6 +107,12 @@ def test_two_universes_share_a_date_and_metric_without_colliding(fresh_store):
 def test_a_pit_universe_write_does_not_appear_in_the_uct_reader(fresh_store):
     _legacy_db(fresh_store)
     store._ensure_init()
+    # ⛔ BL-028: a MIGRATED store carries the rollback compatibility index, and that
+    # index refuses a second universe until it is deliberately removed. Dropping it here
+    # is not the test working around a guard — it IS the precondition the future US
+    # ingest has to satisfy, stated once in the place a reader will meet it.
+    assert store.compat_index_present()
+    store.drop_compat_index()
     store.write_bulk([("2008-01-02", "pct_above_50sma", 19.0, 19.0, 19.0, 19.92)],
                      universe="us")
     # UCT's published 2008-01-02 value is unchanged and still what it always was.

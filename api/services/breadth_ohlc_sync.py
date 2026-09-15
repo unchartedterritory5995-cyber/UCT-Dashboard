@@ -300,6 +300,20 @@ def _merge_from(src_db: str) -> int:
                 snap_cols = {r[1] for r in conn.execute(
                     "PRAGMA snap.table_info(breadth_daily_ohlc)").fetchall()}
                 susrc = "s.universe" if "universe" in snap_cols else "'uct'"
+                # ⛔⛔ BL-028 INTERLOCK, RESTATED AT THE OTHER DOOR. The compatibility
+                # index keeps `(date, metric)` unique so pre-migration code can still
+                # write; a snapshot carrying a second universe would violate it. SQLite
+                # would say so — as a UNIQUE constraint error from inside a merge, which
+                # is a terrible place to learn it. Refuse first, and name the step.
+                if "universe" in snap_cols and _store.compat_index_present(conn):
+                    extra = [r[0] for r in conn.execute(
+                        "SELECT DISTINCT universe FROM snap.breadth_daily_ohlc "
+                        "WHERE universe <> ?", (_store.DEFAULT_UNIVERSE,)).fetchall()]
+                    if extra:
+                        raise _store.CompatIndexBlocksUniverse(
+                            f"refusing to merge a snapshot carrying {extra}: the BL-028 "
+                            f"compatibility index {_store.COMPAT_INDEX!r} is still in "
+                            "place. Removing it is a deliberate migration step.")
                 cur = conn.execute(_MERGE_SQL.format(susrc=susrc))
                 adopted = cur.rowcount if cur.rowcount is not None else 0
                 # ⛔ THE ONE WRITER THAT BYPASSES `breadth_daily_ohlc`'s own API —

@@ -109,6 +109,102 @@ def _conn() -> sqlite3.Connection:
     return c
 
 
+# ── THE ROLLBACK COMPATIBILITY INDEX (BL-028) ──────────────────────────
+#
+# ⚰️ WHY THIS EXISTS. Widening the key to `(universe, date, metric)` leaves the
+# PREVIOUS generation of this file unable to write at all: its UPSERTs name
+# `ON CONFLICT(date, metric)`, and after the migration no unique index matches that
+# clause — SQLite answers "ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE
+# constraint" and every collector and intraday write fails. That state is reachable by a
+# FAILED HEALTH CHECK, not only by a deliberate rollback, and `_migrate_universe_column`
+# DROPs the original table, so there is no way back in place.
+#
+# ⭐ So while UCT is the ONLY universe present, `(date, metric)` is still unique, and a
+# UNIQUE index on it costs nothing and makes the old clause match again. New code's
+# `ON CONFLICT(universe, date, metric)` is unaffected. A code rollback stops being fatal.
+#
+# ⛔⛔ AND IT IS AN INTERLOCK, NOT ONLY A SHIM. A second universe CANNOT coexist with it
+# — the first `us` row for a date+metric UCT already holds violates the index. That is
+# deliberate: it makes "remove the compatibility index" an explicit, unmissable step of
+# the US-ingest phase instead of a line in a runbook somebody has to remember. Nothing
+# drops it automatically; `drop_compat_index()` is a decision, taken once, out loud.
+COMPAT_INDEX = "idx_bdo_compat_date_metric"
+
+
+def compat_index_present(c=None) -> bool:
+    """Is the rollback compatibility index in place? (BL-028)"""
+    def _ask(conn):
+        return conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            (COMPAT_INDEX,)).fetchone() is not None
+    if c is not None:
+        return _ask(c)
+    try:
+        with _conn() as conn:
+            return _ask(conn)
+    except Exception:
+        return False
+
+
+def _non_uct_rows(c) -> int:
+    try:
+        return c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc "
+                         "WHERE universe <> ?", (DEFAULT_UNIVERSE,)).fetchone()[0]
+    except Exception:
+        return 0
+
+
+def _ensure_compat_index(c, migrated: bool) -> bool:
+    """Create the compatibility index for a database that WAS JUST MIGRATED.
+
+    ⛔⛔ `migrated` IS THE WHOLE DISCRIMINATOR, and it is the honest one. The hazard is
+    specifically "a database that pre-migration code used to own, which new code has now
+    rewritten" — that is the state a rollback strands, and `_migrate_universe_column`
+    returning True is exactly how we know we are in it. Production's volumes are that
+    case; a database new code CREATED never was.
+
+    ⚠️ ANY OTHER RULE IS ORDER-DEPENDENT AND BITES. "Non-empty and UCT-only" reads
+    just as well and is wrong: a process that legitimately builds a multi-universe store
+    — the grind, a staging copy, a test — writes UCT first, and if anything re-runs init
+    before the second universe lands, the store silently acquires an interlock against
+    the very thing it was created to hold.
+    """
+    if not migrated or compat_index_present(c) or _non_uct_rows(c):
+        return False
+    try:
+        c.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS {COMPAT_INDEX} "
+                  f"ON breadth_daily_ohlc(date, metric)")
+        return True
+    except Exception as e:      # noqa: BLE001 — never let this break startup
+        logging.getLogger("breadth_daily_ohlc").warning(
+            "[breadth_daily_ohlc] compat index not created: %s", e)
+        return False
+
+
+def drop_compat_index() -> bool:
+    """Remove the BL-028 interlock. ⛔ A DELIBERATE MIGRATION STEP, NEVER AUTOMATIC.
+
+    Preconditions the caller is responsible for, and which this function deliberately
+    does NOT check for you, because checking them here would invite calling it blindly:
+      • every production pod is running code that writes `(universe, date, metric)`;
+      • a supported way to restore the canonical database exists.
+
+    After this, a rollback to pre-migration code can no longer write breadth.
+    """
+    with _conn() as c:
+        had = compat_index_present(c)
+        c.execute(f"DROP INDEX IF EXISTS {COMPAT_INDEX}")
+    if had:
+        logging.getLogger("breadth_daily_ohlc").warning(
+            "[breadth_daily_ohlc] BL-028 compatibility index DROPPED — pre-migration "
+            "code can no longer write, and a second universe may now be ingested")
+    return had
+
+
+class CompatIndexBlocksUniverse(RuntimeError):
+    """A non-UCT write was attempted while the BL-028 interlock is in place."""
+
+
 _INIT_DONE = False
 
 
@@ -183,6 +279,10 @@ def _ensure_init() -> None:
                 # production improvement. Cost: 8.6 MB of index, 135 ms to build once.
                 c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_source_date "
                           "ON breadth_daily_ohlc(universe, source, date, metric, c)")
+                # ⭐ BL-028: the rollback interlock, created inside the same init that
+                # widened the key. Idempotent, and silently skipped once a second
+                # universe exists.
+                _ensure_compat_index(c, migrated)
             if migrated:
                 _vacuum_after_migration()
             _INIT_DONE = True
@@ -372,6 +472,18 @@ def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = F
     Returns the number written."""
     u = _uni(universe)
     _ensure_init()
+    # ⛔⛔ BL-028 INTERLOCK. While the compatibility index stands, `(date, metric)` is
+    # unique, so a second universe is not merely unwise — it is unrepresentable. Refusing
+    # HERE, at the canonical writer, means the sweep, the seal and every future ingest hit
+    # the same wall with the same sentence, instead of one of them discovering a
+    # UNIQUE-constraint error three layers down.
+    if u != DEFAULT_UNIVERSE and compat_index_present():
+        raise CompatIndexBlocksUniverse(
+            f"refusing to write universe={u!r}: the BL-028 rollback compatibility index "
+            f"{COMPAT_INDEX!r} is still in place, which keeps (date, metric) unique so "
+            "pre-migration code can still write. Removing it is a deliberate migration "
+            "step — confirm every pod runs universe-aware code and that a database "
+            "restore path exists, then call `drop_compat_index()`.")
     clean = []
     for r in rows:
         try:
