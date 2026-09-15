@@ -173,6 +173,51 @@ def restore() -> int:
     return 0
 
 
+def run_tests() -> int:
+    """
+    Run the rail(s) named by PROOF_NODES and return THEIR exit code.
+
+    ⛔ THE RUNNER IS RESOLVED WITH shutil.which, NEVER exec'd by bare name.
+    On Windows `npx` and `pytest` are `.cmd` shims that subprocess.run cannot
+    resolve on its own — rule 14, and it has bitten this repo twice: once in
+    scripts/deploy_watch.py (forty FileNotFoundErrors, then exit 0), and once on
+    2026-09-15 when an unresolved `npx` raised BEFORE the restore and left a
+    product file mutated in the working tree.
+
+    ⛔ AND IT ABORTS LOUDLY IF THE RUNNER IS ABSENT. A harness that cannot run
+    its rail must say so; silently reporting "no failures" over a suite that never
+    started is the exact shape of an empty result read as a pass.
+    """
+    import shutil
+    nodes = (os.environ.get("PROOF_NODES") or "").split()
+    if not nodes:
+        sys.exit("⛔ PROOF_NODES is empty — there is no rail to run, so nothing "
+                 "below could mean anything.")
+    repo = _env_path("PROOF_REPO")
+    frontend = any(n.startswith("src/") for n in nodes)
+    if frontend:
+        exe = shutil.which("npx") or shutil.which("npx.cmd")
+        if not exe:
+            sys.exit("⛔ could not resolve `npx` on PATH. The rail was NOT run. "
+                     "(shutil.which, never a bare name — rule 14.)")
+        cmd = [exe, "vitest", "run", *nodes]
+        cwd = repo / "app"
+    else:
+        exe = shutil.which("python") or sys.executable
+        if not exe:
+            sys.exit("⛔ could not resolve a python interpreter. The rail was NOT run.")
+        cmd = [exe, "-m", "pytest", *nodes, "-q"]
+        cwd = repo
+    r = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    tail = [ln for ln in (r.stdout or "").splitlines()
+            if ("Tests " in ln or "passed" in ln or "failed" in ln)]
+    for ln in tail[-3:]:
+        print("   ", ln.strip())
+    print(f"  RUNNER EXIT: {r.returncode}")
+    return r.returncode
+
+
 def verify_clean() -> int:
     """The tree must be clean for the file we touched. Informational commands
     never decide this - the caller folds the return code into its matrix."""
@@ -188,6 +233,6 @@ def verify_clean() -> int:
 
 
 if __name__ == "__main__":
-    fn = {"capture": capture, "mutate": mutate,
+    fn = {"capture": capture, "mutate": mutate, "run_tests": run_tests,
           "restore": restore, "verify_clean": verify_clean}[sys.argv[1]]
     raise SystemExit(fn())

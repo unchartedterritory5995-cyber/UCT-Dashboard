@@ -1696,7 +1696,26 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                     "why": ("the drain sent the queued entry BEFORE the door fired "
                             f"({before_door} send(s)) — the door never met queued work, so this "
                             f"cell measured nothing. {why}")}
-        return {"verdict": "GREEN" if ok else "RED", "why": why}
+        out = {"verdict": "GREEN" if ok else "RED", "why": why}
+        # ⛔ THE RING IS EVIDENCE, NOT A VERDICT. It is attached beside the
+        # verdict and never allowed to change it: an instrument that can move the
+        # answer it is measuring is not an instrument.
+        try:
+            import q1_write_trace as _wt
+            got = _wt.read_ring(page)
+            if got.get("ring"):
+                s = _wt.summarise(got["ring"])
+                out["write_trace"] = s
+                log(f"      write trace: {s['writes_total']} write(s), "
+                    f"{s['notes_writes']} to notes, {s['outbox_writes']} to outbox, "
+                    f"{len(s['dirty_flips_true_to_false'])} dirty flip(s) true->false")
+                for _w in s["dirty_flips_true_to_false"]:
+                    log(f"      ⭐ DIRTY FLIP: {_w.get('store')}.{_w.get('method')} "
+                        f"rec={_w.get('rec')}")
+                    log(f"         stack: {str(_w.get('stack'))[:600]}")
+        except Exception as _e:  # noqa: BLE001
+            log(f"      (write trace unavailable: {_e})")
+        return out
 
     finally:
         for evt, fn in (("request", handler), ("response", on_response)):
@@ -1737,6 +1756,8 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--trace-writes", action="store_true",
+                    help="install the rig-side IndexedDB write trace (evidence only)")
     ap.add_argument("--navigate-no-door", metavar="PATH", nargs="?", const="/charts",
                     help="leave the note and come back WITHOUT firing any door. The "
                          "cell that separates navigation from the append families. "
@@ -1856,6 +1877,12 @@ def main() -> int:
             b = pw.chromium.connect_over_cdp(endpoint)
             ctx = b.contexts[0]
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            # ⭐ RIG-SIDE WRITE TRACE, opt-in. Installed BEFORE any navigation so
+            # it is in place ahead of the bundle. Zero product code ships for it.
+            if args.trace_writes:
+                import q1_write_trace as _wt
+                _wt.install(page)
+                print("⭐ write trace installed (rig-side, add_init_script)")
             cdp = page.context.new_cdp_session(page)
             cdp.send("Network.enable")
             rig._offliner(cdp)(False)
