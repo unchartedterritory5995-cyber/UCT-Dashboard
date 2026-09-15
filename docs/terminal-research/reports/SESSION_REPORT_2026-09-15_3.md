@@ -6,13 +6,13 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 09:32 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 10:41 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**9 commits** — five docs, four code (`0b92750fa`, `9ef64fd69`, `e825a4df4` + the held
-`dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
+**11 commits** — six docs, five code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`
++ the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
 nothing merged, nothing pushed to master.
@@ -163,10 +163,10 @@ path is `shards/pytest-shard-tests-01/summary.json`; the aggregator was told
 `shards/tests-01/`. **Every shard would have read MISSING while all twelve were green.**
 `--dir-prefix` is now passed, not guessed, and both spellings are tried.
 
-⚠️ **Neither is claimed to be the 22-second crash.** The log is **403** and the `jobs` API
-returns an **empty `steps` array**, so the failing step is **UNREADABLE**. These are what
-reading the file proves. ⭐ **The skeleton summary is the part that matters most** — it makes
-the *next* failure readable without a log at all.
+⚠️ **Neither is claimed to be the 22-second crash.** ⛔⛔ ~~The log is **403** and the
+`jobs` API returns an **empty `steps` array**, so the failing step is **UNREADABLE**.~~
+**STRUCK — see §3f. That sentence is false, it was published three times, and the step list
+was public the whole time.**
 
 ### Prediction for run #9 — and `publish` is predicted UNKNOWN
 
@@ -174,6 +174,95 @@ the *next* failure readable without a log at all.
 be a claim about a cause I still cannot read, so the build record says **UNKNOWN**. The one
 firm prediction: **a skeleton summary appears on the publish job's page whatever else
 happens.**
+
+## 3f · Run #9 scored — and ⛔⛔ THE FAILING STEP WAS NAMED IN THE API ALL ALONG
+
+### The prediction table, line by line
+
+| E CP11 predicted | actual | |
+|---|---|---|
+| a **skeleton summary** appears on the publish job's page | **step 9 `Write a skeleton summary FIRST` → success** | ✅ |
+| `publish` job result — **UNKNOWN, genuinely** | **failure, 19 s** | — *(unscored by construction; declining to guess was right)* |
+| shards: 12 of 12 succeed | **12 of 12**, and all 5 profile jobs, vitest and plan — **19 of 20** | ✅ |
+| if publish succeeds: `shards_without_totals` = `[]` | publish did not succeed | *(not reached)* |
+
+### ⛔⛔ THE RETRACTION, and it is the expensive one
+
+I published, in E CP11's build record, in §3e of this report and in the message I sent you:
+
+> *"The log endpoint returns 403 and the `jobs` API returns an empty `steps` array, so the
+> failing step is UNREADABLE."*
+
+**One `curl` against the public `jobs` endpoint returns the step list — with the failing step
+named — for every one of those runs:**
+
+| run | publish | steps returned | failing step |
+|---|---|---|---|
+| #6 | failure, 61 s | **14** | **`Build the record`** |
+| #8 | failure, 22 s | **16** | **`Build the record`** |
+| #9 | failure, 19 s | **17** | **`Build the record`** |
+
+⭐⭐ **Three runs were spent building instruments to make legible a thing the runner was
+already reporting by name.** The skeleton summary and the early-fallback lesson are real and
+they stay — but they were not needed to find this, and I wrote UNREADABLE from one bad read
+and then reasoned from my own conclusion for three checkpoints. ⛔ **An UNREADABLE is a
+measurement. Re-take it before building on it** — above all when it licenses building
+instead of fixing.
+
+## 3g · E CP12 — the publisher died on a missing display field, four runs running
+
+```python
+"runner_line": {"vitest": v["runner_line"], "pytest": p["runner_line"]}
+KeyError: 'runner_line'
+```
+
+`ci_summarize.py` emits `runner_line`. **`ci_aggregate.py` — which replaced it for pytest in
+E CP6 — did not.** The arithmetic closes exactly:
+
+| | pytest summary from | publish |
+|---|---|---|
+| run #3 | `ci_summarize.py` — **has** the key | ✅ **succeeded, record published** |
+| **E CP6** (`0d7c55fb1`) | swapped to `ci_aggregate.py` — **no** key | — |
+| runs #6, #8, #9 | `ci_aggregate.py` | ❌ **failed at `Build the record`** |
+
+⛔⛔ **The change that sharded the suite is the change that stopped the record from ever
+landing**, and the field it died on is a cosmetic one-line string no verdict depends on.
+
+**Reproduced, not inferred:** run #9's own step body, extracted verbatim from the workflow,
+exits **1** with that KeyError against inputs built by the real tools — and **0** against the
+fixed aggregator, with the body unchanged.
+
+**Two fixes, because either alone leaves the failure live.** The producer emits the key
+(each shard's **own** totals line, verbatim, never re-derived). And the builder leaves the
+YAML heredoc for **`tools/ci_record.py`**, where every value read out of a suite summary goes
+through `consume()`: an absence is **NAMED** in `record["contract_gaps"]` and the field marked
+UNREADABLE, instead of raising. ⛔ Not tolerance — the gap is in the published record and in
+the phone summary under its own heading. What it refuses is a *display string* destroying the
+measurement it decorates. `ok` is consumed the same way, so a missing `ok` still falls to RED.
+
+⚰️ **And it was a 50-line Python program inside a YAML string**, so nothing could run it and
+nothing did — the KeyError is reachable from an empty log and a one-shard aggregate, a second
+of local execution, in four runs of real CI.
+
+⭐ The self-check builds its inputs with the **real tools**: the defect lived in the gap
+between two producers, and a hand-written fixture would have carried whatever keys I believed
+were there. Mutation-proved both ways (rename the producer key → 3 assertions red; restore →
+green), restored by **edit**, bytes sha256-verified identical.
+
+⛔ The self-check runs on the runner in **its own step, `continue-on-error: true`** — a
+verification line must never destroy the thing it verifies.
+
+### Prediction for run #10 — and this time it is not a guess
+
+| field | prediction |
+|---|---|
+| `publish` | **success** — a claim about a cause read, reproduced and fixed |
+| a record at `results/<run_id>/summary.json` | **yes** — the first since run #4 |
+| `contract_gaps` | `[]` |
+| `shards_without_totals` | `[]` — **condition (b)** |
+
+⚠️ **What would falsify it:** publish failing at a step other than `Build the record`. That
+would mean the KeyError was one of two causes — and the step list names whichever it is.
 
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
@@ -271,8 +360,10 @@ after that point used one.
 | the audit (last session) | ⚰️ **reported an absence it had not looked for** — §4's retraction |
 
 **Prediction scores:** E CP9's run-#8 table is **partly scored** (§3c) — the profile fix is
-**4 of 4**; publish and the totals line are pending. **E CP7's prediction was voided by E
-CP7 itself**, which never ran a job.
+**4 of 4**. E CP11's run-#9 table (§3f): the skeleton summary **landed**, shards **12 of 12**,
+and `publish` was deliberately predicted **UNKNOWN** — unscored by construction, and
+declining to guess was right. **E CP7's prediction was voided by E CP7 itself**, which never
+ran a job.
 
 ## 7 · Findings
 
@@ -283,6 +374,8 @@ CP7 itself**, which never ran a job.
 | **F-CI-11** | **NEW, mine.** `replace()` is not an Actions expression function; E CP7 rejected the whole workflow. `yaml.safe_load` cannot see the expression layer and `actionlint` was UNREADABLE-TOOL. Guard added. |
 | **F-CI-12** | **NEW, mine.** The F-CI-7 fallback sat at step 11 of 12 while `publish` died at ~22 s; a fallback after the failure point is not a fallback. Skeleton summary moved to step 3. |
 | **F-CI-13** | **NEW, mine.** `download-artifact@v4 pattern:` without `merge-multiple` nests each artifact in its own directory, so every shard read MISSING — a silent wrong answer. |
+| **F-CI-14** | **NEW, mine — and it is the one that mattered.** `ci_aggregate` never emitted `runner_line`, which `Build the record` indexes; every publish since E CP6 died there with a KeyError over a cosmetic string. Producer fixed; the builder now NAMES a missing key instead of losing the record. |
+| **RETRACTED (2)** | *"the `jobs` API returns an empty `steps` array, so the failing step is UNREADABLE"* — published three times. The step list is public and named `Build the record` in runs #6, #8 and #9. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -322,8 +415,8 @@ the top of that job's page **even when the push failed**. Tell me the verdict li
 
 ## 10 · Merge readiness
 
-**23 rows, 23 OK, 0 STALE. 22 of 22 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **15 constraints SATISFIED**, 23 units, 0 MALFORMED,
+**24 rows, 24 OK, 0 STALE. 23 of 23 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **16 constraints SATISFIED**, 24 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
@@ -332,10 +425,15 @@ the top of that job's page **even when the push failed**. Tell me the verdict li
 
 ## 11 · Three phone-readable sentences
 
-**The part that writes CI results into the repository has now failed three times in a row
-and I still cannot see why, because the logs need a login; what I could fix is that it now
-writes a short status to the run's own page before it tries anything that can fail, so the
-next failure should be readable from a phone.**
+**I found why the CI results have not been saved for four runs, and it is my own doing:
+the change that split the test suite into twelve parts stopped producing one small text line
+that the saving step was still asking for, so the step crashed on a missing label every single
+time — it is fixed, and the saving step can no longer be killed by a missing label again.**
+
+**I also have to take something back: I told you the system would not tell me which step was
+failing. It would. One ordinary request lists every step and names the failing one, and it
+did for all three runs — I checked it wrong once and then spent three rounds building tools
+to see something that was already in plain sight.**
 
 **I broke the build pipeline completely with a one-word fix — I used a text-replacing
 function that does not exist — and the checker I had available could not see that class of
