@@ -61,6 +61,8 @@ concurrency:
   group: full-suite-${{ github.ref }}
   cancel-in-progress: false
 
+# ⛔ Read at the top. ONLY the `publish` job raises this, and only to write the
+# orphan `ci-results` branch — never a source branch, never master.
 permissions:
   contents: read
 
@@ -130,3 +132,85 @@ jobs:
         with:
           name: pytest-log
           path: pytest.log
+
+  publish:
+    name: publish the result into the repo (ci-results)
+    needs: [vitest, pytest]
+    if: always()
+    runs-on: ubuntu-latest
+    # ⛔ THE ONLY JOB THAT CAN WRITE, and it writes one orphan branch.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with: { name: vitest-log, path: logs }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { name: pytest-log, path: logs }
+        continue-on-error: true
+
+      # ⛔ A MISSING LOG IS NOT A GREEN SUITE. If a job died before writing one, the
+      # summary must say `totals_line_found: false`, which is what an empty file yields.
+      - name: Summarise
+        run: |
+          touch logs/vitest.log logs/pytest.log
+          python tools/ci_summarize.py --suite vitest --log logs/vitest.log --out v.json
+          python tools/ci_summarize.py --suite pytest --log logs/pytest.log --out p.json
+
+      - name: Build the record
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, datetime
+          v = json.loads(pathlib.Path("v.json").read_text())
+          p = json.loads(pathlib.Path("p.json").read_text())
+          rec = {
+            "run_id": os.environ["GITHUB_RUN_ID"],
+            "run_number": os.environ.get("GITHUB_RUN_NUMBER"),
+            "sha": os.environ["GITHUB_SHA"],
+            "branch": os.environ.get("GITHUB_REF_NAME"),
+            "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "vitest": v,
+            "pytest": p,
+            "oom_or_timeout": bool(v["oom_or_timeout"] or p["oom_or_timeout"]),
+            "runner_line": {"vitest": v["runner_line"], "pytest": p["runner_line"]},
+            # ⛔ GREEN means both suites actually RAN and neither failed. A suite that
+            # collected nothing is never green.
+            "verdict": ("GREEN" if (v["ok"] and p["ok"] and not v["failed"]
+                                    and not p["failed"]) else "RED"),
+          }
+          pathlib.Path("record.json").write_text(json.dumps(rec, indent=2) + "\n")
+          print(json.dumps(rec, indent=2))
+          PY
+
+      - name: Publish onto the orphan ci-results branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          RUN="$GITHUB_RUN_ID"
+          cp record.json "/tmp/$RUN.json"
+          # create the orphan branch on first use; never rebase, never force
+          if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
+            git fetch origin ci-results
+            git checkout ci-results
+          else
+            git checkout --orphan ci-results
+            git rm -rf . >/dev/null 2>&1 || true
+            printf '%s\n' "# ci-results" "" \
+              "Machine-readable results of the report-only full-suite workflow." \
+              "One file per run under results/, plus results/latest.json." \
+              "Written by .github/workflows/full-suite-report.yml. Do not edit by hand." \
+              > README.md
+          fi
+          mkdir -p results
+          cp "/tmp/$RUN.json" "results/$RUN.json"
+          cp "/tmp/$RUN.json" results/latest.json
+          git add results README.md 2>/dev/null || git add results
+          git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || exit 0
+          git push origin ci-results
