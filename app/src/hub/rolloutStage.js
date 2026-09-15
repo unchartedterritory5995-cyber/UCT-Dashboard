@@ -34,9 +34,22 @@
 // this feature has already broken once.
 //
 // [!] AND THE PREVIEW FRAMING IS NOT DRIVEN FROM HERE. The chip hint comes from `PREVIEW_MODES`
-// (`registry.js`), not from this constant - so ruled stage 3's "the hint becomes the real hint" is
-// a change to that Set, and on 2026-09-13 it still holds `home` and `flow`. Emptying it exposes
-// two full fans, which is new behaviour. See rollout.md section 2(b): an open question, not a task.
+// (`registry.js`), not from this constant - so "the hint becomes the real hint" was always a change
+// to that Set, never to this number.
+//
+// [*] ROLLOUT.MD SECTION 2(b) IS ANSWERED, AND STAGE 2 ANSWERED IT. That section asked whether
+// emptying the Set at stage 3 would land two full fans together with the GA flip, and recommended
+// shipping `home` and `flow` on their own increments first so that stage 3 stays copy-only. The
+// stage-2 commit took that recommendation one rung early: it emptied `PREVIEW_MODES` in the same
+// change as the widening, and stated the one member-visible consequence in the diff rather than
+// leaving it to a screenshot - `home.wire` inner -> OUTER, `home.journal` outer -> INNER. So by the
+// time this constant reads 3 the Set is ALREADY empty, and `stageLadderAgreement.test.js` asserts
+// that at every stage >= 2.
+//
+// [!] WHICH LEAVES EXACTLY ONE THING FOR STAGE 3 TO DROP: the word "(preview)" in the Settings
+// card's own label. That is the whole of rollout.md's "framing: removed", it is copy and nothing
+// else, and `stageLadderAgreement.test.js` goes red if the word is still in the component at stage
+// 3 - so this rung cannot ship as a rename with nothing behind it.
 //
 // ⛔ A STAGE IS A DEPLOY, DELIBERATELY. This is a build-time constant, not a Railway variable,
 // because each stage is meant to be a reviewed change with a member-impact paragraph and a smoke
@@ -46,7 +59,7 @@
 // request in `api/routers/auth.py::_access_payload` and takes effect on a member's next
 // authenticated request with NO redeploy. Nothing here can turn the hub on for someone the
 // server-side switch has turned off — see `useHubActive.js`, where that check comes first.
-export const ROLLOUT_STAGE = 2
+export const ROLLOUT_STAGE = 3
 
 /** Human-readable, for the rollout doc and for failure messages. Keyed by stage number. */
 export const STAGE_NAMES = Object.freeze({

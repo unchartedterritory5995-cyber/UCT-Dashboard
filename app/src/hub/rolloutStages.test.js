@@ -56,18 +56,24 @@ describe('⛔⛔ STAGE 1 IS A NO-OP — the flags ship dark', () => {
     expect(unsetDefault({ stage: 1, isAdmin: who.isAdmin })).toBe(OLD_unsetDefault(who))
   })
 
-  it('⛔ and the SHIPPED stage really is 2 — advancing it is a deliberate, visible edit', () => {
+  it('⛔ and the SHIPPED stage really is 3 — advancing it is a deliberate, visible edit', () => {
     // ⭐ Pinned on purpose. A stage change must break this line, so nobody advances the rollout as
     // a side effect of another edit. When a stage genuinely advances, this expectation moves in
     // the SAME commit as the member-impact paragraph that justifies it.
     //
-    // ⚰️ 1 -> 2 on 2026-09-13, and this line going red is the system working: it is the guard
-    // that made the advance impossible to do by accident, and it moved in the same commit as the
-    // owner ruling, the member-impact paragraph and the full gate. ⛔ Do not "fix" a future red
-    // here by editing the number — that is the one thing this assertion exists to prevent.
+    // ⚰️ 1 -> 2 on 2026-09-13, and 2 -> 3 on 2026-09-15. Both times this line going red was the
+    // system working: it is the guard that makes the advance impossible to do by accident, and it
+    // moves in the same commit as the owner ruling, the member-impact paragraph and the gate.
+    // ⛔ Do not "fix" a future red here by editing the number — that is the one thing this
+    // assertion exists to prevent. The number moves WITH a rollout, never to make a suite green.
+    //
+    // ⭐ 2 -> 3 IS THE ONE ADVANCE THAT MOVES NO EXPOSURE. `unsetDefault` and `cardVisible` both
+    // threshold at `>= 2` and neither was touched; `exposureGate.test.js` executes stage 3's row
+    // and pins its digest, and that row is identical to stage 2's but for the name. What this
+    // advance ships is the Settings label dropping "(preview)" — nothing else reaches a member.
     expect(ROLLOUT_STAGE, 'the rollout stage moved. That is a member-visible change and it must '
       + 'arrive with its own deploy, member-impact paragraph and smoke run — see rollout.md.')
-      .toBe(2)
+      .toBe(3)
   })
 })
 

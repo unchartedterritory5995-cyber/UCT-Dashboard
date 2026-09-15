@@ -150,7 +150,7 @@ export default function JoystickSettingsCard() {
             checked={!!settings.enabled}
             onChange={(e) => onToggle(e.target.checked)}
           />
-          {' '}Joystick shortcuts (preview)
+          {' '}Joystick shortcuts
         </label>
       </div>
       <div style={{ opacity: 0.7, fontSize: 12, marginTop: 4 }}>

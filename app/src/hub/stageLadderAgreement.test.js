@@ -149,3 +149,57 @@ describe('⛔ no mode is still a teaser once members have the hub', () => {
     expect(typeof PREVIEW_MODES.has).toBe('function')
   })
 })
+
+/**
+ * ⛔⛔ "FRAMING: REMOVED" IS A CLAIM ABOUT COPY, SO IT IS CHECKED AGAINST THE COPY.
+ *
+ * rollout.md's stage table says stage 3 differs from stage 2 in exactly one column — `framing`,
+ * `preview` -> `removed`. Every other rail in this file proves the two rungs are the SAME on
+ * exposure, which is the point of GA; none of them can tell a real rung from a rename, because a
+ * rename passes all of them. This is the half that can.
+ *
+ * ⭐ THE OTHER HALF OF THE FRAMING IS ALREADY RAILED ABOVE. `PREVIEW_MODES` drives the chip hint
+ * and is asserted empty at stage >= 2. That left the Settings card's own label as the last place
+ * the word reaches a member — and a label is not something a Set can speak for.
+ *
+ * ⛔ COMMENTS ARE STRIPPED FIRST. The component explains, in a comment, that the recovery defect
+ * was hit "on the live admin preview" — prose about the feature's history, not copy on a member's
+ * screen. A scan that counts that is reporting a property of itself.
+ */
+describe('⛔ THE FRAMING IS ACTUALLY GONE — stage 3 is not a rename', () => {
+  const CARD = path.join(REPO, 'app', 'src', 'pages', 'settings', 'JoystickSettingsCard.jsx')
+  const CARD_SRC = readFileSync(CARD, 'utf8')
+  const stripComments = (src) => src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+  const code = stripComments(CARD_SRC)
+
+  it('CONTROL: the card really was read, and it really renders the label this rail is about', () => {
+    // NON-VACUITY. A moved file, a typo in the path, or a stripper that ate the whole body all
+    // yield a source with no "preview" in it — and would pass the assertion below forever.
+    expect(CARD_SRC.length, 'JoystickSettingsCard.jsx read as empty — this rail is looking at '
+      + 'nothing, and its assertion would pass over an empty string').toBeGreaterThan(500)
+    expect(code, 'the comment stripper removed the component body, not just its comments')
+      .toMatch(/Joystick shortcuts/)
+  })
+
+  it('CONTROL: the check can FAIL — it sees the word when the word is there', () => {
+    // A guard nobody has watched fire is not a guard. The needle is built by concatenation so
+    // this file cannot satisfy its own search.
+    const planted = code.replace('Joystick shortcuts', 'Joystick shortcuts (' + 'prev' + 'iew)')
+    expect(planted, 'the planted case did not differ from the real one, so this control proves '
+      + 'nothing about the assertion below').not.toBe(code)
+    expect(/prev(?:)iew/i.test(planted), 'the scan cannot see the word even when it is planted '
+      + 'directly in the source — the assertion below is vacuous').toBe(true)
+  })
+
+  it(`at stage ${ROLLOUT_STAGE} the card's member-facing copy ${ROLLOUT_STAGE >= 3
+    ? 'says nothing about a preview' : 'may still say preview'}`, () => {
+    if (ROLLOUT_STAGE < 3) return // rungs 1 and 2 ARE the preview; the word belongs there
+    const hits = code.match(/prev(?:)iew/gi) || []
+    expect(hits, 'stage 3 is general availability and rollout.md promises the preview framing is '
+      + 'REMOVED, but the Settings card still says it in copy a member reads. A rung that renames '
+      + 'itself and changes nothing is the one thing this stage could ship by accident.')
+      .toEqual([])
+  })
+})

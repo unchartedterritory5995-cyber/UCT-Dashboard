@@ -244,7 +244,7 @@ describe('Settings → Joystick', () => {
     // B6 hides this card from a member who never chose, so an admin is the only viewer who
     // reaches it with NO stored preference — which is the state this copy check is written in.
     renderIn(<JoystickSettingsCard />, { user: { role: 'admin' } })
-    expect(screen.getByText('Joystick shortcuts (preview)')).toBeTruthy()
+    expect(screen.getByText('Joystick shortcuts')).toBeTruthy()
   })
 })
 

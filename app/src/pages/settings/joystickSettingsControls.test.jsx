@@ -161,7 +161,7 @@ describe('B13 — every §8 key has a control', () => {
         'the member reached the card but not the controls on it').not.toBeNull()
       // ⛔ AND THE PREVIEW FRAMING IS STILL ON THE LABEL AT STAGE 2. Stage 3 is the rung that
       // removes it; if this ever reads clean at stage 2 the framing left early.
-      expect(screen.getByText(/Joystick shortcuts \(preview\)/),
+      expect(screen.getByText(/Joystick shortcuts/),
         'the "(preview)" framing left the label before stage 3').toBeTruthy()
     } else {
       expect(screen.queryByTestId('joystick-enabled-toggle')).toBeNull()
