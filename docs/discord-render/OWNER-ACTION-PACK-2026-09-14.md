@@ -716,3 +716,130 @@ log path afterwards.
 - **[owner]** OI-13 rotation · C-13 row closure.
 - **[owner]** the admin-only canary flip itself. **Nothing may set
   `DISCORD_RENDER_V2_ENABLED` before every row above is closed.**
+
+---
+
+# OWNER PACK v7 — appended 2026-09-15 (D-09 Phase B). Still one pack.
+
+## 10.0 · Headline: merge 1 landed, and it immediately disproved one of my own claims
+
+**`db5591c63` is on master and live** (running SHA `57113d1ac` contains it, verified
+by ancestry rather than assumed). Merge 2 is fully preflighted and did NOT land —
+the cadence burst rail refused it, correctly.
+
+⭐ **The instrument earned its keep in the first read.** Merge 1's whole purpose was
+to make the loop-stall reading readable. It is now PRESENT in the health payload —
+and it says `running: false, samples: 0`. **The watcher has never run in
+production**, and my Phase A report said it was live. See §10.2.
+
+## 10.1 · R18 as applied, with both sub-clauses withdrawn
+
+The RTH window is **RETIRED** in `tools/pre_push_guard.py`
+(`discord-render-hardening` @ `101ecc2c5`). Verified live at 14:39 ET, inside the
+old window: *"the 09:25-16:05 ET deploy window is RETIRED (R18…)"*. Fixture 73
+passed / 0 failed; the eight RTH boundary cases now ALLOW, **every cadence case
+still REFUSES**; mutation MG1 (cadence removed alongside) RED.
+
+⛔ **The clauses that stayed did the work tonight, twice.** The guard refused merge
+2 first because another workstream's deploy was IN FLIGHT, then because three
+distinct web deploys had landed inside an hour. Neither refusal was the clock.
+
+Both R18 sub-clauses are **withdrawn**, as you ruled:
+- *"with reason in the override log"* — no mechanism exists; no env flag invented.
+  Authorisation lives in the merge commit as a ruling reference. A machine-readable
+  reason field in `_log_bypass` is a D-10 one-liner with a test and a mutation.
+- *"ride it on merge 1"* — merge 1 stayed exactly two files. **The guard change
+  reaches master with the hardening branch, which is D-10's FIRST merge**, so every
+  workstream that rebases gets the retired window.
+- **Standing rule recorded: a commit message never contains the override token.**
+  My first merge-commit attempt was refused by the harness for exactly that.
+
+## ⛔⛔ 10.2 · OI-43 — the loop watcher is gated behind the V2 flag, so it has never run
+
+**This is the session's most consequential finding and it corrects my Phase A
+report.** In Phase A I wrote that `loopwatch` was "built, wired, live, and
+unreachable". Wired: yes. **Live: no.**
+
+Measured after merge 1, stable across three reads at +0 s, +30 s and +60 s:
+
+    loop = {"running": false, "samples": 0, "max_ms": null, "p95_ms": null}
+
+The cause, read from source rather than inferred:
+
+- `loopwatch.start()` **does** honour its own kill switch (`if not enabled(): return
+  None`), and that switch is open by default.
+- But it has **exactly ONE call site** — `api/main.py:7755` — and that line sits
+  inside `if _render_v2.enabled():`.
+
+So the instrument is **doubly gated**, and the binding gate is V2, which is dark.
+
+⭐ **The instrument built to explain V1 ack misses only runs when V2 is on.** The
+2026-09-15 `/flow` ack miss is a V1 event on a V1 pod; the one thing that could have
+explained it was switched off by a flag that has nothing to do with it.
+
+⭐ **And this is exactly why merge 1 was worth doing first.** Before it, the reading
+was unreadable, so "the watcher is running" was an assumption nobody could test. One
+line of wiring turned it into a measurement, and the measurement said no.
+
+**The fix is one line** — move `_v2_loopwatch.start()` outside the V2 gate; its own
+kill switch already protects it. **D-10.**
+
+⚠️ **CONSEQUENCE FOR B3:** the OI-42 reproduction cannot read "was the stall
+concurrent with the render" until OI-43 lands. B3 was not run tonight; when it runs,
+it must run AFTER OI-43 or be labelled `loop=not-running`.
+
+## 10.3 · What landed, what did not
+
+| | |
+|---|---|
+| **MERGE 1** | ✅ `db5591c63` — master-first-parent, exactly two files, web SUCCESS 19:56:40 (2m55s). Running SHA matched two ways (`db5591c638b5` env + health payload). `v2_channels() == ()`, V2 flag `None`, `/api/health` 200. |
+| **Acceptance test** | ✅ `loop` **PRESENT** in the payload — the fix does what it claims. ⚠️ The reading itself is `running: false` → OI-43. |
+| **MERGE 2** | ⛔ **NO-GO** — the cadence **burst** rail: *"3 distinct web deploys in the last 60 min… master is under concurrent development… it needs a human who can see every workstream, not a guard."* Preflight is complete and green (clean rc=0 vs post-merge-1 master, tree `9f64c2e29`, exactly three files, roster 429/0, mutations 4/4 RED). |
+| **B2–B5** | ❌ NOT RUN — all downstream of merge 2. |
+
+⚠️ **Merge 1 is one of the three deploys in that burst.** Two merges in one evening
+on a repo where three other workstreams are pushing is what the burst rail exists to
+notice. It is not a malfunction; it is the rail telling us the repo was busier than
+the plan assumed.
+
+## 10.4 · The harness permission boundary — a standing owner step
+
+**Every master push from Claude Code now requires your tap.** Tonight's first
+attempt was refused by the auto-mode classifier (`[Production Deploy]`), and a merge
+*commit* was refused earlier for quoting the override token (`[Security Weaken]`).
+
+⭐ This is not a bug to route around, and I did not try to. It means **"unattended
+merge" was never real.** From D-10 onward, merges are scheduled as explicit owner
+taps rather than as steps a directive can assume.
+
+## 10.5 · OI-13 — unchanged, still yours, still [KEYBOARD]
+
+Presence-only: `DISCORD_BOT_TOKEN` present, `DISCORD_CHART_APP_ID` present,
+`CHART_RENDERER_TOKEN` absent, `RENDER_SHARED_SECRET` absent. **Presence cannot
+establish rotation.** No rotation-shaped deploy observed.
+
+## 10.6 · FLIP PACKET
+
+| row | state after D-09 Phase B |
+|---|---|
+| **OI-42 instrument** | ✅ **MERGED** `db5591c63`, live, observability only |
+| **OI-43 (new)** | 🔴 loopwatch gated behind the V2 flag — has never run in production. One-line fix. D-10. |
+| **OI-36** | ⛔ NO-GO on the burst rail. Preflight green, ready, `14480a63f`. |
+| **R18** | ✅ applied; window retired in the guard; reaches master with the hardening branch (D-10's first merge) |
+| **Smoke 3.5** | 14 rows (R16). Not re-run tonight. |
+| **S2** | ❌ NOT RUN — downstream of merge 2 and B4 |
+| **`RENDER_MAX_CONCURRENT`** | INCONCLUSIVE — missing sample is still the S2 run |
+| **Gate** | 6 MET / 3 NOT MET / 2 NOT MEASURABLE — **NO GATE CHANGE** |
+| **Organic exposure** | **0** |
+
+## 10.7 · Canary readiness — every item tagged
+
+- **[owner]** tap the master push for each merge — now a standing step, not an assumption.
+- **[local]** D-10 merge 1: the **hardening branch** (carries R18's retired window + SMOKE-3.5.md + the tripwire), so every workstream's rebase gets the guard.
+- **[local]** D-10: **OI-43** — un-gate `loopwatch.start()` from the V2 flag. One line, with a test that it starts with V2 dark and a mutation that re-gates it.
+- **[local]** D-10: merge **OI-36** (green and waiting).
+- **[local]** R17's 10:00 ET `/flow SPY days:30` read with the log line captured inside retention.
+- **[local]** then B2 (14 rows), B3 (now meaningful, with the loop actually running), B4.
+- **[private-network]** S2, after B4's cited PAUSE.
+- **[owner]** OI-13 rotation · C-13 closure · the canary flip itself.
+- ⛔ **Nothing sets `DISCORD_RENDER_V2_ENABLED` until every row above is closed.**
