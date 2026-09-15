@@ -57,6 +57,21 @@ DOLLARVOL_WINDOW = 20           # trailing sessions for the median $-volume
 
 _REF_TTL = 7 * 86400            # reference data changes slowly; refresh weekly
 
+#: Sessions of MEMBERSHIP-BEARING warm-up a sweep needs before its first output date.
+#:
+#: ⭐⭐ THIS IS NOT THE 560-DAY FRAME WARM-UP, and conflating the two is what made
+#: BL-021 look expensive to fix. The frame's ~560 calendar days exist for the PER-TICKER
+#: levels — a 200-day average, a 52-week extreme — which are the same numbers whoever
+#: else is in the universe, so they need no member set. THIS window exists for the
+#: ROLLING metrics (`ratio_5day`, `ratio_10day`), which sum `up_4pct_today` and
+#: `down_4pct_today` across the previous sessions and therefore need each of those
+#: sessions measured over the RIGHT POPULATION.
+#:
+#: 15 covers `ratio_10day`'s 9 predecessors with room to spare, and it is what
+#: `sweep_history` has always seeded its buffer with; the defect was never the length,
+#: it was that those sessions had no member set and silently meant "all priced tickers".
+WARM_SESSIONS = 15
+
 
 def _ref_cache_path() -> str:
     return os.path.join(os.environ.get("DATA_DIR", "/data"),
@@ -301,10 +316,25 @@ def build_frame(universe: str, from_date: str, to_date: str,
     dollar = closes * vols
     ref = reference_map()
     sweep_dates = [d for d in dates if from_date <= d <= to_date]
+    # ⭐⭐ THE WARM SESSIONS GET A MEMBER SET TOO — BL-021's fix, and it is four lines
+    # because the expensive part was never the eligibility, it was believing it needed
+    # the whole 560-day span. `sweep_history` seeds its rolling buffer from the
+    # `WARM_SESSIONS` sessions before `from_date`; without a member set those rows were
+    # computed over ALL PRICED TICKERS (measured: 7,835 names against the universe's
+    # 3,073), so `ratio_5day` was wrong for the first 4 output sessions of every chunk
+    # and `ratio_10day` for the first 9 — by up to 29 %. Giving them the SAME
+    # eligibility every output date gets makes the answer depend on the DATE rather than
+    # on where the invocation happened to begin.
+    #
+    # ⚠️ COST: `WARM_SESSIONS` extra raw frames per chunk. Over a 4,860-session US
+    # grind in 365-day chunks that is ~195 fetches on top of ~9,185 — about 2 %.
+    first_i = dates.index(sweep_dates[0]) if sweep_dates else len(dates)
+    warm_dates = dates[max(0, first_i - WARM_SESSIONS):first_i]
+    elig_dates = warm_dates + sweep_dates
     eligible, coverage = {}, {}
     missing_raw = []
     from api.services import massive
-    for d in sweep_dates:
+    for d in elig_dates:
         j = date_pos[d]
         lo = max(0, j - DOLLARVOL_WINDOW + 1)
         # ⚠️ An all-NaN row is the NORMAL case, not an error: most of the matrix is
@@ -341,10 +371,14 @@ def build_frame(universe: str, from_date: str, to_date: str,
         # series with an invisible hole is worse than a sweep that failed loudly: the
         # hole survives into the store, the chart, and every later re-run that sees
         # coverage already reaching past it.
-        _log.error("[pit_frame] %s sweep dates have no RAW frame (first %s) — refusing",
+        _log.error("[pit_frame] %s eligibility dates have no RAW frame (first %s) — refusing",
                    len(missing_raw), missing_raw[0])
+        # ⛔ A WARM DATE COUNTS. It produces no stored row, but it seeds the rolling
+        # metrics, so computing it over "all priced tickers" because its raw frame was
+        # missing is the very downgrade BL-021 exists to remove.
         return {"ok": False, "reason": (
-            f"{len(missing_raw)} of {len(sweep_dates)} sweep dates have no raw "
+            f"{len(missing_raw)} of {len(elig_dates)} eligibility dates "
+            f"({len(sweep_dates)} output + {len(warm_dates)} warm-up) have no raw "
             f"grouped-daily frame (first: {missing_raw[0]}, last: {missing_raw[-1]}). "
             "The adjusted frame exists for these dates, so the market traded and the "
             "RAW fetch failed — computing over them would write a silent gap."),
@@ -353,5 +387,5 @@ def build_frame(universe: str, from_date: str, to_date: str,
     return {"ok": True, "universe": bu.normalize(universe), "dates": dates,
             "date_pos": date_pos, "closes": closes, "vols": vols,
             "tickers": tickers, "eligible": eligible, "coverage": coverage,
-            "sweep_dates": sweep_dates,
+            "sweep_dates": sweep_dates, "warm_dates": warm_dates,
             "elapsed_s": round(time.perf_counter() - t0, 1)}

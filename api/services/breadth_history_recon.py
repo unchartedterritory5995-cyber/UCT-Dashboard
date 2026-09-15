@@ -276,6 +276,25 @@ def _applies(metric: str, universe: str) -> bool:
     from api.services import breadth_metrics as _bm
     return _bm.applies_to(metric, universe)
 
+def _seed_carry_in(prev: dict, full: dict, uni: str) -> None:
+    """Carry a warm-up row's values into `prev` — the close-to-close OPEN of the next
+    stored bar.
+
+    ⭐ A NAMED FUNCTION RATHER THAN FOUR INLINE LINES, so the behaviour can be DISABLED
+    in a bite-check. A rail for an invariant nothing can break is not a rail, and this
+    is the invariant BL-021's second half restored: the first stored bar of an
+    invocation must open at the previous session's close, not at its own.
+    """
+    for metric, val in full.items():
+        if metric == "date" or metric in _NEVER_SWEEP_STORE:
+            continue
+        if not _applies(metric, uni):
+            continue
+        fv = _f(val)
+        if fv is not None:
+            prev[metric] = fv
+
+
 _SWEEP_STATE: dict = {"status": "idle"}
 
 
@@ -348,20 +367,38 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         frame = load_deep_frame(tickers, since=since)
     dates = frame["dates"]
     to_date = to_date or (dates[-1] if dates else from_date)
-    # Start the derived-metric buffer ~15 sessions before from_date so ratios/score aren't
-    # cold at the range start (ratio_10day needs 10 prior days).
+    # Start the derived-metric buffer `WARM_SESSIONS` before from_date so the rolling
+    # ratios aren't cold at the range start (ratio_10day needs 9 predecessors).
+    #
+    # ⛔ THE LENGTH IS `breadth_pit_frame.WARM_SESSIONS`, NOT A 15 TYPED HERE. The frame
+    # builds membership for exactly that many sessions before `from_date`; if the two
+    # numbers ever disagreed, the extra sessions would have no member set and BL-021
+    # would come back for precisely those rows.
+    from api.services import breadth_pit_frame as _bpf_const
+    _warm_n = _bpf_const.WARM_SESSIONS
     warm_start = next((d for d in dates if d >= from_date), from_date)
-    warm_idx = max(0, dates.index(warm_start) - 15) if warm_start in dates else 0
+    warm_idx = max(0, dates.index(warm_start) - _warm_n) if warm_start in dates else 0
     sweep = [d for d in dates[warm_idx:] if d <= to_date]
     prev: dict = {}
     recent: list = []          # full derived rows, NEWEST-FIRST (derive_live_row wants that)
     rows: list = []
     computed = written = 0
-    # ⚠️ A PIT universe has a member set ONLY for the dates it was asked to sweep;
-    # the warm-up sessions before `from_date` exist to seed `recent`, and
-    # `recompute_from_frame` falls back to every priced name for those. That is the
-    # right trade: the warm-up rows are never stored, and building eligibility for
-    # 560 extra sessions would double the frame's cost to refine numbers nobody reads.
+    # ⭐⭐ THE WARM-UP ROWS CARRY THE SAME MEMBER SET AS AN OUTPUT DATE — BL-021.
+    #
+    # ⚰️ THIS COMMENT USED TO SAY THE OPPOSITE, and said it confidently: "the warm-up
+    # rows are never stored, and building eligibility for 560 extra sessions would
+    # double the frame's cost to refine numbers nobody reads." Two of those three
+    # clauses were true. The third was not: `ratio_5day` and `ratio_10day` ARE stored,
+    # they ARE in V1, and they are SUMS over exactly those warm rows — so a warm row
+    # measured over every priced ticker (7,835 names, against the universe's 3,073) put
+    # whole-market counts into a US series. Measured error up to 29 % on R5's first 4
+    # output sessions and 24 % on R10's first 9, at EVERY chunk boundary, and on every
+    # forward-seal tick.
+    #
+    # ⛔ AND IT WAS NEVER 560 SESSIONS. The 560-day span is the frame's per-ticker
+    # warm-up (averages, 52-week extremes) and needs no membership at all; the rolling
+    # metrics need `WARM_SESSIONS` — fifteen. `build_frame` now resolves those fifteen,
+    # which is ~2 % more raw fetches over a full grind.
     members_of = (pit_frame or {}).get("eligible") or {}
     for ds in sweep:
         r = recompute_from_frame(frame, tickers, ds, window,
@@ -377,7 +414,19 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         recent.insert(0, full)
         if len(recent) > 30:
             recent.pop()
-        if ds < from_date:      # warmup only — seed the buffer, don't store
+        if ds < from_date:
+            # ⭐ WARM-UP: seeds the buffer AND the close-to-close carry-in, but stores
+            # nothing. `prev` is what the next stored bar opens at, so seeding it here
+            # is the whole of BL-021's second half: without it the first stored bar of
+            # every invocation took `o = c` and rendered a doji, and "the first date of
+            # this function call" was silently standing in for "the first date of the
+            # series".
+            #
+            # ⚠️ A GENUINELY FIRST DATE STILL OPENS AT ITS OWN CLOSE, and that is
+            # correct rather than a fallback: when no earlier session exists there is no
+            # prior close for it to open at. The difference is that it is now decided by
+            # the DATA — whether a warm session exists — not by where the loop began.
+            _seed_carry_in(prev, full, uni)
             continue
         for metric, val in full.items():
             if metric == "date" or metric in _NEVER_SWEEP_STORE:
