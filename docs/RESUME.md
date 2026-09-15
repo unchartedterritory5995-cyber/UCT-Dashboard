@@ -1,3 +1,65 @@
+# NEXT UP — PANE HEIGHT PERSISTENCE (root-caused, NOT implemented)
+
+**Owner-reported, 2026-09-15.** Drag the separator to make an own pane taller;
+on release it SNAPS BACK to its computed default.
+
+## Root cause — PROVEN, do not re-derive
+
+`paneStretchPlan` (`engine/paneLayout.js`) seeds from `cur.slice()` then
+UNCONDITIONALLY overwrites every pane the layout covers. Measured:
+
+    current (post-drag):      [270, 330, 100]     ← member dragged QQQ to 270
+    plan (what gets applied): [ 81, 463, 154]     ← QQQ 270 → 81
+
+`binder.js` (~line 467) then applies it: `want[i] !== current[i]` →
+`setStretchFactor`. The drag survives only until the next binder sync.
+
+**Pane-height authority today: NONE.** The flow is one-way —
+`computePaneLayout → paneStretchPlan → setStretchFactor → LWC`. The manual drag
+ends inside lightweight-charts and never becomes canonical UCT state.
+
+## Design already agreed
+
+`setStretchFactor` is a RELATIVE WEIGHT, not pixels — so persisting post-drag
+stretch factors keyed by PANE KEY (`price`, `volume`, instance host id) gives
+widget-resize correctness for free, keeps size independent of `cs.paneOrder`,
+and makes a size follow its pane across reorders. No pixel geometry.
+
+⛔ Absent size → existing computed default, unchanged. Only an explicit resize
+creates a preference. No migration.
+
+## Two acceptance items attached by the owner
+
+**1. QQQ price-axis labels (600 / 705 instead of decimals).** MEASURED: the
+series formatter is CORRECT — `{type:'price', precision:2, minMove:0.01}`,
+`format(704.69) → "704.69"`, `lastValueVisible: true`, scale `right`. So it is
+NOT a formatting bug. Hypothesis: the pane is stuck ~90–100px, and LWC picks
+coarse tick spacing for a short pane over a wide range. TEST AFTER the resize fix
+— capture labels at small height, then at a large height. If height explains it,
+add NO formatting fix. Distinguish SERIES VALUE FORMATTING from AXIS TICK
+SELECTION; do not force precision/minMove/custom formatters.
+
+**2. Secondary-symbol live ticking — ANSWERED: HISTORICAL ONLY.**
+`engine/secondaryBars.js` is a fetch-once module cache keyed by URL
+(`GET /api/bars/{ticker}`), exporting `ensureAll` / `cachedBars` / `subscribe`
+(a cache-LANDING notifier, not a feed). There is NO `livePriceStore`, no polling,
+no stream on this path. `useSecondarySources` re-runs on
+`[instances, defOf, tf, barCount, fetcher, cs]` — settings changes, never price
+ticks — and `ensure` skips anything already cached.
+
+So a charted QQQ dataSeries: (1) gets historical bars through the canonical
+shared path ✅; (2–5) does NOT subscribe, does NOT update its plotted value,
+legend or last-value label ❌; (6) has no subscription to clean up;
+(7) cannot double-subscribe — the cache is keyed by symbol/tf/bars, so
+own-pane vs Price-guest changes do not touch the data path ✅.
+
+⚠️ **A SEPARATE FOLLOW-UP, NOT PART OF THE PANE FIX.** The frontend live path
+(`/api/live-prices` → `livePriceStore`) exists, but wiring it here means topping
+the last bar of a CROSS-CHART SHARED cache for N symbols with cadence throttling.
+That is not the trivial hookup the owner carved out.
+
+---
+
 # ⚠️ WORKSPACE UX ISSUE — "NEW LAYOUT" REPLACES THE UNSAVED WORKING STATE
 
 **Recorded 2026-09-15. NOT a Track A defect and NOT to be fixed in Track A.**
