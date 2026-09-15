@@ -10,8 +10,8 @@ Start **2026-09-15 04:34 EDT Tue**, end **2026-09-15 05:43 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both
 worktrees `git status --porcelain` → **0** at start and end.
 
-**9 commits** — six docs worktree, three code worktree (`c619ac82c`, `0d7c55fb1` pushed;
-**`dbc494828` committed and deliberately NOT pushed**, see §4c). Nothing signed, nothing merged, nothing pushed to master.
+**12 commits** — eight docs worktree, four code worktree (`c619ac82c`, `0d7c55fb1` pushed;
+**`dbc494828` and `f2251d398` committed and deliberately NOT pushed**, see §4c). Nothing signed, nothing merged, nothing pushed to master.
 
 ## 2 · Prelude
 
@@ -236,18 +236,18 @@ NAMED**, instead of a tidy 200 that reads as a smaller suite.
 | dir-pattern_engine | success | 81 |
 | dir-theme_engine | success | 61 |
 | dir-theme_curation | success | 52 |
-| tests-05 | *still running at report time* | — |
-| tests-07 | *still running at report time* | — |
+| tests-05 | **success** | — |
+| tests-07 | **success** | — |
 
-**10 of 12 shards succeeded; the longest completed shard is 526 s — 8.8 minutes against a
-20-minute cap.**
+**ALL TWELVE SHARDS SUCCEEDED.** The longest is 526 s — **8.8 minutes against a 20-minute
+cap**. Run #4 ran the same tests as one job for 2,671 s and produced nothing.
 
 ### Prediction scored, so far
 
 | predicted | outcome |
 |---|---|
 | `shards_total` 12 | ✅ 12 |
-| longest shard 8–14 min | ✅ **8.8 min** for the longest COMPLETED shard — ⚠️ two shards were still running and may yet hit the cap |
+| longest shard 8–14 min | ✅ **8.8 min**, and no shard was capped — **F-CI-6 has no subject** |
 | `collected` ≫ 2 | ⏳ suite record not yet published |
 | `per_test_timeouts` 0 or small | ⏳ — and this was the **declared low-confidence** row |
 | `shards_missing` `[]` | ⏳ |
@@ -258,15 +258,54 @@ NAMED**, instead of a tidy 200 that reads as a smaller suite.
 runs in ten pieces, ten of which finished comfortably inside their cap.** Run #4 ran the
 whole tree for 2,671 s and produced nothing; `dir-api` produced a result in **85 s**.
 
-⚠️ **`tests-05` and `tests-07` are the ones to watch.** If either was cancelled at 1,200 s
-it is **F-CI-6**'s subject and needs a sub-split — the same rule applied one level down:
-*split, do not extend*.
+⭐ **No shard was cancelled, so F-CI-6 has no subject and no sub-split is needed.**
+⛔ But the suite record still does not exist, because `publish` failed — see §4d.
 
-## 4c · ⛔ E CP7 — committed, deliberately NOT pushed
+## 4d · ⛔⛔ E CP8 — `publish` read `jobs.json` before the step that writes it
 
-`dbc494828` sits on the local branch only. Pushing it would start run #7 against a run #6
-that had not yet published, and **F-CI-8** says those two publishes race. The fix is
-recorded, registered as manifest row 19, and left for a moment when it cannot collide.
+Run #6 **completed/failure**: 15 jobs succeeded — **including all twelve pytest shards** —
+and 5 failed: the four slashed profile jobs plus **`publish` (13 s)**. Publish also failed
+in run #5 (61 s). **Two consecutive failures is systemic, not transient.**
+
+**And reading the committed file found a defect that needs no log.** In `0d7c55fb1`:
+
+```
+line 255   ci_aggregate.py --jobs jobs.json    <- inside "Summarise"
+line 282   -o jobs.json                        <- inside "Fetch this run's job outcomes"
+```
+
+**Consumed 27 lines before it was created.** Every shard's `job_result` came back
+**UNREADABLE**, so `all_success` could never be true and the suite could never report `ok`
+— **regardless of how the shards did. All twelve succeeded and the aggregator could not
+have known it.**
+
+⭐⭐ **It degraded HONESTLY rather than silently, and that is the only reason it was
+findable.** `ci_aggregate` treats a missing payload as `UNREADABLE`, never as success, so
+the bug produced an *unreadable* suite instead of a *green* one. With the log endpoint at
+**403** throughout, reading the workflow was the whole diagnostic path — and it worked
+because the failure mode was built to be loud. ⛔ Had the aggregator defaulted to `success`,
+this would have published **GREEN** over twelve shards whose results were never consulted.
+
+Fixed (order verified from the **parsed** YAML: created 268, consumed 294), plus the
+verification line in that step is now guarded — `|| echo '{}'` covered curl's exit code, not
+malformed output, and a raise there fails the one job whose failure loses the entire record.
+
+⚰️ **The first attempt at that guard BROKE THE YAML** — escaped newlines collapsed to literal
+`
+`. `yaml.safe_load` caught it **before** the commit. The check firing on my own change is
+the check working; rewritten as a block and re-validated from the parse tree. ⚠️ Fourth time
+this session a shell-escaping shortcut produced a broken artifact; the reliable path is a
+patch **file**.
+
+⛔ **This does not claim to be why `publish` failed.** The failing step is **UNREADABLE**
+(403; empty `steps` array). It fixes what is provable from the file. **F-CI-7 and F-CI-8
+remain open.**
+
+## 4c · ⛔ E CP7 and E CP8 — committed, deliberately NOT pushed
+
+`dbc494828` (E CP7) and `f2251d398` (E CP8) sit on the local branch only. Pushing it would start run #7 against a run #6
+that had not yet published, and **F-CI-8** says those two publishes race. Both fixes are recorded, registered as manifest rows 19 and 20, and left for a moment
+when they cannot collide.
 
 ## 5 · E7 — collection profile
 
@@ -366,6 +405,7 @@ was not built. **OPEN QUESTION.**
 | **F-CI-7** | **NEW.** The publisher has no failure path of its own: run #5's `publish` job failed, so no record exists at all and the only evidence is behind a 403. Every guard sits inside the job that did not run. |
 | **F-CI-8** | **NEW.** Two runs reaching `publish` together race on `git push origin ci-results` — no retry, no lock. A design gap, recorded without claiming it caused run #5. |
 | **E CP7** | **NEW defect, mine, fixed but unpushed.** Artifact names cannot contain `/`; 4 of 5 profile jobs did their work and failed at upload. |
+| **E CP8** | **NEW defect, mine, fixed but unpushed.** `publish` consumed `jobs.json` 27 lines before creating it, so every shard read UNREADABLE — found by reading the file, because the aggregator degrades to UNREADABLE rather than to success. |
 | **F-CI-4** | still open — shallow `actions/checkout`, one line (`fetch-depth: 0`), not built. |
 | **F-SIGN-2** | still open — `entity-master-pre-implementation-gate.md` has no approval block. |
 
@@ -411,12 +451,12 @@ unchanged. **This session merged and deployed nothing.**
 
 ## 10 · Merge readiness
 
-**19 rows, 19 OK, 0 STALE. 18 of 18 commits mapped. `verify_manifest --check-commits`
+**20 rows, 20 OK, 0 STALE. 19 of 19 commits mapped. `verify_manifest --check-commits`
 exit 0.** `sign_gate --read-check` 0 · `--self-check` 0 · `ci_outcome --self-check` 0 ·
 `ci_aggregate --self-check` 0 · `pytest_shards --self-check` 0 ·
 `collect_profile_dirs --self-check` 0.
 
-**`merge_all --dry-run` exit 0** — 10 constraints all SATISFIED, 18 units, 0 MALFORMED,
+**`merge_all --dry-run` exit 0** — 12 constraints all SATISFIED, 20 units, 0 MALFORMED,
 0 UNSIGNABLE, stopping at the member-visible unit. **`sign_all --dry-run` exit 0** — 18
 sign commands. Cherry-pick cleanliness was proven per unit when each commit landed; no
 unit's file set changed this session.
