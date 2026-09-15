@@ -458,12 +458,140 @@ def build_reconstructed(dates, c=None) -> int:
             return 0
 
 
+#: ⛔ DEFAULT OFF, ledger-visible from birth (the `_ENABLED` suffix is what makes
+#: feature_flag_index.is_gate() see it at all — see the note on the page-cache flag).
+def _resident_recon_on() -> bool:
+    return (os.environ.get("BREADTH_RESIDENT_RECON_ENABLED", "").strip().lower()
+            in ("1", "true", "yes", "on"))
+
+
+#: The resident copy: {date: metrics JSON STRING}, plus the signals it was built at.
+#: One per process. Module-level because the web pod is ONE uvicorn process, which is
+#: the same assumption `sync._locks` and the live-price cache already make.
+_RESIDENT: dict = {"rows": None, "built_ms": None, "data_version": None}
+_RESIDENT_LOCK = threading.Lock()
+#: ⛔ A LONG-LIVED connection used for NOTHING BUT `PRAGMA data_version`. It has to be
+#: long-lived or the pragma is meaningless (see `_resident_rows`), and it is kept
+#: separate from the per-call read connections so it never holds a read transaction.
+#: `check_same_thread=False` because a plain `def` route runs in the anyio threadpool;
+#: every use is inside `_RESIDENT_LOCK`, so it is never touched concurrently.
+_PROBE: dict = {"conn": None, "path": None}
+
+
+def _probe_data_version():
+    """The current `data_version`, or None if a probe cannot be established.
+
+    ⛔ None means "cannot tell", and the caller must then fall through to the signature
+    rather than treat it as "unchanged" — an unknown is not a match.
+    """
+    path = _db_path()
+    try:
+        if _PROBE["conn"] is None or _PROBE["path"] != path:
+            if _PROBE["conn"] is not None:
+                try:
+                    _PROBE["conn"].close()
+                except Exception:
+                    pass
+            c = sqlite3.connect(path, timeout=5.0, check_same_thread=False)
+            c.execute("PRAGMA journal_mode=WAL")
+            _PROBE.update({"conn": c, "path": path})
+        return _PROBE["conn"].execute("PRAGMA data_version").fetchone()[0]
+    except Exception:
+        _PROBE.update({"conn": None, "path": None})
+        return None
+
+
+def _resident_rows():
+    """Return {date: metrics-json} or None when the flag is off.
+
+    ⚰️ THE FIRST VERSION USED `PRAGMA data_version` AS A 0.0034 ms PRE-CHECK AND IT WAS
+    MEASURING NOTHING. That pragma only changes for commits made on OTHER connections, as
+    observed from a connection that was ALREADY OPEN — and this module opens a connection
+    per call, so a fresh one has no prior value to differ from. Measured directly: across
+    two external writes a fresh connection returned 2, 2, 2 while a long-lived one
+    returned 2, 3, 4. The cache would have served stale rows forever.
+
+    ⭐ `test_a_write_to_the_table_is_seen_by_the_next_read` is what caught it, and it is
+    the only test that would have. Every other rail here passed against the broken
+    version, because a cache with no invalidation returns correct-LOOKING rows.
+
+    ⛔ AND THE SIGNATURE ALONE IS NOT SUFFICIENT EITHER — the same test proved that too.
+    `built_at` has SECOND resolution, so a rewrite inside one second with the same row
+    count and the same watermarks is invisible to it. That is a narrow hole in production
+    and a trivial one in a test, and a stale read is a correctness fault at any width.
+
+    ⚰️ AND A TWO-STAGE VERSION WAS WRONG TOO, which the same test caught a third time.
+    It used `data_version` as a cheap pre-check and the SIGNATURE as the authority: if the
+    version moved but the signature looked unchanged, it concluded "some other table was
+    written" and kept the rows. But the signature CANNOT prove this table did not change —
+    `built_at` has second resolution — so that branch served stale rows exactly when it
+    mattered. ⭐ A cheap check may only ever say "definitely nothing changed"; the moment
+    it says "something changed", the expensive answer has to be the rebuild, not a second
+    guess.
+
+    So: `data_version` ALONE, on a long-lived probe connection.
+      - unchanged  => no connection has committed anything => the rows are current. Exact,
+                      not heuristic: the pragma cannot miss a commit.
+      - changed    => rebuild (46 ms). Sometimes unnecessary — the breadth OHLC pull
+                      writes this file every 120 s — but the amortised cost is one 46 ms
+                      rebuild per write, with every request in between at 0.0034 ms.
+      - unknown    => rebuild. An unknown is not a match.
+    """
+    if not _resident_recon_on():
+        return None
+    import time as _t
+    c = _conn()
+    try:
+        with _RESIDENT_LOCK:
+            dv = _probe_data_version()
+            if (_RESIDENT["rows"] is not None and dv is not None
+                    and _RESIDENT["data_version"] == dv):
+                return _RESIDENT["rows"]
+            t0 = _t.perf_counter()
+            rows = {d: m for d, m in
+                    c.execute("SELECT date, metrics FROM breadth_reconstructed_daily")}
+            _RESIDENT.update({"rows": rows, "data_version": dv,
+                              "built_ms": round((_t.perf_counter() - t0) * 1000.0, 1)})
+            return rows
+    finally:
+        c.close()
+
+
 def reconstructed_for_dates(dates) -> tuple:
     """`({date: row}, misses)` read from the materialised table. No derivation."""
     ds = [d for d in dates if d]
     if not ds:
         return {}, 0
     _ensure_init()
+
+    # ── the resident path ───────────────────────────────────────────────────
+    # ⛔ IT HOLDS JSON STRINGS, NOT PARSED ROWS, AND THAT IS A MEASURED TRADE, NOT AN
+    # OVERSIGHT. Parsed rows would also remove `rf_materialise`, but measured on all
+    # 4,700 rows they cost 22,909,972 B = 5.06x the wire bytes, against 5,214,625 B =
+    # 1.15x for the strings. The standing memory bound is 2x wire, so the parsed form
+    # is not available. ⭐ And it buys little where it matters: at p90 the split is
+    # rf_fetch 607.1 ms against rf_materialise 54.4 ms, so the strings capture ~90% of
+    # the tail for 23% of the memory. The parse stays on the request path.
+    res = _resident_rows()
+    if res is not None:
+        from api.services import breadth_timing as _bt
+        import time as _t
+        t0 = _t.perf_counter()
+        out = {}
+        nbytes = 0
+        for d in ds:
+            mj = res.get(d)
+            if mj is not None:
+                nbytes += len(mj)
+                out[d] = json.loads(mj)
+        _bt.add_phase("rf_materialise", (_t.perf_counter() - t0) * 1000.0)
+        _bt.note(rf_rows=len(out), rf_bytes=nbytes, rf_busy_retries=0, rf_stmts=0,
+                 rf_stmt_min=0.0, rf_stmt_max=0.0, rf_stmt_sum=0.0,
+                 rf_resident=1, rf_resident_rows=len(res),
+                 rf_resident_build_ms=_RESIDENT["built_ms"],
+                 rf_pagecache=1 if _pagecache_on() else 0)
+        return out, len(ds) - len(out)
+
     out = {}
     # ⭐ SPLIT BECAUSE "VOLUME I/O" IS A HYPOTHESIS, NOT A MEASUREMENT. Session 7
     # showed this phase moving 50.2x while `derive` (pure CPU) moved 1.0x. That
@@ -539,11 +667,13 @@ def reconstructed_for_dates(dates) -> tuple:
     except Exception:
         _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries,
                  rf_stmts=stmts, rf_stmt_min=round(st_min or 0.0, 3),
-                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1))
+                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1),
+                 rf_resident=0)
         return {}, len(ds)
     _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries,
                  rf_stmts=stmts, rf_stmt_min=round(st_min or 0.0, 3),
-                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1))
+                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1),
+                 rf_resident=0)
     return out, 0
 
 

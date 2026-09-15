@@ -48,7 +48,7 @@ is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 | canary scope narrowed to the declared ids | 🔴 **NOT MET** | the running process narrows to NOTHING — and OI-35 defines an empty DISCORD_RENDER_V2_CHANNELS as EVERY CHANNEL, so this is the member flip, not a canary (declared = ['1549129739048853544'], read at 2026-09-14T21:31:39Z on decb1a03c874) |
 | S2 measured in --real mode and within SLO | 🔴 **NOT MET** | 3 run(s) judged; 9 breach(es) — load-real-a-concurrent30.json: p50 14855ms > 2500ms · load-real-a-concurrent30.json: p95 18117ms > 5000ms · load-real-a-concurrent30.json: p99 18836ms > 8000ms · load-real-a-concurrent30.json: S5 35.7% < 99.5% (worst class: queue_full×81) (+5 more) \| wire hop: load-real-d-wirehop.json (wire-hop: 40×200, 39s throttle) |
 | chaos passed in --real mode | ✅ MET | 7 scenario(s) passed for real, 6 refused by name (refused ≠ passed) |
-| 3.5 real-Discord smoke | 🔴 **NOT MET** | 1 row(s) marked FAIL (2/15 PASS) — a smoke with a red row is a smoke that found something |
+| 3.5 real-Discord smoke | 🔴 **NOT MET** | 1 row(s) marked FAIL (2/15 PASS) — a smoke with a red row is a smoke that found something. ⚰️ **HISTORICAL-UNDEFINED (R14, 2026-09-15): this "2/15" was scored against a list that was never written down.** The rows are now `docs/discord-render/SMOKE-3.5.md`, and **R16 (2026-09-15) ratified them as FOURTEEN rows** — row 15 struck, the "15" was approximate. Scores are **x/14** from B2 onward; do NOT compare this number against one. |
 | #render-alerts locked to admins | ✅ MET | no Contributor allow overwrite |
 | mutation NOT-APPLIED = 0 | ⚪ NOT MEASURABLE | 12 harness(es), 3 of them answer --dry-check; pass --run-mutations, or read the merge row |
 
