@@ -29,7 +29,14 @@ const timed = (fn, n) => {
 
 describe('discovery stays cheap at the size the library actually is', () => {
   it('the catalogue is big enough for this rail to mean something', () => {
-    expect(ROWS.length).toBeGreaterThan(150)
+    // ⚠️ THE FIXTURE IS THE PUBLISHED CATALOGUE WITH EVERY UNIVERSE ON — 44 legacy
+    // UCT rows plus the V1 set for each PIT universe — not every registered identity.
+    // It shrank from 170 when V1 publication landed, which is the catalogue getting
+    // MORE honest, not the rail getting weaker: this still ranks ~100 rows per
+    // keystroke, which is the size the algorithm has to be cheap at.
+    expect(ROWS.length).toBeGreaterThan(80)
+    expect(ROWS.filter((r) => r.legacy)).toHaveLength(44)
+    expect(new Set(ROWS.map((r) => r.universe)).size).toBe(4)
   })
 
   it('⭐ the index is built ONCE per payload, not once per query', () => {

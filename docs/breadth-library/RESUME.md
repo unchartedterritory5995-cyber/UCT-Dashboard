@@ -5,9 +5,10 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 8 complete — production-readiness audit + V1 release plan.
-**STATUS: decision-quality plan in hand. Local, unpushed, nothing published, no grind run.**
-Previously: Phase 7, the user-facing Breadth Library UX.
+**CURRENT PHASE** Phase 9 complete — THE DARK PRODUCTION FOUNDATION is implemented:
+one publication gate, V1 as metadata, the daily forward seal, participation-only
+warming, and health. **STATUS: working local code. Nothing published, nothing ground,
+nothing deployed.** Previously: Phase 8 (readiness plan), Phase 7 (the UX).
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
 **HEAD** `214ac2999` · **WORKING TREE** clean
 **STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `8578d375d` (merges `cc57099ca`, `bd5a1b9`-era)
@@ -652,3 +653,112 @@ force; take `origin/master` INTO the branch when integration is authorised.
 - `UCTNETHL` / `UCTUNI` minting.
 - R2 delta shipping (revisit near ~250 MB; ~80 MB is fine).
 - Per-metric availability in the catalogue (`availability()` is per-universe).
+
+---
+
+## Phase 9 — THE DARK PRODUCTION FOUNDATION (2026-09-15) · IMPLEMENTED
+
+The five items the readiness plan listed as remaining are now **working local code**.
+Nothing published, nothing ground, nothing deployed.
+
+### What was built
+
+| | where | ledger |
+|---|---|---|
+| **A** one coherent publication gate | `breadth_symbols.is_published` + `published_symbol_rows` | BL-015 |
+| **B** V1 as canonical metadata | `breadth_metrics.V1_METRICS` + five-level vocabulary | BL-016 |
+| **C** daily PIT forward seal | `breadth_history_recon.forward_seal_*` | BL-017 |
+| **D** participation-only warming | `breadth_symbols.warm_symbols_for_pit` | BL-018 |
+| **E** health / observability | `breadth_symbols.library_health` + `/api/breadth-monitor/library-health` | BL-019 |
+
+### The accepted V1 invariant — railed, and it holds exactly
+
+**18 metrics · 70 identities · 16 UCT + 54 new.**
+
+⚠️ UCT gives 16 rather than 18 because an IDENTITY needs a SYMBOL, and
+`net_new_high_low` / `universe_count` have no UCT spelling. ⚠️ And 70 is **not** the
+live catalogue: that is 44 while dark, 62 with US published, 98 with all three. Two
+different questions, both correct, both railed.
+
+### Dark-default parity — a byte claim
+
+With no publication flags, `published_symbol_rows() == legacy_symbol_rows()`: the same
+44 rows, the same order, the same keys, and still no `universe` key on a legacy row.
+`/api/breadth-symbols`, `/api/ticker-search`, `library_catalog` and `is_breadth_symbol`
+all answer exactly what they answered before.
+
+### The BL-013 consequence, fixed and shown
+
+`symbolFamily()` answers `'security'` for anything absent from the `symbols` array.
+While that array was hard-wired to the 44 shipped records, a published `US:A50` would
+have been served by `/api/bars` as breadth and classified by the chart as an ordinary
+security — and `ohlcCapabilityOf` would have offered CANDLES over bars whose "open" is
+yesterday's value and whose wick is derived from the pair, not observed.
+
+Proven in the browser at three settings:
+
+| setting | identities | `UCTA50` | `US:A50` | `NASDAQ:A50` | `AAPL` |
+|---|---|---|---|---|---|
+| DEFAULT | 44 | breadth · refused | security | security | security · candles |
+| `?publish=us` | 62 | breadth · refused | **breadth · refused** | security | security · candles |
+| all three | 98 | breadth · refused | breadth · refused | **breadth · refused** | security · candles |
+
+The refusal names the FAMILY, not a missing field — the bars carry a complete o/h/l/c.
+
+### Browser proof (dev harness on :5231, fixture-backed, Main Trading untouched)
+
+| step | observed |
+|---|---|
+| DEFAULT — search `50 day` | `% of Stocks Above 50-Day MA · UCTA50` alone |
+| DEFAULT — NETHL section | "not published at this setting — UCT has no NETHL symbol… Nothing is substituted." |
+| `?publish=us` — search `50 day` | `… · UCTA50` then `… · US`, metric bold, universe grey |
+| `?publish=us` — the REAL `SourceField` | typed `50 day` → two rows; clicked the US row → stored `sym:US:A50:close` |
+| `?publish=us` — `US:MU` (V1.1), `NASDAQ:AAPL` | **no match** |
+| `?publish=us` — NETHL histogram | +500/+164/+13 green `rgb(47,175,104)` growing UP from the dashed zero; 0 at the baseline; −7/−99/−663 red `rgb(223,70,70)` growing DOWN |
+| all three — compare pane | `sym:UCTA50:close` · `sym:US:A50:close` · `sym:NASDAQ:A50:close` · `sym:NYSE:A50:close` |
+| **disable again** (`?publish=`) | back to 44 identities; `US:A50` returns to `security`; search shows UCTA50 alone; NETHL says not published. **No stale classification.** |
+| console | clean on every load |
+
+⚠️ The publication switch is a URL param and a RELOAD, not a React toggle, on purpose:
+`useBreadthSymbols` caches its payload for the session, which is exactly how a
+deploy-time flag behaves.
+
+### Storage ahead of publication — proven
+
+A rail writes a US row, shows it is invisible at every surface, flips publication on
+(the SAME row becomes servable and discoverable with no DB rewrite), and flips it off
+again (the row is still there, untouched). That separation is the launch strategy.
+
+### Tests
+
+| suite | result |
+|---|---|
+| backend `-k breadth` | **712 passed**, 12 skipped, 0 failed |
+| backend `-k "breadth or symbol or bars_route or ticker_search or watchlist"` | **1,321 passed**, 3 failed |
+| ↳ those 3 | `test_implied_backfill::…falls_back_to_finnhub` — reproduced on clean master `569485a12` |
+| new backend rails | publication gate **22**, forward seal **28**, seal end-to-end **5**, warming **4** |
+| frontend `src/components/chart src/hooks` (391 files) | **9,033 passed**, 4 skipped, 4 failed — the four standing pre-existing rails |
+| new frontend rails | `breadthPublication.test.jsx` **17** |
+| `npm run build` | clean, 447 assets; harness still not shipped |
+
+### Still dark, still unground
+
+| | |
+|---|---|
+| `BREADTH_LIBRARY_UNIVERSES` | unset → UCT only |
+| `BREADTH_LIBRARY_METRICS` | unset → `v1` (governs PIT universes only) |
+| `BREADTH_UNIVERSE_BACKFILL_ENABLED` | unset → disarmed |
+| provider / Railway / R2 / Cloudflare / production / Main Trading | **untouched** |
+| pushed / deployed | **nothing** |
+
+### EXACT REMAINING STEPS BEFORE US LAUNCH
+
+1. **Provider control** — [`PROVIDER-CONTROL-PLAN.md`](PROVIDER-CONTROL-PLAN.md).
+2. **Grind US** 2008→present to an isolated artifact (store all 39 producible metrics).
+3. **Integrity audit** on the artifact.
+4. **Final expensive test gate**, run LOCALLY before the merge — a master push starts a
+   Railway build immediately and no CI gate holds it.
+5. **Dark integration** — merge as one coherent feature.
+6. **Publish US**: `BREADTH_LIBRARY_UNIVERSES=us`. Everything else is already wired.
+7. **Observe** a week via `/api/breadth-monitor/library-health`.
+8. **NASDAQ + NYSE** later, same two steps.

@@ -33,6 +33,9 @@ import { breadthResults, createFromResult, lastCreatedInstance } from '../../com
 import * as registry from '../../components/chart/engine/nativeRegistry'
 import SourceField from '../../components/chart/SourceField'
 import { presentedPlot } from '../../components/chart/engine/presentation'
+import { OHLC_FAMILY, OHLC_REFUSAL, ohlcCapabilityOf }
+  from '../../components/chart/engine/ohlcCapability'
+import { parseSource, symbolSource } from '../../components/chart/engine/sourceRef'
 import { signColorsForPlot } from '../../components/chart/engine/pool'
 
 // ─── lock 1: no preference write can leave this page ────────────────────────
@@ -67,21 +70,45 @@ window.fetch = (url, opts = {}) => {
   return _fetch(url, opts)
 }
 
-/** The shape `/api/breadth-symbols` answers with. `symbols`/`groups` are the 44
- *  shipped UCT rows the fixture already carries under `legacy: true`. */
+// ⭐⭐ THE PUBLICATION FLIP, AS A URL PARAM. `?publish=us` is this page's stand-in
+// for `BREADTH_LIBRARY_UNIVERSES=us`, and it is a RELOAD rather than a React toggle on
+// purpose: `useBreadthSymbols` caches its payload module-wide for the session, which is
+// exactly how a real deploy-time flag behaves — existing clients keep the old answer
+// until they reload. A live toggle would prove something the product does not do.
+//
+// ⛔ THE FIXTURE IS FILTERED THE WAY THE SERVER FILTERS. `published_symbol_rows()`
+// emits the 44 legacy UCT rows first and unconditionally, then each published PIT
+// universe's V1 rows. Nothing here invents a row the server would not send.
+const PUBLISHED = (() => {
+  const raw = new URLSearchParams(location.search).get('publish') || ''
+  const want = new Set(raw.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean))
+  return want
+})()
+
+const legacyRows = CATALOG.rows.filter((r) => r.legacy)
+const publishedRows = [
+  ...legacyRows,
+  ...CATALOG.rows.filter((r) => !r.legacy && PUBLISHED.has(r.universe)),
+]
+
+/** The shape `/api/breadth-symbols` answers with, at THIS publication setting. */
 const FIXTURE_PAYLOAD = {
-  symbols: CATALOG.rows.filter((r) => r.legacy)
-    .map((r) => ({ symbol: r.symbol, metric: r.metric, name: r.name,
-                   group: r.group, group_label: r.group_label })),
+  symbols: publishedRows.map((r) => ({
+    symbol: r.symbol, metric: r.metric, name: r.name,
+    group: r.group, group_label: r.group_label,
+    ...(r.legacy ? {} : { universe: r.universe, universe_label: r.universe_label }),
+  })),
   groups: CATALOG.families || [],
   library: {
-    rows: CATALOG.rows, families: CATALOG.families,
-    universes: CATALOG.universes, metric_order: CATALOG.metric_order,
+    rows: publishedRows, families: CATALOG.families,
+    universes: (CATALOG.universes || []).filter(
+      (u) => u.id === 'uct' || PUBLISHED.has(u.id)),
+    metric_order: CATALOG.metric_order,
   },
 }
 
 const LIB = {
-  rows: CATALOG.rows,
+  rows: publishedRows,
   families: CATALOG.families,
   universes: CATALOG.universes,
   metricOrder: new Map(CATALOG.metric_order.map((m, i) => [m, i])),
@@ -183,6 +210,11 @@ function ComparePane() {
     }
     return out
   }, [])
+  if (!built.length) {
+    return <div style={S.empty} data-testid="compare-unavailable">
+      nothing published for this metric at this setting
+    </div>
+  }
   return (
     <div data-testid="compare">
       <div style={{ ...S.name, marginBottom: 6 }}>{built[0]?.name}</div>
@@ -202,6 +234,12 @@ function ComparePane() {
 function Nethl() {
   const info = useMemo(() => {
     const row = LIB.rows.find((r) => r.metric === 'net_new_high_low')
+    // ⛔ ABSENT AT THE DEFAULT SETTING IS THE CORRECT PRODUCT STATE, not a crash.
+    // UCT never published a Net New High-Low symbol, so with UCT alone published
+    // there is no NETHL identity to draw. Rendering "not published" is the honest
+    // answer; picking another universe's row would be the fabrication this whole
+    // project exists to refuse.
+    if (!row) return null
     const [res] = breadthResults([row])
     const cs = createFromResult({ indicatorInstances: [] }, res, registry)
     const inst = lastCreatedInstance({ indicatorInstances: [] }, cs)
@@ -210,6 +248,12 @@ function Nethl() {
   }, [])
   const vals = [500, 164, 13, 0, -7, -99, -663]
   const max = 663
+  if (!info) {
+    return <div style={S.empty} data-testid="nethl-unavailable">
+      Net New High-Low is not published at this setting — UCT has no NETHL symbol,
+      and no other universe is enabled. Nothing is substituted.
+    </div>
+  }
   return (
     <div data-testid="nethl">
       <div style={S.row}>
@@ -280,6 +324,73 @@ function RealPicker() {
   )
 }
 
+/** The publication switch, and what it changes. */
+function PublicationBar() {
+  const opts = [
+    ['', 'DEFAULT — UCT only'],
+    ['us', 'TEST: US enabled'],
+    ['us,nasdaq,nyse', 'TEST: all three'],
+  ]
+  const cur = new URLSearchParams(location.search).get('publish') || ''
+  return (
+    <div style={{ ...S.chipRow, margin: '0 0 14px' }} data-testid="pubbar">
+      {opts.map(([v, label]) => (
+        <a key={v} href={`?publish=${v}`}
+           data-testid={`pub-${v || 'none'}`}
+           style={{ ...S.chip, ...(v === cur ? S.chipOn : null), textDecoration: 'none' }}>
+          {label}
+        </a>
+      ))}
+      <span style={{ ...S.sym, alignSelf: 'center', marginLeft: 8 }}>
+        published: {publishedRows.length} identities
+        {' · '}universes: {['uct', ...PUBLISHED].join(', ')}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * ⭐⭐ FAMILY AND CANDLE CAPABILITY, decided by the PAYLOAD rather than by a branch.
+ *
+ * This is the BL-013 consequence made visible: the family map is built from the
+ * `symbols` array exactly as `useBreadthSymbols` builds it, and `ohlcCapabilityOf` is
+ * handed that map. A published breadth identity must read BREADTH and must be REFUSED
+ * candles — for what it MEANS, not for a missing field, because the bars below carry
+ * a complete o/h/l/c and would render a tidy, misleading candlestick.
+ */
+function FamilyPane() {
+  const rows = useMemo(() => {
+    const map = new Map(FIXTURE_PAYLOAD.symbols.map(
+      (r) => [String(r.symbol).toUpperCase(), r]))
+    const familyOf = (sym) => (map.has(String(sym || '').toUpperCase())
+      ? OHLC_FAMILY.BREADTH : OHLC_FAMILY.SECURITY)
+    const def = registry.getDefinition('dataSeries')
+    // The shape the server really builds: o = yesterday's value, wick from the pair.
+    const bars = { bars: [{ t: '2015-03-10', o: 47.2, h: 47.9, l: 47.2, c: 47.9, v: 0 },
+                          { t: '2015-03-11', o: 47.9, h: 47.9, l: 46.1, c: 46.1, v: 0 }] }
+    return ['UCTA50', 'US:A50', 'US:NETHL', 'NASDAQ:A50', 'AAPL', 'NASDAQ:AAPL']
+      .map((sym) => {
+        const parsed = parseSource(symbolSource(sym, 'close'))
+        const cap = ohlcCapabilityOf(def, parsed, bars, familyOf)
+        return { sym, family: familyOf(sym), ok: cap.ok, reason: cap.reason }
+      })
+  }, [])
+  return (
+    <div data-testid="family">
+      {rows.map((r) => (
+        <div key={r.sym} style={S.row} data-testid="family-row" data-sym={r.sym}>
+          <div style={S.name}>{r.sym}</div>
+          <div style={{ ...S.uni, color: r.family === 'breadth' ? '#e8cf87' : '#6e7684' }}
+               data-testid="family-val">{r.family}</div>
+          <div style={{ ...S.sym, color: r.ok ? '#df4646' : '#2faf68' }}
+               data-testid="candles">{r.ok ? 'CANDLES OK' : 'candles refused'}</div>
+          <div style={S.fam}>{r.reason || ''}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Harness() {
   const [q, setQ] = useState('50 day')
   const uct = availabilityOf(LIB.universes, 'uct')
@@ -298,6 +409,11 @@ function Harness() {
           {'  '}(states are READ from the payload, never invented)
         </div>
       </div>
+
+      <PublicationBar />
+
+      <div style={S.h}>Family &amp; candle capability — decided by the payload</div>
+      <FamilyPane />
 
       <div style={S.h}>Search — metric first, universe second</div>
       <input

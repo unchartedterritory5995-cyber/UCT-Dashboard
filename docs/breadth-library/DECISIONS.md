@@ -343,3 +343,145 @@ stored — so the cheapest correct plan is:
 Promoting a metric to V1.1 then costs a flag flip, not another 3-hour grind and
 another ~10,000 provider fetches. That requires a metric publication set beside the
 universe one — specified here, deliberately NOT built during the audit.
+
+---
+
+### BL-015 · ONE publication gate — implemented, and the three collections named
+
+BL-013 said the gate was incoherent. This is what was built.
+
+**The one predicate.** `breadth_symbols.is_published(universe, metric)`. A row is
+public only when all six hold: registered universe, registered metric, applicable,
+producible, inside the active publication set, universe enabled. `applies_to` folds
+applicable+producible (BL-012), so it reads as four clauses.
+
+**The one projection.** `published_symbol_rows()`. Every public surface derives from
+it — `resolve`, `is_breadth_symbol`, `list_breadth_symbols`, `library_catalog`,
+`library_search`, `/api/breadth-symbols`, `/api/ticker-search`, `/api/bars`.
+
+⛔⛔ **THREE COLLECTIONS, THREE NAMES, NOT INTERCHANGEABLE:**
+
+| | means | who reads it |
+|---|---|---|
+| `legacy_symbol_rows()` | the 44 SHIPPED UCT symbols | prebuilt watchlists, Discord |
+| `library_rows()` | every REGISTERED identity | discovery metadata |
+| `published_symbol_rows()` | what a member may REACH | every public surface |
+
+The blast-radius rule made concrete: `symbols_by_group()` stays legacy-only, because
+`watchlist_prebuilt._breadth_lists()` builds the member-facing "UCT Breadth" prebuilt
+lists from it. Publishing a universe must not push 54 identities into a list a member
+already holds. A rail drives the real `_breadth_lists()` at `BREADTH_LIBRARY_UNIVERSES=*`
+and asserts no colon reaches it.
+
+**Dark-default parity is a byte claim, not a hope.** With no flags,
+`published_symbol_rows() == legacy_symbol_rows()` — same 44 rows, same order, same
+keys, and legacy rows still carry no `universe` key.
+
+---
+
+### BL-016 · V1 as metadata: five levels, and UCT is never gated by a publication set
+
+`breadth_metrics` now separates five questions that were being conflated:
+
+| level | answered by |
+|---|---|
+| REGISTERED | `metric in METRICS` |
+| APPLICABLE | `is_applicable()` — portability |
+| PRODUCIBLE | `is_producible()` — BL-012 |
+| STORED | `breadth_symbols.availability()` |
+| PUBLISHED | `is_published_metric()` |
+
+A V1.1 metric is registered + applicable + producible + **stored** and deliberately
+**not published**. That is the whole point: **grind once at the full producible set
+(39 per PIT universe), publish a focused V1 (18)**, and promote later with a flag flip
+instead of a second 3-hour grind and ~10,000 provider fetches.
+
+⛔ **UCT is not gated by a publication set.** `UCTHS` is not in V1 and stays on the
+air. The V1 list governs what the NEW universes expose; it is not a re-litigation of
+44 symbols shipped a year ago.
+
+`BREADTH_LIBRARY_METRICS` selects the set (default `v1`, `*` opens everything). A
+typo'd value falls back to the default rather than publishing nothing or everything —
+the same rule `published_universe_ids` uses, for the same reason.
+
+**The accepted invariant, railed:** 18 metrics · 70 identities · 16 UCT + 54 new. UCT
+gives 16 rather than 18 because an IDENTITY needs a SYMBOL and `net_new_high_low` /
+`universe_count` have no UCT spelling. ⚠️ That is not the same number as the live
+catalogue, which is 44 while dark and 62 with US published — two different questions,
+both correct.
+
+---
+
+### BL-017 · The daily forward seal — orchestration, not a second engine
+
+`universe_backfill_plan` only ever walks BACKWARD to the floor. Nothing advanced the
+right edge, so a published PIT series would have frozen on whatever day the grind
+ended, with nothing anywhere saying so.
+
+⛔⛔ **`forward_seal_tick` ORCHESTRATES; `sweep_history` does the work.** The daily
+value therefore comes from the same eligibility (`eligible_on`), the same computation
+(`compute_metrics` via `recompute_from_frame`), the same applicability filter and the
+same writer as every historical row beside it. A separate "daily" path is how a series
+grows a seam at the date the backfill stopped.
+
+**Proven, not asserted.** An end-to-end rail seals a date through the real pipeline on
+the durable frame cache, then recomputes that same date the historical way into a
+fresh store and compares: the values are identical.
+
+| decision | why |
+|---|---|
+| calendar = `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` | the repo's ONE closure table; a second copy diverges in the year nobody updates it |
+| `through` defaults to **yesterday** | today's grouped-daily frame is not settled; sealing it would seal a partial session as final |
+| **one** `sweep_history` call for the whole gap | it builds a ~560-day frame; per-date calls would rebuild it per session |
+| catch-up bounded at **10 sessions** | a wider gap is an outage, not a late tick — it reports `gapped` and leaves recovery to the historical tool rather than becoming an accidental grind on the web pod |
+| an empty store is `blocked`, not a one-day gap | with no rows there is no "latest sealed session"; inventing one would start the grind |
+| a refused chunk is recorded and the dates are LEFT | `build_frame` refuses a window with a missing RAW frame; the seal carries that through verbatim — no partial write, no fabricated zero, no green log |
+| fewer sessions than planned reports `partial` | the planner used the calendar, the frame used what the provider published; a difference means one of them is wrong |
+
+`sweep_history` now carries `missing_raw` through its refusal, so a caller gets dates
+rather than prose to parse.
+
+**Scheduling is CONVERGENCE, not an appointment.** Every 30 minutes the job asks "are
+there settled PIT sessions that should now be sealed?" and fills the bounded gap.
+Correctness lives in the planner reading the store, not in firing at 16:1x ET — a
+missed tick, a restart or a deploy during the close simply means the next run finds
+two sessions pending. Inert while dark: it iterates PUBLISHED PIT universes, and the
+default published set contains no PIT universe at all.
+
+---
+
+### BL-018 · Warming: the participation family, and nothing else
+
+The rail that pinned `warm_breadth` as UCT-only asked for a deliberate update. This is
+it: a published PIT universe is warmed for the **participation family only** — 7
+series each, hard ceiling 24 — and the other eleven V1 metrics stay lazy.
+
+⚰️ The bound is this loop's own history. Warming the whole V1 catalogue across three
+universes would be 54 cold builds per pass on the single web pod, which is the shape
+of the churn that starved it once already. Every PIT warm is failure-isolated per
+symbol: one that throws cannot stop UCT's pass and cannot reach serving, because
+`build_breadth_bars` already answers a cold miss by building inline. **Warming is an
+optimisation, and an optimisation that can break serving is not one.**
+
+`warm_symbols_for_pit()` DERIVES its list from published × V1 × the warm families, so
+publishing a universe or changing the V1 set is followed automatically.
+
+---
+
+### BL-019 · Health, from what already existed
+
+`library_health()` joins `breadth_daily_ohlc.stats`, `_FORWARD_SEAL_STATE`,
+`availability()` and the publication set, and adds the one thing none of them could
+answer alone: whether the sessions the CALENDAR expects are actually present.
+
+⛔ **Never on the serve path.** The gap probe uses a new bounded `dates_since()` whose
+`WHERE` prefix matches the leading columns of `idx_bdo_source_date`, so it is an index
+range scan over a ~30-session window rather than the full-history DISTINCT that
+`distinct_dates_by_scan` does. Memoised for a minute, reached only through
+`GET /api/breadth-monitor/library-health`, and a rail reads `build_breadth_bars`'
+source to assert it does not call it.
+
+⚠️ **A dark universe is never reported unhealthy.** It has no rows because nobody has
+published it, which is the correct shipped state; claiming otherwise would make the
+signal useless on the day it matters. `healthy` is only asserted for a PUBLISHED
+universe.
