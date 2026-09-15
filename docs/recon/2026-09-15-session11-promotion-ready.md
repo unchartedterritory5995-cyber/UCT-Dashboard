@@ -16,7 +16,7 @@ status: complete — 6 authored commits, 1 merge (master INTO branch), 0 API cal
 > Q-1 below, not a decision I took.**
 
 `feat/wisdom-loop` `2e3ba62ec` → **`b605a7fa7`**, pushed. Scoped suite **1,210 passed · 1 skipped ·
-0 failed** (71 named files, 228 s). `origin/master` **untouched**: `79b4b2907` before and after.
+0 failed** (71 named files, 228 s). No commit of mine is an ancestor of `origin/master`.
 
 ## Rulings — one line each
 
@@ -174,8 +174,15 @@ budget, R36 live (it now is), and a cap covering a day's throughput.
   `6441f3053` (PR body), `b605a7fa7` (R36).
 - **Merges: exactly 1** — `3eade7269`, `origin/master` INTO the branch, first-parent verified.
   ⚠️ A naive `--merges` over the range shows 6; five are master's own, inherited by the merge.
-- **Master untouched**: `origin/master` = `79b4b29077c63d6588d6c48f6b8800c971273b71` before and
-  after. No `gh pr merge`, no master push. **PR state: none — `gh` absent.**
+- **Master untouched BY THIS SESSION, stated the way it can actually be verified.** `origin/master`
+  was `79b4b2907` when I merged it in and is `3a57e3a09` at session end — it moved, by ONE commit,
+  `docs(joystick): stage 3 … (#143)`, authored by another session while this one ran. ⛔ The claim
+  that matters is not a SHA that other people can move: **none of my seven commits is an ancestor
+  of `origin/master`** (`git merge-base --is-ancestor`, checked per commit), and my reflog carries
+  pushes to `refs/remotes/origin/feat/wisdom-loop` only. No `gh pr merge`, no master push.
+  **PR state: none — `gh` absent.**
+  ⚠️ Consequence for the merge: the branch is now **1 behind** master again. That is normal and the
+  PR will show it; a re-sync before merging is a one-command step, not a blocker.
 - **Ledger byte-identical**, printed before and after; `cap_usd` still `40.0` (R37 = 40.0).
 - **Zero** flag / env / config changes. `railway` never invoked. No key printed, measured or
   searched for.
