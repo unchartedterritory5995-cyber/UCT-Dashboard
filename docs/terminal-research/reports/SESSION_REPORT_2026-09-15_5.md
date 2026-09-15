@@ -240,6 +240,43 @@ time**, so this is a ~33% cut in expected worst-case work and **not a guarantee*
 
 ---
 
+## 6b · Run #24 — the machinery works, and the split had to be reverted
+
+```
+VERDICT: NEW_FAILURES     (valid, not INVALID)
+new 41 · fixed 5 · unchanged 117 · MISSING 0 · current_ran 44,353
+flaky_size 5 · flaky_new 0 · new_flaky []
+```
+
+✅ **FLAKY_SIZE 5, matching the local derivation exactly** — the pyyaml fix worked and the
+pair table reads real reasons instead of UNREADABLE. **3 of 9 pairs comparable.** ✅
+`#23 → #24` correctly **not** comparable, because the parity test file I edited is
+referenced by 2 source files — the conservative call, made by the rule rather than by me.
+✅ **MISSING 0** and a full shard set: the 16-shard run completed.
+
+⛔ **And 41 NEW failures, every one in `tests/test_voice_router.py`, every one
+`402 Payment Required`:**
+
+```
+assert 402 == 401        assert 402 == 200
+```
+
+**I caused them.** A finer alphabetical split is **not a neutral operation** — it changes who
+shares a process. At 8 buckets that file lands in `tests-08` beside 155 others; at 12 it
+lands in `tests-11` beside a different 103, and the paid-subscription state it silently
+depended on is no longer set up by a neighbour.
+
+⭐ **The gate caught it inside one run, by name, and excused none of it as flaky**
+(`new_flaky []`). That is the entire apparatus of the last four sessions doing its job on a
+regression introduced sixteen minutes earlier.
+
+⛔ **REVERTED** — `ROOT_BUCKETS` back to 8. One INVALID run costs less than 41 failures, and
+the real fix is a **time-weighted** partition: the alphabet is exactly what re-shuffles
+neighbours. `tests-05`'s cap is therefore still open (**F-CI-35**), and the order-dependence
+it exposed is **F-CI-36**.
+
+---
+
 ## 7 · Findings
 
 | # | finding |
@@ -254,7 +291,8 @@ time**, so this is a ~33% cut in expected worst-case work and **not a guarantee*
 | **F-CI-31** | **EMPTY POPULATION.** Nothing is stale; the cited SHA is a live ancestor 292 commits back and the CI checkout is depth-1. |
 | **F-CI-33** | `tools/desk_creative_watch.py:40` carries the same `shell=True` class. Local operator tool, never runs in CI. **FILED.** |
 | **F-CI-34** | PyYAML absent in the publish job ⇒ 7 of 8 pairs UNREADABLE. **FIXED.** |
-| **F-CI-35** | `tests-05` exceeded its 20-minute cap. **SPLIT** (8 → 12 buckets), not extended. |
+| **F-CI-35** | `tests-05` exceeded its 20-minute cap (Run step killed at 1,142 s). **STILL OPEN** — the split that would have fixed it was reverted (§6b); the real fix is a TIME-weighted partition. |
+| **F-CI-36** | **`tests/test_voice_router.py` is ORDER-DEPENDENT** — 41 of its tests return `402 Payment Required` when the file is shuffled into a different shard. A real defect the partition made VISIBLE and did not create. **FILED.** |
 
 ---
 
@@ -265,8 +303,10 @@ time**, so this is a ~33% cut in expected worst-case work and **not a guarantee*
    `read_approval`, which answers on the AT SHA line alone.
 2. **The first limb of F-CI-30 has no evidence.** One `workflow_dispatch` re-run at an
    unchanged SHA would give it some, for free. Worth doing?
-3. **Is 12 buckets enough?** The partition is by file count, not time. If `tests-05` is still
-   near the cap, the next step is a time-weighted partition, which is a real change.
+3. **How should `tests-05`'s cap be fixed now that a finer alphabetical split is ruled out?**
+   A time-weighted partition uses the `collect_profile` timings the workflow already
+   gathers, and does not re-shuffle neighbours alphabetically — but it is a real change to
+   `pytest_shards.py`, not a constant.
 4. **F-SIGN-6** — pin `docs/**/*.md` to `eol=lf`? It rewrites the working-tree bytes of 19
    already-signed packets on the next checkout.
 
@@ -310,3 +350,8 @@ merged, nothing pushed to master. The two new units are **K CP5** (the resumabil
 ⛔ **Blocked on nothing.** ⚠️ **Two decisions are owed before the signing session**
 (F-SIGN-5's blank scope, and whether to bend the one-unit-at-a-time rule for wall time);
 neither blocks starting it.
+
+⚠️ **One thing I did and undid in the same session**: the shard split (§6b). It was the
+standing rule's prescribed response to a job that missed its cap, it cost 41 NEW failures,
+and it is reverted. **Run #25 verifies the revert**; if it does not come back to 0 NEW, the
+cause is not the partition and this report is wrong about it.
