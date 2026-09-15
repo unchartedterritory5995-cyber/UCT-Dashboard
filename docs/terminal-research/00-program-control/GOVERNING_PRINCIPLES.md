@@ -119,3 +119,53 @@ Before recommending, architecting around, or costing ANY new external data vendo
 TECHNICAL ACCESS (a working key, an observed call) is never treated as CONTRACTUAL RIGHT to display, redistribute, store, derive, or process with AI -- these are tracked as separate columns, per Document B section 15 and the evidence-strength vocabulary in section 6 above. FMP rights conditioned on a Data Display and Licensing Agreement stay Unknown until contractual evidence exists (E-01, F-04). Massive's plan-tier evidence (five corroborating code comments naming "Polygon Advanced, $200/mo" -- DL-021) is retained, but permitted USE is tracked separately from technical capability per data class (E-02, E-03, F-04).
 
 Secret VALUES are never printed, copied into research artifacts, or unnecessarily retrieved -- only provider/service names and environment-variable NAMES. This mirrors the SECRETS clause already binding in every contract.
+
+## 15. APPROVAL BLOCKS, AND THE THREE STATES OF A SIGNATURE (F-MERGE-1, CLOSED 2026-09-15)
+
+**A packet that ships code carries an approval block, even when its conclusion is to refuse
+what it was opened to build.**
+
+⚰️ **The incident.** `packet-a-absent-bound-gate.md` concluded that the rail it existed to
+build should not be built — correctly — and wrote *"no approval block appears in this file
+deliberately. An empty block invites a signature, and there is nothing here a signature
+should authorise."* True of the refused rail. **But the packet had also shipped three files
+in two commits** (`18dd13683`, `31e28c6e3`), and that code was sitting on the branch waiting
+to merge.
+
+⛔ **One absent block produced BOTH halves of the failure, in opposite directions:**
+
+* `merge_all.is_signed()` derived SIGNED from the *absence* of an unsigned block, so those
+  commits would have merged **with nothing approving them**; and
+* `verify_manifest --check-commits` found them claimed by **no unit at all**, so the same
+  gap meant they would **silently never merge**.
+
+Which failure you got depended only on which tool you asked.
+
+### The rules that follow
+
+1. **A packet that delivers an artifact gets a block.** The block signs the DELIVERED CODE,
+   not the packet's claim. A closed-as-finding packet stays closed-as-finding — its refusal
+   stands, and the checkpoint authorises only the files that shipped.
+2. **Every reader of a signature returns three states — SIGNED / UNSIGNED / MALFORMED — and
+   never derives SIGNED from the absence of something.** `tools/sign_gate.py::read_approval`
+   is the one implementation; `--read-check` is its gate. *No block at all* is **UNSIGNED**,
+   never SIGNED.
+3. **Form and truth are different questions and keep different tools.** `read_approval` asks
+   *"does a written approval exist and is it well-formed?"* from the file alone.
+   `tools/verify_manifest.py` asks *"is the fingerprint still true, and at which commit was
+   it last true?"* by walking history. ⛔ **Do not fold the second into the first.** Measured
+   2026-09-15: only **5 of 35** filled blocks re-derive from the current file, because a
+   fingerprint pins the bytes approved *at approval time* and any later edit legitimately
+   stops it re-deriving. A reader that demanded re-derivation would declare 30 genuine owner
+   approvals invalid.
+4. **Every commit on the branch maps to a manifest row before session end.**
+   `python tools/verify_manifest.py --check-commits`, exit code printed. A commit no unit
+   claims is a commit the two-command sequence will never merge.
+5. **An assertion carries no derived numbers.** A checkpoint names things, not counts of
+   them; the count is produced by the builder's derivation at read time. ⚰️ A CP1 was
+   commissioned as *"the six caller-level tests"*; the file collects **eight**. Naming a path
+   and the command that enumerates it cannot go stale — a count pinned into a signature can.
+6. **Take the next free checkpoint id from the packet's own table, before writing a line.**
+   Two id collisions landed in consecutive units (E CP2, K CP2) because ids were assigned in
+   the text that commissioned the work. One `grep` against the table finds them; after the
+   fact they are invisible, because the manifest row looks well-formed either way.
