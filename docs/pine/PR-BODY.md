@@ -239,7 +239,7 @@ Pointers, not restatements — each location is the authority.
 | **3.4** member wording | placed verbatim on `pine:text-value` in `pine.js` |
 | **3.5** `'D'` identity | `pine.security.test.js` (10 cases), `divergences.json` |
 | **D1** (an `alertcondition` is not a plot) | `memberPane/memberPaneDefinition.js`; the sentence rides on `meta.disclosures` |
-| **D2** (the IR lane is off the pane path) | SESSION-STATE §D2; the pane is driven by `translatePine` → binder |
+| **D2** — a pane acts on the **HOST lane's saved definition** (`paneGate.js::PANE_LANE = 'host'`), and **the screener lane is inadmissible by construction**; *the IR lane being off the pane path is the consequence, not the ruling* (corrected in place, R19, 2026-09-15) | SESSION-STATE §D2; the pane is driven by `translatePine` → binder |
 | **R-G** (the fold wherever it sits) | `ast/bind.js::foldBound`; cross-lane oracle `tools/lookback_agreement.json` |
 | **R-H** (two definitions, toggles on and off) | `pineTableVendorParity.test.js` |
 | **R-I** (the parity set) | 9 of 9 measured; SESSION-STATE §"R-I IS 9 OF 9" |
