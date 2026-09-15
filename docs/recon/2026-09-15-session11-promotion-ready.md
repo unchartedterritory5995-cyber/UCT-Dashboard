@@ -110,7 +110,7 @@ rails `--noconftest` **236 passed**, provenance `--self-check` PASS, provenance 
 | check | verdict |
 |---|---|
 | pre-push secret scan (`secret_scrub.py --pre-push`) | **PASS** — 56 files, 0 findings |
-| **the A2 clock** (`pre_push_guard.py`) | ⚠️ **WOULD REFUSE a daytime push** — 13 changed files under `api/`, and cleared prefixes are `docs/ tests/ tools/ scripts/ app/` only. Merge after **16:05 ET**, at a weekend, or via the GitHub UI |
+| ~~the A2 clock~~ | ⚰️ **WITHDRAWN — the rule does not exist.** I read a stale clause in `pre_push_guard.py` and reported a waiting period for a freeze the owner removed on 2026-08-24 (CLAUDE.md:4805). Retired in session 12 under R46; there is no time-of-day condition on any push or merge |
 | the queue guard (≥150 s settled, `web` SUCCESS) | **NOT EVALUATED** — needs the Railway CLI, forbidden this session |
 | `master-deploy-gate.yml` — concurrency, secret scan, shadowed defs, vite args, flag ledger, hygiene | **PASS** locally on every offline half |
 | `wisdom-rails.yml` | **PASS** |
@@ -216,8 +216,8 @@ recovery run. **Write the number and it is a one-line commit.**
 
 **Q-2 ⭐ load-bearing — merge the PR.** `gh` is absent here. Open it from the GitHub mobile app
 (base `master`, compare `feat/wisdom-loop`, body = `docs/wisdom/PROMOTION-2026-09-15.md`) and merge
-it there. ⚠️ **After 16:05 ET or at a weekend** — the clock guard refuses a daytime master push
-because 13 changed files live under `api/`.
+it there. ⚰️ **An earlier draft of this line said "after 16:05 ET or at a weekend". That was
+wrong** — no such window exists; see R46.
 
 **Q-3 — LENS_STRICT for PRINCIPLE?** Graded precision is **1.000 at the lens's own t=0.6** (13/13),
 which clears the ≥0.9 bar your ruling set. It would move PRINCIPLE **31 → 67**. R43 ruled KEY, so I

@@ -293,3 +293,28 @@ merge actually happens.
 review queue holds **153** `below_publication_floor` rows: a record that starts passing does not
 have its old row withdrawn. Harmless today (the queue is advisory, nothing publishes from it), but
 the owner's queue overstates what is currently blocked.
+
+
+### 2026-09-15 — R46: THERE IS NO PUSH OR MERGE WINDOW
+
+> **No time-of-day condition applies to pushes or merges (owner ruling R46, 2026-09-15).** The market-hours freeze and both its guards were removed on 2026-08-24 (CLAUDE.md:4805); `pre_push_guard.py` carried a stale reinstatement of it, which this session removed.
+
+⚰️ **How a retired rule cost a session anyway.** `tools/pre_push_guard.py` carried an "owner ruling
+A2" clock refusing every master push between **09:25 and 16:05 ET**, with ~190 lines of machinery
+and **19 tests** behind it — three weeks after the owner removed the freeze and both its guards.
+Session 11 read that clause, believed it, and wrote *"merge after 16:05 ET or at a weekend"* into a
+promotion document. **A rescinded rule that outlives its removal is indistinguishable from a live
+one**, and CLAUDE.md warns twice that this repo has reinstated rescinded restrictions before.
+
+⛔ **The clause, its constants, its override env var and its 19 tests are removed.**
+`test_the_guard_has_no_time_of_day_branch` walks the module's AST and fails by name if any of them
+returns — or if any `.hour`/`.minute` comparison appears at all. Mutation-proved: reintroducing one
+reds that test. ⭐ Its control plants a `.hour` comparison and proves the predicate can see it.
+
+⭐ **What is NOT retired:** the QUEUE guard (Railway `web` must be SUCCESS and settled ≥ 150 s) and
+the CADENCE guard (don't push inside another deploy's build window). Those are about not colliding
+with a deploy in flight — physics, not a clock — and they stay.
+
+⛔ **And a merge performed on github.com runs NO local hook.** Hooks are client-side; a PR merged
+in the browser or the mobile app triggers the promotion-gate workflows only. The guard was never in
+that path.

@@ -145,10 +145,12 @@ fix is live, and (c) the cap covers at least one day's throughput at that rate.
 ⭐ **Or from the GitHub mobile app**: open the repo → Pull requests → New → base `master`, compare
 `feat/wisdom-loop` → paste this file as the body. The app can also **merge** it.
 
-⚠️ **Two gate facts before merging:**
-1. **The clock guard refuses a daytime master push.** `tools/pre_push_guard.py` clears only
-   `docs/ tests/ tools/ scripts/ app/` and `.md`; this branch changes **13 files under `api/`**, so
-   a push to master is refused between 09:25 and 16:05 ET on a trading day. Merge after 16:05 ET,
-   at a weekend, or through the GitHub UI (which is not the local hook's path).
-2. **The queue guard** requires Railway `web` to be SUCCESS and settled ≥ 150 s before the next
-   master push. It needs the Railway CLI and was not evaluated here.
+⚠️ **One gate fact before merging:**
+
+⭐ **No time-of-day condition applies to pushes or merges (owner ruling R46, 2026-09-15).** The market-hours freeze and both its guards were removed on 2026-08-24 (CLAUDE.md:4805); `pre_push_guard.py` carried a stale reinstatement of it, which this session removed. **Merge whenever you like.**
+
+⛔ And a merge performed on github.com runs **no local git hook at all** — hooks are client-side.
+What runs is the promotion-gate workflow set on the push to master.
+
+The **queue guard** (Railway `web` SUCCESS, settled ≥ 150 s) applies to a LOCAL `git push` to
+master, which is not the path here. It needs the Railway CLI and was not evaluated.

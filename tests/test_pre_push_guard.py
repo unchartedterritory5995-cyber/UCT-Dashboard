@@ -105,21 +105,8 @@ def test_it_does_not_care_whose_commit_is_deployed():
 
 # ─────────────────────────────────────────────────── the bypass is a record
 
-def _quiet_clock(m, monkeypatch, *, verdict=None, reason="clock: not a trading day"):
-    """Pin the CLOCK guard out of the way so a QUEUE test measures the queue.
-
-    ⛔ Without this the queue tests would import the whole api package and shell out
-    to git — i.e. they would stop being tests of `decide()` and start being a slow,
-    environment-dependent test of everything."""
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: {"state": "READ", "session": "weekend",
-                                                          "trading_day": False, "now_et": None})
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["docs/x.md"])
-    monkeypatch.setattr(m, "decide_clock", lambda *a, **k: (verdict or m.OK, reason))
-
-
 def test_the_bypass_is_an_env_var_and_it_is_logged(tmp_path, monkeypatch, capsys):
     m = _load()
-    _quiet_clock(m, monkeypatch)
     monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(status="BUILDING"))
     monkeypatch.setenv(m.BYPASS_ENV, "1")
@@ -133,7 +120,6 @@ def test_the_bypass_is_an_env_var_and_it_is_logged(tmp_path, monkeypatch, capsys
 def test_without_the_bypass_the_same_state_exits_1(tmp_path, monkeypatch, capsys):
     """CONTROL for the bypass — proves it is the env var doing the work."""
     m = _load()
-    _quiet_clock(m, monkeypatch)
     monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(status="BUILDING"))
     monkeypatch.delenv(m.BYPASS_ENV, raising=False)
@@ -221,108 +207,11 @@ from zoneinfo import ZoneInfo as _ZoneInfo                              # noqa: 
 _ET = _ZoneInfo("America/New_York")
 
 
-def _clock(hour, minute, *, session="rth", trading=True, day=(2026, 9, 14), sec=0):
-    """A pinned reading. `decide_clock` is pure, so the tests never need the real
-    clock to be at any particular time — which is the only way to test a clock."""
-    return {"state": "READ", "session": session, "trading_day": trading,
-            "now_et": _dt.datetime(day[0], day[1], day[2], hour, minute, sec, tzinfo=_ET)}
-
-
 # ─────────────────────────────── it FAILS CLOSED when it cannot tell the time
-
-def test_an_unreadable_clock_REFUSES():
-    """⛔ THE LOAD-BEARING ONE, and the twin of the deployment-state test above.
-    A guard that passes when it cannot tell the time is not a guard."""
-    v, why = G.decide_clock({"state": G.UNREADABLE, "why": "ModuleNotFoundError: api"},
-                            ["api/main.py"])
-    assert v == G.REFUSE
-    assert "cannot tell the time" in why
-    assert "ModuleNotFoundError" in why
-
 
 # ─────────────────────────────── the window, to the minute
 
-@pytest.mark.parametrize("h,m,expect", [
-    (9, 24, G.OK),        # one minute before the window opens
-    (9, 25, G.REFUSE),    # the window is inclusive at its open
-    (12, 0, G.REFUSE),
-    (15, 49, G.REFUSE),   # ⚰️ the exact minute of the 2026-09-14 push
-    (16, 4, G.REFUSE),
-    (16, 5, G.OK),        # ...and exclusive at its close
-    (20, 0, G.OK),
-    (4, 30, G.OK),        # pre-market is outside the deploy window
-])
-def test_the_window_boundaries_are_0925_to_1605_ET(h, m, expect):
-    v, _ = G.decide_clock(_clock(h, m), ["api/main.py"])
-    assert v == expect, "%02d:%02d ET" % (h, m)
-
-
-def test_the_1549_push_is_refused_and_says_exactly_why():
-    """The refusal must print WHAT it refused, the CURRENT ET TIME, WHY, and the
-    NEXT ALLOWED TIME as a concrete timestamp — not 'wait a bit'."""
-    v, why = G.decide_clock(_clock(15, 49, sec=12),
-                            ["api/services/discord_render/router.py", "docs/note.md"])
-    assert v == G.REFUSE
-    assert "REFUSING A MASTER PUSH" in why
-    assert "restarts web and chart-renderer" in why            # what it refused
-    assert "2026-09-14 15:49:12 ET" in why                     # the current ET time
-    assert "api/services/discord_render/router.py" in why      # which path is not cleared
-    assert "docs/note.md" not in why.split("not cleared:")[1].split("\n")[0]
-    assert "2026-09-14 16:05:00 ET" in why                     # a CONCRETE next allowed time
-    assert "in 15m 48s" in why
-    assert "UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART" in why
-
-
 # ─────────────────────────────── weekends and holidays are not trading days
-
-def test_a_non_trading_day_is_never_refused_however_midday():
-    for session in ("weekend", "holiday"):
-        v, why = G.decide_clock(_clock(12, 0, session=session, trading=False), ["api/main.py"])
-        assert v == G.OK, session
-        assert "not a trading day" in why
-
-
-def test_the_trading_day_answer_comes_from_freshness_and_is_not_reimplemented(monkeypatch):
-    """⛔ DELEGATION, PROVED. `read_clock` must ask
-    `api/services/discord_render/freshness.py`; a second 'is the market open' is
-    the defect this repo has paid for repeatedly. Swap the module out and the
-    answer must change."""
-    m = _load()
-
-    class _Stub:
-        WEEKEND, HOLIDAY = "weekend", "holiday"
-        calls = []
-
-        @staticmethod
-        def session_state(now=None):
-            _Stub.calls.append(now)
-            return "holiday"
-
-        @staticmethod
-        def _et(now=None):
-            return now or _dt.datetime(2026, 9, 14, 12, 0, tzinfo=_ET)
-
-    monkeypatch.setattr(m, "_freshness", lambda: _Stub)
-    c = m.read_clock()
-    assert _Stub.calls, "read_clock never consulted the freshness module"
-    assert c["session"] == "holiday" and c["trading_day"] is False
-
-
-def test_the_real_freshness_module_is_importable_and_answers():
-    """NON-VACUITY for the test above: the stub proves delegation, this proves the
-    real door exists. A delegation test alone passes happily against a module that
-    cannot be imported at all."""
-    c = G.read_clock(_dt.datetime(2026, 9, 15, 12, 0, tzinfo=_ET))   # a Tuesday
-    assert c["state"] == "READ", c
-    assert c["trading_day"] is True and c["session"] == "rth"
-
-    sat = G.read_clock(_dt.datetime(2026, 9, 19, 12, 0, tzinfo=_ET))  # a Saturday
-    assert sat["trading_day"] is False and sat["session"] == "weekend"
-
-    ny = G.read_clock(_dt.datetime(2026, 1, 1, 12, 0, tzinfo=_ET))    # New Year's Day
-    assert ny["trading_day"] is False and ny["session"] == "holiday", \
-        "the holiday list did not reach the guard"
-
 
 def test_the_guard_carries_no_second_copy_of_the_market_calendar():
     """A cheap, blunt rail on the thing that actually goes wrong: somebody pastes
@@ -348,160 +237,9 @@ def _tier1_line() -> str:
     return ""
 
 
-def test_the_cleared_list_still_matches_the_runbook_it_was_derived_from():
-    """⛔⛔ THE LIST IS NOT INVENTED AND MUST NOT DRIFT. It is read off
-    `docs/runbooks/deploy-windows.md`, which is the single authority on push
-    timing. If the runbook's Tier 1 moves, this fails the same day rather than the
-    guard silently clearing something the runbook no longer clears."""
-    line = _tier1_line().lower()
-    assert line, "the runbook's '### Tier 1' section could not be read — non-vacuity failed"
-    assert "push any time" in _RUNBOOK.read_text(encoding="utf-8")
-    for prefix in G.CLEARED_PREFIXES:
-        assert prefix.rstrip("/") in line, \
-            "%r is cleared by the guard but not by the runbook's Tier 1 line: %r" % (prefix, line)
-    assert "markdown" in line, "the guard clears *.md; the runbook no longer does"
-    # DISCRIMINATOR — the line must not clear everything, or the test above is vacuous.
-    assert "api/" not in line, "the runbook's Tier 1 now clears api/ — read it before trusting this"
-
-
-@pytest.mark.parametrize("path,cleared", [
-    ("docs/runbooks/deploy-windows.md", True),
-    ("docs/discord-render/LEDGER.md", True),
-    ("tests/test_pre_push_guard.py", True),
-    ("tools/deploy_blip_check.py", True),
-    ("scripts/gate_shards.py", True),
-    ("app/src/hub/registry.js", True),
-    ("CLAUDE.md", True),                       # "Docs, markdown" — markdown anywhere
-    ("api/main.py", False),
-    ("api/services/discord_render/freshness.py", False),
-    ("railway.json", False),
-    ("requirements.txt", False),
-    ("api/flow_worker_main.py", False),
-])
-def test_is_cleared_matches_the_runbook_tiers(path, cleared):
-    assert G.is_cleared(path) is cleared, path
-
-
-def test_a_wholly_cleared_diff_pushes_at_noon():
-    v, why = G.decide_clock(_clock(12, 0), ["docs/a.md", "tools/x.py", "app/src/y.js"])
-    assert v == G.OK
-    assert "cleared for daytime" in why
-
-
-def test_one_uncleared_path_spoils_a_cleared_diff():
-    """'entirely within' is the ruling's word. One api/ file is enough."""
-    v, why = G.decide_clock(_clock(12, 0), ["docs/a.md", "tools/x.py", "api/main.py"])
-    assert v == G.REFUSE
-    assert "1 of 3 changed path(s) are NOT cleared" in why
-
-
-def test_an_unreadable_diff_is_never_exempt():
-    """⛔ `None` means git did not answer. An unread diff cannot be shown to be
-    cleared, so it is not."""
-    v, why = G.decide_clock(_clock(12, 0), None)
-    assert v == G.REFUSE
-    assert "git did not answer" in why
-
-
-def test_an_empty_diff_is_never_exempt():
-    """⛔ An empty result is a failed invocation until proven otherwise. A diff that
-    came back empty because the range was wrong would otherwise clear EVERY push —
-    the exemption would fire hardest exactly when the measurement broke."""
-    v, why = G.decide_clock(_clock(12, 0), [])
-    assert v == G.REFUSE
-    assert "EMPTY" in why and "failed measurement" in why
-
-
-def test_an_unreadable_diff_outside_the_window_is_still_fine():
-    """CONTROL. The diff only matters INSIDE the window; refusing at 21:00 because
-    git was quiet would be a guard testing the adjacent thing."""
-    assert G.decide_clock(_clock(21, 0), None)[0] == G.OK
-
-
 # ─────────────────────────────── changed_paths: None and [] are different
 
-def test_changed_paths_returns_None_when_git_cannot_answer():
-    assert G.changed_paths(base="definitely-not-a-ref-zzz", head="HEAD") is None
-
-
-def test_changed_paths_actually_reads_the_repo():
-    """NON-VACUITY: every assertion about "which paths" is worthless if the command
-    silently returns nothing."""
-    paths = G.changed_paths(base="HEAD~1", head="HEAD")
-    assert paths, "git returned nothing for HEAD~1...HEAD — a failed invocation, not a clean diff"
-    assert all(isinstance(p, str) and p for p in paths)
-
-
 # ─────────────────────────────── the override is an act, not a reflex
-
-def test_the_window_override_needs_its_EXACT_value(tmp_path, monkeypatch, capsys):
-    m = _load()
-    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.setattr(m, "latest_deployment",
-                        lambda: _dep(commit="9b1d6c537"))
-    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
-
-    # ⛔ `=1` IS NOT ENOUGH. The value is exact so that using it is an act.
-    monkeypatch.setenv(m.CLOCK_OVERRIDE_ENV, "1")
-    assert m.main() == 1
-    assert "REFUSING A MASTER PUSH" in capsys.readouterr().out
-    assert not (tmp_path / "bypass.log").exists()
-
-    monkeypatch.setenv(m.CLOCK_OVERRIDE_ENV, m.CLOCK_OVERRIDE_VALUE)
-    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
-    assert m.main() == 0
-    out = capsys.readouterr().out
-    assert "DEPLOY WINDOW OVERRIDDEN" in out
-    assert "DURING THE SESSION" in out, "the override did not print loudly"
-    assert "CLOCK-WINDOW" in (tmp_path / "bypass.log").read_text(encoding="utf-8")
-
-
-def test_the_queue_bypass_does_NOT_also_buy_the_window(tmp_path, monkeypatch, capsys):
-    """⛔ TWO OVERRIDES ON PURPOSE. `UCT_SKIP_PREPUSH_GUARD=1` is typed routinely
-    to get past a mid-swap pod; if it also bought an RTH restart, the reflex for
-    the cheap override would silently purchase the expensive one."""
-    m = _load()
-    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.setenv(m.BYPASS_ENV, "1")
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-    assert m.main() == 1, "the queue bypass let a push through the deploy window"
-
-
-def test_a_refused_clock_never_asks_railway_anything(monkeypatch):
-    """A refused push has no queue question to answer — and a guard that still
-    spends seconds on the CLI teaches everyone the refusal is slow, not right."""
-    m = _load()
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-
-    def _boom():
-        raise AssertionError("latest_deployment() was called after a clock refusal")
-
-    monkeypatch.setattr(m, "latest_deployment", _boom)
-    assert m.main() == 1
-
-
-def test_json_mode_reports_both_guards(monkeypatch, capsys):
-    import json as _json
-    m = _load()
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py", "docs/a.md"])
-    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
-    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-    assert m.main(["--json"]) == 1
-    payload = _json.loads(capsys.readouterr().out)
-    assert payload["verdict"] == m.REFUSE
-    assert payload["clock"]["verdict"] == m.REFUSE
-    assert payload["clock"]["uncleared"] == ["api/main.py"]
-    assert payload["queue"]["verdict"] == m.OK
-
-
 
 # ═════════════════════════════════════════════════════════════════════════════
 # GUARD 3 — THE CADENCE (D-06 Part 0)
@@ -675,10 +413,6 @@ def test_a_busy_cadence_refuses_through_main(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="settled01"))
     monkeypatch.setattr(m, "decide", lambda dep, **kw: (m.OK, "queue is fine"))
-    monkeypatch.setattr(m, "read_clock", lambda now=None: {"session": "closed",
-                                                           "trading_day": True, "now_et": None})
-    monkeypatch.setattr(m, "decide_clock", lambda c, p: (m.OK, "clock is fine"))
-    monkeypatch.setattr(m, "changed_paths", lambda b, h: ["api/main.py"])
     # ⚰️ THE FIRST VERSION HANDED main() THE REAL 09-15 TIMESTAMPS AND IT PASSED THE
     # CADENCE. `decide_cadence` is called from `main()` with `now=None`, i.e. the
     # real clock — so a fixture pinned to a past hour reads as ancient history and
@@ -699,3 +433,63 @@ def test_a_busy_cadence_refuses_through_main(tmp_path, monkeypatch, capsys):
     ]})
     assert m.main([]) == 1
     assert "REFUSING THE PUSH" in capsys.readouterr().out
+
+
+# ── R46: the clock is RETIRED and must not come back ─────────────────────────
+
+def test_the_guard_has_no_time_of_day_branch():
+    """⛔⛔ OWNER RULING R46, 2026-09-15: no time-of-day condition applies to any push or merge.
+
+    ⚰️ There never was one to apply. CLAUDE.md:4805 records the market-hours freeze and BOTH its
+    guards removed by owner decision on 2026-08-24 — and this file still carried an "owner ruling
+    A2" clock refusing every master push between 09:25 and 16:05 ET, with ~190 lines and 19 tests
+    behind it. A RESCINDED RULE REINSTATED, which CLAUDE.md warns about twice. It cost real time:
+    a session read the clause, believed it, and wrote "merge after 16:05 ET or at a weekend" into
+    a promotion document for a rule that does not exist.
+
+    ⛔ AST over the module, not a grep: a comment explaining the retirement must not trip it.
+    """
+    import ast
+
+    source = _TOOL.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    banned_names = {"read_clock", "decide_clock", "next_allowed_et", "uncleared_paths",
+                    "is_cleared", "RTH_GUARD_OPEN", "RTH_GUARD_CLOSE", "CLOCK_OVERRIDE_ENV",
+                    "CLOCK_OVERRIDE_VALUE", "CLEARED_PREFIXES", "CLEARED_SUFFIXES"}
+    found = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in banned_names:
+            found.add(node.id)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in banned_names:
+            found.add(node.name)
+        # any comparison against an hour-like literal pair is the shape we are refusing
+        if isinstance(node, ast.Attribute) and node.attr in ("hour", "minute"):
+            found.add(f"<time attribute .{node.attr}>")
+    assert not found, f"a time-of-day branch is back in the guard: {sorted(found)}"
+
+
+def test_the_retirement_check_can_actually_fire():
+    """⭐ THE CONTROL. The same predicate must catch a planted time-of-day branch, or the test
+    above passes for every file in the world including an empty one."""
+    import ast
+
+    planted = "import datetime\ndef f(now):\n    return now.hour < 16\n"
+    tree = ast.parse(planted)
+    hits = [n for n in ast.walk(tree) if isinstance(n, ast.Attribute) and n.attr in ("hour", "minute")]
+    assert hits, "the predicate cannot see a planted .hour comparison"
+
+
+def test_the_json_payload_carries_no_clock_key(monkeypatch, capsys):
+    """The --json contract after R46: queue and cadence only."""
+    import json as _json
+
+    m = _load()
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
+    monkeypatch.setattr(m, "recent_deployments", lambda: {"rows": []})
+    monkeypatch.setattr(m, "decide_cadence", lambda cad, **k: (m.OK, "cadence is fine"))
+    assert m.main(["--json"]) == 0
+    payload = _json.loads(capsys.readouterr().out)
+    assert "clock" not in payload, payload
+    assert set(payload) == {"verdict", "cadence", "queue"}, sorted(payload)
+    assert payload["verdict"] == m.OK
