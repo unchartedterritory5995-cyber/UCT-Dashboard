@@ -1022,3 +1022,147 @@ The range scan existed to avoid ~9,058 b-tree descents each costing a fault. **T
 removed that cost by PRAGMA** — `syscr` 1,669 → 182 — so the candidate's case is largely
 gone. **Do not merge it; do not delete it.** Keep it as a parity-proved experiment for H5,
 to be measured against the ON arm rather than the OFF one it was designed for.
+
+### D-050 · The flag is recordable, the gate serialises, and the cutover is one reading away (2026-09-15)
+
+Session 10. No measurement windows (the push rate does not permit them — item 9). Everything
+here is from Session 9's two windows or from a tool run this session.
+
+#### 1. `BREADTH_OHLC_PAGECACHE` → `BREADTH_OHLC_PAGECACHE_ENABLED`
+
+**Decision: renamed, and the ledger row is now REQUIRED rather than merely permitted.**
+`feature_flag_index.is_gate()` matches only names carrying a gate marker or ending `_ON`;
+the old name matched neither, so it was absent from the AST derivation's 284 gates and a row
+for it would have been classed as rot by
+`test_the_ledger_does_not_describe_gates_that_no_longer_exist` — **reddening the master
+deploy gate**. `is_gate(NEW)` is True and `needs_declaration(NEW, "")` is True, so
+`test_every_off_by_default_gate_is_declared` now fails without the row. **Mutation-proved:
+deleting the row reds that repo-wide rail (1 failed, 184 passed).**
+
+⛔ **No fallback to the old name** — a fallback is a second authority over one value, and the
+loser is invisible. Proved two independent ways: an AST rail (`feature_flag_index.scan()`)
+and a behavioural test asserting that setting *only* the old variable leaves `mmap_size` at
+0 — which is exactly what a stale Railway variable looks like between the rename deploy and
+the unset.
+
+⛔ **The rails are AST-based deliberately.** `breadth_daily_ohlc.py` still contains the old
+string, in the comment explaining the rename. A grep rail would match its own explanation and
+demand the deletion of the reason.
+
+**Parity EXACT**: golden/OFF, golden/ON(old), renamed/OFF, renamed/ON(new) all
+`sha256 7695923c…` over 5,576,278 B. ⚠️ Recorded with its limit — every arm is byte-identical
+*by design*, so parity cannot say whether the flag was applied; the pragma read-back does.
+
+**flow-worker INERT**: neither variable is set on flow-worker, worker or bars-api — only
+`web` — so the stale service reads an unset old name and the current one reads an unset new
+name, converging on the same early return from either side of the deploy.
+
+⭐ **V2 cost no deploy of its own.** `railway variable set … --skip-deploys` staged the new
+variable **while the rename deploy was still building**, so the new container started with it
+already present: old-name-ON → new-name-ON with **zero moments off**. `variable delete` has
+no `--skip-deploys`, so the unset is the one step that must cost a deploy.
+
+#### 2. The `master-deploy` concurrency group SERIALISES — measured
+
+First contention in the workflow's 41-run history, exercised from a throwaway branch with
+**no deploy attached** (GitHub evaluates a workflow file as it exists on the pushed ref, so
+`gate-test/**` was added to the trigger on that branch only).
+
+| run | branch | created | started | queue | ended |
+|---|---|---|---|---|---|
+| A | `gate-test/contention` | 09:06:05 | 09:06:08 | **3 s** | 09:07:57 |
+| B | `gate-test/contention` | 09:06:24 | 09:08:01 | **97 s** | 09:10:06 |
+| **C** | **`master`** (another workstream) | 09:09:24 | 09:10:11 | **47 s** | — |
+
+Predicted 95 s for B; observed 97 s. ⭐ **Row C was unplanned and is the strongest evidence**:
+a real master push queued behind the test and started 5 s after it finished, proving the
+shared queue with production traffic. ⚠️ The honest cost: **~43 s of delay to another
+workstream's deploy.**
+
+⛔ **Serialising the CHECKS is not spacing the DEPLOYS**, and the two must not be conflated.
+
+#### 3. "Railway does not wait for CI" — recorded
+
+| commit | gate finished | pod booted | boot − gate |
+|---|---|---|---|
+| `6b606990c` | 05:12:53Z | 05:12:55Z | +2 s |
+| `587ee51b2` | 05:32:54Z | 05:32:36Z | **−18 s** |
+| `cb0949d8c` | 06:40:14Z | 06:40:12Z | **−2 s** |
+
+Plus Session 8's eight deploys starting 99–141 s before their checks. **Ten observations
+against, one for (by 2 s, inside the 1 s `uptime` resolution).** Working model: two unrelated
+~2-minute pipelines in parallel, finishing together by coincidence. ⚠️ **Not confirmable from
+the CLI** — `railway deployment list` carries no CI-hold field. It is a dashboard reading and
+it is the last thing blocking the cutover.
+
+#### 4. `breadth/fetch-shape` — **SHELVED**, not merged and not deleted
+
+Branch `7a79cc9d3`, parity-proved, behind `BREADTH_OHLC_FETCH_RANGE` (default OFF).
+
+**Why shelved:** it existed to avoid ~9,058 b-tree descents each costing a fault, and
+**D-049's PRAGMA removed that cost instead** — `syscr` on a deep read fell 1,669 → 182. Its
+own local number never justified it (1.19× warm at days=8000).
+
+**Revival condition, stated so it is testable:** revive it only if H5 becomes the target
+*and* a measurement shows a sequential range walk faults more efficiently than scattered
+descents **against the flag-ON arm** — not against the OFF arm it was designed for. Absent
+that measurement it is a second mechanism for a problem the first one has mostly solved.
+
+#### 5. D-048 STANDS; the withdrawal of the Spearman claim is part of the record
+
+A Session 9 draft claimed Spearman **+0.960** on `io_rchar` superseded D-048's two-phenomena
+reading. **Withdrawn before use.** It does not replicate on Session 8 (+0.504), and the
+reason kills the counter rather than the window: dividing block-device bytes by each sample's
+own `rf_fetch` implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No
+volume delivers 3.9 GB/s, so those bytes were another thread's — **`/proc/self/io` is
+PROCESS-wide.** Window A's 0.960 was luck: its quiet samples read *exactly* 0.00 MB, so the
+counter was nearly clean there and filthy in Session 8's.
+
+⭐ Generalised into standing rule H.2: a process-wide counter is attributed to a request only
+when the attribution passes a plausibility check; an impossible implied rate means another
+thread's work is in the number.
+
+#### 6. H5 confirmed by counting operations, not bytes
+
+Per-read-syscall cost, `rf_fetch ÷ (syscr − the arm's own syscr floor)`:
+
+| arm | slow sample | extra syscalls | `rf_fetch` | ms/syscall |
+|---|---|---|---|---|
+| OFF | i=3 | 8,883 | 5,304.1 | **0.597** |
+| OFF | i=2 | 14,800 | 8,742.7 | **0.591** |
+| ON | i=7 | 551 | 452.8 | **0.822** |
+| ON | i=8 | 642 | 879.2 | **1.369** |
+
+⭐ **The per-operation cost did not improve — the COUNT collapsed ~20×.** That is H5's model
+(time = seek count × per-seek latency) with the flag attacking the first term only.
+⚠️ The ON arm's higher per-op figure is a hypothesis, not a finding: two samples per arm.
+**Residual, unexplained:** 11 of 20 settled cold reads need **zero** extra syscalls while the
+rest need 551–642 — the eviction trigger is unidentified.
+
+#### 7. The cap stays at 365, and the ~1 s bar is NOT established at p95
+
+| | |
+|---|---|
+| samples over 1,000 ms | 1 of 20 |
+| p90 | 842.0 ms interpolated / 986.2 nearest-rank — under 1 s either way |
+| P(true p95 above the observed max) | **0.95²⁰ = 0.358** |
+| n for the sample max to be a 95% upper bound on p95 | **59** |
+
+⛔ **The bar is now limited by measurement opportunity, not by the reader.** Nothing about
+the `/series` cap changes (D-046): the UI never requests more than 365, so lifting it exposes
+nothing. **Record update, not a change.**
+
+#### 8. P-B4 remains INCONCLUSIVE
+
+The warm control moved (p50 20.1 → 16.0 ms) in Session 9's A/B. Three things say the warm
+path itself is unchanged (identical `syscr` floor 79/79; identical `decoded_bytes` 69,979;
+identical priming read 205 rows / 185,306 B), and the OFF arm's outliers carry ordinary I/O
+counters, so they are event-loop contention. ⭐ **The design flaw was consecutive arms**,
+which confound the flag with whatever else the single uvicorn process was doing.
+**Interleaved arms at matched times of day is the fix**, and it needs a quiet period.
+
+#### 9. Operational: measurement is not possible at the required n without a push pause
+
+**37 master pushes in 10.5 h; median gap 723 s (12.1 min); minimum 152 s.** A window needs
+~26 min; only **19%** of gaps are that long — roughly one window in five survives. Against
+the n ≥ 59 that p95 requires, that is ~3 clean windows ≈ **15 attempts**.

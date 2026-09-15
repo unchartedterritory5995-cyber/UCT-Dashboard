@@ -37,7 +37,7 @@ class FakeStore:
 class FakeRuntime:
     def __init__(self, status="queued", rows=None):
         self.status = status
-        self.offered, self.acks, self.refused = [], [], []
+        self.offered, self.acks, self.refused, self.reach = [], [], [], []
         self.per_user_max = 2
         self.store = FakeStore(rows)
 
@@ -50,6 +50,15 @@ class FakeRuntime:
 
     def record_refused(self, job, cls):
         self.refused.append((job.corr_id, cls))
+
+    def record_refusal_reach(self, cid, ms):
+        """⚰️ MISSING SINCE D-05, AND THE TEST DIED ON AN AttributeError RATHER THAN A
+        VERDICT. S5c added `record_refusal_reach` to the runtime and `commands.py:215`
+        calls it on the refusal branch; this double was never given the method, so the
+        one test that drives a refusal through the real router raised instead of
+        asserting. ⛔ A stale test DOUBLE fails in the flattering direction: the
+        production code was right and the harness could not run it."""
+        self.reach.append((cid, ms))
 
 
 @pytest.fixture(autouse=True)

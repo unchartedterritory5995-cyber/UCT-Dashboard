@@ -505,6 +505,14 @@ function Harness() {
                  verified on a real workspace. Chart Settings → Header picks
                  BETWEEN the two once this is on. */
               verticalLegend={LEGEND_PARAM !== null}
+              /* ⚰️ THE LOOKBACK BAR, BECAUSE IT WAS THE SECOND REGRESSION AND
+                 THIS PAGE COULD NOT SHOW IT. `showRangeSelector` defaults to
+                 false, so the 3M/6M/YTD/1Y/5Y/Origin strip never rendered here
+                 and the one surface that must NOT move when panes are reordered
+                 was the one surface the harness could not prove. It is
+                 WORKSPACE-owned: bottom-left of the whole stack, directly above
+                 the date scale, at every pane order. */
+              showRangeSelector
             />
           ) : (
             <div style={{ padding: 12, color: '#8b93a1' }}>

@@ -357,13 +357,37 @@ CHECKS and nothing else, and the gate does not protect against stacked deploys a
 Boot times derived from the pod's own `uptime` (not from any Railway field), against gate
 completion read from the Actions API:
 
-| commit | gate completed | pod booted | boot − gate |
-|---|---|---|---|
-| `6b606990c` | 05:12:53Z | 05:12:55Z (uptime 395 @ 05:19:30Z) | **+2 s — after** |
-| `587ee51b2` | 05:32:54Z | 05:32:36Z (uptime 95 @ 05:34:11Z) | **−18 s — BEFORE** |
+| commit | gate completed | gate total | pod booted | boot − gate | source |
+|---|---|---|---|---|---|
+| `6b606990c` | 05:12:53Z | 118 s | 05:12:55Z (uptime 395 @ 05:19:30Z) | **+2 s — after** | this session |
+| `587ee51b2` | 05:32:54Z | 121 s | 05:32:36Z (uptime 95 @ 05:34:11Z) | **−18 s — BEFORE** | this session |
+| `cb0949d8c` | 06:40:14Z | 129 s | 06:40:12Z (uptime 17 @ 06:40:29Z) | **−2 s — BEFORE** | this session |
+| 8 further deploys | — | — | — | **−99 to −141 s — BEFORE** | Session 8 §E, `session8-report.md` |
 
-⛔ **The second deploy cut over eighteen seconds before its own gating check finished.**
-That is not compatible with "Wait for CI holds the build".
+**Instrument parameters** (rule H.1 — every figure above and below is either in this table
+or is a stated parameter of the tool that produced it):
+
+| parameter | value | why it matters |
+|---|---|---|
+| `uptime` resolution | 1 s (integer, `/api/health`) | boot time inherits it |
+| health poll interval | 20 s | boot time is known to ±1 poll at worst |
+| gate timing source | GitHub Actions API `created_at` / job `completed_at` | second resolution |
+
+⛔ **Two of the three measured here cut over BEFORE their own gating check finished**, one
+by eighteen seconds — and Session 8's eight all did. That is not compatible with "Wait for
+CI holds the build".
+
+⭐ **And three points resolve into a model the two-point version could not see.** The
+±2 s cases are inside the measurement resolution above. What the numbers actually describe
+is **two processes of similar length running in parallel**: the gate takes **118–133 s**
+(118, 121 and 129 in this table; 133 in §E.5's), and build-plus-deploy takes about the
+same, so they finish together *by coincidence* — and when the build happens to be quicker,
+the pod boots first. `cb0949d8c` was watched live and settles it: the deploy was reported
+`SUCCESS` **while the gate run was still executing.**
+
+⛔ **On that model Railway is not waiting for CI at all**, and the near-simultaneity that
+made the first observation look like a hold is an artifact of two unrelated pipelines
+taking two minutes each.
 
 ⚰️ **AND THE DRAFT OF THIS SECTION CLAIMED THE OPPOSITE, ON THE SAME TWO DEPLOYS.** It
 read: *"Confirmed again by an unplanned natural experiment — push 05:30:52 + a ~104 s gate
@@ -374,10 +398,10 @@ into an 18-second contradiction. ⭐ **One measured number destroyed a conclusio
 paragraphs of reasoning had already accepted** — and the reasoning was mine, in this
 document, an hour old.
 
-**Session 8 independently found the same direction:** 8 deploys started **99–141 s before**
-their checks finished. So of the observations this programme has, **nine point to Railway
-not waiting and one points to it waiting** — and the one is within 2 s, which is equally
-consistent with coincidence.
+**Session 8 independently found the same direction** — its eight deploys are the last row
+of the table above. Counting that table: **ten observations point to Railway not waiting
+and one points to it waiting**, and that one is +2 s, i.e. inside the resolution stated in
+the instrument-parameters table.
 
 > ⛔ **OPEN QUESTION, AND IT IS THE LOAD-BEARING ONE FOR THE 2026-09-14 MITIGATION.**
 > Is *Wait for CI* actually enabled on the `web` service? **This cannot be answered from
@@ -386,9 +410,10 @@ consistent with coincidence.
 > owner's.
 >
 > **If it is off,** the gate is checks-only: the runs serialise, the deploys do not, and
-> two pushes 20 s apart still stack exactly as they did on 2026-09-14. The mitigation
-> installed after that incident would then be **decorative** — and, worse, it reads as
-> coverage, which is the failure mode this repo names most often.
+> two pushes closer together than one gate run (§E.5's table: 129–133 s) still stack
+> exactly as they did on 2026-09-14. The mitigation installed after that incident would
+> then be **decorative** — and, worse, it reads as coverage, which is the failure mode this
+> repo names most often.
 
 **What holds regardless of the answer.** The gate's *checks* are genuinely serialised and
 genuinely server-side, which is more than the pre-push hook could offer — `--no-verify`
@@ -424,10 +449,19 @@ forbidden by the discipline that accompanies it.** This session did **not** pick
 discipline** (≥300 s apart), and their queue waits recorded as a further non-contended
 baseline. They confirm the absence of queueing; they cannot demonstrate its presence.
 
-| push | commit | gate created | **queue wait** | gate total | result |
-|---|---|---|---|---|---|
-| 1 | `9f4263808` | 06:32:55Z | **3.0 s** | 133.0 s | success |
-| 2 | *(below)* | | | | |
+| push | commit | issued | gate created | **queue wait** | gate total | deploy |
+|---|---|---|---|---|---|---|
+| 1 | `9f4263808` | 06:32:47Z | 06:32:55Z | **3.0 s** | 133 s | SUCCESS |
+| 2 | `cb0949d8c` | 06:37:55Z | 06:38:05Z | **3.0 s** | 129 s | SUCCESS 06:40:29Z |
+
+Gap between pushes **308 s** — within the ≥300 s discipline, and therefore
+**non-contended by construction**, exactly as predicted.
+
+⭐ **Push 2 is the observation that matters, and it was not the one being looked for.**
+Watching it live produced the third row of §E.4's table: Railway reported the deploy
+`SUCCESS` at 06:40:29Z while that commit's gate run **had not finished** (it completed at
+06:40:14Z, with the pod booting 06:40:12Z). The authorised pushes could not demonstrate
+queueing — but one of them did settle a more important question.
 
 ⭐ **Run 38, and the queue wait is still 3.0 s** — the same value as 34 of the first 36.
 The pre-push guard passed both of its checks explicitly (`outside the 09:25-16:05 ET deploy

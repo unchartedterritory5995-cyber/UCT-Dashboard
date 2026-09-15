@@ -42,11 +42,27 @@ def _db_path() -> str:
     return local
 
 
-#: ⛔ DEFAULT OFF. Unset or anything but 1/true/yes/on leaves the connection exactly as
-#: it has always been opened. This is an experiment with a measurement attached, not a
-#: change that ships on plausibility.
+#: ⛔ DEFAULT OFF IN CODE, ON in production since 2026-09-15 (Session 9 V1, D-049).
+#: Unset or anything but 1/true/yes/on leaves the connection exactly as it has always been
+#: opened. It shipped as an experiment with a measurement attached; the measurement came
+#: back x9.05 on the deep-read tail, so the flag is now a live setting with a record.
+#:
+#: ⚰️ THE NAME CARRIES THE `_ENABLED` SUFFIX FOR A REASON, AND IT IS NOT STYLE.
+#: `feature_flag_index.is_gate()` matches only names containing a gate marker or ending
+#: `_ON`, so the previous name `BREADTH_OHLC_PAGECACHE` was invisible to the flag ledger:
+#: it could not be given a row (the row would have been classed as rot by
+#: `test_the_ledger_does_not_describe_gates_that_no_longer_exist` and would have turned the
+#: master deploy gate red). That is the same two-reason blindness that let
+#: `DESK_PUBLIC_SHOWS` sit on a wildcard for 25 days while it published 27 paid sessions.
+#: Renaming it is what makes `test_every_off_by_default_gate_is_declared` REQUIRE the
+#: ledger row — the rail now enforces the record instead of being unable to see it.
+#:
+#: ⛔ NO FALLBACK TO THE OLD NAME. A fallback would be a second authority over one value:
+#: two variables could disagree and the loser would be invisible. `tests/
+#: test_breadth_pagecache_flag.py` fails if the old name is read anywhere under api/.
 def _pagecache_on() -> bool:
-    return os.environ.get("BREADTH_OHLC_PAGECACHE", "").strip().lower() in ("1", "true", "yes", "on")
+    return (os.environ.get("BREADTH_OHLC_PAGECACHE_ENABLED", "").strip().lower()
+            in ("1", "true", "yes", "on"))
 
 
 #: 64 MB against a 39.9 MB file. The table grows ~251 rows/yr at ~995 B/row = 0.24 MB/yr,

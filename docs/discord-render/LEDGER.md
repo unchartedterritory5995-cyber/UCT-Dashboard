@@ -1046,3 +1046,282 @@ else inside SLO.
 is an owner question, not something to tune away: at fourteen times the design burst, is refusing
 3.6 % a breach or the system working? **Recommendation: measure S5 at the design burst and report
 overload separately as a refusal rate.**
+
+---
+
+## D-02 — the evidence selector, the S5 split, and the self-defect rails (2026-09-14, evening)
+
+### ⛔⛔ The gate was choosing its evidence by FILENAME, and it was wrong in both directions
+
+`check_s2_measured` selected with `glob("*real*.json")` minus anything named `chaos`. Measured
+against `evidence/step3` as it stood, that one expression:
+
+- **admitted `determinism-real-20runs.json`** — no load run in it at all, matched on the word
+  "real" in a filename;
+- **admitted `load-real-a-concurrent30.json`** — the artifact its own report calls VOID. Name says
+  *concurrent30*; content says `rate: 30.0` with no model, i.e. **thirty arrivals per second**,
+  ~50× the derived design burst. Its `p50` of 14,855 ms decided the row;
+- **excluded `load-closedloop-30.json`** — the run that supersedes it at the specified load, because
+  nobody typed "real" into that filename.
+
+⭐ **A filename is a claim somebody typed; an artifact's labels are what the run recorded about
+itself.** A1 found **three** such selectors, not the zero the directive expected: S2, chaos
+(`chaos*real*.json` — `chaos-full.json` is a 13/13 **rig** run, so a rename would have carried that
+row to MET on thirteen stubs) and smoke (`smoke*/INDEX.md` — a finished run in a differently-named
+directory read as NOT MEASURABLE).
+
+### What replaced it
+
+`docs/discord-render/instruments/evidence_contract.py` — **one place** deciding what an artifact IS
+and what it may be used FOR. Four dispositions, never two: **ADMIT · VOID · OUT_OF_SCOPE ·
+INCONCLUSIVE**, so a row can say *"I skipped 1 void and 7 I could not interpret, and judged 1"*
+instead of reporting a clean verdict over a set it never read.
+
+⛔ **Latency and admission are separate purposes and always were.** A run against the mplfinance
+fallback says nothing about how long a member waits and everything about whether the queue refuses
+honestly — a refusal happens at admission, upstream of every renderer.
+
+⛔ **VOID IS RETENTION, NOT DELETION.** `load_harness --mark-void` writes the label into the file and
+reports sha256 before and after (`f14d3859d7f31efa → 173370ac28219fe2`). The 30/s run is still the
+only overload characterisation this programme has.
+
+⛔ **A rejected inference, recorded so it is not re-derived:** *"cache hits + misses == 0 while
+charts were delivered ⇒ the fallback drew them"* is **unsound** — `_cached_render` returns
+`produce()` untouched when `artifact_cache.enabled()` is False, so zero counters are equally
+consistent with the house renderer running with the cache flag off. An unlabelled artifact is
+**UNKNOWN**, and unknown is not fallback.
+
+**The S2 row's verdict did not get greener.** Before: NOT MET off a void artifact's latency. After:
+NOT MET because **S5 96.4 % < 99.5 %** on the one admissible closed-loop run, with **latency
+INCONCLUSIVE** and the reason stated. Same colour, true reason.
+
+Rails: `mutation_harness_flipgate` **62 cases** (was 56), all green; `mutation_harness_contract`
+**6/6 RED for their named case**, controls green both ends, restore sha256-verified, run in a
+throwaway worktree that was deleted afterwards. ⭐ `M6` is the non-vacuity control — it stops
+`select` ever admitting anything and the suite goes red, so the green above it is known to depend on
+artifacts being genuinely admitted rather than on universal exclusion.
+
+### B1 — the three-way split, and the denominator that was hiding
+
+`served_in_slo | served_late | refused_by_admission | failed | unresolved`, **over OFFERS**.
+
+⛔ **The denominator is the finding.** The 30-concurrent run held **360 job rows against 406
+offers**: 46 requests were refused *before a job row existed*, because `status == "user_busy"`
+returns an ephemeral without calling `record_refused`. Those 46 are invisible to `success_rate` in
+**both** directions — a system that refused every member at the door would report **100 % over zero
+jobs**. The receipt must close over offers or it says so.
+
+⛔ **S5's floor and definition are UNTOUCHED.** That ruling is the owner's (B5, below). What changed
+is which artifacts may speak to it and what the failures are broken down into.
+
+### B2/B3 — the loads real traffic supports, derived and never typed
+
+`--burst design | busiest10s | busiest60s` computes the arrival rate from `arrival_census` against
+the real arrivals artifact: **0.600 · 0.200 · 0.0667 per second**, with the derivation carried in
+`meta.burst` so the next reader can re-derive it rather than trust it.
+
+**At the design burst (0.6/s, 301-arrival census, 181 offers): 180 served in SLO, 1 served late,
+ZERO refused, ZERO failed. S5 = 100 %.**
+
+### ⛔ OI-40 — `queue_full` is overloaded, and one of its two meanings is false
+
+A 13-offer shake-out at the design burst recorded **one `queue_full`** while the interactive queue
+held at most **1 of 48** slots and six workers were idle. Thirteen offers cannot fill forty-eight,
+so `q.put_nowait` cannot have raised `queue.Full` — **that row did not come from `offer()`**. The
+other producer (`runtime.py:285`) closes a restart casualty as `queue_full`, telling a member
+*"we're at capacity right now"* about a pod restart. **Not asserted**: the deciding field is
+`outcome`, and that sandbox is gone.
+
+### ⚠️ The depth gauge is SPARSE — and my first explanation of why was wrong
+
+Every "max queue depth" figure this programme has published is a **floor**, not a measurement: the
+**open** loop samples depth every **tenth arrival** (`load_harness.py:745`), so at 0.6
+arrivals/second ten arrivals span ~17 seconds and a queue that fills and drains between samples is
+invisible. The arithmetic (13 offers < 48 slots) is what carries OI-40's conclusion, not the gauge.
+
+⚰️ **RETRACTED, SAME DAY, BEFORE IT SPREAD FURTHER: I first wrote that the gauge had been STARVED to
+"21 samples where ~602 were expected — 3.5 % coverage".** That number came from applying the
+**closed** loop's 0.5 s cadence (`:655`) to an **open**-loop artifact. Measured properly, the closed
+loop's time-based gauge returns **38 of ~43** expected samples (88 %) and the open loop's
+arrival-driven gauge returns exactly what it is written to return. ⭐ **I manufactured a finding
+about event-loop starvation by reading one driver's expectation onto another driver's output** —
+the same shape as "reading the call site is not reading the request", committed inside the pass whose
+whole subject is instruments reporting properties of themselves. The limitation is real; the
+mechanism I first gave for it was not.
+
+### Part C — the three self-defects, now rails
+
+| defect | rail | proof |
+|---|---|---|
+| D1 · the evaluation loop sat mid-appends; **15 cases counted, 5 evaluated** | `selfcheck.Cases` **seals** — an `add()` after the results are read RAISES; the totals line prints `declared/evaluated/failed` as three numbers | 6/6 controls, including a late append raising, an early one still working, and an EMPTY set failing |
+| D2 · `peak <= N` satisfied by a gauge blinded to 0 | equality bound **plus** a lower bound on the mean **plus** a broken-variant control | green; and the same disease re-found in the depth gauge (above) |
+| D3 · the first closed loop hot-spun — **521,654 attempts in 20 s**, six acks over 3 s | `--think-time` explicit, recorded, and asserted: a spinning loop is **INCONCLUSIVE**, never FAIL | a spin is caught, a healthy loop at the same concurrency is not (non-vacuity) |
+
+### Part D/E — the constants, and the canary
+
+All four sizing knobs are **UNSET** on `web`, so the code defaults run: **workers 6 · queue depth 48
+· bg 2 · per-member 2 in flight · 12 per 60 s**. Against the derivation (c = 4, depth ≥ 6),
+production already exceeds every axis. ⭐ **The sizing answer is "change nothing", and that is a
+result.**
+
+⛔ **`DISCORD_RENDER_V2_ENABLED` and `DISCORD_RENDER_V2_CHANNELS` are BOTH unset, and an empty scope
+means EVERY CHANNEL.** Enabling today is the member flip, not a canary; the gate already refuses it.
+The packet must state the ORDER: narrow first, verify **in the running process**, then enable.
+
+⚠️ **`FLOW_CMD_CHANNEL_ID` holds the narrower one-id value** while `CHART_FLOW_CHANNEL_ID` holds two.
+`cmd_channel_ids()` reads the two-id one first, so the allowlist is correct today — but blanking it
+would silently narrow `/chart` back to one channel mid-canary, with no error, and the symptom would
+read as a render problem.
+
+### ⛔ B5 — BLOCKED, AWAITING OWNER
+
+The directive's B5 ruling line was **left blank**. As instructed: B1–B4 are implemented and reported,
+B5 is **not decided here**, and no threshold or semantics of S5 has been changed. The question
+standing is *"at fourteen times the design burst, is refusing 3.6 % a breach or the system
+working?"* — and the design-burst measurement above (0 refusals in 181 offers) is the new evidence
+for it.
+
+### ⛔ Three defects in my own work, again
+
+1. **A shell heredoc collapsed `\b` to a literal BACKSPACE** inside a regex, which then matched
+   nothing. **Fourth occurrence of this trap in this programme.** Caught only by a control asserting
+   the pattern matches the real document *and* not an unrelated one. Anything carrying a backslash
+   is written with the editing tools now.
+2. **Substring anchor counting cannot see indentation** — `"    if art.void:"` occurs inside
+   `"        if art.void:"`, so a dry-check reported three matches for a line appearing once. Loud
+   in that direction; silent in the other, where it mutates the wrong branch. Anchors are whole
+   lines now.
+3. **My first non-vacuity control for the split could not fail.** Passing more offers than job rows
+   still closed, because `refused_before_job` is *derived* as offers minus job rows. What genuinely
+   fails to close is a job still in flight — and rounding that into "refused" would report a member
+   who is still waiting as one who was told no.
+
+---
+
+## D-02b — the S5 ruling STOPPED on a contract conflict, and what shipped instead (2026-09-14, late)
+
+### ⛔⛔ PART 1 IS NOT IMPLEMENTED. Its definition describes a mechanism that does not exist.
+
+**The ruling as entered.** *"YES — split."* Provenance, recorded exactly as instructed and exactly as
+received: **delegated by the owner in chat on 14 Sep 2026, set by Claude (chat), not derived from
+gate evidence.** It is not an owner ruling on the merits and this ledger does not record it as one.
+
+**The stop condition it hit**, verbatim from the directive: *"If Part 1's definitions conflict with
+anything already encoded in the failure-message contract or the S1 ack semantics, STOP and report
+the conflict before implementing — do not reconcile silently."*
+
+**The conflict, from source, not inference:**
+
+> `refused_by_admission` — queue_full or user_busy, AND the failure-message contract was **PATCHed
+> within the 3 s ack window**
+
+There is no PATCH on either admission path.
+
+| fact | where |
+|---|---|
+| `_ephemeral` returns `{"type": 4, "data": …}` — **the reply to Discord's own interaction POST** | `commands.py:169-173` |
+| **both** refusal branches return `_ephemeral(...)` | `commands.py:206` (`user_busy`) and `:209` (`queue_full`) |
+| the refusal row stores `token: None`, and says why in its own docstring: *"No token is kept: the refusal was the reply."* | `runtime.py:258-264` |
+
+A PATCH to `webhooks/{app}/{token}/messages/@original` **needs that token**. With `token: None` there
+is nothing to PATCH with — the absence is **structural**, not an omission.
+
+⛔ **Implemented literally, `refused_by_admission` would be EMPTY for every artifact**, every refusal
+would fall into `failed` as "silent or late", and **S5c would FAIL on a system that answers every
+refused member in under a second.** S5b would simultaneously read *zero refusals everywhere* and be
+MET for the wrong reason. That is a gate describing a world that is not there, which is the defect
+this whole programme exists to close.
+
+⭐ **The reconciliation I did NOT apply, offered for the owner to rule on.** The ruling's intent is
+plainly *"the member was actually told, and told in time"* — that is what "honest" means in "honest
+refusal". The mechanism that carries it here is the **interaction response**, so the implementable
+form is:
+
+> `refused_by_admission` — queue_full or user_busy, AND the refusal message **reached the member
+> inside the S1 ack budget**, read from the wire or the job store. A refusal that was silent or late
+> is not in this bucket.
+
+That is measurable today, and Part 4 measured it. **One word changes — PATCHed becomes reached —
+and every other clause of the ruling survives intact.** Nothing was reconciled silently.
+
+### Part 4 — the instrument, and it answers S5c either way
+
+`load_harness.refusal_latency`. Measured on a bounded local overload (closed loop c=80, think 0.2 s,
+45 s, fallback renderer, **4,843 offers, 4,443 refusals**):
+
+**arrival → told: p50 0.04 ms · p95 0.33 ms · max 830 ms · ZERO over the 3 s ack ceiling.**
+
+⛔ **NON-VACUITY IS THE FIELD THAT MATTERS.** A run that refused nobody yields **NOT MEASURABLE**,
+never *"all inside 3 s"* — an empty set satisfies every ceiling ever written, and this programme has
+already published one *"no 502s found"* that was a filter matching millisecond fields.
+
+⛔ The two PATCH fields the directive asked for are **absent by name**, with the reason carried in
+the artifact (`patch_fields_absent_because`). A null that reads as *"the step failed"* is worse than
+an absent field that reads as *"there is no step"*.
+
+### ⛔⛔ OI-40 IDENTIFIED — `queue_full` has THREE producers, and my own split miscounted one
+
+Three probe runs, each producing **53 `queue_full` rows against 52 refusals**. The odd row, every
+time:
+
+```
+state=abandoned  outcome=busy  failure_class=queue_full  token_kept=false
+```
+
+A job that was **ADMITTED, ran, and failed downstream with a busy signal** — wearing the admission
+class.
+
+| producer | outcome | is it an admission refusal? |
+|---|---|---|
+| `commands._enqueue` → `record_refused` | `refused_at_ack` | ✅ yes — the real one |
+| `runtime.resume_pending` → `_finish_unanswerable` | `restart_recovery` | ❌ a pod restart wearing *"we're at capacity right now"* |
+| a job that ran and failed busy | `busy` | ❌ a **failure**, not a refusal |
+
+⭐ **My B1 split was counting the third as a refusal**, which is the direction that flatters: it turns
+a failure into an honest refusal. The bucket now keys on **outcome**, not class, with a rail for each
+producer and a non-vacuity case proving the genuine one still lands in the refusal bucket.
+
+⚰️ **AND MY EARLIER FRAMING IS CORRECTED.** The previous ledger entry asserted the restart path was
+telling members *"we're at capacity"* about a pod restart. That producer **exists in source** and was
+**not what fired** — 0 of 3 runs. The observed producer is the downstream busy outcome. The source
+claim was true; the attribution was inference stated as measurement.
+
+⛔ **And I had reproduced my own blind spot:** the anomaly loop inspected only rows a refusal
+*claimed*, so a row nobody refused was invisible to it — exactly OI-40's shape. It now sweeps the
+store and reports unclaimed admission rows with the rows themselves.
+
+### Part 3 — the heredoc rail, and why the rule failed four times
+
+| # | date | what collapsed | caught by |
+|---|---|---|---|
+| 1 | 2026-08-24 | `\b` in a regex → BACKSPACE | nothing — found by `cat -A` after a wrong test result |
+| 2 | 2026-08-29 | `\n` ×2 → real newlines | `ast.parse` after the patch |
+| 3 | 2026-08-31 | four in one session | `assert count(old)==1`, which aborted 3 of 4 |
+| 4 | 2026-09-14 | `\b` in the smoke-title regex → BACKSPACE | a control asserting the pattern matched the real document **and not** an unrelated one |
+
+⛔⛔ **THE FINDING: `assert text.count(old) == 1` PROTECTS THE SEARCH STRING AND SAYS NOTHING ABOUT
+THE REPLACEMENT.** On the fourth occurrence the anchor matched, the assert passed, and a corrupted
+`new` went to disk perfectly. The second attempt aborted only because that assert happened to be
+about the already-corrupted text — luck, not a rail.
+
+`patch_guard.safe_replace` now scans **both** strings for collapse signatures before any write and
+**sha256 round-trips the exact replacement slice** after it. 17 controls, including all four
+corruptions replayed, a mangling-writer mutation proving the round trip fires, and — added when it
+refused one of my own patches with an unexplained zero match — a named refusal for a **bare-LF
+multi-line anchor against a CRLF-stored file**, because *"anchor matched 0 times"* reads as *"the
+code changed"* and sends the reader to the wrong file.
+
+### ⛔ The temptation, reported rather than taken
+
+The refusal probe is ~175× the design burst and made the S2 row NOT MET on 88.3 % success. **I could
+see that labelling the 30-concurrent run as characterisation too would remove the remaining red and
+leave the row NOT MEASURABLE. I did not.** That run was produced as an SLO measurement and it stays
+one. Only the probe carries the label, and it carries it because the run that produced it passed
+`--characterisation` — not because its numbers were inconvenient.
+
+`INFORMATIONAL` is a fifth disposition with the rule beside it: **the label is set when the run is
+produced, never applied afterwards.** Its rails are a PAIR — a characterisation run carrying a breach
+is reported not judged, **and** the same breach labelled `slo` still reddens the row. Without the
+second, "characterisation" is a label that excuses any number.
+
+**The gate's colour did not change: NOT MET, on `load-closedloop-30.json`.**

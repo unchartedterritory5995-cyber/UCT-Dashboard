@@ -1,3 +1,324 @@
+# NEXT UP — PANE HEIGHT PERSISTENCE (root-caused, NOT implemented)
+
+**Owner-reported, 2026-09-15.** Drag the separator to make an own pane taller;
+on release it SNAPS BACK to its computed default.
+
+## Root cause — PROVEN, do not re-derive
+
+`paneStretchPlan` (`engine/paneLayout.js`) seeds from `cur.slice()` then
+UNCONDITIONALLY overwrites every pane the layout covers. Measured:
+
+    current (post-drag):      [270, 330, 100]     ← member dragged QQQ to 270
+    plan (what gets applied): [ 81, 463, 154]     ← QQQ 270 → 81
+
+`binder.js` (~line 467) then applies it: `want[i] !== current[i]` →
+`setStretchFactor`. The drag survives only until the next binder sync.
+
+**Pane-height authority today: NONE.** The flow is one-way —
+`computePaneLayout → paneStretchPlan → setStretchFactor → LWC`. The manual drag
+ends inside lightweight-charts and never becomes canonical UCT state.
+
+## Design already agreed
+
+`setStretchFactor` is a RELATIVE WEIGHT, not pixels — so persisting post-drag
+stretch factors keyed by PANE KEY (`price`, `volume`, instance host id) gives
+widget-resize correctness for free, keeps size independent of `cs.paneOrder`,
+and makes a size follow its pane across reorders. No pixel geometry.
+
+⛔ Absent size → existing computed default, unchanged. Only an explicit resize
+creates a preference. No migration.
+
+## Two acceptance items attached by the owner
+
+**1. QQQ price-axis labels (600 / 705 instead of decimals).** MEASURED: the
+series formatter is CORRECT — `{type:'price', precision:2, minMove:0.01}`,
+`format(704.69) → "704.69"`, `lastValueVisible: true`, scale `right`. So it is
+NOT a formatting bug. Hypothesis: the pane is stuck ~90–100px, and LWC picks
+coarse tick spacing for a short pane over a wide range. TEST AFTER the resize fix
+— capture labels at small height, then at a large height. If height explains it,
+add NO formatting fix. Distinguish SERIES VALUE FORMATTING from AXIS TICK
+SELECTION; do not force precision/minMove/custom formatters.
+
+**2. Secondary-symbol live ticking — ANSWERED: HISTORICAL ONLY.**
+`engine/secondaryBars.js` is a fetch-once module cache keyed by URL
+(`GET /api/bars/{ticker}`), exporting `ensureAll` / `cachedBars` / `subscribe`
+(a cache-LANDING notifier, not a feed). There is NO `livePriceStore`, no polling,
+no stream on this path. `useSecondarySources` re-runs on
+`[instances, defOf, tf, barCount, fetcher, cs]` — settings changes, never price
+ticks — and `ensure` skips anything already cached.
+
+So a charted QQQ dataSeries: (1) gets historical bars through the canonical
+shared path ✅; (2–5) does NOT subscribe, does NOT update its plotted value,
+legend or last-value label ❌; (6) has no subscription to clean up;
+(7) cannot double-subscribe — the cache is keyed by symbol/tf/bars, so
+own-pane vs Price-guest changes do not touch the data path ✅.
+
+⚠️ **A SEPARATE FOLLOW-UP, NOT PART OF THE PANE FIX.** The frontend live path
+(`/api/live-prices` → `livePriceStore`) exists, but wiring it here means topping
+the last bar of a CROSS-CHART SHARED cache for N symbols with cadence throttling.
+That is not the trivial hookup the owner carved out.
+
+---
+
+# ⚠️ WORKSPACE UX ISSUE — "NEW LAYOUT" REPLACES THE UNSAVED WORKING STATE
+
+**Recorded 2026-09-15. NOT a Track A defect and NOT to be fixed in Track A.**
+
+`LAYOUTS → New Layout` does not open an isolated scratch workspace: it REPLACES
+the current unsaved working layout. During Track A live verification this
+discarded the owner's unsaved NVDA + QQQ arrangement. The four SAVED layout tabs
+(1-Chart, Alienware, Calendar, Intraday Scan) were unaffected, and Main Trading
+was never opened.
+
+⛔ **DO NOT USE `New Layout` FOR VERIFICATION** unless the current working state
+is explicitly disposable. Prefer, in order:
+
+1. the isolated local harness (`app/pane-harness.html`) — preference writes are
+   locked there, so no workspace state can be touched at all;
+2. an existing, unquestionably disposable layout;
+3. production only where the interaction cannot destroy a working state.
+
+Worth considering later: an explicit scratch/disposable workspace, or a prompt
+before `New Layout` discards unsaved work.
+
+---
+
+# TRACK A FOLLOW-UP — PANE-ORDER CHROME OWNERSHIP · FIXED LOCALLY · AWAITING DEPLOY COMMAND
+
+> ⭐ **READ THIS BEFORE THE BLOCK BELOW.** Track A pane ordering is already on
+> `origin/master` and in production. This block is the FOLLOW-UP FIX for two visual
+> regressions the owner found by testing pane reordering on the live site. It is
+> **committed locally and NOT pushed.**
+
+**Written 2026-09-15. Local commit `84fbd7394` on `master`, ahead of `origin/master`.
+NO RAILWAY ACTION. NO PUSH. NO DEPLOY.** The owner will say when.
+
+## What was broken
+
+Repro: UCTA50 as the chart, QQQ added as a second pane, QQQ then moved ABOVE Price.
+
+| | |
+|---|---|
+| BUG 1 | the OHLC legend stayed at the TOP of the workspace, labelling QQQ with Price's readout |
+| BUG 2 | the `3M 6M YTD 1Y 5Y Origin` lookback bar flew to the TOP of the workspace |
+
+Both from one stale assumption in `StockChart`'s rAF sampler — `panes[0] === the price
+pane` — which positioned THREE surfaces from that single number. Bug 2's formula was
+`containerHeight - height(pane 0) + 8`: right while pane 0 was the tall Price pane,
+nonsense when pane 0 is a 100px QQQ.
+
+## ⛔⛔ THE ONE THING NOT TO UNDO
+
+They are NOT the same bug, and fixing one by making both follow the same coordinate
+system is the trap:
+
+| kind | surfaces | anchored to |
+|---|---|---|
+| **PRICE-OWNED** | OHLC legend, drawing toolbar, comparison rows, responsive collapse | the pane the CANDLE SERIES is in, by identity |
+| **WORKSPACE-OWNED** | the lookback bar | the GLOBAL TIME AXIS — bottom-left of the whole stack, above the date scale |
+
+`lookbackBottomPx` takes **no pane argument at all**. That is deliberate: it makes "the
+lookback bar does not move with Price" structural rather than a number that happens to
+come out right today. Making it Price-owned would look correct in QQQ/PRICE and wrong in
+QQQ/RSI/PRICE.
+
+## Where it lives
+
+| file | what |
+|---|---|
+| `app/src/components/chart/chromeGeometry.js` | NEW. The whole chrome decision as one pure `chromePlan`. The sampler measures and applies; it decides nothing. |
+| `app/src/components/StockChart.jsx` | the sampler now applies the plan (~line 14720) |
+| `app/src/components/StockChart.module.css` | `.legendFlat` / `.legendVertical` / `.compareRows` / `.compareRowsSide` now consume `--price-pane-top` |
+| `app/src/testing/panes/paneHarness.jsx` | renders the lookback bar (`showRangeSelector` defaults OFF, so the surface under test was invisible there) |
+
+**Why the legend and the toolbar behaved differently** — the thing that identified the
+bug: `--price-pane-top` was working the whole time. The base `.legend` rule consumed it
+correctly, but `.legendFlat`/`.legendVertical` re-declared `top` as a bare constant and
+won on source order. The drawing toolbar lives in `ChartToolbar.module.css` and has no
+such variant, so it followed Price correctly. The asymmetry in the owner's screenshot was
+the clue.
+
+## Rails (31 new, every one bite-checked)
+
+- `chart/__tests__/chromeGeometry.test.js` — layouts PRICE/QQQ, QQQ/PRICE, RSI/PRICE/QQQ,
+  QQQ/RSI/PRICE. Each asserts the pair TOGETHER: legend tracked Price **and** lookback did
+  not. Plus resize, degenerate pane lists, and the pre-fix formula kept as a control.
+- `chart/__tests__/priceOwnedChrome.css.test.js` — reads the stylesheets. Bug 1 was a CSS
+  bug; no JS test can see it. Fails if a Price-owned surface ever drops the offset, and
+  fails if `.rangeBar` ever gains it.
+
+## Browser proof (isolated pane harness, `preference writes refused: 0`)
+
+| layout | legend top | lookback, above container bottom |
+|---|---|---|
+| PRICE / QQQ | 28px | 36px |
+| QQQ / PRICE | 132px | 36px |
+| QQQ / PRICE / RSI | 131px | 36px |
+| RSI / QQQ / PRICE | 235px | 36px |
+
+Survived save/reconstruct. Under resize the Price offset tracked 206 → 136px while the
+lookback bar held 36px. 8px clearance to the date scale. One legend, one range bar
+(nothing stale). Zero console errors across load, two adds and two live reorders.
+
+## Verification
+
+- broad `src/components`: **10622 passed / 4 failed** — the same four known-red files
+  (`ChartDrawingOverlay.surfaces`, `ast/manifestProse`, `ast/pine.blindCorpus`,
+  `screener/reachable`). Zero new failures. The two modules `reachable` names
+  (`lib/context/focusDivergence.js`, `surfaces/manifest.js`) are pre-existing and unrelated.
+- focused chart + engine suites: 1379 passed / 0 failed.
+- `StockChart.jsx` eslint 106 errors = baseline, `no-undef` 0. stylelint 0 errors.
+- `npm run build` clean.
+
+## ⚠️ KNOWN FLAKY RAIL — `stockChartWiring.test.jsx` "A HOVER REACHES THE RENDERER NOT AT ALL"
+
+Seen ONCE in 4 broad `src/components` runs on the Track A follow-up tree (2026-09-15).
+**Not a Track A regression.** Characterisation, so the next person does not re-derive it:
+
+| tree | runs | result |
+|---|---|---|
+| clean `origin/master` | 3 | 4 failures every time — never reproduced |
+| Track A follow-up | 4 | 3 × 4 failures, 1 × 5 failures |
+
+**Why it is not ours.** The rail clears `H.applyOptionsCalls`, fires mouseEnter/mouseLeave
+on the **RSI** chip, then asserts the array is empty. The calls it captured were
+**candlestick** options (`upColor` / `downColor` / `wickUpColor` / `borderVisible`) — not
+the RSI line series that was hovered. A hover-triggered restyle would restyle the HOVERED
+series. This is the price-style effect (master's own, unchanged by Track A) flushing inside
+`act`, inside an observation window that is racy for ANY pending async update.
+
+**And the sampler cannot reach it.** `StockChart`'s rAF chrome sampler contains no
+`applyOptions` at all; its only state effect is `setCompactLegend`, whose threshold AND
+guard are arithmetically IDENTICAL to the pre-Track-A code on every unarranged pane shape
+(verified across `[420,120]`, `[600]`, `[300,80,90]`, `[0,100]`, `[]`) — and that test
+renders an unarranged chart. The only Track A delta is extra per-frame measurement work,
+which can shift WHEN an unrelated pending update flushes, not WHETHER one exists.
+
+⛔ **The rail was left exactly as it is.** It states a true product contract (a legend
+hover must never restyle the plot) and must not be weakened to go green. If it becomes
+noisy, the fix is deterministic lifecycle synchronisation in the test's observation window
+— never relaxing the assertion.
+
+## NEXT ACTION
+
+**Wait for the owner's explicit deploy command.** Then push `84fbd7394` with the rest of
+Track A. Observe the market-hours push rule (no push to master Mon–Fri 09:00–16:00 ET).
+
+---
+
+# TRACK A — PANE ORDERING · IMPLEMENTATION COMPLETE · DEPLOYMENT PAUSED BY OWNER
+
+> ⭐ **SCOPE: TRACK A ONLY.** This block does not supersede the Discord/notebook header
+> below it; the two tracks are independent. Read this one before touching pane ordering,
+> chart panes, `ChartDrawingOverlay`, `drawingPanes`, or chart-settings pane state.
+
+**Written 2026-09-15 ~03:35 ET. Owner paused deployment; next action is to WAIT for an
+explicit owner command. Do not resume on your own.**
+
+## ⛔⛔ READ THIS FIRST — THE CODE IS ALREADY ON origin/master
+
+The owner's pause instruction arrived **after** the push had completed. Track A is not
+sitting on a branch waiting to go out — it is **merged and pushed**:
+
+| | |
+|---|---|
+| origin/master | `5e88b38c4193d705973838e17f72da8b9f4cf911` |
+| local `master` | same — `5e88b38c4`, in sync, clean tree |
+| branch `feat/pane-ordering` | `ebefae3f0` (merged into master by fast-forward; kept) |
+| accepted implementation SHA | `7da1f4ed6` — an ancestor of origin/master |
+| master reconciled through | `7ac0e0aee` (master's "Set level" drawing work) |
+| pushed at | 2026-09-15 03:25Z |
+
+**Nothing was reverted.** The pause is about DEPLOYMENT SEQUENCING, not about backing the
+code out. Do not "undo" the push to honour the pause — that would be a far riskier act than
+letting the deploy finish. If the owner wants it out of production, that is a revert
+decision to take deliberately, with them, in daylight.
+
+## DEPLOYMENT STATUS: PAUSED BY OWNER
+
+- **Reason.** A Railway deployment had been building for an unusually long time and looked
+  possibly stuck. The owner paused rather than risk interfering with a partner's deploy.
+- **Track A response.** No Railway action of any kind was taken — nothing cancelled,
+  restarted, superseded, redeployed or reconfigured. Read-only status polling only.
+- **Track A itself is NOT blocked or broken.** Implementation is accepted. The only open
+  item is deployment sequencing and Railway state.
+
+State at pause:
+
+| | |
+|---|---|
+| GitHub deployment | id `6451049321`, sha `5e88b38c4`, **`in_progress`** since 03:25Z |
+| CI on `5e88b38c4` | ✅ all three green — deploy gate (1m42s), vite build args, wisdom rails |
+| production health | `https://uctintelligence.com/api/health` → **200** |
+| production assets | still the PREVIOUS build (`index-Bi9ElRZo.js`) — Track A markers (`paneOrder`, `--price-pane-top`) **absent**, i.e. the new bundle had not gone live at pause |
+
+⚠️ So production is healthy and serving the pre-Track-A frontend. The deploy may well have
+completed on its own overnight — **check, do not assume, in either direction.**
+
+## WHAT IS ACCEPTED (do not redesign any of this)
+
+durable `cs.paneOrder` authority · visual order separated from computation/instance order ·
+Price movable above or below other panes · pane HOSTS move with their guest series ·
+independent Volume semantics · safe realization index vs final visual index ·
+cold reconstruction without pane merging · Price-owned chrome follows Price · drawing
+geometry follows Price · `paneValueAt` pixel→value via `paneTop` · `paneYForValue`
+value→pixel via `paneTop` · Track A's full-stack placement offset via `paneTop` ·
+pane-owned `fromPaneFraction` path stays non-double-offset · geometry-triggered overlay
+redraw · compact Chart Data UX · **default parity when `paneOrder` is absent**.
+
+## EVIDENCE ALREADY BANKED (do not re-run to "be sure")
+
+- **Focused:** 201 passed / 9 files — paneOrder, paneOrderLayout, paneRealization,
+  drawingPanes, paneTransform, chartData, chartDataMap, alertSets, perInstanceDoor.
+- **Broad:** 4 failed / 11568 passed. Clean-master baseline measured in a scratch worktree
+  at `7ac0e0aee`: 4 failed / 11493 passed — **the identical four files. Zero new failures.**
+- **Known baseline failures (NOT Track A):** `ChartDrawingOverlay.surfaces.test.jsx`
+  (master ships it red), `engine/ast/manifestProse.test.js`,
+  `engine/ast/pine.blindCorpus.test.js`, `screener/reachable.test.js`.
+- **Build:** clean. **Lint:** every changed file at its established baseline; `no-undef` 0.
+- **Browser (isolated `pane-harness.html`, never Main Trading):** Price TOP / MIDDLE /
+  BOTTOM each verified — drawings inside Price at correct prices, no stale ink in the pane
+  above, legend and toolbar follow Price (`--price-pane-top` 0 / 207 / 311, legend always
+  28 + that), host+guests together, no console errors. Save→reconstruct of a non-default
+  arrangement restored exact order and pane count with no merges.
+- **Tripwires:** blob key-set delta vs current master is exactly `+ paneOrder`, nothing
+  removed, 40 → 41. `alertSets` and `perInstanceDoor` re-pinned with dated notes.
+
+## SAFETY STATE AT PAUSE
+
+- **Main Trading: NOT opened.** Remains frozen; expected fingerprint
+  `ea9ebaeee302b7e1f6c68530bc3b40ab824eb765b73e836cad66be2dc40e5922`. The safe read-only
+  sqlite check is **unavailable in every local worktree** — reported honestly across
+  sessions, never worked around.
+- **Live `:8000` APScheduler backend: untouched and healthy** (200). Do not close that
+  PowerShell window.
+- Dev server on :5177 stopped; browser tabs closed; scratch baseline worktrees removed
+  (`/c/uctb2`, `/c/uctb3`) — their `node_modules` junctions were deleted *before* the
+  worktrees, so the real `node_modules` was never followed.
+
+## TOMORROW — RESUME PROCEDURE (only on explicit owner command)
+
+1. `git fetch origin master`; record the new SHA and what changed since `5e88b38c4`.
+2. **Check the Railway/GitHub deployment for `5e88b38c4` first.**
+   - completed **success** → Track A is LIVE. Verify production health + that the live
+     bundle now carries `paneOrder` / `--price-pane-top`, then report it as live.
+   - **failed** → determine whether the failure is Track A's or the partner's before
+     anything else.
+   - **still building** → STOP and report. Do not interfere with a partner deployment
+     unless the owner explicitly authorises it.
+3. Diff new master against Track A's sensitive surfaces: pane ordering, pane layout, pane
+   realization, drawing coordinates, `ChartDrawingOverlay`, `drawingPanes`, chart-settings
+   pane state.
+   - unrelated → integrate mechanically; **no new architecture review**.
+   - materially overlapping → reconcile deliberately before anything ships.
+4. Focused suites + broad suite vs a *current* clean-master baseline + `npm run build`.
+5. Verify production without opening Main Trading or `/charts`.
+
+⛔ No timer, cron, scheduled task or autonomous deploy was created for this. Resumption is
+owner-triggered, by hand.
+
+---
+
 # RESUME — restart checkpoint 2026-09-14 15:20 ET (Monday, pre-close)
 
 > ⭐ **THIS IS THE CURRENT HEADER.** Everything below it is superseded where it disagrees.

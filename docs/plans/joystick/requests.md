@@ -1040,10 +1040,62 @@ On 2026-09-14 the box was carrying another workstream's six-shard gate (`noteboo
 and an "alone" run under gate load reproduces the very condition it exists to exclude. Measuring it
 then would have produced a confident, worthless answer.
 
-**What we need:** one alone-run on a quiet box. **Passes alone** ⇒ load-sensitive: move it to
+**What we needed:** one alone-run on a quiet box. **Passes alone** ⇒ load-sensitive: move it to
 `load_sensitive.names` and take it OUT of `failures[]`. **Fails alone** ⇒ genuine: it stays, and
 the fix is S10's — either an adopter for `formatPercent` or the rail's own recorded decision that
 it ships unadopted.
+
+---
+
+## ⭐ UPDATE 2026-09-14 — FIVE ALONE-RUNS WERE DONE, AND THEY SETTLE IT AS NEITHER
+
+The run happened. Five times, and the answer is **INCONCLUSIVE by the two-branch rule above** —
+which is itself the finding, because it means the question was mis-framed.
+
+| run | box before | result | totals line, verbatim | test time |
+|---|---|---|---|---|
+| A | clear | ✅ | `Tests  12 passed (12)` | 2.00s |
+| B | **clear** | ⛔ | `Tests  1 failed \| 11 passed (12)` | **15.31s** |
+| 3 | clear | ✅ | `Tests  12 passed (12)` | 2.18s |
+| 4 | **gate + 6 vitest** | ✅ | `Tests  12 passed (12)` | 2.04s |
+| 5 | **gate + 6 vitest** | ✅ | `Tests  12 passed (12)` | 2.25s |
+
+Run B, verbatim:
+
+    Error: Test timed out in 15000ms.
+
+⛔ **THE `load` CLASSIFICATION IS NOT SUPPORTED, AND THAT IS THE REAL RESULT.**
+`docs/breadth/gates.md:24` calls it *"load (15 s timeout)"*. But it **failed on a verified-clear
+box** (run B) and **passed twice while a six-shard gate with six vitest workers was running**
+(runs 4, 5). Load does not predict the outcome in either direction.
+
+⭐ What the numbers show instead: the test's own *test time* swings **2.00s → 15.31s**, a 7×
+spread, against a **15s** ceiling. It is an intermittent sitting on its own timeout boundary —
+not a load artefact, and not a false assertion. **One failure in five**, never an assertion failure.
+
+**So the two-branch rule does not resolve it**, and the entry stays `provisional: true` rather than
+being moved or removed on a coin-flip.
+
+### ⛔ WHAT S10 IS ACTUALLY BEING ASKED FOR — and why the hub did not do it
+
+Raise the ceiling on that one case and see whether the **assertion** passes:
+`it(..., { timeout: 60000 })`, or a `testTimeout` override scoped to it.
+
+* **Passes with room** ⇒ a slow test with a mis-set ceiling. It belongs on
+  `load_sensitive.names`, not in `failures[]`.
+* **Fails with room** ⇒ the assertion is genuinely false and it belongs in the baseline, and the
+  fix is an adopter for `formatPercent` or a recorded decision that it ships unadopted.
+
+⛔ **NOT DONE BY THE JOYSTICK WORKSTREAM, DELIBERATELY.** It is a change to S10's own test file.
+This request already names **Owner: the S10 presentation workstream** and tags itself *"surfaced by
+hub gate, not hub-owned"*. ⚠️ `hub/rule12Paths.test.js` forbids only `app/src/pages/journal-2-0/`,
+so nothing *mechanically* stops a hub branch touching `src/lib/presentation/` — **and the absence
+of a prohibition is not a permission.** That is the same rule this programme applies to a silent
+probe and an unticked box.
+
+⭐ Evidence record: `gate-runs/2026-09-14T21-39-settling-runs.md`, which carries all five runs,
+the wrapper-exit trap that nearly corrupted two of them, and the method error (endpoint-only
+clearance checks) that invalidated the first attempt.
 
 ---
 
