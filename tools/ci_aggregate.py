@@ -177,6 +177,7 @@ def main(argv=None) -> int:
     ap.add_argument("--shards-dir")
     ap.add_argument("--expect")          # JSON array of shard ids that SHOULD have reported
     ap.add_argument("--jobs")            # the run's jobs API payload (runner-sourced)
+    ap.add_argument("--dir-prefix", default="")  # artifact-name prefix on each shard dir
     ap.add_argument("--out")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
@@ -207,8 +208,16 @@ def main(argv=None) -> int:
         return UNREADABLE
 
     shards = {}
+    # ⚰️ E CP11 — `actions/download-artifact@v4` with `pattern:` and no
+    # `merge-multiple` unpacks EACH artifact into its OWN subdirectory named after the
+    # artifact. The real path is `shards/pytest-shard-tests-01/summary.json`, not
+    # `shards/tests-01/`. Every shard read MISSING — a silent wrong answer, not a crash.
+    # ⭐ The prefix is passed in rather than guessed, and both spellings are tried so the
+    # aggregator works whether or not the caller merges.
     for sid in expected:
-        d = base / sid
+        d = base / ((a.dir_prefix or "") + sid)
+        if not d.is_dir() and (base / sid).is_dir():
+            d = base / sid
         rec = None
         summary = d / "summary.json"
         if summary.is_file():
