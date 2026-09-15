@@ -133,3 +133,64 @@ sequence killed mid-flight; a correction staged onto the branch that was one pus
 master). **The durable fix is to remove the opportunity:** every edit and every checkout
 belongs in its own `git worktree add`, and the shared worktree belongs to the script
 alone — which is how this document was written.
+
+---
+
+## ⛔⛔ And then it happened to us, live, on the very next push
+
+Twenty minutes after this document was written, this programme landed **M14** — and its own
+push is a textbook instance, with **zero overlap** between what the gate scanned and what
+the push introduced.
+
+`56b5554b1` is a merge. `HEAD^` is its **first parent**, and the landing script produces a
+merge whose first parent is *the feature branch*:
+
+```
+git checkout docs/session11-record
+git merge origin/master          # first parent = the branch, second = master
+git push origin docs/session11-record:master
+```
+
+| | |
+|---|---|
+| what the gate scanned (`HEAD^..HEAD`) | **11 files** — all joystick, i.e. what *master* contributed |
+| what the push actually introduced | **3 files** — `DECISIONS.md`, `00-profile.md`, `session11-report.md` |
+| overlap | **0** |
+
+**The scan did not miss some of the change. It scanned the other side of the merge** —
+eleven files that had already been gated when master landed them — and looked at none of
+the three the push was for.
+
+### The direction is decided by where `git merge` was run
+
+| merge shape | first parent | `HEAD^..HEAD` covers | verdict |
+|---|---|---|---|
+| `checkout master; merge feature` | old master | the feature's changes | ✅ correct |
+| GitHub squash / PR merge | old master (or a single commit) | the PR's changes | ✅ correct |
+| **`checkout feature; merge master; push feature:master`** | **the feature branch** | **master's changes** | ⛔ **backwards** |
+
+Measured on the same day: `db5591c63`, another workstream's merge, has the old master as
+its first parent and scanned its own 2 changed files — **correct**. Ours had the branch as
+first parent and scanned 11 files belonging to somebody else's already-gated work.
+
+⚠️ **`tools/…/land.py` uses the third shape, so every merge this programme lands is scanned
+backwards** — M12, M13 and `repo/git-scope` included, unless something changes.
+
+### ⭐ The range scan covers exactly the gap
+
+At push time `production` was `57113d1ac`. `git diff production..56b5554b1` is precisely the
+three files the per-commit scan missed. **The advisory step built above would have caught
+this instance** — which is the first evidence that its base choice (`production..HEAD`
+rather than `HEAD^..HEAD`) is the right one, produced by a real push rather than by
+argument.
+
+### What is NOT being changed, and why
+
+⛔ **The landing flow is not being altered mid-sequence.** Switching to
+`checkout master; merge branch` would fix the direction, but changing how a running
+sequence lands three remaining merges — while a burst-guarded queue is in flight — trades a
+documented, bounded gap for an undocumented risk. The range scan addresses it at the gate,
+which is where it belongs.
+
+**Recommended, for whoever picks this up:** either land via `checkout master; merge branch`,
+or promote the range scan to gating. The two are alternatives, not a pair.
