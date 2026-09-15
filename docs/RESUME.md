@@ -1,3 +1,84 @@
+# ⛔ TRACK A ITEM 3 — ROOT CAUSE MEASURED (HEAD b3eb61b0c). ARCHITECTURE DECISION NEEDED.
+
+## ⚠️ FIRST, A CORRECTION OF A CORRECTION — I FLIP-FLOPPED, AND HERE IS WHY
+
+I first said the derived-source branch overrides the explicit pane target
+(unmeasured). I then "corrected" that to say it could not, because
+`resolveDisplayTarget` honours an explicit target that differs from the declared
+one. That correction rested on my reading a code comment — "DECLARED ON PRICE" —
+which belongs to `movingAverage`, NOT to `dataSeries`.
+
+**Measured at runtime: `dataSeries` declares `placement.target = "pane"`.**
+
+So the ORIGINAL hypothesis was right and the correction was wrong. The lesson is
+the same one this whole track keeps teaching: measure the instance, do not read
+the neighbouring comment.
+
+## THE MEASUREMENT — three controls, same door, same identity path
+
+| control | source | stored placement | resolved | inPaneOwnKeys | pane |
+|---|---|---|---|---|---|
+| A (add only)      | `close`          | `{"target":"pane"}` | **price** | false | none |
+| B (chose Own Pane)| `close`          | `{"target":"pane"}` | **price** | false | none |
+| C (QQQ source)    | `sym:QQQ:close`  | `{"target":"pane"}` | **pane**  | true  | `@1` |
+
+**A and B are byte-identical.** Choosing "Own Pane" changes NOTHING on disk,
+because the value the member picked is the value creation already wrote.
+
+## THE CHAIN, proven
+
+1. `dataSeries` DECLARES `placement.target = 'pane'`.
+2. `addInstance` writes `placement: { target: <declared> }` on every instance — so
+   a brand-new one already carries `{"target":"pane"}`.
+3. A member picking Own Pane makes `setInstanceDisplayTarget` compute its default
+   from the BARE instance via `resolveDisplayTarget` → `'price'` (derived from the
+   `close` source), sees `'pane' !== 'price'`, and writes `{"target":"pane"}` —
+   identical bytes to step 2.
+4. `resolveDisplayTarget` short-circuits on an explicit target ONLY when
+   `explicit !== declared`. Here `'pane' === 'pane'`, so the short-circuit is
+   SKIPPED.
+5. Control falls to the derived-source branch: `close` → the primary → `'price'`;
+   `sym:QQQ:close` → a foreign symbol → `'pane'`.
+
+So the source decides, and the member's explicit choice is unexpressible.
+
+## ⛔ THE ACTUAL DEFECT — and why it is a DECISION, not a patch
+
+**The stored representation cannot distinguish a member's explicit override from
+creation-time restatement of the declaration.** When the chosen target equals the
+declared one, the two are the same bytes.
+
+The `explicit !== declared` guard exists ON PURPOSE — its comment records that the
+migrator AND `addInstance` both write a restating placement, and that treating
+those as overrides broke `MA(RSI)` (it "computed a perfect average of RSI and drew
+it on the candles' scale"). So the guard cannot simply be dropped.
+
+Candidate seams, NONE chosen:
+
+  · stop writing a restating placement at CREATION, so a present key means an
+    override — but legacy/migrated instances still carry restatements, so the
+    guard must survive for them, and the two populations need telling apart;
+  · record the override distinctly (an explicit flag or a distinct shape) — a
+    schema addition, with a migration story;
+  · make the reader compare against the same "bare resolved" default the WRITER
+    used, instead of the declared literal — the asymmetry between those two
+    notions of "default" is arguably the bug.
+
+⚠️ AND NOTE: the owner's "unset source" ruling would make THIS CASE work by
+accident (no source → no derived answer → declared `pane` stands). The brief
+explicitly forbids using it to hide a realization bug, and the owner states a
+member may legitimately want the PRIMARY Close in its own pane — which is exactly
+the combination that is unexpressible today. So this defect must be fixed on its
+own terms.
+
+## Also observed, unrelated but recorded
+
+Control C's realized pane reports height **0** (`physicalPanes: [691, 0]`).
+A pane with no height is the collapsed-pane shape; worth a look when pane sizing
+is next touched.
+
+---
+
 # ⚠️ TRACK A ITEM 3 — CORRECTION + TWO HARD CONSTRAINTS (HEAD 19653ec93)
 
 ## ⛔ A CLAIM I MADE WAS NOT MEASURED — TREAT IT AS UNPROVEN
