@@ -7744,15 +7744,30 @@ async def lifespan(app: FastAPI):
         # `except` below would call it non-fatal, and V2 would silently never start.
         import asyncio as _v2_boot_aio
         from api.services.discord_render import commands as _render_v2
+        # ⛔⛔ OI-43 — THE LOOP WATCH STARTS WHETHER OR NOT V2 IS ON, AND IT USED NOT TO.
+        #
+        # ⚰️ WHAT WAS WRONG, MEASURED 2026-09-15. These two lines sat INSIDE
+        # `if _render_v2.enabled():`. `loopwatch` has its own kill switch and that switch is
+        # open by default — so everything read like a live instrument. It was not: V2 is dark
+        # on every production pod, so the start was never reached and the watcher had NEVER
+        # RUN. The health payload said so the moment OI-42 made it readable:
+        # `{"running": false, "samples": 0}`, stable at +0s, +30s and +60s.
+        #
+        # ⭐ AND THE GATE WAS THE WRONG ONE IN KIND. This probe exists to explain a missed
+        # 3-second acknowledgement (C-02). That is a V1 concern on a V1 pod — the 2026-09-15
+        # `/flow` ack miss happened with V2 off and one admin user. The instrument built to
+        # explain V1 ack misses only ran when V2 was on.
+        #
+        # ⛔ ON THE LOOP, NOT IN THE THREAD. The stall probe measures THIS event loop, and a
+        # task can only be created from it — `_render_v2.start` runs in `to_thread`, where
+        # `ensure_future` has no loop to attach to and would silently give back nothing
+        # (step 2.4b P2.9; C-02, where a blocked loop failed the ack and the renderer together
+        # and no instrument could see it). This is still on the loop; it is simply no longer
+        # behind a flag that has nothing to do with it.
+        from api.services.discord_render import loopwatch as _v2_loopwatch
+        _v2_loopwatch.start()
         if _render_v2.enabled():
             _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
-            # ⛔ ON THE LOOP, NOT IN THE THREAD. The stall probe measures THIS event loop, and a
-            # task can only be created from it — `_render_v2.start` runs in `to_thread`, where
-            # `ensure_future` has no loop to attach to and would silently give back nothing
-            # (step 2.4b P2.9; C-02, where a blocked loop failed the ack and the renderer together
-            # and no instrument could see it).
-            from api.services.discord_render import loopwatch as _v2_loopwatch
-            _v2_loopwatch.start()
             print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
                   f"abandoned={_v2_boot['abandoned']} loopwatch={_v2_loopwatch.snapshot()['running']}")
     except Exception as _e:
