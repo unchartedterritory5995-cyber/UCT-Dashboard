@@ -57,6 +57,12 @@ def aggregate(shards: dict) -> dict:
     expected = sorted(shards)
     missing, cancelled, failed_jobs, ok_jobs, no_totals = [], [], [], [], []
     collected = failed = passed = timeouts = 0
+    # ⚰️ E CP12 — THE KEY WHOSE ABSENCE KILLED FOUR PUBLISHES. `ci_summarize` emits
+    # `runner_line`; this aggregator replaced it for pytest in E CP6 and did not, so
+    # `Build the record`'s `p["runner_line"]` raised KeyError in runs #6, #8 and #9 and
+    # the record never landed. Each shard already HAS its own totals line — these are
+    # collected verbatim, never re-derived, so the suite line is the shards' own words.
+    shard_lines: dict = {}
 
     for sid in expected:
         rec = shards[sid]
@@ -73,6 +79,8 @@ def aggregate(shards: dict) -> dict:
             failed_jobs.append(sid)
         if not s.get("totals_line_found"):
             no_totals.append(sid)
+        if s.get("runner_line"):
+            shard_lines[sid] = s["runner_line"]
         collected += int(s.get("collected") or 0)
         failed += int(s.get("failed") or 0)
         passed += int(s.get("passed") or 0)
@@ -91,6 +99,12 @@ def aggregate(shards: dict) -> dict:
         "passed": passed,
         "failed": failed,
         "per_test_timeouts": timeouts,
+        # ⛔ VERBATIM, never re-derived. `runner_line` is the shards' own totals lines
+        # joined; `shard_runner_lines` keeps them addressable per shard. A shard that
+        # printed none simply is not in the map — its absence is already reported by
+        # `shards_without_totals`, so nothing here restates it.
+        "shard_runner_lines": dict(shard_lines),
+        "runner_line": " · ".join(shard_lines[k] for k in sorted(shard_lines)),
     }
     if not expected:
         # ⛔ Zero shards is UNREADABLE, never a clean sweep.

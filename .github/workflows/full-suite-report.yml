@@ -362,6 +362,25 @@ jobs:
           cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
           ls -la "extract/$GITHUB_RUN_ID"
 
+      # ⚰️ E CP12 - THIS STEP WAS A 50-LINE PYTHON PROGRAM INSIDE A YAML HEREDOC,
+      # and it has failed in every run since E CP6 sharded the suite: `p["runner_line"]`
+      # raised KeyError because `ci_aggregate.py` never emitted the key `ci_summarize.py`
+      # did. Runs #6, #8 and #9 all died here, 19-61 s in, and `Publish onto the orphan
+      # ci-results branch` was SKIPPED each time, so no record has landed since run #4.
+      # ⭐ A program that lives in a YAML string cannot be run, so nothing ever ran it.
+      # It is now `tools/ci_record.py`, with `--self-check` mutation-proving that a
+      # missing producer key NAMES itself in `contract_gaps` instead of killing publish.
+      # ⛔ A VERIFICATION LINE MUST NEVER DESTROY THE THING IT VERIFIES — the same rule
+      # already written above `Fetch this run's job outcomes`. The builder's self-check
+      # is worth running on the runner (it is where the producer/consumer contract is
+      # actually exercised), but a red self-check must leave the record PUBLISHED and
+      # merely visibly red, never skip the publish step. `continue-on-error` rewrites
+      # `conclusion`; the truth stays in this step's `outcome`.
+      - name: Self-check the record builder — visible, never fatal
+        if: always()
+        continue-on-error: true
+        run: python tools/ci_record.py --self-check
+
       - name: Build the record
         if: always()
         env:
@@ -369,58 +388,7 @@ jobs:
           PYTEST_RESULT: ${{ needs.pytest.result }}
           SUITE_TIMEOUT_MINUTES: "45"
         run: |
-          python - <<'PY'
-          import json, os, pathlib, datetime, sys
-          sys.path.insert(0, "tools")
-          import ci_outcome
-          v = json.loads(pathlib.Path("v.json").read_text())
-          p = json.loads(pathlib.Path("p_suite.json").read_text())
-          try:
-              jobs = json.loads(pathlib.Path("jobs.json").read_text())
-          except Exception:
-              jobs = {}
-          # timeout-minutes is declared on both suite jobs; it is passed in rather than
-          # parsed out of this file, so a future change to one cannot silently desync.
-          CAP = int(os.environ.get("SUITE_TIMEOUT_MINUTES", "45"))
-          vo = ci_outcome.fields(jobs, "vitest", os.environ.get("VITEST_RESULT"), CAP)
-          po = ci_outcome.fields(jobs, "pytest", os.environ.get("PYTEST_RESULT"), 20)
-          print("timed_out derivation (vitest):", vo["timed_out_basis"])
-          print("timed_out derivation (pytest):", po["timed_out_basis"])
-          rec = {
-            "run_id": os.environ["GITHUB_RUN_ID"],
-            "run_number": os.environ.get("GITHUB_RUN_NUMBER"),
-            "sha": os.environ["GITHUB_SHA"],
-            "branch": os.environ.get("GITHUB_REF_NAME"),
-            "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "vitest": dict(v, ok=ci_outcome.suite_ok(v, vo)),
-            # ⛔ the aggregator already folded every shard's runner result into `ok`;
-            # re-deriving it from a single job_result here would overwrite N verdicts
-            # with one.
-            "pytest": p,
-            "runner_line": {"vitest": v["runner_line"], "pytest": p["runner_line"]},
-            # E CP5 -- outcome read from the runner. `oom_or_timeout` is DELETED: it was
-            # true for two suites that completed and false for a job cancelled at its cap.
-            "outcome": {"vitest": vo, "pytest": po},
-            # ⛔ GREEN means both suites actually RAN, the RUNNER agreed each job
-            # succeeded, and neither failed. A suite that collected nothing is never
-            # green; neither is one whose job was cancelled.
-            "verdict": ("GREEN" if (ci_outcome.suite_ok(v, vo)
-                                    and p.get("ok")) else "RED"),
-            # E CP4 -- where the TEXT lives for this run. Paths are relative to the
-            # ci-results branch root, so a reader needs no knowledge of this workflow.
-            "detail": {
-              "dir": "results/%s" % os.environ["GITHUB_RUN_ID"],
-              "pytest_collect_errors": "results/%s/pytest_collect_errors.txt" % os.environ["GITHUB_RUN_ID"],
-              "pytest_error_buckets": "results/%s/pytest_error_buckets.txt" % os.environ["GITHUB_RUN_ID"],
-              "vitest_failures": "results/%s/vitest_failures.txt" % os.environ["GITHUB_RUN_ID"],
-              "pytest_junit": "results/%s/pytest-junit.xml" % os.environ["GITHUB_RUN_ID"],
-              "vitest_junit": "results/%s/vitest-junit.xml" % os.environ["GITHUB_RUN_ID"],
-              "collect_profile": "results/%s/collect_profile.json" % os.environ["GITHUB_RUN_ID"],
-            },
-          }
-          pathlib.Path("record.json").write_text(json.dumps(rec, indent=2) + "\n")
-          print(json.dumps(rec, indent=2))
-          PY
+          python tools/ci_record.py --v v.json --p p_suite.json --jobs jobs.json --out record.json
 
       # ⛔ THE STEP SUMMARY IS WRITTEN BEFORE THE PUSH IS ATTEMPTED, unconditionally.
       # F-CI-7: runs #5 and #6 both had this job fail, so no record exists for either and
@@ -451,6 +419,14 @@ jobs:
                   print("- **%s**: %s" % (k, p[k]))
           if p.get("ok_basis"):
               print("- basis: `%s`" % p["ok_basis"])
+          # E CP12 - a producer that stopped emitting something the record builder reads
+          # no longer kills publish, so it has to be LOUD somewhere a phone can see it.
+          gaps = rec.get("contract_gaps") or []
+          if gaps:
+              print()
+              print("### CONTRACT GAPS - the record was built with fields missing")
+              for g in gaps:
+                  print("- `%s`" % g)
           PY
           cat step_summary.md
           cat step_summary.md >> "$GITHUB_STEP_SUMMARY"
