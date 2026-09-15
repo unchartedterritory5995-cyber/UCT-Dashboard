@@ -65,8 +65,8 @@ on **2026-09-14**. Regenerate after any change to that array.
 generator is what keeps saying so.
 
 ⚠️ **`/post-market` is NOT in this list and used to be.** It is still a real route;
-it is simply not a sidebar entry. Nine reachable member-facing routes have no nav entry
-— **F-NAV-1**, recorded in
+it is simply not a sidebar entry. **7** reachable member-facing routes have no
+nav entry — **F-NAV-1**, recorded in
 `docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md`, deliberately NOT
 in this section: *what the sidebar shows* and *what the router serves* are two facts, and
 the whole reason this section kept going stale is that it tried to hold both.

@@ -76,19 +76,35 @@ export function navItems(src) {
   return { line, items: out }
 }
 
-/** Every `<Route path="…">` the app registers. */
+/** The component name a Route's `element={<X .../>}` renders, or null. */
+function elementName(attr) {
+  const ex = attr?.value?.type === 'JSXExpressionContainer' ? attr.value.expression : null
+  if (!ex || ex.type !== 'JSXElement') return null
+  const n = ex.openingElement?.name
+  return n?.name ?? (n?.property?.name ?? null)
+}
+
+/** Every `<Route path="…">` the app registers, WITH what it renders.
+ *
+ * ⛔ Reading only `path` is what made `/live-flow` look like an orphan page. It renders
+ * `<Navigate to="/live-massive" replace />` — a redirect INTO a nav entry. A route's
+ * element is part of the fact "is this a page a member can land on and get stuck".
+ */
 export function routes(src) {
   const tree = parse(src)
   const out = []
   walk(tree, (n) => {
     if (n.type !== 'JSXOpeningElement') return
     if ((n.name?.name ?? '') !== 'Route') return
+    let path = null
+    let renders = null
     for (const a of n.attributes) {
-      if (a.type !== 'JSXAttribute' || a.name?.name !== 'path') continue
-      if (a.value?.type === 'Literal' && typeof a.value.value === 'string') {
-        out.push({ path: a.value.value, line: n.loc.start.line })
-      }
+      if (a.type !== 'JSXAttribute') continue
+      if (a.name?.name === 'path' && a.value?.type === 'Literal'
+          && typeof a.value.value === 'string') path = a.value.value
+      if (a.name?.name === 'element') renders = elementName(a)
     }
+    if (path !== null) out.push({ path, line: n.loc.start.line, renders })
   })
   return out
 }
@@ -145,6 +161,19 @@ const HELP = "write { to: '/fake', label: 'Fake' } in the array"
   // routes
   const rsrc = `const A = () => <Routes><Route path="/x" element={<X/>} /><Route path="/y/:id" element={<Y/>} /></Routes>`
   show('routes: both registered paths are seen', routes(rsrc).map((r) => r.path).join(','), '/x,/y/:id')
+
+  // ⛔ the element is read, and a redirect is distinguishable from a page
+  const relem = `const A = () => <Routes>
+    <Route path="/page" element={<RealPage/>} />
+    <Route path="/old" element={<Navigate to="/page" replace />} />
+  </Routes>`
+  const parsed = routes(relem)
+  show('CLEAN: a real page reports its component',
+    parsed.find((r) => r.path === '/page').renders, 'RealPage')
+  show('DIRTY: a redirect reports <Navigate>, not a page',
+    parsed.find((r) => r.path === '/old').renders, 'Navigate')
+  show('CONTROL: a route with no element reports null',
+    routes('const A = () => <Route path="/bare" />')[0].renders, null)
   show('covers(): a param route covers its base', covers('/y/:id', '/y'), true)
   show('covers(): an unrelated route does not', covers('/x', '/y'), false)
 
@@ -184,7 +213,12 @@ const excludedBy = (p) => (EXCLUDED.find(([rx]) => rx.test(p)) || [])[1] || null
 const routeWithoutNavRaw = reg.filter(
   (r) => r.path.startsWith('/') && !['*', '/'].includes(r.path)
     && !nav.items.some((i) => covers(r.path, i.to)) && !under(r.path))
-const routeWithoutNav = routeWithoutNavRaw.filter((r) => !excludedBy(r.path))
+// ⛔ DERIVED FROM THE ELEMENT, not from a typed path list: a route that renders
+// <Navigate> or a *Redirect component sends the member somewhere, so it is not a page
+// with no way in. This is what /live-flow and /educational-videos are.
+const isRedirect = (r) => r.renders === 'Navigate' || /Redirect$/.test(r.renders || '')
+const routeWithoutNav = routeWithoutNavRaw.filter(
+  (r) => !excludedBy(r.path) && !isRedirect(r))
 
 if (argv.includes('--json')) {
   console.log(JSON.stringify({ nav, routes: reg, navWithoutRoute, routeWithoutNav }, null, 2))
@@ -201,6 +235,12 @@ if (argv.includes('--json')) {
     if (c) byClass[c] = (byClass[c] || 0) + 1
   }
   for (const [c, n] of Object.entries(byClass)) console.log(`   excluded ${String(n).padStart(2)}  ${c}`)
+  const redirects = routeWithoutNavRaw.filter((r) => !excludedBy(r.path) && isRedirect(r))
+  for (const r of redirects) {
+    console.log(`   excluded  1  redirect -> ${r.path} renders <${r.renders}>`)
+  }
   console.log('   ---')
-  for (const r of routeWithoutNav) console.log(`   UNLISTED ${r.path}   (App.jsx:${r.line})`)
+  for (const r of routeWithoutNav) {
+    console.log(`   UNLISTED ${r.path}   renders <${r.renders}>   (App.jsx:${r.line})`)
+  }
 }
