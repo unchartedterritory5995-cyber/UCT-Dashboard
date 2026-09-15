@@ -2,7 +2,29 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **the owner's ruling on item (d).** The census is done.
+> ### ⛔ NEXT: **d1's implementation — the BLOCK WALK.** Red committed, unbuilt.
+>
+> ⛔⛔ **d1's premise was corrected by measurement before any code moved.** R22
+> priced it as *"`alert()` is dropped whole"*. Measured: **`alert()` at top level is
+> already noted `pine:chart-only`** — `alert` has been in `CHART_ONLY_CALLS`
+> (`pine.js` ≈1785) all along. **The real gap is that a chart-only call inside a
+> BLOCK is noted nowhere, for the whole set** (`alert`, `bgcolor`, `barcolor`,
+> `fill`, `hline`, `plotshape`, `plotchar`). `pine:runtime-only` is **withdrawn** —
+> no new note code is needed.
+>
+> ⛔ **Not started, per the 2× corollary:** the fix reaches the **block walk**, the
+> same machinery whose two-readers-disagreeing defect is recorded at
+> `destructureBindings`. Bigger than priced, and it did not fit the clock.
+> **`9cae578ee` red → `a992d7bd2` corrected**; the acceptance asserts the measured
+> truth and pins the working top-level case.
+>
+> ⛔ **d2 and item (e) are NOT started.** d2's scope also moved: the census read a
+> **named argument** (`message="…"`) as an expression, so messages are **338
+> literal + 149 placeholder = 487 of 555 carryable**, and only **2** genuine
+> expressions — d2 is larger and d1's message-note far smaller than ruled.
+>
+> ✅ **R21/R22 recorded** (`06cf3ec2e`); R20's sentences corrected to two measured
+> facts at all three sites, with the rail strengthened to assert both.
 >
 > ⛔⛔ **(d)'s headline is that the engine does TWO THINGS SILENTLY** — and silence is
 > the one thing its own standing rule forbids. An `alertcondition`'s **message is

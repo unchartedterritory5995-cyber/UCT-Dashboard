@@ -1625,6 +1625,40 @@ before any feature is considered.
 today, and **a threshold never removes what works**. `alert()` is a runtime action
 neither surface reads, so a script with plots and an `alert()` must keep its plots.
 
+### ⏸️ d1 — PREMISE CORRECTED BY MEASUREMENT; **RED committed, NOT built**
+
+**Red `9cae578ee` → corrected `a992d7bd2`.** ⛔ **R22's d1 premise is half wrong, and
+it is the half that sets the scope.**
+
+| | measured |
+|---|---|
+| `alert()` at **top level** | ✅ **already noted** `pine:chart-only@2` |
+| `alert()` inside an `if` | ⛔ **no note** — the real gap |
+| `bgcolor` inside an `if` | ⛔ **no note** — the same gap |
+| `bgcolor` / `fill` at top level | ✅ already noted |
+
+⭐ **`alert` IS ALREADY IN `CHART_ONLY_CALLS`** (`pine.js` ≈1785), beside `plotshape`,
+`plotchar`, `bgcolor`, `barcolor`, `fill`, `hline`. Two consequences:
+
+1. **No new note code.** `pine:runtime-only` is **withdrawn** — `pine:chart-only`
+   exists and is correct. (The note-code measurement stands: `noteOf` takes a
+   free-form string, no table, and `pine:chart-only` has **zero** `REFUSALS` entries.)
+2. **The defect is not about `alert()`.** It is that **a chart-only call inside a
+   BLOCK is noted nowhere, for the whole set.**
+
+⚠️ **The 191 figure is not wrong — the inference from it was.** The census counted call
+sites without asking where they sit.
+
+⛔ **NOT BUILT, and deliberately.** Noting a chart-only call inside a block reaches the
+**block walk** — the same machinery whose two readers disagreeing is recorded at
+`destructureBindings` (`foldStatements` never learned destructures; every outer `var` in
+the branch went opaque). That is bigger than the ruling priced and does not fit the
+remaining clock, so per the 2× corollary it was **not started**. The acceptance asserts
+the measured truth and pins the working top-level case so a later fix can neither
+double-count it nor break it.
+
+**⛔ d2 and item (e) are NOT started.**
+
 ⛔ **H.7 — OWNER QUESTION, OPEN: what does a *set* mean?** **D1 says a pane does not
 select an alert**, so a set has no pane meaning; what one means is a **screener-surface**
 question, and ⛔ **the screener lanes are not this branch's**. The evidence sits with the
