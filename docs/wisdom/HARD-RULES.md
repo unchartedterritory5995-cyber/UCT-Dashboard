@@ -165,12 +165,26 @@ command line, a history file or a log):
 python -m keyring set uct-wisdom anthropic
 ```
 
-⚠️ **`keyring>=24.0` is DECLARED in `requirements.txt` and deliberately NOT installed here.** The
-store is an operator convenience, not a dependency of the gate: `key_from_keyring()` catches every
-exception — a missing module, no backend, a locked store — and returns `None`, so with nothing
-installed the gate behaves **exactly as it did before R34 existed**, raising the same
-`ExtractUnavailable`. That equivalence is the point, and it is railed
+⛔⛔ **`keyring` IS NOT IN `requirements.txt`, AND MUST NOT BE PUT THERE.** It was, for about four
+hours on 2026-09-15, and the programme's own off-limits rail refused it — correctly, for two
+separate reasons:
+
+1. **`requirements.txt` is a flow-worker watched file (W1 §0.4i).** Merging a change to it
+   redeploys flow-worker, which drops the Massive OPRA socket, and **Massive does not replay** —
+   the tape gap is permanent until the T+1 flat file. That is a real cost paid by the options
+   product for a convenience belonging to one operator's laptop.
+2. **Declaring it would INSTALL it in production.** "Declared but not installed" was true of this
+   box and false of Railway: every service would carry a credential-store library it never calls,
+   to serve a fallback that only ever runs on the operator's machine.
+
+⭐ Nothing is lost by leaving it out, because the fallback is built to be absent: `key_from_keyring()`
+catches every exception — a missing module, no backend, a locked store — and returns `None`, so
+with nothing installed the gate behaves **exactly as it did before R34 existed**, raising the same
+`ExtractUnavailable`. That equivalence is the point, and it is railed both ways
 (`test_an_absent_keyring_module_falls_through`, `test_a_keyring_error_falls_through_instead_of_crashing`).
+
+**The operator installs it on their own machine if they want it** — `pip install keyring` beside
+the `keyring set` command above. It is a tool on a workstation, not a dependency of the product.
 
 ⛔ §11.3 is unchanged and now covers a third surface: the failure message names all three sources —
 both variable names, plus the keyring service and user — and **no value from any of them**. The

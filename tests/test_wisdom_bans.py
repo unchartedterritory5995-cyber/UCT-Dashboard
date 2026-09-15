@@ -581,16 +581,35 @@ def test_the_marker_and_the_prose_rules_are_exact(jgrep):
     assert jgrep.sense_of("PRAGMA journal_mode=WAL; SELECT * FROM j2_trades") == "journal"
 
 
+def _inconclusive_verdict_lines(stdout: str) -> list:
+    """The rail's OWN verdict, told apart from a source line it merely echoed.
+
+    ⚰️ The grep prints each hit as `<class> <sense> <kind> <path>:<line> [token] <the source>`, so
+    any file in the tree that happens to contain the word INCONCLUSIVE — a three-exit-code tool
+    printing its own verdict, for instance — lands that word in this output verbatim. A bare
+    substring search then reports "the rail could not measure" because of a string in the material
+    it measured: the instrument reporting a property of ITSELF
+    (CLAUDE.md, "CODE, NEVER PROSE", which lists six earlier instances of exactly this).
+
+    The verdict is emitted by `print(f"INCONCLUSIVE: {inconclusive}")` and is therefore the only
+    thing that can START a line with it.
+    """
+    return [line for line in stdout.splitlines() if line.startswith("INCONCLUSIVE")]
+
+
 def test_the_grep_below_its_floor_is_inconclusive(tmp_path):
     root = _tree(tmp_path, GREP_TREE)
     proc = _grep_cli(root)
     assert proc.returncode == 2 and "INCONCLUSIVE" in proc.stdout, proc.stdout + proc.stderr
+    # ⭐ THE CONTROL for the line-anchored reading below: a real verdict must still be seen by it,
+    # or the anchoring silently turns the check opposite this one into a no-op.
+    assert _inconclusive_verdict_lines(proc.stdout), proc.stdout
 
 
 def test_the_grep_on_this_checkout_measures_and_finds_no_live_journal_reference_in_code():
     proc = _grep_cli(REPO, "--strict")
     assert proc.returncode == 0, proc.stdout[-4000:] + proc.stderr
-    assert "INCONCLUSIVE" not in proc.stdout
+    assert not _inconclusive_verdict_lines(proc.stdout), proc.stdout[-2000:]
     assert "(code: 0," in proc.stdout
 
 
