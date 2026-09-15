@@ -1,0 +1,18 @@
+captured evidence_contract.py sha256=6a28e21884433c27 bytes=21332
+captured flip_preconditions.py sha256=e766c6d5ec2d3ce5 bytes=68704
+  CONTROL BEFORE: exit=0  TOTALS flip_preconditions --self-check PASS cases=11 mutation_failures=0 failed=0
+  M1 a VOID artifact is judged like any other: RED (good) — 1 named case(s) failed of 1
+  M2 the renderer stops mattering to S2 latency: RED (good) — 1 named case(s) failed of 8
+  M3 an UNLABELLED load model is accepted for delivery: RED (good) — 1 named case(s) failed of 1
+  M4 a chaos RIG run counts as a real one: RED (good) — 1 named case(s) failed of 1
+  M5 an INDEX no longer has to declare itself a 3.5 smoke: RED (good) — 1 named case(s) failed of 1
+  M6 NON-VACUITY: nothing is ever admitted, so no row can ever be MET: RED (good) — 3 named case(s) failed of 15
+  M7 an UNREACHED refusal is counted as reached: RED (good) — 1 named case(s) failed of 1
+  M8 the failure floor is applied to REFUSED instead of FAILED — an honest refusal becomes a breach and a real failure becomes invisible: RED (good) — 1 named case(s) failed of 1
+  M9 an INFORMATIONAL run is judged after all: RED (good) — 1 named case(s) failed of 1
+  M10 the sum check is removed — a receipt that loses requests reads as a quieter system than the real one: RED (good) — 1 named case(s) failed of 1
+  M11 the 3x tier ceiling is read as 10 % instead of 1 %: RED (good) — 1 named case(s) failed of 1
+  CONTROL AFTER: exit=0  TOTALS flip_preconditions --self-check PASS cases=11 mutation_failures=0 failed=0
+  restore verified evidence_contract.py sha256=6a28e21884433c27
+  restore verified flip_preconditions.py sha256=e766c6d5ec2d3ce5
+TOTALS mutation_harness_contract PASS declared=11 evaluated=11 failed=0

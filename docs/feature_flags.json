@@ -1193,6 +1193,14 @@
       ],
       "owner": "breadth-charts programme",
       "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition."
+    },
+    "BREADTH_OHLC_PAGECACHE_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "breadth-history-reader programme",
+      "note": "H1 page-cache fix for the breadth deep reader (D-049). ON sets PRAGMA mmap_size=67108864 (64 MB, against a 39.9 MB file) and PRAGMA cache_size=-16000 (16 MB, against the shipped 2 MB) on every connection this module opens; OFF leaves the connection byte-identical to how it has always been opened, proved by reading both pragmas back off a real connection rather than asserting the call was skipped. ARMED ON web since 2026-09-15 on a measured A/B, not on plausibility: two production windows, identical work in both arms (rf_rows 4,529 / rf_bytes 4,523,328 on every sample), deep-cold max 11,382.4 -> 1,257.7 ms (x9.05), p90 3,052.0 -> 842.0 ms (x3.62), and the load-bearing discriminator min read-syscalls 1,669 -> 182 (x9.17) — mmap serves pages by page fault rather than read(), which is the mechanism claimed. Record: docs/breadth-history-reader/session9-report.md D.4/D.5 and docs/breadth/DECISIONS.md D-049. Rollback is the variable alone: unset it and the next boot opens connections exactly as before, no code change. WARNING - the flag was called BREADTH_OHLC_PAGECACHE until 2026-09-15 and was invisible to this ledger: is_gate() matches only names carrying a gate marker or ending _ON, so a row for the old name would have been classed as rot and would have reddened the master deploy gate. The rename is what makes this row possible AND required. Known not settled: which of mmap_size/cache_size carries the win (they ship as one flag), and the memory cost (no OFF-arm RSS baseline was captured)."
     }
   },
   "build_flags": {

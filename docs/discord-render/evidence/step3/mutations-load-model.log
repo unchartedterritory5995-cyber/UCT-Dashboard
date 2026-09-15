@@ -1,0 +1,17 @@
+captured load_harness.py sha256=c91b87339a01b5f3 bytes=109375
+  CONTROL BEFORE: exit=0  TOTALS load_harness --self-check PASS declared=73 evaluated=73 failed=0
+  M1 the in-flight PEAK is blinded: RED (good) — 1 named case(s) failed of 1
+  M2 the broken-variant control is neutered: RED (good) — 1 named case(s) failed of 1
+  M3 the unlabelled-artifact reader accepts anything: RED (good) — 1 named case(s) failed of 1
+  M4 the 'exactly one load model' guard is deleted: RED (good) — 1 named case(s) failed of 2
+  M5 the removed --rate flag is silently accepted again: RED (good) — 1 named case(s) failed of 1
+  M6 the spin ceiling never fires — the 521,654-attempt run publishes its S1 again: RED (good) — 1 named case(s) failed of 2
+  M7 the spin ceiling is tightened until it catches the REAL runs too: RED (good) — 2 named case(s) failed of 2
+  M8 the two gauges describe themselves identically: RED (good) — 1 named case(s) failed of 2
+  M9 a depth figure stops being labelled a FLOOR: RED (good) — 1 named case(s) failed of 1
+  M10 the split's arithmetic check always says it closes: RED (good) — 1 named case(s) failed of 1
+  M11 a delivered-but-late member counts as served_in_slo: RED (good) — 1 named case(s) failed of 2
+  M12 an outcome=busy row is keyed as a refusal again (OI-40 regression): RED (good) — 1 named case(s) failed of 2
+  CONTROL AFTER: exit=0  TOTALS load_harness --self-check PASS declared=73 evaluated=73 failed=0
+  restore verified sha256=c91b87339a01b5f3
+TOTALS mutation_harness_load_model PASS declared=12 evaluated=12 failed=0

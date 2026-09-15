@@ -255,6 +255,20 @@ class JobRuntime:
     def record_ack(self, corr_id: str, ack_ms: float) -> None:
         self._writer.put(("update", corr_id, {"ack_ms": round(ack_ms, 1)}))
 
+    def record_refusal_reach(self, corr_id: str, reach_ms: float) -> None:
+        """How long the member waited to be TOLD they were refused (D-04 4.2).
+
+        ⛔⛔ A SEPARATE COLUMN FROM `ack_ms`, AND THAT IS THE WHOLE DESIGN. S1's population is
+        `ack_ms is not None` (`observe.py:121,129`); writing a refusal's timing there would silently
+        enrol every refusal into the ack percentiles S1 is judged on — changing S1's meaning to fix
+        S5c's blindness. Two questions, two columns, neither able to move the other.
+
+        ⚠️ ONLY THE `queue_full` PATH CAN BE RECORDED. A `user_busy` refusal and a per-member rate
+        limit never create a job row at all (`commands.py:206`, `_rate_limited`), so production still
+        cannot self-observe those — the wire remains the only source for them. Stated rather than
+        left for a reader to discover from a column that is mysteriously sparse."""
+        self._writer.put(("update", corr_id, {"refusal_reach_ms": round(reach_ms, 1)}))
+
     def record_refused(self, job: Job, cls: str) -> None:
         """A job refused at the ack (queue full) still gets a TERMINAL row: it is a failure
         the SLO must count, and its Retry button needs the stored args to re-run. Written

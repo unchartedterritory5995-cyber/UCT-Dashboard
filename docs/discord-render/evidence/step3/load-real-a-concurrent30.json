@@ -16,7 +16,10 @@
       "active": 0,
       "workers": 6,
       "bg_running": 0
-    }
+    },
+    "void": true,
+    "void_reason": "Filed and quoted as '30 concurrent'. It is an OPEN LOOP at 30 arrivals/second (meta.rate=30.0, no meta.model) -- about 15x the specified closed-loop load and 50x the derived design burst of 0.6/s. Its S2 (p50 14854.7ms) and S5 (35.71%) numbers describe deliberate overload, not the spec'd load, and were read as the spec'd load for a whole programme. RETAINED as the only overload characterisation at arrival-rate 30/s; never eligible for an SLO row.",
+    "superseded_by": "docs/discord-render/evidence/step3/load-closedloop-30.json (closed_loop, concurrency=30, 20s)"
   },
   "stats": {
     "n": 601,

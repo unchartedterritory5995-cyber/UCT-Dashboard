@@ -79,6 +79,84 @@ SHARED_ROOTS = ("/data", "c:\\data", "c:/data")
 #: Discord's per-channel message rate, conservatively. Overridable; reported either way.
 DELIVER_RATE_DEFAULT = 1.0
 
+# ── C2 · THE DEPTH GAUGE'S CADENCE, NAMED ONCE PER MODEL ────────────────────
+#
+# ⛔⛔ THE TWO DRIVERS SAMPLE QUEUE DEPTH ON DIFFERENT TRIGGERS, AND THAT IS WHY A DEPTH
+# NUMBER NEEDS ITS DENOMINATOR PRINTED BESIDE IT. The closed loop samples on a CLOCK; the open
+# loop samples every Nth ARRIVAL. Both are defensible and neither is obvious from the artifact.
+#
+# ⚰️ 2026-09-14: I read an OPEN-loop artifact against the CLOSED loop's 0.5 s cadence, computed
+# "3.5 % coverage", and published a finding about a starved event loop that did not exist. The
+# open-loop gauge had returned exactly what it is written to return. ⭐ An instrument reporting
+# a property of ITSELF as a property of what it measured — inside the pass about exactly that.
+# The artifact now states which cadence produced it, so the comparison cannot be made by hand.
+GAUGE_CLOSED_INTERVAL_S = 0.5      # closed loop: one sample every half second
+GAUGE_OPEN_EVERY_N = 10            # open loop: one sample every tenth arrival
+
+
+def gauge_meta(model: str, *, samples: int, elapsed_s: float, offers: int) -> dict:
+    """What the depth gauge could and could not have seen. ⛔ `sparse` is NOT `starved`."""
+    if model == CLOSED_LOOP:
+        trigger = f"every {GAUGE_CLOSED_INTERVAL_S}s"
+        expected = int(elapsed_s / GAUGE_CLOSED_INTERVAL_S) if elapsed_s > 0 else 0
+        window_s = GAUGE_CLOSED_INTERVAL_S
+    else:
+        trigger = f"every {GAUGE_OPEN_EVERY_N}th arrival"
+        expected = (offers // GAUGE_OPEN_EVERY_N) + 1 if offers else 0
+        # ⛔ THE HONEST NUMBER FOR AN ARRIVAL-DRIVEN GAUGE IS THE TIME BETWEEN SAMPLES, not a
+        # "coverage" percentage: at 0.6 arrivals/second, ten arrivals span ~17 SECONDS, and a
+        # queue that fills and drains inside that window is invisible however healthy the loop.
+        window_s = (elapsed_s / samples) if samples else None
+    return {
+        "trigger": trigger, "expected": expected, "actual": samples,
+        "coverage": round(samples / expected, 3) if expected else None,
+        "seconds_between_samples": round(window_s, 2) if window_s else None,
+        # A depth figure read off this gauge is a FLOOR. Stated in the artifact so a reader does
+        # not have to know which driver wrote it.
+        "depth_is_a_floor": True,
+    }
+
+
+# ── C3 · A LOAD MODEL THAT DOES NOT MODEL THE LOAD ──────────────────────────
+#
+# ⚰️ The first closed loop resolved refusals with NO delay, so thirty clients against the
+# per-member limit produced 521,654 attempts in 20 seconds and six acks over 3 s — a completely
+# plausible S1 FAIL manufactured entirely by the harness. A member told "slow down" does not
+# retry twenty-six thousand times a second.
+#
+# ⛔ A SPIN IS INCONCLUSIVE, NEVER A FAIL. "We measured a breach" and "the instrument measured
+# itself" are different facts, and collapsing them is the exit-code defect this file exists to
+# prevent. The ceiling is generous on purpose: it is here to catch three orders of magnitude,
+# not to police a busy loop.
+SPIN_TOLERANCE = 3.0
+
+
+def spin_check(model: str, *, offers: int, elapsed_s: float, concurrency=None,
+               think_s: float = 0.0, arrival_rate=None) -> tuple:
+    """(ok, reason). Did this run offer far more load than its own model can account for?"""
+    if elapsed_s <= 0 or offers <= 0:
+        return True, ""                      # nothing offered is `verdict`'s business, not this
+    observed = offers / elapsed_s
+    if model == CLOSED_LOOP:
+        if not concurrency:
+            return True, ""
+        # With think time t, N clients cannot exceed N/t offers per second however fast the
+        # service is. With t == 0 the model is unbounded BY DESIGN and there is nothing to check
+        # — which is itself worth saying out loud rather than silently passing.
+        if think_s <= 0:
+            return True, ("think_time=0 models a bot, not a member: the offered rate is bounded "
+                          "by service time alone and no spin ceiling applies")
+        ceiling = SPIN_TOLERANCE * concurrency / think_s
+    else:
+        if not arrival_rate:
+            return True, ""
+        ceiling = SPIN_TOLERANCE * arrival_rate
+    if observed > ceiling:
+        return False, (f"the harness offered {observed:,.1f} requests/second against a model "
+                       f"that allows at most {ceiling:,.1f} — this run measured the HARNESS, "
+                       f"not the system ({offers:,} offers in {elapsed_s:.1f}s)")
+    return True, ""
+
 
 def _repo_root() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[3]
@@ -331,6 +409,46 @@ def _closed_loop_inflight_probe(*, n: int, seconds: float, service_s: float,
             "requested": n, "samples": len(samples)}
 
 
+#: The renderer a run actually used. ⛔ NOT a guess from configuration: `house_enabled()` is the
+#: same predicate the product uses to choose, so this label is what really drew the PNG.
+RENDERER_PRODUCTION, RENDERER_FALLBACK, RENDERER_UNKNOWN = "chart-renderer", "fallback", "unknown"
+
+
+def _renderer_identity() -> str:
+    try:
+        from api.services import discord_chart_house as _house
+        return RENDERER_PRODUCTION if _house.house_enabled() else RENDERER_FALLBACK
+    except Exception:  # noqa: BLE001
+        # ⛔ UNKNOWN is not FALLBACK. A reader must be able to tell "we measured the fallback" from
+        # "we could not tell what we measured"; collapsing them would let an unlabelled run pass as
+        # a known-inferior one, which is the more flattering of the two.
+        return RENDERER_UNKNOWN
+
+
+def mark_void(path, *, reason: str, superseded_by: str) -> dict:
+    """Mark a run artifact VOID in its own file — bytes written, sha256 reported.
+
+    ⛔⛔ VOID IS RETENTION, NOT DELETION. The 30-arrivals-per-second run is still the only overload
+    characterisation this programme has; deleting or moving it would destroy evidence to make a gate
+    tidy. It is instead labelled so every gate row SKIPS it and SAYS how many it skipped.
+
+    ⛔ Edited by tooling, never by hand: a JSON file a human edited is a file nobody can prove the
+    provenance of, and this one exists precisely to be excluded from judgement."""
+    import hashlib
+    p = pathlib.Path(path)
+    before = p.read_bytes()
+    d = json.loads(before.decode("utf-8"))
+    meta = d.setdefault("meta", {})
+    meta["void"] = True
+    meta["void_reason"] = reason
+    meta["superseded_by"] = superseded_by
+    out = (json.dumps(d, indent=2) + "\n").encode("utf-8")
+    p.write_bytes(out)
+    return {"path": str(p), "sha256_before": hashlib.sha256(before).hexdigest(),
+            "sha256_after": hashlib.sha256(out).hexdigest(),
+            "void_reason": reason, "superseded_by": superseded_by}
+
+
 def read_labelled_artifact(path) -> dict:
     """Load a run artifact, REFUSING one that does not say which load model produced it.
 
@@ -383,6 +501,301 @@ async def _await_terminal(store, corr_id: str, deadline: float) -> str:
     return "deadline"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# B1 — THE THREE-WAY SPLIT. An honest refusal is not a failure, and it is not a success either.
+#
+# ⛔⛔ S5's FLOOR AND MEANING ARE NOT TOUCHED HERE. `success_rate` is still `delivered / counted`
+# exactly as `observe._summary` computes it, and 99.5 % is still the floor. This is an ADDITIONAL
+# receipt printed beside it, because the owner's question — "at fourteen times the design burst, is
+# refusing 3.6 % a breach or the system working?" — cannot be answered by one number that folds a
+# refusal and a timeout into the same bucket.
+#
+# ⛔ THE DENOMINATOR IS OFFERS, NOT JOB ROWS, AND THAT IS THE FINDING. In the 30-concurrent run the
+# store held 360 job rows and the harness made 406 offers: **46 requests were refused before a job
+# row ever existed** (the per-member throttle answers at the door). Those 46 are invisible to
+# `success_rate` in BOTH directions — they are neither delivered nor counted — so a system that
+# refused every single member at the door would report a success rate of 100 % over zero jobs.
+# ⭐ That is why the split is computed over offers and why the arithmetic has to close.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: Failure classes that mean "we said no at the door, before doing any work". ⛔ Derived against
+#: `contract.FAILURE_CLASSES` at call time so a class renamed upstream is a LOUD failure here rather
+#: than a silent reclassification into `failed`.
+ADMISSION_REFUSAL_CLASSES = frozenset({"queue_full"})
+
+
+def admission_split(rt, *, offers: int, refused_before_job_observed: int | None = None,
+                    offer_status: dict | None = None,
+                    slo_p99_ms: float = 8000.0, window_s: float = 3600.0) -> dict:
+    """served_in_slo | served_late | refused_by_admission | failed | unresolved, over OFFERS.
+
+    ⛔ A RECEIPT WHOSE ARITHMETIC DOES NOT CLOSE IS REFUSED, not published with a note. The five
+    buckets must sum to `offers`; if they do not, the split says so and carries `closes: false`,
+    because a breakdown that loses requests reads as a quieter system than the real one
+    (`CoverageLine`, and the reason it has four counts instead of two)."""
+    # ⛔ IMPORTED, NEVER RETYPED — the same rule `_await_terminal` follows. A terminal state added
+    # upstream must reach this split the day it lands, or a whole class of resolved job silently
+    # becomes `unresolved` and the receipt stops closing for a reason nobody can find.
+    from api.services.discord_render.jobs_store import TERMINAL_STATES
+    from api.services.discord_render import contract
+    unknown = sorted(ADMISSION_REFUSAL_CLASSES - set(contract.FAILURE_CLASSES))
+    rows = []
+    try:
+        rows = rt.store.recent(window_s, limit=50_000) or []
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}", "closes": False, "offers": offers}
+
+    served_in_slo = served_late = refused_rows = failed = 0
+    failed_classes: dict = {}
+    for r in rows:
+        state = str(r.get("state") or "")
+        if state == "delivered":
+            f = r.get("final_ms")
+            if isinstance(f, (int, float)) and f <= slo_p99_ms:
+                served_in_slo += 1
+            else:
+                # ⛔ A DELIVERED-BUT-LATE MEMBER IS NOT "SERVED IN SLO", and an UNMEASURED final is
+                # not served in SLO either: a delivery nobody timed cannot be claimed as fast.
+                served_late += 1
+        elif state in TERMINAL_STATES:
+            cls = str(r.get("failure_class") or "unclassified")
+            outcome = str(r.get("outcome") or "")
+            # ⛔⛔ THE CLASS IS NOT ENOUGH — `queue_full` HAS THREE PRODUCERS AND ONLY ONE OF THEM IS
+            # AN ADMISSION REFUSAL. Measured 2026-09-14 across three identical probe runs, 53 rows
+            # against 52 refusals every time; the odd row reads
+            # `state=abandoned outcome=busy failure_class=queue_full` — a job that was ADMITTED,
+            # ran, and failed downstream with a busy signal. The other two producers are
+            # `record_refused` (`outcome=refused_at_ack`, the real one) and `resume_pending`
+            # (`outcome=restart_recovery`, a pod restart wearing "we're at capacity right now").
+            # ⭐ Counting by class alone put a job that was SERVED-then-failed into the refusal
+            # bucket, which is the direction that flatters: it turns a failure into an honest
+            # refusal. The outcome is what `record_refused` actually writes, so the outcome decides.
+            if cls in ADMISSION_REFUSAL_CLASSES and outcome == REFUSAL_EXPECTED_OUTCOME:
+                refused_rows += 1
+            else:
+                failed += 1
+                key = cls if outcome in ("", REFUSAL_EXPECTED_OUTCOME) else f"{cls}/{outcome}"
+                failed_classes[key] = failed_classes.get(key, 0) + 1
+    # ⛔ DERIVED FROM THE STORE, NOT FROM A COUNTER THIS HARNESS KEPT. An offer that never became a
+    # job row was refused at the door — the per-member throttle answers before any work starts — and
+    # the sandbox store holds only this run's rows, so the subtraction is exact.
+    job_rows = len(rows)
+    refused_before_job = max(0, offers - job_rows)
+    refused = refused_rows + refused_before_job
+    accounted = served_in_slo + served_late + refused + failed
+    unresolved = offers - accounted
+    out = {
+        "offers": offers, "job_rows": job_rows,
+        "served_in_slo": served_in_slo, "served_late": served_late,
+        "refused_by_admission": refused,
+        "refused_before_job_row": refused_before_job, "refused_with_job_row": refused_rows,
+        "failed": failed, "failed_by_class": failed_classes,
+        "unresolved": unresolved,
+        "closes": unresolved == 0 and offers > 0,
+        "slo_p99_ms": slo_p99_ms,
+        "admission_classes": sorted(ADMISSION_REFUSAL_CLASSES),
+    }
+    # ⭐ THE CROSS-CHECK, because two ways of counting the same thing is the only way to know either
+    # is right. The closed loop OBSERVES a refusal directly (`handle` returned without registering a
+    # corr_id); this function DERIVES it from the store. They must agree, and a disagreement is
+    # published rather than resolved in favour of whichever is more flattering.
+    if refused_before_job_observed is not None:
+        out["refused_before_job_row_observed"] = refused_before_job_observed
+        gap = refused_before_job - refused_before_job_observed
+        # ⭐ THE GAP HAS A NAME NOW, AND THE CROSS-CHECK FINDING IT IS WHY. `refused_at_admission`
+        # counts offers where `rt.offer` was never REACHED (the per-member rate limit refuses
+        # earlier); `user_busy` is returned from INSIDE offer, so a corr_id is already registered
+        # while no job row is ever created. Three mechanisms, and the two counters straddle them.
+        # ⛔ An EXPLAINED gap closes the receipt; an unexplained one still does not.
+        user_busy = int((offer_status or {}).get("user_busy") or 0)
+        out["refusal_mechanisms"] = {
+            "rate_limited_before_offer": refused_before_job_observed,
+            "user_busy_inside_offer": user_busy,
+            "queue_full_with_row": refused_rows,
+            **{f"offer_returned_{k}": v for k, v in (offer_status or {}).items()},
+        }
+        if gap != user_busy:
+            out["refused_before_job_row_mismatch"] = (
+                f"observed {refused_before_job_observed}, derived {refused_before_job}, gap {gap} — "
+                f"{user_busy} user_busy refusal(s) account for "
+                f"{'all' if gap == user_busy else 'only part'} of it; the remainder is unexplained, "
+                f"so neither count is evidence until it is")
+            out["closes"] = False
+    if unknown:
+        out["admission_classes_unknown_to_contract"] = unknown
+        out["closes"] = False
+    return out
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# D-02b PART 4 — WAS THE REFUSED MEMBER TOLD, AND TOLD IN TIME?
+#
+# ⛔⛔ THE DIRECTIVE ASKED FOR `t_patch_sent` AND `t_patch_acked`. THOSE STEPS DO NOT EXIST ON THIS
+# PATH, and the instrument says so rather than emitting two fields that are always null — a null
+# that reads as "the step failed" is worse than an absent field that reads as "there is no step".
+#
+# Established from source, quoted in the evidence doc:
+#   · `commands._enqueue` answers BOTH refusal paths with `_ephemeral(...)`, and `_ephemeral`
+#     returns `{"type": 4, "data": …}` — the response to Discord's own interaction POST;
+#   · `runtime.record_refused` stores `token: None`, with the reason in its docstring:
+#     "No token is kept: the refusal was the reply."
+#   · A PATCH to `webhooks/{app}/{token}/messages/@original` NEEDS that token. With `token: None`
+#     there is nothing to PATCH with — the absence is STRUCTURAL, not an omission.
+#
+# ⭐ So the honest measurement of "was the member told, and in time" is the ARRIVAL-TO-TOLD time,
+# which is the interaction reply latency, which S1 already bounds at 3 s. That is what this records.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: What a refusal's stored row is allowed to look like, read off `record_refused` rather than
+#: guessed. A row that disagrees is reported, never normalised.
+REFUSAL_EXPECTED_STATE = "messaged"
+REFUSAL_EXPECTED_OUTCOME = "refused_at_ack"
+
+
+def refusal_latency(rt, refusals: list, *, ack_ceiling_ms: float = HARD_CEILING_MS) -> dict:
+    """p50/p95/max of arrival→told for every refusal, joined to its job row by corr_id.
+
+    ⛔ NON-VACUITY IS THE WHOLE POINT. A run with zero refusals yields **NOT MEASURABLE**, never
+    "all inside 3 s" — this programme has already published one "no 502s found" that was a filter
+    matching millisecond fields, and an empty set satisfies every ceiling ever written."""
+    if not refusals:
+        return {"state": "NOT MEASURABLE",
+                "why": "zero refusals in this run — an empty set is not evidence that refusals are "
+                       "fast, and a load that refuses nobody cannot measure refusal latency",
+                "refusals": 0}
+    rows_by_corr = {}
+    try:
+        for r in (rt.store.recent(3600.0, limit=50_000) or []):
+            rows_by_corr[str(r.get("corr_id") or "")] = r
+    except Exception as e:  # noqa: BLE001
+        return {"state": "NOT MEASURABLE", "why": f"store unreadable: {type(e).__name__}: {e}",
+                "refusals": len(refusals)}
+
+    ms = sorted(float(x["ms"]) for x in refusals)
+    with_row, without_row = [], 0
+    classes: dict = {}
+    anomalies: list[str] = []
+    for x in refusals:
+        row = rows_by_corr.get(str(x.get("corr") or ""))
+        if row is None:
+            # ⛔ NOT AN ERROR — the per-member rate limit and `user_busy` refuse BEFORE a job row
+            # exists. It is the single biggest fact the split found and it is counted, not dropped.
+            without_row += 1
+            continue
+        cls = str(row.get("failure_class") or "unclassified")
+        classes[cls] = classes.get(cls, 0) + 1
+        with_row.append(x)
+        state, outcome = str(row.get("state") or ""), str(row.get("outcome") or "")
+        if state != REFUSAL_EXPECTED_STATE or outcome != REFUSAL_EXPECTED_OUTCOME:
+            # ⛔ OI-40's DECIDING FIELD. `record_refused` writes state=messaged/outcome=refused_at_ack.
+            # Anything else wearing an admission class came from a DIFFERENT producer — the restart
+            # path closes a job as `queue_full` too, which tells a member "we're at capacity right
+            # now" about a pod restart.
+            anomalies.append(f"{cls} row in state={state!r} outcome={outcome!r} — not "
+                             f"{REFUSAL_EXPECTED_STATE}/{REFUSAL_EXPECTED_OUTCOME}")
+        if row.get("token"):
+            anomalies.append(f"{cls} row kept a token — record_refused stores None")
+
+    # ⛔⛔ SWEEP THE STORE, NOT ONLY WHAT THE HARNESS SAW. The loop above inspects rows a refusal
+    # CLAIMED; a row no refusal claims is invisible to it — and that is precisely the shape OI-40
+    # describes, so an anomaly check blind to it would be an instrument reproducing its own blind
+    # spot. Measured 2026-09-14, twice, identically: 53 `queue_full` rows in the store against 52
+    # claimed. One row per run that `offer` did not produce.
+    claimed = {str(x.get("corr") or "") for x in refusals}
+    unclaimed = []
+    for cid, row in rows_by_corr.items():
+        if cid in claimed:
+            continue
+        if str(row.get("failure_class") or "") in ADMISSION_REFUSAL_CLASSES:
+            unclaimed.append({"corr_id": cid, "state": str(row.get("state") or ""),
+                              "outcome": str(row.get("outcome") or ""),
+                              "failure_class": str(row.get("failure_class") or ""),
+                              "token_kept": bool(row.get("token"))})
+
+    def _p(p: float):
+        if not ms:
+            return None
+        k = max(0, min(len(ms) - 1, int(round(p / 100.0 * (len(ms) - 1)))))
+        return ms[k]
+
+    over = [x for x in ms if x > ack_ceiling_ms]
+    return {
+        "state": "MEASURED",
+        # ⛔ D-04 4.2 — THE SOURCE IS NAMED, because there are now two and they answer for different
+        # populations. The WIRE sees every refusal, including the ones that never become a job row
+        # (`user_busy`, the per-member rate limit); the STORE (`refusal_reach_ms`) sees only
+        # `queue_full`, but it is the one production can read with no harness attached.
+        "source": "wire",
+        "refusals": len(refusals),
+        "with_job_row": len(with_row), "without_job_row": without_row,
+        "classes": classes,
+        "arrival_to_told_ms": {"p50": _p(50), "p95": _p(95), "max": ms[-1] if ms else None},
+        "over_ack_ceiling": len(over), "ack_ceiling_ms": ack_ceiling_ms,
+        # ⭐ THE S5c QUESTION IN ONE FIELD: silent or late refusals. Silent is impossible on this
+        # path by construction (the refusal IS the reply, so a refusal that did not happen is a
+        # request that was not refused), so `late` is the whole of it.
+        "silent_or_late": len(over),
+        "anomalies": anomalies[:10], "anomaly_count": len(anomalies),
+        # ⛔ OI-40's COUNTER. An admission-class row nobody refused came from a producer other than
+        # `offer`. Reported with the rows themselves so the next reader can see WHICH producer,
+        # rather than being handed a number and an inference.
+        "unclaimed_admission_rows": len(unclaimed), "unclaimed_sample": unclaimed[:5],
+        # ⛔ NAMED SO NOBODY LOOKS FOR A FIELD THAT CANNOT EXIST.
+        "patch_fields_absent_because": "an admission refusal is the interaction response "
+                                       "(type 4); record_refused stores token=None, so there is "
+                                       "no PATCH to time",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# B2 — THE THREE LOADS THE CENSUS SUPPORTS, DERIVED AND NEVER RETYPED.
+#
+# ⛔ Every rate below is computed from `arrival_census` against the arrivals artifact at call time.
+# A number typed here would be a second authority over a value the census already owns, and this
+# programme has paid for that shape repeatedly.
+# ══════════════════════════════════════════════════════════════════════════════
+
+BURST_DESIGN, BURST_10S, BURST_60S = "design", "busiest10s", "busiest60s"
+#: S5b's top JUDGED tier: three times the design burst. Above this a run is characterisation and
+#: informs no tier — stated as a MULTIPLE of the derived design burst so no rate is ever typed.
+BURST_DESIGN_3X = "design3x"
+S5B_TOP_TIER_MULTIPLE = 3.0
+BURST_MODES = (BURST_DESIGN, BURST_10S, BURST_60S, BURST_DESIGN_3X)
+
+#: The headroom multiple the sizing derivation uses for the DESIGN burst. Mirrors
+#: `arrival_census.cmd_analyze`'s default; overridable on the command line so the sensitivity is a
+#: measurement rather than a belief.
+DESIGN_BURST_MULTIPLE = 3.0
+
+
+def burst_profile(mode: str, census_path, *, multiple: float = DESIGN_BURST_MULTIPLE) -> dict:
+    """(arrival_rate, seconds, and the derivation) for one of the three real-traffic loads."""
+    import arrival_census as census
+    rows, meta = census.load_arrivals([str(census_path)])
+    if not rows:
+        raise SystemExit(f"{census_path}: no arrivals — a load derived from an empty census is a "
+                         f"load derived from nothing")
+    b10 = census.busiest_window(rows, 10.0)
+    b60 = census.busiest_window(rows, 60.0)
+    if mode == BURST_DESIGN_3X:
+        count = S5B_TOP_TIER_MULTIPLE * multiple * b10["count"]
+        width = 10.0
+        basis = f"{S5B_TOP_TIER_MULTIPLE:g}x the design burst ({multiple:g}x busiest 10 s)"
+    elif mode == BURST_DESIGN:
+        count, width, basis = multiple * b10["count"], 10.0, f"{multiple:g}x busiest 10 s"
+    elif mode == BURST_10S:
+        count, width, basis = float(b10["count"]), 10.0, "busiest 10 s, as observed"
+    elif mode == BURST_60S:
+        count, width, basis = float(b60["count"]), 60.0, "busiest 60 s, as observed"
+    else:
+        raise SystemExit(f"unknown burst mode {mode!r}; expected one of {BURST_MODES}")
+    return {"mode": mode, "arrival_rate": round(count / width, 4), "window_s": width,
+            "arrivals_in_window": count, "basis": basis, "multiple": multiple,
+            "busiest_10s": b10["count"], "busiest_60s": b60["count"],
+            "census": str(census_path), "census_arrivals": len(rows),
+            "census_window": meta.get("window") if isinstance(meta, dict) else None}
+
+
 async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, symbols_mode: str,
                             tickers: list, real: bool, deliver_channel: str,
                             deliver_rate: float, drain_s: float, think_s: float = 1.0,
@@ -412,11 +825,20 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
     corr_by_client: dict = {}
     _real_offer = rt.offer
 
+    offer_status: dict = {}
+
     def _offer(job):
         who = _CORR.get()
         if who:
             corr_by_client[who] = getattr(job, "corr_id", None)
-        return _real_offer(job)
+        # ⛔ THE STATUS IS RECORDED, NOT INFERRED. `offer` answers three ways and only one of
+        # them creates a job row: "queued" does, "full" does (record_refused), and
+        # "user_busy" does NOT — it returns from inside offer, so the corr_id above is
+        # already registered while no row will ever exist. That asymmetry is exactly the gap
+        # the split's cross-check reported and nobody could name.
+        status, position = _real_offer(job)
+        offer_status[status] = offer_status.get(status, 0) + 1
+        return status, position
 
     rt.offer = _offer
 
@@ -427,6 +849,7 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
     peak_inflight = 0
     inflight_samples: list[int] = []
     resolutions: dict = {}
+    refusals: list = []
     counter = {"n": 0}
     started = time.perf_counter()
     end_at = started + seconds
@@ -448,6 +871,16 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
                 samples.append((time.perf_counter() - received) * 1000.0)
                 kinds[_kind_of(reply)] = kinds.get(_kind_of(reply), 0) + 1
                 corr = corr_by_client.pop(who, None)
+                if _kind_of(reply) == "immediate":
+                    # ⛔⛔ AN ADMISSION REFUSAL IS THE INTERACTION RESPONSE, NOT A PATCH.
+                    # `commands._enqueue` answers both refusal paths with `_ephemeral(...)`,
+                    # which is `{"type": 4}` — the reply to Discord's own POST — and
+                    # `runtime.record_refused` stores `token: None` with the reason in the
+                    # docstring: "No token is kept: the refusal was the reply." So the member
+                    # is told INSIDE the ack, and `samples[-1]` IS the arrival-to-told time.
+                    # ⛔ There is no `t_patch_sent` to record on this path, and inventing one
+                    # would be a field that is always null being read as a step that failed.
+                    refusals.append({"ms": round(samples[-1], 2), "corr": corr})
                 if real and corr:
                     state = await _await_terminal(rt.store, corr, min(end_at + drain_s,
                                                                      time.perf_counter() + drain_s))
@@ -477,7 +910,7 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
         while time.perf_counter() < end_at:
             queue_depth.append({"t": round(time.perf_counter() - started, 2),
                                 "inflight": inflight, **(rt.depth() or {})})
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(GAUGE_CLOSED_INTERVAL_S)
 
     try:
         await asyncio.gather(gauge(), *[client(i) for i in range(concurrency)])
@@ -498,13 +931,18 @@ async def drive_closed_loop(concurrency: int, seconds: float, *, members: int, s
             pass
 
     mean_inflight = (sum(inflight_samples) / len(inflight_samples)) if inflight_samples else 0.0
+    _elapsed = time.perf_counter() - started
     return {"samples": samples, "kinds": kinds, "queue": rt.depth() if rt else {},
             "queue_depth": queue_depth, "runtime": rt,
-            "elapsed_s": time.perf_counter() - started,
+            "elapsed_s": _elapsed,
+            "gauge": gauge_meta(CLOSED_LOOP, samples=len(queue_depth), elapsed_s=_elapsed,
+                                offers=len(samples)),
             "concurrency": {"requested": concurrency, "think_s": think_s,
                             "peak_inflight": peak_inflight,
                             "mean_inflight": round(mean_inflight, 2),
-                            "resolutions": resolutions}}
+                            "resolutions": resolutions,
+                            "offer_status": offer_status},
+            "refusals": refusals}
 
 
 # ── the run ─────────────────────────────────────────────────────────────────
@@ -563,7 +1001,7 @@ async def drive(rate: float, seconds: float, *, members: int, handler_ms: float,
                                                       ticker=tickers[n % len(tickers)]), received)
             samples.append((time.perf_counter() - received) * 1000.0)
             kinds[_kind_of(reply)] = kinds.get(_kind_of(reply), 0) + 1
-            if n % 10 == 0:
+            if n % GAUGE_OPEN_EVERY_N == 0:
                 queue_depth.append({"t": round(time.perf_counter() - started, 2), **(rt.depth() or {})})
             n += 1
         # ⛔⛔ A REAL RUN IS NOT OVER WHEN THE LAST ACK RETURNS. S2 is measured from the ack to the
@@ -582,9 +1020,12 @@ async def drive(rate: float, seconds: float, *, members: int, handler_ms: float,
             commands.stop()
         except Exception:  # noqa: BLE001 — teardown must never rewrite the verdict
             pass
+    _elapsed = time.perf_counter() - started
     return {"samples": samples, "kinds": kinds, "queue": rt.depth() if rt else {},
             "queue_depth": queue_depth, "runtime": rt,
-            "elapsed_s": time.perf_counter() - started}
+            "elapsed_s": _elapsed,
+            "gauge": gauge_meta(OPEN_LOOP, samples=len(queue_depth), elapsed_s=_elapsed,
+                                offers=len(samples))}
 
 
 def _kind_of(reply) -> str:
@@ -664,7 +1105,11 @@ def self_check() -> int:
     breach (a gate that cannot fail), it could report a breach that is not there, or it could
     report "clean" over an empty sample set."""
     sys.path.insert(0, str(_repo_root()))
-    cases = []
+    # ⛔ D-02 C1 — a SEALING collector, not a list. The evaluation loop used to sit in the middle of
+    # the appends and fifteen cases were counted without ever being checked; `Cases` raises on an
+    # append after the read, so that cannot come back quietly.
+    from selfcheck import Cases
+    cases = Cases("load_harness")
 
     slow = {"n": 50, "p50": 40.0, "p95": 900.0, "p99": 4200.0, "max": 4200.0,
             "mean": 100.0, "over_1s": 3, "over_3s": 1}
@@ -822,19 +1267,235 @@ def self_check() -> int:
     cases.append(("an empty cache reports `None`, never 0.0",
                   (collect_real_metrics(_NoRt(), {}).get("cache") or {}).get("hit_rate") is None))
 
-    # ⛔⛔ THE EVALUATION RUNS LAST, AFTER EVERY APPEND.
-    # ⚰️ It used to sit in the MIDDLE: fifteen cases were appended after it and were
-    # therefore counted by `len(cases)` and never checked. `--self-check` printed
-    # `cases=20 failed=0` while five were evaluated — the count rose, the checking did
-    # not. Same shape as the flip gate rows that reported MET off file existence.
-    for name, ok in cases:
-        print(f"  {'ok  ' if ok else 'FAIL'} {name}")
-    failed = [n for n, ok in cases if not ok]
+    # ── B1 · the three-way split, and the arithmetic that has to close ─────
+    class _Store:
+        def __init__(self, rows):
+            self._rows = rows
 
-    print(f"TOTALS load_harness --self-check {'PASS' if not failed else 'FAIL'} "
-          f"cases={len(cases)} failed={len(failed)}"
-          + (f" reasons={'; '.join(failed)}" if failed else ""))
-    return PASS if not failed else FAIL
+        def recent(self, *_a, **_kw):
+            return list(self._rows)
+
+    class _Rt:
+        def __init__(self, rows):
+            self.store = _Store(rows)
+
+    def _row(state, *, final_ms=None, cls=None, outcome=None):
+        # ⛔ The outcome defaults to what `record_refused` actually writes, so a case that does not
+        # care about provenance still builds a WELL-FORMED refusal rather than an ambiguous one.
+        return {"state": state, "final_ms": final_ms, "failure_class": cls,
+                "outcome": outcome if outcome is not None
+                else (REFUSAL_EXPECTED_OUTCOME if cls in ADMISSION_REFUSAL_CLASSES else "")}
+
+    _rows = ([_row("delivered", final_ms=1200.0)] * 6
+             + [_row("delivered", final_ms=12000.0)]
+             + [_row("abandoned", cls="queue_full")] * 2
+             + [_row("messaged", cls="deadline")])
+    _sp = admission_split(_Rt(_rows), offers=12)          # 10 job rows + 2 refused at the door
+    cases.append(("the split puts a fast delivery in served_in_slo", _sp["served_in_slo"] == 6))
+    # ⛔ A DELIVERED-BUT-LATE MEMBER IS NOT SERVED IN SLO. Folding them together is how a p50 hides
+    # the member who waited twelve seconds — the same defect `over_3s` exists to stop for S1.
+    cases.append(("a delivered-but-late job is served_late, never served_in_slo",
+                  _sp["served_late"] == 1))
+    cases.append(("`queue_full` is an ADMISSION REFUSAL, not a failure",
+                  _sp["refused_with_job_row"] == 2))
+    cases.append(("a non-admission class is a FAILURE, not a refusal",
+                  _sp["failed"] == 1 and _sp["failed_by_class"].get("deadline") == 1))
+    # ⛔⛔ OI-40, AS A RAIL. `queue_full` has THREE producers and only `record_refused`'s is an
+    # admission refusal. A row reading `outcome=busy` is a job that was ADMITTED, ran, and failed
+    # downstream — counting it as a refusal turns a failure into an honest refusal, which is the
+    # direction that flatters. Measured on the real probe: 53 rows, 52 refusals, every run.
+    _sp_oi40 = admission_split(
+        _Rt(_rows + [_row("abandoned", cls="queue_full", outcome="busy")]), offers=13)
+    cases.append(("a queue_full row with outcome=busy is a FAILURE, not an admission refusal",
+                  _sp_oi40["refused_with_job_row"] == 2
+                  and _sp_oi40["failed_by_class"].get("queue_full/busy") == 1))
+    _sp_oi40b = admission_split(
+        _Rt(_rows + [_row("abandoned", cls="queue_full", outcome="restart_recovery")]), offers=13)
+    cases.append(("a queue_full row from the RESTART path is a FAILURE, not a refusal",
+                  _sp_oi40b["failed_by_class"].get("queue_full/restart_recovery") == 1))
+    # ⛔ NON-VACUITY: the genuine producer must STILL land in the refusal bucket, or the fix has
+    # simply emptied it and every refusal now reads as a failure.
+    cases.append(("a well-formed refused_at_ack row is STILL a refusal (non-vacuity)",
+                  _sp["refused_with_job_row"] == 2 and not _sp["failed_by_class"].get("queue_full")))
+    # ⛔⛔ THE FINDING THIS SPLIT EXISTS FOR: an offer refused before any job row is invisible to
+    # `success_rate` in BOTH directions. Measured on the 30-concurrent run: 406 offers, 360 job
+    # rows, 46 refused at the door.
+    cases.append(("an offer that never became a job row is counted as a refusal",
+                  _sp["refused_before_job_row"] == 2 and _sp["refused_by_admission"] == 4))
+    cases.append(("the arithmetic closes over OFFERS, not job rows",
+                  _sp["closes"] is True and _sp["unresolved"] == 0))
+    # ⛔ NON-VACUITY, AND IT CAUGHT ME. My first version of this control passed `offers=20` against
+    # ten job rows and expected the receipt to stop closing. It closed: `refused_before_job` is
+    # DERIVED as offers minus job rows, so extra offers are absorbed as door refusals and the sum is
+    # correct by construction. A flag that cannot say no is not a check.
+    # ⭐ What genuinely fails to close is a job row that is still IN FLIGHT when the run ended: it is
+    # neither delivered nor terminal, so no bucket may claim it, and rounding it into "refused"
+    # would report a member who is still waiting as a member who was told no.
+    _inflight = _rows[:-1] + [_row("rendering")]
+    _sp_open = admission_split(_Rt(_inflight), offers=12)
+    cases.append(("a job still in flight leaves the receipt NOT closing",
+                  _sp_open["closes"] is False and _sp_open["unresolved"] == 1))
+    # ⭐ two ways of counting one thing, and a disagreement is PUBLISHED rather than resolved in
+    # favour of whichever is more flattering.
+    _sp_bad = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=5)
+    cases.append(("the observed/derived refusal counts are cross-checked",
+                  "refused_before_job_row_mismatch" in _sp_bad and _sp_bad["closes"] is False))
+    _sp_ok = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=2)
+    cases.append(("agreeing counts do NOT raise a mismatch (control)",
+                  "refused_before_job_row_mismatch" not in _sp_ok and _sp_ok["closes"] is True))
+    # ⭐ THE GAP THE CROSS-CHECK FOUND, NOW NAMEABLE. A `user_busy` refusal registers a corr_id from
+    # inside `offer` and never creates a job row, so it sits between the two counters. An EXPLAINED
+    # gap closes the receipt; an unexplained one still must not.
+    _sp_ub = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=0,
+                             offer_status={"queued": 10, "user_busy": 2})
+    cases.append(("a gap fully explained by user_busy CLOSES the receipt",
+                  _sp_ub["closes"] is True
+                  and _sp_ub["refusal_mechanisms"]["user_busy_inside_offer"] == 2))
+    _sp_un = admission_split(_Rt(_rows), offers=12, refused_before_job_observed=0,
+                             offer_status={"queued": 10, "user_busy": 1})
+    cases.append(("a gap only PARTLY explained does NOT close (non-vacuity)",
+                  _sp_un["closes"] is False
+                  and "only part" in _sp_un["refused_before_job_row_mismatch"]))
+
+    # ── B2 · the three loads, DERIVED from the census and never retyped ────
+    _census = _repo_root() / "docs" / "discord-render" / "evidence" / "arrivals-30d.json"
+    if _census.exists():
+        _p = {m: burst_profile(m, _census) for m in BURST_MODES}
+        # ⛔ DERIVED FROM `BURST_MODES`, NOT THE NUMBER THREE. This case read `== 3` and went red the
+        # moment a fourth tier was added — a hand-typed count beside the list it describes, which is
+        # the defect this repository has paid for in a nav table, a router's route count and a
+        # writer index. ⭐ The mutation harness found it by REFUSING to mutate on a non-green
+        # control, which is the rail catching a latent break nobody had run into yet.
+        cases.append((f"all {len(BURST_MODES)} burst modes derive DIFFERENT rates",
+                      len({_p[m]["arrival_rate"] for m in BURST_MODES}) == len(BURST_MODES)))
+        cases.append(("the design burst is the multiple times the busiest 10 s",
+                      abs(_p[BURST_DESIGN]["arrival_rate"]
+                          - DESIGN_BURST_MULTIPLE * _p[BURST_10S]["arrival_rate"]) < 1e-9))
+        # ⛔ CONTROL FOR THE MULTIPLE. A mutation replacing it with 1.0 must MOVE the design burst;
+        # a headroom term nothing can distinguish from its absence is not a headroom term.
+        _one = burst_profile(BURST_DESIGN, _census, multiple=1.0)
+        cases.append(("multiple=1 collapses the design burst onto the observed busiest 10 s",
+                      _one["arrival_rate"] == _p[BURST_10S]["arrival_rate"]
+                      and _one["arrival_rate"] != _p[BURST_DESIGN]["arrival_rate"]))
+        cases.append(("every burst profile carries its own derivation",
+                      all(_p[m]["basis"] and _p[m]["census_arrivals"] > 0 for m in BURST_MODES)))
+    else:
+        cases.append(("the arrivals census is present so the burst modes can be derived", False))
+    try:
+        burst_profile("busiest3s", _census)
+        cases.append(("an unknown burst mode is refused BY NAME", False))
+    except SystemExit as e:
+        cases.append(("an unknown burst mode is refused BY NAME", "busiest3s" in str(e)))
+
+    # ── Part 4 · refusal latency, and the non-vacuity that decides it ─────
+    _rl_empty = refusal_latency(_Rt([]), [])
+    # ⛔⛔ THE CASE THAT STOPS THIS INSTRUMENT LYING. A run that refused nobody must NOT report
+    # "every refusal was inside 3 s" — an empty set satisfies every ceiling ever written, and this
+    # programme has already published one "no 502s found" that was a filter matching milliseconds.
+    cases.append(("a run with ZERO refusals is NOT MEASURABLE, never 'all inside 3 s'",
+                  _rl_empty["state"] == "NOT MEASURABLE" and "empty set" in _rl_empty["why"]))
+    _refusals = [{"ms": 120.0, "corr": "a"}, {"ms": 300.0, "corr": "b"},
+                 {"ms": 4200.0, "corr": "c"}, {"ms": 90.0, "corr": None}]
+    _rows = [{"corr_id": "a", "state": "messaged", "outcome": "refused_at_ack",
+              "failure_class": "queue_full", "token": None},
+             {"corr_id": "b", "state": "messaged", "outcome": "refused_at_ack",
+              "failure_class": "queue_full", "token": None},
+             {"corr_id": "c", "state": "messaged", "outcome": "refused_at_ack",
+              "failure_class": "queue_full", "token": None}]
+    _rl = refusal_latency(_Rt(_rows), _refusals)
+    cases.append(("a refusal over the 3 s ack ceiling is counted as LATE",
+                  _rl["silent_or_late"] == 1 and _rl["over_ack_ceiling"] == 1))
+    cases.append(("a refusal with no job row is counted, never dropped",
+                  _rl["without_job_row"] == 1 and _rl["with_job_row"] == 3))
+    cases.append(("the arrival-to-told percentiles come out of the refusals only",
+                  _rl["arrival_to_told_ms"]["max"] == 4200.0))
+    # ⛔ NON-VACUITY for the late counter: a run whose refusals are all fast must report ZERO late,
+    # or "late" is a field that always fires and S5c would be red on a healthy system.
+    _rl_fast = refusal_latency(_Rt(_rows), _refusals[:2])
+    cases.append(("all-fast refusals report ZERO late (non-vacuity)",
+                  _rl_fast["silent_or_late"] == 0 and _rl_fast["state"] == "MEASURED"))
+    # ⛔⛔ OI-40's DECIDING FIELD. A row wearing an admission class but NOT written by
+    # `record_refused` came from the restart path, which tells a member "we're at capacity right
+    # now" about a pod restart.
+    _rl_odd = refusal_latency(_Rt([{"corr_id": "a", "state": "abandoned",
+                                    "outcome": "restart_recovery", "failure_class": "queue_full",
+                                    "token": None}]), [{"ms": 50.0, "corr": "a"}])
+    cases.append(("a queue_full row from the RESTART path is reported as an anomaly",
+                  _rl_odd["anomaly_count"] == 1
+                  and "restart_recovery" in _rl_odd["anomalies"][0]))
+    cases.append(("a well-formed refusal row raises NO anomaly (non-vacuity)",
+                  _rl["anomaly_count"] == 0))
+    # ⛔⛔ THE BLIND SPOT THE ANOMALY LOOP HAD. It inspects rows a refusal CLAIMED; a queue_full row
+    # nobody refused is invisible to it — which is exactly OI-40's shape, so a check blind to it
+    # would be an instrument reproducing its own blind spot.
+    _rl_orphan = refusal_latency(
+        _Rt(_rows + [{"corr_id": "z", "state": "abandoned", "outcome": "restart_recovery",
+                      "failure_class": "queue_full", "token": None}]), _refusals)
+    cases.append(("an admission-class row NO refusal claims is counted and shown",
+                  _rl_orphan["unclaimed_admission_rows"] == 1
+                  and _rl_orphan["unclaimed_sample"][0]["outcome"] == "restart_recovery"))
+    cases.append(("a store with no orphan rows reports ZERO unclaimed (non-vacuity)",
+                  _rl["unclaimed_admission_rows"] == 0))
+
+    # ── C3 · the spin ceiling (D-01 defect D3) ────────────────────────────
+    # ⚰️ THE RUN IT EXISTS FOR: 30 clients, 20 seconds, **521,654 attempts** — ~26,000/s — and six
+    # acks over 3 s that were entirely the harness. A member told "slow down" does not retry
+    # twenty-six thousand times a second.
+    _spin_ok, _spin_why = spin_check(CLOSED_LOOP, offers=521_654, elapsed_s=20.0,
+                                     concurrency=30, think_s=1.0)
+    cases.append(("the 521,654-attempt spin is CAUGHT by the offered-rate ceiling",
+                  _spin_ok is False and "measured the HARNESS" in _spin_why))
+    # ⛔ NON-VACUITY, AND IT IS THE HALF THAT KEEPS THE CEILING HONEST. A ceiling that also fires on
+    # the real 30-concurrent run would be raised until it fired on nothing. Those are its true
+    # numbers: 406 offers in 21.88 s.
+    _ok_real, _ = spin_check(CLOSED_LOOP, offers=406, elapsed_s=21.88, concurrency=30, think_s=1.0)
+    cases.append(("the REAL 30-concurrent run is NOT caught (non-vacuity)", _ok_real is True))
+    # ⛔ think_time=0 models a bot: the offered rate is bounded by service time alone, so there is
+    # nothing to check — and the harness SAYS so rather than passing silently.
+    _ok_bot, _why_bot = spin_check(CLOSED_LOOP, offers=999_999, elapsed_s=1.0, concurrency=30,
+                                   think_s=0.0)
+    cases.append(("think_time=0 declines to judge and says why",
+                  _ok_bot is True and "models a bot" in _why_bot))
+    _ok_open, _why_open = spin_check(OPEN_LOOP, offers=6000, elapsed_s=20.0, arrival_rate=0.6)
+    cases.append(("an open loop offering far more than its arrival rate is CAUGHT",
+                  _ok_open is False and "measured the HARNESS" in _why_open))
+    # the real design-burst run: 181 offers in 301.03 s against arrival_rate 0.6
+    _ok_burst, _ = spin_check(OPEN_LOOP, offers=181, elapsed_s=301.03, arrival_rate=0.6)
+    cases.append(("the REAL design-burst run is NOT caught (non-vacuity)", _ok_burst is True))
+    # ⛔ An empty run is `verdict`'s business (INCONCLUSIVE for too few samples), not this check's —
+    # a spin ceiling that also reported "no samples" would put two authorities on one verdict.
+    cases.append(("a run with no offers is not the spin check's business",
+                  spin_check(OPEN_LOOP, offers=0, elapsed_s=10.0, arrival_rate=0.6)[0] is True))
+
+    # ── C2 · the gauge publishes its own denominator ───────────────────────
+    _gc = gauge_meta(CLOSED_LOOP, samples=38, elapsed_s=21.88, offers=406)
+    _go = gauge_meta(OPEN_LOOP, samples=21, elapsed_s=301.03, offers=181)
+    cases.append(("the closed loop's gauge declares a CLOCK trigger",
+                  "0.5" in _gc["trigger"] and _gc["expected"] == 43))
+    cases.append(("the open loop's gauge declares an ARRIVAL trigger",
+                  "arrival" in _go["trigger"] and _go["expected"] == 19))
+    # ⛔⛔ THE CASE THAT WOULD HAVE STOPPED ME PUBLISHING A FALSE FINDING. On 2026-09-14 I computed
+    # "3.5 % coverage" for an OPEN-loop artifact by applying the CLOSED loop's 0.5 s cadence, and
+    # reported a starved event loop that did not exist. The two must not describe themselves
+    # identically, or the comparison stays available to be made by hand.
+    cases.append(("the two gauges do not describe themselves identically",
+                  _gc["trigger"] != _go["trigger"]))
+    # ⭐ For an arrival-driven gauge the honest number is the TIME BETWEEN SAMPLES, not a coverage
+    # percentage: ten arrivals at 0.6/s span ~17 s, and a queue that fills and drains inside that
+    # window is invisible however healthy the loop is.
+    cases.append(("an arrival-driven gauge reports seconds between samples",
+                  _go["seconds_between_samples"] is not None
+                  and _go["seconds_between_samples"] > 10.0))
+    cases.append(("every depth figure is labelled a FLOOR, whichever model produced it",
+                  _gc["depth_is_a_floor"] is True and _go["depth_is_a_floor"] is True))
+
+    # ⛔⛔ THE EVALUATION RUNS LAST, AFTER EVERY APPEND — AND NOW IT IS ENFORCED RATHER THAN
+    # OBSERVED. ⚰️ It used to sit in the MIDDLE: fifteen cases were appended after it and were
+    # therefore counted by `len(cases)` and never checked. `--self-check` printed
+    # `cases=20 failed=0` while five were evaluated — the count rose, the checking did not, the
+    # same shape as the flip gate rows that reported MET off file existence. "Keep the loop last"
+    # was already true and stopped being true; `Cases` raises instead.
+    return PASS if cases.report() == 0 else FAIL
 
 
 # ── entry ───────────────────────────────────────────────────────────────────
@@ -879,16 +1540,56 @@ def main(argv=None) -> int:
                     help="writes per second; the throttle is part of the measurement")
     ap.add_argument("--drain-s", type=float, default=90.0,
                     help="how long to wait for the queue to finish after the last ack")
+    ap.add_argument("--characterisation", action="store_true",
+                    help="this run deliberately drives load far above the design burst: label it "
+                         "INFORMATIONAL so no SLO row judges it")
+    ap.add_argument("--burst", choices=BURST_MODES, default="",
+                    help="derive --arrival-rate from the arrival census instead of typing one: "
+                         "design (3x the busiest 10 s) | busiest10s | busiest60s")
+    ap.add_argument("--census", default="docs/discord-render/evidence/arrivals-30d.json",
+                    help="the arrivals artifact --burst derives from")
+    ap.add_argument("--burst-multiple", type=float, default=DESIGN_BURST_MULTIPLE,
+                    help="headroom multiple for --burst design (sensitivity is a measurement)")
+    ap.add_argument("--mark-void", default="",
+                    help="mark a run artifact VOID in place (retained, never judged)")
+    ap.add_argument("--void-reason", default="")
+    ap.add_argument("--superseded-by", default="")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args(argv)
 
     if args.self_check:
         return self_check()
+    if args.mark_void:
+        if not args.void_reason or not args.superseded_by:
+            print("TOTALS load_harness INCONCLUSIVE --mark-void needs --void-reason and "
+                  "--superseded-by: a void with no reason is indistinguishable from a "
+                  "mistake, and the next reader cannot tell which")
+            return INCONCLUSIVE
+        res = mark_void(args.mark_void, reason=args.void_reason,
+                        superseded_by=args.superseded_by)
+        print(f"VOIDED {res['path']}")
+        print(f"  sha256 {res['sha256_before'][:16]} -> {res['sha256_after'][:16]}")
+        print(f"  reason: {res['void_reason']}")
+        print(f"  superseded_by: {res['superseded_by']}")
+        print("TOTALS load_harness --mark-void PASS 1 artifact marked void (RETAINED)")
+        return PASS
 
     # ⛔⛔ OI-37 — THE LOAD MODEL IS DECLARED, NEVER DEFAULTED.
     # The spec said "30 concurrent"; the harness drove 30 arrivals per second; nobody noticed for a
     # whole programme because one flag called `--rate` could be read as either. There is now no
     # default and no alias: a run must say which question it is asking, or it does not run.
+    burst = None
+    if args.burst:
+        # ⛔ --burst SETS THE OPEN-LOOP RATE AND SAYS SO IN THE ARTIFACT. It is not a second load
+        # model: it is a derivation of `--arrival-rate` from twenty days of real arrivals, so the
+        # number in the artifact carries its own provenance instead of a reader having to trust
+        # that somebody typed 0.6 for the right reason.
+        if args.arrival_rate is not None or args.concurrency is not None:
+            print("TOTALS load_harness INCONCLUSIVE --burst derives the arrival rate; passing it "
+                  "beside --arrival-rate or --concurrency puts two authorities on one number")
+            return INCONCLUSIVE
+        burst = burst_profile(args.burst, args.census, multiple=args.burst_multiple)
+        args.arrival_rate = burst["arrival_rate"]
     if args.rate is not None:
         print("TOTALS load_harness INCONCLUSIVE --rate is ambiguous and has been REMOVED (OI-37). "
               "It meant arrivals/second, and the spec it was used against said 'concurrent'. "
@@ -915,8 +1616,27 @@ def main(argv=None) -> int:
             "rate": args.arrival_rate, "seconds": args.seconds, "members": args.members,
             "handler_ms": args.handler_ms, "symbols": args.symbols, "sandbox": str(tmp),
             "mode": "real" if args.real else "ack",
+            # ⛔⛔ IN-BAND LABELS, so a GATE NEVER HAS TO GUESS FROM A FILENAME (D-02 Part A).
+            # The S2 row used to select evidence with glob("*real*.json") and exclude it with
+            # `"chaos" not in p.name` — filename matching is the file-existence class wearing a
+            # different hat, and it both missed a valid run and judged a void one.
+            "kind": "load",
+            # ⛔ A DELIBERATE OVERLOAD IS CHARACTERISATION, NOT AN SLO MEASUREMENT, and it says
+            # so IN BAND at the moment it is produced — never by relabelling an inconvenient
+            # artifact afterwards. The distinction is about what the run was FOR, which only the
+            # person who ran it knows, so it is a flag and not an inference from the numbers.
+            "purpose": "characterisation" if args.characterisation else "slo",
+            # ⭐ RENDERER IDENTITY IS FIRST CLASS (OI-39). `house_enabled()` is exactly
+            # bool(CHART_RENDERER_URL); with it unset the run draws mplfinance PNGs in-process and
+            # every latency is about a renderer production does not use.
+            "renderer": _renderer_identity(),
+            # ⛔ A void artifact is RETAINED (it is the overload characterisation) and NEVER judged.
+            "void": False, "void_reason": None, "superseded_by": None,
             # ⛔ STATED ON EVERY RUN, because it is the number the owner asks for on every report.
             "organic_members_exposed": 0,
+            # ⛔ THE DERIVATION TRAVELS WITH THE NUMBER (B2). `arrival_rate: 0.6` on its own is a
+            # number somebody typed; with `burst` beside it, the next reader can re-derive it.
+            "burst": burst,
             "delivery": "channel" if args.deliver_channel else ("none" if args.real else "noop")}
     if args.real and args.symbols == "stub":
         print("TOTALS load_harness INCONCLUSIVE --real with --symbols stub is a contradiction: "
@@ -984,12 +1704,37 @@ def main(argv=None) -> int:
         stats, kinds = summarise(out["samples"]), out["kinds"]
         meta["elapsed_s"] = round(out["elapsed_s"], 2)
         meta["queue_at_end"] = out["queue"]
+        # ⛔ C2 — the depth gauge publishes its own denominator. A depth figure is a FLOOR and
+        # the artifact now says so, so nobody has to know which driver wrote it to judge one.
+        meta["gauge"] = out.get("gauge")
+        # ⛔⛔ C3 — a run that measured the HARNESS is INCONCLUSIVE, never a FAIL. Checked before
+        # any verdict is computed, because a spun run's percentiles are about the spin.
+        _ok, _why = spin_check(model, offers=len(out["samples"]), elapsed_s=out["elapsed_s"],
+                               concurrency=args.concurrency, think_s=args.think_time,
+                               arrival_rate=args.arrival_rate)
+        meta["spin_check"] = {"ok": _ok, "reason": _why}
+        if not _ok:
+            print(totals_line(stats, kinds, meta, INCONCLUSIVE, [_why]))
+            return INCONCLUSIVE
         # ⛔ A4: the artifact records WHICH MODEL produced it, in band. An artifact that
         # does not say is rejected by `read_labelled_artifact` rather than read hopefully.
         if out.get("concurrency"):
             meta["concurrency_observed"] = out["concurrency"]
         real_metrics = (collect_real_metrics(out["runtime"], deliver_stats, rend_before)
                         if args.real else {})
+        if args.real and out.get("runtime") is not None:
+            # ⛔ B1 — PRINTED BESIDE S5, NEVER INSTEAD OF IT. `success_rate` keeps its definition and
+            # its 99.5 % floor; this says what the failures WERE, over offers rather than job rows.
+            real_metrics["admission_split"] = admission_split(
+                out["runtime"], offers=len(out["samples"]),
+                offer_status=(out.get("concurrency") or {}).get("offer_status"),
+                refused_before_job_observed=(out.get("concurrency") or {})
+                .get("resolutions", {}).get("refused_at_admission") if out.get("concurrency")
+                else None)
+            # ⛔ D-02b Part 4 — was the refused member TOLD, and in time? NOT MEASURABLE when the
+            # run refused nobody, which is the honest answer and not "all inside 3 s".
+            real_metrics["refusal_latency"] = refusal_latency(
+                out["runtime"], out.get("refusals") or [])
         if args.out:
             pathlib.Path(args.out).write_text(json.dumps(
                 {"meta": meta, "stats": stats, "kinds": kinds, "samples_ms": out["samples"],
@@ -1011,6 +1756,17 @@ def main(argv=None) -> int:
                   f"cache hit rate {'unmeasured' if hr is None else f'{hr * 100:.1f}%'} "
                   f"(l2 promotions {cache.get('l2_promotions')}) · "
                   f"delivery {real_metrics.get('deliver')}")
+            sp = real_metrics.get("admission_split") or {}
+            if sp:
+                print(f"  B1 over {sp.get('offers')} offer(s): served_in_slo "
+                      f"{sp.get('served_in_slo')} · served_late {sp.get('served_late')} · "
+                      f"refused_by_admission {sp.get('refused_by_admission')} "
+                      f"({sp.get('refused_before_job_row')} before any job row) · "
+                      f"failed {sp.get('failed')} {sp.get('failed_by_class')} · "
+                      f"{'ARITHMETIC CLOSES' if sp.get('closes') else 'DOES NOT CLOSE'}"
+                      + (f" — {sp['refused_before_job_row_mismatch']}"
+                         if sp.get("refused_before_job_row_mismatch") else "")
+                      + (f" — unresolved {sp.get('unresolved')}" if sp.get("unresolved") else ""))
         else:
             code, reasons = verdict(stats, kinds, min_samples=args.min_samples)
     except Exception as e:  # noqa: BLE001
