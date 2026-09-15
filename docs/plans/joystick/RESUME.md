@@ -174,8 +174,17 @@ shell predated the `setx`) should no longer be necessary. Verify, do not assume.
 
 ⛔ That last one is why the GitHub MCP server failed to connect all session with
 *"Authorization header is badly formatted"* — the unexpanded `${GITHUB_PERSONAL_ACCESS_TOKEN}`.
-`GITHUB_TOKEN` is **not** read. Setting it needs a Claude Code restart to take effect. Everything
-GitHub this session was done through the **browser** instead, which works.
+`GITHUB_TOKEN` is **not** read. Setting it needs a Claude Code restart to take effect.
+
+⭐ **UPDATED 2026-09-15 — this is no longer a limitation, it is the path.** The Chrome
+extension path **opens a PR, waits for its checks, and squash-merges it autonomously** —
+proven end to end on **#138, #139 and #140**, matching #137's squash method. No `gh`, no
+MCP, and ⛔ **no credential was read, held, or written** to do it: the browser is already
+signed in, so extracting a token adds exposure for nothing.
+
+⛔ **The carve-out is the important half.** Agents may open and merge **docs/tools** PRs
+themselves. **Stage 2 and any member-facing merge remain Patrick's** — stage 2 turns the hub
+on for every member, and an agent may OPEN that PR but never merge it.
 
 ## Tooling checklist
 
@@ -189,7 +198,8 @@ GitHub this session was done through the **browser** instead, which works.
 | `…\set-bs-env.ps1` | ⚠️ **does not exist** — `start-tunnel.ps1` is there; BrowserStack creds come from the User env |
 
 - **Chrome extension must be RE-PAIRED after reboot**: `/chrome` in Claude Code, extension signed
-  in, a tab open. Browser automation is how PRs get opened and merged here.
+  in, a tab open. The Chrome path **opens, checks and merges PRs autonomously**
+  (proven #138–#140); ⛔ stage-2 and any member-facing merge stay Patrick's.
 - **Railway CLI**: `railway status` to confirm it is still authenticated.
 - ⚠️ Two checklist rows above were given from memory and are wrong on disk. They are recorded as
   measured, not as expected — that is the point of checking.
