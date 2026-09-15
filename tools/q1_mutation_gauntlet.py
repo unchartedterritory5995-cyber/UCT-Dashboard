@@ -163,10 +163,8 @@ MUTATIONS = [
 
     dict(id="M10", guard="settleLandedSave REBASES when still ahead",
          file=f"{OFF}/useDurableNote.js",
-         find="    const caughtUp = sameAuthoredContent(acked, current)\n"
-              "    const state = caughtUp ? (acked || current) : current",
-         repl="    const caughtUp = true\n"
-              "    const state = caughtUp ? (acked || current) : current",
+                  find="    const caughtUp = !unsentWork && sameAuthoredContent(acked, current)",
+                  repl="    const caughtUp = true",
          note="clearing on an ack for OLDER words is how offline systems lose the newest"),
 
     dict(id="M11", guard='settleLandedSave needs an account AND a note',
@@ -297,6 +295,24 @@ MUTATIONS = [
          repl="  if (false && shape === APPEND_ONLY) return { plan: 'merge', base, shape }",
          note="with the merge unreachable, every append family loses the block the "
               "member just captured — and no metadata family notices"),
+
+    dict(id="M28", guard="a remount never overwrites a dirty record with server-derived state",
+         file=f"{OFF}/useDurableNote.js",
+         find="    const unsentWork = Boolean(prev && prev.dirty) && !sameAuthoredContent(acked, prev)",
+         repl="    const unsentWork = false",
+         note="restores the cheap answer: `caughtUp` goes back to comparing the server's "
+              "accepted copy against the editor's current copy, which on a remount are BOTH "
+              "the server. The record is rewritten clean at the server's newer baseline and "
+              "the queued entry is deleted unsent - the member's words leave the durable copy "
+              "and the queue together. Must redden remountNeverDiscardsUnsent.test.js"),
+
+    dict(id="M29", guard="a null intent never deletes a DIRTY note's queued work",
+         file=f"{OFF}/notebookDb.js",
+         find="  } else if (noteRecord.dirty) {",
+         repl="  } else if (false) {",
+         note="restores the deletion at the STORE layer, reachable from every caller rather "
+              "than just the settle. The settle-side guard (M28) can be correct while this "
+              "one is open, which is why both exist. Must redden remountNeverDiscardsUnsent.test.js"),
 
     dict(id="M26", guard="Q1 fix 3 - the ring-vouched question is asked in ONE place",
          file=f"{OFF}/outboxDrain.js",
@@ -479,6 +495,29 @@ def rails_argv() -> list[str]:
     return RAIL_DIRS + RAIL_FILES
 
 
+# ⛔⛔ RAILS THAT ARE RED ON PURPOSE, AND THE FIX EACH WAITS ON.
+#
+# ⚰️ 2026-09-14: the gauntlet refused to run - "1 rail(s) already red. A mutation
+# proves nothing against a red control." - and it was RIGHT about the rule and
+# WRONG about this rail. `supersedeProvesContent.test.js` is a deliberate unit
+# reproduction of a live defect; it is red BECAUSE the defect is real, not
+# because a control broke. The gauntlet could not tell the two apart.
+#
+# ⭐ STRICT IN BOTH DIRECTIONS, which is the only version worth having:
+#   - a rail listed here may be red, and the control proceeds;
+#   - a rail listed here that comes back GREEN is a HARD FAILURE, because its
+#     defect has been fixed and this entry is now stale - the same discipline
+#     `gate-baseline.json` applies to a baseline row that starts passing.
+# An entry is a debt with a name on it, never a way to quiet a red.
+EXPECTED_RED = {
+    "supersedeProvesContent.test.js": (
+        "the supersede hazard: an entry cleared because a LANDED revision is newer, "
+        "without checking that revision contains the entry's words. Separate from Q1 "
+        "fix 4 - measured 2026-09-14: fix 4 turns remountNeverDiscardsUnsent 3/3 green "
+        "and leaves this one red. Waits on: a supersede fix, not yet written."),
+}
+
+
 def run_rails(run) -> tuple[int, int, list[str]]:
     """→ (failed_tests, passed_tests, failing_files). Totals line or it did not run."""
     out = run(["npx", "vitest", "run", *rails_argv()])
@@ -654,10 +693,25 @@ def main() -> int:
         todo = [m for m in todo if m["id"] == args.only]
 
     print("⭐ CONTROL FIRST — the rails must be GREEN before anything is broken.")
-    f0, p0, _ = run_rails(run)
-    if f0:
-        print(f"  ⛔ {f0} rail(s) already red. A mutation proves nothing against a red control.")
+    f0, p0, red0 = run_rails(run)
+    unexpected = [f for f in red0 if not any(f.endswith(k) for k in EXPECTED_RED)]
+    # ⛔ A listed rail that is GREEN is a failure, not a relief: its defect is
+    # fixed and the entry is stale. Named, so the next reader knows what to delete.
+    stale = [k for k in EXPECTED_RED if not any(f.endswith(k) for f in red0)]
+    if stale:
+        print("  ⛔ EXPECTED_RED is stale - these are GREEN now, so their defect is "
+              "fixed and the entry must go: " + ", ".join(stale))
         return 1
+    if unexpected:
+        print(f"  ⛔ {len(unexpected)} rail(s) already red and NOT expected: "
+              + ", ".join(unexpected)
+              + ". A mutation proves nothing against a red control.")
+        return 1
+    if red0:
+        for f in red0:
+            why = next(v for k, v in EXPECTED_RED.items() if f.endswith(k))
+            print(f"  ⚠️ expected-red, proceeding: {f}")
+            print(f"      {why}")
     # ⛔ BOTH halves, and the pytest control runs even when no pytest mutation
     # is selected: a --only K1 that skipped it would report a green gauntlet
     # over a rail set half of which was never executed.
@@ -687,11 +741,19 @@ def main() -> int:
             print(f"        files: {', '.join(f.split('/')[-1] for f in files) or '(unnamed)'}")
 
     print("\n⭐ CONTROL AGAIN — every file restored, the rails must be green once more.")
-    f1, p1, _ = run_rails(run)
+    f1, p1, red1 = run_rails(run)
     fy1, py1, _ = run_py_rails(run_py)
-    print(f"  after restore: {p1} browser + {py1} server green, {f1 + fy1} red")
+    # ⛔⛔ THE SAME EXEMPTION AS THE OPENING CONTROL, AND IT WAS MISSED THE FIRST
+    # TIME. EXPECTED_RED was taught to the control at the START and not to the one
+    # at the END, so a clean run reported "GAUNTLET: FAIL" over a rail that is red
+    # on purpose — a fix written to one instance, leaving its twin open, which is
+    # the third time that shape appeared in one night.
+    expected1 = [f for f in red1 if any(f.endswith(k) for k in EXPECTED_RED)]
+    f1_unexpected = f1 - len(expected1)
+    print(f"  after restore: {p1} browser + {py1} server green, {f1 + fy1} red"
+          + (f" ({len(expected1)} expected-red)" if expected1 else ""))
     dull = [m["id"] for m, failed, _ in rows if not failed]
-    ok = not dull and f1 == 0 and fy1 == 0 and p1 == p0 and py1 == py0
+    ok = not dull and f1_unexpected == 0 and fy1 == 0 and p1 == p0 and py1 == py0
     print("\nGAUNTLET:", "PASS — every guard reddened its own rails" if ok
           else f"FAIL — dulled: {dull or 'none'}; control drift: "
                f"{p0}->{p1} browser, {py0}->{py1} server")

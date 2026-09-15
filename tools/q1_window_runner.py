@@ -114,8 +114,15 @@ def run_entry(entry: dict, log=print) -> dict:
     # so the right response is to put it back in the queue, not to mark it
     # finished and not to mark it broken.
     inconclusive = "INCONCLUSIVE" in out
+    # ⛔⛔ AND A TOOL THAT *SAYS* IT FAILED IS A FAILURE, WHATEVER IT EXITS.
+    # ⚰️ 2026-09-14: the T-12 smoke reported "2 PASS, 3 FAIL … ⛔ FAIL at step(s)
+    # 2, 3, STOP" and exited 0. The runner recorded it as `done · ok`. That is
+    # the same defect as banking an INCONCLUSIVE on an exit code, one verdict
+    # over — fixed for one word and left open for the other, which is how a
+    # class survives its own fix.
+    declared_fail = ("FAIL at step" in out) or ("⛔ FAIL" in out)
     return {"exit": code, "seconds": round(secs, 1), "tail": tail,
-            "inconclusive": inconclusive}
+            "inconclusive": inconclusive, "declared_fail": declared_fail}
 
 
 def spend_window(once: bool, log=print) -> int:
@@ -163,6 +170,11 @@ def spend_window(once: bool, log=print) -> int:
                 entry["status"] = "pending" if tries < 3 else "inconclusive"
                 outcome = f"INCONCLUSIVE (attempt {tries}" + (
                     ", requeued)" if tries < 3 else ", giving up — needs a human)")
+            elif res.get("declared_fail"):
+                # It ran and it measured; it just failed. Not requeued - a retry
+                # cannot fix a real FAIL - but never recorded as ok.
+                entry["status"] = "failed"
+                outcome = "FAILED (the tool declared it, exit code said 0)"
             elif res["exit"] == 0:
                 entry["status"] = "done"
                 outcome = "ok"

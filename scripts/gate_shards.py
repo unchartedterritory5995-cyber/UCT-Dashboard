@@ -115,13 +115,31 @@ def load_baseline() -> dict:
     return json.loads(BASELINE.read_text(encoding="utf-8"))
 
 
-def compare_failures(observed: list[str], baseline: list[str]) -> dict:
-    """What this run changed about the failing set. `new` is the only one that can block a merge."""
+def compare_failures(observed: list[str], baseline: list[str],
+                     expected_red: list[str] | None = None) -> dict:
+    """What this run changed about the failing set. `new` is the only one that can block a merge.
+
+    ⛔⛔ TWO KINDS OF KNOWN RED, AND COLLAPSING THEM LOSES THE DISTINCTION THAT
+    MATTERS. `failures` is a measurement OF MASTER — this file's own invariant is
+    "Nothing here is the hub's". `expected_red` is the opposite: a DELIBERATE
+    reproduction this branch added, red BECAUSE the defect is real, carrying the
+    fix it waits on. A reproduction filed under `failures` would corrupt the
+    baseline's meaning; one filed nowhere hands every other workstream a phantom
+    regression to chase.
+
+    ⭐ STRICT IN BOTH DIRECTIONS: an `expected_red` that is NOT observed has been
+    FIXED, and its entry is stale — that fails, because a stale entry is a slot a
+    real failure can occupy unnoticed. Same discipline the baseline already
+    applies to a `failures` row that starts passing.
+    """
     obs, base = set(observed), set(baseline)
+    exp = set(expected_red or [])
     return {
         "observed_count": len(obs),
         "baseline_count": len(base),
-        "new": sorted(obs - base),               # ⛔ regressions — the gate's actual verdict
+        "new": sorted(obs - base - exp),          # ⛔ regressions — the gate's actual verdict
+        "expected_red_seen": sorted(obs & exp),   # red on purpose, named, not blocking
+        "expected_red_stale": sorted(exp - obs),  # ⛔ GREEN now — the entry must go
         "no_longer_failing": sorted(base - obs),  # informational: fixed, or silently stopped running
         "matches_baseline": obs == base,
     }
@@ -429,7 +447,8 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "failures": failures,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
-        "vs_baseline": compare_failures(failures, base.get("failures") or []),
+        "vs_baseline": compare_failures(failures, base.get("failures") or [],
+                                        base.get("expected_red") or []),
         "do_not_build": do_not_build_sweep(),
     }
 
@@ -571,6 +590,10 @@ def main(argv=None) -> int:
 # Exit codes. 2 is the refused/invalid run above; these two are the verdict of a VALID run.
 EXIT_NO_NEW = 0
 EXIT_NEW_FAILURES = 1
+# ⛔ ITS OWN CODE. A suite that did not run every file and a suite that found a
+# regression are different facts, and a caller that cannot tell them apart will
+# eventually treat one as the other.
+EXIT_DID_NOT_RECONCILE = 3
 
 
 def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
@@ -595,9 +618,58 @@ def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
     disagree — a stale baseline in the harmless direction — that is said out loud rather than
     silently collapsed into either answer.
     """
+    # ⛔⛔ THE COVERAGE CHECK IS PART OF THE VERDICT, NOT DECORATION.
+    # `file_count_reconciles` was computed and RENDERED into the manifest from the
+    # day this wrapper was written, and read by NOTHING: a run whose shards
+    # executed 1,016 of 1,178 files printed 'DOES NOT RECONCILE' and still exited 0
+    # with 'no NEW failures'. That is failure mode #2 in this file's own docstring -
+    # a partial suite fails in the FLATTERING direction, because fewer files run
+    # means fewer failures found. count_waived_files() already removes the only
+    # legitimate cause of a shortfall, so this cannot cry wolf.
+    #
+    # ⭐ It runs BEFORE the baseline comparison on purpose. If the suite did not
+    # execute every file, the observed failing set is INCOMPLETE, so `new: 0` is not
+    # a green verdict - it is an unanswered question wearing one.
+    if manifest.get("file_count_reconciles") is False:
+        disk = manifest.get("test_files_on_disk")
+        waived = manifest.get("test_files_waived") or 0
+        ran = ((manifest.get("summed") or {}).get("files") or {}).get("total")
+        expected = (disk - waived) if isinstance(disk, int) else None
+        say("", err=True)
+        say(f"  GATE: DOES NOT RECONCILE - exit {EXIT_DID_NOT_RECONCILE}.", err=True)
+        say(f"  {ran} test file(s) ran; {disk} on disk minus {waived} waived = "
+            f"{expected} expected.", err=True)
+        say("  Per shard (a shortfall is usually ONE shard, not a spread):", err=True)
+        for s in manifest.get("per_shard") or []:
+            say(f"    shard {s.get('shard')}: "
+                f"{(s.get('files') or {}).get('total')} file(s)", err=True)
+        say("  No baseline comparison is reported: the failing set is incomplete,",
+            err=True)
+        say("  and a partial suite finds fewer failures and reads as a pass.", err=True)
+        return EXIT_DID_NOT_RECONCILE
+
     v = manifest.get("vs_baseline") or {}
     new = v.get("new") or []
     stale = v.get("no_longer_failing") or []
+    exp_seen = v.get("expected_red_seen") or []
+    exp_stale = v.get("expected_red_stale") or []
+    # ⛔⛔ A DELIBERATE RED THAT HAS TURNED GREEN IS A FAILURE, NOT A RELIEF. Its
+    # defect is fixed, so the entry is stale — and a stale entry is a slot a real
+    # failure can occupy unnoticed. Named, so the next reader knows what to delete.
+    if exp_stale:
+        say("", err=True)
+        say("  GATE: EXPECTED-RED entr(ies) are GREEN now, so their defect is fixed", err=True)
+        say("  and the entry must be removed, citing the fix that did it:", err=True)
+        for _e in exp_stale:
+            say("    - " + _e, err=True)
+        return EXIT_NEW_FAILURES
+    if exp_seen:
+        # ⭐ Named, never silent: a deliberate red nobody can see is
+        # indistinguishable from one nobody noticed.
+        say("", err=True)
+        say("  (expected-red, not blocking — deliberate reproductions carrying the fix "
+            "they wait on: " + ", ".join(e.split(" > ")[0] for e in exp_seen) + ")",
+            err=True)
     if new:
         say(f"\n  GATE: {len(new)} NEW failure(s) against the baseline — exit {EXIT_NEW_FAILURES}.\n"
             f"  Classify each by direction before treating it as a regression: a failure the BASE\n"

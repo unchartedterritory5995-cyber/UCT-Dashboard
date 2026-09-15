@@ -152,6 +152,19 @@ export async function putNoteWithIntent(db, noteRecord, outboxEntry) {
   notes.put(noteRecord)
   if (outboxEntry) {
     outbox.put(outboxEntry)
+  } else if (noteRecord.dirty) {
+    // ⛔⛔ A NULL INTENT IS NOT PERMISSION TO DELETE UNSENT WORK.
+    //
+    // `outboxEntry === null` means "this note has nothing left to say". A DIRTY
+    // record is the note saying it has something left to say, so the two cannot
+    // both be true, and when they disagree the queue is what survives: the cost
+    // of keeping an entry that is genuinely finished is one redundant send, and
+    // the cost of deleting one that is not is the member's words.
+    //
+    // ⚰️ This guard is here as well as at the caller because the caller is
+    // not the class. Every writer reaching this function could delete a queued
+    // entry by passing null, and this programme has already shipped a guard that
+    // protected one call site while the class stayed open.
   } else {
     const idx = outbox.index('byNote')
     const cursorReq = idx.openCursor(IDBKeyRange.only(noteRecord.noteId))
