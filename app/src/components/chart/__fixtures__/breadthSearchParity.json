@@ -12,10 +12,7 @@
    "US:A50",
    "NASDAQ:A50",
    "NYSE:A50",
-   "UCTXR",
-   "US:XR",
-   "NASDAQ:XR",
-   "NYSE:XR"
+   "UCTXR"
   ],
   "above 50": [
    "UCTA50",

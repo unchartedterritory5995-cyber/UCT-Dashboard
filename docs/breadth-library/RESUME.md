@@ -5,9 +5,9 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 7 complete — the user-facing Breadth Library UX
-(catalogue payload · metric-first ranking · the reading order in the real control ·
-browser proof). **STATUS: complete, local, unpushed, nothing published.**
+**CURRENT PHASE** Phase 8 complete — production-readiness audit + V1 release plan.
+**STATUS: decision-quality plan in hand. Local, unpushed, nothing published, no grind run.**
+Previously: Phase 7, the user-facing Breadth Library UX.
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
 **HEAD** `a296b6824` · **WORKING TREE** clean
 **STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `8578d375d` (merges `cc57099ca`, `bd5a1b9`-era)
@@ -265,7 +265,7 @@ across all three universes. That fetch, not the compute, is the long pole.
 
 ---
 
-## EXACT NEXT STEP
+## EXACT NEXT STEP (Phase 6 — superseded by Phase 8's release sequence below)
 
 **Create a local `.env` with `MASSIVE_API_KEY`** (the documented dev path this repo
 already expects — `CLAUDE.md:3364`), then re-run the Phase-6 control over calendar
@@ -404,3 +404,251 @@ wired into a product surface**, deliberately:
 | provider / Railway / `railway run` / credentials | **NOT PURSUED.** Phase 7 parked the provider gate as instructed |
 | PRODUCTION / R2 / LIVE SITE / MAIN TRADING | **UNTOUCHED** (Main Trading fingerprint verified) |
 | PUSHED / MERGED / DEPLOYED | **NOTHING** |
+
+---
+
+## Phase 8 — PRODUCTION READINESS AUDIT + V1 RELEASE PLAN (2026-09-15)
+
+**Audit + release design. No grind, no publication, no deploy, no provider access.**
+
+**Branch** `feat/breadth-pit-foundation` · **master inspected** `5344efb84`
+(merge-base `569485a12`, **31 ahead / 9 behind**, tree clean). The 9 master commits
+are docs + a CI gate harness (`tools/gate_*`, `scripts/gate_shards.py`, joystick
+plans) — **zero overlap** with any breadth-library file, and none changes a
+conclusion here. Not merged: reconciliation belongs to the integration phase.
+
+### The finding that justified the phase — BL-012
+
+A 5-session offline control wrote **40 of the 42** metrics `applies_to` allowed for a
+PIT universe. Two wrote nothing (`atr_ext_7`, `adv_decline_cum`) and one wrote
+**plausible values that are wrong** (`mcclellan_osc`: whole-market EMA history against
+a universe-restricted current net — US/NASDAQ/NYSE returned −232.9 / −244.8 / −246.1
+over populations of 2,936 / 1,195 / 1,712, all negative on a day all three advanced
+broadly). Fixed by a second gate, `breadth_metrics.PIT_UNPRODUCIBLE`, inside the one
+function both the sweep and the catalogue read. **A grind would have baked ~12,600 ×
+3 sessions of wrong McClellan into the store.**
+
+### V1 — RECOMMENDED
+
+**18 metrics · 70 identities** (16 UCT + 54 new across US/NASDAQ/NYSE).
+
+| family | metrics |
+|---|---|
+| Participation (7) | A5 · A10 · **A20 (20-day EMA)** · A40 · A50 · A100 · A200 |
+| Highs / Lows (5) | NH · NL · **NETHL** · PH (% at 52w highs) · PL (% at 52w lows) |
+| Momentum (4) | U4 · D4 · R5 · R10 |
+| Base (2) | Universe Count · Net Advancers (signed histogram) |
+
+Chosen for unit class, not for count: **percent and ratio metrics are universe-size
+invariant and survived Phase 1's attribution test at ≤0.8 pp; counts did not (≈ +22 %
+NASDAQ, −12 % NYSE at 2008)**. Every count in V1 ships with its denominator.
+
+⚠️ `net_new_high_low` and `universe_count` have **no UCT symbol** — UCT never
+published one. Minting `UCTNETHL` is one data row and is a product decision, recorded
+not taken.
+
+### Producible-but-deferred (21 metrics → V1.1, one flag flip, no re-grind)
+
+Momentum breadth (U20W/D20W, U25M/D25M, U50M/D50M, U25Q/D25Q, MU/MD, UV, UPV/DNV),
+NH20/NL20, NRH, HVC, ADV/DEC, Stage 2 / Stage 4.
+
+### Not producible / not portable (12)
+
+`mcclellan_osc`, `adv_decline_cum`, `atr_ext_7` (BL-012) · `new_ath`, `is_ftd`,
+`breadth_score`, `uct_exposure`, `rsp_spy_ratio`, `iwm_qqq_ratio`, `cnn_fear_greed`,
+`cboe_putcall`, `aaii_spread` (UCT-only by data, forever or pending new work).
+
+### Floors — DISPLAY vs RAW INPUT (they are different, and this is new here)
+
+`build_frame(warmup_days=560)`; `recompute_from_frame` refuses under 221 sessions.
+
+| universe | DISPLAY floor | **RAW-INPUT floor** | sweep sessions | warm-up sessions |
+|---|---|---|---|---|
+| US | 2008-01-02 | **2006-06-21** | 4,712 | 387 |
+| NASDAQ | 2011-01-01 | **2009-06-20** | 3,956 | 386 |
+| NYSE | 2011-01-01 | **2009-06-20** | 3,956 | 386 |
+
+ADJUSTED frames are fetched across warm-up + sweep; RAW frames only for sweep dates.
+
+### Historical eligibility — re-measured on the cached 2008 RAW frames
+
+`traded on D ∧ type ∈ {CS, ADRC} ∧ not delisted before D ∧ venue ∈ set ∧ raw close ≥
+$2 ∧ trailing-20d median $-vol ≥ $1M`. Unchanged since Phase 1. Measured:
+
+| date | universe | frame | unresolved | no venue | wrong venue | ELIGIBLE |
+|---|---|---|---|---|---|---|
+| 2008-03-10 | US | 7,993 | 165 (2.1 %) | **0** | 0 | 2,607 |
+| 2008-03-10 | NASDAQ | 7,993 | 165 | **0** | 2,529 | 889 |
+| 2008-03-10 | NYSE | 7,993 | 165 | **0** | 2,064 | 1,653 |
+| 2015-03-10 | US | 7,804 | 176 (2.3 %) | **0** | 0 | 2,993 |
+| 2015-03-10 | NASDAQ | 7,804 | 176 | **0** | 2,310 | 1,240 |
+| 2015-03-10 | NYSE | 7,804 | 176 | **0** | 2,495 | 1,719 |
+
+⭐⭐ **`no_venue` is 0 and `unresolved` is a flat ~2 % in BOTH eras.** Two consequences:
+
+1. **US is immune to the attribution defect.** Every resolved record carries a venue,
+   and a venue wrong *between* XNAS and XNYS is still inside `US_VENUES`. US eligible
+   moves 2,607 → 2,993 across 2008→2015 with no cliff.
+2. **NASDAQ/NYSE are not.** Their 2008 split (889 / 1,653 = 0.54) against 2015
+   (1,240 / 1,719 = 0.72) is the misattribution, visible and quantified. **The 2011
+   floor is necessary and sufficient; nothing here blocks publication at it.**
+
+The ~2 % unresolved is a uniform, era-stable undercount applied to every universe
+equally — percentages barely move, counts read ~2 % low. Publishable, worth stating
+once on the surface rather than hidden.
+
+### Backfill estimate (V1, measured inputs)
+
+| | |
+|---|---|
+| sweep sessions | 12,624 across the three universes |
+| rows @ 18 published metrics | ~227,000 |
+| rows @ 39 stored metrics | ~492,000 |
+| DB growth @ ~200 B/row | +45 MB (V1) / +98 MB (full) → **~80 / ~132 MB total** |
+| **unique provider frames** | **5,098 adjusted + 4,712 raw = 9,810** |
+| frame cache on the data volume | **~5.4 GB** (measured 0.56 MB/frame over 933 cached) |
+| compute | ~12,624 × 0.83–1.2 s ≈ **3–4 h** |
+| provider fetch | 9,810 whole-market calls — **the long pole**, and rate-limit bound |
+
+⭐ **NASDAQ and NYSE need ZERO extra frames**: their date ranges are subsets of US's.
+⭐ **Compute cost is identical for 18 or 39 metrics** — `compute_metrics` builds the
+whole row and `_applies` only filters writes. So restrict the *catalogue*, not the
+*grind* (BL-014).
+
+### Verdicts
+
+| area | verdict |
+|---|---|
+| storage schema | `(universe, date, metric)` + 2 covering indexes — **sufficient, no redesign** |
+| R2 whole-DB ship | **survives V1.** Merge is already universe-aware and gap-fill by PK. The module header's "single-digit MB" is stale; revisit near ~250 MB |
+| dedicated breadth cache | **sufficient.** 512 entries vs 70 V1 identities; 6 h TTL, keyed `breadthdaily_<symbol>` which already carries the universe |
+| security / entitlement | **NO new work.** Breadth routes through `is_breadth_symbol` → `build_breadth_bars` on the WEB pod behind `require_bars_access`; `_should_proxy` excludes it via the same authority, so it never reaches the edge-routed bars tier |
+| live / developing candle | **sealed-only for PIT universes, by design.** `build_breadth_bars` appends today's candle for UCT alone. A live PIT universe needs per-universe membership + live prices — the collector's whole job, per population. **Not V1.** |
+| `warm_breadth()` | **still UCT-only.** Recommendation: warm the V1 **participation family only** (A50/A200 per published universe ≈ 8 series), reuse the existing new-sealed-day convergence check per universe, keep `_WARM_GAP`. Everything else stays lazy |
+| publication gate | **NOT coherent yet — BL-013.** `list_breadth_symbols()` is hard-wired to the 44 shipped `SYMBOLS`, so a flag flip would publish to `/api/bars` and the source picker but NOT to `/api/ticker-search` or the client's family map — where `symbolFamily()` would call a published breadth identity a `'security'` and let it be used as a candle source |
+| daily forward seal | **MISSING.** `universe_backfill_plan` only walks BACKWARD from current coverage to the floor. After the grind nothing advances the right edge, so a published PIT series would freeze. **Must exist before publication.** |
+| frontend | **ready.** Metric-first discovery, exact identity, colon rejection, signed histogram, save/reconstruct, multi-series pane, Universal Data — all railed and browser-proved |
+| Browse | **DEFERRED.** Re-checked `origin/master` 5344efb84: `symbolLibraryRow` / `BREADTH_CATEGORY` still have **no consumer**. Search is sufficient for V1 |
+
+### Provider control plan
+
+Designed, not run: [`PROVIDER-CONTROL-PLAN.md`](PROVIDER-CONTROL-PLAN.md). Four
+windows (~872 sessions), 19 PASS/FAIL invariants, every frame reused by the grind.
+It is **not** "US 2015" any more: US is immune to the attribution defect, so a US
+window proves the pipeline and says nothing about NASDAQ/NYSE — those need a
+2011 FLOOR window plus a 2015 window, and check 17 compares the exchange split
+across them.
+
+### Release sequence — US FIRST
+
+1. **A** provider control (US 2015 full year + bounded NASDAQ/NYSE 2011 + 2015 windows)
+2. **B** grind US only, to an isolated artifact
+3. **C** integrity audit on the artifact
+4. **D** ship storage/backend + the coherent publication gate + the daily seal, **dark**
+5. **E** full pre-publication test gate (the deferred A/B backend comparison)
+6. **F** publish **US alone**
+7. **G** observe one week
+8. **H** grind + publish NASDAQ and NYSE together
+
+US first because it is the only universe the measured attribution defect cannot
+touch, it is the one a member is most likely to want, and it halves the blast radius
+of the first publication.
+
+### ⚠️ A master change that DOES alter a conclusion
+
+`origin/master`'s `docs/breadth/deploy-gate-cutover-runbook.md` (partner, Session 10)
+measures what a master push actually does:
+
+> a push to `master` starts a Railway build **immediately**; the `master deploy gate`
+> workflow runs **in parallel, not before**. Ten deploys observed booting 2-141 s
+> BEFORE their own gate finished; one commit was watched reporting `SUCCESS` while its
+> gate was still executing. Status of the cutover that would fix this: **NO-GO**.
+
+⛔ **So "merge the branch to master" IS a production deploy, and no CI gate holds it.**
+Two consequences for this release plan, both already reflected in the sequence above:
+
+1. Stage D (ship backend support) must be **dark by default at the moment of merge** —
+   there is no window between merging and running.
+2. The full pre-publication test gate is run **locally, before the merge**, not relied
+   on in CI. `scripts/gate_shards.py` (also new on master) is the right tool for the
+   frontend half: it exists because this project has recorded a fake gate result three
+   times, and it refuses a dirty tree and records the tree hash at both ends.
+
+### Rollback
+
+`BREADTH_LIBRARY_UNIVERSES` back to unset → UCT only. Stored rows stay (dark, not
+deleted), caches expire on their 6 h TTL, and a saved chart referencing a disabled
+identity falls through `resolve()` → empty series, which is the established
+"unavailable" path rather than a crash. ⛔ No rollback deletes history.
+
+### Tests after the audit's fix
+
+| suite | result |
+|---|---|
+| backend `-k "breadth or symbol or bars_route or ticker_search"` | **1,109 passed** (was 1,103; +6 new rails), 12 skipped, 3 failed |
+| ↳ those 3 | `test_implied_backfill.py::…falls_back_to_finnhub` — **reproduced identically on clean master `569485a12`** |
+| backend `-k breadth` | **654 passed**, 12 skipped, 0 failed |
+| frontend `src/components/chart src/hooks` (390 files) | **9,016 passed**, 4 skipped, 4 failed — the four standing pre-existing rails, unchanged |
+| breadth-library frontend rails | **113 passed** |
+| `npm run build` | clean, 447 assets; harness still not shipped |
+
+### Branch integration risk — MECHANICALLY NIL
+
+**31 ahead / 9 behind.** `git merge-tree --write-tree origin/master HEAD` produces a
+clean tree with **0 conflicts**, and the file sets are **disjoint** (46 files changed
+here, 20 there, intersection empty). Master's new gate tooling discovers test files
+dynamically, so this branch's ~10 new test files need no registration.
+
+**Recommended integration: merge the branch as ONE coherent feature**, not
+cherry-picked checkpoints. The checkpoints are not independently shippable — the
+storage migration, the catalogue, the discovery lane and the publication gate only make
+sense together — and cherry-picking would ship a half-migrated store. ⛔ No rebase, no
+force; take `origin/master` INTO the branch when integration is authorised.
+
+### Small local fixes made during this audit
+
+| | |
+|---|---|
+| `breadth_metrics.PIT_UNPRODUCIBLE` + the second gate in `applies_to` | BL-012 — 3 metrics removed from every PIT universe |
+| `tests/test_breadth_metrics_catalog.py` | 6 new rails; one existing rail relaxed from a snapshot (`== PORTABLE_METRICS`) to the invariant (`PORTABLE − PIT_UNPRODUCIBLE`) |
+| `__fixtures__/breadthLibraryRows.json`, `breadthSearchParity.json` | **regenerated** from the Python reference, per the parity rail's own rule. 170 → 161 rows; `"50 MA"` no longer returns `US:XR` / `NASDAQ:XR` / `NYSE:XR` |
+
+### Status flags
+
+| | |
+|---|---|
+| grind / publication / deploy / Railway / R2 / provider | **NOT TOUCHED** |
+| `BREADTH_UNIVERSE_BACKFILL_ENABLED` | **still disarmed** |
+| US / NASDAQ / NYSE | **still DARK** |
+| Main Trading | **not opened** |
+
+### WHAT IS ACTUALLY LEFT BEFORE THIS CAN GO LIVE
+
+**MUST DO (in order)**
+
+1. **Provider control** — [`PROVIDER-CONTROL-PLAN.md`](PROVIDER-CONTROL-PLAN.md), 4
+   windows, 19 invariants. Needs `MASSIVE_API_KEY` readable by a local/worker process.
+2. **One coherent publication gate** (BL-013) — `list_breadth_symbols()` projects the
+   published set, so `symbols`, `/api/ticker-search`, `library`, `/api/bars` and the
+   client's `symbolFamily()` all turn on together. Byte-identical today.
+   ⚠️ design the `symbols_by_group()` → prebuilt-watchlist blast radius first.
+3. **A daily forward seal for PIT universes** — `universe_backfill_plan` only walks
+   BACKWARD to the floor; nothing advances the right edge, so a published series would
+   freeze the day the grind ended.
+4. **A metric publication set** (BL-014) — grind 39, publish 18.
+5. **The grind**, US first, to an isolated artifact, then the integrity audit.
+6. **`warm_breadth()` generalisation** — smallest version: the participation family per
+   published universe (~8 series), reusing the existing new-sealed-day convergence.
+7. **The full pre-publication test gate**, run LOCALLY before the merge (see the
+   deploy-gate note above), including the deferred backend branch-vs-master A/B.
+
+**CAN WAIT UNTIL AFTER V1**
+
+- Live / developing candle for PIT universes (sealed-only is honest and stated).
+- Browse mode (no Symbols Library consumer exists on master).
+- Ratio-adjusted McClellan; `atr_ext_7` from the frame's o/h/l; a forward-accumulated
+  A/D line. Each is a removal from `PIT_UNPRODUCIBLE`.
+- The V1.1 metric promotion (a flag flip once #4 exists — no second grind).
+- `UCTNETHL` / `UCTUNI` minting.
+- R2 delta shipping (revisit near ~250 MB; ~80 MB is fine).
+- Per-metric availability in the catalogue (`availability()` is per-universe).

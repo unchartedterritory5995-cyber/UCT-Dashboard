@@ -66,6 +66,57 @@ PRES_HISTOGRAM = "histogram"
 PORTABLE = "portable"
 NOT_PORTABLE = "not_portable"
 
+# ── What the PIT PRODUCER can actually make ──────────────────────────────────
+#
+# ⛔⛔ PORTABILITY IS A CLAIM ABOUT THE MEASUREMENT; THIS IS A CLAIM ABOUT THE
+# PRODUCER. A metric can be perfectly portable in principle and still be
+# unproducible — or, worse, WRONGLY producible — by the point-in-time sweep that
+# builds the new universes, and that is a different fact needing its own column.
+# It was found by measurement, not by reading: a 5-session control over
+# 2015-03-09..13 wrote 40 of the 42 portable metrics, and one of the 40 was wrong.
+#
+#   atr_ext_7        NOTHING IS WRITTEN. It needs intraday high/low for the ATR,
+#                    which is why `breadth_live.NOT_LIVE` already lists it — and
+#                    the sweep runs through that same live engine. The grouped
+#                    frame now carries o/h/l, so this is buildable later; today it
+#                    would be an identity a member can find and never chart.
+#
+#   adv_decline_cum  NOTHING IS WRITTEN. A cumulative line needs a SEED, and
+#                    `derive_live_row` takes it from `recent[0]`, which is empty at
+#                    the start of every sweep chunk — so the first row is None and
+#                    every row after it inherits None. It also could not simply be
+#                    seeded per chunk: the grind walks BACKWARD, so each chunk
+#                    would start its own accumulation and the line would step at
+#                    every chunk boundary.
+#
+#   mcclellan_osc    ⚰️ VALUES ARE WRITTEN AND THEY ARE WRONG, which is the one
+#                    that had to be caught before a grind rather than after.
+#                    `build_levels` is called over the WHOLE MATRIX — correct for
+#                    every other level, because a 50-day average of a member is the
+#                    same number whoever else is in the frame — but `mcc_ema19` /
+#                    `mcc_ema39` are the only levels that are NOT per-ticker. They
+#                    are EMAs of the whole market's net advances, while today's
+#                    `net = adv - dec` IS universe-restricted, so the oscillator
+#                    mixes two populations.
+#
+#                    Measured 2015-03-09, same sweep, three universes:
+#
+#                        universe   count   net adv   McClellan
+#                        US         2,936     +507      -232.9
+#                        NASDAQ     1,195     +268      -244.8
+#                        NYSE       1,712     +243      -246.1
+#
+#                    Populations differing by 2.5x produce oscillators 1.3 points
+#                    apart, and all three read deeply negative on a day every one
+#                    of them advanced broadly. Both tells say the same thing: the
+#                    history is not theirs. A ratio-adjusted McClellan
+#                    ((adv-dec)/(adv+dec)) built per universe is the real fix, and
+#                    it is a product decision rather than a defect repair.
+#
+# ⚠️ UCT IS UNAFFECTED at every entry: it is measured by the collector, not by this
+# sweep, and `applies_to` returns True for it unconditionally.
+PIT_UNPRODUCIBLE = frozenset({"atr_ext_7", "adv_decline_cum", "mcclellan_osc"})
+
 # (metric_key, code, name, short_name, group, unit, domain, presentation, portability)
 _ROWS = [
     # ── MA breadth — proportions, the most trustworthy family ────────────────
@@ -186,7 +237,13 @@ def applies_to(metric: str, universe: str) -> bool:
         return False
     if uni == bu.DEFAULT_UNIVERSE:
         return True
-    return is_portable(metric)
+    # ⛔ TWO GATES, TWO FACTS. Portability asks whether the measurement MEANS the
+    # same thing over another population; `PIT_UNPRODUCIBLE` asks whether the sweep
+    # that builds that population can actually produce it. A metric must clear both
+    # before a PIT universe may store it OR offer it — this one function is what
+    # `library_rows` and the sweep's `_applies` both read, so a metric excluded here
+    # cannot be written to the store and cannot appear in the catalogue.
+    return is_portable(metric) and metric not in PIT_UNPRODUCIBLE
 
 
 def metrics_for(universe: str) -> list[str]:

@@ -247,3 +247,99 @@ The same inversion is applied to `symbolLibraryRow` — headline metric, subtitl
 `NASDAQ · NASDAQ:A50`, chip still `Breadth` — even though that projection has no
 mounted consumer yet, so the dialog is right on the day it lands rather than wrong
 on the day it lands.
+
+---
+
+### BL-012 · PORTABILITY IS NOT PRODUCIBILITY — three metrics the PIT sweep must not write
+
+**Found by measurement, not by reading.** A 5-session offline control over
+2015-03-09..13 wrote **40 of the 42** metrics `applies_to` allowed for `us`. The two
+that wrote nothing, and the one that wrote the wrong thing, are all PORTABLE — the
+catalogue's existing column was answering a different question.
+
+| metric | what happens | why |
+|---|---|---|
+| `atr_ext_7` (XR) | nothing written | needs intraday high/low for the ATR. `breadth_live.NOT_LIVE` already says so, and the sweep runs through that same live engine |
+| `adv_decline_cum` (AD) | nothing written | a cumulative line needs a SEED; `derive_live_row` takes it from `recent[0]`, empty at the start of every chunk, so the first row is None and every row inherits it. It could not simply be seeded either: the grind walks BACKWARD, so each chunk would start its own accumulation and the line would step at every boundary |
+| `mcclellan_osc` (MC) | ⚰️ **plausible values, and they are wrong** | `build_levels` runs over the WHOLE MATRIX — correct for every other level, because a member's 50-day average is the same number whoever else is in the frame. `mcc_ema19` / `mcc_ema39` are the ONLY levels that are not per-ticker: they are EMAs of the whole market's net advances, while today's `net = adv - dec` IS universe-restricted |
+
+**The McClellan evidence, one sweep, three universes, 2015-03-09:**
+
+| universe | universe_count | net advancers | McClellan |
+|---|---|---|---|
+| US | 2,936 | +507 | −232.9 |
+| NASDAQ | 1,195 | +268 | −244.8 |
+| NYSE | 1,712 | +243 | −246.1 |
+
+Populations differing by 2.5× produce oscillators **1.3 points apart**, and all three
+read deeply negative on a day every one of them advanced broadly. Both tells say the
+same thing: the history is not theirs.
+
+**Decision.** `breadth_metrics.PIT_UNPRODUCIBLE` is a second gate inside
+`applies_to`: a metric must clear **portability** (does the measurement mean the same
+thing over another population?) **and producibility** (can the sweep that builds that
+population actually make it?). `applies_to` is the one function `library_rows` and the
+sweep's `_applies` both read, so a metric excluded here can neither be stored nor
+offered — the two can not drift apart.
+
+⚠️ **UCT is unaffected at every entry.** It is measured by the collector, not by this
+sweep, and `applies_to` returns True for it unconditionally. `UCTXR` keeps working.
+
+⛔ **This had to be caught before the grind, not after.** A grind would have written
+~12,600 sessions × 3 universes of wrong McClellan values, and nothing downstream
+would have looked odd.
+
+**Reversible on purpose.** A ratio-adjusted McClellan — `(adv−dec)/(adv+dec)` EMA'd
+per universe — is the real fix and is a product decision, not a defect repair. The
+frame now carries o/h/l, so `atr_ext_7` is buildable. `adv_decline_cum` needs a
+forward-only accumulation pass. Each is a removal from this set when it lands.
+
+---
+
+### BL-013 · The publication gate is per-UNIVERSE and that is not yet enough
+
+Auditing the full chain from `published_universe_ids()` outward found that flipping
+`BREADTH_LIBRARY_UNIVERSES=us` today would publish a universe **incoherently**:
+
+| surface | reads | publishes `US:A50`? |
+|---|---|---|
+| `resolve` / `is_breadth_symbol` | registry + published set | ✅ |
+| `/api/bars`, `/api/bars-history` | `is_breadth_symbol` → `build_breadth_bars` | ✅ |
+| `_should_proxy` (stays on the web pod) | the same authority | ✅ |
+| `/api/breadth-symbols` → `library` block | `library_catalog` | ✅ |
+| source picker (`useSymbolDiscovery`) | that `library` block | ✅ |
+| **`/api/ticker-search`** | `breadth_symbols.search()` → `list_breadth_symbols()` | ❌ **hard-wired to the 44 shipped `SYMBOLS`** |
+| **`/api/breadth-symbols` → `symbols` array** | `list_breadth_symbols()` | ❌ **same** |
+
+The second row is the serious one. The client builds `useBreadthSymbols`' `map` from
+`symbols`, and `symbolFamily()` answers `'security'` for anything absent from it — so
+a published `US:A50` would be classified as an ordinary security and
+`ohlcCapabilityOf` would ALLOW it as a candle source, over a close-to-close synthetic
+body. `breadthRecord()` would also return null, so the pane readout would lose its
+name.
+
+**Decision: ONE canonical publication gate.** `list_breadth_symbols()` must project
+the PUBLISHED set (`SYMBOLS` first and unconditionally, then registry rows for every
+other published universe), so `symbols`, `/api/ticker-search`, `library`, `/api/bars`
+and the client's family classification all turn on together. It is byte-identical
+today, because UCT alone is published.
+
+⚠️ Blast radius to design for, not assume: `symbols_by_group()` seeds the prebuilt
+watchlists, and this repo has already lost prebuilt lists once to a synthetic-symbol
+interaction. Not implemented in the audit phase for that reason.
+
+---
+
+### BL-014 · Published ≠ produced: the catalogue needs a METRIC gate too
+
+`published_universe_ids()` decides which POPULATIONS a member can reach. Nothing
+decides which MEASUREMENTS. That matters because the grind's cost is dominated by the
+frame, not by the metric count — `compute_metrics` computes the whole row whatever is
+stored — so the cheapest correct plan is:
+
+> **grind once at the full producible set (39 per PIT universe); publish a focused V1
+> (18 metrics).**
+
+Promoting a metric to V1.1 then costs a flag flip, not another 3-hour grind and
+another ~10,000 provider fetches. That requires a metric publication set beside the
+universe one — specified here, deliberately NOT built during the audit.

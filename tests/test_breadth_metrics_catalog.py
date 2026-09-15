@@ -3,6 +3,8 @@
 The claim under test: `UNIVERSE × METRICS` is a PROJECTION with an applicability
 rule, not four hand-maintained copies of the catalogue.
 """
+import pathlib
+
 from api.services import breadth_metrics as bm
 from api.services import breadth_universes as bu
 
@@ -46,9 +48,14 @@ def test_uct_keeps_everything_including_the_non_portable_metrics():
 
 
 def test_a_pit_universe_gets_the_portable_set_and_nothing_else():
+    """⚠️ PORTABLE MINUS UNPRODUCIBLE, and the subtraction is the point. This rail
+    used to read `== PORTABLE_METRICS`, which was true until a control sweep showed
+    that three portable metrics cannot be produced correctly by the PIT sweep (see
+    `PIT_UNPRODUCIBLE`). Stating the two-gate rule keeps the rail an invariant
+    rather than a snapshot of whichever set happened to be right first."""
     for uni in bu.PIT_UNIVERSE_IDS:
         got = set(bm.metrics_for(uni))
-        assert got == set(bm.PORTABLE_METRICS)
+        assert got == set(bm.PORTABLE_METRICS) - bm.PIT_UNPRODUCIBLE
         # the surveys, the ETF pair ratios and the proprietary composites stay out
         for key in ("cnn_fear_greed", "cboe_putcall", "aaii_spread", "uct_exposure",
                     "breadth_score", "rsp_spy_ratio", "iwm_qqq_ratio", "new_ath"):
@@ -93,3 +100,61 @@ def test_the_other_signed_metrics_are_still_declared_signed():
     # These already ship and already cross zero; the catalogue must not regress them.
     for key in ("adv_decline", "mcclellan_osc", "adv_decline_cum"):
         assert bm.get(key)["domain"] == bm.DOMAIN_SIGNED, key
+
+
+# ── What the PIT producer can actually make ──────────────────────────────────
+#
+# ⭐⭐ THESE RAILS EXIST BECAUSE A GRIND WOULD HAVE BAKED WRONG DATA IN. A metric
+# can be portable in principle and still be unproducible — or wrongly producible —
+# by the sweep that builds the new universes. That is a fact about the PRODUCER,
+# not about the measurement, and it was found by measuring a control sweep rather
+# than by reading the catalogue.
+
+def test_the_pit_unproducible_set_is_excluded_from_every_pit_universe():
+    for metric in bm.PIT_UNPRODUCIBLE:
+        assert bm.is_portable(metric), metric        # portable in principle…
+        for uni in ("us", "nasdaq", "nyse"):
+            assert not bm.applies_to(metric, uni), (metric, uni)   # …unproducible here
+
+
+def test_uct_keeps_every_one_of_them():
+    """⛔ UCT is measured by the COLLECTOR, not by this sweep. The producer's limits
+    are not the collector's, and UCT must not lose a metric it has always written."""
+    for metric in bm.PIT_UNPRODUCIBLE:
+        assert bm.applies_to(metric, "uct"), metric
+    assert len(bm.metrics_for("uct")) == len(bm.METRIC_KEYS)
+
+
+def test_the_set_names_only_real_metrics():
+    assert bm.PIT_UNPRODUCIBLE <= set(bm.METRIC_KEYS)
+
+
+def test_a_pit_universe_offers_exactly_portable_minus_unproducible():
+    want = [k for k in bm.METRIC_KEYS
+            if bm.is_portable(k) and k not in bm.PIT_UNPRODUCIBLE]
+    for uni in ("us", "nasdaq", "nyse"):
+        assert bm.metrics_for(uni) == want, uni
+
+
+def test_mcclellan_is_excluded_and_the_reason_is_recorded():
+    """⚰️ The dangerous one: it WROTE plausible values. Measured on 2015-03-09 the
+    three universes returned -232.9 / -244.8 / -246.1 over populations of 2,936 /
+    1,195 / 1,712 — 1.3 points apart, and all negative on a day all three advanced
+    broadly. `build_levels`' McClellan EMAs are the only levels that are not
+    per-ticker, so the history is the whole market's while today's net is not."""
+    assert "mcclellan_osc" in bm.PIT_UNPRODUCIBLE
+    src = (pathlib.Path(__file__).resolve().parents[1]
+           / "api" / "services" / "breadth_metrics.py").read_text(encoding="utf-8")
+    assert "mcc_ema19" in src and "ratio-adjusted" in src
+
+
+def test_the_projection_and_the_sweep_read_the_SAME_gate():
+    """⛔ One function decides both what a PIT universe may STORE and what it may
+    OFFER. If they ever diverge, a member finds an identity that can never have
+    rows — which is the failure these three metrics would have been."""
+    from api.services import breadth_symbols as bs
+    from api.services import breadth_history_recon as recon
+    rows = {r["metric"] for r in bs.library_rows(["us"])}
+    for metric in bm.PIT_UNPRODUCIBLE:
+        assert metric not in rows, metric
+        assert not recon._applies(metric, "us"), metric
