@@ -1,6 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, expect, test } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import ContextPopover from './ContextPopover'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const CSS = readFileSync(path.join(HERE, 'ContextPopover.module.css'), 'utf-8')
 
 // Desktop (matchMedia matches:false) → anchored menu path.
 
@@ -96,3 +102,53 @@ test('closing restores focus to whatever had it before', () => {
   trigger.remove()
 })
 
+
+// ─── TRACK B · A DENSE DESKTOP MENU, AND ONLY A DESKTOP ONE ──────────────
+//
+// The on-chart popover floats over a live chart, where a settings-card-sized menu
+// covers the candles the member is reading. `dense` compacts the ANCHORED branch.
+//
+// ⛔⛔ AND IT MUST NOT REACH THE TOUCH BRANCH. There the component renders a
+// `Sheet` whose rows are pinned to the 44px tap-target floor; a class that shrank
+// those would make the menu unusable with a thumb.
+
+test('⭐ `dense` marks the desktop menu, and is off by default', () => {
+  const { container, unmount } = render(
+    <ContextPopover open onClose={() => {}} anchor={{ x: 0, y: 0 }} dense
+      items={[{ label: 'Delete' }]} />)
+  const menu = document.body.querySelector('[role="menu"]')
+  expect(menu.className, 'the dense class never reached the menu').toMatch(/menuDense/)
+  unmount()
+  render(<ContextPopover open onClose={() => {}} anchor={{ x: 0, y: 0 }}
+    items={[{ label: 'Delete' }]} />)
+  expect(document.body.querySelector('[role="menu"]').className,
+    'every caller got the dense menu — the drawing and region menus too')
+    .not.toMatch(/menuDense/)
+  expect(container).toBeTruthy()
+})
+
+test('⛔ the dense rules are scoped to `.menu`, never to the touch sheet', () => {
+  // A CSS-ARTIFACT ASSERTION, and it has to be: jsdom lays nothing out, and the
+  // touch branch is chosen by `matchMedia` at mount. What can be read honestly is
+  // whether any dense rule names the sheet.
+  const dense = CSS.split(String.fromCharCode(10)).filter((l) => l.includes('.menuDense'))
+  expect(dense.length, 'no dense rules at all — the case below is vacuous')
+    .toBeGreaterThan(3)
+  for (const rule of dense) {
+    expect(rule, `a dense rule reaches the touch sheet: ${rule}`).not.toMatch(/sheetList/)
+  }
+  // …and the 44px floor is still declared for the sheet.
+  expect(CSS.replace(/\s+/g, ''), 'the touch sheet lost its tap-target floor')
+    .toMatch(/\.sheetList\.item\{[^}]*min-height:var\(--tap-min/)
+})
+
+test('⛔ a header renders above the rows, inert, in both branches', () => {
+  render(
+    <ContextPopover open onClose={() => {}} anchor={{ x: 0, y: 0 }} dense
+      header={<div data-testid="hdr">RSI(14)</div>} items={[{ label: 'Delete' }]} />)
+  const menu = document.body.querySelector('[role="menu"]')
+  expect(menu.querySelector('[data-testid="hdr"]'), 'the header never rendered').toBeTruthy()
+  // ⛔ NOT A ROW. `renderItems` emits buttons and the focus trap walks them; a
+  // header rendered as one would be a tab stop that does nothing.
+  expect(menu.querySelectorAll('button')).toHaveLength(1)
+})
