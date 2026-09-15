@@ -330,6 +330,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: The record builder's one dependency
+        # ⚰️ RUN #23 MEASURED WHY THIS STEP EXISTS. The publish job deliberately ran on
+        # the STDLIB ALONE — it installs no requirements — and F-CI-30's equivalence test
+        # has to PARSE a workflow to say WHICH JOB changed. With no parser, `_load_yaml`
+        # returned None and **7 of 8 consecutive pairs read UNREADABLE**; the derived set
+        # fell from 5 to 1.
+        # ⭐ It failed in the SAFE direction and said so in the field: UNREADABLE is not
+        # "comparable", so no flake was invented and every NEW entry would still have
+        # fired the gate. ⛔ pyyaml only — the stdlib-alone property is worth keeping.
+        run: python -m pip install --quiet pyyaml
       - uses: actions/download-artifact@v4
         with: { name: vitest-log, path: logs }
         continue-on-error: true
