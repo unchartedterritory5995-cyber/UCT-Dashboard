@@ -1,0 +1,23 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 1,
+    "unchanged": 121,
+    "missing": 0,
+    "baseline": 122,
+    "current": 122,
+    "current_ran": 44353
+  },
+  "arithmetic": "baseline 122 = unchanged 121 + fixed 1 + missing 0  |  current 122 = unchanged 121 + new 1",
+  "invalid_because": [],
+  "baseline_run_id": "35008710335",
+  "current_run_id": "35019629955",
+  "new": [
+    "vitest|src/pages/screener/ScreensManager.test.jsx|a second attempt replaces the previous refusal rather than stacking one under it"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ]
+}
