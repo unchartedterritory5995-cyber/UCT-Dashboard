@@ -149,3 +149,33 @@ export function volPanePctOfStack(volHeightPx, stackHeightPx) {
 export function latchIsStale(latch, settingsPct) {
   return !!latch && latch.from !== clampVolPct(settingsPct)
 }
+
+/**
+ * May the legacy `(100 - pct, pct)` pair still describe this chart's stack?
+ *
+ * ⚰️⚰️ ONLY WHEN THOSE PANES ARE THE WHOLE CHART. Stretch factors are
+ * RELATIVE, so writing that pair says "volume is pct% of the chart" precisely
+ * while main and volume (plus the Model Book index pane, when present) are all
+ * there is. Add ONE more pane and volume's real share becomes
+ * `pct / (100 + otherStretch)` — because the other pane keeps the weight
+ * `computePaneLayout` gave it, and that weight is on a different basis entirely:
+ * the layout hands out PIXEL heights, this pair hands out PERCENTAGES.
+ *
+ * ⛔ MEASURED 2026-09-15: apply 22 with a third pane at 81 and the volume pane
+ * measures 12 while the writer still believes it applied 22. The drag sampler
+ * compares those two numbers and `latchOnDrag` fires at a two-point gap, so the
+ * mismatch is latched as a member's choice and persisted — then re-applied,
+ * re-measured smaller, and latched again. See
+ * `__tests__/volumeStretchThirdPane.test.js` for the whole ratchet.
+ *
+ * ⭐ WHEN THIS IS FALSE THE CANONICAL LAYOUT OWNS EVERY PANE'S HEIGHT, which it
+ * already did: `binder` ends every sync with `applyPaneStretch(paneLayout)`,
+ * ungated, and a member's dragged height reaches it through `cs.paneSizes`.
+ *
+ * @param {number} paneCount      `chart.panes().length`
+ * @param {boolean} hasIndexPane  the Model Book index-comparison pane is mounted
+ */
+export function legacyPairOwnsStack(paneCount, hasIndexPane) {
+  if (!Number.isFinite(paneCount) || paneCount <= 0) return true
+  return paneCount <= (hasIndexPane ? 3 : 2)
+}
