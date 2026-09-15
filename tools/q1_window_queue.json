@@ -4,6 +4,31 @@
   "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
   "queue": [
     {
+      "id": "2.8b-second-writer-while-away",
+      "status": "failed",
+      "attempts": 2,
+      "why": "2.8b \u2014 Q1 fix 4's OWN production proof, which has never run. A SECOND context moves the server revision while the first is away and offline; the first returns and its unsent words must still be present and still queued. Existing instrument, no new probe, no cells, no interpretation.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--second-writer",
+        "--second-writer-door",
+        "folder",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "timeout": 1800,
+      "result": {
+        "exit": 124,
+        "seconds": 1802.1,
+        "tail": "TIMED OUT",
+        "inconclusive": false,
+        "declared_fail": false
+      }
+    },
+    {
       "id": "hero-six-cells",
       "status": "done",
       "timeout": 2700,

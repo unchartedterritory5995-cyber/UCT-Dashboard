@@ -22,3 +22,5 @@
 | 2026-09-14 06:51 | `hero-six-cells` | ok | ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` · 5 request(s) carried the sentence (la |
 | 2026-09-14 06:58 | `t12-owner-profile-run` | INCONCLUSIVE (attempt 1, requeued) | (node:40488) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url. |
 | 2026-09-15 00:03 | `fix5-production-re-run` | ok | ⇒ RED  offline sentence in the server body: **False** · appended node present: **True** · queued 1 entry(s), baseline `2026-09-15T05:08:14.063022+00:00` · 3 |
+| 2026-09-15 04:03 | `2.8b-second-writer-while-away` | INCONCLUSIVE (attempt 1, requeued) | ⇒ INCONCLUSIVE  could not create the probe note ({'err': 'HTTP 502'}) — nothing was measured |
+| 2026-09-15 04:03 | `2.8b-second-writer-while-away` | exit 124 | TIMED OUT |
