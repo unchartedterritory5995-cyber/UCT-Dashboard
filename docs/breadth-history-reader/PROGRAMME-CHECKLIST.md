@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 15:05 ET, Session 13.**
+Last updated: **2026-09-15 15:07 ET, Session 13.**
 
 ---
 
@@ -36,7 +36,7 @@ is not `DONE`.
 | **R** Reader | R1–R3 `READY` — waiting for the 16:05 ET window. R4–R8 blocked behind them. |
 | **G** Deploy gate | **G1 `DONE`** — Wait-for-CI is OFF, read from the API (D-053). G2/G3 `OWNER-PENDING`: no usable browser, measured. G3 is now **one change**. |
 | **S** Repo safety | **S1 + S3 `BUILT`** on `repo/git-scope` (10 derived `-text` paths, 16 rails). S2 `BLOCKED` — the trial is vacuous until the tool is on master. |
-| **D** Record | D1–D3 rolling. D4 `NOT STARTED` — it is the last item in the programme. |
+| **D** Record | D1–D3 rolling (+D-053, +#40–#42). **D4 `DRAFT`** — 5 of 8 sections filled; merging it ends the programme. |
 
 **The single blocking fact right now:** it is inside push-guard hours (09:25–16:05 ET), so
 nothing may push. The landing script is alive and holds R1/R3.
@@ -229,8 +229,11 @@ row). Outstanding: the flip decision (R6), the p95/cap final (R7), the cutover a
 **`IN PROGRESS`**. `00-profile.md` carries #1–#39. Session 13 adds #40 (below).
 
 ### D4 · FINAL programme report — `docs/breadth-history-reader/FINAL.md`
-**`NOT STARTED`**. It is the last item; the checklist reads DONE when it is merged.
-Drafted incrementally while waiting (SD-1 §6).
+**`DRAFT`** — opened Session 13, sections **1, 2, 4, 6, 7** filled; **3, 5, 8** `PENDING`.
+- ⛔ **Merging this file is the act that ends the programme.** Do not merge it while any
+  section still reads `PENDING` — the file says so at the top, in its own voice.
+- Drafted incrementally while waiting (SD-1 §6) so the closing session is an **edit**,
+  not a composition.
 
 ---
 
