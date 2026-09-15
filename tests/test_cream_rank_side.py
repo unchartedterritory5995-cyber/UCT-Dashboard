@@ -6,7 +6,9 @@ now keys its dedup by CONTRACT and ranks each side with `_cream_rank_side`, whic
 keeps up to `max_per_ticker` contracts per name. These tests pin that pure ranker so
 the behaviour is verified without a flow.db.
 """
-from api.live_massive_router import _cream_rank_side, _cream_row_direction
+from api.live_massive_router import (
+    _cream_rank_side, _cream_row_direction, _cream_ck, _cream_meta_key,
+)
 
 
 def _row(sym, agg, direction="Bull", strike=0.0):
@@ -101,3 +103,30 @@ def test_unsided_row_in_a_non_size_tier_is_not_recovered():
     # Only the size tier gets side recovery; an unsided algo/other row stays dropped.
     a = {"_direction": "Unclear", "_tierKey": "algo", "cp": "C", "aggAskPremium": 9e6}
     assert _cream_row_direction(a, MIN) == (None, False)
+
+
+# ── weekly/has-sweep lookup key parity (_cream_ck) ───────────────────────────
+# The block-only + weekly filters missed silently (and fail OPEN) whenever the DB
+# meta key and the alert key disagreed on strike ("300" vs "300.0") or side
+# ("PUT" vs "P"). _cream_ck must collapse all those spellings to ONE key.
+
+def test_db_and_alert_keys_match_for_an_integer_strike_put():
+    db = _cream_ck("SNOW", "PUT", 300.0, "1/21/2028")     # raw flow.db row shape
+    db_str = _cream_ck("SNOW", "P", "300.0", "1/21/2028")  # strike as text
+    alert = _cream_meta_key({"ticker": "SNOW", "cp": "P",
+                             "strike": 300.0, "exp": "1/21/2028"})
+    assert db == db_str == alert
+
+
+def test_db_and_alert_keys_match_for_a_half_strike_call():
+    db = _cream_ck("SPCX", "CALL", 152.5, "9/18/2026")
+    alert = _cream_meta_key({"ticker": "SPCX", "cp": "C",
+                             "strike": 152.5, "exp": "9/18/2026"})
+    assert db == alert
+
+
+def test_side_is_read_from_the_first_letter_only():
+    assert _cream_ck("X", "CALL", 1, "e")[1] == "C"
+    assert _cream_ck("X", "C", 1, "e")[1] == "C"
+    assert _cream_ck("X", "PUT", 1, "e")[1] == "P"
+    assert _cream_ck("X", "P", 1, "e")[1] == "P"

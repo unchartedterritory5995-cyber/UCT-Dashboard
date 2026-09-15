@@ -4238,9 +4238,26 @@ _cream_cache: dict = {}
 _cream_lock = threading.Lock()
 
 
+def _cream_ck(sym, cp, strike, exp):
+    """Canonical contract key shared by _cream_contract_meta (raw flow.db rows) and
+    _cream_meta_key (classified alerts). ⛔ These MUST derive the key identically or
+    the weekly/has-sweep lookup MISSES and `.get(key, (False, True))` FAILS OPEN —
+    treating the contract as not-weekly + has-a-sweep, which silently disables BOTH
+    the weekly and block-only filters (verified 2026-09-15: SNOW P300 / SKHY P175,
+    0 sweeps, on the card under CREAM_EXCLUDE_BLOCK_ONLY=1). The old keys mismatched
+    on strike ("300" vs the DB's "300.0") and side ("CALL"/"PUT" vs the DB's "C"/"P").
+    Normalize strike to a float and side to C/P so both sides collapse to one key."""
+    try:
+        sk = round(float(strike), 4)
+    except (TypeError, ValueError):
+        sk = strike
+    c = "C" if str(cp).upper().startswith("C") else "P"
+    return (str(sym).upper(), c, sk, str(exp).strip())
+
+
 def _cream_contract_meta(today: str) -> dict:
     """Per-contract flags from flow.db for the day: (is_weekly, has_sweep), keyed by
-    (Symbol, CallPut, Strike, ExpirationDate). ONE grouped query, not per-contract."""
+    _cream_ck. ONE grouped query, not per-contract."""
     meta = {}
     conn = sqlite3.connect(DB_PATH, timeout=15)
     try:
@@ -4251,19 +4268,14 @@ def _cream_contract_meta(today: str) -> dict:
             "         THEN 1 ELSE 0 END) "
             "FROM flow WHERE source='stocks' AND CreatedDate=? "
             "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (today,)):
-            meta[(r[0], r[1], str(r[2]), r[3])] = (bool(r[4]), bool(r[5]))
+            meta[_cream_ck(r[0], r[1], r[2], r[3])] = (bool(r[4]), bool(r[5]))
     finally:
         conn.close()
     return meta
 
 
 def _cream_meta_key(a: dict):
-    st = a.get("strike")
-    try:
-        sk = str(int(st)) if float(st).is_integer() else str(st)
-    except (TypeError, ValueError):
-        sk = str(st)
-    return (a.get("ticker"), "CALL" if a.get("cp") == "C" else "PUT", sk, a.get("exp"))
+    return _cream_ck(a.get("ticker"), a.get("cp"), a.get("strike"), a.get("exp"))
 
 
 def _cream_row_direction(a: dict, size_min_ask: float):
@@ -4303,7 +4315,7 @@ def _cream_rank_side(rows: list, side: str, top_n: int, max_per_ticker: int) -> 
 
 def compute_cream(today: str, top_n=None, min_voi=None,
                   exclude_weekly=None, exclude_block_only=None,
-                  max_per_ticker=None) -> dict:
+                  max_per_ticker=None, min_dte=None) -> dict:
     """Build the Cream of the Crop for `today` (concrete M/D/YYYY). Returns
     {date, bull:[...], bear:[...], params} with items in the watchlist_card format
     (sym, exp, strike, cp, prem, vol, oi, voi, grade). Knobs default from env
@@ -4330,6 +4342,10 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     size_min_ask = float(os.getenv("CREAM_SIZE_MIN_ASK", "1000000"))
     single_tiers = _CREAM_SINGLE_TIERS if include_size else ()
     tiers = _CREAM_TIERS + single_tiers
+    # Drop near-dated day-trade / hedge expiries. A 4-DTE 3rd-Friday MONTHLY (e.g.
+    # 9/18) dodges the weekly filter but isn't conviction flow (TSLA/MU/SNDK 9/18 puts,
+    # 2026-09-15). CREAM_MIN_DTE=0 disables. Fail-open on an unknown dte.
+    min_dte = int(os.getenv("CREAM_MIN_DTE", "7")) if min_dte is None else int(min_dte)
 
     meta = _cream_contract_meta(today)
     # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
@@ -4354,6 +4370,9 @@ def compute_cream(today: str, top_n=None, min_voi=None,
                 continue
             d, unconfirmed = _cream_row_direction(a, size_min_ask)
             if d is None:
+                continue
+            _dte = a.get("dte")
+            if min_dte > 0 and isinstance(_dte, (int, float)) and _dte < min_dte:
                 continue
             wk, swp = meta.get(_cream_meta_key(a), (False, True))
             if excl_wk and wk:
@@ -4396,7 +4415,8 @@ def compute_cream(today: str, top_n=None, min_voi=None,
             "params": {"top_n": top_n, "min_voi": min_voi,
                        "exclude_weekly": excl_wk, "exclude_block_only": excl_bo,
                        "max_per_ticker": max_per_ticker,
-                       "include_size": include_size, "size_min_ask": size_min_ask}}
+                       "include_size": include_size, "size_min_ask": size_min_ask,
+                       "min_dte": min_dte}}
 
 
 @router.get("/cream")
