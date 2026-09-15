@@ -4255,19 +4255,28 @@ def _cream_ck(sym, cp, strike, exp):
     return (str(sym).upper(), c, sk, str(exp).strip())
 
 
-def _cream_contract_meta(today: str) -> dict:
+def _cream_contract_meta(today: str, min_sweep_prem: float = 0.0) -> dict:
     """Per-contract flags from flow.db for the day: (is_weekly, has_sweep), keyed by
-    _cream_ck. ONE grouped query, not per-contract."""
+    _cream_ck. ONE grouped query, not per-contract.
+
+    ⚠️ has_sweep counts a contract as sweep-backed only when its TOTAL sweep/ISO
+    premium clears `min_sweep_prem`. The RAW Type query (not the classified alert)
+    is deliberate — it catches real blank-side sweeps _row_to_alert drops — but it
+    ALSO catches tiny sub-floor micro-sweeps, so a $3.5M BLOCK with a stray sub-$100K
+    sweep (SNOW P300 / SKHY P175, 2026-09-15) would otherwise read as 'sweep-backed'
+    and sail past the block-only filter. A real conviction sweep (CRWD's $3.2M) clears
+    the floor easily; a micro-sweep does not."""
     meta = {}
     conn = sqlite3.connect(DB_PATH, timeout=15)
     try:
         for r in conn.execute(
             "SELECT Symbol, CallPut, Strike, ExpirationDate, "
             "MAX(CASE WHEN CAST(Weekly AS TEXT)='T' THEN 1 ELSE 0 END), "
-            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
-            "         THEN 1 ELSE 0 END) "
+            "CASE WHEN SUM(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "                   THEN CAST(Premium AS REAL) ELSE 0 END) >= ? "
+            "     THEN 1 ELSE 0 END "
             "FROM flow WHERE source='stocks' AND CreatedDate=? "
-            "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (today,)):
+            "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (min_sweep_prem, today)):
             meta[_cream_ck(r[0], r[1], r[2], r[3])] = (bool(r[4]), bool(r[5]))
     finally:
         conn.close()
@@ -4346,8 +4355,12 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     # 9/18) dodges the weekly filter but isn't conviction flow (TSLA/MU/SNDK 9/18 puts,
     # 2026-09-15). CREAM_MIN_DTE=0 disables. Fail-open on an unknown dte.
     min_dte = int(os.getenv("CREAM_MIN_DTE", "7")) if min_dte is None else int(min_dte)
+    # A contract is "sweep-backed" (survives CREAM_EXCLUDE_BLOCK_ONLY) only if its total
+    # sweep premium clears this floor — a sub-floor micro-sweep beside a big block does
+    # not count (SNOW P300 / SKHY P175, 2026-09-15).
+    min_sweep_prem = float(os.getenv("CREAM_MIN_SWEEP_PREM", "100000"))
 
-    meta = _cream_contract_meta(today)
+    meta = _cream_contract_meta(today, min_sweep_prem)
     # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
     # "latest N" window, which crowds the rare aggregate tiers out (measured 9/4: 5
     # alpha_leaps vs 61 with a per-tier scan); the tier-scoped fetch is tier-aware
@@ -4416,7 +4429,7 @@ def compute_cream(today: str, top_n=None, min_voi=None,
                        "exclude_weekly": excl_wk, "exclude_block_only": excl_bo,
                        "max_per_ticker": max_per_ticker,
                        "include_size": include_size, "size_min_ask": size_min_ask,
-                       "min_dte": min_dte}}
+                       "min_dte": min_dte, "min_sweep_prem": min_sweep_prem}}
 
 
 @router.get("/cream")
