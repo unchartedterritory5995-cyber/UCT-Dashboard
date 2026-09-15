@@ -80,11 +80,16 @@ MUTATIONS = (
     Mutation("M7 an UNREACHED refusal is counted as reached", GATE,
              "    elif late:", "    elif False:",
              "did not reach the member"),
+    # ⚰️ MY FIRST EXPECTATION FOR THIS ONE WAS WRONG AND THE HARNESS SAID SO: it went RED on a
+    # different case. Naming the wrong case is not a smaller error than a green mutation — it is a
+    # proof about a guard that was never exercised. Traced: with the floor on `refused`, the
+    # design-burst case's 1-of-200 is EXACTLY 0.005 and `>` is false, so that case is untouched;
+    # what breaks is the `failed` case, whose 2-of-200 stops being seen at all.
     Mutation("M8 the failure floor is applied to REFUSED instead of FAILED — an honest refusal "
-             "becomes a breach, which is the whole question the owner has not ruled on", GATE,
+             "becomes a breach and a real failure becomes invisible", GATE,
              '        frac = (sp.get("failed") or 0) / sp["offers"]',
              '        frac = (sp.get("refused_by_admission") or 0) / sp["offers"]',
-             "S5b: a refusal AT THE DESIGN BURST"),
+             "the failure floor bites on `failed`"),
     Mutation("M9 an INFORMATIONAL run is judged after all", CONTRACT,
              "    if art.purpose == PURPOSE_CHARACTERISATION:", "    if False:",
              "reported, not judged"),
@@ -96,10 +101,16 @@ MUTATIONS = (
              'S5B_TIERS = {"busiest60s": 0.0, "busiest10s": 0.0, "design": 0.0, "design3x": 0.01}',
              'S5B_TIERS = {"busiest60s": 0.10, "busiest10s": 0.10, "design": 0.10, "design3x": 0.10}',
              "S5b: a refusal AT THE DESIGN BURST"),
-    Mutation("M12 an outcome=busy row is keyed as a refusal again (OI-40 regression)", GATE,
-             "        if mode not in S5B_TIERS:", "        if False:",
-             "S5b"),
 )
+
+# ⚰️ AND ONE MUTATION THAT DOES NOT BELONG HERE, RECORDED RATHER THAN QUIETLY DROPPED.
+# I wrote an "outcome=busy row is keyed as a refusal again (OI-40 regression)" mutation against this
+# gate and it came back **GREEN — NOT CAUGHT**. Traced rather than re-aimed until it went red: the
+# gate CONSUMES an already-computed `admission_split`; the outcome keying that OI-40 fixed lives in
+# `load_harness.admission_split`. A mutation of the gate can never regress it, so a green here is
+# the correct answer to a question asked in the wrong file.
+# ⛔ It lives in `mutation_harness_load_model` as M12, where the guard actually is. Moving a
+# mutation because it went green is only honest when you can say WHY it could never have gone red.
 
 
 def _self_check() -> tuple[int, str, str]:

@@ -92,6 +92,16 @@ MUTATIONS = (
              "            if isinstance(f, (int, float)) and f <= slo_p99_ms:",
              "            if True:",
              "served_late, never served_in_slo"),
+
+    # ⭐ OI-40, WHERE THE GUARD ACTUALLY IS. This mutation was first written against the flip gate
+    # and came back GREEN — correctly, because the gate consumes an already-computed split and the
+    # outcome keying lives here. `queue_full` has three producers and only `refused_at_ack` is a
+    # refusal; keying on the CLASS again turns a job that was admitted, ran and failed into an
+    # honest refusal, which is the direction that flatters.
+    Mutation("M12 an outcome=busy row is keyed as a refusal again (OI-40 regression)",
+             "            if cls in ADMISSION_REFUSAL_CLASSES and outcome == REFUSAL_EXPECTED_OUTCOME:",
+             "            if cls in ADMISSION_REFUSAL_CLASSES:",
+             "outcome=busy is a FAILURE"),
 )
 
 
