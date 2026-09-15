@@ -136,7 +136,7 @@ Every phase closed with a manifest and a merged PR; the closure gate (`closure.m
 | Motor ranges: travel 16–48, hold 300–1200, double-tap 200–600 | ✅ SHIPPED | `useHubSettings.js:57-63` |
 | `stickyFan` defaults ON | ✅ SHIPPED | `useHubSettings.js:62` |
 | High contrast + haptics disableable | ✅ SHIPPED | `highContrast:false` (`:63`), `haptics` toggle; `[data-hub-contrast="high"]` |
-| **Actions button is the no-drag door** | ✅ SHIPPED | `HubActionsButton.jsx`; owner-run §C / §C-iOS rows G2-1…G2-4, D1 |
+| **Actions button is the no-drag door** | ✅ SHIPPED | `HubActionsButton.jsx`; owner-run §C / §C-iOS rows G2-1…G2-4, D1-a11y |
 
 ---
 

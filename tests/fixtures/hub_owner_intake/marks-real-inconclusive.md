@@ -83,11 +83,11 @@ Four fast flicks at each target — as quick as you can, twenty in total.
 
 | # | Target | Flick 4× at | What should happen | Result |
 |---|---|---|---|---|
-| A1 | `journal.close` | Journal fan → **Close** | ⛔ **NOTHING FIRES. 0 of 4.** This is the only `flickable: false` action in the registry, and this row IS D4. The fan opens instead. | ☐ PASS ☐ FAIL |
-| A2 | `journal.moveStop` | Journal fan → **Move stop** | The **stop sheet opens** — this action is `flickable: true`, so firing is correct. ⛔ What must NOT happen is a stop being written with no sheet. | ☐ PASS ☐ FAIL |
-| A3 | `journal.breakeven` | Journal fan → **Breakeven** | The **stop sheet opens**, seeded at entry. Same rule: a sheet, never a silent write. | ☐ PASS ☐ FAIL |
-| A4 | `journal.planTrade` | Journal fan → **Plan trade** | **ONE** plan-trade sheet opens, never two. | ☐ PASS ☐ FAIL |
-| A5 | `scan.alert` | Screener fan → **Alert** | The **confirm sheet opens**. A `kind: 'confirm'` never writes on the gesture itself. ⭐ Last on purpose: it is the only one that needs you to leave the Journal. | ☐ PASS ☐ FAIL |
+| A1 | `journal.close` | Journal fan → **Close** | ⛔ **NOTHING FIRES. 0 of 4.** This is the only `flickable: false` action in the registry, and this row IS D4. The fan opens instead. | ☑ PASS ☐ FAIL |
+| A2 | `journal.moveStop` | Journal fan → **Move stop** | The **stop sheet opens** — this action is `flickable: true`, so firing is correct. ⛔ What must NOT happen is a stop being written with no sheet. | ☑ PASS ☐ FAIL |
+| A3 | `journal.breakeven` | Journal fan → **Breakeven** | The **stop sheet opens**, seeded at entry. Same rule: a sheet, never a silent write. | ☑ PASS ☐ FAIL |
+| A4 | `journal.planTrade` | Journal fan → **Plan trade** | **ONE** plan-trade sheet opens, never two. | ☑ PASS ☐ FAIL |
+| A5 | `scan.alert` | Screener fan → **Alert** | The **confirm sheet opens**. A `kind: 'confirm'` never writes on the gesture itself. ⭐ Last on purpose: it is the only one that needs you to leave the Journal. | ☑ PASS ☐ FAIL |
 
 ### A6 — the control block. Do these LAST, all five together.
 
@@ -98,7 +98,7 @@ from a flick — becomes meaningless.
 
 | # | Do this | What should happen | Result |
 |---|---|---|---|
-| A6 | One **deliberate press (~500 ms)** at each of the five above, in the same order: Close, Move stop, Breakeven, Plan trade, Alert. | Every one of them opens its sheet, **including Close**. ⛔ If Close does not open here, A1 proves nothing: a bubble that never fires because the fan never opened would also read 0 of 4. | ☐ PASS ☐ FAIL |
+| A6 | One **deliberate press (~500 ms)** at each of the five above, in the same order: Close, Move stop, Breakeven, Plan trade, Alert. | Every one of them opens its sheet, **including Close**. ⛔ If Close does not open here, A1 proves nothing: a bubble that never fires because the fan never opened would also read 0 of 4. | ☑ PASS ☐ FAIL |
 
 ### Then the trace, which is the real payload
 
@@ -141,15 +141,15 @@ Right-handed, normal settings. Each is one gesture and one observation.
 
 | # | Row | Do this | What should happen | Result |
 |---|---|---|---|---|
-| B1 | G3-4 | Dashboard with the Catalysts tile present: tap, then scrub. | Cursor steps AND the row scrolls into view. The readout names the row ("NVDA — Earnings"), not a position. | ☐ PASS ☐ FAIL |
-| B2 | G3-6 | Notebook: scrub the note list. | Cursor lands visibly on a card; the readout names the note. | ☐ PASS ☐ FAIL |
-| B3 | G3-7 | Screener: scrub the results, **past the loaded window** of the virtualised list. | Cursor stays visible on the row, scrolls with it, does not vanish over unloaded rows. | ☐ PASS ☐ FAIL |
-| B4 | G3-8 | Screener: activate **Scans**. | The saved-screen picker opens through the page's own door. | ☐ PASS ☐ FAIL |
-| B5 | G3-9 | Dashboard: tap the pad, then double-tap it. | Tap goes to your **last-used section**; double-tap goes to **Morning Wire** — a FIXED destination, not a "back". ⛔ They must differ: `homeSection.js:213` navigates Reverse to Wire unconditionally, and spec §C3:915 rejected making Primary default to Wire precisely so the two gestures never coincide. If your last section WAS Wire, visit another one first or this row proves nothing. | ☐ PASS ☐ FAIL |
-| B6 | G3-10 | Calendar: scrub the day cursor to each end. | Days step and **CLAMP** — they must not wrap. Readout matches the page's own label. | ☐ PASS ☐ FAIL |
-| B7 | G3-11 | Chart: scrub the timeframe. | Steps in the same order the TF sheet shows. | ☐ PASS ☐ FAIL |
-| B8 | G3-13 | Notebook: activate **Link ticker**. | The confirm sheet carries a symbol field — never a permanently dimmed bubble, never a label that lies. | ☐ PASS ☐ FAIL |
-| B9 | G3-14 | Any confirm action with fields. | Steppers and numeric input operate on the same value the gesture produces, and the committed value is the adjusted one. | ☐ PASS ☐ FAIL |
+| B1 | G3-4 | Dashboard with the Catalysts tile present: tap, then scrub. | Cursor steps AND the row scrolls into view. The readout names the row ("NVDA — Earnings"), not a position. | ☑ PASS ☐ FAIL |
+| B2 | G3-6 | Notebook: scrub the note list. | Cursor lands visibly on a card; the readout names the note. | ☑ PASS ☐ FAIL |
+| B3 | G3-7 | Screener: scrub the results, **past the loaded window** of the virtualised list. | Cursor stays visible on the row, scrolls with it, does not vanish over unloaded rows. | ☑ PASS ☐ FAIL |
+| B4 | G3-8 | Screener: activate **Scans**. | The saved-screen picker opens through the page's own door. | ☑ PASS ☐ FAIL |
+| B5 | G3-9 | Dashboard: tap the pad, then double-tap it. | Tap goes to your **last-used section**; double-tap goes to **Morning Wire** — a FIXED destination, not a "back". ⛔ They must differ: `homeSection.js:213` navigates Reverse to Wire unconditionally, and spec §C3:915 rejected making Primary default to Wire precisely so the two gestures never coincide. If your last section WAS Wire, visit another one first or this row proves nothing. | ☑ PASS ☐ FAIL |
+| B6 | G3-10 | Calendar: scrub the day cursor to each end. | Days step and **CLAMP** — they must not wrap. Readout matches the page's own label. | ☑ PASS ☐ FAIL |
+| B7 | G3-11 | Chart: scrub the timeframe. | Steps in the same order the TF sheet shows. | ☑ PASS ☐ FAIL |
+| B8 | G3-13 | Notebook: activate **Link ticker**. | The confirm sheet carries a symbol field — never a permanently dimmed bubble, never a label that lies. | ☑ PASS ☐ FAIL |
+| B9 | G3-14 | Any confirm action with fields. | Steppers and numeric input operate on the same value the gesture produces, and the committed value is the adjusted one. | ☑ PASS ☐ FAIL |
 
 ### B10–B15 — the steps D-42 was hiding (added 2026-09-13)
 
@@ -182,12 +182,12 @@ the hold is derived from `HOLD_MS`, never typed.
 
 | # | Sheet row(s) | Do this | What should happen | Result |
 |---|---|---|---|---|
-| B10 | `GS-wire-b2` | Morning Wire: **double-tap** the pad. | The segment cursor steps **back** one and that segment scrolls into view. A single tap must not also fire. | ☐ PASS ☐ FAIL |
-| B11 | `GS-home-b2` | Dashboard: **double-tap** the pad. | You land on **Morning Wire** — Reverse is a fixed destination and needs nothing stored (`homeSection.js:211`). ⛔ It must NOT be the same destination Primary just used, or the two gestures are indistinguishable. | ☐ PASS ☐ FAIL |
-| B12 | `GS-notebook-b2` | Notebook: **double-tap** the pad. | The cursor steps back one note **and opens it** — the mirror of tap. At the first note it **CLAMPS**; it must not wrap onto the last. ⭐ **Shipped 2026-09-13 and never seen on glass.** | ☐ PASS ☐ FAIL |
-| B13 | `GS-wire-b3/b4/b5` | Morning Wire: press the pad, **hold 500 ms until the knob dot enlarges**, then drag along y without lifting and release. | While dragging, the chip names **the segment under the cursor**, in the page's own words. On release that segment is **revealed** — scrolled into view, not merely selected. | ☐ PASS ☐ FAIL |
-| B14 | `GS-journal-b3/b4/b5` | Journal, with at least one open position: same hold-then-drag. | The chip names **the position** under the cursor. On release that row is revealed. ⭐ This is the stop-adjust flagship's own scrub, and the matrix could not see it until today. | ☐ PASS ☐ FAIL |
-| B15 | `GS-home-b3/b4/b5` | Dashboard: same hold-then-drag. | ⭐ **The sheet now agrees with this row.** (Historically it did not — see the note on the sheet's.** The chip says **“Go to <section>”** and **nothing on the page moves** — by design (`homeSection.js:175`). On release you **NAVIGATE** to the section the chip named. ✅ **D-44 is fixed** (2026-09-13): `glass-acceptance-steps.md` now derives every expectation from the mode’s own controller, so `home`’s rows describe navigation. | ☐ PASS ☐ FAIL |
+| B10 | `GS-wire-b2` | Morning Wire: **double-tap** the pad. | The segment cursor steps **back** one and that segment scrolls into view. A single tap must not also fire. | INCONCLUSIVE-TRANSPORT |
+| B11 | `GS-home-b2` | Dashboard: **double-tap** the pad. | You land on **Morning Wire** — Reverse is a fixed destination and needs nothing stored (`homeSection.js:211`). ⛔ It must NOT be the same destination Primary just used, or the two gestures are indistinguishable. | INCONCLUSIVE-TRANSPORT |
+| B12 | `GS-notebook-b2` | Notebook: **double-tap** the pad. | The cursor steps back one note **and opens it** — the mirror of tap. At the first note it **CLAMPS**; it must not wrap onto the last. ⭐ **Shipped 2026-09-13 and never seen on glass.** | ☑ PASS ☐ FAIL |
+| B13 | `GS-wire-b3/b4/b5` | Morning Wire: press the pad, **hold 500 ms until the knob dot enlarges**, then drag along y without lifting and release. | While dragging, the chip names **the segment under the cursor**, in the page's own words. On release that segment is **revealed** — scrolled into view, not merely selected. | ☑ PASS ☐ FAIL |
+| B14 | `GS-journal-b3/b4/b5` | Journal, with at least one open position: same hold-then-drag. | The chip names **the position** under the cursor. On release that row is revealed. ⭐ This is the stop-adjust flagship's own scrub, and the matrix could not see it until today. | ☑ PASS ☐ FAIL |
+| B15 | `GS-home-b3/b4/b5` | Dashboard: same hold-then-drag. | ⭐ **The sheet now agrees with this row.** (Historically it did not — see the note on the sheet's.** The chip says **“Go to <section>”** and **nothing on the page moves** — by design (`homeSection.js:175`). On release you **NAVIGATE** to the section the chip named. ✅ **D-44 is fixed** (2026-09-13): `glass-acceptance-steps.md` now derives every expectation from the mode’s own controller, so `home`’s rows describe navigation. | ☑ PASS ☐ FAIL |
 
 ⚠️ **`GS-home-b1` is PASSED and needs no row, but read this before judging `home` anywhere.**
 A tap on the Dashboard navigates to your **last-used section** — measured, it went to Morning Wire —
@@ -210,10 +210,10 @@ are already signed in.
 
 | # | Row | Do this | What should happen | Result |
 |---|---|---|---|---|
-| C1 | G2-1 | Swipe to focus the hub's **Actions** button, then double-tap. **No drag anywhere.** | The Actions sheet opens. | ☐ PASS ☐ FAIL |
-| C2 | G2-2 | With TalkBack, activate **every** action on Home's sheet in turn. No drag at any point. | Each activates its own target. | ☐ PASS ☐ FAIL |
-| C3 | D1 | The no-drag door generally: reach and operate the hub using TalkBack only. | Everything reachable; nothing requires a drag. | ☐ PASS ☐ FAIL |
-| C4 | D4 (Android) | §A's flick block on Android: four fast flicks at each of the five targets, then the five deliberate control presses LAST. | Same expectations as A1–A5 and A6 — **0 of 4 on `journal.close` only**, a sheet on the other four, and every control opens its sheet. ⛔ Take a SECOND trace here and analyse it separately; `--compare` puts the two devices side by side. | ☐ PASS ☐ FAIL |
+| C1 | G2-1 | Swipe to focus the hub's **Actions** button, then double-tap. **No drag anywhere.** | The Actions sheet opens. | ☑ PASS ☐ FAIL |
+| C2 | G2-2 | With TalkBack, activate **every** action on Home's sheet in turn. No drag at any point. | Each activates its own target. | ☑ PASS ☐ FAIL |
+| C3 | D1 | The no-drag door generally: reach and operate the hub using TalkBack only. | Everything reachable; nothing requires a drag. | ☑ PASS ☐ FAIL |
+| C4 | D4 (Android) | §A's flick block on Android: four fast flicks at each of the five targets, then the five deliberate control presses LAST. | Same expectations as A1–A5 and A6 — **0 of 4 on `journal.close` only**, a sheet on the other four, and every control opens its sheet. ⛔ Take a SECOND trace here and analyse it separately; `--compare` puts the two devices side by side. | ☑ PASS ☐ FAIL |
 
 ---
 
@@ -234,9 +234,9 @@ without it is considerably harder than switching it on.
 
 | # | Row | Do this | What should happen | Result |
 |---|---|---|---|---|
-| Ci1 | G2-3 | Swipe to focus the hub's **Actions** button, then double-tap. **No drag anywhere.** | The Actions sheet opens. | ☐ PASS ☐ FAIL |
-| Ci2 | G2-4 | With VoiceOver on, activate **every** action on Home's sheet in turn. No drag at any point. | Each one activates its own target — not its neighbour, and not nothing. | ☐ PASS ☐ FAIL |
-| Ci3 | D1 (iOS) | A confirm action that carries fields: reach its numeric field and its ± steppers with VoiceOver, adjust the value, and commit. | The committed value is the **adjusted** one, and nothing along the way needed a drag. ⛔ This is the half §C's C3 cannot answer for iOS. | ☐ PASS ☐ FAIL |
+| Ci1 | G2-3 | Swipe to focus the hub's **Actions** button, then double-tap. **No drag anywhere.** | The Actions sheet opens. | ☑ PASS ☐ FAIL |
+| Ci2 | G2-4 | With VoiceOver on, activate **every** action on Home's sheet in turn. No drag at any point. | Each one activates its own target — not its neighbour, and not nothing. | ☑ PASS ☐ FAIL |
+| Ci3 | D1 (iOS) | A confirm action that carries fields: reach its numeric field and its ± steppers with VoiceOver, adjust the value, and commit. | The committed value is the **adjusted** one, and nothing along the way needed a drag. ⛔ This is the half §C's C3 cannot answer for iOS. | ☑ PASS ☐ FAIL |
 
 ---
 
@@ -244,9 +244,9 @@ without it is considerably harder than switching it on.
 
 | # | Row | Do this | What to record | Result |
 |---|---|---|---|---|
-| D1-eye | G3-16(a) | Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone? | ⛔ Note whether you are colour-blind and which type — "looks fine to me" answers this for one pair of eyes only. (b) is already measured BETTER: ΔE00 14.5 → 28.0. | ☐ DISTINGUISHABLE ☐ CONFUSABLE |
-| D2 | G3-2 | Settings → **Charts** → **JOYSTICK** → **High contrast** ON. Use the hub on a busy page. | Every ring, chip and readout stays legible against the live page behind the glass. ⭐ The mechanism is confirmed armed on a real device (`data-hub-contrast="high"`); only legibility is yours to judge. | ☐ PASS ☐ FAIL |
-| D3 | G3-5 | Load the Dashboard on a **Saturday or market holiday**. | The Catalysts tile is absent, the hub falls back to the route-derived mode, and you see the preview fan. Nothing pretends the section is there. | ☐ PASS ☐ FAIL |
+| D1-eye | G3-16(a) | Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone? | ⛔ Note whether you are colour-blind and which type — "looks fine to me" answers this for one pair of eyes only. (b) is already measured BETTER: ΔE00 14.5 → 28.0. | ☑ DISTINGUISHABLE ☐ CONFUSABLE |
+| D2 | G3-2 | Settings → **Charts** → **JOYSTICK** → **High contrast** ON. Use the hub on a busy page. | Every ring, chip and readout stays legible against the live page behind the glass. ⭐ The mechanism is confirmed armed on a real device (`data-hub-contrast="high"`); only legibility is yours to judge. | ☑ PASS ☐ FAIL |
+| D3 | G3-5 | Load the Dashboard on a **Saturday or market holiday**. | The Catalysts tile is absent, the hub falls back to the route-derived mode, and you see the preview fan. Nothing pretends the section is there. | ☑ PASS ☐ FAIL |
 
 ---
 
@@ -261,8 +261,8 @@ would measure the phone, not the hub.)
 
 | # | Device | Idle baseline (hub idle, no fan) | Fan-open fps during a 5s drag | Ratio | Result |
 |---|---|---|---|---|---|
-| E1 | ____________ | ______ | ______ | ______ | ☐ PASS ☐ FAIL |
-| E2 | ____________ | ______ | ______ | ______ | ☐ PASS ☐ FAIL |
+| E1 | ____________ | ______ | ______ | ______ | ☑ PASS ☐ FAIL |
+| E2 | ____________ | ______ | ______ | ______ | ☑ PASS ☐ FAIL |
 
 ---
 
