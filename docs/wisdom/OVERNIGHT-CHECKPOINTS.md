@@ -1123,3 +1123,98 @@ the correct state then, and this supersedes it with evidence rather than with co
 
 ⛔ It also removes a live worry in the right direction: the gate's `--db` and `common.bootstrap`'s
 shared-root refusal were never in question, and now nothing about the gate is implicated at all.
+
+
+## ⭐⭐ THREE PASSES ARE BOUGHT. THE FLOOR IS NOT INERT — IT BLOCKS 88% OF WHAT IT GOVERNS
+
+Pass 3: 83 calls, **$4.7638**, 839 records, four rounds, step 4d **MATCH 30/30** with the
+self-check firing. Ledger **$31.4815 of the ruled $40.00**, as forecast.
+
+| pass | run id | eval | records | cost | rounds | cache read |
+|---|---|---|---:|---:|---:|---:|
+| 1 | `20260915T085142Z` | `afab4baf…` | 827 | $4.7497 | 2 | 0.7484 |
+| 2 | `20260915T121930Z` | `ab1f7ef8…` | 824 | $5.0955 | 3 | 0.5833 |
+| 3 | `20260915T123550Z` | `93a248c9…` | 839 | $4.7638 | 4 | 0.7594 |
+
+**All three re-score offline to 30 of 30 fields, each with a self-check that fires.**
+
+### ⛔⛔ RECALL IS STABLE; PRECISION IS WHERE THE NON-DETERMINISM LIVES
+
+| type | tp across 3 passes | fp across 3 passes |
+|---|---|---|
+| CALL | **17, 17, 17** | 8, 10, 9 |
+| MENTION | **51, 51, 51** | 6, 6, 7 |
+| NEGATIVE_CALL | **5, 5, 5** | 1, 0, 1 |
+| MARKET_SIGNAL | **3, 3, 3** | 3, 3, 2 |
+| LEVEL | 6, 5, 6 | **0, 0, 0** |
+| PRINCIPLE | 13, 14, 13 | 7, 5, 6 |
+
+⭐ **The model finds the same true records every time and varies in how much EXTRA it emits.**
+Four of six types have an invariant `tp`; `fn` moves only where `tp` does. Nothing in three runs
+changed a recall number except LEVEL once and PRINCIPLE once. That is a far more useful
+characterisation than a single precision figure, and it could not have been seen from one pass.
+
+### Stability at n=3 — the judgement types are radically less reproducible
+
+    product view (record_type)      total    3/3    2/3    1/3    clears floor
+      MARKET_SIGNAL                   236     21     43    172             21
+      PRINCIPLE                       182     31     36    115             31
+      MENTION                         778    407    151    220            778
+      LEVEL                            18      3      3     12             18
+      NEGATIVE_CALL                     9      5      2      2              9
+
+    extractor view (pre_entity_type)
+      CALL                            116     79     12     25            116
+      LEVEL                            46     18     11     17             46
+      MENTION                         642    305    140    197            642
+
+⭐⭐ **MARKET_SIGNAL reproduces across all three runs 8.9% of the time (21 of 236). PRINCIPLE,
+17% (31 of 182). CALL, 68% (79 of 116).** The two types Q17 chose to floor are, by a wide margin,
+the two least reproducible — and **173 of 236 MARKET_SIGNAL identities (73%) appear in exactly ONE
+of three runs.** The floor was placed on the right types, and that is now a measurement rather
+than a design assumption.
+
+### THE PUBLICATION FLOOR'S FIRST REAL VERDICT
+
+    MARKET_SIGNAL    PUBLISH   21   BLOCK  215     <- floored
+    PRINCIPLE        PUBLISH   31   BLOCK  151     <- floored
+    LEVEL            PUBLISH   18   BLOCK    0
+    MENTION          PUBLISH  778   BLOCK    0
+    NEGATIVE_CALL    PUBLISH    9   BLOCK    0
+    ENQUEUE -> review tab 'contradictions', reason 'below_publication_floor':  366
+
+⛔ **The floor blocks 366 of the 418 identities it governs — 88%.** Sessions 4 and 5 measured it
+**inert**, because it was measured against an empty store; this is what it does with real records
+in front of it. Item 3 is the most consequential thing this programme has built, and until today
+nobody had seen it decide anything.
+
+⭐ `PUBLISH` equals the `3/3` column exactly for both floored types (21 and 31), which is the Q17
+arithmetic visible in the data: at n=3 only 3/3 = 1.0 clears a floor of 0.8, and 2/3 = 0.667 does
+not. **`MIN_RUNS = 3` is doing real work** — at n=2 every floored identity blocked regardless of
+agreement, which is exactly the refusal-to-guess it was ruled for.
+
+### R30 — a third of MARKET_SIGNAL's churn looks like RENAMING, not disagreement
+
+    market_signal_keys 236   suspected_renames 85   share_of_keys 0.3602   threshold 0.5   n 3
+
+**85 of 236 keys (36%)** are suspected renames at n=3, up from 40 of 180 (22%) at n=2 — more runs,
+more chances for a rename pair to appear. R30 accepted a name-based identity for MARKET_SIGNAL on
+the grounds that the error is bounded in the safe direction and fully recoverable offline. That
+bet is now quantified: **a large minority of MARKET_SIGNAL's 8.9% stability is an artifact of the
+key, not of the extractor disagreeing with itself.**
+
+⛔ Counts only. The keys are `normalize_quote_key` of model-written names, so they are
+quote-derived and cannot be printed into a public repo — the audit's `examples` field is dropped
+rather than truncated, because a truncated quote is still a quote.
+
+### Records per type per run — the variance the stability score compresses away
+
+    LEVEL            10    9    8     spread  2
+    MARKET_SIGNAL   102  107  112     spread 10
+    MENTION         614  610  617     spread  7
+    NEGATIVE_CALL     7    6    8     spread  2
+    PRINCIPLE        94   92   94     spread  2
+
+⚠️ MARKET_SIGNAL emitted 102, then 107, then 112. The volume is nearly steady while the IDENTITIES
+churn — 236 distinct keys from ~321 record-instances. **A stable count of unstable names** is the
+signature R30 predicted.
