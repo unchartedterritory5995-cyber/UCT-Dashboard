@@ -68,9 +68,12 @@ def test_export_carries_rows_only_with_the_flag_on(seeded, monkeypatch):
     assert off["below_floor_dropped"][0].startswith("wisdom:principle:")
     assert off["stability_floor"] == floor.floor_value()
 
-    # B: at the floor — the principle publishes again, which is what proves A was the floor
+    # B: at the floor AND over enough runs — the principle publishes again, which is what proves
+    # A was the floor. ⛔ Q17 (2026-09-14): stability alone is not enough. A score of 1.0 over one
+    # run is unmeasured, not merely weak, so `stability_runs` has to reach MIN_RUNS too.
     with store.write() as conn:
-        conn.execute("UPDATE wisdom_principles SET stability = ?", (floor.floor_value(),))
+        conn.execute("UPDATE wisdom_principles SET stability = ?, stability_runs = ?",
+                     (floor.floor_value(), floor.MIN_RUNS))
     monkeypatch.setenv("WISDOM_BRAINKB_PUBLISH_ENABLED", "1")
     on = brainkb.export_payload()
     assert on["enabled"] is True and len(on["rows"]) == 2 and on["below_floor_dropped"] == []
