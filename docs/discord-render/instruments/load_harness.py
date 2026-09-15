@@ -751,7 +751,11 @@ def refusal_latency(rt, refusals: list, *, ack_ceiling_ms: float = HARD_CEILING_
 # ══════════════════════════════════════════════════════════════════════════════
 
 BURST_DESIGN, BURST_10S, BURST_60S = "design", "busiest10s", "busiest60s"
-BURST_MODES = (BURST_DESIGN, BURST_10S, BURST_60S)
+#: S5b's top JUDGED tier: three times the design burst. Above this a run is characterisation and
+#: informs no tier — stated as a MULTIPLE of the derived design burst so no rate is ever typed.
+BURST_DESIGN_3X = "design3x"
+S5B_TOP_TIER_MULTIPLE = 3.0
+BURST_MODES = (BURST_DESIGN, BURST_10S, BURST_60S, BURST_DESIGN_3X)
 
 #: The headroom multiple the sizing derivation uses for the DESIGN burst. Mirrors
 #: `arrival_census.cmd_analyze`'s default; overridable on the command line so the sensitivity is a
@@ -768,7 +772,11 @@ def burst_profile(mode: str, census_path, *, multiple: float = DESIGN_BURST_MULT
                          f"load derived from nothing")
     b10 = census.busiest_window(rows, 10.0)
     b60 = census.busiest_window(rows, 60.0)
-    if mode == BURST_DESIGN:
+    if mode == BURST_DESIGN_3X:
+        count = S5B_TOP_TIER_MULTIPLE * multiple * b10["count"]
+        width = 10.0
+        basis = f"{S5B_TOP_TIER_MULTIPLE:g}x the design burst ({multiple:g}x busiest 10 s)"
+    elif mode == BURST_DESIGN:
         count, width, basis = multiple * b10["count"], 10.0, f"{multiple:g}x busiest 10 s"
     elif mode == BURST_10S:
         count, width, basis = float(b10["count"]), 10.0, "busiest 10 s, as observed"

@@ -574,8 +574,168 @@ def check_mutations_applied(ev: Evidence = DEFAULT_EVIDENCE, run: bool = False) 
 #: S2's ceilings, and S5's floor. Mirrors `load_harness.py:224` — the one place that judges a run.
 S2_CEILINGS = (("p50", 2500.0), ("p95", 5000.0), ("p99", 8000.0))
 S5_FLOOR = 0.995
+#: S1's hard ceiling, and the budget S5c judges a refusal against. ⛔ ONE definition, imported from
+#: the harness that owns S1 rather than retyped — a second copy of 3000.0 is a second authority over
+#: the number that decides whether a member was answered at all.
+HARD_CEILING_MS = __import__("load_harness").HARD_CEILING_MS
 
 N_S2 = "S2 measured in --real mode and within SLO"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# D-03 PART 0 — S5 / S5b / S5c UNDER THE AMENDED RULING
+#
+# Provenance of the ruling and its amendment, recorded here because a threshold whose origin is
+# unstated becomes an owner ruling by erosion: **entered by Claude (chat) on 14 Sep 2026,
+# owner-delegated. NOT an owner ruling on the merits.**
+#
+# ⛔ THE AMENDMENT IS ONE WORD AND IT IS WHAT MAKES THIS IMPLEMENTABLE. "PATCHed within the 3 s ack
+# window" became "REACHED the member inside the S1 ack budget". There is no PATCH on the admission
+# path — `commands._enqueue` answers both refusal branches with `_ephemeral(...)` (`:206`, `:209`),
+# which is the type-4 reply to Discord's own POST, and `record_refused` stores `token: None`
+# (`runtime.py:263`). The original wording would have put EVERY refusal into `failed` and failed S5c
+# on a system that answers refused members in under a second.
+#
+# ⚠️ TWO FACTS THE AMENDED DEFINITION DEPENDS ON, BOTH MEASURED FROM SOURCE:
+#   1. `record_ack` fires ONLY on the `"queued"` branch (`commands.py:201`), so a refusal row carries
+#      `ack_ms = NULL`. S5c's "reached" evidence therefore comes from the WIRE — which is one of the
+#      two sources the amendment names — and **production cannot self-observe S5c from the job store**.
+#      That is a named instrument gap, not a blocker for a harness-driven measurement.
+#   2. Because refusals carry no `ack_ms`, S1's own population excludes them (`observe.py:121,129`
+#      test `a is not None`). S5c and S1 therefore measure DISJOINT sets: no double counting, and
+#      S5c cannot perturb S1.
+#
+# ⛔ AND THE "refusal path that DOES hold a token" CLAUSE HAS NO INSTANCE among admission refusals.
+# The only refusal-shaped path that holds a token is `_finish_unanswerable` (`runtime.py:297`), which
+# per OI-40 is a restart casualty and belongs to `failed`, not to `refused_by_admission`.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: S5 is a floor on SUCCESS; the amended ruling applies it to `failed` ONLY, so the failure
+#: allowance is its complement. Numeric unchanged — `S5_FLOOR` above, this file, and the same
+#: 0.995 `observe.py:231` alerts on.
+S5_MAX_FAILED_FRACTION = 1.0 - S5_FLOOR
+
+#: S5b — the refusal ceiling per tier, keyed by the burst mode the artifact DECLARES. ⛔ An artifact
+#: that declares no tier informs none: the tier is a property of what the run was shaped to be, and
+#: inferring it from the observed rate would let a run drift into whichever tier it happens to pass.
+S5B_TIERS = {"busiest60s": 0.0, "busiest10s": 0.0, "design": 0.0, "design3x": 0.01}
+
+N_S5 = N_S2  # sub-verdicts ride the existing row; see `_s5_family`
+
+
+def _artifact_offers(doc) -> dict | None:
+    """The B1 split, or None when the artifact predates it and therefore cannot be judged."""
+    sp = (ec.real_block(doc) or {}).get("admission_split")
+    return sp if isinstance(sp, dict) and sp.get("offers") else None
+
+
+def _s5_family(adm) -> dict:
+    """{key: (state, detail)} for S5, S5b and S5c over the ADMITTED admission artifacts.
+
+    ⛔ THREE SEPARATE VERDICTS, NEVER ONE AVERAGE. They fail for different reasons and a reader has
+    to be able to see which: S5 is about breakage, S5b about how often we say no, S5c about whether
+    the no arrived. Collapsing them is how "96.4 %" came to mean three different things at once."""
+    out: dict = {}
+
+    # ── S5 · the failure floor, on `failed` ONLY ───────────────────────────
+    judged, breaches, blind = 0, [], []
+    for art, doc, _r in adm.admitted:
+        sp = _artifact_offers(doc)
+        if sp is None:
+            # ⛔⛔ AND THIS IS THE HONEST CONSEQUENCE OF THE AMENDMENT, STATED OUT LOUD. An artifact
+            # with only `success_rate` and `failures_by_class` CANNOT be judged on `failed`, because
+            # `queue_full` in that block is the ambiguous class OI-40 identified — a refusal and a
+            # downstream busy failure are both in it. INCONCLUSIVE is the truth, and it is NOT a
+            # pass: the fix is to re-run the load under the post-OI-40 harness, not to assume.
+            blind.append(f"{art.name} (pre-B1: no admission_split, so a refusal and a downstream "
+                         f"busy failure cannot be told apart — re-run it)")
+            continue
+        judged += 1
+        frac = (sp.get("failed") or 0) / sp["offers"]
+        if frac > S5_MAX_FAILED_FRACTION:
+            breaches.append(f"{art.name}: failed {frac*100:.2f}% > {S5_MAX_FAILED_FRACTION*100:.2f}% "
+                            f"({sp.get('failed')}/{sp['offers']}) {sp.get('failed_by_class')}")
+        if not sp.get("closes"):
+            breaches.append(f"{art.name}: the split does not close "
+                            f"(unresolved {sp.get('unresolved')}) — buckets that do not sum are FAIL")
+    if breaches:
+        out["S5"] = (NOT_MET, f"{judged} judged; " + " · ".join(breaches[:3]))
+    elif judged:
+        out["S5"] = (MET, f"{judged} run(s): failed <= {S5_MAX_FAILED_FRACTION*100:.2f}% of offers"
+                          + (f" · {len(blind)} unjudgeable: {blind[0]}" if blind else ""))
+    else:
+        out["S5"] = (NOT_MEASURABLE,
+                     "no artifact carries the admission split S5 needs — "
+                     + (blind[0] if blind else "none admitted"))
+
+    # ── S5b · the refusal ceiling, per declared tier ───────────────────────
+    tiers: dict = {}
+    informational: list = []
+    for art, doc, _r in adm.admitted:
+        mode = ((ec._meta(doc).get("burst") or {}) or {}).get("mode")
+        sp = _artifact_offers(doc)
+        if mode not in S5B_TIERS:
+            informational.append(f"{art.name} (tier {mode or 'undeclared'})")
+            continue
+        if sp is None:
+            tiers.setdefault(mode, []).append((art.name, None, None))
+            continue
+        tiers.setdefault(mode, []).append(
+            (art.name, (sp.get("refused_by_admission") or 0) / sp["offers"], sp))
+    rows, bad = [], []
+    for tier, ceiling in S5B_TIERS.items():
+        got = tiers.get(tier) or []
+        if not got:
+            rows.append(f"{tier}: NOT MEASURABLE (no artifact)")
+            continue
+        for name, frac, sp in got:
+            if frac is None:
+                rows.append(f"{tier}: NOT MEASURABLE ({name} has no split)")
+            elif frac > ceiling:
+                bad.append(f"{tier}: {name} refused {frac*100:.2f}% > {ceiling*100:.2f}%")
+            else:
+                rows.append(f"{tier}: {sp.get('refused_by_admission')}/{sp['offers']} OK")
+    if bad:
+        out["S5b"] = (NOT_MET, " · ".join(bad[:3]) + (f" | also {'; '.join(rows[:2])}" if rows else ""))
+    elif any("OK" in r for r in rows):
+        out["S5b"] = (MET if all("NOT MEASURABLE" not in r for r in rows) else NOT_MEASURABLE,
+                      " · ".join(rows)
+                      + (f" | informational: {', '.join(informational[:3])}" if informational else ""))
+    else:
+        out["S5b"] = (NOT_MEASURABLE, " · ".join(rows) or "no tier has an artifact")
+
+    # ── S5c · did the refusal REACH the member, inside the S1 budget? ──────
+    # ⛔⛔ S5c READS INFORMATIONAL RUNS TOO, AND THAT IS NOT A LOOPHOLE — IT IS THE ONLY WAY IT CAN
+    # EVER BE MEASURED. "Runs above 3x design are informational" is a rule about JUDGING A RATE:
+    # S5 asks how much broke and S5b how often we said no, and neither question means anything at a
+    # load no member population produces. S5c asks something different — when we DID say no, did the
+    # member hear it — and at every judged tier the refusal count is zero, so the only place a
+    # refusal exists to observe is an overload.
+    # ⭐ The distinction that keeps this honest: an informational run can never make S5 or S5b
+    # greener (it informs no tier and no failure floor); it can only answer a question about events
+    # that happened. And the verdict text NAMES which artifacts it read.
+    late, seen, missing, sources = 0, 0, [], []
+    for art, doc, _r in list(adm.admitted) + list(adm.informational):
+        rl = (ec.real_block(doc) or {}).get("refusal_latency")
+        if not isinstance(rl, dict) or rl.get("state") != "MEASURED":
+            missing.append(f"{art.name} ({(rl or {}).get('state', 'no refusal_latency block')})")
+            continue
+        seen += rl.get("refusals") or 0
+        late += rl.get("silent_or_late") or 0
+        sources.append(f"{art.name}({art.purpose})x{rl.get('refusals')}")
+    if not seen:
+        # ⛔ NON-VACUITY. Zero refusals observed is NOT "every refusal arrived in time" — an empty
+        # set satisfies every ceiling ever written.
+        out["S5c"] = (NOT_MEASURABLE,
+                      "no admitted artifact measured a refusal reaching a member"
+                      + (f" — {'; '.join(missing[:2])}" if missing else ""))
+    elif late:
+        out["S5c"] = (NOT_MET, f"{late} refusal(s) of {seen} did not reach the member inside the "
+                               f"S1 budget ({HARD_CEILING_MS:.0f} ms)")
+    else:
+        out["S5c"] = (MET, f"{seen} refusal(s) across {', '.join(sources)} all reached the member "
+                           f"inside {HARD_CEILING_MS:.0f} ms (read from the WIRE — the job store "
+                           f"carries no ack_ms for a refusal, commands.py:201)")
+    return out
 
 
 def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
@@ -640,22 +800,35 @@ def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
                     f"{lat.scanned} artifact(s) scanned, NONE admissible for S2 latency or "
                     f"admission - " + (lat.excluded_note() or "all out of scope")
                     + (f" | informational, not judged: {info}" if info else ""))
-    if breaches:
+    # ⛔⛔ THE SUB-VERDICTS RIDE THIS ROW AND THE ROW TAKES THE WORST OF THEM. Eleven rows is what
+    # `06-flip-packet.md` §0 generates from, so a twelfth would put the packet and the gate out of
+    # step — and a packet that disagrees with the gate is the artifact people read. The risk of
+    # folding is that one verdict hides another, so the rule is explicit: NOT MET beats
+    # NOT MEASURABLE beats MET, and every sub-verdict is NAMED in the detail whatever it says.
+    fam = _s5_family(adm)
+    fam_text = " | ".join(f"{k} {st}: {dt}" for k, (st, dt) in fam.items())
+    worst = NOT_MET if any(st == NOT_MET for st, _ in fam.values()) else (
+        NOT_MEASURABLE if any(st == NOT_MEASURABLE for st, _ in fam.values()) else MET)
+
+    if breaches or worst == NOT_MET:
         detail = (f"{len(lat.admitted)} judged for latency, {len(adm.admitted)} for admission; "
-                  f"{len(breaches)} breach(es) - " + " . ".join(breaches[:4])
-                  + (f" (+{len(breaches)-4} more)" if len(breaches) > 4 else ""))
+                  f"{len(breaches)} latency/legacy breach(es)"
+                  + (" - " + " . ".join(breaches[:3]) if breaches else "")
+                  + f" || {fam_text}")
         if info:
             detail += f" | informational, not judged: {info}"
         if not lat.admitted:
             detail += (" | LATENCY NOT MEASURED: " + (lat.excluded_note(limit=2) or "no eligible run"))
         return _row(N_S2, NOT_MET, detail)
-    if not lat.admitted:
+    if not lat.admitted or worst == NOT_MEASURABLE:
         # ⛔ ADMISSION CLEAN IS NOT S2 MET. The row is named for delivery latency; passing the half
         # that could be measured while the other half has no eligible artifact is exactly the
         # "MET because something existed" shape this row was rebuilt to stop.
         return _row(N_S2, NOT_MEASURABLE,
-                    f"admission clean on {len(adm.admitted)} run(s), but LATENCY has no eligible "
-                    f"artifact - " + (lat.excluded_note(limit=2) or "none in scope"))
+                    f"admission: {fam_text}"
+                    + (" || LATENCY has no eligible artifact - "
+                       + (lat.excluded_note(limit=2) or "none in scope") if not lat.admitted else "")
+                    + (f" | informational: {info}" if info else ""))
     note = (f"{len(lat.admitted)} run(s) judged: every percentile inside S2 and success "
             f">= {S5_FLOOR*100:.1f}%")
     extra = lat.excluded_note(limit=2)
