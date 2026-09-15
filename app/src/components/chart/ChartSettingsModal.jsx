@@ -278,6 +278,11 @@ export default function ChartSettingsModal({
   // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
   // the Charts workspace (via ChartPane); when absent, the themes gallery offers
   // only "this chart".
+  // ⚰️ FORWARDED, NOT RE-DERIVED. The volume-presentation inputs the RENDERER
+  // holds as props (`volumeSeparatePane` / `blankVolume` / `shown`); Chart Data
+  // needs the same ones or it answers a different question than the chart does.
+  // See `chartDataMap`'s note at `separateVolume`.
+  volumeOpts = null,
   onApplyThemeAll = null,
   // Optional: apply the theme to EVERY widget in the layout (chart or not).
   onApplyThemeAllWidgets = null,
@@ -1177,6 +1182,7 @@ export default function ChartSettingsModal({
              settings blob itself, so there is exactly one control door onto an
              indicator on this surface, the same one there has always been. */
           <ChartSettingsIndicators
+            volumeOpts={volumeOpts}
             rows={indRows}
             settings={settings}
             onChange={onChange}

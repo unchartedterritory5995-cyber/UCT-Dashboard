@@ -951,6 +951,13 @@ function ChartPane({
         onClose={() => setSettingsOpen(false)}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={chartCs}
+        /* ⭐ THE SAME VOLUME TRUTH THE CHART GETS. This pane passes
+           `volumeSeparatePane` to `StockChart` unconditionally, so on the main
+           chart the renderer allocates a real volume pane; without these inputs
+           Chart Data asked the settings-only question, answered BAND, and listed
+           Volume inside PRICE while the chart drew it below — which also left
+           `movePane` resolving an order with no `volume` key to cross. */
+        volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
         onChange={updateChartSettings}
         onApplyThemeAll={onApplyThemeAll}
         onApplyThemeAllWidgets={onApplyThemeAllWidgets}

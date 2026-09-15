@@ -68,6 +68,7 @@ import { treesHash } from '../engine/ast/trees'
 import {
   getDefinition, clearUserDefinitions, computeFor, validateUserDefinitions,
 } from '../engine/nativeRegistry'
+import { resolveDisplayTarget } from '../engine/displayTarget'
 import { instancesForAddress } from '../engine/alertSets'
 import { useInstalledUserDefinitions } from '../../../hooks/useUserDefinitions'
 import { makeBars } from '../engine/__tests__/fakeChart'
@@ -398,6 +399,14 @@ describe('A1 — author MACD-with-histogram, one def_hash at every surface', () 
     const armed = instancesForAddress(chart.settings, `${DEF_ID}.tuned_up`)
     expect(armed).toHaveLength(1)
     expect(armed[0].inputs.fast, 'the member input default reached the instance').toBe(12)
-    expect(armed[0].placement, 'the overlay placement reached the instance').toEqual({ target: 'price' })
+    // ⭐ 2026-09-15 — ASKS WHERE IT DRAWS, NOT WHAT BYTE WAS STORED. Creation no
+    // longer stamps a RESTATEMENT of the definition's declared target (see
+    // `instanceControls.placementFor`): this overlay DECLARES `price`, so storing
+    // `{target:'price'}` said nothing the definition had not already said, and
+    // could not be told apart from a member who chose it. The destination is
+    // unchanged — the resolver returns the declaration when nothing overrides it.
+    expect(armed[0].placement, 'creation stamped a restatement again').toBeUndefined()
+    expect(resolveDisplayTarget(armed[0], chart.settings),
+      'the overlay placement reached the instance').toBe('price')
   })
 })

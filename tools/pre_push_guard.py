@@ -193,14 +193,68 @@ def decide(dep: dict, *, now_age: float | None = None) -> tuple[str, str]:
                 % (SERVICE, dep.get("commit"), int(age)))
 
 
-def _log_bypass(dep: dict, reason: str) -> None:
+#: R19 — the BURST clause's documented exit. Two variables, because an attestation is
+#: a statement by a person at a time, and half of it is not a statement.
+ATTEST_BY_ENV = "UCT_BURST_ATTESTED_BY"
+ATTEST_AT_ENV = "UCT_BURST_ATTESTED_AT"
+#: How stale an attestation may be. An owner who looked at the queue twenty minutes ago
+#: has not looked at THIS queue — three other workstreams push to this repo.
+ATTEST_MAX_AGE_SECONDS = 900
+
+
+def read_attestation(now: "dt.datetime | None" = None) -> dict:
+    """The owner's burst attestation, validated. Pure — the tests drive it directly.
+
+    ⛔⛔ THIS EXITS THE BURST CLAUSE AND NOTHING ELSE. The burst refusal's own text asks
+    for "a human who can see every workstream, not a guard" — this is that human saying
+    they looked. It can never satisfy recency (a build really is in flight), the
+    in-flight/SUCCESS clause, or any fail-closed path: those are measurements of the
+    world, and no amount of looking changes them.
+
+    ⭐ TWO VARIABLES ON PURPOSE. A name alone is a standing grant that would sit in a
+    shell profile forever; a time alone is anonymous. Together they are a statement by a
+    named person at a named minute, which is what a log entry has to carry to be worth
+    keeping."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    by = (os.environ.get(ATTEST_BY_ENV) or "").strip()
+    at_raw = (os.environ.get(ATTEST_AT_ENV) or "").strip()
+    if not by and not at_raw:
+        return {"state": "ABSENT", "why": "no attestation offered"}
+    if not by or not at_raw:
+        missing = ATTEST_BY_ENV if not by else ATTEST_AT_ENV
+        return {"state": "INVALID", "why": "%s is set without %s — half an attestation is "
+                                           "not an attestation" % (
+                                               ATTEST_AT_ENV if not by else ATTEST_BY_ENV, missing)}
+    at = _iso(at_raw)
+    if at is None:
+        return {"state": "INVALID", "why": "%s=%r is not an ISO timestamp" % (ATTEST_AT_ENV, at_raw[:40])}
+    age = (now - at).total_seconds()
+    if age > ATTEST_MAX_AGE_SECONDS:
+        return {"state": "STALE", "by": by, "at": at,
+                "why": "attested %dm ago; an attestation older than %dm is not about THIS queue"
+                       % (int(age // 60), ATTEST_MAX_AGE_SECONDS // 60)}
+    if age < -60:
+        return {"state": "INVALID", "by": by, "at": at,
+                "why": "attested %ds in the FUTURE — a clock disagreement, not an attestation"
+                       % int(-age)}
+    return {"state": "VALID", "by": by, "at": at,
+            "why": "attested by %s at %s (%ds ago)" % (by, at.isoformat(timespec="seconds"), int(max(0, age)))}
+
+
+def _log_bypass(dep: dict, reason: str, *, code: str = "") -> None:
+    """⭐ R20 — `reason_code` is MACHINE-READABLE and sits beside the prose.
+
+    The prose says what was overridden in words a person reads; the code says which
+    clause in a token a script can count. A log that only carries prose cannot answer
+    "how many window overrides last month" without someone grepping sentences that
+    change whenever the message is reworded."""
     try:
         BYPASS_LOG.parent.mkdir(parents=True, exist_ok=True)
         with BYPASS_LOG.open("a", encoding="utf-8") as fh:
-            fh.write("%s  user=%s  status=%s commit=%s  overrode: %s\n"
+            fh.write("%s  user=%s  status=%s commit=%s  reason_code=%s  overrode: %s\n"
                      % (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
                         os.environ.get("USERNAME") or os.environ.get("USER") or "?",
-                        dep.get("status"), dep.get("commit"), reason))
+                        dep.get("status"), dep.get("commit"), code or "UNSPECIFIED", reason))
     except Exception:
         pass
 
@@ -365,13 +419,26 @@ def recent_deployments() -> dict:
     return {"state": "READ", "rows": rows}
 
 
-def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str, str]:
+def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None,
+                   clause: "dict | None" = None) -> tuple[str, str]:
     """(verdict, reason). Pure — the tests drive it directly.
 
     ⛔ FAIL CLOSED on every unreadable path, including "rows came back but not one
     timestamp parsed". An empty answer and a quiet master are the same shape from
-    here, and only one of them is safe."""
+    here, and only one of them is safe.
+
+    ⭐ `clause` is an optional OUT-DICT naming WHICH clause decided, filled with
+    `{"name": "unreadable"|"unparsable"|"recency"|"burst"|"quiet"}`. R19 lets the owner
+    attest past the BURST clause and nothing else, and a caller cannot honour that
+    distinction by reading prose. Same idiom as the breadth drill-list `members`
+    out-dict: the decision and its label come from ONE pass, so they cannot drift."""
+    def _clause(name):
+        if clause is not None:
+            clause["name"] = name
+        return name
+
     if dep.get("state") == UNREADABLE:
+        _clause("unreadable")
         return REFUSE, ("cannot read the %s deployment list (%s). REFUSING: a cadence guard "
                         "that fails open is quietest exactly when master is busiest."
                         % (SERVICE, dep.get("why")))
@@ -388,6 +455,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
         if c not in seen or t > seen[c][0]:
             seen[c] = (t, r)
     if rows and not seen:
+        _clause("unparsable")
         return REFUSE, ("the %s deployment list carried %d row(s) and not one readable "
                         "(commit, timestamp) pair — REFUSING rather than reading that as quiet."
                         % (SERVICE, len(rows)))
@@ -396,6 +464,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
     for c, (t, r) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
         age = (now - t).total_seconds()
         if 0 <= age < RECENT_PUSH_WINDOW_SECONDS:
+            _clause("recency")
             return REFUSE, ("a %s deploy landed %ds ago (%s %s) and a build takes 3-5 min — "
                             "pushing inside that window is how a deploy is marked REMOVED "
                             "mid-flight and members get a 502. Wait %ds."
@@ -407,6 +476,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
     burst = [(c, t) for c, (t, _r) in seen.items()
              if 0 <= (now - t).total_seconds() < BURST_WINDOW_SECONDS]
     if len(burst) >= BURST_MIN_DEPLOYS:
+        _clause("burst")
         newest = sorted(burst, key=lambda ct: ct[1], reverse=True)
         return REFUSE, ("%d distinct %s deploys in the last %d min (%s) — master is under "
                         "concurrent development and a build may be in flight from a session "
@@ -416,33 +486,226 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
                            ", ".join(c for c, _ in newest[:4])))
 
     n_recent = len(burst)
+    _clause("quiet")
     return OK, ("%d %s deploy(s) in the last %d min, none inside %ds — master is quiet."
                 % (n_recent, SERVICE, BURST_WINDOW_SECONDS // 60, RECENT_PUSH_WINDOW_SECONDS))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# GUARD 2 — RETIRED (owner ruling R46, 2026-09-15)
+# GUARD 2 — THE CLOCK (owner ruling A2, 2026-09-14)
 # ═════════════════════════════════════════════════════════════════════════════
+
+#: The closed window, ET, on trading days. Half-open: 09:25:00 is refused,
+#: 16:05:00 is allowed. Owner ruling A2, verbatim: "refuses any master push
+#: between 09:25 and 16:05 ET on trading days".
+RTH_GUARD_OPEN = (9, 25)
+RTH_GUARD_CLOSE = (16, 5)
+
+#: ⛔ AN EXACT VALUE, NOT `=1`. Typing this is an act; typing `1` is a reflex.
+CLOCK_OVERRIDE_ENV = "UCT_DEPLOY_WINDOW_OVERRIDE"
+CLOCK_OVERRIDE_VALUE = "I-ACCEPT-AN-RTH-RESTART"
+
+# ⛔⛔ DERIVED FROM `docs/runbooks/deploy-windows.md`, NOT INVENTED. The runbook is
+# the single authority on push timing; these two lines are quoted from it verbatim
+# (lines 13-14 at 2026-09-14):
 #
-# ⚰️⚰️ THERE IS NO MARKET-HOURS PUSH OR MERGE WINDOW ON THIS REPO, AND THERE HAS NOT
-# BEEN ONE SINCE 2026-08-24. CLAUDE.md:4805 records it: *"Shipping window: NO FREEZE
-# (2026-08-24). The market-hours push freeze (Mon-Fri 9:15a-4:20p ET) and BOTH its
-# guards — the pre-push hook and the Deploy window guard workflow — were removed by
-# owner decision. Push whenever."*
+#     ### Tier 1 — push any time
+#     Docs, markdown, `tests/**`, `tools/**`, `scripts/**`, and frontend (`app/**`).
 #
-# This file nevertheless carried an 'owner ruling A2' clock refusing every master push
-# between 09:25 and 16:05 ET, with ~130 lines of machinery and 19 tests behind it. That
-# is a RESCINDED RULE REINSTATED — the exact failure CLAUDE.md warns about twice, and it
-# cost real time: a session read this clause, believed it, and wrote 'merge after 16:05
-# ET or at a weekend' into a promotion document for a rule that does not exist.
+# and the sentence under them that says what that costs:
 #
-# ⛔ NO TIME-OF-DAY CONDITION APPLIES TO ANY PUSH OR MERGE. Do not reintroduce one here;
-# `test_the_guard_has_no_time_of_day_branch` fails by name if you do. If a window is ever
-# wanted again it is an owner ruling and a deploy-policy document, not a clause that
-# outlives the decision that created it.
+#     These restart **web only** (and only if web's watch paths match — see below). Cost:
+#     `/api/*` blips for roughly a minute […] Acceptable.
 #
-# ⭐ The QUEUE guard (guard 1, above) and the CADENCE guard are untouched: they are about
-# not colliding with another deploy, which is physics, not a clock.
+# "Docs, markdown" is two clauses, so BOTH are honoured: anything under `docs/`,
+# and any `.md` file wherever it lives. ⚠️ If the runbook's Tier 1 list moves, this
+# tuple is wrong the same day — `tests/test_pre_push_guard.py` reads the runbook and
+# fails when the two disagree, so the drift is caught rather than inherited.
+CLEARED_PREFIXES = ("docs/", "tests/", "tools/", "scripts/", "app/")
+CLEARED_SUFFIXES = (".md",)
+
+
+def _freshness():
+    """THE market clock — `api/services/discord_render/freshness.py`.
+
+    ⛔⛔ IMPORTED, NEVER COPIED. A second "is the market open" is the defect this
+    repo has paid for repeatedly (`lesson_a_second_authority_over_one_value`), and
+    the holiday set in particular has exactly one owner: `freshness.is_holiday`
+    imports `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` rather than keeping a table.
+
+    ⭐ THE IMPORT IS LAZY AND THAT IS THE WHOLE COST STORY. Importing `freshness`
+    itself is 0.05 s / ~100 modules — nothing. But `session_state` calls
+    `is_holiday`, which pulls `api.services.bars_fetch` (and through it fastapi,
+    httpx, the massive client): **1.26 s and ~1,200 modules, measured**. That is
+    paid once per weekday guard run and is the price of asking the real clock
+    instead of writing a second one. It is deliberately NOT paid at module import,
+    so `--audit` and the unit tests never touch it.
+
+    ⚠️ Those modules compute `/data/...` paths at import; none of them OPEN a file,
+    so this import is filesystem-inert (audited by AST, 2026-09-14). If that ever
+    stops being true, this becomes the wrong door and the right answer is to move
+    the holiday set, not to copy it.
+    """
+    root = str(ROOT)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from api.services.discord_render import freshness
+    return freshness
+
+
+def read_clock(now: "dt.datetime | None" = None) -> dict:
+    """What the market clock says, or UNREADABLE and why.
+
+    ⛔ It answers exactly ONE question from `freshness`: *is today a trading day?*
+    The 09:25/16:05 window is this guard's own deploy policy and is deliberately
+    NOT `session_state == "rth"` — the window is wider than the session on both
+    ends, and re-deriving the session here would be the second copy."""
+    try:
+        fr = _freshness()
+        state = fr.session_state(now)
+        # `_et` is freshness's own naive/aware normaliser. Re-implementing the two
+        # lines it contains would put a second authority on "what time is it in ET".
+        now_et = fr._et(now)
+        trading = state not in (fr.WEEKEND, fr.HOLIDAY)
+    except Exception as e:                                   # noqa: BLE001
+        return {"state": UNREADABLE,
+                "why": "%s: %s" % (type(e).__name__, str(e)[:160] or "no detail")}
+    return {"state": "READ", "session": state, "trading_day": trading, "now_et": now_et}
+
+
+def changed_paths(base: str | None = None, head: str | None = None) -> "list[str] | None":
+    """Repo-relative paths this push would land on master, or **None** when git
+    could not say.
+
+    ⛔⛔ `None` AND `[]` ARE DIFFERENT AND THE DIFFERENCE IS THE GUARD. An empty
+    result is a failed invocation until proven otherwise: a diff that comes back
+    empty because the pathspec resolved wrong, or because the range was nonsense,
+    would otherwise read as "nothing outside the cleared list" — i.e. the exemption
+    would fire hardest exactly when the measurement broke."""
+    exe = shutil.which("git")
+    if not exe:
+        return None
+    rng = "%s...%s" % (base or "origin/master", head or "HEAD")
+    try:
+        r = subprocess.run([exe, "-C", str(ROOT), "diff", "--name-only", "--no-renames", rng],
+                           capture_output=True, text=True, timeout=60,
+                           encoding="utf-8", errors="replace")
+    except Exception:                                        # noqa: BLE001
+        return None
+    if r.returncode != 0:
+        return None
+    return sorted({ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()})
+
+
+def is_cleared(path: str) -> bool:
+    """Is one path cleared for a daytime push by the runbook's Tier 1 list?"""
+    p = path.replace("\\", "/").lstrip("./")
+    return p.startswith(CLEARED_PREFIXES) or p.lower().endswith(CLEARED_SUFFIXES)
+
+
+def uncleared_paths(paths) -> list[str]:
+    return sorted(p for p in paths if not is_cleared(p))
+
+
+def next_allowed_et(now_et: "dt.datetime") -> "dt.datetime":
+    """The concrete instant this push stops being refused: today's 16:05 ET.
+
+    A refusal only ever happens INSIDE the window on a trading day, so the next
+    allowed instant is always the window's close on the same date."""
+    return now_et.replace(hour=RTH_GUARD_CLOSE[0], minute=RTH_GUARD_CLOSE[1],
+                          second=0, microsecond=0)
+
+
+def _hhmm(t) -> str:
+    return "%02d:%02d" % t
+
+
+def decide_clock(clock: dict, paths) -> tuple[str, str]:
+    """(verdict, reason). Pure — the tests drive it directly, no git and no import."""
+    if clock.get("state") == UNREADABLE:
+        # ⛔ THE LOAD-BEARING BRANCH. A guard that passes when it cannot tell the
+        # time is not a guard — it reports "fine" precisely when it has stopped
+        # working, which is how 15:49 became 16:00 in somebody's head.
+        return REFUSE, ("cannot determine the market clock (%s). REFUSING: a guard that "
+                        "passes when it cannot tell the time is not a guard.\n"
+                        "  next allowed:   UNKNOWN — fix the clock, or override deliberately "
+                        "with %s=%s" % (clock.get("why"), CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE))
+
+    now_et = clock["now_et"]
+    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
+
+    # ⛔⛔ R18 — THE RTH DEPLOY WINDOW IS RETIRED, PROGRAMME-WIDE.
+    # Owner ruling, stated in chat 2026-09-15, entered by Claude (chat): "there are no
+    # mid-day deploy blocks." The 09:25-16:05 ET refusal is withdrawn. This function no
+    # longer gates on the clock at all — it reads it, reports it, and returns OK.
+    #
+    # ⛔ WHAT DID **NOT** CHANGE, AND WHY THIS IS NOT A WEAKER GUARD. Every other clause
+    # stands untouched, and they are the ones that were actually load-bearing:
+    #   * the CADENCE rail (600 s recency + 3 commits/hour burst) — the clause that
+    #     catches the real failure, a push landing inside another deploy's 3-5 min build
+    #     and marking it REMOVED mid-flight (2026-09-12 and 2026-09-14, both measured);
+    #   * last web deploy SUCCESS, and no deploy in flight;
+    #   * fail-closed on an unreadable clock or unreadable deploy history.
+    # ⭐ The window was a PROXY for "do not disturb members", and it was a bad one: it
+    # blocked a docs push at 11:00 and permitted two stacked merges at 16:06. The cadence
+    # rail measures the thing the window was guessing at.
+    #
+    # ⚠️ THE UNREADABLE-CLOCK BRANCH ABOVE IS DELIBERATELY KEPT, and it is now the only
+    # consumer of the clock. R18 lists "fail-closed on unreadable clock" among the clauses
+    # to leave intact, so it stays — but a reader should know the tension: a guard that
+    # refuses on a clock it no longer gates on is stricter than it needs to be. That is the
+    # ruling's call, recorded here rather than quietly "improved".
+    #
+    # ⚠️ `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are KEPT: the
+    # Tier classification is still read by `docs/runbooks/deploy-windows.md`,
+    # `tools/flow_worker_watch_coverage.py` and the JSON output. They no longer REFUSE.
+    if not clock.get("trading_day"):
+        return OK, ("%s is not a trading day (session=%s) — and since R18 the RTH deploy "
+                    "window is retired anyway." % (stamp, clock.get("session")))
+    n_paths = "unknown" if paths is None else str(len(paths))
+    return OK, ("%s — the %s-%s ET deploy window is RETIRED (R18, owner ruling "
+                "2026-09-15). %s changed path(s); cadence and deploy-state clauses still "
+                "apply." % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), n_paths))
+
+
+def _retired_rth_refusal(clock, paths):  # pragma: no cover - retained for history
+    """⚰️ THE REFUSAL R18 RETIRED. Kept as a record of what the window used to say, and
+    deliberately unreachable: `decide_clock` no longer calls it. Deleting it outright would
+    leave the next reader unable to see what the rule WAS when they find R18 in a ledger."""
+    now_et = clock["now_et"]
+    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
+    if paths is None:
+        why = ("the changed-path set could not be read (git did not answer), so the diff "
+               "CANNOT be shown to be cleared")
+        listed = "  not cleared:    UNKNOWN — git did not answer; an unread diff is never exempt"
+    else:
+        unclear = uncleared_paths(paths)
+        if not paths:
+            why = ("the diff is EMPTY, which is a failed measurement rather than a cleared "
+                   "one — an empty result is a failed invocation until proven otherwise")
+            listed = "  not cleared:    UNKNOWN — the diff came back empty; that is not the same as clean"
+        else:
+            shown = unclear[:6]
+            more = "" if len(unclear) <= 6 else " (+%d more)" % (len(unclear) - 6)
+            why = ("%d of %d changed path(s) are NOT cleared for a daytime push"
+                   % (len(unclear), len(paths)))
+            listed = "  not cleared:    %s%s" % (", ".join(shown), more)
+
+    nxt = next_allowed_et(now_et)
+    secs = max(0, int((nxt - now_et).total_seconds()))
+    return REFUSE, "\n".join([
+        "REFUSING A MASTER PUSH — the market is open and this diff is not cleared for daytime.",
+        "  refused:        a push whose destination is master (it restarts web and chart-renderer)",
+        "  now:            %s  (session=%s, a trading day)" % (stamp, clock.get("session")),
+        "  window:         %s-%s ET on trading days" % (_hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)),
+        "  why:            %s" % why,
+        listed,
+        "  next allowed:   %s  — in %dm %02ds" % (nxt.strftime("%Y-%m-%d %H:%M:%S ET"),
+                                                  secs // 60, secs % 60),
+        "  cleared today:  docs/markdown, tests/**, tools/**, scripts/**, app/**  "
+        "(docs/runbooks/deploy-windows.md, Tier 1)",
+        "  deliberate override: %s=%s" % (CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE),
+    ])
 
 
 def main(argv=None) -> int:
@@ -467,30 +730,98 @@ def main(argv=None) -> int:
     if a.audit:
         return _audit()
 
-    # ⛔ NO CLOCK. Retired by owner ruling R46 (2026-09-15); see the banner above. The guard
-    # goes straight to the queue question, which is the only one it has.
+    # ── THE CLOCK first: it costs no network, and it is the one the owner ruled on.
+    clock = read_clock()
+    paths = changed_paths(a.base, a.head)
+    cverdict, creason = decide_clock(clock, paths)
+    clock_overridden = (cverdict != OK
+                        and os.environ.get(CLOCK_OVERRIDE_ENV, "").strip() == CLOCK_OVERRIDE_VALUE)
+
+    if cverdict != OK and not clock_overridden and not a.json:
+        # ⛔ Return BEFORE asking Railway anything. A refused push has no queue
+        # question to answer, and a guard that still spends 2s on the CLI teaches
+        # everyone that the refusal is slow rather than that it is right.
+        print("[pre-push] %s" % creason)
+        return 1
+
     dep = latest_deployment()
     verdict, reason = decide(dep)
     cad = recent_deployments()
-    kverdict, kreason = decide_cadence(cad)
+    kclause: dict = {}
+    kverdict, kreason = decide_cadence(cad, clause=kclause)
+
+    # ── R19: the owner may attest past the BURST clause, and nothing else ──────
+    attest = read_attestation()
+    burst_attested = (kverdict != OK
+                      and kclause.get("name") == "burst"
+                      and verdict == OK            # in-flight / SUCCESS, independently
+                      and attest.get("state") == "VALID")
+    if burst_attested:
+        kverdict = OK
+        kreason = ("BURST ATTESTED by %s — %s | the burst clause asked for a human who "
+                   "can see every workstream; this is that human. Recency and in-flight "
+                   "passed on their own and were NOT overridden."
+                   % (attest["by"], kreason.splitlines()[0]))
 
     if a.json:
         print(json.dumps({
-            "verdict": OK if (verdict == OK and kverdict == OK) else REFUSE,
+            "verdict": OK if (verdict == OK and cverdict == OK and kverdict == OK) else REFUSE,
             "cadence": {"verdict": kverdict, "reason": kreason,
+                        "clause": kclause.get("name"),
+                        "attestation": {k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                                        for k, v in attest.items()},
                         "recent_window_s": RECENT_PUSH_WINDOW_SECONDS,
                         "burst_window_s": BURST_WINDOW_SECONDS,
                         "burst_min": BURST_MIN_DEPLOYS},
+            "clock": {"verdict": cverdict, "reason": creason,
+                      "session": clock.get("session"), "trading_day": clock.get("trading_day"),
+                      "now_et": clock["now_et"].isoformat() if clock.get("now_et") else None,
+                      "changed_paths": paths,
+                      "uncleared": None if paths is None else uncleared_paths(paths)},
             "queue": {"verdict": verdict, "reason": reason, "deployment": dep},
         }, indent=1))
-        return 0 if (verdict == OK and kverdict == OK) else 1
+        return 0 if (verdict == OK and cverdict == OK and kverdict == OK) else 1
+
+    if clock_overridden:
+        # ⛔ LOUD. A window override is a member-visible restart during the session;
+        # it should never scroll past unread.
+        _log_bypass({"status": "CLOCK-WINDOW", "commit": clock.get("session")}, creason,
+                    code="CLOCK-WINDOW")
+        print("=" * 78)
+        print("[pre-push] ⚠️  DEPLOY WINDOW OVERRIDDEN via %s" % CLOCK_OVERRIDE_ENV)
+        print("[pre-push] ⚠️  RESTARTING web AND chart-renderer DURING THE SESSION.")
+        print("[pre-push] ⚠️  Logged to %s" % BYPASS_LOG)
+        print("[pre-push] what was overridden:\n%s" % creason)
+        print("=" * 78)
+    else:
+        print("[pre-push] %s" % creason)
+
+    if burst_attested:
+        # ⛔ LOGGED VERBATIM. An attestation nobody can review afterwards is a
+        # permission that was never really asked for.
+        _log_bypass(dep, "BURST attested: %s" % attest["why"], code="BURST-ATTESTED")
+        print("=" * 78)
+        print("[pre-push] ⚠️  BURST CLAUSE ATTESTED by %s" % attest["by"])
+        print("[pre-push] ⚠️  %s" % attest["why"])
+        print("[pre-push] ⚠️  recency and in-flight passed on their own — NOT overridden.")
+        print("[pre-push] ⚠️  Logged to %s" % BYPASS_LOG)
+        print("=" * 78)
+    elif attest.get("state") == "VALID":
+        # ⛔ VALID BUT NOT APPLICABLE IS NOT "REJECTED", and saying so would teach the
+        # owner that their attestation was somehow malformed when it was fine — the
+        # clause that refused simply is not the one an attestation can exit.
+        print("[pre-push] attestation NOT APPLIED (%s) — it exits the BURST clause only, "
+              "and the refusal here is %r." % (attest.get("why"), kclause.get("name")))
+    elif attest.get("state") not in (None, "ABSENT"):
+        print("[pre-push] attestation REJECTED (%s): %s"
+              % (attest.get("state"), attest.get("why")))
 
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):
         # ⛔ BOTH reasons are logged. Overriding a queue refusal and overriding a
         # cadence refusal are different acts, and a log that records only the first
         # cannot tell the reviewer which one was waved through.
         _log_bypass(dep, "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason))
-                                   if v != OK) or reason)
+                                   if v != OK) or reason, code="QUEUE-SKIP")
         print("[pre-push] BYPASSED via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
         print("[pre-push] what was overridden: %s" % reason)
         if kverdict != OK:
