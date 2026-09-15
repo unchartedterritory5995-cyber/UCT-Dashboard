@@ -1295,10 +1295,27 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
           } catch (e) { return {status: 0, err: String(e)}; }
         }""")
         if not (isinstance(who, dict) and who.get("status") == 200 and who.get("json")):
+            # ⛔⛔ A 502 IS NOT A SIGNED-OUT RIG. The first version of this refusal said
+            # "the rig is not signed in" for EVERY non-200 — including the 502 it
+            # actually hit, which was a deploy swap. Two materially different facts
+            # rendering as one sentence is the exact ambiguity class this programme
+            # has been closing all week, committed by the check written to close it.
+            st = who.get("status") if isinstance(who, dict) else None
+            if st in (401, 403):
+                cause = ("the rig is SIGNED OUT. A sign-in is a 30-day event, not a "
+                         "session event — do NOT create a new profile; a fresh profile "
+                         "is a signed-out profile.")
+            elif st in (500, 502, 503, 504):
+                cause = ("PRODUCTION was unavailable (5xx), almost always a deploy swap. "
+                         "Nothing is wrong with the rig. Requeue and retry in a later "
+                         "window.")
+            elif not st:
+                cause = "the request never completed — no network, or the page was gone."
+            else:
+                cause = "an unexpected status; classify it before spending a window."
             return {"verdict": "INCONCLUSIVE",
-                    "why": (f"/api/auth/me did not answer 200+JSON ({who}) — the rig is not "
-                            f"signed in, so nothing below could have been measured. This is "
-                            f"an INSTRUMENT fact, NOT a product finding.")}
+                    "why": (f"/api/auth/me answered {st}, not 200+JSON ({who}) — "
+                            f"{cause} This is an INSTRUMENT fact, NOT a product finding.")}
         x = _expired("auth check")
         if x:
             return x
