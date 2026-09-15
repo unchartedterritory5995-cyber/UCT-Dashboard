@@ -313,6 +313,12 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // nothing removed, no existing value changed — 40 keys → 41. The
       // per-DEFINITION doors this file is about (enable · input · disable) are
       // untouched; what moved is the blob each of them is embedded in.
-      .toBe('3b11206650a2c78ad34fc1cbbaa066222182f8ae66b2e94e7c36e3498db051e0')
+      // 2026-09-15: re-pinned again for `paneSizes` — the member's chosen pane
+      // heights. ⛔ INVESTIGATED, NOT REGENERATED, by the same method: the key
+      // sets were enumerated on this tree and on HEAD before the change, and the
+      // diff is exactly one ADDITIVE key, `paneSizes: {}` — 41 keys → 42, nothing
+      // removed, no existing value changed. The per-DEFINITION doors are again
+      // untouched; what moved is the blob they are embedded in.
+      .toBe('a6a030675093753839f67f0a3702b4a2bd947cd73b430119badf49787065261f')
   })
 })

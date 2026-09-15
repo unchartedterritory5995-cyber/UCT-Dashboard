@@ -37,6 +37,7 @@ import {
 } from './engine/displayTarget'
 import { isInstanceTombstone } from './instanceShape'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
+import { volumeOwnsPane } from './engine/volumePresentation'
 
 /** The group ids that no instance hosts. */
 export const PRICE_GROUP = 'price'
@@ -77,11 +78,15 @@ export function paneMap(rows, settings, defOf) {
   // it, because `StockChart` promotes it then whatever the setting says
   // (`volSeparatePane = volInSeparatePane || volOverlaySet.size > 0`). Reading
   // only the flag would draw a band in the map for a chart that has a real pane.
-  const separateVolume = settings?.volume?.separatePane === true
-    || instances.some((i) => {
-      if (!i || typeof i !== 'object' || i.hidden === true) return false
-      try { return resolveDisplayTarget(i, settings) === 'volume' } catch { return false }
-    })
+  // ⭐ ONE PREDICATE, ASKED. This re-derived the renderer's rule and got a
+  // DIFFERENT answer — it could not see `showVolume`/`blankVolume`/the
+  // `volumeSeparatePane` prop, and it read instance display targets while the
+  // renderer read the legacy `cs.volumeOverlayIndicators` list. See
+  // `engine/volumePresentation.js` for the three ways they diverged.
+  //
+  // ⚠️ THE PROPS ARE NOT AVAILABLE HERE, so this is the settings-only answer —
+  // the same one, with the unknowable inputs omitted rather than guessed.
+  const separateVolume = volumeOwnsPane({ cs: settings, instances })
 
   const live = new Set([
     ...paneOwnKeys(instances, settings),

@@ -70,9 +70,9 @@ export function storedPaneOrder(cs) {
  *
  * ⛔ A STORED ORDER IS A PREFERENCE, NEVER A SOURCE OF TRUTH ABOUT WHAT EXISTS.
  * Keys that are no longer on the chart are dropped, and panes the stored list
- * has never heard of are inserted at their DEFAULT neighbours rather than
- * appended to the bottom — so adding an indicator to a re-ordered chart puts it
- * where the unordered chart would have put it, not always last.
+ * has never heard of are APPENDED — see the note at the splice for why they used
+ * to be inserted beside a default neighbour and why that let definition rank
+ * move panes the member had arranged.
  */
 export function resolvePaneOrder(cs, paneKeys, opts) {
   const keys = Array.isArray(paneKeys) ? paneKeys.filter(isKey) : []
@@ -84,19 +84,40 @@ export function resolvePaneOrder(cs, paneKeys, opts) {
   const stored = storedPaneOrder(cs).filter((k) => live.has(k))
   if (!stored.length) return dflt
 
-  // Everything the stored list knows about, in its order; then each missing key
-  // spliced in beside the neighbour it has in the DEFAULT arrangement.
+  // ⚰️⚰️ A NEW PANE GOES TO THE BOTTOM. IT USED TO GO BESIDE ITS *DEFAULT*
+  // NEIGHBOUR, AND THAT LET DEFINITION RANK REACH THE SCREEN.
+  //
+  // The rule here was: splice each unknown key in beside the nearest key it sits
+  // next to in `dflt`. `dflt` is ordered by the instance array, which
+  // `withInstances` re-sorts by DEFINITION RANK on every canonical write — so
+  // the arrangement of panes the member had never touched decided where a new
+  // one landed, and it could land anywhere.
+  //
+  // ⛔ MEASURED, and it is the owner's "adding a series moved my panes". Stored
+  // `["inst:rsi:1", "price"]` — RSI arranged above Price — then add QQQ:
+  //
+  //     was   ["rsi", "dataSeries", "price", "volume"]   ← above Price!
+  //     now   ["rsi", "price", "volume", "dataSeries"]
+  //
+  // QQQ's default predecessor is RSI, and RSI happens to sit at the top in this
+  // member's arrangement, so the new pane teleported to the top. Nothing about
+  // adding QQQ says anything about where it belongs relative to a pane the
+  // member deliberately moved.
+  //
+  // ⭐ ONCE AN ARRANGEMENT EXISTS IT IS AUTHORITATIVE. The stored list is
+  // preserved EXACTLY — every pairwise relation the member established survives
+  // — and anything new is appended. Appending is the least surprising default
+  // and, unlike the splice, it cannot move a pane the member placed.
+  //
+  // ⚠️ THIS IS THE `stored.length` BRANCH ONLY. A chart with NO arrangement
+  // still takes `dflt` wholesale above, which is the shipped layout and the
+  // whole backward-compatibility story; deriving the FIRST stack from definition
+  // rank is legitimate, letting it re-derive later is not.
   const out = [...stored]
   const placed = new Set(stored)
-  for (let i = 0; i < dflt.length; i++) {
-    const k = dflt[i]
+  for (const k of dflt) {
     if (placed.has(k)) continue
-    // The nearest earlier default-neighbour that IS placed decides the slot.
-    let at = 0
-    for (let j = i - 1; j >= 0; j--) {
-      if (placed.has(dflt[j])) { at = out.indexOf(dflt[j]) + 1; break }
-    }
-    out.splice(at, 0, k)
+    out.push(k)
     placed.add(k)
   }
   return out

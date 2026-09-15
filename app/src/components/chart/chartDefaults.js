@@ -251,6 +251,17 @@ export const CHART_DEFAULTS = {
    * Price back on top. Same trap the note above records for `indicatorInstances`.
    */
   paneOrder: [],
+
+  /**
+   * The member's chosen pane SHARES, keyed by pane key. See `engine/paneSizes.js`.
+   *
+   * ⚰️ IT HAS TO BE HERE, NOT ONLY IN THE WRITER — the same reason `paneOrder`
+   * does. `mergeChartSettings` returns an explicit ALLOW-LIST, so a key absent
+   * from it is dropped on every read and a member's dragged separator would come
+   * back from a reload at its default. Empty means "compute the default", which
+   * is what every chart that has never been resized already does.
+   */
+  paneSizes: {},
   // ⭐ B5 TASK 4 — `engineEnabled` STOOD HERE, AND IT IS DELETED, NOT FLIPPED.
   // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
   //
@@ -572,6 +583,13 @@ export function mergeChartSettings(userSettings) {
     paneOrder: Array.isArray(parsed.paneOrder)
       ? parsed.paneOrder.filter((k) => typeof k === 'string' && k)
       : [],
+    // ⭐ SANITISED ON READ, like `paneOrder` above. A share outside (0,1) is not
+    // a preference anybody can see, so it is dropped here rather than carried
+    // into the layout where it would have to be defended against again.
+    paneSizes: (parsed.paneSizes && typeof parsed.paneSizes === 'object' && !Array.isArray(parsed.paneSizes))
+      ? Object.fromEntries(Object.entries(parsed.paneSizes)
+        .filter(([k, v]) => typeof k === 'string' && k && Number.isFinite(v) && v > 0 && v < 1))
+      : {},
     // ⭐⭐ B5 TASK 4 — `engineEnabled: parsed.engineEnabled === true` STOOD HERE.
     //
     // 🔑 THIS LINE, NOT THE DECLARATION, WAS THE FLAG. It read the STORED BLOB,
