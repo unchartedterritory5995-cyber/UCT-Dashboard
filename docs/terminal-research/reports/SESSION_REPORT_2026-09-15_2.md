@@ -9,8 +9,8 @@
 Start **2026-09-15 04:34 EDT Tue**, end below, both `python tools/weekly_exec.py et`. Both
 worktrees `git status --porcelain` → **0** at start and end.
 
-**6 commits** — four docs worktree, two code worktree (`c619ac82c`, `0d7c55fb1`, both
-pushed to `feat/s7-price-level`). Nothing signed, nothing merged, nothing pushed to master.
+**9 commits** — six docs worktree, three code worktree (`c619ac82c`, `0d7c55fb1` pushed;
+**`dbc494828` committed and deliberately NOT pushed**, see §4c). Nothing signed, nothing merged, nothing pushed to master.
 
 ## 2 · Prelude
 
@@ -99,9 +99,46 @@ assert all three values appear. **Recorded because the tempting move was to weak
 
 **SCORE: see §3b.**
 
-## 3b · Run #5 — scored
+## 3b · Run #5 — ⛔ UNSCORABLE, because the publisher itself failed
 
-*(filled below once published; UNREADABLE-PENDING otherwise)*
+| job | result | elapsed |
+|---|---|---|
+| vitest | success | 901 s |
+| pytest | **cancelled** | **2,722 s** (cap 2,700) |
+| **publish** | ⛔ **failure** | 61 s |
+
+**The event the prediction was about DID happen** — pytest was cancelled at 2,722 s against
+a 2,700 s cap, which is precisely the `timed_out == true` case. **But no record was
+published**, so `results/34948212704.json` does not exist and the field cannot be read.
+
+⛔ **The prediction is UNSCORED, not wrong.** Saying "it would have been right" is not a
+score; the artifact that would carry the answer was never written.
+
+⚠️ **Which step of `publish` failed is UNREADABLE.** The log endpoint returns **403**
+unauthenticated (F-CI-2's other half), and the `jobs` API returned an **empty `steps`
+array** for that job, so there is no step-level conclusion to read either. I will not guess
+which of the five steps it was.
+
+### ⛔ F-CI-7 — THE PUBLISHER HAS NO FAILURE PATH OF ITS OWN
+
+E CP2 and CP4 made a result durable *provided the publish job runs*. **When publish itself
+fails there is no record at all**, and the only remaining evidence is behind a 403. Every
+guard this programme has built — zero-collected, totals-line, runner-sourced outcome,
+shards-missing — sits **inside** the thing that did not run.
+
+⭐ **The suite was measured and the measurement was lost.** That is the same shape as E CP7
+below (a job that did its work and threw it away at the last step), one level up.
+
+### ⚠️ F-CI-8 — two runs publishing at once will race, and nothing retries
+
+`publish` does `git fetch origin ci-results` → `checkout` → `commit` → **`git push origin
+ci-results`**, with no retry and no lock. Two runs reaching that step together produce a
+non-fast-forward and one fails. **Recorded as a design gap, NOT as the diagnosis of run
+#5** — I cannot see the log, and asserting a cause I cannot read is the error this session
+deleted a flag for.
+
+⛔ **It is also why E CP7 was committed but NOT pushed** (see §4c): starting run #7 while
+run #6 was approaching its publish would have manufactured exactly this race.
 
 ## 4 · E6 — the backend suite is split (E CP6, `0d7c55fb1`, row 18)
 
@@ -181,9 +218,54 @@ NAMED**, instead of a tidy 200 that reads as a smaller suite.
 
 **SCORE: see §4b.**
 
-## 4b · Run #6 — scored
+## 4b · Run #6 — the sharding works
 
-*(filled below once published; UNREADABLE-PENDING otherwise)*
+`derive the shard plan` ran `--self-check`, proved the partition and emitted the matrix in
+**13 s**. Then:
+
+| shard | result | seconds |
+|---|---|---|
+| tests-01 | success | **526** |
+| tests-08 | success | 473 |
+| tests-03 | success | 458 |
+| tests-06 | success | 274 |
+| tests-02 | success | 247 |
+| tests-04 | success | 223 |
+| dir-api | success | 85 |
+| dir-pattern_engine | success | 81 |
+| dir-theme_engine | success | 61 |
+| dir-theme_curation | success | 52 |
+| tests-05 | *still running at report time* | — |
+| tests-07 | *still running at report time* | — |
+
+**10 of 12 shards succeeded; the longest completed shard is 526 s — 8.8 minutes against a
+20-minute cap.**
+
+### Prediction scored, so far
+
+| predicted | outcome |
+|---|---|
+| `shards_total` 12 | ✅ 12 |
+| longest shard 8–14 min | ✅ **8.8 min** for the longest COMPLETED shard — ⚠️ two shards were still running and may yet hit the cap |
+| `collected` ≫ 2 | ⏳ suite record not yet published |
+| `per_test_timeouts` 0 or small | ⏳ — and this was the **declared low-confidence** row |
+| `shards_missing` `[]` | ⏳ |
+| `ok` false | ⏳ |
+| first totals line in CI history | ⏳ |
+
+⭐ **The measurable half is right: the suite that could not print totals in 45 minutes now
+runs in ten pieces, ten of which finished comfortably inside their cap.** Run #4 ran the
+whole tree for 2,671 s and produced nothing; `dir-api` produced a result in **85 s**.
+
+⚠️ **`tests-05` and `tests-07` are the ones to watch.** If either was cancelled at 1,200 s
+it is **F-CI-6**'s subject and needs a sub-split — the same rule applied one level down:
+*split, do not extend*.
+
+## 4c · ⛔ E CP7 — committed, deliberately NOT pushed
+
+`dbc494828` sits on the local branch only. Pushing it would start run #7 against a run #6
+that had not yet published, and **F-CI-8** says those two publishes race. The fix is
+recorded, registered as manifest row 19, and left for a moment when it cannot collide.
 
 ## 5 · E7 — collection profile
 
@@ -204,9 +286,34 @@ it. ⚠️ A capped directory records `collected: null`, **never 0**.
 
 **Results: see §5b.**
 
-## 5b · Profile results
+## 5b · Profile results — 1 of 5, and the other 4 are my defect
 
-*(filled below once published; UNREADABLE-PENDING otherwise)*
+| dir | has `/` | conclusion | seconds |
+|---|---|---|---|
+| `tests` (whole tree) | no | **success** | **179** |
+| `tests/api` | yes | failure | 64 |
+| `tests/pattern_engine` | yes | failure | 63 |
+| `tests/theme_curation` | yes | failure | 50 |
+| `tests/theme_engine` | yes | failure | 51 |
+
+⛔ **E CP7.** GitHub artifact names forbid `/`, and E CP6 named each artifact
+`collect-profile-${{ matrix.dir }}` where the matrix values are **paths**. Four of five
+uploads were rejected, failing the step and the job. **5/5 correlation with the slash**, and
+the mechanism is a documented constraint. ⚠️ Still an **inference** — the log is 403 — and
+recorded as one; run #7 is the confirmation.
+
+⭐ **One real measurement did land, and it is the one that mattered most:** collection over
+the **whole tree** completed in **179 seconds**, well inside its 10-minute cap.
+
+⛔ **That retires the fear this job was built to test.** `CLAUDE.md` records `--collect-only`
+alone reaching **6.6 GB** and `pytest tests/` reaching 18 GB *on the dev box*. On a clean CI
+runner, collecting the entire tree takes **under three minutes** and does not fall over. The
+18 GB figure is a property of **that box under contention**, not of the test tree — and this
+programme has been reasoning about CI feasibility from it for weeks.
+
+⚠️ Per-directory RSS is **unmeasured** for four of five dirs, so the top-three-by-RSS
+analysis and the import-time conftest reading (E7.2) **could not be done**. It is UNREADABLE,
+not zero, and the aggregator reports it that way.
 
 ## 6 · Q — the BUILDABLE list is 6 and the STARTABLE list is 0
 
@@ -255,6 +362,9 @@ was not built. **OPEN QUESTION.**
 | **F-CI-3** | **CLOSED by E CP5.** The text-keyed flag is deleted and replaced with runner-sourced fields. |
 | **F-CI-5** | **ADDRESSED by E CP6**, not by raising the cap: 45 → 20 min across a proved 12-shard partition. |
 | **F-Q-1** | **NEW.** BUILDABLE ≠ STARTABLE. All six BUILDABLE units are blocked by unbuilt dependencies; the audit measured premise resolution only. |
+| **F-CI-7** | **NEW.** The publisher has no failure path of its own: run #5's `publish` job failed, so no record exists at all and the only evidence is behind a 403. Every guard sits inside the job that did not run. |
+| **F-CI-8** | **NEW.** Two runs reaching `publish` together race on `git push origin ci-results` — no retry, no lock. A design gap, recorded without claiming it caused run #5. |
+| **E CP7** | **NEW defect, mine, fixed but unpushed.** Artifact names cannot contain `/`; 4 of 5 profile jobs did their work and failed at upload. |
 | **F-CI-4** | still open — shallow `actions/checkout`, one line (`fetch-depth: 0`), not built. |
 | **F-SIGN-2** | still open — `entity-master-pre-implementation-gate.md` has no approval block. |
 
@@ -270,7 +380,8 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 ```
 
 **Condition (a) F-MERGE-1 CLOSED — MET**, confirmed from the file (§2, P.1).
-**Condition (b) pytest has produced a totals line in CI at least once — see §4b.**
+**Condition (b) pytest has produced a totals line in CI at least once — NOT YET CONFIRMED.**
+Ten of twelve shards succeeded in run #6, which strongly implies totals lines were printed, but **run #6 had not published when this report was written**, so the suite record does not exist yet. ⛔ *Ten jobs reporting success* is not the same artifact as *a totals line in the record*, and this session does not conflate them. **PARKED.**
 
 | row | packet | CP | fingerprint | reader | merges-after |
 |---|---|---|---|---|---|
@@ -299,7 +410,7 @@ unchanged. **This session merged and deployed nothing.**
 
 ## 10 · Merge readiness
 
-**18 rows, 18 OK, 0 STALE. 17 of 17 commits mapped. `verify_manifest --check-commits`
+**19 rows, 19 OK, 0 STALE. 18 of 18 commits mapped. `verify_manifest --check-commits`
 exit 0.** `sign_gate --read-check` 0 · `--self-check` 0 · `ci_outcome --self-check` 0 ·
 `ci_aggregate --self-check` 0 · `pytest_shards --self-check` 0 ·
 `collect_profile_dirs --self-check` 0.
