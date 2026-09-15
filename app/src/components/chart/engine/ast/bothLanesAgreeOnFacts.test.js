@@ -102,44 +102,36 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
     expect(n.map((r) => r.name), 'a lane found a different number of outputs').toEqual([])
   })
 
-  // ⛔⛔ THE FRONTIER — 13 SCRIPTS WHOSE REFUSAL FACTS DIFFER, ASSERTED AS THEY ARE.
+  // ⚰️⚰️ RETIRED BY R14 (owner, 2026-09-15) — THE 13-SCRIPT EQUALITY ASSERTION IS GONE.
   //
-  // a7.2 records these rather than fixing them, and keeps them IN the rail rather than
-  // excluding them, so that fixing one turns this RED and moves the assertion forward.
-  // An excluded finding is a finding nobody is reminded of.
+  // It read: *"FINDING — exactly these 13 differ on refusal facts, and no others"*,
+  // over a `FACTS_DIFFER` list of 13 names, and its comment told the next reader that
+  // *"fixing one turns this RED and moves the assertion forward."*
   //
-  // ⚰️ THE SHAPE IS THE OPPOSITE OF WHAT YOU WOULD EXPECT: on several of these the
-  // LENIENT lane refuses MORE than strict — `uncharted-volume-v2.pine` is strict 0
-  // refusals against lenient 4 × `pine:function`, and `atr-trailing-stoploss` is 0
-  // against 5. A lane that "offers what it can" reporting more refusals than the lane
-  // that demands everything translate is worth a ruling, not a quiet fix; the outputs
-  // agree in every case, so no column is lost either way.
-  const FACTS_DIFFER = [
-    'atr-trailing-stoploss-strategy__oayb1wVXkZ.pine',
-    'atr-trailing-stoploss__2JLLfrGRHg.pine',
-    'camarilla__jw9faob08r.pine',
-    'cumulative-volume-delta__c772250751.pine',
-    'cvd-cumulative-volume-delta-chart__84da7a14bf.pine',
-    'fibonacci-retracement-mtflog__54a8dbfa8e.pine',
-    'rate-of-change__5efd12f955.pine',
-    'smart-money-concepts-by-welotrades__0bff41a2e5.pine',
-    'supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine',
-    'high_engagement__09-on-balance-volume-everget.pine',
-    'high_engagement__20-ehlers-fisher-transform-cheatcountry.pine',
-    'uncharted-volume-v2.pine',
-    // ⚠️ BOTH member scripts are here, which is worth noticing: the two scripts this
-    // whole programme is aimed at are among the thirteen.
-    'uncharted-volume.pine',
-  ]
-  // ⭐ `smart-money-breakouts-chartprime` is NOT in this list, and the reason is a
-  // distinction worth keeping: it THROWS on both lanes identically, so the lanes do
-  // not DISAGREE — they fail the same way. It is its own finding below.
-
-  it('⛔⛔ FINDING — exactly these 13 differ on refusal facts, and no others', () => {
-    // Asserted as a SET, not a count: a count would stay green if one script were fixed
-    // and another regressed on the same day.
-    expect(disagreed.map((r) => r.name).sort()).toEqual([...FACTS_DIFFER].sort())
-  })
+  // ⛔ THERE WAS NOTHING TO FIX. Measured at R14 on four scripts from three sources
+  // and then on all 13: **a refusal set is a property of the SURFACE, not of the
+  // script.** `mode: strict ? 'host' : 'screener'` — the lanes are two surfaces with
+  // deliberately different admissibility, and the engine RULES the asymmetry in its
+  // own manifest (`closedTable.json::_requirement_tags.window_dependent`: `cum` and
+  // `isfirst` are `refused_by` the screener and `accepted_by` the pane). Every
+  // screener-only refusal in the 13 falls in that class or is downstream of it; the
+  // pane refuses none of them.
+  //
+  // ⚠️ So this assertion pinned CORRECT BEHAVIOUR as a defect frontier and invited
+  // somebody to "fix" it — which would have red a rail for doing the right thing, and
+  // in the worst case would have removed the screener's refusal of a fetch-dependent
+  // number, which is the one thing `_requirement_tags` exists to contain.
+  //
+  // ⭐ THE REPLACEMENT IS `refusalsAreASurfaceProperty.test.js`, which classifies each
+  // lane-only refusal against the class READ FROM THE ENGINE (`parse.js::
+  // hostAdmissible`) rather than listing names here, and whose regression guard is the
+  // direction that actually matters: the pane must never refuse a name it declares it
+  // accepts.
+  //
+  // ⭐ WHAT STAYS HERE IS THE HALF THAT WAS ALWAYS RIGHT: output count is
+  // lane-independent and agrees on all 327, asserted above. And
+  // `smart-money-breakouts-chartprime` is still its own finding below — it THROWS on
+  // both lanes identically, so the lanes do not disagree; they fail the same way.
 
   it('⛔⛔ CONTROL — the verdicts DO differ somewhere, or this proves nothing', () => {
     // ⚰️ Without this the rail passes on an engine where `strict` silently became

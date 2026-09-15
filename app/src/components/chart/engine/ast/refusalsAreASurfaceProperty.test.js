@@ -185,9 +185,29 @@ describe('R14 — a refusal set is a property of the surface', () => {
     // ⭐ SELF-RETIRING. R14 replaces that assertion; while it survives, the repo
     // holds two authorities on the same question and the older one calls correct
     // behaviour a defect.
-    const src = fs.readFileSync(path.join(
+    //
+    // ⚰️⚰️ THIS CHECK MATCHED ITS OWN DOCUMENTATION ON ITS FIRST RUN — the seventh
+    // recorded instance of that class in this repo. The retirement note left in the
+    // a7.2 rail necessarily NAMES the constant it retired, so a bare
+    // `src.includes(needle)` stayed red after the deletion was complete. ⛔ The fix
+    // is the tool, never the explanation it matched: deleting the note would make
+    // the check pass and leave the next reader without the reason.
+    const raw = fs.readFileSync(path.join(
       REPO, 'app/src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js'), 'utf8')
-    expect(src.includes('FACTS_DIFFER'),
+    // CODE ONLY: line comments out, so prose naming the retired constant is not a use.
+    const code = raw.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+    // ⭐ built by concatenation so this file does not contain its own needle
+    const needle = ['FACTS', 'DIFFER'].join('_')
+    expect(code.includes(needle),
       'bothLanesAgreeOnFacts.test.js still pins the 13 as a defect frontier').toBe(false)
+    // ⛔⛔ CONTROL — the stripper must still SEE a real occurrence, or "absent" is
+    // vacuous. `disagreed` is live code in that file and must survive stripping.
+    expect(code.includes('disagreed'),
+      'the comment stripper ate the code too — this check can no longer see anything')
+      .toBe(true)
+    // …and it must NOT see a token that exists only in that file's prose.
+    expect(raw.includes('RETIRED BY R14')).toBe(true)
+    expect(code.includes('RETIRED BY R14'),
+      'the stripper is not removing comments at all').toBe(false)
   })
 })
