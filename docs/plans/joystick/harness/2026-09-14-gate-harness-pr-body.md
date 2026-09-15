@@ -27,8 +27,12 @@ tests/test_gate_shards.py
 tools/gate_box_sampler.py
 ```
 
-**7 files** (the last is this document itself). Merge-base `47e1516b5`, master `154c50f71` (4 ahead), head as amended below. Merge-base ``47e1516b5``, master ``154c50f71``, head ``1c7ec444a``.
+**7 files** (the last is this document itself). Merge-base **`47e1516b5`**; master was
+**`154c50f71`** when this was written, 4 ahead.
 `git merge-tree --write-tree` → **exit 0, no conflicts**.
+
+⚠️ No head SHA is quoted here on purpose: this document ships *inside* the commit it describes, so
+any SHA written in it is stale the moment it is written. Read the branch tip.
 
 ⚠️ **The list is a THREE-dot diff, and on this repo that is not a formality — it is measured.**
 At the moment of writing, `master...HEAD` reports **7** files and `master..HEAD` reports **13**. The
