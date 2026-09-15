@@ -90,6 +90,79 @@ describe('R22 / d1 — the two silences speak', () => {
     expect(n[0].line, 'the note must sit at the call\'s own line').toBe(3)
   })
 
+  // ─── d1′ (R22b) — NESTED SPECIMENS: three call types, two depths ──────────
+  //
+  // ⭐ THE SEVEN TYPES ARE `CHART_ONLY_CALLS` (`pine.js` ≈1783): `plotshape`,
+  // `plotchar`, `bgcolor`, `barcolor`, `fill`, `hline`, `alert`.
+  //
+  // ⚠️ R22b's suggested third type — a drawing call, `label.new`/`line.new` — is
+  // **not in that set** and is therefore outside d1′'s scope: drawing calls have
+  // their own `pine:drawing` treatment. `plotshape` is used instead, so the three
+  // types are all genuinely members of the set d1′ is ruled over.
+  const NESTED = {
+    'alert in if': 'indicator("x")\nif close > open\n'
+      + '    alert("boom", alert.freq_once_per_bar)\nplot(close)\n',
+    'bgcolor in if': 'indicator("x")\nif close > open\n'
+      + '    bgcolor(color.red)\nplot(close)\n',
+    'plotshape in for': 'indicator("x")\nfor i = 0 to 2\n'
+      + '    plotshape(close > open)\nplot(close)\n',
+    'alert in nested if': 'indicator("x")\nif close > open\n    if high > low\n'
+      + '        alert("deep", alert.freq_once_per_bar)\nplot(close)\n',
+  }
+
+  /** Measured BEFORE d1′, so the controls pin real numbers rather than assumed ones. */
+  const BEFORE = Object.fromEntries(Object.entries(NESTED).map(([k, src]) => {
+    const t = translatePine(src, {})
+    return [k, {
+      refusals: (t.refusals || []).length,
+      codes: (t.refusals || []).map((r) => r.guard).join(','),
+      outputs: (t.outputs || []).length,
+    }]
+  }))
+
+  it('⛔⛔ NON-VACUITY — each nested specimen really has the call INSIDE a block', () => {
+    for (const [label, src] of Object.entries(NESTED)) {
+      const lines = src.split('\n')
+      const callLine = lines.findIndex((l) => /^\s+\w/.test(l) && /\(/.test(l))
+      expect(callLine, `${label}: no indented call line`).toBeGreaterThan(0)
+      expect(lines[callLine]).toMatch(/^\s{4,}/)
+      expect((translatePine(src, {}).outputs || []).length,
+        `${label} produces no outputs`).toBeGreaterThan(0)
+    }
+  })
+
+  for (const [label, src] of Object.entries(NESTED)) {
+    it.fails(`⭐⭐ d1′ — ${label} is NOTED at its own line`, () => {
+      const t = translatePine(src, {})
+      const n = notesOf(t, 'pine:chart-only')
+      expect(n.length, `${label}: still dropped without a word`).toBeGreaterThan(0)
+      const callLine = src.split('\n').findIndex((l) => /^\s{4,}\w/.test(l)) + 1
+      expect(n.map((x) => x.line)).toContain(callLine)
+    })
+  }
+
+  it('⛔⛔ CONTROL — refusals, CODES IN ORDER, and output count are byte-identical', () => {
+    // ⭐ A note pass moves nothing else. This is the assertion that makes R22b's
+    // read-only constraint checkable rather than merely stated.
+    for (const [label, src] of Object.entries(NESTED)) {
+      const t = translatePine(src, {})
+      expect((t.refusals || []).length, `${label}: refusal COUNT moved`)
+        .toBe(BEFORE[label].refusals)
+      expect((t.refusals || []).map((r) => r.guard).join(','),
+        `${label}: refusal CODES or their ORDER moved`).toBe(BEFORE[label].codes)
+      expect((t.outputs || []).length, `${label}: output COUNT moved`)
+        .toBe(BEFORE[label].outputs)
+    }
+  })
+
+  it('⛔⛔ CONTROL — DEDUP: a top-level call gets exactly ONE note, never two', () => {
+    // The pass must not re-note what the top-level walk already noted.
+    const top = 'indicator("x")\nalert("boom", alert.freq_once_per_bar)\nplot(close)\n'
+    const n = notesOf(translatePine(top, {}), 'pine:chart-only')
+    expect(n.filter((x) => x.line === 2).length,
+      'the top-level alert() is noted more than once').toBe(1)
+  })
+
   it('⛔ CONTROL — at TOP LEVEL it is already noted, and that must not move', () => {
     // ⭐ The half that already works, pinned so d1 cannot "fix" it into existence
     // twice or break it while reaching the block case.
