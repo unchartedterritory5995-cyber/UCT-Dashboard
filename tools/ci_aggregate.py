@@ -56,6 +56,15 @@ def aggregate(shards: dict) -> dict:
     """
     expected = sorted(shards)
     missing, cancelled, failed_jobs, ok_jobs, no_totals = [], [], [], [], []
+    # ⚰️⚰️ E CP20 — UNREADABLE WAS BEING COUNTED AS FAILED, AND IT READ AS TWELVE RED SHARDS.
+    # Run #17's `jobs.json` came back empty (the fetch is unauthenticated), so every shard's
+    # runner verdict was UNREADABLE — and this function bucketed all twelve into
+    # `shards_failed`, publishing `all_success=False (0/12)` for a run in which all twelve
+    # jobs had in fact succeeded. ⛔ "We could not read the verdict" and "the verdict was
+    # failure" are different facts, and this programme's whole method is that the third
+    # state gets its own name. `ci_outcome` said `UNREADABLE, not false` about the same
+    # payload in the same record; this function disagreed with it.
+    unreadable = []
     collected = failed = passed = timeouts = 0
     # ⚰️ E CP12 — THE KEY WHOSE ABSENCE KILLED FOUR PUBLISHES. `ci_summarize` emits
     # `runner_line`; this aggregator replaced it for pytest in E CP6 and did not, so
@@ -75,6 +84,8 @@ def aggregate(shards: dict) -> dict:
             ok_jobs.append(sid)
         elif res == "cancelled":
             cancelled.append(sid)
+        elif res == UNREADABLE:
+            unreadable.append(sid)
         else:
             failed_jobs.append(sid)
         if not s.get("totals_line_found"):
@@ -93,6 +104,9 @@ def aggregate(shards: dict) -> dict:
         "shards_success": len(ok_jobs),
         "shards_cancelled": len(cancelled),
         "shards_failed": len(failed_jobs),
+        # ⛔ E CP20 — its own bucket, and NAMED. A shard whose runner verdict could not be
+        # read is not a shard that failed.
+        "shards_unreadable": unreadable,
         "shards_missing": missing,
         "shards_without_totals": no_totals,
         "collected": collected,
@@ -115,9 +129,15 @@ def aggregate(shards: dict) -> dict:
     all_success = len(ok_jobs) == len(expected)
     every_totals = not no_totals
     out["ok"] = bool(all_success and every_totals and failed == 0 and not missing)
+    # ⛔ E CP20 — the basis must SAY which of the three it was. `all_success=False (0/12)`
+    # beside `failed=185` reads as twelve failed shards; it was twelve unread verdicts.
     out["ok_basis"] = (
-        "all_success=%s (%d/%d) · every_shard_has_totals=%s · failed=%d · missing=%d"
-        % (all_success, len(ok_jobs), len(expected), every_totals, failed, len(missing)))
+        "all_success=%s (%d/%d) · every_shard_has_totals=%s · failed=%d · missing=%d "
+        "· runner_verdict_unreadable=%d%s"
+        % (all_success, len(ok_jobs), len(expected), every_totals, failed, len(missing),
+           len(unreadable),
+           " ⛔ the RUNNER's verdict could not be read for these — NOT a failure"
+           if unreadable else ""))
     return out
 
 
@@ -177,6 +197,23 @@ def _self_check() -> int:
            '</testcase></testsuite></testsuites>')
     show("junit: only the timeout failure is counted", count_timeout_failures(xml), 1)
     show("junit: unparseable yields 0, never a crash", count_timeout_failures("<nope"), 0)
+
+    # 6 ⚰️ E CP20 — AN UNREADABLE RUNNER VERDICT IS NOT A FAILURE.
+    # Run #17's `jobs.json` came back empty, so every shard's verdict was UNREADABLE — and
+    # this function published all twelve as FAILED for a run in which all twelve succeeded.
+    u = aggregate({"s1": shard(res=UNREADABLE), "s2": shard(res=UNREADABLE),
+                   "s3": shard(res=UNREADABLE)})
+    print("  [runner verdict unreadable] " + json.dumps(
+        {k: u[k] for k in ("shards_unreadable", "shards_failed", "shards_success", "ok")}))
+    show("unreadable verdicts are NOT counted as failed", u["shards_failed"], 0)
+    show("...they are their own bucket, NAMED", u["shards_unreadable"], ["s1", "s2", "s3"])
+    show("...ok is still False — we could not verify", u["ok"], False)
+    show("...and the basis SAYS unreadable", "runner_verdict_unreadable=3" in u["ok_basis"], True)
+    # ⛔ CONTROL: a genuine failure must STILL land in shards_failed, or the split above is
+    # indistinguishable from never counting failures at all.
+    fr = aggregate({"s1": shard(res="failure")})
+    show("CONTROL: a real failure still counts as failed", fr["shards_failed"], 1)
+    show("...and is NOT called unreadable", fr["shards_unreadable"], [])
 
     # ⛔ NON-VACUITY: the four shapes must not all produce one verdict
     show("the four shapes do not collapse to one ok value",
