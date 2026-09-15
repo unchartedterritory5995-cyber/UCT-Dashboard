@@ -15,8 +15,30 @@ NEXT phase, and each is a separate decision.
 | | |
 |---|---|
 | frontend A/B | **0 new failures** — the 9 failures across 8 files are the same 8 files that fail on clean `origin/master` `65899a8f7` |
-| backend A/B | run on the merged tree; **four** branch-attributable failures found and fixed (BL-032), then re-run |
+| backend, branch | **215 failed / 24,866 passed** (merged tree, `-p no:randomly`) |
+| backend, master `65899a8f7` | **230 failed / 24,600 passed** — a clean master worktree fails MORE, because it has no built `app/dist` artifacts |
 | the migration, rehearsed on the REAL production database | **7/7** — see §2 |
+
+### The only five tests that fail on the branch and not on master
+
+Set-differenced from the two full runs, then each one answered individually:
+
+| test | verdict |
+|---|---|
+| `test_breadth_daily_ohlc::test_build_breadth_bars_uses_store_for_wicks` | ⛔ **mine** — poisoned bars cache left by my own fixture. **Fixed** (BL-032) |
+| `test_feature_flag_ledger::test_every_off_by_default_gate_is_declared` | ⛔ **mine** — `BREADTH_UNIVERSE_BACKFILL_ENABLED` undeclared. **Fixed** |
+| `test_flow_worker_watch_coverage::test_this_branch_does_not_strand_a_change_flow_worker_runs` | ⛔ **mine** — the schema change would ship inert to flow-worker. **Fixed** |
+| `test_mutation_check::TestVerdicts::test_a_detected_mutation_passes_the_check` | ✅ **pre-existing** — fails identically on clean master in isolation ("already failing before this ran"); which of the file's three cases lands red is run-order dependent |
+| `test_signature_scan_bounds::test_two_cold_builds_are_PACED_apart_lane_wide` | ✅ **pre-existing** — a wall-clock pacing assertion (`0.235s >= 2 x 0.12`); fails on clean master in isolation too |
+
+⚠️ **Two of the five were proved pre-existing by RUNNING THEM ON CLEAN MASTER, not by
+reading their names.** A full-suite diff cannot settle an order-dependent or
+timing-dependent test, because the two runs are not the same experiment — only an
+isolated control on the other tree can.
+
+✅ `tests/test_corp_actions_census.py` fails 3 cases on **both** trees. On the branch it
+named two files; `breadth_pit_frame.py` is now registered, and the survivor is
+`wisdom/capture/families/gex.py`, which is unregistered on `origin/master` too.
 
 ---
 
