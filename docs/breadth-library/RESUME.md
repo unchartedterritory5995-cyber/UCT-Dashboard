@@ -9,7 +9,7 @@
 (catalogue payload · metric-first ranking · the reading order in the real control ·
 browser proof). **STATUS: complete, local, unpushed, nothing published.**
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
-**HEAD** see the Phase-7 table below · **WORKING TREE** clean
+**HEAD** `a296b6824` · **WORKING TREE** clean
 **STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `8578d375d` (merges `cc57099ca`, `bd5a1b9`-era)
 **BASELINE WORKTREE** `C:\b3` (detached at `5e88b38c4`, built)
 
@@ -383,6 +383,16 @@ wired into a product surface**, deliberately:
 - So the projection is ready the moment the dialog lands, and nothing was invented
   in the meantime. ⛔ A second search architecture was explicitly out of bounds and
   none was created.
+
+### Phase-7 checkpoint commits — LOCAL ONLY, nothing pushed
+
+| SHA | |
+|---|---|
+| `d1f2a3f1b` | merge origin/master (`569485a12`) — zero overlap with this branch's files |
+| `e9f402390` | the library reaches the client — catalogue payload + ranked matcher |
+| `7e7b98cd4` | metric-first discovery reaches the source picker |
+| `e672273d2` | browser proof — the UX harness, the round-trip rail, the perf rail |
+| **`a296b6824`** | **the LIST read address-first — a result now says which half leads (BL-011)** |
 
 ### Status flags — unchanged from Phase 6
 
