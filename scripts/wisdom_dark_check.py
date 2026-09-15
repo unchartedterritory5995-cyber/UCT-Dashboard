@@ -172,12 +172,17 @@ def wisdom_get_routes() -> list:
 
     out = []
     for router in registry.routers():
-        prefix = getattr(router, "prefix", "") or ""
         for route in getattr(router, "routes", []):
             methods = set(getattr(route, "methods", None) or ())
             if "GET" not in methods:
                 continue
-            path = prefix + getattr(route, "path", "")
+            # ⚰️ `route.path` ALREADY carries the router's prefix — APIRouter(prefix=X) rewrites
+            # each route's path at add time. Concatenating prefix + path doubled every URL
+            # (`/api/admin/wisdom/core/api/admin/wisdom/core/status`), and the count stayed a
+            # correct 27 the whole time, so only probing would have exposed it: --host would have
+            # requested 27 URLs that do not exist, found no JSON anywhere, and reported "checked
+            # 27" with nothing lit. A measurement of the wrong thing is not a smaller measurement.
+            path = getattr(route, "path", "")
             guards = sorted({
                 getattr(d.call, "__name__", repr(d.call))
                 for d in (getattr(route, "dependencies", None) or [])
