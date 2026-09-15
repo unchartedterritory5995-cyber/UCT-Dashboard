@@ -895,13 +895,21 @@ def library_search(q: str, limit: int = 40, published_only: bool = False) -> lis
             continue
         code = str(row["code"]).upper()
         hay = _haystack(row)
+        # ⭐ THE METRIC'S OWN TEXT OUTRANKS ITS FAMILY'S, and that tier is what makes
+        # "new lows" answer with New Lows. Without it both NH and NL match only
+        # through the shared family label "Highs / Lows", the tie breaks on
+        # catalogue order, and the member who typed "lows" is shown "New 52-Week
+        # Highs" first — technically a family hit, and obviously the wrong answer.
+        own = f"{row['name']} {row['short_name']} {code}".upper()
         if not rest:
             # a bare universe query ("NASDAQ") lists that universe's library
             score = 2 if want_universes else None
         elif all(t == code for t in rest):
             score = 1                                   # "A50"
+        elif all(t in own for t in rest):
+            score = 3                                   # "new lows", "above 50"
         elif all(t in hay for t in rest):
-            score = 3 if any(t in code for t in rest) else 4
+            score = 4                                   # family / universe context
         else:
             score = None
         if score is not None:
@@ -936,3 +944,87 @@ def library_search(q: str, limit: int = 40, published_only: bool = False) -> lis
         if len(out) >= limit:
             break
     return out
+
+
+# ─── Availability (Phase 7 §11) ──────────────────────────────────────────────
+
+_AVAIL_TTL = 300
+_avail_cache: dict = {"at": 0.0, "value": None}
+
+
+def availability() -> dict:
+    """`{universe: {state, first, last, rows, floor}}` — what history ACTUALLY exists.
+
+    ⭐⭐ THE UI MUST NOT IMPLY HISTORY WE HAVE NOT POPULATED, and the only way to
+    keep that true as the backfill lands is to ASK THE STORE rather than to describe
+    it in a constant somebody has to remember to update. A universe with no rows
+    reports `not_populated`; one with rows reports the real first/last it holds.
+
+    States:
+      `available`     — rows exist and reach the universe's approved floor
+      `limited`       — rows exist but start later than the floor (a partial backfill)
+      `not_populated` — no rows at all
+    ⛔ There is no `complete`. "Reaches the floor" is the strongest claim the data
+    can support; whether every session inside it is present is `distinct_dates`'
+    question, not this one.
+    """
+    now = time.time()
+    if _avail_cache["value"] is not None and now - _avail_cache["at"] < _AVAIL_TTL:
+        return _avail_cache["value"]
+    from api.services import breadth_daily_ohlc as _store
+    from api.services import breadth_universes as _bu
+    out = {}
+    for uid in _bu.UNIVERSE_IDS:
+        floor = _bu.floor(uid)
+        try:
+            st = _store.stats(uid) or {}
+        except Exception:
+            st = {}
+        rows, first, last = st.get("rows") or 0, st.get("first"), st.get("last")
+        if not rows:
+            state = "not_populated"
+        elif floor and first and first > floor:
+            state = "limited"
+        else:
+            state = "available"
+        out[uid] = {"state": state, "rows": rows, "first": first, "last": last,
+                    "floor": floor}
+    _avail_cache.update(at=now, value=out)
+    return out
+
+
+def library_catalog(published_only: bool = True) -> dict:
+    """The Breadth Library as the CLIENT consumes it: rows + families + universes.
+
+    ⛔ ONE PAYLOAD, NOT THREE ENDPOINTS. The frontend needs the metric, its family,
+    its universe, how to draw it and whether its history exists — and every one of
+    those already lives in a module here. Splitting them across calls would make the
+    client join them, which is where a second catalogue is born.
+
+    ⚠️ `published_only` keeps the library DARK by default: a universe absent from
+    `published_universe_ids()` contributes no rows, so an unpopulated NASDAQ cannot
+    appear in a menu and imply history that does not exist.
+    """
+    from api.services import breadth_universes as _bu
+    avail = availability()
+    unis = _bu.published_universe_ids() if published_only else list(_bu.UNIVERSE_IDS)
+    rows = [r for r in library_rows(unis) if r.get("symbol")]
+    fams, seen = [], set()
+    for r in rows:
+        if r["group"] not in seen:
+            seen.add(r["group"])
+            fams.append({"id": r["group"], "label": r["group_label"]})
+    from api.services import breadth_metrics as _bm
+    return {
+        "rows": rows,
+        "families": fams,
+        "universes": [{"id": u, "label": _bu.label(u), **avail.get(u, {})}
+                      for u in unis],
+        # ⛔⛔ THE CANONICAL METRIC ORDER, SENT RATHER THAN RE-DERIVED. A client that
+        # infers it from first appearance in `rows` gets it WRONG the moment a metric
+        # has no symbol in the first universe: `net_new_high_low` has no UCT symbol
+        # (UCT never published one), so it first appears under `us` and sorts after
+        # every UCT metric instead of beside its own family. Measured as a parity
+        # failure between the two search lanes, which is exactly what that rail is for.
+        "metric_order": _bm.METRIC_KEYS,
+    }

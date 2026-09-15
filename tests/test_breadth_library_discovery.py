@@ -54,13 +54,27 @@ def test_a_bare_universe_word_lists_that_universe():
 
 
 def test_high_low_finds_the_family_metric_first_universe_second():
-    rows = bs.library_search("high low", limit=12)
-    # ⛔ New Highs matches although its own name has no "Low": the FAMILY label
-    # ("Highs / Lows") is what the query hit.
-    assert names(rows)[:4] == ["New 52-Week Highs"] * 4
-    assert [r["universe_label"] for r in rows[:4]] == ["UCT", "US", "NASDAQ", "NYSE"]
-    assert names(rows)[4:8] == ["New 52-Week Lows"] * 4
-    assert "Net New 52-Week Highs-Lows" in names(rows)
+    rows = bs.library_search("high low", limit=16)
+    # ⭐ Net New High-Low leads: its OWN name carries both words, and the
+    # metric-own-text tier outranks a family-label match. New Highs and New Lows
+    # follow through the family label they share ("Highs / Lows") — the query still
+    # finds all three, which is what the member asked for.
+    assert names(rows)[:3] == ["Net New 52-Week Highs-Lows"] * 3
+    assert "New 52-Week Highs" in names(rows)
+    assert "New 52-Week Lows" in names(rows)
+    # and within a metric, the universes stay adjacent and in canonical order
+    nh = [r for r in rows if r["metric"] == "new_52w_highs"]
+    assert [r["universe_label"] for r in nh] == ["UCT", "US", "NASDAQ", "NYSE"]
+
+
+def test_the_metrics_own_name_outranks_its_familys(tmp_path=None):
+    """⭐ The tier that makes "new lows" answer with New Lows.
+
+    Without it both New Highs and New Lows match only through the family label they
+    share, the tie breaks on catalogue order, and the member who typed "lows" is
+    shown "New 52-Week Highs" first."""
+    assert names(bs.library_search("new lows"))[0] == "New 52-Week Lows"
+    assert names(bs.library_search("new highs"))[0] == "New 52-Week Highs"
 
 
 def test_an_exact_identity_returns_exactly_that_series():

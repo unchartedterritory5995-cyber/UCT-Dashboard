@@ -468,10 +468,21 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
     measures is not a lesser disclosure when the data behind them is what is sold.
     """
     from api.services import breadth_symbols as bs
+    # ⭐ `library` IS ADDITIVE. `symbols` and `groups` keep their exact shape and
+    # exact contents — every existing consumer (the chart's breadth registry, the
+    # mobile symbol strip, `ohlcCapability`'s family lookup) reads those two keys and
+    # is untouched. The Breadth Library's richer view rides beside them so one fetch
+    # serves both, rather than a second endpoint the client would have to join.
+    #
+    # ⛔ AND IT IS PUBLISHED-GATED. `library_catalog()` asks
+    # `breadth_universes.published_universe_ids()`, which is UCT alone unless a
+    # deploy says otherwise — so an unpopulated NASDAQ contributes no rows and cannot
+    # appear in a menu implying history that does not exist.
     return {
         "symbols": bs.list_breadth_symbols(),
         "groups": [{"id": g, "label": bs.LIST_META[g]["label"],
                     "list_name": bs.LIST_META[g]["list_name"]} for g in bs.GROUP_ORDER],
+        "library": bs.library_catalog(),
     }
 
 
