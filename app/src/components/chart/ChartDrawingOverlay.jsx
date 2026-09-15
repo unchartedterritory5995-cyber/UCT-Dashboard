@@ -618,6 +618,20 @@ export default function ChartDrawingOverlay({
     })
   }, [chartRef, seriesRef, volumeSeriesRef])
 
+  /**
+   * The absolute top of the CANDLE pane, in this canvas' coordinates.
+   *
+   * ⭐ 0 ON EVERY CHART WHERE PRICE IS FIRST, which is why nothing needed it
+   * before panes could be reordered — and why adding it changes no existing
+   * drawing by a pixel.
+   */
+  const priceZoneTop = useCallback(() => {
+    try {
+      const r = rectForKey(paneGeomRef.current || measurePanes(), PRICE)
+      return r && Number.isFinite(r.y0) ? r.y0 : 0
+    } catch { return 0 }
+  }, [measurePanes])
+
   /** The zones the last paint used; measured on demand if a pointer arrives first. */
   const paneGeom = useCallback(() => {
     if (!paneGeomRef.current) paneGeomRef.current = measurePanes()
@@ -684,9 +698,26 @@ export default function ChartDrawingOverlay({
         if (H && H > 0) y = H * (sv.hi - price) / (sv.hi - sv.lo)
       }
       if (y == null) { try { y = series.priceToCoordinate(price) } catch {} }
+      // ⚰️⚰️ AND THE PRICE PANE'S OWN TOP, WHICH USED TO BE ZERO BY ACCIDENT.
+      // `priceToCoordinate` answers in the SERIES' PANE's coordinates; this
+      // canvas spans the WHOLE pane stack. Those two were the same number for as
+      // long as the candles had to be the first pane — so the offset was never
+      // written, and nothing noticed.
+      //
+      // Measured in the harness the moment a pane could sit above Price: with
+      // QQQ and RSI moved up, a horizontal line stored at 310 rendered against
+      // ~400 on the axis, and the trendline and rectangle were displaced by the
+      // same 207px — exactly the height of the two panes now above the candles.
+      // The drawings had not moved; the pane under them had.
+      //
+      // ⭐ THE ZONES ALREADY KNEW. `resolveZones` walks the pane stack and hands
+      // back the candle pane's absolute rect; this reads its top rather than
+      // introducing a second opinion about where Price starts. It is re-measured
+      // once per frame, so a divider drag and a reorder both land immediately.
+      if (y != null) y += priceZoneTop()
     }
     return { x, y }
-  }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx])
+  }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx, priceZoneTop])
 
   /**
    * Stored anchors -> pixels, ONE OUTPUT SLOT PER INPUT ANCHOR.
