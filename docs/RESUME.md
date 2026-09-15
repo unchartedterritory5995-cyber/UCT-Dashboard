@@ -1,3 +1,97 @@
+# TRACK A FOLLOW-UP — PANE-ORDER CHROME OWNERSHIP · FIXED LOCALLY · AWAITING DEPLOY COMMAND
+
+> ⭐ **READ THIS BEFORE THE BLOCK BELOW.** Track A pane ordering is already on
+> `origin/master` and in production. This block is the FOLLOW-UP FIX for two visual
+> regressions the owner found by testing pane reordering on the live site. It is
+> **committed locally and NOT pushed.**
+
+**Written 2026-09-15. Local commit `84fbd7394` on `master`, ahead of `origin/master`.
+NO RAILWAY ACTION. NO PUSH. NO DEPLOY.** The owner will say when.
+
+## What was broken
+
+Repro: UCTA50 as the chart, QQQ added as a second pane, QQQ then moved ABOVE Price.
+
+| | |
+|---|---|
+| BUG 1 | the OHLC legend stayed at the TOP of the workspace, labelling QQQ with Price's readout |
+| BUG 2 | the `3M 6M YTD 1Y 5Y Origin` lookback bar flew to the TOP of the workspace |
+
+Both from one stale assumption in `StockChart`'s rAF sampler — `panes[0] === the price
+pane` — which positioned THREE surfaces from that single number. Bug 2's formula was
+`containerHeight - height(pane 0) + 8`: right while pane 0 was the tall Price pane,
+nonsense when pane 0 is a 100px QQQ.
+
+## ⛔⛔ THE ONE THING NOT TO UNDO
+
+They are NOT the same bug, and fixing one by making both follow the same coordinate
+system is the trap:
+
+| kind | surfaces | anchored to |
+|---|---|---|
+| **PRICE-OWNED** | OHLC legend, drawing toolbar, comparison rows, responsive collapse | the pane the CANDLE SERIES is in, by identity |
+| **WORKSPACE-OWNED** | the lookback bar | the GLOBAL TIME AXIS — bottom-left of the whole stack, above the date scale |
+
+`lookbackBottomPx` takes **no pane argument at all**. That is deliberate: it makes "the
+lookback bar does not move with Price" structural rather than a number that happens to
+come out right today. Making it Price-owned would look correct in QQQ/PRICE and wrong in
+QQQ/RSI/PRICE.
+
+## Where it lives
+
+| file | what |
+|---|---|
+| `app/src/components/chart/chromeGeometry.js` | NEW. The whole chrome decision as one pure `chromePlan`. The sampler measures and applies; it decides nothing. |
+| `app/src/components/StockChart.jsx` | the sampler now applies the plan (~line 14720) |
+| `app/src/components/StockChart.module.css` | `.legendFlat` / `.legendVertical` / `.compareRows` / `.compareRowsSide` now consume `--price-pane-top` |
+| `app/src/testing/panes/paneHarness.jsx` | renders the lookback bar (`showRangeSelector` defaults OFF, so the surface under test was invisible there) |
+
+**Why the legend and the toolbar behaved differently** — the thing that identified the
+bug: `--price-pane-top` was working the whole time. The base `.legend` rule consumed it
+correctly, but `.legendFlat`/`.legendVertical` re-declared `top` as a bare constant and
+won on source order. The drawing toolbar lives in `ChartToolbar.module.css` and has no
+such variant, so it followed Price correctly. The asymmetry in the owner's screenshot was
+the clue.
+
+## Rails (31 new, every one bite-checked)
+
+- `chart/__tests__/chromeGeometry.test.js` — layouts PRICE/QQQ, QQQ/PRICE, RSI/PRICE/QQQ,
+  QQQ/RSI/PRICE. Each asserts the pair TOGETHER: legend tracked Price **and** lookback did
+  not. Plus resize, degenerate pane lists, and the pre-fix formula kept as a control.
+- `chart/__tests__/priceOwnedChrome.css.test.js` — reads the stylesheets. Bug 1 was a CSS
+  bug; no JS test can see it. Fails if a Price-owned surface ever drops the offset, and
+  fails if `.rangeBar` ever gains it.
+
+## Browser proof (isolated pane harness, `preference writes refused: 0`)
+
+| layout | legend top | lookback, above container bottom |
+|---|---|---|
+| PRICE / QQQ | 28px | 36px |
+| QQQ / PRICE | 132px | 36px |
+| QQQ / PRICE / RSI | 131px | 36px |
+| RSI / QQQ / PRICE | 235px | 36px |
+
+Survived save/reconstruct. Under resize the Price offset tracked 206 → 136px while the
+lookback bar held 36px. 8px clearance to the date scale. One legend, one range bar
+(nothing stale). Zero console errors across load, two adds and two live reorders.
+
+## Verification
+
+- broad `src/components`: **10622 passed / 4 failed** — the same four known-red files
+  (`ChartDrawingOverlay.surfaces`, `ast/manifestProse`, `ast/pine.blindCorpus`,
+  `screener/reachable`). Zero new failures. The two modules `reachable` names
+  (`lib/context/focusDivergence.js`, `surfaces/manifest.js`) are pre-existing and unrelated.
+- focused chart + engine suites: 1379 passed / 0 failed.
+- `StockChart.jsx` eslint 106 errors = baseline, `no-undef` 0. stylelint 0 errors.
+- `npm run build` clean.
+
+## NEXT ACTION
+
+**Wait for the owner's explicit deploy command.** Then push `84fbd7394` with the rest of
+Track A. Observe the market-hours push rule (no push to master Mon–Fri 09:00–16:00 ET).
+
+---
+
 # TRACK A — PANE ORDERING · IMPLEMENTATION COMPLETE · DEPLOYMENT PAUSED BY OWNER
 
 > ⭐ **SCOPE: TRACK A ONLY.** This block does not supersede the Discord/notebook header
