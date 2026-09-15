@@ -171,6 +171,13 @@ export default function ChartSettingsIndicators({
   userDefErrors = [],
   // ⭐ A row to open on arrival — the legend gear's deep link (`ind:<rowId>`).
   // Absent on every other way in, which is why the accordion still opens closed.
+  // ⚰️ THE RENDERER'S VOLUME INPUTS, HANDED DOWN RATHER THAN RE-DERIVED.
+  // `volumeOwnsPane` needs `volumeSeparatePane` / `blankVolume` / `shown`, and
+  // those are PROPS the host passes to `StockChart` — this surface could never
+  // see them, so it answered the settings-only question and disagreed with the
+  // chart. Absent ⇒ the settings-only answer, which is what a host that does not
+  // override volume presentation actually means.
+  volumeOpts = null,
   openRowId = null,
   // Absent ⇒ absent door. The charts workspace supplies it (it can reach the one
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
@@ -311,8 +318,8 @@ export default function ChartSettingsIndicators({
   // structure arrives here; there is no grouping logic in this file to drift
   // from the renderer's.
   const paneGroups = useMemo(
-    () => paneMap(activeRows, settings, (id) => registry?.getDefinition?.(id) || null),
-    [activeRows, settings, registry],
+    () => paneMap(activeRows, settings, (id) => registry?.getDefinition?.(id) || null, volumeOpts),
+    [activeRows, settings, registry, volumeOpts],
   )
 
   /** Is this row's line DRAWN right now?
