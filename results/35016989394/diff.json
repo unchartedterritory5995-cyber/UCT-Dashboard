@@ -1,0 +1,26 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 1,
+    "fixed": 2,
+    "unchanged": 120,
+    "missing": 0,
+    "baseline": 122,
+    "current": 121,
+    "current_ran": 44353
+  },
+  "arithmetic": "baseline 122 = unchanged 120 + fixed 2 + missing 0  |  current 121 = unchanged 120 + new 1",
+  "invalid_because": [
+    "current: collected is 0 \u2014 the suite did not run"
+  ],
+  "baseline_run_id": "35008710335",
+  "current_run_id": "35016989394",
+  "new": [
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold"
+  ]
+}
