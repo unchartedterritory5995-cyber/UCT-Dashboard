@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 12:21 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 12:58 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**18 commits** — nine docs, nine code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`
+**20 commits** — ten docs, ten code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -492,6 +492,52 @@ load-bearing one being that the annotation carries the **verdict** line rather t
 checkpoint can fix a cause; this one exists so there is a cause to fix rather than a fourth
 guess.
 
+## 3p · Run #13 — the instrument answered, and the answer is one line
+
+E CP15's firm prediction landed. Read anonymously:
+
+```
+attempt 1: fetch rc=0
+attempt 1: rebase rc=128
+attempt 1: ⛔ REBASE CONFLICT — two publishers wrote one path; …
+```
+
+⭐ **Three facts in three lines:** the explicit refspec works, the upstream resolves (no
+`UPSTREAM-UNREADABLE`), and **`git rebase` returns 128.**
+
+⛔⛔ **And the third line is wrong.** A rebase conflict is rc **1**. git exits **128** on a
+fatal refusal. E CP13 split `UPSTREAM-UNREADABLE` out of this function precisely because it
+was *"a confident diagnosis of a cause it had not established"* — **the branch one line below
+kept doing it**, and published a sentence describing a collision that cannot have happened:
+run #13 was the only publisher. A mislabel in a diagnostic is worse than silence, because it
+is the sentence the next reader quotes.
+
+## 3q · E CP16 — the rc is keyed, and git's own words reach the log
+
+`rc == 1` is a CONFLICT; any other non-zero is **REBASE FATAL** with the rc named. And
+`run()` has returned each command's output all along while **every caller discarded it** —
+which is why run #13 could name the failure and not explain it. `tail()` now carries git's
+last lines into the log and from there into the annotation (the TAIL, because `fatal:` comes
+last; one line and bounded, because it rides an annotation; an empty output is NAMED).
+
+⭐ **A hypothesis tested and FALSIFIED before shipping.** `checkout@v4` clones depth 1, so
+the publish job works in a shallow repo — a classic source of a fatal rebase, and it fits
+rc 128. Built a genuinely shallow clone (`file://`, since git ignores `--depth` on a local
+path) and ran E CP14's exact sequence: **rebase rc 0, "Current branch is up to date."** Not
+the cause. ⛔ **Four confident diagnoses in this programme have now been wrong**; this one
+was run before it could become the fifth.
+
+### Prediction for run #14
+
+| field | prediction |
+|---|---|
+| **the annotation carries git's own `fatal:` sentence** | **yes** — the one firm prediction |
+| the rebase line says FATAL, not CONFLICT | **yes**, with `rc=128` |
+| `publish` | ⚠️ **UNKNOWN** — CP16 changes nothing about what the publisher does |
+
+⛔ **I am deliberately not naming the cause.** The remaining candidates are separated by one
+sentence run #14 will print.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -658,6 +704,7 @@ ran a job.
 | **F-CI-16** | **NEW, mine.** `push_with_retry` reported every non-zero rebase as "two publishers wrote one path" — a confident diagnosis of an unestablished cause. UPSTREAM-UNREADABLE is now its own state. |
 | **F-CI-17** | **NEW, and it reframes F-CI-7.** The step summary is 404 anonymously, so every phone-readable fallback this programme built is invisible to a reader without an account. Check-run annotations DO answer anonymously; the publish step now emits its failing command there. |
 | **RETRACTED (3)** | *E CP13's diagnosis* — "the checkout deletes the script, so python exits on a missing path". Python exits **2**; the step reported **1**, so it died at `git checkout`. E CP14's explicit refspec was the fix, not the insurance I labelled it. |
+| **F-CI-18** | **NEW, mine.** `push_with_retry` called a rebase rc of **128** a REBASE CONFLICT — a conflict is rc 1 — and published a sentence about two publishers colliding when there was one. rc is now keyed and git's own text reaches the log. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -688,8 +735,8 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 since **run #4**; runs #6, #8, #9, #10 and #11 all lost their `publish` job.
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–26 nothing member-visible.**
-Row 27 is E CP15 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–27 nothing member-visible.**
+Row 28 is E CP16 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -706,8 +753,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**27 rows, 27 OK, 0 STALE. 26 of 26 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **19 constraints SATISFIED**, 27 units, 0 MALFORMED,
+**28 rows, 28 OK, 0 STALE. 27 of 27 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **20 constraints SATISFIED**, 28 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.

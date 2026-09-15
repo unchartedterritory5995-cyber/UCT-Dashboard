@@ -91,6 +91,7 @@ UNITS = [
     ("e-cp13-build-record", ["38aa2d9ad"], False),
     ("e-cp14-build-record", ["c47d96c16"], False),
     ("e-cp15-build-record", ["b2b864bf7"], False),
+    ("e-cp16-build-record", ["792d1595e"], False),
     ("t2-cp1-build-record", ["4ad1108d1"], False),
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
