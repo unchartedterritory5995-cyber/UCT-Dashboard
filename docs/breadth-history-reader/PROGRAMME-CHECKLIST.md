@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 14:42 ET, Session 13.**
+Last updated: **2026-09-15 14:58 ET, Session 13.**
 
 ---
 
@@ -35,7 +35,7 @@ is not `DONE`.
 |---|---|
 | **R** Reader | R1–R3 `READY` — waiting for the 16:05 ET window. R4–R8 blocked behind them. |
 | **G** Deploy gate | **G1 `DONE`** — Wait-for-CI is OFF, read from the API (D-053). G2/G3 `OWNER-PENDING`: no usable browser, measured. G3 is now **one change**. |
-| **S** Repo safety | S3 `BUILT`. S1/S2 `NOT STARTED`, both now authorised. |
+| **S** Repo safety | **S1 + S3 `BUILT`** on `repo/git-scope` (10 derived `-text` paths, 16 rails). S2 `BLOCKED` — the trial is vacuous until the tool is on master. |
 | **D** Record | D1–D3 rolling. D4 `NOT STARTED` — it is the last item in the programme. |
 
 **The single blocking fact right now:** it is inside push-guard hours (09:25–16:05 ET), so
@@ -153,25 +153,46 @@ recorded `UNREHEARSED` with the reason, after verifying the dashboard state it c
 
 ## S — REPO SAFETY
 
-### S1 · `.gitattributes` for the raw-byte docs
-**`NOT STARTED`**, authorised by SD-1. Additive, `-text` or `binary`, with a round-trip
-test. Cause is measured: `core.autocrlf=true` and `git check-attr -a` returns nothing for
-those paths, so git decides by sniffing and a mostly-ASCII file with control bytes sniffs
-as text.
-- ⛔ Scope: paths git shows unprotected **AND** that carry a raw-byte marker in history —
-  derive the list, never type it.
+### S1 · `.gitattributes` for the blobs already stored with CR
+**`BUILT`** on `repo/git-scope` @ `7073a66b0`. **10 paths, derived not typed**, plus
+`tests/test_gitattributes_eol.py` (8 rails, mutation-proved).
+- The derivation: index blob carries a CR (`git grep --cached`, because the working tree
+  has CRLF on everything and would report the whole repo), no NUL, `text` unspecified.
+- ⚰️ **AND IT CORRECTS THIS PROGRAMME'S OWN RECORD.** D-052 §6 says the incident
+  "silently replaced another programme's deliberate raw `\x01` bytes". Measured: **no
+  joystick document carries a control byte at HEAD or in its last 15 commits.** The only
+  file that ever did is `app/src/hub/useHubCursor.js` at `2d8373449`, and joystick removed
+  the byte themselves.
+- ⭐ **The two hazards are not one hazard.** eol conversion rewrites CR and LF and nothing
+  else, so it cannot touch `0x01` or `0x1B`. What the incident flattened was **line
+  endings** — the R-2 class. So `-text` is the right protection and the CR-stored blobs are
+  the right list; the two files that do carry bare control bytes are deliberately **not**
+  listed, with a rail asserting that distinction rather than a comment claiming it.
+- `-text`, never `binary`: `binary` also suppresses diffs and one of the ten is a document
+  people review.
 
 ### S2 · Scope checker in the shared pre-commit, WARN for 24 h then ENFORCE
-**`NOT STARTED`**, authorised by SD-1 as an **additive call at the end of the existing
-pre-commit**.
-- ⛔ **Never edit the credential scan's lines** — another programme owns them.
-- WARN mode logs and never refuses. Promote to ENFORCE only on **zero false positives in
-  24 h of other workstreams' commits**; any false positive → fix the scope declarations and
-  re-warn 24 h.
-- Proposal already written: `docs/breadth/git-scope-hook-proposal.md` (on `repo/git-scope`).
+**`BLOCKED`** on S1/S3 reaching master. Built and proven on `repo/git-scope` @ `d9bbb7768`;
+**nothing is installed and the shared hook is untouched.**
+- ⛔ **SD-1 says "a call at the END of the existing pre-commit". Measured: appended, it
+  never runs.** The credential-scan loop `exit 0`s from *inside* the loop as soon as it
+  finds `secret_scrub.py` — the normal path here — so everything after line 13 is
+  unreachable. Same commit, same staged out-of-scope path: **appended → warn log empty;
+  prepended → violation recorded.**
+- ⭐ **That is the worst failure available**: the trial would "run" for 24 h, the log would
+  stay empty, and an empty log reads as *zero false positives* — the promotion criterion.
+  It would have promoted itself to ENFORCE on the strength of never having executed. The
+  criterion is restated: not "the log is empty" but "the log has entries and none are false
+  positives".
+- ⛔ **The trial cannot observe anyone else until the tool is on master.** The block is
+  absent-safe and `tools/git_scope.py` exists only on `repo/git-scope`, so every other
+  worktree skips it. A trial started now watches this programme and nobody else while
+  looking repo-wide. **Order: land the tool → start the 24 h window → promote.**
+- The block is PREPENDED, which still touches none of the credential scan's lines.
 
 ### S3 · The unborn-branch defect fixed
-**`BUILT`** on `repo/git-scope` @ `568e2377d` (pushed, unmerged).
+**`BUILT`** on `repo/git-scope` @ `d9bbb7768` (branch tip; pushed at `568e2377d`, unpushed since).
+- Re-verified this session: `tests/test_git_scope.py` **8 passed** on the branch after merging current master.
 - `current_branch()` uses `symbolic-ref --short HEAD` first; `staged_paths()` diffs against
   the **empty tree** `4b825dc642cb6eb9a060e54bf8d69288fbee4904` when HEAD does not verify.
 - ⛔ Not `DONE` until merged. A pre-commit hook runs *precisely* when there is no commit
