@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 14:33 ET, Session 13.**
+Last updated: **2026-09-15 14:42 ET, Session 13.**
 
 ---
 
@@ -34,13 +34,16 @@ is not `DONE`.
 | Track | Where it is |
 |---|---|
 | **R** Reader | R1–R3 `READY` — waiting for the 16:05 ET window. R4–R8 blocked behind them. |
-| **G** Deploy gate | G1–G2 `READY` this session (browser authorised by SD-1 §2 G-browser). G3+ behind G2. |
+| **G** Deploy gate | **G1 `DONE`** — Wait-for-CI is OFF, read from the API (D-053). G2/G3 `OWNER-PENDING`: no usable browser, measured. G3 is now **one change**. |
 | **S** Repo safety | S3 `BUILT`. S1/S2 `NOT STARTED`, both now authorised. |
 | **D** Record | D1–D3 rolling. D4 `NOT STARTED` — it is the last item in the programme. |
 
 **The single blocking fact right now:** it is inside push-guard hours (09:25–16:05 ET), so
-nothing may push. The landing script is alive and holds R1/R3; everything else this session
-is build, record, and the browser-side G work that needs no push.
+nothing may push. The landing script is alive and holds R1/R3.
+
+⚰️ **And the thing to carry out of Session 13:** a red gate has already shipped to
+production once, because Railway's Wait-for-CI is off and the gate only serialises. The
+cutover is what makes the gate actually gate, and it is now a single dashboard change.
 
 ---
 
@@ -90,19 +93,43 @@ configuration leaves) and writes the next candidate as a **proposal only**.
 ## G — DEPLOY GATE
 
 ### G1 · Wait-for-CI reading recorded
-**`READY`** — SD-1 §2 G-browser authorises this session to read it if a browser is
-available and Railway is logged in. One minute. Carried unanswered since Session 10.
+✅ **`DONE`** 2026-09-15 — **`checkSuites: False` on all six services.** Recorded in
+**D-053**. Read from the Railway API with the CLI's own token, field name introspected
+rather than guessed.
+- ⭐ It never needed a browser. The toggle is the `checkSuites` Boolean on
+  `Environment.deploymentTriggers`, and the service can be asked directly.
+- ⚠️ It also settles a contradiction: `master-deploy-gate.yml`'s header claims Wait-for-CI
+  holds the build, `promote-production.yml`'s says it does not gate. **The promotion
+  workflow is right; the gate's header is stale.**
+- ⚰️ And the negative case has **already happened**: of 59 gate runs exactly one failed
+  (`beace00e0`), and Railway deployed that commit **in the same second**. A red gate does
+  not stop a deploy today — measured, not inferred.
 
 ### G2 · C.2.i probe run and result recorded
-**`READY`** after G1. Design is `docs/breadth/deploy-gate-cutover-runbook.md` §C.2.i.
-- ⛔ **Stop condition: inherited variables that cannot be removed before the first build.**
-  If that happens: delete the service, mark G2 `STOPPED`, G track `OWNER-PENDING`.
+**`OWNER-PENDING`** — SD-1 §2 conditions it on a browser path this box does not have.
+**Measured, not assumed:** the Chrome profile is not authenticated to Railway (project URL
+returns "Login / 404") and the window reports a **0×0 viewport**. Authenticating is not
+something an agent does.
+- ⭐ **Two of the probe's three unknowns are already answered without it** (D-053 §6):
+  environment-level shared variables are **0** — control: `serviceId=web` returns **248**,
+  so the query can see variables and the zero is real — therefore **the stop condition
+  cannot fire**; and `origin/production` already exists and is being advanced.
+- ⚠️ **OPEN QUESTION for the owner:** given those readings, can G2 be reduced or skipped?
+  Not an agent's call — recorded, not acted on.
 
 ### G3 · Cutover executed (watched branch → `production`, Wait-for-CI OFF)
-**`BLOCKED`** on G2 showing TRIGGERED, and on SD-1 §4.1's preconditions (outside
-push-guard hours; last deploy SUCCESS + settled ≥ 600 s; `production` HEAD == master HEAD
-== deployed SHA; no other workstream deploy in 15 min; landing script not mid-step).
-- **Current stop condition still true:** the newest web deploy is `65899a8f7`, `meta.branch = master`. The cutover has not happened.
+**`OWNER-PENDING`** (was `BLOCKED`) — it is now **one change, not two**.
+
+| runbook step | state |
+|---|---|
+| Wait-for-CI → OFF | **already true** (G1) |
+| `production` exists | **already true** — `origin/production` == `origin/master` |
+| promotion advancing it | **already true** — 41 runs, 40 success |
+| watched branch → `production` | ⛔ **the one remaining change** |
+
+- The observation window the runbook asked for is **already running**: `production`
+  advances only on a green gate and no service watches it.
+- **Stop condition still true:** the newest web deploy carries `meta.branch = master`.
 
 ### G4 · Verification push proves the deploy came from `production`
 **`BLOCKED`** on G3. Auto-rollback per §4.4 — and **no retry under SD-1**.

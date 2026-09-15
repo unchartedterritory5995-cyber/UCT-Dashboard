@@ -1278,3 +1278,99 @@ another programme's `pre-commit` (credential scan) and `pre-push` (deploy guard)
 ⭐ **A single settle is usually available; a 45-minute run is not.** That is the precise
 shape of the constraint, and it is why the landing sequence runs as gaps allow rather than
 in one sitting.
+
+---
+
+### D-053 · G1 answered by reading the configuration: Wait-for-CI is OFF, and a red gate has already shipped (2026-09-15)
+
+Session 13, under SD-1. The Wait-for-CI reading has been carried as an owner step since
+Session 10 on the assumption that it needed a browser. It did not.
+
+#### 1. ⭐ The reading — `checkSuites: False`, on all six services
+
+Railway's deploy trigger is a `DeploymentTrigger`, and the toggle the dashboard calls
+*Wait for CI* is the `checkSuites` Boolean on it. Read from the Railway API with the CLI's
+own token (the field name **introspected, never guessed** — asking for a field that does
+not exist returns an error that reads exactly like "the setting is off"):
+
+| service | repository | branch | `checkSuites` | `validCheckSuites` |
+|---|---|---|---|---|
+| web | unchartedterritory5995-cyber/UCT-Dashboard | `master` | **False** | 3 |
+| worker · bars-api · chart-renderer · flow-worker · terminal-next-monitor | same | `master` | **False** | 3 |
+
+⚠️ **Six services, not five.** `terminal-next-monitor` has joined the roster.
+
+#### 2. ⛔ Two workflow files in the same directory assert opposite things
+
+`master-deploy-gate.yml`'s header says *"Railway's 'Wait for CI' holds the build until the
+run for that commit passes"*, and its failure message says *"Railway will not build this
+commit."* `promote-production.yml`'s header says Wait-for-CI *"does not gate"* and gives
+eight measured deploys that started 99–141 s before their check suite finished.
+
+**The reading settles it: the promotion workflow's account is correct and the gate's
+header is stale.** The gate serialises master pushes; it does not stop a deploy.
+
+#### 3. ⚰️ The negative case already happened, naturally — no test needed to prove it
+
+Across **59** `master deploy gate` runs there is exactly **one** failure: `beace00e0`,
+2026-09-14T19:00:49Z. Railway created a `web` deployment for that same commit at
+**2026-09-14T19:00:49Z — the same second**.
+
+> **A red gate did not prevent a deploy. It has already happened once, in production,
+> and nobody had to manufacture it.**
+
+⭐ This is stronger evidence than SD-1's planned G5 push, and it cost nothing: it is an
+observation of the system as it actually ran, not a fixture. G5 as written still has a
+job — it must show the negative case holds **after** the cutover — but the *pre*-cutover
+half is now measured rather than assumed.
+
+#### 4. ⚠️ OPEN QUESTION — the promotion gates the TIP, not every commit behind it
+
+`beace00e0` is an ancestor of `origin/production` today. It got there as a **passenger**:
+the first successful promotion carrying it was `57e5131a3` at 2026-09-15T00:24:41Z. A
+fast-forward advances `production` over every intermediate commit, including ones whose
+gate was red.
+
+This matters because one gating check is **per-commit by construction** —
+`master deploy gate`'s secret scan reads `git diff HEAD^ HEAD`. So `beace00e0`'s changed
+files were never scanned by a run that gated a deploy, and after the cutover they still
+would not be.
+
+⭐ `promote-production.yml` already reasons about exactly this shape for the *cancellation*
+case and sets `cancel-in-progress: false` because of it. The red-gate case is the same
+hazard by a different route, and is not yet covered. **Proposal only, not authorised:**
+refuse promotion when any commit in `production..candidate` has a failed gate run.
+
+#### 5. What this does to the cutover
+
+| runbook step | state now |
+|---|---|
+| Wait-for-CI → OFF | **already true** — nothing to turn off |
+| `production` branch exists | **already true** — `origin/production` == `origin/master` == `79b4b2907` |
+| promotion advancing it | **already true** — 41 runs, 40 success |
+| watched branch → `production` | ⛔ **the one remaining change** |
+
+The observation window the cutover checklist asked for is therefore **already running**:
+`production` advances only on a green gate, and no service watches it yet.
+
+#### 6. The G2 stop condition, measured without running the probe
+
+Environment-level shared variables in `production`: **0**. Control: the same query with
+`serviceId=web` returns **248**, so the query can see variables and the zero is a
+measurement, not a broken call. **A new service inherits no shared variables, so G2's
+stop condition cannot fire.**
+
+⚠️ G2 is still `OWNER-PENDING` — SD-1 conditions it on a browser path that does not exist
+on this box (below). Whether it can now be reduced or skipped is an OPEN QUESTION.
+
+#### 7. Why the browser route failed, measured rather than assumed
+
+The Chrome profile on this box is **not authenticated to Railway**: the project settings
+URL returns *"Login / 404"*. Separately, the window reports a **0×0 viewport**, so no
+screenshot or accessibility read is possible at all. Either fact alone makes the
+browser-authorised G items owner-pending; authenticating is not something an agent does.
+
+⭐ **The API route answered G1 anyway.** The question was a property of the service, and
+the service can be asked directly. ⛔ Cloudflare answers a default urllib UA with
+`403 error code: 1010`, which reads exactly like a bad token — a browser User-Agent is
+required, and that is a repo-wide trap, not a detail of this query.
