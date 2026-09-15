@@ -20,6 +20,7 @@
     "src/components/chart/engine/ast/pine.blindCorpus.test.js > ⭐⭐ an offer a member can TAKE, not retype > ⏳ the accepted floor moves one way too",
     "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
     "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/hub/surfaceMatrixIsCurrent.test.js > the generated joystick artifacts are current > glass-acceptance-steps.md matches the registry as it stands",
     "src/lib/presentation/presentationSingleFormatter.test.js > ⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, not hidden > nothing outside lib/presentation imports formatPercent from S10",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
@@ -142,6 +143,14 @@
       "removed_at": "2026-09-14",
       "why": "FIXED. The entry is STALE and compare_failures fails the gate on a stale entry by design, so it is removed here citing the fix that did it: the supersede decision in outboxDrain.js now requires sameAuthoredContent(noteRec, entry.patch) - the landed save must be PROVEN to contain the entry's content, not merely carry a newer clock.",
       "verified_by": "npx vitest run src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js -> 3 passed (was 1 failed / 3); whole offline layer 27 files / 372 passed"
+    },
+    {
+      "added": "src/hub/surfaceMatrixIsCurrent.test.js > the generated joystick artifacts are current > glass-acceptance-steps.md matches the registry as it stands",
+      "added_at": "2026-09-14",
+      "why": "MASTER'S, not this branch's, and it is a REAL defect rather than a flaky name. `docs/plans/joystick/glass-acceptance-steps.md` was last touched by 789a6bab5 ('audit(joystick): baseline settled at 10 ... §5A promoted (#137)') and `app/src/hub/registry.js` by 6ec66a6db - BOTH ancestors of origin/master. This branch's entire app/src diff is ONE file, app/src/pages/journal-2-0/lib/offline/outboxDrain.js, and it touches nothing under app/src/hub/ or docs/plans/joystick/. Re-run ALONE it still fails (1 failed / 4 passed), so it is persistent, not load-sensitive.",
+      "verified_by": "npx vitest run src/hub/surfaceMatrixIsCurrent.test.js -> 1 failed / 4 passed",
+      "owner": "the JOYSTICK workstream - NOT Notebook Q1",
+      "action_for_the_owner": "CLAUDE.md: any change to PREVIEW_MODES/ROLLOUT_STAGE or the registry must arrive with regenerated artifacts IN THE SAME COMMIT. The fix is one command: `node tools/hub_surface_matrix.mjs --glass > docs/plans/joystick/glass-acceptance-steps.md`. Deliberately NOT run here: it is another workstream's file and a Notebook change set editing docs/plans/joystick/ is the rule-12 shape inverted."
     }
   ],
   "files_note": "⚰️ files[] is DERIVED from failures[] as of 2026-09-14 and is documentation only — scripts/gate_shards.py reads sha, measured_at and failures, never this. It had drifted: it listed src/__tests__/sourcesAreText.test.js and src/components/chart/builder/ImportBox.thinkscript.test.jsx (both removed when master fixed them) and src/components/screener/reachable.test.js (removed 2026-09-11), while omitting src/components/chart/ChartDrawingOverlay.surfaces.test.jsx (added 2026-09-10). A derived list cannot drift; a typed one already had.",
