@@ -3868,7 +3868,18 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     override_sql_floor = 500_000
     etf_enabled = thresholds.get("etf_enabled", False)
     base_sources = ["stocks", "indexes"] if etf_enabled else ["stocks"]
-    if stock_etf == "stocks":
+    if only_ticker:
+        # ⛔ A SINGLE-UNDERLYING LOOKUP IS SOURCE-AGNOSTIC. A ticker lives in
+        # exactly ONE bucket — a stock under 'stocks', an ETF/index under
+        # 'indexes' — and callers like the Discord /flow command cannot know
+        # which, so query BOTH and let the `Symbol =` filter select. This is
+        # ALSO independent of `etf_enabled` (a market-wide-feed toggle): a
+        # user who types `/flow IWM` is asking for that name regardless.
+        # Without this, /flow defaulted to 'stocks' and answered "no significant
+        # options flow" for EVERY ETF (IWM/SPY/QQQ…), whose prints are all under
+        # 'indexes' — IWM had $84M of bearish put flow the command hid (2026-09-09).
+        sources = ["stocks", "indexes"]
+    elif stock_etf == "stocks":
         sources = [s for s in base_sources if s == "stocks"]
     elif stock_etf == "etfs":
         sources = [s for s in base_sources if s == "indexes"]
@@ -4214,58 +4225,150 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
 # and the hand-curated Watchlist both had. Read-only preview here; the Discord card
 # + schedule live in api/cream_card.py (flag-gated, preview-only until armed).
 _CREAM_INDEX_TICKERS = {"SPX", "SPXW", "NDX", "NDXP", "RUT", "VIX", "XSP", "XSPX"}
+# Aggregate conviction tiers — pre-qualified by their own premium floors, scanned as-is.
 _CREAM_TIERS = ("alpha_leaps", "alpha", "ask_accum")
+# Big CLEAN directional SINGLE-print tiers a strong sweep can land in when it didn't
+# aggregate into an alpha tier: WDC C420 $2.24M = a plain "leaps" bull, STLD C150 $2.17M
+# = a "size" sweep. Scanned only for rows >= CREAM_SIZE_MIN_ASK ask premium so small
+# single prints don't flood; "size" rows also get ask-side direction recovery (their
+# _direction is often null), while leaps/bullish/bearish already carry a clean _direction.
+# NOT included: algo (multi-leg / non-directional) and unusual.
+_CREAM_SINGLE_TIERS = ("size", "leaps", "bullish", "bearish")
 _cream_cache: dict = {}
 _cream_lock = threading.Lock()
 
 
-def _cream_contract_meta(today: str) -> dict:
+def _cream_ck(sym, cp, strike, exp):
+    """Canonical contract key shared by _cream_contract_meta (raw flow.db rows) and
+    _cream_meta_key (classified alerts). ⛔ These MUST derive the key identically or
+    the weekly/has-sweep lookup MISSES and `.get(key, (False, True))` FAILS OPEN —
+    treating the contract as not-weekly + has-a-sweep, which silently disables BOTH
+    the weekly and block-only filters (verified 2026-09-15: SNOW P300 / SKHY P175,
+    0 sweeps, on the card under CREAM_EXCLUDE_BLOCK_ONLY=1). The old keys mismatched
+    on strike ("300" vs the DB's "300.0") and side ("CALL"/"PUT" vs the DB's "C"/"P").
+    Normalize strike to a float and side to C/P so both sides collapse to one key."""
+    try:
+        sk = round(float(strike), 4)
+    except (TypeError, ValueError):
+        sk = strike
+    c = "C" if str(cp).upper().startswith("C") else "P"
+    return (str(sym).upper(), c, sk, str(exp).strip())
+
+
+def _cream_contract_meta(today: str, min_sweep_prem: float = 0.0) -> dict:
     """Per-contract flags from flow.db for the day: (is_weekly, has_sweep), keyed by
-    (Symbol, CallPut, Strike, ExpirationDate). ONE grouped query, not per-contract."""
+    _cream_ck. ONE grouped query, not per-contract.
+
+    ⚠️ has_sweep counts a contract as sweep-backed only when its TOTAL sweep/ISO
+    premium clears `min_sweep_prem`. The RAW Type query (not the classified alert)
+    is deliberate — it catches real blank-side sweeps _row_to_alert drops — but it
+    ALSO catches tiny sub-floor micro-sweeps, so a $3.5M BLOCK with a stray sub-$100K
+    sweep (SNOW P300 / SKHY P175, 2026-09-15) would otherwise read as 'sweep-backed'
+    and sail past the block-only filter. A real conviction sweep (CRWD's $3.2M) clears
+    the floor easily; a micro-sweep does not."""
     meta = {}
     conn = sqlite3.connect(DB_PATH, timeout=15)
     try:
         for r in conn.execute(
             "SELECT Symbol, CallPut, Strike, ExpirationDate, "
             "MAX(CASE WHEN CAST(Weekly AS TEXT)='T' THEN 1 ELSE 0 END), "
-            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
-            "         THEN 1 ELSE 0 END) "
+            "CASE WHEN SUM(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "                   THEN CAST(Premium AS REAL) ELSE 0 END) >= ? "
+            "     THEN 1 ELSE 0 END "
             "FROM flow WHERE source='stocks' AND CreatedDate=? "
-            "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (today,)):
-            meta[(r[0], r[1], str(r[2]), r[3])] = (bool(r[4]), bool(r[5]))
+            "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (min_sweep_prem, today)):
+            meta[_cream_ck(r[0], r[1], r[2], r[3])] = (bool(r[4]), bool(r[5]))
     finally:
         conn.close()
     return meta
 
 
 def _cream_meta_key(a: dict):
-    st = a.get("strike")
-    try:
-        sk = str(int(st)) if float(st).is_integer() else str(st)
-    except (TypeError, ValueError):
-        sk = str(st)
-    return (a.get("ticker"), "CALL" if a.get("cp") == "C" else "PUT", sk, a.get("exp"))
+    return _cream_ck(a.get("ticker"), a.get("cp"), a.get("strike"), a.get("exp"))
+
+
+def _cream_row_direction(a: dict, size_min_ask: float):
+    """Resolve a cream row's Bull/Bear direction. Returns (dir, unconfirmed), or
+    (None, False) to skip the row. A clean aggregate `_direction` wins outright.
+    Otherwise a big ASK-CONFIRMED size build (its side left "Not Clean" per §5)
+    recovers its side from call/put — ask-bought call = Bull, ask-bought put =
+    Bear — and is flagged `unconfirmed`. Bid-side / two-sided size rows have ~0
+    aggAskPremium and fall through to None. Pure — unit-testable without a flow.db."""
+    d = a.get("_direction")
+    if d in ("Bull", "Bear"):
+        return d, False
+    if (a.get("_tierKey") == "size" and (a.get("aggAskPremium") or 0) >= size_min_ask
+            and a.get("cp") in ("C", "P")):
+        return ("Bull" if a.get("cp") == "C" else "Bear"), True
+    return None, False
+
+
+def _cream_rank_side(rows: list, side: str, top_n: int, max_per_ticker: int) -> list:
+    """Rank one side's contract rows by aggregate ask premium (`_agg`), keeping at
+    most `max_per_ticker` contracts per NAME, then take the top_n survivors. A per-
+    name cap of 1 reproduces the old one-row-per-ticker card. Pure — no DB — so the
+    per-name cap is unit-testable without a flow.db."""
+    ordered = sorted((r for r in rows if r.get("_dir") == side), key=lambda r: -r["_agg"])
+    per_name: dict = {}
+    out: list = []
+    for r in ordered:
+        n = per_name.get(r["sym"], 0)
+        if n >= max_per_ticker:
+            continue
+        per_name[r["sym"]] = n + 1
+        out.append(r)
+        if len(out) >= top_n:
+            break
+    return out
 
 
 def compute_cream(today: str, top_n=None, min_voi=None,
-                  exclude_weekly=None, exclude_block_only=None) -> dict:
+                  exclude_weekly=None, exclude_block_only=None,
+                  max_per_ticker=None, min_dte=None) -> dict:
     """Build the Cream of the Crop for `today` (concrete M/D/YYYY). Returns
     {date, bull:[...], bear:[...], params} with items in the watchlist_card format
     (sym, exp, strike, cp, prem, vol, oi, voi, grade). Knobs default from env
-    (CREAM_TOP_N / CREAM_MIN_VOI / CREAM_EXCLUDE_WEEKLY / CREAM_EXCLUDE_BLOCK_ONLY)."""
+    (CREAM_TOP_N / CREAM_MIN_VOI / CREAM_EXCLUDE_WEEKLY / CREAM_EXCLUDE_BLOCK_ONLY /
+    CREAM_MAX_PER_TICKER)."""
     top_n = int(os.getenv("CREAM_TOP_N", "12")) if top_n is None else int(top_n)
     min_voi = float(os.getenv("CREAM_MIN_VOI", "1.0")) if min_voi is None else float(min_voi)
     excl_wk = (os.getenv("CREAM_EXCLUDE_WEEKLY", "1") == "1") if exclude_weekly is None else bool(exclude_weekly)
     excl_bo = (os.getenv("CREAM_EXCLUDE_BLOCK_ONLY", "1") == "1") if exclude_block_only is None else bool(exclude_block_only)
+    # How many contracts one NAME may occupy per side. The card used to collapse each
+    # ticker to its single biggest build, so a name's genuine 2nd build (another
+    # strike/expiry, or the other side of a straddle) was dropped before rendering.
+    # Default 2 surfaces that 2nd build while still stopping one hyperactive name from
+    # flooding the card; CREAM_MAX_PER_TICKER=1 restores the old one-row-per-ticker card.
+    max_per_ticker = int(os.getenv("CREAM_MAX_PER_TICKER", "2")) if max_per_ticker is None else int(max_per_ticker)
+    max_per_ticker = max(1, max_per_ticker)
+    # Also scan the big CLEAN directional SINGLE-print tiers (size / leaps / bullish /
+    # bearish) for strong sweeps that didn't aggregate into an alpha tier — WDC C420
+    # $2.24M (a "leaps" bull), STLD C150 $2.17M (a "size" sweep), GLW C165 $4.03M.
+    # Gated on CREAM_SIZE_MIN_ASK ask premium so small single prints / bid-side rows
+    # stay out. "size" rows also get ask-side direction recovery (see
+    # _cream_row_direction). Kill switch CREAM_INCLUDE_SIZE=0.
+    include_size = os.getenv("CREAM_INCLUDE_SIZE", "1") == "1"
+    size_min_ask = float(os.getenv("CREAM_SIZE_MIN_ASK", "1000000"))
+    single_tiers = _CREAM_SINGLE_TIERS if include_size else ()
+    tiers = _CREAM_TIERS + single_tiers
+    # Drop near-dated day-trade / hedge expiries. A 4-DTE 3rd-Friday MONTHLY (e.g.
+    # 9/18) dodges the weekly filter but isn't conviction flow (TSLA/MU/SNDK 9/18 puts,
+    # 2026-09-15). CREAM_MIN_DTE=0 disables. Fail-open on an unknown dte.
+    min_dte = int(os.getenv("CREAM_MIN_DTE", "7")) if min_dte is None else int(min_dte)
+    # A contract is "sweep-backed" (survives CREAM_EXCLUDE_BLOCK_ONLY) only if its total
+    # sweep premium clears this floor — a sub-floor micro-sweep beside a big block does
+    # not count (SNOW P300 / SKHY P175, 2026-09-15).
+    min_sweep_prem = float(os.getenv("CREAM_MIN_SWEEP_PREM", "100000"))
 
-    meta = _cream_contract_meta(today)
+    meta = _cream_contract_meta(today, min_sweep_prem)
     # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
     # "latest N" window, which crowds the rare aggregate tiers out (measured 9/4: 5
     # alpha_leaps vs 61 with a per-tier scan); the tier-scoped fetch is tier-aware
     # and returns the whole day's rows for that tier.
     best: dict = {}
     seen_ids = set()
-    for _tier in _CREAM_TIERS:
+    for _tier in tiers:
+        is_single = _tier in _CREAM_SINGLE_TIERS
         alerts, _ = _compute_recent_core(today, 100000, "F", "premium", _tier, False)
         for a in alerts:
             if a.get("id") in seen_ids:
@@ -4273,8 +4376,16 @@ def compute_cream(today: str, top_n=None, min_voi=None,
             seen_ids.add(a.get("id"))
             if (a.get("source") or "stocks") == "indexes" or a.get("ticker") in _CREAM_INDEX_TICKERS:
                 continue
-            d = a.get("_direction")
-            if d not in ("Bull", "Bear"):
+            aap = a.get("aggAskPremium") or 0
+            # Single-print tiers earn their place on ask-confirmed size alone; the
+            # aggregate tiers are pre-qualified by their own floors.
+            if is_single and aap < size_min_ask:
+                continue
+            d, unconfirmed = _cream_row_direction(a, size_min_ask)
+            if d is None:
+                continue
+            _dte = a.get("dte")
+            if min_dte > 0 and isinstance(_dte, (int, float)) and _dte < min_dte:
                 continue
             wk, swp = meta.get(_cream_meta_key(a), (False, True))
             if excl_wk and wk:
@@ -4286,22 +4397,26 @@ def compute_cream(today: str, top_n=None, min_voi=None,
             fresh = (oi <= 0 and av > 0)
             if not fresh and (oi <= 0 or (av / oi) <= min_voi):
                 continue
-            agg = a.get("aggAskPremium") or a.get("alertPremium") or 0
+            agg = aap or a.get("alertPremium") or 0
             tk = a.get("ticker")
-            cur = best.get(tk)
+            # Key by CONTRACT identity, not ticker, so a name's 2nd build survives.
+            # (Still collapses one contract that surfaces under multiple tiers/ids to
+            # its highest-agg row — seen_ids only dedups within a tier.)
+            ckey = _cream_meta_key(a)
+            cur = best.get(ckey)
             if cur is None or agg > cur["_agg"]:
-                best[tk] = {
+                best[ckey] = {
                     "sym": tk, "cp": a.get("cp"), "strike": a.get("strike"),
                     "exp": a.get("exp"), "prem": float(agg), "vol": int(av),
                     "oi": int(oi) if oi else 0,
                     "voi": (None if fresh else round(av / oi, 1)),
                     "grade": (a.get("grade") or "").replace(" \U0001F680", ""),
                     "dte": a.get("dte"), "tier": a.get("_tierKey"),
-                    "_dir": d, "_agg": float(agg),
+                    "_dir": d, "_agg": float(agg), "unconfirmed": unconfirmed,
                 }
     rows = list(best.values())
-    bull = sorted([r for r in rows if r["_dir"] == "Bull"], key=lambda r: -r["_agg"])[:top_n]
-    bear = sorted([r for r in rows if r["_dir"] == "Bear"], key=lambda r: -r["_agg"])[:top_n]
+    bull = _cream_rank_side(rows, "Bull", top_n, max_per_ticker)
+    bear = _cream_rank_side(rows, "Bear", top_n, max_per_ticker)
     # Whole-day directional premium for the net-flow bar (the market read, same
     # number the old Top Flow card showed) — NOT the sum of just these contracts.
     try:
@@ -4311,7 +4426,10 @@ def compute_cream(today: str, top_n=None, min_voi=None,
         net = None
     return {"date": today, "bull": bull, "bear": bear, "net": net,
             "params": {"top_n": top_n, "min_voi": min_voi,
-                       "exclude_weekly": excl_wk, "exclude_block_only": excl_bo}}
+                       "exclude_weekly": excl_wk, "exclude_block_only": excl_bo,
+                       "max_per_ticker": max_per_ticker,
+                       "include_size": include_size, "size_min_ask": size_min_ask,
+                       "min_dte": min_dte, "min_sweep_prem": min_sweep_prem}}
 
 
 @router.get("/cream")

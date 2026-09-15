@@ -775,3 +775,250 @@ is satisfied without a change.
 ⚠️ **Not a ratio.** Against D-042's 54,923 ms this is ~56x at the median and ~31x at p95,
 **reported as a band comparison**: D-042 is **n=1**, on a different pod state. The honest
 statement is that the two bands do not overlap — 54,923 ms against 796–1,898 ms.
+
+---
+
+### D-047 · The history response is pre-serialised, and the cache holds bytes (2026-09-15)
+
+**Shipped as `baffee6cf` (M4, Session 7).** The route renders its own JSON once and
+caches the **bytes**; FastAPI's generic JSON path never runs on this endpoint again.
+
+#### Why
+
+`fastapi.encoders.jsonable_encoder` was walking **376,240 values that are already plain
+scalars** (4,703 rows x 80 keys) on **every** request — including cache hits, because the
+cache held row dicts. Measured on the production copy at days=8000: `jsonable_encoder`
+302.7 ms + `JSONResponse.render` 209.8 ms = **512.6 ms**, of which the encoder is ~64 %.
+
+#### ⭐ The memory result INVERTED the risk it was supposed to carry
+
+Session 6 flagged that caching bytes "stores ~5 MB per span instead of a dict tree" and
+needed a measured bound. Deep-walked with an id() seen-set — ⛔ `sys.getsizeof` on a list
+of 4,703 dicts reports the pointer array and none of the dicts:
+
+| span | dict (deep) | JSON bytes | ratio |
+|---|---|---|---|
+| 90 | 630,570 | 146,173 | 4.3x |
+| 365 | 2,123,328 | 471,039 | 4.5x |
+| **8000** | **24,471,209** | **4,958,766** | **4.9x** |
+
+**The dict tree was the expensive option all along.** Peak RSS over baseline, one
+measurement per process: 61.4 MB on both sides cold (equal); including the warm request
+68.0 -> 63.4 MB, i.e. the new path peaks **lower**.
+
+#### Byte-identity is structural, not empirical
+
+`_render_json` makes the same call with the same arguments `JSONResponse.render` makes —
+`ensure_ascii=False, allow_nan=False, indent=None, separators=(",", ":")` — read off the
+installed starlette. A rail pins those four arguments so a starlette change surfaces as a
+failure rather than as drift. Parity: sha256 `7695923c...` over **5,576,278 bytes** across
+spans 90/365/8000 against a real `origin/master` worktree, with flip-one-byte and
+truncate-one-byte controls.
+
+#### ⛔ orjson: DECLINED, and the reason is recorded so it is not re-litigated
+
+| | days=8000 | byte-identical | NaN / ±Inf |
+|---|---|---|---|
+| current (encoder + render) | 512.6 ms | — | **raises** |
+| stdlib, same arguments | 113.0 ms | yes | **raises** |
+| orjson | **43.2 ms** | yes | ⛔ **emits `null`** |
+
+orjson is **already a declared dependency** (`requirements.txt:80`, in use by
+`api/routers/bars.py`) and was measured byte-identical on all three real spans, at 2.6x
+the speed of stdlib. **It is still declined**: it serialises NaN and ±Inf to `null` where
+this path raises, so a 500 silently becomes a plausible wrong number on a data edge.
+
+⭐ **The general form, which is the part worth keeping:** stdlib's byte-identity is
+**structural** — the same function with the same arguments, so it holds for values nobody
+thought to test. orjson's is **empirical** — it matches today's data and diverges on a
+known edge. A parametrised rail
+(`tests/test_breadth_preserialised.py::test_a_non_finite_float_still_refuses...`) pins the
+refusal. Reversing this is an owner decision, not a performance tweak.
+
+#### The GZip level is NOT closed by this change
+
+⚠️ The body cache holds **pre-gzip bytes only** — the route sets no `Content-Encoding`
+and `_GZipSkipSSE(minimum_size=1000, compresslevel=5)` still compresses on **every**
+request, warm included. So compression is *not* paid once per TTL and the level question
+stands. Measured on the days=8000 body (4,958,867 B uncompressed):
+
+| level | compress ms | bytes out | vs level 5 |
+|---|---|---|---|
+| 1 | 28.7 | 1,287,614 | +93.0 % size, −32.7 ms |
+| 3 | 46.4 | 800,161 | +19.9 % size, −15.0 ms |
+| **5 (production)** | **61.4** | **667,150** | — |
+| 6 | 103.1 | 654,066 | −2.0 % size, +41.7 ms |
+| 9 | 148.1 | 577,542 | −13.4 % size, +86.7 ms |
+
+⚰️ **The in-code comment justifying level 5 claims level 9 buys a "<3% size gain".
+Measured, it is −13.4 %.** The choice still looks right — +86.7 ms of shared event loop
+per deep request — but the stated reason is wrong. **Level stays at 5 pending an owner
+decision; caching the gzipped bytes would moot it and is proposed, not built.**
+
+---
+
+### D-048 · `reconstructed_fetch` — the interim record (diagnosis in progress, 2026-09-15)
+
+**Not a decision yet. An interim record so the next session does not re-derive it.**
+
+#### The finding
+
+Session 7's per-phase instrument measured, in production, inside a **settled** window:
+
+| phase | ratio across a 20.2x swing in `reader_ms` |
+|---|---|
+| `reconstructed_fetch` | **50.2x** (59.3 -> 2,974.5 ms) |
+| `numeric_fetch` | 9.8x |
+| **`derive`** | **1.0x** (76.8 -> 77.2 ms) |
+
+⛔ `derive` is pure CPU over 376,240 cells and **does not move at all**. If the single
+uvicorn worker were starved of CPU it would scale with everything else. That rules CPU
+starvation out and leaves the read itself.
+
+#### Static facts (Session 8, C.1), measured not assumed
+
+| | |
+|---|---|
+| table | `breadth_reconstructed_daily(date PK, metrics, ohlc_watermark, sentiment_watermark, built_at)` + `idx_brd_watermark` |
+| rows / payload | **4,700** rows, `SUM(LENGTH(metrics))` = **4,678,369 B**, avg **995 B/row** |
+| file | **41,861,120 B**, page_size 4096, 10,220 pages, on the Railway volume (`/data`) |
+| query | `SELECT date, metrics ... WHERE date IN (?...)` **chunked at 400** — 12 statements for a deep read |
+| plan | `SEARCH ... USING INDEX sqlite_autoindex_... (date=?)` — one PK seek per date, 4,700 per deep read |
+| reader connection | **opened per call**, `PRAGMA journal_mode=WAL` + `busy_timeout=3000` **every time** |
+| ⛔ `cache_size` | **-2000 = 2 MB** page cache against a 41.9 MB file |
+| ⛔ `mmap_size` | **0** — every page read is a syscall, never a mapped access |
+
+#### What the split shows so far
+
+`reconstructed_fetch` now splits into `rf_open` / `rf_pragma` / `rf_execute` / `rf_fetch` /
+`rf_materialise`, with row/byte/retry counters and a per-request `/proc/self/io` delta.
+
+⭐ **`rf_materialise` dominates on every reading taken so far** — 75–90 % locally, and
+**81.6 %** on the first production sample (44.7 ms of 54.8). That is `json.loads` over
+4,529 rows / 4.5 MB, i.e. **H4 (row materialisation)**, not I/O.
+
+#### What has been EXCLUDED
+
+⛔ **H2 (lock contention) is effectively excluded.** In WAL mode a writer does not block
+this reader: a local concurrent writer committing **460,569** times during the read
+window moved `reconstructed_fetch` by only **1.9x** (44.1 -> 85.3 ms). Neither that nor
+page-cache pressure (1.5x) comes near production's 50.2x.
+
+#### The production window ANSWERED it, and the answer is two phenomena
+
+n=20 settled cold samples, deployed `47e1516b5`:
+
+| i | `reconstructed_fetch` | `rf_fetch` | `rf_materialise` | **`io_read_bytes`** |
+|---|---|---|---|---|
+| 12 (fastest) | 55.1 | 6.6 | 45.7 | 1,568,768 |
+| 8 | 682.0 | 608.0 | 65.2 | 7,069,696 |
+| **13** | **31,819.8** | **21,098.5** | 319.7 | **540,057,600** |
+
+⭐ **Sample 13 read 540,057,600 bytes for a query returning 4.5 MB — 12.9x the ENTIRE
+41,861,120-byte file.** Twelve chunked statements, 4,700 PK seeks, a **2 MB** page cache
+and **mmap_size=0**: pages are read, evicted, and read again. **H1 is CONFIRMED for the
+tail.** Across that swing `rf_execute` moves 5,729x and `rf_fetch` 3,197x while
+`rf_materialise` moves 7.0x and `derive` 2.5x — the I/O halves move by thousands, the CPU
+halves barely.
+
+⚠️ **But H1 does NOT explain the ordinary range, and the two correlations say so:**
+Pearson r = **0.994**, Spearman (rank) r = **0.260**. The Pearson figure is carried
+entirely by sample 13. Fast samples (<100 ms) read a median 2,121,728 B; slow ones
+(>=100 ms) read 5,054,464 B — 2.4x, across a 3-12x time difference. One 173 ms sample read
+**77,824 bytes**.
+
+**Status: H2 EXCLUDED** (`rf_busy_retries` 0 on all 20; WAL readers do not block on
+writers). **H1 CONFIRMED for the tail, not the range. H3 open and now the leading
+candidate for the ordinary variation, by elimination. H4 owns the LEVEL** — `rf_materialise`
+is 45-110 ms on almost every sample, the floor under every read, untouched by any I/O fix.
+
+⭐ **The 50x is TWO phenomena, not one**, and a fix aimed at either alone will look like it
+failed against the other. See `docs/breadth-history-reader/00-profile.md`, Session 8.
+
+### D-049 · The H1 page-cache fix is ON in production — measured, x9.05 on the tail (2026-09-15)
+
+**Decision: `BREADTH_OHLC_PAGECACHE=1` stays set on `web`.** `PRAGMA mmap_size=67108864`
+(64 MB) + `PRAGMA cache_size=-16000` (16 MB), against the shipped `mmap_size=0` and
+`cache_size=-2000`. Shipped as M8 (`1571e2f87`) default OFF; flipped under authorisation
+V1 after the OFF window closed.
+
+#### The measurement
+
+Two production windows, same harness, same spans, settle floor uptime ≥ 640 s, the arm
+read off `rf_pagecache` **on each request** rather than from the config. **Identical work
+in both arms: `rf_rows` 4,529 and `rf_bytes` 4,523,328 on every sample.**
+
+| `deep_cold` cold reads | OFF (n=19) | ON (n=20) | |
+|---|---|---|---|
+| p50 | 309.0 ms | 281.0 ms | x1.10 |
+| **p90** | 3,052.0 ms | **842.0 ms** | **x3.62** |
+| **max** | 11,382.4 ms | **1,257.7 ms** | **x9.05** |
+| `rf_stmt_sum` max | 8,854.9 ms | 893.3 ms | x9.91 |
+| **min `syscr`** | **1,669** | **182** | **x9.17** |
+| max `read_bytes` | 187.51 MB | **0.00 MB** | |
+
+⭐ **`syscr` is the discriminator and it is the one number contamination cannot fake.**
+`mmap` serves pages by **page fault, not `read()`**, so a working mapping must collapse the
+read-syscall count; and a background thread sharing the process can only push `syscr`
+**up**, never below the floor this request needs. Every prediction above was committed to
+`docs/breadth-history-reader/session9-window-b-predictions.md` **before the flag was set**.
+
+#### ⚠️ The control moved, and it is recorded rather than explained away
+
+`warm_365` is a body-cache hit that never opens SQLite, so the flag cannot reach it — and
+it moved anyway (p50 20.1 → 16.0 ms). **A control that moves is a control that did not
+control.** Three things say the warm path is unchanged and the pod was merely quieter:
+`syscr` floor **79 in both arms**; the response byte-identical (`decoded_bytes` 69,979, and
+the priming *real* read returned `rf_rows` 205 / `rf_bytes` 185,306 in **both arms on the
+identical span**); and the OFF arm's warm outliers carry ordinary I/O counters, so they are
+event-loop contention on the single uvicorn process, not disk. That does not rescue the
+deep result — it fails to threaten it. A x1.26 drift cannot manufacture a x9.05 tail move
+whose mechanism-specific discriminator moved x9.17 in lockstep.
+
+#### What this does NOT settle
+
+- ⛔ **Which half did it.** `mmap_size` and `cache_size` ship as one flag; one A/B cannot
+  decompose two coupled changes. The evidence **leans** mmap, because `syscr` is mmap's
+  signature specifically and `cache_size` would not touch it. "Leans" is the honest word.
+- ⛔ **Memory.** `rss_mb` 2,340.6 with the flag on, and **no OFF-arm baseline was
+  captured**, so there is nothing to compare it against. 64 MB of mapping + 16 MB of cache
+  **per connection**, on a module that opens one per call, is a real question — mitigated
+  but not closed by mapped pages being file-backed and evictable rather than heap.
+- ⛔ **H5 is untouched and now isolated.** The ON tail (826 / 986 / 1,257 ms) has
+  `rf_fetch` 453 / 607 / 879 ms with **low** `syscr` — page faults still fetching cold
+  pages at the 11.6–34.1 MB/s this volume delivers. The flag was never aimed at it.
+
+#### ⛔ D-048 STANDS. The correction to it was drafted and WITHDRAWN before use
+
+A first reading of window A claimed Spearman **+0.960** on `io_rchar` superseded D-048's
+"two phenomena". It does not replicate on Session 8 (+0.504), and the reason kills the
+counter rather than the window: dividing block-device bytes by each sample's own `rf_fetch`
+implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No volume
+delivers 3.9 GB/s. **`/proc/self/io` is PROCESS-wide**, so a delta across a request collects
+every other thread's I/O. Window A's 0.960 was luck — its quiet samples read *exactly*
+0.00 MB, so the counter was nearly clean there and filthy in Session 8's.
+
+⭐ **The only per-request signals are the phase timings** (`rf_fetch`, `rf_stmt_sum`,
+`rf_stmt_max`). Where an io counter and a phase timing disagree, the phase timing wins.
+
+#### ⛔ The flag is INVISIBLE to the feature-flag ledger, and keeping it on is coupled to fixing that
+
+`BREADTH_OHLC_PAGECACHE` has no row in `docs/feature_flags.json` and **cannot be given
+one**: `feature_flag_index.is_gate()` matches only names containing a gate marker or ending
+`_ON`, so the AST derivation does not list it among its 284 gates, and a row would be
+classed as rot by `test_the_ledger_does_not_describe_gates_that_no_longer_exist` — **redding
+the master deploy gate.** `BREADTH_OHLC_FETCH_RANGE` is invisible for the same reason.
+
+⚰️ **This is the `DESK_PUBLIC_SHOWS` shape**, whose own source comment records the two
+reasons it survived 25 days and published 27 paid sessions. The blast radius here is far
+smaller — SQLite pragmas, not paid content on the open internet — which is why the ruling is
+**keep it on and rename it**, not turn it off. **`BREADTH_OHLC_PAGECACHE_ENABLED`: one
+constant, one env var, no behaviour change.** It needs an authorised merge and is the first
+item for Session 10.
+
+#### Consequence for the query-shape candidate (`breadth/fetch-shape`, built, NOT merged)
+
+The range scan existed to avoid ~9,058 b-tree descents each costing a fault. **This fix
+removed that cost by PRAGMA** — `syscr` 1,669 → 182 — so the candidate's case is largely
+gone. **Do not merge it; do not delete it.** Keep it as a parity-proved experiment for H5,
+to be measured against the ON arm rather than the OFF one it was designed for.
