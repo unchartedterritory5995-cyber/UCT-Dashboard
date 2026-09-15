@@ -31,19 +31,19 @@ import CATALOG from '../../components/chart/__fixtures__/breadthLibraryRows.json
 import { searchLibrary, browseFamilies, availabilityOf } from '../../components/chart/breadthLibrary'
 import { breadthResults, createFromResult, lastCreatedInstance } from '../../components/chart/discoveryCatalog'
 import * as registry from '../../components/chart/engine/nativeRegistry'
+import SourceField from '../../components/chart/SourceField'
 import { presentedPlot } from '../../components/chart/engine/presentation'
 import { signColorsForPlot } from '../../components/chart/engine/pool'
 
 // ─── lock 1: no preference write can leave this page ────────────────────────
 const _fetch = window.fetch.bind(window)
-export const BLOCKED = []
+const BLOCKED = []
 window.__breadthHarnessBlocked = BLOCKED   // readable from the console, for proof
 window.fetch = (url, opts = {}) => {
   const u = String(url || '')
   const method = String(opts.method || 'GET').toUpperCase()
   if (u.includes('/api/auth/preferences') && method !== 'GET') {
     BLOCKED.push(`${method} ${u}`)
-    // eslint-disable-next-line no-console
     console.error('%cREFUSED preference write from the harness: ' + method + ' ' + u,
                   'color:#ff6b6b;font-weight:bold')
     // ⛔ 200 WITH AN EMPTY OBJECT, NOT 204. `new Response('{}', {status: 204})`
@@ -54,7 +54,30 @@ window.fetch = (url, opts = {}) => {
       status: 200, headers: { 'content-type': 'application/json' },
     }))
   }
+  // ⭐ THE ONE ROUTE THE REAL CONTROL FETCHES, ANSWERED FROM THE FIXTURE. Mounting
+  // `SourceField` for real means `useBreadthSymbols` makes its once-per-session call;
+  // the dev proxy would send it to the main checkout's `:8000`, which predates the
+  // `library` block. Serving the generated catalogue here is what lets the PRODUCT
+  // control — not a copy of it — be the thing on screen.
+  if (u.includes('/api/breadth-symbols')) {
+    return Promise.resolve(new Response(JSON.stringify(FIXTURE_PAYLOAD), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    }))
+  }
   return _fetch(url, opts)
+}
+
+/** The shape `/api/breadth-symbols` answers with. `symbols`/`groups` are the 44
+ *  shipped UCT rows the fixture already carries under `legacy: true`. */
+const FIXTURE_PAYLOAD = {
+  symbols: CATALOG.rows.filter((r) => r.legacy)
+    .map((r) => ({ symbol: r.symbol, metric: r.metric, name: r.name,
+                   group: r.group, group_label: r.group_label })),
+  groups: CATALOG.families || [],
+  library: {
+    rows: CATALOG.rows, families: CATALOG.families,
+    universes: CATALOG.universes, metric_order: CATALOG.metric_order,
+  },
 }
 
 const LIB = {
@@ -106,10 +129,12 @@ function Results({ q }) {
     <div data-testid="results">
       {rows.map((r) => (
         <div key={r.key} style={S.row} data-testid="result">
-          {/* METRIC leads. */}
-          <div style={S.name}>{r.name}</div>
-          {/* UNIVERSE is a quiet qualifier, not a loud badge. */}
-          <div style={S.uni}>{r.shortName}</div>
+          {/* ⭐ `lead` / `sub`, NOT a layout this page chose for itself. The whole
+              point of the proof is that the PRODUCT's fields read metric-first; a
+              harness that rendered `r.name` because it knows breadth is breadth
+              would prove only that this file can be written correctly. */}
+          <div style={S.name} data-testid="lead">{r.lead}</div>
+          <div style={S.uni} data-testid="sub">{r.sub}</div>
           {/* SYMBOL is available, secondary. */}
           <div style={S.sym}>{r.id}</div>
           <div style={S.fam}>{r.category}</div>
@@ -220,6 +245,41 @@ function Nethl() {
   )
 }
 
+/**
+ * ⭐⭐ THE PRODUCT CONTROL, MOUNTED — not a re-implementation of it.
+ *
+ * Everything above renders the library through the real ranking but through THIS
+ * page's markup. This section mounts `SourceField`, the control an instance's
+ * `source` input is actually edited with, so what is on screen is the reading order
+ * a member gets. It is also the surface that was WRONG until the browser proof:
+ * it leads with the result's strong half, and for breadth that used to be the
+ * universe badge — `NASDAQ · % of Stocks Above 50-Day MA`, the address in bold.
+ */
+function RealPicker() {
+  const [value, setValue] = useState('close')
+  const settings = { indicatorInstances: [] }
+  const row = { instanceId: 'inst:dataSeries:1', label: 'Data Series' }
+  const field = { label: 'Source' }
+  // ⛔ The SECURITY half answers empty: this page proves the breadth lane, and a
+  // live ticker search would make the result depend on a backend that is not the
+  // subject. Breadth is served from the fixture above.
+  const fetcher = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+  return (
+    <div data-testid="real-picker">
+      <div style={{ ...S.sym, marginBottom: 8 }}>stored value: {value}</div>
+      <SourceField
+        row={row}
+        field={field}
+        value={value}
+        settings={settings}
+        registry={registry}
+        fetcher={fetcher}
+        onPick={setValue}
+      />
+    </div>
+  )
+}
+
 function Harness() {
   const [q, setQ] = useState('50 day')
   const uct = availabilityOf(LIB.universes, 'uct')
@@ -259,6 +319,9 @@ function Harness() {
         ))}
       </div>
       <Results q={q} />
+
+      <div style={S.h}>The REAL source picker — choose “Search symbol…”, type “50 day”</div>
+      <RealPicker />
 
       <div style={S.h}>Net New High-Low — signed histogram, meaningful zero</div>
       <Nethl />

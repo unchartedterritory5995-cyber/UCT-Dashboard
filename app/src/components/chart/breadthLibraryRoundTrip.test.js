@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest'
 
 import CATALOG from './__fixtures__/breadthLibraryRows.json'
 import { searchLibrary } from './breadthLibrary'
-import { breadthResults, createFromResult } from './discoveryCatalog'
+import { breadthResults, createFromResult, securityResults } from './discoveryCatalog'
 import * as registry from './engine/nativeRegistry'
 import { parseSource } from './engine/sourceRef'
 import { presentedPlot } from './engine/presentation'
@@ -98,5 +98,61 @@ describe('the same metric across universes, and the same identity twice', () => 
     expect(cs.indicatorInstances).toHaveLength(2)
     expect(new Set(cs.indicatorInstances.map((i) => i.instanceId)).size).toBe(2)
     expect(new Set(cs.indicatorInstances.map((i) => i.inputs.source)).size).toBe(1)
+  })
+})
+
+// ─── the reading order, in the surfaces a member actually reads ──────────────
+//
+// ⭐⭐ "METRIC FIRST, UNIVERSE SECOND" IS A CLAIM ABOUT A RENDERED LIST, so it has
+// to be pinned where the list is built. Ranking the A50 family to the top is worth
+// nothing if the row then reads `NASDAQ · % of Stocks Above 50-Day MA` — the address
+// in bold, the idea in grey. That is exactly what the source picker did before this
+// phase, because it leads with `shortName`, and `shortName` is the UNIVERSE badge
+// (which is the right answer for a pane legend and the wrong one for a search list).
+import { symbolLibraryRow } from './discoveryCatalog'
+
+describe('a result says which half leads', () => {
+  const pickRes = (q) =>
+    breadthResults(searchLibrary(ROWS, q, { limit: 1, metricOrder: METRIC_ORDER }))[0]
+
+  it('⭐ a breadth result leads with the METRIC and glosses with the universe', () => {
+    const r = pickRes('NASDAQ:A50')
+    expect(r.lead).toBe('% of Stocks Above 50-Day MA')
+    expect(r.sub).toBe('NASDAQ')
+    // ⛔ and the pane legend is UNCHANGED — `shortName` still carries the universe,
+    // because four A50 series in one pane differ by population, not by metric.
+    expect(r.shortName).toBe('NASDAQ')
+  })
+
+  it('a legacy UCT row glosses with the symbol it has always worn', () => {
+    const r = pickRes('UCTA50')
+    expect(r.lead).toBe('% of Stocks Above 50-Day MA')
+    expect(r.sub).toBe('UCTA50')
+  })
+
+  it('⛔ a SECURITY is untouched: ticker leads, company name glosses', () => {
+    const [r] = securityResults([{ ticker: 'QQQ', name: 'Invesco QQQ Trust', type: 'etf' }])
+    expect(r.lead).toBe('QQQ')
+    expect(r.sub).toBe('Invesco QQQ Trust')
+  })
+
+  it('and a security with no long name glosses with nothing rather than itself', () => {
+    const [r] = securityResults([{ ticker: 'QQQ', name: 'QQQ', type: 'etf' }])
+    expect(r.lead).toBe('QQQ')
+    expect(r.sub).toBe('')
+  })
+
+  it('⭐ the Symbols library row inverts too — headline metric, subtitle universe', () => {
+    const row = symbolLibraryRow(pickRes('NASDAQ:A50'))
+    expect(row.name).toBe('% of Stocks Above 50-Day MA')
+    expect(row.description).toBe('NASDAQ · NASDAQ:A50')
+    expect(row.shortName).toBe('Breadth')       // the chip still says what it is
+  })
+
+  it('…and a security library row still leads with its ticker', () => {
+    const row = symbolLibraryRow(securityResults(
+      [{ ticker: 'QQQ', name: 'Invesco QQQ Trust', type: 'etf' }])[0])
+    expect(row.name).toBe('QQQ')
+    expect(row.description).toBe('Invesco QQQ Trust')
   })
 })

@@ -5,10 +5,11 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 5 complete (master reconciled · BL-008 implemented ·
-catalog + discovery · chart-data seam · cache isolation). **STATUS: complete, local, unpushed.**
+**CURRENT PHASE** Phase 7 complete — the user-facing Breadth Library UX
+(catalogue payload · metric-first ranking · the reading order in the real control ·
+browser proof). **STATUS: complete, local, unpushed, nothing published.**
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
-**HEAD** `d602865eb` · **WORKING TREE** clean
+**HEAD** see the Phase-7 table below · **WORKING TREE** clean
 **STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `8578d375d` (merges `cc57099ca`, `bd5a1b9`-era)
 **BASELINE WORKTREE** `C:\b3` (detached at `5e88b38c4`, built)
 
@@ -281,3 +282,115 @@ Durable cache at **`C:\w\breadth-library-cache\`** (933 frames + reference map +
 drivers). Point `DATA_DIR` there and run `control.py <universe> <from> <to>`; the
 provider client is replaced with one that RAISES, so a cache miss fails loudly
 instead of computing on a short frame.
+
+---
+
+## Phase 7 — the user-facing Breadth Library UX (2026-09-15)
+
+### The principle, and where it had to be enforced
+
+**BREADTH IS A LIBRARY OF METRICS ACROSS UNIVERSES, NOT A FLAT COLLECTION OF
+UNRELATED PSEUDO-TICKERS.** `UNIVERSE × METRIC = IDENTITY`.
+
+⭐⭐ **Ranking the metric to the top is only half of it.** Phase 5 got the ORDER
+right — `"50 day"` answers with the A50 family, universes adjacent. Phase 7 found
+that the LIST ITSELF still read address-first, because `SourceField` leads with the
+result's `shortName`, and `shortName` is the UNIVERSE badge. A member typing
+"50 day" was shown
+
+    NASDAQ · % of Stocks Above 50-Day MA          ← the address in bold
+
+which is the ticker soup this library exists to replace, one layer below where
+anyone was looking. **Only the browser found it.** The unit suites all passed: they
+assert the ranking and the row shape, and the row shape was correct.
+
+**Fixed in the PRODUCER, not the view.** A `DiscoveryResult` now carries `lead` and
+`sub` — which half a compact list leads with — defaulting to exactly today's
+behaviour (`shortName` leads, the long name follows) and overridden only by the
+breadth adapter. `SourceField` renders `lead` / `sub` and learns nothing about
+breadth; `shortName` is untouched, so the pane legend still reads the universe,
+which is the right answer THERE. `symbolLibraryRow` (the not-yet-mounted Symbols
+dialog projection) gets the same inversion.
+
+### What was built
+
+| | |
+|---|---|
+| server | `library_catalog()` → `{rows, families, universes, metric_order}` on the EXISTING `/api/breadth-symbols`, purely ADDITIVE (`symbols` / `groups` byte-identical) |
+| availability | `availability()` reports `available` / `limited` / `not_populated` **read from the store**; a payload that says nothing renders as nothing, never as "not populated" |
+| client | `breadthLibrary.js` — `searchLibrary` (5 tiers), `browseFamilies`, `availabilityOf`. No names, no families, no symbols of its own |
+| ranking | TWO lanes, ONE definition: `library_search` (Python reference) and `searchLibrary` (UI), pinned by the GENERATED `breadthSearchParity.json` — the `closedTable.json` idiom |
+| reading order | `lead` / `sub` on the result; the real `SourceField` renders them |
+| presentation | catalogue metadata → `presentationFor` → `presentedPlot`; NETHL is a signed histogram with no ticker branch anywhere |
+| harness | `app/breadth-harness.html` + `src/testing/breadth/` — dev-server only, `vite build` never ships it |
+
+### ⭐ Browser proof — the real control, not a mock-up
+
+Dev vite on **:5231** (5199 belongs to the Floor prototype), fixture-backed, banner
+says so on screen. The harness mounts the **actual `SourceField`**, so what follows
+is the product surface:
+
+| step | observed |
+|---|---|
+| type `50 day` | `% of Stocks Above 50-Day MA · UCTA50 / · US / · NASDAQ / · NYSE` — metric bold, universe grey, four universes adjacent |
+| click the NASDAQ row | stored value `sym:NASDAQ:A50:close` — the canonical identity, written by `symbolSource` |
+| `new lows` | New 52-Week Lows leads (× 4 universes), then Net New High-Low, then New 20-Day Lows |
+| `NASDAQ breadth` | Nasdaq's library only |
+| `NASDAQ:AAPL`, `FOO:BAR` | **"No match"** — a colon does not make something breadth |
+| `nasdaq 200 day` (typed, not a chip) | exactly `% of Stocks Above 200-Day MA · NASDAQ` — a universe word NARROWS |
+| NETHL histogram | bars grow UP from the dashed zero for +500/+164/+13 and DOWN for −7/−99/−663; computed colours `rgb(47,175,104)` / `rgb(223,70,70)` = `#2faf68` / `#df4646`, resolved through `presentedPlot` → `signColorsForPlot`, not painted by the page |
+| save → reopen | `JSON.parse(JSON.stringify(cs))` byte-identical; `sym:NASDAQ:A50:close` parses back to symbol `NASDAQ:A50` + field `close`; NETHL still a signed histogram, A50 still a line |
+| browse | four families (MA Breadth · Momentum · Highs / Lows · Score / Regime), ONE entry per METRIC with its universes collected |
+| Main Trading | preference `chart_settings` sha256 = `ea9ebaee…5922` — **fingerprint unchanged**, verified without rendering `/charts` |
+
+### Defect found BY the browser proof
+
+The harness's own preference-write lock answered with
+`new Response('{}', { status: 204 })`, which **throws** — 204 is a null-body status.
+It refused the write (nothing left the page) and then blew up in the caller's face
+instead of answering it. `paneHarness.jsx` already used `200` + `{}`; this now
+matches and records what it blocked in `window.__breadthHarnessBlocked`.
+
+### Performance rail (§23)
+
+Discovery runs on EVERY KEYSTROKE over the whole published library, and Phase 5
+already paid 404 µs/call on `/api/bars` for exactly this class of mistake.
+`breadthLibrary.perf.test.js` rails the ALGORITHM (per-keystroke index rebuild,
+accidental O(n²)), with deliberately loose budgets. Measured on the 170-row
+catalogue:
+
+| | |
+|---|---|
+| per keystroke, `"% of stocks above 50-day"` | **~25 µs** |
+| widest query (bare `NASDAQ`, limit 200) | ~15 µs |
+| no match (`AAPL`) | ~17 µs |
+| `browseFamilies` (whole catalogue) | ~18 µs |
+| index identity | built ONCE per payload; a new array rebuilds |
+
+### §15 Browse — DEFERRED, with the reason
+
+`browseFamilies()` is built, railed and demonstrated in the harness. It is **not
+wired into a product surface**, deliberately:
+
+- The only LIVE surface that renders breadth discovery results is `SourceField`,
+  a compact control used for EVERY source pick. Filling its empty state with a
+  breadth family tree would be wrong for the large majority of picks — price
+  fields and securities.
+- The surface browse actually belongs in is the Symbols library dialog, whose
+  projection (`symbolLibraryRow`, `BREADTH_CATEGORY`) exists but **has no
+  production consumer yet**. Mounting that dialog is a separate piece of work and
+  was not in this phase's scope.
+- So the projection is ready the moment the dialog lands, and nothing was invented
+  in the meantime. ⛔ A second search architecture was explicitly out of bounds and
+  none was created.
+
+### Status flags — unchanged from Phase 6
+
+| | |
+|---|---|
+| US / NASDAQ / NYSE | **DARK.** `published_universe_ids()` defaults to UCT only; the catalogue payload a live surface sees is UCT-only unless `BREADTH_LIBRARY_UNIVERSES` says otherwise |
+| fabricated data | **NONE.** No placeholder numbers, no UCT values proxied under another universe. Availability is READ from the store; the harness states on screen that its rows come from a fixture |
+| `warm_breadth()` | **NOT MODIFIED** |
+| provider / Railway / `railway run` / credentials | **NOT PURSUED.** Phase 7 parked the provider gate as instructed |
+| PRODUCTION / R2 / LIVE SITE / MAIN TRADING | **UNTOUCHED** (Main Trading fingerprint verified) |
+| PUSHED / MERGED / DEPLOYED | **NOTHING** |

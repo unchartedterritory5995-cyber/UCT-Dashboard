@@ -150,6 +150,8 @@ export const DIRECT_SERIES_DEF_ID = 'dataSeries'
  * @property {'technical'|'formula'|'breadth'|'security'} kind
  * @property {string} name
  * @property {string} shortName
+ * @property {string} lead   what a COMPACT LIST leads with
+ * @property {string} sub    the quiet qualifier after it, or ''
  * @property {string} category
  * @property {string} description
  * @property {string[]} tags
@@ -160,13 +162,30 @@ export const DIRECT_SERIES_DEF_ID = 'dataSeries'
 
 const str = (v, fallback = '') => (typeof v === 'string' && v ? v : fallback)
 
-function result({ id, kind, name, shortName, category, description, tags, capability, capabilityReason, create }) {
+/**
+ * ⭐⭐ A RESULT STATES HOW IT WANTS TO BE READ, so no view has to branch on `kind`.
+ *
+ * A compact list — the source picker's eight rows — has exactly one strong line and
+ * one quiet one, and WHICH HALF IS WHICH DIFFERS BY WHAT THE THING IS. For a
+ * security "QQQ" is the thing and "Invesco QQQ Trust" is the gloss. For a breadth
+ * measure the thing is "% of Stocks Above 50-Day MA" and "NASDAQ" is the gloss —
+ * `NASDAQ:A50` is an ADDRESS, and a list that leads with it is the ticker soup the
+ * library exists to replace.
+ *
+ * ⛔ SO THE DEFAULT IS TODAY'S BEHAVIOUR EXACTLY — `shortName` leads, the long name
+ * follows when it says something new — and only the breadth adapter overrides it.
+ * `SourceField` renders `lead` / `sub` and learns nothing about breadth.
+ */
+function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create }) {
+  const _lead = str(lead, str(shortName, id))
   return {
     key: `${kind}:${id}`,
     id,
     kind,
     name,
     shortName,
+    lead: _lead,
+    sub: typeof sub === 'string' ? sub : (name && name !== _lead ? name : ''),
     category,
     description,
     tags: Array.isArray(tags) ? tags : [],
@@ -331,6 +350,12 @@ export function breadthResults(rows, { tf, bars } = {}) {
       kind: 'breadth',
       name,
       shortName: universeLabel || sym,
+      // ⭐ METRIC FIRST, UNIVERSE SECOND — in the LIST as well as in the pane. The
+      // pane legend wants `shortName` (the universe is what differs between four
+      // A50 rows); a search list wants the opposite, because the member is choosing
+      // the METRIC and the universe only qualifies it.
+      lead: name,
+      sub: universeLabel || sym,
       category: str(row.group_label || row.groupLabel || row.group, 'Breadth'),
       description: name,
       tags: ['breadth'],
@@ -680,11 +705,17 @@ export function symbolLibraryRow(res) {
     id: res.id,
     key: res.key,
     kind: res.kind,
-    name: res.id,
+    // ⭐ AND THE SAME INVERSION HERE. A security's headline is its ticker; a breadth
+    // measure's headline is its METRIC, with the universe and the address beneath.
+    // `NASDAQ:A50` as the headline and the metric as the subtitle is precisely the
+    // reading order this phase exists to reverse.
+    name: isBreadth ? (res.name || res.id) : res.id,
     // The server's own classification, upper-cased for the chip; breadth says so.
     shortName: isBreadth ? 'Breadth' : String(res.category || 'symbol').toUpperCase(),
     category: isBreadth ? BREADTH_CATEGORY : SYMBOL_CATEGORY,
-    description: long,
+    // The universe qualifies, and the address stays available without dominating.
+    description: isBreadth ? [res.shortName, res.id].filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i).join(' · ') : long,
     longName: long,
     tags: res.tags,
     capability: res.capability,

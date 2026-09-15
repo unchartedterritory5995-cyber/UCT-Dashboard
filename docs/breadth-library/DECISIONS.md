@@ -209,3 +209,41 @@ Breadth also took its own `TTLCache` instance (`max_size=512`), for the reason
 `live_prices` already has one: a sealed series is a large value held for hours, and
 the shared 1,000-entry singleton is hammered by bars and news keys. **Isolation
 only** — no routing change, no bars-api move, no CDN change; those are the owner's.
+
+---
+
+### BL-011 · A result says WHICH HALF LEADS; a view never branches on `kind`
+
+**The problem.** A compact discovery list has one strong line and one quiet one, and
+which half is which depends on what the thing IS. For a security `QQQ` is the thing
+and "Invesco QQQ Trust" is the gloss. For a breadth measure the thing is
+"% of Stocks Above 50-Day MA" and `NASDAQ` is the gloss — `NASDAQ:A50` is an
+ADDRESS.
+
+`SourceField` leads with `shortName`. For breadth, `shortName` is the UNIVERSE
+badge, deliberately: it becomes the instance's `display.name`, so four A50 series in
+one pane read `UCT 63.2 · US 54.9 · NASDAQ 51.8 · NYSE 57.4` beneath a metric stated
+once. That is the right answer **in a pane legend** and the wrong one **in a search
+list**, where it produced
+
+    NASDAQ · % of Stocks Above 50-Day MA
+
+⭐ **Ranking had been right since Phase 5 and the list still read address-first.**
+Every unit suite passed — they assert the ranking and the row shape, and the row
+shape was correct. The browser proof is what found it.
+
+**The decision.** The RESULT states its own reading order: `lead` and `sub`, with
+`lead` defaulting to `shortName || id` and `sub` to the long name when it says
+something new — i.e. **exactly the previous behaviour for every other kind** — and
+only `breadthResults` overrides them (`lead: name`, `sub: universeLabel || sym`).
+`shortName` is untouched, so the pane legend is unchanged.
+
+⛔ **Not a `kind` branch in the view.** `RESULT_KINDS`' own header says nothing at
+runtime may branch on `kind`; a view doing `if (kind === 'breadth')` to decide
+typography is the same mistake in a different file, and it would have to be repeated
+in every surface that ever lists a result. One producer, one rule, every view free.
+
+The same inversion is applied to `symbolLibraryRow` — headline metric, subtitle
+`NASDAQ · NASDAQ:A50`, chip still `Breadth` — even though that projection has no
+mounted consumer yet, so the dialog is right on the day it lands rather than wrong
+on the day it lands.
