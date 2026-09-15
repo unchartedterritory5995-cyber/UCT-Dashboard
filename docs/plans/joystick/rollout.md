@@ -135,6 +135,27 @@ step is what honours that scope instead of silently inheriting it at GA.
 **d. Stage 3 PR** per §1, once §2(b) is answered. Patrick merges; kill switch demonstrated again;
 **box 5 ticked**.
 
+> ✅ **PRE-BUILT AND GATED, 2026-09-15 — and §2(b) IS ANSWERED.** `launch/stage-3-ga` at
+> **`3164cccac`** carries `ROLLOUT_STAGE` 2 → 3 and the Settings label dropping `(preview)`, and
+> **nothing else**: `unsetDefault()` and `cardVisible()` both threshold at `>= 2` and neither was
+> touched, so stage 3 resolves identically to stage 2 for every user. Gated on the local merge
+> result against **baseline 10** — `Test Files 1 failed | 88 passed (89)`, `Tests 1 failed | 1168
+> passed (1169)`, the one failure being `tapFloor`, baseline entry #9; sampler
+> `VERDICT=CLEAR exit=0 samples=12 min_free_gb=8.39`. Record:
+> **`harness/2026-09-15-stage3-ga-prebuild.md`**.
+>
+> ⭐ **§2(b) was answered by stage 2, not deferred to here.** It asked whether emptying
+> `PREVIEW_MODES` at stage 3 would land two full fans with the GA flip, and recommended shipping
+> `home` and `flow` first. The stage-2 branch did exactly that, one rung early — the Set is
+> **empty** at `2ae7e98aa` — so stage 3 really is copy-only and "no new behaviour" holds as
+> written. ⛔ The branch is built **off stage 2, not off master**, because master is at
+> `ROLLOUT_STAGE = 1`: a branch off master would have been a 1 → 3 diff that swallowed stage 2's
+> widening inside a commit labelled GA.
+>
+> ⛔ **Not opened, and it does not satisfy c.** D-39 is still ruled *fix before stage 3*, and it is
+> held until Patrick's bug list arrives so it can be scoped against what he actually reported. A
+> gated branch is not a met condition. **Patrick merges.**
+
 **e. Box 6** — rewrite `closure.md` as LAUNCHED, citing every box's evidence.
 
 **f. Post-close housekeeping.** `railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED`
