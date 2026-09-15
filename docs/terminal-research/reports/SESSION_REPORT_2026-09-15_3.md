@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 13:34 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 14:12 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**22 commits** — eleven docs, eleven code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`
+**24 commits** — twelve docs, twelve code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -598,6 +598,86 @@ said what was wrong, in its own words, and the fix removes exactly that.** ⚠�
 falsify it: any failure whose annotation is not about the rebase. That would be a further
 defect behind this one — and it would be **named**.
 
+## 3t · ⭐⭐ RUN #15 PUBLISHED — AND A TOTALS LINE FOR PYTEST IS IN THE RECORD FOR THE FIRST TIME
+
+**That sentence is condition (b), in exactly those words.**
+
+```
+[notice] ci-publish | stale rebase state: none to clear
+committer: github-actions[bot]
+attempt 1: fetch rc=0 · rebase rc=0 · push rc=0
+published on attempt 1
+```
+
+**20 of 20 jobs succeeded.** `ci-results` gained `83720eab7 ci run 34996412472` — the first
+record since run #4 — and `results/latest.json` is **gone from the branch**.
+
+### E CP17's prediction, scored — five of six
+
+| predicted | actual | |
+|---|---|---|
+| `publish`: success | **success** | ✅ |
+| a record at `results/<run_id>/summary.json` | **the first since run #4** | ✅ |
+| `latest.json` gone | **gone** | ✅ |
+| annotation `::notice::` ending `published on attempt 1` | **exactly that** | ✅ |
+| `contract_gaps` | `[]` | ✅ |
+| `shards_without_totals: []` | **`['tests-04', 'tests-07']`** | ❌ |
+
+⭐ The claim about a cause I had **read** held; the one about a part I had not measured did
+not.
+
+### The first complete-ish measurement this repository has ever had
+
+| | collected | passed | failed | ok |
+|---|---|---|---|---|
+| pytest | **19,056** | 18,858 | **136** | false |
+| vitest | **19,898** | 19,862 | **21** | false |
+
+**VERDICT: RED**, and it is the first *honest* red. Ten shards' totals lines are in the
+record verbatim — e.g. `tests-01  63 failed, 3647 passed, 8 skipped … in 464.57s`.
+
+⚠️ **AND THE NUMBERS ARE A FLOOR, NOT A TOTAL.** Two of twelve shards contributed nothing, so
+19,056 and 136 are both **under-counts**. ⭐ The aggregator refused to let them read as zero:
+`every_shard_has_totals=False` in the basis, suite `ok: false`, both shards **named**. That is
+the defect it was built for, firing on its first published run.
+
+## 3u · ⛔⛔ E CP18 — BOTH MISSING SHARDS HUNG, AND BOTH REPORTED `success`
+
+| shard | log | ended with |
+|---|---|---|
+| `tests-04` | **8 KB** | `+++ Timeout +++`, stack in `discord_index_close.wait_until_warm` → `sleep()` |
+| `tests-07` | **6.6 MB** | mid-startup memory lines, no totals |
+
+**Two independent defects made that possible.**
+
+⚰️ **The timeout method did what its own comment said it prevented.** The step read
+*"`--timeout-method=thread` … a HANG now fails BY NAME instead of taking the shard's whole 20
+minutes down with it and reporting nothing."* **The thread method aborts the process** — no
+test name, no totals, no junit. One hung test cost the shard's entire result. ⛔ It also makes
+`per_test_timeouts` structurally unreachable, since that count comes from pytest-timeout's
+junit entry, which the aborted process never writes. `signal` raises inside the test instead.
+
+⛔ **And the pytest job never got the assertion the vitest job has.** The workflow header says
+**"A RUN WITHOUT A TOTALS LINE IS NOT A RUN"**; the vitest job has asserted it since E CP1;
+the pytest job that *replaced* the single pytest run never did. The run is piped through
+`tee`, so the step's exit code is tee's. Added, with an `::error::` annotation naming the
+shard.
+
+⭐ **A rule applied to one job is not applied to the job that replaced it.**
+
+### Prediction for run #16
+
+| field | prediction |
+|---|---|
+| `publish` | **success**, a second record |
+| `shards_without_totals` | **`[]`** |
+| `tests-04` | **fails by name** on `test_a_note_that_cannot_be_written_still_posts_the_charts` |
+| pytest `collected` / `failed` | **both higher** than 19,056 / 136 |
+| VERDICT | **RED** |
+
+⛔ **A rising failure count here is a BETTER measurement, not a regression**, and must be read
+that way when it lands.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -766,6 +846,8 @@ ran a job.
 | **RETRACTED (3)** | *E CP13's diagnosis* — "the checkout deletes the script, so python exits on a missing path". Python exits **2**; the step reported **1**, so it died at `git checkout`. E CP14's explicit refspec was the fix, not the insurance I labelled it. |
 | **F-CI-18** | **NEW, mine.** `push_with_retry` called a rebase rc of **128** a REBASE CONFLICT — a conflict is rc 1 — and published a sentence about two publishers colliding when there was one. rc is now keyed and git's own text reaches the log. |
 | **F-CI-19** | **NEW, mine, and it is the root cause.** `ci_publish.main()` pushed unconditionally, so the artifact-check step — run before any `git config`, wrapped in `|| true` — attempted a rebase on every run since E CP9, died on an empty identity and left `.git/rebase-merge` for the real publish to trip over. `--push` is now required. |
+| **F-CI-20** | **NEW, mine.** `--timeout-method=thread` aborts the process, so a hung test costs the shard's totals, junit and per-test-timeout count — the exact outcome the flag's own comment said it prevented. Switched to `signal`. |
+| **F-CI-21** | **NEW, mine.** The pytest shard job had no totals-line assertion, though the vitest job has had one since E CP1 and the header says a run without one is not a run. Two shards hung and reported `success`. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -792,12 +874,22 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 ```
 
 **PARKED.** **(a) F-MERGE-1 CLOSED — MET** (confirmed on the file, §2 P.1).
-**(b) pytest has produced a totals line in the record — UNMET.** No record has published
-since **run #4**; runs #6, #8, #9, #10 and #11 all lost their `publish` job.
+⭐⭐ **(b) — MET, on run #15. A totals line for pytest is in the record for the first
+time.** Ten of twelve shards' totals lines are in `results/34996412472/summary.json` on
+`ci-results`, verbatim, and the record's verdict is an honest **RED** (pytest 136 failed of
+19,056 collected; vitest 21 of 19,898). ⚠️ Two shards hung, so those figures are a **floor**
+— E CP18 closes that, and run #16 is measuring it.
+
+⛔ **BOTH CONDITIONS ARE NOW MET, AND THE COMMANDS STILL SHOULD NOT RUN** — for a different
+reason than the one that parked them. Every one of the 30 manifest rows reads **UNSIGNED**;
+`merge_all --dry-run` stops at the first unit with *"WOULD STOP HERE: UNSIGNED"*. Signing is
+**your** act — the approval blocks are yours to fill — and merging to master needs an
+explicit deploy instruction and a member-impact paragraph. **The park is lifted; the gate in
+front of them is not mine to open.**
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–28 nothing member-visible.**
-Row 29 is E CP17 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–29 nothing member-visible.**
+Row 30 is E CP18 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -814,8 +906,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**29 rows, 29 OK, 0 STALE. 28 of 28 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **21 constraints SATISFIED**, 29 units, 0 MALFORMED,
+**30 rows, 30 OK, 0 STALE. 29 of 29 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **22 constraints SATISFIED**, 30 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
