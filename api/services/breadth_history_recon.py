@@ -1138,3 +1138,113 @@ def backfill_adv_dec_from_recon(days: int = 90, dry_run: bool = True,
     out = apply_adv_dec_counts(pairs, dry_run=dry_run, source="recon")
     out["validation"] = {k: v for k, v in val.items() if k != "per_day"}
     return out
+
+
+# ── The PIT-universe backfill, SHIPPED DARK ──────────────────────────────────
+#
+# ⛔⛔ THIS IS THE CANNON, AND IT IS DELIBERATELY NOT LOADED. A full 2008→present
+# grind over three universes materialises hundreds of thousands of derived rows and
+# thousands of whole-market provider fetches; the owner holds that for an explicit
+# decision. Everything here exists so that decision is a flag flip against proven
+# machinery rather than a night of new code — and so the FLOOR is enforced by the
+# thing that walks history, not only by the thing that computes one chunk.
+#
+# ⚠️ SEPARATE FROM `backfill_tick`, WHICH STAYS UCT-ONLY. That function walks
+# downward from current coverage and has no floor of its own beyond its marker
+# file; giving it a universe argument would let a marker edit send it below an
+# exchange universe's approved start. `test_the_default_backfill_loop_can_only_ever
+# _sweep_uct` pins that separation by reading its source.
+
+def universe_backfill_enabled() -> bool:
+    """Ships DARK. An explicit "1" arms the PIT backfill loop.
+
+    Same shape as `BREADTH_DIVIDEND_BASIS` and for the same reason: this one
+    creates derived data at scale, so the deploy must be a no-op and the start must
+    be a deliberate flip."""
+    return _os.environ.get("BREADTH_UNIVERSE_BACKFILL_ENABLED", "0") == "1"
+
+
+def universe_backfill_plan(universe: str, target_floor: Optional[str] = None,
+                           chunk_days: int = 365) -> dict:
+    """What the next chunk WOULD be — computed, never executed.
+
+    ⭐ A PLANNER SEPARATE FROM A RUNNER, so the floor arithmetic is testable and
+    inspectable without touching a provider or a store. `blocked` is the honest
+    answer for "this universe has nothing left to sweep"; `reason` says which.
+
+    ⛔ THE FLOOR IS CLAMPED HERE AND REFUSED IN `sweep_history`. Two layers, on
+    purpose: the planner must not ASK for a pre-floor chunk (asking would make the
+    loop look stuck), and the sweep must refuse one anyway (a caller that bypasses
+    the planner is a bug, not a special case).
+    """
+    from api.services import breadth_daily_ohlc, breadth_universes as bu
+    from datetime import date as _d, timedelta as _t
+
+    row = bu.get(universe)
+    if not bu.is_pit(universe):
+        return {"ok": False, "blocked": True,
+                "reason": f"{row['label']} is not a PIT universe; this project does "
+                          "not recompute it"}
+    floor = row["floor"]
+    if target_floor:
+        # ⚠️ CLAMPED UP, never down. A caller asking for 2008 NASDAQ gets 2011 and is
+        # TOLD so; silently honouring it would publish what Phase 1 refused.
+        floor = max(floor, target_floor) if floor else target_floor
+    stats = breadth_daily_ohlc.stats(universe) or {}
+    covered_first = stats.get("first")
+    if covered_first and covered_first <= floor:
+        return {"ok": True, "blocked": True, "complete": True, "universe": row["id"],
+                "floor": floor, "coverage_first": covered_first,
+                "reason": "coverage already reaches the floor"}
+    hi = (_d.fromisoformat(covered_first) - _t(days=1)) if covered_first else _d.today()
+    lo = max(_d.fromisoformat(floor), hi - _t(days=int(chunk_days) - 1))
+    if lo > hi:
+        return {"ok": True, "blocked": True, "complete": True, "universe": row["id"],
+                "floor": floor, "reason": "nothing below current coverage"}
+    # ⛔⛔ A REMAINING WINDOW WITH NO WEEKDAY IN IT IS DONE, NOT PENDING — and this
+    # is a real infinite loop, not a tidiness point. Coverage reaching 2011-01-03
+    # against a 2011-01-01 floor leaves 1-2 Jan, a Saturday and a Sunday: the plan
+    # would ask for them forever, the sweep would return zero sessions forever,
+    # coverage would never move, and the grind would look busy while making no
+    # progress. Asking the CALENDAR is exact and costs nothing; the holiday case
+    # that survives this is caught by the `exhausted` signal in the tick below.
+    if not any((lo + _t(days=i)).weekday() < 5 for i in range((hi - lo).days + 1)):
+        return {"ok": True, "blocked": True, "complete": True, "universe": row["id"],
+                "floor": floor, "coverage_first": covered_first,
+                "reason": "no trading sessions remain above the floor"}
+    return {"ok": True, "blocked": False, "universe": row["id"], "floor": floor,
+            "coverage_first": covered_first,
+            "from": lo.isoformat(), "to": hi.isoformat(),
+            "clamped": bool(target_floor and target_floor < (row["floor"] or ""))}
+
+
+def universe_backfill_tick(universe: str, target_floor: Optional[str] = None,
+                           chunk_days: int = 365) -> dict:
+    """ONE restart-safe chunk for a PIT universe. Refuses unless armed.
+
+    Resumable by construction: the next chunk is read from the STORE's current
+    coverage each time, so a pod restart mid-grind simply picks up where the rows
+    stop — the same property `backfill_tick` has, and the reason neither needs a
+    progress file that could disagree with the data.
+    """
+    if not universe_backfill_enabled():
+        return {"ok": False, "disarmed": True,
+                "reason": "BREADTH_UNIVERSE_BACKFILL_ENABLED is not 1"}
+    plan = universe_backfill_plan(universe, target_floor, chunk_days)
+    if not plan.get("ok") or plan.get("blocked"):
+        return plan
+    if not _TICK_LOCK.acquire(blocking=False):
+        return {"ok": True, "busy": True}
+    try:
+        res = sweep_history(plan["from"], plan["to"], universe=universe)
+        # ⭐ A CHUNK THAT PRODUCED NOTHING ENDS THE GRIND. Coverage is the progress
+        # marker, so a window that yields zero sessions (a holiday-only remainder,
+        # or a range the provider has no frames for) would otherwise be re-planned
+        # identically on the next tick, forever. Reporting exhaustion lets the
+        # scheduler stop instead of spinning.
+        if res.get("ok") and not res.get("sessions"):
+            return {**plan, "result": res, "blocked": True, "exhausted": True,
+                    "reason": "the planned window produced no sessions"}
+        return {**plan, "result": res}
+    finally:
+        _TICK_LOCK.release()
