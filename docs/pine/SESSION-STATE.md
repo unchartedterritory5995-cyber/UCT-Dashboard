@@ -147,6 +147,101 @@ chunk logs read: 12   failing cases: 92   failing files: 34
 
 ✅ every failing file attributed — 0 with commits on our side that are not ours-and-fixed
 
+### ⭐⭐ a7.4 — THE FULL SUITE, WIDER THAN THE BASELINE, AND IT FOUND ONE OF OURS
+
+**2026-09-14.** The verification above is scoped (`chart/{engine,builder,pane}` +
+`src/hooks`). a7.4 ran the **whole** vitest suite, which reaches files no earlier
+scope did — and that is the entire value of it.
+
+| lane | result |
+|---|---|
+| full vitest | **1473 passed / 10 failed files · 21,378 passed / 13 failed tests · 37 skipped** · 379s · **0 timeouts** (`grep -c "Test timed out"` = 0, so all 13 are assertions) |
+| Python twin, 25 files by name, 2 serial scopes | **811 passed · 5 skipped · 1 xfailed · 0 failed**, both scopes exit 0, scope guard 13+12 paths all present |
+| vite build, alone | **exit 0**, 18.21s |
+| moved snapshots | **none — the tree carries no `__snapshots__`/`*.snap` at all** |
+
+⛔ **Zero timeouts, so nothing is banked as load-sensitive breakage.** One file was
+nevertheless **green alone and red in company** and is classified as environment,
+not defect — see `AuthContext.test.jsx` below.
+
+#### All 13 reds, classified with their evidence
+
+| file | n | class | evidence |
+|---|---|---|---|
+| `builder/BuilderSheet.pine.test.jsx` | 1 | **pre-existing HEAD** | named in the post-merge attribution above |
+| `builder/ImportBox.thinkscript.test.jsx` | 1 | **pre-existing HEAD** | named above |
+| `builder/pineBoxSuggestVoice.test.jsx` | 3 | **pre-existing HEAD** | named above, ×3, exactly as recorded |
+| `hooks/pollingSites.rail.test.js` | 1 | **R-P extended** | named above; the sites are master's (`d26695853`, `611bcf92e`) |
+| `styles/tapFloor.test.js` | 1 | **Notebook's, rule 12** | offender is `pages/journal-2-0/…/notebook/CaptureDialog.module.css`; this branch touches **0** files under `app/src/pages/journal-2-0/` (`git diff --name-only`) |
+| `chart/ChartDrawingOverlay.surfaces.test.jsx` | 1 | **master's** | the rail reads `ChartDrawingOverlay.jsx`, and **both the test and that source are byte-identical to `da0803baa`** — both sides of the assertion are master's |
+| `pages/ThemeTrackerPage.chartmount.test.jsx` | 2 | **master's** | page + test identical to master, and it `vi.mock`s **both** `StockChart` and `ChartPane`, so this branch's `StockChart.jsx` edits cannot reach it |
+| `context/AuthContext.test.jsx` | 1 | **environment** | **green alone** (8/8 passed in a six-file run); red only in the full suite — `lesson_a_rail_can_be_green_alone_and_red_in_company` |
+| `screener/reachable.test.js` | 1 | **8 ours + 1 master's** | see below |
+| `builder/paramSingleTranslation.test.js` | 1 | ⛔ **OURS — DEFECT, OWED** | see below |
+
+#### `reachable.test.js` — eight engine modules are unreachable and NOT registered
+
+The rail names **nine**; `app/src/lib/context/focusDivergence.js` is master's
+(**R-29**, named in `CLAUDE.md`). The other eight are ours and are **not** in
+`AWAITING_A_DECISION`:
+
+`builder/memberPane/seriesCompare.js` · `engine/ast/pineRuntimeClock.js` ·
+`engine/colorInt.js` · `engine/lwcHazards.js` · `engine/objectPool.js` ·
+`engine/textLayout.js` · `engine/versionRender.js` · `engine/zorder.js`
+
+⚠️ The register holds the **seven `engine/runtime/*` modules** with a dated reason
+and an expiry — **these eight are a different set and have no entry at all.** The
+rail was outside every earlier scope (`components/screener/`), so nothing had
+measured it. ⛔ **Not silenced here.** Writing eight register entries means
+asserting why each is unmounted and when the entry expires, and the rail's own
+rule is that a dated reason is the only kind it accepts. **Recorded as owed.**
+
+#### ⛔⛔ THE ONE DEFECT THAT IS OURS — `bdc1050ad`, attributed by bisect
+
+The failing assertion, verbatim:
+
+```
+FAIL  src/components/chart/builder/paramSingleTranslation.test.js
+      > C2D.1 — a declared member input is NOT also a Track F parameter
+      > one Pine input gets exactly one control
+AssertionError: bullFloor is claimed twice: expected true to be false
+ ❯ src/components/chart/builder/paramSingleTranslation.test.js:199:78
+```
+
+⭐ **It is this branch's OWN rail** — `paramSingleTranslation.test.js` does not
+exist on `da0803baa` — and it was **green at the post-merge verification**, so it
+is a regression inside wave 2, not inherited.
+
+**Measured, not reasoned.** Same consumer (`builderInputs.js`, untouched since
+`b7e17572f`, 2026-09-07), same specimen
+(`mid_engagement__22-rsi-levels-regime-map`), only the translator swapped:
+
+| engine at | declared | inputParams | overlap |
+|---|---|---|---|
+| `8e71fbf12` (pre-wave-2) | 10 | **5** | **`[]`** |
+| `a1de7a6f5` (a3, unroll) | 10 | **5** | **`[]`** |
+| **`bdc1050ad`** (the env closing pass) | 10 | **24** | **`bullFloor`, `regTol`, `bearCeil`** |
+| HEAD | 10 | 24 | same three |
+
+⛔ **`bdc1050ad` — "the closing pass over env: a binding nothing read is resolved
+once" — is the cause, and the mechanism is the one it was built for.** Resolving
+bindings nothing reads took the specimen from 5 Track F parameters to 24, and
+three of the nineteen newly-surfaced ones are **also declared member inputs**. The
+rail's own words: *"TWO AUTHORITIES OVER ONE INPUT IS THE DEFECT, NOT THE
+FEATURE."* The mint's early return for a declared input is no longer keeping the
+two sets disjoint.
+
+⚠️ **The ordering is the clue and is left on the record rather than acted on:**
+`declared` comes back as `rsiSrc, lv1…lv5, showTest, bullFloor, regTol, bearCeil`
+— **not source order** (`showTest` is line 156, `bullFloor` line 133). The three
+that collide are exactly the three appended last, which is consistent with the
+mint reading `declared` before those three are in it.
+
+⛔ **OWED, not fixed here.** a7.4 is a verification block; the fix is a design
+question about where disjointness is enforced, and it gets its own block with its
+own estimate and a red acceptance first. ⚠️ **Nothing was silenced and no
+threshold was moved** — ruling 0.2.
+
 ### Wave 2 — the list, with what each is blocked on
 
 | item | measured state |
