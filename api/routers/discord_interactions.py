@@ -151,7 +151,10 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
     render = render_fn or buzz_image.render_board_png
     edit = edit_fn or di.edit_original
     try:
-        png = render(window)
+        # ⛔ MEMBER. This job exists because a member typed `/buzz` and is watching a
+        # deferred reply; it is background only in the sense of WHERE it runs.
+        from api.services.render_gate import MEMBER
+        png = render(window, cls=MEMBER)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[buzz] image render failed: %s", e)
         png = None
