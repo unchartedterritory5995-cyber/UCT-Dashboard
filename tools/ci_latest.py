@@ -31,6 +31,17 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import sys
+
+# ⚰️ E CP13 — SIXTH RECURRENCE. A Windows console is cp1252, so every ⛔/⭐ in this file's
+# output raised UnicodeEncodeError and the tool died with a traceback instead of printing.
+# ⛔ It crashed on the ZERO-RECORDS path specifically — the one branch that exists to say
+# "we could not look" out loud. An instrument that cannot report its own most important
+# state on the machine it is run from is not an instrument.
+try:  # pragma: no cover - depends on the host console
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 OK, FAIL = 0, 1
 
