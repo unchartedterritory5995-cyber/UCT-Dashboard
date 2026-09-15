@@ -140,6 +140,27 @@ That is a real question for the owner, not something to tune away: at 14× the d
 refusing 3.6 % a breach or the system working? **Recommendation: S5 should be measured at or near
 the design burst, and overload should be reported as a separate `refusal_rate` metric.**
 
+> ✅ **MEASURED SINCE — D-02 Part B, 2026-09-14 evening.** The recommendation above asked for S5 at
+> the design burst. It was run, and `S5-SPLIT-2026-09-14.md` holds it:
+>
+> | load | arrivals/s | offers | refused | S5 |
+> |---|---|---|---|---|
+> | design burst (3× busiest 10 s) | 0.600 | 181 | **0** | **100 %** |
+> | busiest 10 s, as observed | 0.200 | 121 | **0** | **100 %** |
+>
+> ⭐⭐ **302 offers at and above the load real traffic produces, and not one refusal.** Every refusal
+> this programme has ever measured came from a synthetic load between fourteen and fifty times the
+> busiest ten seconds in twenty days.
+>
+> ⛔ **And the split found something this section could not see:** 46 of the 30-concurrent run's 59
+> refusals **never became job rows at all** (the per-member in-flight limit answers at the door
+> without recording one), so they are invisible to `success_rate` in both directions. The 3.6 % here
+> is computed over job rows and omits them. **Any ruling on "how many refusals are acceptable" needs
+> that fixed first, whichever way it goes.**
+>
+> ⛔ **B5 IS STILL THE OWNER'S.** The directive's ruling line was blank; nothing above decides it,
+> and no threshold, denominator or definition of S5 has been changed.
+
 ### B4 · Concurrency ladder — ⛔ NOT RUN
 
 Each rung is a 20 s run plus a 180 s drain; the ladder is ~25 minutes of renderer-bound work, and
