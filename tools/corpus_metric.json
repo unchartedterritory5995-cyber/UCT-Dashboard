@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-09-14",
+  "measured_at": "2026-09-15",
   "scripts": 266,
-  "host_ok": 31,
-  "screener_ok": 44,
+  "host_ok": 32,
+  "screener_ok": 46,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -1569,12 +1569,12 @@
     {
       "file": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:tuple"
+        "pine:request"
       ],
       "screenerGuards": [
-        "pine:tuple"
+        "pine:request"
       ]
     },
     {
@@ -1753,10 +1753,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:tuple"
+        "pine:request"
       ],
       "screenerGuards": [
-        "pine:tuple"
+        "pine:request"
       ]
     },
     {
@@ -2292,7 +2292,7 @@
         "pine:function",
         "pine:reassign",
         "pine:drawing",
-        "pine:tuple",
+        "pine:request",
         "pine:block",
         "pine:state",
         "pine:offset-literal"
@@ -2375,14 +2375,10 @@
     },
     {
       "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:tuple"
-      ],
-      "screenerGuards": [
-        "pine:tuple"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "smt-divergence-ict-killzones__c932d56665.pine",
