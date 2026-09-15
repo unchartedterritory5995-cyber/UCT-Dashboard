@@ -142,18 +142,70 @@ string.
 
 ---
 
-### BL-008 · `TICKER_SHAPE` (the formula lane) stays refused — OPEN QUESTION
+### BL-008 · RESOLVED — namespaced identity, granted by the REGISTRY
 
-`sym:NASDAQ:A50:close` is unambiguous because `sym:` **delimits** the symbol. A
-bare formula ticker has no delimiter, and there `NASDAQ:A50` (an identity we mint)
-and `NASDAQ:AAPL` (a venue prefix on a third-party instrument) are
-**indistinguishable by shape**.
+**Owner decision (Phase 5).** Keep the namespaced identity: `US:A50`,
+`NASDAQ:A50`, `NYSE:A50`, `US:NETHL`. Existing UCT symbols stay exactly as they
+are. The binding qualifier:
 
-The existing refusal exists because a venue-prefixed symbol saves and then charts
-as all-NaN, and the roster gate that would catch it (`scan_definition.
-assert_scannable`) covers **scans only** — its own comment says "charting against
-any symbol still works on the Formula tab".
+> **SYNTAX DOES NOT GRANT SEMANTIC IDENTITY.** `NASDAQ:A50` is a Breadth Library
+> symbol because the registry explicitly contains that identity. `NASDAQ:AAPL` must
+> not become one merely because it has the same colon-bearing shape.
 
-**Needs an owner decision:** a distinct marker for breadth identities, or an
-accepted reliance on the roster. Until then the formula lane is unchanged.
-Recorded in `namespacedSymbol.test.js`.
+#### Why the obvious fix was the wrong one
+
+The reverted `TICKER_SHAPE` widening **stays reverted**. A shape test cannot tell
+`NASDAQ:A50` from `NASDAQ:AAPL` — they are the same shape — so no amount of care in
+a regular expression could have separated them. A registry separates them without
+trying, because one was minted and the other never was.
+
+#### The two layers, kept apart
+
+| layer | question | answer |
+|---|---|---|
+| **source grammar** (`sourceRef.js`) | can this string CARRY a colon symbol? | shape-based, and correctly so — `sym:NASDAQ:A50:close` → symbol `NASDAQ:A50`, field `close`, split on the LAST colon |
+| **symbol validity** (`breadth_symbols.resolve`) | does `NASDAQ:A50` EXIST? | a dict lookup against minted identities |
+
+Conflating them is how `FOO:BAR` becomes chartable. Nothing in `breadth_symbols`
+splits a string on `":"` to decide what it means.
+
+#### Consequences in code
+
+- `resolve()` is the membership authority; `is_breadth_symbol` consults `SYMBOLS`
+  first and unconditionally, so **no flag, no catalogue edit and no registry
+  failure can take a shipped UCT symbol off the air**.
+- `library_aliases()` is an explicit TABLE: `UCT:A50` → `UCTA50`, one direction.
+  The shipped symbol stays canonical; nothing is renamed or migrated.
+- `published_universe_ids()` keeps the library **dark**. The catalogue always
+  describes all four universes (discovery metadata); this decides which a member
+  can reach, and it is UCT alone unless `BREADTH_LIBRARY_UNIVERSES` says otherwise.
+
+---
+
+### BL-009 · A PIT universe is its own store, and borrows nothing from UCT
+
+Two merges that a plausible implementation would have made, and both are refused:
+
+- **The collector snapshot.** `breadth_monitor` holds what the 4:15pm collector
+  measured **over the UCT universe**. Splicing it into a US series joins two
+  populations into one line, so `_build_breadth_series` reads it only for UCT.
+- **The live candle.** `breadth_live` measures that same universe, so appending its
+  intraday value to a US chart paints one universe's number on another's series. A
+  PIT universe ends at its last sealed day, which is honest: it has no live feed.
+
+Both have rails that spy on the CALL rather than on the output, because an output
+check passes for the wrong reason whenever the fixture happens to be empty.
+
+---
+
+### BL-010 · Presentation is metadata, and the library holds its own cache
+
+`presentationFor()` maps `presentation: 'histogram'` + `domain: 'signed'` to an
+instance presentation, stamped at creation. The renderer never learns that Net New
+High-Low is special — `if (sym === 'US:NETHL')` in rendering code is the thing this
+prevents.
+
+Breadth also took its own `TTLCache` instance (`max_size=512`), for the reason
+`live_prices` already has one: a sealed series is a large value held for hours, and
+the shared 1,000-entry singleton is hammered by bars and news keys. **Isolation
+only** — no routing change, no bars-api move, no CDN change; those are the owner's.
