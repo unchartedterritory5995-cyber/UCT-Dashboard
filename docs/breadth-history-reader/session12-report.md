@@ -8,7 +8,7 @@ already-gated work could reach master, and the answer is the operational finding
 fallback), and **Workstream E is skipped**, its stop condition independently confirmed
 below.
 
-**Published page:** *(URL at the end)*
+**Published page:** https://claude.ai/artifact/AwxVDVMwN2x5TYXvSrBZH8 (private)
 
 ---
 
