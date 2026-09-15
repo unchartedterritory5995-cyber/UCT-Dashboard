@@ -35,6 +35,7 @@ import json
 import pathlib
 import sys
 import threading
+from typing import Optional
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -56,6 +57,7 @@ class SpendCap:
         self.entries = data.get("entries", [])
         self.spent = sum(float(e.get("usd", 0)) for e in self.entries)
         self.reserved = 0.0
+        self.breached = False
 
     def reserve(self, usd: float) -> bool:
         with self.lock:
@@ -71,6 +73,15 @@ class SpendCap:
             self.entries.append(dict(note, usd=round(actual, 6), at=common.stamp()))
             common.write_json(self.ledger, {"entries": self.entries, "total_usd": round(self.spent, 6),
                                             "cap_usd": self.max_usd})
+            # ⛔⛔ R36's SECOND HALF, and the first half is not safe without it. A reservation
+            # derived from measured history can sit BELOW the largest real request, so the cap has
+            # to be tested against what was ACTUALLY spent, after every batch, not only against
+            # what was reserved before it.
+            self.breached = self.spent > self.max_usd
+
+    def refuses_next_batch(self) -> bool:
+        """True once ACTUALS have passed the cap. Checked before each batch is sent."""
+        return bool(getattr(self, "breached", False))
 
 
 def load_gate_segments(data_dir: pathlib.Path, split: str, golden_name: str = ""):
@@ -123,6 +134,78 @@ def worst_case_usd(params: dict, model: str, *, batch: bool) -> float:
 
     tokens = int(xbatch.char_estimate_tokens(params) * CHAR_ESTIMATE_SLACK * CACHE_WRITE_FACTOR)
     return budget.estimate_cost(model, tokens, int(params["max_tokens"]), batch=batch)
+
+
+# ── R36: reserve from MEASURED history, not a constant ceiling (owner ruling, 2026-09-15) ────
+#
+# ⛔⛔ THE PROBLEM IT FIXES. `worst_case_usd` is dominated by `prompt.MAX_TOKENS = 32000`, a
+# CEILING, not an estimate: the output leg alone is 32000 x $25/Mtok x 0.5 = $0.4000 per request,
+# fixed, independent of the segment. Measured over the three 2026-09-15 passes, that reservation
+# was **90% ceiling** and the actual bill was **14% of it** — so the cap throttled SCHEDULING (2,
+# then 3, then 4 batch rounds) while spending nothing extra.
+#
+# ⚠️ DEVIATION FROM THE RULING, STATED. The ruling asks for "p90 x 1.5 over the ledger's last N
+# entries for this extractor_version". The ledger carries `at, batch_id, collected, model, phase,
+# requests, transport, usd` and **no token counts and no extractor_version** — so a token p90 is
+# not derivable from history that exists. This reserves on measured **cost per request** instead,
+# which is the same quantity the cap is denominated in, and new entries now record
+# `extractor_version` so a future run CAN filter by it.
+#
+# ⛔ AND IT IS ONLY SAFE BECAUSE OF THE SECOND HALF. p90 x 1.5 can sit BELOW the largest real
+# request — measured: p90 x 1.5 = 15,962 output tokens against an observed max of 18,857 (0.85x).
+# A reservation under the biggest real request would let ACTUALS pass a cap that is only tested at
+# reserve time, so `SpendCap.settle` now re-checks the cap against actuals after EVERY batch and
+# refuses the next one on breach.
+RESERVE_P90_MULTIPLIER = 1.5
+RESERVE_MIN_HISTORY = 3
+RESERVE_HISTORY_ENTRIES = 24
+
+#: The largest single-request output the three 2026-09-15 passes produced. Recorded so a future
+#: tightening that would reserve less than a request of this size really costs fails a test.
+OBSERVED_MAX_OUTPUT_TOKENS = 18857
+
+
+def _percentile(values: list, q: float) -> float:
+    ordered = sorted(values)
+    if not ordered:
+        return 0.0
+    idx = min(len(ordered) - 1, max(0, int(round(q * (len(ordered) - 1)))))
+    return ordered[idx]
+
+
+def measured_reservation_usd(entries: list, model: str, *, transport: str) -> Optional[float]:
+    """p90 of ACTUAL cost-per-request over recent same-model, same-transport batches, x1.5.
+
+    Returns None when there is too little history — an unmeasured configuration must fall back to
+    the worst case rather than guess, which is the whole point of having a floor.
+    """
+    per_request = []
+    for entry in reversed(entries):
+        if len(per_request) >= RESERVE_HISTORY_ENTRIES:
+            break
+        if entry.get("model") != model or entry.get("transport") != transport:
+            continue
+        requests = entry.get("requests") or 0
+        usd = float(entry.get("usd") or 0.0)
+        if requests > 0 and usd > 0:
+            per_request.append(usd / requests)
+    if len(per_request) < RESERVE_MIN_HISTORY:
+        return None
+    return _percentile(per_request, 0.9) * RESERVE_P90_MULTIPLIER
+
+
+def reservation_usd(params: dict, model: str, *, batch: bool, entries: Optional[list] = None) -> float:
+    """What to RESERVE for one request: the measured estimate, or the worst case if unmeasured.
+
+    ⛔ Never above the worst case — reserving more than the ceiling would be strictly worse than
+    the rule it replaces.
+    """
+    ceiling = worst_case_usd(params, model, batch=batch)
+    measured = measured_reservation_usd(entries or [], model,
+                                        transport="batch" if batch else "sync")
+    if measured is None:
+        return ceiling
+    return min(ceiling, measured)
 
 
 def interpret(message, cost: float) -> dict:
@@ -190,9 +273,17 @@ def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: s
     from api.services.wisdom.extract import budget
 
     results: dict = {}
-    queue = [(key, params, worst_case_usd(params, model, batch=True)) for key, params in work]
+    # R36: reserve from measured history where there is any, falling back to the worst case.
+    queue = [(key, params, reservation_usd(params, model, batch=True, entries=spend.entries))
+             for key, params in work]
     round_no = 0
     while queue:
+        if spend.refuses_next_batch():
+            log(f"  {phase} {model}: REFUSING the next batch — actuals have passed the cap "
+                f"(${spend.spent:.4f} of ${spend.max_usd:.2f})")
+            for key, _, _ in queue:
+                results[key] = {"skipped": "cap breached by actuals"}
+            break
         chunk, reserved = [], 0.0
         for entry in queue:
             if not spend.reserve(entry[2]):
