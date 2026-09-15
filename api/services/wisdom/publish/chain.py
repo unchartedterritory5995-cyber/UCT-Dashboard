@@ -70,6 +70,13 @@ DAILY: tuple = (
     Step("adapters", "publish", (("api.services.wisdom.publish.adapters", "run_daily"),)),
     Step("level_alerts", "publish", (("api.services.wisdom.publish.level_alerts", "score_silently"),)),
     Step("lookalike", "publish", (("api.services.wisdom.publish.lookalike", "score_silently"),)),
+    # ⛔⛔ Item 3's SECOND half, and it is not optional. The four filter sites BLOCK a below-floor
+    # PRINCIPLE or MARKET_SIGNAL; this is what makes one SURFACE. The owner's rule is "2/3 may
+    # surface only in the admin review queue", and the queue is NOT upstream of the Brain KB,
+    # Ask-AI or dossier lanes — nothing enqueues a PRINCIPLE on the publish path — so blocking
+    # alone would make a blocked record vanish rather than surface. Idempotent: review.enqueue
+    # keys on item_id_for(tab, subject_ref, new), so re-running produces one row, not a flood.
+    Step("publication_floor", "publish", (("api.services.wisdom.publish.floor", "score_silently"),)),
 )
 
 # W1 Part 7 weekly order (Sunday, after Sunday Scans publishes).
