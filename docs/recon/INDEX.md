@@ -23,6 +23,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 4 | `2026-09-14-session4-rulings-build.md` | 2026-09-14 | ✅ tracked, here | Session-3 rulings applied, gate persistence (R12), item 3 built |
 | 5 | `2026-09-14-session5-q17-merge-dark.md` | 2026-09-14 | ✅ tracked, here | Q17 into the rail, item 3 merged, production measured dark 27/27 |
 | 6 | `2026-09-15-session6-master-sync-reconciler.md` | 2026-09-15 | ✅ tracked, here | 111 commits of master synced, item 2 reconciler built, RQ-v11-001 as review items; push and spend both blocked on the owner |
+| 7 | `2026-09-15-session7-push-merge-rq.md` | 2026-09-15 | ✅ tracked, here | The branch pushed at last, RQ-v11-001 merged, the DAILY chain complete and measured inert; the three passes still unbought |
 
 ## Why report 1 is not tracked
 
@@ -59,5 +60,6 @@ and rates.
 1 is the map. 2 repairs what 1 found. 3 prices the work and turns item 3 into a decision pack.
 4 applies the rulings and builds item 3. 5 rules on what 4 left open, merges it, and measures
 production. 6 syncs 111 commits of master, builds item 2's offline half and RQ-v11-001, and
-records the two things only the owner can unblock. Each report's own QUESTIONS section carries the state of every open decision at that
+records the two things only the owner can unblock. 7 gets the branch off this box and
+completes the chain, leaving exactly one blocker: the API key. Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.
