@@ -47,6 +47,8 @@ Exit codes — and 2 is not a failure of the product:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import statistics
 import sys
@@ -342,6 +344,89 @@ def report(a: dict, label: str) -> None:
             "UNDECIDED for them — pass --expect to settle it rather than reading the fired id as intent")
 
 
+def captured_report(a: dict, label: str) -> list[str]:
+    """Run the REAL `report()` and hand back the lines it actually printed.
+
+    ⛔ THE POINT IS THAT IT DRIVES `report()` RATHER THAN RESTATING IT. The check
+    below used to filter `isControl` itself and compare against a hardcoded 120 —
+    a second implementation of the thing under test, which agrees with itself by
+    construction and stayed green with `report()`'s own filter deleted (R-05:
+    "a control that re-implements the logic it tests agrees with itself").
+
+    ⭐ `io.StringIO` has no `.buffer`, so `say()` takes its fallback branch and
+    writes into it. That is the REAL sink, not a stub of one — nothing is
+    monkeypatched, so a `say()` that stopped writing would show up here too.
+    """
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        report(a, label)
+    return buf.getvalue().splitlines()
+
+
+def _a_timing_line(lines: list[str]) -> str | None:
+    """The one line hypothesis A rests on. Two of them, or none, is a finding."""
+    hits = [ln for ln in lines if "A  timing" in ln]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _population(slow_bucket: str) -> dict:
+    """An analysed-shaped payload with THREE gestures, each there for a reason.
+
+      · a real flick, 190ms against a 300ms window — the ONLY row hypothesis A
+        may rest on, and it is UNDER the window, so a healthy report says
+        "not implicated".
+      · a CONTROL drag at 530ms. Counting it makes a healthy run report A IS LIVE
+        off its own control — the defect the exclusion at `report()` exists for.
+      · a 900ms gesture in `slow_bucket`. With OTHER it is not a flick attempt at
+        all and must be narrowed out by bucket; with A_FIRED it IS one and must be
+        counted. That single swap is the non-vacuity control below.
+
+    ⭐ FLICK_MS is 300, not the 120 the fixtures elsewhere use, so a threshold
+    hardcoded in `report()` instead of read from `constants` fails too: 190 clears
+    120 and does not clear 300.
+    """
+    def g(**kw):
+        base = dict(isControl=False, seq=1, expected="scan.flag", bucket=OTHER, why="—",
+                    decision=None, elapsed=0, travelled=140, sinceDownEventTs=70,
+                    sinceDownPerfNow=79, coalesced=1, pointerType="touch", target="scan.flag")
+        base.update(kw)
+        return base
+
+    return {
+        "device": {}, "constants": {"FLICK_MS": 300}, "capturedAt": None,
+        "window": {"dropped": 0, "kept": 3, "recorded": 3, "firstSeq": 1, "lastSeq": 3},
+        "gestures": [
+            g(seq=1, bucket=A_FIRED, decision=FLICK_FIRE, elapsed=190, why="190ms, 140px"),
+            g(seq=2, bucket=B_MISSED, decision="press-fire", elapsed=530, isControl=True,
+              why="elapsed 530ms vs FLICK_MS 300ms"),
+            g(seq=3, bucket=slow_bucket, decision=SCRUB, elapsed=900, why="scrub commit after 900ms"),
+        ],
+    }
+
+
+def _check_reports_A_not_implicated(lines: list[str]) -> list[str]:
+    """Assert on `report()`'s OWN output. Returns the failures it found.
+
+    The denominator is the load-bearing half: "0/1" says report() counted exactly
+    the one gesture that is both a flick attempt AND not a control. The verdict
+    word alone would survive a filter that counted the wrong single row.
+    """
+    problems = []
+    line = _a_timing_line(lines)
+    if line is None:
+        return [f"report() printed no single 'A  timing' line (found "
+                f"{len([l for l in lines if 'A  timing' in l])})"]
+    if "0/1 at or over" not in line:
+        problems.append(f"hypothesis A did not rest on exactly the one eligible gesture: {line.strip()!r}")
+    if "FLICK_MS 300ms" not in line:
+        problems.append(f"hypothesis A did not compare against the payload's FLICK_MS: {line.strip()!r}")
+    if "**A IS LIVE**" in line or "not implicated" not in line:
+        problems.append(f"a healthy population reported A as implicated: {line.strip()!r}")
+    if not any("CONTROL CHECK — 1/1" in ln and "PASS" in ln for ln in lines):
+        problems.append("report() did not read the control block back as 1/1 PASS")
+    return problems
+
+
 def self_check() -> int:
     """⛔ Prove the classifier can fail, and that each bucket is reachable and distinguishable."""
     def row(**kw):
@@ -397,23 +482,35 @@ def self_check() -> int:
     if expectations(["scan.chartIt:10", "scan.flag:2"]) != ["scan.chartIt"] * 10 + ["scan.flag"] * 2:
         fails.append("--expect expansion is wrong")
 
-    # The control block must be excluded from A, or a healthy run reports A IS LIVE off its
-    # own control. Proved on a synthetic population rather than asserted.
-    fake = {"gestures": [
-        {"isControl": False, "bucket": A_FIRED, "elapsed": 80, "travelled": 140,
-         "sinceDownEventTs": 70, "sinceDownPerfNow": 79, "coalesced": 1},
-        {"isControl": True, "bucket": B_MISSED, "elapsed": 530, "travelled": 140,
-         "sinceDownEventTs": 500, "sinceDownPerfNow": 520, "coalesced": 1},
-    ]}
-    att = [g for g in fake["gestures"] if not g.get("isControl")]
-    if len(att) != 1 or max(nums(g["elapsed"] for g in att)) >= 120:
-        fails.append("the control block is not excluded from hypothesis A")
+    # ── Hypothesis A rests on flick attempts that are not controls. DRIVEN, NOT RESTATED. ──
+    #
+    # ⛔ This block used to re-implement `report()` — it filtered `isControl` itself and
+    # compared against a literal 120 — so the two could and did diverge, and deleting
+    # `report()`'s own narrowing left --self-check printing PASS. It now runs the real
+    # `report()` and reads the sentence a human would read.
+    healthy = _check_reports_A_not_implicated(captured_report(_population(OTHER), "self-check"))
+    fails.extend(healthy)
+
+    # ⛔ THE NON-VACUITY CONTROL: the SAME population with the 900ms gesture relabelled as a
+    # fired flick. That one is a real attempt, so `report()` MUST count it and MUST say
+    # **A IS LIVE**. If the assertions above pass over this payload too they are not
+    # measuring anything, and an empty result is a failed invocation until proven otherwise.
+    planted = captured_report(_population(A_FIRED), "self-check(planted)")
+    planted_line = _a_timing_line(planted)
+    if planted_line is None or "**A IS LIVE**" not in planted_line:
+        fails.append("the planted 900ms FLICK was not reported as A IS LIVE — report() is not "
+                     f"reading this payload at all: {(planted_line or '<no A line>').strip()!r}")
+    elif not _check_reports_A_not_implicated(planted):
+        fails.append("the A-timing assertions pass on a population report() must reject — "
+                     "they are vacuous and would not catch a deleted filter")
 
     if fails:
         say("SELF-CHECK FAILED:\n  " + "\n  ".join(fails), err=True)
         return 1
     say(f"SELF-CHECK PASS — {len(cases)} buckets each reached by the row that means them, "
-        "intent-withheld stays UNDECIDED, an overflowed buffer is refused and a healthy one is not.")
+        "intent-withheld stays UNDECIDED, an overflowed buffer is refused and a healthy one is not, "
+        "and report()'s OWN hypothesis-A line rests on 1 of 3 gestures (the control and the "
+        "non-attempt excluded) while a planted 900ms flick still reads A IS LIVE.")
     return 0
 
 
