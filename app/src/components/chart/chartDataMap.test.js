@@ -25,7 +25,8 @@ import { primeSecondaryBars, clearSecondaryBars } from './engine/secondaryBars'
 import {
   addInstance, setInstanceDisplayTarget, setInstanceHidden, removeInstance, setInstanceInput,
 } from './engine/instanceControls'
-import { paneOwnKeys, paneOwnersNeeded } from './engine/displayTarget'
+import { paneOwnKeys, paneOwnersNeeded } from './engine/displayTarget'
+import { setPaneOrder, PRICE_PANE } from './engine/paneOrder'
 
 const defOf = (id) => registry.getDefinition(id)
 const map = (cs) => paneMap(listAllIndicators(cs, registry), cs, defOf)
@@ -60,14 +61,23 @@ describe('the groups that are always the chart itself', () => {
   it('⭐ a bare chart maps to Price, and Price survives being empty', () => {
     const groups = map(base())
     expect(groups[0].id).toBe('price')
-    // Volume ships on by default, so it is a group; the point is that Price is
-    // present unconditionally because the candles are always there.
-    expect(groups.map((g) => g.id)).toContain('volume')
     expect(groups.some((g) => g.id === ORPHAN_GROUP)).toBe(false)
   })
 
-  it('⛔ the volume ROW is in the volume group, not with the price overlays', () => {
+  it('⚰️ a BANDED volume is content of Price — the map must not invent a pane', () => {
+    // ⚰️ IT USED TO BE ITS OWN GROUP UNCONDITIONALLY, which was harmless while
+    // nothing could be reordered: a heading is just a heading. With whole-pane
+    // ordering it became an offer — a pane to drag that the renderer never
+    // allocates, because the default volume is a BAND inside the candles' pane.
+    // `cs.volume.separatePane` is the difference, and the map reads it.
     const cs = base()
+    expect(cs.volume.separatePane, 'fixture assumption: the shipped default bands volume').toBe(false)
+    expect(labels(group(cs, 'price'))).toContain('Volume')
+    expect(group(cs, 'volume'), 'a band was drawn as a pane').toBeFalsy()
+  })
+
+  it('⭐ …and a SEPARATE volume really is its own pane', () => {
+    const cs = { ...base(), volume: { ...base().volume, separatePane: true } }
     expect(labels(group(cs, 'volume'))).toContain('Volume')
     expect(labels(group(cs, 'price'))).not.toContain('Volume')
   })
@@ -256,6 +266,37 @@ describe('every row reaches exactly one group', () => {
     expect(labels(group(cs, ORPHAN_GROUP))).toEqual(
       expect.arrayContaining([rows.find((r) => r.instanceId === 'inst:ghost:1').label]),
     )
+  })
+})
+
+describe('⚰️ the map is in the order the CHART stacks them', () => {
+  const ids = (cs) => map(cs).filter((g) => ['price', 'volume', 'pane'].includes(g.kind)).map((g) => g.id)
+
+  it('⚰️ an arrangement reorders the GROUPS, including Price', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    expect(ids(cs)).toEqual([PRICE_PANE, r.id])
+    cs = setPaneOrder(cs, [r.id, PRICE_PANE])
+    expect(ids(cs), 'the map still listed Price first').toEqual([r.id, PRICE_PANE])
+  })
+
+  it('⭐ Price can be listed last', () => {
+    let cs = base()
+    const a = withDef(cs, 'rsi'); cs = a.cs
+    const b = withDef(cs, 'macd'); cs = b.cs
+    cs = setPaneOrder(cs, [a.id, b.id, PRICE_PANE])
+    expect(ids(cs)).toEqual([a.id, b.id, PRICE_PANE])
+  })
+
+  it('⛔ Needs attention and Not shown are never arranged — they are not panes', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    cs = removeInstance(cs, host.id, registry)
+    cs = setPaneOrder(cs, [ORPHAN_GROUP, PRICE_PANE])
+    const groups = map(cs)
+    expect(groups[groups.length - 1].kind, 'an orphan list was arranged like a pane').toBe('orphans')
   })
 })
 
