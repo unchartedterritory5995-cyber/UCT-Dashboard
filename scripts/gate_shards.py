@@ -40,6 +40,13 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+
+# ⛔ UNGUARDED ON PURPOSE. A `try: import … except: lock = None` would turn a missing or broken
+# lock tool into a SILENTLY UNLOCKED gate — the swallowed-error shape this repo has paid for
+# repeatedly. The two files are committed together; if one is absent the tree is broken and
+# saying so loudly is the correct behaviour.
+sys.path.insert(0, str(REPO / "tools"))
+import gate_box_lock  # noqa: E402
 APP = REPO / "app"
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -615,12 +622,44 @@ def main(argv=None) -> int:
                     help="vitest workers per shard; lower it when the box is contended")
     args = ap.parse_args(argv)
     out_dir = pathlib.Path(args.out)
+
+    # ⛔ ARGUMENT ERRORS ARE SETTLED BEFORE THE LOCK IS TOUCHED. Taking a machine-wide lock to
+    # discover a typo would block another workstream's gate for nothing.
+    if len(args.exclude_reason) != len(args.exclude):
+        say('⛔ REFUSING: every --exclude needs an --exclude-reason. An unexplained '
+            'exclusion is how a suite shrinks without anyone deciding to.', err=True)
+        say(verdict_line(EXIT_INVALID, cause='MISSING_EXCLUDE_REASON'))
+        return 2
+
+    # ── the box lock (owner ruling R3) ────────────────────────────────────────────────────────
+    run_id = _dt.datetime.now().isoformat(timespec="seconds")
     try:
-        if len(args.exclude_reason) != len(args.exclude):
-            say('⛔ REFUSING: every --exclude needs an --exclude-reason. An unexplained '
-                'exclusion is how a suite shrinks without anyone deciding to.', err=True)
-            say(verdict_line(EXIT_INVALID, cause='MISSING_EXCLUDE_REASON'))
-            return 2
+        lock = gate_box_lock.acquire(run_id, worktree=REPO)
+    except gate_box_lock.LockHeld as e:
+        # ⛔ ONE LINE NAMING THE HOLDER. "The box is busy" sends the reader nowhere; a pid, a
+        # start time and a command line tell them whose run to wait for and who to ask.
+        say(f"\n  GATE REFUSED — the box is held: {e}\n", err=True)
+        say("  Wait for it, or re-run with "
+            f'{gate_box_lock.BYPASS_ENV}="<reason>" — but read the next line first.', err=True)
+        say("  ⛔ A BYPASS NEVER BUYS A CLEAR VERDICT: the run is still sampled and still lands "
+            "INCONCLUSIVE-CONTENDED while that holder is alive.", err=True)
+        say(verdict_line(EXIT_LOCK_HELD, holder_pid=(e.holder or {}).get("pid"),
+                         held_since=(e.holder or {}).get("started_at"),
+                         holder_workstream=(e.holder or {}).get("workstream") or "unknown"))
+        return EXIT_LOCK_HELD
+
+    # ⛔ EVERY EXIT PATH RELEASES — a normal verdict, a GateError refusal, an unexpected
+    # exception, a KeyboardInterrupt. A lock only a happy path releases is a lock that strands
+    # the box the first time anything goes wrong, which is when it matters most.
+    try:
+        return _gate_body(args, out_dir, lock)
+    finally:
+        gate_box_lock.release()
+
+
+def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
+    """The gate itself, exactly as it was before the lock existed."""
+    try:
         manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers,
                             exclude=tuple(args.exclude), exclude_reasons=tuple(args.exclude_reason))
     except GateError as e:
@@ -645,6 +684,17 @@ def main(argv=None) -> int:
         say(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n", err=True)
         say(verdict_line(EXIT_INVALID, cause=_invalid_cause(str(e))))
         return 2
+    # ⛔ THE LOCK'S STORY GOES INTO THE ARTIFACT. A bypass that is only visible in a log nobody
+    # opens is a bypass nobody reviews; and a reclaimed stale lock is how you learn some earlier
+    # gate died without anyone noticing.
+    manifest["box_lock"] = {
+        "acquired": lock.get("acquired"),
+        "path": lock.get("path"),
+        "bypass": lock.get("bypass"),
+        "bypass_reason": lock.get("bypass_reason"),
+        "overrode": lock.get("overrode"),
+        "reclaimed": lock.get("reclaimed"),
+    }
     stamp = manifest["at"].replace(":", "-")
     (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     (out_dir / f"{stamp}.md").write_text(render(manifest), encoding="utf-8")
@@ -678,6 +728,10 @@ EXIT_NEW_FAILURES = 1
 # eventually treat one as the other.
 EXIT_DID_NOT_RECONCILE = 3
 EXIT_INVALID = 2
+# ⛔ ITS OWN CODE, because "the box was busy" is not a verdict about this branch. Collapsing it
+# into INVALID would make a queued run indistinguishable from a broken one, and the two call for
+# opposite responses: wait, versus go and look.
+EXIT_LOCK_HELD = 4
 
 # ⛔⛔ THE VERDICT IS A LINE OF OUTPUT, BECAUSE THE EXIT CODE IS NOT TRUSTWORTHY IN TRANSIT.
 #
@@ -708,6 +762,10 @@ VERDICT_NAMES = {
     # `verdict_exit_code` can return must appear here, and a rail derives that set from the
     # module rather than retyping it.
     EXIT_DID_NOT_RECONCILE: "DID_NOT_RECONCILE",
+    # ⛔ NOT A SUITE VERDICT, and named so it cannot be read as one. Consistent with how
+    # stage-2-verification.md §2 now treats run-hub-rails.mjs's exit 2: a refusal to start is
+    # "this did not run", never "this ran and was fine".
+    EXIT_LOCK_HELD: "REFUSED-LOCK",
 }
 
 

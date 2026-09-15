@@ -33,6 +33,28 @@ import sys
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "tools"))
+
+
+@pytest.fixture(autouse=True)
+def _never_take_the_machines_real_box_lock(monkeypatch, tmp_path):
+    """⛔⛔ EVERY TEST IN THIS FILE IS POINTED AT A THROWAWAY LOCK.
+
+    ⚰ Written after seven rails went red in one run. `_drive` spawns a child that calls the REAL
+    `gate_shards.main()`, which now reaches for the REAL machine-wide lock — so the suite
+    failed because a measurement harness was legitimately holding the box. The lock behaved
+    perfectly; the suite was reaching into shared machine state.
+
+    ⭐ THE SPURIOUS FAILURES ARE THE MILDER HALF. The dangerous half is the passing case: without
+    this fixture, every green run of this suite TAKES AND RELEASES the machine's real lock dozens
+    of times, so a test run could refuse another workstream's gate. A suite that perturbs the
+    resource it is testing is the instrument-causes-the-condition defect, one layer out.
+
+    ⚠️ `monkeypatch.setenv` mutates `os.environ`, and `_drive` passes `{**os.environ, …}` to the
+    child — so the sandbox reaches the subprocess too. That is load-bearing, not incidental.
+    """
+    monkeypatch.setenv("UCT_GATE_BOX_LOCK", str(tmp_path / "box.lock"))
+    monkeypatch.delenv("UCT_SKIP_GATE_BOX_LOCK", raising=False)
 
 from gate_shards import (  # noqa: E402
     GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
@@ -1035,3 +1057,26 @@ def test_the_verdict_line_names_a_run_that_did_not_reconcile(tmp_path):
     line = gate_shards.verdict_line(code, reconciles="false")
     assert line.startswith("VERDICT=DID_NOT_RECONCILE exit=3"), line
     assert "UNKNOWN" not in line
+
+
+def test_the_box_lock_path_is_overridable_and_defaults_to_a_machine_wide_location():
+    """⛔ THE FIXTURE ABOVE IS ONLY SAFE BECAUSE THIS OVERRIDE EXISTS — so it is railed.
+
+    ⭐ And the control is the DEFAULT: with no override the path must be machine-wide and outside
+    every repository, or the sandbox would be hiding a tool that writes somewhere wrong. Both
+    halves matter — an override that always won would mean the real lock is never used at all.
+    """
+    import gate_box_lock
+
+    os.environ["UCT_GATE_BOX_LOCK"] = r"C:\tmp\override.lock"
+    try:
+        assert str(gate_box_lock.lock_path()).endswith("override.lock")
+    finally:
+        os.environ.pop("UCT_GATE_BOX_LOCK", None)
+
+    default = gate_box_lock.lock_path()
+    assert default.name == "gate-box.lock"
+    # ⛔ outside every repo, and NOT under the live data root
+    assert "uct-worktrees" not in str(default), default
+    assert not str(default).lower().startswith("c:\\data"), default
+    assert ".git" not in str(default), default
