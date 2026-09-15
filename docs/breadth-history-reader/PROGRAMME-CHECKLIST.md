@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 15:07 ET, Session 13.**
+Last updated: **2026-09-15 15:09 ET, Session 13.**
 
 ---
 
@@ -69,6 +69,32 @@ which pushes `breadth/sampler` → master at 16:05 ET after M14.
 **`BLOCKED`** on R1 (the sampler's files are not on master until M12 lands).
 - Task Scheduler: **no sampler job exists** — verified 2026-09-15 against the full task list. Proposed name `UCT Breadth Sampler`, matching the existing `UCT Breadth *` convention.
 - ⭐ The report tool now writes `docs/breadth-history-reader/sampler-summary.md` on every run and **survives this box's cp1252 console** (fixed `41bd58eb7`). Before that fix a scheduled run would have exited 1 with no file — R2 could not have been satisfied.
+
+**The registration, ready to run the moment M12 is on master** (shape copied from
+`UCT Breadth Collector`, the convention on this box — `MultipleInstances IgnoreNew`,
+Interactive/Limited, weekdays):
+
+```powershell
+$repo = 'C:\Users\Patrick\uct-worktrees\breadth-history-reader'
+$act  = New-ScheduledTaskAction -Execute 'python' `
+          -Argument "$repo\tools\breadth_sampler.py" -WorkingDirectory $repo
+# 16:10 ET = 15:10 CT on this box. The clock HERE is LOCAL/CT; the sampler's OWN guard
+# is ET via zoneinfo and is the authority. This trigger only avoids pointless wake-ups
+# inside a window the sampler would refuse anyway.
+$trg  = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 15:10
+$set  = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable
+Register-ScheduledTask -TaskName 'UCT Breadth Sampler' -Action $act -Trigger $trg -Settings $set
+```
+
+- ⛔ **`MultipleInstances IgnoreNew` is the "never two samplers" rule, in the scheduler
+  rather than in a comment.** The sampler loops internally until its daily cap, so a
+  second instance would double the production load that cap exists to bound.
+- ⛔ **Do not register before M12 lands.** `tools/breadth_sampler.py` is not on master, so
+  the task would start, fail to find the file, and record a green-looking run that
+  sampled nothing.
+- Verify after registering: `Get-ScheduledTask 'UCT Breadth Sampler'`, then one
+  `python tools/breadth_sampler.py --once` — inside guard hours it must print a
+  **refusal**, which is the check that the guard is live rather than merely present.
 
 ### R3 · M13 (resident copy, flag OFF) landed, SUCCESS
 **`READY`** — landing script, after R1.
