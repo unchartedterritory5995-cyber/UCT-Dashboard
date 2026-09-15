@@ -1,3 +1,72 @@
+# TRACK A LIVE CLUSTER — ROOT CAUSED AND FIXED LOCALLY (2026-09-15)
+
+HEAD 6e243a887. NOT DEPLOYED, NOT PUSHED. 3 ahead / 17 behind origin/master
+(no file overlap with master's changes).
+
+## Root cause — ONE defect, two visible symptoms
+
+`StockChart`'s separate-volume block writes an ABSOLUTE pair:
+
+    mainPane.setStretchFactor(100 - pct);  volPane.setStretchFactor(pct)
+
+Stretch factors are RELATIVE. That pair means "volume is pct% of the chart" only
+while main+volume ARE the chart. With one more pane, volume's real share is
+`pct / (100 + thirdStretch)` — the third pane keeps the weight
+`computePaneLayout` gave it, and that weight is on a DIFFERENT BASIS: the layout
+hands out PIXEL heights (463/154/81 on a 700px stack), this writer hands out
+PERCENTAGES. Two writers, two numbering systems, one relative field.
+
+MEASURED: apply 22 with a third pane at 81 → the volume pane measures 12 while
+`lastAppliedVolPctRef` still says 22. The 300ms drag sampler compares exactly
+those two, `latchOnDrag` fires at a 2-point gap, and within 1.5s of a real
+separator drag it latches 12 as the member's choice and persists it GLOBALLY.
+Next pass: apply 12 against the same inflated denominator → measure ~7 → latch
+again. Volume ratchets down; the third pane, which nothing writes, is left with
+~45% of the chart.
+
+  · "Volume snaps back, but ONLY while QQQ is in the pane"  = the ratchet
+  · "the new QQQ own pane is enormous"                      = the same event
+
+Two panes → the pair is correct → neither happens. Which is exactly why deleting
+QQQ made Volume resize normally again.
+
+## The fix
+
+`legacyPairOwnsStack(paneCount, hasIndexPane)` in `chart/volumePaneDrag.js` —
+true only while the pair can describe the whole stack. Otherwise the writer
+stands down and records NULL (not a number it cannot honour), so the sampler
+bails on its own `applied == null` guard. The canonical layout then owns every
+height, which it already did: `binder` ends EVERY sync with
+`applyPaneStretch(paneLayout)`, ungated by instance count, and that plan sizes
+volume correctly in both regimes ([545,154] and [463,154,81] — 22% either way).
+
+## Browser-verified, production-shaped 3-pane harness
+
+    drag Volume larger   331 / 277 / 80   held 8s, ~26 poller ticks
+    drag Volume smaller  527 /  81 / 80   held 4s
+    QQQ stayed compact at 80px throughout
+    delete QQQ           537 / 152        canonical 2-pane 78/22
+
+## Still NOT reproduced / NOT explained
+
+⛔ Failure 1 (QQQ sharing Volume's numeric scale) is NOT explained by this.
+`placement.js` gives an overlaid series `scaleId: 'left'`, and the harness showed
+QQQ with its own axis spanning the pane. Production showed TWO tags on one axis
+(45.02M AND 704). Not reproduced; root cause unknown.
+
+⛔ Failure 4 (canonical order != physical order) is NOT explained by this either.
+Canonical readers agree across 8 stored-order shapes; `settleArrangement`
+realises all SIX permutations correctly; every Move-up click in the corrected
+harness kept canonical == Chart Data == physical. NOTE: the oversized-pane
+symptom the owner saw alongside it IS explained above, so the photographed
+"corruption" may be partly this defect — but the ORDER divergence itself is not.
+
+## Held separately, not deployed
+
+`118bbe1e1` MultiChartGrid `volumeOpts` — real, bite-checked, and it makes
+`movePane` stop writing an order with the volume key missing. Not the cluster
+root cause; owner has not authorised shipping it alone.
+
 # TRACK A — LIVE FAILURE CLUSTER: ONE FIX FOUND, ROOT CAUSE NOT YET FOUND (2026-09-15)
 
 HEAD 118bbe1e1. NOT DEPLOYED. Deployed prod is still a4e845fe7.
