@@ -143,3 +143,36 @@ export function chromePlan(m) {
       : Math.round(volumePaneTopPx(heights, volumeIndex, sep) + 5),
   }
 }
+
+/**
+ * The vertical range an axis drag should PIN, given the pane the candles are in.
+ *
+ * ⚰️�idea THE CAPTURE USED PHYSICAL PANE 0'S HEIGHT AND CALLED IT PRICE'S.
+ * The result is not a transient misdraw: it is handed to the candle series'
+ * `autoscaleInfoProvider`, which returns it in place of autoscale, and the
+ * view-lock persists it — so one drag on a chart with a pane above Price writes
+ * a wrong range that survives every reload. Measured on production: NVDA ~212
+ * with the scale reading 200 → 880 and the candles pressed into the bottom ~8%.
+ *
+ * ⛔ THE MARGINS ARE WHY THE PIXELS ARE INSET. `autoscaleInfoProvider` returns
+ * `{minValue,maxValue}` and lightweight-charts re-adds `scaleMargins` as padding
+ * AROUND it. Capturing at the full pane extent hands back a range that already
+ * includes the margins, which are then applied a second time and the candles
+ * compress once more on release. Reading at the INSET boundaries captures
+ * exactly the range that maps back to those same pixels.
+ *
+ * @param {number} paneHeight        the CANDLE pane's own height
+ * @param {{top:number,bottom:number}} scaleMargins
+ * @param {(y:number)=>number} coordinateToPrice  the candle series' mapping
+ * @returns {{minValue:number,maxValue:number}|null} null when unusable
+ */
+export function capturedPriceRange(paneHeight, scaleMargins, coordinateToPrice) {
+  if (!(Number.isFinite(paneHeight) && paneHeight > 0)) return null
+  if (typeof coordinateToPrice !== 'function') return null
+  const sm = (scaleMargins && Number.isFinite(scaleMargins.top) && Number.isFinite(scaleMargins.bottom))
+    ? scaleMargins : { top: 0, bottom: 0 }
+  const hi = coordinateToPrice(sm.top * paneHeight)
+  const lo = coordinateToPrice(paneHeight - sm.bottom * paneHeight)
+  if (!Number.isFinite(hi) || !Number.isFinite(lo) || !(hi > lo)) return null
+  return { minValue: lo, maxValue: hi }
+}

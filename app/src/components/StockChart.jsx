@@ -692,7 +692,7 @@ import {
   displayTargetOptions,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
-import { chromePlan } from './chart/chromeGeometry'
+import { chromePlan, capturedPriceRange } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -7627,20 +7627,36 @@ export default function StockChart({
         // right after release (the "skips one more time" bug). Reading the price at
         // the inset boundaries [top·H, (1−bottom)·H] captures exactly the range that
         // maps back to these same pixels, so releasing leaves the scale untouched.
+        // ⚰️⚰️ THIS READ `panes()[0]` AND MEANT "THE PRICE PANE". It stopped
+        // being the same thing the moment a pane could sit above Price, and the
+        // consequence is not cosmetic: the captured range is PINNED by the
+        // candle series' `autoscaleInfoProvider` and PERSISTED by the view-lock,
+        // so one axis drag on a chart with QQQ above Price writes a wrong
+        // vertical range that survives every reload.
+        //
+        // ⛔ MEASURED ON PRODUCTION: NVDA ~212 with the Price scale reading
+        // 200 → 880 and the candles plus all four MAs crushed into the bottom
+        // ~8% of their pane, on a COLD LOAD, reproducing on every refresh. With
+        // QQQ above Price, `panes()[0]` is QQQ's pane — a fraction of Price's
+        // height — so `yTop`/`yBot` are pixel rows near the TOP of Price's pane,
+        // and `coordinateToPrice` maps them to prices far above the candles.
+        //
+        // ⭐ ASK THE CANDLES WHERE THEY LIVE. `coordinateToPrice` below is called
+        // on that same series, so the height and the mapping now come from ONE
+        // pane instead of two that agree only while Price is first.
         let paneH = 0
-        try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
+        try {
+          paneH = series.getPane?.()?.getHeight?.() || chart.panes?.()[0]?.getHeight?.() || 0
+        } catch { paneH = 0 }
         if (paneH <= 0) return
         let sm = { top: 0, bottom: 0 }
         try {
           const o = mainPriceScale()?.options?.()?.scaleMargins
           if (o && Number.isFinite(o.top) && Number.isFinite(o.bottom)) sm = o
         } catch { /* keep zero margins — no worse than the old full-pane capture */ }
-        const yTop = sm.top * paneH               // pixel of the highest price (maxValue)
-        const yBot = paneH - sm.bottom * paneH     // pixel of the lowest price (minValue)
-        const hi = series.coordinateToPrice(yTop)
-        const lo = series.coordinateToPrice(yBot)
-        if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) {
-          priceManualRangeRef.current = { minValue: lo, maxValue: hi }
+        const pinned = capturedPriceRange(paneH, sm, (y) => series.coordinateToPrice(y))
+        if (pinned) {
+          priceManualRangeRef.current = pinned
           priceManualRef.current = true
         }
       } catch { /* mapping unavailable — leave unpinned, no worse than before */ }
@@ -9581,7 +9597,10 @@ export default function StockChart({
     }
     if (!wmAttachedRef.current) {
       try {
-        chart.panes()[0].attachPrimitive(wmCtrlRef.current.primitive)
+        // ⭐ THE WATERMARK IS PRICE-OWNED — the same `panes()[0]` assumption as
+        // the axis-drag capture above, and it belongs on the candles' pane
+        // wherever that now sits.
+        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(wmCtrlRef.current.primitive)
         wmAttachedRef.current = true
       } catch { /* older pane API — primitive optional */ }
     }
@@ -9643,7 +9662,8 @@ export default function StockChart({
     }
     if (!sessionShadeAttachedRef.current) {
       try {
-        chart.panes()[0].attachPrimitive(sessionShadeRef.current.primitive)
+        // ⭐ AND SO IS THE SESSION SHADE — it shades the candles' own pane.
+        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionShadeRef.current.primitive)
         sessionShadeAttachedRef.current = true
       } catch { /* older pane API — primitive optional */ }
     }
