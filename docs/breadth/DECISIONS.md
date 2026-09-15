@@ -904,6 +904,33 @@ this reader: a local concurrent writer committing **460,569** times during the r
 window moved `reconstructed_fetch` by only **1.9x** (44.1 -> 85.3 ms). Neither that nor
 page-cache pressure (1.5x) comes near production's 50.2x.
 
-**Still open: H1 (page-cache eviction) and H3 (connection/plan variance).** The
-`io_read_bytes` counter discriminates H1 directly and is confirmed readable in
-production. See `docs/breadth-history-reader/00-profile.md`, Session 8.
+#### The production window ANSWERED it, and the answer is two phenomena
+
+n=20 settled cold samples, deployed `47e1516b5`:
+
+| i | `reconstructed_fetch` | `rf_fetch` | `rf_materialise` | **`io_read_bytes`** |
+|---|---|---|---|---|
+| 12 (fastest) | 55.1 | 6.6 | 45.7 | 1,568,768 |
+| 8 | 682.0 | 608.0 | 65.2 | 7,069,696 |
+| **13** | **31,819.8** | **21,098.5** | 319.7 | **540,057,600** |
+
+⭐ **Sample 13 read 540,057,600 bytes for a query returning 4.5 MB — 12.9x the ENTIRE
+41,861,120-byte file.** Twelve chunked statements, 4,700 PK seeks, a **2 MB** page cache
+and **mmap_size=0**: pages are read, evicted, and read again. **H1 is CONFIRMED for the
+tail.** Across that swing `rf_execute` moves 5,729x and `rf_fetch` 3,197x while
+`rf_materialise` moves 7.0x and `derive` 2.5x — the I/O halves move by thousands, the CPU
+halves barely.
+
+⚠️ **But H1 does NOT explain the ordinary range, and the two correlations say so:**
+Pearson r = **0.994**, Spearman (rank) r = **0.260**. The Pearson figure is carried
+entirely by sample 13. Fast samples (<100 ms) read a median 2,121,728 B; slow ones
+(>=100 ms) read 5,054,464 B — 2.4x, across a 3-12x time difference. One 173 ms sample read
+**77,824 bytes**.
+
+**Status: H2 EXCLUDED** (`rf_busy_retries` 0 on all 20; WAL readers do not block on
+writers). **H1 CONFIRMED for the tail, not the range. H3 open and now the leading
+candidate for the ordinary variation, by elimination. H4 owns the LEVEL** — `rf_materialise`
+is 45-110 ms on almost every sample, the floor under every read, untouched by any I/O fix.
+
+⭐ **The 50x is TWO phenomena, not one**, and a fix aimed at either alone will look like it
+failed against the other. See `docs/breadth-history-reader/00-profile.md`, Session 8.

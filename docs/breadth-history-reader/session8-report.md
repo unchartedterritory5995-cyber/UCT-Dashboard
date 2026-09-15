@@ -259,9 +259,111 @@ find most plausible rather than the one the data names. **It is an OPEN QUESTION
 
 ---
 
-# D. The after-window
+# D. The after-window — n=20 reached, and the diagnosis breaks open
 
-*(Section D's outcome is recorded below.)*
+**Attempt 1 was killed** by the session's third intrusion (`154c50f71`, 03:48:25Z), 189 s
+into the settle clock. **Attempt 2 ran clean** on set (i): uptime 661 → 1,395, monotonic.
+A fourth restart landed during set (iv), so its 9 samples are excluded and listed.
+
+| | |
+|---|---|
+| collected | 45 |
+| settled and kept | **36** |
+| excluded | **9** — all `members_90`, each listed by id, ts and uptime |
+| set (i) | **n=20 — the target, met** |
+
+## D.1 — after vs Session 7's B.5 (the only permitted comparison)
+
+**RESULTS.** Deep cold, n=20 settled both sides.
+
+| field | BEFORE p50 / p95 | AFTER p50 / p95 | p50 change |
+|---|---|---|---|
+| `total_ms` | 728.6 / 3,093.2 | **430.1** / 3,511.8 | **−41 %** |
+| `reader_ms` | 219.6 / 2,564.7 | 260.9 / 2,792.4 | +19 % |
+| `post_reader_ms` | 470.0 / 729.9 | **159.9** / 719.6 | **−66 %** |
+| **`encode_render`** | 425.2 / 702.5 | **53.8** / 234.8 | **−87 %** |
+
+| warm days=365, n=10 | BEFORE p50 | AFTER p50 |
+|---|---|---|
+| `total_ms` | 74.7 | **17.8** (−76 %) |
+| `encode_render` | 50.8 | **5.8** (−89 %) |
+
+⭐ **M4's saving is now a production number, not a local one: `encode_render` p50 425.2 →
+53.8 ms.** The local prediction was 8.3× on the warm path; production delivered **8.8×**
+on warm `encode_render` and 7.9× on the cold one.
+
+⚠️ **`reader_ms` rose 19 % at p50 and that is not a regression from anything shipped** —
+the reader is byte-identical across both windows. It is the same volatility §D.2 is about,
+sampled on a different day.
+
+### p95 CI overlap
+
+| | BEFORE | AFTER |
+|---|---|---|
+| p95 `total_ms` CI | [1,893.8, 3,933.1] | **[1,009.5, 41,263.8]** |
+
+⛔ **They overlap, and the after-interval is enormous** because of one 41-second sample.
+**Excluding the two outliers above 3× the running median: n=18, p50 405.5, p95 793.0,
+max 1,009.5** — which does *not* overlap the before-band's p95 CI. Both are reported; the
+outlier is the subject of §D.2, not noise to be dropped.
+
+## D.2 — ⭐ C.5: what the counters say, and it is decisive for the tail
+
+Per settled cold sample, ordered by `reconstructed_fetch`:
+
+| i | recon_fetch | rf_execute | rf_fetch | rf_materialise | **io_read_bytes** | busy |
+|---|---|---|---|---|---|---|
+| 12 | 55.1 | 1.8 | 6.6 | 45.7 | 1,568,768 | 0 |
+| 2 | 63.7 | 1.8 | 6.6 | 53.8 | 14,880,768 | 0 |
+| 18 | 71.6 | 2.4 | 8.0 | 60.1 | 31,539,200 | 0 |
+| 20 | 173.0 | 7.7 | 95.4 | 66.6 | 77,824 | 0 |
+| 8 | 682.0 | 6.1 | 608.0 | 65.2 | 7,069,696 | 0 |
+| **13** | **31,819.8** | **10,312.4** | **21,098.5** | 319.7 | **540,057,600** | 0 |
+
+**Sample 13 read 540,057,600 bytes from the block device in one request.** The whole DB
+file is **41,861,120 bytes** — that is **12.9× the entire file**, for a query that returns
+4.5 MB.
+
+⭐ **That is page-cache thrashing, and it is not an inference.** Twelve chunked statements,
+4,700 PK seeks, a **2 MB** page cache and **mmap_size=0** against a 41.9 MB file: pages are
+read, evicted, and read again. **H1 is confirmed for the tail.**
+
+The split confirms it from the other side — across the 577× swing:
+
+| | ratio |
+|---|---|
+| `rf_execute` | **5,729×** |
+| `rf_fetch` | **3,197×** |
+| `rf_materialise` | 7.0× |
+| `derive` (pure CPU) | 2.5× |
+
+The I/O-bound halves move by thousands; the CPU halves barely move.
+
+### ⚠️ But the tail is not the whole story, and the two correlations say so
+
+| | |
+|---|---|
+| Pearson r(`io_read_bytes`, `reconstructed_fetch`) | **0.994** |
+| **Spearman (rank) r** | **0.260** |
+
+⛔ **The Pearson figure is carried entirely by sample 13.** By rank the relationship is
+weak, and the group medians confirm it: fast samples (<100 ms, n=9) read a median of
+**2,121,728 B**; slow ones (≥100 ms, n=11) read **5,054,464 B** — a 2.4× difference across
+a 3–12× time difference. Sample 20 took 173.0 ms having read **77,824 bytes**.
+
+**Verdict, stated at the precision the data supports:**
+
+| hypothesis | status |
+|---|---|
+| **H1** page-cache eviction | ⭐ **CONFIRMED for the extreme tail** — 540 MB read, 12.9× the file, 31.8 s. **Not established for the ordinary 3–12× range**: rank correlation 0.26 and a 173 ms sample that read 78 KB. |
+| **H2** lock/busy wait | ⛔ **EXCLUDED.** `rf_busy_retries` = 0 on all 20; 460,569 local concurrent commits moved it 1.9×; WAL readers do not block on writers. |
+| **H3** connection/plan variance | ⚠️ **OPEN, and now the leading candidate for the ordinary range** — it is what is left once H1 explains only the tail and H2 is out. |
+| **H4** row materialisation | ⭐ **owns the LEVEL, not the variance** — 45.7–109.6 ms across almost the whole range (7× only in the extreme), i.e. the floor of every read. |
+
+⭐ **The headline for the next session: the 50× is TWO phenomena, not one.** A rare,
+catastrophic page-cache collapse (H1) sitting on top of an ordinary 3–12× variation that
+H1 does not explain — and underneath both, a constant ~50–110 ms of `json.loads` that no
+amount of I/O tuning will touch.
 
 ---
 
@@ -346,14 +448,24 @@ Only the *build trigger* is unverified.
 
 # OPEN QUESTIONS FOR YOU
 
-**Q1 — `reconstructed_fetch` fix.** Proposal 1 (`mmap_size` + `cache_size` on the reader
-connection) is <40 lines, env-reversible and byte-identical by construction — but H1 is
-still open, so building it now means fixing the hypothesis I find most plausible rather
-than the one the data names.
-- **(a) Wait for a settled window that separates H1 from H3, then build** *(recommended)*.
-- (b) Build it now behind an env var and measure it in production directly — the pragma
-  change is itself a clean experiment.
-- (c) Go straight to proposal 3 (process-resident copy) and remove the read entirely.
+**Q1 — `reconstructed_fetch` fix.** §D.2 changed the answer I would have given before the
+window ran. H1 is **confirmed for the tail** (540 MB read, 12.9× the file) and the fix for
+it — `mmap_size` + a larger `cache_size` — is <40 lines, env-reversible and byte-identical
+by construction. It does **not** address the ordinary 3–12× range, which is now H3's.
+- **(a) Build proposal 1 on a branch, gated, and let me bring you the measurement**
+  *(recommended)* — the diagnosis now supports it unambiguously for the failure mode that
+  actually hurts, and the change is its own clean experiment.
+- (b) Build proposals 1 **and** 2 (connection reuse) together — 2 also attacks H3, but two
+  changes in one window make the measurement ambiguous.
+- (c) Go straight to proposal 3 (process-resident copy) and remove the read entirely —
+  biggest win, biggest new invalidation surface.
+- (d) Nothing yet; re-sample first to see how often the tail occurs.
+
+**Q1b — the floor nobody has attacked yet.** `rf_materialise` is 45–110 ms on almost every
+sample: **4,529 `json.loads` calls over 4.5 MB, per deep read.** No I/O tuning touches it.
+- **(a) Open it as its own line of work in Session 9** *(recommended)* — a stored shape
+  that does not need re-parsing.
+- (b) Leave it until the I/O work lands.
 
 **Q2 — GZip level** (re-emitted per 0.3; the body cache holds pre-gzip bytes, so this is
 still live).
@@ -387,13 +499,15 @@ the dashboard.
 
 # PROPOSED SESSION 9
 
-Separate H1 from H3, which is now a narrow question with a ready instrument: run the
-settled window that Session 8's intrusions denied, and read `io_read_bytes` per cold
-sample. If it climbs with `reconstructed_fetch`, the page cache is being evicted and
-proposal 1 is the fix; if it stays flat while the phase swings, the cost is connection or
-plan variance and proposal 2 is. Either way `rf_materialise` owns the *level* — 75–90 % of
-the phase on every reading so far — so a second, independent line of work is worth
-opening: **4,529 `json.loads` calls per deep read is the real floor**, and a stored shape
-that does not need re-parsing (or a materialised process-resident copy) attacks it
-directly. Both are measurable against B.5's band and neither needs a member-visible
-change.
+Build proposal 1 — `mmap_size` and a larger `cache_size` on the reader connection, behind
+an env var, byte-identical by construction — and measure it against this session's
+after-band, because the diagnosis now names the failure it fixes: a request that read
+**12.9× the whole database file** through a 2 MB page cache. That is one clean experiment
+with a reversible switch. Alongside it, open the second line this window exposed:
+`rf_materialise` is **45–110 ms on every sample** and is untouched by any I/O change —
+4,529 `json.loads` calls per deep read is the floor under everything, and a stored shape
+that does not need re-parsing attacks it directly. Keep the two apart so each has its own
+measurement. And carry forward the question this session could not answer: the ordinary
+3–12× variation is now H3's by elimination, and connection reuse is the cheap probe for
+it. None of the three needs a member-visible change, and all three are measurable against
+the band in §D.1.
