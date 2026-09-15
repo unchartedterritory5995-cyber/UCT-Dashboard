@@ -891,3 +891,64 @@ built. Your call.**
 **Manifest 19 rows, 19 OK, 18/18 mapped, exit 0.** Two commands **PARKED**: (a) F-MERGE-1
 CLOSED is MET; (b) a totals line in the record is **not yet confirmed** — ten shard jobs
 reporting success is not the same artifact, and this session does not conflate them.
+
+---
+
+## Session result 2026-09-15 (session 3 — reliable publishing, a workflow I broke, a retraction)
+
+**Full report: `docs/terminal-research/reports/SESSION_REPORT_2026-09-15_3.md`** (committed).
+ET `08:37 → 08:49 EDT Tue`. Both trees clean. Gate-box lock ABSENT; no local vitest run.
+
+### ⛔⛔ I broke the whole build pipeline with a one-word fix
+
+E CP7 sanitised an artifact name with `${{ replace(matrix.dir, '/', '--') }}`. **GitHub
+Actions has no `replace()` function.** Run #7: **0 jobs, `created == updated`, failure** —
+the workflow was rejected before a single job started. **The defect it fixed failed four
+jobs; the fix failed all twenty.**
+
+⛔ **`yaml.safe_load` passed, because it is valid YAML** — the error is in the *expression*
+layer. **`actionlint` would have caught it; I had recorded it UNREADABLE-TOOL and pushed
+anyway.** ⭐ The lesson is not "install actionlint": **declaring a validator unavailable is a
+reason to be more careful, not a box to tick.**
+
+**E CP10** fixes it two ways: the matrix now carries a pre-sanitised `id` (no expression
+function needed at all), and **`tools/check_workflow_expressions.py`** refuses any unknown
+function — mutation-proved against the very file that shipped the bug (exit 1 naming
+`replace()`, exit 0 on the fixed one, 16 expressions inspected).
+
+**Run #8 is healthy: 19 jobs, and all 4 previously-failing profile jobs now succeed.**
+
+### E CP9 — the publisher can no longer fail silently
+
+Concurrency group (publishers queue), EXISTS+SIZE printed before every read, bounded
+fetch/rebase/push with **exit 1** on final failure, the summary written to the run's own
+page **before** the push is attempted, and **`latest.json` deleted** — it was the only path
+two publishers both wrote. 26 controls.
+
+⭐ **Told-vs-found that mattered:** `grep latest.json` returns 20+ hits and **every one
+outside the workflow is a different artifact** (R2 `barspack`/`intradaypack`). Following
+"update each reader" literally would have edited a live bars-pipeline path.
+
+### ⛔⛔ A RETRACTION I owe you
+
+Last session I reworded D5 CP2 because *"the count was never enumerated anywhere for
+`corp_actions`"*. **That is false.** `reference-corp-actions-spec.md` **§4.1 enumerates
+exactly five**: `numerator`, `denominator`, `cash_amount`, `effective_date`, `state`.
+**The original "five" was right.** My audit searched the *packet* and not the *spec*, then
+reported an absence it had never looked for. ⭐ The reword still stands on the standing rule
+alone — a count typed beside "derives by AST" is the enumeration-beside-its-source defect
+even when the number is right — but the reason next to it was wrong and is now corrected.
+
+### D5 CP2 — BUILDABLE, not built
+
+Every noun resolves and the builder already has the precedent (`bars_store()` +
+`_parse_create_table` + `_DropDocstrings`). ⛔ **But building it widens D2's `yields`
+vocabulary** from `{num, bool}` to include `date` and `str` — which the spec itself calls
+*"a genuine widening"*. That is a decision, not a detail. **OPEN QUESTION 1. I ran out of
+session, not out of premise** — the next session can start cold from the noun table.
+
+**STARTABLE is still 0 of 6**; the blocking edge is unchanged.
+
+**Manifest 21 rows, 21 OK, 20/20 mapped, exit 0.** Commands **PARKED**: (a) MET, (b) UNMET.
+**[PHONE-OK]** if publish fails again: Actions tab → latest run → the `publish` job — E CP9
+writes the verdict and `shards_without_totals` into the job summary even when the push fails.
