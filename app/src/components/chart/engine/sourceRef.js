@@ -111,9 +111,28 @@ export function symbolSource(symbol, field) {
 export function canonicalSymbol(symbol) {
   if (typeof symbol !== 'string') return null
   const s = symbol.trim().toUpperCase()
-  // ⛔ A symbol carrying the delimiter could not round-trip through the source
-  // string, so it is not a symbol this form can name. Refused, never mangled.
-  if (!s || s.includes(':')) return null
+  if (!s) return null
+  // ⭐⭐ A COLON INSIDE A SYMBOL IS LEGAL, BECAUSE THE FIELD IS PARSED OFF THE END.
+  //
+  // This used to refuse every colon-bearing symbol on the grounds that it "could
+  // not round-trip" — true of a parser that split on the FIRST colon, and the
+  // reason `$IDX:<slug>` has never been usable as a chart source even though it
+  // charts perfectly well through `/api/bars`. `parseSource` now takes the LAST
+  // colon as the field delimiter, and the field vocabulary
+  // (`SYMBOL_SOURCE_FIELDS`) contains no colons, so `sym:$IDX:AI:close` and
+  // `sym:NASDAQ:A50:close` both decompose unambiguously. The round-trip is a
+  // property of where the split happens, not of the symbol.
+  //
+  // ⛔ THESE THREE SHAPES STAY REFUSED, because each one IS genuinely ambiguous
+  // or meaningless rather than merely unusual:
+  //   • a leading or trailing colon — one side of the delimiter is empty, so the
+  //     symbol would round-trip as a different string than it went in as;
+  //   • an empty segment (`A::B`) — `::` is the INSTANCE source separator
+  //     (`@inst:rsi:2::signal`), and a symbol carrying it would make the two
+  //     families tellable apart only by the leading character;
+  //   • whitespace inside — a symbol is one token, and a space is how a typo in a
+  //     search box reaches this function.
+  if (s.startsWith(':') || s.endsWith(':') || s.includes('::') || /\s/.test(s)) return null
   return s
 }
 
@@ -169,7 +188,14 @@ export function parseSource(value) {
     // and answering "unresolved" for both is the same correct answer anyway.
     if (value.startsWith(SYM_MARK)) {
       const body = value.slice(SYM_MARK.length)
-      const at = body.indexOf(':')
+      // ⭐⭐ THE **LAST** COLON, NOT THE FIRST, AND THAT ONE CHARACTER IS THE WHOLE
+      // NAMESPACE CAPABILITY. `indexOf` read `sym:NASDAQ:A50:close` as the symbol
+      // `NASDAQ` with the field `A50:close` — unresolved, silently, for every
+      // colon-bearing symbol including the `$IDX:<slug>` ones that already ship.
+      // `lastIndexOf` is correct rather than merely permissive: the FIELD comes
+      // from a closed two-word vocabulary that contains no colon, so the last
+      // colon is the only delimiter it can be, whatever the symbol contains.
+      const at = body.lastIndexOf(':')
       if (at <= 0) return null
       const symbol = canonicalSymbol(body.slice(0, at))
       const field = body.slice(at + 1)
