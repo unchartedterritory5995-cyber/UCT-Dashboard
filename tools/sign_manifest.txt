@@ -34,6 +34,7 @@
 #!after: packet-d-nav-tabs-gate <- packet-c-instrument-and-claudemd-gate
 #!after: packet-v-multi-volume-gate <- packet-b-schema-resolution-gate
 #!after: e-cp2-build-record <- packet-e-ci-gap-gate
+#!after: e-cp4-build-record <- e-cp2-build-record
 #!after: k-cp3-build-record <- packet-k-two-command-signing-gate
 #!after: k-cp4-build-record <- k-cp3-build-record
 #!last: s2-accelerator-chord-pre-implementation-gate
@@ -46,6 +47,7 @@ docs/terminal-research/12-decisions/gates/packet-v-multi-volume-gate.md | CP4 | 
 docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | CP2 | 21d6ad3e8
 docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | beeffe8e6
 docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | CP2 | 00eecb391
+docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | CP4 | fcb2dd9b1
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
 docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | CP3 | ba5e34e79
 docs/terminal-research/12-decisions/gates/k-cp4-build-record.md | CP4 | 35237823c
