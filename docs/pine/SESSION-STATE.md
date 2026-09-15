@@ -343,7 +343,7 @@ with its own estimate and a committed red acceptance first.
 | nested text helpers | **0 of 266** scripts hit the refusal — measured low priority |
 | short-circuit evaluation | both sides always evaluate today |
 | IR-lane tuples | `runtime:tuple` at `v2:251`, an 8-value destructure the IR has no form for |
-| the IR lane on the pane path | ruling **D2** keeps it off; `reachable.test.js` carries the dated entry and its re-argued expiry |
+| the IR lane on the pane path | ruling **D2** — *a pane acts on the HOST lane's saved definition and the screener lane is inadmissible by construction*; the IR lane staying off the pane path is the **consequence**. ⭐ It defers IR-lane output, **not IR-lane work** (R19, corrected in place 2026-09-15). `reachable.test.js` carries the dated entry and its re-argued expiry |
 | `alertSets` wiring | precondition: the alert fires 25× only at **2,751 bars** of loaded history |
 | `s := close` typing | real Pine rejects it; we render `<if> + num + ""` |
 | 13 stale `ticker_meta` rows (**R-O**) + `BF.B` | one-liner against `_YF_EXCHANGE`; `BF.B` (`YHD`) is the genuine residual |
