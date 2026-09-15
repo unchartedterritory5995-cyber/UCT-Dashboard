@@ -450,6 +450,20 @@ knew. `forceOpaque` now keeps its `extra` as `reason` so that is possible at all
   original 90 — comfortably under** — and was reported as an overrun purely because the
   estimate had been cut to 35 mid-block after the consumer measurement came back
   favourable. A line that moves when the news is good measures nothing.
+  - ⛔⛔ **COROLLARY (owner, 2026-09-15): THE STOP LINE GOVERNS WHEN A BLOCK MUST
+    END — AN ATOMIC UNIT THAT CANNOT FINISH INSIDE THE REMAINING CLOCK IS NOT
+    STARTED.** A parser change, a re-baseline that reaches the corpus, a mutation
+    proof: each is atomic. When one of these cannot complete before the stop, the
+    block **ends early** with its red committed and its implementation site pinned,
+    rather than beginning work that will be interrupted. ⭐ **Half-landed atomic
+    work is the worse outcome** — worse than an unstarted block, because the next
+    session inherits a tree it cannot trust and a measurement it must redo.
+    ⚰️ The instance: R18 at **~100 of 140**, with 2.3 a parser change whose
+    re-baseline reaches the corpus and the full suite. The block stopped; the RED
+    (`e97a1d1c3`) and the exact insertion point were committed instead, so the next
+    block starts at implementation with nothing to rediscover.
+    ⚠️ It is NOT a licence to stop early on a hard block — the test is whether the
+    unit is **atomic and cannot fit**, not whether it is difficult.
 - ⛔⛔ **A THRESHOLD GOVERNS WHAT IS BUILT, NEVER WHAT IS REMOVED.** Retiring a form
   that *already works* is not retirement — it is **deletion of a tested capability**,
   and the F4-style threshold gives no authority for it. Low corpus usage is a reason
