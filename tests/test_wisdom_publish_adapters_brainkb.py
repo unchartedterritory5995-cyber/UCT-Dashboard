@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from api.services.wisdom.core import store
+from api.services.wisdom.publish import floor
 from api.services.wisdom.publish.adapters import brainkb, common, kbrow
 from tests.test_wisdom_publish_adapters_store import adapters_db, seeded  # noqa: F401
 
@@ -48,14 +49,31 @@ def test_rows_are_signed_dated_priority_3_explicit_epoch_with_provenance(seeded)
 
 
 def test_export_carries_rows_only_with_the_flag_on(seeded, monkeypatch):
+    """⛔ Wave 1.5 item 3 changed this test's answer, and BOTH states are pinned below.
+
+    The seeded corpus stages two rows: one principle and one lesson. Since 2026-09-14 the
+    publication floor drops a principle whose `stability` is NULL — which every record is until
+    item 2 populates it — so the principle does not leave and the lesson does. Setting stability
+    to the floor restores the original two. If only the first half were asserted, a floor that had
+    silently stopped filtering would look identical to one working perfectly.
+    """
     with store.write() as conn:
         brainkb.stage(conn, brainkb.build_rows(conn))
     monkeypatch.delenv("WISDOM_BRAINKB_PUBLISH_ENABLED", raising=False)
+
+    # A: unmeasured stability — fail-closed, the principle is withheld and SAID to be withheld
     off = brainkb.export_payload()
-    assert off["ok"] and off["enabled"] is False and off["rows"] == [] and off["preview_count"] == 2
+    assert off["ok"] and off["enabled"] is False and off["rows"] == [] and off["preview_count"] == 1
+    assert len(off["below_floor_dropped"]) == 1
+    assert off["below_floor_dropped"][0].startswith("wisdom:principle:")
+    assert off["stability_floor"] == floor.floor_value()
+
+    # B: at the floor — the principle publishes again, which is what proves A was the floor
+    with store.write() as conn:
+        conn.execute("UPDATE wisdom_principles SET stability = ?", (floor.floor_value(),))
     monkeypatch.setenv("WISDOM_BRAINKB_PUBLISH_ENABLED", "1")
     on = brainkb.export_payload()
-    assert on["enabled"] is True and len(on["rows"]) == 2
+    assert on["enabled"] is True and len(on["rows"]) == 2 and on["below_floor_dropped"] == []
     assert all(r["source"] == "wisdom" and r["content_sha256"] == kbrow.kb_row_sha(r) for r in on["rows"])
 
 

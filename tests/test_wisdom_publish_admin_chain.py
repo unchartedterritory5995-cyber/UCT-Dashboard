@@ -215,8 +215,13 @@ def test_the_contradictions_step_only_counts_on_a_dry_run(db):
 # ── 6. order, slots, due keys ────────────────────────────────────────────────
 
 def test_the_chains_follow_the_w1_part_7_order():
+    # ⭐ `publication_floor` appended 2026-09-14 (Wave 1.5 item 3, owner ruling R10_ITEM3_ACTION:
+    # A). It runs LAST on purpose: it reads what the adapters have just produced and enqueues the
+    # PRINCIPLE/MARKET_SIGNAL records the floor held back, so the owner sees them. It publishes
+    # nothing and is deliberately NOT flag-gated — a floor that can be switched off is not a floor.
     assert [s.name for s in chain.DAILY] == ["capture", "sources", "stt_alias", "extract", "evals",
-                                             "retrieval", "adapters", "level_alerts", "lookalike"]
+                                             "retrieval", "adapters", "level_alerts", "lookalike",
+                                             "publication_floor"]
     assert [s.name for s in chain.WEEKLY] == ["sunday_scans", "reconcile_outcomes", "vocab_candidates",
                                               "contradictions", "voice_profile", "weekly_report", "extract_audit"]
     assert [s.name for s in chain.MONTHLY] == ["recognition_packet"]
