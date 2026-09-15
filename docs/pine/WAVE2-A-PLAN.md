@@ -1625,6 +1625,48 @@ before any feature is considered.
 today, and **a threshold never removes what works**. `alert()` is a runtime action
 neither surface reads, so a script with plots and an `alert()` must keep its plots.
 
+## ✅ R22a / R22b (owner, 2026-09-15) — d2 GOES FIRST; d1 IS RE-SCOPED AS d1′
+
+### R22a — **d2 first, and re-sized**
+
+The census's named-argument correction moved d2's scope: **487 of 555** messages are
+carryable (**338 literal + 149 placeholder**) against **2** genuine expressions. d2
+carries the 487 as a **presentation field beside `title`, same path, no second
+carriage**. The 2 expressions and any uncarried shape get a **message NOTE** at the
+alertcondition line — **folded into d2**, because that note is now two specimens wide
+rather than a feature of its own. ⛔ The ruled **40** was for a smaller scope; d2 states
+its own estimate before starting.
+
+### R22b — **d1′: a chart-only call INSIDE A BLOCK is noted**
+
+Seven call types — the whole `CHART_ONLY_CALLS` set — **at any depth**. Own estimate,
+**not d1's inherited 45**.
+
+> ### ⛔⛔ THE HARD CONSTRAINT
+>
+> The fix is a **READ-ONLY traversal** over the parsed blocks that **emits notes and
+> nothing else**. It does **not** touch `destructureBindings`, `forceOpaque`, binding
+> creation, binding reads, or refusal placement. It runs **after** the walk that decides
+> those, or **beside** it as a separate pass — *measure which is available* — and it is
+> **deduplicated** against the existing top-level notes: **one note per call site, never
+> two**.
+>
+> ⛔ **If the only way to reach nested calls is to modify the block walk itself, STOP and
+> report.** That is a different change with a different estimate and it is **not made
+> under R22b.**
+
+⭐ **Why the constraint is written this hard:** the block walk is where **two members of
+the read/overwrite ordering class** live — `foldStatements` never learned destructures,
+and every outer `var` a branch assigned went opaque as `pine:reassign`. A note pass that
+strayed into that machinery would be re-entering a defect class this programme has
+already paid for twice.
+
+**The acceptance already pins the top-level case** (`a992d7bd2`). d1′ adds **nested
+specimens across three call types** (`alert`, `bgcolor`, and one drawing call) at **two
+depths** (inside `if`; inside a `for` body), plus controls asserting that on every
+specimen **`refusals.length`, the refusal codes in order, and the output count are
+byte-identical before and after** — a note pass moves nothing else.
+
 ### ⏸️ d1 — PREMISE CORRECTED BY MEASUREMENT; **RED committed, NOT built**
 
 **Red `9cae578ee` → corrected `a992d7bd2`.** ⛔ **R22's d1 premise is half wrong, and
