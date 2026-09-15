@@ -223,15 +223,46 @@ def _self_pids() -> frozenset[int]:
     return frozenset(pids)
 
 
-def take_sample(self_pids: frozenset[int]) -> dict:
+def _descendants(root: int, procs: list[dict]) -> set[int]:
+    """Every pid BELOW `root` in the process tree, from the snapshot already taken.
+
+    ⛔ THE HALF `_self_pids` DOES NOT COVER. That walks upward, which stops a shell from
+    reporting itself; this walks downward, which stops a measured run from reporting its own
+    children. Both are the same rule — an instrument must not be a finding — and the tool had
+    only one of them.
+    """
+    kids: dict[int, list[int]] = {}
+    for p in procs:
+        kids.setdefault(p.get("ParentProcessId"), []).append(p["ProcessId"])
+    out: set[int] = set()
+    stack = [root]
+    while stack:
+        cur = stack.pop()
+        for k in kids.get(cur, ()):
+            if k not in out:
+                out.add(k)
+                stack.append(k)
+    return out
+
+
+def take_sample(self_pids: frozenset[int], *, tree_pid: int | None = None) -> dict:
     """One observation: the time, free memory, and every foreign gate/worker seen right now."""
     snap = _snapshot()
+    procs = snap.get("procs", [])
     free_gb = round(snap["free_kb"] / 1024 / 1024, 2)
     total_gb = round(snap["total_kb"] / 1024 / 1024, 2)
+    # ⛔ THE MEASURED RUN AND EVERYTHING IT SPAWNED ARE NOT INTRUDERS. Computed from the SAME
+    # snapshot as the classification, so a process that appears between two queries cannot be
+    # excluded by one and reported by the other.
+    exclude = set(self_pids)
+    if tree_pid is not None:
+        exclude.add(tree_pid)
+        exclude |= _descendants(tree_pid, procs)
+    exclude = frozenset(exclude)
     foreign = []
-    for p in snap.get("procs", []):
+    for p in procs:
         kind = classify_process(p.get("Name", ""), p.get("cl") or "", p["ProcessId"],
-                                self_pids=self_pids)
+                                self_pids=exclude)
         if kind:
             foreign.append({
                 "kind": kind,
@@ -433,7 +464,7 @@ def watch(*, seconds: float | None = None, pid: int | None = None,
     try:
         while True:
             try:
-                s = take_sample(self_pids)
+                s = take_sample(self_pids, tree_pid=pid)
             except RuntimeError as e:
                 # ⛔ REPORTED, NOT SWALLOWED. A snapshot that failed is not a quiet box.
                 say(f"  [sample failed] {e}", err=True)

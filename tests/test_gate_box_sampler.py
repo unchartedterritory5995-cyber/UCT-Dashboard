@@ -15,6 +15,7 @@ exactly the test that would have passed during all three of those.
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import subprocess
 import sys
@@ -232,3 +233,66 @@ def test_say_survives_a_character_the_console_cannot_encode(capsys):
     over. A tool whose job is to report a verdict must not be able to die while reporting it."""
     S.say("⛔ Σ — verdict pending")
     assert "verdict pending" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the snapshot is a Win32_Process query")
+def test_live_the_measured_run_and_its_children_are_not_intruders():
+    """⚰ THIRD BODY: an instrument must not be a finding, in BOTH directions.
+
+    `_self_pids` walks ancestors, which stops a shell from reporting itself. Nothing walked
+    DOWNWARD, so a run wrapped with `--watch-pid` had its own children reported as foreign —
+    and this very suite spawns a process carrying a gate command line on purpose, so sampling
+    the suite that tests this tool made the tool fail its own measurement. The failure would
+    have looked exactly like real contention, which is the worst possible disguise.
+
+    ⭐ THE CONTROL IS THE SAME PROCESS, JUDGED WITHOUT THE EXCLUSION. One spawned child, two
+    questions: "is it a gate" must stay YES, and "is it MY gate" must become NO. A rail that
+    only proved it was hidden could be satisfied by a matcher that had simply stopped working.
+    """
+    child = _spawn(["scripts/gate_shards.py", "--shards", "6"])
+    try:
+        seen_as_foreign = seen_at_all = False
+        for _ in range(8):
+            snap = S._snapshot()
+            pids_now = {p["ProcessId"] for p in snap.get("procs", [])}
+            if child.pid not in pids_now:
+                time.sleep(0.75)
+                continue
+            seen_at_all = True
+            # the CONTROL: without the tree exclusion it is a gate
+            row = next(p for p in snap["procs"] if p["ProcessId"] == child.pid)
+            assert S.classify_process(row.get("Name", ""), row.get("cl") or "",
+                                      row["ProcessId"]) == "gate", (
+                "the matcher stopped seeing a gate at all — this rail would then pass for the "
+                "wrong reason")
+            sample = S.take_sample(S._self_pids(), tree_pid=os.getpid())
+            seen_as_foreign = child.pid in {f["pid"] for f in sample["foreign"]}
+            break
+        assert seen_at_all, "the spawned child never appeared in a snapshot; nothing was proved"
+        assert not seen_as_foreign, (
+            f"the sampler reported its own measured run's child (pid {child.pid}) as an "
+            f"intruder — the instrument is a finding again")
+    finally:
+        child.kill()
+        child.wait(timeout=10)
+
+
+def test_the_descendant_walk_is_transitive_and_does_not_climb():
+    """Grandchildren are excluded; a SIBLING or a parent's other branch is not.
+
+    ⛔ THE CONTROL IS THE WHOLE POINT. An exclusion wide enough to swallow a real gate would
+    disable the check it lives inside, which is worse than the bug it fixes — the same
+    argument the drift-exemption rail in `test_gate_shards.py` makes.
+    """
+    procs = [
+        {"ProcessId": 10, "ParentProcessId": 1},     # the measured run
+        {"ProcessId": 11, "ParentProcessId": 10},    # its child
+        {"ProcessId": 12, "ParentProcessId": 11},    # its grandchild
+        {"ProcessId": 20, "ParentProcessId": 1},     # ⛔ a SIBLING — somebody else's gate
+        {"ProcessId": 1, "ParentProcessId": 0},      # the shared parent
+    ]
+    got = S._descendants(10, procs)
+    assert got == {11, 12}, got
+    assert 20 not in got, "a sibling process was excluded — a real intruder would be hidden"
+    assert 1 not in got, "the walk climbed to the parent"
+    assert S._descendants(99, procs) == set(), "an unknown root must exclude nothing"
