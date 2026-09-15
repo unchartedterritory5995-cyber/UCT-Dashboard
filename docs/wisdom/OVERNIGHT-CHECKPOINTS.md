@@ -710,3 +710,49 @@ Three times. Then `reconcile_stability` finds them automatically.
 
 ⭐ **v1.1 buys two items at once:** item 2's three passes AND item 5's NULL false-positive numbers,
 which now have a queue to land in (`rq_v11_001`). It is also the re-measurement Q3 withdrew.
+
+## Session 8 — 2026-09-15 04:39 ET: the key has a name now; the run is still unbought
+
+⭐ **`WISDOM_ANTHROPIC_API_KEY` is now what the gate reads** (R32, `batch.py` `KEY_VARS`),
+falling back to `ANTHROPIC_API_KEY`. ⛔ **The generic name was never free to set**:
+`ANTHROPIC_API_KEY` is the variable **Claude Code itself** reads to authenticate and bill, so
+exporting it to feed the gate would change how the agent session launching the gate is
+authenticated — on the account paying for that session. The programme now carries its own
+credential under its own name.
+
+⛔ **Readiness at 04:39 ET: BLOCKED.** Neither variable is set. Third session running with the
+run ready and unbought. **$0.00; the ledger is byte-identical for the fifth session in a row.**
+
+**To unblock:** export **`WISDOM_ANTHROPIC_API_KEY`** in the shell that launches Claude Code, on
+the machine Claude Code runs on. ⚠️ A session already running will not see it — the process
+environment is inherited at launch, so it needs a fresh session afterwards.
+
+### Master synced deliberately short
+
+**25 commits**, merged at `3058cde1d`. **None** touches `api/services/wisdom/**`,
+`tests/test_wisdom_*`, `tests/conftest.py`, `core/schema.py`, any migration, or any file under
+`.github/workflows/` — so neither the promotion gate nor the R21 xfail baseline is affected.
+⭐ Kept short on purpose: session 6 merged **111** after letting the gap run, and the lesson
+recorded then was that the risk of waiting looks low right up until it is not.
+
+### Pre-run baseline, 2026-09-15 04:38 ET
+
+The complete chain against an empty store, in order:
+
+    rq_v11_001          -> emitted 0, created 0, skipped: no gate run recorded
+    reconcile_stability -> skipped: only 0 persisted run(s); need 3
+    publication_floor   -> blocked 0, enqueued 0
+    review queue rows: 0   wisdom_records rows: 0
+
+Chain order verified on the merged tree: `chain.py:68` evals → `:79` rq_v11_001 → `:85`
+reconcile_stability → `:92` publication_floor, and the twelve-step exact-order pin passes.
+
+### ⚠️ The next daily-chain window is TONIGHT, not Wednesday
+
+`wisdom_daily_chain` is **cron mon-fri 18:47 ET** (`CONTRACTS.md:296`). At 04:39 ET Tuesday the
+next fire is **Tuesday 2026-09-15 18:47 ET, ~14 hours away** — not Wednesday the 16th. Recorded
+because a checklist pointing at the wrong evening is worse than no checklist.
+
+⛔⛔ **And a flip at that window would still write NOTHING**: `wisdom_records` is at **0 rows**,
+so there is nothing to extract from, reconcile, block or queue. The flip is only informative
+**after** the three passes exist. **Buy the run first.**
