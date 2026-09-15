@@ -219,6 +219,20 @@ scope set. Collision proof: no `T2` packet or CP id exists anywhere in `gates/`.
 a **genuine red** rather than a green. This unit makes the suite run; it does not claim to
 make it pass.
 
+⭐ **INTERIM MEASUREMENT, and it is already informative.** In run #3 the pytest job finished
+in **82 seconds** having collected 2 modules. In run #4 it has been running **over 40
+minutes** and has not finished. **That gap is the fix working** — the job is now importing
+and executing 481 modules instead of failing to import 479 of them.
+
+⚠️ **And it surfaces the next question, which is a real one.** `CLAUDE.md` records that an
+unscoped `pytest tests/` on the dev box reached **18 GB** and was OOM-killed, and that
+`--collect-only` alone reached 6.6 GB. A GitHub runner has substantially less memory than
+this box. **The suite this programme has never been able to run may not fit in CI either** —
+and if it does not, the failure mode to watch for is the one this repository documents most
+often: *the evidence of an OOM kill is that there is no evidence*. `ci_summarize`'s
+`totals_line_found: false` and the zero-collected rule are what stand between that and a
+green badge. **Reported as an open risk, not a conclusion — run #4 had not finished.**
+
 ### E4.3 — the 14 vitest files, classified
 
 **23 junit failure entries across 14 files.** ⚠️ The summary's totals line says **21**;
