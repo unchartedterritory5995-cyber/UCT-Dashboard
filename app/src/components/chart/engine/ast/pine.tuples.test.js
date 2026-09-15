@@ -63,13 +63,33 @@ describe('a tuple-returning user function hands out its parts by position', () =
 })
 
 describe('what a tuple destructure still refuses, and why that matters more', () => {
-  it('🔴🔴 `request.security` REFUSES — 42 of 63 destructures in the corpus', () => {
-    // ⛔ THE SAFETY OF THIS WHOLE FEATURE. Without the `kind === 'tuple'` check
-    // this binds `a` to the first element of a call this engine cannot evaluate
-    // at all, and the result parses and saves.
+  // ⚰️⚰️ SPENT AND MOVED TO THE FRONTIER (R18, 2026-09-15). This read
+  // *"🔴🔴 `request.security` REFUSES — 42 of 63 destructures in the corpus"* over
+  // `[a, b] = request.security(syminfo.tickerid, "D", [close, open])`, and that is
+  // now the form R18 BUILDS: two slots, `security(s, tf, close)` and
+  // `security(s, tf, open)`, each an ordinary call tree.
+  //
+  // ⭐ THE SAFETY IT GUARDED IS NOT GONE — IT MOVED. The comment here warned that
+  // without the `kind === 'tuple'` check a name would bind to "the first element of
+  // a call this engine cannot evaluate at all". Under R18 each element becomes its
+  // OWN request and `securityAsNode` validates each one, returning null for a shape
+  // it will not take — which becomes `pine:request`, the namespace's own sentence,
+  // rather than a silent first-element bind. The assertion below is that successor.
+  it('⭐ the array-literal destructure BUILDS SLOTS (R18) — it no longer refuses', () => {
     const r = one(`${head}[a, b] = request.security(syminfo.tickerid, "D", [close, open])\nplot(a)`)
+    expect(r.ok, 'R18 makes this form translate').toBe(true)
+    // `a` is element 0 — the CLOSE request, not the open one. A slot model that
+    // handed out the wrong index would still be `ok`, so the VALUE is asserted.
+    expect(r.formula).toBe('close')
+  })
+
+  it('🔴🔴 …and a request `securityAsNode` will not take still refuses BY NAME', () => {
+    // ⛔ THE SAFETY, RELOCATED AND STILL ASSERTED. An empty timeframe cannot resolve
+    // to one servable period, so the slot's own request refuses — per element,
+    // through the namespace's sentence, never a silent bind.
+    const r = one(`${head}[a, b] = request.security(syminfo.tickerid, "", [close, open])\nplot(a)`)
     expect(r.ok).toBe(false)
-    expect(r.guard).toBe('pine:tuple')
+    expect(r.guard).toBe('pine:request')
   })
 
   it('a one-element `[x]` is not a tuple', () => {
@@ -213,9 +233,17 @@ describe('`ta.dmi` hands out three legs the table already declares', () => {
     expect(r.guard).toBe('pine:tuple')
   })
 
+  // ⚰️ ALSO SPENT (R18). Its NAME said "some OTHER builtin" and its BODY used
+  // `request.security` — the very one R18 now carries, so it was never testing what
+  // it claimed. Replaced with a builtin that genuinely is not ours, which is what the
+  // name always promised: R18 must widen `destructureBindings` for `request.security`
+  // and for nothing else.
   it('a destructure of some OTHER builtin is untouched', () => {
-    expect(one(`${head}[a, b] = request.security(syminfo.tickerid, "D", [close, open])\nplot(a)`).ok)
-      .toBe(false)
+    // `ta.dmi` has its own arm and its own refusal (see above); a builtin with
+    // neither still refuses `pine:tuple`, exactly as before R18.
+    const r = one(`${head}[a, b] = ta.percentrank(close, 14)\nplot(a)`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:tuple')
   })
 })
 

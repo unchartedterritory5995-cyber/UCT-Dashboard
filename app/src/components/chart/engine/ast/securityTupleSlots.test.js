@@ -49,9 +49,18 @@ const REPO = path.resolve(__dirname, '../../../../../..')
  *  re-baseline is sized by the 6, not the 90. */
 const SPECIMENS = [
   'corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine',
-  'corpus/committed/volatility-stop-mtf__K5XG42uHV9.pine',
+  'corpus/committed/mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine',
   'tests/fixtures/pine_oos/long_tail__12-setup-grader.pine',
 ]
+
+/** ⛔ DELIBERATELY NOT A SPECIMEN, and the reason is a scope boundary worth keeping.
+ *  `volatility-stop-mtf__K5XG42uHV9.pine` was one until R18 landed, and it still
+ *  refuses `pine:tuple` afterwards — at `[stopChartTf, trendUpChartTf] =
+ *  TVta.vStop(...)`, a LIBRARY call returning a tuple. That is a different form
+ *  from a `request.security` tuple and R18 neither addresses nor should address it.
+ *  Asserting "this script stops refusing" would have made R18 answer for a form it
+ *  never claimed. */
+const NOT_OURS = 'corpus/committed/volatility-stop-mtf__K5XG42uHV9.pine'
 
 const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8')
 const tupleRefusals = (t) => (t.refusals || []).filter((r) => r.guard === 'pine:tuple')
@@ -79,14 +88,17 @@ describe('R18 — a security tuple is a vector of slots', () => {
         `${rel} produces no outputs, so nothing reads a destructured name`)
         .toBeGreaterThan(0)
     }
-    // …and the fixture must currently be REFUSED, or there is nothing to fix.
-    expect(tupleRefusals(translatePine(TWO_SLOT, {})).length
-      + tupleRefusals(translatePine(TWO_SLOT, { strict: true })).length,
-    'the two-slot fixture already translates — this rail asserts nothing')
-      .toBeGreaterThan(0)
+    // ⭐ …and the fixture really carries TWO slots, so a one-slot answer cannot pass
+    // the tree assertion below by accident. (Before R18 this clause instead asserted
+    // the fixture was REFUSED — correct while the defect stood, and self-retiring
+    // with it; what has to stay true afterwards is the arity.)
+    const t = translatePine(TWO_SLOT, {})
+    expect(tupleRefusals(t)).toEqual([])
+    expect(t.outputs[0].ast.args.length,
+      'the two-slot fixture did not produce two slots').toBe(2)
   })
 
-  it.fails('⭐⭐ THE SLOT TREES, WRITTEN OUT — `[a,b] = security(S,D,[high,low])`', () => {
+  it('⭐⭐ THE SLOT TREES, WRITTEN OUT — `[a,b] = security(S,D,[high,low])`', () => {
     // slot 0 : sym('AAPL', [ series high ])
     // slot 1 : sym('AAPL', [ series low  ])
     // plot   : op('-', [ slot0, slot1 ])
@@ -103,7 +115,7 @@ describe('R18 — a security tuple is a vector of slots', () => {
     expect(slot1.args[0]).toMatchObject({ type: 'series', name: 'low' })
   })
 
-  it.fails('⭐⭐ the three named corpus specimens stop refusing `pine:tuple`', () => {
+  it('⭐⭐ the three named corpus specimens stop refusing `pine:tuple`', () => {
     for (const rel of SPECIMENS) {
       const t = translatePine(read(rel), {})
       expect(tupleRefusals(t).map((r) => `${r.guard}@${r.line}`),
@@ -111,7 +123,17 @@ describe('R18 — a security tuple is a vector of slots', () => {
     }
   })
 
-  it.fails('⛔ an element that READS A SIBLING is refused by name — a guard, not a fix', () => {
+  it('⛔ CONTROL — a LIBRARY tuple still refuses; R18 answers for security only', () => {
+    // The scope boundary, asserted rather than assumed. If this ever goes green,
+    // something widened `destructureBindings` past the form R18 was ruled for.
+    const t = translatePine(read(NOT_OURS), {})
+    const tup = tupleRefusals(t)
+    expect(tup.length, 'the library-tuple refusal vanished — R18 widened past its form')
+      .toBeGreaterThan(0)
+    expect(String(tup[0].message)).toContain('stopChartTf')
+  })
+
+  it('⛔ an element that READS A SIBLING is refused by name — a guard, not a fix', () => {
     // ⚰️ MEASURED: the corpus contains ZERO of these. The census reported one and it
     // was a false positive — `\blog\b` matching `math.log(...)`, a method name. So
     // this is a guard against a shape that genuinely cannot expand (the elements are

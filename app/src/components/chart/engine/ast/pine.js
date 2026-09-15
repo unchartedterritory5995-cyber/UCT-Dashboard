@@ -3553,6 +3553,42 @@ function parsePrimary(cur) {
     // "B"])`, an argument this translator never even looks at — refuse the whole
     // script from a line no column depends on. Now it refuses only if something
     // actually reads it, at `resolve`, with the same guard and the same token.
+    //
+    // ⭐⭐ R18 (2026-09-15) — THE ELEMENTS ARE KEPT WHEN THEY PARSE. A `collection`
+    // was a PLACEHOLDER: the loop below consumed the contents to find the matching
+    // `]` and threw them away, so `[a, b] = request.security(s, tf, [x, y])` reached
+    // `destructureBindings` with nothing to hand out and refused `pine:tuple`. Under
+    // Mechanism A those elements ARE the slots, so the parser keeps them.
+    //
+    // ⛔ `collection` IS A PARSE-TREE TYPE AND STAYS ONE. `NODE_TYPES` is the OUTPUT
+    // vocabulary and is untouched — a collection never becomes a node in a saved
+    // tree; it is taken apart into per-slot calls before anything persists. No 12th
+    // type, no statement form.
+    //
+    // ⛔⛔ AND THE FALLBACK IS THE WHOLE SAFETY OF IT. The comment above records why
+    // this site must not throw: `input(…, options=["A","B"])` is carried by most
+    // published scripts and nothing reads it. So the element parse is attempted on a
+    // SAVED CURSOR POSITION and any failure rewinds to it and takes the original
+    // skip — a collection this parser cannot read behaves exactly as it did, and the
+    // note it produces is unchanged.
+    const startI = cur.i
+    let elements = null
+    try {
+      const parts = []
+      if (!isPunct(cur.peek(), ']')) {
+        for (;;) {
+          parts.push(parseExpression(cur, 0))
+          if (cur.eat(',')) continue
+          break
+        }
+      }
+      cur.expect(']')
+      elements = parts
+    } catch {
+      cur.i = startI
+      elements = null
+    }
+    if (elements) return { type: 'collection', tok, elements }
     let depth = 1
     while (depth > 0) {
       const t = cur.next()
@@ -9018,6 +9054,70 @@ function destructureBindings(toks, env, first) {
           call: parsedRhs,
           fn: inner,
           args: expr.args || [],
+          index: k,
+          env: callerEnv,
+          at: locate(n),
+        })),
+      }
+    }
+
+    // ⭐⭐ R18 — THE ARRAY-LITERAL ARGUMENT: THE SECOND ENTRANCE TO THE SAME PATH.
+    //
+    // `[a, b] = request.security(s, tf, [x, y])` is two SLOTS — slot 0 is
+    // `security(s, tf, x)`, slot 1 is `security(s, tf, y)` — which is Mechanism A
+    // applied to a tuple exactly as it is applied to an array.
+    //
+    // ⛔ IT BUILDS THE SAME `securityTuplePart` BINDING THE UDF FORM ABOVE BUILDS,
+    // with a synthesised carrier, so `resolveBinding` resolves it UNCHANGED through
+    // `securityAsNode`. One path, two entrances. A parallel path would be a second
+    // authority on which bars and which period a request reads, which is the one
+    // decision this file keeps in a single place.
+    //
+    // ⭐ `args: []` is correct and not an omission: the UDF form pushes the inner
+    // call's arguments as a frame because its parts resolve inside the function's
+    // scope. An array literal's elements are written in the CALLER's scope and
+    // close over `callerEnv`, so there is no frame to push.
+    if (expr && expr.type === 'collection' && Array.isArray(expr.elements)
+        && expr.elements.length >= names.length) {
+      const callerEnv = new Map(env)
+      const declared = new Set(names.map((n) => n.value))
+      // ⛔ THE ONE SHAPE THAT CANNOT BE SLOTS — an element that reads a SIBLING
+      // destructured name. The slots are independent calls, so element 1 cannot see
+      // element 0's result; expanding it would silently read whatever that name held
+      // BEFORE the destructure. ⚰️ Measured: the corpus contains ZERO of these — the
+      // census reported one and it was `\blog\b` matching `math.log(...)`, a method
+      // name. So this is a GUARD against a shape nobody writes, not a fix for a
+      // measured use, and its fixture is synthetic.
+      const readsSibling = expr.elements.some((el) => {
+        const stack = [el]
+        while (stack.length) {
+          const nd = stack.pop()
+          if (!nd || typeof nd !== 'object') continue
+          if (nd.type === 'name' && declared.has(String(nd.name))) return true
+          for (const k of Object.keys(nd)) {
+            const v = nd[k]
+            if (Array.isArray(v)) stack.push(...v)
+            else if (v && typeof v === 'object' && v.type) stack.push(v)
+            else if (v && typeof v === 'object' && v.value) stack.push(v.value)
+          }
+        }
+        return false
+      })
+      if (readsSibling) {
+        return {
+          names,
+          why: 'an element of a security tuple reads another element of the same '
+            + 'tuple. The elements become INDEPENDENT requests — one per slot — so '
+            + 'none of them can see another\'s result',
+        }
+      }
+      return {
+        names,
+        bindings: names.map((n, k) => ({
+          kind: 'securityTuplePart',
+          call: parsedRhs,
+          fn: { kind: 'fn', value: { kind: 'tuple', parts: expr.elements.map((el) => ({ node: el, env: callerEnv })) } },
+          args: [],
           index: k,
           env: callerEnv,
           at: locate(n),

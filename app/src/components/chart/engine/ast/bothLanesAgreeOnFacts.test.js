@@ -57,6 +57,11 @@ function factsOf(src, opts) {
     const t = translatePine(src, opts)
     return {
       threw: null,
+      // ⭐ `ok` IS THE VERDICT, NOT A FACT, and it is carried here only so the
+      // verdict CONTROL below can read it instead of translating all 327 scripts a
+      // second and third time. ⚠️ It is deliberately excluded from `disagreed`: the
+      // verdicts are ALLOWED to differ — that is the two-lanes property.
+      ok: t.ok === true,
       outputs: (t.outputs || []).length,
       refusals: (t.refusals || []).length,
       codes: (t.refusals || []).map((r) => r.guard).join(','),
@@ -138,12 +143,14 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
     // `lenient` — perfect agreement on every fact AND every verdict, which is exactly
     // the reading that voided a whole round of this programme's evidence. Agreement is
     // only meaningful beside a measured disagreement.
-    const verdictDiffers = rows.filter((r) => {
-      const src = fs.readFileSync(r.file, 'utf8')
-      try {
-        return translatePine(src, { strict: true }).ok !== translatePine(src, {}).ok
-      } catch { return false }
-    })
+    // ⚰️ THIS RE-READ AND RE-TRANSLATED ALL 327 SCRIPTS TWICE MORE, on top of the
+    // module-level walk that had already translated each one on both lanes — three
+    // full corpus passes for a fact the first pass already knew. It cost ~4s when
+    // every refusing script stopped early, and **19.5s once R18 made the security
+    // tuples translate instead of refusing**, which put it over the 15s limit ALONE.
+    // ⭐ R18 did not break it; R18 removed the early exits that were hiding the
+    // waste. The fix is to read the verdict `factsOf` already captured.
+    const verdictDiffers = rows.filter((r) => r.strict.ok !== r.lenient.ok)
     expect(verdictDiffers.length,
       'no script separates the lanes — `strict` is not doing anything').toBeGreaterThan(0)
   })
