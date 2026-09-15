@@ -51,6 +51,16 @@ Verdicts, and the third one is load-bearing:
                broken" are different facts, and collapsing them is how the last
                finding got filed.
 
+⛔⛔ **AND `/data` IS PER SERVICE.** v1 read ONE volume and printed "73 databases",
+which is web's. Measured 2026-09-15 there are **six services**, five with a readable
+`/data` and one asleep — and the same FILENAME means different DATA depending on which
+you ask (`bars.db` is 26.8 GB on `worker` and 24.7 GB on `bars-api`, both live). A
+resolver pointed at one volume answers confidently about a fifth of the product.
+
+`--all-services` sweeps every service, keys every database `service:path`, and reports
+per-service counts plus the UNREADABLE ones BY NAME with the command that would unlock
+them. ⛔ An UNREADABLE service is never folded into "nothing found there".
+
 Exit 0 = measured (verdicts printed; this reports, it does not fail a build)
      2 = UNREADABLE — no schemas, or no queries: the derivation is broken, not the repo
 """
@@ -62,7 +72,9 @@ import gzip
 import json
 import pathlib
 import re
+import shutil
 import sqlite3
+import subprocess
 import sys
 
 RESOLVES, MISSING, UNPREPARABLE = "RESOLVES", "MISSING", "UNPREPARABLE"
@@ -78,7 +90,9 @@ _BACKUP_RE = re.compile(r"(?:^|/)backups/|(?:^|[-.])pre[-.]|\d{4}-\d{2}-\d{2}|\d
 
 
 def is_backup(key: str) -> bool:
-    return bool(_BACKUP_RE.search(key))
+    # A key may be `path` or `service:path`; the service name must never make a live
+    # file look like a backup, so only the path half is tested.
+    return bool(_BACKUP_RE.search(key.split(":", 1)[-1]))
 OK, FAIL, UNREADABLE_EXIT = 0, 1, 2
 
 #: A fenced block is a candidate only if it opens with one of these. DDL and DML in an
@@ -313,6 +327,143 @@ def queries_in(root: pathlib.Path) -> list:
     return uniq
 
 
+# ── the per-service sweep ───────────────────────────────────────────────────
+
+#: Derived at call time from `railway status --json`, never typed — a service added
+#: tomorrow is swept the day it lands. The fallback list exists only so a CLI outage
+#: degrades to a NAMED subset rather than to silence.
+_FALLBACK_SERVICES = ("web", "worker", "flow-worker", "bars-api", "chart-renderer",
+                      "terminal-next-monitor")
+
+_POD_DUMP = """
+import base64, gzip, json, os, pathlib, sqlite3, sys
+root = pathlib.Path("/data")
+out = {}
+if root.is_dir():
+    for p in sorted(root.rglob("*.db")):
+        key = p.relative_to(root).as_posix()
+        try:
+            con = sqlite3.connect("file:" + p.as_posix() + "?mode=ro", uri=True, timeout=2.0)
+        except sqlite3.Error:
+            continue
+        try:
+            out[key] = [r[0] for r in con.execute(
+                "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL").fetchall()]
+        except sqlite3.Error:
+            out[key] = []
+        finally:
+            con.close()
+sys.stdout.write(base64.b64encode(gzip.compress(json.dumps(out).encode())).decode())
+"""
+
+
+def services_from_railway() -> tuple:
+    """⛔ DERIVED. Returns (names, source) so the report can say where the list came from."""
+    exe = shutil.which("railway")
+    if exe is None:
+        return _FALLBACK_SERVICES, "fallback (railway CLI not on PATH)"
+    try:
+        out = subprocess.run([exe, "status", "--json"], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=120)
+        data = json.loads(out.stdout)
+        names = tuple(sorted(e["node"]["name"] for e in data["services"]["edges"]))
+        return names, "railway status --json"
+    except Exception:                                    # noqa: BLE001
+        return _FALLBACK_SERVICES, "fallback (railway status unreadable)"
+
+
+def sweep_service(name: str) -> tuple:
+    """(manifest, error). A manifest of {} with no error means the service has no /data."""
+    exe = shutil.which("railway")
+    if exe is None:
+        return {}, "the `railway` CLI is not on PATH"
+    payload = base64.b64encode(_POD_DUMP.encode()).decode()
+    cmd = [exe, "ssh", "--service", name,
+           "echo %s | base64 -d | /opt/venv/bin/python" % payload]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=240)
+    except subprocess.TimeoutExpired:
+        return {}, "timed out after 240s"
+    blob = (out.stdout or "").strip()
+    tail = blob.rsplit(chr(10), 1)[-1]
+    tight = re.sub(r"[^A-Za-z0-9+/=]", "", tail)
+    if not tight:
+        why = " ".join((out.stderr or out.stdout or "no output").split())[:180]
+        return {}, why
+    try:
+        return json.loads(gzip.decompress(base64.b64decode(tight)).decode()), None
+    except Exception:                                    # noqa: BLE001
+        return {}, " ".join(blob.split())[:180]
+
+
+_ASLEEP = ("not running", "scaled to zero", "serverless")
+_NO_PY = ("/opt/venv/bin/python: not found", "python: not found")
+
+
+def volume_shape(name: str) -> str:
+    """Shell-only. Answers NO-VOLUME / HAS-VOLUME / UNKNOWN without needing an interpreter.
+
+    ⛔ The python payload is an instrument requirement, not a property of the service. A
+    service without `/opt/venv/bin/python` is not a service without data, and collapsing
+    the two makes the tool's own dependencies look like findings about the product.
+    """
+    exe = shutil.which("railway")
+    if exe is None:
+        return "UNKNOWN"
+    try:
+        out = subprocess.run(
+            [exe, "ssh", "--service", name,
+             "test -d /data && echo HAS-VOLUME || echo NO-VOLUME"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    except subprocess.TimeoutExpired:
+        return "UNKNOWN"
+    txt = (out.stdout or "") + (out.stderr or "")
+    if "HAS-VOLUME" in txt:
+        return "HAS-VOLUME"
+    if "NO-VOLUME" in txt:
+        return "NO-VOLUME"
+    return "UNKNOWN"
+
+
+def unlock_for(err: str) -> str:
+    """⛔ DERIVED FROM THE ERROR. A single canned remedy is worse than none: it sends the
+    reader to do the wrong thing with confidence."""
+    low = (err or "").lower()
+    if any(t in low for t in _ASLEEP):
+        return ("send one request to wake it, or disable 'Sleep when idle' in the "
+                "service settings, then re-run")
+    if any(t in low for t in _NO_PY):
+        return ("this image has no `/opt/venv/bin/python`; re-run the shell-only probe "
+                "(`railway ssh --service <name> \"ls /data/*.db\"`) or add an "
+                "interpreter to the image")
+    if "not on PATH" in (err or ""):
+        return "install the Railway CLI, or run this from a machine that has it"
+    return "no derived remedy for this error - read it and decide"
+
+
+def sweep_all(names) -> tuple:
+    """Returns (merged manifest keyed `service:path`, per-service report rows)."""
+    merged, rows = {}, []
+    for name in names:
+        man, err = sweep_service(name)
+        live = [k for k in man if not is_backup(k)]
+        if err:
+            # ⛔ Ask the shell before calling it UNREADABLE - see volume_shape().
+            shape = volume_shape(name)
+            state = {"NO-VOLUME": "NO /data", "HAS-VOLUME": "UNREADABLE"}.get(
+                shape, "UNREADABLE")
+            if shape == "NO-VOLUME":
+                err = "no /data on this service (shell-only probe); original: " + err
+        else:
+            state = "NO /data" if not man else "READ"
+        rows.append({"service": name, "dbs": len(man), "live": len(live),
+                     "state": state, "error": err})
+        for k, ddl in man.items():
+            merged["%s:%s" % (name, k)] = ddl
+    return merged, rows
+
+
 # ── controls ────────────────────────────────────────────────────────────────
 
 _CLEAN_A = ["CREATE TABLE page_views (user_id TEXT, path TEXT)"]
@@ -381,6 +532,20 @@ def _self_check() -> int:
     print("  %-52s -> %-14s ok"
           % ("EMPTY input: zero queries", "exit %d" % UNREADABLE_EXIT))
 
+    # ⛔ the unlock advice is DERIVED, and a canned string would pass every case above
+    show("UNLOCK: an asleep service is told to wake",
+         "wake" in unlock_for("Failed to connect: ... scaled to zero"), True)
+    show("UNLOCK: a missing interpreter is NOT told to wake",
+         "wake" in unlock_for("sh: 1: /opt/venv/bin/python: not found"), False)
+    show("UNLOCK: ...it is told to use the shell-only probe",
+         "shell-only" in unlock_for("sh: 1: /opt/venv/bin/python: not found"), True)
+    show("UNLOCK: an unrecognised error gets no invented remedy",
+         "no derived remedy" in unlock_for("something nobody has seen"), True)
+    show("a service: prefix never makes a live file look like a backup",
+         is_backup("backups-service:auth.db"), False)
+    show("...and a real backup path is still caught behind a prefix",
+         is_backup("web:backups/auth-2026-09-12-pre-smoke.db"), True)
+
     print("SELF-CHECK: %s" % ("PASS" if ok else "FAIL"))
     return OK if ok else FAIL
 
@@ -392,30 +557,9 @@ def R_SKIPPED() -> list:
     return list(_SKIPPED)
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--self-check", action="store_true")
-    ap.add_argument("--dump-schema", metavar="ROOT",
-                    help="read DDL only from every *.db under ROOT and print gzip+base64 "
-                         "JSON (the half that runs in the pod)")
-    ap.add_argument("--schema", metavar="FILE", help="a manifest from --dump-schema")
-    ap.add_argument("--docs", metavar="DIR", default="docs/terminal-research")
-    ap.add_argument("--all", action="store_true", help="print RESOLVES rows too")
-    a = ap.parse_args(argv)
-
-    if a.self_check:
-        return _self_check()
-
-    if a.dump_schema:
-        blob = json.dumps(read_schema_manifest(a.dump_schema), separators=(",", ":"))
-        sys.stdout.write(base64.b64encode(gzip.compress(blob.encode())).decode())
-        return OK
-
-    if not a.schema:
-        print("[sql-resolves] need --schema (or --dump-schema / --self-check)")
-        return UNREADABLE_EXIT
-
-    raw = pathlib.Path(a.schema).read_bytes()
+def _load_schema_file(path: str) -> dict:
+    """A manifest from --dump-schema, with or without the pod stderr line."""
+    raw = pathlib.Path(path).read_bytes()
     try:
         manifest = json.loads(raw.decode())
     except Exception:                                    # noqa: BLE001
@@ -435,6 +579,63 @@ def main(argv=None) -> int:
             for u in manifest["unreadable"][:5]:
                 print("    %s" % u)
         manifest = manifest["schemas"]
+
+    return manifest
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--dump-schema", metavar="ROOT",
+                    help="read DDL only from every *.db under ROOT and print gzip+base64 "
+                         "JSON (the half that runs in the pod)")
+    ap.add_argument("--schema", metavar="FILE", help="a manifest from --dump-schema")
+    ap.add_argument("--all-services", action="store_true",
+                    help="sweep every Railway service's /data, keyed service:path")
+    ap.add_argument("--service", action="append", default=[],
+                    help="sweep only this service (repeatable)")
+    ap.add_argument("--docs", metavar="DIR", default="docs/terminal-research")
+    ap.add_argument("--all", action="store_true", help="print RESOLVES rows too")
+    a = ap.parse_args(argv)
+
+    if a.self_check:
+        return _self_check()
+
+    if a.dump_schema:
+        blob = json.dumps(read_schema_manifest(a.dump_schema), separators=(",", ":"))
+        sys.stdout.write(base64.b64encode(gzip.compress(blob.encode())).decode())
+        return OK
+
+    manifest = None
+    if a.all_services or a.service:
+        if a.service:
+            names, src = tuple(a.service), "--service"
+        else:
+            names, src = services_from_railway()
+        print("[sql-resolves] services TOLD: %d  (source: %s)" % (len(names), src))
+        manifest, rows = sweep_all(names)
+        read = [r for r in rows if r["state"] == "READ"]
+        print("[sql-resolves] services FOUND readable: %d of %d%s"
+              % (len(read), len(rows),
+                 "" if len(read) == len(rows) else "   DELTA != 0"))
+        for r in rows:
+            print("   %-24s %-11s dbs=%-4d live=%-4d %s"
+                  % (r["service"], r["state"], r["dbs"], r["live"], r["error"] or ""))
+        # an UNREADABLE service is NEVER folded into "nothing found there"
+        for r in rows:
+            if r["state"] == "UNREADABLE":
+                print("   UNLOCK %s: %s" % (r["service"], unlock_for(r["error"])))
+            elif r["state"] == "NO /data":
+                print("   NOTE   %s has no /data volume - nothing to resolve against, "
+                      "which is an ANSWER, not a gap" % r["service"])
+
+    if manifest is None and not a.schema:
+        print("[sql-resolves] need --schema, --all-services or --service "
+              "(or --dump-schema / --self-check)")
+        return UNREADABLE_EXIT
+
+    if manifest is None:
+        manifest = _load_schema_file(a.schema)
 
     conns, counts = replicas(manifest)
     ddl_total = sum(c[0] for c in counts.values())

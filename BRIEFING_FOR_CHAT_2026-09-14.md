@@ -497,3 +497,88 @@ clean/dirty/empty before touching the repo. ⚰️ **Two reported a property of 
 were fixed in the instrument:** the retraction auditor matched its own `--id` default, and
 it took directory arguments only — so a run told to search the briefing and both
 `CLAUDE.md` files searched none of them while printing *"7 of 7"*.
+
+---
+
+## Prelude 2026-09-16
+
+> ⛔ **CLOCK DELTA.** Prompt headed 2026-09-16; `python tools/weekly_exec.py et` read
+> **2026-09-14 22:37 EDT** at start. Artifacts are dated **2026-09-15** by the UTC date
+> that clock reports; the heading keeps the prompt's name.
+>
+> ⛔ **TOLD-vs-FOUND ON P.1'S OWN SOURCE.** P.1 says to re-print sections 1–6 *from the
+> briefing file*. The briefing holds **0 of 6** numbered sections — the 09-15 entry is a
+> differently-shaped narrative. They are re-derived from the repo below rather than quoted
+> from a source that does not hold them.
+
+**P.1 — sections 1–6 of the 2026-09-15 report, re-derived**
+
+1. **ET / trees** — start `2026-09-14 19:25 EDT`, end `19:59 EDT`, both via
+   `weekly_exec.py et`; both worktrees 0 dirty at start and end.
+2. **Prelude P.1–P.5** — the resolver's paths + the BACKUP sentence; the three F-S2-1
+   screens; the ten missing databases; the `repo_root()` `changed=4` near-miss; the
+   ThemeTracker red (`453ecc3ec`).
+3. **R** — **13 sites found, 13 annotated** (11 BY-ID, 2 BY-CLAIM) over 11,884 files /
+   11 targets; zero in LEDGER, RESUME, briefing, either CLAUDE.md or any S6 doc.
+   `page_views`→`auth.db` · `calendar_seen`→`auth.db` ·
+   `calendar_alerts_fired`→`calendar_alerts.db` · `ai_search_log`→`ai_search_log.db`.
+4. **D.1** — ten rows: opener non-ZERO **10/10**, env var derived **10/10**, live
+   **10/10**; **all ten added**; inventory 55→64, gap **10→1**; B `66f535385` →
+   `a03e0cbf5` (new block, not a re-sign).
+5. **S4 CP2** — assertion *"docs + rail only"*; told-vs-found delta **0** on all four
+   named things; 8 named tests; mutation **A** new hand-typed read RED, **B** stale
+   baseline RED, restored **8 passed**; overlap **none**; fingerprint `21d6ad3e8`.
+6. **Packet D** — **16** NAV_ITEMS, 88 routes, `navWithoutRoute = 0`, 56 raw → 9 unlisted
+   (now **7**, see below); `git diff --stat` = CLAUDE.md alone, 2 hunks, both in-section;
+   fingerprint `e279c828c`.
+
+**P.2 — the six services, measured 2026-09-15 (shell-only `railway ssh … ls -la /data`)**
+
+| service | volume | state | `.db` at top level |
+|---|---|---|---|
+| web | `/data` | READ | **65** (73 recursive, 63 live) |
+| worker | `/data` | **READ** | **7** — `bars.db` 26.8 GB live |
+| flow-worker | `/data` | READ | **13** — `flow.db` 9.18 GB live |
+| bars-api | `/data` | READ | **3** — `bars.db` 24.7 GB live |
+| chart-renderer | — | **NO `/data`** | 0 — an answer, not a gap |
+| terminal-next-monitor | `/data`? | **UNREADABLE** | serverless, asleep |
+
+⚰️ Two of yesterday's three UNREADABLEs were artifacts of my own Python payload, not
+properties of the services.
+
+---
+
+## Session result 2026-09-16
+
+**ET:** start `2026-09-14 22:37 EDT`, end below. Both trees clean at start (0 / 0).
+
+### Units now signature-ready — NINE
+
+| unit | fingerprint | member-visible? |
+|---|---|---|
+| C | `c443515eb` | no |
+| D *(corrected)* | `e279c828c` | no |
+| B incl. CP3 | `a03e0cbf5` | no |
+| S4 CP2 | `21d6ad3e8` | no |
+| F-S2-1 | `28da7740d` | **YES** |
+| **V** | **`f94d7addc`** | no |
+| **E** | **`c90ad04d2`** | no |
+| **T + D3 CP2** | **`24d523205`** | no |
+
+### The measurements that changed the picture
+
+- **`/data` is six volumes.** 99 databases across four readable services (86 live), one
+  with **no volume**, one asleep. **120 of 464 live table names exist on more than one
+  volume**; `bars.db` is live on two services 2.1 GB apart.
+- **CI runs 28 of 2,782 test files.** 2,754 — **99.0%** — run on no automated path.
+- **F-NAV-1 falls 9 → 7**, and all seven have inbound links (1–5 refs): none is
+  unreachable, the sidebar just isn't its door. Four have **zero** member page-views.
+- **`d2_dual_samples.db` is armed at 100% sampling and has recorded 0 rows in two days.**
+
+### Three corrections to this programme's own recent work
+
+1. `/live-flow` is `<Navigate to="/live-massive">` — a **redirect**, not a rival page. The
+   09-15 report's *"two routes, one label, misleading sidebar entry"* was wrong.
+2. `chart-renderer` has **no `/data`**; yesterday's UNREADABLE was my probe's Python
+   dependency.
+3. `oi_massive.db` is live on flow-worker; Packet B had it as missing.
