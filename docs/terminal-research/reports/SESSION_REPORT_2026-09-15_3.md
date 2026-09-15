@@ -324,6 +324,56 @@ in at the end of a long session. **OPEN QUESTION 1.**
 ⚠️ **Said plainly: I ran out of session, not out of premise.** The unit is ready; the next
 session can start it cold from this noun table.
 
+### Q.2b · ⛔⛔ AND THE BLOCKER I RECORDED WAS THE SECOND ONE, NOT THE FIRST
+
+You asked me to build D5 CP2 this session as the root. **I did not, and the reason is not the
+`yields` widening I wrote down last time.** It is in the packet's own **signed** approval
+block, four lines above the checkpoint table:
+
+```
+SCOPE APPROVED:   CP1 - the corporate-actions census. ...
+                  INSTRUMENT ONLY. No ledger, no producer, no reader migrated,
+                  no product module edited, no store touched, ...
+                  CP2-CP7 EACH NEED A NEW LINE.
+```
+
+> ⛔⛔ **CP2 THROUGH CP7 ARE NOT AUTHORIZED.** They remain PROPOSALS…
+
+**CP2 creates `corp_actions.db` and its `CREATE TABLE` literal** — *a ledger*, *a store
+touched* — both named in the sentence that says what CP1's approval does **not** cover.
+Building it would put commits on the branch that the packet's approval explicitly excludes,
+which is **F-MERGE-1's exact shape**, the finding I closed at the start of this session.
+
+⭐ **BUILDABLE and AUTHORIZED are two different states, and I conflated them.** Every noun
+resolves (Q.1) — the premises are fine, which is what BUILDABLE means. What is missing is a
+line only you can write. The `yields` widening is real and still worth deciding, but it is a
+detail to state *on* that line, not the thing standing in the way.
+
+⚠️ **So the unblock is one line, and here it is ready to paste** into the packet's approval
+section as a **second block** (§15 permits two blocks; do not edit the CP1 block):
+
+```
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      <date>
+APPROVED AT SHA:
+SCOPE APPROVED:   CP2 - the ledger, INERT. corp_actions.db and its one
+                  self-declaring CREATE TABLE literal, plus the D2 builder
+                  extension that derives its metrics by AST from that literal.
+                  Written by nothing, read by nothing. The derivation rail and
+                  the axis report extended to the new store.
+
+                  This APPROVES the widening of D2's `yields` vocabulary from
+                  {num, bool} to include `date` and `str`, on the condition that
+                  the build PROVES it additive: every address already in the
+                  book keeps its exact `yields` value, and the new values appear
+                  only on newly-added corp_actions addresses.
+
+                  CP3-CP7 STILL EACH NEED A NEW LINE.
+```
+
+⛔ **"Or say drop it"** is an equally good answer — D5 CP2 is the root of five transitively
+blocked units, but nothing is decaying while it waits.
+
 ### Q.3 / Q.4 — STARTABLE unchanged
 
 **D5 CP2 not built ⇒ STARTABLE is still 0 of 6.** The blocking edge is unchanged:
@@ -381,9 +431,11 @@ ran a job.
 
 ## 8 · OPEN QUESTIONS
 
-1. **Building D5 CP2 widens D2's `yields` vocabulary** from `{num, bool}` to include `date`
-   and `str`, which the spec calls *"a genuine widening"*. Approve the widening, or split it
-   into its own D2 checkpoint first?
+1. ⛔ **D5 CP2 is NOT AUTHORIZED — restated, because I had the blocker wrong** (§Q.2b).
+   The packet's signed block approves **CP1 only** and says *"CP2-CP7 EACH NEED A NEW LINE"*;
+   CP2 is a ledger and a store, both named in what that approval excludes. **A ready-to-paste
+   approval line is in §Q.2b**, and it carries the `yields` widening as a condition rather
+   than a separate question. Approve it, or say drop it.
 2. **E's table still does not list CP4–CP10.** Six checkpoints exist as build records and
    manifest rows but not in the packet's own table; the collision check now needs three
    sources. Reconcile the table, or accept build records as the register?
