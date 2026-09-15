@@ -57,7 +57,41 @@ def consume(d: dict, key: str, where: str, gaps: list):
     return d[key]
 
 
-def build_record(v: dict, p: dict, jobs: dict, env: dict) -> dict:
+def verify_detail(detail: dict, detail_dir, gaps: list) -> dict:
+    """⛔ A RECORD MUST NOT NAME A PATH IT DID NOT WRITE.
+
+    ⚰️ **E CP19 — run #15's record named SIX detail files and THREE did not exist.** All
+    three were the pytest ones: `ci_extract` was pointed at `logs/pytest.log`, a path that
+    stopped existing when E CP6 sharded pytest, so its whole block was skipped — and the
+    record promised the failure text for **136 pytest failures** and delivered none.
+
+    ⭐ Nothing failed. The publish job was green, the record parsed, and the only way to
+    find it was to open the branch and look. A named path that does not exist is worse than
+    an omitted one: a reader treats it as a file they have not opened yet.
+
+    ⚠️ `detail_dir` is where those files live AT BUILD TIME (the extract directory), before
+    they are copied into `results/<run>/`. With no `detail_dir` the paths are **NOT
+    VERIFIED**, and that is recorded as a gap rather than passing quietly — an unverified
+    claim and a checked one must not look the same.
+    """
+    if detail_dir is None:
+        gaps.append("detail paths were NOT VERIFIED (no --detail-dir given)")
+        return dict(detail)
+    base = pathlib.Path(detail_dir)
+    out = {}
+    for key, rel in detail.items():
+        if key == "dir":
+            out[key] = rel
+            continue
+        if (base / pathlib.Path(rel).name).is_file():
+            out[key] = rel
+        else:
+            gaps.append("detail '%s' names %s, which was not written" % (key, rel))
+            out[key] = "%s: not written (%s)" % (UNREADABLE, rel)
+    return out
+
+
+def build_record(v: dict, p: dict, jobs: dict, env: dict, detail_dir=None) -> dict:
     """The record exactly as it is published to `ci-results`, plus any contract gaps."""
     gaps: list = []
     V = "v.json (tools/ci_summarize.py --suite vitest)"
@@ -90,15 +124,16 @@ def build_record(v: dict, p: dict, jobs: dict, env: dict) -> dict:
         # ⛔ GREEN means both suites actually RAN, the RUNNER agreed, and neither failed.
         # An UNREADABLE `ok` is not True, so a contract gap can only ever make this RED.
         "verdict": "GREEN" if (vitest_ok and pytest_ok is True) else "RED",
-        "detail": {
+        "detail": verify_detail({
             "dir": "results/%s" % run_id,
             "pytest_collect_errors": "results/%s/pytest_collect_errors.txt" % run_id,
             "pytest_error_buckets": "results/%s/pytest_error_buckets.txt" % run_id,
+            # E CP19 — pytest failures get the same treatment vitest failures already had.
+            "pytest_failures": "results/%s/pytest_failures.txt" % run_id,
             "vitest_failures": "results/%s/vitest_failures.txt" % run_id,
-            "pytest_junit": "results/%s/pytest-junit.xml" % run_id,
             "vitest_junit": "results/%s/vitest-junit.xml" % run_id,
             "collect_profile": "results/%s/collect_profile.json" % run_id,
-        },
+        }, detail_dir, gaps),
         # ⭐ Empty is the normal state. Non-empty names a producer that stopped emitting
         # something this builder reads — the E CP6 -> E CP12 failure, made visible
         # instead of fatal.
@@ -156,7 +191,11 @@ def _self_check() -> int:
     ]}
 
     rec = build_record(v, p, jobs, env)
-    show("intact: no contract gaps", rec["contract_gaps"], [])
+    # ⛔ Scoped to the PRODUCER contract this case is about. Since E CP19 a build
+    # with no --detail-dir also reports NOT VERIFIED, which is correct and is
+    # asserted separately below.
+    show("intact: no PRODUCER-KEY gaps",
+         [g for g in rec["contract_gaps"] if "NOT VERIFIED" not in g], [])
     show("intact: verdict", rec["verdict"], "GREEN")
     show("intact: pytest runner_line is the SHARD's own line",
          rec["runner_line"]["pytest"], shard["runner_line"])
@@ -172,19 +211,52 @@ def _self_check() -> int:
         print("  builder RAISED on a missing key: %r" % (e,))
     show("missing runner_line: builder does NOT raise", crashed, False)
     if rec2 is not None:
-        show("missing runner_line: gap is NAMED", len(rec2["contract_gaps"]), 1)
+        # ⛔ Count the gap this case is ABOUT. Since E CP19 a run with no
+        # --detail-dir also reports NOT VERIFIED, and a bare len() would make this
+        # control fail a correct implementation.
+        show("missing runner_line: gap is NAMED",
+             len([g for g in rec2["contract_gaps"] if "runner_line" in g]), 1)
         show("missing runner_line: field marked UNREADABLE",
              str(rec2["runner_line"]["pytest"]).startswith(UNREADABLE), True)
         # ⛔ A display field must not change the verdict — the suite still passed.
         show("missing runner_line: record still publishable (verdict unchanged)",
              rec2["verdict"], "GREEN")
 
+    # ⛔ E CP19 — A RECORD MUST NOT NAME A PATH IT DID NOT WRITE.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        dd = pathlib.Path(td)
+        # nothing written at all: every named detail path must be reported
+        rec_none = build_record(v, p, jobs, env, detail_dir=str(dd))
+        named = [k for k in rec_none["detail"] if k != "dir"]
+        show("with NO detail files, every named path is a gap",
+             len([g for g in rec_none["contract_gaps"] if "was not written" in g]),
+             len(named))
+        show("...and each is marked UNREADABLE, not left looking valid",
+             all(str(rec_none["detail"][k]).startswith(UNREADABLE) for k in named), True)
+        show("...and it does NOT change the verdict (they are evidence, not counts)",
+             rec_none["verdict"], "GREEN")
+        # now write them all: no gaps
+        for k in named:
+            (dd / pathlib.Path(rec_none["detail"][k].split("(")[-1].rstrip(")")).name).write_text(
+                "x", encoding="utf-8")
+        rec_all = build_record(v, p, jobs, env, detail_dir=str(dd))
+        show("with every detail file present, no gaps", rec_all["contract_gaps"], [])
+        # ⛔ NON-VACUITY: the two must differ, or "no gaps" proves nothing.
+        show("present and absent are distinguishable",
+             len(rec_none["contract_gaps"]) != len(rec_all["contract_gaps"]), True)
+    # ⛔ An UNVERIFIED claim and a CHECKED one must not look the same.
+    rec_unver = build_record(v, p, jobs, env)
+    show("no --detail-dir is reported as NOT VERIFIED, not as clean",
+         any("NOT VERIFIED" in g for g in rec_unver["contract_gaps"]), True)
+
     # ⛔ A missing `ok` is NOT a display field: it must fail closed.
     hurt2 = dict(p)
     hurt2.pop("ok")
     rec3 = build_record(v, hurt2, jobs, env)
     show("missing ok: verdict falls to RED", rec3["verdict"], "RED")
-    show("missing ok: gap is NAMED", len(rec3["contract_gaps"]), 1)
+    show("missing ok: gap is NAMED",
+         len([g for g in rec3["contract_gaps"] if "no key 'ok'" in g]), 1)
 
     # Non-vacuity: the gap list must come out BOTH ways, or it proves nothing.
     show("gaps distinguish intact from mutated",
@@ -200,6 +272,9 @@ def main(argv=None) -> int:
     ap.add_argument("--p", default="p_suite.json")
     ap.add_argument("--jobs", default="jobs.json")
     ap.add_argument("--out", default="record.json")
+    ap.add_argument("--detail-dir",
+                    help="where the detail files live at BUILD time; without it the "
+                         "record says its paths were NOT VERIFIED")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
@@ -208,7 +283,7 @@ def main(argv=None) -> int:
     v = _load(a.v)
     p = _load(a.p)
     jobs = _load(a.jobs)
-    rec = build_record(v, p, jobs, dict(os.environ))
+    rec = build_record(v, p, jobs, dict(os.environ), detail_dir=a.detail_dir)
     pathlib.Path(a.out).write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
     print("timed_out derivation (vitest):", rec["outcome"]["vitest"]["timed_out_basis"])
     print("timed_out derivation (pytest):", rec["outcome"]["pytest"]["timed_out_basis"])

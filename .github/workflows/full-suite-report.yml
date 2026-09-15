@@ -177,23 +177,38 @@ jobs:
       # ⛔⛔ E CP18 - A RUN WITHOUT A TOTALS LINE IS NOT A RUN, and this job did not say so.
       # The vitest job has carried that assertion since E CP1; the pytest job that REPLACED
       # the single pytest run never got one. Because the run is piped through `tee`, the
-      # step's exit code is tee's, so `tests-04` and `tests-07` hung, printed nothing, and
-      # reported **success** to the runner. ⭐ The aggregator caught them downstream
-      # (`shards_without_totals`) - which is the whole reason it exists - but the shard
-      # itself claimed to have passed, and that is the lie this step refuses.
-      - name: Assert this shard produced a totals line
-        if: always()
-        run: |
-          if ! grep -qE "[0-9]+ (passed|failed|error)" pytest.log 2>/dev/null; then
-            echo "::error title=shard ${{ matrix.shard }} produced no totals line::\
-          the run was killed or never finished; its counts are ABSENT, not zero"
-            exit 1
-          fi
+      # step's exit code is tee's, so a shard that hung printed nothing and reported
+      # **success** to the runner.
+      #
+      # ⚰️ E CP20 - AND THE FIRST VERSION OF THIS STEP WAS A SECOND AUTHORITY THAT PASSED
+      # ON NOISE. It grepped `[0-9]+ (passed|failed|error)` over the raw log, and on run #16
+      # `tests-07` matched `0 error` and `37 failed` from log BODY text - so the step went
+      # green while `ci_summarize` reported no totals line at all. Two instruments, one
+      # question, opposite answers. ⭐ The summariser is the one authority on "is there a
+      # totals line"; this step now reads ITS verdict instead of asking again in a
+      # different language. Summarise first, then assert.
       - name: Summarise this shard
         if: always()
         run: |
           touch pytest.log
           python tools/ci_summarize.py --suite pytest --log pytest.log --out summary.json
+      - name: Assert this shard produced a totals line
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          d = json.load(open("summary.json", encoding="utf-8"))
+          if not d.get("totals_line_found"):
+              print("::error title=shard %s produced no totals line::the run was killed or "
+                    "never finished; its counts are ABSENT, not zero"
+                    % os.environ.get("SHARD", "?"))
+              sys.exit(1)
+          print("totals line:", d.get("runner_line"))
+          PY
+        env:
+          SHARD: ${{ matrix.shard }}
+      # ⛔ E CP19/CP20 — `pytest-junit.xml` is what `ci_extract` turns into per-test failure
+      # TEXT, and `pytest.log` is what the summariser reads. Both must reach the publisher.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -202,7 +217,6 @@ jobs:
             pytest.log
             pytest-junit.xml
             summary.json
-
   # E7 — COLLECTION PROFILE. Report-only: it measures what importing the tree costs,
   # which is the question behind every OOM this repo has recorded. Never gates anything.
   collect_profile:
@@ -375,12 +389,30 @@ jobs:
       - name: Extract the failure text
         if: always()
         run: |
-          python tools/ci_extract.py \
-            --pytest-log logs/pytest.log \
+          # ⚰️ E CP19 - `--pytest-log logs/pytest.log` NAMED A PATH THAT STOPPED
+          # EXISTING when E CP6 sharded pytest. Each shard uploads its OWN pytest.log and
+          # pytest-junit.xml, so this read nothing, wrote nothing, and the record still
+          # promised three files: 3 of its 6 named detail paths did not exist in run #15,
+          # and the failure TEXT for 136 pytest failures was simply absent.
+          # ⭐ The args are BUILT from what is on disk rather than typed, so a thirteenth
+          # shard is included the day it exists.
+          # ⛔ `if` blocks, not `[ -f x ] && …`. GitHub runs this with `bash -e`, and a
+          # failing `&&` list is a non-zero command: one shard missing its junit would
+          # abort the whole step. The guard must not be able to kill the thing it guards.
+          ARGS=""
+          for d in shards/*/; do
+            if [ -f "$d/pytest.log" ]; then
+              ARGS="$ARGS --pytest-log $d/pytest.log"
+            fi
+            if [ -f "$d/pytest-junit.xml" ]; then
+              ARGS="$ARGS --pytest-junit $d/pytest-junit.xml"
+            fi
+          done
+          echo "shard inputs: $ARGS"
+          python tools/ci_extract.py $ARGS \
             --vitest-log logs/vitest.log \
             --vitest-junit logs/vitest-junit.xml \
             --out-dir "extract/$GITHUB_RUN_ID"
-          cp logs/pytest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp logs/vitest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp collect_profile.json "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
@@ -412,7 +444,11 @@ jobs:
           PYTEST_RESULT: ${{ needs.pytest.result }}
           SUITE_TIMEOUT_MINUTES: "45"
         run: |
-          python tools/ci_record.py --v v.json --p p_suite.json --jobs jobs.json --out record.json
+          # ⛔ E CP19 - `--detail-dir` is where the detail files live AT BUILD TIME.
+          # Without it the record cannot check its own `detail` paths and says so
+          # (`NOT VERIFIED`) rather than naming files nobody wrote.
+          python tools/ci_record.py --v v.json --p p_suite.json --jobs jobs.json \
+            --detail-dir "extract/$GITHUB_RUN_ID" --out record.json
 
       # ⛔ THE STEP SUMMARY IS WRITTEN BEFORE THE PUSH IS ATTEMPTED, unconditionally.
       # F-CI-7: runs #5 and #6 both had this job fail, so no record exists for either and
