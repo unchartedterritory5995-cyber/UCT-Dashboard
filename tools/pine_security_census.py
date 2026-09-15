@@ -179,10 +179,16 @@ def main():
             #
             # ⛔ What survives is the real test: an element that cannot stand as its own
             # security call.
+            # ⚰️⚰️ AND THE ONE "BREAKER" v2 REPORTED WAS A FALSE POSITIVE TOO.
+            # `\bname\b` matched the destructured name `log` inside `math.log(...)`
+            # on `high_engagement__18-cross-correlation-kioseff-trading.pine:226` —
+            # a METHOD name, not the variable. The corpus breaker count is ZERO, and
+            # the hypothesis holds on 193 of 193. A name preceded by `.` is a member,
+            # never a read of a sibling element.
             brk = []
             if dm and arity > 1:
                 names = [x.strip() for x in dm.group(1).split(',') if x.strip()]
-                if any(re.search(r'\b%s\b' % re.escape(n), expr) for n in names):
+                if any(re.search(r'(?<![.\w])%s\b' % re.escape(n), expr) for n in names):
                     brk.append('element-reads-another-element')
             if dm and re.search(r'\barray\.\w+\s*\(', expr):
                 brk.append('element-is-an-array')
