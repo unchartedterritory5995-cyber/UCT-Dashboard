@@ -49,3 +49,23 @@ def test_the_derived_key_rides_the_numeric_projection():
     kept = breadth_monitor.numeric_of(
         {"net_new_high_low": -663.0, "universe_list": [{"t": "AAA"}]})
     assert kept == {"net_new_high_low": -663.0}
+
+
+def test_a_non_finite_input_yields_None_rather_than_500ing_the_monitor():
+    """⛔ `_render_json` serialises the history response with allow_nan=False, which
+    RAISES. One malformed input must not take the endpoint down for everyone."""
+    inf = float("inf")
+    assert breadth_monitor._net_new_high_low(
+        {"new_52w_highs": inf, "new_52w_lows": inf}) is None
+    assert breadth_monitor._net_new_high_low(
+        {"new_52w_highs": inf, "new_52w_lows": 3}) is None
+    assert breadth_monitor._net_new_high_low(
+        {"new_52w_highs": float("nan"), "new_52w_lows": 3}) is None
+    # ⚠️ The claim is about THIS key only. A caller that feeds an infinite
+    # `new_52w_highs` has already put a non-serialisable value in the row; what must
+    # not happen is this derivation ADDING a second one.
+    import json
+    row = breadth_monitor.derive_live_row(
+        {"new_52w_highs": inf, "new_52w_lows": inf, "universe_count": 10}, [])
+    assert row["net_new_high_low"] is None
+    json.dumps(row["net_new_high_low"], allow_nan=False)

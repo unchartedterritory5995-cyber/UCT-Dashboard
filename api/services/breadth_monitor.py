@@ -14,6 +14,7 @@ Schema:
 """
 
 import json
+import math
 import os
 import sqlite3
 from bisect import bisect_left, bisect_right
@@ -596,9 +597,15 @@ def _net_new_high_low(row: dict) -> Optional[float]:
     if nh is None or nl is None:
         return None
     try:
-        return float(nh) - float(nl)
+        v = float(nh) - float(nl)
     except (TypeError, ValueError):
         return None
+    # ⛔ FINITE OR NOTHING. `_render_json` serialises the history response with
+    # `allow_nan=False`, which RAISES on a NaN or an infinity — so one malformed
+    # input here would not produce a wrong cell, it would 500 the whole Monitor
+    # endpoint for every member. `inf - inf` is NaN, and this reads two values it
+    # does not own.
+    return v if math.isfinite(v) else None
 
 
 def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
