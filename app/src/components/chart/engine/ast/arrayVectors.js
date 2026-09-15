@@ -66,7 +66,7 @@ export const WRITE_MEMBERS = Object.freeze(new Set([
  *  the refusal set, and implementing it instead would be scope this ruling did not
  *  grant. Recorded so the next reader knows the cost is small, not that it is absent.
  */
-export const REDUCE_MEMBERS = Object.freeze(new Set(['sum', 'max', 'min']))
+export const REDUCE_MEMBERS = Object.freeze(new Set(['sum', 'max', 'min', 'avg']))
 
 /** ⭐ The census numbers each refused reduce/search member carries in its refusal.
  *
@@ -75,7 +75,10 @@ export const REDUCE_MEMBERS = Object.freeze(new Set(['sum', 'max', 'min']))
  *  plot" knows it was measured and knows which fact a reopening would have to change.
  *  From `tools/pine_reduce_census.py` — uses, and how many reach an output. */
 export const REDUCE_CENSUS = Object.freeze({
-  avg: { uses: 14, reaching: 0 },
+  // ⭐ `avg` LEFT THIS SET AT R9a. It was here because the fold implemented three of
+  // the four members it declared, not because 14 corpus uses was too few — and a
+  // threshold governs what is BUILT, never what is removed (ruling 0.2). Once `sum`
+  // resolved its slots, `avg` was two lines. The refusal set is four.
   indexof: { uses: 18, reaching: 0 },
   sort: { uses: 10, reaching: 0 },
   includes: { uses: 5, reaching: 0 },

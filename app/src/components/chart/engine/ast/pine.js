@@ -5656,7 +5656,7 @@ export class Resolver {
       }
     }
 
-    if (member === 'sum' || member === 'max' || member === 'min') {
+    if (member === 'sum' || member === 'max' || member === 'min' || member === 'avg') {
       // ⚰️⚰️ EACH SLOT IS RESOLVED FIRST, AND SKIPPING THAT MADE EVERY REDUCE
       // UNUSABLE. A slot holds a BINDING, not a finished node — the `get` branch
       // four lines above says so and calls `resolveBinding`. This branch fed the raw
@@ -5674,6 +5674,20 @@ export class Resolver {
         .map((slot) => this.resolveBinding(slot, node.tok, vec.arrayName))
       if (!written.length) return cOp('/', [cNum(0), cNum(0)])
       if (member === 'sum') return written.reduce((a, b) => cOp('+', [a, b]))
+      // ⭐⭐ R9a — `avg` IS THE SUM OVER THE WRITTEN COUNT, and the divisor is the
+      // load-bearing half. It divides by how many slots were WRITTEN, not by the
+      // array's declared size, because `written` has already dropped the unwritten
+      // (`na`) ones — and the vendor's mean does the same. Measured, not assumed:
+      // `divergences.json::finite-window-propagates-na-instead-of-skipping-it`,
+      // confirmed 2026-09-08 — `ta.sma(gappy, 10)` is "the mean of the last 10 FINITE
+      // values … an `na` is SKIPPED", 370 matches / 0 mismatches over a 400-bar SPY
+      // capture with 133 `na` bars.
+      // ⚠️ That measurement is `ta.sma` over a gappy SERIES, not `array.avg` over a
+      // sparse ARRAY. Same question, measured answer, best evidence until the owed
+      // vendor capture confirms it on an array directly.
+      if (member === 'avg') {
+        return cOp('/', [written.reduce((a, b) => cOp('+', [a, b])), cNum(written.length)])
+      }
       const fn = member === 'max' ? 'max' : 'min'
       return written.reduce((a, b) => cCall(fn, [a, b]))
     }

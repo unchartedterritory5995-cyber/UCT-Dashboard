@@ -29,11 +29,10 @@ import { REDUCE_MEMBERS, HANDLED } from './arrayVectors.js'
 
 const HEAD = '//@version=6\nindicator("t", overlay=true)\nplot(close, "real")\n'
 
-// ⛔ RE-ARMED FOR R9a. R9's own marker was retired at ab978572c once its cases landed;
-// this one carries ONLY the two `avg` cases below, which fail until the R9a fold lands
-// and are the reason it exists. Every other case in this file is a plain `it` and is a
-// real assertion — the marker is per-case on purpose, so which half is open stays
-// visible in the reporter.
+// ✅ NO CASE IS MARKED. R9's marker retired at ab978572c and R9a's at this commit;
+// every case in this file is a real assertion. The binding is kept, unused, because
+// the next member to be measured will need it and re-deriving the convention costs
+// more than the line does.
 const run = it.fails
 
 /** A settled 3-slot vector, then one read. */
@@ -83,13 +82,13 @@ describe('R9 — the kept reduces fold, the rest refuse by name', () => {
   // it is the best evidence available until the owed vendor capture confirms it
   // directly on an array. If that capture ever disagrees, this assertion is the one to
   // move, and this comment is why.
-  run('⭐⭐ R9a — `array.avg` folds to the sum over the WRITTEN count', () => {
+  it('⭐⭐ R9a — `array.avg` folds to the sum over the WRITTEN count', () => {
     const { formula, refusals } = readOf('array.avg(a)')
     expect(refusals.map((r) => r.guard), 'nothing refuses').toEqual([])
     expect(formula).toBe('(0 + 1 + 2) / 3')
   })
 
-  run('⭐ R9a — an array with NO written slot averages to `na`, exactly as `sum` does', () => {
+  it('⭐ R9a — an array with NO written slot averages to `na`, exactly as `sum` does', () => {
     // The empty case must not become `0 / 0 / 0`. `sum` already answers `na` here, and
     // `avg` has to answer the same thing by the same route — one arithmetic.
     const empty = (read) => {
@@ -106,8 +105,9 @@ describe('R9 — the kept reduces fold, the rest refuse by name', () => {
   // ⚠️ SYNTHETIC AND LABELLED, of necessity: the a5 census measured every corpus use
   // of these members to be masked by an earlier refusal or unreachable, so no corpus
   // fixture can exercise the call site.
+  // ⭐ `avg` LEFT THIS LIST AT R9a — it folds now, and is asserted above. The refusal
+  // set is four, and the count in the plan doc says four.
   for (const [member, call, uses, reaching] of [
-    ['avg', 'array.avg(a)', 14, 0],
     ['indexof', 'array.indexof(a, 1)', 18, 0],
     ['sort', 'array.sort(a)', 10, 0],
     ['includes', 'array.includes(a, 1)', 5, 0],
