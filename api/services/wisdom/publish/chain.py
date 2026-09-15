@@ -70,6 +70,12 @@ DAILY: tuple = (
     Step("adapters", "publish", (("api.services.wisdom.publish.adapters", "run_daily"),)),
     Step("level_alerts", "publish", (("api.services.wisdom.publish.level_alerts", "score_silently"),)),
     Step("lookalike", "publish", (("api.services.wisdom.publish.lookalike", "score_silently"),)),
+    # RQ-v11-001 (owner ruling R7, 2026-09-15). Runs AFTER the gate's numbers exist and BEFORE
+    # the publication floor, so a NULL false positive on PRINCIPLE or MARKET_SIGNAL reaches the
+    # owner's queue as a question rather than being scored against the extractor as a verdict.
+    # ⛔ Not flag-gated: it writes only to the admin review queue and publishes nothing, and a
+    # queue that can be switched off is a queue nobody trusts. A no-op until a gate run exists.
+    Step("rq_v11_001", "evals", (("api.services.wisdom.evals.null_review", "score_silently"),)),
     # ⛔⛔ Item 3's SECOND half, and it is not optional. The four filter sites BLOCK a below-floor
     # PRINCIPLE or MARKET_SIGNAL; this is what makes one SURFACE. The owner's rule is "2/3 may
     # surface only in the admin review queue", and the queue is NOT upstream of the Brain KB,
