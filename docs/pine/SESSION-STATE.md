@@ -2,7 +2,28 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **the owner's ruling on item (c).** The census is done.
+> ### ⛔ NEXT: **R18's implementation — 2.3, the parser change.** The red is committed.
+>
+> **`e97a1d1c3` is the accepted RED** (3 × `it.fails`, 3 controls, suite green). 2.1
+> and 2.2 are done; **2.3–2.6 and Section 3 are not**. Stopped at ~100 against the
+> 140 stop: 2.3 is a **parser change** whose re-baseline reaches the corpus and the
+> full suite, and landing it half-verified is worse than not landing it.
+>
+> ⭐ **It starts at implementation with nothing to re-discover** — the insertion
+> point, the exact binding shape to build, and the fallback that protects
+> `options=[…]` are all in `WAVE2-A-PLAN.md` § *"R18 — MEASURED AND ACCEPTED-RED"*.
+> The rule is: synthesise `fn = {kind:'fn', value:{kind:'tuple', parts: elements}}`
+> so `pine.js` ≈4749 resolves it **unchanged**. One path, two entrances.
+>
+> ⚠️ **Two numbers that resize it:** only **6** corpus scripts actually refuse
+> `pine:tuple` (not 90 — 90 is the *use* count), so the re-baseline is small; and
+> there are **zero** breakers, so the sibling-read case is a guard with a synthetic
+> fixture, not a fix.
+>
+> ✅ Also landed this session: **R19** (D2 drift at 3 sites + the D-series collision,
+> which was **D1 as well as D2**) and **R20** (both routing sentences carry D2's
+> limit — including a third site the ruling did not name, because one sentence with
+> two spellings is two authorities).
 >
 > **D2 READ BACK: it forbids IR-lane OUTPUT reaching the PANE, not IR-lane WORK** —
 > `paneGate.js` defers the IR lane *"until session 3's text layer"*, the

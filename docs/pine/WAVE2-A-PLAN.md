@@ -1309,6 +1309,48 @@ residues as **refusal-relocation ordering**, not a semantic split.
 ⛔ **H.5 — OWNER QUESTION, OPEN:** should a member be shown **both** defects on one
 line? Specimen: `high_engagement__20-ehlers-fisher-transform-cheatcountry.pine:10`.
 
+## ⏸️ R18 — MEASURED AND ACCEPTED-RED. The build is NOT landed.
+
+**Red `e97a1d1c3`.** 2.1 and 2.2 are complete; **2.3–2.6 are not started**, stopped at
+~100 min against the 140 stop because 2.3 is a **parser change** whose re-baseline
+reaches the corpus and the full suite, and a half-landed parser change is the worst
+outcome of the three available.
+
+### 2.1 — the parse gap, measured
+
+⭐ **The parser already SEES the array literal.** `parseWholeExpression` on
+`request.security("AAPL","D",[high,low])` returns a 3-arg call whose `arg2` is
+`{type:'collection', tok}` — and `pine.js` ≈3556 then **skips to the matching `]` by
+depth-counting and discards the elements**. Deliberately: the comment there records
+that throwing made `input(…, options=["A","B"])` — *"the one collection literal every
+published script carries"* — refuse a whole script from a line no column depends on.
+
+⛔ **So the gap is not "no array-literal node".** The node is a **placeholder whose
+contents are dropped**, which is why there are no parts to take. ⭐ `collection` is a
+**parse-tree** type and is **absent from `NODE_TYPES`**, so retaining its elements adds
+no output node and no 12th type.
+
+### The insertion point, identified exactly — so the build starts at implementation
+
+| | |
+|---|---|
+| **parser** | `pine.js` ≈3556 — collect the bracketed elements instead of discarding them. ⚠️ Fall back to today's behaviour if any element fails to parse, so `options=[…]` cannot regress |
+| **binding** | `destructureBindings`, the branch **immediately after** the existing `securityTuplePart` one (`pine.js` ≈9002) |
+| **the shape to build** | the SAME `{kind:'securityTuplePart', call, fn, args, index, env, at}` the UDF form already builds — with `fn` synthesised as `{kind:'fn', value:{kind:'tuple', parts: elements}}` so `pine.js` ≈4749 (`bound.fn.value.parts[bound.index]` → `securityAsNode`) resolves it **unchanged**. One path, two entrances — never a parallel one |
+
+### ⚠️ Two measurements that resize the work
+
+1. **90 uses is NOT 90 refusals.** Only **6 scripts** in the whole corpus refuse
+   `pine:tuple` with this form; the rest sit in scripts that refuse earlier for their
+   own reasons, or whose destructured names nothing reads. **The re-baseline is sized
+   by the 6.**
+2. **There are ZERO breakers.** The census's last one was a false positive — `\blog\b`
+   matching `math.log(...)`, a method name — so the hypothesis holds **193 of 193**.
+   The sibling-read case is therefore a **guard** against a shape the corpus does not
+   contain, tested with a synthetic fixture, not a fix for a measured use.
+
+⛔ **Section 3 (the IR half's scoping) is NOT started.**
+
 ---
 
 ---
