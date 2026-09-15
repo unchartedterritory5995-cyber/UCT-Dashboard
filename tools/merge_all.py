@@ -84,6 +84,7 @@ UNITS = [
     ("e-cp6-build-record", ["0d7c55fb1"], False),
     ("e-cp7-build-record", ["dbc494828"], False),
     ("e-cp8-build-record", ["f2251d398"], False),
+    ("e-cp9-build-record", ["0b92750fa"], False),
     ("t2-cp1-build-record", ["4ad1108d1"], False),
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
