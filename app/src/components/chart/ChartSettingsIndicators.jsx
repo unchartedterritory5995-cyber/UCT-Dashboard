@@ -52,7 +52,7 @@ import {
 } from './indicatorRegistry'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
-  BUILT_IN_ROWS,
+  discoverableBuiltIns,
 } from './indicatorCatalog'
 // ⛔ THE SEARCH AND THE ADD, IMPORTED FROM THE DIALOG THAT ALREADY OWNS THEM.
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
@@ -289,7 +289,7 @@ export default function ChartSettingsIndicators({
   // recompute. `IndicatorLibraryDialog`'s catalogue memo carries the identical
   // pair for the identical reason.
   const catalog = useMemo(
-    () => [...BUILT_IN_ROWS, ...catalogRows(registry), ...userCatalogRows(registry)],
+    () => [...discoverableBuiltIns(), ...catalogRows(registry), ...userCatalogRows(registry)],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; see above
     [registry, generation],
   )

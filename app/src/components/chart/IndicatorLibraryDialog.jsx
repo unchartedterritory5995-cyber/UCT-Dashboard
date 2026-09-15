@@ -68,7 +68,7 @@ import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
-  BUILT_IN_ROWS,
+  discoverableBuiltIns,
 } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
@@ -279,7 +279,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // through this list.
   const all = useMemo(
     () => [
-      ...BUILT_IN_ROWS,
+      ...discoverableBuiltIns(),
       ...catalogRows(registry).filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
       ...userCatalogRows(registry),
     ],

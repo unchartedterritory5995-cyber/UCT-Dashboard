@@ -953,8 +953,8 @@ const RAW_DEFS = [
       // out. Without 'moving average' among them this row does not answer the
       // most obvious search at all — the legacy row carries that tag and this one
       // did not.
-      { name: 'Moving Average (Flexible Source)', shortName: 'MA', category: 'Trend', legendParams: ['period'],
-        description: 'Can calculate from Price or another chart series — a security, volume, or another indicator output.',
+      { name: 'Moving Average', shortName: 'MA', category: 'Trend', legendParams: ['period'],
+        description: 'Average of price — or of any other series on the chart.',
         tags: ['trend', 'smoothing', 'derived', 'ma', 'sma', 'ema', 'moving average', 'average',
           'ma source', 'moving average source', 'sma source', 'ema source', 'source', 'flexible'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.

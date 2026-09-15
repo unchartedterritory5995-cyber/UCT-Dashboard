@@ -125,6 +125,24 @@ export const CARVED_OUT_ROWS = Object.freeze([
  * See `isRowOn` / `toggledRow` in `IndicatorLibraryDialog`, which are the one
  * reader and the one writer both indicator surfaces share.
  */
+/**
+ * The built-in rows a member may BROWSE.
+ *
+ * ⭐⭐ ONE FILTER, BECAUSE THERE ARE THREE BROWSE SURFACES. `BUILT_IN_ROWS` is
+ * unioned separately by `IndicatorLibraryDialog`, by `ChartSettingsIndicators`
+ * and by `discoveryCatalog.libraryRows` — so a row hidden in one of them would
+ * still be offered by the other two, which is precisely the kind of "fixed it in
+ * the place I was looking" bug this consolidation exists to end.
+ *
+ * ⛔ `supersededBy` HIDES A ROW FROM BROWSING AND NOTHING ELSE. The definition
+ * stays registered, its id is unchanged, and every saved chart that already uses
+ * it keeps working — a superseded row is one nobody should ADD, not one that
+ * stops existing.
+ */
+export function discoverableBuiltIns() {
+  return BUILT_IN_ROWS.filter((r) => !r.supersededBy)
+}
+
 export const BUILT_IN_ROWS = Object.freeze([
   Object.freeze({
     id: 'ma',
@@ -137,13 +155,25 @@ export const BUILT_IN_ROWS = Object.freeze([
     engineOwned: false,
     userDefined: false,
     description: 'Price-based moving average, drawn over the candles.',
-    // ⭐ THIS ROW YIELDS ITS PLACE TO THE CAPABLE ONE. Both are called "Moving
-    // Average" and both answer the search; this one is PRICE-ONLY, and a member
-    // who wants an average of QQQ needs the other one to be the row they reach
-    // first. `deferTo` is read by `libraryRows` and by nothing else — the id,
-    // the settings shape and every saved chart are untouched, because this is a
-    // browse-order statement and not a migration.
-    deferTo: 'movingAverage',
+    // ⚰️⚰️ SUPERSEDED, AND OUT OF THE BROWSE LIST — BUT STILL REGISTERED.
+    //
+    // Two rows were called "Moving Average". This one is PRICE-ONLY and has no
+    // source input; the member who wanted a 50-period average OF QQQ took it,
+    // found no Source control, and concluded the product could not do it. The
+    // capability had shipped phases earlier on `movingAverage`.
+    //
+    // ⭐ SO THERE IS ONE ROW NOW, and it is the capable one — same name, same
+    // default behaviour (Price · Close on the candles), plus a Source it can be
+    // pointed at anything else. Nobody has to know two definitions exist.
+    //
+    // ⛔ HIDDEN IS NOT DELETED, AND THE DISTINCTION IS THE WHOLE COMPATIBILITY
+    // STORY. The id, the `cs.overlays` shape and every saved chart are
+    // untouched; legacy MAs keep rendering through the overlay path and stay
+    // individually manageable in Chart Data, which lists them from
+    // `liveOverlays(cs)` and never from this row. What goes away is only the
+    // ability to ADD a new one from the browse list — which is exactly what the
+    // capable row now does better.
+    supersededBy: 'movingAverage',
     // ⭐ THE SEARCH TERMS ARE THE POINT OF THIS ROW. `matches()` reads name, short
     // name, id, category and tags, so every way a member asks for this — "moving
     // average", "ma", "sma", "ema", "average" — has to be spelled somewhere. The

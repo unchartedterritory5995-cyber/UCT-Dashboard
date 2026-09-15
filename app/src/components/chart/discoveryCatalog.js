@@ -32,7 +32,7 @@
 // ⛔⛔ AND DISCOVERY IS NOT CHARTABILITY. A result can EXIST and still refuse to
 // be created — that is the whole point of `capability`. See its block below.
 
-import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
+import { catalogRows, userCatalogRows, BUILT_IN_ROWS, discoverableBuiltIns } from './indicatorCatalog'
 import { symbolSource, canonicalSymbol, derivedSourceName } from './engine/sourceRef'
 import { addInstance, setInstanceInput, findInstance } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
@@ -573,7 +573,7 @@ export function libraryRows(registry) {
   // either list is edited. Nothing else reads it, no id changes, and a saved
   // chart cannot tell the difference.
   const deferred = []
-  for (const row of BUILT_IN_ROWS) {
+  for (const row of discoverableBuiltIns()) {
     const built = { ...row, key: `builtin:${row.id}`, kind: 'builtin',
       capability: CAPABILITY.CHARTABLE, capabilityReason: null, create: null }
     if (row.deferTo) deferred.push(built)
