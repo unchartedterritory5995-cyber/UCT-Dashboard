@@ -1,3 +1,522 @@
+# TRACK A PANE SYSTEM — DEPLOYED 2026-09-15 (master 263e54120)
+
+Shipped together: volume truth/order (aa7db1de9), legend-geometry rail (0c68badaf),
+add-door identity (19653ec93), display-target provenance (b28dfd568), pane rails
+(b0267016c), plus the merge of 15 partner commits (263e54120).
+
+## Pane resize — MEASURED on current code, NOT re-derived from the old report
+
+Dev pane-harness, AAPL + QQQ own pane, "preference writes refused: 0" throughout.
+
+    drag larger    QQQ 103 -> 272px   paneSizes {price .6052, inst:dataSeries:1 .3948}
+    drag smaller               46px   {…, .0435}          physical 643 / 46
+    drag larger               187px   {price .7283, … .2717}  physical 502 / 187
+    move QQQ above Price (Chart Data "Move QQQ pane up")
+                                      paneOrder ["inst:dataSeries:1","price"]
+                                      paneSizes UNCHANGED, physical 187 / 502 SWAPPED
+    resize at new index       337px   {price .5106, … .4894}  physical 337 / 352
+    save blob -> reconstruct          all three identical
+
+Each released size held after reconciliation. NO SNAP-BACK. The resize fix
+(65899a8f7) works; nothing needed changing.
+
+## Zero-height finding — CLOSED, nothing patched
+
+ResizeObserver + MutationObserver over a fresh QQQ realisation: the pane went
+from ABSENT straight to 103px. Zero pane rows of height 0 were ever observed.
+The old Control-C `getHeight()===0` is consistent with reading LWC right after
+`addPane`, before layout — a measurement-timing artifact, not a collapsed pane.
+
+⚠️ MEASUREMENT TRAP worth remembering: a BACKGROUNDED tab does not flush layout,
+so `getBoundingClientRect` returns stale geometry and `requestAnimationFrame`
+never fires. Force a paint (screenshot) before every DOM geometry read.
+
+## Axis experiment — CLOSED as LWC tick density
+
+Short pane (46px) and tall pane (337px) BOTH render `.00` labels; only the tick
+INTERVAL differs (40 units vs 10), and the current-price tag reads 704.54. The
+formatter is correct; no precision change made.
+
+## NEW FINDING (not a blocker, not fixed): `placement.position` is DEAD STATE
+
+`setInstancePanePosition` writes `placement.position: 'above'`, `instances.js`
+validates it and it persists — and NOTHING READS IT. Grepped the whole tree: the
+only pane-context occurrences are the writer and its own comment, whose header
+claims the position "IS ENFORCED". Measured in the browser: `pos=above` was
+stored and the pane did not move. Its only caller is the DEV HARNESS; no product
+UI reaches it, and the real reorder path is `paneOrder` via Chart Data's
+`movePane`/`movePaneTo`, which works. Left alone deliberately — wiring or
+removing it is a product decision outside this pass.
+
+## Bite-checks (one found a gap in my OWN rail)
+
+· removing `applyPaneSizes` from `paneStretchPlan` -> 4 paneSizes rails RED.
+· disabling `includeKeys` in `orderedPaneKeys` -> all eight matrix states stayed
+  GREEN, because `dataSeries` DECLARES 'pane' and is eligible through the
+  declared half. The resolved half only carries weight for a PRICE-declared
+  definition, so a moving-average-moved-to-its-own-pane case was added; that one
+  now goes red when the clause is removed.
+
+## Deploy hazard hit and avoided
+
+`origin/master` had moved 15 commits ahead. `git diff origin/master..HEAD` showed
+11 files as DELETIONS — breadth sampler tooling/tests and joystick docs, i.e.
+partner work, breadth being explicitly DO-NOT-TOUCH. They were never deleted;
+that is what diffing a stale branch tip against a moved origin looks like.
+Merged first (zero file overlap, no conflicts), re-ran suite + build, then pushed.
+ALWAYS `git fetch` and check `HEAD..origin/master` before concluding anything
+from a diff against origin.
+
+## Not exhaustively proven
+
+The eight-state matrix and cold reconstruction are proven at the CANONICAL layer
+(grouping == resolved order, ids/sources/targetExplicit/sizes) by
+`paneMatrix8State.test.js`, plus a substantial browser subset — not an exhaustive
+physical 8-state browser sweep. Drawing geometry and the legend invariant rest on
+their existing rails, which are green, not on a fresh browser pass this phase.
+
+# TRACK A — DISPLAY TARGET PROVENANCE (OPTION 1) — DONE LOCALLY 2026-09-15
+
+HEAD b28dfd568. Tree clean. NOT DEPLOYED, NOT PUSHED.
+
+## What was wrong
+
+`declared` did two conflicting jobs:
+  (a) the FALLBACK destination when the source derives nothing;
+  (b) the sentinel deciding whether a stored target was an override
+      (`explicit !== declared`).
+
+Measured: `derivedTargetFor` answers null for `kind: 'symbol'`, so `sym:QQQ:close`
+falls through to (a) and the declaration is the ONLY thing giving a foreign
+series its own pane. A member wants both `close -> Own pane` and
+`sym:QQQ -> Price`, which needs declared simultaneously != 'pane' and != 'price'.
+No declaration value works. Hence Option 1.
+
+## The representation
+
+`placement.targetExplicit: true` — one boolean, written ONLY when true and only
+beside the target it qualifies. Omission = legacy/automatic, matching
+`placement.position` omitting 'below'. It rides inside `placement`, which
+`mergeChartSettings`' allow-list already carries, so NO allow-list edit was
+needed and no new nested object appears on the instance.
+
+## Resolver — two dialects
+
+    marker present  -> honour `placement.target` WHATEVER it equals
+    marker absent   -> the OLD `explicit !== declared` rule, unchanged
+    then            -> legacy volume -> source-derived -> declared
+
+## Writer
+
+`setInstanceDisplayTarget` compares against the AUTOMATIC answer (bare: target
+AND marker stripped). Equal -> delete both keys (this IS the existing
+return-to-default gesture; there is no "Automatic" option and none was added).
+Different -> write target + marker, INCLUDING when it equals `declared`.
+
+## What was deliberately NOT done
+
+⛔ `instances.js` (the read-time migrator) is UNTOUCHED. Changing it was tried
+and MEASURED: 13 restatement blocks vanished from the captured production
+fixtures (39 lines removed, 0 added) and `alertSets` MERGED_BLOB_DIGEST moved.
+That is the persistence sweep the brief forbids. Reverted.
+⛔ `dataSeries` declaration UNCHANGED (still `pane` + `pane.height 0.15`).
+
+## Third writer found and closed
+
+`IndicatorSettingsDialog`'s "Move to" was hand-rolled
+(`placement: { ...(i.placement||{}), target }`), bypassing the legacy mirror, the
+return-to-default delete and the marker. Now routed through
+`setInstanceDisplayTarget`. `__tests__/displayTargetOneWriter.test.js` reads the
+SOURCE of all three surfaces and refuses a hand-rolled write; it exempts a fresh
+literal construction (StockChart's forced legacy VWAP instance) by design.
+
+## Re-pinned tripwires (investigated, not regenerated)
+
+· `perInstanceDoor` corpus digest -> e43a0f1f…8a3cd. Corpus dumped from BOTH
+  trees and diffed: 175 removed restatement blocks (100 pane / 75 price),
+  ZERO added lines, no marker anywhere in the default corpus.
+· `instanceControls` byte-identity control-vs-migrator RESTATED: the two now
+  differ by exactly the restatement key. Both original concerns were
+  re-measured and do not apply — `binder.inputsSignature(inputs)` never sees
+  `placement`, and the migrator CLONES existing instances and only appends.
+
+## Proven
+
+Unit: A–I, OLD-A..D, save/reconstruct through `normalizeInstances`, pane
+realisation, pane order. Browser (pane-harness, preference writes refused: 0,
+Main Trading never opened): all 20 steps of §22 including primary Close in its
+own pane and MA(RSI) explicitly moved to Price — both previously impossible.
+
+Broad `src/components`: 4 failures = the clean-master baseline exactly
+(ChartDrawingOverlay.surfaces, manifestProse, pine.blindCorpus, screener/
+reachable). Zero attributable regressions. Build clean.
+
+## Not done
+
+Pane RESIZE work (zero-height finding, resize-move-resize, resize persistence,
+QQQ short/tall axis) and the final 8-state matrix remain from the earlier brief.
+
+# TRACK A — OPTION 2 MEASURED AND REJECTED (2026-09-15)
+
+HEAD at measurement: 27d9d4508. Change made, measured, REVERTED. Tree clean.
+
+## The precondition Option 2 rested on is FALSE
+
+Option 2 assumed `price` is "the canonical natural destination" for a new Data
+Series on its default source `close`, so that re-declaring `pane` -> `price`
+would merely align metadata with behaviour. MEASURED: `price` is the natural
+destination for `close`, but it does NOT come from the declaration at all — it
+comes from SOURCE DERIVATION. `derivedTargetFor` by source kind:
+
+    close              kind=bar      -> 'price'
+    volume             kind=bar      -> 'volume'
+    sym:QQQ:close      kind=symbol   -> null
+    sym:UCTA50:close   kind=symbol   -> null
+    @inst:rsi:1::rsi   kind=instance -> the source instance's pane
+
+A `sym:` source derives NOTHING. It falls through to `declared`. So for
+`dataSeries` the declaration's only live job is: **the default destination of a
+FOREIGN SYMBOL**, and `pane` is the correct answer there. The declaration is
+load-bearing, not a redundant label.
+
+## Measured consequences of the change (both STOP conditions)
+
+| case | before | after |
+|---|---|---|
+| S9  new QQQ series, no override | **pane** (own pane) | **price** (guest) |
+| S12 OLD-A saved `close` + `{target:'pane'}` | **price** | **pane** |
+
+S9: a foreign data series stops getting its own pane — the product's whole
+point. S12: EVERY existing saved Data Series on the default `close` source
+carries `placement:{target:'pane'}` as a creation restatement; today the reader
+ignores it (explicit === declared) and resolves `price`. After the change that
+same byte becomes an override and every one of those series JUMPS INTO ITS OWN
+PANE on load. That is exactly the S12 hard gate: ordinary existing charts move
+unexpectedly. NOT DEPLOYED.
+
+## The general impossibility (stronger than the seam-3 note above)
+
+`declared` does two jobs that are in direct conflict:
+  (a) it is the fallback default for sources that derive nothing (symbols);
+  (b) it is the ONE value the reader refuses to honour as an explicit override
+      (`explicit !== declared`).
+
+For `dataSeries` a member legitimately wants both directions:
+  * source `close`  -> default price -> wants `pane`  => needs declared != 'pane'
+  * source `sym:*`  -> default pane  -> wants `price` => needs declared != 'price'
+
+Declared must be simultaneously != 'pane' and != 'price'. **No value of the
+declaration can work.** Option 2 is not merely risky; it is unreachable, and so
+is any re-declaration. The fix must SEPARATE the two jobs.
+
+## OPTION 4 — not previously on the list, and it needs no provenance field
+
+Delete the restatements instead of reinterpreting them:
+
+  1. `placementFor` stops writing a restatement at creation (returns null when
+     the target equals the definition's declared target).
+  2. One-time normalization: DELETE any stored `placement.target` that equals
+     the definition's declared target.
+  3. The reader then honours `explicit` UNCONDITIONALLY — the
+     `explicit !== declared` guard is removed because it has nothing left to
+     defend against.
+
+Step 2 is behaviour-preserving BY CONSTRUCTION: deleting a stored target that
+equals `declared` reproduces exactly what the reader's guard does with it today
+(ignore it and fall through). `close`+`pane` -> deleted -> derived `price` (what
+it shows today). MA(RSI) `price` -> deleted -> derived `@inst:rsi:1` (what it
+shows today). Afterwards every remaining explicit target is a genuine member
+choice, `declared` keeps its symbol-fallback job, and BOTH override directions
+become expressible — including moving MA(RSI) to Price, which is impossible now.
+
+Cost: it is a persistence migration, which the owner has not authorised, and it
+wants its own acceptance pass. Recorded, NOT implemented.
+
+# ⛔⛔ SEAM 3 IS NOT IMPLEMENTABLE AS SPECIFIED — PROVEN COLLISION (HEAD 91ec55420)
+
+The owner chose SEAM 3: make the READER compare against the same canonical
+default the WRITER uses, instead of against the declared literal. Audited both
+sides. The writer is ALREADY correct; aligning the reader reintroduces the exact
+bug the existing guard prevents. Here is the proof.
+
+## The writer is already seam-3 shaped
+
+`instanceControls.setInstanceDisplayTarget` computes
+
+    const bare = { ...inst, placement: { ...inst.placement, target: undefined } }
+    const defaultTarget = resolveDisplayTarget(bare, …)
+    if (target === defaultTarget) delete placement.target
+    else placement.target = target
+
+— the resolver's own answer with no override. Its comment says so explicitly:
+"BACK TO DEFAULT IS WHAT THE RESOLVER SAYS WITH NO OVERRIDE, not the literal
+`pane`." So the writer already means the right thing.
+
+## The reader compares against something else
+
+`displayTarget.resolveDisplayTarget`:
+
+    const explicit = instance.placement && instance.placement.target
+    if (explicit && explicit !== declared) return explicit   // DECLARED, not bare-default
+
+## ⛔ WHY ALIGNING THEM BREAKS MA(RSI)
+
+`instanceControls.placementFor` — read, not inferred — writes a RESTATEMENT on
+every created instance:
+
+    return { target: target === 'pane' && overlaid ? 'volume' : target }
+
+So every instance carries `placement.target = <declared>`. Now compare the two
+populations a seam-3 reader would have to tell apart:
+
+| case | explicit | declared | bare-default | wanted |
+|---|---|---|---|---|
+| DataSeries `close`, member chose Own Pane | `pane`  | `pane`  | `price`     | HONOUR |
+| MA(RSI), restatement from `addInstance`   | `price` | `price` | `@pane:rsi` | IGNORE |
+
+**Both satisfy `explicit === declared` AND `explicit !== bare-default`.** They are
+structurally identical on disk. No reader-only rule can separate them, so a
+seam-3 reader that honours the first necessarily honours the second — and MA(RSI)
+lands on Price, which is the documented historical failure ("computed a perfect
+average of RSI and drew it on the candles' scale").
+
+⚠️ AND §5 ALONE DOES NOT RESCUE IT. Stopping creation from writing restatements
+fixes NEW instances, but pre-existing ones still carry them; and stripping
+restatements on read (`explicit === declared` → delete) also strips the member's
+legitimate `pane` choice, because that too equals declared. Same collision.
+
+## What this means
+
+The collision is fundamental for any definition where
+
+    declared target == a value a member might legitimately choose
+    AND bare-resolved default != declared
+
+`dataSeries` + primary `close` is exactly that shape.
+
+## Three ways out — OWNER'S CALL, none taken
+
+1. **Persistence marker.** Record the override distinctly (a flag, or a distinct
+   placement shape). Cleanly separates provenance. The brief deferred this
+   ("do not add an explicitOverride persistence flag YET") — but the measurement
+   says provenance is the only thing that separates the two cases.
+
+2. **Change what `dataSeries` declares.** If its declared target were `price`
+   (matching its bare-resolved default for the default source), then choosing
+   `pane` would differ from declared and the EXISTING reader would honour it with
+   no change at all. Smallest diff; needs checking against every other
+   dataSeries behaviour that reads the declaration.
+
+3. **The unset-source ruling.** With no source there is no derived answer, so
+   declared `pane` stands and the case disappears — but only for blank instances.
+   It does NOT make "primary Close in its own pane" expressible, which the owner
+   explicitly called a legitimate combination.
+
+✅ Option 2 looks smallest and needs no new persistence, but it is a declaration
+change with its own blast radius and must not be taken without the owner.
+
+---
+
+# ⛔ TRACK A ITEM 3 — ROOT CAUSE MEASURED (HEAD b3eb61b0c). ARCHITECTURE DECISION NEEDED.
+
+## ⚠️ FIRST, A CORRECTION OF A CORRECTION — I FLIP-FLOPPED, AND HERE IS WHY
+
+I first said the derived-source branch overrides the explicit pane target
+(unmeasured). I then "corrected" that to say it could not, because
+`resolveDisplayTarget` honours an explicit target that differs from the declared
+one. That correction rested on my reading a code comment — "DECLARED ON PRICE" —
+which belongs to `movingAverage`, NOT to `dataSeries`.
+
+**Measured at runtime: `dataSeries` declares `placement.target = "pane"`.**
+
+So the ORIGINAL hypothesis was right and the correction was wrong. The lesson is
+the same one this whole track keeps teaching: measure the instance, do not read
+the neighbouring comment.
+
+## THE MEASUREMENT — three controls, same door, same identity path
+
+| control | source | stored placement | resolved | inPaneOwnKeys | pane |
+|---|---|---|---|---|---|
+| A (add only)      | `close`          | `{"target":"pane"}` | **price** | false | none |
+| B (chose Own Pane)| `close`          | `{"target":"pane"}` | **price** | false | none |
+| C (QQQ source)    | `sym:QQQ:close`  | `{"target":"pane"}` | **pane**  | true  | `@1` |
+
+**A and B are byte-identical.** Choosing "Own Pane" changes NOTHING on disk,
+because the value the member picked is the value creation already wrote.
+
+## THE CHAIN, proven
+
+1. `dataSeries` DECLARES `placement.target = 'pane'`.
+2. `addInstance` writes `placement: { target: <declared> }` on every instance — so
+   a brand-new one already carries `{"target":"pane"}`.
+3. A member picking Own Pane makes `setInstanceDisplayTarget` compute its default
+   from the BARE instance via `resolveDisplayTarget` → `'price'` (derived from the
+   `close` source), sees `'pane' !== 'price'`, and writes `{"target":"pane"}` —
+   identical bytes to step 2.
+4. `resolveDisplayTarget` short-circuits on an explicit target ONLY when
+   `explicit !== declared`. Here `'pane' === 'pane'`, so the short-circuit is
+   SKIPPED.
+5. Control falls to the derived-source branch: `close` → the primary → `'price'`;
+   `sym:QQQ:close` → a foreign symbol → `'pane'`.
+
+So the source decides, and the member's explicit choice is unexpressible.
+
+## ⛔ THE ACTUAL DEFECT — and why it is a DECISION, not a patch
+
+**The stored representation cannot distinguish a member's explicit override from
+creation-time restatement of the declaration.** When the chosen target equals the
+declared one, the two are the same bytes.
+
+The `explicit !== declared` guard exists ON PURPOSE — its comment records that the
+migrator AND `addInstance` both write a restating placement, and that treating
+those as overrides broke `MA(RSI)` (it "computed a perfect average of RSI and drew
+it on the candles' scale"). So the guard cannot simply be dropped.
+
+Candidate seams, NONE chosen:
+
+  · stop writing a restating placement at CREATION, so a present key means an
+    override — but legacy/migrated instances still carry restatements, so the
+    guard must survive for them, and the two populations need telling apart;
+  · record the override distinctly (an explicit flag or a distinct shape) — a
+    schema addition, with a migration story;
+  · make the reader compare against the same "bare resolved" default the WRITER
+    used, instead of the declared literal — the asymmetry between those two
+    notions of "default" is arguably the bug.
+
+⚠️ AND NOTE: the owner's "unset source" ruling would make THIS CASE work by
+accident (no source → no derived answer → declared `pane` stands). The brief
+explicitly forbids using it to hide a realization bug, and the owner states a
+member may legitimately want the PRIMARY Close in its own pane — which is exactly
+the combination that is unexpressible today. So this defect must be fixed on its
+own terms.
+
+## Also observed, unrelated but recorded
+
+Control C's realized pane reports height **0** (`physicalPanes: [691, 0]`).
+A pane with no height is the collapsed-pane shape; worth a look when pane sizing
+is next touched.
+
+---
+
+# ⚠️ TRACK A ITEM 3 — CORRECTION + TWO HARD CONSTRAINTS (HEAD 19653ec93)
+
+## ⛔ A CLAIM I MADE WAS NOT MEASURED — TREAT IT AS UNPROVEN
+
+I previously reported the remaining blank-Data-Series defect as:
+
+    "source-derived placement overrides the explicit pane target"
+
+**I did not measure that.** Reading the code contradicts it:
+
+`instanceControls.setInstanceDisplayTarget` deletes the placement key ONLY when
+`target === defaultTarget` (it computes `defaultTarget` from a `bare` copy), and
+`displayTarget.resolveDisplayTarget` returns the explicit value whenever it
+differs from the declared one:
+
+    const explicit = instance.placement && instance.placement.target
+    if (typeof explicit === 'string' && explicit && explicit !== declared) return explicit
+
+For `dataSeries`, declared = `price`, so an explicit `pane` SHOULD survive and
+SHOULD reach `paneOwnKeys`. The derived-source branch sits BELOW explicit.
+
+So the real reason a blank pane-targeted Data Series produces no pane is still
+UNKNOWN. Do not build on my earlier sentence. Re-measure with a diagnostic that
+reports, for the blank instance: stored `placement`, `resolveDisplayTarget`,
+`paneOwnKeys` membership, `paneCountRequired`, and `layout.panes`.
+
+## ⛔ CONSTRAINT 1 — `source` CANNOT SIMPLY DEFAULT TO EMPTY
+
+`engine/defSchema.js` validates `type: 'source'` defaults with
+`isNonEmptyString(d)` and rejects otherwise:
+
+    type "source" requires a non-empty string (a bar field or a "defId.plotKey" handle)
+
+So the owner's ruling ("new Data Series source is UNSET") cannot be implemented by
+changing the definition default to `''`. Options to weigh:
+
+  · allow an omitted `default` for `type: 'source'` (schema change, affects every
+    source-capable definition);
+  · leave the DEFINITION default as `close` but have `addInstance` omit the input
+    for this definition (instance-level, but needs a non-id-based rule);
+  · represent unset at the instance seam some other way.
+
+⭐ THE GOOD NEWS: `sourceRef.parseSource` already returns `null` for an absent or
+empty value, so the RESOLUTION side already understands "unset". Only the
+CREATION/validation side needs a representation.
+
+## ⛔ CONSTRAINT 2 — `close` IS GENUINELY SHARED
+
+`movingAverage` declares the same `{ key: 'source', type: 'source', default: 'close' }`.
+The owner's ruling explicitly preserves MA's Close default, so any change must be
+scoped to the generic Data Series without touching that literal's meaning — and
+an EXISTING persisted `source: 'close'` on a saved Data Series must keep meaning
+explicit primary Close, never be reinterpreted as unset.
+
+---
+
+# ⛔ TRACK A ITEM 3 — BLOCKED ON AN ARCHITECTURE DECISION (not a bug to patch)
+
+**Measured 2026-09-15. HEAD 0c68badaf. Nothing changed for this item.**
+
+## The symptom
+
+Chart Data → Data → **+ Add** a blank Data Series, set *Display in = Own Pane*.
+Canonical intent is stored correctly, but no pane is ever realised and the
+unresolved Series plots the PRIMARY close on Price.
+
+## First divergence — PROVEN, do not re-derive
+
+TWO ADD PATHS MINT TWO DIFFERENT INSTANCE IDENTITIES, and one of them is
+silently dropped by normalisation.
+
+    catalogue / scenario add  → addInstance()          → `inst:dataSeries:1`
+    Chart Data browse "+ Add" → toggledRow()
+                              → setIndicatorEnabled()  → `legacy:dataSeries`
+
+Measured side by side in the harness, same chart, same definition:
+
+    inst:dataSeries:1   storedTarget=pane  resolved=pane  inOwn=true
+       → layoutPaneKeys ["inst:dataSeries:1@1"]  paneCountRequired=2
+       → paneHeights [586, 103]        ✅ its own pane
+
+    legacy:dataSeries   storedTarget=pane  (shown in the instance panel)
+       → engineInstances []            ❌ ABSENT from the normalised list
+       → layoutPaneKeys []  paneCountRequired=1
+       → paneHeights [690]             ❌ no pane
+
+So the chain is: browse-Add mints a LEGACY-shaped id → normalisation drops it →
+`paneOwnKeys` never sees it → no pane key → `paneCountRequired` stays 1.
+
+## What is NOT the cause
+
+⛔ `paneTargetIds()` is NOT the veto. `orderedPaneKeys` already reads
+`if (!paneIds.has(id0) && !(include && include.has(id))) continue` — the
+definition-level target gate IS overridable by `paneOwnKeys`. The precedence
+rule the brief asks for already exists and works; the instance simply never
+reaches it.
+
+## Why this was not fixed here
+
+The fix is a decision with blast radius across EVERY definition row in the
+library, not a local patch:
+
+  (a) make browse-Add use `addInstance` for instance-based definitions — changes
+      the identity minted by the main library door for every technical row; or
+  (b) make normalisation keep `legacy:<defId>` for definitions that have no
+      legacy settings row — changes what a legacy id MEANS.
+
+Both are product/architecture calls. Guessing one at the end of a long session
+is how the earlier half-finished work happened.
+
+## Also worth deciding at the same time
+
+The unresolved Series plots the PRIMARY CLOSE (its `source` input defaults to
+`'close'`). The owner's brief flags this as suspicious and asks whether
+"no source → no data" is the intended semantic. That question belongs with (a)/(b)
+because it is the same instance's lifecycle.
+
+---
+
 # NEXT UP — PANE HEIGHT PERSISTENCE (root-caused, NOT implemented)
 
 **Owner-reported, 2026-09-15.** Drag the separator to make an own pane taller;

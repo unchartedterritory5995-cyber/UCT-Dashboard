@@ -85,6 +85,29 @@ export function legacyVolumeTarget(defId, declared, cs) {
   return cs.volumeOverlayIndicators.includes(defId) ? 'volume' : null
 }
 
+/**
+ * The key on an instance's `placement` that records USER INTENT.
+ *
+ * ⭐⭐ ONE BOOLEAN, WRITTEN ONLY WHEN TRUE, AND THAT IS THE WHOLE SCHEMA. The
+ * codebase already says "absent means the default" everywhere a choice is
+ * optional — `placement.position` omits `'below'`, an instance omits `scope` to
+ * mean "every chart" — so a `targetExplicit: false` would be a stored value with
+ * the same meaning as no value, and every chart ever saved would churn a byte to
+ * gain it. Omission IS the legacy/automatic state.
+ *
+ * ⛔ IT IS NOT A GENERIC PROVENANCE FRAMEWORK. It answers exactly one question —
+ * "did a member choose this destination?" — because that is the only question
+ * the ambiguity was about. `placement.pane` (presentation metadata) and
+ * `placement.position` (stack side) are untouched and mean what they always did.
+ */
+export const TARGET_EXPLICIT = 'targetExplicit'
+
+/** Does this instance carry a member's explicit destination choice? */
+export function hasExplicitTarget(instance) {
+  const p = instance && instance.placement
+  return !!(p && p[TARGET_EXPLICIT] === true && typeof p.target === 'string' && p.target)
+}
+
 export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
   if (!instance || typeof instance !== 'object') return null
   const defId = instance.defId
@@ -95,24 +118,47 @@ export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
     : getDefinition(defId)?.placement?.target
   if (typeof declared !== 'string' || !declared) return null
 
-  // (1) The canonical answer. An instance that says where it goes goes there —
-  // including back to its own pane, which is why `setInstanceDisplayTarget`
-  // DELETES the key for `pane` rather than writing it: absent means "the
-  // definition's own answer", and there is exactly one spelling of the default.
-  // ⛔⛔ A TARGET THAT RESTATES THE DEFINITION IS NOT AN OVERRIDE. The migrator
-  // and `addInstance` both write `placement: { target: <the declared one> }` on
-  // every instance they create — harmless while every target was static, and
-  // fatal to the first one that is not: `MA(RSI)` belongs in RSI's pane, and a
+  // (1) The canonical answer — AND IT IS ASKED IN TWO DIALECTS, because the blob
+  // has two generations in it and only one of them can say what it means.
+  //
+  // ⚰️⚰️ WHY THERE IS A MARKER AT ALL. `declared` was doing two jobs at once and
+  // they are in direct conflict. It is (a) the FALLBACK destination for a source
+  // that derives nothing — `derivedTargetFor` answers null for `kind: 'symbol'`,
+  // so `sym:QQQ:close` reaches step (3) and the declaration is the only thing
+  // that sends a foreign series to its own pane — and it was also (b) the
+  // sentinel this step used to decide whether a stored target meant anything.
+  // MEASURED 2026-09-15: for `dataSeries` a member legitimately wants BOTH
+  // directions (`close` → Own pane, and `sym:QQQ` → Price), which needs
+  // `declared !== 'pane'` AND `declared !== 'price'` at the same time. No value of
+  // the declaration can satisfy that, which is why re-declaring was rejected and
+  // why provenance is recorded rather than inferred.
+  //
+  // ⭐⭐ (1a) NEW STATE — `targetExplicit: true` MEANS A MEMBER CHOSE THIS. It is
+  // honoured whatever it equals, which is the whole point: "primary Close in its
+  // own pane" is `target: 'pane'` on a definition that DECLARES `'pane'`, and the
+  // equality trick below can never express it. `setInstanceDisplayTarget` is the
+  // only writer that stamps it, and it stamps it only when the member picked
+  // something the automatic rules would NOT have produced.
+  //
+  // ⛔⛔ (1b) LEGACY STATE — THE OLD RULE, KEPT EXACTLY, FOR BLOBS ALREADY SAVED.
+  // The migrator and `addInstance` wrote `placement: { target: <the declared one> }`
+  // onto every instance they created — harmless while every target was static,
+  // and fatal to the first one that is not: `MA(RSI)` belongs in RSI's pane, and a
   // `target: 'price'` stored at ADD time (copied straight from the definition,
   // expressing no user intent at all) outranked that forever. Measured live — the
-  // MA computed a perfect average of RSI and drew it on the candles' scale.
+  // MA computed a perfect average of RSI and drew it on the candles' scale. So a
+  // marker-less target is still ignored when it restates the declaration.
   //
-  // ⚠️ NOTHING IS REWRITTEN, AND NO USER INTENT IS LOST. An explicit write that
-  // DIFFERS still wins, and `setInstanceDisplayTarget` never stores a value equal
-  // to the default anyway — it deletes the key instead. This only stops a copy of
-  // the definition's own answer from masquerading as a decision.
-  const explicit = instance.placement && instance.placement.target
-  if (typeof explicit === 'string' && explicit && explicit !== declared) return explicit
+  // ⚠️ ABSENT IS LEGACY, NOT CORRUPT, AND NOTHING IS REWRITTEN ON LOAD. That is
+  // what lets this ship with NO migration: every chart saved before today keeps
+  // the exact destination it has always reconstructed to, and an instance becomes
+  // provenance-aware the next time a member actually moves it.
+  const placement = instance.placement
+  const explicit = placement && placement.target
+  if (typeof explicit === 'string' && explicit) {
+    if (placement[TARGET_EXPLICIT] === true) return explicit
+    if (explicit !== declared) return explicit
+  }
 
   // (2) The legacy answer — see `legacyVolumeTarget`, which is the ONE
   // implementation of this rule and is also what `instanceControls.placementFor`

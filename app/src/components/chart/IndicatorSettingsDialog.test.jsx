@@ -631,7 +631,13 @@ describe('IndicatorSettingsDialog — spec §6\'s settings form, per INSTANCE', 
     openTab('Visibility')
     fireEvent.change(screen.getByRole('combobox', { name: /move to/i }), { target: { value: 'price' } })
     await act(async () => {})
-    expect(findInstance(latest(), RSI_INST).placement).toEqual({ target: 'price' })
+    // ⭐ 2026-09-15 — AND IT RECORDS THAT A MEMBER CHOSE IT. "Move to" now writes
+    // through `setInstanceDisplayTarget` (the one writer Chart Data and the
+    // on-chart chip menu also use) rather than stamping the field by hand, so the
+    // choice carries its provenance. RSI's automatic home is its own pane, so
+    // `price` is a genuine override and both keys are written.
+    expect(findInstance(latest(), RSI_INST).placement)
+      .toEqual({ target: 'price', targetExplicit: true })
   })
 
   // 13. PER INSTANCE.
@@ -698,7 +704,16 @@ describe('IndicatorSettingsDialog — spec §6\'s settings form, per INSTANCE', 
     const roundTripped = mergeChartSettings(JSON.stringify(latest()))
     expect(findInstance(roundTripped, RSI_INST).inputs.period).toBe(21)
     expect(findInstance(roundTripped, RSI_INST).hidden).toBe(true)
-    expect(findInstance(roundTripped, RSI_INST).placement).toEqual({ target: 'price' })
+    // ⭐⭐ AND THIS IS WHERE THE PROVENANCE MARKER PROVES IT SURVIVES THE MERGE.
+    // `mergeChartSettings` is a hard allow-list; a new key that it silently
+    // dropped would mean the member's choice reconstructed as legacy state and
+    // their pane quietly vanished on the next load. It rides INSIDE `placement`,
+    // which the allow-list already carries, so it needed no allow-list edit — and
+    // the nested-object check below still reads `['inputs','placement']` because a
+    // boolean beside `target` adds no new object for a grid-cell override to
+    // replace wholesale.
+    expect(findInstance(roundTripped, RSI_INST).placement)
+      .toEqual({ target: 'price', targetExplicit: true })
 
     // ⛔ ALLOW-LIST #2 — `mergeSettingsOverride`'s instance branch
     // (`instanceShape.js:71`) is a SHALLOW spread with `inputs` the only

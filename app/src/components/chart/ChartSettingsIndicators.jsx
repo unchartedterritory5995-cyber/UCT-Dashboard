@@ -58,6 +58,7 @@ import {
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
+import { legacyInstanceId } from './engine/instances'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
 } from './engine/instanceControls'
@@ -171,6 +172,13 @@ export default function ChartSettingsIndicators({
   userDefErrors = [],
   // ⭐ A row to open on arrival — the legend gear's deep link (`ind:<rowId>`).
   // Absent on every other way in, which is why the accordion still opens closed.
+  // ⚰️ THE RENDERER'S VOLUME INPUTS, HANDED DOWN RATHER THAN RE-DERIVED.
+  // `volumeOwnsPane` needs `volumeSeparatePane` / `blankVolume` / `shown`, and
+  // those are PROPS the host passes to `StockChart` — this surface could never
+  // see them, so it answered the settings-only question and disagreed with the
+  // chart. Absent ⇒ the settings-only answer, which is what a host that does not
+  // override volume presentation actually means.
+  volumeOpts = null,
   openRowId = null,
   // Absent ⇒ absent door. The charts workspace supplies it (it can reach the one
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
@@ -311,8 +319,8 @@ export default function ChartSettingsIndicators({
   // structure arrives here; there is no grouping logic in this file to drift
   // from the renderer's.
   const paneGroups = useMemo(
-    () => paneMap(activeRows, settings, (id) => registry?.getDefinition?.(id) || null),
-    [activeRows, settings, registry],
+    () => paneMap(activeRows, settings, (id) => registry?.getDefinition?.(id) || null, volumeOpts),
+    [activeRows, settings, registry, volumeOpts],
   )
 
   /** Is this row's line DRAWN right now?
@@ -440,7 +448,32 @@ export default function ChartSettingsIndicators({
   }, [])
 
   const addRow = useCallback((row) => {
-    const next = toggledRow(row, settings, registry)
+    // ⚰️⚰️ ONE CREATED OBJECT, ONE CANONICAL IDENTITY — AND THIS DOOR MINTED A
+    // DIFFERENT ONE. `addAnother` below already routes a DEFINITION at
+    // `addInstance` and only a BUILT-IN at `toggledRow`; the FIRST add took
+    // `toggledRow` unconditionally, so the same definition arrived as
+    // `legacy:<defId>` from this door and `inst:<defId>:N` from every other.
+    //
+    // ⛔ MEASURED IN THE HARNESS, same chart, same definition:
+    //
+    //   inst:dataSeries:1   resolved=pane  inOwn=true   → its own pane ✅
+    //   legacy:dataSeries   resolved=pane               → ABSENT from the
+    //                                                     normalised instances,
+    //                                                     so no pane at all ❌
+    //
+    // `legacy:<defId>` is COMPATIBILITY identity — it stands for shipped settings
+    // being adapted into the engine. A member clicking ＋ Add is authoring a NEW
+    // instance, and the UI door must not decide which architecture it enters.
+    //
+    // ⚠️ A REVIVABLE LEGACY INSTANCE STILL WINS, and that is not a special case —
+    // it is the compatibility half of the same rule. `setIndicatorEnabled` revives
+    // a tombstoned `legacy:<id>` WITH the member's edited period and colour; minting
+    // a fresh instance instead would silently hand back a default-configured
+    // indicator and leave their old one tombstoned beside it.
+    const revivable = !row.builtIn && !!findInstance(settings, legacyInstanceId(row.id))
+    const next = (row.builtIn || revivable)
+      ? toggledRow(row, settings, registry)
+      : addInstance(settings, row.id, registry)
     // Identity, not deep equality: a REFUSED write returns `settings` itself, and
     // persisting a no-op would mark the preset custom for a click that did nothing.
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
