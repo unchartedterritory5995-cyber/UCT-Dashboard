@@ -425,7 +425,13 @@ four flags (R8: HOLD), and master sync on 91 commits.
 | `ab7c55873` | wisdom-loop | test(wisdom): R21 — baseline the two render failures | 2 files, +100 |
 | *(this report)* | wisdom-loop | docs(wisdom): session-5 report + recon INDEX (R20) | — |
 
-**Merges: 1** (`0de87c7f8`, the session maximum). **Pushes: 0**, neither branch.
+**Merges: 1** (`0de87c7f8`, the session maximum). **Pushes: 0**, neither branch —
+`origin/feat/wisdom-loop` is still at `ef0393790`, untouched.
+
+⚠️ **`git log 4ae9e7dac..feat/wisdom-loop` counts ELEVEN, and seven of those are this session's.**
+The other four (`6dbbd9288`, `4141d0213`, `6f138af70`, `fcda5b433`) are **session 4's** item-3
+commits, which became reachable from this branch only when Step 3 merged them. Stated because a
+reader running that command sees 11 and would otherwise read four of session 4's commits as mine.
 
 **`git diff --stat 4ae9e7dac..HEAD`** on `feat/wisdom-loop`: **20 files, +1412/−71**.
 **`fcda5b433..HEAD`** on the item-3 branch: 2 commits (`2cdab6efc`, `e5a918ea6`).
