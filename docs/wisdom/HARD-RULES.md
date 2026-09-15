@@ -318,3 +318,34 @@ with a deploy in flight — physics, not a clock — and they stay.
 ⛔ **And a merge performed on github.com runs NO local hook.** Hooks are client-side; a PR merged
 in the browser or the mobile app triggers the promotion-gate workflows only. The guard was never in
 that path.
+
+
+### 2026-09-15 — R43 revised: PRINCIPLE publishes under the LENS at t=0.6
+
+> **PRINCIPLE = `LENS_STRICT_06`** — keys clustered within a segment when their normalised
+> statements clear golden.py's paraphrase lens at **0.6**. MARKET_SIGNAL stays `MERGED_J05`.
+
+**Ruled on graded evidence.** Where two members of a merged cluster both map to a golden record the
+labels settle it: **13 of 13 correct at t=0.6, 7 of 7 at t=0.9 — precision 1.000 at every threshold
+measured.**
+
+**What it bought, on the local store's 826 real records:** PRINCIPLE records clearing the floor
+**31 → 66**; with MARKET_SIGNAL's 61, the floor now blocks **68** where it blocked 143 under KEY.
+
+⚠️⚠️ **PROVISIONAL, and the reversion is one line.** n is small — 13 gradeable clusters — and the
+lens is documented to OVER-merge. The **42** ungradeable pairs in
+`data/wisdom/identity-study/lens-principle-pairs.jsonl` are the confirmation. **If any hand-checked
+pair is an over-merge, set `reconcile.PRINCIPLE_IDENTITY = "KEY"` — one line, one commit**, and the
+regression pins prove KEY still reproduces 31.
+
+⛔ Two constants, two types, each flippable alone and each mutation-proved by name. KEY is still
+computed into the manifest as the lower bound for both.
+
+⭐ **The lens is assembled from golden's own parts** — `_key_tokens`, `_polarity_conflict`, the
+threshold — because its shipped entry point `_fuzzy_agreed` is a one-to-one COUNT matcher between
+two runs, not a pair predicate.
+
+⚰️ **And the fixture lesson, again, in a new place.** The obvious polarity test — *"always add to a
+winner"* vs *"never add to a winner"* — scores **0.500**, below the 0.6 threshold, so it would not
+merge whether the polarity guard existed or not. Measured before asserting: the pair now used
+scores exactly **0.600** and merges without the guard, so removing the guard reds the test by name.

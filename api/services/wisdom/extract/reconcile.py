@@ -69,6 +69,23 @@ REPORT_FILE = "reconcile-report.json"
 MS_IDENTITY = "MERGED_J05"
 MS_MERGE_JACCARD = 0.5
 
+#: ⛔⛔ PRINCIPLE's PUBLICATION IDENTITY — owner ruling **R43, 2026-09-15**, revised session 12.
+#:
+#: `KEY` is the `principle_key` identity. `LENS_STRICT_06` clusters keys whose normalised
+#: statements agree under **golden.py's own paraphrase lens** at threshold `PRINCIPLE_LENS_JACCARD`.
+#:
+#: ⭐ IT IS RULED ON GRADED EVIDENCE, NOT ON TASTE. Where two members of a merged cluster both map
+#: to a golden record, the labels settle the merge: **13 of 13 correct at t=0.6, 7 of 7 at t=0.9 —
+#: precision 1.000 at every threshold measured.** KEY publishes 31 PRINCIPLE records; this
+#: publishes ~67.
+#:
+#: ⚠️ PROVISIONAL, and the reason is stated so it is not forgotten: n is small (13 gradeable
+#: clusters) and the lens is documented to OVER-merge. The 42 ungradeable pairs in
+#: `data/wisdom/identity-study/lens-principle-pairs.jsonl` are the confirmation. **If any
+#: hand-checked pair is an over-merge, set this back to "KEY" — one line, one commit.**
+PRINCIPLE_IDENTITY = "LENS_STRICT_06"
+PRINCIPLE_LENS_JACCARD = 0.6
+
 
 class ReconcileRefused(ValueError):
     """A reconciliation that cannot be defended is refused, never approximated."""
@@ -184,7 +201,67 @@ def market_signal_assignments(runs: list, *, threshold: float = MS_MERGE_JACCARD
     return out
 
 
-def group_key(row: dict, ms_assign: Optional[dict] = None) -> tuple:
+def principle_assignments(runs: list, *, threshold: float = PRINCIPLE_LENS_JACCARD) -> dict:
+    """{segment_id: {principle_key: cluster_id}} under golden.py's paraphrase lens.
+
+    ⛔ THE LENS IS ASSEMBLED FROM golden's OWN PARTS, never re-derived: `_key_tokens` (the
+    tokenizer), `_polarity_conflict` (never/always, long/short — not a paraphrase), and the
+    threshold above. golden's shipped entry point `_fuzzy_agreed` is a one-to-one COUNT matcher
+    between two runs, not a pair predicate, which is why the parts are used rather than the whole.
+
+    ⛔ Same invariant as MARKET_SIGNAL: two keys present in the SAME run are two records.
+    """
+    import itertools
+
+    from api.services.wisdom.extract import golden
+
+    tokens = getattr(golden, "_key_tokens", None)
+    conflict = getattr(golden, "_polarity_conflict", None)
+    if not callable(tokens) or not callable(conflict):
+        return {}                         # the lens is unavailable: no merges, never an exception
+
+    by_segment: dict = {}
+    for run in runs:
+        for row in run["rows"]:
+            if row.get("record_type") != "PRINCIPLE" or not row.get("principle_key"):
+                continue
+            seg = row.get("segment_id")
+            key = row["principle_key"]
+            slot = by_segment.setdefault(seg, {}).setdefault(key, {"runs": set(), "text": ""})
+            slot["runs"].add(run["run_id"])
+            if not slot["text"]:
+                record_key = row.get("record_key") or ()
+                # the lens reads the normalize_quote_key form, which principle_key (a hash) is not
+                slot["text"] = str(record_key[1]) if len(record_key) > 1 else ""
+
+    out: dict = {}
+    for seg, entries in by_segment.items():
+        keys = sorted(entries, key=str)
+        uf = _Union(keys, lambda k, _e=entries: _e[k]["runs"])
+        scored = []
+        for a, b in itertools.combinations(keys, 2):
+            if entries[a]["runs"] & entries[b]["runs"]:
+                continue
+            ta, tb = entries[a]["text"], entries[b]["text"]
+            if not ta or not tb or conflict(ta, tb):
+                continue
+            sa, sb = tokens(ta), tokens(tb)
+            union = sa | sb
+            if not union:
+                continue
+            jac = len(sa & sb) / len(union)
+            if jac >= threshold:
+                scored.append((-jac, str(a), str(b), a, b))
+        for _neg, _sa, _sb, a, b in sorted(scored):
+            uf.union(a, b)
+        roots = uf.roots()
+        index = {root: i for i, root in enumerate(sorted(set(roots.values()), key=str))}
+        out[seg] = {k: index[r] for k, r in roots.items()}
+    return out
+
+
+def group_key(row: dict, ms_assign: Optional[dict] = None,
+              principle_assign: Optional[dict] = None) -> tuple:
     """The identity a record is matched on ACROSS runs. ⛔ Key only — never text, never span.
 
     PRINCIPLE uses its cross-segment `principle_key` where the run recorded one, because that is
@@ -195,6 +272,11 @@ def group_key(row: dict, ms_assign: Optional[dict] = None) -> tuple:
     rtype = row.get("record_type")
     if rtype == "PRINCIPLE" and row.get("principle_key"):
         ident = ("PRINCIPLE", row["principle_key"])
+        # R43 session 12: under LENS_STRICT the identity is the CLUSTER. The id carries no text.
+        if principle_assign is not None:
+            cid = (principle_assign.get(row.get("segment_id")) or {}).get(row["principle_key"])
+            if cid is not None:
+                ident = ("PRINCIPLE", f"lensclust:{cid}")
     elif rtype == "MARKET_SIGNAL" and row.get("market_signal_key"):
         ident = tuple(row["market_signal_key"])
         # R43: under MERGED_J05 the identity is the CLUSTER, not the name. The cluster id carries
@@ -241,14 +323,15 @@ def reconcile(runs: list) -> dict:
     # R43: MARKET_SIGNAL's identity. Computed ONCE over all runs, because a cluster is a property
     # of the run SET, not of a row. Under KEY this stays None and group_key behaves as before.
     ms_assign = market_signal_assignments(runs) if MS_IDENTITY == "MERGED_J05" else None
+    pr_assign = principle_assignments(runs) if PRINCIPLE_IDENTITY.startswith("LENS_STRICT") else None
     seen: dict = {}
     for run in runs:
-        for key in {group_key(row, ms_assign) for row in run["rows"]}:   # a key counts ONCE per run
+        for key in {group_key(row, ms_assign, pr_assign) for row in run["rows"]}:  # once per run
             slot = seen.setdefault(key, {"runs_present": 0, "record_ids": set(),
                                          "principle_keys": set(), "record_type": None})
             slot["runs_present"] += 1
         for row in run["rows"]:
-            slot = seen[group_key(row, ms_assign)]
+            slot = seen[group_key(row, ms_assign, pr_assign)]
             slot["record_type"] = slot["record_type"] or row.get("record_type")
             if row.get("record_id"):
                 slot["record_ids"].add(row["record_id"])
@@ -271,12 +354,12 @@ def reconcile(runs: list) -> dict:
     # manifest so a reader can always see what the ruled identity bought over the provisional one.
     # ⛔ Comparison only — it is never written to wisdom_records or wisdom_principles.
     comparison = None
-    if ms_assign is not None:
+    if ms_assign is not None or pr_assign is not None:
         key_only: dict = {}
         for run in runs:
             for k in {group_key(row) for row in run["rows"]}:
                 key_only[k] = key_only.get(k, 0) + 1
-        comparison = {"identity": "KEY",
+        comparison = {"identity": "KEY", "principle_identity": PRINCIPLE_IDENTITY,
                       "identities": len(key_only),
                       "at_full_agreement": sum(1 for v in key_only.values() if v == n)}
     return {"n": n, "run_ids": [r["run_id"] for r in runs],

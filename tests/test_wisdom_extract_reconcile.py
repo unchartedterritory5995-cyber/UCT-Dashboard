@@ -87,7 +87,11 @@ def test_SYNTHETIC_three_runs_give_3of3_2of3_and_1of3(tmp_path):
     by_ident = {tuple(s["identity"]): s for s in result["scores"]}
     assert result["n"] == 3
     assert by_ident[("CALL", "NVDA", None, None)]["stability"] == 1.0
-    assert by_ident[("PRINCIPLE", "p_size-down")]["stability"] == 1.0
+    # ⛔ R43 (session 12): PRINCIPLE's identity is the lens CLUSTER, not principle_key. The
+    # STABILITY is what this test is about and it is unchanged — a lone key is a cluster of one.
+    [pr] = [s for s in result["scores"] if s["record_type"] == "PRINCIPLE"]
+    assert str(pr["identity"][1]).startswith("lensclust:"), pr["identity"]
+    assert pr["stability"] == 1.0
     # ⛔ R43 (2026-09-15): MARKET_SIGNAL's identity is the CLUSTER, not the name, so the ident is
     # ("MARKET_SIGNAL", "msclust:<n>"). The STABILITY is what this test is about and it is
     # unchanged — a lone key forms a cluster of one and still scores 2/3.
@@ -368,6 +372,7 @@ def test_MS_IDENTITY_is_the_single_switch(tmp_path, monkeypatch):
     runs = _load(tmp_path, ids)
 
     monkeypatch.setattr(reconcile, "MS_IDENTITY", "KEY")
+    monkeypatch.setattr(reconcile, "PRINCIPLE_IDENTITY", "KEY")
     key_result = reconcile.reconcile(runs)
     idents = {tuple(s["identity"]) for s in key_result["scores"] if s["record_type"] == "MARKET_SIGNAL"}
     assert idents == {("MARKET_SIGNAL", "choppy-tape")}, idents
@@ -448,3 +453,45 @@ def test_THE_CONTROL_a_merge_actually_happens(tmp_path):
     assert len(ms) == 1, f"the two names did NOT merge — every merge test above is vacuous: {ms}"
     assert ms[0]["runs_present"] == 2 and ms[0]["stability"] == 1.0
     assert sorted(ms[0]["record_ids"]) == ["a", "b"]
+
+
+def test_PRINCIPLE_IDENTITY_is_its_own_single_switch(tmp_path, monkeypatch):
+    """⛔ Two types, two constants, each flippable alone — and each mutation-proved."""
+    _write_run(tmp_path, "r1", [_row("seg-1", "PRINCIPLE", ident="size down in choppy tape", record_id="a")])
+    _write_run(tmp_path, "r2", [_row("seg-1", "PRINCIPLE", ident="size down in choppy tape today", record_id="b")])
+    runs = _load(tmp_path, ["r1", "r2"])
+
+    monkeypatch.setattr(reconcile, "PRINCIPLE_IDENTITY", "KEY")
+    under_key = [s for s in reconcile.reconcile(runs)["scores"] if s["record_type"] == "PRINCIPLE"]
+    assert len(under_key) == 2, "under KEY the two spellings are two identities"
+
+    monkeypatch.setattr(reconcile, "PRINCIPLE_IDENTITY", "LENS_STRICT_06")
+    under_lens = [s for s in reconcile.reconcile(runs)["scores"] if s["record_type"] == "PRINCIPLE"]
+    assert len(under_lens) == 1, "the lens did not merge — every PRINCIPLE merge test is vacuous"
+    assert under_lens[0]["runs_present"] == 2 and under_lens[0]["stability"] == 1.0
+
+
+def test_the_PRINCIPLE_lens_never_merges_two_keys_from_the_SAME_run(tmp_path):
+    """⛔⛔ Same invariant as MARKET_SIGNAL, on the production path."""
+    rows = [_row("seg-1", "PRINCIPLE", ident="size down in choppy tape", record_id="a"),
+            _row("seg-1", "PRINCIPLE", ident="size down in choppy tape today", record_id="b")]
+    for r in ("r1", "r2", "r3"):
+        _write_run(tmp_path, r, rows)
+    pr = [s for s in reconcile.reconcile(_load(tmp_path, ["r1", "r2", "r3"]))["scores"]
+          if s["record_type"] == "PRINCIPLE"]
+    assert len(pr) == 2, "two PRINCIPLEs that co-occur in every run were merged"
+
+
+def test_the_PRINCIPLE_lens_refuses_a_polarity_flip(tmp_path):
+    """golden's own guard, on the write path: 'always' and 'never' are not paraphrases.
+
+    ⛔ THE PAIR IS CHOSEN BY MEASUREMENT, not by eye. The obvious fixture — "always add to a
+    winner" vs "never add to a winner" — scores 0.500, BELOW the 0.6 threshold, so it would not
+    merge whether the polarity guard existed or not and the test would prove nothing. These two
+    score exactly 0.600 and merge without the guard.
+    """
+    _write_run(tmp_path, "r1", [_row("seg-1", "PRINCIPLE", ident="always add to a winner quickly", record_id="a")])
+    _write_run(tmp_path, "r2", [_row("seg-1", "PRINCIPLE", ident="never add to a winner quickly", record_id="b")])
+    pr = [s for s in reconcile.reconcile(_load(tmp_path, ["r1", "r2"]))["scores"]
+          if s["record_type"] == "PRINCIPLE"]
+    assert len(pr) == 2, "a polarity flip was merged as a paraphrase"
