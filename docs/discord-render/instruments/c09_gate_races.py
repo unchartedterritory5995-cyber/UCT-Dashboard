@@ -42,8 +42,14 @@ def race(gate_factory, *, rounds: int = ROUNDS, seed: int = 11) -> dict:
                     winner.append(name)
                 gate.release()
 
-        bg = threading.Thread(target=_take, args=("background", 1, 25.0), daemon=True)
-        me = threading.Thread(target=_take, args=("member", 0, 2.0), daemon=True)
+        # ⛔⛔ THE CLASS CONSTANTS ARE IMPORTED, NOT TYPED AS 0 AND 1. They were literals here, and a
+        # mutation that INVERTED the gate's own MEMBER/BACKGROUND values could not be seen: the
+        # harness kept passing the same integers, so it simply relabelled which side it called the
+        # member. A retyped constant beside the module that owns it — the defect this programme has
+        # now paid for in a burst-mode count, a failure-class mapping, and here.
+        from api.services.render_gate import MEMBER, BACKGROUND
+        bg = threading.Thread(target=_take, args=("background", BACKGROUND, 25.0), daemon=True)
+        me = threading.Thread(target=_take, args=("member", MEMBER, 2.0), daemon=True)
         bg.start()
         time.sleep(rng.uniform(0.010, 0.030))   # background is ALREADY waiting
         me.start()
@@ -77,11 +83,15 @@ def starvation_probe(*, load_s: float = 1.2, starve_s: float = 0.3, lanes: int =
     from api.services.render_gate import RenderGate, MEMBER, BACKGROUND
     gate = RenderGate(1, starve_s=starve_s)
     gate.acquire(cls=MEMBER)
-    got: dict = {"background": False}
+    got: dict = {"background": False, "at": None}
 
     def _bg():
         if gate.acquire(timeout=load_s + 3.0, cls=BACKGROUND):
             got["background"] = True
+            # ⛔ WHEN it was served is the measurement, not THAT it was. Served after the load
+            # window closed is background winning on merit; served inside it is the fairness
+            # bound overtaking a queued member, which is the property under test.
+            got["at"] = time.monotonic()
             gate.release()
 
     t = threading.Thread(target=_bg, daemon=True)
@@ -103,7 +113,9 @@ def starvation_probe(*, load_s: float = 1.2, starve_s: float = 0.3, lanes: int =
     for th in lanes_t:
         th.join(timeout=load_s + 3.0)
     t.join(timeout=load_s + 4.0)
-    return {"background_served": got["background"], "load_s": load_s, **gate.stats()}
+    return {"background_served": got["background"], "load_s": load_s,
+            "bg_served_before_load_ended": bool(got.get("at") and got["at"] < stop_at),
+            **gate.stats()}
 
 
 def self_check(out=print) -> int:
@@ -131,10 +143,51 @@ def self_check(out=print) -> int:
     # ── fairness: background must not starve forever ──────────────────────
     st = starvation_probe()
     out(f"  starvation probe: {st}")
-    cases.add("under sustained member load, background is STILL served once the bound elapses",
-              st["background_served"] is True and st["starvation_grants"] >= 1)
+    # ⛔⛔ SERVED *WHILE MEMBERS WERE STILL QUEUED* — not merely "served eventually". The first
+    # version asserted only that a starvation grant was COUNTED, and a mutation that disabled the
+    # turn decision passed it: background was served after the member lanes stopped, and
+    # `_bg_starving` was still true at that moment so the grant was labelled starved anyway.
+    # ⭐ The property that matters is that the bound OVERTOOK a queued member, which is measurable:
+    # the grant must land before the load window closes.
+    cases.add("background is served while members are STILL queued (the bound overtakes)",
+              st["background_served"] is True and st["starvation_grants"] >= 1
+              and st["bg_served_before_load_ended"] is True)
     cases.add("...and members were served too — the bound did not invert the priority",
               st["grants"]["member"] >= 20)
+    # ⛔ THE DEFAULT ITSELF MUST BE A USABLE BOUND. The probe overrides `starve_s` to keep the test
+    # fast, which means a mutation of the module constant is invisible to it — so the constant is
+    # asserted directly. An infinite bound is not a bound.
+    from api.services.render_gate import BACKGROUND_STARVE_S
+    cases.add("the SHIPPED fairness bound is finite and small enough to matter",
+              0.0 < float(BACKGROUND_STARVE_S) <= 60.0)
+
+    # ── the fast path: a newcomer must not barge a non-empty queue ────────
+    # ⛔ `if self._free and not self._waiting` is the whole of it. Drop the queue check and a
+    # newcomer takes a slot that a waiter was owed — invisible to the races above, which only ever
+    # run with the pool already empty.
+    g3 = RenderGate(1)
+    g3.acquire(cls=MEMBER)
+    parked: list = []
+
+    def _parked():
+        if g3.acquire(timeout=2.0, cls=MEMBER):
+            parked.append(True)
+            g3.release()
+    pt = threading.Thread(target=_parked, daemon=True)
+    pt.start()
+    time.sleep(0.05)                       # a waiter is now queued
+    g3.release()                           # one slot frees
+    barged = g3.acquire(blocking=False, cls=MEMBER)   # a newcomer tries to jump it
+    if barged:
+        g3.release()
+    pt.join(timeout=3.0)
+    cases.add("a newcomer cannot barge a slot while someone is already waiting",
+              barged is False and parked == [True])
+    # ⚰️ A `return` SAT HERE FOR ONE COMMIT AND MADE THE NEXT THREE CASES UNREACHABLE — declared fell
+    # from 10 to 7 while the triple still read `declared=7 evaluated=7`, perfectly consistent and
+    # three cases short. ⭐ `selfcheck.Cases` seals against an append AFTER the read; it cannot see a
+    # case that is never added at all. **The declared count itself is the tell**, which is why the
+    # triple prints it rather than only the failures.
 
     # ── the shape every existing call site relies on ──────────────────────
     g = RenderGate(2)
