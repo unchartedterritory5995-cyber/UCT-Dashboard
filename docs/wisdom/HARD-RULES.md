@@ -211,3 +211,44 @@ it.** Two independent standing rules forbid it and each would be enough on its o
 to refuse it is not that it would fail — it would work, which is precisely the hazard. The two
 sanctioned paths are the ones above: an environment variable for this run, or the OS credential
 store for this machine.
+
+
+### 2026-09-15 — R42: a SANDBOX REDIRECT ALSO REDIRECTS THE DATA A TOOL NEEDS TO BE CORRECT
+
+⚰️⚰️ **THIS CORRECTS SESSION 9.** That report said the golden gate, run under `railway run`, took
+production's `DATA_DIR` and read this box's `C:\data\entity_master.db`. **That is wrong.** The
+measured mechanism is the opposite, and it is the more useful one:
+
+1. `tools/wisdom/extract_golden_gate.py:412` calls `common.bootstrap(...)` **before** its first
+   `api.*` import at `:413-414`;
+2. `tools/wisdom/extract_common.py:39` does `import conftest` deliberately — census pins + tripwire;
+3. `conftest.py:515` runs the redirect **at module import and is NOT gated on pytest**;
+4. `conftest.py:469` mints a **fresh `mkdtemp(prefix="uct_tests_datadir_")` per process** and
+   `:501-512` repoints `DATA_DIR` there. `:505-508` skips a variable only when its value is
+   truthy AND outside the shared root — and `os.path.abspath("/data")` on Windows is `C:\data`,
+   which IS the shared root, so a production `DATA_DIR` of `/data` is redirected exactly as an
+   unset one is;
+5. `api/services/entity_master/schema.py:33` then captures `<fresh sandbox>/entity_master.db` at
+   import, and the store CREATES it.
+
+⭐ **The physical evidence is three sandbox databases whose mtimes match the three gate manifests
+to within 0.3 s** — 07:16:47 / 07:33:43 / 07:55:47 against manifests at 07:16:46.8 / 07:33:42.8 /
+07:55:47.3 — each **86,016 bytes with 0 rows in every table**. The shared-root copy was never
+opened; its sha256 is unchanged across all of this (verified again 2026-09-15).
+
+> ⛔⛔ **THE RULE. A sandbox redirect protects against WRITES by guaranteeing an EMPTY READ. Before
+> running any tool whose CORRECTNESS depends on a populated store, ask what the redirect will hand
+> it — and if the answer is "an empty database", seed one explicitly and pass its path.**
+
+⚠️ **Why nothing reported it, and this is the part to carry:** the empty store made every ticker
+unresolvable, and `writer.py:504` then downgraded every CALL to MENTION — which is a **legitimate
+fail-closed path**, indistinguishable in the output from a corpus that genuinely contained no
+attributable calls. **A safety mechanism silently degraded a product behaviour, and the degraded
+answer was well-formed.** The gate's own precision/recall table cannot show it either, because it
+scores `pre_entity_type`, fixed before the entity step.
+
+⭐ **Measured remedy, $0.00:** `scripts/entity_master_seed.py --db-path <local> --max-pages 0` runs
+fully offline (the Massive pagination loop body never executes) off `api/data/cap_universe.json`
+and the delisted registry. It built **9,824 entities** here, and re-resolving the three persisted
+runs offline recovers **228 of 297 pre-entity CALLs — 76.8%**, the rest needing the paid reference
+feed. Nothing was written to the shared root; its hash was baselined before and verified after.
