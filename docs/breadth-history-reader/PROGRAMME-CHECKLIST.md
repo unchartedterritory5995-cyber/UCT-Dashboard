@@ -204,6 +204,57 @@ Register-ScheduledTask -TaskName 'UCT Breadth Sampler' -Action $act -Trigger $tr
 - ⛔ **Do not register before M12 lands.** `tools/breadth_sampler.py` is not on master, so
   the task would start, fail to find the file, and record a green-looking run that
   sampled nothing.
+
+#### ⛔⛔ M12 HAS LANDED AND THE COMMAND ABOVE IS STILL NOT SAFE TO RUN — the precondition names the wrong thing
+
+**M12 is on master (`9f0c76f46`, 2026-09-15 16:57:35 ET), so the stated precondition is
+met.** It is not sufficient, because **the scheduled task does not read master.** It runs a
+file out of a WORKING TREE:
+
+```python
+REPO = pathlib.Path(__file__).resolve().parents[1]      # tools/breadth_sampler.py:59
+LOG_PATH = REPO / "logs" / "breadth-samples.jsonl"      # :60
+KILL_SWITCH = REPO / "logs" / "STOP-BREADTH-SAMPLER"    # :61
+BASE = "https://uctintelligence.com"                    # :55
+```
+
+⭐ **The script's own LOCATION defines the pool's identity.** It samples production over
+HTTP, so it needs no repo data at all — but it writes the sample log, and reads the kill
+switch, beside whichever *copy of itself* runs. Point a second copy anywhere and you start a
+**second pool that looks identical to the first**, silently. (Same `__file__.parents[1]`
+construct that made `tools/git_scope.py` vacuous from the scratchpad earlier this session.)
+
+⛔ **And `$repo` in the command above is the SHARED worktree — the one the landing script
+owns and switches branches on.** Measured 2026-09-15, the file is absent from three of the
+four branches that script checks out:
+
+| branch | `tools/breadth_sampler.py` |
+|---|---|
+| `breadth/sampler` (checked out now) | present, 310 lines |
+| `docs/session11-record` | **ABSENT** |
+| `breadth/resident-recon` | **ABSENT** |
+| `repo/git-scope` | **ABSENT** |
+
+So a 15:10 CT fire during a landing finds no file — *"a green-looking run that sampled
+nothing"*, exactly as the bullet above warns, but triggered by **branch state**, not by
+master. Worse when the file IS present: the version that runs is the branch's, not master's.
+
+⚠️ **`master` also read ABSENT in that measurement and that was a STALE LOCAL REF** — 23
+commits behind `origin/master`, which has the file. Checked before reporting; a phantom
+absence would have been the finding here.
+
+**Therefore R2 stays BLOCKED, for a reason this checklist did not previously state.** Two
+conditions, not one:
+1. the sampler is on master — ✅ **met**; and
+2. the task runs from a checkout **nothing else switches branches on** — ❌ **not met**.
+
+⭐ **The fix is cheap RIGHT NOW and gets more expensive later.** R4 already records that M13
+starts a new pool (it touches `breadth_daily_ohlc.py`, a hot file), so the existing n=2 does
+not carry forward anyway — **there is no pool to strand by moving the runner today.**
+⛔ Recorded as a **proposal, not an action** (SD-1 §7): the registration path is owner-visible
+and changing where the sampler lives is a standing decision about this box, not a checklist
+step. It needs a dedicated, stable checkout — "one worktree, one writer" applied to the
+scheduler.
 - Verify after registering: `Get-ScheduledTask 'UCT Breadth Sampler'`, then prove the
   guard is **live rather than merely present** with the kill switch, which is the one
   refusal that does not depend on pod timing:
