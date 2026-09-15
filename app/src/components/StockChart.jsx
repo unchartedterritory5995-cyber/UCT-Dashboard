@@ -97,7 +97,8 @@ import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
   defaultPaneKeys,
 } from './chart/engine/paneLayout'
-import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
 // strip is its second caller after `IndicatorSettingsDialog`;
@@ -11120,69 +11121,31 @@ export default function StockChart({
     // binder for a flag-on chart with no instances, and the flag was on for
     // nobody — and it made the honest predicate look like a fallback. What is left
     // says exactly what it means: no instances, no binder, zero library calls.
-    // ─── REALISE THE ARRANGEMENT — BY MOVING PANES, NOT SERIES ───────────
+    // ─── REALISING AN ARRANGEMENT ───────────────────────────────────────────
     //
-    // ⚰️⚰️ THE FIRST ATTEMPT MOVED SERIES AND DESTROYED PANES. `moveToPane`
-    // relocates a SERIES; move the last series out of a pane and
-    // lightweight-charts removes the pane, every later index shifts, and the
-    // next move in the sequence lands somewhere else. Measured in the harness on
-    // a four-pane chart: ONE "move up" took it from four panes to three, and
-    // three moves left two — RSI and MA gone, their readouts still painted over
-    // empty space. That is the blank-chart family reached from a new direction.
-    //
-    // ⭐ `IPaneApi.moveTo` MOVES THE PANE WITH ITS CONTENTS, so nothing is ever
-    // emptied and no pane is destroyed. It is the primitive the Model Book has
-    // always used to hoist its index pane to 0 — which is also the existence
-    // proof that Price does not need to be the first pane.
-    //
-    // ⚠️ AND IT RUNS BEFORE THE SYNC, so by the time the binder resolves each
-    // series' `paneIndex` the panes are already in their final positions and
-    // every series is already in the right one: `b.from.paneIndex !== paneIndex`
-    // is false and the binder issues no `moveToPane` at all. Running it after
-    // would leave the binder to permute first, which is the defect above.
-    //
-    // ⚰️⚰️ AND IT RUNS TWICE, BECAUSE ONCE IS NOT ENOUGH ON A REBUILD. Before
-    // the sync there is nothing to move on a chart whose series do not exist yet
-    // — `bindings()` is empty, every lookup answers null, and the arrangement is
-    // silently skipped. Measured in the harness: save → reconstruct restored the
-    // stored order in Chart Data and left the CHART in default order with a pane
-    // missing. Running it again AFTER the sync catches exactly that pass, and is
-    // a no-op on every other one because `moveTo` is only called for a pane that
-    // is not already where it belongs.
-    const realiseArrangement = () => {
-      if (_paneOrder.length <= 1) return
-      const seriesForKey = (key) => {
-        if (key === PRICE_PANE) return candleSeriesRef.current
-        if (key === VOLUME_PANE) return volSeparatePane ? volumeSeriesRef.current : null
-        const bs = engineRef.current?.binder?.bindings?.()
-        if (!Array.isArray(bs)) return null
-        const hit = bs.find((x) => x && x.instanceId === key && x.series)
-        return hit ? hit.series : null
-      }
-      // Top-to-bottom: put each pane where it belongs. Moving one shifts the
-      // others, which is why this re-reads the live index at every step rather
-      // than computing a permutation up front.
-      const pinned = _hasIdxPane ? 1 : 0
-      for (let want = 0; want < _paneOrder.length; want++) {
+    // ⭐ TWO STEPS, AND THE ORDER OF THEM IS THE FIX. `prepare` makes the
+    // physical chart able to hold the arrangement BEFORE the binder creates
+    // anything into it; `settle` asserts the result afterwards. See
+    // `engine/paneRealization.js` for why a final slot is not a safe place to
+    // create a series, and what happens on a cold rebuild when they are confused.
+    const _paneRealize = {
+      order: _paneOrder,
+      paneCountRequired: paneLayout.paneCountRequired,
+      pinned: _hasIdxPane ? 1 : 0,
+      priceKey: PRICE_PANE,
+      volumeKey: volSeparatePane ? VOLUME_PANE : null,
+      paneOf: (key) => {
         try {
-          const pane = seriesForKey(_paneOrder[want])?.getPane?.()
-          if (!pane) continue
-          const have = pane.paneIndex?.()
-          const target = want + pinned
-          if (!Number.isInteger(have) || have === target) continue
-          const count = chart.panes?.().length
-          if (!Number.isInteger(count) || target >= count) continue
-          pane.moveTo(target)
-        } catch { /* older API, or a pane that vanished mid-sync */ }
-      }
-      // ⚰️ RE-MEASURE NOW, NOT ON THE NEXT SAMPLER TICK. That sampler runs only
-      // while it has something to pin and its effect does not re-run on a
-      // rearrangement — so after a reconstruct the legend and toolbar kept the
-      // offset from before the blob was rebuilt. Measured in the harness: Price
-      // rendered second while `--price-pane-top` still read 0px.
-      pinPriceChrome()
+          if (key === PRICE_PANE) return candleSeriesRef.current?.getPane?.() || null
+          if (key === VOLUME_PANE) return volSeparatePane ? (volumeSeriesRef.current?.getPane?.() || null) : null
+          const bs = engineRef.current?.binder?.bindings?.()
+          if (!Array.isArray(bs)) return null
+          const hit = bs.find((x) => x && x.instanceId === key && x.series)
+          return hit ? hit.series.getPane() : null
+        } catch { return null }
+      },
     }
-    realiseArrangement()
+    prepareArrangement(chart, _paneRealize)
 
     const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
@@ -11253,8 +11216,12 @@ export default function StockChart({
         resolvePreset,
       })
     }
-    // …and again now that every series exists. See `realiseArrangement`.
-    realiseArrangement()
+    // …and now that every series exists, settle the final order and drop any
+    // placeholder the binder did not claim.
+    settleArrangement(chart, _paneRealize)
+    // ⚠️ MEASURE PRICE'S CHROME FROM THE **FINAL** POSITION, never the temporary
+    // one `prepare` left it in.
+    pinPriceChrome()
 
 
     // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────

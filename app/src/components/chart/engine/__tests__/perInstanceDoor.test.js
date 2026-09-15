@@ -305,6 +305,14 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // enable/input/disable blobs are untouched. It contributes THREE elements
       // per base rather than two, because unlike `dataSeries` it declares an `int`
       // input (`period`) and the corpus exercises one.
-      .toBe('523c1defa43139d49bc9eb211a80a64e7fb58a583432ede3910bd3ed914a09f0')
+      // 2026-09-15: re-pinned for `paneOrder` — the visual pane arrangement.
+      // ⛔ INVESTIGATED, NOT REGENERATED: this corpus serialises whole
+      // chart-settings blobs, so it moves with any change to the canonical shape.
+      // The shape diff was taken independently on both trees (see the matching
+      // note in `alertSets.test.js`): exactly one ADDITIVE key, `paneOrder: []`,
+      // nothing removed, no existing value changed — 40 keys → 41. The
+      // per-DEFINITION doors this file is about (enable · input · disable) are
+      // untouched; what moved is the blob each of them is embedded in.
+      .toBe('3b11206650a2c78ad34fc1cbbaa066222182f8ae66b2e94e7c36e3498db051e0')
   })
 })

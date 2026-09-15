@@ -290,8 +290,16 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // 2026-08-27: re-pinned for the owner default-chart retune — the terminal SMA5
   // overlay REMOVED (default set 5→4) + watermark sizeScale 1.0→1.25 / weight 700→500.
   // CHART_DEFAULTS value/structure edits only; per-chart scope path unchanged.
+  // 2026-09-15: re-pinned for `paneOrder` — the visual pane arrangement.
+  // ⛔ INVESTIGATED, NOT REGENERATED: the merged blob's key set was dumped on
+  // both trees and diffed. ADDED: exactly `paneOrder`. REMOVED: nothing. 40 keys
+  // → 41, every other key and value byte-identical. Its default is `[]`, which
+  // `resolvePaneOrder` reads as "no preference" and answers with the arrangement
+  // the chart already had (Price · separate volume pane · stack) — so no pixel
+  // moves on any existing chart, and nothing is migrated on read. The digest
+  // shifts only by that one additive empty array.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    'b5eb05e672170c4efd5831fde856518e6dae717c2379535b189ab49221fe7e3f'
+    '66368f05e365b95a919aa92744809ec9ecba48d6d86352ae138cf48c32387370'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

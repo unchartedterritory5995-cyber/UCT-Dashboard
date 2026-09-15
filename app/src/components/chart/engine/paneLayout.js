@@ -769,10 +769,33 @@ export function computePaneLayout(instances, opts) {
       const heightPx = paneHeights[oscCount - 1 - i]
       return { key, index: slotOf(key, firstPaneIndex + i), heightPx, stretchFactor: heightPx }
     }),
-    // Where the two panes that are NOT instances ended up. `placement.js` reads
-    // these instead of the 0 and 1 it used to hard-code.
+    // ─── THE TWO THINGS A SLOT MEANS, AND THE PRECONDITION BETWEEN THEM ────
+    //
+    // ⚰️⚰️ EVERY INDEX BELOW IS A **FINAL VISUAL SLOT** — where a pane ends up
+    // once the chart is arranged. It is NOT automatically a safe place to CREATE
+    // a series, and collapsing those two ideas is the defect this field exists
+    // to prevent.
+    //
+    // Measured on a cold rebuild: the candle series is created at physical pane
+    // 0 before the binder runs. Hand the binder final slots while Price's slot is
+    // 1, and its first `addSeries(…, 0)` lands inside the pane the candles
+    // already occupy. lightweight-charts realises that as one shared pane, four
+    // semantic panes render as three, and no later move can split them back
+    // apart — panes do not separate retroactively. The live path never saw it
+    // because the panes already existed.
+    //
+    // ⭐ SO A SLOT IS ONLY SAFE TO PLACE INTO ONCE THE PHYSICAL CHART CAN HOLD
+    // THE WHOLE ARRANGEMENT: `paneCountRequired` panes exist, and the candle pane
+    // has already been moved to `priceIndex`. `StockChart.prepareArrangement`
+    // establishes exactly that, before the binder is called; `settleArrangement`
+    // asserts it afterwards. A caller that places series at these slots without
+    // establishing the precondition first is reintroducing the merge.
     priceIndex: slotOf(PRICE_PANE, mainPaneIndex),
     volumeIndex: volPaneSlot,
+    /** Physical panes that must exist before any series is placed at a slot. */
+    paneCountRequired: order
+      ? idxPaneCount + order.length
+      : firstPaneIndex + keys.length,
     // physical index → height, for the panes the stack loop does not cover.
     // `paneStretchPlan` needs it because `above` is positional over the
     // non-oscillator panes and those are no longer necessarily contiguous.
