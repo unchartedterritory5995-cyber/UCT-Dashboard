@@ -307,7 +307,7 @@ with its own estimate and a committed red acceptance first.
 | `VITE_CHART_RENDER_TOKEN_PREVIOUS` | the discord-render lane's undeclared build arg — named here so it is not lost |
 | 11b | another lane's, untouched |
 
-### ⚰️⚰️ THE ADJACENT-THING CLASS — four instances, one shape
+### ⚰️⚰️ THE ADJACENT-THING CLASS — **five** instances, one shape
 
 > **In every one the run was GREEN and the answer was WRONG.** The guard checked a
 > neighbouring property — that something did not fail, or that an instrument returned
@@ -319,12 +319,38 @@ with its own estimate and a committed red acceptance first.
 | a4 | `forceOpaque` / `prior.kind === 'vector'` | the branch existed and the suite was green | `forceOpaque` had already replaced the binding, so the test was **never once true** and its better sentence was dead code |
 | R9 | `array.sum`/`max`/`min` | they were in `REDUCE_MEMBERS` and `HANDLED`, so they were "handled" | every one returned `pine:roundtrip` **with no formula at all** — raw bindings spliced into an output tree |
 | **R9a** | the set-agreement control | *"every `REDUCE_MEMBERS` entry must not refuse"* | deleting the `avg` fold let it **fall through to `min`** and return `min(min(0,1),2)` — a wrong answer, refusing nothing, control still green |
+| **R13** | the red acceptance's own overlap check | *"no declared member input is also a Track F parameter"* — and the `it.fails` marker **passed**, reporting the defect fixed | it read `declared` off a **raw `translatePine`, which never populates it**. The overlap was empty **because the set was empty**. The instrument measured nothing and the nothing agreed with it |
 
 ⭐ **The fix is the same every time: assert the ANSWER.** R9a's control now pins
 `sum → 0 + 1 + 2`, `avg → (0 + 1 + 2) / 3`, `max → max(max(0, 1), 2)`,
 `min → min(min(0, 1), 2)` **and that all four are distinct**, so no member can silently
 serve another's branch. Re-proved on the same mutation: two reds where there had been
 one.
+
+⚠️ **The fifth is the one that bites a RED, not a green**, which is why it earns its
+own standing rule below: every other member of this class shipped a wrong answer past
+a green suite, while R13's shipped a **false all-clear past a red marker** — the
+instrument reported the defect already fixed while it was live in front of it.
+
+### ⛔⛔ STANDING RULE — A RED ACCEPTANCE CARRIES A NON-VACUITY CONTROL
+
+**Owner ruling, 2026-09-14.** Before an `it.fails` is trusted as red, **the test proves
+its own inputs are populated**: the set it measures is non-empty, and the door it goes
+through is the real one. **Every red acceptance from here on names its non-vacuity
+control in the test.**
+
+⚰️ R13's first draft is the case. It asserted *"the overlap of declared inputs and
+Track F parameters is empty"* against a `declared` set that was **always** empty,
+because it called `translatePine` directly instead of `memberInputTranslation` — the
+door the member actually walks through. The assertion was true, vacuously; the
+`it.fails` guarding it therefore **passed**; and a red acceptance that passes reads as
+*"the defect is already fixed."* It was caught only because the marker flipped in the
+run rather than at review.
+
+⭐ **The control must be able to fail.** `closingPassDoesNotMint.test.js` pins
+`declared.size === 10`, that the set **contains `bullFloor`**, and that the door minted
+**more than zero** parameters — three facts a blind instrument cannot produce. An
+`expect(x).toEqual([])` over a set nothing filled is not evidence of anything.
 
 ### ⚰️⚰️ THE READ/OVERWRITE ORDERING CLASS — four instances, one shape
 
