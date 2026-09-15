@@ -355,7 +355,19 @@ def score(runs):
     from api.services.wisdom.extract import reconcile
     from api.services.wisdom.publish import floor
 
-    result = reconcile.reconcile(runs)
+    # ⛔⛔ THE STUDY OWNS THE IDENTITY, SO THE RECONCILER MUST NOT ALSO APPLY ONE.
+    # R43 made MERGED_J05 the production default (reconcile.MS_IDENTITY), which would be applied
+    # ON TOP of every rewrite here: the KEY control would come back merged (it did — it broke
+    # test_the_key_identity_reproduces_the_session_9_numbers the moment R43 landed), and each
+    # MERGED-MS variant would be re-clustered by name over its own cluster ids, since _name_tokens
+    # still reads the untouched fields.market_signal.name. Pinning to KEY makes reconcile a pure
+    # FOLDER and leaves this module the single place an alternative identity is expressed.
+    previous = reconcile.MS_IDENTITY
+    reconcile.MS_IDENTITY = "KEY"
+    try:
+        result = reconcile.reconcile(runs)
+    finally:
+        reconcile.MS_IDENTITY = previous
     hist = reconcile.histogram(result)
     per_type: dict = {}
     for s in result["scores"]:
