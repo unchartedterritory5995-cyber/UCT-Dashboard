@@ -1188,6 +1188,15 @@ than a design assumption.
 in front of it. Item 3 is the most consequential thing this programme has built, and until today
 nobody had seen it decide anything.
 
+⚠️⚠️ **READ THAT AS THE PREDICATE'S VERDICT, NOT AS 366 REVIEW ROWS. Nothing was enqueued.**
+`floor.passes` was applied to the reconciler's real stability scores — so the counts above are a
+true measurement of **what the floor decides**, on real data, for the first time. They are NOT the
+chain having acted: `wisdom_review_queue` still holds **0 rows**, because the golden gate never
+ingests into `wisdom_records` (its records live in the runs' JSONL) and both the floor and the
+score-writer act on the DATABASE. Proved by running the real chain step below, not assumed. The
+distinction matters because "the floor blocked 366" and "366 items are sitting in the review tab"
+are different claims and only the first one is true.
+
 ⭐ `PUBLISH` equals the `3/3` column exactly for both floored types (21 and 31), which is the Q17
 arithmetic visible in the data: at n=3 only 3/3 = 1.0 clears a floor of 0.8, and 2/3 = 0.667 does
 not. **`MIN_RUNS = 3` is doing real work** — at n=2 every floored identity blocked regardless of
@@ -1218,3 +1227,40 @@ rather than truncated, because a truncated quote is still a quote.
 ⚠️ MARKET_SIGNAL emitted 102, then 107, then 112. The volume is nearly steady while the IDENTITIES
 churn — 236 distinct keys from ~321 record-instances. **A stable count of unstable names** is the
 signature R30 predicted.
+
+
+### The local chain run — `reconcile_stability` fires for the first time, and writes to NOTHING
+
+Run against a **sandbox copy** of the gate db, with the AST-derived census pins applied before any
+`api.**` import. ⛔ That is not belt-and-braces: `store.write()` resolves `WISDOM_DB_PATH`, and
+unset it derives from `DATA_DIR` — on this box, the owner's live `C:\data\wisdom.db`. Running the
+chain bare would have written stability columns into production data.
+
+    reconcile_stability ->
+      n: 3   run_ids: [20260915T085142Z, 20260915T121930Z, 20260915T123550Z]   keys: 1223
+      MARKET_SIGNAL total 236  clears_floor  21
+      PRINCIPLE     total 182  clears_floor  31
+      MENTION       total 778  clears_floor 778
+      LEVEL         total  18  clears_floor  18
+      NEGATIVE_CALL total   9  clears_floor   9
+      records_updated: 0        principles_updated: 0
+
+⭐⭐ **`records_updated: 0` IS THE FINDING, and it is visible only because `write_scores` was built
+to report it.** Its docstring says so outright — *"so a write that matched nothing is visible
+rather than reported as success"* — and that decision just paid for itself. The reconciler computed
+1,223 identities and correct stability for every one of them, then wrote them to **zero rows**,
+because `wisdom_records` is empty: the golden gate persists to JSONL and never ingests into the
+store.
+
+⛔ **So item 2 is correct and wired, and end-to-end it is INERT against a gate run.** The stability
+scores have nowhere to land until a real extraction populates `wisdom_records`. A version of
+`write_scores` that returned nothing would have reported this as a clean success, and the chain
+would have looked finished.
+
+The step's own artifact was written beside the run —
+`data/wisdom/gate-runs/20260915T123550Z/reconcile-report.json`, carrying `n`, the three run ids,
+1,223 keys, the histogram and `written: {records_updated: 0, principles_updated: 0}`.
+
+⚠️ `rq_v11_001` and `publication_floor` were NOT separately re-run: both read the same empty
+`wisdom_records`, so both would answer 0 for the same reason, and re-running them would produce
+three zeros that look like three measurements. The session-8 baseline already recorded them at 0.
