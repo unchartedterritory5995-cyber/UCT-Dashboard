@@ -85,18 +85,42 @@ proportion.
 
 ### Broad baseline comparison
 
-**Frontend: IDENTICAL to clean master.** Branch 12 failed / 20,086 passed; baseline
-(`C:\b3` @ `5e88b38c4`) **12 failed / 20,065 passed** — the same 12 failures in the
-same 11 files. The +21 passing delta is exactly this branch's new tests. Pre-existing
-red (ratchet/rail tests owned elsewhere): `ChartDrawingOverlay.surfaces`,
-`ast/manifestProse`, `ast/pine.blindCorpus`, `screener/reachable`,
-`hooks/pollingSites.rail`, `hub/surfaceMatrixIsCurrent`, `ThemeTrackerPage.chartmount`,
-`journal-2-0/lib/iteratorGlobalFloor`, `journal-2-0/lib/offline/supersedeProvesContent`,
-`styles/tapFloor`, `surfaces/manifest`.
+**Frontend: IDENTICAL to clean master, and this one IS a full comparison.** Branch
+12 failed / 20,086 passed; baseline (`C:\b3` @ `5e88b38c4`) **12 failed / 20,065
+passed** — the same 12 failures in the same 11 files. The +21 passing delta is
+exactly this branch's new tests. Pre-existing red (ratchet/rail tests owned
+elsewhere): `ChartDrawingOverlay.surfaces`, `ast/manifestProse`,
+`ast/pine.blindCorpus`, `screener/reachable`, `hooks/pollingSites.rail`,
+`hub/surfaceMatrixIsCurrent`, `ThemeTrackerPage.chartmount`,
+`journal-2-0/lib/iteratorGlobalFloor`,
+`journal-2-0/lib/offline/supersedeProvesContent`, `styles/tapFloor`,
+`surfaces/manifest`.
+
+### ⚠️ Backend: NO full-suite baseline comparison was completed
+
+**State this plainly rather than implying one.** The backend suite is **24,869
+tests**. It was started twice and abandoned both times: the first run predated
+Phases 3-4, and the second reached ~20 % in 50 minutes, projecting ~4 hours — and a
+meaningful comparison needs the *same* run against clean master, so ~8 hours. That
+was not a proportionate spend overnight.
+
+What stands in its place, in descending strength:
+
+1. **899 passed** across `-k "breadth or grouped_daily or universe or monitor"` —
+   every suite that names a changed module.
+2. **80 new tests** over the nine new backend files.
+3. **A consumer audit of the one wide-reach change.** `massive.get_grouped_daily_
+   ohlcv` has exactly **three** callers outside this branch's own code — all in
+   `breadth_pit_calibrate` (lines 32, 98, 197) — and every one reads the row through
+   `.get("c")` / `.get("v")`. None enumerates keys, unpacks positionally, or compares
+   the whole dict, so adding `o`/`h`/`l` is **purely additive**. Everything else in
+   the diff is inside `breadth_*`.
 
 ⚠️ **A full backend run needs `app/dist` to exist** — 55 tests import `api.main`,
 which mounts `app/dist/assets`. A fresh worktree has no build, and the resulting 55
-collection errors are environmental, not a regression. Build first, then run.
+collection errors are environmental, not a regression. **Build first, then run.**
+`C:\b2` and `C:\b3` are both built and ready, so a full both-sides comparison is
+now just two long runs away whenever it is wanted.
 
 **New test files:** `test_breadth_universes.py`, `test_breadth_pit_frame.py`,
 `test_breadth_universe_storage.py`, `test_breadth_sweep_universe.py`,
