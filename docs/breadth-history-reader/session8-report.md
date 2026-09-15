@@ -6,6 +6,9 @@ Both authorised merges landed, each to SUCCESS before the next, neither within 3
 another deploy, neither inside a window. **No Railway setting was changed and no cutover
 happened.** `production` remains unwatched.
 
+**Web copy:** https://claude.ai/artifact/XoHHRXDT8CKasTPRfRM285 — private, no member
+identifiers on the page.
+
 ⛔ Results and interpretation are separated. A number without its instrument, its `n` and
 its settled-status is not quoted as a result.
 
