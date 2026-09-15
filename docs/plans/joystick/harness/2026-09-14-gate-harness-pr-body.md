@@ -20,25 +20,34 @@ gate harness: the exit code is READ, the verdict is a LINE, clearance is SAMPLED
 ```
 docs/plans/joystick/harness/2026-09-14-box-clearance-first-reading.md
 docs/plans/joystick/harness/2026-09-14-gate-harness-pr-body.md
+docs/plans/joystick/harness/2026-09-14-gate-lock-adoption.md
 docs/plans/joystick/harness/2026-09-14-gate-serialisation-proposal.md
 docs/plans/joystick/stage-2-verification.md
 scripts/gate_shards.py
+tests/test_gate_box_lock.py
 tests/test_gate_box_sampler.py
 tests/test_gate_shards.py
+tools/gate_box_lock.py
 tools/gate_box_sampler.py
 ```
 
-**8 files.** Merge-base **`47e1516b5`**; master **`587ee51b2`** (17 ahead).
+**11 files.** Merge-base **`47e1516b5`**; master **`587ee51b2`** (17 ahead).
 `git merge-tree --write-tree` → **exit 0, no conflicts**.
 
 ⚠️ No head SHA is quoted: this document ships *inside* the commit it describes, so any SHA written
 here is stale the moment it is written. Read the branch tip.
 
 ⚠️ **Three-dot, and on this repo that is measured, not ceremonial.** `master...HEAD` reports
-**8**; `master..HEAD` reports **28**. The extra are other workstreams' files landed on
+**11**; `master..HEAD` reports **31**. The extra are other workstreams' files landed on
 master since the base, shown **backwards** — as though this branch had reverted them. A body
 asserting "tooling only" while listing another team's docs would refute itself in its own evidence,
 which is exactly what an earlier PR here had to correct (two-dot **115** against three-dot **29**).
+
+⚰️ **This list was wrong once, in this very file.** It was generated while the three new
+files were still untracked, and a diff cannot see an untracked file — so it reported 8 and
+silently omitted `gate_box_lock.py`, its rails, and the adoption note. ⭐ **Derive the list
+AFTER the commit, never before it**: a file list assembled from a working tree is a claim
+about what git can see, not about what the branch contains.
 
 ---
 
