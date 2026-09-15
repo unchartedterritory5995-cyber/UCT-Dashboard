@@ -1020,7 +1020,44 @@ assertion forward"*).
 4. **non-vacuity control** (standing rule): the class lists are non-empty and a
    deliberate cross-class refusal is detected.
 
-⛔ **STOP — awaiting the owner's go.** Nothing changed in the engine or the rail.
+## ✅ R14 RULED (owner, 2026-09-15) — the refusal set is a property of the SURFACE
+
+> **It never was a shared fact between the lanes. Output count IS lane-independent and
+> stays a shared fact.**
+
+`bothLanesAgreeOnFacts.test.js` is corrected as proposed: the 13-script equality
+assertion is replaced by *"every lane-only refusal falls in that lane's admissibility
+class; a cross-class refusal is the regression"*. ⛔ Recorded here **in place** so the
+finding's own comment stops inviting a "fix" for correct behaviour.
+
+### ⭐⭐ WHERE THE CLASSES LIVE — and they were already data, so nothing is lifted
+
+The constraint was that the classes are **read from the engine, never hand-listed**,
+and that the fix's first commit lifts them out of prose if that is where they live.
+**Measured: they are not in prose.**
+
+| | |
+|---|---|
+| the data | `closedTable.json::_requirement_tags` — today exactly one tag, `window_dependent`, with `calls: ["cum", "isfirst"]`, `refused_by: ["screener","sweep","alert","share","listing"]`, `accepted_by: ["pane"]` |
+| the derivation | **`parse.js::hostAdmissible(table)`, already exported** — *"Names `PINE_INEXPRESSIBLE` refuses for a SCREEN but the HOST lane may serve. ⭐⭐ DERIVED FROM `_requirement_tags`, NEVER TYPED HERE."* |
+| what the rail does | **imports `hostAdmissible`**. No lift, no new table, no second authority |
+
+⭐ And that function's own comment already states the asymmetry R14 measured:
+*"IT IS THE ONE PLACE HOST MODE IS LOOSER THAN SCREENER MODE … Host mode is otherwise
+stricter — all-or-nothing … Strictness is about whether we can DRAW the script. This
+is about whether the number is COMPARABLE across symbols and across runs."*
+
+⛔ **THERE IS NO HOST-ONLY "CLASS" TO READ, AND INVENTING ONE WOULD BE MANUFACTURING A
+RULING THE ENGINE DOES NOT MAKE.** Host-only refusals (`state`, `drawing`, `tuple`,
+`offset-literal`) are host mode being *otherwise stricter*, which is the documented
+design — not a declared exemption. So the rail asserts the two things that ARE
+grounded: every **screener-only** refusal is explained by the `hostAdmissible` class,
+and **no host-only refusal names a `hostAdmissible` call** — the pane refusing what it
+is declared to accept is the regression in that direction.
+
+**Estimate 45 accepted; 2× stop 90.**
+
+---
 
 ---
 
