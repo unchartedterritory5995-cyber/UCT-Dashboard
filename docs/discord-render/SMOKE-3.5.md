@@ -49,27 +49,29 @@ what happened in run 1 on 2026-09-14.
 
 ## The rows
 
-Status key — **DEFINED**: established from prior evidence. **PROPOSED**: derived from
-the spec and the command surface, awaiting ratification. **UNDEFINED**: the prior
-record does not say what this row asserted.
+Status key — **DEFINED**: established from prior evidence. **RATIFIED**: derived from
+the spec and the command surface, and ratified as a row by **R16, 2026-09-15**.
+
+⭐ **THE SMOKE IS FOURTEEN ROWS.** R16 struck the fifteenth: the prior record never
+established one, and the "15" was approximate. **Every score from B2 onward is x/14.**
+A score of x/15 is from before this ruling and is not comparable.
 
 | # | Command | Status | Assertion | Wire evidence |
 |---|---|---|---|---|
 | 1 | `/chart ticker:NVDA` | **DEFINED** | Fresh chart, controls row `D · W · 60m · 5m · ⚙`, **and NO BADGE OF ANY KIND** | `path=/r/chart status=200 … prio=interactive ready=True bytes=…`; message shows `(edited)` |
-| 2 | `/chart` on a STALE symbol | **PROPOSED** | The STALE badge renders and `?stale=` carries the SENTENCE (04-visual-spec §2, §2b) | renderer URL contains `stale=` |
-| 3 | `/chart` where the renderer is unavailable | **PROPOSED** | The **stand-in** renders and later HEALS to a real chart (04-visual-spec §3) | a stand-in edit followed by a heal edit |
-| 4 | `/chart` footer | **PROPOSED** | The footer is stamped via `badge.stamp(content, footer)` (04-visual-spec §4, §4b) | footer text present on the delivered message |
+| 2 | `/chart` on a STALE symbol | **RATIFIED** | The STALE badge renders and `?stale=` carries the SENTENCE (04-visual-spec §2, §2b) | renderer URL contains `stale=` |
+| 3 | `/chart` where the renderer is unavailable | **RATIFIED** | The **stand-in** renders and later HEALS to a real chart (04-visual-spec §3) | a stand-in edit followed by a heal edit |
+| 4 | `/chart` footer | **RATIFIED** | The footer is stamped via `badge.stamp(content, footer)` (04-visual-spec §4, §4b) | footer text present on the delivered message |
 | 5 | `/flow ticker:SPY days:30` | **DEFINED** | **Real contracts, not "no significant options flow"** — the C-14 ETF partition (`discord_render.symbols.flow_source` → `etfs`) | a card with contracts; `source=etfs` on the flow-worker read |
-| 6 | `/flow` on an equity underlying | **PROPOSED** | `source=stocks` partition, the pre-V2 default | flow-worker read carries `source=stocks` |
-| 7 | `/flow` degraded card | **PROPOSED** | 04-visual-spec §5's degraded card renders rather than silence | a degraded card, never an empty reply |
+| 6 | `/flow` on an equity underlying | **RATIFIED** | `source=stocks` partition, the pre-V2 default | flow-worker read carries `source=stocks` |
+| 7 | `/flow` degraded card | **RATIFIED** | 04-visual-spec §5's degraded card renders rather than silence | a degraded card, never an empty reply |
 | 8 | `/buzz` (bare) | **DEFINED** | Ephemeral board reply, **ack inside 3 s** | ephemeral reply; **flags on the DEFER, not the follow-up** |
 | 9 | `/renderhealth` | **DEFINED** | Ephemeral; names the flag state AND the running commit | the reply quotes `DISCORD_RENDER_V2_ENABLED` and `Commit <sha>` |
-| 10 | `/charts` (multi-chart) | **PROPOSED** | Multi-chart delivery through `run_multi_chart_job`; type 5 defer | `background.add_task(run_multi_chart_job …)` path; one message, N charts |
-| 11 | a chart CONTROL-ROW button (`D`/`W`/`60m`/`5m`) | **PROPOSED** | The button re-renders in place (type 12 deferred update) | `{"type": 12}` at `routers/discord_interactions.py:403` |
-| 12 | the `⚙` control | **PROPOSED** | `/chartsettings` surface opens | — |
-| 13 | `/chart` in a NON-allowlisted channel | **PROPOSED** | Refused with a nudge naming the **member-facing** channel (`1546563720702853280`), never the smoke channel | `_channel_nudge()` |
-| 14 | rate-limit refusal | **PROPOSED** | `di.throttle_message(...)` — an honest named refusal, never silence | ephemeral throttle sentence |
-| 15 | — | **UNDEFINED** | The prior record does not establish a fifteenth row. | — |
+| 10 | `/charts` (multi-chart) | **RATIFIED** | Multi-chart delivery through `run_multi_chart_job`; type 5 defer | `background.add_task(run_multi_chart_job …)` path; one message, N charts |
+| 11 | a chart CONTROL-ROW button (`D`/`W`/`60m`/`5m`) | **RATIFIED** | The button re-renders in place (type 12 deferred update) | `{"type": 12}` at `routers/discord_interactions.py:403` |
+| 12 | the `⚙` control | **RATIFIED** | `/chartsettings` surface opens | — |
+| 13 | `/chart` in a NON-allowlisted channel | **RATIFIED** | Refused with a nudge naming the **member-facing** channel (`1546563720702853280`), never the smoke channel | `_channel_nudge()` |
+| 14 | rate-limit refusal | **RATIFIED** | `di.throttle_message(...)` — an honest named refusal, never silence | ephemeral throttle sentence |
 
 ---
 
@@ -107,10 +109,11 @@ the pod's age with the row or the number means nothing.
 
 ## Scoring
 
-Report **x/15 with every row's status**, and count `UNDEFINED` and `PROPOSED` rows
-separately from PASS/FAIL. A run that skips a row records **NOT RUN with the reason** —
+Report **x/14 with every row's status**, and count RATIFIED rows exactly as
+DEFINED ones — R16 makes them rows, not proposals. A run that skips a row records **NOT RUN with the reason** —
 never silence.
 
 ⚰️ `06-flip-packet.md:51`'s "2/15 PASS" is **historical-undefined**: it was scored
-against a list that was never written down. It is kept as history and must not be
-compared against any score produced from this file.
+against a list that was never written down, and against a denominator (15) that R16 has
+since struck. It is kept as history and must not be compared against any x/14 score
+produced from this file.
