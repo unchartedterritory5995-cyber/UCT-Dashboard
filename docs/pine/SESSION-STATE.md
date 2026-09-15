@@ -2,16 +2,32 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **item (c) — `request.security` tuples + IR-lane tuples. CENSUS NOT STARTED.**
+> ### ⛔ NEXT: **the owner's ruling on item (c).** The census is done.
 >
-> ⚠️ **It was not started because R14 landed AT its 2× stop** (~90 against 45), and
-> this programme does not open the next block on a doubled clock. Its prompt is
-> written and its first act is **c.1: read ruling D2 back verbatim** — whether it
-> forbids IR-lane *work* or only IR-lane output reaching the *pane* decides
-> whether (c)'s IR half is buildable in Wave 2 at all.
+> **D2 READ BACK: it forbids IR-lane OUTPUT reaching the PANE, not IR-lane WORK** —
+> `paneGate.js` defers the IR lane *"until session 3's text layer"*, the
+> prohibition sits at the pane boundary (`PANE_LANE = 'host'`), and item (c)'s own
+> entry says *"closing the tuple form is what lets D2 be revisited at all"*. ⇒ the
+> IR half is buildable **off-pane**.
 >
-> ✅ **R14 CLOSED** (`f0e9d6c62` red → `7a4de1a92`). a7.2 finding 1 is closed with
-> it.
+> ⭐⭐ **THE SLOT MODEL ALREADY SHIPS.** `[a,b] = request.security(s,tf,f())` with
+> `f() => [high,low]` translates today to `op('-',[sym(…high), sym(…low)])`
+> (`pine.js` ≈4749). **192 of 193** tuple uses satisfy it; **1** real breaker.
+>
+> ⚠️ **The borderline the owner should rule:** the only refused form — the
+> array-literal argument `request.security(s,tf,[x,y])` — is **90 uses, 15
+> reachable, against a ~20 threshold**. Under it on count; but it needs **no 12th
+> node type** and the machinery exists, so retiring refuses 90 corpus uses of a
+> form the engine is one parse rule from carrying. **Build 70 min / retire 35 min.**
+> Full table in `WAVE2-A-PLAN.md` § item (c).
+>
+> ⛔ **Two routing sentences need a qualification they do not carry** (the 56
+> series-dependent `for` bounds and the 5 `input.time` expression defaults): they
+> promise item (c) delivers something that, while D2 stands, cannot reach a pane.
+>
+> ✅ **R14 CLOSED** (`f0e9d6c62` red → `7a4de1a92`); **R17** routes
+> `high_engagement__20` here — measured as refusal-relocation ordering on one line
+> carrying two defects, not a semantic split.
 >
 > ✅ **R14 MEASURED, and the answer is (C): NEITHER LANE IS WRONG.** Every
 > lane-only refusal falls inside that lane's own admissibility class — the

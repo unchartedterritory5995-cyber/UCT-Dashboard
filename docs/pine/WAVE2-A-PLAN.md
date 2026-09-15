@@ -1121,6 +1121,136 @@ grow silently while (c) is still being scoped.
 
 ---
 
+# ⭐⭐ ITEM (c) — `request.security` TUPLES. DEFINED BY MEASUREMENT.
+
+## c.1 — RULING D2, READ BACK
+
+**Two primary sites, and they agree.** `app/src/components/chart/engine/ast/paneGate.js`
+(the code) and `docs/pine/SESSION-STATE.md` §*"SESSION 2 · D2 (option B)"* (the record):
+
+> **`paneGate.js`:** *"T3/T5 drive a member pane from the SAVED DEFINITION the HOST
+> lane produces, and **the IR lane stays as it is until session 3's text layer**. That
+> is a decision about which translation is authoritative … ⛔⛔ THE SCREENER LANE IS
+> NOT ADMISSIBLE HERE, AND THAT IS THE POINT."*
+> `export const PANE_LANE = 'host'`
+
+> **SESSION-STATE §D2:** *"⛔⛔ THE SCREENER LANE IS INADMISSIBLE BY CONSTRUCTION, AND
+> THAT IS THE WHOLE RULING. On Volume v2 the lenient lane answers `ok: true` with FOUR
+> refusals — correct for a screen … A pane built on that verdict draws one line and
+> silently omits the rest of the member's script."*
+
+**Wording drift across the secondary sites, reported:**
+
+| site | wording | drift |
+|---|---|---|
+| `PR-BODY.md:242` | *"D2 (the IR lane is off the pane path)"* | a true **consequence**, but it loses that D2 is primarily about **which lane a pane may act on**, and drops D2's other half entirely (the per-lane refusal **wording override**) |
+| `SESSION-STATE:330` | *"ruling D2 keeps it off"* | same compression |
+| `WAVE2-A-CENSUS.md:342` | *"Put the IR lane on the pane path — that is ruling D2"* | ⚠️ **inverted.** D2 is the ruling that it is **not** on the path; putting it on would be *revisiting* D2 |
+| `pine-presentation-spec.md:2547`, `pine-v6-constants.md:152` | a `plot.style_*` documentation contradiction | ⛔ **A NAME COLLISION, NOT THIS RULING.** Unrelated; flagged so no reader conflates them |
+
+### ⛔ THE READING: D2 forbids IR-lane OUTPUT reaching the PANE. It does not forbid IR-lane WORK.
+
+Three things in the text settle it: `paneGate.js` says the IR lane **"stays as it is
+until session 3's text layer"** — a deferral of rework, not a prohibition; the
+prohibition is located exactly at the pane boundary (`PANE_LANE = 'host'`, and the gate
+refuses any non-host `mode`); and SESSION-STATE's own item-(c) entry says
+**"Closing the tuple form is what lets D2 be revisited at all"** — the tuple work is
+D2's *precondition*, so D2 cannot forbid it.
+
+⇒ **(c)'s IR half is buildable OFF-PANE in Wave 2.** Its output may not drive a pane
+while D2 stands. The census covers both halves.
+
+## c.2 — what the engine does today
+
+**Instrument `eada76bc6`. Control: re-derives (b)'s 97 through (b)'s own walk — 97 = 97.**
+
+| form | today | node it folds to |
+|---|---|---|
+| `request.security("AAPL","D",close)` | ✅ translates | **`sym`** — `{type:'sym', value:'AAPL', args:[series close]}` |
+| `request.security(syminfo.tickerid,"D",close)` | ✅ translates | the bare `series` — the chart's own symbol needs no wrapper |
+| timeframe from `input.timeframe` | ✅ translates | `sym` — **this is the 97** |
+| `lookahead=` / `gaps=` present | ✅ translates | unchanged; call-level args are carried, not refused |
+| `request.security("AAPL","",close)` | ⛔ `pine:request` | *"could not be resolved to one symbol and one servable timeframe"* |
+| `[a,b] = request.security(s,tf,[x,y])` | ⛔ **`pine:tuple`** | *"answers with several values at once and a column carries one"* |
+| `f() => [high,low]` · `[a,b] = request.security(s,tf,f())` | ✅ **translates** | `op('-', [sym(AAPL,[high]), sym(AAPL,[low])])` |
+
+⭐⭐ **THE LAST ROW IS THE FINDING.** The slot model is not a proposal for (c) — **it
+ships**. `pine.js` ≈4749: a destructured name carries `bound.index` into
+`bound.fn.value.parts`, and each part resolves through `securityAsNode(bound.call)`.
+`pine:tuple` fires only when the part does not exist.
+
+**R17's specimen, `high_engagement__20:10`** — measured, and it is not a lane
+disagreement about `request.security` at all:
+
+```
+src = security(syminfo.tickerid, res, inp[rep ? 0 : barstate.isrealtime ? 1 : 0])[rep ? 0 : ...]
+```
+
+The line carries **two** defects — a non-literal bar offset **and** a request that does
+not resolve. Each surface reaches a different one first, and because **a refusal
+relocates and never joins**, only one survives per lane: screener `pine:request@10`,
+host `pine:offset-literal@10`. ⭐ Refusal-relocation ordering, not a semantic split.
+
+## c.3 — the hypothesis HOLDS, 192 of 193
+
+| | |
+|---|---|
+| tuple uses satisfying the slot model | **192 of 193** |
+| real breakers | **1** — `element-reads-another-element` |
+| the TARGET form (refused today) | **90** — `request.security(s, tf, [x, y])`, the array-literal argument |
+
+⚰️ **Two of version 1's three breaker categories were wrong**, and the correction moved
+the headline from 84/193 to 192/193. `array-literal-arg` was counted as a breaker when
+it is the **target** — the exact form the hypothesis describes. `per-call-lookahead/
+gaps-on-a-tuple` was counted as a breaker when those are **one call-level argument
+applied to the whole call**: slot expansion gives every element the same value, which is
+correct, and a scalar carrying either still folds. **A breaker has to be semantics that
+DIFFER PER ELEMENT.**
+
+⭐ **And the target form needs NO 12th node type.** `[x, y]` in an argument position is
+parsed and expanded at plan time into N slots; the tuple never becomes a node. That is
+Mechanism A exactly, and it is what `bound.fn.value.parts` already does for the UDF form.
+
+## c.5 — the table. **Reachable is the number, and it is borderline.**
+
+| form | uses | **reachable** | vs ~20 | binding constraint |
+|---|---|---|---|---|
+| **scalar** | 524 | **150** | far over — **and it already works** | nothing to build; it folds to `sym` today |
+| **tuple, all** | 193 | **20** | **at** the threshold | 192/193 satisfy the slot model |
+| **tuple, array-literal arg** (the only refused form) | **90** | **15** | **under** | the machinery exists; the gap is parsing `[x,y]` in an argument position and expanding it to slots |
+| tuple, other (UDF-returning) | ~103 | 5 | — | ✅ **already translates** |
+
+⛔ **By the threshold, the one form that is actually refused does not clear: 15 < 20.**
+
+⚠️ **AND THIS IS THE CALL I AM NOT MAKING ALONE, for the same reason as (b)'s
+`input.timeframe`.** The threshold governs what is BUILT, and 15 is under it — but the
+build here is unusually small, because the slot machinery already ships and the target
+needs no new node type. A "retire on count" verdict would refuse 90 corpus uses of a
+form this engine is *one parse rule* away from carrying. The census states both and
+rules neither.
+
+## The ROUTED population — what (c) actually owes each group
+
+| routed group | is it `request.security`? | disposition under the c.1 reading |
+|---|---|---|
+| **10 bare-`input` time uses** (from (b)) | ✅ **yes** | ✅ **(c) ALREADY DELIVERS THEM** — they are timeframe inputs in a timeframe position and fold to `sym` today. The R16 routing sentence is **honoured** |
+| **56 series-dependent `for` bounds** (from a1) | ❌ **no** — loop bounds | **IR-lane work, buildable off-pane; NOT deliverable to a pane while D2 stands.** The sentence *"runtime arrays are the IR lane's, item (c)"* is honoured in substance, but ⛔ it implies a member-visible result that **D2 blocks**. To be corrected in place with that qualification |
+| **5 `input.time` expression defaults** (from (b)) | ❌ **no** — input defaults | same: a non-literal default needs runtime evaluation, so it is the IR lane's, and the same D2 qualification applies |
+
+⛔ **So one routing sentence is honoured outright, and two are honoured with a
+qualification they do not currently carry** — they promise item (c) will deliver
+something that, while D2 stands, cannot reach the surface a member sees. **Correcting
+those two in place is part of whichever verdict the owner rules**, not a separate task.
+
+⛔ **STOP — awaiting the owner's go.** Nothing built, nothing retired.
+**Build estimate if the array-literal form is ruled in: 70 min** (parse `[x,y]` in an
+argument position · expand to slots through the existing `parts` machinery · red
+acceptance on named scripts with the slot trees written out · mutation proof).
+**Retirement estimate if ruled out: 35 min** (one sentence at the `pine:tuple` site
+carrying form, 90/35 files, and the routing).
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
