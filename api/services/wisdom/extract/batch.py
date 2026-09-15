@@ -68,6 +68,29 @@ class ExtractUnavailable(RuntimeError):
 #: lives in the environment, never in a file, and is never printed.
 KEY_VARS = ("WISDOM_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
 
+#: Where the OS credential store keeps the gate's key (R34, 2026-09-15).
+KEYRING_SERVICE, KEYRING_USER = "uct-wisdom", "anthropic"
+
+
+def key_from_keyring():
+    """The OS credential store, as a THIRD source. Returns None on anything going wrong.
+
+    ⭐ Why it never raises: a machine with no `keyring` installed, no backend, a locked store, or
+    simply no entry must behave **exactly as it did before this existed** — fall through to the
+    same `ExtractUnavailable`. A credential lookup that turns a missing optional dependency into a
+    crash would make the gate harder to run, not easier.
+
+    ⛔ Returns the value; never logs it, never reports its length, never reports which backend
+    answered — a backend name is a small leak about the operator's machine and buys nothing.
+    """
+    try:
+        import keyring  # optional, declared in requirements.txt
+
+        value = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
+    except Exception:
+        return None
+    return (value or "").strip() or None
+
 
 def make_client():
     key = ""
@@ -76,9 +99,16 @@ def make_client():
         if key:
             break
     if not key:
-        # ⛔ Names both variables and NEITHER value — an error that quotes a key is a key in a log.
+        # ⛔ The ENVIRONMENT is still preferred over the store. `railway run` and a one-off export
+        # are both deliberate, visible acts scoped to one process; the store is ambient and
+        # applies to every run on the machine, so it loses a tie.
+        key = key_from_keyring() or ""
+    if not key:
+        # ⛔ Names both variables and the store, and NEITHER value — an error that quotes a key is
+        # a key in a log.
         raise ExtractUnavailable(
-            f"no API key: set {KEY_VARS[0]} (preferred) or {KEY_VARS[1]}")
+            f"no API key: set {KEY_VARS[0]} (preferred) or {KEY_VARS[1]}, "
+            f"or store one under keyring service {KEYRING_SERVICE!r} / user {KEYRING_USER!r}")
     import anthropic
 
     return anthropic.Anthropic(

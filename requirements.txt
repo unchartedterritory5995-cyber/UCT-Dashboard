@@ -81,3 +81,10 @@ orjson>=3.11.0  # fast + NaN-safe bars serialization (api/services/bars_fetch, a
 json_repair
 pyotp>=2.9.0  # TOTP two-factor auth (api.services.totp_service)
 qrcode>=8.0  # 2FA enrollment QR (SVG factory, no PIL needed)
+
+# Wisdom golden gate: OS credential store as a key source (R34, 2026-09-15). OPTIONAL —
+# api/services/wisdom/extract/batch.make_client falls through to ExtractUnavailable when the
+# module is absent or the backend is unavailable, so a machine without a store behaves exactly
+# as it did before. Installing it does NOT put a key anywhere; storing one is a separate,
+# deliberate act by the operator (see docs/wisdom/HARD-RULES.md, R34).
+keyring>=24.0

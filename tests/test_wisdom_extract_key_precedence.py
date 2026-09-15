@@ -97,3 +97,80 @@ def test_a_set_key_is_never_echoed_on_the_success_path(monkeypatch, caplog):
 def test_the_variable_order_is_declared_once_and_preference_first():
     """The tuple IS the precedence; nothing re-states it."""
     assert batch.KEY_VARS == ("WISDOM_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+
+
+# ── R34: the OS credential store as a third source ───────────────────────────
+
+FAKE_STORED = "FAKE-stored-key-not-a-real-credential"
+
+
+def _fake_keyring(monkeypatch, *, value=None, raises=None):
+    """Mock the module. ⛔ The REAL credential store is never touched by a test."""
+    import sys
+    import types
+
+    module = types.ModuleType("keyring")
+
+    def get_password(service, user):
+        if raises is not None:
+            raise raises
+        return value if (service, user) == (batch.KEYRING_SERVICE, batch.KEYRING_USER) else None
+
+    module.get_password = get_password
+    monkeypatch.setitem(sys.modules, "keyring", module)
+
+
+def test_the_environment_beats_the_store(monkeypatch):
+    """⛔ A tie goes to the ENVIRONMENT. `railway run` and a one-off export are deliberate acts
+    scoped to ONE process; the store is ambient and applies to every run on the machine."""
+    _fake_keyring(monkeypatch, value=FAKE_STORED)
+    monkeypatch.setenv("WISDOM_ANTHROPIC_API_KEY", FAKE_WISDOM)
+    assert _key_used(monkeypatch) == FAKE_WISDOM
+
+
+def test_the_store_is_used_when_no_variable_is_set(monkeypatch):
+    _fake_keyring(monkeypatch, value=FAKE_STORED)
+    assert _key_used(monkeypatch) == FAKE_STORED
+
+
+def test_a_keyring_error_falls_through_instead_of_crashing(monkeypatch):
+    """⭐ No backend, a locked store, a missing module: the gate must behave exactly as it did
+    before R34 existed — the same ExtractUnavailable, not a crash."""
+    _fake_keyring(monkeypatch, raises=RuntimeError("no backend available"))
+    with pytest.raises(batch.ExtractUnavailable):
+        batch.make_client()
+
+
+def test_an_absent_keyring_module_falls_through(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "keyring", None)   # import keyring -> ImportError
+    with pytest.raises(batch.ExtractUnavailable):
+        batch.make_client()
+
+
+def test_an_empty_stored_value_is_not_a_credential(monkeypatch):
+    _fake_keyring(monkeypatch, value="   ")
+    with pytest.raises(batch.ExtractUnavailable):
+        batch.make_client()
+
+
+def test_the_error_names_all_three_sources_and_no_value(monkeypatch, caplog):
+    _fake_keyring(monkeypatch, value=None)
+    with caplog.at_level(logging.DEBUG):
+        with pytest.raises(batch.ExtractUnavailable) as exc:
+            batch.make_client()
+    message = str(exc.value)
+    for token in (*batch.KEY_VARS, batch.KEYRING_SERVICE, batch.KEYRING_USER):
+        assert token in message
+    blob = message + "".join(r.getMessage() for r in caplog.records)
+    for fake in (FAKE_WISDOM, FAKE_GENERIC, FAKE_STORED):
+        assert fake not in blob
+
+
+def test_a_stored_key_is_never_echoed(monkeypatch, caplog):
+    _fake_keyring(monkeypatch, value=FAKE_STORED)
+    with caplog.at_level(logging.DEBUG):
+        used = _key_used(monkeypatch)
+    assert used == FAKE_STORED
+    assert FAKE_STORED not in "".join(r.getMessage() for r in caplog.records)
