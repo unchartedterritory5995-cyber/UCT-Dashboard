@@ -24,8 +24,61 @@ from api.services.wisdom.core.owner import require_owner
 
 router = APIRouter(prefix="/api/admin/wisdom/core", tags=["wisdom"])
 
+def _extractor_version() -> Optional[str]:
+    """⚠️ Best effort: importing the prompt builds a hash over the system prompt and contract, and
+    a status route must not 500 because that import is unhappy."""
+    try:
+        from api.services.wisdom.extract import prompt
+
+        return prompt.extractor_version()
+    except Exception:
+        return None
+
+
 _RUNNING: set = set()
 _RUNNING_LOCK = threading.Lock()
+
+
+#: R45 (2026-09-15) — the tables whose ROW COUNT the owner reads to see what the store holds.
+#: ⛔ COUNTS ONLY. Never a text column, never a row: this answers "how much is in there", and the
+#: only safe answer to "what is in there" is the admin review UI, which is already gated per item.
+#: ⚠️ Derived-safe: a table absent on an older store reports null rather than 503ing the whole
+#: route — a status endpoint that dies because one table is missing tells the owner nothing.
+STATUS_COUNT_TABLES = (
+    "wisdom_sources", "wisdom_segments", "wisdom_records", "wisdom_principles",
+    "wisdom_principle_support", "wisdom_field_provenance", "wisdom_review_queue",
+    "wisdom_eval_runs", "wisdom_extract_requests",
+)
+
+
+def _row_counts(conn) -> dict:
+    out: dict = {}
+    for table in STATUS_COUNT_TABLES:
+        try:
+            out[table] = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        except sqlite3.Error:
+            out[table] = None          # absent on this store; say so rather than pretend zero
+    return out
+
+
+def _floored_stability(conn) -> dict:
+    """How the floored types are distributed across stability — the publish/block picture.
+
+    ⛔ Counts by (record_type, stability) only. This is the number session 10 could not read for
+    production because no route exposed it.
+    """
+    out: dict = {}
+    try:
+        rows = conn.execute(
+            "SELECT record_type, stability, stability_runs, COUNT(*) FROM wisdom_records "
+            "WHERE record_type IN ('PRINCIPLE','MARKET_SIGNAL') GROUP BY record_type, stability, "
+            "stability_runs ORDER BY record_type, stability").fetchall()
+    except sqlite3.Error:
+        return {}
+    for rtype, stability, runs, n in rows:
+        key = "unscored" if stability is None else f"{stability:.4f}/{runs}"
+        out.setdefault(rtype, {})[key] = n
+    return out
 
 
 @router.get("/status")
@@ -35,6 +88,8 @@ def wisdom_status(_admin: dict = Depends(require_admin)) -> dict:
             beats = {row["job_id"]: row for row in heartbeat.job_health(conn)}
             migrations = [dict(r) for r in conn.execute(
                 "SELECT name, applied_at FROM wisdom_migrations ORDER BY name")]
+            counts = _row_counts(conn)
+            floored = _floored_stability(conn)
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
     jobs = []
@@ -54,6 +109,10 @@ def wisdom_status(_admin: dict = Depends(require_admin)) -> dict:
         "migrations": migrations,
         "jobs": jobs,
         "flags": [{"env": env, "on": reader(), "member_visible": visible} for env, reader, visible in flags.GATES],
+        # R45: what the store actually holds. Counts only — no text column is read.
+        "store_counts": counts,
+        "floored_stability": floored,
+        "extractor_version": _extractor_version(),
     }
 
 
