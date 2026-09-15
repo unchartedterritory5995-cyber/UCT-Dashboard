@@ -1,7 +1,7 @@
 ---
 id: WISDOM-SESSION-9
 title: Session 9 — the three passes are bought; the floor blocks 88% and every CALL was demoted
-status: complete — 13 commits, 13 pushes, 249 API calls, $14.6090
+status: complete — 13 commits, 249 API calls, $14.6090
 ---
 
 # Session 9 — three passes, and what they cost to learn
@@ -12,7 +12,7 @@ status: complete — 13 commits, 13 pushes, 249 API calls, $14.6090
 > **$14.6090**. Ledger **$31.4815 of the ruled $40.00**. 2,490 records persisted across three
 > runs, every one re-derivable offline for $0.00.
 
-`feat/wisdom-loop` `87d3bfb6d` → **`4a9b…`**, pushed. Scoped suite **1145 passed · 1 skipped ·
+`feat/wisdom-loop` `87d3bfb6d` → **`e74347ec9`**, pushed (13 commits). Scoped suite **1145 passed · 1 skipped ·
 0 failed** over 66 named files (128 s).
 
 ## Rulings — one line each
@@ -25,7 +25,7 @@ status: complete — 13 commits, 13 pushes, 249 API calls, $14.6090
 | **R27** GOLDEN_SET: V1_1 | ✅ **BOUGHT** — 3 × 83 segments, sha `c26c871ea5a1` pinned on every pass |
 | **R24** via railway exit codes: YES | ✅ **CLOSED** — 0 of 25 gates SET on production `web` |
 | **R8** FLAGS: HOLD | ⏭️ nothing flipped |
-| **PUSH_BRANCH** | ✅ 13 pushes, branch only, master never touched |
+| **PUSH_BRANCH** | ✅ pushed after every commit, branch only; master never touched |
 | **AGENT_CAP: 3** | 0 sub-agents used |
 
 ---
@@ -213,7 +213,7 @@ seen.
 | Q4 — 9,733-segment catalog, one pass | **~$557 – $598** |
 | records persisted | **2,490** across 3 runs, all re-derivable for $0.00 |
 | identities reconciled | 1,223 |
-| commits / pushes | 13 / 13, branch only |
+| commits | **13**, branch only; master never touched |
 | scoped suite | **1145 passed · 1 skipped · 0 failed** (66 files, 128 s) |
 | sub-agents | 0 |
 
