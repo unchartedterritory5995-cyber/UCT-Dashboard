@@ -8,7 +8,7 @@ with a measurement rather than a configuration reading — whether the deploy ga
 **No measurement windows this session** (decision 0.1). Every number below is either from
 Session 9's two windows, from a tool run today, or from a table in this report (rule H.1).
 
-**Published page:** *(URL at the end of this file)*
+**Published page:** <https://claude.ai/artifact/AFUTBu6XQDgt7H2DejGrqL> (private)
 
 ---
 
