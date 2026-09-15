@@ -1186,6 +1186,9 @@ def main(argv=None) -> int:
     ap.add_argument("--root", default=None,
                     help="evaluate against another tree (the mutation set uses a sandbox)")
     ap.add_argument("--soak-log", default=None)
+    ap.add_argument("--no-snapshot", action="store_true",
+                    help="do not write a per-row snapshot (for throwaway/sandbox runs)")
+    ap.add_argument("--label", default="", help="a short name for this run's snapshot")
     args = ap.parse_args(argv)
     if args.self_check:
         return self_check()
@@ -1206,6 +1209,30 @@ def main(argv=None) -> int:
                                "and nothing here is a pass"}[code]
     out(f"\nVERDICT {word}")
     out("  organic members exposed to V2: 0")
+
+    # ── D-06 Part 6: the run leaves a per-row record, and says what moved ────
+    # ⚰️ D-05 reported this gate as 5/3/3 and it read 6/3/2 an hour later at the same
+    # tip. Nobody could name the row, because every prior report quoted a TALLY from
+    # recollection and nothing had ever written the rows down. Three integers cannot
+    # say which row moved.
+    if not args.no_snapshot:
+        try:
+            sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+            import gate_snapshot
+            previous = gate_snapshot.listing()
+            snap = gate_snapshot.build(rows, label=args.label)
+            path = gate_snapshot.write(snap)
+            out(f"\nSNAPSHOT {path.name}  {gate_snapshot.tally(snap)}")
+            if previous:
+                gate_snapshot.render(gate_snapshot.diff(gate_snapshot.load(previous[-1]), snap),
+                                     out=out)
+            else:
+                out("  (first snapshot — a diff needs two; the next run will have one)")
+        except Exception as exc:  # noqa: BLE001
+            # ⛔ LOUD. A snapshot that quietly failed to write is how the next report
+            # ends up quoting a tally from memory again — which is the whole defect.
+            out(f"\nSNAPSHOT NOT WRITTEN — {type(exc).__name__}: {exc}")
+            out("  ⛔ This run left no record. Do not report a gate impact from it.")
     return code
 
 
