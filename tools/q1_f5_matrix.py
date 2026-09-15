@@ -824,6 +824,16 @@ WINDOW_MINUTES = 60
 # three minutes is nothing; the cost of being wrong is a hole in the K window.
 JUST_RAN_COOLDOWN_SECONDS = 180
 
+# ⛔⛔ THE PRECONDITION BUDGET. Every individual wait in this file is bounded;
+# their SUM was not. On 2026-09-15 a cell ran 1802s and produced no verdict at all
+# — a 30-minute hang that burned half a rig window AND left the rig browser alive,
+# opted in, for the next sampler to mistake for product state.
+#
+# ⭐ A CLEAN REFUSAL AND A HANG ARE NOT THE SAME FAILURE. The first is an answer
+# ("nothing was measured, here is why"); the second is the absence of one. Setup is
+# online and is not the door, so it gets a deadline and must say WHICH step ran out.
+PRECONDITION_BUDGET_SECONDS = 120
+
 
 def rig_window_refusal(now=None, query=None):
     """The reason to refuse, or None when the window is clear.
@@ -1261,7 +1271,37 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
     page.on("response", on_response)
 
     note_id = None
+    _t0 = time.monotonic()
+
+    def _expired(step):
+        """⛔ Refuse with the STEP and the elapsed time, never silently."""
+        el = time.monotonic() - _t0
+        if el < PRECONDITION_BUDGET_SECONDS:
+            return None
+        return {"verdict": "INCONCLUSIVE",
+                "why": (f"the SETUP budget of {PRECONDITION_BUDGET_SECONDS}s ran out at "
+                        f"'{step}' after {el:.0f}s — nothing was measured. Setup is online "
+                        f"and is not the door; a cell that cannot be set up must REFUSE, not "
+                        f"hang. (the 1802s hang, 2026-09-15)")}
+
     try:
+        # ── 0. AUTH. A signed-out rig makes every reading below meaningless, and a
+        #    401 here is a different fact from a 502. Ask before spending anything. ──
+        who = page.evaluate("""async () => {
+          try {
+            const r = await fetch('/api/auth/me', {credentials:'include'});
+            return {status: r.status,
+                    json: (r.headers.get('content-type') || '').includes('json')};
+          } catch (e) { return {status: 0, err: String(e)}; }
+        }""")
+        if not (isinstance(who, dict) and who.get("status") == 200 and who.get("json")):
+            return {"verdict": "INCONCLUSIVE",
+                    "why": (f"/api/auth/me did not answer 200+JSON ({who}) — the rig is not "
+                            f"signed in, so nothing below could have been measured. This is "
+                            f"an INSTRUMENT fact, NOT a product finding.")}
+        x = _expired("auth check")
+        if x:
+            return x
         # ── 1. a probe note, created through the API. SETUP, not the door. ──
         made = page.evaluate("""async ({t}) => {
           const r = await fetch('/api/j2/notes', {method:'POST', credentials:'include',
@@ -1277,7 +1317,8 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
 
         # ── 2. open it in the editor. This is also what makes it the append
         #      families' destination: NoteEditorPage writes `uct.jw.lastNote`. ──
-        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded",
+                  timeout=45000)
         page.wait_for_timeout(7000)
         # ⛔ ONE PROBE IS NOT A VERDICT, here either. The editor is a lazy chunk
         # behind an auth gate; a slow first paint or a pod that has just swapped
@@ -1296,6 +1337,9 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             return {"verdict": "INCONCLUSIVE",
                     "why": "the editor never mounted for the probe note after 4 tries and a "
                            "reload — nothing was measured"}
+        x = _expired("editor mount")
+        if x:
+            return x
         pm.click()
         page.keyboard.type(f"{SENTINEL} baseline {stamp}.")
         page.wait_for_timeout(5000)
