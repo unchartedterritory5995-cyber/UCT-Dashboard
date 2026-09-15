@@ -23,7 +23,7 @@
 // this out of the ~4,700 existing chart assertions: the suffix appears only when
 // a second instance of the SAME plot is actually on the chart.
 import { describe, it, expect } from 'vitest'
-import { chipsFrom } from '../readout'
+import { chipsFrom, paneReadoutLabel } from '../readout'
 import * as engineRegistry from '../nativeRegistry'
 
 const MACD = 'macd'
@@ -150,5 +150,74 @@ describe('two instances — each chip says which one it is', () => {
       entry('inst:macd:1', 'macd', {}, 1.5),
     ], { 'inst:macd:1': { fast: 12, slow: 26, signal: 9 } })
     expect(out.every(c => c.label === 'MACD')).toBe(true)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐⭐ THE PANE SAYS IT IN FULL, THE STRIP KEEPS IT SHORT
+//
+// Owner, after living with the shipped pane readouts (2026-09-14): *"when in
+// their own pane show the full name of the indicator … for example for a RSI
+// indicator it should say (relative strength index) or for UCTU20W it should say
+// 'UCT Stocks Up 20%+ in 5 Days'. But in the legend keep all of them
+// abbreviated."* Two surfaces, two questions: nine names share one line in the
+// strip, and a pane readout has a whole rectangle to itself.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('paneReadoutLabel — the long name, and the three times it is not', () => {
+  const RSI = engineRegistry.getDefinition('rsi')
+  const MACD_DEF = engineRegistry.getDefinition('macd')
+  const SERIES = engineRegistry.getDefinition('dataSeries')
+  const chip = (over) => ({ defId: 'rsi', plotKey: 'rsi', label: 'RSI(14)', ...over })
+
+  it('⭐ an indicator gets its definition-declared `meta.name`', () => {
+    // ⛔ READ OFF THE REGISTRY, NEVER TYPED HERE — the same field the catalogue
+    // lists and `About …` titles, so one rename moves every surface at once.
+    expect(RSI.meta.name, 'the definition stopped carrying a long name').toBeTruthy()
+    expect(paneReadoutLabel(chip(), RSI, null)).toBe(RSI.meta.name)
+  })
+
+  it('⛔ a SECONDARY plot keeps its own short name', () => {
+    // MACD's pane prints two rows. "Moving Average Convergence Divergence" over
+    // `SIG` would name the indicator twice and the line never; `SIG` is the word
+    // for the part, and the row above it already names the whole.
+    const plots = (MACD_DEF.plots || []).filter((p) => p && p.legend && p.legend.hide !== true)
+    expect(plots.length, 'MACD stopped declaring two chip plots').toBeGreaterThan(1)
+    const primary = paneReadoutLabel(
+      { defId: 'macd', plotKey: plots[0].key, label: 'MACD' }, MACD_DEF, null)
+    const secondary = paneReadoutLabel(
+      { defId: 'macd', plotKey: plots[1].key, label: 'SIG' }, MACD_DEF, null)
+    expect(primary).toBe(MACD_DEF.meta.name)
+    expect(secondary, 'the secondary plot was renamed after the whole indicator').toBe('SIG')
+  })
+
+  it('⭐⭐ a SOURCE-NAMED definition takes the name its caller resolved', () => {
+    // `dataSeries` is deliberately blind to what a symbol IS (no `if breadth`, no
+    // symbol list) and `readout.js` imports no source grammar — so the sentence
+    // arrives as an argument from the one caller that can look it up.
+    const c = { defId: 'dataSeries', plotKey: 'value', label: 'UCTU20W' }
+    expect(paneReadoutLabel(c, SERIES, 'UCT Stocks Up 20%+ in 5 Days'))
+      .toBe('UCT Stocks Up 20%+ in 5 Days')
+    // ⛔ AND WITH NO ANSWER IT PRINTS THE SYMBOL — never a guess, and never the
+    // definition's own name, which for this one is the useless word "Data Series".
+    expect(paneReadoutLabel(c, SERIES, null)).toBe('UCTU20W')
+    expect(paneReadoutLabel(c, SERIES, '')).toBe('UCTU20W')
+  })
+
+  it('⛔ the sibling suffix survives the longer name', () => {
+    // Two copies in ONE pane are still two copies. The suffix is stamped onto the
+    // chip by `disambiguateSiblings`, so both naming surfaces word a duplicate the
+    // same way instead of re-deriving the grammar from a rendered label.
+    expect(paneReadoutLabel(chip({ suffix: ' (period 7)' }), RSI, null))
+      .toBe(`${RSI.meta.name} (period 7)`)
+    expect(paneReadoutLabel(
+      { defId: 'dataSeries', plotKey: 'value', label: 'UCTA50 #2', suffix: ' #2' },
+      SERIES, '% of Stocks Above 50-Day MA'))
+      .toBe('% of Stocks Above 50-Day MA #2')
+  })
+
+  it('⛔ an unknown definition falls back to the chip label, and never throws', () => {
+    expect(paneReadoutLabel(chip(), null, null)).toBe('RSI(14)')
+    expect(paneReadoutLabel(null, RSI, null)).toBe('')
+    expect(paneReadoutLabel({ defId: 'rsi' }, RSI, null)).toBe('')
   })
 })

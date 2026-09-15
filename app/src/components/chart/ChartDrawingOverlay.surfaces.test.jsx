@@ -333,10 +333,20 @@ describe('the seven Model Book / surface override props still reach their decisi
     expect(SRC).toContain('if (lines && lines.length) paintedBoxes.set(d.id, lines)')
   })
 
-  it('the Fib painter is handed the drawing and the series formatter', () => {
+  it('the Fib painter is handed the drawing and the PANE formatter', () => {
+    // ⚰️ IT WAS `fmt: priceText` — the CANDLE series' formatter, on every pane.
+    // A Fib dropped in an oscillator pane therefore printed its levels as prices
+    // of the instrument (owner, 2026-09-14: a horizontal line in a 0-200 breadth
+    // pane labelled `514.80`). `fmtFor(rect)` hands back exactly `priceText` for
+    // the price pane and that pane's own formatter anywhere else.
     const block = near("case 'fib':", 700)
-    expect(block).toContain('{ drawing: d, fmt: priceText }')
+    expect(block).toContain('{ drawing: d, fmt: fmtFor(rect) }')
     expect(block).toContain('paintedBoxes.set(d.id, lines)')
+    // ⛔ AND THE PRICE PANE IS UNCHANGED, BY IDENTITY: `fmtFor` returns the very
+    // same function for it, so no price-pane label can shift a pixel-parity
+    // baseline. Read off the helper rather than asserted about in prose.
+    expect(near('const fmtFor = (zone)', 260))
+      .toContain("if (!zone || zone.key === PRICE) return priceText")
   })
 
   it('resetting a Fib removes overrides and touches nothing else', () => {

@@ -1893,15 +1893,23 @@ describe('the indicator pane prints its own name and value, top-left', () => {
    *  two having been the same string. */
   const paneRow = (view, key) => view.container.querySelector(`[data-pane-legend="${key}"]`)
 
-  it('an RSI pane carries `RSI(14)` and the hovered value', async () => {
+  it('⭐⭐ an RSI pane carries the FULL NAME and the hovered value', async () => {
+    // ⚰️ IT ASSERTED `RSI(14)` HERE, the strip's abbreviation. Owner, after
+    // living with it (2026-09-14): *"when in their own pane show the full name of
+    // the indicator … but in the legend keep all of them abbreviated"*. A pane
+    // readout has a whole rectangle to itself; the strip has nine names on one
+    // line. The next case is the other half and the two must be read together.
     const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
     const row = paneRow(view, 'legacy:rsi')
     expect(row, 'the RSI pane printed no readout at all').toBeTruthy()
-    // ⚠️ THE LABEL COMES FROM `legendParams`, NOT FROM THIS FILE. RSI declares
-    // `legendParams: ['period']`, which is what puts the 14 in parentheses — the
-    // owner asked for "RSI 14 in parentheses" and the definition already said it.
-    expect(row.textContent).toContain('RSI(14)')
+    // ⛔ THE NAME COMES FROM THE DEFINITION'S `meta.name`, NOT FROM THIS FILE —
+    // the same field the catalogue lists and the popover's `About …` titles, so a
+    // renamed indicator cannot end up with two names on one chart.
+    const rsiDef = registry.getDefinition('rsi')
+    expect(rsiDef.meta.name, 'the definition stopped carrying a long name').toBeTruthy()
+    expect(row.textContent).toContain(rsiDef.meta.name)
+    expect(row.textContent, 'the pane fell back to the strip abbreviation').not.toContain('RSI(14)')
     // ⭐ `57.3`, NOT `57.25` — and that ONE decimal is the point of the case.
     // The readout formats through the chip's own `legend.decimals`, so it cannot
     // print a number the strip six pixels above it would round differently. A
@@ -1909,6 +1917,20 @@ describe('the indicator pane prints its own name and value, top-left', () => {
     // pipeline `readout.chipsFrom` exists to prevent.
     expect(row.textContent).toContain('57.3')
     expect(row.textContent, 'the raw value leaked past the declared precision').not.toContain('57.25')
+  })
+
+  it('⛔ …and the STRIP six pixels above it keeps the abbreviation', async () => {
+    // The other half of the same ruling, and the reason it is a separate case: if
+    // the long name ever reaches `chipLabel` instead of the pane readout, the case
+    // above still passes and the legend quietly grows to the width of a sentence.
+    const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
+    const chip = [...view.container.querySelectorAll('[data-instance-id]')]
+      .find((e) => !e.closest('[data-pane-legend]'))
+    expect(chip, 'no chip in the strip at all').toBeTruthy()
+    expect(chip.textContent).toContain('RSI(14)')
+    expect(chip.textContent, 'the long name leaked into the strip')
+      .not.toContain(registry.getDefinition('rsi').meta.name)
   })
 
   it('two pane indicators get two readouts, in the LAYOUT s pane order', async () => {
