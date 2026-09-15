@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 11:46 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 12:21 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**15 commits** — eight docs, seven code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`
+**18 commits** — nine docs, nine code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -413,6 +413,85 @@ adding a non-vacuity check and a control that a deliberately broken copy IS reje
 ⭐ **Predicting UNKNOWN is the call E CP11 got right and CP12/CP13 got wrong.** The
 difference is not confidence — it is whether a cause has been *read*.
 
+## 3m · Run #12 — the annotation worked on its first run
+
+| E CP14 predicted | actual | |
+|---|---|---|
+| **an `::error::` annotation names the failing command** | **yes** | ✅ |
+| `publish` — deliberately **UNKNOWN** | failure | — *(unscored by construction)* |
+| 19 of 20 jobs green | **19 of 20** | ✅ |
+
+Read anonymously, with no account:
+
+```
+[failure] publish failed | python "/tmp/ci_publish.py" --branch ci-results (exit 1)
+```
+
+⭐ **Predicting `publish: UNKNOWN` was right for the second time**, and for the same reason:
+a cause had not been read. The three confident guesses before it were all wrong.
+
+## 3n · ⛔⛔ RETRACTION — E CP13's DIAGNOSIS WAS WRONG, AND THE EXIT CODE HAD ALWAYS SAID SO
+
+E CP13 said, in its build record, in this report and in a commit message, that
+`git checkout ci-results` deletes `tools/ci_publish.py` and *"Python exits immediately on a
+path that does not exist. Two seconds, which is the measured duration."*
+
+**The discriminator is the exit code, and it is one command to measure:**
+
+| command | exit |
+|---|---|
+| `python <a path that does not exist>` | **2** |
+| `git checkout <a branch that does not resolve>` | **1** |
+
+**Runs #10 and #11 both reported `Process completed with exit code 1`.** Under `bash -e` a
+step exits with the failing command's own status, so a missing script would have said **2**.
+⛔ **The step never reached the script — it died at `git checkout ci-results`**, precisely the
+state my own repro produced and which E CP14 then fixed while labelling it *"NOT claimed as
+the cause."*
+
+⭐⭐ **The hedge was wrong in the other direction: the explicit refspec WAS the fix.** Run #12
+is the evidence — with it, the step ran past the checkout and failed at its **last** command.
+
+⚰️ **And run #10's exit code was in its annotations from the moment it failed.** I first read
+that endpoint at run #11. ⛔ A one-character discriminator sat in a channel I had already
+proven readable. The E CP12 lesson — *re-take an UNREADABLE before building on it* — has a
+sibling: **once a channel opens, re-read the CLOSED cases through it.**
+
+⭐ **What survives:** `ci-results` really carries no `tools/`, so the `/tmp` copy is a real
+fix for a real defect — one that would have fired the moment the checkout started working.
+A correct repair filed under a wrong cause. The CP13 record is retracted in place and its
+manifest fingerprint re-derived (`c5a01c4f4` → `a2c1f43d1`).
+
+⚠️ **And a second wrong read, caught before it reached this report.** Run #12's publish
+**job** ran 21 seconds and I took that as the retry loop exhausting — three attempts at 5 s
+of backoff fits neatly. **21 s is the JOB; step 15 took 3 SECONDS**, so the publisher
+returned early and never reached a third push. The inference was wrong in the *flattering*
+direction, with arithmetic that fit. **A number that fits a story is not evidence for it.**
+
+## 3o · E CP15 — one annotation, and the tail survives
+
+`push_with_retry` can fail three ways — `UPSTREAM-UNREADABLE`, `REBASE CONFLICT`, or attempts
+exhausted — and writes all three to **stdout**, which is 403 without a login. The whole trace
+now leaves as a single annotation as well.
+
+⛔ **ONE annotation, deliberately:** GitHub caps annotations per step and a truncated trace
+loses its **tail**, which is exactly where the verdict sits. `%0A` renders it multi-line
+inside one annotation. Failure at `error` level, success at `notice`. Six controls, the
+load-bearing one being that the annotation carries the **verdict** line rather than just
+`attempt 1: fetch rc=0`.
+
+### Prediction for run #13
+
+| field | prediction |
+|---|---|
+| **the annotation names WHICH branch the publisher took** | **yes**, with the per-attempt rc values |
+| `publish` | ⚠️ **UNKNOWN** — CP15 changes nothing about what the publisher does |
+| 19 of 20 jobs green | **yes** |
+
+⭐ **CP15 is an instrument, not a repair, and should not be scored as one.** The next
+checkpoint can fix a cause; this one exists so there is a cause to fix rather than a fourth
+guess.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -578,6 +657,7 @@ ran a job.
 | **F-CI-15** | **NEW, mine.** `git checkout ci-results` deletes `tools/` from the working tree (the branch carries zero paths under it), so E CP9's `python tools/ci_publish.py` on the next line could never run — and never has. Publisher copied to /tmp and railed by a check inside itself. |
 | **F-CI-16** | **NEW, mine.** `push_with_retry` reported every non-zero rebase as "two publishers wrote one path" — a confident diagnosis of an unestablished cause. UPSTREAM-UNREADABLE is now its own state. |
 | **F-CI-17** | **NEW, and it reframes F-CI-7.** The step summary is 404 anonymously, so every phone-readable fallback this programme built is invisible to a reader without an account. Check-run annotations DO answer anonymously; the publish step now emits its failing command there. |
+| **RETRACTED (3)** | *E CP13's diagnosis* — "the checkout deletes the script, so python exits on a missing path". Python exits **2**; the step reported **1**, so it died at `git checkout`. E CP14's explicit refspec was the fix, not the insurance I labelled it. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -608,8 +688,8 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 since **run #4**; runs #6, #8, #9, #10 and #11 all lost their `publish` job.
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–25 nothing member-visible.**
-Row 26 is E CP14 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–26 nothing member-visible.**
+Row 27 is E CP15 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -626,8 +706,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**26 rows, 26 OK, 0 STALE. 25 of 25 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **18 constraints SATISFIED**, 26 units, 0 MALFORMED,
+**27 rows, 27 OK, 0 STALE. 26 of 26 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **19 constraints SATISFIED**, 27 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.

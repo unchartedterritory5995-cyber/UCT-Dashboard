@@ -38,12 +38,41 @@ on disk are **CP2, CP4–CP12**; manifest rows are **CP2, CP4–CP12** (24 rows 
 | a record on `ci-results` | **none** | ❌ |
 | `contract_gaps: []` | not reachable | — |
 
+⚠️ **§2 of this record was RETRACTED after run #12 — read it before the rest.**
+
 ⭐ **The falsifier was named in advance:** *"publish failing at a step OTHER than `Build the
 record` would mean the KeyError was one of two causes, not the cause."* It failed at step
 **15 · `Publish onto the orphan ci-results branch`**, in **2 seconds**. So CP12 fixed the
 cause it named — provably — and a second, independent defect sat behind it.
 
-## 2 · ⛔⛔ PROVEN FROM THE BRANCH, NO LOG NEEDED
+## 2 · ⛔⛔ RETRACTED — THIS DIAGNOSIS WAS WRONG, AND THE EXIT CODE SAYS SO
+
+**Added 2026-09-15, after run #12.** Everything below about the branch's contents is true and
+the `/tmp` copy is still necessary. ⛔ **But it is NOT why runs #10 and #11 failed**, and I
+published that it was.
+
+**The discriminator is the exit code, measured on this box:**
+
+| command | exit |
+|---|---|
+| `python <a path that does not exist>` | **2** |
+| `git checkout <a branch that does not resolve>` | **1** |
+
+**Runs #10 and #11 both reported `Process completed with exit code 1`** — read from the
+check-run annotations, anonymously. Under `bash -e` the step exits with the failing command's
+own status, so a missing script would have reported **2**. ⭐ **The step never reached the
+script; it died at `git checkout ci-results`** — which is exactly what my own isolated repro
+produced and what E CP14 then labelled *"NOT claimed as the cause"*. **It was the cause.**
+
+⚰️ **And that exit code was in run #10's annotations from the moment it failed.** I read that
+endpoint for the first time at run #11. A one-character discriminator sat in a channel I had
+already proven readable, while I reasoned from a branch listing instead.
+
+⭐ **What survives:** `ci-results` really does carry no `tools/`, so the `/tmp` copy is a real
+fix for a real defect — one that would have fired the moment the checkout started working.
+It was a correct repair filed under a wrong cause.
+
+## 2b · The branch contents (still true, and still why the /tmp copy is needed)
 
 `git ls-tree -r origin/ci-results` returns **fourteen paths**: `README.md` and
 `results/**`. ⛔ **Zero paths under `tools/`.**
@@ -55,8 +84,10 @@ the working tree.** The step's last line is then:
 python tools/ci_publish.py --branch ci-results
 ```
 
-Python exits immediately on a path that does not exist. **Two seconds**, which is the
-measured duration, and `set -e` kills the step.
+⛔ ~~Python exits immediately on a path that does not exist. **Two seconds**, which is the
+measured duration, and `set -e` kills the step.~~ **STRUCK — see §2.** Python exits **2** on a
+missing file and the step reported **1**, so it never got here. The copy remains necessary;
+the timing argument was a coincidence I read as a confirmation.
 
 **Why runs #3 and #4 published and this cannot be a regression in them:** their publish step
 ended in an inline `git push origin ci-results`, under a comment reading *"never rebase,
