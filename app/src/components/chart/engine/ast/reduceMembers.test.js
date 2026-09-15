@@ -29,10 +29,12 @@ import { REDUCE_MEMBERS, HANDLED } from './arrayVectors.js'
 
 const HEAD = '//@version=6\nindicator("t", overlay=true)\nplot(close, "real")\n'
 
-// ✅ THE MARKER IS GONE. It was `const run = it.fails`, committed at 158ca0d0a so the
-// acceptance was on record before the fix; every case below passed BECAUSE it failed.
-// The fix commit deletes it, which is the whole point of writing it that way.
-const run = it
+// ⛔ RE-ARMED FOR R9a. R9's own marker was retired at ab978572c once its cases landed;
+// this one carries ONLY the two `avg` cases below, which fail until the R9a fold lands
+// and are the reason it exists. Every other case in this file is a plain `it` and is a
+// real assertion — the marker is per-case on purpose, so which half is open stays
+// visible in the reporter.
+const run = it.fails
 
 /** A settled 3-slot vector, then one read. */
 const src = (read) => `${HEAD}var a = array.new<float>(3)\n`
@@ -46,7 +48,7 @@ const readOf = (text, opts = { strict: true }) => {
 }
 
 describe('R9 — the kept reduces fold, the rest refuse by name', () => {
-  run('⭐⭐ `array.sum` over three literal slots folds to an ordinary expression', () => {
+  it('⭐⭐ `array.sum` over three literal slots folds to an ordinary expression', () => {
     // Slots are 0, 1, 2 — so the fold is a left-nested `+` chain over them, and the
     // whole point is that it is a tree of kinds already in NODE_TYPES.
     const { formula, refusals } = readOf('array.sum(a)')
@@ -54,9 +56,50 @@ describe('R9 — the kept reduces fold, the rest refuse by name', () => {
     expect(formula).toBe('0 + 1 + 2')
   })
 
-  run('⭐ `array.max` and `array.min` fold too, through the same slot resolution', () => {
+  it('⭐ `array.max` and `array.min` fold too, through the same slot resolution', () => {
     expect(readOf('array.max(a)').formula).toBe('max(max(0, 1), 2)')
     expect(readOf('array.min(a)').formula).toBe('min(min(0, 1), 2)')
+  })
+
+  // ── R9a — `avg` JOINS THE KEPT SET ───────────────────────────────────────
+  //
+  // ⭐⭐ THE `na` QUESTION IS ANSWERED FROM A MEASUREMENT, NOT FROM MEMORY, because
+  // asserting TradingView's semantics from recollection is the invented-citation
+  // defect this programme keeps catching. `tests/fixtures/vendor/divergences.json`,
+  // id `finite-window-propagates-na-instead-of-skipping-it`, status **confirmed**,
+  // confidence **measured 2026-09-08**:
+  //
+  //     "`ta.sma(gappy, 10)` answers on EVERY bar … its value is the mean of the last
+  //      10 FINITE values of the source … An `na` is SKIPPED. 370 matches, 0
+  //      mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars."
+  //
+  // So the vendor's mean SKIPS `na`. The fold's `vec.slots.filter(Boolean)` drops
+  // unwritten slots, which is the same rule — **they agree**, and `avg` divides by the
+  // count of WRITTEN slots rather than the declared size.
+  //
+  // ⚠️ THE LIMIT OF THAT EVIDENCE, STATED RATHER THAN GLOSSED: the measurement is
+  // `ta.sma` over a gappy SERIES, not `array.avg` over a sparse ARRAY. It is the same
+  // question — does a mean skip or propagate `na` — with a measured vendor answer, and
+  // it is the best evidence available until the owed vendor capture confirms it
+  // directly on an array. If that capture ever disagrees, this assertion is the one to
+  // move, and this comment is why.
+  run('⭐⭐ R9a — `array.avg` folds to the sum over the WRITTEN count', () => {
+    const { formula, refusals } = readOf('array.avg(a)')
+    expect(refusals.map((r) => r.guard), 'nothing refuses').toEqual([])
+    expect(formula).toBe('(0 + 1 + 2) / 3')
+  })
+
+  run('⭐ R9a — an array with NO written slot averages to `na`, exactly as `sum` does', () => {
+    // The empty case must not become `0 / 0 / 0`. `sum` already answers `na` here, and
+    // `avg` has to answer the same thing by the same route — one arithmetic.
+    const empty = (read) => {
+      const t = translatePine(`${HEAD}var a = array.new<float>(3)\nplot(${read}, "r")\n`,
+        { strict: true })
+      const o = (t.outputs || []).find((x) => x.title === 'r')
+      return o ? String(o.formula) : null
+    }
+    expect(empty('array.sum(a)')).toBe('0 / 0')
+    expect(empty('array.avg(a)')).toBe('0 / 0')
   })
 
   // ── the members that do NOT fold ─────────────────────────────────────────
@@ -70,7 +113,7 @@ describe('R9 — the kept reduces fold, the rest refuse by name', () => {
     ['includes', 'array.includes(a, 1)', 5, 0],
     ['stdev', 'array.stdev(a)', 4, 0],
   ]) {
-    run(`⛔ SYNTHETIC · \`array.${member}\` refuses by name, carrying its number`, () => {
+    it(`⛔ SYNTHETIC · \`array.${member}\` refuses by name, carrying its number`, () => {
       const { refusals } = readOf(call)
       // ⛔ REPLACED, NOT JOINED — one cause, one refusal (precedent 1.1).
       expect(refusals.length, 'exactly one refusal').toBe(1)
@@ -93,7 +136,7 @@ describe('R9 — the kept reduces fold, the rest refuse by name', () => {
     expect(readOf('array.size(a)').formula).toBe('3')
   })
 
-  run('⛔⛔ the declared set and the implemented set AGREE', () => {
+  it('⛔⛔ the declared set and the implemented set AGREE', () => {
     // ⚰️ THIS IS THE CHECK THAT WOULD HAVE CAUGHT `avg`. `REDUCE_MEMBERS` named four
     // and the fold implemented three, so `HANDLED` promised a member that refused like
     // an unhandled one — a set claiming more than the code does, which is exactly the
