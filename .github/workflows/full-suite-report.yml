@@ -67,6 +67,30 @@ permissions:
   contents: read
 
 jobs:
+  # E CP6 — the shard list is DERIVED, never typed into this file. A hand-typed matrix
+  # beside tools/pytest_shards.py is the enumeration-beside-its-source defect, and here it
+  # would mean a test file silently in no shard.
+  plan:
+    name: derive the shard plan
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      profile_dirs: ${{ steps.p.outputs.profile_dirs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # ⛔ The partition is PROVED before it is used. A plan that is not a partition runs a
+      # file twice or never, and "never" is indistinguishable from a pass downstream.
+      - name: Prove the partition, then emit it
+        id: p
+        run: |
+          python tools/pytest_shards.py --self-check
+          python tools/pytest_shards.py --plan
+          echo "shards=$(python tools/pytest_shards.py --list)" >> "$GITHUB_OUTPUT"
+          echo "profile_dirs=$(python tools/collect_profile_dirs.py)" >> "$GITHUB_OUTPUT"
+
   vitest:
     name: vitest — all files (report-only)
     runs-on: ubuntu-latest
@@ -109,52 +133,94 @@ jobs:
             vitest-junit.xml
 
   pytest:
-    name: pytest — all files (report-only)
+    name: pytest — ${{ matrix.shard }}
+    needs: plan
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 45
+    # ⛔ E CP6: 20, not 45. Run #4 ran the WHOLE tree for 2,671 s against a 45-minute cap
+    # and never printed a totals line. A job that cannot print totals within its cap is
+    # SPLIT, not extended — caps come down as shards prove their duration, never up.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install
-        # ⚰️ T2 CP1 — THIS LINE IS WHY 479 OF 481 TEST MODULES NEVER COLLECTED.
-        # It installed five packages against a backend whose tests import `api.**`, so
-        # pytest reported `2 skipped, 8 warnings, 479 errors` and `collected 2`. Every one
-        # of the 479 bucketed to a ModuleNotFoundError; the top bucket alone (`fastapi`)
-        # was 274. The suite was not red -- it never ran, and only ci_summarize's
-        # zero-collected rule stopped that being published as a pass.
-        # ⛔ All five named packages are ALREADY in requirements.txt (pytest 8.3.4,
-        # pytest-asyncio 0.24.0, httpx 0.28.1, numpy, Pillow), so this is a strict
-        # superset and nothing is lost by deriving the list instead of typing it.
+        # ⚰️ T2 CP1 — the line that installed five packages is why 479 of 481 test modules
+        # never collected. requirements.txt is a strict superset of that list.
         run: python -m pip install --quiet -r requirements.txt
-      # ⚠️ A RUNNER IS NOT THIS BOX. An unscoped `pytest tests/` is forbidden locally
-      # because collection alone has reached 6.6 GB here; a clean CI runner is the only
-      # place it can be attempted, and `-p no:cacheprovider` keeps it reproducible.
       - name: Run
-        # E CP4: --junitxml is structured; the text log keeps the ERROR collecting
-        # sections, which is where a COLLECTION failure explains itself. 479 errors
-        # with 2 collected means the suite never ran, and only the text says why.
-        run: python -m pytest tests/ -q -p no:cacheprovider --junitxml=pytest-junit.xml 2>&1 | tee pytest.log
-      - name: Assert the run produced a totals line
+        # ⛔ --timeout=120 --timeout-method=thread (pytest-timeout==2.4.0, already in
+        # requirements): a HANG now fails BY NAME instead of taking the shard's whole
+        # 20 minutes down with it and reporting nothing.
+        run: |
+          python tools/pytest_shards.py --files "${{ matrix.shard }}" > shard_files.txt
+          wc -l < shard_files.txt | xargs echo "files in this shard:"
+          xargs -a shard_files.txt python -m pytest -q -p no:cacheprovider \
+            --timeout=120 --timeout-method=thread \
+            --junitxml=pytest-junit.xml 2>&1 | tee pytest.log
+      - name: Summarise this shard
         if: always()
         run: |
-          grep -E "passed|failed|error" pytest.log || {
-            echo "::error::pytest produced no totals line — this is NOT a green run"
-            exit 1
-          }
+          touch pytest.log
+          python tools/ci_summarize.py --suite pytest --log pytest.log --out summary.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pytest-log
+          name: pytest-shard-${{ matrix.shard }}
           path: |
             pytest.log
             pytest-junit.xml
+            summary.json
+
+  # E7 — COLLECTION PROFILE. Report-only: it measures what importing the tree costs,
+  # which is the question behind every OOM this repo has recorded. Never gates anything.
+  collect_profile:
+    name: collect-profile — ${{ matrix.dir }}
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        dir: ${{ fromJSON(needs.plan.outputs.profile_dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+      - name: Collect-only, timed and measured
+        run: |
+          /usr/bin/time -v python -m pytest --collect-only -q "${{ matrix.dir }}" \
+            -p no:cacheprovider > collect.log 2> time.log || true
+          tail -3 collect.log || true
+          grep -E "Maximum resident set size|Elapsed \(wall clock\)" time.log || true
+      - name: Reduce to one row
+        if: always()
+        run: |
+          touch collect.log time.log
+          python tools/collect_profile_dirs.py --row "${{ matrix.dir }}" \
+            --collect-log collect.log --time-log time.log --out row.json
+          cat row.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: collect-profile-${{ matrix.dir }}
+          path: row.json
 
   publish:
     name: publish the result into the repo (ci-results)
-    needs: [vitest, pytest]
+    needs: [plan, vitest, pytest, collect_profile]
     if: always()
     runs-on: ubuntu-latest
     # ⛔ THE ONLY JOB THAT CAN WRITE, and it writes one orphan branch.
@@ -169,16 +235,26 @@ jobs:
         with: { name: vitest-log, path: logs }
         continue-on-error: true
       - uses: actions/download-artifact@v4
-        with: { name: pytest-log, path: logs }
+        with: { pattern: pytest-shard-*, path: shards }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { pattern: collect-profile-*, path: profile }
         continue-on-error: true
 
       # ⛔ A MISSING LOG IS NOT A GREEN SUITE. If a job died before writing one, the
       # summary must say `totals_line_found: false`, which is what an empty file yields.
       - name: Summarise
         run: |
-          touch logs/vitest.log logs/pytest.log
+          touch logs/vitest.log
           python tools/ci_summarize.py --suite vitest --log logs/vitest.log --out v.json
-          python tools/ci_summarize.py --suite pytest --log logs/pytest.log --out p.json
+          # E CP6: pytest is now N shards. Its suite-level numbers come from the
+          # aggregator, which refuses to let a MISSING shard read as zero.
+          ls -la shards || true
+          python tools/ci_aggregate.py \
+            --shards-dir shards --expect '${{ needs.plan.outputs.shards }}' \
+            --jobs jobs.json --out p_suite.json
+          python tools/collect_profile_dirs.py --aggregate profile --out collect_profile.json
+          cat collect_profile.json
 
       # E CP4 — the error TEXT, bucketed, beside the counts.
       - name: Extract the failure text
@@ -191,6 +267,8 @@ jobs:
             --out-dir "extract/$GITHUB_RUN_ID"
           cp logs/pytest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp logs/vitest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
+          cp collect_profile.json "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
+          cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
           ls -la "extract/$GITHUB_RUN_ID"
 
       # E CP5 — THE RUNNER'S VERDICT, not the log's text. The repo is public, so this
@@ -216,7 +294,7 @@ jobs:
           sys.path.insert(0, "tools")
           import ci_outcome
           v = json.loads(pathlib.Path("v.json").read_text())
-          p = json.loads(pathlib.Path("p.json").read_text())
+          p = json.loads(pathlib.Path("p_suite.json").read_text())
           try:
               jobs = json.loads(pathlib.Path("jobs.json").read_text())
           except Exception:
@@ -225,7 +303,7 @@ jobs:
           # parsed out of this file, so a future change to one cannot silently desync.
           CAP = int(os.environ.get("SUITE_TIMEOUT_MINUTES", "45"))
           vo = ci_outcome.fields(jobs, "vitest", os.environ.get("VITEST_RESULT"), CAP)
-          po = ci_outcome.fields(jobs, "pytest", os.environ.get("PYTEST_RESULT"), CAP)
+          po = ci_outcome.fields(jobs, "pytest", os.environ.get("PYTEST_RESULT"), 20)
           print("timed_out derivation (vitest):", vo["timed_out_basis"])
           print("timed_out derivation (pytest):", po["timed_out_basis"])
           rec = {
@@ -235,7 +313,10 @@ jobs:
             "branch": os.environ.get("GITHUB_REF_NAME"),
             "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "vitest": dict(v, ok=ci_outcome.suite_ok(v, vo)),
-            "pytest": dict(p, ok=ci_outcome.suite_ok(p, po)),
+            # ⛔ the aggregator already folded every shard's runner result into `ok`;
+            # re-deriving it from a single job_result here would overwrite N verdicts
+            # with one.
+            "pytest": p,
             "runner_line": {"vitest": v["runner_line"], "pytest": p["runner_line"]},
             # E CP5 -- outcome read from the runner. `oom_or_timeout` is DELETED: it was
             # true for two suites that completed and false for a job cancelled at its cap.
@@ -244,7 +325,7 @@ jobs:
             # succeeded, and neither failed. A suite that collected nothing is never
             # green; neither is one whose job was cancelled.
             "verdict": ("GREEN" if (ci_outcome.suite_ok(v, vo)
-                                    and ci_outcome.suite_ok(p, po)) else "RED"),
+                                    and p.get("ok")) else "RED"),
             # E CP4 -- where the TEXT lives for this run. Paths are relative to the
             # ci-results branch root, so a reader needs no knowledge of this workflow.
             "detail": {
@@ -254,6 +335,7 @@ jobs:
               "vitest_failures": "results/%s/vitest_failures.txt" % os.environ["GITHUB_RUN_ID"],
               "pytest_junit": "results/%s/pytest-junit.xml" % os.environ["GITHUB_RUN_ID"],
               "vitest_junit": "results/%s/vitest-junit.xml" % os.environ["GITHUB_RUN_ID"],
+              "collect_profile": "results/%s/collect_profile.json" % os.environ["GITHUB_RUN_ID"],
             },
           }
           pathlib.Path("record.json").write_text(json.dumps(rec, indent=2) + "\n")
