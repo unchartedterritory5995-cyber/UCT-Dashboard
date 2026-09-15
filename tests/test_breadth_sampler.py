@@ -39,13 +39,24 @@ def test_an_unsettled_pod_is_refused_and_a_settled_one_is_not():
     assert ok, f"600 s is the floor and must PASS, got {why}"
 
 
-def test_inside_the_push_guard_window_is_refused_at_both_edges():
-    for h, m in ((9, 25), (12, 0), (16, 5)):
-        ok, why = bs.should_sample(at(h, m), 9999, 0, False)
-        assert not ok and "inside_guard_window" in why, (h, m, why)
-    for h, m in ((9, 24), (16, 6), (3, 0), (22, 0)):
-        ok, why = bs.should_sample(at(h, m), 9999, 0, False)
-        assert ok, f"{h}:{m} is outside the window and must be allowed, got {why}"
+# ⚰️ `test_inside_the_push_guard_window_is_refused_at_both_edges` WAS HERE AND IS DELETED.
+# Owner ruling 2026-09-15 (SD-1.1 A0): "we no longer have mid day blocks ever". The rule
+# it guarded was carried in from another programme's context, not the owner's.
+# ⛔ It was DELETED, not inverted. An inverted rail ("the clock must NOT refuse") would
+# pin the absence of a rule as though the absence were itself a policy, and the next
+# person reading it would reasonably conclude a clock had once been correct here.
+# The replacement is the rail below: the clock cannot refuse because it is not consulted.
+
+
+def test_the_clock_is_not_a_sampling_condition_at_any_hour():
+    """⛔ The load bound is the CAP and the CADENCE, which bound load directly. Sweep the
+    whole day: no hour may produce a refusal, and no refusal reason may mention a clock."""
+    for h in range(24):
+        for m in (0, 25, 5, 59):
+            ok, why = bs.should_sample(at(h, m), 9999, 0, False)
+            assert ok, f"{h:02d}:{m:02d} was refused with {why!r} — no hour may refuse"
+            for word in ("window", "guard", "rth", "hours"):
+                assert word not in why.lower(), f"{why!r} still speaks of a clock"
 
 
 def test_the_kill_switch_refuses_everything_and_its_absence_does_not():
@@ -88,9 +99,9 @@ def test_the_clock_is_zoneinfo_ET_and_not_the_local_box():
     utc = datetime.datetime(2026, 9, 15, 13, 30, tzinfo=datetime.timezone.utc)
     et = bs.et_now(utc)
     assert (et.hour, et.minute) == (9, 30), et          # EDT = UTC-4
-    assert bs.inside_guard_window(et), "13:30Z is 09:30 ET — inside the window"
+    assert (et.hour, et.minute) == (9, 30), "13:30Z must read as 09:30 ET"
     # and the same instant is NOT inside it if you mistake Central for Eastern
-    assert not bs.inside_guard_window(et.replace(hour=8, minute=30))
+    assert et.tzinfo is not None, "the timestamp must carry a zone, never be naive"
 
 
 # ── a response without Server-Timing is a FAILURE, never a zero ─────────────
@@ -131,7 +142,10 @@ def test_the_policy_constants_are_what_the_owner_authorised():
     assert bs.DAILY_CAP == 60
     assert bs.MIN_CADENCE_S >= 35
     assert bs.BACKOFF_S >= 600
-    assert (bs.WINDOW_OPEN, bs.WINDOW_CLOSE) == ((9, 25), (16, 5))
+    # ⛔ No clock constant. Asserting its ABSENCE is the point: a reintroduced window
+    # would be a policy change, and it should break a rail rather than pass quietly.
+    assert not hasattr(bs, "WINDOW_OPEN") and not hasattr(bs, "WINDOW_CLOSE"), (
+        "a sampling window has been reintroduced — owner ruling SD-1.1 A0 retired it")
 
 
 def test_every_span_is_distinct_so_every_deep_read_is_a_forced_miss():
@@ -310,3 +324,97 @@ def test_a_console_that_can_encode_is_still_printed_to(tmp_path, monkeypatch):
     joined = "".join(console.written)
     assert "\u26d4" in joined, "a capable console must still be printed to"
     assert "sampler-summary.md" in joined, "and told where the summary went"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SD-1.1 A2.4 — the real tool, in a real subprocess, with a real cp1252 stdout.
+# The in-process rails above use a fake console object; this one forces the actual
+# encoding the way Task Scheduler will, because those are different claims.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _run_report(tmp_path, encoding):
+    import os as _os
+    import subprocess as _sp
+    summary = tmp_path / "sampler-summary.md"
+    env = {**_os.environ, "PYTHONIOENCODING": encoding,
+           "BREADTH_SAMPLER_SUMMARY": str(summary)}
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    p = _sp.run([sys.executable, str(repo / "tools" / "breadth_sampler_report.py")],
+                cwd=str(repo), env=env, capture_output=True)
+    return p, summary
+
+
+def test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summary(tmp_path):
+    """⛔⛔ THE FAILURE THIS REPLACES: exit 1 and NO FILE, on the box Task Scheduler runs
+    it on. The tool reconfigures stdout at entry, and writes the artifact before it echoes.
+    """
+    p, summary = _run_report(tmp_path, "cp1252")
+    assert p.returncode == 0, (f"exit {p.returncode}\n"
+                               f"{p.stderr.decode('utf-8', 'replace')[-800:]}")
+    assert summary.exists(), "the summary was not written under a cp1252 stdout"
+
+    text = summary.read_text(encoding="utf-8")
+    # ⛔ "Complete", not merely "present": a truncated file is the failure mode that a
+    # bare exists() check cannot see.
+    for marker in ("GENERATED FILE", "NOT A SOURCE", "NO MEMBER DATA",
+                   "# Breadth sampler - pool summary", "```"):
+        assert marker in text, f"summary is missing {marker!r} — written but incomplete"
+    assert text.rstrip().endswith("```"), "the fenced block is not closed — truncated"
+    assert "BREADTH SAMPLER" in text, "the report body never reached the file"
+
+
+def test_the_same_run_under_utf8_produces_the_same_file(tmp_path):
+    """The control. If cp1252 and utf-8 disagreed about the FILE, the fix would have
+    made the artifact depend on the console — which is the coupling being removed."""
+    a, sa = _run_report(tmp_path / "a", "cp1252")
+    b, sb = _run_report(tmp_path / "b", "utf-8")
+    assert a.returncode == 0 and b.returncode == 0
+    assert sa.read_bytes() == sb.read_bytes(), (
+        "the summary differs by console encoding — the artifact must not depend on it")
+
+
+def test_an_unguarded_write_to_a_cp1252_stdout_really_does_die(tmp_path):
+    """⛔ Non-vacuity. If this stopped failing, the two rails above would pass on a box
+    where nothing was ever at risk, and would prove nothing about the fix."""
+    import os as _os
+    import subprocess as _sp
+    prog = "import sys; sys.stdout.write('\u26d4')"
+    p = _sp.run([sys.executable, "-c", prog],
+                env={**_os.environ, "PYTHONIOENCODING": "cp1252"}, capture_output=True)
+    assert p.returncode != 0, "a bare cp1252 stdout no longer rejects U+26D4 on this box"
+    assert b"UnicodeEncodeError" in p.stderr, p.stderr[-300:]
+
+
+def test_stdout_is_actually_reconfigured_to_utf8_at_entry(tmp_path):
+    """⛔ PINS THE MECHANISM, because the property rail above cannot.
+
+    The tool has TWO defences against a cp1252 console: this reconfigure, and `_echo`'s
+    guarded write. Removing EITHER leaves the summary file intact, so a rail that asserts
+    only "the file survives" passes with one of them deleted and proves neither
+    (`lesson_a_guard_repeated_is_a_guard_unproved`). Measured: deleting the reconfigure
+    left all rails green.
+
+    They are both kept because they cover DIFFERENT cases — the reconfigure covers every
+    write in the tool including future code that does not route through `_echo`, and
+    `_echo` covers the case where the reconfigure itself threw (a stream that cannot be
+    reconfigured, which is why that call sits in a try). So each gets a rail on its own
+    case, rather than one rail that both can satisfy.
+    """
+    import os as _os
+    import subprocess as _sp
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    prog = ("import sys, runpy;"
+            "sys.argv=['breadth_sampler_report.py'];"
+            "import importlib.util as u;"
+            f"spec=u.spec_from_file_location('r', r'{repo / 'tools' / 'breadth_sampler_report.py'}');"
+            "m=u.module_from_spec(spec); spec.loader.exec_module(m);"
+            "print('ENC=' + str(sys.stdout.encoding).lower())")
+    p = _sp.run([sys.executable, "-c", prog], cwd=str(repo), capture_output=True,
+                env={**_os.environ, "PYTHONIOENCODING": "cp1252",
+                     "BREADTH_SAMPLER_SUMMARY": str(tmp_path / "s.md")})
+    out = p.stdout.decode("utf-8", "replace")
+    assert "ENC=" in out, f"probe did not report an encoding: {p.stderr[-400:]!r}"
+    enc = out.rsplit("ENC=", 1)[1].strip()
+    assert enc.replace("-", "") == "utf8", (
+        f"stdout is {enc!r} after import — the entry reconfigure did not take effect, "
+        "so any print outside _echo would still raise on this console")

@@ -3,16 +3,20 @@
 Accumulates poolable production samples across settle windows until p95 is estimable,
 without anyone watching. Session 11, Workstream B.
 
-⛔⛔ SAMPLER LOAD IS PRODUCTION LOAD. Four refusals are enforced in code, not in a
+⛔⛔ SAMPLER LOAD IS PRODUCTION LOAD. Three refusals are enforced in code, not in a
 comment, and each one is a rail in `tests/test_breadth_sampler.py`:
 
-    1. outside 09:25-16:05 ET      — the push-guard window; a deep read costs the single
-                                     uvicorn process real work, and RTH is not the time
-    2. pod settled (uptime >= 600) — Session 7 measured 17,480 ms three minutes after
+    1. pod settled (uptime >= 600) — Session 7 measured 17,480 ms three minutes after
                                      boot against 224 ms settled; an unsettled sample is
                                      not a measurement of the reader
-    3. daily cap                   — a runaway loop is a self-inflicted load test
-    4. kill switch file            — one file, removable by anyone, no deploy
+    2. daily cap                   — a runaway loop is a self-inflicted load test
+    3. kill switch file            — one file, removable by anyone, no deploy
+
+⚰️ THERE WAS A FOURTH, AND IT IS RETIRED. A clock refusal ("outside 09:25-16:05 ET")
+stood here until 2026-09-15. Owner ruling (SD-1.1 A0): "we no longer have mid day blocks
+ever" — the window was carried in from another programme's context and was never this
+owner's rule. ⛔ Do not reintroduce it. The cap and the cadence bound load DIRECTLY;
+a clock only guesses when load is affordable, and guessed wrong here for three sessions.
 
 ⛔ THE TIMEZONE COMES FROM `zoneinfo`, NEVER FROM `TZ=` OR LOCAL TIME. This box runs on
 Central time, and `TZ=America/New_York date` in Git Bash printed the UTC hour — checked
@@ -56,9 +60,11 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 LOG_PATH = REPO / "logs" / "breadth-samples.jsonl"
 KILL_SWITCH = REPO / "logs" / "STOP-BREADTH-SAMPLER"
 
-#: The push guard's window, ET, half-open at both ends the same way it is.
-WINDOW_OPEN = (9, 25)
-WINDOW_CLOSE = (16, 5)
+#: ⛔⛔ THERE IS NO SAMPLING WINDOW. Owner ruling 2026-09-15 (SD-1.1 A0): "we no longer
+#: have mid day blocks ever". A 09:25-16:05 ET refusal used to live here; it was carried
+#: in from another programme's context and is RETIRED. Do not reintroduce it.
+#: The load bound is the CAP and the CADENCE, which bound load directly rather than by
+#: guessing when load is affordable.
 #: Session 7's settle floor. Below this the pod is racing its own prewarmers.
 MIN_UPTIME_S = 600
 #: A runaway loop is a self-inflicted load test. 60 deep reads a day is ~1 per 24 min.
@@ -84,23 +90,21 @@ def et_now(now_utc: datetime.datetime | None = None) -> datetime.datetime:
     return now_utc.astimezone(ZoneInfo("America/New_York"))
 
 
-def inside_guard_window(et: datetime.datetime) -> bool:
-    """True when a push/sample would land inside 09:25-16:05 ET."""
-    hm = (et.hour, et.minute)
-    return WINDOW_OPEN <= hm <= WINDOW_CLOSE
-
-
 def should_sample(et: datetime.datetime, uptime_s, taken_today: int,
                   kill_switch_present: bool, cap: int = DAILY_CAP) -> tuple[bool, str]:
     """The whole refusal policy in one place, with no I/O.
 
     Returns (may_sample, reason). The reason is logged whether or not it sampled —
     a refusal nobody can see is indistinguishable from a sampler that died.
+
+    ⚠️ `et` NO LONGER DECIDES ANYTHING. The clock refusal was retired by owner ruling
+    (SD-1.1 A0) and the parameter is kept only so the timestamp stays available to the
+    caller's log line. It is deliberately NOT removed from the signature in the same
+    change that removes the rule, so a reviewer can see that the clock stopped being a
+    gate rather than having quietly moved somewhere else.
     """
     if kill_switch_present:
         return False, "kill_switch_present"
-    if inside_guard_window(et):
-        return False, f"inside_guard_window_{et:%H:%M}_ET"
     if uptime_s is None:
         return False, "uptime_unknown"
     if uptime_s < MIN_UPTIME_S:

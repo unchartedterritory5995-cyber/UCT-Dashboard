@@ -23,13 +23,28 @@ from __future__ import annotations
 import collections
 import json
 import math
+import os
 import pathlib
 import subprocess
 import sys
 
+# ⛔⛔ AT ENTRY, BEFORE ANY OUTPUT. This box's console is cp1252 and this tool's text is
+# full of ⛔ (U+26D4); an unconfigured stdout raises UnicodeEncodeError on the first one.
+# `errors="replace"` rather than a bare utf-8 switch, because a console that genuinely
+# cannot represent a character should degrade it, never abort the run that produced the
+# artifact. Guarded: a stream that cannot be reconfigured (a pipe under some launchers)
+# must not take the tool down on its way in.
+try:                                                      # pragma: no cover - env-dependent
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:                                         # pragma: no cover
+    pass
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_LOG = REPO / "logs" / "breadth-samples.jsonl"
 HOTPATH_FILE = REPO / "docs" / "breadth" / "reader-hotpath.txt"
+#: ⛔ An override exists ONLY so the cp1252 rail can run the real tool against a temp
+#: path. Unset in every real run, which is what the default expresses.
+SUMMARY_ENV = "BREADTH_SAMPLER_SUMMARY"
 
 #: Session 10, D.3: the sample MAX only becomes a 95% upper bound on p95 at this n.
 N_FOR_P95 = 59
@@ -199,7 +214,8 @@ def main() -> int:
     return 0
 
 
-SUMMARY = REPO / "docs" / "breadth-history-reader" / "sampler-summary.md"
+SUMMARY = (pathlib.Path(os.environ[SUMMARY_ENV]) if os.environ.get(SUMMARY_ENV)
+           else REPO / "docs" / "breadth-history-reader" / "sampler-summary.md")
 
 SUMMARY_HEADER = (
     "<!-- GENERATED FILE - do not edit by hand.\n"
