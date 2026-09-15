@@ -2,7 +2,19 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **item (b) — time inputs.** R13 is closed.
+> ### ⛔ NEXT: **the owner's ruling on item (b).** The census is done.
+>
+> **Item (b) is censused and proposes ALL-RETIRE** — not one of six time-shaped
+> input kinds clears the ~20 threshold on *reachable* uses, and `input.session`
+> is **inadmissible by construction** (its only carrier under the frozen 11 is
+> `str`, which `assertCanonical` admits solely as a `textop` operand). Retirement
+> estimate 50 min. ⛔ **Nothing built, nothing retired.**
+>
+> ⚠️ **The question the census cannot settle, and the owner should:**
+> `input.timeframe` is 158 uses across 61 files and reads as "retire" only
+> because **97 already work** through `request.security`. Under a
+> *"make timeframe inputs first-class"* reading the population is 158 and the
+> answer inverts. See `WAVE2-A-PLAN.md` § item (b).
 >
 > ⛔ **Census before build, threshold before estimate.** In that order, every
 > time: this wave retired four loop forms on measurement and kept three reduce
@@ -40,7 +52,8 @@ session trusts without checking.
 | item (a) | ✅ **CLOSED** — arc a1 → a7, rulings R1–R12. See `WAVE2-A-PLAN.md` |
 | a7 | ✅ **CLOSED by R12** — contract, rail, twin coverage, suite, build; capture owed |
 | R13 | ✅ **CLOSED** — the Track F collision; the closing pass no longer mints |
-| **open** | ⛔ items (b)–(e) not started |
+| item (b) | 🟡 **CENSUSED, AWAITING A RULING** — all-retire proposed, 50 min. `WAVE2-A-PLAN.md` |
+| **open** | ⛔ (b)'s ruling · items (c)–(e) not started |
 | owner-pending | H.4 · the Wave 1 PR · the per-module veto on the eight 0.2 register entries · a ruling on a7.2 finding 1 (the lenient lane refusing MORE than strict on 13 scripts) |
 
 ### ⚰️⚰️ THE ONE FINDING A READER OF THE FLAG LEDGER WOULD OTHERWISE MISS

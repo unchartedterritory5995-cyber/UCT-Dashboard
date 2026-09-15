@@ -702,8 +702,131 @@ budgeted for, which is the outcome a full suite is *for*.
 | **a6 / a6.0** | R10 — the fill contract was already met via `presentation.fills`; a6.0 carried `color.rgb`'s alpha into `presentation.opacity` |
 | **a7** | R12 — the contract is four files; the twin is covered; the suite is measured and every red attributed |
 
-⛔ **Item (a) is closed. Wave 2 is NOT** — R13 is open (a defect this arc
-introduced and this arc's own rail caught), and items (b)–(e) have not started.
+⛔ **Item (a) is closed. Wave 2 is NOT** — R13 is closed, and items (b)–(e) are
+where the wave continues. **(b) is censused below and awaits a ruling.**
+
+---
+
+# ⭐⭐ ITEM (b) — TIME INPUTS. DEFINED BY MEASUREMENT; **ALL-RETIRE PROPOSED**.
+
+Item (b)'s definition existed only as the words *"time inputs"* in chat and was never
+committed. This census defines it the way a1's defined the loop forms: by counting,
+with the threshold applied after.
+
+**Instrument:** `tools/pine_time_input_census.py` (`c4018c603`), 328 scripts.
+**Control:** the product's own answer — Clouds' **8** `pine:input-kind` refusals,
+pinned by value in `closingPassDoesNotMint.test.js`, re-derived exactly, **and zero
+time-shaped inputs**, so ⭐ **item (b) does not touch Clouds at all.**
+
+## b.1 — what the engine does today
+
+`Resolver.resolveInput`'s `NUMERIC` set is the whole of it. Everything else throws
+`pine:input-kind` — *"this Pine input carries a default the engine grammar cannot
+hold"* — in a **value** position.
+
+| handled → `num` | uses | | refuses `pine:input-kind` | uses |
+|---|---|---|---|---|
+| `input.bool` | 1726 | | `input.color` | 1068 |
+| `input` (bare, v3/v4) | 1357 | | `input.string` | 1018 |
+| `input.int` | 1249 | | **`input.timeframe`** | **158** |
+| `input.float` | 481 | | **`input.session`** | **70** |
+| `input.source` | 76 | | `input.symbol` | 55 |
+| `input.price` | 1 | | **`input.time`** | **20** |
+| | | | `input.text_area` | 15 |
+| | | | `input.enum` | 14 |
+
+⚠️ **The refusal is position-dependent, which the flat table hides.**
+`timeframeLiteralOf` already folds `input.timeframe`, `input.string` **and** bare
+`input` when a **timeframe position** asks — so 97 of the 158 `input.timeframe` uses
+already work today, through `request.security`. The refusal bites only in a value
+position.
+
+**Clouds' eight lines, by kind: 4 × `input.string` (lines 10, 11, 17, 18) and 4 ×
+`input.color` (13, 20, 24, 26).** Not one is time-shaped.
+
+## b.3 — the admissibility test, recorded as the rule for every later input kind
+
+> **A kind is admissible only if its value has a carrier among the frozen 11
+> `NODE_TYPES`. No 12th type. If there is no carrier, the kind is inadmissible BY
+> CONSTRUCTION and the census says so per use rather than counting it as an
+> opportunity.**
+
+| shape | carrier | verdict |
+|---|---|---|
+| timeframe literal (`'D'`, `'240'`, `'12M'`) | **`tf`** — already a node type, already folded by `timeframeLiteralOf` | admissible |
+| timeframe empty (`''` = the chart's own) | **`tf`** — `basePeriod` already carries it; needs no literal | admissible |
+| timestamp (`timestamp(…)`, epoch int) | **`num`** | admissible |
+| **session** (`'0930-1600'`) | **`str` — and `str` may appear ONLY where a `textop` consumes it**, a parentage `assertCanonical` enforces | ⛔ **INADMISSIBLE** wherever the consumer is a time comparison rather than a `textop` — which is every real use |
+| day-mask (`'1234567'`) | same `textop`-only rule as session | ⛔ inadmissible, and **not a timeframe** |
+| expression default | **none at plan time** | the (c) boundary |
+
+⛔ **A use consumed by `request.security` is item (c)'s and is routed there by name,
+never counted as (b)'s.**
+
+## b.4 — the table. **Not one kind clears the threshold.**
+
+| kind | uses | files | → item (c) | (b)-eligible | ⭐ **REACHABLE** | carrier | vs ~20 |
+|---|---|---|---|---|---|---|---|
+| `input.timeframe` | 158 | 61 | **97** | 61 | **9** | `tf` ✅ | **under** |
+| `input.session` | 70 | 23 | 0 | 70 | **13** | `str` ⛔ | **under + inadmissible** |
+| `input.time` | 20 | 11 | 0 | 20 | **6** | `num` (15) / none (5) | **under** |
+| `input.string` (tf-shaped) | 14 | 3 | 0 | 14 | **0** | `tf` | **under** |
+| `input` bare (time-shaped) | 14 | 13 | 10 | 4 | **2** | `tf`/`str`/`num` | **under** |
+| `input.int` (ts-shaped) | 1 | 1 | 0 | 1 | **0** | `num` | **under** |
+| **total** | **277** | 97 | **107** | 170 | **30** | | |
+
+**REACHABLE** = the value reaches a `plot`/`alertcondition` **and not via
+`request.security`**. That is the only number the threshold may use: this lane draws
+**columns for a screener**, so a timeframe that reaches only a drawing draws nothing
+here, and one that reaches a column through `request.security` is already item (c)'s.
+
+⛔ **11 bare-numeric defaults under non-timeframe kinds are reported UNDECIDABLE and
+NOT COUNTED** in either direction — the engine reads such a literal as a timeframe
+only when a timeframe *position* asks, and this census has no position.
+
+### The binding constraint, per kind — stated the way BOUND and CONSUMER were
+
+| kind | binding constraint |
+|---|---|
+| `input.timeframe` | **`request.security` already consumes 97 of 158.** The residue is 9 uses that reach a column by another path. The carrier exists and the fold exists; what does not exist is a population. |
+| `input.session` | ⛔ **the carrier, not the count.** Even at 13 reachable, a session string's only home under the frozen 11 is `str`, which `assertCanonical` admits **only as a `textop` operand**. A session feeding `time()`-in-range is not that. Building it needs a 12th node type, which Mechanism A forbids. |
+| `input.time` | 15 of 20 defaults are `num`-carryable; **5 are expressions with no plan-time carrier** (the (c) boundary). Reachable 6. |
+| `input.string` / `input` bare | they fold through the **same `tf` path** as `input.timeframe` and add no separate mechanism — 0 and 2 reachable. |
+| `input.int` (ts) | a single use, in one file. |
+
+## b.5 — PROPOSED: **RETIRE ALL SIX BY MEASUREMENT.** Owner's go required.
+
+⛔ **This is a proposal, not a decision, and nothing is implemented.** Per the standing
+rule, *a threshold governs what is BUILT, never what is removed* — so this proposes
+**refusing by name**, which is what these kinds already do; it removes no working
+capability. Every one of the 277 uses refuses today, and would continue to.
+
+**What the retirement would build** (the R7/R9 shape): each kind refuses **at its own
+line**, by name, carrying **its kind, its census number, and where it routes** —
+never *"not supported"*:
+
+- `input.timeframe` → *"…9 of 158 uses reach a column by a path other than
+  `request.security`, which already carries the other 97; multi-timeframe reads are
+  item (c)'s."*
+- `input.session` → *"…a session string has no carrier in this lane's grammar; it can
+  only exist as a `textop` operand."* ⭐ This one is a **grammar** sentence, not a
+  threshold sentence, and should stay true even if the count later rises.
+- `input.time` → *"…15 of 20 defaults could be carried as numbers, 6 reach a column;
+  under the threshold."*
+
+**Retirement estimate: 50 minutes** (six refusal sentences with their numbers, one
+acceptance with the non-vacuity control named per 0.1, mutation proof, corpus
+re-measure).
+
+⚠️ **The one number worth an owner's eye before ruling:** `input.timeframe` is **158
+uses across 61 files** — the largest time-shaped population in the corpus — and it
+reads as "retire" only because **97 of them already work**. If the owner reads item
+(b) as *"make timeframe inputs first-class on the definition lane"* rather than *"the
+value-position residue"*, the population is 158 and the answer inverts. **The census
+cannot settle which question was asked;** it can only say that under the
+residue-reading, no kind clears 20.
+
+⛔ **STOP — awaiting the owner's go.** Nothing built, nothing retired.
 
 ---
 
