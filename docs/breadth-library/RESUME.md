@@ -5,8 +5,10 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 10 — US DATA GATE: **NO-GO, blocked on provider access.**
-The control was NOT run and NOT faked; see the Phase-10 section. Phase 9 complete —
+**CURRENT PHASE** Phase 11 — US DATA GATE, provider-backed: **NO-GO.** The provider
+path PASSED; `sweep_history` did not — BL-021, two chunk-boundary defects that corrupt
+`ratio_5day` / `ratio_10day` and every first-bar body. Phase 10 was blocked on provider
+access and is superseded. Phase 9 complete —
 THE DARK PRODUCTION FOUNDATION is implemented:
 one publication gate, V1 as metadata, the daily forward seal, participation-only
 warming, and health. **STATUS: working local code. Nothing published, nothing ground,
@@ -855,3 +857,167 @@ the reasoning cannot rot into "nobody checked".
 **Make `MASSIVE_API_KEY` readable by a local process by whatever route the owner
 considers legitimate.** The moment it is, the control is one command over a bounded
 window, and its result is the GO/NO-GO for the US 2008→present grind.
+
+---
+
+## Phase 11 — US DATA GATE, provider-backed (2026-09-15) · **NO-GO**
+
+**Branch** `feat/breadth-pit-foundation` · HEAD `07b2f81cb` at start ·
+`origin/master` `d25a69b86` · 36 ahead / 13 behind · tree clean.
+
+⭐ **The provider path PASSED. `sweep_history` did not.** The blocker is BL-021: two
+defects at the boundary of every sweep CALL, invisible to any single-window run, found
+because a resume produced a different artifact from an uninterrupted one.
+
+### Execution mechanism
+
+`railway run --service worker -- <venv python> <absolute script under C:\w\breadth-us-gate>`
+from the already-linked main checkout. The secret was injected into the child process
+and **never printed, echoed, inspected, copied, written or committed**. `railway
+variables` was not run. No Railway configuration was changed.
+
+⛔ **Code provenance was proved before the first provider request**, because the linked
+checkout is a different worktree: the script prints the Breadth worktree path, branch,
+HEAD and the resolved `__file__` of all eight Breadth modules, and REFUSES unless every
+one resolves under `C:\b2`. All eight did.
+
+### Stage 1 — connectivity · PASS
+
+Client init OK. An **uncached** date (2015-06-10): RAW 7,875 rows in 0.72 s, ADJUSTED
+7,875 in 0.97 s, full `o/h/l/c/v`, durable tier written (0.56 / 0.57 MB).
+
+⭐ **RAW really is RAW**: 678 of the first 4,000 shared tickers differ on close. One
+sample sits at raw **$1.19** against adjusted **$71.40** — a ~60:1 split, exactly the
+case the $2 floor exists to catch.
+
+### Stage 2 — RAW → cache → eligibility · PASS
+
+Cache hit on re-read: 12 ms, 0 provider requests. `eligible_on('us', RAW)` → 3,172
+members, coverage 0.977.
+
+⛔ **The counterfactual is the proof.** The same call over the ADJUSTED frame gives
+3,200 members and only 165 price rejections against RAW's 322 — **157 fewer**, and 31
+names the adjusted frame would have wrongly admitted. One of them: raw **$1.94**
+(excluded) vs adjusted **$19.40** (would have passed). Phase 6's blocker was real.
+
+Eligibility contract unchanged: `{CS, ADRC}`, the nine US venues, `$2`, `$1M` over 20
+sessions, no market cap.
+
+### Stage 3 — bounded control · windows A and B
+
+| window | sessions | rows | wall | provider req | cache hits |
+|---|---|---|---|---|---|
+| **A** US 2015-01-02 → 2015-12-31 | **252** | 9,828 | 4.1 min (0.99 s/session) | 515 | 397 |
+| **B** US 2008-01-02 → 2008-06-30 | **125** | 4,875 | 1.8 min (0.84 s/session) | 189 | 465 |
+
+**Zero missing sessions.** The control's own calendar check flagged 12 dates; every one
+was a market closure confirmed by the provider returning 0 rows for both modes (MLK,
+Presidents', Good Friday, Memorial, July 4, Labor Day, Thanksgiving, Christmas). ⚠️ The
+flag was the CHECK, not the data: `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` covers 2025-2027
+by design, so `is_trading_session` degrades to weekday-only over 2008/2015. Correct for
+the forward seal (recent dates only); wrong tool for a historical audit. 252 and 125
+both match NYSE exactly.
+
+#### Membership funnel (RAW, provider-backed)
+
+| date | frame | unres | notCS | noVen | wrgVen | px<$2 | liq | ELIGIBLE | cov |
+|---|---|---|---|---|---|---|---|---|---|
+| 2015-01-02 | 7,798 | 177 | 3,080 | 0 | 0 | 356 | 1,240 | 2,945 | 0.977 |
+| 2015-03-10 | 7,804 | 176 | 3,073 | 0 | 0 | 344 | 1,218 | 2,993 | 0.977 |
+| 2015-06-10 | 7,875 | 180 | 3,091 | 0 | 0 | 322 | 1,110 | 3,172 | 0.977 |
+| 2008-01-02 | 7,960 | 161 | 3,650 | 0 | 0 | 216 | 1,240 | 2,693 | 0.980 |
+| 2008-03-10 | 7,993 | 165 | 3,672 | 0 | 0 | 277 | 1,272 | 2,607 | 0.979 |
+| 2008-06-30 | 7,977 | 170 | 3,622 | 0 | 0 | 298 | 1,196 | 2,691 | 0.979 |
+
+Identical to the offline Phase-8 measurements — the provider path reproduces them.
+
+#### Survivorship — the point of the PIT frame
+
+| date | eligible | **delisted today** | |
+|---|---|---|---|
+| 2015-03-10 | 2,993 | **1,248** | 41.7 % |
+| 2008-03-10 | 2,607 | **1,170** | 44.9 % |
+
+A survivor-shaped universe would report ~0.
+
+#### Reconciliation
+
+| | |
+|---|---|
+| **US A50 2015-03-10** | **47.20** · Phase 1 ref 47.23 (−0.03 pp) · Phase 6 cached 47.20 (identical) |
+| NETHL identity | 2015-03-09 115−102=**13** · 03-10 43−142=**−99** · 03-11 89−96=**−7** — exact on every date |
+| 2008-03-10 | A50 19.90, NH 5, NL 529, NETHL **−524**, universe 2,571 — a bear-market shape |
+
+### Stage 4 — invariants
+
+| check | result |
+|---|---|
+| determinism (two independent runs) | ✅ identical rows |
+| idempotency (re-run into the same store) | ✅ nothing changed, nothing grew |
+| missing-RAW refusal | ✅ `failed`, `missing_raw=['2015-06-08']`, store unmoved |
+| …and it heals on the next tick | ✅ sealed 6, date present |
+| UCT parity | ✅ 0 UCT rows in every control store; the production DB was never opened |
+| **resume converges** | ⛔ **FAIL — this is BL-021** |
+
+### ⛔ THE BLOCKER — BL-021
+
+Same dates, **different values**. 43 of 312 rows differ; 8 of them differ on the CLOSE.
+
+**Defect A — warm-up rows are measured over the WHOLE MARKET.** `members_of` has
+entries only for sweep dates, so warm-up dates pass `members=None` = "every priced
+ticker": 7,835 names instead of 3,073. The two V1 metrics derived from that buffer are
+wrong at the start of every chunk — **R5 for 4 sessions (up to 29.3 %), R10 for 9 (up
+to 24.2 %)**. Only those two; every other V1 metric is byte-identical.
+
+**Defect B — the first stored bar of every sweep call is a doji.** `o = prev.get(metric,
+fv)` and `prev` starts empty per call, so `o = c`. Closes are right; bodies are not.
+
+⛔ **The forward seal is the serious half.** A daily tick starts a fresh buffer, so
+**100 % of the live portion of `US:R5`, `US:R10` and of every sealed candle body would
+be wrong** — permanently, and plausibly.
+
+Not fixed here: neither has one obvious safe answer (Defect A's fix reverses a
+deliberate cost decision), both are production-path changes to the function the grind
+depends on, and both need this control re-run afterwards.
+
+### Provider behaviour
+
+| | |
+|---|---|
+| requests | **704** — 663 frames, 41 empty |
+| the 41 empties | **all market holidays** in warm-up spans — zero failures |
+| rate limits / 429 | **none observed** |
+| retries needed | **none** |
+| cache hits | 871 · re-read of a cached frame 12 ms, 0 requests |
+| mean fetch | **0.31 s** · total 3.7 min |
+
+⚠️ **An operational risk found by reading, not by failure:**
+`get_grouped_daily_ohlcv` wraps everything in `except Exception: return {}` and has
+**no retry and no backoff**. A 429 or a transient 5xx is indistinguishable from a
+holiday. `build_frame` guards the RAW side; the ADJUSTED side has no such guard, so a
+dropped adjusted frame silently shortens the matrix and the date is skipped. None
+occurred in 704 requests — but the grind is 9,185.
+
+### Grind estimate — measured, and better than the offline guess
+
+| | |
+|---|---|
+| frames needed | **9,185** (4,334 adjusted + 4,851 raw) |
+| fetch | 9,185 × 0.31 s ≈ **48 min** |
+| compute | 4,860 × ~0.35 s ≈ **28 min** |
+| **total** | **~1.3 h** (the Phase-8 offline estimate said 3-4 h at 0.85 s/frame) |
+| rows @ 39 stored metrics | ~190 k for US |
+
+### Isolated artifact
+
+`C:\w\breadth-us-gate\control.db` — **14,703 rows, 377 days, 2008-01-02 … 2015-12-31**,
+universe `us` only. Frames landed in the existing local cache
+`C:\w\breadth-library-cache\grouped_ohlcv` (926 → 1,598 frames). ⛔ No production DB, no
+Railway volume, no R2 write.
+
+### EXACT NEXT STEP
+
+**Fix BL-021's two defects, then re-run this control.** The provider path, the
+eligibility contract, the values, the survivorship property, determinism, idempotency,
+the missing-RAW refusal, cache reuse and throughput are all proven and will not need
+re-proving from scratch — only the resume convergence and the two ratios.

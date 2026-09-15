@@ -531,3 +531,104 @@ constraint for a wording improvement.
 
 Railed in `breadthPublication.test.jsx` under `§17`, so the reasoning cannot quietly
 rot into "nobody checked".
+
+---
+
+### BL-021 · CHUNK BOUNDARIES CORRUPT TWO V1 METRICS — the US data gate's blocker
+
+The provider path passed. `sweep_history` did not. Two defects live at the boundary of
+every sweep CALL, so they were invisible to every single-window control run so far and
+only appeared when a resume produced a different artifact from an uninterrupted run.
+
+Both are **pre-existing**, both are in the canonical path the grind AND the forward seal
+share, and neither touches UCT (whose rows come from the collector).
+
+#### Defect A — the warm-up rows are measured over the WHOLE MARKET
+
+`sweep_history` seeds a 15-session `recent` buffer before `from_date` so the rolling
+metrics are not cold. It computes those warm rows with
+`members=members_of.get(ds)` — and `members_of` is the PIT frame's `eligible` map,
+which has entries **only for the sweep dates**. A warm-up date therefore passes
+`members=None`, which `recompute_from_frame` documents as *"every priced ticker"*.
+
+Measured 2015-06-05 window:
+
+| date | kind | members passed | universe_count |
+|---|---|---|---|
+| 2015-06-03 | WARM | `None (ALL)` | **7,835** |
+| 2015-06-04 | WARM | `None (ALL)` | **7,805** |
+| 2015-06-05 | swept | 3,073 | **3,073** |
+| 2015-06-08 | swept | 3,071 | **3,071** |
+
+…and the counts the ratios are built from move with it: `up_4pct` 349 (warm, whole
+market) vs 114 (swept, US).
+
+⭐ **The stored CLOSES are wrong, not just the bodies.** Replaying the same window with
+the warm rows correctly restricted to their own date's US member set:
+
+| date | R5 stored | R5 correct | err | R10 stored | R10 correct | err |
+|---|---|---|---|---|---|---|
+| 2015-06-05 | 1.47 | 2.08 | **29.3 %** | 1.13 | 1.49 | **24.2 %** |
+| 2015-06-08 | 1.58 | 1.87 | 15.5 % | 1.12 | 1.39 | 19.4 % |
+| 2015-06-09 | 1.18 | 1.24 | 4.8 % | 1.26 | 1.48 | 14.9 % |
+| 2015-06-10 | 1.06 | 1.25 | 15.2 % | 1.28 | 1.56 | 17.9 % |
+| 2015-06-11 | 1.43 | 1.43 | 0.0 % | 1.33 | 1.58 | 15.8 % |
+| … | | | | | | |
+| 2015-06-18 | 1.46 | 1.46 | 0.0 % | 1.45 | 1.45 | 0.0 % |
+
+**R5 wrong for the first 4 stored sessions of a chunk; R10 for the first 9.**
+
+⛔ **ONLY those two V1 metrics are affected** — every other V1 metric is byte-identical
+under both runs. They are the only V1 members derived from the `recent` buffer rather
+than from the row itself. `hi_ratio` / `lo_ratio` look similar and are safe: they are
+computed from `nh`/`nl`/`universe_count` **on the same row**.
+
+#### Defect B — the first stored bar of every sweep call is a doji
+
+`o = prev.get(metric, fv)` builds the close-to-close body, and `prev` is populated only
+for dates at or after `from_date`. The first stored date of every CALL therefore has no
+predecessor in that run and takes `o = c`.
+
+    2015-06-05 pct_above_5sma   uninterrupted (38.8, 49.3, 38.8, 49.3)
+                                resumed       (49.3, 49.3, 49.3, 49.3)
+
+The CLOSE is always right; the open/high/low are not. 35 metrics on the boundary date.
+
+#### Blast radius — and why the FORWARD SEAL is the serious half
+
+| | grind (365-day chunks, ~13 for US) | forward seal (one tick per session) |
+|---|---|---|
+| Defect A · R5 | ~52 of 4,860 sessions (1.1 %) | ⛔ **every sealed day** |
+| Defect A · R10 | ~117 of 4,860 (2.4 %) | ⛔ **every sealed day** |
+| Defect B · doji | ~13 bars of 4,860 (0.3 %) | ⛔ **every sealed candle** |
+
+A daily seal starts a fresh `recent` and a fresh `prev` every tick, so **100 % of the
+live portion of `US:R5`, `US:R10` and of every sealed candle body would be wrong** —
+permanently, and invisibly, because the numbers look entirely plausible.
+
+#### Why this is NOT fixed here
+
+⛔ **Neither fix has one obvious safe answer**, which is the bar for a control phase.
+
+*Defect A* — the honest fix is to build eligibility for the warm-up sessions too. The
+code deliberately does not: *"building eligibility for 560 extra sessions would double
+the frame's cost to refine numbers nobody reads"* — which was true when the warm rows
+were only a buffer and false now that two published metrics read them. The alternatives
+(restrict only the ~15 warm sessions the buffer actually uses; or refuse to store R5/R10
+for the first N sessions of a chunk; or carry `recent` across calls) are a real
+cost/correctness trade-off, not a typo.
+
+*Defect B* — seeding `prev` from the STORE's last row before `from_date` is small, but
+it must land and be re-validated together with A.
+
+Both are production-path changes to the function the grind depends on. They deserve
+their own authorization and their own re-run of this control.
+
+#### What the gate DID prove
+
+The provider path itself is sound: auth works, RAW frames are real and differ from
+adjusted where it matters, the eligibility contract holds, membership is plausible,
+delisted names participate at 41.7 % / 44.9 %, determinism and idempotency pass, the
+missing-RAW refusal works and heals, cache reuse works, and 704 requests produced zero
+failures. **A50 at 2015-03-10 = 47.20, against a 47.23 reference.** None of that is in
+doubt; the arithmetic at chunk boundaries is.
