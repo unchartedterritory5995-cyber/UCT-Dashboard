@@ -99,10 +99,50 @@ smuggled in as engineering.
 | CP | scope | strands? | member-visible? | size | blocked on |
 |---|---|---|---|---|---|
 | **CP1** | **The source-vocabulary rail.** One DECLARED vocabulary; all three implementations derived from source (server dict keys by AST, `ALL_SOURCES` by AST, `impEff`'s branches by AST) and asserted to agree; a non-vacuity control; fails BY NAME on a fifth source or a dropped one. **No product code.** | no | no | **S/M** | — ✅ **SIGNED** |
-| **CP2** | **The first migration** (SPEC §5): `get_user_ticker_sets` → `member_interest.interest_for`, Calendar the only caller, signature unchanged, provably a no-op against CP1's baseline. | ⚠️ measure at build | no | **M** | ⛔ SPEC §2 (SET vs WEIGHTED SET) |
+| **CP2** | ~~**The first migration** (SPEC §5): `get_user_ticker_sets` → `member_interest.interest_for`, Calendar the only caller, signature unchanged, provably a no-op against CP1's baseline.~~ ⛔ **UNBUILDABLE AS WRITTEN — F-S6-1 below. A corrected assertion is PROPOSED there and is not approved.** | ⚠️ measure at build | no | **M** | ⛔ SPEC §2 (SET vs WEIGHTED SET) |
 | **CP3** | **`importance.js`'s boost DERIVES from the resolver** instead of mirroring it. | no | ⚠️ ranking could shift — must be proved identical | **M** | ⛔ SPEC §5.1 item 2 |
 | **CP4** | `GET /api/member/interest` + the shared per-member cache key. | measure at build | no | **S/M** | ⛔ SPEC §2, and the paid-gating question SPEC §5.1 leaves open |
 | **CP5** | **May the resolver read `personal_edge`?** Shape-3 reaching into shape-1 — where personalization stops being *"things the member did"* and becomes *"things we concluded about them."* | no | ⚠️ yes, eventually | **ruling** | ⛔ SPEC §5.1 item 3 |
+
+### ⛔ F-S6-1 — CP2 says "Calendar the only caller". There are THREE.
+
+**Filed 2026-09-15 by premise audit, before any code was written.**
+
+`get_user_ticker_sets` is defined at `api/services/calendar_personalization.py:81`. Its
+production call sites, derived by grep over `api/` with `__pycache__` excluded:
+
+```
+api/routers/calendar.py:2684                                    <- Calendar
+api/routers/calendar.py:3107                                    <- Calendar
+api/routers/calendar.py:3768                                    <- Calendar
+api/services/alert_taxonomy/event_proximity_projection.py:155   <- NOT Calendar
+api/services/calendar_alerts.py:260                             <- NOT Calendar
+```
+
+⛔ **Three modules, not one.** Migrating the function *"Calendar the only caller … provably
+a no-op against CP1's baseline"* would have proved the no-op **against Calendar alone**,
+and the proof would have PASSED while two other production callers changed behaviour.
+
+⭐ **And the direction of the miss is the bad one.**
+`alert_taxonomy/event_proximity_projection.py` is what decides which members hear about an
+approaching event — a silent behaviour change there is a member-facing alerting change
+nobody would have been looking for. `calendar_alerts.py:260` is the pre-report alert
+scheduler. **A no-op proof scoped to the caller the assertion names is not a no-op proof.**
+
+#### PROPOSED — not approved, not scheduled
+
+> **CP2′ (proposed).** The first migration (SPEC §5): `get_user_ticker_sets` →
+> `member_interest.interest_for`, **signature unchanged, proved a no-op at EVERY call site
+> enumerated by an AST sweep of `api/**` at build time** — today Calendar (3 sites), the
+> alert-taxonomy event-proximity projection, and `calendar_alerts` — against CP1's
+> baseline. **The sweep is the enumeration; this sentence does not carry the count.**
+
+⚠️ The enumeration above is dated. It is written as evidence for the finding, **not** as
+the list the build should trust — the corrected assertion requires the sweep to be re-run
+at build time, because a sixth call site added tomorrow would otherwise be missed by a
+rail that looks green.
+
+
 
 ⛔ **CP2 THROUGH CP5 ARE SPEC-BLOCKED, NOT MERELY UNSIGNED**, and the difference matters for the
 audit: an unsigned checkpoint waits on the owner **reading this packet**; a spec-blocked one waits
