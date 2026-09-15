@@ -582,3 +582,71 @@ properties of the services.
 2. `chart-renderer` has **no `/data`**; yesterday's UNREADABLE was my probe's Python
    dependency.
 3. `oi_massive.db` is live on flow-worker; Packet B had it as missing.
+
+---
+
+## Session result 2026-09-14 (evening — unbundle, sign-ready, CI push)
+
+**ET:** start `2026-09-14 23:03 EDT Mon`, end below, both from
+`python tools/weekly_exec.py et`. Both worktrees clean at start and end.
+⭐ The date is the authority's; the prompt carried none, by owner instruction.
+
+### U — the bundle is split
+
+`a383d5fb5` held four units. Seven files, all assigned, **all six pairwise intersections
+EMPTY**. Rebuilt as four commits on a throwaway, `git diff a383d5fb5 <tip>` **empty**, then
+the branch moved. **12 commits, one unit each, all cherry-pick clean onto master.**
+
+⚠️ **Told-vs-found on the recipe:** `a383d5fb5^` **is** `76a3b98c2` — the attribution fix
+was the parent, not a later commit — so the prescribed "cherry-pick 76a3b98c2 on top" would
+have duplicated it. Skipped; the empty diff is the decisive check.
+
+⚠️ **`git branch -f` refuses a branch checked out in the current worktree.** `reset --hard`
+to the verified tip, from a clean tree, is the equivalent.
+
+### K — two commands
+
+`tools/sign_all.py` · `tools/sign_manifest.txt` · `tools/merge_all.py`.
+**Positive control:** dry-run prints exactly **10** sign commands, **10 rows ok**.
+**Negative control:** one corrupted fingerprint → stops at that row, **writes nothing**.
+
+⚰️ **Two defects the dry-run found that reading would not have:**
+
+1. **The F-S2-1 fingerprint published to the owner was already stale.** `28da7740d` was
+   published, the packet was edited hours later (the attribution correction), and its real
+   value is **`72cda4cda`**. A signature against the published value would have approved a
+   document that no longer existed.
+2. **A packet with two checkpoints and one approval block is UNSIGNABLE.** `sign_gate.py`
+   refuses more than one unsigned block (*"refusing to guess which"*), and one block cannot
+   hold two signatures. The T/D3 packet was split into `packet-t-stale-test-gate.md` and
+   `d3-cp2-build-record.md`. **One checkpoint, one block.**
+
+### C — the branch is pushed; CI is unreadable from here
+
+**C.1a:** 120 deploys across six services (last 20 each) — **100% `master`**. No service has
+ever deployed from another branch in that window. ⚠️ The *setting* is not CLI-readable; the
+*history* is unanimous.
+**C.1b:** 8 workflows, 5 matched a deploy verb, **all five false positives** — the word in a
+workflow NAME, in echoed help text, and a Python module path
+(`wisdom.publish.provenance_check`). **None deploys.** `master-deploy-gate` does not fire on
+a feature branch.
+
+**PUSHED** — and it was a **fast-forward**, not a force: the stale ref was an ancestor with
+**0** commits only on remote. `7bd9c8785..af9fe21a6`.
+
+⛔ **C.3 is UNREADABLE-LOCALLY.** `gh` is not installed and
+`GITHUB_PERSONAL_ACCESS_TOKEN` is unset, so the GitHub MCP server cannot connect either.
+CI run #1 is running and **cannot be read from this box**. Unlock: install `gh`, or set the
+token and restart.
+
+### I — two of four
+
+- **I.3 `bars.db` 26.8 GB (worker) vs 24.7 GB (bars-api): EXPECTED-DRIFT.** Mechanism stated
+  at `CLAUDE.md:1281` — *"Two services, separate volumes, R2 bridge"*, worker runs the
+  prewarmer and uploads R2 snapshots. Different services, different fill histories. No
+  finding filed.
+- **I.4 `page_views` 16-day span: UNEXPLAINED — there is no retention job.** `DELETE FROM
+  page_views` = **0** occurrences; positive control: **316** `DELETE FROM` statements in
+  `api/`, none targeting it. So the span is **not** designed retention.
+
+⛔ **I.1 and I.2 were not reached**, and neither was Q. Said plainly rather than rushed.
