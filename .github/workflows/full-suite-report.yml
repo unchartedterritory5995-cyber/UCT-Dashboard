@@ -530,4 +530,9 @@ jobs:
           # ⛔ From /tmp, not from tools/ — see the copy above. The repo's tools/ does not
           # exist on this branch, and a path that does not exist reads as a crash with no
           # record, which is F-CI-7 all over again.
-          python "/tmp/ci_publish.py" --branch ci-results
+          # ⛔ `--push` is REQUIRED for this tool to do anything to the branch. Without it
+          # it reports and returns. ⚰️ E CP17: it used to push whatever it was asked to do,
+          # so the artifact-check step above — which runs before any `git config` and is
+          # wrapped in `|| true` — silently attempted a rebase, failed on an empty ident,
+          # and left `.git/rebase-merge` for this step to trip over.
+          python "/tmp/ci_publish.py" --branch ci-results --push
