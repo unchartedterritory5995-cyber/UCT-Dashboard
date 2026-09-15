@@ -20,7 +20,15 @@ newest to oldest and every version is hashed with `sign_gate`'s own function unt
 equals the expected value. The number of versions hashed is printed, so a search that found
 nothing is visibly a search rather than a silence.
 
-Exit 0 = every row OK · 1 = at least one STALE · 2 = UNREADABLE (no manifest, no rows)
+⛔ **A ROW PER PACKET IS NOT COVERAGE OF THE BRANCH.** The manifest says which DOCUMENTS
+get signed; it says nothing about which COMMITS actually merge. `tools/merge_all.py`'s
+`UNITS` holds that mapping, and a commit missing from it is a commit the two-command
+sequence will silently never merge -- the branch would land "complete" with work missing
+and nothing would report it. `--check-commits` walks `git log origin/master..<branch>` and
+fails on any commit no unit claims.
+
+Exit 0 = every row OK · 1 = at least one STALE, or an unreferenced commit · 2 = UNREADABLE
+(no manifest, no rows)
 """
 from __future__ import annotations
 
@@ -133,6 +141,67 @@ def check(manifest: pathlib.Path, verbose=True) -> tuple:
     return results, sum(1 for r in results if r["state"] != "OK")
 
 
+CODE_REPO = REPO.parent / "s7-price-level"
+
+
+def _units():
+    """merge_all.py's OWN declaration -- never a second copy of the mapping here."""
+    spec = importlib.util.spec_from_file_location("_ma", str(HERE / "merge_all.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m.UNITS
+
+
+def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=True) -> int:
+    """Every commit on the branch must be claimed by exactly one unit.
+
+    ⛔ NON-VACUITY: the branch commit count is PRINTED. A walk that found no commits --
+    a bad ref, an unfetched base -- reports "0 unreferenced" and looks identical to full
+    coverage, which is the failure this whole file exists to refuse."""
+    raw = git(["log", "--format=%h", "%s..%s" % (base, branch)], cwd=CODE_REPO)
+    commits = [l.strip() for l in raw.splitlines() if l.strip()]
+
+    claimed = {}
+    for stem, shas, _mv in _units():
+        for sha in shas:
+            claimed[sha] = stem
+
+    if verbose:
+        print()
+        print("[verify-manifest] commit coverage: %s..%s" % (base, branch))
+        print("  commits on the branch : %d" % len(commits))
+        print("  commits claimed by a unit: %d" % len(claimed))
+
+    if not commits:
+        if verbose:
+            print("  ⛔ ZERO commits walked -- the ref is wrong or the base is unfetched. "
+                  "That is UNREADABLE, not coverage.")
+        return UNREADABLE_EXIT
+
+    # a sha may be abbreviated differently on each side; compare on the shorter prefix
+    def _match(sha):
+        for c in claimed:
+            if sha.startswith(c) or c.startswith(sha):
+                return claimed[c]
+        return None
+
+    missing = []
+    for sha in commits:
+        stem = _match(sha)
+        if stem is None:
+            subject = git(["log", "-1", "--format=%s", sha], cwd=CODE_REPO).strip()
+            missing.append((sha, subject))
+
+    if verbose:
+        print("  mapped: %d of %d" % (len(commits) - len(missing), len(commits)))
+        for sha, subject in missing:
+            print("  ⛔ UNREFERENCED: %s  %s" % (sha, subject))
+        if missing:
+            print("  ⛔ These commits are on the branch and NO unit claims them, so "
+                  "merge_all.py would never merge them.")
+    return STALE_EXIT if missing else OK
+
+
 def _self_check() -> int:
     """⛔ clean / dirty / empty, in a throwaway git repo, before the real manifest."""
     import tempfile
@@ -200,6 +269,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--check-commits", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
@@ -213,7 +283,12 @@ def main(argv=None) -> int:
     print()
     print("[verify-manifest] %d OK, %d STALE"
           % (sum(1 for r in results if r["state"] == "OK"), bad))
-    return STALE_EXIT if bad else OK
+    rc = STALE_EXIT if bad else OK
+    if a.check_commits:
+        crc = check_commits()
+        if crc != OK:
+            rc = crc if rc == OK else rc
+    return rc
 
 
 if __name__ == "__main__":
