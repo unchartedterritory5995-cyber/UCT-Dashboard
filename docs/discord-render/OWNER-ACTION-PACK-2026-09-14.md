@@ -589,3 +589,130 @@ it does not quietly lapse:
 | **`RENDER_MAX_CONCURRENT`** | unchanged — still INCONCLUSIVE pending S2 |
 | **Gate snapshot** | 6 MET / 3 NOT MET / 2 NOT MEASURABLE; post-merge diff = **NO GATE CHANGE** |
 | **Blocked on you** | OI-13 rotation (§8.2) · R5 (§8.3) · C-13 row closure |
+
+---
+
+# OWNER PACK v6 — appended 2026-09-15 (D-08). Still one pack.
+
+## 9.0 · Headline: the smoke RAN, and the merge did NOT
+
+The browser smoke ran for the first time in this programme's history. It found two
+things. The OI-36 merge was **NO-GO** on a mutation that would not go red — detail
+in §9.3. **Master was not touched by this session.**
+
+## 9.1 · What the smoke found, and the first one is a live defect
+
+**`/flow` missed its Discord ack in production.** 8:07 AM ET, `#render-smoke`, one
+admin, no load: **"The application did not respond."** Re-run at 8:10 AM on a quiet
+pool: acked normally.
+
+⛔ **`/flow`'s handler is ALREADY defer-first** — `background.add_task(run_flow_card_job, ...)`
+at `api/routers/discord_interactions.py:499`, then `return {"type": 5}` at `:503`.
+Everything before it (`cmd_channel_ok`, `user_rate_check`, `parse_flow_command`) is a
+dict or in-memory read. **Nothing in the handler can explain the miss.** What preceded
+it: a `/chart NVDA` whose render took ~40 s on a pod that had booted three minutes
+earlier.
+
+⭐ **So the ack was starved at the request level, not by its own work.** That is the
+C-02 shared-pool story, observed in production, with a single admin user and no
+synthetic load. It is the strongest argument yet for the queue work — and it is NOT
+fixed by OI-36, which only moves `/buzz`.
+
+**`/buzz` PASSED — and that does not retire OI-36.** It answered inside the deadline
+with *"No mentions counted yet for since the open, counted through 8:58a."* Master's
+`/buzz` still `await run_in_threadpool(...)`s BEFORE returning a type-4 reply; it
+passed because the board is EMPTY and the pool was FREE. The branch's own measurement
+is **1.05 ms free vs 2,001 ms with the shared anyio pool exhausted**, against a 3 s
+deadline. A fast invocation cannot prove the absence of a race.
+
+## 9.2 · The narrowing checklist — NOW VERIFIED AGAINST A MERGED SHA
+
+Read in-process on the running pod, `4a0995a527fc`, and confirmed independently by
+`/renderhealth` speaking for itself:
+
+> *"Render V2 is **off** (`DISCORD_RENDER_V2_ENABLED` unset) and has never run on this
+> volume, so there is no job history yet. Renderer: not probed yet. Commit
+> `4a0995a527fc`."*
+
+| check | reading |
+|---|---|
+| `v2_channels()` | `()` |
+| `DISCORD_RENDER_V2_ENABLED` | `None` — still unset |
+| `RENDER_SLOTS` | `BoundedSemaphore`, size 8 — the C-09 gate is NOT on master |
+| `CHART_FLOW_CHANNEL_ID` | `1546563720702853280,1549129739048853544` |
+| `FLOW_CMD_CHANNEL_ID` | `1546563720702853280` |
+| primary (member-facing) | `1546563720702853280` — correct; the nudge never names the smoke channel |
+
+Consumer path:line — `cmd_channel_ids()` `api/services/discord_interactions.py:342`,
+`cmd_channel_ok()` `:373`; call sites `api/routers/discord_interactions.py:405, 485,
+534` and `api/services/discord_render/commands.py:362, 378, 394`.
+
+## ⛔ 9.3 · Why OI-36 did NOT merge — a rail that would not go red
+
+Everything else passed: clean merge re-measured from the branch's own merge-base
+(rc=0), 427 passed / 0 failed on a derived roster, V1-invariance exactly the permitted
+3-file delta, flow-worker coverage OK, guard outside the window.
+
+**Mutations came back 2/3 RED.** M2 (an await reintroduced before the defer) RED. M3
+(the `run_in_threadpool` import restored) RED. **M1 — moving the work back inline
+before the ack — stayed GREEN.**
+
+⭐ The cause is in the rail, not the fix. `test_the_ack_is_produced_before_any_reply_is_built`
+does `monkeypatch.setattr(rt, "run_buzz_job", ...)`, so an INLINE call and a
+BACKGROUNDED call both hit the same inert stub: `built == []` and `len(scheduled) == 1`
+hold either way. **The rail cannot distinguish the two states it exists to
+distinguish.**
+
+⛔ **The consequence is the dangerous half:** the regression could come back as a
+SYNCHRONOUS inline call — no await, so the AST await-scan misses it; stubbed, so the
+behavioural rail misses it — and that variant blocks the one shared event loop, which
+is the 2026-07-01 outage shape.
+
+**The fix is small:** spy on `background.add_task` itself and assert it received
+`run_buzz_job`, plus an AST check that `run_buzz_job` appears in the `/buzz` branch
+ONLY as an `add_task` argument. That is D-09's first task, before the merge.
+
+## 9.4 · R5 is recorded as CONFIRMED
+
+The C-09 gate's V1 change is approved: members beat the warm cycle for a render slot;
+the cost is a colder cache for the next arrival under load. Veto phrase **"hold
+gate"**. The gate branch is rebased, green and pushed at **`8c95652c4`** and is D-09's
+merge.
+
+## 9.5 · OI-13 — still yours, and still recommended NOW
+
+Presence-only read on `web` (never values): `DISCORD_BOT_TOKEN` present,
+`DISCORD_CHART_APP_ID` present, `CHART_RENDERER_TOKEN` absent, `RENDER_SHARED_SECRET`
+absent. ⚠️ **Presence cannot establish whether a rotation happened** — a rotated and an
+unrotated token are both "present". No rotation-shaped env deploy was observed in the
+window. §5.1 is carried forward unchanged, **[KEYBOARD/DASHBOARD]**, with the same
+recommendation: do it in a quiet window, and C-13's 11x4 control runs against the live
+log path afterwards.
+
+## 9.6 · FLIP PACKET — what moved
+
+| row | state after D-08 |
+|---|---|
+| **D-08 merge** | ❌ **NO-GO** — mutation M1 not RED (§9.3). Master untouched. |
+| **Smoke 3.5** | ⚠️ **3 PASS / 1 FAIL / 1 PARTIAL / 10 NOT RUN.** First browser run ever. |
+| **`/flow` ack** | 🔴 **NEW LIVE DEFECT** — missed the 3 s ack in production under no load |
+| **`/buzz`** | ✅ passed, conditionally — does NOT retire OI-36 |
+| **Narrowing checklist** | ✅ **VERIFIED against a merged SHA** (`4a0995a527fc`) |
+| **S2** | ❌ **NO-GO** — tripwire not built, and the clock entered RTH. PATCH-hop question ANSWERED: scope is `render_complete` under R11. |
+| **Gate branch** | ✅ rebased, union-resolved, both `cls` fixes, **447 passed / 0 failed**, races 50/50, mutations 4/4 RED, pushed `8c95652c4` |
+| **`RENDER_MAX_CONCURRENT`** | unchanged — still **INCONCLUSIVE**, missing sample is the S2 run |
+| **Gate snapshot** | 6 MET / 3 NOT MET / 2 NOT MEASURABLE — **NO GATE CHANGE** |
+| **Organic exposure** | **0** |
+
+## 9.7 · Canary readiness — what is left, each item tagged
+
+- **[local]** fix the OI-36 ordering rail (§9.3), re-run 3/3 mutations, merge D-08.
+- **[local]** merge D-09 (the gate) — ready now at `8c95652c4`, R5 confirmed.
+- **[local]** build the S2 snowflake tripwire and prove its production non-vacuity.
+- **[private-network]** deploy the load-harness service; run S2 off-hours; settle
+  `RENDER_MAX_CONCURRENT`.
+- **[local]** diagnose the `/flow` ack miss — it is the first production evidence of
+  the contention this programme is about.
+- **[owner]** OI-13 rotation · C-13 row closure.
+- **[owner]** the admin-only canary flip itself. **Nothing may set
+  `DISCORD_RENDER_V2_ENABLED` before every row above is closed.**
