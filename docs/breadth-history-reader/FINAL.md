@@ -42,7 +42,7 @@ and refusals rather than code.
 | **D-045** the numeric store + materialised reconstructed side | the request path reads pre-built rows instead of assembling 174,187 OHLC rows into 4,529 | ⭐ the derivation became the **builder**, not the fallback — `test_the_request_path_never_derives` is the rail |
 | **D-047** pre-serialised response, cache holds bytes | removes a re-encode per request | *(fill at close)* |
 | **D-049** the H1 page-cache fix, flag **ON** in production | `BREADTH_OHLC_PAGECACHE_ENABLED=1` | p90 **3,052 → 842 ms** (×3.62) · max **11,382 → 1,258 ms** (×9.05) · min `syscr` **1,669 → 182** (×9.17) · `read_bytes` max **187.51 → 0.00 MB** |
-| **M12** the sampler + its report | unattended poolable sampling, p95 suppressed below n=59 | `PENDING` — in the landing queue |
+| **M12** the sampler + its report | unattended poolable sampling, p95 suppressed below n=59 | ✅ **LANDED** `9f0c76f46`, deploy SUCCESS 2026-09-15 16:57:35 ET. ⚠️ Landed ≠ producing: the post-deploy dry run refused `pod_unsettled_uptime_17s` and wrote an `ok:false` row. **A refusal row is a working guard, not a working sampler** — R2 still needs the scheduled job. |
 | **M13** the resident copy, flag **OFF** | strings, not parsed dicts; 1.15× wire vs 5.06× | `PENDING` — the flip is a separate decision (R5/R6) |
 | **S1** `.gitattributes` | 10 derived `-text` paths | no content change by construction |
 
@@ -94,6 +94,22 @@ Already closed and not re-openable:
   `checkout branch; merge master; push branch:master` makes the branch the first parent, so
   the scan covers **master's** side. Landing via `checkout master; merge branch` (or a
   GitHub squash) puts the old master first and scans correctly.
+- ⚠️ **Settle `MIN_UPTIME_S = 600` with the pool, and do not touch it before then.** The
+  only two samples that exist differ **10.2×** (3,599.7 ms vs 351.4 ms) on the same SHA,
+  same kind, same `rf_rows = 4529`, same warm `rf_pagecache`, at uptime **674 s** and
+  **730 s** — both clear of the floor. If the reader's time decays with uptime, 600 s is
+  too low and a p95 built under it characterises the **deploy**, not the reader.
+  ⛔ **Not a conclusion and not a licence to raise the constant**: two points cannot
+  separate warm-up from ordinary variance, and tuning on n=2 is the same error the finding
+  is about. ⭐ **It costs nothing to answer** — every sample row already carries `uptime_s`
+  beside `timing.total`, so plot one against the other at n ≥ 20. **Record a null result
+  too**: "no decay against uptime" is what licenses every p95 the programme later quotes.
+- ⚠️ **Cross-workstream deploy coordination** — the burst clause admits **3 deploys/hour**
+  repo-wide, and a push whose files fall entirely inside `CLEARED_PREFIXES` is exempt from
+  the clause while still consuming a slot. A queue that yields therefore competes with
+  pushes that never yield. **This is a coordination problem, not a code change**, and it is
+  emphatically not an argument for the override. Recorded as a proposal because only the
+  owner can arbitrate between workstreams.
 - **The next reader candidate**, if any — R8 writes it, as a proposal only.
 - *(more at close)*
 
@@ -163,6 +179,39 @@ time:
 > **A single 600 s settle is usually available on this repository; a 45-minute run is
 > not.** Measured 2026-09-15: 20 deploys in 11.0 h, median gap 925 s, **15 of 19** gaps
 > ≥ 600 s, but only **3 of 19** ≥ 45 min.
+
+### ⭐⭐ And the refinement that outranks the sentence above — A SETTLE BEING AVAILABLE IS NOT PERMISSION TO PUSH
+
+That measurement counts **gaps between deploys**. It does not measure what actually decides
+whether a landing may proceed, which is the pre-push guard's **burst clause**: ≥ 3 distinct
+`web` deploys in a rolling 60 minutes and the push is refused, *whatever the settle says*.
+
+Measured the same day, counted from `logs/landing.log` rather than recalled: **M12 was refused
+seven times** between **16:43:21** and **16:53:24** ET — ten minutes — on a clock that passed
+and a settle that passed at **626 → 1,326 s**. Not one refusal was about the settle. It pushed
+at **16:55:05**, on the first sweep after the oldest deploy left the window.
+
+A sequential queue contributes one deploy per landing, so with the queue as the only writer:
+
+> **t(i) > t(i−3) + 3600** — at most **3 landings per hour**, one every ~20 minutes.
+
+⛔ **So the programme's pace is set by a RATE, not by a duration**, and the two are easy to
+confuse because both are measured in minutes. The settle costs ~10 minutes and the build 3–5;
+the burst clause costs 20, and it is the one that binds.
+
+⚠️ **It is worse with company, and the exemption is one-directional.** A push whose files fall
+entirely inside `CLEARED_PREFIXES` (`docs/`, `tests/`, `tools/`, `scripts/`, `app/`) is exempt
+from the clause — correctly; such a change is low-risk — **but the deploy it produces still
+occupies a slot for everyone else**, because the clause counts deploys, not changes. On
+2026-09-15 two exempt foreign pushes seven minutes apart took the window to **five distinct**
+deploys and blocked M13 for roughly fifty minutes.
+
+⭐ **The row that binds is usually your own.** With zero further foreign traffic, M13 still had
+to wait for **M12** — the queue's own previous landing — to age out. **A polite queue's chief
+competitor is itself**, and its second is anyone holding an exemption.
+
+⛔ **Never write a predicted clock time for a landing.** Two foreign pushes moved that estimate
+twice inside seven minutes. State the mechanism, then re-measure the window.
 
 ⚰️ And the finding that outranks it, from Session 13: **the gate everyone believed was
 holding deploys was not.** Railway's Wait-for-CI is off, the `master deploy gate`
