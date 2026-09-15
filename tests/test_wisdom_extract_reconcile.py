@@ -36,6 +36,11 @@ def _row(segment_id, rtype, *, ident, record_id, version=VERSION):
     elif rtype == "MARKET_SIGNAL":
         row["market_signal_key"] = [rtype, ident]
         row["record_key"] = [rtype, ident]
+        # ⛔ R43 NEEDS THE NAME. `reconcile._name_tokens` reads fields.market_signal.name; without
+        # it every token set is empty, no pair is ever a merge candidate, and EVERY merge test
+        # passes because nothing merges at all. Measured 2026-09-15: four R43 tests were vacuous
+        # and two guard mutations went uncaught until this line existed.
+        row["fields"] = {"market_signal": {"name": str(ident).replace("-", " ")}}
     return row
 
 
@@ -83,9 +88,17 @@ def test_SYNTHETIC_three_runs_give_3of3_2of3_and_1of3(tmp_path):
     assert result["n"] == 3
     assert by_ident[("CALL", "NVDA", None, None)]["stability"] == 1.0
     assert by_ident[("PRINCIPLE", "p_size-down")]["stability"] == 1.0
-    assert by_ident[("MARKET_SIGNAL", "choppy-tape")]["runs_present"] == 2
-    assert round(by_ident[("MARKET_SIGNAL", "choppy-tape")]["stability"], 3) == 0.667
+    # ⛔ R43 (2026-09-15): MARKET_SIGNAL's identity is the CLUSTER, not the name, so the ident is
+    # ("MARKET_SIGNAL", "msclust:<n>"). The STABILITY is what this test is about and it is
+    # unchanged — a lone key forms a cluster of one and still scores 2/3.
+    [ms] = [s for s in result["scores"] if s["record_type"] == "MARKET_SIGNAL"]
+    assert ms["identity"][0] == "MARKET_SIGNAL"
+    assert str(ms["identity"][1]).startswith("msclust:"), ms["identity"]
+    assert ms["runs_present"] == 2 and round(ms["stability"], 3) == 0.667
     assert round(by_ident[("MENTION", "AMD", None, None)]["stability"], 3) == 0.333
+    # the ruled identity is reported, and KEY is carried beside it as the lower bound
+    assert result["ms_identity"] == "MERGED_J05"
+    assert result["comparison_key_identity"]["identity"] == "KEY"
 
 
 def test_a_key_seen_twice_in_ONE_run_still_counts_once(tmp_path):
@@ -342,3 +355,96 @@ def test_a_missing_name_field_does_not_crash_the_audit(tmp_path):
     _write_run(tmp_path, "r2", [b])
     out = reconcile.audit_market_signal_renames(_load(tmp_path, ["r1", "r2"]))
     assert out["suspected_renames"] == 0, "no tokens means no evidence, not a guess"
+
+
+# ── R43: MARKET_SIGNAL's publication identity (owner ruling, 2026-09-15) ──────
+
+def test_MS_IDENTITY_is_the_single_switch(tmp_path, monkeypatch):
+    """⛔ ONE constant decides it. Flip it to KEY and the identity is the NAME again.
+
+    If this ever needs two edits to change the identity, the second one is where the drift lives.
+    """
+    ids = _synthetic_three_runs(tmp_path)
+    runs = _load(tmp_path, ids)
+
+    monkeypatch.setattr(reconcile, "MS_IDENTITY", "KEY")
+    key_result = reconcile.reconcile(runs)
+    idents = {tuple(s["identity"]) for s in key_result["scores"] if s["record_type"] == "MARKET_SIGNAL"}
+    assert idents == {("MARKET_SIGNAL", "choppy-tape")}, idents
+    assert key_result["comparison_key_identity"] is None, "under KEY there is nothing to compare to"
+
+    monkeypatch.setattr(reconcile, "MS_IDENTITY", "MERGED_J05")
+    merged = reconcile.reconcile(runs)
+    merged_idents = {tuple(s["identity"]) for s in merged["scores"] if s["record_type"] == "MARKET_SIGNAL"}
+    assert all(str(i[1]).startswith("msclust:") for i in merged_idents), merged_idents
+
+
+def test_the_write_path_never_merges_two_keys_from_the_SAME_run(tmp_path):
+    """⛔⛔ THE LOAD-BEARING INVARIANT, now on the PRODUCTION path.
+
+    Two MARKET_SIGNALs in one run are two signals however alike their names. Merging them would
+    manufacture a stability the extractor never demonstrated — and a manufactured stability
+    PUBLISHES, because the floor reads exactly this number.
+    """
+    rows = [_row("seg-1", "MARKET_SIGNAL", ident="breadth thrust alpha", record_id="a"),
+            _row("seg-1", "MARKET_SIGNAL", ident="breadth thrust beta", record_id="b")]
+    for r in ("r1", "r2", "r3"):
+        _write_run(tmp_path, r, rows)
+    result = reconcile.reconcile(_load(tmp_path, ["r1", "r2", "r3"]))
+    ms = [s for s in result["scores"] if s["record_type"] == "MARKET_SIGNAL"]
+    assert len(ms) == 2, "co-occurring keys were merged into one identity"
+    assert all(s["runs_present"] == 3 for s in ms)
+
+
+def test_assignments_are_deterministic(tmp_path):
+    ids = _synthetic_three_runs(tmp_path)
+    runs = _load(tmp_path, ids)
+    a = reconcile.market_signal_assignments(runs)
+    b = reconcile.market_signal_assignments(list(reversed(runs)))
+    assert a == b, "the partition depends on run order"
+
+
+def test_a_cluster_id_carries_no_text(tmp_path):
+    """⛔ §0.4f — an identity that reaches a manifest must not carry a model-written name."""
+    ids = _synthetic_three_runs(tmp_path)
+    result = reconcile.reconcile(_load(tmp_path, ids))
+    for s in result["scores"]:
+        if s["record_type"] == "MARKET_SIGNAL":
+            assert "choppy" not in str(s["identity"]), s["identity"]
+
+
+def test_the_guard_holds_at_COMPONENT_level_not_just_pair_level(tmp_path):
+    """⛔⛔ THE ONE THAT PROVES `_Union.union`'s GUARD, and nothing else does.
+
+    A pair-level pre-filter already refuses two keys that share a run, so the direct case passes
+    with the component guard deleted — measured: disabling it left all 25 other tests green. Only
+    the TRANSITIVE case reaches it: A and C co-occur, B is alone in another run and resembles both,
+    so A~B and B~C are each legal pairs and only a guard on the merged COMPONENT can refuse the
+    second union.
+    """
+    a = _row("seg-1", "MARKET_SIGNAL", ident="alpha beta gamma", record_id="a")
+    c = _row("seg-1", "MARKET_SIGNAL", ident="alpha beta delta", record_id="c")
+    b = _row("seg-1", "MARKET_SIGNAL", ident="alpha beta epsilon", record_id="b")
+    _write_run(tmp_path, "r1", [a, c])
+    _write_run(tmp_path, "r2", [b])
+    _write_run(tmp_path, "r3", [a, c])
+    result = reconcile.reconcile(_load(tmp_path, ["r1", "r2", "r3"]))
+    ms = [s for s in result["scores"] if s["record_type"] == "MARKET_SIGNAL"]
+    assert len(ms) >= 2, "a and c co-occur in r1 and r3; they were seated together through b"
+    assert all(s["runs_present"] <= 3 for s in ms)
+
+
+def test_THE_CONTROL_a_merge_actually_happens(tmp_path):
+    """⛔⛔ THE NON-VACUITY CONTROL FOR EVERY R43 TEST ABOVE.
+
+    Without it, a fixture that carries no name merges nothing and every "it must not merge X"
+    assertion passes for the wrong reason. Two distinct names, one per run, similar enough to
+    clear MS_MERGE_JACCARD: they MUST collapse to one identity at 2/2.
+    """
+    _write_run(tmp_path, "r1", [_row("seg-1", "MARKET_SIGNAL", ident="alpha beta gamma", record_id="a")])
+    _write_run(tmp_path, "r2", [_row("seg-1", "MARKET_SIGNAL", ident="alpha beta delta", record_id="b")])
+    result = reconcile.reconcile(_load(tmp_path, ["r1", "r2"]))
+    ms = [s for s in result["scores"] if s["record_type"] == "MARKET_SIGNAL"]
+    assert len(ms) == 1, f"the two names did NOT merge — every merge test above is vacuous: {ms}"
+    assert ms[0]["runs_present"] == 2 and ms[0]["stability"] == 1.0
+    assert sorted(ms[0]["record_ids"]) == ["a", "b"]

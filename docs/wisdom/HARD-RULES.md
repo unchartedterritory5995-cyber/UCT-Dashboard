@@ -252,3 +252,44 @@ fully offline (the Massive pagination loop body never executes) off `api/data/ca
 and the delisted registry. It built **9,824 entities** here, and re-resolving the three persisted
 runs offline recovers **228 of 297 pre-entity CALLs — 76.8%**, the rest needing the paid reference
 feed. Nothing was written to the shared root; its hash was baselined before and verified after.
+
+
+### 2026-09-15 — R43: the PUBLICATION IDENTITIES are ruled
+
+> **MARKET_SIGNAL = `MERGED_J05`** — keys clustered within a segment when their name tokens share
+> at least **0.5** Jaccard, which is R30's OWN audit threshold.
+> **PRINCIPLE = `KEY`** — unchanged.
+
+One constant decides it: `reconcile.MS_IDENTITY` (`MS_MERGE_JACCARD = 0.5` beside it), and it is
+mutation-proved as the single switch — flipping it to `KEY` reds three tests by name.
+
+**What it bought, measured on the local store (826 real records):** MARKET_SIGNAL records clearing
+the floor went **21 → 61**; identities 1,223 → 1,150; floor blocks **143 → 103**. PRINCIPLE is
+untouched at 31, as ruled.
+
+**Graded against golden, for $0.00:** where two members of a merged cluster both map to a golden
+record, the labels settle it. MERGED-MS scored 1–2 gradeable clusters, all correct. LENS-PRINCIPLE
+scored **13/13 correct at t=0.6, 7/7 at t=0.9 — precision 1.000 at every threshold**. ⛔ That is the
+number behind a future `LENS_STRICT` ruling (it would move PRINCIPLE 31 → 67); it is NOT a licence
+to change PRINCIPLE now, because R43 rules KEY.
+
+⭐ **KEY is retained as the lower-bound comparator** and is recomputed on every reconciliation into
+the manifest as `comparison_key_identity` — never written to `wisdom_records` or
+`wisdom_principles`.
+
+⛔⛔ **THE INVARIANT THAT MAKES MERGING SAFE:** two keys present in the SAME run are two records,
+never one renamed record. `_Union.union` refuses any merge whose components share a run.
+Mutation-proved 2026-09-15: disabling it reds
+`test_the_guard_holds_at_COMPONENT_level_not_just_pair_level`. ⚠️ The pair-level pre-filter beside
+it is an OPTIMISATION and is proved to be one — disabling it changes no test.
+
+⚰️ **And the fixture that made four of these tests vacuous:** `_name_tokens` reads
+`fields.market_signal.name`, which the synthetic rows did not carry — so no pair was ever a merge
+candidate and every "must not merge" assertion passed because nothing merged at all. Two guard
+mutations went UNCAUGHT until the fixture carried a name and a non-vacuity control asserted that a
+merge actually happens.
+
+⚠️ **OPEN — the floor enqueues but never retracts.** After R43, 103 records are blocked while the
+review queue holds **153** `below_publication_floor` rows: a record that starts passing does not
+have its old row withdrawn. Harmless today (the queue is advisory, nothing publishes from it), but
+the owner's queue overstates what is currently blocked.

@@ -53,6 +53,22 @@ DEFAULT_ROOT = pathlib.Path("data") / "wisdom" / "gate-runs"
 #: Written beside the runs it reconciles, in the same gitignored tree (§0.4f).
 REPORT_FILE = "reconcile-report.json"
 
+#: ⛔⛔ MARKET_SIGNAL's PUBLICATION IDENTITY — owner ruling **R43, 2026-09-15**.
+#:
+#: This ONE constant is the switch. `KEY` is the name-based identity R30 accepted provisionally;
+#: `MERGED_J05` clusters keys whose names share at least `MS_MERGE_JACCARD` token Jaccard within a
+#: segment, which is R30's OWN audit threshold. Session 10 measured the difference: 236 identities
+#: and 21 publishable under KEY, 163 and **61** under MERGED_J05.
+#:
+#: ⚠️ Merging can only ever RAISE stability, and a raised stability PUBLISHES where the floor would
+#: have blocked — so the guard below is not decoration: **two keys present in the SAME run are two
+#: records, never one renamed record**, and a merge that would seat them together is refused.
+#:
+#: ⭐ KEY is still computed on every reconciliation and written to the manifest as
+#: `comparison_key_identity`, so the lower bound never stops being visible.
+MS_IDENTITY = "MERGED_J05"
+MS_MERGE_JACCARD = 0.5
+
 
 class ReconcileRefused(ValueError):
     """A reconciliation that cannot be defended is refused, never approximated."""
@@ -84,7 +100,91 @@ def load_run(root, run_id: str, *, phase: str = "gate") -> dict:
             "segments": {r.get("segment_id") for r in rows}}
 
 
-def group_key(row: dict) -> tuple:
+class _Union:
+    """Union-find whose merges are REFUSED when the two components share a run.
+
+    ⛔ The guard is on the COMPONENT, not the pair. Two keys can be individually disjoint while
+    their components are not — a pair-level check would let A~B and B~C quietly seat A and C, which
+    co-occurred, in one cluster, and that cluster would then claim a stability it never earned.
+    """
+
+    def __init__(self, keys, runs_of):
+        self.parent = {k: k for k in keys}
+        self.runs = {k: set(runs_of(k)) for k in keys}
+        self.refused = 0
+
+    def find(self, k):
+        while self.parent[k] != k:
+            self.parent[k] = self.parent[self.parent[k]]
+            k = self.parent[k]
+        return k
+
+    def union(self, a, b) -> bool:
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return False
+        if self.runs[ra] & self.runs[rb]:
+            self.refused += 1
+            return False
+        lo, hi = (ra, rb) if str(ra) <= str(rb) else (rb, ra)
+        self.parent[hi] = lo
+        self.runs[lo] = self.runs[lo] | self.runs[hi]
+        return True
+
+    def roots(self) -> dict:
+        return {k: self.find(k) for k in self.parent}
+
+
+def market_signal_assignments(runs: list, *, threshold: float = MS_MERGE_JACCARD) -> dict:
+    """{segment_id: {key: cluster_id}} for MARKET_SIGNAL under the merged identity.
+
+    ⭐ Deterministic: candidate pairs are considered highest-similarity first then by key, and the
+    cluster id is an index over the sorted roots — so it carries NO text and the same runs always
+    produce the same partition.
+    """
+    import itertools
+
+    by_segment: dict = {}
+    for run in runs:
+        for row in run["rows"]:
+            if row.get("record_type") != "MARKET_SIGNAL":
+                continue
+            seg = row.get("segment_id")
+            key = tuple(row.get("market_signal_key") or row.get("record_key") or ())
+            slot = by_segment.setdefault(seg, {}).setdefault(key, {"runs": set(), "tokens": frozenset()})
+            slot["runs"].add(run["run_id"])
+            slot["tokens"] = slot["tokens"] | _name_tokens(row)
+
+    out: dict = {}
+    for seg, entries in by_segment.items():
+        keys = sorted(entries, key=str)
+        uf = _Union(keys, lambda k, _e=entries: _e[k]["runs"])
+        scored = []
+        for a, b in itertools.combinations(keys, 2):
+            if entries[a]["runs"] & entries[b]["runs"]:
+                # ⚠️ AN OPTIMISATION, NOT THE GUARD — measured, not assumed. Mutation
+                # 2026-09-15: disabling THIS line leaves all 27 tests green, because
+                # `_Union.union` refuses the same merges; disabling the union guard reds
+                # `test_the_guard_holds_at_COMPONENT_level_not_just_pair_level`. So the guard is
+                # `union`, and this only avoids scoring pairs that can never merge. ⛔ Do not call
+                # it a second line of defence — a guard that cannot be mutation-proved is not one.
+                continue
+            ta, tb = entries[a]["tokens"], entries[b]["tokens"]
+            union = ta | tb
+            if not union:
+                continue                      # no names persisted -> no evidence -> no merge
+            jac = len(ta & tb) / len(union)
+            if jac >= threshold:
+                scored.append((-jac, str(a), str(b), a, b))
+        for _neg, _sa, _sb, a, b in sorted(scored):
+            uf.union(a, b)
+        roots = uf.roots()
+        index = {root: i for i, root in enumerate(sorted(set(roots.values()), key=str))}
+        out[seg] = {k: index[r] for k, r in roots.items()}
+    return out
+
+
+def group_key(row: dict, ms_assign: Optional[dict] = None) -> tuple:
     """The identity a record is matched on ACROSS runs. ⛔ Key only — never text, never span.
 
     PRINCIPLE uses its cross-segment `principle_key` where the run recorded one, because that is
@@ -97,6 +197,12 @@ def group_key(row: dict) -> tuple:
         ident = ("PRINCIPLE", row["principle_key"])
     elif rtype == "MARKET_SIGNAL" and row.get("market_signal_key"):
         ident = tuple(row["market_signal_key"])
+        # R43: under MERGED_J05 the identity is the CLUSTER, not the name. The cluster id carries
+        # no text — it is the segment plus an index — so nothing quote-derived enters an id.
+        if ms_assign is not None:
+            cid = (ms_assign.get(row.get("segment_id")) or {}).get(ident)
+            if cid is not None:
+                ident = ("MARKET_SIGNAL", f"msclust:{cid}")
     else:
         ident = tuple(row.get("record_key") or (rtype,))
     return (row.get("segment_id"), ident)
@@ -132,14 +238,17 @@ def reconcile(runs: list) -> dict:
             f"segment was never sent is not a record the extractor disagreed about: {'; '.join(diffs)}")
 
     n = len(runs)
+    # R43: MARKET_SIGNAL's identity. Computed ONCE over all runs, because a cluster is a property
+    # of the run SET, not of a row. Under KEY this stays None and group_key behaves as before.
+    ms_assign = market_signal_assignments(runs) if MS_IDENTITY == "MERGED_J05" else None
     seen: dict = {}
     for run in runs:
-        for key in {group_key(row) for row in run["rows"]}:      # a key counts ONCE per run
+        for key in {group_key(row, ms_assign) for row in run["rows"]}:   # a key counts ONCE per run
             slot = seen.setdefault(key, {"runs_present": 0, "record_ids": set(),
                                          "principle_keys": set(), "record_type": None})
             slot["runs_present"] += 1
         for row in run["rows"]:
-            slot = seen[group_key(row)]
+            slot = seen[group_key(row, ms_assign)]
             slot["record_type"] = slot["record_type"] or row.get("record_type")
             if row.get("record_id"):
                 slot["record_ids"].add(row["record_id"])
@@ -158,8 +267,22 @@ def reconcile(runs: list) -> dict:
             "record_ids": sorted(slot["record_ids"]),
             "principle_keys": sorted(slot["principle_keys"]),
         })
+    # ⭐ THE LOWER BOUND NEVER STOPS BEING VISIBLE. KEY is recomputed here and carried into the
+    # manifest so a reader can always see what the ruled identity bought over the provisional one.
+    # ⛔ Comparison only — it is never written to wisdom_records or wisdom_principles.
+    comparison = None
+    if ms_assign is not None:
+        key_only: dict = {}
+        for run in runs:
+            for k in {group_key(row) for row in run["rows"]}:
+                key_only[k] = key_only.get(k, 0) + 1
+        comparison = {"identity": "KEY",
+                      "identities": len(key_only),
+                      "at_full_agreement": sum(1 for v in key_only.values() if v == n)}
     return {"n": n, "run_ids": [r["run_id"] for r in runs],
-            "extractor_version": versions.pop(), "scores": scores}
+            "extractor_version": versions.pop(), "scores": scores,
+            "ms_identity": MS_IDENTITY, "ms_merge_jaccard": MS_MERGE_JACCARD,
+            "comparison_key_identity": comparison}
 
 
 def histogram(result: dict) -> dict:
