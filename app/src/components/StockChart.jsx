@@ -3672,9 +3672,31 @@ export default function StockChart({
         const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
         let hi = -Infinity, lo = Infinity
         for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
-        let paneH = 0; try { paneH = chart.paneSize().height } catch { /* */ }
-        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
         const series = candleSeriesRef.current
+        // ⚰️⚰️ `chart.paneSize()` IS THE FIRST PANE, AND THIS MEANT "PRICE".
+        //
+        // `priceToCoordinate` below returns a pixel row inside the CANDLES' pane,
+        // and it was being divided by the height of whatever pane happens to be
+        // first. With a pane above Price that is the OTHER pane — a fraction of
+        // Price's height — so `yHi / paneH` saturates and `t` lands on the 0.9
+        // clamp: a stored view lock that leaves the candles 10% of their pane.
+        //
+        // ⛔⛔ AND THIS ONE PERSISTS, which is why it outlived everything. The
+        // measurement is written by `persistViewLock()` and re-applied on every
+        // load through `vertMarginsRef`, which OUTRANKS the computed margins. So
+        // one drag on a chart with QQQ above Price poisoned the saved layout, and
+        // no amount of correcting `computePaneLayout` could reach it — measured on
+        // production as NVDA ~212 against a Price scale running to ~625–880 with
+        // the candles in a bottom sliver, surviving refresh and two deploys.
+        //
+        // ⭐ ASK THE CANDLES FOR THEIR OWN PANE, so the numerator and the
+        // denominator come from the same rectangle. The container fallback had
+        // the same flaw — the whole container is not Price's pane — so it now
+        // only applies when the series cannot answer at all.
+        let paneH = 0
+        try { paneH = series?.getPane?.()?.getHeight?.() || 0 } catch { /* older API */ }
+        if (!(paneH > 0)) { try { paneH = chart.paneSize().height } catch { /* */ } }
+        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
         if (hi > lo && paneH > 8) {
           const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
           if (yHi != null && yLo != null) {
