@@ -339,7 +339,7 @@ no statements and no state, by design. So arrays and loops reach it one of two w
 | | mechanism | what it costs |
 |---|---|---|
 | **A** | **COMPILE-TIME UNROLLING.** A `for` whose iteration count is statically known, over an array whose size is statically known, unrolls to N ordinary expression trees. `array.new<float>(21)` becomes a plan-time vector of 21 expression slots; `array.set(arr, i, e)` writes slot `i`; `array.get(arr, 3)` **folds to slot 3's tree**. No new node type, no statements, no second interpreter. | Arrays are **plan-time vectors, not runtime objects**. A `push` whose count depends on a series can never be admitted — not "not yet", *never*, on this lane. |
-| **B** | **Put the IR lane on the pane path** — it already has statements and already reaches line 57. | That is ruling **D2**, and it is item **(c)**, not item (a). |
+| **B** | **Put the IR lane on the pane path** — it already has statements and already reaches line 57. | ⚰️ **INVERTED, corrected in place (R19, 2026-09-15).** This read *"that is ruling D2"*. It is not: **D2 is the ruling that the IR lane is NOT on the pane path** — a pane acts on the HOST lane's saved definition. Putting it on is what D2 **defers**, and item (c)'s own line says *"closing the tuple form is what lets D2 be revisited at all."* So B is item **(c)**'s, not item (a)'s, and reaching it means **revisiting D2**, not applying it. |
 
 ⭐ **A IS THE LANE'S OWN IDIOM, ALREADY IN USE.** `switch` is the one block keyword
 the definition lane reduces today — *"reduced to its one live arm… the subject must
