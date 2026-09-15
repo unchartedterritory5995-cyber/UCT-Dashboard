@@ -64,7 +64,7 @@
       "release_when": "fix4-production-re-run reaches a DECIDED verdict on all five cells."
     },
     {
-      "id": "fix4-production-re-run",
+      "id": "fix5-production-re-run",
       "status": "pending",
       "timeout": 2700,
       "why": "The five cells must load the bundle that CONTAINS the fix. Running them against the old bundle would reproduce the RED and read as the fix having failed.",
@@ -81,7 +81,8 @@
       "blocked_on": "Railway web SUCCESS on the commit carrying Q1 fix 4",
       "release_when": "`railway deployment list --service web --json` shows SUCCESS on a commit that has bc005b70c as an ancestor. Then set status=pending.",
       "released_at": "2026-09-14T22:25 CT",
-      "released_because": "Railway web SUCCESS on 85e68247c (deploy f15cb9c5), which carries Q1 fix 4 (26ac2683d is an ancestor of origin/master). The stated release condition is met."
+      "released_because": "Q1 fix 5 live: web SUCCESS 1ceb3c5c2 (deploy b774aaa2). Fix 5 is the supersede content-proof - the defect these five cells measured. This run is its production proof.",
+      "attempts": 0
     }
   ],
   "_order_note": "Priority is DECISION VALUE, not arrival. embed-re-run is minutes and confirms the RED on a recovered pod; T-12 is gate criterion C-7; the matrix remainder fills the table and is the only unbounded entry, so it goes last - it ate a whole window once by being ahead of a retry."

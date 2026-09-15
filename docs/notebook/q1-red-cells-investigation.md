@@ -5,6 +5,81 @@ Written for a session with zero context. Nothing here has been investigated yet.
 
 ---
 
+## 0. ✅ RESOLVED — Q1 fix 5, `1cf7b8c1d` (shipped `1ceb3c5c2`, deploy `b774aaa2`)
+
+**Cause found: the supersede decision compared CLOCKS, not content.**
+`outboxDrain.js:466` cleared a queued entry when
+`isSupersededBaseline(entry.baseUpdatedAt, landedBaseline(noteRec))` — which is
+`ta < tb` over two timestamps and nothing more — then reported *"a save this
+browser landed is newer"*, which a reader takes to mean **the server already has
+these words**. It never asked whether that landed save contained them.
+
+```diff
+-    if (isSupersededBaseline(entry.baseUpdatedAt, landed)) {
++    if (isSupersededBaseline(entry.baseUpdatedAt, landed)
++        && sameAuthoredContent(noteRec, entry.patch)) {
+```
+
+⭐ **Why fix 4 did not cover it.** `landedBaseline` refuses a DIRTY record, so
+while the editor is mounted the invariant holds. Fix 4 keeps a record with unsent
+work dirty — **but only where fix 4 decides.** The append door reconciles the
+record clean by another path, so it arrived here with the protection already gone.
+**Fix 4 was necessary and not sufficient.**
+
+### Which hypotheses this settles
+
+| # | hypothesis | outcome |
+|---|---|---|
+| 1 | the door never enqueues the typed words | ⛔ **KILLED** — the trail shows `sentenceInQueuedEntry: True` at queue time |
+| 2 | the door settles the note from the server's post-embed copy | ⛔ **KILLED** — `settleNoteWrite` *only* records the revision; it never touches body, dirty flag or intent |
+| 3 | the three `→None` PUTs consume the entry | ⛔ **KILLED** — the entry survived those; it was cleared later, at the supersede check |
+| 4 | the `+SENT` marker is trusted as delivery | ⛔ **KILLED** — the clear happened on the baseline comparison, before any marker was consulted |
+| 5 | ordering-independent, so not a race | ✅ **CONFIRMED, and it was the tell** — a clock comparison is ordering-independent by construction |
+
+### ⛔ Correction to §2 below
+
+*"the door fires at call #7"* was **never a defect indicator** and should not have
+been carried as one. Call #7 is the door's own `POST /embeds`; the rig counts it to
+establish ordering, so *"sends carrying the sentence **before** the door: 0"* is
+true **by construction**. The single real symptom was **zero successful sends
+carrying the sentence at all**, which fix 5 explains completely: the entry was
+cleared before any send ran (`clearOutboxEntry` then `continue`, skipping the
+`send(entry)` block).
+
+### Rails and mutation proof
+
+`supersedeProvesContent.test.js` — written 2026-09-13, carried as the `expected_red`
+reproduction, went **1 failed → 3 passed**.
+
+⚠️ **Fix 5 shipped with no NEW rail**, because its reproduction already existed and
+predated it. Mutation-proved afterwards rather than at commit time, which is the
+weaker order and is recorded as such:
+
+```
+MUTATED  (content proof removed, clock-only restored)
+  FAIL supersedeProvesContent.test.js > ⛔⛔ DOES NOT discard the member's words
+       when the landed save lacks them
+  Tests: 1 failed | 2 passed (3)      exit 1   <- the rail FIRES
+RESTORED (captured bytes written back, byte-for-byte, never git checkout)
+  Tests: 3 passed (3)                 exit 0   <- quiet
+```
+
+⭐ The first attempt at that proof **failed to mutate at all** — the match string
+was LF-joined against a CRLF file — and printed `3 passed`, which would have read
+as a passing mutated run. Two assertions caught it (`guard not found verbatim`,
+then `nothing was mutated`). **A fixture that cannot create the failure is not a
+test**, and that is the third instance of this shape in one session.
+
+### Still outstanding
+
+- ⛔ **The production re-run of the five cells against fix 5 has not been reported
+  yet.** Until it is, fix 5 is proven at unit level and on the wire-trace reasoning,
+  **not** on the rig. R-1a's flip stays HELD.
+- ⛔ **2.8b never ran** — the remount-with-server-moved-on scenario, fix 4's own
+  production proof. Run it FIRST in the next window.
+
+---
+
 ## 1. The symptom, in one paragraph
 
 A member drives an **append door** (`Send to Journal → Current note`, from a
