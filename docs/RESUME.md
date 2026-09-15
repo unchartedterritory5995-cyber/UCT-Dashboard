@@ -1,3 +1,79 @@
+# TRACK A — OPTION 2 MEASURED AND REJECTED (2026-09-15)
+
+HEAD at measurement: 27d9d4508. Change made, measured, REVERTED. Tree clean.
+
+## The precondition Option 2 rested on is FALSE
+
+Option 2 assumed `price` is "the canonical natural destination" for a new Data
+Series on its default source `close`, so that re-declaring `pane` -> `price`
+would merely align metadata with behaviour. MEASURED: `price` is the natural
+destination for `close`, but it does NOT come from the declaration at all — it
+comes from SOURCE DERIVATION. `derivedTargetFor` by source kind:
+
+    close              kind=bar      -> 'price'
+    volume             kind=bar      -> 'volume'
+    sym:QQQ:close      kind=symbol   -> null
+    sym:UCTA50:close   kind=symbol   -> null
+    @inst:rsi:1::rsi   kind=instance -> the source instance's pane
+
+A `sym:` source derives NOTHING. It falls through to `declared`. So for
+`dataSeries` the declaration's only live job is: **the default destination of a
+FOREIGN SYMBOL**, and `pane` is the correct answer there. The declaration is
+load-bearing, not a redundant label.
+
+## Measured consequences of the change (both STOP conditions)
+
+| case | before | after |
+|---|---|---|
+| S9  new QQQ series, no override | **pane** (own pane) | **price** (guest) |
+| S12 OLD-A saved `close` + `{target:'pane'}` | **price** | **pane** |
+
+S9: a foreign data series stops getting its own pane — the product's whole
+point. S12: EVERY existing saved Data Series on the default `close` source
+carries `placement:{target:'pane'}` as a creation restatement; today the reader
+ignores it (explicit === declared) and resolves `price`. After the change that
+same byte becomes an override and every one of those series JUMPS INTO ITS OWN
+PANE on load. That is exactly the S12 hard gate: ordinary existing charts move
+unexpectedly. NOT DEPLOYED.
+
+## The general impossibility (stronger than the seam-3 note above)
+
+`declared` does two jobs that are in direct conflict:
+  (a) it is the fallback default for sources that derive nothing (symbols);
+  (b) it is the ONE value the reader refuses to honour as an explicit override
+      (`explicit !== declared`).
+
+For `dataSeries` a member legitimately wants both directions:
+  * source `close`  -> default price -> wants `pane`  => needs declared != 'pane'
+  * source `sym:*`  -> default pane  -> wants `price` => needs declared != 'price'
+
+Declared must be simultaneously != 'pane' and != 'price'. **No value of the
+declaration can work.** Option 2 is not merely risky; it is unreachable, and so
+is any re-declaration. The fix must SEPARATE the two jobs.
+
+## OPTION 4 — not previously on the list, and it needs no provenance field
+
+Delete the restatements instead of reinterpreting them:
+
+  1. `placementFor` stops writing a restatement at creation (returns null when
+     the target equals the definition's declared target).
+  2. One-time normalization: DELETE any stored `placement.target` that equals
+     the definition's declared target.
+  3. The reader then honours `explicit` UNCONDITIONALLY — the
+     `explicit !== declared` guard is removed because it has nothing left to
+     defend against.
+
+Step 2 is behaviour-preserving BY CONSTRUCTION: deleting a stored target that
+equals `declared` reproduces exactly what the reader's guard does with it today
+(ignore it and fall through). `close`+`pane` -> deleted -> derived `price` (what
+it shows today). MA(RSI) `price` -> deleted -> derived `@inst:rsi:1` (what it
+shows today). Afterwards every remaining explicit target is a genuine member
+choice, `declared` keeps its symbol-fallback job, and BOTH override directions
+become expressible — including moving MA(RSI) to Price, which is impossible now.
+
+Cost: it is a persistence migration, which the owner has not authorised, and it
+wants its own acceptance pass. Recorded, NOT implemented.
+
 # ⛔⛔ SEAM 3 IS NOT IMPLEMENTABLE AS SPECIFIED — PROVEN COLLISION (HEAD 91ec55420)
 
 The owner chose SEAM 3: make the READER compare against the same canonical
