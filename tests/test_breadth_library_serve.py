@@ -153,3 +153,25 @@ def test_the_dedicated_instance_states_its_own_bound(seeded):
     assert bs._BREADTH_CACHE_MAX != shared_default
     # and it comfortably holds the whole projected catalogue
     assert bs._BREADTH_CACHE_MAX >= len(bs.library_rows())
+
+
+def test_the_warm_loop_is_uct_only_and_that_is_recorded(monkeypatch):
+    """⚠️ A KNOWN, STATED GAP — not a silent one.
+
+    `warm_breadth` walks the 44 shipped UCT symbols. A published PIT universe is
+    NOT pre-warmed, so its first request per symbol pays a cold build. That is
+    acceptable while the library is dark and must be designed deliberately before a
+    universe is published — this rail exists so the gap cannot disappear from view.
+    """
+    seen = []
+    monkeypatch.setattr(bs, "_refresh_series",
+                        lambda sym, metric, *a, **k: seen.append(sym) or [])
+    monkeypatch.setattr(bs, "_WARM_GAP", 0)
+    monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "*")
+    bs.warm_breadth()
+    assert seen, "the warm loop did nothing at all"
+    assert not any(":" in s for s in seen), (
+        "the warm loop began warming namespaced identities — that is a real "
+        "improvement, but it needs a per-universe sealed-date probe and a throttle "
+        "proven safe across four universes, so update this rail deliberately")
+    assert set(seen) <= set(bs.SYMBOLS)

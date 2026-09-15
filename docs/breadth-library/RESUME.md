@@ -152,6 +152,23 @@ so it is two long runs away whenever wanted.
 
 ---
 
+## Known gap, stated rather than hidden
+
+**`warm_breadth()` is UCT-only.** It walks the 44 shipped symbols and reads its
+"latest sealed day" from the collector, so a **published** PIT universe would not be
+pre-warmed and its first request per symbol would pay a cold build of seconds.
+
+Not extended, deliberately: a per-universe sealed-date probe plus a throttle proven
+safe across four universes is a judgement about pod CPU, and this loop's own history
+is a starvation incident. It is **inert while the library is dark**.
+`test_the_warm_loop_is_uct_only_and_that_is_recorded` pins it so the gap cannot
+become invisible — and the rail's failure message says what to do if someone
+legitimately widens it.
+
+**Design this before publishing any universe.**
+
+---
+
 ## Deferred product decisions
 
 1. **Final V1 metric subset.** The architecture supports all ~30 portable metrics;

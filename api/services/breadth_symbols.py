@@ -724,7 +724,19 @@ def warm_breadth() -> dict:
     is a cache hit. CONVERGES: a symbol is rebuilt only when its cache is missing/expired
     OR a NEW sealed day has landed (the 4:30pm EOD push), so after one boot pass this goes
     quiet instead of perpetually rebuilding. Builds are throttled (`_WARM_GAP`) so a cold
-    pass never bursts and starves the pod's bars path."""
+    pass never bursts and starves the pod's bars path.
+
+    ⚠️ UCT ONLY, KNOWINGLY. It walks `_METRIC_OF` (the 44 shipped symbols) and reads
+    its "latest sealed day" from `breadth_monitor`, which is the collector's — so a
+    PUBLISHED PIT universe would not be warmed and its first request per symbol
+    would pay a cold build of seconds.
+    ⛔ NOT EXTENDED HERE, deliberately. A per-universe sealed-date probe plus a
+    throttle that stays safe across four universes is a judgement about pod CPU, and
+    this loop's own history is a starvation incident (see `start_breadth_warm`). It
+    is INERT while the library is dark, so the honest move is to state the gap and
+    let it be designed awake rather than widen a tuned loop at the end of a session.
+    `test_the_warm_loop_is_uct_only_and_that_is_recorded` pins it so the gap cannot
+    become invisible."""
     from api.services import breadth_monitor
     cache = _breadth_cache
     # Latest sealed date, shared across all metrics (get_history is cached). When a new EOD
