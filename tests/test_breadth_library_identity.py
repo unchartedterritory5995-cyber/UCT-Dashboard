@@ -136,3 +136,36 @@ def test_a_namespaced_identity_never_collides_with_a_shipped_uct_symbol():
 def test_the_registry_is_the_product_of_universes_and_applicable_metrics():
     rows = bs.library_rows()
     assert len(rows) == sum(len(bm.metrics_for(u)) for u in bu.UNIVERSE_IDS)
+
+
+# ── the hot path ─────────────────────────────────────────────────────────────
+
+def test_an_ordinary_ticker_is_answered_without_rebuilding_the_catalogue():
+    """⚰️ `is_breadth_symbol` sits on the /api/bars hot path and is asked about
+    EVERY ticker. Falling through to a freshly-built 156-row projection measured
+    404 us per call against 0.09 us for a UCT symbol — a ~4,500x regression paid on
+    every chart request in the product, to answer "no"."""
+    import time
+    bs.is_breadth_symbol("AAPL")            # warm the memo
+    t0 = time.perf_counter()
+    for _ in range(5000):
+        bs.is_breadth_symbol("AAPL")
+    per_us = (time.perf_counter() - t0) / 5000 * 1e6
+    # Generous bound: the point is "a dict lookup", not a specific machine's number.
+    assert per_us < 25, f"{per_us:.1f} us/call — the projection is being rebuilt"
+
+
+def test_the_memo_is_the_same_object_and_still_correct():
+    first, second = bs._library_index(), bs._library_index()
+    assert first is second
+    assert first["NASDAQ:A50"]["metric"] == "pct_above_50sma"
+    # ⛔ The PUBLISHED gate is applied per lookup, NOT baked into the memo — it
+    # reads an env var, and a memoised gate would freeze the first test's setting.
+    import os
+    os.environ.pop("BREADTH_LIBRARY_UNIVERSES", None)
+    assert bs.resolve("NASDAQ:A50") is None
+    os.environ["BREADTH_LIBRARY_UNIVERSES"] = "*"
+    try:
+        assert bs.resolve("NASDAQ:A50") is not None
+    finally:
+        os.environ.pop("BREADTH_LIBRARY_UNIVERSES", None)

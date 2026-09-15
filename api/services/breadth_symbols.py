@@ -132,13 +132,32 @@ _METRIC_OF = {sym: rec["metric"] for sym, rec in SYMBOLS.items()}
 # for it to be shape-based. Whether `NASDAQ:A50` EXISTS is this layer's answer.
 # Conflating them is how `FOO:BAR` becomes chartable.
 
+_LIBRARY_INDEX: Optional[dict] = None
+
+
 def _library_index() -> dict:
     """`{SYMBOL: row}` over every registered identity, aliases included.
 
-    Rebuilt per call from the projection — the projection is pure and cheap, and a
-    module-level cache would be a second copy that goes stale the moment a metric
-    or universe is added. The serve path memoises through `resolve()` below.
+    ⚠️ MEMOISED, AND IT HAS TO BE. `is_breadth_symbol` sits on the `/api/bars` hot
+    path and is asked about EVERY ticker, so an ordinary `AAPL` fell through the
+    `SYMBOLS` fast path into this function. Rebuilding the 156-row projection there
+    measured **404 µs per call** against 0.09 µs for a UCT symbol — a ~4,500x
+    regression paid on every chart request in the product, to answer "no".
+
+    ⛔ AND A MODULE-LEVEL CACHE IS CORRECT HERE rather than a shortcut, because the
+    projection is PURE: it reads `_ROWS`, `breadth_universes.UNIVERSES` and
+    `breadth_metrics.METRICS`, all of which are module constants fixed at import.
+    Nothing mutates them at runtime. If that ever stops being true — a catalogue
+    loaded from disk, a universe added by configuration — this must gain an explicit
+    invalidation, and `_LIBRARY_INDEX = None` is the whole of it.
+
+    ⚠️ The PUBLISHED gate is deliberately NOT baked in: it reads an env var that a
+    test flips per-case, so it is applied by `resolve()` on every lookup against
+    this immutable index.
     """
+    global _LIBRARY_INDEX
+    if _LIBRARY_INDEX is not None:
+        return _LIBRARY_INDEX
     idx = {}
     for row in library_rows():
         sym = row.get("symbol")
@@ -150,6 +169,7 @@ def _library_index() -> dict:
         row = idx.get(target.upper())
         if row:
             idx[alias.upper()] = {**row, "symbol": target.upper(), "matched_alias": alias.upper()}
+    _LIBRARY_INDEX = idx
     return idx
 
 
