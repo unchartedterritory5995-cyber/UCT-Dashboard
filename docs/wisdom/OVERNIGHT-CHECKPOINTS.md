@@ -853,3 +853,88 @@ nothing on disk to read mid-flight by design.
 ⛔ **Nothing downstream may be reported until it lands**: the reconciler needs three runs, the
 floor counts need records, and the cost actuals need the ledger. **Pass 2 is gated on 4d
 matching pass 1's own receipt exactly.**
+
+
+## PASS 1 IS BOUGHT AND IT RECONCILES — 2026-09-15 07:16 CT
+
+**The first real gate run against `golden-v1.1` exists.** 83 dev segments, 827 validated records,
+**$4.7497**, zero errors, zero retries.
+
+    eval run   afab4baf6b51ee189964d1e6      persisted  data/wisdom/gate-runs/20260915T085142Z
+    golden     golden-v1.1 sha c26c871ea5a1  93 dev records, 26 NULL -> 83 segments
+    model      claude-opus-5 / high / batch  extractor_version wx-v0-fc47bc97
+    decision   accepted (baseline=True, regressions=[])
+
+| type | tp | fp | fn | precision | recall |
+|---|---:|---:|---:|---:|---:|
+| CALL | 17 | 8 | 6 | 0.680 (25) | 0.739 (23) |
+| LEVEL | 6 | 0 | 4 | **1.000** (6) | 0.600 (10) |
+| MARKET_SIGNAL | 3 | 3 | 0 | 0.500 (6) | **1.000** (3) |
+| MENTION | 51 | 6 | 0 | 0.895 (57) | **1.000** (51) |
+| NEGATIVE_CALL | 5 | 1 | 1 | 0.833 (6) | 0.833 (6) |
+| PRINCIPLE | 13 | 7 | 2 | 0.650 (20) | 0.867 (15) |
+
+⭐ **The 26 NULL segments produced ZERO null false positives — 0 in 0/26, for every one of the six
+types.** That is the half of v1.1 that did not exist in v1, and it is the half most likely to
+embarrass an extractor: a segment labelled "there is nothing here" invites a model to find
+something anyway. It found nothing, 26 times out of 26.
+
+### Step 4d: the persisted records reproduce the receipt EXACTLY
+
+    compared 30 field(s) over 6 type(s): MATCH
+    SELF-CHECK PASSED: dropping one persisted record reds 1 field(s) of 30
+      PRINCIPLE  fp  7 -> 6  MISMATCH
+
+⛔ **Both halves are load-bearing and neither is sufficient alone.** The MATCH says the persisted
+records, re-scored offline through the live path, reproduce all 30 reported fields. The SELF-CHECK
+says that comparison can still FAIL on *this* data — otherwise a MATCH over 30 fields is just as
+consistent with a comparison that stopped comparing. **Pass 2 is authorised by this, and by
+nothing else.**
+
+### ⚠️ THE RUN TOOK 3h25m, AND THE CAP IS WHY — not the work
+
+Pass 1 went out as **two batches**, not one:
+
+| round | requests | actual | settled |
+|---|---:|---:|---|
+| 1 | 54 | $3.2521 | 10:00:43Z |
+| 2 | 29 | $1.4976 | 12:16:46Z |
+
+⭐ **`SpendCap` is CUMULATIVE OVER THE WHOLE LEDGER, not per run** (`self.spent = sum(entries)`),
+and `run_batch_round` sizes each batch to *what the cap can still reserve*. The ledger already held
+$16.87 from earlier sessions, so a $40 cap left $23.13 of headroom, and at a **worst case of $0.42
+per request** that admitted 54 of 83. The remaining 29 waited for round 1 to settle.
+
+⛔ **The reservation is worst case; the bill is not.** 83 requests reserve **$34.86** and actually
+cost **$4.75 — 14% of worst case** (`cache_read_share` 0.7484). So the cap is not throttling
+spend here, it is throttling *scheduling*: each extra round is another batch with its own
+multi-hour latency. Pass 2 opened with $18.38 of headroom and went out as 43 requests; pass 3 will
+open with roughly $13.6 and split further.
+
+**This is a question for the owner, not a decision for the session** — see the report. Raising
+`--max-usd` would cost **nothing extra in actuals** and would collapse each pass to a single
+batch. ⛔⛔ It has NOT been raised: $40 is the ruled figure and the spend cap is never edited by a
+session. Three passes still fit — ~$31.1 of $40 at the measured rate.
+
+### Cost, measured rather than forecast
+
+| | |
+|---|---|
+| per segment | **$0.05723** (83 segments, $4.7497) |
+| vs the prior working rate $0.076066 | **24.8% cheaper** |
+| Q4 — the 9,733-segment catalog, ONE pass | **~$557** |
+| the same catalog at three passes | ~$1,671 |
+
+⚠️ The discount is real but it is a property of THIS corpus shape: `cache_read_share` 0.7484 means
+three quarters of input tokens were cache reads, which depends on the system prompt staying put
+across a batch. A prompt change resets that and the rate moves back toward $0.076.
+
+Calibration recorded for the budgeter: output p50 **2,353** / p90 **9,940** / max 15,328 tokens;
+input mean 7,120; system 6,509; `max_tokens` stops on first attempt **0**.
+
+### Pass 2 is in flight
+
+`20260915T121930Z`, launched 07:19 CT, same golden sha, round 1 of ~3 sent with 43 requests.
+⭐ Invoked with `python -u` this time: pass 1's captured log lost its header and its batch-round
+lines to block buffering, which is exactly what made "is it hung or is it working?" cost a
+measurement instead of a glance.
