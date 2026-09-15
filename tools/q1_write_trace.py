@@ -132,11 +132,33 @@ def summarise(ring: list) -> dict:
             flips.append(w)
         if nid is not None:
             last_dirty[nid] = d
+    # ⛔⛔ THE SENTENCE CAN LEAVE THE RECORD WHILE IT IS STILL DIRTY, AND THAT IS A
+    # DIFFERENT EVENT FROM THE DIRTY FLIP. Measured 2026-09-15: the store trail read
+    #   [(1, True, '47', True), (1, True, '39', False), (0, False, None, False)]
+    # so the words left at t1->t2 while the record was STILL dirty and an entry was
+    # STILL queued — and the dirty flip at t2->t3 carried sentence_in_body TRUE.
+    # The first version of this summary surfaced ONLY the flips, so it recorded the
+    # decisive write and then hid it. A summary that drops the evidence it was built
+    # to find is the same defect as an instrument that never recorded it.
+    losses = []
+    last_sentence = {}
+    for w in notes:
+        nid = (w.get("rec") or {}).get("noteId")
+        s = (w.get("rec") or {}).get("sentence_in_body")
+        prev = last_sentence.get(nid)
+        if prev is True and s is False:
+            losses.append(w)
+        if nid is not None and s is not None:
+            last_sentence[nid] = s
     return {
         "writes_total": len(ring),
         "notes_writes": len(notes),
         "outbox_writes": len(outbox),
         "dirty_flips_true_to_false": flips,
+        "sentence_lost_writes": losses,
+        # ⛔ THE WHOLE RING IS KEPT. Summarising at capture time is what cost a
+        # window: the answer was in the ring and the summary threw it away.
+        "ring": ring,
     }
 
 

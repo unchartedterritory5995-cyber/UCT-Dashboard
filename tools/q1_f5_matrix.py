@@ -1709,10 +1709,14 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                 log(f"      write trace: {s['writes_total']} write(s), "
                     f"{s['notes_writes']} to notes, {s['outbox_writes']} to outbox, "
                     f"{len(s['dirty_flips_true_to_false'])} dirty flip(s) true->false")
+                for _w in s.get("sentence_lost_writes", []):
+                    log(f"      ⭐ SENTENCE LOST: {_w.get('store')}.{_w.get('method')} "
+                        f"rec={_w.get('rec')}")
+                    log(f"         stack: {str(_w.get('stack'))}")
                 for _w in s["dirty_flips_true_to_false"]:
                     log(f"      ⭐ DIRTY FLIP: {_w.get('store')}.{_w.get('method')} "
                         f"rec={_w.get('rec')}")
-                    log(f"         stack: {str(_w.get('stack'))[:600]}")
+                    log(f"         stack: {str(_w.get('stack'))}")
         except Exception as _e:  # noqa: BLE001
             log(f"      (write trace unavailable: {_e})")
         return out

@@ -69,7 +69,30 @@
   },
   "append_widget_embed|slow PUT (landed, ring populated)": {
     "verdict": "RED",
-    "why": "offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-15T05:07:06.634032+00:00` \u00b7 3 request(s) carried the sentence (last \u2192 None) \u00b7 record went CLEAN while queued: **True** \u00b7 sentence left the durable record: **True** \u00b7 store trail: [(1, True, '32+00:00', True), (0, False, 'None', False)] \u00b7 wire: POST /\u2192200 \u00b7 POST /4eb21da35ccc4f1d90f0571cb5b62684/opened\u2192200 \u00b7 PUT /4eb21da35ccc4f1d90f0571cb5b62684[87+00:00]\u2192200 \u00b7 POST /4eb21da35ccc4f1d90f0571cb5b62684/opened\u2192200 \u00b7 PUT /4eb21da35ccc4f1d90f0571cb5b62684+SENT[32+00:00]\u2192None \u00b7 PUT /4eb21da35ccc4f1d90f0571cb5b62684+SENT[32+00:00]\u2192None \u00b7 PUT /4eb21da35ccc4f1d90f0571cb5b62684+SENT[32+00:00]\u2192None \u00b7 POST /4eb21da35ccc4f1d90f0571cb5b62684/embeds\u2192200 \u00b7 POST /4eb21da35ccc4f1d90f0571cb5b62684/opened\u2192200 \u00b7 POST /4eb21da35ccc4f1d90f0571cb5b62684/images\u2192200 \u00b7 PUT /4eb21da35ccc4f1d90f0571cb5b62684[72+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via Send to Journal \u2192 Current note \u00b7 sends before the door: 0 \u00b7 left the note: **True** \u00b7 navigated offline to {'path': '/charts', 'search': '', 'editor': False, 'offline': True} \u00b7 67s"
+    "why": "offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-15T21:13:30.862147+00:00` \u00b7 3 request(s) carried the sentence (last \u2192 None) \u00b7 record went CLEAN while queued: **True** \u00b7 sentence left the durable record: **True** \u00b7 store trail: [(1, True, '47+00:00', True), (1, True, '39+00:00', False), (0, False, 'None', False)] \u00b7 wire: POST /\u2192200 \u00b7 POST /f48de8385ee54769a3364154f0927e66/opened\u2192200 \u00b7 PUT /f48de8385ee54769a3364154f0927e66[74+00:00]\u2192200 \u00b7 POST /f48de8385ee54769a3364154f0927e66/opened\u2192200 \u00b7 PUT /f48de8385ee54769a3364154f0927e66+SENT[47+00:00]\u2192None \u00b7 PUT /f48de8385ee54769a3364154f0927e66+SENT[47+00:00]\u2192None \u00b7 PUT /f48de8385ee54769a3364154f0927e66+SENT[47+00:00]\u2192None \u00b7 POST /f48de8385ee54769a3364154f0927e66/embeds\u2192200 \u00b7 POST /f48de8385ee54769a3364154f0927e66/opened\u2192200 \u00b7 POST /f48de8385ee54769a3364154f0927e66/images\u2192200 \u00b7 PUT /f48de8385ee54769a3364154f0927e66[39+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via Send to Journal \u2192 Current note \u00b7 sends before the door: 0 \u00b7 left the note: **True** \u00b7 navigated offline to {'path': '/charts', 'search': '', 'editor': False, 'offline': True} \u00b7 65s",
+    "write_trace": {
+      "dirty_flips_true_to_false": [
+        {
+          "key": null,
+          "method": "put",
+          "rec": {
+            "baseUpdatedAt": "2026-09-15T21:14:24.920351+00:00",
+            "dirty": 0,
+            "kind": null,
+            "mutationId": null,
+            "noteId": "f48de8385ee54769a3364154f0927e66",
+            "sentence_in_body": true,
+            "sessionId": "587975ef-db06-4256-b5a8-32c57fd16bcc"
+          },
+          "stack": "Error\n    at describe (<anonymous>:45:15)\n    at IDBObjectStore.patched [as put] (<anonymous>:57:38)\n    at ne (https://uctintelligence.com/assets/useDurableNote-CXbsOVyO.js:1:2813)\n    at persist (https://uctintelligence.com/assets/useDurableNote-CXbsOVyO.js:1:11215)\n    at async p (https://uctintelligence.com/assets/useDurableNote-CXbsOVyO.js:1:512)",
+          "store": "notes",
+          "ts": 1789506864266
+        }
+      ],
+      "notes_writes": 3,
+      "outbox_writes": 1,
+      "writes_total": 8
+    }
   },
   "folder|drain-first (the editor could NOT report local state)": {
     "verdict": "GREEN",
