@@ -102,7 +102,7 @@ from an emulator.
 | **(g)** | `s := close` typing |
 | **(h)** | stale `ticker_meta` rows + `BF.B` |
 | **(i)** | volume provenance |
-| **(j)** | Uncharted Clouds as the wave-2 target |
+| **(j)** | Uncharted Clouds as the wave-2 target — ⛔ **see R11: (j) renders a CONDITIONAL fill** |
 
 ⭐ **(c) inherits an exact set from (a), not a category** — 33 `for` loops with a series
 bound, 10 `while` with a series guard, 60 `while` guarded on `array.size`, and every
@@ -437,6 +437,38 @@ the source authored, alpha included.**
 The env closing pass's restraint — an unread-but-**readable** binding stays silent — is
 load-bearing, and it is **not spent on one acceptance sentence**. Forcing `color.t` to a
 refusal would put a line in the result for every `len = 14` in every script.
+
+---
+
+# R11 — ITEM (j) RENDERS A CONDITIONAL FILL (owner, 2026-09-14)
+
+⛔ **(j) must not begin by hunting a static colour. There is none, and that is correct.**
+
+Every one of Clouds' 20 fills reads
+
+```
+fill(p1, p2, color = isBullish ? getBullFillColor(k) : getBearFillColor(k))
+```
+
+— a conditional over two **user-defined functions**. `staticColourOf` folds neither, so
+the fill carries no static colour. **(j)'s obligation is to render a fill whose colour
+is a conditional expression over a series**, not to locate a colour that never existed.
+
+**The note object, verbatim, measured at a6 (2.1):**
+
+```json
+{ "code": "pine:chart-only",
+  "message": "`fill` paints on a chart; TradingView's own screener reads plot() and
+              alertcondition() and nothing else, so this line is ignored here too",
+  "line": 118, "column": 1, "index": 6603, "token": "fill",
+  "excerpt": "fill(p1, p2, color=isBullish ? getBullFillColor(0) : getBearFillColor(0))\n^" }
+```
+
+⭐ **The note is a sentence and carries no colour by design.** What (j) consumes is
+`presentation.fills` — 20 entries of `{a, b}` with both plot handles already resolved
+to output indices, and `color`/`opacity` present **only** where the source authored a
+static colour. Clouds authored none, so (j) gets the edges and must supply the
+condition itself.
 
 ---
 
