@@ -21,28 +21,29 @@ FLOOR = floor.floor_value()
 
 @pytest.mark.parametrize("rtype", floor.FLOORED_TYPES)
 def test_1_below_floor_blocks(rtype):
-    assert floor.passes(rtype, 0.667) is False
-    assert floor.passes(rtype, 0.0) is False
+    assert floor.passes(rtype, 0.667, 3) is False
+    assert floor.passes(rtype, 0.0, 3) is False
 
 
 @pytest.mark.parametrize("rtype", floor.FLOORED_TYPES)
 def test_2_at_floor_passes(rtype):
-    assert floor.passes(rtype, 1.0) is True
-    assert floor.passes(rtype, FLOOR) is True
+    assert floor.passes(rtype, 1.0, floor.MIN_RUNS) is True
+    assert floor.passes(rtype, FLOOR, floor.MIN_RUNS) is True
 
 
 @pytest.mark.parametrize("rtype", floor.FLOORED_TYPES)
 def test_3_missing_score_blocks(rtype):
     """⛔ The only case that exists today: every stored record has stability NULL."""
-    assert floor.passes(rtype, None) is False
-    assert floor.passes(rtype, "") is False
-    assert floor.passes(rtype, "not a number") is False
+    assert floor.passes(rtype, None, 3) is False
+    assert floor.passes(rtype, "", 3) is False
+    assert floor.passes(rtype, "not a number", 3) is False
 
 
 def test_6_other_record_types_are_unaffected_at_any_value():
     for rtype in ("CALL", "NEGATIVE_CALL", "MENTION", "LEVEL"):
         for value in (None, 0.0, 0.333, 0.667, 1.0):
-            assert floor.passes(rtype, value) is True, (rtype, value)
+            for runs in (None, 1, 3, 5):
+                assert floor.passes(rtype, value, runs) is True, (rtype, value, runs)
 
 
 def test_the_floor_value_is_read_from_its_single_definition():
@@ -66,7 +67,8 @@ def _db() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("CREATE TABLE wisdom_records (record_id TEXT PRIMARY KEY, record_type TEXT, "
                  "stability REAL, stability_runs INTEGER, segment_id TEXT, author_id TEXT)")
-    conn.execute("CREATE TABLE wisdom_principles (principle_key TEXT PRIMARY KEY, stability REAL)")
+    conn.execute("CREATE TABLE wisdom_principles (principle_key TEXT PRIMARY KEY, stability REAL, "
+                 "stability_runs INTEGER)")
     return conn
 
 
@@ -99,12 +101,19 @@ def _rows(conn, extra=""):
 
 def test_the_sql_clause_agrees_with_the_python_predicate():
     conn = _db()
-    cases = [("a", "PRINCIPLE", None), ("b", "PRINCIPLE", 0.667), ("c", "PRINCIPLE", 1.0),
-             ("d", "MARKET_SIGNAL", None), ("e", "MARKET_SIGNAL", 1.0),
-             ("f", "CALL", None), ("g", "MENTION", 0.1)]
-    conn.executemany("INSERT INTO wisdom_records (record_id, record_type, stability) VALUES (?,?,?)", cases)
+    # the whole grid of (type, stability, runs), so SQL and Python cannot drift. Q17 added
+    # the runs dimension and this is where the two spellings are cross-checked.
+    cases = [("a", "PRINCIPLE", None, None), ("b", "PRINCIPLE", 0.667, 3), ("c", "PRINCIPLE", 1.0, 3),
+             ("d", "MARKET_SIGNAL", None, 3), ("e", "MARKET_SIGNAL", 1.0, 3),
+             ("f", "CALL", None, None), ("g", "MENTION", 0.1, 1),
+             ("h", "PRINCIPLE", 1.0, 1), ("i", "PRINCIPLE", 1.0, None),
+             ("j", "PRINCIPLE", 0.8, 5), ("k", "PRINCIPLE", 0.6, 5),
+             ("l", "MARKET_SIGNAL", 1.0, 2), ("m", "MARKET_SIGNAL", 0.8, 5)]
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs) VALUES (?,?,?,?)",
+        cases)
     got = set(_rows(conn))
-    expected = {rid for rid, rtype, stab in cases if floor.passes(rtype, stab)}
+    expected = {rid for rid, rtype, stab, runs in cases if floor.passes(rtype, stab, runs)}
     assert got == expected
     # non-vacuity: it must let SOMETHING through and hold SOMETHING back
     assert got and len(got) < len(cases)
@@ -117,11 +126,13 @@ def test_the_sql_clause_refuses_a_non_identifier_alias():
 
 def test_the_principles_clause_blocks_null_and_below_and_passes_at_floor():
     conn = _db()
-    conn.executemany("INSERT INTO wisdom_principles (principle_key, stability) VALUES (?,?)",
-                     [("p_null", None), ("p_low", 0.667), ("p_ok", 1.0)])
+    conn.executemany(
+        "INSERT INTO wisdom_principles (principle_key, stability, stability_runs) VALUES (?,?,?)",
+        [("p_null", None, 3), ("p_low", 0.667, 3), ("p_ok", 1.0, 3),
+         ("p_one_run", 1.0, 1), ("p_no_runs", 1.0, None), ("p_five", 0.8, 5)])
     clause, params = floor.principles_clause("p")
     got = {r[0] for r in conn.execute(f"SELECT principle_key FROM wisdom_principles p WHERE {clause}", params)}
-    assert got == {"p_ok"}
+    assert got == {"p_ok", "p_five"}, "Q17: 1.0 over one run blocks; 0.8 over five passes"
 
 
 # ── 7: status interaction ────────────────────────────────────────────────────
@@ -132,7 +143,7 @@ def test_7_status_and_stability_are_ANDed_not_ORed():
     other."""
     from api.services.wisdom.publish.adapters import common
 
-    assert floor.passes("PRINCIPLE", 1.0) is True
+    assert floor.passes("PRINCIPLE", 1.0, floor.MIN_RUNS) is True
     assert "rejected" not in common.ELIGIBLE_STATUSES
     # the floor never widens the status set, and the status set never widens the floor
     clause, _ = floor.sql_clause("r")
@@ -148,21 +159,25 @@ def _seed_blocked(conn):
         [("r_null", "PRINCIPLE", None, None, "seg-1", "a1"),
          ("r_low", "MARKET_SIGNAL", 0.667, 3, "seg-2", "a1"),
          ("r_ok", "PRINCIPLE", 1.0, 3, "seg-3", "a1"),
-         ("r_call", "CALL", None, None, "seg-4", "a1")])
+         ("r_call", "CALL", None, None, "seg-4", "a1"),
+         ("r_one_run", "PRINCIPLE", 1.0, 1, "seg-5", "a1")])
 
 
 def test_4_a_blocked_record_is_enqueued_with_a_reason_code(wisdom_review_db):
     conn = wisdom_review_db
     _seed_blocked(conn)
     out = floor.enqueue_blocked(conn)
-    assert out["blocked"] == 2, "only the two floored types below the floor"
-    assert out["enqueued"] == 2
+    assert out["blocked"] == 3, "the two below the floor, plus the single-run 1.0 Q17 catches"
+    assert out["enqueued"] == 3
     rows = list(conn.execute("SELECT subject_ref, summary, new_json FROM wisdom_review_queue ORDER BY subject_ref"))
-    assert [r["subject_ref"] for r in rows] == ["record:r_low", "record:r_null"]
+    assert [r["subject_ref"] for r in rows] == ["record:r_low", "record:r_null", "record:r_one_run"]
     assert floor.REASON in rows[0]["summary"] and floor.REASON in rows[1]["summary"]
     # the reason names the floor, the value, and the run count
     assert "NULL (never measured)" in rows[1]["summary"]
     assert "0.667" in rows[0]["summary"] and "over 3 run(s)" in rows[0]["summary"]
+    # Q17: the single-run record must name WHICH condition failed, not "below the floor"
+    assert "only 1 run(s)" in rows[2]["summary"]
+    assert f"minimum {floor.MIN_RUNS}" in rows[2]["summary"]
     assert f"{FLOOR:.3f}" in rows[0]["summary"]
 
 
@@ -181,15 +196,20 @@ def test_5_rerunning_does_not_duplicate_the_queue_row(wisdom_review_db):
     _seed_blocked(conn)
     first = floor.enqueue_blocked(conn)
     second = floor.enqueue_blocked(conn)
-    assert first["enqueued"] == 2 and second["enqueued"] == 0
-    assert conn.execute("SELECT COUNT(*) FROM wisdom_review_queue").fetchone()[0] == 2
+    assert first["enqueued"] == 3 and second["enqueued"] == 0
+    assert conn.execute("SELECT COUNT(*) FROM wisdom_review_queue").fetchone()[0] == 3
 
 
 def test_the_reason_code_is_actionable():
     r = floor.reason("PRINCIPLE", 0.667, runs=3, run_id="ev-1")
     assert "PRINCIPLE" in r and "0.667" in r and "3 run(s)" in r and "ev-1" in r and f"{FLOOR:.3f}" in r
-    assert floor.reason("PRINCIPLE", None).endswith(f"{FLOOR:.3f}")
-    assert "NULL (never measured)" in floor.reason("PRINCIPLE", None)
+    assert "NULL (never measured)" in floor.reason("PRINCIPLE", None, runs=3)
+    # Q17: a 1.0 blocked for too-few runs must NOT read "below the floor" — that reads as a
+    # contradiction and sends an admin hunting a scoring bug that does not exist.
+    few = floor.reason("PRINCIPLE", 1.0, runs=1)
+    assert "only 1 run(s)" in few and f"minimum {floor.MIN_RUNS}" in few
+    assert "below the floor" not in few
+    assert "UNRECORDED" in floor.reason("PRINCIPLE", 1.0, runs=None)
 
 
 # ── 6a: the migration does not disturb record identity ───────────────────────
@@ -438,3 +458,186 @@ def test_clip_candidates_actually_withholds_a_below_floor_record(adapters_db, se
     assert "rec_ok" in ids_out, "non-vacuity: an at-floor record MUST still be exported"
     assert "rec_call" in ids_out, "non-vacuity: an unfloored type MUST still be exported"
     assert "rec_low" not in ids_out and "rec_null" not in ids_out
+
+
+# ── Q17 (R17: FLOOR, min runs 3) — BEHAVIOURAL, at all four sites ────────────
+#
+# ⛔⛔ WHY BEHAVIOURAL AND WHY AT ALL FOUR. Session 4 proved that asserting a site MENTIONS the
+# floor module is not a guard: two sites could be bypassed entirely with the mention intact and
+# the suite stayed green. Q17 adds a whole new blocking CONDITION, so each site is exercised
+# through its real query with a real record.
+#
+# The case that motivates the ruling: stability = 1.0 over ONE run. It is the most
+# confident-looking number the pipeline can produce for the least evidence — one run agreeing
+# with itself is not agreement — and before Q17 it sailed through the floor at every site.
+
+Q17_CASES = [
+    # (label,            stability, runs, expected_pass)
+    ("i_runs2_perfect",        1.0,    2, False),   # (i)   2 runs is below MIN_RUNS -> blocks
+    ("ii_runs3_perfect",       1.0,    3, True),    # (ii)  the intended 3/3
+    ("iii_runs5_at_floor",     0.8,    5, True),    # (iii) FLOOR semantics: 4/5 passes
+    ("iv_runs5_below",         0.6,    5, False),   # (iv)
+    ("v_runsnull_perfect",     1.0, None, False),   # (v)   unrecorded denominator -> blocks
+    ("vi_runs1_perfect",       1.0,    1, False),   # the ruling's motivating case
+]
+
+
+def _seed_q17(conn):
+    """One record per Q17 case, plus a CALL control that must survive every combination."""
+    for label, stab, runs, _ in Q17_CASES:
+        add_record(conn, f"q17_{label}", "PRINCIPLE", "segLIVE1", "srcLIVE", author_id="tsdr",
+                   stability=stab, stability_runs=runs)
+    add_record(conn, "q17_call", "CALL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA")
+    conn.commit()
+
+
+def _expected_pass_ids():
+    return {f"q17_{label}" for label, _, _, ok in Q17_CASES if ok}
+
+
+def _expected_block_ids():
+    return {f"q17_{label}" for label, _, _, ok in Q17_CASES if not ok}
+
+
+def test_q17_site1_select_records(adapters_db, seeded):
+    from api.services.wisdom.core import store
+    from api.services.wisdom.publish.adapters import common
+
+    with store.write() as conn:
+        _seed_q17(conn)
+    with store.read() as conn:
+        got = {r["record_id"] for r in common.select_records(conn, types=("PRINCIPLE",))
+               if r["record_id"].startswith("q17_")}
+        calls = {r["record_id"] for r in common.select_records(conn, types=("CALL",))}
+    assert _expected_pass_ids() <= got, "non-vacuity: the passing cases MUST come back"
+    assert not (_expected_block_ids() & got)
+    assert "q17_call" in calls, "an unfloored type is untouched by the runs condition"
+
+
+def test_q17_site4_clip_candidates(adapters_db, seeded):
+    from api.services.wisdom.core import store
+    from api.services.wisdom.publish.adapters import clips
+
+    with store.write() as conn:
+        _seed_q17(conn)
+    out = {r["record_id"] for r in clips.clip_candidates(42)["records"]}
+    assert _expected_pass_ids() <= out
+    assert not (_expected_block_ids() & out)
+    assert "q17_call" in out
+
+
+def test_q17_site2_brainkb_export(adapters_db, seeded, monkeypatch):
+    """The Brain KB lane reads wisdom_principles directly, so its runs column is the one tested."""
+    from api.services.wisdom.core import store
+    from api.services.wisdom.publish.adapters import brainkb
+
+    with store.write() as conn:
+        # a 1.0 over ONE run — the case Q17 exists for
+        conn.execute("UPDATE wisdom_principles SET stability = 1.0, stability_runs = 1")
+        brainkb.stage(conn, brainkb.build_rows(conn))
+    monkeypatch.setenv("WISDOM_BRAINKB_PUBLISH_ENABLED", "1")
+    blocked = brainkb.export_payload()
+    assert len(blocked["below_floor_dropped"]) == 1, "1.0 over one run must NOT publish"
+
+    with store.write() as conn:
+        conn.execute("UPDATE wisdom_principles SET stability_runs = ?", (floor.MIN_RUNS,))
+    passing = brainkb.export_payload()
+    assert passing["below_floor_dropped"] == [], "non-vacuity: at MIN_RUNS the same row publishes"
+
+
+def test_q17_site3_retrieval_search(adapters_db, seeded, monkeypatch):
+    """Ask-AI reaches PRINCIPLE through the FTS index; the floor joins on the pr: doc-id prefix."""
+    from api.services.wisdom.core import store
+    from api.services.wisdom.publish import retrieval
+
+    monkeypatch.setenv("WISDOM_RETRIEVAL_INDEX_ENABLED", "1")
+    with store.write() as conn:
+        conn.execute("UPDATE wisdom_principles SET stability = 1.0, stability_runs = 1")
+    retrieval.refresh()
+    with store.read() as conn:
+        statement = conn.execute("SELECT statement FROM wisdom_principles LIMIT 1").fetchone()
+    query = " ".join(str(statement[0]).split()[:6])
+
+    blocked = [h for h in retrieval.search(query, limit=20, for_request=False)
+               if str(h["doc_id"]).startswith("pr:")]
+    assert blocked == [], "1.0 over one run must not be retrievable as a principle doc"
+    # the owner-sourcing lane still sees it, which is what proves the filter and not an empty index
+    opened = [h for h in retrieval.search(query, limit=20, for_request=False, include_unstable=True)
+              if str(h["doc_id"]).startswith("pr:")]
+    assert opened, "non-vacuity: the principle doc IS in the index"
+
+    with store.write() as conn:
+        conn.execute("UPDATE wisdom_principles SET stability_runs = ?", (floor.MIN_RUNS,))
+    now_ok = [h for h in retrieval.search(query, limit=20, for_request=False)
+              if str(h["doc_id"]).startswith("pr:")]
+    assert now_ok, "non-vacuity: at MIN_RUNS the same doc is retrievable again"
+
+
+def test_q17_a_blocked_single_run_record_is_enqueued_once(adapters_db, seeded):
+    """(i) blocks AND enqueues — and re-running does not duplicate it."""
+    from api.services.wisdom.core import store
+
+    with store.write() as conn:
+        _seed_q17(conn)
+        first = floor.enqueue_blocked(conn)
+        second = floor.enqueue_blocked(conn)
+        refs = {r[0] for r in conn.execute(
+            "SELECT subject_ref FROM wisdom_review_queue WHERE subject_ref LIKE 'record:q17_%'")}
+    assert refs == {f"record:{rid}" for rid in _expected_block_ids()}
+    # ⚠️ NOT compared to len(_expected_block_ids()): the seeded corpus carries its own
+    # NULL-stability PRINCIPLE, so the run legitimately enqueues more than the Q17 fixtures.
+    # What must hold is that every Q17 blocker is there, none of the passers is, and a second
+    # run adds nothing.
+    assert first["enqueued"] >= len(_expected_block_ids())
+    assert second["enqueued"] == 0
+    assert not (refs & {f"record:{rid}" for rid in _expected_pass_ids()})
+
+
+def test_q17_min_runs_has_one_definition_and_no_env_override():
+    """⛔ A publication floor that can be lowered from the environment is not a floor."""
+    import ast
+    import pathlib
+
+    src = (pathlib.Path(__file__).resolve().parents[1] / "api" / "services" / "wisdom"
+           / "publish" / "floor.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    assigns = [n for n in tree.body if isinstance(n, ast.Assign)
+               and any(getattr(t, "id", None) == "MIN_RUNS" for t in n.targets)]
+    assert len(assigns) == 1, "MIN_RUNS must be bound exactly once"
+    assert isinstance(assigns[0].value, ast.Constant), "MIN_RUNS must be a literal, not a lookup"
+    assert "environ" not in src.split("MIN_RUNS")[1][:400]
+
+
+def test_the_floor_boundary_is_exactly_STABILITY_FLOOR_not_merely_near_it():
+    """⛔⛔ MUTATION vii CAUGHT THIS FILE OUT. Replacing `floor_value()` with the literal 0.79
+    passed all 38 tests, because every fixture value (1.0, 0.8, 0.667, 0.6, 0.0) lands on the
+    same side of 0.79 as it does of 0.8. A suite that cannot distinguish the real threshold from
+    a near neighbour is not pinning the threshold at all — it is pinning the fixtures.
+
+    ⭐ The fix is a probe placed strictly BETWEEN the two candidates, so the two spellings
+    disagree about it. This is the general shape: to pin a boundary you need a value that only
+    the correct boundary classifies correctly.
+    """
+    f = floor.floor_value()
+    just_below = f - 0.005          # 0.795 against a 0.8 floor
+    just_above = f + 0.005
+    assert floor.passes("PRINCIPLE", just_below, floor.MIN_RUNS) is False, (
+        f"a score of {just_below} must NOT clear a floor of {f}; a 0.79 literal would pass it")
+    assert floor.passes("PRINCIPLE", f, floor.MIN_RUNS) is True, "the floor itself must pass"
+    assert floor.passes("PRINCIPLE", just_above, floor.MIN_RUNS) is True
+
+    # and the SQL spelling must agree on the same probe, or the two can still drift apart
+    conn = _db()
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs) VALUES (?,?,?,?)",
+        [("below", "PRINCIPLE", just_below, floor.MIN_RUNS),
+         ("at", "PRINCIPLE", f, floor.MIN_RUNS),
+         ("above", "PRINCIPLE", just_above, floor.MIN_RUNS)])
+    assert set(_rows(conn)) == {"at", "above"}
+
+
+def test_the_min_runs_boundary_is_exact_too():
+    """Same argument, the other axis: MIN_RUNS-1 must block and MIN_RUNS must pass."""
+    assert floor.passes("PRINCIPLE", 1.0, floor.MIN_RUNS - 1) is False
+    assert floor.passes("PRINCIPLE", 1.0, floor.MIN_RUNS) is True
+    assert floor.passes("PRINCIPLE", 1.0, floor.MIN_RUNS + 1) is True

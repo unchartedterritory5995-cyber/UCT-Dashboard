@@ -77,4 +77,12 @@ MIGRATIONS: list[tuple[str, str]] = [
     # select_records, so the floor cannot reach it through wisdom_records alone.
     ("core_009_principles_stability",
      "ALTER TABLE wisdom_principles ADD COLUMN stability REAL"),
+    # Q17 (owner ruling, 2026-09-14): a score is only a measurement if enough passes went into
+    # it, so the floor reads `stability_runs` as well — and the Brain KB lane reads
+    # wisdom_principles DIRECTLY, so the denominator has to live on this row too. ⛔ Not a join
+    # to wisdom_records: a principle is a cross-segment identity supported by several records, so
+    # "which record's run count" has no single answer. The score and its denominator travel
+    # together or the floor cannot be applied here at all.
+    ("core_010_principles_stability_runs",
+     "ALTER TABLE wisdom_principles ADD COLUMN stability_runs INTEGER"),
 ]
