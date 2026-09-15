@@ -819,3 +819,176 @@ def test_a_path_missing_on_one_side_is_DIFFERING_not_equal():
     ok, diff = gs.gate_read_identical('A', 'B', paths=('gone',),
                                       run=lambda argv: R('', 128))
     assert ok is False and diff == ['gone']
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# ⛔⛔ AND THE READ SET IS DERIVED, NOT REMEMBERED.
+#
+# The four-path list above was written when `app/src` + the config + the
+# lockfile looked like the whole story. It is not: the runner's cwd is `app/`,
+# so a rail's `path.resolve(process.cwd(), '../…')` reaches the REPO ROOT, and
+# the suite reads script corpora, generated docs, decision records and a dozen
+# PYTHON sources. Fourteen of those paths were absent from GATE_READ_PATHS on
+# 2026-09-15 — including three (`api/routers/definition_record.py`,
+# `api/services/implied_move.py`, `api/services/setup_grade.py`) that a careful
+# hand sweep of the same sources missed and this derivation found.
+#
+# ⭐ So the list is re-derived here every run. A per-file read set is precise
+# enough to keep the re-derivation USEFUL (naming `docs/` or `api/` whole would
+# answer DIFFERS forever), and this rail is what stops precision turning into
+# drift: the fifteenth path fails BY NAME rather than being silently un-hashed.
+# ══════════════════════════════════════════════════════════════════════════
+
+#: Repo-root path literals a vitest source NAMES without opening. Each is a
+#: hand-written fixture row or an ownership prefix in `rule12Paths.test.js`,
+#: which asserts on the CLASSIFIER over invented change sets. ⛔ An entry here is
+#: a CLASSIFICATION, not a waiver: a path that moves into this dict without a
+#: reason is a path nobody checked.
+NAMED_BUT_NOT_READ = {
+    'docs/plans/joystick': 'rule12Paths.test.js — an owned-prefix string in JOYSTICK_PREFIXES',
+    'docs/plans/joystick/closure.md': 'rule12Paths.test.js — a `changed` fixture row',
+    'docs/plans/joystick/deferred.md': 'rule12Paths.test.js — a `changed` fixture row',
+    'docs/plans/joystick/scope-reconciliation.md': 'rule12Paths.test.js — a `changed` fixture row',
+    'api/routers/calendar.py': 'rule12Paths.test.js — a `changed` fixture row for a NON-joystick branch',
+}
+
+_PATH_LITERAL = re.compile(r"""['"]([A-Za-z0-9_.\-/]+)['"]""")
+
+
+def _repo_root() -> pathlib.Path:
+    return pathlib.Path(__file__).resolve().parent.parent
+
+
+def _tracked_and_top_dirs():
+    """(tracked paths, top-level directory names) — DERIVED from git, never typed.
+
+    ⛔ `git -C <root>`: git resolves pathspecs against the cwd and `ls-files`
+    output against the repo, and the two disagreeing is invisible (rule 14).
+    """
+    out = subprocess.run(['git', '-C', str(_repo_root()), 'ls-files'],
+                         capture_output=True, text=True, encoding='utf-8',
+                         errors='replace', check=True).stdout.splitlines()
+    return set(out), {p.split('/')[0] for p in out if '/' in p}
+
+
+def _normalise(spec: str) -> str:
+    parts = spec.split('/')
+    while parts and parts[0] in ('.', '..'):
+        parts.pop(0)
+    return '/'.join(parts).rstrip('/')
+
+
+def root_relative_literals():
+    """{repo-root path: the vitest sources that name it}.
+
+    ⛔⛔ IT IS A DRIFT DETECTOR, NOT A CENSUS, AND THE DIFFERENCE IS THE WHOLE
+    HONESTY OF IT. A path built by concatenation, or resolved relative to the
+    TEST FILE rather than the repo root, is invisible to a literal scan —
+    `app/scripts/build-cot-facts.mjs` is imported as
+    '../../../scripts/build-cot-facts.mjs' and never appears in this result.
+    Those are covered by hand in GATE_READ_PATHS and by the explicit rail below.
+    What this catches is the shape that actually keeps appearing: a quoted
+    repo-root path handed to `readFileSync` / `existsSync` / `execFileSync`.
+
+    ⛔ A literal is kept only if it TRACKS or EXISTS. That is what separates a
+    path from prose — `'api/routers/auth.py moved — the kill switch is elsewhere
+    now'` is a failure message, not a read, and it resolves to nothing.
+    """
+    root = _repo_root()
+    tracked, top = _tracked_and_top_dirs()
+    found: dict[str, set[str]] = {}
+    for p in (root / 'app' / 'src').rglob('*'):
+        if p.suffix not in ('.js', '.jsx'):
+            continue
+        if '.test.' not in p.name and '.spec.' not in p.name:
+            continue
+        text = p.read_text(encoding='utf-8', errors='replace')
+        for m in _PATH_LITERAL.finditer(text):
+            rel = _normalise(m.group(1))
+            if '/' not in rel or rel.split('/')[0] not in top:
+                continue
+            if rel.startswith('app/src/'):          # the tree hash already covers it
+                continue
+            if rel in tracked or (root / rel).is_dir():
+                found.setdefault(rel, set()).add(p.relative_to(root).as_posix())
+    return found
+
+
+def _covered_by(rel: str, paths) -> bool:
+    return any(rel == p or rel.startswith(p + '/') for p in paths)
+
+
+def test_the_scan_that_derives_the_read_set_actually_READ_something():
+    """
+    ⛔ THE NON-VACUITY CONTROL, AND IT COMES FIRST. An empty result satisfies
+    "every path found is covered" perfectly, so a glob that matched nothing, a
+    wrong cwd, or a `git ls-files` that returned empty would publish a green
+    coverage claim over zero evidence (rule 14).
+
+    ⭐ It names MEMBERS, not only a count: a count drifts, a name fails loudly.
+    """
+    found = root_relative_literals()
+    assert len(found) >= 40, f'the scan found only {len(found)} literals — it is not reading the suite'
+    for member in ('tests/fixtures/ast/corpus.json',
+                   'api/services/indicator_alert_evaluator.py',
+                   'docs/decisions/2026-08-03-engine-enabled-settings-migration.md'):
+        assert member in found, f'{member} is read by a rail and the scan did not see it'
+    assert 'app/src/hub/registry.js' not in found, 'app/src must be filtered out, it is covered by its tree hash'
+
+
+def test_the_read_set_covers_every_root_relative_path_the_suite_reads():
+    """
+    Every repo-root path a vitest source names is either IN the read set or
+    CLASSIFIED as named-but-not-read. Nothing may be neither.
+    """
+    import scripts.gate_shards as gs
+    uncovered = sorted(rel for rel in root_relative_literals()
+                       if not _covered_by(rel, gs.GATE_READ_PATHS) and rel not in NAMED_BUT_NOT_READ)
+    assert not uncovered, (
+        'these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation '
+        'would carry a verdict across a change to them:\n  ' + '\n  '.join(uncovered))
+
+
+def test_the_coverage_predicate_can_say_NO():
+    """
+    ⛔ The control for the rail above. If `_covered_by` answered True for
+    everything, "nothing uncovered" would be a tautology over any read set.
+    """
+    import scripts.gate_shards as gs
+    assert _covered_by('app/src/hub/registry.js', gs.GATE_READ_PATHS) is True
+    assert _covered_by('api/services/__nothing_reads_this__.py', gs.GATE_READ_PATHS) is False
+    # ⛔ and a PREFIX is not a parent: `app/scripts` must not swallow `app/scriptsX`.
+    assert _covered_by('app/scriptsX/thing.mjs', gs.GATE_READ_PATHS) is False
+
+
+def test_every_path_in_the_read_set_EXISTS_in_git():
+    """
+    ⛔ A path that git cannot resolve is reported DIFFERING on both sides by
+    `gate_read_identical` — correctly — which would make the precondition refuse
+    every carry-over forever, for a typo. `tests/fixtures/pine-inbox` is named by
+    `dialect.test.js` and does not exist; that is why the read set carries the
+    PARENT `tests/fixtures` rather than the absent child.
+    """
+    import scripts.gate_shards as gs
+    root = _repo_root()
+    missing = [p for p in gs.GATE_READ_PATHS
+               if subprocess.run(['git', '-C', str(root), 'rev-parse', f'HEAD:{p}'],
+                                 capture_output=True).returncode != 0]
+    assert not missing, f'not resolvable at HEAD: {missing}'
+
+
+def test_the_read_set_names_the_corpora_the_generators_and_the_cross_lane_sources():
+    """
+    The four families `app/src` cannot see, one named member each — so a deletion
+    from the tuple fails by name instead of quietly shrinking the precondition.
+    """
+    import scripts.gate_shards as gs
+    for rel in ('tests/fixtures',                                  # the script corpora
+                'app/scripts',                                     # build entry points two rails run
+                'tools/hub_surface_matrix.mjs',                    # a generator a rail EXECUTES
+                'docs/plans/joystick/glass-acceptance-steps.md',   # an artifact a rail byte-compares
+                'docs/formulas/GRAMMAR.md',
+                'docs/decisions/2026-08-06-machine-repaint-linter.md',
+                'api/services/indicator_compute.py',               # cross-lane parity reads
+                'api/services/journal_two/roundtrip_export_fixture.py'):  # and one it EXECUTES
+        assert rel in gs.GATE_READ_PATHS, rel
