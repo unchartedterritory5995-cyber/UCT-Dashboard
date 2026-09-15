@@ -57,6 +57,16 @@ export async function noteHasUnsentWork(noteId, { accountId, connect } = {}) {
   // ⭐ UNKNOWN -> TRUE still stands where it belongs: a store that cannot be
   // OPENED or READ (the catch below) defers, because there the answer is genuinely
   // not known and the cost of a wrong pass is the member's words.
+  // ⛔⛔ AN ID-SHAPED BUG DEFERS, NEVER PASSES. `freshLastNote()` returns
+  // {id, ts}, and this guard's FIRST version handed that whole object in where a
+  // string was due. An object is TRUTHY, so it sailed past the absent-check, every
+  // store lookup missed, and the guard passed SILENTLY on all thirteen doors —
+  // the failure direction that costs the member's words. The rail caught it on its
+  // first run. Absence is legitimate; a wrong TYPE is a programming error, and the
+  // safe answer to a programming error is to defer.
+  if (noteId != null && typeof noteId !== 'string') {
+    return { unsent: true, why: 'unreadable' }
+  }
   if (!noteId || !acct) return { unsent: false, why: 'no-store' }
   if (typeof connect !== 'function') return { unsent: true, why: 'unreadable' }
 
@@ -66,6 +76,10 @@ export async function noteHasUnsentWork(noteId, { accountId, connect } = {}) {
       readNote(db, noteId),
       hasQueuedEntry(db, noteId),
     ])
+    // ⛔ EITHER READ FAILING MEANS THE ANSWER IS NOT KNOWN — defer.
+    if (rec === UNREADABLE || queued === UNREADABLE) {
+      return { unsent: true, why: 'unreadable' }
+    }
     // ⛔ A MISSING RECORD IS NOT A CLEAN ONE when an entry is queued for it.
     const dirty = Boolean(rec && rec.dirty)
     if (dirty && queued) return { unsent: true, why: 'both' }
@@ -77,13 +91,20 @@ export async function noteHasUnsentWork(noteId, { accountId, connect } = {}) {
   }
 }
 
+/** ⛔ UNREADABLE IS NOT EMPTY. These helpers used to swallow a failure into
+ *  `null`/`false`, so a store that could not be read looked exactly like a clean,
+ *  drained note and the guard PASSED. That is this layer's oldest mistake — a
+ *  layer that could not be READ is not a layer that is EMPTY — and the rail caught
+ *  it here on the first run. They now return the sentinel and the caller defers. */
+export const UNREADABLE = Symbol('unreadable')
+
 function readNote(db, noteId) {
   return new Promise((resolve) => {
     try {
       const req = db.transaction(STORE_NOTES, 'readonly').objectStore(STORE_NOTES).get(noteId)
       req.onsuccess = () => resolve(req.result || null)
-      req.onerror = () => resolve(null)
-    } catch { resolve(null) }
+      req.onerror = () => resolve(UNREADABLE)
+    } catch { resolve(UNREADABLE) }
   })
 }
 
@@ -96,8 +117,8 @@ function hasQueuedEntry(db, noteId) {
       const idx = store.index('byNote')
       const req = idx.getKey(IDBKeyRange.only(noteId))
       req.onsuccess = () => resolve(req.result !== undefined && req.result !== null)
-      req.onerror = () => resolve(false)
-    } catch { resolve(false) }
+      req.onerror = () => resolve(UNREADABLE)
+    } catch { resolve(UNREADABLE) }
   })
 }
 
