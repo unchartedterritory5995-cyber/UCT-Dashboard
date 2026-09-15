@@ -675,16 +675,16 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // …and its COLOUR is the one the shipped row printed for an untouched blob.
     const o = [...view.container.querySelectorAll('span')].find(s => /^O\s/.test(s.textContent || ''))
     const span = [...o.parentElement.children].find(el => el.textContent === expected(key, V))
-    // ⚰️ THIS READ `span.style.color` UNTIL TRACK B. The chip wore
-    // `style={{ color: chip.color }}` on the whole box, so eleven series printed
-    // eleven differently-coloured NAMES at 11px — and a member who picked a dark
-    // plot colour got a label they could not read. The colour moved to a 2×9px
-    // rail that carries no glyph; the INVARIANT is unchanged and is what this
-    // still asserts: the chip wears the colour the LINE wears.
-    const rail = span.querySelector('i')
-    expect(rail, `${key}'s chip has no colour rail`).toBeTruthy()
-    expect(rail.style.backgroundColor.replace(/\s/g, ''), `${key}'s chip changed colour`)
-      .toBe(hexToRgb(SHIPPED[key].color))
+    // ⚰️ THIS READ `span.style.color`, THEN A 2×9px RAIL'S BACKGROUND. The chip
+    // wore `style={{ color: chip.color }}` on the whole box — eleven series, eleven
+    // differently-coloured NAMES at 11px — then a rail, which on a nine-row legend
+    // read as nine little coloured tabs. Both are retired; the plot colour reaches
+    // the chip as a CUSTOM PROPERTY now, which is what the phone dot paints with.
+    // ⛔ THE INVARIANT IS UNCHANGED AND IS THE POINT: the chip carries the colour
+    // the LINE carries, resolved through the instance's own inputs. Only the
+    // element it lands on has moved.
+    expect(span.style.getPropertyValue('--chip-color').replace(/\s/g, ''),
+      `${key}'s chip changed colour`).toBe(SHIPPED[key].color)
     view.unmount()
   })
 
@@ -1402,7 +1402,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     expect(chip.getAttribute('data-hidden')).toBe('false')
 
     await openChip(view, 'RSI')
-    await act(async () => { rowStarting('Hide RSI').click() })
+    await act(async () => { rowStarting('Hide').click() })
     expect(persist, 'the Hide row wrote nothing — the popover is decorative').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
     expect(liveInstance(next, id).hidden,
@@ -1435,7 +1435,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const chip = chipFor(view, 'RSI')
     expect(chip.getAttribute('data-hidden'), 'the fixture did not start hidden').toBe('true')
     await openChip(view, 'RSI')
-    const btn = rowStarting('Show RSI')
+    const btn = rowStarting('Show')
     expect(btn, 'a hidden chip still offers "Hide" — the row lies about its direction').toBeTruthy()
 
     await act(async () => { btn.click() })
@@ -1466,23 +1466,19 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     view.unmount()
   })
 
-  it('⭐⭐ Delete ARMS, then removes THAT instance and leaves its siblings drawing', async () => {
+  it('⭐⭐ Delete removes THAT instance on ONE click and leaves its siblings drawing', async () => {
     const persist = vi.fn()
     const view = drawObserved(FOUR(), persist)
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'ATR')
     const id = chip.getAttribute('data-instance-id')
     await openChip(view, 'ATR')
-    // ⛔ THE FIRST CLICK WRITES NOTHING. It re-labels the row and keeps the
-    // popover open — the replacement for an 11px × that sat 5px from the gear.
+    // ⚰️ THE FIRST CLICK USED TO ARM — it re-labelled the row `Delete ATR?` and
+    // a second click fired it. One click now (owner, 2026-09-14): the row is red,
+    // alone below a rule and last in the menu, which is the protection a
+    // plot-management action warrants.
     await act(async () => { rowStarting('Delete').click() })
-    expect(persist, 'the first Delete click removed the instance — there is no confirmation')
-      .not.toHaveBeenCalled()
-    const armed = rowStarting('Delete')
-    expect(armed.textContent, 'the armed row does not name what it will delete')
-      .toContain('ATR')
-    await act(async () => { armed.click() })
-    expect(persist).toHaveBeenCalledTimes(1)
+    expect(persist, 'Delete did not fire on the first click').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
     expect(liveInstance(next, id).deleted, 'Delete did not tombstone the instance').toBe(true)
     for (const other of ['rsi', 'stoch']) {
@@ -1499,7 +1495,9 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const menu = document.body.querySelector('[role="menu"]')
     expect(menu, 'the right-click opened no menu').toBeTruthy()
     const text = menu.textContent
-    for (const row of ['Hide RSI', 'Display in', 'Edit in Chart Data', 'Add alert on RSI',
+    // ⚰️ THESE NAMED THE CHIP — `Hide RSI(14)`, `Add alert on RSI(14)…`. The
+    // popover's header names it now, so the rows are bare verbs (owner, density).
+    for (const row of ['Hide', 'Display in', 'Edit in Chart Data', 'Add alert…',
       'About', 'Delete']) {
       expect(text, `${row} is missing from the chip menu`).toContain(row)
     }
@@ -1735,8 +1733,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const id = chip.getAttribute('data-instance-id')
     await act(async () => { fireEvent.contextMenu(chip, { clientX: 120, clientY: 60 }) })
     const del = () => menuRows().find(b => (b.textContent || '').startsWith('Delete'))
-    await act(async () => { del().click() })      // arms
-    await act(async () => { del().click() })      // fires
+    await act(async () => { del().click() })      // one click, no arming
 
     expect(persist, 'Delete wrote nothing').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
@@ -1840,15 +1837,15 @@ describe('W0.1 — a colour change through the settings dialog', () => {
   it('🔴 recolours the OFF-CURSOR chip with NO crosshair delivered — the 8/15 symptom', async () => {
     const view = mount()
     const before = await offCursorChip(view, 'RSI')
-    expect(before.querySelector('i').style.backgroundColor.replace(/\s/g, ''))
-      .toBe(hexToRgb(RSI_DEFAULT))
+    expect(before.style.getPropertyValue('--chip-color').replace(/\s/g, ''))
+      .toBe(RSI_DEFAULT)
     const picked = await recolourThroughTheDialog(view)
     // ⛔ NO `settledLegend` HERE. A crosshair would drive the hovering path, which
     // reads `engineInstancesRef` fresh and was never the stale half.
     const after = await offCursorChip(view, 'RSI')
-    expect(after.querySelector('i').style.backgroundColor.replace(/\s/g, ''),
+    expect(after.style.getPropertyValue('--chip-color').replace(/\s/g, ''),
       'the off-cursor chip kept the OLD colour after Done — the legend payload was not re-derived')
-      .toBe(hexToRgb(picked))
+      .toBe(picked)
     view.unmount()
   })
 
@@ -1859,7 +1856,7 @@ describe('W0.1 — a colour change through the settings dialog', () => {
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.3 }))
     const chip = chipIn(view, 'RSI')
     expect(chip, 'no RSI chip under the crosshair').toBeTruthy()
-    expect(chip.querySelector('i').style.backgroundColor.replace(/\s/g, '')).toBe(hexToRgb(picked))
+    expect(chip.style.getPropertyValue('--chip-color').replace(/\s/g, '')).toBe(picked)
     view.unmount()
   })
 })

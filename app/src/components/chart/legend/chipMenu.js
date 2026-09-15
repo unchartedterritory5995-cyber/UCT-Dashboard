@@ -86,17 +86,22 @@ export function displaySubmenu(options, current, onMove, instanceId) {
  * the high-frequency verbs and sit at the top; the full editor and the additive
  * verbs sit in the middle; the one destructive verb is alone below a rule.
  *
- * ⛔ DELETE ARMS RATHER THAN FIRING. `caps.armed` is VIEW state the renderer
- * owns (a first click sets it, a second click fires), and it is passed in rather
- * than tracked here so this module stays pure and the wording of the armed row
- * stays testable. The row is the same row either way — there is no second
- * control and no modal.
+ * ⚰️ DELETE USED TO ARM — a first click re-labelled the row `Delete <x>?` and a
+ * second fired it. The owner removed the second click (2026-09-14): this row is
+ * already red, already destructive-styled, already alone below a rule and already
+ * the last thing in the menu, and that is the protection a plot-management action
+ * warrants. The hazard the arming replaced was an 11px ✕ five pixels from the
+ * gear on a strip that reflowed under the pointer; neither of those facts is true
+ * of a menu row you travelled to deliberately.
+ *
+ * ⛔ AND THERE IS STILL NO SECOND WRITER, NO MODAL AND NO CONFIRM DIALOG. One
+ * click → `removeInstance`, the popover closes, persistence takes it from there.
  *
  * @param {object} chip a `readout.legendChips` row (label, hidden, instanceId…)
  * @param {object} def  its definition, or null
  * @param {object} h    `{onSettings, onToggleHidden, onMove, onDuplicate, onAlerts, onAbout, onRemove}`
  * @param {object} [caps] what the CALLER knows and this file cannot:
- *   `{alertsRefusal, displayOptions, displayCurrent, armed, canDuplicate}`
+ *   `{alertsRefusal, displayOptions, displayCurrent, canDuplicate}`
  * @returns {Array} rows for `mobile/ContextPopover`
  */
 export function chipMenuItems(chip, def, h, caps = {}) {
@@ -114,8 +119,13 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       // ⛔ THE ROW STATES WHICH WAY IT GOES. A toggle labelled "Hide" on a label
       // that is ALREADY hidden is a lie, and `data-hidden` is the only other
       // thing on screen that says which state it is in.
+      //
+      // ⚰️ IT USED TO NAME THE CHIP TOO — `Hide RSI(14)`. The popover's HEADER
+      // names it now, directly above, so the row repeated it three pixels away and
+      // set the menu's width from its longest label (owner, 2026-09-14: bare
+      // verbs). `Duplicate Relative Strength Index` was the worst of them.
       key: 'hidden',
-      label: `${chip.hidden ? 'Show' : 'Hide'} ${chip.label}`,
+      label: chip.hidden ? 'Show' : 'Hide',
       icon: 'eye',
       onClick: () => h.onToggleHidden(chip.instanceId),
     },
@@ -140,7 +150,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   if (caps.canDuplicate !== false) {
     rows.push({
       key: 'duplicate',
-      label: `Duplicate ${name}`,
+      label: 'Duplicate',
       icon: 'copy',
       onClick: () => h.onDuplicate(chip.instanceId),
     })
@@ -148,29 +158,26 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   rows.push(
     {
       key: 'alerts',
-      label: `Add alert on ${chip.label}…`,
+      label: 'Add alert…',
       icon: 'bell',
       disabled: caps.alertsRefusal || undefined,
       onClick: caps.alertsRefusal ? undefined : () => h.onAlerts(chip.instanceId),
     },
     {
       key: 'about',
-      label: `About ${name}`,
+      label: `About ${name}`,   // ⛔ the DEFINITION's name, not the chip's — this row
+      // is about the indicator, and "About" alone says nothing at all
       icon: 'info',
       onClick: () => h.onAbout(chip.instanceId),
     },
     { separator: true },
     {
       key: 'remove',
-      // ⛔ THE ARMED ROW NAMES WHAT IT WILL DELETE. "Delete?" on a chart carrying
-      // eleven series is a question about nothing.
-      label: caps.armed ? `Delete ${chip.label}?` : 'Delete',
+      label: 'Delete',
       icon: 'trash',
       danger: true,
-      armed: !!caps.armed,
-      // ⛔ THE FIRST CLICK MUST NOT CLOSE THE MENU. `keepOpen` is what lets the
-      // row re-render as the confirmation; without it the arm would be invisible.
-      keepOpen: !caps.armed,
+      // ⛔ NO `keepOpen`. The click removes the instance and the popover closes
+      // with the thing it was about.
       onClick: () => h.onRemove(chip.instanceId),
     },
   )

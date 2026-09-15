@@ -54,29 +54,12 @@
   color: var(--chart-panel-text-strong-low, #e2dfd6);
 }
 
-/* The colour rail: the one piece of chrome at rest, and the only identity anchor
-   that survives a HIDDEN row (no value) and an OFF-CURSOR row (no value). Colour
-   must not live on text that can be suppressed.
-   ⛔ IT IS AN `<i>`, NOT A `<span>` — `stockChartWiring.test.jsx` counts spans —
-   and it is `aria-hidden`. */
-.chipRail {
-  display: inline-block;
-  width: 2px;
-  height: 9px;
-  margin-right: 5px;
-  border-radius: 1px;
-  vertical-align: middle;
-  flex: 0 0 auto;
-  transition: height 100ms ease;
-}
-.chip:hover .chipRail,
-.chipGridRow:hover .chipRail { height: 11px; }
-/* A hidden row's rail is DASHED — it says "hidden" with no word and no icon, and
-   it is the only thing left to say it once the value is suppressed. */
-.chipHidden .chipRail {
-  background-image: repeating-linear-gradient(180deg,
-    rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.55) 2px 4px);
-}
+/* ⚰️ `.chipRail` STOOD HERE — a 2×9px bar of the plot colour before every name.
+   On a nine-row legend it read as nine little coloured tabs, which is busier than
+   the thing it was meant to quieten (owner, 2026-09-14). The colour survives only
+   where it is the label rather than a decoration beside one: the phone dot, which
+   now reads `--chip-color` (set inline by the component). "Which line is this?" is
+   answered by the hover lift. */
 
 /* The VALUE, in the inline layout, as its own ink: the brightest thing in the
    legend, because reading it is the label's primary job. The grid variant does
@@ -90,6 +73,26 @@
 }
 
 /* ── THE HOVER ROW — eye · gear · × ────────────────────────────────────────
+ *
+ * ⭐⭐ THE CONTROL IS OUT OF FLOW, AND THAT IS THE WHOLE GEOMETRY FIX.
+ *
+ * ⚰️ IT USED TO COLLAPSE `max-width: 0 → 26px`, so a hovered chip GREW by 31px
+ * and every chip after it slid right; in the vertical legend the legend BOX itself
+ * widened and its background crept over the next gridline. Reserving the width
+ * permanently instead would have been the other way to stop the shift, and it
+ * costs ~20px of dead space on every row of a nine-row legend.
+ *
+ * ⛔ SO THE STRIP IS `position: absolute`, ANCHORED TO THE ROW, AND SITS OUTSIDE
+ * IT. Out of flow means it contributes ZERO width at rest AND on hover — the
+ * legend's tracks, its background, its right edge, the label and the value are
+ * byte-identical in both states, which is the requirement. It floats over the
+ * chart, where there is nothing to disturb.
+ *
+ * ⚠️ `.chip` MUST THEREFORE STOP CLIPPING WHILE HOVERED. It carries
+ * `overflow: hidden` for its own `text-overflow: ellipsis`, and that would clip an
+ * absolutely-positioned child too. The clip is dropped on hover only, so the
+ * ellipsis guard is intact at rest and a >260px label simply shows itself while
+ * you are pointing at it.
  *
  * ⛔ REVEALED BY CSS, NEVER BY A HOOK. `useIsTouch()`/`useMediaQuery` seeds from
  * `matchMedia` at MOUNT and only updates on a `change` event, so in a fixed
@@ -107,7 +110,14 @@
  * ⛔ AND IT COLLAPSES TO ZERO WIDTH RATHER THAN JUST FADING. `opacity: 0` alone
  * keeps ~60 px of dead box on every chip; nine chips would push the strip past
  * the price axis and wrap the legend onto a second row that says nothing. */
+.chip { position: relative; }
+.chip:hover { overflow: visible; }
 .chipControls {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  margin-left: 3px;
   display: inline-flex;
   align-items: center;
   /* ⭐ 1 → 5, to match `LegendRow`'s strip exactly (owner: "the ✕ is too
@@ -115,19 +125,17 @@
      the same 16px box holding the same 11px glyph, so one gap is even spacing;
      see `.chipBtnDanger` for the margin that used to break it. */
   gap: 5px;
-  margin-left: 0;
-  max-width: 0;
   opacity: 0;
-  overflow: hidden;
-  vertical-align: bottom;
-  transition: max-width 140ms ease-out, opacity 140ms ease-out, margin-left 140ms ease-out;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
 }
-/* 82px for three 16px buttons and two 5px gaps (58px). The headroom is what keeps
-   the strip from clipping its own last control — the failure this file's
-   `overflow: hidden` would otherwise hide in silence. ⚰️ The arithmetic used to
-   include a 10px safety margin in front of `.chipBtnDanger`; that margin is
-   retired (see its tombstone) and the headroom simply grew. */
-/* ⛔ `:has(:focus-visible)`, NOT `:focus-within` — the SAME fix the grid variant
+/* ⚰️ A `max-width` ARITHMETIC COMMENT STOOD HERE — 82px for three 16px buttons
+   and two 5px gaps. There is one button and it is out of flow, so there is no
+   width to compute and nothing to clip.
+   ⛔ `pointer-events` FLIPS WITH THE OPACITY. An out-of-flow control at
+   `opacity: 0` still sits over the chart and would swallow the crosshair across a
+   strip of nine invisible boxes.
+   ⛔ `:has(:focus-visible)`, NOT `:focus-within` — the SAME fix the grid variant
    took at the foot of this file, because this is the same defect. A mouse click
    leaves DOM focus on the button and nothing takes it away, so the chip you just
    acted on kept its strip open behind whatever you moved to next. `:focus-visible`
@@ -135,20 +143,16 @@
    rule was added for survives untouched. */
 .chip:hover .chipControls,
 .chip:has(:focus-visible) .chipControls {
-  /* ⚰️ 82px HELD THREE 16px BUTTONS AND TWO 5px GAPS. Track B leaves one button,
-     so the reveal is one box plus headroom — and the headroom is still what
-     keeps `overflow: hidden` from silently clipping the control. */
-  max-width: 26px;
   opacity: 1;
-  margin-left: 5px;
+  pointer-events: auto;
 }
 
 .chipBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   padding: 0;
   border: none;
   border-radius: 3px;
@@ -321,9 +325,8 @@
  * fires without a hover — so both facts are undone in the same query. */
 @media (max-width: 1024px) {
   .chipControls {
-    max-width: none;
     opacity: 1;
-    margin-left: 5px;
+    pointer-events: auto;
   }
   .chipBtn {
     min-width: var(--tap-min);
@@ -368,13 +371,13 @@
     text-indent: -9999px;
     overflow: hidden;
   }
-  /* ⛔ THE DOT IS THE RAIL, NOT A `::before`. The dot used to take
-     `currentColor`, which was the PLOT's colour while the chip wore it inline;
-     Track B made the chip's text neutral, so a `currentColor` dot would print
-     every series the same grey. The rail already carries the right colour as an
-     inline background — so on a phone it simply becomes round. */
-  .chip::before { content: none; }
-  .chipRail {
+  /* ⛔ ON A PHONE THE DOT **IS** THE LABEL — the text is indented off-screen, so
+     the colour is the only thing telling two series apart. It cannot take
+     `currentColor` (the chip's text is neutral since Track B) and the rail that
+     carried it is retired, so it reads the inline `--chip-color` the component
+     sets. This is not the decorative tab the owner removed; it is the name. */
+  .chip::before {
+    content: '';
     position: absolute;
     left: 50%;
     top: 50%;
@@ -382,6 +385,7 @@
     height: 10px;
     margin: -5px 0 0 -5px;
     border-radius: 50%;
+    background: var(--chip-color, currentColor);
   }
   .chipControls { display: none; }
   /* The chip is a 10 px dot here and its text is indented off-screen; a 10 px
@@ -440,11 +444,23 @@
 /* The control gutter cell. Empty until hover, so the track measures zero and the
    legend keeps the width it had — the same contract `.vlCtlPad` carries for the
    rows with no controls. See `StockChart.module.css` `.legendVertical`. */
+/* ⭐⭐ THE GUTTER CELL IS OUT OF FLOW TOO, so the legend's third track is empty
+   at rest AND on hover and can never give the box a width it did not have. The
+   offset clears the legend's own 8px right padding (`StockChart.module.css`
+   `.legend`) so the chevron floats over the chart rather than over the legend's
+   background — which is the state the owner reported: a legend that grew sideways
+   on hover and crept over the next gridline. */
 .chipGridCtl {
-  justify-self: start;
+  position: absolute;
+  /* ⛔ 13px, MEASURED, NOT GUESSED: the row's right edge is the legend's
+     CONTENT edge and `.legend` carries 8px of right padding, so anything under
+     ~9px leaves the control sitting ON the legend's background — the state this
+     change exists to end. 13 clears the padding and leaves 5px of air. */
+  left: calc(100% + 13px);
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  pointer-events: auto;
 }
 /* ⛔ AND IN THE GRID THE STRIP IS NOT COLLAPSED-BUT-PRESENT. The inline chip can
    afford `max-width: 0` (it is one box, and `:focus-within` re-opens it); here
@@ -466,6 +482,7 @@
    its way to them. `subgrid` keeps the label and value on the legend's columns —
    the alignment this variant exists for — while the row is one box. */
 .chipGridRow {
+  position: relative;
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
@@ -486,9 +503,9 @@
    kind of detail that reads as a bug even when nobody can name it. The MA
    behaviour is the one that wins because it is the one that feels immediate. */
 .chipGridCtl .chipControls {
-  max-width: 0;
-  opacity: 0;
+  position: static;
   margin-left: 0;
+  opacity: 0;
   transition: none;
 }
 /* ⛔ `:has(:focus-visible)`, NOT `:focus-within` — see `LegendRow.module.css`'s
@@ -498,8 +515,7 @@
    keyboard reveal and drops the stuck one. */
 .chipGridRow:hover .chipControls,
 .chipGridRow:has(:focus-visible) .chipControls {
-  max-width: 26px;
   opacity: 1;
-  margin-left: 6px;
+  pointer-events: auto;
   transition: none;
 }

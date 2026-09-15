@@ -70,30 +70,31 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(legendBlock, 'the `.legend` rule was not found — this gate read nothing').toContain('position: absolute')
   })
 
-  it('⛔ the reveal is CSS — collapsed by default, opened by :hover AND keyboard focus', () => {
-    // ⚰️ THIS ASSERTED `:focus-within` UNTIL 2026-09-10, and that selector was a
-    // measured bug: a mouse click leaves DOM focus on the button, so the chip you
-    // just acted on kept its controls open behind the one you moved to next.
-    // `:has(:focus-visible)` keeps the keyboard reveal this case exists to defend
-    // while dropping the stuck-open mouse case.
-    expect(flat, 'the control row is not collapsed by default — every chip carries ~60px '
-      + 'of dead box and the strip wraps').toMatch(/\.chipControls\{[^}]*max-width:0;/)
-    expect(flat, 'no :hover reveal — the controls can never open with a mouse')
+  it('⛔ the reveal is CSS, and the control takes NO WIDTH in either state', () => {
+    // ⚰️ THIS ASSERTED `max-width: 0` UNTIL 2026-09-14. Collapsing a width is one
+    // way to keep a hovered chip from growing; it is not enough, because the
+    // OPEN state still took 26px and every chip after it slid right — and in the
+    // vertical legend the legend BOX widened and crept over the next gridline.
+    // Out of flow is the fix: the control contributes zero width at rest AND on
+    // hover, so no geometry can move.
+    expect(flat, 'the control is back in the flow — a hovered row will widen the legend')
+      .toMatch(/\.chipControls\{[^}]*position:absolute;/)
+    expect(flat, 'the control is not hidden at rest')
+      .toMatch(/\.chipControls\{[^}]*opacity:0;/)
+    // ⛔ `pointer-events` FLIPS WITH THE OPACITY. An invisible out-of-flow box
+    // still sits over the chart and would swallow the crosshair on every row.
+    expect(flat, 'an invisible control still eats pointer events over the chart')
+      .toMatch(/\.chipControls\{[^}]*pointer-events:none;/)
+    expect(flat, 'no :hover reveal — the control can never open with a mouse')
       .toMatch(/\.chip:hover\.chipControls|\.chip:hover\s*\.chipControls/)
     expect(CSS.replace(/\s+/g, ' '),
-      'no keyboard reveal — a keyboard user can tab into the controls and never see them')
+      'no keyboard reveal — a keyboard user can tab into the control and never see it')
       .toMatch(/\.chip:has\(:focus-visible\) \.chipControls/)
-    // ⛔ AND NOT `display: none`, which is the obvious way to write this and the
-    // one that puts the controls out of the tab order — at which point
-    // `:focus-within` can never fire and the keyboard path above is decorative.
-    //
-    // ⚠️ SCOPED TO THE DEFAULT BLOCK, because the PHONE query legitimately does
-    // hide the row (`display: none`) — there the bottom sheet is the control
-    // surface. A whole-file read would have failed on that rule and the obvious
-    // "fix" would have been to delete this assertion.
+    // ⛔ AND NOT `display: none`, which puts the control out of the tab order —
+    // at which point the keyboard reveal above is decorative.
+    // ⚠️ SCOPED TO THE DEFAULT BLOCK: the PHONE query legitimately hides it.
     expect(baseBlock.replace(/\s+/g, ''),
-      'the collapsed state is `display:none`, so the controls cannot be focused '
-      + 'and the :focus-within reveal is unreachable')
+      'the resting state is `display:none`, so the control cannot be focused')
       .not.toMatch(/\.chipControls\{[^}]*display:none;/)
   })
 
@@ -226,22 +227,32 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(draw().container.querySelector('button').getAttribute('aria-haspopup')).toBe('menu')
   })
 
-  it('⭐ the RAIL carries the plot colour and the chip TEXT does not', () => {
-    // ⚰️ THE CHIP USED TO WEAR `style={{ color: chip.color }}` ON THE WHOLE
-    // BOX, so eleven series printed eleven differently-coloured names at 11px —
-    // and a member who picked a dark plot colour got a label they could not read.
-    // The rail is 2×9px of the same colour and carries no glyph, so it cannot be
-    // styled into illegibility.
+  it('⭐ the chip carries NO colour swatch, and no colour on its text', () => {
+    // ⚰️ A 2×9px `<i>` RAIL STOOD BEFORE EVERY NAME. On a nine-row legend it read
+    // as nine little coloured tabs (owner, 2026-09-14). Before that the chip wore
+    // `style={{ color: chip.color }}` on the whole box, which was a rainbow of
+    // names at 11px. Neither is here now: the label is neutral and *"which line is
+    // this?"* is answered by the hover lift.
     const { container } = draw()
     const chip = container.querySelector('[data-instance-id]')
-    expect(chip.style.color, 'the chip still tints its own text with the plot colour').toBe('')
-    const rail = chip.querySelector('i')
-    expect(rail, 'no colour rail on the chip').toBeTruthy()
-    expect(rail.style.backgroundColor.replace(/\s/g, '')).toBe('rgb(123,104,238)')
-    // ⛔ AN `<i>`, NOT A `<span>` — `stockChartWiring.test.jsx` counts spans —
-    // and hidden from the accessibility tree, because it restates a colour.
-    expect(rail.tagName).toBe('I')
-    expect(rail.getAttribute('aria-hidden')).toBe('true')
+    expect(chip.style.color, 'the chip tints its own text with the plot colour again').toBe('')
+    expect(chip.querySelector('i'), 'a colour rail is back in the chip').toBeNull()
+  })
+
+  it('⛔ …but the plot colour still REACHES the chip, as `--chip-color`', () => {
+    // ⛔ THE PIPELINE IS STILL RAILED, AND IT HAS TO BE. On a PHONE the chip is a
+    // 10px dot with its text indented off-screen, so that dot is the only thing
+    // telling two series apart — and it reads this custom property (see the
+    // ≤640px block in `IndicatorChip.module.css`). It is also what keeps W0.1's
+    // rail alive: a colour changed in the settings dialog must reach the
+    // OFF-CURSOR chip, and this is now where that arrives.
+    const { container } = draw()
+    const chip = container.querySelector('[data-instance-id]')
+    expect(chip.style.getPropertyValue('--chip-color').replace(/\s/g, ''))
+      .toBe('#7b68ee')
+    expect(CSS.replace(/\s+/g, ''),
+      'the phone dot no longer reads the property the component sets')
+      .toMatch(/\.chip::before\{[^}]*background:var\(--chip-color/)
   })
 
   it('⛔ a READ-ONLY mount gets the inert chip — no controls, no tooltip, no menu', () => {

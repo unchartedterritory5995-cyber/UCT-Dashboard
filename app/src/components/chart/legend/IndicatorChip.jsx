@@ -34,9 +34,18 @@ import styles from './IndicatorChip.module.css'
  * `${label} ${value.toFixed(decimals)}`, and `disambiguateSiblings` rebuilds
  * BOTH fields together when it renames a sibling.
  *
- * ⛔ THE RAIL IS AN `<i>`, NOT A `<span>`, for the same span-counting reason,
- * and it is `aria-hidden` — it restates the colour a sighted reader already has
- * and says nothing to anyone else.
+ * ⚰️ THE COLOUR RAIL IS RETIRED (owner, 2026-09-14). A 2×9px bar of the plot
+ * colour sat before every name; on a legend of nine rows it read as nine little
+ * coloured tabs, which is busier than the thing it was meant to quieten. The
+ * colour survives where it is actually load-bearing: on the PHONE, where the chip
+ * IS a 10px dot and the text is indented off-screen, so the dot is the only thing
+ * telling two series apart. That dot takes `--chip-color`, set inline here and
+ * read by the ≤640px block in the stylesheet — it is not a decoration beside a
+ * name, it is the name.
+ *
+ * ⭐ WHICH LINE IS THIS? IS ANSWERED BY HOVER, NOT BY A SWATCH. Pointing at a
+ * label lifts its drawn series; that is the identification mechanism, and it is
+ * why the resting label can afford to carry no colour at all.
  *
  * ─── THE THING THAT MAKES THE BOX CLICKABLE AT ALL ──────────────────────────
  *
@@ -162,9 +171,6 @@ export default function IndicatorChip({
   // ⛔ THE CONTROL, THE RAIL, THE REPAINT MARK AND EVERY DATA ATTRIBUTE ARE BUILT
   // ONCE AND SHARED BY BOTH LAYOUTS. Two copies of a control is two places for
   // the affordance to drift.
-  const rail = (
-    <i className={styles.chipRail} style={{ backgroundColor: chip.color }} aria-hidden="true" />
-  )
   const marks = (
     <>
       {repaint && (
@@ -190,7 +196,7 @@ export default function IndicatorChip({
         aria-label={`${chip.label} options`}
         aria-haspopup="menu"
         onClick={(e) => { e.stopPropagation(); openMenu(e) }}
-      ><UIcon name="chevronDown" size={11} gold={false} /></button>
+      ><UIcon name="chevronDown" size={10} gold={false} /></button>
     </span>
   ) : null
 
@@ -232,6 +238,7 @@ export default function IndicatorChip({
          hover box. */
       <span
         className={`${styles.chipGridRow} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        style={{ '--chip-color': chip.color }}
         {...hoverProps}
       >
         <span
@@ -243,7 +250,7 @@ export default function IndicatorChip({
           title={chipTitle}
           {...(interactive ? longPress : null)}
           onClick={onBody}
-        >{rail}{chip.label}{marks}</span>
+        >{chip.label}{marks}</span>
         {/* ⛔ THE CALLER'S CLASS IS ON THE ROW, NOT ON EACH CELL. The one it
             passes here is `.chipFolded` — `display: none` — and hiding one cell
             of three would leave the value and the gutter occupying tracks with
@@ -269,11 +276,11 @@ export default function IndicatorChip({
          computing it. */
       data-computed={chip.computed === false ? 'false' : undefined}
       title={chipTitle}
+      style={{ '--chip-color': chip.color }}
       {...(interactive ? longPress : null)}
       {...hoverProps}
       onClick={onBody}
     >
-      {rail}
       {body}
       {marks}
       {controlStrip}

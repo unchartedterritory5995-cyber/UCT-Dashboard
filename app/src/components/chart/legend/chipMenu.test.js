@@ -65,27 +65,28 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
     expect(h.onSettings).toHaveBeenCalledWith('legacy:rsi')
   })
 
-  it('⭐ Duplicate names the DEFINITION and hands back the INSTANCE id', () => {
-    // The row is per DEFINITION in what it says ("another RSI") and per INSTANCE
-    // in what it passes, because the caller has to prove the instance still
-    // exists before minting a sibling for it — a chip whose Delete already fired
-    // would otherwise add an indicator the user never asked for.
+  it('⭐ Duplicate hands back the INSTANCE id', () => {
+    // It is per INSTANCE in what it passes, because the caller has to prove the
+    // instance still exists before minting a sibling for it — a chip whose Delete
+    // already fired would otherwise add an indicator the user never asked for.
+    // ⚰️ IT USED TO SAY `Duplicate Relative Strength Index`, which was the widest
+    // row in the menu and the reason the popover was as wide as it was.
     const h = handlers()
     const dup = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
       .find(i => i.key === 'duplicate')
-    expect(dup.label).toBe(`Duplicate ${engineRegistry.getDefinition('rsi').meta.name}`)
+    expect(dup.label).toBe('Duplicate')
     expect(dup.disabled, 'Duplicate is refused — nothing here can refuse it').toBeUndefined()
     dup.onClick()
     expect(h.onDuplicate).toHaveBeenCalledWith('legacy:rsi')
-    // …and it falls back to the defId rather than printing `undefined`, exactly
-    // as About does, for a chip whose definition the registry cannot resolve.
-    expect(chipMenuItems(chip({ defId: 'ghost' }), null, handlers())
-      .find(i => i.key === 'duplicate').label).toBe('Duplicate ghost')
   })
 
   it('the Hide row states which way it goes — a toggle labelled "Hide" on a hidden chip is a lie', () => {
-    expect(rows(chip()).find(i => i.key === 'hidden').label).toBe('Hide RSI(14)')
-    expect(rows(chip({ hidden: true })).find(i => i.key === 'hidden').label).toBe('Show RSI(14)')
+    // ⚰️ IT USED TO NAME THE CHIP — `Hide RSI(14)`. The popover's header names it
+    // directly above, so the row repeated it and set the menu's width from its
+    // longest label (owner, 2026-09-14: bare verbs). The DIRECTION is the part
+    // that was never decorative and it is still here.
+    expect(rows(chip()).find(i => i.key === 'hidden').label).toBe('Hide')
+    expect(rows(chip({ hidden: true })).find(i => i.key === 'hidden').label).toBe('Show')
   })
 
   it('Delete is the only danger row, and it is the only one behind the LAST separator', () => {
@@ -96,21 +97,26 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
     expect(items.slice(seps[seps.length - 1] + 1).map(i => i.key)).toEqual(['remove'])
   })
 
-  it('⭐⭐ Delete ARMS before it fires, and the armed row names what it will delete', () => {
-    // ⛔ THE REPLACEMENT FOR THE 11px ✕ THAT SAT 5px FROM THE GEAR.
-    // `IndicatorChip.module.css` carries the measurement that condemned it — one
-    // extra glyph in a live value moved every control 5.4px, so the box that was
-    // Settings a moment ago was Remove — and it predicted this ending in as many
-    // words: *"the fix is a confirm on the destructive verb"*.
-    const cold = rows(chip()).find(i => i.key === 'remove')
-    expect(cold.label).toBe('Delete')
-    expect(cold.keepOpen, 'the first click closes the popover — the arm would be invisible').toBe(true)
-
-    const armed = rows(chip(), 'rsi', handlers(), { armed: true }).find(i => i.key === 'remove')
-    // ⛔ "Delete?" ON A CHART CARRYING ELEVEN SERIES IS A QUESTION ABOUT NOTHING.
-    expect(armed.label).toBe('Delete RSI(14)?')
-    expect(armed.keepOpen, 'the confirming click must close the popover').toBeFalsy()
-    expect(armed.danger).toBe(true)
+  it('⭐⭐ Delete fires on the FIRST click — no arming, no confirm, no modal', () => {
+    // ⚰️ IT USED TO ARM: a first click re-labelled the row `Delete RSI(14)?` and
+    // a second fired it. The owner removed the second click (2026-09-14). The row
+    // is red, destructive-styled, alone below a rule and last in the menu, and
+    // that is the protection a plot-management action warrants — the hazard the
+    // arming replaced was an 11px ✕ five pixels from the gear on a strip that
+    // reflowed under the pointer, and neither of those facts is true of a menu row
+    // you travelled to deliberately.
+    const h = handlers()
+    const row = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
+      .find(i => i.key === 'remove')
+    expect(row.label).toBe('Delete')
+    expect(row.danger).toBe(true)
+    // ⛔ NO `keepOpen` — the click removes the instance and the popover closes
+    // with the thing it was about.
+    expect(row.keepOpen, 'the popover stays open after a delete').toBeFalsy()
+    row.onClick()
+    expect(h.onRemove, 'Delete did not fire on the first click')
+      .toHaveBeenCalledWith('legacy:rsi')
+    expect(h.onRemove).toHaveBeenCalledTimes(1)
   })
 
   it('every row calls its handler with the INSTANCE id, never the defId', () => {
@@ -143,7 +149,7 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
 
   it('the Alerts row names the chip, and goes DEAD when the mount cannot open the popover', () => {
     const live = rows(chip()).find(i => i.key === 'alerts')
-    expect(live.label).toBe('Add alert on RSI(14)…')
+    expect(live.label).toBe('Add alert…')
     expect(live.disabled).toBeUndefined()
     expect(typeof live.onClick).toBe('function')
     const dead = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), handlers(),

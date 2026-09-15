@@ -15,10 +15,14 @@
 //     fail that and print in every branded export.
 //
 // ⭐⭐ TRACK B UNIFIED THE INTERACTION WITHOUT MERGING THE COMPONENTS. This row
-// and the chip now open the SAME popover through the same shaped callback, wear
-// the same colour rail and grade their value the same way — but they stay two
-// files, because the four structural facts above are real and a single component
-// carrying `if (isVolumeStrip)` would be the risk this change exists to avoid.
+// and the chip open the SAME popover through the same shaped callback and grade
+// their value the same way — but they stay two files, because the four structural
+// facts above are real and a single component carrying `if (isVolumeStrip)` would
+// be the risk this change exists to avoid.
+//
+// ⚰️ THE COLOUR RAIL IS RETIRED (owner, 2026-09-14) — see `IndicatorChip.jsx`.
+// `color` is still accepted and still ignored for the TEXT; the row is neutral and
+// identification is the hover lift's job.
 //
 // ⚰️⚰️ THE EYE / GEAR / ✕ STRIP IS GONE. Three 11px targets with the destructive
 // one beside the routine ones, on as many rows as the chart has series. One
@@ -119,14 +123,11 @@ export default function LegendRow({
         aria-haspopup="menu"
         title={`${ctlName} — click for options`}
         onClick={fire}
-      ><UIcon name="chevronDown" size={11} gold={false} /></button>
+      ><UIcon name="chevronDown" size={10} gold={false} /></button>
     </span>
   ) : null
 
   const tone = hidden ? styles.rowHidden : ''
-  const rail = color
-    ? <i className={styles.rail} style={{ backgroundColor: color }} aria-hidden="true" />
-    : null
   const hoverProps = typeof onHover === 'function' ? {
     onMouseEnter: () => onHover(hoverKey === undefined ? rowId : hoverKey),
     onMouseLeave: () => onHover(null),
@@ -147,7 +148,7 @@ export default function LegendRow({
         {...hoverProps}
         {...bodyProps}
       >
-        {rail}{label}{value ? <strong className={styles.flatVal}>{value}</strong> : null}
+        {label}{value ? <strong className={styles.flatVal}>{value}</strong> : null}
         <span className={styles.flatCtl} data-legend-ctl style={{ color: baseColor }}>{controls}</span>
       </span>
     )
@@ -162,7 +163,7 @@ export default function LegendRow({
       {...hoverProps}
       {...bodyProps}
     >
-      <span className={styles.vLabel}>{rail}{label}</span>
+      <span className={styles.vLabel}>{label}</span>
       <span className={styles.vVal}>{value}</span>
       {/* ⛔ THE CELL IS EMITTED WHETHER OR NOT IT HAS A CONTROL. It is the row's
           third subgrid track, and a row that emitted two cells would leave the

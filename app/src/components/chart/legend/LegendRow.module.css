@@ -32,6 +32,7 @@
  * pointer. `:focus-within` comes free, which a conditionally-RENDERED control can
  * never have. */
 .vRow {
+  position: relative;
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
@@ -71,28 +72,10 @@
 .vVal, .flatVal {
   color: var(--chart-panel-text-strong, #f8f7f3);
 }
-/* The colour rail — the one piece of chrome at rest, and the only identity
-   anchor that survives a hidden row and an off-cursor row with no value.
-   ⛔ AN `<i>`, NOT A `<span>` (`stockChartWiring.test.jsx` counts spans), and
-   `aria-hidden`: it restates a colour a sighted reader already has. */
-.rail {
-  display: inline-block;
-  width: 2px;
-  height: 9px;
-  margin-right: 5px;
-  border-radius: 1px;
-  vertical-align: middle;
-  flex: 0 0 auto;
-  transition: height 100ms ease;
-}
-.vRow:hover .rail,
-.flat:hover .rail { height: 11px; }
-/* Hidden: a DASHED rail says so with no word and no icon — the only thing left
-   to say it once the value is suppressed. */
-.rowHidden .rail {
-  background-image: repeating-linear-gradient(180deg,
-    rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.55) 2px 4px);
-}
+/* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
+   Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as
+   nine little coloured tabs. The row is neutral now and "which line is this?"
+   is answered by the hover lift. */
 /* A row with a door says so on hover, the same way the chip does. */
 .rowLive { cursor: pointer; }
 .rowLive:hover .vLabel,
@@ -115,21 +98,32 @@
  * ⛔ `width: 0`, NOT `display: none`. A `display: none` control cannot be focused,
  * so `:focus-within` could never re-open the strip and a keyboard user would have
  * no way in at all. */
+/* ⭐⭐ OUT OF FLOW, FLOATING OUTSIDE THE LEGEND — THE WHOLE GEOMETRY FIX.
+ *
+ * ⚰️ IT WAS `width: 0; overflow: hidden` AT REST AND `width: auto` ON HOVER, and
+ * that is a cell that takes width: the legend's third track grew, its box widened,
+ * its right edge moved and its background crept over the next gridline. Reserving
+ * the width permanently would have been the other way to hold the geometry still,
+ * at the cost of dead space on every row.
+ *
+ * ⛔ ABSOLUTE MEANS ZERO WIDTH IN BOTH STATES. The track stays empty, the legend
+ * box is byte-identical at rest and on hover, and the control floats over the
+ * chart where there is nothing to disturb. `pointer-events` flips with the opacity
+ * so an invisible box cannot swallow the crosshair. */
 .vCtl {
-  /* The row wears the LINE's colour; the controls must not. Reset here so the
-     buttons inherit the legend's own ink instead — see `baseColor` in the JSX. */
-  color: var(--text, #e8e6e0);
-  justify-self: start;
+  position: absolute;
+  /* ⛔ 13px, MEASURED, NOT GUESSED: the row's right edge is the legend's
+     CONTENT edge and `.legend` carries 8px of right padding, so anything under
+     ~9px leaves the control sitting ON the legend's background — the state this
+     change exists to end. 13 clears the padding and leaves 5px of air. */
+  left: calc(100% + 13px);
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  width: 0;
-  overflow: hidden;
   opacity: 0;
-  /* ⛔ NO TRANSITION. The width cannot animate anyway (it is `0` → `auto`), so a
-     fading opacity only put the strip half-visible for 120ms while its buttons
-     were already at full size and fully clickable — a control you can hit before
-     you can see it. Instant is also what the chip's grid variant was changed to
-     match, so every row in this legend reveals identically. */
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
 }
 /* ⛔ `:has(:focus-visible)`, NOT `:focus-within` — and that is a bug fix.
  *
@@ -147,13 +141,13 @@
  * leaving one behind. */
 .vRow:hover .vCtl,
 .vRow:has(:focus-visible) .vCtl {
-  width: auto;
-  overflow: visible;
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* ── THE HORIZONTAL VARIANT: one inline span ─────────────────────────────── */
 .flat {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -164,20 +158,27 @@
 .flatVal { font-variant-numeric: tabular-nums; }
 /* Same collapse as the vertical gutter, for the same reason: a strip that took
    width at rest would push every later row of the flat legend along. */
+/* The horizontal variant takes the same treatment for the same reason — a strip
+   that grew by 31px on hover pushed every later item along. This is also the
+   variant every PANE READOUT uses, where the control floats into the pane's own
+   empty space. */
 .flatCtl {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  margin-left: 3px;
   color: var(--text, #e8e6e0);
   display: inline-flex;
   align-items: center;
-  max-width: 0;
-  overflow: hidden;
   opacity: 0;
-  /* Instant here too — see `.vCtl`. One legend, one reveal. */
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
 }
 .flat:hover .flatCtl,
 .flat:has(:focus-visible) .flatCtl {   /* see `.vRow` — never `:focus-within` */
-  /* ⚰️ 88px HELD THREE BUTTONS. Track B leaves one. */
-  max-width: 26px;
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* GRAY = intentional (spec §6's colour language: red broken / amber degraded /
@@ -216,8 +217,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   padding: 0;
   border: none;
   border-radius: 3px;

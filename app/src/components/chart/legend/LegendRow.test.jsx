@@ -106,27 +106,45 @@ describe('LegendRow — the three verbs', () => {
     expect(onWrapper).not.toHaveBeenCalled()
   })
 
-  it('⭐ the RAIL carries the line colour, and hover reports the HOVER KEY', () => {
-    // ⚰️ THE ROW USED TO WEAR `style={{ color }}` ON THE WHOLE BOX, so the
-    // price pane's moving averages printed blue, purple and orange NAMES at 11px.
-    // ⛔ AND THE HOVER KEY IS NOT THE ROW ID for a legacy moving average: the row
-    // is addressed by its STORED SLOT (`ma:2`) and the drawn series lives at a
-    // RENDER index, which differ the moment a tombstone is in the list.
+  it('⭐ the row carries NO colour swatch, and hover still reports the HOVER KEY', () => {
+    // ⚰️ A RAIL STOOD HERE, and before that the row wore `style={{ color }}` on
+    // the whole box so the price pane's moving averages printed blue, purple and
+    // orange NAMES at 11px. Both are retired (owner, 2026-09-14).
+    // ⛔ THE HOVER KEY IS NOT THE ROW ID for a legacy moving average: the row is
+    // addressed by its STORED SLOT (`ma:2`) and the drawn series lives at a RENDER
+    // index, which differ the moment a tombstone is in the list.
     const h = handlers()
     const onHover = vi.fn()
     const { container } = render(
       <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical
         hoverKey="ov:1" onHover={onHover} {...h} />)
     const row = container.querySelector('[data-legend-row="ma:2"]')
-    expect(row.style.color, 'the row still tints its own text with the line colour').toBe('')
-    const rail = row.querySelector('i')
-    expect(rail.tagName).toBe('I')
-    expect(rail.getAttribute('aria-hidden')).toBe('true')
-    expect(rail.style.backgroundColor.replace(/\s/g, '')).toBe('rgb(192,123,224)')
+    expect(row.style.color, 'the row tints its own text with the line colour again').toBe('')
+    expect(row.querySelector('i'), 'a colour rail is back in the row').toBeNull()
     fireEvent.mouseEnter(row)
     expect(onHover).toHaveBeenCalledWith('ov:1')
     fireEvent.mouseLeave(row)
     expect(onHover).toHaveBeenLastCalledWith(null)
+  })
+
+  it('⛔ the gutter takes NO WIDTH in either state — the legend cannot move', () => {
+    // The CSS artifact, because jsdom lays nothing out. `.vCtl` used to be
+    // `width: 0` at rest and `width: auto` on hover, which widened the legend's
+    // third track, moved its right edge and crept over the next gridline.
+    const css = read('./LegendRow.module.css').replace(/\s+/g, '')
+    expect(css, 'the vertical gutter is back in the flow')
+      .toMatch(/\.vCtl\{[^}]*position:absolute;/)
+    expect(css, 'the horizontal gutter is back in the flow')
+      .toMatch(/\.flatCtl\{[^}]*position:absolute;/)
+    for (const sel of ['vCtl', 'flatCtl']) {
+      expect(css, `${sel} is visible at rest`).toMatch(new RegExp(`\\.${sel}\\{[^}]*opacity:0;`))
+      expect(css, `${sel} eats pointer events while invisible`)
+        .toMatch(new RegExp(`\\.${sel}\\{[^}]*pointer-events:none;`))
+    }
+    // ⛔ AND THE ROWS ARE THE CONTAINING BLOCK, or `left: 100%` resolves against
+    // something far away and the control lands in the wrong place.
+    expect(css).toMatch(/\.vRow\{[^}]*position:relative;/)
+    expect(css).toMatch(/\.flat\{[^}]*position:relative;/)
   })
 
   it('🔴 the vertical variant is ONE row box holding THREE subgrid cells', () => {

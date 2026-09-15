@@ -274,15 +274,15 @@ function chipMenuRowToPopoverRow(it) {
  * goes in through the `header` prop, which renders it inert above the list in
  * BOTH branches — the desktop anchored menu and the touch bottom sheet.
  *
- * ⛔ AND IT WEARS THE SAME RAIL THE LABEL ON THE CHART DOES. The colour is the
- * one thing that ties the menu back to the line it is about; a member who opened
- * the wrong RSI's menu has no other way to tell.
+ * ⚰️ IT WORE A 2px COLOUR RAIL. Retired with the legend's rails (owner,
+ * 2026-09-14) — the menu is titled with the label it was opened from, which is
+ * what identifies it, and the line it is about is the one the hover lift raised
+ * on the way in.
  */
-function LegendMenuHeader({ label, value, color, hidden, sub }) {
+function LegendMenuHeader({ label, value, hidden, sub }) {
   return (
     <div className={styles.legMenuHead}>
       <div className={styles.legMenuTop}>
-        {color ? <i className={styles.legMenuRail} style={{ background: color }} aria-hidden="true" /> : null}
         <span className={styles.legMenuName}>{label}</span>
         {/* ⛔ NO VALUE WHILE HIDDEN — the line is not drawn, so a number here
             would read out something that is not on the chart. The same rule
@@ -2899,17 +2899,6 @@ export default function StockChart({
   // row). A second PAGE of one popover rather than a second popover: the text is
   // `def.meta.description`, which every definition already declares.
   const [chipAbout, setChipAbout] = useState(null)
-  // ⭐⭐ TRACK B — DELETE ARMS BEFORE IT FIRES. The destructive verb used to be an
-  // 11px ✕ sitting 5px from the gear, and this file already carried the
-  // measurement that said why that was dangerous: one extra glyph in a live value
-  // moved every control 5.4px, so the box that was Settings a moment ago was
-  // Remove (`IndicatorChip.module.css`, 2026-08-14, MACD on WMT 1D). The ending
-  // that paragraph predicted — *"the fix is a confirm on the destructive verb"* —
-  // is this flag: the first click re-labels the row `Delete <label>?` and keeps
-  // the popover open, the second one fires. One extra click, no modal, no second
-  // surface. Reset on every open, so an armed row can never survive into the next
-  // menu.
-  const [chipArmed, setChipArmed] = useState(false)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -4641,7 +4630,13 @@ export default function StockChart({
    * which is the same value the sync just wrote. Nothing can be left lifted,
    * because `clearLegendHover` runs on every leave, on every open of the popover,
    * and on unmount. */
-  const HOVER_LIFT = 2
+  // ⚰️ 2 → 1 (owner, 2026-09-14). +2px read as *"that indicator suddenly became
+  // a much thicker plot"* rather than *"that's the line I'm hovering"*. One pixel
+  // is enough to pick a line out of nine and small enough not to look like a
+  // style change. The CAP came down with it: 6 let a member's own 4px line become
+  // 5px, which is proportionally invisible anyway — 4 keeps the lift meaningful
+  // on the thin lines it exists for and refuses to fatten an already-heavy one.
+  const HOVER_LIFT = 1
   const hoverLiftRef = useRef([])
   const clearLegendHover = useCallback(() => {
     const held = hoverLiftRef.current
@@ -4658,7 +4653,7 @@ export default function StockChart({
       let w = null
       try { w = Number(series.options()?.lineWidth) } catch { w = null }
       if (!Number.isFinite(w)) continue
-      try { series.applyOptions({ lineWidth: Math.min(w + HOVER_LIFT, 6) }) } catch { continue }
+      try { series.applyOptions({ lineWidth: Math.min(w + HOVER_LIFT, 4) }) } catch { continue }
       held.push({ series, lineWidth: w })
     }
     hoverLiftRef.current = held
@@ -4699,7 +4694,6 @@ export default function StockChart({
     clearLegendHover()
     setChipPage(null)
     setChipAbout(null)
-    setChipArmed(false)
     setChipMenu({ chip, anchor })
   }, [clearLegendHover])
 
@@ -4719,7 +4713,6 @@ export default function StockChart({
     clearLegendHover()
     setChipPage(null)
     setChipAbout(null)
-    setChipArmed(false)
     setChipMenu({ rowId, anchor })
   }, [clearLegendHover])
 
@@ -15842,7 +15835,7 @@ export default function StockChart({
           ⛔ AND IT IS RESOLVED FROM `cs` AT RENDER, not from the snapshot: the
           Move submenu's tick has to follow the placement the user just chose. */}
       {chipMenu && (() => {
-        const close = () => { setChipMenu(null); setChipPage(null); setChipArmed(false) }
+        const close = () => { setChipMenu(null); setChipPage(null) }
         const sheetCls = canvasTheme === 'sunrise' ? 'uctSunSheet' : ''
 
         // ── THE ROWS THAT ARE NOT ENGINE INSTANCES ───────────────────────────
@@ -15866,20 +15859,18 @@ export default function StockChart({
           const ov = Number.isInteger(ovIdx) ? (cs.overlays || [])[ovIdx] : null
           const rowLabel = isVol ? 'Volume' : (ov ? `${ov.type} ${ov.period}` : 'Indicator')
           const rowHidden = isVol ? cs.volume?.visible === false : ov?.enabled === false
-          const rowColor = isVol ? undefined : (ov && ov.color)
           const rows = [
-            { key: 'hidden', label: `${rowHidden ? 'Show' : 'Hide'} ${rowLabel}`, icon: 'eye',
+            { key: 'hidden', label: rowHidden ? 'Show' : 'Hide', icon: 'eye',
               onClick: () => { close(); legendRowHidden(rid) } },
             { separator: true },
             { key: 'settings', label: 'Edit in Chart Data…', icon: 'sliders',
               onClick: () => { close(); legendRowSettings(rid) } },
             { separator: true },
-            { key: 'remove', label: chipArmed ? `Delete ${rowLabel}?` : 'Delete', icon: 'trash',
-              danger: true, keepOpen: !chipArmed,
-              onClick: () => {
-                if (!chipArmed) { setChipArmed(true); return }
-                close(); legendRowRemove(rid)
-              } },
+            // ⚰️ THIS ROW USED TO ARM. One click now (owner, 2026-09-14): it is
+            // red, destructive-styled, alone below a rule and last in the menu,
+            // which is the protection a plot-management action warrants.
+            { key: 'remove', label: 'Delete', icon: 'trash', danger: true,
+              onClick: () => { close(); legendRowRemove(rid) } },
           ]
           return (
             <ContextPopover
@@ -15891,8 +15882,9 @@ export default function StockChart({
                  passing both printed the name twice, three pixels apart. The
                  header says more: the rail ties the menu to the line, and the
                  value answers "what is this?" before a verb is offered. */
-              width={248}
-              header={<LegendMenuHeader label={rowLabel} color={rowColor} hidden={rowHidden} />}
+              width={190}
+              dense
+              header={<LegendMenuHeader label={rowLabel} hidden={rowHidden} />}
               items={rows.map(chipMenuRowToPopoverRow)}
               sheetClassName={sheetCls}
             />
@@ -15920,19 +15912,14 @@ export default function StockChart({
           onDuplicate: (id) => { close(); handleChipDuplicate(id) },
           onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
           onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
-          // ⛔ THE FIRST CLICK ARMS AND THE POPOVER STAYS OPEN; THE SECOND FIRES.
-          // `chipMenuItems` sets `keepOpen` on the un-armed row for exactly this,
-          // so the confirmation is the SAME row re-labelled rather than a second
-          // control the member has to find.
-          onRemove: (id) => {
-            if (!chipArmed) { setChipArmed(true); return }
-            close(); handleChipRemove(id)
-          },
+          // ⚰️ IT USED TO ARM — see `chipMenu.chipMenuItems` for why the second
+          // click went away. One click, the canonical writer, and the popover
+          // closes with the thing it was about.
+          onRemove: (id) => { close(); handleChipRemove(id) },
         }, {
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
-          armed: chipArmed,
         })
         const move = items.find((i) => i.key === 'move')
         const page = (chipPage === 'move' && move && !move.disabled)
@@ -15954,14 +15941,14 @@ export default function StockChart({
                back row carries the label instead, which is why that page renders
                no header either. */
             title={chipPage === 'move' ? c.label : undefined}
-            width={260}
+            width={204}
+            dense
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
                above it reads as a bug. */
             header={chipPage === 'move' ? null : (
               <LegendMenuHeader
                 label={c.label}
-                color={c.color}
                 hidden={!!c.hidden}
                 value={Number.isFinite(Number(c.value))
                   ? Number(c.value).toFixed(Number.isInteger(c.decimals) ? c.decimals : 2)

@@ -141,32 +141,17 @@ describe('the legend chip\'s controls are evenly spaced, and the strip fits them
       .toBe(rowGap[1])
   })
 
-  it('the revealed strip is wide enough for what it now contains', () => {
-    // `.chipControls` is `overflow: hidden`, so a max-width that no longer fits
-    // clips the last button — and clipping is exactly the failure this file's own
-    // header warns is invisible in jsdom.
-    // ⚠️ ANCHORED ON THE `:hover` HALF ONLY, DELIBERATELY. This spelled the whole
-    // selector and went red when the keyboard half became `:has(:focus-visible)`
-    // to stop a clicked chip's strip staying open. The CLAIM is about WIDTH.
-    const hover = /\.chip:hover \.chipControls,[^{]*\{([^}]*)\}/
-      .exec(css.replace(/\/\*[\s\S]*?\*\//g, ''))
-    expect(hover, 'the hover reveal rule is gone').toBeTruthy()
-    const max = /max-width:\s*(\d+)px/.exec(hover[1])
-    expect(max).toBeTruthy()
-    const gap = Number(/gap:\s*(\d+)px/.exec(ruleBody(css, '.chipControls'))[1])
-    // ⚰️ THIS READ `3 * 16 + 2 * gap` — three 16px buttons and the two gaps
-    // between them. Track B leaves ONE control on the strip, so the arithmetic is
-    // one button plus the same headroom the three-button reveal carried (82 for
-    // 58 needed, i.e. 24px of slack). The CLAIM is unchanged and is the one this
-    // case exists for: `.chipControls` is `overflow: hidden`, so a max-width that
-    // no longer fits clips the last button, and it must not merely EQUAL its
-    // contents — a strip sized exactly clips on the first sub-pixel rounding.
-    const BUTTONS = 1
-    expect(Number(max[1]),
-      'the revealed strip no longer fits the control it contains — `overflow: hidden` '
-      + 'will clip it, and jsdom cannot see that')
-      .toBeGreaterThanOrEqual(BUTTONS * 16 + Math.max(0, BUTTONS - 1) * gap)
-    expect(Number(max[1]), 'the strip is sized to EXACTLY its contents')
-      .toBeGreaterThan(BUTTONS * 16 + Math.max(0, BUTTONS - 1) * gap)
+  it('the revealed control takes NO WIDTH — there is nothing left to clip', () => {
+    // ⚰️ THIS COMPUTED A `max-width` — three 16px buttons and two gaps, then one
+    // button plus headroom — because `.chipControls` was `overflow: hidden` and a
+    // reveal narrower than its contents clipped the last control in silence.
+    // Track B's polish pass took the control OUT OF FLOW (2026-09-14), so there is
+    // no width to size, nothing to clip, and — the point of the change — no way
+    // for a hovered row to move the legend.
+    const flatCss = css.replace(/\s+/g, '')
+    expect(flatCss, 'the control is back in the flow — a hovered row will widen the legend')
+      .toMatch(/\.chipControls\{[^}]*position:absolute;/)
+    expect(flatCss, 'a `max-width` reveal is back — the open state takes width again')
+      .not.toMatch(/\.chip:hover\.chipControls,[^{]*\{[^}]*max-width:/)
   })
 })

@@ -24,6 +24,21 @@ export default function ContextPopover({
   anchor,
   items,
   title,
+  /** ⭐ DESKTOP DENSITY ONLY. Track B's on-chart popover carries four to seven
+   *  short commands and floats over a live chart, where a settings-card-sized menu
+   *  covers the candles the member is reading. `dense` compacts the ANCHORED menu
+   *  — width, row height, padding, icon box, separator spacing.
+   *
+   *  ⛔ IT DOES NOT REACH THE TOUCH BRANCH, AND THAT IS THE WHOLE POINT OF PUTTING
+   *  IT HERE RATHER THAN IN A STYLESHEET OVERRIDE. On touch this component renders
+   *  a `Sheet` whose rows are pinned to the 44px tap-target floor
+   *  (`ContextPopover.module.css`'s ≤1024px query, railed by
+   *  `styles/tapFloor.test.js`); a class that shrank those would make the menu
+   *  unusable with a thumb. The prop is read in the desktop branch only.
+   *
+   *  ⚠️ AND IT IS OPT-IN, so the drawing menu, the chart region menu and every
+   *  other caller keep the comfortable density they shipped with. */
+  dense = false,
   /** ⭐ AN OPTIONAL NON-INTERACTIVE HEADER, ABOVE THE ROWS, IN BOTH BRANCHES.
    *
    *  Added for Track B's on-chart popover, which has to answer *"what is this?"*
@@ -143,7 +158,7 @@ export default function ContextPopover({
   return createPortal(
     <div
       ref={menuRef}
-      className={styles.menu}
+      className={`${styles.menu}${dense ? ' ' + styles.menuDense : ''}`}
       style={{
         left: pos?.left ?? anchor?.x ?? 0,
         top: pos?.top ?? anchor?.y ?? 0,
