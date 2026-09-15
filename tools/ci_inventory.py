@@ -539,6 +539,64 @@ def workflow_change_reaches_tests(path: str, sha_a: str, sha_b: str, repo="."):
         path, ", ".join(sorted(changed)) or "nothing")
 
 
+def suite_harness_files(sha: str, repo=".") -> set:
+    """Every repo path the SUITE JOBS (and everything they `needs`) actually invoke.
+
+    ⚰️⚰️ **RUN #25 LAUNDERED 41 REAL REGRESSIONS AS NOISE, AND THIS IS THE FIX.** The
+    previous session-hour's shard split (`tools/pytest_shards.py`, `ROOT_BUCKETS` 8 → 12)
+    broke `tests/test_voice_router.py` — 41 tests returning `402 Payment Required` because
+    the file was shuffled beside different neighbours. Reverting it flipped all 41 back, and
+    the #24 → #25 pair read **comparable** — `pytest_shards.py` is imported by no test — so
+    the derived set jumped to **FLAKY_SIZE 49, FLAKY_NEW 44**.
+
+    ⛔ **A FILE THAT DECIDES HOW THE SUITE IS RUN CAN MOVE A TEST'S OUTCOME WITHOUT ANY TEST
+    IMPORTING IT.** That is the same defect as the workflow limb (see the header), one level
+    deeper: `pytest_shards.py` decides WHO SHARES A PROCESS. Import-reachability cannot see
+    it, and a gate that excuses a regression as noise is worse than no gate.
+
+    ⭐ Derived, never listed: the suite jobs come from the workflow's own steps, the
+    `needs:` closure comes from the workflow, and the paths come from those jobs' `run:`
+    blocks with prose stripped. `tools/ci_inventory.py` is deliberately NOT in this set —
+    it is invoked by `publish` and `gate`, which no suite job depends on.
+    """
+    out = set()
+    rc, names = _git(["ls-tree", "--name-only", "-r", sha, ".github/workflows"], repo)
+    if rc != 0:
+        return None
+    for wf in [n.strip() for n in names.splitlines() if n.strip().endswith((".yml", ".yaml"))]:
+        rc, text = _git(["show", "%s:%s" % (sha, wf)], repo)
+        if rc != 0:
+            return None
+        doc = _load_yaml(text)
+        if doc is None:
+            return None
+        jobs = (doc.get("jobs") or {})
+        want = workflow_test_jobs(doc)
+        # …and everything those jobs depend on, transitively: the plan job produces the
+        # shard partition the suite jobs consume.
+        changed = True
+        while changed:
+            changed = False
+            for name in list(want):
+                needs = (jobs.get(name) or {}).get("needs") or []
+                if isinstance(needs, str):
+                    needs = [needs]
+                for n in needs:
+                    if n not in want:
+                        want.add(n)
+                        changed = True
+        for name in want:
+            for step in (jobs.get(name) or {}).get("steps") or []:
+                if not isinstance(step, dict):
+                    continue
+                for tok in _command_text(str(step.get("run") or "")).split():
+                    tok = tok.strip("\"'(),;|&")
+                    if "/" in tok and tok.split(".")[-1] in ("py", "sh", "js", "mjs", "cjs",
+                                                             "json", "toml", "cfg", "ini"):
+                        out.add(tok.lstrip("./"))
+    return out
+
+
 def runs_equivalent(sha_a: str, sha_b: str, repo="."):
     """(True/False/None, reason) — could ANY code change explain a state change?
 
@@ -554,9 +612,17 @@ def runs_equivalent(sha_a: str, sha_b: str, repo="."):
     if rc != 0:
         return None, "the diff %s..%s is UNREADABLE (shallow checkout?)" % (sha_a[:9],
                                                                             sha_b[:9])
+    harness = suite_harness_files(sha_b, repo)
+    if harness is None:
+        return None, "the suite's harness file set is UNREADABLE at %s" % sha_b[:9]
     reasons = []
     for f in [l.strip() for l in out.splitlines() if l.strip()]:
         if f.endswith(_INERT_SUFFIX) or f.startswith(_INERT_PREFIX):
+            continue
+        # ⛔ BEFORE import-reachability: does CI INVOKE this file to run the suite? A file
+        # that decides how the suite runs moves outcomes without being imported.
+        if f in harness:
+            reasons.append("%s is invoked by the suite's own jobs" % f)
             continue
         if f.startswith(".github/workflows/"):
             reaches, why = workflow_change_reaches_tests(f, sha_a, sha_b, repo)
@@ -837,6 +903,17 @@ def _self_check() -> int:
             ("python tools/ci_summarize.py --suite vitest", False,
              "an ARGUMENT to another tool")):
         show("runs_suite: %s" % why, runs_suite(src), want)
+
+    # ⚰️ RUN #25 LAUNDERED 41 REAL REGRESSIONS AS NOISE. A file the suite's own jobs INVOKE
+    # can move a test's outcome without any test importing it, and `tools/pytest_shards.py`
+    # — which decides who shares a process — is the proof.
+    _h = suite_harness_files("HEAD")
+    show("the harness set is non-empty (a broken walk would re-open the hole)",
+         bool(_h) and len(_h) > 3, True)
+    show("  ...and it contains the SHARD PLANNER, which broke run #24",
+         "tools/pytest_shards.py" in (_h or set()), True)
+    show("  ...and NOT the reporting tool, invoked only by publish/gate",
+         "tools/ci_inventory.py" in (_h or set()), False)
 
     def _wf(jobs, top=None):
         doc = {"name": "w", "on": {"push": None}, "jobs": jobs}
