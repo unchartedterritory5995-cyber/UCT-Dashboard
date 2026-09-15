@@ -211,31 +211,53 @@ The closest two runs have ever come is **22 seconds** (`6b606990c` created 05:10
 `1571e2f87` completed 05:10:33). **That is the entire safety record of this mechanism** —
 every green run to date is equally consistent with the concurrency block being absent.
 
-### E.4 ⭐ And the gate does something NARROWER than its own header claims
+### E.4 ⛔ Does Railway actually wait for the gate? TWO observations, OPPOSITE signs
 
-The workflow states Railway's "Wait for CI" *holds the build*. The timings say otherwise:
+The workflow's header rests its whole claim on one sentence: *"Railway's 'Wait for CI'
+holds the build until the run for that commit passes — so two pushes three minutes apart
+become two builds in sequence."* **If that is false, the concurrency group serialises the
+CHECKS and nothing else, and the gate does not protect against stacked deploys at all.**
 
-- A Railway deploy's `createdAt` is the **push** time (`1571e2f87`'s deploy is stamped
-  05:08:22; its gate run was created 05:08:23).
-- The pod serving during window A **booted 05:12:55Z** — derived from `uptime 395` at
-  `05:19:30Z` on the pod itself, not from a Railway field.
-- That commit's gate run completed **05:12:53Z**.
+Boot times derived from the pod's own `uptime` (not from any Railway field), against gate
+completion read from the Actions API:
 
-**The cutover is 2 seconds after the gate passes, and a container build does not take 2
-seconds.** Railway is **building concurrently with CI and holding only the cutover**.
+| commit | gate completed | pod booted | boot − gate |
+|---|---|---|---|
+| `6b606990c` | 05:12:53Z | 05:12:55Z (uptime 395 @ 05:19:30Z) | **+2 s — after** |
+| `587ee51b2` | 05:32:54Z | 05:32:36Z (uptime 95 @ 05:34:11Z) | **−18 s — BEFORE** |
 
-⭐ **Confirmed again by an unplanned natural experiment the same hour.** The intrusion
-that wrecked window A: push 05:30:52 + a ~104 s gate → pod booted **05:32:36**. Same
-relationship, independently.
+⛔ **The second deploy cut over eighteen seconds before its own gating check finished.**
+That is not compatible with "Wait for CI holds the build".
 
-**Consequence.** Because a queued run still has to *execute*, the floor on the spacing
-between two cutovers is `exec(B)` ∈ **[93, 136] s**, whatever the push interval. The gate
-does not stop two builds overlapping — they already overlap. It **spaces the two traffic
-swaps by at least one gate execution.**
+⚰️ **AND THE DRAFT OF THIS SECTION CLAIMED THE OPPOSITE, ON THE SAME TWO DEPLOYS.** It
+read: *"Confirmed again by an unplanned natural experiment — push 05:30:52 + a ~104 s gate
+→ pod booted 05:32:36. Same relationship, independently."* The **~104 s was never
+measured**; it was the median gate duration, substituted for the real one. The real gate
+took **121 s**, which moves the predicted cutover to 05:32:56 and turns a "confirmation"
+into an 18-second contradiction. ⭐ **One measured number destroyed a conclusion that two
+paragraphs of reasoning had already accepted** — and the reasoning was mine, in this
+document, an hour old.
 
-⚠️ **That margin is not comfortable.** The incident this gate was installed for
-(2026-09-14) served 502 for ~45 s and killed an in-flight request after **93 s**. A 93 s
-floor against a ~93 s disruption window is a coin flip, not a guard.
+**Session 8 independently found the same direction:** 8 deploys started **99–141 s before**
+their checks finished. So of the observations this programme has, **nine point to Railway
+not waiting and one points to it waiting** — and the one is within 2 s, which is equally
+consistent with coincidence.
+
+> ⛔ **OPEN QUESTION, AND IT IS THE LOAD-BEARING ONE FOR THE 2026-09-14 MITIGATION.**
+> Is *Wait for CI* actually enabled on the `web` service? **This cannot be answered from
+> the CLI** — `railway deployment list` carries only `status` and `createdAt`, with no
+> field for a CI hold. It needs the Railway **dashboard**, which is A.4 and is the
+> owner's.
+>
+> **If it is off,** the gate is checks-only: the runs serialise, the deploys do not, and
+> two pushes 20 s apart still stack exactly as they did on 2026-09-14. The mitigation
+> installed after that incident would then be **decorative** — and, worse, it reads as
+> coverage, which is the failure mode this repo names most often.
+
+**What holds regardless of the answer.** The gate's *checks* are genuinely serialised and
+genuinely server-side, which is more than the pre-push hook could offer — `--no-verify`
+cannot reach them. That much is real. **The deploy-spacing property is not established,
+and this report does not claim it.**
 
 ### E.5 ⛔ The authorisation and its own push discipline are in conflict — NOT resolved here
 
@@ -255,10 +277,12 @@ forbidden by the discipline that accompanies it.** This session did **not** pick
 
 1. It contradicts an explicit standing instruction, and an authorisation's *purpose* does
    not licence overriding its *conditions*.
-2. Its downside is member-facing. If the concurrency group does not queue, the two
-   cutovers land ~20 s apart and reproduce the 2026-09-14 failure — a real 502 on a live
-   site, deliberately caused, to confirm a property that §E.4 already establishes from 37
-   runs and two natural experiments.
+2. Its downside is member-facing **and §E.4 makes it worse, not better**. The draft
+   reasoning here assumed the gate would hold the second cutover. §E.4 now shows that is
+   unestablished and the evidence leans against it — so a deliberate 20 s pair is not a
+   low-risk confirmation of a working guard, it is a **fair chance of reproducing the
+   2026-09-14 502 on purpose**, on a live site, to learn something a dashboard setting
+   would say for free.
 
 **What was done instead:** the two authorised docs-only pushes were made **within the
 discipline** (≥300 s apart), and their queue waits recorded as a further non-contended
@@ -371,8 +395,10 @@ The fix is never to soften the check — it is to ask what the instrument could 
 1. **Merge the range-scan shape?** (§C) — needs a production cold measurement, and may be
    moot if the H1 fix removes the tail.
 2. **Rename the flag so the ledger can see it?** (§F.1) — coupled to D.4's verdict.
-3. **Is the gate's ~95 s spacing floor good enough?** (§E.4) — against a measured ~93 s
-   disruption window. If not, the lever is making the gate *slower*, which the workflow
-   header explicitly argues against.
+3. **Is "Wait for CI" actually enabled on `web`?** (§E.4) — **the highest-value question
+   in this report.** Nine observations say Railway does not wait for the gate; one says it
+   does, by 2 seconds. If it does not, the mitigation installed after the 2026-09-14
+   outage serialises checks and nothing else, and two close pushes still stack. Answerable
+   only from the Railway dashboard (A.4, the owner's) — one look, not an experiment.
 4. **`_ensure_init()` absorbs a lock block** before the instrumented region, so the fetch
    split still cannot attribute lock wait. Recorded as a standing blind spot.
