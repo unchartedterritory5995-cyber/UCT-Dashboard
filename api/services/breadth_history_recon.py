@@ -95,6 +95,7 @@ def run_deep_async(date: str, limit: int = 0) -> None:
 import glob as _glob
 import json as _json
 import os as _os
+import time as _time
 from concurrent.futures import ThreadPoolExecutor as _Pool
 from datetime import datetime as _dt, timezone as _tz
 
@@ -331,7 +332,12 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         to_date = to_date or from_date
         pit_frame = bpf.build_frame(uni, from_date, to_date, warmup_days=warmup_days)
         if not pit_frame.get("ok"):
-            return {"ok": False, "reason": pit_frame.get("reason", "pit frame failed")}
+            # ⚠️ CARRY THE DATE LIST, NOT JUST THE SENTENCE. `build_frame` names the
+            # sessions whose RAW frame is missing; dropping that leaves the caller —
+            # the forward seal, the health surface — with prose to parse. The reason
+            # is for a human, `missing_raw` is for the machine.
+            return {"ok": False, "reason": pit_frame.get("reason", "pit frame failed"),
+                    "missing_raw": pit_frame.get("missing_raw")}
         frame, tickers = pit_frame, pit_frame["tickers"]
     else:
         if tickers is None:
@@ -1285,3 +1291,225 @@ def universe_backfill_tick(universe: str, target_floor: Optional[str] = None,
         return {**plan, "result": res}
     finally:
         _TICK_LOCK.release()
+
+
+# ── THE DAILY FORWARD SEAL ─────────────────────────────────────────
+#
+# ⭐⭐ THE BACKFILL ONLY WALKS BACKWARD, AND THAT IS A PUBLICATION BLOCKER ON ITS OWN.
+# `universe_backfill_plan` computes the next chunk BELOW current coverage and stops
+# when it reaches the floor. Nothing advances the RIGHT edge — so a published PIT
+# universe would freeze on whatever day the grind happened to end, and a member would
+# be looking at a chart that simply stopped, with no error anywhere to say so.
+#
+# ⛔⛔ AND IT IS NOT A SECOND METRIC ENGINE. This orchestrates; `sweep_history` does
+# the work, which means the daily value is produced by the SAME eligibility
+# (`breadth_pit_frame.eligible_on`), the SAME computation (`breadth_live.compute_metrics`
+# via `recompute_from_frame`), the SAME applicability filter (`_applies`) and the SAME
+# writer (`breadth_daily_ohlc.write_bulk`) as every historical row beside it. A
+# separate "daily" path is how a series develops a seam at the date the backfill
+# stopped and the live job started.
+#
+# ⚠️ ONE CALL FOR THE WHOLE GAP, NOT ONE PER DATE. `sweep_history` builds a ~560-day
+# frame; asking it per date would rebuild that frame for every session. A three-day
+# catch-up is one frame and three recomputes.
+
+#: How many sessions one run may seal. A forward seal is a DAILY job; a gap wider than
+#: this is not a late tick, it is an outage, and the historical tool owns recovery.
+FORWARD_SEAL_MAX_SESSIONS = 10
+
+
+def _et_today() -> str:
+    from datetime import datetime as _dtm
+    try:
+        from zoneinfo import ZoneInfo
+        return _dtm.now(ZoneInfo("America/New_York")).date().isoformat()
+    except Exception:
+        return _dtm.utcnow().date().isoformat()
+
+
+def is_trading_session(iso: str) -> bool:
+    """Weekday AND not a NYSE full closure.
+
+    ⛔ THE HOLIDAY LIST IS NOT RESTATED HERE. `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` is
+    this repo's ONE closure table — five services already read it and it carries an
+    explicit "refresh annually from nyse.com" contract. A second copy would diverge in
+    the year nobody remembered to update it, which is this repo's most repeated defect.
+    ⚠️ Full closures only: a 1pm early close is still a session and still seals.
+    """
+    from datetime import date as _d
+    d = _d.fromisoformat(iso)
+    if d.weekday() >= 5:
+        return False
+    try:
+        from api.services.bars_fetch import _is_nyse_holiday
+        return not _is_nyse_holiday(int(iso.replace("-", "")))
+    except Exception:
+        # ⚠️ Degrade to weekday-only rather than refusing every date: a missing
+        # holiday answer must not stop the seal, and a holiday that slips through is
+        # caught downstream — `build_frame` finds no adjusted frame and refuses it.
+        return True
+
+
+def sessions_between(after_iso: str, through_iso: str, limit: int = 0) -> list:
+    """Trading sessions strictly after `after_iso`, up to and including `through_iso`."""
+    from datetime import date as _d, timedelta as _t
+    out = []
+    d = _d.fromisoformat(after_iso) + _t(days=1)
+    end = _d.fromisoformat(through_iso)
+    while d <= end:
+        iso = d.isoformat()
+        if is_trading_session(iso):
+            out.append(iso)
+            if limit and len(out) >= limit:
+                break
+        d += _t(days=1)
+    return out
+
+
+def forward_seal_plan(universe: str, through: Optional[str] = None,
+                      max_sessions: int = FORWARD_SEAL_MAX_SESSIONS) -> dict:
+    """What the next forward seal WOULD do — computed, never executed.
+
+    ⭐ A PLANNER SEPARATE FROM A RUNNER, the same split `universe_backfill_plan`
+    uses, so the calendar and bound arithmetic is testable without a provider, a store
+    write or a clock.
+
+    ⛔ `through` DEFAULTS TO YESTERDAY, NOT TODAY. Today's grouped-daily frame is not
+    settled while the session is open, and `massive.get_grouped_daily_ohlcv` only
+    writes its durable tier for settled dates. Sealing today would either fail or
+    — worse — seal a partial session as if it were final.
+    """
+    from datetime import date as _d, timedelta as _t
+    from api.services import breadth_daily_ohlc, breadth_universes as bu
+
+    if not bu.is_pit(universe):
+        return {"ok": False, "blocked": True, "universe": bu.normalize(universe),
+                "reason": "the forward seal is for PIT universes; UCT is sealed by "
+                          "the 4:15pm collector"}
+    uni = bu.normalize(universe)
+    through = through or (_d.fromisoformat(_et_today()) - _t(days=1)).isoformat()
+    stats = breadth_daily_ohlc.stats(uni) or {}
+    last = stats.get("last")
+    if not last:
+        # ⛔ AN EMPTY STORE IS NOT A ONE-DAY GAP. With no rows there is no "latest
+        # sealed session" to walk forward from, and inventing one (the floor, say)
+        # would turn this job into the historical grind it must never become.
+        return {"ok": True, "blocked": True, "universe": uni, "empty": True,
+                "last_sealed": None, "through": through,
+                "reason": "no rows for this universe — the historical backfill owns "
+                          "the first population"}
+    if last >= through:
+        return {"ok": True, "blocked": True, "universe": uni, "current": True,
+                "last_sealed": last, "through": through, "sessions": [],
+                "reason": "already sealed through the last settled session"}
+
+    pending = sessions_between(last, through)
+    if not pending:
+        return {"ok": True, "blocked": True, "universe": uni, "current": True,
+                "last_sealed": last, "through": through, "sessions": [],
+                "reason": "no trading session between the last sealed day and now"}
+    if len(pending) > int(max_sessions):
+        # ⛔⛔ REPORT GAPPED, DO NOT QUIETLY GRIND. A 200-session hole is an outage,
+        # and letting a daily job close it would be an accidental historical grind on
+        # the web pod — the exact failure `start_breadth_warm` was written around.
+        return {"ok": True, "blocked": True, "universe": uni, "gapped": True,
+                "last_sealed": last, "through": through,
+                "pending": len(pending), "max_sessions": int(max_sessions),
+                "first_missing": pending[0], "last_missing": pending[-1],
+                "sessions": [],
+                "reason": f"{len(pending)} sessions behind, over the {int(max_sessions)}-"
+                          "session bound — the historical backfill owns recovery"}
+    return {"ok": True, "blocked": False, "universe": uni, "last_sealed": last,
+            "through": through, "sessions": pending,
+            "from": pending[0], "to": pending[-1]}
+
+
+#: Last forward-seal outcome per universe, for the health surface. In-process only.
+_FORWARD_SEAL_STATE: dict = {}
+
+
+def forward_seal_state(universe: Optional[str] = None):
+    if universe is None:
+        return dict(_FORWARD_SEAL_STATE)
+    from api.services import breadth_universes as bu
+    return _FORWARD_SEAL_STATE.get(bu.normalize(universe))
+
+
+def forward_seal_tick(universe: str, through: Optional[str] = None,
+                      max_sessions: int = FORWARD_SEAL_MAX_SESSIONS) -> dict:
+    """Seal the bounded forward gap for ONE PIT universe. Idempotent.
+
+    ⭐ IDEMPOTENT BY CONSTRUCTION, not by a guard. The plan is read from the STORE's
+    own `last` every time, so a second run finds nothing pending; and even a forced
+    re-sweep of a sealed date writes the same `(universe, date, metric)` primary keys
+    with the same computed values, because the frame, the eligibility and the
+    computation are all deterministic functions of settled provider data.
+
+    ⛔ REFUSAL IS THE SUCCESS PATH WHEN INPUTS ARE MISSING. `build_frame` already
+    refuses a chunk whose sweep dates have no RAW frame rather than writing a silent
+    gap (the Phase-6 defect). This records that refusal and leaves the dates for the
+    next tick; it never writes a partial day, never fabricates a zero, and never
+    reports success over a window it did not compute.
+    """
+    from api.services import breadth_universes as bu
+    plan = forward_seal_plan(universe, through=through, max_sessions=max_sessions)
+    if not plan.get("ok") or plan.get("blocked"):
+        _FORWARD_SEAL_STATE[plan.get("universe", bu.normalize(universe))] = {
+            **{k: v for k, v in plan.items() if k != "sessions"},
+            "at": _time.time(), "sealed": 0,
+        }
+        return plan
+    uni = plan["universe"]
+    if not _TICK_LOCK.acquire(blocking=False):
+        return {**plan, "busy": True}
+    try:
+        res = sweep_history(plan["from"], plan["to"], universe=uni)
+        want = len(plan["sessions"])
+        got = int(res.get("sessions") or 0) if res.get("ok") else 0
+        out = {**plan, "result": res, "expected": want, "sealed": got}
+        if not res.get("ok"):
+            # The chunk was refused — typically a missing RAW frame. Keep the reason
+            # verbatim: "the provider had not published 2026-09-15 yet" and "the fetch
+            # failed" must not collapse into one message.
+            out["failed"] = True
+            out["reason"] = res.get("reason")
+            out["missing_raw"] = res.get("missing_raw")
+        elif got < want:
+            # ⚠️ FEWER SESSIONS THAN PLANNED IS NOT SUCCESS. The planner used the
+            # NYSE calendar; the frame used what the provider actually published. A
+            # difference means one of them is wrong, and saying so beats a green log.
+            out["partial"] = True
+            out["reason"] = (f"planned {want} sessions, sealed {got} — the calendar and "
+                             "the provider disagree about this window")
+        _FORWARD_SEAL_STATE[uni] = {
+            **{k: v for k, v in out.items() if k not in ("sessions", "result")},
+            "at": _time.time(),
+        }
+        return out
+    finally:
+        _TICK_LOCK.release()
+
+
+def forward_seal_all(through: Optional[str] = None,
+                     max_sessions: int = FORWARD_SEAL_MAX_SESSIONS) -> dict:
+    """One forward-seal pass over every PUBLISHED PIT universe.
+
+    ⛔ PUBLISHED ONLY. A dark universe's rows are not served, so sealing them daily
+    would spend provider fetches and pod CPU on data nobody can see — and would do it
+    on the web pod. The historical backfill is what populates a dark universe.
+
+    ⚠️ FAILURE IS ISOLATED PER UNIVERSE: one refusing does not stop the others.
+    """
+    from api.services import breadth_universes as bu
+    out = {}
+    published = set(bu.published_universe_ids())
+    for uni in bu.PIT_UNIVERSE_IDS:
+        if uni not in published:
+            continue
+        try:
+            out[uni] = forward_seal_tick(uni, through=through, max_sessions=max_sessions)
+        except Exception as e:  # noqa: BLE001
+            out[uni] = {"ok": False, "universe": uni,
+                        "reason": f"{type(e).__name__}: {e}"}
+            _FORWARD_SEAL_STATE[uni] = {**out[uni], "at": _time.time(), "sealed": 0}
+    return out

@@ -726,6 +726,32 @@ def history(metric: str, limit: int = 6000,
     return out
 
 
+def dates_since(universe: str = DEFAULT_UNIVERSE, since: str = "") -> list:
+    """Session dates for `universe` on or after `since`, ASC — a BOUNDED read.
+
+    ⭐ FOR THE HEALTH PROBE, which asks "are the sessions the calendar expects in the
+    last few weeks actually here?". `distinct_dates_by_scan` answers the same shape
+    over ALL of history, which is the integrity audit's question and not something a
+    status call somebody polls should ever run.
+
+    ⚠️ The `WHERE universe=? AND source IN (...) AND date>=?` prefix is exactly the
+    leading columns of `idx_bdo_source_date (universe, source, date, metric, c)`, so
+    this is an index range scan rather than a table walk.
+    """
+    _ensure_init()
+    qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
+    try:
+        with _conn() as c:
+            return [r[0] for r in c.execute(
+                f"SELECT DISTINCT date FROM breadth_daily_ohlc "
+                f"WHERE universe=? AND source IN ({qmarks}) AND date>=? "
+                f"ORDER BY date ASC",
+                (_uni(universe), *_TRUSTED_SOURCES, str(since or "")),
+            ).fetchall()]
+    except Exception:
+        return []
+
+
 def distinct_dates_by_scan(universe: str = DEFAULT_UNIVERSE) -> list:
     """The original definition: DISTINCT over the OHLC table. Kept as the FALLBACK
     and as the parity reference — `test_the_materialised_date_set_equals_the_scan`

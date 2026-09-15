@@ -36,9 +36,9 @@
    "NASDAQ:A200",
    "NASDAQ:U4",
    "NASDAQ:D4",
-   "NASDAQ:U20W",
-   "NASDAQ:D20W",
-   "NASDAQ:U25M"
+   "NASDAQ:R5",
+   "NASDAQ:R10",
+   "NASDAQ:NH"
   ],
   "NYSE breadth": [
    "NYSE:A5",
@@ -50,9 +50,9 @@
    "NYSE:A200",
    "NYSE:U4",
    "NYSE:D4",
-   "NYSE:U20W",
-   "NYSE:D20W",
-   "NYSE:U25M"
+   "NYSE:R5",
+   "NYSE:R10",
+   "NYSE:NH"
   ],
   "US breadth": [
    "US:A5",
@@ -64,9 +64,9 @@
    "US:A200",
    "US:U4",
    "US:D4",
-   "US:U20W",
-   "US:D20W",
-   "US:U25M"
+   "US:R5",
+   "US:R10",
+   "US:NH"
   ],
   "high low": [
    "US:NETHL",
@@ -91,10 +91,10 @@
    "NASDAQ:NETHL",
    "NYSE:NETHL",
    "UCTNH20",
-   "US:NH20",
-   "NASDAQ:NH20",
-   "NYSE:NH20",
-   "UCTATH"
+   "UCTATH",
+   "UCTNL",
+   "US:NL",
+   "NASDAQ:NL"
   ],
   "new lows": [
    "UCTNL",
@@ -105,10 +105,10 @@
    "NASDAQ:NETHL",
    "NYSE:NETHL",
    "UCTNL20",
-   "US:NL20",
-   "NASDAQ:NL20",
-   "NYSE:NL20",
-   "UCTNH"
+   "UCTNH",
+   "US:NH",
+   "NASDAQ:NH",
+   "NYSE:NH"
   ],
   "net high low": [
    "US:NETHL",
@@ -134,17 +134,17 @@
   ],
   "momentum": [
    "UCTMU",
-   "US:MU",
-   "NASDAQ:MU",
-   "NYSE:MU",
    "UCTMD",
-   "US:MD",
-   "NASDAQ:MD",
-   "NYSE:MD",
    "UCTU4",
    "US:U4",
    "NASDAQ:U4",
-   "NYSE:U4"
+   "NYSE:U4",
+   "UCTD4",
+   "US:D4",
+   "NASDAQ:D4",
+   "NYSE:D4",
+   "UCTU20W",
+   "UCTD20W"
   ],
   "NASDAQ:A50": [
    "NASDAQ:A50"

@@ -20,6 +20,7 @@ identity (see `breadth_symbols.LEGACY_SYMBOL_BY_METRIC`).
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 # ── Vocabulary ───────────────────────────────────────────────────────────────
@@ -255,3 +256,110 @@ def signed_metrics() -> list[str]:
     """Metrics whose values legitimately cross zero — the ones a chart must not
     put on a 0-100 axis and should offer a zero baseline for."""
     return [k for k, m in METRICS.items() if m["domain"] == DOMAIN_SIGNED]
+
+
+# ── Publication sets ──────────────────────────────────────────────
+#
+# ⭐⭐ FIVE DIFFERENT QUESTIONS, AND THEY ARE NOT THE SAME QUESTION. Conflating any
+# two of them is how a member finds an identity that can never have rows, or how a
+# metric nobody signed off on reaches a chart.
+#
+#   REGISTERED   the catalogue knows it                    `metric in METRICS`
+#   APPLICABLE   the measurement MEANS the same thing      `is_applicable()`
+#                over that population (portability)
+#   PRODUCIBLE   the producer for that universe can        `is_producible()`  (BL-012)
+#                actually make it, correctly
+#   STORED       rows exist in breadth_daily_ohlc          `breadth_symbols.availability()`
+#   PUBLISHED    a member may discover and chart it        `is_published_metric()`
+#
+# A V1.1 metric is registered + applicable + producible + STORED and deliberately NOT
+# published. That is the whole of BL-014: grind once at the full producible set,
+# publish a focused V1, promote later with a flag flip rather than a second grind.
+#
+# ⛔⛔ UCT IS NOT GATED BY A PUBLICATION SET. Its 44 symbols have been shipped and
+# charted for a year; a V1 list drawn up for the NEW universes must never take one of
+# them off the air. `is_published_metric` says so in one place rather than relying on
+# every caller to remember.
+
+#: The accepted V1 set (owner, 2026-09-15). 18 metrics. Order is catalogue order.
+V1_METRICS = (
+    # Participation — percent, universe-size invariant, the most trustworthy family
+    "pct_above_5sma", "pct_above_10sma", "pct_above_20ema", "pct_above_40sma",
+    "pct_above_50sma", "pct_above_100sma", "pct_above_200sma",
+    # Highs / Lows — the two counts, their signed net, and the two percentages
+    "new_52w_highs", "new_52w_lows", "net_new_high_low", "hi_ratio", "lo_ratio",
+    # Momentum — the 4% movers and the two ratios built from them
+    "up_4pct_today", "down_4pct_today", "ratio_5day", "ratio_10day",
+    # Base — the denominator, and net advancers as a signed histogram
+    "universe_count", "adv_decline",
+)
+
+#: Named publication sets. `*` is not a set — see `publication_set_name`.
+PUBLICATION_SETS = {"v1": V1_METRICS}
+
+DEFAULT_PUBLICATION_SET = "v1"
+
+
+def is_applicable(metric: str, universe: str) -> bool:
+    """Does the MEASUREMENT mean the same thing over this population?
+
+    ⚠️ Portability alone. `applies_to` is the combined gate a writer or a catalogue
+    should ask; this exists so the vocabulary above is inspectable and railable.
+    """
+    from api.services import breadth_universes as bu
+    if metric not in METRICS:
+        return False
+    if bu.normalize(universe) == bu.DEFAULT_UNIVERSE:
+        return True
+    return is_portable(metric)
+
+
+def is_producible(metric: str, universe: str) -> bool:
+    """Can the PRODUCER for this universe actually make it, correctly? (BL-012)
+
+    ⚠️ UCT answers True for everything: it is measured by the COLLECTOR, and the PIT
+    sweep's limits are not the collector's.
+    """
+    from api.services import breadth_universes as bu
+    if metric not in METRICS:
+        return False
+    if bu.normalize(universe) == bu.DEFAULT_UNIVERSE:
+        return True
+    return metric not in PIT_UNPRODUCIBLE
+
+
+def publication_set_name() -> str:
+    """The active set id, from `BREADTH_LIBRARY_METRICS`. Default `v1`.
+
+    ⚠️ AN UNKNOWN NAME FALLS BACK TO THE DEFAULT rather than publishing nothing or
+    everything — the same rule `published_universe_ids` uses for a typo'd universe. A
+    bad flag must not be able to change what members see in EITHER direction.
+    """
+    raw = (os.environ.get("BREADTH_LIBRARY_METRICS") or "").strip().lower()
+    if raw == "*":
+        return "*"
+    return raw if raw in PUBLICATION_SETS else DEFAULT_PUBLICATION_SET
+
+
+def published_metric_keys() -> list[str]:
+    """The metric keys the active publication set allows, in catalogue order."""
+    name = publication_set_name()
+    if name == "*":
+        return list(METRIC_KEYS)
+    want = set(PUBLICATION_SETS.get(name, ()))
+    return [k for k in METRIC_KEYS if k in want]
+
+
+def is_published_metric(metric: str, universe: str) -> bool:
+    """May a member discover and chart `universe × metric`?
+
+    ⭐ UCT ANSWERS YES FOR EVERYTHING IT HAS ALWAYS CARRIED. The publication set
+    governs what the NEW universes expose; it is not a re-litigation of the 44 symbols
+    already shipped.
+    """
+    from api.services import breadth_universes as bu
+    if metric not in METRICS:
+        return False
+    if bu.normalize(universe) == bu.DEFAULT_UNIVERSE:
+        return True
+    return metric in set(published_metric_keys())

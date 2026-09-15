@@ -155,13 +155,18 @@ def test_the_dedicated_instance_states_its_own_bound(seeded):
     assert bs._BREADTH_CACHE_MAX >= len(bs.library_rows())
 
 
-def test_the_warm_loop_is_uct_only_and_that_is_recorded(monkeypatch):
-    """⚠️ A KNOWN, STATED GAP — not a silent one.
+def test_the_warm_loop_warms_uct_plus_the_participation_family(monkeypatch):
+    """⭐ THE DELIBERATE WIDENING the previous rail asked for, and its new bound.
 
-    `warm_breadth` walks the 44 shipped UCT symbols. A published PIT universe is
-    NOT pre-warmed, so its first request per symbol pays a cold build. That is
-    acceptable while the library is dark and must be designed deliberately before a
-    universe is published — this rail exists so the gap cannot disappear from view.
+    That rail said the warm loop was UCT-only and that widening it "needs a
+    per-universe sealed-date probe and a throttle proven safe across four universes,
+    so update this rail deliberately". This is that update: a published PIT universe
+    is warmed for the PARTICIPATION FAMILY ONLY — seven series, the ones a member
+    opens a new universe to look at — and everything else stays lazy.
+
+    ⛔ THE BOUND IS THIS LOOP'S OWN HISTORY. Warming the whole V1 catalogue across
+    three universes would be 54 cold builds per pass on the single web pod, which is
+    the shape of the churn that starved it once already.
     """
     seen = []
     monkeypatch.setattr(bs, "_refresh_series",
@@ -170,8 +175,50 @@ def test_the_warm_loop_is_uct_only_and_that_is_recorded(monkeypatch):
     monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "*")
     bs.warm_breadth()
     assert seen, "the warm loop did nothing at all"
-    assert not any(":" in s for s in seen), (
-        "the warm loop began warming namespaced identities — that is a real "
-        "improvement, but it needs a per-universe sealed-date probe and a throttle "
-        "proven safe across four universes, so update this rail deliberately")
-    assert set(seen) <= set(bs.SYMBOLS)
+
+    legacy = [x for x in seen if ":" not in x]
+    namespaced = [x for x in seen if ":" in x]
+    # UCT is untouched: the same 44, exactly as before
+    assert set(legacy) == set(bs.SYMBOLS)
+    # and every namespaced series is participation, for a published universe
+    assert namespaced, "a published PIT universe was not warmed at all"
+    assert len(namespaced) == 21, namespaced          # 3 universes x 7 participation
+    codes = {x.split(":", 1)[1] for x in namespaced}
+    assert codes == {"A5", "A10", "A20", "A40", "A50", "A100", "A200"}, codes
+
+
+def test_the_warm_loop_is_INERT_while_the_library_is_dark(monkeypatch):
+    """⛔ The default deploy must warm exactly what it warms today — nothing new."""
+    seen = []
+    monkeypatch.setattr(bs, "_refresh_series",
+                        lambda sym, metric, *a, **k: seen.append(sym) or [])
+    monkeypatch.setattr(bs, "_WARM_GAP", 0)
+    monkeypatch.delenv("BREADTH_LIBRARY_UNIVERSES", raising=False)
+    bs.warm_breadth()
+    assert set(seen) == set(bs.SYMBOLS)
+    assert not any(":" in x for x in seen)
+
+
+def test_warming_never_exceeds_its_ceiling_or_leaves_its_families(monkeypatch):
+    monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "*")
+    monkeypatch.setenv("BREADTH_LIBRARY_METRICS", "*")   # publish EVERYTHING
+    want = bs.warm_symbols_for_pit()
+    assert len(want) <= bs.WARM_PIT_MAX
+    from api.services import breadth_metrics as bm
+    for _sym, metric, _uni in want:
+        assert bm.METRICS[metric]["group"] in bs.WARM_FAMILIES
+
+
+def test_a_failing_pit_warm_cannot_break_the_pass(monkeypatch):
+    """⛔ Warming is an OPTIMISATION. One that can break serving is not one."""
+    monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "us")
+    monkeypatch.setattr(bs, "_WARM_GAP", 0)
+
+    def _boom(sym, metric, *a, **k):
+        if ":" in sym:
+            raise RuntimeError("the store is on fire")
+        return []
+    monkeypatch.setattr(bs, "_refresh_series", _boom)
+    stats = bs.warm_breadth()                      # must NOT raise
+    assert stats["refreshed"] == len(bs.SYMBOLS)   # UCT still warmed
+    assert stats["pit"]["failed"] == 7 and stats["pit"]["refreshed"] == 0

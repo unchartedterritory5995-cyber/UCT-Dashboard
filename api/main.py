@@ -5770,6 +5770,52 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth history backfill tick")
 
+        # ── THE DAILY FORWARD SEAL for published PIT universes ────────────────
+        #
+        # ⭐⭐ CONVERGENCE, NOT AN APPOINTMENT. The job asks "are there settled PIT
+        # sessions that should now be sealed?" and fills the bounded gap. It does NOT
+        # depend on firing at 16:1x ET: a missed tick, a pod restart, a deploy during
+        # the close — the next run simply finds two sessions pending instead of one.
+        # Correctness lives in `forward_seal_plan` reading the store, not in cron.
+        #
+        # ⛔ INERT WHILE THE LIBRARY IS DARK. `forward_seal_all` iterates PUBLISHED PIT
+        # universes, and the default published set is UCT alone — which is not a PIT
+        # universe. So with no flag this costs one set lookup every half hour and does
+        # nothing else. No provider call, no store write, no CPU.
+        #
+        # ⚠️ REGISTERED ALWAYS, GATED INSIDE, exactly like the backfill tick above —
+        # so arming a universe never needs a code deploy to also get its daily seal.
+        try:
+            def _breadth_forward_seal_tick():
+                try:
+                    from api.services import breadth_universes as _bu
+                    published = set(_bu.published_universe_ids())
+                    if not any(u in published for u in _bu.PIT_UNIVERSE_IDS):
+                        return              # dark — the common case, and free
+                    from api.services import breadth_history_recon as _recon
+                    res = _recon.forward_seal_all()
+                    for _uni, _r in (res or {}).items():
+                        if _r.get("sealed"):
+                            logging.getLogger(__name__).info(
+                                "[breadth-seal] %s sealed %s session(s) through %s",
+                                _uni, _r.get("sealed"), _r.get("to"))
+                        elif _r.get("failed") or _r.get("gapped") or _r.get("partial"):
+                            logging.getLogger(__name__).warning(
+                                "[breadth-seal] %s NOT sealed: %s", _uni, _r.get("reason"))
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-seal] tick failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_forward_seal_tick,
+                trigger=CronTrigger(minute="7,37", timezone=_ET),
+                id="breadth_forward_seal_tick", max_instances=1,
+                coalesce=True, misfire_grace_time=1800, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth forward seal scheduled (every 30 min, inert while dark)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth forward seal")
+
 
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the
