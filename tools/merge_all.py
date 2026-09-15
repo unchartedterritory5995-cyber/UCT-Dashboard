@@ -80,6 +80,7 @@ UNITS = [
     ("packet-e-ci-gap-gate", ["06d5bde92"], False),
     ("e-cp2-build-record", ["e767a7aab"], False),
     ("e-cp4-build-record", ["b70a874ed"], False),
+    ("e-cp5-build-record", ["c619ac82c"], False),
     ("t2-cp1-build-record", ["4ad1108d1"], False),
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
