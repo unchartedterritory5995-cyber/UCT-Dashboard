@@ -38,6 +38,7 @@
 #!after: k-cp4-build-record <- k-cp3-build-record
 #!last: s2-accelerator-chord-pre-implementation-gate
 
+docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
 docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | CP1,CP2 | c443515eb
 docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md | CP1,CP2 | e279c828c
 docs/terminal-research/12-decisions/gates/packet-b-schema-resolution-gate.md | CP1,CP2,CP3 | a03e0cbf5

@@ -68,6 +68,10 @@ DEPLOY_TIMEOUT = 900
 #: per unit is what makes "one unit at a time" mechanical rather than aspirational.
 #: ⛔ The ORDER of this list is no longer taken on trust — see `check_order` (K CP3).
 UNITS = [
+    # ⭐ Disjoint from every other unit (0 file intersections, proven 2026-09-15), so it
+    # carries no merges-after and can lead. Its block signs delivered code only; the
+    # packet stays CLOSED-AS-FINDING and the shape rail is still refused (F-A-1).
+    ("packet-a-absent-bound-gate", ["18dd13683", "31e28c6e3"], False),
     ("packet-c-instrument-and-claudemd-gate", ["669bde826"], False),
     ("packet-d-nav-tabs-gate", ["11b229254", "b8f107d4d", "7312b44aa"], False),
     ("packet-b-schema-resolution-gate", [], False),          # docs worktree only

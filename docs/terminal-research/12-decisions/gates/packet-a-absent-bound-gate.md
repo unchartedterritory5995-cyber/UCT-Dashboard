@@ -16,11 +16,67 @@ date: 2026-09-14
 > (**F-A-1**) plus a **triage instrument** and a **behavioural regression guard** — not a
 > gate line, not a checkpoint, and not the rail that was asked for.
 >
-> ⛔ **No approval block appears in this file deliberately.** An empty block invites a
-> signature, and there is nothing here a signature should authorise.
+> ⛔ ~~**No approval block appears in this file deliberately.** An empty block invites a
+> signature, and there is nothing here a signature should authorise.~~
+>
+> ⚰️ **SUPERSEDED 2026-09-15 by owner ruling — and the sentence was half right, which is
+> why it survived.** It is true that the **refused rail** is not a thing a signature should
+> authorise. But this packet did not only refuse something: it **shipped three files in two
+> commits** (`18dd13683`, `31e28c6e3`), and that code sits on `feat/s7-price-level` waiting
+> to merge to master like any other unit's.
+>
+> ⛔ **The consequence was measured, not theorised.** With no block, `merge_all.is_signed()`
+> answered **SIGNED** for this packet — because it derived "signed" from the *absence* of an
+> unsigned block — so these two commits would have merged with nothing approving them; and
+> `verify_manifest --check-commits` showed them claimed by **no unit at all**, so the other
+> branch of the same bug would have silently never merged them (**F-MERGE-1**). Both
+> failures came from the same missing block.
+>
+> ⭐ **So the block below signs the DELIVERED CODE, not the refused claim.** The packet stays
+> **CLOSED-AS-FINDING** — F-A-1 stands, the shape rail is still refused, and nothing here
+> authorises building it. `A CP1` authorises exactly the three files that shipped.
 
 ⭐ **The finding is the deliverable.** A packet that discovers its own premise is wrong and
 says so is a completed unit, not an abandoned one.
+
+## ⛔ APPROVAL — A CP1, and it covers the shipped code only
+
+```
+APPROVED BY:
+APPROVED ON:
+APPROVED AT SHA:
+SCOPE APPROVED:
+```
+
+> **A CP1 — the delivered artifacts of a closed finding.** The triage instrument
+> `tools/audit_absent_bound.py`, the caller-level behavioural guard
+> `tests/test_s7_ticking_caller_decision.py`, and the clock-injection change to
+> `tools/s7_price_level_report.py` that the guard requires, **as enumerated by
+> `git show --stat` of the two commits named below**, are delivered. **The shape rail is
+> REFUSED per F-A-1 and this checkpoint does not authorise it.**
+
+**Scope, by commit — exactly two, and nothing else:**
+
+| commit | files | what |
+|---|---|---|
+| `18dd13683` | `tools/audit_absent_bound.py` | the triage instrument — report-only, exit 0, UNREADABLE on an empty roster |
+| `31e28c6e3` | `tests/test_s7_ticking_caller_decision.py` · `tools/s7_price_level_report.py` | the caller-level guard, and the `now=` keyword threaded into `_window` that lets it inject a real clock instead of mocking one |
+
+⛔ **`tools/s7_price_level_report.py` is a PRODUCTION tool and its change is named here
+rather than folded into "the tests".** `ticking_one()` is what the Layer 1 monitor posts to
+admin Discord at 09:12 ET and what the gate check reads at 16:30. The change is additive —
+a keyword-only `now=None` threaded to `_window` — so every existing caller is byte-identical
+in behaviour, **and that is a claim a signature is entitled to see stated.**
+
+⚠️ **TOLD-VS-FOUND on the one number in the commissioning text.** It described *"the six
+caller-level tests"*. Measured — `python -m pytest <file> --collect-only -q` — the file
+collects **8**: seven test functions, one of which is parametrized over two keys. The
+packet's own prose and the commit message both say eight and are correct.
+
+⭐ **Which is why the assertion above names a PATH and a command, not a count.** Under the
+standing rule that an assertion carries no derived numbers, *"the six caller-level tests"*
+would have pinned a wrong number into a signature; *"as enumerated by `git show --stat`"*
+cannot go stale, because the enumeration is performed rather than quoted.
 
 ---
 
