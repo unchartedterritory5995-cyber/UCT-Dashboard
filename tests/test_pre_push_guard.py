@@ -714,3 +714,215 @@ def test_a_busy_cadence_refuses_through_main(tmp_path, monkeypatch, capsys):
     ]})
     assert m.main([]) == 1
     assert "REFUSING THE PUSH" in capsys.readouterr().out
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# R19 — the BURST clause's owner attestation, and R20's machine-readable reason
+#
+# ⛔⛔ THE ONE PROPERTY EVERY TEST BELOW EXISTS TO PROTECT: an attestation exits the
+# BURST clause and NOTHING ELSE. Recency, in-flight/SUCCESS and every fail-closed path
+# are measurements of the world — a human saying "I looked" does not make a build stop
+# being in flight. The burst clause is different in kind: its own refusal text asks for
+# "a human who can see every workstream, not a guard", so a named human at a named
+# minute is exactly the thing it was waiting for.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _attest_env(monkeypatch, m, *, by="Patrick", age_s=0, set_by=True, set_at=True):
+    now = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(seconds=age_s)
+    monkeypatch.delenv(m.ATTEST_BY_ENV, raising=False)
+    monkeypatch.delenv(m.ATTEST_AT_ENV, raising=False)
+    if set_by:
+        monkeypatch.setenv(m.ATTEST_BY_ENV, by)
+    if set_at:
+        monkeypatch.setenv(m.ATTEST_AT_ENV, now.isoformat(timespec="seconds"))
+
+
+def _burst_rows(m, n=3):
+    """A deployment list that trips BURST but NOT recency — distinct commits, all
+    older than the 600 s recency window, all inside the 60 min burst window."""
+    now = _dt.datetime.now(_dt.timezone.utc)
+    return {"state": "READ",
+            "rows": [{"createdAt": (now - _dt.timedelta(seconds=900 + i * 600)).isoformat(),
+                      "commit": "c%d" % i, "message": "m%d" % i} for i in range(n)]}
+
+
+# ── read_attestation is pure; drive it directly ──────────────────────────────
+
+def test_a_fresh_attestation_is_VALID(monkeypatch):
+    _attest_env(monkeypatch, G)
+    a = G.read_attestation()
+    assert a["state"] == "VALID" and a["by"] == "Patrick"
+
+
+def test_no_attestation_at_all_is_ABSENT_not_invalid(monkeypatch):
+    monkeypatch.delenv(G.ATTEST_BY_ENV, raising=False)
+    monkeypatch.delenv(G.ATTEST_AT_ENV, raising=False)
+    assert G.read_attestation()["state"] == "ABSENT"
+
+
+def test_half_an_attestation_is_not_an_attestation(monkeypatch):
+    """⛔ A name with no time is a standing grant that would live in a shell profile
+    forever; a time with no name is anonymous. Neither is a statement."""
+    _attest_env(monkeypatch, G, set_at=False)
+    assert G.read_attestation()["state"] == "INVALID"
+    _attest_env(monkeypatch, G, set_by=False)
+    assert G.read_attestation()["state"] == "INVALID"
+
+
+def test_a_stale_attestation_is_refused(monkeypatch):
+    """⛔ An owner who looked twenty minutes ago has not looked at THIS queue — three
+    other workstreams push to this repo, and tonight four deploys landed in an hour."""
+    _attest_env(monkeypatch, G, age_s=G.ATTEST_MAX_AGE_SECONDS + 120)
+    a = G.read_attestation()
+    assert a["state"] == "STALE" and "not about THIS queue" in a["why"]
+
+
+def test_an_attestation_from_the_future_is_a_clock_problem(monkeypatch):
+    _attest_env(monkeypatch, G, age_s=-600)
+    assert G.read_attestation()["state"] == "INVALID"
+
+
+def test_an_unparsable_attested_time_is_INVALID(monkeypatch):
+    monkeypatch.setenv(G.ATTEST_BY_ENV, "Patrick")
+    monkeypatch.setenv(G.ATTEST_AT_ENV, "tuesday-ish")
+    assert G.read_attestation()["state"] == "INVALID"
+
+
+# ── through main(): the clause boundary is the whole point ───────────────────
+
+def test_an_attestation_ALLOWS_a_burst_refusal(tmp_path, monkeypatch, capsys):
+    """The D-09 burst refusal, replayed, with an attestation: it ALLOWS, and the
+    attestation is logged verbatim."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(20, 0))
+    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
+    monkeypatch.setattr(m, "recent_deployments", lambda: _burst_rows(m))
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    _attest_env(monkeypatch, m)
+
+    assert m.main() == 0, "a burst refusal with a valid attestation still refused"
+    out = capsys.readouterr().out
+    assert "BURST CLAUSE ATTESTED by Patrick" in out
+    assert "NOT overridden" in out, "the output must say recency/in-flight were not waived"
+    log = (tmp_path / "bypass.log").read_text(encoding="utf-8")
+    assert "BURST-ATTESTED" in log and "Patrick" in log, "the attestation was not logged verbatim"
+
+
+def test_the_same_burst_refuses_WITHOUT_an_attestation(tmp_path, monkeypatch):
+    """⛔ NON-VACUITY. The test above proves nothing unless the same fixture REFUSES
+    when the attestation is absent."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(20, 0))
+    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
+    monkeypatch.setattr(m, "recent_deployments", lambda: _burst_rows(m))
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    monkeypatch.delenv(m.ATTEST_BY_ENV, raising=False)
+    monkeypatch.delenv(m.ATTEST_AT_ENV, raising=False)
+    assert m.main() == 1
+
+
+def test_an_attestation_NEVER_satisfies_recency(tmp_path, monkeypatch, capsys):
+    """⛔⛔ THE LOAD-BEARING BOUNDARY. A build really is in flight; looking at the
+    queue does not change that. Measured live on 2026-09-15: the guard printed
+    'attestation NOT APPLIED' while a deploy was 2s old, which is the correct answer."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(20, 0))
+    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
+    now = _dt.datetime.now(_dt.timezone.utc)
+    monkeypatch.setattr(m, "recent_deployments", lambda: {
+        "state": "READ",
+        "rows": [{"createdAt": (now - _dt.timedelta(seconds=60)).isoformat(),
+                  "commit": "fresh", "message": "just landed"}]})
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    _attest_env(monkeypatch, m)
+
+    assert m.main() == 1, "an attestation bought the recency clause"
+    assert "NOT APPLIED" in capsys.readouterr().out
+
+
+def test_an_attestation_NEVER_satisfies_the_in_flight_clause(tmp_path, monkeypatch):
+    """A swap in flight is measured, not attested. `decide` refusing must stand even
+    with the burst clause attested."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(20, 0))
+    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(status="BUILDING"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.REFUSE, "a swap is in flight"))
+    monkeypatch.setattr(m, "recent_deployments", lambda: _burst_rows(m))
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    _attest_env(monkeypatch, m)
+    assert m.main() == 1, "an attestation bought the in-flight clause"
+
+
+def test_a_stale_attestation_does_not_allow_a_burst(tmp_path, monkeypatch):
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(20, 0))
+    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
+    monkeypatch.setattr(m, "recent_deployments", lambda: _burst_rows(m))
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    _attest_env(monkeypatch, m, age_s=m.ATTEST_MAX_AGE_SECONDS + 300)
+    assert m.main() == 1
+
+
+def test_an_attestation_NEVER_satisfies_fail_closed(tmp_path, monkeypatch):
+    """⛔ An unreadable deployment list is the one state where the guard knows it has
+    stopped working. Attesting past it would be attesting to something unseen."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(20, 0))
+    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
+    monkeypatch.setattr(m, "recent_deployments",
+                        lambda: {"state": m.UNREADABLE, "why": "railway CLI exit 1"})
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    _attest_env(monkeypatch, m)
+    assert m.main() == 1
+
+
+def test_the_clause_label_names_which_clause_decided():
+    """⛔ R19 can only honour the clause boundary if the decision SAYS which clause it
+    was. Prose cannot be read reliably; the out-dict is filled in the same pass."""
+    now = _dt.datetime.now(_dt.timezone.utc)
+
+    def rows(*ages):
+        return {"state": "READ",
+                "rows": [{"createdAt": (now - _dt.timedelta(seconds=a)).isoformat(),
+                          "commit": "c%d" % i, "message": "m"} for i, a in enumerate(ages)]}
+
+    for expected, dep in (("quiet", rows(5000)),
+                          ("recency", rows(60, 5000)),
+                          ("burst", rows(900, 1500, 2500)),
+                          ("unreadable", {"state": G.UNREADABLE, "why": "x"})):
+        c: dict = {}
+        G.decide_cadence(dep, clause=c)
+        assert c.get("name") == expected, f"{expected!r} labelled {c.get('name')!r}"
+
+
+# ── R20: the machine-readable reason code ────────────────────────────────────
+
+def test_the_bypass_log_carries_a_machine_readable_reason_code(tmp_path, monkeypatch):
+    """⭐ The prose says what was overridden in words a person reads; the code says
+    which clause in a token a script can count. A log carrying only prose cannot answer
+    'how many window overrides last month' without grepping sentences that change
+    whenever somebody rewords the message."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    m._log_bypass({"status": "S", "commit": "c"}, "because", code="CLOCK-WINDOW")
+    m._log_bypass({"status": "S", "commit": "c"}, "because")
+    lines = (tmp_path / "bypass.log").read_text(encoding="utf-8").splitlines()
+    assert "reason_code=CLOCK-WINDOW" in lines[0]
+    assert "reason_code=UNSPECIFIED" in lines[1], "an uncoded bypass must say so, not be blank"

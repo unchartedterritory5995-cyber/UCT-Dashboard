@@ -193,14 +193,68 @@ def decide(dep: dict, *, now_age: float | None = None) -> tuple[str, str]:
                 % (SERVICE, dep.get("commit"), int(age)))
 
 
-def _log_bypass(dep: dict, reason: str) -> None:
+#: R19 — the BURST clause's documented exit. Two variables, because an attestation is
+#: a statement by a person at a time, and half of it is not a statement.
+ATTEST_BY_ENV = "UCT_BURST_ATTESTED_BY"
+ATTEST_AT_ENV = "UCT_BURST_ATTESTED_AT"
+#: How stale an attestation may be. An owner who looked at the queue twenty minutes ago
+#: has not looked at THIS queue — three other workstreams push to this repo.
+ATTEST_MAX_AGE_SECONDS = 900
+
+
+def read_attestation(now: "dt.datetime | None" = None) -> dict:
+    """The owner's burst attestation, validated. Pure — the tests drive it directly.
+
+    ⛔⛔ THIS EXITS THE BURST CLAUSE AND NOTHING ELSE. The burst refusal's own text asks
+    for "a human who can see every workstream, not a guard" — this is that human saying
+    they looked. It can never satisfy recency (a build really is in flight), the
+    in-flight/SUCCESS clause, or any fail-closed path: those are measurements of the
+    world, and no amount of looking changes them.
+
+    ⭐ TWO VARIABLES ON PURPOSE. A name alone is a standing grant that would sit in a
+    shell profile forever; a time alone is anonymous. Together they are a statement by a
+    named person at a named minute, which is what a log entry has to carry to be worth
+    keeping."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    by = (os.environ.get(ATTEST_BY_ENV) or "").strip()
+    at_raw = (os.environ.get(ATTEST_AT_ENV) or "").strip()
+    if not by and not at_raw:
+        return {"state": "ABSENT", "why": "no attestation offered"}
+    if not by or not at_raw:
+        missing = ATTEST_BY_ENV if not by else ATTEST_AT_ENV
+        return {"state": "INVALID", "why": "%s is set without %s — half an attestation is "
+                                           "not an attestation" % (
+                                               ATTEST_AT_ENV if not by else ATTEST_BY_ENV, missing)}
+    at = _iso(at_raw)
+    if at is None:
+        return {"state": "INVALID", "why": "%s=%r is not an ISO timestamp" % (ATTEST_AT_ENV, at_raw[:40])}
+    age = (now - at).total_seconds()
+    if age > ATTEST_MAX_AGE_SECONDS:
+        return {"state": "STALE", "by": by, "at": at,
+                "why": "attested %dm ago; an attestation older than %dm is not about THIS queue"
+                       % (int(age // 60), ATTEST_MAX_AGE_SECONDS // 60)}
+    if age < -60:
+        return {"state": "INVALID", "by": by, "at": at,
+                "why": "attested %ds in the FUTURE — a clock disagreement, not an attestation"
+                       % int(-age)}
+    return {"state": "VALID", "by": by, "at": at,
+            "why": "attested by %s at %s (%ds ago)" % (by, at.isoformat(timespec="seconds"), int(max(0, age)))}
+
+
+def _log_bypass(dep: dict, reason: str, *, code: str = "") -> None:
+    """⭐ R20 — `reason_code` is MACHINE-READABLE and sits beside the prose.
+
+    The prose says what was overridden in words a person reads; the code says which
+    clause in a token a script can count. A log that only carries prose cannot answer
+    "how many window overrides last month" without someone grepping sentences that
+    change whenever the message is reworded."""
     try:
         BYPASS_LOG.parent.mkdir(parents=True, exist_ok=True)
         with BYPASS_LOG.open("a", encoding="utf-8") as fh:
-            fh.write("%s  user=%s  status=%s commit=%s  overrode: %s\n"
+            fh.write("%s  user=%s  status=%s commit=%s  reason_code=%s  overrode: %s\n"
                      % (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
                         os.environ.get("USERNAME") or os.environ.get("USER") or "?",
-                        dep.get("status"), dep.get("commit"), reason))
+                        dep.get("status"), dep.get("commit"), code or "UNSPECIFIED", reason))
     except Exception:
         pass
 
@@ -365,13 +419,26 @@ def recent_deployments() -> dict:
     return {"state": "READ", "rows": rows}
 
 
-def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str, str]:
+def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None,
+                   clause: "dict | None" = None) -> tuple[str, str]:
     """(verdict, reason). Pure — the tests drive it directly.
 
     ⛔ FAIL CLOSED on every unreadable path, including "rows came back but not one
     timestamp parsed". An empty answer and a quiet master are the same shape from
-    here, and only one of them is safe."""
+    here, and only one of them is safe.
+
+    ⭐ `clause` is an optional OUT-DICT naming WHICH clause decided, filled with
+    `{"name": "unreadable"|"unparsable"|"recency"|"burst"|"quiet"}`. R19 lets the owner
+    attest past the BURST clause and nothing else, and a caller cannot honour that
+    distinction by reading prose. Same idiom as the breadth drill-list `members`
+    out-dict: the decision and its label come from ONE pass, so they cannot drift."""
+    def _clause(name):
+        if clause is not None:
+            clause["name"] = name
+        return name
+
     if dep.get("state") == UNREADABLE:
+        _clause("unreadable")
         return REFUSE, ("cannot read the %s deployment list (%s). REFUSING: a cadence guard "
                         "that fails open is quietest exactly when master is busiest."
                         % (SERVICE, dep.get("why")))
@@ -388,6 +455,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
         if c not in seen or t > seen[c][0]:
             seen[c] = (t, r)
     if rows and not seen:
+        _clause("unparsable")
         return REFUSE, ("the %s deployment list carried %d row(s) and not one readable "
                         "(commit, timestamp) pair — REFUSING rather than reading that as quiet."
                         % (SERVICE, len(rows)))
@@ -396,6 +464,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
     for c, (t, r) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
         age = (now - t).total_seconds()
         if 0 <= age < RECENT_PUSH_WINDOW_SECONDS:
+            _clause("recency")
             return REFUSE, ("a %s deploy landed %ds ago (%s %s) and a build takes 3-5 min — "
                             "pushing inside that window is how a deploy is marked REMOVED "
                             "mid-flight and members get a 502. Wait %ds."
@@ -407,6 +476,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
     burst = [(c, t) for c, (t, _r) in seen.items()
              if 0 <= (now - t).total_seconds() < BURST_WINDOW_SECONDS]
     if len(burst) >= BURST_MIN_DEPLOYS:
+        _clause("burst")
         newest = sorted(burst, key=lambda ct: ct[1], reverse=True)
         return REFUSE, ("%d distinct %s deploys in the last %d min (%s) — master is under "
                         "concurrent development and a build may be in flight from a session "
@@ -416,6 +486,7 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None) -> tuple[str,
                            ", ".join(c for c, _ in newest[:4])))
 
     n_recent = len(burst)
+    _clause("quiet")
     return OK, ("%d %s deploy(s) in the last %d min, none inside %ds — master is quiet."
                 % (n_recent, SERVICE, BURST_WINDOW_SECONDS // 60, RECENT_PUSH_WINDOW_SECONDS))
 
@@ -676,12 +747,29 @@ def main(argv=None) -> int:
     dep = latest_deployment()
     verdict, reason = decide(dep)
     cad = recent_deployments()
-    kverdict, kreason = decide_cadence(cad)
+    kclause: dict = {}
+    kverdict, kreason = decide_cadence(cad, clause=kclause)
+
+    # ── R19: the owner may attest past the BURST clause, and nothing else ──────
+    attest = read_attestation()
+    burst_attested = (kverdict != OK
+                      and kclause.get("name") == "burst"
+                      and verdict == OK            # in-flight / SUCCESS, independently
+                      and attest.get("state") == "VALID")
+    if burst_attested:
+        kverdict = OK
+        kreason = ("BURST ATTESTED by %s — %s | the burst clause asked for a human who "
+                   "can see every workstream; this is that human. Recency and in-flight "
+                   "passed on their own and were NOT overridden."
+                   % (attest["by"], kreason.splitlines()[0]))
 
     if a.json:
         print(json.dumps({
             "verdict": OK if (verdict == OK and cverdict == OK and kverdict == OK) else REFUSE,
             "cadence": {"verdict": kverdict, "reason": kreason,
+                        "clause": kclause.get("name"),
+                        "attestation": {k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                                        for k, v in attest.items()},
                         "recent_window_s": RECENT_PUSH_WINDOW_SECONDS,
                         "burst_window_s": BURST_WINDOW_SECONDS,
                         "burst_min": BURST_MIN_DEPLOYS},
@@ -697,7 +785,8 @@ def main(argv=None) -> int:
     if clock_overridden:
         # ⛔ LOUD. A window override is a member-visible restart during the session;
         # it should never scroll past unread.
-        _log_bypass({"status": "CLOCK-WINDOW", "commit": clock.get("session")}, creason)
+        _log_bypass({"status": "CLOCK-WINDOW", "commit": clock.get("session")}, creason,
+                    code="CLOCK-WINDOW")
         print("=" * 78)
         print("[pre-push] ⚠️  DEPLOY WINDOW OVERRIDDEN via %s" % CLOCK_OVERRIDE_ENV)
         print("[pre-push] ⚠️  RESTARTING web AND chart-renderer DURING THE SESSION.")
@@ -707,12 +796,32 @@ def main(argv=None) -> int:
     else:
         print("[pre-push] %s" % creason)
 
+    if burst_attested:
+        # ⛔ LOGGED VERBATIM. An attestation nobody can review afterwards is a
+        # permission that was never really asked for.
+        _log_bypass(dep, "BURST attested: %s" % attest["why"], code="BURST-ATTESTED")
+        print("=" * 78)
+        print("[pre-push] ⚠️  BURST CLAUSE ATTESTED by %s" % attest["by"])
+        print("[pre-push] ⚠️  %s" % attest["why"])
+        print("[pre-push] ⚠️  recency and in-flight passed on their own — NOT overridden.")
+        print("[pre-push] ⚠️  Logged to %s" % BYPASS_LOG)
+        print("=" * 78)
+    elif attest.get("state") == "VALID":
+        # ⛔ VALID BUT NOT APPLICABLE IS NOT "REJECTED", and saying so would teach the
+        # owner that their attestation was somehow malformed when it was fine — the
+        # clause that refused simply is not the one an attestation can exit.
+        print("[pre-push] attestation NOT APPLIED (%s) — it exits the BURST clause only, "
+              "and the refusal here is %r." % (attest.get("why"), kclause.get("name")))
+    elif attest.get("state") not in (None, "ABSENT"):
+        print("[pre-push] attestation REJECTED (%s): %s"
+              % (attest.get("state"), attest.get("why")))
+
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):
         # ⛔ BOTH reasons are logged. Overriding a queue refusal and overriding a
         # cadence refusal are different acts, and a log that records only the first
         # cannot tell the reviewer which one was waved through.
         _log_bypass(dep, "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason))
-                                   if v != OK) or reason)
+                                   if v != OK) or reason, code="QUEUE-SKIP")
         print("[pre-push] BYPASSED via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
         print("[pre-push] what was overridden: %s" % reason)
         if kverdict != OK:
