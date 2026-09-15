@@ -27,6 +27,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 8 | `2026-09-15-session8-key-plumbing.md` | 2026-09-15 | ✅ tracked, here | The gate gets its own API-key variable (R32), master synced short at 25; the three passes still unbought |
 | 9 | `2026-09-15-session9-three-passes.md` | 2026-09-15 | ✅ tracked, here | **The three passes are BOUGHT** ($14.6090). The floor blocks 88% of what it governs; every CALL was demoted to MENTION by an unresolvable entity master; R24 closed at 0 of 25 |
 | 10 | `2026-09-15-session10-identity-bounds.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Bounds the 88%: ~18 points are a matching artifact, ~70% real instability. The chain writes 826 real rows and the queue holds 327. Corrects two session-9 errors |
+| 11 | `2026-09-15-session11-promotion-ready.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Identity RULED and applied (MARKET_SIGNAL 21→61), R36 live, the promotion prepared — master merged in, CI green, PR body written. `gh` absent, so Patrick opens it |
 
 ## Why report 1 is not tracked
 
@@ -73,5 +74,7 @@ no CALL at all. 10 spends nothing and bounds what 9 measured: it puts a floor an
 ceiling under the identity question, gets the chain writing to real rows for the first time,
 and corrects two of session 9's own conclusions — the entity-master mechanism (it was the
 SANDBOX, not a production path) and the idea that the CALL lane was broken (a $0.00 offline
-seed recovers 76.8% of it). Each report's own QUESTIONS section carries the state of every open decision at that
+seed recovers 76.8% of it). 11 turns the measurements into rulings and gets the branch ready to leave
+this box: the identity is applied to the write path, the reservation estimator is live, and the PR
+body is written for a merge that changes nothing for members on the night it lands. Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.

@@ -1376,3 +1376,66 @@ pass, **$1,713.13** for three. ⛔ The estimator changes ROUNDS, never ACTUALS.
 **N=5 does not fit:** two more passes cost **$9.7393** against **$8.5185** of headroom — short by
 **$1.2208**. And at N=5 a 4/5 record PUBLISHES under the same 0.8 floor, so raising N silently
 changes the rule from unanimity to 80% agreement (R17 = HOLD_3; this is for the cap question only).
+
+
+## SESSION 11 — 2026-09-15: identity RULED and APPLIED, R36 live, promotion PREPARED. $0.00
+
+Ledger byte-identical: sha256 `d976dba7…`, **$31.4815 / cap 40.0**. ⚠️ **R37 was ruled `40.0`,
+i.e. UNCHANGED** — the prose accompanying the brief suggested $100, the ruling line said 40.0, and
+"read literally, never infer a value not written" plus the fail-safe direction settle it. The cap
+was not touched. **It is a question, not a decision taken.**
+
+### R43 applied to the WRITE path
+
+MARKET_SIGNAL = **MERGED_J05**, PRINCIPLE = **KEY**. `reconcile.MS_IDENTITY` is the single switch
+(mutation: flipping it reds three tests by name). On the local store's 826 real records:
+
+    MARKET_SIGNAL records clearing the floor   21 -> 61
+    identities                              1,223 -> 1,150
+    floor blocked                             143 -> 103
+    PRINCIPLE                                 31, unchanged, as ruled
+
+⚠️ **The floor enqueues but never retracts:** 103 blocked, **153** `below_publication_floor` rows.
+
+### Golden grading — the free check worked, after a real defect
+
+    MERGED-MS   J=0.4 2/2 · J=0.5 1/1 · J=0.6 1/1      precision 1.000 (n <= 2)
+    LENS-PRINCIPLE  t=0.6 13/13 · 0.9 7/7               precision 1.000
+
+So the lens clears ≥0.9 at its own default threshold — **the number behind a future `LENS_STRICT`,
+which would move PRINCIPLE 31 → 67.** It is NOT applied: R43 rules KEY.
+
+⚰️ The first grading run returned ZERO gradeable PRINCIPLE clusters. Cause:
+`identity_study._rows_by_segment` did `tuple(principle_key)` — a **tuple of characters**. Still a
+bijection, so sessions 9–10's numbers are unaffected (re-verified exactly), but nothing outside
+could join: intersection 0 of 182.
+
+### Promotion prepared — and the branch had never touched master
+
+`origin/master` merged in (**61 commits, none touching wisdom, workflows or schema**), CI parity
+run locally (all four wisdom-rails steps PASS), suite **1,210 passed · 1 skipped · 0 failed**.
+PR body at `docs/wisdom/PROMOTION-2026-09-15.md`. ⛔ `gh` is absent, so the command and the
+mobile-app route are written down rather than a PR half-opened. **Master untouched:
+`79b4b2907` before and after.**
+
+⛔⛔ **THE GATE FACT THAT CHANGES THE FLAG PLAN.** Chain step 1, `capture`, consults **no gate of
+its own** — `WISDOM_CAPTURE_ENABLED` gates the standalone capture jobs (`capture/jobs.py:46`), not
+the chain step. So `WISDOM_INGEST_ENABLED` alone starts capture. The proposed "flip three
+together" is one switch plus two that govern other paths.
+
+⭐ **Migrations proved safe by running the real runner twice** against a throwaway SQLite: pass 1
+applied 24 including `core_007..010`, pass 2 applied **0**. They land on the first web boot after
+merge (`api/main.py:3244-3245`, unconditional).
+
+### R45 — the owner can read the store from a phone
+
+`GET /api/admin/wisdom/core/status` now also returns `store_counts`, `floored_stability`,
+`extractor_version`. **No new route**, so the pinned 27-route list and the dark-check walk are
+untouched.
+
+### R36 applied, with the half that makes it safe
+
+Reservation now = p90 of measured cost-per-request × 1.5, floored at the worst case when
+unmeasured; and `SpendCap.settle` re-checks **actuals** against the cap after every batch.
+⚠️ Deviation stated: the ledger has no token counts and no `extractor_version`, so the p90 is over
+cost-per-request, not tokens. Mutation: removing the post-batch check reds a test.
