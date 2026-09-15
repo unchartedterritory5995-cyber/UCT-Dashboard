@@ -283,6 +283,24 @@ function paneHeightFor(defId) {
  * order the list is in. `legendFromDefinitions.test.jsx` pins the two together;
  * one list, two readings.
  */
+/**
+ * The own-pane keys a chart has, in DEFAULT order — the input a caller needs
+ * before it can resolve an arrangement over them.
+ *
+ * ⭐ EXPORTED BECAUSE THE ARRANGEMENT IS RESOLVED OUTSIDE THIS MODULE. `paneOrder`
+ * is pure state and must not import geometry; geometry must not read settings.
+ * So the caller asks here what panes exist, hands that to `resolvePaneOrder`,
+ * and hands the answer back in `opts.order`. Same key space, same filters, one
+ * function — rather than a second copy of the eligibility rules at the call site.
+ */
+export function defaultPaneKeys(instances, opts) {
+  const o = opts || {}
+  const excluded = o.excludeKeys instanceof Set ? o.excludeKeys : new Set(o.excludeKeys || [])
+  const keep = o.keepKeys instanceof Set ? o.keepKeys : new Set(o.keepKeys || [])
+  const include = o.includeKeys instanceof Set ? o.includeKeys : new Set(o.includeKeys || [])
+  return orderedPaneKeys(instances, excluded, keep, include, new Map())
+}
+
 function orderedPaneKeys(instances, excluded, keep, include, defByKey) {
   const paneIds = paneTargetIds()
   const keys = []
