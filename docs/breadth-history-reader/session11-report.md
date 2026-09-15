@@ -12,7 +12,7 @@ independently confirmed below: Railway still deploys from `master`.
 **No measurement windows** (0.1). Every number is from Session 9's two windows, a tool run
 today, or a table in this report.
 
-**Published page:** *(URL at the end)*
+**Published page:** <https://claude.ai/artifact/VRZMduG9pmEdxb3wkcxfqR> (private)
 
 ---
 
