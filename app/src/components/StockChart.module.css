@@ -349,9 +349,15 @@
 }
 
 /* ── Crosshair OHLCV legend (TradingView-style overlay) ── */
+/* ⚰️ `--price-pane-top` IS WHAT KEEPS THIS ON THE CANDLES. The offset was a
+   flat 28px from the container, which is the same thing only while Price is the
+   first pane; with a pane above it the OHLC readout labelled somebody else's
+   series. StockChart's sampler measures the price pane's top off the RENDERER
+   each frame and publishes it here. Unset — every chart that has nothing above
+   Price — resolves to `calc(28px + 0px)`, which is the value it always had. */
 .legend {
   position: absolute;
-  top: 28px;
+  top: calc(28px + var(--price-pane-top, 0px));
   left: 8px;
   z-index: 3;
   display: flex;

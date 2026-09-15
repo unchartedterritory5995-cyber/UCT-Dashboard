@@ -112,6 +112,19 @@ const LEFT_AXIS_OPTIONS = Object.freeze({
 /** `applyIndScale`'s `|| { top: 0.82, bottom: 0 }`. Reached when the layout
  *  reserved no band for this key — i.e. the legacy toggle is off while an engine
  *  instance exists, which is exactly the B3 crossover state. */
+/**
+ * Which physical pane are the candles in?
+ *
+ * ⚠️ DEFAULTS TO 0, WHICH IS WHY EVERY EXISTING CALLER AND TEST IS UNCHANGED.
+ * `computePaneLayout` publishes `priceIndex`; a context built before arrangements
+ * existed carries no layout or an older one, and 0 is exactly what this file
+ * hard-coded then.
+ */
+function priceIndexOf(c) {
+  const i = c && c.paneLayout && c.paneLayout.priceIndex
+  return Number.isInteger(i) && i >= 0 ? i : 0
+}
+
 const FALLBACK_BAND = Object.freeze({ top: 0.82, bottom: 0 })
 
 /**
@@ -358,7 +371,13 @@ export function resolvePlacement(instance, def, ctx) {
   // stretching their RANGE — a Bollinger band that runs off the top of the window
   // would reframe the candles the engine is supposed to be pixel-identical to.
   if (target === 'price') {
-    return { paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
+    // ⭐⭐ THE CANDLES' PANE, WHEREVER IT IS. This was a literal `0`, which was
+    // true for as long as Price had to be the first pane — and was already a
+    // half-truth on the Model Book, whose index pane is hoisted to 0 and leaves
+    // the candles at 1. An overlay that resolved to 0 there would draw on the
+    // Nasdaq pane. The layout publishes where Price actually ended up; asking is
+    // what makes "draw with the candles" mean the candles.
+    return { paneIndex: priceIndexOf(c), scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
   }
 
   // 'volume' is the migrator's record of "this oscillator is in
@@ -524,7 +543,9 @@ export function resolvePlacement(instance, def, ctx) {
   const band = (c.paneMargins && c.paneMargins[key]) || FALLBACK_BAND
 
   return {
-    paneIndex: 0,
+    // 'bands' mode has exactly one pane, so this is the candles' own — read the
+    // same way as every other price-pane answer rather than assuming a number.
+    paneIndex: priceIndexOf(c),
     scaleId: key,
     scaleOptions: { borderVisible: false, scaleMargins: { ...band }, ...range },
     // Its own band, its own scale: it is the only thing on that axis, so it has
