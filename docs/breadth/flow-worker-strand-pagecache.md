@@ -41,3 +41,47 @@ untouched, so its behaviour does not change even while web is running the experi
 
 ⛔ Forcing a flow-worker restart drops the Massive OPRA socket and Massive does not
 replay — a permanent tape gap for zero behavioural difference.
+
+---
+
+## M10 addendum — the RENAME (2026-09-15)
+
+**Classification: INERT STRAND on every non-web service. No flow-worker redeploy.**
+
+`tools/flow_worker_watch_coverage.py` goes **red** on
+`api/services/breadth_daily_ohlc.py`: flow-worker RUNS that module and will not redeploy
+for it. Per `docs/runbooks/deploy-windows.md` a red there is a **REVIEW GATE, never a
+deploy block**. This is that review, traced rather than asserted.
+
+### What the change is
+
+One env-var name: `BREADTH_OHLC_PAGECACHE` → `BREADTH_OHLC_PAGECACHE_ENABLED`, read at
+exactly one site (`_pagecache_on()`). **No fallback to the old name** — a fallback would
+be a second authority over one value.
+
+### Why a stale flow-worker cannot behave differently
+
+Measured, `railway variables --kv`, 2026-09-15 — **neither variable is set on
+flow-worker, worker or bars-api. Only `web` carries it.** So:
+
+| flow-worker code | variable it reads | set there? | resulting connection |
+|---|---|---|---|
+| stale (pre-rename) | `BREADTH_OHLC_PAGECACHE` | **no** | unchanged — `_apply_pagecache` returns early |
+| current (post-rename) | `BREADTH_OHLC_PAGECACHE_ENABLED` | **no** | unchanged — identical early return |
+
+⭐ **The rename makes the inertness STRONGER than M8's, not weaker.** M8's argument was
+"the flag is off everywhere". This one is "the stale service reads a variable that V2 is
+about to unset, and the current service reads one that was never set outside web" — the
+two paths converge on the same early `return` from either side of the deploy, and there is
+no ordering of the rename deploy and the V2 variable change that produces a difference on
+flow-worker.
+
+### The one genuinely reachable path, restated
+
+`_conn()` is still shared, and flow-worker reaches this module only through
+`bars_fetch.py`'s `get_latest()` → `breadth_monitor`; `reconstructed_for_dates` is not in
+its closure at all. With the variable unset — which it is, on that service — flow-worker
+gets a byte-identical connection whichever code it is running.
+
+⛔ Forcing a flow-worker restart for this would drop the Massive OPRA socket, and Massive
+does not replay: a permanent tape gap, paid for **zero** behavioural difference.
