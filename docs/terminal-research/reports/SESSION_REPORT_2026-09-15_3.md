@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 14:12 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 15:04 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**24 commits** — twelve docs, twelve code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`
+**26 commits** — thirteen docs, thirteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -678,6 +678,88 @@ shard.
 ⛔ **A rising failure count here is a BETTER measurement, not a regression**, and must be read
 that way when it lands.
 
+## 3v · Run #16 — published again, and E CP18 scored five of six
+
+| E CP18 predicted | actual | |
+|---|---|---|
+| `publish`: success, a second record | **success**, `34998643399` | ✅ |
+| `tests-04` fails by name | **13 failed, 2917 passed** — it ran and reported | ✅ |
+| pytest `collected` higher than 19,056 | **22,003** | ✅ |
+| pytest `failed` higher than 136 | **148** | ✅ |
+| VERDICT RED, `contract_gaps: []` | **RED**, `[]` | ✅ |
+| `shards_without_totals: []` | **`['tests-07']`** | ❌ |
+
+⭐ The `signal` timeout method worked — `tests-04` hung for two runs and now reports.
+**`tests-07` was never a timeout at all.**
+
+## 3w · E CP19 — the record must CONTAIN the evidence it names
+
+Reading run #16's record turned up three defects, all the same shape: **the record claiming
+more than it holds.**
+
+### ⛔ 1. It named six detail files and three did not exist
+
+All three were the pytest ones. `ci_extract --pytest-log logs/pytest.log` points at **a path
+that stopped existing when E CP6 sharded pytest** — each shard uploads its own log and junit
+— so the whole block was skipped and the record promised the failure **text** for 136 pytest
+failures and delivered none. ⛔ Nothing failed: the publish job was green, `contract_gaps` was
+empty, and the only way to find it was to open the branch and try to read a file.
+
+⭐ **A named path that does not exist is worse than an omitted one** — a reader treats it as a
+file they have not opened yet. ⚰️ And `_write`'s own docstring says *"Always writes the file.
+ZERO is a finding, not a missing artifact"*; an absent **input** defeated it by skipping the
+write.
+
+Now: the publisher builds its args **from what is on disk**, `ci_extract` reads every shard,
+`pytest_failures.txt` joins `vitest_failures.txt` (the extractor was already vendor-neutral —
+**only its NAME** said otherwise), and `ci_record --detail-dir` **verifies every path it
+names**, marking an absent one UNREADABLE and reporting no `--detail-dir` as **NOT VERIFIED**
+rather than passing quietly.
+
+### ⛔ 2. A shard that RAN was recorded as having produced nothing
+
+`tests-07`'s totals line — `37 failed, 2362 passed, 2 skipped, 15192 warnings, 1 error in
+443.42s` — sat at **line 4,424 of 142,028**, with **137,604 lines of background-thread noise
+after it**. `ci_summarize` read `splitlines()[-1]`.
+
+⭐ **Same class as E CP18: a rule applied to one suite and not the other.** The vitest branch
+four lines above searches the whole text; the pytest branch read one line.
+
+And the pattern itself was **all-optional** — every count group `(?:…)?` — so it reduced to
+*"…in `<float>`s"*, matched a bare duration, and returned `totals_line_found: True` with
+**`passed=0 failed=0`**. ⛔ Zeros that `ci_aggregate` **sums**. A partial match that yields
+zeros reports fewer failures than there were.
+
+**Proved against the twelve REAL logs:** eleven byte-identical, `tests-07` **recovered**
+(+2,362 passed, +37 failed). ⭐ Additive, not a re-reading — which is the control that tells a
+recovery from a rewrite of history.
+
+### ⛔ 3. My own E CP18 assertion passed on noise, on its first run
+
+It grepped `[0-9]+ (passed|failed|error)` over the raw log; on `tests-07` that matched
+`0 error` and `37 failed` **from log body text**, so the step went green while the summariser
+said there was no totals line. **Two instruments, one question, opposite answers** — and the
+one I had just written was the wrong one. The step now summarises first and asserts on **its**
+verdict.
+
+### ⚠️ A predicted failure that did NOT happen
+
+I expected `[ -f x ] && ARGS=…` to abort under `bash -e` when a shard lacked its junit, and
+rewrote it as `if` blocks. **Measured, both forms: both exit 0.** Clearer, yes; a bug fix,
+no — and not claimed as one.
+
+### Prediction for run #17
+
+| field | prediction |
+|---|---|
+| `shards_without_totals` | **`[]`** — all twelve |
+| pytest `collected` / `failed` | **~24,400 / ~185** — the numbers were always there |
+| `contract_gaps` | **`[]`** |
+| `pytest_failures.txt` in the record | **present and non-ZERO** — the first per-test failure text pytest has had here |
+| VERDICT | **RED** |
+
+⭐ **148 → ~185 is a MEASUREMENT improving, not a repository getting worse.**
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -848,6 +930,9 @@ ran a job.
 | **F-CI-19** | **NEW, mine, and it is the root cause.** `ci_publish.main()` pushed unconditionally, so the artifact-check step — run before any `git config`, wrapped in `|| true` — attempted a rebase on every run since E CP9, died on an empty identity and left `.git/rebase-merge` for the real publish to trip over. `--push` is now required. |
 | **F-CI-20** | **NEW, mine.** `--timeout-method=thread` aborts the process, so a hung test costs the shard's totals, junit and per-test-timeout count — the exact outcome the flag's own comment said it prevented. Switched to `signal`. |
 | **F-CI-21** | **NEW, mine.** The pytest shard job had no totals-line assertion, though the vitest job has had one since E CP1 and the header says a run without one is not a run. Two shards hung and reported `success`. |
+| **F-CI-22** | **NEW, mine.** The record named six detail files and three did not exist — `ci_extract` pointed at a pre-sharding path, so 136 pytest failures reached the record with no text. `ci_record` now verifies every path it names. |
+| **F-CI-23** | **NEW, mine.** `ci_summarize` read only the LAST LINE of a pytest log, losing `tests-07`'s totals line at line 4,424 of 142,028; its all-optional pattern also matched a bare duration and returned zeros the aggregator sums. |
+| **F-CI-24** | **NEW, mine.** E CP18's own shard assertion was a second authority that passed on log-body noise while the summariser said otherwise. It now reads the summariser's verdict. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -888,8 +973,8 @@ explicit deploy instruction and a member-impact paragraph. **The park is lifted;
 front of them is not mine to open.**
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–29 nothing member-visible.**
-Row 30 is E CP18 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–30 nothing member-visible.**
+Row 31 is E CP19 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -906,8 +991,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**30 rows, 30 OK, 0 STALE. 29 of 29 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **22 constraints SATISFIED**, 30 units, 0 MALFORMED,
+**31 rows, 31 OK, 0 STALE. 30 of 30 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **23 constraints SATISFIED**, 31 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.

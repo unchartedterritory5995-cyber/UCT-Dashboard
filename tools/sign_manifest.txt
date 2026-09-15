@@ -49,6 +49,7 @@
 #!after: e-cp16-build-record <- e-cp15-build-record
 #!after: e-cp17-build-record <- e-cp16-build-record
 #!after: e-cp18-build-record <- e-cp17-build-record
+#!after: e-cp19-build-record <- e-cp18-build-record
 #!after: t2-cp1-build-record <- e-cp4-build-record
 #!after: k-cp3-build-record <- packet-k-two-command-signing-gate
 #!after: k-cp4-build-record <- k-cp3-build-record
@@ -77,6 +78,7 @@ docs/terminal-research/12-decisions/gates/e-cp15-build-record.md | CP15 | 7cd34d
 docs/terminal-research/12-decisions/gates/e-cp16-build-record.md | CP16 | f62b29968
 docs/terminal-research/12-decisions/gates/e-cp17-build-record.md | CP17 | f176b7212
 docs/terminal-research/12-decisions/gates/e-cp18-build-record.md | CP18 | b8aa16024
+docs/terminal-research/12-decisions/gates/e-cp19-build-record.md | CP19 | e81d61259
 docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 42eafe314
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
 docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | CP3 | ba5e34e79
