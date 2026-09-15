@@ -738,3 +738,53 @@ Verified live: **33 closure markers written, 22 frames fetched, 0 failures**, an
 marker a genuine holiday. 14 offline rails cover all three states, the retry that
 recovers, the retry that exhausts, the permanent failures that are never retried, the
 malformed body, the poisoning case, the durable closure, and both walker refusals.
+
+---
+
+### BL-024 · A LOCAL token shed is not the vendor's 429 — found by running the grind
+
+`_typed_get` raises `RateLimited` for two genuinely different refusals, and BL-023's
+tri-state fetcher answered both the same way:
+
+| refusal | `status` | right answer |
+|---|---|---|
+| the VENDOR said 429 | `429` | 1 / 4 / 10 s backoff |
+| OUR OWN bucket shed a token (`_take_token`, 300/min) | `None` | ~0.2 s — one token |
+
+The US grind's first chunks ran ~1.6 requests/s and then fell to **~0.05/s**: every
+request past the first 300 of a minute shed a local token and slept a FULL SECOND for
+one that regenerates in a fifth of that.
+
+⚠️ **The budget was new to this path.** The old `get_grouped_daily_ohlcv` called `_get`
+directly and never met `_take_token` at all, so the grind had been unthrottled.
+Respecting the budget is right; sleeping the wrong interval for it was not.
+
+⛔ **A local shed is also not an attempt.** It never reached the vendor, so it must not
+consume one of the three vendor retries — otherwise a busy minute "exhausts" a request
+that was never sent and a grind reports a provider outage that did not happen. Bounded
+at 600 sheds anyway, because politeness must not become an infinite loop.
+
+⭐ **No data semantics changed** — this is pacing, not arithmetic — so the 19,539 rows
+the grind had already produced stayed valid and the run RESUMED rather than restarting.
+That resume is now proven on real data rather than argued.
+
+---
+
+### BL-025 · A helper that mutates process state turns a rail into a rubber stamp
+
+⚰️ The first §26 forward-seal check reported PASS and had tested nothing. It captured its
+reference with `snap(ARTIFACT, …)`; `snap` sets `BREADTH_OHLC_DB` as a side effect, so the
+truncation intended for a COPY ran against the grind artifact. The store then still ended
+where it began, the seal found nothing to do, and the tail "matched" trivially. It also
+silently deleted five sessions from the artifact.
+
+**Two rules, both already this repo's:**
+
+- a test helper must not change process-global state that its caller depends on — every
+  store path in the repair script is passed explicitly;
+- a rail must be able to FAIL. The rewritten §26 asserts the truncation took effect
+  before it trusts anything that follows.
+
+The recovery was itself the proof §26 wanted: with the store genuinely truncated, the
+forward seal rebuilt the five sessions **identically to an independent deterministic
+replay**, and the join opened at the prior close on every metric.

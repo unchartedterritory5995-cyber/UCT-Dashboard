@@ -5,7 +5,9 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 12 — BL-021 FIXED and the gate re-run: **GO FOR THE US
+**CURRENT PHASE** Phase 13 — THE US HISTORICAL GRIND IS DONE: 2008-01-02 … 2026-09-11,
+**183,417 rows over 4,703 of 4,703 sessions, integrity PASS**, still dark and
+unintegrated. Phase 12 — BL-021 FIXED and the gate re-run: **GO FOR THE US
 HISTORICAL GRIND.** Every acceptance count is zero across one sweep / two chunks / four
 chunks / 85 one-date forward-seal invocations / interrupted+resumed. Phase 11 found the
 blocker; Phase 10 was blocked on provider access. Phase 9 complete —
@@ -1085,3 +1087,130 @@ invariance, resume, forward-seal equivalence, the missing-RAW refusal, the
 failure/closure distinction, cache reuse, throughput and UCT parity are all proven on
 real data. The grind writes to an isolated artifact; publication stays a separate flag
 and a separate decision.
+
+---
+
+## Phase 13 — US HISTORICAL GRIND, 2008 → present · **COMPLETE, INTEGRITY PASS** (2026-09-15)
+
+**Branch** `feat/breadth-pit-foundation` · `origin/master` `65899a8f7` (no breadth/
+provider/storage overlap; trial merge clean) · tree clean · nothing pushed.
+
+### The artifact
+
+| | |
+|---|---|
+| path | `C:\w\breadth-us-gate\us_grind.db` — **isolated**, production DB never opened |
+| range | **2008-01-02 … 2026-09-11** (last SETTLED session; today excluded by design) |
+| rows | **183,417** |
+| sessions | **4,703 of 4,703 expected — 0 missing, 0 partial** |
+| metrics | **39 producible** (of 51 registered); 0 leaked, 0 unproducible stored |
+| size | 41.1 MB |
+| source | `close_recon` on every row |
+
+### The run
+
+17 chunks, 365 days each, walking BACKWARD from the ceiling. **68 min wall, 39.3 min
+fetch**, 6,717 provider requests, 8,897 cache hits, 381 closures (113 new markers),
+**0 provider failures, 0 rate limits**. Sentinels ran and passed at every chunk boundary.
+
+⚠️ **Resume was exercised for real, not simulated.** The run was stopped mid-flight to
+fix a throughput defect and restarted; it picked up from coverage at 19,539 rows and
+continued correctly. Coverage-driven resume needs no progress file.
+
+### Integrity
+
+| check | result |
+|---|---|
+| missing sessions | **0** |
+| partial sessions | **0** |
+| per-metric gaps after first value | **0** on all 39 |
+| domain violations | **0** on all 39 |
+| **R5 boundary anomalies** | **0** across all 17 boundaries |
+| **R10 boundary anomalies** | **0** |
+| **OHLC continuity** | **183,378 bars checked · 0 opens != prior close · 0 boundary dojis** |
+| NETHL == NH − NL | **0** violations |
+| non-finite / geometry / duplicates | **0 / 0 / 0** |
+| non-US rows in the artifact | **0** |
+| universe_count: >10 % day moves, zero readings | **0 / 0** |
+| idempotency (re-run + explicit re-sweep) | every row identical |
+| deterministic replay, 2008 / 2015 / 2020 / 2026 | **IDENTICAL** in all four |
+
+### Sentinels — the history reads like the history
+
+`2008-03-10 A50 = 19.9` (ref 19.9) · `2015-03-10 A50 = 47.20` (ref 47.20) ·
+NETHL 13 / −99 / −7 on 2015-03-09/10/11.
+
+October 2008 behaves like October 2008: A50 **21.6 → 13.7 → 9.4 → 6.9 → 2.9 → 2.5 →
+0.7**, NETHL bottoming **−1,539** on 2008-10-09.
+
+`universe_count` 2,069 → 4,102, mean 2,999, no discontinuity above 10 % in 4,703
+sessions; the yearly means trace listings sensibly (2,514 in 2008 → 3,899 in 2021 →
+3,544 in 2026).
+
+### §21 survivorship — the property the PIT frame exists for
+
+| date | eligible | delisted TODAY | share |
+|---|---|---|---|
+| 2008-03-10 | 2,607 | 1,170 | **44.9 %** |
+| 2010-06-15 | 2,506 | 1,061 | 42.3 % |
+| 2015-03-10 | 2,993 | 1,248 | 41.7 % |
+| 2020-03-16 | 3,117 | 815 | 26.1 % |
+| 2023-06-15 | 3,377 | 546 | 16.2 % |
+| 2026-09-11 | 3,591 | 0 | 0.0 % |
+
+⛔ A today's-universe frame reports ~0 % in every row. The decline toward the present is
+the expected shape — recent listings have not had time to die.
+
+⚠️ `universe_count` runs 14-100 names (0.5-3 %) below the eligibility set on the same
+date: names eligible on the RAW frame that carry no ADJUSTED close that session, so the
+metric engine sees no price for them. Small, consistent, explainable.
+
+### §26 forward-seal handoff — proven, after a false pass
+
+⚰️ **The first §26 run passed for the wrong reason and that is worth recording.** The
+helper captured its reference with `snap(ARTIFACT, …)`, which sets `BREADTH_OHLC_DB` as a
+side effect — so the truncation meant for a COPY ran against the artifact, the store
+still ended where it began, the seal had nothing to do, and the tail "matched" trivially.
+It also deleted 2026-09-04 … 2026-09-11 (183,417 → 183,222 rows).
+
+That turned §26 into a real test. With the store genuinely truncated:
+
+- `forward_seal_tick` sealed **5 of 5** expected sessions, no failure, no partial;
+- what it produced is **IDENTICAL** to an independent deterministic replay of the same
+  dates into a fresh store — which IS the "historical value == daily-seal value" claim;
+- the join opens at the prior close for every metric checked (A50, R5, R10, NH, NETHL,
+  universe_count);
+- the artifact is restored to exactly **183,417 rows / 4,703 sessions / …2026-09-11**,
+  and the full audit passes again on the restored copy.
+
+⛔ The lesson is the repo's own: a helper that mutates process state as a side effect
+turns a rail into a rubber stamp. Every store path in the repair script is explicit.
+
+### Performance — measured, against the 1.3 h estimate
+
+68 min wall for the completed run. The FIRST attempt was far slower and the reason was a
+defect I introduced (BL-024): throughput collapsed from ~1.6 req/s to ~0.05 req/s.
+
+⚠️ **Memory: the process held 4-5 GB resident**, because the shared `TTLCache` keeps
+~1,000 whole-market frames. Fine on this machine. ⛔ It is a sizing question before this
+ever runs on the Railway worker, which has OOM'd on bar-warming before.
+
+The durable frame cache is now **9,996 files** (~5.5 GB) and is reusable by NASDAQ and
+NYSE without a single extra fetch — their date ranges are subsets of US's.
+
+### Status
+
+| | |
+|---|---|
+| US published | **NO** — `BREADTH_LIBRARY_UNIVERSES` untouched |
+| production DB opened or mutated | **NO** |
+| R2 / Railway config / Cloudflare / deploy | **NO** |
+| NASDAQ / NYSE computed | **NO** |
+| Main Trading | **NO** |
+| secret displayed | **NO** |
+
+### EXACT NEXT STEP
+
+**The dark-integration decision.** The artifact is complete, audited and reproducible;
+integration (merging it into production serving storage, or shipping it via R2) and
+publication remain separate, unauthorised steps.
