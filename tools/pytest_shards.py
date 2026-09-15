@@ -42,7 +42,16 @@ import sys
 
 OK, FAIL = 0, 1
 
-ROOT_BUCKETS = 8          #: how many alphabetical buckets the loose root files split into
+#: how many alphabetical buckets the loose root files split into.
+#: ⚰️ **8 UNTIL RUN #23, WHEN `tests-05` HIT THE 20-MINUTE CAP AND WAS CANCELLED** — the
+#: Run step was killed at **1,142 s** with the job at 1,234 s, so the shard printed no
+#: totals line, the record read `shards_without_totals = ['tests-05']`, and the gate
+#: correctly returned INVALID over 21 MISSING baseline entries.
+#: ⛔ **A job that cannot print a totals line within its cap is SPLIT, not extended.**
+#: Raising `timeout-minutes` buys one run and hides the trend; more buckets is the fix the
+#: standing rule names. ⚠️ The partition is by FILE COUNT, not by time, so 8 → 12 is a
+#: ~33% cut in expected worst-case work and NOT a guarantee — the next run measures it.
+ROOT_BUCKETS = 12
 TEST_GLOB = "test_*.py"
 
 
