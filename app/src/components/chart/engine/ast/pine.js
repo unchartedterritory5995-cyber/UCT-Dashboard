@@ -7927,10 +7927,14 @@ export class Resolver {
       // ⛔ R20 — the item (c) routing carries D2's limit, as `seriesDependentMessage`
       // does. Without it a member is told their expression default will be handled
       // and not told it cannot reach a pane while D2 stands.
+      // ⛔ R21 — two facts, both measured: no IR path today, AND no IR result on a
+      // pane while D2 stands. The D2 half alone reads as "it will be carried, just
+      // not drawn here", which the IR measurement contradicts.
       time:
         '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
-        + 'are expressions are item (c)\'s — and while ruling D2 stands the IR lane '
-        + 'does not reach a pane. 6 reach a column, under the threshold',
+        + 'are expressions are item (c)\'s — and the IR lane has no path for them '
+        + 'yet, nor does any IR result reach a pane while ruling D2 stands. '
+        + '6 reach a column, under the threshold',
       string:
         'in a timeframe position this folds exactly as `input.timeframe` does and '
         + 'adds no separate mechanism — 14 uses across 3 files',
@@ -10958,9 +10962,11 @@ export function translatePine(source, opts = {}) {
               // ⛔ R20 — the same promise as `seriesDependentMessage`'s, and it gets
               // the same limit. Qualifying one branch and not the other would put two
               // authorities on one sentence, which is the defect this repo names most.
+              // ⛔ R21 — corrected with its sibling: two facts, both measured.
               + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
-                + ' depends on a series is the IR lane\'s, item (c) — and while'
-                + ' ruling D2 stands the IR lane does not reach a pane.'),
+                + ' depends on a series is the IR lane\'s, item (c) — and the IR'
+                + ' lane has no path for it yet, nor does any IR result reach a'
+                + ' pane while ruling D2 stands.'),
             at: locate(first),
             // ⭐ R8 — THE VECTOR THIS REPLACED IS KEPT, so the read can settle its
             // size before speaking. A series-dependent size is a fact about the

@@ -1590,7 +1590,47 @@ a long tail — single files with 17, 29 and **38** alertconditions.
   will never choose** — which is right, and says nothing yet about whether it should
   *draw* them as markers.
 
-## ⛔ STOP — awaiting the owner's go. Nothing built.
+## ✅ RULED (owner, 2026-09-15)
+
+### R21 — item (c) is CLOSED; its IR half is OWED to **the IR lowering programme**
+
+The definition-lane half is closed under **R18**. The IR half **is not (c)'s to
+scope** — it is the IR lowering programme, wave-sized — and is recorded as owed under
+that name with the measured gap: the *"declared, not yet lowerable"* list
+(`STMT.{FOR, WHILE, …}`, `EXPR.{TUPLE, ARRAY_OP, OBJECT_OP}`), **zero** mentions across
+`lower.js`/`lowerIr.js`/`vm.js`, and the routed **56 + 5** having no IR path at all.
+
+⛔ **R20's qualification is corrected in place to carry TWO facts, both measured** —
+*"the IR lane has no path for it yet, nor does any IR result reach a pane while ruling
+D2 stands"*. The D2 half alone reads as *"it will be carried, just not drawn here"*,
+which the IR measurement contradicts. Corrected at all three sites; the rail now asserts
+**both** clauses.
+
+⚠️ **H.6 stays open**: `paneGate.js` and item (c)'s plan line both name a precondition
+that is **not the actual first blocker**.
+
+### R22 — SILENCE IS THE DEFECT. (d) builds **d1 + d2** now; **d3 defers to H.7**
+
+Three of the four over-threshold rows are **one defect**: something the member wrote is
+dropped without a word — the one thing this engine's discipline forbids. It is fixed
+before any feature is considered.
+
+| | |
+|---|---|
+| **d1 — the two silences speak** | `alert()` and a dropped message each get a **NOTE**, never a refusal. **45 min; 2× stop 90** |
+| **d2 — a literal or placeholder message rides the title's carriage** | a presentation field beside `title`, same path, **no second carriage**, no 12th node type. An **expression** message is not carried and gets d1's note. **40 min; 2× stop 80** |
+| **d3 — sets as a first-class offer** | ⛔ **DEFERRED → H.7** |
+
+⛔⛔ **A NOTE, NEVER A REFUSAL, AND THE REASON IS A STANDING RULE**: the offer works
+today, and **a threshold never removes what works**. `alert()` is a runtime action
+neither surface reads, so a script with plots and an `alert()` must keep its plots.
+
+⛔ **H.7 — OWNER QUESTION, OPEN: what does a *set* mean?** **D1 says a pane does not
+select an alert**, so a set has no pane meaning; what one means is a **screener-surface**
+question, and ⛔ **the screener lanes are not this branch's**. The evidence sits with the
+question: **112 of 120** files carry 2+ alertconditions · **53** share a signal family
+(**184** alertconditions) · tail to **38** in one file · **26** scripts have no plot at
+all. **Not built in Wave 2 unless the owner rules otherwise.**
 
 ⚠️ **I am not proposing a build, and the reason is a scope judgement the owner should
 make rather than me.** Three of the four over-threshold rows are the same defect wearing

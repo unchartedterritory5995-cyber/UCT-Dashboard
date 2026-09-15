@@ -142,9 +142,15 @@ export function seriesDependentMessage(what, dependency, line) {
     // IR lane's output does not reach the pane path. The work is permitted
     // off-pane; the delivery is not. The routing did not change — the limit was
     // added, so nobody reads "item (c) will handle it" as "this will draw".
-    + ' Runtime arrays are the IR lane\'s, item (c) — and while ruling D2 stands'
-    + ' the IR lane does not reach a pane, so this will not draw here even once'
-    + ' item (c) carries it.'
+    // ⛔⛔ R21 (2026-09-15) — CORRECTED IN PLACE, AND IT IS NOW TWO FACTS, BOTH
+    // MEASURED. R20 added "the IR lane does not reach a pane while D2 stands",
+    // which was true and UNDERSTATED: measured at (c)'s IR scoping, `STMT.FOR`,
+    // `STMT.WHILE` and `EXPR.ARRAY_OP` are declared in the IR's vocabulary and
+    // lowered NOWHERE — zero mentions across `lower.js`, `lowerIr.js` and `vm.js`.
+    // So the IR lane could not compute this even off-pane. Saying only the D2 half
+    // would let a member read "item (c) will carry it, just not on a pane".
+    + ' Runtime arrays are the IR lane\'s, item (c) — and the IR lane has no path'
+    + ' for it yet, nor does any IR result reach a pane while ruling D2 stands.'
 }
 
 /**

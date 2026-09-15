@@ -82,12 +82,24 @@ describe('R20 — a routing sentence carries D2\'s limit', () => {
     expect(m, 'a member is told item (c) carries this, but not that D2 keeps the IR '
       + 'lane off the pane — so they are promised a result they cannot be shown')
       .toMatch(/ruling D2|does not reach a pane|not on the pane path/)
+    // ⛔ R21 — AND THE SECOND FACT, which the D2 half alone understates: measured at
+    // (c)'s IR scoping, `STMT.FOR`/`STMT.WHILE`/`EXPR.ARRAY_OP` are declared in the
+    // IR vocabulary and lowered NOWHERE. Without this clause a member reads "item (c)
+    // will carry it, just not on a pane" — and the IR lane cannot carry it at all yet.
+    expect(m, 'the sentence names D2 but not that the IR lane has no path yet')
+      .toMatch(/no path for (it|them) yet/)
   })
 
   it('⭐⭐ the input.time EXPRESSION-DEFAULT sentence says the same', () => {
     const m = routing(TIME_EXPR_DEFAULT, 'item (c)').join(' ')
     expect(m, 'same promise, same missing limit')
       .toMatch(/ruling D2|does not reach a pane|not on the pane path/)
+    // ⛔ R21 — AND THE SECOND FACT, which the D2 half alone understates: measured at
+    // (c)'s IR scoping, `STMT.FOR`/`STMT.WHILE`/`EXPR.ARRAY_OP` are declared in the
+    // IR vocabulary and lowered NOWHERE. Without this clause a member reads "item (c)
+    // will carry it, just not on a pane" — and the IR lane cannot carry it at all yet.
+    expect(m, 'the sentence names D2 but not that the IR lane has no path yet')
+      .toMatch(/no path for (it|them) yet/)
   })
 
   it('⛔ CONTROL — R16\'s bare-`input` routing is NOT given the qualification', () => {
