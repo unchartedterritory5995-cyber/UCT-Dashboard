@@ -1276,3 +1276,103 @@ The step's own artifact was written beside the run —
 ⚠️ `rq_v11_001` and `publication_floor` were NOT separately re-run: both read the same empty
 `wisdom_records`, so both would answer 0 for the same reason, and re-running them would produce
 three zeros that look like three measurements. The session-8 baseline already recorded them at 0.
+
+
+## SESSION 10 — 2026-09-15: identity BOUNDED, the chain runs on REAL ROWS, Q3 CLOSED. $0.00
+
+Ledger byte-identical at both ends: sha256 `d976dba7…`, 5,405 bytes, **$31.4815 of $40.00**.
+No API call, no `railway` subcommand, no gate run.
+
+### ✅ ITEM 5 IS MEASURED — and the 86%-blind worry does not bite here
+
+    fp_null, per type, per pass:  0 / 0 / 0  for all six types.  null_segments = 26.
+
+⛔ **That number alone would not have settled it**, because `fp_null` only counts a prediction
+whose span OVERLAPS a declared null span (`golden.py:427-436`) — a record emitted elsewhere in a
+NULL segment is invisible to it. So it was re-derived from the persisted runs: **records emitted on
+a NULL segment AT ALL = 0, in every type, in all three passes.** The two numbers are identical.
+
+⭐ And the zero is REAL, not an un-run instrument: raw output present 26/26 per pass, usage present
+26/26, `raw_output["records"]` length **0 for all 26**, and the NULL-segment spend was
+$0.2002 / $0.1808 / $0.1452. The model was asked and answered nothing, 26 times out of 26. The
+span-scoping blind spot has **zero surface on golden-v1.1** because every declared null span covers
+its whole segment (ratio 1.000, min and max).
+
+### ✅ Q3 IS CLOSED — the schema-lever PRINCIPLE improvement does NOT survive
+
+| | precision | recall |
+|---|---|---|
+| gate-run-1 baseline (v1) | 0.700 | 0.933 |
+| the WITHDRAWN gate-run-2 figure | 0.765 | 0.867 |
+| **v1.1, three passes** | **0.650 / 0.737 / 0.684** | **0.867 / 0.933 / 0.867** |
+
+⛔ **The withdrawn 0.765 lies ABOVE the entire three-pass range; the 0.700 baseline lies inside
+it.** So the apparent improvement was the `_tokens` shadowing confound, exactly as session 2
+suspected, and refusing to cite it was right. Recall moves between the same two values the
+baseline and the withdrawn figure took, so it says nothing either. **Q3 closes as: no measurable
+schema-lever effect on PRINCIPLE, at a run-to-run spread of ±0.04 precision.**
+
+### ✅ ITEM 2 IS MEASURED — the identity bounds (R39)
+
+| identity | MS ids | MS mean | MS pub | PR ids | PR mean | PR pub |
+|---|---:|---:|---:|---:|---:|---:|
+| **KEY** (ruled, LOWER bound) | 236 | 0.453 | **21** | 182 | 0.513 | **31** |
+| MERGED-MS J=0.4 | 150 | 0.713 | 70 | — | — | — |
+| MERGED-MS J=0.5 (R30's threshold) | 163 | 0.656 | **61** | — | — | — |
+| MERGED-MS J=0.6 | 191 | 0.560 | 44 | — | — | — |
+| **LENS-PRINCIPLE** (UPPER bound) | — | — | — | 122 | **0.765** | **67** |
+| STRUCTURED-MS | *skipped* | | | | | |
+
+> **KEY publishes 52 of 418 floored identities (12.4%). At the upper bounds, 128 of 418 (30.6%).**
+> **So ~18 points of session 9's 88% blocked are a MATCHING ARTIFACT, and ~70% is real instability
+> even under the most generous identity that can be defended.**
+
+⭐ LENS-PRINCIPLE's mean stability lands at **0.7650** — within 0.002 of session 3's independently
+measured paraphrase figure of 0.767, on different data with the same lens.
+
+⛔ STRUCTURED-MS is skipped on its own evidence: the persisted `market_signal` payload carries only
+`name` (100%) and `direction` (88.8%) — no instrument, no timeframe — and the row-level ticker is
+**48.3%**, under the ruled 80% floor. Forced through anyway as a diagnostic it collapses **122
+distinct names**, which is the over-merge the bound exists to expose.
+
+### ✅ THE CHAIN RAN ON REAL ROWS — the session-9 zero is closed
+
+Pass 1 ingested through the production writer (`writer.write_output`, writer.py:675 — the same
+function `batch.handle_result` calls at batch.py:519). **826 of 827 record_ids identical to the
+persisted run (99.9%)**; the one difference is the record the overlap-dedupe key catches.
+
+    store       63 sources · 83 segments · 826 records · 91 principles · 4,295 provenance rows
+    rq_v11_001           skipped: no gate run recorded in THIS store (the evals live in gate.db)
+    reconcile_stability  records_updated 826 · principles_updated 51      <- was 0 in session 9
+    publication_floor    blocked 143 · enqueued 143
+    review queue         184 -> 327   contradictions 143 · extraction_audit 114 · vocabulary 70
+    second run           blocked 143 · enqueued 0   (idempotent)
+
+⭐ **The store's 3/3 counts — MARKET_SIGNAL 21, PRINCIPLE 31 — match the paper figures exactly.**
+The BLOCK counts differ (143 vs 366) for a stated reason: the paper counts identities across three
+runs, the store holds one pass's records.
+
+⛔ **This is a LOCAL store under `data/wisdom/`, not production.** Nothing member-visible moved; the
+queue that now holds 327 items is on this box.
+
+### R36 — the reservation is 90% a CONSTANT, and the tighter rule needs its second half
+
+    current   output leg = MAX_TOKENS 32000 x $25/Mtok x 0.5 = $0.4000, a CONSTANT
+              + input ~$0.042  ->  ~$0.4420/request, of which 90% is the ceiling
+    proposed  p90 10,641 x 1.5 = 15,962 tokens -> ~$0.2415/request (55%)
+    rounds    session 9 would have run 1 / 2 / 2 instead of 2 / 3 / 4
+
+⚠️⚠️ **AND THE PROPOSAL AS BRIEFED IS NOT SAFE ALONE: p90 x 1.5 = 15,962 is BELOW the observed
+max of 18,857 (0.85x).** A reservation under the largest real request can let ACTUALS pass the cap,
+because the cap is only tested at reserve time. That is precisely why the second half — *the cap is
+re-checked against ACTUALS after every batch* — is not optional. Proposed, not applied (R36 =
+PROPOSE).
+
+### Budget, restated with the measured rate
+
+Per-segment mean **$0.058671** over 249 segment-passes -> 9,733 segments = **$571.04** for one
+pass, **$1,713.13** for three. ⛔ The estimator changes ROUNDS, never ACTUALS.
+
+**N=5 does not fit:** two more passes cost **$9.7393** against **$8.5185** of headroom — short by
+**$1.2208**. And at N=5 a 4/5 record PUBLISHES under the same 0.8 floor, so raising N silently
+changes the rule from unanimity to 80% agreement (R17 = HOLD_3; this is for the cap question only).
