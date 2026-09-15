@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 16:11 ET, Session 13 (SD-1.1).**
+Last updated: **2026-09-15 16:18 ET, Session 13 (SD-1.1).**
 
 ---
 
@@ -43,9 +43,24 @@ no market-hours window on this repo** — owner ruling SD-1.1 A0, *"we no longer
 blocks ever"*. The landing script is alive, clockless, and holds R1–R3; its only gates are a
 settled SUCCESS deploy, the lock, the pause sentinel, and the pre-push guard.
 
-⚰️ **And the thing to carry out of Session 13:** a red gate has already shipped to
-production once, because Railway's Wait-for-CI is off and the gate only serialises. The
-cutover is what makes the gate actually gate, and it is now a single dashboard change.
+⚰️ **The thing to carry out of Session 13:** a red gate has already shipped to production
+once, because Railway's Wait-for-CI is off and the gate only serialises. The cutover is
+what makes the gate actually gate, and it is now a single **API call**.
+
+⛔ **WHAT IS ACTUALLY BLOCKING THE LANDING (measured 16:15 ET, not assumed).** Not the
+clock — the guard printed *"16:15:24 ET is outside the 09:25-16:05 ET deploy window — safe
+to restart web"* and PASSED it. The refusal is the **burst clause**:
+`BURST_WINDOW_SECONDS = 3600`, ≥ 3 distinct commits deployed within an hour. Three
+joystick deploys landed at 15:31:11, 15:53:45 and 16:04:56 ET.
+
+⭐⭐ **This reconciles Session 12's "quiet window" request with SD-1.1's ruling, and both
+were right.** There is **no clock**, but there **is** a real precondition called quiet —
+enforced by RATE, read off the deployment list, rather than by hour and by courtesy. The
+need was never imaginary; only the mechanism was.
+
+⚠️ It is a **livelock risk, not a wait**: the clause clears only if nothing else lands, and
+every master deploy from any workstream slides it forward. The script retries and logs each
+refusal by SHA — those refusals are the operational record.
 
 ---
 

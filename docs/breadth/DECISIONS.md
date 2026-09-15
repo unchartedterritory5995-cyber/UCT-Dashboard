@@ -1464,3 +1464,45 @@ ask the configuration.** `tools/pre_push_guard.py` is the authority on push timi
 readable in one command. Three sessions cited the window; none read the guard. The same
 session that read `checkSuites` from the Railway API to answer G1 — after three sessions
 of assuming it needed a browser — had the window sitting unexamined in its own prompt.
+
+#### 6. ⚠️ CORRECTION TO §4, MEASURED 16:15 ET THE SAME DAY — the guard has THREE clauses, and the clock is not the one that blocks
+
+§4 above reported the pre-push guard's clock and named it as the owner-side change. The
+first real landing attempt under SD-1.1 printed all three checks, and the clock **passed**:
+
+```
+[pre-push] 2026-09-15 16:15:24 ET is outside the 09:25-16:05 ET deploy window — safe to restart web.
+[pre-push] web is SUCCESS on 57113d1ac, 629s settled — safe to push.
+[pre-push] 3 distinct web deploys in the last 60 min (57113d1ac, db5591c63, 3a57e3a09) — master is
+           under concurrent development and a build may be in flight from a session that cannot see this one
+[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.
+```
+
+| clause | constant | verdict on the first attempt |
+|---|---|---|
+| **clock** | `RTH_GUARD_OPEN/CLOSE` | ✅ **passed** — and is the clause the owner retired |
+| **recency** | `RECENT_PUSH_WINDOW_SECONDS = 600` | ✅ passed at 629 s |
+| **burst** | `BURST_WINDOW_SECONDS = 3600`, ≥ 3 distinct commits | ⛔ **REFUSED** |
+
+⭐ **THE REFUSAL IS CORRECT AND THE CLAUSE SHOULD NOT BE TOUCHED.** Its own comment says
+why: *"Three distinct commits inside an hour is not one person working — it is concurrent
+development… THIS CLAUSE ENCODES THE JUDGEMENT A SESSION COULD NOT MAKE FOR ITSELF. D-05
+reported that the missing precondition was 'a human who can see all four workstreams'; the
+deployment list IS that view, and nothing was reading it."*
+
+⭐⭐ **AND IT RECONCILES SESSION 12's "QUIET WINDOW" REQUEST WITH SD-1.1's RULING.** Session
+12 asked for a quiet window and Session 13 was told the window did not exist. Both are
+right: there is **no clock**, but there **is** a real, measured precondition called quiet —
+enforced by rate rather than by hour, and by a rule that reads the deployment list instead
+of asking every session to cooperate. The *need* was never imaginary; only the mechanism
+was.
+
+⚠️ **The live consequence, and it is a livelock risk, not a wait.** The three deploys landed
+at 15:31:11, 15:53:45 and 16:04:56 ET — one joystick push roughly every 15–20 minutes. The
+clause clears at **16:31:11 ET** only if nothing else lands; **every new master deploy from
+any workstream slides it forward**. The landing script logs each refusal by SHA and retries
+every 90 s, which is the right behaviour: the refusals ARE the operational record.
+
+⛔ **A0.4's owner-side item is therefore narrower than §4 stated.** Only the clock clause
+(and its two lines in `docs/runbooks/deploy-windows.md`) is dead by the owner's ruling. The
+recency and burst clauses are live, correct, and are what actually serialise this repo.
