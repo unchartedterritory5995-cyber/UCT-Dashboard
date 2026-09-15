@@ -1,5 +1,13 @@
 # Breadth History Reader — Session 12 report
 
+> ### ⚠️ ONE PREMISE OF THIS REPORT WAS FALSE
+> Everything here about the **09:25–16:05 ET push window** — including keyboard step 1,
+> *"grant the quiet window"* — rests on a rule that does not exist. Owner ruling SD-1.1 A0:
+> *"we no longer have mid day blocks ever."* The window was never the owner's; it was
+> carried in from another programme's context, and this programme spent two sessions
+> waiting on it. ⭐ **The operational finding about deploy cadence still stands** — settles
+> are real and intrusions are real; only the *window* was imaginary. Kept as history.
+
 A **landing session**: its own new work is small on purpose. The question was whether
 already-gated work could reach master, and the answer is the operational finding again.
 

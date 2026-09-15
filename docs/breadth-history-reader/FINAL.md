@@ -42,7 +42,7 @@ and refusals rather than code.
 | **D-045** the numeric store + materialised reconstructed side | the request path reads pre-built rows instead of assembling 174,187 OHLC rows into 4,529 | ⭐ the derivation became the **builder**, not the fallback — `test_the_request_path_never_derives` is the rail |
 | **D-047** pre-serialised response, cache holds bytes | removes a re-encode per request | *(fill at close)* |
 | **D-049** the H1 page-cache fix, flag **ON** in production | `BREADTH_OHLC_PAGECACHE_ENABLED=1` | p90 **3,052 → 842 ms** (×3.62) · max **11,382 → 1,258 ms** (×9.05) · min `syscr` **1,669 → 182** (×9.17) · `read_bytes` max **187.51 → 0.00 MB** |
-| **M12** the sampler + its report | unattended poolable sampling, p95 suppressed below n=59 | `PENDING` — lands at the window |
+| **M12** the sampler + its report | unattended poolable sampling, p95 suppressed below n=59 | `PENDING` — in the landing queue |
 | **M13** the resident copy, flag **OFF** | strings, not parsed dicts; 1.15× wire vs 5.06× | `PENDING` — the flip is a separate decision (R5/R6) |
 | **S1** `.gitattributes` | 10 derived `-text` paths | no content change by construction |
 

@@ -1,5 +1,12 @@
 # Breadth History Reader — Session 13 report
 
+> ### ⚠️ SUPERSEDED IN ONE RESPECT — read this first
+> This report was written while the programme still believed a **09:25–16:05 ET push
+> window** applied. **It does not and never did** — owner ruling SD-1.1 A0, *"we no longer
+> have mid day blocks ever"*; the clause was carried in from another programme's context.
+> Sentences below describing what this session *did* stand as history. The one line that
+> *governed* future behaviour has been corrected in place. The clock purge is D-054.
+
 First run under **SD-1**. The checklist now exists
 (`docs/breadth-history-reader/PROGRAMME-CHECKLIST.md`) and is the source of truth from
 here on; this report is the delta against it.
@@ -166,9 +173,9 @@ there is nothing else to toggle.
 
 **Paste back:** the branch field before and after, and the time.
 
-⚠️ Preconditions (SD-1 §4.1): outside 09:25–16:05 ET; last deploy SUCCESS and settled
-≥ 600 s; `production` HEAD == master HEAD == deployed SHA; no other workstream deploy in
-15 min; landing script not mid-step.
+⚠️ Preconditions (**SD-1.1 A3.2**, which replaces SD-1 §4.1): last deploy SUCCESS and
+settled ≥ 600 s; `production` HEAD == master HEAD == deployed SHA; no deploy from any
+workstream in 15 min; landing script paused between steps. **No clock condition.**
 
 ### 2. G2 — the probe, or a ruling that it can be skipped
 

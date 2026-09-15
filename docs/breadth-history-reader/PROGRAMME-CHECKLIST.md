@@ -33,13 +33,15 @@ is not `DONE`.
 
 | Track | Where it is |
 |---|---|
-| **R** Reader | R1–R3 `READY` — waiting for the 16:05 ET window. R4–R8 blocked behind them. |
+| **R** Reader | R1–R3 `READY` — in the landing queue, no clock. R4–R8 blocked behind them. |
 | **G** Deploy gate | **G1 `DONE`** — Wait-for-CI is OFF, read from the API (D-053). G2/G3 `OWNER-PENDING`: no usable browser, measured. G3 is now **one change**. |
 | **S** Repo safety | **S1 + S3 `BUILT`** on `repo/git-scope` (10 derived `-text` paths, 16 rails). S2 `BLOCKED` — the trial is vacuous until the tool is on master. |
 | **D** Record | D1–D3 rolling (+D-053, +#40–#42). **D4 `DRAFT`** — 5 of 8 sections filled; merging it ends the programme. |
 
-**The single blocking fact right now:** it is inside push-guard hours (09:25–16:05 ET), so
-nothing may push. The landing script is alive and holds R1/R3.
+**The single blocking fact right now:** none of this programme's own making. ⛔ **There is
+no market-hours window on this repo** — owner ruling SD-1.1 A0, *"we no longer have mid day
+blocks ever"*. The landing script is alive, clockless, and holds R1–R3; its only gates are a
+settled SUCCESS deploy, the lock, the pause sentinel, and the pre-push guard.
 
 ⚰️ **And the thing to carry out of Session 13:** a red gate has already shipped to
 production once, because Railway's Wait-for-CI is off and the gate only serialises. The
@@ -50,8 +52,8 @@ cutover is what makes the gate actually gate, and it is now a single dashboard c
 ## R — READER
 
 ### R1 · M12 (sampler) landed, SUCCESS
-**`READY`** — held by the landing script (PID 15940, started 13:26:31 ET 2026-09-15),
-which pushes `breadth/sampler` → master at 16:05 ET after M14.
+**`READY`** — held by the landing script, which pushes `breadth/sampler` → master after
+M14. **No clock**: it proceeds as soon as the newest deploy is SUCCESS and settled ≥ 600 s.
 - Branch `breadth/sampler`, local tip `41bd58eb7`, **ahead of `origin/breadth/sampler` by 23** (master merged in for re-gating, plus the encoding fix below).
 - Re-gated 2026-09-15: master is ancestor; no file overlap with master's changes; hot-path diff **empty** (5 files, 0 under `api/`); **20 tests green** (17 + 3 added this session).
 - ⚠️ **The branch moved after Session 12 gated it.** `41bd58eb7` fixes a defect that would have shipped: see *Session 13 findings* below. Re-gated after the change.
@@ -284,7 +286,7 @@ write.
 
 | | |
 |---|---|
-| Push-guard hours | **09:25–16:05 ET**; the pre-push guard is the authority |
+| Push windows | ⛔ **NONE — retired by owner ruling SD-1.1 A0.** The gates are a settled SUCCESS deploy (≥ 600 s) and the pre-push guard, which remains the authority. ⚠️ That guard *itself* still carries a 09:25–16:05 refusal; it is another programme's file — see A0.4 in the Session 13 report. |
 | Settle | **≥ 600 s** after any workstream's deploy |
 | Hot path | the **8 files a deep read executes** — `docs/breadth/reader-hotpath.txt` |
 | Pool flags | `rf_pagecache` (`POOL_FLAGS`); `rf_resident` joins it once M13 is live |

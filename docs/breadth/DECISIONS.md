@@ -1374,3 +1374,93 @@ browser-authorised G items owner-pending; authenticating is not something an age
 the service can be asked directly. ⛔ Cloudflare answers a default urllib UA with
 `403 error code: 1010`, which reads exactly like a bad token — a browser User-Agent is
 required, and that is a repo-wide trap, not a detail of this query.
+
+---
+
+### D-054 · There is no market-hours window on this repo — the clause was never the owner's (2026-09-15)
+
+Session 13, SD-1.1 A0. **Owner ruling, verbatim: "we no longer have mid day blocks ever."**
+
+#### 1. ⚰️ What happened
+
+SD-1 carried an "outside 09:25–16:05 ET" push-and-sample condition in **six** places
+(§2, §2 V3, §2 E-neg, §4.1, §6, §1 R2) and in Session 12's prompt. It was **re-inserted
+from stale context by the guiding chat** — it was not this owner's rule and had already
+been retired.
+
+The cost was not an outage. It was **two sessions of waiting for a window that does not
+exist**: the landing script sat idle from 13:26 ET holding M14, M12 and M13, and Session
+13 opened by declaring itself a build-and-record session *because of a constraint that
+was imaginary*.
+
+⭐ **The instructive part is that every instrument was working.** The script logged its
+refusals honestly, the checklist recorded the block accurately, and the report stated it
+plainly at the top. Nothing malfunctioned. **A false premise, faithfully obeyed and
+faithfully recorded, produces a perfect audit trail of the wrong behaviour** — which is
+why it survived three sessions without anyone noticing.
+
+#### 2. What was removed
+
+| Where | What | Done |
+|---|---|---|
+| the landing script | the window wait **and** the 09-16 09:25 deadline | killed 15:52:18 ET, relaunched clockless 15:54:22 ET |
+| `tools/breadth_sampler.py` | the `inside_guard_window` refusal, its constants, and the policy-list entry | deleted |
+| `tests/test_breadth_sampler.py` | the window rail | ⛔ **deleted, not inverted** |
+| `PROGRAMME-CHECKLIST.md` | 4 governing lines incl. the STANDING FACTS row | rewritten |
+| `FINAL.md` (draft) | "lands at the window" | rewritten |
+| session 12 & 13 reports | a banner; the one line that *governed* corrected in place | history kept |
+
+⛔ **The rail was DELETED, NOT INVERTED.** An inverted rail — "the clock must not refuse"
+— pins the *absence* of a rule as though the absence were itself policy, and the next
+reader would reasonably infer a clock had once been correct there. Its replacement sweeps
+all 24 hours and asserts that no hour refuses and no refusal reason mentions a clock, and
+the constants rail now asserts `WINDOW_OPEN`/`WINDOW_CLOSE` **do not exist**, so
+reintroducing a window breaks a rail rather than passing quietly.
+
+#### 3. ⭐ What the sweep had to NOT delete
+
+Grepping `RTH|market hours|window` across the programme's files returns hits in
+`00-discovery.md`, `01-audit.md` and `02-design.md` — and those are the **product's**
+market-session behaviour (live polling in RTH, the `LIVE 2:47 PM ET` reading line), not
+push policy. `gates.md` and the cutover runbook mention the pre-push guard's **settle**
+check, which is a different guard entirely. `FINAL.md`'s "the window is 0×0" is a browser
+viewport.
+
+> **A blind grep-and-delete would have corrupted three design documents and removed a
+> live safety check.** The sweep classified every hit; it did not pattern-match one.
+
+#### 4. ⚠️ A0.4 — the shared guard still carries the clause, and this programme must not edit it
+
+`tools/pre_push_guard.py` enforces the window itself:
+
+| | |
+|---|---|
+| lines **430–431** | `RTH_GUARD_OPEN = (9, 25)` · `RTH_GUARD_CLOSE = (16, 5)` |
+| decision | ~**566–572**: inside the window on a trading day, only Tier-1 paths pass |
+| escape | `UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART` |
+| exemption | `CLEARED_PREFIXES = ("docs/", "tests/", "tools/", "scripts/", "app/")` (line 453) |
+
+⛔ **Not edited here — it is shared, and SD-1.1 A0.4 forbids it.** ⚠️ And it is not a
+stray constant: its own comment says it is **derived verbatim from
+`docs/runbooks/deploy-windows.md` lines 13–14**, so the owner-side change is *two* files,
+and the runbook is the authority that has to move first.
+
+⭐ **Consequence, measured rather than assumed:** because `.gitattributes` matches no
+cleared prefix, `repo/git-scope` is refused inside the window — while M14 (docs) and M12
+(tools/tests/docs) are **Tier-1 cleared and could push at any hour**. So the guard was
+never blocking two of the three reader landings; only the belief was.
+
+#### 5. Appendix #43 — the false instrument was a sentence
+
+A prompt is an instrument. This one reported a constraint that did not exist, and it was
+obeyed exactly. ⛔ **The class: an instrument made of prose has no self-check, cannot be
+mutation-proved, and produces no anomaly when it is wrong** — the readings it yields look
+exactly like readings from a true constraint. Every other false instrument this programme
+has recorded (#15, #24, #28–#39) announced itself eventually through a number that would
+not reconcile. This one could not, because there was no number.
+
+⭐ **The only defence is the one that applied everywhere else and was not applied here:
+ask the configuration.** `tools/pre_push_guard.py` is the authority on push timing and is
+readable in one command. Three sessions cited the window; none read the guard. The same
+session that read `checkSuites` from the Railway API to answer G1 — after three sessions
+of assuming it needed a browser — had the window sitting unexamined in its own prompt.
