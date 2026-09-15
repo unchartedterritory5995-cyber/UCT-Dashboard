@@ -76,10 +76,35 @@ converts an unknown number of pre-existing failures into a merge-queue outage on
 morning.** The repo's own history says so: `gate_shards.py` exists because a gate that
 cannot distinguish an environment failure from a code failure gets muted.
 
-> **CP3's PROMOTION CRITERION, stated so it can be checked:** ≥1 **GREEN** run and ≥1 **RED** run
-> recorded in the ledger. A gate nobody has seen fail is not a gate
-> (`lesson_gate_that_cannot_fail`); a gate nobody has seen pass is worse. Promotion is a
-> separate unit with its own approval line.
+> ⚰️ **CP3's PROMOTION CRITERION — REWRITTEN 2026-09-15 (E CP23). The original is struck
+> through below and kept, because the reason it could not be met is the finding.**
+>
+> ~~≥1 **GREEN** run and ≥1 **RED** run recorded in the ledger.~~
+>
+> ⛔ **A GREEN RUN WAS NEVER GOING TO ARRIVE.** Measured across runs #15–#21, this suite
+> carries ~85 failing pytest entries and 21 vitest ones **on a good day**, and those are not
+> going to zero on any timescale a gate can wait for. A criterion that requires a state the
+> system never reaches is not a criterion — it is a permanent hold wearing one, and this
+> programme has a name for its cousin: `lesson_gate_that_cannot_fail`.
+>
+> ⭐ **The joystick harness already settled the right shape**, and E now uses it: the suite is
+> judged **against a NAMED BASELINE RUN**, never against zero.
+>
+> **PROMOTION CRITERION, restated so it CAN be met:** the baseline-diff job
+> (`gate`, E CP23) has produced **`NO_NEW_FAILURES` on ≥1 run** and **`NEW_FAILURES` on ≥1
+> run** — a deliberate mutation run counts — **both present in the record on `ci-results`**.
+> ⛔ `INVALID` and `DID_NOT_RECONCILE` count as neither: they are the instrument saying it
+> could not measure, and an unmeasured run must never advance a promotion.
+>
+> ⛔ **Promotion itself remains a separate unit with its own approval line** — removing
+> `continue-on-error` from the `gate` job and adding the check to branch protection. Meeting
+> the criterion authorises nothing on its own.
+>
+> ⚠️ **AND A KNOWN OBSTACLE, RECORDED BEFORE ANYONE ARGUES FROM THE CRITERION:** run #21
+> measured **three tests changing state between two runs of identical test code**. At that
+> flake rate a strict any-NEW gate fires on noise most runs, and **a gate that cries wolf is
+> muted inside a week**. A flake policy (F-CI-30) is owed before promotion, whatever the two
+> verdicts say.
 
 ### ⚰️ CP2 MEANT TWO DIFFERENT THINGS, AND THE SIGNING MANIFEST IS WHERE THAT BITES
 
