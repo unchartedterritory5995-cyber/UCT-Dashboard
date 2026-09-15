@@ -78,7 +78,8 @@ def begin(**fields) -> dict | None:
     try:
         rec = _ctx.get()
         if rec is None:
-            rec = {"t0": time.perf_counter(), "rss_before_mb": rss_mb()}
+            rec = {"t0": time.perf_counter(), "rss_before_mb": rss_mb(),
+                   "io_before": io_counters()}
             _ctx.set(rec)
         rec.update(fields)
         return rec
@@ -117,25 +118,43 @@ def finish(total_ms: float, wire_bytes: int) -> dict:
         rec["post_reader_ms"] = round(total_ms - reader_ms, 1)
         rec["wire_bytes"] = wire_bytes
         rec["rss_after_mb"] = rss_mb()
+        rec["io_after"] = io_counters()
         if enabled():
             # ⛔ The three original fields keep their names, positions and meaning so
             # Session 5's samples stay comparable; the phases are appended.
             rsum, rres, rpct = phase_residual(rec, READER_PHASES, reader_ms)
             psum, pres, ppct = phase_residual(rec, POST_PHASES, rec["post_reader_ms"])
             log.info(
-                "[breadth-timing] span=%s rows=%s cache=%s coalesced=%s "
+                "[breadth-timing] span=%s rows=%s cache=%s tier=%s coalesced=%s "
                 "reader_ms=%.1f post_reader_ms=%.1f total_ms=%.1f wire_bytes=%s "
                 "rss_before_mb=%s rss_after_mb=%s | READER %s (sum=%s residual=%s) "
-                "| POST %s (sum=%s residual=%s)",
-                rec.get("span"), rec.get("rows"), rec.get("cache"), rec.get("coalesced"),
+                "| POST %s (sum=%s residual=%s) | FETCH %s rows=%s bytes=%s busy=%s io=%s",
+                rec.get("span"), rec.get("rows"), rec.get("cache"),
+                rec.get("cache_tier") or "unset", rec.get("coalesced"),
                 reader_ms, rec["post_reader_ms"], total_ms, wire_bytes,
                 _fmt(rec.get("rss_before_mb")), _fmt(rec.get("rss_after_mb")),
                 _phase_str(rec, READER_PHASES), rsum, rres,
                 _phase_str(rec, POST_PHASES), psum, pres,
+                _phase_str(rec, FETCH_PHASES),
+                rec.get("rf_rows", "absent"), rec.get("rf_bytes", "absent"),
+                rec.get("rf_busy_retries", "absent"), _io_str(rec),
             )
     except Exception:
         pass
     return rec
+
+
+def _io_str(rec) -> str:
+    """`read_bytes/rchar` delta, or `unreadable` — never a zero pair.
+
+    ⛔ /proc/self/io is Linux-only. On the dev box it does not exist, and
+    reporting (0, 0) there would say "this request read nothing from disk",
+    which is a claim, not a measurement.
+    """
+    a, b = rec.get("io_before"), rec.get("io_after")
+    if not a or not b:
+        return "unreadable"
+    return "rb+%d/rchar+%d" % (b[0] - a[0], b[1] - a[1])
 
 
 def _fmt(v):
@@ -151,10 +170,18 @@ def server_timing(rec: dict) -> str:
                  f"total;dur={float(rec.get('total_ms') or 0.0):.1f}"]
         # ⚠️ Absent phases are OMITTED from the header rather than sent as 0 — a
         # Server-Timing entry of `dur=0` is indistinguishable from a free stage.
-        for n in READER_PHASES + POST_PHASES:
+        for n in READER_PHASES + POST_PHASES + FETCH_PHASES:
             v = ((rec or {}).get("phases") or {}).get(n)
             if v is not None:
                 parts.append(f"{n};dur={_phase_dur(v)}")
+        for k in ("rf_rows", "rf_bytes", "rf_busy_retries"):
+            v = (rec or {}).get(k)
+            if v is not None:
+                parts.append(f"{k};dur={float(v):.1f}")
+        a, b = (rec or {}).get("io_before"), (rec or {}).get("io_after")
+        if a and b:
+            parts.append(f"io_read_bytes;dur={float(b[0] - a[0]):.1f}")
+            parts.append(f"io_rchar;dur={float(b[1] - a[1]):.1f}")
         return ", ".join(parts)
     except Exception:
         return ""
@@ -188,6 +215,48 @@ READER_PHASES = ("merged_dates", "collector_floor", "anchor", "numeric_fetch",
 #: serialise on a hit, and that is the saving.
 POST_PHASES = ("route_tail", "serialise", "encode_render")
 
+#: Which tier actually answered the request. ⛔ ADDITIVE — `cache` keeps its
+#: hit/miss values so every Session 5/6/7 log line parses unchanged; this says
+#: WHICH cache, which `cache` alone could not.
+#:
+#: ⚰️ Why it exists: `get_history` noted nothing at all, and `_history_deep_uncached`
+#: delegates to it for any window inside the collector range. So a `days=90` request
+#: served entirely from `get_history`'s own cache was reported `cache=miss` — for
+#: every request, indefinitely. The label was not merely imprecise; it was wrong in
+#: the direction that makes a warm path look like work.
+CACHE_TIERS = ("body", "deep", "plain", "miss")
+
+#: Session 8 — `reconstructed_fetch` split, because "volume I/O" is a hypothesis
+#: with four sub-causes and the phase-level number cannot tell them apart.
+FETCH_PHASES = ("rf_open", "rf_pragma", "rf_execute", "rf_fetch", "rf_materialise")
+
+
+def io_counters() -> tuple[int, int] | None:
+    """`(read_bytes, rchar)` from /proc/self/io, or None where it cannot be read.
+
+    ⭐ THIS IS THE DISCRIMINATOR THE WHOLE DIAGNOSIS TURNS ON. `read_bytes` counts
+    bytes that actually came from the block device; `rchar` counts bytes handed to
+    the process including those served from the OS page cache. So:
+      read_bytes climbs  -> the page cache missed and this was real disk (H1)
+      read_bytes ~0, rchar climbs -> served from page cache; the time went elsewhere
+      both ~0           -> the time was not reading at all (lock wait, or CPU)
+
+    ⛔ None, never (0, 0). The file is Linux-only — it does not exist on the dev box
+    — and a zero pair would read as "this request did no I/O", which is exactly the
+    false-instrument shape this programme keeps catching.
+    """
+    try:
+        rb = rc = None
+        with open("/proc/self/io", "r", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("read_bytes:"):
+                    rb = int(line.split()[1])
+                elif line.startswith("rchar:"):
+                    rc = int(line.split()[1])
+        return (rb, rc) if rb is not None and rc is not None else None
+    except Exception:
+        return None
+
 #: Everything after the response line exists. Reported on its OWN line, with its
 #: own wall total, because the first line is gone by the time this is knowable.
 #: ⚠️ It is the TRANSPORT of already-compressed bytes, not the compression:
@@ -220,6 +289,24 @@ def phase(name: str):
                 ph[name] = ph.get(name, 0.0) + (time.perf_counter() - t0) * 1000.0
         except Exception:
             pass
+
+
+def add_phase(name: str, ms: float) -> None:
+    """Accumulate `ms` under `name` — for spans measured by the caller rather than
+    wrapped by `phase()`.
+
+    ⛔ SAME IN-PLACE MUTATION AS `phase()`, and for the same reason: the route runs
+    in the anyio threadpool, anyio copies the context, and a rebind there never
+    reaches the middleware. It accumulates because the caller loops — the fetch runs
+    twelve chunked statements per deep read and each one must add, not overwrite.
+    """
+    try:
+        rec = _ctx.get()
+        if rec is not None:
+            ph = rec.setdefault("phases", {})
+            ph[name] = ph.get(name, 0.0) + ms
+    except Exception:
+        pass
 
 
 def mark(name: str) -> None:

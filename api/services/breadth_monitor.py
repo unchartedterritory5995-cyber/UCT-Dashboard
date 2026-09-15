@@ -447,6 +447,13 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
     ck = f"breadth_history_{days}" if not end else f"breadth_history_{days}_{end}_{anchor}"
     hit = cache.get(ck)
     if hit is not None:
+        # ⛔ THIS LABEL WAS MISSING AND THE INSTRUMENT LIED BECAUSE OF IT. A window
+        # inside the collector range is delegated here by `_history_deep_uncached`,
+        # which has already noted `cache="miss"`. This function noted nothing, so a
+        # `days=90` request served entirely from THIS cache was reported as a miss —
+        # for every request, indefinitely. `note()` merges, so a later note wins.
+        from api.services import breadth_timing as _bt
+        _bt.note(cache="hit", cache_tier="plain")
         return hit
     # ⛔ SINGLE-FLIGHT ON THE CACHE KEY. Concurrent readers of the SAME window
     # collapse onto one computation instead of each paying it — see
@@ -779,9 +786,9 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
     ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}"
     hit = cache.get(ck)
     if hit is not None:
-        breadth_timing.note(cache="hit")
+        breadth_timing.note(cache="hit", cache_tier="deep")
         return hit
-    breadth_timing.note(cache="miss")
+    breadth_timing.note(cache="miss", cache_tier="miss")
     # ⛔ SINGLE-FLIGHT ON THE CACHE KEY — this is the read D-042 measured at ~55 s
     # cold, so a duplicate of it is the most expensive duplicate in the app.
     return single_flight.run(ck, lambda: _history_deep_uncached(days, end, anchor, ck),
