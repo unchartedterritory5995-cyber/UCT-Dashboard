@@ -1,0 +1,132 @@
+# ─── THE FULL SUITES, REPORTED — NOT ENFORCED ───────────────────────────────
+#
+# ⚰️ WHY THIS EXISTS. Measured 2026-09-15: this repository holds **1,353 vitest files
+# and 1,429 pytest files**, and CI runs **22 and 6** of them respectively. Every other
+# test — 2,754 files, 99.0% — has only ever run on one laptop, at the moment someone
+# chose to type the command. `chordCollision.test.js`, the rail that found F-S2-1,
+# appears in ZERO workflows.
+#
+# ⛔⛔ THIS JOB IS REPORT-ONLY AND MUST STAY THAT WAY UNTIL ITS PROMOTION CRITERION IS
+# MET. `continue-on-error: true` at the job level, and it is deliberately NOT added to
+# any branch protection rule. A brand-new job that can block a merge, on a suite nobody
+# has ever seen run in CI, converts an unknown number of pre-existing failures into an
+# outage of the merge queue on its first morning.
+#
+#   PROMOTION CRITERION (state it in the ledger, then promote in a separate unit):
+#   ≥1 GREEN run and ≥1 RED run recorded in the ledger, so the job has been observed
+#   both passing and failing. A gate nobody has seen fail is not a gate
+#   (`lesson_gate_that_cannot_fail`); a gate nobody has seen pass is worse.
+#
+# ⛔ IT DOES NOT TOUCH THE LAYER-0 PRE-PUSH GUARD. That guard serialises master pushes
+# and is unrelated; nothing here runs on master.
+#
+# ─── KNOWN RED, AT LANDING ──────────────────────────────────────────────────
+#
+# The first runs WILL be red. Diff against this list before calling anything new:
+#
+#   | test file                                        | finding | why |
+#   |--------------------------------------------------|---------|-----|
+#   | app/src/pages/ThemeTrackerPage.chartmount.test.jsx| PACKET-T| STALE - asserts an
+#   |                                                  |         | auto-open removed by
+#   |                                                  |         | 453ecc3ec. Green once
+#   |                                                  |         | Packet T lands.
+#   | app/src/components/screener/reachable.test.js     | R-29    | BY DESIGN - names
+#   |                                                  | F-S1-2  | focusDivergence.js
+#   |                                                  |         | (S4 CP1) and
+#   |                                                  |         | surfaces/manifest.js
+#   |                                                  |         | (S1 CP1), both
+#   |                                                  |         | deliberately unmounted.
+#
+# ⚠️ THE LIST ABOVE IS NOT A FULL INVENTORY, AND SAYING SO IS THE POINT. It was
+# derived from SCOPED local runs, because this box cannot run either suite whole:
+# `pytest tests/` has reached 18 GB and been OOM-killed here (`--collect-only` alone
+# reached 6.6 GB), and a concurrent full run once swept a worktree's `node_modules` and
+# its `.git` file. **The first CI run is therefore the first complete measurement this
+# repository has ever had**, and its output is the inventory. Copy it into this header,
+# with a finding id per row, before anyone argues about promotion.
+
+name: full suite (report-only)
+
+on:
+  push:
+    branches: [feat/s7-price-level]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# ⛔ Never cancel a previous run: the whole value of this job is a complete record of
+# which tests were red on which commit, and a cancelled run leaves a hole that reads
+# exactly like a green one.
+concurrency:
+  group: full-suite-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  vitest:
+    name: vitest — all files (report-only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install
+        working-directory: app
+        run: npm ci
+      # ⛔ `npx vitest run -t <pattern>` is a REGEX and a filter matching nothing exits
+      # 0 — a false PASS. No filter is used here for exactly that reason.
+      - name: Run
+        working-directory: app
+        run: npx vitest run --reporter=default 2>&1 | tee ../vitest.log
+      # ⛔ A RUN WITHOUT A TOTALS LINE IS NOT A RUN. The pipe above means this step's
+      # exit code is tee's, so the totals line is asserted explicitly rather than
+      # inferred from a status.
+      - name: Assert the run produced a totals line
+        if: always()
+        run: |
+          grep -E "Test Files|Tests " vitest.log || {
+            echo "::error::vitest produced no totals line — this is NOT a green run"
+            exit 1
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-log
+          path: vitest.log
+
+  pytest:
+    name: pytest — all files (report-only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install --quiet pytest pytest-asyncio httpx numpy pillow
+      # ⚠️ A RUNNER IS NOT THIS BOX. An unscoped `pytest tests/` is forbidden locally
+      # because collection alone has reached 6.6 GB here; a clean CI runner is the only
+      # place it can be attempted, and `-p no:cacheprovider` keeps it reproducible.
+      - name: Run
+        run: python -m pytest tests/ -q -p no:cacheprovider 2>&1 | tee pytest.log
+      - name: Assert the run produced a totals line
+        if: always()
+        run: |
+          grep -E "passed|failed|error" pytest.log || {
+            echo "::error::pytest produced no totals line — this is NOT a green run"
+            exit 1
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-log
+          path: pytest.log
