@@ -1,6 +1,6 @@
 # SIGNING SESSION — the runbook
 
-**37 units are waiting on a signature.** Two commands do the whole thing. Both are now
+**38 units are waiting on a signature.** Two commands do the whole thing. Both are now
 **resumable**, which they were not this morning (K CP5) — so an interruption costs a
 re-run, not a manifest edit.
 
@@ -44,8 +44,8 @@ decision.
 
 | | |
 |---|---|
-| units signed | **37** |
-| units that push to master | **31** (6 are docs-worktree only and never push) |
+| units signed | **38** |
+| units that push to master | **31** (7 are docs-worktree only and never push) |
 | per pushing unit | build **~140–190 s** + settle **150 s** ≈ **5–5.6 min** |
 | **total, empty queue** | **2 h 30 m – 3 h 00 m** |
 | the Layer-0 guard refusing at least once | **expect it** — 8+ web deployments landed from other sessions in one 2.5 h window on 2026-09-15 |
@@ -58,14 +58,26 @@ gated by it. And it does not care what is in your diff: a docs-only commit still
 the web service (measured — `a4e845fe7`, a docs commit, reached SUCCESS ~186 s after
 `createdAt`), so "no runtime change" buys no exemption and should not be given one.
 
+⛔ **DO NOT `git checkout` A PACKET MID-SESSION.** `core.autocrlf=true` on this box and
+`.gitattributes` says nothing about `docs/**/*.md`, so a checked-out packet comes back
+**CRLF** — and `sign_gate`'s blank-field pattern is `APPROVED AT SHA:[ \t]*$`, which
+cannot consume the `\r`. Measured: the CRLF copy of a packet that verifies fine as LF
+raises *"no UNSIGNED `APPROVED AT SHA:` line"*. It fails CLOSED, which is the right
+direction, and it would still stop you. **All 38 packets in the manifest are LF on disk
+today** (19 other gate packets in the same directory are already CRLF, which is how this
+was noticed). Proposed, not done: `docs/terminal-research/12-decisions/gates/*.md text
+eol=lf` — the same idiom, for the same reason, as the fixture rules already in that file.
+It is left for you because it rewrites the working-tree bytes of 19 already-signed
+packets on the next checkout.
+
 ## ⚠️ Two things to decide before you sign
 
-1. **`SCOPE APPROVED:` will be BLANK on all 37 blocks.** `sign_gate.sign()` accepts a
+1. **`SCOPE APPROVED:` will be BLANK on all 38 blocks.** `sign_gate.sign()` accepts a
    `scope` argument and never writes it — measured by AST, with `by`/`on` as the positive
    control. The scope text lands in an untracked `.scopes/*.txt` beside the repo and
    influences nothing. Three signed blocks in the tree already look like this.
    **Not fixed here on purpose:** writing the scope changes the packet's bytes, and the
-   bytes are what the 37 manifest fingerprints pin — so the fix re-fingerprints the whole
+   bytes are what the 38 manifest fingerprints pin — so the fix re-fingerprints the whole
    manifest in one commit. That is your call, not a tool's.
 2. **If the ~3 hours is too long, the only lever bends a rule.** Batching N consecutive
    units into one push turns 31 builds into 31/N; at N=4 the session is ~45 minutes. It
@@ -136,6 +148,6 @@ exit=1          ...raised in PASS 1, at row 1, before any row was classified.
 sign_gate --self-check   PASS   exit 0
 sign_gate --read-check   PASS   exit 0
 merge_all --self-check   PASS   exit 0
-sign_all  --dry-run      37 rows, 37 ok, 0 refusing, exit 0
-merge_all --dry-run      37 units, 29 constraints, 0 already merged, exit 0
+sign_all  --dry-run      38 rows, 38 ok, 0 refusing, exit 0
+merge_all --dry-run      38 units, 30 constraints, 0 already merged, exit 0
 ```
