@@ -206,7 +206,14 @@ def _enqueue(job: Job, defer: dict, received: float) -> dict:
     if status == "user_busy":
         return _ephemeral(f"You already have {rt.per_user_max} requests rendering — they'll land in a moment. · id {job.corr_id}")
     rt.record_refused(job, "queue_full")
-    return _ephemeral(contract.failure_content(job.label, "queue_full", job.corr_id), contract.failure_components(job.corr_id))
+    reply = _ephemeral(contract.failure_content(job.label, "queue_full", job.corr_id),
+                       contract.failure_components(job.corr_id))
+    # ⛔ D-04 4.2 — RECORDED AFTER THE REPLY IS BUILT, so the number covers everything the member
+    # waited for on our side. It cannot include the hop to Discord, which is true of `ack_ms` too;
+    # what it buys is that PRODUCTION can finally observe S5c, which until now only a harness
+    # reading the wire could. ⛔ Never into `ack_ms` — see `record_refusal_reach`.
+    rt.record_refusal_reach(job.corr_id, (time.perf_counter() - received) * 1000.0)
+    return reply
 
 
 def _rate_limited(uid: str, n: int = 1, noun: str = "charts") -> dict | None:

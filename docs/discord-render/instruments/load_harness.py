@@ -721,6 +721,11 @@ def refusal_latency(rt, refusals: list, *, ack_ceiling_ms: float = HARD_CEILING_
     over = [x for x in ms if x > ack_ceiling_ms]
     return {
         "state": "MEASURED",
+        # ⛔ D-04 4.2 — THE SOURCE IS NAMED, because there are now two and they answer for different
+        # populations. The WIRE sees every refusal, including the ones that never become a job row
+        # (`user_busy`, the per-member rate limit); the STORE (`refusal_reach_ms`) sees only
+        # `queue_full`, but it is the one production can read with no harness attached.
+        "source": "wire",
         "refusals": len(refusals),
         "with_job_row": len(with_row), "without_job_row": without_row,
         "classes": classes,
