@@ -191,7 +191,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        dir: ${{ fromJSON(needs.plan.outputs.profile_dirs) }}
+        include: ${{ fromJSON(needs.plan.outputs.profile_dirs) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -222,7 +222,7 @@ jobs:
           # ⛔ The job did its work and then threw it away at the last step, which
           # reads downstream as "that directory has no profile" — an absence the
           # aggregator correctly reports as unmeasured rather than zero.
-          name: collect-profile-${{ replace(matrix.dir, '/', '--') }}
+          name: collect-profile-${{ matrix.id }}
           path: row.json
 
   publish:
