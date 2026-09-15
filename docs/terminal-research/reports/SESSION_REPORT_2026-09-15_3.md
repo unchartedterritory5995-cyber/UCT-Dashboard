@@ -1,0 +1,290 @@
+# Session report — 2026-09-15, session 3
+
+**RELIABLE PUBLISHING · A BROKEN WORKFLOW, MINE · A RETRACTION**
+
+---
+
+## 1 · ET and trees
+
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 08:49 EDT Tue**, both
+`python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
+and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
+local vitest was run.
+
+**4 commits** — two docs, two code (`0b92750fa`, `9ef64fd69`), plus the three held commits
+from session 2 (`dbc494828`, `f2251d398`, `0b92750fa`) **now pushed**. Nothing signed,
+nothing merged, nothing pushed to master.
+
+## 2 · Prelude
+
+**P.1 — F-MERGE-1 CLOSED**, confirmed on the file: `GOVERNING_PRINCIPLES.md` §15 carries the
+rule; Packet A is **manifest row 1**, `A-CP1`, fingerprint `f6180b3da`, reader state
+**UNSIGNED** (*"1 block awaiting a fingerprint (0 of 1 signed)"*).
+
+**P.2 — six BUILDABLE, D5 CP2 is the root.** `D5 CP3 ←CP2` · `D5 CP4 ←CP2` ·
+`D5 CP5 ←CP2,CP3` · `D5 CP6 ←CP5` · `D5 CP7 ←CP4` · `S6 CP3/CP4 ←S6 CP2` (UNBUILDABLE).
+**Three units name D5 CP2 directly** (CP3, CP4, CP5); CP6 and CP7 reach it transitively.
+
+**P.3 — D5 CP2** at `d5-reference-corp-actions-pre-implementation-gate.md:189`. The reword
+was **already applied last session**, so this session's task was verification, not
+application — told-vs-found on the instruction.
+
+**P.4 — collision proof across all three sources.** Table: CP1, CP2, CP3. Build records:
+CP2, CP4, CP5, CP6, CP7, CP8. Manifest rows: CP2, CP4–CP8. **CP9 free** (and CP10 later).
+
+**P.5 — ⚠️ THE FILE SETS ARE NOT DISJOINT.** E CP7, CP8, CP9 **and CP10 all edit
+`.github/workflows/full-suite-report.yml`.** That is structural — four consecutive fixes to
+one file — and the `merges-after` chain encodes the ordering. **Stated, not claimed
+disjoint.**
+
+## 3 · E9 — reliable publishing (E CP9, `0b92750fa`, row 21)
+
+Five changes: **(a)** job-level `concurrency: {group: ci-results-publish,
+cancel-in-progress: false}` — publishers queue; cancelling one would destroy the record it
+was about to write, which is F-CI-7 itself. **(b)** every artifact reports **EXISTS + SIZE**
+before it is read, each shard's `summary.json` included; missing → **UNREADABLE with the
+path NAMED**. **(c)** `fetch → rebase → push`, 3 attempts, 5 s backoff, **exit 1** on final
+failure; a rebase *conflict* is refused, not forced. **(d)** the phone-readable summary
+reaches `$GITHUB_STEP_SUMMARY` **before** the push is attempted. **(e)** **`latest.json` is
+deleted** — the only path two publishers both wrote — and *latest* is derived at read time.
+
+### ⭐ Told-vs-found on the reader grep, and it mattered
+
+`grep -rn latest.json` returns **20+ hits**. **Every one outside the workflow is a different
+artifact** — the R2 `barspack/` and `intradaypack/` manifests, a separate system.
+**The only `ci-results` readers were the workflow's own 2 hits** (control: findable before
+the edit). ⛔ Following *"update each reader"* literally would have edited a live
+bars-pipeline path.
+
+### Controls — 26, both tools exit 0
+
+`ci_latest` (11): ZERO-RECORDS for a missing directory *and* an empty one; **latest is the
+max run id NUMERICALLY** — ⭐ a string sort puts `"9"` after `"34949032368"`; a malformed
+record is **NAMED while the others still read**; **only-malformed is MALFORMED, not
+ZERO-RECORDS**. `ci_publish` (15): two rejections then success → 3 attempts, backoff
+`[5, 5]`; permanent rejection → **exit 1 with the step summary still written**; missing
+artifact → UNREADABLE with the path named; a rebase conflict → exit 1.
+
+⛔ **ZERO RECORDS IS NOT ZERO FAILURES**, and the reader says so in those words.
+
+## 3b · ⛔⛔ E CP10 — MY CP7 FIX KILLED THE ENTIRE WORKFLOW
+
+**Run #7: 0 jobs, `created_at == updated_at`, conclusion `failure`.** The workflow was
+rejected before a single job started.
+
+**Cause: `${{ replace(matrix.dir, '/', '--') }}`. GitHub Actions has no `replace()`
+function.** The set is `contains`, `startsWith`, `endsWith`, `format`, `join`, `toJSON`,
+`fromJSON`, `hashFiles`, plus the status functions.
+
+⛔ **The defect CP7 fixed failed four jobs. CP7 itself failed all twenty. I made it worse.**
+
+⛔⛔ **And `yaml.safe_load` PASSED, because it is valid YAML.** The error lives in the
+*expression* layer, which a YAML parser cannot see. **`actionlint` would have caught it, I
+recorded it UNREADABLE-TOOL — not installed — and pushed anyway.**
+
+⭐ **The lesson is not "install actionlint".** It is that **declaring a validator
+unavailable is a reason to be more careful, not a licence to proceed unchecked** —
+especially when the unavailable validator is the only one that could see the class of change
+being made. I had written the words "UNREADABLE-TOOL" and treated them as a box ticked.
+
+**Two fixes, `9ef64fd69`:**
+1. **No expression function is needed at all.** `collect_profile_dirs.py` emits
+   `[{dir, id}]` and the matrix uses the **include form**, so the workflow reads
+   `${{ matrix.id }}` — a value sanitised in Python, where `replace()` exists.
+2. **`tools/check_workflow_expressions.py`** refuses any `${{ }}` calling a function outside
+   the documented set. **Mutation-proved against the real artifacts:** exit **1** on the
+   committed broken workflow, naming `replace()` and quoting the line; exit **0** on the
+   fixed one; **16 expressions inspected** both times (non-vacuity — *"0 problems" over 0
+   expressions is not a pass*).
+
+### Validators, pasted
+
+```
+yaml.safe_load  -> OK   jobs: ['plan','vitest','pytest','collect_profile','publish']
+                        publish concurrency: {'group': 'ci-results-publish',
+                                              'cancel-in-progress': False}
+                        collect_profile matrix keys: ['include']
+                        top perms: {'contents': 'read'} | publish perms: {'contents': 'write'}
+check_workflow_expressions -> exit 0 (16 expressions, every call in the documented set)
+actionlint      -> UNREADABLE-TOOL (not installed on this box)
+```
+
+## 3c · Run #8 — the prediction, scored so far
+
+Run #8 (`9ef64fd69`) started cleanly — **19 jobs**, which is itself the proof that the
+parse failure is fixed.
+
+| predicted | outcome at report time |
+|---|---|
+| collect-profile 5 of 5 succeed | ⭐ **4 of 4 slashed dirs SUCCEED** (run #6: 0 of 4); the fifth still running |
+| `shards_total` 12 | ✅ 12 shard jobs present |
+| `publish` succeeds | ⏳ not yet reached |
+| `shards_without_totals == []` | ⏳ — **condition (b)'s evidence** |
+| F-CI-8 serialization | **UNTESTED-LIVE** — one push, one run |
+
+**Condition (b) — pytest has produced a totals line in the record — remains UNMET at report
+time.** ⛔ Nine jobs succeeding is not the same artifact as a totals line in a published
+record, and this session does not conflate them.
+
+## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
+
+### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
+
+Last session's audit reworded D5 CP2 with the reason: *"the count was never enumerated
+anywhere for `corp_actions` — D2's five are the `ohlcv` BARS metrics."*
+
+**That is false.** `reference-corp-actions-spec.md` **§4.1 enumerates exactly five metric
+addresses** for this store, counted by derivation rather than by eye:
+
+```
+corp_actions.numerator · corp_actions.denominator · corp_actions.cash_amount
+corp_actions.effective_date · corp_actions.state
+```
+
+**The original assertion's "five" was CORRECT.**
+
+⛔ **My audit searched the PACKET and not the SPEC, then reported an absence it had never
+looked for.** That is precisely the rule this programme keeps: *an absence is only evidence
+if the instrument could have seen a presence.* The instrument's scope was one document; the
+fact lived one document away. **"I found no enumeration" and "there is no enumeration" are
+different claims, and I published the second.**
+
+⭐ **The reword still stands, on the standing rule alone** — an assertion carries no derived
+number, and a count typed beside a clause saying *the builder derives by AST* is the
+enumeration-beside-its-source defect **even when the number is right**. What changed is the
+reason recorded next to it.
+
+### Q.1 — noun table, re-resolved
+
+| noun | kind | resolved at | verdict |
+|---|---|---|---|
+| the D2 builder | PRESUMED | `tools/build_canonical_address_book.py` (546 lines) | **OK** |
+| a store declaring itself in ONE `CREATE TABLE` | PRESUMED — **precedent** | `bars_store()` + `_parse_create_table()`; `_BARS_STORE_MODULE = api/services/bars_sqlite.py` | **OK** |
+| AST over the literal, prose excluded | PRESUMED | `_DropDocstrings` — ⭐ it once found **three** `CREATE TABLE` literals, one a docstring. CODE NEVER PROSE, already implemented | **OK** |
+| the derivation rail | PRESUMED | `tests/test_canonical_address_book.py` | **OK** |
+| the axis report | PRESUMED | `canonical_address_book.json["axis_report"]` | **OK** |
+| `corp_actions.db` + its DDL | DELIVERED | pinned verbatim, spec §2.1 | **OK** |
+| its metrics | DELIVERED | spec §4.1 enumerates five | **OK** |
+| *"CP2+ need new lines"* | PRESUMED | `build_canonical_address_book.py:7` — extending the builder **is** the intended shape | **OK** |
+
+**Every noun resolves. D5 CP2 is BUILDABLE.**
+
+### Q.2 — ⛔ NOT BUILT, and the reason is a measured obstacle, not the clock
+
+`yields` is derived by `_SQL_TYPE_TO_YIELDS[sqltype]` with a hard **`_fail()`** on a type the
+vocabulary does not carry (`build_canonical_address_book.py:353`). The spec says so itself:
+
+> *"`yields: "date"` and `yields: "str"` **do not exist in the book today** — measured,
+> `yields {num: 120, bool: 22}`. Adding a third and fourth value is a **genuine widening of
+> D2's** …"*
+
+⛔ **Building D5 CP2 therefore widens D2's value vocabulary**, which the spec flags in its own
+words as genuine. That is a change to a **signed** packet's derived artifact reached through
+an **unsigned** one, and it is the kind of thing this programme stops for rather than slips
+in at the end of a long session. **OPEN QUESTION 1.**
+
+⚠️ **Said plainly: I ran out of session, not out of premise.** The unit is ready; the next
+session can start it cold from this noun table.
+
+### Q.3 / Q.4 — STARTABLE unchanged
+
+**D5 CP2 not built ⇒ STARTABLE is still 0 of 6.** The blocking edge is unchanged:
+`D5 CP3 → D5 CP2`. **F-Q-1 stands, with its root corrected**: D5 CP2 is BUILDABLE (not
+NEEDS-REWORD as recorded — the reword is applied), and it is the single edge whose removal
+unblocks three units directly and five transitively.
+
+## 5 · Shell-escaping incidents
+
+**One, and it was caught before the commit.** The E CP8 guard's escaped newlines collapsed
+into literal `\n` and broke the YAML; `yaml.safe_load` refused it and **nothing was
+committed**. Rewritten as a heredoc block and re-validated from the parse tree.
+
+⚠️ That is **five** such incidents across three sessions. The rule now reads: multi-line
+edits go through a **patch file**, never an inline escaped string. Every edit this session
+after that point used one.
+
+## 6 · Instrument self-reference, and prediction scores
+
+| instrument | reported on itself |
+|---|---|
+| `yaml.safe_load` | ⭐ caught **my own** broken YAML before the commit — and ⛔ **could not** catch the `replace()` expression error, which is the gap `check_workflow_expressions` now fills |
+| `check_workflow_expressions` | **built because of a defect I shipped**, and mutation-proved against the very file that shipped it |
+| `ci_latest` | refuses to call ZERO-RECORDS a pass, and distinguishes it from MALFORMED |
+| `ci_publish` | exists so the publisher can no longer fail silently |
+| the audit (last session) | ⚰️ **reported an absence it had not looked for** — §4's retraction |
+
+**Prediction scores:** E CP9's run-#8 table is **partly scored** (§3c) — the profile fix is
+**4 of 4**; publish and the totals line are pending. **E CP7's prediction was voided by E
+CP7 itself**, which never ran a job.
+
+## 7 · Findings
+
+| id | one line |
+|---|---|
+| **F-CI-7** | **ADDRESSED** by E CP9 — the publisher retries, then fails non-zero, and writes the summary before attempting the push. Unproven until a run publishes. |
+| **F-CI-8** | **ADDRESSED** by a concurrency group (primary) + bounded retry (secondary). ⚠️ **UNTESTED-LIVE.** |
+| **F-CI-11** | **NEW, mine.** `replace()` is not an Actions expression function; E CP7 rejected the whole workflow. `yaml.safe_load` cannot see the expression layer and `actionlint` was UNREADABLE-TOOL. Guard added. |
+| **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
+| **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
+
+## 8 · OPEN QUESTIONS
+
+1. **Building D5 CP2 widens D2's `yields` vocabulary** from `{num, bool}` to include `date`
+   and `str`, which the spec calls *"a genuine widening"*. Approve the widening, or split it
+   into its own D2 checkpoint first?
+2. **E's table still does not list CP4–CP10.** Six checkpoints exist as build records and
+   manifest rows but not in the packet's own table; the collision check now needs three
+   sources. Reconcile the table, or accept build records as the register?
+3. **`actionlint` is not installed.** Add it to the repo's tooling, or keep the local
+   expression guard as the floor?
+4. **T2 CP1 still has no parent packet** (carried forward).
+5. **`entity-master-pre-implementation-gate.md` still has no approval block** (carried).
+
+## 9 · [KEYBOARD]
+
+```
+python tools/sign_all.py  --manifest tools/sign_manifest.txt
+python tools/merge_all.py --manifest tools/sign_manifest.txt
+```
+
+**PARKED.** **(a) F-MERGE-1 CLOSED — MET** (confirmed on the file, §2 P.1).
+**(b) pytest has produced a totals line in the record — UNMET** (§3c).
+
+The 21-row table with fingerprints and reader states is in the manifest; every row reads
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–20 nothing member-visible.**
+Row 21 (`s2-accelerator-chord`) is the chord change — Ctrl/Cmd/Alt+Shift+F stops silently
+flagging tickers on three screens. **This session merged and deployed nothing.**
+
+**[PHONE-OK]** — if `publish` failed again on run #8: open the repo's **Actions** tab → the
+latest run → the **`publish the result into the repo (ci-results)`** job. E CP9 writes the
+verdict, both suites' counts and the shard fields into the **job summary**, which appears at
+the top of that job's page **even when the push failed**. Tell me the verdict line and the
+`shards_without_totals` value.
+
+## 10 · Merge readiness
+
+**21 rows, 21 OK, 0 STALE. 20 of 20 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **12 constraints SATISFIED**, 21 units, 0 MALFORMED,
+0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
+`ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
+`ci_publish`, `check_workflow_expressions`.
+
+⛔ **Not ready.** CI has never been green and no record has published since run #4.
+
+## 11 · Three phone-readable sentences
+
+**The system that writes CI results into the repository could previously fail without
+leaving any trace at all; it now retries, and if it still cannot write it fails loudly and
+puts the result on the run's own summary page where a phone can read it.**
+
+**I broke the build pipeline completely with a one-word fix — I used a text-replacing
+function that does not exist — and the checker I had available could not see that class of
+mistake, so I wrote the missing checker and proved it against the broken file.**
+
+**And I have to take back something from yesterday: I said a count in one of the plans was
+never written down anywhere, when in fact it is written down in the specification one
+document over; the original number was right and I had only searched the wrong file.**
+
+## 12 · Status
+
+`STATUS: RAN`
