@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 14:58 ET, Session 13.**
+Last updated: **2026-09-15 15:05 ET, Session 13.**
 
 ---
 
@@ -56,6 +56,14 @@ which pushes `breadth/sampler` → master at 16:05 ET after M14.
 - Re-gated 2026-09-15: master is ancestor; no file overlap with master's changes; hot-path diff **empty** (5 files, 0 under `api/`); **20 tests green** (17 + 3 added this session).
 - ⚠️ **The branch moved after Session 12 gated it.** `41bd58eb7` fixes a defect that would have shipped: see *Session 13 findings* below. Re-gated after the change.
 - Evidence to record on landing: deploy SHA, status, time.
+
+> **RE-GATED AGAINST `79b4b2907` (SD-1 §6, master moved mid-session).** Master's delta is
+> **3 files, 0 under `api/`, 0 hot**, and its overlap with every held branch is **NONE**.
+> ⭐ This matters because the landing script merges `origin/master` immediately before
+> pushing and does **not** re-run the parity gate — so the argument that M13's EXACT
+> parity survives that merge has to be made from the delta, and it is: a change that
+> touches no file the branch touches, and no file the reader executes, cannot move a
+> byte of the response.
 
 ### R2 · S1 registered; sampler producing lines; summary regenerated each run
 **`BLOCKED`** on R1 (the sampler's files are not on master until M12 lands).
