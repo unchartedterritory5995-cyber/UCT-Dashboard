@@ -1166,3 +1166,115 @@ which confound the flag with whatever else the single uvicorn process was doing.
 **37 master pushes in 10.5 h; median gap 723 s (12.1 min); minimum 152 s.** A window needs
 ~26 min; only **19%** of gaps are that long — roughly one window in five survives. Against
 the n ≥ 59 that p95 requires, that is ~3 clean windows ≈ **15 attempts**.
+
+### D-052 · Four conventions ratified, and the landing session (2026-09-15)
+
+Session 12. A landing session: its own new work is small on purpose. No Railway settings
+or variables. Owner rulings 0.1–0.5 recorded as standing conventions below.
+
+#### 1. ⭐ The cheap-check convention (0.4) — CONVENTION FROM NOW
+
+> **A cheap freshness check may only ever answer "definitely unchanged". Any other answer
+> triggers the full rebuild — never a second cheap check.**
+
+The evidence is three successive cache-invalidation designs for the resident copy, each
+cheaper than the last, each wrong, and **one test caught all three**:
+
+| # | design | what it checked | the write it missed |
+|---|---|---|---|
+| 1 | `PRAGMA data_version`, per-call connection | a version counter, 0.0034 ms | **every** write — measured, a fresh connection returned 2, 2, 2 across two external writes while a long-lived one returned 2, 3, 4. The pragma changes only for commits by *other* connections seen from a connection **already open** |
+| 2 | `COUNT + 3×MAX` signature, 4.17 ms | row count and three watermarks | a rewrite **inside one second** with the same count and watermarks — `built_at` has second resolution |
+| 3 | two-stage: version as pre-check, signature as **authority** | both of the above | the same second-resolution rewrite, reached differently: "version moved but signature unchanged ⇒ another table was written" kept stale rows in exactly the case the cleverness was for |
+
+**The control:** `test_a_write_to_the_table_is_seen_by_the_next_read`. Every other rail —
+absence when off, reuse when unchanged, byte-identity across three spans, the flag stamp,
+the resident form — stayed **green** against all three broken versions, because **a cache
+with broken invalidation returns rows correct in every respect except being current.**
+
+**Shipped:** `data_version` alone on a **long-lived probe connection**. Unchanged ⇒ exact
+(the pragma cannot miss a commit). Changed *or unknown* ⇒ rebuild (46 ms).
+⚠️ Recorded honestly: the right answer was reached by **elimination**, not by design.
+
+#### 2. The hot path is 8 files (0.3) — RATIFIED as the poolability reference
+
+Measured by **execution**, not derived from imports: a tracer records every `api/` file
+whose code runs during `GET /api/breadth-monitor?days=8000` on a forced miss.
+
+```
+api/main.py                       api/services/breadth_daily_ohlc.py
+api/middleware/admin_guard.py     api/services/breadth_monitor.py
+api/routers/breadth_monitor.py    api/services/breadth_timing.py
+api/services/cache.py             api/services/single_flight.py
+```
+
+**Method:** `tools/breadth_hotpath.py`; `threading.settrace_all_threads` is required
+because a plain `def` FastAPI route runs in the anyio **threadpool**. Regenerates
+`docs/breadth/reader-hotpath.txt`.
+
+⭐ **Why it matters:** the import closure reaches **169** files. Between M11 and Session
+12's master, **14 more commits** landed changing **38 files and 0 under `api/`** — on top
+of the 31 the day before. The pool survived all of them. On the import set it would have
+shattered continuously and never reached the n = 59 that p95 needs.
+
+⚠️ **Stated limit:** measured with `require_paid` overridden, so the auth chain is
+excluded. Auth runs before the handler's own timer, so it cannot move the Server-Timing
+phases — it can move client-side wall time.
+
+#### 3. The resident copy holds strings (0.2) — RATIFIED; the 2× bound stands
+
+| form | bytes | vs wire | bound | removes |
+|---|---|---|---|---|
+| **JSON strings** | **5,214,625** | **1.15×** | **passes** | `rf_fetch` |
+| parsed dicts | 22,909,972 | 5.06× | fails | `rf_fetch` + `rf_materialise` |
+
+The parse **is** `rf_materialise`. At p90 the split is `rf_fetch` **607.1 ms** against
+`rf_materialise` **54.4 ms**, so the strings capture **~90% of the tail for 23% of the
+memory**. Raising the bound is **declined for now**; revisit with sampler data on what the
+string design leaves.
+
+#### 4. Sampler load rules (0.1) — RATIFIED as the standing production-load rule
+
+**Cap 60/day · cadence ≥ 35 s · outside 09:25–16:05 ET · settled pod only (uptime ≥ 600 s)
+· kill-switch file honoured.** Same load as the manual windows, spread thinner, off-hours
+only. ⛔ The clock comes from `zoneinfo`, never `TZ=` or local time.
+
+#### 5. M12/M13 flip states (0.5)
+
+M12 carries no flag. M13 lands with `BREADTH_RESIDENT_RECON_ENABLED` **OFF**. The flip
+needs a sampler pool with **n ≥ 20 on the current SHA** first, as the *before* — so it is
+not authorised, and flipping starts a **new** pool because `rf_resident` is a pooled flag.
+
+#### 6. Repo safety: the `git add -A` incident has a mechanical answer, unwired
+
+⚰️ A breadth commit swept two joystick docs in, silently replacing another programme's
+deliberate raw `\x01` bytes. **The rule already existed** in
+`lesson_uct_dashboard_shared_worktree`.
+
+**Cause, measured:** `core.autocrlf=true` **and no `.gitattributes` entry for those paths**
+(`git check-attr -a` returns nothing), so git sniffed a mostly-ASCII markdown file as text
+and normalised it. This repo has met that failure twice before and fixed it the same way
+(`*.woff2 binary`; the OCR corpus `-text`).
+
+**Built:** `tools/git_scope.py` + `.git-scope/breadth-history-reader.json` + 8 rails,
+mutation-proved, dogfooded on its own commit. ⭐ **An undeclared branch is not a
+violation** — it enforces only scopes written down, which is what keeps it tolerable.
+The override is explicit and **logged**, unlike `--no-verify`.
+
+⛔ **NOT installed, and not proposed lightly:** the shared `core.hooksPath` already holds
+another programme's `pre-commit` (credential scan) and `pre-push` (deploy guard), and
+`app/src/hub/rule12Paths.test.js` is an existing scope mechanism for joystick. Proposal:
+`docs/breadth/git-scope-hook-proposal.md`. Coordination is an OPEN QUESTION.
+
+#### 7. Operational row for 2026-09-15
+
+| | |
+|---|---|
+| deploys observed (11.0 h) | **20**, = 1.8/hour |
+| gap min / median / longest | **23 s** / **925 s (15.4 min)** / **12,739 s (212 min)** |
+| gaps ≥ 600 s (one settle) | **15 / 19** |
+| gaps ≥ 45 min (a full landing sequence) | **3 / 19** |
+| quiet window granted | **none** — the OWNER INPUT block was not filled in |
+
+⭐ **A single settle is usually available; a 45-minute run is not.** That is the precise
+shape of the constraint, and it is why the landing sequence runs as gaps allow rather than
+in one sitting.

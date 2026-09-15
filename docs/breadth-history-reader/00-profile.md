@@ -1009,3 +1009,61 @@ cousin and harder to see: **a premise that was true, a chain of reasoning that w
 a conclusion that was wrong** — because the premise answered a general question about git
 while the actual question was about one repository's config. The tell is the same in both:
 a sentence that could have been checked with one command and was not.
+
+# Session 12 — a landing session, and four conventions
+
+Deliberately small on its own account. The work was already built and gated; the question
+was whether it could land, and the answer is the operational finding again.
+
+## The conventions ratified (D-052)
+
+1. ⭐ **The cheap-check rule.** *A cheap freshness check may only ever answer "definitely
+   unchanged". Any other answer triggers the full rebuild — never a second cheap check.*
+   Its evidence is three invalidation designs and the one test that killed all three.
+2. **The hot path is the 8 files a real deep read executes**, not the 169 in the import
+   closure. Ratified as the poolability reference.
+3. **The resident copy holds strings; the 2× memory bound stands.** ~90% of the tail win
+   for 23% of the memory; raising the bound is declined pending sampler data.
+4. **Sampler load rules** — 60/day, ≥35 s, off-hours, settled pod, kill switch.
+
+## What landed
+
+| | |
+|---|---|
+| Built and gated | C (publishable pool summary, p95 suppressed below n=59), D (scope checker, 8 rails, mutation-proved) |
+| Landing sequence | started, **waiting for the window** — it opens at 16:05 ET and the session began at 13:07 ET |
+| Pushed | branch-only: `breadth/sampler`, `breadth/resident-recon`, `repo/git-scope`, `docs/session12-record` |
+
+⭐ **Both held branches re-gated clean after merging current master**: M12's hot-path diff
+is empty (5 files, 0 under `api/`); M13's parity is EXACT three ways against the *current*
+master — golden / flag OFF / flag ON, all `sha256 7695923c…` over 5,576,278 bytes.
+
+## The day's operational row
+
+| | |
+|---|---|
+| deploys in 11.0 h | **20** = 1.8/hour |
+| gap min / median / longest | 23 s / **925 s (15.4 min)** / 12,739 s (212 min) |
+| gaps ≥ 600 s | **15 / 19** |
+| gaps ≥ 45 min | **3 / 19** |
+| quiet window | **not granted** — the OWNER INPUT block was unfilled |
+
+⭐ **A single settle is usually available; a 45-minute run is not.** That is the constraint
+stated precisely, and it is why the landing sequence waits for gaps rather than running in
+one sitting.
+
+### Appendix addendum — Session 12
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 36 | ⭐ the landing sequence's own **deadline check** | *"DEADLINE — push-guard hours opened, stopping"*, **three seconds after starting**, while it was waiting out the very window it had just reported closed | The condition was `(et.hour, et.minute) >= (9, 25) and et.hour < 16` — TRUE at 13:25 ET. **A deadline is a point in time; comparing clock faces compares the wrong thing.** Fixed to an absolute instant (`tomorrow 09:25 ET`). ⚠️ This is the same family as #30 (`TZ=` returning the UTC hour) one session later, in code written *by* the session that recorded #30. |
+| 37 | `tools/git_scope.py` v1, on an **unborn branch** | exit 0 — everything in scope | `git rev-parse --abbrev-ref HEAD` **fails when no commit exists yet** and returned empty, which the tool read as "no branch" and waved through. ⛔ A pre-commit hook runs *precisely* when a commit does not exist yet, so that is not an edge case — it is the first call. Caught by the end-to-end rail in a throwaway repo; fixed with `symbolic-ref` first and an empty-tree diff for `staged_paths()`. |
+| 38 | A.1's hot-path identity check | ✅ "all 8 identical", with a **non-vacuity count of 0** | The 14 commits since M11 touched **no `api/` files at all**, so "none of them hot" was true and meaningless. ⭐ **A non-vacuity count of zero is not a passing check — it is an unrun one.** Re-driven against the commit that last touched `breadth_daily_ohlc.py`, where it fires on exactly one file. |
+| 39 | the patch script for the report tool | wrote a file that would not parse | Nested `\n` escaping inside a heredoc inside a Python string, producing `print("` on its own line. ⛔ The established fix in this repo is the Write/Edit tool, not more escaping — and this is the second time this programme has re-learned it. |
+
+⭐ **#36 is the one to carry, and it is uncomfortable.** Session 11 recorded #30 — a clock
+read from the wrong source — and wrote the standing rule that the sampler must use
+`zoneinfo`. Session 12 then wrote a *different* clock bug into the very script meant to
+respect that rule: not the wrong timezone this time, but the wrong *kind of comparison*.
+**Knowing that a clock is dangerous is not the same as knowing which operation on it is
+wrong**, and the rule as written ("use zoneinfo") did not cover the case that bit.
