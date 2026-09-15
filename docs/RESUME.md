@@ -1,3 +1,116 @@
+# TRACK A — PANE ORDERING · IMPLEMENTATION COMPLETE · DEPLOYMENT PAUSED BY OWNER
+
+> ⭐ **SCOPE: TRACK A ONLY.** This block does not supersede the Discord/notebook header
+> below it; the two tracks are independent. Read this one before touching pane ordering,
+> chart panes, `ChartDrawingOverlay`, `drawingPanes`, or chart-settings pane state.
+
+**Written 2026-09-15 ~03:35 ET. Owner paused deployment; next action is to WAIT for an
+explicit owner command. Do not resume on your own.**
+
+## ⛔⛔ READ THIS FIRST — THE CODE IS ALREADY ON origin/master
+
+The owner's pause instruction arrived **after** the push had completed. Track A is not
+sitting on a branch waiting to go out — it is **merged and pushed**:
+
+| | |
+|---|---|
+| origin/master | `5e88b38c4193d705973838e17f72da8b9f4cf911` |
+| local `master` | same — `5e88b38c4`, in sync, clean tree |
+| branch `feat/pane-ordering` | `ebefae3f0` (merged into master by fast-forward; kept) |
+| accepted implementation SHA | `7da1f4ed6` — an ancestor of origin/master |
+| master reconciled through | `7ac0e0aee` (master's "Set level" drawing work) |
+| pushed at | 2026-09-15 03:25Z |
+
+**Nothing was reverted.** The pause is about DEPLOYMENT SEQUENCING, not about backing the
+code out. Do not "undo" the push to honour the pause — that would be a far riskier act than
+letting the deploy finish. If the owner wants it out of production, that is a revert
+decision to take deliberately, with them, in daylight.
+
+## DEPLOYMENT STATUS: PAUSED BY OWNER
+
+- **Reason.** A Railway deployment had been building for an unusually long time and looked
+  possibly stuck. The owner paused rather than risk interfering with a partner's deploy.
+- **Track A response.** No Railway action of any kind was taken — nothing cancelled,
+  restarted, superseded, redeployed or reconfigured. Read-only status polling only.
+- **Track A itself is NOT blocked or broken.** Implementation is accepted. The only open
+  item is deployment sequencing and Railway state.
+
+State at pause:
+
+| | |
+|---|---|
+| GitHub deployment | id `6451049321`, sha `5e88b38c4`, **`in_progress`** since 03:25Z |
+| CI on `5e88b38c4` | ✅ all three green — deploy gate (1m42s), vite build args, wisdom rails |
+| production health | `https://uctintelligence.com/api/health` → **200** |
+| production assets | still the PREVIOUS build (`index-Bi9ElRZo.js`) — Track A markers (`paneOrder`, `--price-pane-top`) **absent**, i.e. the new bundle had not gone live at pause |
+
+⚠️ So production is healthy and serving the pre-Track-A frontend. The deploy may well have
+completed on its own overnight — **check, do not assume, in either direction.**
+
+## WHAT IS ACCEPTED (do not redesign any of this)
+
+durable `cs.paneOrder` authority · visual order separated from computation/instance order ·
+Price movable above or below other panes · pane HOSTS move with their guest series ·
+independent Volume semantics · safe realization index vs final visual index ·
+cold reconstruction without pane merging · Price-owned chrome follows Price · drawing
+geometry follows Price · `paneValueAt` pixel→value via `paneTop` · `paneYForValue`
+value→pixel via `paneTop` · Track A's full-stack placement offset via `paneTop` ·
+pane-owned `fromPaneFraction` path stays non-double-offset · geometry-triggered overlay
+redraw · compact Chart Data UX · **default parity when `paneOrder` is absent**.
+
+## EVIDENCE ALREADY BANKED (do not re-run to "be sure")
+
+- **Focused:** 201 passed / 9 files — paneOrder, paneOrderLayout, paneRealization,
+  drawingPanes, paneTransform, chartData, chartDataMap, alertSets, perInstanceDoor.
+- **Broad:** 4 failed / 11568 passed. Clean-master baseline measured in a scratch worktree
+  at `7ac0e0aee`: 4 failed / 11493 passed — **the identical four files. Zero new failures.**
+- **Known baseline failures (NOT Track A):** `ChartDrawingOverlay.surfaces.test.jsx`
+  (master ships it red), `engine/ast/manifestProse.test.js`,
+  `engine/ast/pine.blindCorpus.test.js`, `screener/reachable.test.js`.
+- **Build:** clean. **Lint:** every changed file at its established baseline; `no-undef` 0.
+- **Browser (isolated `pane-harness.html`, never Main Trading):** Price TOP / MIDDLE /
+  BOTTOM each verified — drawings inside Price at correct prices, no stale ink in the pane
+  above, legend and toolbar follow Price (`--price-pane-top` 0 / 207 / 311, legend always
+  28 + that), host+guests together, no console errors. Save→reconstruct of a non-default
+  arrangement restored exact order and pane count with no merges.
+- **Tripwires:** blob key-set delta vs current master is exactly `+ paneOrder`, nothing
+  removed, 40 → 41. `alertSets` and `perInstanceDoor` re-pinned with dated notes.
+
+## SAFETY STATE AT PAUSE
+
+- **Main Trading: NOT opened.** Remains frozen; expected fingerprint
+  `ea9ebaeee302b7e1f6c68530bc3b40ab824eb765b73e836cad66be2dc40e5922`. The safe read-only
+  sqlite check is **unavailable in every local worktree** — reported honestly across
+  sessions, never worked around.
+- **Live `:8000` APScheduler backend: untouched and healthy** (200). Do not close that
+  PowerShell window.
+- Dev server on :5177 stopped; browser tabs closed; scratch baseline worktrees removed
+  (`/c/uctb2`, `/c/uctb3`) — their `node_modules` junctions were deleted *before* the
+  worktrees, so the real `node_modules` was never followed.
+
+## TOMORROW — RESUME PROCEDURE (only on explicit owner command)
+
+1. `git fetch origin master`; record the new SHA and what changed since `5e88b38c4`.
+2. **Check the Railway/GitHub deployment for `5e88b38c4` first.**
+   - completed **success** → Track A is LIVE. Verify production health + that the live
+     bundle now carries `paneOrder` / `--price-pane-top`, then report it as live.
+   - **failed** → determine whether the failure is Track A's or the partner's before
+     anything else.
+   - **still building** → STOP and report. Do not interfere with a partner deployment
+     unless the owner explicitly authorises it.
+3. Diff new master against Track A's sensitive surfaces: pane ordering, pane layout, pane
+   realization, drawing coordinates, `ChartDrawingOverlay`, `drawingPanes`, chart-settings
+   pane state.
+   - unrelated → integrate mechanically; **no new architecture review**.
+   - materially overlapping → reconcile deliberately before anything ships.
+4. Focused suites + broad suite vs a *current* clean-master baseline + `npm run build`.
+5. Verify production without opening Main Trading or `/charts`.
+
+⛔ No timer, cron, scheduled task or autonomous deploy was created for this. Resumption is
+owner-triggered, by hand.
+
+---
+
 # RESUME — restart checkpoint 2026-09-14 15:20 ET (Monday, pre-close)
 
 > ⭐ **THIS IS THE CURRENT HEADER.** Everything below it is superseded where it disagrees.
