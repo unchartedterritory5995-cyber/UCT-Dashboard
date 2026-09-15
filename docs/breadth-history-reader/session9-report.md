@@ -357,22 +357,33 @@ CHECKS and nothing else, and the gate does not protect against stacked deploys a
 Boot times derived from the pod's own `uptime` (not from any Railway field), against gate
 completion read from the Actions API:
 
-| commit | gate completed | gate total | pod booted | boot − gate |
-|---|---|---|---|---|
-| `6b606990c` | 05:12:53Z | 118 s | 05:12:55Z (uptime 395 @ 05:19:30Z) | **+2 s — after** |
-| `587ee51b2` | 05:32:54Z | 121 s | 05:32:36Z (uptime 95 @ 05:34:11Z) | **−18 s — BEFORE** |
-| `cb0949d8c` | 06:40:14Z | 129 s | 06:40:12Z (uptime 17 @ 06:40:29Z) | **−2 s — BEFORE** |
+| commit | gate completed | gate total | pod booted | boot − gate | source |
+|---|---|---|---|---|---|
+| `6b606990c` | 05:12:53Z | 118 s | 05:12:55Z (uptime 395 @ 05:19:30Z) | **+2 s — after** | this session |
+| `587ee51b2` | 05:32:54Z | 121 s | 05:32:36Z (uptime 95 @ 05:34:11Z) | **−18 s — BEFORE** | this session |
+| `cb0949d8c` | 06:40:14Z | 129 s | 06:40:12Z (uptime 17 @ 06:40:29Z) | **−2 s — BEFORE** | this session |
+| 8 further deploys | — | — | — | **−99 to −141 s — BEFORE** | Session 8 §E, `session8-report.md` |
 
-⛔ **Two of three cut over BEFORE their own gating check finished**, one of them by
-eighteen seconds. That is not compatible with "Wait for CI holds the build".
+**Instrument parameters** (rule H.1 — every figure above and below is either in this table
+or is a stated parameter of the tool that produced it):
+
+| parameter | value | why it matters |
+|---|---|---|
+| `uptime` resolution | 1 s (integer, `/api/health`) | boot time inherits it |
+| health poll interval | 20 s | boot time is known to ±1 poll at worst |
+| gate timing source | GitHub Actions API `created_at` / job `completed_at` | second resolution |
+
+⛔ **Two of the three measured here cut over BEFORE their own gating check finished**, one
+by eighteen seconds — and Session 8's eight all did. That is not compatible with "Wait for
+CI holds the build".
 
 ⭐ **And three points resolve into a model the two-point version could not see.** The
-±2 s cases are inside measurement noise (integer `uptime`, polled at 20 s). What the
-numbers actually describe is **two processes of similar length running in parallel**: the
-gate takes **118–133 s**, and build-plus-deploy takes about the same, so they finish
-together *by coincidence* — and when the build happens to be quicker, the pod boots first.
-`cb0949d8c` was watched live and settles it: the deploy was reported `SUCCESS` **while the
-gate run was still executing.**
+±2 s cases are inside the measurement resolution above. What the numbers actually describe
+is **two processes of similar length running in parallel**: the gate takes **118–133 s**
+(118, 121 and 129 in this table; 133 in §E.5's), and build-plus-deploy takes about the
+same, so they finish together *by coincidence* — and when the build happens to be quicker,
+the pod boots first. `cb0949d8c` was watched live and settles it: the deploy was reported
+`SUCCESS` **while the gate run was still executing.**
 
 ⛔ **On that model Railway is not waiting for CI at all**, and the near-simultaneity that
 made the first observation look like a hold is an artifact of two unrelated pipelines
@@ -387,10 +398,10 @@ into an 18-second contradiction. ⭐ **One measured number destroyed a conclusio
 paragraphs of reasoning had already accepted** — and the reasoning was mine, in this
 document, an hour old.
 
-**Session 8 independently found the same direction:** 8 deploys started **99–141 s before**
-their checks finished. So of the observations this programme has, **ten point to Railway
-not waiting and one points to it waiting** — and that one is within 2 s, i.e. inside the
-noise of the parallel-pipelines model above.
+**Session 8 independently found the same direction** — its eight deploys are the last row
+of the table above. Counting that table: **ten observations point to Railway not waiting
+and one points to it waiting**, and that one is +2 s, i.e. inside the resolution stated in
+the instrument-parameters table.
 
 > ⛔ **OPEN QUESTION, AND IT IS THE LOAD-BEARING ONE FOR THE 2026-09-14 MITIGATION.**
 > Is *Wait for CI* actually enabled on the `web` service? **This cannot be answered from
@@ -399,9 +410,10 @@ noise of the parallel-pipelines model above.
 > owner's.
 >
 > **If it is off,** the gate is checks-only: the runs serialise, the deploys do not, and
-> two pushes 20 s apart still stack exactly as they did on 2026-09-14. The mitigation
-> installed after that incident would then be **decorative** — and, worse, it reads as
-> coverage, which is the failure mode this repo names most often.
+> two pushes closer together than one gate run (§E.5's table: 129–133 s) still stack
+> exactly as they did on 2026-09-14. The mitigation installed after that incident would
+> then be **decorative** — and, worse, it reads as coverage, which is the failure mode this
+> repo names most often.
 
 **What holds regardless of the answer.** The gate's *checks* are genuinely serialised and
 genuinely server-side, which is more than the pre-push hook could offer — `--no-verify`
