@@ -36,3 +36,38 @@ app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text e
 # after somebody spent a CI run finding out.
 tools/wave_p_cert_corpus/*.pdf binary
 tools/wave_p_cert_corpus/manifest.json -text
+
+# ⛔⛔ BLOBS ALREADY STORED WITH CR — `-text` SO NOTHING EVER FLATTENS THEM.
+#
+# `core.autocrlf=true` on this box, and these ten paths are committed with CRLF (one
+# is MIXED). Nothing in git protects them: `git check-attr text` reported
+# `unspecified` for every one, so text-vs-binary is decided by sniffing, and any tool
+# that rewrites such a file "helpfully" as LF flattens the stored endings. The damage
+# is not corruption — it is that a two-line edit returns as a whole-file diff and
+# stops being reviewable. Measured twice in this repo (rule R-2: a 2-line edit that
+# came back as 918 lines, and a 7-line edit that came back as 1,199).
+#
+# ⛔ `-text`, NOT `binary`. `binary` also suppresses diffs, which is a worse cure for
+# a document people review — `docs/plans/joystick/deferred.md` is in this list.
+#
+# ⛔ THE LIST IS DERIVED, NEVER TYPED. It is every tracked path where all three hold:
+# the INDEX blob contains a CR (`git grep --cached -P '\r'` — the working tree is not
+# evidence, autocrlf has already put CRLF on everything there), the blob has no NUL
+# (a NUL makes it binary to git already, and eol conversion never touches it), and
+# `git check-attr text` says `unspecified`. Regenerate with
+# `tests/test_gitattributes_eol.py::test_the_declared_list_is_still_the_derived_list`,
+# which FAILS if a new such path appears — that is the rail, not this comment.
+#
+# ⚠️ These files belong to other programmes (charts, joystick, flow fixtures, the RTH
+# scripts). This entry changes no content and no checkout bytes: a blob stored with
+# CRLF already checks out as CRLF. It only removes the heuristic.
+app/public/Darkpool-data.csv -text
+app/public/Indexes-data.csv -text
+app/public/OptionsFlow.csv -text
+app/public/flow-data.csv -text
+app/src/components/chart/ChartSettingsModal.chartData.test.jsx -text
+app/src/components/chart/chartDataMap.js -text
+app/src/components/chart/chartDataMap.test.js -text
+app/src/hub/sections/homeSection.js -text
+docs/plans/joystick/deferred.md -text
+scripts/rth-close.ps1 -text

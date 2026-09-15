@@ -42,7 +42,8 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, use
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { fieldsForInstance, evalActiveWhen } from './indicatorRegistry'
-import { findInstance, setInstanceInput, setInstanceHidden, withInstances } from './engine/instanceControls'
+import { findInstance, setInstanceInput, setInstanceHidden,
+         setInstanceDisplayTarget } from './engine/instanceControls'
 import { PLACEMENT_TARGETS } from './engine/defSchema'
 import { chipsFrom } from './engine/readout'
 import styles from './IndicatorSettingsDialog.module.css'
@@ -280,17 +281,20 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     writeSettings(setInstanceHidden(settingsRef.current, instanceId, hidden, registry))
   }, [instanceId, registry, writeSettings])
 
+  // ⚰️⚰️ THE THIRD WRITER, AND IT WAS HAND-ROLLED (2026-09-15). "Move to" wrote
+  // `placement.target` straight onto the instance: no return-to-default delete, no
+  // legacy `volumeOverlayIndicators` mirror, and — once intent became a stored
+  // fact — no provenance marker. So the same gesture meant one thing in Chart Data
+  // and another here, and a member moving `close` to its own pane from THIS dialog
+  // produced a marker-less restatement the resolver would go on ignoring.
+  //
+  // ⛔ `setInstanceDisplayTarget` IS THE ONE WRITER. Chart Data
+  // (`ChartSettingsIndicators`), the on-chart chip menu (`StockChart`) and this
+  // dialog now all go through it, which is what makes "the destination a control
+  // NAMES and the pane the series LANDS IN cannot disagree" true across surfaces
+  // rather than on one of them.
   const setTarget = useCallback((target) => {
-    const cs = settingsRef.current
-    const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
-    if (!list.some((i) => i && i.instanceId === instanceId)) return
-    // `placement` is written in EXACTLY the shape `addInstance`/`setIndicatorEnabled`
-    // already write (`{target}`) — no new nested object, so allow-list #2's shallow
-    // instance spread has nothing new to replace wholesale.
-    const next = list.map((i) => (i && i.instanceId === instanceId
-      ? { ...i, placement: { ...(i.placement || {}), target } }
-      : i))
-    writeSettings(withInstances(cs, next, registry))
+    writeSettings(setInstanceDisplayTarget(settingsRef.current, instanceId, target, registry))
   }, [instanceId, registry, writeSettings])
 
   // ── close paths ───────────────────────────────────────────────────────────

@@ -69,7 +69,7 @@ export const HIDDEN_GROUP = 'hidden'
  * @param {Function} [defOf]   definition lookup, for the pane names
  * @returns {MapGroup[]}
  */
-export function paneMap(rows, settings, defOf) {
+export function paneMap(rows, settings, defOf, volumeOpts) {
   const list = Array.isArray(rows) ? rows : []
   const instances = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
 
@@ -86,7 +86,19 @@ export function paneMap(rows, settings, defOf) {
   //
   // ⚠️ THE PROPS ARE NOT AVAILABLE HERE, so this is the settings-only answer —
   // the same one, with the unknowable inputs omitted rather than guessed.
-  const separateVolume = volumeOwnsPane({ cs: settings, instances })
+  // ⚰️⚰️ THE PROPS ARE PASSED IN NOW, AND THAT WAS THE WHOLE GAP. This asked
+  // `volumeOwnsPane({ cs, instances })` — the SETTINGS-ONLY answer — while the
+  // renderer asked the same helper with three more inputs it holds as PROPS:
+  // `volumeSeparatePane`, `blankVolume` and `showVolume`. `ChartPane` passes
+  // `volumeSeparatePane` unconditionally, so on the main chart the renderer says
+  // PANE and this said BAND on every chart whose `cs.volume.separatePane` was
+  // unset — which is why Volume rendered in its own pane while Chart Data listed
+  // it inside PRICE, and why `movePane` resolved an order with no `volume` key in
+  // it for the arrows to cross.
+  //
+  // ⭐ ONE PREDICATE, ONE SET OF INPUTS. The host owns the props and now hands
+  // them to both readers, so there is no second answer left to drift.
+  const separateVolume = volumeOwnsPane({ cs: settings, instances, ...(volumeOpts || {}) })
 
   const live = new Set([
     ...paneOwnKeys(instances, settings),

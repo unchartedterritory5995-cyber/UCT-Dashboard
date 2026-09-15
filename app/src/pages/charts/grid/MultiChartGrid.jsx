@@ -498,6 +498,22 @@ export default function MultiChartGrid({ mc }) {
         /* Cells pass volumeSeparatePane + volumePaneHeightPct (GridChartCell), which
            win over the saved prefs — so the separate-pane toggle is inert here too. */
         volumePaneFixed={VOLUME_PANE_SURFACE_FIXED}
+        /* ⚰️⚰️ THE SAME VOLUME TRUTH THE CELLS GET — AND THIS MOUNT WAS MISSING IT.
+           `GridChartCell` passes `volumeSeparatePane` unconditionally, so every cell
+           draws a REAL volume pane; this shared modal was still asking the
+           settings-only question and answering BAND. `ChartPane` fixed exactly this
+           and said so; the grid kept the defect.
+
+           ⛔ IT IS NOT COSMETIC. `ChartSettingsIndicators` derives
+           `paneOpts = { volumePane: arrangeable.some(g => g.kind === 'volume') }`
+           from this map, so with Volume listed inside PRICE there is no volume
+           group, and `movePane`/`movePaneTo` WRITE `cs.paneOrder` WITH NO VOLUME
+           KEY IN IT. The renderer then resolves an order that is missing a pane it
+           actually has — canonical order stops matching physical order, and because
+           the stretch plan is applied by SLOT, every pane is handed a different
+           pane's height. MEASURED 2026-09-15: one "Move up" produced
+           `paneOrder ["inst:dataSeries:1","price"]` against a three-pane chart. */
+        volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
       />
     </div>
   )
