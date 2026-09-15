@@ -1,0 +1,20 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+274 | ModuleNotFoundError: No module named 'fastapi' | tests/api/test_buzz_render_panel.py
+63  | ModuleNotFoundError: No module named 'requests' | tests/test_ai_search_resilience.py
+41  | ModuleNotFoundError: No module named 'bcrypt' | tests/test_auth_plan.py
+23  | ModuleNotFoundError: No module named 'cryptography' | tests/test_broker_admin_debug.py
+20  | ModuleNotFoundError: No module named 'pydantic' | tests/test_broker_balances.py
+20  | ModuleNotFoundError: No module named 'yfinance' | tests/test_comparison_ai_adapter.py
+10  | ModuleNotFoundError: No module named 'matplotlib' | tests/test_discord_chart_hotset.py
+9   | ModuleNotFoundError: No module named 'pandas' | tests/test_breadth_adv_dec_restated.py
+7   | ModuleNotFoundError: No module named 'orjson' | tests/test_bars_dead_ticker.py
+3   | ModuleNotFoundError: No module named 'openai' | tests/test_voice_intent.py
+2   | ModuleNotFoundError: No module named 'uvicorn' | tests/test_bars_api_main.py
+1   | ModuleNotFoundError: No module named 'starlette' | tests/test_bars_proxy.py
+1   | ModuleNotFoundError: No module named 'snaptrade_client' | tests/test_broker_snaptrade_client.py
+1   | ModuleNotFoundError: No module named 'apscheduler' | tests/test_calendar_week_schedule.py
+1   | ModuleNotFoundError: No module named 'botocore' | tests/test_data_sync_presign.py
+1   | ModuleNotFoundError: No module named 'nacl' | tests/test_discord_render_shadow_reaches_chart.py
+1   | ModuleNotFoundError: No module named 'stripe' | tests/test_stripe_checkout_trial.py
+1   | ModuleNotFoundError: No module named 'pyotp' | tests/test_totp.py
