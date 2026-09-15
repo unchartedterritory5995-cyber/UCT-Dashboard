@@ -223,9 +223,14 @@ def test_the_chains_follow_the_w1_part_7_order():
     # immediately BEFORE publication_floor and the order is load-bearing: the floor READS the
     # stability and stability_runs the reconciler writes, so reversing them would leave the floor
     # judging yesterday's scores and blocking every record on a NULL just filled in.
+    # ⭐ `rq_v11_001` joined 2026-09-15 (RQ-v11-001, owner ruling R7) between the adapters and the
+    # reconciler. The tail is three steps and every adjacency in it is load-bearing:
+    #   rq_v11_001 before publication_floor  — the NULL question reaches the owner's queue as a
+    #                                          question, before the floor acts on the record
+    #   reconcile_stability before the floor — the floor READS the stability the reconciler WRITES
     assert [s.name for s in chain.DAILY] == ["capture", "sources", "stt_alias", "extract", "evals",
                                              "retrieval", "adapters", "level_alerts", "lookalike",
-                                             "reconcile_stability", "publication_floor"]
+                                             "rq_v11_001", "reconcile_stability", "publication_floor"]
     assert [s.name for s in chain.WEEKLY] == ["sunday_scans", "reconcile_outcomes", "vocab_candidates",
                                               "contradictions", "voice_profile", "weekly_report", "extract_audit"]
     assert [s.name for s in chain.MONTHLY] == ["recognition_packet"]
