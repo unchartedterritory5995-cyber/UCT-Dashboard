@@ -81,6 +81,22 @@ class RenderGate:
         self.grants = {MEMBER: 0, BACKGROUND: 0}
         self.starvation_grants = 0
 
+    @property
+    def size(self) -> int:
+        """How many slots exist. The public way to ask."""
+        return self._size
+
+    @property
+    def _initial_value(self) -> int:
+        """⚠️ A DELIBERATE COMPATIBILITY SHIM, and it is named after somebody else's
+        private attribute on purpose. `threading.BoundedSemaphore` exposes its declared
+        size only as `_initial_value`, a CPython implementation detail — and callers in
+        this repo read it to starve the pool. Dropping the gate in without this turns
+        "same shape" into a lie for every one of them, with an `AttributeError` that
+        reads like the gate is broken rather than like an internal was being borrowed.
+        ⛔ New code uses `.size`. This exists so the SWAP is honest, not as an invitation."""
+        return self._size
+
     # ── the BoundedSemaphore-shaped surface ─────────────────────────────────
     def acquire(self, blocking: bool = True, timeout: float | None = None,
                 *, cls: int = MEMBER, now=time.monotonic) -> bool:

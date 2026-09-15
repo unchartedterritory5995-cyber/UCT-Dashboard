@@ -13,6 +13,10 @@ import threading
 import httpx
 import pytest
 
+
+# C-09: production's RENDER_SLOTS IS a RenderGate now. A stub that is a plain
+# BoundedSemaphore tests a world that no longer exists -- it cannot take a class.
+from api.services.render_gate import RenderGate
 from api.services import discord_chart_cache as png_cache
 from api.services import discord_interactions as di
 
@@ -76,6 +80,7 @@ def test_no_bars_without_the_hook_is_byte_identical_to_today():
                                           "still catching up on it - try again in a minute.")
 
 
+
 def test_busy_is_DEADLINE_through_the_hook_and_unchanged_without(monkeypatch):
     """⚰️ THIS TEST ASSERTED THE DEFECT, AND HAD BEEN RED SINCE D-04 (OI-41).
 
@@ -96,7 +101,7 @@ def test_busy_is_DEADLINE_through_the_hook_and_unchanged_without(monkeypatch):
     preflight each ran a named list of suites that did not include it. **A file nobody
     names is a file nobody runs** — which is the cost of "pytest by named files only",
     stated here rather than left for the next session to rediscover."""
-    slots = threading.BoundedSemaphore(1)
+    slots = RenderGate(1)
     monkeypatch.setattr(di, "RENDER_SLOTS", slots)
     slots.acquire()
     try:
