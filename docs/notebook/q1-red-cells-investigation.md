@@ -142,6 +142,44 @@ the next fix.**
 manufactured findings already. Before any fix 6, confirm the probe reads the entry's
 `patch` **after** the record is cleaned, not before.
 
+### 0.2 The 04:03 window — 2.8b failed to MEASURE, twice (2026-09-15)
+
+2.8b is fix 4's own production proof. It has now failed to yield a verdict three
+times. **It is INCONCLUSIVE — not a pass, not a fail.**
+
+```
+=== WINDOW OPEN 04:03:03 CT · 1 staged ===
+  2.8b-second-writer-while-away  INCONCLUSIVE (attempt 1, requeued) in 541.4s
+      "could not create the probe note ({'err': 'HTTP 502'}) — nothing was measured"
+  2.8b-second-writer-while-away  exit 124 in 1802.1s   <- TIMED OUT, no verdict
+  queue empty — nothing staged
+```
+
+⭐ **The instrument behaved correctly on attempt 1** — it refused rather than
+inventing a verdict, and the runner requeued rather than banking it. **Zero ANOMALY
+rows**: the window was spent, it simply did not yield.
+
+⚠️ **UNCONFIRMED explanation for the 502.** Master was pushed repeatedly overnight;
+web deploys land at `05:10:54Z`, `05:30:52Z`, `06:00:56Z`, `06:32:54Z`, `06:38:04Z`,
+and each push marks the previous deploy REMOVED and serves 502 through the swap.
+The 04:03 attempt sits in that churn. ⛔ **I did not confirm this against logs** —
+it is a plausible cause, recorded as unconfirmed rather than asserted.
+
+⛔ **Q4, OPEN: why did attempt 2 hang for 1802s instead of refusing cleanly?**
+A clean refusal at 541s and a 30-minute hang with no verdict are **not the same
+failure**. It may be the instrument, the rig, or production. It is not diagnosed,
+and the probe should refuse within a bounded time on any unmet precondition.
+
+⚰️ **And the hang left the rig ALIVE.** Checked 2026-09-15 08:23: `SingletonLock`
+was absent — which reads as "browser down" — while **nine chrome processes carried
+the rig marker** (created 04:12, 04:41, 05:07) and leveldb `LOCK` was
+permission-denied. **The opt-out key was not on disk at all.** An opted-in rig
+gives the sampler a non-zero outbox and the Sunday gate reads that as product
+state. ⭐ `SingletonLock` alone is NOT a liveness test — count processes by marker
+and try to read the leveldb `LOCK`. Torn down by marker (9 → 0, owner's 18 Chrome
+untouched), opt-out re-set through `window_check.opt_out`, verified on disk with
+the browser dead.
+
 ### ⛔ Correction to §2 below
 
 *"the door fires at call #7"* was **never a defect indicator** and should not have
