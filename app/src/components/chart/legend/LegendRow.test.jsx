@@ -21,63 +21,70 @@ import LegendRow from './LegendRow'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const read = (rel) => readFileSync(path.resolve(HERE, rel), 'utf8')
 
-const handlers = () => ({
-  onToggleHidden: vi.fn(),
-  onOpenSettings: vi.fn(),
-  onRemove: vi.fn(),
-})
+// ⚰️ THREE MOCKS, ONE PER ICON, UNTIL TRACK B. The verbs did not go away —
+// they are rows of the popover this ONE door opens — but a row that took three
+// write handlers was a row that knew about three controls it no longer renders.
+const handlers = () => ({ onOpen: vi.fn() })
 
 describe('LegendRow — the three verbs', () => {
-  it('renders label, value and all three controls while hovered', () => {
+  it('renders label, value and ONE control while hovered', () => {
     const h = handlers()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical {...h} />)
     expect(screen.getByText('EMA 9')).toBeTruthy()
     expect(screen.getByText('319.82')).toBeTruthy()
-    for (const name of ['Hide EMA 9', 'EMA 9 settings', 'Remove EMA 9']) {
-      expect(screen.getByRole('button', { name }), `no ${name}`).toBeTruthy()
-    }
+    // ⚰️ `Hide EMA 9` / `EMA 9 settings` / `Remove EMA 9` STOOD HERE. One
+    // affordance, one popover — and the destructive verb is no longer a
+    // neighbouring 11px icon.
+    const buttons = screen.getAllByRole('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].getAttribute('aria-label')).toBe('EMA 9 options')
+    expect(buttons[0].getAttribute('aria-haspopup')).toBe('menu')
   })
 
-  it('⭐ keeps the controls MOUNTED and collapses them in CSS — never conditional', () => {
+  it('⭐ keeps the control MOUNTED and collapses it in CSS — never conditional', () => {
     // ⚰️ THE FIRST DRAFT RENDERED THESE ONLY WHILE A REACT `hovered` PROP WAS
     // TRUE, and that is precisely why they could not be clicked: `.legend` is
     // `pointer-events: none`, so the gaps between the row's cells were not hit
     // targets, the pointer "left" on the way to the buttons, and React tore them
-    // out mid-approach. Mounting them always and collapsing the CELL is what
-    // keeps the gutter at zero without making the control depend on a hover
-    // signal — and it is the only way `:focus-within` can ever open the strip for
-    // a keyboard user.
+    // out mid-approach. Mounting always and collapsing the CELL is what keeps the
+    // gutter at zero without making the control depend on a hover signal — and
+    // it is the only way `:focus-within` can ever open it for a keyboard user.
     const h = handlers()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical {...h} />)
-    expect(screen.getByRole('button', { name: 'Hide EMA 9' }), 'the controls are conditional again')
+    expect(screen.getByRole('button', { name: 'EMA 9 options' }), 'the control is conditional again')
       .toBeTruthy()
   })
 
-  it('⛔ ALL THREE HANDLERS OR NONE — a read-only mount gets an inert row', () => {
-    // The same gate `IndicatorChip` uses. A row carrying two of three controls is
-    // a worse lie than one carrying none, so a partial set renders none — which
-    // is also what keeps the `/r/chart` export route's legend button-free and its
-    // 46 pixel-parity baselines still.
+  it('⛔ ONE HANDLER OR NONE — a read-only mount gets an inert row', () => {
+    // ⚰️ THE GATE USED TO BE ALL-THREE-OR-NONE, because a row carrying two of
+    // three controls is a worse lie than one carrying none. With one door the
+    // gate is simply that door — and it still keeps the `/r/chart` export
+    // route's legend button-free and its 46 pixel-parity baselines still.
     const { unmount } = render(
-      <LegendRow rowId="ma:0" label="EMA 9" value="1" vertical onToggleHidden={vi.fn()} onRemove={vi.fn()} />,
+      <LegendRow rowId="ma:0" label="EMA 9" value="1" vertical onHover={vi.fn()} />,
     )
-    expect(screen.queryByRole('button'), 'a partial handler set rendered controls').toBeNull()
+    expect(screen.queryByRole('button'), 'a hover-only mount rendered a control').toBeNull()
     unmount()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="1" vertical />)
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('the eye says SHOW on a hidden row, and the row is marked hidden for CSS', () => {
+  it('a hidden row is marked hidden for CSS, and the popover is still reachable', () => {
+    // ⚰️ `Show EMA 9` WAS AN ARIA-LABEL ON AN EYE. The direction now lives on
+    // the popover's Hide/Show row (`chipMenu.chipMenuItems`), which is the only
+    // place it can name the row AND state which way it goes. What the ROW still
+    // owes the stylesheet is `data-hidden`, which is what dims it and dashes its
+    // rail.
     const h = handlers()
     render(<LegendRow rowId="ma:0" label="EMA 9" value="" hidden vertical {...h} />)
-    expect(screen.getByRole('button', { name: 'Show EMA 9' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'EMA 9 options' })).toBeTruthy()
     expect(document.querySelector('[data-legend-row="ma:0"]').getAttribute('data-hidden')).toBe('true')
   })
 
-  it('every control fires with the ROW ID and stops the event reaching the chart', () => {
+  it('the door fires with the ROW ID and stops the event reaching the chart', () => {
     // ⛔ `stopPropagation` IS NOT TIDINESS. The chart wrapper underneath opens a
-    // region menu on click; without it, hiding a moving average would also open a
-    // menu about the region it was hidden from.
+    // region menu on click; without it, opening a moving average's popover would
+    // also open a menu about the region it sits on.
     const h = handlers()
     const onWrapper = vi.fn()
     render(
@@ -85,13 +92,41 @@ describe('LegendRow — the three verbs', () => {
         <LegendRow rowId="ma:2" label="SMA 50" value="316.68" vertical {...h} />
       </div>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Hide SMA 50' }))
-    fireEvent.click(screen.getByRole('button', { name: 'SMA 50 settings' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Remove SMA 50' }))
-    expect(h.onToggleHidden).toHaveBeenCalledWith('ma:2')
-    expect(h.onOpenSettings).toHaveBeenCalledWith('ma:2')
-    expect(h.onRemove).toHaveBeenCalledWith('ma:2')
+    fireEvent.click(screen.getByRole('button', { name: 'SMA 50 options' }))
+    expect(h.onOpen).toHaveBeenCalledWith('ma:2', expect.objectContaining({ x: expect.any(Number) }))
     expect(onWrapper, 'a control click reached the chart underneath').not.toHaveBeenCalled()
+
+    // ⭐ AND THE ROW BODY IS THE SAME DOOR — the label is the button, exactly as
+    // it is on an `IndicatorChip`. A right-click on it opens the same popover.
+    h.onOpen.mockClear()
+    fireEvent.click(document.querySelector('[data-legend-row="ma:2"]'))
+    expect(h.onOpen).toHaveBeenCalledTimes(1)
+    fireEvent.contextMenu(document.querySelector('[data-legend-row="ma:2"]'))
+    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledTimes(2)
+    expect(onWrapper).not.toHaveBeenCalled()
+  })
+
+  it('⭐ the RAIL carries the line colour, and hover reports the HOVER KEY', () => {
+    // ⚰️ THE ROW USED TO WEAR `style={{ color }}` ON THE WHOLE BOX, so the
+    // price pane's moving averages printed blue, purple and orange NAMES at 11px.
+    // ⛔ AND THE HOVER KEY IS NOT THE ROW ID for a legacy moving average: the row
+    // is addressed by its STORED SLOT (`ma:2`) and the drawn series lives at a
+    // RENDER index, which differ the moment a tombstone is in the list.
+    const h = handlers()
+    const onHover = vi.fn()
+    const { container } = render(
+      <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical
+        hoverKey="ov:1" onHover={onHover} {...h} />)
+    const row = container.querySelector('[data-legend-row="ma:2"]')
+    expect(row.style.color, 'the row still tints its own text with the line colour').toBe('')
+    const rail = row.querySelector('i')
+    expect(rail.tagName).toBe('I')
+    expect(rail.getAttribute('aria-hidden')).toBe('true')
+    expect(rail.style.backgroundColor.replace(/\s/g, '')).toBe('rgb(192,123,224)')
+    fireEvent.mouseEnter(row)
+    expect(onHover).toHaveBeenCalledWith('ov:1')
+    fireEvent.mouseLeave(row)
+    expect(onHover).toHaveBeenLastCalledWith(null)
   })
 
   it('🔴 the vertical variant is ONE row box holding THREE subgrid cells', () => {

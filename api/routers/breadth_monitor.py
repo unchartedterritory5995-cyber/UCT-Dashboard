@@ -519,8 +519,15 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         _t0 = time.perf_counter()
         rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
         breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows))
-        top = rows[0]["date"] if rows else None
-        bounds = svc.date_bounds()
+        # ⭐ `date_bounds()` and `next_trading_day()` run AFTER reader_ms stops and
+        # BEFORE the response exists, so they were hiding inside post_reader_ms with
+        # no name. `route_tail` is that work, measured rather than attributed to the
+        # encoder.
+        with breadth_timing.phase("route_tail"):
+            top = rows[0]["date"] if rows else None
+            bounds = svc.date_bounds()
+            _next = svc.next_trading_day(top) if end else None
+        breadth_timing.mark("route_return")
         return {
             "rows": rows,
             "days": days,
@@ -529,7 +536,7 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
             "max_date": bounds.get("max"),
             # Only needed when the window is held back in time; at the latest
             # window there is nothing newer to step to.
-            "next_date": svc.next_trading_day(top) if end else None,
+            "next_date": _next,
         }
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
