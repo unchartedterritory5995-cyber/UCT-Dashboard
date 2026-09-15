@@ -1,3 +1,26 @@
+# ⚠️ WORKSPACE UX ISSUE — "NEW LAYOUT" REPLACES THE UNSAVED WORKING STATE
+
+**Recorded 2026-09-15. NOT a Track A defect and NOT to be fixed in Track A.**
+
+`LAYOUTS → New Layout` does not open an isolated scratch workspace: it REPLACES
+the current unsaved working layout. During Track A live verification this
+discarded the owner's unsaved NVDA + QQQ arrangement. The four SAVED layout tabs
+(1-Chart, Alienware, Calendar, Intraday Scan) were unaffected, and Main Trading
+was never opened.
+
+⛔ **DO NOT USE `New Layout` FOR VERIFICATION** unless the current working state
+is explicitly disposable. Prefer, in order:
+
+1. the isolated local harness (`app/pane-harness.html`) — preference writes are
+   locked there, so no workspace state can be touched at all;
+2. an existing, unquestionably disposable layout;
+3. production only where the interaction cannot destroy a working state.
+
+Worth considering later: an explicit scratch/disposable workspace, or a prompt
+before `New Layout` discards unsaved work.
+
+---
+
 # TRACK A FOLLOW-UP — PANE-ORDER CHROME OWNERSHIP · FIXED LOCALLY · AWAITING DEPLOY COMMAND
 
 > ⭐ **READ THIS BEFORE THE BLOCK BELOW.** Track A pane ordering is already on
