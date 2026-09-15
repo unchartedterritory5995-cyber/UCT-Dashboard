@@ -2,53 +2,68 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **d1's implementation — the BLOCK WALK.** Red committed, unbuilt.
+> ### ⛔ NEXT: **item (e) — the short-circuit census, e.1–e.5.** Not started.
 >
-> ⛔⛔ **d1's premise was corrected by measurement before any code moved.** R22
-> priced it as *"`alert()` is dropped whole"*. Measured: **`alert()` at top level is
-> already noted `pine:chart-only`** — `alert` has been in `CHART_ONLY_CALLS`
-> (`pine.js` ≈1785) all along. **The real gap is that a chart-only call inside a
-> BLOCK is noted nowhere, for the whole set** (`alert`, `bgcolor`, `barcolor`,
-> `fill`, `hline`, `plotshape`, `plotchar`). `pine:runtime-only` is **withdrawn** —
-> no new note code is needed.
+> ⛔ **(e)'s GATE OPENED AND ITS CLOCK DID NOT.** Section 3 was conditioned on
+> Sections 1 and 2 closing inside their stops, and both did — **d2 ~85 of 110**,
+> **d1′ ~105 of 120**. But a census is ONE atomic unit (e.1 engine behaviour on
+> `and`/`or`/`?:` · e.2 admissibility cases A/B/C · e.3 instrument **with a
+> control** · e.4 table against the ~20 threshold · e.5 BUILD or ALL-RETIRE), and
+> **an atomic unit that cannot finish inside the remaining clock is not started.**
+> The gate is a necessary condition, not a sufficient one. **It is the next
+> session's first act.**
 >
-> ⛔ **Not started, per the 2× corollary:** the fix reaches the **block walk**, the
-> same machinery whose two-readers-disagreeing defect is recorded at
-> `destructureBindings`. Bigger than priced, and it did not fit the clock.
-> **`9cae578ee` red → `a992d7bd2` corrected**; the acceptance asserts the measured
-> truth and pins the working top-level case.
+> ⚠️ **Every census in this programme has been wrong on its first table** — (b)
+> twice, (c) three times, (d) once — and each defect was found by reading the
+> instrument's own output, never by review. Budget (e) for that, and build the
+> control before the table.
 >
-> ⛔ **d2 and item (e) are NOT started.** d2's scope also moved: the census read a
-> **named argument** (`message="…"`) as an expression, so messages are **338
-> literal + 149 placeholder = 487 of 555 carryable**, and only **2** genuine
-> expressions — d2 is larger and d1's message-note far smaller than ruled.
+> ## ✅ (d) IS CLOSED — d1′ and d2 BUILT, d3 → H.7
 >
-> ✅ **R21/R22 recorded** (`06cf3ec2e`); R20's sentences corrected to two measured
-> facts at all three sites, with the rail strengthened to assert both.
+> ✅ **d2 — the message rides beside the title.** Red `445b5cc4d` → fix
+> `4b188aecc`. Named **and** positional forms; `{{placeholder}}` carried verbatim;
+> an expression message **noted** (`pine:alert-message`), never refused. Consumer
+> measurement reported first: **nothing enumerates an alertcondition output's key
+> set**, so the new field breaks nothing — and artifacts confirmed it, unchanged.
+> Three mutations proven against `sha256 4f3519fe…`.
 >
-> ⛔⛔ **(d)'s headline is that the engine does TWO THINGS SILENTLY** — and silence is
-> the one thing its own standing rule forbids. An `alertcondition`'s **message is
-> dropped entirely** (489 of 555 carry one — literal, `{{placeholder}}` and
-> expression alike; no `message` key, the string appears nowhere in the result, no
-> refusal, no note), and **`alert()` is dropped whole** (191 uses, 46 files:
-> `ok=true`, no output, no refusal, no note).
+> ✅ **d1′ — a chart-only call inside a block is noted.** Red `cda5fe08d` → fix
+> `5d1052ddc`. **The R22b gate HOLDS**: `blockStatements` returns `{header, body,
+> sub}` nesting recursively, so a **read-only pass beside the walk** reaches every
+> depth without touching the block walk. No STOP was required.
 >
-> ⭐ **The carriage question has a good answer already built:** a `title` rides as a
-> **presentation field on the output**, like a plot's — so `str`'s textop-only
-> parentage is never engaged and **no 12th node type is implied**. A message can
-> ride the same way.
+> ⚠️ **SCOPE CORRECTION carried forward:** R22b named a drawing call as the third
+> type; **`label.new` is NOT in `CHART_ONLY_CALLS`** (the set is exactly
+> `plotshape`, `plotchar`, `bgcolor`, `barcolor`, `fill`, `hline`, `alert`).
+> `plotshape` was used instead.
 >
-> ⭐ **"alertSets" is a real pattern:** only 8 of 120 files carry one
-> alertcondition; **112 carry 2+**, **53** share a signal family (184
-> alertconditions), tail out to 38 in one file; **26 scripts have no plot at all**
-> — D1 territory, where the host lane selects **-1**.
+> ⛔⛔ **d1′'s THIRD MUTATION IS UNEXERCISED, NOT PROVEN — READ THIS BEFORE CITING
+> THE PROOF.** Mutations 1 (pass disabled → 5 RED nested, top-level pin GREEN) and
+> 2 (dedup defeated → RED) are proven. **"Make the pass touch a binding" is not.**
+> Three attempts — `forceOpaque` on a builtin, `forceOpaque` on a real bound name
+> read by the plot (a fifth specimen was added for it), and pushing a refusal
+> (which would not load) — none moved a measured value. The byte-identical
+> controls (refusals · codes IN ORDER · output count, pinned at values measured
+> before the pass existed) are in place and would catch a real perturbation; **no
+> perturbation has been exhibited.** Recorded as unexercised because a guard
+> nobody has seen fire is not yet a guard.
 >
-> ⚠️ **I did not propose a build.** Three of the four over-threshold rows are one
-> defect in different clothes — *something the member wrote is dropped without a
-> word* — which is a refusal-and-carriage job, not an "alertSets" feature. Priced
-> for a ruling: **(d1) make the two silences speak, 45 min** · **(d2) a literal
-> message rides the title's carriage, 40 min** · **(d3) sets as a first-class
-> offer — not estimable until the owner says what a pane does with one.**
+> ⭐ **Mutation 2 caught a weak control, which is the point of a mutation proof.**
+> v1 pinned the top-level call — the one site the pass never visits — so clearing
+> `seen` and walking twice left 14/14 green. It now pins every site.
+>
+> ⛔ **d3 is OWED to H.7**, unchanged: what a *set* means is a screener-surface
+> question (D1: a pane does not select an alert), and **the screener lanes are not
+> this branch's**. Not estimable until the owner rules. Evidence stands: **112 of
+> 120** files carry 2+ alertconditions · **53** share a signal family (**184**) ·
+> tail to **38** in one file · **26** scripts have no plot at all.
+>
+> ⭐ **BOTH (d) PREMISES MEASURED FALSE BEFORE EITHER WAS BUILT** — d1's *"`alert()`
+> is dropped whole"* (already noted at top level; the gap was **depth**) and d2's
+> 183/157 (the census read a **named argument** as an expression; really **338
+> literal / 149 placeholder / 2 expression**). Neither correction came from review.
+>
+> ✅ **R21/R22/R22a/R22b recorded** (`06cf3ec2e`, `8a278d3b7`).
 >
 > ✅ **(c) is as closed as it can be** — definition-lane half CLOSED (R18); IR half
 > **BLOCKED-BY-ITS-OWN-GAP**, no estimate, **H.6** opened.

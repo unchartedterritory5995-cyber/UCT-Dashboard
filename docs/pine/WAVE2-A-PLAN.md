@@ -1724,6 +1724,146 @@ means to a pane) is a **product** question D1 already half-answered.
 
 ---
 
+## ✅ d2 BUILT — an alert message rides beside the title (R22a)
+
+**Red `445b5cc4d` → fix `4b188aecc`.** Estimate **55 min**, stop 110, actual **~85**.
+
+### 1.1 — the consumer measurement, reported BEFORE the field was added
+
+⭐ **Nothing consumes an alertcondition output's key set**, so adding one key breaks
+nothing. Measured, not assumed:
+
+| consumer | reads | breaks on a new key? |
+|---|---|---|
+| `presentation.plots` / `.fills` | `kind === 'plot'` rows only | no — alertconditions are never in scope |
+| `closingPass` / `paneGate` | `kind`, `title`, `index` **by name** | no |
+| `verifyRoundTrip` | re-translates and compares **outputs.length + kind + title** | no — it names the three fields it compares |
+| `corpus_metric.json` | counts `outputs`, buckets by `kind` | no |
+| contract files | `kind`/`title` by name | no |
+
+**No consumer enumerates the keys of an output row**, and no snapshot serialises a whole
+alertcondition row. That is what made a beside-the-title field the cheap answer rather
+than a guess that it would be.
+
+### 1.2 — the acceptance, red, with its non-vacuity control named
+
+`alertMessageRides.test.js`. ⛔ **The non-vacuity control is
+`every specimen has a message arg and produces output`** — without it `row.message ===
+'X'` passes over a script that refused before reaching the `alertcondition`, and an empty
+output list satisfies every other assertion in the file.
+
+⭐ **`SAME_TITLE` is the `:121` lesson made a specimen** — two messages under ONE title.
+A single-specimen test passes when the carriage keys off the title or writes one row's
+message onto the other; these two are indistinguishable unless both are present.
+
+### 1.3 — the fix, both argument forms
+
+`outputMessage(args, kind)` reads **named or positional**, exactly as `outputTitle`
+already does, and `hasUncarriedMessage` notes the ones it will not carry.
+
+⚰️ **The named form is the one that bit.** The census read `message = "…"` as an
+EXPRESSION because the value did not start with a quote, understating the carryable set
+by ~155 and mis-sizing the ruling. The fix reads both and **a mutation proves it**.
+
+⛔ **An expression message is NOT carried and gets a NOTE** (`pine:alert-message`), never
+a refusal. 487 of 555 carry; **2** are genuine expressions, and at two corpus specimens
+that is not a feature — it is a sentence, folded into d2 per R22a.
+
+### 1.4 / 1.5 — re-baseline and mutation proof
+
+**Artifacts UNCHANGED** — `corpus_metric.json` and `lookback_agreement.json` both
+untouched, `tools/` clean. A new presentation field on a row nothing counts moves no
+count, which is the same fact §1.1 measured from the other direction.
+
+Scope: **376 files / 7,501 passed / 6 failed in 4** — the pre-existing trio plus
+`symbolFoldParity`, which is **green alone**. A timeout is not banked as breakage.
+
+Three mutations against `sha256 4f3519fe…`, restored byte-equal:
+
+| mutation | result |
+|---|---|
+| drop the `message` field | **3 RED** |
+| carry the expression as if it were a string | **RED on its own control** |
+| read positional only (delete the named branch) | **RED on `NAMED_FORM`** — the ⚰️ above, railed |
+
+## ✅ d1′ BUILT — a chart-only call inside a block is noted (R22b)
+
+**Red `cda5fe08d` → fix `5d1052ddc`.** Estimate **60 min**, stop 120, actual **~105**.
+
+### 2.1 — the gate measured before anything was designed, and it **HOLDS**
+
+`blockStatements(tokens, indents, 0)` returns statements shaped `{header, body, sub}`,
+and **`sub` nests recursively to arbitrary depth**. So a post-walk structure exists: a
+read-only pass can reach every nested call **without modifying the block walk**, and
+R22b's hard constraint holds. **No STOP was required.**
+
+The pass runs **beside** the walk — after it, over the same `stmts` array, immediately
+before `const finalBindings = new Map(env)`. Never inside it, because the block walk is
+where the two members of the read/overwrite ordering class live.
+
+⭐ **Recursion starts at each top-level statement's `sub`**, so a top-level call is never
+re-visited; a `line:column` dedup sits behind that as belt and braces.
+
+### ⚠️ SCOPE CORRECTION — the third call type
+
+R22b named **a drawing call (`label.new` / `line.new`)** as the third specimen type.
+**`label.new` is NOT in `CHART_ONLY_CALLS`** — the set is exactly `plotshape`,
+`plotchar`, `bgcolor`, `barcolor`, `fill`, `hline`, `alert`, and drawing calls have their
+own `pine:drawing` treatment. **`plotshape` is used instead**, so all three specimens are
+genuinely inside the ruled set rather than testing a neighbouring one.
+
+### 2.5 — the mutation proof, reported honestly
+
+Against `sha256 75214cd9…`, restored byte-equal after each.
+
+| mutation | result |
+|---|---|
+| disable the nested pass | ✅ **5 RED** on the nested specimens, **top-level pin GREEN** |
+| clear `seen`, walk twice | ✅ **RED** — *after the control was strengthened* |
+| make the pass touch a binding | ⛔ **NOT EXERCISED** |
+
+⛔⛔ **MUTATION 3 IS NOT PROVEN, AND IT IS RECORDED AS UNEXERCISED RATHER THAN CLAIMED.**
+Three attempts: `forceOpaque` on a builtin (a builtin has no binding to touch);
+`forceOpaque` on a real bound name read by the plot — a fifth specimen was added for this
+mutation's sake, since the original four bind nothing and cannot perturb at all — which
+moved no measured value; and pushing a refusal, which would not load (`refusals` is not
+in scope at that point), so the file reported *"no tests"* rather than a red control.
+**The byte-identical controls — refusals, codes IN ORDER, and output count, each pinned
+at values measured before the pass existed — are in place and would catch a real
+perturbation. I have not exhibited one.** A guard nobody has seen fire is not yet a
+guard, and saying so is cheaper than the alternative.
+
+⭐ **Mutation 2 caught a weak control, which is what a mutation proof is for.** v1 pinned
+the **top-level** call — the one site the pass never visits — so clearing `seen` and
+walking twice left 14/14 green. It now pins **every** site including the nested ones, and
+the mutation reds.
+
+### 2.6 — artifacts and rails
+
+**Artifacts UNCHANGED**, as a notes-only pass should leave them. Lane rails green,
+33/33 across four files; 22/22 on `silenceSpeaks` + `alertMessageRides` together.
+
+## ⭐ THE (d) REPORT — four lines
+
+1. **(d) is CLOSED.** Both silences now speak: an `alertcondition`'s literal or
+   `{{placeholder}}` message **rides beside the title** as a presentation field (487 of
+   555 carryable), and a chart-only call **at any depth** is noted — top level was
+   already covered, a block was noted nowhere, for all seven call types.
+2. **Neither one is a refusal, and neither one is a node type.** A message rides the same
+   carriage a title always has, so `str`'s textop-only parentage is never engaged and
+   **no 12th `NODE_TYPES` member is implied**; `pine:chart-only` and `pine:alert-message`
+   are free-form notes with **zero `REFUSALS` entries**, so the frozen 41 stands.
+3. **Both premises were measured false before either was built**, and both corrections
+   came from the instrument's own table rather than from review: d1's *"`alert()` is
+   dropped whole"* (it was already noted at top level; the gap was depth), and d2's
+   *338 literal / 149 placeholder / 2 expression* against the census's original
+   183/157 (it read a **named argument** as an expression).
+4. **d3 is OWED to H.7** — what a *set* means is a screener-surface question, D1 having
+   ruled that a pane does not select an alert, and **the screener lanes are not this
+   branch's**. Not estimable until the owner rules.
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
