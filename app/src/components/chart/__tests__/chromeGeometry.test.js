@@ -235,3 +235,58 @@ describe('⛔⛔ the SHIPPED plan — both ownerships, together, per layout', ()
     }
   })
 })
+
+describe('⛔⛔ legend compaction follows PRICE GEOMETRY, never pane index', () => {
+  // ⚰️ THE REPORTED SYMPTOM WAS A COMPACT PRICE LEGEND (OHLCV abbreviated, MA
+  // rows gone) after moving a pane above Price. MEASURED IN THE REAL UI across
+  // ten topologies — Price at index 0, 1 and 2, with Volume and QQQ moved over
+  // and under it — the legend stayed FULL with all four MA rows every time, and a
+  // genuine shrink-then-grow cycle compacted and then RECOVERED:
+  //
+  //     tall  456px  compact=false  MAs=4
+  //     260px 151px  compact=true   MAs=0     ← legitimate, the pane is a sliver
+  //     200px 112px  compact=true   MAs=0
+  //     tall  456px  compact=false  MAs=4     ← recovered on its own
+  //
+  // So the "stale-latch" theory is DISPROVEN, and the MA rows are part of the
+  // same compact decision rather than a second membership defect.
+  //
+  // ⛔ WHAT THIS RAIL PINS is the property that makes that true: the collapse
+  // threshold is a question about PRICE'S OWN BOX. If it ever again derives from
+  // the first pane, a pane above Price would change the legend without Price
+  // changing size — which is exactly the shape of the bug that was reported.
+
+  const PRICE_H = 456
+  const stacks = [
+    ['Price first', [PRICE_H, 152, 80], 0],
+    ['one pane above', [80, PRICE_H, 152], 1],
+    ['two panes above', [152, 80, PRICE_H], 2],
+  ]
+
+  it('⭐ the threshold is the same wherever Price sits', () => {
+    const thresholds = stacks.map(([, hs, i]) =>
+      chromePlan({ paneHeights: hs, priceIndex: i, timeAxisHeight: 26 }).collapseThresholdPx
+        - chromePlan({ paneHeights: hs, priceIndex: i, timeAxisHeight: 26 }).priceTop)
+    // measured relative to Price's own top, the answer cannot depend on position
+    for (const t of thresholds) expect(t).toBe(thresholds[0])
+    expect(thresholds[0]).toBe(PRICE_H - 34)
+  })
+
+  it('⛔ it tracks Price’s HEIGHT, which is what makes compaction legitimate', () => {
+    const tall = chromePlan({ paneHeights: [80, 456, 152], priceIndex: 1, timeAxisHeight: 26 })
+    const short = chromePlan({ paneHeights: [80, 112, 152], priceIndex: 1, timeAxisHeight: 26 })
+    expect(short.collapseThresholdPx).toBeLessThan(tall.collapseThresholdPx)
+    // ⭐ AND IT IS REVERSIBLE — the same inputs give the same answer, so a pane
+    // that grows back gets its full legend back. No hysteresis, no latch.
+    expect(chromePlan({ paneHeights: [80, 456, 152], priceIndex: 1, timeAxisHeight: 26 }))
+      .toEqual(tall)
+  })
+
+  it('⛔ a pane ABOVE Price does not change the decision by itself', () => {
+    // Price the same size, a neighbour added above: the legend must not move mode.
+    const alone = chromePlan({ paneHeights: [PRICE_H, 152], priceIndex: 0, timeAxisHeight: 26 })
+    const withNeighbour = chromePlan({ paneHeights: [80, PRICE_H, 152], priceIndex: 1, timeAxisHeight: 26 })
+    const room = (p) => p.collapseThresholdPx - p.priceTop
+    expect(room(withNeighbour)).toBe(room(alone))
+  })
+})
