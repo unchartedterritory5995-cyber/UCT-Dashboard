@@ -157,15 +157,17 @@ def test_a_sweep_date_with_no_RAW_frame_refuses_the_whole_chunk(monkeypatch):
     adj = {t: {"o": 10.0, "h": 11.0, "l": 9.0, "c": 10.0, "v": 5_000_000}
            for t in ("AAA", "BBB")}
 
-    def _grouped(day_iso, adjusted=False):
+    def _frame(day_iso, adjusted=False):
         if day_iso not in sessions:
-            return {}                      # a real non-trading day
+            return {"rows": {}, "empty": True}     # a real non-trading day
         if adjusted:
-            return adj                     # the market DID trade
-        # the RAW fetch fails on the middle session only
-        return {} if day_iso == "2015-03-10" else adj
+            return {"rows": adj, "empty": False}   # the market DID trade
+        # the RAW fetch comes back EMPTY on the middle session only — the shape a
+        # swallowed exception used to produce, and still the shape of a provider that
+        # answers 200 with no results
+        return {"rows": {}, "empty": True} if day_iso == "2015-03-10"             else {"rows": adj, "empty": False}
 
-    monkeypatch.setattr(massive, "get_grouped_daily_ohlcv", _grouped)
+    monkeypatch.setattr(massive, "get_grouped_daily_frame", _frame)
     monkeypatch.setattr(bpf, "reference_map", lambda force=False: {})
 
     out = bpf.build_frame("us", "2015-03-09", "2015-03-11", warmup_days=3)

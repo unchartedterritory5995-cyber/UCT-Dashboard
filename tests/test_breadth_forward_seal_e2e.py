@@ -52,6 +52,16 @@ def offline(monkeypatch, tmp_path):
     # directory, and every case fails on a cache miss. Patching the constant makes the
     # rail order-independent instead of accidentally-passing.
     monkeypatch.setattr(massive, "_GROUPED_OHLCV_DIR", FRAMES)
+    # ⚠️ BOUND THE WARM-UP TO WHAT THE CACHE HOLDS. `forward_seal_tick` calls
+    # `sweep_history` with the production 560-day default, which reaches back to 2013-08
+    # — before this machine's frame cache starts. That used to pass silently because a
+    # missing frame was swallowed as "the market was closed"; now it correctly RAISES,
+    # which is the fix working and would make this rail fail for the wrong reason.
+    from api.services import breadth_pit_frame as _bpf
+    _real_build = _bpf.build_frame
+    monkeypatch.setattr(_bpf, "build_frame",
+                        lambda uni, f, t, **kw: _real_build(
+                            uni, f, t, **{**kw, "warmup_days": 539}))
     store._INIT_DONE = False
     recon._FORWARD_SEAL_STATE.clear()
     yield store, recon
@@ -61,7 +71,7 @@ def offline(monkeypatch, tmp_path):
 def _seed_first_day(store, recon):
     """The historical backfill owns the first population; the seal walks forward
     from it. Sweeping one day is the smallest honest way to produce that state."""
-    res = recon.sweep_history(SEEDED, SEEDED, universe="us", warmup_days=539)
+    res = recon.sweep_history(SEEDED, SEEDED, universe="us")
     assert res.get("ok"), res.get("reason")
     assert store.stats("us")["last"] == SEEDED
     return res
@@ -97,8 +107,7 @@ def test_the_sealed_value_equals_what_the_historical_sweep_produces(offline):
     try:
         os.environ["BREADTH_OHLC_DB"] = os.path.join(tmp, "hist.db")
         store._INIT_DONE = False
-        res = recon.sweep_history(SEALABLE[1], SEALABLE[1], universe="us",
-                                  warmup_days=539)
+        res = recon.sweep_history(SEALABLE[1], SEALABLE[1], universe="us")
         assert res.get("ok"), res.get("reason")
         hist = {m: store.history(m, universe="us").get(SEALABLE[1]) for m in sealed}
     finally:
@@ -134,13 +143,13 @@ def test_the_seal_REFUSES_a_window_whose_raw_frame_is_missing(offline, monkeypat
     _seed_first_day(store, recon)
 
     from api.services import massive
-    real = massive.get_grouped_daily_ohlcv
+    real = massive.get_grouped_daily_frame
 
     def _hole(day_iso, adjusted=False):
         if not adjusted and day_iso == SEALABLE[1]:
-            return {}                      # the fetch "failed"
+            return {"rows": {}, "empty": True}     # the provider answered with nothing
         return real(day_iso, adjusted=adjusted)
-    monkeypatch.setattr(massive, "get_grouped_daily_ohlcv", _hole)
+    monkeypatch.setattr(massive, "get_grouped_daily_frame", _hole)
 
     out = recon.forward_seal_tick("us", through=SEALABLE[-1])
     assert out.get("failed") is True

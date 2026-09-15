@@ -1574,6 +1574,145 @@ def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
     return out
 
 
+# ── A GROUPED-DAILY FRAME THAT CAN SAY "I FAILED" ─────────────────────────
+#
+# ⚰️ `get_grouped_daily_ohlcv` ABOVE WRAPS EVERYTHING IN `except Exception: return {}`,
+# which is the right contract for its callers (a chart must not 500 because a provider
+# blinked) and the WRONG one for a historical sweep. It collapses three genuinely
+# different answers into one empty dict:
+#
+#     the market was CLOSED that day        -> {}
+#     the provider RATE-LIMITED us          -> {}
+#     the request TIMED OUT / 5xx'd         -> {}
+#
+# A sweep reading that cannot tell a holiday from a 429, so a throttled grind writes a
+# history with holes in it and reports success. `build_frame` already guards the RAW
+# half by cross-checking the ADJUSTED one; nothing guards the ADJUSTED half, and a
+# dropped adjusted frame silently shortens the matrix and the session is skipped.
+#
+# ⛔ SO THE FIX IS AT THE TRANSPORT, NOT IN THE CALLERS. Once a failure RAISES, an
+# empty frame genuinely means "the provider answered and there were no rows" — and the
+# holiday question becomes safe to ask. The 704-request provider control saw zero 429s;
+# the US grind is 9,185 requests.
+#
+# ⭐ IT REUSES `_typed_get`, THE REPO'S EXISTING TYPED TRANSPORT, rather than inventing
+# an error model: `MassiveRateLimited` / `MassiveTransient` / `MassiveAuthError` /
+# `MassiveNotFound` are already the vendor family this module raises elsewhere.
+
+#: Bounded retry for the two classes that are worth retrying. Deliberately small and
+#: deliberately serial: a grind that answers throttling with more concurrency is how a
+#: shared API key gets exhausted for every other consumer on the pod.
+_GROUPED_RETRIES = 3
+_GROUPED_BACKOFF = (1.0, 4.0, 10.0)
+
+
+class GroupedFrameError(RuntimeError):
+    """The provider did not answer for this date. NOT "the market was closed"."""
+
+    def __init__(self, day_iso: str, adjusted: bool, reason: str, attempts: int):
+        super().__init__(f"{day_iso} {'adjusted' if adjusted else 'raw'}: {reason}")
+        self.day_iso, self.adjusted = day_iso, adjusted
+        self.reason, self.attempts = reason, attempts
+
+
+def get_grouped_daily_frame(day_iso: str, adjusted: bool = False) -> dict:
+    """`{"rows": {...}, "empty": bool}` — or RAISE `GroupedFrameError`.
+
+    Three outcomes, three distinguishable answers:
+      rows present          the session traded
+      rows empty, no error  the provider answered with nothing — a closure
+      GroupedFrameError     we do not know, and the caller must not guess
+
+    ⛔ A FAILURE IS NEVER CACHED. The durable tier is written only for a settled date
+    that actually returned rows, so a transient 429 cannot poison a date as "zero
+    securities" for the next seven days — which, given the cache's 604800s TTL, would
+    outlive the incident by a week.
+    """
+    import json as _json
+    ck = f"grouped_ohlcv_{day_iso}_{1 if adjusted else 0}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return {"rows": cached, "empty": not cached}
+    settled = day_iso < _grouped_settled_cutoff()
+    fpath = os.path.join(_GROUPED_OHLCV_DIR, f"{day_iso}_{1 if adjusted else 0}.json")
+    cpath = fpath[:-5] + ".closed"
+    if settled:
+        try:
+            with open(fpath) as fh:
+                m = _json.load(fh)
+            if m:
+                cache.set(ck, m, ttl=604800)
+                return {"rows": m, "empty": False}
+        except Exception:
+            pass
+        # ⭐ A CONFIRMED CLOSURE IS DURABLE; A FAILURE IS NOT. Without this every
+        # replay re-asks the provider about Thanksgiving 2013 — and an OFFLINE replay
+        # simply cannot run. The marker is written ONLY when the provider answered
+        # successfully with no rows on a settled date, so a 429 can never create one and
+        # can never poison a date as "zero securities" for the cache's seven-day TTL.
+        if os.path.exists(cpath):
+            return {"rows": {}, "empty": True, "closed": True}
+
+    adj = "true" if adjusted else "false"
+    path = (f"/v2/aggs/grouped/locale/us/market/stocks/{day_iso}"
+            f"?adjusted={adj}&apiKey={_get_client()._api_key}")
+    last = None
+    for attempt in range(_GROUPED_RETRIES):
+        try:
+            data = _get_client()._typed_get(path)
+            break
+        except _ERR.NotFound as e:                      # the date is not a session
+            return {"rows": {}, "empty": True, "not_found": str(e)}
+        except (_ERR.RateLimited, _ERR.Transient) as e:
+            last = e
+            if attempt < _GROUPED_RETRIES - 1:
+                time.sleep(_GROUPED_BACKOFF[min(attempt, len(_GROUPED_BACKOFF) - 1)])
+                continue
+        except _ERR.NotConfigured as e:                 # ⛔ never retried: not transient
+            raise GroupedFrameError(day_iso, adjusted, f"not configured: {e}", 1) from e
+        except _ERR.AuthError as e:                     # ⛔ never retried: not transient
+            raise GroupedFrameError(day_iso, adjusted, f"auth: {e}", 1) from e
+        except Exception as e:                          # unknown — still not a holiday
+            raise GroupedFrameError(day_iso, adjusted,
+                                    f"{type(e).__name__}: {e}", attempt + 1) from e
+    else:
+        raise GroupedFrameError(day_iso, adjusted,
+                                f"exhausted {_GROUPED_RETRIES} attempts: {last}",
+                                _GROUPED_RETRIES)
+
+    if isinstance(data, dict) and data.get("__degraded__"):
+        raise GroupedFrameError(day_iso, adjusted, "credential degraded (cached 401/403)", 1)
+
+    out: dict[str, dict] = {}
+    for r in (data.get("results") or []):
+        tk, c = r.get("T"), r.get("c")
+        if tk and isinstance(c, (int, float)) and c > 0:
+            out[str(tk).upper()] = {
+                "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
+                "c": float(c), "v": _num(r.get("v")) or 0.0,
+            }
+    if out:
+        cache.set(ck, out, ttl=(604800 if settled else 900))
+        if settled:
+            try:
+                os.makedirs(_GROUPED_OHLCV_DIR, exist_ok=True)
+                tmp = fpath + ".tmp"
+                with open(tmp, "w") as fh:
+                    _json.dump(out, fh)
+                os.replace(tmp, fpath)
+            except Exception:
+                pass
+    if not out and settled:
+        # ⚠️ ONLY a successful empty answer reaches here — every failure raised above.
+        try:
+            os.makedirs(_GROUPED_OHLCV_DIR, exist_ok=True)
+            with open(cpath, "w") as fh:
+                fh.write(day_iso)
+        except Exception:
+            pass
+    return {"rows": out, "empty": not out, "closed": bool(not out and settled)}
+
+
 def list_reference_tickers(active: bool = True, market: str = "stocks",
                            limit: int = 1000, max_pages: int = 60) -> list[dict]:
     """Paginated /v3/reference/tickers enumeration (active OR delisted). Returns raw

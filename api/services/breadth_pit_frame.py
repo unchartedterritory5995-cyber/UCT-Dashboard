@@ -225,6 +225,23 @@ def eligible_on(universe: str, date: str, day_rows: dict, ref_map: dict,
 
 # ── The frame ────────────────────────────────────────────────────────────────
 
+class FrameFetchFailed(RuntimeError):
+    """One or more dates could not be FETCHED — as distinct from not having traded.
+
+    ⚠️ Carries the dates and the provider's own reason for each, because "the
+    provider was rate-limited" and "that date is not a session" must not arrive at a
+    reader as the same sentence.
+    """
+
+    def __init__(self, failures: list, adjusted: bool):
+        self.failures = failures
+        self.adjusted = adjusted
+        first = failures[0]
+        super().__init__(
+            f"{len(failures)} {'adjusted' if adjusted else 'raw'} frame(s) FAILED to "
+            f"fetch (first: {first[0]} — {first[1]})")
+
+
 def _sessions(from_date: str, to_date: str, adjusted: bool, max_gap: int = 12) -> list:
     """[(iso, {TICKER: row})] ascending over real trading sessions in the range.
 
@@ -233,22 +250,39 @@ def _sessions(from_date: str, to_date: str, adjusted: bool, max_gap: int = 12) -
     cannot spin through years of empty days.
     """
     from api.services import massive
-    out, gap = [], 0
+    out, gap, failed = [], 0, []
     d = _date.fromisoformat(from_date)
     end = _date.fromisoformat(to_date)
     while d <= end:
         if d.weekday() < 5:
-            g = massive.get_grouped_daily_ohlcv(d.isoformat(), adjusted=adjusted)
+            iso = d.isoformat()
+            # ⛔⛔ A PROVIDER FAILURE IS NOT A HOLIDAY, and this walker could not tell
+            # the difference until `get_grouped_daily_frame` existed. `get_grouped_daily_
+            # ohlcv` returns `{}` for a closure, a 429 and a timeout alike, so a
+            # throttled grind would have walked straight past the sessions it failed to
+            # fetch, silently shortening the matrix — and `max_gap` would have called it
+            # a provider outage only after twelve in a row.
+            try:
+                res = massive.get_grouped_daily_frame(iso, adjusted=adjusted)
+            except massive.GroupedFrameError as e:
+                failed.append((iso, e.reason))
+                d += _td(days=1)
+                continue
+            g = res.get("rows") or {}
             if g:
-                out.append((d.isoformat(), g))
+                out.append((iso, g))
                 gap = 0
             else:
                 gap += 1
                 if gap > max_gap:
                     _log.warning("[pit_frame] %s empty sessions at %s — stopping",
-                                 gap, d.isoformat())
+                                 gap, iso)
                     break
         d += _td(days=1)
+    if failed:
+        # ⛔ RAISED, NOT RETURNED. A short matrix is indistinguishable from a quiet
+        # market to everything downstream; an exception is not.
+        raise FrameFetchFailed(failed, adjusted)
     return out
 
 
@@ -281,7 +315,15 @@ def build_frame(universe: str, from_date: str, to_date: str,
 
     warm_start = (_date.fromisoformat(from_date) - _td(days=int(warmup_days))).isoformat()
     t0 = time.perf_counter()
-    adj = _sessions(warm_start, to_date, adjusted=True)
+    try:
+        adj = _sessions(warm_start, to_date, adjusted=True)
+    except FrameFetchFailed as e:
+        # ⛔ THE ADJUSTED HALF NOW REFUSES TOO. It never did: only the RAW half was
+        # guarded, so a dropped adjusted frame removed a session from `dates` and the
+        # sweep simply never computed it.
+        return {"ok": False, "reason": str(e), "dates": [], "date_pos": {},
+                "tickers": [], "eligible": {}, "coverage": {},
+                "failed_frames": [d for d, _r in e.failures]}
     if not adj:
         return {"ok": False, "reason": "no sessions in range", "dates": [],
                 "date_pos": {}, "tickers": [], "eligible": {}, "coverage": {}}
@@ -332,7 +374,7 @@ def build_frame(universe: str, from_date: str, to_date: str,
     warm_dates = dates[max(0, first_i - WARM_SESSIONS):first_i]
     elig_dates = warm_dates + sweep_dates
     eligible, coverage = {}, {}
-    missing_raw = []
+    missing_raw, raw_failures = [], []
     from api.services import massive
     for d in elig_dates:
         j = date_pos[d]
@@ -346,7 +388,14 @@ def build_frame(universe: str, from_date: str, to_date: str,
             warnings.simplefilter("ignore", RuntimeWarning)
             med = np.nanmedian(dollar[:, lo:j + 1], axis=1)
         dv = {t: float(med[i]) for i, t in enumerate(tickers) if med[i] == med[i]}
-        raw = massive.get_grouped_daily_ohlcv(d, adjusted=False)
+        # ⭐ RAW AND ADJUSTED ARE ATOMIC FOR A SESSION. `d` is in `dates`, so the
+        # adjusted frame exists and the market traded; a raw frame that is empty OR
+        # failed leaves this session incomplete, and half a session is not a session.
+        try:
+            raw = (massive.get_grouped_daily_frame(d, adjusted=False) or {}).get("rows") or {}
+        except massive.GroupedFrameError as e:
+            raw = {}
+            raw_failures.append((d, e.reason))
         # ⛔⛔ AN EMPTY RAW FRAME ON A REAL SESSION IS AN ERROR, NOT AN EMPTY UNIVERSE.
         # `d` is in `dates`, which means the ADJUSTED fetch returned rows, so the
         # market traded. If the RAW fetch comes back empty the fetch FAILED — and
@@ -376,13 +425,22 @@ def build_frame(universe: str, from_date: str, to_date: str,
         # ⛔ A WARM DATE COUNTS. It produces no stored row, but it seeds the rolling
         # metrics, so computing it over "all priced tickers" because its raw frame was
         # missing is the very downgrade BL-021 exists to remove.
+        # ⚠️ TWO CAUSES, NAMED APART. "the provider errored" and "the provider
+        # answered with nothing on a day the market traded" are both refusals and they
+        # are not the same incident, so the reason says which.
+        detail = ""
+        if raw_failures:
+            detail = (f" {len(raw_failures)} of them FAILED to fetch "
+                      f"(first: {raw_failures[0][0]} — {raw_failures[0][1]});")
         return {"ok": False, "reason": (
             f"{len(missing_raw)} of {len(elig_dates)} eligibility dates "
             f"({len(sweep_dates)} output + {len(warm_dates)} warm-up) have no raw "
-            f"grouped-daily frame (first: {missing_raw[0]}, last: {missing_raw[-1]}). "
-            "The adjusted frame exists for these dates, so the market traded and the "
-            "RAW fetch failed — computing over them would write a silent gap."),
-            "missing_raw": missing_raw, "dates": [], "date_pos": {},
+            f"grouped-daily frame (first: {missing_raw[0]}, last: {missing_raw[-1]})."
+            f"{detail} The adjusted frame exists for these dates, so the market traded "
+            "— computing over them would write a silent gap."),
+            "missing_raw": missing_raw,
+            "failed_frames": [d for d, _r in raw_failures],
+            "dates": [], "date_pos": {},
             "tickers": [], "eligible": {}, "coverage": {}}
     return {"ok": True, "universe": bu.normalize(universe), "dates": dates,
             "date_pos": date_pos, "closes": closes, "vols": vols,
