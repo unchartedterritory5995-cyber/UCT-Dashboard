@@ -62,6 +62,23 @@ def run(cmd, cwd=None, runner=None):
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
+def tail(out, keep=3, width=300) -> str:
+    """The last few non-empty lines of a command's output, on ONE line.
+
+    ⚰️ **E CP16 — `run()` returned the output and every caller threw it away.** Run #13's
+    rebase returned **128** and the log recorded only `rebase rc=128`, so the failure was
+    named but not explained — and git had already printed the reason.
+
+    ⭐ The TAIL, not the head: git puts `fatal: …` last, after any progress chatter. One
+    line, because it rides a `::error::` annotation, and bounded because a diagnostic that
+    floods the channel is a diagnostic nobody reads.
+    """
+    lines = [l.strip() for l in str(out or "").splitlines() if l.strip()]
+    if not lines:
+        return "(no output)"
+    return " | ".join(lines[-keep:])[:width]
+
+
 def report_artifact(path) -> str:
     """⛔ EXISTS AND SIZE, printed BEFORE any read.
 
@@ -108,19 +125,30 @@ def push_with_retry(branch="ci-results", runner=None, sleep=time.sleep,
             return FAIL, log
         rc, out = run(["git", "rebase", "origin/" + branch], runner=runner)
         log.append("attempt %d: rebase rc=%d" % (i, rc))
-        if rc != 0:
-            # ⛔ A rebase conflict here means two runs wrote the SAME path, which the
-            # per-run-directory layout is supposed to make impossible. Say so loudly
-            # rather than forcing past it.
+        if rc == 1:
+            # ⛔ A rebase CONFLICT is rc 1, and only rc 1. It means two runs wrote the SAME
+            # path, which the per-run-directory layout is supposed to make impossible.
             log.append("attempt %d: ⛔ REBASE CONFLICT — two publishers wrote one path; "
                        "this should be impossible once latest.json is gone" % i)
+            log.append("attempt %d: git said: %s" % (i, tail(out)))
+            return FAIL, log
+        if rc != 0:
+            # ⚰️ E CP16 — RUN #13 RETURNED 128 AND THIS CODE CALLED IT A CONFLICT.
+            # git exits 128 on a FATAL error (a refused state, a bad argument, an
+            # unreadable repo) and 1 on a conflict. ⛔ Calling 128 "two publishers wrote one
+            # path" is the same defect E CP13 split UPSTREAM-UNREADABLE out of, committed
+            # again one branch over: a confident sentence about a cause nobody established.
+            # ⭐ git already knows what went wrong and says so — the only reason nobody
+            # could read it is that this function threw the text away.
+            log.append("attempt %d: ⛔ REBASE FATAL (rc=%d, NOT a conflict — a conflict is "
+                       "rc 1). git said: %s" % (i, rc, tail(out)))
             return FAIL, log
         rc, out = run(["git", "push", "origin", branch], runner=runner)
         log.append("attempt %d: push rc=%d" % (i, rc))
         if rc == 0:
             log.append("published on attempt %d" % i)
             return OK, log
-        log.append("attempt %d: push rejected (non-fast-forward or remote error)" % i)
+        log.append("attempt %d: push rejected. git said: %s" % (i, tail(out)))
         if i < attempts:
             sleep(backoff)
     log.append("⛔ %d attempts exhausted — NOT published. Exiting non-zero so the run "
@@ -229,6 +257,32 @@ def _self_check() -> int:
     show("a rebase CONFLICT exits 1 rather than forcing", rc, FAIL)
     show("...and says two publishers wrote one path",
          any("REBASE CONFLICT" in l for l in log), True)
+
+    # 4a — ⚰️ E CP16: rc 128 is a FATAL git error, not a conflict, and git's own text
+    # must reach the log. Run #13 recorded `rebase rc=128` and nothing else.
+    def fatal_runner(cmd):
+        if cmd[1] == "rebase":
+            return (128, "First, rewinding head...\nfatal: cannot rebase: You have "
+                         "unstaged changes.\n")
+        return (0, "")
+    rc_f, log_f = push_with_retry(runner=fatal_runner, sleep=lambda s: None)
+    show("rc 128 exits 1", rc_f, FAIL)
+    show("...and is NOT called a conflict", any("REBASE CONFLICT" in l for l in log_f), False)
+    show("...it is called FATAL and says the rc", any("REBASE FATAL (rc=128" in l for l in log_f), True)
+    show("...and git's OWN sentence reaches the log",
+         any("cannot rebase: You have unstaged changes." in l for l in log_f), True)
+
+    def conflict_text_runner(cmd):
+        return (1, "CONFLICT (add/add): Merge conflict in results/x\n") if cmd[1] == "rebase" else (0, "")
+    rc_ct, log_ct = push_with_retry(runner=conflict_text_runner, sleep=lambda s: None)
+    show("rc 1 IS a conflict", any("REBASE CONFLICT" in l for l in log_ct), True)
+    # ⛔ NON-VACUITY: the two rcs must not produce the same sentence.
+    show("fatal and conflict are distinguishable",
+         set(l for l in log_f if "⛔" in l) != set(l for l in log_ct if "⛔" in l), True)
+    show("tail() takes the LAST lines, where git puts `fatal:`",
+         tail("progress\nmore progress\nfatal: the real reason"),
+         "progress | more progress | fatal: the real reason")
+    show("tail() of nothing is NAMED, not empty", tail(""), "(no output)")
 
     # 4b — ⛔ E CP13: an unresolvable upstream is its OWN state, never "a conflict"
     def no_upstream(cmd):
