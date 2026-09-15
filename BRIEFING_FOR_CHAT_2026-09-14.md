@@ -798,3 +798,36 @@ text. That re-justifies CP2/CP4 on a second ground.
 
 ⛔ **The two commands stay PARKED.** Condition 1 (F-MERGE-1 closed) is **met**; condition 2
 (CI red diagnosed, every failing file classified) is **not**.
+
+### ADDENDUM — run #3 landed, and the backend suite was never running
+
+E CP4 worked on its first run. All **479** pytest errors resolve into **18 buckets, every
+one a `ModuleNotFoundError`** — top bucket `fastapi` at **274** — and the arithmetic closes
+exactly against the totals line.
+
+⛔⛔ **The backend suite was not red. It never ran.** `collected 2` of **481** modules. The
+CI job installed five packages (`pytest pytest-asyncio httpx numpy pillow`) against a
+backend whose tests import `api.**`. `requirements.txt` exists, is 83 lines, declares every
+top bucket — **and already contains all five**. A derived list, typed by hand.
+
+⭐ **One guard away from a green badge:** only `ci_summarize`'s rule that *zero collected is
+never ok* stopped `0 failed` being published as a pass.
+
+**T2 CP1 shipped** (`4ad1108d1`, one line, pushed). Run #4 is in flight; its expected
+outcome is written down *before* it lands — collection near the full module count and a
+**genuine red**, not a green.
+
+**All 14 vitest files classified: ENV 13 · KNOWN-RED 1 · REAL 5.** Five ENV failures are one
+cause — a **shallow `actions/checkout`**, so `git merge-base` and `git show <sha>:<path>`
+cannot resolve (**F-CI-4**, one line, `fetch-depth: 0`, not built — different root cause).
+⭐ `rule12Paths` **refused rather than passing vacuously** — the non-vacuity rule working in
+production, unprompted.
+
+**Manifest now 16 rows, 16 OK, 15 of 15 commits mapped, exit 0.**
+
+⛔ **The two commands stay PARKED.** Diagnosis is done; the STATE is not — five ENV failures
+remain, five REAL failures are real, and the branch's CI has never been green.
+
+⚠️ **New open question:** T2 CP1 has **no parent packet**. No `T2` exists in `gates/`, so
+the id was free, but every other build record cites a parent. Adopt as **E CP5**, or write a
+T2 packet?
