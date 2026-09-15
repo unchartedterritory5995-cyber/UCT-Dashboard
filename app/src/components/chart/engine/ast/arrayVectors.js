@@ -135,7 +135,16 @@ export function seriesDependentMessage(what, dependency, line) {
     + (line ? ` at line ${line}` : '')
     + ' — so it cannot be settled before the chart runs. On this lane an array is'
     + ' a plan-time vector, so its size and every loop bound must be known first.'
-    + ' Runtime arrays are the IR lane\'s, item (c).'
+    // ⛔⛔ R20 (2026-09-15) — THE ROUTING IS TRUE AND WAS INCOMPLETE. "Runtime
+    // arrays are the IR lane's, item (c)" promised a member a result that, while
+    // ruling D2 stands, cannot reach the surface they are looking at: a pane draws
+    // the HOST lane's saved definition (`paneGate.js::PANE_LANE = 'host'`) and the
+    // IR lane's output does not reach the pane path. The work is permitted
+    // off-pane; the delivery is not. The routing did not change — the limit was
+    // added, so nobody reads "item (c) will handle it" as "this will draw".
+    + ' Runtime arrays are the IR lane\'s, item (c) — and while ruling D2 stands'
+    + ' the IR lane does not reach a pane, so this will not draw here even once'
+    + ' item (c) carries it.'
 }
 
 /**

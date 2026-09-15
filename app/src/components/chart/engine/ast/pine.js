@@ -7888,9 +7888,13 @@ export class Resolver {
         + 'only as a `textop` operand, and a session feeding a time-in-range '
         + 'comparison is not one. 70 uses across 23 files, and nothing routes '
         + 'them: this is a grammar limit, not a threshold',
+      // ⛔ R20 — the item (c) routing carries D2's limit, as `seriesDependentMessage`
+      // does. Without it a member is told their expression default will be handled
+      // and not told it cannot reach a pane while D2 stands.
       time:
         '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
-        + 'are expressions are item (c)\'s. 6 reach a column, under the threshold',
+        + 'are expressions are item (c)\'s — and while ruling D2 stands the IR lane '
+        + 'does not reach a pane. 6 reach a column, under the threshold',
       string:
         'in a timeframe position this folds exactly as `input.timeframe` does and '
         + 'adds no separate mechanism — 14 uses across 3 files',
@@ -10851,8 +10855,12 @@ export function translatePine(source, opts = {}) {
             message: `${REFUSALS['pine:collection']} — `
               + `\`${name}\` is filled by a block this engine could not read, so`
               + ' its slots are unknown rather than empty. '
+              // ⛔ R20 — the same promise as `seriesDependentMessage`'s, and it gets
+              // the same limit. Qualifying one branch and not the other would put two
+              // authorities on one sentence, which is the defect this repo names most.
               + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
-                + ' depends on a series is the IR lane\'s, item (c).'),
+                + ' depends on a series is the IR lane\'s, item (c) — and while'
+                + ' ruling D2 stands the IR lane does not reach a pane.'),
             at: locate(first),
             // ⭐ R8 — THE VECTOR THIS REPLACED IS KEPT, so the read can settle its
             // size before speaking. A series-dependent size is a fact about the

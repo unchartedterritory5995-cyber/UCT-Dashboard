@@ -77,14 +77,14 @@ describe('R20 — a routing sentence carries D2\'s limit', () => {
       .toBeGreaterThan(0)
   })
 
-  it.fails('⭐⭐ the SERIES-BOUND sentence says the IR lane does not reach a pane', () => {
+  it('⭐⭐ the SERIES-BOUND sentence says the IR lane does not reach a pane', () => {
     const m = routing(SERIES_BOUND, 'item (c)').join(' ')
     expect(m, 'a member is told item (c) carries this, but not that D2 keeps the IR '
       + 'lane off the pane — so they are promised a result they cannot be shown')
       .toMatch(/ruling D2|does not reach a pane|not on the pane path/)
   })
 
-  it.fails('⭐⭐ the input.time EXPRESSION-DEFAULT sentence says the same', () => {
+  it('⭐⭐ the input.time EXPRESSION-DEFAULT sentence says the same', () => {
     const m = routing(TIME_EXPR_DEFAULT, 'item (c)').join(' ')
     expect(m, 'same promise, same missing limit')
       .toMatch(/ruling D2|does not reach a pane|not on the pane path/)
