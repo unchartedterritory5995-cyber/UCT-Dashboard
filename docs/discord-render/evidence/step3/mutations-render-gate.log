@@ -1,0 +1,4 @@
+captured render_gate.py sha256=f515a18beada6093 bytes=8768
+  CONTROL BEFORE: exit=1  TOTALS c09_gate_races --self-check FAIL declared=10 evaluated=10 failed=1 reasons=under sustained member load, background is STILL served once the bound elapses
+  REFUSING to mutate: the control is not green.
+TOTALS mutation_harness_render_gate INCONCLUSIVE declared=4 evaluated=0 failed=1

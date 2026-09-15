@@ -62,35 +62,48 @@ def _acquire(gate, cls, wait):
         return gate.acquire(timeout=wait)               # a plain BoundedSemaphore
 
 
-def starvation_probe(*, members: int = 40) -> dict:
-    """Sustained member load with one background waiter. Does background EVER get served?"""
+def starvation_probe(*, load_s: float = 1.2, starve_s: float = 0.3, lanes: int = 6) -> dict:
+    """SUSTAINED member load with one background waiter. Does background EVER get served?
+
+    ⚰️ THE FIRST VERSION WAS FLAKY, AND A FLAKY CONTROL IS WORSE THAN NO CONTROL — it teaches people
+    to re-run until green. It fired 40 one-shot members totalling ~200 ms of work against a 300 ms
+    starvation bound: if they all finished first, background was served NORMALLY, `starvation_grants`
+    stayed 0, and the case failed while the gate behaved correctly. It asserted a MECHANISM
+    (the starvation path) using a setup that did not guarantee the mechanism was needed.
+
+    ⭐ Now the load is driven by the CLOCK, not by a count: member lanes keep re-acquiring for
+    `load_s`, which is four times `starve_s`. Background cannot be served on merit inside that
+    window, so a grant to it can only have come from the fairness bound."""
     from api.services.render_gate import RenderGate, MEMBER, BACKGROUND
-    gate = RenderGate(1, starve_s=0.3)
+    gate = RenderGate(1, starve_s=starve_s)
     gate.acquire(cls=MEMBER)
     got: dict = {"background": False}
 
     def _bg():
-        if gate.acquire(timeout=5.0, cls=BACKGROUND):
+        if gate.acquire(timeout=load_s + 3.0, cls=BACKGROUND):
             got["background"] = True
             gate.release()
 
     t = threading.Thread(target=_bg, daemon=True)
     t.start()
-    time.sleep(0.05)
+    time.sleep(0.05)                       # background is parked before any member arrives
 
-    def _member():
-        if gate.acquire(timeout=2.0, cls=MEMBER):
-            time.sleep(0.005)
-            gate.release()
+    stop_at = time.monotonic() + load_s
 
-    threads = [threading.Thread(target=_member, daemon=True) for _ in range(members)]
-    for th in threads:
+    def _member_lane():
+        while time.monotonic() < stop_at:
+            if gate.acquire(timeout=0.5, cls=MEMBER):
+                time.sleep(0.004)
+                gate.release()
+
+    lanes_t = [threading.Thread(target=_member_lane, daemon=True) for _ in range(lanes)]
+    for th in lanes_t:
         th.start()
     gate.release()
-    for th in threads:
-        th.join(timeout=3.0)
-    t.join(timeout=6.0)
-    return {"background_served": got["background"], **gate.stats()}
+    for th in lanes_t:
+        th.join(timeout=load_s + 3.0)
+    t.join(timeout=load_s + 4.0)
+    return {"background_served": got["background"], "load_s": load_s, **gate.stats()}
 
 
 def self_check(out=print) -> int:
