@@ -66,6 +66,18 @@ concurrency:
 permissions:
   contents: read
 
+# ⛔⛔ THE BASELINE THIS SUITE IS JUDGED AGAINST. One constant, one place.
+# ⭐ The suite has ~85 failing pytest entries and 21 vitest ones on a good day. A gate that
+# waits for ZERO never arrives, and one that says "green" the moment it is quiet is the
+# `lesson_gate_that_cannot_fail` shape. The question is "is anything failing now that was
+# not failing in THIS run?" - and the answer is derived by `tools/ci_inventory.py`, never
+# copied into a table here.
+# ⚠️ A baseline ACCEPTS everything in it. Run 35008710335 (#19) carries 122 failure
+# entries, including the two that E CP21's install newly revealed - they are filed as
+# findings BEFORE being baselined, so the baseline forgives nothing silently.
+env:
+  BASELINE_RUN_ID: "35008710335"
+
 jobs:
   # E CP6 — the shard list is DERIVED, never typed into this file. A hand-typed matrix
   # beside tools/pytest_shards.py is the enumeration-beside-its-source defect, and here it
@@ -489,6 +501,45 @@ jobs:
           python tools/ci_record.py --v v.json --p p_suite.json --jobs jobs.json \
             --detail-dir "extract/$GITHUB_RUN_ID" --out record.json
 
+      # ⛔⛔ THIS STEP MUST NEVER EXIT NON-ZERO, and that is not timidity. It runs
+      # INSIDE the publisher, and E CP17 is the record of what happens when a verification
+      # line can destroy the thing it verifies: an artifact check that also pushed left
+      # `.git/rebase-merge` behind and cost five runs. The DIFF is computed here so it is
+      # published WITH the record; the job that FAILS on it is `gate`, below, which runs
+      # after the record is safely on the branch.
+      - name: Diff against the baseline (computed here, never fatal here)
+        if: always()
+        continue-on-error: true
+        run: |
+          set -e
+          B="$BASELINE_RUN_ID"
+          mkdir -p "base/$B"
+          git fetch origin ci-results
+          for f in pytest_failures.txt vitest_failures.txt summary.json; do
+            if git show "FETCH_HEAD:results/$B/$f" > "base/$B/$f" 2>/dev/null; then
+              echo "baseline $f: $(wc -c < "base/$B/$f") bytes"
+            else
+              rm -f "base/$B/$f"
+              echo "::error title=baseline unreadable::results/$B/$f is not on ci-results"
+            fi
+          done
+          python tools/ci_inventory.py \
+            --baseline "$B" --current "$GITHUB_RUN_ID" \
+            --baseline-dir "base/$B" --current-dir "extract/$GITHUB_RUN_ID" \
+            --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
+          cat diff.md
+          cat diff.md >> "$GITHUB_STEP_SUMMARY"
+          V=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['verdict'])" 2>/dev/null || echo UNREADABLE)
+          echo "::notice title=baseline diff::$V (baseline $B)"
+          cp "extract/$GITHUB_RUN_ID/diff.json" diff.json 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: ci-diff
+          path: diff.json
+
       # ⛔ THE STEP SUMMARY IS WRITTEN BEFORE THE PUSH IS ATTEMPTED, unconditionally.
       # F-CI-7: runs #5 and #6 both had this job fail, so no record exists for either and
       # the only evidence sits behind a 403. The outcome must be readable in the Actions tab
@@ -635,3 +686,51 @@ jobs:
           # wrapped in `|| true` — silently attempted a rebase, failed on an empty ident,
           # and left `.git/rebase-merge` for this step to trip over.
           python "/tmp/ci_publish.py" --branch ci-results --push
+
+  # ⛔⛔ THE GATE. This is the ONLY job whose failure means "this change made things
+  # worse", and it is baseline-relative by construction: NO_NEW_FAILURES, never "green".
+  # ⚠️ `continue-on-error: true` sits HERE, at the job level, and it is what keeps the
+  # workflow report-only. Promotion is: remove this line and add the check to branch
+  # protection - a SEPARATE checkpoint, deliberately not this one.
+  gate:
+    name: no NEW failures against the baseline
+    needs: [publish]
+    if: always()
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: ci-diff, path: d }
+        continue-on-error: true
+      - name: Read the verdict
+        run: |
+          if [ ! -f d/diff.json ]; then
+            echo "::error title=gate UNREADABLE::no diff.json was produced - the diff could "\
+          "not be computed, which is not the same as no new failures"
+            exit 1
+          fi
+          python - <<'PY'
+          import json, sys
+          d = json.load(open("d/diff.json", encoding="utf-8"))
+          v, c = d["verdict"], d["counts"]
+          print("verdict: %s" % v)
+          print("baseline %s -> current %s" % (d["baseline_run_id"], d["current_run_id"]))
+          print("NEW %d - FIXED %d - UNCHANGED %d - MISSING %d"
+                % (c["new"], c["fixed"], c["unchanged"], c["missing"]))
+          print(d["arithmetic"])
+          summary = ["## gate: %s" % v, "",
+                     "| NEW | FIXED | UNCHANGED | MISSING |", "|---|---|---|---|",
+                     "| **%d** | %d | %d | **%d** |"
+                     % (c["new"], c["fixed"], c["unchanged"], c["missing"]), ""]
+          for k in d["new"][:30]:
+              summary.append("- NEW `%s`" % k)
+          for k in d["missing"][:30]:
+              summary.append("- MISSING `%s`" % k)
+          import os
+          p = os.environ.get("GITHUB_STEP_SUMMARY")
+          if p:
+              open(p, "a", encoding="utf-8").write("\n".join(summary) + "\n")
+          if v != "NO_NEW_FAILURES":
+              print("::error title=gate %s::%s" % (v, d["arithmetic"]))
+              sys.exit(1)
+          PY

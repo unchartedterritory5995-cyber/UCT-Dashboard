@@ -138,6 +138,168 @@ def inventory(pytest_text: str, vitest_text: str) -> dict:
             "state": UNREADABLE if not rows else "READ"}
 
 
+# ─── THE BASELINE DIFF ───────────────────────────────────────────────────────
+#
+# ⛔⛔ **CI's VERDICT IS BASELINE-RELATIVE, AND IT IS NEVER "GREEN".** This repository has
+# 85 failing pytest entries and 21 vitest ones on a good day; a gate that waits for zero is
+# a gate that never arrives, and one that reports "green" the moment it is quiet is the
+# `lesson_gate_that_cannot_fail` shape. The joystick harness already settled this: the
+# question is **"is anything failing now that was not failing in a NAMED baseline run?"**
+#
+# ⛔ **MISSING IS NEVER COUNTED AS FIXED.** A test that stopped being collected disappears
+# from the failure list exactly as a test that started passing does, and the difference is
+# the whole point — one is progress, the other is coverage silently leaving. The record
+# carries every shard's junit, so *"did this test run in the current record"* is answered
+# EXACTLY rather than inferred from a collected count.
+
+VERDICTS = ("NO_NEW_FAILURES", "NEW_FAILURES", "INVALID", "DID_NOT_RECONCILE")
+
+
+def entry_key(suite: str, where: str):
+    """(suite, classname, name) — the identity a failure keeps across runs."""
+    w = (where or "").strip()
+    if suite == "vitest" and " :: " in w:
+        f, _, n = w.partition(" :: ")
+        return (suite, f.strip(), n.strip())
+    if "|" in w:
+        parts = [p.strip() for p in w.split("|")]
+        return (suite, parts[0], parts[1] if len(parts) > 1 else "?")
+    return (suite, w, "?")
+
+
+def ran_keys(record_dir) -> set:
+    """Every (suite, classname, name) that RAN — read from the junit reports.
+
+    ⭐ This is what makes FIXED and MISSING distinguishable. Without it, a test that
+    vanished from the suite and a test that started passing are the same observation.
+    """
+    import glob
+    import xml.etree.ElementTree as ET
+    out = set()
+    d = str(record_dir)
+    for suite, pattern in (("pytest", d + "/shards/*/pytest-junit.xml"),
+                           ("vitest", d + "/vitest-junit.xml")):
+        for f in glob.glob(pattern):
+            try:
+                root = ET.fromstring(pathlib.Path(f).read_text(encoding="utf-8",
+                                                               errors="replace"))
+            except Exception:
+                continue          # an unparseable junit contributes nothing, never a guess
+            for tc in root.iter("testcase"):
+                out.add((suite, tc.get("classname") or tc.get("file") or "?",
+                         tc.get("name") or "?"))
+    return out
+
+
+def failing_keys(pytest_text: str, vitest_text: str) -> set:
+    out = set()
+    for suite, text in (("pytest", pytest_text), ("vitest", vitest_text)):
+        for where, _ in parse_entries(text):
+            out.add(entry_key(suite, where))
+    return out
+
+
+def diff(baseline_failing: set, current_failing: set, current_ran: set,
+         current_summary: dict, baseline_summary=None) -> dict:
+    """NEW / FIXED / UNCHANGED / MISSING + a verdict. Never raises."""
+    invalid = []
+    s = current_summary or {}
+    p = s.get("pytest") or {}
+    if not baseline_failing:
+        invalid.append("the BASELINE holds zero failure entries — nothing to diff against")
+    if p.get("shards_total") and p.get("shards_success", 0) < p["shards_total"]:
+        invalid.append("current: shards_success %s of %s"
+                       % (p.get("shards_success"), p.get("shards_total")))
+    for field in ("shards_unreadable", "shards_without_totals", "shards_missing"):
+        if p.get(field):
+            invalid.append("current: %s = %s" % (field, p[field]))
+    if not p.get("collected"):
+        invalid.append("current: collected is 0 — the suite did not run")
+    if not current_ran:
+        invalid.append("current: no junit testcases could be read — RAN is unknowable, "
+                       "so FIXED and MISSING cannot be told apart")
+
+    unchanged = sorted(baseline_failing & current_failing)
+    new = sorted(current_failing - baseline_failing)
+    gone = baseline_failing - current_failing
+    fixed = sorted(k for k in gone if k in current_ran)
+    missing = sorted(k for k in gone if k not in current_ran)
+
+    arithmetic = ("baseline %d = unchanged %d + fixed %d + missing %d  |  "
+                  "current %d = unchanged %d + new %d"
+                  % (len(baseline_failing), len(unchanged), len(fixed), len(missing),
+                     len(current_failing), len(unchanged), len(new)))
+    reconciles = (len(baseline_failing) == len(unchanged) + len(fixed) + len(missing)
+                  and len(current_failing) == len(unchanged) + len(new))
+
+    if invalid:
+        verdict = "INVALID"
+    elif not reconciles:
+        verdict = "DID_NOT_RECONCILE"
+    elif new:
+        verdict = "NEW_FAILURES"
+    else:
+        verdict = "NO_NEW_FAILURES"
+    return {"verdict": verdict, "new": new, "fixed": fixed, "unchanged": unchanged,
+            "missing": missing, "counts": {"new": len(new), "fixed": len(fixed),
+                                           "unchanged": len(unchanged),
+                                           "missing": len(missing),
+                                           "baseline": len(baseline_failing),
+                                           "current": len(current_failing),
+                                           "current_ran": len(current_ran)},
+            "arithmetic": arithmetic, "invalid_because": invalid}
+
+
+def load_record(d):
+    """(failing, ran, summary) for one results/<run_id> directory."""
+    d = pathlib.Path(d)
+
+    def read(name):
+        p = d / name
+        if not p.is_file():
+            return ""
+        t = p.read_text(encoding="utf-8", errors="replace")
+        return "" if t.strip().startswith("ZERO") else t
+
+    summary = {}
+    sp = d / "summary.json"
+    if sp.is_file():
+        import json as _json
+        try:
+            summary = _json.loads(sp.read_text(encoding="utf-8"))
+        except ValueError:
+            summary = {}
+    return (failing_keys(read("pytest_failures.txt"), read("vitest_failures.txt")),
+            ran_keys(d), summary)
+
+
+def render_diff(d: dict, baseline_id: str, current_id: str) -> str:
+    out = ["# CI baseline diff", "",
+           "⚠️ DERIVED by `tools/ci_inventory.py --baseline … --current …`. Not hand-edited.",
+           "", "**baseline `%s` → current `%s`**" % (baseline_id, current_id), "",
+           "## VERDICT: %s" % d["verdict"], ""]
+    if d["invalid_because"]:
+        out += ["⛔ INVALID because:", ""] + ["- %s" % r for r in d["invalid_because"]] + [""]
+    c = d["counts"]
+    out += ["| NEW | FIXED | UNCHANGED | MISSING |", "|---|---|---|---|",
+            "| **%d** | %d | %d | **%d** |" % (c["new"], c["fixed"], c["unchanged"],
+                                               c["missing"]), "",
+            "`%s`" % d["arithmetic"], "",
+            "⛔ MISSING is *in the baseline and not collected now* — coverage leaving, never "
+            "counted as FIXED.", ""]
+    if d["new"]:
+        out += ["### NEW — failing now, not in the baseline", ""]
+        out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["new"][:50]]
+        if len(d["new"]) > 50:
+            out.append("- …and %d more" % (len(d["new"]) - 50))
+        out.append("")
+    if d["missing"]:
+        out += ["### MISSING — in the baseline, not collected now", ""]
+        out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["missing"][:50]]
+        out.append("")
+    return "\n".join(out) + "\n"
+
+
 def render(inv: dict) -> str:
     if inv["state"] == UNREADABLE:
         return ("# CI failure inventory\n\n⛔ UNREADABLE — no failure entries were found. "
@@ -227,6 +389,59 @@ def _self_check() -> int:
     # ⛔ NON-VACUITY: the parser must still see BOTH shapes in one file set.
     show("both file shapes are parsed", (inv["entries"], len(vrow) > 0), (6, True))
 
+    # ─── THE BASELINE DIFF — seven controls, fixtures only ───────────────────
+    A = ("pytest", "tests.test_a", "test_one")
+    B = ("pytest", "tests.test_b", "test_two")
+    C = ("pytest", "tests.test_c", "test_three")
+    GOOD = {"pytest": {"shards_total": 2, "shards_success": 2, "shards_unreadable": [],
+                       "shards_without_totals": [], "shards_missing": [], "collected": 100}}
+    RAN = {A, B, C}
+
+    # 1 identical
+    d1 = diff({A, B}, {A, B}, RAN, GOOD)
+    show("1 identical -> NO_NEW_FAILURES", d1["verdict"], "NO_NEW_FAILURES")
+    show("  ...and FIXED is 0", d1["counts"]["fixed"], 0)
+    # 2 one added
+    d2 = diff({A}, {A, B}, RAN, GOOD)
+    show("2 one added -> NEW_FAILURES", d2["verdict"], "NEW_FAILURES")
+    show("  ...and it is NAMED", d2["new"], [B])
+    # 3 one removed, and it RAN
+    d3 = diff({A, B}, {A}, RAN, GOOD)
+    show("3 one removed that RAN -> FIXED=1", (d3["verdict"], d3["counts"]["fixed"]),
+         ("NO_NEW_FAILURES", 1))
+    # 4 ⛔ one removed that did NOT run -> MISSING, never FIXED
+    d4 = diff({A, B}, {A}, {A, C}, dict(GOOD, pytest=dict(GOOD["pytest"], collected=60)))
+    show("4 one removed that did NOT run -> MISSING=1", d4["counts"]["missing"], 1)
+    show("  ...and FIXED stays 0 — coverage leaving is not progress",
+         d4["counts"]["fixed"], 0)
+    show("  ...and it is NAMED", d4["missing"], [B])
+    # 5 a current record with one unreadable shard
+    bad = {"pytest": dict(GOOD["pytest"], shards_unreadable=["tests-07"])}
+    d5 = diff({A}, {A}, RAN, bad)
+    show("5 an unreadable shard -> INVALID", d5["verdict"], "INVALID")
+    show("  ...and says which field", any("shards_unreadable" in r
+                                          for r in d5["invalid_because"]), True)
+    # 6 empty baseline
+    d6 = diff(set(), {A}, RAN, GOOD)
+    show("6 an EMPTY baseline -> INVALID, never NO_NEW_FAILURES", d6["verdict"], "INVALID")
+    # 7 ⛔ THE PAIR CONTROL: a real failure present in BOTH is UNCHANGED — proof the tool
+    #   still sees failures at all, rather than passing because it sees nothing.
+    d7 = diff({A, B}, {A, B}, RAN, GOOD)
+    show("7 a failure in BOTH is UNCHANGED (the tool still sees failures)",
+         (d7["counts"]["unchanged"], d7["counts"]["new"]), (2, 0))
+
+    # ⛔ NON-VACUITY over the verdicts: the seven must not collapse to one answer.
+    show("the controls produce more than one verdict",
+         len({d1["verdict"], d2["verdict"], d5["verdict"], d6["verdict"]}) >= 3, True)
+    # ⛔ the arithmetic is PRINTED and must actually reconcile on a clean diff
+    show("a clean diff reconciles", "baseline 2 = unchanged 1 + fixed 1 + missing 0"
+         in d3["arithmetic"], True)
+    show("...and the RAN count is reported (non-vacuity for FIXED/MISSING)",
+         d3["counts"]["current_ran"], 3)
+    # ⛔ no junit readable at all -> RAN unknowable -> INVALID, never a silent FIXED
+    d8 = diff({A, B}, {A}, set(), GOOD)
+    show("no junit readable -> INVALID, so FIXED cannot be guessed", d8["verdict"], "INVALID")
+
     print("SELF-CHECK:", "PASS" if ok else "FAIL")
     return OK if ok else FAIL
 
@@ -234,13 +449,49 @@ def _self_check() -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--dir", help="a results/<run_id> directory from a ci-results checkout")
+    ap.add_argument("--baseline", help="baseline run_id (with --current)")
+    ap.add_argument("--current", help="current run_id (with --baseline)")
+    ap.add_argument("--results-root", default="results")
+    # the baseline and the current record do not have to live under one root: in CI
+    # the baseline is pulled out of the ci-results branch and the current one is the
+    # extract directory that has not been published yet.
+    ap.add_argument("--baseline-dir")
+    ap.add_argument("--current-dir")
     ap.add_argument("--out")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
+
+    if a.baseline or a.current:
+        if not (a.baseline and a.current):
+            print("--baseline and --current are used together")
+            return FAIL
+        root = pathlib.Path(a.results_root)
+        bdir = pathlib.Path(a.baseline_dir) if a.baseline_dir else root / a.baseline
+        cdir = pathlib.Path(a.current_dir) if a.current_dir else root / a.current
+        bf, _, bs = load_record(bdir)
+        cf, cr, cs = load_record(cdir)
+        d = diff(bf, cf, cr, cs, bs)
+        text = render_diff(d, a.baseline, a.current)
+        if a.out:
+            import json as _json
+            pathlib.Path(a.out).write_text(_json.dumps(
+                {"verdict": d["verdict"], "counts": d["counts"],
+                 "arithmetic": d["arithmetic"], "invalid_because": d["invalid_because"],
+                 "baseline_run_id": a.baseline, "current_run_id": a.current,
+                 "new": ["|".join(k) for k in d["new"]],
+                 "missing": ["|".join(k) for k in d["missing"]],
+                 "fixed": ["|".join(k) for k in d["fixed"]]},
+                indent=2) + "\n", encoding="utf-8")
+            print("[ci-inventory] wrote %s" % a.out)
+        print(text)
+        # ⛔ Non-zero on anything that is not a clean diff: a gate that cannot fail is not
+        # a gate, and INVALID must never read as a pass.
+        return OK if d["verdict"] == "NO_NEW_FAILURES" else FAIL
+
     if not a.dir:
-        print("need --dir (or --self-check)")
+        print("need --dir, or --baseline/--current (or --self-check)")
         return FAIL
 
     d = pathlib.Path(a.dir)
