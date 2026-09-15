@@ -513,6 +513,12 @@ jobs:
         run: |
           set -e
           B="$BASELINE_RUN_ID"
+          # ⚰️ E CP24 — RUN #21's GATE READ `INVALID: collected is 0` FOR A RUN THAT
+          # COLLECTED 24,445. `extract/<run>/` is not a record yet: `summary.json` is written
+          # into it only by the PUBLISH step, which runs after this one. The tool was right
+          # and the wiring handed it a directory that was not what it claimed to be — and it
+          # failed CLOSED, naming the field, which is the only reason this took one read.
+          cp record.json "extract/$GITHUB_RUN_ID/summary.json"
           mkdir -p "base/$B"
           git fetch origin ci-results
           for f in pytest_failures.txt vitest_failures.txt summary.json; do
