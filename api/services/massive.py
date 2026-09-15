@@ -1604,6 +1604,13 @@ def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
 #: shared API key gets exhausted for every other consumer on the pod.
 _GROUPED_RETRIES = 3
 _GROUPED_BACKOFF = (1.0, 4.0, 10.0)
+#: How long a LOCAL token shed waits. The bucket refills at
+#: `_MASSIVE_RATE_LIMIT_PER_MIN/60` per second, so a fifth of a second is one token at
+#: the 300/min default — enough to pace to the budget without sleeping past it.
+_GROUPED_TOKEN_WAIT = 0.2
+#: ⛔ A bound anyway: if the bucket never refills, something is wrong with the process
+#: and a grind must not spin forever politely.
+_GROUPED_LOCAL_SHED_MAX = 600
 
 
 class GroupedFrameError(RuntimeError):
@@ -1657,13 +1664,51 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False) -> dict:
     path = (f"/v2/aggs/grouped/locale/us/market/stocks/{day_iso}"
             f"?adjusted={adj}&apiKey={_get_client()._api_key}")
     last = None
-    for attempt in range(_GROUPED_RETRIES):
+    local_sheds = 0
+    attempt = -1
+    while True:
+        attempt += 1
+        if attempt >= _GROUPED_RETRIES:
+            raise GroupedFrameError(day_iso, adjusted,
+                                    f"exhausted {_GROUPED_RETRIES} attempts: {last}",
+                                    _GROUPED_RETRIES)
         try:
             data = _get_client()._typed_get(path)
             break
         except _ERR.NotFound as e:                      # the date is not a session
             return {"rows": {}, "empty": True, "not_found": str(e)}
-        except (_ERR.RateLimited, _ERR.Transient) as e:
+        except _ERR.RateLimited as e:
+            # ⚰️ TWO DIFFERENT REFUSALS WEAR THIS ONE CLASS, and answering both the
+            # same way throttles a grind to a crawl. `_typed_get` raises RateLimited
+            # for the VENDOR's 429 (status=429) AND for OUR OWN token bucket
+            # (`_take_token`, status=None, 300/min). The vendor's deserves 1/4/10s of
+            # backoff; ours deserves the ~0.2s a token takes to regenerate.
+            #
+            # ⚠️ MEASURED, NOT REASONED: the first US grind chunks ran at ~1.6
+            # requests/s and then fell to ~0.05/s, because every request past the first
+            # 300 of a minute shed a local token and then slept a full second for it.
+            # The OLD `get_grouped_daily_ohlcv` never hit this at all — it called
+            # `_get` directly and bypassed the budget — so respecting the budget was
+            # right and sleeping the wrong interval for it was not.
+            #
+            # ⛔ A LOCAL SHED IS NOT AN ATTEMPT. It never reached the vendor, so it must
+            # not consume one of the three vendor retries; otherwise a busy minute
+            # "exhausts" a request that was never sent.
+            if getattr(e, "status", None) != 429:
+                local_sheds += 1
+                if local_sheds > _GROUPED_LOCAL_SHED_MAX:
+                    raise GroupedFrameError(
+                        day_iso, adjusted,
+                        f"local budget shed {local_sheds} times — the bucket is not "
+                        "refilling", local_sheds) from e
+                time.sleep(_GROUPED_TOKEN_WAIT)
+                attempt -= 1          # a shed that never reached the vendor is not a try
+                continue
+            last = e
+            if attempt < _GROUPED_RETRIES - 1:
+                time.sleep(_GROUPED_BACKOFF[min(attempt, len(_GROUPED_BACKOFF) - 1)])
+                continue
+        except _ERR.Transient as e:
             last = e
             if attempt < _GROUPED_RETRIES - 1:
                 time.sleep(_GROUPED_BACKOFF[min(attempt, len(_GROUPED_BACKOFF) - 1)])
@@ -1675,10 +1720,6 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False) -> dict:
         except Exception as e:                          # unknown — still not a holiday
             raise GroupedFrameError(day_iso, adjusted,
                                     f"{type(e).__name__}: {e}", attempt + 1) from e
-    else:
-        raise GroupedFrameError(day_iso, adjusted,
-                                f"exhausted {_GROUPED_RETRIES} attempts: {last}",
-                                _GROUPED_RETRIES)
 
     if isinstance(data, dict) and data.get("__degraded__"):
         raise GroupedFrameError(day_iso, adjusted, "credential degraded (cached 401/403)", 1)

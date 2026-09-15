@@ -200,3 +200,62 @@ def test_a_raw_FAILURE_and_a_raw_CLOSURE_read_differently_in_the_refusal(monkeyp
     assert out["missing_raw"] == ["2015-03-10"]
     assert out["failed_frames"] == ["2015-03-10"]
     assert "FAILED to fetch" in out["reason"] and "429 exhausted" in out["reason"]
+
+
+# ── the LOCAL token budget is not the vendor's 429 ──────────────────────────
+#
+# ⚰️ MEASURED ON A REAL GRIND. `_typed_get` raises `RateLimited` for TWO different
+# refusals: the vendor's 429 (`status=429`) and our own `_take_token` bucket
+# (`status=None`, 300/min). Answering both with the vendor's 1/4/10s backoff threw the
+# US grind off a cliff — the first 300 requests of a minute ran at ~1.6/s and everything
+# after slept a full second for a token that regenerates in 0.2. The OLD fetcher never
+# met the budget at all (it called `_get`, not `_typed_get`), so respecting it was right
+# and sleeping the wrong interval for it was not.
+
+def test_a_LOCAL_shed_waits_a_token_not_a_vendor_backoff(monkeypatch):
+    slept = []
+    monkeypatch.setattr(massive.time, "sleep", lambda s: slept.append(s))
+    n = {"i": 0}
+
+    def _side(i, p):
+        n["i"] = i
+        # shed locally five times, then answer
+        return massive._ERR.rate_limited("local Massive budget exhausted") if i <= 5 \
+            else rows_payload(2)
+    stub_typed(monkeypatch, _side)
+    out = massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    assert len(out["rows"]) == 2
+    assert slept == [massive._GROUPED_TOKEN_WAIT] * 5, slept
+    assert massive._GROUPED_TOKEN_WAIT < min(massive._GROUPED_BACKOFF)
+
+
+def test_a_LOCAL_shed_does_NOT_consume_a_vendor_retry(monkeypatch):
+    """⛔ It never reached the vendor. Counting it would 'exhaust' a request that was
+    never sent — so a busy minute would look like a provider outage."""
+    monkeypatch.setattr(massive.time, "sleep", lambda *_a: None)
+    stub_typed(monkeypatch,
+               lambda i, p: massive._ERR.rate_limited("local Massive budget exhausted")
+               if i <= massive._GROUPED_RETRIES + 4 else rows_payload(1))
+    out = massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    assert len(out["rows"]) == 1        # it survived more sheds than there are retries
+
+
+def test_a_VENDOR_429_still_gets_the_real_backoff(monkeypatch):
+    slept = []
+    monkeypatch.setattr(massive.time, "sleep", lambda s: slept.append(s))
+    stub_typed(monkeypatch,
+               lambda i, p: massive._ERR.rate_limited("Massive rate-limited", status=429))
+    with pytest.raises(massive.GroupedFrameError):
+        massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    assert slept == list(massive._GROUPED_BACKOFF[:massive._GROUPED_RETRIES - 1]), slept
+
+
+def test_an_endless_local_shed_is_still_bounded(monkeypatch):
+    """⛔ Politeness must not become an infinite loop if the bucket never refills."""
+    monkeypatch.setattr(massive.time, "sleep", lambda *_a: None)
+    stub_typed(monkeypatch,
+               lambda i, p: massive._ERR.rate_limited("local Massive budget exhausted"))
+    with pytest.raises(massive.GroupedFrameError) as ei:
+        massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    assert "not refilling" in ei.value.reason
+    assert ei.value.attempts == massive._GROUPED_LOCAL_SHED_MAX + 1
