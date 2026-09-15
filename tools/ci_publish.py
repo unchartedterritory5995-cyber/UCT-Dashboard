@@ -89,6 +89,19 @@ def push_with_retry(branch="ci-results", runner=None, sleep=time.sleep,
     for i in range(1, attempts + 1):
         rc, out = run(["git", "fetch", "origin", branch], runner=runner)
         log.append("attempt %d: fetch rc=%d" % (i, rc))
+        # ⛔ E CP13 — AN UNREADABLE UPSTREAM IS NOT A CONFLICT. `git rebase origin/<b>`
+        # returns non-zero both when two publishers collided AND when the ref simply does
+        # not resolve — and `git fetch origin <b>` writes FETCH_HEAD, which under a
+        # single-branch refspec need not create `refs/remotes/origin/<b>` at all.
+        # ⭐ The old code called every non-zero rebase "two publishers wrote one path",
+        # which is a confident diagnosis of a cause it had not established. The two states
+        # are now separated and each says only what it knows.
+        rc_ref, _ = run(["git", "rev-parse", "--verify", "--quiet",
+                         "origin/" + branch], runner=runner)
+        if rc_ref != 0:
+            log.append("attempt %d: ⛔ UPSTREAM-UNREADABLE — `origin/%s` does not resolve "
+                       "after fetch. NOT a conflict, and not published." % (i, branch))
+            return FAIL, log
         rc, out = run(["git", "rebase", "origin/" + branch], runner=runner)
         log.append("attempt %d: rebase rc=%d" % (i, rc))
         if rc != 0:
@@ -193,6 +206,60 @@ def _self_check() -> int:
     show("a rebase CONFLICT exits 1 rather than forcing", rc, FAIL)
     show("...and says two publishers wrote one path",
          any("REBASE CONFLICT" in l for l in log), True)
+
+    # 4b — ⛔ E CP13: an unresolvable upstream is its OWN state, never "a conflict"
+    def no_upstream(cmd):
+        return (1, "") if cmd[1] == "rev-parse" else (0, "")
+    rc_u, log_u = push_with_retry(runner=no_upstream, sleep=lambda s: None)
+    show("upstream that does not resolve exits 1", rc_u, FAIL)
+    show("...and is named UPSTREAM-UNREADABLE",
+         any("UPSTREAM-UNREADABLE" in l for l in log_u), True)
+    show("...and is NOT called a rebase conflict",
+         any("REBASE CONFLICT" in l for l in log_u), False)
+    # ⛔ NON-VACUITY for this pair: the two failures must not print the same sentence.
+    show("conflict and unreadable-upstream are distinguishable",
+         set(l.split(":")[-1] for l in log if "⛔" in l)
+         != set(l.split(":")[-1] for l in log_u if "⛔" in l), True)
+
+    # 5 — ⚰️ E CP13: THIS SCRIPT MUST STILL EXIST WHEN IT IS CALLED.
+    # `ci-results` carries README.md + results/** and no `tools/` at all, so
+    # `git checkout ci-results` deletes this file from the working tree. E CP9 added
+    # `python tools/ci_publish.py` as the last line AFTER that checkout; run #10 died
+    # there in 2 s with all 19 other jobs green. ⭐ The publisher asserts the condition
+    # of its own reachability, because no other validator could see this.
+    def publish_step_body(text):
+        i = text.index("- name: Publish onto the orphan ci-results branch")
+        return text[i:]
+
+    def invocations_after_checkout(body):
+        """Every `python <path>` that runs after the branch switch wipes the tree."""
+        k = body.find("git checkout ci-results")
+        if k < 0:
+            return None  # UNREADABLE, never "none found"
+        out = []
+        for line in body[k:].splitlines():
+            t = line.strip()
+            if t.startswith("python ") and "--self-check" not in t:
+                out.append(t.split()[1].strip('"').strip("'"))
+        return out
+
+    wf = pathlib.Path(__file__).resolve().parents[1] / ".github/workflows/full-suite-report.yml"
+    if wf.is_file():
+        body = publish_step_body(wf.read_text(encoding="utf-8"))
+        calls = invocations_after_checkout(body)
+        show("the publish step is READABLE (not a silent zero)", calls is not None, True)
+        show("at least one python call runs after the checkout (non-vacuity)",
+             bool(calls), True)
+        show("...and none of them is under tools/, which the checkout deletes",
+             [c for c in (calls or []) if not c.startswith("/tmp")], [])
+        # CONTROL: the pre-fix spelling must be caught by this very check.
+        broken = body.replace('python "/tmp/ci_publish.py"', "python tools/ci_publish.py")
+        show("control: the run-#10 spelling IS flagged",
+             [c for c in invocations_after_checkout(broken) if not c.startswith("/tmp")],
+             ["tools/ci_publish.py"])
+    else:
+        print("  [workflow not found — UNREADABLE, not a pass]")
+        ok = False
 
     # ⛔ NON-VACUITY: the three outcomes must be distinguishable
     outs = {push_with_retry(runner=make_runner([0]), sleep=lambda s: None)[0],
