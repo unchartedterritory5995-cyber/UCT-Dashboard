@@ -94,10 +94,10 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 // `layout.bands`, the band question `chart/paneMargins.js` used to answer before
 // Flip C retired it.
 import {
-  paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
+  paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
   defaultPaneKeys,
 } from './chart/engine/paneLayout'
-import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
