@@ -349,3 +349,76 @@ two runs, not a pair predicate.
 winner"* vs *"never add to a winner"* — scores **0.500**, below the 0.6 threshold, so it would not
 merge whether the polarity guard existed or not. Measured before asserting: the pair now used
 scores exactly **0.600** and merges without the guard, so removing the guard reds the test by name.
+
+
+### 2026-09-15 — R50: the CALL / MENTION / LEVEL / NEGATIVE_CALL gating audit
+
+> **EXTRACT IS NOT RULED WHILE LIST (i) IS NON-EMPTY.** List (i) is *consumers of the four
+> unfloored types that are MEMBER-VISIBLE and UNGATED*. **It is EMPTY at 2026-09-15**, and it is
+> a standing condition, not a one-time finding: any change that puts a name on list (i) puts
+> `WISDOM_EXTRACT_ENABLED` back behind this rule.
+
+**Why the question exists at all.** `floor.FLOORED_TYPES = ("PRINCIPLE", "MARKET_SIGNAL")` and
+`floor.passes()` returns True for every other type by construction, so CALL, MENTION, LEVEL and
+NEGATIVE_CALL are **unfloored** — the stability floor is a no-op for them at all four of its
+enforcement sites. The moment EXTRACT runs they exist, and whatever reads them, publishes them.
+
+**What was measured, derived from source, never from a doc list:**
+
+| | |
+|---|---|
+| wisdom-owned routes | **38** — 28 `require_admin`, 4 `require_owner`, 6 `require_push_secret` |
+| member-reachable wisdom routes | **0** — no `require_paid`, no `get_current_user`, none unguarded |
+| doors into the package from outside it | **5** — `main.py` (mount), `ai_search.py`, `ai_search_dossier.py`, `ticker_mentions.py`, `desk_session_insights.py` (R2 archive, reads no record) |
+| readers of `wisdom_records` | **21** modules, each now carrying an R50 verdict |
+| gates | **25**, **every one defaulting `"0"`**; 10 marked `member_visible` |
+
+**LIST (i) — member-visible AND ungated: EMPTY.**
+
+**LIST (ii) — reaches a member, behind a `member_visible=True` gate that defaults OFF (5):**
+`desk_markers` (`WISDOM_DESK_MARKERS_ENABLED`) · `dossier` (`WISDOM_DOSSIER_ENABLED`) ·
+`askai`/`retrieval` (`ASKAI_WISDOM_RETRIEVAL_ENABLED`, plus the `wisdom-askai` cohort) ·
+`modelbook` drafts (`WISDOM_MODELBOOK_DRAFTS_ENABLED`, plus an owner approval) ·
+`brainkb` (`WISDOM_BRAINKB_PUBLISH_ENABLED`, plus the owner's own PC-side `--commit`).
+
+**No minimal gate set is applied, because the minimal set needed to empty list (i) is empty.**
+Inventing a gate nobody ruled would be a behaviour change on the owner's chain dressed as an
+audit finding. What IS applied is the enforcement: `tests/test_wisdom_type_gating_audit.py` fails
+by name when a module outside the package starts reading it, or when a new reader of
+`wisdom_records` lands without a verdict. ⭐ **A one-time audit nobody re-runs reads as coverage**
+— this repo's own `desk_session_insights` was "written, documented as scheduled, wired into no
+scheduler" for weeks.
+
+⚰️ **The session-12 rehearsal could not have answered this.** It ran INGEST-only against an EMPTY
+store and reported `level_alerts 0 crosses, lookalike 0 scores, wisdom_records 0`. True, and
+worthless as evidence: an empty store cannot distinguish *this consumer is gated* from *this
+consumer had nothing to read*, and every ungated consumer would have printed the same zeros.
+`tools/wisdom/gating_rehearsal.py` re-runs it with **12 records of the four types present**:
+every member door **SHUT**, and `--self-check` proves **4 of the 5 doors report OPEN when their
+gate is lit**, so `shut` is a measurement and not silence. The fifth, Ask-AI, carries a second
+gate this rig cannot light — the `wisdom-askai` cohort is a `user_tags` row in auth.db — and is
+reported as a stated limit rather than faked.
+
+⛔⛔ **A FORCED CHAIN RUN BYPASSES `WISDOM_EXTRACT_ENABLED`.** `extract/batch.py:439` reads
+`if not ctx.force and not flags.extract_enabled()`. The golden gate and the spend cap still sit
+behind it, so it is not an open till — but it is the one switch that spends, and on the forced
+path it does not mean what its name says. Found because the rehearsal's own first run forced the
+chain and watched `extract` report `ok` with the flag unset. Pinned by
+`test_a_forced_chain_run_bypasses_the_extract_spend_gate`. **Whether an admin-triggered chain run
+may force is the owner's call, not this audit's.**
+
+⚠️ **Three things that are NOT list (i) and are the owner's to look at anyway:**
+1. **`clips.clip_candidates` is the one publish consumer with no flag of any kind** — untyped over
+   all six types, `require_push_secret` only. Already ruled: R10_ITEM3 (2026-09-14) put it behind
+   the FLOOR. Recorded here so the *next* audit finds a decision, not a gap.
+2. **`report._calls` runs with no flag and its status filter is LOOSER than every other reader's**
+   — `!= 'superseded'`, which admits **rejected** records that `select_records` never returns. Any
+   admin can build one on demand at `POST /api/admin/wisdom/reports/preview`.
+3. **`brainkb` STAGES rows into `wisdom_kb_rows` with its flag OFF** — measured in the rehearsal:
+   3 rows staged on a dark night. Only the export is gated. Nothing leaves, and the staging is
+   what makes a flip instant; it is recorded so a populated table is not read as a leak.
+
+⚠️ **`WISDOM_RETRIEVAL_INDEX_ENABLED` is marked `member_visible=False`** while the index it builds
+is what the member-visible Ask-AI block reads. Ask-AI's own gate decides whether anything leaves,
+so the defence in depth is intact — but the LABEL under-states it on a flip checklist. **Left
+unchanged: relabelling is a judgement, not a measurement, and it is the owner's.**
