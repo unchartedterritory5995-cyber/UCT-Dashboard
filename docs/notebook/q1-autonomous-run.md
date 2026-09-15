@@ -30,6 +30,8 @@ own failure:
 | **0.3** | Investigation doc: the 2.8b double failure with timestamps, the deploy-churn explanation marked **UNCONFIRMED**, Q4 (the 1802s hang) opened, the hypothesis table and the killed-by-reading lesson. | *(this commit)* | 0.4 |
 | **0.4** | This file created. | *(this commit)* | Phase 1 |
 
+| **2.2 (read half only)** | AST-resolved every durable-record writer call site under `journal-2-0/`, aliases followed per §10.36: **31 sites, 0 aliased.** ⭐ The narrowing for Q1: `putNoteWithIntent` — the function that actually writes the record — has **11 call sites, and NINE of them are inside `outboxDrain.js` itself** (`:75, :98, :101, :119, :205, :247`) plus two in `useDurableNote.js` (`:328, :444`). `settleLandedSave` has 3 sites, all in `NoteEditorPage.jsx`. `settleNoteWrite` has 16 sites but only RECORDS a revision. ⛔ **Not concluded — this is the candidate list, not the answer.** The writer must be named from a trace, per 2.5's STOP condition. | *(this commit)* | Phase 1 / 2.1 |
+
 ---
 
 ## Standing state at the checkpoint
