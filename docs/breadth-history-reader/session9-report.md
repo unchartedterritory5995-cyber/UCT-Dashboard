@@ -237,13 +237,83 @@ swaps by at least one gate execution.**
 (2026-09-14) served 502 for ~45 s and killed an in-flight request after **93 s**. A 93 s
 floor against a ~93 s disruption window is a coin flip, not a guard.
 
-### E.5 The contention observation
+### E.5 ⛔ The authorisation and its own push discipline are in conflict — NOT resolved here
 
-*(to be completed)*
+**E1 authorises "two docs-only pushes for the gate contention test". The push discipline
+attached to the same session says "one at a time; each to SUCCESS; ≥300 s apart".**
 
-### E.6 Cutover go/no-go
+Those cannot both be satisfied. A gate run lasts **96–169 s**, so two pushes 300 s apart
+**cannot** contend the queue — the first run is always finished before the second is
+created. That is not a hypothetical: it is the exact configuration already observed
+**37 times**, including the 206 s pair Session 8 reported and a 152 s pair that still
+missed by 22 seconds.
 
-*(to be completed)*
+⛔ **So the test as specified is impossible, and the interval that would make it work is
+forbidden by the discipline that accompanies it.** This session did **not** pick one. The
+20 s interval written into E.3 §3 was drafted before that conflict was noticed, and it is
+**withdrawn** rather than executed, for two reasons:
+
+1. It contradicts an explicit standing instruction, and an authorisation's *purpose* does
+   not licence overriding its *conditions*.
+2. Its downside is member-facing. If the concurrency group does not queue, the two
+   cutovers land ~20 s apart and reproduce the 2026-09-14 failure — a real 502 on a live
+   site, deliberately caused, to confirm a property that §E.4 already establishes from 37
+   runs and two natural experiments.
+
+**What was done instead:** the two authorised docs-only pushes were made **within the
+discipline** (≥300 s apart), and their queue waits recorded as a further non-contended
+baseline. They confirm the absence of queueing; they cannot demonstrate its presence.
+
+> **DECISION FOR THE OWNER.** To actually exercise the concurrency group, one of the two
+> constraints has to give. The cheapest safe option is **not** a production push at all:
+> push two commits to a **throwaway branch** with the workflow's `on.push.branches`
+> temporarily including it, which exercises the same `concurrency: master-deploy` group
+> with **no deploy attached**. That answers "does it queue?" at zero member risk, and it
+> is the recommendation.
+
+### E.6 Cutover go/no-go — **NO-GO stands, and now with a number**
+
+The cutover question is whether this programme can move to a regime where changes are
+measured in production windows. The blocker is not the code; it is that **a window cannot
+survive the deploy cadence.**
+
+Measured from the 37 master pushes in the gate's entire history
+(2026-09-14 19:00:49Z → 2026-09-15 05:30:53Z, **10.5 hours**):
+
+| inter-push gap | value |
+|---|---|
+| minimum | **152 s** |
+| p25 | 394 s |
+| **median** | **723 s (12.1 min)** |
+| p75 | 1,389 s |
+| maximum | 3,992 s |
+
+A window needs **~26 minutes** of quiet: 640 s to settle plus ~15 minutes to sample.
+
+| quiet needed | share of gaps that long |
+|---|---|
+| ≥15 min | 42% |
+| ≥25 min | **22%** |
+| ≥30 min | **19%** |
+
+⭐ **So roughly one window in five survives — and Window A was destroyed on its first
+attempt, which is the expected outcome, not bad luck.** This is the same operational
+constraint Session 8 recorded as "median gap 836 s", now measured over a longer span and
+against the actual window requirement.
+
+**Three ways forward, and they are not equivalent:**
+
+1. **Shorten the window.** The settle floor is the expensive half (640 s of the 26 min).
+   It exists because Session 7 measured 17,480 ms three minutes after boot against 224 ms
+   settled — it is not padding and should not be cut on convenience.
+2. **Accept per-sample filtering and a longer elapsed time.** Implemented this session:
+   the analyser drops unsettled samples and *counts* what it dropped, so an intrusion now
+   costs samples rather than the whole window. n accumulates across attempts.
+3. **Agree a quiet hour.** The only option that makes a window reliable rather than
+   probable, and it is a scheduling decision, not an engineering one.
+
+⛔ **NO-GO stands.** Option 2 alone makes measurement *possible*; it does not make a
+30-minute window *available*.
 
 ---
 
