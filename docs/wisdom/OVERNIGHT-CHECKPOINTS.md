@@ -1097,3 +1097,29 @@ as such.**
 ### Pass 3 is in flight
 
 Launched 07:34 CT, headroom $13.28 of the ruled $40 — so expect three rounds again.
+
+
+### ✅ THE SHARED-ROOT OBSERVATION IS CLOSED — the writer has a name
+
+`C:\data\wisdom.db` changed at **07:24:39, 07:29:39 and 07:34:39** — five minutes apart, on the
+same second, size unchanged at 352256 every time. A batch-polling gate does not write on a metronome.
+
+The heartbeat table names it. Reading **only** `wisdom_job_heartbeats` (job ids and timestamps —
+no records, no quotes, no member rows):
+
+    wisdom_core_catchup    2026-09-15T08:34:39-04:00   skipped   380 beats
+    wisdom_core_watchdog   2026-09-15T08:34:39-04:00   skipped   380 beats
+
+**08:34:39 ET is 07:34:39 CT — the file's mtime to the second.** The writer is the Wisdom
+programme's own scheduled watchdog pair, beating every five minutes from a local scheduler, and
+both report `skipped`, which is what a dark programme's watchdog should say. ~380 beats is about
+31 hours of running.
+
+⭐ **The method is the point, not the answer.** A hash baseline was taken *before* the run, the
+content moved, the run stopped for it, and the question was then settled by reading the artifact
+that records the fact — not by reasoning about which process "probably" did it. The earlier
+write-up said "strongly not ours, writer NOT identified" and refused to call itself clean; that was
+the correct state then, and this supersedes it with evidence rather than with confidence.
+
+⛔ It also removes a live worry in the right direction: the gate's `--db` and `common.bootstrap`'s
+shared-root refusal were never in question, and now nothing about the gate is implicated at all.
