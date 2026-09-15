@@ -3058,6 +3058,59 @@ export default function StockChart({
   )
 
   const containerRef = useRef(null)
+  /** The OUTER wrapper — the element that holds the chart container AND the
+   *  Price-owned chrome beside it (legend, drawing toolbar).
+   *  ⚠️ `--price-pane-top` MUST BE SET HERE, NOT ON `containerRef`. Custom
+   *  properties inherit DOWNWARD, and the legend is a SIBLING of the chart
+   *  container, not a descendant — so a value written on the container reaches
+   *  the canvases and nothing else. Measured in the harness: the variable was
+   *  being written every frame and `calc(28px + var(...))` still resolved to
+   *  28px, because the legend never saw it. */
+  const wrapperRef = useRef(null)
+
+  /**
+   * Publish where the PRICE pane starts, so Price-owned chrome sits on it.
+   *
+   * ⚰️ THE LEGEND AND THE DRAWING TOOLBAR WERE PINNED TO THE CONTAINER
+   * (`top: 28px` / `top: 4px`), which was indistinguishable from "pinned to the
+   * price pane" for as long as Price had to be the first pane. Put a pane above
+   * Price and the OHLC readout and every drawing tool stay at the top of the
+   * chart, hovering over somebody else's series — labelling the wrong pane and
+   * putting the tools nowhere near the candles they draw on.
+   *
+   * ⭐ MEASURED OFF THE RENDERER, IN THE SAMPLER THAT ALREADY RUNS. The same
+   * rule and the same frame as `pinPaneLegend`: sum the panes above, add their
+   * separators. Reading the layout's own arithmetic instead would be right at
+   * rest and wrong during a divider drag, which is the bug this sampler exists
+   * for.
+   *
+   * ⛔ A CSS VARIABLE, NOT REACT STATE. It is written straight to the DOM once
+   * per frame when it changes; routing a pixel through a re-render would fight
+   * the drag exactly as the volume legend's did before it moved here. Panes above
+   * Price are rare and the variable is `0px` on every chart that has none, so
+   * `calc(28px + 0px)` is what the un-arranged product computes.
+   */
+  const pinPriceChrome = useCallback(() => {
+    const chart = chartRef.current, host = wrapperRef.current
+    if (!chart || !host) return
+    let top = 0
+    try {
+      const idx = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
+      if (Number.isInteger(idx) && idx > 0) {
+        const panes = chart.panes ? chart.panes() : null
+        if (panes) {
+          for (let i = 0; i < idx && i < panes.length; i++) {
+            const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
+            top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
+          }
+        }
+      }
+    } catch { top = 0 }
+    const want = `${Math.round(top)}px`
+    if (host.style.getPropertyValue('--price-pane-top') !== want) {
+      host.style.setProperty('--price-pane-top', want)
+    }
+  }, [])
   const wmCtrlRef = useRef(null)        // watermark primitive controller
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive (price pane)
@@ -11067,6 +11120,70 @@ export default function StockChart({
     // binder for a flag-on chart with no instances, and the flag was on for
     // nobody — and it made the honest predicate look like a fallback. What is left
     // says exactly what it means: no instances, no binder, zero library calls.
+    // ─── REALISE THE ARRANGEMENT — BY MOVING PANES, NOT SERIES ───────────
+    //
+    // ⚰️⚰️ THE FIRST ATTEMPT MOVED SERIES AND DESTROYED PANES. `moveToPane`
+    // relocates a SERIES; move the last series out of a pane and
+    // lightweight-charts removes the pane, every later index shifts, and the
+    // next move in the sequence lands somewhere else. Measured in the harness on
+    // a four-pane chart: ONE "move up" took it from four panes to three, and
+    // three moves left two — RSI and MA gone, their readouts still painted over
+    // empty space. That is the blank-chart family reached from a new direction.
+    //
+    // ⭐ `IPaneApi.moveTo` MOVES THE PANE WITH ITS CONTENTS, so nothing is ever
+    // emptied and no pane is destroyed. It is the primitive the Model Book has
+    // always used to hoist its index pane to 0 — which is also the existence
+    // proof that Price does not need to be the first pane.
+    //
+    // ⚠️ AND IT RUNS BEFORE THE SYNC, so by the time the binder resolves each
+    // series' `paneIndex` the panes are already in their final positions and
+    // every series is already in the right one: `b.from.paneIndex !== paneIndex`
+    // is false and the binder issues no `moveToPane` at all. Running it after
+    // would leave the binder to permute first, which is the defect above.
+    //
+    // ⚰️⚰️ AND IT RUNS TWICE, BECAUSE ONCE IS NOT ENOUGH ON A REBUILD. Before
+    // the sync there is nothing to move on a chart whose series do not exist yet
+    // — `bindings()` is empty, every lookup answers null, and the arrangement is
+    // silently skipped. Measured in the harness: save → reconstruct restored the
+    // stored order in Chart Data and left the CHART in default order with a pane
+    // missing. Running it again AFTER the sync catches exactly that pass, and is
+    // a no-op on every other one because `moveTo` is only called for a pane that
+    // is not already where it belongs.
+    const realiseArrangement = () => {
+      if (_paneOrder.length <= 1) return
+      const seriesForKey = (key) => {
+        if (key === PRICE_PANE) return candleSeriesRef.current
+        if (key === VOLUME_PANE) return volSeparatePane ? volumeSeriesRef.current : null
+        const bs = engineRef.current?.binder?.bindings?.()
+        if (!Array.isArray(bs)) return null
+        const hit = bs.find((x) => x && x.instanceId === key && x.series)
+        return hit ? hit.series : null
+      }
+      // Top-to-bottom: put each pane where it belongs. Moving one shifts the
+      // others, which is why this re-reads the live index at every step rather
+      // than computing a permutation up front.
+      const pinned = _hasIdxPane ? 1 : 0
+      for (let want = 0; want < _paneOrder.length; want++) {
+        try {
+          const pane = seriesForKey(_paneOrder[want])?.getPane?.()
+          if (!pane) continue
+          const have = pane.paneIndex?.()
+          const target = want + pinned
+          if (!Number.isInteger(have) || have === target) continue
+          const count = chart.panes?.().length
+          if (!Number.isInteger(count) || target >= count) continue
+          pane.moveTo(target)
+        } catch { /* older API, or a pane that vanished mid-sync */ }
+      }
+      // ⚰️ RE-MEASURE NOW, NOT ON THE NEXT SAMPLER TICK. That sampler runs only
+      // while it has something to pin and its effect does not re-run on a
+      // rearrangement — so after a reconstruct the legend and toolbar kept the
+      // offset from before the blob was rebuilt. Measured in the harness: Price
+      // rendered second while `--price-pane-top` still read 0px.
+      pinPriceChrome()
+    }
+    realiseArrangement()
+
     const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
@@ -11136,39 +11253,9 @@ export default function StockChart({
         resolvePreset,
       })
     }
+    // …and again now that every series exists. See `realiseArrangement`.
+    realiseArrangement()
 
-    // ─── REALISE THE ARRANGEMENT FOR THE TWO SERIES THE ENGINE DOES NOT OWN ──
-    //
-    // ⭐ THE ENGINE'S OWN SERIES ARE ALREADY THERE. `binder.js` adds each one at
-    // its resolved `paneIndex` and calls `series.moveToPane` when that index
-    // changes, so every oscillator lands where the layout put it without anything
-    // here. The CANDLES and the VOLUME series are the legacy path's, created
-    // outside the binder — so they are the two that have to be told.
-    //
-    // ⚠️ AFTER THE SYNC, NEVER BEFORE. `moveToPane(n)` needs pane `n` to exist,
-    // and the panes above Price only exist once the binder has added the series
-    // that live in them. Running this first silently no-ops on a fresh chart and
-    // leaves Price on top — which reads as the arrangement being ignored.
-    //
-    // ⛔ AND IT IS A NO-OP WHEN NOTHING MOVED, which is every un-arranged chart:
-    // `priceIndex` is 0 there, the candles are already at 0, and `moveToPane` is
-    // never called at all.
-    {
-      const movePaneOf = (series, want) => {
-        if (!series || !Number.isInteger(want) || want < 0) return
-        try {
-          const have = series.getPane?.()?.paneIndex?.()
-          if (!Number.isInteger(have) || have === want) return
-          // Refuse a slot the renderer does not have rather than throwing into
-          // the ErrorBoundary: a half-built chart is a transient, not a defect.
-          const count = chart.panes?.().length
-          if (!Number.isInteger(count) || want >= count) return
-          series.moveToPane(want)
-        } catch { /* older API, or a pane that vanished mid-sync */ }
-      }
-      movePaneOf(candleSeriesRef.current, paneLayout.priceIndex)
-      if (volSeparatePane) movePaneOf(volumeSeriesRef.current, paneLayout.volumeIndex)
-    }
 
     // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────
     //
@@ -14658,50 +14745,6 @@ export default function StockChart({
    * instead of being skipped as "unchanged". `volLegendRef`'s sampler learned the
    * same lesson the hard way and keeps `lastVl` for it.
    */
-  /**
-   * Publish where the PRICE pane starts, so Price-owned chrome sits on it.
-   *
-   * ⚰️ THE LEGEND AND THE DRAWING TOOLBAR WERE PINNED TO THE CONTAINER
-   * (`top: 28px` / `top: 4px`), which was indistinguishable from "pinned to the
-   * price pane" for as long as Price had to be the first pane. Put a pane above
-   * Price and the OHLC readout and every drawing tool stay at the top of the
-   * chart, hovering over somebody else's series — labelling the wrong pane and
-   * putting the tools nowhere near the candles they draw on.
-   *
-   * ⭐ MEASURED OFF THE RENDERER, IN THE SAMPLER THAT ALREADY RUNS. The same
-   * rule and the same frame as `pinPaneLegend`: sum the panes above, add their
-   * separators. Reading the layout's own arithmetic instead would be right at
-   * rest and wrong during a divider drag, which is the bug this sampler exists
-   * for.
-   *
-   * ⛔ A CSS VARIABLE, NOT REACT STATE. It is written straight to the DOM once
-   * per frame when it changes; routing a pixel through a re-render would fight
-   * the drag exactly as the volume legend's did before it moved here. Panes above
-   * Price are rare and the variable is `0px` on every chart that has none, so
-   * `calc(28px + 0px)` is what the un-arranged product computes.
-   */
-  const pinPriceChrome = useCallback(() => {
-    const chart = chartRef.current, container = containerRef.current
-    if (!chart || !container) return
-    let top = 0
-    try {
-      const idx = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
-      if (Number.isInteger(idx) && idx > 0) {
-        const panes = chart.panes ? chart.panes() : null
-        if (panes) {
-          for (let i = 0; i < idx && i < panes.length; i++) {
-            const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
-            top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
-          }
-        }
-      }
-    } catch { top = 0 }
-    const want = `${Math.round(top)}px`
-    if (container.style.getPropertyValue('--price-pane-top') !== want) {
-      container.style.setProperty('--price-pane-top', want)
-    }
-  }, [])
-
   const pinPaneLegend = useCallback((el, key) => {
     if (!el) return
     try {
@@ -14709,9 +14752,15 @@ export default function StockChart({
       const layout = paneLayoutRef.current
       if (!chart || !container || !layout || !Array.isArray(layout.panes)) return
       const row = layout.panes.find((p) => p && p.key === key)
-      if (!row || !Number.isInteger(row.index) || row.index < 1) return
+      // ⚰️ `row.index < 1` REFUSED THE TOP PANE, and that was indistinguishable
+      // from "index 0 is Price, which has no pane readout" for as long as Price
+      // had to be first. Measured in the harness: with QQQ moved above Price its
+      // readout kept the CSS default and painted in the MIDDLE of the candles.
+      // 0 is a real pane now; a negative or non-integer index is still refused.
+      if (!row || !Number.isInteger(row.index) || row.index < 0) return
       const panes = chart.panes ? chart.panes() : null
       if (!panes || panes.length <= row.index) return
+      // The top pane starts at 0 — the loop below sums nothing, which is right.
       let top = 0
       for (let i = 0; i < row.index; i++) {
         const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
@@ -15843,7 +15892,7 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
+    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
