@@ -156,15 +156,39 @@ jobs:
         # never collected. requirements.txt is a strict superset of that list.
         run: python -m pip install --quiet -r requirements.txt
       - name: Run
-        # ⛔ --timeout=120 --timeout-method=thread (pytest-timeout==2.4.0, already in
-        # requirements): a HANG now fails BY NAME instead of taking the shard's whole
-        # 20 minutes down with it and reporting nothing.
+        # ⚰️ E CP18 - `--timeout-method=thread` DID EXACTLY WHAT THIS COMMENT SAID IT
+        # PREVENTED. It said a hang "fails BY NAME instead of taking the shard's whole 20
+        # minutes down with it and reporting nothing"; measured on run #15, the thread
+        # method ABORTS THE PROCESS, so `tests-04` (hung in `wait_until_warm`'s sleep) and
+        # `tests-07` produced **no totals line and no junit at all** - the shard's entire
+        # result, not just the hung test. ⭐ `signal` raises inside the test instead: the
+        # test fails by name, the run continues, and the totals line is printed.
         run: |
           python tools/pytest_shards.py --files "${{ matrix.shard }}" > shard_files.txt
           wc -l < shard_files.txt | xargs echo "files in this shard:"
           xargs -a shard_files.txt python -m pytest -q -p no:cacheprovider \
-            --timeout=120 --timeout-method=thread \
+            --timeout=120 --timeout-method=signal \
             --junitxml=pytest-junit.xml 2>&1 | tee pytest.log
+          # ⛔ CAPTURE PIPESTATUS WITH NOTHING IN BETWEEN. `${PIPESTATUS[0]}` is reset by the
+          # next command, and reading it one `echo` later once printed "exit 0" beside
+          # output listing two failures.
+          PYTEST_RC=${PIPESTATUS[0]}
+          echo "pytest rc: $PYTEST_RC"
+      # ⛔⛔ E CP18 - A RUN WITHOUT A TOTALS LINE IS NOT A RUN, and this job did not say so.
+      # The vitest job has carried that assertion since E CP1; the pytest job that REPLACED
+      # the single pytest run never got one. Because the run is piped through `tee`, the
+      # step's exit code is tee's, so `tests-04` and `tests-07` hung, printed nothing, and
+      # reported **success** to the runner. ⭐ The aggregator caught them downstream
+      # (`shards_without_totals`) - which is the whole reason it exists - but the shard
+      # itself claimed to have passed, and that is the lie this step refuses.
+      - name: Assert this shard produced a totals line
+        if: always()
+        run: |
+          if ! grep -qE "[0-9]+ (passed|failed|error)" pytest.log 2>/dev/null; then
+            echo "::error title=shard ${{ matrix.shard }} produced no totals line::\
+          the run was killed or never finished; its counts are ABSENT, not zero"
+            exit 1
+          fi
       - name: Summarise this shard
         if: always()
         run: |
