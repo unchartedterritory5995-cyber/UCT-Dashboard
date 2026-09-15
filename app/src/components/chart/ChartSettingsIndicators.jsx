@@ -93,7 +93,11 @@ import { paneMap } from './chartDataMap'
  * two places it is used — where their VALUES live, and which verb removes them.
  */
 /** The one inspector region, named once so the rows can point at it. */
-const CD_INSPECTOR_ID = 'chart-data-inspector'
+/** The editor region belonging to one row — what its expander points at.
+ *  ⚠️ ROW IDS CARRY COLONS (`inst:rsi:1`, `legacy:rsi`). They are legal in an
+ *  `id` attribute and in `aria-controls`, and `getElementById` handles them
+ *  fine; only CSS selectors would need escaping, and nothing here selects by id. */
+const inspectorDomId = (rowId) => `chart-data-editor-${rowId}`
 
 function isFixtureRow(row) {
   return row?.path?.kind === 'overlay' || row?.path?.kind === 'section'
@@ -446,10 +450,6 @@ export default function ChartSettingsIndicators({
   }, [settings, onChange, registry])
 
   // ─── ONE ROW, COLLAPSED (§9 option B: toggle · name · colour · chevron) ────
-  // ⛔ THE SELECTION IS RESOLVED AGAINST THE LIVE ROWS, EVERY RENDER. A removed
-  // indicator leaves a selection pointing at nothing; resolving it here means the
-  // inspector empties by itself rather than needing an effect to chase the delete.
-  const selectedRow = activeRows.find((r) => r.id === selected) || null
 
   /**
    * One PANE, as a heading and a rail down its rows.
@@ -536,8 +536,8 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.actName}
             aria-expanded={isOpen}
-            aria-controls={CD_INSPECTOR_ID}
-            onClick={() => setSelected(row.id)}
+            aria-controls={inspectorDomId(row.id)}
+            onClick={() => setSelected(isOpen ? null : row.id)}
           >
             <span className={styles.actLabel}>{row.label}</span>
             {badge && <span className={styles.actBadge}>{badge}</span>}
@@ -590,8 +590,8 @@ export default function ChartSettingsIndicators({
             type="button"
             className={`${styles.actChevron} ${isOpen ? styles.actChevronOpen : ''}`}
             aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${row.label} settings`}
-            aria-controls={CD_INSPECTOR_ID}
-            onClick={() => setSelected(row.id)}
+            aria-controls={inspectorDomId(row.id)}
+            onClick={() => setSelected(isOpen ? null : row.id)}
           ><UIcon name="gear" size={15} gold={false} /></button>
           {/* ⭐ REMOVE, ON THE ROW (owner, after seeing the first build). The brief
               asked for Remove to live one level in, behind the expander, because
@@ -621,6 +621,12 @@ export default function ChartSettingsIndicators({
             onClick={() => removeRow(row)}
           ><UIcon name="x" size={15} gold={false} /></button>
         </div>
+        {/* ⭐ THE EDITOR, ATTACHED TO ITS ROW. Same `renderInspector` body the
+            right column used to hold — not a second copy, not a forked control
+            path — rendered inside the row block so it cannot drift away from the
+            name it belongs to. `isOpen` is the same one-at-a-time selection the
+            pane map already had; only the render site moved. */}
+        {isOpen && renderInspector(row)}
       </div>
     )
   }
@@ -641,11 +647,10 @@ export default function ChartSettingsIndicators({
    * coarser than the row id would edit whichever one came first.
    */
   const renderInspector = (row) => (
-    <div className={styles.cdInspector} data-inspector-for={row.id}>
-      <div className={styles.cdInspectorHead}>
-        <span className={styles.cdInspectorName}>{row.label}</span>
-        {typeBadge(row) && <span className={styles.actBadge}>{typeBadge(row)}</span>}
-      </div>
+    <div className={styles.cdInspector} id={inspectorDomId(row.id)} data-inspector-for={row.id}>
+      {/* ⛔ NO NAME HEADING. In the right column this repeated the row's name
+          because the row was somewhere else on screen; inline, the name is the
+          line directly above and repeating it is furniture. */}
           {row.fields.map((f) => {
             if (f.showIf && !f.showIf(row.values)) return null
             const val = row.values?.[f.key]
@@ -721,12 +726,6 @@ export default function ChartSettingsIndicators({
     </div>
   )
 
-  /** Nothing selected — say what the panel is for rather than showing a void. */
-  const renderInspectorEmpty = () => (
-    <div className={`${styles.cdInspector} ${styles.cdInspectorEmpty}`}>
-      <p>Select anything on the left to change its settings, style and where it draws.</p>
-    </div>
-  )
 
   /**
    * The collapsed row's one-line answer to *"what is this, how is it drawn, where
@@ -1055,13 +1054,14 @@ export default function ChartSettingsIndicators({
       </div>
 
       {/* ─── THE CHART, AND THE ONE THING SELECTED IN IT ────────────────────
-          ⭐⭐ LEFT IS STRUCTURE, RIGHT IS THE SELECTION. The left column answers
-          "what is on this chart and where does it draw" — a question the flat
-          list could only answer one row at a time, by opening each one. The
-          right answers "and what are its settings", for exactly one row, with
-          the room to show them side by side instead of stacked. */}
-      <div className={styles.cdCols}>
-        <div className={styles.cdLeft} ref={listRef}>
+          ⚰️ THIS WAS TWO COLUMNS: the pane map on the left, a permanent
+          inspector on the right, and a modal that grew to 880px to hold them.
+          The owner reads this panel at the compact width every other tab uses,
+          and a modal that resizes on the way into one tab is the cost that
+          bought the second column. So the editor comes back INLINE — same
+          controls, same writers, rendered under the row that owns them — and
+          the panel is one vertical flow again. */}
+      <div className={styles.cdOne} ref={listRef}>
       {mode === 'active' ? (<>
         {/* ─── THE PANE MAP ──────────────────────────────────────────────── */}
         {/* ⚠️ `volumeRef` STAYS WITH THE VOLUME GROUP. It is the modal's scroll
@@ -1146,18 +1146,6 @@ export default function ChartSettingsIndicators({
           </section>
         )}
       </>)}
-        </div>
-        {/* ⛔ THE INSPECTOR IS ALWAYS MOUNTED, selected or not. It is the region
-            every row's `aria-controls` names, and a region that comes and goes is
-            one a screen reader cannot follow a reference to. */}
-        <div
-          className={styles.cdRight}
-          id={CD_INSPECTOR_ID}
-          role="region"
-          aria-label="Selected item settings"
-        >
-          {selectedRow ? renderInspector(selectedRow) : renderInspectorEmpty()}
-        </div>
       </div>
     </div>
   )

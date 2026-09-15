@@ -208,8 +208,10 @@ describe('the inspector holds exactly one selection', () => {
     show(cs); openTab()
     select(/Relative Strength/)
     fireEvent.click(rowFor(/Relative Strength/).querySelector('[aria-label^="Remove"]'))
+    // ⚰️ NO "nothing selected" PLACEHOLDER ANY MORE. The permanent right-hand
+    // column had to fill itself; an inline editor is simply not rendered.
     expect(inspectorFor()).toBeFalsy()
-    expect(document.body.textContent).toMatch(/Select anything on the left/i)
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
   })
 
   it('⛔ every row points `aria-controls` at the region that holds its form', () => {
@@ -218,20 +220,116 @@ describe('the inspector holds exactly one selection', () => {
     show(cs); openTab()
     const id = rowFor(/Relative Strength/).querySelector('[aria-expanded]').getAttribute('aria-controls')
     expect(id, 'aria-expanded with nothing to point at').toBeTruthy()
-    expect(document.getElementById(id), 'aria-controls names no element').toBeTruthy()
+    // ⚠️ ROW IDS CARRY COLONS (`inst:rsi:1`). `getElementById` takes them
+    // literally — only a CSS selector would need escaping, and nothing here
+    // resolves it that way.
+    expect(id).toContain(':')
+    select(/Relative Strength/)
+    expect(document.getElementById(id), 'the open editor is not the region named').toBeTruthy()
+    expect(document.getElementById(id).getAttribute('data-inspector-for'))
+      .toBe(rowFor(/Relative Strength/).getAttribute('data-row-id'))
   })
 })
 
-describe('the width is this tab\'s alone', () => {
-  it('⭐ Chart Data widens the panel and the other tabs do not', () => {
-    show(base())
-    const panel = () => document.body.querySelector('[class*="panel"]')
-    const wideOn = () => /panelWide/.test(panel().className)
+describe('⚰️ the editor opens INLINE, under the row that owns it', () => {
+  /** The row block an editor is rendered inside — not merely "somewhere". */
+  const editorsRow = () => document.body.querySelector('[data-inspector-for]')?.closest('[data-row-id]')
 
-    expect(wideOn(), 'Price Style opened wide').toBe(false)
+  it('⚰️ the editor is a CHILD of its own row, not a second column', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    expect(editorsRow(), 'the editor is not inside any row').toBeTruthy()
+    expect(editorsRow().getAttribute('data-row-id')).toBe(r.id)
+  })
+
+  it('⭐ clicking the OPEN row closes it again', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    expect(inspectorFor()).toBeTruthy()
+    select(/Relative Strength/)
+    expect(inspectorFor(), 'the row would not close from the control that opened it').toBeFalsy()
+  })
+
+  it('⭐ a second row replaces the first — never two editors at once', () => {
+    let cs = base()
+    const a = withDef(cs, 'rsi'); cs = a.cs
+    const b = withDef(cs, 'macd'); cs = b.cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    select(/MACD/)
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(1)
+    expect(editorsRow().getAttribute('data-row-id')).toBe(b.id)
+  })
+
+  it('⭐ no selection → no editor anywhere', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
+  })
+
+  it('⭐⭐ every control the right column carried is still reachable inline', () => {
+    let cs = base()
+    const s2 = withSeries(cs, 'QQQ'); cs = s2.cs
+    show(cs); openTab()
+    select(/^QQQ$/)
+    const panel = document.body.querySelector('[data-inspector-for]')
+    // display destination, plot style, and the row's own declared inputs
+    expect([...panel.querySelectorAll('select')]
+      .some((x) => /display in/i.test(x.getAttribute('aria-label') || '')), 'no Display-in').toBe(true)
+    expect(panel.querySelectorAll('[class*="indRow"]').length, 'no field rows').toBeGreaterThan(0)
+  })
+})
+
+describe('⚰️ the Track B deep link lands on the inline editor', () => {
+  it('⚰️ `data:<instanceId>` opens Chart Data with THAT row expanded', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    // ⚠️ INSTANCE IDS CARRY COLONS. The prefix is sliced by length, never split.
+    expect(r.id).toContain(':')
+    render(<ChartSettingsModal open scrollTo={`data:${r.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
+    expect(screen.getByRole('tab', { name: 'Chart Data' }).getAttribute('aria-selected')).toBe('true')
+    const panel = document.body.querySelector('[data-inspector-for]')
+    expect(panel, 'the deep link opened no editor').toBeTruthy()
+    expect(panel.getAttribute('data-inspector-for')).toBe(r.id)
+    expect(panel.closest('[data-row-id]').getAttribute('data-row-id')).toBe(r.id)
+  })
+
+  it('⭐ `ind:<instanceId>` still works — the older spelling is not dropped', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    render(<ChartSettingsModal open scrollTo={`ind:${r.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
+    expect(document.body.querySelector('[data-inspector-for]')?.getAttribute('data-inspector-for')).toBe(r.id)
+  })
+
+  it('⭐⭐ with TWO QQQ series the link opens the one it names', () => {
+    let cs = base()
+    const a = withSeries(cs, 'QQQ'); cs = a.cs
+    const b = withSeries(cs, 'QQQ'); cs = b.cs
+    expect(a.id).not.toBe(b.id)
+    render(<ChartSettingsModal open scrollTo={`data:${b.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
+    expect(document.body.querySelector('[data-inspector-for]').getAttribute('data-inspector-for')).toBe(b.id)
+  })
+})
+
+describe('⚰️ the modal no longer resizes when you switch tabs', () => {
+  it('⚰️ Chart Data opens at the SAME width as every other tab', () => {
+    // ⚰️ IT USED TO WIDEN TO 880 for the pane map + inspector columns, and a
+    // modal that resizes on the way into one tab is the cost that bought the
+    // second column. The inline editor removed the reason for it.
+    show(base())
+    const cls = () => document.body.querySelector('[class*="panel"]').className
+    const atPrice = cls()
     openTab()
-    expect(wideOn(), 'Chart Data did not widen').toBe(true)
+    expect(cls(), 'Chart Data changed the panel class — the width jumped').toBe(atPrice)
+    expect(/panelWide/.test(cls()), 'the wide modifier is still applied').toBe(false)
     fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
-    expect(wideOn(), 'the width stuck after leaving Chart Data').toBe(false)
+    expect(cls()).toBe(atPrice)
+    openTab()
+    expect(cls()).toBe(atPrice)
   })
 })
