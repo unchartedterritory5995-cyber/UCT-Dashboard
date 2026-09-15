@@ -650,3 +650,31 @@ token and restart.
   `api/`, none targeting it. So the span is **not** designed retention.
 
 ⛔ **I.1 and I.2 were not reached**, and neither was Q. Said plainly rather than rushed.
+
+---
+
+## Prelude 2026-09-14 (late) — sections 1-9 re-print
+
+**P.1, compressed.** **U:** `a383d5fb5` held 7 files across 4 units; all six pairwise
+intersections EMPTY; `git diff a383d5fb5 <tip>` empty; branch moved by `reset --hard`
+(`branch -f` refuses a checked-out branch); **12 one-unit commits**, all cherry-pick clean.
+**K:** manifest 10 rows; `sign_all --dry-run` = 10 commands / 10 ok / 0 mismatch;
+`merge_all --dry-run` = 10 units / 9 cherry-picks / 6 pushes; negative control stops at the
+bad row writing nothing. **C.1:** 120 deploys across six services = **100% master**; 8
+workflows, 5 matched a deploy verb, **all five false positives** (name, echoed text, the
+module path `wisdom.publish.provenance_check`). **C.2/C.3:** pushed `7bd9c8785..af9fe21a6`
+as a **fast-forward**; CI result **UNREADABLE** here (no `gh`, no token).
+**I:** I.3 EXPECTED-DRIFT (`CLAUDE.md:1281`, separate volumes + R2 bridge); I.4 UNEXPLAINED
+(`DELETE FROM page_views` = 0, control 316 deletes in `api/`); **I.1 and I.2 not reached**.
+**Q:** D4 CP4 **not** opened; D5 assertions not pasted.
+
+**P.2 — the stale fingerprint, categorised.** `s2-accelerator-chord-…-gate.md`:
+`2d8156692` → `28da7740d` (reported to the owner), `d606922fe` → **`72cda4cda`** (current).
+The diff is §6's attribution correction (`0b7570df4` → `453ecc3ec`). **Approval-block lines
+changed: 0.** ⇒ **category (a), owner-facing text — refreshable.**
+
+**P.3 — the unsignable packet.** `packet-t-and-d3cp2-gate.md`. `sign_gate` refuses with
+*"⛔ 2 unsigned APPROVED AT SHA lines — refusing to guess which. Leave exactly one block
+blank."* **Cause: structural** — one packet carried two checkpoints and one approval block,
+and a single block cannot hold two signatures. Fixed by splitting into
+`packet-t-stale-test-gate.md` and `d3-cp2-build-record.md`.
