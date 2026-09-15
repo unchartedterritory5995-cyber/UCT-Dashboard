@@ -682,6 +682,8 @@ _BREADTH_CACHE_MAX = 512        # ~156 identities today, with room for the catal
                                 # to grow before the bound is the binding constraint
 _SEALED_TTL = 21600      # 6h; sealed history changes only at EOD — the warm loop's
                          # new-day check refreshes it promptly, this is just the ceiling.
+_EMPTY_SERIES_TTL = 300  # ⛔ ...but an EMPTY build is a failure to read, not a sealed
+                         # fact, so it is retried in 5 min. See `_refresh_series`.
 _WARM_GAP = 0.4          # seconds slept between warm builds so a cold pass never bursts
 
 #: The dedicated instance (see `_BREADTH_CACHE_MAX`). Module-level so every reader
@@ -794,8 +796,28 @@ def _refresh_series(sym: str, metric: str,
     except Exception as e:
         _log.warning("[breadth_symbols] series build failed %s: %s", sym, e)
         return []
+    # ⛔ AN EMPTY SERIES IS NOT A SEALED FACT — IT IS A FAILURE TO BUILD ONE, and it
+    # must not be cached for six hours. `_build_breadth_series` returns `[]` both when
+    # an identity genuinely has no history yet and when the STORE WAS NOT THERE TO
+    # READ: the web pod pulls the breadth database from R2 at boot, and
+    # `start_breadth_warm` waits only 20 s before walking all 44 shipped symbols. A
+    # pull that is slow, or that lands after the first warm pass, therefore hands this
+    # function 44 empty builds.
+    #
+    # ⭐ THAT USED TO SELF-HEAL BY ACCIDENT AND NOW WOULD NOT. Before BL-010 these
+    # entries lived in the SHARED 1,000-key cache, where `/api/bars` traffic evicted
+    # them within minutes and the next request rebuilt. Breadth now has its own
+    # 512-entry instance holding ~156 identities, so NOTHING IS EVER EVICTED — and
+    # `warm_breadth` skips a symbol whose cache is still fresh, so an empty entry is
+    # not merely kept, it suppresses its own repair. The failure mode is every breadth
+    # chart blank for up to six hours after one unlucky boot, which is exactly the
+    # incident class `breadth-thin-snapshot-pinning` already cost this product once.
+    #
+    # ⚠️ The dedicated instance is still the right call; the eviction was never a
+    # design, it was luck. So the fix is to stop relying on it: a real series keeps the
+    # long TTL, an empty one is retried in five minutes.
     cache.set(f"breadthdaily_{sym}", {"saved_at": time.time(), "series": series},
-              ttl=_SEALED_TTL)
+              ttl=(_SEALED_TTL if series else _EMPTY_SERIES_TTL))
     return series
 
 

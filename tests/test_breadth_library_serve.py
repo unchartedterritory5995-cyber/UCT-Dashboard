@@ -222,3 +222,74 @@ def test_a_failing_pit_warm_cannot_break_the_pass(monkeypatch):
     stats = bs.warm_breadth()                      # must NOT raise
     assert stats["refreshed"] == len(bs.SYMBOLS)   # UCT still warmed
     assert stats["pit"]["failed"] == 7 and stats["pit"]["refreshed"] == 0
+
+
+# ── BL-033 · an empty build must not PIN ──────────────────────────────────────
+
+def test_an_empty_series_is_retried_in_minutes_while_a_real_one_is_kept_for_hours(
+        tmp_path, monkeypatch):
+    """⛔ THE SIX-HOUR BLACK HOLE. `_refresh_series` caches whatever it built, and the
+    web pod pulls the breadth database from R2 at boot while `start_breadth_warm`
+    waits only 20 s before walking all 44 shipped symbols. A slow pull therefore hands
+    it 44 EMPTY builds.
+
+    ⭐ THAT USED TO SELF-HEAL BY ACCIDENT. In the shared 1,000-key cache `/api/bars`
+    traffic evicted the empty entries within minutes. Breadth's own 512-entry instance
+    (BL-010) holds ~156 identities and evicts NOTHING — and `warm_breadth` skips a
+    symbol whose cache is still fresh, so an empty entry suppresses its own repair.
+
+    This pins the distinction the fix rests on: the TTL is a claim about how much we
+    trust the answer, so a real series keeps six hours and an empty one gets five
+    minutes. Asserting the TTL rather than the value is deliberate — the bug was never
+    a wrong number, it was a right number kept too long.
+    """
+    monkeypatch.setenv("BREADTH_OHLC_DB", str(tmp_path / "empty.db"))
+    store._INIT_DONE = False
+    store._ensure_init()
+    bs._breadth_cache.delete_prefix("breadthdaily_")
+
+    def ttl_of(sym):
+        for k, _v, exp in bs._breadth_cache.items_with_expiry():
+            if k == f"breadthdaily_{sym}":
+                return exp
+        return None
+
+    import time as _t
+
+    monkeypatch.setattr(bs, "_build_breadth_series", lambda *a, **k: [])
+    assert bs._refresh_series("UCTA50", "pct_above_50sma") == []
+    empty_ttl = ttl_of("UCTA50") - _t.time()
+    assert 0 < empty_ttl <= bs._EMPTY_SERIES_TTL + 5, (
+        "an empty build was cached for %.0fs — it must be retried in minutes, not "
+        "held for the sealed-history TTL" % empty_ttl)
+
+    real = [{"t": "2020-03-10", "o": 45, "h": 70, "l": 30, "c": 55, "v": 0}]
+    monkeypatch.setattr(bs, "_build_breadth_series", lambda *a, **k: list(real))
+    assert bs._refresh_series("UCTA50", "pct_above_50sma") == real
+    real_ttl = ttl_of("UCTA50") - _t.time()
+    assert real_ttl > bs._EMPTY_SERIES_TTL * 2, (
+        "a REAL series must still get the long sealed TTL (%.0fs) — the fix must not "
+        "turn every breadth request back into a rebuild" % real_ttl)
+
+    bs._breadth_cache.delete_prefix("breadthdaily_")
+
+
+def test_the_empty_entry_does_not_suppress_its_own_repair(tmp_path, monkeypatch):
+    """⚠️ THE SECOND HALF, AND THE ONE THAT MADE IT A BLACK HOLE. It is not enough
+    that the entry expires — `warm_breadth` must actually rebuild it afterwards. A
+    fresh-looking empty entry is skipped by the warm loop, so a TTL that outlives the
+    loop's own cadence means the repair never runs.
+    """
+    monkeypatch.setenv("BREADTH_OHLC_DB", str(tmp_path / "empty2.db"))
+    store._INIT_DONE = False
+    store._ensure_init()
+    assert bs._EMPTY_SERIES_TTL < bs._SEALED_TTL, "an empty build must expire sooner"
+    # the warm loop's own cadence — the empty TTL has to be survivable by it, i.e. the
+    # loop must come round again while the entry is still worth rebuilding.
+    import inspect
+    src = inspect.getsource(bs.start_breadth_warm)
+    assert "interval_seconds" in src
+    default = inspect.signature(bs.start_breadth_warm).parameters["interval_seconds"].default
+    assert bs._EMPTY_SERIES_TTL >= default, (
+        "the empty TTL (%ss) is shorter than the warm loop's interval (%ss), which "
+        "would rebuild every cycle rather than converge" % (bs._EMPTY_SERIES_TTL, default))

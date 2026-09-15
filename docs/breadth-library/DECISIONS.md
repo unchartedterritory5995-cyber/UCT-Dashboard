@@ -1102,3 +1102,58 @@ diff?" instead of "which of these has my domain in its filename". The three rema
 `test_corp_actions_census.py` failures are genuinely pre-existing: they name
 `api/services/wisdom/capture/families/gex.py`, which exists on `origin/master` and is
 unregistered there too.
+
+---
+
+### BL-033 · The test was right and my first fix was wrong — and underneath it was a real six-hour black hole
+
+⚰️ **I identified the wrong polluter, and the reason is worth writing down.** When
+`test_build_breadth_bars_uses_store_for_wicks` failed in the full suite and passed
+alone, I bisected by running my new Breadth test files *alongside* it and found that
+`test_breadth_publication_gate.py` reproduced the failure. It did — **because I listed
+it first on the command line.** In the actual suite pytest runs alphabetically, and
+`test_breadth_daily_ohlc` sorts BEFORE `test_breadth_publication_gate`. My experiment
+created the ordering it then discovered. The fixture fix was correct on its own merits
+and it fixed nothing, which is exactly how a false positive looks from the inside.
+
+⭐ **The real polluter is a DAEMON THREAD.** `start_breadth_warm` runs `warm_breadth()`
+on a background thread that walks all 44 shipped symbols, and any test in the session
+that boots the app starts it. The stack was in the log the whole time:
+
+```
+File "api/services/breadth_symbols.py", line 1031, in _loop
+    warm_breadth()
+```
+
+So `breadthdaily_UCTA50` gets filled from whatever database was current when the thread
+happened to run — and the test that redirects the store is then served **another
+database's answer**. The series cache is keyed by SYMBOL, not by STORE.
+
+⛔⛔ **And that exposed a production defect I introduced with BL-010.** `_refresh_series`
+caches whatever it built, INCLUDING AN EMPTY SERIES, for `_SEALED_TTL` = 6 hours. An
+empty build is not a sealed fact; it is a failure to read — and the web pod pulls the
+breadth database from R2 at boot while the warm loop waits only **20 seconds** before
+walking all 44 symbols. A slow or late pull hands it 44 empty builds.
+
+| | before BL-010 | after BL-010 |
+|---|---|---|
+| where the series live | the SHARED 1,000-key cache | breadth's own 512-entry instance |
+| ~156 identities in it | evicted by `/api/bars` traffic within minutes | **evicted never** |
+| an empty entry | rebuilt on the next request | **held 6 h** |
+| `warm_breadth`'s repair | runs, because the entry is gone | **skipped — the entry is still "fresh"** |
+
+⚠️ **The empty entry suppressed its own repair.** That is the whole failure mode: every
+breadth chart blank for up to six hours after one unlucky boot — the same incident class
+as `breadth-thin-snapshot-pinning`, which this product has already paid for once.
+
+⭐ **The dedicated cache instance is still right** — it exists so breadth cannot evict
+hot `/api/bars` keys, and that reasoning is unchanged. The eviction that used to save us
+was never a design; it was luck. So the fix is to stop depending on it: a real series
+keeps the six-hour TTL, an empty one is retried in five minutes
+(`_EMPTY_SERIES_TTL = 300`, which is ≥ the warm loop's own 90 s interval so it converges
+rather than rebuilding every cycle). Bite-checked both ways: without the fix the rail
+reports `21600s`, with it `300s`.
+
+⚠️ **The lesson about the bisect is the durable one.** A cross-test pollution bisect must
+preserve the ORDER the real suite uses. Re-running the suspects in a hand-written order
+answers a question nobody asked.
