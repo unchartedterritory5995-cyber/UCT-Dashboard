@@ -1,0 +1,1310 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+................................s....................................... [  4%]
+........................................................................ [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+........................................................................ [ 21%]
+..........................................F............................. [ 26%]
+........................................................................ [ 30%]
+...................................................FF..F.F.............. [ 35%]
+.............................FFF.F.F.................................... [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 48%]
+.....................................................................F.. [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 74%]
+........................................................................ [ 78%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 92%]
+................F.FFFFFFFFF.FFFFFF.FFFFF.FFF.FFFFFF.FF.FFFFFFFFF........ [ 96%]
+..........................................................               [100%]
+=================================== FAILURES ===================================
+_________________________ TestRoute.test_requires_auth _________________________
+
+self = <tests.test_ticker_explain.TestRoute object at 0x7ff6104dd5b0>
+
+    def test_requires_auth(self):
+        r = self._client().post("/api/research/explain/AAPL", json={"question": "what changed?"})
+>       assert r.status_code == 401
+E       assert 200 == 401
+E        +  where 200 = <Response [200 OK]>.status_code
+
+tests/test_ticker_explain.py:1541: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:33:46,353 WARNING api.services.ticker_explain: [ticker_explain] model call failed for AAPL (attempt 1): ANTHROPIC_API_KEY is not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_explain:ticker_explain.py:2219 [ticker_explain] model call failed for AAPL (attempt 1): ANTHROPIC_API_KEY is not set
+________________ test_fmp_profile_row_parses_list_of_one_shape _________________
+
+    def test_fmp_profile_row_parses_list_of_one_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+
+tests/test_ticker_logos.py:112: AssertionError
+_________________ test_fmp_profile_row_parses_bare_dict_shape __________________
+
+    def test_fmp_profile_row_parses_bare_dict_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value={"companyName": "Apple Inc."}):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc."}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.'}
+
+tests/test_ticker_logos.py:119: AssertionError
+____ test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub _____
+
+    def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
+        """Defensive path: if FMP's schema ever adds an `image` field, it's used
+        as the PRIMARY source and Finnhub is never called at all."""
+        fmp_png = b"\x89PNG\r\n\x1a\nfmp-logo"
+    
+        def _fake_get(url, **kw):
+            class _R:
+                ok = True
+                content = fmp_png
+                status_code = 200
+            return _R()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.",
+                                       "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get") as fh, \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+>       assert out == fmp_png
+E       AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+
+tests/test_ticker_logos.py:172: AssertionError
+___ test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried ___
+
+    def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
+        """A provider hiccup fetching the FMP-sourced image (5xx) marks transient
+        and the code still proceeds to try Finnhub afterwards."""
+        tl._reset_transient()
+        finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+    
+        def _fake_get(url, **kw):
+            if "fmp-cdn" in url:
+                class _Bad:
+                    ok = False
+                    content = b""
+                    status_code = 503
+                return _Bad()
+            class _Good:
+                ok = True
+                content = finnhub_png
+                status_code = 200
+            return _Good()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get",
+                        return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+        assert out == finnhub_png
+>       assert tl._was_transient() is True
+E       assert False is True
+E        +  where False = <function _was_transient at 0x7ff612e7c860>()
+E        +    where <function _was_transient at 0x7ff612e7c860> = tl._was_transient
+
+tests/test_ticker_logos.py:225: AssertionError
+_______ test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit ________
+
+    def test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit():
+        """FMP is the new PRIMARY leg: when yfinance fails and FMP fully resolves
+        the name, Finnhub must never even be called."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put"), \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row()]) as FMP, \
+             patch.object(ticker_meta, "fh_get") as FH:
+            out = ticker_meta.get_ticker_meta("AAPL")
+>       assert out == {"name": "Apple Inc.", "sector": "Technology",
+                       "industry": "Consumer Electronics", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {'sector': None} != {'sector': 'Technology'}
+E         {'name': None} != {'name': 'Apple Inc.'}
+E         {'industry': None} != {'industry': 'Consumer Electronics'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Consumer Electronics',
+E         -     'name': 'Apple Inc.',
+E         -     'sector': 'Technology',
+E         +     'industry': None,
+E         +     'name': None,
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:236: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:33:47,400 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for AAPL: FMP_API_KEY not set
+______________________ test_fmp_field_mapping_happy_path _______________________
+
+    def test_fmp_field_mapping_happy_path():
+        """Direct unit test of the field-shape mapping table: companyName->name,
+        sector/industry split correctly (Finnhub profile2 had no sector at all)."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName="Apple Inc.", sector="Technology",
+                                           industry="Consumer Electronics")]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["name"] == "Apple Inc."
+E       AssertionError: assert None == 'Apple Inc.'
+
+tests/test_ticker_meta.py:251: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:33:47,410 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for AAPL: FMP_API_KEY not set
+____________ test_fmp_market_cap_unit_conversion_asserts_magnitude _____________
+
+    def test_fmp_market_cap_unit_conversion_asserts_magnitude():
+        """THE known bug class (lesson_market_cap_cache_poison_and_finnhub_currency):
+        FMP's marketCap is raw USD UNITS (4567767716000), NOT the millions Finnhub's
+        marketCapitalization used. Assert the CONVERTED magnitude, not just presence —
+        a bug that skips the /1e6 conversion (or divides by the wrong power) must
+        fail this on the number, not silently pass on "field exists"."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(marketCap=4567767716000)]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["market_cap_musd"] == pytest.approx(4567767.716, rel=1e-9)
+E       assert None == 4567767.716 ± 4.6e-03
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 4567767.716 ± 4.6e-03
+
+tests/test_ticker_meta.py:265: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:33:47,419 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for AAPL: FMP_API_KEY not set
+_____________ test_fmp_missing_marketcap_key_entirely_yields_none ______________
+
+    def test_fmp_missing_marketcap_key_entirely_yields_none():
+        """A row that simply omits the marketCap key (not just null) must also
+        yield None, not raise a KeyError or coerce to 0."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[{"companyName": "No Cap Co"}]):
+            out = ticker_meta._from_fmp("NOCAP")
+>       assert out["name"] == "No Cap Co"
+E       AssertionError: assert None == 'No Cap Co'
+
+tests/test_ticker_meta.py:292: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:33:47,431 WARNING api.services.ticker_meta: FMP profile failed for NOCAP: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for NOCAP: FMP_API_KEY not set
+________________ test_fmp_partial_then_finnhub_fills_remainder _________________
+
+    def test_fmp_partial_then_finnhub_fills_remainder():
+        """Full 3-leg interaction: yfinance fails entirely, FMP supplies industry
+        but no name (a partial FMP response), Finnhub then fills the name. Proves
+        the merge chain composes correctly end-to-end, matching the yfinance/
+        Finnhub partial-merge behavior already covered above."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put") as DP, \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName=None, sector="Technology",
+                                           industry="Semiconductors")]), \
+             patch.object(ticker_meta, "fh_get",
+                          return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):
+            out = ticker_meta.get_ticker_meta("MU")
+>       assert out == {"name": "Micron Technology Inc", "sector": "Technology",
+                       "industry": "Semiconductors", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Differing items:
+E         {'sector': None} != {'sector': 'Technology'}
+E         {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Semiconductors',
+E         +     'industry': 'Technology',
+E               'name': 'Micron Technology Inc',
+E         -     'sector': 'Technology',
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:324: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:33:47,445 WARNING api.services.ticker_meta: FMP profile failed for MU: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for MU: FMP_API_KEY not set
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+____________________________ test_tts_requires_auth ____________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606de3350>
+
+    def test_tts_requires_auth(client):
+        r = client.post("/api/voice/tts", json={"text": "hi"})
+>       assert r.status_code == 401
+E       assert 402 == 401
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:50: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+______________________ test_tts_returns_mp3_for_paid_user ______________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606d4ef00>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_returns_mp3_for_paid_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606ed1d30>
+
+    def test_tts_returns_mp3_for_paid_user(client, tmp_path, monkeypatch):
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        fake_audio = b"\xFF\xFB\x90\x00FAKEMP3"
+        fake_client = object()
+        with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+             patch(
+                 "api.routers.voice.synthesize_speech_stream",
+                 side_effect=lambda *a, **k: iter([fake_audio]),
+             ):
+            r = client.post("/api/voice/tts", json={"text": "hello world"})
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:70: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________________ test_tts_serves_from_cache_on_second_call ___________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606d4d550>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_serves_from_cache_on_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606be47d0>
+
+    def test_tts_serves_from_cache_on_second_call(client, tmp_path, monkeypatch):
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        fake_audio = b"\xFF\xFB\x90\x00CACHED"
+        fake_client = object()
+        with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+             patch(
+                 "api.routers.voice.synthesize_speech_stream",
+                 side_effect=lambda *a, **k: iter([fake_audio]),
+             ) as m:
+            r1 = client.post("/api/voice/tts", json={"text": "same text"})
+            r2 = client.post("/api/voice/tts", json={"text": "same text"})
+>       assert r1.status_code == 200 and r2.status_code == 200
+E       assert (402 == 200)
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:87: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_________________________ test_tts_rejects_empty_text __________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064b9250>
+
+    def test_tts_rejects_empty_text(client):
+        _login(client, plan="pro")
+        r = client.post("/api/voice/tts", json={"text": ""})
+>       assert r.status_code == 400
+E       assert 402 == 400
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:95: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________ test_tts_prepare_returns_token_then_stream_plays _______________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064b85f0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_prepare_returns_token0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff6064ba780>
+
+    def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypatch):
+        """The flow: POST /prepare -> token, GET /stream?token -> audio. The cold
+        first GET streams progressively; the second serves the cached SEEKABLE file."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        fake_audio = b"\xFF\xFB\x90\x00STREAMED"
+        fake_client = object()
+        with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+             patch(
+                 "api.routers.voice.synthesize_speech_stream",
+                 side_effect=lambda *a, **k: iter([fake_audio]),
+             ) as synth:
+            long_rundown = ("Markets are moving today. " * 500).strip()  # ~12k chars
+            p = client.post("/api/voice/tts/prepare", json={"text": long_rundown})
+>           assert p.status_code == 200
+E           assert 402 == 200
+E            +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:112: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________ test_tts_stream_cold_miss_streams_progressively ________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064460c0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_stream_cold_miss_stre0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606e854c0>
+
+    def test_tts_stream_cold_miss_streams_progressively(client, tmp_path, monkeypatch):
+        """Cold cache: /stream must NOT synthesize the whole clip before sending the
+        first byte — behind Cloudflare a silent >100s response gets 524'd, so long
+        uncached clips (UCT 20 picks) hard-failed or took minutes to start. It must
+        stream progressively via synthesize_speech_stream, then cache the finished
+        clip so the NEXT request is a seekable file."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        fake_audio = b"\xFF\xFB\x90\x00PROGRESSIVE"
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.synthesize_speech") as full_synth, \
+             patch(
+                 "api.routers.voice.synthesize_speech_stream",
+                 side_effect=lambda *a, **k: iter([fake_audio]),
+             ) as stream_synth:
+>           token = client.post("/api/voice/tts/prepare", json={"text": "cold uct20 pick"}).json()["token"]
+E           KeyError: 'token'
+
+tests/test_voice_router.py:143: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________ test_tts_stream_chrome_initial_range_streams_progressively __________
+
+client = <starlette.testclient.TestClient object at 0x7ff606f39b50>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_stream_chrome_initial0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606f38320>
+
+    def test_tts_stream_chrome_initial_range_streams_progressively(client, tmp_path, monkeypatch):
+        """Chrome sends 'Range: bytes=0-' on the FIRST media request. That must take
+        the progressive path too — only a real mid-file seek (start > 0) needs the
+        synthesize-everything path."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        fake_audio = b"\xFF\xFB\x90\x00CHROME"
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.synthesize_speech") as full_synth, \
+             patch(
+                 "api.routers.voice.synthesize_speech_stream",
+                 side_effect=lambda *a, **k: iter([fake_audio]),
+             ):
+>           token = client.post("/api/voice/tts/prepare", json={"text": "chrome range zero"}).json()["token"]
+E           KeyError: 'token'
+
+tests/test_voice_router.py:167: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________ test_tts_stream_failed_synth_does_not_cache_partial_audio ___________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e85580>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_stream_failed_synth_d0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606e863f0>
+
+    def test_tts_stream_failed_synth_does_not_cache_partial_audio(client, tmp_path, monkeypatch):
+        """If synthesis dies mid-stream, the truncated bytes must NOT be cached —
+        otherwise every future play of that text serves a clipped MP3 forever."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        calls = {"n": 0}
+    
+        def flaky_stream(*a, **k):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                def gen():
+                    yield b"PART"
+                    raise RuntimeError("synth died mid-clip")
+                return gen()
+            return iter([b"\xFF\xFB\x90\x00FULLCLIP"])
+    
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.synthesize_speech_stream", side_effect=flaky_stream):
+>           token = client.post("/api/voice/tts/prepare", json={"text": "flaky clip"}).json()["token"]
+E           KeyError: 'token'
+
+tests/test_voice_router.py:192: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________ test_tts_stream_supports_range_requests ____________________
+
+client = <starlette.testclient.TestClient object at 0x7ff60c1c2cc0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_stream_supports_range0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606fbb920>
+
+    def test_tts_stream_supports_range_requests(client, tmp_path, monkeypatch):
+        """A ranged GET returns 206 Partial Content — proves the audio is seekable."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        fake_audio = b"0123456789ABCDEF"
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.synthesize_speech", return_value=fake_audio):
+>           token = client.post("/api/voice/tts/prepare", json={"text": "seek me"}).json()["token"]
+E           KeyError: 'token'
+
+tests/test_voice_router.py:206: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________ test_tts_prepare_precheck_finds_cache_by_normalized_key ____________
+
+client = <starlette.testclient.TestClient object at 0x7ff606be7770>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_prepare_precheck_find0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606be6540>
+
+    def test_tts_prepare_precheck_finds_cache_by_normalized_key(client, tmp_path, monkeypatch):
+        """Regression: /tts/prepare's fail-fast precheck must look up the cache under
+        the SAME normalized key that /tts/stream serves from. Read-aloud text carries
+        tickers/% so normalize_for_speech() changes the string; if prepare keys on the
+        raw text it always misses a real cache hit and — when OpenAI is misconfigured —
+        503s a clip that /tts/stream would have played straight from the cached file."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        from api.services.voice_text_normalize import normalize_for_speech
+        raw = "Markets closed up 3% today."          # "3%" → "up 3 percent" on normalize
+        norm = normalize_for_speech(raw)
+        assert norm != raw                             # guard: this text really is transformed
+        # Simulate a prewarm cache hit stored under the NORMALIZED key (verse/1.0 defaults).
+        vac.put_cached(norm, "verse", 1.0, b"\xFF\xFB\x90\x00PREWARMED")
+        # OpenAI misconfigured: the client probe raises. A raw-key precheck would miss
+        # the cache, fall into this probe, and 503.
+        with patch(
+            "api.services.voice_openai._get_client",
+            side_effect=RuntimeError("OPENAI_API_KEY not set"),
+        ):
+            r = client.post("/api/voice/tts/prepare", json={"text": raw})
+>       assert r.status_code == 200, r.text            # must return a token, not 503
+E       AssertionError: {"detail":"Voice features require a paid plan"}
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:233: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+____________________ test_tts_stream_rejects_unknown_token _____________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064e7140>
+
+    def test_tts_stream_rejects_unknown_token(client):
+        _login(client, plan="pro")
+        r = client.get("/api/voice/tts/stream?token=does-not-exist")
+>       assert r.status_code == 404
+E       assert 402 == 404
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:246: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_____________________ test_tts_stream_token_is_user_scoped _____________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e3ad20>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_stream_token_is_user_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff6064e7680>
+
+    def test_tts_stream_token_is_user_scoped(client, tmp_path, monkeypatch):
+        """A token minted by one user must not be streamable by another."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        with patch("api.services.voice_openai._get_client", return_value=object()):
+>           token = client.post("/api/voice/tts/prepare", json={"text": "hello there"}).json()["token"]
+E           KeyError: 'token'
+
+tests/test_voice_router.py:254: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________________ test_tts_accepts_full_morning_wire_length ___________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606208890>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_accepts_full_morning_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff60620b350>
+
+    def test_tts_accepts_full_morning_wire_length(client, tmp_path, monkeypatch):
+        """Regression: an ~11k-char Morning Wire rundown must NOT be rejected as
+        'too long' — the synth layer chunks it. Previously a 4000-char cap made
+        Read Aloud silently fail on the entire Morning Wire."""
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        long_rundown = ("The market opened higher today. " * 400).strip()  # ~12k chars
+        assert len(long_rundown) > 10_000
+        fake_audio = b"\xFF\xFB\x90\x00FULLWIRE"
+        fake_client = object()
+        with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+             patch(
+                 "api.routers.voice.synthesize_speech_stream",
+                 side_effect=lambda *a, **k: iter([fake_audio]),
+             ):
+            r = client.post("/api/voice/tts", json={"text": long_rundown})
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:277: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_____________ test_settings_get_returns_defaults_for_new_paid_user _____________
+
+client = <starlette.testclient.TestClient object at 0x7ff606cf8e00>
+
+    def test_settings_get_returns_defaults_for_new_paid_user(client):
+        _login(client, plan="pro")
+        r = client.get("/api/voice/settings")
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:286: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________________________ test_settings_put_persists __________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff60648e960>
+
+    def test_settings_put_persists(client):
+        _login(client, plan="pro")
+        r = client.put("/api/voice/settings", json={"voice": "ash", "speed": 1.25})
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:296: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________ test_settings_put_rejects_invalid_voice ____________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064bb1d0>
+
+    def test_settings_put_rejects_invalid_voice(client):
+        _login(client, plan="pro")
+        r = client.put("/api/voice/settings", json={"voice": "not-real"})
+>       assert r.status_code == 400
+E       assert 402 == 400
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:308: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________________ test_usage_returns_current_month _______________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606f3a5d0>
+
+    def test_usage_returns_current_month(client):
+        _login(client, plan="pro")
+        r = client.get("/api/voice/usage")
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:320: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+________________________ test_tts_blocked_when_disabled ________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e84920>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tts_blocked_when_disabled0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606e873e0>
+
+    def test_tts_blocked_when_disabled(client, tmp_path, monkeypatch):
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+        # Disable voice in settings
+        client.put("/api/voice/settings", json={"enabled": False})
+        r = client.post("/api/voice/tts", json={"text": "hello"})
+>       assert r.status_code == 400
+E       assert 402 == 400
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:335: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+______________________ test_tools_endpoint_requires_auth _______________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e85fd0>
+
+    def test_tools_endpoint_requires_auth(client):
+        r = client.get("/api/voice/tools")
+>       assert r.status_code == 401
+E       assert 402 == 401
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:343: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________ test_tools_endpoint_returns_global_tools ___________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064b81d0>
+
+    def test_tools_endpoint_returns_global_tools(client):
+        _login(client, plan="pro")
+        from api.services import voice_tool_impls  # noqa
+        r = client.get("/api/voice/tools?context=global")
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:350: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________________________ test_oneshot_requires_auth __________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff60648c140>
+
+    def test_oneshot_requires_auth(client):
+        r = client.post("/api/voice/oneshot", files={"audio": ("a.webm", b"FAKE", "audio/webm")})
+>       assert r.status_code == 401
+E       assert 402 == 401
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:359: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________________ test_oneshot_happy_path ____________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606d4e510>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_oneshot_happy_path0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff606d4e300>
+
+    def test_oneshot_happy_path(client, tmp_path, monkeypatch):
+        monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+        _login(client, plan="pro")
+    
+        fake_audio = b"\xFF\xFB\x90\x00FAKEMP3"
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.transcribe_audio", return_value="what is NVDA at"), \
+             patch("api.routers.voice.run_oneshot", return_value={
+                 "tool": "get_quote",
+                 "args": {"symbol": "NVDA"},
+                 "narration": "NVDA is at 487 dollars, up 2.1 percent.",
+                 "raw_result": {"symbol": "NVDA", "last": 487.20, "abs_pct": 2.1},
+             }), \
+             patch("api.routers.voice.synthesize_speech_stream",
+                   side_effect=lambda *a, **k: iter([fake_audio])):
+            r = client.post(
+                "/api/voice/oneshot",
+                files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+                data={"context": "global"},
+            )
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:388: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________________ test_oneshot_rejects_empty_audio _______________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064e7500>
+
+    def test_oneshot_rejects_empty_audio(client):
+        _login(client, plan="pro")
+        r = client.post(
+            "/api/voice/oneshot",
+            files={"audio": ("a.webm", b"", "audio/webm")},
+            data={"context": "global"},
+        )
+>       assert r.status_code == 400
+E       assert 402 == 400
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:402: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+________________________ test_transcribe_requires_auth _________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606fbb5c0>
+
+    def test_transcribe_requires_auth(client):
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"FAKE", "audio/webm")},
+        )
+>       assert r.status_code == 401
+E       assert 402 == 401
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:412: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+__________________ test_transcribe_returns_text_for_paid_user __________________
+
+client = <starlette.testclient.TestClient object at 0x7ff60648cd10>
+
+    def test_transcribe_returns_text_for_paid_user(client):
+        _login(client, plan="pro")
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.transcribe_audio",
+                   return_value="add NVDA long position at 142"):
+            r = client.post(
+                "/api/voice/transcribe",
+                files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+            )
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:433: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_____________________ test_transcribe_rejects_empty_audio ______________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064ba1e0>
+
+    def test_transcribe_rejects_empty_audio(client):
+        _login(client, plan="pro")
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"", "audio/webm")},
+        )
+>       assert r.status_code == 400
+E       assert 402 == 400
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:444: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_____________________ test_transcribe_records_mode_d_usage _____________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606fd45c0>
+
+    def test_transcribe_records_mode_d_usage(client):
+        user_id = _login(client, plan="pro")
+        from api.services.voice_usage import get_monthly_usage
+        before = get_monthly_usage(user_id).get("mode_d_seconds", 0)
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.transcribe_audio", return_value="hello world"):
+            r = client.post(
+                "/api/voice/transcribe",
+                files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+            )
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:457: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+________________ test_transcribe_applies_cleanup_when_requested ________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606fad310>
+
+    def test_transcribe_applies_cleanup_when_requested(client):
+        _login(client, plan="pro")
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.transcribe_audio",
+                   return_value="um add a in video long"), \
+             patch("api.routers.voice.cleanup_transcript",
+                   return_value="Add an NVDA long.") as mock_cleanup:
+            r = client.post(
+                "/api/voice/transcribe",
+                files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+                data={"cleanup": "true"},
+            )
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:474: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________ test_transcribe_skips_cleanup_by_default ___________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606445820>
+
+    def test_transcribe_skips_cleanup_by_default(client):
+        _login(client, plan="pro")
+        with patch("api.services.voice_openai._get_client", return_value=object()), \
+             patch("api.routers.voice.transcribe_audio", return_value="raw text"), \
+             patch("api.routers.voice.cleanup_transcript") as mock_cleanup:
+            r = client.post(
+                "/api/voice/transcribe",
+                files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+            )
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:488: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________ test_transcribe_blocks_when_cap_exceeded ___________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064baa80>
+
+    def test_transcribe_blocks_when_cap_exceeded(client):
+        user_id = _login(client, plan="pro")
+        from api.services.voice_usage import (
+            record_mode_d_seconds, MODE_D_DEFAULT_CAP_SECONDS,
+        )
+        # Saturate the cap
+        record_mode_d_seconds(user_id, MODE_D_DEFAULT_CAP_SECONDS + 1)
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"FAKE", "audio/webm")},
+        )
+>       assert r.status_code == 429
+E       assert 402 == 429
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:504: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_________________ test_session_token_returns_ephemeral_secret __________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606eafec0>
+
+    def test_session_token_returns_ephemeral_secret(client):
+        _login(client, plan="pro")
+        fake_mint = {"session_id": "sess_x", "client_secret": "ek_secret",
+                     "expires_at": 9999999999, "model": "gpt-realtime"}
+        with patch("api.routers.voice.mint_realtime_session", return_value=fake_mint):
+            r = client.post("/api/voice/session_token", json={"context": "global"})
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:521: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_________________ test_session_token_blocks_when_cap_exceeded __________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e1e960>
+
+    def test_session_token_blocks_when_cap_exceeded(client):
+        uid = _login(client, plan="pro")
+        from api.services.voice_usage import record_mode_c_seconds, MODE_C_DEFAULT_CAP_SECONDS
+        record_mode_c_seconds(uid, MODE_C_DEFAULT_CAP_SECONDS)
+    
+        fake_mint = {"session_id": "sess_x", "client_secret": "ek", "expires_at": 0, "model": "x"}
+        with patch("api.routers.voice.mint_realtime_session", return_value=fake_mint):
+            r = client.post("/api/voice/session_token", json={"context": "global"})
+>       assert r.status_code == 429
+E       assert 402 == 429
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:537: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________ test_exec_runs_tool_and_returns_envelope ___________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e95a30>
+
+    def test_exec_runs_tool_and_returns_envelope(client):
+        uid = _login(client, plan="pro")
+        from api.services.voice_session_service import create_session
+        sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+    
+        with patch("api.routers.voice.run_tool", return_value={
+            "ok": True, "tool": "get_quote", "result": {"symbol": "NVDA", "last": 487.20},
+        }):
+            r = client.post("/api/voice/exec", json={
+                "session_id": sid, "tool": "get_quote", "args": {"symbol": "NVDA"},
+            })
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:557: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________ test_exec_rejects_session_owned_by_another_user ________________
+
+client = <starlette.testclient.TestClient object at 0x7ff60f544890>
+
+    def test_exec_rejects_session_owned_by_another_user(client):
+        _login(client, plan="pro")
+        from api.services.auth_service import create_user
+        from api.services.voice_session_service import create_session
+        other = create_user(f"other_{__import__('uuid').uuid4()}@example.com", "p")
+        sid = create_session(user_id=other["id"], mode="c", source="orb", page_context="global")
+    
+        r = client.post("/api/voice/exec", json={"session_id": sid, "tool": "get_quote", "args": {}})
+>       assert r.status_code == 403
+E       assert 402 == 403
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:571: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________________ test_transcript_appends ____________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606be7020>
+
+    def test_transcript_appends(client):
+        uid = _login(client, plan="pro")
+        from api.services.voice_session_service import create_session, get_transcripts
+        sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+    
+        r = client.post("/api/voice/transcript", json={
+            "session_id": sid, "role": "user", "text": "what's NVDA at",
+        })
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:582: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+______________________ test_session_end_records_duration _______________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e96480>
+
+    def test_session_end_records_duration(client):
+        uid = _login(client, plan="pro")
+        from api.services.voice_session_service import create_session, get_session
+        sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+    
+        r = client.post("/api/voice/session/end", json={
+            "session_id": sid, "duration_seconds": 17,
+        })
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:596: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+____________________ test_session_token_injects_user_memory ____________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606f04ec0>
+
+    def test_session_token_injects_user_memory(client):
+        uid = _login(client, plan="pro")
+        from api.services.voice_memory_service import add_fact
+        add_fact(uid, text="I trade small caps under $5B", category="style")
+    
+        captured_instructions = {}
+    
+        def fake_mint(*, voice, tools, instructions, model=None):
+            captured_instructions["text"] = instructions
+            return {"session_id": "sess_x", "client_secret": "ek_x",
+                    "expires_at": 0, "model": "gpt-realtime"}
+    
+        with patch("api.routers.voice.mint_realtime_session", side_effect=fake_mint):
+            r = client.post("/api/voice/session_token", json={"context": "global"})
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:616: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+----------------------------- Captured stderr call -----------------------------
+2026-09-15 22:36:00,065 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=fact id=134: OPENAI_API_KEY is not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.voice_embeddings_service:voice_embeddings_service.py:84 [voice_embeddings] embed failed kind=fact id=134: OPENAI_API_KEY is not set
+_________________________ test_memory_facts_get_empty __________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff606e86030>
+
+    def test_memory_facts_get_empty(client):
+        _login(client, plan="pro")
+        r = client.get("/api/voice/memory/facts")
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:625: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________________ test_memory_facts_post_and_list ________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064e7410>
+
+    def test_memory_facts_post_and_list(client):
+        _login(client, plan="pro")
+        r = client.post("/api/voice/memory/facts",
+                        json={"text": "I trade small caps", "category": "style"})
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:633: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+___________________________ test_memory_fact_delete ____________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff6064b9640>
+
+    def test_memory_fact_delete(client):
+        _login(client, plan="pro")
+        r = client.post("/api/voice/memory/facts",
+                        json={"text": "some fact", "category": "general"})
+>       fid = r.json()["id"]
+E       KeyError: 'id'
+
+tests/test_voice_router.py:644: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+_______________________ test_memory_summaries_get_empty ________________________
+
+client = <starlette.testclient.TestClient object at 0x7ff60f544890>
+
+    def test_memory_summaries_get_empty(client):
+        _login(client, plan="pro")
+        r = client.get("/api/voice/memory/summaries")
+>       assert r.status_code == 200
+E       assert 402 == 200
+E        +  where 402 = <Response [402 Payment Required]>.status_code
+
+tests/test_voice_router.py:654: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_aemo2bhq/auth.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:1311: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:608: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_ticker_explain.py::TestRoute::test_route_shape_when_authenticated
+tests/test_ticker_explain.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_voice_router.py::test_transcribe_records_mode_d_usage
+tests/test_voice_router.py::test_transcribe_blocks_when_cap_exceeded
+tests/test_voice_router.py::test_session_token_blocks_when_cap_exceeded
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+FAILED tests/test_ticker_explain.py::TestRoute::test_requires_auth - assert 200 == 401
+ +  where 200 = <Response [200 OK]>.status_code
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_list_of_one_shape - AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_bare_dict_shape - AssertionError: assert None == {'companyName': 'Apple Inc.'}
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub - AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried - assert False is True
+ +  where False = <function _was_transient at 0x7ff612e7c860>()
+ +    where <function _was_transient at 0x7ff612e7c860> = tl._was_transient
+FAILED tests/test_ticker_meta.py::test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 2 identical items, use -vv to show
+  Differing items:
+  {'sector': None} != {'sector': 'Technology'}
+  {'name': None} != {'name': 'Apple Inc.'}
+  {'industry': None} != {'industry': 'Consumer Electronics'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Consumer Electronics',
+  -     'name': 'Apple Inc.',
+  -     'sector': 'Technology',
+  +     'industry': None,
+  +     'name': None,
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_ticker_meta.py::test_fmp_field_mapping_happy_path - AssertionError: assert None == 'Apple Inc.'
+FAILED tests/test_ticker_meta.py::test_fmp_market_cap_unit_conversion_asserts_magnitude - assert None == 4567767.716 ± 4.6e-03
+  
+  comparison failed
+  Obtained: None
+  Expected: 4567767.716 ± 4.6e-03
+FAILED tests/test_ticker_meta.py::test_fmp_missing_marketcap_key_entirely_yields_none - AssertionError: assert None == 'No Cap Co'
+FAILED tests/test_ticker_meta.py::test_fmp_partial_then_finnhub_fills_remainder - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 3 identical items, use -vv to show
+  Differing items:
+  {'sector': None} != {'sector': 'Technology'}
+  {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Semiconductors',
+  +     'industry': 'Technology',
+        'name': 'Micron Technology Inc',
+  -     'sector': 'Technology',
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+FAILED tests/test_voice_router.py::test_tts_requires_auth - assert 402 == 401
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_returns_mp3_for_paid_user - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_serves_from_cache_on_second_call - assert (402 == 200)
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_rejects_empty_text - assert 402 == 400
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_prepare_returns_token_then_stream_plays - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_stream_cold_miss_streams_progressively - KeyError: 'token'
+FAILED tests/test_voice_router.py::test_tts_stream_chrome_initial_range_streams_progressively - KeyError: 'token'
+FAILED tests/test_voice_router.py::test_tts_stream_failed_synth_does_not_cache_partial_audio - KeyError: 'token'
+FAILED tests/test_voice_router.py::test_tts_stream_supports_range_requests - KeyError: 'token'
+FAILED tests/test_voice_router.py::test_tts_prepare_precheck_finds_cache_by_normalized_key - AssertionError: {"detail":"Voice features require a paid plan"}
+assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_stream_rejects_unknown_token - assert 402 == 404
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_stream_token_is_user_scoped - KeyError: 'token'
+FAILED tests/test_voice_router.py::test_tts_accepts_full_morning_wire_length - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_settings_get_returns_defaults_for_new_paid_user - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_settings_put_persists - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_settings_put_rejects_invalid_voice - assert 402 == 400
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_usage_returns_current_month - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tts_blocked_when_disabled - assert 402 == 400
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tools_endpoint_requires_auth - assert 402 == 401
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_tools_endpoint_returns_global_tools - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_oneshot_requires_auth - assert 402 == 401
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_oneshot_happy_path - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_oneshot_rejects_empty_audio - assert 402 == 400
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_requires_auth - assert 402 == 401
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_returns_text_for_paid_user - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_rejects_empty_audio - assert 402 == 400
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_records_mode_d_usage - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_applies_cleanup_when_requested - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_skips_cleanup_by_default - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcribe_blocks_when_cap_exceeded - assert 402 == 429
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_session_token_returns_ephemeral_secret - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_session_token_blocks_when_cap_exceeded - assert 402 == 429
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_exec_runs_tool_and_returns_envelope - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_exec_rejects_session_owned_by_another_user - assert 402 == 403
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_transcript_appends - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_session_end_records_duration - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_session_token_injects_user_memory - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_memory_facts_get_empty - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_memory_facts_post_and_list - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+FAILED tests/test_voice_router.py::test_memory_fact_delete - KeyError: 'id'
+FAILED tests/test_voice_router.py::test_memory_summaries_get_empty - assert 402 == 200
+ +  where 402 = <Response [402 Payment Required]>.status_code
+52 failed, 1589 passed, 1 skipped, 52 warnings in 283.60s (0:04:43)

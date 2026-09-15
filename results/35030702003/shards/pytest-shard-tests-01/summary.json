@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2580,
+  "passed": 2577,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 339.07,
+  "failed_files": [
+    "tests/test_alert_taxonomy_scan_membership_change_schema.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 2577 passed, 2 skipped, 5 warnings in 339.07s (0:05:39)",
+  "ok": true
+}
