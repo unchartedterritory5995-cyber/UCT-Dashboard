@@ -211,6 +211,13 @@ exist. *"wire this door explicitly, don't assume it exists."*
 
 ### R-0 · THE RELEASE GATE — added 2026-09-11, during the deploy checklist
 
+⚖️ **R-0.6 — CLASS CHECK (owner, 2026-09-14). Before any fix merges, name the
+class it belongs to and check whether the same shape exists elsewhere. The fix
+ships only alongside that check's result: FIXED, or LISTED WITH A REASON.**
+⛔ A fix described by a file or a line, rather than by a shape, has not had this
+check. See §10.35 for the four instances that bought this rule.
+
+
 ⛔⛔ **Wave R was built with NO gate at all.** All four doors — the Scanner
 header door (R-1a), the ticker-menu "Send chart to note" (R-2e), and the
 `indexes` / `marketcontext` widgets — rendered unconditionally. The widgets were
@@ -1430,10 +1437,32 @@ Closing it requires building an instrument first — that is a task, not a looku
     exactly the runner defect fixed the same night (exit 0 with an INCONCLUSIVE
     verdict was being recorded as `done`).
 
-    ⚠️ Still genuinely missing, and NOT to be confused with the above:
-    `pre_push_guard.py` has **no `--self-check`**, so nobody has watched it refuse;
-    and its bypass log is `logs/pre-push-guard-bypass.log`, not the
-    `uct-q1-observe` location an owner ruling asked for.
+    ✅ **UPDATE, same night — IT HAS NOW BEEN WATCHED, IN BOTH DIRECTIONS**, by
+    an ordinary push rather than a contrived test. Pushing this programme's
+    tooling merge to master:
+
+    ```
+    [pre-push] the newest web deployment is DEPLOYING (2d7ae7795 …) — a swap is in
+               flight; pushing now marks it REMOVED mid-swap and members get a 502.
+    [pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.
+    ```
+
+    and four minutes later, unchanged and unforced:
+
+    ```
+    [pre-push] web is SUCCESS on 2d7ae7795, 167s settled — safe to push.
+    ```
+
+    ⭐ **So the guard bites, and its settle window is real** — 167 s against a
+    150 s floor. The override was **not** used. This also settles the question
+    §10.31 opened: the mechanism is not being bypassed, and the tight cadence is
+    the permitted one.
+
+    ⚠️ Still genuinely missing: `pre_push_guard.py` has no `--self-check`, so its
+    refusal has been *observed* but never *proved on demand* — an observation is
+    not a rail, and the next person to change it has nothing to run. And its
+    bypass log is `logs/pre-push-guard-bypass.log`, not the `uct-q1-observe`
+    location an owner ruling asked for.
 
 32. ⛔⛔ **A SUBAGENT'S REPLY ABOUT ITS WORK IS NOT THE WORK — and I briefed a
     second agent from the reply.**
@@ -1467,12 +1496,157 @@ Closing it requires building an instrument first — that is a task, not a looku
     so the drain's supersede branch is reachable **only** in the clean state).
     Two refusals, both correct, both against the brief.
 
+33. ⛔⛔ **THE FIX FOR THE 10:00 COLLISION DID NOT CLOSE THE RACE - IT CLOSED
+    THE HALF THAT WAS VISIBLE.** Near miss, 2026-09-14 02:00.
+
+    The sampler fired at **02:00:01**. The rig-window guard said **CLEAR at
+    02:00:24** and the runner immediately took the profile for a canary. It was
+    right *that* time - the sampler finished in ~20 s and its 03:00 ET row
+    landed - but it was right **by luck**.
+
+    ⛔ The guard's `Running` arm was added precisely because a started task's
+    `NextRunTime` jumps forward, making "due in 115 min" read as CLEAR. But
+    Windows sets `State=Running` a moment **after** the trigger, so a poll inside
+    that gap sees `Ready` for a task that is about to take the one profile. The
+    guard could only ever catch a task **already visibly running**.
+
+    ⭐ **A state is a sample; a timestamp is a fact.** The guard now also refuses
+    when a Q1 task **STARTED** within `JUST_RAN_COOLDOWN_SECONDS` (180), whatever
+    the state says. Railed both directions against an injected scheduler: the
+    24-second near-miss refuses, 179 s refuses, 181 s clears, 40 min clears, and a
+    visibly-`Running` task still refuses.
+
+    ⚠️ **The lesson is about the shape of the first fix, not the race.** It
+    was written from one incident and it fixed exactly what that incident showed -
+    a task caught mid-run. Nobody asked what the scheduler reports in the seconds
+    *before* that state exists. **A fix derived from a single observed failure
+    covers the failure, not the mechanism.**
+
+34. ⭐⭐ **FIVE INSTRUMENTS IN ONE NIGHT — three that refused loudly and were
+    right, two that passed quietly and were wrong. The difference is the whole
+    lesson.**
+
+    **Refused, and correctly:**
+
+    - **`pre_push_guard.py` refused a master push** while another session's deploy
+      was mid-swap — *"⛔ REFUSING THE PUSH. One master merge at a time,
+      repo-wide."* — then allowed it four minutes later, *"SUCCESS on 2d7ae7795,
+      167s settled"*. The override was not used. First time anyone had watched it
+      fire.
+    - **`resolve_profile` refused a missing rig profile three separate times**,
+      rather than creating one. *A fresh profile is a SIGNED-OUT profile and
+      nothing on this machine can sign it back in.* Each refusal was a staging
+      mistake of mine; each cost seconds instead of a sign-in.
+    - **The mutation gauntlet refused twice in one run** — once on a red control
+      it could not classify, once on an anchor it could not locate (*"the mutation
+      site occurs 0 times, not once. An ambiguous mutation is a guess"*). Both
+      refusals were right, and either shrug would have produced a false "proved".
+
+    **Passed quietly, and were wrong:**
+
+    - **The window runner banked results on an exit code — twice.** An
+      INCONCLUSIVE cell that measured nothing was recorded `done · ok`; that was
+      fixed; and then a T-12 run that printed *"2 PASS, 3 FAIL … ⛔ FAIL at
+      step(s) 2, 3, STOP"* and exited 0 was recorded `done · ok` **by the same
+      defect, one verdict over**.
+    - **T-12 had been exercising first-run for its entire life.** Step 2 only ever
+      found the create control that renders on an account with **no notes**, and
+      `member-smoke` is empty by charter. It passed for years of runs without once
+      testing the path an established member takes.
+
+    ⛔ **THE LESSON IS NOT "GUARDS ARE GOOD".** It is that the three refusals cost
+    minutes and the two quiet passes cost a wrong belief — and a wrong belief is
+    only ever discovered by accident. ⭐ **An instrument that cannot refuse is
+    indistinguishable from one that has stopped working**, and both report
+    success.
+
+    ⭐ **AND THE SECOND-ORDER LESSON, which is the expensive one:** two of these
+    are the SAME defect fixed twice. The runner's exit-code bug was fixed for the
+    word `INCONCLUSIVE` and left open for the word `FAIL`. The T-12 probe's
+    comment already recorded one instance of its own class — *"the regex knew
+    'new note' … and not the one the product actually uses"* — and the class
+    recurred one state along. **A fix written to the instance leaves the class
+    open, and the class comes back wearing a different word.**
+
+35. ⚖️ **STANDING RULE, owner 2026-09-14 — NAME THE CLASS BEFORE THE FIX MERGES.**
+
+    > **Before any fix merges: name the class it belongs to, and check whether the
+    > same shape exists elsewhere. The instance fix ships only alongside that
+    > check's result — fixed, or listed with a reason.**
+
+    ⚰️ **Adopted because the same shape appeared FOUR TIMES in one night, and
+    three of those were fixes I had already written:**
+
+    | the class | the instance fixed | where it came back |
+    |---|---|---|
+    | a wrapper's exit is not the run's result | the runner banking an `INCONCLUSIVE` as `done · ok` | banking a **declared FAIL** as `done · ok`, hours later |
+    | a probe that knows the control but not the surface | T-12's regex learning `"+ Start a note"` | the same probe failing on a **populated** account |
+    | an exemption taught to one control | `EXPECTED_RED` at the gauntlet's **opening** control | the **closing** control still reporting FAIL |
+    | a guard proved at one call site | `settleLandedSave`'s `unsentWork` | `putNoteWithIntent`'s dirty guard, **railed by nothing** |
+
+    ⭐ **The last one is the sharpest, because the gauntlet found it and I would
+    not have.** M29 removed the store-layer guard and NOTHING went red: half of
+    Q1 fix 4 shipped as decoration that read exactly like defence in depth.
+
+    ⛔ **Why "listed with a reason" is part of the rule and not a softening.** The
+    check has to be allowed to answer *"it exists there too and we are not fixing
+    it today"* — otherwise the honest answer is expensive and the cheap answer is
+    to not look. A named, unfixed sibling is a debt; an unlooked-for one is a
+    surprise.
+
+    ⭐ **The tell, in your own writing:** a fix whose description names a FILE or a
+    LINE and not a SHAPE has not had this check. *"`settleLandedSave` overwrites a
+    dirty record"* is an instance. *"a guard proved at one call site is not proved
+    for the class"* is the thing that finds the other three.
+
+36. ⚖️ **AN ALIASED CALL IS STILL A CALL — resolve the NAME, not the TEXT.**
+
+    > **A sweep for a call site resolves imports and aliases through the AST. A
+    > string search for the callee's own name is not a sweep, and its empty
+    > result is not a clean answer.**
+
+    ⚰️ **2026-09-14, and it failed in the flattering direction.** Closing S-07's
+    precondition, I swept for callers of `ensure_schema(` and got a count that let
+    me call the strand INERT. The real call site reads `_ensure_j2_schema(conn)`—
+    the same function, imported under a local alias — so the search was asking
+    whether anyone had typed a particular string, never whether anyone calls the
+    function.
+
+    ⭐ **The direction is the whole point.** A sweep that misses call sites
+    reports FEWER of them, so the answer arrives as *"nothing else does this"* — a
+    conclusion that ends an investigation rather than extending one. A sweep that
+    over-matches produces noise somebody has to read; this one produces silence
+    nobody thinks to question. Same family as **§10.7** (grepping the CONSUMER
+    for the PRODUCER's name, which returned 0 at five revisions for a finding that
+    was correct) and the `reachable.test.js` rule in CLAUDE.md: *an AST, never a
+    grep* — already learned once, in this repo, for this exact reason.
+
+    ⛔ **THE FIX, and it is mechanical:** resolve the binding. Parse the module,
+    follow `import { ensureSchema as _ensure_j2_schema }` / `from x import y as z`
+    to the imported NAME, and count calls on the resolved symbol with shadowing
+    respected. `singleWriterIndex.test.js` already does exactly this for
+    `StockChart.jsx`'s developing-bar writers (alias-resolved, shadowing honoured)
+    — that is the pattern to copy, not to reinvent.
+
+    ⚠️ **What this does NOT invalidate:** S-07's precondition really is
+    **INERT STRAND**, confirmed by the owner after the alias was resolved. The
+    finding was right; the *method* that produced it could not have known that,
+    and would have said the same thing had the strand been live.
+
+    ⭐ **The tell:** a sweep whose result is **zero** deserves the non-vacuity
+    control §10 already demands of every shelling-out rail — search for something you
+    KNOW is there first. An empty result is a failed invocation until proven
+    otherwise, and that rule does not stop at subprocess boundaries.
+
 ### Rows added by §10
 
 | id | feature | status |
 |---|---|---|
 | S-15 | Tasks / reminders, financial-native (review thesis before earnings, revisit in N days) | 🔴 never built · **SPEC-THIN** — named 3×, specified 0× |
 | S-16 | Note-version retention / pruning policy | 🔴 unowned — nothing prunes `j2_note_versions` today |
+| **S-17** | **"Import notes" on the welcome screen is silently inert** | 🔴 **DEFECT** · `[m]` measured 2026-09-14 · **the most member-visible of the three.** `ImportWizard` has exactly ONE mount, `NotebookTab.jsx:777`, inside the `) : (` branch at `:658`. `ResearchHome` renders on the OTHER branch (`) : isHome ? (` at `:648`) and is handed `onImport={() => setImportOpen(true)}` at `:655`. The click sets state for a dialog that is not mounted, and `importOpen` does not feed `isHome` (`:316`), so nothing re-renders it. ⛔ It is offered ONLY to a member with zero notes — **a brand-new member's first click on the onboarding screen does nothing**, and the button looks perfectly functional. ⚠️ No runtime click yet: reproduced by reading, and it deserves one real click before it is called confirmed. Provenance: the state-gated-affordance sweep, itself prompted by the T-12 admin-role run |
+| **S-18** | **A member who already has notes has no create control on the Notebook landing view** | 🔴 **DEFECT (landing view only)** · `[m]` measured 2026-09-14 · `ResearchHome.jsx:78` — `if (!hasAnyNotes)` guards the only consumer of `onCreateNote`. ⭐ **The member is NOT stuck**, and the sweep corrected my first reading: `NotebookTab.jsx:757`, `CommandPalette.jsx:24` and `notebookSection.js:574` all reach create. So this is a **dead landing view, not a dead product** — fix is a mount condition. A second branch of the same shape sits at `ResearchHome.jsx:105`, where a `/api/j2/notebook/home` error renders as a calm, affordance-free quiet state (`useNotebookHome.js:18`, `shouldRetryOnError: false`). Provenance: T-12 admin-role run 2026-09-14 |
+| **S-19** | **A member can never add a FIRST hero image to a note they wrote** | 🔴 **DEFECT** · `[m]` measured 2026-09-14 · `NoteEditorPage.jsx:2188` renders `<HeroImagePicker>` only inside `note.heroImageUrl ? (…) : null`. ⚠️ **Correction to my own first reading:** the picker is NOT the only caller of `POST /api/j2/notes/{id}/hero` — `GlobalAddPositionProvider.jsx:164` is a second, and `settleNoteWrite.js:13` already says so. The conclusion survives: that door fires only while creating a note from a position with a chart screenshot, and `VideoDockSlot.jsx:158` sets a YouTube `heroImageUrl` that routes to `NoteVideoHero`, not the picker. **No door adds a first hero to a member-authored note.** The editor states the intent — *"Notes without one start straight at the title — no empty drop-zone"* — which is an intent, not a justification for the capability being unreachable. Provenance: T-12 admin-role run 2026-09-14 |
 
 ---
 

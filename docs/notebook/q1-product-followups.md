@@ -489,3 +489,98 @@ A named rig limitation renders as `⚠️ INCONCL` in the table (`tools/q1_f5_ma
 must restate that arming condition in the same commit, or the programme carries two
 authorities over one question — the defect it has already recorded against itself more
 than once. **This file does not change that rail and is not the place to.**
+
+
+---
+
+## ⛔ 2026-09-14 — the `hero` family is NOT a named limitation. It is an UNFINISHED INSTRUMENT.
+
+Six `hero` cells are INCONCLUSIVE, and after tonight's passes they all give one
+reason, verbatim from the tool:
+
+> the `hero` door was not opened: **the hero picker is not on the page. It renders
+> ONLY for a note that already has a hero, so the seed step must have failed**
+
+⛔ **This must not be filed beside L-1 and L-2, and the distinction is the whole
+point of the amended arming condition.**
+
+| | what it is | can it be lifted? |
+|---|---|---|
+| **L-1** excerpt | CDP-synthesised pointer input produces no text selection in pdf.js | no — a property of the renderer |
+| **L-2** fact | MoversSidebar renders nothing after the offline route change | partly established; cause still hedged |
+| **`hero`** | the rig's own SEED STEP did not attach a hero, so the door it needs never rendered | **yes — it is our fixture, not the product's ceiling** |
+
+⭐ L-1 is a property of the world. `hero` is a to-do. **"Named" means a recorded
+property of the rig, never "we did not finish the instrument"** — and a table that
+counted this as named would lift the freeze on six cells nobody has measured.
+
+### Where that leaves the arming condition
+
+The freeze lifts when every cell is GREEN or NAMED. Measured 2026-09-14, 42 cells:
+
+```
+GREEN 18   RED 5   N/A 3   INCONCLUSIVE 16
+                            ├─  5  append_document_excerpt  NAMED (L-1)
+                            ├─  5  append_financial_fact    NAMED (L-2, partly)
+                            └─  6  hero                     NOT NAMED — unfinished seed
+```
+
+⛔ **It does not lift, for two independent reasons, and either alone is enough:**
+the five RED `append_widget_embed` cells are a live defect, and the six `hero`
+cells have never been measured at all.
+
+### And the retries were futile — recorded so nobody re-runs them hoping
+
+`--resume` re-runs every INCONCLUSIVE cell, and three passes tonight moved the
+count **16 → 16**. None of these is a transient 502; each fails for a structural
+reason the retry cannot touch. ⭐ **A retry loop is only honest when the thing it
+retries is capable of a different answer.** The queue entry should not be re-armed
+until the `hero` seed is fixed or the two limitations are excluded from `--resume`
+by name.
+
+**Owner / next step:** fix the rig's hero seed (attach a hero image before the
+offline window opens, the way `prepare_family` already does for the excerpt PDF),
+then re-run the six cells. Until then `hero` is an OPEN instrument gap, not a
+limitation.
+
+
+### ⚖️ CORRECTION, same night — `hero` is blocked by a PRODUCT affordance, not only by our fixture
+
+The entry above called `hero` *"an unfinished instrument — our fixture, fixable"*.
+That was right that the seed was never written and **wrong about why it could not
+be**. Traced to the line:
+
+| | |
+|---|---|
+| endpoint | `POST /api/j2/notes/{id}/hero` — exists, works |
+| its ONLY client caller | `HeroImagePicker.jsx:26` |
+| `HeroImagePicker`'s ONLY mount | `NoteEditorPage.jsx:2192`, inside `note.heroImageUrl ? (…) : null` |
+
+⭐⭐ **The hero uploader is gated behind already having a hero.** A note written in
+the Notebook cannot get a first hero image from the editor — the editor's own
+comment says so: *"Notes without one start straight at the title — no empty
+drop-zone."* Notes acquire heroes from other doors (the Desk "Save to journal"
+path; position creation, `GlobalAddPositionProvider.jsx:167`).
+
+**What that means for the table, and it is good news:** the seed may legitimately
+use the API, because `prepare_family`'s own charter already says
+**"SETUP IS ONLINE AND IS NOT THE DOOR"** — the same reason the excerpt cell
+uploads its PDF through the attachment input and only then drives the real
+selection. Seed the hero, and the picker renders, and the DOOR is then the
+member's own control exactly as the charter requires. So the six cells are
+measurable; they were never blocked by a rule.
+
+⛔ **And a PRODUCT OBSERVATION, offered as an observation and not filed as a
+defect** — this is the SECOND affordance found tonight that is gated on the state
+which makes it unreachable:
+
+| affordance | renders only when | consequence |
+|---|---|---|
+| "Start a note" (`ResearchHome.jsx:78`) | the account has **no** notes | a member with notes has no create control on the landing view |
+| the hero picker (`NoteEditorPage.jsx:2188`) | the note **already has** a hero | a member can never add a first one |
+
+⭐ Both were invisible to `member-smoke`, which is empty by charter, and both
+surfaced the moment T-12 ran against an identity **with state**. That is the
+owner's admin-role amendment earning its keep on its first run — and it suggests
+the class is worth a sweep: *an affordance gated on the state that makes it
+unnecessary.*

@@ -13,7 +13,7 @@
   },
   "append_document_excerpt|reload mid-flight (marker from a dead tab)": {
     "verdict": "INCONCLUSIVE",
-    "why": "could not create the probe note ({'err': 'HTTP 502'}) \u2014 nothing was measured"
+    "why": "the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span produced no selection. Last reading: ranges=1 collapsed=True anchor=#text( F5-MATRIX append_) focus=#text( F5-MATRIX append_). CDP-synthesised pointer input does not produce a text selection in this renderer"
   },
   "append_document_excerpt|settle-first": {
     "verdict": "N/A",
@@ -21,7 +21,7 @@
   },
   "append_document_excerpt|slow PUT (landed, ring populated)": {
     "verdict": "INCONCLUSIVE",
-    "why": "the `append_document_excerpt` door could not be set up: the PDF uploaded but no document row appeared ({'err': 502})"
+    "why": "the `append_document_excerpt` door was rig limitation: three real pointer gestures (triple-click, double-click, slow drag) across a 667x18px span produced no selection. Last reading: ranges=1 collapsed=True anchor=#text( F5-MATRIX append_) focus=#text( F5-MATRIX append_). CDP-synthesised pointer input does not produce a text selection in this renderer"
   },
   "append_financial_fact|drain-first (the editor could NOT report local state)": {
     "verdict": "INCONCLUSIVE",
@@ -96,28 +96,28 @@
     "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T05:07:56.521991+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /c519475879d94ab3a153506c3e732191/opened\u2192200 \u00b7 PUT /c519475879d94ab3a153506c3e732191[84+00:00]\u2192200 \u00b7 PUT /c519475879d94ab3a153506c3e732191+SENT[91+00:00]\u2192None \u00b7 PUT /c519475879d94ab3a153506c3e732191+SENT[91+00:00]\u2192None \u00b7 PUT /c519475879d94ab3a153506c3e732191+SENT[91+00:00]\u2192None \u00b7 PUT /c519475879d94ab3a153506c3e732191\u2192200 \u00b7 PUT /c519475879d94ab3a153506c3e732191+SENT[91+00:00]\u2192409 \u00b7 PUT /c519475879d94ab3a153506c3e732191+SENT[41+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via select.change \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 30s"
   },
   "hero|drain-first (the editor could NOT report local state)": {
-    "verdict": "INCONCLUSIVE",
-    "why": "the `hero` door was not opened: the hero picker is not on the page. It renders ONLY for a note that already has a hero, so the seed step must have failed"
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:52:41.365231+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /f5798d47a96d4532bed4e196244af7e7/opened\u2192200 \u00b7 PUT /f5798d47a96d4532bed4e196244af7e7[75+00:00]\u2192200 \u00b7 POST /f5798d47a96d4532bed4e196244af7e7/hero\u2192200 \u00b7 POST /f5798d47a96d4532bed4e196244af7e7/opened\u2192200 \u00b7 PUT /f5798d47a96d4532bed4e196244af7e7+SENT[31+00:00]\u2192None \u00b7 PUT /f5798d47a96d4532bed4e196244af7e7+SENT[31+00:00]\u2192None \u00b7 PUT /f5798d47a96d4532bed4e196244af7e7+SENT[31+00:00]\u2192None \u00b7 POST /f5798d47a96d4532bed4e196244af7e7/hero\u2192200 \u00b7 PUT /f5798d47a96d4532bed4e196244af7e7+SENT[31+00:00]\u2192409 \u00b7 PUT /f5798d47a96d4532bed4e196244af7e7+SENT[03+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via input[data-uct-hero-input].set_input_files \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 31s"
   },
   "hero|marker EXPIRED": {
-    "verdict": "INCONCLUSIVE",
-    "why": "the `hero` door was not opened: the hero picker is not on the page. It renders ONLY for a note that already has a hero, so the seed step must have failed"
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:53:45.231179+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /b8a332b7742a477aaa116cf706ab7c72/opened\u2192200 \u00b7 PUT /b8a332b7742a477aaa116cf706ab7c72[89+00:00]\u2192200 \u00b7 POST /b8a332b7742a477aaa116cf706ab7c72/hero\u2192200 \u00b7 POST /b8a332b7742a477aaa116cf706ab7c72/opened\u2192200 \u00b7 PUT /b8a332b7742a477aaa116cf706ab7c72+SENT[79+00:00]\u2192None \u00b7 PUT /b8a332b7742a477aaa116cf706ab7c72+SENT[79+00:00]\u2192None \u00b7 PUT /b8a332b7742a477aaa116cf706ab7c72+SENT[79+00:00]\u2192None \u00b7 POST /b8a332b7742a477aaa116cf706ab7c72/hero\u2192200 \u00b7 PUT /b8a332b7742a477aaa116cf706ab7c72+SENT[79+00:00]\u2192409 \u00b7 PUT /b8a332b7742a477aaa116cf706ab7c72+SENT[05+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via input[data-uct-hero-input].set_input_files \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 31s"
   },
   "hero|marker LIVE": {
-    "verdict": "INCONCLUSIVE",
-    "why": "the `hero` door was not opened: the hero picker is not on the page. It renders ONLY for a note that already has a hero, so the seed step must have failed"
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:53:13.391498+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /00a075f111974025b1eb95f9192dc59f/opened\u2192200 \u00b7 PUT /00a075f111974025b1eb95f9192dc59f[40+00:00]\u2192200 \u00b7 POST /00a075f111974025b1eb95f9192dc59f/hero\u2192200 \u00b7 POST /00a075f111974025b1eb95f9192dc59f/opened\u2192200 \u00b7 PUT /00a075f111974025b1eb95f9192dc59f+SENT[98+00:00]\u2192None \u00b7 PUT /00a075f111974025b1eb95f9192dc59f+SENT[98+00:00]\u2192None \u00b7 PUT /00a075f111974025b1eb95f9192dc59f+SENT[98+00:00]\u2192None \u00b7 POST /00a075f111974025b1eb95f9192dc59f/hero\u2192200 \u00b7 PUT /00a075f111974025b1eb95f9192dc59f+SENT[98+00:00]\u2192409 \u00b7 PUT /00a075f111974025b1eb95f9192dc59f+SENT[86+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via input[data-uct-hero-input].set_input_files \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 31s"
   },
   "hero|reload mid-flight (marker from a dead tab)": {
-    "verdict": "INCONCLUSIVE",
-    "why": "the `hero` door was not opened: the hero picker is not on the page. It renders ONLY for a note that already has a hero, so the seed step must have failed"
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /ce25e9308b77425f93092b54e74bd006/opened\u2192200 \u00b7 PUT /ce25e9308b77425f93092b54e74bd006[81+00:00]\u2192200 \u00b7 POST /ce25e9308b77425f93092b54e74bd006/hero\u2192200 \u00b7 POST /ce25e9308b77425f93092b54e74bd006/opened\u2192200 \u00b7 PUT /ce25e9308b77425f93092b54e74bd006+SENT[60+00:00]\u2192None \u00b7 PUT /ce25e9308b77425f93092b54e74bd006+SENT[60+00:00]\u2192None \u00b7 PUT /ce25e9308b77425f93092b54e74bd006+SENT[60+00:00]\u2192None \u00b7 POST /ce25e9308b77425f93092b54e74bd006/hero\u2192200 \u00b7 PUT /ce25e9308b77425f93092b54e74bd006+SENT[60+00:00]\u2192409 \u00b7 PUT /ce25e9308b77425f93092b54e74bd006+SENT[84+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via input[data-uct-hero-input].set_input_files \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 32s"
   },
   "hero|settle-first": {
-    "verdict": "INCONCLUSIVE",
-    "why": "the `hero` door was not opened: the hero picker is not on the page. It renders ONLY for a note that already has a hero, so the seed step must have failed"
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:52:09.078568+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /389578a9b58247b2ab5924d136bfd8f1/opened\u2192200 \u00b7 PUT /389578a9b58247b2ab5924d136bfd8f1[43+00:00]\u2192200 \u00b7 POST /389578a9b58247b2ab5924d136bfd8f1/hero\u2192200 \u00b7 POST /389578a9b58247b2ab5924d136bfd8f1/opened\u2192200 \u00b7 PUT /389578a9b58247b2ab5924d136bfd8f1+SENT[68+00:00]\u2192None \u00b7 PUT /389578a9b58247b2ab5924d136bfd8f1+SENT[68+00:00]\u2192None \u00b7 PUT /389578a9b58247b2ab5924d136bfd8f1+SENT[68+00:00]\u2192None \u00b7 POST /389578a9b58247b2ab5924d136bfd8f1/hero\u2192200 \u00b7 PUT /389578a9b58247b2ab5924d136bfd8f1+SENT[68+00:00]\u2192409 \u00b7 PUT /389578a9b58247b2ab5924d136bfd8f1+SENT[28+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via input[data-uct-hero-input].set_input_files \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 32s"
   },
   "hero|slow PUT (landed, ring populated)": {
-    "verdict": "INCONCLUSIVE",
-    "why": "the `hero` door was not opened: the hero picker is not on the page. It renders ONLY for a note that already has a hero, so the seed step must have failed"
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:54:17.365405+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 record went CLEAN while queued: **False** \u00b7 sentence left the durable record: **False** \u00b7 store trail: [(0, False, 'None', True)] \u00b7 wire: POST /\u2192200 \u00b7 POST /1d41c1b8111a4184a124134f99345e90/opened\u2192200 \u00b7 PUT /1d41c1b8111a4184a124134f99345e90[29+00:00]\u2192200 \u00b7 POST /1d41c1b8111a4184a124134f99345e90/hero\u2192200 \u00b7 POST /1d41c1b8111a4184a124134f99345e90/opened\u2192200 \u00b7 PUT /1d41c1b8111a4184a124134f99345e90+SENT[05+00:00]\u2192None \u00b7 PUT /1d41c1b8111a4184a124134f99345e90+SENT[05+00:00]\u2192None \u00b7 PUT /1d41c1b8111a4184a124134f99345e90+SENT[05+00:00]\u2192None \u00b7 POST /1d41c1b8111a4184a124134f99345e90/hero\u2192200 \u00b7 PUT /1d41c1b8111a4184a124134f99345e90+SENT[05+00:00]\u2192409 \u00b7 PUT /1d41c1b8111a4184a124134f99345e90+SENT[97+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via input[data-uct-hero-input].set_input_files \u00b7 sends before the door: 0 \u00b7 left the note: **False** \u00b7 32s"
   },
   "tags|drain-first (the editor could NOT report local state)": {
     "verdict": "GREEN",

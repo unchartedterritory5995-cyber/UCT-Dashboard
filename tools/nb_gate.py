@@ -442,6 +442,78 @@ def console_attribution(flag_cell) -> dict:
 
 
 # =============================================================================
+# TRIGGER 1 - THE SAME OWNERSHIP FILTER, OVER THE WHOLE FLAG CELL.
+# Owner ruling 2026-09-14, approved as proposed:
+#   "Trigger 1 saying REVERT on a foreign row: apply the same ownership filter
+#    you applied to trigger 4 - a foreign-origin console row is recorded, not a
+#    trigger."
+# =============================================================================
+# ⛔⛔ TRIGGER 1 IS NOT A CONSOLE-ERROR TEST, AND READING IT AS ONE IS HOW THIS
+# RULING GETS APPLIED TO THE WRONG CONDITION. It reads the sampler's FLAG CELL,
+# which `nb_observe.py` writes as `OK`, or as `**ANOMALY** — <reason> · <reason>`
+# over THREE reason families:
+#   · `<N> console/page error(s): ...`            - the only one the ruling touches
+#   · `UNKNOWN INTERNAL identity opted in (...)`  - an undeclared .internal account
+#   · `blocked-baseline events = <N>`             - the wave's own headline metric
+# (plus `**SKIPPED**`, which never reaches here - `is_skipped` partitions it out
+# upstream, and an unobserved interval is not a red.)
+#
+# ⛔ So a filter that cleared a row BECAUSE its console errors were foreign would
+# also clear a row carrying a blocked-baseline event beside them - the one number
+# this window exists to watch. The ownership answer is about the failing REQUEST;
+# it says nothing about the other two families and must never be read as if it
+# did.
+#
+# ⭐ SO THE CLEARANCE IS AN ALLOW-LIST OF TWO ANSWERS. A row is cleared only when
+# its ENTIRE flag is console evidence AND `console_attribution` - the ONE ownership
+# authority above, never a second copy of it - says every origin belongs to another
+# product. Everything else stays a trigger: a Notebook-owned error, an
+# un-attributable one, any other reason family, and any flag shape this gate cannot
+# read.
+_ANOMALY_HEAD = re.compile(r'^\*\*ANOMALY\*\*\s*[\u2014\u2013-]\s*')
+# ! THE TWO SEPARATORS DIFFER BY ONE SPACE AND NOTHING ELSE. `nb_observe.py` joins
+# REASONS with `" · "` and the bits INSIDE one console reason with `"  ·  "`, so a
+# naive split on the middot cuts a console reason in half. The lookarounds keep the
+# two apart - and the failure direction is safe either way: an over-split leaves a
+# fragment that is not a console reason, which REFUSES to clear the row.
+_REASON_SEP = re.compile(r'(?<! ) \u00b7 (?! )')
+_CONSOLE_REASON = re.compile(r'^\d+\s+console/page error\(s\):')
+
+
+def flag_attribution(flag_cell) -> dict:
+    """Trigger 1's reading of ONE row's flag: {'verdict', 'origins', 'why'}.
+
+    `verdict` is one of:
+      · 'ok'       - the sampler wrote OK; there is nothing to explain.
+      · 'foreign'  - the WHOLE flag is console evidence and every origin belongs
+                    to another product. RECORDED below, not a trigger.
+      · 'notebook' / 'unknown' / 'other' - still a trigger.
+
+    ⛔ 'other' is the answer that keeps this honest: a reason family this filter
+    does not understand can never be cleared by an ownership answer about a
+    DIFFERENT reason sitting on the same row.
+    """
+    cell = str(flag_cell or '').strip()
+    if cell.startswith('OK'):
+        return {'verdict': 'ok', 'origins': [], 'why': 'the sampler wrote OK'}
+    m = _ANOMALY_HEAD.match(cell)
+    if not m:
+        return {'verdict': 'other', 'origins': [],
+                'why': 'the flag is neither OK nor an ANOMALY this gate can read: '
+                       + (cell[:80] if cell else '(empty)')}
+    reasons = [s.strip() for s in _REASON_SEP.split(cell[m.end():]) if s.strip()]
+    if not reasons:
+        return {'verdict': 'other', 'origins': [],
+                'why': 'an ANOMALY flag with no reason text'}
+    other = [s for s in reasons if not _CONSOLE_REASON.match(s)]
+    if other:
+        return {'verdict': 'other', 'origins': [],
+                'why': 'this row is red for a reason ownership does not answer: '
+                       + other[0][:120]}
+    return console_attribution(cell)
+
+
+# =============================================================================
 # TRIGGER 3 - READ THE CANARY'S OWN STAMP, do not print `n/a` beside evidence.
 # =============================================================================
 # The sampler runs OPTED OUT, so its outbox is structurally zero and it can say
@@ -538,11 +610,23 @@ def main() -> int:
     # ⛔ A SKIPPED row is a reading that could not be TAKEN - unobserved, never a
     # red. Counting it as a trigger would revert a healthy product because
     # another workstream deployed during the sampler's minute.
-    bad = [x for x in observed if not str(x.get("flag", "")).startswith("OK")]
+    # ⛔⛔ OWNERSHIP, NOT SEVERITY (owner ruling 2026-09-14) - the same filter
+    # trigger 4 already carries, reached through `flag_attribution` so the rule
+    # lives in ONE place. Two answers clear a row and no others: 'ok', and
+    # 'foreign' (the whole flag is console evidence and every origin is another
+    # product's). Ours, un-attributable, an UNKNOWN INTERNAL opt-in, a
+    # blocked-baseline event, a flag shape this gate cannot read - all still FAIL.
+    t1_attr = [(x, flag_attribution(x.get('flag'))) for x in observed]
+    bad = [x for x, a in t1_attr if a['verdict'] not in ('ok', 'foreign')]
+    t1_foreign = [(x, a) for x, a in t1_attr if a['verdict'] == 'foreign']
     skipped = skipped_recs
-    t1 = "PASS" if not bad else "FAIL"
+    t1 = ("PASS" if not bad else "FAIL") + (
+        '' if not t1_foreign else
+        f" - {len(t1_foreign)} FOREIGN row(s) recorded below, not blocking")
     if bad:
-        fails.append(f"trigger 1: {len(bad)} non-OK row(s), first at {bad[0]['at']}")
+        why1 = next(a['why'] for x, a in t1_attr if x is bad[0])
+        fails.append(f"trigger 1: {len(bad)} non-OK row(s), first at "
+                     f"{bad[0]['at']} ({why1})")
 
     # trigger 2 - conflict count above the preserved evidence set
     # BY NAME, AND OVER OBSERVED ROWS ONLY. `x[4]` was sync-conflict under the
@@ -635,6 +719,20 @@ def main() -> int:
         fails.append(f"trigger 4: console errors at {errs[0][0]['at']} "
                      f"({errs[0][1]['why']})")
     errs = [x_ for x_, _ in errs]
+
+    # ⭐ ONE FOREIGN LEDGER FOR BOTH TRIGGERS, IN LOG ORDER. Trigger 1 reads the
+    # FLAG and trigger 4 reads the console COLUMN, so they do not clear the same
+    # set: a row whose only evidence is a failed HTTP request records `0` in the
+    # console column and never reaches trigger 4 at all. Printing only trigger 4's
+    # half would delete exactly that row from the record - and clearing a row from
+    # a trigger and clearing it from the record are two different acts, only the
+    # first of which was ruled on.
+    _t4_ids = {id(x_) for x_, _ in foreign_rows}
+    _t1_ids = {id(x_) for x_, _ in t1_foreign}
+    _attr_by_id = {id(x_): a_ for x_, a_ in list(t1_foreign) + list(foreign_rows)}
+    foreign_report = [(x_, _attr_by_id[id(x_)]) for x_ in observed
+                      if id(x_) in _t4_ids or id(x_) in _t1_ids]
+
 
     # =========================================================================
     # THREE POPULATIONS, PRINTED EVERY TIME, NEVER SUMMED. Owner ruling 2026-09-13.
@@ -742,15 +840,16 @@ do-not-build: {dnb}
     # ⭐ FOREIGN ERRORS ARE PRINTED, ALWAYS. They do not block (owner ruling
     # 2026-09-14), and a filter whose output nobody can see is a filter that
     # deletes evidence. Each row names the URLs it was cleared on.
-    if foreign_rows:
+    if foreign_report:
         body += ('## Foreign console errors - RECORDED, not blocking' + NLV + NLV
-                 + 'Trigger 4 filters by OWNERSHIP of the failing request, not by '
-                 + 'severity (owner ruling 2026-09-14). Every error on these rows '
-                 + 'came from an endpoint the Notebook does not issue, so they do '
-                 + 'not say REVERT - and they are named in full, because a hole '
-                 + 'that is invisible is worse than one that is attributed.'
+                 + 'Triggers 1 and 4 both filter by OWNERSHIP of the failing '
+                 + 'request, not by severity (owner rulings 2026-09-14). Every '
+                 + 'error on these rows came from an endpoint the Notebook does '
+                 + 'not issue, so they do not say REVERT - and they are named in '
+                 + 'full, because a hole that is invisible is worse than one that '
+                 + 'is attributed.'
                  + NLV + NLV)
-        for x_, attr in foreign_rows:
+        for x_, attr in foreign_report:
             body += ('- ' + str(x_.get('at')) + ' - '
                      + ', '.join(attr['origins']) + NLV)
         body += NLV

@@ -386,7 +386,63 @@ OPEN_PREVIEW_JS = """async () => {
 }"""
 
 
-def prepare_family(page, family, note_id, stamp, log):
+# ==============================================================================
+# the hero door has no control until the note has a hero
+# ==============================================================================
+# `NoteEditorPage.jsx:2188` renders `<HeroImagePicker>` inside
+# `note.heroImageUrl ? (...) : null`, and `HeroImagePicker` is the ONLY client
+# caller of `POST /api/j2/notes/{id}/hero`. A note with no hero therefore shows
+# no picker at all -- which is why all six `hero` cells came back INCONCLUSIVE
+# saying "the hero picker is not on the page ... the seed step must have failed"
+# about a seed step that did not exist.
+#
+# HERO_PICKER is a COPY of the selector `window_check._fire_hero_door` queries,
+# kept here only so the SETUP can wait for the member's control to render.
+# `_hero_picker_drift` asks the door's own source whether the two still agree,
+# because a hand-typed copy beside its source is the drift this programme keeps
+# paying for.
+HERO_PICKER = 'input[type="file"][data-uct-hero-input]'
+
+HERO_READ_JS = """async (id) => {
+  // A READ, not a door -- the same posture as SECOND_WRITER_REV_JS. No surface
+  // reports `heroImageUrl`, so the server is asked directly. An unreadable
+  // answer is reported as unreadable: a layer that could not be READ is not a
+  // layer that is EMPTY, and this wave has already scored one of those as a
+  // finding.
+  const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+  if (!r.ok) return {readFailed: 'HTTP ' + r.status};
+  const t = await r.text();
+  try { const j = JSON.parse(t); return {hero: (j.note || {}).heroImageUrl || null} }
+  catch { return {readFailed: 'not JSON: ' + t.slice(0, 40)} }
+}"""
+
+
+def _hero_picker_drift(rig):
+    """Does `HERO_PICKER` still name the control the DOOR actually queries?
+
+    Returns the reason to refuse, or None when the two agree. A source that
+    cannot be read is a reason too -- an unreadable source is not a matching one,
+    and an empty result is a failed invocation until proven otherwise.
+    """
+    import inspect
+    fn = getattr(rig, "_fire_hero_door", None)
+    if fn is None:
+        return ("the rig module exposes no `_fire_hero_door` -- there is no hero door "
+                "for this setup to prepare")
+    try:
+        src = inspect.getsource(fn)
+    except (OSError, TypeError) as e:  # noqa: BLE001
+        return (f"`window_check._fire_hero_door`'s source could not be read "
+                f"({type(e).__name__}), so the setup cannot prove it waits for the same "
+                f"control the door will query")
+    if HERO_PICKER not in src:
+        return (f"`HERO_PICKER` ({HERO_PICKER}) no longer appears in "
+                f"`window_check._fire_hero_door` -- the setup and the door disagree about "
+                f"which control the member uses, so waiting here would prove nothing")
+    return None
+
+
+def prepare_family(page, family, note_id, stamp, log, rig=None, base=""):
     """Whatever a family's door needs IN PLACE before the offline half starts.
 
     SETUP IS ONLINE AND IS NOT THE DOOR. Attaching a PDF needs the network, so it
@@ -394,6 +450,79 @@ def prepare_family(page, family, note_id, stamp, log):
     The DOOR is the selection and the Save-excerpt click, both driven from the
     member's own controls once the run is back online.
     """
+    if family == "hero":
+        # ======================================================================
+        # THIS IS SETUP, NOT THE DOOR. The sentence directly above -- *"SETUP IS
+        # ONLINE AND IS NOT THE DOOR"* -- is this step's whole charter, and the
+        # owner ruled on it in those words on 2026-09-14: *"Hero seed via the API
+        # -- approved; 'setup is online and is not the door' covers it."*
+        #
+        # THE POST BELOW IS NOT A SCRIPTED STAND-IN FOR A MEMBER CONTROL, and
+        # nobody may later read it as one. It is the excerpt family's PDF upload
+        # wearing a different mime type: it happens ONLINE, BEFORE the offline
+        # window opens, and it exists only to make the member's own control
+        # EXIST. The DOOR is still `rig._fire_hero_door(page)`, which drives the
+        # real `input[data-uct-hero-input]`, and it still has no fallback: a door
+        # this rig cannot open produces a row that says so.
+        # ======================================================================
+        seed = getattr(rig, "_hero_seed", None)
+        if seed is None:
+            return {"ok": False, "rig_limitation": True,
+                    "why": ("the rig module exposes no `_hero_seed`, so the note cannot be "
+                            "given the hero its picker renders for")}
+        drift = _hero_picker_drift(rig)
+        if drift:
+            return {"ok": False, "rig_limitation": True, "why": drift}
+        # ONE IMAGE, ONE AUTHORITY. `window_check._hero_seed` already POSTs a 1x1
+        # PNG from the page with `credentials:'include'` -- measured
+        # byte-identical to `window_check._HERO_PNG` (69 bytes, equal). Restating
+        # either the image or the request here would put a second authority on
+        # both, so the rig's own seeder is called rather than a copy of it.
+        seeded = seed(page, base, note_id)
+        log(f"      hero seed (SETUP, not the door): {seeded}")
+        if not (isinstance(seeded, dict) and seeded.get("ok")):
+            return {"ok": False, "rig_limitation": True,
+                    "why": f"the hero seed POST did not succeed ({seeded})"}
+
+        # AN UNVERIFIED SEED IS THE SAME SIX INCONCLUSIVE CELLS WITH A
+        # BETTER-LOOKING LOG. `_hero_seed` reports its own request's status;
+        # only the NOTE can say the note now HAS a hero.
+        got = page.evaluate(HERO_READ_JS, note_id)
+        log(f"      hero after the seed: {got}")
+        if not isinstance(got, dict) or got.get("readFailed"):
+            return {"ok": False, "rig_limitation": True,
+                    "why": (f"the note could not be re-read to confirm the hero seed "
+                            f"({(got or {}).get('readFailed')}) -- unread is not unset")}
+        if not got.get("hero"):
+            return {"ok": False, "rig_limitation": True,
+                    "why": ("the hero seed reported success but the note still carries no "
+                            "`heroImageUrl` -- the picker cannot render and the door cannot "
+                            "be driven")}
+
+        # The editor mounted BEFORE the note had a hero, so the picker is not on
+        # the page yet however well the seed went. Re-open the note and WAIT for
+        # the member's own control to appear. Poll, do not sleep a fixed span: a
+        # page still loading would hand the door an absent picker, and the door
+        # would blame the seed for it -- the exact misleading reason this step
+        # exists to remove.
+        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+        picker, editor = None, None
+        for _ in range(12):
+            page.wait_for_timeout(2000)
+            picker = page.query_selector(HERO_PICKER)
+            editor = page.query_selector(".ProseMirror")
+            if picker is not None and editor is not None:
+                break
+        log(f"      after re-opening the note: picker={picker is not None} "
+            f"editor={editor is not None}")
+        if picker is None:
+            return {"ok": False, "rig_limitation": True,
+                    "why": (f"the note carries a hero (`{str(got.get('hero'))[:60]}`) but "
+                            f"`{HERO_PICKER}` never rendered after re-opening the editor. "
+                            f"This is NOT a failed seed -- the server agrees the note has "
+                            f"one (editor mounted: {editor is not None})")}
+        return {"ok": True, "hero_seeded": got.get("hero")}
+
     if family != "append_document_excerpt":
         return {"ok": True}
     # ⛔⛔ A REAL PDF, NOT A SYNTHETIC ONE. Owner ruling 2026-09-13.
@@ -679,6 +808,23 @@ RIG_TASKS = ("UCT-WaveQ1-Observe", "UCT-WaveQ1-Canary", "UCT Wave Q1 Window Chec
 WINDOW_MINUTES = 60
 
 
+# ⛔⛔ A TASK THAT *JUST STARTED* CAN STILL READ `Ready`.
+#
+# ⚰️ Near miss, 2026-09-14 02:00. The sampler fired at 02:00:01 and this guard
+# said CLEAR at 02:00:24 - a 24-second margin. It was right that time (the run
+# finished in ~20s and its row landed), but it was right by luck: Windows sets
+# `State=Running` a moment AFTER the trigger, so a poll inside that gap sees
+# `Ready` for a task that is about to take the profile. That is the same race
+# that cost the 10:00 observation row, surviving the fix that was supposed to
+# close it - the `Running` check only catches a task already visibly running.
+#
+# ⭐ So the clock is used as well as the state: a Q1 task that STARTED within
+# the cooldown is treated as still holding the profile, whatever the state says.
+# Cheap, conservative, and it fails in the safe direction - the cost of waiting
+# three minutes is nothing; the cost of being wrong is a hole in the K window.
+JUST_RAN_COOLDOWN_SECONDS = 180
+
+
 def rig_window_refusal(now=None, query=None):
     """The reason to refuse, or None when the window is clear.
 
@@ -696,7 +842,7 @@ def rig_window_refusal(now=None, query=None):
                 "Get-ScheduledTask | Where-Object { $_.TaskName -match 'WaveQ1|Wave Q1' } | "
                 "ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
                 "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime; "
-                "state=[string]$_.State} } | ConvertTo-Json"
+                "last=$i.LastRunTime; state=[string]$_.State} } | ConvertTo-Json"
             )
             out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                                  capture_output=True, text=True, encoding="utf-8",
@@ -730,6 +876,30 @@ def rig_window_refusal(now=None, query=None):
         #
         # ⭐ "Due soon" and "happening now" are different facts, and the second
         # one is the dangerous one.
+        started = row.get("last")
+        if started:
+            txt_s = str(started)
+            stamp_s = None
+            if txt_s.startswith("/Date("):
+                try:
+                    stamp_s = datetime.datetime.fromtimestamp(
+                        int(txt_s[6:].split(")")[0].split("+")[0]) / 1000)
+                except (ValueError, IndexError):
+                    stamp_s = None
+            else:
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%m/%d/%Y %I:%M:%S %p", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        stamp_s = datetime.datetime.strptime(txt_s.split(".")[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+            if stamp_s is not None:
+                since = (now - stamp_s).total_seconds()
+                if 0 <= since < JUST_RAN_COOLDOWN_SECONDS:
+                    return (name + " STARTED " + str(int(since)) + "s ago and may still hold the "
+                            "one signed-in profile. A task that just started can still read "
+                            "`Ready`, so the state alone is not enough. Wait "
+                            + str(int(JUST_RAN_COOLDOWN_SECONDS - since)) + "s.")
         if str(row.get("state") or "").strip().lower() == "running":
             return (name + " is RUNNING RIGHT NOW and holds the one signed-in profile. "
                     "Wait for it to finish — taking the profile from it loses that "
@@ -1131,7 +1301,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         page.wait_for_timeout(5000)
 
         # -- 2b. anything this family's door needs in place, while ONLINE --
-        prep = prepare_family(page, family, note_id, stamp, log)
+        prep = prepare_family(page, family, note_id, stamp, log, rig=rig, base=base)
         if not prep.get("ok"):
             return {"verdict": "INCONCLUSIVE",
                     "why": f"the `{family}` door could not be set up: {prep.get('why')}"}
