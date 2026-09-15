@@ -11473,6 +11473,9 @@ export function translatePine(source, opts = {}) {
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
+        // ⭐ R22a / d2 — beside `title`, same carriage, no second one. `null` for every
+        // kind but `alertcondition`, and for a message this lane cannot carry.
+        message: outputMessage(args, out.kind),
         line: out.tok.line,
         column: out.tok.column,
         formula,
@@ -11546,6 +11549,26 @@ export function translatePine(source, opts = {}) {
         refusal: fromError(err),
       }
     }
+    // ⭐⭐ R22a / d2 — A MESSAGE THIS LANE CANNOT CARRY IS SAID, NOT DROPPED.
+    //
+    // ⛔ A NOTE, NEVER A REFUSAL. The offer translates and must keep translating —
+    // **a threshold never removes what works** — so this reports what was left behind
+    // without taking the column with it. Silence is the defect (R22); an expression
+    // message that vanished with no line and no sentence is exactly that.
+    //
+    // ⚰️ Measured: only **2** of the corpus's 555 messages are expressions, which is
+    // why this folded into d2 instead of standing as its own step (R22a). The count
+    // is small; the silence was not acceptable at any count.
+    try {
+      const margs = parseArguments(new Cursor(out.toks.slice(2)))
+      if (hasUncarriedMessage(margs, out.kind)) {
+        notes.push(noteOf('pine:alert-message',
+          'this alert\'s message is an expression, and a message rides this lane as '
+          + 'text rather than as a computed value — so the alert still fires and the '
+          + 'column still translates, but the message TradingView shows will be the '
+          + 'one you set there, not this one', out.tok))
+      }
+    } catch { /* a message this grammar cannot read is the resolver's to refuse */ }
     resolved.push(row)
   }
 
@@ -12805,6 +12828,47 @@ function outputTitle(args, kind, role = null) {
   // otherwise four identical offers, and a member picking "Smoothed Ha Candles"
   // from a list of four would be choosing at random.
   return base ? `${base} ${role}` : role
+}
+
+/** ⭐⭐ R22a / d2 — `alertcondition(condition, title, MESSAGE)`'s third argument.
+ *
+ *  It rides **beside `title`, in the same row, as a presentation field** — never as a
+ *  `str` node. That is what keeps `str`'s textop-only parentage (`assertCanonical`)
+ *  untouched and implies **no 12th `NODE_TYPES` member**: a message is something the
+ *  surface SHOWS, not something a column computes.
+ *
+ *  ⭐ A `{{placeholder}}` IS STILL A LITERAL and is carried VERBATIM, braces and all.
+ *  The braces are TradingView's to resolve when the alert fires; rewriting or
+ *  stripping them here would hand the member a message they did not write. 149 of the
+ *  corpus's 555 are this shape.
+ *
+ *  ⛔ AN EXPRESSION IS NOT CARRIED — `null`, and the caller notes it. `"px " +
+ *  str.tostring(close)` is a textop question, deliberately outside (d): carrying it as
+ *  if it were a string would print `px ` and silently lose the number.
+ *
+ *  ⚰️ NAMED **AND** POSITIONAL, and the named form is the one that bit. The (d) census
+ *  read `message = "…"` as an expression because the value does not start with a quote,
+ *  which understated the carryable set by ~155 and would have mis-sized this whole
+ *  step. `outputTitle` above has always read both; so does this.
+ */
+function outputMessage(args, kind) {
+  if (kind !== 'alertcondition') return null
+  const byName = args.find((a) => a.name === 'message')
+  const positional = args.filter((a) => !a.name)
+  // `alertcondition(condition, title, message)` — condition, title, THEN message.
+  const value = (byName && byName.value) || (positional[2] && positional[2].value)
+  if (!value) return null
+  return value.type === 'string' ? value.value : null
+}
+
+/** Did the author WRITE a message this lane could not carry? Distinguishes "no
+ *  message" (nothing to say) from "a message we dropped" (which must be said). */
+function hasUncarriedMessage(args, kind) {
+  if (kind !== 'alertcondition') return false
+  const byName = args.find((a) => a.name === 'message')
+  const positional = args.filter((a) => !a.name)
+  const value = (byName && byName.value) || (positional[2] && positional[2].value)
+  return !!value && value.type !== 'string'
 }
 
 /** ⭐⭐ THE PROOF THAT NOTHING HALF-TRANSLATED. The printed text is read back by

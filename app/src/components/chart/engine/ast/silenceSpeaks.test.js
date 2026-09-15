@@ -100,12 +100,23 @@ describe('R22 / d1 — the two silences speak', () => {
       .toContain('reads plot() and alertcondition() and nothing else')
   })
 
-  it.fails('⭐⭐ a message the engine cannot carry is NOTED, naming its shape', () => {
-    const t = translatePine(EXPR_MSG, {})
-    const n = notesOf(t, 'pine:alert-message')
-    expect(n.length, 'an expression message is still dropped without a word')
+  // ⚰️ MOVED TO `alertMessageRides.test.js` (R22a, d2) — NOT DELETED.
+  //
+  // This was d1's half of the message gap, written when d1 came first. **R22a folded
+  // the message note into d2**, because once the census's named-argument bug was
+  // corrected only **2** of 555 messages are expressions — two specimens is not a
+  // feature of its own. d2 now owns both halves together: the 487 that ride, and the
+  // note for the ones that cannot.
+  //
+  // ⭐ It is recorded here rather than removed silently because the assertion was
+  // RIGHT and its marker retired for the honest reason — the behaviour shipped. A
+  // reader looking for "where did d1's message note go" finds the answer, and the
+  // successor asserts the same thing with its line pinned.
+  it('⭐ the message note lives in d2\'s rail now, and really exists', () => {
+    // A one-line tie so this file cannot go quiet about a gap it opened.
+    const n = notesOf(translatePine(EXPR_MSG, {}), 'pine:alert-message')
+    expect(n.length, 'the expression-message note vanished from both rails')
       .toBeGreaterThan(0)
-    expect(String(n[0].message)).toMatch(/expression/)
   })
 
   // ── CONTROLS: a note is a note.

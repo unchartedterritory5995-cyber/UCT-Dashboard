@@ -58,24 +58,24 @@ describe('R22a / d2 — the message rides beside the title', () => {
     expect(acOf(translatePine(read(LITERAL_CORPUS), {})).length).toBeGreaterThan(0)
   })
 
-  it.fails('⭐⭐ TWO literal messages under ONE title, each carried to its own row', () => {
+  it('⭐⭐ TWO literal messages under ONE title, each carried to its own row', () => {
     const rows = acOf(translatePine(SAME_TITLE, {}))
     expect(rows.length).toBe(2)
     expect(rows.map((r) => r.title)).toEqual(['Sig', 'Sig'])
     expect(rows.map((r) => r.message)).toEqual(['FIRST_MESSAGE', 'SECOND_MESSAGE'])
   })
 
-  it.fails('⭐⭐ a {{placeholder}} message is carried VERBATIM, braces and all', () => {
+  it('⭐⭐ a {{placeholder}} message is carried VERBATIM, braces and all', () => {
     const [row] = acOf(translatePine(PLACEHOLDER, {}))
     expect(row.message).toBe('px {{close}} on {{ticker}}')
   })
 
-  it.fails('⭐⭐ the NAMED form is read too — `message = "…"`', () => {
+  it('⭐⭐ the NAMED form is read too — `message = "…"`', () => {
     const [row] = acOf(translatePine(NAMED_FORM, {}))
     expect(row.message).toBe('NAMED_MESSAGE')
   })
 
-  it.fails('⛔ an EXPRESSION message is NOT carried, and is NOTED at its line', () => {
+  it('⛔ an EXPRESSION message is NOT carried, and is NOTED at its line', () => {
     const t = translatePine(EXPR_MSG, {})
     const [row] = acOf(t)
     expect(row.message, 'an expression must not be carried as if it were a string')
