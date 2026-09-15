@@ -32,6 +32,7 @@ import pathlib
 from typing import Optional
 
 from api.services.wisdom.core import flags, ids, store, timeutil
+from api.services.wisdom.publish import floor
 from api.services.wisdom.publish.adapters import common, kbrow, provenance
 
 log = logging.getLogger(__name__)
@@ -85,8 +86,12 @@ def build_rows(conn) -> list[dict]:
         f"WHERE status IN ('provisional', 'confirmed') AND is_guest = 0 AND (canonical IS NULL OR canonical = 1) "
         f"AND author_id IN ({','.join('?' * len(team))}) ORDER BY principle_key", team).fetchall()
     for p in principles:
+        # ⭐ include_unstable=True ON PURPOSE (item 3, R10). This lookup wants a DATE and a
+        # LOCATOR for a principle it is not publishing — blocking it would drop a citation, not a
+        # publication, and leave the row dated by `first_seen_at` instead of by the segment that
+        # actually states it. The publication decision for this lane is made at export_payload.
         support = common.select_records(
-            conn, types=_ALL_TYPES,
+            conn, types=_ALL_TYPES, include_unstable=True,
             extra_where="r.record_id IN (SELECT record_id FROM wisdom_principle_support WHERE principle_key = ? "
                         "AND relation IN ('states', 'reinforces'))",
             extra_params=(p["principle_key"],), order="r.stated_at_et ASC", limit=1)
@@ -186,6 +191,17 @@ def export_payload(*, enabled: Optional[bool] = None) -> dict:
             "provisional, content_sha256 FROM wisdom_kb_rows WHERE state = 'active' ORDER BY source_ref")]
         superseded = [r[0] for r in conn.execute(
             "SELECT source_ref FROM wisdom_kb_rows WHERE state = 'superseded' ORDER BY source_ref")]
+        # ⛔ Item 3, the Brain KB half. This lane reads wisdom_principles DIRECTLY (build_rows
+        # above), so select_records' floor never sees it and the filter has to happen here.
+        #
+        # ⭐ At EXPORT rather than at build_rows, deliberately: staged rows keep flowing into
+        # wisdom_kb_rows, which is what the PC-side --diff-out turns into review-queue items, so a
+        # below-floor principle stays VISIBLE to the owner while never LEAVING. Filtering earlier
+        # would make it vanish, which is the failure the "2/3 may surface in the review queue"
+        # clause exists to prevent.
+        clause, params = floor.principles_clause("p")
+        floored_refs = {f"wisdom:principle:{r[0]}" for r in conn.execute(
+            f"SELECT principle_key FROM wisdom_principles p WHERE NOT {clause}", params)}
     for row in active:
         row["source"] = kbrow.SOURCE
     # FAIL CLOSED: a staged row whose content carries no provenance marker never leaves.
@@ -193,10 +209,15 @@ def export_payload(*, enabled: Optional[bool] = None) -> dict:
     # which is the whole defect §8c.3 closes. Dropped refs are reported, never silent.
     unmarked = [r["source_ref"] for r in active if not provenance.is_marked(r["content"])]
     active = [r for r in active if provenance.is_marked(r["content"])]
+    # Mirrors `unmarked_dropped` exactly — same shape, same reporting, different reason. A drop
+    # that is not reported reads as a row that was never built.
+    below_floor = sorted(r["source_ref"] for r in active if r["source_ref"] in floored_refs)
+    active = [r for r in active if r["source_ref"] not in floored_refs]
     return {
         "ok": True, "schema": EXPORT_SCHEMA, "enabled": enabled, "generated_at": common.now_iso(),
         "flag": FLAG_ENV, "priority": PRIORITY, "preview_count": len(active),
         "marker": provenance.MARKER_VERSION, "unmarked_dropped": unmarked,
+        "below_floor_dropped": below_floor, "stability_floor": floor.floor_value(),
         "rows": active if enabled else [], "superseded_refs": superseded if enabled else [],
     }
 
@@ -222,7 +243,11 @@ def voice_principle_candidates(*, limit: int = 3) -> list[dict]:
     out = []
     for entry in voice_principles():
         query = f"{entry.get('title') or ''} {common.clip(entry.get('text'), 240)}"
-        hits = retrieval.search(query, limit=limit, for_request=False)
+        # ⭐ include_unstable=True ON PURPOSE (item 3, R10). This is the OWNER's sourcing lane —
+        # it proposes which Wisdom source backs each of the 36 unsourced voice principles. A
+        # below-floor principle is exactly the kind it must still be able to see; hiding it here
+        # would make the owner's own review blind to the records the floor is holding back.
+        hits = retrieval.search(query, limit=limit, for_request=False, include_unstable=True)
         out.append({
             "voice_kb_id": entry["id"], "category": entry.get("category"), "title": entry.get("title"),
             "candidates": [{"locator": h["locator"], "doc_kind": h["doc_kind"], "speaker": common.speaker(h["author_id"]),
