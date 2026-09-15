@@ -2,19 +2,20 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **R13**, then item (b).
+> ### ⛔ NEXT: **item (b) — time inputs.** R13 is closed.
 >
-> **R13 — the Track F collision.** A Wave 2 regression introduced by `bdc1050ad`
-> (the env closing pass) and caught by this branch's own rail,
-> `paramSingleTranslation.test.js`. Ruled **0.3**: fixed **before** item (b), in
-> its own block, with its own estimate and a **committed red acceptance first**.
-> The assertion verbatim, the bisect table and the mechanism are in
-> `docs/pine/WAVE2-A-PLAN.md` under *"R13 — OWED"*.
+> ⛔ **Census before build, threshold before estimate.** In that order, every
+> time: this wave retired four loop forms on measurement and kept three reduce
+> members on measurement, and in both directions the number came first.
 >
-> **Then item (b) — time inputs.** ⛔ **Census before build, threshold before
-> estimate.** In that order, every time: this wave retired four loop forms on
-> measurement and kept three reduce members on measurement, and in both
-> directions the number came first.
+> ✅ **R13 — CLOSED** (`c7b79c29e` red → fixed). The closing pass **resolves; it
+> does not mint**. It carried the live `paramMint` into its probe, so resolving a
+> binding nothing reads also minted a member-visible Track F control — 19 of the
+> specimen's 24, three of them declared member inputs. Fix: `paramMint: null` at
+> one construction site, the same thing the object-pass factory below it has
+> always done. Mutation-proved both ways; the closing pass's notes product on
+> Clouds is pinned by value so the gain could not be spent to fix the overreach.
+> Full record in `docs/pine/WAVE2-A-PLAN.md` under *"R13 — CLOSED"*.
 
 ⚰️ **This header used to read "WAVE COMPLETE — nothing is in flight", and that
 described Wave 1.** Wave 2 has been in flight since 2026-09-14. A resume pointer
@@ -38,7 +39,8 @@ session trusts without checking.
 |---|---|
 | item (a) | ✅ **CLOSED** — arc a1 → a7, rulings R1–R12. See `WAVE2-A-PLAN.md` |
 | a7 | ✅ **CLOSED by R12** — contract, rail, twin coverage, suite, build; capture owed |
-| **open** | ⛔ **R13** (ours, a Wave 2 regression) · items (b)–(e) not started |
+| R13 | ✅ **CLOSED** — the Track F collision; the closing pass no longer mints |
+| **open** | ⛔ items (b)–(e) not started |
 | owner-pending | H.4 · the Wave 1 PR · the per-module veto on the eight 0.2 register entries · a ruling on a7.2 finding 1 (the lenient lane refusing MORE than strict on 13 scripts) |
 
 ### ⚰️⚰️ THE ONE FINDING A READER OF THE FLAG LEDGER WOULD OTHERWISE MISS

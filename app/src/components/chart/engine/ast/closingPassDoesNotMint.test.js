@@ -70,7 +70,7 @@ function doorFacts() {
 }
 
 describe('R13 — the closing pass resolves without minting', () => {
-  it.fails('⭐⭐ THE SPECIMEN MINTS 5 TRACK F PARAMETERS, NOT 24', () => {
+  it('⭐⭐ THE SPECIMEN MINTS 5 TRACK F PARAMETERS, NOT 24', () => {
     // ⛔ THE ANSWER, NOT THE ABSENCE. The number is pinned, and it is pinned to
     // the measured pre-`bdc1050ad` value rather than to "fewer than 24" — a
     // bound would stay green at 23, which is the same defect one input smaller.
@@ -82,13 +82,13 @@ describe('R13 — the closing pass resolves without minting', () => {
       .toEqual(['regLook', 'revPiv', 'rsiLen', 'showSetup', 'useRev'])
   })
 
-  it.fails('⭐⭐ AND NO DECLARED MEMBER INPUT IS ALSO A TRACK F PARAMETER', () => {
+  it('⭐⭐ AND NO DECLARED MEMBER INPUT IS ALSO A TRACK F PARAMETER', () => {
     const { params, declared } = doorFacts()
     const overlap = params.filter((n) => declared.has(n))
     expect(overlap, 'two authorities over one input').toEqual([])
   })
 
-  it.fails('⛔ the three colliding names have exactly ONE minting authority', () => {
+  it('⛔ the three colliding names have exactly ONE minting authority', () => {
     // Named individually so a partial fix cannot read as a whole one.
     const { params, declared } = doorFacts()
     for (const name of ['bullFloor', 'regTol', 'bearCeil']) {

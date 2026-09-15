@@ -11410,6 +11410,26 @@ export function translatePine(source, opts = {}) {
   // the note means "this lane cannot read line N", which is the lane's own
   // contract, and not "nothing used line N", which is the author's business.
   //
+  // ⚰️⚰️ AND THAT PARAGRAPH WAS MEASURED FALSE — TRUE OF NOTES, FALSE OF
+  // PARAMETERS (R13, 2026-09-14). It is corrected in place rather than rewritten,
+  // because the sentence was not wrong about its INTENT; it was wrong about the
+  // pass's REACH. "Reports only what refuses" describes the note channel, and the
+  // probe below was built with the live `paramMint`, so resolving an unread
+  // binding ALSO minted a Track F parameter — a member-visible control — through
+  // a channel this comment never mentioned and nobody checked.
+  //
+  // ⛔ Measured on `mid_engagement__22-rsi-levels-regime-map`: **5 parameters
+  // minted by the output loop, 19 by this pass**, three of them (`bullFloor`,
+  // `regTol`, `bearCeil`) DECLARED member inputs that thereby acquired a second
+  // authority. Caught by `paramSingleTranslation.test.js`, the rail written for
+  // exactly that, and bisected to `bdc1050ad` — this commit.
+  //
+  // ⭐ THE RESTRAINT NOW HOLDS IN BOTH CHANNELS: the probe takes
+  // `paramMint: null`. A comment claiming a restraint is a claim about a run;
+  // this one is now pinned by `closingPassDoesNotMint.test.js`, which asserts
+  // BOTH that the mint stops AND that this pass keeps its notes product on
+  // Clouds, so the fix cannot be bought by silencing the pass.
+  //
   // ⭐ IT RUNS AFTER THE OUTPUT LOOP because a binding an output read is read,
   // and the marks are only complete once every output has resolved.
   {
@@ -11434,8 +11454,32 @@ export function translatePine(source, opts = {}) {
       if (translateBudgetExpired()) break
       const node = bound.kind === 'state' ? bound.seed : bound.node
       if (!node) continue
+      // ⛔⛔ R13 — `paramMint: null`. THIS PASS RESOLVES; IT DOES NOT MINT.
+      //
+      // The restraint stated at the head of this pass — *"it resolves each
+      // leftover once and reports only what refuses"* — was true of NOTES and
+      // false of PARAMETERS while this read `paramMint`. Resolving an unread
+      // binding walks its `input.*` calls, and the mint at
+      // `Resolver.resolveCall` is a side effect of that walk, so every unread
+      // input minted a Track F parameter: a member-visible control, created
+      // silently, for a statement no output reads.
+      //
+      // ⚰️ MEASURED on `mid_engagement__22-rsi-levels-regime-map`: 5 parameters
+      // minted by the output loop and **19 by this pass**, three of which
+      // (`bullFloor`, `regTol`, `bearCeil`) are DECLARED member inputs and so
+      // ended up with two authorities over one input — the exact defect
+      // `paramSingleTranslation.test.js` exists to catch, and what it caught.
+      //
+      // ⭐ A Track F parameter is a literal that survives into a RENDERED
+      // OUTPUT'S tree. A binding no output reads contributes no tree, so it has
+      // no literal to adjust and must mint nothing. The loop guard above is
+      // `bound.read`, so everything reaching here is by definition unread.
+      //
+      // ⭐ The object-pass factory below has passed `paramMint: null` for the
+      // same reason since it was written; this was the site that did not.
       const probe = new Resolver(env, table, declaredTypes,
-        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
+        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
+          paramMint: null,
           strict: opts.strict === true,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,

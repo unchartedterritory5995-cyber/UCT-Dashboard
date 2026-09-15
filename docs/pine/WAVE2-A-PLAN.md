@@ -529,9 +529,81 @@ estimate and 2× stop, each pushed before the next began.
 | 11 | **three provably not ours** | `tapFloor` — offender is the Notebook's own `CaptureDialog.module.css`, and this branch touches **0** files under `journal-2-0` · `ChartDrawingOverlay.surfaces` — rail **and** the source it reads are byte-identical to `da0803baa` · `ThemeTrackerPage.chartmount` — `vi.mock`s **both** `StockChart` and `ChartPane`, so this branch's `StockChart.jsx` edits cannot reach it |
 | 12 | **`AuthContext.test.jsx`** | **environment**, not defect — **green alone** (8/8) and red only in the full suite |
 | 13 | **`reachable.test.js`** | eight modules registered under 0.2 (dated, expiring at Wave 2 close, owner veto per module). **Still red for exactly one: `focusDivergence.js`, master's R-29** — not ours to register, and silencing another workstream's defect in our register is the one thing it must never do |
-| 14 | ⛔ **R13 — the Track F collision** | **OURS. A Wave 2 regression.** See below |
+| ~~14~~ | ~~**R13 — the Track F collision**~~ | ✅ **CLOSED** — `c7b79c29e` red, fixed below. No longer owed |
 
-## ⛔⛔ R13 — OWED, WITH THE ASSERTION VERBATIM
+## ✅ R13 — CLOSED. The closing pass resolves; it does not mint.
+
+**The defect, as it was found.** `paramSingleTranslation.test.js` — this branch's own
+rail — went red on `bullFloor is claimed twice`, a **declared member input that was
+also a Track F parameter**. Two authorities over one input, which is the thing that
+rail exists to catch.
+
+**Attributed by BISECT, not by argument.** The consumer (`builderInputs.js`) has not
+moved since `b7e17572f` (2026-09-07), so one specimen went through seven engines with
+only the translator swapped: 5 parameters and an empty overlap at pre-wave-2 and at
+a3; **24 and a collision from `bdc1050ad` onward**.
+
+**The mechanism, measured rather than reasoned** — every mint tagged with the site
+that made it:
+
+| minted by | n | names |
+|---|---|---|
+| the output loop | **5** | `rsiLen` `regLook` `useRev` `revPiv` `showSetup` |
+| **the closing pass** | **19** | the rest, **including `bullFloor`, `regTol`, `bearCeil`** |
+
+⛔ The closing pass's own loop guard is `if (… || bound.read) continue`, so **all 19
+came from bindings nothing reads**. The pass was built with a stated restraint —
+*"it resolves each leftover once and reports only what refuses"* — and that was **true
+of notes and false of parameters**: the probe carried the live `paramMint`, so
+resolving an unread binding also **minted a member-visible control**, through a
+channel the doctrine never mentioned. It stayed silent where it promised to and spoke
+where nobody had checked.
+
+⭐ **Why the three collided specifically.** They are declared member inputs. In the
+output loop that is decided by `declareInputs`, whose early return hands back a
+`series` leaf and **never reaches the mint**. The probe is built *without*
+`declareInputs`, so for it no name is declared and all three fall through. The
+**declared member input is the legitimate authority**; the Track F mint was the second
+one.
+
+**The fix — one option at one construction site.** `paramMint: null` on the probe. The
+pass is not restructured; its notes product is untouched. ⭐ The object-pass factory a
+few hundred lines below has passed `paramMint: null` since it was written, for exactly
+this reason — **this was the site that did not**.
+
+⭐ **5 is the correct number, and that was checked rather than assumed.** A Track F
+parameter is a literal that survives into a **rendered output's** tree; a binding no
+output reads contributes no tree, so it has no literal to adjust and must mint
+nothing.
+
+**Rails** — `closingPassDoesNotMint.test.js`, with two controls that make
+over-correction visible: a READ binding still mints (`len`), and the closing pass
+**keeps** its notes product on Clouds (`pine:colour-value@90/@91` and the eight
+`pine:input-kind` lines, pinned **by value**). ⛔ R13 must not spend the closing
+pass's gain to fix its overreach, and that control is what says so.
+
+⚰️ **The acceptance's own first draft was vacuous and is recorded in the file rather
+than quietly fixed:** it read `declared` off a raw `translatePine`, which does not
+populate it, so the overlap was empty *because the set was empty* and the `it.fails`
+guarding it **passed** — reporting the defect as already fixed. It now goes through
+`memberInputTranslation` and carries a non-vacuity control asserting the door declared
+ten names and minted something.
+
+**Mutation-proved** against a fresh byte-exact copy (`sha256 89304cb7…`, restored and
+re-verified):
+
+| mutation | result |
+|---|---|
+| guard removed (`paramMint` restored on the probe) | **4 RED** — the count, the overlap, the three names, **and `paramSingleTranslation` itself** |
+| guard too broad (`paramMint: null` on the *output loop* too) | **3 RED** — the read-binding control (`expected [] to deeply equal ['len']`), the non-vacuity control, and the count |
+
+**Green alone and in company:** `paramSingleTranslation` 11/11 alone; the
+`engine`+`builder`+`pane` scope **370 files · 7,461 passed · 32 skipped · 5 failed in
+3 files · 0 timeouts** — the same recorded pre-existing trio as the baseline, no new
+reds. **No committed artifact moved**, so no re-baseline: the fix changes no verdict,
+no refusal and no output count.
+
+## ⛔⛔ R13 — the assertion it was owed against, kept verbatim
 
 ```
 FAIL  src/components/chart/builder/paramSingleTranslation.test.js
