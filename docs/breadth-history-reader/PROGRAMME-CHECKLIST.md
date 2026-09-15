@@ -96,6 +96,67 @@ minutes of protection. **SD-1.1 A4 fixed the order; a mid-flight reorder is exac
 this session already declined to make once** (the merge-direction finding). Noted for the next
 queue, not changed in this one.
 
+#### ⛔ THE GUARD'S `CLEARED_PREFIXES` EXEMPTION IS ONE-DIRECTIONAL — it excuses you and charges the next person
+
+Measured live, 2026-09-15, while this section was being written:
+
+| | |
+|---|---|
+| M12 pushed → `9f0c76f46` | deploy created **16:55:04**, SUCCESS **16:57:35** |
+| **`263e54120` began BUILDING** | **16:58:40** — another workstream, 65 s after our SUCCESS |
+| What they actually changed | **21 files, every one under `app/src/components/chart/`** |
+| Guard verdict | **legitimately EXEMPT** — `app/` is in `CLEARED_PREFIXES` |
+
+**No violation, and no damage** — our sampler files are intact on master (`breadth_sampler.py`
+310 lines, `breadth_sampler_report.py` 278, `test_breadth_sampler.py` 420). But the deploy their
+exempt push produced **occupies a burst slot for everyone else**, because the clause counts
+DEPLOYS, not the changes that caused them. So M13 is now blocked by a deploy that was itself
+exempt from the clause now blocking us.
+
+⛔⛔ **AND A SECOND EXEMPT PUSH LANDED THREE MINUTES LATER** (`a4e845fe7`, docs-only, same
+workstream, 17:01:46). Measured window at 17:02:52 — **five distinct deploys**, guard refusing at
+three, first drop to two at **17:55:04**:
+
+```
+17:01:46  a4e845fe7  BUILDING   ages out 18:01:46   foreign (docs)
+16:58:27  263e54120  SUCCESS    ages out 17:58:27   foreign (app/charts)
+16:55:04  9f0c76f46  REMOVED    ages out 17:55:04   <- OUR M12
+16:32:54  56b5554b1  REMOVED    ages out 17:32:54   <- OUR M14
+16:04:56  57113d1ac  REMOVED    ages out 17:04:56   foreign
+```
+
+⭐⭐ **READ THE THIRD ROW: the binding constraint is OUR OWN M12.** With zero further foreign
+pushes, M13 still waits for *our previous landing* to leave the window. **Do not write a
+predicted clock time for a landing** — two foreign pushes moved it twice in seven minutes. State
+the mechanism and re-measure; a timestamp in this file is stale the moment somebody else ships.
+
+⚠️ **THIS IS THE LIVELOCK, DEMONSTRATED.** A queue that yields politely competes with pushes that
+are exempt from the clause and therefore never yield. If the other workstream sustains roughly one
+deploy per 20 minutes, **a yielding queue never lands at all.** It is not a wait to sit out; it is
+a condition to notice, and the only lever is coordination between workstreams — **never the
+override, which would make our push the one that breaks somebody else's instrument.**
+
+⭐ That is not an argument for removing the exemption — an `app/`-only change genuinely is
+low-risk to push. It is the observation that **the exemption and the clause measure different
+things**, and only the person who did not get the exemption pays for it.
+
+⛔ **I MISREAD IT FIRST, in the way this session had already documented.** `git diff 263e54120^1`
+showed OUR breadth files and read as *"they overwrote our landing"*. Their merge's **first parent
+is their branch and its second is master**, so that diff shows what MASTER brought IN — our M12.
+The correct side is `^2`. **Same merge-direction trap as our own M14, from the opposite
+direction, within an hour of writing it down.**
+
+⚰️ **And A2.5's range-scan defect recurred on that push, live.** `263e54120` is a
+`checkout feature; merge master` merge, so the deploy gate's `git diff HEAD^ HEAD` scans the
+**first-parent side — our breadth files** — and gives their **21 chart files zero secret
+scanning**. The finding is no longer a historical 66-commit count; it happened again today, on a
+push that is not ours. (The advisory scan lives on `repo/range-scan`, unlanded — see A2.5.)
+
+⚠️ **CORRECTION to the schedule arithmetic above: the 610 s settle runs from deploy CREATION, not
+from SUCCESS.** Read off the log — `9f0c76f46 is 156s of 610s` at 16:57:39 against a 16:55:04
+creation. An estimate built on SUCCESS is ~2–3 minutes pessimistic per landing, which is the
+direction that makes a queue look slower than it is.
+
 ---
 
 ## R — READER
@@ -180,6 +241,42 @@ Register-ScheduledTask -TaskName 'UCT Breadth Sampler' -Action $act -Trigger $tr
 **`BLOCKED`** on R2/R3. Current pool: **n = 2** on SHA `4a0995a52`, `rf_pagecache = 1`.
 - ⭐ That pool is still valid against today's master: the 8 hot files are **byte-identical** between `4a0995a52` and `65899a8f7`, and the discriminator fires (`fdf7c2201` vs `444f747d8` → `breadth_daily_ohlc.py`), so the identity is measured, not vacuous.
 - ⛔ M13 lands a change to `breadth_daily_ohlc.py`, which **is** a hot file — so **M13 starts a new pool** and the existing n = 2 does not carry into Pool A.
+
+#### ⭐⭐ THE EXISTING POOL'S TWO POINTS DIFFER BY 10×, AND THAT IS THE FINDING
+
+Derived from `logs/breadth-samples.jsonl` 2026-09-15 (5 rows: **2 real samples, 3 refusals** —
+`uptime_unknown` ×2, `pod_unsettled_uptime_17s` ×1):
+
+| SHA | kind | server `total` | `rf_rows` | `rf_pagecache` | `uptime_s` |
+|---|---|---|---|---|---|
+| `4a0995a52` | deep_cold | **3599.7 ms** | 4529 | 1.0 | 674 |
+| `4a0995a52` | deep_cold | **351.4 ms** | 4529 | 1.0 | 730 |
+
+Same SHA, same kind, **same row count and same `rf_pagecache`** — and a **10.2×** spread in the
+reader's own server-side time. The obvious explanation is ruled out by the data: the page cache
+was warm in both.
+
+⛔ **No flip decision can be built on this.** SD-1 §3 needs a p95; two points spanning an order of
+magnitude cannot produce one, and quoting one would be the *acceptance number is a forecast until
+derived* failure. **R5 and R7 are not merely blocked on R2/R3 — they are blocked on having a pool
+at all**, and this is the real reason R2 is urgent.
+
+⚠️ **`MIN_UPTIME_S = 600` is now a SUSPECT, not a settled constant.** Both samples cleared the
+floor — 674 s and 730 s — and still differ 10×. If 600 s is not enough for the pod to reach steady
+state, the sampler is partly measuring deploy warm-up and a p95 built from such a pool would
+characterise the DEPLOY rather than the reader.
+
+⛔ **This is explicitly NOT a conclusion.** Two points establish that the variance exists; they
+cannot separate *warm-up incomplete at 600 s* from *ordinary run-to-run variance*
+(`lesson_two_points_do_not_establish_a_rate`). Separating them needs n, which needs R2. **Do not
+raise `MIN_UPTIME_S` on the strength of this table** — that would be tuning a constant against
+two samples, which is the same error one level down.
+
+⭐ **The instrumentation to answer it already exists and costs nothing extra:** every row carries
+`uptime_s` beside `timing.total`. Once Pool A has n ≥ 20, plot one against the other. If `total`
+decays with uptime, the floor is too low and the fix is measured; if it does not, the variance is
+the reader's own and the p95 is honest. **Record the answer either way** — a null result here is
+what licenses every later p95.
 
 ### R5 · V3 flip ON; Pool B — n ≥ 20, same SHA, flag ON
 **`BLOCKED`** on R4.
