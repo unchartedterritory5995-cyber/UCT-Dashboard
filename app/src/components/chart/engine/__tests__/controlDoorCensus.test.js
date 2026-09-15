@@ -592,7 +592,7 @@ describe('the control-door census — how many doors, and whether an eighth exis
   // readout has been keyed by `instanceId` since before this phase), so hiding
   // "the RSI you right-clicked" is only expressible through this door. Every one
   // of them calls `instanceControls` — `setInstanceHidden`, `removeInstance`,
-  // `withInstances` — through ONE local `writeInstance` guard, and none of them
+  // `setInstanceDisplayTarget` — through ONE local `writeInstance` guard, and none of them
   // touches `cs.indicatorInstances` by hand; the raw-write scan above is what
   // would catch it if one did.
   //
@@ -616,8 +616,11 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'input rows, setInstanceHidden on the Visibility tab eye'],
       ['app/src/components/StockChart.jsx',
        'spec §6 legend chip controls (chart-UX-walls Task 4): the chip\'s eye is ' +
-       'setInstanceHidden, its × is removeInstance, and its ContextPopover "Move to" is ' +
-       'withInstances. A chip IS an instance — the readout has been keyed by instanceId ' +
+       'setInstanceHidden, its Delete is removeInstance, and its ContextPopover ' +
+       '"Display in" is setInstanceDisplayTarget (Track B — it was a hand-rolled ' +
+       'withInstances spread, which never deleted a key restating the default, never ' +
+       'refused @<self>, and left the legacy volumeOverlayIndicators mirror stale). ' +
+       'A chip IS an instance — the readout has been keyed by instanceId ' +
        'since before this phase — so "hide the RSI you right-clicked" cannot be said ' +
        'through any of doors 1-7, every one of which takes legacyInstanceId(defId) and ' +
        'therefore always means the first copy. ⭐ TASK 6 ADDS addInstance, for the chip ' +

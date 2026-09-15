@@ -1,160 +1,117 @@
 // app/src/components/chart/legend/chipMenu.js
 //
-// ─── THE SIX ROWS BEHIND A LEGEND CHIP (spec §6) ────────────────────────────
+// ─── THE ROWS BEHIND A LEGEND LABEL (Track B V1) ────────────────────────────
 //
-// PURE. No React, no chart, no registry import — the definition is passed in, so
-// this file names no indicator and cannot become an enumeration site in the
-// phase that exists to end them.
+// PURE. No React, no chart, no registry import — the definition and the
+// destination list are passed in, so this file names no indicator and cannot
+// become an enumeration site.
 //
-// ⛔ EVERY HANDLER TAKES AN INSTANCE ID. A chip is per instance; a handler taking
-// a defId would hide, remove or open the settings of the WRONG RSI the moment a
-// second one exists, and would do it silently.
+// ⛔ EVERY HANDLER TAKES AN INSTANCE ID. A label is per instance; a handler
+// taking a defId would hide, remove or open the settings of the WRONG RSI the
+// moment a second one exists, and would do it silently.
 //
-// ⛔ AND EVERY ROW EITHER WRITES OR SAYS WHY IT CANNOT. A menu row that a user can
-// click and that changes nothing is the defect class this phase retires — the
-// `+N` button that shipped un-clickable, the `legendParams` that was declared and
-// inert, the `styleOverrides` with zero consumers. So the Move submenu carries a
-// DISABLED REASON per target rather than a bare boolean, and the reasons below
-// are DERIVED from what `engine/placement.resolvePlacement` actually does — with
-// `chipMenu.test.js` driving the real resolver over the real registry to prove
-// this file's answer and the renderer's are the same answer.
+// ⚰️⚰️ THIS FILE USED TO CARRY ITS OWN PLACEMENT RULES, AND THEY HAD GONE STALE.
+// `MOVE_TARGETS` was a frozen list of three — Price pane / Its own pane / Volume
+// pane — with a `moveTargetRefusal` that DERIVED its verdicts from
+// `placement.resolvePlacement`. That was correct when a pane was a definition.
+// Universal Data made a pane belong to the INSTANCE that hosts it, and
+// `displayTarget.displayTargetOptions` became the one function that knows which
+// hosts may be joined (`@<hostInstanceId>`), which target is the current one,
+// and which stored target points at a pane that no longer exists. This file
+// never learned any of it: the legend's Move submenu could not offer *"into the
+// QQQ pane"* even though Chart Settings could and the engine supported it, and
+// one of its three rows — Volume — was a permanent refusal.
+//
+// ⭐⭐ SO THE DESTINATIONS ARE NOW AN INPUT, NOT A RULE. The caller hands in
+// exactly what `displayTargetOptions(instance, cs, defOf)` returned and this
+// file shapes it into rows. There is ONE placement truth, it lives in
+// `engine/displayTarget.js`, and both the on-chart popover and Chart Settings →
+// Indicators read it through the same call. A refusal this file invents on its
+// own is a second rule waiting to drift, which is the defect that produced this
+// rewrite.
 
-/** The three values `instances.PLACEMENT_TARGETS` accepts. Kept as labels here
- *  and as the raw values in `target`, so the menu can never offer a placement
- *  `normalizeInstances` would reject outright. */
-const MOVE_TARGETS = Object.freeze([
-  { target: 'price', label: 'Price pane' },
-  { target: 'pane', label: 'Its own pane' },
-  { target: 'volume', label: 'Volume pane' },
-])
-
-/** The target an instance is on right now: its own override, else what its
- *  definition declares, else the schema default. */
-export function currentTargetOf(chip, def) {
-  const stored = chip && typeof chip.placementTarget === 'string' && chip.placementTarget
-  const declared = def && def.placement && typeof def.placement.target === 'string'
-    && def.placement.target
-  return stored || declared || 'pane'
-}
+/** The empty destination list, as a stable identity so a caller can pass it
+ *  every render without allocating. */
+const NO_OPTIONS = Object.freeze([])
 
 /**
- * Why moving this instance to `target` is refused, or `undefined` if it is a
- * real destination. The string is rendered, so it is a sentence and not a code.
+ * The **Display in** page: one row per destination `displayTargetOptions`
+ * returned, in the order it returned them.
  *
- * ⛔ ALL THREE REASONS WERE MEASURED AGAINST `resolvePlacement`, NOT REASONED
- * ABOUT. `chipMenu.test.js` runs the real resolver over every definition × every
- * target, with a real `computePaneLayout`, and asserts this function's verdict
- * matches — so if the renderer's rules move, this file goes red rather than
- * quietly offering a move that unbinds an indicator.
+ * ⛔ THE CURRENT TARGET IS TICKED, NEVER OFFERED. "Move it where it is" is the
+ * definition of a control that does nothing — and `setInstanceDisplayTarget`
+ * refuses it by identity anyway, so a live row here would be a click that
+ * silently changes nothing.
  *
- *   1. ALREADY THERE. The current target is `checked`, never offered as a
- *      destination — "move it where it is" is the definition of a control that
- *      does nothing.
+ * ⛔⛔ AND AN ORPHAN IS SHOWN, DISABLED, NEVER HEALED. `displayTargetOptions`
+ * flags a stored target whose host has been deleted as `missing`; it is the
+ * member's real state and this renders it as such. A menu that quietly omitted
+ * it would tell a member their line is fine while it draws nothing — the exact
+ * way the original defect hid. Same ruling as `ChartSettingsIndicators`'
+ * Display-in select, reached through the same helper.
  *
- *   2. THE VOLUME PANE IS NOT AN INSTANCE PLACEMENT AT ALL. `resolvePlacement`
- *      decides the volume overlay from `ctx.volOverlaySet` — i.e. from
- *      `cs.volumeOverlayIndicators`, the chart-wide toggle in the right-click
- *      **Overlay on volume ▸** submenu — and NEVER from the instance's stored
- *      target (`placement.js:327-332` says so in as many words: *"whether it is
- *      overlaid THIS pass is decided below from the LIVE list, because that
- *      toolbar control is what users actually toggle"*). Measured: for a
- *      pane definition, `resolvePlacement` with `target:'volume'` returns an
- *      object DEEP-EQUAL to the one it returns for `target:'pane'`. Writing
- *      'volume' here would therefore be a persisted no-op — the worst kind,
- *      because the menu would then draw a tick beside it.
- *
- *   3. A PRICE OVERLAY HAS NO PANE TO MOVE INTO. `paneLayout.paneTargetIds()`
- *      derives which definitions own a pane from the DEFINITION's declared
- *      target, so `computePaneLayout` never allocates one to `bb`/`vwap`/`sar`/
- *      `ichimoku`/`donchian`/`avwap`/`atrBands` — and `resolvePlacement` returns
- *      **null** for an instance the layout gave no pane (`placement.js:400`),
- *      which `binder.sync` reads as *bind nothing*. The indicator would silently
- *      vanish off the chart with its box still ticked.
- */
-export function moveTargetRefusal(def, target, current) {
-  if (target === current) return 'it is already here'
-  if (target === 'volume') {
-    return 'the volume overlay is a chart-wide toggle (right-click → Overlay on volume), '
-      + 'not an instance placement'
-  }
-  const declared = (def && def.placement && def.placement.target) || 'pane'
-  if (target === 'pane' && declared !== 'pane') {
-    return 'a price overlay draws on the candles’ own scale and is given no pane of its own'
-  }
-  return undefined
-}
-
-/**
- * The Move submenu: three rows, each either a destination or a refusal.
- *
- * @param {object} chip a `readout.legendChips` row, optionally carrying
- *                      `placementTarget` (the STORED override the chart resolved)
- * @param {object} def  the definition behind it
+ * @param {{value:string,label:string,group:string,missing?:boolean}[]} options
+ *        the `displayTargetOptions(...)` result, verbatim
+ * @param {string|null} current `resolveDisplayTarget(...)` for this instance
  * @param {Function} onMove `(instanceId, target) => void`
+ * @param {string} instanceId
  */
-export function moveSubmenu(chip, def, onMove) {
-  const current = currentTargetOf(chip, def)
-  return MOVE_TARGETS.map((t) => {
-    const disabled = moveTargetRefusal(def, t.target, current)
+export function displaySubmenu(options, current, onMove, instanceId) {
+  const list = Array.isArray(options) ? options : NO_OPTIONS
+  return list.map((o) => {
+    const isCurrent = o.value === current
+    const disabled = o.missing
+      ? 'the pane this series was sent to no longer exists'
+      : (isCurrent ? 'it is already here' : undefined)
     return {
-      ...t,
-      key: `move-${t.target}`,
-      checked: t.target === current,
+      key: `display-${o.value}`,
+      label: o.label,
+      target: o.value,
+      checked: isCurrent,
       disabled,
-      // ⛔ NO `onClick` ON A REFUSED ROW. `ContextPopover` renders `disabled` on
-      // the button, but a handler that exists is a handler a keyboard, a test or
-      // a future renderer can still fire — and this one would persist a
-      // placement the binder resolves to nothing.
-      onClick: disabled ? undefined : () => onMove(chip.instanceId, t.target),
+      // ⛔ NO `onClick` ON A REFUSED ROW. A handler that exists is a handler a
+      // keyboard, a test or a future renderer can still fire.
+      onClick: disabled ? undefined : () => onMove(instanceId, o.value),
     }
   })
 }
 
 /**
- * Spec §6's rows, in the declared order, from ONE source.
+ * Track B V1's rows, in the declared order, from ONE source.
  *
- * Settings · Hide/Show · Move · Duplicate · Alerts · About · ——— · Remove
+ *   Hide/Show · Display in ▸ · ——— · Edit in Chart Data · Duplicate · Alert ·
+ *   About · ——— · Delete
  *
- * ⭐ chart-UX-walls TASK 6 ADDED **Duplicate**, AND IT IS THE ONLY ROW HERE THAT
- * TAKES AN INSTANCE ID TO MEAN "the definition behind it". That is deliberate and
- * it is why the handler still takes `chip.instanceId`: the caller resolves the
- * instance to its `defId` through `findInstance`, so a chip whose instance has
- * already gone gets a refusal by identity instead of minting a copy of something
- * that is no longer on the chart. `addInstance` gives the new instance the
- * DECLARED defaults rather than a copy of this one's inputs — "another RSI" that
- * arrives identical draws a second line exactly on top of the first, which reads
- * as nothing having happened.
+ * ⭐ THE ORDER IS THE HIERARCHY THE OWNER APPROVED: visibility and placement are
+ * the high-frequency verbs and sit at the top; the full editor and the additive
+ * verbs sit in the middle; the one destructive verb is alone below a rule.
  *
- * ⛔ IT IS PLACED BETWEEN MOVE AND ALERTS, NOT BESIDE REMOVE. Everything above the
- * separator changes what is drawn; the separator exists to keep the one
- * destructive row away from the rest, and a row that ADDS a line does not belong
- * on the far side of it.
+ * ⛔ DELETE ARMS RATHER THAN FIRING. `caps.armed` is VIEW state the renderer
+ * owns (a first click sets it, a second click fires), and it is passed in rather
+ * than tracked here so this module stays pure and the wording of the armed row
+ * stays testable. The row is the same row either way — there is no second
+ * control and no modal.
  *
- * @param {object} chip a `readout.legendChips` row (+ optional `placementTarget`)
+ * @param {object} chip a `readout.legendChips` row (label, hidden, instanceId…)
  * @param {object} def  its definition, or null
  * @param {object} h    `{onSettings, onToggleHidden, onMove, onDuplicate, onAlerts, onAbout, onRemove}`
- * @param {object} [caps] surface capabilities the CALLER knows and this file
- *   cannot: `{alertsRefusal}` — a sentence when the mount cannot open the alert
- *   popover at all (no symbol, no toolbar). Same rule as everything else here: a
- *   row that opens nothing is disabled and says why, never rendered live.
+ * @param {object} [caps] what the CALLER knows and this file cannot:
+ *   `{alertsRefusal, displayOptions, displayCurrent, armed, canDuplicate}`
  * @returns {Array} rows for `mobile/ContextPopover`
  */
 export function chipMenuItems(chip, def, h, caps = {}) {
-  const submenu = moveSubmenu(chip, def, h.onMove)
+  const submenu = displaySubmenu(
+    caps.displayOptions, caps.displayCurrent, h.onMove, chip.instanceId,
+  )
   // Every destination refused ⇒ the ROW is dead, and it says so once instead of
-  // three times. A price overlay has nowhere to go: it cannot leave the candles'
-  // scale (3) and the volume pane is not an instance placement (2).
+  // N times. `displayTargetOptions` answers EMPTY for a definition with exactly
+  // one place to draw, which is the same test Chart Settings uses to render no
+  // control at all.
   const movable = submenu.some((s) => !s.disabled)
   const name = (def && def.meta && def.meta.name) || chip.defId
-  return [
+  const rows = [
     {
-      key: 'settings',
-      label: 'Settings…',
-      icon: 'gear',
-      onClick: () => h.onSettings(chip.instanceId),
-    },
-    {
-      // ⛔ THE ROW STATES WHICH WAY IT GOES. A toggle labelled "Hide" on a chip
+      // ⛔ THE ROW STATES WHICH WAY IT GOES. A toggle labelled "Hide" on a label
       // that is ALREADY hidden is a lie, and `data-hidden` is the only other
       // thing on screen that says which state it is in.
       key: 'hidden',
@@ -164,18 +121,31 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     },
     {
       key: 'move',
-      label: 'Move to',
+      label: 'Display in',
       icon: 'expand',
-      disabled: movable ? undefined : 'this indicator draws on the candles’ scale and has '
-        + 'nowhere else it can be placed',
+      disabled: movable ? undefined : (submenu.length
+        ? 'this series is already in the only pane it can draw in'
+        : 'this indicator draws on the candles’ scale and has nowhere else it can be placed'),
       submenu,
     },
+    { separator: true },
     {
+      // ⭐ THE FULL EDITOR. One channel — see `StockChart.handleChipSettings`.
+      key: 'settings',
+      label: 'Edit in Chart Data…',
+      icon: 'sliders',
+      onClick: () => h.onSettings(chip.instanceId),
+    },
+  ]
+  if (caps.canDuplicate !== false) {
+    rows.push({
       key: 'duplicate',
       label: `Duplicate ${name}`,
       icon: 'copy',
       onClick: () => h.onDuplicate(chip.instanceId),
-    },
+    })
+  }
+  rows.push(
     {
       key: 'alerts',
       label: `Add alert on ${chip.label}…`,
@@ -192,12 +162,17 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     { separator: true },
     {
       key: 'remove',
-      label: 'Remove',
+      // ⛔ THE ARMED ROW NAMES WHAT IT WILL DELETE. "Delete?" on a chart carrying
+      // eleven series is a question about nothing.
+      label: caps.armed ? `Delete ${chip.label}?` : 'Delete',
       icon: 'trash',
       danger: true,
+      armed: !!caps.armed,
+      // ⛔ THE FIRST CLICK MUST NOT CLOSE THE MENU. `keepOpen` is what lets the
+      // row re-render as the confirmation; without it the arm would be invisible.
+      keepOpen: !caps.armed,
       onClick: () => h.onRemove(chip.instanceId),
     },
-  ]
+  )
+  return rows
 }
-
-export { MOVE_TARGETS }

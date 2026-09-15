@@ -803,12 +803,16 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
     # Merged date universe (collector snapshots + reconstructed history), ASC —
     # cached, because the DISTINCT scan over the ~170k-row OHLC store is the slow
     # part of a teleport, and it only changes when the store grows (worker-side).
-    all_dates = merged_dates()
+    from api.services import breadth_timing as _bt
+    with _bt.phase('merged_dates'):
+        all_dates = merged_dates()
     if not all_dates:
         return get_history(days, end, anchor)
-    collector_floor = _collector_floor()
+    with _bt.phase('collector_floor'):
+        collector_floor = _collector_floor()
 
-    anchor_date = _resolve_anchor_merged(all_dates, end, anchor) if end else all_dates[-1]
+    with _bt.phase('anchor'):
+        anchor_date = _resolve_anchor_merged(all_dates, end, anchor) if end else all_dates[-1]
     idx = bisect_right(all_dates, anchor_date) - 1
     if idx < 0:
         return []
@@ -828,7 +832,8 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
         with _conn() as c:
             # Same rule as the plain reader: the projection first, the blob only
             # for dates the backfill has not reached, and never both.
-            coll_rows, _fallbacks = _metrics_for_dates(c, list(window))
+            with _bt.phase('numeric_fetch'):
+                coll_rows, _fallbacks = _metrics_for_dates(c, list(window))
     except Exception:
         coll_rows = {}
 
@@ -843,7 +848,8 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
     recon_missing = 0
     try:
         from api.services import breadth_daily_ohlc as ohlc
-        recon_rows, recon_missing = ohlc.reconstructed_for_dates(recon_needed)
+        with _bt.phase('reconstructed_fetch'):
+            recon_rows, recon_missing = ohlc.reconstructed_for_dates(recon_needed)
         absent = [d for d in recon_needed if d not in recon_rows]
         if absent:
             from api.services import breadth_timing
@@ -851,29 +857,38 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
     except Exception:
         recon_rows = {}
 
-    result_asc = []
-    for d in window:
-        # ⛔ PRECEDENCE, ASSERTED RATHER THAN IMPLIED: where both a collector row and
-        # a reconstructed row exist for one date, the COLLECTOR row wins. That is
-        # today's behaviour and it is why the two live in separate tables — a single
-        # date-keyed table would have let whichever wrote last decide.
-        # Rail: `test_a_collector_row_beats_a_reconstructed_row_for_the_same_date`.
-        if d in coll_rows:
-            row = dict(coll_rows[d])
-        elif d in recon_rows:
-            # Pre-built: the closes, the sentiment overlay and the `_reconstructed`
-            # provenance flag are all stored together, so this is a dict copy rather
-            # than a per-request assembly out of the OHLC store.
-            row = dict(recon_rows[d])
-        else:
-            continue                             # no row for this date, from either side
-        row["date"] = d
-        result_asc.append(row)
+    # ⛔ A `with`, not a hand-rolled __enter__/__exit__ pair. The manual form skips
+    # __exit__ when the body raises, so a merge that failed halfway would report
+    # `merge_rows=absent` — the instrument going quiet exactly when something went
+    # wrong. `phase()` records in a `finally`, so the span survives the exception.
+    with _bt.phase('merge_rows'):
+        result_asc = []
+        for d in window:
+            # ⛔ PRECEDENCE, ASSERTED RATHER THAN IMPLIED: where both a collector row
+            # and a reconstructed row exist for one date, the COLLECTOR row wins. That
+            # is today's behaviour and it is why the two live in separate tables — a
+            # single date-keyed table would have let whichever wrote last decide.
+            # Rail: `test_a_collector_row_beats_a_reconstructed_row_for_the_same_date`.
+            if d in coll_rows:
+                row = dict(coll_rows[d])
+            elif d in recon_rows:
+                # Pre-built: the closes, the sentiment overlay and the `_reconstructed`
+                # provenance flag are all stored together, so this is a dict copy rather
+                # than a per-request assembly out of the OHLC store.
+                row = dict(recon_rows[d])
+            else:
+                continue                         # no row for this date, from either side
+            row["date"] = d
+            result_asc.append(row)
 
-    _derive_ascending(result_asc, _adv_decline_seed_before(window[0]))
+    with _bt.phase('adv_seed'):
+        _seed = _adv_decline_seed_before(window[0])
+    with _bt.phase('derive'):
+        _derive_ascending(result_asc, _seed)
 
     out = list(reversed(result_asc))[:days]
-    cache.set(ck, out, ttl=300)
+    with _bt.phase('cache_set'):
+        cache.set(ck, out, ttl=300)
     return out
 
 

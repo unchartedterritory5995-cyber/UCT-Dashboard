@@ -579,7 +579,38 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
     expect(expandedRowIds()).toEqual(['legacy:vwap'])
   })
 
-  it('⛔ and the control: no `ind:` target opens NOTHING', () => {
+  it('⭐⭐ TRACK B — `data:<id>` IS THE SAME ADDRESS, and that is the Chart Data seam', () => {
+    // The on-chart popover's **Edit in Chart Data…** sends `data:<instanceId>`
+    // down this one `scrollTo` channel rather than growing a second prop — the
+    // rule `indTargetRow`'s header states in as many words. Track A's Chart Data
+    // tab is not on master yet, so today the address resolves to the Indicators
+    // tab expanded on that row, which IS the full per-instance editor.
+    //
+    // ⛔ WHEN THAT TAB LANDS IT CLAIMS THIS PREFIX HERE, in one branch, and every
+    // on-chart door follows with no change to `StockChart`. These cases are what
+    // keep the two spellings pointing at the same row while that is happening.
+    for (const id of ['legacy:vwap']) {
+      cleanup()
+      render(<ChartSettingsModal open scrollTo={`ind:${id}`}
+        settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
+      const viaInd = expandedRowIds()
+      cleanup()
+      render(<ChartSettingsModal open scrollTo={`data:${id}`}
+        settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
+      expect(expandedRowIds(), `data:${id} did not land where ind:${id} lands`)
+        .toEqual(viaInd)
+      expect(expandedRowIds()).toEqual([id])
+    }
+    // ⚠️ AND IT SLICES THE PREFIX RATHER THAN SPLITTING ON ':' — an instance id
+    // contains colons of its own (`legacy:vwap`, `inst:qqq`), so a split would
+    // address `legacy` and open nothing.
+    cleanup()
+    render(<ChartSettingsModal open scrollTo="data:ma:0" settings={base()} onChange={vi.fn()} />)
+    expect(expandedRowIds(), "the legend's MA spelling does not survive the data: prefix")
+      .toEqual(['overlay-0'])
+  })
+
+  it('⛔ and the control: no `ind:`/`data:` target opens NOTHING', () => {
     // The accordion still arrives closed on every other way in — the tab button,
     // a `scrollTo` for another tab, a plain open. Without this, a translation that
     // returned a row id for everything would pass every case above.
