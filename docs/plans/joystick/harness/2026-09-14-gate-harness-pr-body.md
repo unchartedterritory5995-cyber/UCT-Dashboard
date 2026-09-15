@@ -31,14 +31,14 @@ tools/gate_box_lock.py
 tools/gate_box_sampler.py
 ```
 
-**11 files.** Merge-base **`47e1516b5`**; master **`587ee51b2`** (17 ahead).
+**11 files.** Merge-base **`47e1516b5`**; master **`569485a12`**.
 `git merge-tree --write-tree` → **exit 0, no conflicts**.
 
 ⚠️ No head SHA is quoted: this document ships *inside* the commit it describes, so any SHA written
 here is stale the moment it is written. Read the branch tip.
 
 ⚠️ **Three-dot, and on this repo that is measured, not ceremonial.** `master...HEAD` reports
-**11**; `master..HEAD` reports **31**. The extra are other workstreams' files landed on
+**11**; `master..HEAD` reports **97**. The extra are other workstreams' files landed on
 master since the base, shown **backwards** — as though this branch had reverted them. A body
 asserting "tooling only" while listing another team's docs would refute itself in its own evidence,
 which is exactly what an earlier PR here had to correct (two-dot **115** against three-dot **29**).
@@ -183,6 +183,70 @@ dies instantly cannot be used to test contention at all.** The rail now keeps ra
 window *and* asserts the winner did not reclaim — two assertions that fail for different reasons.
 
 ---
+
+### 8 · The snapshot can fail, and a failed snapshot is not a clean one
+
+**The defect, in two sentences.** `tools/gate_box_sampler.py` parsed its PowerShell snapshot with
+`json.loads(proc.stdout)`, which raised `JSONDecodeError: Invalid control character at: line 1
+column 106641` on live data — `ConvertTo-Json` had emitted a raw control character inside a
+process's command line. `JSONDecodeError` subclasses `ValueError`, **not** `RuntimeError`, and
+`watch()` catches `RuntimeError` only, so the exception walked past the handler written to contain
+it, killed the run, and recorded nothing.
+
+⛔ **Fixing the crash alone would have left the worse half open.** `watch()` used to print a failed
+sample and *skip* it, so an interval where some snapshots failed still returned **CLEAR** from the
+survivors — an unobserved instant reported as clean, which is the "absence recorded as a pass"
+shape this whole tool exists to refuse.
+
+Both halves are closed:
+
+- **The parse** — `json.loads(..., strict=False)`, and any `ValueError` is converted to the
+  `RuntimeError` callers already handle, so this function keeps **one contract**: it raises
+  `RuntimeError` on any failure to produce a snapshot, whatever the cause.
+- **The accounting** — a failed snapshot is **recorded** as an unobserved marker sample carrying
+  `free_gb: None` and an empty foreign list (nothing was observed; inventing either would be the
+  fabrication refused everywhere else), and a new verdict **`EXIT_UNOBSERVED = 6` /
+  `INCONCLUSIVE-UNOBSERVED`** makes such an interval un-CLEAR-able.
+- Precedence is deliberate: **contention** (a process actually seen — a positive finding naming a
+  culprit) outranks **resource** (measured and actionable) outranks **unobserved** (the residual
+  "we cannot honestly call this clear").
+
+`tools/gate_box_sampler.py:200` is the **only** place a snapshot is parsed — verified from
+`git show`. (`gate_box_lock.py:167` parses the *lock file*, a different source, already wrapped in
+`except (OSError, ValueError)` returning a corrupt-marker.)
+
+**Controls, all railed:**
+
+| control | proves |
+|---|---|
+| (a) raw `` inside a gate command line | parsed **and** the process is still classified `gate` — a fix that dropped the row would read the box as quiet while a real gate ran |
+| (b) truncated snapshot through `watch()` | recorded as an unobserved sample; run continues; verdict `INCONCLUSIVE-UNOBSERVED`, never CLEAR |
+| (c) identical run, valid snapshot | `CLEAR` — so (b) is attributable to the bad snapshot, not to the harness |
+
+⭐ **(b) is shown red-then-green**, which is the point of it: on the pre-fix file the
+`JSONDecodeError` escapes `watch()` and the test errors out.
+
+    pre-fix  sha256: 013ca553428e784baf097858221992088db00414686f6acf0667ab21c6e39956  -> RED
+    fixed    sha256: 397c15fb2299c73d8b66e3434e5ca63ee0da12424e9fc066f2b76b8ed05d0e7f  -> GREEN
+
+Bytes captured first and restored by sha256; never `git checkout --`.
+
+⚠️ **The fixture is a stated stand-in.** The crashing snapshot was not kept and the offending
+process is gone — a live snapshot taken while writing this contained **zero** raw control
+characters. What is reproduced is its *shape*: a raw control byte inside a command-line string
+value, which is where char 106640 sat. `json.dumps` would escape it to a valid ``, so the
+escape is deliberately un-escaped back into a raw byte, and a non-vacuity rail asserts the fixture
+really does defeat a strict parse.
+
+⭐ **Two defects this found in passing.** A second unguarded `min(s["free_gb"] …)` in the
+*contended* branch would have raised on a marker sample — caught by a precedence control, not by
+review. And `watch()` consumes one snapshot before it samples (for `_self_pids()`), so a stub
+sequence that forgets it feeds its first payload to a call that never reaches the sample set; the
+first draft of one rail passed for exactly that wrong reason.
+
+⚠️ **The file count does not move: still 11.** Both files this commit touches —
+`tools/gate_box_sampler.py` and `tests/test_gate_box_sampler.py` — were already in the three-dot
+set. The commit changes their contents, not the set.
 
 ### Tests
 

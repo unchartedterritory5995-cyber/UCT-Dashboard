@@ -61,6 +61,11 @@ EXIT_CLEAR = 0
 EXIT_CONTENDED = 3
 EXIT_RESOURCE = 4
 EXIT_NO_SAMPLES = 5
+# ⛔ ITS OWN CODE, because "we looked and could not see" is neither "nobody looked" nor "the box
+# was busy". An interval with an unreadable snapshot has a HOLE in it; a hole is not a clean
+# reading, but it is also not evidence of contention, and reporting it as either would be a guess
+# wearing a verdict's clothes.
+EXIT_UNOBSERVED = 6
 EXIT_SELF_CHECK_FAILED = 1
 
 VERDICT_NAMES = {
@@ -68,6 +73,7 @@ VERDICT_NAMES = {
     EXIT_CONTENDED: "INCONCLUSIVE-CONTENDED",
     EXIT_RESOURCE: "INCONCLUSIVE-RESOURCE",
     EXIT_NO_SAMPLES: "INCONCLUSIVE-NO-SAMPLES",
+    EXIT_UNOBSERVED: "INCONCLUSIVE-UNOBSERVED",
 }
 
 # ⛔⛔ THE MEMORY FLOOR IS AN OWNER RULING, NOT A TUNING KNOB (2026-09-14): record free memory at
@@ -197,7 +203,26 @@ def _snapshot() -> dict:
             f"the process snapshot failed (exit {proc.returncode}): "
             f"{(proc.stderr or proc.stdout or '').strip()[:300]}"
         )
-    return json.loads(proc.stdout)
+    # ⛔⛔ STRICT=FALSE, AND THE FAILURE IS CONVERTED. Both halves are load-bearing.
+    #
+    # ⚰️ MEASURED, 2026-09-15: `ConvertTo-Json` emitted a RAW CONTROL CHARACTER inside a
+    # process's command line, and `json.loads` rejects those by default —
+    # `Invalid control character at: line 1 column 106641`. The snapshot was good data about a
+    # real box; only the strictness was wrong.
+    #
+    # ⛔ AND THE EXCEPTION TYPE MATTERED MORE THAN THE PARSE. `JSONDecodeError` subclasses
+    # `ValueError`, NOT `RuntimeError` — and `watch()` catches `RuntimeError`. So the one
+    # failure mode this function had not anticipated walked straight past the handler written
+    # to contain it, and the run DIED instead of recording a sample. The docstring above
+    # already promised "a failed snapshot is not an empty box"; it could not keep that promise
+    # for an exception nobody was catching.
+    #
+    # ⭐ Converting HERE rather than widening the catch in `watch()` keeps ONE contract: this
+    # function raises RuntimeError on any failure to produce a snapshot, whatever the cause.
+    try:
+        return json.loads(proc.stdout, strict=False)
+    except ValueError as e:
+        raise RuntimeError(f"the process snapshot returned unparseable JSON: {e}") from e
 
 
 def _self_pids() -> frozenset[int]:
@@ -302,7 +327,14 @@ def verdict(samples: list[dict], *, floor_gb: float = FREE_MEMORY_FLOOR_GB,
                     f"required — nobody looked, which is not the same as nothing being there"),
         }
 
-    intruders = [(s, f) for s in samples for f in s["foreign"]]
+    # ⛔ AN UNOBSERVED INSTANT IS NOT A CLEAN ONE. The order below is deliberate, and each step
+    # answers a different question. CONTENTION first: a process actually SEEN is a positive
+    # finding and names a culprit. RESOURCE next: measured, specific, actionable. Only then
+    # UNOBSERVED, which is the residual "we cannot honestly call this interval clear".
+    unobserved = [s for s in samples if s.get("snapshot_failed")]
+    observed = [s for s in samples if not s.get("snapshot_failed")]
+
+    intruders = [(s, f) for s in observed for f in s["foreign"]]
     if intruders:
         first_sample, first = intruders[0]
         by_pid: dict[int, dict] = {}
@@ -318,19 +350,35 @@ def verdict(samples: list[dict], *, floor_gb: float = FREE_MEMORY_FLOOR_GB,
             "kind": first["kind"],
             "command_line": first["command_line"],
             "intruders": list(by_pid.values()),
-            "min_free_gb": min(s["free_gb"] for s in samples),
+            # ⚠️ OBSERVED samples only — a marker carries free_gb=None and a bare min()
+            # over the raw list raises. Found by the precedence control, not by review.
+            "min_free_gb": min((s["free_gb"] for s in observed), default=None),
             "why": (f"a foreign {first['kind']} was on the box at {first_sample['at']} "
                     f"(pid {first['pid']}) — this interval cannot carry a measurement"),
         }
 
-    min_free = min(s["free_gb"] for s in samples)
-    if min_free <= floor_gb:
+    # ⚠️ Only OBSERVED samples carry a free_gb; a marker has None and must not be min()'d
+    # against a real number.
+    min_free = min((s["free_gb"] for s in observed), default=None)
+    if min_free is not None and min_free <= floor_gb:
         return {
             "code": EXIT_RESOURCE,
             "samples": len(samples),
             "min_free_gb": min_free,
             "why": (f"free memory reached {min_free} GB, at or below the {floor_gb} GB floor — "
                     f"stop cleanly at the next shard boundary and record INCONCLUSIVE-RESOURCE"),
+        }
+
+    if unobserved:
+        return {
+            "code": EXIT_UNOBSERVED,
+            "samples": len(samples),
+            "unobserved": len(unobserved),
+            "min_free_gb": min_free,
+            "first_failure": unobserved[0].get("snapshot_failed"),
+            "why": (f"{len(unobserved)} of {len(samples)} sample(s) could not be taken "
+                    f"({(unobserved[0].get('snapshot_failed') or '')[:120]}) — the interval has "
+                    f"a hole in it and cannot be reported as clear"),
         }
 
     return {
@@ -347,6 +395,8 @@ def verdict_line(v: dict) -> str:
     whose format this deliberately matches so one grep serves both tools."""
     name = VERDICT_NAMES.get(v["code"], "UNKNOWN")
     fields = {"samples": v.get("samples"), "min_free_gb": v.get("min_free_gb")}
+    if v["code"] == EXIT_UNOBSERVED:
+        fields["unobserved"] = v.get("unobserved")
     if v["code"] == EXIT_CONTENDED:
         fields["first_seen"] = v.get("first_seen")
         fields["pid"] = v.get("pid")
@@ -413,10 +463,13 @@ def self_check() -> int:
              "foreign": [{"kind": "gate", "pid": 30756, "name": "python.exe", "rss_mb": 24,
                           "command_line": "python -u scripts/gate_shards.py --shards 6"}]}]
     lowmem = [clean[0], {"at": "t2", "free_gb": 4.31, "total_gb": 31.8, "foreign": []}]
+    unobs = [clean[0], {"at": "t2", "free_gb": None, "total_gb": None, "foreign": [],
+                        "snapshot_failed": "the process snapshot returned unparseable JSON"}]
     for label, samples, expected in (
         ("a quiet interval", clean, EXIT_CLEAR),
         ("a gate appearing mid-interval", busy, EXIT_CONTENDED),
         ("free memory through the floor", lowmem, EXIT_RESOURCE),
+        ("a snapshot that could not be taken", unobs, EXIT_UNOBSERVED),
         ("nobody looked", [], EXIT_NO_SAMPLES),
         ("one lonely sample is still nobody looking", clean[:1], EXIT_NO_SAMPLES),
     ):
@@ -431,6 +484,18 @@ def self_check() -> int:
     good = verdict(both)["code"] == EXIT_CONTENDED
     ok &= good
     say(f"  {'ok  ' if good else 'FAIL'} contention outranks resource when both are true")
+
+    # ⛔ AND A SEEN INTRUDER OUTRANKS AN UNSEEN INSTANT. A positive finding that names a pid is
+    # worth more than the residual "we could not look"; reporting UNOBSERVED here would bury the
+    # one fact an operator can act on.
+    good = verdict([busy[1], unobs[1]])["code"] == EXIT_CONTENDED
+    ok &= good
+    say(f"  {'ok  ' if good else 'FAIL'} contention outranks an unobserved sample")
+    # ⭐ CONTROL: with the intruder removed, the SAME unobserved sample decides the verdict --
+    # so the line above is about precedence, not about UNOBSERVED being unreachable.
+    good = verdict([clean[0], unobs[1]])["code"] == EXIT_UNOBSERVED
+    ok &= good
+    say(f"  {'ok  ' if good else 'FAIL'} ...and decides it once the intruder is gone")
 
     # ⛔ AND THE INTERVAL JUSTIFICATION MUST STILL HOLD.
     bound = min(MEASURED_SHARD_SECONDS) / 10
@@ -466,20 +531,31 @@ def watch(*, seconds: float | None = None, pid: int | None = None,
             try:
                 s = take_sample(self_pids, tree_pid=pid)
             except RuntimeError as e:
-                # ⛔ REPORTED, NOT SWALLOWED. A snapshot that failed is not a quiet box.
+                # ⛔⛔ RECORDED, NOT MERELY REPORTED — and that is the hole being closed.
+                # Printing it and moving on made the failed instant VANISH from the sample set,
+                # and the surviving samples then produced a CLEAR verdict for an interval nobody
+                # had fully observed. ⭐ The marker carries no free_gb and no foreign list
+                # precisely because NOTHING WAS OBSERVED; inventing either would be the
+                # fabrication this tool refuses everywhere else.
                 say(f"  [sample failed] {e}", err=True)
-                s = None
+                s = {"at": _dt.datetime.now().isoformat(timespec="seconds"),
+                     "free_gb": None, "total_gb": None, "foreign": [],
+                     "snapshot_failed": str(e)[:300]}
             if s is not None:
                 samples.append(s)
                 if fh:
                     fh.write(json.dumps(s) + "\n")
                     fh.flush()
-                foreign = ", ".join(f"{f['kind']}:{f['pid']}" for f in s["foreign"]) or "-"
-                say(f"  {s['at']}  free={s['free_gb']:>5} GB  foreign={foreign}")
-                if s["free_gb"] <= FREE_MEMORY_FLOOR_GB:
-                    say(f"  ⛔ free memory {s['free_gb']} GB is at or below the "
-                          f"{FREE_MEMORY_FLOOR_GB} GB floor — stopping cleanly.")
-                    break
+                if s.get("snapshot_failed"):
+                    # ⚠️ No free-memory read and no floor check: there is no reading to check.
+                    say(f"  {s['at']}  UNOBSERVED — the snapshot could not be taken")
+                else:
+                    foreign = ", ".join(f"{f['kind']}:{f['pid']}" for f in s["foreign"]) or "-"
+                    say(f"  {s['at']}  free={s['free_gb']:>5} GB  foreign={foreign}")
+                    if s["free_gb"] <= FREE_MEMORY_FLOOR_GB:
+                        say(f"  ⛔ free memory {s['free_gb']} GB is at or below the "
+                            f"{FREE_MEMORY_FLOOR_GB} GB floor — stopping cleanly.")
+                        break
             if pid is not None:
                 try:
                     if not _pid_alive(pid, _snapshot().get("procs", [])):

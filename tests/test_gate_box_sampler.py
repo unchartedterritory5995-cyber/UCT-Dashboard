@@ -16,6 +16,7 @@ exactly the test that would have passed during all three of those.
 from __future__ import annotations
 
 import os
+import json
 import pathlib
 import subprocess
 import sys
@@ -296,3 +297,178 @@ def test_the_descendant_walk_is_transitive_and_does_not_climb():
     assert 20 not in got, "a sibling process was excluded — a real intruder would be hidden"
     assert 1 not in got, "the walk climbed to the parent"
     assert S._descendants(99, procs) == set(), "an unknown root must exclude nothing"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# THE SNAPSHOT CAN FAIL, AND A FAILED SNAPSHOT IS NOT A CLEAN ONE
+#
+# ⚰️ MEASURED 2026-09-15, in production use. `json.loads(proc.stdout)` raised
+# `JSONDecodeError: Invalid control character at: line 1 column 106641` — PowerShell's
+# `ConvertTo-Json` had emitted a RAW control character inside some process's command line.
+#
+# Two defects, one line apart:
+#   * the parse was needlessly strict about data that was otherwise perfectly good; and
+#   * `JSONDecodeError` subclasses `ValueError`, NOT `RuntimeError`, so it walked straight past
+#     `watch()`'s handler, killed the run, and recorded NOTHING. The module docstring already
+#     promised "a failed snapshot is not an empty box" — it could not keep that promise for the
+#     one exception nobody was catching.
+#
+# ⛔ And closing the crash alone would have left the WORSE half open: `watch()` used to print the
+# failure and SKIP the sample, so an interval where some snapshots failed still returned CLEAR
+# from the survivors. An unobserved instant reported as clean is the exact "absence recorded as a
+# pass" this tool exists to refuse.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+def _payload(procs, free_gb=12.0, total_gb=32.0) -> str:
+    return json.dumps({"free_kb": int(free_gb * 1024 * 1024),
+                       "total_kb": int(total_gb * 1024 * 1024),
+                       "procs": procs})
+
+
+# ⚠️ THE FIXTURE IS A STATED STAND-IN, NOT THE ORIGINAL BYTES. The crashing snapshot was not kept
+# and the offending process is long gone — a live snapshot taken while writing this contained ZERO
+# raw control characters, so the exact character is unrecoverable. What IS reproduced is its
+# SHAPE: a raw control byte inside a command-line string value, which is where char 106640 sat in
+# a payload dominated by `cl` strings. `json.dumps` would escape it to `\\u0001` (valid JSON, and
+# therefore useless as a fixture), so the escape is un-escaped back into a raw byte on purpose.
+GATE_CL = r"C:\Python314\python.exe -u scripts/gate_shards.py --shards 6"
+
+
+def _payload_with_raw_control_char() -> str:
+    raw = _payload([{"ProcessId": 4242, "ParentProcessId": 1, "Name": "python.exe",
+                     "cl": GATE_CL + "\u0001--tail", "mb": 24}])
+    return raw.replace("\\u0001", "\x01")
+
+
+class _Proc:
+    def __init__(self, stdout, returncode=0):
+        self.stdout, self.stderr, self.returncode = stdout, "", returncode
+
+
+def test_the_control_character_fixture_really_carries_the_hazard():
+    """⛔ NON-VACUITY ON THE FIXTURE. If the payload did not actually defeat a strict parse, every
+    rail below would be testing nothing — the same reason the gate's ANSI fixture has this check."""
+    payload = _payload_with_raw_control_char()
+    assert "\x01" in payload, "the raw control character was escaped away; the fixture is inert"
+    with pytest.raises(ValueError):
+        json.loads(payload)                      # strict: this is the crash
+    assert json.loads(payload, strict=False)     # lenient: the fix
+
+
+def test_a_raw_control_character_is_tolerated_AND_the_process_is_still_classified(monkeypatch):
+    """CONTROL (a) — the fix must not drop the very process that carried the character.
+
+    ⭐ Tolerating the byte is only half the requirement. A "fix" that parsed the snapshot and then
+    lost the row would be worse than the crash: the box would read quiet while a real gate ran on
+    it. So this asserts the gate is still REPORTED, by pid, through the real `take_sample` path.
+    """
+    payload = _payload_with_raw_control_char()
+    monkeypatch.setattr(S.subprocess, "run", lambda *a, **k: _Proc(payload))
+
+    snap = S._snapshot()
+    assert snap["procs"][0]["ProcessId"] == 4242
+
+    sample = S.take_sample(frozenset())
+    assert [f["pid"] for f in sample["foreign"]] == [4242], sample
+    assert sample["foreign"][0]["kind"] == "gate"
+    assert "gate_shards.py" in sample["foreign"][0]["command_line"]
+    assert sample["free_gb"] == 12.0
+
+
+def test_an_unparseable_snapshot_reaches_watch_as_RuntimeError(monkeypatch):
+    """The conversion itself: whatever the cause, `_snapshot` raises the ONE type callers handle.
+
+    ⛔ This is the half that killed the run. `JSONDecodeError` is a `ValueError`; `watch()` catches
+    `RuntimeError`. Converting at the parse site keeps a single contract instead of asking every
+    caller to know which exception families a snapshot can throw.
+    """
+    monkeypatch.setattr(S.subprocess, "run", lambda *a, **k: _Proc('{"procs": [{"Pro'))
+    with pytest.raises(RuntimeError) as e:
+        S._snapshot()
+    assert "unparseable JSON" in str(e.value)
+    assert not isinstance(e.value, json.JSONDecodeError)
+
+
+def test_control_b_a_failed_snapshot_is_recorded_and_the_interval_is_never_CLEAR(monkeypatch):
+    """CONTROL (b) — THE HOLE BEING CLOSED, driven end to end through `watch()`.
+
+    Snapshots alternate good/bad, which is the realistic shape and the damaging one: the run
+    CONTINUES, survivors exist, and before the fix those survivors produced a CLEAR verdict for an
+    interval that was never fully observed. Now the failures are RECORDED as unobserved samples
+    and the verdict can never be CLEAR.
+
+    ⛔ This test FAILS on the pre-fix code — there the JSONDecodeError escapes `watch()` entirely
+    and the call raises instead of returning a verdict.
+    """
+    good = _payload([])
+    bad = '{"procs": [{"Pro'
+    seq = iter([good, bad, good, bad, good, bad, good, bad])
+
+    def fake_run(*a, **k):
+        try:
+            return _Proc(next(seq))
+        except StopIteration:
+            return _Proc(good)
+
+    monkeypatch.setattr(S.subprocess, "run", fake_run)
+    v = S.watch(seconds=0.05, interval=0.01)
+
+    assert v["code"] != S.EXIT_CLEAR, f"an interval with an unreadable snapshot read as CLEAR: {v}"
+    assert v["code"] == S.EXIT_UNOBSERVED, v
+    assert v["unobserved"] >= 1, v
+    assert v["samples"] > v["unobserved"], (
+        "every sample failed, so this proves nothing about survivors buying CLEAR")
+    assert "unparseable JSON" in (v.get("first_failure") or "")
+    assert S.verdict_line(v).startswith("VERDICT=INCONCLUSIVE-UNOBSERVED exit=6 ")
+
+
+def test_control_c_the_same_run_with_a_valid_snapshot_is_CLEAR(monkeypatch):
+    """CONTROL (c) — so the INCONCLUSIVE in (b) is attributable to the BAD SNAPSHOT, not to the
+    harness, the stubbing, the timing, or `watch()` being broken in general.
+
+    ⭐ Identical call, identical timings, identical stub mechanism; only the payload differs."""
+    monkeypatch.setattr(S.subprocess, "run", lambda *a, **k: _Proc(_payload([])))
+    v = S.watch(seconds=0.05, interval=0.01)
+    assert v["code"] == S.EXIT_CLEAR, v
+    assert not [s for s in [] if s], "sanity"
+    assert v["samples"] >= S.MIN_SAMPLES
+    assert S.verdict_line(v).startswith("VERDICT=CLEAR exit=0 ")
+
+
+def test_an_unobserved_sample_carries_no_invented_readings(monkeypatch):
+    """⛔ THE MARKER MUST NOT FABRICATE. It carries `free_gb: None` and an empty foreign list
+    because NOTHING WAS OBSERVED — a marker claiming 0 foreign processes and some plausible free
+    memory would be indistinguishable from a real clean sample, which is the whole bug wearing a
+    different hat."""
+    # ⚠️ `watch()` CONSUMES ONE SNAPSHOT BEFORE IT SAMPLES — `_self_pids()` takes it to learn its
+    # own ancestry. A stub sequence that forgets this feeds its first payload to a call that never
+    # reaches the sample set, which is exactly how the first draft of this rail passed for the
+    # wrong reason. Counted explicitly rather than assumed.
+    calls = {"n": 0}
+
+    def fake_run(*a, **k):
+        calls["n"] += 1
+        return _Proc('{"procs": [{"Pro' if calls["n"] == 2 else _payload([]))
+
+    monkeypatch.setattr(S.subprocess, "run", fake_run)
+    v = S.watch(seconds=0.05, interval=0.01)
+
+    assert calls["n"] > 2, "the stub never got past the _self_pids call"
+    assert v["code"] == S.EXIT_UNOBSERVED, v
+    assert v["unobserved"] == 1, v
+    # ⛔ the marker contributes NO memory reading: the minimum comes from the observed samples only
+    assert v["min_free_gb"] == 12.0, v
+
+
+def test_every_sampler_exit_code_has_a_verdict_name():
+    """⛔ DERIVED FROM THE MODULE, never retyped — the same rail shape `gate_shards` carries, so a
+    new sampler code cannot arrive without a name and print as UNKNOWN on the line operators read.
+    `EXIT_UNOBSERVED` is why this exists now."""
+    codes = {v for k, v in vars(S).items()
+             if k.startswith("EXIT_") and isinstance(v, int) and k != "EXIT_SELF_CHECK_FAILED"}
+    assert codes, "no EXIT_* constants found — the derivation broke"
+    missing = sorted(c for c in codes if c not in S.VERDICT_NAMES)
+    assert not missing, f"exit code(s) {missing} have no VERDICT= name"
+    assert S.EXIT_UNOBSERVED in codes and S.VERDICT_NAMES[S.EXIT_UNOBSERVED] == "INCONCLUSIVE-UNOBSERVED"
+    # ⭐ CONTROL: the table is not simply covering every integer.
+    assert 99 not in S.VERDICT_NAMES
