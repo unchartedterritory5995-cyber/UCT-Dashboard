@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 16:18 ET, Session 13 (SD-1.1).**
+Last updated: **2026-09-15 16:20 ET, Session 13 (SD-1.1).**
 
 ---
 
@@ -308,3 +308,24 @@ write.
 | p95 needs | **n ≥ 59** (Session 10) |
 | Memory bound | **2× wire bytes**; strings, not parsed dicts |
 | Never | `git add -A`, `--no-verify`, two landing scripts, two samplers |
+| ⛔ **One worktree, one writer** | the landing script OWNS `uct-worktrees/breadth-history-reader`. A session editing any OTHER branch uses its own `git worktree add`, or **pauses the script first and waits for the log to say so**. |
+
+⚰️ **That rule was paid for twice in one session.** Session 13 edited files in the shared
+worktree while the script was unpaused. The first time it checked out under the edits and
+**exited 1** mid-sequence; the second time it had already switched branches, so a
+`git add` staged a correction onto `docs/session11-record` — the branch that was about to
+be pushed to master. Nothing reached master and the branch was restored by writing back
+the committed bytes and verifying the blob hash (never `git checkout --`), but the second
+one was close: the wrong branch was one push from landing.
+
+⭐ **The script's own dirty-tree guard caught the second one** — *"WAITING — the worktree
+has 1 uncommitted path(s); a checkout would clobber an editor"* — which is why it was a
+recovery rather than an incident. It was added after the first failure, and it fired
+within four minutes.
+
+⚠️ **And the pause protocol has the heartbeat defect this session just fixed elsewhere.**
+The script logs `PAUSED` only when the state CHANGES, so a re-pause writes nothing and the
+log cannot distinguish *"paused and acknowledged"* from *"not yet observed"*. That is the
+same class as the git-scope trial's empty log: **an instrument that reports only on change
+cannot prove it is watching.** Fix it before relying on the pause for the cutover (A3.2
+requires the script paused between steps).

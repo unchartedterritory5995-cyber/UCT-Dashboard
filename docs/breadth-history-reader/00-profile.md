@@ -1105,3 +1105,22 @@ searches.
 incident replaced deliberate raw `\x01` bytes. No joystick document carries a control byte
 at HEAD or in its last fifteen commits. eol conversion rewrites CR and LF and nothing
 else, so it never could have. What it flattened was line endings.
+
+### Appendix addendum — Session 13, SD-1.1
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 44 | ⭐⭐ **the prompt itself** — SD-1 §2/§4.1/§6 and the sampler rule | *"outside 09:25–16:05 ET"*, in six places, obeyed exactly for two sessions | The owner: **"we no longer have mid day blocks ever."** The clause was re-inserted from stale context by the guiding chat and was never his rule. ⛔ **Every instrument worked** — the landing script logged its refusals honestly, the checklist recorded the block accurately, the report stated it at the top. **A false premise, faithfully obeyed and faithfully recorded, produces a perfect audit trail of the wrong behaviour**, which is exactly why it survived three sessions. An instrument made of prose has no self-check and produces no anomaly when it is wrong. The defence that applied everywhere else was not applied here: `tools/pre_push_guard.py` is the authority on push timing and is readable in one command. |
+| 45 | ⚠️ my own A0.4 report on that guard | *"the guard carries the clock; that is the owner-side change"* | The first real attempt printed all three clauses and the **clock PASSED**: *"16:15:24 ET is outside the 09:25-16:05 ET deploy window — safe to restart web."* What refused was the **burst clause** — ≥ 3 distinct commits deployed within an hour, three joystick deploys at 15:31 / 15:53 / 16:05. ⭐ I had read two of the guard's clauses from its docstring and reported them as the whole; the third only appeared when it fired. **Reading the file is not the same as running it.** |
+| 46 | ⚰️ my own editing discipline | two races with the landing script in one session | Editing the shared worktree while the script was unpaused. First: it checked out under live edits and **exited 1**. Second: it had already switched branches, so `git add` staged a correction onto `docs/session11-record` — **the branch one push from master**. Recovered by writing back the committed bytes and verifying the blob hash (never `git checkout --`). ⭐ The script's own dirty-tree guard — added after the first failure — caught the second within four minutes. **One worktree, one writer** is now a standing rule. |
+| 47 | ⚠️ the landing script's PAUSE logging | nothing, on a re-pause | It logs `PAUSED` only when the state CHANGES, so the log cannot distinguish *"paused and acknowledged"* from *"not yet observed"*. ⭐⭐ **This is the exact defect the same session fixed in `git_scope --warn`** — where a check that logs only on violations makes a never-run trial indistinguishable from a clean one. **An instrument that reports only on change cannot prove it is watching.** Found by needing the pause to be trustworthy and discovering it could not be. |
+
+⭐ **#44 and #47 are the same lesson at two scales.** A rule stated in prose and a log written
+only on change share one property: **silence means nothing, and silence is what you get.** The
+programme's standing rule — *an empty result is a failed invocation until proven otherwise* —
+turns out to apply to prompts and to pause sentinels as much as to greps.
+
+⚠️ And #45 is the one to be uncomfortable about: it was a confident report, drawn from the
+correct file, that named two of three clauses because the third had not yet fired. ⛔ **A
+docstring is a claim about a program; the program is the authority.** The same session that
+answered G1 by reading configuration instead of trusting prose then trusted a docstring.
