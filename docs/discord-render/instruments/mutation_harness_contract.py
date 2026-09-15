@@ -75,6 +75,30 @@ MUTATIONS = (
     Mutation("M6 NON-VACUITY: nothing is ever admitted, so no row can ever be MET", CONTRACT,
              "        if ruling.disposition == ADMIT:", "        if False:",
              "PASS planted"),
+
+    # ── D-03 Part 0.6 · the amended S5 / S5b / S5c ────────────────────────
+    Mutation("M7 an UNREACHED refusal is counted as reached", GATE,
+             "    elif late:", "    elif False:",
+             "did not reach the member"),
+    Mutation("M8 the failure floor is applied to REFUSED instead of FAILED — an honest refusal "
+             "becomes a breach, which is the whole question the owner has not ruled on", GATE,
+             '        frac = (sp.get("failed") or 0) / sp["offers"]',
+             '        frac = (sp.get("refused_by_admission") or 0) / sp["offers"]',
+             "S5b: a refusal AT THE DESIGN BURST"),
+    Mutation("M9 an INFORMATIONAL run is judged after all", CONTRACT,
+             "    if art.purpose == PURPOSE_CHARACTERISATION:", "    if False:",
+             "reported, not judged"),
+    Mutation("M10 the sum check is removed — a receipt that loses requests reads as a quieter "
+             "system than the real one", GATE,
+             '        if not sp.get("closes"):', "        if False:",
+             "do not sum"),
+    Mutation("M11 the 3x tier ceiling is read as 10 % instead of 1 %", GATE,
+             'S5B_TIERS = {"busiest60s": 0.0, "busiest10s": 0.0, "design": 0.0, "design3x": 0.01}',
+             'S5B_TIERS = {"busiest60s": 0.10, "busiest10s": 0.10, "design": 0.10, "design3x": 0.10}',
+             "S5b: a refusal AT THE DESIGN BURST"),
+    Mutation("M12 an outcome=busy row is keyed as a refusal again (OI-40 regression)", GATE,
+             "        if mode not in S5B_TIERS:", "        if False:",
+             "S5b"),
 )
 
 

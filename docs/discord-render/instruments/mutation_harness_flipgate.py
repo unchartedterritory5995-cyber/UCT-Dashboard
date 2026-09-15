@@ -153,6 +153,34 @@ def labelled_load(*, real=None, model=fp.ec.CLOSED_LOOP, renderer=fp.ec.RENDERER
     return doc
 
 
+def s5_artifact(*, offers=200, served=200, refused=0, failed=0, tier="design",
+                refusals_measured=None, late=0, closes=True, **over) -> dict:
+    """A load artifact carrying everything the amended S5/S5b/S5c need, so a case varies ONE thing.
+
+    ⛔ The split is built to CLOSE by construction unless a case asks otherwise — a fixture whose
+    arithmetic silently failed would redden every case for a reason nobody was testing."""
+    doc = labelled_load(real={
+        "end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
+        "jobs": served + failed, "success_rate": 1.0, "failures_by_class": {},
+        "admission_split": {
+            "offers": offers, "served_in_slo": served, "served_late": 0,
+            "refused_by_admission": refused, "failed": failed, "failed_by_class": {},
+            "unresolved": offers - served - refused - failed, "closes": closes},
+        "refusal_latency": ({"state": "MEASURED", "refusals": refusals_measured,
+                             "silent_or_late": late, "arrival_to_told_ms": {"p50": 0.1},
+                             "unclaimed_admission_rows": 0}
+                            if refusals_measured else {"state": "NOT MEASURABLE", "why": "zero"}),
+    # ⛔ FALLBACK RENDERER ON PURPOSE, and it is not a detail. An S5b tier artifact is evidence
+    # about ADMISSION, which sits upstream of every renderer; making it latency-admissible too would
+    # let four tier fixtures quietly satisfy the latency half and every existing latency case would
+    # then pass for the wrong reason — measured: nine cases went green the moment they did. It also
+    # matches the world, where every local burst run IS the fallback.
+    }, model=fp.ec.OPEN_LOOP, concurrency=None, arrival_rate=0.6,
+        renderer=fp.ec.RENDERER_FALLBACK, **over)
+    doc["meta"]["burst"] = {"mode": tier, "arrival_rate": 0.6, "basis": "3x busiest 10 s"}
+    return doc
+
+
 def plant_passing_tree(root: pathlib.Path, soak_dir: pathlib.Path,
                        now: _dt.datetime | None = None) -> fp.Evidence:
     """A sandbox in which EVERY row should read MET. If this drifts, every case here is a lie."""
@@ -203,10 +231,24 @@ def plant_passing_tree(root: pathlib.Path, soak_dir: pathlib.Path,
     # a fixture without `meta.model` / `meta.renderer` is not a weaker passing run — it is an
     # artifact the row is RIGHT to refuse, and a base sandbox built that way would make every case
     # below read NOT MEASURABLE for a reason that has nothing to do with the mutation.
+    # ⛔ ONE ARTIFACT PER S5b TIER. The amended ruling defines S5b over FOUR tiers, so three tiers
+    # without an artifact is S5b NOT MEASURABLE — correctly, and strictly. A passing tree therefore
+    # has to be a world where all four were measured, or the "can this row go green at all"
+    # non-vacuity control is testing a row that structurally cannot.
+    for _tier in ("busiest60s", "busiest10s", "design", "design3x"):
+        _w(root / "docs" / "discord-render" / "evidence" / "step3" / f"load-{_tier}.json",
+           json.dumps(s5_artifact(tier=_tier,
+                                  refusals_measured=(400 if _tier == "design3x" else None)),
+                      indent=2))
     _w(root / "docs" / "discord-render" / "evidence" / "step3" / "load-real-a.json",
        json.dumps(labelled_load(
            real={"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
-                 "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}), indent=2))
+                 "jobs": 40, "success_rate": 1.0, "failures_by_class": {},
+                 "admission_split": {"offers": 40, "served_in_slo": 40, "served_late": 0,
+                                     "refused_by_admission": 0, "failed": 0,
+                                     "failed_by_class": {}, "unresolved": 0, "closes": True},
+                 "refusal_latency": {"state": "NOT MEASURABLE", "why": "zero refusals"}}),
+           indent=2))
 
     # chaos_real — scenarios that state their own verdict AND their own mode, including a refusal
     # (refused ≠ passed). `mode` is what tells a real run from a rig run; the filename never did.
@@ -419,6 +461,39 @@ def _cases() -> list[Case]:
                        real={"end_to_end_ms": {"p50": 120.0, "p95": 900.0, "p99": 1800.0},
                              "jobs": 40, "success_rate": 1.0, "failures_by_class": {}}))),
                    says="unlabelled load model"))
+    # ── the amended S5 / S5b / S5c (D-03 Part 0.5) ─────────────────────────
+    # ⛔ Each is RED-then-GREEN: the failing case here, and the clean tree above is the green.
+    _s5_dir = f"{D}/evidence/step3"
+    cs.append(Case("s2_measured", FAIL_PLANTED, NOT_MET,
+                   "⛔ S5c: ONE refusal that did not reach the member inside the S1 budget",
+                   lambda r, s: _w(r / f"{_s5_dir}/load-s5.json", json.dumps(
+                       s5_artifact(refusals_measured=400, late=1))),
+                   says="did not reach the member"))
+    cs.append(Case("s2_measured", FAIL_PLANTED, NOT_MET,
+                   "⛔ S5b: a refusal AT THE DESIGN BURST, where the ceiling is zero",
+                   lambda r, s: _w(r / f"{_s5_dir}/load-s5.json", json.dumps(
+                       s5_artifact(offers=200, served=199, refused=1))),
+                   says="refused 0.50% > 0.00%"))
+    cs.append(Case("s2_measured", FAIL_PLANTED, NOT_MET,
+                   "⛔ S5: buckets that do not sum — a receipt that loses requests reads as a "
+                   "quieter system than the real one",
+                   lambda r, s: _w(r / f"{_s5_dir}/load-s5.json", json.dumps(
+                       s5_artifact(offers=200, served=150, closes=False))),
+                   says="does not close"))
+    cs.append(Case("s2_measured", FAIL_PLANTED, NOT_MET,
+                   "⛔ S5: the failure floor bites on `failed` — 2 of 200 is over 0.50%",
+                   lambda r, s: _w(r / f"{_s5_dir}/load-s5.json", json.dumps(
+                       s5_artifact(offers=200, served=198, failed=2))),
+                   says="failed 1.00%"))
+    # ⛔ NON-VACUITY FOR THE WHOLE FAMILY: a clean artifact must NOT redden any of the three, or
+    # every case above passes for a fixture that was broken in some other way.
+    cs.append(Case("s2_measured", PASS_PLANTED, MET,
+                   "⛔ NON-VACUITY: a CLEAN S5 artifact reddens none of S5/S5b/S5c — without this, "
+                   "the four cases above could all be passing because the FIXTURE is broken",
+                   lambda r, s: _w(r / f"{_s5_dir}/load-s5.json", json.dumps(
+                       s5_artifact(refusals_measured=400, late=0))),
+                   says="S5c MET"))
+
     # ⛔⛔ A DELIBERATE OVERLOAD IS REPORTED, NEVER JUDGED — and the pair below is what stops that
     # becoming a way out of a red. The first proves a characterisation artifact carrying a breach
     # does NOT redden the row; the second proves the SAME artifact, labelled `slo`, DOES. Without

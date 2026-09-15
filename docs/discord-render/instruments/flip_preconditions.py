@@ -824,13 +824,19 @@ def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
         # ⛔ ADMISSION CLEAN IS NOT S2 MET. The row is named for delivery latency; passing the half
         # that could be measured while the other half has no eligible artifact is exactly the
         # "MET because something existed" shape this row was rebuilt to stop.
+        # ⛔ THE LATENCY EXCLUSIONS ARE NAMED IN FULL HERE, not trimmed to two. This is the branch a
+        # reader lands on when the row cannot be judged, so "which artifacts could not speak, and
+        # why" IS the content — trimming it to save a line is how a row stops being actionable.
         return _row(N_S2, NOT_MEASURABLE,
-                    f"admission: {fam_text}"
-                    + (" || LATENCY has no eligible artifact - "
-                       + (lat.excluded_note(limit=2) or "none in scope") if not lat.admitted else "")
-                    + (f" | informational: {info}" if info else ""))
-    note = (f"{len(lat.admitted)} run(s) judged: every percentile inside S2 and success "
-            f">= {S5_FLOOR*100:.1f}%")
+                    (f"LATENCY: NONE admissible - " + (lat.excluded_note(limit=10) or "none in scope")
+                     + " || " if not lat.admitted else "")
+                    + f"admission: {fam_text}"
+                    + (f" | informational, not judged: {info}" if info else ""))
+    # ⛔ THE FAMILY IS NAMED EVEN WHEN EVERYTHING PASSES. A green row that does not say WHICH
+    # verdicts were green is a row nobody can audit, and the next reader cannot tell a measured MET
+    # from a MET that had no evidence to contradict it.
+    note = (f"{fam_text} || {len(lat.admitted)} run(s) judged for latency: every percentile inside "
+            f"S2 and success >= {S5_FLOOR*100:.1f}%")
     extra = lat.excluded_note(limit=2)
     if extra:
         note += f" | skipped {extra}"
