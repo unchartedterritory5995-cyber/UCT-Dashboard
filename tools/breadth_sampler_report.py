@@ -80,11 +80,17 @@ def sd(v: list[float]):
 
 
 def stats(v: list[float]) -> str:
+    """⛔ C.4: THE p95 CELL IS SUPPRESSED BELOW n = N_FOR_P95, here rather than annotated
+    somewhere else. A printed p95 is read as an estimate whatever caveat sits beside it,
+    and Session 10 measured P(true p95 above the worst read) at 0.358 for n=20 — at that
+    size the number is not an estimate of anything. `not est` is the honest cell, and a
+    rail feeds this exactly n=20 and asserts it."""
     if not v:
         return "—"
     s = sd(v)
+    p95 = f"{pct(v, .95):>8.1f}" if len(v) >= N_FOR_P95 else " not est"
     return (f"n={len(v):<3} min={min(v):>8.1f} p50={pct(v,.5):>8.1f} mean={sum(v)/len(v):>8.1f} "
-            f"p95={pct(v,.95):>8.1f} max={max(v):>9.1f} sd={('%.1f'%s) if s else '—':>8}")
+            f"p95={p95} max={max(v):>9.1f} sd={('%.1f'%s) if s else '—':>8}")
 
 
 def load(path: pathlib.Path):
@@ -193,5 +199,42 @@ def main() -> int:
     return 0
 
 
+SUMMARY = REPO / "docs" / "breadth-history-reader" / "sampler-summary.md"
+
+SUMMARY_HEADER = (
+    "<!-- GENERATED FILE - do not edit by hand.\n"
+    "     Written by tools/breadth_sampler_report.py on every run.\n"
+    "     NOT A SOURCE: no rail may treat this as an authority for any number in it.\n"
+    "     The authority is logs/breadth-samples.jsonl and the git history it points at.\n"
+    "     NO MEMBER DATA: the pool holds request TIMINGS, flag states and a commit SHA\n"
+    "     only - no user ids, no emails, no request bodies, no response content. It is\n"
+    "     safe to publish, and that is a property of what the sampler records, not a\n"
+    "     promise about redaction.\n"
+    "-->\n")
+
+
+def _run_and_capture() -> int:
+    """⛔ C.1: the same text goes to stdout AND to the summary file. Two renderings of
+    one run could disagree; one rendering written twice cannot."""
+    import contextlib
+    import io as _io
+    buf = _io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = main()
+    text = buf.getvalue()
+    sys.stdout.write(text)
+    try:
+        SUMMARY.parent.mkdir(parents=True, exist_ok=True)
+        with SUMMARY.open("w", encoding="utf-8", newline="\n") as fh:
+            fh.write(SUMMARY_HEADER)
+            fh.write("\n# Breadth sampler - pool summary\n\n```\n")
+            fh.write(text.rstrip("\n"))
+            fh.write("\n```\n")
+        print(f"[wrote {SUMMARY.relative_to(REPO)}]")
+    except Exception as e:
+        print(f"[summary NOT written: {type(e).__name__}: {e}]")
+    return rc
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_run_and_capture())

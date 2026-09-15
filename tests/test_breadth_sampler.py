@@ -195,3 +195,41 @@ def test_two_shas_with_an_identical_hot_path_pool_and_different_ones_do_not():
         f"{changer[:9]} changed {hot_file} but the pool rule says it is identical to "
         f"its parent {parent[:9]} — the split would never happen")
     assert hot_file in diff2, diff2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C.4 — the report must refuse to print a p95 it cannot support.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_the_report_refuses_a_p95_below_the_required_n():
+    """⛔ Session 10 measured P(true p95 above the worst read) = 0.358 at n=20. A printed
+    p95 is read as an estimate whatever caveat sits beside it, so the cell itself must
+    say `not est` — and BOTH directions are driven, because a report that always says
+    `not est` is equally useless."""
+    from tools import breadth_sampler_report as rep
+    twenty = [float(i) for i in range(20)]
+    out = rep.stats(twenty)
+    assert "not est" in out, f"n=20 must not print a p95: {out}"
+    assert "p50=" in out and "max=" in out, "the other statistics must still print"
+
+    enough = [float(i) for i in range(rep.N_FOR_P95)]
+    out2 = rep.stats(enough)
+    assert "not est" not in out2, f"n={rep.N_FOR_P95} must print a p95: {out2}"
+    assert "p95=" in out2
+
+
+def test_the_required_n_is_the_figure_session_10_derived():
+    from tools import breadth_sampler_report as rep
+    assert rep.N_FOR_P95 == 59
+
+
+def test_the_generated_summary_declares_itself_generated_and_data_free():
+    """⛔ It is published. The header must say it is generated (so nobody edits it) and
+    must state WHY it is safe to publish — a property of what the sampler records, not a
+    promise about redaction."""
+    from tools import breadth_sampler_report as rep
+    h = rep.SUMMARY_HEADER
+    assert "GENERATED FILE" in h
+    assert "NOT A SOURCE" in h, "a generated file must not become an authority"
+    assert "NO MEMBER DATA" in h
+    assert rep.SUMMARY.name == "sampler-summary.md"
