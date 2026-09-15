@@ -95,9 +95,10 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 // Flip C retired it.
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
-  defaultPaneKeys,
+  defaultPaneKeys, paneStretchPlan,
 } from './chart/engine/paneLayout'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { storedPaneSizes, setPaneSizes, sizesFromStretch } from './chart/engine/paneSizes'
 import { volumeOwnsPane } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
@@ -4392,6 +4393,14 @@ export default function StockChart({
   // another; see the comment at its `stored`.
   const csRef = useRef(cs)
   csRef.current = cs
+
+  // ⚰️ THE POINTER EFFECT MOUNTS ONCE, SO IT MUST NOT CLOSE OVER `cs`.
+  // `_capturePaneSizes` runs from a listener registered at mount; reading the
+  // settings from that closure hands it the blob as it was on the FIRST render.
+  // Measured in the harness: a separator drag after adding QQQ persisted the
+  // pre-QQQ blob and wiped the instance — "persist intercepted → 0 instances".
+  // Same hazard, same remedy as `measureViewLockRef` below.
+  const updateSettingsRef = useRef(null)
   const symRef = useRef(null)
   const onCrosshairMoveRef = useRef(null)
   // The instance list the engine last drew, for the crosshair handler — which
@@ -4489,6 +4498,7 @@ export default function StockChart({
     }
     setPref('chart_settings', JSON.stringify(persisted))
   }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
+  updateSettingsRef.current = handleUpdateChartSettings
 
   // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
   //
@@ -10653,6 +10663,10 @@ export default function StockChart({
     )
     const paneLayout = computePaneLayout(engineInstances, {
       order: _paneOrder,
+      // ⭐ THE MEMBER'S OWN PANE HEIGHTS. Absent → the computed default, which is
+      // every chart that has never had a separator dragged. See
+      // `engine/paneSizes.js` for why this is a SHARE and not a pixel count.
+      paneSizes: storedPaneSizes(cs),
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
       // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
@@ -14554,6 +14568,46 @@ export default function StockChart({
         } catch { /* mid-load */ }
       })
     }
+    // ─── THE MEMBER'S OWN PANE HEIGHTS ────────────────────────────────
+    //
+    // ⚰️⚰️ A DRAGGED SEPARATOR USED TO DIE HERE. Pane height flowed one way —
+    // `computePaneLayout → paneStretchPlan → setStretchFactor` — so the gesture
+    // lived inside lightweight-charts until the next binder sync recomputed the
+    // default over it. Measured: drag QQQ 81 → 270, release, and the next plan
+    // wrote 81 back. The library had the member's intent and nothing asked it.
+    //
+    // ⭐ SO THE RENDERER IS READ BACK AND THE ANSWER BECOMES CANONICAL STATE.
+    // `sizesFromStretch` keeps only the panes that actually differ from what the
+    // layout would have computed, so one separator drag records the two panes it
+    // moved and says nothing about the rest — and a repaint that merely rounds
+    // records nothing at all.
+    //
+    // ⛔ NO GESTURE DETECTION ON THE SEPARATOR ITSELF. Hit-testing a library
+    // element would break the first time it restructured its DOM. Comparing the
+    // resulting weights to the plan asks the only question that matters — did
+    // the stack actually change — and is true however the member changed it.
+    const _capturePaneSizes = () => {
+      try {
+        const chart = chartRef.current
+        const layout = paneLayoutRef.current
+        if (!chart || !layout || !layout.keyByIndex || !layout.keyByIndex.size) return
+        const panes = chart.panes()
+        if (!Array.isArray(panes) || panes.length < 2) return
+        const observed = panes.map((pn) => {
+          try { const v = pn.getStretchFactor(); return Number.isFinite(v) ? v : 0 } catch { return 0 }
+        })
+        // ⚠️ THE DEFAULT PLAN, NOT THE APPLIED ONE. The comparison has to be
+        // against what the layout WOULD compute with no stored sizes, or a pane
+        // the member already resized would read as "unchanged" and its entry
+        // could never be updated by a second drag.
+        const base = paneStretchPlan({ ...layout, paneSizes: null }, observed.map(() => 0))
+        const next = sizesFromStretch(observed, base, layout.keyByIndex)
+        if (!Object.keys(next).length) return
+        const live = csRef.current
+        const updated = setPaneSizes(live, next)
+        if (updated !== live) updateSettingsRef.current?.(updated)
+      } catch { /* renderer cannot answer — leave the member on defaults */ }
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
@@ -14574,6 +14628,7 @@ export default function StockChart({
       // its rAF would otherwise land mid sym-switch and re-measure a transitioning
       // chart, clobbering the lock. So capture on a real drag only; wheel handles zoom.
       if (gestured) _captureUserLock()
+      if (gestured) _capturePaneSizes()
       viewPointerRef.current = null
     }
     const onWheel = () => {

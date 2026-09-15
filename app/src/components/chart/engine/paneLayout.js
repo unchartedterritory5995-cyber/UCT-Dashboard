@@ -75,6 +75,7 @@
 // that restores per-band rounding is in this task's gauntlet for that reason.
 
 import { isInstanceTombstone } from '../chartDefaults'
+import { applyPaneSizes } from './paneSizes'
 import { getDefinition, listAllDefinitions, registryGeneration } from './nativeRegistry'
 
 /**
@@ -553,7 +554,7 @@ function bandMap(bottomToTop, heightsC, oscCount, hasVolumeBand) {
 /** The empty answer: no oscillator pane at all. The panes above the stack keep
  *  the heights bands mode gives them, so the total is exact even when there is
  *  nothing to shave a separator off — the no-oscillator half of D1. */
-function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands) {
+function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands, order, paneSizes) {
   const h = (Number.isFinite(chartHeight) && chartHeight > 0) ? chartHeight : 0
   const above = h > 0
     ? bandsAboveHeights(h, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
@@ -566,6 +567,21 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
     panes: [],
     above,
     bands,
+    // ⭐ A CHART WITH NO OSCILLATOR PANES STILL HAS SEPARATORS. Price and a
+    // separate volume pane can be dragged apart like any other pair, so this
+    // path needs the same slot → key identities or their sizes would be the only
+    // ones the member could not keep.
+    paneSizes: (paneSizes && typeof paneSizes === 'object') ? paneSizes : null,
+    keyByIndex: (() => {
+      const m = new Map()
+      const ord = Array.isArray(order) ? order : null
+      const pinned = Math.max(0, firstPaneIndex - (bands && bands[VOLUME_BAND_KEY] ? 1 : 0) - 1)
+      const priceSlot = ord ? pinned + ord.indexOf(PRICE_PANE) : mainPaneIndex
+      const volSlot = ord ? pinned + ord.indexOf(VOLUME_PANE) : (firstPaneIndex > mainPaneIndex + 1 ? mainPaneIndex + 1 : -1)
+      if (Number.isInteger(priceSlot) && priceSlot >= 0) m.set(priceSlot, PRICE_PANE)
+      if (Number.isInteger(volSlot) && volSlot >= 0) m.set(volSlot, VOLUME_PANE)
+      return m
+    })(),
     pane0: {
       heightPx: above[mainPaneIndex],
       stretchFactor: above[mainPaneIndex],
@@ -678,10 +694,10 @@ export function computePaneLayout(instances, opts) {
   )
 
   if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
-    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
+    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands, o.order, o.paneSizes)
   }
   if (!keys.length && !hasVolumeBand) {
-    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
+    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands, o.order, o.paneSizes)
   }
 
   // ⭐ THE SUBSTITUTION. Every fraction below is a fraction of THIS, not of the
@@ -867,8 +883,33 @@ export function computePaneLayout(instances, opts) {
     // establishes exactly that, before the binder is called; `settleArrangement`
     // asserts it afterwards. A caller that places series at these slots without
     // establishing the precondition first is reintroducing the merge.
+    // The member's explicit shares, carried so `paneStretchPlan` can apply them
+    // without needing settings of its own. Absent → the computed default.
+    paneSizes: (o && o.paneSizes && typeof o.paneSizes === 'object') ? o.paneSizes : null,
     priceIndex: slotOf(PRICE_PANE, mainPaneIndex),
     volumeIndex: volPaneSlot,
+    // ⭐⭐ SLOT → PANE KEY, THE MAP USER SIZING IS KEYED THROUGH.
+    //
+    // `paneSizes` stores a share per PANE KEY because panes reorder; the plan
+    // assigns weights per SLOT. This is the only place both are known, so it is
+    // the only honest place to relate them — deriving it in a consumer would mean
+    // a second answer to "which pane is slot 2" that can disagree with this one.
+    //
+    // ⛔ THE UNHOSTED PANES ARE IN IT TOO. Price and a separate volume pane are
+    // not instances and have no entry in `panes[]`, but a member can drag their
+    // separators like any other, so they need identities here or their sizes
+    // would be the only ones that could not be stored.
+    keyByIndex: (() => {
+      const m = new Map()
+      const priceSlot = slotOf(PRICE_PANE, mainPaneIndex)
+      if (Number.isInteger(priceSlot) && priceSlot >= 0) m.set(priceSlot, PRICE_PANE)
+      if (Number.isInteger(volPaneSlot) && volPaneSlot >= 0) m.set(volPaneSlot, VOLUME_PANE)
+      keys.forEach((key, i) => {
+        const slot = slotOf(key, firstPaneIndex + i)
+        if (Number.isInteger(slot) && slot >= 0) m.set(slot, key)
+      })
+      return m
+    })(),
     /** Physical panes that must exist before any series is placed at a slot. */
     paneCountRequired: order
       ? idxPaneCount + order.length
@@ -964,7 +1005,13 @@ export function paneStretchPlan(layout, currentStretch) {
       if (Number.isFinite(above[i])) out[i] = above[i]
     }
   }
-  return out
+  // ⭐⭐ AND THE MEMBER'S OWN SIZING WINS, LAST. The computed plan above is the
+  // DEFAULT — what the stack looks like until somebody drags a separator. An
+  // explicit share is a statement about the same stack, so it is applied to the
+  // finished plan rather than woven into the arithmetic that produced it: the
+  // totality proofs above keep measuring the geometry they always did, and a
+  // chart with no stored sizes takes the identical path it always took.
+  return applyPaneSizes(out, layout.keyByIndex, layout.paneSizes)
 }
 
 // ─── reading the renderer back ───────────────────────────────────────────────
