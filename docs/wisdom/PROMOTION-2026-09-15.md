@@ -110,47 +110,103 @@ at all. There is no data migration to undo and no backfill to reverse.
    should show a **skipped** beat and `store_counts` should be unchanged.
 4. Then, and only then, the flag plan below.
 
-## Flag plan (nothing is flipped by any session)
+## Flag plan — REHEARSED LOCALLY, not executed
 
-**First flip — one switch, not three:** `WISDOM_INGEST_ENABLED`. Because the chain's capture step
-carries no gate of its own, this single flip starts capture; `WISDOM_CAPTURE_ENABLED` and
-`WISDOM_SOURCES_INGEST_ENABLED` govern the standalone jobs and the sources half respectively and
-can follow.
+⛔ **Nothing is flipped by any session.** This was run in a CHILD PROCESS against a throwaway store
+with the census pins applied, so capture could not reach any live product data. The session's own
+environment was `WISDOM_INGEST_ENABLED=<UNSET>` before and after.
 
-⛔ **`WISDOM_EXTRACT_ENABLED` stays dark** — it is the only switch that spends.
-⛔ **`ASKAI_WISDOM_RETRIEVAL_ENABLED` stays dark** — it is the only switch that makes anything
-member-visible.
+### With everything dark — the state production is in today
 
-**What to read the next morning** from the admin route: `store_counts.wisdom_sources` and
-`wisdom_segments` should be non-zero and growing; `wisdom_records` should stay **0** (nothing
-extracts); `wisdom_review_queue` should stay flat. If `wisdom_records` moves, EXTRACT is on and
-should not be.
+    job wisdom_daily_chain -> skipped: "master switch WISDOM_INGEST_ENABLED is off"
+    every table 0 rows, except wisdom_job_heartbeats = 1
 
-**The condition for flipping EXTRACT**, and it is a number: at the measured rate of
-**$0.058671/segment**, a day's capture of N segments costs `N × $0.0587`. The ledger has
-**$8.5185** of headroom under the ruled $40 cap, which funds about **145 segments** — one modest
-day. So EXTRACT is worth flipping only once (a) a per-day budget is ruled, (b) the R36 reservation
-fix is live, and (c) the cap covers at least one day's throughput at that rate.
+**One heartbeat row. That is the whole of an 18:47 ET tick today.**
 
----
+### With `WISDOM_INGEST_ENABLED` alone — measured, 12 steps
+
+    capture              ok        15 wisdom_capture_runs rows written
+    sources              ok        both inner gates dark -> wrote nothing
+    stt_alias            skipped   runs inside extract
+    extract              SKIPPED   WISDOM_EXTRACT_ENABLED is off          <- the spend gate holds
+    evals                ok        four inner gates dark -> wrote nothing
+    retrieval            SKIPPED   WISDOM_RETRIEVAL_INDEX_ENABLED is off  <- no index is BUILT
+    adapters             ok
+    level_alerts         ok        scorer is ungated; 0 crosses on an empty store
+    lookalike            ok        scorer is ungated; 0 scores on an empty store
+    rq_v11_001           skipped   no gate run recorded
+    reconcile_stability  ok
+    publication_floor    ok
+
+    wisdom_records 0 · wisdom_segments 0 · wisdom_sources 0   <- nothing is extracted
+    wisdom_d20_scoring_runs 2 · wisdom_chain_steps 12 · wisdom_job_runs 1
+
+⚠️ **THREE THINGS WORTH KNOWING BEFORE YOU FLIP IT:**
+
+1. **`WISDOM_INGEST_ENABLED` alone starts capture.** The chain's capture step consults no gate of
+   its own; `WISDOM_CAPTURE_ENABLED` gates the standalone capture jobs (`capture/jobs.py:46`).
+2. **`level_alerts` and `lookalike` scorers are also ungated** and run on INGEST alone. They wrote
+   **0** crosses and **0** scores here because the store was empty, and two
+   `wisdom_d20_scoring_runs` rows. Their member-facing DELIVERY is separately gated.
+3. **Expect review-queue rows on the `attribution` tab** — 36 appeared in the rehearsal. They are
+   NOT floor blocks (the floor cannot block with 0 records); do not read them as a publication
+   problem.
+
+⛔ **`WISDOM_EXTRACT_ENABLED` stays dark** — the only switch that spends.
+⛔ **`ASKAI_WISDOM_RETRIEVAL_ENABLED` stays dark** — the only switch that makes anything
+member-visible. And with INGEST alone no retrieval index is built at all, so there is nothing for
+it to expose even if it were lit.
+
+### What to read the next morning
+
+`GET /api/admin/wisdom/core/status`, signed in as admin:
+
+| field | expected after an INGEST-only night |
+|---|---|
+| `master_switch_on` | `true` |
+| `store_counts.wisdom_records` | **0** — if this moves, EXTRACT is on and should not be |
+| `store_counts.wisdom_sources` / `wisdom_segments` | 0 until EXTRACT runs (segmentation is inside it) |
+| `store_counts.wisdom_review_queue` | tens, on `attribution` — not floor blocks |
+| `floored_stability` | empty — nothing to score |
+| capture health | `wisdom_capture_runs` growing by ~15/night |
+
+### The condition for flipping EXTRACT
+
+At the measured **$0.058671/segment**, with the cap now at **$100.00** and **$68.52** of headroom:
+
+- a 400-segment day costs **$23.47**; headroom funds about **1,168 segments** total;
+- so EXTRACT is worth flipping once (a) you name a per-day budget line, (b) the R36 reservation
+  fix is live in production — it is on this branch — and (c) headroom covers a day's throttle,
+  which at 400/day it does, nearly three times over.
 
 ## How to open this PR
 
-`gh` is not installed on this box, so the PR was not created automatically. From a machine with it:
+⭐ **Open this on your phone** — the "Create pull request" button is on that page:
 
-    gh pr create --draft --base master --head feat/wisdom-loop \
-      --title "Wisdom Loop — Wave 1.5 promotion (floor, reconciler, RQ-v11-001, migrations)" \
-      --body-file docs/wisdom/PROMOTION-2026-09-15.md
+    https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/compare/master...feat/wisdom-loop?expand=1
 
-⭐ **Or from the GitHub mobile app**: open the repo → Pull requests → New → base `master`, compare
-`feat/wisdom-loop` → paste this file as the body. The app can also **merge** it.
+Suggested title:
 
-⚠️ **One gate fact before merging:**
+    Wisdom Loop — Wave 1.5 promotion (floor, reconciler, identities, migrations)
 
-⭐ **No time-of-day condition applies to pushes or merges (owner ruling R46, 2026-09-15).** The market-hours freeze and both its guards were removed on 2026-08-24 (CLAUDE.md:4805); `pre_push_guard.py` carried a stale reinstatement of it, which this session removed. **Merge whenever you like.**
+Suggested body (everything else is in the branch):
 
-⛔ And a merge performed on github.com runs **no local git hook at all** — hooks are client-side.
-What runs is the promotion-gate workflow set on the push to master.
+    Ten sessions of Wave 1.5, never before on master. Nothing changes for members:
+    every consumer is behind an unset gate and the daily chain is a no-op dark
+    (rehearsed locally — one heartbeat row).
 
-The **queue guard** (Railway `web` SUCCESS, settled ≥ 150 s) applies to a LOCAL `git push` to
-master, which is not the path here. It needs the Railway CLI and was not evaluated.
+    Full detail, risks, rollback and the flag plan:
+    docs/wisdom/PROMOTION-2026-09-15.md in this branch.
+
+    Highlights: publication floor + retraction, N-pass reconciler with ruled
+    identities (MARKET_SIGNAL MERGED_J05, PRINCIPLE lens t=0.6), RQ-v11-001,
+    four additive nullable migrations (idempotent, proved), admin status route
+    extended with store counts, reservation estimator with a per-batch actuals
+    check.
+
+Merging is a tap in the GitHub app.
+
+⛔ **There is no window to wait for.** No time-of-day condition applies to any push or merge
+(owner ruling R46, 2026-09-15); the stale clock clause in `tools/pre_push_guard.py` was removed in
+this branch. And a merge performed on github.com runs **no local git hook at all** — hooks are
+client-side. What runs is the promotion-gate workflow set on the push to master.

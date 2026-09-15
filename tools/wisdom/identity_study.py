@@ -362,12 +362,16 @@ def score(runs):
     # MERGED-MS variant would be re-clustered by name over its own cluster ids, since _name_tokens
     # still reads the untouched fields.market_signal.name. Pinning to KEY makes reconcile a pure
     # FOLDER and leaves this module the single place an alternative identity is expressed.
-    previous = reconcile.MS_IDENTITY
+    # ⛔ BOTH constants, not one. Pinning only MS_IDENTITY worked until R43 gave PRINCIPLE its own
+    # identity, and then the same bug returned on the second type: the KEY control came back
+    # lens-merged. A pin that names one of two switches is a pin that expires.
+    previous = (reconcile.MS_IDENTITY, reconcile.PRINCIPLE_IDENTITY)
     reconcile.MS_IDENTITY = "KEY"
+    reconcile.PRINCIPLE_IDENTITY = "KEY"
     try:
         result = reconcile.reconcile(runs)
     finally:
-        reconcile.MS_IDENTITY = previous
+        reconcile.MS_IDENTITY, reconcile.PRINCIPLE_IDENTITY = previous
     hist = reconcile.histogram(result)
     per_type: dict = {}
     for s in result["scores"]:
