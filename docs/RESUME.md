@@ -1,3 +1,80 @@
+# TRACK A PANE SYSTEM — DEPLOYED 2026-09-15 (master 263e54120)
+
+Shipped together: volume truth/order (aa7db1de9), legend-geometry rail (0c68badaf),
+add-door identity (19653ec93), display-target provenance (b28dfd568), pane rails
+(b0267016c), plus the merge of 15 partner commits (263e54120).
+
+## Pane resize — MEASURED on current code, NOT re-derived from the old report
+
+Dev pane-harness, AAPL + QQQ own pane, "preference writes refused: 0" throughout.
+
+    drag larger    QQQ 103 -> 272px   paneSizes {price .6052, inst:dataSeries:1 .3948}
+    drag smaller               46px   {…, .0435}          physical 643 / 46
+    drag larger               187px   {price .7283, … .2717}  physical 502 / 187
+    move QQQ above Price (Chart Data "Move QQQ pane up")
+                                      paneOrder ["inst:dataSeries:1","price"]
+                                      paneSizes UNCHANGED, physical 187 / 502 SWAPPED
+    resize at new index       337px   {price .5106, … .4894}  physical 337 / 352
+    save blob -> reconstruct          all three identical
+
+Each released size held after reconciliation. NO SNAP-BACK. The resize fix
+(65899a8f7) works; nothing needed changing.
+
+## Zero-height finding — CLOSED, nothing patched
+
+ResizeObserver + MutationObserver over a fresh QQQ realisation: the pane went
+from ABSENT straight to 103px. Zero pane rows of height 0 were ever observed.
+The old Control-C `getHeight()===0` is consistent with reading LWC right after
+`addPane`, before layout — a measurement-timing artifact, not a collapsed pane.
+
+⚠️ MEASUREMENT TRAP worth remembering: a BACKGROUNDED tab does not flush layout,
+so `getBoundingClientRect` returns stale geometry and `requestAnimationFrame`
+never fires. Force a paint (screenshot) before every DOM geometry read.
+
+## Axis experiment — CLOSED as LWC tick density
+
+Short pane (46px) and tall pane (337px) BOTH render `.00` labels; only the tick
+INTERVAL differs (40 units vs 10), and the current-price tag reads 704.54. The
+formatter is correct; no precision change made.
+
+## NEW FINDING (not a blocker, not fixed): `placement.position` is DEAD STATE
+
+`setInstancePanePosition` writes `placement.position: 'above'`, `instances.js`
+validates it and it persists — and NOTHING READS IT. Grepped the whole tree: the
+only pane-context occurrences are the writer and its own comment, whose header
+claims the position "IS ENFORCED". Measured in the browser: `pos=above` was
+stored and the pane did not move. Its only caller is the DEV HARNESS; no product
+UI reaches it, and the real reorder path is `paneOrder` via Chart Data's
+`movePane`/`movePaneTo`, which works. Left alone deliberately — wiring or
+removing it is a product decision outside this pass.
+
+## Bite-checks (one found a gap in my OWN rail)
+
+· removing `applyPaneSizes` from `paneStretchPlan` -> 4 paneSizes rails RED.
+· disabling `includeKeys` in `orderedPaneKeys` -> all eight matrix states stayed
+  GREEN, because `dataSeries` DECLARES 'pane' and is eligible through the
+  declared half. The resolved half only carries weight for a PRICE-declared
+  definition, so a moving-average-moved-to-its-own-pane case was added; that one
+  now goes red when the clause is removed.
+
+## Deploy hazard hit and avoided
+
+`origin/master` had moved 15 commits ahead. `git diff origin/master..HEAD` showed
+11 files as DELETIONS — breadth sampler tooling/tests and joystick docs, i.e.
+partner work, breadth being explicitly DO-NOT-TOUCH. They were never deleted;
+that is what diffing a stale branch tip against a moved origin looks like.
+Merged first (zero file overlap, no conflicts), re-ran suite + build, then pushed.
+ALWAYS `git fetch` and check `HEAD..origin/master` before concluding anything
+from a diff against origin.
+
+## Not exhaustively proven
+
+The eight-state matrix and cold reconstruction are proven at the CANONICAL layer
+(grouping == resolved order, ids/sources/targetExplicit/sizes) by
+`paneMatrix8State.test.js`, plus a substantial browser subset — not an exhaustive
+physical 8-state browser sweep. Drawing geometry and the legend invariant rest on
+their existing rails, which are green, not on a fresh browser pass this phase.
+
 # TRACK A — DISPLAY TARGET PROVENANCE (OPTION 1) — DONE LOCALLY 2026-09-15
 
 HEAD b28dfd568. Tree clean. NOT DEPLOYED, NOT PUSHED.
