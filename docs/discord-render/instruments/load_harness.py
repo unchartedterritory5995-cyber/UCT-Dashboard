@@ -1356,8 +1356,13 @@ def self_check() -> int:
     _census = _repo_root() / "docs" / "discord-render" / "evidence" / "arrivals-30d.json"
     if _census.exists():
         _p = {m: burst_profile(m, _census) for m in BURST_MODES}
-        cases.append(("the three burst modes derive three DIFFERENT rates",
-                      len({_p[m]["arrival_rate"] for m in BURST_MODES}) == 3))
+        # ⛔ DERIVED FROM `BURST_MODES`, NOT THE NUMBER THREE. This case read `== 3` and went red the
+        # moment a fourth tier was added — a hand-typed count beside the list it describes, which is
+        # the defect this repository has paid for in a nav table, a router's route count and a
+        # writer index. ⭐ The mutation harness found it by REFUSING to mutate on a non-green
+        # control, which is the rail catching a latent break nobody had run into yet.
+        cases.append((f"all {len(BURST_MODES)} burst modes derive DIFFERENT rates",
+                      len({_p[m]["arrival_rate"] for m in BURST_MODES}) == len(BURST_MODES)))
         cases.append(("the design burst is the multiple times the busiest 10 s",
                       abs(_p[BURST_DESIGN]["arrival_rate"]
                           - DESIGN_BURST_MULTIPLE * _p[BURST_10S]["arrival_rate"]) < 1e-9))
