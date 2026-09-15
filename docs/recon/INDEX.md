@@ -22,6 +22,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 3 | `2026-09-14-session3-cost-item3.md` | 2026-09-14 | ✅ tracked, here | Cost menu for the 9,733-segment corpus, the item-3 decision pack, ledger closed |
 | 4 | `2026-09-14-session4-rulings-build.md` | 2026-09-14 | ✅ tracked, here | Session-3 rulings applied, gate persistence (R12), item 3 built |
 | 5 | `2026-09-14-session5-q17-merge-dark.md` | 2026-09-14 | ✅ tracked, here | Q17 into the rail, item 3 merged, production measured dark 27/27 |
+| 6 | `2026-09-15-session6-master-sync-reconciler.md` | 2026-09-15 | ✅ tracked, here | 111 commits of master synced, item 2 reconciler built, RQ-v11-001 as review items; push and spend both blocked on the owner |
 
 ## Why report 1 is not tracked
 
@@ -45,7 +46,7 @@ no-reply rather than a member's, and the G-030 lines record that the ruling's ow
 held in the report. They are listed because the scan found them, not because they decided it.
 
 ⚠️ **No class A (transcript text) and no class D (position or share count) appeared in any of the
-five reports.**
+tracked reports.**
 
 ⭐ **The scan reported counts of CANDIDATES EXAMINED per class, not just hits**, so a zero is
 distinguishable from "did not look". Report 1's sweep examined 350 ticker-like tokens for class C
@@ -57,5 +58,6 @@ and rates.
 
 1 is the map. 2 repairs what 1 found. 3 prices the work and turns item 3 into a decision pack.
 4 applies the rulings and builds item 3. 5 rules on what 4 left open, merges it, and measures
-production. Each report's own QUESTIONS section carries the state of every open decision at that
+production. 6 syncs 111 commits of master, builds item 2's offline half and RQ-v11-001, and
+records the two things only the owner can unblock. Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.
