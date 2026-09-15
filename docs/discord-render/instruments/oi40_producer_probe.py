@@ -132,10 +132,18 @@ def fire_producer_3() -> dict:
             return {"producer": 3, "error": "ChartRequest not importable"}
         outcome, png, fn = di.produce_chart(
             req, {}, {}, bars_fn=lambda *a, **k: [], render_fn=lambda *a, **k: None)
-        # the mapping the V2 runtime applies, read from the call site rather than retyped
-        mapped = {"busy": "queue_full", "no_bars": "no_bars"}.get(outcome, "internal")
+        # ⛔⛔ THE MAPPING IS READ OUT OF `run_chart_job`'S SOURCE, NOT RETYPED. This line used to
+        # carry its own copy — `{"busy": "queue_full", …}` — and when OI-41 changed the real one to
+        # `deadline` that copy would have gone on asserting the old answer, green, for ever. A
+        # second authority over one value, in the probe whose whole job is to say what the product
+        # actually does.
+        import inspect
+        import re as _re
+        src = inspect.getsource(di.run_chart_job)
+        m = _re.search(r'\{"busy":\s*"([a-z_]+)",\s*"no_bars":\s*"([a-z_]+)"\}', src)
+        v2_busy_class = m.group(1) if m else "<mapping not found in source>"
         return {"producer": 3, "slots_taken": taken, "outcome": outcome,
-                "mapped_failure_class": mapped, "png": png, "filename": fn}
+                "v2_busy_class_from_source": v2_busy_class, "png": png, "filename": fn}
     finally:
         for _ in range(taken):
             sem.release()
@@ -168,14 +176,24 @@ def self_check(out=print) -> int:
     out(f"  producer 3: {p3}")
     cases.add("producer 3 (V1 render semaphore starved) returns outcome=busy",
               p3.get("outcome") == "busy")
-    cases.add("...and the V2 runtime maps that busy to failure_class=queue_full",
-              p3.get("mapped_failure_class") == "queue_full")
+    # ⭐ OI-41 CLOSED THIS HALF. Producer 3 still EXISTS — the V1 semaphore can still be starved, and
+    # `produce_chart` still answers `busy` — but it is now a **V1-only** member-facing event. A V2
+    # job reaching the same outcome is told `deadline`, which is true, instead of `queue_full`,
+    # which said a queue refused a job it had already admitted.
+    cases.add("producer 3 is now UNREACHABLE as an admission refusal from V2",
+              p3.get("v2_busy_class_from_source") == "deadline")
+    cases.add("...and the mapping was read from run_chart_job's SOURCE, not retyped here",
+              p3.get("v2_busy_class_from_source") not in ("<mapping not found in source>", None))
     cases.add("producer 3 actually starved the semaphore (non-vacuity)",
               (p3.get("slots_taken") or 0) > 0)
 
     # ⭐ THE CONCLUSION, ASSERTED: all three wear the same class and only one is a refusal.
     outcomes = {(p1["row"] or {}).get("outcome"), (p2["row"] or {}).get("outcome"), "busy"}
-    cases.add("all three wear failure_class=queue_full but write THREE different outcomes",
+    # ⚰️ THIS CASE READ "all three wear failure_class=queue_full" UNTIL OI-41. That was true when
+    # the probe was written and stopped being true when the fix landed — producer 3's V2 answer is
+    # `deadline` now. Left as a THREE-OUTCOMES check, which is the durable claim: one class, three
+    # producers, and the outcome is the only field that tells them apart.
+    cases.add("the three producers write THREE different outcomes — the field that tells them apart",
               len(outcomes) == 3)
     return 0 if cases.report(out) == 0 else 1
 

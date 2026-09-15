@@ -445,6 +445,27 @@ async def handle(interaction: dict, received: float) -> dict | None:
 
 # ── worker-side handlers ────────────────────────────────────────────────────
 
+#: OI-41. How long a V2 worker may wait for one of the SHARED V1 render slots.
+#:
+#: ⛔ BOUNDED BY THE JOB'S OWN REMAINING BUDGET, NEVER BY A CONSTANT. The deadline watchdog (§3.2)
+#: answers the member when the job's time runs out; a slot wait longer than that would hold a worker
+#: past the moment the member has already been told, which is the exact shape OI-21 recorded
+#: (`RENDER_TIMEOUT_S` 60 s behind a 15 s deadline).
+#:
+#: ⛔ AND A FLOOR OF ZERO, NOT A DEFAULT OF "PLENTY". When the context cannot say how much time is
+#: left, `_remaining` returns None on purpose — a guess here would silently restore the unbounded
+#: wait this bound exists to remove. No budget means no wait, i.e. exactly the old behaviour.
+_SLOT_WAIT_HEADROOM_S = 0.5
+
+
+def _slot_wait_for(ctx: JobContext) -> float:
+    try:
+        left = float(ctx.remaining_s())
+    except Exception:  # noqa: BLE001 — a render must never fail for want of a clock
+        return 0.0
+    return max(0.0, left - _SLOT_WAIT_HEADROOM_S)
+
+
 def _chart_kwargs(ctx: JobContext, guild_id: str) -> dict:
     """⛔ THE UPSTREAMS COME FROM ADAPTERS, NOT FROM THE ROUTER'S RAW FUNCTIONS (P2.1, §3.8).
 
@@ -463,7 +484,15 @@ def _chart_kwargs(ctx: JobContext, guild_id: str) -> dict:
                 house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
                 quote_fn=bindings.quote_fn(ctx),
                 context_fn=chart_context.context_line if chart_context.enabled() else None,
-                components_fn=functools.partial(di.chart_components, guild_id=guild_id), fail_fn=ctx.fail)
+                components_fn=functools.partial(di.chart_components, guild_id=guild_id), fail_fn=ctx.fail,
+                # ⛔⛔ OI-41. The V1 `RENDER_SLOTS` semaphore is SHARED with the pre-V2 path, and a V2
+                # job that has already been admitted by `runtime.offer`, queued, and started on a
+                # worker could lose a race for one — and was then told "we're at capacity right now",
+                # the ADMISSION refusal, about a queue it was already inside.
+                # ⭐ Waiting is the honest behaviour for a job that is already committed: the member
+                # is watching a deferred reply, not a spinner, and the wait is bounded by the job's
+                # OWN deadline, so nothing outlives the watchdog that answers them.
+                slot_wait_s=_slot_wait_for(ctx))
 
 
 def _multi_kwargs(ctx: JobContext) -> dict:
