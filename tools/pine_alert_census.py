@@ -75,8 +75,19 @@ assert len(AC.findall(_PROBE)) == 3, 'control: unstripped, all three must be vis
 assert len(AC.findall(strip_pine(_PROBE))) == 1, 'control: exactly ONE survives the strip'
 
 
+#: `message = "..."` / `title = "..."` — a NAMED argument. The name is not part of
+#: the value, and v1 of this function classified `message="Golden Cross"` as an
+#: EXPRESSION because it did not start with a quote. ⚰️ Caught while picking a
+#: specimen for d1: the "expression message" it found was a plain literal wearing its
+#: parameter name. The literal/expression split is exactly what decides d2's scope, so
+#: this would have shrunk d2 and grown d1 by however many named arguments the corpus
+#: writes.
+NAMED = re.compile(r'^[A-Za-z_]\w*\s*=(?!=)\s*')
+
+
 def shape_of(arg):
     a = (arg or '').strip()
+    a = NAMED.sub('', a).strip()
     if not a:
         return 'absent'
     if PLACEHOLDER.search(a):
