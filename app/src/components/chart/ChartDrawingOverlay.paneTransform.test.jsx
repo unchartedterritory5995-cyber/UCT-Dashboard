@@ -27,7 +27,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { createRef } from 'react'
 import ChartDrawingOverlay from './ChartDrawingOverlay'
-import { resolveZones, rectForKey, PRICE } from './drawingPanes'
+import { resolveZones, rectForKey, PRICE, VOLUME } from './drawingPanes'
 
 const bars = Array.from({ length: 12 }, (_, i) => ({
   t: `2026-09-${String(i + 1).padStart(2, '0')}`, o: 100, h: 110, l: 90, c: 100 + i, v: 1000,
@@ -193,6 +193,52 @@ describe('⚰️ BACKWARD — the data a pane drawing is valued from', () => {
     // pane1 sits at the very top; the candles start below both panes above them.
     expect(geom.zones.find((z) => z.key === 'pane1').y0).toBe(0)
     expect(rectForKey(geom, PRICE).y0).toBe(182)
+  })
+})
+
+describe('⭐⭐ the two directions are INVERSES, on the same pane', () => {
+  // ⚠️ THREE CONVERSIONS NOW MEET IN THIS FILE and they all hinge on ONE number:
+  //   · `paneValueAt`    pixel → value   (canvasY − paneTop)   [master]
+  //   · `paneYForValue`  value → pixel   (+ paneTop)           [master]
+  //   · `priceZoneTop`   the addend for Price's own placement  [Track A]
+  // If any of them read a DIFFERENT edge than the others, drawings drift by the
+  // height of whatever sits above the pane — which is exactly how both bugs
+  // looked. So the edge itself is asserted once, here, for every zone.
+  const geom = () => resolveZones({
+    width: 600, height: 400, axisWidth: 56, timeAxisHeight: 28,
+    paneHeights: [100, 80, 180], separatorHeight: 1, candlePaneIndex: 2,
+  })
+
+  it('⭐ every zone that IS a pane has paneTop === y0 — the round trip is exact', () => {
+    for (const z of geom().zones) {
+      expect(Number.isFinite(z.paneTop), `zone ${z.key} has no paneTop`).toBe(true)
+      // pixel → value → pixel, with the pane's own top on both sides
+      const probe = z.y0 + 10
+      const local = probe - z.paneTop
+      expect(local + z.paneTop).toBe(probe)
+    }
+  })
+
+  it('⛔⛔ a BAND volume zone subtracts the CANDLE top, not its own y0', () => {
+    // The one case where the two edges genuinely differ, and the reason master
+    // made `paneTop` a separate field. Getting this wrong offsets every volume
+    // reading by the height of the candles above it — in the DEFAULT layout.
+    const banded = resolveZones({
+      width: 600, height: 400, axisWidth: 56, timeAxisHeight: 28,
+      paneHeights: [300], separatorHeight: 1, candlePaneIndex: 0,
+      volumePaneIndex: null, volumeBandTop: 0.78,
+    })
+    const vol = banded.zones.find((z) => z.key === VOLUME)
+    expect(vol.y0, 'the band starts partway down the pane').toBeGreaterThan(0)
+    expect(vol.paneTop, 'the band must be valued from the PANE top, not its own').toBe(0)
+    expect(vol.paneTop).not.toBe(vol.y0)
+  })
+
+  it('⭐ and Track A reads the SAME edge master subtracts', () => {
+    // `priceZoneTop` inverts `priceToCoordinate`, so it must use the pane's top.
+    const price = rectForKey(geom(), PRICE)
+    expect(price.paneTop).toBe(182)
+    expect(price.paneTop).toBe(price.y0)   // equal for Price, in both layouts
   })
 })
 

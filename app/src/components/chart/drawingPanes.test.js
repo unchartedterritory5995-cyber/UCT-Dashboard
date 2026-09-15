@@ -255,6 +255,62 @@ describe('pane fractions — why a volume drawing stops sliding on a resize', ()
   })
 })
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐⭐ EVERY ZONE KNOWS THE PANE IT LIVES IN — the index, and the pane's TOP
+//
+// A price scale answers in coordinates measured from the top of its PANE. A
+// drawing is dropped in a ZONE. For most zones those are the same edge, which is
+// exactly why the one case where they differ is so easy to ship broken: the
+// volume BAND starts partway down pane 0 and its series still counts from the
+// top of the candles above it.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('paneIndex / paneTop — what a drawing must be valued against', () => {
+  const zone = (g, key) => g.zones.find((z) => z.key === key)
+
+  it('⛔ the BAND volume zone names pane 0 and the CANDLE top, not its own', () => {
+    const g = band()
+    const price = zone(g, PRICE)
+    const vol = zone(g, VOLUME)
+    expect(vol.paneIndex, 'the band volume claimed a pane of its own').toBe(price.paneIndex)
+    // The zone starts at the split; the PANE starts where the candles do.
+    expect(vol.y0, 'the band is not below the price zone any more').toBeGreaterThan(price.y0)
+    expect(vol.paneTop, 'subtracting the zone y0 would offset every volume '
+      + 'reading by the height of the candles above it — in the DEFAULT layout')
+      .toBe(price.y0)
+  })
+
+  it('⭐ a zone that IS a pane has paneTop === y0', () => {
+    for (const g of [separate(), noVolume(), resolveZones({ ...base, paneHeights: [300, 80, 80] })]) {
+      for (const z of g.zones) {
+        if (z.key === VOLUME && z.paneIndex === zone(g, PRICE).paneIndex) continue  // the band case above
+        expect(z.paneTop, `${z.key} lost its pane top`).toBe(z.y0)
+      }
+    }
+  })
+
+  it('⛔ the separate-pane volume gets its OWN pane index', () => {
+    const g = separate()
+    expect(zone(g, VOLUME).paneIndex).toBe(1)
+    expect(zone(g, PRICE).paneIndex).toBe(0)
+  })
+
+  it('⭐ the oscillator panes are numbered in render order', () => {
+    const g = resolveZones({ ...base, paneHeights: [300, 80, 80], volumePaneIndex: 1 })
+    expect(g.zones.map((z) => [z.key, z.paneIndex]))
+      .toEqual([[PRICE, 0], [VOLUME, 1], ['pane1', 2]])
+  })
+
+  it('⛔ even the degraded single-zone answer carries one', () => {
+    // No usable pane measurements — the fallback every drawing lands in. It has
+    // to name a pane too, or a drawing made during that window can never be
+    // valued at all.
+    const g = resolveZones({ ...base, paneHeights: [] })
+    expect(g.zones).toHaveLength(1)
+    expect(g.zones[0].paneIndex).toBe(0)
+    expect(g.zones[0].paneTop).toBe(0)
+  })
+})
+
 // ─── PRICE IS NOT ALWAYS THE FIRST PANE ─────────────────────────────
 //
 // ⚰️⚰️ `ChartDrawingOverlay.toPixel` TAKES `series.priceToCoordinate(price)`,

@@ -349,6 +349,27 @@ describe('the seven Model Book / surface override props still reach their decisi
       .toContain("if (!zone || zone.key === PRICE) return priceText")
   })
 
+  it('⭐⭐ "Set level" READS AND WRITES IN THE PANE THE LINE IS IN', () => {
+    // ⚰️ THE REPORT (owner, 2026-09-14): a line at 105 on a breadth pane opened
+    // its level box prefilled `590.068` — SPY's price at that pixel — and typing
+    // a number moved nothing, because the write set `price` while a pane drawing
+    // is anchored by `paneY`. Both halves, one mistake: the price pane was the
+    // only scale anything asked.
+    const block = near('const ctxRect = rectForDrawing(d, paneGeom())', 2600)
+    // IN: the prefill is the value that pane's axis shows where the line IS —
+    // the same derivation the label prints, so the box and the tag agree.
+    expect(block).toContain('paneValueAt(ctxRect, ctxPts[leftIdx]?.y)')
+    // OUT: the typed number becomes a `paneY` fraction of that zone.
+    expect(block).toContain('paneYForValue(ctxRect, value)')
+    expect(block).toContain('toPaneFraction(ctxRect, y)')
+    expect(block).toContain('paneY: frac, paneRelY: null')
+    // ⛔ AND THE PRICE PANE IS UNCHANGED — same write it always did.
+    expect(block).toContain('price: value, paneRelY: null')
+    // ⛔ ONE OPERATION, TWO DOORS. "Make horizontal" is "set level" with the
+    // left anchor as the source, so the two cannot disagree about where a line is.
+    expect(near('onMakeHorizontal={', 200)).toContain('flattenTo(leftLevel)')
+  })
+
   it('resetting a Fib removes overrides and touches nothing else', () => {
     expect(SRC).toContain('updateDrawing(ctxMenu.drawingId, { ...RESET_FIB_STYLE })')
   })

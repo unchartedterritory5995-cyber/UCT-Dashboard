@@ -647,7 +647,17 @@ export default function ChartDrawingOverlay({
   const priceZoneTop = useCallback(() => {
     try {
       const r = rectForKey(paneGeomRef.current || measurePanes(), PRICE)
-      return r && Number.isFinite(r.y0) ? r.y0 : 0
+      if (!r) return 0
+      // ⭐ `paneTop`, NOT `y0`, AND THE TWO ARE NOT SYNONYMS. A price scale
+      // answers in coordinates measured from the top of its PANE; `y0` is the top
+      // of the ZONE a drawing was dropped in. For the price zone they are the
+      // same edge in both volume layouts — but this offset INVERTS
+      // `priceToCoordinate`, so the pane's top is the number it actually means,
+      // and it is the same field `paneValueAt` subtracts going the other way.
+      // Reading the semantically exact one is what keeps the two directions
+      // provably inverse instead of coincidentally equal.
+      if (Number.isFinite(r.paneTop)) return r.paneTop
+      return Number.isFinite(r.y0) ? r.y0 : 0
     } catch { return 0 }
   }, [measurePanes])
 
@@ -686,22 +696,34 @@ export default function ChartDrawingOverlay({
   /**
    * A canvas y → the value THAT PANE's own axis shows there, or null.
    *
-   * ⛔ THE COORDINATE IS PANE-RELATIVE. `coordinateToPrice` is a question for the
-   * series' own pane, so a canvas y has to lose the pane's top edge first —
-   * measured in-browser on a three-pane chart, because getting it wrong is not a
-   * crash but a plausible-looking number, which is the same failure this whole
-   * function exists to end.
+   * ⛔⛔ THE COORDINATE IS RELATIVE TO THE PANE, NOT TO THE ZONE, and the two are
+   * different numbers in the DEFAULT layout: the volume BAND is a zone that
+   * starts partway down the candle pane, and its series' scale still counts from
+   * the top of that pane. `zone.paneTop` is the one to subtract — measured
+   * in-browser, because getting it wrong is not a crash but a plausible-looking
+   * number, which is the failure this whole function exists to end.
    */
   const paneValueAt = useCallback((zone, canvasY) => {
     if (!zone || !Number.isFinite(canvasY)) return null
     const series = seriesForZone(zone)
     if (!series) return null
-    const y = zone.key === VOLUME && !Number.isInteger(zone.paneIndex)
-      ? canvasY
-      : canvasY - (zone.y0 || 0)
+    const top = Number.isFinite(zone.paneTop) ? zone.paneTop : (zone.y0 || 0)
     let v = null
-    try { v = series.coordinateToPrice(y) } catch { v = null }
+    try { v = series.coordinateToPrice(canvasY - top) } catch { v = null }
     return Number.isFinite(v) ? v : null
+  }, [seriesForZone])
+
+  /** …and back: a value on that pane's axis → the CANVAS y it sits at, or null.
+   *  The inverse of `paneValueAt`, and it exists because "Set level" has to be
+   *  able to put a line at a number the member typed IN THAT PANE. */
+  const paneYForValue = useCallback((zone, value) => {
+    if (!zone || !Number.isFinite(value)) return null
+    const series = seriesForZone(zone)
+    if (!series) return null
+    const top = Number.isFinite(zone.paneTop) ? zone.paneTop : (zone.y0 || 0)
+    let c = null
+    try { c = series.priceToCoordinate(value) } catch { c = null }
+    return Number.isFinite(c) ? c + top : null
   }, [seriesForZone])
 
   /** The zones the last paint used; measured on demand if a pointer arrives first. */
@@ -3095,7 +3117,49 @@ export default function ChartDrawingOverlay({
           return li
         }
         const pts = d.points || []
-        const leftLevel = pts.length ? pts[leftIndexOf(pts)]?.price ?? null : null
+        // ⭐⭐ "SET LEVEL" SPEAKS THE PANE'S OWN NUMBERS, in and out.
+        //
+        // ⚰️ THE REPORT (owner, 2026-09-14, with a screenshot): a line sitting at
+        // 105 on a breadth pane opened its level box prefilled `590.068` — SPY's
+        // price at that pixel — and typing a number moved nothing, because the
+        // write set `price` while a pane drawing is anchored by `paneY`. Both
+        // halves were the same mistake as the label: the price pane was the only
+        // scale anything asked.
+        const ctxRect = rectForDrawing(d, paneGeom())
+        const inPane = !!ctxRect && ctxRect.key !== PRICE && !!seriesForZone(ctxRect)
+        const ctxPts = inPane ? resolvePixels(pts, ctxRect) : null
+        const leftIdx = pts.length ? leftIndexOf(pts) : -1
+        const leftLevel = leftIdx < 0
+          ? null
+          : (inPane
+            // The value that pane's axis shows where the line actually is — the
+            // same derivation the label prints, so the box and the tag agree.
+            ? paneValueAt(ctxRect, ctxPts[leftIdx]?.y) ?? (pts[leftIdx]?.price ?? null)
+            : (pts[leftIdx]?.price ?? null))
+        /** Flatten every point of a drawing onto ONE level, expressed in whatever
+         *  scale the drawing's pane uses. Shared by "Set level" and "Make
+         *  horizontal", which are the same operation with different sources. */
+        const flattenTo = (value) => {
+          if (!pts.length || !Number.isFinite(value)) return
+          if (inPane) {
+            const y = paneYForValue(ctxRect, value)
+            if (y == null) return
+            const frac = toPaneFraction(ctxRect, y)
+            if (frac == null) return
+            // ⛔ `paneY` IS WHAT MOVES IT, and `paneRelY` is cleared with it: the
+            // legacy canvas-fraction field wins nothing here and would fight the
+            // new anchor on the next paint. The stored `price` is left alone —
+            // it is not read while `paneY` exists, and a pane number written into
+            // the field the PRICE pane reads back would be the original bug
+            // wearing the other hat.
+            updateDrawing(ctxMenu.drawingId,
+              { points: pts.map(p => ({ ...p, paneY: frac, paneRelY: null })) })
+          } else {
+            updateDrawing(ctxMenu.drawingId,
+              { points: pts.map(p => ({ ...p, price: value, paneRelY: null })) })
+          }
+          setCtxMenu(null)
+        }
         return (
           <DrawingContextMenu
             x={ctxMenu.x}
@@ -3104,20 +3168,13 @@ export default function ChartDrawingOverlay({
             drawing={d}
             onSetAlert={onSetAlert ? ((direction, opts) => { onSetAlert(d, direction, opts); setCtxMenu(null) }) : null}
             currentLevel={leftLevel}
-            onSetLevel={(price) => {
-              // Flatten the whole line onto the typed price — a clean horizontal
-              // level at exactly the value you want. Clear paneRelY so points
-              // re-anchor to the price scale (not a below-pane fraction).
-              if (!pts.length) return
-              updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price, paneRelY: null })) })
-              setCtxMenu(null)
-            }}
-            onMakeHorizontal={() => {
-              // Snap every point to the left/starting point's current price.
-              if (pts.length < 2 || leftLevel == null) return
-              updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price: leftLevel, paneRelY: null })) })
-              setCtxMenu(null)
-            }}
+            // Flatten the whole line onto the typed level — a clean horizontal
+            // line at exactly the value you asked for, in this pane's numbers.
+            onSetLevel={(value) => flattenTo(value)}
+            // Snap every point to the left/starting point's current level. Same
+            // operation, and it reads the same pane-aware `leftLevel` the box
+            // prefills with, so the two cannot disagree about where the line is.
+            onMakeHorizontal={() => { if (pts.length >= 2) flattenTo(leftLevel) }}
             onSetColor={(c) => updateDrawing(ctxMenu.drawingId, d.type === 'advance' ? { labelColor: c } : { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
