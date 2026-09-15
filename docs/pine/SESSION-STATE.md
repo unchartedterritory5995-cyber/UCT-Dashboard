@@ -2,7 +2,34 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **item (d) — `alertSets`, census.** (c) is as closed as it can be.
+> ### ⛔ NEXT: **the owner's ruling on item (d).** The census is done.
+>
+> ⛔⛔ **(d)'s headline is that the engine does TWO THINGS SILENTLY** — and silence is
+> the one thing its own standing rule forbids. An `alertcondition`'s **message is
+> dropped entirely** (489 of 555 carry one — literal, `{{placeholder}}` and
+> expression alike; no `message` key, the string appears nowhere in the result, no
+> refusal, no note), and **`alert()` is dropped whole** (191 uses, 46 files:
+> `ok=true`, no output, no refusal, no note).
+>
+> ⭐ **The carriage question has a good answer already built:** a `title` rides as a
+> **presentation field on the output**, like a plot's — so `str`'s textop-only
+> parentage is never engaged and **no 12th node type is implied**. A message can
+> ride the same way.
+>
+> ⭐ **"alertSets" is a real pattern:** only 8 of 120 files carry one
+> alertcondition; **112 carry 2+**, **53** share a signal family (184
+> alertconditions), tail out to 38 in one file; **26 scripts have no plot at all**
+> — D1 territory, where the host lane selects **-1**.
+>
+> ⚠️ **I did not propose a build.** Three of the four over-threshold rows are one
+> defect in different clothes — *something the member wrote is dropped without a
+> word* — which is a refusal-and-carriage job, not an "alertSets" feature. Priced
+> for a ruling: **(d1) make the two silences speak, 45 min** · **(d2) a literal
+> message rides the title's carriage, 40 min** · **(d3) sets as a first-class
+> offer — not estimable until the owner says what a pane does with one.**
+>
+> ✅ **(c) is as closed as it can be** — definition-lane half CLOSED (R18); IR half
+> **BLOCKED-BY-ITS-OWN-GAP**, no estimate, **H.6** opened.
 >
 > ✅ **(c)'s definition-lane half CLOSED (R18).** ⛔ **Its IR half is
 > BLOCKED-BY-ITS-OWN-GAP** and **no estimate is offered**: `EXPR.TUPLE` is declared

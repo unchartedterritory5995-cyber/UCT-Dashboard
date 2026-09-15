@@ -1528,6 +1528,86 @@ once ruled.**
 
 ---
 
+# ⭐⭐ ITEM (d) — `alertSets`. DEFINED BY MEASUREMENT.
+
+**Instrument `86b0e3241`**, 328 scripts. **Control:** `uncharted-volume-v2` carries
+exactly **1** alertcondition, which **D1** pins at index 4 — re-derived, exits non-zero
+otherwise.
+
+## D1, verbatim from its site
+
+> *"⛔⛔ **THE TWO LANES DISAGREED ABOUT WHAT AN `alertcondition` IS, AND THE HOST LANE
+> HAD THE WRONG ANSWER.** `chooseOutput` PREFERRED it over every plot — "an
+> alertcondition IS a condition by construction, so it wins" — while `buildRuntimeIr`
+> classified it as PRESENTATION and emitted no series for it. So the output a pane
+> selected was exactly the one the runtime lane has nothing to draw."*
+
+**Measured live:** an alertcondition-only script gives screener `selected = 0` and host
+`selected = **-1**` — the pane selects nothing, exactly as D1 rules. On v2, host
+`selected = 0` ("Volume"), not the alertcondition at index 4.
+
+## d.1 / d.2 — what the engine does, and the answer to the carriage question
+
+| form | today |
+|---|---|
+| `alertcondition(cond, title, message)` | ✅ an **output**, `kind: 'alertcondition'` |
+| its **`title`** | ✅ **carried as a FIELD on the output**, exactly like a plot's |
+| its **`message`** | ⛔ **DROPPED ENTIRELY** — no `message` key; the string appears **nowhere** in the result, for a literal, a `{{placeholder}}` **and** an expression alike. No refusal, no note |
+| `alert(message, freq)` — the runtime form | ⛔ **SILENTLY DROPPED**. `ok=true`, no output, no refusal, no note |
+
+⭐⭐ **THE d.2 ADMISSIBILITY QUESTION HAS A GOOD ANSWER AND IT IS ALREADY BUILT.** A
+title is **presentation metadata on the output**, not a `str` node in the tree — so
+`str`'s textop-only parentage (`assertCanonical`) is never engaged and **no 12th node
+type is implied**. Whatever (d) becomes, a message can ride the same way.
+
+⛔⛔ **BOTH GAPS ARE SILENT, AND THAT IS THE FINDING.** This engine's standing rule is
+that a construct it cannot carry is **refused by name or noted — never dropped**. These
+two are dropped. A member writes an alert message and the engine neither carries it nor
+says it didn't.
+
+## d.3 / d.4 — the table
+
+| form | uses | files | vs ~20 | binding constraint |
+|---|---|---|---|---|
+| `alertcondition` itself | **555** | 120 | far over — **already handled** | it is an output today; nothing to build |
+| its **message** | **489** present (183 literal · 157 expression · 149 placeholder) | — | **far over** | ⛔ silently dropped. A literal could ride the title's own carriage; a `{{placeholder}}` and an expression are a **textop** question |
+| its title | 555 (277 literal · 274 expression · 4 placeholder) | — | handled | ⚠️ **274 are expressions** — carried today, but whether the *printed* title matches the author's is unmeasured |
+| `alert()` runtime form | **191** | 46 | **far over** | silently dropped; a per-bar side effect, so plausibly the **IR lane's** — ⛔ and the IR lane is blocked (see (c) above) |
+| **sets** — 2+ sharing a signal family | **184** in **53 files** | — | **far over** | what a *set* means per surface |
+| alertcondition as the **only** output | **26 scripts** | — | over | **D1 territory**: host `selected = -1` |
+
+## ⭐ WHAT "alertSets" MEASURED AS
+
+**It is a real pattern, not a phrase.** Only **8 of 120** files carry exactly one
+alertcondition; **112 carry two or more**, and **53 have two or more built from a shared
+condition family** (one signal, several thresholds or directions). The distribution has
+a long tail — single files with 17, 29 and **38** alertconditions.
+
+⛔ **So the question (d) actually poses is per surface, and the two answers differ:**
+- **the screener** already offers each alertcondition as its own column, and selects the
+  first — correct for a scan, where *"when is this true"* is the question;
+- **the pane** selects none of them (D1), so a set of 38 is, to a pane, **38 outputs it
+  will never choose** — which is right, and says nothing yet about whether it should
+  *draw* them as markers.
+
+## ⛔ STOP — awaiting the owner's go. Nothing built.
+
+⚠️ **I am not proposing a build, and the reason is a scope judgement the owner should
+make rather than me.** Three of the four over-threshold rows are the same defect wearing
+different clothes — **something a member wrote is dropped without a word** — and fixing
+that is a *refusal-and-carriage* job, not an "alertSets" feature. The fourth (what a set
+means to a pane) is a **product** question D1 already half-answered.
+
+**Estimates, so a ruling can be priced:**
+
+| | |
+|---|---|
+| **(d1) the two silences speak** — `alert()` and a dropped message refuse or note by name, carrying their numbers | **45 min** |
+| **(d2) a literal message rides the title's carriage** — presentation field, no node type | **40 min** |
+| **(d3) sets as a first-class offer** — needs the owner's answer on what a pane does with one | **not estimable until ruled** |
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
