@@ -128,6 +128,25 @@ def push_with_retry(branch="ci-results", runner=None, sleep=time.sleep,
     return FAIL, log
 
 
+def annotation(rc, log) -> str:
+    """The whole push trace as ONE workflow annotation line.
+
+    ⛔⛔ **E CP15 — THE TRACE WENT TO STDOUT, WHICH IS 403 TO A READER WITH NO ACCOUNT.**
+    E CP14 made the publish step name its failing *command* in the annotations channel —
+    measured to answer anonymously — and run #12 duly reported
+    `python "/tmp/ci_publish.py" --branch ci-results (exit 1)`. That names the command and
+    **not which of three branches it took**: UPSTREAM-UNREADABLE, REBASE CONFLICT, or
+    attempts exhausted. Those lines existed all along, in the one place nobody can read.
+
+    ⭐ ONE annotation, not one per line: GitHub caps annotations per step, and a trace
+    truncated at the cap loses its tail — which is exactly where the verdict is. `%0A` is
+    the workflow-command newline escape, so this renders multi-line inside a single
+    annotation and cannot be clipped by the cap.
+    """
+    flat = "%0A".join(str(l).replace("\r", " ").replace("\n", " ") for l in log)
+    return "::%s title=ci-publish::%s" % ("error" if rc else "notice", flat)
+
+
 def write_step_summary(text, path=None):
     """⛔ Written BEFORE the push is attempted, unconditionally.
 
@@ -225,6 +244,22 @@ def _self_check() -> int:
          set(l.split(":")[-1] for l in log if "⛔" in l)
          != set(l.split(":")[-1] for l in log_u if "⛔" in l), True)
 
+    # 4c — ⛔ E CP15: the trace must leave through the channel a stranger can read.
+    rc_c, log_c = push_with_retry(runner=conflict_runner, sleep=lambda s: None)
+    ann_c = annotation(rc_c, log_c)
+    rc_ok, log_ok = push_with_retry(runner=make_runner([0]), sleep=lambda s: None)
+    ann_ok = annotation(rc_ok, log_ok)
+    show("a failure annotates at ERROR level", ann_c.startswith("::error "), True)
+    show("a success annotates at NOTICE level", ann_ok.startswith("::notice "), True)
+    show("the annotation is ONE line (the per-step cap cannot clip it)",
+         len(ann_c.splitlines()), 1)
+    show("...and it carries the VERDICT line, not just the first attempt",
+         "REBASE CONFLICT" in ann_c, True)
+    show("...and every log line survives into it",
+         ann_c.count("%0A"), len(log_c) - 1)
+    # ⛔ NON-VACUITY: the two levels must actually differ, or the check proves nothing.
+    show("error and notice are distinguishable", ann_c[:9] != ann_ok[:9], True)
+
     # 5 — ⚰️ E CP13: THIS SCRIPT MUST STILL EXIST WHEN IT IS CALLED.
     # `ci-results` carries README.md + results/** and no `tools/` at all, so
     # `git checkout ci-results` deletes this file from the working tree. E CP9 added
@@ -293,6 +328,7 @@ def main(argv=None) -> int:
     rc, log = push_with_retry(a.branch)
     for l in log:
         print("[ci-publish] " + l)
+    print(annotation(rc, log))
     return rc
 
 
