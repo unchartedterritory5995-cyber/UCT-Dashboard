@@ -281,3 +281,64 @@ def test_the_daily_entry_point_is_a_no_op_without_enough_runs(tmp_path):
     _write_run(tmp_path, "r1", [_row("seg-1", "CALL", ident="NVDA", record_id="a")])
     out = reconcile.score_silently(object(), root=tmp_path)
     assert out["runs"] == 1 and "need" in out["skipped"]
+
+
+# ── R30: the MARKET_SIGNAL rename audit ──────────────────────────────────────
+
+def _sig(segment_id, key_ident, name, record_id):
+    row = _row(segment_id, "MARKET_SIGNAL", ident=key_ident, record_id=record_id)
+    row["fields"] = {"market_signal": {"name": name}}
+    return row
+
+
+def test_SYNTHETIC_a_renamed_signal_is_flagged_as_a_suspected_rename(tmp_path):
+    """⛔ THE RISK R30 ACCEPTS. Two keys, different runs, near-identical names: under the
+    name-based key they score 1/2 each instead of one scoring 2/2."""
+    _write_run(tmp_path, "r1", [_sig("seg-1", "choppy-tape-today", "choppy tape today", "a")])
+    _write_run(tmp_path, "r2", [_sig("seg-1", "choppy-tape", "choppy tape", "b")])
+    out = reconcile.audit_market_signal_renames(_load(tmp_path, ["r1", "r2"]))
+    assert out["market_signal_keys"] == 2
+    assert out["suspected_renames"] == 1
+    assert out["share_of_keys"] == 0.5
+    ex = out["examples"][0]
+    assert ex["segment_id"] == "seg-1" and ex["would_become"] == "2/2"
+    assert ex["jaccard"] >= reconcile.RENAME_JACCARD
+    # ⛔ keys only — the audit must never hand back the name text it measured on
+    blob = repr(out)
+    assert "choppy tape" not in blob, "a name leaked into the audit output"
+
+
+def test_two_genuinely_different_signals_are_not_flagged(tmp_path):
+    """Non-vacuity: the audit must be able to say NO, or its yes means nothing."""
+    _write_run(tmp_path, "r1", [_sig("seg-1", "breadth-thrust", "breadth thrust", "a")])
+    _write_run(tmp_path, "r2", [_sig("seg-1", "rates-backdrop", "rates backdrop", "b")])
+    out = reconcile.audit_market_signal_renames(_load(tmp_path, ["r1", "r2"]))
+    assert out["market_signal_keys"] == 2 and out["suspected_renames"] == 0
+
+
+def test_two_signals_in_the_SAME_run_are_never_a_rename(tmp_path):
+    """⛔ If both keys appear in one run the extractor emitted BOTH — that is two signals, not a
+    rename, however similar the names."""
+    rows = [_sig("seg-1", "choppy-tape-a", "choppy tape a", "a"),
+            _sig("seg-1", "choppy-tape-b", "choppy tape b", "b")]
+    _write_run(tmp_path, "r1", rows)
+    _write_run(tmp_path, "r2", rows)
+    out = reconcile.audit_market_signal_renames(_load(tmp_path, ["r1", "r2"]))
+    assert out["suspected_renames"] == 0
+
+
+def test_the_audit_reads_only_MARKET_SIGNAL(tmp_path):
+    _write_run(tmp_path, "r1", [_row("seg-1", "PRINCIPLE", ident="size-down", record_id="a")])
+    _write_run(tmp_path, "r2", [_row("seg-1", "PRINCIPLE", ident="size-down-2", record_id="b")])
+    out = reconcile.audit_market_signal_renames(_load(tmp_path, ["r1", "r2"]))
+    assert out["market_signal_keys"] == 0 and out["suspected_renames"] == 0
+
+
+def test_a_missing_name_field_does_not_crash_the_audit(tmp_path):
+    """A run persisted before the fields were carried must degrade, not raise."""
+    a = _row("seg-1", "MARKET_SIGNAL", ident="x", record_id="a")
+    b = _row("seg-1", "MARKET_SIGNAL", ident="y", record_id="b")
+    _write_run(tmp_path, "r1", [a])
+    _write_run(tmp_path, "r2", [b])
+    out = reconcile.audit_market_signal_renames(_load(tmp_path, ["r1", "r2"]))
+    assert out["suspected_renames"] == 0, "no tokens means no evidence, not a guess"

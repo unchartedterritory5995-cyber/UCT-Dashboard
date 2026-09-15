@@ -18,12 +18,22 @@ class of confound as E5 — two runs scored under different rules cannot be comp
 reconciler that silently averaged them would manufacture a stability number nobody could defend.
 Both mismatches REFUSE, naming what differs.
 
-⚠️ **MARKET_SIGNAL's identity is the newest and the least settled.** Session 3 recorded that
-MARKET_SIGNAL has no id anywhere in the schema — it lives only as `wisdom_records.market_signal_json`
-— so its key here is `(type, normalize_quote_key(name))`, the tuple session 4's persistence
-adopted. **That is the first stable id MARKET_SIGNAL has had**, and it is name-based: a signal
-renamed between runs reads as two different signals and scores 1/N twice instead of 2/N once.
-Recorded as a question rather than presented as settled.
+⚠️⚠️ **MARKET_SIGNAL's identity is PROVISIONAL — owner ruling R30: ACCEPT_AUDIT, 2026-09-15.**
+
+Session 3 recorded that MARKET_SIGNAL has no id anywhere in the schema — it lives only as
+`wisdom_records.market_signal_json` — so its key here is `(type, normalize_quote_key(name))`, the
+tuple session 4's persistence adopted. **That is the first stable id MARKET_SIGNAL has ever had**,
+and it is **name-based**: a signal renamed between runs reads as two different signals and scores
+**1/N twice instead of 2/N once**, understating stability.
+
+⭐ **The ruling accepts it for this measurement and requires an audit beside it** (see
+`audit_market_signal_renames` below), because the cost of being wrong is bounded and recoverable:
+the runs persist **raw records**, so the reconciler can be re-run offline under a different key
+for **$0.00**. Nothing about choosing this key now forecloses choosing another later — which is
+exactly why it was safe to accept rather than block the run.
+
+⛔ The audit measures the suspicion; it does not resolve it. A suspected rename is reported by
+segment id and KEY, never by name text.
 
 ⛔ **Writers touch COLUMNS ONLY.** `stability` and `stability_runs` are written by `record_id` and
 by `principle_key`; nothing that feeds `writer._canonical_hash` is read or written, so
@@ -240,3 +250,77 @@ def score_silently(ctx, *, root=DEFAULT_ROOT) -> dict:
     write_report(root, result, extra={"written": written})
     return {"n": result["n"], "run_ids": result["run_ids"], "keys": len(result["scores"]),
             "by_type": histogram(result), **written}
+
+
+# ── R30: the MARKET_SIGNAL rename audit ──────────────────────────────────────
+
+#: Two names this similar, in the same segment, that did NOT match by key are a suspected rename.
+RENAME_JACCARD = 0.5
+
+
+def _name_tokens(row: dict) -> frozenset:
+    """Tokens of a MARKET_SIGNAL's name. ⛔ Used only to MEASURE suspicion; never reported."""
+    import re
+
+    fields = row.get("fields") or {}
+    signal = fields.get("market_signal") if isinstance(fields, dict) else None
+    name = (signal or {}).get("name") if isinstance(signal, dict) else None
+    return frozenset(t for t in re.findall(r"[a-z0-9]+", str(name or "").lower()) if len(t) > 2)
+
+
+def audit_market_signal_renames(runs: list, *, threshold: float = RENAME_JACCARD) -> dict:
+    """How much of MARKET_SIGNAL's instability is a RENAME rather than a disagreement?
+
+    ⛔⛔ THE QUESTION THIS ANSWERS. The key is `normalize_quote_key(name)`, so a signal the
+    extractor names slightly differently on a second pass becomes two identities scoring 1/N each
+    instead of one scoring 2/N. That understates stability, and under Q17 an understated stability
+    BLOCKS a record that should publish — the error runs in the fail-closed direction, which is
+    safe but not free.
+
+    For each segment, every pair of MARKET_SIGNAL keys that did NOT match and whose name tokens
+    share at least `threshold` Jaccard is reported as a suspected rename.
+
+    ⛔ Reported by SEGMENT ID and KEY only. The names themselves are never returned — they are
+    extracted text, and the whole point of the key is that it is the publishable identity.
+
+    ⚠️ It measures suspicion, not truth. Two genuinely different signals can share vocabulary;
+    a real rename can share none. The number is a prompt for a decision, not the decision.
+    """
+    by_segment: dict = {}
+    for run in runs:
+        for row in run["rows"]:
+            if row.get("record_type") != "MARKET_SIGNAL":
+                continue
+            seg = row.get("segment_id")
+            key = tuple(row.get("market_signal_key") or row.get("record_key") or ())
+            slot = by_segment.setdefault(seg, {})
+            entry = slot.setdefault(key, {"runs": set(), "tokens": frozenset()})
+            entry["runs"].add(run["run_id"])
+            entry["tokens"] = entry["tokens"] | _name_tokens(row)
+
+    n = len(runs)
+    suspected, total_keys = [], 0
+    for seg, keys in sorted(by_segment.items(), key=lambda kv: str(kv[0])):
+        total_keys += len(keys)
+        items = sorted(keys.items(), key=lambda kv: str(kv[0]))
+        for i, (key_a, a) in enumerate(items):
+            for key_b, b in items[i + 1:]:
+                if a["runs"] & b["runs"]:
+                    continue          # both in the same run: two real signals, not a rename
+                union = a["tokens"] | b["tokens"]
+                if not union:
+                    continue
+                jac = len(a["tokens"] & b["tokens"]) / len(union)
+                if jac >= threshold:
+                    suspected.append({
+                        "segment_id": seg,
+                        "key_a": list(key_a), "key_b": list(key_b),
+                        "jaccard": round(jac, 3),
+                        "runs_a": sorted(a["runs"]), "runs_b": sorted(b["runs"]),
+                        "combined_runs": len(a["runs"] | b["runs"]),
+                        "would_become": f"{len(a['runs'] | b['runs'])}/{n}",
+                    })
+    share = (len(suspected) / total_keys) if total_keys else 0.0
+    return {"threshold": threshold, "n": n, "market_signal_keys": total_keys,
+            "suspected_renames": len(suspected), "share_of_keys": round(share, 4),
+            "examples": suspected[:20]}

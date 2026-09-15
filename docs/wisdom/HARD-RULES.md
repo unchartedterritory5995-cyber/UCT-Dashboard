@@ -97,3 +97,27 @@ override, because a publication floor that can be lowered from the environment i
 points consume that one predicate. Rails: `tests/test_wisdom_item3_floor.py`, including a
 boundary test that pins the threshold to `STABILITY_FLOOR` exactly rather than to a near
 neighbour, and behavioural tests at each of the four sites.
+
+### 2026-09-15 — R30: MARKET_SIGNAL's identity is PROVISIONAL
+
+MARKET_SIGNAL has **no id anywhere in the schema** — it lives only as
+`wisdom_records.market_signal_json` (session 3). Item 2's reconciler has to match records across
+passes, so it needs one, and the key it uses is:
+
+> `(type, normalize_quote_key(name))` — the tuple session 4's persistence adopted.
+
+**That is the first stable id MARKET_SIGNAL has ever had.** It is **name-based**, so a signal the
+extractor names slightly differently on a second pass reads as two identities scoring **1/N twice
+instead of 2/N once** — understating stability.
+
+⭐ **Owner ruling R30, 2026-09-15: ACCEPT, WITH AN AUDIT BESIDE IT.** Accepting was safe because
+the error is bounded in the safe direction and **completely recoverable**: understated stability
+BLOCKS under Q17 rather than publishing, and the gate runs persist **raw records**, so the
+reconciler can be re-run offline under a different key for **$0.00**. Choosing this key now
+forecloses nothing.
+
+⛔ The audit (`reconcile.audit_market_signal_renames`) measures how much of MARKET_SIGNAL's
+instability is a rename: within one segment, two keys that never co-occur in a run and whose name
+tokens share ≥ 0.5 Jaccard are reported as a **suspected rename**, by **segment id and key only —
+never by name text**. It measures suspicion, not truth: two different signals can share
+vocabulary, and a real rename can share none. The number is a prompt for a decision.
