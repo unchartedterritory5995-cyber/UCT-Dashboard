@@ -87,7 +87,11 @@ def push_with_retry(branch="ci-results", runner=None, sleep=time.sleep,
     """
     log = []
     for i in range(1, attempts + 1):
-        rc, out = run(["git", "fetch", "origin", branch], runner=runner)
+        # ⛔ E CP14 - explicit refspec: the rebase below needs the TRACKING ref,
+        # and a bare `git fetch origin <b>` is only guaranteed to write FETCH_HEAD.
+        rc, out = run(["git", "fetch", "origin",
+                       "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch)],
+                      runner=runner)
         log.append("attempt %d: fetch rc=%d" % (i, rc))
         # ⛔ E CP13 — AN UNREADABLE UPSTREAM IS NOT A CONFLICT. `git rebase origin/<b>`
         # returns non-zero both when two publishers collided AND when the ref simply does

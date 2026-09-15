@@ -431,11 +431,44 @@ jobs:
           cat step_summary.md
           cat step_summary.md >> "$GITHUB_STEP_SUMMARY"
 
+      # ⛔⛔ E CP14 - THE STEP THAT LOSES THE RECORD MUST NAME ITS OWN FAILURE.
+      # Runs #10 and #11 both died here in 2 s with all 19 other jobs green, and the log
+      # endpoint is 403 without a login - so two checkpoints have now been spent reasoning
+      # about a command nobody could read. ⭐ This is E CP11's lesson one level down: the
+      # skeleton summary made the JOB legible; this makes the STEP legible. An ERR trap
+      # writes the failing command, its exit code and the remote refs into
+      # $GITHUB_STEP_SUMMARY, which a phone can read without an account.
       - name: Publish onto the orphan ci-results branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
+          _publish_failed() {
+            cmd="$1"; rc="$2"
+            # ⛔⛔ THE STEP SUMMARY IS NOT READABLE WITHOUT A LOGIN, AND NEITHER IS THE LOG.
+            # Measured: the log endpoint is 403 anonymously, `summary_partial` is 404 — but
+            # `GET /repos/{o}/{r}/check-runs/{id}/annotations` answers ANONYMOUSLY on a
+            # public repo. ⭐ So the failing command goes out as a `::error::` annotation
+            # too: that is the one channel that reaches a reader with no account, which is
+            # what F-CI-7 actually asks for. GitHub's own auto-annotation says only
+            # "Process completed with exit code 1", which names nothing.
+            echo "::error title=publish failed::${cmd} (exit ${rc})"
+            {
+              echo
+              echo "### ⛔ publish step FAILED"
+              echo
+              echo "- failing command: \`${cmd}\`"
+              echo "- exit code: ${rc}"
+              echo
+              echo "Remote-tracking refs at the moment of failure:"
+              echo '```'
+              git for-each-ref --format='%(refname)' refs/remotes 2>&1 | head -20
+              echo "--- branch ---"
+              git rev-parse --abbrev-ref HEAD 2>&1
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+          trap '_publish_failed "$BASH_COMMAND" "$?"' ERR
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           RUN="$GITHUB_RUN_ID"
@@ -455,8 +488,15 @@ jobs:
             cp -r "extract/$RUN/." "/tmp/out/$RUN/" 2>/dev/null || true
           fi
           if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
-            git fetch origin ci-results
-            git checkout ci-results
+            # ⛔ EXPLICIT REFSPEC. `git fetch origin ci-results` writes FETCH_HEAD and,
+            # under actions/checkout@v4's single-branch refspec, need not create
+            # refs/remotes/origin/ci-results at all - reproduced on a clone of that shape,
+            # where `git checkout ci-results` then fails with "pathspec did not match".
+            # ⚠️ NOT claimed as the cause of runs #10/#11 - runs #3 and #4 checked this
+            # branch out on the runner, so the ref demonstrably resolves there. This is the
+            # difference between an operation that is well-defined and one relying on DWIM.
+            git fetch origin +refs/heads/ci-results:refs/remotes/origin/ci-results
+            git checkout -B ci-results origin/ci-results
             # ⚰️ E CP13 — E CP9 removed the WRITER of results/latest.json and left the FILE
             # on the branch. A stale pointer nobody updates is worse than no pointer: a
             # reader who finds it believes it, and it has named run #4 as "latest" through
@@ -481,7 +521,8 @@ jobs:
           cp -r "/tmp/out/$RUN/." "results/$RUN/"
           git add results README.md 2>/dev/null || git add results
           git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || {
-            echo "nothing to commit — no record was produced"; exit 1; }
+            echo "::error title=publish failed::nothing to commit — no record was produced"
+            exit 1; }
           # ⛔ Bounded fetch/rebase/push. On final failure this EXITS NON-ZERO: a publisher
           # that swallows a push failure leaves no record and says nothing (F-CI-7).
           # ⭐ The rebase cannot conflict now that latest.json is gone — each run writes only
