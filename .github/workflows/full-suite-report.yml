@@ -276,8 +276,12 @@ jobs:
       group: ci-results-publish
       cancel-in-progress: false
     # ⛔ THE ONLY JOB THAT CAN WRITE, and it writes one orphan branch.
+    # ⚰️ E CP20 - `actions: read` is what makes the jobs fetch below AUTHENTICATED. Run
+    # #17's fetch was anonymous, came back empty, and every shard's runner verdict was
+    # published as a FAILURE.
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -308,7 +312,14 @@ jobs:
       - name: Fetch this run's job outcomes
         if: always()
         run: |
+          # ⚰️ E CP20 - THIS CURL WAS ANONYMOUS AND RUN #17 GOT NOTHING BACK. The
+          # comment above said the public endpoint "answers with the workflow token or
+          # without one", which is true of a single request and not of a shared runner IP
+          # against a 60/hour anonymous limit. Run #16 read 20 jobs; run #17 read zero, and
+          # the record published `all_success=False (0/12)` for twelve jobs that had all
+          # succeeded. ⭐ The token costs one header.
           curl -sSL -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
             -o jobs.json || echo '{}' > jobs.json
           # ⛔ GUARDED, and as a block rather than a one-liner. `|| echo '{}'` covers
@@ -324,7 +335,13 @@ jobs:
               d = {}
               open("jobs.json", "w").write("{}")
               print("jobs.json unreadable, reset to {}:", e)
-          print("jobs seen:", len(d.get("jobs", [])))
+          n = len(d.get("jobs", []))
+          print("jobs seen:", n)
+          if n == 0:
+              # ⛔ An empty payload is not a quiet default: every downstream verdict
+              # becomes UNREADABLE, and that has to be visible without a log.
+              print("::error title=jobs payload EMPTY::the runner's own job outcomes could "
+                    "not be read; every shard verdict will be UNREADABLE")
           PY
 
       # ⛔ ORDER OF CONSUMPTION IS PROVEN, NOT ASSUMED. Every artifact this job reads is
