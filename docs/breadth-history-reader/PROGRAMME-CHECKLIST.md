@@ -62,6 +62,40 @@ need was never imaginary; only the mechanism was.
 every master deploy from any workstream slides it forward. The script retries and logs each
 refusal by SHA — those refusals are the operational record.
 
+### ⭐⭐ THE QUEUE IS ITS OWN COMPETITOR — the burst clause sets this programme's pace
+
+**A sequential landing queue trips the burst clause with its OWN pushes.** The clause counts
+distinct `web` deploys in a sliding 60 minutes and refuses at ≥ 3; each landing contributes
+one. So even on a repository where nothing else is shipping, landing `i` must wait until
+landing `i−3` ages out:
+
+> **t(i) > t(i−3) + 3600** — at most **3 landings per rolling hour**, one every ~20 minutes.
+
+⛔ **That, not the 610 s settle, is the binding constraint on everything left in R and S.**
+The settle gate costs ~10 minutes and the build ~3–5; the burst clause costs 20. Any plan that
+sizes the remaining work by "how long does a deploy take" is wrong by a factor of two, and the
+error is in the flattering direction.
+
+⚠️ **Foreign traffic makes it worse, and did here.** At 16:43 ET the window held three commits
+of which **two were another workstream's** (`db5591c63` 15:53:45, `57113d1ac` 16:04:56) and one
+was ours (`56b5554b1` 16:32:54, M14) — so the queue had **zero** slots until the oldest aged
+out at 16:53:45. M12 refused four times on that clause between 16:43:21 and 16:48:14, each
+refusal logged by SHA, the clock passing every time at 626–918 s settled.
+
+⭐ **This is the guard working, and the queue is right not to fight it.** Three landings an hour
+IS "one master merge at a time" expressed as a rate. The wrong reactions, both rejected here:
+`UCT_SKIP_PREPUSH_GUARD=1` (the refusal is correct), and **combining M12/M13/S13 into one push
+to save two slots** — that trades a real rate limit for an unattributable deploy, and
+attributable rollback is the whole reason they are separate.
+
+⚠️ **Consequence for the landing ORDER, recorded and deliberately NOT acted on.** S13
+(`repo/git-scope`) is last in the queue but carries the `.gitattributes` fix and the scope
+checker — repo-safety machinery every later commit benefits from — while M13 ships with its
+flag OFF and is inert on arrival. Under a 20-minute-per-slot budget that ordering costs ~40
+minutes of protection. **SD-1.1 A4 fixed the order; a mid-flight reorder is exactly the change
+this session already declined to make once** (the merge-direction finding). Noted for the next
+queue, not changed in this one.
+
 ---
 
 ## R — READER
@@ -109,9 +143,32 @@ Register-ScheduledTask -TaskName 'UCT Breadth Sampler' -Action $act -Trigger $tr
 - ⛔ **Do not register before M12 lands.** `tools/breadth_sampler.py` is not on master, so
   the task would start, fail to find the file, and record a green-looking run that
   sampled nothing.
-- Verify after registering: `Get-ScheduledTask 'UCT Breadth Sampler'`, then one
-  `python tools/breadth_sampler.py --once` — inside guard hours it must print a
-  **refusal**, which is the check that the guard is live rather than merely present.
+- Verify after registering: `Get-ScheduledTask 'UCT Breadth Sampler'`, then prove the
+  guard is **live rather than merely present** with the kill switch, which is the one
+  refusal that does not depend on pod timing:
+
+  ```sh
+  touch logs/STOP-BREADTH-SAMPLER
+  python tools/breadth_sampler.py --once     # must print kill_switch_present, exit 0
+  rm logs/STOP-BREADTH-SAMPLER
+  ```
+
+  ⚰️ **This step used to read *"inside guard hours it must print a refusal"* — it named a
+  guard SD-1.1 A0 deleted.** `should_sample` now refuses with exactly four strings —
+  `kill_switch_present` · `uptime_unknown` · `pod_unsettled_uptime_Ns` ·
+  `daily_cap_reached_N` — and none of them is a window. Following the old instruction
+  after a fresh deploy would have produced `pod_unsettled_uptime_Ns` and been read as
+  *"the window guard fired"*: **a refusal for the right reason is not evidence for the
+  reason you were looking for.** It is the last clock survivor the A0 sweep missed, found
+  2026-09-15 by re-reading the branch rather than the checklist.
+
+- ⛔ **The landing sequence's post-M12 dry run does NOT satisfy *"sampler producing
+  lines"*.** It fires seconds after M12's deploy, so the pod is under `MIN_UPTIME_S = 600`
+  and `should_sample` refuses with `pod_unsettled_uptime_Ns`, writes that refusal row to
+  `logs/breadth-samples.jsonl`, and returns 0. **A refusal row is a working guard, not a
+  working sampler** — and it is the row most likely to be mistaken for one, because the
+  file grew and the run exited clean. R2 needs the scheduled job's first fire, or a manual
+  run once the pod is past 600 s.
 
 ### R3 · M13 (resident copy, flag OFF) landed, SUCCESS
 **`READY`** — landing script, after R1.
