@@ -4225,7 +4225,15 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
 # and the hand-curated Watchlist both had. Read-only preview here; the Discord card
 # + schedule live in api/cream_card.py (flag-gated, preview-only until armed).
 _CREAM_INDEX_TICKERS = {"SPX", "SPXW", "NDX", "NDXP", "RUT", "VIX", "XSP", "XSPX"}
+# Aggregate conviction tiers — pre-qualified by their own premium floors, scanned as-is.
 _CREAM_TIERS = ("alpha_leaps", "alpha", "ask_accum")
+# Big CLEAN directional SINGLE-print tiers a strong sweep can land in when it didn't
+# aggregate into an alpha tier: WDC C420 $2.24M = a plain "leaps" bull, STLD C150 $2.17M
+# = a "size" sweep. Scanned only for rows >= CREAM_SIZE_MIN_ASK ask premium so small
+# single prints don't flood; "size" rows also get ask-side direction recovery (their
+# _direction is often null), while leaps/bullish/bearish already carry a clean _direction.
+# NOT included: algo (multi-leg / non-directional) and unusual.
+_CREAM_SINGLE_TIERS = ("size", "leaps", "bullish", "bearish")
 _cream_cache: dict = {}
 _cream_lock = threading.Lock()
 
@@ -4312,14 +4320,16 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     # flooding the card; CREAM_MAX_PER_TICKER=1 restores the old one-row-per-ticker card.
     max_per_ticker = int(os.getenv("CREAM_MAX_PER_TICKER", "2")) if max_per_ticker is None else int(max_per_ticker)
     max_per_ticker = max(1, max_per_ticker)
-    # Also scan the SIZE tier for big ASK-CONFIRMED sweeps the per-print classifier
-    # left "Not Clean" (blank-side, §5) — e.g. STLD C150 $2.17M ask, GLW C165 $4.03M,
-    # CRWD P210 $1.96M. These carry no aggregate _direction, so the side is recovered
-    # from the ask + call/put and the row is MARKED unconfirmed. Gated on a real ask
-    # floor so bid-side / ambiguous size rows stay out. Kill switch CREAM_INCLUDE_SIZE=0.
+    # Also scan the big CLEAN directional SINGLE-print tiers (size / leaps / bullish /
+    # bearish) for strong sweeps that didn't aggregate into an alpha tier — WDC C420
+    # $2.24M (a "leaps" bull), STLD C150 $2.17M (a "size" sweep), GLW C165 $4.03M.
+    # Gated on CREAM_SIZE_MIN_ASK ask premium so small single prints / bid-side rows
+    # stay out. "size" rows also get ask-side direction recovery (see
+    # _cream_row_direction). Kill switch CREAM_INCLUDE_SIZE=0.
     include_size = os.getenv("CREAM_INCLUDE_SIZE", "1") == "1"
     size_min_ask = float(os.getenv("CREAM_SIZE_MIN_ASK", "1000000"))
-    tiers = _CREAM_TIERS + (("size",) if include_size else ())
+    single_tiers = _CREAM_SINGLE_TIERS if include_size else ()
+    tiers = _CREAM_TIERS + single_tiers
 
     meta = _cream_contract_meta(today)
     # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
@@ -4329,6 +4339,7 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     best: dict = {}
     seen_ids = set()
     for _tier in tiers:
+        is_single = _tier in _CREAM_SINGLE_TIERS
         alerts, _ = _compute_recent_core(today, 100000, "F", "premium", _tier, False)
         for a in alerts:
             if a.get("id") in seen_ids:
@@ -4337,6 +4348,10 @@ def compute_cream(today: str, top_n=None, min_voi=None,
             if (a.get("source") or "stocks") == "indexes" or a.get("ticker") in _CREAM_INDEX_TICKERS:
                 continue
             aap = a.get("aggAskPremium") or 0
+            # Single-print tiers earn their place on ask-confirmed size alone; the
+            # aggregate tiers are pre-qualified by their own floors.
+            if is_single and aap < size_min_ask:
+                continue
             d, unconfirmed = _cream_row_direction(a, size_min_ask)
             if d is None:
                 continue

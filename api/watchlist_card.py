@@ -211,8 +211,6 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
             for fl in _flags(it):
                 cx += chip(cx, y + 1.5, fl, f_chip, _ER_FG if fl == "ER" else _BULL,
                            _ER_BG if fl == "ER" else _HV_BG) + 4
-            if it.get("unconfirmed"):        # size build, side read from ask (§5)
-                cx += txt(cx, y, "◆", f_row, _DIM) + 6
             _exp = it.get("exp") or ""
             if show_dte and it.get("dte") is not None:
                 _exp = f"{_exp} · {_num(it, 'dte')}d"
@@ -231,9 +229,6 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
 
     d.rectangle([s(36), s(H - 40), s(_D_W - 36), s(H - 40) + 1], fill=_DIV)
     txt(36, H - 32, "UCT Intelligence", f_foot, _DIM)
-    if any(it.get("unconfirmed") for _l, _r, _a in sections for it in _r):
-        _lg = "◆ side inferred from ask"
-        txt((_D_W - tw(_lg, f_foot)) / 2, H - 32, _lg, f_foot, _DIM)
     txt(_D_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
     out = img.resize((_D_W, H), Image.LANCZOS)
@@ -289,8 +284,6 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
             for fl in _flags(it):
                 cx += chip(cx, y + 8, fl, f_chip, _ER_FG if fl == "ER" else _BULL,
                            _ER_BG if fl == "ER" else _HV_BG) + 4
-            if it.get("unconfirmed"):        # size build, side read from ask (§5)
-                cx += txt(cx, y + 8, "◆", f_det, _DIM) + 4
             cx += 6
             _exp = it.get("exp") or ""
             if show_dte and it.get("dte") is not None:
