@@ -98,3 +98,81 @@ and nothing else.
 - ✅ Declared its own scope in `.git-scope/breadth-history-reader.json`.
 - ⛔ **Did not install the hook.** Shared dir, another programme's.
 - ⛔ **Did not add the `.gitattributes` line.** Another programme's files.
+
+---
+
+## SD-1 S2 — the wiring, measured (Session 13, 2026-09-15)
+
+SD-1 authorises installing this in the shared `pre-commit` in **WARN mode** for 24 h,
+then promoting to ENFORCE on zero false positives. Two things were measured before
+touching anything, and both change the instruction.
+
+### 1. ⛔ "A call at the END of the existing pre-commit" would never run
+
+The shared hook is thirteen lines and its credential-scan loop **exits 0 from inside the
+loop** the moment it finds `secret_scrub.py`:
+
+```sh
+for cand in "$root/tools/secret_scrub.py" …; do
+  if [ -f "$cand" ]; then
+    python "$cand" --pre-commit || exit 1
+    exit 0            # ⛔ the whole hook ends here on the normal path
+  fi
+done
+exit 0
+```
+
+`secret_scrub.py` is present in this repo, so that branch is the normal path and
+**anything appended after line 13 is unreachable**.
+
+**Measured, in a throwaway repo, same commit, same staged out-of-scope path:**
+
+| install position | warn log after the commit |
+|---|---|
+| appended (the literal reading) | **empty — the call never ran** |
+| prepended | `…WOULD-REFUSE docs/plans/joystick/THIRD.md` |
+
+⭐ A vacuous install is the worst outcome available here: the hook is present, the trial
+"runs" for 24 h, the log stays empty, and an empty log reads as **zero false positives**
+— which is the promotion criterion. It would have promoted itself to ENFORCE on the
+strength of never having executed.
+
+**So the block is PREPENDED.** That still touches none of the credential scan's lines —
+it adds lines above them.
+
+### 2. ⛔ The 24 h trial cannot observe anyone else until the tool is on master
+
+The proposed block is absent-safe by design, and `tools/git_scope.py` currently exists
+only on `repo/git-scope`. Every other worktree is on some other branch, so the file is
+absent and the hook correctly skips. The trial would therefore observe **this programme's
+own commits and nobody else's**, while appearing to run repo-wide.
+
+**Ordering, forced by that:** land the tool on master first; *then* start the 24 h WARN
+trial; *then* promote. S2 is blocked on the first step, not on coordination.
+
+### The block, exactly as tested
+
+```sh
+# --- UCT git-scope (breadth-history-reader) — WARN ONLY, never blocks. ---
+# ⛔ PREPENDED, not appended: the credential-scan loop below exits 0 as soon as it
+# finds secret_scrub.py, so anything after it is unreachable on the normal path.
+# ⛔ `|| true` and the -f guard are load-bearing: this runs inside another
+# programme's hook and must not be able to refuse anybody's commit.
+_gs_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$_gs_root" ] && [ -f "$_gs_root/tools/git_scope.py" ]; then
+  python "$_gs_root/tools/git_scope.py" --warn 2>/dev/null || true
+fi
+# --- end git-scope ---
+```
+
+⚠️ `2>/dev/null` is a deliberate trade: a traceback from this tool must not appear in
+another programme's commit output. The cost is that a broken checker fails silently, so
+**the promotion criterion is not "the log is empty" — it is "the log contains entries
+this programme's own commits produced, and none of them are false positives."** An empty
+log is an unrun trial, not a clean one.
+
+### WARN mode
+
+`python tools/git_scope.py --warn` records `timestamp<TAB>branch<TAB>WOULD-REFUSE<TAB>paths`
+to `logs/git-scope-warn.log` and **always exits 0**. Verified end-to-end in a throwaway
+repo: a commit staging an out-of-scope path on a scoped branch succeeded and was recorded.

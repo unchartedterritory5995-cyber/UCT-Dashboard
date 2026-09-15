@@ -23,6 +23,7 @@ follows that shape rather than inventing a second idiom.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import pathlib
@@ -34,6 +35,8 @@ SCOPE_DIR = REPO / ".git-scope"
 #: ⛔ An EXPLICIT env var, and it is logged. A silent override is the same as no rule.
 OVERRIDE = "UCT_SKIP_GIT_SCOPE"
 OVERRIDE_LOG = REPO / "logs" / "git-scope-override.log"
+#: ⛔ WARN mode writes here and NEVER refuses — the 24 h trial's whole record.
+WARN_LOG = REPO / "logs" / "git-scope-warn.log"
 
 
 def _git(*args) -> str:
@@ -107,6 +110,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--self-check", action="store_true",
                     help="prove the refusal can fire, without touching the index")
+    ap.add_argument("--warn", action="store_true",
+                    help="observe only: record what WOULD have been refused and exit 0")
     args = ap.parse_args(argv)
 
     scopes = load_scopes()
@@ -147,6 +152,21 @@ def main(argv=None) -> int:
     if not bad:
         print(f"[git-scope] {branch}: {len(paths)} staged path(s), all inside '{name}'")
         return 0
+    if args.warn:
+        # ⛔ OBSERVE ONLY. This runs inside ANOTHER programme's shared pre-commit hook,
+        # so it must not be able to refuse anybody's commit while it is being trialled.
+        # It records what it WOULD have refused and exits 0 — always.
+        WARN_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with WARN_LOG.open("a", encoding="utf-8", newline="\n") as fh:
+            fh.write(f"{datetime.datetime.now().isoformat(timespec='seconds')}\t"
+                     f"{branch}\tWOULD-REFUSE\t{' '.join(bad)}\n")
+        print(f"[git-scope] ⚠️ WARN ONLY — branch '{branch}' is scoped to '{name}' and "
+              f"{len(bad)} staged path(s) fall outside it. The commit is NOT blocked.")
+        for p in bad:
+            print(f"    {p}")
+        print(f"  recorded to {WARN_LOG.relative_to(REPO)}")
+        return 0
+
     print(f"[git-scope] ⛔ REFUSING THE COMMIT. Branch '{branch}' is scoped to '{name}', "
           f"and these staged paths are outside it:", file=sys.stderr)
     for p in bad:
