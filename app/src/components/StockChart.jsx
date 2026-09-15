@@ -691,6 +691,7 @@ import {
   displayTargetOptions,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
+import { chromePlan } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -14719,17 +14720,69 @@ export default function StockChart({
     const tick = () => {
       try {
         const panes = chart.panes ? chart.panes() : null
-        const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
         const H = container.clientHeight || 0
-        if (h0 > 0 && H > 0) {
+        // ─── WHO OWNS WHICH EDGE ─────────────────────────────────────
+        //
+        // ⚰️⚰️ THIS BLOCK READ `panes[0]` AND CALLED IT THE PRICE PANE. Three
+        // surfaces were positioned from that one number, and all three were the
+        // same stale assumption — `pane 0 === Price` — which stopped being true
+        // the moment a pane could be moved above Price. Measured on production by
+        // the owner (UCTA50 with QQQ moved above it): the lookback bar flew to the
+        // top of the workspace, because `H - height(QQQ)` is nearly the whole
+        // chart.
+        //
+        // ⭐ SO EACH SURFACE NOW ASKS FOR THE EDGE IT ACTUALLY BELONGS TO, and the
+        // two kinds of ownership are kept apart on purpose:
+        //
+        //   PRICE-OWNED      the OHLC legend, the drawing toolbar, the responsive
+        //     collapse — resolved from the pane the CANDLE SERIES is in, by
+        //     identity, wherever that pane currently sits.
+        //   WORKSPACE-OWNED  the 3M/6M/YTD/1Y/5Y/Origin lookback bar — it belongs
+        //     to the GLOBAL TIME AXIS, not to Price, so it is anchored to the
+        //     bottom of the whole pane stack and never moves when Price does.
+        // ⚠️ THE INDICES ARE ASKED OF THE SERIES, NEVER GUESSED. A pane's
+        // identity is "the pane my series is in"; its POSITION is whatever the
+        // member last arranged. Reading the position from the series is the only
+        // form of this question that survives a reorder.
+        const indexOfSeries = (ref) => {
+          try {
+            const i = ref?.current?.getPane?.()?.paneIndex?.()
+            return Number.isInteger(i) && i >= 0 ? i : null
+          } catch { return null }
+        }
+        const paneHeights = (panes || []).map((p) => (p?.getHeight?.() || 0))
+        let axisH = 0
+        try { axisH = chart.timeScale().height() || 0 } catch { axisH = 0 }
+        // ⭐ ONE PLAN, APPLIED. Every number below is decided in `chromePlan` and
+        // asserted per layout in its rails; this block only measures and writes.
+        const plan = chromePlan({
+          paneHeights,
+          priceIndex: indexOfSeries(candleSeriesRef) ?? 0,
+          volumeIndex: indexOfSeries(volumeSeriesRef),
+          timeAxisHeight: axisH,
+          separatorPx: SEPARATOR_PX,
+        })
+        const priceH = plan.priceHeight
+        if (priceH > 0 && H > 0) {
           const rb = rangeBarRef.current
           if (rb) {
-            const bottom = Math.round(Math.max(30, H - h0 + 8)) // 8px above the boundary
+            // ⛔ THE GLOBAL TIME AXIS, NOT ANY PANE. `timeScale().height()` is the
+            // bottom date scale; 8px above it is where this bar lives no matter how
+            // many panes exist, what order they are in, or where Price sits. Note
+            // that `lookbackBottomPx` takes no pane argument AT ALL — that is what
+            // makes "the lookback bar does not move with Price" structural rather
+            // than a number that happens to come out right today.
+            const bottom = plan.lookbackBottom
             if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
           }
           const vl = volLegendRef.current
           if (vl) {
-            const top = Math.round(h0 + 5) // just below the boundary = volume pane top
+            // The VOLUME pane's own top — asked of the volume series, for the same
+            // reason Price is asked of the candles. It used to be `h0 + 5`, i.e.
+            // "just under pane 0", which is only the volume pane on an unarranged
+            // chart. When the series cannot answer (older API), fall back to the
+            // pane immediately under Price, which is the shipped default shape.
+            const top = plan.volumeLegendTop
             if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
           }
           // …and every oscillator pane's own readout, by the same rule and in the
@@ -14757,7 +14810,9 @@ export default function StockChart({
             }
             const fullBottom = lastFullBottomRef.current
             if (fullBottom > 0) {
-              const rbTop = h0 - 34
+              // The PRICE pane's own bottom, in container coordinates — the legend
+              // lives in Price, so "does it still fit" is a question about Price.
+              const rbTop = plan.collapseThresholdPx
               const cur = compactLegendRef.current
               if (!cur && fullBottom > rbTop) setCompactLegend(true)
               else if (cur && fullBottom < rbTop - 12) setCompactLegend(false)
