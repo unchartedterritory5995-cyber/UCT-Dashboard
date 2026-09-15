@@ -27,7 +27,7 @@ import { describe, it, expect } from 'vitest'
 import * as registry from '../nativeRegistry'
 import { addInstance, setInstanceDisplayTarget } from '../instanceControls'
 import { paneOwnKeys, paneFollowerKeys, resolveDisplayTarget } from '../displayTarget'
-import { defaultPaneKeys } from '../paneLayout'
+import { defaultPaneKeys, computePaneLayout } from '../paneLayout'
 import { resolvePaneOrder, setPaneOrder, PRICE_PANE, VOLUME_PANE } from '../paneOrder'
 import { setPaneSize, storedPaneSizes } from '../paneSizes'
 import { paneMap } from '../../chartDataMap'
@@ -207,4 +207,49 @@ describe('⚰️⚰️ §14 — the OTHER half of pane eligibility', () => {
       .toContain(ma)
     expect(grouping(cs), 'Chart Data disagrees about the new pane').toEqual(order(cs))
   })
+})
+
+describe('⭐⭐ §14 — order stays correct WHILE sizing stays correct', () => {
+  // ⚰️ FAILURE 4's DETERMINATION, pinned. The live screenshot showed a stack whose
+  // ORDER looked wrong, but the panes were also catastrophically mis-sized by the
+  // legacy volume writer (see `chart/__tests__/volumeStretchThirdPane.test.js`):
+  // the auxiliary pane swelled past 35% while Price was crushed. Identifying
+  // which pane is which by eye, on a chart where SPY (757) and QQQ (704) carry
+  // nearly identical axis ranges, is not evidence — so this rail asserts the two
+  // properties TOGETHER, in every arrangement, rather than trusting appearance.
+  //
+  // ⛔ NO SECOND FIX WAS INVENTED FOR FAILURE 4. Measured with both fixes active,
+  // the exact live sequence settles at Chart Data [QQQ, Volume, Price] and
+  // physical [QQQ 80, volume 152, price 456] — agreeing, and stable across 5s of
+  // reconciliation. What follows is the canonical half of that, for all eight.
+  const AUX_MAX_SHARE = 0.25   // an auxiliary pane is COMPACT, never a co-equal
+
+  for (const [name, arrange] of STATES) {
+    it(`${name} — the auxiliary pane stays compact wherever it sits`, () => {
+      const k = cast()
+      const cs = setPaneOrder(k.cs, arrange(k))
+      const resolved = order(cs)
+
+      // Chart Data still agrees with the resolved order in this arrangement…
+      expect(grouping(cs)).toEqual(resolved)
+
+      // …and the sizing the layout hands out does not depend on WHERE a pane sits.
+      const layout = computePaneLayout(insts(cs), {
+        order: resolved,
+        chartHeight: 700,
+        hasVolumeBand: false,
+        excludeKeys: paneFollowerKeys(insts(cs), cs),
+        includeKeys: paneOwnKeys(insts(cs), cs),
+        separatorPx: 1,
+        firstPaneIndex: 2,
+        abovePct: [78, 22],
+      })
+      const total = 700
+      for (const p of layout.panes) {
+        expect(p.heightPx / total, `${p.key} took ${(p.heightPx / total * 100).toFixed(1)}% in ${name}`)
+          .toBeLessThan(AUX_MAX_SHARE)
+        expect(p.heightPx, `${p.key} collapsed in ${name}`).toBeGreaterThan(20)
+      }
+    })
+  }
 })
