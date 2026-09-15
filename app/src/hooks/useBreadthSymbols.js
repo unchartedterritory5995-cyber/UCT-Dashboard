@@ -14,7 +14,7 @@ function _load() {
   if (_cache) return Promise.resolve(_cache)
   if (_promise) return _promise
   if (typeof fetch !== 'function') {          // jsdom / SSR — no network
-    _cache = { map: new Map(), groups: [] }
+    _cache = { map: new Map(), groups: [], library: { rows: [], families: [], universes: [], metricOrder: new Map() } }
     return Promise.resolve(_cache)
   }
   _promise = fetch('/api/breadth-symbols')
@@ -22,12 +22,30 @@ function _load() {
     .then(data => {
       const map = new Map()
       for (const rec of data.symbols || []) map.set(String(rec.symbol).toUpperCase(), rec)
-      _cache = { map, groups: data.groups || [] }
+      // ⭐ THE LIBRARY RIDES THE SAME FETCH. `library` is the richer projection
+      // (`breadth_symbols.library_catalog`) served beside `symbols` on the one
+      // endpoint this module already calls once per session, so metric-first
+      // discovery costs no extra request and cannot disagree with the registry
+      // beside it — they are the same payload.
+      const lib = data.library || {}
+      _cache = {
+        map,
+        groups: data.groups || [],
+        library: {
+          rows: Array.isArray(lib.rows) ? lib.rows : [],
+          families: Array.isArray(lib.families) ? lib.families : [],
+          universes: Array.isArray(lib.universes) ? lib.universes : [],
+          // ⛔ SENT, NEVER INFERRED — see the comment on `metric_order` in
+          // `library_catalog`. A client deriving it from row order gets it wrong for
+          // any metric with no symbol in the first universe.
+          metricOrder: new Map((lib.metric_order || []).map((m, i) => [m, i])),
+        },
+      }
       _subs.forEach(fn => fn(_cache))
       return _cache
     })
     .catch(() => {
-      _cache = { map: new Map(), groups: [] }
+      _cache = { map: new Map(), groups: [], library: { rows: [], families: [], universes: [], metricOrder: new Map() } }
       return _cache
     })
   return _promise
@@ -111,5 +129,18 @@ export default function useBreadthSymbols() {
     isBreadth: (sym) => !!map && !!sym && map.has(String(sym).toUpperCase()),
     get: (sym) => (map && sym ? map.get(String(sym).toUpperCase()) || null : null),
     groups: cache?.groups || [],
+    // ⚰️ `all()` DID NOT EXIST, AND A CALLER WAS ALREADY ASKING FOR IT.
+    // `useSymbolDiscovery` reads `typeof breadth.all === 'function' ? breadth.all()
+    // : []` under the comment "LOCAL BREADTH FIRST, and it needs no network: a
+    // member typing `UCTA` sees the measure before the ticker search has been asked
+    // anything". The guard made the miss silent, so that path has always returned
+    // `[]` and breadth reached the source picker ONLY through the remote
+    // `/api/ticker-search` injection — which needs two characters and a round-trip.
+    all: () => (cache?.library?.rows?.length
+      ? cache.library.rows
+      : [...(map ? map.values() : [])]),
+    // ⭐ The richer projection, for a surface that wants METRIC-first discovery.
+    library: () => (cache?.library
+      || { rows: [], families: [], universes: [], metricOrder: new Map() }),
   }
 }

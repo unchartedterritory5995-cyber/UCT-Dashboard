@@ -319,7 +319,12 @@ export function breadthResults(rows, { tf, bars } = {}) {
     // ⚠️ AND IT IS ABSENT-SAFE. A row from today's `/api/breadth-symbols` carries no
     // `universe_label`, so a shipped UCT symbol keeps the symbol as its short name
     // exactly as before — this is additive, not a change of the existing behaviour.
-    const universeLabel = str(row.universe_label || row.universeLabel, '')
+    // ⚠️ THE BADGE IS FOR THE NAMESPACED ROWS ONLY. A legacy UCT row's symbol IS
+    // its recognisable name — `UCTA50` is what a member types, what the axis shows
+    // and what they have been reading for a year — so replacing it with "UCT" would
+    // be a regression dressed as consistency. A namespaced row has no such history
+    // and its universe is the thing that distinguishes it from its siblings.
+    const universeLabel = row.legacy ? '' : str(row.universe_label || row.universeLabel, '')
     const pres = presentationFor(row)
     out.push(result({
       id: sym,
