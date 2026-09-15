@@ -1,3 +1,68 @@
+# TRACK A — LIVE FAILURE CLUSTER: ONE FIX FOUND, ROOT CAUSE NOT YET FOUND (2026-09-15)
+
+HEAD 118bbe1e1. NOT DEPLOYED. Deployed prod is still a4e845fe7.
+
+## The measurement trap that invalidated the earlier passes
+
+The pane harness did NOT pass `volumeSeparatePane`, so it ran a TWO-PANE chart
+with BANDED volume. `ChartPane` and `GridChartCell` both pass it unconditionally,
+so every production chart is THREE panes with a separate volume pane. Every
+pane-order / pane-size conclusion reached on that page was therefore proved on
+the wrong topology, and the regime the live failures live in was unreachable.
+FIXED — the harness now mirrors production.
+
+## What IS proven and fixed
+
+`MultiChartGrid.jsx` mounts the grid's one shared `ChartSettingsModal` WITHOUT
+`volumeOpts` (ChartPane passes it and says so in a comment; the grid never got
+it). `ChartSettingsIndicators` derives its writer options from `paneMap`'s
+groups, so with Volume mis-grouped into PRICE there is no volume group and
+`movePane` stores an order with the volume key missing. MEASURED live in the
+harness: one "Move up" on a three-pane chart stored
+
+    cs.paneOrder = ["inst:dataSeries:1", "price"]
+
+Damage: the member's Volume POSITION is silently discarded (resolve re-appends
+it last) and Volume is listed in the wrong group on the grid surface.
+
+## What this does NOT explain — stated plainly
+
+`resolvePaneOrder` re-appends the missing key, so the corrupted order self-heals
+and produces the SAME layout. Measured: renderer order == Chart Data order across
+8 stored-order shapes including the corrupted one. So this is NOT the canonical/
+physical divergence the owner photographed.
+
+## The four live failures did NOT reproduce locally at HEAD
+
+Through the exact live sequence (QQQ own pane -> Volume guest -> own pane ->
+Move up x2 -> Move Volume up), on a production-shaped 3-pane harness:
+
+ · F1 scale: QQQ overlaid on Volume got its OWN left axis and spanned the pane.
+   `placement.js` gives an overlaid series `scaleId: 'left'`; only ONE right-axis
+   tag appeared. Production showed TWO tags on one axis (45.02M AND 704), i.e.
+   genuinely shared — that state was not reachable here.
+ · F3 default size: canonical plan = Price .663 / Volume .221 / QQQ .116, and the
+   PHYSICAL heights matched exactly (456/152/80). RSI identical. Not reproduced.
+ · F4 order: canonical == Chart Data == physical after EVERY move click.
+ · `settleArrangement` realised all SIX permutations of price/volume/qqq exactly.
+
+So the divergence is in canonical -> PHYSICAL realisation under some state the
+harness did not reach. Production came from a SAVED workspace with templates and
+view-lock state; the harness starts from defaults.
+
+## What to instrument next
+
+The gap is a live `chart.panes()` / `getStretchFactor()` / `series.getPane()`
+read at each realisation stage. A `window.__uctChart` hook in StockChart was
+tried and made Vite fail to serve the 500KB module (`does not provide an export
+named 'default'`); esbuild parsed the file fine, so it is a transform-cache bug —
+add the hook in a SMALL module the chart imports, not in StockChart itself.
+
+⚠️ AND CHECK THE SURFACE FIRST: production screenshot 3 shows a separate VOLUME
+group, so that session's modal DID have `volumeOpts` — i.e. the owner was on the
+ChartPane surface, not the grid. The fix above is real but is probably not their
+bug.
+
 # TRACK A PANE SYSTEM — DEPLOYED 2026-09-15 (master 263e54120)
 
 Shipped together: volume truth/order (aa7db1de9), legend-geometry rail (0c68badaf),
