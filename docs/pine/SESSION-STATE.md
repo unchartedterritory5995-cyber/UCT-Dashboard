@@ -186,6 +186,17 @@ knew. `forceOpaque` now keeps its `extra` as `reason` so that is possible at all
 
 ### Standing rules, one line each
 
+- ⛔⛔ **AN ESTIMATE IS NEVER REVISED DOWNWARD MID-BLOCK.** The stated number stands
+  until the block ends; discovering the work is smaller is reported at the end as
+  *"actual < estimate"*, never used to move the 2× line. ⚰️ a6.0 ran **65 against an
+  original 90 — comfortably under** — and was reported as an overrun purely because the
+  estimate had been cut to 35 mid-block after the consumer measurement came back
+  favourable. A line that moves when the news is good measures nothing.
+- ⛔⛔ **A THRESHOLD GOVERNS WHAT IS BUILT, NEVER WHAT IS REMOVED.** Retiring a form
+  that *already works* is not retirement — it is **deletion of a tested capability**,
+  and the F4-style threshold gives no authority for it. Low corpus usage is a reason
+  not to BUILD something; it is never a reason to take away something that lands
+  today. (Ruling R9.)
 - ⛔⛔ **NO EDIT TO ANY FILE IS MADE THROUGH `bash`** — not a heredoc, not a patch
   script, not `sed`, not a here-string. **Every edit uses the file tools.** If a file
   tool cannot make an edit, that is a **stop-and-report**, not a fallback to bash.
