@@ -179,7 +179,14 @@ READER_PHASES = ("merged_dates", "collector_floor", "anchor", "numeric_fetch",
 #: been sent and the log line printed, so every consumer read `gzip_send=absent`
 #: for a stage that had run. A phase reported as absent because its reporter had
 #: already finished is the same failure as a phase reported as 0.0.
-POST_PHASES = ("route_tail", "encode_render")
+#: ⭐ `serialise` is the route rendering the body ITSELF. It exists so the work the
+#: pre-serialised response moved does not simply vanish from the accounting: before,
+#: the whole cost sat inside `encode_render` (FastAPI's `jsonable_encoder` plus
+#: `JSONResponse.render`); now the route pays `serialise` once per cache MISS and
+#: `encode_render` collapses to the gzip compression alone. A phase that is absent on
+#: a cache hit is reported `absent`, never 0.0 — the route genuinely does not
+#: serialise on a hit, and that is the saving.
+POST_PHASES = ("route_tail", "serialise", "encode_render")
 
 #: Everything after the response line exists. Reported on its OWN line, with its
 #: own wall total, because the first line is gone by the time this is knowable.
