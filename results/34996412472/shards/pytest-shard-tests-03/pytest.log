@@ -1,0 +1,1314 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+.........................................FFFF....................F...... [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+..............................................................FF......F. [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+.........EEEEE...E...................................................... [ 64%]
+........................................................................ [ 66%]
+..F..................................................................... [ 69%]
+...............F........................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+..................................................................       [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_the_python_read_back_is_BYTE_IDENTICAL_to_sentence_js _
+
+    @pytest.fixture(scope="module")
+    def js_lane():
+        """ONE node process for every cross-lane claim in this file. Seven boots for
+        seven assertions is 280 ms of nothing."""
+        from api.services import definition_concierge as mod
+        cases = []
+        for case_id, tree in corpus().items():
+            cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
+        kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+>       result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                      "cases": cases, "kindCases": kind_cases})
+
+tests/test_definition_concierge.py:1195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'cases': [{'ast': {'name': 'close', 'type': 'series'}, 'id': 'series::close', 'source': 'close'}, {'ast': {'name': 'h...parse.js', 'sentence': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/sentence.js'}
+
+    def _js(payload: dict) -> dict:
+        exe = shutil.which("node")
+        if not exe:
+            raise LaneUnavailable("node is not on PATH")
+        tmpdir = tempfile.mkdtemp(prefix="concierge_js_")
+        try:
+            for name, source in (("hook.mjs", _JS_HOOK), ("driver.mjs", _JS_DRIVER)):
+                with io.open(os.path.join(tmpdir, name), "w",
+                             encoding="utf-8", newline="\n") as fh:
+                    fh.write(source)
+            proc = subprocess.run(
+                [exe, os.path.join(tmpdir, "driver.mjs")], cwd=str(ROOT),
+                input=json.dumps(payload), capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        if proc.returncode != 0:
+>           raise LaneUnavailable(
+                f"the JS lane exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+E           tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tests/test_definition_concierge.py:1151: LaneUnavailable
+___ ERROR at setup of test_the_cross_lane_corpus_REACHES_every_operand_kind ____
+
+    @pytest.fixture(scope="module")
+    def js_lane():
+        """ONE node process for every cross-lane claim in this file. Seven boots for
+        seven assertions is 280 ms of nothing."""
+        from api.services import definition_concierge as mod
+        cases = []
+        for case_id, tree in corpus().items():
+            cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
+        kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+>       result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                      "cases": cases, "kindCases": kind_cases})
+
+tests/test_definition_concierge.py:1195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'cases': [{'ast': {'name': 'close', 'type': 'series'}, 'id': 'series::close', 'source': 'close'}, {'ast': {'name': 'h...parse.js', 'sentence': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/sentence.js'}
+
+    def _js(payload: dict) -> dict:
+        exe = shutil.which("node")
+        if not exe:
+            raise LaneUnavailable("node is not on PATH")
+        tmpdir = tempfile.mkdtemp(prefix="concierge_js_")
+        try:
+            for name, source in (("hook.mjs", _JS_HOOK), ("driver.mjs", _JS_DRIVER)):
+                with io.open(os.path.join(tmpdir, name), "w",
+                             encoding="utf-8", newline="\n") as fh:
+                    fh.write(source)
+            proc = subprocess.run(
+                [exe, os.path.join(tmpdir, "driver.mjs")], cwd=str(ROOT),
+                input=json.dumps(payload), capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        if proc.returncode != 0:
+>           raise LaneUnavailable(
+                f"the JS lane exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+E           tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tests/test_definition_concierge.py:1151: LaneUnavailable
+_ ERROR at setup of test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE __
+
+    @pytest.fixture(scope="module")
+    def js_lane():
+        """ONE node process for every cross-lane claim in this file. Seven boots for
+        seven assertions is 280 ms of nothing."""
+        from api.services import definition_concierge as mod
+        cases = []
+        for case_id, tree in corpus().items():
+            cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
+        kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+>       result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                      "cases": cases, "kindCases": kind_cases})
+
+tests/test_definition_concierge.py:1195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'cases': [{'ast': {'name': 'close', 'type': 'series'}, 'id': 'series::close', 'source': 'close'}, {'ast': {'name': 'h...parse.js', 'sentence': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/sentence.js'}
+
+    def _js(payload: dict) -> dict:
+        exe = shutil.which("node")
+        if not exe:
+            raise LaneUnavailable("node is not on PATH")
+        tmpdir = tempfile.mkdtemp(prefix="concierge_js_")
+        try:
+            for name, source in (("hook.mjs", _JS_HOOK), ("driver.mjs", _JS_DRIVER)):
+                with io.open(os.path.join(tmpdir, name), "w",
+                             encoding="utf-8", newline="\n") as fh:
+                    fh.write(source)
+            proc = subprocess.run(
+                [exe, os.path.join(tmpdir, "driver.mjs")], cwd=str(ROOT),
+                input=json.dumps(payload), capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        if proc.returncode != 0:
+>           raise LaneUnavailable(
+                f"the JS lane exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+E           tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tests/test_definition_concierge.py:1151: LaneUnavailable
+_ ERROR at setup of test_the_operator_phrases_and_the_read_back_refusals_are_ONE_VOCABULARY _
+
+    @pytest.fixture(scope="module")
+    def js_lane():
+        """ONE node process for every cross-lane claim in this file. Seven boots for
+        seven assertions is 280 ms of nothing."""
+        from api.services import definition_concierge as mod
+        cases = []
+        for case_id, tree in corpus().items():
+            cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
+        kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+>       result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                      "cases": cases, "kindCases": kind_cases})
+
+tests/test_definition_concierge.py:1195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'cases': [{'ast': {'name': 'close', 'type': 'series'}, 'id': 'series::close', 'source': 'close'}, {'ast': {'name': 'h...parse.js', 'sentence': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/sentence.js'}
+
+    def _js(payload: dict) -> dict:
+        exe = shutil.which("node")
+        if not exe:
+            raise LaneUnavailable("node is not on PATH")
+        tmpdir = tempfile.mkdtemp(prefix="concierge_js_")
+        try:
+            for name, source in (("hook.mjs", _JS_HOOK), ("driver.mjs", _JS_DRIVER)):
+                with io.open(os.path.join(tmpdir, name), "w",
+                             encoding="utf-8", newline="\n") as fh:
+                    fh.write(source)
+            proc = subprocess.run(
+                [exe, os.path.join(tmpdir, "driver.mjs")], cwd=str(ROOT),
+                input=json.dumps(payload), capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        if proc.returncode != 0:
+>           raise LaneUnavailable(
+                f"the JS lane exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+E           tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tests/test_definition_concierge.py:1151: LaneUnavailable
+_ ERROR at setup of test_the_SOURCE_the_concierge_derives_PARSES_BACK_to_the_tree _
+
+    @pytest.fixture(scope="module")
+    def js_lane():
+        """ONE node process for every cross-lane claim in this file. Seven boots for
+        seven assertions is 280 ms of nothing."""
+        from api.services import definition_concierge as mod
+        cases = []
+        for case_id, tree in corpus().items():
+            cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
+        kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+>       result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                      "cases": cases, "kindCases": kind_cases})
+
+tests/test_definition_concierge.py:1195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'cases': [{'ast': {'name': 'close', 'type': 'series'}, 'id': 'series::close', 'source': 'close'}, {'ast': {'name': 'h...parse.js', 'sentence': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/sentence.js'}
+
+    def _js(payload: dict) -> dict:
+        exe = shutil.which("node")
+        if not exe:
+            raise LaneUnavailable("node is not on PATH")
+        tmpdir = tempfile.mkdtemp(prefix="concierge_js_")
+        try:
+            for name, source in (("hook.mjs", _JS_HOOK), ("driver.mjs", _JS_DRIVER)):
+                with io.open(os.path.join(tmpdir, name), "w",
+                             encoding="utf-8", newline="\n") as fh:
+                    fh.write(source)
+            proc = subprocess.run(
+                [exe, os.path.join(tmpdir, "driver.mjs")], cwd=str(ROOT),
+                input=json.dumps(payload), capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        if proc.returncode != 0:
+>           raise LaneUnavailable(
+                f"the JS lane exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+E           tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tests/test_definition_concierge.py:1151: LaneUnavailable
+_ ERROR at setup of test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED _
+
+    @pytest.fixture(scope="module")
+    def js_lane():
+        """ONE node process for every cross-lane claim in this file. Seven boots for
+        seven assertions is 280 ms of nothing."""
+        from api.services import definition_concierge as mod
+        cases = []
+        for case_id, tree in corpus().items():
+            cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
+        kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+>       result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                      "cases": cases, "kindCases": kind_cases})
+
+tests/test_definition_concierge.py:1195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'cases': [{'ast': {'name': 'close', 'type': 'series'}, 'id': 'series::close', 'source': 'close'}, {'ast': {'name': 'h...parse.js', 'sentence': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/sentence.js'}
+
+    def _js(payload: dict) -> dict:
+        exe = shutil.which("node")
+        if not exe:
+            raise LaneUnavailable("node is not on PATH")
+        tmpdir = tempfile.mkdtemp(prefix="concierge_js_")
+        try:
+            for name, source in (("hook.mjs", _JS_HOOK), ("driver.mjs", _JS_DRIVER)):
+                with io.open(os.path.join(tmpdir, name), "w",
+                             encoding="utf-8", newline="\n") as fh:
+                    fh.write(source)
+            proc = subprocess.run(
+                [exe, os.path.join(tmpdir, "driver.mjs")], cwd=str(ROOT),
+                input=json.dumps(payload), capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        if proc.returncode != 0:
+>           raise LaneUnavailable(
+                f"the JS lane exited {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+E           tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tests/test_definition_concierge.py:1151: LaneUnavailable
+=================================== FAILURES ===================================
+_ TestTheAnchorIsDerivedOnce.test_no_surface_still_computes_the_anchor_the_old_way _
+
+self = <tests.test_calendar_week_anchor.TestTheAnchorIsDerivedOnce object at 0x7f5f13eaa660>
+
+    def test_no_surface_still_computes_the_anchor_the_old_way(self):
+>       ast = self._parse()
+
+tests/test_calendar_week_anchor.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @staticmethod
+    def _parse() -> dict:
+        files = [{"name": n, "path": str(_REPO / p)} for n, p in _SURFACE.items()]
+        proc = subprocess.run(
+            [shutil.which("node"), "--input-type=module", "-e", _AST_SCRIPT],
+            cwd=str(_APP), capture_output=True, text=True, timeout=120,
+            env={**__import__("os").environ, "UCT_FILES": json.dumps(files)},
+        )
+>       assert proc.returncode == 0, (
+            f"the AST parse did not run (exit {proc.returncode}).\n{proc.stderr}")
+E       AssertionError: the AST parse did not run (exit 1).
+E         node:internal/modules/package_json_reader:314
+E           throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+E                 ^
+E         
+E         Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+E             at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E             at packageResolve (node:internal/modules/esm/resolve:768:81)
+E             at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E             at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E             at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+E             at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+E             at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+E             at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+E           code: 'ERR_MODULE_NOT_FOUND'
+E         }
+E         
+E         Node.js v22.23.2
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+
+tests/test_calendar_week_anchor.py:275: AssertionError
+____ TestTheAnchorIsDerivedOnce.test_exactly_one_module_declares_the_anchor ____
+
+self = <tests.test_calendar_week_anchor.TestTheAnchorIsDerivedOnce object at 0x7f5f13eaab10>
+
+    def test_exactly_one_module_declares_the_anchor(self):
+>       ast = self._parse()
+
+tests/test_calendar_week_anchor.py:288: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @staticmethod
+    def _parse() -> dict:
+        files = [{"name": n, "path": str(_REPO / p)} for n, p in _SURFACE.items()]
+        proc = subprocess.run(
+            [shutil.which("node"), "--input-type=module", "-e", _AST_SCRIPT],
+            cwd=str(_APP), capture_output=True, text=True, timeout=120,
+            env={**__import__("os").environ, "UCT_FILES": json.dumps(files)},
+        )
+>       assert proc.returncode == 0, (
+            f"the AST parse did not run (exit {proc.returncode}).\n{proc.stderr}")
+E       AssertionError: the AST parse did not run (exit 1).
+E         node:internal/modules/package_json_reader:314
+E           throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+E                 ^
+E         
+E         Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+E             at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E             at packageResolve (node:internal/modules/esm/resolve:768:81)
+E             at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E             at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E             at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+E             at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+E             at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+E             at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+E           code: 'ERR_MODULE_NOT_FOUND'
+E         }
+E         
+E         Node.js v22.23.2
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+
+tests/test_calendar_week_anchor.py:275: AssertionError
+_ TestTheAnchorIsDerivedOnce.test_every_consumer_imports_it_rather_than_restating_it _
+
+self = <tests.test_calendar_week_anchor.TestTheAnchorIsDerivedOnce object at 0x7f5f13eab050>
+
+    def test_every_consumer_imports_it_rather_than_restating_it(self):
+>       ast = self._parse()
+
+tests/test_calendar_week_anchor.py:294: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @staticmethod
+    def _parse() -> dict:
+        files = [{"name": n, "path": str(_REPO / p)} for n, p in _SURFACE.items()]
+        proc = subprocess.run(
+            [shutil.which("node"), "--input-type=module", "-e", _AST_SCRIPT],
+            cwd=str(_APP), capture_output=True, text=True, timeout=120,
+            env={**__import__("os").environ, "UCT_FILES": json.dumps(files)},
+        )
+>       assert proc.returncode == 0, (
+            f"the AST parse did not run (exit {proc.returncode}).\n{proc.stderr}")
+E       AssertionError: the AST parse did not run (exit 1).
+E         node:internal/modules/package_json_reader:314
+E           throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+E                 ^
+E         
+E         Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+E             at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E             at packageResolve (node:internal/modules/esm/resolve:768:81)
+E             at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E             at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E             at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+E             at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+E             at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+E             at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+E           code: 'ERR_MODULE_NOT_FOUND'
+E         }
+E         
+E         Node.js v22.23.2
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+
+tests/test_calendar_week_anchor.py:275: AssertionError
+_ TestTheAnchorIsDerivedOnce.test_no_rendered_calendar_date_comes_from_toISOString _
+
+self = <tests.test_calendar_week_anchor.TestTheAnchorIsDerivedOnce object at 0x7f5f13eab590>
+
+    def test_no_rendered_calendar_date_comes_from_toISOString(self):
+        # Defect 2, structurally: `toISOString()` on a local-midnight Date is
+        # the UTC day, which is the PREVIOUS day for every browser east of UTC.
+>       ast = self._parse()
+
+tests/test_calendar_week_anchor.py:309: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @staticmethod
+    def _parse() -> dict:
+        files = [{"name": n, "path": str(_REPO / p)} for n, p in _SURFACE.items()]
+        proc = subprocess.run(
+            [shutil.which("node"), "--input-type=module", "-e", _AST_SCRIPT],
+            cwd=str(_APP), capture_output=True, text=True, timeout=120,
+            env={**__import__("os").environ, "UCT_FILES": json.dumps(files)},
+        )
+>       assert proc.returncode == 0, (
+            f"the AST parse did not run (exit {proc.returncode}).\n{proc.stderr}")
+E       AssertionError: the AST parse did not run (exit 1).
+E         node:internal/modules/package_json_reader:314
+E           throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+E                 ^
+E         
+E         Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+E             at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E             at packageResolve (node:internal/modules/esm/resolve:768:81)
+E             at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E             at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E             at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+E             at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+E             at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+E             at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+E           code: 'ERR_MODULE_NOT_FOUND'
+E         }
+E         
+E         Node.js v22.23.2
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+
+tests/test_calendar_week_anchor.py:275: AssertionError
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+_________ test_every_corporate_action_site_is_REGISTERED_with_a_state __________
+
+rows = [Row(path='api/services/bars_sanitize.py', kind='ADJUSTMENT_APPLIED', occurrences=5, state='outstanding', reason='_app...splits AND /v3/reference/dividends — the only file reading both. CP3 moves the splits half behind a D1 adapter.'), ...]
+
+    def test_every_corporate_action_site_is_REGISTERED_with_a_state(rows):
+        """⛔ THE RAIL. It fails BY NAME, never with a count."""
+        unregistered = sorted((r.path, r.kind) for r in rows if r.state == "UNREGISTERED")
+>       assert not unregistered, (
+            "a corporate-action site nobody has classified:\n" +
+            "\n".join("    %s [%s]" % (p, k) for p, k in unregistered) +
+            "\n\nAdd it to tools/corp_actions_census.py::REGISTER with one of "
+            f"{cac.STATES} and, if `outside`, a written reason.")
+E       AssertionError: a corporate-action site nobody has classified:
+E             api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED]
+E         
+E         Add it to tools/corp_actions_census.py::REGISTER with one of ('outstanding', 'migrated', 'outside') and, if `outside`, a written reason.
+E       assert not [('api/services/wisdom/capture/families/gex.py', 'VENDOR_ADJUSTED')]
+
+tests/test_corp_actions_census.py:88: AssertionError
+____ test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason ____
+
+rows = [Row(path='api/services/bars_sanitize.py', kind='ADJUSTMENT_APPLIED', occurrences=5, state='outstanding', reason='_app...splits AND /v3/reference/dividends — the only file reading both. CP3 moves the splits half behind a D1 adapter.'), ...]
+
+    def test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason(rows):
+        """⛔ `outside` IS A DECISION, NOT A SUPPRESSION. An exclusion with no reason
+        attached is a silent skip wearing a register's clothes."""
+        for r in rows:
+>           assert r.state in cac.STATES, f"{r.path} [{r.kind}] has state {r.state!r}"
+E           AssertionError: api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] has state 'UNREGISTERED'
+E           assert 'UNREGISTERED' in ('outstanding', 'migrated', 'outside')
+E            +  where 'UNREGISTERED' = Row(path='api/services/wisdom/capture/families/gex.py', kind='VENDOR_ADJUSTED', occurrences=1, state='UNREGISTERED', reason='').state
+E            +  and   ('outstanding', 'migrated', 'outside') = cac.STATES
+
+tests/test_corp_actions_census.py:99: AssertionError
+__________ test_the_census_runs_as_a_command_and_reports_its_verdict ___________
+
+    def test_the_census_runs_as_a_command_and_reports_its_verdict():
+        """⛔ AN AUDIT NOBODY CAN RUN READS AS COVERAGE. This programme's own
+        history: the Desk insights pass was written, documented as scheduled, and
+        wired into no scheduler for weeks."""
+        r = subprocess.run([sys.executable, str(_TOOL)], cwd=str(_REPO),
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace")
+>       assert r.returncode == 0, (
+            "the census exits non-zero, so something is unregistered:\n"
+            + (r.stdout or "") + (r.stderr or ""))
+E       AssertionError: the census exits non-zero, so something is unregistered:
+E         CORPORATE-ACTIONS CENSUS — 23 rows across 21 files
+E         
+E         adjustment entry points, DERIVED from api/**'s own defs:
+E             _apply_split_adjust          api/services/bars_sanitize.py:480
+E             unadjusted_splits            api/services/bars_sanitize.py:384
+E         
+E         == PROVIDER_READ — 4 rows (outstanding 3, migrated 0, outside 1) ==
+E             api/services/bars_sanitize.py                            PROVIDER_READ        x1   outstanding  FMP /stable/splits, read to decide whether a stored series is unadjust
+E             api/services/breadth_dividends.py                        PROVIDER_READ        x1   outside      Massive /v3/reference/dividends, consumed to build the breadth frame's
+E             api/services/massive.py                                  PROVIDER_READ        x1   outstanding  Massive /v3/reference/splits behind get_split_tickers, which the D5 pa
+E             api/services/polygon_extras.py                           PROVIDER_READ        x2   outstanding  Massive /v3/reference/splits AND /v3/reference/dividends — the only fi
+E         
+E         == ADJUSTMENT_APPLIED — 2 rows (outstanding 2, migrated 0, outside 0) ==
+E             api/services/bars_sanitize.py                            ADJUSTMENT_APPLIED   x5   outstanding  _apply_split_adjust + unadjusted_splits — the SERVE-path rescale. Noth
+E             api/services/bars_split_repair.py                        ADJUSTMENT_APPLIED   x1   outstanding  the STORE-path rewrite, calling the same unadjusted_splits judgement f
+E         
+E         == VENDOR_ADJUSTED — 17 rows (outstanding 7, migrated 0, outside 9) ==
+E             api/gex_router.py                                        VENDOR_ADJUSTED      x1   outside      same surface as gex_service; router-level pass-through.
+E             api/gex_service.py                                       VENDOR_ADJUSTED      x4   outside      options GEX surface; an equity split basis is not a claim it makes, an
+E             api/index_bars.py                                        VENDOR_ADJUSTED      x4   outside      index series; indices do not split, so the flag is inert here.
+E             api/oi_morning.py                                        VENDOR_ADJUSTED      x1   outside      open-interest snapshot; carries no equity price series.
+E             api/routers/live_prices.py                               VENDOR_ADJUSTED      x2   outstanding  the live quote path. CP7's label.
+E             api/services/audit.py                                    VENDOR_ADJUSTED      x1   outside      the reconciliation auditor's own canonical fetch — it must ask for the
+E             api/services/bars_fetch.py                               VENDOR_ADJUSTED      x6   outstanding  the main bars path asks the vendor to pre-adjust; the served payload d
+E             api/services/breadth_pit_calibrate.py                    VENDOR_ADJUSTED      x1   outside      point-in-time calibration for the breadth frame — the same different-r
+E             api/services/earnings_enrichment.py                      VENDOR_ADJUSTED      x6   outstanding  earnings reaction percentages are computed off an adjusted series with
+E             api/services/journal_two/broker/historical_equity.py     VENDOR_ADJUSTED      x1   outside      broker-sync mirrors the BROKER's own figures; imposing our adjustment 
+E             api/services/journal_two/broker/option_marks.py          VENDOR_ADJUSTED      x1   outside      same mirror-fidelity invariant as historical_equity.
+E             api/services/journal_two/broker/reconstruct.py           VENDOR_ADJUSTED      x2   outside      same mirror-fidelity invariant as historical_equity.
+E             api/services/massive.py                                  VENDOR_ADJUSTED      x2   outstanding  the adapter passes the flag through. CP7's label.
+E             api/services/scan_gainers.py                             VENDOR_ADJUSTED      x2   outstanding  a scan ranking off an adjusted series with no basis recorded. CP7's la
+E             api/services/scan_period.py                              VENDOR_ADJUSTED      x2   outstanding  get_grouped_daily_closes(..., adjusted=True) — the whole-market groupe
+E             api/services/watchlist_prebuilt_refresh.py               VENDOR_ADJUSTED      x1   outstanding  ?adjusted=true on the grouped-daily aggregate that refreshes the prebu
+E             api/services/wisdom/capture/families/gex.py              VENDOR_ADJUSTED      x1   UNREGISTERED 
+E         
+E         ⛔ UNREGISTERED (1) — a corporate-action site nobody has classified:
+E             api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...action site nobody has classified:\n    api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1\n", stderr='').returncode
+
+tests/test_corp_actions_census.py:223: AssertionError
+_ test_BLIND_SPOT_4_a_USER_AUTHORED_fire_is_refused_FIRST_yet_the_record_has_it _
+
+definition = {'compute': {'ast': {'args': [{'name': 'close', 'type': 'series'}, {'type': 'num', 'value': 5}], 'name': 'sma', 'type': 'call'}, 'kind': 'ast'}, 'id': 'u_1234567890ab', 'inputs': [], 'meta': {'name': 'My Average', 'shortName': 'MA'}, ...}
+def_id = 'u_1234567890ab'
+bars = [{'c': 100.0, 'h': 100.6, 'l': 99.4, 'o': 100.0, ...}, {'c': 101.0, 'h': 101.6, 'l': 100.4, 'o': 101.0, ...}, {'c': 10.....}, {'c': 104.0, 'h': 104.6, 'l': 103.4, 'o': 104.0, ...}, {'c': 105.0, 'h': 105.6, 'l': 104.4, 'o': 105.0, ...}, ...]
+
+    def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
+                         bars: list) -> dict:
+        """⭐ D-A2's RUNTIME HALF: THIS tree, THESE bars, BOTH lanes, 1e-9.
+    
+        ⚠️ THE MEASUREMENT IS A REFUSAL, NOT A FLAG. Recording a null `admitted_at`
+        asserts the bookkeeping; raising asserts the thing the user experiences —
+        that no notification left the building. The alert is never created, so there
+        is nothing to go quiet.
+    
+        ⛔ AND A LANE THAT CANNOT RUN IS A REFUSAL TOO. `run_js` raises
+        `LaneUnavailable` rather than returning `{}` when node or the interpreter is
+        missing; catching that and admitting would mean a box without node admits
+        everything, which is the failure direction that ships a formula that computes
+        one number on the server and another on the author's chart, forever, with
+        nothing to say so.
+        """
+        if not bars:
+            raise AdmissionRefused(
+                "bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id}")
+        compute = definition.get("compute") or {}
+        try:
+            # ⭐ THE DEFINITION'S OWN DECLARED DEFAULTS, WHICH IS WHAT PRODUCTION
+            # EVALUATES. `_inputs_for` is the ONE reader of `inputs[].key` on this
+            # lane and `_make_value_fn` calls it on every evaluation; proving the
+            # lanes equal with `{}` would be proving it about a formula nobody runs.
+            #
+            # ⚠️ DEFAULTS, NOT AN ALERT ROW'S `params_json`, AND THAT IS A STATED
+            # BOUND rather than an oversight: admission is per (definition, version)
+            # and there is no row yet, so a proof taken on one row's knobs would be
+            # cited for every other row's. What the knobs move is the VALUE, not
+            # which names resolve — but a lane divergence that only appears at some
+            # other knob setting is outside what this measurement covers.
+>           report = cross_lane_report(compute.get("ast"), bars,
+                                       _inputs_for(definition, None))
+
+api/services/alert_user_series.py:688: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/alert_user_series.py:651: in cross_lane_report
+    js = conf.run_js(cases, bars)
+tools/ast_conformance.py:912: in run_js
+    return _node_run(_JS_DRIVER, payload)["columns"]
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+driver_source = '\n// ONE process for the whole corpus. Seven cases would be seven node boots for\n// no reason, and each boot is ~40 ...v === undefined || Number.isNaN(v) ? null : v))\n}\nprocess.stdout.write(JSON.stringify({ ok: true, columns: out }))\n'
+payload = {'bars': [{'c': 100.0, 'h': 100.6, 'l': 99.4, 'o': 100.0, ...}, {'c': 101.0, 'h': 101.6, 'l': 100.4, 'o': 101.0, ...},... {}}], 'interpreter': '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/interpret.js'}
+
+    def _node_run(driver_source: str, payload: dict) -> dict:
+        """Run ONE node process over `driver_source` with `payload` on STDIN.
+    
+        ARGV AS A LIST, shell=False, and the payload goes in on STDIN -- never in a
+        `-e` string: a `-t` containing a double quote SPLIT under cmd.exe and
+        selected TEN tests on this branch.
+    
+        The reader is pinned `encoding='utf-8', errors='replace'`: without it Python
+        decodes the child as cp1252 and one box-drawing character raises
+        UnicodeDecodeError inside the reader thread, stdout comes back None, and the
+        verdict is a TypeError rather than a result.
+        """
+        tmpdir = tempfile.mkdtemp(prefix="ast_conformance_")
+        driver = os.path.join(tmpdir, "driver.mjs")
+        hook = os.path.join(tmpdir, "jsonhook.mjs")
+        try:
+            # BYTES, and newline='' -- a python patch script on this repo that writes
+            # text silently converts a whole file CRLF->LF.
+            with io.open(hook, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(_JS_JSON_HOOK)
+            with io.open(driver, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(driver_source)
+            proc = subprocess.run(
+                [_node(), driver], cwd=ROOT, input=json.dumps(payload),
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+        finally:
+            for path in (driver, hook):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+            try:
+                os.rmdir(tmpdir)
+            except OSError:
+                pass
+    
+        if proc.returncode != 0:
+            # ⚠️ HEAD AND TAIL, NOT TAIL ALONE. A JS refusal opens with the part a
+            # caller greps for ("unknown name `lineWidth` -- not one of: ...") and
+            # then enumerates the WHOLE declared vocabulary; a tail-only slice sized
+            # to yesterday's manifest cut the name clean off the day the Stage-B
+            # bump took the table 124 -> 164 names, and the control test matching
+            # on "lineWidth" went red against a refusal that was correct.
+            err = (proc.stderr or proc.stdout) or ""
+            if len(err) > 4000:
+                err = err[:2000] + "\n... [middle elided] ...\n" + err[-2000:]
+>           raise LaneUnavailable(f"the JS lane exited {proc.returncode}: {err}")
+E           ast_conformance.LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20)
+E               at MessagePort.<anonymous> (node:internal/per_context/messageport:23:28) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+
+tools/ast_conformance.py:865: LaneUnavailable
+
+The above exception was the direct cause of the following exception:
+
+cycle_env = {'auth': PosixPath('/tmp/pytest-of-runner/pytest-0/test_BLIND_SPOT_4_a_USER_AUTHO0/auth.db'), 'delivered': [], 'ledger': PosixPath('/tmp/pytest-of-runner/pytest-0/test_BLIND_SPOT_4_a_USER_AUTHO0/signal_ledger.db')}
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_BLIND_SPOT_4_a_USER_AUTHO0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f5f0c6448c0>
+
+    def test_BLIND_SPOT_4_a_USER_AUTHORED_fire_is_refused_FIRST_yet_the_record_has_it(
+            cycle_env, tmp_path, monkeypatch):
+        """⭐ NOTHING A MEMBER WRITES CAN EVER ACCRUE LEDGER HISTORY — which would
+        make a *user-built scan's* track record permanently, structurally empty.
+        That is the single most damning of the five for a screener whose entire
+        premise is user-authored rules.
+    
+        ⛔ THE ZERO IS NOT VACUOUS: a builtin alert fires in the SAME cycle and lands
+        its row, so "zero" is a statement about PROVENANCE, not about a quiet tape.
+        """
+        _the_shipped_lane_is_closed()
+        defs_path = tmp_path / "user_definitions.db"
+        monkeypatch.setenv("USER_DEFINITIONS_DB_PATH", str(defs_path))
+        monkeypatch.setattr(ud, "_DB_PATH", str(defs_path))
+        ud._init_db()
+        from api.services import alert_user_series as aus
+        aus.forget()
+        try:
+            ud.save("u-author", _USER_DEF_ID, _user_definition())
+>           user_aid = ias.create(user_id="u-author", sym=_SYM,
+                                  indicator=_USER_ADDRESS, condition="above",
+                                  threshold=120.0, tf=_BARS_TF)
+
+tests/test_definition_record.py:1183: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/indicator_alert_service.py:343: in create
+    admitted = alert_user_series.arm_for_alert(user_id, indicator, sym.upper(), tf)
+api/services/alert_user_series.py:1117: in arm_for_alert
+    return admit_user_definition(user_id, def_id, None, bars=bars)
+api/services/alert_user_series.py:748: in admit_user_definition
+    report = _gate_cross_lane(definition, def_id, bars)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+definition = {'compute': {'ast': {'args': [{'name': 'close', 'type': 'series'}, {'type': 'num', 'value': 5}], 'name': 'sma', 'type': 'call'}, 'kind': 'ast'}, 'id': 'u_1234567890ab', 'inputs': [], 'meta': {'name': 'My Average', 'shortName': 'MA'}, ...}
+def_id = 'u_1234567890ab'
+bars = [{'c': 100.0, 'h': 100.6, 'l': 99.4, 'o': 100.0, ...}, {'c': 101.0, 'h': 101.6, 'l': 100.4, 'o': 101.0, ...}, {'c': 10.....}, {'c': 104.0, 'h': 104.6, 'l': 103.4, 'o': 104.0, ...}, {'c': 105.0, 'h': 105.6, 'l': 104.4, 'o': 105.0, ...}, ...]
+
+    def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
+                         bars: list) -> dict:
+        """⭐ D-A2's RUNTIME HALF: THIS tree, THESE bars, BOTH lanes, 1e-9.
+    
+        ⚠️ THE MEASUREMENT IS A REFUSAL, NOT A FLAG. Recording a null `admitted_at`
+        asserts the bookkeeping; raising asserts the thing the user experiences —
+        that no notification left the building. The alert is never created, so there
+        is nothing to go quiet.
+    
+        ⛔ AND A LANE THAT CANNOT RUN IS A REFUSAL TOO. `run_js` raises
+        `LaneUnavailable` rather than returning `{}` when node or the interpreter is
+        missing; catching that and admitting would mean a box without node admits
+        everything, which is the failure direction that ships a formula that computes
+        one number on the server and another on the author's chart, forever, with
+        nothing to say so.
+        """
+        if not bars:
+            raise AdmissionRefused(
+                "bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id}")
+        compute = definition.get("compute") or {}
+        try:
+            # ⭐ THE DEFINITION'S OWN DECLARED DEFAULTS, WHICH IS WHAT PRODUCTION
+            # EVALUATES. `_inputs_for` is the ONE reader of `inputs[].key` on this
+            # lane and `_make_value_fn` calls it on every evaluation; proving the
+            # lanes equal with `{}` would be proving it about a formula nobody runs.
+            #
+            # ⚠️ DEFAULTS, NOT AN ALERT ROW'S `params_json`, AND THAT IS A STATED
+            # BOUND rather than an oversight: admission is per (definition, version)
+            # and there is no row yet, so a proof taken on one row's knobs would be
+            # cited for every other row's. What the knobs move is the VALUE, not
+            # which names resolve — but a lane divergence that only appears at some
+            # other knob setting is outside what this measurement covers.
+            report = cross_lane_report(compute.get("ast"), bars,
+                                       _inputs_for(definition, None))
+        except AdmissionRefused:
+            raise
+        except Exception as exc:
+>           raise AdmissionRefused(
+                "cross-lane",
+                f"{def_id}: the lanes could not be compared ({type(exc).__name__}: "
+                f"{exc}) — a formula this lane cannot prove equal is not admitted"
+            ) from exc
+E           api.services.alert_user_series.AdmissionRefused: u_1234567890ab: the lanes could not be compared (LaneUnavailable: the JS lane exited 1: 
+E           node:internal/modules/run_main:123
+E               triggerUncaughtException(
+E               ^
+E           Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+E               at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+E               at packageResolve (node:internal/modules/esm/resolve:768:81)
+E               at moduleResolve (node:internal/modules/esm/resolve:855:18)
+E               at defaultResolve (node:internal/modules/esm/resolve:985:11)
+E               at nextResolve (node:internal/modules/esm/hooks:748:28)
+E               at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+E               at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+E               at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20)
+E               at MessagePort.<anonymous> (node:internal/per_context/messageport:23:28) {
+E             code: 'ERR_MODULE_NOT_FOUND'
+E           }
+E           
+E           Node.js v22.23.2
+E           ) — a formula this lane cannot prove equal is not admitted [gate:cross-lane]
+
+api/services/alert_user_series.py:693: AdmissionRefused
+_____ test_the_real_boundary_resolve_and_run_railway_status_json_for_real ______
+
+    def test_the_real_boundary_resolve_and_run_railway_status_json_for_real():
+        """⛔ RULE 10: the fake-`run` cases above CANNOT see a PATH-resolution defect. This one can."""
+>       exe = resolve_railway()                     # real shutil.which — raises if absent
+
+tests/test_deploy_watch.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+which = <function which at 0x7f5f3241c720>
+
+    def resolve_railway(which=shutil.which) -> str:
+        """The resolved absolute path to the CLI, or raise. This is the whole 2026-09-10 defect."""
+        exe = which("railway")
+        if not exe:
+>           raise RailwayNotFound(
+                "`railway` is not on PATH. shutil.which found nothing, so every probe would raise "
+                "FileNotFoundError and the watch would report nothing while looking healthy."
+            )
+E           deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+
+scripts/deploy_watch.py:47: RailwayNotFound
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_definition_record.py:262
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_record.py:262: SyntaxWarning: invalid escape sequence '\d'
+    the one thing in the run that touched it. On a box where `C:\data` exists
+
+tests/test_definition_sharing.py:55
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_sharing.py:55: SyntaxWarning: invalid escape sequence '\d'
+    passed only because the shared `C:\data\auth.db` happened to hold a real
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:693: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:800: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_darkpool_bigblock.py: 14 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_bigblock.py:269: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow().isoformat()
+
+tests/test_darkpool_eod_card.py::test_render_card_accepts_record_and_tier_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_eod.py:241: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+tests/test_deep_backfill_sync.py::test_deep_intraday_marks_history_complete
+tests/test_deep_backfill_sync.py::test_shallow_intraday_request_still_uses_swr_path
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1155: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+
+tests/test_deep_backfill_sync.py::test_deep_daily_request_keeps_background_path
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:366: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_recap_poster.py:92: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    return list(img.crop((0, H - 108, rp._W, H - 82)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_draws_both_up_and_down_candles
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:337: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    px = list(img.crop((0, 300, t._W, 518)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_wicks_rise_above_every_body
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:350: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    lit = sum(1 for r, g, b in band.getdata() if max(r, g, b) > 60)
+
+tests/test_desk_thumbnail.py::test_candle_skyline_bodies_are_rooted_at_the_waterline
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:358: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    row = list(img.crop((0, 512, t._W, 513)).getdata())      # just above waterline 518
+
+tests/test_desk_thumbnail.py::test_evening_card_carries_green_candles_over_the_sunset
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:367: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    (0, 300, t._W, 518)).getdata())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+ERROR tests/test_definition_concierge.py::test_the_python_read_back_is_BYTE_IDENTICAL_to_sentence_js - tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+ERROR tests/test_definition_concierge.py::test_the_cross_lane_corpus_REACHES_every_operand_kind - tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+ERROR tests/test_definition_concierge.py::test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE - tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+ERROR tests/test_definition_concierge.py::test_the_operator_phrases_and_the_read_back_refusals_are_ONE_VOCABULARY - tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+ERROR tests/test_definition_concierge.py::test_the_SOURCE_the_concierge_derives_PARSES_BACK_to_the_tree - tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+ERROR tests/test_definition_concierge.py::test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED - tests.test_definition_concierge.LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolve (file:///tmp/concierge_js_5j47u7g1/hook.mjs:13:10)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+FAILED tests/test_calendar_week_anchor.py::TestTheAnchorIsDerivedOnce::test_no_surface_still_computes_the_anchor_the_old_way - AssertionError: the AST parse did not run (exit 1).
+  node:internal/modules/package_json_reader:314
+    throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+          ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:855:18)
+      at defaultResolve (node:internal/modules/esm/resolve:985:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+      at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+      at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+      at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+  
+  Node.js v22.23.2
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+FAILED tests/test_calendar_week_anchor.py::TestTheAnchorIsDerivedOnce::test_exactly_one_module_declares_the_anchor - AssertionError: the AST parse did not run (exit 1).
+  node:internal/modules/package_json_reader:314
+    throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+          ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:855:18)
+      at defaultResolve (node:internal/modules/esm/resolve:985:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+      at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+      at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+      at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+  
+  Node.js v22.23.2
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+FAILED tests/test_calendar_week_anchor.py::TestTheAnchorIsDerivedOnce::test_every_consumer_imports_it_rather_than_restating_it - AssertionError: the AST parse did not run (exit 1).
+  node:internal/modules/package_json_reader:314
+    throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+          ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:855:18)
+      at defaultResolve (node:internal/modules/esm/resolve:985:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+      at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+      at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+      at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+  
+  Node.js v22.23.2
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+FAILED tests/test_calendar_week_anchor.py::TestTheAnchorIsDerivedOnce::test_no_rendered_calendar_date_comes_from_toISOString - AssertionError: the AST parse did not run (exit 1).
+  node:internal/modules/package_json_reader:314
+    throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+          ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/[eval1]
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:855:18)
+      at defaultResolve (node:internal/modules/esm/resolve:985:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+      at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+      at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+      at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+  
+  Node.js v22.23.2
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/usr/local/bin/node', '--input-type=module', '-e', "\nimport { readFileSync } from 'node:fs'\n...uleJob._link (node:internal/modules/esm/module_job:182:49) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.23.2\n").returncode
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+FAILED tests/test_corp_actions_census.py::test_every_corporate_action_site_is_REGISTERED_with_a_state - AssertionError: a corporate-action site nobody has classified:
+      api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED]
+  
+  Add it to tools/corp_actions_census.py::REGISTER with one of ('outstanding', 'migrated', 'outside') and, if `outside`, a written reason.
+assert not [('api/services/wisdom/capture/families/gex.py', 'VENDOR_ADJUSTED')]
+FAILED tests/test_corp_actions_census.py::test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason - AssertionError: api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] has state 'UNREGISTERED'
+assert 'UNREGISTERED' in ('outstanding', 'migrated', 'outside')
+ +  where 'UNREGISTERED' = Row(path='api/services/wisdom/capture/families/gex.py', kind='VENDOR_ADJUSTED', occurrences=1, state='UNREGISTERED', reason='').state
+ +  and   ('outstanding', 'migrated', 'outside') = cac.STATES
+FAILED tests/test_corp_actions_census.py::test_the_census_runs_as_a_command_and_reports_its_verdict - AssertionError: the census exits non-zero, so something is unregistered:
+  CORPORATE-ACTIONS CENSUS — 23 rows across 21 files
+  
+  adjustment entry points, DERIVED from api/**'s own defs:
+      _apply_split_adjust          api/services/bars_sanitize.py:480
+      unadjusted_splits            api/services/bars_sanitize.py:384
+  
+  == PROVIDER_READ — 4 rows (outstanding 3, migrated 0, outside 1) ==
+      api/services/bars_sanitize.py                            PROVIDER_READ        x1   outstanding  FMP /stable/splits, read to decide whether a stored series is unadjust
+      api/services/breadth_dividends.py                        PROVIDER_READ        x1   outside      Massive /v3/reference/dividends, consumed to build the breadth frame's
+      api/services/massive.py                                  PROVIDER_READ        x1   outstanding  Massive /v3/reference/splits behind get_split_tickers, which the D5 pa
+      api/services/polygon_extras.py                           PROVIDER_READ        x2   outstanding  Massive /v3/reference/splits AND /v3/reference/dividends — the only fi
+  
+  == ADJUSTMENT_APPLIED — 2 rows (outstanding 2, migrated 0, outside 0) ==
+      api/services/bars_sanitize.py                            ADJUSTMENT_APPLIED   x5   outstanding  _apply_split_adjust + unadjusted_splits — the SERVE-path rescale. Noth
+      api/services/bars_split_repair.py                        ADJUSTMENT_APPLIED   x1   outstanding  the STORE-path rewrite, calling the same unadjusted_splits judgement f
+  
+  == VENDOR_ADJUSTED — 17 rows (outstanding 7, migrated 0, outside 9) ==
+      api/gex_router.py                                        VENDOR_ADJUSTED      x1   outside      same surface as gex_service; router-level pass-through.
+      api/gex_service.py                                       VENDOR_ADJUSTED      x4   outside      options GEX surface; an equity split basis is not a claim it makes, an
+      api/index_bars.py                                        VENDOR_ADJUSTED      x4   outside      index series; indices do not split, so the flag is inert here.
+      api/oi_morning.py                                        VENDOR_ADJUSTED      x1   outside      open-interest snapshot; carries no equity price series.
+      api/routers/live_prices.py                               VENDOR_ADJUSTED      x2   outstanding  the live quote path. CP7's label.
+      api/services/audit.py                                    VENDOR_ADJUSTED      x1   outside      the reconciliation auditor's own canonical fetch — it must ask for the
+      api/services/bars_fetch.py                               VENDOR_ADJUSTED      x6   outstanding  the main bars path asks the vendor to pre-adjust; the served payload d
+      api/services/breadth_pit_calibrate.py                    VENDOR_ADJUSTED      x1   outside      point-in-time calibration for the breadth frame — the same different-r
+      api/services/earnings_enrichment.py                      VENDOR_ADJUSTED      x6   outstanding  earnings reaction percentages are computed off an adjusted series with
+      api/services/journal_two/broker/historical_equity.py     VENDOR_ADJUSTED      x1   outside      broker-sync mirrors the BROKER's own figures; imposing our adjustment 
+      api/services/journal_two/broker/option_marks.py          VENDOR_ADJUSTED      x1   outside      same mirror-fidelity invariant as historical_equity.
+      api/services/journal_two/broker/reconstruct.py           VENDOR_ADJUSTED      x2   outside      same mirror-fidelity invariant as historical_equity.
+      api/services/massive.py                                  VENDOR_ADJUSTED      x2   outstanding  the adapter passes the flag through. CP7's label.
+      api/services/scan_gainers.py                             VENDOR_ADJUSTED      x2   outstanding  a scan ranking off an adjusted series with no basis recorded. CP7's la
+      api/services/scan_period.py                              VENDOR_ADJUSTED      x2   outstanding  get_grouped_daily_closes(..., adjusted=True) — the whole-market groupe
+      api/services/watchlist_prebuilt_refresh.py               VENDOR_ADJUSTED      x1   outstanding  ?adjusted=true on the grouped-daily aggregate that refreshes the prebu
+      api/services/wisdom/capture/families/gex.py              VENDOR_ADJUSTED      x1   UNREGISTERED 
+  
+  ⛔ UNREGISTERED (1) — a corporate-action site nobody has classified:
+      api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...action site nobody has classified:\n    api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1\n", stderr='').returncode
+FAILED tests/test_definition_record.py::test_BLIND_SPOT_4_a_USER_AUTHORED_fire_is_refused_FIRST_yet_the_record_has_it - api.services.alert_user_series.AdmissionRefused: u_1234567890ab: the lanes could not be compared (LaneUnavailable: the JS lane exited 1: 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'jsep' imported from /home/runner/work/UCT-Dashboard/UCT-Dashboard/app/src/components/chart/engine/ast/parse.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:855:18)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20)
+    at MessagePort.<anonymous> (node:internal/per_context/messageport:23:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.23.2
+) — a formula this lane cannot prove equal is not admitted [gate:cross-lane]
+FAILED tests/test_deploy_watch.py::test_the_real_boundary_resolve_and_run_railway_status_json_for_real - deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+10 failed, 2786 passed, 1 skipped, 251 warnings, 6 errors in 287.08s (0:04:47)
