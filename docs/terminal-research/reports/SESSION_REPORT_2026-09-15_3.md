@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 10:41 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 11:18 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**11 commits** — six docs, five code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`
+**13 commits** — seven docs, six code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -264,6 +264,89 @@ verification line must never destroy the thing it verifies.
 ⚠️ **What would falsify it:** publish failing at a step other than `Build the record`. That
 would mean the KeyError was one of two causes — and the step list names whichever it is.
 
+## 3h · Run #10 — E CP12 scored, and falsified exactly where I said it would be
+
+| E CP12 predicted | actual | |
+|---|---|---|
+| `Build the record` stops failing | **SUCCESS — first time in four runs** | ✅ |
+| shards 12 of 12 | **12 of 12**, plus 5 profile jobs, vitest and plan — **19 of 20** | ✅ |
+| `publish`: **success** | **failure, 2 s, at step 15** | ❌ |
+| a record on `ci-results` | **none** | ❌ |
+
+⭐ **The falsifier was named before the push:** *"publish failing at a step OTHER than
+`Build the record` would mean the KeyError was one of two causes."* It did, so it was.
+CP12 fixed the cause it named — that is now measured, not argued — and a second, independent
+defect sat behind it.
+
+## 3i · E CP13 — the publisher deleted itself from disk one line before calling itself
+
+⛔⛔ **Proven from the branch, no log needed.** `git ls-tree -r origin/ci-results` returns
+fourteen paths: `README.md` and `results/**`. **Zero paths under `tools/`.** So
+`git checkout ci-results` — which the step does — deletes `tools/ci_publish.py` from the
+working tree, and the step's last line is:
+
+```
+python tools/ci_publish.py --branch ci-results
+```
+
+Python exits immediately on a path that does not exist. **Two seconds**, which is the
+measured duration.
+
+**Why this is not a regression in runs #3 and #4:** they ended in an inline
+`git push origin ci-results`. `git cat-file -e 4ad1108d1:tools/ci_publish.py` → **the file
+did not exist at run #4.** E CP9 introduced it, and ⛔ **this line has never once executed.**
+
+⚰️ **The comment three lines above the checkout says it:** *"The orphan checkout below wipes
+the working tree, so anything that must survive it is copied OUT first."* E CP9 added a
+script invocation after that checkout and did not copy the script out. **The rule was
+written down, correctly, in the right place, and walked into anyway.**
+
+**Fix 1 — and the publisher now asserts the condition of its own reachability.** It is
+copied to `/tmp` before the checkout and invoked there; `ci_publish --self-check` parses the
+workflow's own publish step and asserts no `python` call after the branch switch points into
+`tools/`, with a **control** proving it flags the exact run-#10 spelling and a non-vacuity
+case so "no calls found" cannot read as a pass. ⭐ It lives inside the publisher because **no
+other validator could see this class** — `yaml.safe_load` sees valid YAML and the expression
+linter sees valid expressions; the defect is *a path that will not exist by the time this
+line runs*.
+
+⚠️ **CODE NEVER PROSE, and it bit within the minute:** a throwaway one-liner I wrote to
+double-check the fix reported the workflow still calling `python tools/ci_publish.py` — it
+was matching **my own comment describing the defect**. The rail was unaffected; the careless
+instrument built beside it was not.
+
+**Fix 2 — an unresolvable upstream stops being called a rebase conflict.** `push_with_retry`
+ignored the fetch rc and reported *any* non-zero rebase as *"two publishers wrote one path"*
+— a confident diagnosis of a cause it had not established. Reproduced on a
+`checkout@v4`-shaped clone: `git fetch origin ci-results` exits 0 writing only FETCH_HEAD,
+`refs/remotes/origin/ci-results` stays **MISSING**, and `git checkout ci-results` then fails.
+⚠️ **NOT claimed as run #10's cause** — runs #3/#4 checked that branch out on the runner, so
+the ref demonstrably exists there. The fix is to the **diagnosis**, not to a cause I have not
+read. `UPSTREAM-UNREADABLE` is its own state now, with a control that the two failures cannot
+print the same sentence.
+
+**Fix 3 — the reader crashed on the one state that matters.** `ci_latest.py` died with
+`UnicodeEncodeError: 'charmap'` on a Windows console, on its **ZERO-RECORDS** path — the
+branch that exists to say *"we could not look"* out loud. Sixth recurrence of cp1252 here.
+And **`results/latest.json` is still on the branch**: E CP9 removed the writer and left the
+file, so it has named run #4 as "latest" through six runs. A pointer nobody updates is worse
+than no pointer; the publisher deletes it once, idempotently.
+
+### Prediction for run #11
+
+| field | prediction |
+|---|---|
+| the publish step reaches `ci_publish.py` | **yes** — the script now exists at the path invoked |
+| `publish` | **success**, with the residual below |
+| a record at `results/<run_id>/summary.json` | **yes** — the first since run #4 |
+| `results/latest.json` | **gone from the branch** |
+| `shards_without_totals` | `[]` — **condition (b)** |
+
+⚠️ **The residual, named rather than hidden:** `push_with_retry`'s fetch→rebase→push has
+still never executed. If `origin/ci-results` does not resolve on the runner it will now say
+**UPSTREAM-UNREADABLE** instead of inventing a conflict — a better failure, not the absence
+of one.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -426,6 +509,8 @@ ran a job.
 | **F-CI-13** | **NEW, mine.** `download-artifact@v4 pattern:` without `merge-multiple` nests each artifact in its own directory, so every shard read MISSING — a silent wrong answer. |
 | **F-CI-14** | **NEW, mine — and it is the one that mattered.** `ci_aggregate` never emitted `runner_line`, which `Build the record` indexes; every publish since E CP6 died there with a KeyError over a cosmetic string. Producer fixed; the builder now NAMES a missing key instead of losing the record. |
 | **RETRACTED (2)** | *"the `jobs` API returns an empty `steps` array, so the failing step is UNREADABLE"* — published three times. The step list is public and named `Build the record` in runs #6, #8 and #9. |
+| **F-CI-15** | **NEW, mine.** `git checkout ci-results` deletes `tools/` from the working tree (the branch carries zero paths under it), so E CP9's `python tools/ci_publish.py` on the next line could never run — and never has. Publisher copied to /tmp and railed by a check inside itself. |
+| **F-CI-16** | **NEW, mine.** `push_with_retry` reported every non-zero rebase as "two publishers wrote one path" — a confident diagnosis of an unestablished cause. UPSTREAM-UNREADABLE is now its own state. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -467,8 +552,8 @@ the top of that job's page **even when the push failed**. Tell me the verdict li
 
 ## 10 · Merge readiness
 
-**24 rows, 24 OK, 0 STALE. 23 of 23 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **16 constraints SATISFIED**, 24 units, 0 MALFORMED,
+**25 rows, 25 OK, 0 STALE. 24 of 24 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **17 constraints SATISFIED**, 25 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
