@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import pathlib
 import re
 import subprocess
@@ -63,6 +64,10 @@ for _stream in (sys.stdout, sys.stderr):
 SETTLE_SECONDS = 150
 POLL_SECONDS = 20
 DEPLOY_TIMEOUT = 900
+#: One `git fetch origin master` per run (K CP5). Module state, deliberately: the run is
+#: a single process from first unit to last, and a per-unit fetch of a ref nothing else
+#: is pushing buys nothing but 31 network round trips.
+_FETCHED = False
 
 #: ⛔ DECLARED, in merge order, and keyed to the manifest by packet stem. The commit list
 #: per unit is what makes "one unit at a time" mechanical rather than aspirational.
@@ -104,6 +109,7 @@ UNITS = [
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
     ("k-cp4-build-record", [], False),                       # docs worktree only
+    ("k-cp5-build-record", [], False),                       # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8", "76a3b98c2"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -265,6 +271,31 @@ def _self_check() -> int:
     # EMPTY: zero constraints -> zero violations, exit 0, and the count is printed
     show("EMPTY constraint set: ZERO rows, no violations", check_order(order, []), [])
 
+    # ── K CP5: the deploy wait ──────────────────────────────────────────────────────
+    # ⛔ THE OLD PREDICATE IS THE CONTROL. A real `railway deployment list` payload, one
+    # SUCCESS (the deployment currently serving) and the rest REMOVED, with OUR commit
+    # nowhere in it: the string test says "go", the row lookup says "not there yet".
+    live_shape = json.dumps({"deployments": [
+        {"status": "SUCCESS", "meta": {"commitHash": "aaaaaaaaaaaa"}},
+        {"status": "REMOVED", "meta": {"commitHash": "bbbbbbbbbbbb"}},
+    ]})
+    show("the OLD predicate fires on somebody else's SUCCESS",
+         '"SUCCESS"' in live_shape, True)
+    show("...and the row lookup does NOT find our commit",
+         _deployment_for_sha(live_shape, "cccccccccccc"), None)
+    show("it DOES find ours when it is there (non-vacuity)",
+         (_deployment_for_sha(live_shape, "aaaaaaaaaaaa") or {}).get("status"), "SUCCESS")
+    show("a short sha matches the full commitHash",
+         (_deployment_for_sha(live_shape, "aaaaaaaaa") or {}).get("status"), "SUCCESS")
+    show("a BUILDING row is found and is not SUCCESS",
+         (_deployment_for_sha(json.dumps([{"status": "BUILDING",
+                                           "meta": {"commitHash": "dddddddddddd"}}]),
+                              "dddddddddddd") or {}).get("status"), "BUILDING")
+    show("unreadable JSON is NOT FOUND, never a pass",
+         _deployment_for_sha("<html>502</html>", "aaaaaaaaaaaa"), None)
+    show("a row with no commitHash never matches an empty sha",
+         _deployment_for_sha(json.dumps([{"status": "SUCCESS", "meta": {}}]), ""), None)
+
     print("SELF-CHECK: %s" % ("PASS" if ok else "FAIL"))
     return OK if ok else FAIL
 
@@ -281,23 +312,120 @@ def run(cmd, cwd, dry):
     return out.returncode, (out.stdout or "") + (out.stderr or "")
 
 
-def wait_for_success(dry) -> bool:
-    """⛔ A PUSH IS NOT CLEAR UNTIL ITS WEB DEPLOY REACHES SUCCESS."""
+def merged_into_master(commits, dry):
+    """Which of `commits` are ALREADY on origin/master — read from MASTER, not the manifest.
+
+    ⚰️⚰️ **K CP5 — THIS SCRIPT COULD NOT BE RUN TWICE.** There was no check of any kind:
+    a second run cherry-picked unit 1's commit again. Measured 2026-09-15 in a throwaway
+    repo, on a commit already in the branch:
+
+        git cherry-pick <already-applied>  ->  exit 1
+        "The previous cherry-pick is now empty, possibly due to conflict resolution."
+        …and it leaves .git/CHERRY_PICK_HEAD behind, so the NEXT run fails the same way
+        before it starts.
+
+    So an interrupted merge session — and one is likely, see `wait_for_deploy` below —
+    left 36 units half-merged with no way forward but hand-editing `UNITS`.
+
+    ⛔ **MASTER IS THE AUTHORITY ON WHAT IS MERGED.** Not the manifest, not a local
+    branch, not a file this tool wrote: `git merge-base --is-ancestor <c> origin/master`,
+    after an explicit fetch. Measured both directions in that same repo — a merged commit
+    exits 0, an unmerged one exits 1 — because a check that only ever answers one way
+    cannot tell a resume from a fresh start.
+    """
+    global _FETCHED
+    if dry:
+        print("    $ git fetch origin master && git merge-base --is-ancestor <c> "
+              "origin/master   # per commit")
+    # ⛔ ONE fetch per RUN, not per unit — but never zero: reading a stale
+    # origin/master would report a merged unit as unmerged and re-merge it.
+    if not _FETCHED:
+        rc, out = run(["git", "fetch", "origin", "master"], CODE_REPO, False)
+        if rc != 0:
+            return None, "could not fetch origin/master: %s" % out.strip()[:200]
+        _FETCHED = True
+    done = []
+    for c in commits:
+        rc, _ = run(["git", "merge-base", "--is-ancestor", c, "origin/master"],
+                    CODE_REPO, False)
+        if rc == 0:
+            done.append(c)
+    return done, ""
+
+
+def wait_for_deploy(sha, dry) -> bool:
+    """⛔ A PUSH IS NOT CLEAR UNTIL **ITS OWN** WEB DEPLOY REACHES SUCCESS.
+
+    ⚰️⚰️ **K CP5 — THE OLD WAIT COULD NOT BLOCK.** It was `'"SUCCESS"' in out` over the
+    raw JSON of `railway deployment list`, and that list is HISTORY. Measured live,
+    2026-09-15 16:2x ET, with no deploy of ours anywhere in it:
+
+        rows returned: 20   statuses: {'SUCCESS': 1, 'REMOVED': 19}
+        merge_all predicate  '"SUCCESS"' in out  ->  True
+
+    The one SUCCESS is the deployment currently SERVING — the PREVIOUS one. So the wait
+    returned on its first poll every time and the whole guarantee collapsed to
+    `sleep(150)`, while a real build measured **~186 s** the same afternoon.
+
+    ⭐ **AND THE CONSEQUENCE IS NOT A MEMBER OUTAGE — IT IS AN ABORTED SESSION.** The
+    Layer-0 pre-push guard REFUSES while the latest deployment is not SUCCESS or is
+    younger than its 150 s settle, so unit 2's push would be refused, `merge_all` would
+    stop, and (before the check above) could not be resumed. The docstring at the top of
+    this file promises the wait is *"on the DEPLOY, not on the check"*; this is what makes
+    that sentence true.
+
+    ⛔ The deployment is identified by OUR commit hash. "Some deployment succeeded" is
+    the assertion that could not fail.
+    """
     if dry:
         print("    $ railway deployment list --service web --json   "
-              "# poll until SUCCESS, then +%ds settled" % SETTLE_SECONDS)
+              "# poll until the deployment for %s reaches SUCCESS, then +%ds settled"
+              % (sha[:9] or "the commit this push creates", SETTLE_SECONDS))
         return True
+    if not sha:
+        print("    ⛔ the pushed commit is UNREADABLE, so its deploy cannot be "
+              "identified. STOPPED — waiting for 'some' deploy is the defect K CP5 "
+              "removed.")
+        return False
     deadline = time.time() + DEPLOY_TIMEOUT
+    seen = None
     while time.time() < deadline:
         rc, out = run(["railway", "deployment", "list", "--service", "web", "--json"],
                       CODE_REPO, False)
-        if rc == 0 and '"SUCCESS"' in out:
-            time.sleep(SETTLE_SECONDS)
-            return True
-        if rc == 0 and ('"FAILED"' in out or '"CRASHED"' in out):
-            return False
+        row = _deployment_for_sha(out, sha) if rc == 0 else None
+        if rc == 0 and row is not None:
+            status = row.get("status")
+            if status != seen:
+                print("    … %s is %s" % (sha[:9], status))
+                seen = status
+            if status == "SUCCESS":
+                time.sleep(SETTLE_SECONDS)
+                return True
+            if status in ("FAILED", "CRASHED", "REMOVED"):
+                print("    ⛔ the deploy for %s ended %s" % (sha[:9], status))
+                return False
         time.sleep(POLL_SECONDS)
+    print("    ⛔ %ds passed and the deploy for %s never reached a terminal status. "
+          "UNREADABLE is not SUCCESS." % (DEPLOY_TIMEOUT, sha[:9]))
     return False
+
+
+def _deployment_for_sha(out, sha):
+    """The deployment row whose commit is `sha`, or None. ⛔ None means NOT FOUND, which
+    is not the same as 'not finished' — the caller keeps polling rather than deciding."""
+    try:
+        rows = json.loads(out)
+    except ValueError:
+        return None
+    if isinstance(rows, dict):
+        rows = rows.get("deployments") or []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        ch = (r.get("meta") or {}).get("commitHash") or ""
+        if ch and (ch.startswith(sha) or sha.startswith(ch)):
+            return r
+    return None
 
 
 def main(argv=None) -> int:
@@ -361,16 +489,46 @@ def main(argv=None) -> int:
         if not commits:
             print("    (docs worktree only — nothing to merge into master)")
             continue
+        # ⛔ K CP5 — ASK MASTER FIRST. This is what makes the script resumable, and it is
+        # a READ, so it runs in dry-run too: a preview that cannot tell you what is
+        # already done is not a preview of the run you are about to do.
+        done, why = merged_into_master(commits, a.dry_run)
+        if done is None:
+            print("    ⛔ %s — STOPPED. Merged-state UNREADABLE is not 'not merged'; "
+                  "guessing here re-merges a unit." % why)
+            return FAIL
+        if done and len(done) == len(commits):
+            print("    ✅ ALREADY MERGED (all %d commit(s) are ancestors of "
+                  "origin/master) — skipping." % len(commits))
+            continue
+        if done:
+            # ⛔ PART of a unit on master is not a state this tool may paper over: the
+            # remaining cherry-picks could be clean, or could be the half that conflicts.
+            print("    ⛔ PARTIALLY MERGED — %d of %d commits are already on master: %s"
+                  % (len(done), len(commits), ", ".join(done)))
+            print("    ⛔ STOPPED. Finish or revert this unit by hand; a tool that "
+                  "chooses for you here is choosing what lands on production.")
+            return REFUSED
         for c in commits:
             rc, out = run(["git", "cherry-pick", c], CODE_REPO, a.dry_run)
             if rc != 0:
                 print("    ⛔ cherry-pick failed: %s\n%s" % (c, out))
+                # ⚰️ A failed cherry-pick leaves .git/CHERRY_PICK_HEAD behind and the
+                # NEXT run dies on it before it reaches this unit. Say so, rather than
+                # leaving the owner to discover it at the start of the resume.
+                print("    ⛔ the code worktree is mid-cherry-pick. Resolve it, or "
+                      "`git -C %s cherry-pick --abort`, before re-running." % CODE_REPO)
                 return FAIL
+        # ⛔ The sha is read AFTER the cherry-picks, because that is the commit the deploy
+        # will carry. In dry-run no cherry-pick happened, so HEAD is somebody else's
+        # commit — report the absence rather than a sha that would be wrong.
+        rc, out = run(["git", "rev-parse", "HEAD"], CODE_REPO, False)
+        sha = "" if a.dry_run else (out.strip() if rc == 0 else "")
         rc, out = run(["git", "push", "origin", "HEAD:master"], CODE_REPO, a.dry_run)
         if rc != 0:
             print("    ⛔ push refused (Layer-0 guard or remote): \n%s" % out)
             return FAIL
-        if not wait_for_success(a.dry_run):
+        if not wait_for_deploy(sha, a.dry_run):
             print("    ⛔ web deploy did not reach SUCCESS. STOPPED.")
             return FAIL
         print("    ✅ merged and deployed")

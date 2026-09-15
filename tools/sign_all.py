@@ -77,15 +77,52 @@ def et_today() -> str:
         "signature date. Tried: %s" % ", ".join(tried))
 
 
-def fingerprint_of(path: pathlib.Path) -> str:
-    """sign_gate's OWN computation, imported rather than reimplemented — a second
+def _sign_gate():
+    """sign_gate's OWN computations, imported rather than reimplemented — a second
     implementation of a fingerprint is a second authority over it."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("_sg", str(HERE / "sign_gate.py"))
     sg = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(sg)
+    return sg
+
+
+def fingerprint_of(path: pathlib.Path) -> str:
     text = path.read_text(encoding="utf-8")
-    return sg.fingerprint(text)
+    return _sign_gate().fingerprint(text)
+
+
+def already_signed_as(path: pathlib.Path):
+    """(state, detail) for a row that is ALREADY signed — the resume case.
+
+    ⚰️⚰️ **K CP5 — A SECOND RUN USED TO DIE ON ROW 1 AND NEVER REACH ROW 2.** Measured
+    2026-09-15 against two fixture packets signed by this tool minutes earlier:
+
+        [sign-all] rows: 2
+        ⛔ no UNSIGNED `APPROVED AT SHA:` line (every block already carries a
+        fingerprint). Re-signing would destroy a historical value — …
+        exit=1
+
+    That is `sign_gate.target_span` raising out of PASS 1's `fingerprint_of`, through
+    `main()`, before a single row was classified. ⛔ **The refusal is right and the blast
+    radius was wrong**: nothing is written, and nothing after row 1 is even LOOKED at, so
+    a run interrupted at unit 12 of 36 could not be resumed without hand-editing the
+    manifest — during a session the owner has to sit through for hours.
+
+    ⭐ **SIGNED-ALREADY IS VERIFIED, NEVER ASSUMED.** The recorded fingerprint must equal
+    the manifest's AND re-derive from the file (`sign_gate.rederive_signed`). A row that
+    carries somebody else's value, or a packet edited after signing, is a MISMATCH and
+    still stops the run — which is the whole point of the pass.
+    """
+    sg = _sign_gate()
+    text = path.read_text(encoding="utf-8")
+    state, reason = sg.read_approval(text)
+    if state != sg.SIGNED:
+        return state, reason
+    filled = [m for m in re.finditer("^APPROVED AT SHA:[ ]*([0-9a-f]{6,})[^" + chr(10)
+                                     + "]*$", text, re.M)]
+    got = [(m.group(1), sg.rederive_signed(text, m.span())) for m in filled]
+    return sg.SIGNED, got
 
 
 def main(argv=None) -> int:
@@ -109,26 +146,59 @@ def main(argv=None) -> int:
     print()
 
     # ── PASS 1: verify every row BEFORE writing anything ──────────────────
+    sg = _sign_gate()
     bad = []
     for r in table:
         p = REPO / r["path"]
         if not p.is_file():
             r["state"], r["got"] = "MISSING-FILE", "-"
-        elif r["want"] == "PENDING":
-            r["state"], r["got"] = "PENDING", fingerprint_of(p)
         else:
-            got = fingerprint_of(p)
-            r["got"] = got
-            r["state"] = "ok" if got == r["want"] else "MISMATCH"
-        if r["state"] in ("MISSING-FILE", "MISMATCH", "PENDING"):
+            # ⛔ K CP5 — ASK WHAT STATE THE PACKET IS IN **BEFORE** ASKING FOR ITS
+            # FINGERPRINT. `fingerprint()` needs an UNSIGNED block and raises without
+            # one, so on a resume the old order threw before it could classify anything.
+            state, detail = already_signed_as(p)
+            if state == sg.SIGNED:
+                stored = [s for s, _ in detail]
+                rederived = [d for _, d in detail]
+                if r["want"] not in stored:
+                    r["state"] = "SIGNED-ELSEWHERE"
+                    r["got"] = ", ".join(stored) or "-"
+                elif r["want"] not in rederived:
+                    r["state"] = "SIGNED-DRIFTED"
+                    r["got"] = ", ".join(rederived) or "-"
+                else:
+                    r["state"], r["got"] = "SIGNED-ALREADY", r["want"]
+            elif state == sg.MALFORMED:
+                r["state"], r["got"] = "MALFORMED", detail
+            elif r["want"] == "PENDING":
+                r["state"], r["got"] = "PENDING", fingerprint_of(p)
+            else:
+                got = fingerprint_of(p)
+                r["got"] = got
+                r["state"] = "ok" if got == r["want"] else "MISMATCH"
+        if r["state"] not in ("ok", "SIGNED-ALREADY"):
             bad.append(r)
         print("  %-2d %-58s %-12s %s"
               % (r["line"], pathlib.Path(r["path"]).name, r["cps"], r["state"]))
-        if r["state"] == "MISMATCH":
+        if r["state"] in ("MISMATCH", "SIGNED-ELSEWHERE", "SIGNED-DRIFTED"):
             print("       want %s" % r["want"])
             print("       got  %s" % r["got"])
+        if r["state"] == "SIGNED-ELSEWHERE":
+            print("       the packet is signed, but not with the value this manifest "
+                  "names — a different approval is on it.")
+        if r["state"] == "SIGNED-DRIFTED":
+            print("       signed with the right value, which no longer re-derives — the "
+                  "packet was EDITED AFTER SIGNING.")
+        if r["state"] == "MALFORMED":
+            print("       %s" % r["got"])
         if r["state"] == "PENDING":
             print("       fill the manifest with: %s" % r["got"])
+
+    done = [r for r in table if r["state"] == "SIGNED-ALREADY"]
+    todo = [r for r in table if r["state"] == "ok"]
+    print()
+    print("[sign-all] %d already signed (verified, will be skipped) · %d to sign · "
+          "%d refusing" % (len(done), len(todo), len(bad)))
 
     if bad:
         print()
@@ -136,11 +206,21 @@ def main(argv=None) -> int:
               "verified, because a manifest that has drifted in one place is not "
               "trustworthy in the others." % len(bad))
         return REFUSED
+    if not todo:
+        print("[sign-all] NOTHING TO DO — every row is already signed. This is the "
+              "resume case, and it is a success, not a refusal.")
+        return OK
 
     # ── PASS 2: sign ──────────────────────────────────────────────────────
     print()
     scope_dir = REPO / ".scopes"
     for r in table:
+        if r["state"] == "SIGNED-ALREADY":
+            # ⛔ SKIPPED, AND SAID OUT LOUD. A silent skip and a silent success are the
+            # same line of output, and the difference is what the owner is reading for.
+            print("  %-58s SIGNED-ALREADY (%s)"
+                  % (pathlib.Path(r["path"]).name, r["want"]))
+            continue
         cps = [c.strip() for c in r["cps"].split(",") if c.strip()]
         scope = ("%s ONLY — the checkpoint(s) named here and nothing else in the packet."
                  % ", ".join(cps))
@@ -164,8 +244,8 @@ def main(argv=None) -> int:
 
     if a.dry_run:
         print()
-        print("[sign-all] DRY RUN — %d sign command(s) printed, nothing written."
-              % len(table))
+        print("[sign-all] DRY RUN — %d sign command(s) printed, %d skipped as already "
+              "signed, nothing written." % (len(todo), len(done)))
     return OK
 
 

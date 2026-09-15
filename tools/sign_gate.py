@@ -52,6 +52,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 #: continues onto the next line. That is why two attempts to mutate this rail came
 #: back green, and why neither was evidence the rail was weak.
 _H = "[ " + chr(92) + "t]*"
+#: A FILLED field's value: everything to the end of the line and NOTHING past it.
+#: Built from chr(10) for the same reason `_H` is built from chr(92) — this file has
+#: been pasted through a heredoc that collapsed its backslashes.
+_FILLED = "[^" + chr(10) + "]*"
 
 _AT_LINE = re.compile("^(APPROVED AT SHA:" + _H + ")([0-9a-f]*)" + _H + "$", re.M)
 
@@ -242,6 +246,42 @@ def fingerprint(text: str, span=None) -> str:
     return hash_object(blank_span(text, span))[:9]
 
 
+def rederive_signed(text: str, span) -> str:
+    """The fingerprint a SIGNED block should carry, recomputed from the file.
+
+    ⚰️⚰️ **K CP5 — `fingerprint(text, span)` DOES NOT COME BACK ON A SIGNED PACKET, AND
+    THAT IS BY CONSTRUCTION.** `sign()` hashes BEFORE it writes `APPROVED BY:` and
+    `APPROVED ON:`, and those bytes are inside the hash. Measured 2026-09-15 on a packet
+    signed by `sign_all.py` three minutes earlier and untouched since:
+
+        stored c9904433a   fingerprint(text, span) c4152be4b   DOES NOT re-derive
+
+    …and on the real tree: **5 of 35 signed blocks re-derive, 30 do not.** The module
+    docstring calls that round trip *"the only way an approval can be checked after the
+    fact"*, so this is the difference between a checkable approval and a decorative one.
+
+    ⭐ **The value being pinned is right; the reader was wrong.** A fingerprint pins the
+    bytes the owner READ — the packet with an empty approval block — not the bytes after
+    the signature was stamped into it. So the reader must blank all THREE written fields,
+    which is what this does, and `fingerprint()` is left exactly as it is: changing what
+    is hashed would re-date every approval in the tree and invalidate all 36 manifest
+    fingerprints at once.
+
+    ⛔ It lives HERE and not in `sign_all.py` because a second implementation of a
+    fingerprint is a second authority over it (`lesson_a_second_authority_over_one_value`).
+    """
+    lo, hi = span
+    t = text[:lo] + "APPROVED AT SHA:" + text[hi:]
+    # ⛔ NOT `_H` HERE. `_H` is `[ \t]*`, which matches only an EMPTY field — correct for
+    # `sign()`, which writes INTO a blank line, and a silent no-op here, where the field
+    # is filled. ⛔ And not `.*` either: per the comment on `_H` above, a class that can
+    # reach a newline walks into the NEXT field. `[^\n]*` cannot cross a line by
+    # construction, which is the property that matters.
+    t = re.sub("^APPROVED BY:" + _FILLED + "$", "APPROVED BY:", t, count=1, flags=re.M)
+    t = re.sub("^APPROVED ON:" + _FILLED + "$", "APPROVED ON:", t, count=1, flags=re.M)
+    return hash_object(t)[:9]
+
+
 def sign(path: pathlib.Path, by: str, on: str, scope: str) -> str:
     t = path.read_text(encoding="utf-8")
     if not _AT_LINE.search(t):
@@ -362,6 +402,34 @@ def main() -> int:
             print("  ⛔ re-signing a fully signed packet was allowed"); ok = False
         except SystemExit:
             pass
+        # CONTROL 7 — K CP5. A SIGNED packet must be CHECKABLE: `rederive_signed` gives
+        # back the value in the field. Run against the CONTROL-4 packet, which was signed
+        # by `sign()` itself a few lines up, so the fixture is the real write path and not
+        # a hand-built lookalike.
+        signed_text = pp.read_text(encoding="utf-8")
+        _m7 = re.search("^APPROVED AT SHA:" + _H + "([0-9a-f]{9})$", signed_text, re.M)
+        if _m7 is None:
+            print("  ⛔ CONTROL 7 fixture has no signed line to re-derive"); ok = False
+        else:
+            if rederive_signed(signed_text, _m7.span()) != _m7.group(1):
+                print("  ⛔ a signed packet does not re-derive — an approval cannot be "
+                      "checked after the fact"); ok = False
+            # …and it must be ABLE to fail: change one byte of the BODY and the value
+            # must move. Without this, "it re-derives" is satisfied by a function that
+            # returns the string it was handed.
+            mutated = signed_text.replace("# packet", "# packet (edited)", 1)
+            if mutated == signed_text:
+                print("  ⛔ CONTROL 7's mutation changed nothing — vacuous"); ok = False
+            elif rederive_signed(mutated, _m7.span()) == _m7.group(1):
+                print("  ⛔ re-derivation ignores the packet body"); ok = False
+            # ⛔ AND the OLD reader must still be the one that is wrong, or this control
+            # is testing nothing that was broken: `fingerprint(text, span)` on the same
+            # signed text must NOT come back, because `sign()` hashes before it writes
+            # APPROVED BY / APPROVED ON.
+            if fingerprint(signed_text, _m7.span()) == _m7.group(1):
+                print("  ⚠️  CONTROL 7: fingerprint() now re-derives too — the defect "
+                      "K CP5 was built for is gone; delete rederive_signed, don't keep "
+                      "two authorities"); ok = False
 
         print("SELF-CHECK:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
