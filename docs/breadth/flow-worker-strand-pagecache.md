@@ -16,7 +16,7 @@ block (`docs/runbooks/deploy-windows.md`). This is that review, traced.
 ## Why it is inert there — three independent reasons
 
 1. ⭐ **The flag is OFF by default and is not set on any service.** `_apply_pagecache`
-   returns before touching the connection unless `BREADTH_OHLC_PAGECACHE` is one of
+   returns before touching the connection unless `BREADTH_OHLC_PAGECACHE_ENABLED` is one of
    `1/true/yes/on`. With it unset — which is every service today — the connection is
    opened with exactly the PRAGMAs it has always had. **Proved by reading the pragmas
    back off a real connection, not by asserting the call was skipped**
