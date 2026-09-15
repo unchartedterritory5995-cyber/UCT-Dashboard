@@ -28,6 +28,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 9 | `2026-09-15-session9-three-passes.md` | 2026-09-15 | ✅ tracked, here | **The three passes are BOUGHT** ($14.6090). The floor blocks 88% of what it governs; every CALL was demoted to MENTION by an unresolvable entity master; R24 closed at 0 of 25 |
 | 10 | `2026-09-15-session10-identity-bounds.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Bounds the 88%: ~18 points are a matching artifact, ~70% real instability. The chain writes 826 real rows and the queue holds 327. Corrects two session-9 errors |
 | 11 | `2026-09-15-session11-promotion-ready.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Identity RULED and applied (MARKET_SIGNAL 21→61), R36 live, the promotion prepared — master merged in, CI green, PR body written. `gh` absent, so Patrick opens it |
+| 12 | `2026-09-15-session12-pr-ready.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** A stale market-hours clock retired from the push guard (and from my own docs), the floor retracts so the queue stops drifting, PRINCIPLE publishes under the lens (31→66), cap raised to 100 |
 
 ## Why report 1 is not tracked
 

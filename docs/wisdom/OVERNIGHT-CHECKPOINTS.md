@@ -1439,3 +1439,40 @@ Reservation now = p90 of measured cost-per-request × 1.5, floored at the worst 
 unmeasured; and `SpendCap.settle` re-checks **actuals** against the cap after every batch.
 ⚠️ Deviation stated: the ledger has no token counts and no `extractor_version`, so the p90 is over
 cost-per-request, not tokens. Mutation: removing the post-batch check reds a test.
+
+
+## SESSION 12 — 2026-09-15: the clock rail retired, the queue self-corrects, PR-ready. $0.00
+
+**Ledger: `cap_usd` 40.0 → 100.0 (R37). Totals identical** — $31.4815, 28 entries, +1 byte.
+
+### ⚰️ R46 — I wrote a waiting period for a rule that does not exist
+
+Session 11 read `pre_push_guard.py`'s "owner ruling A2" clock and put *"merge after 16:05 ET or at
+a weekend"* into a promotion document. **CLAUDE.md:4805 already said the opposite** — the
+market-hours freeze and both its guards were removed 2026-08-24. A rescinded rule reinstated, which
+CLAUDE.md warns about twice. ~190 lines and **19 tests** removed; the QUEUE and CADENCE guards kept
+(physics, not a clock). `test_the_guard_has_no_time_of_day_branch` fails by name if it returns.
+⛔ And a merge on github.com runs no local hook at all.
+
+### R47 — the floor retracts
+
+153 open rows for 103 blocked records → open rows now track blocked records **exactly**. RESOLVED,
+never deleted; an item a person decided is untouched; three traps railed and mutation-proved.
+
+### R43 revised — PRINCIPLE under the lens at 0.6
+
+Publishable **31 → 66**; with MARKET_SIGNAL's 61 the floor blocks **68** where it blocked 143 under
+KEY. Provisional: 42 ungradeable pairs are the confirmation, and `PRINCIPLE_IDENTITY = "KEY"`
+reverts in one line.
+
+### R8 — the INGEST-only plan, REHEARSED not traced
+
+Child process, temp store, census pins; session env UNSET before and after. **Dark:** one heartbeat
+row. **INGEST alone:** extract SKIPPED, retrieval SKIPPED (no index even built), `wisdom_records`
+**0**, capture 15 rows — and **36 review rows on the `attribution` tab**, which are not floor
+blocks and would otherwise read as a publication problem.
+
+### ⚠️ R48 NOT DONE
+
+Ledger token fields are ruled YES and were not delivered; the effort went to the three items the
+branch needs before a merge. Carried as a question. It changes no bill.
