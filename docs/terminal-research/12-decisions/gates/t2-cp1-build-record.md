@@ -95,6 +95,31 @@ should fall from 479 toward 0. **A genuine test failure count is the goal, not z
 this unit makes the suite *run*; it does not claim to make it *pass*, and a red that is
 genuinely red is the first honest measurement of the backend this programme will have.
 
+## 4b · ⭐ RUN #4 — the stated expectation, scored
+
+§4 predicted, before the run: *"collection on the order of the full module count … errors
+falling from 479 toward 0 … a GENUINE red, not a green."* **Scoring it honestly:**
+
+| predicted | happened |
+|---|---|
+| dependencies install | ✅ `-r requirements.txt`, **35 s**, success |
+| the suite runs | ✅ pytest `Run` executed **2,671 s** instead of 82 s |
+| collection near the full module count | ❌ **`collected: 0`** — the job never got to print totals |
+| a genuine red | ❌ **the job was CANCELLED** at `timeout-minutes: 45` |
+
+⛔ **Half right, and the half that was wrong is the interesting half.** The fix did what it
+claimed — the packages install and the modules import. But the suite then ran for
+**44.5 minutes without finishing**, and GitHub cancelled it at the declared 45-minute
+timeout. **F-CI-5.**
+
+⭐ **The prediction being written down first is what makes this scoreable at all.** Had it
+not been, "the suite now runs" would have been reported as a success and the timeout as an
+unrelated nuisance.
+
+⛔ **Do not raise the timeout.** `CLAUDE.md` records the unscoped local suite reaching
+**18 GB** and `--collect-only` alone reaching 6.6 GB; `scripts/gate_shards.py` exists in
+this repo for precisely this. A bigger number buys a longer wait for the same unknown.
+
 ## 5 · ⛔ NOT FIXED HERE — F-CI-4, a different root cause in the same file
 
 Five vitest files (**13 of 23** junit failures) fail because `actions/checkout` is

@@ -49,7 +49,7 @@ docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | CP2 | 21d6ad3
 docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | beeffe8e6
 docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | CP2 | 00eecb391
 docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | CP4 | fcb2dd9b1
-docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 3cef88c7f
+docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 42eafe314
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
 docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | CP3 | ba5e34e79
 docs/terminal-research/12-decisions/gates/k-cp4-build-record.md | CP4 | 35237823c

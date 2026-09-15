@@ -219,19 +219,58 @@ scope set. Collision proof: no `T2` packet or CP id exists anywhere in `gates/`.
 a **genuine red** rather than a green. This unit makes the suite run; it does not claim to
 make it pass.
 
-⭐ **INTERIM MEASUREMENT, and it is already informative.** In run #3 the pytest job finished
-in **82 seconds** having collected 2 modules. In run #4 it has been running **over 40
-minutes** and has not finished. **That gap is the fix working** — the job is now importing
-and executing 481 modules instead of failing to import 479 of them.
+### ⭐ RUN #4 — T2 CP1 WORKED, AND IT UNCOVERED THE NEXT WALL
 
-⚠️ **And it surfaces the next question, which is a real one.** `CLAUDE.md` records that an
-unscoped `pytest tests/` on the dev box reached **18 GB** and was OOM-killed, and that
-`--collect-only` alone reached 6.6 GB. A GitHub runner has substantially less memory than
-this box. **The suite this programme has never been able to run may not fit in CI either** —
-and if it does not, the failure mode to watch for is the one this repository documents most
-often: *the evidence of an OOM kill is that there is no evidence*. `ci_summarize`'s
-`totals_line_found: false` and the zero-collected rule are what stand between that and a
-green badge. **Reported as an open risk, not a conclusion — run #4 had not finished.**
+| | run #3 | run #4 |
+|---|---|---|
+| pytest `Install` | 5 packages | **`-r requirements.txt`, 35 s, success** |
+| pytest `Run` | 82 s | **2,671 s (44.5 min), CANCELLED** |
+| `collected` | 2 | **0** |
+| `totals_line_found` | true | **false** |
+| job conclusion | success | **cancelled** |
+
+**`timeout-minutes: 45` is declared on both jobs.** The job was cancelled at **2,716 s
+(45.3 min)**. ⛔ **The dependency fix worked — install took 35 seconds and the suite began
+executing — and the full backend suite then ran for forty-four and a half minutes without
+finishing.**
+
+**F-CI-5: the backend suite does not fit in a 45-minute CI job.** Filed, not fixed — the
+scope authorised one unit and it is built. ⭐ The honest next step is **sharding**, not a
+bigger timeout: `scripts/gate_shards.py` already exists in this repo for exactly this, and
+`CLAUDE.md` records the local suite reaching **18 GB** unscoped. Raising the timeout would
+buy a longer wait for the same unknown.
+
+### ⭐⭐ THREE INDEPENDENT GUARDS REFUSED TO CALL A CANCELLED RUN GREEN
+
+This is the run those rules were written for, and every one of them held:
+
+1. `ci_summarize` → `collected: 0`, `totals_line_found: false`, **`ok: false`** — it did
+   **not** publish `0 failed` as a pass;
+2. the workflow's own **"Assert the run produced a totals line"** step → **failure**
+   (E CP1's trap, firing on a real run for the first time);
+3. the verdict stayed **RED**.
+
+⛔ **A cancelled job that collected nothing is the single most dangerous shape in CI** —
+it looks like a clean sweep to any check that reads only `failed`. Nothing in this pipeline
+read it that way.
+
+### ⚰️ F-CI-3 is now confirmed in BOTH directions, which makes it worse than filed
+
+`oom_or_timeout` came back **`false`** on run #4 — **a job that was cancelled by a
+timeout.** Combined with runs #2 and #3, where it came back **`true`** for suites that
+completed normally:
+
+| | event | flag |
+|---|---|---|
+| runs #2, #3 | suites completed with totals lines | **true** (wrong) |
+| run #4 | job cancelled at the 45-minute timeout | **false** (wrong) |
+
+⭐ **It fires on the word without the event, and misses the event without the word.** The
+regex greps the runner log for `timeout`; GitHub's own cancellation never writes that word
+into the captured log. **A flag that is wrong in both directions is worse than absent** —
+absent, nobody would consult it. Still filed, still unrepaired this session, and now with
+the measurement that shows the repair must key off the **job conclusion**, not the log text.
+
 
 ### E4.3 — the 14 vitest files, classified
 
@@ -434,6 +473,7 @@ S6 CP4  <- S6 CP2
 | **F-MERGE-1** | **CLOSED.** Two commits claimed by no unit; one absent approval block produced both the merge-unapproved and never-merge halves. Rule in `GOVERNING_PRINCIPLES.md` §15. |
 | **F-S6-1** | **NEW.** S6 CP2 asserts *"Calendar the only caller"* of `get_user_ticker_sets`; there are **three** production callers, two outside Calendar including member-facing alerts. |
 | **F-SIGN-2** | **NEW.** `entity-master-pre-implementation-gate.md` carries **no approval block**, so it cannot be signed as it stands. Ships no commits today, so nothing is blocked. |
+| **F-CI-5** | **NEW.** The backend suite does not fit a 45-minute CI job: run #4's pytest `Run` step executed 2,671 s and was cancelled at the declared `timeout-minutes: 45`. Dependencies installed fine (35 s). Sharding, not a bigger timeout. |
 | **F-CI-4** | **NEW.** Five vitest files (13 of 23 junit failures) fail on a shallow `actions/checkout`; `git merge-base` / `git show <sha>:<path>` cannot resolve. Fix is `fetch-depth: 0`, one line, same file. Not built — different root cause. |
 | **F-CI-3** | carried forward, unrepaired by design: `oom_or_timeout` matches the *word* "timeout" anywhere in the log. |
 
@@ -475,10 +515,11 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 
 1. ~~**F-MERGE-1 CLOSED**~~ — **met this session.** 13 of 13 commits mapped, exit 0.
 2. **CI red diagnosed with every failing file classified** — ⭐ **MET for the diagnosis,
-   NOT for the state.** Every one of the 14 vitest files is classified and all 479 pytest
-   errors are bucketed to a single root cause. But T2 CP1's run #4 has not landed, five
-   ENV failures remain unfixed (F-CI-4), and **5 REAL failures are real**. The branch's
-   own CI has never been green. **Still PARKED.**
+   NOT for the state.** All 14 vitest files are classified and all 479 pytest errors
+   bucketed to one root cause, now fixed (T2 CP1). But run #4 shows the backend suite
+   **times out at 45 minutes without finishing** (F-CI-5), five vitest ENV failures remain
+   (F-CI-4), and **5 REAL failures are real**. **The backend suite has still never produced
+   a totals line in CI.** Still PARKED.
 
 | row | packet | CP | fingerprint | reader | merges-after |
 |---|---|---|---|---|---|
@@ -527,6 +568,11 @@ system actually use, and two of those send alerts to members.**
 **And the backend test suite has not been failing in CI — it has not been running at all:
 479 of its 481 files could not even load, because the CI job installed five libraries
 instead of the list the project keeps, and that is now one line different.**
+
+**With that fixed the suite finally started, ran for forty-four minutes, and was cut off at
+the forty-five minute limit — so the next thing it needs is to be split into parts, not
+given more time; and three separate safeguards all refused to report that cut-off run as a
+pass.**
 
 ## 12 · Status
 
