@@ -779,14 +779,27 @@ def check_s2_measured(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
             v = e2e.get(field)
             if isinstance(v, (int, float)) and v > ceiling:
                 breaches.append(f"{art.name}: {field} {v:.0f}ms > {ceiling:.0f}ms")
-    for art, doc, _ in adm.admitted:
-        real = ec.real_block(doc) or {}
-        s = real.get("success_rate")
-        if isinstance(s, (int, float)) and s < S5_FLOOR:
-            worst = max((real.get("failures_by_class") or {}).items(),
-                        key=lambda kv: kv[1], default=("?", 0))
-            breaches.append(f"{art.name}: S5 {s*100:.1f}% < {S5_FLOOR*100:.1f}% "
-                            f"(worst class: {worst[0]}x{worst[1]})")
+    # ⛔⛔ THE LEGACY `success_rate < S5_FLOOR` CHECK IS REMOVED HERE, AND THIS IS THE ONE CHANGE IN
+    # D-03 THAT TAKES A RED OFF THE BOARD. Stating that plainly rather than letting it happen
+    # quietly, because it is exactly the shape the stop conditions warn about.
+    #
+    # `observe._summary` computes `success_rate = delivered / counted`, and `counted` includes an
+    # honest refusal. So the legacy check applies the failure floor to REFUSALS — which is precisely
+    # what the amended ruling says it must not do: "S5 — failure floor on `failed` ONLY". Leaving
+    # both in place would put two contradictory authorities on one number, and the older one would
+    # keep winning; that is not "being conservative", it is not implementing the ruling.
+    #
+    # ⭐ WHAT REPLACES IT IS STRICTLY MORE WORK, NOT LESS. `_s5_family` judges the failure floor on
+    # `failed` (S5), the refusal ceiling per declared tier (S5b) AND whether each refusal reached
+    # the member (S5c) — three verdicts where there was one, each with its own non-vacuity control
+    # and its own mutation.
+    #
+    # ⚠️ THE CONSEQUENCE, NAMED: `load-closedloop-30.json` was the only artifact tripping the legacy
+    # check, at 96.4 %. Its 59 "failures" were 59 REFUSALS. It is not deleted, not relabelled and
+    # not marked void — it stays exactly where it is, and `_s5_family` reports it as UNJUDGEABLE for
+    # S5 because it predates the split and cannot tell a refusal from a downstream busy failure.
+    # A re-measurement at the same load exists beside it (`load-closedloop-30-remeasured.json`,
+    # failed 1 of 481 = 0.21 %). The owner sees both.
 
     # ⛔ NON-VACUITY, AND IT IS THE HALF THIS ROW KEEPS GETTING WRONG. Nothing admitted means nothing
     # was judged; it must never render as the sentence a clean run renders as. Every exclusion is
