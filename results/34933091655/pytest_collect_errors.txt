@@ -1,0 +1,1 @@
+ZERO — no `ERROR collecting` sections found in pytest.log
