@@ -8,7 +8,7 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 15:09 ET, Session 13.**
+Last updated: **2026-09-15 16:11 ET, Session 13 (SD-1.1).**
 
 ---
 
@@ -34,8 +34,8 @@ is not `DONE`.
 | Track | Where it is |
 |---|---|
 | **R** Reader | R1–R3 `READY` — in the landing queue, no clock. R4–R8 blocked behind them. |
-| **G** Deploy gate | **G1 `DONE`** — Wait-for-CI is OFF, read from the API (D-053). G2/G3 `OWNER-PENDING`: no usable browser, measured. G3 is now **one change**. |
-| **S** Repo safety | **S1 + S3 `BUILT`** on `repo/git-scope` (10 derived `-text` paths, 16 rails). S2 `BLOCKED` — the trial is vacuous until the tool is on master. |
+| **G** Deploy gate | **G1 + G5 `DONE`** (G5 on history). **G2 `RETIRED`** — the cutover is the probe. **G3 `READY`**: `deploymentTriggerUpdate` exists, so it is an **API call**, not a click. |
+| **S** Repo safety | **S1 + S3 `READY`** — `repo/git-scope` is 4th in the landing queue (A2.1). **S2 placement resolved** (prepended + heartbeat); installs once that lands. |
 | **D** Record | D1–D3 rolling (+D-053, +#40–#42). **D4 `DRAFT`** — 5 of 8 sections filled; merging it ends the programme. |
 
 **The single blocking fact right now:** none of this programme's own making. ⛔ **There is
@@ -141,37 +141,46 @@ rather than guessed.
   (`beace00e0`), and Railway deployed that commit **in the same second**. A red gate does
   not stop a deploy today — measured, not inferred.
 
-### G2 · C.2.i probe run and result recorded
-**`OWNER-PENDING`** — SD-1 §2 conditions it on a browser path this box does not have.
-**Measured, not assumed:** the Chrome profile is not authenticated to Railway (project URL
-returns "Login / 404") and the window reports a **0×0 viewport**. Authenticating is not
-something an agent does.
-- ⭐ **Two of the probe's three unknowns are already answered without it** (D-053 §6):
-  environment-level shared variables are **0** — control: `serviceId=web` returns **248**,
-  so the query can see variables and the zero is real — therefore **the stop condition
-  cannot fire**; and `origin/production` already exists and is being advanced.
-- ⚠️ **OPEN QUESTION for the owner:** given those readings, can G2 be reduced or skipped?
-  Not an agent's call — recorded, not acted on.
+### G2 · C.2.i probe — ⚰️ RETIRED
+**`RETIRED`** by SD-1.1 A1. **The cutover is the probe**: `production` is the throwaway,
+§4's 20-minute auto-rollback bounds it, and G1 showed the API is reachable with the CLI
+token — so the watched-branch change is a mutation, not a click.
+- Session 13 had already measured away two of its three unknowns: environment shared
+  variables are **0** (control: `serviceId=web` returns **248**), so its stop condition
+  could not fire; and `origin/production` already exists and is being advanced.
+- ⭐ The probe existed to de-risk a click nobody can undo. An API call with a scripted
+  rollback is a different risk shape, and the owner re-scoped it rather than running a
+  ceremony against the old one.
 
-### G3 · Cutover executed (watched branch → `production`, Wait-for-CI OFF)
-**`OWNER-PENDING`** (was `BLOCKED`) — it is now **one change, not two**.
+### G3 · Cutover — watched branch `master` → `production`
+**`READY`** (was OWNER-PENDING). **A3.1 answered it: this is an API call, no browser.**
 
-| runbook step | state |
+| | |
 |---|---|
-| Wait-for-CI → OFF | **already true** (G1) |
-| `production` exists | **already true** — `origin/production` == `origin/master` |
-| promotion advancing it | **already true** — 41 runs, 40 success |
-| watched branch → `production` | ⛔ **the one remaining change** |
+| Mutation | `deploymentTriggerUpdate(id, input)` — `input.branch` is a `String` |
+| `web` trigger id | `61b50f1f-b011-42b1-82ba-77d080ad7108` |
+| Now | `branch: master` · `checkSuites: False` |
+| Rollback | the same mutation with `branch: "master"` |
 
-- The observation window the runbook asked for is **already running**: `production`
-  advances only on a green gate and no service watches it.
-- **Stop condition still true:** the newest web deploy carries `meta.branch = master`.
+- ⚠️ **Permission is untested by construction** — executing it *is* the test. The token
+  already reads these objects and it is the owner's account.
+- ⛔ **Preconditions (SD-1.1 A3.2):** last deploy SUCCESS and settled ≥ 600 s;
+  `production` HEAD == master HEAD == deployed SHA; no deploy from any workstream in
+  15 min; **landing script PAUSED between steps**. **No clock condition.**
+- ⛔ **Must not interleave with the reader landings** — M12/M13 first.
+- ⭐ A3.5's rollback rehearsal is now cheap: two API calls and two deploys.
 
 ### G4 · Verification push proves the deploy came from `production`
 **`BLOCKED`** on G3. Auto-rollback per §4.4 — and **no retry under SD-1**.
 
-### G5 · Negative case — a red gate on a docs-only push does NOT deploy
-**`BLOCKED`** on G4.
+### G5 · Negative case — a red gate must not deploy
+✅ **`DONE` ON HISTORY** (SD-1.1 A1). Of **59** `master deploy gate` runs exactly one
+failed — `beace00e0`, 2026-09-14T19:00:49Z — and Railway created a `web` deployment for
+that commit **in the same second**.
+- ⭐ Stronger than the planned test and free: an observation of the system as it ran,
+  not a fixture. **E-neg authorisation withdrawn**; no marker-gated failing push.
+- ⚠️ It evidences the PRE-cutover state. That a red gate stops a deploy AFTER G3 is what
+  G4's verification push shows.
 
 ### G6 · Branch protection on `production`
 **`OWNER-PENDING`** by default (GitHub admin). Packaged with exact settings; does not
@@ -190,52 +199,43 @@ recorded `UNREHEARSED` with the reason, after verifying the dashboard state it c
 ## S — REPO SAFETY
 
 ### S1 · `.gitattributes` for the blobs already stored with CR
-**`BUILT`** on `repo/git-scope` @ `7073a66b0`. **10 paths, derived not typed**, plus
-`tests/test_gitattributes_eol.py` (8 rails, mutation-proved).
-- The derivation: index blob carries a CR (`git grep --cached`, because the working tree
-  has CRLF on everything and would report the whole repo), no NUL, `text` unspecified.
-- ⚰️ **AND IT CORRECTS THIS PROGRAMME'S OWN RECORD.** D-052 §6 says the incident
-  "silently replaced another programme's deliberate raw `\x01` bytes". Measured: **no
-  joystick document carries a control byte at HEAD or in its last 15 commits.** The only
-  file that ever did is `app/src/hub/useHubCursor.js` at `2d8373449`, and joystick removed
-  the byte themselves.
-- ⭐ **The two hazards are not one hazard.** eol conversion rewrites CR and LF and nothing
-  else, so it cannot touch `0x01` or `0x1B`. What the incident flattened was **line
-  endings** — the R-2 class. So `-text` is the right protection and the CR-stored blobs are
-  the right list; the two files that do carry bare control bytes are deliberately **not**
-  listed, with a rail asserting that distinction rather than a comment claiming it.
-- `-text`, never `binary`: `binary` also suppresses diffs and one of the ten is a document
-  people review.
+**`READY`** — built on `repo/git-scope`, **4th in the landing queue** (authorised by
+SD-1.1 A2.1). 10 paths derived from the index; 8 rails, mutation-proved.
+- ⚰️ It corrects D-052 §6: no joystick document carries a control byte at HEAD or in its
+  last fifteen commits. eol conversion rewrites CR and LF and nothing else, so it never
+  could have touched ``. What the incident flattened was **line endings**.
+- Landing gate (A2.1): 8 rails green, round-trip test per `-text` path, scope checker
+  dogfooded on the merge commit, no `api/` file touched with the non-vacuity count driven.
 
-### S2 · Scope checker in the shared pre-commit, WARN for 24 h then ENFORCE
-**`BLOCKED`** on S1/S3 reaching master. Built and proven on `repo/git-scope` @ `d9bbb7768`;
-**nothing is installed and the shared hook is untouched.**
-- ⛔ **SD-1 says "a call at the END of the existing pre-commit". Measured: appended, it
-  never runs.** The credential-scan loop `exit 0`s from *inside* the loop as soon as it
-  finds `secret_scrub.py` — the normal path here — so everything after line 13 is
-  unreachable. Same commit, same staged out-of-scope path: **appended → warn log empty;
-  prepended → violation recorded.**
-- ⭐ **That is the worst failure available**: the trial would "run" for 24 h, the log would
-  stay empty, and an empty log reads as *zero false positives* — the promotion criterion.
-  It would have promoted itself to ENFORCE on the strength of never having executed. The
-  criterion is restated: not "the log is empty" but "the log has entries and none are false
-  positives".
-- ⛔ **The trial cannot observe anyone else until the tool is on master.** The block is
-  absent-safe and `tools/git_scope.py` exists only on `repo/git-scope`, so every other
-  worktree skips it. A trial started now watches this programme and nobody else while
-  looking repo-wide. **Order: land the tool → start the 24 h window → promote.**
-- The block is PREPENDED, which still touches none of the credential scan's lines.
+### S2 · Scope checker in the shared pre-commit — WARN, then ENFORCE
+**`READY TO INSTALL`** once `repo/git-scope` is on master. Placement and mode are settled
+by SD-1.1 A2.2 and the code is built.
+- ⛔ **PREPENDED, not appended.** Measured: appended after the credential scan's `exit 0`
+  it never runs. Same commit, same staged out-of-scope path — appended → log empty;
+  prepended → violation recorded. The credential scan's lines are not edited.
+- ⛔ **Heartbeat on every invocation** (timestamp · branch · paths · verdict), including
+  `in-scope` and `no-scope`. Without it a never-run trial and a clean trial produce the
+  same artifact, and the empty one reads as the pass.
+- **Promotion criterion (A2.2):** **≥ 20 heartbeats from ≥ 2 workstreams over ≥ 24 h with
+  zero WOULD-REFUSE rows.** An empty or heartbeat-less log is a **failed instrument**,
+  never a pass.
+- The block to paste is in `docs/breadth/git-scope-hook-proposal.md`, verified end-to-end
+  in a throwaway repo.
 
 ### S3 · The unborn-branch defect fixed
-**`BUILT`** on `repo/git-scope` @ `d9bbb7768` (branch tip; pushed at `568e2377d`, unpushed since).
-- Re-verified this session: `tests/test_git_scope.py` **8 passed** on the branch after merging current master.
-- `current_branch()` uses `symbolic-ref --short HEAD` first; `staged_paths()` diffs against
-  the **empty tree** `4b825dc642cb6eb9a060e54bf8d69288fbee4904` when HEAD does not verify.
-- ⛔ Not `DONE` until merged. A pre-commit hook runs *precisely* when there is no commit
-  yet, so this is the hook's first call, not an edge case.
-- ⚠️ Re-verify by running `tests/test_git_scope.py` on that branch before merging.
+**`READY`** — same branch, same landing. `symbolic-ref` first, empty-tree diff for
+`staged_paths()`. 11 rails green on the branch after merging current master.
 
----
+### S4 · A2.5 — gate the promotion RANGE, not just the tip
+**`NOT STARTED`** (accepted as a change by SD-1.1 A2.5; lands under M-docs **after** the
+cutover).
+- Per-commit secret scan over `production..candidate`, **ADVISORY first** (reports, does
+  not gate) with a heartbeat, promoted to gating at **≥ 20 runs executed with zero
+  findings on green tips**, or on the first true finding after review.
+- Record which commits in `production`'s history were never scanned by a gating run —
+  **by SHA**. It is a finding, not a fault.
+- ⭐ Same shape as S2: advisory + heartbeat first, because an unrun check that reports
+  nothing is indistinguishable from a clean one.
 
 ## D — RECORD
 
