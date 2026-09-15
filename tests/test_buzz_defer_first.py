@@ -52,37 +52,6 @@ def _spy_builders(monkeypatch):
 
 # ── the property ─────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("ticker", ["", "NVDA"], ids=["board", "ticker"])
-def test_the_ack_is_produced_before_any_reply_is_built(route, monkeypatch, ticker):
-    """⛔ THE LOAD-BEARING ONE, and it covers BOTH branches. The ticker path was the one
-    that still answered `type: 4` inline, so it had to build before it could speak at
-    all — it was not a lesser case of the defect, it was the pure case."""
-    client, sk, rt, bi = route
-    monkeypatch.setattr(bi, "image_enabled", lambda: True)
-    built = _spy_builders(monkeypatch)
-    scheduled: list = []
-    monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: scheduled.append(a))
-
-    r = _post(client, sk, _buzz(ticker=ticker)).json()
-
-    assert r["type"] == 5, "the ack must be a defer, not a reply that needed content"
-    assert r.get("data", {}).get("flags") == EPHEMERAL
-    assert built == [], f"the ack path built the reply first ({built}) — OI-36 is back"
-    assert len(scheduled) == 1, "the work was not handed to the background"
-
-
-def test_the_spies_can_actually_fire(route, monkeypatch):
-    """⛔ NON-VACUITY. `built == []` passes just as happily if the spies were never wired
-    to anything reachable — which is the shape that makes a rail agree with every future
-    version of the code. With the background job left UNPATCHED, the same fakes must be
-    reached, or the assertion above is measuring nothing."""
-    client, sk, rt, bi = route
-    monkeypatch.setattr(bi, "image_enabled", lambda: False)
-    built = _spy_builders(monkeypatch)
-    _post(client, sk, _buzz())
-    assert built == ["board"], "the builder spies are not on the path the handler uses"
-
-
 def test_the_background_job_delivers_what_moved(route, monkeypatch):
     """The work did not vanish — it moved. Both shapes still reach the member."""
     client, sk, rt, bi = route
@@ -194,3 +163,138 @@ def test_the_code_only_view_can_still_see_things_that_are_there():
     code = _router_code_only()
     assert "def run_buzz_job" in code
     assert "background.add_task(run_buzz_job" in code
+
+
+# ── D-09 A1: the ordering rail, rebuilt ──────────────────────────────────────
+#
+# ⚰️⚰️ WHY THIS REPLACED THE FIRST VERSION. D-08 ran the mutation that matters —
+# `background.add_task(run_buzz_job, ...)` changed to a bare inline
+# `run_buzz_job(...)` — and the old rail stayed GREEN. It did this:
+#
+#     monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: scheduled.append(a))
+#
+# It STUBBED the very function whose scheduling it was checking. An inline call and a
+# backgrounded call both land on that inert lambda, so `built == []` holds either way and
+# `len(scheduled) == 1` holds either way. **The rail could not distinguish the two states
+# it exists to distinguish** — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`.
+#
+# ⛔ AND THE VARIANT IT MISSED IS THE WORSE ONE. A synchronous inline call carries no
+# `await`, so the source scan below cannot see it either; and it runs the SQLite build on
+# the one shared event loop of a single-process pod, which is the 2026-07-01 outage by
+# name. The old pair of rails was blind to exactly the regression with the largest blast
+# radius.
+#
+# ⭐ THE FIX IS TO SPY ON THE HANDOFF, NOT THE JOB. `background.add_task` is wrapped (the
+# real job still runs), and the builders are spied, into ONE ordered log. Backgrounded
+# work puts the handoff first; inline work puts a build first. That is a difference the
+# assertion can see.
+
+
+def _order_log(monkeypatch):
+    """One ordered event log: the add_task handoff and every builder entry.
+
+    Returns the list. `add_task` is WRAPPED, never replaced — the real `run_buzz_job`
+    still runs, so the builders really are reached and the log is not a fiction."""
+    import starlette.background as _bg
+    from api.services import buzz_reply
+
+    events: list = []
+    original = _bg.BackgroundTasks.add_task
+
+    def _spy_add_task(self, func, *a, **kw):
+        events.append(f"add_task:{getattr(func, '__name__', str(func))}")
+        return original(self, func, *a, **kw)
+
+    monkeypatch.setattr(_bg.BackgroundTasks, "add_task", _spy_add_task)
+
+    def _board(*_a, **_k):
+        events.append("build:board")
+        return "the board"
+
+    def _ticker(*_a, **_k):
+        events.append("build:ticker")
+        return "one name"
+
+    monkeypatch.setattr(buzz_reply, "build_board_text", _board)
+    monkeypatch.setattr(buzz_reply, "build_ticker_text", _ticker)
+    return events
+
+
+@pytest.mark.parametrize("ticker", ["", "NVDA"], ids=["board", "ticker"])
+def test_the_handoff_happens_before_any_reply_is_built(route, monkeypatch, ticker):
+    """⛔ THE LOAD-BEARING ONE. Covers BOTH branches: the ticker path was the one that
+    still answered `type: 4` inline, so it had to build before it could speak at all.
+
+    The assertion is on ORDER, not on timing — a timing assertion on a developer box
+    measures an idle pool and passes on the broken code (1.05 ms free / 2,001 ms
+    exhausted)."""
+    client, sk, rt, bi = route
+    monkeypatch.setattr(bi, "image_enabled", lambda: False)
+    events = _order_log(monkeypatch)
+
+    r = _post(client, sk, _buzz(ticker=ticker)).json()
+
+    assert r["type"] == 5, "the ack must be a defer, not a reply that needed content"
+    assert r.get("data", {}).get("flags") == EPHEMERAL
+    assert events, "nothing was recorded — the spies are not on the path"
+    assert events[0] == "add_task:run_buzz_job", (
+        f"the work did not reach the background FIRST (log={events}) — OI-36 is back. "
+        "An inline call puts a build before the handoff.")
+    assert "add_task:run_buzz_job" in events, "run_buzz_job was never scheduled at all"
+
+
+def test_the_order_log_can_actually_see_a_build(route, monkeypatch):
+    """⛔ NON-VACUITY, and it is the one the old rail needed. `events[0] == "add_task:…"`
+    passes just as happily if the builder spies were never reached — which is precisely
+    how the stubbed version stayed green. With the REAL job running, a build MUST appear
+    in the log after the handoff, or the ordering assertion is measuring nothing."""
+    client, sk, rt, bi = route
+    monkeypatch.setattr(bi, "image_enabled", lambda: False)
+    events = _order_log(monkeypatch)
+    _post(client, sk, _buzz())
+    assert "build:board" in events, (
+        "the builder spies were never reached — the real run_buzz_job did not run, so "
+        "the ordering rail above proves nothing")
+    assert events.index("add_task:run_buzz_job") < events.index("build:board")
+
+
+# ── D-09 A1: the structural rail — the handoff is the ONLY way in ────────────
+
+def _run_buzz_job_references():
+    """Every reference to `run_buzz_job` in the router, classified, from an AST.
+
+    Returns (handed_to_add_task, other_references). A bare call, an await, or a wrap in
+    `run_in_threadpool(run_buzz_job, ...)` all land in `other_references`."""
+    import ast
+    tree = ast.parse(_ROUTER.read_text(encoding="utf-8"))
+    allowed_nodes, others = [], []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            is_add_task = isinstance(fn, ast.Attribute) and fn.attr == "add_task"
+            if is_add_task:
+                for arg in node.args:
+                    if isinstance(arg, ast.Name) and arg.id == "run_buzz_job":
+                        allowed_nodes.append(arg)
+            if isinstance(fn, ast.Name) and fn.id == "run_buzz_job":
+                others.append(("bare call", node.lineno))
+    allowed_ids = {id(n) for n in allowed_nodes}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == "run_buzz_job" and id(node) not in allowed_ids:
+            others.append(("reference", node.lineno))
+    return allowed_nodes, others
+
+
+def test_run_buzz_job_is_only_ever_handed_to_add_task():
+    """⛔ THE STRUCTURAL HALF. The behavioural rail proves THIS handler defers today; this
+    proves no future edit can reach the job any other way — inline, awaited, or wrapped in
+    a threadpool — without going red, including shapes that carry no `await` for the
+    source scan to find."""
+    allowed, others = _run_buzz_job_references()
+    assert not others, f"run_buzz_job is reached outside background.add_task: {others}"
+
+
+def test_the_reference_scan_can_see_the_handoff_it_allows():
+    """⛔ NON-VACUITY. `others == []` is satisfied by a scan that finds nothing at all."""
+    allowed, _ = _run_buzz_job_references()
+    assert allowed, "the scan found no add_task(run_buzz_job) — it is not looking at the router"
