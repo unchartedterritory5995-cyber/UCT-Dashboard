@@ -144,3 +144,56 @@ path.
 **To run the gate:** export `WISDOM_ANTHROPIC_API_KEY` in the shell that launches Claude Code, on
 the machine Claude Code runs on. A session already running will not see it — the variable is read
 from the process environment at call time, and that environment is inherited at launch.
+
+
+### 2026-09-15 — R34: the OS credential store is a THIRD source, and it loses every tie
+
+`make_client` now reads, in order:
+
+> **`WISDOM_ANTHROPIC_API_KEY`** (preferred) → `ANTHROPIC_API_KEY` → **the OS credential store**,
+> service `uct-wisdom`, user `anthropic`.
+
+⛔ **A tie goes to the ENVIRONMENT, and the order is the ruling.** `railway run` and a one-off
+export are deliberate acts scoped to ONE process; the store is ambient and applies to every run on
+the machine. An ambient credential that could override an explicit one would make a `railway run`
+invocation mean something different depending on machine state nobody looked at.
+
+**To store one** (once, on the operator's machine — it prompts, so the value never appears in a
+command line, a history file or a log):
+
+```
+python -m keyring set uct-wisdom anthropic
+```
+
+⚠️ **`keyring>=24.0` is DECLARED in `requirements.txt` and deliberately NOT installed here.** The
+store is an operator convenience, not a dependency of the gate: `key_from_keyring()` catches every
+exception — a missing module, no backend, a locked store — and returns `None`, so with nothing
+installed the gate behaves **exactly as it did before R34 existed**, raising the same
+`ExtractUnavailable`. That equivalence is the point, and it is railed
+(`test_an_absent_keyring_module_falls_through`, `test_a_keyring_error_falls_through_instead_of_crashing`).
+
+⛔ §11.3 is unchanged and now covers a third surface: the failure message names all three sources —
+both variable names, plus the keyring service and user — and **no value from any of them**. The
+store's own value is asserted absent from the exception text and from captured logs on the success
+path as well as the failure path. A key read from a credential store is still a key.
+
+### 2026-09-15 — R35: the settings-`env` fallback is DOCUMENTED, NEVER WRITTEN
+
+There is a third way a key could reach the gate: Claude Code's own settings file carries an `env`
+block, and an entry there would be injected into every session on this machine.
+
+⛔⛔ **Owner ruling R35, 2026-09-15: DOCUMENT ONLY. It is not to be used, and no session writes
+it.** Two independent standing rules forbid it and each would be enough on its own:
+
+- **§11.3 — a key never lives in a file.** `settings.json` is a file, it is not gitignored by the
+  programme's own rules, and a credential there survives every session, every reboot and every
+  `git status` that nobody reads. A value in the environment dies with the process; a value in a
+  settings file waits.
+- **Never self-grant through settings.** A session editing the file that governs what sessions may
+  do is the agent widening its own authority, which is refused whatever the payload
+  (`feedback_when_blocked_enumerate_tool_paths`).
+
+⭐ It is written down anyway because an undocumented path gets rediscovered and tried. The reason
+to refuse it is not that it would fail — it would work, which is precisely the hazard. The two
+sanctioned paths are the ones above: an environment variable for this run, or the OS credential
+store for this machine.
