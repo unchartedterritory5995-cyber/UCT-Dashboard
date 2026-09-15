@@ -86,7 +86,10 @@ jobs:
       # 0 — a false PASS. No filter is used here for exactly that reason.
       - name: Run
         working-directory: app
-        run: npx vitest run --reporter=default 2>&1 | tee ../vitest.log
+        # E CP4: the default reporter feeds the human log and the totals-line
+        # assertion; the junit report is what `tools/ci_extract.py` turns into
+        # per-test failure text. Counts alone are a status badge, not a diagnosis.
+        run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=../vitest-junit.xml 2>&1 | tee ../vitest.log
       # ⛔ A RUN WITHOUT A TOTALS LINE IS NOT A RUN. The pipe above means this step's
       # exit code is tee's, so the totals line is asserted explicitly rather than
       # inferred from a status.
@@ -101,7 +104,9 @@ jobs:
         if: always()
         with:
           name: vitest-log
-          path: vitest.log
+          path: |
+            vitest.log
+            vitest-junit.xml
 
   pytest:
     name: pytest — all files (report-only)
@@ -119,7 +124,10 @@ jobs:
       # because collection alone has reached 6.6 GB here; a clean CI runner is the only
       # place it can be attempted, and `-p no:cacheprovider` keeps it reproducible.
       - name: Run
-        run: python -m pytest tests/ -q -p no:cacheprovider 2>&1 | tee pytest.log
+        # E CP4: --junitxml is structured; the text log keeps the ERROR collecting
+        # sections, which is where a COLLECTION failure explains itself. 479 errors
+        # with 2 collected means the suite never ran, and only the text says why.
+        run: python -m pytest tests/ -q -p no:cacheprovider --junitxml=pytest-junit.xml 2>&1 | tee pytest.log
       - name: Assert the run produced a totals line
         if: always()
         run: |
@@ -131,7 +139,9 @@ jobs:
         if: always()
         with:
           name: pytest-log
-          path: pytest.log
+          path: |
+            pytest.log
+            pytest-junit.xml
 
   publish:
     name: publish the result into the repo (ci-results)
@@ -161,6 +171,19 @@ jobs:
           python tools/ci_summarize.py --suite vitest --log logs/vitest.log --out v.json
           python tools/ci_summarize.py --suite pytest --log logs/pytest.log --out p.json
 
+      # E CP4 — the error TEXT, bucketed, beside the counts.
+      - name: Extract the failure text
+        if: always()
+        run: |
+          python tools/ci_extract.py \
+            --pytest-log logs/pytest.log \
+            --vitest-log logs/vitest.log \
+            --vitest-junit logs/vitest-junit.xml \
+            --out-dir "extract/$GITHUB_RUN_ID"
+          cp logs/pytest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
+          cp logs/vitest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
+          ls -la "extract/$GITHUB_RUN_ID"
+
       - name: Build the record
         run: |
           python - <<'PY'
@@ -181,6 +204,16 @@ jobs:
             # collected nothing is never green.
             "verdict": ("GREEN" if (v["ok"] and p["ok"] and not v["failed"]
                                     and not p["failed"]) else "RED"),
+            # E CP4 -- where the TEXT lives for this run. Paths are relative to the
+            # ci-results branch root, so a reader needs no knowledge of this workflow.
+            "detail": {
+              "dir": "results/%s" % os.environ["GITHUB_RUN_ID"],
+              "pytest_collect_errors": "results/%s/pytest_collect_errors.txt" % os.environ["GITHUB_RUN_ID"],
+              "pytest_error_buckets": "results/%s/pytest_error_buckets.txt" % os.environ["GITHUB_RUN_ID"],
+              "vitest_failures": "results/%s/vitest_failures.txt" % os.environ["GITHUB_RUN_ID"],
+              "pytest_junit": "results/%s/pytest-junit.xml" % os.environ["GITHUB_RUN_ID"],
+              "vitest_junit": "results/%s/vitest-junit.xml" % os.environ["GITHUB_RUN_ID"],
+            },
           }
           pathlib.Path("record.json").write_text(json.dumps(rec, indent=2) + "\n")
           print(json.dumps(rec, indent=2))
@@ -195,6 +228,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           RUN="$GITHUB_RUN_ID"
           cp record.json "/tmp/$RUN.json"
+          # ⛔ The orphan checkout below wipes the working tree, so anything that must
+          # survive it is copied OUT first. /tmp is outside the repo and survives.
+          if [ -d "extract/$RUN" ]; then
+            mkdir -p "/tmp/extract"
+            cp -r "extract/$RUN" "/tmp/extract/"
+          fi
           # create the orphan branch on first use; never rebase, never force
           if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
             git fetch origin ci-results
@@ -211,6 +250,11 @@ jobs:
           mkdir -p results
           cp "/tmp/$RUN.json" "results/$RUN.json"
           cp "/tmp/$RUN.json" results/latest.json
+          # E CP4 -- the per-run detail directory travels with the record
+          if [ -d "/tmp/extract/$RUN" ]; then
+            mkdir -p "results/$RUN"
+            cp -r "/tmp/extract/$RUN/." "results/$RUN/"
+          fi
           git add results README.md 2>/dev/null || git add results
           git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || exit 0
           git push origin ci-results
