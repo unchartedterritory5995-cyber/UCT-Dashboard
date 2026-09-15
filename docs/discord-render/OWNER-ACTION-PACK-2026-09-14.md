@@ -480,3 +480,112 @@ does not change it. `DISCORD_RENDER_V2_ENABLED` remains unset.
 | **Guard rail** | ✅ **NEW** — the push guard now refuses on deploy cadence, not just on pod state. Proven on live data: at the same instant it said REFUSE from this branch and OK from a branch off master. |
 | **Gate snapshot rail** | ✅ **NEW** — every gate run writes a per-row record; "gate impact" is a diff, never a recollection |
 
+
+
+---
+
+# OWNER PACK v5 — appended 2026-09-15 (D-07). Still one pack.
+
+## 8.0 · THE MERGE LANDED. That is the headline you were waiting on.
+
+`30fd58aef..8578d375d` pushed to master **09:09 UTC**, web **SUCCESS 09:11:56**
+(2m39s). All three guards printed OK on the real push, including the new cadence
+rail:
+
+```
+[pre-push] 05:09:17 ET is outside the 09:25-16:05 ET window - safe to restart web.
+[pre-push] web is SUCCESS on 30fd58aef, 747s settled - safe to push.
+[pre-push] 2 web deploy(s) in the last 60 min, none inside 600s - master is quiet.
+```
+
+Verified **in-process on the running pod**, not inferred from the push:
+
+| check | reading |
+|---|---|
+| RUNNING SHA | `8578d375d` |
+| `v2_channels()` | `()` — V2 reaches no channel |
+| `DISCORD_RENDER_V2_ENABLED` | `None` — unset, as required |
+| `RENDER_SLOTS` type | `BoundedSemaphore` — ✅ the C-09 gate is correctly **NOT** on master |
+| schema / migration / `recent()` | all True |
+| `/api/health` | 200, `uptime_seconds` 70 |
+
+⭐ **One deviation, investigated rather than reported as a pass.** `house_enabled()`
+returned **True** where the directive expected False. It is
+`bool(os.environ.get("CHART_RENDERER_URL", "").strip())` and **the merge touched
+that file zero times** — so the directive's expectation was stale, not a
+regression. Nothing to do.
+
+**The post-merge quiet read at 09:16:10** showed our merge SUCCESS at age 407s,
+nothing newer, `origin/master` equal to it. **No workstream broke the freeze.**
+You can release the other three sessions.
+
+## ⛔ 8.1 · [PASTE INTO EACH OTHER SESSION] — freeze lifted, one new standing line
+
+> The discord-render hardening merge is **done**: master is `8578d375d`, web
+> SUCCESS. The freeze is **lifted** — you may push again.
+>
+> **Before your next push, rebase your branch onto master.** The merge added a
+> third pre-push guard (a deploy-cadence rail) that refuses a push when a web
+> deploy landed inside the last 600s or when master is deploying too fast. Your
+> branch carries the OLD two-guard hook until you rebase, so **today your hook
+> cannot see the condition that caused the 2026-09-14 stacked push.** Rebase, and
+> your next push runs the cadence rail.
+>
+> One master merge at a time still stands, and still means: wait for Railway `web`
+> to reach SUCCESS, not merely for your own push to return.
+
+## 8.2 · OI-13 — rotate the render token, and WHEN
+
+**Unchanged and still yours (R7).** The timing question is now settled by the merge:
+
+- ⭐ **Rotate NOW rather than waiting for D-08/D-09.** The merge is landed and
+  verified, the queue is quiet, and the next two merges are small and
+  test-scoped — so this is the widest clear window the programme will have.
+- Rotating during a merge window is what you want to avoid: a token rotation and a
+  deploy in the same minute make each other unreadable.
+- The command block is §5.1 of this pack, unchanged. ⛔ It prints **presence, never
+  the value** — a rotation that logs the credential it rotates has rotated nothing.
+
+## 8.3 · R5 — what the C-09 gate costs, in one line
+
+**The decision, restated so you can answer it without re-reading §6.3:**
+
+> The gate makes every `/chart`, `/charts` and V2 render **beat the warm cycle to
+> a free slot**, where today they compete as equals. A member waiting on a chart
+> gets it sooner; the hot-set warm cycle gets it later, and on a busy minute may
+> skip a cycle entirely.
+
+**Cost:** warm coverage degrades under load — the cache is colder for whoever
+arrives next, which is a *second-order* member cost paid to remove a *first-order*
+one. **Benefit, measured, through the real production functions:** member
+**50/50** races won with the gate wired, **0/50** against a class-blind valve, with
+controls green at both ends and mutations RED both ways.
+
+⛔ It is **not** a V2-only change, which is the whole reason it needs you: it moves
+V1 behaviour for every member on every chart command, and V2 is still dark.
+
+## 8.4 · The narrowing checklist — carried forward
+
+Unchanged from §7.4 and still **unverified against a merged SHA**, because the two
+items that would verify it did not run this session (§8.5). Re-issued verbatim so
+it does not quietly lapse:
+
+1. one admin `/chart` in `#render-smoke`, confirm image + timing;
+2. the 15-command smoke 3.5;
+3. the S2 run, once the organic-arrival tripwire exists and its production
+   non-vacuity is proven.
+
+## 8.5 · FLIP PACKET — what moved, and what did not
+
+| row | state after D-07 |
+|---|---|
+| **Merged SHA** | ✅ **`8578d375d`** — web SUCCESS 09:11:56, verified in-process |
+| **Cadence rail** | ✅ **LIVE on master**, and it fired correctly on the real push |
+| **REMOVED premise** | ⛔ **RETRACTED.** 19 of 20 web deploys are REMOVED, including one superseded 1,990s later. D-05's "five REMOVED = five stacked pushes" was wrong. **The NO-GO was right; its stated reason was not.** The real signal is the deploy RATE, which is what the new rail measures. |
+| **S2 run** | ❌ **NOT RUN.** The V1 organic-arrival tripwire was never built; the fallback is snowflake polling, and its production non-vacuity is an explicit stop condition. Not run is the correct outcome, not a slip. |
+| **Smoke 3.5** | ❌ **NOT RUN** — needs a browser driving Discord. |
+| **OI-36 / D-08** | ✅ branch `fix/oi-36-buzz-defer-first` @ `da5aa9da2`, pushed, **merges master clean (rc=0)**. `/buzz` still FAILS on master until it lands. |
+| **C-09 gate / D-09** | ⚠️ wired, raced, mutation-proved; branch `c54066415` pushed, **NOT merged**. 3 reds and one master conflict — all bounded, all named in `D09-PREFLIGHT-DELTA-2026-09-15.md`. **No production caller is broken.** |
+| **`RENDER_MAX_CONCURRENT`** | unchanged — still INCONCLUSIVE pending S2 |
+| **Gate snapshot** | 6 MET / 3 NOT MET / 2 NOT MEASURABLE; post-merge diff = **NO GATE CHANGE** |
+| **Blocked on you** | OI-13 rotation (§8.2) · R5 (§8.3) · C-13 row closure |
