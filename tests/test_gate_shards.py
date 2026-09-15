@@ -33,6 +33,28 @@ import sys
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "tools"))
+
+
+@pytest.fixture(autouse=True)
+def _never_take_the_machines_real_box_lock(monkeypatch, tmp_path):
+    """⛔⛔ EVERY TEST IN THIS FILE IS POINTED AT A THROWAWAY LOCK.
+
+    ⚰ Written after seven rails went red in one run. `_drive` spawns a child that calls the REAL
+    `gate_shards.main()`, which now reaches for the REAL machine-wide lock — so the suite
+    failed because a measurement harness was legitimately holding the box. The lock behaved
+    perfectly; the suite was reaching into shared machine state.
+
+    ⭐ THE SPURIOUS FAILURES ARE THE MILDER HALF. The dangerous half is the passing case: without
+    this fixture, every green run of this suite TAKES AND RELEASES the machine's real lock dozens
+    of times, so a test run could refuse another workstream's gate. A suite that perturbs the
+    resource it is testing is the instrument-causes-the-condition defect, one layer out.
+
+    ⚠️ `monkeypatch.setenv` mutates `os.environ`, and `_drive` passes `{**os.environ, …}` to the
+    child — so the sandbox reaches the subprocess too. That is load-bearing, not incidental.
+    """
+    monkeypatch.setenv("UCT_GATE_BOX_LOCK", str(tmp_path / "box.lock"))
+    monkeypatch.delenv("UCT_SKIP_GATE_BOX_LOCK", raising=False)
 
 from gate_shards import (  # noqa: E402
     GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
@@ -765,3 +787,296 @@ def test_the_short_run_message_names_the_counts_and_the_shards():
     assert '1016' in blob, 'must say how many ran'
     assert '1352' in blob, 'must say how many were expected'
     assert 'shard 1' in blob and 'shard 6' in blob, 'must break it down per shard'
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# THE EXIT CODE IS READ, AND THE VERDICT IS A LINE OF OUTPUT
+#
+# ⚰ Two separate lies, one disease, both measured in this repo:
+#
+#   1. `_capture` read the text of a subprocess and THREW AWAY `proc.returncode`. At the one place
+#      this tool reads a process, exit 2 and exit 0 returned the same kind of value carrying the
+#      same information. On 2026-09-14 a box-clearance waiter printed TIMEOUT and exited 2, and
+#      what reached the operator was exit 0 — one step from sending a settling run into a live gate.
+#
+#   2. The wrapper's own exit code is not reliable IN TRANSIT. 2026-09-13: it printed
+#      "GATE EXIT: 1" on a NEW failure and the task status said exit 0. 2026-09-09: a runner that
+#      executed nothing also said 0. The channel is uninformative in BOTH directions.
+#
+# Every rail below is paired with a control that must return the OTHER answer, because the whole
+# defect was an instrument that returned one answer to two different questions.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+def _waiter(tmp_path, name: str, line: str, code: int) -> pathlib.Path:
+    """A synthetic waiter: prints one line, exits with `code`. The shape of the real incident."""
+    p = tmp_path / f"{name}.py"
+    p.write_text(
+        "import sys\n"
+        "sys.stdout.reconfigure(encoding='utf-8')\n"
+        f"print({line!r})\n"
+        f"sys.exit({code})\n",
+        encoding="utf-8")
+    return p
+
+
+def test_capture_reports_the_code_a_waiter_actually_exited_with(tmp_path):
+    """⛔ THE REPRODUCTION. A waiter that prints TIMEOUT and exits 2 must be READABLE as 2.
+
+    Before the fix this was unanswerable: `_capture` returned a bare `str`, so the only code a
+    caller could report was the one it never learned. It calls `gate_shards._capture` ITSELF —
+    rebuilding the `subprocess.run(...)` shape locally would test the copy and leave the boundary
+    exactly as broken as it was, which is the mistake rail 1 above already documents.
+    """
+    import gate_shards
+
+    script = _waiter(tmp_path, "timeout", "TIMEOUT - box never cleared within 25 min", 2)
+    got = gate_shards._capture([sys.executable, str(script)], tmp_path, shell=False)
+
+    assert "TIMEOUT" in got, "the text did not survive — the pipe is broken, not the code"
+    assert got.returncode == 2, (
+        f"_capture reported {got.returncode!r} for a waiter that exited 2 — this is the exit-code "
+        f"discard that nearly corrupted the 2026-09-14 settling runs")
+
+
+def test_non_vacuity_a_waiter_that_exits_zero_reports_zero(tmp_path):
+    """⛔ THE CONTROL, and it is the entire point rather than a formality.
+
+    A `_capture` hard-wired to `returncode = 2` would pass the rail above. What the defect actually
+    was is an instrument that could not DISCRIMINATE, so the proof has to be that it now can: the
+    same call shape, the same text-bearing waiter, the other answer.
+    """
+    import gate_shards
+
+    script = _waiter(tmp_path, "clear", "CLEAR - box quiet, 11.8 GB free", 0)
+    got = gate_shards._capture([sys.executable, str(script)], tmp_path, shell=False)
+
+    assert "CLEAR" in got
+    assert got.returncode == 0, f"a clean waiter reported {got.returncode!r}"
+
+
+def test_capture_is_still_a_plain_string_to_every_existing_consumer(tmp_path):
+    """⛔ THE COMPATIBILITY RAIL — this wrapper is SHARED, on master, run by other workstreams.
+
+    The fix is only minimal if nothing downstream can tell it happened. Every way the result is
+    consumed today is exercised here against the real function: membership, `.strip()`,
+    `write_text`, and `parse_totals`. A tuple return would have failed all four.
+    """
+    import gate_shards
+
+    script = tmp_path / "totals.py"
+    script.write_text(
+        "import sys\n"
+        "sys.stdout.reconfigure(encoding='utf-8')\n"
+        "print(' Test Files  1 passed (1)')\n"
+        "print('      Tests  2 passed (2)')\n",
+        encoding="utf-8")
+    got = gate_shards._capture([sys.executable, str(script)], tmp_path, shell=False)
+
+    assert isinstance(got, str), "the result stopped being a str — every existing caller breaks"
+    assert got.strip(), ".strip() must still work"
+    assert "Test Files" in got, "membership must still work"
+    (tmp_path / "shard.log").write_text(got, encoding="utf-8")   # what _run_shard does
+    totals = parse_totals(got)
+    assert totals is not None and totals["tests"]["passed"] == 2, totals
+
+
+def test_an_empty_capture_names_the_code_that_explains_it(tmp_path):
+    """⛔ THE `or ""` TRAP, which is where the code matters MOST and where it was lost last.
+
+    `text = run_shard_fn(i) or ""` collapses an empty result to a plain `str`, discarding the
+    attribute at exactly the moment the output is gone and the code is the only evidence left.
+    The EMPTY CAPTURE refusal must therefore be able to say WHY the shard produced nothing.
+    """
+    import gate_shards
+
+    with pytest.raises(GateError) as e:
+        run_gate(1, tmp_path,
+                 tree_state_fn=lambda: ("a" * 40, []),
+                 run_shard_fn=lambda i: gate_shards.Captured("", 2),
+                 file_count_fn=lambda: 10)
+    assert "EMPTY CAPTURE" in str(e.value)
+    assert "with code 2" in str(e.value), (
+        f"the refusal did not name the exit code, so it cannot tell a crash from a hang:\n{e.value}")
+
+
+def test_a_seam_that_never_observed_a_code_says_so_instead_of_saying_zero(tmp_path):
+    """⛔ `None` IS NOT `0`, and collapsing them is how "nobody looked" becomes "it was fine".
+
+    An injected test seam returns a plain `str` and never ran a process at all. Reporting that as
+    `exited 0` would be the swallowed-error defect in one word. The CONTROL is the test above,
+    which must keep printing a real number rather than this hedge.
+    """
+    with pytest.raises(GateError) as e:
+        run_gate(1, tmp_path,
+                 tree_state_fn=lambda: ("a" * 40, []),
+                 run_shard_fn=lambda i: DID_NOT_RUN,      # plain str, no .returncode
+                 file_count_fn=lambda: 10)
+    msg = str(e.value)
+    assert "NO TOTALS LINE" in msg
+    assert "UNOBSERVED" in msg, f"an unobserved code was reported as a number:\n{msg}"
+    assert "code 0" not in msg, f"'not observed' was rendered as exit 0:\n{msg}"
+
+
+def test_the_manifest_publishes_the_shard_exit_codes(tmp_path):
+    """A shard that exits non-zero while printing a clean totals line is not a failure — but it is
+    a FACT, and it was invisible for the whole life of this tool. ⛔ It is recorded, not enforced:
+    vitest exits 1 on an ordinary red test, so making this a gate condition would fail every
+    legitimately-red run twice. The verdict below stays the failing-set comparison."""
+    import gate_shards
+
+    manifest = run_gate(
+        2, tmp_path,
+        tree_state_fn=lambda: ("b" * 40, []),
+        run_shard_fn=lambda i: gate_shards.Captured(REAL_ANSI_PASS, 1 if i == 2 else 0),
+        file_count_fn=lambda: 392,
+    )
+    assert manifest["shard_exit_codes"] == {"1": 0, "2": 1}, manifest["shard_exit_codes"]
+    assert [s["exit_code"] for s in manifest["per_shard"]] == [0, 1]
+    # ⭐ AND IT DID NOT BECOME THE VERDICT. Shard 2 exited 1 and the gate still reports on the
+    # failing set alone — the two must not be wired together.
+    assert manifest["summed"]["tests"]["passed"] == 7092
+
+
+# ── The VERDICT= line ─────────────────────────────────────────────────────────────────────────
+
+_VERDICT_RE = re.compile(r"^VERDICT=(?P<name>[A-Z_]+) exit=(?P<exit>\d+)(?P<rest>.*)$", re.M)
+
+
+def _read_verdict(output: str) -> dict:
+    """Read the verdict the way a consumer with no JSON parser would: one grep, one line."""
+    m = _VERDICT_RE.search(output)
+    assert m, f"no VERDICT= line in the wrapper's output:\n{output[-1200:]}"
+    fields = dict(kv.split("=", 1) for kv in m.group("rest").split() if "=" in kv)
+    return {"name": m.group("name"), "exit": int(m.group("exit")), **fields}
+
+
+def test_the_verdict_line_carries_the_result_without_the_exit_code(tmp_path):
+    """⛔ THE WHOLE POINT. Derive the verdict from OUTPUT alone and it must match the real status.
+
+    This is the defence against a channel that lies: on 2026-09-13 this wrapper printed its own
+    "GATE EXIT: 1" and the task status still said 0. A reader who greps this line is immune to that
+    — and the line cannot drift from the status, because both are computed from one manifest in
+    one breath.
+    """
+    rc, out = _drive(tmp_path, observed=[A, B], baseline=[B])
+    v = _read_verdict(out)
+    assert v["name"] == "NEW_FAILURES", v
+    assert v["exit"] == rc == 1, f"the verdict line and the real exit status disagree: {v}, rc={rc}"
+    assert v["new"] == "1", v
+
+
+def test_non_vacuity_the_verdict_line_says_NO_NEW_FAILURES_on_a_matching_set(tmp_path):
+    """⛔ THE CONTROL. A line hard-wired to NEW_FAILURES would satisfy the rail above."""
+    rc, out = _drive(tmp_path, observed=[B], baseline=[B])
+    v = _read_verdict(out)
+    assert v["name"] == "NO_NEW_FAILURES", v
+    assert v["exit"] == rc == 0, f"{v}, rc={rc}"
+    assert v["new"] == "0", v
+
+
+def test_the_non_blocking_direction_is_visible_on_the_verdict_line_too(tmp_path):
+    """A baseline entry that stopped failing never blocks — and a reader of the LINE ALONE must be
+    able to see that the sets differ anyway, or `exit=0` looks like "nothing to see here"."""
+    rc, out = _drive(tmp_path, observed=[B], baseline=[B, C])
+    v = _read_verdict(out)
+    assert v["exit"] == rc == 0
+    assert v["no_longer_failing"] == "1", v
+
+
+def test_a_refused_run_emits_an_INVALID_verdict_that_names_which_refusal(tmp_path, capsys):
+    """⛔ EXIT 2 IS NOT A VERDICT, and the line has to say so rather than look like a third outcome.
+
+    ⭐ It names WHICH refusal. `run_gate` gives every failure mode a capitalised label of its own
+    precisely so a caller can tell them apart; flattening four distinct refusals into one word on
+    the way out would undo that.
+    """
+    import gate_shards
+
+    rc = gate_shards.main(["--shards", "1", "--out", str(tmp_path),
+                           "--exclude", "**/x.test.js"])          # no --exclude-reason
+    out = capsys.readouterr()
+    v = _read_verdict(out.out)
+    assert rc == 2
+    assert v["name"] == "INVALID" and v["exit"] == 2, v
+    assert v["cause"] == "MISSING_EXCLUDE_REASON", v
+    # ⭐ CONTROL: INVALID must not collide with either verdict name, or a grep cannot discriminate.
+    assert v["name"] not in {"NO_NEW_FAILURES", "NEW_FAILURES"}
+
+
+def test_the_verdict_line_is_greppable_from_a_shell_with_no_json(tmp_path):
+    """⚠ FORMAT CONTRACT. One line, no spaces inside a value, `k=v` throughout — so `grep` + `cut`
+    is enough. Stated as a rail because the next person to add a field will want to add prose."""
+    _, out = _drive(tmp_path, observed=[A, B], baseline=[B])
+    line = next(ln for ln in out.splitlines() if ln.startswith("VERDICT="))
+    assert "\t" not in line
+    for token in line.split():
+        assert token.count("=") >= 1, f"bare token {token!r} on the verdict line"
+        assert " " not in token.split("=", 1)[1]
+
+
+def test_every_exit_code_the_wrapper_can_return_has_a_verdict_name():
+    """⛔ THE RAIL THAT WOULD HAVE CAUGHT THIS COLLISION, written because it happened.
+
+    While this branch was being written, master added `EXIT_DID_NOT_RECONCILE = 3` — the verdict
+    for a suite that did not run every file, which fails in the FLATTERING direction. The verdict
+    line's name table knew 0, 1 and 2, so that run would have printed `VERDICT=UNKNOWN exit=3`:
+    the one outcome an operator most needs named, rendered anonymous, on the line this branch
+    tells them to read instead of the exit code.
+
+    ⭐ THE SET IS DERIVED FROM THE MODULE, never retyped here. A hand-listed set of codes beside
+    the codes it describes is the second-authority defect this repo has paid for in its gate
+    baseline, its writer index and its COT router; the point of this rail is that the NEXT code
+    is covered on the day it lands, by someone who has never read this file.
+    """
+    import gate_shards
+    codes = {v for k, v in vars(gate_shards).items()
+             if k.startswith("EXIT_") and isinstance(v, int)}
+    assert codes, "no EXIT_* constants found — the derivation broke, so this rail proves nothing"
+    missing = sorted(c for c in codes if c not in gate_shards.VERDICT_NAMES)
+    assert not missing, (
+        f"exit code(s) {missing} can be returned but have no VERDICT= name, so they print as "
+        f"UNKNOWN on the one line a reader is told to trust")
+    # ⭐ CONTROL: the rail must be able to fail. A name table covering every integer would.
+    assert 99 not in gate_shards.VERDICT_NAMES
+
+
+def test_the_verdict_line_names_a_run_that_did_not_reconcile(tmp_path):
+    """The collision above, driven end to end rather than asserted about.
+
+    ⛔ A partial suite is the failure this whole file exists for — fewer files run, fewer failures
+    found, and it reads as a pass. So it is the single most important thing the line must name.
+    """
+    import gate_shards
+    manifest = {
+        "summed": {"files": {"total": 8, "failed": 0}, "tests": {"total": 80, "failed": 0}},
+        "per_shard": [{"shard": 1, "files": {"total": 8}}],
+        "test_files_on_disk": 10, "test_files_waived": 0,
+        "file_count_reconciles": False,
+        "vs_baseline": {"new": [], "no_longer_failing": []},
+    }
+    code = gate_shards.verdict_exit_code(manifest)
+    assert code == gate_shards.EXIT_DID_NOT_RECONCILE
+    line = gate_shards.verdict_line(code, reconciles="false")
+    assert line.startswith("VERDICT=DID_NOT_RECONCILE exit=3"), line
+    assert "UNKNOWN" not in line
+
+
+def test_the_box_lock_path_is_overridable_and_defaults_to_a_machine_wide_location():
+    """⛔ THE FIXTURE ABOVE IS ONLY SAFE BECAUSE THIS OVERRIDE EXISTS — so it is railed.
+
+    ⭐ And the control is the DEFAULT: with no override the path must be machine-wide and outside
+    every repository, or the sandbox would be hiding a tool that writes somewhere wrong. Both
+    halves matter — an override that always won would mean the real lock is never used at all.
+    """
+    import gate_box_lock
+
+    os.environ["UCT_GATE_BOX_LOCK"] = r"C:\tmp\override.lock"
+    try:
+        assert str(gate_box_lock.lock_path()).endswith("override.lock")
+    finally:
+        os.environ.pop("UCT_GATE_BOX_LOCK", None)
+
+    default = gate_box_lock.lock_path()
+    assert default.name == "gate-box.lock"
+    # ⛔ outside every repo, and NOT under the live data root
+    assert "uct-worktrees" not in str(default), default
+    assert not str(default).lower().startswith("c:\\data"), default
+    assert ".git" not in str(default), default
