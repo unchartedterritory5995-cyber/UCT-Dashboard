@@ -938,3 +938,84 @@ input mean 7,120; system 6,509; `max_tokens` stops on first attempt **0**.
 ⭐ Invoked with `python -u` this time: pass 1's captured log lost its header and its batch-round
 lines to block buffering, which is exactly what made "is it hung or is it working?" cost a
 measurement instead of a glance.
+
+
+## ⛔⛔ EVERY CALL IN PASS 1 WAS DEMOTED TO MENTION — and the gate table cannot show it
+
+**99 of 99 CALLs. Also 28 of 38 LEVELs and 2 of 9 NEGATIVE_CALLs.** Measured from the persisted
+records of `20260915T085142Z`:
+
+    pre_entity_type : CALL 99  LEVEL 38  MARKET_SIGNAL 102  MENTION 485  NEGATIVE_CALL 9  PRINCIPLE 94
+    record_type     :          LEVEL 10  MARKET_SIGNAL 102  MENTION 614  NEGATIVE_CALL 7  PRINCIPLE 94
+    reclassified    : CALL->MENTION 99 | LEVEL->MENTION 28 | NEGATIVE_CALL->MENTION 2
+
+⛔ **`record_type` contains no CALL at all**, while the gate's table reports `CALL tp=17 fp=8
+P=0.680`. Both are correct and they are answering different questions: **the table scores
+`pre_entity_type`**, which is fixed before entity resolution runs (`writer.py:494`). So the gate
+measures the EXTRACTOR, deliberately insulated from whether an entity could be resolved — and the
+thing that would actually be WRITTEN is a different distribution entirely.
+
+### The mechanism, read from source rather than inferred
+
+`writer.py:504` — a CALL that cannot be tied to a resolved entity is not allowed to stand:
+
+    if rtype == "CALL" and not (isinstance(entity, dict) and entity.get("entity_id")):
+        rtype = "MENTION"; reasons.append("call_entity_unresolved")
+
+The reason strings distinguish the two cases, and that is what settles it. All 99 carry
+**`call_entity_unresolved`**, NOT `call_entity_unresolved:no_resolver` — so a resolver was
+present, ran, and returned nothing. **Every one of the 827 records has `entity: none`.**
+
+⚠️ **It is not the authors and not the corpus, and both were checked before blaming the
+environment.** `docs/wisdom/authors.json` marks all four — tsdr, bracco, chartmaster, manrav —
+`can_author_calls: true`, and only 8 records anywhere carry `not_a_call_author`. The author gate
+passed; the ENTITY gate is what fired.
+
+**The cause is the environment the gate runs in.** `entity_master/schema.py:33` resolves
+`DB_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "entity_master.db")` **at import**,
+so under `railway run` it took production's `DATA_DIR` and landed on this box's
+`C:\data\entity_master.db` — a file that exists, is 86 KB, and has **not been written since
+2026-09-02**. It resolved nothing because it holds nothing for these tickers. Nothing wrote to it;
+its mtime is untouched.
+
+### What this does and does not contaminate — bounded, not hand-waved
+
+| consumer | keyed on | effect |
+|---|---|---|
+| the gate's precision/recall table | `pre_entity_type` | ✅ **unaffected** — measured before the demotion |
+| item 3, the publication floor | PRINCIPLE, MARKET_SIGNAL | ✅ **unaffected** — neither type is ever demoted (94 -> 94, 102 -> 102) |
+| R30 MARKET_SIGNAL rename audit | MARKET_SIGNAL | ✅ **unaffected** — 102 in, 102 out |
+| item 2, the reconciler's per-type stability | `record_type` / `record_key` (`reconcile.py:95,101`) | ⛔ **CALL is vacuous (0 records) and MENTION is polluted** — 99 demoted CALLs and 28 demoted LEVELs land in MENTION's bucket under the same ticker |
+
+⭐ **So the three-pass stability numbers for CALL and MENTION will describe the harness, not the
+product**, and they must be reported that way or not at all. The persisted rows carry
+`pre_entity_key` beside `record_key` precisely so the same run can be re-keyed offline for $0.00 —
+which is what step 5 will do, reporting both views side by side rather than silently picking one.
+
+### ⛔ NOTHING WAS CHANGED, AND THAT IS THE POINT
+
+The fix is obvious and must not be applied now: **passes 1, 2 and 3 have to be identical or the
+stability measurement means nothing.** Giving pass 2 a populated entity master would confound the
+three-run comparison exactly the way the withdrawn PRINCIPLE delta was confounded by a tokenizer
+that changed between runs. The environment stays frozen for all three passes; whether to seed the
+entity master and re-run is the owner's call, and it is a question in the report.
+
+⚠️ **This also sharpens what R33 bought.** `railway run` injects production variables into a LOCAL
+process, and a module that derives a path from `DATA_DIR` at import will therefore point at this
+box's `C:\data`. That is how a production variable reaches a local file, and it is worth knowing
+before the next tool is run that way.
+
+### OPEN — one shared-root observation, recorded rather than resolved
+
+`C:\data\wisdom.db` was written at **07:24:39**, about five minutes into pass 2 and eight after
+pass 1 ended. Neither moment corresponds to anything the gate does (pass 1's eval was written at
+07:16:46; at 07:24 pass 2 was polling a batch and writing nothing). No `-wal`/`-shm` sidecars, and
+no backend process was found — but this box was demonstrably writing other shared-root files in
+the same window (`desk.db` 07:07, `fundamentals_tables.db` 07:15,
+`flow_conviction_board.json` 07:25:32), so something local is active.
+
+⛔ The gate's own store cannot be the writer — `common.bootstrap` REFUSES a shared root — and the
+balance of evidence says this is not ours. **That is not a measurement, so a baseline was taken
+rather than a conclusion reached:** sha256 `8B528BBC…68DF2F`, mtime 07:24:39, read at 07:26:56.
+It is re-read when pass 2 lands; if the content moved while only the gate was running, that is a
+stop-and-escalate, not a note.
