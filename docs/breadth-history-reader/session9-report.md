@@ -109,11 +109,24 @@ this box. **So the value of this change is UNPROVEN and it ships OFF.**
 sha parity over **5,576,278 bytes** against a real `origin/master` worktree, with flip and
 truncate controls both differing.
 
-> **OPEN QUESTION — do not merge on the local number.** The production measurement that
-> would decide it is a window with `BREADTH_OHLC_FETCH_RANGE` on, against §D's OFF arm, on
-> the **cold** path. If the H1 fix already removes the tail (§D), this change may have
-> nothing left to buy — in which case the right answer is to delete the branch, not to
-> merge a second mechanism for a problem that is gone.
+> **OPEN QUESTION — and §D has largely answered it, against merging.**
+>
+> The case for this change was the evicted read: 4,700 random b-tree descents each costing
+> a fault. **§D removed that case.** With `mmap_size` set, `syscr` on a deep read fell from
+> 1,669 to **182** and the tail from 11,382 ms to 1,257 ms — so the per-descent syscall
+> cost the range scan exists to avoid is **already gone**, bought by a PRAGMA rather than
+> by a rewritten query.
+>
+> What is left in the ON arm's tail (826–1,258 ms) is **cold-page fetch latency (H5)**, and
+> a range scan does not obviously help there either: the pages still have to arrive. A
+> sequential walk *may* fault more efficiently than 4,700 scattered descents, which is the
+> only remaining argument for it — and it is a hypothesis, not a measurement.
+>
+> **Recommendation: do NOT merge, and do not delete.** Keep the branch as a measured,
+> parity-proved candidate. If H5 becomes the next target, this is the experiment to run —
+> against the ON arm, not the OFF one it was designed for. Merging it now would add a
+> second mechanism for a problem the first one has already mostly solved, and its own local
+> number (1.19x warm) never justified it.
 
 ---
 
@@ -496,9 +509,13 @@ The fix is never to soften the check — it is to ask what the instrument could 
 
 ## Open questions
 
-1. **Merge the range-scan shape?** (§C) — needs a production cold measurement, and may be
-   moot if the H1 fix removes the tail.
-2. **Rename the flag so the ledger can see it?** (§F.1) — coupled to D.4's verdict.
+1. **Rename the flag so the ledger can see it?** (§F.1) — **the first thing Session 10
+   should do**, and it is coupled to D.5's *keep ON*. `BREADTH_OHLC_PAGECACHE` →
+   `BREADTH_OHLC_PAGECACHE_ENABLED`: one constant, one env var, no behaviour change, and
+   it makes a live production flag visible to the rail that exists to see it.
+2. **Merge the range-scan shape?** (§C) — **recommendation: no, and do not delete it
+   either.** §D removed the case it was built for. Keep it as a parity-proved candidate
+   for H5.
 3. **Is "Wait for CI" actually enabled on `web`?** (§E.4) — **the highest-value question
    in this report.** Nine observations say Railway does not wait for the gate; one says it
    does, by 2 seconds. If it does not, the mitigation installed after the 2026-09-14
