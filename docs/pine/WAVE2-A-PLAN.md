@@ -946,6 +946,82 @@ the shape that turns a hidden defect into a permanent one.
 
 The measurement is Section 2 of this block; no fix is made in the same session.
 
+## ✅ R14 MEASURED — the mechanism is **(C): both lanes are right about different facts**
+
+**Four scripts from three sources first, then all 13.** Measured 2026-09-15, lenient
+vs strict, through the shipped door.
+
+### 2.1 — `uncharted-volume-v2.pine`
+
+| | lenient (`mode: screener`) | strict (`mode: host`) |
+|---|---|---|
+| `ok` | true | true |
+| outputs | **5** | **5** |
+| titles | `[null, "Avg Vol Columns", null, null, null]` | `["Volume", "Avg Vol Columns", "Avg Vol Line", "Scale Padding", "HVE Trigger"]` |
+| refusals | **4 × `pine:function@227`** | **0** |
+| tree contains `cum` | **no** | **yes** |
+
+Line 227 is `hasVolumeData = ta.cum(nz(v)) > 0`. ⭐ **The four are not duplicates of
+one fact: they are one refusal per DROPPED OFFER** — four of the five columns could
+not be built, and each says why. The count matches the untitled outputs exactly
+(`atr-trailing-stoploss`: 5 refusals, 5 untitled).
+
+### 2.3 — the mechanism, named from all 13
+
+⛔ **Every lane-only refusal falls inside that lane's own admissibility class.** The
+distinct sentences, across the 13:
+
+| screener-only (host accepts) | × | host-only (screener accepts) | × |
+|---|---|---|---|
+| `pine:function` — *"`ta.cum`…names no anchor"* | **9** | `pine:state` — *"a `var` seeded `na` that nothing updates"* | 5 |
+| `pine:window-dependent` — *"depends on how much history was loaded"* | 2 | `pine:drawing` — *"paints on a chart and answers with no number"* | 2 |
+| `pine:hidden-only` · `pine:request` | 1 each | `pine:tuple` — *"several values at once and a column carries one"* | 2 |
+| | | `pine:statement` · `pine:request` · `pine:hidden-only` · `pine:offset-literal` | 1 each |
+
+⭐⭐ **The split is principled, not incidental.** Everything the SCREENER refuses and
+the host does not is **fetch-depth or anchor dependence** — a number that would be
+different tomorrow because more bars were loaded. Everything the HOST refuses and the
+screener does not is **shape** — a thing that is not one number per bar.
+
+⛔⛔ **AND THE ENGINE ALREADY SAYS SO, AS A RULING, IN ITS OWN TABLE** (`pine.js`
+≈1670, verbatim):
+
+> *"safe: the pane accepts it, the screener/sweep/alert/share/listing refuse it BY
+> NAME, so the fetch-dependent level cannot leak past the one surface that can hold it
+> honestly. ⭐ THE PAIR THE `cum` RAIL DEMANDS: a host-admissible name must still be
+> refused for a screen, or the exemption stops being a ruling and becomes a hole."*
+
+**So neither lane is wrong. `mode: strict ? 'host' : 'screener'` — these are two
+SURFACES with deliberately different admissibility, and a refusal set is a property of
+the SURFACE, not of the script.** Not (A): the lenient lane is refusing correctly, by
+a documented ruling. **Not (B): nothing is hidden on the shipped pane** — strict keeps
+`cum` in the tree *because a pane may compute it*, which is the ruling working.
+
+### 2.4 — PROPOSED RULING (not a fix). Estimate **45 min**. Owner's go required.
+
+⛔ **`bothLanesAgreeOnFacts.test.js`'s premise is what needs correcting, not the
+engine.** It asserts *"the VERDICTS may differ, the FACTS must not"* and counts the
+refusal set among the facts. **Output count is lane-independent and agrees on all 327
+— that half is right and stays.** The refusal set is not, and never was.
+
+⚠️ **As it stands the rail pins 13 scripts as a defect frontier that is actually
+correct behaviour, so "fixing" one would red a rail for doing the right thing** — and
+the rail's own comment invites exactly that (*"fixing one turns this RED and moves the
+assertion forward"*).
+
+**Proposed replacement, asserting the ANSWER rather than an absence:**
+1. **keep** — output count agrees on all 327 (unchanged, it is a real invariant);
+2. **keep** — the one script that throws, by name;
+3. **replace** the 13-script equality assertion with: *every lane-only refusal falls
+   in that lane's admissibility class* — screener-only ∈ {fetch-depth/anchor:
+   `cum`-class, `window-dependent`}, host-only ∈ {shape: `drawing`, `tuple`, `state`,
+   `offset-literal`}. A lane refusing **outside** its class is the real regression and
+   goes red;
+4. **non-vacuity control** (standing rule): the class lists are non-empty and a
+   deliberate cross-class refusal is detected.
+
+⛔ **STOP — awaiting the owner's go.** Nothing changed in the engine or the rail.
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it

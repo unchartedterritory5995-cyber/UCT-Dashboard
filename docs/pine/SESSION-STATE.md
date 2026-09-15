@@ -2,14 +2,22 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **the R14 fix, on the owner's go** — then item (c).
+> ### ⛔ NEXT: **the owner's ruling on R14** — then item (c).
 >
-> **R14 — which lane is wrong.** On 13 of 327 the **lenient** lane refuses MORE
-> than **strict**, outputs agreeing on all 327. Both member scripts are among the
-> 13 and **`uncharted-volume-v2` is Wave 1's shipped pane**, so if strict is the
-> wrong one a refusal is hidden on a live surface. ⛔ **Measured first, fixed
-> second; the direction is decided by which lane is RIGHT, never by which is
-> quieter.** The measurement is recorded in `WAVE2-A-PLAN.md` § R14.
+> ✅ **R14 MEASURED, and the answer is (C): NEITHER LANE IS WRONG.** Every
+> lane-only refusal falls inside that lane's own admissibility class — the
+> screener refuses **fetch-depth/anchor dependence** (`ta.cum` ×9,
+> `window-dependent` ×2), the host refuses **shape** (`state` ×5, `drawing` ×2,
+> `tuple` ×2). ⭐ **The engine already says so as a ruling in its own table**
+> (`pine.js` ≈1670): *"the pane accepts it, the screener … refuse it BY NAME."*
+> **Nothing is hidden on the shipped pane.**
+>
+> ⛔ **What needs correcting is the RAIL'S PREMISE, not the engine.**
+> `bothLanesAgreeOnFacts.test.js` counts the refusal set among the "facts that
+> must not differ"; a refusal set is a property of the **surface**
+> (`mode: strict ? 'host' : 'screener'`), not of the script. As it stands the rail
+> pins 13 scripts as a defect frontier that is **correct behaviour**. Proposed
+> replacement + 45-min estimate in `WAVE2-A-PLAN.md` § R14 2.4. **Awaiting the go.**
 >
 > **Then item (c)** — `request.security` tuple form + IR-lane tuples. ⛔ **Census
 > before build, threshold before estimate**, the same order that retired four
