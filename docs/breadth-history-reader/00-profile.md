@@ -1067,3 +1067,41 @@ read from the wrong source — and wrote the standing rule that the sampler must
 respect that rule: not the wrong timezone this time, but the wrong *kind of comparison*.
 **Knowing that a clock is dangerous is not the same as knowing which operation on it is
 wrong**, and the rule as written ("use zoneinfo") did not cover the case that bit.
+
+## Session 13 — the first run under SD-1
+
+Push-guard hours covered the whole session, so it was build and record by design. The
+checklist now exists and is the source of truth. Two items moved that had been carried
+for three sessions, and both moved by **reading a configuration instead of assuming one**.
+
+### The headline
+
+⭐ **G1 never needed a browser.** Railway's *Wait for CI* is the `checkSuites` Boolean on
+`Environment.deploymentTriggers`; it reads **False** on all six services. Three sessions
+carried it as a one-minute owner step on the assumption that the dashboard was the only
+place it lived.
+
+⚰️ **And it exposed that a red gate has already shipped.** Of 59 `master deploy gate`
+runs exactly one failed, and Railway created a `web` deployment for that commit in the
+same second. The negative case SD-1 planned to manufacture for G5 had already happened in
+production, unnoticed.
+
+### Appendix addendum — Session 13
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 40 | ⭐ `breadth_sampler_report.py`'s own `_run_and_capture` | exit 1, **no summary file**, on the box Task Scheduler was about to run it on | The terminal echo ran BEFORE the file write. This console is cp1252 and the text is full of `⛔`, so `sys.stdout.write` raised `UnicodeEncodeError` and took the artifact down with it. **C.1's guarantee failed by sacrificing the durable half to the disposable half** — the ordering was the entire defect. Fixed; three mutations red three different rails. ⚠️ The same trap then bit an ad-hoc probe in the same session: it is a property of the box, not of one tool. |
+| 41 | ⛔ the S2 hook install position | would have completed a 24-hour trial with an **empty log**, which reads as *zero false positives* — the promotion criterion | SD-1 says to add "a call at the end of the existing pre-commit". The credential-scan loop `exit 0`s from **inside** itself as soon as it finds `secret_scrub.py`, so anything after line 13 is unreachable on the normal path. Measured in a throwaway repo: appended → log empty; prepended → violation recorded. ⭐ **A check installed where it cannot run reports no violations, and "no violations" is indistinguishable from "working".** The criterion is now "the log has entries and none are false positives", never "the log is empty". |
+| 42 | A.1's own flag probe | `rf_pagecache` **ABSENT** | It asked for `days=30`, which never enters the reconstructed path, so the stamps it wanted are not emitted at all. ⭐ It reported **UNREADABLE**, not **OFF** — which is the only reason this is an appendix row and not a false finding. The value was then taken from the existing pool at zero cost to production. |
+
+⭐ **#41 is the one to carry.** Sessions 9–12 built a discipline around *an empty result is
+a failed invocation until proven otherwise*, and applied it to greps, sweeps and rails.
+This is the same defect one level up: **an empty result from a check that was never
+reachable**, where the emptiness would have been read as the success criterion. The rule
+generalises beyond queries — it applies to where a check is installed, not only to what it
+searches.
+
+⚠️ And S1 **corrected this programme's own record**: D-052 §6 says the `git add -A`
+incident replaced deliberate raw `\x01` bytes. No joystick document carries a control byte
+at HEAD or in its last fifteen commits. eol conversion rewrites CR and LF and nothing
+else, so it never could have. What it flattened was line endings.
