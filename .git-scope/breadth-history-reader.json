@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Scope for the breadth history reader programme. Enforced by tools/git_scope.py.",
+    "A branch matching any prefix in 'branches' may only stage paths under 'allow'.",
+    "An UNMATCHED branch is not a violation - this tool only enforces scopes that were",
+    "written down, because a check that refuses everybody gets bypassed within a day.",
+    "Written after a breadth commit used `git add -A` and swept in two joystick docs,",
+    "silently normalising another programme's deliberate raw control bytes."
+  ],
+  "branches": ["breadth/", "docs/session9-record", "docs/session10-record",
+               "docs/session11-record", "docs/session12-record", "repo/git-scope"],
+  "allow": [
+    "api/services/breadth_",
+    "api/routers/breadth_monitor.py",
+    "docs/breadth/",
+    "docs/breadth-history-reader/",
+    "docs/feature_flags.json",
+    "tests/test_breadth_",
+    "tests/test_git_scope.py",
+    "tools/breadth_",
+    "tools/git_scope.py",
+    ".git-scope/",
+    "logs/"
+  ]
+}
