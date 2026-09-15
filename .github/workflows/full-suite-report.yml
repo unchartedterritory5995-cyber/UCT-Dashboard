@@ -444,12 +444,25 @@ jobs:
           cp step_summary.md "/tmp/out/$RUN/summary.md" 2>/dev/null || true
           # ⛔ The orphan checkout below wipes the working tree, so anything that must
           # survive it is copied OUT first. /tmp is outside the repo and survives.
+          # ⚰️ E CP13 — AND THE PUBLISHER ITSELF IS ONE OF THOSE THINGS. E CP9 added
+          # `python tools/ci_publish.py` as the last line of this step, AFTER the checkout
+          # that wipes the tree — and `ci-results` carries only README.md + results/**,
+          # no `tools/` at all, so the script is deleted from disk moments before it is
+          # invoked. Run #10 died here in 2 s with every other step green. ⭐ The comment
+          # directly above named the hazard and the new line walked into it anyway.
+          cp tools/ci_publish.py "/tmp/ci_publish.py"
           if [ -d "extract/$RUN" ]; then
             cp -r "extract/$RUN/." "/tmp/out/$RUN/" 2>/dev/null || true
           fi
           if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
             git fetch origin ci-results
             git checkout ci-results
+            # ⚰️ E CP13 — E CP9 removed the WRITER of results/latest.json and left the FILE
+            # on the branch. A stale pointer nobody updates is worse than no pointer: a
+            # reader who finds it believes it, and it has named run #4 as "latest" through
+            # six runs. The publisher deletes it, once, idempotently — the branch's only
+            # writer is the right one to do it, under this job's concurrency group.
+            git rm -f --ignore-unmatch results/latest.json >/dev/null 2>&1 || true
           else
             git checkout --orphan ci-results
             git rm -rf . >/dev/null 2>&1 || true
@@ -473,4 +486,7 @@ jobs:
           # that swallows a push failure leaves no record and says nothing (F-CI-7).
           # ⭐ The rebase cannot conflict now that latest.json is gone — each run writes only
           # results/<run_id>/, a path no other run touches.
-          python tools/ci_publish.py --branch ci-results
+          # ⛔ From /tmp, not from tools/ — see the copy above. The repo's tools/ does not
+          # exist on this branch, and a path that does not exist reads as a crash with no
+          # record, which is F-CI-7 all over again.
+          python "/tmp/ci_publish.py" --branch ci-results
