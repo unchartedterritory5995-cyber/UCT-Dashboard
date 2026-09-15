@@ -110,11 +110,39 @@ describe('the arrangement is a preference, never a claim about what exists', () 
       .toContain('inst:rsi:1')
   })
 
-  it('⭐ a NEW pane appears beside its default neighbour, not always last', () => {
-    // Stored order knows Price and RSI. MACD is new, and in the DEFAULT
-    // arrangement it follows RSI — so it lands after RSI, not after Price.
+  it('⚰️ a NEW pane is APPENDED — it may not displace an arranged one', () => {
+    // ⚰️⚰️ RE-PINNED 2026-09-15 — INVESTIGATED, the rule changed on purpose.
+    // This asserted the opposite: "a NEW pane appears beside its default
+    // neighbour, not always last", expecting
+    //
+    //     ['inst:rsi:1', 'inst:macd:1', PRICE_PANE]
+    //
+    // MACD lands above Price purely because its DEFAULT neighbour is RSI and
+    // this member happens to have arranged RSI to the top. `dflt` is ordered by
+    // the instance array, which `withInstances` re-sorts by DEFINITION RANK on
+    // every canonical write — so a rank table was deciding where a member's new
+    // pane appeared, and it could appear anywhere in their stack.
+    //
+    // ⛔ THE OWNER MEASURED THE CONSEQUENCE: adding an unrelated data series
+    // moved panes they had placed. Nothing about adding MACD says anything about
+    // where it belongs relative to a pane someone deliberately moved, so once an
+    // arrangement exists it is authoritative and new panes go to the bottom.
     const cs = setPaneOrder({}, ['inst:rsi:1', PRICE_PANE])
-    expect(resolvePaneOrder(cs, KEYS)).toEqual(['inst:rsi:1', 'inst:macd:1', PRICE_PANE])
+    expect(resolvePaneOrder(cs, KEYS)).toEqual(['inst:rsi:1', PRICE_PANE, 'inst:macd:1'])
+  })
+
+  it('⛔⛔ EVERY pairwise relation the member established survives an add', () => {
+    // The invariant the example above is one case of. Whatever else changes,
+    // two panes the member ordered keep that order when a third appears.
+    const cs = setPaneOrder({}, ['inst:rsi:1', PRICE_PANE])
+    const before = resolvePaneOrder(cs, ['inst:rsi:1'])
+    const after = resolvePaneOrder(cs, KEYS)
+    for (let i = 0; i < before.length; i++) {
+      for (let j = i + 1; j < before.length; j++) {
+        expect(after.indexOf(before[i]) < after.indexOf(before[j]),
+          `${before[i]} and ${before[j]} swapped when a pane was added: ${JSON.stringify(after)}`).toBe(true)
+      }
+    }
   })
 
   it('⭐ a separate volume pane appearing later lands under Price by default', () => {

@@ -100,9 +100,20 @@ describe('⚰️⚰️ the candles are not squeezed out by their neighbours', ()
     const shares = STACKS.map(([, i]) => drawable(computePaneLayout(i, SEPARATE)))
     for (const s of shares) expect(s).toBeCloseTo(shares[0], 6)
     // …and the banded shape too, where it used to collapse to 0.022.
+    //
+    // ⚠️ THIS ONE IS NOT CONSTANT, AND MUST NOT BE. The volume band keeps its
+    // ABSOLUTE height across the bands/panes cutover — that is correct, and the
+    // 512-subset parity sweep in `paneLayout.test.js` measures it to the pixel —
+    // so as the stack shrinks pane 0 the band's SHARE of it legitimately grows.
+    // What was pathological was the headroom compounding on top of that. With
+    // the headroom pinned at 0.30 the candles keep a workable share instead of
+    // falling to 0.022.
     const banded = STACKS.map(([, i]) => drawable(computePaneLayout(i, BANDED)))
     expect(Math.min(...banded), `banded candles squeezed: ${banded.map((s) => s.toFixed(3))}`)
-      .toBeGreaterThan(0.45)
+      .toBeGreaterThan(0.35)
+    for (const [, i] of STACKS) {
+      expect(computePaneLayout(i, BANDED).pane0.mainMargins.top).toBeCloseTo(0.30, 6)
+    }
     expect(Math.min(...shares), `the candles were squeezed: ${shares.map((s) => s.toFixed(3))}`)
       .toBeGreaterThan(0.5)
   })

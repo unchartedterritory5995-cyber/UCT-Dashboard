@@ -788,7 +788,14 @@ export function computePaneLayout(instances, opts) {
   // two modes agree rather than inventing a third rule, and it reproduces the
   // no-stack case EXACTLY (top 0.300, bottom 0.150 banded / 0.000 separate),
   // which is what the `price_plot` parity region reads.
-  const volumeFrac = volumeC / 100
+  // ⚠️ ONLY THE HEADROOM WAS WRONG. The BAND term stays exactly as it was:
+  // `mainBottomPx` keeps the volume band at the same ABSOLUTE height across the
+  // bands/panes cutover, which is correct and is what the 512-subset parity
+  // sweep in `paneLayout.test.js` measures. Rewriting it as a flat fraction of
+  // pane 0 moved the candles' bottom edge by `osc * vol` — measured, 439px where
+  // the shipped rectangle has 428 — so the band is left alone and the fix is
+  // confined to the term that actually ran away.
+  const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
   above[mainPaneIndex] = pane0HeightPx
 
   // ─── the non-oscillator heights, addressed by the slot they actually occupy ─
@@ -884,14 +891,14 @@ export function computePaneLayout(instances, opts) {
       mainMargins: {
         // Fractions of THIS pane — see the frame-of-reference note above.
         top: MAIN_TOP,
-        bottom: volumeFrac,
+        bottom: 1 - (mainBottomPx / pane0HeightPx),
       },
       // ⛔ AND THE BAND AGREES WITH THEM BY CONSTRUCTION. The band occupies the
       // bottom `volumeFrac` of the same pane, so its top margin is the candles'
       // bottom edge. Deriving both from ONE term is what stops the band and the
       // candles disagreeing about where the boundary is.
       volumeMargins: hasVolumeBand
-        ? { top: 1 - volumeFrac, bottom: 0 }
+        ? { top: mainBottomPx / pane0HeightPx, bottom: 0 }
         : null,
     },
   }

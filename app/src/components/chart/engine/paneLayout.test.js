@@ -96,7 +96,25 @@ function shippedBandMargins(enabled, hasVolume) {
     out[active[i].key] = { top: (100 - nextC) / 100, bottom: bottomC / 100 }
     bottomC = nextC
   }
-  out.main = { top: 0.30, bottom: bottomC / 100 }
+  // ⚰️⚰️ UPDATED 2026-09-15 — INVESTIGATED, and the transcription had to follow
+  // the fix it is the reference for.
+  //
+  // This read `{ top: 0.30, ... }`, faithfully transcribing the shipped rule: a
+  // flat 30% of the WHOLE plot area as headroom, with the candles getting
+  // whatever survived the stack. Faithful, and wrong — the loop above shaves the
+  // stack to a 69-hundredth ceiling precisely because the rule permits a stack
+  // that leaves the candles ONE PERCENT. That is the owner's production
+  // screenshot: a price around 210 pressed into the bottom of its pane with the
+  // scale reading to ~1600.
+  //
+  // ⛔ A GOLDEN MASTER MUST TRACK A DELIBERATE CHANGE OR IT PINS THE DEFECT. The
+  // headroom is now a share of the CANDLE AREA — `0.30 * (1 - osc)` — so it
+  // degrades with the stack instead of eating it. Everything else here is
+  // untouched: the band edges, the shave, the ceiling. The sweeps below still do
+  // their real job, which is that panes mode reproduces bands mode to the pixel
+  // across all 512 subsets and that the separators come out of the oscillators.
+  const oscC = hasVolume ? bottomC - heightsC[heightsC.length - 1] : bottomC
+  out.main = { top: 0.30 * (1 - oscC / 100), bottom: bottomC / 100 }
   return out
 }
 
@@ -197,7 +215,22 @@ describe('pane 0 keeps its rectangle, to the pixel', () => {
     for (let mask = 0; mask < 512; mask++) {
       const before = shippedBoundaries(mask, hasVolumeBand)
       const after = layoutBoundaries(computePaneLayout(INSTS[mask], OPTS({ hasVolumeBand })))
-      if (after.candleTop !== before.candleTop
+      // ⚠️ `candleTop` IS COMPARED TO THE PIXEL, ±1 — AND ONLY IT.
+      //
+      // The two sides round the headroom in different FRAMES: the layout takes
+      // `MAIN_TOP` of pane 0's own INTEGER height, the transcription above takes
+      // `0.30 * (1 - osc)` of the chart height. Those agree exactly except where
+      // the two roundings straddle a boundary — measured, 30 of the 512 subsets,
+      // every one of them off by exactly 1px and never more.
+      //
+      // ⛔ THE OTHER TWO EDGES STAY EXACT, which is what keeps this failable.
+      // `candleBottom` and `pane0Bottom` are the edges the separator budget and
+      // the band height land on, so the properties this sweep exists for — panes
+      // mode reproduces bands mode, and the separators come out of the
+      // oscillators — are still asserted to the pixel with no tolerance at all.
+      // This is the same sub-pixel argument `flipCGeometry`'s §A6 case makes
+      // explicitly for the identical reason.
+      if (Math.abs(after.candleTop - before.candleTop) > 1
           || after.candleBottom !== before.candleBottom
           || after.pane0Bottom !== before.pane0Bottom) {
         bad.push({ mask, before, after })

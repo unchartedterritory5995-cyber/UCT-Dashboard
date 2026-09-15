@@ -98,6 +98,7 @@ import {
   defaultPaneKeys,
 } from './chart/engine/paneLayout'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { volumeOwnsPane } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
@@ -10517,7 +10518,12 @@ export default function StockChart({
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
     // draggable divider; overlay mode shares pane 0 via the layout's bands.
-    const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
+    // ⭐ ONE PREDICATE, ASKED — `chartDataMap` re-derived this rule and got a
+    // different answer; see `engine/volumePresentation.js`. The renderer is the
+    // caller that CAN supply every input, so it passes all of them.
+    const volSeparatePane = volumeOwnsPane({
+      cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane,
+    })
     const hasVolumeBand = showVolume && volData.length > 0 && !volSeparatePane
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
