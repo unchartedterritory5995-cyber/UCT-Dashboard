@@ -29,8 +29,10 @@ import { REDUCE_MEMBERS, HANDLED } from './arrayVectors.js'
 
 const HEAD = '//@version=6\nindicator("t", overlay=true)\nplot(close, "real")\n'
 
-/** ⛔ MARKER — deleted by the commit that fixes the fold. */
-const run = it.fails
+// ✅ THE MARKER IS GONE. It was `const run = it.fails`, committed at 158ca0d0a so the
+// acceptance was on record before the fix; every case below passed BECAUSE it failed.
+// The fix commit deletes it, which is the whole point of writing it that way.
+const run = it
 
 /** A settled 3-slot vector, then one read. */
 const src = (read) => `${HEAD}var a = array.new<float>(3)\n`

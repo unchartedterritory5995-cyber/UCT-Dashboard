@@ -52,7 +52,45 @@ export const READ_MEMBERS = Object.freeze(new Set(['get', 'size', 'first', 'last
 export const WRITE_MEMBERS = Object.freeze(new Set([
   'set', 'push', 'pop', 'shift', 'unshift', 'insert', 'remove', 'clear',
 ]))
-export const REDUCE_MEMBERS = Object.freeze(new Set(['sum', 'max', 'min', 'avg']))
+/** ⚰️⚰️ `avg` WAS IN HERE AND WAS NEVER IMPLEMENTED — corrected at R9, 2026-09-14.
+ *
+ *  The fold in `resolveVectorRead` handles `sum`, `max` and `min`; `avg` fell past it
+ *  and refused `pine:collection` exactly like a member no list names. So this set
+ *  promised four and the code did three, and `HANDLED` — which is built from this set
+ *  — repeated the promise. A member reading either would have concluded `array.avg`
+ *  worked. That is the "documented but unreachable" defect in miniature, inside the
+ *  data structure rather than the prose.
+ *
+ *  ⭐ It is a two-line fold (`sum / count`) now that `sum` resolves its slots, and it
+ *  is deliberately NOT written here: R9 rules that a member which does not fold joins
+ *  the refusal set, and implementing it instead would be scope this ruling did not
+ *  grant. Recorded so the next reader knows the cost is small, not that it is absent.
+ */
+export const REDUCE_MEMBERS = Object.freeze(new Set(['sum', 'max', 'min']))
+
+/** ⭐ The census numbers each refused reduce/search member carries in its refusal.
+ *
+ *  ⛔ IN THE SENTENCE, NOT JUST IN A DOC. A member told "this is not folded" cannot
+ *  act on it; a member told "14 uses in the reference corpus, none of which reach a
+ *  plot" knows it was measured and knows which fact a reopening would have to change.
+ *  From `tools/pine_reduce_census.py` — uses, and how many reach an output. */
+export const REDUCE_CENSUS = Object.freeze({
+  avg: { uses: 14, reaching: 0 },
+  indexof: { uses: 18, reaching: 0 },
+  sort: { uses: 10, reaching: 0 },
+  includes: { uses: 5, reaching: 0 },
+  stdev: { uses: 4, reaching: 0 },
+})
+
+/** The sentence a refused reduce/search member carries. */
+export function reduceRetiredMessage(member) {
+  const c = REDUCE_CENSUS[member]
+  if (!c) return null
+  return `\`array.${member}\` is not folded on this lane — of ${c.uses} uses in the`
+    + ` reference corpus ${c.reaching === 0 ? 'none' : String(c.reaching)} reach a plot`
+    + ' or an alertcondition, so the binding constraint is what CONSUMES the result'
+    + ' rather than what this lane could compute (ruling R9)'
+}
 
 /** Every member this item handles at all. Anything else under `array.` keeps
  *  refusing `pine:collection` by name, which is the honest answer. */

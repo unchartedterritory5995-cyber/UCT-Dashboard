@@ -5640,8 +5640,38 @@ export class Resolver {
       return this.resolveBinding(vec.slots[k], node.tok, vec.arrayName)
     }
 
+    // ⭐⭐ R9 — A RETIRED REDUCE REFUSES AT ITS OWN CALL, CARRYING ITS NUMBER.
+    //
+    // These reach `resolveVectorRead` because the receiver IS a plan-time vector; what
+    // they lack is a fold. Letting them fall through to the generic collection refusal
+    // would say "an array is outside the expression grammar" about a member whose
+    // receiver this lane understands perfectly — true of the family and wrong about
+    // the case. The sentence names the member, its census number, and the constraint
+    // that decided it (the CONSUMER: none of these reach a plot).
+    {
+      const retired = VEC.reduceRetiredMessage(member)
+      if (retired) {
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — ${retired}`, locate(node.tok))
+      }
+    }
+
     if (member === 'sum' || member === 'max' || member === 'min') {
+      // ⚰️⚰️ EACH SLOT IS RESOLVED FIRST, AND SKIPPING THAT MADE EVERY REDUCE
+      // UNUSABLE. A slot holds a BINDING, not a finished node — the `get` branch
+      // four lines above says so and calls `resolveBinding`. This branch fed the raw
+      // bindings into `cOp`/`cCall`, so the output tree carried binding objects where
+      // canonical nodes belong, the printer wrote text it could not read back, and
+      // EVERY `array.sum` / `max` / `min` came back `pine:roundtrip` with no formula
+      // at all — for any slot content, literal or series. Measured at R9, 2026-09-14.
+      //
+      // ⛔ SAME CLASS AS BUG 1 — an object of the wrong language spliced into a tree,
+      // failing silently downstream rather than at the splice. There the parse and
+      // output languages were four letters apart; here it is a binding versus the
+      // node it resolves to. The lesson is the same: `vec.slots` is not a node array,
+      // and anything reading it goes through `resolveBinding`.
       const written = vec.slots.filter(Boolean)
+        .map((slot) => this.resolveBinding(slot, node.tok, vec.arrayName))
       if (!written.length) return cOp('/', [cNum(0), cNum(0)])
       if (member === 'sum') return written.reduce((a, b) => cOp('+', [a, b]))
       const fn = member === 'max' ? 'max' : 'min'
