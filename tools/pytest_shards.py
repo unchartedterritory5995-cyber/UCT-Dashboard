@@ -43,15 +43,28 @@ import sys
 OK, FAIL = 0, 1
 
 #: how many alphabetical buckets the loose root files split into.
-#: ⚰️ **8 UNTIL RUN #23, WHEN `tests-05` HIT THE 20-MINUTE CAP AND WAS CANCELLED** — the
-#: Run step was killed at **1,142 s** with the job at 1,234 s, so the shard printed no
-#: totals line, the record read `shards_without_totals = ['tests-05']`, and the gate
-#: correctly returned INVALID over 21 MISSING baseline entries.
-#: ⛔ **A job that cannot print a totals line within its cap is SPLIT, not extended.**
-#: Raising `timeout-minutes` buys one run and hides the trend; more buckets is the fix the
-#: standing rule names. ⚠️ The partition is by FILE COUNT, not by time, so 8 → 12 is a
-#: ~33% cut in expected worst-case work and NOT a guarantee — the next run measures it.
-ROOT_BUCKETS = 12
+#:
+#: ⚰️⚰️ **8 → 12 WAS TRIED IN RUN #24 AND REVERTED THE SAME HOUR. IT COST 41 NEW FAILURES.**
+#: `tests-05` hit the 20-minute cap in run #23 (the Run step killed at **1,142 s**, no
+#: totals line, `shards_without_totals = ['tests-05']`, the gate correctly INVALID over 21
+#: MISSING entries), and the standing rule says such a job is **SPLIT, not extended**. So it
+#: was split — and run #24 came back **NEW_FAILURES, 41 of them, every one in
+#: `tests/test_voice_router.py`, every one `402 Payment Required`**:
+#:
+#:     assert 402 == 401      assert 402 == 200
+#:
+#: ⛔ **A FINER ALPHABETICAL SPLIT IS NOT A NEUTRAL OPERATION — IT CHANGES WHO SHARES A
+#: PROCESS.** At 8 buckets that file lands in `tests-08` beside 155 others; at 12 it lands
+#: in `tests-11` beside a different 103, and the paid-subscription state it silently
+#: depended on is no longer set up by a neighbour. **The tests are order-dependent**, which
+#: is a real defect this partition made visible and did not create — F-CI-36.
+#:
+#: ⭐ **The gate caught it inside one run, by name, and excused none of it as flaky.** That
+#: is the whole apparatus working; the trade is still bad, because one INVALID run is
+#: cheaper than 41 failures, so this is back at 8 until the isolation defect is fixed.
+#: ⛔ And the real fix is a **time-weighted** partition, not a finer alphabetical one — the
+#: alphabet is exactly what re-shuffles neighbours.
+ROOT_BUCKETS = 8
 TEST_GLOB = "test_*.py"
 
 
