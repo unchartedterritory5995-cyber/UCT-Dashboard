@@ -143,15 +143,23 @@ vi.mock('lightweight-charts', () => {
       __ctor: ctor,
       setData: (data) => { H.setDataCalls.push({ series: s, data }) },
       update: () => {},
+      // ⭐⭐ THE MOCK REMEMBERS WHAT WAS APPLIED. `options()` used to answer `{}`
+      // forever, which is a renderer that forgets its own state — and any code
+      // that READS an option back was therefore untestable here. Track B's hover
+      // lift is exactly that code: it reads the current `lineWidth` off the series,
+      // adds to it, and must put the ORIGINAL back. Against a forgetful mock it
+      // silently no-ops (undefined is not finite) and its rail would be vacuous.
+      __opts: {},
       applyOptions: (o) => {
         H.applyOptionsCalls.push({ series: s, options: o })
+        Object.assign(s.__opts, o || {})
         if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible })
       },
       priceScale: () => ({ applyOptions: (o) => { H.scaleApplyCalls.push({ series: s, options: o }) }, width: () => 0 }),
       createPriceLine: (o) => { H.priceLineCalls.push({ series: s, options: o }); return {} },
       removePriceLine: () => {}, setMarkers: () => {},
       attachPrimitive: () => {}, detachPrimitive: () => {},
-      priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
+      priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({ ...s.__opts }),
       // RECORDED. `binder.moveToPane` relocates a POOLED series between panes via
       // `removeDataSource` + `_addSeriesToPane`, which APPENDS — so a relocated
       // series lands on top of its new pane and the z-order rails below, which
@@ -183,6 +191,9 @@ vi.mock('lightweight-charts', () => {
   const chart = {
     addSeries: (ctor, options, paneIndex) => {
       const s = makeSeries(ctor)
+      // Seeded, for the same reason `applyOptions` accumulates: a series created
+      // with `{ lineWidth: 2 }` and never re-applied still HAS a line width.
+      Object.assign(s.__opts, options || {})
       H.addSeriesCalls.push({ ctor, options, paneIndex, series: s })
       return s
     },
@@ -1294,16 +1305,109 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     return hover(view, rsi ? [[rsi.series, { value: 54.321 }]] : [])
   }
 
-  /** The inline colour the RSI chip is painted in, as jsdom reports it. */
+  /** The colour the RSI chip is painted in, as jsdom reports it.
+   *
+   *  ⚰️ IT READ `span.style.color`, THEN A 2×9px RAIL'S BACKGROUND (retired
+   *  2026-09-14 — nine rows read as nine coloured tabs). Track B moved the plot
+   *  colour off the chip's TEXT: the chip wore
+   *  `style={{ color: chip.color }}` on the whole box, so eleven series printed
+   *  eleven differently-coloured names at 11px and a member who picked a dark
+   *  plot colour got a label they could not read. The INVARIANT these cases
+   *  assert is unchanged — the chip wears the colour the LINE wears — only the
+   *  element carrying it moved. */
   const rsiChipColor = (view) => {
     const span = [...view.container.querySelectorAll('span')].find(s => s.textContent.startsWith('RSI('))
-    return span ? span.style.color : null
+    return span ? (span.style.getPropertyValue('--chip-color') || null) : null
   }
 
   it('LEGACY draws the chip — the control', async () => {
     const view = draw(RSI_ON)
     expect(await hoverLatest(view)).toContain('RSI(14) 54.3')
-    expect(rsiChipColor(view)).toBe('rgb(123, 104, 238)')   // #7b68ee
+    expect(rsiChipColor(view)).toBe('#7b68ee')
+  })
+
+  // ─── TRACK B · POINTING AT A LABEL DOES NOT TOUCH THE CHART ──────────
+  //
+  // ⚰️⚰️ THREE CASES STOOD HERE AND THEY PROVED A RETIRED FEATURE: that hovering
+  // a chip lifted ITS line by exactly one pixel, that the EXACT original width
+  // came back on the way out, and that the lift reached the renderer and nothing
+  // else. The measurement was sound and the code was careful — it read the width
+  // off the series so a member's own override survived the round trip — and the
+  // owner retired the idea anyway after using it in production (2026-09-14): a
+  // legend hover must not redraw the chart at all.
+  //
+  // ⛔ THE RAIL IS INVERTED, NOT DELETED. The inverse is the stronger claim and it
+  // is the one that can regress silently: nothing about a legend hover is visible
+  // in the legend's own DOM, so only the renderer can say whether a pointer
+  // moving across nine labels is quietly re-styling nine series.
+  //
+  // ⚠️ AND IT NEEDS THE MOCK THAT REMEMBERS. `options()` answered `{}` forever
+  // until Track B; without `makeSeries.__opts` the width read below is `undefined`
+  // in both states and the case passes against a chart that was restyled.
+  const rsiSeries = () => H.addSeriesCalls
+    .find(c => c.options && c.options.priceScaleId === 'rsi').series
+  const chipFor = (view, prefix) => [...view.container.querySelectorAll('[data-instance-id]')]
+    .find(e => (e.textContent || '').startsWith(prefix))
+
+  it('⛔⛔ A HOVER REACHES THE RENDERER NOT AT ALL', async () => {
+    const view = draw({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+    await hoverLatest(view)
+    const series = rsiSeries()
+    const before = series.options().lineWidth
+    expect(Number.isFinite(before), 'the RSI series has no lineWidth — the width '
+      + 'comparison below would hold between two `undefined`s').toBe(true)
+
+    const chip = chipFor(view, 'RSI(')
+    expect(chip, 'no RSI chip to hover').toBeTruthy()
+    H.applyOptionsCalls.length = 0
+    H.setDataCalls.length = 0
+    H.addSeriesCalls.length = 0
+    H.scaleApplyCalls.length = 0
+    await act(async () => { fireEvent.mouseEnter(chip) })
+    await act(async () => { fireEvent.mouseLeave(chip) })
+
+    expect(H.applyOptionsCalls, 'a legend hover re-styled a series').toEqual([])
+    expect(H.setDataCalls, 'a legend hover re-set series data').toEqual([])
+    expect(H.addSeriesCalls, 'a legend hover created a series').toEqual([])
+    expect(H.scaleApplyCalls, 'a legend hover touched a price scale').toEqual([])
+    expect(series.options().lineWidth, 'the line is not the width it started at')
+      .toBe(before)
+  })
+
+  it('⛔ …and neither does a CLICK — it opens a menu, it does not restyle', async () => {
+    // The click is the whole interaction now, so it is the path most likely to
+    // acquire an "emphasise while the menu is open" flourish. It may not: the
+    // popover is the emphasis.
+    //
+    // ⚠️ "CHANGED SOMETHING", NOT "CALLED SOMETHING" — unlike the hover case
+    // above, which may reach the renderer not at all. Opening the popover is a
+    // STATE CHANGE, so `updateChart` runs again and the binder re-syncs every
+    // series it owns with the options they already carry. That is an ordinary
+    // idempotent repaint. What would be a regression is any option coming back
+    // from the click with a DIFFERENT value than the line had before it.
+    const view = draw({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+    await hoverLatest(view)
+    const series = rsiSeries()
+    const before = { ...series.options() }
+    expect(Number.isFinite(before.lineWidth), 'the RSI series has no lineWidth — vacuous')
+      .toBe(true)
+    const chip = chipFor(view, 'RSI(')
+    H.applyOptionsCalls.length = 0
+    await act(async () => { fireEvent.click(chip) })
+
+    // ⚠️ BY VALUE, NOT BY IDENTITY. `priceFormat` is an object LITERAL rebuilt on
+    // every sync, so an identity comparison calls an unchanged line "restyled" and
+    // this rail would fail on any re-render at all — which would teach the next
+    // reader to delete it rather than to trust it.
+    const same = (a, b) => Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b)
+    const changed = H.applyOptionsCalls
+      .filter(c => c.series === series)
+      .flatMap(c => Object.entries(c.options || {}))
+      .filter(([k, v]) => !same(v, before[k]))
+    expect(changed, 'opening the menu changed how the line it is about is drawn')
+      .toEqual([])
+    expect(series.options().lineWidth, 'the line is not the width it started at')
+      .toBe(before.lineWidth)
   })
 
   it('ENGINE draws the same chip, same text, same period', async () => {
@@ -1333,7 +1437,7 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
       indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 14, color: '#ff0000' } }],
     })
     expect(await hoverLatest(view)).toContain('RSI(14) 54.3')
-    expect(rsiChipColor(view)).toBe('rgb(255, 0, 0)')
+    expect(rsiChipColor(view)).toBe('#ff0000')
   })
 
   it('a HIDDEN instance binds nothing, and its chip prints the LABEL with no value', async () => {
@@ -3193,9 +3297,13 @@ describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', (
     const chips = [...view.container.querySelectorAll('span')]
       .filter(el => /^(MACD|SIG) /.test(el.textContent))
     expect(chips.map(el => el.textContent)).toEqual(['MACD 0.1235', 'SIG -0.6789'])
-    expect(chips.map(el => el.style.color)).toEqual(['rgb(18, 52, 86)', 'rgb(101, 67, 33)'])
+    // ⚰️ `el.style.color` UNTIL TRACK B — see `rsiChipColor` above for why the
+    // colour moved to the rail. The claim is the same one: the chips follow the
+    // INSTANCE's colours, not the settings blob.
+    const colorOf = (el) => el.style.getPropertyValue('--chip-color')
+    expect(chips.map(colorOf)).toEqual(['#123456', '#654321'])
     // …and the blob's colours are NOT what is showing.
-    expect(chips.map(el => el.style.color)).not.toContain('rgb(33, 150, 243)')
+    expect(chips.map(colorOf)).not.toContain('#2196f3')
   })
 
   it('and the histogram still DECLARES its chip hidden, while the two lines do not', () => {

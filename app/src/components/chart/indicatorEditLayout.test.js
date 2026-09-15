@@ -95,7 +95,7 @@ describe('the compact legend can get back out again', () => {
   })
 })
 
-describe('the legend chip\'s controls are evenly spaced, and the strip fits them', () => {
+describe('the legend chip has NO control at all — the chip IS the control', () => {
   const css = read('components/chart/legend/IndicatorChip.module.css')
 
   it('⚰️ `.chipBtnDanger` NO LONGER CARRIES A SAFETY MARGIN — an owner decision', () => {
@@ -129,33 +129,34 @@ describe('the legend chip\'s controls are evenly spaced, and the strip fits them
     }
   })
 
-  it('the three controls share ONE gap — even spacing, no per-button margin', () => {
-    const body = ruleBody(css, '.chipControls')
-    const gap = /gap:\s*(\d+)px/.exec(body)
-    expect(gap, '`.chipControls` lost its gap').toBeTruthy()
-    // The same gap `LegendRow.module.css` uses, so the two kinds of row in one
-    // legend are spaced identically — which is the whole point of the change.
-    const rowGap = /gap:\s*(\d+)px/.exec(
-      ruleBody(read('components/chart/legend/LegendRow.module.css'), '.controls'))
-    expect(gap[1], 'the chip and the MA row space their controls differently')
-      .toBe(rowGap[1])
+  it('⛔ NO CONTROL STRIP AND NO CONTROL BUTTON — in either legend stylesheet', () => {
+    // ⚰️⚰️ TWO CASES STOOD HERE: that the chip's ONE control shared `LegendRow`'s
+    // gap, and that the revealed control took no width because it had been taken
+    // out of flow. Both measured something real about a thing that has now been
+    // retired twice — the eye/gear/✕ strip first, then the chevron that replaced
+    // it (owner, 2026-09-14, after production use). Anything that APPEARS on hover
+    // has to come from somewhere, and both answers cost either layout or adjacency.
+    // The ROW is the control now, so the assertion is that neither comes back.
+    const rowCss = read('components/chart/legend/LegendRow.module.css')
+    for (const [name, src] of [['IndicatorChip', css], ['LegendRow', rowCss]]) {
+      const flat = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, '')
+      expect(flat, name + ' grew a control strip back').not.toMatch(/\.chipControls\{|\.controls\{/)
+      expect(flat, name + ' grew a control button back').not.toMatch(/\.chipBtn\{|\.btn\{/)
+    }
   })
 
-  it('the revealed strip is wide enough for what it now contains', () => {
-    // `.chipControls` is `overflow: hidden`, so a max-width that no longer fits
-    // clips the last button — and clipping is exactly the failure this file's own
-    // header warns is invisible in jsdom.
-    // ⚠️ ANCHORED ON THE `:hover` HALF ONLY, DELIBERATELY. This spelled the whole
-    // selector and went red when the keyboard half became `:has(:focus-visible)`
-    // to stop a clicked chip's strip staying open. The CLAIM is about WIDTH.
-    const hover = /\.chip:hover \.chipControls,[^{]*\{([^}]*)\}/
-      .exec(css.replace(/\/\*[\s\S]*?\*\//g, ''))
-    expect(hover, 'the hover reveal rule is gone').toBeTruthy()
-    const max = /max-width:\s*(\d+)px/.exec(hover[1])
-    expect(max).toBeTruthy()
-    const gap = Number(/gap:\s*(\d+)px/.exec(ruleBody(css, '.chipControls'))[1])
-    // three 16px buttons + two gaps, and it must not merely equal that — a strip
-    // sized to exactly its contents clips on the first sub-pixel rounding.
-    expect(Number(max[1])).toBeGreaterThanOrEqual(3 * 16 + 2 * gap)
+  it('⛔ THE HOVER TREATMENT PAINTS ONLY — nothing that could move a row', () => {
+    // The geometry claim the retired cases were really making, kept as an artifact
+    // assertion: padding, margin, border or width in the hover rule would reflow a
+    // row that is already laid out, and not moving the legend on hover is the
+    // whole reason the chevron went.
+    const rowCss = read('components/chart/legend/LegendRow.module.css')
+    for (const [name, src] of [['IndicatorChip', css], ['LegendRow', rowCss]]) {
+      const flat = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, '')
+      const hover = /\.rowLive:hover\{([^}]*)\}/.exec(flat)
+      expect(hover, name + ' has no hover treatment on its manageable row').toBeTruthy()
+      expect(hover[1], name + "'s hover does more than paint")
+        .toBe('background:rgba(255,255,255,0.055);')
+    }
   })
 })

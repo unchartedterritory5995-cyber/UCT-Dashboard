@@ -204,14 +204,36 @@ function UserFormulaFeed({ onLoaded }) {
 
 const IND_TARGET_PREFIX = 'ind:'
 
+/** ⭐⭐ THE CHART-DATA ADDRESS (Track B, 2026-09-14).
+ *
+ *  The on-chart popover's **Edit in Chart Data…** sends `data:<instanceId>` down
+ *  the SAME `scrollTo` channel everything else uses, because this file's rule is
+ *  that a surface has exactly one way to ask the modal for something. Track A's
+ *  Chart Data tab does not exist on master yet, so today this resolves to the
+ *  Indicators tab expanded on that instance's row — which is the full
+ *  per-instance editor either way.
+ *
+ *  ⛔ WHEN THE CHART DATA TAB LANDS, IT CLAIMS THIS PREFIX HERE — one branch in
+ *  `indTargetRow` / `SETTINGS_TARGET_TAB` — and every on-chart door follows with
+ *  no change to `StockChart`. That is the entire seam, and it is deliberately the
+ *  smallest one: a second prop would be a second channel, which is what the
+ *  paragraph above `indTargetRow` forbids.
+ *
+ *  ⚠️ A ROW ID CAN ITSELF CONTAIN COLONS (`legacy:rsi`, `inst:qqq`), which is why
+ *  both prefixes are SLICED rather than split. */
+const DATA_TARGET_PREFIX = 'data:'
+
 /** The LEGEND's spelling for a moving-average row. Its own vocabulary — see
  *  `indicatorRegistry.overlayRowId` for why the two differ and why the seam is
  *  here rather than at either end. */
 const LEGEND_MA_PREFIX = 'ma:'
 
 function indTargetRow(scrollTo) {
-  if (typeof scrollTo !== 'string' || !scrollTo.startsWith(IND_TARGET_PREFIX)) return null
-  const rowId = scrollTo.slice(IND_TARGET_PREFIX.length)
+  if (typeof scrollTo !== 'string') return null
+  const prefix = scrollTo.startsWith(IND_TARGET_PREFIX) ? IND_TARGET_PREFIX
+    : (scrollTo.startsWith(DATA_TARGET_PREFIX) ? DATA_TARGET_PREFIX : null)
+  if (!prefix) return null
+  const rowId = scrollTo.slice(prefix.length)
   // ⭐ THE ONE TRANSLATION: `ma:0` (what the legend calls it) → `overlay-0` (what
   // this tab calls it). Everything else — `volume`, `legacy:rsi`, an instance id —
   // is spelled the same on both surfaces and passes straight through.
@@ -791,21 +813,11 @@ export default function ChartSettingsModal({
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
-        /* ⭐⭐ ONE TAB IS WIDER, AND THE MODAL RESIZES WHEN YOU SWITCH TO IT.
-           That trade is deliberate and it is the one this file's own width
-           comment refused in the other direction: widening ALL five tabs to suit
-           Chart Data would re-lay-out four tabs to fix one, so the width is a
-           MODIFIER on the tab that needs it. The cost is a visible resize on
-           entering and leaving Chart Data; the alternative was a pane map and a
-           settings form sharing a 560px column, which is the layout Concept D
-           exists to replace.
-
-           ⚠️ 880 IS THE TARGET, 720 THE FLOOR, AND `min()` IS WHAT MAKES THE
-           FLOOR REAL: `94vw` wins below ~936px of viewport, so a small laptop
-           gets a narrower modal rather than one that runs off the screen. Below
-           the floor the inspector's fixed 330px basis stops the columns from
-           collapsing into each other — `.cdLeft` gives the ground. */
-        className={`${styles.panel} ${activeTab === 'indicators' ? styles.panelWide : ''}`}
+        /* ⚰️ CHART DATA USED TO WIDEN THIS TO 880 and the modal resized on the
+           way in and out of the tab. The two-column pane-map + inspector needed
+           the room; the inline editor does not, so the width goes back to the
+           one every tab shares and the jump is gone. */
+        className={styles.panel}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}

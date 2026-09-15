@@ -1,3 +1,7 @@
+# promotion-gate: yes — these are BAN rails, not style checks: a red means a Wisdom
+#   module reaches the Substack publisher or member Journal/J2/Notebook data. That is a
+#   scope breach that must not reach production. Stdlib-only and unfiltered, so it runs
+#   on every candidate and costs seconds.
 # The Wisdom Loop ban rails (W1 §0.4, Part 10; docs/wisdom/CONTRACTS.md §6.2, §8).
 #
 # Four rails, all standard-library Python, so this job installs nothing but pytest:

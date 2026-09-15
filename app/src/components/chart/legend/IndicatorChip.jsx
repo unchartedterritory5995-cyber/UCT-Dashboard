@@ -4,7 +4,21 @@ import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
 
 /**
- * ONE legend chip, and its controls.
+ * ONE legend chip. **The chip IS the control.**
+ *
+ * ⚰️⚰️ TWO GENERATIONS OF CONTROL LIVED HERE AND BOTH ARE RETIRED.
+ *
+ *   1. An eye / gear / ✕ strip revealed on hover — three 11px targets with the
+ *      DESTRUCTIVE one four pixels from the routine one, on a strip that reflowed
+ *      under the pointer as a live number changed width.
+ *   2. Then a single chevron, which had to grow a gutter to live in. Collapsed it
+ *      moved the legend; floated out of flow it detached from its own label and,
+ *      in the horizontal strip, sat over the next one.
+ *
+ * ⭐⭐ THE ANSWER WAS THAT THE CONTROL WAS NEVER NEEDED. The chip already has a
+ * box, a name and a value; clicking it opens the popover. There is nothing to
+ * reveal, nothing to reserve space for, nothing to collide with, and the resting
+ * legend is the plain text it always wanted to be. See `chipMenu.js`.
  *
  * ⛔ IT MUST RENDER INSIDE `StockChart`'s legend container, AND THAT IS NOT A
  * LAYOUT PREFERENCE. `pages/ChartRender.jsx` injects
@@ -16,16 +30,30 @@ import styles from './IndicatorChip.module.css'
  * `engine/__tests__/parityGateBlindness.test.js` and from the DOM in
  * `engine/__tests__/legendFromDefinitions.test.jsx`.
  *
- * ⛔ ONE ELEMENT, ONE TEXT NODE — NOT A WRAPPER AROUND A `.chipText` SPAN. Task
- * 3's first draft nested one for the ellipsis, and it DOUBLE-COUNTED every chip
- * in `stockChartWiring.test.jsx`'s `querySelectorAll('span')` reads: `MACD`
- * matched the outer chip and the inner text, and the case read two MACDs where
- * the chart drew one. That invariant SURVIVES the controls added at Task 4: the
- * control strip is a span with NO TEXT AT ALL (three `UIcon` SVGs), so it cannot
- * match a text predicate and it does not change `textContent` by one character.
- * Truncation is still `.chip`'s own `overflow`/`text-overflow`.
+ * ⛔ THE CHIP'S `textContent` IS STILL `label + ' ' + value`, TO THE BYTE.
+ * `stockChartWiring.test.jsx` reads the strip by finding spans whose text
+ * matches `^(MACD|SIG) ` and comparing the whole string. Track B splits the
+ * VALUE into its own span so it can carry its own ink — the outer chip's text is
+ * unchanged, and the inner span holds only digits, so it cannot match a
+ * label-anchored predicate and cannot be double-counted. `chipsFrom` guarantees
+ * the split is lossless: it builds `text` as exactly
+ * `${label} ${value.toFixed(decimals)}`, and `disambiguateSiblings` rebuilds
+ * BOTH fields together when it renames a sibling.
  *
- * ─── THE THING TASK 3 LEFT FOR THIS ONE ────────────────────────────────────
+ * ⚰️ THE COLOUR RAIL IS RETIRED (owner, 2026-09-14). A 2×9px bar of the plot
+ * colour sat before every name; on a legend of nine rows it read as nine little
+ * coloured tabs, which is busier than the thing it was meant to quieten. The
+ * colour survives where it is actually load-bearing: on the PHONE, where the chip
+ * IS a 10px dot and the text is indented off-screen, so the dot is the only thing
+ * telling two series apart. That dot takes `--chip-color`, set inline here and
+ * read by the ≤640px block in the stylesheet — it is not a decoration beside a
+ * name, it is the name.
+ *
+ * ⭐ WHICH LINE IS THIS? IS ANSWERED BY HOVER, NOT BY A SWATCH. Pointing at a
+ * label lifts its drawn series; that is the identification mechanism, and it is
+ * why the resting label can afford to carry no colour at all.
+ *
+ * ─── THE THING THAT MAKES THE BOX CLICKABLE AT ALL ──────────────────────────
  *
  * ⛔ `pointer-events: auto` ON `.chip` IS THE WHOLE FEATURE, NOT POLISH.
  * `StockChart.module.css` `.legend` is `pointer-events: none` — the box sits over
@@ -40,55 +68,69 @@ import styles from './IndicatorChip.module.css'
  * ~120 px box. That is the trade every charting product makes for a clickable
  * legend, and it is why the box is the CHIP and not the legend.
  *
- * ⛔ THE CONTROLS ARE IN THE DOM AT ALL TIMES AND REVEALED BY CSS. Rendering them
- * off `useIsTouch()` would put the desktop variant on a phone at first paint —
- * `useMediaQuery` seeds from `matchMedia` at MOUNT and only updates on a `change`
- * event, and in a fixed mobile context that event never comes. This file imports
- * no breakpoint hook at all, and the test asserts that absence from source.
+ * ⛔ NOTHING IS RENDERED OFF A BREAKPOINT HOOK. `useMediaQuery` seeds from
+ * `matchMedia` at MOUNT and only updates on a `change` event, so in a fixed
+ * mobile context a JS read renders the desktop variant on a phone and never
+ * corrects itself. This file imports no breakpoint hook at all, and the test
+ * asserts that absence from source.
  *
- * ⛔ ALL THREE HANDLERS OR NONE. A read-only mount (`showDrawingTools={false}`:
- * Model Book, a grid cell, the export route) passes none and gets the inert chip
- * Task 3 shipped — the same gate the region menu's `<label> settings…` row uses,
- * for the same reason. A chip carrying two of three controls is a worse lie than
- * one carrying none, so a partial set renders none.
+ * ⛔ ONE HANDLER. A read-only mount (`showDrawingTools={false}`: Model Book, a
+ * grid cell, the export route) passes no `onMenu` and gets an inert chip — no
+ * hover treatment, no pointer cursor, no role, not in the tab order.
  *
- * @param {object}   chip             a `readout.legendChips` row
- * @param {string}   [className]      the caller's layout class (the vertical legend's)
- * @param {Function} [onToggleHidden] (instanceId) => void
- * @param {Function} [onOpenSettings] (instanceId) => void
- * @param {Function} [onRemove]       (instanceId) => void
- * @param {Function} [onMenu]         (chip, {x, y}) => void — right-click / long-press.
+ * @param {object}   chip        a `readout.legendChips` row
+ * @param {string}   [className] the caller's layout class (the vertical legend's)
+ * @param {Function} [onMenu]    (chip, {x, y}) => void — the ONE door: a click,
+ *   a right-click, a long-press and Enter/Space all call it.
+ *   ⭐ THE ANCHOR IS THE CHIP'S OWN RECTANGLE, not the pointer. A menu anchored to
+ *   a cursor cannot be opened from a keyboard at all, and on a 20px row the two
+ *   land within a few pixels of each other anyway — so one anchor serves every
+ *   input and the menu always hangs off the thing it is about.
  *   ⚠️ THE WHOLE ROW, NOT THE ID. One instance can own SEVERAL chips (MACD's line
- *   and its signal), so an id alone cannot say which one was right-clicked — and
- *   the menu's title, its `Hide <label>` row and the alert address it opens on
- *   are all per-PLOT. The row is already in hand here; the caller would otherwise
+ *   and its signal), so an id alone cannot say which one was pointed at — and the
+ *   popover's title, its `Hide <label>` row and the alert address it opens on are
+ *   all per-PLOT. The row is already in hand here; the caller would otherwise
  *   have to look it up and pick the first, which is a guess.
- * @param {Function} [onBodyTap]      (chip) => void — a plain tap/click on the chip
- *   BODY (TradingView's tap-the-legend-name → settings). Passed only by mounts
- *   that have somewhere native to send it (the phone shell's editor sheet);
- *   absent, the body stays inert exactly as Task 4 shipped it. Like `onMenu` it
- *   takes THE ROW — the tapped chip names the exact instance, which is the
- *   whole point over a first-live lookup. `useLongPress`'s click-capture
- *   swallow keeps a fired long-press from also counting as a tap.
- * @param {object}   [repaint]        `engine/repaintVerdict.plotRepaintNotice` for
+ * ⚰️ `onHover` IS GONE. It drove the hover lift — a pixel added to the drawn
+ *   series while the pointer was on its label — which the owner retired after
+ *   production use: hovering a legend must not mutate the plot. Hover is now a
+ *   faint background on this element, in CSS, and reaches nothing.
+ * @param {Function} [onBodyTap] (chip) => void — a plain tap/click on the chip
+ *   BODY. Passed only by the phone shell, which has its own study editor sheet,
+ *   and it WINS over the popover there so that surface is unchanged.
+ *   `useLongPress`'s click-capture swallow keeps a fired long-press from also
+ *   counting as a tap.
+ * @param {object}   [repaint]   `engine/repaintVerdict.plotRepaintNotice` for
  *   THIS chip's plot, or null. `{mode, label, sentence, forward}`.
  *
  *   ⭐⭐ PER PLOT, NOT PER DEFINITION, WHICH IS THE OWNER'S RULING ARRIVING IN THE
  *   DOM. `ichimoku` draws five columns and exactly one of them moves under the
  *   user; a mark keyed on the definition would brand `TK` and `KJ`, which are
  *   clean by construction, and that trades a false "safe" for a false "unsafe".
- *   The prop is a per-(instance, plot) value because a chip is.
  *
  *   ⛔ NULL IS "NO OPINION", NOT "CLEAN", AND THIS FILE NEVER RENDERS THE
- *   DIFFERENCE. Sixteen of seventeen shipped computes are hand-written and the
- *   linter cannot read a line of them, so most chips get null because nothing
- *   measured them — not because something did. A green tick here would write
- *   *"the linter agreed"* over silence, which is the sentence the whole
- *   decidability vocabulary exists to make impossible. So: a mark when there is a
- *   measured problem, and nothing at all otherwise.
+ *   DIFFERENCE. A mark when there is a measured problem, and nothing at all
+ *   otherwise.
  */
+/** Where the popover hangs: under the chip's own left edge.
+ *
+ *  ⛔ THE ELEMENT, NOT THE POINTER. A keyboard activation has no `clientX`, and a
+ *  menu that opened at 0,0 for a keyboard user would be a menu they could not
+ *  find. `currentTarget` is the chip on every path — click, contextmenu,
+ *  long-press and keydown — so one anchor serves all four.
+ *
+ *  ⚠️ `+ 3` CLEARS THE ROW rather than covering the label the menu is about.
+ *  `ContextPopover` still clamps to the viewport from there, so an item near the
+ *  bottom edge flips up exactly as it always did. */
+function anchorOf(e) {
+  const el = e && e.currentTarget
+  const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+  if (r) return { x: r.left, y: r.bottom + 3 }
+  return { x: e?.clientX ?? 0, y: e?.clientY ?? 0 }
+}
+
 export default function IndicatorChip({
-  chip, className, onToggleHidden, onOpenSettings, onRemove, onMenu, onBodyTap, repaint,
+  chip, className, onMenu, onBodyTap, repaint,
   // ⭐⭐ `grid` — THE VERTICAL LEGEND'S TWO-COLUMN VARIANT (owner, 2026-09-10).
   //
   // ⚰️ IN THE VERTICAL LEGEND THIS CHIP USED TO TAKE `.vlFull` — `grid-column:
@@ -96,23 +138,15 @@ export default function IndicatorChip({
   // `.chip`'s own `600 11px`. Two things were wrong with that and the owner
   // reported both: the number did not line up with Open / High / Low / Close and
   // the moving averages stacked above it, and the label was a different size from
-  // every row it sat under. A legend whose last row is the only one out of true
-  // reads as broken even when the value is right.
+  // every row it sat under.
   //
   // ⛔ SO IT SPLITS INTO THE SAME TWO CELLS EVERY OTHER ROW EMITS, plus the
   // control gutter — not a nested grid, because `.legendVertical` is ONE grid for
   // the whole legend and that shared track is exactly what puts every value on
-  // the same right edge. A wrapper would take one cell and leave the alignment
-  // where it started.
-  //
-  // ⚠️ AND IT DROPS `.chip`'s FONT so the row inherits the legend's, which is
-  // what `.legendCompact` shrinks. A row that brings its own type cannot agree
-  // with its neighbours at two densities.
+  // the same right edge.
   grid = false,
 }) {
-  const interactive = typeof onToggleHidden === 'function'
-    && typeof onOpenSettings === 'function'
-    && typeof onRemove === 'function'
+  const interactive = typeof onMenu === 'function'
 
   // ONE binding, both inputs (`mobile/useLongPress`): a 450 ms press on touch and
   // a right-click on desktop. Called unconditionally — hooks are not conditional —
@@ -122,10 +156,10 @@ export default function IndicatorChip({
     // ⛔ BOTH, AND EACH FOR ITS OWN REASON. `preventDefault` stops the browser's
     // native context menu (`useLongPress` does not do it for us); `stopPropagation`
     // keeps the event off the wrapper, so a right-click on a chip opens the CHIP's
-    // menu and not the chart's region menu as well.
+    // popover and not the chart's region menu as well.
     e?.preventDefault?.()
     e?.stopPropagation?.()
-    onMenu(chip, { x: e?.clientX ?? 0, y: e?.clientY ?? 0 })
+    onMenu(chip, anchorOf(e))
   }
   const longPress = useLongPress(openMenu)
 
@@ -133,36 +167,36 @@ export default function IndicatorChip({
     chip.computed === false ? styles.chipEmpty : null, className]
     .filter(Boolean).join(' ')
 
-  // ⛔ `stopPropagation` ON EVERY CONTROL. The chip is the long-press surface; a
-  // tap on the eye must not also arm the menu, and a click must not reach the
-  // wrapper underneath.
-  const fire = (fn) => (e) => { e.stopPropagation(); fn(chip.instanceId) }
-
   /** The VALUE, formatted the way the inline chip's own text is.
    *
-   * 🔴 `chip.value` IS THE RAW COLUMN NUMBER. The inline layout never touches it —
-   * it prints `chip.text`, which `readout.js` built as
-   * `${label} ${value.toFixed(decimals)}` — so the grid variant's first draft put
-   * `57.959877655480824` in the value column, next to prices carrying two places.
-   * Caught in the browser, not by a test: every chip case asserts on `text`.
+   * 🔴 `chip.value` IS THE RAW COLUMN NUMBER. `readout.js` built `text` as
+   * `${label} ${value.toFixed(decimals)}`, so a variant that prints `chip.value`
+   * raw puts `57.959877655480824` next to prices carrying two places. Caught in
+   * the browser, not by a test.
    *
    * ⛔ IT REUSES THE ROW'S OWN `decimals`, which `readout.js` resolves from
-   * `plots[].legend.decimals` and defaults to 2 — never a number typed here. A
-   * plot that declares four places means four. */
-  const chipValueText = Number.isFinite(Number(chip.value))
-    ? Number(chip.value).toFixed(Number.isInteger(chip.decimals) ? chip.decimals : 2)
+   * `plots[].legend.decimals` and defaults to 2 — never a number typed here. */
+  // 🔴 `Number.isFinite(chip.value)`, NEVER `Number.isFinite(Number(chip.value))`.
+  // A HIDDEN chip carries `value: null` by contract (`legendChips`: *"a hidden
+  // plot carries no value"*), and `Number(null)` is **0**, which is finite — so
+  // the coercing form printed `RSI(14) 0.0` for a line that is not on the chart.
+  // MEASURED: it was already latent in the grid variant before Track B, where the
+  // hidden row simply showed `0.00` in its value cell; splitting the inline chip's
+  // value out is what made the same expression reachable from the layout every
+  // test reads, and turned a quiet wrong number into a red case.
+  const chipValueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
+    ? chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : 2)
     : ''
 
-  // One sentence, both layouts — see `marks` / `controlStrip` below.
+  // One sentence, both layouts.
   const chipTitle = chip.computed === false
     ? `${chip.label} — no value on these bars. Its window reaches back further `
       + 'than the history loaded here; try a longer timeframe or a shorter length.'
-    : (interactive ? `${chip.label} — right-click for options` : undefined)
+    : (interactive ? `${chip.label} — click for options` : undefined)
 
-  // ⛔ THE CONTROLS, THE REPAINT MARK AND EVERY DATA ATTRIBUTE ARE BUILT ONCE AND
-  // SHARED BY BOTH LAYOUTS. Two copies of a control strip is two places for the
-  // eye to stop matching the ✕, which is the drift this file's own header warns
-  // about one level up.
+  // ⛔ THE CONTROL, THE RAIL, THE REPAINT MARK AND EVERY DATA ATTRIBUTE ARE BUILT
+  // ONCE AND SHARED BY BOTH LAYOUTS. Two copies of a control is two places for
+  // the affordance to drift.
   const marks = (
     <>
       {repaint && (
@@ -176,30 +210,62 @@ export default function IndicatorChip({
       )}
     </>
   )
-  const controlStrip = interactive ? (
-    <span className={styles.chipControls}>
-      {/* ⚠️ EVERY `aria-label` NAMES THE CHIP. "Hide" on nine chips is nine
-          identical controls to a screen reader; "Hide RSI(14)" is one. */}
-      <button
-        type="button"
-        className={styles.chipBtn}
-        aria-label={`${chip.hidden ? 'Show' : 'Hide'} ${chip.label}`}
-        onClick={fire(onToggleHidden)}
-      ><UIcon name="eye" size={11} gold={false} /></button>
-      <button
-        type="button"
-        className={styles.chipBtn}
-        aria-label={`${chip.label} settings`}
-        onClick={fire(onOpenSettings)}
-      ><UIcon name="gear" size={11} gold={false} /></button>
-      <button
-        type="button"
-        className={`${styles.chipBtn} ${styles.chipBtnDanger}`}
-        aria-label={`Remove ${chip.label}`}
-        onClick={fire(onRemove)}
-      ><UIcon name="x" size={11} gold={false} /></button>
-    </span>
-  ) : null
+  // ⭐ THE BODY OPENS THE POPOVER unless the mount brought its own tap
+  // destination (the phone shell's study editor). `stopPropagation` because a
+  // click on the chip must not also reach the chart wrapper underneath and open a
+  // region menu on top of ours.
+  const onBody = typeof onBodyTap === 'function'
+    ? (e) => { e.stopPropagation(); onBodyTap(chip) }
+    : (interactive ? (e) => { e.stopPropagation(); openMenu(e) } : undefined)
+
+  /** The semantics of a menu trigger, or nothing at all.
+   *
+   *  ⛔ A READ-ONLY CHIP IS NOT FOCUSABLE AND CARRIES NO ROLE. Announcing a
+   *  button that opens nothing, and putting it in the tab order, is worse than
+   *  announcing plain text — which is exactly what an export-route or Model Book
+   *  chip is.
+   *
+   *  ⭐ ENTER AND SPACE OPEN IT. `role="button"` promises that, and a div-shaped
+   *  trigger gets neither for free. Space is `preventDefault`ed so the page does
+   *  not scroll out from under the menu that just opened. */
+  const triggerProps = interactive && typeof onBodyTap !== 'function' ? {
+    role: 'button',
+    tabIndex: 0,
+    'aria-haspopup': 'menu',
+    /* ⛔ AN EXPLICIT NAME, THOUGH THE CHIP HAS TEXT. Without it the accessible
+     *  name is the whole chip — `RSI(14) 63.4` — and the number moves with the
+     *  crosshair, so the control renames itself several times a second while a
+     *  screen-reader user is pointed at it. The LABEL is the stable half, and it
+     *  is the half the menu is about. Same shape as `LegendRow`'s, so the two
+     *  kinds of row in one legend announce alike. */
+    'aria-label': `${chip.label} options`,
+    onKeyDown: (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+      e.preventDefault()
+      e.stopPropagation()
+      openMenu(e)
+    },
+  } : null
+
+  /* ⭐⭐ THE CHIP WEARS ITS PLOT'S COLOUR AGAIN — label and value alike.
+   *
+   * Restored by the owner the same day it went (2026-09-14): *"every plot or
+   * label inside the legend … showed up as the color of the plot on the chart"*.
+   * Track B replaced it with a 2×9px rail and then retired the rail too, which
+   * left a nine-line chart with a legend that named its lines in one colour. See
+   * `LegendRow.jsx` for the objection this re-raises and where it is answered.
+   *
+   * ⛔ THE VALUE INHERITS RATHER THAN RE-DECLARING. `.chipVal` carries the bright
+   * legend ink for a chip with no colour of its own; a coloured chip defeats it
+   * with `inherit`, so the row has exactly one source of colour. */
+  const ink = chip.color ? { color: chip.color } : undefined
+  const valInk = chip.color ? { color: 'inherit' } : undefined
+
+  // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
+  // chip prints `chip.text`, which in that case IS the bare label.
+  const body = chipValueText
+    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{chipValueText}</span></>
+    : chip.text
 
   if (grid) {
     // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
@@ -208,47 +274,51 @@ export default function IndicatorChip({
     //
     // ⛔ THE LABEL CELL KEEPS EVERY ATTRIBUTE THE ONE-BOX CHIP CARRIED —
     // `data-instance-id`, `data-plot-key`, `data-hidden`, `data-computed`, the
-    // long-press binding and the body tap. Six files and three rails address a
+    // long-press binding and the body click. Six files and three rails address a
     // chip by those, and splitting the layout must not split the identity.
     return (
-      /* 🔴 ONE ROW BOX, NOT THREE SIBLING CELLS — the same fix `LegendRow` took,
-         for the same four reported bugs. `.legend` is `pointer-events: none`, so
-         the COLUMN GAPS between sibling cells were not hit targets and the
-         pointer left the row every time it crossed one: the controls could not be
-         clicked, and hovering a chip's VALUE armed nothing at all. `subgrid` keeps
-         the label and value on the legend's own tracks — which is the alignment
-         this variant exists for — while the row is one continuous hover box. */
+      /* 🔴 ONE ROW BOX, NOT THREE SIBLING CELLS. `.legend` is
+         `pointer-events: none`, so the COLUMN GAPS between sibling cells were not
+         hit targets and the pointer left the row every time it crossed one: the
+         control could not be clicked, and hovering a chip's VALUE armed nothing.
+         `subgrid` keeps the label and value on the legend's own tracks — which is
+         the alignment this variant exists for — while the row is one continuous
+         hover box. */
       <span
-        className={`${styles.chipGridRow} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
-        style={{ color: chip.color }}
+        className={`${styles.chipGridRow} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        style={{ '--chip-color': chip.color, ...ink }}
+        {...triggerProps}
+        {...(interactive ? longPress : null)}
+        onClick={onBody}
+        title={chipTitle}
       >
         <span
           className={`${cls} ${styles.chipGridLabel}`}
+          /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a
+             declaration on the child beats the row's inherited one. */
+          style={valInk}
           data-instance-id={chip.instanceId}
           data-plot-key={chip.plotKey}
           data-hidden={chip.hidden ? 'true' : 'false'}
           data-computed={chip.computed === false ? 'false' : undefined}
-          title={chipTitle}
-          {...(interactive ? longPress : null)}
-          onClick={typeof onBodyTap === 'function'
-            ? (e) => { e.stopPropagation(); onBodyTap(chip) }
-            : undefined}
         >{chip.label}{marks}</span>
         {/* ⛔ THE CALLER'S CLASS IS ON THE ROW, NOT ON EACH CELL. The one it
             passes here is `.chipFolded` — `display: none` — and hiding one cell
-            of three would leave the value and the gutter occupying tracks with
-            nothing in front of them. A fold takes the whole row or none of it,
-            which one wrapper makes structural rather than remembered. */}
-        <span className={styles.chipGridVal}>{chipValueText}</span>
-        <span className={styles.chipGridCtl}>{controlStrip}</span>
+            of three would leave the value occupying a track with nothing in front
+            of it. */}
+        <span className={styles.chipGridVal} style={valInk}>{chipValueText}</span>
+        {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
+            for the whole legend and fills by ORDER, so a two-cell row would let
+            the next row's label fall into the third track and cascade the legend
+            out of true. It measures zero and always did. */}
+        <span className={styles.chipGridCtl} />
       </span>
     )
   }
 
   return (
     <span
-      className={cls}
-      style={{ color: chip.color }}
+      className={`${cls} ${interactive ? styles.rowLive : ''}`}
       data-instance-id={chip.instanceId}
       data-plot-key={chip.plotKey}
       /* The state, readable without a colour comparison — the DOM half of the
@@ -256,28 +326,18 @@ export default function IndicatorChip({
       data-hidden={chip.hidden ? 'true' : 'false'}
       /* ⭐⭐ AND WHETHER IT COMPUTED ANYTHING. MEASURED: a visible indicator that
          computed NOTHING and a visible one with the cursor off the chart produced
-         byte-identical chips — same label, same null value, same `hidden: false`.
-         The all-NaN one draws no line and takes no pane (`pool.js` trap #4), so
-         the legend said exactly what it says when you are simply not hovering, and
-         the far commoner cause is the second one. A member reading the ambiguous
-         chip reaches for the mouse instead of for the length.
-         ⛔ ABSENT MEANS NOT ASKED. `computed` is undefined for a hidden plot,
-         because `binder.js` skips a hidden instance before computing it — so this
-         renders the attribute only when the question was actually put. */
+         byte-identical chips. ⛔ ABSENT MEANS NOT ASKED — `computed` is undefined
+         for a hidden plot, because `binder.js` skips a hidden instance before
+         computing it. */
       data-computed={chip.computed === false ? 'false' : undefined}
       title={chipTitle}
+      style={{ '--chip-color': chip.color, ...ink }}
+      {...triggerProps}
       {...(interactive ? longPress : null)}
-      /* The body tap short-circuits like `openMenu`, and stops propagation for
-         the same reason the controls do — a tap on the chip must not also reach
-         the wrapper underneath. The controls' own stopPropagation keeps their
-         clicks from ever arriving here. */
-      onClick={typeof onBodyTap === 'function'
-        ? (e) => { e.stopPropagation(); onBodyTap(chip) }
-        : undefined}
+      onClick={onBody}
     >
-      {chip.text}
+      {body}
       {marks}
-      {controlStrip}
     </span>
   )
 }

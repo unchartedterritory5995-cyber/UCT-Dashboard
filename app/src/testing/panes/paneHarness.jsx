@@ -101,6 +101,7 @@ window.fetch = (input, init) => {
   return realFetch(input, init)
 }
 
+const LEGEND_PARAM = new URLSearchParams(location.search).get('legend')
 const SYM = 'AAPL'
 const TF = 'D'
 
@@ -109,6 +110,18 @@ const instancesOf = (cs) => (Array.isArray(cs.indicatorInstances) ? cs.indicator
   .filter((i) => i && !i.deleted)
 
 /** The renderer's own answer: which pane is each series in, right now. */
+/** Three Price drawings at known prices — a trendline, a horizontal and a
+ *  rectangle. `window.__paneHarness.drawingPrices` records what they were drawn
+ *  at so a browser pass can check they still read the same after a reorder. */
+const DRAWING_FIXTURES = [
+  { id: 'd-trend', type: 'trendline', color: '#dcbb5e', width: 2,
+    points: [{ time: '2026-07-01', price: 300 }, { time: '2026-09-01', price: 330 }] },
+  { id: 'd-hline', type: 'horizontal', color: '#ff00ff', width: 3,
+    points: [{ time: '2026-07-01', price: 310 }] },
+  { id: 'd-rect', type: 'rect', color: '#00ffff', width: 2,
+    points: [{ time: '2026-07-15', price: 295 }, { time: '2026-08-15', price: 320 }] },
+]
+
 function readPanes(container) {
   // The chart API is not exposed on the DOM, so the pane rectangles are read the
   // way a user sees them — the pane widgets lightweight-charts lays out. Their
@@ -470,12 +483,28 @@ function Harness() {
             <StockChart
               sym={SYM}
               tf={TF}
+              /* ⭐ DRAWINGS, SO PANE ORDERING CAN BE PROVED AGAINST THEM. Price
+                 drawings resolve their pane from the CANDLE SERIES, so the
+                 question a reordered chart asks is whether they follow Price or
+                 stay at the top of the canvas. Fixed fixtures at known prices:
+                 anything that moves when a pane moves is a defect. Dev-only —
+                 `vite build` takes `index.html` alone, so this ships nowhere. */
+              annotations={DRAWING_FIXTURES}
+              annotationsVisible
               barsOverride={bars}
               settingsOverride={override}
               onSettingsPersist={onSettingsPersist}
               onWatermarkCommit={() => {}}
               lockWatermark
               alwaysShowLegend
+              /* ⭐ `?legend=vertical` / `?legend=horizontal` PUTS THE WORKSPACE
+                 LEGEND ON THIS PAGE. Without it `verticalLegend` is false and
+                 the chart renders its inline OHLC row, so the stacked table and
+                 the flat strip — two of the three legend layouts a member can
+                 actually choose — were unreachable here and could only be
+                 verified on a real workspace. Chart Settings → Header picks
+                 BETWEEN the two once this is on. */
+              verticalLegend={LEGEND_PARAM !== null}
             />
           ) : (
             <div style={{ padding: 12, color: '#8b93a1' }}>
@@ -549,4 +578,4 @@ createRoot(document.getElementById('root')).render(
 
 // Kept out of the component so an accidental edit cannot make it a render-time
 // read; exported for a console poke during a session.
-window.__paneHarness = { readPanes, readPaneColors, BLOCKED }
+window.__paneHarness = { readPanes, readPaneColors, BLOCKED, DRAWING_FIXTURES }

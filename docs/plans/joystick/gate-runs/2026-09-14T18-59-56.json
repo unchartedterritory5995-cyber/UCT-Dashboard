@@ -1,0 +1,163 @@
+{
+  "at": "2026-09-14T18:59:56",
+  "tree_head_start": "827cf7af4c5ea2270516727174e58cfe276cc0a3",
+  "tree_head_end": "827cf7af4c5ea2270516727174e58cfe276cc0a3",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "8e009403a0d655d9f64ea9bde0ef3c64de639149",
+  "shards": 6,
+  "excluded": [],
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 4,
+        "passed": 222,
+        "skipped": 0,
+        "todo": 0,
+        "total": 226
+      },
+      "tests": {
+        "failed": 5,
+        "passed": 2871,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2876
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 1,
+        "passed": 224,
+        "skipped": 1,
+        "todo": 0,
+        "total": 226
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 3099,
+        "skipped": 5,
+        "todo": 0,
+        "total": 3105
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 2,
+        "passed": 224,
+        "skipped": 0,
+        "todo": 0,
+        "total": 226
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 4057,
+        "skipped": 4,
+        "todo": 0,
+        "total": 4063
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 1,
+        "passed": 225,
+        "skipped": 0,
+        "todo": 0,
+        "total": 226
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 3124,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3125
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 224,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2634,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2635
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 225,
+        "skipped": 0,
+        "todo": 0,
+        "total": 225
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 4173,
+        "skipped": 0,
+        "todo": 0,
+        "total": 4173
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 9,
+      "passed": 1344,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1354
+    },
+    "tests": {
+      "failed": 10,
+      "passed": 19958,
+      "skipped": 9,
+      "todo": 0,
+      "total": 19977
+    }
+  },
+  "test_files_on_disk": 1354,
+  "test_files_waived": 0,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > \u26d4\u26d4 DOES NOT discard the member's words when the landed save lacks them",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only",
+    "src/surfaces/manifest.test.js > S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+  ],
+  "baseline_sha": "258c5609d529a1f247ae6ff2da266f8479742823",
+  "baseline_measured_at": "2026-09-10 (re-measured on origin/master 62a228e5d)",
+  "vs_baseline": {
+    "observed_count": 10,
+    "baseline_count": 9,
+    "new": [],
+    "expected_red_seen": [
+      "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > \u26d4\u26d4 DOES NOT discard the member's words when the landed save lacks them"
+    ],
+    "expected_red_stale": [],
+    "no_longer_failing": [],
+    "matches_baseline": false
+  },
+  "do_not_build": {
+    "ran": true,
+    "clean": true,
+    "hits": [],
+    "output": "DO-NOT-BUILD sweep -- 20 item(s) checked across app/src, api, scripts, tools\n\nOK no DO-NOT-BUILD item has gained code in the swept trees."
+  }
+}

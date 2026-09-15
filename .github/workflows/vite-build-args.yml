@@ -1,3 +1,7 @@
+# promotion-gate: yes — an undeclared VITE_* bakes into the bundle as `undefined`, and
+#   every `=== '1'` read then reports "off on purpose" with a green suite and a 200
+#   health check. Nine shipped that way for four days. That is a production defect a
+#   deploy must not carry.
 # Does every VITE_* the frontend reads actually reach the build?
 #
 # `Dockerfile.web` builds the web service (the build log says

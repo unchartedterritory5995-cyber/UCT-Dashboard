@@ -48,15 +48,32 @@ SECTION_A_EXPECT = [
 SECTION_A_CONTROL = 5
 
 # A marked row: `| A1 | … | ☑ PASS ☐ FAIL |` or a struck box, or a written word.
-ROW_RE = re.compile(r"^\|\s*(?P<id>[A-E]i?\d+[a-z]?)\s*\|(?P<body>.*)\|\s*$", re.M)
+# ⚠️ A ROW ID MAY CARRY A QUALIFYING SUFFIX (`D1-eye`). Added 2026-09-14, because "D1" named FOUR
+# different checks across this programme's docs — the Wire-vs-Journal eye row here, the no-drag-door
+# accessibility row in `glass-acceptance-steps.md`, and two more inside completed evidence forms.
+# owner-run.md's OWN summary used both senses three lines apart. ⛔ Without the `-suffix` branch this
+# regex would not see the renamed row at all, and a row this cannot see is SILENTLY absent from box 2.
+ROW_RE = re.compile(r"^\|\s*(?P<id>[A-E]i?\d+[a-z]?(?:-[a-z0-9]+)?)\s*\|(?P<body>.*)\|\s*$", re.M)
 
 # ⚰️ A TICK BINDS TO THE WORD THAT FOLLOWS IT, NEVER THE ONE BEFORE. The first version also
 # accepted `\bPASS\b\s*(☑|☒)`, meaning to catch a "PASS ☑" ordering — and in the real cell shape
 # `☐ PASS ☑ FAIL` that pattern matched the FAIL tick and read a failed row as a PASS. Every row
 # then came back PASS or AMBIGUOUS and the discriminator control is what caught it. The sheet
 # writes `☑ PASS ☐ FAIL`, so the tick always precedes its label.
-PASS_RE = re.compile(r"(☑|☒|\[x\])\s*PASS|\*\*PASS\*\*", re.I)
-FAIL_RE = re.compile(r"(☑|☒|\[x\])\s*FAIL|\*\*FAIL\*\*", re.I)
+# ⚰️ AND NOT EVERY ROW SAYS "PASS". Row **D1-eye** (G3-16(a)) asks whether the Wire bubble can be
+# told from the Journal bubble by sight, and its cell is `☐ DISTINGUISHABLE ☐ CONFUSABLE` —
+# deliberately, because "PASS" is a worse word for that question. Until 2026-09-14 this reader knew
+# only PASS/FAIL, so a CORRECTLY marked D1-eye read as UNMARKED, box 2 came back NOT TICKABLE naming a
+# row the owner had in fact answered, and the freeze did not lift. Measured against the real sheet:
+# 26 of 27 rows marked, D1 blocking. The sheet is the authority on its own vocabulary, so the
+# READER learns the word — the sheet is not rewritten to suit the tool, least of all mid-run while
+# the owner may be holding a printed copy.
+# ⛔ The tick still binds to the word that FOLLOWS it. In `☐ DISTINGUISHABLE ☑ CONFUSABLE` the
+# tick precedes CONFUSABLE and this reads FAIL, which is the whole point of that ordering rule.
+_PASS_WORDS = r"PASS|DISTINGUISHABLE"
+_FAIL_WORDS = r"FAIL|CONFUSABLE"
+PASS_RE = re.compile(rf"(☑|☒|\[x\])\s*({_PASS_WORDS})|\*\*({_PASS_WORDS})\*\*", re.I)
+FAIL_RE = re.compile(rf"(☑|☒|\[x\])\s*({_FAIL_WORDS})|\*\*({_FAIL_WORDS})\*\*", re.I)
 NA_RE = re.compile(r"\bN/?A\b|not applicable|skipped", re.I)
 
 
@@ -147,8 +164,12 @@ def box_two(marks: dict[str, str]) -> dict:
 
 
 # ── the §4 stage-2 note ─────────────────────────────────────────────────────────────────────────
-def stage_note(b1: dict, b2: dict) -> str:
-    if not (b1["g0Resolved"] and b1["d4Holds"] and b2["tickable"]):
+def stage_note(b1: dict, b2: dict, control_ok: bool = True) -> str:
+    # ⛔ control_ok FIRST: a run whose control block drifted cannot tick anything, however clean
+    # the rest reads. Until 2026-09-14 a MISSING control block printed a warning and still returned
+    # 0 — the freeze would have lifted on a trace that never demonstrated the instrument could tell
+    # a press from a flick. `lesson_gate_that_cannot_fail`, in the one place it mattered most.
+    if not (control_ok and b1["g0Resolved"] and b1["d4Holds"] and b2["tickable"]):
         return ("⛔ NOT YET. Boxes 1 and 2 are not both ticked on evidence, so the stage-2 PR "
                 "stays unopened — the freeze is not lifted by a partial result.")
     return (
@@ -191,9 +212,13 @@ def report(trace_path: str, run_md: str | None) -> int:
     say(f"  declared controls : {len(controls)} (expected {SECTION_A_CONTROL})")
     for g in controls:
         say(f"    seq {g.get('seq')}: {g.get('bucket')} — {g.get('why')}")
-    if len(controls) != SECTION_A_CONTROL:
+    control_ok = len(controls) == SECTION_A_CONTROL
+    if not control_ok:
         say("  ⚠️ the control count does not match the protocol — the --expect list and what was "
             "actually performed have drifted, and every label after the drift is suspect.")
+        say("  ⛔ THIS ALONE WITHHOLDS BOTH BOXES. The control block is what shows the instrument can "
+            "tell a deliberate press from a flick; without it, every A-row label is unverified and a "
+            "tick would rest on an instrument nobody proved could return the other answer.")
 
     b1 = box_one(result, marks)
     b2 = box_two(marks)
@@ -226,9 +251,9 @@ def report(trace_path: str, run_md: str | None) -> int:
 
     say("")
     say("═══ §4 STAGE-2 NOTE (draft) ═══")
-    say(stage_note(b1, b2))
+    say(stage_note(b1, b2, control_ok))
 
-    return 0 if (b1["g0Resolved"] and b1["d4Holds"] and b2["tickable"]) else 1
+    return 0 if (control_ok and b1["g0Resolved"] and b1["d4Holds"] and b2["tickable"]) else 1
 
 
 # ── self-check ──────────────────────────────────────────────────────────────────────────────────
@@ -333,6 +358,28 @@ def self_check() -> int:
     b2_a = box_two(read_marks(md_amb))
     if "C1" not in b2_a["ambiguous"]:
         fails.append(f"a double-marked row was not flagged AMBIGUOUS: {b2_a}")
+
+    # 5b. ⛔ D1's OWN VOCABULARY. Without this the sheet's `☐ DISTINGUISHABLE ☐ CONFUSABLE` cell
+    # reads UNMARKED on a correctly marked run and the freeze never lifts.
+    d1_pass = read_marks("| D1-eye | G3-16(a) | look | tell them apart | ☑ DISTINGUISHABLE ☐ CONFUSABLE |")
+    if d1_pass.get("D1-eye") != "PASS":
+        fails.append(f"a ticked DISTINGUISHABLE did not read PASS: {d1_pass}")
+    d1_fail = read_marks("| D1-eye | G3-16(a) | look | tell them apart | ☐ DISTINGUISHABLE ☑ CONFUSABLE |")
+    if d1_fail.get("D1-eye") != "FAIL":
+        fails.append(f"a ticked CONFUSABLE did not read FAIL: {d1_fail}")
+    d1_blank = read_marks("| D1-eye | G3-16(a) | look | tell them apart | ☐ DISTINGUISHABLE ☐ CONFUSABLE |")
+    if d1_blank.get("D1-eye") != "UNMARKED":
+        fails.append(f"an unticked D1 must stay UNMARKED, got {d1_blank}")
+
+    # 5c. ⛔ A MISSING CONTROL BLOCK WITHHOLDS THE BOXES.
+    if stage_note({"g0Resolved": True, "d4Holds": True, "flickMs": 120, "underWindow": 20,
+                   "timed": 20, "a1Fired": 0, "a1Total": 4},
+                  {"tickable": True, "ok": []}, control_ok=False).startswith("✅"):
+        fails.append("a drifted control block still lifted the freeze")
+    if not stage_note({"g0Resolved": True, "d4Holds": True, "flickMs": 120, "underWindow": 20,
+                       "timed": 20, "a1Fired": 0, "a1Total": 4},
+                      {"tickable": True, "ok": []}, control_ok=True).startswith("✅"):
+        fails.append("control-ok case must still be able to lift the freeze")
 
     # 6. the mark reader DISCRIMINATES — otherwise every case above passes for one reason.
     seen = set(read_marks(_synthetic_md(all_pass=True)).values()) | \

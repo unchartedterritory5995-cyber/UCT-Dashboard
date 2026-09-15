@@ -115,7 +115,7 @@ export function resolveZones(m) {
   // No usable pane measurements → one zone covering the plot. Every drawing is
   // 'price', and clipping degrades to today's horizontal-only behaviour.
   if (!paneHeights.length || !(x1 > x0) || !(plotBottom > 0)) {
-    return { plot, zones: [{ key: PRICE, x0, y0: 0, x1, y1: plotBottom }] }
+    return { plot, zones: [{ key: PRICE, paneIndex: candlePaneIndex, paneTop: 0, x0, y0: 0, x1, y1: plotBottom }] }
   }
 
   const paneRect = (i) => ({
@@ -127,13 +127,32 @@ export function resolveZones(m) {
   const zones = []
   const candle = paneRect(candlePaneIndex)
 
+  // ⭐⭐ EVERY ZONE CARRIES THE LWC PANE IT LIVES IN. A zone is a RECTANGLE and
+  // the pane index is how you reach the thing that owns the numbers in it — the
+  // series, and through it the price scale a drawing in that pane must be read
+  // against. Without it a drawing in the RSI pane could only ever be valued
+  // against the price scale of the candles, which is the `514.80 on a 0-200 pane`
+  // report (owner, 2026-09-14).
+  //
+  // ⚠️ IN THE BAND LAYOUT BOTH ZONES NAME PANE 0, and that is correct: the volume
+  // overlay shares the candle pane and is told apart by its own price SCALE, not
+  // by a pane of its own. The caller resolves `volume` through the volume series
+  // it already holds; the index is the fallback that gets it the right pane.
+  //
+  // ⛔⛔ AND THAT IS EXACTLY WHY `paneTop` IS A SEPARATE FIELD FROM `y0`. A price
+  // scale's coordinates are relative to the top of its PANE, not to the top of
+  // the zone a drawing was dropped in — and in the band layout the volume zone
+  // starts partway down pane 0. Subtracting `y0` there would offset every volume
+  // reading by the height of the candles above it: a plausible number, silently
+  // wrong, in the DEFAULT layout. For every zone that IS a pane the two are the
+  // same value, which is what makes the mistake so easy to ship.
   if (volumePaneIndex == null && volumeBandTop != null && volumeBandTop > 0 && volumeBandTop < 1) {
     // BAND LAYOUT. The candle pane splits at the volume overlay's own top margin.
     const split = candle.y0 + (candle.y1 - candle.y0) * volumeBandTop
-    zones.push({ key: PRICE, x0, x1, y0: candle.y0, y1: split })
-    zones.push({ key: VOLUME, x0, x1, y0: split, y1: candle.y1 })
+    zones.push({ key: PRICE, paneIndex: candlePaneIndex, paneTop: candle.y0, x0, x1, y0: candle.y0, y1: split })
+    zones.push({ key: VOLUME, paneIndex: candlePaneIndex, paneTop: candle.y0, x0, x1, y0: split, y1: candle.y1 })
   } else {
-    zones.push({ key: PRICE, ...candle })
+    zones.push({ key: PRICE, paneIndex: candlePaneIndex, paneTop: candle.y0, ...candle })
   }
 
   // Every other pane, in render order. The volume pane keeps the `volume` key so
@@ -142,7 +161,8 @@ export function resolveZones(m) {
   for (let i = 0; i < paneHeights.length; i++) {
     if (i === candlePaneIndex) continue
     const key = i === volumePaneIndex ? VOLUME : `pane${++extra}`
-    zones.push({ key, ...paneRect(i) })
+    const r = paneRect(i)
+    zones.push({ key, paneIndex: i, paneTop: r.y0, ...r })
   }
   return { plot, zones }
 }

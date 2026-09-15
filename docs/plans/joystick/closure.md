@@ -73,12 +73,27 @@
       **Evidence:** ⬜ OPEN, and still gated behind G0-1. The step list is no longer a memory:
       **`glass-acceptance-steps.md`, 96 rows, DERIVED** from the registry by
       `node tools/hub_surface_matrix.mjs --glass` — every mode's Primary/Reverse/Scrub binding and
-      every fan action, plus D4 and D1 where an operator meets them, each row carrying a
+      every fan action, plus D4 and D1-a11y where an operator meets them, each row carrying a
       BLOCKED-BY-G0 box so a run made too early records itself as blocked rather than as a fail.
       ⛔ **The 2026-09-12 Live run did not lift this gate** and could not have: it returned
       `INCONCLUSIVE-TRANSPORT`, which is neither a G0-1 pass nor a fail. Every G1 row therefore
       still ticks its BLOCKED-BY-G0 box, and any of them run today on a mirror would measure
       the same ~300 ms transport rather than the product.
+
+      > **NOTE — owner ruling R2, 2026-09-14. This is a note, not a tick. The box stays ☐.**
+      > *"a stage-1 G3-16(a) answer SATISFIES box 2 as written, with a recorded caveat:
+      > **collected at stage 1; re-judge post-swap via §5A**. Wire-vs-Breadth is a NEW row in §5A,
+      > not folded into G3-16."*
+      >
+      > Why the caveat exists: stage 2 moves `home.wire` **inner → OUTER** and `home.journal`
+      > **OUTER → inner**, so a judgement made with the labels covered was made against an
+      > arrangement stage 2 changes. The accent tokens are **byte-identical** at both stages, so
+      > D-27's promotion decision transfers unchanged; the **arrangement** does not. At stage 2 Wire
+      > lands beside **Breadth** — the neighbour D-27's own dE00 measurement names as its worst case
+      > — and that pairing has never been judged on glass by anybody, which is why it is a new row
+      > rather than a re-run of G3-16.
+      > Working: `triage/2026-09-14-d1-stage2-interaction.md`. Step: `stage-2-verification.md` §5A.
+      > ⛔ **The tick still waits on Patrick's glass evidence.**
 
 - [x] **Post-deploy client smoke, signed in, covering every top-level route including
       `/dashboard`, and CONCLUSIVE.** ✅ **CLOSED 2026-09-12.**

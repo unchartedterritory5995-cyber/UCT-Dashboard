@@ -69,6 +69,25 @@ export function symbolFamily(sym) {
   return _cache.map.has(key) ? 'breadth' : 'security'
 }
 
+/**
+ * The registry's RECORD for a canonical symbol, or null — the non-hook read, for
+ * the same population `symbolFamily` exists for.
+ *
+ * ⭐ THE CHART'S PANE READOUT NEEDS THE `name`. `UCTU20W` over a pane of green
+ * bars is an address, not a name; "UCT Stocks Up 20%+ in 5 Days" is the sentence
+ * that explains it, and it is already in this registry — fetched once per session
+ * for the chart's own use, so the answer costs no request.
+ *
+ * ⚠️ NULL MEANS "NOT KNOWN YET" AS WELL AS "NOT ONE OF OURS", deliberately: both
+ * callers want the same fallback (print the short label), and neither should show
+ * a placeholder while a fetch is in flight. The readout re-renders with the
+ * crosshair, so the long name appears as soon as the registry lands.
+ */
+export function breadthRecord(sym) {
+  if (!_cache || !sym) return null
+  return _cache.map.get(String(sym).toUpperCase()) || null
+}
+
 /** Start the fetch without mounting a component — for a non-React caller that
  *  wants the answer to become available. Safe to call repeatedly. */
 export function loadBreadthSymbols() {

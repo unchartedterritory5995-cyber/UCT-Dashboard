@@ -408,18 +408,59 @@ def reconstructed_for_dates(dates) -> tuple:
         return {}, 0
     _ensure_init()
     out = {}
+    # ⭐ SPLIT BECAUSE "VOLUME I/O" IS A HYPOTHESIS, NOT A MEASUREMENT. Session 7
+    # showed this phase moving 50.2x while `derive` (pure CPU) moved 1.0x. That
+    # rules CPU out and leaves at least four sub-causes with different fixes —
+    # page-cache eviction, lock wait behind a writer, connection/plan variance, and
+    # row-materialisation cost. One number cannot separate them; these five can.
+    import sqlite3 as _sq
+    import time as _t
+    from api.services import breadth_timing as _bt
+    rows = 0
+    nbytes = 0
+    busy_retries = 0
     try:
-        with _conn() as c:
+        t0 = _t.perf_counter()
+        c = _sq.connect(_db_path(), timeout=5.0)
+        _bt.add_phase("rf_open", (_t.perf_counter() - t0) * 1000.0)
+        t0 = _t.perf_counter()
+        c.execute("PRAGMA journal_mode=WAL")
+        c.execute("PRAGMA busy_timeout=3000")
+        _bt.add_phase("rf_pragma", (_t.perf_counter() - t0) * 1000.0)
+        try:
             for i in range(0, len(ds), 400):
                 chunk = ds[i:i + 400]
                 dq = ",".join("?" * len(chunk))
-                for (d, mj) in c.execute(
-                    f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})",
-                    chunk,
-                ).fetchall():
+                q = f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})"
+                t0 = _t.perf_counter()
+                try:
+                    cur = c.execute(q, chunk)
+                except _sq.OperationalError as e:
+                    # ⚠️ BLIND SPOT, STATED RATHER THAN PAPERED OVER: with
+                    # busy_timeout=3000 SQLite waits INSIDE the C call, so ordinary
+                    # lock contention never reaches here — it is charged to
+                    # rf_execute and is indistinguishable from execution time from
+                    # Python. This counter only fires once a wait has EXCEEDED the
+                    # timeout, i.e. it detects severe contention, not any contention.
+                    if "locked" in str(e).lower() or "busy" in str(e).lower():
+                        busy_retries += 1
+                    raise
+                _bt.add_phase("rf_execute", (_t.perf_counter() - t0) * 1000.0)
+                t0 = _t.perf_counter()
+                got = cur.fetchall()
+                _bt.add_phase("rf_fetch", (_t.perf_counter() - t0) * 1000.0)
+                t0 = _t.perf_counter()
+                for (d, mj) in got:
+                    nbytes += len(mj)
                     out[d] = json.loads(mj)
+                rows += len(got)
+                _bt.add_phase("rf_materialise", (_t.perf_counter() - t0) * 1000.0)
+        finally:
+            c.close()
     except Exception:
+        _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries)
         return {}, len(ds)
+    _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries)
     return out, 0
 
 

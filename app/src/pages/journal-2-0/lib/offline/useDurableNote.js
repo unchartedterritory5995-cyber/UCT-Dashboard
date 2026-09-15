@@ -256,14 +256,53 @@ export async function settleLandedSave({
   try {
     const db = await connect(accountId)
     const prev = await getNote(db, noteId)
-    const caughtUp = sameAuthoredContent(acked, current)
-    const state = caughtUp ? (acked || current) : current
+    // ⛔⛔ A DIRTY DURABLE RECORD IS UNSENT MEMBER WORK, AND SERVER-DERIVED
+    // STATE NEVER OVERWRITES IT.
+    //
+    // ⚰️ THE DEFECT THIS EXISTS FOR, measured on production 2026-09-13.
+    // `caughtUp` asked `sameAuthoredContent(acked, current)` — the server's
+    // accepted copy against the editor's current copy. On an ordinary save that
+    // is a fair question. On a REMOUNT it is not: the editor was just rebuilt
+    // FROM the server copy, so both sides of the comparison are the server, and
+    // the answer is `true` for a reason that has nothing to do with the member.
+    //
+    // What followed was written in ONE transaction: the record went `dirty: 0`
+    // at the server's newer baseline carrying the SERVER's body, and `intent`
+    // was `null` — which deletes every queued entry for the note. The member's
+    // offline words left the durable copy and the queue together, without one
+    // byte of them reaching the server.
+    //
+    // ⭐ AND NOTHING COULD HAVE OFFERED THEM BACK. `recover()` admits only a
+    // DIRTY record, and no recovery surface reads the outbox at all (the three
+    // non-test readers are the drain, the pending count and the blocked badge).
+    // So the same cheap flag that authorised the discard also suppressed the
+    // offer-back. That is why this is not merely a lost-send.
+    //
+    // ⭐ THE QUESTION THE CONTENT COULD HAVE ANSWERED, and now does: is there
+    // unsent work here, and does what landed contain it? Both were available in
+    // this function the whole time — `prev.dirty`, and `prev`'s own body.
+    const unsentWork = Boolean(prev && prev.dirty) && !sameAuthoredContent(acked, prev)
+    // ⛔ UNKNOWN IS NOT CAUGHT UP. A missing or unreadable `prev` answers
+    // false to `unsentWork` and the old behaviour stands — that case is the
+    // ordinary first save, not a remount, and treating it as unsent work would
+    // keep every note dirty forever.
+    const caughtUp = !unsentWork && sameAuthoredContent(acked, current)
+    // ⛔ THE DURABLE COPY WINS. When there is unsent work the record keeps the
+    // member's body, keeps `dirty`, and keeps its own baseline, so the entry
+    // still 409s and the drain runs classify-then-rebase/merge/fork — the path
+    // the one GREEN production cell actually measured. `serverBase` below hands
+    // the classifier the server's newer copy so it can tell a metadata move
+    // (rebase, keep the words) from a body rewrite (fork, never clobber).
+    const state = unsentWork ? prev : (caughtUp ? (acked || current) : current)
     const record = {
       noteId,
       title: state?.title ?? '',
       subtitle: state?.subtitle ?? '',
       bodyJson: state?.bodyJson ?? null,
-      baseUpdatedAt: landed,
+      // ⛔ The record's baseline only moves when the record is settling CLEAN.
+      // Moving it while work is unsent is precisely what lets `landedBaseline`
+      // hand the drain a "newer landed save" it never checked the contents of.
+      baseUpdatedAt: unsentWork ? usableBaseline(prev?.baseUpdatedAt, landed) : landed,
       generation: prev?.generation ?? 0,
       sessionId: SESSION_ID,
       localSavedAt: Date.now(),
@@ -278,7 +317,10 @@ export async function settleLandedSave({
       noteId,
       kind: 'note-update',
       patch: { title: record.title, subtitle: record.subtitle, bodyJson: record.bodyJson },
-      baseUpdatedAt: landed,
+      // ⛔ The entry keeps ITS OWN baseline while work is unsent, so the send
+      // 409s and the drain classifies. Jumping it to the server's newer revision
+      // would skip the 409 - and with it the decision between rebase and fork.
+      baseUpdatedAt: unsentWork ? usableBaseline(prev?.baseUpdatedAt, landed) : landed,
       generation: record.generation,
       sessionId: SESSION_ID,
       queuedAt: Date.now(),

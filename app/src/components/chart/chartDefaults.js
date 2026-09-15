@@ -234,6 +234,23 @@ export const CHART_DEFAULTS = {
   // once, at read time. See `mergeChartSettings`.
   settingsVersion: 2,
   indicatorInstances: [],
+  /**
+   * The member's VISUAL pane arrangement — pane keys, top to bottom, including
+   * `'price'` and `'volume'`. See `engine/paneOrder.js`.
+   *
+   * ⛔ EMPTY IS NOT "NO PANES", IT IS "NO PREFERENCE", and that difference is the
+   * whole backward-compatibility story: `resolvePaneOrder` COMPUTES the default
+   * (Price · separate volume pane · stack) whenever this is empty, so every blob
+   * written before the field existed renders exactly as it always did and nothing
+   * is migrated on read.
+   *
+   * ⚰️ IT HAS TO BE HERE, NOT ONLY IN THE WRITER. `mergeChartSettings` returns a
+   * hard ALLOW-LIST: a key absent from it is dropped on EVERY read. The
+   * arrangement survived the settings write and then vanished the moment the blob
+   * was reconstructed — measured in the pane harness, where save → reconstruct put
+   * Price back on top. Same trap the note above records for `indicatorInstances`.
+   */
+  paneOrder: [],
   // ⭐ B5 TASK 4 — `engineEnabled` STOOD HERE, AND IT IS DELETED, NOT FLIPPED.
   // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
   //
@@ -550,6 +567,11 @@ export function mergeChartSettings(userSettings) {
     // re-seed instances the user has since deleted.
     settingsVersion: 2,
     indicatorInstances: Array.isArray(parsed.indicatorInstances) ? parsed.indicatorInstances : [],
+    // ⚰️ THE ALLOW-LIST'S OTHER HALF. Declaring the default is not enough — the
+    // RETURN is what survives, and a key missing from it is destroyed on read.
+    paneOrder: Array.isArray(parsed.paneOrder)
+      ? parsed.paneOrder.filter((k) => typeof k === 'string' && k)
+      : [],
     // ⭐⭐ B5 TASK 4 — `engineEnabled: parsed.engineEnabled === true` STOOD HERE.
     //
     // 🔑 THIS LINE, NOT THE DECLARATION, WAS THE FLAG. It read the STORED BLOB,

@@ -24,6 +24,33 @@ export default function ContextPopover({
   anchor,
   items,
   title,
+  /** ⭐ DESKTOP DENSITY ONLY. Track B's on-chart popover carries four to seven
+   *  short commands and floats over a live chart, where a settings-card-sized menu
+   *  covers the candles the member is reading. `dense` compacts the ANCHORED menu
+   *  — width, row height, padding, icon box, separator spacing.
+   *
+   *  ⛔ IT DOES NOT REACH THE TOUCH BRANCH, AND THAT IS THE WHOLE POINT OF PUTTING
+   *  IT HERE RATHER THAN IN A STYLESHEET OVERRIDE. On touch this component renders
+   *  a `Sheet` whose rows are pinned to the 44px tap-target floor
+   *  (`ContextPopover.module.css`'s ≤1024px query, railed by
+   *  `styles/tapFloor.test.js`); a class that shrank those would make the menu
+   *  unusable with a thumb. The prop is read in the desktop branch only.
+   *
+   *  ⚠️ AND IT IS OPT-IN, so the drawing menu, the chart region menu and every
+   *  other caller keep the comfortable density they shipped with. */
+  dense = false,
+  /** ⭐ AN OPTIONAL NON-INTERACTIVE HEADER, ABOVE THE ROWS, IN BOTH BRANCHES.
+   *
+   *  Added for Track B's on-chart popover, which has to answer *"what is this?"*
+   *  — name, live value, what it reads — before it offers a verb. `title` cannot
+   *  carry that: it is a single string and on touch it is the `Sheet`'s own
+   *  heading. `children` cannot either, because passing children REPLACES the
+   *  declarative `items` list and this menu needs both.
+   *
+   *  ⛔ IT IS NOT A ROW. `renderItems` emits `<button>`s and a focus trap walks
+   *  them; a header that rendered as one would be a tab stop that does nothing.
+   *  Ignored when `children` is given — that branch owns its own layout. */
+  header,
   children,
   width = 220,
   // Theme class forwarded to the touch bottom-sheet — it portals to <body>,
@@ -121,7 +148,7 @@ export default function ContextPopover({
     return (
       <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
         <div className={styles.sheetList}>
-          {children ?? renderItems()}
+          {children ?? <>{header}{renderItems()}</>}
         </div>
       </Sheet>
     )
@@ -131,7 +158,7 @@ export default function ContextPopover({
   return createPortal(
     <div
       ref={menuRef}
-      className={styles.menu}
+      className={`${styles.menu}${dense ? ' ' + styles.menuDense : ''}`}
       style={{
         left: pos?.left ?? anchor?.x ?? 0,
         top: pos?.top ?? anchor?.y ?? 0,
@@ -142,7 +169,7 @@ export default function ContextPopover({
       tabIndex={-1}
     >
       {title != null && <div className={styles.menuTitle}>{title}</div>}
-      {children ?? renderItems()}
+      {children ?? <>{header}{renderItems()}</>}
     </div>,
     document.body,
   )

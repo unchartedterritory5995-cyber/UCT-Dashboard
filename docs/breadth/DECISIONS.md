@@ -573,7 +573,7 @@ make `get_history_deep` cheap for a cold deep span. That choice is the owner's a
 
 ---
 
-## D-043 — the reader is its own programme; `/series` is span-capped until it lands (2026-09-14)
+### D-043 — the reader is its own programme; `/series` is span-capped until it lands (2026-09-14)
 
 **Owner ruling.** D-042 left the choice open between three ways of closing the ~55 s cold deep read. The ruling splits
 it in two: the reader gets its **own programme** (it is a backend correctness/performance problem, not a Data Charts
@@ -606,7 +606,7 @@ find the constant before they find this file.
 
 ---
 
-## D-044 — `json_remove()` in SQL is a MEASURED ANTI-PATTERN, not a fix (2026-09-14)
+### D-044 — `json_remove()` in SQL is a MEASURED ANTI-PATTERN, not a fix (2026-09-14)
 
 **Recorded by owner ruling so nobody adopts it on plausibility.** It is the option that
 looks cheapest, needs no migration, and is the only one of the three candidates that makes
@@ -631,7 +631,147 @@ which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every histor
 parses and immediately deletes. Every numeric key the Monitor grid shows — all ~70 of
 them, across all 174 rows — totals **0.25 MB**.
 
-**Ruled shape: a numeric store written on write** (D-045 work), never SQL-side JSON
-surgery. The drill endpoints keep reading the blobs by date; they are the only consumer
-that wants the lists.
+**Ruled shape: a numeric store written on write** — built and recorded as **D-045
+below**, never SQL-side JSON surgery. The drill endpoints keep reading the blobs by date;
+they are the only consumer that wants the lists.
 
+---
+
+### D-045 — the numeric store and the materialised reconstructed side (2026-09-14)
+
+**This is the record D-044 points at.** D-044 ruled the shape; this is what was built,
+which commits carry it, and what it measured. Every commit hash below was verified with
+`git log -1 --format=%s` before it was written down.
+
+#### What was built
+
+| # | commit | what it added |
+|---|---|---|
+| 1 | `685a19bdb` | `breadth_snapshot_numeric(date PK, metrics, source, updated_at)` + `idx_bsn_source`. `numeric_of()` drops **exactly** the `*_list` keys; `_write_numeric()` takes the **caller's connection** so the projection is written inside the snapshot's own transaction; `delete_snapshot` removes both rows. |
+| 2 | `725151fd3` | `idx_bdo_source_date(source, date, metric, c)` — the covering index that closes follow-ups (c) `closes_for_dates` and (d) `distinct_dates`. |
+| 3 | `b4c141948` | `breadth_reconstructed_daily(date PK, metrics, ohlc_watermark, sentiment_watermark, built_at)` + `idx_brd_watermark`, with `build_reconstructed()`, `reconstructed_for_dates()`, `stale_reconstructed_dates()`, `rebuild_stale()` and `_rebuild_after_write()`. |
+| 4 | `f7e09f56c` | the reconstructed migration tolerates a continuously-written input: `_recon_fingerprint(c, since)` excludes concurrently-written dates, and an already-materialised store skips the backup rather than re-taking it. |
+| 5 | `5032b44a3` | the deep window's date set comes from the materialised table; `distinct_dates_by_scan()` is kept as the parity reference and the fallback. |
+
+⛔ **A JSON column, not ~70 typed columns.** `metrics` has no fixed schema — the newest
+production row carries 92 keys and older ones carry fewer — so a column list would be a
+SECOND AUTHORITY over "which metrics exist", and its failure mode is silent: a metric the
+collector starts writing tomorrow would simply not be stored and the reader would serve a
+column of nulls that reads as a quiet market.
+
+⛔ **"Numeric" names the PURPOSE, not a type filter.** The readers drop `*_list` and keep
+everything else, strings and nulls included. Filtering to int/float would produce a store
+that is *more* numeric and *less* correct, and the difference would surface as a missing
+Monitor column rather than as an error.
+
+⛔ **Precedence is asserted, not implied.** Where a collector row and a reconstructed row
+exist for one date, the **collector row wins**. That is why they are two tables: one
+date-keyed table would have let whichever wrote last decide.
+
+#### The migration discipline
+
+`api/services/breadth_numeric_migration.py` — `backfill()`, `backfill_reconstructed()`,
+`audit()`, `audit_reconstructed()`, `_fingerprint()`, `_recon_fingerprint()`,
+`_write_marker()`. It **fingerprints its input before and after and refuses to run
+uninsured**: a `VACUUM INTO` backup is taken first (never a file copy — a plain copy of a
+WAL database omits whatever is still in the `-wal` sidecar and looks complete while
+lagging), and a marker in `DATA_DIR` makes it idempotent across boots.
+
+⚰️ **The first production run reported FAILED, and the migration was right to.** The
+fingerprint covered dates the collector was writing while the backfill ran, so input and
+output could not match by construction. The fix narrowed the fingerprint to exclude
+concurrently-written dates — **not** loosening the check.
+
+#### What it measured
+
+Bands, because a single number from one box is not a result. Local, against `VACUUM INTO`
+copies of the production databases.
+
+| read | before | after |
+|---|---|---|
+| 105 rows (the default view's window) | 627.7 ms | **1.3 ms** |
+| deep 8,000-day, reader only | 1,860 ms (Session 1, blob path) | **248–413 ms** |
+| deep 8,000-day, bytes read on the request path | 105.7 MB → 17.8 MB | **6.62 MB** |
+| the date set alone (`merged_dates`) | 11,329,088 B | **127,176 B** — 89x |
+
+⭐ **The blob shape the whole programme turns on:** the average snapshot is 636,834 bytes,
+of which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every history read
+parsed and immediately deleted. Every numeric key the Monitor grid shows — ~70 of them
+across all 174 rows — totals **0.25 MB**.
+
+#### Production, after
+
+`/api/breadth-monitor?days≈7900`, n=20, settled window (uptime 708→1,629 s, monotonic, no
+restart), every sample a forced cache miss on a distinct key, all 200:
+
+| | p50 | p95 | max |
+|---|---|---|---|
+| wall (client) | 980.8 ms | 1,749.7 ms | 1,897.7 ms |
+| server `total_ms` | 696.3 ms | 1,429.0 ms | 1,496.4 ms |
+
+**Against D-042's 54,923 ms cold: 56x at the median, 31x at p95.** The 95 % CI for the
+true p95 is [1,540.0, 1,897.7] ms, bounded by real observations on both sides.
+
+⚠️ **The 30x was never one thing, and this store is not what closed it.** Contention on
+the single uvicorn process is: the same read measured 224 ms settled and 17,480 ms three
+minutes after boot. The store removed the work; settling removed the queue. Both were
+needed and only the first is in this decision.
+
+#### What is still open
+
+`post_reader_ms` now exceeds `reader_ms` in **17 of 20** settled samples (median ratio
+2.09). Session 6's per-phase instrument names the dominant post-reader phase as
+`encode_render`, of which `jsonable_encoder` is the largest part — see
+`docs/breadth-history-reader/00-profile.md`, Session 6.
+
+---
+
+### D-046 · The `/series` span cap stays at 365 — the closing entry on the cap question (2026-09-14)
+
+**Owner decision, on the n=20 settled-window measurement.** D-043 capped `/series` at 365
+stored sessions (`BREADTH_SERIES_MAX_SESSIONS`) *"until the reader lands"*. The reader has
+landed (D-045). This is the entry that closes the question, and the answer is **no change**.
+
+#### The measurement the decision rests on
+
+`/api/breadth-monitor?days≈7900`, production, **n=20**, settled window (uptime 708→1,629 s,
+**monotonic — no restart**), every sample a forced cache miss on a **distinct** `days=` key,
+all `status=200`, `decoded_bytes` 681,973–681,975, logs streamed live to
+`logs/session6-sample.log` throughout.
+
+| deep, n=20 | min | p50 | p90 | **p95** | max | sd |
+|---|---|---|---|---|---|---|
+| client wall | 796.2 | **980.8** | 1,560.2 | **1,749.7** | 1,897.7 | 316.7 |
+| server `total_ms` | 526.9 | 696.3 | 1,224.5 | 1,429.0 | 1,496.4 | 281.2 |
+| `reader_ms` | 144.2 | 209.7 | 631.8 | 998.8 | 1,000.4 | 258.2 |
+| `post_reader_ms` | 377.6 | 433.0 | 549.1 | 581.5 | 742.1 | 89.4 |
+
+⭐ **p95 is estimable at this n, which is the whole reason the sample was run.** The exact
+binomial order-statistic interval places the true p95 between order statistics 18 and 20:
+**95 % CI [1,540.0 ms, 1,897.7 ms]** — bounded by real observations on *both* sides. At the
+n=6 of the previous attempt the empirical p95 *was* the maximum by construction, so quoting
+it would have been quoting the max with a statistic's name on it.
+
+#### Why the cap stays, in order of weight
+
+1. ⭐ **A lift exposes nothing anyone can request.** The UI's largest `days=` is **365**:
+   `Breadth.jsx:657` sends `MONITOR_WINDOW = 90` or one of `VIEWS_DAY_CHOICES = [90, 180,
+   365]`, and the Time Navigator (`useMonitorGrid.js:98`) sends `days=${stored.length}`
+   where `stored` is a slice of `BLOCK = 150`. Raising the cap to 1,000 changes what **no
+   member can ask for**. The deep path is reached by an `end=` teleport, not by a large span.
+2. **It would cost a master push for zero member-visible difference**, and a master push is
+   the scarce, serialising resource in this repo.
+3. ⛔ **The number that would justify a lift is not the number that improved.** The reader is
+   now cheap; the remaining cost has moved to `encode_render`, which grows linearly in rows.
+   Lifting the cap before the encoder is addressed raises the ceiling on the half that did
+   **not** get fixed.
+
+#### What would reopen it
+
+A member-facing feature that actually requests more than 365 sessions. Until one exists the
+cap is not a constraint anyone is hitting, and D-043's *"until the reader lands"* condition
+is satisfied without a change.
+
+⚠️ **Not a ratio.** Against D-042's 54,923 ms this is ~56x at the median and ~31x at p95,
+**reported as a band comparison**: D-042 is **n=1**, on a different pod state. The honest
+statement is that the two bands do not overlap — 54,923 ms against 796–1,898 ms.

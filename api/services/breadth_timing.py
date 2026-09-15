@@ -23,6 +23,7 @@ would make "nobody set it" indistinguishable from "somebody turned it off".
 """
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import logging
 import os
@@ -77,7 +78,8 @@ def begin(**fields) -> dict | None:
     try:
         rec = _ctx.get()
         if rec is None:
-            rec = {"t0": time.perf_counter(), "rss_before_mb": rss_mb()}
+            rec = {"t0": time.perf_counter(), "rss_before_mb": rss_mb(),
+                   "io_before": io_counters()}
             _ctx.set(rec)
         rec.update(fields)
         return rec
@@ -116,18 +118,43 @@ def finish(total_ms: float, wire_bytes: int) -> dict:
         rec["post_reader_ms"] = round(total_ms - reader_ms, 1)
         rec["wire_bytes"] = wire_bytes
         rec["rss_after_mb"] = rss_mb()
+        rec["io_after"] = io_counters()
         if enabled():
+            # ⛔ The three original fields keep their names, positions and meaning so
+            # Session 5's samples stay comparable; the phases are appended.
+            rsum, rres, rpct = phase_residual(rec, READER_PHASES, reader_ms)
+            psum, pres, ppct = phase_residual(rec, POST_PHASES, rec["post_reader_ms"])
             log.info(
-                "[breadth-timing] span=%s rows=%s cache=%s coalesced=%s "
+                "[breadth-timing] span=%s rows=%s cache=%s tier=%s coalesced=%s "
                 "reader_ms=%.1f post_reader_ms=%.1f total_ms=%.1f wire_bytes=%s "
-                "rss_before_mb=%s rss_after_mb=%s",
-                rec.get("span"), rec.get("rows"), rec.get("cache"), rec.get("coalesced"),
+                "rss_before_mb=%s rss_after_mb=%s | READER %s (sum=%s residual=%s) "
+                "| POST %s (sum=%s residual=%s) | FETCH %s rows=%s bytes=%s busy=%s io=%s",
+                rec.get("span"), rec.get("rows"), rec.get("cache"),
+                rec.get("cache_tier") or "unset", rec.get("coalesced"),
                 reader_ms, rec["post_reader_ms"], total_ms, wire_bytes,
                 _fmt(rec.get("rss_before_mb")), _fmt(rec.get("rss_after_mb")),
+                _phase_str(rec, READER_PHASES), rsum, rres,
+                _phase_str(rec, POST_PHASES), psum, pres,
+                _phase_str(rec, FETCH_PHASES),
+                rec.get("rf_rows", "absent"), rec.get("rf_bytes", "absent"),
+                rec.get("rf_busy_retries", "absent"), _io_str(rec),
             )
     except Exception:
         pass
     return rec
+
+
+def _io_str(rec) -> str:
+    """`read_bytes/rchar` delta, or `unreadable` — never a zero pair.
+
+    ⛔ /proc/self/io is Linux-only. On the dev box it does not exist, and
+    reporting (0, 0) there would say "this request read nothing from disk",
+    which is a claim, not a measurement.
+    """
+    a, b = rec.get("io_before"), rec.get("io_after")
+    if not a or not b:
+        return "unreadable"
+    return "rb+%d/rchar+%d" % (b[0] - a[0], b[1] - a[1])
 
 
 def _fmt(v):
@@ -141,10 +168,205 @@ def server_timing(rec: dict) -> str:
         parts = [f"reader;dur={float(rec.get('reader_ms') or 0.0):.1f}",
                  f"post;dur={float(rec.get('post_reader_ms') or 0.0):.1f}",
                  f"total;dur={float(rec.get('total_ms') or 0.0):.1f}"]
+        # ⚠️ Absent phases are OMITTED from the header rather than sent as 0 — a
+        # Server-Timing entry of `dur=0` is indistinguishable from a free stage.
+        for n in READER_PHASES + POST_PHASES + FETCH_PHASES:
+            v = ((rec or {}).get("phases") or {}).get(n)
+            if v is not None:
+                parts.append(f"{n};dur={_phase_dur(v)}")
+        for k in ("rf_rows", "rf_bytes", "rf_busy_retries"):
+            v = (rec or {}).get(k)
+            if v is not None:
+                parts.append(f"{k};dur={float(v):.1f}")
+        a, b = (rec or {}).get("io_before"), (rec or {}).get("io_after")
+        if a and b:
+            parts.append(f"io_read_bytes;dur={float(b[0] - a[0]):.1f}")
+            parts.append(f"io_rchar;dur={float(b[1] - a[1]):.1f}")
         return ", ".join(parts)
     except Exception:
         return ""
 
+
+
+
+# ── Per-phase timing (Session 6) ──────────────────────────────────────────────
+
+#: Every phase the instrument expects to see on a cache=miss deep read. A phase
+#: MISSING from a record is reported as `absent`, never as 0.0 — the difference
+#: between "this stage cost nothing" and "this stage never reported" is exactly the
+#: difference that made four earlier instruments in this programme report work as
+#: free.
+READER_PHASES = ("merged_dates", "collector_floor", "anchor", "numeric_fetch",
+                 "reconstructed_fetch", "merge_rows", "adv_seed", "derive", "cache_set")
+
+#: ⛔ ONLY the phases that are already KNOWN at `http.response.start`. The header
+#: and the main log line are both emitted there, so neither can describe work that
+#: happens afterwards — and `gzip_send` was in this tuple until it was measured:
+#: the middleware computed it on the body chunks, by which point the header had
+#: been sent and the log line printed, so every consumer read `gzip_send=absent`
+#: for a stage that had run. A phase reported as absent because its reporter had
+#: already finished is the same failure as a phase reported as 0.0.
+#: ⭐ `serialise` is the route rendering the body ITSELF. It exists so the work the
+#: pre-serialised response moved does not simply vanish from the accounting: before,
+#: the whole cost sat inside `encode_render` (FastAPI's `jsonable_encoder` plus
+#: `JSONResponse.render`); now the route pays `serialise` once per cache MISS and
+#: `encode_render` collapses to the gzip compression alone. A phase that is absent on
+#: a cache hit is reported `absent`, never 0.0 — the route genuinely does not
+#: serialise on a hit, and that is the saving.
+POST_PHASES = ("route_tail", "serialise", "encode_render")
+
+#: Which tier actually answered the request. ⛔ ADDITIVE — `cache` keeps its
+#: hit/miss values so every Session 5/6/7 log line parses unchanged; this says
+#: WHICH cache, which `cache` alone could not.
+#:
+#: ⚰️ Why it exists: `get_history` noted nothing at all, and `_history_deep_uncached`
+#: delegates to it for any window inside the collector range. So a `days=90` request
+#: served entirely from `get_history`'s own cache was reported `cache=miss` — for
+#: every request, indefinitely. The label was not merely imprecise; it was wrong in
+#: the direction that makes a warm path look like work.
+CACHE_TIERS = ("body", "deep", "plain", "miss")
+
+#: Session 8 — `reconstructed_fetch` split, because "volume I/O" is a hypothesis
+#: with four sub-causes and the phase-level number cannot tell them apart.
+FETCH_PHASES = ("rf_open", "rf_pragma", "rf_execute", "rf_fetch", "rf_materialise")
+
+
+def io_counters() -> tuple[int, int] | None:
+    """`(read_bytes, rchar)` from /proc/self/io, or None where it cannot be read.
+
+    ⭐ THIS IS THE DISCRIMINATOR THE WHOLE DIAGNOSIS TURNS ON. `read_bytes` counts
+    bytes that actually came from the block device; `rchar` counts bytes handed to
+    the process including those served from the OS page cache. So:
+      read_bytes climbs  -> the page cache missed and this was real disk (H1)
+      read_bytes ~0, rchar climbs -> served from page cache; the time went elsewhere
+      both ~0           -> the time was not reading at all (lock wait, or CPU)
+
+    ⛔ None, never (0, 0). The file is Linux-only — it does not exist on the dev box
+    — and a zero pair would read as "this request did no I/O", which is exactly the
+    false-instrument shape this programme keeps catching.
+    """
+    try:
+        rb = rc = None
+        with open("/proc/self/io", "r", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("read_bytes:"):
+                    rb = int(line.split()[1])
+                elif line.startswith("rchar:"):
+                    rc = int(line.split()[1])
+        return (rb, rc) if rb is not None and rc is not None else None
+    except Exception:
+        return None
+
+#: Everything after the response line exists. Reported on its OWN line, with its
+#: own wall total, because the first line is gone by the time this is knowable.
+#: ⚠️ It is the TRANSPORT of already-compressed bytes, not the compression:
+#: starlette's GZipResponder holds `http.response.start` until it has compressed
+#: the body, so on an outermost middleware the compression lands inside
+#: `encode_render`. See the local split in `docs/breadth-history-reader/`.
+SEND_PHASES = ("gzip_send",)
+
+
+@contextlib.contextmanager
+def phase(name: str):
+    """Accumulate elapsed ms under `name` on the current request's record.
+
+    ⛔ IT MUTATES THE RECORD IN PLACE AND NEVER REBINDS THE CONTEXTVAR. The route is
+    a plain `def`, so FastAPI runs it in the anyio threadpool and anyio COPIES the
+    context into that worker: a `ContextVar.set()` there is invisible to the
+    middleware back on the event loop. A copied context still points at the same
+    dict, so in-place mutation crosses the boundary and rebinding does not. That is
+    the same mechanism `begin()` documents, and it is why phases can be recorded
+    from inside the reader at all.
+    """
+    t0 = time.perf_counter()
+    try:
+        yield
+    finally:
+        try:
+            rec = _ctx.get()
+            if rec is not None:
+                ph = rec.setdefault("phases", {})
+                ph[name] = ph.get(name, 0.0) + (time.perf_counter() - t0) * 1000.0
+        except Exception:
+            pass
+
+
+def add_phase(name: str, ms: float) -> None:
+    """Accumulate `ms` under `name` — for spans measured by the caller rather than
+    wrapped by `phase()`.
+
+    ⛔ SAME IN-PLACE MUTATION AS `phase()`, and for the same reason: the route runs
+    in the anyio threadpool, anyio copies the context, and a rebind there never
+    reaches the middleware. It accumulates because the caller loops — the fetch runs
+    twelve chunked statements per deep read and each one must add, not overwrite.
+    """
+    try:
+        rec = _ctx.get()
+        if rec is not None:
+            ph = rec.setdefault("phases", {})
+            ph[name] = ph.get(name, 0.0) + ms
+    except Exception:
+        pass
+
+
+def mark(name: str) -> None:
+    """Record a timestamp (perf_counter) under `name`, for spans the middleware
+    closes rather than wraps."""
+    try:
+        rec = _ctx.get()
+        if rec is not None:
+            rec.setdefault("marks", {})[name] = time.perf_counter()
+    except Exception:
+        pass
+
+
+#: The instrument's own resolution, in ms. Real phases measured on this route sit
+#: at 1–17 µs at the small end (`anchor`, `cache_set`), so nothing legitimate lands
+#: below this; anything that does is below what the clock can say.
+_PHASE_FLOOR_MS = 0.001
+
+
+def _phase_ms(v: float) -> str:
+    """⛔ SUB-MILLISECOND PHASES KEEP THEIR DIGITS. At `.1f` a phase that really cost
+    0.02 ms prints `0.0` — the exact string this instrument promises never to emit
+    for work that happened, and the owner's control (a) is "every phase reports > 0",
+    so the formatter would fail a control the code passes. Above 1 ms one decimal is
+    plenty; below it, three.
+
+    ⛔ AND BELOW ITS OWN RESOLUTION IT SAYS SO rather than printing another zero.
+    `.3f` merely moved the defect down two decimal places: 0.0004 rendered `0.000`.
+    "Smaller than I can measure" is a third fact, distinct from both `absent` and a
+    measured value, and it is the honest one to print.
+    """
+    if abs(v) < _PHASE_FLOOR_MS:
+        return f"<{_PHASE_FLOOR_MS:.3f}"
+    return format(v, ".3f" if abs(v) < 1.0 else ".1f")
+
+
+def _phase_dur(v: float) -> str:
+    """The same value for `Server-Timing`, which must stay a bare number — a parser
+    reading `dur=<0.001` gets nothing at all. Six decimals keeps every phase this
+    route actually has (down to ~1 µs) non-zero; the log line above is the authority
+    for anything finer.
+    """
+    return format(v, ".6f" if abs(v) < 1.0 else ".1f")
+
+
+def _phase_str(rec: dict, names) -> str:
+    """`name=12.3` per phase, or `name=absent` when it never reported."""
+    ph = (rec or {}).get("phases") or {}
+    out = []
+    for n in names:
+        v = ph.get(n)
+        out.append(f"{n}={'absent' if v is None else _phase_ms(v)}")
+    return " ".join(out)
+
+
+def phase_residual(rec: dict, names, total_ms: float):
+    """`(sum, residual, pct_of_total)` — what the named phases account for."""
+    ph = (rec or {}).get("phases") or {}
+    s = sum(v for k, v in ph.items() if k in names)
+    return round(s, 1), round(total_ms - s, 1), (round(100 * s / total_ms, 1) if total_ms else None)
 
 
 def _span_of(scope) -> str:
@@ -186,6 +408,16 @@ class BreadthTimingMiddleware:
         async def _send(message):
             try:
                 if message.get("type") == "http.response.start":
+                    # Everything between the route returning its dict and the response
+                    # line existing: FastAPI's jsonable_encoder and JSONResponse.render.
+                    # ⭐ Measured as a SPAN between two marks rather than by patching
+                    # starlette — the patch approach works locally and is not something
+                    # to run on a paid route.
+                    _m = (get() or {}).get("marks") or {}
+                    if "route_return" in _m:
+                        (get() or {}).setdefault("phases", {})["encode_render"] = (
+                            (time.perf_counter() - _m["route_return"]) * 1000.0)
+                    mark("response_start")
                     total_ms = (time.perf_counter() - t0) * 1000.0
                     rec = finish(total_ms, 0)
                     sent["rec"] = rec
@@ -195,6 +427,13 @@ class BreadthTimingMiddleware:
                             (b"server-timing", st.encode("latin-1")))
                 elif message.get("type") == "http.response.body":
                     sent["bytes"] += len(message.get("body") or b"")
+                    # GZip compresses and the ASGI server sends between the response
+                    # line and the final body chunk. Accumulated, not overwritten, so a
+                    # chunked response reports the whole span.
+                    _m = (get() or {}).get("marks") or {}
+                    if "response_start" in _m:
+                        ph = (get() or {}).setdefault("phases", {})
+                        ph["gzip_send"] = (time.perf_counter() - _m["response_start"]) * 1000.0
             except Exception:
                 pass
             await send(message)
@@ -205,9 +444,15 @@ class BreadthTimingMiddleware:
             try:
                 rec = sent["rec"]
                 if rec is not None and sent["bytes"] and enabled():
-                    # The header must go out before the body, so wire_bytes cannot
-                    # be in it; it is logged here, where it is finally known.
-                    log.info("[breadth-timing] span=%s wire_bytes=%s (post-gzip)",
-                             rec.get("span"), sent["bytes"])
+                    # The header must go out before the body, so neither wire_bytes
+                    # nor the send phase can be in it; both are logged here, where
+                    # they are finally known. `total_with_send_ms` is the honest wall
+                    # figure — `total_ms` on the line above stops at the response
+                    # line and therefore prices the send at nothing.
+                    log.info("[breadth-timing] span=%s wire_bytes=%s (post-gzip) "
+                             "| SEND %s | total_with_send_ms=%.1f",
+                             rec.get("span"), sent["bytes"],
+                             _phase_str(rec, SEND_PHASES),
+                             (time.perf_counter() - t0) * 1000.0)
             except Exception:
                 pass

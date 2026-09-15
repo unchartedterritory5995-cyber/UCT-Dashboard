@@ -190,10 +190,23 @@ describe('⭐ R-B — the folder / ticker / tags doors reach the same defect', (
       accountId: 'a1', noteId: 'n1', acked: local, current: local, updatedAt: T2, connect,
     })
     await settleIdb(4)
-    // ⛔ THIS IS THE WRONG OUTCOME, PINNED SO THE SHAPE IS UNMISTAKABLE: acked
-    // === current reads as "caught up", so the queue is cleared. The doors pass
-    // the SERVER's copy precisely to avoid this.
-    expect(await listOutbox(db)).toHaveLength(0)
+    // ⚔️ UPDATED BY Q1 FIX 4 (2026-09-14). This used to pin THE WRONG
+    // OUTCOME - `expect(...).toHaveLength(0)` - to make the shape unmistakable:
+    // acked === current read as "caught up", so the queue was cleared, and the
+    // doors passed the SERVER's copy purely by convention to avoid it.
+    //
+    // ⭐ Fix 4 makes that hazard STRUCTURALLY IMPOSSIBLE: a dirty record with
+    // unsent work is never reconciled clean, whatever `acked` says. So the wrong
+    // outcome can no longer be produced, and a test still demanding it would be
+    // demanding the defect back.
+    //
+    // ⛔ The convention still matters and is still worth stating: a door that
+    // passes local state as `acked` is WRONG even though it is now survivable.
+    // What changed is that the member's words no longer depend on every door
+    // getting it right.
+    expect(await listOutbox(db),
+      'fix 4: a door passing local state as `acked` must no longer be able to '
+      + 'delete unsent work').toHaveLength(1)
   })
 })
 
