@@ -114,15 +114,24 @@ renderer never learns `US:NETHL` is special.
 
 | suite | result |
 |---|---|
-| all breadth / universe / monitor backend | **969 passed**, 12 skipped |
-| new Phase-5 backend rails (identity · serve · discovery) | **39 passed** |
+| all breadth / universe / monitor backend | **972 passed**, 12 skipped |
+| new Phase-5 backend rails (identity · serve · discovery) | **44 passed** |
 | frontend `src/components/chart` (349 files) | **8,659 passed**, 3 failed |
+| **full frontend suite** (1,361 files) | **20,102 passed**, 10 failed, 9 skipped |
 | new frontend seam rails | **11 passed** |
-| build (`npm run build`) | ✅ 14.9s, 447 assets, 0 errors |
+| build (`npm run build`) | 14.9s, 447 assets, 0 errors |
 
-The 3 frontend failures are the **pre-existing clean-master ratchet failures**
-(`ChartDrawingOverlay.surfaces`, `ast/manifestProse`, `ast/pine.blindCorpus`),
-verified against `C:\b3` @ `5e88b38c4`.
+### Frontend baseline comparison — BETTER than clean master
+
+| | files failing | tests failing | tests passing |
+|---|---|---|---|
+| this branch | 13 | **10** | **20,102** |
+| clean master `5e88b38c4` | 15 | 12 | 20,065 |
+
+**Every file failing here also fails on clean master — zero new failures.** Two
+baseline failures are RESOLVED by the master merge this branch took in
+(`journal-2-0/lib/iteratorGlobalFloor`, `journal-2-0/lib/offline/supersedeProvesContent`).
+The rest are the standing ratchet/rail tests owned elsewhere.
 
 ### ⚠️ Backend full-suite baseline: STILL NOT RUN — a pre-publication gate
 
