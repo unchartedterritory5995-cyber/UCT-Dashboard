@@ -35,7 +35,7 @@ when it belongs to `chooseOutput`.
 | **a4** | **REVISED BY R1/R2** — no new iteration form is built. Every retired loop form (`for x in`, `for [i, x] in`, `while`) refuses **at its own line**, with the code its SOURCE determines, replacing today's `pine:block` note plus a later unrelated `array.get` refusal | ✅ **COMPLETE** — `af4606288` (red), `901e8165a` (green), `20ae2ddf6` (re-baseline), `bfe7e2b4e` (R4–R6). One item owed: **R1(ii)** |
 | **a4b** | **the accumulator fold** — a counted-`for` body of the shape `s := s op e` folds to a left-nested op chain | ⛔ **CENSUS FIRST, THEN A GO** — ruling R3 |
 | **a5** | reductions over written slots | ✅ **CLOSED by R9** — `sum`/`max`/`min` KEPT and FIXED, `avg`/`indexof`/`sort`/`includes`/`stdev` refuse by name (`158ca0d0a` red, `ab978572c` green) |
-| **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
+| **a6** | Clouds verbatim on both lanes with colours intact (H.2's definition) | ✅ **CLOSED by R10** — `02830f0c0`. The vendor capture is **OWED**, see below |
 | **a7** | shared contract, Python twin, both-lane agreement rail over 327 scripts, snapshots, suites, Python lane once, vite build | pending |
 
 ### ✅ a5's scope WAS settled — by census and by R9. This section is kept as the record
@@ -437,6 +437,78 @@ the source authored, alpha included.**
 The env closing pass's restraint — an unread-but-**readable** binding stays silent — is
 load-bearing, and it is **not spent on one acceptance sentence**. Forcing `color.t` to a
 refusal would put a line in the result for every `len = 14` in every script.
+
+---
+
+# a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
+
+**H.2's definition, met:** both lanes, **0 refusals**, every plot presentation and every
+fill carrying the colour the source authored, alpha included.
+
+⭐⭐ **MEASURING FIRST FOUND THE OBLIGATION ALREADY SATISFIED — a6 required no engine
+change.** The carrier is **not** the note: the chart-only note is
+`{code, message, line, column, index, token, excerpt}` and carries no colour by design.
+**`presentation.fills`** already existed, already resolved both plot handles to output
+indices, and `resolveFillHandles` already had `color`/`opacity` fields — populated by
+the fill collector from `outputPresentation(fargs, {env})`, *literally the same call a
+`plot()` makes*. That is R10's "no second colour path" satisfied by construction.
+The only gap was `color.rgb`'s alpha, which **a6.0** closed for every caller at once.
+
+| fill colour | carried |
+|---|---|
+| `color.rgb(0,255,0,80)` | `{a:0, b:1, color:"#00FF00", opacity:0.2}` |
+| `color.new(color.blue,30)` | `{color:"#2962FF", opacity:0.7}` |
+| `color.rgb(0,255,0)` | `{color:"#00FF00"}`, no opacity |
+| a dynamic conditional | `{a:0, b:1}` — no colour, never a guess |
+
+## ⛔ WHAT ITEM (j) INHERITS, AND IT IS NOT WHAT THE RULING ASSUMED
+
+**Clouds' 20 fills carry ZERO colours, and that is correct.** Their colour is
+
+```
+fill(p1, p2, color = isBullish ? getBullFillColor(0) : getBearFillColor(0))
+```
+
+— a conditional over two **user-defined functions**. `staticColourOf` folds neither, so
+there is no single colour to carry. ⭐ **Item (j) must render a CONDITIONAL fill, not a
+static one**, and `fillColourCarriage.test.js` records that so (j) does not begin by
+hunting a colour that was never there. All 20 do carry their two resolved edges, which
+is the half (j) needs.
+
+## Metric-derived: what Clouds' verdict actually rests on
+
+⚠️ **NOT `corpus_metric.json`** — measured: it holds **266 rows**, the
+`corpus/committed` set, and **Clouds is not among them** (it is a member fixture under
+`tests/fixtures/member/`). Anyone citing the corpus metric for Clouds is citing the
+wrong artifact. The committed evidence, each a file in the repo:
+
+| artifact | what it fixes |
+|---|---|
+| `app/src/components/chart/engine/ast/vectorUnroll.test.js` | the 21 layers are real, distinct interpolation trees; the block note at 59 is gone |
+| `app/src/components/chart/engine/ast/fillColourCarriage.test.js` | 20 fills with resolved edges; **0 refusals on BOTH lanes**, asserted per lane |
+| `app/src/components/chart/engine/ast/bothLanesAreTwoLanes.test.js:72` | the two lanes AGREE on Clouds, kept as the opposite of the disagreement case |
+| `app/src/components/chart/engine/ast/alphaCarriage.test.js` | the fill note stays a sentence and carries no colour |
+| `tools/lookback_agreement.json` | `distinct_trees_walked: 310`, the JS readers' own answer, read back by `tests/test_ast_lookback_agreement.py` |
+
+## ⛔ THE VENDOR CAPTURE IS OWED — and the browser was CONNECTED
+
+A browser **was** connected when a6 closed (`Browser 1`, Windows, local,
+`69eb4a48-…`), so this is **not** "unavailable". It is owed for a different and
+narrower reason, recorded exactly so the next session does not re-derive it:
+
+> The Chrome tooling **requires an explicit per-browser confirmation from the owner
+> before any browser action**, and the session that closed a6 was instructed not to ask
+> mid-session. Those two cannot both be honoured, so the capture stops at the boundary
+> rather than being taken on an assumed selection.
+
+**What it needs when the owner is ready** — one line, so nothing is re-derived:
+start the rig backend first (`docs/pine/wip/rig/boot_rig.py`, `UCT_RIG_DATA` pointing
+**outside** every worktree — it refuses otherwise, and the default sandbox is EMPTY);
+then Gate v2.1 on the driving tab before every write and screenshot, the binding gate
+being own-text **`Add to chart` plus 0 studies** by the corrected probe and never
+"editor closed"; the open Pine Editor on that tab is the owner's and is not touched.
+Compare the hosted pane against the vendor render at Wave 1's tolerance, both tables,
+and record the screenshot paths here.
 
 ---
 
