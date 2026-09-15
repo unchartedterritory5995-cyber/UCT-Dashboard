@@ -103,6 +103,29 @@ Baseline (`258c5609d`) has **7**; observed **8**; **NEW = 1**, and it is not thi
 
 **Zero attributable NEW.**
 
+### ⛔ THAT BASELINE HAS BEEN SUPERSEDED, AND THE POST-MERGE GATE USES A DIFFERENT ONE
+
+The `7` above is faithful: it is the count in **this branch's own** `gate-baseline.json`, whose
+self-describing `sha` field reads `258c5609d`. ⚠️ That field is the baseline's **identity label**,
+not the provenance of the blob the gate read — `258c5609d` is an ancestor of both master and this
+branch, and the file *at that commit* holds ten entries. Quoting the number without this sentence
+invites a reader to check the sha and find a different count.
+
+**Master moved on 2026-09-14.** Its baseline is now `sha: 1216958ed`, measured from
+`gate-runs/2026-09-14T17-48-27.md`, holding **10** — and it records `258c5609d` under
+`superseded_baselines`. The three entries master has that this branch's file does not:
+
+| added 2026-09-14 | status |
+|---|---|
+| `components/screener/reachable.test.js` | **R-29**, S4's orphan — the same NEW this gate classified as not-attributable, now banked on master |
+| `lib/presentation/presentationSingleFormatter.test.js` | ⚠️ **`provisional: true`** — five alone-runs were INCONCLUSIVE; it failed once on a verified-clear box and passed twice under a live six-shard gate, so it is an intermittent sitting on its own 15 s timeout boundary, **not** a load artefact (`gate-runs/2026-09-14T21-39-settling-runs.md`) |
+| `surfaces/manifest.test.js` | settled and banked by static proof |
+
+⛔ **So the branch gate's `7 → 8, NEW = 1` and the post-merge gate's arithmetic are measured
+against different yardsticks, and neither is wrong.** The post-merge run compares against **10**. A
+reader who carries `7` forward will read `reachable.test.js` as a fresh regression when master has
+already banked it.
+
 ## 6 · Rollback
 
 **`HUB_PREVIEW_ENABLED=false` in Railway on `web`. No redeploy.** Read per request in `api/routers/auth.py::_access_payload`, so it takes effect on each member's next authenticated request. ⚠️ An already-open page keeps its hub until its next `/api/auth/me` — in practice a reload or route change, not a background poll.
@@ -123,3 +146,80 @@ Full procedure: **`docs/plans/joystick/stage-2-verification.md`**, executed unat
 7. Member announcement drafted as ready-to-post text.
 8. **`python tools/smoke_reset.py`** again — the run is not finished until it exits 0.
 9. The first post-merge docs/tool commit adds R-29 to `gate-baseline.json` (*orphan at `origin/master`; S4-owned; not attributable to any hub branch; passes when S4 records its AWAITING_A_DECISION entry*), and removes it the moment `reachable.test.js` is green on master again.
+
+
+## 8 · The files this PR changes — 26, derived AFTER the commit
+
+```
+git diff --name-only origin/master...launch/stage-2-member-preview
+    CLAUDE.md
+    app/package.json
+    app/scripts/run-hub-rails.mjs
+    app/src/hub/HubRoot.test.jsx
+    app/src/hub/exposureGate.test.js
+    app/src/hub/fanResolutionParity.test.js
+    app/src/hub/homeFanCalendar.test.jsx
+    app/src/hub/hubGlobCoverage.test.js
+    app/src/hub/hubWiring.test.jsx
+    app/src/hub/registry.js
+    app/src/hub/rolloutStage.js
+    app/src/hub/rolloutStages.test.js
+    app/src/hub/runActionsHaveHandlers.test.js
+    app/src/hub/sections/catalystsSection.test.jsx
+    app/src/hub/stageLadderAgreement.test.js
+    app/src/hub/symbolContext.test.jsx
+    app/src/hub/useHubSettings.js
+    app/src/hub/useHubSettings.test.jsx
+    app/src/pages/settings/JoystickSettingsCard.jsx
+    app/src/pages/settings/JoystickSettingsCard.test.jsx
+    app/src/pages/settings/joystickSettingsControls.test.jsx
+    app/vitest.hubGlob.js
+    docs/plans/joystick/closure.md
+    docs/plans/joystick/glass-acceptance-steps.md
+    docs/plans/joystick/rollout.md
+    docs/plans/joystick/surface-matrix.md
+```
+
+⚰️ **Three-dot, and derived after the commit, for two reasons this programme has paid for.**
+A two-dot diff against a moving master reports master's changes as this branch's; and a list built
+*before* the commit cannot see untracked files, which is how a sibling PR body reported **8** files
+when the change set held **11**. Both are silent errors that make a PR body read as complete.
+
+⚠️ **Four of these overlap what master changed since the merge base** — `CLAUDE.md`, `closure.md`,
+`glass-acceptance-steps.md`, `rollout.md`. Git auto-merges all four; `merge-tree --write-tree`
+returns **exit 0, 0 conflicts**. Being **575 commits behind** master is not drift: no rebase is
+required and `2ae7e98aa` is **not** rewritten.
+
+## 9 · ⛔⛔ THE GATE ABOVE MEASURED A BRANCH. THE GATE OF RECORD RUNS ON THE MERGE COMMIT.
+
+Owner ruling, 2026-09-15, written into `stage-2-verification.md` §2. Everything in §5 re-asserts
+this branch. **None of it is the gate for this merge**, and the difference is not pedantry: a branch
+gate measures a tree nobody will ever deploy. What ships is the **merge commit**.
+
+Run after merge, before anything in `rollout.md` §3 b–f starts:
+
+```
+git fetch origin master
+python tools/gate_box_sampler.py --check        # VERDICT=CLEAR before you start
+python scripts/gate_shards.py --shards 6        # ON THE MERGE COMMIT, tree clean
+```
+
+Four conditions, all required; any one missing and the run is not a gate:
+
+1. **`VERDICT=` is the arbiter, never `$?`.** `VERDICT=NO_NEW_FAILURES exit=0` is the only pass.
+   ⚰️ The task wrapper has misreported this twice, in **both** directions — a runner that executed
+   nothing said 0, and a run printing its own `GATE EXIT: 1` said 0.
+2. **Against baseline 10** (`1216958ed`), `#9` still `provisional: true`.
+   ⛔ `VERDICT=DID_NOT_RECONCILE exit=3` is **not** a pass with a caveat.
+3. **Sampler CLEAR for the whole run**, wrapped not bracketed.
+   `INCONCLUSIVE-CONTENDED` / `-UNOBSERVED` ⇒ void, and it **waits**. Never retried into load.
+4. **File reconciliation.** `test_files_on_disk − waived == summed files`.
+
+⭐ **The mechanical half is already pre-flighted.** `harness/2026-09-15-stage2-merge-preflight.md`
+built this merge locally and measured it: artifacts byte-identical after the three-way merge
+(`51ce69db2aa297fed8aa4e139bea4c8a`), and `npm run test:hub` at **89 files / 1166 tests with only
+`tapFloor` failing**, which is §2's own documented PASS. ⛔ That is a *tree*, not the *commit*.
+
+⛔ **A NEW failure here is not automatically the hub's.** Classify by direction first: a failure the
+**base** also has is master's — add it to the baseline citing the base hash. One only the merge has
+blocks. Re-run a load-sensitive name **alone** before classifying it.
