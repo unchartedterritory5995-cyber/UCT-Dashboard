@@ -103,6 +103,16 @@ def push_with_retry(branch="ci-results", runner=None, sleep=time.sleep,
     that swallows a push failure leaves no record and says nothing, which is F-CI-7.
     """
     log = []
+    # ⛔ E CP17 — CLEAR ANY STALE REBASE STATE, AND NAME THE IDENTITY.
+    # A rebase that died half-way leaves `.git/rebase-merge`, and every later rebase in that
+    # repo refuses with "there is already a rebase-merge directory… I am stopping in case you
+    # still have something valuable there" — a refusal that says nothing about THIS run.
+    # And `fatal: empty ident name` is what git says when nobody told it who is committing,
+    # so the ident is reported rather than assumed.
+    rc_ab, _ = run(["git", "rebase", "--abort"], runner=runner)
+    log.append("stale rebase state: %s" % ("cleared" if rc_ab == 0 else "none to clear"))
+    rc_id, who = run(["git", "config", "--get", "user.name"], runner=runner)
+    log.append("committer: %s" % (tail(who) if rc_id == 0 else "⛔ UNSET — git will refuse"))
     for i in range(1, attempts + 1):
         # ⛔ E CP14 - explicit refspec: the rebase below needs the TRACKING ref,
         # and a bare `git fetch origin <b>` is only guaranteed to write FETCH_HEAD.
@@ -314,6 +324,42 @@ def _self_check() -> int:
     # ⛔ NON-VACUITY: the two levels must actually differ, or the check proves nothing.
     show("error and notice are distinguishable", ann_c[:9] != ann_ok[:9], True)
 
+    # 4d — ⚰️⚰️ E CP17: ASKING THIS TOOL TO CHECK A FILE MUST NOT PUSH.
+    calls = []
+    real = globals()["push_with_retry"]
+    globals()["push_with_retry"] = lambda *a, **k: (calls.append(a or k) or (OK, ["stub"]))
+    try:
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            f = pathlib.Path(td) / "jobs.json"
+            f.write_text("{}", encoding="utf-8")
+            rc_report = main(["--check-artifact", str(f)])
+            show("--check-artifact alone exits 0", rc_report, OK)
+            show("...and pushes NOTHING (the run-#14 defect)", len(calls), 0)
+            main(["--push", "--check-artifact", str(f)])
+            show("--push DOES publish", len(calls), 1)
+    finally:
+        globals()["push_with_retry"] = real
+    # ⛔ NON-VACUITY: if the stub were never wired, both counts would be 0 and the pair
+    # would agree for the wrong reason.
+    show("report-mode and push-mode are distinguishable", len(calls) == 1, True)
+
+    # 4e — a stale rebase directory must be cleared, and the ident named, before attempting
+    cleared = []
+    def stale_runner(cmd):
+        if cmd[:3] == ["git", "rebase", "--abort"]:
+            cleared.append(1)
+            return (0, "")
+        if cmd[:4] == ["git", "config", "--get", "user.name"]:
+            return (1, "")          # UNSET — the run-#14 state
+        if cmd[1] == "push":
+            return (0, "")
+        return (0, "")
+    rc_s, log_s = push_with_retry(runner=stale_runner, sleep=lambda s: None)
+    show("a stale rebase directory is cleared before rebasing", len(cleared), 1)
+    show("...and an UNSET committer is NAMED, not assumed",
+         any("UNSET" in l for l in log_s), True)
+
     # 5 — ⚰️ E CP13: THIS SCRIPT MUST STILL EXIST WHEN IT IS CALLED.
     # `ci-results` carries README.md + results/** and no `tools/` at all, so
     # `git checkout ci-results` deletes this file from the working tree. E CP9 added
@@ -345,6 +391,18 @@ def _self_check() -> int:
              bool(calls), True)
         show("...and none of them is under tools/, which the checkout deletes",
              [c for c in (calls or []) if not c.startswith("/tmp")], [])
+        # ⛔ E CP17 — EXACTLY ONE INVOCATION IN THE WHOLE WORKFLOW MAY CARRY `--push`.
+        # Any other is a step that writes to the branch as a side effect of doing something
+        # else, which is the run-#14 defect by construction.
+        whole = wf.read_text(encoding="utf-8")
+        invocations = [l.strip() for l in whole.splitlines()
+                       if l.strip().startswith("python ") and "ci_publish.py" in l]
+        show("the workflow invokes ci_publish at all (non-vacuity)",
+             len(invocations) >= 2, True)
+        show("...and EXACTLY ONE of them carries --push",
+             sum(1 for l in invocations if "--push" in l), 1)
+        show("...and the artifact-check invocation is NOT the one",
+             [l for l in invocations if "--check-artifact" in l and "--push" in l], [])
         # CONTROL: the pre-fix spelling must be caught by this very check.
         broken = body.replace('python "/tmp/ci_publish.py"', "python tools/ci_publish.py")
         show("control: the run-#10 spelling IS flagged",
@@ -369,6 +427,19 @@ def main(argv=None) -> int:
     ap.add_argument("--check-artifact", action="append", default=[])
     ap.add_argument("--summary-file")
     ap.add_argument("--self-check", action="store_true")
+    # ⚰️⚰️ E CP17 — WITHOUT THIS FLAG, ASKING THIS TOOL TO *CHECK A FILE* ALSO PUSHED.
+    # `main()` called `push_with_retry` unconditionally, so the workflow's artifact-check
+    # step — `ci_publish.py --check-artifact jobs.json … || true`, which runs BEFORE the
+    # publish step sets `user.name` and before the branch switch — attempted a full
+    # fetch/rebase/push against `ci-results` on every run since E CP9. It failed with
+    # `fatal: empty ident name` (no identity configured yet) and LEFT `.git/rebase-merge`
+    # behind, so the real publish later died on "there is already a rebase-merge directory".
+    # ⛔ The `|| true` on that line hid all of it: the step reported success while performing
+    # an unasked-for push and corrupting the state of a step that had not run yet.
+    # ⭐ A verification line must never destroy the thing it verifies — this is that rule
+    # inverted, and worse: the verification line PERFORMED THE ACTION.
+    ap.add_argument("--push", action="store_true",
+                    help="actually publish. Without it this tool only reports.")
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
@@ -378,6 +449,11 @@ def main(argv=None) -> int:
     if a.summary_file and pathlib.Path(a.summary_file).is_file():
         print("[ci-publish] " + write_step_summary(
             pathlib.Path(a.summary_file).read_text(encoding="utf-8")))
+
+    if not a.push:
+        print("[ci-publish] reporting only — no --push, so nothing was fetched, "
+              "rebased or pushed.")
+        return OK
 
     rc, log = push_with_retry(a.branch)
     for l in log:
