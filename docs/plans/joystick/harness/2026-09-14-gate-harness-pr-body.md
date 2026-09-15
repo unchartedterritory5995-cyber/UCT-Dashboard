@@ -219,7 +219,7 @@ Both halves are closed:
 
 | control | proves |
 |---|---|
-| (a) raw `` inside a gate command line | parsed **and** the process is still classified `gate` — a fix that dropped the row would read the box as quiet while a real gate ran |
+| (a) raw `\x01` inside a gate command line | parsed **and** the process is still classified `gate` — a fix that dropped the row would read the box as quiet while a real gate ran |
 | (b) truncated snapshot through `watch()` | recorded as an unobserved sample; run continues; verdict `INCONCLUSIVE-UNOBSERVED`, never CLEAR |
 | (c) identical run, valid snapshot | `CLEAR` — so (b) is attributable to the bad snapshot, not to the harness |
 
@@ -234,7 +234,7 @@ Bytes captured first and restored by sha256; never `git checkout --`.
 ⚠️ **The fixture is a stated stand-in.** The crashing snapshot was not kept and the offending
 process is gone — a live snapshot taken while writing this contained **zero** raw control
 characters. What is reproduced is its *shape*: a raw control byte inside a command-line string
-value, which is where char 106640 sat. `json.dumps` would escape it to a valid ``, so the
+value, which is where char 106640 sat. `json.dumps` would escape it to a valid `\u0001`, so the
 escape is deliberately un-escaped back into a raw byte, and a non-vacuity rail asserts the fixture
 really does defeat a strict parse.
 
