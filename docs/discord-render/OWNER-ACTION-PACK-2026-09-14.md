@@ -139,3 +139,126 @@ the diff unreviewable.
 5. **§0's S2 row now carries four sub-verdicts** (latency · S5 · S5b · S5c) and the row takes the
    worst. The generator must print all four, because a row that reports only its worst hides the
    three that were measured.
+
+---
+
+# OWNER PACK v2 — appended 2026-09-14 (D-04). One pack, not two.
+
+> **§4.1–4.5 above are unchanged and still current.** Do them first; everything below is additive.
+> ⛔⛔ **`DISCORD_RENDER_V2_ENABLED` is still never set by a session, and is not in any checklist here.**
+
+---
+
+## 5.1 · OI-13 — rotate the render token and the renderer secret
+
+**Which services redeploy, PROVEN rather than assumed:**
+
+| variable | read by | redeploys on change |
+|---|---|---|
+| `CHART_RENDERER_SECRET` | `web` (`discord_chart_house.py:296`) **and** `chart-renderer` (`app.py:76`) | **`web` yes** (a Railway variable change on `web`) · **`chart-renderer` yes**, separately |
+| `CHART_RENDER_TOKEN` | `web` only — `render_panels.py:71-76`; it rides to the renderer as a **header**, never in the renderer's env | **`web` yes** |
+| `VITE_CHART_RENDER_TOKEN` | **baked into the React bundle at BUILD time** | **`web` yes — and only a REBUILD changes it**, not a restart |
+
+⛔ **THEREFORE: OUTSIDE 09:25–16:05 ET ONLY.** Every variant restarts `web`.
+
+⭐ **AND THE ORDER MATTERS, because there is a window where a sender holds the old value and a
+receiver the new.** OI-19 already built the escape: **both sides accept `…_TOKEN` or
+`…_TOKEN_PREVIOUS`**. So:
+
+| # | flag | step |
+|---|---|---|
+| 1 | **[DASHBOARD]** | On `web`: set `CHART_RENDER_TOKEN_PREVIOUS` = the CURRENT token value, and `VITE_CHART_RENDER_TOKEN_PREVIOUS` likewise. Change nothing else. |
+| 2 | — | wait for the `web` rebuild (outside RTH) |
+| 3 | **[DASHBOARD]** | On `web`: set `CHART_RENDER_TOKEN` **and** `VITE_CHART_RENDER_TOKEN` to the NEW value. Both, in one edit — the bundle and the API gate must agree. |
+| 4 | — | wait for the `web` rebuild. **Both old and new are accepted throughout**, so there is no rejection window. |
+| 5 | **[KEYBOARD]** | On `chart-renderer`: `railway variables --service chart-renderer --set "CHART_RENDERER_SECRET=<new>"` then `railway redeploy --service chart-renderer --yes`. ⚠️ `--set`'s restart behaviour has been measured BOTH ways in this repo — watch for a new boot, do not assume. |
+| 6 | **[KEYBOARD]** | Verify **in-process on both sides**, not from `--kv` (below). |
+| 7 | **[DASHBOARD]** | Only once step 6 is green on both: clear `CHART_RENDER_TOKEN_PREVIOUS` and `VITE_CHART_RENDER_TOKEN_PREVIOUS`. ⛔ An uncleared `_PREVIOUS` means the old credential still works — the rotation has not finished until this is done. |
+
+**Step 6, the in-process reads:**
+
+```sh
+# web: the values the RUNNING process holds
+railway ssh --service web -- /opt/venv/bin/python -c \
+  "import os;print('tok', bool(os.environ.get('CHART_RENDER_TOKEN')), \
+   'prev', bool(os.environ.get('CHART_RENDER_TOKEN_PREVIOUS')))"
+# ⛔ PRINTS PRESENCE, NEVER THE VALUE. A rotation that logs the credential it is rotating has
+# rotated nothing (C-13's whole subject).
+```
+
+**Abort, per step:** steps 1–4 are additive and reversible by setting the variable back; step 5's
+abort is the same `--set` with the old secret plus a redeploy; **step 7 has no abort** — once
+`_PREVIOUS` is cleared the old credential is dead, which is the point.
+
+**What the C-13 row will then require to close** — stated now so it is not negotiated later:
+1. the rotation completed, with `_PREVIOUS` **cleared** on both variables (step 7);
+2. `c13_token_sweep.py` green against the renderer source, **with its control still finding 33
+   leaks when redaction is disabled** — a green sweep whose control has gone quiet proves nothing;
+3. the old token value absent from the running env on both services, read in-process as above.
+
+---
+
+## 5.2 · Flip-packet entry: OI-41 (producer 3)
+
+> **The V1 render semaphore is a second concurrency ceiling, and V2 shares it.**
+> `RENDER_SLOTS` (`discord_interactions.py:67`, `DISCORD_CHART_MAX_CONCURRENT`, **8** in production)
+> gates every call to the renderer from *both* paths. The V2 queue admits on its own ceiling
+> (`DISCORD_RENDER_WORKERS` **6**, depth **48**), so a V2 job can be admitted and then wait on a slot
+> a pre-V2 member is holding.
+>
+> **Before D-04 that job was told `queue_full` — "we're at capacity right now" — the ADMISSION
+> refusal, about a queue it was already inside.** Fixed: a V2 job now waits for a slot up to its own
+> remaining budget and, if that expires, is told `deadline` ("the chart service took too long"),
+> which is true. V1 is byte-identical (`slot_wait_s` defaults to 0.0; the mapping is inside the
+> `fail_fn` branch only V2 supplies).
+>
+> ⚠️ **Canary consequence:** during a canary both paths are live and share those 8 slots. 6 V2
+> workers + pre-V2 members can exceed 8, so waiting — not refusing — is what members will experience
+> under contention. Watch `deadline` counts, not `queue_full`, as the canary's capacity signal.
+
+---
+
+## 5.3 · Flip-packet entry: the S2 instrument ruling and its limits
+
+> **S2 is measured against production, off-hours, at real-traffic rates only** (ruling R1, entered by
+> Claude (chat) 14 Sep 2026, owner-delegated — **not an owner ruling on the merits**).
+> Limits, all of them: market closed, never 09:25–16:05 ET; tiers **busiest-60s, busiest-10s and the
+> design burst ONLY** — the 3× tier and every overload tier are **permanently excluded from
+> production**; concurrency ≤ `RENDER_MAX_CONCURRENT − 1` (**= 1** at the default of 2); ≤ 400 offers
+> and ≤ 15 minutes per run; an organic-arrival tripwire that pauses on the first and aborts on a
+> second within 60 s; an S1 tripwire that aborts on any harness ack over 3 s; every request tagged
+> in band so it can never be counted as organic.
+>
+> **The S2 row accepts only `renderer=production` artifacts**, or organic canary-channel samples
+> labelled `source=canary`, and **refuses to judge below N = 120 judged deliveries per tier**,
+> reporting NOT MEASURABLE instead.
+>
+> ⛔ **NOT YET RUN.** GO/NO-GO failed on one item: the branch carrying the tripwires, the harness tag
+> and the `refusal_reach_ms` column **is not merged**, so production has none of the machinery the
+> ruling requires. See `S2-RUN-GONOGO-2026-09-14.md`.
+
+---
+
+## 5.4 · The narrowing checklist — unchanged, re-issued
+
+Exactly as §4.3 above. Do not treat this as a second version; it is the same list:
+
+1. **[DASHBOARD]** `DISCORD_RENDER_V2_CHANNELS` = `1549129739048853544` (`#render-smoke`).
+   **`DISCORD_RENDER_V2_ENABLED` stays UNSET.**
+2. Wait for the `web` redeploy — **outside 09:25–16:05 ET only**.
+3. **[KEYBOARD]** `python docs/discord-render/instruments/canary_scope_readback.py` — a correct read
+   is `v2_channels: ["1549129739048853544"]`, **`unrestricted: false`**, `v2_enabled: false`.
+   A `--kv` read is not evidence.
+4. **[DASHBOARD]** `FLOW_CMD_CHANNEL_ID` = `1546563720702853280,1549129739048853544`.
+5. **[KEYBOARD]** verify in-process again.
+6. **STOP.**
+
+---
+
+## ⛔ The one decision blocking everything else
+
+**Merge `discord-render-hardening` (20 commits) to `master`?** It is the only remaining blocker for
+the S2 run, and it is the act that changes what members' `web` pod executes. Measured: **no
+member-visible behaviour change with V2 off**, but it **does restart `web`**, so outside RTH only,
+and another deploy was in flight 3 minutes before this was written — that one must be SUCCESS first.
+**Not done. Yours.**
