@@ -29,6 +29,7 @@ vi.mock('../components/CompanyLogo', () => ({ default: () => null }))
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBar: () => {}, prefetchBars: () => {}, prefetchBarsToIDB: () => {},
   prefetchAllTimeframes: () => {}, prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {},
+  prewarmVisibleList: () => {}, warmMemFromIDB: () => {},
 }))
 
 // The panel under test. Stub exposes exactly what the page passed it.
@@ -43,9 +44,11 @@ vi.mock('../components/chart/pane/ChartPane', () => ({
 }))
 
 // ── Data hooks ──
-// One theme, one holding (AAPL). The page auto-opens the FIRST theme on load
-// (see ThemeTrackerPage's firstThemeTicker effect), so the holding row is
-// visible without any click — we only click it to select.
+// One theme, one holding (AAPL). ⚰️ STALE PRECONDITION, REPAIRED 2026-09-15:
+// this said the page "auto-opens the FIRST theme on load (firstThemeTicker effect)".
+// That effect was added by `3fe7b63e3` and REMOVED by `453ecc3ec` (2026-09-05,
+// "feat(theme-sets): rebuilt editor"), which left `openTheme` starting null and
+// `toggleTheme()` as the observable equivalent. The theme row is expanded explicitly.
 const THEME_DATA = {
   themes: [
     {
@@ -112,6 +115,9 @@ test('selecting a holding mounts ChartPane with that symbol and the current time
   const user = userEvent.setup()
   renderStandalone()
 
+  // ⛔ EXPAND FIRST. `openTheme` starts null since `453ecc3ec`; without this click the
+  // holding row is not rendered at all and the failure reads as a missing ChartPane.
+  await user.click(await screen.findByText('Test Theme'))
   // Click the HOLDING row, not the theme's "… Index" row (that one is the
   // synthetic $IDX: pseudo-ticker and takes the bare-StockChart branch).
   await user.click(await screen.findByText('AAPL'))
@@ -125,6 +131,7 @@ test('selecting a holding mounts ChartPane with that symbol and the current time
 test('passes stored=null with no onStore, and keeps symbol retargeting enabled', async () => {
   const user = userEvent.setup()
   renderStandalone()
+  await user.click(await screen.findByText('Test Theme'))
   await user.click(await screen.findByText('AAPL'))
 
   // Located by a symbol/tf-agnostic regex so this assertion is immune to a
