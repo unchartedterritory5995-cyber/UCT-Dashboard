@@ -395,6 +395,12 @@ function disambiguateSiblings(chips, inputsByChip, registry) {
 
     idxs.forEach((chipIdx, n) => {
       const label = `${chips[chipIdx].label}${suffixes[n]}`
+      // ⭐ THE SUFFIX IS KEPT AS A FIELD, not only baked into the label. The pane
+      // readout prints a LONGER name than the strip does (`paneReadoutLabel`), and
+      // it has to be able to tell two copies apart with the same words the legend
+      // uses — re-deriving the suffix from a rendered label would be the second
+      // place this grammar is spelled.
+      chips[chipIdx].suffix = suffixes[n]
       chips[chipIdx].label = label
       chips[chipIdx].text = `${label} ${chips[chipIdx].value.toFixed(chips[chipIdx].decimals)}`
     })
@@ -617,4 +623,58 @@ export function disambiguateLabels(rows, get) {
     idxs.forEach((rowIdx, n) => { out[rowIdx] = `${out[rowIdx]}${suffixes[n]}` })
   }
   return out
+}
+
+/**
+ * The name a PANE's own readout prints — the long one.
+ *
+ * ⭐⭐ THE LEGEND STRIP AND THE PANE READOUT ANSWER DIFFERENT QUESTIONS, and the
+ * owner's ask is exactly that: *"when in their own pane show the full name of the
+ * indicator… but in the legend keep all of them abbreviated"*. The strip is a
+ * dense row where nine names share one line, so `RSI(14)` is right there. A pane
+ * readout sits alone over a rectangle with nothing else in it and acres of room,
+ * and `UCTU20W` over a chart of green bars tells a member nothing they did not
+ * already have to know.
+ *
+ * ⛔ IT DERIVES, IT DOES NOT SPELL. Every string here comes from the same
+ * declaration the rest of the product reads — `meta.name` is what the catalogue
+ * lists, what `About …` titles and what the popover header prints — so a renamed
+ * indicator cannot end up with two names on one chart. This is NOT the second
+ * spelling of the chip label that `paneReadoutRows`' comment warns about; it is a
+ * DIFFERENT field of the same record, chosen on purpose.
+ *
+ * ⛔ A SECONDARY PLOT KEEPS ITS OWN SHORT NAME. MACD's pane prints two rows, and
+ * "Moving Average Convergence Divergence" over `SIG` would name the indicator
+ * twice and the line never. The first chip-bearing plot is the one the definition
+ * is named after; the rest are parts of it and already carry the word for the
+ * part (`SIG`, `%D`, the band edges).
+ *
+ * ⚠️ AND THE SOURCE-NAMED DEFINITIONS CANNOT BE ANSWERED FROM HERE. `dataSeries`
+ * is deliberately blind to what a symbol IS (`nativeRegistry`: no `if breadth`,
+ * no symbol list) and this module imports no source grammar, so the long name of
+ * `UCTU20W` arrives as an argument from the caller that can look it up. A caller
+ * with no answer gets the short label back, which is what the strip shows — never
+ * a guess, and never the string "Data Series".
+ *
+ * @param {object} chip      one `legendChips` row
+ * @param {object|null} def  its definition
+ * @param {string|null} [sourceName]  the long name of the chip's SOURCE, for a
+ *   `meta.labelFrom: 'source'` definition; ignored for every other kind
+ * @returns {string} the name to print over the pane
+ */
+export function paneReadoutLabel(chip, def, sourceName) {
+  if (!chip || typeof chip.label !== 'string') return ''
+  if (!def) return chip.label
+  // The sibling suffix travels with whichever name we choose — see
+  // `disambiguateSiblings`, which stamps it onto the chip for exactly this.
+  const suffix = typeof chip.suffix === 'string' ? chip.suffix : ''
+  if (def.meta && def.meta.labelFrom === 'source') {
+    return (typeof sourceName === 'string' && sourceName)
+      ? `${sourceName}${suffix}`
+      : chip.label
+  }
+  const primary = (def.plots || []).find((p) => p && p.legend && p.legend.hide !== true)
+  if (!primary || primary.key !== chip.plotKey) return chip.label
+  const full = def.meta && def.meta.name
+  return (typeof full === 'string' && full) ? `${full}${suffix}` : chip.label
 }

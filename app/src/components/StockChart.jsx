@@ -122,7 +122,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, siblingSuffixes } from './chart/engine/readout'
+import { legendChips, siblingSuffixes, paneReadoutLabel } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -274,15 +274,15 @@ function chipMenuRowToPopoverRow(it) {
  * goes in through the `header` prop, which renders it inert above the list in
  * BOTH branches — the desktop anchored menu and the touch bottom sheet.
  *
- * ⛔ AND IT WEARS THE SAME RAIL THE LABEL ON THE CHART DOES. The colour is the
- * one thing that ties the menu back to the line it is about; a member who opened
- * the wrong RSI's menu has no other way to tell.
+ * ⚰️ IT WORE A 2px COLOUR RAIL. Retired with the legend's rails (owner,
+ * 2026-09-14) — the menu is titled with the label it was opened from, which is
+ * what identifies it, and the line it is about is the one the hover lift raised
+ * on the way in.
  */
-function LegendMenuHeader({ label, value, color, hidden, sub }) {
+function LegendMenuHeader({ label, value, hidden, sub }) {
   return (
     <div className={styles.legMenuHead}>
       <div className={styles.legMenuTop}>
-        {color ? <i className={styles.legMenuRail} style={{ background: color }} aria-hidden="true" /> : null}
         <span className={styles.legMenuName}>{label}</span>
         {/* ⛔ NO VALUE WHILE HIDDEN — the line is not drawn, so a number here
             would read out something that is not on the chart. The same rule
@@ -687,10 +687,10 @@ import {
   // Chart Settings → Indicators now read this same function.
   displayTargetOptions,
 } from './chart/engine/displayTarget'
-import { parsePaneOfTarget } from './chart/engine/sourceRef'
+import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
-import { symbolFamily, loadBreadthSymbols } from '../hooks/useBreadthSymbols'
+import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 
 const NOOP = () => {}
 
@@ -2899,17 +2899,6 @@ export default function StockChart({
   // row). A second PAGE of one popover rather than a second popover: the text is
   // `def.meta.description`, which every definition already declares.
   const [chipAbout, setChipAbout] = useState(null)
-  // ⭐⭐ TRACK B — DELETE ARMS BEFORE IT FIRES. The destructive verb used to be an
-  // 11px ✕ sitting 5px from the gear, and this file already carried the
-  // measurement that said why that was dangerous: one extra glyph in a live value
-  // moved every control 5.4px, so the box that was Settings a moment ago was
-  // Remove (`IndicatorChip.module.css`, 2026-08-14, MACD on WMT 1D). The ending
-  // that paragraph predicted — *"the fix is a confirm on the destructive verb"* —
-  // is this flag: the first click re-labels the row `Delete <label>?` and keeps
-  // the popover open, the second one fires. One extra click, no modal, no second
-  // surface. Reset on every open, so an armed row can never survive into the next
-  // menu.
-  const [chipArmed, setChipArmed] = useState(false)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -4095,13 +4084,10 @@ export default function StockChart({
         color: ema9CandleColorFor(ov) ?? ov.color,
         hidden,
         csIndex,
-        // ⭐ THE RENDER INDEX, WHICH IS THE ONLY WAY BACK TO THE DRAWN SERIES.
-        // `overlaySeriesRefs.current` is indexed by position in `resolvedOverlays`
-        // — NOT by `csIndex` (the stored slot) and NOT by the row's position in
-        // this list (tombstones and the synthetic SMA 5 shift it). Track B's hover
-        // lift has to reach `overlaySeriesRefs.current[ri]`, and `ri` is already in
-        // hand here; recomputing it at hover time would be a second mapping.
-        ri,
+        // ⚰️ `ri` (the RENDER index) WAS CARRIED HERE, and only so the retired
+        // hover lift could reach `overlaySeriesRefs.current[ri]`. Nothing reads it
+        // now. `csIndex` — the STORED slot — is what the verbs address, and it is
+        // a different number the moment a tombstone is in the list.
         _period: Number(ov.period),
       }
     }
@@ -4614,94 +4600,28 @@ export default function StockChart({
     try { toolbarRef.current?.openAlerts({ instanceId, plotKey }) } catch { /* noop */ }
   }, [])
 
-  /* ─── TRACK B · HOVER → *WHICH LINE IS THIS?* ─────────────────────────────
+  /* ⚰️⚰️ TRACK B'S HOVER-LIFT IS RETIRED (owner, 2026-09-14, after production use).
    *
-   * ⭐⭐ THE ONE QUESTION THE LEGEND NEVER ANSWERED. On a chart carrying eleven
-   * series, "RSI(14) 63.4" tells a member what the row IS and says nothing about
-   * which of the lines in front of them it controls — and neither TC2000 nor
-   * TradingView answers it either. Hovering a label lifts its drawn series.
+   * Pointing at a legend label used to add a pixel to its drawn series' line
+   * width — ephemeral, renderer-only, exact-restore — to answer *"which line is
+   * this?"*. It worked, and the owner does not want it: a legend that mutates the
+   * PLOT on hover makes the chart twitch under a pointer that is only reading.
    *
-   * ⛔⛔ EPHEMERAL, AND NOTHING IS PERSISTED. This never touches `cs`, never calls
-   * a writer and never runs through the binder's style resolution: it reads the
-   * series' CURRENT `lineWidth` off the renderer, adds to it, and puts the
-   * original back. A hover that wrote a style would make "point at a line" a
-   * settings change — and would fight `setInstancePlotStyle` for the same key.
+   * ⛔ SO THERE IS NO `HOVER_LIFT`, NO `hoverLiftRef`, NO `liftSeries`, NO
+   * `clearLegendHover` AND NO `handleLegendHover` ANY MORE, and no legend surface
+   * passes an `onHover`. Hovering a manageable row now changes exactly one thing:
+   * a faint background on that row, in CSS. Nothing reaches the renderer.
    *
-   * ⛔ THE ORIGINAL IS STASHED PER SERIES, NOT DERIVED ON THE WAY BACK. Asking
-   * the definition what the width "should" be would silently normalise a member's
-   * own override the first time they pointed at it.
-   *
-   * ⚠️ A SERIES WITH NO `lineWidth` IS LEFT ALONE — candlesticks, bars and
-   * histograms have no such option, so there is nothing to lift and a thrown
-   * `applyOptions` would take the hover path down mid-move. They are also the one
-   * series in their pane, which is the case this feature exists to disambiguate.
-   *
-   * ⚠️ AND A BINDER SYNC DURING A HOVER SIMPLY WINS. `sync` re-applies the stored
-   * style, so the lift drops; the restore then writes the value we measured,
-   * which is the same value the sync just wrote. Nothing can be left lifted,
-   * because `clearLegendHover` runs on every leave, on every open of the popover,
-   * and on unmount. */
-  const HOVER_LIFT = 2
-  const hoverLiftRef = useRef([])
-  const clearLegendHover = useCallback(() => {
-    const held = hoverLiftRef.current
-    hoverLiftRef.current = []
-    for (const h of held) {
-      try { h.series.applyOptions({ lineWidth: h.lineWidth }) } catch { /* torn down */ }
-    }
-  }, [])
-  const liftSeries = useCallback((list) => {
-    clearLegendHover()
-    const held = []
-    for (const series of list) {
-      if (!series) continue
-      let w = null
-      try { w = Number(series.options()?.lineWidth) } catch { w = null }
-      if (!Number.isFinite(w)) continue
-      try { series.applyOptions({ lineWidth: Math.min(w + HOVER_LIFT, 6) }) } catch { continue }
-      held.push({ series, lineWidth: w })
-    }
-    hoverLiftRef.current = held
-  }, [clearLegendHover])
-
-  /** `(hoverKey | null) => void` — the ONE hover door for every legend surface.
-   *
-   *  `hoverKey` is an ENGINE INSTANCE ID, or `ov:<renderIndex>` for a legacy
-   *  moving-average overlay. The volume pane sends nothing: its strip has no line
-   *  to lift and its row carries no label of its own. */
-  const handleLegendHover = useCallback((hoverKey) => {
-    if (!hoverKey) { clearLegendHover(); return }
-    if (typeof hoverKey === 'string' && hoverKey.startsWith('ov:')) {
-      const ri = Number(hoverKey.slice(3))
-      const s = Number.isInteger(ri) ? (overlaySeriesRefs.current || [])[ri] : null
-      liftSeries(s ? [s] : [])
-      return
-    }
-    // ⛔ EVERY PLOT OF THE INSTANCE, not just the hovered one. MACD is three
-    // columns of ONE indicator; lifting only the line the pointer happens to be
-    // over would say the signal belongs to something else.
-    let list = []
-    try {
-      list = (engineRef.current?.binder?.bindings() || [])
-        .filter((b) => b && b.instanceId === hoverKey)
-        .map((b) => b.series)
-    } catch { list = [] }
-    liftSeries(list)
-  }, [clearLegendHover, liftSeries])
-
-  // Nothing may be left lifted when this chart goes away.
-  useEffect(() => clearLegendHover, [clearLegendHover])
-
+   * ⚠️ IF A FUTURE PASS WANTS PLOT IDENTIFICATION BACK, it does NOT belong here:
+   * this was a per-move `applyOptions` on a live chart, and the reason it was safe
+   * was a pile of bookkeeping (stash the original, restore on leave, drop on
+   * popover-open because a portalled menu never fires `mouseleave`, drop on
+   * unmount). Re-adding it means re-adding all of that. */
   const handleChipMenu = useCallback((chip, anchor) => {
-    // ⛔ THE LIFT IS DROPPED WHEN THE POPOVER OPENS. The popover is portalled to
-    // `<body>`, so moving the pointer into it never fires the row's `mouseleave`
-    // — an indicator would stay fattened for as long as the menu was up.
-    clearLegendHover()
     setChipPage(null)
     setChipAbout(null)
-    setChipArmed(false)
     setChipMenu({ chip, anchor })
-  }, [clearLegendHover])
+  }, [])
 
   /** The popover for the rows that are NOT engine instances: the legacy moving
    *  averages and the volume pane.
@@ -4716,12 +4636,10 @@ export default function StockChart({
    *  ⛔ AND EVERY VERB IS STILL THE DOOR THAT SURFACE ALREADY USED —
    *  `legendRowHidden` / `legendRowSettings` / `legendRowRemove`. No new writer. */
   const handleRowMenu = useCallback((rowId, anchor) => {
-    clearLegendHover()
     setChipPage(null)
     setChipAbout(null)
-    setChipArmed(false)
     setChipMenu({ rowId, anchor })
-  }, [clearLegendHover])
+  }, [])
 
   /** The chip's four handlers, or NULL on a read-only mount.
    *
@@ -4831,6 +4749,20 @@ export default function StockChart({
     onOpen: handleRowMenu,
   } : null), [showDrawingTools, handleRowMenu])
 
+  /** The volume PANE STRIP's door.
+   *
+   *  ⛔ IT IS `handleRowMenu('volume')`, THE SAME ADDRESS THE LEGEND'S OWN VOLUME
+   *  ROW TAKES — so the strip's menu and the legend's are one menu with one set
+   *  of verbs, and there is no second volume vocabulary to keep in step.
+   *
+   *  ⭐ ANCHORED TO THE STRIP, like every other legend trigger, so a keyboard
+   *  activation lands where a click does. */
+  const openVolumeMenu = useCallback((e) => {
+    const el = e && e.currentTarget
+    const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+    handleRowMenu('volume', r ? { x: r.left, y: r.bottom + 3 } : { x: e?.clientX ?? 0, y: e?.clientY ?? 0 })
+  }, [handleRowMenu])
+
   /** A legend chip's gear.
    *
    *  ⭐ IT GOES TO CHART SETTINGS → INDICATORS, EXPANDED ON THAT INSTANCE, on any
@@ -4868,14 +4800,13 @@ export default function StockChart({
     // rows of the popover `onMenu` opens, closed over in the render block below —
     // but the chip no longer needs three props to render three targets.
     onMenu: handleChipMenu,
-    onHover: handleLegendHover,
     // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
     // BODY opens the study's mobile editor. Spread at all three legend branches
     // through this one object, so the parity-pinned JSX stays untouched.
     onBodyTap: onLegendStudyTap
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
-  } : null), [showDrawingTools, handleChipMenu, handleLegendHover, onLegendStudyTap])
+  } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
 
   // Reset to the default present-day view (newest bar at LAST_CANDLE_POS). Extracted
   // to the component body so the right-click "Reset view" AND the floating
@@ -5843,6 +5774,43 @@ export default function StockChart({
     const target = resolveDisplayTarget(inst, cs)
     if (target === 'pane') return id
     return parsePaneOfTarget(target)
+  }, [cs])
+  /**
+   * The LONG name a pane readout prints for one chip.
+   *
+   * ⭐⭐ THE PANE SAYS IT IN FULL, THE STRIP KEEPS IT SHORT (owner, 2026-09-14):
+   * *"when in their own pane show the full name … but in the legend keep all of
+   * them abbreviated"*. `paneReadoutLabel` owns the rule; this supplies the one
+   * fact that rule cannot reach — what a SYMBOL is called — because `dataSeries`
+   * is deliberately blind to symbol families and `readout.js` imports no source
+   * grammar.
+   *
+   * ⛔ THE MEMBER'S OWN NAME WINS, AND IT IS TESTED FIRST. An instance renamed
+   * through a catalogue door carries `display.name`, which is already what the
+   * chip prints; replacing it with the registry's sentence would overrule a
+   * member's rename on one surface and not the other.
+   *
+   * ⚠️ NULL IS THE ORDINARY ANSWER for a security (`QQQ` overlaid on AAPL): the
+   * breadth registry is not a company-name directory, and the chip's own label is
+   * the right fallback — the symbol IS what that row is called.
+   */
+  const paneLongName = useCallback((chip) => {
+    const id = chip && chip.instanceId
+    if (typeof id !== 'string' || !id) return null
+    const inst = (engineInstancesRef.current || []).find((i) => i && i.instanceId === id)
+      || (cs.indicatorInstances || []).find((i) => i && i.instanceId === id)
+    if (!inst) return null
+    if (inst.display && typeof inst.display.name === 'string' && inst.display.name) return null
+    const def = engineRegistry.getDefinition(chip.defId)
+    if (!def) return null
+    for (const [, value] of sourceInputsOf(def, inst)) {
+      const parsed = parseSource(value)
+      if (!parsed || parsed.kind !== 'symbol') continue
+      const rec = breadthRecord(parsed.symbol)
+      const name = rec && typeof rec.name === 'string' ? rec.name.trim() : ''
+      if (name) return name
+    }
+    return null
   }, [cs])
   const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
   // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
@@ -15842,7 +15810,7 @@ export default function StockChart({
           ⛔ AND IT IS RESOLVED FROM `cs` AT RENDER, not from the snapshot: the
           Move submenu's tick has to follow the placement the user just chose. */}
       {chipMenu && (() => {
-        const close = () => { setChipMenu(null); setChipPage(null); setChipArmed(false) }
+        const close = () => { setChipMenu(null); setChipPage(null) }
         const sheetCls = canvasTheme === 'sunrise' ? 'uctSunSheet' : ''
 
         // ── THE ROWS THAT ARE NOT ENGINE INSTANCES ───────────────────────────
@@ -15866,20 +15834,18 @@ export default function StockChart({
           const ov = Number.isInteger(ovIdx) ? (cs.overlays || [])[ovIdx] : null
           const rowLabel = isVol ? 'Volume' : (ov ? `${ov.type} ${ov.period}` : 'Indicator')
           const rowHidden = isVol ? cs.volume?.visible === false : ov?.enabled === false
-          const rowColor = isVol ? undefined : (ov && ov.color)
           const rows = [
-            { key: 'hidden', label: `${rowHidden ? 'Show' : 'Hide'} ${rowLabel}`, icon: 'eye',
+            { key: 'hidden', label: rowHidden ? 'Show' : 'Hide', icon: 'eye',
               onClick: () => { close(); legendRowHidden(rid) } },
             { separator: true },
             { key: 'settings', label: 'Edit in Chart Data…', icon: 'sliders',
               onClick: () => { close(); legendRowSettings(rid) } },
             { separator: true },
-            { key: 'remove', label: chipArmed ? `Delete ${rowLabel}?` : 'Delete', icon: 'trash',
-              danger: true, keepOpen: !chipArmed,
-              onClick: () => {
-                if (!chipArmed) { setChipArmed(true); return }
-                close(); legendRowRemove(rid)
-              } },
+            // ⚰️ THIS ROW USED TO ARM. One click now (owner, 2026-09-14): it is
+            // red, destructive-styled, alone below a rule and last in the menu,
+            // which is the protection a plot-management action warrants.
+            { key: 'remove', label: 'Delete', icon: 'trash', danger: true,
+              onClick: () => { close(); legendRowRemove(rid) } },
           ]
           return (
             <ContextPopover
@@ -15891,8 +15857,9 @@ export default function StockChart({
                  passing both printed the name twice, three pixels apart. The
                  header says more: the rail ties the menu to the line, and the
                  value answers "what is this?" before a verb is offered. */
-              width={248}
-              header={<LegendMenuHeader label={rowLabel} color={rowColor} hidden={rowHidden} />}
+              width={190}
+              dense
+              header={<LegendMenuHeader label={rowLabel} hidden={rowHidden} />}
               items={rows.map(chipMenuRowToPopoverRow)}
               sheetClassName={sheetCls}
             />
@@ -15920,19 +15887,14 @@ export default function StockChart({
           onDuplicate: (id) => { close(); handleChipDuplicate(id) },
           onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
           onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
-          // ⛔ THE FIRST CLICK ARMS AND THE POPOVER STAYS OPEN; THE SECOND FIRES.
-          // `chipMenuItems` sets `keepOpen` on the un-armed row for exactly this,
-          // so the confirmation is the SAME row re-labelled rather than a second
-          // control the member has to find.
-          onRemove: (id) => {
-            if (!chipArmed) { setChipArmed(true); return }
-            close(); handleChipRemove(id)
-          },
+          // ⚰️ IT USED TO ARM — see `chipMenu.chipMenuItems` for why the second
+          // click went away. One click, the canonical writer, and the popover
+          // closes with the thing it was about.
+          onRemove: (id) => { close(); handleChipRemove(id) },
         }, {
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
-          armed: chipArmed,
         })
         const move = items.find((i) => i.key === 'move')
         const page = (chipPage === 'move' && move && !move.disabled)
@@ -15954,14 +15916,14 @@ export default function StockChart({
                back row carries the label instead, which is why that page renders
                no header either. */
             title={chipPage === 'move' ? c.label : undefined}
-            width={260}
+            width={204}
+            dense
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
                above it reads as a bug. */
             header={chipPage === 'move' ? null : (
               <LegendMenuHeader
                 label={c.label}
-                color={c.color}
                 hidden={!!c.hidden}
                 value={Number.isFinite(Number(c.value))
                   ? Number(c.value).toFixed(Number.isInteger(c.decimals) ? c.decimals : 2)
@@ -16619,6 +16581,11 @@ export default function StockChart({
                   <LegendRow
                     rowId="volume"
                     label="Vol"
+                    /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS. The
+                       legend abbreviates to `V`/`Vol` for width; a trigger
+                       called "V options" names nothing a member would
+                       recognise, and the popover it opens says "Volume". */
+                    controlLabel="Volume"
                     value={volHidden ? '' : formatVolume(crosshairData.volume)}
                     baseColor={legendColor || undefined}
                     hidden={volHidden}
@@ -16641,8 +16608,6 @@ export default function StockChart({
                     color={opaqueColor(ov.color)}
                     baseColor={legendColor || undefined}
                     hidden={!!ov.hidden}
-                    onHover={ov.ri >= 0 ? handleLegendHover : undefined}
-                    hoverKey={ov.ri >= 0 ? `ov:${ov.ri}` : undefined}
                     {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
                   />
                 ))}
@@ -16713,6 +16678,7 @@ export default function StockChart({
                   vertical
                   rowId="volume"
                   label={compactLegend ? 'V' : 'Vol'}
+                  controlLabel="Volume"
                   value={volHidden ? '' : formatVolume(crosshairData.volume)}
                   baseColor={legendColor || undefined}
                   hidden={volHidden}
@@ -16742,8 +16708,6 @@ export default function StockChart({
                   /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS. It is not in
                      `cs.overlays` (`csIndex: -1`), so there is no slot to hide or
                      tombstone and every verb would write nowhere. */
-                  onHover={ov.ri >= 0 ? handleLegendHover : undefined}
-                  hoverKey={ov.ri >= 0 ? `ov:${ov.ri}` : undefined}
                   {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
                 />
               ))}
@@ -16786,6 +16750,7 @@ export default function StockChart({
             <LegendRow
               rowId="volume"
               label="V"
+              controlLabel="Volume"
               value={volHidden ? '' : formatVolume(crosshairData.volume)}
               baseColor={legendColor || undefined}
               hidden={volHidden}
@@ -16834,8 +16799,6 @@ export default function StockChart({
               color={opaqueColor(ov.color)}
               baseColor={legendColor || undefined}
               hidden={!!ov.hidden}
-              onHover={ov.ri >= 0 ? handleLegendHover : undefined}
-              hoverKey={ov.ri >= 0 ? `ov:${ov.ri}` : undefined}
               {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
             />
           ))}
@@ -17133,7 +17096,23 @@ export default function StockChart({
           span would allocate six objects a frame on a surface that repaints with
           the crosshair. */}
       {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.volume != null || crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
-        <div ref={volLegendRef} className={styles.volLegend}>
+        <div
+          ref={volLegendRef}
+          className={`${styles.volLegend}${legendRowHandlers ? ' ' + styles.volLegendLive : ''}`}
+          {...(legendRowHandlers ? {
+            role: 'button',
+            tabIndex: 0,
+            'aria-haspopup': 'menu',
+            'aria-label': 'Volume options',
+            title: 'Volume — click for options',
+            onClick: (e) => { e.stopPropagation(); openVolumeMenu(e) },
+            onContextMenu: (e) => { e.preventDefault(); e.stopPropagation(); openVolumeMenu(e) },
+            onKeyDown: (e) => {
+              if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+              e.preventDefault(); e.stopPropagation(); openVolumeMenu(e)
+            },
+          } : null)}
+        >
           {/* ⭐ THE MEMBER'S OWN LEGEND COLOUR, THE SAME WAY THE LEGEND TAKES IT.
               `legendColor` is the Chart Settings → Header setting, and the OHLC
               rows wear it as an INLINE style — so matching "the color in the
@@ -17164,33 +17143,22 @@ export default function StockChart({
               <span className={styles.volLegVal} style={legBaseVol}>{formatVolume(crosshairData.volAvg)}</span>
             </span>
           )}
-          {/* ⭐ THE SAME THREE VERBS THE INDICATOR PANES GOT — hide · settings ·
-              remove, revealed on hover at the right of the strip (owner: *"when I
-              hover over this with my mouse the buttons should pop up on the right
-              just like for RSI"*).
+          {/* ⚰️⚰️ A CONTROL-ONLY `LegendRow` STOOD HERE. It carried no label and no
+              value — the three readings to its left are already the volume pane's
+              — and existed purely to hold the eye/gear/✕ strip, and then the
+              chevron. With the control retired it would render an empty span, so
+              the interaction moved to the STRIP, which is the thing a member
+              actually sees and points at.
 
-              ⛔ IT CARRIES NO LABEL AND NO VALUE OF ITS OWN. The three readings to
-              its left are already the volume pane's, so a fourth `Vol 69.8M` would
-              print the first one twice. `LegendRow` renders exactly the controls
-              when label and value are empty, and `controlLabel` is what names them
-              for a screen reader and for the tooltip.
+              ⛔ THE VERBS ARE UNCHANGED AND STILL THE ONES THIS SURFACE ALREADY
+              USED — `handleRowMenu('volume')` opens the same reduced popover
+              (Show/Hide · Edit in Chart Data… · Delete) whose rows call
+              `legendRowHidden` / `legendRowSettings` / `legendRowRemove`. No new
+              capability, no new writer.
 
-              ⚠️ `legendRowHandlers`, NOT `chipHandlers` — the volume pane is a
-              `cs.volume` row, not an engine instance, and `rowId="volume"` is the
-              address its hide/settings/remove verbs already take from the legend.
-              One address, so the strip's gear opens the same settings row the
-              legend's does. */}
-          {legendRowHandlers && (
-            <LegendRow
-              rowId="volume"
-              label=""
-              value=""
-              controlLabel="Volume"
-              baseColor={legendColor || undefined}
-              hidden={cs.volume?.visible === false}
-              {...legendRowHandlers}
-            />
-          )}
+              ⚠️ AND `.volLegend:hover span[data-legend-ctl]` IS RETIRED WITH IT.
+              That rule existed because a row with no text has no hoverable area
+              of its own; the strip's own `:hover` is the whole mechanism now. */}
         </div>
       )}
       {/* ── EACH OSCILLATOR PANE'S OWN TOP-LEFT READOUT ────────────────────────
@@ -17205,8 +17173,10 @@ export default function StockChart({
           boldness as the values in the legend"*: it inherits them, rather than
           restating them, so there is no second set of numbers to keep in sync.
           And *"when user hovers over the indicator values or labels in the panes
-          [the] same buttons pop up like the legend"*: they ARE the same buttons,
-          same reveal, same spacing, same `baseColor` ink.
+          [the] same buttons pop up like the legend"*: ⚰️ they were the same
+          buttons, then the same chevron, and now they are the same ROW — the
+          member clicks a pane's `RSI(14) 59.0` and gets the popover the legend's
+          own row gives them, because it is one component and one surface.
 
           ⚰️ IT USED TO BE BARE SPANS ON `.volLegItem`/`.volLegLabel`/`.volLegVal` —
           the VOLUME strip's type, which is a different size and weight from the
@@ -17214,13 +17184,12 @@ export default function StockChart({
           were built to different rules is exactly the inconsistency this pass is
           closing; the first version closed it against the wrong neighbour.
 
-          ⚠️ EVERY CHIP CARRIES ITS OWN CONTROLS, INCLUDING BOTH OF MACD'S. They
-          act on the same instance, which is correct — MACD and SIG are one
-          indicator — and only one of two sibling spans can be hovered at a time,
-          so the owner's "only ONE row of buttons at once" still holds without a
-          second mechanism. Giving the controls to just one of the two would make
-          hovering the other value do nothing, which is the exact complaint that
-          produced the legend's own all-rows rule.
+          ⚠️ EVERY ROW IS ITS OWN TRIGGER, INCLUDING BOTH OF MACD'S. They open a
+          menu about the same instance, which is correct — MACD and SIG are one
+          indicator — and `controlLabel` makes `SIG`'s row announce MACD, so the
+          menu never claims to be about a plot. Making just one of the two
+          clickable would mean clicking the other value did nothing, which is the
+          exact complaint that produced the legend's own all-rows rule.
 
           ⛔ NOT `IndicatorChip`, and the reason is a rail rather than a taste:
           `parityGateBlindness.test.js` asserts from the AST that EVERY
@@ -17264,7 +17233,12 @@ export default function StockChart({
                  chip opens. One address, one surface — a member cannot tell that
                  two components are involved. */
               rowId={c.instanceId}
-              label={c.label}
+              /* ⭐⭐ THE PANE SPELLS IT OUT — `Relative Strength Index`, not
+                 `RSI(14)`; `UCT Stocks Up 20%+ in 5 Days`, not `UCTU20W`. The
+                 strip six pixels up keeps the abbreviation, which is the owner's
+                 ask and the right split: nine names share one line up there, and
+                 down here one name has a whole pane to itself. */
+              label={paneReadoutLabel(c, engineRegistry.getDefinition(c.defId), paneLongName(c))}
               value={c.value != null ? c.value.toFixed(c.decimals) : ''}
               color={c.color}
               baseColor={legendColor || undefined}
@@ -17273,7 +17247,12 @@ export default function StockChart({
                  MACD — and said so, until this. The primary plot is the group's
                  first chip by declaration order, which is the name the settings
                  list and the browse catalogue both use. */
-              controlLabel={row.chips[0].label}
+              /* ⛔ AND THE CONTROL IS NAMED THE SAME WAY THE ROW IS. This is what
+                 a screen reader reads and what the tooltip says; naming the row
+                 "Relative Strength Index" while its trigger announces "RSI(14)
+                 options" would be two names for one control. */
+              controlLabel={paneReadoutLabel(row.chips[0],
+                engineRegistry.getDefinition(row.chips[0].defId), paneLongName(row.chips[0]))}
               hidden={!!c.hidden}
               {...(chipHandlers ? {
                 /* ⛔⛔ THE PRIMARY CHIP, NOT THE HOVERED ONE — the same ruling
@@ -17284,7 +17263,6 @@ export default function StockChart({
                    INSTANCE-oriented even though the values are plot-oriented,
                    which is exactly what the approved V1 asks for. */
                 onOpen: (_id, anchor) => chipHandlers.onMenu(row.chips[0], anchor),
-                onHover: chipHandlers.onHover,
               } : null)}
             />
           ))}

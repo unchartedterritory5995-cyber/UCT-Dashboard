@@ -11,6 +11,36 @@
   flex-direction: column;
   gap: 1px;
 }
+/* ⭐⭐ THE DENSE DESKTOP VARIANT (Track B, owner 2026-09-14).
+ *
+ * The on-chart popover carries four to seven short commands and floats over a
+ * LIVE CHART, where a settings-card-sized menu covers the candles the member is
+ * reading. This compacts width, row height, padding, the icon box and the
+ * separator spacing — a compact precision tool rather than a large settings card.
+ *
+ * ⛔ IT IS SCOPED TO `.menu`, WHICH IS THE ANCHORED DESKTOP BRANCH ONLY. The
+ * touch branch renders a `Sheet`, whose rows are pinned to the 44px tap-target
+ * floor by the ≤1024px query at the foot of this file (railed by
+ * `styles/tapFloor.test.js`). Nothing here can reach it.
+ *
+ * ⚠️ AND IT IS OPT-IN via the `dense` prop, so the drawing menu, the chart
+ * region menu and every other caller keep the density they shipped with. */
+.menuDense { padding: 3px; gap: 0; border-radius: 6px; }
+.menuDense .menuTitle {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  padding: 2px 7px 3px;
+}
+.menuDense .item {
+  gap: 7px;
+  font-size: 12px;
+  padding: 4px 7px;
+  border-radius: 4px;
+}
+.menuDense .icon { width: 13px; font-size: 12px; }
+.menuDense .icon svg { width: 12px; height: 12px; }
+.menuDense .separator { margin: 3px; }
+
 .menuTitle {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
