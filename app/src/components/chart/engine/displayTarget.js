@@ -205,7 +205,33 @@ export function paneFollowerKeys(instances, cs) {
     // ⭐ INSTANCE KEYS (P2.0c). An instance that names ANOTHER host draws in that
     // host's pane and reserves none of its own. Comparing against `inst.defId`
     // used to make a second RSI look like its own follower.
-    if (owner && owner !== inst.instanceId) out.add(inst.instanceId)
+    if (owner && owner !== inst.instanceId) { out.add(inst.instanceId); continue }
+    // ⚰️⚰️ AND SO DOES ONE DRAWN ON PRICE OR ON VOLUME — THIS WAS THE HOLE.
+    //
+    // `parsePaneOfTarget` answers only for `@pane:<instanceId>`; for the plain
+    // targets `'price'` and `'volume'` it returns null, so an instance the member
+    // had put ON THE CANDLES was never counted as a follower. It kept a pane slot
+    // in `defaultPaneKeys` and a unit of `paneCountRequired` for a pane it does
+    // not have — and then `paneRealization.paneOf()` resolved its key through the
+    // binder to the series, which lives in PRICE's pane. `settleArrangement` read
+    // that as "the Price pane belongs at the guest's slot" and swapped it there.
+    //
+    // ⛔ MEASURED IN THE REAL UI, adding a data series to PRICE · VOLUME and then
+    // setting its destination to Price — the owner's exact workflow:
+    //
+    //   before settle  0:[PRICE,guest] | 1:[VOLUME] | 2:[]   guest->0, slot 2
+    //   after  settle  0:[VOLUME]      | 1:[PRICE,guest]
+    //
+    // `swapPanes(0, 2)` put Price at 2 and the empty placeholder at 0; removing
+    // the placeholder left VOLUME ON TOP. That is the owner's "adding QQQ moved
+    // my Volume", and the layout/physical mismatch it leaves behind — heights
+    // computed for Price at slot 0 while Price renders at 1 — is the same event
+    // that crushes the Price pane.
+    //
+    // ⭐ A FOLLOWER IS ANYTHING THAT DRAWS IN SOMEBODY ELSE'S PANE. Own-pane
+    // (`'pane'`) is the only target that reserves one, so the test is stated that
+    // way round rather than by listing the targets that do not.
+    if (target === 'price' || target === 'volume') out.add(inst.instanceId)
   }
   return out
 }

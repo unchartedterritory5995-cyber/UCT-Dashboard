@@ -143,3 +143,65 @@ export function chromePlan(m) {
       : Math.round(volumePaneTopPx(heights, volumeIndex, sep) + 5),
   }
 }
+
+/**
+ * The vertical range an axis drag should PIN, given the pane the candles are in.
+ *
+ * ⚰️�idea THE CAPTURE USED PHYSICAL PANE 0'S HEIGHT AND CALLED IT PRICE'S.
+ * The result is not a transient misdraw: it is handed to the candle series'
+ * `autoscaleInfoProvider`, which returns it in place of autoscale, and the
+ * view-lock persists it — so one drag on a chart with a pane above Price writes
+ * a wrong range that survives every reload. Measured on production: NVDA ~212
+ * with the scale reading 200 → 880 and the candles pressed into the bottom ~8%.
+ *
+ * ⛔ THE MARGINS ARE WHY THE PIXELS ARE INSET. `autoscaleInfoProvider` returns
+ * `{minValue,maxValue}` and lightweight-charts re-adds `scaleMargins` as padding
+ * AROUND it. Capturing at the full pane extent hands back a range that already
+ * includes the margins, which are then applied a second time and the candles
+ * compress once more on release. Reading at the INSET boundaries captures
+ * exactly the range that maps back to those same pixels.
+ *
+ * @param {number} paneHeight        the CANDLE pane's own height
+ * @param {{top:number,bottom:number}} scaleMargins
+ * @param {(y:number)=>number} coordinateToPrice  the candle series' mapping
+ * @returns {{minValue:number,maxValue:number}|null} null when unusable
+ */
+export function capturedPriceRange(paneHeight, scaleMargins, coordinateToPrice) {
+  if (!(Number.isFinite(paneHeight) && paneHeight > 0)) return null
+  if (typeof coordinateToPrice !== 'function') return null
+  const sm = (scaleMargins && Number.isFinite(scaleMargins.top) && Number.isFinite(scaleMargins.bottom))
+    ? scaleMargins : { top: 0, bottom: 0 }
+  const hi = coordinateToPrice(sm.top * paneHeight)
+  const lo = coordinateToPrice(paneHeight - sm.bottom * paneHeight)
+  if (!Number.isFinite(hi) || !Number.isFinite(lo) || !(hi > lo)) return null
+  return { minValue: lo, maxValue: hi }
+}
+
+/**
+ * The view lock a vertical gesture should STORE, as fractions of the candle pane.
+ *
+ * ⚰️⚰️ THE FRAME MIX THAT POISONED SAVED LAYOUTS. `priceToCoordinate` answers in
+ * the CANDLES' pane; the caller used to divide by `chart.paneSize().height`,
+ * which is the FIRST pane. While Price was always first those were one number.
+ * With a pane above Price they are not, and `yHi / paneHeight` saturates — `top`
+ * lands on the 0.9 clamp and the stored lock leaves the candles ~10% of their
+ * pane. `persistViewLock` writes it and `vertMarginsRef` re-applies it ahead of
+ * the computed margins, so it survives every reload.
+ *
+ * ⛔ THE CLAMPS ARE REAL AND STAY. 0.9 per side and a 0.95 combined ceiling are
+ * the shipped guards; the defect was never the clamp, it was reaching it from a
+ * denominator that did not belong to the measured coordinates.
+ *
+ * @param {number} paneHeight  the CANDLE pane's own height
+ * @param {number} yHi         pixel row of the highest visible price
+ * @param {number} yLo         pixel row of the lowest visible price
+ * @returns {{top:number,bottom:number}|null}
+ */
+export function viewLockFractions(paneHeight, yHi, yLo) {
+  if (!(Number.isFinite(paneHeight) && paneHeight > 8)) return null
+  if (!Number.isFinite(yHi) || !Number.isFinite(yLo)) return null
+  let top = Math.min(0.9, Math.max(0, yHi / paneHeight))
+  let bottom = Math.min(0.9, Math.max(0, (paneHeight - yLo) / paneHeight))
+  if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
+  return { top: +top.toFixed(4), bottom: +bottom.toFixed(4) }
+}

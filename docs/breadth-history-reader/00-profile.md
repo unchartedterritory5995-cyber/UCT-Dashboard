@@ -927,3 +927,85 @@ number in a table.
 
 ⚠️ And it survived a review that caught #15 in the same document, an hour apart. **Finding
 one instrument defect does not put you in a state where you are finding them.**
+
+# Session 10 — the flag becomes recordable, and the gate is finally contended
+
+No measurement windows (decision 0.1): at 37 master pushes in 10.5 h, median gap 12.1 min,
+a ~26-minute window survives about one attempt in five. Everything measured here is either
+from Session 9's two windows or from a tool run on the day.
+
+## What shipped
+
+| # | what | result |
+|---|---|---|
+| **M9** | `docs/session9-record` → master | `444f747d8`, SUCCESS. Gate included an H.1 audit of the E.4 text |
+| **M10** | `breadth/flag-rename` → master | `30fd58aef`, SUCCESS |
+| **V2** | `BREADTH_OHLC_PAGECACHE_ENABLED=1`, old name unset 09:01:51Z | **zero off-window** |
+| **E2** | contention proved from a throwaway branch | **no deploy resulted** |
+
+## The three findings
+
+**1. The rename makes the ledger rail enforce the record.** `is_gate()` matches only names
+with a gate marker or ending `_ON`, so the old name was invisible and a row for it would
+have been *rot*. After the rename `needs_declaration` is True, so the repo-wide
+`test_every_off_by_default_gate_is_declared` now **fails without the row** — mutation-proved
+(1 failed, 184 passed). The flag went from unrecordable to mandatory-to-record.
+
+**2. The `master-deploy` group serialises — first contention in 41 runs.** Run B queued
+**97 s** behind run A (baseline 3–5 s; predicted 95 s). ⭐ And unplanned: a **real master
+push** from another workstream queued **47 s**, starting 5 s after B finished — proving the
+shared queue with production traffic rather than a synthetic case. ⚠️ Cost: ~43 s of delay
+to that workstream.
+
+**3. Serialising the checks is not spacing the deploys.** Three measured deploys still show
+Railway cutting over 2 s after, 18 s before and 2 s before their own gating check. Both
+things are true at once: the queue works, and it does not currently gate anything Railway
+does. That reading is a dashboard step, and it is the last thing blocking the cutover.
+
+## Two things measured that were expected to be assumptions
+
+⭐ **`railway variable set --skip-deploys` exists**, and it turned V2 from "one redeploy, or
+a gap" into **no deploy and no gap**: staging the new variable while the rename was still
+building meant the new container started with it present. `variable delete` has no such
+flag, so the unset is the one step that must cost a deploy.
+
+⭐ **`core.hooksPath` is set in the repository's shared config**, so all ~80 worktrees on
+this machine resolve to one hooks directory and the pre-push guard is in it — by
+construction, not by luck. The first draft of that answer said the opposite, from the
+correct premise that hooks are untracked.
+
+## The reader, after the flag
+
+A deep cold read at p50 is now **CPU-bound**: `derive` 76.1 + `serialise` 66.5 +
+`encode_render` 49.7 = 192 of 282 ms, with live I/O at ~16 ms (6%). At p90 it is still
+I/O: `rf_fetch` is 607 of 986 ms. The floor no I/O fix can reach is **~235 ms**
+(measured phase medians), against an observed minimum of 243.0 ms.
+
+**H5 is confirmed by counting operations rather than bytes.** Per-read-syscall cost went
+0.591–0.597 ms (OFF) to 0.822–1.369 ms (ON) — *worse* — while the count fell 8,883–14,800 to
+551–642. The flag attacked the seek count; per-seek latency is the volume's.
+
+⚠️ **Unexplained residual:** 11 of 20 settled cold reads need **zero** extra syscalls and the
+rest need 551–642. The eviction trigger is unidentified.
+
+## And the ~1 s bar is not established at p95
+
+1 of 20 ON samples exceeds 1,000 ms. **P(true p95 above the observed max) = 0.95²⁰ = 0.358**,
+and the sample max only becomes a 95% upper bound at **n ≥ 59**. ⛔ The bar is now limited by
+**measurement opportunity, not by the reader** — n ≥ 59 is ~3 clean windows ≈ 15 attempts at
+the current push rate.
+
+### Appendix addendum — Session 10
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 24 | the window harness's **`decoded_bytes`** field | the reader's `days=365` output had changed from **69,979 → 471,689 bytes**, a 6.7× regression | `s9_window.py:90` is `rec["decoded_bytes"] = len(raw)` — **a field named `decoded_bytes` holding the GZIPPED wire bytes**, because the harness sent `Accept-Encoding: gzip` and never decompressed. Measured today: raw 69,979, decompressed 471,689 — so the output is byte-identical and the *name* invented the regression. ⭐ Nothing in Session 9 is invalidated (the field was used identically in both arms), which is exactly why it survived: **a misnamed field that is used consistently is invisible until someone reads it from outside.** |
+| 25 | my own first answer to **C.a** | *"the guard protects only the checkouts somebody put it in"* — reasoned from the **correct** premise that git hooks are untracked (`git ls-files .git/hooks` = 0) | `git config --get core.hooksPath` returns the repo's shared hooks directory, and worktrees share that config — so every worktree has it **by construction**. ⭐ **A true premise reached a false conclusion because one command was never run.** The premise "hooks are not tracked" is about *git*; the question was about *this repository's configuration*, and only the second one is answerable by measurement. |
+| 26 | `git commit -m` with backticks | a commit message that read *"a service whose custom start command is ...."* | The shell **command-substituted** `` `echo … && exit 1` `` and printed `production: command not found`. The message silently lost the one detail the probe's entire safety design rests on. ⛔ Every other commit today used a quoted heredoc (`-F -`); this was the one that did not. |
+| 27 | the four-way byte-parity run | golden/OFF, golden/ON, renamed/OFF, renamed/ON — **all four identical**, sha `7695923c…` | Correct, and **structurally unable to fail in the direction that matters**: the flag changes PRAGMAs, not results, so every arm is byte-identical *by design*. A "renamed/ON" arm that was silently OFF would produce the same sha. ⭐ Recorded as a stated limit rather than discovered as a defect — the pragma read-back and the behavioural no-fallback test are what actually cover it. **A control that cannot distinguish the two cases is not evidence about either**, even when it passes. |
+
+⭐ **#25 is the one to carry.** Session 9's #23 was a number never measured. This is its
+cousin and harder to see: **a premise that was true, a chain of reasoning that was valid, and
+a conclusion that was wrong** — because the premise answered a general question about git
+while the actual question was about one repository's config. The tell is the same in both:
+a sentence that could have been checked with one command and was not.

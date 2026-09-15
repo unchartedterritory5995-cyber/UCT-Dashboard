@@ -67,6 +67,32 @@ cd app && npm run test:hub        # 89 files / 1166 tests; only styles/tapFloor.
 - **PASS:** only the `tapFloor` baseline entry fails.
 - **STOP:** anything else fails → the merge picked up something the branch gate did not see.
 
+⛔ **How to read that result — the harness changed on 2026-09-14, this step did not.**
+
+- ⚠️ **`test:hub` emits no `VERDICT=` line, and should not.** It is
+  `app/scripts/run-hub-rails.mjs`, which expands a glob subset and spawns vitest; the PASS/STOP
+  above is a judgement about the **failing set**, which is the right shape. Said out loud so
+  nobody hunts for a line that is not there.
+- ⛔ **Its exit 2 is a REFUSAL, not a verdict.** That runner exits 2 when a glob matches nothing
+  or the subset falls below its file floor — *"a near-empty subset exits 0 and reads as a pass"*,
+  its own words. Treat a 2 exactly like a missing totals line: **the check did not run.** And
+  heed its header — *"PASSING THE SUBSET IS NOT PASSING THE BRANCH"*; only
+  `scripts/gate_shards.py` can say the second.
+- **When the sharded gate IS run, read its `VERDICT=` line and never `$?`.** The wrapper now
+  prints one on stdout, derived from the same manifest as its exit code. The task status has
+  misreported it twice: a runner that executed nothing reported **0**, and a run printing its own
+  `GATE EXIT: 1` also reported **0**.
+- **Per-shard exit codes are RECORDED, NEVER THE ARBITER.** They appear in the manifest as
+  `shard_exit_codes`, as diagnosis of *why* a shard produced nothing. vitest exits 1 on an
+  ordinary red test, so a non-zero shard is not a defect; the verdict stays the failing-set
+  comparison.
+- ⛔ **Box clearance is SAMPLED DURING the run, never before and after it.** Wrap it —
+  `python tools/gate_box_sampler.py --watch-pid <pid>` — and treat only **`VERDICT=CLEAR`** as
+  admissible. **`INCONCLUSIVE-CONTENDED`** names the intruding pid and command line and voids the
+  interval; it is not retried into load. ⚰️ On 2026-09-14 two endpoint checks were both clean with
+  a whole six-shard gate running between them; on the sampler's first real use the first and last
+  of seven samples were clean and the middle ones were not.
+
 ## 3 · Live iPhone 15 Pro — the hub reaches a member-shaped account
 
 ```sh
