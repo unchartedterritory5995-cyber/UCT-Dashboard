@@ -2,7 +2,25 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **R18's implementation — 2.3, the parser change.** The red is committed.
+> ### ⛔ NEXT: **(c)'s IR half — SCOPING ONLY. Not started.**
+>
+> ✅ **R18 LANDED** (`e97a1d1c3` red → `a63e90c75`): a security tuple is a vector of
+> slots. **(c)'s definition-lane half is CLOSED.** Re-baseline **374 files / 7,486
+> passed / 7 failed in 5** — the same pre-existing trio plus **2 load timeouts**,
+> both green alone. **No new assertion failures.**
+>
+> ⛔ **The IR half is unscoped and its estimate is 45 min.** Its first act is
+> **2.1**: what `buildRuntimeIr` does with a tuple destructure on the three
+> specimens and the synthetic breaker — refuses (code, site), translates (to what
+> IR shape, in the IR's **own** node vocabulary, which is **not** `NODE_TYPES`), or
+> silently drops. Then 2.2: what *"closing the tuple form is what lets D2 be
+> revisited at all"* actually requires, quoted from the deferral site — **R18 may
+> already satisfy it**, which would make the IR half smaller than assumed.
+>
+> ⚠️ **One finding worth carrying in:** R18 did not break
+> `bothLanesAgreeOnFacts`'s verdict control — it **removed the early exits that
+> were hiding three full corpus passes** for a fact the first pass already knew.
+> 19,526 ms → 6 ms. Expect more of that shape as refusals turn into translations.
 >
 > **`e97a1d1c3` is the accepted RED** (3 × `it.fails`, 3 controls, suite green). 2.1
 > and 2.2 are done; **2.3–2.6 and Section 3 are not**. Stopped at ~100 against the

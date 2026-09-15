@@ -1351,6 +1351,101 @@ no output node and no 12th type.
 
 ⛔ **Section 3 (the IR half's scoping) is NOT started.**
 
+## ✅ R18 LANDED — (c)'s DEFINITION-LANE HALF IS CLOSED
+
+**Red `e97a1d1c3` → fix `a63e90c75`.** `[a,b] = request.security(s, tf, [x,y])` now
+translates to **two slots** — `security(s,tf,x)` and `security(s,tf,y)`, each an
+ordinary call tree. No new node type, no statement form, no parallel path.
+
+### 1.1 — candidate (i) chosen, on the evidence
+
+| | |
+|---|---|
+| **(i) retain elements always** | ✅ **CHOSEN.** The parser already *recognised* the literal and returned `{type:'collection'}`; ≈3556 then consumed the contents to find the matching `]` and threw them away. **A parser that discards what it already recognised is the gap that resurfaces** |
+| **(ii) retain only under `request.security`** | not needed — (i) moved nothing else. Recorded here as the alternative it would have been |
+
+⛔ **The fallback is what makes (i) safe**, and it is the reason the site never threw:
+the element parse runs from a **saved cursor position**, and any failure rewinds to it
+and takes the original skip. A collection this parser cannot read behaves exactly as
+before.
+
+**The `options=["A","B"]` control, quoted both ways — identical:**
+
+| | before | after |
+|---|---|---|
+| notes | `pine:declaration@1` · `pine:input-kind@2` | **same** |
+| `pine:collection` note | **none** | **none** |
+| `ok` / outputs | `true` / 1 | **same** |
+
+⭐ `collection` is a **parse-tree** type; `NODE_TYPES` is the **output** vocabulary and
+is untouched — a collection never reaches a saved tree, it is taken apart into per-slot
+calls first.
+
+### 1.3 — green, and what the lane rails said
+
+Acceptance **EXIT 0, 7/7**. Lane rails — `bothLanesAgreeOnFacts`,
+`refusalsAreASurfaceProperty`, `bothLanesAreTwoLanes` — **EXIT 0, 16/16**: no lane-only
+refusal moved outside its class under R14, and the output-count invariant still holds
+across all 327.
+
+### 1.4 — the re-baseline
+
+| | before R18 | after R18 |
+|---|---|---|
+| files | 371 | **374** |
+| passed | 7,470 | **7,486** |
+| failed | **5 in 3 files** | **7 in 5 files** |
+| timeouts | 0 | **2** |
+
+⛔ **No new assertion failures.** The 7 are the **same pre-existing trio (5)** plus **2
+load timeouts** — `enumerationSites` and `manifestProse`, both named in `CLAUDE.md` as
+known at 15 s under load and **both verified green alone**. A timeout is never banked.
+
+**Verdicts that changed** — five of the six `pine:tuple` scripts clear entirely;
+`smt-divergence-ict-01` goes from `ok=false`, 4 refusals to **`ok=true`, 0 refusals**.
+
+⭐ **The sixth is a scope boundary, not a miss:** `volatility-stop-mtf` still refuses —
+at `[stopChartTf, trendUpChartTf] = TVta.vStop(...)`, a **library** tuple. R18 answers
+for `request.security` and nothing else, and a control now asserts that boundary.
+
+### ⚠️ Three findings outside the six, each measured before commit
+
+1. **Two spent fixtures in `pine.tuples.test.js`**, moved to the frontier, not deleted.
+   One asserted `request.security` destructures **refuse** — the exact form R18 builds.
+   ⭐ **The safety it guarded moved rather than vanished:** each element becomes its own
+   request and `securityAsNode` validates it, returning null → `pine:request`, never a
+   silent first-element bind. The successor is asserted. The other was named *"a
+   destructure of some OTHER builtin"* while its body used `request.security` — it
+   **never tested what it claimed**, and now uses a builtin that genuinely is not ours.
+2. **R18 made `bothLanesAgreeOnFacts`'s verdict control exceed its budget** — and it is
+   **fixed, not banked**. That control re-read and re-translated all 327 scripts twice
+   more, on top of the walk that had already translated each on both lanes: three full
+   corpus passes for a fact the first pass knew. ~4 s while refusing scripts stopped
+   early; **19.5 s once R18 made the tuples translate**, over 15 s even alone. ⭐ R18 did
+   not break it — **R18 removed the early exits that were hiding the waste.**
+   **19,526 ms → 6 ms.**
+3. **Zero moved snapshots** — the tree carries none.
+
+### 1.5 — mutation proof (`sha256 99976bd7`, restored byte-equal)
+
+| mutation | result |
+|---|---|
+| restore the ≈3556 discard | **5 RED** — and **both controls stay GREEN**: the UDF path byte-identical, `options=[…]` still inert |
+| route parts around `securityAsNode` (`securityTuplePart` → `tuplePart`) | **1 RED**, proved by the message: `expected {type:'series',name:'high'} to match {type:'sym',value:'AAPL'}` |
+| remove the sibling guard | **1 RED**, on the synthetic case only |
+
+## ⭐ THE (c) REPORT — four lines
+
+1. **BUILT** — the array-literal argument: `[a,b] = request.security(s,tf,[x,y])` → two
+   slots through the existing `securityAsNode` path. Second entrance, one path.
+2. **REFUSED BY NAME** — an element that reads a sibling (`pine:tuple`, from the 41),
+   a **guard** with a synthetic fixture: the corpus contains **zero**.
+3. **ROUTED AND QUALIFIED** — R16's 10 bare-`input` uses already delivered and
+   honoured; the 56 series-dependent `for` bounds and 5 `input.time` expression
+   defaults carry D2's limit in place (R20).
+4. **PENDING** — (c)'s **IR half**, unscoped; H.4; H.5; the Wave 1 PR; the vendor
+   capture.
+
 ---
 
 ---
