@@ -678,3 +678,67 @@ changed: 0.** ⇒ **category (a), owner-facing text — refreshable.**
 blank."* **Cause: structural** — one packet carried two checkpoints and one approval block,
 and a single block cannot hold two signatures. Fixed by splitting into
 `packet-t-stale-test-gate.md` and `d3-cp2-build-record.md`.
+
+---
+
+## Session result 2026-09-14 (session 2 — report files, rows 11-12, CI diagnosed)
+
+**Full report: `docs/terminal-research/reports/SESSION_REPORT_2026-09-14_2.md`** (committed).
+ET start `2026-09-14 23:44 EDT Mon`, end `2026-09-15 00:04 EDT Tue` — the clock rolled over
+mid-session; the file keys to the START date. Both worktrees clean. **5 commits, docs only.**
+
+### The headline: CI was readable without a token all along
+
+`ci-results` **exists** (`5b36957e7`), and run #2 finished **success**. The branch was absent
+for one reason: **the publish job had never run** — run #1's commit contained zero `publish:`,
+and run #2 was still in flight at every check. Not one of the four proposed causes.
+
+⛔ **F-CI-2.** The repo is **public**, so `api.github.com` answers **anonymously** — `/repos`
+returns 200, `/actions/runs` returns full run and job records. No `gh`, no token, no PAT. The
+previous session's UNREADABLE verdict reached a report, this briefing, the workflow's motive
+and a tool docstring. *"I lack the tool I reached for"* had been treated as *"it cannot be
+read."* **No [KEYBOARD] action is needed — the earlier ask is withdrawn.**
+
+### The first full-suite CI record is RED
+
+vitest **19,898 collected / 21 failed across 14 files**. pytest **did not collect**:
+`2 skipped, 8 warnings, 479 errors`. `ok: false` on both, correctly. CI previously ran 28 of
+2,782 files, so this is the first real measurement — and the backend suite not collecting is
+the bigger of the two.
+
+### M2 — and two checkpoint-id collisions in two consecutive units
+
+**E CP2** was already taken (packet E's CP2 = *promote to a required check*); the unbuilt side
+was renumbered to **CP3**. **K CP2** was already taken (`merge_all.py` itself, row 7); the new
+work is **K CP3**. Both found by one grep against the packet's own table, before any code.
+⭐ *Read the checkpoint table and take the next free number before writing a line.*
+
+Manifest now **12 rows, 12 OK, 0 STALE**. Row 11 = `e-cp2-build-record` (packet-e refreshed
+`c90ad04d2`→`beeffe8e6`, **approval-block lines changed: 0**). Row 12 = `k-cp3-build-record`.
+
+**K CP3** makes the merge order machine-enforced: `#!after:`/`#!last:` directives in the
+manifest, checked before the first cherry-pick, exit 2 naming the pair. 7 controls pass.
+
+### ⛔ F-MERGE-1 — two commits would never merge
+
+`verify_manifest --check-commits` reports **11 of 13 mapped**. `31e28c6e3` and `18dd13683`
+(Packet A) are claimed by no unit. Packet A is **CLOSED AS FINDING** with **no approval block
+at all**, so it is not a signable gate — yet it shipped two commits. **Not registered: whether
+a closed finding's artifacts merge to master is your call, not a gap for me to close by typing
+two lines into a list.**
+
+### Q — D4 filed, D5 CP2 checked
+
+**F-D4-1:** CP4's assertion presumes a `{period}` cache dimension that does not exist, and a
+`fundamentals` cache key that does not exist. `fundamentals_monitor` recovers the ticker with
+`split("::", 1)[1]`, so a three-segment key yields a ticker literally named `AAPL::Q1` — the
+monitor would manufacture malformed tickers and report them as data defects. Struck through in
+place; **CP4′ PROPOSED**, not approved.
+
+**D5 CP2 noun table:** 6 of 7 nouns resolve. *"its five metrics"* does not — no five-item
+metric set is named for `corp_actions` anywhere (D2's five are the `ohlcv` bars metrics).
+⭐ And the number should not be there: the clause says the builder derives the metrics **by
+AST**, so asserting a count beside a list the tool derives is the anti-pattern D2 exists to
+kill. **Proposed: drop the number.** Not opened.
+
+⛔ **Do not run the two commands yet** — F-MERGE-1 is unresolved and CI says RED.
