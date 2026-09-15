@@ -233,3 +233,80 @@ def test_the_generated_summary_declares_itself_generated_and_data_free():
     assert "NOT A SOURCE" in h, "a generated file must not become an authority"
     assert "NO MEMBER DATA" in h
     assert rep.SUMMARY.name == "sampler-summary.md"
+
+
+
+class _Console:
+    """A console that writes exactly like a real one: it RAISES on anything its encoding
+    cannot represent. ⛔ The whole point of the rail below is that the text contains ⛔."""
+
+    def __init__(self, encoding):
+        self.encoding = encoding
+        self.written = []
+
+    def write(self, s):
+        s.encode(self.encoding)          # UnicodeEncodeError on ⛔ under cp1252
+        self.written.append(s)
+        return len(s)
+
+    def flush(self):
+        pass
+
+
+def _stub_report(rep, monkeypatch, tmp_path, text="\u26d4 a line the console cannot encode"):
+    """Point the report at a throwaway summary path and give `main` REAL OUTPUT.
+
+    ⛔ THE OUTPUT IS THE WHOLE FIXTURE. The first version of this rail stubbed `main` to
+    return 0 silently, so the captured text was EMPTY — `"".encode("cp1252")` raises
+    nothing, and the rail stayed green against the very ordering it was written to catch.
+    """
+    summary = tmp_path / "sampler-summary.md"
+    monkeypatch.setattr(rep, "SUMMARY", summary)
+    monkeypatch.setattr(rep, "REPO", tmp_path)
+    monkeypatch.setattr(rep, "SUMMARY_HEADER", "<!-- GENERATED FILE -->\n")
+    monkeypatch.setattr(rep, "main", lambda: (print(text), 0)[1])
+    return summary
+
+
+def test_the_fixture_console_really_refuses_the_character(tmp_path):
+    """⛔ Non-vacuity control for the two rails below: if this stops raising, they both
+    pass for the wrong reason and prove nothing about the ordering."""
+    with pytest.raises(UnicodeEncodeError):
+        _Console("cp1252").write("\u26d4")
+    _Console("utf-8").write("\u26d4")          # and the capable one must NOT raise
+
+
+def test_a_console_that_cannot_encode_the_text_still_gets_the_summary_file(tmp_path,
+                                                                          monkeypatch):
+    """⛔⛔ THE DURABLE HALF OF C.1 MUST NOT BE LOST TO THE DISPOSABLE HALF.
+
+    This box's console is cp1252 and the report's text is full of ⛔. With the terminal
+    echo ordered BEFORE the file write, `sys.stdout.write` raised UnicodeEncodeError and
+    took the summary file down with it: exit 1, nothing on disk, on the very box Task
+    Scheduler runs this on. Measured 2026-09-15.
+    """
+    from tools import breadth_sampler_report as rep
+    summary = _stub_report(rep, monkeypatch, tmp_path)
+    monkeypatch.setattr(sys, "stdout", _Console("cp1252"))
+
+    rc = rep._run_and_capture()          # must not raise
+
+    assert rc == 0
+    assert summary.exists(), "the summary must survive a console that cannot encode it"
+    assert "\u26d4" in summary.read_text(encoding="utf-8"), \
+        "and it must keep the character verbatim — the file is utf-8, not the console"
+
+
+def test_a_console_that_can_encode_is_still_printed_to(tmp_path, monkeypatch):
+    """⛔ The other direction. "Never fails" is trivially satisfied by never printing, so
+    a capable console must still receive the text, character intact."""
+    from tools import breadth_sampler_report as rep
+    _stub_report(rep, monkeypatch, tmp_path)
+    console = _Console("utf-8")
+    monkeypatch.setattr(sys, "stdout", console)
+
+    rep._run_and_capture()
+
+    joined = "".join(console.written)
+    assert "\u26d4" in joined, "a capable console must still be printed to"
+    assert "sampler-summary.md" in joined, "and told where the summary went"

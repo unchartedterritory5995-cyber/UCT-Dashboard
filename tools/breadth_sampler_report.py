@@ -213,16 +213,37 @@ SUMMARY_HEADER = (
     "-->\n")
 
 
+def _echo(text: str) -> None:
+    """Print to a console that may not be able to encode the text.
+
+    ⛔ NEVER RAISES. The echo is the disposable half of C.1 and must not be able to fail
+    a run — least of all a scheduled one, where nobody is reading the console it could
+    not write to.
+    """
+    try:
+        sys.stdout.write(text)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "ascii"
+        sys.stdout.write(text.encode(enc, "replace").decode(enc, "replace"))
+
+
 def _run_and_capture() -> int:
-    """⛔ C.1: the same text goes to stdout AND to the summary file. Two renderings of
-    one run could disagree; one rendering written twice cannot."""
+    """⛔ C.1: the same text goes to the summary file AND to stdout. Two renderings of
+    one run could disagree; one rendering written twice cannot.
+
+    ⛔⛔ THE FILE IS WRITTEN FIRST, AND THE TERMINAL ECHO CANNOT FAIL THE RUN. This box's
+    console encoding is cp1252, so `sys.stdout.write` raises `UnicodeEncodeError` on the
+    first ⛔ in the text. With the echo first, that exception took the summary file down
+    with it — the DURABLE half of C.1 lost to the DISPOSABLE half, exit 1, no file on
+    disk. Measured 2026-09-15 running this tool on the box that Task Scheduler will run
+    it on, which is the only box whose console encoding matters here.
+    """
     import contextlib
     import io as _io
     buf = _io.StringIO()
     with contextlib.redirect_stdout(buf):
         rc = main()
     text = buf.getvalue()
-    sys.stdout.write(text)
     try:
         SUMMARY.parent.mkdir(parents=True, exist_ok=True)
         with SUMMARY.open("w", encoding="utf-8", newline="\n") as fh:
@@ -230,9 +251,10 @@ def _run_and_capture() -> int:
             fh.write("\n# Breadth sampler - pool summary\n\n```\n")
             fh.write(text.rstrip("\n"))
             fh.write("\n```\n")
-        print(f"[wrote {SUMMARY.relative_to(REPO)}]")
+        note = f"[wrote {SUMMARY.relative_to(REPO)}]"
     except Exception as e:
-        print(f"[summary NOT written: {type(e).__name__}: {e}]")
+        note = f"[summary NOT written: {type(e).__name__}: {e}]"
+    _echo(text + note + "\n")
     return rc
 
 
