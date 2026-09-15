@@ -1,3 +1,59 @@
+# ⚠️ TRACK A ITEM 3 — CORRECTION + TWO HARD CONSTRAINTS (HEAD 19653ec93)
+
+## ⛔ A CLAIM I MADE WAS NOT MEASURED — TREAT IT AS UNPROVEN
+
+I previously reported the remaining blank-Data-Series defect as:
+
+    "source-derived placement overrides the explicit pane target"
+
+**I did not measure that.** Reading the code contradicts it:
+
+`instanceControls.setInstanceDisplayTarget` deletes the placement key ONLY when
+`target === defaultTarget` (it computes `defaultTarget` from a `bare` copy), and
+`displayTarget.resolveDisplayTarget` returns the explicit value whenever it
+differs from the declared one:
+
+    const explicit = instance.placement && instance.placement.target
+    if (typeof explicit === 'string' && explicit && explicit !== declared) return explicit
+
+For `dataSeries`, declared = `price`, so an explicit `pane` SHOULD survive and
+SHOULD reach `paneOwnKeys`. The derived-source branch sits BELOW explicit.
+
+So the real reason a blank pane-targeted Data Series produces no pane is still
+UNKNOWN. Do not build on my earlier sentence. Re-measure with a diagnostic that
+reports, for the blank instance: stored `placement`, `resolveDisplayTarget`,
+`paneOwnKeys` membership, `paneCountRequired`, and `layout.panes`.
+
+## ⛔ CONSTRAINT 1 — `source` CANNOT SIMPLY DEFAULT TO EMPTY
+
+`engine/defSchema.js` validates `type: 'source'` defaults with
+`isNonEmptyString(d)` and rejects otherwise:
+
+    type "source" requires a non-empty string (a bar field or a "defId.plotKey" handle)
+
+So the owner's ruling ("new Data Series source is UNSET") cannot be implemented by
+changing the definition default to `''`. Options to weigh:
+
+  · allow an omitted `default` for `type: 'source'` (schema change, affects every
+    source-capable definition);
+  · leave the DEFINITION default as `close` but have `addInstance` omit the input
+    for this definition (instance-level, but needs a non-id-based rule);
+  · represent unset at the instance seam some other way.
+
+⭐ THE GOOD NEWS: `sourceRef.parseSource` already returns `null` for an absent or
+empty value, so the RESOLUTION side already understands "unset". Only the
+CREATION/validation side needs a representation.
+
+## ⛔ CONSTRAINT 2 — `close` IS GENUINELY SHARED
+
+`movingAverage` declares the same `{ key: 'source', type: 'source', default: 'close' }`.
+The owner's ruling explicitly preserves MA's Close default, so any change must be
+scoped to the generic Data Series without touching that literal's meaning — and
+an EXISTING persisted `source: 'close'` on a saved Data Series must keep meaning
+explicit primary Close, never be reinterpreted as unset.
+
+---
+
 # ⛔ TRACK A ITEM 3 — BLOCKED ON AN ARCHITECTURE DECISION (not a bug to patch)
 
 **Measured 2026-09-15. HEAD 0c68badaf. Nothing changed for this item.**
