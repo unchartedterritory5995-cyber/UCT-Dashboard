@@ -521,7 +521,7 @@ estimate and 2× stop, each pushed before the next began.
 | 3 | **UDT-field-access sources** | R5: stays where it already speaks, and **notes** |
 | 4 | **accumulators — 1 of 379** | ceiling: **63 of 379** have a settleable bound (a4b) |
 | 5 | **the vendor capture** | blocker named above: no Clouds definition; 2 of 23 outputs. **(j)'s precondition** |
-| 6 | **a7.2 finding 1** | **13 scripts differ on refusal FACTS between lanes**, asserted as a SET so fixing one goes red. ⚰️ The shape is the opposite of expected: on several the **lenient lane refuses MORE than strict** (`uncharted-volume-v2`: strict 0 vs lenient 4 × `pine:function`). **Outputs agree on all 327**, so no column is lost either way. ⛔ **Worth a ruling, not a quiet fix.** |
+| 6 | **a7.2 finding 1** | ✅ **OPENED AS R14** (owner, 2026-09-15) — see below. **13 scripts differ on refusal FACTS between lanes**, asserted as a SET so fixing one goes red. ⚰️ The shape is the opposite of expected: on several the **lenient lane refuses MORE than strict** (`uncharted-volume-v2`: strict 0 vs lenient 4 × `pine:function`). **Outputs agree on all 327**, so no column is lost either way |
 | 7 | **a7.2 finding 2** | exactly **one** script THROWS out of `translatePine` — `smart-money-breakouts-chartprime__ea79c79a67.pine`, `pine:statement`, **both lanes identically**. Already known and routed as a corpus item; asserted by exact name so the day it is fixed the rail goes red and the finding retires |
 | 8 | **a7.3 candidates** | **four written-but-unread** oracle fields — `_`, `distinct_trees_walked`, `hash`, `version`. ⛔ **Recorded, NOT removed**: a threshold governs what is built, never what is removed, and removal needs its own authority and its own commit. `version` is unread **by design** (R12: written before it is read) |
 | 9 | **a7.3 defects** | **none** — zero read-but-not-always-written across dedicated readers |
@@ -818,15 +818,67 @@ never *"not supported"*:
 acceptance with the non-vacuity control named per 0.1, mutation proof, corpus
 re-measure).
 
-⚠️ **The one number worth an owner's eye before ruling:** `input.timeframe` is **158
-uses across 61 files** — the largest time-shaped population in the corpus — and it
-reads as "retire" only because **97 of them already work**. If the owner reads item
-(b) as *"make timeframe inputs first-class on the definition lane"* rather than *"the
-value-position residue"*, the population is 158 and the answer inverts. **The census
-cannot settle which question was asked;** it can only say that under the
-residue-reading, no kind clears 20.
+## ✅ R15 — ITEM (b) IS THE VALUE-POSITION RESIDUE (owner, 2026-09-15)
 
-⛔ **STOP — awaiting the owner's go.** Nothing built, nothing retired.
+**The question the census raised and could not settle, recorded here with its answer
+so it is not re-asked:**
+
+> *`input.timeframe` is 158 uses across 61 files and reads as "retire" only because 97
+> of them already work. Does item (b) mean "make timeframe inputs first-class on the
+> definition lane" — population 158, answer inverts — or "the value-position
+> residue"?*
+
+⛔ **ANSWERED: the residue. Item (b) never meant "first-class".** A timeframe input in
+a **timeframe position already folds** (`timeframeLiteralOf`), and its dominant
+consumer — `request.security` — is **item (c)'s by name**. Item (b) is what remains
+once those two are subtracted, and the census says that remainder clears no threshold.
+
+⭐ **Why this matters beyond (b):** the census's own instrument had to be fixed three
+times before it could state the residue honestly, and the third fix — crossing a
+function boundary into `f_calc_mtf_ma`'s body — moved `input.timeframe` from 38
+reachable to **9**. A four-fold inflation, in the direction that argues for building
+what (c) already owns. **The ruling and the instrument agree only because the
+instrument was corrected first.**
+
+## ✅ R16 — ITEM (b) RETIRES BY MEASUREMENT, WITH ONE GRAMMAR REFUSAL
+
+⛔ **No working capability is removed. All 277 uses refuse today under
+`pine:input-kind` and continue to.** What the retirement builds is **six sentences**
+at the existing sites, each carrying **kind, number and routing** in place of one
+generic sentence. **The code stays `pine:input-kind`** — no 42nd refusal.
+
+| kind | retires on | the sentence carries |
+|---|---|---|
+| `input.timeframe` | **count** — 9 reachable of 158 | `158/61`, *"97 reach `request.security` — item (c)"*, and that **a timeframe position already folds** |
+| **`input.session`** | ⛔ **GRAMMAR, not count** | `70/23` and the grammar reason: its only carrier under the frozen 11 is `str`, which `assertCanonical` admits **solely as a `textop` operand**; a session feeding a `time()`-in-range comparison is not that, and building it needs a **12th node type**. **No routing — nothing owns it.** ⭐ This stays true if the count rises |
+| `input.time` | **count** — 6 reachable of 20 | `20/11`; 15 carry as `num`, and the **5 expression defaults route to (c)** |
+| `input.string` in a tf position | same path as `input.timeframe`, no separate mechanism | `14/3`, one sentence |
+| `input` bare, time-shaped | **count** | `14/13`, **10 route to (c)** |
+| `input.int` as timestamp | **count** | `1/1` |
+
+⭐ **`input.session` is the one that is not a threshold call.** Every other row could
+be reopened by a corpus that shifts; this one could not, because it is a statement
+about the grammar rather than about the population.
+
+**Estimate 50 accepted; 2× stop 100.**
+
+# ⭐⭐ R14 — a7.2 FINDING 1 OPENS: WHICH LANE IS WRONG?
+
+**Owner, 2026-09-15.** On **13 of 327** scripts the **LENIENT** lane refuses **more**
+than **STRICT** — `uncharted-volume-v2.pine` strict **0** against lenient **4 ×
+`pine:function`**; `atr-trailing-stoploss` **0** against **5** — while **outputs agree
+on all 327**.
+
+⛔ **Both member scripts are among the 13, and `uncharted-volume-v2` is Wave 1's
+SHIPPED PANE.** That is what makes this a ruling rather than a curiosity: if the
+strict lane is the one that is wrong, a refusal is being hidden on a pane that is
+already in front of members.
+
+⛔ **MEASURED FIRST, FIXED SECOND. The direction of the fix is decided by which lane
+is RIGHT, never by which is quieter** — "make the noisy lane match the quiet one" is
+the shape that turns a hidden defect into a permanent one.
+
+The measurement is Section 2 of this block; no fix is made in the same session.
 
 ---
 

@@ -2,23 +2,21 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **the owner's ruling on item (b).** The census is done.
+> ### ⛔ NEXT: **the R14 fix, on the owner's go** — then item (c).
 >
-> **Item (b) is censused and proposes ALL-RETIRE** — not one of six time-shaped
-> input kinds clears the ~20 threshold on *reachable* uses, and `input.session`
-> is **inadmissible by construction** (its only carrier under the frozen 11 is
-> `str`, which `assertCanonical` admits solely as a `textop` operand). Retirement
-> estimate 50 min. ⛔ **Nothing built, nothing retired.**
+> **R14 — which lane is wrong.** On 13 of 327 the **lenient** lane refuses MORE
+> than **strict**, outputs agreeing on all 327. Both member scripts are among the
+> 13 and **`uncharted-volume-v2` is Wave 1's shipped pane**, so if strict is the
+> wrong one a refusal is hidden on a live surface. ⛔ **Measured first, fixed
+> second; the direction is decided by which lane is RIGHT, never by which is
+> quieter.** The measurement is recorded in `WAVE2-A-PLAN.md` § R14.
 >
-> ⚠️ **The question the census cannot settle, and the owner should:**
-> `input.timeframe` is 158 uses across 61 files and reads as "retire" only
-> because **97 already work** through `request.security`. Under a
-> *"make timeframe inputs first-class"* reading the population is 158 and the
-> answer inverts. See `WAVE2-A-PLAN.md` § item (b).
+> **Then item (c)** — `request.security` tuple form + IR-lane tuples. ⛔ **Census
+> before build, threshold before estimate**, the same order that retired four
+> loop forms and kept three reduce members on measurement.
 >
-> ⛔ **Census before build, threshold before estimate.** In that order, every
-> time: this wave retired four loop forms on measurement and kept three reduce
-> members on measurement, and in both directions the number came first.
+> ✅ **Item (b) CLOSED by R15/R16** — the residue reading ruled, six kinds retired
+> by measurement with `input.session` retiring on **grammar** rather than count.
 >
 > ✅ **R13 — CLOSED** (`c7b79c29e` red → fixed). The closing pass **resolves; it
 > does not mint**. It carried the live `paramMint` into its probe, so resolving a
