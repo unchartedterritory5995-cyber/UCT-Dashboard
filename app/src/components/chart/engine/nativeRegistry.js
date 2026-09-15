@@ -939,9 +939,24 @@ const RAW_DEFS = [
       // user cannot choose between. Consolidating the two is a migration with its
       // own backward-compatibility story (see the block comment above); until
       // then the capability IS the distinguishing word.
-      { name: 'Moving Average (Source)', shortName: 'MA', category: 'Trend', legendParams: ['period'],
-        description: 'The average of any series — price, volume, or another indicator output.',
-        tags: ['trend', 'smoothing', 'derived'] },
+      // ⚰️ "(Source)" WAS ENGINE VOCABULARY IN A MEMBER'S BROWSE LIST. The owner
+      // wanted a 50-period average OF QQQ, searched "moving average", took the
+      // first row — the legacy price-only one — and correctly found no Source
+      // control on it, because that definition has none. The capability was
+      // built and shipped; the word for it was not one anyone would recognise as
+      // the answer. `(Flexible Source)` says what it can do instead of naming the
+      // schema field that does it.
+      //
+      // ⛔ THE TAGS ARE THE OTHER HALF, and they matter more than the name here:
+      // `matches()` reads name, shortName, id, category and tags with
+      // `includes()`, so every phrasing a member might type has to be spelled
+      // out. Without 'moving average' among them this row does not answer the
+      // most obvious search at all — the legacy row carries that tag and this one
+      // did not.
+      { name: 'Moving Average (Flexible Source)', shortName: 'MA', category: 'Trend', legendParams: ['period'],
+        description: 'Can calculate from Price or another chart series — a security, volume, or another indicator output.',
+        tags: ['trend', 'smoothing', 'derived', 'ma', 'sma', 'ema', 'moving average', 'average',
+          'ma source', 'moving average source', 'sma source', 'ema source', 'source', 'flexible'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.
       // `MA(Close)` belongs on the candles — it is what a moving average has
       // always been — so the STATIC declaration says so and MA-on-close needs no
