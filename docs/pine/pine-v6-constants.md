@@ -146,10 +146,16 @@ manual pages. A row is a **contradiction** when a manual passage that presents i
 enumeration ("These are the available style arguments:", "The available arguments are:") omits a
 member; it is an **omission** when the manual simply never covers the family.
 
+> ⛔ **THIS `D*` SERIES IS `PRES-D*`** (renamed 2026-09-15, R19). It records
+> **documentation discrepancies** between TradingView's Reference and User Manual. The
+> engine's own rulings **D1** and **D2** are unrelated and **collided by name**; within
+> this table a bare `Dn` means `PRES-Dn`, and the two that actually collided are spelled
+> out. Mirrors `pine-presentation-spec.md` §9.1.
+
 | # | Family | Reference | Manual | Verdict |
 |---|---|---:|---|---|
-| D1 | `label.style_*` | **21** | Text-and-shapes: "These are the available style arguments:" then a **20-row** table | **CONTRADICTION** — table omits `label.style_text_outline` (added Aug 2022 per release notes). Absent from all 49 pages. |
-| D2 | `plot.style_*` | **11** | Plots page: "The available arguments are:" then names **9** | **CONTRADICTION** — the list omits `plot.style_stepline_diamond` (named elsewhere on the same page) **and** `plot.style_steplinebr`, which appears on **zero** manual pages. Reference: "'Step line with Breaks' style … for the `style` parameter in `plot()`". |
+| PRES-D1 *(was `D1`)* | `label.style_*` | **21** | Text-and-shapes: "These are the available style arguments:" then a **20-row** table | **CONTRADICTION** — table omits `label.style_text_outline` (added Aug 2022 per release notes). Absent from all 49 pages. |
+| PRES-D2 *(was `D2`)* | `plot.style_*` | **11** | Plots page: "The available arguments are:" then names **9** | **CONTRADICTION** — the list omits `plot.style_stepline_diamond` (named elsewhere on the same page) **and** `plot.style_steplinebr`, which appears on **zero** manual pages. Reference: "'Step line with Breaks' style … for the `style` parameter in `plot()`". |
 | D3 | `display.*` | **7** | 5 named anywhere | **OMISSION (renderer-relevant)** — `display.price_scale` and `display.pine_screener` appear on **no** manual page, yet the overview page discusses price-scale visibility in prose and the reference documents the `display.all - display.price_scale` idiom explicitly. |
 | D4 | `math.*` | **4** | only `math.pi` | **OMISSION** — `math.phi`, `math.rphi` (0.6180339887498948), `math.e` appear nowhere in the manual. |
 | D5 | `currency.*` | **56** | 6 named anywhere | **OMISSION** — the manual never enumerates currencies; 50 of 56 appear nowhere. |

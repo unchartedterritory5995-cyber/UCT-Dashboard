@@ -2442,7 +2442,7 @@ the result; there is no documentary path to the answer.
 | U5 | Concrete typefaces, metrics and fallback behind `font.family_default` / `font.family_monospace`; behaviour if an arbitrary font-name string is passed to the `series string` parameter | Text measurement, and therefore auto-sizing of table columns and box wrapping | Live chart; `[UM]` says only "Pine scripts display strings using the system default font" |
 | U6 | Dash and dot periods for `line.style_dotted`/`_dashed` (and the `hline`/`box`/`plot.linestyle` equivalents); arrowhead size for `line.style_arrow_*` | Stroke-pattern parity | Live chart measurement |
 | U7 | Pixel gap between the bar extreme and the label under `yloc.abovebar`/`yloc.belowbar`, and whether it scales with `size` | Label placement in the most common label idiom | Live chart |
-| U8 | Full semantics of `plot.style_stepline_diamond` and `plot.style_steplinebr` — `na` handling, y-scale rule, diamond geometry | 2 of 11 plot styles | Live chart. The reference gives only display names plus one comparative sentence; `[UM]` omits both entirely (§9 D2) |
+| U8 | Full semantics of `plot.style_stepline_diamond` and `plot.style_steplinebr` — `na` handling, y-scale rule, diamond geometry | 2 of 11 plot styles | Live chart. The reference gives only display names plus one comparative sentence; `[UM]` omits both entirely (§9 **PRES-D2**, renamed from `D2` to end the collision with engine ruling D2) |
 | U9 | `na` behaviour for `plot.style_columns` and `plot.style_histogram` — no column, or a zero-height column? | Histogram/column rendering on gaps | Live chart with a deliberately `na`-punctured series |
 | U10 | `plotarrow()` length **normalisation**: the denominator (whole dataset / visible range / rolling window), the linearity of the map into `[minheight, maxheight]`, and the all-values-equal degenerate case | **The single largest renderer-facing gap in the plot family** — arrow lengths cannot be reproduced at all without it | Live chart, sweeping a synthetic series and measuring |
 | U11 | `plotarrow()` **vertical anchor** — where an arrow's base sits (bar high/low, pane border, or the value itself) | Arrow placement. `plotarrow()` has no `location` parameter and no source states the anchor | Live chart |
@@ -2541,10 +2541,19 @@ implement the wrong thing. Each row states the defect and the resolution this sp
 
 ### 9.1 Reference vs User Manual — outright contradictions
 
+> ⛔ **THE `D*` SERIES IN §9 IS `PRES-D*`, AND IT IS NOT THE ENGINE'S RULING SERIES**
+> (renamed 2026-09-15, R19). These numbers are **documentation discrepancies** between
+> TradingView's Reference and User Manual. The engine has its own rulings **D1** (a pane
+> does not select an alert) and **D2** (a pane acts on the host lane's saved definition)
+> — unrelated, and **`D1` and `D2` collided by name across both series**. Within §9 and
+> `pine-v6-constants.md` a bare `Dn` means `PRES-Dn`; the two that actually collided are
+> spelled out below. ⚠️ A future engine ruling taking `D3` or beyond needs the same
+> treatment — the prefix is declared here so that is a rename in one place.
+
 | # | Family | Reference | User Manual | Resolution |
 |---|---|---|---|---|
-| **D1** | `label.style_*` | **21** members | *"These are the available style arguments:"* then a **20-row** table — omits **`label.style_text_outline`** (added Aug 2022 `[RN]`), which appears on **zero** of 49 manual pages | **21.** Implement `label.style_text_outline`: outlined text, no balloon |
-| **D2** | `plot.style_*` | **11** members, enumerated in `plot(style=)`'s own description | *"The available arguments are:"* then names **9** — omits **`plot.style_stepline_diamond`** (named elsewhere on the same page) **and `plot.style_steplinebr`**, which appears on **zero** manual pages | **11.** Both styles are real; their detailed semantics are U8 |
+| **PRES-D1** *(was `D1` — renamed to end the collision with engine ruling D1)* | `label.style_*` | **21** members | *"These are the available style arguments:"* then a **20-row** table — omits **`label.style_text_outline`** (added Aug 2022 `[RN]`), which appears on **zero** of 49 manual pages | **21.** Implement `label.style_text_outline`: outlined text, no balloon |
+| **PRES-D2** *(was `D2` — renamed to end the collision with engine ruling D2)* | `plot.style_*` | **11** members, enumerated in `plot(style=)`'s own description | *"The available arguments are:"* then names **9** — omits **`plot.style_stepline_diamond`** (named elsewhere on the same page) **and `plot.style_steplinebr`**, which appears on **zero** manual pages | **11.** Both styles are real; their detailed semantics are U8 |
 | **D3** | `color.blue` | **`#2962ff`** (v6 **and** v5 payloads agree) | `#2196F3` (Material Blue 500) in the prose colour table | **`#2962ff`.** Note the payload's lowercase hex for this one constant — compare case-insensitively |
 | **D4** | `plotcandle()` signature | **14** parameters | `/visuals/bar-plotting/` publishes **11** — `plotcandle(open, high, low, close, title, color, wickcolor, editable, show_last, bordercolor, display)`, missing `format`, `precision`, `force_overlay` | **14.** The published signature is stale |
 | **D5** | `location.*` | **5** members, all 5 listed for both `plotshape` and `plotchar` | `/visuals/text-and-shapes/` lists only `abovebar`/`belowbar`/`top` — omits **`location.bottom` and `location.absolute`**, and `location.absolute` is the one with different y semantics | **5.** The omitted constant is the behaviourally distinctive one |
