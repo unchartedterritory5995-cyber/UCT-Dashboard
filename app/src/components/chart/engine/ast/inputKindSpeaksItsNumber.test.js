@@ -90,7 +90,7 @@ describe('R16 — each retired input kind speaks its own number', () => {
   })
 
   for (const kind of Object.keys(SPECIMEN)) {
-    it.fails(`⭐⭐ input.${kind}'s sentence carries its kind, number and routing`, () => {
+    it(`⭐⭐ input.${kind}'s sentence carries its kind, number and routing`, () => {
       const lines = inputKindLines(readSpecimen(kind))
       const mine = lines.filter((m) => m.includes(`input.${kind}`))
       expect(mine.length, `no line names input.${kind}`).toBeGreaterThan(0)
@@ -102,7 +102,7 @@ describe('R16 — each retired input kind speaks its own number', () => {
     })
   }
 
-  it.fails('⛔ input.session retires on GRAMMAR, and says so rather than a count', () => {
+  it('⛔ input.session retires on GRAMMAR, and says so rather than a count', () => {
     // ⭐ The one row that is not a threshold call. Every other kind could be
     // reopened by a corpus that shifts; this sentence must stay true if it does.
     const lines = inputKindLines(readSpecimen('session'))

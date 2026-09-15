@@ -735,11 +735,32 @@ hold"* — in a **value** position.
 | | | | `input.text_area` | 15 |
 | | | | `input.enum` | 14 |
 
-⚠️ **The refusal is position-dependent, which the flat table hides.**
-`timeframeLiteralOf` already folds `input.timeframe`, `input.string` **and** bare
-`input` when a **timeframe position** asks — so 97 of the 158 `input.timeframe` uses
-already work today, through `request.security`. The refusal bites only in a value
-position.
+⚰️⚰️ **THE RIGHT-HAND COLUMN ABOVE IS WRONG, AND IT IS CORRECTED HERE RATHER THAN
+REWRITTEN.** It reads its verdict off `NUMERIC` **set membership** instead of
+measuring, and the flat shape hid that the refusal is position- *and* read-dependent.
+Measured through the shipped door at R16 (2026-09-15), with inert consumers and a
+column that varies so `pine:constant-only` cannot relocate over the answer:
+
+| kind | READ by an output | UNREAD (the closing pass) |
+|---|---|---|
+| `input.time` | ⛔ **REFUSES `pine:input-kind`** | note `pine:input-kind` |
+| `input.timeframe` | ✅ translates, no refusal | note `pine:input-kind` |
+| `input.session` | ✅ translates, no refusal | note `pine:input-kind` |
+| `input.string` | ✅ translates, no refusal | note `pine:input-kind` |
+| `input.color` · `input.symbol` | ✅ translates, no refusal | note `pine:input-kind` |
+| `input` (bare) | ✅ translates, no refusal | note **`pine:text-value`** |
+| `input.int` (timestamp) | ✅ translates | **nothing** — it is `NUMERIC` |
+
+⭐ **So of the 277 time-shaped uses, only `input.time` refuses on the read path.** The
+`pine:input-kind` sentence a member actually meets for the other kinds is a **NOTE on
+an unread binding** — the closing pass's product (R13 / `bdc1050ad`), *"this lane
+cannot read line N"* — which is exactly where **Clouds' eight lines** come from.
+
+⛔ **There is therefore ONE site, not the four the scoping assumed** — the `NUMERIC`
+gate in `resolveInput` — and it serves both paths, so one per-kind sentence covers
+both. `input.timeframe`, `input.string` and bare `input` still fold in a **timeframe
+position** via `timeframeLiteralOf`; that is how 97 of the 158 reach the member, and
+R16 does not touch it.
 
 **Clouds' eight lines, by kind: 4 × `input.string` (lines 10, 11, 17, 18) and 4 ×
 `input.color` (13, 20, 24, 26).** Not one is time-shaped.
@@ -861,6 +882,51 @@ be reopened by a corpus that shifts; this one could not, because it is a stateme
 about the grammar rather than about the population.
 
 **Estimate 50 accepted; 2× stop 100.**
+
+### ✅ R16 BUILT — with its premise corrected by measurement first
+
+⛔ **R16 said "six sentences at the existing sites (7754/7758/7780/7793)" and that
+"all 277 refuse today under `pine:input-kind`". Measured, neither held** (see the
+corrected b.1 table above). What was built instead, and why it satisfies the ruling's
+intent exactly:
+
+| ruled | measured | built |
+|---|---|---|
+| six sentences | **four** kinds have something to say | `timeframe` · `session` · `time` · `string` |
+| at four sites | **one** site — `resolveInput`'s `NUMERIC` gate | one per-kind table there |
+| all 277 refuse | only `input.time` refuses when READ; the rest note when **unread** | one sentence serving **both** paths |
+| `input.int` (ts) sentence | it is `NUMERIC` and **already folds** — emits nothing | **no sentence**, and the acceptance pins that |
+| `input` bare sentence | notes `pine:text-value`, a different code | **no sentence** at this site |
+
+⭐ **The intent is met and the count is not:** a member who meets any of the four now
+gets **kind, number and routing** instead of one generic line, down whichever path
+they meet it. **Code stays `pine:input-kind`** — no 42nd.
+
+**Rails:** `inputKindSpeaksItsNumber.test.js`. Non-vacuity control named per the
+2026-09-14 standing rule — each of the four named corpus specimens is asserted to
+exist, to contain its kind, and to emit at least one `pine:input-kind` line, so no
+sentence assertion can pass over an empty list. Controls: a handled kind still folds
+to `num`; **`input.timeframe` in a timeframe position still folds, asserted by the
+FOLDED VALUE `'D'`** rather than by the absence of a refusal; and `input.int` as a
+timestamp emits nothing.
+
+⚰️ **Two discarded probe designs are recorded in the rail rather than dropped:** the
+first used `time >= t` as the consumer and caught `pine:builtin` (milliseconds vs
+seconds) — the *consumer's* refusal, not the input's; the second used a constant
+column, so **`pine:constant-only` relocated over the input refusal** — a refusal
+relocates and never joins, so `refusals.length` stayed 1 and the sentence under test
+was invisible.
+
+**Mutation-proved** against `sha256 8294bd94…`, restored byte-equal and re-verified
+9/9: revert `input.session` to the generic sentence → **2 RED, both session, nothing
+else**; strip `input.timeframe`'s routing → **1 RED on its sentence and the
+timeframe-position control stays GREEN**, which is the assertion that stops the fix
+being paid for out of `timeframeLiteralOf`.
+
+**Baseline:** `engine`+`builder`+`pane` **371 files · 7,470 passed · 32 skipped · 5
+failed in 3 files · 0 timeouts** — the recorded pre-existing trio, unchanged. **No
+snapshot moved and no artifact moved**: the sentence is an extension of the message
+and nothing pinned the old string.
 
 # ⭐⭐ R14 — a7.2 FINDING 1 OPENS: WHICH LANE IS WRONG?
 

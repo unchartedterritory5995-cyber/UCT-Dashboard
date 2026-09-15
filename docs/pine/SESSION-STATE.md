@@ -50,7 +50,7 @@ session trusts without checking.
 | item (a) | ✅ **CLOSED** — arc a1 → a7, rulings R1–R12. See `WAVE2-A-PLAN.md` |
 | a7 | ✅ **CLOSED by R12** — contract, rail, twin coverage, suite, build; capture owed |
 | R13 | ✅ **CLOSED** — the Track F collision; the closing pass no longer mints |
-| item (b) | 🟡 **CENSUSED, AWAITING A RULING** — all-retire proposed, 50 min. `WAVE2-A-PLAN.md` |
+| item (b) | ✅ **CLOSED by R15/R16** — the residue reading ruled; four kinds now say their own number and routing at one site. ⚰️ R16's premise (six sites, all 277 refusing) was measured false and corrected in place before building |
 | **open** | ⛔ (b)'s ruling · items (c)–(e) not started |
 | owner-pending | H.4 · the Wave 1 PR · the per-module veto on the eight 0.2 register entries · a ruling on a7.2 finding 1 (the lenient lane refusing MORE than strict on 13 scripts) |
 

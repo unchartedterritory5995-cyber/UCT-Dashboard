@@ -7855,9 +7855,51 @@ export class Resolver {
       else if (!arg.name && defval === null && i === 0) defval = arg.value
       else if (!arg.name && title === null && i === 1) title = arg.value
     }
+    // ⭐⭐ R16 — EACH RETIRED KIND SAYS ITS OWN NUMBER AND WHERE IT ROUTES.
+    //
+    // Item (b) retired six time-shaped input kinds on measurement (R15/R16,
+    // 2026-09-15). Retiring here means the member is told WHICH kind, HOW MANY uses
+    // it has in the measured corpus, and WHERE the work went — never "not
+    // supported", and never one generic sentence for eight different situations.
+    //
+    // ⛔⛔ THIS IS ONE SITE SERVING TWO PATHS, which is why the sentences live here
+    // and not at four call sites. It throws as a REFUSAL when an output reads the
+    // input, and the throw is caught as a NOTE by the closing pass over `env` (R13)
+    // when nothing reads it — which is where Clouds' eight `pine:input-kind` lines
+    // come from. ⚰️ R16's own wording said "six sentences at the existing sites
+    // (7754/7758/7780/7793)" and that "all 277 refuse today"; measured, only
+    // `input.time` refuses on the READ path and `input.int` as a timestamp emits
+    // nothing at all, because it is NUMERIC and folds. Corrected in place rather
+    // than built as written.
+    //
+    // ⭐ `input.timeframe` IS NOT RETIRED EVERYWHERE, and the sentence says so: in a
+    // TIMEFRAME POSITION `timeframeLiteralOf` still folds it, which is how 97 of its
+    // 158 uses reach the member. Only the value-position residue is retired. A
+    // retirement that took those 97 with it would be removing a working capability,
+    // which a threshold gives no authority to do.
+    const RETIRED_INPUT_KIND = {
+      timeframe:
+        '158 uses across 61 files, of which 97 reach `request.security` — '
+        + 'multi-timeframe reads are item (c)\'s. In a timeframe position this '
+        + 'still folds to its default; only the 9-use value-position residue is '
+        + 'retired, which is under the threshold',
+      session:
+        'a session string has no carrier in this lane\'s grammar — `str` exists '
+        + 'only as a `textop` operand, and a session feeding a time-in-range '
+        + 'comparison is not one. 70 uses across 23 files, and nothing routes '
+        + 'them: this is a grammar limit, not a threshold',
+      time:
+        '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
+        + 'are expressions are item (c)\'s. 6 reach a column, under the threshold',
+      string:
+        'in a timeframe position this folds exactly as `input.timeframe` does and '
+        + 'adds no separate mechanism — 14 uses across 3 files',
+    }
     if (!NUMERIC.has(kind)) {
+      const why = RETIRED_INPUT_KIND[kind]
       throw new PineRefusal('pine:input-kind',
-        `${REFUSALS['pine:input-kind']} — \`${name}\``, locate(node.tok))
+        `${REFUSALS['pine:input-kind']} — \`${name}\`${why ? ` — ${why}` : ''}`,
+        locate(node.tok))
     }
     if (defval === null) {
       throw new PineRefusal('pine:input-kind',
