@@ -93,6 +93,45 @@ cd app && npm run test:hub        # 89 files / 1166 tests; only styles/tapFloor.
   a whole six-shard gate running between them; on the sampler's first real use the first and last
   of seven samples were clean and the middle ones were not.
 
+### ⛔⛔ AND THE GATE THAT DECIDES THIS MERGE RUNS ON THE MERGE COMMIT ITSELF
+
+Owner ruling, 2026-09-15. Everything above re-asserts the branch. **None of it is the gate**, and
+the difference is not pedantry: a branch gate measures a tree nobody will ever deploy. What ships is
+the **merge commit**, and that is what the baseline must be compared against.
+
+Run it **after Patrick merges**, before anything in `rollout.md` §3 b–f starts:
+
+    git fetch origin master
+    python tools/gate_box_sampler.py --check        # must say VERDICT=CLEAR before you start
+    python scripts/gate_shards.py --shards 6        # ON THE MERGE COMMIT, tree clean
+
+**Four conditions, all required. Any one missing and the run is not a gate:**
+
+1. **`VERDICT=` is the arbiter, never `$?`.** The wrapper prints one line on stdout derived from the
+   same manifest as its exit code. `VERDICT=NO_NEW_FAILURES exit=0` is the only pass.
+   ⚰️ The task status has misreported this wrapper twice — a runner that executed nothing said 0,
+   and a run printing its own `GATE EXIT: 1` said 0.
+2. **Against baseline 10**, `#9` still `provisional: true`. A NEW failure is one not in those ten.
+   ⛔ `VERDICT=DID_NOT_RECONCILE exit=3` is **not** a pass with a caveat — a suite that did not run
+   every file fails in the *flattering* direction and its failing set is incomplete.
+3. **The sampler CLEAR for the whole run**, wrapped not bracketed:
+   `python tools/gate_box_sampler.py --watch-pid <the gate pid>`.
+   `INCONCLUSIVE-CONTENDED` or `INCONCLUSIVE-UNOBSERVED` ⇒ the run is void and **waits**. It is
+   never retried into load and never counted.
+4. **File reconciliation.** `test_files_on_disk − waived == summed files`. A partial suite finds
+   fewer failures and reads as a pass.
+
+⭐ **The mechanical half is already pre-flighted** — `harness/2026-09-15-stage2-merge-preflight.md`
+built the merge locally and measured it: artifacts byte-identical after the three-way merge, and
+`npm run test:hub` at **89 files / 1166 tests with only `tapFloor` failing**, which is this
+section's own PASS condition. ⛔ That is a *tree*, not the *commit*. It lowers the odds of a
+surprise; it does not replace this gate.
+
+⛔ **A NEW failure here is not automatically the hub's.** Classify by direction first: a failure the
+**base** also has is master's — add it to the baseline citing the base hash. One only the merge has
+blocks. Re-run a load-sensitive name **alone** before classifying it, and read
+`gate-runs/2026-09-14T21-39-settling-runs.md` before trusting the word "load" about any of them.
+
 ## 3 · Live iPhone 15 Pro — the hub reaches a member-shaped account
 
 ```sh

@@ -25,11 +25,73 @@ For every item on the list, in order:
    admins have the hub, so a defect can be live and invisible today and member-visible the
    instant stage 2 lands.
 6. **Blocks stage 2?** Yes only if (WRONG) **and** (member-visible after stage 2).
+6b. **Blocks stage 3?** ⭐ **A separate question since 2026-09-15**, because stage 3 is no longer
+   an abstraction — `launch/stage-3-ga` @ `3164cccac` is built and gated
+   (`harness/2026-09-15-stage3-ga-prebuild.md`). Stage 3 changes **no exposure**: it moves
+   `ROLLOUT_STAGE` 2 → 3 and drops `(preview)` from the Settings label. So an item can only
+   block stage 3 by being (WRONG) **and** on `rollout.md` §3 c's list — which today means
+   **D-39** and nothing else. ⛔ Do not mark an ordinary member-visible defect "blocks stage 3":
+   it blocks stage 2, and stage 3 is downstream of stage 2 anyway.
 7. **Owner ruling needed?** Anything where the registry and his expectation disagree is a ruling,
    not a bug — route it to him rather than deciding it.
 
 ⛔ **The asymmetry that makes this worth doing:** *not reproducible today* does **not** mean *not
 a stage-2 problem*. Today the hub reaches admins only.
+
+### The ledger — one row per item, filled as they arrive
+
+⛔ **EMPTY ON PURPOSE.** Pre-built 2026-09-15 so that triage is transcription rather than
+composition. A row invented before the list arrives is a diagnosis of a report nobody has made.
+
+| # | his words (verbatim) | mode.action | WRONG / not-nice-yet | repros on stage-1 live? | member-visible after stage 2? | blocks 2? | blocks 3? | ruling needed? |
+|---|---|---|---|---|---|---|---|---|
+| 1 | | | | | | | | |
+| 2 | | | | | | | | |
+| 3 | | | | | | | | |
+| 4 | | | | | | | | |
+| 5 | | | | | | | | |
+| 6 | | | | | | | | |
+
+⭐ **Column 2 is `mode.action` from §1's inventory, or the word NONE.** NONE is a real answer and a
+useful one: a report that maps to no declared action is either about a surface outside the hub or
+about something the registry never promised, and forcing it into a match is how a triage produces a
+fix for the wrong thing.
+
+⚠️ **`UNTESTED` in column 5 is a state, not a gap to fill with judgement.** It stays UNTESTED until
+somebody runs it. An UNTESTED row may not be closed.
+
+### D-39 — the one item that is PRE-SCOPED, and it is still waiting on his words
+
+**Held deliberately (ruling, 2026-09-15): D-39 is built in the same run that triages this list, so
+it is scoped against what Patrick actually reported rather than against what the sweep found.**
+
+| | |
+|---|---|
+| what | the chip yields to page-level fixed furniture — `HubChip.jsx`, **hub-side only** |
+| ⛔ rule 12 | **never** a `app/src/pages/journal-2-0/**` edit. The tempting fix is to move the Journal's "Log a trade" FAB; that is another workstream's file. **The hub is the newcomer on these screens and the hub yields.** |
+| acceptance | **6 pairs** — `journal` and `notebook` at **360 / 375 / 430** |
+| instrument | `tools/hub_chip_clearance.py` |
+| ruled timing | `rollout.md` §3 c — **fix before stage 3, not before stage 2** |
+| severity | cosmetic-plus: the covering element stays on top and tappable, so nothing is unreachable; the chip's readout is partly hidden |
+
+⚰️ **The acceptance target is 6 pairs and not 7, and the correction is the reason to re-read the
+sweep rather than trust it.** One of the two original symptoms was **the instrument**: the
+cinematic intro animation runs ~9.3 s on every real page load and paints over the entire app, and
+the sweep does a page LOAD per (mode, width) — so some readings were taken straight through the
+overlay and scored its capability pills as page furniture. `hub_chip_clearance.py` now waits the
+intro out before sampling.
+
+**What [A] must supply before this is built, and what it cannot change:**
+
+- ⬜ whether Patrick reports the chip collision **at all**, and on which screens. If he does not,
+  D-39 is still ruled fix-before-stage-3 and is still built — but at the **sweep's** scope, and the
+  record says so plainly rather than implying he asked for it.
+- ⬜ whether he reports it somewhere the 6 pairs do **not** cover. That widens the acceptance set,
+  and the new pairs are measured, never assumed.
+- ⛔ **What [A] cannot change: the approach.** `elementFromPoint` at the chip's intended left edge,
+  shrink `max-width` until it clears, **floor at `.chipMode`'s width** so the mode name always
+  survives and only the tap hint yields — the rule `.chipHint` already follows. That was ruled
+  2026-09-12 and a bug report does not re-open it.
 
 ---
 
