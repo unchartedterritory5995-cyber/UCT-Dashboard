@@ -36,6 +36,7 @@
 #!after: e-cp2-build-record <- packet-e-ci-gap-gate
 #!after: e-cp4-build-record <- e-cp2-build-record
 #!after: e-cp5-build-record <- e-cp4-build-record
+#!after: e-cp6-build-record <- e-cp5-build-record
 #!after: t2-cp1-build-record <- e-cp4-build-record
 #!after: k-cp3-build-record <- packet-k-two-command-signing-gate
 #!after: k-cp4-build-record <- k-cp3-build-record
@@ -51,6 +52,7 @@ docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | beeffe
 docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | CP2 | 00eecb391
 docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | CP4 | fcb2dd9b1
 docs/terminal-research/12-decisions/gates/e-cp5-build-record.md | CP5 | 789e35efd
+docs/terminal-research/12-decisions/gates/e-cp6-build-record.md | CP6 | 0052e2ac6
 docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 42eafe314
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
 docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | CP3 | ba5e34e79
