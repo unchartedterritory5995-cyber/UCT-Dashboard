@@ -604,18 +604,25 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 ```
 
 **PARKED.** **(a) F-MERGE-1 CLOSED — MET** (confirmed on the file, §2 P.1).
-**(b) pytest has produced a totals line in the record — UNMET** (§3c).
+**(b) pytest has produced a totals line in the record — UNMET.** No record has published
+since **run #4**; runs #6, #8, #9, #10 and #11 all lost their `publish` job.
 
-The 23-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–22 nothing member-visible.**
-Row 23 (`s2-accelerator-chord`) is the chord change — Ctrl/Cmd/Alt+Shift+F stops silently
-flagging tickers on three screens. **This session merged and deployed nothing.**
+The 26-row table with fingerprints and reader states is in the manifest; every row reads
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–25 nothing member-visible.**
+Row 26 is E CP14 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
+stops before it unless `--include-member-visible` is passed. **This session merged and
+deployed nothing.**
 
-**[PHONE-OK]** — if `publish` failed again on run #8: open the repo's **Actions** tab → the
-latest run → the **`publish the result into the repo (ci-results)`** job. E CP9 writes the
-verdict, both suites' counts and the shard fields into the **job summary**, which appears at
-the top of that job's page **even when the push failed**. Tell me the verdict line and the
-`shards_without_totals` value.
+⭐ **THE [PHONE-OK] ASK IS WITHDRAWN — you do not need to look anything up.** It said to open
+the Actions tab and read the job summary, and §3k measures that `summary_partial` is **404**
+without a login while **check-run annotations answer 200 anonymously**. E CP14 emits the
+failing command as an annotation, so **I can read the next failure myself** and will report
+it rather than asking you to fetch it.
+
+⚠️ If you *want* to look, the one thing worth reading is the same job's page: the annotation
+appears at the top as a red banner naming the failing command, and the job summary below it
+carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
