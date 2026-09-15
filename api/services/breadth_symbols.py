@@ -28,6 +28,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date as _date, datetime, timedelta
 from typing import Optional
 
+from api.services.breadth_universes import DEFAULT_UNIVERSE
+
 _log = logging.getLogger("breadth_symbols")
 
 # ── Registry ────────────────────────────────────────────────────────────────
@@ -112,6 +114,87 @@ SYMBOLS = {sym.upper(): {"symbol": sym.upper(), "metric": metric, "name": name, 
 _METRIC_OF = {sym: rec["metric"] for sym, rec in SYMBOLS.items()}
 
 
+# ─── BL-008: THE REGISTRY DECIDES MEMBERSHIP. SYNTAX NEVER DOES. ─────────────
+#
+# ⭐⭐ THE ONE RULE THIS SECTION EXISTS TO ENFORCE: `NASDAQ:A50` is a Breadth
+# Library symbol because the registry CONTAINS that identity, not because it has a
+# colon in it. `NASDAQ:AAPL` has the identical shape and is not one — it is a venue
+# prefix on a third-party instrument, and nothing here may promote it.
+#
+# ⛔⛔ SO NOTHING IN THIS MODULE SPLITS A STRING ON ":" TO DECIDE WHAT IT MEANS.
+# The resolver is a dict lookup against identities minted from
+# `breadth_universes` × `breadth_metrics`. That is why the reverted TICKER_SHAPE
+# widening was the wrong fix and must not come back: a SHAPE test cannot tell those
+# two strings apart, and a registry does it without trying.
+#
+# ⚠️ SOURCE GRAMMAR AND SYMBOL VALIDITY ARE DIFFERENT LAYERS. `sourceRef.js` can
+# structurally carry `sym:NASDAQ:A50:close` — that is parsing, and it is correct
+# for it to be shape-based. Whether `NASDAQ:A50` EXISTS is this layer's answer.
+# Conflating them is how `FOO:BAR` becomes chartable.
+
+def _library_index() -> dict:
+    """`{SYMBOL: row}` over every registered identity, aliases included.
+
+    Rebuilt per call from the projection — the projection is pure and cheap, and a
+    module-level cache would be a second copy that goes stale the moment a metric
+    or universe is added. The serve path memoises through `resolve()` below.
+    """
+    idx = {}
+    for row in library_rows():
+        sym = row.get("symbol")
+        if sym:
+            idx[sym.upper()] = row
+    # Explicit aliases, from a TABLE. `UCT:A50` is a legal spelling of `UCTA50`
+    # because this says so, not because a rule rewrites prefixes.
+    for alias, target in library_aliases().items():
+        row = idx.get(target.upper())
+        if row:
+            idx[alias.upper()] = {**row, "symbol": target.upper(), "matched_alias": alias.upper()}
+    return idx
+
+
+def library_aliases() -> dict:
+    """`{alias: canonical symbol}` — EXPLICIT, never inferred.
+
+    ⭐ The namespaced spelling of a UCT metric (`UCT:A50`) resolves to the symbol
+    that has always named it (`UCTA50`). It is an alias in exactly one direction:
+    `UCTA50` stays canonical, nothing is renamed, and no stored layout, watchlist,
+    drawing or formula has to change. The brief's rule — "aliases must also be
+    explicit registry mappings" — is satisfied by this being a derived TABLE rather
+    than a prefix rewrite applied at lookup time.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    out = {}
+    for metric, legacy in LEGACY_SYMBOL_BY_METRIC.items():
+        m = _bm.get(metric)
+        if m:
+            out[f"{_bu.label(_bu.DEFAULT_UNIVERSE)}:{m['code']}"] = legacy
+    return out
+
+
+def resolve(sym: str, published_only: bool = True) -> Optional[dict]:
+    """The registry row for `sym`, or None. THE membership authority.
+
+    `published_only` (the default) restricts the answer to universes
+    `breadth_universes.published_universe_ids()` allows — UCT alone unless the
+    `BREADTH_LIBRARY_UNIVERSES` flag says otherwise. Discovery and tests pass
+    False to see the whole catalogue.
+
+    ⛔ An unregistered colon-bearing token — `NASDAQ:AAPL`, `FOO:BAR`, `US:NOPE` —
+    returns None at every setting. There is no "looks close enough".
+    """
+    from api.services import breadth_universes as _bu
+    if not sym:
+        return None
+    row = _library_index().get(str(sym).strip().upper())
+    if row is None:
+        return None
+    if published_only and row["universe"] not in _bu.published_universe_ids():
+        return None
+    return row
+
+
 #: metric key → the UCT symbol that has ALWAYS named it. ⭐⭐ THE ALIAS TABLE IS
 #: DATA, DERIVED FROM `_ROWS`, AND IT IS THE ONLY THING THAT MAY ANSWER "what is
 #: UCT's symbol for this metric". The rendered symbol is never PARSED to recover
@@ -123,17 +206,28 @@ LEGACY_SYMBOL_BY_METRIC = {metric: sym.upper() for (sym, metric, _n, _g) in _ROW
 
 
 def is_breadth_symbol(sym: str) -> bool:
-    """True when `sym` is one of our chartable breadth pseudo-tickers.
+    """True when `sym` is a chartable breadth pseudo-ticker THIS DEPLOY SERVES.
 
     Membership test (NOT a bare 'UCT' prefix) so a real ticker like UCTT never
-    collides.
+    collides — and now REGISTRY-backed rather than a fixed dict, so a namespaced
+    identity is recognised when, and only when, the registry contains it AND its
+    universe is published.
 
-    ⚠️ UNCHANGED BY THE LIBRARY WORK, DELIBERATELY. It answers for the 44 shipped
-    UCT symbols and nothing else; `library_rows()` below is a PROJECTION no public
-    surface consumes yet. The day a namespaced symbol becomes servable is a
-    decision with its own gate, and until then this must not start saying yes.
+    ⭐ THE 44 SHIPPED UCT SYMBOLS ANSWER EXACTLY AS BEFORE. `SYMBOLS` is consulted
+    first and unconditionally: UCT is always in the published set, so no flag, no
+    catalogue edit and no registry failure can take a shipped symbol off the air.
+    That ordering is the backward-compatibility guarantee, not a fast path.
+
+    ⛔ AND SYNTAX GRANTS NOTHING. `NASDAQ:AAPL` and `FOO:BAR` are False at every
+    setting of every flag, because `resolve()` is a dict lookup against minted
+    identities and neither string is one. See the BL-008 block above.
     """
-    return bool(sym) and sym.strip().upper() in SYMBOLS
+    if not sym:
+        return False
+    s = sym.strip().upper()
+    if s in SYMBOLS:
+        return True
+    return resolve(s) is not None
 
 
 def symbol_for(universe: str, metric: str) -> Optional[str]:
@@ -347,7 +441,17 @@ def latest_quotes(syms: list[str]) -> dict:
 
     out = {}
     for s in wanted:
-        metric = _METRIC_OF[s]
+        # ⚠️ REGISTRY-BACKED, and `.get` first rather than `[]`: `wanted` is filtered
+        # by `is_breadth_symbol`, which now admits published namespaced identities,
+        # so a bare `_METRIC_OF[s]` would KeyError on the first `US:A50` a watchlist
+        # holds. A PIT universe has no live quote, so it is skipped rather than
+        # given UCT's.
+        metric = _METRIC_OF.get(s)
+        if metric is None:
+            row = resolve(s)
+            if not row or row["universe"] != DEFAULT_UNIVERSE:
+                continue
+            metric = row["metric"]
         dvals = []  # (date, value) newest-first, finite only
         for row in hist:
             d, fv = row.get("date"), _finite(row.get(metric))
@@ -397,7 +501,8 @@ _bg_inflight: set[str] = set()
 _bg_lock = threading.Lock()
 
 
-def _build_breadth_series(sym: str, metric: str) -> list[dict]:
+def _build_breadth_series(sym: str, metric: str,
+                          universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Compute the SEALED close-to-close DAILY candle series for `metric` — the expensive
     part (DB reads + reconstructed-OHLC merge). No live value, no resample, no slice: the
     serve fn appends the developing today candle, resamples to the requested tf, and
@@ -405,10 +510,16 @@ def _build_breadth_series(sym: str, metric: str) -> list[dict]:
     loop then converges instead of rebuilding every minute)."""
     from api.services import breadth_monitor
     want_daily = 6000   # full history (breadth starts ~2008; 6000 daily covers it)
-    try:
-        history = breadth_monitor.get_history(want_daily)  # newest-first
-    except Exception:
-        history = []
+    # ⛔ THE COLLECTOR SNAPSHOT IS UCT'S. `breadth_monitor` stores what the 4:15pm
+    # collector measured over the UCT universe, so merging it into a PIT universe's
+    # series would splice two different populations into one line. A PIT universe is
+    # its OHLC store and nothing else.
+    history = []
+    if universe == DEFAULT_UNIVERSE:
+        try:
+            history = breadth_monitor.get_history(want_daily)  # newest-first
+        except Exception:
+            history = []
 
     # Per-day OHLC store (trusted sources: 'live' intraday wicks + 'close_recon' deep
     # reconstructed history). This is where the DEEP history lives — recomputed close-basis
@@ -416,7 +527,7 @@ def _build_breadth_series(sym: str, metric: str) -> list[dict]:
     ohlc_map = {}
     try:
         from api.services import breadth_daily_ohlc
-        ohlc_map = breadth_daily_ohlc.history(metric)
+        ohlc_map = breadth_daily_ohlc.history(metric, universe=universe)
     except Exception:
         ohlc_map = {}
 
@@ -481,12 +592,13 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
                      "l": round(l, 4), "c": round(c, 4), "v": 0}]
 
 
-def _refresh_series(sym: str, metric: str) -> list[dict]:
+def _refresh_series(sym: str, metric: str,
+                    universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Recompute + cache the SEALED daily series for `sym`. Returns it ([] on failure).
     One daily build serves D/W/M (the serve fn resamples), so this is keyed per symbol."""
     from api.services.cache import cache
     try:
-        series = _build_breadth_series(sym, metric)
+        series = _build_breadth_series(sym, metric, universe)
     except Exception as e:
         _log.warning("[breadth_symbols] series build failed %s: %s", sym, e)
         return []
@@ -495,7 +607,8 @@ def _refresh_series(sym: str, metric: str) -> list[dict]:
     return series
 
 
-def _kick_series_refresh(sym: str, metric: str) -> None:
+def _kick_series_refresh(sym: str, metric: str,
+                         universe: str = DEFAULT_UNIVERSE) -> None:
     key = sym
     with _bg_lock:
         if key in _bg_inflight or len(_bg_inflight) >= 8:
@@ -504,7 +617,7 @@ def _kick_series_refresh(sym: str, metric: str) -> None:
 
     def _job():
         try:
-            _refresh_series(sym, metric)
+            _refresh_series(sym, metric, universe)
         finally:
             with _bg_lock:
                 _bg_inflight.discard(key)
@@ -528,26 +641,42 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     tf = (tf or "D").upper()
     if tf not in ("D", "W", "M"):
         tf = "D"  # breadth is daily-basis; intraday requests collapse to daily
+    # ⭐ THE REGISTRY RESOLVES BOTH HALVES. `_METRIC_OF` answers for the 44 shipped
+    # UCT symbols on the identical fast path it always did; anything else is a
+    # registry lookup that yields a UNIVERSE as well as a metric, so a published
+    # `US:A50` reads US's rows rather than UCT's. An unregistered token resolves to
+    # nothing and serves an empty series — never another universe's numbers.
     metric = _METRIC_OF.get(sym)
+    universe = DEFAULT_UNIVERSE
     if not metric:
-        return {"ticker": sym, "tf": tf, "bars": []}
+        row = resolve(sym)
+        if not row:
+            return {"ticker": sym, "tf": tf, "bars": []}
+        metric, universe = row["metric"], row["universe"]
 
     from api.services.cache import cache
     now = time.time()
-    hit = cache.get(f"breadthdaily_{sym}")
+    hit = cache.get(f"breadthdaily_{sym}")   # `sym` already carries the universe
     tier = "breadth-build"
     if hit and hit.get("series") is not None:
         daily = hit["series"]
         if now - hit.get("saved_at", 0) <= _SEALED_TTL:
             tier = "breadth-cache"
         else:
-            _kick_series_refresh(sym, metric)   # stale → serve + revalidate
+            _kick_series_refresh(sym, metric, universe)   # stale → serve + revalidate
             tier = "breadth-cache-stale"
     else:
-        daily = _refresh_series(sym, metric)    # cold miss — the one slow request
+        daily = _refresh_series(sym, metric, universe)    # cold miss — the one slow request
 
     # Serve-time: append the live developing candle (cheap, cache-only) then resample.
-    series = _resample(_append_today_candle(daily or [], metric), tf)
+    # ⚠️ THE LIVE CANDLE IS UCT'S ALONE. `breadth_live` measures the collector's
+    # universe; appending its value to a US or NASDAQ series would paint one
+    # universe's intraday number on another's chart. A PIT universe therefore ends
+    # at its last sealed day, which is honest — it has no live feed.
+    body = daily or []
+    if universe == DEFAULT_UNIVERSE:
+        body = _append_today_candle(body, metric)
+    series = _resample(body, tf)
 
     try:
         from api.services.bars_fetch import _mark_serve

@@ -109,6 +109,37 @@ UNIVERSE_IDS = [uid for (uid, _l, _v, _s, _f) in _ROWS]
 PIT_UNIVERSE_IDS = [uid for uid in UNIVERSE_IDS if UNIVERSES[uid]["source"] == "pit"]
 
 
+def published_universe_ids() -> list[str]:
+    """Universes whose symbols are SERVABLE — routed by `/api/bars`, offered by
+    search. Defaults to UCT alone, so the library ships DARK.
+
+    ⭐⭐ THE CATALOGUE AND THE PUBLISHED SET ARE DIFFERENT QUESTIONS, and keeping
+    them separate is what lets the whole library be built, projected and tested
+    without a single member-visible change. `breadth_symbols.library_rows()`
+    always describes all four universes — that is discovery metadata. THIS decides
+    which of them a member can actually reach.
+    ⛔ So the gate is not "is the code deployed" but "does this universe have data
+    and a decision behind it". Publishing one is an env flip against a registry
+    that already exists, never a code change that has to be got right under time
+    pressure.
+
+    ⚠️ AN UNKNOWN ID IN THE FLAG IS DROPPED, NOT OBEYED. A typo'd
+    `BREADTH_LIBRARY_UNIVERSES=nasdac` must not silently publish nothing AND must
+    not raise on a hot import path; UCT is always included so the shipped 44
+    symbols can never be turned off by a bad flag.
+    """
+    import os
+    raw = os.environ.get("BREADTH_LIBRARY_UNIVERSES", "")
+    want = {DEFAULT_UNIVERSE}
+    for part in raw.split(","):
+        p = part.strip().lower()
+        if p == "*":
+            return list(UNIVERSE_IDS)
+        if p in UNIVERSES:
+            want.add(p)
+    return [u for u in UNIVERSE_IDS if u in want]
+
+
 class UnknownUniverse(ValueError):
     """An id that is not in the registry. Never guessed, never defaulted."""
 
