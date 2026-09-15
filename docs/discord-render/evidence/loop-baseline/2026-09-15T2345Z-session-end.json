@@ -1,0 +1,16 @@
+{
+ "at_utc": "2026-09-15T23:45:57Z",
+ "at_et": "2026-09-15 19:45:57 EDT",
+ "phase": "D-11 session end (R25)",
+ "running_sha": "246204473d0b",
+ "uptime_seconds": 156,
+ "loop": {
+  "running": true,
+  "samples": 284,
+  "max_ms": 705.8,
+  "p95_ms": 114.8,
+  "stalls": 33
+ },
+ "note": "Four readings now exist, all 2026-09-15, all on V2-dark pods with no load:\n  uptime 538s -> max 3224.9  p95 165.2  stalls 78  (samples 600, window full)\n  uptime  62s -> max  302.2  p95 105.9  stalls 10\n  uptime  28s -> max  347.1  p95  35.1  stalls  2\n  uptime 156s -> max  705.8  p95 114.8  stalls 33\nThe 3224.9 ms outlier EXCEEDS the 3000 ms Discord ack deadline and is 3.2x LOOP_STALL_ALERT_MS. It was also the reading taken LATEST in a pod's life, which weakens but does not refute the startup-prewarmer explanation. One sample each; steady-state vs startup-transient is NOT established. R25: first readings, no baseline. Q5 stays open until >= 5 days of samples.",
+ "baseline_status": "first readings, no baseline (R25)"
+}

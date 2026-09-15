@@ -1,0 +1,74 @@
+{
+ "schema": 1,
+ "at": "2026-09-15T23:44:34Z",
+ "sha": "7decb0601",
+ "label": "D-11 after narrowing",
+ "rows": [
+  {
+   "key": "zero xfails in the forensics suite",
+   "precondition": "zero xfails in the forensics suite",
+   "state": "MET",
+   "evidence": "23 test(s), 0 xfail decorator(s) in test_discord_render_forensics.py"
+  },
+  {
+   "key": "every forensics class closed with a commit",
+   "precondition": "every forensics class closed with a commit",
+   "state": "NOT MET",
+   "evidence": "11/14 closed; still open: **C-02**, **C-09**, **C-13**"
+  },
+  {
+   "key": "the artifact cache is wired to the hot path",
+   "precondition": "the artifact cache is wired to the hot path",
+   "state": "MET",
+   "evidence": "bindings imports artifact_cache"
+  },
+  {
+   "key": "soak clean for >= 24 h",
+   "precondition": "soak clean for >= 24 h",
+   "state": "MET",
+   "evidence": "169 clean tick(s); 90 needed for 24 h"
+  },
+  {
+   "key": "/chart is shadowed (structural)",
+   "precondition": "/chart is shadowed (structural)",
+   "state": "MET",
+   "evidence": "3 test(s) driving /api/discord/interactions with a real Ed25519 signature over a chart payload"
+  },
+  {
+   "key": "canary scope narrowed to the declared ids",
+   "precondition": "canary scope narrowed to the declared ids",
+   "state": "MET",
+   "evidence": "running allowlist == the 1 declared id(s) ['1549129739048853544'] (read 0.0 h ago, source=in-process, commit=246204473d0b)"
+  },
+  {
+   "key": "S2 measured in --real mode and within SLO",
+   "precondition": "S2 measured in --real mode and within SLO",
+   "state": "NOT MEASURABLE",
+   "evidence": "LATENCY: NONE admissible - 1 void: load-real-a-concurrent30.json: marked void \u2014 Filed and quoted as '30 concurrent'. It is an OPEN LOOP at 30 ar\u2026 | 12 inconclusive: load-a-concurrent50.json: ACK-PATH ONLY (no `real` block) \u2014 stub symbols and a zero-cost handler say nothing\u2026 \u00b7 load-b-burst200.json: ACK-PATH ONLY (no `real` block) \u2014 stub symbols and a zero-cost handler say nothing abou\u2026 \u00b7 load-burst-busiest10s.json: renderer=fallback; needs chart-renderer \u00b7 load-burst-busiest60s.json: renderer=fallback; needs chart-renderer \u00b7 load-burst-design.json: renderer=fallback; needs chart-renderer \u00b7 load-burst-design3x.json: renderer=fallback; needs chart-renderer \u00b7 load-c-sustained.json: ACK-PATH ONLY (no `real` block) \u2014 stub symbols and a zero-cost handler say nothing abo\u2026 \u00b7 load-closedloop-30-remeasured.json: renderer=fallback; needs chart-renderer \u00b7 load-closedloop-30.json: renderer=unknown; this artifact predates the renderer label and cannot say which ren\u2026 \u00b7 load-real-b-burst100.json: unlabelled load model \u2014 `rate` alone cannot distinguish arrivals/second from concu\u2026 (+2 more) || admission: S5 MET: 5 run(s): failed <= 0.50% of offers \u00b7 1 unjudgeable: load-closedloop-30.json (pre-B1: no admission_split, so a refusal and a downstream busy failure cannot be told apart \u2014 re-run it) | S5b MET: busiest60s: 0/62 OK \u00b7 busiest10s: 0/121 OK \u00b7 design: 0/181 OK \u00b7 design3x: 0/721 OK | informational: load-closedloop-30-remeasured.json (tier undeclared), load-closedloop-30.json (tier undeclared) | S5c MET: 4444 refusal(s) across load-closedloop-30-remeasured.json(slo)x1, load-refusal-probe.json(characterisation)x4443 all reached the member inside 3000 ms (read from the WIRE \u2014 the job store carries no ack_ms for a refusal, commands.py:201) | informational, not judged: load-refusal-probe.json"
+  },
+  {
+   "key": "chaos passed in --real mode",
+   "precondition": "chaos passed in --real mode",
+   "state": "MET",
+   "evidence": "7 scenario(s) passed for real, 6 refused by name (refused != passed)"
+  },
+  {
+   "key": "3.5 real-Discord smoke",
+   "precondition": "3.5 real-Discord smoke",
+   "state": "NOT MET",
+   "evidence": "1 FAIL mark(s) (2/15 rows marked PASS, 10 row(s) no mark speaks for) \u2014 a smoke with a red row is a smoke that found something"
+  },
+  {
+   "key": "#render-alerts locked to admins",
+   "precondition": "#render-alerts locked to admins",
+   "state": "MET",
+   "evidence": "no Contributor allow overwrite"
+  },
+  {
+   "key": "mutation NOT-APPLIED = 0",
+   "precondition": "mutation NOT-APPLIED = 0",
+   "state": "NOT MEASURABLE",
+   "evidence": "15 harness(es), 6 of them answer --dry-check; pass --run-mutations, or read the merge row"
+  }
+ ]
+}

@@ -1,1 +1,9 @@
-{"read_at": "2026-09-14T21:31:39Z", "source": "in-process (railway ssh, web pod)", "v2_enabled": false, "v2_channels": [], "unrestricted": true, "commit": "decb1a03c874"}
+{
+ "read_at": "2026-09-15T23:44:10Z",
+ "source": "in-process",
+ "v2_channels": [
+  "1549129739048853544"
+ ],
+ "commit": "246204473d0b",
+ "note": "R23, D-11. DISCORD_RENDER_V2_CHANNELS set to the single declared canary id via the Railway CLI on web -- the ONLY service that reads it (sole reader: api/services/discord_render/commands.py:75). Read back from the RUNNING process after the env redeploy reached SUCCESS, never from `railway variables --kv`. DISCORD_RENDER_V2_ENABLED remains None, read in the same pass. The load-bearing consequence: channel_allowed('1546563720702853280') is now FALSE -- V2 cannot reach the member channel even if the flag were flipped, which is what makes 'admin-only canary' different from the member flip (OI-35)."
+}

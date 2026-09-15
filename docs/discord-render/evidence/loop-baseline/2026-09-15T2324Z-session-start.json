@@ -1,0 +1,16 @@
+{
+ "at_utc": "2026-09-15T23:24:07Z",
+ "at_et": "2026-09-15 19:24:07 EDT",
+ "phase": "D-11 session start (R25)",
+ "running_sha": "db54d71b99b3",
+ "uptime_seconds": 538,
+ "loop": {
+  "running": true,
+  "samples": 600,
+  "max_ms": 3224.9,
+  "p95_ms": 165.2,
+  "stalls": 78
+ },
+ "note": "FIRST READING TO EXCEED THE ACK BUDGET: max_ms 3224.9 > the 3000 ms Discord initial-ack deadline, and 3.2x LOOP_STALL_ALERT_MS (1000). \u26d4 NOT YET ATTRIBUTABLE: uptime was 538 s and the 600-sample window (~5 min at 0.5 s) covers roughly minutes 4-9 of boot, so the startup prewarmers are a live alternative explanation. Steady-state vs startup-transient is undecided and must be read from a later sample on an older pod, not argued.",
+ "baseline_status": "first readings, no baseline (R25; Q5 open until >= 5 days)"
+}
