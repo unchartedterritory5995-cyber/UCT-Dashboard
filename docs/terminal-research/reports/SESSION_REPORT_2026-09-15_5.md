@@ -6,7 +6,7 @@
 
 ## 1 · ET, trees, poll log
 
-Start **2026-09-15 17:01 EDT Tue**, end **2026-09-15 18:5x EDT Tue**
+Start **2026-09-15 17:01 EDT Tue**, end **2026-09-15 19:15 EDT Tue**
 (`python tools/weekly_exec.py et`). Both worktrees `git status --porcelain` → **0** at start.
 **Gate-box lock: ABSENT.**
 
@@ -16,10 +16,11 @@ line per poll:
 ```
 build a4e845fe7   17:0x … 17:1x ET   (measuring one web deploy end-to-end)
 run  #23          18:08:33 … 18:20:23 ET   (2 bounded calls, 12 polls)
-run  #24          18:2x … 18:5x ET
+run  #24          18:28:48 … 18:46:33 ET   (3 bounded calls)
+run  #25          18:49:12 … 19:12:19 ET   (3 bounded calls)
 ```
 
-**6 commits** — 3 code (`ce615a2eb`, `e02dca955`, `16027f239`), 3 docs. **Nothing signed,
+**9 commits** — 5 code (`ce615a2eb`, `e02dca955`, `16027f239`, `4feaeb86f`, `8c39c4c28`), 4 docs. **Nothing signed,
 nothing merged, nothing pushed to master. No deploys, flag flips, daemon pauses or
 wake-ups.**
 
@@ -277,6 +278,51 @@ it exposed is **F-CI-36**.
 
 ---
 
+## 6c · Run #25 — the revert holds, and ⭐⭐ PROMOTION-CRITERION-MET
+
+```
+VERDICT: NO_NEW_FAILURES
+new 0 · fixed 3 · unchanged 119 · MISSING 0 · current_ran 44,353 · invalid []
+```
+
+The 41 failures are gone; the partition was the cause and the report was right about it.
+
+⭐⭐ **E's rewritten promotion criterion is MET.** It requires **both** verdicts in the
+record from a run the gate itself produced: **`NEW_FAILURES` on run #24** and
+**`NO_NEW_FAILURES` on run #25**. Both are now published on `ci-results`. ⛔ **The promotion
+CP is PROPOSED, NOT BUILT** — promoting means removing `continue-on-error` from the `gate`
+job and adding the check to branch protection, which is the owner's call and a separate
+checkpoint.
+
+### ⛔⛔ AND RUN #25 LAUNDERED MY OWN 41 REGRESSIONS AS NOISE
+
+`FLAKY_SIZE` jumped **5 → 49**, `FLAKY_NEW` **44**. The `#24 → #25` pair read **comparable**
+— `tools/pytest_shards.py` is imported by no test — so the 41 voice-router failures flipping
+back were booked as flakes.
+
+**That is the same defect as the workflow limb, one level deeper.** A file that decides **how
+the suite is RUN** moves outcomes without being imported; `pytest_shards.py` decides who
+shares a process. ⛔ **A gate that excuses a regression as noise is worse than no gate**, and
+this one did it to a regression introduced sixteen minutes earlier.
+
+**Fixed the same hour.** The harness set is derived from the workflow itself — the
+suite-running jobs plus their transitive `needs:` closure, and the repo paths those jobs'
+`run:` blocks invoke:
+
+```
+harness files: 14   (tools/pytest_shards.py IS in it — the file that broke #24)
+                    (tools/ci_inventory.py is NOT — publish and gate invoke it, and no
+                     suite job depends on them)
+re-derived over the real record: FLAKY_SIZE 5, FLAKY_NEW 0
+#24 -> #25 now reads: "tools/pytest_shards.py is invoked by the suite's own jobs"
+```
+
+⭐ **The rule has now been wrong in the same way three times** — a workflow file, a comment
+inside a `run:` block, and a harness script — and each time the thing that caught it was
+running it against the **real record** rather than a fixture.
+
+---
+
 ## 7 · Findings
 
 | # | finding |
@@ -293,6 +339,7 @@ it exposed is **F-CI-36**.
 | **F-CI-34** | PyYAML absent in the publish job ⇒ 7 of 8 pairs UNREADABLE. **FIXED.** |
 | **F-CI-35** | `tests-05` exceeded its 20-minute cap (Run step killed at 1,142 s). **STILL OPEN** — the split that would have fixed it was reverted (§6b); the real fix is a TIME-weighted partition. |
 | **F-CI-36** | **`tests/test_voice_router.py` is ORDER-DEPENDENT** — 41 of its tests return `402 Payment Required` when the file is shuffled into a different shard. A real defect the partition made VISIBLE and did not create. **FILED.** |
+| **F-CI-37** | The flaky rule booked those same 41 regressions as noise on the very next run (FLAKY_SIZE 5 → 49). A file the suite INVOKES is test-affecting even when no test imports it. **FIXED** by deriving the harness set from the workflow's suite jobs and their `needs:` closure. |
 
 ---
 
@@ -350,6 +397,10 @@ merged, nothing pushed to master. The two new units are **K CP5** (the resumabil
 ⛔ **Blocked on nothing.** ⚠️ **Two decisions are owed before the signing session**
 (F-SIGN-5's blank scope, and whether to bend the one-unit-at-a-time rule for wall time);
 neither blocks starting it.
+
+⭐⭐ **PROMOTION-CRITERION-MET** — `NEW_FAILURES` (#24) and `NO_NEW_FAILURES` (#25) are
+both in the published record. The promotion CP is **PROPOSED, not built**: it removes
+`continue-on-error` from the `gate` job and adds the check to branch protection.
 
 ⚠️ **One thing I did and undid in the same session**: the shard split (§6b). It was the
 standing rule's prescribed response to a job that missed its cap, it cost 41 NEW failures,
