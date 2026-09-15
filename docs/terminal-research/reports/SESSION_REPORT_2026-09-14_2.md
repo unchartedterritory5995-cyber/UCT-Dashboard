@@ -246,6 +246,19 @@ Two instruments were extended; **both reported honestly, and one exposed its own
   positive control that did not control anything. Said plainly in §9 rather than presented as
   rigour.
 
+⚰️ **And the last measurement of the session was wrong, in the way this repo documents most
+often.** `verify_manifest --check-commits` was run as `... | tail -10; echo; echo
+"${PIPESTATUS[0]}"` — the bare `echo` between the pipeline and the read **reset
+`PIPESTATUS`**, so the reported exit code was `echo`'s, not Python's. It printed **0** beside
+output that plainly says two commits are unreferenced.
+
+⭐ **The tool was correct; the measurement was not.** Re-run without a pipeline: **exit 1**,
+with a control confirming the flag is what changes it (`0` without `--check-commits`). This is
+the *"a test runner's exit status must reach you — never `tail`'s"* rule wearing a new costume:
+it is not only pipes that lose a status, it is **anything that runs between the command and the
+read**. Caught because the printed code contradicted the printed findings — **two outputs that
+disagree is the cheapest bug detector there is, and it only works if both are shown.**
+
 ## 12 · [KEYBOARD] and merge readiness
 
 **Nothing needed.** The previous session's phone-readable ask — *open the Actions tab and tell
