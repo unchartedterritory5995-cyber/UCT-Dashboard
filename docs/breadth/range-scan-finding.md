@@ -91,3 +91,45 @@ Promote when **either**:
 
 Promotion means dropping `continue-on-error` and the trailing `exit 0`. ⚠️ Do not promote
 it in the same change that widens what it scans.
+
+---
+
+## The states were RUN, not just written
+
+⛔ A workflow step that parses is not a step that behaves. Each branch was executed
+locally against real repository state, with the same git commands the step uses:
+
+```
+### real base, real range
+range-scan: EXECUTED  commits=4  files=3
+range-scan: verdict=CLEAN
+
+### base unreachable — the fetch-depth-2 case that would have been vacuous
+range-scan: INCONCLUSIVE — base deadbeef… is not reachable in this clone (shallow fetch). NOT counted as clean.
+
+### new ref / force push — before is all zeros
+range-scan: NO RANGE (github.event.before is empty or a new ref) — nothing compared
+
+### HEAD already contained in the base
+range-scan: NOTHING AHEAD — HEAD is already contained in origin/production
+```
+
+⭐ The second line is the one worth having seen fire. Without it this step reports
+*"nothing to scan"* on every run in CI and satisfies its own promotion criterion having
+compared nothing — and the only way to know which of those two it was doing is to have
+watched it do both.
+
+## ⚠️ A process note, recorded because it is the same class
+
+The run that produced the fourth case above did `git checkout` **in the shared worktree
+while the landing script was unpaused** — the third such touch in one session, and it came
+three commits after the same session wrote the standing rule forbidding it
+(*"one worktree, one writer"*, `PROGRAMME-CHECKLIST.md`). Nothing broke: the tree was
+clean, the checkouts were fast, and the branch was restored.
+
+⛔ **The conclusion is structural, not a resolution to be more careful.** Discipline has
+now failed three times against this specific hazard, twice with real consequences (a
+sequence killed mid-flight; a correction staged onto the branch that was one push from
+master). **The durable fix is to remove the opportunity:** every edit and every checkout
+belongs in its own `git worktree add`, and the shared worktree belongs to the script
+alone — which is how this document was written.
