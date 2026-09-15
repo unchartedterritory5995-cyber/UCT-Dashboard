@@ -5,7 +5,9 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 9 complete — THE DARK PRODUCTION FOUNDATION is implemented:
+**CURRENT PHASE** Phase 10 — US DATA GATE: **NO-GO, blocked on provider access.**
+The control was NOT run and NOT faked; see the Phase-10 section. Phase 9 complete —
+THE DARK PRODUCTION FOUNDATION is implemented:
 one publication gate, V1 as metadata, the daily forward seal, participation-only
 warming, and health. **STATUS: working local code. Nothing published, nothing ground,
 nothing deployed.** Previously: Phase 8 (readiness plan), Phase 7 (the UX).
@@ -762,3 +764,94 @@ again (the row is still there, untouched). That separation is the launch strateg
 6. **Publish US**: `BREADTH_LIBRARY_UNIVERSES=us`. Everything else is already wired.
 7. **Observe** a week via `/api/breadth-monitor/library-health`.
 8. **NASDAQ + NYSE** later, same two steps.
+
+---
+
+## Phase 10 — US DATA GATE · attempted 2026-09-15 · **NO-GO**
+
+**Branch** `feat/breadth-pit-foundation` · **HEAD** `65659344e` at start ·
+**origin/master** `d25a69b86` (UNCHANGED since the Phase-9 trial merge — no delta to
+inspect) · **36 ahead / 13 behind** · tree clean.
+
+### The control was NOT run. There is still no authorised provider path.
+
+⛔ **Reported rather than worked around, exactly as the brief required.** The gate says:
+"If there is STILL no legitimate authorized way to exercise the real provider path from
+this environment: STOP and report that clearly. Do not fake the provider control with
+cached data and call it passed."
+
+**The credential surface is a single environment variable.** `massive._MassiveRestClient.__init__`
+reads `os.environ["MASSIVE_API_KEY"]` and raises without it. There is no OAuth, no
+service account, no signed-URL tier, no proxy — one variable, one source.
+
+**Every candidate path, checked this session:**
+
+| candidate | measured result |
+|---|---|
+| `MASSIVE_API_KEY` / `POLYGON_API_KEY` / `MASSIVE_KEY` in this process | **not set** |
+| a local `.env` | only `.env.example` exists, here and in the main checkout |
+| the running local backend on `:8000` | alive (`/api/health` 200, uptime 156,673 s) but **has no key**: `/api/live-prices?tickers=AAPL` → `503 {"error":"Pricing service unavailable"}` |
+| an existing route exposing grouped-daily frames | **none** — `get_grouped_daily_ohlcv` / `get_grouped_daily_closes` have zero references under `api/routers/` |
+| Railway CLI | installed (4.66.0); **this worktree is NOT linked** ("No linked project found"); the main checkout IS linked (`luminous-recreation`) |
+
+**Why the linked main checkout does not unblock it.** The only two ways to use it are
+both closed:
+
+- `railway variables --kv` would **print production secrets** into the transcript.
+  Forbidden by this brief (§24 "Secrets: NEVER PRINT / COMMIT") and by every prior phase.
+- `railway run -- <cmd>` is **Railway as a credential bridge**, banned by name in the
+  Phase-5, Phase-6 and Phase-7 briefs and not lifted by this one, which says "Do not
+  invent a secret bridge". Linking THIS worktree would also be a Railway configuration
+  change, which §24 forbids.
+
+⚠️ **And it would not be a read-only control even if it were permitted.** The bounded
+window needs ~1,000 whole-market fetches on the PRODUCTION account's quota and rate
+limits, initiated from a dev machine outside any deploy. That is production impact
+wearing a validation label.
+
+### What the unblock actually is
+
+**One `MASSIVE_API_KEY` readable by a local process** — the documented dev path
+(`CLAUDE.md:3364`, "set in Railway + local `.env`"). ⛔ Per standing instruction this
+was NOT requested, and no mechanism was invented to get around it.
+
+Everything downstream is built and waiting: `PROVIDER-CONTROL-PLAN.md` specifies four
+windows and 19 PASS/FAIL invariants, the harness that drove the Phase-6 cached control
+still runs, and the pipeline it exercises is the one the grind uses.
+
+### §17 — the dark-family semantic audit · **DEFERRED** (BL-020)
+
+Answered anyway, because it needed no provider access. **Can the canonical family
+architecture represent "registered breadth but dark" as unavailable breadth?** **No** —
+not without exposing the identity, which the constraint set forbids. `symbolFamily()`
+knows only what the payload told it; a shape test makes `FOO:BAR` breadth and a prefix
+test is the special case BL-008 reverted.
+
+⚠️ The label is wrong; the BEHAVIOUR is right, and measured:
+
+| | |
+|---|---|
+| dark identity, discovery | absent from `library`, `symbols` and search |
+| dark identity, `/api/bars` | empty series |
+| dark identity, `ohlcCapabilityOf` | **`NO_BARS`** — refused |
+| chart saved before a rollback | source survives; series renders unavailable |
+| `AAPL` · `NASDAQ:AAPL` · `FOO:BAR` · `UCTT` | security, unchanged |
+
+Six new rails under `§17` in `breadthPublication.test.jsx` (22 passing in that file), so
+the reasoning cannot rot into "nobody checked".
+
+### Status — unchanged
+
+| | |
+|---|---|
+| provider accessed | **NO** |
+| grind run | **NO** |
+| universes published | **NO** (`BREADTH_LIBRARY_UNIVERSES` unset) |
+| Railway config / R2 / Cloudflare / production / Main Trading | **untouched** |
+| pushed / deployed | **nothing** |
+
+### EXACT NEXT STEP
+
+**Make `MASSIVE_API_KEY` readable by a local process by whatever route the owner
+considers legitimate.** The moment it is, the control is one command over a bounded
+window, and its result is the GO/NO-GO for the US 2008→present grind.

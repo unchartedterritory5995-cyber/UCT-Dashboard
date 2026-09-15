@@ -485,3 +485,49 @@ source to assert it does not call it.
 published it, which is the correct shipped state; claiming otherwise would make the
 signal useless on the day it matters. `healthy` is only asserted for a PUBLISHED
 universe.
+
+---
+
+### BL-020 · "Registered breadth but DARK" stays a SECURITY to the client — deferred, with the reason
+
+**The question (owner §17):** can the canonical family architecture represent
+*registered breadth, not currently published* as **unavailable breadth** rather than as
+an ordinary security, without widening colon symbols, without making `NASDAQ:AAPL`
+breadth, without a ticker-prefix special case, without breaking rollback, and **without
+exposing the identity publicly**?
+
+**Answer: NO — and the last constraint is the one that decides it.**
+
+`symbolFamily()` knows exactly what the payload told it, and nothing else. For the
+client to call a dark `US:A50` "breadth", the server would have to name it in the
+payload — which IS exposing the identity. There is no third source of truth available:
+
+- a SHAPE test (`contains ':'`) makes `FOO:BAR` breadth — the widening BL-008 reverted;
+- a PREFIX test (`US:`) is the ticker special case the same decision banned;
+- a second endpoint listing dark identities is the same disclosure wearing a different URL.
+
+**So the honest position is that the family label is wrong and the BEHAVIOUR is right**,
+and the behaviour is what a member experiences. Measured, not assumed:
+
+| state | what happens |
+|---|---|
+| dark identity, discovery | absent from `library`, from `symbols`, from search |
+| dark identity, `/api/bars` | empty series — `resolve()` returns None |
+| dark identity, `ohlcCapabilityOf` | **`NO_BARS`** — refused, because there are no bars to draw |
+| a chart saved before a rollback | source survives the round-trip; the series renders unavailable |
+| `AAPL`, `NASDAQ:AAPL`, `FOO:BAR`, `UCTT` | security, unchanged |
+
+⚠️ The family gates run BEFORE the bar gates in `ohlcCapabilityOf`, so a dark identity
+misses the semantic refusal (`FAMILY_NOT_OHLC`) and lands on the structural one
+(`NO_BARS`). **Different reason string, same refusal.** The only way to reach the
+`ok: true` branch is to hold bars for a dark identity, and the server does not serve
+any.
+
+**Deferred, not forgotten.** If a future payload gains a legitimate reason to carry
+"identities this deploy knows but does not publish" — a member-facing "coming soon"
+surface, say — this becomes a two-line change and the label follows. Until then,
+exposing the catalogue to fix a cosmetic refusal string would trade a real product
+constraint for a wording improvement.
+
+Railed in `breadthPublication.test.jsx` under `§17`, so the reasoning cannot quietly
+rot into "nobody checked".

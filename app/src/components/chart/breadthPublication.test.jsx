@@ -213,3 +213,63 @@ describe('the published identity travels the CANONICAL path, with no US branch',
     expect(plot.colorMode).toBe('sign')
   })
 })
+
+// ── §17 · "registered breadth but DARK" — the audit, with evidence ───────────
+//
+// ⭐⭐ THE QUESTION: can the canonical family architecture represent "registered
+// breadth, not currently published" as UNAVAILABLE BREADTH rather than as an
+// ordinary security — without widening colon symbols, without making
+// `NASDAQ:AAPL` breadth, without a ticker-prefix special case, without breaking
+// rollback, and WITHOUT EXPOSING THE IDENTITY PUBLICLY?
+//
+// ⛔ THE ANSWER IS NO, AND THE LAST CONSTRAINT IS WHY. `symbolFamily` knows only
+// what the payload told it. For the client to call a dark `US:A50` "breadth" the
+// server would have to name it in the payload — which IS exposing the identity,
+// the one thing the constraint set forbids. There is no third source of truth: a
+// shape test would make `FOO:BAR` breadth, and a prefix test is the special case
+// this project reverted once already (BL-008).
+//
+// ⚠️ AND THE REACHABLE BEHAVIOUR IS ALREADY CORRECT, which these rails measure
+// rather than assume. A dark identity is undiscoverable and unservable, so the
+// only way to hold one is a chart saved while it WAS published — i.e. after a
+// rollback. In that state the server serves no bars, and the refusal that
+// actually fires is NO_BARS. The family label differs; the outcome does not.
+describe('§17 — a DARK registered identity behaves as unavailable, not as a security', () => {
+  const familyOf = familyOfFrom(LEGACY)          // dark: UCT only
+  const parsed = parseSource(symbolSource('US:A50', 'close'))
+
+  it('the reachable state is NO BARS — the server refuses to serve a dark identity', () => {
+    const cap = ohlcCapabilityOf(DATA_SERIES, parsed, { bars: [] }, familyOf)
+    expect(cap.ok).toBe(false)
+    expect(cap.reason).toBe(OHLC_REFUSAL.NO_BARS)
+  })
+
+  it('…and with no cache entry at all, likewise', () => {
+    expect(ohlcCapabilityOf(DATA_SERIES, parsed, null, familyOf).reason)
+      .toBe(OHLC_REFUSAL.NO_BARS)
+  })
+
+  it('⛔ so a saved chart from before a rollback renders UNAVAILABLE, never candles', () => {
+    // the instance survives the round-trip; it simply has nothing to draw
+    const cs = { indicatorInstances: [{ instanceId: 'inst:dataSeries:1',
+                                        defId: 'dataSeries',
+                                        inputs: { source: 'sym:US:A50:close' } }] }
+    const reopened = JSON.parse(JSON.stringify(cs))
+    expect(reopened.indicatorInstances[0].inputs.source).toBe('sym:US:A50:close')
+    expect(ohlcCapabilityOf(DATA_SERIES, parsed, { bars: [] }, familyOf).ok).toBe(false)
+  })
+
+  it('⛔ the identity stays out of discovery entirely while dark', () => {
+    const rows = ROWS.filter((r) => r.legacy)
+    expect(searchLibrary(rows, 'US:A50', { metricOrder: METRIC_ORDER })).toEqual([])
+    expect(rows.some((r) => r.symbol === 'US:A50')).toBe(false)
+  })
+
+  it('⛔ and nothing else gained breadth identity from any of this', () => {
+    for (const sym of ['AAPL', 'NASDAQ:AAPL', 'FOO:BAR', 'UCTT']) {
+      expect(familyOf(sym), sym).toBe(OHLC_FAMILY.SECURITY)
+    }
+    // …while every published UCT symbol still is breadth
+    expect(familyOf('UCTA50')).toBe(OHLC_FAMILY.BREADTH)
+  })
+})
