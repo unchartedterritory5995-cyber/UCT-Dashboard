@@ -132,6 +132,17 @@ def cluster_keys(entries: dict, similar) -> tuple:
 
 # ── the four identities, each a row rewrite ──────────────────────────────────
 
+def _identity_value(raw):
+    """⛔ A SCALAR KEY STAYS A SCALAR. `principle_key` is a string; `tuple()` of it yields a tuple of
+    individual CHARACTERS. That is still a bijection, so clustering built on it grouped correctly
+    and session 9/10's numbers are unaffected — but nothing OUTSIDE this module could ever join to
+    it, and the golden grader's intersection with the cluster keys came back exactly 0 of 182.
+    Measured 2026-09-15."""
+    if raw is None:
+        return ()
+    return raw if isinstance(raw, str) else tuple(raw)
+
+
 def _rows_by_segment(runs, rtype, *, key_field):
     """key -> {"runs": set, "rows": [...]}, per segment, for one record type."""
     out: dict = {}
@@ -140,7 +151,7 @@ def _rows_by_segment(runs, rtype, *, key_field):
             if row.get("record_type") != rtype:
                 continue
             seg = row.get("segment_id")
-            key = tuple(row.get(key_field) or row.get("record_key") or ())
+            key = _identity_value(row.get(key_field) or row.get("record_key"))
             slot = out.setdefault(seg, {}).setdefault(key, {"runs": set(), "rows": []})
             slot["runs"].add(run["run_id"])
             slot["rows"].append(row)
@@ -162,7 +173,7 @@ def _apply_assignments(runs, rtype, key_field, assign_by_segment, label):
                 rows.append(row)
                 continue
             seg = row.get("segment_id")
-            key = tuple(row.get(key_field) or row.get("record_key") or ())
+            key = _identity_value(row.get(key_field) or row.get("record_key"))
             cid = (assign_by_segment.get(seg) or {}).get(key)
             if cid is None:
                 rows.append(row)
@@ -213,7 +224,10 @@ def identity_merged_ms(runs, *, threshold=0.5, **_):
 
     return (_apply_assignments(runs, "MARKET_SIGNAL", "market_signal_key", assign_by_segment,
                                f"msclust{int(threshold * 100)}"),
-            {"identity": "merged-ms", "threshold": threshold, **dict(stats), "pairs": pairs})
+            {"identity": "merged-ms", "threshold": threshold, **dict(stats), "pairs": pairs,
+             # ⭐ the membership map, so a grader can ask "which keys were merged together?"
+             # without re-deriving the clustering and drifting from it.
+             "clusters_by_segment": assign_by_segment})
 
 
 def identity_lens_principle(runs, *, lens=None, **_):
@@ -250,7 +264,8 @@ def identity_lens_principle(runs, *, lens=None, **_):
         pairs.extend((seg, a, b, sim) for a, b, sim in st["pairs"])
 
     return (_apply_assignments(runs, "PRINCIPLE", "principle_key", assign_by_segment, "lensclust"),
-            {"identity": "lens-principle", **dict(stats), "pairs": pairs})
+            {"identity": "lens-principle", **dict(stats), "pairs": pairs,
+             "clusters_by_segment": assign_by_segment})
 
 
 STRUCTURED_FIELDS = ("instrument", "direction", "timeframe")
