@@ -71,10 +71,17 @@ def test_the_signed_metric_declares_its_own_presentation_in_the_projection():
 def test_the_projection_is_a_product_of_its_two_sources():
     rows = bs.library_rows()
     assert len(rows) == sum(len(bm.metrics_for(u)) for u in bu.UNIVERSE_IDS)
-    # every row has a symbol except the UCT rows for metrics UCT never published
+    # ⚠️ THE INVARIANT, NOT A SNAPSHOT. This pinned the exact set
+    # `{"net_new_high_low"}` and went red the moment the catalogue legitimately grew
+    # (Phase 6 added the base/component counts so applicability could be metadata
+    # rather than a scattered exception). The rule that actually matters is: a row
+    # lacks a symbol EXACTLY when it is a UCT row for a metric UCT never published
+    # as a chartable pseudo-ticker.
     missing = [r for r in rows if r["symbol"] is None]
     assert all(r["universe"] == "uct" for r in missing)
-    assert {r["metric"] for r in missing} == {"net_new_high_low"}
+    assert {r["metric"] for r in missing} == (
+        set(bm.METRIC_KEYS) - set(bs.LEGACY_SYMBOL_BY_METRIC))
+    assert "net_new_high_low" in {r["metric"] for r in missing}
 
 
 def test_selecting_universes_narrows_the_projection():

@@ -113,6 +113,21 @@ _ROWS = [
     # publishes None rather than a 52-week count wearing the ATH label.
     ("new_ath",           "ATH",   "New All-Time Highs",            "New ATH",   "highs_lows", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, NOT_PORTABLE),
 
+    # ── Base / component counts ──────────────────────────────────────────────
+    # ⭐ THESE ARE STORED BY THE SWEEP AND WERE NOT CATALOGUED, which made them
+    # invisible to `applies_to` — and applicability is what decides whether a metric
+    # may be written for a PIT universe. They are pure constituent counts over the
+    # measured population, so they port exactly as the rest of the family does.
+    ("universe_count",    "UNI",   "Universe Count",                "Universe",  "score_regime", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, PORTABLE),
+    ("advancing",         "ADV",   "Advancing Issues",              "Advancing", "score_regime", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, PORTABLE),
+    ("declining",         "DEC",   "Declining Issues",              "Declining", "score_regime", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, PORTABLE),
+    ("up_on_volume",      "UPV",   "Up-Volume Issues",              "Up Vol",    "momentum", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, PORTABLE),
+    ("down_on_volume",    "DNV",   "Down-Volume Issues",            "Dn Vol",    "momentum", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, PORTABLE),
+    # ⛔ A Follow-Through Day is a statement about an INDEX's session, not about a
+    # universe's constituents — `derive_live_row` refuses to set it intraday for the
+    # same reason. "NASDAQ is_ftd" would be the index's flag under another name.
+    ("is_ftd",            "FTD",   "Follow-Through Day",            "FTD",       "score_regime", UNIT_POINTS, DOMAIN_NONNEG, PRES_LINE, NOT_PORTABLE),
+
     # ── Score / regime ───────────────────────────────────────────────────────
     ("mcclellan_osc",     "MC",    "McClellan Oscillator",          "McClellan", "score_regime", UNIT_POINTS, DOMAIN_SIGNED, PRES_LINE, PORTABLE),
     ("adv_decline_cum",   "AD",    "Advance/Decline Line",          "A/D Line",  "score_regime", UNIT_COUNT, DOMAIN_SIGNED, PRES_LINE, PORTABLE),

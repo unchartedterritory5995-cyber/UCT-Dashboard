@@ -302,6 +302,7 @@ def build_frame(universe: str, from_date: str, to_date: str,
     ref = reference_map()
     sweep_dates = [d for d in dates if from_date <= d <= to_date]
     eligible, coverage = {}, {}
+    missing_raw = []
     from api.services import massive
     for d in sweep_dates:
         j = date_pos[d]
@@ -316,11 +317,39 @@ def build_frame(universe: str, from_date: str, to_date: str,
             med = np.nanmedian(dollar[:, lo:j + 1], axis=1)
         dv = {t: float(med[i]) for i, t in enumerate(tickers) if med[i] == med[i]}
         raw = massive.get_grouped_daily_ohlcv(d, adjusted=False)
+        # ⛔⛔ AN EMPTY RAW FRAME ON A REAL SESSION IS AN ERROR, NOT AN EMPTY UNIVERSE.
+        # `d` is in `dates`, which means the ADJUSTED fetch returned rows, so the
+        # market traded. If the RAW fetch comes back empty the fetch FAILED — and
+        # `get_grouped_daily_ohlcv` swallows every exception and returns `{}`, so the
+        # failure arrives looking exactly like a quiet day.
+        #
+        # ⚰️ MEASURED, not theorised: a control sweep asked for 48 sessions, held raw
+        # frames for 5, and silently produced 5. Eligibility over `{}` yields zero
+        # members, every metric is then `None`, nothing is written, and the sweep
+        # reports success over a window with a 43-session hole in it. In a multi-year
+        # grind that is a gap nobody would see until somebody charted the year.
+        if not raw:
+            missing_raw.append(d)
+            continue
         elig, cov = eligible_on(universe, d, raw, ref, dollarvol=dv,
                                 price_min=price_min, dollarvol_min=dollarvol_min)
         eligible[d] = elig
         coverage[d] = cov
 
+    if missing_raw:
+        # ⛔ REFUSE THE WHOLE CHUNK rather than write a partial one. A historical
+        # series with an invisible hole is worse than a sweep that failed loudly: the
+        # hole survives into the store, the chart, and every later re-run that sees
+        # coverage already reaching past it.
+        _log.error("[pit_frame] %s sweep dates have no RAW frame (first %s) — refusing",
+                   len(missing_raw), missing_raw[0])
+        return {"ok": False, "reason": (
+            f"{len(missing_raw)} of {len(sweep_dates)} sweep dates have no raw "
+            f"grouped-daily frame (first: {missing_raw[0]}, last: {missing_raw[-1]}). "
+            "The adjusted frame exists for these dates, so the market traded and the "
+            "RAW fetch failed — computing over them would write a silent gap."),
+            "missing_raw": missing_raw, "dates": [], "date_pos": {},
+            "tickers": [], "eligible": {}, "coverage": {}}
     return {"ok": True, "universe": bu.normalize(universe), "dates": dates,
             "date_pos": date_pos, "closes": closes, "vols": vols,
             "tickers": tickers, "eligible": eligible, "coverage": coverage,

@@ -261,12 +261,27 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
 # Rail: tests/test_breadth_recon_never_writes_new_ath.py
 _NEVER_SWEEP_STORE = frozenset({"new_ath"})
 
+
+def _applies(metric: str, universe: str) -> bool:
+    """May `universe` store `metric`? UCT: always (it is where they are measured).
+    A PIT universe: only what `breadth_metrics` marks portable.
+
+    ⚠️ Fails OPEN for UCT and CLOSED for a PIT universe, which is the safe direction
+    for each: UCT must never lose a metric it has always written, and a new universe
+    must never gain one nobody decided it should have."""
+    from api.services import breadth_universes as _bu
+    if _bu.normalize(universe) == _bu.DEFAULT_UNIVERSE:
+        return True
+    from api.services import breadth_metrics as _bm
+    return _bm.applies_to(metric, universe)
+
 _SWEEP_STATE: dict = {"status": "idle"}
 
 
 def sweep_history(from_date: str, to_date: Optional[str] = None,
                   tickers: Optional[list[str]] = None, window: int = 320,
-                  batch: int = 4000, universe: Optional[str] = None) -> dict:
+                  batch: int = 4000, universe: Optional[str] = None,
+                  warmup_days: int = 560) -> dict:
     """Backfill close-basis breadth history for [from_date, to_date]: load the deep frame
     ONCE, recompute every session, write close-to-close BODIES to breadth_daily_ohlc
     (source 'close_recon'). Bounded memory (numpy frame) + batched writes. This is the
@@ -289,6 +304,16 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
 
     ⚠️ Omitting `universe` keeps the EXACT pre-universe behaviour — today's UCT
     list, written to `universe='uct'`. Existing callers are untouched.
+
+    ⚠️ `warmup_days` IS THE PRE-ROLL, AND IT IS COMPUTATIONAL CONTEXT ONLY — never
+    output. 560 days (~1.6 yr) is the production default because the 200-day average
+    and the 52-week extreme need it. It is a PARAMETER rather than a constant for one
+    honest reason: a bounded control run whose frame cache starts later than
+    `from_date − 560d` would otherwise trip `_sessions`' consecutive-empty-day guard
+    and return "no sessions in range", which reads like a bug in the sweep rather
+    than a gap in the cache. Lowering it is only safe while the remaining window
+    still clears the metric's own lookback (221 sessions is `recompute_from_frame`'s
+    floor); the frame builder does not check that for you.
     """
     from datetime import date as _date, timedelta as _td
     from api.services import breadth_live as bl
@@ -304,7 +329,7 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         bu.sweepable_range(uni, from_date, to_date)
         from api.services import breadth_pit_frame as bpf
         to_date = to_date or from_date
-        pit_frame = bpf.build_frame(uni, from_date, to_date, warmup_days=560)
+        pit_frame = bpf.build_frame(uni, from_date, to_date, warmup_days=warmup_days)
         if not pit_frame.get("ok"):
             return {"ok": False, "reason": pit_frame.get("reason", "pit frame failed")}
         frame, tickers = pit_frame, pit_frame["tickers"]
@@ -350,6 +375,18 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
             continue
         for metric, val in full.items():
             if metric == "date" or metric in _NEVER_SWEEP_STORE:
+                continue
+            # ⛔⛔ APPLICABILITY DECIDES WHAT A PIT UNIVERSE MAY STORE, and a control
+            # sweep is what proved this was missing. `derive_live_row` computes the
+            # WHOLE row — including `breadth_score`, a composite that consumes AAII,
+            # put/call and VIX — so a US sweep wrote a US `breadth_score` built from
+            # UCT's formula over a row whose sentiment inputs are absent. A number
+            # that looks plausible and means something else is precisely the failure
+            # the catalogue's `portability` column exists to prevent.
+            #
+            # ⚠️ UCT IS UNTOUCHED: it applies to every metric by definition, so this
+            # branch cannot change a single value the shipped path writes.
+            if not _applies(metric, uni):
                 continue
             fv = _f(val)
             if fv is None:

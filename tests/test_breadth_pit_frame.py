@@ -140,3 +140,38 @@ def test_build_frame_refuses_a_pit_universe_below_its_floor_before_fetching():
     # The floor check must precede any provider work.
     with pytest.raises(bu.BelowHistoryFloor):
         bpf.build_frame("nasdaq", "2009-01-05", "2009-01-09")
+
+
+def test_a_sweep_date_with_no_RAW_frame_refuses_the_whole_chunk(monkeypatch):
+    """⚰️ MEASURED IN A CONTROL SWEEP, not theorised.
+
+    `massive.get_grouped_daily_ohlcv` swallows every exception and returns `{}`, so a
+    FAILED raw fetch arrives looking exactly like a quiet day. Eligibility over `{}`
+    yields zero members, every metric is then None, nothing is written — and the
+    sweep reports SUCCESS over a window with a hole in it. A control asked for 48
+    sessions, held raw frames for 5, and silently produced 5.
+    """
+    from api.services import massive
+
+    sessions = ["2015-03-09", "2015-03-10", "2015-03-11"]
+    adj = {t: {"o": 10.0, "h": 11.0, "l": 9.0, "c": 10.0, "v": 5_000_000}
+           for t in ("AAA", "BBB")}
+
+    def _grouped(day_iso, adjusted=False):
+        if day_iso not in sessions:
+            return {}                      # a real non-trading day
+        if adjusted:
+            return adj                     # the market DID trade
+        # the RAW fetch fails on the middle session only
+        return {} if day_iso == "2015-03-10" else adj
+
+    monkeypatch.setattr(massive, "get_grouped_daily_ohlcv", _grouped)
+    monkeypatch.setattr(bpf, "reference_map", lambda force=False: {})
+
+    out = bpf.build_frame("us", "2015-03-09", "2015-03-11", warmup_days=3)
+    assert out["ok"] is False
+    assert out["missing_raw"] == ["2015-03-10"]
+    # ⛔ and it names what happened, so a grind's log says "fetch failed" rather than
+    # leaving a reader to infer it from a gap months later
+    assert "raw grouped-daily frame" in out["reason"]
+    assert "silent gap" in out["reason"]
