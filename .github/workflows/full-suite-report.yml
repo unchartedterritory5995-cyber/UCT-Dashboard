@@ -230,6 +230,13 @@ jobs:
     needs: [plan, vitest, pytest, collect_profile]
     if: always()
     runs-on: ubuntu-latest
+    # ⛔ F-CI-8 — PUBLISHERS QUEUE, THEY DO NOT COLLIDE. Two runs reaching this job together
+    # both did `git push origin ci-results` with no retry and no lock; one lost. This is the
+    # PRIMARY defence. `cancel-in-progress: false` is load-bearing: cancelling a publisher
+    # would destroy the record it was about to write, which is the failure F-CI-7 names.
+    concurrency:
+      group: ci-results-publish
+      cancel-in-progress: false
     # ⛔ THE ONLY JOB THAT CAN WRITE, and it writes one orphan branch.
     permissions:
       contents: write
@@ -282,7 +289,28 @@ jobs:
           print("jobs seen:", len(d.get("jobs", [])))
           PY
 
+      # ⛔ ORDER OF CONSUMPTION IS PROVEN, NOT ASSUMED. Every artifact this job reads is
+      # reported EXISTS + SIZE before the read. ⚰️ E CP8 was a read-before-create that no
+      # test could see: `jobs.json` was consumed 27 lines before it was written and every
+      # shard silently came back UNREADABLE while all twelve were in fact green.
+      - name: Prove the artifacts exist before reading them
+        if: always()
+        run: |
+          python tools/ci_publish.py --check-artifact jobs.json \
+            --check-artifact logs/vitest.log --check-artifact logs/vitest-junit.xml || true
+          echo "--- shard results ---"
+          ls -la shards 2>/dev/null || echo "UNREADABLE: shards/ does not exist"
+          for d in shards/*/; do
+            [ -d "$d" ] || continue
+            if [ -f "$d/summary.json" ]; then
+              echo "$d/summary.json exists, $(wc -c < "$d/summary.json") bytes"
+            else
+              echo "UNREADABLE: $d/summary.json does not exist"
+            fi
+          done
+
       - name: Summarise
+        if: always()
         run: |
           touch logs/vitest.log
           python tools/ci_summarize.py --suite vitest --log logs/vitest.log --out v.json
@@ -370,6 +398,39 @@ jobs:
           print(json.dumps(rec, indent=2))
           PY
 
+      # ⛔ THE STEP SUMMARY IS WRITTEN BEFORE THE PUSH IS ATTEMPTED, unconditionally.
+      # F-CI-7: runs #5 and #6 both had this job fail, so no record exists for either and
+      # the only evidence sits behind a 403. The outcome must be readable in the Actions tab
+      # even when the repo record never lands — a publisher that fails silently is a
+      # measurement system with a hole exactly where the bad news goes.
+      - name: Write the phone-readable summary
+        if: always()
+        run: |
+          python - <<'PY' > step_summary.md
+          import json, pathlib
+          try:
+              rec = json.loads(pathlib.Path("record.json").read_text(encoding="utf-8"))
+          except Exception as e:
+              print("# CI record UNREADABLE\n\nrecord.json could not be read: %s" % e)
+              raise SystemExit(0)
+          p, v = rec.get("pytest", {}), rec.get("vitest", {})
+          print("# CI run %s — %s" % (rec.get("run_id"), rec.get("verdict")))
+          print()
+          print("| suite | collected | failed | ok |")
+          print("|---|---|---|---|")
+          print("| vitest | %s | %s | %s |" % (v.get("collected"), v.get("failed"), v.get("ok")))
+          print("| pytest | %s | %s | %s |" % (p.get("collected"), p.get("failed"), p.get("ok")))
+          print()
+          for k in ("shards_total", "shards_success", "shards_cancelled",
+                    "shards_missing", "shards_without_totals", "per_test_timeouts"):
+              if k in p:
+                  print("- **%s**: %s" % (k, p[k]))
+          if p.get("ok_basis"):
+              print("- basis: `%s`" % p["ok_basis"])
+          PY
+          cat step_summary.md
+          cat step_summary.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish onto the orphan ci-results branch
         env:
           GH_TOKEN: ${{ github.token }}
@@ -378,14 +439,14 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           RUN="$GITHUB_RUN_ID"
-          cp record.json "/tmp/$RUN.json"
+          mkdir -p "/tmp/out/$RUN"
+          cp record.json "/tmp/out/$RUN/summary.json"
+          cp step_summary.md "/tmp/out/$RUN/summary.md" 2>/dev/null || true
           # ⛔ The orphan checkout below wipes the working tree, so anything that must
           # survive it is copied OUT first. /tmp is outside the repo and survives.
           if [ -d "extract/$RUN" ]; then
-            mkdir -p "/tmp/extract"
-            cp -r "extract/$RUN" "/tmp/extract/"
+            cp -r "extract/$RUN/." "/tmp/out/$RUN/" 2>/dev/null || true
           fi
-          # create the orphan branch on first use; never rebase, never force
           if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
             git fetch origin ci-results
             git checkout ci-results
@@ -394,18 +455,22 @@ jobs:
             git rm -rf . >/dev/null 2>&1 || true
             printf '%s\n' "# ci-results" "" \
               "Machine-readable results of the report-only full-suite workflow." \
-              "One file per run under results/, plus results/latest.json." \
+              "One DIRECTORY per run under results/<run_id>/, containing summary.json" \
+              "plus that run's detail files." "" \
+              "There is deliberately NO latest.json: it was the only path two publishers" \
+              "both wrote, and therefore the only place they could conflict. Derive the" \
+              "newest record instead — tools/ci_latest.py, or max run_id over" \
+              "results/*/summary.json. Zero records means ZERO-RECORDS, never 'no failures'." \
               "Written by .github/workflows/full-suite-report.yml. Do not edit by hand." \
               > README.md
           fi
-          mkdir -p results
-          cp "/tmp/$RUN.json" "results/$RUN.json"
-          cp "/tmp/$RUN.json" results/latest.json
-          # E CP4 -- the per-run detail directory travels with the record
-          if [ -d "/tmp/extract/$RUN" ]; then
-            mkdir -p "results/$RUN"
-            cp -r "/tmp/extract/$RUN/." "results/$RUN/"
-          fi
+          mkdir -p "results/$RUN"
+          cp -r "/tmp/out/$RUN/." "results/$RUN/"
           git add results README.md 2>/dev/null || git add results
-          git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || exit 0
-          git push origin ci-results
+          git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || {
+            echo "nothing to commit — no record was produced"; exit 1; }
+          # ⛔ Bounded fetch/rebase/push. On final failure this EXITS NON-ZERO: a publisher
+          # that swallows a push failure leaves no record and says nothing (F-CI-7).
+          # ⭐ The rebase cannot conflict now that latest.json is gone — each run writes only
+          # results/<run_id>/, a path no other run touches.
+          python tools/ci_publish.py --branch ci-results
