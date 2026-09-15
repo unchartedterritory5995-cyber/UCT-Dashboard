@@ -6,7 +6,8 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 04:34 EDT Tue**, end below, both `python tools/weekly_exec.py et`. Both
+Start **2026-09-15 04:34 EDT Tue**, end **2026-09-15 05:43 EDT Tue**, both
+`python tools/weekly_exec.py et`. Both
 worktrees `git status --porcelain` → **0** at start and end.
 
 **9 commits** — six docs worktree, three code worktree (`c619ac82c`, `0d7c55fb1` pushed;

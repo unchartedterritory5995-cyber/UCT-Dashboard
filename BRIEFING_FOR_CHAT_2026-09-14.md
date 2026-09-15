@@ -831,3 +831,63 @@ remain, five REAL failures are real, and the branch's CI has never been green.
 ⚠️ **New open question:** T2 CP1 has **no parent packet**. No `T2` exists in `gates/`, so
 the id was free, but every other build record cites a parent. Adopt as **E CP5**, or write a
 T2 packet?
+
+---
+
+## Session result 2026-09-15 (session 2 — runner-keyed outcome, sharded suite, profile)
+
+**Full report: `docs/terminal-research/reports/SESSION_REPORT_2026-09-15_2.md`** (committed).
+ET `04:34 → 05:43 EDT Tue`. Both worktrees clean. **9 commits** — six docs, three code
+(`c619ac82c`, `0d7c55fb1` pushed; **`dbc494828` committed and deliberately NOT pushed**).
+
+### The backend suite now runs in ten pieces instead of timing out as one
+
+**E CP6.** `gate_shards.py` could not be the source — it is the **vitest** gate (0 code
+references to pytest or `tests/`; it runs `npx vitest --shard=`). And partitioning by
+directory does not balance: **87% of the 1,430 files sit loose in `tests/`**. So: 12 shards,
+**proved a partition** (union == all, no duplicates, largest 10.9%), mutation-proved both
+ways, matrix derived at run time with the proof running *before* it is used.
+
+**Caps came DOWN, 45 → 20 minutes.** Run #6: the plan job proved and emitted in 13 s, then
+**10 of 12 shards succeeded, longest 526 s (8.8 min)**. `dir-api` produced a result in
+**85 s** where run #4 produced nothing in 2,671.
+
+### ⭐ A fear this programme has reasoned from for weeks turns out to be about this box
+
+Collection over the **whole tree** completed in **179 seconds** on a clean runner.
+`CLAUDE.md`'s **6.6 GB for `--collect-only`** and **18 GB for `pytest tests/`** are
+properties of **this machine under contention**, not of the test tree.
+
+### E CP5 — the flag was deleted, not patched
+
+`oom_or_timeout` is gone. Outcome now comes from the runner: `job_result`,
+`test_step_outcome`, and `timed_out` derived as `cancelled AND elapsed >= cap-60`, with both
+numbers printed. ⚰️ **Its non-vacuity control was itself wrong** — it failed a *correct*
+implementation, and satisfying it would have deleted the cap-vs-human-cancel distinction.
+
+### ⛔ Two new gaps, and one is mine
+
+**F-CI-7 — the publisher has no failure path.** Run #5's `publish` job failed, so **no
+record exists at all**; every guard we built sits inside the job that did not run. The
+prediction for run #5 is **UNSCORED, not wrong**: pytest *was* cancelled at 2,722 s against
+a 2,700 s cap, but the artifact carrying the answer was never written. Which step failed is
+**UNREADABLE** — the log is 403 and the jobs API returned an empty steps array. Not guessed.
+
+**F-CI-8 — two runs publishing at once race** on `git push origin ci-results`, no retry, no
+lock. Recorded as a design gap, *not* as run #5's diagnosis.
+
+**E CP7 (mine):** artifact names cannot contain `/`, so 4 of 5 profile jobs did their work
+and threw it away at upload (5/5 correlation with the slash). Fixed, registered as row 19,
+**and deliberately not pushed** — starting run #7 now would manufacture F-CI-8's race.
+
+### Queue
+
+⛔ **6 BUILDABLE, 0 STARTABLE (F-Q-1).** Every BUILDABLE unit depends on something unbuilt;
+two depend on `S6 CP2`, which is UNBUILDABLE. *"Take the first BUILDABLE unit"* would have
+handed me one I cannot start. The audit needs a second axis. ⚠️ The true unblocked root is
+**D5 CP2**, whose reword landed last session — **not on the list I was pointed at, so not
+built. Your call.**
+
+**Manifest 19 rows, 19 OK, 18/18 mapped, exit 0.** Two commands **PARKED**: (a) F-MERGE-1
+CLOSED is MET; (b) a totals line in the record is **not yet confirmed** — ten shard jobs
+reporting success is not the same artifact, and this session does not conflate them.
