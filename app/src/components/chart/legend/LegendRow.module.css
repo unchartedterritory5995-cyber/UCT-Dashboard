@@ -62,10 +62,13 @@
 .vLabel {
   white-space: nowrap;
   font-weight: 500;
-  /* ⭐⭐ TRACK B: THE ROW'S TEXT IS NEUTRAL AND THE RAIL CARRIES THE COLOUR.
-     The row used to wear `style={{ color }}` on the whole box, so the price
-     pane's moving averages printed blue, purple and orange NAMES at 11px. The
-     rail is 2×9px of the same colour and cannot be styled into illegibility. */
+  /* ⚰️ THE FALLBACK, NOT THE RULE. Track B made every row neutral here and gave
+     the colour to a 2×9px rail; the owner had both reverted the same day
+     (2026-09-14) — the legend is the chart's key, and a key printed in one
+     colour names nothing. A row that HAS a plot colour wears it inline and wins
+     over this; what is left to this declaration is the rows that have none —
+     O/H/L/C and `Vol`, which are readings of the instrument rather than of a
+     line somebody chose a colour for. */
   color: var(--chart-panel-text-strong-low, #e2dfd6);
 }
 .vVal, .flatVal {

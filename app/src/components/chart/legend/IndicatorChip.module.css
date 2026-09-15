@@ -46,12 +46,15 @@
    * clickable legend, and it is why the box is the CHIP and not the legend. */
   pointer-events: auto;
   cursor: pointer;
-  /* ⭐⭐ TRACK B: THE CHIP'S TEXT IS NEUTRAL AND THE RAIL CARRIES THE COLOUR.
-     The chip used to wear `style={{ color: chip.color }}` on the whole box, so a
-     chart with eleven series printed eleven differently-coloured names — a
-     rainbow at 11px — and a member who picked a dark plot colour got a label
-     they could not read. The rail is 2×9px of the SAME colour, immune to being
-     styled into illegibility because it carries no glyph. */
+  /* ⚰️ THE FALLBACK, NOT THE RULE — `style={{ color: chip.color }}` IS BACK ON
+     THE BOX. Track B neutralised the text and gave the colour to a 2×9px rail,
+     then retired the rail; the owner reverted both the same day (2026-09-14),
+     because on an eleven-series chart the legend is the only key to which line
+     is which. The objection that produced the rail — a member who picks a dark
+     plot colour gets a dark label — is answered where the colour is chosen, not
+     here: every caller passes it through `opaqueColor`, and a colour that is
+     still unreadable is one the LINE is unreadable in. This declaration is what
+     an uncoloured chip falls back to. */
   color: var(--chart-panel-text-strong-low, #e2dfd6);
 }
 

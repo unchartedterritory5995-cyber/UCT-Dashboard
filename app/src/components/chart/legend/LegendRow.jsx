@@ -68,15 +68,26 @@ import styles from './LegendRow.module.css'
  */
 export default function LegendRow({
   rowId, label, value, hidden = false, vertical = false,
-  // ⚰️ `color` AND `baseColor` ARE ACCEPTED AND IGNORED.
-  //
-  // `color` inked the whole row, then the 2×9px rail before its name; `baseColor`
-  // inked the control strip in the member's own legend colour ("make sure the
-  // buttons match the brightness of the OHLC labels"). Neither has a subject: the
-  // row is neutral text and there is no control. They stay in the signature
-  // because six call sites pass them and removing them from all six is churn with
-  // no behaviour attached — the row already inherits the legend's ink.
-  // eslint-disable-next-line no-unused-vars
+  /** The drawn line's colour — THE ROW WEARS IT, label and value alike.
+   *
+   *  ⭐⭐ RESTORED BY THE OWNER (2026-09-14, same day it went): *"every plot or
+   *  label inside the legend like moving averages or any indicator showed up as
+   *  the color of the plot on the chart"*. It is how a member reads a nine-line
+   *  chart — the legend is the key, and a key printed in one colour names
+   *  nothing. Track B took it off in favour of a 2×9px rail, then took the rail
+   *  off too; what that left was neutral text with no way back to "which line is
+   *  this?" except opening a menu.
+   *
+   *  ⚠️ THE ORIGINAL OBJECTION IS REAL AND IS ANSWERED UPSTREAM, NOT HERE: a
+   *  member who picks a near-black plot colour gets a near-black label. Every
+   *  caller passes `opaqueColor(...)`, which lifts a translucent line colour to
+   *  full opacity against the canvas; a colour that is still unreadable is one
+   *  the LINE is unreadable in too, and the fix for that belongs to the colour
+   *  picker.
+   *
+   *  ⛔ ROWS WITH NO COLOUR STAY NEUTRAL, and that is the distinction the before
+   *  picture draws: O/H/L/C and `Vol` are readings of the instrument, not of a
+   *  plot somebody chose a colour for, so they keep the legend's own ink. */
   color,
   // ⚰️ see above. It existed to ink the control strip
   // in the member's own legend colour ("make sure the buttons match the
@@ -144,6 +155,14 @@ export default function LegendRow({
 
   const tone = hidden ? styles.rowHidden : ''
 
+  /* ⛔ THE VALUE INHERITS RATHER THAN RE-DECLARING. `.vVal`/`.flatVal` carry the
+     bright legend ink so an UNCOLOURED row (OHLC, Vol) still reads as a value;
+     a coloured row has to defeat that, and `inherit` does it by taking the row's
+     own colour — one source of truth per row, and nothing to keep in sync if the
+     token changes. */
+  const ink = color ? { color } : undefined
+  const valInk = color ? { color: 'inherit' } : undefined
+
   // ─── HORIZONTAL: one inline span. The span IS the target ───────────────
   if (!vertical) {
     return (
@@ -151,9 +170,10 @@ export default function LegendRow({
         className={`${styles.flat} ${tone} ${interactive ? styles.rowLive : ''}`}
         data-legend-row={rowId}
         data-hidden={hidden ? 'true' : 'false'}
+        style={ink}
         {...trigger}
       >
-        {label}{value ? <strong className={styles.flatVal}>{value}</strong> : null}
+        {label}{value ? <strong className={styles.flatVal} style={valInk}>{value}</strong> : null}
       </span>
     )
   }
@@ -164,10 +184,15 @@ export default function LegendRow({
       className={`${styles.vRow} ${tone} ${interactive ? styles.rowLive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
+      style={ink}
       {...trigger}
     >
-      <span className={styles.vLabel}>{label}</span>
-      <span className={styles.vVal}>{value}</span>
+      {/* ⛔ THE LABEL CELL NEEDS THE SAME `inherit` THE VALUE DOES, and for the
+          same reason: `.vLabel` declares its own colour, and a declaration on a
+          CHILD beats a colour the parent only passes down. The horizontal variant
+          needs nothing — its label is a bare text node, so it inherits. */}
+      <span className={styles.vLabel} style={valInk}>{label}</span>
+      <span className={styles.vVal} style={valInk}>{value}</span>
       {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the

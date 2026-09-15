@@ -119,18 +119,35 @@ describe('LegendRow — the three verbs', () => {
     expect(onWrapper).not.toHaveBeenCalled()
   })
 
-  it('⛔ the row carries NO colour swatch and NO hover handler at all', () => {
-    // ⚰️ THE ROW WORE `style={{ color }}`, then a 2×9px rail, then an `onHover`
-    // that lifted the drawn series by a pixel. All three are retired: the label is
-    // neutral text and hovering it reaches nothing but a CSS background.
+  it('⭐⭐ the row WEARS ITS LINE COLOUR — no swatch, and no hover handler at all', () => {
+    // ⚰️ THE ROW WORE `style={{ color }}`, then a 2×9px rail instead, then an
+    // `onHover` that lifted the drawn series by a pixel. The rail and the lift are
+    // retired for good; the COLOUR came back the same day, on the owner's report
+    // that an indicator's name and value had always printed in the colour of its
+    // line. Hovering still reaches nothing but a CSS background.
     const h = handlers()
     const { container } = render(
       <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical {...h} />)
     const row = container.querySelector('[data-legend-row="ma:2"]')
-    expect(row.style.color, 'the row tints its own text with the line colour again').toBe('')
+    expect(row.style.color, 'the row lost its line colour').toBe('rgb(192, 123, 224)')
+    // ⛔ THE VALUE FOLLOWS THE LABEL, by inheriting rather than restating — one
+    // source of colour per row.
+    expect(screen.getByText('1').style.color, 'the value kept the bright legend ink')
+      .toBe('inherit')
     expect(row.querySelector('i'), 'a colour rail is back in the row').toBeNull()
     const src = read('./LegendRow.jsx')
     expect(src, 'a hover handler is back in the component').not.toMatch(/onMouseEnter|onMouseLeave/)
+  })
+
+  it('⛔ …and a row with NO colour keeps the inherited legend ink', () => {
+    // O/H/L/C and `Vol` pass none: they are readings of the instrument, not of a
+    // line somebody chose a colour for, and the before-and-after picture the owner
+    // sent draws exactly that line.
+    render(<LegendRow rowId="volume" label="Vol" value="38.7M" vertical {...handlers()} />)
+    const row = document.querySelector('[data-legend-row="volume"]')
+    expect(row.style.color, 'an uncoloured row invented a colour').toBe('')
+    expect(screen.getByText('38.7M').style.color, 'the value stopped using the legend ink')
+      .toBe('')
   })
 
   it('⛔ the gutter takes NO WIDTH — and the row hover cannot move the legend', () => {

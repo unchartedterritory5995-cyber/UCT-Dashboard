@@ -240,16 +240,34 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(inert.getAttribute('aria-haspopup')).toBeNull()
   })
 
-  it('⭐ the chip carries NO colour swatch, and no colour on its text', () => {
-    // ⚰️ A 2×9px `<i>` RAIL STOOD BEFORE EVERY NAME. On a nine-row legend it read
-    // as nine little coloured tabs (owner, 2026-09-14). Before that the chip wore
-    // `style={{ color: chip.color }}` on the whole box, which was a rainbow of
-    // names at 11px. Neither is here now: the label is neutral and *"which line is
-    // this?"* is answered by the hover lift.
+  it('⭐⭐ the chip WEARS ITS PLOT COLOUR — label and value alike, and no swatch', () => {
+    // ⚰️ A 2×9px `<i>` RAIL STOOD BEFORE EVERY NAME, because Track B had
+    // neutralised the text. Both are retired and the ORDER matters: the rail went
+    // first (nine little coloured tabs on a nine-row legend), and then the owner
+    // put the colour back where it had always been — *"every plot or label inside
+    // the legend … showed up as the color of the plot on the chart"* (2026-09-14).
+    // The legend is the chart's key; a key printed in one colour names nothing.
     const { container } = draw()
     const chip = container.querySelector('[data-instance-id]')
-    expect(chip.style.color, 'the chip tints its own text with the plot colour again').toBe('')
+    expect(chip.style.color, 'the chip is back to neutral text').toBe('rgb(123, 104, 238)')
+    // ⛔ THE VALUE FOLLOWS THE LABEL. `.chipVal` carries the bright legend ink for
+    // an uncoloured chip, so a coloured one has to defeat it — `inherit`, not a
+    // second copy of the colour, so the box stays the one source of truth.
+    const val = chip.querySelector('span')
+    expect(val.textContent).toBe('54.3')
+    expect(val.style.color, 'the value kept the neutral ink while the label turned').toBe('inherit')
+    // ⛔ AND STILL NO SWATCH. The colour is ON the name, not in a tab beside it.
     expect(chip.querySelector('i'), 'a colour rail is back in the chip').toBeNull()
+  })
+
+  it('⛔ …and a chip with NO colour keeps the inherited legend ink', () => {
+    // The other half, and the reason the rule reads as a rule: an uncoloured row
+    // must inherit rather than fall back to black. `LegendRow` relies on the same
+    // distinction for O/H/L/C and `Vol`.
+    cleanup()
+    const { container } = render(<IndicatorChip chip={{ ...CHIP, color: undefined }} {...handlers()} />)
+    const chip = container.querySelector('[data-instance-id]')
+    expect(chip.style.color, 'an uncoloured chip invented a colour').toBe('')
   })
 
   it('⛔ …but the plot colour still REACHES the chip, as `--chip-color`', () => {

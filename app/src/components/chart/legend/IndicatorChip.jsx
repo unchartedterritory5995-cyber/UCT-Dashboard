@@ -247,10 +247,24 @@ export default function IndicatorChip({
     },
   } : null
 
+  /* ⭐⭐ THE CHIP WEARS ITS PLOT'S COLOUR AGAIN — label and value alike.
+   *
+   * Restored by the owner the same day it went (2026-09-14): *"every plot or
+   * label inside the legend … showed up as the color of the plot on the chart"*.
+   * Track B replaced it with a 2×9px rail and then retired the rail too, which
+   * left a nine-line chart with a legend that named its lines in one colour. See
+   * `LegendRow.jsx` for the objection this re-raises and where it is answered.
+   *
+   * ⛔ THE VALUE INHERITS RATHER THAN RE-DECLARING. `.chipVal` carries the bright
+   * legend ink for a chip with no colour of its own; a coloured chip defeats it
+   * with `inherit`, so the row has exactly one source of colour. */
+  const ink = chip.color ? { color: chip.color } : undefined
+  const valInk = chip.color ? { color: 'inherit' } : undefined
+
   // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
   // chip prints `chip.text`, which in that case IS the bare label.
   const body = chipValueText
-    ? <>{chip.label}{' '}<span className={styles.chipVal}>{chipValueText}</span></>
+    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{chipValueText}</span></>
     : chip.text
 
   if (grid) {
@@ -272,7 +286,7 @@ export default function IndicatorChip({
          hover box. */
       <span
         className={`${styles.chipGridRow} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
-        style={{ '--chip-color': chip.color }}
+        style={{ '--chip-color': chip.color, ...ink }}
         {...triggerProps}
         {...(interactive ? longPress : null)}
         onClick={onBody}
@@ -280,6 +294,9 @@ export default function IndicatorChip({
       >
         <span
           className={`${cls} ${styles.chipGridLabel}`}
+          /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a
+             declaration on the child beats the row's inherited one. */
+          style={valInk}
           data-instance-id={chip.instanceId}
           data-plot-key={chip.plotKey}
           data-hidden={chip.hidden ? 'true' : 'false'}
@@ -289,7 +306,7 @@ export default function IndicatorChip({
             passes here is `.chipFolded` — `display: none` — and hiding one cell
             of three would leave the value occupying a track with nothing in front
             of it. */}
-        <span className={styles.chipGridVal}>{chipValueText}</span>
+        <span className={styles.chipGridVal} style={valInk}>{chipValueText}</span>
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend
@@ -314,7 +331,7 @@ export default function IndicatorChip({
          computing it. */
       data-computed={chip.computed === false ? 'false' : undefined}
       title={chipTitle}
-      style={{ '--chip-color': chip.color }}
+      style={{ '--chip-color': chip.color, ...ink }}
       {...triggerProps}
       {...(interactive ? longPress : null)}
       onClick={onBody}
