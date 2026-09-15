@@ -25,6 +25,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 6 | `2026-09-15-session6-master-sync-reconciler.md` | 2026-09-15 | ✅ tracked, here | 111 commits of master synced, item 2 reconciler built, RQ-v11-001 as review items; push and spend both blocked on the owner |
 | 7 | `2026-09-15-session7-push-merge-rq.md` | 2026-09-15 | ✅ tracked, here | The branch pushed at last, RQ-v11-001 merged, the DAILY chain complete and measured inert; the three passes still unbought |
 | 8 | `2026-09-15-session8-key-plumbing.md` | 2026-09-15 | ✅ tracked, here | The gate gets its own API-key variable (R32), master synced short at 25; the three passes still unbought |
+| 9 | `2026-09-15-session9-three-passes.md` | 2026-09-15 | ✅ tracked, here | **The three passes are BOUGHT** ($14.6090). The floor blocks 88% of what it governs; every CALL was demoted to MENTION by an unresolvable entity master; R24 closed at 0 of 25 |
 
 ## Why report 1 is not tracked
 
@@ -64,5 +65,8 @@ production. 6 syncs 111 commits of master, builds item 2's offline half and RQ-v
 records the two things only the owner can unblock. 7 gets the branch off this box and
 completes the chain. 8 gives that key its own name, so feeding the gate no longer means
 re-authenticating the agent session that launches it — leaving exactly one blocker: the
-variable being exported. Each report's own QUESTIONS section carries the state of every open decision at that
+variable being exported. 9 spends it: three passes, reconciled and re-scored offline for $0.00, which
+turn item 3 from a thing that was measured inert into a thing that blocks 366 of 418, and
+which reveal that the gate scores the EXTRACTOR while the records it persists would publish
+no CALL at all. Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.
