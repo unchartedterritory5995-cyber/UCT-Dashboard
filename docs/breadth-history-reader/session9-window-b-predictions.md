@@ -36,23 +36,71 @@ one `rf_pagecache = 0` (read off the request, and independently confirmed by
 `rf_rows = 4529` and `rf_bytes = 4,523,328` on **all thirteen** — identical work, a
 40x spread in time.
 
-### ⭐ The finding Session 8 could not make, and it corrects D-048
+### ⛔ WITHDRAWN BEFORE IT WAS EVER USED — and the withdrawal is the finding
 
-Session 8 reported Pearson **0.994** against Spearman **0.260** on `io_read_bytes` and
-concluded H1 owned the tail but not the ordinary range. It had only one I/O counter.
-With `rchar` and `syscr` added by M8, the same relationship is monotonic:
+**The first version of this section claimed D-048 was superseded.** On Window A alone,
+`io_rchar` ranks time almost perfectly:
 
 | predictor | Pearson | **Spearman** | Pearson minus the largest point |
 |---|---|---|---|
 | `io_rchar` | +0.936 | **+0.960** | +0.819 |
-| `io_read_bytes` | +0.982 | **+0.933** | +0.999 |
+| `io_read_bytes` | +0.982 | +0.933 | +0.999 |
 | `rf_stmt_sum` | +0.996 | +0.597 | +0.998 |
 
-⭐ **Spearman 0.960, not 0.260.** The ordinary range is not unexplained after all —
-Session 8 was measuring the wrong counter. **D-048's "H1 confirmed for the tail, not the
-range" is superseded**, and "H3 leading by elimination" with it.
+Spearman **0.960** against Session 8's 0.504 on the same counter looked like the missing
+piece: "Session 8 measured the wrong counter, the ordinary range is explained after all."
 
-### ⭐ But amplification alone is cheap — the two halves MULTIPLY
+⛔ **It does not replicate, and the reason kills the counter rather than the window.**
+Dividing each sample's block-device bytes by its own `rf_fetch` gives the rate the
+storage would have had to deliver:
+
+| window | sample | `rf_fetch` ms | `read_bytes` MB | **implied MB/s** |
+|---|---|---|---|---|
+| S8 | 18 | 8.0 | 31.54 | **3,942** |
+| S8 | 19 | 7.4 | 17.99 | **2,432** |
+| S8 | 3 | 14.3 | 34.22 | **2,393** |
+| S8 | 2 | 6.6 | 14.88 | **2,255** |
+
+**No volume delivers 3.9 GB/s**, and this one demonstrably runs at a fiftieth of that.
+Those bytes were never this request's. `/proc/self/io` is **process-wide**, so a delta
+taken across a request collects every other thread's I/O in the same interval — the
+breadth OHLC pull alone runs every 120 s (`BREADTH_OHLC_PULL_SECS`).
+
+⭐ **Window A's 0.960 was luck, not insight.** Its quiet samples happened to have
+`io_read_bytes` of *exactly* 0.00 — nothing else was running — so the counter was nearly
+clean in that window and filthy in Session 8's. **An instrument reproduced its own blind
+spot, and the only thing that caught it was dividing by a physical constant.**
+
+⭐ **So D-048 STANDS. The "two phenomena" reading is not superseded** — and this file
+records the withdrawal rather than quietly deleting the claim, because a prediction
+document that edits away its own wrong premise is worth nothing.
+
+**What survives, and it is stronger for being on two independent windows:** restrict the
+rate to samples where the request genuinely was doing I/O (`rf_fetch` > 100 ms, so its own
+work dominates the interval) and both windows agree —
+
+`11.6 · 12.8 · 15.8 · 17.1 · 21.4 · 22.5 · 25.6 · 34.1 MB/s` (n = 8, S8 and S9-A pooled)
+
+⛔ **That is H5's signature on two windows, and it still excludes H3.** `rf_stmts` is
+**12 on every sample of both windows** and `rf_execute` never exceeds 112 ms against an
+`rf_fetch` of up to 36 s: plan and connection variance are not what moves this.
+
+⚠️ **The only per-request signals are the phase timings** — `rf_fetch`, `rf_stmt_sum`,
+`rf_stmt_max`. Nothing else in the record can be attributed to the request that carried
+it. Where an io counter and a phase timing disagree, **the phase timing wins.**
+
+### The two regimes, read off the phase timings rather than the counters
+
+`rf_stmt_sum` gives Pearson **+0.996** but Spearman only **+0.597**, and that gap is the
+actual structure. The nine fast samples all sit at `rf_stmt_sum` 8.9–14.8 ms while their
+totals range 281–394 ms: below the I/O threshold the request is **CPU-bound** and the
+~280 ms floor is `derive` + `serialise` + `encode_render`, which the fetch does not
+touch. Above it, the fetch dominates absolutely — 1,310 / 5,363 / 8,855 ms.
+
+**Two regimes, one threshold** — which is D-048's two phenomena, stated in the counters
+that can actually see them.
+
+### ⭐ And amplification alone is cheap — the halves MULTIPLY
 
 Samples 5, 6 and 9 read **3.6x–6.5x** more logical bytes than they returned and cost
 **309–394 ms**, barely above the 281 ms floor. Their block-device fraction is 0–4.3%:
@@ -66,32 +114,43 @@ cost  ~  (how many times SQLite re-reads a page)  x  (how often that misses the 
              cache_size                mmap_size / eviction        storage latency
 ```
 
-And that last term is measurable. Block-device bytes against `rf_fetch` on the four
-slowest samples gives **~15.8–21.4 MB/s** — a tight band, three of four within 20%.
+The third term is the pooled 11.6–34.1 MB/s band above — **network-volume speed, not a
+local NVMe**, which is what this pod actually has. The first two are what the flag moves.
 
-⛔ **That band is H5's signature and it excludes H3.** Plan or connection variance would
-move `rf_stmts` or `rf_execute`; `rf_stmts` is **12 on every sample without exception**
-and `rf_execute` never exceeds 112 ms against an `rf_fetch` of up to 36 s. **17 MB/s is
-also not a local NVMe** — it is a network-attached volume, which is what the pod has.
+⚠️ The amplification figures in this section are subject to the same process-wide
+contamination as everything else from `/proc/self/io`. They are quoted because Window A's
+quiet samples read **exactly 0.00 MB** from the block device, which is the signature of an
+uncontaminated interval — not because the counter is trustworthy in general.
 
 ## 2. The predictions
 
 Same harness, same spans, same settle floor (uptime ≥ 640 s), `rf_pagecache` asserted
 to be **1** on every sample or the window is void.
 
-**P-B1 — amplification collapses.** The working set at the floor is 6.80 MB against a
-new 16 MB SQLite cache, so the re-reads should largely stop. Median `amp` falls to
-**≈1.0–1.5x**, and **no sample exceeds 10x**.
-→ *Falsified if* two or more samples exceed 10x.
+⛔ **Every io prediction below is stated on the window's MINIMUM, never its median.**
+Contamination only ever *adds* another thread's bytes and syscalls, so the minimum across
+a window is the least-contaminated estimate of what this request alone costs — and it is
+the only io statistic the withdrawal above leaves standing. Window A's floor is
+reproducible to the byte: `rchar` **6,796,047 / 6,796,048 / 6,796,049** and `syscr`
+**1,669** on three separate samples.
+
+**P-B1 — amplification collapses at the floor.** The floor working set is 6.80 MB against
+a new 16 MB SQLite cache, so the re-reads should stop being needed at all.
+**min(`amp`) falls below 1.5x** — the OFF floor — toward ~1.0x.
+→ *Falsified if* min(`amp`) is still ≈1.5x, i.e. the floor did not move.
 
 **P-B2 — the discriminator, and it is `syscr`, not bytes.** `mmap_size > 0` makes SQLite
-read pages by **page fault, not by `read()`**. Faulted pages do not increment `rchar` and
-do not increment `syscr` at all. So **`io_syscr` collapses from its 1,669 floor toward a
-few hundred**, and `rchar` collapses with it.
-→ *Falsified if* `syscr` stays at or above ~1,600 on the fast samples. That would mean
-the PRAGMA was accepted and reported but is not actually mapping — the exact failure the
-rail `test_with_the_flag_on_both_pragmas_are_actually_in_effect` reads back off a real
-connection to catch, here checked in production instead of in a test.
+read pages by **page fault, not by `read()`**. Faulted pages increment neither `rchar` nor
+`syscr`. So **min(`io_syscr`) collapses from 1,669 to a few hundred or lower.**
+→ *Falsified if* min(`syscr`) stays at or above ~1,600. That would mean the PRAGMA was
+accepted and read back as set but is not actually mapping — the production version of
+what `test_with_the_flag_on_both_pragmas_are_actually_in_effect` checks off a real
+connection.
+
+⭐ **P-B2 is the one prediction contamination cannot fake.** A background thread can only
+push `syscr` **up**; nothing it does can push the window's minimum below the floor this
+request needs. So a collapse in the minimum is attributable to the flag and to nothing
+else.
 
 ⚠️ **`io_read_bytes` may NOT fall**, and that must not be read as failure. A major fault
 still fetches from the block device; mmap changes *how* the page arrives, not whether a
