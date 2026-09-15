@@ -8,8 +8,8 @@
 **CURRENT PHASE** Phase 5 complete (master reconciled · BL-008 implemented ·
 catalog + discovery · chart-data seam · cache isolation). **STATUS: complete, local, unpushed.**
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
-**HEAD** `5bc4aedd6` · **WORKING TREE** clean
-**STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `1ceb3c5c2` (merge `cc57099ca`)
+**HEAD** `d602865eb` · **WORKING TREE** clean
+**STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `8578d375d` (merges `cc57099ca`, `bd5a1b9`-era)
 **BASELINE WORKTREE** `C:\b3` (detached at `5e88b38c4`, built)
 
 ---
@@ -194,12 +194,86 @@ legitimately widens it.
 
 ---
 
+## Phase 6 — bounded US control sweep (2026-09-15)
+
+### ⚠️ SCOPE: 5 sessions, not the year. BLOCKED on provider access.
+
+The objective was calendar-2015. **It could not be met**, and the reason is precise
+rather than general: the durable cache holds **925 ADJUSTED frames but only 8 RAW
+frames**. Eligibility reads the RAW frame (the point-in-time $2 floor means the
+price people actually paid), so the achievable window is exactly the dates with a
+raw frame: **2015-03-09 … 2015-03-13**.
+
+**Provider routes investigated, all refused by the brief or absent:**
+
+| route | status |
+|---|---|
+| `railway run` | FORBIDDEN by §2 |
+| local `.env` (the documented dev path — `CLAUDE.md:3364`) | **does not exist on this machine** |
+| `MASSIVE_API_KEY` in the environment | not set |
+| local dev backend on `:8000` | **running (HTTP 200)**, but exposes no grouped-daily endpoint, and adding one or restarting it is forbidden |
+
+**Missing capability, exactly:** a `MASSIVE_API_KEY` readable by a local process,
+to fetch ~245 RAW grouped-daily frames for 2015 (the adjusted ones are already
+cached). Creating `.env` with that key is the whole unblock.
+
+### What the 5-session control DID prove
+
+| check | result |
+|---|---|
+| §10 anchor — 2015-03-10 US A50 | **47.20** vs Phase-1/2 **47.23** |
+| §9 NETHL identity (NH − NL) | 5 dates checked, **0 mismatches** |
+| §12 percentage domain | 45 values, **0** outside 0-100 |
+| §13 count ≤ universe | 100 values, **0** violations |
+| §11 duplicates / NaN / source | **0** duplicate keys, **0** NaN, all `close_recon` |
+| §14 OHLC geometry | **0** violations; close-to-close body PRESERVED |
+| §15 UCT preservation | fingerprint **identical** |
+| §16 resume equivalence | interrupted+resumed output **canonically identical** row-by-row |
+| §17 idempotency | 200 → 200 rows, values unchanged, other universes untouched |
+| §17 degenerate window | still reports complete/exhausted, never spins |
+| §19 cache reuse | 3 passes, **0 network fetches**; durable tier serves after memory is cleared |
+| §20 breadth cache isolation | 1 series in the dedicated instance, **0** in the shared one |
+
+**Two real defects found and fixed** — see `d602865eb`: a failed RAW fetch was
+indistinguishable from a quiet day (a 48-session request silently produced 5), and
+`breadth_score` leaked into US (UCT's sentiment+VIX composite evaluated over a row
+without those inputs).
+
+### §18 performance (measured, 5 sessions)
+
+| | |
+|---|---|
+| frame | 9,251 tickers × 333 sessions = **49.3 MB** numpy, built in 2.4-2.5 s |
+| sweep | **0.83-1.21 s/session** (frame amortised over 5; a real chunk amortises further) |
+| storage | ~**20 bytes/row** in SQLite; 40 metrics/session |
+| provider | 352 reads, 338 from durable cache, 14 empty, **0 network** |
+
+**Rough extrapolation** (assumes frames already cached, ~250 sessions/yr, 40
+metrics/session; frame cost amortises over a 365-day chunk so the marginal rate
+dominates):
+
+| grind | sessions | rows | compute @0.83 s |
+|---|---|---|---|
+| US 2008→now | ~4,450 | ~178 k | ~1.0 h |
+| NASDAQ 2011→now | ~3,700 | ~148 k | ~0.9 h |
+| NYSE 2011→now | ~3,700 | ~148 k | ~0.9 h |
+| **total** | ~11,850 | **~474 k rows (~10 MB)** | **~3 h** |
+
+⚠️ Plus a one-time fetch of ~4,450 × 2 ≈ **8,900 grouped-daily frames**, shared
+across all three universes. That fetch, not the compute, is the long pole.
+
+---
+
 ## EXACT NEXT STEP
 
-**Authorise a provider route and run a ONE-YEAR US control sweep** (e.g. 2015) to
-production-shape the store, then read `stats('us')` and a few series before
-considering the full grind. Everything below that is built, dark and tested; the
-only thing missing is data, and data needs the provider.
+**Create a local `.env` with `MASSIVE_API_KEY`** (the documented dev path this repo
+already expects — `CLAUDE.md:3364`), then re-run the Phase-6 control over calendar
+2015. That single step converts a 5-session proof into the full-year proof the
+gate asked for, and it is the ONLY thing standing between here and a grind decision.
+
+Everything else is built, dark, tested and measured. The pipeline, the invariants,
+resume, idempotency, cache reuse and isolation are all proven; only the data volume
+is missing.
 
 ### Reproducing the offline controls
 
