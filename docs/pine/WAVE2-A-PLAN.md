@@ -38,7 +38,17 @@ when it belongs to `chooseOutput`.
 | **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
 | **a7** | shared contract, Python twin, both-lane agreement rail over 327 scripts, snapshots, suites, Python lane once, vite build | pending |
 
-### ⛔ a5's scope is NOT settled, and the gap is named rather than guessed
+### ✅ a5's scope WAS settled — by census and by R9. This section is kept as the record
+
+> ⚰️ **Everything below was true when written and is now history.** It said the member
+> set was owner-pending and must not be widened to match the hand-off. That was right:
+> the census then measured the corpus, R9 measured the ENGINE, and the answer was not
+> what either the hand-off or this section expected — `sum`/`max`/`min` were **broken**
+> (`pine:roundtrip`, no formula at all), `avg` was **declared but never implemented**,
+> and `stdev`/`includes` turned out to be **attested after all** at 4 and 5 uses. They
+> were absent from the SOURCE LISTS, which is a different claim from absent from the
+> corpus, and the distinction is exactly what this section got right. See **a5 — CLOSED
+> by R9** below for the settled answer.
 
 An earlier hand-off gave a5's members as *"sum/max/min/avg/stdev/sort/indexof/includes"*.
 That transmission is the one described above, and it arrived corrupted, so it is
