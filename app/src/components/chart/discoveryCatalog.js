@@ -306,22 +306,69 @@ export function breadthResults(rows, { tf, bars } = {}) {
     const sym = canonicalSymbol(row.symbol || row.ticker)
     if (!sym) continue
     const name = str(row.name, sym)
+    // ⭐⭐ THE UNIVERSE IS THE SHORT NAME WHEN THERE IS ONE, and that single line is
+    // what makes a multi-series pane readable. `shortName` becomes the instance's
+    // `display.name` (see `createFromResult`), so four A50 series in one pane read
+    //
+    //     % of Stocks Above 50-Day MA
+    //     UCT  63.2   US  54.9   NASDAQ  51.8   NYSE  57.4
+    //
+    // instead of four cryptic addresses. The metric is stated once by the pane; the
+    // universe is what actually differs between the rows.
+    //
+    // ⚠️ AND IT IS ABSENT-SAFE. A row from today's `/api/breadth-symbols` carries no
+    // `universe_label`, so a shipped UCT symbol keeps the symbol as its short name
+    // exactly as before — this is additive, not a change of the existing behaviour.
+    const universeLabel = str(row.universe_label || row.universeLabel, '')
+    const pres = presentationFor(row)
     out.push(result({
       id: sym,
       kind: 'breadth',
       name,
-      // ⭐ THE SYMBOL IS THE SHORT NAME. `UCTA50` is what the member typed, what
-      // the axis shows and what the source string says; "% of Stocks Above
-      // 50-Day MA" is the sentence that explains it.
-      shortName: sym,
+      shortName: universeLabel || sym,
       category: str(row.group_label || row.groupLabel || row.group, 'Breadth'),
       description: name,
       tags: ['breadth'],
       ...knownCapabilityOf(sym, tf, bars),
-      create: { via: CREATE_VIA.DATA_SERIES, source: symbolSource(sym, 'close') },
+      // ⛔ PRESENTATION COMES FROM THE CATALOGUE, NEVER FROM THE TICKER. The
+      // registry says Net New High-Low is a SIGNED COUNT drawn as a HISTOGRAM; the
+      // renderer never learns that `US:NETHL` is special. This is the metadata half
+      // of Phase 4's generic sign-colouring capability.
+      //
+      // ⚠️ THE KEY IS ABSENT WHEN THERE IS NOTHING TO SAY, rather than present and
+      // null. A row with no presentation metadata — every one of the 44 shipped UCT
+      // symbols — produces the IDENTICAL `create` object it always did, so nothing
+      // that compares the descriptor has to learn a new field.
+      create: pres
+        ? { via: CREATE_VIA.DATA_SERIES, source: symbolSource(sym, 'close'), presentation: pres }
+        : { via: CREATE_VIA.DATA_SERIES, source: symbolSource(sym, 'close') },
     }))
   }
   return out
+}
+
+/**
+ * A catalogue row's `presentation` / `domain` → the instance presentation to stamp,
+ * or `null` when the defaults are right.
+ *
+ * ⭐ ONE MAPPING, FROM DATA. `presentation: 'histogram'` asks for a histogram;
+ * `domain: 'signed'` additionally asks for sign colouring, because a series that
+ * crosses zero is exactly the one whose bars mean something above and below it.
+ * Anything else returns null and inherits the `dataSeries` default (a line), so the
+ * 44 shipped UCT symbols are untouched — none of them carries either field today.
+ *
+ * ⛔ NO TICKER, NO METRIC KEY, NO FAMILY BRANCH. `if (sym === 'US:NETHL')` in a
+ * renderer is the thing this exists to prevent.
+ */
+export function presentationFor(row) {
+  if (!row) return null
+  const style = row.presentation === 'histogram' ? 'histogram' : null
+  const signed = row.domain === 'signed'
+  if (!style && !signed) return null
+  const out = {}
+  if (style) out.plotStyle = style
+  if (signed && style) out.signColors = true
+  return Object.keys(out).length ? out : null
 }
 
 /**
@@ -417,7 +464,10 @@ export function createFromResult(cs, res, registry) {
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
-    return createDirectSeries(cs, res.create.source, registry, { name: res.shortName || res.id })
+    return createDirectSeries(cs, res.create.source, registry, {
+      name: res.shortName || res.id,
+      presentation: res.create.presentation || null,
+    })
   }
   return cs
 }
@@ -466,8 +516,19 @@ export function createDirectSeries(cs, source, registry, display) {
   const defOf = (registry && typeof registry.getDefinition === 'function')
     ? registry.getDefinition(minted.defId) : null
   const derived = derivedSourceName(defOf, findInstance(next, minted.instanceId))
-  const worthStoring = display && display.name && display.name !== derived
-  return worthStoring ? withDisplay(next, minted.instanceId, display) : next
+  const worthStoring = !!(display && display.name && display.name !== derived)
+  // ⚠️ PRESENTATION IS STAMPED EVEN WHEN THE NAME IS NOT. The name rule is about
+  // PROVENANCE — a name identical to the derived one is not a choice, so it is not
+  // recorded — and that reasoning says nothing about how the series draws. Gating
+  // both on one flag would have silently dropped a signed histogram's style
+  // whenever its label happened to match its source, which is a defect whose only
+  // symptom is a line where a histogram belonged.
+  const wantsPresentation = !!(display && display.presentation)
+  if (!worthStoring && !wantsPresentation) return next
+  return withDisplay(next, minted.instanceId, {
+    name: worthStoring ? display.name : null,
+    presentation: display.presentation || null,
+  })
 }
 
 /**
@@ -494,9 +555,17 @@ function withDisplay(cs, instanceId, display) {
   const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
   return {
     ...cs,
-    indicatorInstances: list.map((i) => (
-      i && i.instanceId === instanceId ? { ...i, display: { name: display.name } } : i
-    )),
+    indicatorInstances: list.map((i) => {
+      if (!i || i.instanceId !== instanceId) return i
+      const next = { ...i }
+      if (display.name) next.display = { name: display.name }
+      // ⚠️ A SEPARATE FIELD FROM `display`, because it is read by a different layer:
+      // `display.name` is a LABEL (`readout.chipLabel`), `presentation` is how the
+      // series DRAWS (`presentation.presentedPlot`). Folding the two together would
+      // make a rename a restyle.
+      if (display.presentation) next.presentation = { ...display.presentation }
+      return next
+    }),
   }
 }
 
