@@ -1,9 +1,9 @@
 captured render_gate.py sha256=f515a18beada6093 bytes=8768
-  CONTROL BEFORE: exit=0  TOTALS c09_gate_races --self-check PASS declared=10 evaluated=10 failed=0
-  M1 the priority comparator is inverted — background outranks members: RED but NOT on the named case ('the member wins EVERY one of'); 1 other failure(s)
-  M2 the fairness bound is removed — background can starve forever: GREEN — NOT CAUGHT  TOTALS c09_gate_races --self-check PASS declared=10 evaluated=10 failed=0
-  M3 the starvation bound stops deciding whose turn it is: GREEN — NOT CAUGHT  TOTALS c09_gate_races --self-check PASS declared=10 evaluated=10 failed=0
-  M4 the waiter queue is ignored, so the gate degrades to a free-for-all: GREEN — NOT CAUGHT  TOTALS c09_gate_races --self-check PASS declared=10 evaluated=10 failed=0
-  CONTROL AFTER: exit=0  TOTALS c09_gate_races --self-check PASS declared=10 evaluated=10 failed=0
+  CONTROL BEFORE: exit=0  TOTALS c09_gate_races --self-check PASS declared=12 evaluated=12 failed=0
+  M1 the priority comparator is inverted — background outranks members: RED (good) — 1 named case(s) of 2
+  M2 the fairness bound is removed — background can starve forever: RED but NOT on the named case ('background is STILL served'); 1 other failure(s)
+  M3 the starvation bound stops deciding whose turn it is: RED but NOT on the named case ('background is STILL served'); 1 other failure(s)
+  M4 the waiter queue is ignored, so the gate degrades to a free-for-all: RED but NOT on the named case ('the member wins EVERY one of'); 2 other failure(s)
+  CONTROL AFTER: exit=0  TOTALS c09_gate_races --self-check PASS declared=12 evaluated=12 failed=0
   restore verified sha256=f515a18beada6093
-TOTALS mutation_harness_render_gate FAIL declared=4 evaluated=4 failed=4
+TOTALS mutation_harness_render_gate FAIL declared=4 evaluated=4 failed=3
