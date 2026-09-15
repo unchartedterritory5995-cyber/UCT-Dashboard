@@ -4,6 +4,8 @@ First run under **SD-1**. The checklist now exists
 (`docs/breadth-history-reader/PROGRAMME-CHECKLIST.md`) and is the source of truth from
 here on; this report is the delta against it.
 
+**Published page:** https://claude.ai/artifact/8Pdn1DmDgJiee94tK6QEXK (private)
+
 ⚠️ **Push-guard hours covered the whole working part of this session** (09:25–16:05 ET;
 the session opened at 14:23 ET). Per SD-1 §6 that makes it a build-and-record session,
 and it is said here at the top rather than apologised for. The landing script holds
