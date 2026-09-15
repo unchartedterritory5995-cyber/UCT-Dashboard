@@ -1009,3 +1009,70 @@ cousin and harder to see: **a premise that was true, a chain of reasoning that w
 a conclusion that was wrong** — because the premise answered a general question about git
 while the actual question was about one repository's config. The tell is the same in both:
 a sentence that could have been checked with one command and was not.
+
+# Session 11 — the measurement becomes unattended, and one control catches three wrong designs
+
+No measurement windows (0.1). **M11 merged; M12 and M13 built, gated and HELD** — the
+deploy cadence closed the morning push window before they were ready, which is the
+operational finding of Sessions 9 and 10 arriving as a direct cost.
+
+## What shipped, and what did not
+
+| # | what | outcome |
+|---|---|---|
+| **M11** | `docs/session10-record` → master | ✅ `4a0995a52` — **refused twice** by the pre-push guard first |
+| **M12** | `breadth/sampler` | ⛔ **HELD** — branch pushed, gate green, window closed at 09:25 ET |
+| **M13** | `breadth/resident-recon` | ⛔ **HELD** — branch pushed, parity EXACT, ledger row present |
+| **S1** | Task Scheduler registration | ⛔ blocked on M12 |
+
+⭐ **The guard refusing M11 twice is the system working, and it is worth recording as a
+success rather than a delay.** Another workstream's deploy had landed 0 s earlier; the
+guard demanded 600 s of settle and got it. Session 10 named that guard as the only thing
+standing between this repo and a repeat of the 09-14 outage.
+
+## The findings
+
+**1. The hot path is 8 files, not 169 — and that is what makes unattended pooling
+possible.** Walking imports from the route reaches 169 files because the router imports the
+engine which imports auth which imports half the app. Tracing a real deep read shows eight
+execute. Thirty-one commits landed on master in one day, changed four `api/` files, and
+**none was hot** — so the sample pool survived all of them. On the import set it would have
+shattered continuously and never reached the n = 59 that p95 needs.
+
+**2. H5 is closed by counting operations.** Per-read-syscall cost went 0.591–0.597 ms (flag
+OFF) to 0.822–1.369 ms (ON) — *worse* — while the count fell 8,883–14,800 to 551–642. The
+fix attacked the seek count; per-seek latency belongs to the volume.
+
+**3. D.2 and D.3 could not both be satisfied, and the measurement decided it.** The parse
+*is* `rf_materialise`, so skipping it means holding parsed rows at 5.06× wire against a 2×
+bound. At p90 the split is `rf_fetch` 607.1 ms against `rf_materialise` 54.4 ms — so JSON
+strings capture ~90% of the tail for 23% of the memory.
+
+**4. The p95 bar closes as an engineering question.** P(true p95 above the worst read) =
+0.95²⁰ = 0.358; n ≥ 59 is required. It is limited by measurement opportunity, not by the
+reader — which is precisely what the sampler exists to remove.
+
+### Appendix addendum — Session 11
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 28 | the hot-path tracer, v1 | **0 files executed** during a real deep read | `sys.settrace` is **per-thread** and a plain `def` FastAPI route runs in the anyio **threadpool** — this programme's own architecture note, applied to its own instrument. `threading.settrace_all_threads` fixed it. ⭐ The non-vacuity assert (`len(hit) > 3`) is the only reason this was a failure rather than an answer. |
+| 29 | the same tracer, v2 | **0 files again** | The repo root came from a Git Bash `$PWD` — `/c/Users/...` — and never matched a Windows `co_filename` of `C:\Users\...`. ⛔ Derive the root from an **imported module**, never from an argument that crossed a shell boundary. |
+| 30 | `TZ=America/New_York date` | **12:38 ET** — while UTC was also 12:38 | `TZ=` does not apply in this Git Bash; the box is on **Central**. Real answer via `zoneinfo`: **08:41 ET**. ⭐ The push guard and the sampler's refusal window both hang off this clock, and a guard reading the wrong one refuses and permits at the wrong times **while looking correct**. |
+| 31 | the resident cache's `PRAGMA data_version` check | a 0.0034 ms invalidation that never fired | Measured directly: across two external writes a **fresh** connection returned 2, 2, 2 while a **long-lived** one returned 2, 3, 4. The pragma changes only for commits by other connections *seen from a connection already open*. |
+| 32 | the `COUNT+3×MAX` signature | a correct-looking invalidation | `built_at` has **second** resolution — a rewrite inside one second with the same count and watermarks is invisible. |
+| 33 | the two-stage check | the cheapest correct-looking design of the three | When `data_version` moved but the signature looked unchanged it concluded "another table was written" and served stale rows. ⭐⭐ **A cheap check may only ever say "definitely nothing changed". The moment it says "something changed", the expensive answer must be the rebuild — not a second guess.** |
+| 34 | `git add -A` | a clean 3-file commit | It swept **two joystick docs** in. Master's HEAD is literally *"the two raw control bytes"*, so those files deliberately contain raw `\x01`, and this Windows checkout had normalised them away — the diff showed another programme's escapes silently replaced by raw bytes. `lesson_uct_dashboard_shared_worktree` says never `git add -A` in this repo. **The rule existed, I broke it, and it bit inside one commit.** |
+| 35 | the resident-copy test fixture | an **ORDER differs** failure that read as a bug in the code under test | The fixture generated `f"2026-03-{i+1:02d}"` and produced `2026-03-100`, which sorts before `2026-03-11`. ⚠️ A fixture defect that mimics exactly the class of bug the test exists to find is the most expensive kind to read. |
+
+⭐⭐ **#31, #32 and #33 are one lesson in three acts, and the act that matters is the
+third.** Each design was cheaper and each was wrong, and **a single test caught all three**:
+`test_a_write_to_the_table_is_seen_by_the_next_read`. Every other rail — absence when off,
+reuse when unchanged, byte-identity across spans, the flag stamp, the memory shape — stayed
+green against all three broken versions, because **a cache with broken invalidation returns
+rows that are correct in every respect except being current.**
+
+⚠️ And the honest note beside it: the correct answer was reached by *elimination*, not by
+design. The first version looked free and measured nothing; the second looked rigorous and
+had a hole; the third was the cleverest and served stale rows in exactly the case the
+cleverness was for.
