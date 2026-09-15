@@ -59,10 +59,26 @@ class ExtractUnavailable(RuntimeError):
     pass
 
 
+#: ⛔⛔ THE WISDOM-SPECIFIC NAME EXISTS BECAUSE THE GENERIC ONE IS NOT FREE TO SET.
+#: `ANTHROPIC_API_KEY` in the operator's shell is the variable **Claude Code itself** reads to
+#: authenticate and bill. Exporting it to feed this gate changes how the agent session that
+#: launches the gate is authenticated — a side effect nobody asked for, on the account that pays
+#: for the session. `WISDOM_ANTHROPIC_API_KEY` lets the programme carry its own credential
+#: without touching that. Owner ruling R32, 2026-09-15. §11.3 still applies to both: the value
+#: lives in the environment, never in a file, and is never printed.
+KEY_VARS = ("WISDOM_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+
+
 def make_client():
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    key = ""
+    for name in KEY_VARS:
+        key = os.environ.get(name, "").strip()
+        if key:
+            break
     if not key:
-        raise ExtractUnavailable("ANTHROPIC_API_KEY is not set")
+        # ⛔ Names both variables and NEITHER value — an error that quotes a key is a key in a log.
+        raise ExtractUnavailable(
+            f"no API key: set {KEY_VARS[0]} (preferred) or {KEY_VARS[1]}")
     import anthropic
 
     return anthropic.Anthropic(

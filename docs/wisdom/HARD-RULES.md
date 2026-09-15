@@ -121,3 +121,26 @@ instability is a rename: within one segment, two keys that never co-occur in a r
 tokens share ≥ 0.5 Jaccard are reported as a **suspected rename**, by **segment id and key only —
 never by name text**. It measures suspicion, not truth: two different signals can share
 vocabulary, and a real rename can share none. The number is a prompt for a decision.
+
+### 2026-09-15 — R32: the gate carries its OWN API-key variable
+
+`api/services/wisdom/extract/batch.make_client` reads, in order:
+
+> **`WISDOM_ANTHROPIC_API_KEY`** (preferred), then `ANTHROPIC_API_KEY`.
+
+⛔⛔ **The generic name is not free to set, and that is the whole reason.**
+`ANTHROPIC_API_KEY` in the operator's shell is the variable **Claude Code itself** reads to
+authenticate and bill. Exporting it so the golden gate can run would change how the agent session
+that launches the gate is authenticated — a side effect nobody asked for, on the account paying
+for the session. A programme that needs a credential should carry its own, under its own name.
+
+⛔ §11.3 applies to both names unchanged: the value lives in the **environment**, never in a file,
+never in a log, never in a report. `make_client`'s failure message names **both variables and
+neither value** — an error that quotes a key is a key in a log — and
+`tests/test_wisdom_extract_key_precedence.py` asserts the (obviously fake) fixture values are
+absent from both the exception text and captured logs, on the success path as well as the failure
+path.
+
+**To run the gate:** export `WISDOM_ANTHROPIC_API_KEY` in the shell that launches Claude Code, on
+the machine Claude Code runs on. A session already running will not see it — the variable is read
+from the process environment at call time, and that environment is inherited at launch.
