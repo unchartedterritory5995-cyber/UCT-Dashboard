@@ -309,6 +309,29 @@ jobs:
             fi
           done
 
+      # ⚰️ E CP11 — THE SAFETY NET WAS AT STEP 11 OF 12. E CP9 wrote the
+      # phone-readable summary before the PUSH, which covers a push failure — but
+      # publish has failed at ~22 s for three runs running, i.e. LONG before step 11,
+      # so no summary was written either. ⭐ A fallback placed after the thing that
+      # fails is not a fallback. This skeleton lands as early as anything can, built
+      # only from job results, which cannot be missing.
+      - name: Write a skeleton summary FIRST, from data that cannot be missing
+        if: always()
+        run: |
+          {
+            echo "# CI run ${GITHUB_RUN_ID} on ${GITHUB_REF_NAME}"
+            echo
+            echo "| job | result |"
+            echo "|---|---|"
+            echo "| plan | ${{ needs.plan.result }} |"
+            echo "| vitest | ${{ needs.vitest.result }} |"
+            echo "| pytest (all shards) | ${{ needs.pytest.result }} |"
+            echo "| collect_profile | ${{ needs.collect_profile.result }} |"
+            echo
+            echo "_Skeleton written before any artifact was read. If nothing follows"
+            echo "this line, publish died before it could build the full record._"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Summarise
         if: always()
         run: |
@@ -319,6 +342,7 @@ jobs:
           ls -la shards || true
           python tools/ci_aggregate.py \
             --shards-dir shards --expect '${{ needs.plan.outputs.shards }}' \
+            --dir-prefix pytest-shard- \
             --jobs jobs.json --out p_suite.json
           python tools/collect_profile_dirs.py --aggregate profile --out collect_profile.json
           cat collect_profile.json
