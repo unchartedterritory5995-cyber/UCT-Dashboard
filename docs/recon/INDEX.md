@@ -1,0 +1,61 @@
+---
+id: WISDOM-RECON-INDEX
+title: UCT Wisdom Loop — session reports, where each one lives and why
+---
+
+# Wisdom Loop — recon and session reports
+
+⛔⛔ **Not every report is in git, and the reason is §0.4f**, the owner's hard rule:
+
+> *Public repo: no transcript text, golden quotes, private levels, positions, or credentials in
+> git. gitignored `data/wisdom/` only.*
+
+Owner ruling **R20_RECON_TRACKING: TRACK_IF_CLEAN** (2026-09-14): each report is scanned against
+that rule; a clean one is tracked here, one with a hit lives in the gitignored
+`data/wisdom/recon/` tree instead. **A report is never edited to make it publishable** — it is a
+record of what a session found, and trimming it to fit a repo would make it a worse record.
+
+| # | report | date | location | one line |
+|---|---|---|---|---|
+| 1 | `2026-09-14-recon-for-guiding-chat.md` | 2026-09-14 | ⛔ **gitignored** — `data/wisdom/recon/` | Read-only reconnaissance, Parts A–F: the whole programme mapped for the guiding chat |
+| 2 | `2026-09-14-session2-repair-e5-e6.md` | 2026-09-14 | ✅ tracked, here | Repaired E5 (the `_tokens` shadowing), settled E6 on paper, prepped item 3 |
+| 3 | `2026-09-14-session3-cost-item3.md` | 2026-09-14 | ✅ tracked, here | Cost menu for the 9,733-segment corpus, the item-3 decision pack, ledger closed |
+| 4 | `2026-09-14-session4-rulings-build.md` | 2026-09-14 | ✅ tracked, here | Session-3 rulings applied, gate persistence (R12), item 3 built |
+| 5 | `2026-09-14-session5-q17-merge-dark.md` | 2026-09-14 | ✅ tracked, here | Q17 into the rail, item 3 merged, production measured dark 27/27 |
+
+## Why report 1 is not tracked
+
+Scanned 2026-09-14 (session 5) against seven classes: transcript text, golden quotes/labels,
+private levels, positions, credentials, member identity, and G-030-adjacent content. Reports 2, 3,
+4 and 5 came back **CLEAN**. Report 1 did not.
+
+**Classes hit, by class and count — never the content itself:**
+
+| class | count | what it is |
+|---|---|---|
+| **B** golden quote / label example | 5 lines | Labelled extraction examples reproducing the statement text, including one scorer example that carries a cashtag with an entry condition and a stop |
+| **C** private level | 1 line | The same example: a ticker bound to a trigger and a stop (expressed as a percentage and an R-multiple) |
+| **E** credential-shaped | 3 lines | A local path carrying a session UUID, and two mentions of an outstanding token **by kind only** — no value anywhere |
+| **F** member identity | 1 line | A reproduced git-log author header carrying a vendor no-reply address |
+| **G** G-030 adjacent | 3 lines | Names the ruling id, the indicator, and the publication bar — **no statement text** |
+
+⭐ **Class B alone is disqualifying**, and it is the one the rule names outright. Classes E, F and G
+would not have been enough on their own: no credential VALUE appears, the address is a vendor
+no-reply rather than a member's, and the G-030 lines record that the ruling's own content is *not*
+held in the report. They are listed because the scan found them, not because they decided it.
+
+⚠️ **No class A (transcript text) and no class D (position or share count) appeared in any of the
+five reports.**
+
+⭐ **The scan reported counts of CANDIDATES EXAMINED per class, not just hits**, so a zero is
+distinguishable from "did not look". Report 1's sweep examined 350 ticker-like tokens for class C
+and found exactly one bound to a level; the other 349 are version numbers, section numbers, SHAs,
+costs and percentages. A regex for `$` would have flagged 185 dollar figures that are all budgets
+and rates.
+
+## Reading them in order
+
+1 is the map. 2 repairs what 1 found. 3 prices the work and turns item 3 into a decision pack.
+4 applies the rulings and builds item 3. 5 rules on what 4 left open, merges it, and measures
+production. Each report's own QUESTIONS section carries the state of every open decision at that
+point; the newest report's list supersedes the older ones.
