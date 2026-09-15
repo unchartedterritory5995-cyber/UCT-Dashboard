@@ -575,7 +575,51 @@ wrong artifact. The committed evidence, each a file in the repo:
 | `app/src/components/chart/engine/ast/alphaCarriage.test.js` | the fill note stays a sentence and carries no colour |
 | `tools/lookback_agreement.json` | `distinct_trees_walked: 310`, the JS readers' own answer, read back by `tests/test_ast_lookback_agreement.py` |
 
-## ⛔ THE VENDOR CAPTURE IS OWED — and the browser was CONNECTED
+## ⛔⛔ THE CAPTURE IS STILL OWED — and the blocker is NOT the browser
+
+**Attempt 2, 2026-09-14, with the owner's written authorisation for Browser 1.** The
+browser was selected and the authorisation used. The capture stopped on a blocker
+nobody had named, found *before* any browser was driven — which is why it cost minutes
+rather than an hour.
+
+**Preconditions, measured in order:**
+
+| # | precondition | result |
+|---|---|---|
+| 1 | rig backend on 8129, `UCT_RIG_DATA` outside every worktree | ✅ **already running** — `boot_rig.py`, PID 18792, uptime 22 h. ⛔ **Started by an EARLIER session, so not this one's to stop**, and nothing was started or killed |
+| 2 | the sandbox is the right one — content, never the port | ✅ `panetest@local.dev` (Pane Rig, admin); `/api/user-definitions` returns `u_3ec24af8e7c6`, one of the two documented ids |
+| 3 | a **Clouds** definition exists to photograph | ⛔ **NO.** Both rig definitions have 4 plots — that is Uncharted **Volume v2**, Wave 1's target. Clouds has 23 outputs |
+
+⭐ **BUILDING THE MISSING DEFINITION IS WHAT FOUND THE REAL BLOCKER**, and it took two
+corrections that are worth keeping:
+
+1. `memberPaneDefinition({source, id, name, translation})` **refused the lenient
+   translation by name** — *"this verdict came from the screener lane, which answers a
+   different question — a pane needs the host translation."* The two-lanes rule
+   enforcing itself at the pane door, which is exactly where it should.
+2. With the **host** lane it builds `ok: true` — and yields **2 plots, not 23**:
+   `Fast MA` and `Slow MA`. The 21 layers are `hidden: 'author'` (`display=display.none`)
+   and the pane filters hidden outputs out.
+
+⛔ **SO A PIXEL COMPARISON TODAY WOULD MEASURE ITEM (j)'s GAP, NOT a6's CORRECTNESS.**
+The vendor draws 2 MAs plus 20 translucent cloud fills; the hosted pane would draw 2 MAs
+and no clouds, because the fills are chart-only notes and the layers are author-hidden.
+That difference is **already known, already ruled (H.2, R11) and already recorded** —
+photographing it would add a screenshot, not a fact.
+
+### What the capture needs, and it is now (j)'s precondition rather than a6's
+
+The capture becomes meaningful **once (j) renders the conditional fill**. At that point
+it needs, in order: the rig backend (running); a Clouds definition installed from the
+**host** translation; then Gate v2.1 on the driving tab — own-text `Add to chart`
+**plus 0 studies** by the corrected probe, never "editor closed" — with the owner's
+Pine Editor untouched; then vendor and hosted captures at Wave 1's tolerance, both
+tables, the two mobile tiers.
+
+⚠️ **Gate v2.1 was never reached and therefore never run**, so no gate counts are
+reported. Claiming one would be inventing a measurement.
+
+## ⛔ Attempt 1 — the browser was CONNECTED
 
 A browser **was** connected when a6 closed (`Browser 1`, Windows, local,
 `69eb4a48-…`), so this is **not** "unavailable". It is owed for a different and
