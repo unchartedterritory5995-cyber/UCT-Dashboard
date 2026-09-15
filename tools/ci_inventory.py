@@ -441,6 +441,17 @@ def _self_check() -> int:
     # ⛔ no junit readable at all -> RAN unknowable -> INVALID, never a silent FIXED
     d8 = diff({A, B}, {A}, set(), GOOD)
     show("no junit readable -> INVALID, so FIXED cannot be guessed", d8["verdict"], "INVALID")
+    # ⚰️ E CP24 — run #21's gate said `collected is 0` for a run that collected 24,445,
+    # because the CURRENT directory was `extract/<run>/`, which has no summary.json until
+    # the publish step writes it. The tool was right; the wiring lied about the directory.
+    d9 = diff({A, B}, {A, B}, RAN, {})
+    show("a current dir with NO summary -> INVALID", d9["verdict"], "INVALID")
+    show("  ...and it NAMES collected, not something vague",
+         any("collected is 0" in r for r in d9["invalid_because"]), True)
+    # ⛔ NON-VACUITY: with the summary present the SAME inputs are not INVALID, or the
+    # check above would be satisfied by a function that always returns INVALID.
+    show("  ...and WITH a summary the same inputs are valid",
+         diff({A, B}, {A, B}, RAN, GOOD)["verdict"], "NO_NEW_FAILURES")
 
     print("SELF-CHECK:", "PASS" if ok else "FAIL")
     return OK if ok else FAIL
