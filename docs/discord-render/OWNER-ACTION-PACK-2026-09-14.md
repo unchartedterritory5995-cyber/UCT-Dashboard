@@ -262,3 +262,129 @@ the S2 run, and it is the act that changes what members' `web` pod executes. Mea
 member-visible behaviour change with V2 off**, but it **does restart `web`**, so outside RTH only,
 and another deploy was in flight 3 minutes before this was written — that one must be SUCCESS first.
 **Not done. Yours.**
+
+---
+
+# OWNER PACK v3 — appended 2026-09-15 (D-05). Still one pack.
+
+> **§4.x and §5.x above are unchanged.** Nothing here was executed.
+> ⛔⛔ **`DISCORD_RENDER_V2_ENABLED` is still never set by a session.**
+
+---
+
+## ⛔ 6.0 · THE ONE DECISION EVERYTHING ELSE WAITS ON
+
+**Merge `discord-render-hardening` (22 commits) to master — yes or no?**
+
+I did **not** merge, and the reason is not the branch. Measured at 04:07 UTC:
+
+- the branch **merges clean** (`merge-tree` exit 0, tree `e540e391f0`) with **zero file overlap**
+  across 114 commits of other people's work;
+- but **six `web` deploys landed in 57 minutes and five were `REMOVED`** — the signature of stacked
+  pushes, and the documented cause of the 2026-09-12 and 2026-09-14 502 incidents;
+- master took **28 commits in two hours** from at least four other workstreams.
+
+⭐ **Every technical precondition I could reach is green. What is missing is the one thing a session
+cannot supply for itself: somebody who can see all four workstreams and say "go now."** That is you.
+
+**When you want it:** confirm nobody else is mid-merge → `git fetch && git merge-tree --write-tree
+origin/master discord-render-hardening` (expect exit 0) → merge **once**, outside 09:25–16:05 ET →
+watch `web` to **SUCCESS**, not "building" → verify in-process (running SHA, `v2_channels() == ()`,
+`house_enabled() == False`, `/api/health` 200).
+**Rollback:** `git revert -m 1 <merge-sha>`; one more restart; the new column is inert on old code.
+
+---
+
+## 6.1 · OI-13 rotation — and WHEN to do it
+
+Steps are unchanged from §5.1. The new question D-05 can answer:
+
+> **Do the rotation in the SAME off-hours window as the D-06 merge, rotation FIRST.**
+
+**Why (recommended, not decided):** both restart `web`, and the rotation's dual-accept window
+(`…_TOKEN_PREVIOUS` set, then the new value, then cleared) already spans two `web` rebuilds. Folding
+the merge in between makes **three** restarts one night instead of four across two, and the merge is
+the one you most want to verify on a quiet pod. ⚠️ The counter-argument, stated because it is real:
+if the merge misbehaves you will be rolling back a pod that is also mid-credential-rotation, and two
+moving parts is how a simple revert becomes an incident. **If you prefer one variable at a time, do
+the merge first, verify it, and rotate a night later.**
+
+---
+
+## 6.2 · The narrowing checklist — re-verified, unchanged
+
+§4.3 stands exactly as written (`DISCORD_RENDER_V2_CHANNELS` = `1549129739048853544`, then
+`FLOW_CMD_CHANNEL_ID` alignment, each with an in-process readback and an abort line).
+⚠️ **Re-verified against the merged SHA? No — there is no merged SHA.** The checklist targets
+runtime environment variables, not code, so it is unaffected by the merge either way.
+
+---
+
+## 6.3 · C-09 — the race results, and the V1 behaviour change to approve
+
+> **A member render now beats a warm render for the last free slot, on the pre-V2 path too.**
+>
+> Measured, 60 races each, with the warm render deliberately queued **first** (the realistic case —
+> the warm cycle waits 25 s, so it is essentially always there already):
+>
+> | gate | member wins | background wins |
+> |---|---|---|
+> | today's plain semaphore | **0** | **60** |
+> | the new `RenderGate` | **60** | 0 |
+>
+> Background is **not** starved: under 1.2 s of continuous member load against a 0.3 s fairness
+> bound, members took 270 slots and the warm waiter was still served once — by the bound, while
+> members were still queued.
+>
+> ⛔⛔ **AND THE HONEST HEADLINE: THIS IS NOT YET A FIX IN THE PRODUCT.** `RenderGate` is written and
+> proved, and **no production file imports it** — the live semaphore is still the plain one. So the
+> table above is what the gate DOES, not what members get today. Wiring it is two threaded
+> parameters plus a rail, and that is D-06 work, not something to assume happened.
+>
+> ⚠️ **What you are being asked to approve is the member-visible V1 change**, because the gate sits
+> on the shared semaphore: once wired, it changes who wins on the current path, **not only under
+> V2**. It is on `feat/member-priority-render-gate`, not merged.
+>
+> ⛔ **What it deliberately does NOT do:** preempt a warm render that is already holding a slot.
+> `chart-renderer` exposes no cancellation, so a "cancelled" render keeps running and still occupies
+> a renderer slot while we stop waiting for its result — we would pay the cost and lose the result.
+> A member's wait is therefore bounded by **one** in-flight render rather than by the warm queue
+> behind it, which was the part that actually hurt.
+
+---
+
+## 6.4 · Flip-packet updates outstanding
+
+1. **Merged SHA** — none yet (6.0).
+2. **OI-41** — entry written in §5.2; still accurate.
+3. **S2 instrument** — §5.3's entry stands, and the **NO-GO reason has changed**: D-04's blocker was
+   the unmerged branch; D-05's is the merge storm. ⭐ Also recorded: the corrected R1 tripwire **does**
+   have a production-readable signal needing no second merge — **Discord channel-history snowflakes**,
+   which the arrival census already proved readable through the bot token.
+4. **C-09** — 6.3 above.
+5. **A sizing note, with the arithmetic** — 6.5.
+
+### ⛔ 6.5 · Does "change nothing" still hold with two renderer slots and six workers?
+
+The constants inventory concluded **change nothing**. That was about the **V2 queue** (workers 6,
+depth 48 against a derived need of c=4, depth ≥6). It said nothing about the renderer.
+
+**`RENDER_MAX_CONCURRENT` defaults to 2** (`services/chart_renderer/app.py:79`) — *the renderer's own
+ceiling*, downstream of both `DISCORD_CHART_MAX_CONCURRENT=8` (web-side) and `DISCORD_RENDER_WORKERS=6`.
+
+The arithmetic, at the design burst:
+
+- design burst **0.6 arrivals/second**; measured service ~**2.4 s** per house chart;
+- Little's Law: **L = 0.6 × 2.4 = 1.44** renders in flight on average;
+- two renderer slots serve 1.44 with headroom — **so "change nothing" still holds at real load.**
+
+⚠️ **Where it stops holding:** the busiest 10 s observed is 2 arrivals and the design burst is 3× that
+— **6 arrivals in 10 s**, i.e. 0.6/s but arriving in a clump. Two slots drain a 6-chart clump in
+~7.2 s, inside the 15 s deadline but with **no margin for a slow bars fetch**. And 6 V2 workers
+feeding 2 renderer slots means **four workers are always waiting** — which after OI-41 is a *wait*,
+not a refusal, but it is why the renderer, not the queue, is the real ceiling.
+
+⭐ **Recommendation (not a decision): leave the constants alone and raise `RENDER_MAX_CONCURRENT`
+only if a real S2 measurement shows queueing at the renderer.** That measurement is exactly what
+Part 2 could not run tonight — so the sizing question is **INCONCLUSIVE pending the S2 run**, and
+saying so is better than tuning on arithmetic alone.
