@@ -10,7 +10,7 @@ one publication gate, V1 as metadata, the daily forward seal, participation-only
 warming, and health. **STATUS: working local code. Nothing published, nothing ground,
 nothing deployed.** Previously: Phase 8 (readiness plan), Phase 7 (the UX).
 **BRANCH** `feat/breadth-pit-foundation` · **WORKTREE** `C:\b2` (short path — Windows long-path trap)
-**HEAD** `214ac2999` · **WORKING TREE** clean
+**HEAD** `3e3975df5` · **WORKING TREE** clean
 **STARTING MASTER** `5e88b38c4` · **RECONCILED TO** `8578d375d` (merges `cc57099ca`, `bd5a1b9`-era)
 **BASELINE WORKTREE** `C:\b3` (detached at `5e88b38c4`, built)
 
