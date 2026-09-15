@@ -34,7 +34,7 @@ when it belongs to `chooseOutput`.
 | **a3** | the unroll | ✅ **DONE** — `06a2258e2` (acceptance, red), `a1de7a6f5` (green) |
 | **a4** | **REVISED BY R1/R2** — no new iteration form is built. Every retired loop form (`for x in`, `for [i, x] in`, `while`) refuses **at its own line**, with the code its SOURCE determines, replacing today's `pine:block` note plus a later unrelated `array.get` refusal | ✅ **COMPLETE** — `af4606288` (red), `901e8165a` (green), `20ae2ddf6` (re-baseline), `bfe7e2b4e` (R4–R6). One item owed: **R1(ii)** |
 | **a4b** | **the accumulator fold** — a counted-`for` body of the shape `s := s op e` folds to a left-nested op chain | ⛔ **CENSUS FIRST, THEN A GO** — ruling R3 |
-| **a5** | reductions unrolled over written slots | ⛔ **RETIRED — 0 of 209 uses admissible and reachable** (`683f2d076`); retirement not yet implemented, estimated 45 min |
+| **a5** | reductions over written slots | ✅ **CLOSED by R9** — `sum`/`max`/`min` KEPT and FIXED, `avg`/`indexof`/`sort`/`includes`/`stdev` refuse by name (`158ca0d0a` red, `ab978572c` green) |
 | **a6** | Clouds verbatim on both lanes with colours intact; metric re-derived; movers named; screener comparability checked; then the Clouds vendor capture in Chrome | pending |
 | **a7** | shared contract, Python twin, both-lane agreement rail over 327 scripts, snapshots, suites, Python lane once, vite build | pending |
 
@@ -430,7 +430,43 @@ refusal would put a line in the result for every `len = 14` in every script.
 
 ---
 
-# a5 — RETIRED. 0 of 209 uses are admissible AND reachable
+# a5 — CLOSED by R9. Three members KEPT and FIXED, five refuse by name
+
+⚰️⚰️ **THE CENSUS NUMBER WAS NOT GROUNDS TO REMOVE ANYTHING**, and ruling 0.2 is what
+stopped it: *a threshold governs what is BUILT, never what is REMOVED.* `sum`, `max`,
+`min` and `avg` were already in `REDUCE_MEMBERS` and `HANDLED`. Retiring them on
+"0 of 209 corpus uses" would have deleted a tested capability on the strength of a
+number that says nothing about whether it works.
+
+**So R9 measured instead — and found a real defect and a false claim.**
+
+| member | before R9 | after |
+|---|---|---|
+| `sum` | **`pine:roundtrip`, no formula at all** | `0 + 1 + 2` ✅ |
+| `max` | `pine:roundtrip` | `max(max(0, 1), 2)` ✅ |
+| `min` | `pine:roundtrip` | `min(min(0, 1), 2)` ✅ |
+| `avg` | in the set, **never implemented** | refuses by name, 14 uses |
+| `indexof` · `sort` · `includes` · `stdev` | generic collection refusal | refuse by name — 18 · 10 · 5 · 4 |
+
+⛔ **THE DEFECT.** `vec.slots` holds **bindings**, not finished nodes — the `get` branch
+four lines above says so and calls `resolveBinding`. The reduce branch fed raw bindings
+into `cOp('+')`/`cCall`, so the output tree carried binding objects where canonical
+nodes belong, the printer wrote text it could not read back, and **every** `array.sum`
+/ `max` / `min` returned `pine:roundtrip` with no formula, for any slot content.
+⭐ **Same class as BUG 1** — an object of the wrong language spliced into a tree,
+failing silently downstream rather than at the splice.
+
+⛔ **THE FALSE CLAIM.** `avg` was in `REDUCE_MEMBERS`, therefore in `HANDLED`, and the
+fold implemented three of the four. The set promised more than the code did — the
+"documented but unreachable" defect inside a data structure rather than in prose. The
+set is corrected in place with the measurement, and a control now pins every
+`REDUCE_MEMBERS` entry against the engine so it cannot drift again. ⭐ `avg` is a
+two-line fold now that `sum` resolves its slots; recorded, not done, because
+implementing it is scope R9 did not grant.
+
+## The census that decided the refusals
+
+# a5's census — 0 of 209 uses are admissible AND reachable
 
 `tools/pine_reduce_census.py` (`683f2d076`), both controls green — the stripper's, and
 the committed numbers it extends: **indexof 18/18 · sort 10/10**.
