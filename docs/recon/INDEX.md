@@ -24,6 +24,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 5 | `2026-09-14-session5-q17-merge-dark.md` | 2026-09-14 | ✅ tracked, here | Q17 into the rail, item 3 merged, production measured dark 27/27 |
 | 6 | `2026-09-15-session6-master-sync-reconciler.md` | 2026-09-15 | ✅ tracked, here | 111 commits of master synced, item 2 reconciler built, RQ-v11-001 as review items; push and spend both blocked on the owner |
 | 7 | `2026-09-15-session7-push-merge-rq.md` | 2026-09-15 | ✅ tracked, here | The branch pushed at last, RQ-v11-001 merged, the DAILY chain complete and measured inert; the three passes still unbought |
+| 8 | `2026-09-15-session8-key-plumbing.md` | 2026-09-15 | ✅ tracked, here | The gate gets its own API-key variable (R32), master synced short at 25; the three passes still unbought |
 
 ## Why report 1 is not tracked
 
@@ -61,5 +62,7 @@ and rates.
 4 applies the rulings and builds item 3. 5 rules on what 4 left open, merges it, and measures
 production. 6 syncs 111 commits of master, builds item 2's offline half and RQ-v11-001, and
 records the two things only the owner can unblock. 7 gets the branch off this box and
-completes the chain, leaving exactly one blocker: the API key. Each report's own QUESTIONS section carries the state of every open decision at that
+completes the chain. 8 gives that key its own name, so feeding the gate no longer means
+re-authenticating the agent session that launches it — leaving exactly one blocker: the
+variable being exported. Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.
