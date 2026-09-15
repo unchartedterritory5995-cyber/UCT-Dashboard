@@ -654,3 +654,59 @@ each pass writes `data/wisdom/gate-runs/<stamp>/records.jsonl`.
 would produce the NULL false-positive numbers **item 5** has been waiting on — which RQ-v11-001
 now has a queue for (session 6, `evals/null_review.py`). One run, two items closed, $5.93 more
 than authorised. Not taken, because it is more than the ruling said.
+
+## Session 7 — 2026-09-15: the branch is PUSHED, the chain is complete, the run is still unbought
+
+⭐⭐ **`feat/wisdom-loop` IS PUSHED.** `ef0393790..a5ee068f9`, divergence **0 0**. Six sessions of
+work existed only on this box until now. Nothing deployed: Railway deploys from **master**, and
+master was not touched (no refspec, no force).
+
+⛔ **The three passes were NOT bought, for the second session running: `ANTHROPIC_API_KEY` is not
+set in the session environment.** `batch.make_client` raises `ExtractUnavailable` without it.
+**$0.00 spent; the ledger is byte-identical for the fourth session in a row.**
+
+### The DAILY chain is now complete end to end
+
+    … evals → rq_v11_001 → reconcile_stability → publication_floor
+
+Every adjacency is load-bearing and each is pinned by a test:
+
+| step | why it sits where it does |
+|---|---|
+| `rq_v11_001` | the NULL question reaches the owner's queue **as a question**, before the floor acts on the record |
+| `reconcile_stability` | the floor **reads** the `stability` this **writes** — reversed, it would judge yesterday's scores |
+| `publication_floor` | last, so it sees both |
+
+**Measured inert on an empty store, all three in order:**
+
+    rq_v11_001          -> emitted 0, created 0, skipped: no gate run recorded
+    reconcile_stability -> skipped: only 0 persisted run(s); need 3
+    publication_floor   -> blocked 0, enqueued 0
+    review queue rows: 0   wisdom_records rows: 0
+
+⭐ That is the whole safety argument for the eventual flip, and it is now a measurement rather
+than a claim: with no records, the chain writes nothing.
+
+### What the first real run still needs
+
+**Ruled golden set: v1.1** (`R27_GOLDEN_SET: V1_1`) — 83 segments, 93 dev records, **26 NULL**.
+Projection **$18.94**, hard stop **$21.78**, headroom $23.13. Dry run re-verified this session:
+`extractor_version wx-v0-fc47bc97`, `claude-opus-5`, effort high, transport batch, persistence ON,
+`data/wisdom/gate-runs/` **empty**.
+
+⛔ **`--golden-file golden-v1.1.jsonl` must still be pinned explicitly.** It happens to be the
+default today, but the default is "newest present" — the next golden file to land silently
+changes what an unpinned run buys.
+
+    python tools/wisdom/extract_golden_gate.py \
+      --db data/wisdom/extract/gate.db \
+      --data-dir data/wisdom \
+      --out-dir data/wisdom/extract/gate-run-3 \
+      --ledger data/wisdom/extract/spend-ledger.json \
+      --golden-file golden-v1.1.jsonl \
+      --split dev --phases gate --max-usd 40.0
+
+Three times. Then `reconcile_stability` finds them automatically.
+
+⭐ **v1.1 buys two items at once:** item 2's three passes AND item 5's NULL false-positive numbers,
+which now have a queue to land in (`rq_v11_001`). It is also the re-measurement Q3 withdrew.
