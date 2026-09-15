@@ -46,7 +46,7 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 DOCS_REPO = HERE.parent
 CODE_REPO = DOCS_REPO.parent / "s7-price-level"
-OK, FAIL, REFUSED = 0, 1, 2
+OK, FAIL, REFUSED, UNSIGNABLE = 0, 1, 2, 3
 
 # ⚰️ A Windows console encodes stdout as cp1252, and this file prints box-drawing and ⛔/✅
 # glyphs. Without this, `merge_all.py` raises UnicodeEncodeError on the FIRST unit it
@@ -77,6 +77,7 @@ UNITS = [
     ("e-cp2-build-record", ["e767a7aab"], False),
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
+    ("k-cp4-build-record", [], False),                       # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8", "76a3b98c2"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -93,18 +94,34 @@ def _sign_gate():
     return m
 
 
-def is_signed(packet: pathlib.Path) -> bool:
-    """⛔ sign_gate's OWN reader, never a regex. ⚰️ `APPROVED AT SHA:\\s*\\S` once counted
-    UNSIGNED blocks as signed by matching the `S` of the next line's `SCOPE APPROVED:`."""
+def approval_state(packet: pathlib.Path):
+    """(state, reason) from sign_gate's THREE-STATE reader. ⛔ Never a regex.
+
+    ⚰️⚰️ **K CP4 — THE PREVIOUS VERSION OF THIS FUNCTION DERIVED `True` FROM AN
+    EXCEPTION.** It called `target_span()` and treated `SystemExit` as *signed*. That
+    exception has TWO causes — every block filled, and **no block at all** — so a
+    document carrying no approval block whatsoever returned `True` and would have merged
+    with nothing approving it. `packet-a-absent-bound-gate.md` and
+    `entity-master-pre-implementation-gate.md` are both in exactly that state on disk.
+
+    ⭐ An absence is not evidence. A reader of a signature must never answer SIGNED
+    because it failed to find something (`lesson_gate_that_cannot_fail`, in the one tool
+    where a false SIGNED is unrecoverable).
+    """
     sg = _sign_gate()
-    text = packet.read_text(encoding="utf-8")
-    try:
-        sg.target_span(text)       # raises when there is NO unsigned block left
-        return False               # an unsigned block is still open -> not signed
-    except SystemExit:
-        return True
-    except Exception:              # noqa: BLE001
-        return True
+    return sg.read_approval(packet.read_text(encoding="utf-8"))
+
+
+def _cannot_be_signed(state: str, reason: str) -> bool:
+    """A STRUCTURAL fault: the document could not be signed even if the owner tried.
+
+    ⭐ This is deliberately narrower than "not SIGNED". Before signing day EVERY unit
+    reads UNSIGNED, and refusing the whole dry run on that would destroy the preview the
+    owner needs — the very thing the *"a dry run that stops at row 1 is not a preview"*
+    comment below protects. A document with NO BLOCK or a MALFORMED one is different in
+    kind: no signature can ever land on it, so previewing its merge is meaningless.
+    """
+    return state == "MALFORMED" or (state == "UNSIGNED" and "no approval block" in reason)
 
 
 # --------------------------------------------------------------------------- K CP3
@@ -289,15 +306,25 @@ def main(argv=None) -> int:
         if not packet.is_file():
             print("    ⛔ packet missing: %s — STOPPED." % packet)
             return REFUSED
-        if not is_signed(packet):
+        state, reason = approval_state(packet)
+        if _cannot_be_signed(state, reason):
+            # ⛔ STRUCTURAL: no signature can ever land on this document. Refused in
+            # BOTH modes, because previewing the merge of an unsignable packet is not a
+            # preview of anything. Exit 3 so it is distinguishable from an ordinary
+            # refusal (2) and a failure (1).
+            print("    ⛔ %s — %s" % (state, reason))
+            print("    ⛔ UNSIGNABLE AS IT STANDS: %s" % stem)
+            print("    ⛔ STOPPED — nothing after this was attempted.")
+            return UNSIGNABLE
+        if state != "SIGNED":
             if not a.dry_run:
-                print("    ⛔ NOT SIGNED (sign_gate's own reader). Run sign_all.py "
-                      "first. STOPPED — nothing after this was attempted.")
-                return REFUSED
+                print("    ⛔ %s (%s). Run sign_all.py first. STOPPED — nothing after "
+                      "this was attempted." % (state, reason))
+                return UNSIGNABLE
             # ⭐ A DRY RUN THAT STOPS AT ROW 1 IS NOT A PREVIEW. The owner needs the
             # WHOLE sequence to read before trusting it, so dry-run reports the block
             # and keeps printing — loudly, so it can never be mistaken for signed.
-            print("    ⚠️  WOULD STOP HERE: not signed yet (dry run continues)")
+            print("    ⚠️  WOULD STOP HERE: %s — %s (dry run continues)" % (state, reason))
         if member_visible and not a.include_member_visible:
             print("    ⛔ MEMBER-VISIBLE. This unit changes what a member experiences: "
                   "Ctrl/Cmd/Alt+Shift+F stops flagging tickers on three screens (plain "

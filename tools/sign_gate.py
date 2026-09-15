@@ -110,6 +110,112 @@ def target_span(text: str):
     return blanks[0].span()
 
 
+SIGNED, UNSIGNED, MALFORMED = "SIGNED", "UNSIGNED", "MALFORMED"
+
+#: any AT SHA line: group(2) is the fingerprint, empty when unsigned.
+_AT_ANY = re.compile("^(APPROVED AT SHA:" + _H + ")([0-9a-f]*)(.*)$", re.M)
+_FIELDS = ("APPROVED BY:", "APPROVED ON:", "SCOPE APPROVED:")
+
+
+def read_approval(text: str):
+    """THREE STATES - SIGNED / UNSIGNED / MALFORMED. Returns (state, reason).
+
+    K CP4 - THIS EXISTS BECAUSE `is_signed()` DERIVED "SIGNED" FROM AN ABSENCE.
+    `merge_all.is_signed()` asked `target_span()` for an unsigned block and treated the
+    resulting `SystemExit` as *signed*. `target_span` raises for TWO different reasons:
+    every block is filled (genuinely signed) AND there is no block at all. A document
+    with NO approval block therefore read as SIGNED and would have merged unchallenged.
+    Measured 2026-09-15: `packet-a-absent-bound-gate.md` and
+    `entity-master-pre-implementation-gate.md` are both in that state on disk today.
+
+    That is the non-vacuity rule inside the one tool that most needs it: an absence is
+    not evidence. A reader of a signature must never answer SIGNED because it failed to
+    find something.
+
+    SIGNED HERE IS A STATEMENT ABOUT FORM, NOT ABOUT TRUTH, AND THE DIFFERENCE IS
+    LOAD-BEARING. A fingerprint pins the bytes as they stood AT APPROVAL, so any later
+    edit anywhere in the packet legitimately stops it re-deriving from the CURRENT file -
+    `fingerprint()`'s own docstring says so. Measured 2026-09-15: only 5 of 35 filled
+    blocks re-derive from the current file, and two carry 40-character hashes rather than
+    the 9-character form. Defining SIGNED as "re-derives now" would declare 30 genuine
+    owner approvals invalid and make `merge_all` refuse every unit.
+
+    So: this reader answers "does a written approval exist and is it well-formed?".
+    `tools/verify_manifest.py` answers "is the fingerprint still true, and if not, which
+    commit was it last true at?" by walking history. Two questions, two tools. Do not
+    fold the second into the first.
+    """
+    ats = list(_AT_ANY.finditer(text))
+    if not ats:
+        return UNSIGNED, "no approval block at all (0 `APPROVED AT SHA:` lines)"
+
+    for label in _FIELDS:
+        n = len(re.findall("^" + re.escape(label), text, re.M))
+        if n != len(ats):
+            return MALFORMED, ("%d `%s` line(s) beside %d approval block(s) - a block is "
+                               "missing a field or carries a duplicate"
+                               % (n, label.rstrip(":"), len(ats)))
+
+    blanks = [m for m in ats if not m.group(2)]
+    if len(blanks) > 1:
+        return MALFORMED, ("%d unsigned blocks - a signature could not say which "
+                           "checkpoint it covers" % len(blanks))
+    if len(blanks) == 1:
+        return UNSIGNED, "1 block awaiting a fingerprint (%d of %d signed)" % (
+            len(ats) - 1, len(ats))
+    return SIGNED, "all %d block(s) carry a fingerprint" % len(ats)
+
+
+def _read_approval_check() -> int:
+    """Controls for the three-state reader, including the two that caused the defect."""
+    ok = True
+    NL = "\n"
+    BT = "```"
+
+    def show(label, got, want):
+        nonlocal ok
+        good = got == want
+        ok &= good
+        print("  %-54s -> %-10s %s" % (label, got, "ok" if good else "WRONG (want %s)" % want))
+
+    def blk(sha=""):
+        return (BT + NL + "APPROVED BY:      Patrick" + NL
+                + "APPROVED ON:      2026-09-15" + NL
+                + "APPROVED AT SHA:  " + sha + NL
+                + "SCOPE APPROVED:   CP1" + NL + BT + NL)
+
+    body = "# packet" + NL + NL + "prose" + NL + NL
+
+    show("SIGNED: one filled block", read_approval(body + blk("abc123def"))[0], SIGNED)
+    show("UNSIGNED: one blank block", read_approval(body + blk())[0], UNSIGNED)
+    # THE DEFECT: no block at all used to read as SIGNED
+    show("NO BLOCK AT ALL -> UNSIGNED, never SIGNED", read_approval(body)[0], UNSIGNED)
+    # two FILLED blocks is the ordinary multi-checkpoint packet, NOT malformed:
+    # measured 2026-09-15, 13 of 35 gate docs carry 2-3 blocks, all signed.
+    show("two FILLED blocks (13 real docs look like this) -> SIGNED",
+         read_approval(body + blk("aaa111bbb") + blk("ccc222ddd"))[0], SIGNED)
+    show("two UNSIGNED blocks -> MALFORMED",
+         read_approval(body + blk() + blk())[0], MALFORMED)
+    show("one filled + one blank -> UNSIGNED",
+         read_approval(body + blk("abc123def") + blk())[0], UNSIGNED)
+    missing = (BT + NL + "APPROVED BY:      Patrick" + NL
+               + "APPROVED AT SHA:  abc123def" + NL
+               + "SCOPE APPROVED:   CP1" + NL + BT + NL)
+    show("block missing APPROVED ON -> MALFORMED",
+         read_approval(body + missing)[0], MALFORMED)
+    dup = blk("abc123def") + "APPROVED BY:      Someone" + NL
+    show("duplicated APPROVED BY -> MALFORMED", read_approval(body + dup)[0], MALFORMED)
+
+    # NON-VACUITY: the reader must actually distinguish, not answer one thing always.
+    states = {read_approval(body + blk("abc123def"))[0],
+              read_approval(body)[0],
+              read_approval(body + blk() + blk())[0]}
+    show("the reader returns all three states (non-vacuity)", len(states), 3)
+
+    print("READ-CHECK:", "PASS" if ok else "FAIL")
+    return 0 if ok else 1
+
+
 def blank_span(text: str, span) -> str:
     """`text` with the AT SHA line at `span` reduced to its bare label."""
     lo, hi = span
@@ -162,6 +268,7 @@ def main() -> int:
     ap.add_argument("--on", default="2026-09-12")
     ap.add_argument("--scope-file")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--read-check", action="store_true")
     a = ap.parse_args()
 
     if a.self_check:
@@ -258,6 +365,9 @@ def main() -> int:
 
         print("SELF-CHECK:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
+
+    if getattr(a, "read_check", False):
+        return _read_approval_check()
 
     if not a.packet:
         raise SystemExit("give a packet path, or --self-check")
