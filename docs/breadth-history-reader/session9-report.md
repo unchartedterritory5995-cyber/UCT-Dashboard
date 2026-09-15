@@ -179,11 +179,33 @@ request is CPU-bound** and the ~280 ms floor is `derive` + `serialise` + `encode
 which no I/O fix touches. Above it the fetch dominates absolutely (1,310 / 5,363 /
 8,855 ms). That is D-048's two phenomena, stated in counters that can see them.
 
-### D.3 Window B — the flag ON
+### D.3 M4's production number, re-confirmed as a BAND
+
+Session 7 reported the pre-serialised response taking `encode_render` from **425.2 ms to
+53.8 ms** at p50 on the deep path. That was a point estimate from a single window. Over
+the 19 settled cold samples here:
+
+| phase | n | min | **p50** | max |
+|---|---|---|---|---|
+| `encode_render` | 19 | 42.2 | **50.3** | 108.2 |
+| `serialise` (M4 added this) | 19 | 60.0 | 72.4 | 115.2 |
+| `derive` | 19 | 67.3 | 76.4 | 166.9 |
+| `rf_materialise` | 19 | 42.3 | 57.7 | 143.8 |
+| `post_reader_ms` | 19 | 119.6 | 133.7 | 848.6 |
+
+✅ **M4 holds: 425.2 → 50.3 ms at p50, an 8.5x reduction (−88%).** The honest form is the
+band — `encode_render` is **42.2–108.2 ms**, not "53.8 ms". On the warm path it is
+4.7–9.7 ms (p50 **6.1**).
+
+⭐ **And this is where the floor comes from.** `serialise` + `encode_render` + `derive` is
+**~199 ms at p50**, against a total floor of 271 ms. **No I/O fix can touch it** — which
+is why the fast samples in D.2 are flat regardless of how much SQLite re-read.
+
+### D.4 Window B — the flag ON
 
 *(to be completed — the predictions were committed before the flag was set)*
 
-### D.4 Verdict on V1
+### D.5 Verdict on V1
 
 *(to be completed)*
 
