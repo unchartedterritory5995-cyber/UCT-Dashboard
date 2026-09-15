@@ -388,3 +388,95 @@ not a refusal, but it is why the renderer, not the queue, is the real ceiling.
 only if a real S2 measurement shows queueing at the renderer.** That measurement is exactly what
 Part 2 could not run tonight — so the sizing question is **INCONCLUSIVE pending the S2 run**, and
 saying so is better than tuning on arithmetic alone.
+
+---
+
+# OWNER PACK v4 — appended 2026-09-15 (D-06). Still one pack.
+
+> **§4.x–§6.x above are unchanged.** Nothing here was executed.
+> ⛔⛔ **`DISCORD_RENDER_V2_ENABLED` is still never set by a session.**
+
+---
+
+## ⛔⛔ 7.0 · THE FREEZE DID NOT HOLD, AND THAT IS THE HEADLINE
+
+You paused master pushes in the other workstreams. **Four commits from three workstreams landed
+on master after that**, the last one **349 seconds** before I measured:
+
+| when (CT) | commit | workstream |
+|---|---|---|
+| 23:49 | `52a178a34` | **Top Flow / OptionsFlow** |
+| 23:55 | `102c5b39a` | **docs/session8-record** (Breadth) |
+| 00:07 | `1571e2f87` | **Breadth** — H1 page-cache experiment |
+| 00:10 | `6b606990c` | **Top Flow / OptionsFlow** |
+
+Master took **14 commits in 90 minutes** from four workstreams. Part 1.2 requires master
+unchanged for 30 minutes and zero deploys in 30 minutes; it measured **5.8 minutes** and **four**,
+twice, an interval apart. **NO-GO, and not a close call.**
+
+⭐ **None of those sessions did anything wrong.** The freeze reached you and it reached this
+directive. It did not reach the tool those sessions run before they push — which is 7.2.
+
+---
+
+## 7.1 · The merge — unchanged, and now with a working precondition
+
+§6.0's steps stand. What is new is that you no longer have to eyeball "is master quiet": **the
+push guard now answers it**, and on the night in question it says no.
+
+**When you want the merge:** ask the other sessions to stop, wait until
+`python tools/pre_push_guard.py` prints **OK** from the `discord-render` worktree, then merge
+once, outside 09:25–16:05 ET, and watch `web` to SUCCESS.
+
+---
+
+## ⛔ 7.2 · FREEZE PROTOCOL — one paragraph to paste into the other sessions
+
+> **Master push freeze, effective now until I say otherwise.** Do not push or merge to `master`
+> for any reason — docs included. Finish what you are doing, commit it, push your BRANCH, and
+> stop there; branch pushes are unaffected. If your pre-push guard refuses a master push saying a
+> deploy landed recently or that there have been three deploys in an hour, **that is the freeze
+> working — do not use `UCT_SKIP_PREPUSH_GUARD`, and never `--no-verify`.** A single 22-commit
+> merge has to land on a quiet queue; every push inside its 3–5 minute build marks it REMOVED
+> mid-flight, which is what served members Bad Gateway on 09-12 and 09-14. I will say when it is
+> clear.
+
+⚠️ **The guard cannot enforce this for them tonight.** `tools/pre_push_guard.py` is repo-tracked,
+but the installed hook resolves it from **the pushing worktree's own checkout** — so each session
+runs the copy on its own branch. They get the new cadence clause only after this branch merges
+*and* their branches pick master up. Tonight the paragraph is the whole mechanism.
+
+---
+
+## 7.3 · R5 — the C-09 gate's V1 change, for you to confirm before D-08
+
+> **Approve, or don't:** once wired, a member's `/chart` will beat the warm-cache cycle to the
+> last free render slot — on the **pre-V2 path**, i.e. for every member today, not only under V2.
+> Measured: with today's plain semaphore the warm cycle wins **60 of 60** races for the last slot;
+> with the gate the member wins **60 of 60**. The warm cycle is not starved — under 1.2 s of
+> continuous member load against a 0.3 s fairness bound it was still served, by the bound, while
+> members were queued. The cost is that cache warming yields, so some members will occasionally
+> pay a cold render that a warm one would have covered. ⛔ **Not yet wired** — `RenderGate` is
+> imported by no production file, and wiring it is D-08, after the OI-36 merge (R6).
+
+---
+
+## 7.4 · The narrowing checklist — carried forward, still unverified against a merged SHA
+
+§4.3 stands verbatim. It targets **runtime environment variables**, not code, so the missing merge
+does not change it. `DISCORD_RENDER_V2_ENABLED` remains unset.
+
+---
+
+## 7.5 · Flip packet — what moved this session
+
+| | |
+|---|---|
+| **Merged SHA** | still none (7.0) |
+| **S2 run** | NO-GO, consequentially — R1 requires a merged SHA live |
+| **OI-36** | ✅ **FIXED**, on `fix/oi-36-buzz-defer-first` (`da5aa9da2`), not merged. `/buzz` now acks before it does any work; 3/3 mutations RED on their named case. **D-07.** |
+| **C-09 gate** | still **NOT WIRED** — unchanged from v3 |
+| **`RENDER_MAX_CONCURRENT`** | still **INCONCLUSIVE pending the S2 run** (§6.5) |
+| **Guard rail** | ✅ **NEW** — the push guard now refuses on deploy cadence, not just on pod state. Proven on live data: at the same instant it said REFUSE from this branch and OK from a branch off master. |
+| **Gate snapshot rail** | ✅ **NEW** — every gate run writes a per-row record; "gate impact" is a diff, never a recollection |
+
