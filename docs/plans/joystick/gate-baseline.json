@@ -20,6 +20,7 @@
     "src/components/chart/engine/ast/pine.blindCorpus.test.js > ⭐⭐ an offer a member can TAKE, not retype > ⏳ the accepted floor moves one way too",
     "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
     "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/hub/surfaceMatrixIsCurrent.test.js > the generated joystick artifacts are current > glass-acceptance-steps.md matches the registry as it stands",
     "src/lib/presentation/presentationSingleFormatter.test.js > ⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, not hidden > nothing outside lib/presentation imports formatPercent from S10",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
@@ -136,20 +137,25 @@
       "settled_by": "docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md",
       "settled_at": "2026-09-14",
       "settled_how": "BANKED — a genuine failure, settled STATICALLY so the box-clearance question does not apply: `/admin/wisdom` is a Layout-hosted route (App.jsx:650) and appears 0 times in app/src/surfaces/manifest.js. A missing manifest row cannot be manufactured by load. The alone-run agreed (Tests 1 failed | 9 passed (10), Duration 2.96s, no timeout) though it was contended and is not relied on by itself. ⚠️ gates.md has NO classification for this file, so none was inherited or invented. ⭐ The rail is S1's; the missing declaration was introduced by the wisdom workstream (7b3408a8f)."
+    },
+    {
+      "removed": "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > ⛔⛔ DOES NOT discard the member's words when the landed save lacks them",
+      "removed_at": "2026-09-14",
+      "why": "FIXED. The entry is STALE and compare_failures fails the gate on a stale entry by design, so it is removed here citing the fix that did it: the supersede decision in outboxDrain.js now requires sameAuthoredContent(noteRec, entry.patch) - the landed save must be PROVEN to contain the entry's content, not merely carry a newer clock.",
+      "verified_by": "npx vitest run src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js -> 3 passed (was 1 failed / 3); whole offline layer 27 files / 372 passed"
+    },
+    {
+      "added": "src/hub/surfaceMatrixIsCurrent.test.js > the generated joystick artifacts are current > glass-acceptance-steps.md matches the registry as it stands",
+      "added_at": "2026-09-14",
+      "why": "MASTER'S, not this branch's, and it is a REAL defect rather than a flaky name. `docs/plans/joystick/glass-acceptance-steps.md` was last touched by 789a6bab5 ('audit(joystick): baseline settled at 10 ... §5A promoted (#137)') and `app/src/hub/registry.js` by 6ec66a6db - BOTH ancestors of origin/master. This branch's entire app/src diff is ONE file, app/src/pages/journal-2-0/lib/offline/outboxDrain.js, and it touches nothing under app/src/hub/ or docs/plans/joystick/. Re-run ALONE it still fails (1 failed / 4 passed), so it is persistent, not load-sensitive.",
+      "verified_by": "npx vitest run src/hub/surfaceMatrixIsCurrent.test.js -> 1 failed / 4 passed",
+      "owner": "the JOYSTICK workstream - NOT Notebook Q1",
+      "action_for_the_owner": "CLAUDE.md: any change to PREVIEW_MODES/ROLLOUT_STAGE or the registry must arrive with regenerated artifacts IN THE SAME COMMIT. The fix is one command: `node tools/hub_surface_matrix.mjs --glass > docs/plans/joystick/glass-acceptance-steps.md`. Deliberately NOT run here: it is another workstream's file and a Notebook change set editing docs/plans/joystick/ is the rule-12 shape inverted."
     }
   ],
   "files_note": "⚰️ files[] is DERIVED from failures[] as of 2026-09-14 and is documentation only — scripts/gate_shards.py reads sha, measured_at and failures, never this. It had drifted: it listed src/__tests__/sourcesAreText.test.js and src/components/chart/builder/ImportBox.thinkscript.test.jsx (both removed when master fixed them) and src/components/screener/reachable.test.js (removed 2026-09-11), while omitting src/components/chart/ChartDrawingOverlay.surfaces.test.jsx (added 2026-09-10). A derived list cannot drift; a typed one already had.",
   "provisional_note": "⛔ ONE OF THE THREE 2026-09-14 ADDITIONS IS STILL PROVISIONAL. #10 (surfaces/manifest) was SETTLED and banked on 2026-09-14 by static proof. #9 (presentationSingleFormatter) is INCONCLUSIVE after five alone-runs — it failed once on a clear box and passed twice under a live gate, so it is an intermittent on its own 15s timeout boundary, not a load artefact. It stays banked only under owner ruling R1 and stays flagged. #8 (reachable / R-29) is unambiguous. ⚠️ H14: three of ten baseline entries carry a load classification in docs/breadth/gates.md — the two ThemeTrackerPage.chartmount rows (banked before today, not this programme's to unwind) and #9. #9's five runs show such a classification can itself be wrong, which is reason to re-measure the other two, not to remove them. Listed, not acted on. Settling runs: docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md",
-  "expected_red": [
-    "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > ⛔⛔ DOES NOT discard the member's words when the landed save lacks them"
-  ],
-  "expected_red_reasons": {
-    "src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js > supersede must prove content, not compare clocks > ⛔⛔ DOES NOT discard the member's words when the landed save lacks them": {
-      "why": "supersede compares TIMESTAMPS where it must prove CONTENT. A landed save that lacks the member's words can still carry the newer clock, so the newer-wins test discards words the server never held. The reproduction is red because the defect is real on master today.",
-      "waits_on": "NOT YET WRITTEN - no fix SHA exists. Q1 fix 4 (landed-ring putMeta never overwrites a dirty record) is a DIFFERENT defect and does NOT turn this green; the gate run on the fix-4 merge still observed it red, which is the evidence for that sentence rather than an assumption.",
-      "named_at": "2026-09-14",
-      "if_it_turns_green": "the entry is STALE and compare_failures fails the gate by design - remove it and cite the fix that did it."
-    }
-  },
+  "expected_red": [],
+  "expected_red_reasons": {},
   "expected_red_note": "DELIBERATE reproductions added by a branch, red BECAUSE the defect is real. NOT the same as `failures`, which is a measurement OF MASTER ('Nothing here is the hub's'). Each entry names the fix it waits on. An entry that turns GREEN is STALE and fails the gate."
 }
