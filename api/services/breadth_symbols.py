@@ -277,7 +277,12 @@ def library_rows(universes=None) -> list[dict]:
                 "metric": metric, "code": m["code"],
                 "symbol": symbol_for(u["id"], metric),
                 "name": m["name"], "short_name": m["short_name"],
-                "group": m["group"], "unit": m["unit"], "domain": m["domain"],
+                "group": m["group"],
+                # ⚠️ The family LABEL rides along because discovery groups by it and
+                # `LIST_META` is where it already lives — a second spelling in the
+                # metric catalogue would be the copy that drifts.
+                "group_label": (LIST_META.get(m["group"]) or {}).get("label", m["group"]),
+                "unit": m["unit"], "domain": m["domain"],
                 "presentation": m["presentation"], "floor": u["floor"],
                 # ⭐ A UCT row is LEGACY: its symbol is recorded history, not a
                 # rendering of the namespace. Anything reading this list can tell
@@ -744,3 +749,135 @@ def start_breadth_warm(interval_seconds: int = 90) -> None:
                 _log.exception("[breadth_symbols] warm loop error")
             time.sleep(interval_seconds)
     threading.Thread(target=_loop, name="breadth-bars-warm", daemon=True).start()
+
+
+# ─── Discovery over the library (Phase 5) ────────────────────────────────────
+#
+# ⭐⭐ HUMAN METRIC FIRST, UNIVERSE SECOND, SYMBOL AVAILABLE BUT NOT DOMINANT.
+# A member looking for Nasdaq's 50-day-MA breadth is looking for "% of Stocks Above
+# 50-Day MA" and then for "NASDAQ" — not for the string `NASDAQ:A50`, which is an
+# ADDRESS. So a result leads with `name`, carries `universe_label` as a compact
+# qualifier, and keeps `symbol` for the member who already knows it.
+#
+# ⛔ THIS IS NOT A SECOND CATALOGUE. It ranks rows from `library_rows()` and owns
+# no facts of its own — no names, no families, no units. Add a metric or a universe
+# and this function reports it without being edited.
+
+#: Query words that name the LIBRARY rather than anything in it. "NASDAQ breadth"
+#: means "Nasdaq's breadth metrics"; requiring the word to appear in a metric's own
+#: text would return the one metric with "Breadth" in its name and hide the rest.
+_LIBRARY_NOISE = frozenset({"BREADTH", "METRIC", "METRICS", "INDICATOR",
+                            "INDICATORS", "LIBRARY", "SERIES"})
+
+
+def _tokens(q: str) -> list[str]:
+    """Upper-cased alphanumeric runs. `:` is a separator here and nothing more —
+    the resolver, not the tokeniser, decides whether a colon string is an identity."""
+    out, cur = [], []
+    for ch in (q or "").upper():
+        if ch.isalnum() or ch == "%":
+            cur.append(ch)
+        elif cur:
+            out.append("".join(cur))
+            cur = []
+    if cur:
+        out.append("".join(cur))
+    return out
+
+
+def _haystack(row: dict) -> str:
+    """Everything a text query may legitimately match, normalised once."""
+    return " ".join(str(v).upper() for v in (
+        row.get("name"), row.get("short_name"), row.get("code"),
+        row.get("group_label"), row.get("symbol") or "", row.get("universe_label"),
+    ))
+
+
+def library_search(q: str, limit: int = 40, published_only: bool = False) -> list[dict]:
+    """Ranked Breadth Library results for one query.
+
+    Supports, in the owner's words: `"50 MA"` → the A50 family across universes;
+    `"NASDAQ breadth"` → Nasdaq's library; `"high low"` → New Highs, New Lows and
+    Net New High-Low with their universe variants; `"A50"` → every A50 universe;
+    `"NASDAQ:A50"` → that exact series.
+
+    ⚠️ A UNIVERSE WORD NARROWS RATHER THAN MATCHES. `NASDAQ` in a query means "only
+    Nasdaq rows", not "rows whose text contains NASDAQ" — otherwise `"NASDAQ 50 MA"`
+    would rank a UCT row that happens to mention neither.
+
+    ⛔ AND A FAMILY WORD MATCHES THE FAMILY. `"high low"` finds New Highs even
+    though its own name contains no "Low", because `group_label` ("Highs / Lows")
+    is in the haystack. Requiring every token inside one metric's NAME would return
+    only the one metric that happens to carry both words.
+    """
+    from api.services import breadth_universes as _bu
+
+    rows = [r for r in library_rows() if r.get("symbol")]
+    if published_only:
+        pub = set(_bu.published_universe_ids())
+        rows = [r for r in rows if r["universe"] in pub]
+    raw = (q or "").strip()
+    if not raw:
+        return []
+
+    # ── 0. an exact identity (or alias) wins outright ──────────────────────
+    hit = _library_index().get(raw.upper())
+    scored = []
+    if hit is not None and (not published_only
+                            or hit["universe"] in set(_bu.published_universe_ids())):
+        scored.append((0, hit))
+
+    toks = _tokens(raw)
+    label_to_id = {_bu.label(u).upper(): u for u in _bu.UNIVERSE_IDS}
+    want_universes = {label_to_id[t] for t in toks if t in label_to_id}
+    rest = [t for t in toks
+            if t not in label_to_id and t not in _LIBRARY_NOISE]
+
+    for row in rows:
+        if hit is not None and row is hit:
+            continue
+        if want_universes and row["universe"] not in want_universes:
+            continue
+        code = str(row["code"]).upper()
+        hay = _haystack(row)
+        if not rest:
+            # a bare universe query ("NASDAQ") lists that universe's library
+            score = 2 if want_universes else None
+        elif all(t == code for t in rest):
+            score = 1                                   # "A50"
+        elif all(t in hay for t in rest):
+            score = 3 if any(t in code for t in rest) else 4
+        else:
+            score = None
+        if score is not None:
+            scored.append((score, row))
+
+    # ⭐⭐ METRIC FIRST, UNIVERSE SECOND — the owner's UX principle, expressed as a
+    # SORT rather than as a later grouping pass. `"high low"` must read
+    #
+    #     New 52-Week Highs      UCT · US · NASDAQ · NYSE
+    #     New 52-Week Lows       UCT · US · NASDAQ · NYSE
+    #
+    # so a member sees one metric with its universe variants adjacent. Sorting by
+    # universe first produced the opposite — every UCT metric, then every US metric
+    # — which is the ticker-soup list this library exists to replace.
+    #
+    # ⚠️ And it is STABLE: score, then catalogue metric order, then universe order.
+    # A search that reorders itself between identical calls is one nobody can learn.
+    from api.services import breadth_metrics as _bm
+    metric_rank = {k: i for i, k in enumerate(_bm.METRIC_KEYS)}
+    uni_rank = {u: i for i, u in enumerate(_bu.UNIVERSE_IDS)}
+    scored.sort(key=lambda sr: (sr[0],
+                                metric_rank.get(sr[1]["metric"], 10**6),
+                                uni_rank.get(sr[1]["universe"], 99)))
+
+    out, seen = [], set()
+    for score, row in scored:
+        key = (row["universe"], row["metric"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({**row, "score": score, "symbol_hit": score <= 1})
+        if len(out) >= limit:
+            break
+    return out
