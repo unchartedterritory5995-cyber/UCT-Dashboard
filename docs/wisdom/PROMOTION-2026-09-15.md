@@ -11,10 +11,10 @@ and `0 of 25` gates are SET on production `web` (measured session 9, by child-pr
 The daily chain is a no-op dark — proof below.
 
     feat/wisdom-loop  ->  master
-    62 ahead, 0 behind (origin/master merged in at 3eade7269)
-    60 files changed, +11,842 / -51
+    79 ahead, 0 behind (origin/master merged in at b0e8bb94d, 2026-09-15 session 13)
+    70 files changed, +14,632 / -63
     CI parity: the wisdom-rails job run locally, all four steps PASS
-    Scoped suite: 1,189 passed · 1 skipped · 0 failed (69 named files)
+    Scoped suite: 1,263 passed · 1 skipped · 0 failed (75 named wisdom files)
 
 ---
 
@@ -37,6 +37,9 @@ a flip after this merge. That is why the promotion is the gate, not the flags.
 | **admin visibility** (R45) | `GET /api/admin/wisdom/core/status` now also returns store row counts, floored-type stability, and `extractor_version`. **No new route.** |
 | **migrations** | four additive columns (below). |
 | **docs / rules** | `docs/wisdom/HARD-RULES.md` (§0.4 verbatim + dated rulings), `OVERNIGHT-CHECKPOINTS.md`, ten session reports under `docs/recon/`. |
+| **ledger tokens** (R48) | `tools/wisdom/extract_golden_gate.py` — every new spend-ledger entry carries `input_tokens, output_tokens, requests, extractor_version, model, golden_file, run_id, rounds`. The 28 existing entries are untouched. R36's estimator gains the ruled token form (p90 x 1.5 over measured tokens, priced), preferred once two entries carry counts, with cost-per-request as the fallback and the worst case as the ceiling. **An absent count is UNKNOWN, never zero**, on both the read and the write side. |
+| **gating audit** (R50) | `tests/test_wisdom_type_gating_audit.py` + `tools/wisdom/gating_rehearsal.py` — the four unfloored types enumerated against every reader. **List (i), member-visible AND ungated, is EMPTY**; list (ii) is the five member doors, each behind a `member_visible` gate that defaults OFF. The finding is enforced, not merely recorded: a new door into the package, or a new reader of `wisdom_records` without a verdict, fails by name. |
+| **hand-check sheet** | `tools/wisdom/pair_verdicts.py` — the 42 lens PRINCIPLE pairs as a TSV with the STATEMENTS beside the keys (the pairs file identified each side by a sha24, which no human can judge). A blank verdict reads as UNJUDGED, never as agreement. |
 
 ## Migrations — four, additive, nullable, idempotent
 
@@ -141,7 +144,7 @@ environment was `WISDOM_INGEST_ENABLED=<UNSET>` before and after.
     wisdom_records 0 · wisdom_segments 0 · wisdom_sources 0   <- nothing is extracted
     wisdom_d20_scoring_runs 2 · wisdom_chain_steps 12 · wisdom_job_runs 1
 
-⚠️ **THREE THINGS WORTH KNOWING BEFORE YOU FLIP IT:**
+⚠️ **FOUR THINGS WORTH KNOWING BEFORE YOU FLIP IT:**
 
 1. **`WISDOM_INGEST_ENABLED` alone starts capture.** The chain's capture step consults no gate of
    its own; `WISDOM_CAPTURE_ENABLED` gates the standalone capture jobs (`capture/jobs.py:46`).
@@ -151,6 +154,20 @@ environment was `WISDOM_INGEST_ENABLED=<UNSET>` before and after.
 3. **Expect review-queue rows on the `attribution` tab** — 36 appeared in the rehearsal. They are
    NOT floor blocks (the floor cannot block with 0 records); do not read them as a publication
    problem.
+4. ⛔⛔ **A FORCED chain run bypasses `WISDOM_EXTRACT_ENABLED`** — `extract/batch.py:439` reads
+   `if not ctx.force and not flags.extract_enabled()`. The golden gate and the spend cap still
+   sit behind it, so it is not an open till, but the one switch that spends does not mean what
+   its name says on the forced path. Do not force the daily chain to "test" an INGEST-only night.
+
+⭐ **AND THE REHEARSAL WAS RE-RUN WITH RECORDS PRESENT (R50, session 13).** The run above was
+against an EMPTY store, which cannot distinguish *this consumer is gated* from *this consumer had
+nothing to read* — every UNGATED consumer prints the same zeros. `tools/wisdom/gating_rehearsal.py`
+re-runs it with 12 records of the four unfloored types in the store: **every member door SHUT**,
+and `--self-check` proves **4 of the 5 doors report OPEN when their gate is lit**, so `shut` is a
+measurement. The fifth, Ask-AI, carries a second gate the rig cannot light (the `wisdom-askai`
+cohort is an auth.db `user_tags` row) and is reported as a stated limit rather than faked.
+⚠️ One thing the re-run surfaced: **`brainkb` stages rows into `wisdom_kb_rows` with its flag OFF**
+(3 on a dark night). Nothing leaves — only the export is gated — but a populated table is not a leak.
 
 ⛔ **`WISDOM_EXTRACT_ENABLED` stays dark** — the only switch that spends.
 ⛔ **`ASKAI_WISDOM_RETRIEVAL_ENABLED` stays dark** — the only switch that makes anything
@@ -206,7 +223,10 @@ Suggested body (everything else is in the branch):
 
 Merging is a tap in the GitHub app.
 
-⛔ **There is no window to wait for.** No time-of-day condition applies to any push or merge
-(owner ruling R46, 2026-09-15); the stale clock clause in `tools/pre_push_guard.py` was removed in
-this branch. And a merge performed on github.com runs **no local git hook at all** — hooks are
-client-side. What runs is the promotion-gate workflow set on the push to master.
+⛔ **There is no window to wait for.** No time-of-day condition applies to any push or merge.
+⚰️ This branch's R46 (session 12) said so by DELETING the clock machinery; **master reached the
+same ruling independently as R18 and kept the machinery deliberately unreachable**, then added
+R19 and R20 on top. The session-13 sync resolved both conflicts to MASTER, byte-identical, so
+R46 is SUPERSEDED, not overturned — the product outcome is the same on every path. And a merge
+performed on github.com runs **no local git hook at all** — hooks are client-side. What runs is
+the promotion-gate workflow set on the push to master.

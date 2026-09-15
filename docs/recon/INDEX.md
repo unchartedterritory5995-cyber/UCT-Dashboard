@@ -29,6 +29,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 10 | `2026-09-15-session10-identity-bounds.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Bounds the 88%: ~18 points are a matching artifact, ~70% real instability. The chain writes 826 real rows and the queue holds 327. Corrects two session-9 errors |
 | 11 | `2026-09-15-session11-promotion-ready.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Identity RULED and applied (MARKET_SIGNAL 21→61), R36 live, the promotion prepared — master merged in, CI green, PR body written. `gh` absent, so Patrick opens it |
 | 12 | `2026-09-15-session12-pr-ready.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** A stale market-hours clock retired from the push guard (and from my own docs), the floor retracts so the queue stops drifting, PRINCIPLE publishes under the lens (31→66), cap raised to 100 |
+| 13 | `2026-09-15-session13-premerge.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** R48 delivered — the ledger carries its tokens and an ABSENT count is unknown, never zero. R50 settled: **list (i), member-visible AND ungated, is EMPTY**, and it is now enforced by a rail rather than recorded in a doc. The re-run rehearsal (records present, not an empty store) found that a FORCED chain run bypasses the one switch that spends. R46 superseded by master's R18 in the sync. **Still NOT merged** |
 
 ## Why report 1 is not tracked
 
@@ -77,5 +78,11 @@ and corrects two of session 9's own conclusions — the entity-master mechanism 
 SANDBOX, not a production path) and the idea that the CALL lane was broken (a $0.00 offline
 seed recovers 76.8% of it). 11 turns the measurements into rulings and gets the branch ready to leave
 this box: the identity is applied to the write path, the reservation estimator is live, and the PR
-body is written for a merge that changes nothing for members on the night it lands. Each report's own QUESTIONS section carries the state of every open decision at that
+body is written for a merge that changes nothing for members on the night it lands. 12 retires a
+stale clock rule, makes the floor's queue self-correct, and puts PRINCIPLE under the lens. 13
+delivers the one ruling 12 did not, and answers the question that has to be settled BEFORE
+EXTRACT is ever ruled — who can see the four types the floor does not govern. The answer is
+nobody, and the reason that is worth more than a sentence is that 12's rehearsal could not have
+produced it: it ran against an EMPTY store, where a gated consumer and an ungated one print the
+same zeros. Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.
