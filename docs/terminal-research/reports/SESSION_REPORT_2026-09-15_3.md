@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 15:41 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 16:22 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**28 commits** — fourteen docs, fourteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`, `c89dd6b81`
+**30 commits** — fifteen docs, fifteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`, `c89dd6b81`, `aba219779`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -822,6 +822,76 @@ satisfied by a function that never counts failures at all.
 ⚠️ Falsifier: `shards_unreadable` non-empty again, meaning the fetch fails for some reason
 other than the rate limit — and the new annotation would name it, readable without an account.
 
+## 3z · ⭐⭐ RUN #18 — THE INSTRUMENT ARC IS CLOSED
+
+Every line of E CP20's prediction:
+
+```
+shards_success=12/12 · unreadable=[] · without_totals=[] · missing=[]
+all_success=True (12/12) · every_shard_has_totals=True · failed=185 · missing=0
+· runner_verdict_unreadable=0
+```
+
+⭐⭐ **The suite is now RED for exactly one reason — tests fail.** That sentence has not been
+true in this repository before: every earlier red carried a measurement defect inside it.
+Nine checkpoints were spent getting to a number that means what it says.
+
+## 3aa · ⛔⛔ E CP21 — AND HALF THE FAILURES ARE NOT THE PRODUCT
+
+Reading the failure text the record finally carries:
+
+| signature | entries |
+|---|---|
+| `LaneUnavailable: the JS lane exited 1` | **109** |
+| `node:internal/modules/cjs/loader` / `MODULE_NOT_FOUND` | 11 |
+| a git ref a shallow single-branch checkout does not have | 1 |
+| a `'/data/…'` path that only exists on the dev box | 1 |
+| **union — carries a CI-ENVIRONMENT signature** | **119** |
+| **remainder — product-shaped, needs triage** | **107** |
+
+*(226 entries against 185 `failed`: junit `<error>` entries — setup failures — count too.)*
+
+⚠️ **"Carries a CI-environment signature" is a claim about the TEXT**, not a verdict that the
+test would pass elsewhere. Run #19 turns it into one.
+
+**The cause, read before fixing.** Several suites drive a **JS lane** — they run `node`
+against the repo's own sources to check the Python and JavaScript implementations agree — and
+those tests **deliberately refuse to skip**:
+
+> *"NOT a skip: a lane that cannot run has not agreed with anything, and three of this file's
+> claims are only checkable there."*
+
+⭐⭐ **That is exactly right, and it is this programme's UNREADABLE principle one layer down.**
+A lane that could not run has not agreed with anything, so it must not report green — **and
+the consequence is that the environment has to supply the lane.** The shard job installed
+`requirements.txt` and nothing else: no `actions/setup-node` at all, so `app/node_modules`
+did not exist and the loader hook died in `MODULE_NOT_FOUND`. ⛔ Those 109 tests have failed
+for a reason that says nothing about the code in **every** CI run since T2 CP1 made the
+backend suite run at all.
+
+**Fixed:** `setup-node` + `npm ci` in every shard — ⛔ every shard, not a hand-kept list of
+"the ones that need node", which is the enumeration-beside-its-source defect waiting to
+happen.
+
+⚠️ **Watch item, stated now rather than discovered later:** twelve more `npm ci` runs. The
+longest shards were 888 s and 945 s against a 1200 s cap, and the npm cache is already warm
+from the vitest job. **If a shard approaches the cap it is SPLIT, never extended.**
+
+### Prediction for run #19
+
+| field | prediction |
+|---|---|
+| `LaneUnavailable` entries | **0** |
+| pytest `failed` | **60–120** — arithmetic says ~76, but lane tests that now RUN may genuinely fail, so a range, not a point |
+| `collected` | **≥ 24,445** |
+| `shards_without_totals` / `shards_unreadable` | **`[]`** both |
+| longest shard | **under 1000 s** |
+
+⭐ **A falling count here is the opposite of the last two runs' rises, and both are the same
+thing: the measurement getting closer to the truth.** ⚠️ Falsifier: `LaneUnavailable` still
+present at volume — which would mean `node_modules` was not what the lane lacked, and its
+message would say what is.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -997,6 +1067,7 @@ ran a job.
 | **F-CI-24** | **NEW, mine.** E CP18's own shard assertion was a second authority that passed on log-body noise while the summariser said otherwise. It now reads the summariser's verdict. |
 | **F-CI-25** | **NEW, mine.** The publish job's jobs-API fetch was anonymous and came back EMPTY in run #17, so every shard's runner verdict was unreadable. Authenticated, and an empty payload now annotates. |
 | **F-CI-26** | **NEW, mine, and the worse half.** `ci_aggregate` counted an UNREADABLE runner verdict as a FAILURE, publishing `0/12 success` for twelve jobs that succeeded — while `ci_outcome` called the same payload UNREADABLE three fields away. |
+| **F-CI-27** | **NEW, mine, and the largest single finding in the record.** 119 of run #18's 226 pytest failure entries carry a CI-ENVIRONMENT signature — 109 of them `LaneUnavailable`, because the shard job installed `requirements.txt` and nothing else, so `app/node_modules` never existed. The tests are right to refuse to skip; the environment was wrong. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -1037,8 +1108,8 @@ explicit deploy instruction and a member-impact paragraph. **The park is lifted;
 front of them is not mine to open.**
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–31 nothing member-visible.**
-Row 32 is E CP20 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–32 nothing member-visible.**
+Row 33 is E CP21 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -1055,8 +1126,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**32 rows, 32 OK, 0 STALE. 31 of 31 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **24 constraints SATISFIED**, 32 units, 0 MALFORMED,
+**33 rows, 33 OK, 0 STALE. 32 of 32 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **25 constraints SATISFIED**, 33 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
