@@ -56,6 +56,12 @@ _MMAP_BYTES = 67108864
 _CACHE_KIB = -16000
 
 
+def _fetch_shape_range() -> bool:
+    """⛔ DEFAULT OFF. The IN-list chunking is what production runs until a measurement
+    says otherwise."""
+    return os.environ.get("BREADTH_OHLC_FETCH_RANGE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def _apply_pagecache(c: sqlite3.Connection) -> None:
     """The H1 experiment: map the file, and give the connection a cache big enough to
     survive its own 12 statements.
@@ -479,14 +485,37 @@ def reconstructed_for_dates(dates) -> tuple:
         # the measurement can tell the two regimes apart instead of being re-derived.
         _bt.note(rf_conn_id=id(c) & 0xFFFFFF, rf_conn_reused=0,
                  rf_pagecache=1 if _pagecache_on() else 0)
+        # ⭐ C.4 — THE SHAPE EXPERIMENT, DEFAULT OFF. Measured on the production copy:
+        # the asked date set is EXACTLY the rows in its range at 90, 365 and 8000
+        # (asked == rows_in_range, contiguous at every span), so one ordered range walk
+        # returns the same rows in the same order as 4,700 point lookups. The Python-side
+        # membership filter keeps it correct if that ever stops being true.
+        #
+        # ⚠️ WARM, this buys 1.19x at days=8000 (11.4 -> 9.6 ms) — and warm is exactly
+        # where the shape should NOT matter, because every page is already cached. The
+        # case it is for is the evicted one: one sequential index walk instead of ~9,058
+        # random b-tree descents (index -> rowid -> table, twice per date on a rowid
+        # table with a TEXT PK). That case cannot be produced on this box, so the value
+        # of this change is UNPROVEN and it ships OFF pending a production A/B.
+        chunks: list = []
+        if _fetch_shape_range():
+            chunks = [None]                      # one pass, one statement
+        else:
+            chunks = [ds[i:i + 400] for i in range(0, len(ds), 400)]
+        want = set(ds) if _fetch_shape_range() else None
         try:
-            for i in range(0, len(ds), 400):
-                chunk = ds[i:i + 400]
-                dq = ",".join("?" * len(chunk))
-                q = f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})"
+            for chunk in chunks:
+                if chunk is None:
+                    q = ("SELECT date, metrics FROM breadth_reconstructed_daily "
+                         "WHERE date >= ? AND date <= ? ORDER BY date")
+                    params = (ds[0], ds[-1])
+                else:
+                    dq = ",".join("?" * len(chunk))
+                    q = f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})"
+                    params = chunk
                 t0 = _t.perf_counter()
                 try:
-                    cur = c.execute(q, chunk)
+                    cur = c.execute(q, params)
                 except _sq.OperationalError as e:
                     # ⚠️ BLIND SPOT, STATED RATHER THAN PAPERED OVER: with
                     # busy_timeout=3000 SQLite waits INSIDE the C call, so ordinary
@@ -514,9 +543,11 @@ def reconstructed_for_dates(dates) -> tuple:
                 st_sum += _one
                 t0 = _t.perf_counter()
                 for (d, mj) in got:
+                    if want is not None and d not in want:
+                        continue          # the range can only ever be a superset
                     nbytes += len(mj)
                     out[d] = json.loads(mj)
-                rows += len(got)
+                    rows += 1
                 _bt.add_phase("rf_materialise", (_t.perf_counter() - t0) * 1000.0)
         finally:
             c.close()
