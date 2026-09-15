@@ -36,29 +36,10 @@ DEFAULT_OUTPUT_P90 = 6000
 CATEGORY_STREAM = {"Live Trading Sessions": "zoom_live",
                    "Workshops & Fireside Chats": "workshop", "Interviews": "interview"}
 
-# Category labels are FREE TEXT on each transcript record (`data["category"]`), so both defects
-# folded here live in the DATA, not in code: a typo'd "LIVE TRAIDNG" (1 source, 54 segments) and
-# two casings of "Sharpen your trading skills" (1 source each). Folded on READ — the artifact and
-# the source records are left untouched (owner ruling R15, 2026-09-14).
-# ⛔ Keyed by casefold, so a third casing folds in without a code change.
-CATEGORY_ALIASES = {
-    "live traidng": "Live Trading Sessions",
-    "sharpen your trading skills": "Sharpen Your Trading Skills",
-}
-
-
-def normalize_category(raw):
-    """Fold a raw category label onto one canonical spelling. Returns falsy input unchanged.
-
-    ⛔ This runs BEFORE the CATEGORY_STREAM lookup, which is why "LIVE TRAIDNG" no longer needs
-    its own entry there: a typo mapped in two places is two authorities over one value, and the
-    second one goes stale silently. The stream assignment is unchanged either way — the alias
-    resolves to a key CATEGORY_STREAM already holds.
-    """
-    if not raw:
-        return raw
-    collapsed = " ".join(raw.split())
-    return CATEGORY_ALIASES.get(collapsed.casefold(), collapsed)
+# ⭐ ONE AUTHORITY, shared with tools/wisdom_golden_verify.py since R19 (2026-09-14).
+# Re-exported here so `extract_catalog_batch.normalize_category` stays the name its callers and
+# tests already use; the rule itself lives in one place.
+from category_norm import CATEGORY_ALIASES, normalize_category  # noqa: E402,F401
 
 
 def catalog(samples: pathlib.Path):

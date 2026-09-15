@@ -138,27 +138,52 @@ def test_the_fold_does_not_change_any_stream_assignment():
         assert now == was, f"{label}: stream changed {was} -> {now}"
 
 
-def test_the_typo_has_one_authority_IN_THIS_READER_and_a_second_one_elsewhere():
-    """⚠️ Within the catalog reader the typo is mapped once. Repo-wide it is NOT.
+def test_the_typo_has_exactly_ONE_authority_repo_wide():
+    """⭐ R19 (2026-09-14) folded the second copy in, so this can now assert the strong thing.
 
-    ⛔ `tools/wisdom_golden_verify.py:128` holds a SECOND, different `CATEGORY_STREAM` that also
-    carries a "LIVE TRAIDNG" key. It is a different map (it routes more categories to zoom_live)
-    and it belongs to the golden gate, not to this reader, so the 2026-09-14 R15 ruling — which
-    named the catalog reader — deliberately did not touch it. Changing it would move golden-gate
-    stream assignment, which is a measurement surface.
-
-    This test states that out loud rather than asserting a repo-wide uniqueness that is false.
-    If the golden verifier is ever folded onto `normalize_category` too, delete the second half.
+    ⚰️ Session 4 left `tools/wisdom_golden_verify.py` carrying its own `CATEGORY_STREAM` with a
+    duplicate `"LIVE TRAIDNG"` key, and the test here said so out loud rather than claiming a
+    repo-wide uniqueness that was false at the time. Both tools now import
+    `tools/wisdom/category_norm.py`, so the rule has one definition and the maps hold canonical
+    spellings only.
     """
-    assert "LIVE TRAIDNG" not in cat.CATEGORY_STREAM
-    assert "live traidng" in cat.CATEGORY_ALIASES
+    import sys as _sys
 
-    other = pathlib.Path(__file__).resolve().parents[1] / "tools" / "wisdom_golden_verify.py"
-    src = other.read_text(encoding="utf-8")
-    assert "LIVE TRAIDNG" in src, (
-        "the golden verifier no longer carries the typo — if it was folded onto "
-        "normalize_category, update this test and the R15 note in the reader"
-    )
+    tools = str(pathlib.Path(__file__).resolve().parents[1] / "tools")
+    if tools not in _sys.path:
+        _sys.path.insert(0, tools)
+    import wisdom_golden_verify as gv
+
+    assert "live traidng" in cat.CATEGORY_ALIASES
+    for name, stream_map in (("catalog reader", cat.CATEGORY_STREAM),
+                             ("golden verifier", gv.CATEGORY_STREAM)):
+        assert "LIVE TRAIDNG" not in stream_map, f"{name} still carries the typo as a key"
+        # non-vacuity: the map must still be a real map with the canonical spelling in it
+        assert stream_map.get("Live Trading Sessions") == "zoom_live", name
+
+    # and the typo still ROUTES correctly through both, which is what makes deleting it safe
+    for stream_map in (cat.CATEGORY_STREAM, gv.CATEGORY_STREAM):
+        assert stream_map.get(cat.normalize_category("LIVE TRAIDNG")) == "zoom_live"
+
+    # one definition, imported by both — not two copies kept in step by hope
+    assert cat.normalize_category is gv.normalize_category
+
+
+def test_both_tools_fold_the_seventeen_labels_onto_the_same_fifteen():
+    """⛔ R19's real assertion: the two streams must agree on the category SET, not just on the typo."""
+    import sys as _sys
+
+    tools = str(pathlib.Path(__file__).resolve().parents[1] / "tools")
+    if tools not in _sys.path:
+        _sys.path.insert(0, tools)
+    import wisdom_golden_verify as gv
+
+    labels = [label for label, _, _ in BY_CATEGORY_RAW]
+    via_reader = {cat.normalize_category(x) for x in labels}
+    via_verifier = {gv.normalize_category(x) for x in labels}
+    assert via_reader == via_verifier
+    assert len(via_reader) == NORMALISED_CATEGORIES == 15
+    assert len(labels) == RAW_CATEGORIES == 17, "control: the input really is 17 labels"
 
 
 @pytest.mark.skipif(not ARTIFACT.exists(), reason=f"gitignored artifact absent: {ARTIFACT}")
