@@ -2,7 +2,16 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **the owner's ruling on R14** — then item (c).
+> ### ⛔ NEXT: **item (c) — `request.security` tuples + IR-lane tuples. CENSUS NOT STARTED.**
+>
+> ⚠️ **It was not started because R14 landed AT its 2× stop** (~90 against 45), and
+> this programme does not open the next block on a doubled clock. Its prompt is
+> written and its first act is **c.1: read ruling D2 back verbatim** — whether it
+> forbids IR-lane *work* or only IR-lane output reaching the *pane* decides
+> whether (c)'s IR half is buildable in Wave 2 at all.
+>
+> ✅ **R14 CLOSED** (`f0e9d6c62` red → `7a4de1a92`). a7.2 finding 1 is closed with
+> it.
 >
 > ✅ **R14 MEASURED, and the answer is (C): NEITHER LANE IS WRONG.** Every
 > lane-only refusal falls inside that lane's own admissibility class — the

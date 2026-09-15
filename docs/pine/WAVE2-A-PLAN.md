@@ -1057,6 +1057,38 @@ is declared to accept is the regression in that direction.
 
 **Estimate 45 accepted; 2× stop 90.**
 
+### ✅ R14 LANDED — a7.2 finding 1 is CLOSED
+
+**Red `f0e9d6c62` → fix `7a4de1a92`.** ~90 min against 45 — **at the 2× stop**, not
+revised.
+
+The rail is `refusalsAreASurfaceProperty.test.js`; the superseded 13-set equality
+assertion is gone from `bothLanesAgreeOnFacts.test.js`, **with the reason left in its
+place** rather than the lines simply deleted. Output count stays asserted there, where
+it always belonged.
+
+**Coverage, measured:** 11 of 13 classify clean against `hostAdmissible`. Two residues
+are **pinned by name so they cannot grow silently**, not excused:
+
+| script | residue | reading |
+|---|---|---|
+| `rate-of-change` | 12 in class + 1 × `pine:hidden-only@308` | a **whole-script verdict downstream** of the class refusals — once they dropped the visible columns only author-hidden helpers were left. Explained transitively |
+| `high_engagement__20` | 4 × `pine:request@10` vs 2 × `pine:offset-literal@10` | **same line, different code per surface** — both lanes refuse line 10 for their own surface's reason, no `cum` anywhere. A second, smaller finding |
+
+⚰️ **The self-retiring check went red on its first run — the SEVENTH instance of this
+repo's own recorded class**, a literal-hunting check matching its own documentation:
+the retirement note necessarily *names* the constant it retired, so a bare
+`src.includes(needle)` stayed red after the deletion was complete. Fixed at the tool,
+never the explanation — comments stripped before matching, the needle built by
+concatenation, and two controls (the stripper still sees live code; it does not see a
+prose-only token).
+
+**Mutation-proved both directions**, byte-exact copies restored and re-verified 12/12:
+remove `isfirst` from the **manifest** (edited as text, `sha256 12949d80`, restored
+byte-equal) → **RED on the non-vacuity control**, which is the proof the rail reads the
+engine rather than a typed list; blind the regression guard → **RED on the synthetic
+cross-class control**.
+
 ---
 
 ---
