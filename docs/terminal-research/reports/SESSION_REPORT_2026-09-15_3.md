@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 12:58 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 13:34 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**20 commits** — ten docs, ten code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`
+**22 commits** — eleven docs, eleven code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -538,6 +538,66 @@ was run before it could become the fifth.
 ⛔ **I am deliberately not naming the cause.** The remaining candidates are separated by one
 sentence run #14 will print.
 
+## 3r · Run #14 — git's own words, and the root cause
+
+E CP16's firm prediction landed: the annotation carried git's sentence, and the line said
+FATAL with `rc=128`, not CONFLICT. **Two annotations, from ONE check run:**
+
+```
+fatal: empty ident name (for <runner@runnervm…internal.cloudapp.net>) not allowed
+rm -fr ".git/rebase-merge" | and run me again.  I am stopping in case you still have
+something | valuable there.
+```
+
+⭐ **Two rebases in one job.** The publish step runs one. Something else ran the other.
+
+## 3s · ⛔⛔ E CP17 — ASKING THIS TOOL TO CHECK A FILE ALSO PUSHED
+
+`ci_publish.main()` called `push_with_retry` **unconditionally**. And the workflow's step 8,
+`Prove the artifacts exist before reading them`, is:
+
+```
+python tools/ci_publish.py --check-artifact jobs.json … || true
+```
+
+That step runs **before** the publish step's `git config user.name` and **before** the branch
+switch. So on **every run since E CP9** it has attempted a full fetch/rebase/push against
+`ci-results`: the rebase dies on `fatal: empty ident name`, leaves `.git/rebase-merge`
+behind, and the real publish later refuses because of a directory **the same job created**.
+
+⛔⛔ **The `|| true` hid all of it.** The step reported success while performing an
+unasked-for push and corrupting the state of a step that had not run yet.
+
+⭐⭐ **This programme's own rule, inverted and worse.** The workflow says, three steps above:
+*"A verification line must never be able to destroy the thing it verifies."* Here the
+verification line **performed the action**.
+
+⚠️ **And it was invisible to every instrument built for it.** E CP14's trap reports the
+failing command of the step it is attached to; step 8's failure was swallowed by `|| true`
+before any trap could see it. Only the whole trace, with git's own text, in a channel that
+answers anonymously, made two rebases visible as two.
+
+**Fixes:** `--push` is now required for the tool to touch the branch (exactly one invocation
+passes it, and a workflow rail pins that); stale rebase state is cleared before rebasing; the
+committer identity is REPORTED rather than assumed. Nine controls, the first pair asserted by
+**wiring a recorder in place of `push_with_retry` and counting calls** — with a non-vacuity
+line, because an unwired stub would leave both counts at 0 and agree for the wrong reason.
+
+### Prediction for run #15 — a claim about a cause I have READ
+
+| field | prediction |
+|---|---|
+| `publish` | **success** |
+| a record at `results/<run_id>/summary.json` | **yes — the first since run #4** |
+| `results/latest.json` | **gone from the branch** |
+| the publisher's annotation | **`::notice::`**, ending `published on attempt 1` |
+| `shards_without_totals` | `[]` — **condition (b)** |
+
+⭐ **The difference from the earlier wrong predictions is not confidence — it is that git
+said what was wrong, in its own words, and the fix removes exactly that.** ⚠️ What would
+falsify it: any failure whose annotation is not about the rebase. That would be a further
+defect behind this one — and it would be **named**.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -705,6 +765,7 @@ ran a job.
 | **F-CI-17** | **NEW, and it reframes F-CI-7.** The step summary is 404 anonymously, so every phone-readable fallback this programme built is invisible to a reader without an account. Check-run annotations DO answer anonymously; the publish step now emits its failing command there. |
 | **RETRACTED (3)** | *E CP13's diagnosis* — "the checkout deletes the script, so python exits on a missing path". Python exits **2**; the step reported **1**, so it died at `git checkout`. E CP14's explicit refspec was the fix, not the insurance I labelled it. |
 | **F-CI-18** | **NEW, mine.** `push_with_retry` called a rebase rc of **128** a REBASE CONFLICT — a conflict is rc 1 — and published a sentence about two publishers colliding when there was one. rc is now keyed and git's own text reaches the log. |
+| **F-CI-19** | **NEW, mine, and it is the root cause.** `ci_publish.main()` pushed unconditionally, so the artifact-check step — run before any `git config`, wrapped in `|| true` — attempted a rebase on every run since E CP9, died on an empty identity and left `.git/rebase-merge` for the real publish to trip over. `--push` is now required. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -735,8 +796,8 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 since **run #4**; runs #6, #8, #9, #10 and #11 all lost their `publish` job.
 
 The 26-row table with fingerprints and reader states is in the manifest; every row reads
-**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–27 nothing member-visible.**
-Row 28 is E CP16 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–28 nothing member-visible.**
+Row 29 is E CP17 (CI only); the one member-visible unit is `s2-accelerator-chord` —
 Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
 stops before it unless `--include-member-visible` is passed. **This session merged and
 deployed nothing.**
@@ -753,8 +814,8 @@ carries the verdict, both suites' counts and `shards_without_totals`.
 
 ## 10 · Merge readiness
 
-**28 rows, 28 OK, 0 STALE. 27 of 27 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **20 constraints SATISFIED**, 28 units, 0 MALFORMED,
+**29 rows, 29 OK, 0 STALE. 28 of 28 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **21 constraints SATISFIED**, 29 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
