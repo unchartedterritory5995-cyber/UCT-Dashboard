@@ -10,8 +10,8 @@ Start **2026-09-15 00:50 EDT Tue**, end **2026-09-15 01:12 EDT Tue** (report wri
 CI poll continuing), both `python tools/weekly_exec.py et`. Both worktrees
 `git status --porcelain` → **0** at start and end.
 
-**5 commits** — four docs worktree, one code worktree (`b70a874ed`, pushed to
-`feat/s7-price-level`). Nothing signed, nothing merged, nothing pushed to master.
+**10 commits** — eight docs worktree, two code worktree (`b70a874ed`, `4ad1108d1`, both
+pushed to `feat/s7-price-level`). Nothing signed, nothing merged, nothing pushed to master.
 
 ## 2 · S — the signature reader and F-MERGE-1
 
@@ -177,32 +177,93 @@ was wrong), **and** the publish job is genuinely the only unauthenticated path t
 **text**. CP2/CP4 are justified on two grounds now — durability and anonymous detail — not
 the one that evaporated.
 
-### E4.2 / E4.3 — pending run #3
+### E4.2 — the 479 pytest errors, bucketed. ONE root cause.
 
-Run #3 (`b70a874ed`) was still `in_progress` at report time: pytest **completed success**,
-vitest still running (run #2's vitest took 1,020 s). `ci-results` still carries run #2's
-record. Per the session's own instruction the poll is read-only and bounded at 30 minutes.
+Run #3 (`b70a874ed`) published with `detail: true` — **E CP4 worked end to end on its first
+run.** All 479 errors resolve into **18 buckets, every one a `ModuleNotFoundError`:**
 
-**Status at writing: UNREADABLE-PENDING.** The bucket table, the top-bucket root cause and
-the vitest classification are not reported as measurements because they are not yet
-measured. ⛔ **A hypothesis is not a bucket table.**
+| count | module | example node id |
+|---|---|---|
+| **274** | `fastapi` | `tests/api/test_buzz_render_panel.py` |
+| 63 | `requests` | `tests/test_ai_search_resilience.py` |
+| 41 | `bcrypt` | `tests/test_auth_plan.py` |
+| 23 | `cryptography` | `tests/test_broker_admin_debug.py` |
+| 20 | `pydantic` | `tests/test_broker_balances.py` |
+| 20 | `yfinance` | `tests/test_comparison_ai_adapter.py` |
+| 10 | `matplotlib` | `tests/test_discord_chart_hotset.py` |
+| 9 | `pandas` | `tests/test_breadth_adv_dec_restated.py` |
+| 7 | `orjson` | `tests/test_bars_dead_ticker.py` |
+| 3 | `openai` | `tests/test_voice_intent.py` |
+| 2 | `uvicorn` | `tests/test_bars_api_main.py` |
+| 1 ×7 | `starlette` · `snaptrade_client` · `apscheduler` · `botocore` · `nacl` · `stripe` · `pyotp` | — |
 
-⭐ **The strongest hypothesis, recorded as a hypothesis and nothing more.** The workflow
-installs:
+**274+63+41+23+20+20+10+9+7+3+2+7 = 479.** ⭐ The arithmetic closes exactly against the
+totals line, which is what makes this a measurement and not a sample.
 
-```
-python -m pip install --quiet pytest pytest-asyncio httpx numpy pillow
-```
+**Told-vs-found.** The workflow installed `pytest pytest-asyncio httpx numpy pillow`.
+`requirements.txt` exists at the repo root, is **83 lines**, declares every top bucket —
+and **already contains all five** of the hand-installed packages. `-r requirements.txt` is
+a strict superset; the hand-typed list lost nothing and cost 479 of 481 modules.
 
-Five packages, against a backend whose tests import `api.**`. If the 479 errors bucket to
-`ModuleNotFoundError`, the fix is one workflow line (install the requirements file) and it
-would be **T2 CP1** — one unit, one commit. **This is not filed as a finding**: the
-prediction is cheap and the measurement is the thing that counts.
+⛔⛔ **THE BACKEND SUITE WAS NOT RED — IT NEVER RAN.** `collected 2` of 481.
+⭐ **The only thing that stopped this being published as a pass is `ci_summarize`'s rule
+that zero collected is never `ok`.** One guard away from a green badge over a suite that
+imported nothing.
+
+**T2 CP1 built** (`4ad1108d1`, pushed): one line, one file, one commit — the condition the
+scope set. Collision proof: no `T2` packet or CP id exists anywhere in `gates/`.
+⚠️ **It has no parent packet**, which is OPEN QUESTION 6.
+
+**Run #4 is in flight at report time.** The expected outcome is recorded in the build record
+*before* it lands, so it can be wrong: collection on the order of the full module count, and
+a **genuine red** rather than a green. This unit makes the suite run; it does not claim to
+make it pass.
+
+### E4.3 — the 14 vitest files, classified
+
+**23 junit failure entries across 14 files.** ⚠️ The summary's totals line says **21**;
+the junit report yields **23**. Two instruments disagreeing by two is recorded, not
+reconciled away — `ci_summarize` reads the totals line, `ci_extract` counts `<failure>`
+elements, and which is right is not yet measured.
+
+| file | n | class | evidence |
+|---|---|---|---|
+| `hub/rule12Paths.test.js` | 4 | **ENV** | *"RULE 12 RAIL CANNOT RUN — no base ref resolved"*; `git merge-base origin/master HEAD` fails |
+| `hub/surfaceMatrixIsCurrent.test.js` | 4 | **ENV** | `git show febe8ee67:… fatal: invalid object name` |
+| `chart/engine/readout.test.js` | 3 | **ENV** | `could not read d2733adc:…StockChart.jsx via git` |
+| `chart/engine/__tests__/enumerationSites.test.js` | 1 | **ENV** | `git could not read StockChart.jsx at 084eeded` |
+| `chart/engine/__tests__/legendFromDefinitions.test.jsx` | 1 | **ENV** | same `d2733adc` read |
+| `journal-2-0/lib/iteratorGlobalFloor.test.js` | 1 | **ENV** | `app/dist/assets missing — run npm run build`; CI never builds the frontend |
+| `journal-2-0/lib/importer/exportRoundtrip.test.js` | 1 | **ENV** | its Python fixture fails importing `api.services.journal_two.notes_export` — **the T2 CP1 root cause** |
+| `lib/journal-2-0/format.test.js` | 2 | **ENV (timezone)** | `expected '04/08/26' to be '04/09/26'` — a **one-day** shift; CI is UTC, the box is ET |
+| `components/screener/reachable.test.js` | 1 | **KNOWN-RED** | R-29 + F-S1-2, cited in E.3 — names deliberately unmounted modules |
+| `hooks/pollingSites.rail.test.js` | 1 | **REAL** | a bare `useSWR(…, {refreshInterval})` site the 2026-08-09 census did not have — genuine drift |
+| `styles/tapFloor.test.js` | 1 | **REAL** | a finger target declared at ≤640px but not ≤1024px — *tablet is touch too* |
+| `surfaces/manifest.test.js` | 1 | **REAL** | `/admin/wisdom` has no manifest row |
+| `breadth/heatmapRegistry.golden.test.js` | 1 | **REAL** | golden serialisation drift |
+| `chart/engine/ast/manifestProse.test.js` | 1 | **REAL** | `_session` is READ but would be stripped |
+
+**ENV 13 · KNOWN-RED 1 · REAL 5 · UNREADABLE 0 — 8 files, 13 failures are the environment.**
+
+⭐ **Five of those thirteen are ONE cause: `actions/checkout` is shallow**, so
+`git merge-base` and `git show <sha>:<path>` cannot resolve. **F-CI-4**, fix is
+`fetch-depth: 0` — same file, one line, different root cause, **not built** because the
+scope authorised one.
+
+⭐⭐ **The most reassuring line in the entire run is a failure.** `rule12Paths` reports
+*"the forbidden-path check would pass vacuously"* and **refuses**. A rail that cannot run
+declining to report success is the non-vacuity rule working in production, unprompted.
+
+⚠️ **Told-vs-found against `CLAUDE.md`.** It documents `enumerationSites.test.js` as
+**load-sensitive** (15,000 ms under the full suite, 1,461 ms alone). In CI it fails for a
+**different** reason — an unreadable git object. The documented cause is real but is not
+this one; a reader trusting the doc would have chased a timeout.
 
 ### E4.4 — promotion tally
 
-E CP3's criterion is ≥1 GREEN and ≥1 RED run in the ledger. Run #2 supplies the **RED**.
-**There is still no GREEN.** Promotion stays unbuilt.
+E CP3's criterion is ≥1 GREEN and ≥1 RED in the ledger. Runs #2 and #3 supply the **RED**.
+**There is still no GREEN**, and there cannot honestly be one until the environment
+failures are separated from the real ones. Promotion stays unbuilt.
 
 ## 4 · Q — whole-queue premise audit
 
@@ -359,6 +420,7 @@ S6 CP4  <- S6 CP2
 | **F-MERGE-1** | **CLOSED.** Two commits claimed by no unit; one absent approval block produced both the merge-unapproved and never-merge halves. Rule in `GOVERNING_PRINCIPLES.md` §15. |
 | **F-S6-1** | **NEW.** S6 CP2 asserts *"Calendar the only caller"* of `get_user_ticker_sets`; there are **three** production callers, two outside Calendar including member-facing alerts. |
 | **F-SIGN-2** | **NEW.** `entity-master-pre-implementation-gate.md` carries **no approval block**, so it cannot be signed as it stands. Ships no commits today, so nothing is blocked. |
+| **F-CI-4** | **NEW.** Five vitest files (13 of 23 junit failures) fail on a shallow `actions/checkout`; `git merge-base` / `git show <sha>:<path>` cannot resolve. Fix is `fetch-depth: 0`, one line, same file. Not built — different root cause. |
 | **F-CI-3** | carried forward, unrepaired by design: `oom_or_timeout` matches the *word* "timeout" anywhere in the log. |
 
 ## 7 · OPEN QUESTIONS
@@ -372,6 +434,7 @@ S6 CP4  <- S6 CP2
 3. **S3 `/status`: no-auth per spec §7.3, or admin-gated as shipped?** The ledger
    recommends keeping admin-only and amending the spec (R-17). Your ruling.
 4. **May `COMPLETION_AUDIT.md` §0 be updated from the harvester** (31 → 50), as a unit?
+6. **T2 CP1 has no parent packet.** No `T2` packet or CP id exists anywhere in `gates/`, so the commissioned id was free — but every other build record cites a parent whose gate line authorises it. Its natural home is **packet E** (a CI-workflow fix, found by E CP4's own instrument). **Adopt as `E CP5`, or write a T2 packet?**
 5. **`entity-master-pre-implementation-gate.md` needs a block** before it can ever be
    signed. Add one now, or when it first ships code?
 
@@ -397,8 +460,11 @@ python tools/merge_all.py --manifest tools/sign_manifest.txt
 ⛔ **PARKED. Two conditions unpark them:**
 
 1. ~~**F-MERGE-1 CLOSED**~~ — **met this session.** 13 of 13 commits mapped, exit 0.
-2. **CI red diagnosed with every failing file classified** — **NOT met.** Run #3 had not
-   published at report time; no bucket table, no vitest classification.
+2. **CI red diagnosed with every failing file classified** — ⭐ **MET for the diagnosis,
+   NOT for the state.** Every one of the 14 vitest files is classified and all 479 pytest
+   errors are bucketed to a single root cause. But T2 CP1's run #4 has not landed, five
+   ENV failures remain unfixed (F-CI-4), and **5 REAL failures are real**. The branch's
+   own CI has never been green. **Still PARKED.**
 
 | row | packet | CP | fingerprint | reader | merges-after |
 |---|---|---|---|---|---|
@@ -423,10 +489,10 @@ unchanged. **This session merged and deployed nothing.**
 
 ## 10 · Merge readiness
 
-**14 rows, 14 OK, 0 STALE. 13 of 13 commits mapped. `verify_manifest --check-commits`
+**16 rows, 16 OK, 0 STALE. 15 of 15 commits mapped. `verify_manifest --check-commits`
 exit 0.** `sign_gate --read-check` exit 0; `sign_gate --self-check` exit 0;
-`merge_all --dry-run` exit 0 (6 constraints SATISFIED, 0 MALFORMED, 0 UNSIGNABLE);
-`sign_all --dry-run` exit 0, 14 commands.
+`merge_all --dry-run` exit 0 (**8** constraints SATISFIED, 16 units, 0 MALFORMED, 0
+UNSIGNABLE); `sign_all --dry-run` exit 0, **16** commands.
 
 ⛔ **Not ready to merge.** The branch's own CI says RED with a backend suite that did not
 collect, and run #3's diagnosis is still pending.
@@ -443,6 +509,10 @@ left behind when the merge finally runs.**
 **Checking the remaining queue before building any of it found one instruction that would
 have broken something: it says only the Calendar uses a function that three parts of the
 system actually use, and two of those send alerts to members.**
+
+**And the backend test suite has not been failing in CI — it has not been running at all:
+479 of its 481 files could not even load, because the CI job installed five libraries
+instead of the list the project keeps, and that is now one line different.**
 
 ## 12 · Status
 
