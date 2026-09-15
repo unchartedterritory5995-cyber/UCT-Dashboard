@@ -1,0 +1,30 @@
+# TERMINAL-NEXT — the signing manifest, in MERGE ORDER.
+#
+# One row per checkpoint, not per packet: the T/D3 packet carries two checkpoints and
+# therefore two rows, because a signature must name a CHECKPOINT and never a packet.
+#
+# Columns:  packet path | checkpoint id(s) | expected fingerprint
+#
+# ⛔ The fingerprint is `git hash-object` of the packet WITH ITS `APPROVED AT SHA:` FIELD
+# BLANK. tools/sign_all.py recomputes it and STOPS on any mismatch — a packet edited after
+# its hash was published must not be signed against the published value.
+#
+# ⚰️ 2026-09-14: the F-S2-1 packet was published as 28da7740d and then edited the same day
+# (an attribution correction, 0b7570df4 -> 453ecc3ec). Its real fingerprint is 72cda4cda.
+# That drift is exactly what the recompute is for.
+#
+# Order is the MERGE order and is load-bearing:
+#   C before D   - same file (CLAUDE.md), different sections; never squash
+#   B before V   - V adds CP4 to B's roster
+#   F-S2-1 LAST  - the only member-visible unit, merged alone
+
+docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | CP1,CP2 | c443515eb
+docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md | CP1,CP2 | e279c828c
+docs/terminal-research/12-decisions/gates/packet-b-schema-resolution-gate.md | CP1,CP2,CP3 | a03e0cbf5
+docs/terminal-research/12-decisions/gates/packet-v-multi-volume-gate.md | CP4 | f94d7addc
+docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | CP2 | 21d6ad3e8
+docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | c90ad04d2
+docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
+docs/terminal-research/12-decisions/gates/packet-t-stale-test-gate.md | T-CP1 | 5179b2890
+docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | CP2 | f7e851d58
+docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementation-gate.md | CP1 | 72cda4cda
