@@ -440,6 +440,59 @@ refusal would put a line in the result for every `len = 14` in every script.
 
 ---
 
+# a7 — MEASURED, AWAITING A GO. Much of it already exists.
+
+⛔ **Evidence only — nothing built.** Recorded here because a plan that lives in chat
+gets reconstructed from memory, which is why this file exists at all.
+
+## 3.1 The shared contract EXISTS, and it is not `defSchema`
+
+`defSchema` is the builder's definition schema and is JS-only. The actual JS↔Python
+contract is the set of **committed JSON artifacts** under
+`app/src/components/chart/engine/ast/*.json` plus `tools/lookback_agreement.json` —
+**written by JS tests, read by Python rails**. `lookback_agreement.json` says so in its
+own `_` field: *"WRITTEN BY lookbackAgreement.test.js, read by
+tests/test_ast_lookback_agreement.py. Do not hand-edit."*
+
+⚠️ **Versioning is NOT uniform** — measured: `closedTable.json` has `tableVersion`,
+`conceptVocabulary.json` and `starterScans.json` have `version`, `symbolScope.json` has
+**none**. Three spellings and one absence across one contract.
+
+## 3.2 The Python twin EXISTS — 23 rails — and is a VERIFIER, not a translator
+
+`tests/test_ast_*.py`, 23 files, plus `tools/ast_conformance.py`, which shells out to
+node (`run_js`) and **refuses rather than reporting zero** when a lane cannot be
+measured. They consume the 3.1 artifacts: `closedTable.json` ×2, `scalars.json`,
+`must_repaint.json`, `multi_tree_parity.json`, `conformance_log.json`,
+`clock_parity.json`, `bind_fold_parity.json`, `lookback_agreement.json`.
+
+⭐ **So a7 does not contain "build a Python twin".** It contains extending and
+documenting one that is already load-bearing — a materially smaller and different job
+than the plan line implies.
+
+## 3.3 The both-lane corpus run costs **5 seconds**. No sharding.
+
+`corpusMetric.test.js` already runs **both lanes over 266 scripts**, producing
+`host_ok` and `screener_ok` per script. Measured with the runner exit form:
+**WALL 5s, tests 3.70s.** Extending to all 327 is ~4.5s of work.
+
+⛔ **The OOM/sharding concern does not apply here** and assuming it would have been the
+error: that behaviour belongs to the 12-chunk *pytest* lane, not to one short vitest
+file. No shard count is needed.
+
+## Proposed sub-steps — for a go, not started
+
+| # | scope | estimate |
+|---|---|---|
+| **a7.1** | the shared contract stated AS a contract: who writes each artifact, who reads it, versioning made uniform (three spellings + one absence today), and a rail that fails when an artifact gains a field no reader knows | 45 min |
+| **a7.2** | the both-lane agreement rail extended 266 → 327, asserting per-script lane agreement on FACTS (equal `refusals.length`), budgeted by the 5s measurement | 40 min |
+| **a7.3** | the Python twin's coverage census — which of the 23 rails reads which artifact, and what is written but unguarded | 40 min |
+| **a7.4** | snapshots · suites · the Python lane once (filename-scoped, chunked) · vite build | 60 min |
+| **a7.5** | item (a) and wave-2(a) close-out records | 20 min |
+| | **total** | **205 min** |
+
+---
+
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
 
 **H.2's definition, met:** both lanes, **0 refusals**, every plot presentation and every
