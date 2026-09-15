@@ -334,6 +334,57 @@ const AWAITING_A_DECISION = {
   // excuse" this register's own header warns about, so this is dated and
   // re-argued rather than re-greened.
   //
+  // ── WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS ───────
+  //   (2026-09-14, owner ruling 0.2 of the a7.5 prompt)
+  //
+  // ⚠️ THESE EIGHT WERE NEVER MEASURED BY ANY EARLIER SCOPE. a7.4 ran the FULL
+  // vitest suite for the first time on this branch; this rail lives under
+  // `components/screener/`, which the wave's scoped runs
+  // (`chart/{engine,builder,pane}` + `src/hooks`) never reached. So the rail was
+  // not newly broken — it was newly RUN, and it was right both times.
+  //
+  // ⛔ THE REASON IS DATED AND THE EXPIRY IS AN EVENT, which is the only kind
+  // this register accepts: **Wave 2 is in flight, and reachability for all eight
+  // is decided at Wave 2 close.** Whichever of them the wave does not mount is
+  // deleted then — not re-parked. The owner holds a per-module veto on these
+  // entries; any module vetoed comes straight back out and goes red again.
+  //
+  // ⭐ WHY THEY ARE NOT ONE THING: six are R0 renderer primitives built ahead of
+  // the drawing path they serve, one is the RUNTIME lane's clock (and is
+  // therefore held off the pane by the same ruling D2 as the block above), and
+  // one is an instrument like `oosHarness.js`. Recording them as a single
+  // undifferentiated batch is how a register becomes the parking space its own
+  // header warns about.
+  'app/src/components/chart/engine/textLayout.js':
+    'R0.1 RENDERER PRIMITIVE — the text engine lightweight-charts lacks. Built '
+    + 'ahead of the drawing path that consumes it. Wave 2 in flight; '
+    + 'reachability decided at Wave 2 close (2026-09-14).',
+  'app/src/components/chart/engine/objectPool.js':
+    'R0.2 RENDERER PRIMITIVE — Pine\'s drawing-object quota and its FIFO '
+    + 'eviction. Same wave, same expiry.',
+  'app/src/components/chart/engine/versionRender.js':
+    'R0.3 RENDERER PRIMITIVE — the version-dependent renderer. Same wave, same '
+    + 'expiry.',
+  'app/src/components/chart/engine/lwcHazards.js':
+    'R0.4 RENDERER PRIMITIVE — the lightweight-charts traps as code rather than '
+    + 'folklore. Same wave, same expiry.',
+  'app/src/components/chart/engine/zorder.js':
+    'R0.5 RENDERER PRIMITIVE — Pine\'s nine z-buckets onto lightweight-charts\' '
+    + 'four slots. Same wave, same expiry.',
+  'app/src/components/chart/engine/colorInt.js':
+    'RENDERER PRIMITIVE — the `0xTTBBGGRR` colour integer and its byte order. '
+    + 'Same wave, same expiry.',
+  'app/src/components/chart/engine/ast/pineRuntimeClock.js':
+    'T4 — the `newestBarIsForming` producer for the RUNTIME lane. Held off the '
+    + 'pane by ruling D2, exactly like the `runtime/*` block above, so it '
+    + 'expires on the SAME condition: the commit that puts the IR lane on the '
+    + 'pane path.',
+  'app/src/components/chart/builder/memberPane/seriesCompare.js':
+    'T5 — per-series vendor agreement. An INSTRUMENT, not a member surface, in '
+    + 'the same class as `oosHarness.js`: invoked by tooling and tests, with no '
+    + 'member route by design. Confirm at Wave 2 close and move it to the '
+    + 'instrument clause if it is still one.',
+  //
   // ── JOYSTICK HUB, PHASE 1 → WIRED IN PHASE 3 WAVE A (2026-09-09) ─────────
   //
   // `useHubMode.js` and `useHubCursor.js` WERE declared here, with a stated removal

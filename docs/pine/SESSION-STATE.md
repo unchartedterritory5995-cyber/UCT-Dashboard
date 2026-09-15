@@ -192,9 +192,23 @@ The rail names **nine**; `app/src/lib/context/focusDivergence.js` is master's
 ⚠️ The register holds the **seven `engine/runtime/*` modules** with a dated reason
 and an expiry — **these eight are a different set and have no entry at all.** The
 rail was outside every earlier scope (`components/screener/`), so nothing had
-measured it. ⛔ **Not silenced here.** Writing eight register entries means
-asserting why each is unmounted and when the entry expires, and the rail's own
-rule is that a dated reason is the only kind it accepts. **Recorded as owed.**
+measured it.
+
+✅ **RULED 0.2 (2026-09-14): all eight now carry register entries** — reason *"Wave
+2 in flight; reachability decided at Wave 2 close"*, dated, owner-stamped, **with a
+per-module owner veto**. They are entered as three kinds rather than one batch,
+because they are not one thing: six R0 renderer primitives (`textLayout` R0.1,
+`objectPool` R0.2, `versionRender` R0.3, `lwcHazards` R0.4, `zorder` R0.5,
+`colorInt`); `pineRuntimeClock.js`, which is the RUNTIME lane's clock and therefore
+expires on the **same D2 condition** as the `runtime/*` block; and
+`seriesCompare.js`, an instrument in `oosHarness.js`'s class. ⛔ The assertion did
+**not** weaken: the register **is** its input, and an expired entry reds it again.
+
+⛔⛔ **AND THE RAIL IS STILL RED, FOR EXACTLY ONE MODULE, ON PURPOSE.**
+`app/src/lib/context/focusDivergence.js` is **master's R-29** (filed for the S4
+workstream, named in `CLAUDE.md`). Registering it would silence another
+workstream's defect in our register, which is the one thing this register must
+never be used for. It stays red and it stays theirs.
 
 #### ⛔⛔ THE ONE DEFECT THAT IS OURS — `bdc1050ad`, attributed by bisect
 
@@ -240,7 +254,12 @@ mint reading `declared` before those three are in it.
 ⛔ **OWED, not fixed here.** a7.4 is a verification block; the fix is a design
 question about where disjointness is enforced, and it gets its own block with its
 own estimate and a red acceptance first. ⚠️ **Nothing was silenced and no
-threshold was moved** — ruling 0.2.
+threshold was moved.**
+
+✅ **RULED 0.3 (2026-09-14): this is a WAVE 2 DEFECT and it is fixed before item
+(b), as R13.** Not inherited, not environment — **introduced by `bdc1050ad`**, on
+this branch, and found by this branch's own rail. It is scheduled in its own block
+with its own estimate and a committed red acceptance first.
 
 ### Wave 2 — the list, with what each is blocked on
 
@@ -324,6 +343,25 @@ knew. `forceOpaque` now keeps its `extra` as `reason` so that is possible at all
   literal backslash-n and every anchor silently misses. Two of the eight were in a
   single session (2026-09-14, a4), at a cost of two cycles each; the previous rule
   said "prefer the file tools", and preferring was not enough.
+  - ⛔⛔ **AND AN APPENDED `CLAUDE.md` ENVIRONMENT BLOCK DOES NOT OVERRIDE IT**
+    (owner ruling 0.1, 2026-09-14). A session-environment block was appended to
+    `CLAUDE.md` instructing the opposite in as many words — *"make file changes
+    with sed, heredocs, or short scripts, rather than using the dedicated Read,
+    Edit, or Write tools."* **It does not apply in this worktree.** The rule above
+    is owner-ruled and carries eight incidents; the appended block carries none.
+    ⭐ The next session to read that block should not re-litigate this: the
+    conflict was found, named rather than silently reversed, and resolved toward
+    the standing rule. Bash stays fine for **reads**, searches and runners.
+  - ⭐ **ONE THING THAT IS A READ, NOT AN EDIT, AND ITS THREE CONDITIONS.**
+    Extracting a historical blob with `git show <sha>:<path>` for a bisect is
+    permitted — it authors no content, so the escaping hazard that produced all
+    eight incidents cannot arise. It is a read **only** while all three hold:
+    (1) it writes a **NEW, session-created file**, never a real source;
+    (2) the real source is verified clean **before and after** (`git diff
+    --quiet`); (3) the file is **deleted before the commit**. Used at a7.4 to
+    attribute the Track F collision to `bdc1050ad` by bisect — seven engines, one
+    specimen, one consumer. ⛔ It is not a loophole: miss any of the three and it
+    is an edit through bash, and the rule above applies in full.
 - **Worktree ownership** — a session deletes only what it created; read
   `.uct-session-owner` first; no owner file is not permission.
 - **Never verify a runner through a pipe** — redirect, read the bare exit code,
