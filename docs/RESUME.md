@@ -1,3 +1,75 @@
+# TRACK A LIVE CLUSTER — ALL FOUR CLOSED (2026-09-15) — AWAITING DEPLOY REVIEW
+
+HEAD 346016210 (merged current origin/master). NOT PUSHED. NOT DEPLOYED.
+
+## The four
+
+F2 Volume snap-back / ratchet  ROOT CAUSE A   fix 6e243a887
+F3 QQQ oversized / Price crushed ROOT CAUSE A (same defect)
+F1 QQQ sharing Volume's scale  ROOT CAUSE B   fix ba1504eb2
+F4 order divergence            NO SECOND DEFECT FOUND — see below
+
+## ROOT CAUSE A — two writers, two incompatible bases
+
+`StockChart` sized the volume pane with an ABSOLUTE pair
+`setStretchFactor(100 - pct) / (pct)`. Stretch factors are RELATIVE, so that only
+means "pct% of the chart" while those two panes ARE the chart. With a third pane
+volume's real share is `pct / (100 + thirdStretch)` — the third pane holds a
+weight from `computePaneLayout`, which is on a PIXEL basis while this writer is
+on a PERCENT basis.
+
+Then the 300ms sampler measures correctly (`volPanePctOfStack`) and compares
+against `lastAppliedVolPctRef` (what the writer BELIEVED). Measured: apply 22
+with a third pane at 81 → measures 12 while the ref says 22. `latchOnDrag` fires
+at a 2-point gap → within 1.5s of a real drag it latches 12 as the member's
+choice and PERSISTS IT GLOBALLY → next pass applies 12 → measures ~7 → latches
+again. Volume ratchets down; the third pane, which nothing writes, is left
+holding ~45%. F2 and F3 are that one event seen from two sides, which is exactly
+why deleting QQQ made Volume resize normally again.
+
+FIX: `legacyPairOwnsStack(paneCount, hasIndexPane)` in `chart/volumePaneDrag.js`.
+False → the writer stands down and records NULL, so the sampler bails on its own
+`applied == null` guard, and the canonical layout owns the stack (it already did:
+`binder` ends every sync with `applyPaneStretch`, ungated).
+
+## ROOT CAUSE B — a modern target was not enough to place a guest
+
+`resolvePlacement`'s volume-overlay branch (the one granting the LEFT axis) fired
+only on the LEGACY `volumeOverlayIndicators` list. A blob with
+`{target:'volume', targetExplicit:true}` and no mirror fell through to the
+own-pane branch, found no pane (a guest is a FOLLOWER), failed closed, and the
+series BOUND NOTHING. Measured through the real binder: `bound: 0`.
+
+FIX: the branch also accepts `target === 'volume'`. No symbol or definition
+special case; the units rule (guest = left axis, Volume keeps right) unchanged.
+
+## F4 — determination, and NO fake second fix
+
+With both fixes active the exact live sequence settles at
+Chart Data [QQQ, Volume, Price] and physical [QQQ 80, volume 152, price 456] —
+agreeing, correctly sized, stable across 5s of reconciliation. Also measured:
+canonical readers agree across 8 stored-order shapes; `settleArrangement`
+realises all 6 permutations; every move click agrees.
+
+⚠️ The live screenshot's HEIGHTS are explained by root cause A. Its apparent
+ORDER cannot be re-derived by eye: SPY (757) and QQQ (704) carry near-identical
+axis ranges, so reading which pane is which off the axis is not evidence. No
+ordering mechanism was found to be wrong in any state that could be constructed.
+`paneMatrix8State` now asserts order AND compact sizing TOGETHER in all eight.
+
+## Held, still unshipped
+
+118bbe1e1 MultiChartGrid `volumeOpts` — real parity defect (grid cells render a
+separate volume pane while the shared modal asked the settings-only question, so
+`movePane` wrote an order with the volume key missing). Independent of both root
+causes. RECOMMEND shipping together: small, railed, bite-checked, no interaction.
+
+## Gate
+
+Broad `src/components` + `src/pages`: 5 pre-existing failing files, zero
+attributable. Build clean. Merged current origin/master (no file overlap, no
+deletions). Breadth untouched. Main Trading never opened.
+
 # TRACK A LIVE CLUSTER — ROOT CAUSED AND FIXED LOCALLY (2026-09-15)
 
 HEAD 6e243a887. NOT DEPLOYED, NOT PUSHED. 3 ahead / 17 behind origin/master
