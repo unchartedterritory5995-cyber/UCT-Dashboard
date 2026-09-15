@@ -1089,6 +1089,36 @@ byte-equal) → **RED on the non-vacuity control**, which is the proof the rail 
 engine rather than a typed list; blind the regression guard → **RED on the synthetic
 cross-class control**.
 
+### ✅ a7.2 finding 1 — CLOSED (R14). The four things this leaves on the record
+
+1. **ONE AUTHORITY.** `closedTable.json::_requirement_tags` → `parse.js::hostAdmissible`
+   → the rail. The class is never typed in a test, and the manifest mutation is the
+   proof that chain is live rather than decorative.
+2. **HOST IS LOOSER THAN SCREENER IN EXACTLY ONE PLACE, AND STRICTER EVERYWHERE
+   ELSE.** That reads backwards until you have the reason, which `hostAdmissible`'s
+   own comment gives: strictness is about whether we can **draw** the script;
+   `window_dependent` is about whether the number is **comparable** across symbols and
+   runs, and a pane is one symbol, one fetch, with the bar count on screen.
+3. **THE TWO RESIDUES, BY NAME** (above): `rate-of-change` `pine:hidden-only@308`,
+   downstream of 12 class refusals; `high_engagement__20` `pine:request@10` against
+   `pine:offset-literal@10` — **now routed by R17, below**.
+4. **THE SEVENTH LITERAL-HUNTING INSTANCE, WITH ITS FIX PATTERN**: strip comments
+   before matching · build the needle by **concatenation** so the checking file does
+   not contain it · carry stripper controls **both ways** (it still sees live code; it
+   does **not** see a prose-only token). ⛔ The explanation is never deleted to make a
+   check pass — the check is fixed.
+
+### ✅ R17 (owner, 2026-09-15) — `high_engagement__20` IS ITEM (c)'S SPECIMEN
+
+⛔ **It is NOT opened as its own finding.** `pine:request` is item (c)'s code, and a
+same-line disagreement between the two surfaces is a fact about **how each surface
+reads a `request.security` call** — which is exactly what (c) exists to settle.
+
+It carries into the (c) census as a **named script in c.4**, with both refusals
+reported at their sites: screener `pine:request@10` ×4 against host
+`pine:offset-literal@10` ×2. ⭐ The R14 rail keeps it pinned meanwhile, so it cannot
+grow silently while (c) is still being scoped.
+
 ---
 
 ---
