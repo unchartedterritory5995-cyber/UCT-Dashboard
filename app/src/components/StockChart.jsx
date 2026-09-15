@@ -122,7 +122,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, siblingSuffixes } from './chart/engine/readout'
+import { legendChips, siblingSuffixes, paneReadoutLabel } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -687,10 +687,10 @@ import {
   // Chart Settings → Indicators now read this same function.
   displayTargetOptions,
 } from './chart/engine/displayTarget'
-import { parsePaneOfTarget } from './chart/engine/sourceRef'
+import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
-import { symbolFamily, loadBreadthSymbols } from '../hooks/useBreadthSymbols'
+import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 
 const NOOP = () => {}
 
@@ -5774,6 +5774,43 @@ export default function StockChart({
     const target = resolveDisplayTarget(inst, cs)
     if (target === 'pane') return id
     return parsePaneOfTarget(target)
+  }, [cs])
+  /**
+   * The LONG name a pane readout prints for one chip.
+   *
+   * ⭐⭐ THE PANE SAYS IT IN FULL, THE STRIP KEEPS IT SHORT (owner, 2026-09-14):
+   * *"when in their own pane show the full name … but in the legend keep all of
+   * them abbreviated"*. `paneReadoutLabel` owns the rule; this supplies the one
+   * fact that rule cannot reach — what a SYMBOL is called — because `dataSeries`
+   * is deliberately blind to symbol families and `readout.js` imports no source
+   * grammar.
+   *
+   * ⛔ THE MEMBER'S OWN NAME WINS, AND IT IS TESTED FIRST. An instance renamed
+   * through a catalogue door carries `display.name`, which is already what the
+   * chip prints; replacing it with the registry's sentence would overrule a
+   * member's rename on one surface and not the other.
+   *
+   * ⚠️ NULL IS THE ORDINARY ANSWER for a security (`QQQ` overlaid on AAPL): the
+   * breadth registry is not a company-name directory, and the chip's own label is
+   * the right fallback — the symbol IS what that row is called.
+   */
+  const paneLongName = useCallback((chip) => {
+    const id = chip && chip.instanceId
+    if (typeof id !== 'string' || !id) return null
+    const inst = (engineInstancesRef.current || []).find((i) => i && i.instanceId === id)
+      || (cs.indicatorInstances || []).find((i) => i && i.instanceId === id)
+    if (!inst) return null
+    if (inst.display && typeof inst.display.name === 'string' && inst.display.name) return null
+    const def = engineRegistry.getDefinition(chip.defId)
+    if (!def) return null
+    for (const [, value] of sourceInputsOf(def, inst)) {
+      const parsed = parseSource(value)
+      if (!parsed || parsed.kind !== 'symbol') continue
+      const rec = breadthRecord(parsed.symbol)
+      const name = rec && typeof rec.name === 'string' ? rec.name.trim() : ''
+      if (name) return name
+    }
+    return null
   }, [cs])
   const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
   // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
@@ -17196,7 +17233,12 @@ export default function StockChart({
                  chip opens. One address, one surface — a member cannot tell that
                  two components are involved. */
               rowId={c.instanceId}
-              label={c.label}
+              /* ⭐⭐ THE PANE SPELLS IT OUT — `Relative Strength Index`, not
+                 `RSI(14)`; `UCT Stocks Up 20%+ in 5 Days`, not `UCTU20W`. The
+                 strip six pixels up keeps the abbreviation, which is the owner's
+                 ask and the right split: nine names share one line up there, and
+                 down here one name has a whole pane to itself. */
+              label={paneReadoutLabel(c, engineRegistry.getDefinition(c.defId), paneLongName(c))}
               value={c.value != null ? c.value.toFixed(c.decimals) : ''}
               color={c.color}
               baseColor={legendColor || undefined}
@@ -17205,7 +17247,12 @@ export default function StockChart({
                  MACD — and said so, until this. The primary plot is the group's
                  first chip by declaration order, which is the name the settings
                  list and the browse catalogue both use. */
-              controlLabel={row.chips[0].label}
+              /* ⛔ AND THE CONTROL IS NAMED THE SAME WAY THE ROW IS. This is what
+                 a screen reader reads and what the tooltip says; naming the row
+                 "Relative Strength Index" while its trigger announces "RSI(14)
+                 options" would be two names for one control. */
+              controlLabel={paneReadoutLabel(row.chips[0],
+                engineRegistry.getDefinition(row.chips[0].defId), paneLongName(row.chips[0]))}
               hidden={!!c.hidden}
               {...(chipHandlers ? {
                 /* ⛔⛔ THE PRIMARY CHIP, NOT THE HOVERED ONE — the same ruling
