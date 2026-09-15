@@ -562,28 +562,53 @@ def decide_clock(clock: dict, paths) -> tuple[str, str]:
 
     now_et = clock["now_et"]
     stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
+
+    # ⛔⛔ R18 — THE RTH DEPLOY WINDOW IS RETIRED, PROGRAMME-WIDE.
+    # Owner ruling, stated in chat 2026-09-15, entered by Claude (chat): "there are no
+    # mid-day deploy blocks." The 09:25-16:05 ET refusal is withdrawn. This function no
+    # longer gates on the clock at all — it reads it, reports it, and returns OK.
+    #
+    # ⛔ WHAT DID **NOT** CHANGE, AND WHY THIS IS NOT A WEAKER GUARD. Every other clause
+    # stands untouched, and they are the ones that were actually load-bearing:
+    #   * the CADENCE rail (600 s recency + 3 commits/hour burst) — the clause that
+    #     catches the real failure, a push landing inside another deploy's 3-5 min build
+    #     and marking it REMOVED mid-flight (2026-09-12 and 2026-09-14, both measured);
+    #   * last web deploy SUCCESS, and no deploy in flight;
+    #   * fail-closed on an unreadable clock or unreadable deploy history.
+    # ⭐ The window was a PROXY for "do not disturb members", and it was a bad one: it
+    # blocked a docs push at 11:00 and permitted two stacked merges at 16:06. The cadence
+    # rail measures the thing the window was guessing at.
+    #
+    # ⚠️ THE UNREADABLE-CLOCK BRANCH ABOVE IS DELIBERATELY KEPT, and it is now the only
+    # consumer of the clock. R18 lists "fail-closed on unreadable clock" among the clauses
+    # to leave intact, so it stays — but a reader should know the tension: a guard that
+    # refuses on a clock it no longer gates on is stricter than it needs to be. That is the
+    # ruling's call, recorded here rather than quietly "improved".
+    #
+    # ⚠️ `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are KEPT: the
+    # Tier classification is still read by `docs/runbooks/deploy-windows.md`,
+    # `tools/flow_worker_watch_coverage.py` and the JSON output. They no longer REFUSE.
     if not clock.get("trading_day"):
-        return OK, ("%s is not a trading day (session=%s) — the %s-%s ET deploy window "
-                    "does not apply." % (stamp, clock.get("session"),
-                                         _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)))
+        return OK, ("%s is not a trading day (session=%s) — and since R18 the RTH deploy "
+                    "window is retired anyway." % (stamp, clock.get("session")))
+    n_paths = "unknown" if paths is None else str(len(paths))
+    return OK, ("%s — the %s-%s ET deploy window is RETIRED (R18, owner ruling "
+                "2026-09-15). %s changed path(s); cadence and deploy-state clauses still "
+                "apply." % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), n_paths))
 
-    hm = (now_et.hour, now_et.minute)
-    if not (RTH_GUARD_OPEN <= hm < RTH_GUARD_CLOSE):
-        return OK, ("%s is outside the %s-%s ET deploy window — safe to restart web."
-                    % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)))
 
-    # ── inside the window on a trading day: only the runbook's Tier 1 gets through
+def _retired_rth_refusal(clock, paths):  # pragma: no cover - retained for history
+    """⚰️ THE REFUSAL R18 RETIRED. Kept as a record of what the window used to say, and
+    deliberately unreachable: `decide_clock` no longer calls it. Deleting it outright would
+    leave the next reader unable to see what the rule WAS when they find R18 in a ledger."""
+    now_et = clock["now_et"]
+    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
     if paths is None:
         why = ("the changed-path set could not be read (git did not answer), so the diff "
                "CANNOT be shown to be cleared")
         listed = "  not cleared:    UNKNOWN — git did not answer; an unread diff is never exempt"
     else:
         unclear = uncleared_paths(paths)
-        if paths and not unclear:
-            return OK, ("%s is inside the %s-%s ET window, but all %d changed path(s) are "
-                        "cleared for daytime by docs/runbooks/deploy-windows.md Tier 1 "
-                        "(docs/markdown, tests/**, tools/**, scripts/**, app/**)."
-                        % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), len(paths)))
         if not paths:
             why = ("the diff is EMPTY, which is a failed measurement rather than a cleared "
                    "one — an empty result is a failed invocation until proven otherwise")

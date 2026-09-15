@@ -242,36 +242,49 @@ def test_an_unreadable_clock_REFUSES():
 
 # ─────────────────────────────── the window, to the minute
 
-@pytest.mark.parametrize("h,m,expect", [
-    (9, 24, G.OK),        # one minute before the window opens
-    (9, 25, G.REFUSE),    # the window is inclusive at its open
-    (12, 0, G.REFUSE),
-    (15, 49, G.REFUSE),   # ⚰️ the exact minute of the 2026-09-14 push
-    (16, 4, G.REFUSE),
-    (16, 5, G.OK),        # ...and exclusive at its close
-    (20, 0, G.OK),
-    (4, 30, G.OK),        # pre-market is outside the deploy window
+@pytest.mark.parametrize("h,m", [
+    (9, 24), (9, 25), (12, 0), (15, 49), (16, 4), (16, 5), (20, 0), (4, 30),
 ])
-def test_the_window_boundaries_are_0925_to_1605_ET(h, m, expect):
-    v, _ = G.decide_clock(_clock(h, m), ["api/main.py"])
-    assert v == expect, "%02d:%02d ET" % (h, m)
+def test_the_window_boundaries_are_0925_to_1605_ET(h, m):
+    """⛔⛔ R18 — THE RTH WINDOW IS RETIRED. Every one of these minutes now ALLOWS.
+
+    ⚰️ This case list is kept verbatim, including 15:49 — the exact minute of the
+    2026-09-14 push the window was written for — because the point of the ruling is
+    that the window was the WRONG instrument for that failure, not that the failure
+    was imaginary. What actually caught 2026-09-14 is the cadence rail, and every
+    cadence case in this file still REFUSES.
+    """
+    v, why = G.decide_clock(_clock(h, m), ["api/main.py"])
+    assert v == G.OK, "%02d:%02d ET still refuses — R18 retired the window" % (h, m)
+    assert "RETIRED" in why or "not a trading day" in why
 
 
-def test_the_1549_push_is_refused_and_says_exactly_why():
-    """The refusal must print WHAT it refused, the CURRENT ET TIME, WHY, and the
-    NEXT ALLOWED TIME as a concrete timestamp — not 'wait a bit'."""
-    v, why = G.decide_clock(_clock(15, 49, sec=12),
-                            ["api/services/discord_render/router.py", "docs/note.md"])
+def test_the_retired_refusal_is_kept_as_a_record_and_is_unreachable():
+    """⚰️ THE OLD REFUSAL, STILL TESTABLE, DELIBERATELY UNREACHABLE.
+
+    `_retired_rth_refusal` is retained so a reader who finds R18 in a ledger can see
+    what the rule actually SAID. It is not called by `decide_clock` any more, and this
+    asserts both halves: the text is intact, and nothing reaches it."""
+    import inspect
+    v, why = G._retired_rth_refusal(_clock(15, 49, sec=12),
+                                    ["api/services/discord_render/router.py", "docs/note.md"])
     assert v == G.REFUSE
     assert "REFUSING A MASTER PUSH" in why
-    assert "restarts web and chart-renderer" in why            # what it refused
-    assert "2026-09-14 15:49:12 ET" in why                     # the current ET time
-    assert "api/services/discord_render/router.py" in why      # which path is not cleared
-    assert "docs/note.md" not in why.split("not cleared:")[1].split("\n")[0]
-    assert "2026-09-14 16:05:00 ET" in why                     # a CONCRETE next allowed time
-    assert "in 15m 48s" in why
-    assert "UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART" in why
+    assert "2026-09-14 15:49:12 ET" in why
+    assert "2026-09-14 16:05:00 ET" in why
+    src = inspect.getsource(G.decide_clock)
+    assert "_retired_rth_refusal" not in src, "the retired refusal is reachable again"
 
+def test_the_1549_push_is_refused_and_says_exactly_why():
+    """⚰️ RENAMED IN PLACE BY R18: 15:49 is no longer refused BY THE CLOCK.
+
+    The 2026-09-14 push this test was written for is still caught — by the cadence
+    rail, which is what was actually measuring the harm. The clock says so plainly."""
+    v, why = G.decide_clock(_clock(15, 49, sec=12),
+                            ["api/services/discord_render/router.py", "docs/note.md"])
+    assert v == G.OK
+    assert "RETIRED" in why and "R18" in why
+    assert "cadence and deploy-state clauses still apply" in why
 
 # ─────────────────────────────── weekends and holidays are not trading days
 
@@ -385,32 +398,28 @@ def test_is_cleared_matches_the_runbook_tiers(path, cleared):
 def test_a_wholly_cleared_diff_pushes_at_noon():
     v, why = G.decide_clock(_clock(12, 0), ["docs/a.md", "tools/x.py", "app/src/y.js"])
     assert v == G.OK
-    assert "cleared for daytime" in why
-
+    assert "RETIRED" in why
 
 def test_one_uncleared_path_spoils_a_cleared_diff():
-    """'entirely within' is the ruling's word. One api/ file is enough."""
+    """⚰️ R18: an uncleared path no longer spoils anything AT THE CLOCK. The Tier
+    classification is kept and still reported; it simply does not refuse."""
     v, why = G.decide_clock(_clock(12, 0), ["docs/a.md", "tools/x.py", "api/main.py"])
-    assert v == G.REFUSE
-    assert "1 of 3 changed path(s) are NOT cleared" in why
-
+    assert v == G.OK
+    assert "3 changed path(s)" in why
 
 def test_an_unreadable_diff_is_never_exempt():
-    """⛔ `None` means git did not answer. An unread diff cannot be shown to be
-    cleared, so it is not."""
+    """⚰️ R18: there is no exemption left to need. An unreadable diff is reported as
+    unknown and allowed, because the clock no longer gates. ⛔ The UNREADABLE CLOCK is
+    a different matter and still refuses — see the test below it."""
     v, why = G.decide_clock(_clock(12, 0), None)
-    assert v == G.REFUSE
-    assert "git did not answer" in why
-
+    assert v == G.OK
+    assert "unknown changed path(s)" in why
 
 def test_an_empty_diff_is_never_exempt():
-    """⛔ An empty result is a failed invocation until proven otherwise. A diff that
-    came back empty because the range was wrong would otherwise clear EVERY push —
-    the exemption would fire hardest exactly when the measurement broke."""
+    """⚰️ R18: likewise. An empty diff no longer decides anything at the clock."""
     v, why = G.decide_clock(_clock(12, 0), [])
-    assert v == G.REFUSE
-    assert "EMPTY" in why and "failed measurement" in why
-
+    assert v == G.OK
+    assert "0 changed path(s)" in why
 
 def test_an_unreadable_diff_outside_the_window_is_still_fine():
     """CONTROL. The diff only matters INSIDE the window; refusing at 21:00 because
@@ -435,47 +444,54 @@ def test_changed_paths_actually_reads_the_repo():
 # ─────────────────────────────── the override is an act, not a reflex
 
 def test_the_window_override_needs_its_EXACT_value(tmp_path, monkeypatch, capsys):
+    """⚰️ R18: THE OVERRIDE IS NO LONGER NEEDED, and that is what this now proves.
+
+    ⛔ The constants are KEPT, not deleted: `UCT_DEPLOY_WINDOW_OVERRIDE` was used on
+    2026-09-15 for the R18 merges themselves, so the value must stay resolvable for
+    anyone reading that override log entry. What changed is that a push at 15:49 no
+    longer NEEDS it."""
     m = _load()
     monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
     monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
     monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.setattr(m, "latest_deployment",
-                        lambda: _dep(commit="9b1d6c537"))
-    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
-
-    # ⛔ `=1` IS NOT ENOUGH. The value is exact so that using it is an act.
-    monkeypatch.setenv(m.CLOCK_OVERRIDE_ENV, "1")
-    assert m.main() == 1
-    assert "REFUSING A MASTER PUSH" in capsys.readouterr().out
-    assert not (tmp_path / "bypass.log").exists()
-
-    monkeypatch.setenv(m.CLOCK_OVERRIDE_ENV, m.CLOCK_OVERRIDE_VALUE)
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
     monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
-    assert m.main() == 0
-    out = capsys.readouterr().out
-    assert "DEPLOY WINDOW OVERRIDDEN" in out
-    assert "DURING THE SESSION" in out, "the override did not print loudly"
-    assert "CLOCK-WINDOW" in (tmp_path / "bypass.log").read_text(encoding="utf-8")
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
 
+    assert m.main() == 0, "15:49 with NO override still refuses — R18 retired the window"
+    assert "DEPLOY WINDOW OVERRIDDEN" not in capsys.readouterr().out
+    assert m.CLOCK_OVERRIDE_VALUE == "I-ACCEPT-AN-RTH-RESTART", "the recorded value moved"
 
 def test_the_queue_bypass_does_NOT_also_buy_the_window(tmp_path, monkeypatch, capsys):
-    """⛔ TWO OVERRIDES ON PURPOSE. `UCT_SKIP_PREPUSH_GUARD=1` is typed routinely
-    to get past a mid-swap pod; if it also bought an RTH restart, the reflex for
-    the cheap override would silently purchase the expensive one."""
+    """⚰️ R18 leaves ONE override that still buys something, and this pins which.
+
+    The window is gone, so `UCT_SKIP_PREPUSH_GUARD` can no longer buy it by accident.
+    What it still buys — and must keep buying loudly and in the log — is the CADENCE
+    refusal, which is the clause that actually caught 2026-09-12 and 2026-09-14."""
     m = _load()
     monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
     monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
     monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.setenv(m.BYPASS_ENV, "1")
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
+    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.REFUSE, "a web deploy landed 60s ago"))
     monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-    assert m.main() == 1, "the queue bypass let a push through the deploy window"
 
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    assert m.main() == 1, "the cadence/queue refusal stopped refusing"
+    monkeypatch.setenv(m.BYPASS_ENV, "1")
+    assert m.main() == 0
+    assert (tmp_path / "bypass.log").exists(), "an override that leaves no trace is not reviewable"
 
 def test_a_refused_clock_never_asks_railway_anything(monkeypatch):
-    """A refused push has no queue question to answer — and a guard that still
-    spends seconds on the CLI teaches everyone the refusal is slow, not right."""
+    """⛔ THE FAIL-CLOSED BRANCH R18 KEPT. The window is retired, but a clock that
+    cannot be READ still refuses — and still refuses BEFORE spending 2 s on the CLI.
+
+    ⚠️ The tension is deliberate and recorded in the guard: this refuses on a clock it
+    no longer gates on. R18 lists fail-closed among the clauses to leave intact."""
     m = _load()
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
+    monkeypatch.setattr(m, "read_clock",
+                        lambda *a, **k: {"state": m.UNREADABLE, "why": "tz database missing"})
     monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
     monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
 
@@ -485,8 +501,9 @@ def test_a_refused_clock_never_asks_railway_anything(monkeypatch):
     monkeypatch.setattr(m, "latest_deployment", _boom)
     assert m.main() == 1
 
-
 def test_json_mode_reports_both_guards(monkeypatch, capsys):
+    """R18: the clock is now OK at 15:49; the queue and cadence keys must still be
+    reported, because JSON consumers read all three."""
     import json as _json
     m = _load()
     monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
@@ -494,14 +511,12 @@ def test_json_mode_reports_both_guards(monkeypatch, capsys):
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
     monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
     monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-    assert m.main(["--json"]) == 1
+    assert m.main(["--json"]) == 0
     payload = _json.loads(capsys.readouterr().out)
-    assert payload["verdict"] == m.REFUSE
-    assert payload["clock"]["verdict"] == m.REFUSE
-    assert payload["clock"]["uncleared"] == ["api/main.py"]
+    assert payload["verdict"] == m.OK
+    assert payload["clock"]["verdict"] == m.OK
     assert payload["queue"]["verdict"] == m.OK
-
-
+    assert "cadence" in payload, "the cadence rail vanished from the JSON"
 
 # ═════════════════════════════════════════════════════════════════════════════
 # GUARD 3 — THE CADENCE (D-06 Part 0)
