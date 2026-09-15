@@ -754,6 +754,82 @@ ancestor of master, never forced.
 
 ⚠️ **Railway still watches `master`. `production` is unwatched.** No cutover happened.
 
+# Session 8 — the label was wrong, and the read is not what it looked like
+
+## What shipped
+
+| merge | commit | what |
+|---|---|---|
+| M5 | `07cd3319c` | the Session 7 record |
+| M6 | `47e1516b5` | the cache-tier fix + the `reconstructed_fetch` split |
+
+## The label was wrong, not merely vague
+
+`_history_deep_uncached` delegates any window inside the collector range to
+`get_history`, having already noted `cache="miss"`. **`get_history` noted nothing at
+all.** So a `days=90` request served entirely from `get_history`'s own cache reported
+`cache=miss` — on every request, indefinitely, in the direction that makes a warm path
+look like work.
+
+`cache` now reports what served the request; a new **additive** `cache_tier` says which:
+`body` | `deep` | `plain` | `miss`. `cache` keeps hit/miss so every Session 5/6/7 log line
+still parses, and a rail asserts exactly that.
+
+⭐ **The rails decide "was this cached" from whether `_history_uncached` actually RAN**,
+never from the label under test — the standing rule that a harness measures what served
+the request rather than asserting a label. Mutation-proved three ways, each red, each
+naming its own rail.
+
+⚠️ And the rails read the label from the **log**, not from `breadth_timing.get()`: the
+record is per-request and the middleware clears it, so reading the contextvar from a
+test's own context returns `None` and every assertion fails for a reason that has nothing
+to do with the label. The first version did exactly that.
+
+## `reconstructed_fetch` — the static facts, before any instrument
+
+| | |
+|---|---|
+| rows / payload | **4,700** rows, 4,678,369 B of `metrics`, avg **995 B/row** |
+| file | **41,861,120 B** on the Railway volume, page_size 4096 |
+| query | `WHERE date IN (?...)` **chunked at 400** — 12 statements per deep read |
+| plan | one PK seek per date — **4,700 seeks** per deep read |
+| connection | **opened per call**; `PRAGMA journal_mode=WAL` + `busy_timeout=3000` **every time** |
+| ⛔ `cache_size` | **2 MB** against a 41.9 MB file |
+| ⛔ `mmap_size` | **0** — every page is a syscall |
+
+## The split, and what it already shows
+
+`rf_open` / `rf_pragma` / `rf_execute` / `rf_fetch` / `rf_materialise`, plus `rf_rows`,
+`rf_bytes`, `rf_busy_retries` and a per-request `/proc/self/io` delta.
+
+⭐ **`read_bytes` is the discriminator the whole diagnosis turns on**, and it is confirmed
+readable in production: bytes that came from the block device, against `rchar` which
+includes the page cache. `read_bytes` climbing = H1; flat with `rchar` climbing = served
+from cache and the time went elsewhere; both flat = it was not reading at all.
+
+| reading | `rf_open` | `rf_pragma` | `rf_execute` | `rf_fetch` | **`rf_materialise`** | total |
+|---|---|---|---|---|---|---|
+| LOCAL, warm | 0.58 | 0.62 | 3.6 | 19.4 | **234.2** | 260.0 |
+| PRODUCTION, 1 smoke | 0.1 | 0.2 | 1.7 | 7.5 | **44.7** | 54.8 |
+
+⭐ **`rf_materialise` is 75–90 % of the fetch on every reading taken so far** — 4,529
+`json.loads` over 4.5 MB. That is **H4**, not I/O.
+
+## H2 is effectively excluded
+
+A local concurrent writer committing **460,569 times** during the read window moved
+`reconstructed_fetch` by **1.9x** (44.1 → 85.3 ms). Page-cache pressure managed **1.5x**.
+Production's swing is **50.2x**. ⛔ In WAL mode a writer does not block this reader, and
+neither local mechanism comes near reproducing the band.
+
+⚠️ **Two control limits, stated rather than papered over.** A "cold" copy cannot be made
+on Windows — there is no `drop_caches` and `shutil.copy2` **writes** the file straight
+into the page cache, so that control is **INCONCLUSIVE here, not FAIL**; a FAIL would
+blame the instrument for the platform. And a held write lock **is** observable (a
+standalone probe blocked a read for **5,051 ms**), but in the route path `_ensure_init()`
+runs DDL before the instrumented region and absorbs the block first, so the split cannot
+attribute it.
+
 # Conventions this programme now runs on
 
 ⛔ **Settled := `/api/health` `uptime_seconds` >= 600.** Never `/proc/uptime`, which is
@@ -809,3 +885,45 @@ as such before its number is shown.
 ⭐ **Three of these nine were inside instruments written to catch the others, and #9 was a
 rail that failed the code for getting faster.** A threshold encodes the cost of the day it
 was written; an intent does not.
+
+### Appendix addendum — Session 7 and 8
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 10 | the `cache` label | **`miss` on a request served warm**, for every `days=90` request, indefinitely | Tracing which tier actually answered instead of reading the label. `get_history` noted nothing, so the deep reader's earlier `miss` stood. ⭐ The lesson is the standing rule it produced: **a harness never asserts a label; it measures what served the request and compares.** |
+| 11 | control (c)'s threshold | **FAIL on a 13x improvement** | It required `post_reader_ms > 50`, calibrated against a 586 ms warm path the change removed. ⭐ **A control threshold is re-derived whenever the path it was calibrated against changes**; a control that passes — or fails — because the thing it measured no longer exists is a false instrument. |
+| 12 | the `merge_rows` detector (near-miss) | would have **failed the correct code** | A text search for `__enter__`/`__exit__` matches the fix's OWN comment, which exists to explain why they are not used. Caught before shipping by writing it as an AST walk — an AST cannot see a comment. This is the seventh time this repo has met that shape. |
+| 13 | the C.2 "cold cache" control | **FAIL**, apparently blaming the instrument | It cannot create its own condition on Windows: no `drop_caches`, and copying a file **writes** it into the page cache. Re-labelled **INCONCLUSIVE**. ⭐ A control that cannot establish its precondition reports INCONCLUSIVE, never FAIL — otherwise the platform's limits are recorded as the product's. |
+| 14 | the C.2 lock control, v1 | **FAIL** — "a held write lock is invisible" | `BEGIN EXCLUSIVE` does not block a WAL reader (that is what WAL is for), and `CREATE TABLE IF NOT EXISTS` on an existing table is a no-op that takes no lock at all. With `locking_mode=EXCLUSIVE` and a real `UPDATE`, a read blocked for **5,051 ms**. The instrument was never blind; the control held nothing. |
+
+⭐ **Five of the fourteen recorded false instruments were inside instruments written to
+catch the others, and three of them failed by reporting the measurer's limits as the
+subject's.** That is the argument for INCONCLUSIVE being a first-class verdict.
+
+### Appendix addendum — Session 9
+
+Nine more, and the last one is the most expensive kind: an instrument defect **inside the
+write-up of another instrument defect**.
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 15 | `/proc/self/io` deltas (`read_bytes`, `rchar`, `syscr`) | `io_rchar` ranks request time at **Spearman +0.960**, "so D-048's two-phenomena reading is superseded" | **Dividing by a physical constant.** Block-device bytes over each sample's own `rf_fetch` implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No volume delivers 3.9 GB/s, so those bytes were another thread's — the counter is **process-wide, not request-scoped**. ⭐ Window A's 0.960 was luck: its quiet samples read *exactly* 0.00 MB, so the counter was nearly clean in that window and filthy in Session 8's. The claim was withdrawn **before it was used**. |
+| 16 | the V1 flip watcher | "no boot in ~200 s → this is the STAGED case" | `railway variables --set` **did** auto-redeploy `web` — after **~4–5 minutes**. ⚠️ CLAUDE.md's procedure ("only if no boot appears within ~3 minutes, redeploy") would *also* have fired early and stacked a redeploy on top of an auto-redeploy. The dichotomy "staged vs auto-redeploy" is partly an artifact of how long the observer waited. |
+| 17 | the Railway wrapper's non-vacuity guard | `--set` **"returned NOTHING — treat as failed"** | It had **already succeeded**; a successful `--set` prints not one byte. ⭐ *"An empty result is a failed invocation"* is a rule about **reads**. Applied to a **write** it reports failure while production has already changed — the guard failing in the safe-looking direction. |
+| 18 | the same wrapper, one run earlier | `railway redeploy` → *"No linked project found"*, **and the run carried on** to report the staged case | The CLI resolves its project from the **cwd**, and it was invoked from the scratchpad. ⭐ *"An empty result is a failed invocation"* is **necessary and not sufficient** — an **error message is also non-empty output**. Check the return code, and pin the directory. |
+| 19 | window A, 25 samples, no complaint | a clean window | A foreign deploy (`587ee51b2`) landed **mid-window**; 12 of 25 samples were taken on a pod at uptime 95–411 s, racing its own boot prewarmers. Only the **per-sample `uptime`** caught it. The analyser now drops anything under the settle floor **and counts what it dropped** — an intrusion should cost samples, not silently average a booting pod into the result. |
+| 20 | window B, first launch | started sampling immediately, at uptime **71** | The settle wait lived in window A's **wrapper command**, not in `s9_window.py`; the relaunch faithfully reproduced the script and not the wrapper. ⚠️ **A precondition enforced outside the artifact is a precondition that does not travel with it.** Killed after 2 samples and restarted. |
+| 21 | the background-task status | **exit code 0** | A `FileNotFoundError` traceback — `logs/` did not exist in the scratchpad. **Third sighting in this repo** of the wrapper's exit status being uninformative, and the second where it was cheerfully zero over a run that did nothing. |
+| 22 | the A/B analyser | died mid-report with `UnicodeEncodeError` | Windows consoles decode with cp1252 and one `⛔` in an output line kills the process — the same defect that made `tools/flag_ledger_audit.py` report *"could not enumerate the project's services"*. Fixed at the **stream** (`sys.stdout.reconfigure`), never by deleting the character: stripping the marks hides the finding. |
+| 23 | ⭐⭐ **§E.4 of this session's own report** | *"Confirmed again by an unplanned natural experiment — push 05:30:52 + a ~104 s gate → pod booted 05:32:36. Same relationship, independently."* | **The ~104 s was never measured.** It was the *median* gate duration substituted for the real one. Measured, that gate took **121 s**, moving the predicted cutover to 05:32:56 and turning the "confirmation" into an **18-second contradiction**. The conclusion it propped up — that Railway holds the cutover until CI passes — is now an OPEN QUESTION with nine observations against it and one for. |
+
+⭐⭐ **#23 is the one to carry forward.** The other twenty-two were defects in code that
+measured something. This was a defect in **prose that reasoned about measurements**: a
+plausible number, never taken, inserted into a chain of argument that had already reached
+its conclusion — and it read as corroboration precisely because it agreed. **A substituted
+median is indistinguishable from a measurement once it is written down**, which is why the
+rule has to be that every number in an argument carries its provenance, not just every
+number in a table.
+
+⚠️ And it survived a review that caught #15 in the same document, an hour apart. **Finding
+one instrument defect does not put you in a state where you are finding them.**

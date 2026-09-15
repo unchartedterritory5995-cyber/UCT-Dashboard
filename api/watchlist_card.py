@@ -23,7 +23,9 @@ _GOLD = (201, 168, 76); _GOLD_DIM = (150, 128, 66)
 _TXT = (223, 227, 231); _DIM = (132, 139, 148); _DIV = (36, 40, 46)
 _BULL = (74, 200, 120); _BEAR = (232, 96, 96)
 _ER_BG = (42, 28, 10); _ER_FG = (255, 140, 40); _HV_BG = (16, 34, 22)
-_SS = 2  # supersample then downscale for crisp text
+_SS = 4   # internal supersample factor (render at _SS× logical, then downscale)
+_OUT = 2  # FINAL output scale: the PNG is 2× the logical size so text stays crisp on
+          # retina and when Discord upscales the attachment. Downsample ratio = _SS/_OUT.
 
 
 # ── formatting ─────────────────────────────────────────────────────────────
@@ -231,7 +233,7 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
     txt(36, H - 32, "UCT Intelligence", f_foot, _DIM)
     txt(_D_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
-    out = img.resize((_D_W, H), Image.LANCZOS)
+    out = img.resize((_D_W * _OUT, H * _OUT), Image.LANCZOS)
     buf = io.BytesIO(); out.save(buf, format="PNG")
     return buf.getvalue()
 
@@ -306,7 +308,7 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
     txt(20, H - 26, "UCT Intelligence", f_foot, _DIM)
     txt(_M_W - 20, H - 26, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
-    out = img.resize((_M_W, H), Image.LANCZOS)
+    out = img.resize((_M_W * _OUT, H * _OUT), Image.LANCZOS)
     buf = io.BytesIO(); out.save(buf, format="PNG")
     return buf.getvalue()
 

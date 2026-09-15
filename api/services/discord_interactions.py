@@ -1793,7 +1793,7 @@ def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
                   house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None,
-                  fail_fn=None) -> str:
+                  fail_fn=None, slot_wait_s: float = 0.0) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -1862,7 +1862,13 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
 
         produce = lambda: png_cache.single_flight(  # noqa: E731
             key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
-                                       house_fn=house_fn, quote_fn=quote_fn),
+                                       house_fn=house_fn, quote_fn=quote_fn,
+                                       # ⛔ OI-41. 0.0 for V1 — an instant "busy, try again" is right
+                                       # for a member watching one reply and nothing else has
+                                       # changed for them. V2 passes its job's REMAINING budget, so
+                                       # an admitted job waits for a shared V1 slot instead of being
+                                       # told the queue refused it.
+                                       slot_wait=slot_wait_s),
             ttl_s=cache_ttl_for(req.tf),
             cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
 
@@ -1916,7 +1922,22 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         elif fail_fn is not None:
             # The V2 runtime: one contract message, with the class and an id, instead
             # of a per-site sentence.
-            fail_fn({"busy": "queue_full", "no_bars": "no_bars"}.get(outcome, "internal"),
+            #
+            # ⛔⛔ OI-41: `busy` MAPPED TO `queue_full`, AND THAT TOLD A MEMBER A QUEUE REFUSED THEM
+            # THAT HAD ALREADY ADMITTED THEM. `queue_full` reads "we're at capacity right now"
+            # (`contract.py:23`) and is the ADMISSION refusal — the answer to a request that never
+            # entered the queue. A V2 job reaching here was admitted by `runtime.offer`, waited its
+            # turn, ran on a worker, and then lost a race for one of the **V1** `RENDER_SLOTS`
+            # (`:67`, `:1226`) that the pre-V2 path shares. Two different refusals wearing one
+            # sentence, and the member cannot act on either reading.
+            #
+            # ⭐ `deadline` — "the chart service took too long" — is the true statement: with
+            # `slot_wait_s` below, a V2 job now WAITS for a slot up to its own remaining budget, so
+            # reaching here means the budget genuinely expired.
+            #
+            # ⛔ V1 IS BYTE-IDENTICAL: this whole branch is `fail_fn is not None`, and `fail_fn` is
+            # supplied only by `commands._chart_kwargs`. With V2 off the interpreter never arrives.
+            fail_fn({"busy": "deadline", "no_bars": "no_bars"}.get(outcome, "internal"),
                     f"{req.ticker} {req.tf} {outcome}")
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")

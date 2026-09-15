@@ -464,14 +464,46 @@ export async function drainOutbox(db, {
     }
 
     const landed = landedBaseline(noteRec)
-    if (isSupersededBaseline(entry.baseUpdatedAt, landed)) {
+    // ⛔⛔ A CLOCK IS NOT PROOF THE WORDS ARRIVED. `isSupersededBaseline` is
+    // `ta < tb` over two timestamps and nothing more, yet clearing here reports
+    // "a save this browser landed is newer", which a reader takes to mean THE
+    // SERVER ALREADY HAS THESE WORDS.
+    //
+    // ⚰️ MEASURED ON PRODUCTION, five cells, 2026-09-14 — and again on the same
+    // route the day before. The member sends a widget embed to a note while
+    // offline with words queued. The door's `settleNoteWrite` records the
+    // server's new revision in the landed ring (correctly — it is ours), the
+    // editor remounts from the server copy and the record reconciles CLEAN at
+    // that newer revision, and this test then fires on a landed save whose body
+    // is the SERVER's: the appended block, without the member's sentence. The
+    // entry was cleared and the words were never sent. `appended node present:
+    // True · offline sentence in the server body: False`.
+    //
+    // ⭐ WHAT NORMALLY PROTECTS THIS, AND WHY IT STOPPED. `landedBaseline`
+    // refuses a DIRTY record, so while the editor is mounted the queued entry is
+    // its own pending state and the invariant holds. Q1 fix 4 keeps a record
+    // with unsent work dirty — but only where IT decides; a door that reconciles
+    // the record clean by another path lands here with the protection already
+    // gone.
+    //
+    // ⭐ THE QUESTION THE CONTENT CAN ANSWER: does the landed save actually hold
+    // what this entry is carrying? `sameAuthoredContent` is the ONE authority on
+    // that (recovery and the ack path both use it), and it is already imported.
+    //
+    // ⛔ STRICT EQUALITY IS THE CONSERVATIVE DIRECTION, deliberately. A landed
+    // save that holds the words AND MORE compares false, so the entry is sent,
+    // 409s, and the drain classifies — costing one redundant send. Superseding it
+    // wrongly costs the member's words. The control case pins that a genuinely
+    // superseded entry is still cleared, so this cannot become "never supersede".
+    if (isSupersededBaseline(entry.baseUpdatedAt, landed)
+        && sameAuthoredContent(noteRec, entry.patch)) {
       // eslint-disable-next-line no-await-in-loop
       await clearOutboxEntry(db, entry.mutationId)
       results.push({
         mutationId: entry.mutationId,
         noteId: entry.noteId,
         outcome: SUPERSEDED,
-        reason: `a save this browser landed at ${landed} is newer than this entry's baseline ${entry.baseUpdatedAt}`,
+        reason: `a save this browser landed at ${landed} is newer than this entry's baseline ${entry.baseUpdatedAt}, and PROVABLY CONTAINS its content`,
       })
       continue
     }

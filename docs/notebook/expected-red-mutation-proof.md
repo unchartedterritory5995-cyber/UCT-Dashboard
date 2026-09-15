@@ -290,7 +290,76 @@ passing**:
 
 ---
 
-## 10. Files
+## 10. Rules this push established
+
+### 10.1 — The push pre-check ALWAYS runs both diff forms
+
+> **Three-dot (`origin/master...HEAD`) answers "what did I change?". Two-dot
+> (`origin/master`) answers "has master moved?". Run both. "Would this
+> fast-forward?" is answered from the two-dot one.**
+
+⚰️ The two-dot `--stat` once showed **6,776 deletions** including
+`tools/deploy_blip_check.py` — none of them mine. They were master's newer commits
+appearing as deletions from my side. Conversely, reading *only* the three-dot form
+hides that master has moved at all, and the push is then rejected as
+non-fast-forward. ⛔ I misread the two-dot form twice in one evening; the second
+time it would have inverted a classification.
+
+### 10.2 — Master pushes are time-bound (the clock guard)
+
+`tools/pre_push_guard.py` refuses a master push inside **09:25–16:05 ET on a
+trading day**, unless the whole diff is cleared for daytime by
+`docs/runbooks/deploy-windows.md`. Ask it *before* you are ready to push:
+
+```python
+clock = g.read_clock(); paths = g.changed_paths(base, head)
+g.decide_clock(clock, paths)      # -> ("OK" | refusal, reason)
+```
+
+⛔ `UCT_DEPLOY_WINDOW_OVERRIDE` exists and is logged. It is not for convenience.
+
+### 10.3 — Production rollback for Q1 fix 4
+
+> **Default: Lever 1. Lever 2 only on a readable signal that the failure is inside
+> the fix-4 diff.**
+
+**Lever 1 — kill switch, no redeploy:** `railway variables --service web --set
+"NOTEBOOK_OFFLINE_DEFAULT_ON=0"`. Watch for a boot stamped *after* the set; only if
+none appears in ~3 min, `railway redeploy --service web --yes`. Verify **in the
+running process**, never from `--kv`.
+
+⭐ It does **not** discard queued unsent edits — `useDurableNote.js:111` and `:160`
+both read *"OFF STOPS PROCESSING — it has never been permission to delete or alter
+what a member already wrote"*; `deleteDatabase()` is never called; even a `BLOCKED`
+outbox entry is *"still stored"*; and a dark period freezes the drain, so `attempts`
+never increments. It **strands** work silently — the drain and the "edit it again to
+sync" surface are gated identically — which is why the dark period is bounded at
+**2 hours**: one full `UCT-WaveQ1-Observe` cycle gives a measurement, the 2026-09-10
+freeze ran 4.5h and was judged too long, and a rebuild is 2–3 minutes.
+
+**Lever 2 — revert (`git revert 26ac2683d`)** only when all three are readable:
+`deploy_blip_check` shows a status-count rise **on `/api/j2/notes*`**; a specific
+error string names a frame in `useDurableNote.js`/`notebookDb.js`; `/api/auth/me`
+still 200. If any is unreadable, the rule collapses to Lever 1.
+
+⚠️ A revert also reverts `remountNeverDiscardsUnsent.test.js`,
+`selfForkDoors.test.jsx` and `offlineWordsSurvive.property.test.jsx` — expected; the
+tree returns to master's prior state, not a hybrid. **Their disappearance after a
+revert is not a second incident.**
+
+### 10.4 — A moving master does not justify skipping the gate
+
+Master moved five times during this push (+35, +7, +5, +9, +3). What made it
+converge was **measuring**, not shortcutting: the last merge touched **zero
+`app/src` files**, and `app/src` hashed **byte-identical** to the gated tree
+(`49bd553db` both sides). The suite therefore could not have changed, only the
+baseline — and the verdict is a pure function, so it was re-derived through the real
+`compare_failures` with a planted-failure control. ⛔ That is only legitimate when
+the tree hash proves it. Otherwise: merge and re-gate.
+
+---
+
+## 11. Files
 
 | path | what |
 |---|---|

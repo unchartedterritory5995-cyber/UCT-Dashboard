@@ -42,10 +42,67 @@ def _db_path() -> str:
     return local
 
 
+#: ⛔ DEFAULT OFF IN CODE, ON in production since 2026-09-15 (Session 9 V1, D-049).
+#: Unset or anything but 1/true/yes/on leaves the connection exactly as it has always been
+#: opened. It shipped as an experiment with a measurement attached; the measurement came
+#: back x9.05 on the deep-read tail, so the flag is now a live setting with a record.
+#:
+#: ⚰️ THE NAME CARRIES THE `_ENABLED` SUFFIX FOR A REASON, AND IT IS NOT STYLE.
+#: `feature_flag_index.is_gate()` matches only names containing a gate marker or ending
+#: `_ON`, so the previous name `BREADTH_OHLC_PAGECACHE` was invisible to the flag ledger:
+#: it could not be given a row (the row would have been classed as rot by
+#: `test_the_ledger_does_not_describe_gates_that_no_longer_exist` and would have turned the
+#: master deploy gate red). That is the same two-reason blindness that let
+#: `DESK_PUBLIC_SHOWS` sit on a wildcard for 25 days while it published 27 paid sessions.
+#: Renaming it is what makes `test_every_off_by_default_gate_is_declared` REQUIRE the
+#: ledger row — the rail now enforces the record instead of being unable to see it.
+#:
+#: ⛔ NO FALLBACK TO THE OLD NAME. A fallback would be a second authority over one value:
+#: two variables could disagree and the loser would be invisible. `tests/
+#: test_breadth_pagecache_flag.py` fails if the old name is read anywhere under api/.
+def _pagecache_on() -> bool:
+    return (os.environ.get("BREADTH_OHLC_PAGECACHE_ENABLED", "").strip().lower()
+            in ("1", "true", "yes", "on"))
+
+
+#: 64 MB against a 39.9 MB file. The table grows ~251 rows/yr at ~995 B/row = 0.24 MB/yr,
+#: so this is ~101 years of headroom — sized from the measured growth, not guessed.
+_MMAP_BYTES = 67108864
+#: Negative = KiB. 16 MB, for the reason in `_apply_pagecache`.
+_CACHE_KIB = -16000
+
+
+def _apply_pagecache(c: sqlite3.Connection) -> None:
+    """The H1 experiment: map the file, and give the connection a cache big enough to
+    survive its own 12 statements.
+
+    ⭐ WHAT EACH ONE CAN AND CANNOT DO, because the difference decides what the
+    measurement is allowed to claim:
+
+    `mmap_size` turns page reads into memory accesses **when the OS page cache is warm**.
+    It does NOT remove the 4,700 lookups, it does NOT stop the OS evicting those pages
+    under memory pressure, and it therefore does NOT fix the ordinary 3-12x range. It
+    attacks exactly one thing: the tail, where a request read 540,057,600 bytes — 12.9x
+    the whole file — because every evicted page came back through a syscall.
+
+    `cache_size` does NOT persist across requests: ⛔ this module opens a connection per
+    call and closes it, so the connection's cache is allocated and freed inside one
+    request. But **one request issues 12 chunked statements over ~4.5 MB**, and the
+    default is `-2000` — a 2 MB cache, ~500 pages. Pages read by chunk 1 are evicted
+    before chunk 8 needs them again. So it is expected to matter WITHIN a request and
+    not at all BETWEEN them, and the measurement should show exactly that shape.
+    """
+    if not _pagecache_on():
+        return
+    c.execute(f"PRAGMA mmap_size={_MMAP_BYTES}")
+    c.execute(f"PRAGMA cache_size={_CACHE_KIB}")
+
+
 def _conn() -> sqlite3.Connection:
     c = sqlite3.connect(_db_path(), timeout=5.0)
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA busy_timeout=3000")
+    _apply_pagecache(c)
     return c
 
 
@@ -408,18 +465,85 @@ def reconstructed_for_dates(dates) -> tuple:
         return {}, 0
     _ensure_init()
     out = {}
+    # ⭐ SPLIT BECAUSE "VOLUME I/O" IS A HYPOTHESIS, NOT A MEASUREMENT. Session 7
+    # showed this phase moving 50.2x while `derive` (pure CPU) moved 1.0x. That
+    # rules CPU out and leaves at least four sub-causes with different fixes —
+    # page-cache eviction, lock wait behind a writer, connection/plan variance, and
+    # row-materialisation cost. One number cannot separate them; these five can.
+    import sqlite3 as _sq
+    import time as _t
+    from api.services import breadth_timing as _bt
+    rows = 0
+    nbytes = 0
+    busy_retries = 0
+    stmts = 0
+    st_min = None
+    st_max = None
+    st_sum = 0.0
     try:
-        with _conn() as c:
+        t0 = _t.perf_counter()
+        c = _sq.connect(_db_path(), timeout=5.0)
+        _bt.add_phase("rf_open", (_t.perf_counter() - t0) * 1000.0)
+        t0 = _t.perf_counter()
+        c.execute("PRAGMA journal_mode=WAL")
+        c.execute("PRAGMA busy_timeout=3000")
+        _apply_pagecache(c)
+        _bt.add_phase("rf_pragma", (_t.perf_counter() - t0) * 1000.0)
+        # ⛔ The connection is opened HERE and closed in the `finally` below — there is
+        # no pooling and no thread-local anywhere in this module. `rf_conn_reused` is
+        # therefore always 0 today; it exists so that if connection reuse ever lands,
+        # the measurement can tell the two regimes apart instead of being re-derived.
+        _bt.note(rf_conn_id=id(c) & 0xFFFFFF, rf_conn_reused=0,
+                 rf_pagecache=1 if _pagecache_on() else 0)
+        try:
             for i in range(0, len(ds), 400):
                 chunk = ds[i:i + 400]
                 dq = ",".join("?" * len(chunk))
-                for (d, mj) in c.execute(
-                    f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})",
-                    chunk,
-                ).fetchall():
+                q = f"SELECT date, metrics FROM breadth_reconstructed_daily WHERE date IN ({dq})"
+                t0 = _t.perf_counter()
+                try:
+                    cur = c.execute(q, chunk)
+                except _sq.OperationalError as e:
+                    # ⚠️ BLIND SPOT, STATED RATHER THAN PAPERED OVER: with
+                    # busy_timeout=3000 SQLite waits INSIDE the C call, so ordinary
+                    # lock contention never reaches here — it is charged to
+                    # rf_execute and is indistinguishable from execution time from
+                    # Python. This counter only fires once a wait has EXCEEDED the
+                    # timeout, i.e. it detects severe contention, not any contention.
+                    if "locked" in str(e).lower() or "busy" in str(e).lower():
+                        busy_retries += 1
+                    raise
+                _st = (_t.perf_counter() - t0) * 1000.0
+                _bt.add_phase("rf_execute", _st)
+                t0 = _t.perf_counter()
+                got = cur.fetchall()
+                _fe = (_t.perf_counter() - t0) * 1000.0
+                _bt.add_phase("rf_fetch", _fe)
+                # ⛔ min/max/sum, NOT twelve fields. The [breadth-timing] buffer is ~500
+                # lines / ~10 minutes and a line per chunk would push the useful line out
+                # of it. Three numbers answer the question a per-chunk dump would: is one
+                # statement pathological, or are all twelve uniformly slow?
+                stmts += 1
+                _one = _st + _fe
+                st_min = _one if st_min is None else min(st_min, _one)
+                st_max = _one if st_max is None else max(st_max, _one)
+                st_sum += _one
+                t0 = _t.perf_counter()
+                for (d, mj) in got:
+                    nbytes += len(mj)
                     out[d] = json.loads(mj)
+                rows += len(got)
+                _bt.add_phase("rf_materialise", (_t.perf_counter() - t0) * 1000.0)
+        finally:
+            c.close()
     except Exception:
+        _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries,
+                 rf_stmts=stmts, rf_stmt_min=round(st_min or 0.0, 3),
+                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1))
         return {}, len(ds)
+    _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries,
+                 rf_stmts=stmts, rf_stmt_min=round(st_min or 0.0, 3),
+                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1))
     return out, 0
 
 

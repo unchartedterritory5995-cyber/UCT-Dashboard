@@ -18,9 +18,16 @@ _TOOL = _REPO / "tools" / "pre_push_guard.py"
 
 
 def _load():
+    """⛔ CADENCE IS PINNED QUIET AT LOAD. Guard 3 is wired into `main()`, so every
+    pre-existing `main()` test would otherwise shell out to Railway and be decided
+    by whatever master happened to be doing — which is not what those tests measure.
+    ⚠️ Pinned to an EMPTY ROW LIST, never to an OK verdict: patching the verdict
+    would make guard 3 unfalsifiable through `main()`, and
+    `test_a_busy_cadence_refuses_through_main` has to be able to fail."""
     spec = importlib.util.spec_from_file_location("prepush", str(_TOOL))
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
+    m.recent_deployments = lambda: {"state": "READ", "rows": []}
     return m
 
 
@@ -30,6 +37,13 @@ G = _load()
 def _dep(status="SUCCESS", commit="abc123def", msg="a commit"):
     return {"state": "READ", "status": status, "createdAt": None,
             "commit": commit, "message": msg}
+
+
+#: ⚰️ There was an autouse fixture here doing the same job as `_load()`'s pin, and
+#: it patched only the module-level `G` — so every test that builds its own module
+#: with `_load()` still reached the live Railway CLI, and two of them failed on
+#: whatever master was doing at that second. Two authorities over one value, which
+#: is the defect this repo keeps re-committing. The pin lives in `_load()` alone.
 
 
 # ────────────────────────────────── it fails CLOSED, never open
@@ -487,3 +501,201 @@ def test_json_mode_reports_both_guards(monkeypatch, capsys):
     assert payload["clock"]["uncleared"] == ["api/main.py"]
     assert payload["queue"]["verdict"] == m.OK
 
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# GUARD 3 — THE CADENCE (D-06 Part 0)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# ⚰️⚰️ THE FIXTURE IS REAL AND THE PREMISE IT CORRECTS WAS NOT. These twenty rows
+# are `railway deployment list --service web --json`, read 2026-09-15T04:51Z,
+# verbatim. D-05 refused the master merge citing "five REMOVED in 57 minutes —
+# the signature of stacked pushes". The refusal was right; the reason was wrong.
+# NINETEEN of these twenty rows are REMOVED, including `3879b7369`, superseded
+# **1,990 s (33 min)** later. REMOVED is the end-state of every superseded deploy
+# on this service, not a mark of one killed mid-build — so a rail keyed on REMOVED
+# would fire every night and be muted inside a week.
+
+_W = [                                      # (commit, createdAt, status) newest first
+    ("52a178a34", "2026-09-15T04:49:15.302Z", "INITIALIZING"),
+    ("1ceb3c5c2", "2026-09-15T04:28:50.169Z", "SUCCESS"),
+    ("81fd6ede7", "2026-09-15T04:19:28.241Z", "REMOVED"),
+    ("154c50f71", "2026-09-15T03:48:25.451Z", "REMOVED"),
+    ("47e1516b5", "2026-09-15T03:44:37.138Z", "REMOVED"),
+    ("5e88b38c4", "2026-09-15T03:25:11.068Z", "REMOVED"),
+    ("07cd3319c", "2026-09-15T03:21:27.571Z", "REMOVED"),
+    ("85e68247c", "2026-09-15T03:02:53.500Z", "REMOVED"),
+    ("789a6bab5", "2026-09-15T02:51:20.917Z", "REMOVED"),
+    ("baffee6cf", "2026-09-15T02:42:37.600Z", "REMOVED"),
+    ("7ac0e0aee", "2026-09-15T02:36:43.173Z", "REMOVED"),
+    ("6d246b758", "2026-09-15T02:22:47.210Z", "REMOVED"),
+    ("d91ebaca2", "2026-09-15T01:59:32.637Z", "REMOVED"),
+    ("9b29b46d8", "2026-09-15T01:48:52.091Z", "REMOVED"),
+    ("3879b7369", "2026-09-15T00:59:03.512Z", "REMOVED"),
+    ("e8f7c72a0", "2026-09-15T00:25:53.653Z", "REMOVED"),
+    ("57e5131a3", "2026-09-15T00:22:27.351Z", "REMOVED"),
+    ("8e6f892a7", "2026-09-14T23:54:23.002Z", "REMOVED"),
+    ("5ea008844", "2026-09-14T23:32:58.108Z", "REMOVED"),
+    ("a6cfa511d", "2026-09-14T23:26:07.866Z", "REMOVED"),
+]
+
+#: The five deploys the D-05 report named, each paired with the moment the push
+#: that SUPERSEDED it landed. "Refuse at this point" means: a guard running just
+#: before that superseding push must have said no.
+_SUPERSESSIONS = [
+    ("789a6bab5", "2026-09-15T03:02:53.500Z"),
+    ("85e68247c", "2026-09-15T03:21:27.571Z"),
+    ("07cd3319c", "2026-09-15T03:25:11.068Z"),
+    ("5e88b38c4", "2026-09-15T03:44:37.138Z"),
+    ("47e1516b5", "2026-09-15T03:48:25.451Z"),
+]
+
+
+def _rows(window, at=None):
+    """Rows as they stood at `at` — nothing from the future leaks in.
+
+    ⛔ AND EVERY STATUS IS FORCED TO SUCCESS. Replaying the recorded REMOVEDs would
+    let `decide()` refuse on status alone and prove nothing about the cadence: the
+    recorded statuses are the END state, not what a pusher saw at the time. Forcing
+    SUCCESS is the HARD case — guard 2 says "safe to push" at every one of these
+    moments, so only guard 3 can refuse."""
+    cut = G._iso(at) if at else None
+    out = []
+    for c, t, _s in window:
+        ts = G._iso(t)
+        if cut is not None and ts >= cut:
+            continue
+        out.append({"commit": c, "createdAt": t, "status": "SUCCESS", "message": ""})
+    return {"state": "READ", "rows": out}
+
+
+@pytest.mark.parametrize("removed,at", _SUPERSESSIONS, ids=[c for c, _ in _SUPERSESSIONS])
+def test_the_guard_refuses_at_every_point_a_deploy_was_superseded(removed, at):
+    """The D-05 window replayed. Five points, five refusals — with guard 2 blind
+    (every prior status forced SUCCESS), so each refusal is guard 3's alone."""
+    v, why = G.decide_cadence(_rows(_W, at), now=G._iso(at))
+    assert v == G.REFUSE, "would have ALLOWED the push that superseded %s: %s" % (removed, why)
+
+
+def test_guard_2_really_is_blind_at_those_points():
+    """⛔ NON-VACUITY FOR THE FIXTURE ITSELF. If `decide()` refused here anyway, the
+    five tests above would pass with guard 3 deleted and would be measuring nothing."""
+    for removed, at in _SUPERSESSIONS:
+        rows = _rows(_W, at)["rows"]
+        newest = rows[0]
+        age = (G._iso(at) - G._iso(newest["createdAt"])).total_seconds()
+        v, why = G.decide({"state": "READ", "status": "SUCCESS",
+                           "createdAt": newest["createdAt"], "commit": newest["commit"],
+                           "message": ""}, now_age=age)
+        assert v == G.OK, "guard 2 already refuses at %s — the fixture proves nothing" % removed
+
+
+def test_a_quiet_master_is_ALLOWED():
+    """⛔ THE CONTROL. A guard that refuses everything is not a guard, and this is
+    the case that makes the five refusals above mean something."""
+    rows = {"state": "READ", "rows": [
+        {"commit": "aaaaaaaaa", "createdAt": "2026-09-15T00:10:00Z", "status": "SUCCESS"},
+        {"commit": "bbbbbbbbb", "createdAt": "2026-09-14T21:00:00Z", "status": "SUCCESS"},
+    ]}
+    v, why = G.decide_cadence(rows, now=G._iso("2026-09-15T04:00:00Z"))
+    assert v == G.OK, why
+
+
+# ── one case per clause, because two clauses that both fire prove neither ─────
+# ⛔ `lesson_mutations_can_cancel_each_other`: on the real window BOTH clauses fire
+# at most points, so zeroing one leaves the fixture green. Each clause therefore
+# gets a case only IT can answer.
+
+def test_ONLY_recency_can_refuse_here():
+    """One deploy, 200 s ago. The burst clause cannot see a burst of one."""
+    rows = {"state": "READ", "rows": [
+        {"commit": "recent001", "createdAt": "2026-09-15T03:56:40Z", "status": "SUCCESS"}]}
+    v, why = G.decide_cadence(rows, now=G._iso("2026-09-15T04:00:00Z"))
+    assert v == G.REFUSE and "200s ago" in why, why
+
+
+def test_ONLY_the_burst_clause_can_refuse_here():
+    """Four deploys inside the hour, the newest 700 s old — past the recency window,
+    which is the shape that stopped D-05 and that recency alone is blind to."""
+    rows = {"state": "READ", "rows": [
+        {"commit": "burst0001", "createdAt": "2026-09-15T03:48:20Z", "status": "SUCCESS"},
+        {"commit": "burst0002", "createdAt": "2026-09-15T03:30:00Z", "status": "SUCCESS"},
+        {"commit": "burst0003", "createdAt": "2026-09-15T03:12:00Z", "status": "SUCCESS"},
+        {"commit": "burst0004", "createdAt": "2026-09-15T03:05:00Z", "status": "SUCCESS"},
+    ]}
+    now = G._iso("2026-09-15T04:00:00Z")
+    assert G.decide_cadence(rows, now=now)[0] == G.REFUSE
+    # and prove the recency clause is NOT what fired
+    assert (now - G._iso("2026-09-15T03:48:20Z")).total_seconds() > G.RECENT_PUSH_WINDOW_SECONDS
+
+
+def test_two_deploys_in_the_hour_is_under_the_burst_floor():
+    """⛔ The boundary, from the quiet side: the floor is 3, so 2 must pass — or the
+    clause is just 'any two deploys ever' wearing a threshold."""
+    rows = {"state": "READ", "rows": [
+        {"commit": "pair00001", "createdAt": "2026-09-15T03:40:00Z", "status": "SUCCESS"},
+        {"commit": "pair00002", "createdAt": "2026-09-15T03:10:00Z", "status": "SUCCESS"},
+    ]}
+    assert G.decide_cadence(rows, now=G._iso("2026-09-15T04:00:00Z"))[0] == G.OK
+
+
+# ── fails closed, three ways ──────────────────────────────────────────────────
+
+def test_an_unreadable_list_REFUSES():
+    v, why = G.decide_cadence({"state": "UNREADABLE", "why": "the railway CLI is not on PATH"})
+    assert v == G.REFUSE and "fails open" in why
+
+
+def test_rows_with_no_parseable_timestamp_REFUSE_rather_than_read_as_quiet():
+    """⛔ An empty answer and a quiet master are the same shape from here."""
+    rows = {"state": "READ", "rows": [
+        {"commit": "nope00001", "createdAt": "not-a-time", "status": "SUCCESS"},
+        {"commit": "nope00002", "createdAt": None, "status": "SUCCESS"}]}
+    v, why = G.decide_cadence(rows, now=G._iso("2026-09-15T04:00:00Z"))
+    assert v == G.REFUSE and "not one readable" in why
+
+
+def test_railways_twin_row_for_one_push_is_not_counted_twice():
+    """Railway emits a REMOVED twin milliseconds from its SUCCESS. Counting that as
+    two deploys would put every ordinary pair of pushes over the burst floor."""
+    rows = {"state": "READ", "rows": [
+        {"commit": "twin00001", "createdAt": "2026-09-15T03:40:00.500Z", "status": "SUCCESS"},
+        {"commit": "twin00001", "createdAt": "2026-09-15T03:40:00.100Z", "status": "REMOVED"},
+        {"commit": "twin00002", "createdAt": "2026-09-15T03:10:00.500Z", "status": "SUCCESS"},
+        {"commit": "twin00002", "createdAt": "2026-09-15T03:10:00.100Z", "status": "REMOVED"},
+    ]}
+    assert G.decide_cadence(rows, now=G._iso("2026-09-15T04:00:00Z"))[0] == G.OK
+
+
+def test_a_busy_cadence_refuses_through_main(tmp_path, monkeypatch, capsys):
+    """⛔ THE WIRE, not the decision. `suspected_stacked_pushes` has detected this
+    shape since 2026-09-14 behind `--audit`, which exits 0 always. A verdict that
+    never reaches `main()` gates nothing."""
+    m = _load()
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="settled01"))
+    monkeypatch.setattr(m, "decide", lambda dep, **kw: (m.OK, "queue is fine"))
+    monkeypatch.setattr(m, "read_clock", lambda now=None: {"session": "closed",
+                                                           "trading_day": True, "now_et": None})
+    monkeypatch.setattr(m, "decide_clock", lambda c, p: (m.OK, "clock is fine"))
+    monkeypatch.setattr(m, "changed_paths", lambda b, h: ["api/main.py"])
+    # ⚰️ THE FIRST VERSION HANDED main() THE REAL 09-15 TIMESTAMPS AND IT PASSED THE
+    # CADENCE. `decide_cadence` is called from `main()` with `now=None`, i.e. the
+    # real clock — so a fixture pinned to a past hour reads as ancient history and
+    # "master is quiet" is the CORRECT answer to it. A recorded window is only a
+    # fixture for the pure function; through `main()` the rows must be anchored to
+    # now. Same shape as the 09-15 night: one deploy inside the recency window,
+    # three inside the hour.
+    import datetime as _dt
+    now = _dt.datetime.now(_dt.timezone.utc)
+
+    def _ago(s):
+        return (now - _dt.timedelta(seconds=s)).isoformat().replace("+00:00", "Z")
+
+    monkeypatch.setattr(m, "recent_deployments", lambda: {"state": "READ", "rows": [
+        {"commit": "busyaaaaa", "createdAt": _ago(120), "status": "SUCCESS", "message": ""},
+        {"commit": "busybbbbb", "createdAt": _ago(1400), "status": "SUCCESS", "message": ""},
+        {"commit": "busyccccc", "createdAt": _ago(2600), "status": "SUCCESS", "message": ""},
+    ]})
+    assert m.main([]) == 1
+    assert "REFUSING THE PUSH" in capsys.readouterr().out

@@ -559,7 +559,7 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
             # `jsonable_encoder` + `json.dumps` over 376,240 scalar cells on every
             # single request. Nothing about that work depended on the request.
             body, nrows = cached
-            breadth_timing.note(cache="hit", rows=nrows, body_cache="hit")
+            breadth_timing.note(cache="hit", cache_tier="body", rows=nrows, body_cache="hit")
             breadth_timing.mark("route_return")
             return Response(content=body, media_type="application/json")
 
