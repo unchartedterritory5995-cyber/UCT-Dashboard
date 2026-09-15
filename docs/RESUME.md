@@ -1,3 +1,52 @@
+# TRACK A LIVE CLUSTER — DEPLOYED 2026-09-15 (master b5a3817c4)
+
+Pushed 64269ffe5 -> b5a3817c4 at 19:04 EDT (after the 16:00 close, market-hours
+rule respected). Deploy landed (uptime reset to 36s); web /api/health 200 "ok",
+bars-api /api/health 200, unauthenticated /api/bars/AAPL 401 (member gate
+correct), app root 200. Watched 4 minutes: uptime climbed 82 -> 306s
+monotonically, status ok throughout. No crash loop.
+
+## Shipped
+
+ · 6e243a887  volume stretch authority. `legacyPairOwnsStack` — the legacy
+   100-based Price+Volume pair stands down once it cannot describe the stack, and
+   records NULL so the drag sampler bails instead of latching a phantom gap.
+   Closes the ratchet/snap-back AND the oversized-third-pane/crushed-Price pair.
+ · ba1504eb2  volume-guest placement. `resolvePlacement`'s overlay branch accepts
+   the canonical `target === 'volume'`, not only the legacy
+   `volumeOverlayIndicators` mirror. Without it a modern-only blob bound NOTHING
+   (measured `bound: 0`) and the member's series vanished.
+ · 118bbe1e1  MultiChartGrid `volumeOpts` parity — the grid's shared Chart
+   Settings now gets the same volume truth its cells render with, so `movePane`
+   stops writing a paneOrder with the volume key missing.
+ · paneHarness now mirrors production (separate volume pane + volumeOpts). Its
+   absence is why earlier passes proved the WRONG topology.
+
+## Test baseline — honest version
+
+Clean current master (64269ffe5) and the deployed tree BOTH fail the same 5
+files: ChartDrawingOverlay.surfaces, ast/manifestProse, ast/pine.blindCorpus,
+screener/reachable, ThemeTrackerPage.chartmount. ZERO attributable.
+
+⚠️ A 6th, `journal-2-0/lib/iteratorGlobalFloor`, failed in the BASELINE worktree
+only because that rail reads `app/dist/assets` and no build had been run there.
+After `npm run build` it passes on master too. Not a difference — a worktree
+artifact. Remember it when baselining: that rail needs a build.
+
+## Production smoke — DELIBERATELY SKIPPED
+
+`chart_settings` is a USER-GLOBAL preference blob, so adding a Data Series,
+resizing a pane or reordering on ANY production chart writes the owner's real
+settings row — the exact persistence the harness intercepts. There is no
+disposable production workspace (see the Main Trading frozen-fingerprint note).
+Relied on the production-shaped harness instead, as the brief allows. The owner
+performs live visual acceptance.
+
+## Do not resume
+
+placement.position cleanup, pane-sizing redesign and further legacy-volume
+refactors are explicitly PARKED. Track A is closed.
+
 # TRACK A LIVE CLUSTER — ALL FOUR CLOSED (2026-09-15) — AWAITING DEPLOY REVIEW
 
 HEAD 346016210 (merged current origin/master). NOT PUSHED. NOT DEPLOYED.
