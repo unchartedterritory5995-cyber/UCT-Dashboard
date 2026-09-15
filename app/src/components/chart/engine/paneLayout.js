@@ -194,6 +194,13 @@ export const MIN_PANE_PX = 2
 /** The key the volume band carries in `bands`. Not a definition id. */
 const VOLUME_BAND_KEY = 'volume'
 
+/** The two arrangement keys that name a pane no instance hosts. Spelled the same
+ *  as `engine/paneOrder.js` — imported rather than re-typed would be a cycle
+ *  (paneOrder is pure state and must not depend on geometry), so they are pinned
+ *  equal by `__tests__/paneOrder.test.js`'s vocabulary case instead. */
+const PRICE_PANE = 'price'
+const VOLUME_PANE = 'volume'
+
 /** The key the price area carries in `bands`. Not a definition id. */
 const MAIN_BAND_KEY = 'main'
 
@@ -587,6 +594,10 @@ export function computePaneLayout(instances, opts) {
   const includeKeys = o.includeKeys instanceof Set ? o.includeKeys : new Set(o.includeKeys || [])
   // key → defId, so a definition default can still be found from a host key.
   const defByKey = new Map()
+  // A separate volume PANE exists when the caller reserved a slot above the
+  // stack for it — i.e. there is a non-candle, non-index pane up there. The band
+  // layout (`hasVolumeBand`) is the other case and is not a pane at all.
+  const hasSeparateVolumePane = firstPaneIndex > mainPaneIndex + 1
   const keys = orderedPaneKeys(instances, excluded, keepKeys, includeKeys, defByKey)
   const heightOf = (key) => paneHeightFor(defByKey.get(key))
 
@@ -628,6 +639,28 @@ export function computePaneLayout(instances, opts) {
 
   // ⭐ THE SUBSTITUTION. Every fraction below is a fraction of THIS, not of the
   // chart — see "THE FRAME OF REFERENCE" above. Identical at firstPaneIndex 1.
+  // ─── THE USER'S ARRANGEMENT → PHYSICAL PANE SLOTS ────────────────────
+  //
+  // ⚠️ `order` IS OPTIONAL AND ABSENCE IS THE OLD BEHAVIOUR. It arrives already
+  // resolved (`paneOrder.resolvePaneOrder`) — filtered to what is live, defaulted
+  // to Price · volume · stack. This module never reads settings and never decides
+  // an arrangement; it is handed one.
+  //
+  // ⛔ THE MODEL BOOK'S INDEX PANE IS NOT USER-ORDERABLE and keeps slot 0. It is
+  // chrome for a specific surface rather than one of the member's panes, it is
+  // hoisted with its own `moveTo(0)`, and putting it in the arrangement would
+  // offer a control for something Chart Data does not list.
+  const order = Array.isArray(o.order) ? o.order.filter((k) => typeof k === 'string' && k) : null
+  const idxPaneCount = mainPaneIndex   // the panes pinned above the arrangement
+  const slotOf = (key, fallback) => {
+    if (!order) return fallback
+    const at = order.indexOf(key)
+    return at < 0 ? fallback : idxPaneCount + at
+  }
+  const volPaneSlot = hasSeparateVolumePane
+    ? slotOf(VOLUME_PANE, mainPaneIndex + 1)
+    : null
+
   const above = bandsAboveHeights(chartHeight, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
   const mainHeightPx = above[mainPaneIndex]
 
@@ -670,6 +703,22 @@ export function computePaneLayout(instances, opts) {
   const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
   above[mainPaneIndex] = pane0HeightPx
 
+  // ─── the non-oscillator heights, addressed by the slot they actually occupy ─
+  //
+  // ⚠️ `above` STAYS POSITIONAL — index 0..firstPaneIndex-1 over the index pane,
+  // the candles and a separate volume pane, in that order — because
+  // `bandsAboveHeights` computes it that way and every existing reader expects
+  // it. This is the same numbers under their physical addresses, which is what a
+  // reordered chart needs and what `paneStretchPlan` assigns from.
+  const aboveByIndex = new Map()
+  for (let i = 0; i < firstPaneIndex; i++) {
+    if (!Number.isFinite(above[i])) continue
+    const slot = i < idxPaneCount ? i
+      : (i === mainPaneIndex ? slotOf(PRICE_PANE, mainPaneIndex)
+        : (volPaneSlot != null ? volPaneSlot : i))
+    aboveByIndex.set(slot, above[i])
+  }
+
   return {
     chartHeight,
     separatorPx,
@@ -687,10 +736,29 @@ export function computePaneLayout(instances, opts) {
     // AVAILABLE height (chart minus separators minus time axis), so a factor set
     // to a target pixel count lands on it exactly — measured, not assumed, in
     // `__tests__/paneSeparatorPin.test.js`.
+    // ⭐⭐ THE ARRANGEMENT DECIDES THE SLOT; THE GEOMETRY ABOVE DECIDES THE
+    // HEIGHT, and keeping those two apart is what makes user-ordered panes a
+    // safe change to this module. Every height in `paneHeights`, `above` and
+    // `pane0` is computed EXACTLY as it was before an order existed — the same
+    // multiset of pixels, summing to the same budget, so `paneHeightMismatch`
+    // and the parity corpus are measuring the same totality they always were.
+    // All that moves is WHICH physical pane each of those heights is given to.
+    //
+    // ⛔ AND WITH NO `order` THE ANSWER IS BYTE-FOR-BYTE THE OLD ONE
+    // (`firstPaneIndex + i`). Every saved chart, every existing caller and every
+    // test that predates this reaches `slotOf` through the identity branch.
     panes: keys.map((key, i) => {
       const heightPx = paneHeights[oscCount - 1 - i]
-      return { key, index: firstPaneIndex + i, heightPx, stretchFactor: heightPx }
+      return { key, index: slotOf(key, firstPaneIndex + i), heightPx, stretchFactor: heightPx }
     }),
+    // Where the two panes that are NOT instances ended up. `placement.js` reads
+    // these instead of the 0 and 1 it used to hard-code.
+    priceIndex: slotOf(PRICE_PANE, mainPaneIndex),
+    volumeIndex: volPaneSlot,
+    // physical index → height, for the panes the stack loop does not cover.
+    // `paneStretchPlan` needs it because `above` is positional over the
+    // non-oscillator panes and those are no longer necessarily contiguous.
+    aboveByIndex,
     pane0: {
       heightPx: pane0HeightPx,
       // ✅ THE CANDLE PANE's OWN HEIGHT — and it used to be the price-pane BUDGET
@@ -748,16 +816,30 @@ export function paneStretchPlan(layout, currentStretch) {
   const first = Number.isInteger(layout.firstPaneIndex) ? layout.firstPaneIndex : 1
   const out = cur.slice()
 
-  // ── the stack ──
+  // ── every pane, at the SLOT it actually occupies ──
+  //
+  // ⚠️ `pane.index` RATHER THAN `first + i`. The two are the same number on an
+  // un-arranged chart — which is why this stayed positional for so long — and
+  // they diverge the moment a member puts a pane above Price. The layout already
+  // publishes the absolute slot; reading it is what stops this function needing
+  // to know anything about arrangements.
   for (let i = 0; i < layout.panes.length; i++) {
-    const idx = first + i
-    if (idx < out.length) out[idx] = layout.panes[i].stretchFactor
+    const idx = layout.panes[i].index
+    if (Number.isInteger(idx) && idx >= 0 && idx < out.length) out[idx] = layout.panes[i].stretchFactor
   }
 
-  // ── the panes above it, at the heights the layout computed ──
-  const above = Array.isArray(layout.above) ? layout.above : []
-  for (let i = 0; i < Math.min(first, out.length); i++) {
-    if (Number.isFinite(above[i])) out[i] = above[i]
+  // ── and the panes no instance hosts (the candles, a separate volume pane,
+  //    the Model Book's index pane), likewise by slot ──
+  const byIndex = layout.aboveByIndex
+  if (byIndex && typeof byIndex.get === 'function') {
+    for (const [idx, h] of byIndex) {
+      if (Number.isInteger(idx) && idx >= 0 && idx < out.length && Number.isFinite(h)) out[idx] = h
+    }
+  } else {
+    const above = Array.isArray(layout.above) ? layout.above : []
+    for (let i = 0; i < Math.min(first, out.length); i++) {
+      if (Number.isFinite(above[i])) out[i] = above[i]
+    }
   }
   return out
 }
