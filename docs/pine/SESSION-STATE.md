@@ -164,6 +164,25 @@ chunk logs read: 12   failing cases: 92   failing files: 34
 | `VITE_CHART_RENDER_TOKEN_PREVIOUS` | the discord-render lane's undeclared build arg — named here so it is not lost |
 | 11b | another lane's, untouched |
 
+### ⚰️⚰️ THE ADJACENT-THING CLASS — four instances, one shape
+
+> **In every one the run was GREEN and the answer was WRONG.** The guard checked a
+> neighbouring property — that something did not fail, or that an instrument returned
+> *something* — instead of what the value had to BE. `lesson_a_guard_that_tests_the_adjacent_thing`.
+
+| # | where | what was checked | what was true |
+|---|---|---|---|
+| a3 | the unroll probe | the probe printed `arg0type=num`, so the substitution "worked" | it read back **its own substitution**; the parse language spells it `number`, every index folded to null, 21 plots rendered `na` |
+| a4 | `forceOpaque` / `prior.kind === 'vector'` | the branch existed and the suite was green | `forceOpaque` had already replaced the binding, so the test was **never once true** and its better sentence was dead code |
+| R9 | `array.sum`/`max`/`min` | they were in `REDUCE_MEMBERS` and `HANDLED`, so they were "handled" | every one returned `pine:roundtrip` **with no formula at all** — raw bindings spliced into an output tree |
+| **R9a** | the set-agreement control | *"every `REDUCE_MEMBERS` entry must not refuse"* | deleting the `avg` fold let it **fall through to `min`** and return `min(min(0,1),2)` — a wrong answer, refusing nothing, control still green |
+
+⭐ **The fix is the same every time: assert the ANSWER.** R9a's control now pins
+`sum → 0 + 1 + 2`, `avg → (0 + 1 + 2) / 3`, `max → max(max(0, 1), 2)`,
+`min → min(min(0, 1), 2)` **and that all four are distinct**, so no member can silently
+serve another's branch. Re-proved on the same mutation: two reds where there had been
+one.
+
 ### ⚰️⚰️ THE READ/OVERWRITE ORDERING CLASS — four instances, one shape
 
 > **Any new site that reads a binding a block may force opaque is checked against this
@@ -186,6 +205,11 @@ knew. `forceOpaque` now keeps its `extra` as `reason` so that is possible at all
 
 ### Standing rules, one line each
 
+- ⛔⛔ **A GUARD ASSERTS THE ANSWER, NOT THE ABSENCE.** *"Does not refuse"* and *"does
+  not throw"* are never the property worth asserting. A control pins what the correct
+  output **is**, and where several paths could answer, asserts those answers are
+  **distinct**. (`lesson_a_guard_that_tests_the_adjacent_thing` — see the four-instance
+  table below.)
 - ⛔⛔ **AN ESTIMATE IS NEVER REVISED DOWNWARD MID-BLOCK.** The stated number stands
   until the block ends; discovering the work is smaller is reported at the end as
   *"actual < estimate"*, never used to move the 2× line. ⚰️ a6.0 ran **65 against an
