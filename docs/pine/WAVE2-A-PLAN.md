@@ -1864,6 +1864,94 @@ the mutation reds.
 
 ---
 
+# ⭐⭐⭐ WAVE 2 CLOSE-OUT — THE OPERATING MODE AND THE RULINGS (owner, 2026-09-15)
+
+## THE GOAL, restated because every remaining item serves it
+
+A member pastes a Pine indicator and gets **a hosted pane matching TradingView and a
+screener column**. Wave 2 is DONE when `uncharted-volume-v2` **and** `uncharted-clouds`
+both render as hosted member panes within Wave 1's tolerance, the screener reads their
+columns, and the Wave 1 and Wave 2 PRs are merged. **(e)–(i) serve that; (j) IS that.**
+Six weeks are spent and the programme is past deadline.
+
+## ⭐ WHAT DOES NOT CHANGE
+
+**Every rail that has caught a defect stays** — acceptance first committed red,
+non-vacuity control named, mutation proof, byte-exact restore, census before build, one
+heavy process, no bash edits, corrections in place, artifacts by name, one commit per
+concern. **They are why six weeks of work is trustworthy**, and the close-out speeds up
+the *deciding*, never the *verifying*.
+
+## PRE-AUTHORISED DECISIONS — decide, record with the number, do not stop
+
+| # | the rule |
+|---|---|
+| **PA-1** | A form **under** the ~20 threshold **RETIRES**: refuse or note **by name at its own line**, carrying its number and its routing. ⛔ Nothing that works is removed. |
+| **PA-2** | A form **over** the threshold that needs no 12th node type, no 42nd refusal code, no block-walk modification and no second colour/text carriage **BUILDS**, acceptance first. |
+| **PA-3** | A **silence** — something the member wrote producing no output, note or refusal — is fixed as a **NOTE at its line**. Never a refusal, never a stop. |
+| **PA-4** | A **premise measured false** is corrected in place; the block proceeds on the measured premise; the correction is **reported, not escalated**. |
+| **PA-5** | An instrument's **classification defect** is fixed before its numbers are used. No stop. |
+| **PA-6** | A **spent fixture** moves to the frontier; a **rail over budget** is fixed; a **timeout** is re-run alone. No stop. |
+| **PA-7** | Estimates per block; the **2× stop applies PER BLOCK** — but ⭐ **a stopped block no longer ends the session.** Commit its red and its pin, record the exact resume point, **move to the next independent block.** |
+
+## ⛔ STOP FOR A GO — and only for these
+
+A 12th `NODE_TYPES` member · a 42nd `REFUSALS` entry · a modification to the **block
+walk** · a revisit of **D1/D2** · a change to the pane renderer outside (j)'s scoped plan
+· removal of a working capability · a merge to master. **Those are rulings, not
+judgement calls.**
+
+## ✅ RULINGS H.4 – H.7 (owner, 2026-09-15)
+
+### H.4 — ALREADY RULED, and the pending list said the wrong word
+
+A dropped loop body is announced **as a note at the loop line**, scheduled together with
+the owed **UDT-field-access** gap (`candelacharts-equal-highslows-eqheql…:135`) because
+one loop-classification walk change serves both. ⛔ **The pending list now reads
+*scheduled*, not *pending*** — a ruled item sitting in a "pending" column reads as an
+open question and invites it to be re-asked.
+
+### H.5 — ONE REFUSAL PER LINE **STANDS**
+
+Two defects on one line surface **one refusal per surface, by relocation**; a member is
+never shown both as refusals. ⭐ The second **may** ride as a **note at the same line**
+*if* the read-only note pass of R22b can see it **without touching the walk**; if it
+cannot, **nothing changes**. Specimen: `high_engagement__20:10`. **No build in this
+prompt** — the ruling is recorded so the next session does not re-derive it.
+
+### H.6 — THE DEFERRAL TEXT IS CORRECTED IN PLACE; **D2 STANDS**
+
+Two sentences were asserting a precondition that measurement has overtaken. Both are
+corrected **at their own sites**, one commit per file, edited as text:
+
+| site | what it said | what is measured |
+|---|---|---|
+| `paneGate.js:6` (`c7742fd82`) | the IR lane *"stays as it is until session 3's text layer"* | **session 3 ARRIVED** — `pine:text-value` stops neither script and the IR lane reaches **77** statements on v2 where it reached 40. The text layer was never the thing holding it off the pane. |
+| `SESSION-STATE.md` item (c) entry (`db94e99bf`) | *"closing the tuple form is what lets D2 be revisited at all"* | v2's **first** IR refusal is **`runtime:statement@249`** — **two lines before** the tuple at `:251`, and neither text nor tuple. Closing the tuple form does not reach the next refusal, let alone D2. |
+
+**What actually blocks it, in one sentence:** the IR lane declares `STMT.FOR`,
+`STMT.WHILE`, `EXPR.TUPLE` and `EXPR.ARRAY_OP` and **lowers none of them** — zero
+mentions across `lower.js`, `lowerIr.js`, `vm.js` — so **D2's revisit waits on the IR
+LOWERING PROGRAMME**, which is wave-sized and is not this branch's to schedule.
+⛔ **D2 STANDS. `PANE_LANE = 'host'` is unchanged.** This corrected a *sentence*, not a
+*ruling*.
+
+⭐ **Why both, and why at the source:** the plan doc has carried this correction since
+R18's §1.2 while both sources kept asserting the false thing, and `WAVE2-A-CENSUS.md:342`
+quotes item (c)'s line to justify a routing decision. **A correction living beside an
+uncorrected source is the two-authorities defect wearing a fix** — the next reader finds
+whichever they reach first, and they reach the source.
+
+### H.7 — ALERT SETS ARE DEFERRED **BEYOND WAVE 2**
+
+No pane meaning (**D1**: a pane does not select an alert); the screener meaning belongs
+to the **screener surface**, not to this branch. The census numbers stay recorded beside
+the ruling so nobody re-measures them: **112 of 120** files carry 2+ alertconditions ·
+**53** share a signal family (**184** alertconditions) · tail to **38** in one file ·
+**26** scripts carry no plot at all.
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it

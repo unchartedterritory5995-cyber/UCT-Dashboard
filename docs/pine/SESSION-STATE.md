@@ -2,21 +2,68 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **item (e) — the short-circuit census, e.1–e.5.** Not started.
+> ### ⛔ NEXT: **the Wave 2 close-out run — Parts 1–6, one session.** In flight.
 >
-> ⛔ **(e)'s GATE OPENED AND ITS CLOCK DID NOT.** Section 3 was conditioned on
-> Sections 1 and 2 closing inside their stops, and both did — **d2 ~85 of 110**,
-> **d1′ ~105 of 120**. But a census is ONE atomic unit (e.1 engine behaviour on
-> `and`/`or`/`?:` · e.2 admissibility cases A/B/C · e.3 instrument **with a
-> control** · e.4 table against the ~20 threshold · e.5 BUILD or ALL-RETIRE), and
-> **an atomic unit that cannot finish inside the remaining clock is not started.**
-> The gate is a necessary condition, not a sufficient one. **It is the next
-> session's first act.**
+> ⭐⭐ **THE GOAL, and every remaining item serves it:** a member pastes a Pine
+> indicator and gets a hosted pane matching TradingView and a screener column.
+> **Wave 2 is DONE when `uncharted-volume-v2` AND `uncharted-clouds` both render
+> as hosted member panes within Wave 1's tolerance, the screener reads their
+> columns, and both PRs are merged.** (e)–(i) serve that; **(j) IS that.**
 >
-> ⚠️ **Every census in this programme has been wrong on its first table** — (b)
-> twice, (c) three times, (d) once — and each defect was found by reading the
-> instrument's own output, never by review. Budget (e) for that, and build the
-> control before the table.
+> ⛔⛔ **THE OPERATING MODE CHANGED, AND THE PLAN DOC IS ITS AUTHORITY** — see
+> *"WAVE 2 CLOSE-OUT — THE OPERATING MODE AND THE RULINGS"* in `WAVE2-A-PLAN.md`.
+> Seven **PRE-AUTHORISED DECISIONS** (PA-1..PA-7) let a block decide and proceed
+> without stopping: under-threshold **retires by name**, over-threshold **builds**,
+> a **silence** becomes a note, a **false premise** is corrected in place, an
+> **instrument defect** is fixed before its numbers are used, a **spent fixture /
+> over-budget rail / timeout** is handled, and ⭐ **PA-7: a stopped block no longer
+> ends the session** — commit its red, record the resume point, move to the next
+> independent block.
+>
+> ⛔ **STOP FOR A GO ONLY FOR:** a 12th `NODE_TYPES` member · a 42nd `REFUSALS`
+> entry · a block-walk modification · a D1/D2 revisit · a renderer change outside
+> (j)'s scoped plan · removal of a working capability · a merge to master.
+>
+> ⭐ **WHAT DOES NOT CHANGE:** every rail that has caught a defect. Acceptance
+> first committed red, non-vacuity control named, mutation proof, byte-exact
+> restore, census before build, one heavy process, no bash edits, corrections in
+> place, artifacts by name, one commit per concern. **The close-out speeds up the
+> deciding, never the verifying.**
+>
+> ## ✅ H.4 – H.7 RULED (owner, 2026-09-15)
+>
+> **H.4** — already ruled (a dropped loop body is a NOTE at the loop line,
+> scheduled with the UDT-field-access gap). ⛔ The pending list says **scheduled**,
+> not *pending* — a ruled item in a "pending" column invites the question to be
+> re-asked.
+>
+> **H.5** — **ONE REFUSAL PER LINE STANDS.** Two defects on one line surface one
+> refusal per surface, by relocation. The second MAY ride as a note at the same
+> line **if** R22b's read-only pass can see it without touching the walk; if not,
+> nothing changes. Specimen `high_engagement__20:10`. **No build.**
+>
+> **H.6** — **THE DEFERRAL TEXT IS CORRECTED IN PLACE; D2 STANDS.** Both sources
+> fixed at their own sites: `paneGate.js` (`c7742fd82`) and this file's item (c)
+> entry (`db94e99bf`). ⛔⛔ **`PANE_LANE = 'host'` is unchanged — this corrected a
+> SENTENCE, not a RULING.** What actually blocks the IR lane: it declares
+> `STMT.FOR`, `STMT.WHILE`, `EXPR.TUPLE`, `EXPR.ARRAY_OP` and **lowers none of
+> them**, so D2's revisit waits on the **IR lowering programme**.
+>
+> **H.7** — **ALERT SETS DEFERRED BEYOND WAVE 2.** No pane meaning (D1); the
+> screener meaning is the screener surface's. Numbers recorded beside the ruling so
+> nobody re-measures: 112 of 120 files carry 2+ · 53 share a signal family (184) ·
+> tail to 38 · 26 carry no plot.
+>
+> ## ⛔ WAVE 1 PR — `wave1/indicator-r0r1` at `acdf93455`
+>
+> ⛔⛔ **`gh pr create` stays banned; this ONE PR was authorised to be opened in the
+> BROWSER, under the owner's own GitHub session. MERGING IS NOT AUTHORISED.**
+>
+> ⚠️ **origin/master has moved 610 commits** since the merge-base `da0803baa`, and
+> a read-only `git merge-tree` reports **THREE CONFLICTS**:
+> `app/src/components/chart/engine/binder.js` ·
+> `app/src/components/chart/engine/placement.js` · `docs/feature_flags.json`.
+> **Measured before the branch was pushed, not discovered in the PR.**
 >
 > ## ✅ (d) IS CLOSED — d1′ and d2 BUILT, d3 → H.7
 >
