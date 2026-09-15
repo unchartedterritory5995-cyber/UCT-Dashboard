@@ -1019,3 +1019,81 @@ balance of evidence says this is not ours. **That is not a measurement, so a bas
 rather than a conclusion reached:** sha256 `8B528BBC…68DF2F`, mtime 07:24:39, read at 07:26:56.
 It is re-read when pass 2 lands; if the content moved while only the gate was running, that is a
 stop-and-escalate, not a note.
+
+
+## PASS 2 — 2026-09-15 07:33 CT. It reconciles, and the run-to-run spread is now MEASURED
+
+83 calls, **$5.0955**, 824 records, zero errors, zero retries. Three batch rounds (43 / 36 / 4),
+`20260915T121930Z`, eval `ab1f7ef85094cb38db114ea4`. **Step 4d: MATCH, 30 of 30 fields**, with the
+self-check firing on the same data (`PRINCIPLE fp` 5 -> 4).
+
+| type | pass 1 tp/fp/fn | pass 2 tp/fp/fn | moved |
+|---|---|---|---|
+| CALL | 17 / 8 / 6 | 17 / **10** / 6 | +2 fp (P 0.680 -> 0.630) |
+| LEVEL | 6 / 0 / 4 | **5** / 0 / **5** | −1 tp (R 0.600 -> 0.500) |
+| MARKET_SIGNAL | 3 / 3 / 0 | 3 / 3 / 0 | — |
+| MENTION | 51 / 6 / 0 | 51 / 6 / 0 | — |
+| NEGATIVE_CALL | 5 / 1 / 1 | 5 / **0** / 1 | −1 fp (P 0.833 -> 1.000) |
+| PRINCIPLE | 13 / 7 / 2 | **14 / 5 / 1** | +1 tp, −2 fp, −1 fn |
+
+⭐⭐ **THIS RETROSPECTIVELY VINDICATES REFUSING THE v1 COMPARISON.** The v1 baseline measured
+PRINCIPLE at **14 / 6 / 1**. Pass 1 came in at 13 / 7 / 2 — which, cited alone, is a drop. Pass 2
+came in at **14 / 5 / 1, nearer the v1 baseline than pass 1 was, and slightly better**. The same
+configuration, the same bytes, two runs: the "regression" was sampling noise. ⛔ A single run
+compared against a single earlier run cannot distinguish a real change from this, which is exactly
+why the withdrawn PRINCIPLE delta had to stay withdrawn and why item 2 exists.
+
+⭐ MENTION (51/6/0) and MARKET_SIGNAL (3/3/0) reproduced **exactly**. The spread is not uniform
+across types — which is itself the thing Q17's floor is built to respect.
+
+⚠️ Cost rose $4.7497 -> $5.0955 while the work was identical: `cache_read_share` fell
+**0.7484 -> 0.5833**. The cache is a property of batch shape and timing, not of the corpus, so the
+per-segment rate has a floor and a ceiling rather than a value. Two-run range:
+**$0.05723 – $0.06139** per segment.
+
+### ⭐ `baseline=True` ON EVERY PASS IS CORRECT, AND THE REASON MATTERS
+
+All three passes report `gate decision: accepted (baseline=True, regressions=[])`. That reads like
+a gate that cannot fail. It is not — `golden.py:517` **deliberately skips** any prior run with the
+SAME `extractor_version`, `model` AND `effort`:
+
+    if run["extractor_version"] == extractor_version and m.get("model") == model        and m.get("effort") == effort:
+        continue
+
+**The gate is a cross-CONFIGURATION regression check.** Comparing a configuration against itself
+would flag exactly the run-to-run spread tabulated above as a regression, the gate would fire on
+every honest re-run, and it would be muted inside a week.
+
+⛔ **So read `accepted` honestly, for all three passes: it means "there was no DIFFERENT accepted
+configuration to regress against", not "these numbers are good".** The same warning was written
+for the v1 baseline in session 6 and it applies unchanged here.
+
+⭐ The two instruments divide cleanly, and neither substitutes for the other:
+
+| instrument | compares | answers |
+|---|---|---|
+| `decide_gate` | across configurations | did the new prompt / model / effort make it worse? |
+| the reconciler (item 2, Q17) | across runs of ONE configuration | how much of this is the model being non-deterministic? |
+
+### The shared-root observation — investigated, strongly not ours, still OPEN
+
+`C:\data\wisdom.db` DID change during pass 2 (sha `8B528BBC…` -> `9A4B2C6B…`, mtime 07:29:39),
+so the baseline was honoured and the run stopped for it. What the investigation found:
+
+- **The size did not move: 352256 bytes before and after.** Pass 2 persisted **824 records**; that
+  cannot be a size-stable write.
+- **`gate.db` grew 675840 -> 696320 at 07:33:42** — the gate's eval landed exactly where `--db`
+  sent it, and its records are in the worktree (`records.jsonl`, 1.6 MB).
+- **Two files the gate cannot write moved in the same minutes**: `fundamentals_tables.db` at
+  07:30:04 (25 s after wisdom.db) and `flow_conviction_board.json` at 07:34:32 — and
+  `fundamentals_tables.db` has been moving on a ~15-minute cadence all morning.
+- `common.bootstrap` **refuses** a shared root, so the gate's store cannot resolve there.
+
+⛔ **The writer was NOT identified** (the only python listener on this box is an unrelated Pine rig
+on :8129), so this is recorded as evidence, not as a closed question. It is almost certainly a
+local scheduled job doing a round of writes. **It is not "confirmed clean" and is not written up
+as such.**
+
+### Pass 3 is in flight
+
+Launched 07:34 CT, headroom $13.28 of the ruled $40 — so expect three rounds again.
