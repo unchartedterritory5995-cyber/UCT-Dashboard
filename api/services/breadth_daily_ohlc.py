@@ -75,7 +75,7 @@ def _ensure_init() -> None:
                         PRIMARY KEY (universe, date, metric)
                     )"""
                 )
-                _migrate_universe_column(c)
+                migrated = _migrate_universe_column(c)
                 # ⭐ THE MATERIALISED RECONSTRUCTED SIDE (Session 3). One row per
                 # reconstructed session, holding exactly what `closes_for_dates` +
                 # `values_asof` produce for it, so a deep window no longer assembles
@@ -126,13 +126,15 @@ def _ensure_init() -> None:
                 # production improvement. Cost: 8.6 MB of index, 135 ms to build once.
                 c.execute("CREATE INDEX IF NOT EXISTS idx_bdo_source_date "
                           "ON breadth_daily_ohlc(universe, source, date, metric, c)")
+            if migrated:
+                _vacuum_after_migration()
             _INIT_DONE = True
         except Exception:
             # Leave uninitialized; callers are all best-effort and no-op on failure.
             pass
 
 
-def _migrate_universe_column(c) -> None:
+def _migrate_universe_column(c) -> bool:
     """Widen `(date, metric)` to `(universe, date, metric)`, once, in place.
 
     ⭐⭐ IT COPIES COLUMNS AND INVENTS NOTHING. Every pre-existing row becomes
@@ -155,7 +157,7 @@ def _migrate_universe_column(c) -> None:
     """
     cols = {r[1] for r in c.execute("PRAGMA table_info(breadth_daily_ohlc)").fetchall()}
     if "universe" in cols or not cols:
-        return
+        return False
     c.execute("""CREATE TABLE breadth_daily_ohlc__v2 (
                     universe TEXT NOT NULL DEFAULT 'uct',
                     date    TEXT NOT NULL,
@@ -172,7 +174,35 @@ def _migrate_universe_column(c) -> None:
     moved = c.execute("SELECT COUNT(*) FROM breadth_daily_ohlc__v2").fetchone()[0]
     c.execute("DROP TABLE breadth_daily_ohlc")
     c.execute("ALTER TABLE breadth_daily_ohlc__v2 RENAME TO breadth_daily_ohlc")
-    logging.getLogger("breadth_daily_ohlc").info("[breadth_daily_ohlc] universe migration: %s rows -> universe='uct'", moved)
+    logging.getLogger("breadth_daily_ohlc").info(
+        "[breadth_daily_ohlc] universe migration: %s rows -> universe='uct'", moved)
+    return True
+
+
+def _vacuum_after_migration() -> None:
+    """Reclaim the dropped table's pages, ONCE, right after the rebuild.
+
+    ⚠️ MEASURED, NOT PRECAUTIONARY: at production scale (173,937 rows) the rebuild
+    took 0.80s and grew the file from 33.7 MB to 55.6 MB, because `DROP TABLE`
+    frees pages into the freelist rather than returning them. That matters here
+    more than it usually would — `breadth_ohlc_sync` ships this ENTIRE database
+    over R2 on every upload, so the bloat would be paid on every transfer forever.
+
+    ⛔ OUTSIDE THE MIGRATION'S TRANSACTION, on its own connection, because VACUUM
+    cannot run inside one. And best-effort: a VACUUM that fails (a reader holding
+    the file, no room for the temp copy) leaves a CORRECT database that is merely
+    larger, so it must never turn a successful migration into a failed init.
+    """
+    try:
+        conn = sqlite3.connect(_db_path(), timeout=30, isolation_level=None)
+        try:
+            conn.execute("PRAGMA busy_timeout=30000")
+            conn.execute("VACUUM")
+        finally:
+            conn.close()
+    except Exception as e:
+        logging.getLogger("breadth_daily_ohlc").warning(
+            "[breadth_daily_ohlc] post-migration VACUUM skipped: %s", e)
 
 
 def _finite(v) -> Optional[float]:

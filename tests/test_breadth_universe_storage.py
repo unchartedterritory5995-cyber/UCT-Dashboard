@@ -141,3 +141,41 @@ def test_an_unknown_universe_is_refused_at_the_store_boundary(fresh_store):
     store._ensure_init()
     with pytest.raises(bu.UnknownUniverse):
         bu.get("nasdaq100")
+
+
+def test_the_migration_reclaims_the_dropped_tables_pages(fresh_store):
+    """⚠️ `breadth_ohlc_sync` ships this ENTIRE database over R2, so bloat from the
+    rebuild would be paid on every transfer forever. Measured at production scale:
+    33.7 MB -> 55.6 MB without the VACUUM, 34.4 MB with it."""
+    import os
+    _legacy_db(fresh_store)
+    # pad the table so the freelist is measurable at test scale
+    c = sqlite3.connect(fresh_store)
+    c.executemany(
+        "INSERT INTO breadth_daily_ohlc VALUES (?,?,?,?,?,?,?,?)",
+        [(f"20{y:02d}-01-{d:02d}", f"metric_{m}", 1.0, 2.0, 0.5, 1.5,
+          "close_recon", "2026-01-01 00:00:00")
+         for y in range(10, 26) for d in range(1, 29) for m in range(12)])
+    c.commit()
+    c.close()
+    before = os.path.getsize(fresh_store)
+
+    store._ensure_init()
+
+    after = os.path.getsize(fresh_store)
+    assert after <= before * 1.10, (
+        f"the rebuild left {after - before:,} bytes of freelist behind "
+        f"({before:,} -> {after:,})")
+    # and the data is still all there under 'uct'
+    n = sqlite3.connect(fresh_store).execute(
+        "SELECT COUNT(*) FROM breadth_daily_ohlc WHERE universe='uct'").fetchone()[0]
+    assert n == 4 + 16 * 28 * 12
+
+
+def test_a_failing_vacuum_never_fails_the_migration(fresh_store, monkeypatch):
+    # ⛔ A VACUUM that cannot run leaves a CORRECT database that is merely larger.
+    _legacy_db(fresh_store)
+    monkeypatch.setattr(store, "_vacuum_after_migration",
+                        lambda: (_ for _ in ()).throw(RuntimeError("disk full")))
+    store._ensure_init()
+    assert store.history("pct_above_50sma")["2008-01-02"]["c"] == 52.5
