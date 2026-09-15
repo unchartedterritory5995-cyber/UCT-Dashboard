@@ -108,20 +108,24 @@ describe('a6.0 — `color.rgb`\'s literal alpha reaches presentation', () => {
     expect(b.opacity).toBeCloseTo(0.6, 5)
   })
 
-  // ── H.2's obligation on a6 PROPER, not on a6.0 ──────────────────────────
-  run('⛔ H.2 · OPEN — a `fill()` note carries the colour argument it was given', () => {
-    // ⚠️ THIS IS a6's DEBT TO ITEM (j), NOT a6.0's. H.2 ruled Clouds' 20 fill() calls
-    // to be item (j)'s rendering problem, and made a6 owe (j) notes that PRESERVE their
-    // colour arguments so (j) need not re-parse the source. Today the note is a
-    // sentence and nothing else. Marked open here so the obligation is a committed
-    // assertion rather than a line in a ruling; it is not satisfied by the
-    // `staticColourOf` change and is not meant to be.
+  // ── H.2's obligation — CLOSED, and this marker named the wrong carrier ──
+  it('✅ H.2 — the fill note is a SENTENCE; the colour rides `presentation.fills`', () => {
+    // ⚰️ THIS CASE ASSERTED `note.colour ?? note.color` AND THE CARRIER WAS NEVER THE
+    // NOTE. Measured at a6: the chart-only note is `{code, message, line, column,
+    // index, token, excerpt}` and carries no colour by design — while
+    // `presentation.fills` already existed, already resolved both plot handles to
+    // output indices, and already had `color`/`opacity` fields populated from
+    // `outputPresentation`, the same call a `plot()` makes. The obligation was met;
+    // the marker was looking in the wrong place.
+    // ⭐ The contract now has its own file — `fillColourCarriage.test.js` — and this
+    // case keeps only the half that belongs here: the note stays a sentence.
     const src = fs.readFileSync(path.resolve(
       __dirname, '../../../../../../tests/fixtures/member/uncharted-clouds.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
-    const fill = (t.notes || []).find((n) => n.code === 'pine:chart-only' && n.line === 118)
-    expect(fill, 'the fill at 118 is noted').toBeTruthy()
-    expect(fill.colour ?? fill.color, 'and the note carries what it was told to paint')
-      .toBeTruthy()
+    const note = (t.notes || []).find((n) => n.code === 'pine:chart-only' && n.line === 118)
+    expect(note, 'the fill at 118 is noted').toBeTruthy()
+    expect(note.message).toMatch(/paints on a chart/)
+    expect(Object.hasOwn(note, 'color') || Object.hasOwn(note, 'colour'),
+      'the note does not carry a colour, and does not need to').toBe(false)
   })
 })
