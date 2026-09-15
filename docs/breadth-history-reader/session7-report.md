@@ -7,6 +7,9 @@ sampling window, none within 300 s of another deploy.** No Railway setting was c
 Wait-for-CI was not toggled. `production` was created — authorised by E.1 — and is
 **unwatched**; Railway still watches `master`.
 
+**Web copy:** https://claude.ai/artifact/7Apv6j7DsZUmVJqtrHhooQ — private, no member
+identifiers on the page.
+
 ⛔ Results and interpretation are separated throughout. A number without its instrument,
 its `n` and its settled-status is not quoted as a result.
 
@@ -388,9 +391,55 @@ reachable change is `POST_PHASES`, a tuple read only by `finish()`, `server_timi
 
 ---
 
-# D. The after-window
+# D. The after-window — NOT REACHED, and why
 
-*(Section D was running when this file was first written; its results are below.)*
+**RESULT: n = 0 settled samples. p95 is NOT ESTIMABLE. Nothing is claimed from it.**
+
+The brief is explicit: *"If the after-window cannot reach n=15 on set (i) in this session,
+report what n it reached and mark p95 as not estimable — do not stretch."* This is that
+report.
+
+## The cause is not a measurement failure
+
+The window needs a pod settled ≥ 600 s. **Another workstream deployed four times during
+this session**, each restarting the pod:
+
+| time | commit | effect on this session |
+|---|---|---|
+| 23:15:49Z | `3fa362e46` | before the B window; handled |
+| 23:54:23Z | `8e6f892a7` | ⚠️ **restarted the pod mid-B-window** — 19 samples excluded |
+| 02:51:20Z | `789a6bab5` | reset the D settle clock |
+| 03:02:53Z | `85e68247c` | ⚠️ **landed 20 s before the clock ran out**, resetting it again |
+
+⛔ **Every one was handled by the standing rule** — wait for SUCCESS, re-verify the reader
+path byte-identical with a non-vacuity count, then proceed. The pre-serialised change was
+confirmed still live in each deployed commit (`baffee6cf` an ancestor of `85e68247c`;
+`routers/breadth_monitor.py` and `breadth_timing.py` IDENTICAL; 71 other files changed as
+the control).
+
+⭐ **This is worth recording as an operational fact, not an excuse.** A settled-window
+measurement requires ten clear minutes of the shared pod, and on a day when another
+workstream is pushing every ~10 minutes, that window may simply not exist. The
+promoted-branch gate serialises *correctness*; it does not reserve *quiet*.
+
+## What IS on the record: one smoke request, labelled
+
+⛔ **Unsettled. n=1. Not a measurement, and not comparable to §B.5's before-band.**
+
+| days=7600 | wall | `total_ms` | `serialise` | `encode_render` |
+|---|---|---|---|---|
+| cold | 673.2 | 439.8 | 96.5 | 51.0 |
+| **warm** | 291.4 | **72.2** | **absent** | 57.9 |
+
+Bodies byte-identical between the two reads. It shows the **mechanism** behaving as
+designed in production — `serialise` present on a cold read, `absent` (not 0.0) on a warm
+one, which is the saving. It is not a performance result.
+
+## What Session 8 must do instead
+
+Re-run the identical window — same sets, same n, same cadence — on a pod that has been
+quiet for ten minutes. The BEFORE band in §B.5 stands unchanged and is still the only thing
+an after-window may be compared to.
 
 ---
 
