@@ -201,6 +201,21 @@ describe('⭐⭐ the lookback readers agree, and the rail can say when they do n
         + 'tests/test_ast_lookback_agreement.py. Do not hand-edit: the numbers are '
         + 'the JS readers\' own answers, and a hand-edit would make the Python rail '
         + 'agree with a wish instead of with the other lane.',
+      // ⭐⭐ R12 — ONE VERSION FIELD ACROSS THE CONTRACT, AND IT IS `version`.
+      //
+      // Measured at a7.1 rather than chosen: the contract's four spellings were
+      // `tableVersion` (closedTable.json), `version` (conceptVocabulary.json,
+      // starterScans.json) and none (symbolScope.json, this file). `version` is the
+      // majority and the generic name; `tableVersion` is closedTable's own and that
+      // file is a hand-authored manifest, not a JS-written artifact.
+      //
+      // ⛔ ADDITIVE, AND NOTHING IS REMOVED. No Python reader reads ANY version field
+      // today — measured, zero programmatic reads across the 23 rails — so this field
+      // is written before it is read, which is the only safe order. Removing the other
+      // spellings waits until a reader is measured reading this one, and is its own
+      // commit. Written by the WRITER, never hand-edited into the artifact: this file
+      // regenerates the oracle, so a hand-edit would vanish on the next run.
+      version: 1,
       distinct_trees_walked: rows.length,
       rows: [...disc, ...plain].map((r) => ({
         hash: r.hash, from: r.from, lane: r.lane, title: r.title,
