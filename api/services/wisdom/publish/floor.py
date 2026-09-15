@@ -211,9 +211,90 @@ def enqueue_blocked(conn: sqlite3.Connection, *, limit: int = 500, now=None) -> 
     return {"blocked": len(rows), "enqueued": created, "floor": floor_value()}
 
 
+#: R47 (2026-09-15) — who the floor signs a retraction as. ⛔ Never a person: an automatic
+#: resolution must be distinguishable from an owner's judgement in `wisdom_review_actions`.
+RETRACTION_ACTOR = "publication_floor"
+
+
+def retraction_note(record_type: str, stability, runs, *, identity: str, today: str) -> str:
+    """The resolution note. ⛔ Counts and identifiers only — never a quote, name or statement."""
+    return (f"{record_type} passed the publication floor at {stability}/{runs} "
+            f"under identity {identity} on {today}; retracted by {RETRACTION_ACTOR}")
+
+
+def retract_passed(conn, *, limit: int = 500, now=None) -> dict:
+    """Resolve open floor-block items whose record now PASSES. ⛔ RESOLVED, never deleted.
+
+    ⛔⛔ WHY THIS EXISTS. `enqueue_blocked` is idempotent but one-way: a record that later clears
+    the floor keeps its open review row forever, so the owner's queue drifts away from what is
+    actually blocked. Measured 2026-09-15 after R43 moved MARKET_SIGNAL's identity: 103 records
+    blocked, **153** open `below_publication_floor` rows.
+
+    ⛔ THREE TRAPS, each of which would resolve the wrong row:
+      1. **Filter on the tab.** `extract/writer.py:667-670` enqueues an inferred-ticker item with
+         the IDENTICAL `record:{record_id}` subject_ref on tab `extraction_audit`. Without the tab
+         filter this would close somebody else's item.
+      2. **Expect MORE THAN ONE open row per record.** `item_id_for` hashes the block-time
+         stability, so every re-block at a new score created a NEW item. Resolve the set.
+      3. **Match the reason.** `contradictions` is shared with `review.refresh_contradictions`,
+         whose subject_ref has a different shape; `new_json.reason` is the exact discriminator for
+         floor-origin rows.
+
+    ⭐ An item a PERSON already decided is untouched for free: `review.act` refuses anything whose
+    status is not `open` (409), so a hand-resolved item cannot be reopened or re-resolved here.
+    A record that is blocked again later gets a NEW item — same subject_ref, new id — which is the
+    link, rather than a reopen.
+    """
+    from api.services.wisdom.core import timeutil
+    from api.services.wisdom.publish import review
+
+    clause, params = sql_clause("r")
+    rows = conn.execute(
+        f"SELECT q.item_id, r.record_id, r.record_type, r.stability, r.stability_runs "
+        f"FROM wisdom_review_queue q "
+        f"JOIN wisdom_records r ON q.subject_ref = 'record:' || r.record_id "
+        f"WHERE q.tab = ? AND q.status = 'open' "
+        f"  AND json_extract(q.new_json, '$.reason') = ? "
+        f"  AND r.record_type IN ({','.join('?' * len(FLOORED_TYPES))}) "
+        f"  AND {clause} "
+        f"ORDER BY q.item_id LIMIT ?",
+        [REVIEW_TAB, REASON, *FLOORED_TYPES, *params, int(limit)]).fetchall()
+
+    today = (now or timeutil.iso_et(timeutil.now_et()))[:10]
+    identity = _identity_label()
+    resolved, skipped = 0, 0
+    for row in rows:
+        note = retraction_note(row["record_type"], row["stability"], row["stability_runs"],
+                               identity=identity, today=today)
+        try:
+            review.act(conn, row["item_id"], action="resolve", actor=RETRACTION_ACTOR, note=note)
+            resolved += 1
+        except review.ReviewError:
+            # ⛔ Someone decided it between the SELECT and here, or it is no longer open. That is
+            # their decision and it stands — counted, never overwritten.
+            skipped += 1
+    return {"retracted": resolved, "left_to_owner": skipped, "candidates": len(rows)}
+
+
+def _identity_label() -> str:
+    """Which identity the record passed under — recorded so a retraction can be read back."""
+    try:
+        from api.services.wisdom.extract import reconcile
+
+        return str(getattr(reconcile, "MS_IDENTITY", "KEY"))
+    except Exception:
+        return "unknown"
+
+
 def score_silently(ctx) -> dict:
-    """Daily-chain entry point. Enqueues blocked records; publishes nothing, changes no flag."""
+    """Daily-chain entry point. Enqueues blocked records, retracts those that now pass.
+
+    ⛔ Order is load-bearing: enqueue FIRST, then retract. The reverse would retract against the
+    previous run's rows and then immediately re-enqueue the same records, churning the queue.
+    """
     from api.services.wisdom.core import store
 
     with store.write() as conn:
-        return enqueue_blocked(conn)
+        out = enqueue_blocked(conn)
+        out.update(retract_passed(conn))
+        return out
