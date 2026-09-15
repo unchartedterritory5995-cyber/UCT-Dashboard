@@ -788,3 +788,116 @@ silently deleted five sessions from the artifact.
 The recovery was itself the proof §26 wanted: with the store genuinely truncated, the
 forward seal rebuilt the five sessions **identically to an independent deterministic
 replay**, and the join opened at the prior close on every metric.
+
+---
+
+### BL-026 · DARK INTEGRATION IS BLOCKED ON THE DEPLOY — production is still pre-migration
+
+**Measured, read-only, 2026-09-15.** The production breadth database — downloaded from
+the live R2 durability path, `breadth_ohlc/latest.txt` → `snap/1789472774.tar.gz`,
+uploaded by the worker at 11:46 UTC that day — carries this schema:
+
+```
+CREATE TABLE breadth_daily_ohlc (
+    date TEXT NOT NULL, metric TEXT NOT NULL,
+    o REAL, h REAL, l REAL, c REAL, source TEXT, updated_at TEXT,
+    PRIMARY KEY (date, metric)          -- ⛔ NO `universe` COLUMN
+)
+```
+
+170,545 rows, 2008-01-02 … 2026-08-07, 40 metrics, integrity ok. **The universe-keyed
+migration has never been deployed.** Production runs master, and master's
+`breadth_ohlc_sync._MERGE_SQL` is universe-blind:
+
+```sql
+INSERT INTO breadth_daily_ohlc(date,metric,o,h,l,c,source,updated_at)
+SELECT s.date,s.metric,…
+```
+
+#### ⛔⛔ Why promoting the artifact now would CORRUPT UCT
+
+Uploading the US snapshot to R2 would have the web pod merge it with **that** SQL. Keyed
+on `(date, metric)` alone, the US row for `2015-03-10 / pct_above_50sma` and the UCT row
+for the same date and metric **are the same row**. The merge would rank them, pick a
+winner, and write one universe's number under the other's name — across a year-plus of
+published UCT history, silently, with the same shape, the same metric key and an
+entirely plausible value.
+
+That is verbatim the failure this branch's own `_MERGE_SQL` comment was written to
+prevent: *"leaving either one out is silent corruption rather than an error."* It is not
+a hypothetical — it is what the deployed code would do today.
+
+**So nothing was uploaded.** Production is untouched.
+
+#### The ordering this establishes
+
+> **DEPLOY FIRST, INTEGRATE SECOND.** The universe-keyed schema is a precondition for US
+> rows existing at all, not a detail of how they are served.
+
+A deploy of this branch is safe and dark on its own terms: `_ensure_init` widens the key
+on boot and stamps every existing row `universe='uct'`, and `published_universe_ids()`
+defaults to UCT alone, so the deploy changes no member-visible behaviour.
+
+#### The whole integration was rehearsed instead, and it works
+
+Against a downloaded copy of the real production database:
+
+| step | result |
+|---|---|
+| universe migration on the production copy | **0.9 s**, 41.7 MB → 37.4 MB (VACUUM) |
+| UCT value fingerprint across the migration | **`c7578ff9…` → `c7578ff9…` IDENTICAL** |
+| `_merge_from` the audited artifact | **183,417 rows adopted in 1.2 s** |
+| re-merge | **0 rows** — idempotent |
+| UCT after US merge | **still `c7578ff9…`, 170,545 rows** |
+| US after merge | **`76091392…`, identical to the audited artifact** |
+| derived `breadth_reconstructed_daily` | rebuilt to 4,679 rows by watermark |
+
+⚠️ **The R2 artifact roughly doubles**: 41.7 MB → 85.7 MB on disk, 8.1 MB → **16.5 MB**
+compressed, and R2 retains five snapshots (~82 MB). The module header still describes
+this store as "single-digit MB"; that description is now two generations stale.
+
+⚠️ **And one-directional sync is a durability gap worth stating.** The worker uploads;
+the web pod pulls; **the worker never pulls.** US history produced outside the worker
+therefore has no supported route into the origin of the R2 snapshots. After a deploy the
+clean options are (a) let the worker recompute US — 68 min, frames already cached — or
+(b) ship the merged artifact and accept that the worker's next upload re-points
+`latest.txt` at a UCT-only snapshot while the web pod keeps its merged rows. (a) is the
+architecturally honest one and is now cheap.
+
+---
+
+### BL-027 · Storage does not imply publication — proven on real integrated data
+
+The darkness gate was run against the staged database, which is exactly what production
+would hold after a deploy plus integration: 170,545 UCT rows and 183,417 US rows.
+
+With the publication configuration untouched (`published_universe_ids() == ['uct']`),
+each of the eighteen V1 US identities has **4,703 rows sitting in the table** and is:
+
+| surface | answer |
+|---|---|
+| `resolve()` | None |
+| `is_breadth_symbol()` | False |
+| `search()` (`/api/ticker-search`) | absent |
+| `library_catalog()` | absent |
+| `build_breadth_bars()` (`/api/bars`) | **0 bars** |
+
+`/api/breadth-symbols`' `symbols` array is **byte-identical to the legacy 44**, with no
+colon in it. UCT serves 400 bars for UCTA20/A50/NA/NH/HS, stays searchable, keeps its
+spelling, and leaks no colon symbol into the prebuilt-watchlist projection. Dark warming
+is **zero series**.
+
+⭐ `library_health()` distinguishes the two facts exactly as it should: US reports
+`state=available` with **183,417 rows** and `published=False`, `metrics_published=0`, and
+the overall health stays `ok=True` — a populated, deliberately-dark universe is not a
+fault.
+
+**The flip is metadata, not a data rewrite.** Enabling US locally publishes **62 rows =
+44 legacy + exactly the 18 V1 metrics**; the V1 identity model reads **70 = 16 UCT + 54
+new**; `US:NETHL` keeps `histogram` / `signed` / `count` and serves real negative closes;
+warming becomes the 7 participation series. Disabling returns the payload to the
+byte-identical 44, `US:A50` resolves to None and serves 0 bars — **and all 183,417 US
+rows are still in the table.**
+
+⛔ And STORED still is not APPROVED: `US:MU` and `US:S2` hold 4,703 rows each and remain
+unreachable even with US published, because they are not in the V1 set.

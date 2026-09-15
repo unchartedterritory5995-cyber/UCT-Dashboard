@@ -5,7 +5,11 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 13 — THE US HISTORICAL GRIND IS DONE: 2008-01-02 … 2026-09-11,
+**CURRENT PHASE** Phase 14 — DARK INTEGRATION **SAFELY BLOCKED**: production is still
+PRE-MIGRATION (`PRIMARY KEY (date, metric)`, no `universe` column), so promoting the US
+artifact would silently corrupt UCT history. Nothing was written. DEPLOY FIRST,
+INTEGRATE SECOND — the whole integration is rehearsed and passing against a copy of the
+real production database. Phase 13 — THE US HISTORICAL GRIND IS DONE: 2008-01-02 … 2026-09-11,
 **183,417 rows over 4,703 of 4,703 sessions, integrity PASS**, still dark and
 unintegrated. Phase 12 — BL-021 FIXED and the gate re-run: **GO FOR THE US
 HISTORICAL GRIND.** Every acceptance count is zero across one sweep / two chunks / four
@@ -1214,3 +1218,85 @@ NYSE without a single extra fetch — their date ranges are subsets of US's.
 **The dark-integration decision.** The artifact is complete, audited and reproducible;
 integration (merging it into production serving storage, or shipping it via R2) and
 publication remain separate, unauthorised steps.
+
+---
+
+## Phase 14 — DARK INTEGRATION · **SAFELY BLOCKED** on the deploy (2026-09-15)
+
+**Branch** `feat/breadth-pit-foundation` @ `9e23e8c7b` · `origin/master` `65899a8f7` ·
+43 ahead / 20 behind · tree clean · **nothing written to production, R2 or any pod.**
+
+### Reconciliation — clean
+
+Master's only breadth-matching changes since the merge-base are the OTHER programme's
+docs (`docs/breadth/`, `docs/breadth-history-reader/`). **Zero file overlap**, trial
+merge clean. The publication gate still defaults UCT-only and `is_published()` is still
+the single reachability authority.
+
+### ⛔ THE BLOCKER — BL-026
+
+Production's breadth database, downloaded read-only from the live R2 path
+(`breadth_ohlc/latest.txt` → `snap/1789472774.tar.gz`, worker-uploaded 11:46 UTC that
+day), is **PRE-MIGRATION**: `PRIMARY KEY (date, metric)`, no `universe` column, 170,545
+rows, 2008-01-02 … 2026-08-07.
+
+Production runs master, whose `_MERGE_SQL` is universe-blind. Uploading the US snapshot
+would have the web pod merge US and UCT **onto the same `(date, metric)` keys** — one
+universe's number written under the other's name, across a year-plus of published UCT
+history, silently and plausibly. That is precisely the corruption this branch's merge
+comment exists to prevent, and it is what the deployed code would actually do.
+
+**So nothing was promoted.** The ordering this establishes:
+
+> **DEPLOY FIRST, INTEGRATE SECOND.** The universe-keyed schema is a precondition for US
+> rows existing at all.
+
+### The integration was fully rehearsed against the real production database
+
+| step | result |
+|---|---|
+| migration on the production copy | **0.9 s**, 41.7 → 37.4 MB (VACUUM) |
+| UCT value fingerprint across it | **IDENTICAL** (`c7578ff9…`) |
+| `_merge_from` the audited artifact | **183,417 rows in 1.2 s** |
+| re-merge | **0 rows** — idempotent |
+| UCT after the US merge | **IDENTICAL**, 170,545 rows |
+| US after the merge | identical to the audited artifact (`76091392…`) |
+| derived reconstructed table | rebuilt to 4,679 rows by watermark |
+
+### The darkness gate — passed on real integrated data (BL-027)
+
+With publication untouched, each of the 18 V1 US identities has **4,703 rows in the
+table** and is unreachable at every surface: `resolve` None · `is_breadth_symbol` False ·
+ticker-search absent · catalogue absent · **`/api/bars` 0 bars**. The `symbols` payload
+is byte-identical to the legacy 44. UCT serves 400 bars and stays searchable; no colon
+leaks into prebuilt watchlists; `UCTA50` keeps its spelling. Dark warming: **0 series**.
+
+`library_health()` separates the two facts: US `state=available`, **183,417 rows**,
+`published=False`, `metrics_published=0`, overall `ok=True`.
+
+**Flip rehearsal:** enabling US publishes **62 rows = 44 + exactly 18 V1 metrics**; the
+V1 model is **70 = 16 UCT + 54 new**; `US:NETHL` keeps histogram/signed/count and serves
+real negative closes; warming becomes 7 participation series. Disabling returns the
+payload to the byte-identical 44 and **leaves all 183,417 rows in place**. `US:MU` and
+`US:S2` hold 4,703 rows each and stay unreachable even when US is published — **stored is
+not approved**.
+
+### Rollback artifact
+
+`C:\w\breadth-us-gate\rollback\prod_1789472774.tar.gz` — the exact pre-integration
+production snapshot, plus its extracted DB and a recorded SHA-256. Restoring it is the
+rollback; no row-level deletion is ever required.
+
+⚠️ **The R2 artifact roughly doubles**: 8.1 MB → **16.5 MB** compressed (85.7 MB on
+disk), ×5 retained ≈ 82 MB. The module still calls this store "single-digit MB".
+
+⚠️ **One-directional sync is a durability gap.** The worker uploads, the web pod pulls,
+**the worker never pulls** — so US history produced outside the worker has no supported
+route into the origin of the snapshots. After the deploy the honest option is to let the
+worker recompute US (68 min; every frame is already cached), rather than ship a merged
+artifact the worker will re-point away from within hours.
+
+### EXACT NEXT STEP
+
+**Deploy the branch dark**, which runs the proven universe migration on both pods and
+changes no member-visible behaviour, and only then integrate the US rows.
