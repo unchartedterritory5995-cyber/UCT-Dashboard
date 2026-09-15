@@ -26,6 +26,7 @@ record of what a session found, and trimming it to fit a repo would make it a wo
 | 7 | `2026-09-15-session7-push-merge-rq.md` | 2026-09-15 | ✅ tracked, here | The branch pushed at last, RQ-v11-001 merged, the DAILY chain complete and measured inert; the three passes still unbought |
 | 8 | `2026-09-15-session8-key-plumbing.md` | 2026-09-15 | ✅ tracked, here | The gate gets its own API-key variable (R32), master synced short at 25; the three passes still unbought |
 | 9 | `2026-09-15-session9-three-passes.md` | 2026-09-15 | ✅ tracked, here | **The three passes are BOUGHT** ($14.6090). The floor blocks 88% of what it governs; every CALL was demoted to MENTION by an unresolvable entity master; R24 closed at 0 of 25 |
+| 10 | `2026-09-15-session10-identity-bounds.md` | 2026-09-15 | ✅ tracked, here | **$0.00.** Bounds the 88%: ~18 points are a matching artifact, ~70% real instability. The chain writes 826 real rows and the queue holds 327. Corrects two session-9 errors |
 
 ## Why report 1 is not tracked
 
@@ -68,5 +69,9 @@ re-authenticating the agent session that launches it — leaving exactly one blo
 variable being exported. 9 spends it: three passes, reconciled and re-scored offline for $0.00, which
 turn item 3 from a thing that was measured inert into a thing that blocks 366 of 418, and
 which reveal that the gate scores the EXTRACTOR while the records it persists would publish
-no CALL at all. Each report's own QUESTIONS section carries the state of every open decision at that
+no CALL at all. 10 spends nothing and bounds what 9 measured: it puts a floor and a
+ceiling under the identity question, gets the chain writing to real rows for the first time,
+and corrects two of session 9's own conclusions — the entity-master mechanism (it was the
+SANDBOX, not a production path) and the idea that the CALL lane was broken (a $0.00 offline
+seed recovers 76.8% of it). Each report's own QUESTIONS section carries the state of every open decision at that
 point; the newest report's list supersedes the older ones.
