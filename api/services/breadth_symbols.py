@@ -112,13 +112,85 @@ SYMBOLS = {sym.upper(): {"symbol": sym.upper(), "metric": metric, "name": name, 
 _METRIC_OF = {sym: rec["metric"] for sym, rec in SYMBOLS.items()}
 
 
+#: metric key → the UCT symbol that has ALWAYS named it. ⭐⭐ THE ALIAS TABLE IS
+#: DATA, DERIVED FROM `_ROWS`, AND IT IS THE ONLY THING THAT MAY ANSWER "what is
+#: UCT's symbol for this metric". The rendered symbol is never PARSED to recover
+#: `universe`/`metric` — those are carried — and a UCT symbol is never COMPUTED
+#: from a rule, because no rule produces `UCTA50`, `UCTNH20` and `UCTAAII` from
+#: their metric keys. An explicit mapping is what lets the new universes be
+#: systematic without renaming a single shipped symbol.
+LEGACY_SYMBOL_BY_METRIC = {metric: sym.upper() for (sym, metric, _n, _g) in _ROWS}
+
+
 def is_breadth_symbol(sym: str) -> bool:
     """True when `sym` is one of our chartable breadth pseudo-tickers.
 
     Membership test (NOT a bare 'UCT' prefix) so a real ticker like UCTT never
     collides.
+
+    ⚠️ UNCHANGED BY THE LIBRARY WORK, DELIBERATELY. It answers for the 44 shipped
+    UCT symbols and nothing else; `library_rows()` below is a PROJECTION no public
+    surface consumes yet. The day a namespaced symbol becomes servable is a
+    decision with its own gate, and until then this must not start saying yes.
     """
     return bool(sym) and sym.strip().upper() in SYMBOLS
+
+
+def symbol_for(universe: str, metric: str) -> Optional[str]:
+    """The canonical symbol for one (universe, metric), or None if there isn't one.
+
+    ⭐ UCT READS ITS ANSWER OFF THE ALIAS TABLE; every other universe DERIVES one
+    as `<LABEL>:<CODE>`. That asymmetry is the whole backward-compatibility story:
+    the shipped symbols keep their historical spellings because they are RECORDED,
+    not because a naming rule happens to reproduce them — and a metric UCT never
+    published (`net_new_high_low`) correctly has no UCT symbol rather than a freshly
+    invented one.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    uni = _bu.normalize(universe)
+    if not _bm.applies_to(metric, uni):
+        return None
+    if uni == _bu.DEFAULT_UNIVERSE:
+        return LEGACY_SYMBOL_BY_METRIC.get(metric)
+    row = _bm.get(metric)
+    return f"{_bu.label(uni)}:{row['code']}" if row else None
+
+
+def library_rows(universes=None) -> list[dict]:
+    """`UNIVERSES × METRICS` — the Breadth Library as a projection.
+
+    ⛔⛔ NOT A SECOND CATALOGUE, AND NOT PUBLIC. Every field is read from the system
+    that owns it — `breadth_universes` for the universe and its floor,
+    `breadth_metrics` for the measurement, `LEGACY_SYMBOL_BY_METRIC` for UCT's
+    historical spelling — on every call. Nothing here is stored, so adding a metric
+    or a universe shows up without this function being edited, which is the test of
+    whether a facade is a projection or a copy.
+
+    ⚠️ NO PUBLIC SURFACE READS THIS YET. `/api/breadth-symbols`, `is_breadth_symbol`
+    and the chart routing are untouched; this exists so the shape can be proven
+    before anything is published.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    out = []
+    for uni in (universes or _bu.UNIVERSE_IDS):
+        u = _bu.get(uni)
+        for metric in _bm.metrics_for(u["id"]):
+            m = _bm.get(metric)
+            out.append({
+                "universe": u["id"], "universe_label": u["label"],
+                "metric": metric, "code": m["code"],
+                "symbol": symbol_for(u["id"], metric),
+                "name": m["name"], "short_name": m["short_name"],
+                "group": m["group"], "unit": m["unit"], "domain": m["domain"],
+                "presentation": m["presentation"], "floor": u["floor"],
+                # ⭐ A UCT row is LEGACY: its symbol is recorded history, not a
+                # rendering of the namespace. Anything reading this list can tell
+                # "already published under an old name" from "a name we would mint".
+                "legacy": u["id"] == _bu.DEFAULT_UNIVERSE,
+            })
+    return out
 
 
 def list_breadth_symbols() -> list[dict]:
