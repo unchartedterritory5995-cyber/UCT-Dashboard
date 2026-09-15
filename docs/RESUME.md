@@ -1,3 +1,84 @@
+# TRACK A — DISPLAY TARGET PROVENANCE (OPTION 1) — DONE LOCALLY 2026-09-15
+
+HEAD b28dfd568. Tree clean. NOT DEPLOYED, NOT PUSHED.
+
+## What was wrong
+
+`declared` did two conflicting jobs:
+  (a) the FALLBACK destination when the source derives nothing;
+  (b) the sentinel deciding whether a stored target was an override
+      (`explicit !== declared`).
+
+Measured: `derivedTargetFor` answers null for `kind: 'symbol'`, so `sym:QQQ:close`
+falls through to (a) and the declaration is the ONLY thing giving a foreign
+series its own pane. A member wants both `close -> Own pane` and
+`sym:QQQ -> Price`, which needs declared simultaneously != 'pane' and != 'price'.
+No declaration value works. Hence Option 1.
+
+## The representation
+
+`placement.targetExplicit: true` — one boolean, written ONLY when true and only
+beside the target it qualifies. Omission = legacy/automatic, matching
+`placement.position` omitting 'below'. It rides inside `placement`, which
+`mergeChartSettings`' allow-list already carries, so NO allow-list edit was
+needed and no new nested object appears on the instance.
+
+## Resolver — two dialects
+
+    marker present  -> honour `placement.target` WHATEVER it equals
+    marker absent   -> the OLD `explicit !== declared` rule, unchanged
+    then            -> legacy volume -> source-derived -> declared
+
+## Writer
+
+`setInstanceDisplayTarget` compares against the AUTOMATIC answer (bare: target
+AND marker stripped). Equal -> delete both keys (this IS the existing
+return-to-default gesture; there is no "Automatic" option and none was added).
+Different -> write target + marker, INCLUDING when it equals `declared`.
+
+## What was deliberately NOT done
+
+⛔ `instances.js` (the read-time migrator) is UNTOUCHED. Changing it was tried
+and MEASURED: 13 restatement blocks vanished from the captured production
+fixtures (39 lines removed, 0 added) and `alertSets` MERGED_BLOB_DIGEST moved.
+That is the persistence sweep the brief forbids. Reverted.
+⛔ `dataSeries` declaration UNCHANGED (still `pane` + `pane.height 0.15`).
+
+## Third writer found and closed
+
+`IndicatorSettingsDialog`'s "Move to" was hand-rolled
+(`placement: { ...(i.placement||{}), target }`), bypassing the legacy mirror, the
+return-to-default delete and the marker. Now routed through
+`setInstanceDisplayTarget`. `__tests__/displayTargetOneWriter.test.js` reads the
+SOURCE of all three surfaces and refuses a hand-rolled write; it exempts a fresh
+literal construction (StockChart's forced legacy VWAP instance) by design.
+
+## Re-pinned tripwires (investigated, not regenerated)
+
+· `perInstanceDoor` corpus digest -> e43a0f1f…8a3cd. Corpus dumped from BOTH
+  trees and diffed: 175 removed restatement blocks (100 pane / 75 price),
+  ZERO added lines, no marker anywhere in the default corpus.
+· `instanceControls` byte-identity control-vs-migrator RESTATED: the two now
+  differ by exactly the restatement key. Both original concerns were
+  re-measured and do not apply — `binder.inputsSignature(inputs)` never sees
+  `placement`, and the migrator CLONES existing instances and only appends.
+
+## Proven
+
+Unit: A–I, OLD-A..D, save/reconstruct through `normalizeInstances`, pane
+realisation, pane order. Browser (pane-harness, preference writes refused: 0,
+Main Trading never opened): all 20 steps of §22 including primary Close in its
+own pane and MA(RSI) explicitly moved to Price — both previously impossible.
+
+Broad `src/components`: 4 failures = the clean-master baseline exactly
+(ChartDrawingOverlay.surfaces, manifestProse, pine.blindCorpus, screener/
+reachable). Zero attributable regressions. Build clean.
+
+## Not done
+
+Pane RESIZE work (zero-height finding, resize-move-resize, resize persistence,
+QQQ short/tall axis) and the final 8-state matrix remain from the earlier brief.
+
 # TRACK A — OPTION 2 MEASURED AND REJECTED (2026-09-15)
 
 HEAD at measurement: 27d9d4508. Change made, measured, REVERTED. Tree clean.
