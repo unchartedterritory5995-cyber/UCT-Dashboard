@@ -899,3 +899,31 @@ was written; an intent does not.
 ⭐ **Five of the fourteen recorded false instruments were inside instruments written to
 catch the others, and three of them failed by reporting the measurer's limits as the
 subject's.** That is the argument for INCONCLUSIVE being a first-class verdict.
+
+### Appendix addendum — Session 9
+
+Nine more, and the last one is the most expensive kind: an instrument defect **inside the
+write-up of another instrument defect**.
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 15 | `/proc/self/io` deltas (`read_bytes`, `rchar`, `syscr`) | `io_rchar` ranks request time at **Spearman +0.960**, "so D-048's two-phenomena reading is superseded" | **Dividing by a physical constant.** Block-device bytes over each sample's own `rf_fetch` implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No volume delivers 3.9 GB/s, so those bytes were another thread's — the counter is **process-wide, not request-scoped**. ⭐ Window A's 0.960 was luck: its quiet samples read *exactly* 0.00 MB, so the counter was nearly clean in that window and filthy in Session 8's. The claim was withdrawn **before it was used**. |
+| 16 | the V1 flip watcher | "no boot in ~200 s → this is the STAGED case" | `railway variables --set` **did** auto-redeploy `web` — after **~4–5 minutes**. ⚠️ CLAUDE.md's procedure ("only if no boot appears within ~3 minutes, redeploy") would *also* have fired early and stacked a redeploy on top of an auto-redeploy. The dichotomy "staged vs auto-redeploy" is partly an artifact of how long the observer waited. |
+| 17 | the Railway wrapper's non-vacuity guard | `--set` **"returned NOTHING — treat as failed"** | It had **already succeeded**; a successful `--set` prints not one byte. ⭐ *"An empty result is a failed invocation"* is a rule about **reads**. Applied to a **write** it reports failure while production has already changed — the guard failing in the safe-looking direction. |
+| 18 | the same wrapper, one run earlier | `railway redeploy` → *"No linked project found"*, **and the run carried on** to report the staged case | The CLI resolves its project from the **cwd**, and it was invoked from the scratchpad. ⭐ *"An empty result is a failed invocation"* is **necessary and not sufficient** — an **error message is also non-empty output**. Check the return code, and pin the directory. |
+| 19 | window A, 25 samples, no complaint | a clean window | A foreign deploy (`587ee51b2`) landed **mid-window**; 12 of 25 samples were taken on a pod at uptime 95–411 s, racing its own boot prewarmers. Only the **per-sample `uptime`** caught it. The analyser now drops anything under the settle floor **and counts what it dropped** — an intrusion should cost samples, not silently average a booting pod into the result. |
+| 20 | window B, first launch | started sampling immediately, at uptime **71** | The settle wait lived in window A's **wrapper command**, not in `s9_window.py`; the relaunch faithfully reproduced the script and not the wrapper. ⚠️ **A precondition enforced outside the artifact is a precondition that does not travel with it.** Killed after 2 samples and restarted. |
+| 21 | the background-task status | **exit code 0** | A `FileNotFoundError` traceback — `logs/` did not exist in the scratchpad. **Third sighting in this repo** of the wrapper's exit status being uninformative, and the second where it was cheerfully zero over a run that did nothing. |
+| 22 | the A/B analyser | died mid-report with `UnicodeEncodeError` | Windows consoles decode with cp1252 and one `⛔` in an output line kills the process — the same defect that made `tools/flag_ledger_audit.py` report *"could not enumerate the project's services"*. Fixed at the **stream** (`sys.stdout.reconfigure`), never by deleting the character: stripping the marks hides the finding. |
+| 23 | ⭐⭐ **§E.4 of this session's own report** | *"Confirmed again by an unplanned natural experiment — push 05:30:52 + a ~104 s gate → pod booted 05:32:36. Same relationship, independently."* | **The ~104 s was never measured.** It was the *median* gate duration substituted for the real one. Measured, that gate took **121 s**, moving the predicted cutover to 05:32:56 and turning the "confirmation" into an **18-second contradiction**. The conclusion it propped up — that Railway holds the cutover until CI passes — is now an OPEN QUESTION with nine observations against it and one for. |
+
+⭐⭐ **#23 is the one to carry forward.** The other twenty-two were defects in code that
+measured something. This was a defect in **prose that reasoned about measurements**: a
+plausible number, never taken, inserted into a chain of argument that had already reached
+its conclusion — and it read as corroboration precisely because it agreed. **A substituted
+median is indistinguishable from a measurement once it is written down**, which is why the
+rule has to be that every number in an argument carries its provenance, not just every
+number in a table.
+
+⚠️ And it survived a review that caught #15 in the same document, an hour apart. **Finding
+one instrument defect does not put you in a state where you are finding them.**
