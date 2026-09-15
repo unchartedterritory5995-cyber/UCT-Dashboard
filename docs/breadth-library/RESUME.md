@@ -5,7 +5,11 @@
 > (UNIVERSE × METRIC). Neither touches the other's files.
 
 **PROJECT** UCT Breadth Library
-**CURRENT PHASE** Phase 14 — DARK INTEGRATION **SAFELY BLOCKED**: production is still
+**CURRENT PHASE** Phase 15 — DARK FOUNDATION DEPLOY **SAFELY BLOCKED** at the
+rolling-deploy gate (BL-028): the migration is forward-safe but BACKWARD-FATAL, and no
+restore path exists through any available channel. Branch reconciled to master
+(`281860228`, 45 ahead / 0 behind); frontend A/B clean. Phase 14 — DARK INTEGRATION
+**SAFELY BLOCKED**: production is still
 PRE-MIGRATION (`PRIMARY KEY (date, metric)`, no `universe` column), so promoting the US
 artifact would silently corrupt UCT history. Nothing was written. DEPLOY FIRST,
 INTEGRATE SECOND — the whole integration is rehearsed and passing against a copy of the
@@ -1300,3 +1304,72 @@ artifact the worker will re-point away from within hours.
 
 **Deploy the branch dark**, which runs the proven universe migration on both pods and
 changes no member-visible behaviour, and only then integrate the US rows.
+
+---
+
+## Phase 15 — DARK FOUNDATION DEPLOY · **SAFELY BLOCKED** (2026-09-15)
+
+**Branch** `feat/breadth-pit-foundation` @ **`281860228`** — master merged, **45 ahead /
+0 behind** `origin/master` `65899a8f7`, tree clean. **Nothing deployed. Nothing migrated.
+Production untouched.**
+
+### Reconciliation — and one failure the merge resolved
+
+`origin/master` merged cleanly (docs + the joystick gate harness; zero overlap with
+breadth code). ⚠️ **The merge was not cosmetic**: `hub/surfaceMatrixIsCurrent.test.js`
+was failing on the branch and passing on master, because the branch carried the OLD
+`tools/hub_surface_matrix.mjs` (`67845d9e0` vs master's `5d70afc0e`) against an identical
+committed doc — a file pair that must move together. The branch touches neither file;
+being 20 commits behind was the whole cause, and the merge fixed it.
+
+### Frontend gate — CLEAN against master
+
+| | |
+|---|---|
+| branch (merged) | **8 files failing** |
+| clean `origin/master` `65899a8f7` | **the same 8 files**, verified in a throwaway worktree |
+| new failures attributable to this branch | **ZERO** |
+
+The eight: `surfaces/manifest` (`/admin/wisdom` has no manifest row), `styles/tapFloor`
+(journal-2-0 CSS), `pine.blindCorpus`, `ChartDrawingOverlay.surfaces`, `manifestProse`,
+`ThemeTrackerPage.chartmount` (2), `pollingSites.rail`, `screener/reachable`. Every one
+names a file outside this branch's diff. Pre-merge the branch showed 20,217 passed / 10
+failed; post-merge the extra failure is gone.
+
+⏳ The full backend A/B was restarted on the merged tree and is still running; it does
+not change this phase's outcome, which is blocked on a hazard the tests cannot see.
+
+### ⛔ THE BLOCKER — BL-028
+
+The rolling-deploy audit was run against real SQLite with master's actual deployed SQL.
+**Forward is safe in both mixed-version directions** — and only because US is absent.
+**Backward is fatal**: master's `ON CONFLICT(date, metric)` matches no index after the
+migration, so old code on an already-migrated volume cannot write breadth at all. That
+state is reachable by a failed health check, not only by a deliberate rollback, and
+`_migrate_universe_column` `DROP`s the original table.
+
+⛔ **And the restore path does not exist.** The R2 bridge is an additive gap-fill merge
+that never replaces a database; putting `prod_1789472774.tar.gz` back needs filesystem
+access to the Railway volume. We hold the bytes; we have no way to install them.
+
+§3 of the brief says to STOP before the production migration when a real old-code/
+new-schema hazard exists and design the safe sequence first. **That is what this is.**
+
+### The designed safe sequence
+
+A temporary `UNIQUE INDEX (date, metric)` alongside the migration makes old code's UPSERT
+match again — so a rollback stops being fatal — leaves new code unaffected, and **cannot
+survive a second universe**, which turns "drop the compatibility index" into an
+unmissable first step of US ingest rather than a remembered one. Deploy dark with it →
+soak → confirm both pods new and one R2 round trip → drop it as step one of ingest.
+
+### Rollback artifact
+
+`rollback/prod_1789472774.tar.gz` · sha256 `5518974638daef7b…` · 8.1 MB gz / 41.7 MB ·
+PRE-MIGRATION `(date, metric)` · 170,545 UCT rows · 2008-01-02 … 2026-08-07 · UCT value
+fingerprint `c7578ff928440901…`.
+
+### EXACT NEXT STEP
+
+**Authorise (or amend) the compatibility-index sequence.** Until a rollback path exists,
+the migration is a one-way door, and that is the owner's decision rather than mine.

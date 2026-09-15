@@ -901,3 +901,70 @@ rows are still in the table.**
 
 ⛔ And STORED still is not APPROVED: `US:MU` and `US:S2` hold 4,703 rows each and remain
 unreachable even with US published, because they are not in the V1 set.
+
+---
+
+### BL-028 · The migration is forward-safe and BACKWARD-FATAL — the deploy is one-way
+
+§3 of the deploy brief asked for a rolling-deploy hazard audit. It was run against real
+SQLite using master's ACTUAL deployed statements and this branch's actual statements, not
+a paraphrase of either.
+
+**The collision being fixed, demonstrated:**
+
+| schema | after writing UCT 47.2 then US 19.9 for 2015-03-10 / pct_above_50sma |
+|---|---|
+| new `(universe, date, metric)` | `[('uct', 47.2), ('us', 19.9)]` — two rows |
+| old `(date, metric)` | `[('2015-03-10', 'pct_above_50sma', 19.9)]` — **UCT's 47.2 is gone** |
+
+**Forward, both mixed-version directions are SAFE — and only because US is absent:**
+
+| case | result |
+|---|---|
+| worker NEW uploads a migrated snapshot → web OLD merges it | ✅ the `universe` column is ignored; every row is UCT, so nothing mixes |
+| worker OLD uploads an unmigrated snapshot → web NEW merges it | ✅ `susrc` falls back to the literal `'uct'`, which `_merge_from` already handles by design |
+
+⛔⛔ **Backward, it is not safe.** Master's UPSERT names `ON CONFLICT(date, metric)`, and
+after the migration no unique index matches that clause:
+
+    OperationalError: ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE constraint
+
+A plain `INSERT` omitting `universe` still works — the column keeps
+`NOT NULL DEFAULT 'uct'` — but every UPSERT path fails. **So old code against an
+already-migrated database cannot write breadth at all**, which is the 4:15pm collector
+and the intraday aggregation.
+
+**That is reachable by accident, not only by choice.** A failed health check or a manual
+Railway rollback puts old code on a pod whose volume this migration already rewrote —
+and `_migrate_universe_column` `DROP`s the original table, so there is no in-place
+reversal.
+
+⛔ **And the restore path does not exist through any channel available here.** The R2
+bridge is an additive gap-fill merge; it never replaces a database. Restoring a pod's
+`/data/breadth_daily_ohlc.db` needs filesystem access to the Railway volume — which
+means a shell on the pod or another deploy. Holding `prod_1789472774.tar.gz` gives us the
+BYTES to restore; it does not give us a way to put them back.
+
+**So the deploy is effectively one-way, and that is a decision to take deliberately
+rather than discover during an incident.**
+
+#### The designed safe sequence
+
+⭐ **A temporary compatibility index makes the deploy reversible, and doubles as an
+interlock.** While UCT is the only universe, `(date, metric)` is still unique, so:
+
+    CREATE UNIQUE INDEX idx_bdo_compat_date_metric ON breadth_daily_ohlc(date, metric)
+
+- old code's `ON CONFLICT(date, metric)` matches again → **a code rollback stops being
+  fatal**;
+- new code's `ON CONFLICT(universe, date, metric)` is unaffected;
+- and the index CANNOT survive a second universe — inserting US would raise a UNIQUE
+  violation. That is a feature: it makes "drop the compatibility index" an explicit,
+  unmissable step of the US ingest phase rather than a note someone has to remember.
+
+Sequence: deploy dark with the index → soak → confirm both pods on new code and a
+round-trip through R2 → drop the index as step one of US ingest.
+
+⚠️ Not implemented. §3 says to STOP before the production migration when a real
+old-code/new-schema hazard exists and design the sequence first; this is that design, and
+adding a production index is a change the owner should authorise on its own terms.
