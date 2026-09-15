@@ -270,7 +270,7 @@ scope did — and that is the entire value of it.
 | full vitest | **1473 passed / 10 failed files · 21,378 passed / 13 failed tests · 37 skipped** · 379s · **0 timeouts** (`grep -c "Test timed out"` = 0, so all 13 are assertions) |
 | Python twin, 25 files by name, 2 serial scopes | **811 passed · 5 skipped · 1 xfailed · 0 failed**, both scopes exit 0, scope guard 13+12 paths all present |
 | vite build, alone | **exit 0**, 18.21s |
-| moved snapshots | **none — the tree carries no `__snapshots__`/`*.snap` at all** |
+| moved **artifacts** | **none at a7.4** — ⚠️ and the word matters: see the rule below |
 
 ⛔ **Zero timeouts, so nothing is banked as load-sensitive breakage.** One file was
 nevertheless **green alone and red in company** and is classified as environment,
@@ -390,7 +390,29 @@ with its own estimate and a committed red acceptance first.
 | `VITE_CHART_RENDER_TOKEN_PREVIOUS` | the discord-render lane's undeclared build arg — named here so it is not lost |
 | 11b | another lane's, untouched |
 
-### ⚰️⚰️ THE ADJACENT-THING CLASS — **five** instances, one shape
+### ⛔⛔ A RE-BASELINE REPORTS **MOVED ARTIFACTS**, BY NAME — NOT "MOVED SNAPSHOTS"
+
+**Owner ruling, 2026-09-15.** ⚰️ *"Zero moved snapshots"* was **true and misleading at
+the same time**, which is the worst shape a report can take. The tree carries no
+`__snapshots__` and no `*.snap`, so the sentence was accurate — and R18 had moved
+**two committed artifacts** in the same run.
+
+⛔ **THE ARTIFACTS A RE-BASELINE MOVES ARE THESE, and every re-baseline report states
+each one's before/after OR "unchanged", BY NAME:**
+
+| artifact | written by |
+|---|---|
+| `tools/corpus_metric.json` | `corpusMetric.test.js` |
+| `tools/lookback_agreement.json` | `lookbackAgreement.test.js` (the R-G cross-lane oracle) |
+| any contract file the JS writes | see `docs/pine/CONTRACT.md` — four files, measured |
+
+⭐ **The R18 instance, and the numbers were the whole point:** `corpus_metric` **host_ok
+31 → 32, screener_ok 44 → 46**; `lookback_agreement` **distinct_trees_walked 310 →
+316** (rows unchanged at 54 — that export is a bounded sample, so a larger walk does not
+move it). Those three numbers *are* the measurement that R18 did what it was ruled for.
+Reporting "no snapshots moved" had answered a question nobody asked.
+
+### ⚰️⚰️ THE ADJACENT-THING CLASS — **six** instances, one shape
 
 > **In every one the run was GREEN and the answer was WRONG.** The guard checked a
 > neighbouring property — that something did not fail, or that an instrument returned
@@ -403,12 +425,21 @@ with its own estimate and a committed red acceptance first.
 | R9 | `array.sum`/`max`/`min` | they were in `REDUCE_MEMBERS` and `HANDLED`, so they were "handled" | every one returned `pine:roundtrip` **with no formula at all** — raw bindings spliced into an output tree |
 | **R9a** | the set-agreement control | *"every `REDUCE_MEMBERS` entry must not refuse"* | deleting the `avg` fold let it **fall through to `min`** and return `min(min(0,1),2)` — a wrong answer, refusing nothing, control still green |
 | **R13** | the red acceptance's own overlap check | *"no declared member input is also a Track F parameter"* — and the `it.fails` marker **passed**, reporting the defect fixed | it read `declared` off a **raw `translatePine`, which never populates it**. The overlap was empty **because the set was empty**. The instrument measured nothing and the nothing agreed with it |
+| **R18** | `pine.tuples.test.js` — *"a destructure of some OTHER builtin is untouched"* | the NAME says a builtin that is not `request.security` | the BODY used **`request.security`** — the very one R18 carries. ⛔ **A fixture whose name and body disagree never tests what it claims**, and this one had been green for as long as it existed while asserting nothing about "other" builtins at all |
 
 ⭐ **The fix is the same every time: assert the ANSWER.** R9a's control now pins
 `sum → 0 + 1 + 2`, `avg → (0 + 1 + 2) / 3`, `max → max(max(0, 1), 2)`,
 `min → min(min(0, 1), 2)` **and that all four are distinct**, so no member can silently
 serve another's branch. Re-proved on the same mutation: two reds where there had been
 one.
+
+⛔ **THE SIXTH ADDS ITS OWN RULE: A FIXTURE'S NAME AND BODY MUST AGREE.** When they
+drift apart the name is what a reader trusts and the body is what runs, so the suite
+reports coverage it does not have. ⭐ **The fix is to make one follow the other and say
+which** — R18 kept the name and replaced the body with a builtin that genuinely is not
+`request.security`, because the name described the property actually worth guarding.
+Deleting the case would have removed a real guard; renaming it to match the wrong body
+would have recorded the gap as intentional.
 
 ⚠️ **The fifth is the one that bites a RED, not a green**, which is why it earns its
 own standing rule below: every other member of this class shipped a wrong answer past
