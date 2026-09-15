@@ -1061,3 +1061,44 @@ answers for restore — so the two should be designed together rather than separ
 
 ⛔ Neither is authorised yet. Both require, in order: every pod on universe-aware code ·
 a working restore path · the compatibility index deliberately dropped.
+
+---
+
+### BL-032 · The full-suite A/B found FOUR real defects the first triage had binned as noise
+
+The backend A/B returned **215 failures**, and the first pass through them looked for
+Breadth *test files* and found one. That is the wrong question. Four of the four
+defects this branch actually carried were reported by tests with no Breadth in their
+name, because **the rails that judge a branch are repo-wide, not domain-local**.
+
+| what it was | who reported it | why the first pass missed it |
+|---|---|---|
+| a POISONED per-symbol bars cache left behind by my own fixture | `test_breadth_daily_ohlc.py` | the *symptom* was in Breadth, the *cause* was in a different Breadth file |
+| `breadth_pit_frame.py` unregistered in the corporate-action census | `test_corp_actions_census.py` | filed under "census, environmental" next to a genuinely pre-existing row |
+| `BREADTH_UNIVERSE_BACKFILL_ENABLED` undeclared in the feature-flag ledger | `test_feature_flag_ledger.py` | one line in 215 |
+| the schema change would **ship inert to flow-worker** | `test_flow_worker_watch_coverage.py` | one line in 215 |
+
+⛔ **The cache one is the instructive one.** `build_breadth_bars` writes a SEALED
+per-symbol series into the process-wide `_breadth_cache` and keeps it for hours. A
+publication-gate case that builds `UCTA50` against an EMPTY temporary store therefore
+caches an **empty series under the real symbol's key**, and the next test file to ask
+for UCTA50's candles is served that emptiness instead of building its own. The fixture
+cleared the two derived caches and not that one. ⭐ A fixture that cleans up only on
+entry protects itself and poisons everyone after it — so it now resets **both sides**.
+
+⚰️ **And the fourth is the one that mattered to the deploy, not to the suite.**
+flow-worker RUNS `breadth_daily_ohlc`, `breadth_monitor`, `breadth_universes` and
+`massive`, and watches none of them. Without a watched-file touch the schema change
+reaches web and worker and **not** flow-worker — a pod left writing
+`ON CONFLICT(date, metric)` against a migrated database. BL-028's compatibility index
+is exactly what makes that survivable instead of fatal, which is the point: the
+interlock absorbed a deployment mistake that a rail then named out loud. But *every pod
+runs universe-keyed code* is a precondition of ever dropping that index, so a stranded
+flow-worker would have silently blocked the next phase.
+
+⚠️ **The honest reading of "215 failures, 2 are mine."** It was 215 failures, **four**
+were mine, and the difference was not diligence — it was asking "which of these read my
+diff?" instead of "which of these has my domain in its filename". The three remaining
+`test_corp_actions_census.py` failures are genuinely pre-existing: they name
+`api/services/wisdom/capture/families/gex.py`, which exists on `origin/master` and is
+unregistered there too.
