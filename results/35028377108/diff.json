@@ -1,0 +1,54 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 100,
+    "missing": 21,
+    "baseline": 122,
+    "current": 100,
+    "current_ran": 41674,
+    "new_flaky": 0,
+    "flaky_size": 1,
+    "flaky_new": 0,
+    "flaky_fixed": 0
+  },
+  "arithmetic": "baseline 122 = unchanged 100 + fixed 1 + missing 21  |  current 100 = unchanged 100 + new 0 + new-but-flaky 0",
+  "invalid_because": [
+    "current: shards_success 11 of 12",
+    "current: shards_without_totals = ['tests-05']"
+  ],
+  "baseline_run_id": "35008710335",
+  "current_run_id": "35028377108",
+  "new": [],
+  "missing": [
+    "pytest|tests.test_implied_backfill.TestFinnhubPacing|test_an_empty_finnhub_response_is_retried_not_accepted",
+    "pytest|tests.test_implied_backfill.TestFinnhubPacing|test_every_finnhub_call_is_actually_paced",
+    "pytest|tests.test_implied_backfill.TestFinnhubPacing|test_gives_up_after_the_attempt_budget",
+    "pytest|tests.test_implied_backfill.TestFinnhubPacing|test_no_finnhub_call_at_all_when_fmp_has_nothing",
+    "pytest|tests.test_implied_backfill.TestFiscalJoin|test_a_far_away_period_is_refused_not_least_wrong",
+    "pytest|tests.test_implied_backfill.TestFiscalJoin|test_distinct_quarters_all_survive",
+    "pytest|tests.test_implied_backfill.TestFiscalJoin|test_future_announcements_are_excluded",
+    "pytest|tests.test_implied_backfill.TestFiscalJoin|test_off_calendar_filer_gets_the_right_quarter",
+    "pytest|tests.test_implied_backfill.TestFiscalJoin|test_one_quarter_is_never_claimed_twice",
+    "pytest|tests.test_implied_backfill.TestFiscalJoin|test_september_filer_gets_the_right_quarter",
+    "pytest|tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource|test_an_exception_from_fmp_falls_back_instead_of_escaping",
+    "pytest|tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource|test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \\u2014 the provider never answered]",
+    "pytest|tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource|test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history]",
+    "pytest|tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource|test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity]",
+    "pytest|tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource|test_the_real_fmp_leg_is_wired_up_end_to_end",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_nb_observe|test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY",
+    "pytest|tests.test_no_cr_in_tracked_text_blobs|test_no_tracked_text_file_is_staged_with_cr_line_endings"
+  ],
+  "fixed": [
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold"
+  ]
+}
