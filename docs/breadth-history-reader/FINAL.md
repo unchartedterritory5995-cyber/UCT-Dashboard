@@ -83,13 +83,35 @@ Already closed and not re-openable:
 
 ## 5 · WHAT IS PROPOSED AND NOT BUILT — `PENDING`
 
-- ⚠️ **Gate the promotion range, not the tip.** `beace00e0`'s gate failed, and it is an
-  ancestor of `production` today — carried in by a later green tip. The secret scan is
-  per-commit by construction, so its files were never scanned by a gating run. Candidate:
-  refuse promotion when any commit in `production..candidate` has a failed gate run.
-  (D-053 §4.)
+- ⚠️ **Promote the range scan to gating.** Built and shipped **advisory** under SD-1.1 A2.5
+  (`repo/range-scan`, `docs/breadth/range-scan-finding.md`). It is advisory because a check
+  that has never been watched fire must not be able to block. Promotion criterion: **≥ 20
+  runs logging `range-scan: EXECUTED … verdict=CLEAN`** — `INCONCLUSIVE`, `NO RANGE`,
+  `NOTHING AHEAD` and `NOTHING-TO-SCAN` deliberately do not count — **or the first true
+  finding after review.**
+- ⚠️ **Or fix the merge direction instead — these are alternatives, not a pair.** The gate
+  scans `HEAD^..HEAD`, and `HEAD^` is the *first parent*. Landing via
+  `checkout branch; merge master; push branch:master` makes the branch the first parent, so
+  the scan covers **master's** side. Landing via `checkout master; merge branch` (or a
+  GitHub squash) puts the old master first and scans correctly.
 - **The next reader candidate**, if any — R8 writes it, as a proposal only.
 - *(more at close)*
+
+### ⚰️ The measurement behind both, and it was not the one this was authorised for
+
+Range gating was authorised for a single red-gate commit that rode in behind a later green
+tip. Measuring it found something structural:
+
+| | |
+|---|---|
+| first-parent commits reaching `production` since the gate existed | **85** |
+| with **no gate run of their own** | **66** |
+| largest single push | **18 commits** |
+| ⭐ this programme's own M14 push — gate scanned vs actually introduced | **11 files vs 3, overlap 0** |
+
+⭐ **The last row is the finding.** On a merge whose first parent is the feature branch, the
+scan does not miss part of the change — **it scans the other side**, eleven already-gated
+files belonging to somebody else's work, and none of the three the push existed for.
 
 ---
 
@@ -119,6 +141,17 @@ These are the ones that generalise past the reader. They are the programme's rea
 9. ⭐ **No number in prose unless it appears in a table or a tool output.** A median is
    never substituted for a measurement.
 10. ⭐ **Stage by name. Never `git add -A`.** Now mechanised, not merely written down.
+11. ⭐⭐ **A check that speaks only when it finds something cannot be distinguished from a
+    check that never ran.** Met three times in one day: an empty WARN log reading as *zero
+    false positives*; a pause logged only on state change, so a re-pause was invisible; and
+    a range scan that would have printed *"nothing to scan"* on every run because its base
+    was unreachable. **Every instrument that can be silent must heartbeat**, and its
+    "we could not measure" state must be distinct from its "we measured nothing" state.
+12. ⭐ **One worktree, one writer.** A long-running script and an editing session cannot
+    share a checkout. Paid for three times in one session — a sequence killed mid-flight, a
+    correction staged onto the branch one push from master, and a third near-miss three
+    commits after the rule was written. **The fix is to remove the opportunity, not to be
+    more careful.**
 
 ---
 
