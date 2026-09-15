@@ -45,18 +45,22 @@ MUTATIONS = (
     # load — and this system HAS sustained member load in RTH.
     Mutation("M2 the fairness bound is removed — background can starve forever",
              "BACKGROUND_STARVE_S = 25.0", "BACKGROUND_STARVE_S = 1e9",
-             "background is STILL served"),
+             # ⚰️ THIS NEEDLE WAS STALE AND THE HARNESS SAID SO: RED, but on a case I had not
+             # named. The probe overrides `starve_s` to stay fast, so a mutation of the SHIPPED
+             # constant is invisible to it -- which is exactly why the constant is asserted
+             # directly, and that is the case this must break.
+             "the SHIPPED fairness bound is finite"),
     # ⛔ The starvation check must be applied when deciding WHOSE TURN it is, not at grant time: at
     # grant time the heap has already handed a later-arriving member the turn.
     Mutation("M3 the starvation bound stops deciding whose turn it is",
              "        if self._bg_starving(now):", "        if False:",
-             "background is STILL served"),
+             "background is served while members are STILL queued"),
     # ⛔ NON-VACUITY FOR THE WHOLE SUITE. If the gate stops queueing at all, every waiter races the
     # way a plain semaphore does — and the CONTROL case (which asserts the OLD behaviour still
     # loses) is what catches it, not the member-wins case.
     Mutation("M4 the waiter queue is ignored, so the gate degrades to a free-for-all",
              "            if self._free and not self._waiting:", "            if self._free:",
-             "the member wins EVERY one of"),
+             "a newcomer cannot barge a slot"),
 )
 
 
