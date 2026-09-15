@@ -85,6 +85,35 @@ lookback bar held 36px. 8px clearance to the date scale. One legend, one range b
 - `StockChart.jsx` eslint 106 errors = baseline, `no-undef` 0. stylelint 0 errors.
 - `npm run build` clean.
 
+## ⚠️ KNOWN FLAKY RAIL — `stockChartWiring.test.jsx` "A HOVER REACHES THE RENDERER NOT AT ALL"
+
+Seen ONCE in 4 broad `src/components` runs on the Track A follow-up tree (2026-09-15).
+**Not a Track A regression.** Characterisation, so the next person does not re-derive it:
+
+| tree | runs | result |
+|---|---|---|
+| clean `origin/master` | 3 | 4 failures every time — never reproduced |
+| Track A follow-up | 4 | 3 × 4 failures, 1 × 5 failures |
+
+**Why it is not ours.** The rail clears `H.applyOptionsCalls`, fires mouseEnter/mouseLeave
+on the **RSI** chip, then asserts the array is empty. The calls it captured were
+**candlestick** options (`upColor` / `downColor` / `wickUpColor` / `borderVisible`) — not
+the RSI line series that was hovered. A hover-triggered restyle would restyle the HOVERED
+series. This is the price-style effect (master's own, unchanged by Track A) flushing inside
+`act`, inside an observation window that is racy for ANY pending async update.
+
+**And the sampler cannot reach it.** `StockChart`'s rAF chrome sampler contains no
+`applyOptions` at all; its only state effect is `setCompactLegend`, whose threshold AND
+guard are arithmetically IDENTICAL to the pre-Track-A code on every unarranged pane shape
+(verified across `[420,120]`, `[600]`, `[300,80,90]`, `[0,100]`, `[]`) — and that test
+renders an unarranged chart. The only Track A delta is extra per-frame measurement work,
+which can shift WHEN an unrelated pending update flushes, not WHETHER one exists.
+
+⛔ **The rail was left exactly as it is.** It states a true product contract (a legend
+hover must never restyle the plot) and must not be weakened to go green. If it becomes
+noisy, the fix is deterministic lifecycle synchronisation in the test's observation window
+— never relaxing the assertion.
+
 ## NEXT ACTION
 
 **Wait for the owner's explicit deploy command.** Then push `84fbd7394` with the rest of
