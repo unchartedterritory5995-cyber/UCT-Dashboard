@@ -9,7 +9,7 @@ opens and merges this in the browser, not an agent.**
 ## Title
 
 ```
-audit(joystick): baseline adopted at 10, D1 label collision resolved, §5A promoted, drift audit and intake readiness
+audit(joystick): baseline settled at 10, provisional entries run down, D1 collision resolved, §5A promoted
 ```
 
 ---
@@ -30,10 +30,10 @@ master's newer commits appear as though **this branch** had made the opposite ch
 
 | form | files | what it reports |
 |---|---|---|
-| `master..HEAD` (two-dot) | **47** | includes `api/services/discord_render/observe.py`, the whole `docs/discord-render/**` tree, and several `tools/`+`tests/` files as **deleted** — none of which this branch touched |
-| `master...HEAD` (three-dot) | **28** | what the branch actually changed |
+| `master..HEAD` (two-dot) | **115** | sweeps in every file master has changed since the branch point — `api/**`, `app/src/**`, whole doc trees — shown backwards, as though **this branch** had reverted them |
+| `master...HEAD` (three-dot) | **29** | what the branch actually changed |
 
-⛔ Those 19 phantom entries are master's own commits seen backwards. **A PR body asserting
+⛔ Those 86 phantom entries are master's own commits seen backwards. **A PR body asserting
 "docs/tools only" while listing `api/services/…` would refute itself inside its own evidence.**
 
 ### Rebase-clean
@@ -41,14 +41,14 @@ master's newer commits appear as though **this branch** had made the opposite ch
 | | |
 |---|---|
 | merge-base | `7707b224194161e24dd40b5a8da2d54df29012ac` |
-| master, re-resolved at write time | `1216958ed29aa263a91f7b3224e237ca4ecb7e03` |
+| master, re-resolved at write time | `7ac0e0aee` |
 | `git merge-tree --write-tree master HEAD` | **exit 0 — no conflicts** |
 
 The branch is behind master's tip. That is **not drift and not a stop condition**: *rebase-clean*
 here means **merges without conflict**, confirmed by an in-memory three-way merge. Nothing was
 checked out, rebased or merged to establish it.
 
-### Files (28)
+### Files (29)
 
 ```
 M  docs/plans/joystick/closure.md                                 <- box-2 caveat note; box stays ☐
@@ -59,6 +59,7 @@ A  docs/plans/joystick/drift/2026-09-14-intake-readiness.md
 M  docs/plans/joystick/gate-baseline.json                         <- baseline 7 → 10
 A  docs/plans/joystick/gate-runs/2026-09-14T17-48-27.json
 A  docs/plans/joystick/gate-runs/2026-09-14T17-48-27.md
+A  docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md  <- the two settling runs
 M  docs/plans/joystick/glass-acceptance-steps.md                  <- D1 → D1-a11y
 M  docs/plans/joystick/owner-run.md                               <- D1 → D1-eye
 M  docs/plans/joystick/requests.md                                <- R-30, R-31; R-29 recurrence
@@ -89,15 +90,33 @@ owner. `files[]` had **drifted** (it listed three removed rows and omitted one a
 now **derived** from `failures[]`; it is documentation-only — `gate_shards.py` reads `sha`,
 `measured_at` and `failures` and never `files`.
 
-⛔ **Two of the three additions are flagged `provisional: true`, and a reviewer should read why.**
-`docs/breadth/gates.md:24` already classifies `presentationSingleFormatter` as
-**"load (15 s timeout)"**, and this baseline's own rule is that *a timeout is never banked as
-permitted breakage*. It is banked under R1, with `what_would_settle_it` recorded beside it — one
-alone-run on a quiet box. That run was **not** performed on 2026-09-14 because another workstream's
-six-shard gate (`notebook-k`, pid 50356) was live, and an "alone" run under gate load reproduces
-the very condition it exists to exclude. `surfaces/manifest` has **no** prior classification at all.
-⚠️ Separately and pre-existing: the two `ThemeTrackerPage.chartmount` rows already in the baseline
-are classified *load-sensitive (~4 s)* by that same table.
+⛔ **The two provisional entries were then run down.** Manifest:
+`gate-runs/2026-09-14T21-39-settling-runs.md`. **The settled number is 10 — unchanged**, because
+nothing passed alone *reliably*.
+
+| # | entry | outcome |
+|---|---|---|
+| 8 | `reachable` (R-29) | **banked** — rail red, re-verified on master |
+| 9 | `presentationSingleFormatter` | **still `provisional: true`** — INCONCLUSIVE after five alone-runs |
+| 10 | `surfaces/manifest` | **banked**, `provisional: false` — settled by static proof |
+
+**#10 was settled without needing a clean box**, because its assertion is data, not timing:
+`/admin/wisdom` is a Layout-hosted route (`App.jsx:650`) and appears **0 times** in
+`app/src/surfaces/manifest.js`. Load cannot manufacture a missing manifest row. Introduced by
+`7b3408a8f` (the **wisdom** workstream), while the rail is S1's — R-31 records both.
+
+**#9 is genuinely unresolved, and the "load" label is wrong.** Five alone-runs: it **failed on a
+verified-clear box** (`Tests 1 failed | 11 passed (12)`, test time **15.31s** against a **15s**
+ceiling) and **passed twice while a six-shard gate with six vitest workers ran**. Load predicts
+nothing in either direction. Its test time swings **2.00s → 15.31s** — an intermittent sitting on
+its own timeout boundary, one failure in five, never an assertion failure. It stays banked **only**
+under R1 and stays flagged. Settling it means raising that one case's timeout, which edits S10's
+file — filed on **R-30**, not done here.
+
+⚠️ **H14 — three of ten baseline entries carry a load classification** in `docs/breadth/gates.md`:
+both `ThemeTrackerPage.chartmount` rows (*load-sensitive ~4 s*, banked before today) and #9
+(*load 15 s timeout*). #9's runs show such a classification can itself be wrong, which is reason to
+re-measure the other two — **listed, not acted on.**
 
 **R2 · box-2 caveat recorded, box NOT ticked.** `closure.md` box 2 carries R2's wording verbatim as
 a note. Wire-vs-Breadth is a **new row** in §5A rather than folded into G3-16.
@@ -170,5 +189,6 @@ Both new rows tagged *surfaced by hub gate, not hub-owned*.
 5. **Boxes 1 and 2 are still ☐.** The box-2 change is a *note*, not a tick.
 6. **`launch/stage-2-member-preview` @ `2ae7e98aa` is untouched and still unopened.** Nothing here starts `rollout.md` §3.
 7. **§5A is scored by hand.** No tool reads `stage-2-verification.md`; results go to a record under `smoke-runs/` and then box 5's evidence slot.
+8. ⛔ **The `2ae7e98aa` gate verdict STILL HOLDS against the settled baseline of 10** — restated in `drift/2026-09-14-frozen-branch-drift.md`. Its claim was a direction (*zero attributable NEW*), not a number, and all three additions are master's, none in the branch's 26 paths. Its *numbers* still do not describe a merge performed today.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

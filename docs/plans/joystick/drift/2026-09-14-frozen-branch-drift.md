@@ -211,3 +211,38 @@ glob matches nothing.
    stage 1 on master until Patrick merges it`. Both are correct today. Neither is drift and
    neither blocks; they are a post-merge docs follow-up, noted so the first post-merge commit can
    carry them alongside the R-29 baseline entry.
+
+---
+
+## Restated against the SETTLED baseline — 2026-09-14, 21:39
+
+The two provisional baseline entries were put to their settling runs
+(`gate-runs/2026-09-14T21-39-settling-runs.md`). **The settled number is 10 — unchanged.**
+
+| # | entry | outcome |
+|---|---|---|
+| 8 | `reachable` (R-29) | **banked** — rail red, re-verified on master |
+| 9 | `presentationSingleFormatter` | **still provisional** — INCONCLUSIVE after five alone-runs |
+| 10 | `surfaces/manifest` | **banked** — settled by static proof (`/admin/wisdom` routed, undeclared) |
+
+Nothing was removed, because nothing passed alone *reliably*.
+
+### The `2ae7e98aa` gate verdict: **STILL HOLDS. Same conclusion, and the reasoning is unchanged.**
+
+**Why it survives a baseline that moved from 7 to 10 and then held at 10:** the stage-2 gate's
+claim was never a number, it was a **direction** — *zero attributable NEW*, meaning the branch
+introduces no failure of its own. Every one of the three additions is master's:
+
+- **#8** fails on master with no feature branch in the tree, and is S4's orphan.
+- **#9** is an intermittent in `lib/presentation`, a tree this branch does not touch.
+- **#10** is a missing manifest row for `/admin/wisdom`, a route introduced by the wisdom
+  workstream in `7b3408a8f`.
+
+None of the three is among the branch's 26 paths. The branch's own contribution is still nothing,
+so the conclusion is the same one, reached against a larger and better-evidenced baseline.
+
+⚠️ **And the qualification is the same one too, restated rather than quietly dropped:** the gate
+measured a tree containing master at `4fb4f9daf`. Master has moved a long way since. A gate on a
+merge performed today would read 10 or more — every extra one master's — so the *numbers* in that
+manifest still do not describe a merge today, even though the verdict does. What settles that is a
+gate on the actual merge result after Patrick merges, against the baseline as it then stands.

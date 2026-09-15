@@ -106,7 +106,10 @@
       "added_in": "docs/plans/joystick/gate-runs/2026-09-14T17-48-27.md",
       "why": "⚰️ A RECURRENCE, not a new row. This exact name was REMOVED on 2026-09-11 (see removals[]) because it had stopped failing; it fails again. Re-verified BY MEASUREMENT, not inherited: the 2026-09-14 six-shard run was on MASTER itself (1216958ed), with no feature branch in the tree, and it failed there. Owned by S4 as R-29 — the orphan is app/src/lib/context/focusDivergence.js, whose only non-test mention at origin/master sits inside a COMMENT in HubContext.jsx, so it has zero real importers. Not the hub's.",
       "owner": "S4 (requests.md R-29)",
-      "verified_by": "six-shard run on master 1216958ed; tree hash identical at both ends; 1350 files reconciling"
+      "verified_by": "six-shard run on master 1216958ed; tree hash identical at both ends; 1350 files reconciling",
+      "provisional": false,
+      "settled_at": "2026-09-14",
+      "settled_how": "Never provisional. Classified 'rail red' by docs/breadth/gates.md:22 and re-verified failing on master 1216958ed in the run this baseline adopts. A recurrence of a row removed 2026-09-11 — see removals[] and R-29."
     },
     {
       "added": "src/lib/presentation/presentationSingleFormatter.test.js > ⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, not hidden > nothing outside lib/presentation imports formatPercent from S10",
@@ -116,8 +119,10 @@
       "owner": "S10 / lib presentation workstream (see deferred.md)",
       "verified_by": "six-shard run on master 1216958ed",
       "provisional": true,
-      "classification_conflict": "⛔ docs/breadth/gates.md:24 ALREADY CLASSIFIES THIS AS LOAD-SENSITIVE: \"| lib/presentation/presentationSingleFormatter.test.js > nothing outside lib/presentation imports formatPercent | — | S10 presentation, de9551dd9 | load (15 s timeout) |\", and :89 repeats \"(load-sensitive)\". This file's own load_sensitive.instruction says a timeout is NEVER banked as permitted breakage, because banking one leaves a slot a real failure can occupy unnoticed. Banked here ONLY because owner ruling R1 (2026-09-14) said adopt 10 — and R1 was issued on an incomplete report that said none of the three was load-sensitive, which was true of THIS file and false of the repo. NEEDS AN OWNER RULING.",
-      "what_would_settle_it": "npx vitest run src/lib/presentation/presentationSingleFormatter.test.js — ALONE, on a quiet box. Passes alone => load-sensitive, move to load_sensitive.names and REMOVE from failures[]. Fails alone => genuine, keep. ⛔ NOT RUN 2026-09-14: a six-shard gate from the notebook-k worktree (pid 50356) was running, and an 'alone' run under gate load reproduces the very condition it is meant to exclude."
+      "classification_conflict": "⛔ INCONCLUSIVE after FIVE alone-runs on 2026-09-14, and the 'load' classification is NOT supported by them. docs/breadth/gates.md:24 calls it 'load (15 s timeout)' and :37 records it passing alone 35/35 — but here it FAILED on a verified-clear box (Tests 1 failed | 11 passed (12), Duration 30.58s, test time 15.31s against a 15s ceiling) and PASSED TWICE while a six-shard gate with six vitest workers was running. Load predicts nothing in either direction. Its own test time swings 2.00s -> 15.31s, a 7x spread, so it is an intermittent sitting on its own timeout boundary: one failure in five. It failed by TIMEOUT, never by assertion. Banked ONLY under owner ruling R1; this file's own rule is that a timeout is never banked as permitted breakage.",
+      "what_would_settle_it": "Raise the timeout on that one case (it(..., { timeout: 60000 }) or a testTimeout override) and see whether the ASSERTION passes. Passes with room => a slow test with a mis-set ceiling; move to load_sensitive.names and REMOVE from failures[]. Fails with room => the assertion is genuinely false; keep. ⛔ NOT DONE HERE: that edits S10's test file and only its owner should. Filed on R-30.",
+      "settled_at": null,
+      "settling_attempted": "docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md"
     },
     {
       "added": "src/surfaces/manifest.test.js > S1 CP1 — the surface manifest is derived, not typed > every Layout-hosted route has a declaration",
@@ -126,11 +131,13 @@
       "why": "Fails on MASTER with no feature branch in the tree. Surfaced by the hub programme's baseline re-measure; NOT hub-owned. Filed to its owning workstream — see deferred.md. ⛔ Not on the load_sensitive list, and NOT re-run alone.",
       "owner": "S1 surfaces workstream (see deferred.md)",
       "verified_by": "six-shard run on master 1216958ed",
-      "provisional": true,
-      "classification_conflict": "⚠️ UNCLASSIFIED. Unlike every other row, this one does NOT appear in docs/breadth/gates.md's classification table, so there is no prior rail-red / load-sensitive judgement to inherit. It is recorded as observed on master and nothing more.",
-      "what_would_settle_it": "npx vitest run src/surfaces/manifest.test.js — ALONE, on a quiet box. ⛔ NOT RUN 2026-09-14: the box was carrying another workstream's six-shard gate."
+      "provisional": false,
+      "what_would_settle_it": "SETTLED — see settled_how.",
+      "settled_by": "docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md",
+      "settled_at": "2026-09-14",
+      "settled_how": "BANKED — a genuine failure, settled STATICALLY so the box-clearance question does not apply: `/admin/wisdom` is a Layout-hosted route (App.jsx:650) and appears 0 times in app/src/surfaces/manifest.js. A missing manifest row cannot be manufactured by load. The alone-run agreed (Tests 1 failed | 9 passed (10), Duration 2.96s, no timeout) though it was contended and is not relied on by itself. ⚠️ gates.md has NO classification for this file, so none was inherited or invented. ⭐ The rail is S1's; the missing declaration was introduced by the wisdom workstream (7b3408a8f)."
     }
   ],
   "files_note": "⚰️ files[] is DERIVED from failures[] as of 2026-09-14 and is documentation only — scripts/gate_shards.py reads sha, measured_at and failures, never this. It had drifted: it listed src/__tests__/sourcesAreText.test.js and src/components/chart/builder/ImportBox.thinkscript.test.jsx (both removed when master fixed them) and src/components/screener/reachable.test.js (removed 2026-09-11), while omitting src/components/chart/ChartDrawingOverlay.surfaces.test.jsx (added 2026-09-10). A derived list cannot drift; a typed one already had.",
-  "provisional_note": "⛔ TWO OF THE THREE 2026-09-14 ADDITIONS ARE PROVISIONAL — see additions[].provisional. presentationSingleFormatter is documented elsewhere as a 15-second TIMEOUT, which this file's own rule says is never banked; surfaces/manifest has no prior classification at all. Both are banked under owner ruling R1 and both carry what_would_settle_it. ⭐ Only reachable.test.js (R-29) is unambiguous: docs/breadth/gates.md:22 classifies it 'rail red', and it was re-verified failing on master 1216958ed in the run this baseline adopts. ⚠️ SEPARATE, PRE-EXISTING: the two ThemeTrackerPage.chartmount rows already in failures[] are classified 'load-sensitive (~4 s)' by that same table, so this file was already banking timeouts before today. Recorded, not unwound — it is not this programme's to fix."
+  "provisional_note": "⛔ ONE OF THE THREE 2026-09-14 ADDITIONS IS STILL PROVISIONAL. #10 (surfaces/manifest) was SETTLED and banked on 2026-09-14 by static proof. #9 (presentationSingleFormatter) is INCONCLUSIVE after five alone-runs — it failed once on a clear box and passed twice under a live gate, so it is an intermittent on its own 15s timeout boundary, not a load artefact. It stays banked only under owner ruling R1 and stays flagged. #8 (reachable / R-29) is unambiguous. ⚠️ H14: three of ten baseline entries carry a load classification in docs/breadth/gates.md — the two ThemeTrackerPage.chartmount rows (banked before today, not this programme's to unwind) and #9. #9's five runs show such a classification can itself be wrong, which is reason to re-measure the other two, not to remove them. Listed, not acted on. Settling runs: docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md"
 }
