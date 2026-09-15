@@ -608,3 +608,49 @@ status and byte-shape read, **no body stored or printed**.
 
 ⚠️ A `User-Agent` is set, and that is deliberate rather than sloppy: Cloudflare 1010-blocks bare
 tool UAs, which would make every route read UNREACHABLE and the run read clean.
+
+## ⛔⛔ THE 3-PASS GATE RUN IS READY AND WAS NOT RUN — 2026-09-15 (session 6)
+
+Owner ruling **R2_GATE_3PASS_SPEND: YES**, $13.01. **It did not run, and no money was spent.**
+
+**Why: `ANTHROPIC_API_KEY` is not set in this session's environment.** `batch.make_client`
+(`api/services/wisdom/extract/batch.py:63-65`) reads it from the environment and raises
+`ExtractUnavailable` without it. There is no `.env` in the worktree and the repo carries no
+key-loading helper — the key comes from the operator's own environment. ⛔ No attempt was made to
+locate it elsewhere; §11.3 keeps secrets out of files, and hunting for one is not a workaround.
+
+### ⭐⭐ AND THE COMMAND NEEDS `--golden-file golden-v1.jsonl`, OR IT COSTS 46% MORE THAN RULED
+
+Measured by dry run (no API call, $0.00):
+
+| golden set | dev records | segments | 3 passes @ $0.076066 | vs the $14.96 hard stop |
+|---|---:|---:|---:|---|
+| `golden-v1.jsonl` | 67 (0 NULL) | **57** | **$13.01** | within |
+| `golden-v1.1.jsonl` **(the DEFAULT)** | 93 (26 NULL) | **83** | **$18.94** | ⛔ **breaches it** |
+
+⛔ **The ruling authorised "the 57-segment gate set", and that set is golden v1 — but the gate
+defaults to the NEWEST golden file present, which is now v1.1.** An unpinned run would quietly
+buy 83 segments three times. The pin is not optional.
+
+### The exact invocation, ready to run
+
+    python tools/wisdom/extract_golden_gate.py \
+      --db data/wisdom/extract/gate.db \
+      --data-dir data/wisdom \
+      --out-dir data/wisdom/extract/gate-run-3 \
+      --ledger data/wisdom/extract/spend-ledger.json \
+      --golden-file golden-v1.jsonl \
+      --split dev --phases gate --max-usd 40.0
+
+Run it **three times** (same flags, same `--out-dir`), then `reconcile_stability` picks the three
+persisted runs up automatically. ⚠️ `--max-usd` is the **ledger-carried TOTAL**, not the
+remainder — 40.0 is correct, and the run stops itself at the cap.
+
+**Verified by dry run:** `extractor_version wx-v0-fc47bc97`, model `claude-opus-5`, effort
+`high`, transport `batch`, worst case per request $0.42. Persistence is ON by default (R12), so
+each pass writes `data/wisdom/gate-runs/<stamp>/records.jsonl`.
+
+⭐ **An alternative worth a ruling:** v1.1 at **$18.94** still fits the $23.13 headroom, and it
+would produce the NULL false-positive numbers **item 5** has been waiting on — which RQ-v11-001
+now has a queue for (session 6, `evals/null_review.py`). One run, two items closed, $5.93 more
+than authorised. Not taken, because it is more than the ruling said.
