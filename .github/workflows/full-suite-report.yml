@@ -193,26 +193,58 @@ jobs:
           cp logs/vitest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           ls -la "extract/$GITHUB_RUN_ID"
 
+      # E CP5 — THE RUNNER'S VERDICT, not the log's text. The repo is public, so this
+      # endpoint answers with the workflow token or without one; either way it is the
+      # runner reporting on itself rather than a regex guessing from output.
+      - name: Fetch this run's job outcomes
+        if: always()
+        run: |
+          curl -sSL -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+            -o jobs.json || echo '{}' > jobs.json
+          python -c "import json;d=json.load(open('jobs.json'));print('jobs seen:',len(d.get('jobs',[])))"
+
       - name: Build the record
+        if: always()
+        env:
+          VITEST_RESULT: ${{ needs.vitest.result }}
+          PYTEST_RESULT: ${{ needs.pytest.result }}
+          SUITE_TIMEOUT_MINUTES: "45"
         run: |
           python - <<'PY'
-          import json, os, pathlib, datetime
+          import json, os, pathlib, datetime, sys
+          sys.path.insert(0, "tools")
+          import ci_outcome
           v = json.loads(pathlib.Path("v.json").read_text())
           p = json.loads(pathlib.Path("p.json").read_text())
+          try:
+              jobs = json.loads(pathlib.Path("jobs.json").read_text())
+          except Exception:
+              jobs = {}
+          # timeout-minutes is declared on both suite jobs; it is passed in rather than
+          # parsed out of this file, so a future change to one cannot silently desync.
+          CAP = int(os.environ.get("SUITE_TIMEOUT_MINUTES", "45"))
+          vo = ci_outcome.fields(jobs, "vitest", os.environ.get("VITEST_RESULT"), CAP)
+          po = ci_outcome.fields(jobs, "pytest", os.environ.get("PYTEST_RESULT"), CAP)
+          print("timed_out derivation (vitest):", vo["timed_out_basis"])
+          print("timed_out derivation (pytest):", po["timed_out_basis"])
           rec = {
             "run_id": os.environ["GITHUB_RUN_ID"],
             "run_number": os.environ.get("GITHUB_RUN_NUMBER"),
             "sha": os.environ["GITHUB_SHA"],
             "branch": os.environ.get("GITHUB_REF_NAME"),
             "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "vitest": v,
-            "pytest": p,
-            "oom_or_timeout": bool(v["oom_or_timeout"] or p["oom_or_timeout"]),
+            "vitest": dict(v, ok=ci_outcome.suite_ok(v, vo)),
+            "pytest": dict(p, ok=ci_outcome.suite_ok(p, po)),
             "runner_line": {"vitest": v["runner_line"], "pytest": p["runner_line"]},
-            # ⛔ GREEN means both suites actually RAN and neither failed. A suite that
-            # collected nothing is never green.
-            "verdict": ("GREEN" if (v["ok"] and p["ok"] and not v["failed"]
-                                    and not p["failed"]) else "RED"),
+            # E CP5 -- outcome read from the runner. `oom_or_timeout` is DELETED: it was
+            # true for two suites that completed and false for a job cancelled at its cap.
+            "outcome": {"vitest": vo, "pytest": po},
+            # ⛔ GREEN means both suites actually RAN, the RUNNER agreed each job
+            # succeeded, and neither failed. A suite that collected nothing is never
+            # green; neither is one whose job was cancelled.
+            "verdict": ("GREEN" if (ci_outcome.suite_ok(v, vo)
+                                    and ci_outcome.suite_ok(p, po)) else "RED"),
             # E CP4 -- where the TEXT lives for this run. Paths are relative to the
             # ci-results branch root, so a reader needs no knowledge of this workflow.
             "detail": {
