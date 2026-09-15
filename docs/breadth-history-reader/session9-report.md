@@ -203,11 +203,93 @@ is why the fast samples in D.2 are flat regardless of how much SQLite re-read.
 
 ### D.4 Window B — the flag ON
 
-*(to be completed — the predictions were committed before the flag was set)*
+**n = 30 settled** (20 `deep_cold`, 10 `warm_365`), `rf_pagecache = 1` on every sample,
+**no deploy landed during the window** (watched, not assumed).
 
-### D.5 Verdict on V1
+| `deep_cold` | OFF (n=19) | ON (n=20) | |
+|---|---|---|---|
+| p50 | 309.0 ms | **281.0 ms** | ×1.10 |
+| **p90** | 3,052.0 ms | **842.0 ms** | **×3.62** |
+| **max** | 11,382.4 ms | **1,257.7 ms** | **×9.05** |
+| min | 271.0 ms | 243.0 ms | |
+| `reconstructed_fetch` max | 9,072.9 ms | **975.6 ms** | ×9.30 |
+| `rf_stmt_sum` max | 8,854.9 ms | **893.3 ms** | ×9.91 |
+| **min `syscr`** | **1,669** | **182** | **×9.17** |
+| min `amp` | 1.5x | **0.16x** | |
+| max `read_bytes` | 187.51 MB | **0.00 MB** | |
 
-*(to be completed)*
+**Scoring the predictions, which were committed before the flag was set:**
+
+| | prediction | result |
+|---|---|---|
+| **P-B1** | min `amp` falls below the 1.5x floor | ✅ **1.5x → 0.16x.** Past the prediction: `amp` went *below 1*, because mapped pages are not counted in `rchar` at all |
+| **P-B2** | min `syscr` collapses from 1,669 | ✅ **1,669 → 182.** The mmap discriminator, and the one figure contamination cannot fake — a background thread can only push `syscr` **up** |
+| **P-B3** | p90 **and** max both improve > 3x | ✅ **p90 ×3.62, max ×9.05.** Both |
+| **P-B4** | `warm_365` p50 stays put — the CONTROL | ⚠️ **INCONCLUSIVE — see below** |
+| **P-B5** | `rf_rows` / `rf_bytes` identical | ✅ **4,529 and 4,523,328 in both arms** |
+
+⭐ **And one thing predicted NOT to move, moved.** D.0 said *"`io_read_bytes` may not fall,
+and that must not be read as failure — a major fault still fetches a cold page."* It fell
+to **0.00 MB on all twenty samples**, from a 187.51 MB maximum. The caveat was wrong in
+the conservative direction, which is the right direction for a caveat to be wrong in.
+
+#### ⚠️ P-B4: the control moved, and that has to be said plainly
+
+`warm_365` is a body-cache hit that never opens SQLite, so the flag cannot reach it.
+It moved anyway: p50 **20.1 → 16.0 ms**, max **123.9 → 20.7 ms**.
+
+**A control that moves is a control that did not control**, so the comparison does not get
+to ignore it. Three pieces of evidence say the warm path itself is unchanged and the pod
+was simply quieter during window B:
+
+1. **The `syscr` floor is 79 in BOTH arms** — identical underlying work.
+2. **The response is byte-for-byte the same size**: `decoded_bytes = 69,979` in both, and
+   the priming read — a *real* SQLite read, `rf_pagecache` 0 in A and 1 in B — returned
+   `rf_rows = 205` and `rf_bytes = 185,306` in **both arms, on the identical span**. That
+   is a stronger identity check than the deep set, whose spans differ by design.
+3. The OFF arm's warm outliers (123.9, 41.0, 37.2 ms) carry **ordinary** I/O counters
+   (`syscr` 102 on the 123.9 ms sample), so they are **event-loop contention** on the
+   single uvicorn process, not disk.
+
+⛔ **It does not rescue the deep result, it just fails to threaten it.** The warm drift is
+×1.26; the deep tail moved ×9.05 with a mechanism-specific discriminator (`syscr`) that
+moved ×9.17 in lockstep. A quieter pod cannot manufacture that.
+
+#### What remains, and what it tells us
+
+The ON arm still has a tail — 826 / 986 / 1,258 ms — with `rf_fetch` of 453 / 607 / 879 ms
+and **low** `syscr` (733 / 824). So those reads were served by **page faults that still had
+to fetch cold pages**: the syscall amplification is gone, the storage latency is not.
+That is H5, undiminished and now isolated — **it was never what the flag was aimed at.**
+
+### D.5 Verdict on V1 — **KEEP ON**
+
+**The flag stays set on `web`.** Measured, on identical work, with every prediction
+committed in advance: the deep-read tail falls **×9.05**, p90 **×3.62**, the mmap
+discriminator confirms the mechanism is the one claimed, correctness is unchanged, and the
+warm path is provably identical. The one ambiguous result (P-B4) moves in the *improving*
+direction and is explained without the flag.
+
+⚠️ **Two things this does NOT establish, stated as plainly as the win:**
+
+1. ⛔ **Which half did it.** `mmap_size` and `cache_size` ship as one flag and one A/B
+   cannot decompose two coupled changes. The evidence *leans* mmap — `syscr` collapsing
+   9x is mmap's signature specifically, and `cache_size` would not touch it — but "leans"
+   is the honest word. Separating them is a second experiment, not a conclusion.
+2. ⛔ **Memory is unmeasured.** The pod reads `rss_mb = 2,340.6` at uptime 1,674 s with the
+   flag on, and **no OFF-arm RSS baseline was captured**, so there is nothing to compare it
+   to. D.0 said in advance this window could not answer it, and it did not. ⚠️ 64 MB of
+   mapping plus 16 MB of page cache **per connection**, on a module that opens a connection
+   per call, is a real question — mitigated but not closed by the fact that mapped pages
+   are file-backed and evictable rather than heap.
+
+> ⛔ **AND KEEPING IT ON IS COUPLED TO §F.1.** The flag is currently **invisible to the
+> feature-flag ledger** and cannot be given a row without turning the master gate red. A
+> live production flag that no rail can see is the precondition of the `DESK_PUBLIC_SHOWS`
+> incident. The blast radius here is far smaller — SQLite pragmas, not paid content on the
+> open internet — which is why the recommendation is *keep it on and rename it*, not *turn
+> it off*. **The rename needs an authorised merge and is the first thing Session 10 should
+> do.**
 
 ---
 
