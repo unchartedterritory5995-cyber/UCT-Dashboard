@@ -70,6 +70,54 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 > anywhere**; `flag_ledger_audit` reports 0 in every category; **27 of 27 real Wisdom GET routes
 > return 401** to an anonymous caller and none returns JSON.
 >
+> ⭐⭐ **THAT PARAGRAPH IS NOW AN INSTRUMENT, NOT A SENTENCE — `scripts/wisdom_dark_check.py`**
+> (owner ruling R6, 2026-09-14). A number typed into a document cannot be re-run, and this repo
+> has paid for that twice: a flag ledger that described an unreleased surface while members used
+> it, and a `DESK_PUBLIC_SHOWS` wildcard that contradicted its own documentation for 25 days.
+>
+> ⛔ **Both halves are DERIVED, never typed.** The gates come from **`flags.GATES`** — the list
+> the admin status page and the ledger rail already read, which also carries `member_visible`;
+> the routes come from `registry.routers()`, the same call `api/main.py` mounts them with. An
+> AST walk over `os.environ.get` / `os.getenv` inside `api/services/wisdom/**` cross-checks for
+> any switch read **outside** that registry, because a gate added straight to `os.environ.get`
+> would otherwise be invisible to this instrument and to the ledger rail simultaneously.
+> ⛔ **Three exit codes** — `0` PASS (measured, dark) · `1` LIT (measured, not dark) ·
+> `2` INCONCLUSIVE (could not measure) — because "we could not measure it" and "it is lit" are
+> different facts, and collapsing them is how an unmeasured deploy reads as a clean one.
+> `--self-check` proves every check can fail, on planted inputs, touching nothing real.
+>
+> **Run 2026-09-14, session 4. `R6_RUN_AGAINST_PROD: NO`, so production was NOT probed.**
+>
+> | | |
+> |---|---|
+> | `--self-check` | **PASS**, 13 checks |
+> | dry run (default) | **INCONCLUSIVE (exit 2)** by design — it prints what it would check and measures nothing |
+> | `--local` | **PASS (exit 0)** — 0 of 25 gates set on this machine |
+> | derived | **25 gates** in `flags.GATES` = **10 member-visible** + 15 owner/internal; **0** switch-shaped env vars read outside the registry; **27 GET routes** = 23 `require_admin` + 3 `require_push_secret` + 1 `require_owner`, **0 unguarded** |
+>
+> ⭐ **The route count reproduces the recorded 27 exactly, from the registry rather than from a
+> list**, and the guard classification is the part the old sentence never carried. ⚠️ **What this
+> run did NOT establish: that production is dark.** The local half measures this machine, which
+> says nothing about Railway; the 401 half needs `--host` and was not run. Those remain the
+> 2026-09-14 05:00 CT hand measurement until somebody runs the instrument against production.
+>
+> ⛔⛔ **AND THE FIRST VERSION OF THIS INSTRUMENT WAS BLIND TO A MEMBER-FACING SWITCH.** It
+> derived the flag list by matching `^WISDOM_[A-Z0-9_]+$` string literals — so it could not see
+> **`ASKAI_WISDOM_RETRIEVAL_ENABLED`**, the Ask-AI kill switch, which is *member-visible* and does
+> not carry the prefix. It would have printed "0 switches set, dark" while a member-facing lane
+> was lit. ⭐ **A name-prefix scan is not a measurement of what the code reads**, and the fix was
+> to key on the env-read call site and on the registry instead. The same prefix scan had also
+> reported four switches that do not exist — `WISDOM_CAP` (a Python constant `= 50`),
+> `WISDOM_PKG_DIR` and `WISDOM_IMPORT_PREFIX` (module constants), and `WISDOM_PRIVATE_KEYS_V1`
+> (a name appearing only inside a docstring). Both directions of that error are railed in
+> `tests/test_wisdom_dark_check.py`.
+>
+> ⚰️ A bug found by running it, recorded because it is the failure the exit codes exist to
+> prevent: on a cp1252 Windows console the first `⛔` in a print raised `UnicodeEncodeError` and
+> the script exited **1 (LIT)** — an instrument reporting a measured failure it had never
+> measured. Fixed by reconfiguring stdout to UTF-8 with `errors="replace"`, the same fix
+> `flag_ledger_audit` needed on 2026-09-10.
+>
 > **§8.6 acceptance: 11 PASS · 0 FAIL · 1 INCONCLUSIVE** (the daily chain's `sources` step — no
 > local Discord token, unseeded `edu_videos`; environmental, reported as inconclusive not pass).
 >
