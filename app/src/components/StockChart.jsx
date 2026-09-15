@@ -692,7 +692,7 @@ import {
   displayTargetOptions,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
-import { chromePlan, capturedPriceRange } from './chart/chromeGeometry'
+import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -3700,10 +3700,11 @@ export default function StockChart({
         if (hi > lo && paneH > 8) {
           const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
           if (yHi != null && yLo != null) {
-            let t = Math.min(0.9, Math.max(0, yHi / paneH)), bt = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
-            if (t + bt > 0.95) { const k = 0.95 / (t + bt); t *= k; bt *= k }
+            const f = viewLockFractions(paneH, yHi, yLo)
             const mbase = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
-            if (!(Math.abs(t - mbase.top) < 0.03 && Math.abs(bt - mbase.bottom) < 0.03)) { top = +t.toFixed(4); bottom = +bt.toFixed(4); vLocked = true }
+            if (f && !(Math.abs(f.top - mbase.top) < 0.03 && Math.abs(f.bottom - mbase.bottom) < 0.03)) {
+              top = f.top; bottom = f.bottom; vLocked = true
+            }
           }
         }
       } catch { /* vertical optional */ }

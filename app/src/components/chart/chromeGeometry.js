@@ -176,3 +176,32 @@ export function capturedPriceRange(paneHeight, scaleMargins, coordinateToPrice) 
   if (!Number.isFinite(hi) || !Number.isFinite(lo) || !(hi > lo)) return null
   return { minValue: lo, maxValue: hi }
 }
+
+/**
+ * The view lock a vertical gesture should STORE, as fractions of the candle pane.
+ *
+ * ⚰️⚰️ THE FRAME MIX THAT POISONED SAVED LAYOUTS. `priceToCoordinate` answers in
+ * the CANDLES' pane; the caller used to divide by `chart.paneSize().height`,
+ * which is the FIRST pane. While Price was always first those were one number.
+ * With a pane above Price they are not, and `yHi / paneHeight` saturates — `top`
+ * lands on the 0.9 clamp and the stored lock leaves the candles ~10% of their
+ * pane. `persistViewLock` writes it and `vertMarginsRef` re-applies it ahead of
+ * the computed margins, so it survives every reload.
+ *
+ * ⛔ THE CLAMPS ARE REAL AND STAY. 0.9 per side and a 0.95 combined ceiling are
+ * the shipped guards; the defect was never the clamp, it was reaching it from a
+ * denominator that did not belong to the measured coordinates.
+ *
+ * @param {number} paneHeight  the CANDLE pane's own height
+ * @param {number} yHi         pixel row of the highest visible price
+ * @param {number} yLo         pixel row of the lowest visible price
+ * @returns {{top:number,bottom:number}|null}
+ */
+export function viewLockFractions(paneHeight, yHi, yLo) {
+  if (!(Number.isFinite(paneHeight) && paneHeight > 8)) return null
+  if (!Number.isFinite(yHi) || !Number.isFinite(yLo)) return null
+  let top = Math.min(0.9, Math.max(0, yHi / paneHeight))
+  let bottom = Math.min(0.9, Math.max(0, (paneHeight - yLo) / paneHeight))
+  if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
+  return { top: +top.toFixed(4), bottom: +bottom.toFixed(4) }
+}
