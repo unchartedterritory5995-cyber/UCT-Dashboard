@@ -6,12 +6,12 @@
 
 ## 1 · ET and trees
 
-Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 11:18 EDT Tue**, both
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 11:46 EDT Tue**, both
 `python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
 and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
 local vitest was run.
 
-**13 commits** — seven docs, six code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`
+**15 commits** — eight docs, seven code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`
 + the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
 ⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
 here — nothing was pushed to master. Nothing signed,
@@ -347,6 +347,72 @@ still never executed. If `origin/ci-results` does not resolve on the runner it w
 **UPSTREAM-UNREADABLE** instead of inventing a conflict — a better failure, not the absence
 of one.
 
+## 3j · Run #11 — wrong a third time, and the wall is the thing to remove
+
+| E CP13 predicted | actual | |
+|---|---|---|
+| the publish step reaches `ci_publish.py` | **unknown — same step, same 2 s** | ❌ |
+| `publish`: success | **failure** | ❌ |
+| a record on `ci-results` | **none** — still three commits, newest is run #4 | ❌ |
+| 19 of 20 jobs green | **19 of 20**, every shard and every profile job | ✅ |
+
+⛔⛔ **Three confident predictions about this one job, three times wrong** — and every one
+was a claim about a command nobody could see. **The wall, not the guess, is the thing to
+remove.**
+
+## 3k · ⭐⭐ THE MEASUREMENT THAT CHANGED THE APPROACH
+
+Re-taken rather than assumed, because the last UNREADABLE claim I published was false:
+
+| channel | anonymous |
+|---|---|
+| `GET /actions/jobs/<id>/logs` | **403** |
+| `…/actions/runs/<id>/summary_partial` — the step summary | **404** |
+| `GET /actions/runs/<id>/jobs` — steps + timings | ✅ **200** |
+| **`GET /repos/{o}/{r}/check-runs/<id>/annotations`** | ✅ **200** |
+
+⛔ **So `$GITHUB_STEP_SUMMARY` is not readable without a login either.** E CP9 and E CP11
+both aimed their fallback there — right for you on a phone, and **useless to a reader with
+no account**, which is who F-CI-7 is written about. ⭐ **Annotations are the channel that
+answers anonymously**, and GitHub's own annotation for this failure says, in full:
+*"Process completed with exit code 1."* It names nothing.
+
+## 3l · E CP14 — the step names its own failure, in both directions
+
+An `ERR` trap on the publish step now emits:
+
+- **`::error title=publish failed::<the failing command> (exit <rc>)`** — an annotation,
+  readable with no account;
+- a **step-summary block** with the failing command, the exit code, the remote-tracking refs
+  and the current branch — readable on your phone.
+
+⭐ This is E CP11's lesson one level down: the skeleton made the JOB legible whatever
+happened; this makes the STEP legible.
+
+**And the git stops relying on DWIM.** Measured on a clone built to `checkout@v4`'s shape:
+`git fetch origin ci-results` exits 0 writing only FETCH_HEAD,
+`refs/remotes/origin/ci-results` stays **MISSING**, and `git checkout ci-results` then fails
+with *"pathspec did not match"*. Both the workflow and `push_with_retry` now use an explicit
+refspec and `checkout -B`. ⚠️ **NOT claimed as the cause** — runs #3/#4 checked that branch
+out on the runner, so the ref resolves there. Saying which of these is the fix before the
+annotation arrives would be the fourth confident guess.
+
+⚠️ **And my own parse check passed vacuously on the first try.** The first `bash -n` of the
+extracted step printed **PARSES** over an **empty file** — the extractor died of a cp1252
+`UnicodeEncodeError` (seventh sighting), and nothing is syntactically valid. Caught only by
+adding a non-vacuity check and a control that a deliberately broken copy IS rejected.
+
+### Prediction for run #12 — `publish` is deliberately UNKNOWN
+
+| field | prediction |
+|---|---|
+| **an `::error::` annotation names the failing command** | **yes** — the one firm prediction, about a channel measured to answer anonymously |
+| `publish` | ⚠️ **UNKNOWN.** Three confident guesses have been wrong and I have still not read the failure |
+| 19 of 20 jobs green | **yes**, as in runs #9, #10, #11 |
+
+⭐ **Predicting UNKNOWN is the call E CP11 got right and CP12/CP13 got wrong.** The
+difference is not confidence — it is whether a cause has been *read*.
+
 ## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
 
 ### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
@@ -511,6 +577,7 @@ ran a job.
 | **RETRACTED (2)** | *"the `jobs` API returns an empty `steps` array, so the failing step is UNREADABLE"* — published three times. The step list is public and named `Build the record` in runs #6, #8 and #9. |
 | **F-CI-15** | **NEW, mine.** `git checkout ci-results` deletes `tools/` from the working tree (the branch carries zero paths under it), so E CP9's `python tools/ci_publish.py` on the next line could never run — and never has. Publisher copied to /tmp and railed by a check inside itself. |
 | **F-CI-16** | **NEW, mine.** `push_with_retry` reported every non-zero rebase as "two publishers wrote one path" — a confident diagnosis of an unestablished cause. UPSTREAM-UNREADABLE is now its own state. |
+| **F-CI-17** | **NEW, and it reframes F-CI-7.** The step summary is 404 anonymously, so every phone-readable fallback this programme built is invisible to a reader without an account. Check-run annotations DO answer anonymously; the publish step now emits its failing command there. |
 | **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
 | **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
 
@@ -552,8 +619,8 @@ the top of that job's page **even when the push failed**. Tell me the verdict li
 
 ## 10 · Merge readiness
 
-**25 rows, 25 OK, 0 STALE. 24 of 24 commits mapped. `verify_manifest --check-commits` exit
-0.** `merge_all --dry-run` exit 0, **17 constraints SATISFIED**, 25 units, 0 MALFORMED,
+**26 rows, 26 OK, 0 STALE. 25 of 25 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **18 constraints SATISFIED**, 26 units, 0 MALFORMED,
 0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
 `ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
 `ci_publish`, `check_workflow_expressions`.
