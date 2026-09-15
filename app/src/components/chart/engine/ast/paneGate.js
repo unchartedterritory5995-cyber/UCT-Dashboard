@@ -2,10 +2,28 @@
 //
 // ─── ⭐⭐ RULING D2 (option B) — WHAT A PANE IS ALLOWED TO DRAW ──────────────
 //
-// T3/T5 drive a member pane from the SAVED DEFINITION the HOST lane produces, and
-// the IR lane stays as it is until session 3's text layer. That is a decision
-// about which translation is authoritative, and a decision like that needs one
-// place to live or it becomes four slightly different `if`s at four call sites.
+// T3/T5 drive a member pane from the SAVED DEFINITION the HOST lane produces. That
+// is a decision about which translation is authoritative, and a decision like that
+// needs one place to live or it becomes four slightly different `if`s at four call
+// sites.
+//
+// ⚰️ THIS SAID THE IR LANE "STAYS AS IT IS UNTIL SESSION 3'S TEXT LAYER" — CORRECTED
+// IN PLACE (H.6, 2026-09-15), because session 3 ARRIVED and nothing about this gate
+// changed. `pineRuntimeTextLane.test.js` pins that arrival: `pine:text-value` no
+// longer stops either script, and the IR lane reaches 77 statements on v2 where it
+// reached 40. The text layer was never the thing holding the IR lane off the pane.
+//
+// ⛔ WHAT ACTUALLY HOLDS IT OFF, MEASURED: `buildRuntimeIr(v2)`'s FIRST refusal is
+// `runtime:statement@249` — neither text nor tuple — and the IR vocabulary declares
+// `STMT.FOR`, `STMT.WHILE`, `EXPR.TUPLE` and `EXPR.ARRAY_OP` while lowering NONE of
+// them: zero mentions across `lower.js`, `lowerIr.js` and `vm.js`. So D2's revisit
+// waits on the IR LOWERING PROGRAMME, which is wave-sized and is not this file's to
+// schedule. **D2 stands**; `PANE_LANE = 'host'` is unchanged by this correction.
+//
+// ⭐ The reason to correct the sentence rather than delete it: a deferral naming a
+// precondition that has since been MET reads as "nearly ready" to the next engineer,
+// and this one had already been cited that way. A deferral must name the condition
+// that is actually outstanding, or it misdirects exactly the person acting on it.
 //
 // ⛔⛔ THE SCREENER LANE IS NOT ADMISSIBLE HERE, AND THAT IS THE POINT.
 // `translatePine(src, {})` is LENIENT by contract: it answers `ok: true` while
