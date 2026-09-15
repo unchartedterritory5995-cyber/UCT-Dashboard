@@ -1,0 +1,56 @@
+{
+  "run_id": "34925008177",
+  "run_number": "2",
+  "sha": "e767a7aab501297af12c7d603b0b04f3e3c63e38",
+  "branch": "feat/s7-price-level",
+  "finished": "2026-09-15T03:49:37.274738+00:00",
+  "vitest": {
+    "suite": "vitest",
+    "collected": 19898,
+    "passed": 19862,
+    "failed": 21,
+    "errored": 0,
+    "skipped": 15,
+    "wall_s": 1020.2,
+    "failed_files": [
+      "src/components/chart/engine/__tests__/enumerationSites.test.js",
+      "src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx",
+      "src/components/chart/engine/ast/manifestProse.test.js",
+      "src/components/chart/engine/readout.test.js",
+      "src/components/screener/reachable.test.js",
+      "src/hooks/pollingSites.rail.test.js",
+      "src/hub/rule12Paths.test.js",
+      "src/hub/surfaceMatrixIsCurrent.test.js",
+      "src/lib/journal-2-0/format.test.js",
+      "src/pages/breadth/heatmapRegistry.golden.test.js",
+      "src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js",
+      "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js",
+      "src/styles/tapFloor.test.js",
+      "src/surfaces/manifest.test.js"
+    ],
+    "totals_line_found": true,
+    "oom_or_timeout": true,
+    "runner_line": "",
+    "ok": false
+  },
+  "pytest": {
+    "suite": "pytest",
+    "collected": 2,
+    "passed": 0,
+    "failed": 0,
+    "errored": 0,
+    "skipped": 2,
+    "wall_s": 82.68,
+    "failed_files": [],
+    "totals_line_found": true,
+    "oom_or_timeout": true,
+    "runner_line": "2 skipped, 8 warnings, 479 errors in 82.68s (0:01:22)",
+    "ok": false
+  },
+  "oom_or_timeout": true,
+  "runner_line": {
+    "vitest": "",
+    "pytest": "2 skipped, 8 warnings, 479 errors in 82.68s (0:01:22)"
+  },
+  "verdict": "RED"
+}
