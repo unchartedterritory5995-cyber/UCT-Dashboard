@@ -968,3 +968,96 @@ round-trip through R2 → drop the index as step one of US ingest.
 ⚠️ Not implemented. §3 says to STOP before the production migration when a real
 old-code/new-schema hazard exists and design the sequence first; this is that design, and
 adding a production index is a change the owner should authorise on its own terms.
+
+---
+
+### BL-029 · The 4-5 GB grind RSS, explained — and it is a CACHE BOUND, not arithmetic
+
+Measured rather than estimated:
+
+| | |
+|---|---|
+| shared `TTLCache._MAX_SIZE` | **1,000 entries** |
+| one whole-market grouped frame | 7,804 tickers · **0.56 MB on disk** · **2.9 MB as live Python objects** |
+| 1,000 of them | **2.9 GB** |
+| plus the numpy matrix (~12k × 635 × 8 × 2) | ~120 MB |
+| observed | **4.8 GB** |
+
+⛔ **The grind was filling the SHARED member-serving cache with whole-market frames.**
+`get_grouped_daily_ohlcv` and `get_grouped_daily_frame` both `cache.set(...)` into the
+singleton that also holds bars, news and snapshot keys — so a 9,810-frame grind evicts
+every hot bars key and then holds 2.9 GB of frames nobody will ask for again.
+
+⭐ **The repo already solved this shape twice.** `live_prices` has its own instance, and
+BL-010 gave breadth serving its own for the same stated reason: *"an instance whose
+working set is a KNOWN, DERIVABLE quantity states its own bound."* A grouped-frame cache's
+working set IS known: the `WARM_SESSIONS` warm window plus the chunk's active slice —
+tens of frames, not a thousand.
+
+**The fix changes no arithmetic.** The durable disk tier already re-reads a settled frame
+in ~12 ms, so a small bound costs a disk read rather than a provider call. A bound of ~40
+frames holds a sweep's working set at ~116 MB.
+
+⚠️ **And this is not only a grind concern.** Any grouped-daily call on the WEB pod today
+puts 2.9 MB objects into the same 1,000-entry cache that serves `/api/bars` — the
+"mutual and silent harm" BL-010 described, between a different pair.
+
+---
+
+### BL-030 · The supported database RESTORE path already exists — for bars
+
+§5 asked: *given rollback snapshot X, how do we install X as the worker's canonical
+breadth database?* The answer is not a new admin system; it is the idiom
+`data_sync.download_snapshot()` has used for bars all along:
+
+1. download the chosen snapshot to a temp dir;
+2. `integrity_check` it and **refuse to install on failure**;
+3. `shutil.move(src, /data/bars.db)` — a real file replace, not a merge;
+4. invalidate every thread's SQLite connection so the new inode is seen.
+
+⭐ **For breadth, step 4 is unnecessary** — and the reason is written down in
+`breadth_ohlc_sync`'s own header: *"The store opens a fresh connection per read … so
+there is no `bump_db_epoch()` / stale-inode problem to solve."* `_conn()` resolves
+`_db_path()` on every call. So a breadth restore is download → integrity-check → move.
+
+⚠️ Two pitfalls are already recorded in `data_sync` and must be inherited, not
+rediscovered: do **not** delete the stale `-wal`/`-shm` sidecars (an earlier version did
+and gave writers "disk I/O error" mid-transaction), and let `integrity_ok()` at boot be
+the fail-safe instead.
+
+⛔ **Not built, and not needed for the dark UCT-only deploy** — BL-028's compatibility
+index is what makes a code rollback safe. It IS a precondition of US ingest, because once
+the interlock is dropped a bad ingest can only be undone by replacing the file.
+
+---
+
+### BL-031 · Phase B — how US should reach the worker's canonical database
+
+The worker uploads; the web pulls; **the worker never pulls.** So US history must arrive
+in the worker's own store, or it never propagates.
+
+| | **A · one-time import into the worker's DB** | **B · worker recomputes from the provider** |
+|---|---|---|
+| correctness | the audited artifact, byte-for-byte | must be proven equal to it all over again |
+| ownership | worker canonical immediately | worker canonical immediately |
+| restartability | single transaction; rerun is idempotent | already proven resumable (coverage-driven) |
+| memory | **~90 MB** — an ATTACH + INSERT..SELECT | **4-5 GB today**; ~200 MB after BL-029 |
+| provider | **none** | ~9,810 frames, or ~0 if the cache is hydrated — but the cache is 5.5 GB and **must not be uploaded** |
+| time | **seconds** | **68 min** measured |
+| parity with the gold artifact | identical by construction | identical only if nothing drifted |
+| R2 propagation | the next worker snapshot carries it | same |
+| rollback | replace the file (BL-030) | replace the file (BL-030) |
+
+⭐ **A is better, and the deciding argument is not speed.** The audited artifact is the
+thing 183,417 rows of evidence were gathered about — every invariant, every sentinel,
+every replay. Recomputing produces a DIFFERENT object that we would then have to prove
+equal to the audited one, which is strictly more work for strictly less certainty. B also
+needs BL-029 fixed first, on a pod with a recorded OOM history, to avoid a 4-5 GB
+resident grind on the worker.
+
+⚠️ **B's one genuine advantage** is that it needs no channel for a 42 MB file to reach the
+worker. That is the real question A has to answer, and it is the same question BL-030
+answers for restore — so the two should be designed together rather than separately.
+
+⛔ Neither is authorised yet. Both require, in order: every pod on universe-aware code ·
+a working restore path · the compatibility index deliberately dropped.

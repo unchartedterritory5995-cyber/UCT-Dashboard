@@ -23,11 +23,27 @@ from api.services import breadth_universes as bu
 
 @pytest.fixture(autouse=True)
 def _dark(monkeypatch):
-    """Every case starts from the SHIPPED default: UCT only, V1 set."""
+    """Every case starts from the SHIPPED default: UCT only, V1 set.
+
+    ⛔ AND IT MUST LEAVE NOTHING BEHIND. `build_breadth_bars` writes a SEALED
+    per-symbol series into the process-wide `_breadth_cache` for HOURS, so a case that
+    builds `UCTA50` against an empty temporary store caches an EMPTY series under the
+    real symbol's key — and the next test file to ask for UCTA50's candles is served
+    that emptiness instead of building its own. That is exactly how
+    `test_breadth_daily_ohlc.py::test_build_breadth_bars_uses_store_for_wicks` came to
+    fail in the full suite and pass alone. The env vars and the derived caches are
+    cleared BOTH SIDES for the same reason: a fixture that only cleans up on entry
+    protects itself and poisons everyone after it.
+    """
+    def _reset():
+        bs._health_cache.update(at=0.0, value=None)
+        bs._avail_cache.update(at=0.0, value=None)
+        bs._breadth_cache.delete_prefix("breadthdaily_")
     monkeypatch.delenv("BREADTH_LIBRARY_UNIVERSES", raising=False)
     monkeypatch.delenv("BREADTH_LIBRARY_METRICS", raising=False)
-    bs._health_cache.update(at=0.0, value=None)
-    bs._avail_cache.update(at=0.0, value=None)
+    _reset()
+    yield
+    _reset()
 
 
 def publish(monkeypatch, universes, metrics=None):
