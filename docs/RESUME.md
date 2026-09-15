@@ -1,3 +1,88 @@
+# ⛔⛔ SEAM 3 IS NOT IMPLEMENTABLE AS SPECIFIED — PROVEN COLLISION (HEAD 91ec55420)
+
+The owner chose SEAM 3: make the READER compare against the same canonical
+default the WRITER uses, instead of against the declared literal. Audited both
+sides. The writer is ALREADY correct; aligning the reader reintroduces the exact
+bug the existing guard prevents. Here is the proof.
+
+## The writer is already seam-3 shaped
+
+`instanceControls.setInstanceDisplayTarget` computes
+
+    const bare = { ...inst, placement: { ...inst.placement, target: undefined } }
+    const defaultTarget = resolveDisplayTarget(bare, …)
+    if (target === defaultTarget) delete placement.target
+    else placement.target = target
+
+— the resolver's own answer with no override. Its comment says so explicitly:
+"BACK TO DEFAULT IS WHAT THE RESOLVER SAYS WITH NO OVERRIDE, not the literal
+`pane`." So the writer already means the right thing.
+
+## The reader compares against something else
+
+`displayTarget.resolveDisplayTarget`:
+
+    const explicit = instance.placement && instance.placement.target
+    if (explicit && explicit !== declared) return explicit   // DECLARED, not bare-default
+
+## ⛔ WHY ALIGNING THEM BREAKS MA(RSI)
+
+`instanceControls.placementFor` — read, not inferred — writes a RESTATEMENT on
+every created instance:
+
+    return { target: target === 'pane' && overlaid ? 'volume' : target }
+
+So every instance carries `placement.target = <declared>`. Now compare the two
+populations a seam-3 reader would have to tell apart:
+
+| case | explicit | declared | bare-default | wanted |
+|---|---|---|---|---|
+| DataSeries `close`, member chose Own Pane | `pane`  | `pane`  | `price`     | HONOUR |
+| MA(RSI), restatement from `addInstance`   | `price` | `price` | `@pane:rsi` | IGNORE |
+
+**Both satisfy `explicit === declared` AND `explicit !== bare-default`.** They are
+structurally identical on disk. No reader-only rule can separate them, so a
+seam-3 reader that honours the first necessarily honours the second — and MA(RSI)
+lands on Price, which is the documented historical failure ("computed a perfect
+average of RSI and drew it on the candles' scale").
+
+⚠️ AND §5 ALONE DOES NOT RESCUE IT. Stopping creation from writing restatements
+fixes NEW instances, but pre-existing ones still carry them; and stripping
+restatements on read (`explicit === declared` → delete) also strips the member's
+legitimate `pane` choice, because that too equals declared. Same collision.
+
+## What this means
+
+The collision is fundamental for any definition where
+
+    declared target == a value a member might legitimately choose
+    AND bare-resolved default != declared
+
+`dataSeries` + primary `close` is exactly that shape.
+
+## Three ways out — OWNER'S CALL, none taken
+
+1. **Persistence marker.** Record the override distinctly (a flag, or a distinct
+   placement shape). Cleanly separates provenance. The brief deferred this
+   ("do not add an explicitOverride persistence flag YET") — but the measurement
+   says provenance is the only thing that separates the two cases.
+
+2. **Change what `dataSeries` declares.** If its declared target were `price`
+   (matching its bare-resolved default for the default source), then choosing
+   `pane` would differ from declared and the EXISTING reader would honour it with
+   no change at all. Smallest diff; needs checking against every other
+   dataSeries behaviour that reads the declaration.
+
+3. **The unset-source ruling.** With no source there is no derived answer, so
+   declared `pane` stands and the case disappears — but only for blank instances.
+   It does NOT make "primary Close in its own pane" expressible, which the owner
+   explicitly called a legitimate combination.
+
+✅ Option 2 looks smallest and needs no new persistence, but it is a declaration
+change with its own blast radius and must not be taken without the owner.
+
+---
+
 # ⛔ TRACK A ITEM 3 — ROOT CAUSE MEASURED (HEAD b3eb61b0c). ARCHITECTURE DECISION NEEDED.
 
 ## ⚠️ FIRST, A CORRECTION OF A CORRECTION — I FLIP-FLOPPED, AND HERE IS WHY
