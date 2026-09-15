@@ -130,3 +130,36 @@ def test_side_is_read_from_the_first_letter_only():
     assert _cream_ck("X", "C", 1, "e")[1] == "C"
     assert _cream_ck("X", "PUT", 1, "e")[1] == "P"
     assert _cream_ck("X", "P", 1, "e")[1] == "P"
+
+
+# ── has_sweep sweep-premium floor (_cream_contract_meta) ─────────────────────
+# The raw-Type sweep query catches real blank-side sweeps AND tiny sub-floor
+# micro-sweeps. A $3.5M BLOCK with a $20K stray sweep must NOT read as sweep-backed;
+# a real $3.2M sweep must.
+
+def test_micro_sweep_does_not_make_a_block_sweep_backed(tmp_path, monkeypatch):
+    import sqlite3
+    from api import live_massive_router as lmr
+
+    db = tmp_path / "flow.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE flow(Symbol,CallPut,Strike,ExpirationDate,"
+                "Weekly,Type,Premium,source,CreatedDate)")
+    con.executemany(
+        "INSERT INTO flow VALUES(?,?,?,?,?,?,?,?,?)",
+        [("SNOW", "P", 300.0, "1/21/2028", "F", "BLOCK", "3465000", "stocks", "9/14/2026"),
+         ("SNOW", "P", 300.0, "1/21/2028", "F", "SWEEP", "20000", "stocks", "9/14/2026"),
+         ("CRWD", "C", 240.0, "1/21/2028", "F", "BLOCK", "3060800", "stocks", "9/14/2026"),
+         ("CRWD", "C", 240.0, "1/21/2028", "F", "SWEEP", "3208343", "stocks", "9/14/2026")])
+    con.commit(); con.close()
+    monkeypatch.setattr(lmr, "DB_PATH", str(db))
+
+    meta = lmr._cream_contract_meta("9/14/2026", min_sweep_prem=100000)
+    snow = meta[_cream_ck("SNOW", "P", 300.0, "1/21/2028")]
+    crwd = meta[_cream_ck("CRWD", "C", 240.0, "1/21/2028")]
+    assert snow[1] is False   # $20K sweep < $100K floor → NOT sweep-backed → excl_bo drops it
+    assert crwd[1] is True     # $3.2M sweep clears the floor → kept
+
+    # floor of 0 restores the old lenient behaviour (any sweep counts)
+    lenient = lmr._cream_contract_meta("9/14/2026", min_sweep_prem=0)
+    assert lenient[_cream_ck("SNOW", "P", 300.0, "1/21/2028")][1] is True
