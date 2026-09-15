@@ -25,11 +25,44 @@ widening inside a commit labelled "GA" — the one change in this programme that
 own, with its own member-impact paragraph. The coherent branch point for a **2 → 3** delta is the
 branch that performs the 2.
 
-⚠️ **The merge order this implies, stated rather than left to be discovered.** `launch/stage-3-ga`
-contains stage 2's commits. If stage 2 is **squash**-merged at §3 a (the method used for #137–#142),
-master gains stage 2's *content* under a new sha that is not an ancestor of this branch. The
-three-dot diff below is still correct, and `merge-tree` reports the merge clean **today**; re-run it
-after §3 a lands, because that is the moment the ancestry changes.
+### ⛔⛔ THE BRANCH MUST BE TRANSPLANTED BEFORE §3 d — A NAIVE REBASE REAPPLIES STAGE 2
+
+**Owner note, 2026-09-15.** `launch/stage-3-ga` is based on `2ae7e98aa` and **contains stage 2's
+commits**. Stage 2 will land on master as a **squash** commit (the method used for #137–#143), so
+master will hold stage 2's *content* under a sha that **does not contain `2ae7e98aa`**.
+
+⛔ **The consequence is the dangerous kind: a naive `git rebase master` would try to replay all 26
+stage-2 files onto a master that already has their content** — and the result would still compile,
+still pass the hub subset, and still read as a stage-3 PR. **It passes every rail.** The only thing
+that catches it is looking at the file list.
+
+**Before opening the stage-3 PR, transplant the stage-3 delta ALONE onto post-stage-2 master:**
+
+```sh
+git fetch origin master
+git rebase --onto origin/master 2ae7e98aa launch/stage-3-ga
+#   ...or cherry-pick 3164cccac's delta onto a fresh branch off master
+```
+
+**Then prove it is the copy-only rung, from the file list, before anything else:**
+
+```sh
+git diff --name-only origin/master...launch/stage-3-ga
+```
+
+✅ **Expected — and it is a SHORT list:** `app/src/hub/rolloutStage.js` ·
+`app/src/hub/rolloutStages.test.js` · `app/src/hub/stageLadderAgreement.test.js` ·
+`app/src/pages/settings/JoystickSettingsCard.jsx` · `app/src/hub/hubHideRestore.test.jsx` ·
+`app/src/pages/settings/joystickSettingsControls.test.jsx`.
+
+⛔⛔ **A three-dot list that contains ANY of stage 2's 26 files is a STOP.** Not a warning, not a
+thing to explain in the PR body — stop, and transplant again. Then **re-gate against the baseline of
+record** (master's, not this branch's — see §5).
+
+⚰️ **This section previously said only *"re-run `merge-tree` after §3 a lands, because that is the
+moment the ancestry changes."*** That named the hazard and left out both the remedy and the stop
+rule, which is the half that makes a hazard actionable. `merge-tree` reporting clean is exactly
+what a wrongly-rebased branch would also do.
 
 ## 2 · ⭐⭐ §2(b) IS ANSWERED — and stage 2 answered it
 

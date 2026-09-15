@@ -155,6 +155,15 @@ step is what honours that scope instead of silently inheriting it at GA.
 > ⛔ **Not opened, and it does not satisfy c.** D-39 is still ruled *fix before stage 3*, and it is
 > held until Patrick's bug list arrives so it can be scoped against what he actually reported. A
 > gated branch is not a met condition. **Patrick merges.**
+>
+> ⛔⛔ **TRANSPLANT BEFORE OPENING — a naive rebase reapplies stage 2 and passes every rail.**
+> This branch is based on `2ae7e98aa`; stage 2 lands on master as a **squash** commit that does not
+> contain it. Use `git rebase --onto origin/master 2ae7e98aa launch/stage-3-ga` (or cherry-pick
+> `3164cccac`'s delta onto a fresh branch off master), then read
+> `git diff --name-only origin/master...launch/stage-3-ga` **before anything else**: it must be the
+> six copy-only files and nothing more. **Any of stage 2's 26 files in that list is a STOP.**
+> Then re-gate against the baseline of record. Full procedure:
+> `harness/2026-09-15-stage3-ga-prebuild.md` §1.
 
 **e. Box 6** — rewrite `closure.md` as LAUNCHED, citing every box's evidence.
 

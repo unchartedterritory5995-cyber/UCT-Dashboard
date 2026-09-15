@@ -2286,6 +2286,17 @@ the default mode compares the working file, which fires before `git add`. Rails:
 and a non-vacuity case — the check walks CHANGED paths, so on a clean tree it inspects nothing and a
 broken one is indistinguishable from a working one). `--self-check` proves it can fail.
 
+⚠️ **AND `git show <sha>:<file>` IS NOT HOW YOU READ WHAT ENDINGS A BLOB STORES — use
+`git cat-file blob`.** Measured 2026-09-15: a helper that decided this by running
+`git show HEAD:<path>` from a Python subprocess and testing for a CRLF pair answered **LF** for five
+files `git cat-file blob` shows are **uniformly CRLF**. The commit was correct anyway — `autocrlf`
+supplied the CRLF at `git add` time and the diff stayed at 86/13 — but it was correct **by luck**,
+and the same helper on a CRLF-stored file it had to hand-write would have flattened it.
+⭐ This **narrows** the provenance rule rather than contradicting it: `git show <sha>:<file>` remains
+the right way to ask what a committed file **says**; it is not the way to ask what bytes end its
+lines. Cheap check: `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'\r'` against the
+file's line count — equal means uniformly CRLF, zero means LF, anything between is MIXED.
+
 ⚰️ **And a related one, paid for in the same hour: `git checkout -- <file>` is not a restore.** Used
 to undo a one-line probe, it discarded an unrelated finished edit to the same file that had taken
 twenty minutes to write. Restore by writing back bytes you captured first and verifying the sha —
