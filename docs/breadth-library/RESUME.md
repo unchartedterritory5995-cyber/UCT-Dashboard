@@ -171,10 +171,30 @@ column. A merge should be clean, but **read it before merging**.
 
 **Provider access.** Control sweeps need `MASSIVE_API_KEY`, and the only route was
 `railway run --service web`, which the overnight brief forbids. Everything
-reproducible from the durable scratchpad cache (933 grouped-daily frames + the
-reference map, under `…/scratchpad/breadth_gate/phase2_data/`) was completed
-offline. **A new historical window needs provider access** and is blocked until the
-owner authorises a route.
+reproducible from the durable scratchpad cache was completed offline. **A new
+historical window needs provider access** and is blocked until the owner authorises
+a route.
+
+### Reproducing the controls
+
+The cache is **933 grouped-daily frames (534 MB) + a 3.2 MB reference map** under
+`…/scratchpad/breadth_gate/phase2_data/`, with the driver at
+`…/scratchpad/breadth_gate/control.py`:
+
+```
+python control.py us     2015-03-09 2015-03-13
+python control.py us     2008-10-10 2008-10-10
+python control.py nasdaq 2015-03-10 2015-03-10
+```
+
+It redirects `DATA_DIR` and `BREADTH_OHLC_DB` into the scratchpad and replaces the
+provider client with one that RAISES, so a cache miss fails loudly instead of
+quietly computing on a short frame.
+
+⚠️ **That cache lives in a session-scoped scratchpad and is not durable.** Once it
+is cleaned, re-running any control — even an identical one — needs provider access
+again. If these windows are worth keeping, copy `phase2_data/grouped_ohlcv/` and
+`phase2_data/breadth_pit_reference.json` somewhere permanent before that happens.
 
 ---
 
