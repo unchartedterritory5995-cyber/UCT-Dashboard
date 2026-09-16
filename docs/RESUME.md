@@ -1,3 +1,48 @@
+# MOVING AVERAGE DISCOVERY — DEPLOYED 2026-09-15 (master b7fc0a4f8)
+
+Implementation commit 515162d3e is IN the deployed tree. Pushed 22:5x EDT (after
+the close). Two force-free reconciliations were needed mid-flight: master moved
+twice during the push (Legend V2 + Breadth), zero file overlap both times.
+
+## Confirming production reached MY commit — the method that actually works
+
+`uptime_seconds` resetting is NOT proof: a partner's deploy reset it 36s before
+mine and I nearly reported the wrong thing. The definitive check is the SERVED
+BUNDLE:
+
+    curl $BASE/ | grep -oE '/assets/index-[A-Za-z0-9._-]+\.js'
+    curl $BASE<that> | grep -c 'Moving Average (Source)'     # must be 0
+
+Polled until the old name disappeared: live after 260s, bundle
+`index-BKap67Xd.js`, old name count 0. Use this pattern whenever a change has a
+string signature — it beats every indirect signal.
+
+## Health
+
+web /api/health 200 ok · bars-api /api/health 200 · unauthenticated
+/api/bars/AAPL 401 (gate correct) · app root 200, no console errors.
+
+## ⚠️ Production click-through smoke NOT performed, deliberately
+
+`chart_settings` is ONE user-global preference row and IS the Main Trading
+fingerprint, so adding an indicator on ANY production chart writes it — and
+opening /charts at all restores that row. The brief asked for a smoke AND
+forbade touching workspace persistence / Main Trading; those conflict, and the
+owner said they would personally test. A–E were verified instead against the
+EXACT deployed code in the isolated harness (see the commit body for the
+measured results).
+
+## Shipped, unchanged from what was accepted
+
+movingAverage is the only source-capable engine definition · member-facing name
+"Moving Average" · persisted ID untouched · `cs.overlays` untouched · `ma`
+withheld from Browse only when there is nothing to revive · no migration.
+
+## Still deferred (owner will schedule)
+
+disambiguateLabels raw-ref cleanup · duplicate MA source-picker labels ·
+"Add Moving Average" from a plotted-series menu.
+
 # SOURCE-AWARE MOVING AVERAGE — ONE MEMBER-FACING ROW (2026-09-15)
 
 HEAD 515162d3e. Committed locally, NOT deployed (owner asked for a readiness
