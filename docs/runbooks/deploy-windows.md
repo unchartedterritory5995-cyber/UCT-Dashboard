@@ -4,6 +4,31 @@ Owner-approved 2026-09-11. Replaces the blanket RTH freeze and the "push anytime
 This is the single authority on push timing. `CLAUDE.md` points here and states no
 rule of its own.
 
+## ⛔⛔ THE CUTOVER HAPPENED — `web` DEPLOYS FROM `production`, NOT `master` (2026-09-16)
+
+Railway's `web` service watches **`production`**, which only the promotion workflow
+advances and only after `master deploy gate` passes. Three consequences, and they are
+the whole of what changed:
+
+1. **A red gate is now a NON-DEPLOY, not just a red check.** `production` does not move,
+   so the previous commit stays live. Before the cutover a red gate still deployed.
+2. **Deploys come from `production`.** To ask what is live, read `origin/production` —
+   `master` can be ahead of it by any number of commits that have not passed the gate.
+3. **The burst and settle clauses are UNCHANGED.** `tools/pre_push_guard.py` still paces
+   this repo at three landings an hour and still refuses inside a 600 s settle. The
+   cutover changed WHICH COMMITS deploy, never HOW OFTEN — do not read it as permission
+   to push faster.
+
+⚠️ `production` has **no branch protection yet** (G6, owner). The gate carries a
+compensating control instead: it refuses, before any scan, if `production` is not where
+the last promotion left it. That control is **detective, not preventive**, and only looks
+when master is pushed — a direct push to `production` in a quiet period goes unnoticed
+until the next one.
+
+Trigger state, read by API at the cutover: `web` trigger `61b50f1f-…`, `branch` master →
+production, `checkSuites` **false both before and after** — so Wait-for-CI was already OFF,
+which settles that question retrospectively. Records: `docs/breadth/DECISIONS.md`.
+
 ## The rule
 
 A master push is a production deploy. **Which services restart depends entirely on
