@@ -113,7 +113,18 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   // one place to draw, which is the same test Chart Settings uses to render no
   // control at all.
   const movable = submenu.some((s) => !s.disabled)
-  const name = (def && def.meta && def.meta.name) || chip.defId
+  // ⛔⛔ AND THE SAME RULE AS `legendMenuSubtitle`: a definition whose identity IS
+  // its source (`meta.labelFrom: 'source'` — `dataSeries`) must not lend its
+  // internal noun to a member-facing row. Measured on production 2026-09-16: the
+  // QQQ row offered **"About Data Series"**. It says `About QQQ` now, which is
+  // what the member asked for and what the header above it reads.
+  //
+  // ⚠️ EVERY OTHER DEFINITION KEEPS ITS CATALOGUE NAME, which is the point of this
+  // row — `About Moving Average` and `About Relative Strength Index` explain the
+  // INDICATOR, and MACD's `SIG` chip must not read `About SIG`.
+  const namesItsSource = !!(def && def.meta && def.meta.labelFrom === 'source')
+  const name = (namesItsSource && chip.label)
+    || (def && def.meta && def.meta.name) || chip.defId
   const rows = [
     {
       // ⛔ THE ROW STATES WHICH WAY IT GOES. A toggle labelled "Hide" on a label

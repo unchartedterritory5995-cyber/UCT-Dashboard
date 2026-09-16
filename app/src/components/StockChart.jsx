@@ -384,7 +384,24 @@ function LegendMenuHeader({ label, value, hidden, sub }) {
  */
 function legendMenuSubtitle(def, options, current) {
   const parts = []
-  const name = def && def.meta && def.meta.name
+  // ⛔⛔ A DEFINITION WHOSE IDENTITY **IS** ITS SOURCE HAS NO CATALOGUE NOUN A
+  // MEMBER SHOULD SEE. `meta.labelFrom: 'source'` marks exactly one — `dataSeries`
+  // — and its `meta.name` is the internal word "Data Series".
+  //
+  // ⚰️ MEASURED ON PRODUCTION 2026-09-16: clicking the QQQ row opened a popover
+  // subtitled **"Data Series · Own pane"**. That is the substrate's name, said to
+  // a member, about the thing they added by searching `QQQ` — the owner's §21
+  // names `dataSeries` as language the member must never encounter.
+  //
+  // ⛔ THE HEADER ALREADY SAYS `QQQ`, so dropping the noun loses nothing: the
+  // subtitle becomes the DESTINATION alone, which is the half it is for.
+  //
+  // ⚠️ NARROW ON PURPOSE. `movingAverage` keeps "Moving Average · Price" — that
+  // noun is a real answer to "what kind of thing is this", which is what the row
+  // is for. Only a definition that borrows its whole identity from its source has
+  // nothing of its own to say.
+  const namesItsSource = !!(def && def.meta && def.meta.labelFrom === 'source')
+  const name = !namesItsSource && def && def.meta && def.meta.name
   if (name) parts.push(name)
   const list = Array.isArray(options) ? options : []
   const chosen = list.find((o) => o.value === current) || list.find((o) => o.missing) || null
