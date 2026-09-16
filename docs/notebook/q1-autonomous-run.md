@@ -62,3 +62,56 @@ own failure:
   record is cleaned, from IndexedDB, not memory.
 - **Q4.** Why did 2.8b attempt 2 hang for 1802s instead of refusing cleanly? A clean
   refusal at 541s and a 30-minute hang are not the same failure.
+
+## D1–D5 — status at 2026-09-15 21:30 CT, and the three answers that were owed
+
+⛔ **Every row cites its artifact (R-CITE). A row with no citation says "not measured".**
+
+### The three answers, stated plainly because they were owed for three reports
+
+1. **The flip writer is NOT NAMED.** It is a census of **three** candidates —
+   `useDurableNote.js:286` (`settleLandedSave`), `useDurableNote.js:402`
+   (`persist`), `outboxDrain.js:75` (`settleSent`). The prior claim that it was
+   named is **retracted**; see §0.3 of `q1-red-cells-investigation.md` for the
+   quote and for the mechanism (a hedge lost across a summary boundary).
+2. **2.1(b) probe honesty: NEVER RUN.** Zero mentions in the run log. Every RED
+   reading is labelled **probe unverified** until it passes (R-HON).
+3. **The raw ring did NOT survive — none was ever written.** No probe log, no
+   matrix artifact, no page dump. `sentence_lost_writes` **has never been read
+   from a real run**; the only rings on record are `--self-check`'s planted pair.
+   The sentence-loss TIMING that is real comes from the **store trail**
+   (`tools/q1_write_trace.py`, `summarise()` docstring), a different instrument.
+
+### D1–D5
+
+| | status | citation |
+|---|---|---|
+| **D1** door guard live on production | **BUILT, RAILED, MUTATION-PROVED — NOT SHIPPED.** Gate sound; landing blocked on the push queue, not on the code. | `noteHasUnsentWork.js`, `sendToJournal.js:93`, rail `doorDefersWhileUnsent.test.js` (10 passed) |
+| **D2** writer named + fix 6 staged | **BLOCKED — writer not named (3 candidates), no fix 6.** Needs a rig window under R-RAW/R-HON. ⛔ No third inference-based fix. | §0.3 above |
+| **D3** five cells GREEN on production | **NOT STARTED** — depends on D2. | — |
+| **D4** Phase 3 complete (3.1–3.7) | **3.0 ONLY.** The checkpoint carries no 3.1–3.7 rows; they are not done. | this file, §Checkpoints |
+| **D5** docs current, rescinded rules struck | **THIS COMMIT.** RTH struck by master's R18 (`101ecc2c5`) + the hook correction; the retraction, the census, 2.1(b), the absent ring and the three new rules are now recorded. | §0.3; `tools/pre_push_guard.hook` |
+
+### Gate + landing state
+
+- **Gate SOUND** on the door-guard tree: `2026-09-15T21:12:02`, tree `c602f700d`
+  start→end (no drift), 1388 files **RECONCILES**, 20,411 passed / 9 failed,
+  `VERDICT=NO_NEW_FAILURES exit=0 new=0`. Read by hand **and** via
+  `verdict_exit_code(manifest)`; both said 0. Manifest committed as evidence.
+- ⛔ The preceding gate (`20:50:10`) returned **2 NEW failures** caused by a
+  partial `vi.mock('./captureTargets')` that omitted `freshLastNote` — a second
+  authority over that module's export surface, fixed by spreading
+  `importOriginal()`. Product code unchanged; guard re-proved standing up.
+- **Carry-over adjudicated, not assumed:** `gate_read_identical` over the 32
+  `GATE_READ_PATHS` returned **IDENTICAL** from the gated tree to the landing
+  tree, and its **non-vacuity control returned DIFFERS**, so IDENTICAL means
+  something.
+- **Landing direction verified master-first** (`land_master_first.py --no-push`):
+  `^1` = old master, `^2` = branch, **34 files in front of the deploy gate, all
+  ours**. Branch-first would have put master's 93 in front of it instead.
+- ⛔ **PUSH REFUSED BY THE GUARD, CORRECTLY — burst clause.** 4 distinct `web`
+  deploys inside 60 min against `BURST_MIN_DEPLOYS = 3`; recency was fine
+  (1712 s settled). Another workstream is landing on master at ~4/hour. **Waiting
+  for the window, not overriding it:** `UCT_SKIP_PREPUSH_GUARD` and the R19
+  attestation both exist and neither is mine to use — the refusal text says this
+  needs a human who can see every workstream.

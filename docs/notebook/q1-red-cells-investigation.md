@@ -224,6 +224,82 @@ test**, and that is the third instance of this shape in one session.
 
 ---
 
+## 0.3 RETRACTION — the flip writer was never named (2026-09-15, owner rulings R-CITE / R-RAW / R-HON)
+
+⛔⛔ **THREE REPORTS STATED THAT THE FLIP WRITER HAD BEEN NAMED. IT HAD NOT.**
+The claim as carried was *"`persist` at `useDurableNote.js:444`, site 11 of 31,
+named from the stack"*. Every part of that is wrong, and the correction is the
+point of this section.
+
+**What the evidence actually says** (agent census, this session's transcript,
+quoted rather than paraphrased):
+
+> "I censused all 8 non-test `putNoteWithIntent` callers; exactly three can
+> produce the measured `(1, True, '85', False)` shape — `useDurableNote.js:286`
+> (`settleLandedSave`, not-caught-up), `useDurableNote.js:402` (`persist`, fed by
+> `NoteEditorPage.jsx:866` whose baseline is `:715`
+> `lastSavedRef.current.updatedAt`), and `outboxDrain.js:75` (`settleSent`) — and
+> every one needs the editor or the drain, not the door."
+>
+> "**Could not determine:** which of those three actually fired (needs
+> instrumentation, not reading)."
+
+So the true state is **a census of THREE candidates**, not a name:
+
+| candidate | function | how it was reached |
+|---|---|---|
+| `useDurableNote.js:286` | `settleLandedSave` (not-caught-up) | census by reading |
+| `useDurableNote.js:402` | `persist` | census by reading |
+| `outboxDrain.js:75` | `settleSent` | census by reading |
+
+⭐ **THE MECHANISM OF THE ERROR, because it is more useful than the error.** The
+candidate set was produced by READING, correctly, and survived. What failed is
+what happened to it **in transit between reports**: a three-way narrowing was
+compressed to its most likely member, the qualifier was dropped, and a line
+number from a *different* artifact (the AST call-site enumeration, where `:444`
+is a real `putNoteWithIntent` site) was attached to it. Nobody measured anything
+new; a hedge simply evaporated across a summary boundary. That is the inverse of
+this programme's governing lesson — the reading survived, and an unmeasured
+claim got welded onto it.
+
+⛔ **2.1(b) PROBE HONESTY: NEVER RUN.** Zero mentions in the run log; the window
+went straight to the instrumented cell. The probe has never been shown to report
+a planted loss and a planted success correctly. **Every RED reading in the F5
+matrix therefore carries the label "probe unverified" until it passes** — this
+is not a caveat, it is an open gap underneath the evidence for all five cells.
+
+⛔ **NO RAW RING EXISTS ON DISK.** There is no probe log, no matrix artifact and
+no page dump holding a captured ring. The only `ring: N write` readings anywhere
+are `ring: 2 write`, which is `--self-check`'s own planted pair.
+**`sentence_lost_writes` has never been read from a real run.**
+
+⭐ What IS measured about the sentence loss comes from the **store trail**, a
+different instrument, recorded at `tools/q1_write_trace.py` (summarise()
+docstring): `[(1, True, '47', True), (1, True, '39', False), (0, False, None,
+False)]` — the words leave at t1→t2 while the record is STILL dirty and an entry
+is STILL queued, and the dirty flip at t2→t3 carries `sentence_in_body` TRUE.
+Two distinct events. That stands; the writer behind either does not.
+
+### The three rules this produced (owner, 2026-09-15) — now standing rules
+
+- **R-CITE** — any statement of a measured fact in a report or checkpoint cites
+  its artifact: file path + line/key, or a commit hash. **No citation ⇒ the
+  sentence is written as "not measured".** A census is reported as a census with
+  its candidate count; **it never becomes a name in transit.**
+- **R-RAW** — every rig run writes its raw ring and probe output to
+  `docs/notebook/evidence/<run-id>/` **before any summary is computed**, and that
+  directory is committed as evidence **before** interpretation. **A run with no
+  raw artifact on disk is INCONCLUSIVE regardless of what the console showed.**
+- **R-HON** — 2.1(b) probe honesty runs **FIRST** in the next window and is not
+  skippable. Until it passes, every RED reading carries "probe unverified" in
+  both this document and the matrix.
+
+⛔ **And a STOP condition:** a report that names a writer without an evidence
+path is itself a STOP — write the correction and end the turn. The only
+acceptable form from here is
+*"`<function>` at `<file:line>`, from `evidence/<run-id>/ring.json` entry N"*, or
+*"not named; the ring showed X"*.
+
 ## 1. The symptom, in one paragraph
 
 A member drives an **append door** (`Send to Journal → Current note`, from a

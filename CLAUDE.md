@@ -2291,6 +2291,44 @@ reading the first.
 the tree hash at start AND end rather than trusting that the caller checked. A verification that
 cannot block the thing it verifies is decoration.
 
+### ⛔ A measured fact cites its artifact; a census never becomes a name (R-CITE / R-RAW / R-HON)
+
+> Owner rulings, 2026-09-15, written from a claim that survived **three reports**
+> before anyone checked it.
+
+**What happened.** A report stated the Notebook Q1 "flip writer" had been named:
+*"`persist` at `useDurableNote.js:444`, site 11 of 31, from the stack."* Nothing
+of the kind had been measured. The real artifact was a **census of three
+candidates** reached by READING — `useDurableNote.js:286`, `useDurableNote.js:402`,
+`outboxDrain.js:75` — carrying an explicit *"could not determine which of those
+three actually fired (needs instrumentation, not reading)"*.
+
+⭐ **The failure was in TRANSIT, not in the work.** The census was correct and
+survived. Across a summary boundary the three-way narrowing was compressed to its
+likeliest member, the qualifier evaporated, and a line number from a *different*
+artifact (an AST call-site list, where `:444` is a real but unrelated site) was
+welded on. No new measurement was ever taken. A hedge does not decay into a fact.
+
+- **R-CITE** — any statement of a measured fact in a report or checkpoint cites
+  the artifact: **file path + line/key, or a commit hash**. No citation ⇒ write
+  the sentence as **"not measured"**. A census is reported as a census **with its
+  candidate count**, and never becomes a name in transit.
+- **R-RAW** — every rig run writes its raw ring and probe output to
+  `docs/notebook/evidence/<run-id>/` **before any summary is computed**, and that
+  directory is committed **before** interpretation. ⛔ **A run with no raw
+  artifact on disk is INCONCLUSIVE regardless of what the console showed.** This
+  exists because the console once carried the decisive ring and nothing wrote it
+  down; `sentence_lost_writes` has still never been read from a real run.
+- **R-HON** — probe-honesty checks run FIRST in a window and are not skippable.
+  Until one passes, every reading it underwrites carries the label **"probe
+  unverified"** in the doc AND in the matrix. (Q1's 2.1(b) has never run, so every
+  RED cell in the F5 matrix is currently labelled that way.)
+
+⛔ **STOP condition:** a report that names a writer without an evidence path is
+itself a STOP — write the correction and end the turn. The only acceptable forms
+are *"`<fn>` at `<file:line>`, from `evidence/<run-id>/ring.json` entry N"* or
+*"not named; the ring showed X"*.
+
 ### ⛔ An empty result is a failed invocation until proven otherwise (Testing)
 
 > **Any rail that shells out — git, a subprocess, the network — carries a NON-VACUITY CONTROL: a
