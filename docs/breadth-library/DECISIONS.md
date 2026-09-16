@@ -1157,3 +1157,72 @@ reports `21600s`, with it `300s`.
 ⚠️ **The lesson about the bisect is the durable one.** A cross-test pollution bisect must
 preserve the ORDER the real suite uses. Re-running the suspects in a hand-written order
 answers a question nobody asked.
+
+---
+
+### BL-034 · DARK DEPLOYED — what production actually did, measured from its own logs
+
+Pushed `9ccb3f795` at 2026-09-16T00:52:42Z. **All four services built it**, and the one
+that matters most is the one that would have been missed:
+
+| service | previous push | this push |
+|---|---|---|
+| web | SUCCESS | **SUCCESS** |
+| worker | SUCCESS | **SUCCESS** |
+| bars-api | SUCCESS | **SUCCESS** |
+| **flow-worker** | ⛔ **`SKIPPED`** | ✅ **SUCCESS** |
+
+⭐ **flow-worker `SKIPPED` the push immediately before mine and built this one.** That is
+BL-032's watch-list fix working exactly as `test_flow_worker_watch_coverage.py`
+prescribed — without the `api/flow_worker_main.py` header touch, the pod that RUNS
+`breadth_daily_ohlc` would have stayed on pre-migration code.
+
+**The migration, from the pods' own logs:**
+
+```
+web    00:54:57Z  [breadth_daily_ohlc] universe migration: 174,339 rows -> universe='uct'
+worker 00:56:31Z  [breadth_daily_ohlc] universe migration: 170,545 rows -> universe='uct'
+```
+
+⭐ The worker's count is **exactly** the 170,545 of the R2 snapshot the rehearsal was
+built on. Web carries 3,794 more — live intraday rows accumulated since its last pull,
+which is the expected difference and not a discrepancy.
+
+**What followed on web, in order, with no breadth error on any of the four services:**
+
+- `[startup] breadth forward seal scheduled (every 30 min, inert while dark)` — and it
+  has logged **nothing** since, which is the correct output for a dark universe
+- `[breadth-ohlc] boot pull: already current` — the R2 puller works against a migrated DB
+- `[dashboard-warm] breadth ok` · `breadth-live ok`
+- `[breadth_symbols] warm pass done: {'refreshed': 44, 'fresh': 0}` then
+  `{'refreshed': 1, 'fresh': 43}` — **all 44 shipped UCT series rebuilt after the
+  migration, then converged**, which is the member-visible serve path answering
+
+**The worker is running universe-keyed code**, from its own tick:
+`{'ok': True, 'universe': 'uct', ... 'rows': 0, 'status': 'done'}`.
+
+**US darkness, on the live production API:**
+
+```
+GET /api/bars/UCTA50  -> 401 {"detail":"Not authenticated"}      (member-gated, as always)
+GET /api/bars/US:A50  -> 200 {"bars":[],"no_data":true,"reason":"symbol_not_carried"}
+```
+
+⚠️ **ONE CHECK IS HONESTLY PENDING, AND IT IS NOT A TEST FAILURE.** §11's worker→R2→web
+round trip cannot be demonstrated yet, because the worker uploads breadth to R2 **only
+after a backfill tick that WROTE rows** — and the backfill is complete (`rows: 0`,
+`status: 'done'`). So R2 still holds the pre-migration `1789472774`. Consequences, stated
+rather than glossed:
+
+- ⭐ it is **safe**: web's puller gap-fill-merges a snapshot with no `universe` column as
+  the literal `'uct'`, which CASE 2 of the rolling-deploy audit proved and
+  `boot pull: already current` confirms in production;
+- ⭐ it is **good for rollback** — the R2 artifact IS the pre-migration rollback copy, and
+  it is still exactly that;
+- ⛔ but it means the **compatibility index has only INDIRECT confirmation in production**.
+  `_ensure_compat_index` runs inside the same `_ensure_init` that logged the migration and
+  emits a WARNING on failure; no such warning appeared on any of the four services. That
+  is strong evidence, not proof. Positive proof arrives with the next worker snapshot.
+
+⛔ **Not done, and not authorised in this session:** US ingest, dropping the compatibility
+index, publishing any universe, arming `BREADTH_UNIVERSE_BACKFILL_ENABLED`.
