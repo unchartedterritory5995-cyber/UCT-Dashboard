@@ -16,6 +16,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 // header block in `mergeChartSettings`. `legendMode.js` imports nothing, so
 // this cannot start a cycle.
 import { explicitLegendMode } from './legendMode'
+import { explicitBarInfoFields } from './barInfoFields'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -80,12 +81,35 @@ export const CHART_DEFAULTS = {
     // would be recorded as a user choice and could never be changed again for
     // anyone who had saved. Measured in production 2026-08-16; see
     // `legendStamp.test.js`.
-    // Shape of that legend on the Charts workspace: 'vertical' = the stacked
-    // label/value table down the left (the long-standing look); 'horizontal' =
-    // a flat two-line strip (ticker · company · TF, then the values) with NO
-    // background box. Surfaces that don't opt into the workspace legend
-    // (Model Book, popups, …) keep their own inline row regardless.
-    legendLayout: 'vertical', // 'vertical' | 'horizontal'
+    // ⚰⚰ RETIRED BY LEGEND V2 — READ BY NOTHING, AND STILL DECLARED ON PURPOSE.
+    //
+    // There is ONE workspace legend now (a horizontal BAR INFO strip of the
+    // candle's own readings above a vertical STUDY STACK of the plots), so a
+    // layout CHOICE has no subject left to choose between. Nothing in the app
+    // reads this key — `legendV2.test.jsx` asserts that from the source.
+    //
+    // ⛔⛔ DELETING THE DECLARATION IS A PERSISTENCE CHANGE, AND IT WAS TRIED.
+    // This object is spread into the merge, and the merge output is what every
+    // settings write persists — so removing the line drops a key from EVERY
+    // chart's next save. Two hash rails caught it immediately
+    // (`alertSets.test.js`'s byte-identical merged blob and
+    // `perInstanceDoor.test.js`'s literal), and the measured delta was exactly
+    // this one key and nothing else. Regenerating those literals would have
+    // bought tidiness and spent a write to every stored chart in production.
+    //
+    // ⭐ §12 OF THE BRIEF SAYS SO OUTRIGHT: *"do NOT perform a risky broad
+    // migration merely to delete an old field … the old layout value can become
+    // ignored/deprecated if that is safer than mutating every saved chart."*
+    // So it stays, inert, and both stored dialects ('vertical' and 'horizontal')
+    // open on the one layout because no reader consults either.
+    legendLayout: 'vertical', // ⚰ dead data — nothing reads this
+    //
+    // ⭐ WHAT THE MEMBER CUSTOMISES INSTEAD is WHICH FIELDS the bar-info strip
+    // prints — `header.barInfo`, an array of field ids. Unlike this key it is
+    // DELIBERATELY NOT DECLARED HERE, because it is a LIVE default rather than a
+    // frozen one: see `barInfoFields.js::DEFAULT_BAR_INFO_FIELDS` for the
+    // measured reason a live default declared in the schema can never be changed
+    // again.
     // Per-item colors for the header/legend readouts. Each key is unset (absent) by
     // default = keep the item's built-in color; a hex here overrides that one item.
     // Day change is a pair (up-day / down-day). Keys: dayChangeUp, dayChangeDown,
@@ -519,6 +543,17 @@ export function mergeChartSettings(userSettings) {
       // every read. Emitting `legendModeOf(parsed)` here is what froze the old
       // default into real users' settings.
       ...(explicitLegendMode(parsed) ? { legendMode: explicitLegendMode(parsed) } : {}),
+      // ⭐ AND THE BAR-INFO FIELD SET, BY THE SAME RULE AND FOR THE SAME REASON.
+      // `explicitBarInfoFields` answers `undefined` when the member never picked
+      // a set, and spreading `{}` leaves the key ABSENT so `barInfoFieldsOf`
+      // re-derives the default on every read. It also SANITISES — the header
+      // spread above carries whatever was stored, and this line replaces a
+      // malformed or re-ordered array with the canonical one.
+      //
+      // ⚠ AN EMPTY ARRAY IS A REAL CHOICE and survives: `explicitBarInfoFields`
+      // tests `Array.isArray`, never length, so "print no fields" is not quietly
+      // read back as "print all of them".
+      ...(explicitBarInfoFields(parsed) ? { barInfo: explicitBarInfoFields(parsed) } : {}),
     },
     // Positional merge, PADDED to the defaults' length: a stored blob written before a
     // slot was added is shorter, and .map alone would drop the new slot forever.
