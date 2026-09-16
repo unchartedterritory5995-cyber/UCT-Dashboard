@@ -2384,6 +2384,61 @@ the amendment came from the measurement, and the rails keep it honest.
 
 ---
 
+# ⛔⛔ STANDING RULE — **INTERMITTENT IS NOT LOAD-SENSITIVE** (owner, 2026-09-15)
+
+> Before a red is attributed to a change, it is run **alone on the CLEAN tree**
+> (stash captured, SHA recorded) **at least twice**. Only a red that is **stable on
+> the clean tree**, or **stable on the change and absent on the clean tree**, is
+> attributable. ⭐ **"Green alone once" classifies nothing.**
+
+## ⚰️ THE INCIDENT IT COMES FROM, AND IT COST THE WORK TWICE OVER
+
+j.2's wide run showed `stockChartWiring`'s *"A HOVER REACHES THE RENDERER NOT AT ALL"*
+red. It had passed alone twice **earlier in the session**, so I attributed it to my
+change, bisected it to the persistence slot, **wrote a confident comment blaming the
+record's shape**, rebuilt the feature on a closure memo, and set the work aside as
+unexplained.
+
+The measurement that settled it: **clean tree, same file, run alone, twice in a row —
+`214/215`, then `215/215`.**
+
+⛔ **THE BISECT WAS READING NOISE.** And the rewrite it motivated was **wrong on its
+merits** besides: keyed on `b.key`, a memo can never detach on a re-tenant, *because a
+re-tenant has a different key*. The record slot is right precisely because `from` **is**
+the previous binding.
+
+⭐ **The rule that catches this already existed — I applied it to the wrong question.**
+"Re-run it alone" was asked as *"is it load-sensitive?"* (a property of the SUITE) when
+it needed to be asked as *"is it intermittent?"* (a property of the TEST). Those need
+different experiments: the first compares alone-vs-in-company, the second **repeats the
+same run**.
+
+## THE BASELINE, RE-CHARACTERISED
+
+| entry | was | now |
+|---|---|---|
+| `stockChartWiring.test.jsx` | "green alone" | **INTERMITTENT** — clean tree, alone: 214/215 then 215/215 |
+
+⚠️ **AND EVERY OTHER "GREEN ALONE" ENTRY IS NOW SUSPECT UNTIL RE-CHECKED THE SAME WAY**
+— they were classified by the experiment that just proved insufficient. At the next full
+run, each is repeated on a clean tree: `symbolFoldParity`, `AuthContext.test.jsx`,
+`enumerationSites`, and the timeout pair. ⛔ A classification is only as good as the
+experiment that produced it, and three of these were produced by the weaker one.
+
+## ⏸️ OWED UNDER (j) — A BINDER-LEVEL `notes` CHANNEL
+
+`sync` returns `{ok, bound, released}` and has **no notes field**. A **builder-made**
+definition could reach the renderer with fills and **no visible host**, and today that
+band is dropped without a word. Adding the channel is an **interface widening** on
+`sync`'s return and is (j)'s to schedule — **not built in this session**.
+
+⭐ It cannot arise on the member-pane path: `memberPaneDefinition.js:141` refuses an
+all-hidden script with *"this script declares nothing a chart can draw"*, which is a
+sentence and stronger than a note. The binder's duty there is only to **fail closed**,
+which j.2's edge case pins.
+
+---
+
 # ✅ (j) j.1 BUILT — and what j.2 – j.4 inherit
 
 ## j.1 — DONE. Red `57b5809ee` → fix `75be58693`. Estimate 90, actual ~85.
