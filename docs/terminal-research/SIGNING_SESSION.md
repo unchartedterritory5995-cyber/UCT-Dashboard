@@ -1,6 +1,6 @@
 # SIGNING SESSION — the runbook
 
-**39 units.** Three sittings, two commands each. Both tools are **resumable**: an
+**40 units.** Three sittings, two commands each. Both tools are **resumable**: an
 interruption costs a re-run, not a manifest edit.
 
 ⛔ **Read the table `sign_all` prints before it writes anything.** That table, not this
@@ -28,8 +28,8 @@ refuses and prints this command; it will not move your HEAD for you.
 | | rows | ends at | commands | minutes |
 |---|---|---|---|---|
 | **1** | 1–17 | `e-cp12-build-record` | `--until e-cp12-build-record` | **86.1** |
-| **2** | 18–38 | `d3-cp2-build-record` | `--until d3-cp2-build-record` | **86.4** |
-| **3** | 39 | `s2-accelerator-chord…` | `--include-member-visible` | **5.7** |
+| **2** | 18–39 | `d3-cp2-build-record` | `--until d3-cp2-build-record` | **86.4** |
+| **3** | 40 | `s2-accelerator-chord…` | `--include-member-visible` | **5.7** |
 
 ```
 cd C:\Users\Patrick\uct-worktrees\terminal-research
@@ -51,7 +51,7 @@ python tools/sign_all.py  --manifest tools/sign_manifest.txt
 python tools/merge_all.py --manifest tools/sign_manifest.txt --include-member-visible
 ```
 
-**The arithmetic, because the split is not arbitrary.** 31 of 39 units push to master; each
+**The arithmetic, because the split is not arbitrary.** 31 of 40 units push to master; each
 costs ~8 s of cherry-pick and push + a **186 s** build + the guard's **150 s** settle =
 **5.73 min**. Total **178.3 min**. ⛔ **Two sittings cannot both be ≤ 90 min** — the best
 possible balance is 91.9 / 86.4, and 91.9 is over. With **F-S2-1 in a sitting of its own**
@@ -96,7 +96,7 @@ service (`a4e845fe7` reached SUCCESS ~186 s after `createdAt`).
 ⛔ **DO NOT `git checkout` A PACKET MID-SESSION.** `core.autocrlf=true` and `.gitattributes`
 says nothing about `docs/**/*.md`, so a checked-out packet comes back **CRLF** and
 `sign_gate`'s blank-field pattern cannot consume the `\r` — it refuses with *"no UNSIGNED
-`APPROVED AT SHA:` line"*. It fails CLOSED, and it would still stop you. All 39 manifest
+`APPROVED AT SHA:` line"*. It fails CLOSED, and it would still stop you. All 40 manifest
 packets are LF today; 19 other gate packets in that directory are already CRLF.
 
 ## ⚠️ One decision left
@@ -126,8 +126,8 @@ SCOPE (K6.2)
 
 SITTING BOUNDARY (R.2)
   sign_all  --until e-cp12-build-record --dry-run  -> rows: 17, 17 commands
-  merge_all --until e-cp12-build-record --dry-run  -> units: 17 of 39
-  merge_all                             --dry-run  -> units: 39 of 39
+  merge_all --until e-cp12-build-record --dry-run  -> units: 17 of 40
+  merge_all                             --dry-run  -> units: 40 of 40
   --until naming nothing                           -> exit 2, names the last five
 
 RESUME (R.3, on a throwaway repo, deleted afterwards)
@@ -145,8 +145,8 @@ RESUME (R.3, on a throwaway repo, deleted afterwards)
 ```
 sign_gate --self-check   PASS   sign_gate --read-check  PASS
 K6.2 controls            PASS   R.3 resume control      PASS
-sign_all  --dry-run      39 rows, 39 ok, 0 refusing, exit 0
-verify_manifest          39 OK, 0 STALE
+sign_all  --dry-run      40 rows, 40 ok, 0 refusing, exit 0
+verify_manifest          40 OK, 0 STALE
 merge_all --self-check   PASS
-merge_all --dry-run      39 units, 31 constraints, exit 0
+merge_all --dry-run      40 units, 32 constraints, exit 0
 ```
