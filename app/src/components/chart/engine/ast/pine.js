@@ -12898,6 +12898,18 @@ function outputTitle(args, kind, role = null) {
  *  read `message = "…"` as an expression because the value does not start with a quote,
  *  which understated the carryable set by ~155 and would have mis-sized this whole
  *  step. `outputTitle` above has always read both; so does this.
+ *
+ *  ⚰️⚰️ AND THE SAME CENSUS HAD A SECOND DEFECT OF THE SAME FAMILY, WHICH SURVIVED THE
+ *  FIRST CORRECTION — found by item (f), 2026-09-15. It also tested `'+' not in a`
+ *  across the whole argument, so a literal carrying `A+` INSIDE ITS QUOTES read as a
+ *  concatenation. The corpus therefore holds **489 of 555** carryable (340 literal +
+ *  149 placeholder) and **ZERO** expression messages, not 487 and 2.
+ *
+ *  ⭐ THE CODE BELOW WAS NEVER WRONG — `value.type === 'string'` already carries those
+ *  two lines and notes neither. What the correction changes is a fact about the GUARD:
+ *  **`pine:alert-message` has zero corpus firings**, and only a synthetic specimen
+ *  exercises it. A note nobody has seen fire on real input is worth labelling as such,
+ *  because the alternative is citing it later as though the corpus had proved it.
  */
 function outputMessage(args, kind) {
   if (kind !== 'alertcondition') return null

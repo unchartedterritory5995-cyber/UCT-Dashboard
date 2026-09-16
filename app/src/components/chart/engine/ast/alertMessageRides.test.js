@@ -7,10 +7,29 @@
 // textop-only parentage (`assertCanonical`) is never engaged and **no 12th
 // `NODE_TYPES` member is implied**. The message rides **beside it, same carriage**.
 //
-// ⭐ SCOPE, MEASURED (`a99ffcec3`): **487 of 555** messages are carryable — **338
-// literal + 149 placeholder** — against **2** genuine expressions. A `{{placeholder}}`
-// is still a string LITERAL; the braces are TradingView's to resolve at fire time, and
-// carrying the string verbatim is the honest thing to do with it.
+// ⭐ SCOPE, MEASURED: **489 of 555** messages are carryable — **340 literal + 149
+// placeholder** — against **ZERO** genuine expressions in the corpus. A
+// `{{placeholder}}` is still a string LITERAL; the braces are TradingView's to resolve
+// at fire time, and carrying the string verbatim is the honest thing to do with it.
+//
+// ⚰️⚰️ THIS READ "487 … against 2 genuine expressions" AND BOTH NUMBERS WERE WRONG —
+// corrected by item (f)'s census, 2026-09-15. The two "expressions" are plain string
+// literals whose `+` is INSIDE THE QUOTES:
+// `neural-network-buy-and-sell-signals__fbbb11d0c7.pine:966` and `:968` read
+// `"PREMIUM BUY Signal - Grade A+ - Highest confidence bullish signal"`. The (d) census
+// tested `'+' not in a` across the whole argument, so `A+` inside a quoted string read
+// as a concatenation.
+//
+// ⭐ THE SAME INSTRUMENT DEFECT, TWICE IN ONE ITEM, AND THE SECOND SURVIVED THE FIRST
+// CORRECTION. (d)'s census was already fixed once for reading `message = "…"` as an
+// expression because the value did not start with a quote; this is its sibling —
+// reading a literal as an expression because it contains a `+`. Both are "ask the KIND
+// before the LITERAL", which is why that rule is written down.
+//
+// ⛔ THE CARRIAGE WAS NEVER WRONG, ONLY ITS SIZING: `value.type === 'string'` already
+// carries both lines and notes neither. What changes is that **`pine:alert-message` has
+// ZERO CORPUS FIRINGS** — the `EXPR_MSG` specimen below is the only thing that
+// exercises it, and that is worth knowing before anyone cites the note as load-bearing.
 //
 // ⛔ AN EXPRESSION MESSAGE IS NOT CARRIED, AND IT GETS A NOTE — never a refusal. The
 // offer translates today and must keep translating; **a threshold never removes what

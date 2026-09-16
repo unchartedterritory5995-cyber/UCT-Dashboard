@@ -6,7 +6,10 @@
 // **silently** — no output, no refusal, no note:
 //
 //   `alert(message, freq)`            191 uses across 46 files
-//   an alertcondition's MESSAGE       487 of 555 are literal-or-placeholder
+//   an alertcondition's MESSAGE       489 of 555 are literal-or-placeholder
+//                                     (⚰️ read 487 until item (f)'s census, 2026-09-15:
+//                                      the 2 "expressions" are literals carrying `A+`
+//                                      inside their quotes — 340 literal, not 338)
 //
 // ⛔⛔ SILENCE IS THE DEFECT. This engine's standing rule is that what it cannot carry
 // is **refused by name or noted** — never dropped. Both of these were dropped.
