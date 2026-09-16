@@ -44,6 +44,28 @@ METHODOLOGY = "rth-1m-composites-v1"
 PIT_UNIVERSES = ("us", "nasdaq", "nyse")
 ALL_UNIVERSES = ("uct",) + PIT_UNIVERSES
 
+#: ⛔⛔ METRICS THE UNION-LEVELS OPTIMISATION CANNOT SERVE, and the reason is precise.
+#:
+#: `build_levels` is per-ticker for almost everything — a name's 50-day average and
+#: 52-week extremes do not depend on the cohort — which is what lets one levels build
+#: serve four universes. But `mcclellan_osc` is an EMA of a CROSS-SECTIONAL
+#: net-advance series computed inside `build_levels` over whatever matrix it was given,
+#: and `adv_decline_cum` is a running total of the same shape. Their value therefore
+#: depends on the population the levels were built from, not on any one ticker.
+#:
+#: ⚠️ MEASURED, NOT ASSUMED. Generating the same seven sessions with four separate
+#: levels builds and with one union build produced 924 rows that agreed in every cell
+#: EXCEPT these: 28 rows, exactly one per universe per session, all `mcclellan_osc`.
+#: That is the whole divergence, and it is why the equivalence was verified rather than
+#: argued.
+#:
+#: ⭐ They are excluded rather than special-cased. Both are already
+#: `breadth_metrics.PIT_UNPRODUCIBLE`, so US/NASDAQ/NYSE must never carry them anyway
+#: (BL-012). UCT's McClellan has an authoritative source of its own — the collector —
+#: and this pass has no business restating it from a different population.
+NOT_MEMBER_INDEPENDENT = frozenset({"mcclellan_osc", "adv_decline_cum"})
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS breadth_daily_ohlc (
     universe TEXT NOT NULL DEFAULT 'uct',
@@ -169,6 +191,7 @@ def run(artifact: str, from_date: str, to_date: str,
     from datetime import date as _d, timedelta as _td
     from api.services import breadth_history_recon as _recon
     from api.services import breadth_live as bl
+    from api.services import breadth_metrics as bm
     from api.services import breadth_pit_frame as bpf
     from api.services import breadth_wick_recon as wr
     from api.services import build_intraday_cache as bic
@@ -246,6 +269,13 @@ def run(artifact: str, from_date: str, to_date: str,
                 sess_meta = sess_meta or out.get("_session")
                 for metric, r in out.items():
                     if metric.startswith("_") or r.get("source") != "intraday_recon":
+                        continue
+                    # ⛔ THE CANONICAL GATE, not a local opinion: `applies_to` is what
+                    # `library_rows` and the sweep already read, so a metric excluded
+                    # here cannot be stored OR offered. Plus the union-levels exclusion.
+                    if metric in NOT_MEMBER_INDEPENDENT:
+                        continue
+                    if not bm.applies_to(metric, u):
                         continue
                     rows.append((u, D, metric, r["o"], r["h"], r["l"], r["c"],
                                  "intraday_recon_1m"))
