@@ -114,7 +114,8 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
     render(<LegendRow rowId="ma:0" label="EMA 9" value="325.97" color="#4ade80" vertical {...h} />)
     const row = document.querySelector('[data-legend-row="ma:0"]')
     expect(row.style.color, 'the row lost its series colour').toBe('rgb(74, 222, 128)')
-    const [label, value] = row.children
+    // ⚠ children[0] IS THE MICRO-RAIL NOW — the label and value shifted by one.
+    const [, label, value] = row.children
     expect(label.style.color, 'the label stopped inheriting the series colour').toBe('inherit')
     expect(value.style.color, 'the value is wearing the series colour again').toBe('')
   })
@@ -141,6 +142,66 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
       // only made it look wrong.
       expect(L[1], `${name}'s label dims the series colour`).not.toMatch(/opacity/)
     }
+  })
+})
+
+describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', () => {
+  it('a row with a plot colour draws a rail IN THAT COLOUR', () => {
+    render(<LegendRow rowId="ma:0" label="EMA 9" value="325.97" color="#4ade80" vertical onOpen={vi.fn()} />)
+    const rail = document.querySelector('[data-legend-row="ma:0"] i')
+    expect(rail, 'no micro-rail').toBeTruthy()
+    expect(rail.style.background).toBe('rgb(74, 222, 128)')
+  })
+
+  it('⛔ A ROW WITH NO COLOUR STILL EMITS IT, UNPAINTED — that is what aligns the labels', () => {
+    // The owner's target prints `Vol` with its label on the same x as `EMA 9`'s,
+    // not hanging two pixels to its left. An unpainted rail is invisible and costs
+    // exactly the width it reserves.
+    render(<LegendRow rowId="volume" label="Vol" value="31.7M" vertical onOpen={vi.fn()} />)
+    const rail = document.querySelector('[data-legend-row="volume"] i')
+    expect(rail, 'the indent disappeared with the colour').toBeTruthy()
+    expect(rail.style.background, 'volume was given a fabricated colour').toBe('')
+  })
+
+  it('⛔ IT IS NOT A CONTROL, AND NOT A SECOND TARGET', () => {
+    // §16: the ROW is the interaction target and the rail lives inside it, so
+    // pointing at the rail already hovers the row. A screen reader has the label.
+    render(<LegendRow rowId="ma:0" label="EMA 9" value="1" color="#4ade80" vertical onOpen={vi.fn()} />)
+    const rail = document.querySelector('[data-legend-row="ma:0"] i')
+    expect(rail.getAttribute('aria-hidden')).toBe('true')
+    expect(rail.getAttribute('role')).toBeNull()
+    expect(rail.getAttribute('tabindex')).toBeNull()
+  })
+
+  it('⛔ SUBORDINATE BY CONSTRUCTION — a rule, not a chip', () => {
+    // ⚰⚰ TWO COLOURED MARKS DIED BEFORE THIS ONE. Track B's 2×9 rail REPLACED the
+    // coloured label and read as nine little tabs; the composition pass's 5×5
+    // SQUARE read as a bullet and as DeepView's signature. This one accompanies a
+    // coloured label and is a hairline: at 3px wide it becomes a bar chart down the
+    // left edge, which is the "rainbow barcode" a dense stack invites.
+    for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
+      const rule = /(?:^|\n)\.rail\s*\{([^}]*)\}/.exec(css)
+      expect(rule, `${name} has no rail rule`).toBeTruthy()
+      const w = Number(/width:\s*(\d+)px/.exec(rule[1])[1])
+      const h = Number(/height:\s*(\d+)px/.exec(rule[1])[1])
+      expect(w, `${name}'s rail is a bar, not a rule`).toBeLessThanOrEqual(2)
+      expect(h, `${name}'s rail is taller than the line it marks`).toBeLessThanOrEqual(11)
+      expect(rule[1], `${name}'s rail can be squeezed`).toMatch(/flex:\s*none/)
+      // ⛔ NO BACKGROUND IN THE RULE — the colour is inline, from the caller's
+      // already-resolved series colour. A default here would paint a fabricated
+      // rail on a row that has no colour to show.
+      expect(rule[1], `${name}'s rail has a fabricated default colour`)
+        .not.toMatch(/background/)
+    }
+  })
+
+  it('⛔ AND A HIDDEN ROW DIMS THE RAIL WITH IT — one state, not two', () => {
+    render(<LegendRow rowId="ma:0" label="EMA 9" value="" color="#4ade80" vertical hidden onOpen={vi.fn()} />)
+    const row = document.querySelector('[data-legend-row="ma:0"]')
+    // The dimming is `.rowHidden` on the ROW, and opacity composites the subtree —
+    // so the rail cannot drift out of step with the label it belongs to.
+    expect(row.className).toMatch(/rowHidden/)
+    expect(row.querySelector('i'), 'the rail left the dimmed row').toBeTruthy()
   })
 })
 
@@ -365,7 +426,10 @@ describe('§2/§12 — the cluster sits snug under the drawing tools', () => {
   it('the two areas read as one cluster — a small, slightly distinct step', () => {
     const v2 = /\.legendV2\s*\{([^}]*)\}/.exec(stripComments(STOCK_CSS))[1]
     const gap = Number(/(?:^|;)\s*gap:\s*(\d+)px/.exec(v2)[1])
-    expect(gap, 'bar-info and the study stack drifted apart').toBeLessThanOrEqual(6)
+    // ⚠ 6 → 10: the owner asked for more air here (§7) once the study rows opened
+    // up, so the cap moves with the ruling rather than pinning a superseded number.
+    // It is still a CAP — a gap this small cannot become a blank row.
+    expect(gap, 'bar-info and the study stack drifted apart').toBeLessThanOrEqual(10)
     expect(gap, 'bar-info and the study stack collided').toBeGreaterThanOrEqual(2)
   })
 })

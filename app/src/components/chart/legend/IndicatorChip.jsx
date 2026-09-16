@@ -299,6 +299,10 @@ export default function IndicatorChip({
         onClick={onBody}
         title={chipTitle}
       >
+        {/* The twin of `LegendRow`'s micro-rail — read that one for the two
+            retired marks it is not. Per PLOT, because `chip.color` is per plot:
+            MACD and its signal are two drawn lines and each names its own. */}
+        <i className={styles.rail} style={chip.color ? { background: chip.color } : undefined} aria-hidden="true" />
         <span
           className={`${cls} ${styles.chipGridLabel}`}
           /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a

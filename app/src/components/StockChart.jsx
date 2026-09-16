@@ -247,14 +247,14 @@ const CHIP_COLLAPSE_AT = 4
  * the budget that produced it. A constant converges in one frame.
  *
  * ⚠️ IT MUST TRACK `.studyStack`'s `line-height` + `row-gap`, WHICH ARE BOTH
- * DECLARED IN PX FOR THAT REASON. 14 + 5 = 19 — the leading is unchanged and the
+ * DECLARED IN PX FOR THAT REASON. 14 + 8 = 22 — the leading is unchanged and the
  * GAP opened, which is the floating pass's rule that breathing room belongs
  * between the rows rather than around the legend. Measured first with `line-height: normal`, where the
  * real pitch came out at 17 and no test could have derived it; `legendV2.test.jsx`
  * re-derives both numbers from the stylesheet, so a type change there fails the
  * rail rather than silently over-counting rows on a short pane.
  */
-const STUDY_ROW_PX = 19
+const STUDY_ROW_PX = 22
 
 /**
  * The most of the PRICE PANE the study stack may cover, as a fraction.
@@ -17153,25 +17153,25 @@ export default function StockChart({
                 {barShows('open') && (
                   <span className={styles.barField} style={legBase}>
                     <span className={styles.barKey}>O</span>
-                    <span className={styles.barVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+                    <span className={styles.barVal}>{crosshairData.open?.toFixed(2)}</span>
                   </span>
                 )}
                 {barShows('high') && (
                   <span className={styles.barField} style={legBase}>
                     <span className={styles.barKey}>H</span>
-                    <span className={styles.barVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+                    <span className={styles.barVal}>{crosshairData.high?.toFixed(2)}</span>
                   </span>
                 )}
                 {barShows('low') && (
                   <span className={styles.barField} style={legBase}>
                     <span className={styles.barKey}>L</span>
-                    <span className={styles.barVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+                    <span className={styles.barVal}>{crosshairData.low?.toFixed(2)}</span>
                   </span>
                 )}
                 {barShows('close') && (
                   <span className={styles.barField} style={legBase}>
                     <span className={styles.barKey}>C</span>
-                    <span className={styles.barVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
+                    <span className={styles.barVal}>{crosshairData.close?.toFixed(2)}</span>
                   </span>
                 )}
                 {/* ⭐ THE TWO CHANGE FIGURES CARRY NO LABEL AND KEEP THEIR

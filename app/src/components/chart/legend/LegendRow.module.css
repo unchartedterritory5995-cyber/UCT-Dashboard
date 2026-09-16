@@ -243,3 +243,25 @@
    comfortably past the 44px floor in height on touch and never in anyone's way at
    rest. The verbs arrive in `ContextPopover`'s bottom sheet, whose rows are
    pinned to that floor. */
+
+/* ⭐⭐ THE MICRO-RAIL. A hairline rule of the series' colour at the head of the
+ * row — see the component for why it is neither of the two coloured marks this
+ * legend has already retired.
+ *
+ * ⛔ SUBORDINATE, BY CONSTRUCTION. The hierarchy is VALUE → LABEL → RAIL, and 2px
+ * of width is what keeps it there: at 3px it starts reading as a bar chart down
+ * the left edge, which is the "rainbow barcode" failure a dense stack invites.
+ * ⛔ A RULE, NOT A CHIP: 2×10 with a 1px radius. Square ends read as a tally mark
+ * and a full pill reads as a bullet.
+ * ⛔ `flex: none` — it must never be the thing that shrinks when a row is tight.
+ * ⛔ NO BACKGROUND OF ITS OWN. Unpainted it is invisible and still reserves its
+ * width, which is what keeps `Vol`'s label on the same x as `EMA 9`'s. */
+.rail {
+  flex: none;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  /* Nudged to sit optically centred on the text's x-height rather than on its
+     baseline box — a rule aligned to the baseline hangs low. */
+  transform: translateY(0.5px);
+}
