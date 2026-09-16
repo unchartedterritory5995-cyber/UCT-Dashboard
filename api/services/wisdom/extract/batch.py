@@ -429,6 +429,47 @@ def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpos
     return out
 
 
+#: ⛔⛔ R52 (owner ruling, 2026-09-15) — Q-3. `force` no longer bypasses the switch that SPENDS.
+#:
+#: ⚰️ WHAT IT WAS. Both entry points read `if not ctx.force and not flags.extract_enabled()`, so a
+#: forced run skipped the gate entirely. And `force` is not a developer-only concept: it is a query
+#: parameter on `POST /api/admin/wisdom/core/jobs/{job_id}/run?force=true&dry_run=false`
+#: (`wisdom_core.py:138-156`), whose only guard is `require_admin`. So the one switch in this
+#: programme that can cost money was one admin request away from not applying.
+#:
+#: ⭐ WHY `force` EXISTS AND WHY IT KEEPS EVERYTHING ELSE. It is for re-running a slot the
+#: scheduler swallowed, and it should still bypass the master switch, the job's own kill switch and
+#: the trading-day check — those bound WHEN work happens. `WISDOM_EXTRACT_ENABLED` bounds WHETHER
+#: MONEY IS SPENT, which is a different kind of thing, and the ruling separates them.
+#:
+#: ⛔ THE DELIBERATE DOOR. A forced run may still spend, but only when the operator says so in the
+#: same breath: `WISDOM_EXTRACT_ACCEPT_SPEND` must equal the exact literal below. Two conditions
+#: that must be met at once, neither of them a default, and the acceptance is recorded in the
+#: refusal text and the step's reason so it can never be invisible afterwards.
+ACCEPT_SPEND_ENV = "WISDOM_EXTRACT_ACCEPT_SPEND"
+ACCEPT_SPEND_VALUE = "I-ACCEPT-EXTRACTION-SPEND"
+
+
+def spend_accepted() -> bool:
+    return (os.environ.get(ACCEPT_SPEND_ENV) or "").strip() == ACCEPT_SPEND_VALUE
+
+
+def spend_allowed(ctx) -> bool:
+    """May this run spend? The flag, OR a forced run whose operator accepted the spend."""
+    if flags.extract_enabled():
+        return True
+    return bool(getattr(ctx, "force", False)) and spend_accepted()
+
+
+def spend_refusal(ctx) -> str:
+    """Why it will not spend — naming the switch, and for a forced run the missing acceptance."""
+    if getattr(ctx, "force", False) and not spend_accepted():
+        return (f"WISDOM_EXTRACT_ENABLED is off and this forced run did not accept the spend "
+                f"(set {ACCEPT_SPEND_ENV}={ACCEPT_SPEND_VALUE}). R52: force bypasses scheduling, "
+                f"never the switch that spends.")
+    return "WISDOM_EXTRACT_ENABLED is off"
+
+
 def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Optional[Callable] = None) -> dict:
     """Daily chain step: segment new sources, then extract NEW segments only — gated by
     WISDOM_EXTRACT_ENABLED, the golden gate and the budget."""
@@ -436,8 +477,8 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
     model = config.configured_model()
     out = {"extractor_version": version, "model": model, "effort": config.configured_effort(),
            "dry_run": ctx.dry_run}
-    if not ctx.force and not flags.extract_enabled():
-        out.update(status="skipped", reason="WISDOM_EXTRACT_ENABLED is off")
+    if not spend_allowed(ctx):
+        out.update(status="skipped", reason=spend_refusal(ctx))
         return out
     out["segmentation"] = segment_pending_sources(dry_run=ctx.dry_run, loader=loader)
     with store.read() as conn:
@@ -665,8 +706,8 @@ def reap(ctx, *, client=None) -> dict:
     """Short tick (wisdom_extract_reap, :16/:46): advance every open batch, handle ended ones,
     reconcile orphans, and report progress, cost so far and ETA."""
     out: dict = {"dry_run": ctx.dry_run}
-    if not ctx.force and not flags.extract_enabled():
-        out.update(status="skipped", reason="WISDOM_EXTRACT_ENABLED is off")
+    if not spend_allowed(ctx):
+        out.update(status="skipped", reason=spend_refusal(ctx))
         return out
     marks = ",".join("?" for _ in BATCH_KINDS)
     with store.read() as conn:
