@@ -2294,6 +2294,81 @@ of **0.02** stands UNVERIFIED and bears directly on (j)'s numbers.
 
 ---
 
+# ⭐⭐⭐ WAVE 2 GRAMMAR — CLOSE-OUT (2026-09-15)
+
+## (a) – (j), each with its outcome and its ruling
+
+| item | outcome | ruling |
+|---|---|---|
+| **(a)** | CLOSED | shapes foreclosed on the definition lane; the exact set routed to (c) |
+| **(b)** | CLOSED — **retired** | time inputs; `input.timeframe` reachable **9**, under threshold |
+| **(c)** | CLOSED **with its IR half owed** | definition-lane half BUILT (R18); IR half **BLOCKED-BY-ITS-OWN-GAP** → **H.6**, no estimate |
+| **(d)** | CLOSED | d1′ + d2 BUILT; **d3 → H.7** |
+| **(e)** | CLOSED — **retired on its numbers** | wrong in **0 of 20,954**; (A) 11 → `FOLD_BINARY`, (B) 0, (C) → (c) |
+| **(f)** | CLOSED — **6 forms already ship** | "build" = keep and do not regress; 44 retire; 123 method-spelling uses → `pineObjects.js` |
+| **(g)** | CLOSED — **premise false, sentence BUILT** | not a typing gap; the closing pass now reads the reason it recorded |
+| **(h)** | CLOSED — **3 fields retire by name** | data-only; **BF.B routed OUT** with its reproduction |
+| **(i)** | CLOSED — **no engine change owed** | one source sealed, two live; every fix routes out |
+| **(j)** | **SCOPED, NOT STARTED** | 11 gaps; **STOP for the owner's go** — five ruling triggers |
+
+## ⛔ THE OWED LIST — one table, nothing dropped
+
+| owed | to whom | number |
+|---|---|---|
+| 13 `for … in` uses | R1 | 13 |
+| function-parameter sources | R1 | recorded |
+| UDT-field-access gap | **H.4**, with the loop-body note | 1 site (`…eqheql:135`) |
+| accumulators / ceiling | R7 | 379 / 63 |
+| `EXPR.TUPLE`, `STMT.FOR`, `STMT.WHILE`, `EXPR.ARRAY_OP` lowering | **the IR lowering programme** | 0 mentions in 3 files |
+| d3 — what a *set* means | **H.7** | 112 / 53 / 184 / 38 / 26 |
+| (e)(A) comparison folding | `FOLD_BINARY` | 11 |
+| (e)(C) the UDF-parameter gate | **item (c)** | 110 fold / 1 not / 0 reach |
+| (f) method spelling `tbl.cell(…)` | `pineObjects.js` | 123 |
+| **BF.B** share-class normalisation | **symbol-resolution / ticker-search** | reproduction recorded |
+| four renderings of today's volume | **UCT Terminal / charts** | 4 |
+| two vendors in one `v` column | **bars / data platform** | — |
+| the screener's second snapshot endpoint | **screener** | — |
+| consolidated-vs-primary | **the owner's provenance decision** | already routed out |
+| **(j)** j.1–j.5 | **the owner** | ~315 min, stop 630 |
+
+⚠️ **Two hazards that are not defects yet, recorded so they are not rediscovered:** the
+propagating `and` is **v6-incorrect by specification** with **73 of 269** corpus scripts
+already on v6; and (b)'s `strip_pine`, now shared by four censuses, **blanks the newline
+inside an unterminated quote** (4 of 269 files lose up to 26 lines).
+
+## THE OWNER LIST
+
+**H.4 · H.5 · H.6 · H.7 ruled** (this session). **New: (j)'s five ruling triggers.**
+**Wave 1 PR:** branch `wave1/indicator-r0r1` pushed at `acdf93455`; ⛔ **not opened —
+the browser has no viewport** (see SESSION-STATE). **3 merge conflicts** measured:
+`binder.js`, `placement.js`, `docs/feature_flags.json`. **The capture (3A/3B) is owed**,
+blocked by the same cause.
+
+## THE VERIFICATION — three legs, three exit codes
+
+| leg | result |
+|---|---|
+| **full vitest** | **EXIT 1** — 1,493 files / 21,497 tests · 11 failed in 8 files · **0 NEW** |
+| **Python lane** (51 files **by name**) | **EXIT 0** — 1,589 passed, 13 skipped, 1 xfailed |
+| **vite build** (alone) | **EXIT 0** — built in 34.48s |
+
+⛔ **Every one of the 11 is attributed to the branch's own recorded baseline**
+(`SESSION-STATE:458-466`), and the counts match it **exactly**: pre-existing HEAD trio
+1+1+3 · `pollingSites` 1 (master's) · `tapFloor` 1 (Notebook's, rule 12) ·
+`ChartDrawingOverlay.surfaces` 1 (master's) · `ThemeTrackerPage.chartmount` 2 (master's)
+· `reachable` 1 (master's `focusDivergence`).
+
+⚰️ **AND THE WRAPPER SAID EXIT 0.** The full run was launched with a compound command
+ending in a `grep`, so the status reported back was **grep's**, not vitest's — the exact
+defect this repo has recorded four times. The verdict above is read **from the log file**,
+which says `11 failed`. The rule earned its fifth instance today.
+
+**Moved artifacts, by name:** `27-support-resistance-channels.json` (2 lines, (g)'s
+sentence on a real public script). **Unchanged:** `corpus_metric.json`,
+`lookback_agreement.json`.
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
