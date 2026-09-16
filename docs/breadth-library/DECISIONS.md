@@ -1319,3 +1319,69 @@ Round trip with US present: snapshot `1789524296` (**14.9 MB**, up from 8.5 — 
 predicted the roughly-doubled artifact), web merged it in under two minutes, and web now
 holds `uct 174,339 + us 183,417` with its own UCT fingerprint `6276006d94c2e13b…`
 unchanged.
+
+---
+
+### BL-036 · The combined pass — and the equivalence check that earned its keep
+
+**Three measured defects fixed, one driver built, one optimisation that was nearly wrong.**
+
+#### The defects
+
+| | measured |
+|---|---|
+| reconstruction ran **4:00–20:00** | 2026-07-23 A20 opened **42.4** instead of 35.5; range 5.5 → **10.0** |
+| **30-minute** resolution | lost **17–43%** of true intraday range |
+| NETHL/PH/PL not per-minute series | `compute_metrics` returns **None** for all three |
+
+⚰️ **And the RTH fix had an off-by-one that bit TWICE.** The first proof produced **391
+buckets ending 16:00**; capping at a constant then left half-days at **211 ending 13:00**.
+The busiest late minute of any session *is* the closing auction, so the last regular bar
+is the minute before it — derived symmetrically, **390** and **210**, no calendar lookup
+either time. The proof found both; I found neither.
+
+#### ⭐⭐ The optimisation, and why verifying beat assuming
+
+The mini pass measured **~37 s/session** — 4,679 sessions is **48 hours**, not the 16–20
+the estimate assumed. The cost is the **levels build**, not the download.
+
+`build_levels` is per-ticker, and the metric engine says so itself: *"a 50-day average of
+a member is the same number whoever else is in the frame."* So one union build plus
+`members=` restriction should be identical to four builds. It very nearly was:
+
+```
+896 of 924 cells agreed.   28 differed.   ALL of them mcclellan_osc.
+```
+
+⛔ **McClellan is an EMA of a CROSS-SECTIONAL net-advance series computed inside
+`build_levels`** — its value depends on the population the levels were built from, not on
+any one ticker. It is the single metric the invariant does not cover, and
+`adv_decline_cum` has the same shape.
+
+⭐ **Excluded rather than special-cased.** Both are already `PIT_UNPRODUCIBLE` (BL-012),
+so US/NASDAQ/NYSE must never carry them; UCT's McClellan has an authoritative source in
+the collector. After exclusion the two artifacts are **bit-identical**:
+`268deffee23630c4818fe018`, 896 rows. **28.2 s/session.**
+
+⚠️ **Had I shipped the optimisation on the strength of the invariant, McClellan would
+have been quietly wrong in every universe.** The argument was right about 34 of 35
+metrics, which is exactly the kind of "right" that ships a defect.
+
+#### Isolation
+
+⛔ The artifact path is **required and never defaulted** — no env var, no fallback — and
+`open_artifact` refuses the production store whether named directly or reached through
+`_db_path()`. Proven on the real database: fingerprint `6fbdd16e160808d6` / 353,962 rows
+**identical before and after** a mini pass.
+
+#### Resume
+
+`skipped_existing: 4`, only the 3 new sessions processed (weekend correctly skipped),
+**0 duplicates**. A missing provider file checkpoints as `missing_source` (a fact about
+the archive, not retried forever); a genuine failure stays retryable.
+
+#### Source floor — the open question from the methodology report, closed
+
+The minute archive: **2005 PRESENT, 2003 absent**. The 2008 floor is comfortably inside
+coverage. Historical files are 9–13 MB against 2026's 28 MB, so the transfer estimate
+falls from ~131 GB to **~84 GB**.
