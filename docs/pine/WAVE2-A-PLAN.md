@@ -2088,6 +2088,120 @@ reproduction is written out in the census. No vendor API was called.
 
 ---
 
+# ✅ (f) — NESTED TEXT HELPERS: **2,242 ALREADY SHIP**, and it corrected d2
+
+Census `2b708f81d`. 328 scripts. **3,382 nested uses** against 2,772 standing alone.
+
+**Six forms clear the threshold (782 / 541 / 448 / 376 / 50 / 45) and every one of them
+already works** — all TEXT-yielding, all into a drawing's `text=`/`tooltip=`, **no `str`
+node anywhere**. Verified verbatim from the shipped object program:
+`{"t":"cat","args":[…]}`. **Carriage, not node type.** So for all six, "BUILD" means
+**keep and do not regress**; the other 44 forms retire, each named with its number.
+
+**NUMBER-yielding: 30 nested uses, 0 admissible** — and the absence is evidence because
+the same door folds `str.length("abcd")` and `str.length(syminfo.ticker)`, while
+`textOperandOf` (`pine.js:5308`) takes a literal or a `syminfo` field and never a call.
+
+⭐ The only number arguing for **new** work is **123 method-spelling uses**
+(`tbl.cell(…)`), and it routes to `pineObjects.js` — not to a node type.
+
+## ⛔⛔ AND IT FOUND A DEFECT IN d2, BUILT EARLIER THE SAME DAY (`3b6e6226d`)
+
+d2's **2 "expression messages" are not expressions**: they are string literals whose `+`
+is **inside the quotes** (`…Grade A+ - Highest confidence…`). The corpus holds **489 of
+555** carryable (340 literal + 149 placeholder) and **zero** expressions.
+⭐ **The carriage was never wrong — only its sizing.** What changes is a fact about the
+guard: **`pine:alert-message` has zero corpus firings**, and only a synthetic specimen
+exercises it. Corrected at all three sites that quoted the old number.
+
+⚰️ **THE SAME INSTRUMENT DEFECT, TWICE IN ONE ITEM, AND THE SECOND SURVIVED THE FIRST
+CORRECTION.** (d)'s census was already fixed once for reading `message = "…"` as an
+expression because the value did not start with a quote. Both are **"ask the KIND before
+the LITERAL"** — the rule written down after (b) — and both were caught by a *later
+instrument*, never by review. **Fixing one violation of a rule does not find the others.**
+
+⚠️ Measured and worth keeping: **zero text helpers of any kind appear inside an
+`alertcondition(` or a plot-family call at any depth** in all 328 scripts. So the
+question of extending d2's carriage to a nested helper is **closed by measurement**
+rather than deferred.
+
+---
+
+# ✅ (g) — `s := close`: THE PREMISE IS FALSE; **THE SENTENCE WAS THE DEFECT**
+
+Census `b1fbc13c7` · build `54c6f9606`.
+
+**1,649 RHS-series-valued uses in 158 files; 592 admissible-and-reachable in 82.** 89
+forms, 10 over threshold — **and all 10 are already in a position the engine folds.**
+
+⭐ **(g) IS NOT A TYPING GAP, AND THERE IS NOTHING TO TYPE.** A binding holds a **node**,
+and for `s := close` that node *is* the series (`exprBinding pine.js:8615`). Pine's type
+word is deliberately dropped at `boundName` (`:8497`). `s[k]` is routed by the
+**mutation set**, never a declared type (`selfOffsetLag :6010`). Proven on a real script:
+`var float mhigh = na` / `mhigh := high[1]` inside an `if` / plotted comes out
+`host: true, hostGuards: []`. **Only 13 of 266 scripts refuse `pine:reassign` at all.**
+
+## WHAT WAS REAL: THE CLOSING PASS KNEW THE REASON AND NEVER SAID IT
+
+`why = unfoldable.get(name)` was computed four lines above the `missed` branch and used
+only in the `else if`. So a member whose `varip` accumulator stopped the fold **thirty
+lines earlier** was told *"a name that is reassigned later cannot be folded into one
+expression"* — true of the line it names, silent about the cause.
+
+**Fixed with a three-step precedence, and the order is the design:** `carried` (R7a's
+case) → `fromChain` (the new one, which R7a could not reach because the `if`-chain catch
+records into `unfoldable` and not into `env`) → the bare name. **R7a's line choice is
+untouched and pinned by a control.**
+
+⛔ **NOT A RULING TRIGGER — CHECKED, NOT ACCEPTED.** The census reported this as needing
+an owner ruling for sitting "in the same machinery" as the ordering defect class.
+`pine.js:11320-11358` is the **closing pass**: after the walk, touching neither
+`foldStatements` nor `destructureBindings` nor `foldIfChain`.
+
+---
+
+# ✅ (h) — THREE `syminfo.*` FIELDS RETIRE **BY NAME** (data only)
+
+Census `6a3451c91` · red `485d8a9f5` · build `3ac4b1473`.
+
+⭐ **The population is far narrower than the item assumed, and it was traced not
+assumed:** of 667 `syminfo.*` reads across 119 files, **only the exchange half resolves
+through `ticker_meta`** (`bind.js:152-156`). `syminfo.ticker` is the chart symbol
+**string** and never touches the store. So staleness reaches `tickerid` (318) and
+`prefix` (17) and nothing else.
+
+**`basecurrency` (22/7) · `timezone` (13/6) · `root` (1/1)** were in **neither** roster —
+36 uses across 14 files, more than the four refused-by-name fields combined.
+
+⚠️ **I FIRST READ THAT AS A SILENCE AND IT IS NOT ONE.** The namespace fallthrough
+(`pine.js:575`) *does* refuse them; they were refused **anonymously**, which is a
+different defect — and `symbolScope.json:72` says so in its own words: *"The roster is
+the thinking; the fallthrough stays behind it for names nobody has ruled on yet."* So
+**PA-1 (retire by name), not PA-3 (note a silence)**. Corrected before any code moved.
+
+**The whole fix is three manifest entries**, edited as text: `BUILTIN_SYMBOL_UNSERVED` is
+derived from the roster *"so the roster has ONE owner"*. ⭐ `root` is rostered at **one
+use** deliberately — a roster entry is not a build, and a rare name is exactly the one a
+later reader assumes merely fell through.
+
+## ⛔ BF.B — REPRODUCED, AND ROUTED OUT
+
+`ticker_meta.py:183` upper-cases and nothing else. The app-canonical charting form is
+`BF-B`, and **this repo owns that rule twice** (`groups.py:59-61`,
+`ticker_search_index.py:69-71`) — `ticker_meta` mentions neither, making it the only
+symbol-keyed store in the chart's chain without share-class normalisation. Downstream it
+yields `exchange: null`, so `prefix`/`tickerid` refuse with *"a TradingView string this
+engine has not measured"* — **the wrong cause**.
+⛔ **Owner: symbol-resolution / ticker-search on the web pod. Recorded with its
+reproduction, NOT crossed.** This branch owns one adjacent thing and it is a *sentence*.
+
+⚠️ Two staleness defects recorded in the store itself: the freshness clause tests for the
+**key**, not the value (`"exchange" in disk`), so `exchange: null` reads as fresh for 24h
+server-side and **7 days in the browser**; and `heal_nameless_names` rewrites a row
+*without* its exchange field.
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
