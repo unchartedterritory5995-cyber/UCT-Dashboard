@@ -254,14 +254,29 @@ def restore_from_db(staged_db: str, *, allow_universe_loss: bool = False,
     return out
 
 
+#: ⚠️ WHERE A ROLLBACK ARTIFACT ACTUALLY LIVES, AND WHY IT IS NOT `snap/`.
+#: `breadth_ohlc_sync` prunes its snapshot prefix to the newest `_KEEP` (5) tarballs, and
+#: the worker uploads on every wick-sweep completion — i.e. on every boot. So the
+#: pre-migration artifact this whole phase depends on had a life expectancy of about two
+#: uploads. A rollback target that expires on a timer nobody set is not a rollback target,
+#: so the artifact is COPIED to a prefix the pruner does not scan, and `stage_from_r2`
+#: takes an explicit `key` so the supported path can reach it.
+ROLLBACK_PREFIX = "breadth_ohlc/rollback/"
+
+
 def stage_from_r2(ts: str, *, expect_sha256: Optional[str] = None,
-                  workdir: Optional[str] = None) -> dict:
-    """Download + verify snapshot `ts`, returning the staged .db path. Installs nothing."""
+                  workdir: Optional[str] = None, key: Optional[str] = None) -> dict:
+    """Download + verify a snapshot, returning the staged .db path. Installs nothing.
+
+    `ts` names a tarball under the snapshot prefix; pass `key` to read an object stored
+    anywhere else in the bucket — which is how a PRESERVED rollback artifact is reached
+    after retention has pruned it out of `snap/`.
+    """
     from api.services import breadth_ohlc_sync as sync
     client, bucket = sync._client(), sync._bucket()
     if not (client and bucket):
         raise RestoreRefused("R2 is not configured in this environment")
-    key = "%s%s.tar.gz" % (sync._SNAP_PREFIX, ts)
+    key = key or "%s%s.tar.gz" % (sync._SNAP_PREFIX, ts)
     tmp = workdir or tempfile.mkdtemp(prefix="breadth_restore_")
     tar_path = os.path.join(tmp, "snapshot.tar.gz")
     # ⚠️ STREAMED TO DISK, never read() whole into memory — the same reason `data_sync`
@@ -292,9 +307,10 @@ def stage_from_r2(ts: str, *, expect_sha256: Optional[str] = None,
 
 
 def restore_from_r2(ts: str, *, expect_sha256: Optional[str] = None,
-                    allow_universe_loss: bool = False, dry_run: bool = False) -> dict:
-    """The operational entry point: R2 snapshot `ts` -> the live breadth database."""
-    staged = stage_from_r2(ts, expect_sha256=expect_sha256)
+                    allow_universe_loss: bool = False, dry_run: bool = False,
+                    key: Optional[str] = None) -> dict:
+    """The operational entry point: an R2 snapshot -> the live breadth database."""
+    staged = stage_from_r2(ts, expect_sha256=expect_sha256, key=key)
     try:
         out = restore_from_db(staged["path"], allow_universe_loss=allow_universe_loss,
                               dry_run=dry_run)
