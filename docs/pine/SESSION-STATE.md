@@ -2,7 +2,42 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **(j) j.2 — the binder's half of the drop.** Nothing is blocked.
+> ### ⛔ NEXT: **(j) j.3 §1.2 — the red acceptance. The contract is SETTLED.**
+>
+> ✅ **j.1 and j.2 are BUILT** (`75be58693`, `8533faceb`). Clouds' 23 outputs reach
+> the pane document with their 20 fills, and **a fill between two hidden anchors
+> now draws**, hosted on the first visible bound series, fed from columns.
+>
+> ⛔⛔ **DO NOT RE-DERIVE j.3's CONTRACT — 1.1 measured it** (`2b99b6682`):
+> `fill: { with, colorMode: 'column:<key>', colorUp, colorDown }` — **the same
+> three field names a plot uses**, so `columnColorsForPlot(plot.fill)` works
+> **verbatim**. No new function, no third spelling; R10's one-colour-path is met by
+> handing the fill to the same reader. Every other reader **ignores** it
+> (`defSchema` rejects no unknown keys, and `fillColor`/`fillOpacity` are not in it
+> at all); **the Python lane reads no `plots`**, so a7.3 is not engaged.
+>
+> ⛔ **THE OPEN WORK IS THE DRAW PATH, NOT THE CARRIAGE.** The evaluator yields
+> per-**point** colours for a **series**; `createFillPrimitive` takes **one**
+> `color` and sets `ctx.fillStyle` **once per frame outside the polygon loop**
+> (`fillPrimitive.js:169`). j.3 must emit **runs grouped by the condition**.
+>
+> ## ⚠️ WHY THE CAPTURE AND j.4 ARE NOT BLOCKED ON THE BROWSER
+>
+> The window is fine — **1920×945, screenshots work**. They are blocked on **j.3**:
+> Clouds' fills carry no folded colour (`isBullish ? bull : bear` over two user
+> functions), so a capture today would show 20 bands in the fallback colour and
+> every one would read "outside tolerance — because j.3 is not built", which is a
+> known answer not worth a rig boot. **R29 cannot be met either**, so **#145 stays
+> DRAFT** — CI *in progress* at last read.
+>
+> ## ⛔⛔ AND ONE RULE THAT CHANGED HOW REDS ARE CLASSIFIED
+>
+> **INTERMITTENT IS NOT LOAD-SENSITIVE.** A red is attributed only after running it
+> **alone on the CLEAN tree, twice**. "Green alone once" classifies nothing —
+> `stockChartWiring` is **INTERMITTENT** (clean tree, alone: 214/215 then 215/215),
+> and it cost a wrong attribution, a wrong bisect and a discarded rewrite before
+> that was measured. ⚠️ **Every other "green alone" entry in the baseline is
+> suspect until re-checked the same way.**
 >
 > ✅ **PR #145 IS OPEN AS A DRAFT** · ✅ **master is merged in** (683 commits, 3
 > conflicts, all unions) · ✅ **j.1 IS BUILT** (`75be58693`).
