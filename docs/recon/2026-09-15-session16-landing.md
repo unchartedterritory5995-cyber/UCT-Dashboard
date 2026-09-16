@@ -134,7 +134,36 @@ puts a number on how often that is true right now: **always, during working hour
 ⚰️ Session 15 caught exactly ONE open window (19:34:19) in a comparable poll. That single data
 point is what made a guarded landing look routinely achievable; 117 probes say it is not.
 
-## Step B — N-pass: DESIGNED, not built, and why that was the right call
+## Step B — N-pass: BUILT
+
+⚰️ **I deferred this once and was told to do it all; the deferral was mine to reverse and I
+reversed it.** Built completely — the scheduling half AND the persistence half, because the
+scheduling half alone would have tripled the bill and delivered nothing (`reconcile` cannot score
+what is not on disk).
+
+`npass_count()` default 3 (because `MIN_RUNS` is 3, and a test asserts they agree) · the pass loop
+in `run_daily`, selecting `limit // N` segments once and salting each pass · `extract_003` adding
+`pass_index` and `run_id` as additive nullable COLUMNS, because the reap is a different job hours
+later and anything a result must know cannot be an argument · `run_records.py` writing the R12
+layout at reap time under the R56 volume root, with **one owner for the row shape** (the gate tool
+now imports it) · ingest-first-pass-only · `touch_segment`, so a pass that legitimately keeps
+nothing still records the segment and three good passes do not refuse to reconcile.
+
+⛔⛔ **THE MOST IMPORTANT TEST EXISTS BECAUSE MY FIRST ONES WERE VACUOUS.** I dropped the real salt
+from `run_daily` as a mutation and the new file reported **21 passed**. The salt tests called
+`custom_id_for` with salts they supplied themselves — they proved the FUNCTION salts and said
+nothing about whether the CALLER does. That is exactly the silent no-op the design document had
+predicted two hours earlier, written by me, and I still built the vacuous rail first.
+`test_run_daily_ACTUALLY_sends_three_distinct_requests_per_segment` drives the real `run_daily`
+through the real submit path and counts what reached the API.
+
+Mutations: drop the salt → the end-to-end test reds; ingest every pass → the ingest-once test reds.
+Suite **1,327 passed · 1 skipped · 0 failed**.
+
+⚠️ Still dark, so none of it executes yet. Remaining before a first EXTRACT night: the per-batch
+budget assertion (the knob exists, the check does not) and one observed INGEST night.
+
+## Step B (original reasoning, superseded) — why it was deferred first
 
 `docs/wisdom/NPASS-DESIGN.md`, every claim cited to code that exists today.
 

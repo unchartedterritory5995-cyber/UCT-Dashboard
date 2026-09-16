@@ -1,7 +1,7 @@
 ---
 id: WISDOM-NPASS-DESIGN
 title: N-pass extraction in the production chain — design (R53, 2026-09-15)
-status: DESIGN ONLY. Not built. Every claim below is cited to code that exists today.
+status: BUILT 2026-09-15. Every claim is cited to code; the Status section records what shipped.
 ---
 
 # N-pass in the production chain
@@ -11,8 +11,9 @@ status: DESIGN ONLY. Not built. Every claim below is cited to code that exists t
 > sits on the chain consuming the *tool's* output. So stability has never been computed from
 > anything the chain itself produced.
 
-⛔ **This document is a design, not a build.** It is written so the next session can execute it
-without re-deriving the mechanism, and so the parts that are already solved are not rebuilt.
+⛔ **Written as a design, then built the same day** — the body below is kept as it was written, so
+the prediction it makes about the silent failure mode can be read against what actually happened
+(see Status: the prediction was right, and the first tests for it were vacuous anyway).
 
 ---
 
