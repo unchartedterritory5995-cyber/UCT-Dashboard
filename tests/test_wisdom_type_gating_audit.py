@@ -237,20 +237,35 @@ def test_the_floor_is_a_no_op_for_all_four_types_by_construction():
 
 # ══ 3. the rehearsal instrument itself ══════════════════════════════════════
 
-def test_a_forced_chain_run_bypasses_the_extract_spend_gate():
-    """⛔⛔ FOUND BY THE REHEARSAL, and pinned so it cannot be forgotten.
+def test_a_forced_chain_run_no_longer_bypasses_the_extract_spend_gate():
+    """⭐⭐ THIS TEST CHANGED SIDES, AND THAT IS THE POINT OF HAVING WRITTEN IT.
 
-    `batch.run_daily:439` reads `if not ctx.force and not flags.extract_enabled()`. A FORCED daily
-    chain run therefore skips WISDOM_EXTRACT_ENABLED — the only switch that spends. The golden
-    gate and the spend cap still sit behind it, so this is not an open till; it is a switch that
-    does not mean what its name says on one path, and an INGEST-only rehearsal that forces the
-    chain measures the wrong night. This test does not call it a defect — it makes the behaviour
-    impossible to change or discover twice.
+    Session 13 wrote it to PIN A DEFECT: `batch.run_daily` read
+    `if not ctx.force and not flags.extract_enabled()`, so a forced chain run skipped the one
+    switch that spends — and `force` is a query parameter on an admin route. The test asserted the
+    defective expression was still present, precisely so the behaviour could not change or be
+    rediscovered unnoticed, and its failure message said what to do when it moved: re-state the
+    finding, never delete the test.
+
+    ⛔ R52 (owner ruling, 2026-09-15) fixed it, so this went RED — exactly as designed. It now
+    pins the OPPOSITE: that the bypass is gone. ⚠️ It deliberately does NOT re-implement the
+    behavioural checks; `tests/test_wisdom_forced_run_spend.py` owns those, and a guard repeated is
+    a guard unproved. This one owns the HISTORY: it fails if the old expression ever returns.
     """
+    import ast
+
     src = (WISDOM_PKG / "extract" / "batch.py").read_text(encoding="utf-8")
-    assert "if not ctx.force and not flags.extract_enabled():" in src, (
-        "the force/extract-gate interaction moved; re-read batch.run_daily and re-state the "
-        "finding in docs/wisdom/HARD-RULES.md rather than deleting this test")
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            rendered = ast.unparse(node)
+            if "ctx.force" in rendered and "extract_enabled" in rendered:
+                pytest.fail(f"batch.py:{node.lineno} ANDs ctx.force with extract_enabled again — "
+                            "R52 is undone and a forced admin run can spend with the switch off")
+    # ⭐ and the replacement really is there, so this does not pass by the file being empty
+    assert "def spend_allowed(" in src and "ACCEPT_SPEND_VALUE" in src, (
+        "the R52 guard is missing — see tests/test_wisdom_forced_run_spend.py, which owns its "
+        "behaviour")
 
 
 def test_the_rehearsal_never_forces_the_chain():

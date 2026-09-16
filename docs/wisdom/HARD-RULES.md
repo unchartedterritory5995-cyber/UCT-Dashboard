@@ -487,3 +487,15 @@ file the PR adds**, and the blast-radius check — runs BEFORE the merge. ⚠️
 scan reads `HEAD^..HEAD`; a push is not one commit, so on an 86-commit PR it covers exactly one.
 
 > **A session never attempts a Railway browser login.** The CLI is the Railway path.
+
+⭐⭐ **R52 CLOSED A DEFECT THAT SESSION 13 HAD PINNED, AND THE PIN CHANGED SIDES.**
+`test_a_forced_chain_run_bypasses_the_extract_spend_gate` asserted the DEFECTIVE expression was
+still present, so the behaviour could not change unnoticed, and its failure message said what to
+do when it moved: *re-state the finding, never delete the test*. R52 made it red — as designed —
+and it now pins the opposite, that the bypass is gone. ⚠️ It deliberately does not re-implement
+the behavioural checks (`test_wisdom_forced_run_spend.py` owns those); it owns the HISTORY.
+
+⚰️ It also caught me claiming a green gate before its totals line existed. The targeted suites for
+each commit were green; the FULL scoped run was still going, and it came back **1 failed**. *A test
+run without a totals line is not a run* — and a PR body written on the strength of one is a claim
+about a run nobody finished.

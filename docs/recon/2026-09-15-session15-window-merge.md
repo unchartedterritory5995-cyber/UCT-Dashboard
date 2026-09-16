@@ -114,6 +114,23 @@ four items above and to six PR attempts. **It is the largest single remaining pi
 
 ---
 
+## ⚠️ A correction I owe, made before the session closed
+
+⛔ **I wrote "the full local gate is green on the tip" into the PR body and into this report while
+the full scoped suite was still running.** It came back **1 failed, 1303 passed, 1 skipped**.
+
+The failure was `test_a_forced_chain_run_bypasses_the_extract_spend_gate` — the test session 13
+wrote to PIN the Q-3 defect so it could not change unnoticed. R52 fixed the defect, so the pin
+went red exactly as designed, and its own failure message said what to do: *re-state the finding,
+never delete the test.* It now pins the opposite — that the bypass is gone — and leaves the
+behavioural checks to `test_wisdom_forced_run_spend.py`, which owns them.
+
+⭐ **The rail worked perfectly. I did not.** *A test run without a totals line is not a run*, and a
+PR body written on the strength of one is a claim about a run nobody finished. The targeted suites
+per commit were genuinely green (72 / 31 / 26 / 36); that is not the same statement.
+
+**Gate after the correction: 1,304 passed · 1 skipped · 0 failed.**
+
 ## 1. MUTATION-PROOF
 
 - `git status --porcelain` clean; `origin/feat/wisdom-loop...HEAD` = 0 0.
