@@ -282,6 +282,53 @@ def _start_breadth_backfill():
     threading.Thread(target=loop, daemon=True, name="breadth_backfill").start()
 
 
+def _start_combined_pass():
+    """THE COMBINED HISTORICAL PASS, resumed on every boot (WORKER).
+
+    ⚰️ WHY THIS IS A BOOT-ARMED THREAD AND NOT A DETACHED `nohup`. The first launch
+    ran for 43 MINUTES before a routine redeploy — `c0c950fbb`, an unrelated merge —
+    restarted the pod and killed it, and nothing noticed for eleven hours. A ~40-hour
+    job on a pod that other people deploy to several times a day cannot live in a
+    process; it has to live in the pod's own startup.
+
+    ⭐ RESUME IS THE WHOLE DESIGN, so this is safe to run on every single boot:
+    completed sessions are skipped via `pass_checkpoint`, and re-running a committed
+    session is idempotent on `(universe, date, metric)`. A restart costs at most the
+    session that was in flight.
+
+    ⛔ DEFAULT OFF, and the artifact path is REQUIRED — `open_artifact` refuses an
+    absent path and refuses the production store, so arming this cannot write to live
+    breadth even if the variable is wrong.
+    """
+    if os.environ.get("BREADTH_COMBINED_PASS_ENABLED") != "1":
+        log.info("breadth combined pass not started (BREADTH_COMBINED_PASS_ENABLED=0)")
+        return
+    artifact = os.environ.get("BREADTH_COMBINED_PASS_ARTIFACT")
+    if not artifact:
+        log.warning("breadth combined pass ARMED but BREADTH_COMBINED_PASS_ARTIFACT is "
+                    "unset — refusing to guess a destination")
+        return
+
+    def run():
+        time.sleep(45)                      # let boot settle before a heavy job
+        from api.services import breadth_combined_pass as cp
+        legs = [(("uct", "us"), "2008-01-02", "2010-12-31"),
+                (cp.ALL_UNIVERSES, "2011-01-03",
+                 os.environ.get("BREADTH_COMBINED_PASS_TO") or "2026-09-11")]
+        for unis, frm, to in legs:
+            try:
+                log.info(f"combined pass leg {frm}..{to} {unis} -> {artifact}")
+                res = cp.run(artifact, frm, to, universes=unis, progress_every=25)
+                log.info(f"combined pass leg DONE {frm}..{to}: {res}")
+            except Exception as e:
+                log.exception(f"combined pass leg {frm}..{to} failed: {e}")
+                return
+        log.info("combined pass COMPLETE (all legs)")
+
+    threading.Thread(target=run, daemon=True, name="breadth_combined_pass").start()
+    log.info(f"breadth combined pass armed -> {artifact}")
+
+
 def _start_wick_backfill():
     """Phase-3 wick grind (WORKER): reconstruct real intraday high/low for past days
     from Massive stocks minute flat files and ship them via the R2 bridge (they upgrade
@@ -846,6 +893,7 @@ def main():
     _start_breadth_backfill()
     _probe_flatfile_access()
     _start_wick_backfill()
+    _start_combined_pass()
     _start_memwatch()
     # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
     # into a static R2 artifact so browsers pre-seed IndexedDB for instant
