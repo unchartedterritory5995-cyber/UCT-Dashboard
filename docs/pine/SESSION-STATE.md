@@ -2,7 +2,48 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **the Wave 2 close-out run — Parts 1–6, one session.** In flight.
+> ### ⛔ NEXT: **TWO THINGS NEED THE OWNER'S HANDS, AND NOTHING ELSE IS BLOCKED.**
+>
+> 1. **Give that Chrome window a real size and dismiss the clipboard prompt** — then
+>    Wave 1's PR (1.3–1.5) and the capture (Part 3) both run. Details below.
+> 2. **Rule on (j)'s five triggers** — `WAVE2-A-PLAN.md`, *"(j) — THE BUILD PLAN"*.
+>    ⭐ Read one thing first: **j.1 is TWO fixes, not one.**
+>
+> ✅ **THE WAVE 2 GRAMMAR IS CLOSED.** (a)–(i) all closed: **four built** (d1′, d2, g, h)
+> and **five retired on their numbers** (b, e, f, i, and c's IR half blocked). (j) is
+> **scoped, 11 gaps with file:line, and stopped for the owner.**
+>
+> ⭐⭐ **THE HEADLINE OF THE WHOLE RUN: the engine was right more often than the plan
+> assumed, and three premises measured FALSE before anything was built** — (e)'s "both
+> sides always evaluate" (true at run time, false at plan time; wrong in **0 of
+> 20,954**), (g)'s "typing gap" (there is nothing to type; **13 of 266** scripts refuse
+> at all), and (d1)'s "`alert()` is dropped whole" (already noted; the gap was depth).
+> Each corrected **in place, at every site that stated it.**
+>
+> ⛔⛔ **AND A CENSUS FOUND A DEFECT IN WORK SHIPPED THE SAME DAY.** (f) proved d2's two
+> "expression messages" are **string literals with `+` inside the quotes** — the corpus
+> holds **489 of 555** carryable and **ZERO** expressions, so **`pine:alert-message` has
+> zero corpus firings** and only a synthetic specimen exercises it. The carriage was
+> never wrong, only its sizing. ⚰️ Same instrument defect **twice in one item**, the
+> second surviving the first correction; both are *"ask the kind before the literal."*
+>
+> ## ⛔ THE VERIFICATION, AND HOW IT WAS NEARLY MISREAD
+>
+> full vitest **EXIT 1** — 1,493 files / 21,497 tests, **11 failed in 8 files, 0 NEW**,
+> every one matching the branch's own baseline at `:458-466` **exactly** · Python lane
+> **EXIT 0** (51 files by name, 1,589 passed) · vite build **EXIT 0**.
+>
+> ⚰️ **THE WRAPPER REPORTED EXIT 0 FOR THE VITEST RUN.** The command ended in a `grep`,
+> so the status was grep's. The verdict was read **from the log file**. This repo has
+> recorded that defect four times; this session committed the fifth.
+>
+> **Moved artifacts, by name:** `27-support-resistance-channels.json` — 2 lines, and it
+> is (g)'s fix visible on a real public script. **Unchanged:** `corpus_metric.json`,
+> `lookback_agreement.json`.
+>
+> ---
+>
+> #### (the run that produced all of the above)
 >
 > ⭐⭐ **THE GOAL, and every remaining item serves it:** a member pastes a Pine
 > indicator and gets a hosted pane matching TradingView and a screener column.
