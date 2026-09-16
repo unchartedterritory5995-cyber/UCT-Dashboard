@@ -2347,14 +2347,40 @@ plot-level only. ⇒ **R27 is compatible, but only because it is scoped to plot-
 **two columns** — not two bound anchor series. R27's *"one bound series"* per hidden plot
 is a stronger claim than the drawing requires.
 
-### ⛔ HOW THIS SESSION PROCEEDS
+### ✅ R27 IS **AMENDED** (owner, 2026-09-15) — A HIDDEN PLOT BINDS **NO** SERIES
 
-**R27 is the owner's ruling and is implemented as ruled** — but the specific hazard the
-older ruling names is **railed, not argued**: j.2's acceptance carries a control that the
-**pane count and the visible plots' price scale are unmoved**, and an
-`engine_rsi_toggle_off`-shaped control that the **instance** path still REMOVES. If
-either goes red, R27 is genuinely blocked, the block stops, and the owner rules again.
-⭐ *A ruling and a measured ruling that disagree is not something to settle in prose.*
+⭐ **The original rested on a premise the measurement overturned:** the fill attaches to
+**columns**, not to the plot's own series. So the smaller fix is also the safer one —
+**it creates no invisible series at all**, which is precisely the hazard
+`hiddenIsRemovedNotParked` was measured against.
+
+> **R27 (amended).** A hidden plot **binds no series**. It keeps its **column**
+> (`binder.js:942` already gives it one, before pass one). A fill between two anchors,
+> hidden or not, is fed from `columns.get(upper)` / `columns.get(lower)` and **HOSTED on a
+> series already bound and visible in the same pane** — for Clouds, one of its two visible
+> plots. No invisible series is created; the pane-release behaviour
+> `hiddenIsRemovedNotParked` measured is **untouched**.
+
+⛔⛔ **TWO FLAGS, TWO MEANINGS, RECORDED SO THEY ARE NEVER CONFLATED AGAIN:**
+plot-level `b.plot.hidden` (`:1063`) and instance-level `inst.hidden`
+(`:447` · `:773` · `:795`). **The instance path is not modified.**
+
+### ⚠️ THE EDGE, RULED NOW SO j.2 DOES NOT STOP ON IT
+
+A pane with fills but **no visible bound series to host them**: the fills are **NOTED at
+their lines** (*"no visible host in this pane"*) and **not drawn**, and the case is
+**recorded as owed under (j)**. ⭐ That is not Clouds' case — it has two visible plots —
+but a silence there would be the defect R22 forbids.
+
+### THE RAILS j.2 CARRIES REGARDLESS
+
+1. **pane count and the visible plots' price scale unmoved**, before and after;
+2. an **`engine_rsi_toggle_off`-shaped** control that the **instance** path still REMOVES;
+3. the **draw-call list for a hidden plot is exactly empty**, and the **fill draw call
+   names its host series and both columns**.
+
+⭐ *A ruling and a measured ruling that disagree is not something to settle in prose* —
+the amendment came from the measurement, and the rails keep it honest.
 
 ---
 
