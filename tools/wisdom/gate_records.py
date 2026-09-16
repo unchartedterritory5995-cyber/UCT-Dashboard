@@ -79,37 +79,22 @@ def record_rows(items, results, *, run_id: str, phase: str, extractor_version: s
     ⛔ The identity fields are DERIVED by calling `writer.record_id_for` / `writer.principle_key_for`
     rather than recomputing them here — the gate never writes to `wisdom_records`, so if these
     expressions were copied the persisted run would stop joining to the database it describes.
+
+    ⛔ R53, 2026-09-15: the per-row shape now has ONE definition, in
+    `api/services/wisdom/extract/run_records.record_row`, and this function calls it. The chain
+    writes the same layout at reap time, and two builders for one on-disk format is how a writer
+    and a reader come to disagree in silence. `tools/` imports from `api/`, never the reverse.
     """
-    from api.services.wisdom.extract import writer
+    from api.services.wisdom.extract.run_records import record_row
 
     rows = []
     for item, res in zip(items, results):
         res = res or {}
         segment = item["segment"]
-        segment_id = segment["segment_id"]
         for ch in res.get("kept") or []:
-            row = dataclasses.asdict(ch)
-            f = ch.fields or {}
-            principle_key = None
-            if ch.record_type == "PRINCIPLE" and isinstance(f.get("principle"), dict):
-                principle_key = writer.principle_key_for(ch.author_id, str(f["principle"].get("statement") or ""))
-            market_signal_key = None
-            if ch.record_type == "MARKET_SIGNAL":
-                # ⚠️ MARKET_SIGNAL has NO id anywhere in the schema — it lives only as
-                # wisdom_records.market_signal_json. Its key() tuple is the only identity it has.
-                market_signal_key = list(ch.key())
-            row.update(
-                run_id=run_id, phase=phase, extractor_version=extractor_version,
-                model=model, effort=effort, transport=transport,
-                segment_id=segment_id,
-                source_id=segment.get("source_id"), source_version=segment.get("source_version"),
-                record_id=writer.record_id_for(segment_id, extractor_version, ch.record_hash),
-                principle_key=principle_key,
-                market_signal_key=market_signal_key,
-                record_key=list(ch.key()),
-                pre_entity_key=list(ch.key(pre_entity=True)),
-            )
-            rows.append(row)
+            rows.append(record_row(ch, segment=segment, run_id=run_id, phase=phase,
+                                   extractor_version=extractor_version, model=model,
+                                   effort=effort, transport=transport))
     return rows
 
 

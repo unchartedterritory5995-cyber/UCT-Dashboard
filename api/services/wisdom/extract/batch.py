@@ -307,6 +307,7 @@ def _build_items(client, segs: list[dict], retries: list[dict], *, extractor_ver
 
 
 def submit_items(items: list[dict], client, *, extractor_version: str, model: str, purpose: str,
+                 pass_index: Optional[int] = None, run_id: Optional[str] = None,
                  cap: float) -> dict:
     report: Counter = Counter()
     batch_ids: list[str] = []
@@ -322,11 +323,12 @@ def submit_items(items: list[dict], client, *, extractor_version: str, model: st
                     conn.execute(
                         "INSERT INTO wisdom_extract_requests (custom_id, batch_id, source_id, source_version, "
                         "segment_ids_json, extractor_version, attempt, status, segment_id, purpose, model, "
-                        "est_input_tokens, est_output_tokens, est_cost_usd, created_at, updated_at) "
-                        "VALUES (?, NULL, ?, ?, ?, ?, 1, 'submitting', ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "est_input_tokens, est_output_tokens, est_cost_usd, created_at, updated_at, "
+                        "pass_index, run_id) "
+                        "VALUES (?, NULL, ?, ?, ?, ?, 1, 'submitting', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (it["custom_id"], it["source_id"], it["source_version"], json.dumps([it["segment_id"]]),
                          extractor_version, it["segment_id"], purpose, model, it["est_input_tokens"],
-                         it["est_output_tokens"], it["est_cost_usd"], now, now))
+                         it["est_output_tokens"], it["est_cost_usd"], now, now, pass_index, run_id))
                 elif row["status"] == "retry":
                     conn.execute(
                         "UPDATE wisdom_extract_requests SET status = 'submitting', attempt = attempt + 1, "
@@ -381,16 +383,42 @@ def _record_batch(conn, created, live: list[dict], *, extractor_version: str, mo
                      "WHERE custom_id = ?", (created.id, now, it["custom_id"]))
 
 
+#: ⛔⛔ R53: how many independent passes the chain makes over each segment.
+#:
+#: ⭐ `floor.MIN_RUNS = 3` is what the reconciler needs to coexist before it will score anything,
+#: so this defaulting to 3 is not a coincidence — a smaller N means the floor never has enough
+#: runs and every record sits UNRECONCILED forever. Raising it above 3 silently converts the 0.8
+#: publication floor from unanimity into 80% agreement, which is a correctness change and not a
+#: throughput one (R17 = HOLD_3).
+PASSES_ENV = "WISDOM_EXTRACT_PASSES"
+DEFAULT_PASSES = 3
+
+
+def npass_count() -> int:
+    raw = (os.environ.get(PASSES_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_PASSES
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_PASSES
+    return n if n >= 1 else DEFAULT_PASSES
+
+
 def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpose: str = "extract",
                    segment_rows: Optional[list[dict]] = None, effort: Optional[str] = None, salt: str = "",
-                   out: Optional[dict] = None) -> dict:
+                   out: Optional[dict] = None, run_id: Optional[str] = None,
+                   pass_index: Optional[int] = None, include_retries: bool = True) -> dict:
     out = dict(out or {})
     version = prompt.extractor_version()
     model = config.configured_model()
     effort = effort or config.configured_effort()
     out.setdefault("extractor_version", version)
     with store.read() as conn:
-        retries = retry_rows(conn, version, purpose, limit)
+        # ⛔ R53: passes 2..N pass include_retries=False. `retry_rows` is fetched per CALL, so an
+        # N-pass night that let every pass carry retries would re-submit each retry N times and
+        # bill for it.
+        retries = retry_rows(conn, version, purpose, limit) if include_retries else []
         segs = segment_rows if segment_rows is not None else pending_segments(conn, version, max(0, limit - len(retries)))
         out_tokens = budget.output_token_estimate(conn, model, effort)
     if not retries and not segs:
@@ -422,6 +450,7 @@ def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpos
         out["status"] = "budget_stop"
         return out
     out["submit"] = submit_items(selected, client, extractor_version=version, model=model, purpose=purpose,
+                                 pass_index=pass_index, run_id=run_id,
                                  cap=decision.cap_usd)
     out["status"] = "budget_stop" if decision.stopped else "submitted"
     ctx.log(f"{purpose}: submitted {out['submit'].get('submitted', 0)} request(s), estimate "
@@ -488,7 +517,46 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
         out["status"] = "blocked_by_gate"
         ctx.log(f"extraction blocked by the golden gate: {gate.get('reason')}")
         return out
-    return submit_pending(ctx, client=client, limit=limit, purpose="extract", out=out)
+
+    # ── R53: N passes over the SAME segments ─────────────────────────────────
+    n = npass_count()
+    out["passes"] = n
+    if n <= 1:
+        return submit_pending(ctx, client=client, limit=limit, purpose="extract", out=out)
+
+    # ⛔ THE THROTTLE BOUNDS REQUESTS, NOT SEGMENTS. `limit` is a request ceiling, so N passes over
+    # `limit // N` segments is what keeps a night inside it. At N=3 and limit=400 that is 133
+    # segments and 399 requests. ⭐ The nightly BILL is therefore flat in N; what N changes is
+    # coverage per night, and so total nights — not what a night costs.
+    per_night = max(0, limit // n)
+    with store.read() as conn:
+        retries = retry_rows(conn, version, "extract", limit)
+        segs = pending_segments(conn, version, max(0, per_night - len(retries)))
+    out["segments_selected"] = len(segs)
+    out["retries_carried"] = len(retries)
+    if not segs and not retries:
+        out["status"] = "nothing_to_do"
+        return out
+
+    # ⛔ ONE run id PER PASS, and they must sort oldest-first by NAME: `reconcile.discover` sorts
+    # directory names and `score_silently` takes `ids[-MIN_RUNS:]`, so a night's three passes have
+    # to sort together and after yesterday's.
+    stamp = timeutil.iso_et(ctx.now_et).replace(":", "").replace("-", "")[:15]
+    out["runs"] = []
+    for p in range(1, n + 1):
+        run_id = f"{stamp}Z-chain-p{p}"
+        out["runs"].append(run_id)
+        # ⛔⛔ RETRIES RIDE ON PASS 1 ONLY. `submit_pending` fetches retry rows itself on every
+        # call, so letting every pass carry them would re-submit each retry N times and bill for
+        # it. Passes 2..N are given an explicit `segment_rows` and no retry budget.
+        sub = submit_pending(ctx, client=client, limit=len(segs) if p > 1 else limit,
+                             purpose="extract", segment_rows=segs, salt=f"pass{p}",
+                             run_id=run_id, pass_index=p, include_retries=(p == 1),
+                             out={"pass_index": p, "run_id": run_id})
+        out.setdefault("pass_results", []).append(
+            {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index", "run_id")})
+    out["status"] = "submitted_n_passes"
+    return out
 
 
 # ── reaping ──────────────────────────────────────────────────────────────────
@@ -517,6 +585,55 @@ def _retry_or_fail(conn, req: dict, error_type: str, error: str, cost: float = 0
                                (req["custom_id"],)).fetchone()[0])
     status = "failed" if attempt >= config.MAX_ATTEMPTS else "retry"
     return _finish(conn, req, status, cost, usage, error_type=error_type, error=error)
+
+
+def _handle_extract_result(conn, req: dict, *, segment: dict, source: dict, output: dict, model: str) -> dict:
+    """R53: persist EVERY pass; ingest only the first.
+
+    ⛔⛔ INGEST EXACTLY ONCE, AND THE REASON IS NOT TIDINESS. `writer.record_id_for(segment_id,
+    extractor_version, record_hash)` is DETERMINISTIC, so ingesting all N passes would mint N rows
+    carrying the same `record_id` for the same finding — and the reconciler would then be scoring a
+    record against copies of itself and reporting perfect stability for a single observation. Pass
+    1 ingests; 2..N are persisted and nothing more.
+
+    ⚠️ `pass_index IS NULL` means the single-pass era (any request submitted before the
+    extract_003 migration) and is treated as pass 1 — absent is not zero, and zero is not a pass.
+    """
+    from api.services.wisdom.extract import run_records
+
+    pass_index = req.get("pass_index")
+    pass_index = 1 if pass_index is None else int(pass_index)
+    run_id = req.get("run_id")
+
+    if pass_index <= 1:
+        report = dict(writer.write_output(conn, segment=segment, source=source, output=output,
+                                          extractor_version=req["extractor_version"]))
+    else:
+        report = {"written": 0, "not_ingested": "pass>1"}
+
+    if run_id:
+        try:
+            # ⛔ The SAME validator and the same vocabulary every pass, so a later pass is judged by
+            # exactly the rules the first one was. Anything else makes the passes incomparable,
+            # which is the E5 confound the reconciler exists to avoid.
+            # ⚠️ `validate_output` is pure — it resolves and checks, it never writes — so calling it
+            # here for pass 1 as well (after `write_output` has already validated internally) costs
+            # CPU and changes nothing. Threading a Validation out of `write_output` instead would
+            # mean changing its signature on the one path that writes member-visible rows.
+            validation = writer.validate_output(output, segment=segment, source=source)
+            report["kept"] = len(validation.kept)
+            report["persisted"] = run_records.persist_result(
+                run_id=run_id, segment=segment, validation=validation,
+                extractor_version=req["extractor_version"], model=model,
+                effort=config.configured_effort(), pass_index=pass_index)
+            run_records.touch_segment(run_id, segment["segment_id"])
+        except Exception as exc:
+            # ⛔ The DB write above has already happened and IS the product. A failure to persist the
+            # run costs a night's reconciliation, never the extraction, so it is recorded and never
+            # raised — raising here would turn a bookkeeping problem into a lost paid result.
+            log.exception("[wisdom-extract] persisting run %s failed", run_id)
+            report["persist_error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+    return report
 
 
 def handle_result(req: dict, item, batch_row: dict) -> str:
@@ -557,8 +674,8 @@ def handle_result(req: dict, item, batch_row: dict) -> str:
                                                  extractor_version=req["extractor_version"],
                                                  custom_id=req["custom_id"])
             else:
-                report = writer.write_output(conn, segment=segment, source=source, output=output,
-                                             extractor_version=req["extractor_version"])
+                report = _handle_extract_result(conn, req, segment=segment, source=source, output=output,
+                                                model=model)
             return _finish(conn, req, "done", cost, usage, report=report)
         if rtype == "errored":
             err = getattr(result, "error", None)
