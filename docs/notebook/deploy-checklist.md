@@ -179,3 +179,55 @@ have needed a signed-in session and turned a liveness check into an auth test.
 
 ✅ **D1 IS TRUE.** The door guard is live on production, railed, mutation-proved, and
 blip-checked.
+
+### ⛔ CORRECTION to the row above (2026-09-16, from the other session's timeline + re-measured here)
+
+**Two sentences above were wrong. The conclusion survives; the attribution did not.**
+
+⛔ **"Railway `cc5527f66` SUCCESS" IS FALSE.** Measured from the deploy list:
+
+    54abdefeb  SUCCESS   createdAt 2026-09-16T05:43:14Z   <- the SUCCESS belongs to THIS
+    cc5527f66  REMOVED   createdAt 2026-09-16T05:40:58Z   <- our deploy, superseded
+
+Our own deploy record is **REMOVED**. The SUCCESS is `54abdefeb`'s — another session's
+merge, whose first parent already carried our commit, so our work rode in with it.
+✅ Independently re-verified: `cc5527f66` AND `096df55a5` are both ancestors of
+`origin/production`. **The door guard is live. It is live on somebody else's deploy.**
+
+⛔ **AND THE BLIP CHECK MEASURED THE WRONG POD.** `uptime_seconds` 408 -> 1301 was read
+across 05:52-06:07Z; production booted at **05:45:23Z** (re-derived here from
+`uptime_seconds` 1577 at a known wall-clock), which is `54abdefeb`'s boot. The whole
+window sits inside that pod's life, so the monotonic uptime proves **that** pod never
+restarted — not that ours ever served. ⭐ The RESULT still stands, because that pod serves
+our code: 30 samples, zero 5xx, on a tree containing the door guard. What does not stand
+is the sentence that implied our deploy was the one being watched.
+
+⚰️ **AND THE SUPERSEDING PUSH WAS NOT UNATTRIBUTED — it was the `breadth/promotion-record`
+session, which told us unprompted.** The row above said "another session"; naming it
+matters, because the mechanism only becomes visible once both halves of the timeline are
+in one place.
+
+### ⛔⛔ THE MECHANISM — a Railway-polling guard has a ~3.5 MINUTE BLIND WINDOW
+
+    05:37:33Z  we push cc5527f66
+    05:39:49Z  their guard reads the deploy list -> "2 web deploy(s) in the last 60 min,
+               none inside 600s - master is quiet"        <- TRUE at read time, and WRONG
+    05:39:49Z  they push
+    05:40:58Z  OUR deploy record finally appears (3m25s after the push)
+    05:43:14Z  their deploy appears and marks ours REMOVED
+
+**Railway creates the deploy record ~3m25s after the push** (measured on three pushes
+tonight). So a guard that polls Railway **cannot see a push that has already happened**,
+and answers "quiet" with complete confidence during that window. Both guards were working;
+both were reading a state that had already moved.
+
+⛔ **WAITING LONGER DOES NOT FIX IT.** The check and the thing it checks are separated by a
+delay the checker cannot observe, so there is no threshold that closes the hole — a longer
+settle just moves it. **"No deploy in flight" is evidence about DEPLOYS, never about
+PUSHES.** Push-level serialisation has to come from the `concurrency: master-deploy` group
+at GitHub, which sees the push itself; it cannot come from polling Railway.
+
+⭐ This is the same shape as two other errors from the same night, which is why it is
+recorded as a class and not an incident: reading `%an` for authorship when every commit
+carries one name, and reading a `/tmp` path that bash and Python resolve differently. In
+all three the instrument worked perfectly and was pointed at the wrong thing.

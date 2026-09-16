@@ -2625,6 +2625,37 @@ the moment of the push and is correct at that moment, but a build takes 3–5
 minutes and a gate takes longer. *"The queue was clear when I started my gate"* is
 true and useless. The wait is on the DEPLOY, not on the check.
 
+⛔⛔ **AND THE GUARD THAT ENFORCES THIS HAS A ~3.5 MINUTE BLIND WINDOW, BY CONSTRUCTION.**
+Measured 2026-09-16 across three pushes: **Railway creates the deploy record ~3m25s after
+the push.** So `tools/pre_push_guard.py`, which reads the Railway deploy list, **cannot see
+a push that has already happened** — and during that window it answers *"master is quiet"*
+with complete confidence. It happened in both directions in one night:
+
+```
+05:37:33Z  session A pushes cc5527f66
+05:39:49Z  session B's guard reads the list -> "2 deploys in 60 min, none inside 600s
+           - master is quiet"                          <- TRUE at read time, and WRONG
+05:39:49Z  session B pushes
+05:40:58Z  session A's deploy record finally appears (3m25s later)
+05:43:14Z  session B's deploy appears, marking session A's REMOVED
+```
+
+⛔ **WAITING LONGER DOES NOT CLOSE IT.** The check and the thing it checks are separated by
+a delay the checker cannot observe, so no settle threshold fixes it — a longer wait just
+moves the hole. **"No deploy in flight" is evidence about DEPLOYS, never about PUSHES.**
+Push-level serialisation must come from the **`concurrency: master-deploy` group at
+GitHub**, which sees the push itself (and Railway's *Wait for CI* holds the build behind
+it); it cannot come from polling Railway. Both guards were working correctly that night;
+both were reading a state that had already moved.
+
+⚠️ **CONSEQUENCE FOR EVIDENCE, and it invalidated a published verification:** when your
+deploy is superseded mid-flight, `/api/health uptime_seconds` resolves to the SUPERSEDING
+pod's boot, not yours. A 15-minute blip check read a clean monotonic uptime and named it as
+proof of its own deploy; it was measuring the other session's pod, which merely happened to
+contain the same commit. **Verify the deploy by its own record's STATUS in the deploy list
+(`SUCCESS` vs `REMOVED`), and prove your code is live by ANCESTRY against
+`origin/production` — never by an uptime you did not tie to a named deploy.**
+
 ⛔⛔ **ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the
 next push.** Owner ruling 2026-09-13. Stacked pushes are what caused the 2026-09-12
 502 (two merges four minutes apart, each marking the previous deploy `REMOVED`,
