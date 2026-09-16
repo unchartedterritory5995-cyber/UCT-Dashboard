@@ -82,14 +82,20 @@ def rth_bounds(per_ticker: dict) -> Optional[tuple]:
     part = participation(per_ticker)
     if not part:
         return None
-    # ⛔ THE UPPER BOUND IS EXCLUSIVE, AND THIS IS THE OFF-BY-ONE TO GET RIGHT.
-    # A minute bar stamped 16:00 covers 16:00:00-16:00:59 — that is AFTER the closing
-    # bell, so letting it into the domain would hand a post-close print the power to
-    # define High or Low. The regular session is the 390 bars 09:30 through 15:59.
-    # Nothing is lost by excluding it: the closing auction is already represented by
-    # the AUTHORITATIVE EOD close, which is where C comes from.
+    # ⛔⛔ THE AUCTION MINUTE IS THE CLOSE, AND IT IS EXCLUDED. This is the off-by-one,
+    # and it bites TWICE — once at 16:00 and again at 13:00 on a half-day, which is why
+    # the rule is derived symmetrically rather than capped at a constant.
+    #
+    # The busiest late minute of any session is the CLOSING AUCTION: a bar stamped
+    # 16:00 (or 13:00) covers 16:00:00-16:00:59, i.e. the bell and after. Letting it
+    # into the domain hands a post-close print the power to define High or Low. So the
+    # last busy minute IS the close, and the last regular-session BAR is the minute
+    # before it: 390 bars on a normal day, 210 on a half-day.
+    #
+    # ⭐ Nothing is lost. The closing auction reaches the candle through the
+    # AUTHORITATIVE EOD close — which is where C comes from — not the intraday path.
     inside = {m: n for m, n in part.items()
-              if RTH_OPEN_MIN <= m < RTH_MAX_CLOSE_MIN}
+              if RTH_OPEN_MIN <= m <= RTH_MAX_CLOSE_MIN}
     if not inside:
         return None
     busiest = max(inside.values())
@@ -99,7 +105,11 @@ def rth_bounds(per_ticker: dict) -> Optional[tuple]:
     busy = sorted(m for m, n in inside.items() if n >= floor)
     if not busy:
         return None
-    return RTH_OPEN_MIN, min(busy[-1], RTH_MAX_CLOSE_MIN - 1)
+    close_min = busy[-1]                 # the auction minute
+    last_bar = close_min - 1             # the last bar wholly inside the session
+    if last_bar < RTH_OPEN_MIN:
+        return None
+    return RTH_OPEN_MIN, last_bar
 
 
 def is_early_close(close_minute: int) -> bool:

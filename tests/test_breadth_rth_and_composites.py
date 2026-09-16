@@ -38,6 +38,10 @@ def _session(iso, close_hh=16, close_mm=0, busy=400, thin=3,
         for i in range(busy):
             add(f"T{i}", _ts(iso, cur.hour, cur.minute))
         cur += dt.timedelta(minutes=1)
+    # ⭐ THE CLOSING AUCTION BAR, which real flat files always carry and which the
+    # session rule must treat as the CLOSE rather than as a tradeable minute.
+    for i in range(busy):
+        add(f"T{i}", _ts(iso, close_hh, close_mm))
     if pre:
         for hh, mm in ((4, 0), (7, 15), (9, 29)):
             for i in range(thin):
@@ -79,12 +83,7 @@ def test_c_premarket_and_postmarket_are_outside_the_domain():
     bars 09:30 through 15:59; the closing auction reaches the candle through the
     authoritative EOD close, not through the intraday path.
     """
-    per = _session("2026-07-23", post=True)
-    # a REAL 16:00 bar, which is what the live flat file carries and what the first
-    # proof run let through
-    for i in range(400):
-        per.setdefault(f"T{i}", []).append(
-            {"t": _ts("2026-07-23", 16, 0), "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1})
+    per = _session("2026-07-23", post=True)   # carries a real 16:00 auction bar
     buckets = sorted({b["t"] for bars in per.values() for b in bars})
     kept = bsess.rth_buckets(per, buckets)
     mins = {bsess.et_minute(t) for t in kept}
