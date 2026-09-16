@@ -1331,3 +1331,32 @@ wrong. Mutation-proved: reverting the filter reproduces the exact production pai
 
 ⚠️ The bad row self-corrected on the next promotion; it was never load-bearing (the
 control reads `promoted_sha`, which was correct).
+
+### ✅ G3 — THE CUTOVER IS DONE (2026-09-16 01:2x UTC)
+
+`web` watches `production`. Done by API (`deploymentTriggerUpdate`), not the dashboard,
+per SD-1.2 B1.5.
+
+| | before | after |
+|---|---|---|
+| trigger id | `61b50f1f-b011-42b1-82ba-77d080ad7108` | unchanged |
+| `branch` | `master` | **`production`** |
+| `checkSuites` (Wait-for-CI) | **false** | false |
+
+⭐ **`checkSuites` reads FALSE before the change, which settles the runbook's step-3
+question retrospectively** — it asked the operator to record whether Wait-for-CI was ON or
+OFF, calling it "the one reading no CLI can give". The GraphQL API gives it. Wait-for-CI was
+already off, so step 3 required no change; the promotion workflow, not Railway's toggle, is
+what gates.
+
+⭐ **Done at the safest possible moment: `master == production == 4c3c2cc82`**, so the
+repoint could not change what was deployed. Verified after: no new deployment was created
+(newest stayed `4c3c2cc82` SUCCESS) and `/api/health` returned ok. The runbook's "do not
+redeploy manually" was honoured.
+
+**Step 1 (branch protection) was SKIPPED, deliberately** — that is G6, owner-pending, and
+SD-1.2 B1.3 authorised the cutover to proceed on the compensating control instead.
+
+⚠️ **Still unproven, and the runbook says so:** the discriminating test is a FAILING gate —
+the deployed SHA must stay at the old `production` while `master` moves ahead. Do not
+manufacture one; check it at the next genuine gate failure.
