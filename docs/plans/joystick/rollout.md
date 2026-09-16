@@ -126,6 +126,11 @@ as that rather than implied.
 prefix, triaged into `71-open-items-proposals.md`. **D-47** (per-mode editor) and **D-38** (Undo
 duration) reopen **only** from that feedback.
 
+> ✅ **BUILT 2026-09-15 — `fix/d39-chip-clearance`, PR #146, gated, awaiting Patrick's merge.**
+> [A] came back all-clear, so it was built at the **sweep's** scope. Hub-side only; rule 12 intact.
+> ⛔ **The 6-pair acceptance runs AFTER the merge** — `hub_chip_clearance.py --base <deployed>` needs
+> a real layout engine on the real build, so this step is not closed by the PR existing.
+
 **c. D-39** — the chip under the Journal FAB, **6 pairs** (`journal` and `notebook` at 360/375/430).
 Fix **before stage 3, not before stage 2**. The hub-side "chip yields to page furniture" approach is
 already specified in `deferred.md`; the 6 pairs are its acceptance test, measured by

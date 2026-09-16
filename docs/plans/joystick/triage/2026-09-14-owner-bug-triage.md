@@ -43,14 +43,22 @@ a stage-2 problem*. Today the hub reaches admins only.
 ⛔ **EMPTY ON PURPOSE.** Pre-built 2026-09-15 so that triage is transcription rather than
 composition. A row invented before the list arrives is a diagnosis of a report nobody has made.
 
+> ## ⭐ [A] ANSWERED 2026-09-15 — **ALL CLEAR, NO BUGS REPORTED.** The ledger is EMPTY because
+> nothing was reported, and that is a RESULT, not a gap.
+>
+> ⛔ **An empty ledger here means "the owner reported nothing", NOT "the product has no defects".**
+> Those are different facts and only the first one was measured. The hub has been admin-only since
+> it shipped (`ROLLOUT_STAGE = 1`), so the population that could have reported anything is one
+> person, and the glass rows that would exercise it are still unrun behind WALL-GLASS. Read this row
+> as absence of INTAKE, never as evidence of absence.
+>
+> ⚠️ **It can still fill.** If anything surfaces in ordinary use, add rows here — the checklist above
+> is unchanged and D-39's acceptance set can only WIDEN, additively, with any new pairs measured
+> rather than assumed.
+
 | # | his words (verbatim) | mode.action | WRONG / not-nice-yet | repros on stage-1 live? | member-visible after stage 2? | blocks 2? | blocks 3? | ruling needed? |
 |---|---|---|---|---|---|---|---|---|
-| 1 | | | | | | | | |
-| 2 | | | | | | | | |
-| 3 | | | | | | | | |
-| 4 | | | | | | | | |
-| 5 | | | | | | | | |
-| 6 | | | | | | | | |
+| — | *(none reported — all clear, 2026-09-15)* | — | — | — | — | — | — | — |
 
 ⭐ **Column 2 is `mode.action` from §1's inventory, or the word NONE.** NONE is a real answer and a
 useful one: a report that maps to no declared action is either about a surface outside the hub or
@@ -81,11 +89,25 @@ the sweep does a page LOAD per (mode, width) — so some readings were taken str
 overlay and scored its capability pills as page furniture. `hub_chip_clearance.py` now waits the
 intro out before sampling.
 
+> ## ✅ BUILT 2026-09-15 AT SWEEP SCOPE — `fix/d39-chip-clearance`, **PR #146**, awaiting Patrick.
+>
+> [A] came back all-clear, so this was built at the sweep's scope exactly as the clause below
+> anticipated, and **the record says so rather than implying he asked for it.**
+>
+> ⛔ **The acceptance test is NOT closed and cannot be closed here.**
+> `tools/hub_chip_clearance.py --base <deployed>` must go from **6 failures to 0** across journal +
+> notebook at 360/375/430 with the other 21 pairs still passing. It needs a real layout engine on
+> the real build, so it runs **after the merge**. jsdom performs no layout, and a local shake-out is
+> not certification evidence.
+>
+> Gate at build time: `src/hub` + `src/pages/settings` **87 files / 1161 tests, exit 0**, sampler
+> `VERDICT=CLEAR samples=10 min_free_gb=11.66`, zero NEW against baseline 10.
+
 **What [A] must supply before this is built, and what it cannot change:**
 
-- ⬜ whether Patrick reports the chip collision **at all**, and on which screens. If he does not,
-  D-39 is still ruled fix-before-stage-3 and is still built — but at the **sweep's** scope, and the
-  record says so plainly rather than implying he asked for it.
+- ✅ whether Patrick reports the chip collision **at all**, and on which screens. He did not, so
+  D-39 was built at the **sweep's** scope — still ruled fix-before-stage-3, and the record says so
+  plainly rather than implying he asked for it.
 - ⬜ whether he reports it somewhere the 6 pairs do **not** cover. That widens the acceptance set,
   and the new pairs are measured, never assumed.
 - ⛔ **What [A] cannot change: the approach.** `elementFromPoint` at the chip's intended left edge,
