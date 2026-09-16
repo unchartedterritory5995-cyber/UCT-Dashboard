@@ -7463,7 +7463,17 @@ export default function OptionsFlowDashboard() {
                 // used `q` (lower) against lower-cased haystacks; ticker
                 // path was the odd one out.
                 const qUpper = search.toUpperCase();
-                const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(qUpper)).slice(0,8);
+                // ⛔ ALL_SYMS IS A DEFERRED PART THAT IS NEVER FETCHED on the
+                // parts path (flowBootstrap: DEFERRED_KEYS_BY_SURFACE.search lists
+                // it, but no fetch site requests it), so `D.ALL_SYMS` is undefined
+                // and a bare `.filter` threw TypeError on the FIRST keystroke —
+                // crashing the whole Search tab. Fall back to TICKER_DB (which IS
+                // loaded via INTERACTION_PARTS) so suggestions still work; the
+                // `|| []` is the final guard for the window before either lands.
+                const symUniverse = (D.ALL_SYMS && D.ALL_SYMS.length)
+                  ? D.ALL_SYMS
+                  : (tickerDb.map(t=>t.s));
+                const tickerMatches = (symUniverse || []).filter(s=>s.startsWith(qUpper)).slice(0,8);
                 const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
                 const allSectors = [...new Set(tickerDb.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
                 const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
