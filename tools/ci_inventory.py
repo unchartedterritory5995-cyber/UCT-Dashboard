@@ -153,7 +153,12 @@ def inventory(pytest_text: str, vitest_text: str) -> dict:
 # carries every shard's junit, so *"did this test run in the current record"* is answered
 # EXACTLY rather than inferred from a collected count.
 
-VERDICTS = ("NO_NEW_FAILURES", "NEW_FAILURES", "INVALID", "DID_NOT_RECONCILE")
+#: ⛔ ORDER IS PRECEDENCE, worst first. A run that cannot be read is not a run;
+#: a run whose arithmetic does not close cannot be trusted to say anything; a run
+#: that LOST COVERAGE is worse than one with a named new failure, because nobody
+#: was told what stopped running.
+VERDICTS = ("INVALID", "DID_NOT_RECONCILE", "COVERAGE_LOST", "NEW_FAILURES",
+            "NO_NEW_FAILURES")
 
 
 def entry_key(suite: str, where: str):
@@ -166,6 +171,20 @@ def entry_key(suite: str, where: str):
         parts = [p.strip() for p in w.split("|")]
         return (suite, parts[0], parts[1] if len(parts) > 1 else "?")
     return (suite, w, "?")
+
+
+#: a path-shaped identifier — vitest reports a file-level failure as `<file> :: <file>`
+_PATH_LIKE = re.compile(r"[\\/].+\.(?:jsx?|tsx?|mjs|cjs|py)$")
+
+
+def is_file_level_key(key) -> bool:
+    """Is this entry a WHOLE-FILE failure rather than a test's?
+
+    ⛔ The two are not the same fact. A file-level entry means the suite could not be
+    LOADED, so none of its tests ran; a test-level entry means one assertion failed. They
+    are told apart by shape: a file-level key's classname and name are the same path.
+    """
+    return (len(key) == 3 and key[1] == key[2] and bool(_PATH_LIKE.search(key[1] or "")))
 
 
 def ran_keys(record_dir) -> set:
@@ -202,7 +221,7 @@ def failing_keys(pytest_text: str, vitest_text: str) -> set:
 
 def diff(baseline_failing: set, current_failing: set, current_ran: set,
          current_summary: dict, baseline_summary=None, flaky=None,
-         flaky_previous=None) -> dict:
+         flaky_previous=None, repo=".") -> dict:
     """NEW / FIXED / UNCHANGED / MISSING + a verdict. Never raises.
 
     ⛔ **F-CI-30: `flaky` is SUBTRACTED FROM NEW, AND FROM NOTHING ELSE.** A flaky test is
@@ -230,13 +249,33 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
                        "so FIXED and MISSING cannot be told apart")
 
     flaky = set(flaky or ())
+    ran_classnames = {k[1] for k in current_ran}
     unchanged = sorted(baseline_failing & current_failing)
     new_all = sorted(current_failing - baseline_failing)
     new = [k for k in new_all if k not in flaky]
     new_flaky = [k for k in new_all if k in flaky]
     gone = baseline_failing - current_failing
-    fixed = sorted(k for k in gone if k in current_ran)
-    missing = sorted(k for k in gone if k not in current_ran)
+    fixed, missing, file_level = [], [], []
+    for k in sorted(gone):
+        if k in current_ran:
+            fixed.append(k)
+        elif is_file_level_key(k) and k[1] in ran_classnames:
+            # ⚰️⚰️ **F-CI-41 — A FIXED SUITE-LOAD FAILURE READ AS COVERAGE LEAVING.**
+            # When vitest cannot LOAD a file it reports a FILE-level failure, and
+            # `ci_extract` writes it as `<file> :: <file>` — so `entry_key` yields
+            # `(vitest, <path>, <path>)`, a synthetic key that can NEVER appear in
+            # `ran_keys`, which holds real test names. The moment the load failure is
+            # fixed, that baseline key is in neither set and the diff called it MISSING.
+            # ⛔ MISSING means coverage left; this is the exact opposite — the file loads
+            # again and its tests ran. Measured on run #29:
+            # `legendFromDefinitions.test.jsx` had **62 testcases collected** while the
+            # diff reported it MISSING.
+            # ⭐ So the file's own CLASSNAME being present in `ran` is the evidence, and
+            # it resolves to FIXED.
+            fixed.append(k)
+            file_level.append(k)
+        else:
+            missing.append(k)
 
     # ⛔ THE ARITHMETIC STILL CLOSES OVER **EVERY** ENTRY. Subtracting the flaky ones from
     # NEW without carrying them in their own term would turn the reconciliation — the one
@@ -248,10 +287,25 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
     reconciles = (len(baseline_failing) == len(unchanged) + len(fixed) + len(missing)
                   and len(current_failing) == len(unchanged) + len(new) + len(new_flaky))
 
+    # ⛔ F-CI-41 — ATTRIBUTE EVERY MISSING ENTRY. A deletion or rename named in the diff
+    # is somebody's recorded decision and reconciles; anything else is a test that stopped
+    # running with nobody told, and that is COVERAGE_LOST.
+    sha_a = ((baseline_summary or {}).get("sha") or "")
+    sha_b = (s.get("sha") or "")
+    missing_buckets = {}
+    unattributed = []
+    for k in missing:
+        bucket, detail = attribute_missing(k, sha_a, sha_b, repo)
+        missing_buckets["|".join(k)] = [bucket, detail]
+        if bucket in (DE_COLLECTED, UNATTRIBUTED):
+            unattributed.append(k)
+
     if invalid:
         verdict = "INVALID"
     elif not reconciles:
         verdict = "DID_NOT_RECONCILE"
+    elif unattributed:
+        verdict = "COVERAGE_LOST"
     elif new:
         verdict = "NEW_FAILURES"
     else:
@@ -259,6 +313,8 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
     prev_flaky = set(flaky_previous or ())
     return {"verdict": verdict, "new": new, "fixed": fixed, "unchanged": unchanged,
             "missing": missing, "new_flaky": new_flaky,
+            "file_level_resolved": file_level, "missing_buckets": missing_buckets,
+            "coverage_lost": unattributed,
             "counts": {"new": len(new), "fixed": len(fixed),
                        "unchanged": len(unchanged),
                        "missing": len(missing),
@@ -268,7 +324,9 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
                        "new_flaky": len(new_flaky),
                        "flaky_size": len(flaky),
                        "flaky_new": len(flaky - prev_flaky),
-                       "flaky_fixed": len(prev_flaky - flaky)},
+                       "flaky_fixed": len(prev_flaky - flaky),
+                       "file_level_resolved": len(file_level),
+                       "coverage_lost": len(unattributed)},
             "arithmetic": arithmetic, "invalid_because": invalid}
 
 
@@ -318,6 +376,22 @@ def render_diff(d: dict, baseline_id: str, current_id: str) -> str:
             "and is never re-run — it is one whose result cannot be told from noise, so it "
             "may not fire the gate. It is listed below by name, and in `flaky_findings.md`.",
             ""]
+    if d.get("missing_buckets"):
+        out += ["### MISSING — why each one stopped being collected", "",
+                "| entry | bucket | detail |", "|---|---|---|"]
+        for k, (bucket, detail) in sorted(d["missing_buckets"].items()):
+            out.append("| `%s` | **%s** | %s |" % (k[:70], bucket, detail[:90]))
+        out += ["", "⛔ **DELETED / RENAMED reconcile** — somebody's decision, recorded in a "
+                "commit. **DE-COLLECTED / UNATTRIBUTED do not**: a test stopped running and "
+                "nobody was told, which is `COVERAGE_LOST`.", ""]
+    if d.get("file_level_resolved"):
+        out += ["### A SUITE THAT COULD NOT LOAD, AND NOW CAN", "",
+                "⭐ These were WHOLE-FILE failures in the baseline (`<file> :: <file>`), a key "
+                "shape that can never appear in `ran`. Their files' real testcases ran this "
+                "time, so they are **FIXED** — reporting them MISSING would call a repair a "
+                "coverage loss.", ""]
+        out += ["- `%s`" % k[1] for k in d["file_level_resolved"][:20]]
+        out.append("")
     if d.get("new_flaky"):
         out += ["### NEW but FLAKY — excluded from the verdict, named anyway", ""]
         out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["new_flaky"][:50]]
@@ -595,6 +669,57 @@ def suite_harness_files(sha: str, repo=".") -> set:
                                                              "json", "toml", "cfg", "ini"):
                         out.add(tok.lstrip("./"))
     return out
+
+
+DELETED, RENAMED, DE_COLLECTED, UNATTRIBUTED = ("DELETED", "RENAMED", "DE-COLLECTED",
+                                                "UNATTRIBUTED")
+
+
+def _key_file(key):
+    """The source file a failure key points at, or None. ⛔ Dotted for pytest, path for
+    vitest — and the dotted form may carry a CLASS after the module."""
+    cls = (key[1] or "").strip()
+    if "/" in cls or "\\" in cls:
+        return cls
+    parts = cls.split(".")
+    for n in range(len(parts), 0, -1):
+        cand = "/".join(parts[:n]) + ".py"
+        if pathlib.Path(cand).is_file():
+            return cand
+    return None
+
+
+def attribute_missing(key, sha_a: str, sha_b: str, repo="."):
+    """(bucket, detail) for ONE missing entry — why did this test stop being collected?
+
+    ⛔⛔ **A TEST THAT LEAVES COVERAGE IS A VERDICT, NOT A FOOTNOTE.** But "MISSING" alone
+    cannot tell a deliberate deletion from a silent de-collection, and the difference is
+    the whole point: one is somebody's decision recorded in a commit, the other is a test
+    that quietly stopped running and nobody was told.
+
+    ⭐ **The attribution is DERIVED** — `git log --diff-filter=DR` between the two commits
+    the record itself names — never a list somebody maintains.
+    """
+    path = _key_file(key)
+    if not path:
+        return UNATTRIBUTED, "the entry names no file this checkout has"
+    if not (sha_a and sha_b):
+        return UNATTRIBUTED, "the record does not carry both commit SHAs"
+    rc, out = _git(["log", "--diff-filter=DR", "--name-status", "--oneline",
+                    "%s..%s" % (sha_a, sha_b), "--", path], repo)
+    if rc != 0:
+        # ⛔ UNREADABLE is not "nothing happened" — a shallow clone cannot answer this.
+        return UNATTRIBUTED, "git could not read %s..%s (shallow?)" % (sha_a[:9], sha_b[:9])
+    body = out.strip()
+    if not body:
+        exists = pathlib.Path(path).is_file()
+        return (DE_COLLECTED,
+                "%s still exists and was neither deleted nor renamed in the diff — it "
+                "stopped being COLLECTED" % path) if exists else (
+            UNATTRIBUTED, "%s is absent and no deletion is attributable in the diff" % path)
+    if re.search(r"^R\d*\s", body, re.M):
+        return RENAMED, body.splitlines()[0][:120]
+    return DELETED, body.splitlines()[0][:120]
 
 
 def runs_equivalent(sha_a: str, sha_b: str, repo="."):
@@ -978,6 +1103,44 @@ def _self_check() -> int:
     show("  ...and with NO flaky set the same run FAILS",
          diff({A_}, {A_, B_}, {A_, B_}, GOOD)["verdict"], "NEW_FAILURES")
 
+    # ── F-CI-41 · COVERAGE_LOST, and the suite-load repair that read as coverage loss ──
+    print()
+    FILEK = ("vitest", "src/x/y.test.jsx", "src/x/y.test.jsx")
+    TESTK = ("vitest", "src/x/y.test.jsx", "renders the thing")
+    show("a file-level key is recognised by its shape", is_file_level_key(FILEK), True)
+    show("  ...and a test-level key in the same file is NOT", is_file_level_key(TESTK), False)
+    show("  ...nor is a pytest dotted key", is_file_level_key(("pytest", "tests.a", "tests.a")),
+         False)
+    # ⛔ THE ONE THAT MATTERS: a baseline file-level failure whose file now RUNS is FIXED.
+    dfl = diff({FILEK}, set(), {TESTK}, GOOD)
+    show("a fixed suite-load failure resolves to FIXED, not MISSING", dfl["counts"]["fixed"], 1)
+    show("  ...and MISSING stays 0", dfl["counts"]["missing"], 0)
+    show("  ...and it is reported as such", dfl["counts"]["file_level_resolved"], 1)
+    show("  ...so the verdict is clean", dfl["verdict"], "NO_NEW_FAILURES")
+    # ⛔ NON-VACUITY: a file-level failure whose file did NOT run is still MISSING.
+    dfl2 = diff({FILEK}, set(), {("vitest", "src/other.test.jsx", "t")}, GOOD)
+    show("  ...but a file that did NOT run is still MISSING", dfl2["counts"]["missing"], 1)
+    show("  ...and THAT is COVERAGE_LOST", dfl2["verdict"], "COVERAGE_LOST")
+    # attribution buckets, against this repo's real history
+    A = ("pytest", "tests.test_voice_router", "test_tts_requires_auth")
+    b, _d = attribute_missing(A, "HEAD~1", "HEAD")
+    show("a live file with no deletion in the diff -> DE-COLLECTED", b, DE_COLLECTED)
+    b2, _ = attribute_missing(("pytest", "tests.no_such_module_at_all", "t"), "HEAD~1", "HEAD")
+    show("an entry naming no file -> UNATTRIBUTED", b2, UNATTRIBUTED)
+    b3, _ = attribute_missing(A, "", "")
+    show("no SHAs in the record -> UNATTRIBUTED, never 'nothing happened'", b3, UNATTRIBUTED)
+    b4, _ = attribute_missing(A, "deadbeefdeadbeef", "HEAD")
+    show("an unreadable range -> UNATTRIBUTED (a shallow clone cannot answer)", b4,
+         UNATTRIBUTED)
+    # ⛔ VERDICT PRECEDENCE, worst first
+    show("precedence: INVALID beats COVERAGE_LOST",
+         diff({FILEK}, set(), set(), {})["verdict"], "INVALID")
+    show("precedence: COVERAGE_LOST beats NEW_FAILURES",
+         diff({A, FILEK}, {("pytest", "tests.x", "t")},
+              {("vitest", "src/other.test.jsx", "t")}, GOOD)["verdict"], "COVERAGE_LOST")
+    show("  ...and the order is declared worst-first", VERDICTS[0], "INVALID")
+    show("  ...with NO_NEW_FAILURES last", VERDICTS[-1], "NO_NEW_FAILURES")
+
     print("SELF-CHECK:", "PASS" if ok else "FAIL")
     return OK if ok else FAIL
 
@@ -1068,7 +1231,10 @@ def main(argv=None) -> int:
                  "missing": ["|".join(k) for k in d["missing"]],
                  "fixed": ["|".join(k) for k in d["fixed"]],
                  "new_flaky": ["|".join(k) for k in d.get("new_flaky", [])],
-                 "flaky": ["|".join(k) for k in sorted(flaky)]},
+                 "flaky": ["|".join(k) for k in sorted(flaky)],
+                 "file_level_resolved": ["|".join(k) for k in d.get("file_level_resolved", [])],
+                 "coverage_lost": ["|".join(k) for k in d.get("coverage_lost", [])],
+                 "missing_buckets": d.get("missing_buckets", {})},
                 indent=2) + "\n", encoding="utf-8")
             print("[ci-inventory] wrote %s" % a.out)
         print(text)

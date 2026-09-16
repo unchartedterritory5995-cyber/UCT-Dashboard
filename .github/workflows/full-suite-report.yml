@@ -843,8 +843,13 @@ jobs:
                      % (c["new"], c["fixed"], c["unchanged"], c["missing"]), ""]
           for k in d["new"][:30]:
               summary.append("- NEW `%s`" % k)
-          for k in d["missing"][:30]:
-              summary.append("- MISSING `%s`" % k)
+          # ⛔ F-CI-41: a MISSING entry is reported WITH THE REASON IT STOPPED RUNNING.
+          # "MISSING 1" tells nobody whether a test was deleted on purpose or quietly
+          # stopped being collected, and only the second is a verdict.
+          for k, bd in sorted((d.get("missing_buckets") or {}).items())[:30]:
+              summary.append("- MISSING `%s` — **%s** — %s" % (k, bd[0], bd[1]))
+          for k in d.get("file_level_resolved", [])[:10]:
+              summary.append("- a suite that could not LOAD now loads: `%s` (FIXED)" % k)
           import os
           p = os.environ.get("GITHUB_STEP_SUMMARY")
           if p:
