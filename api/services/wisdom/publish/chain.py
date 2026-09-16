@@ -95,11 +95,24 @@ DAILY: tuple = (
 # W1 Part 7 weekly order (Sunday, after Sunday Scans publishes).
 WEEKLY: tuple = (
     Step("sunday_scans", "sources", (("api.services.wisdom.sources", "run_weekly_sunday_scans"),)),
-    Step("reconcile_outcomes", "evals", (("api.services.wisdom.evals", "reconcile_weekly"),)),
-    Step("vocab_candidates", "core", (("api.services.wisdom.core.vocab", "refresh_candidates"),)),
+    # ⚰️⚰️ R57 (owner ruling, 2026-09-15): THREE STEPS DELETED HERE, and they had never run.
+    #
+    #   reconcile_outcomes -> evals.reconcile_weekly            — not implemented anywhere
+    #   vocab_candidates   -> core.vocab.refresh_candidates     — not implemented anywhere
+    #   voice_profile      -> adapters.refresh_voice_profile    — not implemented anywhere
+    #
+    # ⛔ THE FAILURE WAS SILENT BY DESIGN. `resolve()` returns fn=None for an unresolvable target
+    # and `_run_step` records `not_available` — a SKIP, not a failure. The chain stayed green, the
+    # watchdog never paged, and three quarters of the weekly chain did nothing for the programme's
+    # whole life. `not_available` exists so a chain can outlive an unbuilt module, and its price is
+    # that an UNBUILT step is indistinguishable from a MISSPELLED one. A fourth step here was
+    # misspelled (`run_weekly_audit` for `run_audit`) and IS fixed rather than deleted.
+    #
+    # ⭐ Deleted rather than left declared, because a step that cannot run is not a plan — it is a
+    # green tick standing in for one. The intent is preserved as W2 backlog items in
+    # docs/wisdom/OVERNIGHT-CHECKPOINTS.md, where it can be scheduled instead of skipped.
+    # `tests/test_wisdom_chain_targets_resolve.py` now fails by name on any new unresolvable target.
     Step("contradictions", "publish", (("api.services.wisdom.publish.chain", "contradictions_refresh"),)),
-    Step("voice_profile", "publish", (("api.services.wisdom.publish.adapters", "refresh_voice_profile"),),
-         gate=flags.voice_profile_enabled, gate_env="WISDOM_VOICE_PROFILE_ENABLED"),
     Step("weekly_report", "publish", (("api.services.wisdom.publish.report", "run_weekly"),)),
     # ⚰️⚰️ R57 (owner ruling, 2026-09-15). This named `run_weekly_audit`, WHICH DOES NOT EXIST —
     # not in `extract/__init__.py`, not anywhere in the repo. `resolve()` returned fn=None, the

@@ -1476,3 +1476,39 @@ blocks and would otherwise read as a publication problem.
 
 Ledger token fields are ruled YES and were not delivered; the effort went to the three items the
 branch needs before a merge. Carried as a question. It changes no bill.
+
+
+## W2 BACKLOG — the three weekly steps deleted by R57 (2026-09-15)
+
+⚰️ These were declared in `chain.WEEKLY` and **had never run once.** Each named a function that
+is not implemented anywhere in the repo, so `chain.resolve()` returned `fn=None` and the step
+recorded `not_available` — a SKIP, not a failure. The weekly chain reported green while three of
+its seven steps did nothing, for the programme's whole life.
+
+⛔ They are DELETED rather than left declared (owner ruling R57: DELETE_ALL). A step that cannot
+run is not a plan; it is a green tick standing in for one. The intent is recorded here so it can
+be scheduled instead of skipped, and `tests/test_wisdom_chain_targets_resolve.py` now fails by
+name if any new chain target fails to resolve.
+
+| W2 item | was | intent, and where the intent is recorded |
+|---|---|---|
+| **W2-A — weekly outcome reconciliation** | `evals.reconcile_weekly` | Not documented beyond the
+step's own name. The daily `evals` chain already runs outcomes/replay/metrics
+(`evals/pipeline.py`), so a weekly pass would be a re-reconciliation over a longer window. ⚠️ The
+intent is genuinely UNRECOVERABLE from the repo — no spec, no docstring, no contract row. Scope it
+from scratch or drop it deliberately; do not infer one from the name. |
+| **W2-B — vocabulary candidate refresh** | `core.vocab.refresh_candidates` | `vocab.record_candidate`
+already writes candidates to the review queue as records are extracted, and
+`WISDOM_VOCAB_AUTOPROMOTE_ENABLED` (`flags.py`) is a declared, unset gate for promoting them. The
+missing weekly step is the PROMOTION pass that gate was written for. |
+| **W2-C — owner voice-profile refresh** | `adapters.refresh_voice_profile` | **D19**
+(PROGRAM-MANIFEST): *"Refresh the Morning Wire owner-voice profile weekly from the full corpus."*
+The adapter half exists — `publish/adapters/voice.py` writes `wisdom_drafts` (kind
+`desk_title_style`) and `tools/wisdom/publish_voice_corpus.py` exports the corpus PC-side. What is
+missing is the weekly entry point that ties them together. ⛔ D19 is drafts-only, owner-approved,
+never auto-published, never Substack — any build must keep that. |
+
+⭐ **The fourth weekly step was a MISSPELLING, not a gap**, and was fixed rather than deleted:
+`extract.run_weekly_audit` → `extract.run_audit`, the implementation `RUNBOOK.md` and
+`CONTRACTS.md` both specify. The difference between the two cases is exactly what the rail now
+enforces.

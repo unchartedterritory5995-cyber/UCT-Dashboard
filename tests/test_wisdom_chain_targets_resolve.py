@@ -59,12 +59,15 @@ def _resolves(module_name: str, attr: str) -> bool:
 #: here. A new typo fails by name; a deliberate gap is a line someone had to write.
 #: ⚠️ Each of these means a weekly step has NEVER run. That is a finding for the owner, recorded
 #: in docs/recon/2026-09-15-session15-*.md, not a thing this rail should quietly normalise.
-KNOWN_UNBUILT = {
-    "weekly:reconcile_outcomes": "evals.reconcile_weekly is not implemented anywhere in the repo",
-    "weekly:vocab_candidates": "core.vocab.refresh_candidates is not implemented anywhere in the repo",
-    "weekly:voice_profile": "publish.adapters.refresh_voice_profile is not implemented anywhere "
-                            "in the repo (the step is also gated by WISDOM_VOICE_PROFILE_ENABLED)",
-}
+#: ⭐ EMPTY, and that is the ruling (R57: DELETE_ALL, 2026-09-15). The three steps that were here
+#: — reconcile_outcomes, vocab_candidates, voice_profile — are DELETED from the weekly chain, not
+#: declared. A step that cannot run is not a plan; it is a green tick standing in for one. Their
+#: intent survives as W2 backlog items in docs/wisdom/OVERNIGHT-CHECKPOINTS.md.
+#:
+#: ⛔ The dict stays because the DISTINCTION it enforces is still the point: an unresolvable target
+#: must be either fixed or deliberately declared, never silently tolerated. A future step that is
+#: genuinely awaiting an unbuilt module belongs here, with a reason somebody had to type.
+KNOWN_UNBUILT: dict = {}
 
 
 def test_every_chain_step_target_resolves_or_is_declared_unbuilt():

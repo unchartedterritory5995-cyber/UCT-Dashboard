@@ -130,13 +130,32 @@ def test_a_step_that_reports_skipped_or_failed_is_recorded_as_such(db, monkeypat
 
 
 def test_a_step_gated_by_its_w1_flag_is_skipped_while_the_flag_is_off(db, monkeypatch):
-    voice = next(s for s in chain.WEEKLY if s.name == "voice_profile")
+    """⛔ The step's GATE MECHANISM, tested on a synthetic step rather than a real one.
+
+    ⚰️ This used to reach for `voice_profile`, the only flag-gated step in any chain — and R57
+    deleted it (its target was never implemented), which took the fixture with it. A mechanism
+    test that depends on one particular step is a test that dies when that step does, and worse,
+    it would have gone GREEN-BY-VACUITY if `next(...)` had returned something unrelated. The
+    mechanism is what matters, so the step is built here.
+    """
+    from api.services.wisdom.core import flags
+
+    gated = chain.Step("synthetic_gated", "publish", (("wisdom_fake_x", "nope"),),
+                       gate=flags.voice_profile_enabled, gate_env="WISDOM_VOICE_PROFILE_ENABLED")
     monkeypatch.delenv("WISDOM_VOICE_PROFILE_ENABLED", raising=False)
-    (off,) = chain.run_chain("weekly", _ctx(), (voice,))["steps"]
+    (off,) = chain.run_chain("weekly", _ctx(), (gated,))["steps"]
     assert (off["status"], off["reason"]) == ("skipped", "WISDOM_VOICE_PROFILE_ENABLED is off")
     monkeypatch.setenv("WISDOM_VOICE_PROFILE_ENABLED", "1")  # control: with the flag on it is attempted
-    (on,) = chain.run_chain("weekly", _ctx(run_id="run-2"), (voice,))["steps"]
+    (on,) = chain.run_chain("weekly", _ctx(run_id="run-2"), (gated,))["steps"]
     assert on["status"] in ("not_available", "ok", "failed") and on["status"] != "skipped"
+
+
+def test_no_chain_step_is_flag_gated_today_and_that_is_recorded_not_assumed():
+    """⭐ After R57 there is NO flag-gated step left in any chain — `voice_profile` was the only
+    one. Recorded so the next reader does not spend an hour looking for the pattern, and so that
+    re-introducing one is a deliberate act that updates this line."""
+    gated = [s.name for t in chain.STEPS.values() for s in t if s.gate is not None]
+    assert gated == [], f"a chain step is flag-gated again: {gated} — intended?"
 
 
 # ── 2. the failure contract through the registry ────────────────────────────
@@ -231,8 +250,12 @@ def test_the_chains_follow_the_w1_part_7_order():
     assert [s.name for s in chain.DAILY] == ["capture", "sources", "stt_alias", "extract", "evals",
                                              "retrieval", "adapters", "level_alerts", "lookalike",
                                              "rq_v11_001", "reconcile_stability", "publication_floor"]
-    assert [s.name for s in chain.WEEKLY] == ["sunday_scans", "reconcile_outcomes", "vocab_candidates",
-                                              "contradictions", "voice_profile", "weekly_report", "extract_audit"]
+    # ⚰️ R57, 2026-09-15: `reconcile_outcomes`, `vocab_candidates` and `voice_profile` REMOVED.
+    # All three named targets that are not implemented anywhere, so `resolve()` returned None and
+    # each recorded `not_available` — a SKIP, not a failure. The weekly chain reported green while
+    # three of its seven steps had never run once. Their intent is a W2 backlog item, not a step.
+    assert [s.name for s in chain.WEEKLY] == ["sunday_scans", "contradictions",
+                                              "weekly_report", "extract_audit"]
     assert [s.name for s in chain.MONTHLY] == ["recognition_packet"]
     targets = {t for steps in chain.STEPS.values() for s in steps for t in s.targets}
     assert {("api.services.wisdom.publish.adapters", "run_daily"),
