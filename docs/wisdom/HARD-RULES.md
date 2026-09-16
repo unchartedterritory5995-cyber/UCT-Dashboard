@@ -499,3 +499,43 @@ the behavioural checks (`test_wisdom_forced_run_spend.py` owns those); it owns t
 each commit were green; the FULL scoped run was still going, and it came back **1 failed**. *A test
 run without a totals line is not a run* — and a PR body written on the strength of one is a claim
 about a run nobody finished.
+
+
+### 2026-09-15 — R57 DELETE_ALL, R58 landing path, and what a session may do to master
+
+> **THE LANDING PATH IS A GUARDED PUSH IN A WINDOW (owner ruling R58, 2026-09-15).**
+> A local master-first merge commit, pushed through the pre-push guard. **Never `--no-verify`,**
+> **never an attestation variable, never a force push, never a rebase of the branch.** The
+> guard's refusal IS the window closing: the session waits and retries, it does not argue.
+
+⛔⛔ **MASTER-FIRST, AND THE DIRECTION IS NOT COSMETIC.** `tools/land_master_first.py` (added to
+master by another workstream, 2026-09-15) records the measurement: the deploy gate scans
+`git diff HEAD^ HEAD` — the FIRST parent. Master-first (`^1`=old master, `^2`=branch) puts OUR
+files in front of the gate; branch-first puts master's. Measured A/B on this repo: **2 files vs
+62.** Use that tool; it refuses a wrong-direction merge rather than pushing it.
+
+⛔ **`git checkout master` CANNOT be used from a worktree** — master is checked out in another
+workstream's worktree and git refuses a second checkout. The tool detaches at `origin/master`
+instead, which produces an identical commit graph without touching that worktree.
+
+⚠️ **AND THE GATE'S SECRET SCAN READS `HEAD^..HEAD`, SO A PUSH IS NOT A COMMIT.** Master's own
+`717eb4e39` measured it: **66 of 85** first-parent commits that reached production had no gate run
+of their own. On an 80-commit landing the gating scan covers exactly one. Run
+`tools/secret_scrub.py --scan` over **every file the landing adds**, locally, before pushing.
+
+> **R57 DELETE_ALL — three weekly steps deleted, their intent kept as W2 backlog.**
+
+`reconcile_outcomes`, `vocab_candidates` and `voice_profile` named functions that are not
+implemented anywhere. `resolve()` returned None, each recorded `not_available` — a SKIP, not a
+failure — so three of the weekly chain's seven steps had never run once and nothing paged.
+**A step that cannot run is not a plan; it is a green tick standing in for one.** Deleted; the
+intent is W2-A/B/C in OVERNIGHT-CHECKPOINTS.md. ⭐ The fourth was a MISSPELLING and was fixed
+instead — telling those two cases apart is what `test_wisdom_chain_targets_resolve.py` enforces.
+
+> **R58 DIAGNOSTIC — PR creation fails REPO-WIDE, and it is not branch size.**
+
+⛔ Measured 2026-09-15 with a control: a branch **one commit ahead of master, one file, one line**
+got the identical *"There was an error creating your PullRequest."* So the failure is not
+`feat/wisdom-loop`'s 86 commits. There are **no rulesets on master**. This is a GitHub-side repo
+or account setting, and `gh pr create` (absent on this box) is what would print the real API
+error. **A session cannot fix it; it is a desk-and-keyboard item.**
