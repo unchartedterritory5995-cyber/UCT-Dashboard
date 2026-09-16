@@ -123,6 +123,16 @@
    hidden RSI are the same fact and must not read as two different states. */
 .rowHidden { opacity: 0.45; }
 
+/* Past the study stack's row budget. ⛔ `display: none`, so the row leaves the
+   LAYOUT and the accessibility tree together — a visually-hidden row that a
+   screen reader still walks is a stack of phantom menu buttons. Same rule and
+   same name-shape as `IndicatorChip.module.css`'s `.chipFolded`. */
+.rowFolded { display: none; }
+/* ⛔ EXPLICIT AGAINST BOTH ROW SHAPES, not left to source order. `.vRow` and
+   `.flat` each declare their own `display`, and "which one wins" being a question
+   about line numbers is exactly how the chip's twin of this rule shipped broken. */
+.vRow.rowFolded, .flat.rowFolded { display: none; }
+
 /* ⚰️ `.controls`, `.btn` AND BOTH GUTTER CELLS STOOD HERE. The row is the
    control now — see `IndicatorChip.module.css` for the full account.
    ⛔ `.vCtl` STILL EXISTS AS A RULE because the CELL is still emitted:
@@ -130,6 +140,31 @@
    that emitted two cells would let the next row's label fall into the third
    track. */
 .vCtl { display: none; }
+
+/* ⭐⭐ THE PERMANENT CHEVRON (Legend V2 §6) — the affordance the bare row could
+ * not carry.
+ *
+ * ⛔ SUBDUED AT REST, BRIGHTER ON HOVER, AND IT NEVER MOVES. Opacity is the only
+ * thing that changes, so the cell's box is byte-identical in both states — which
+ * is the geometry invariant every retired reveal broke.
+ *
+ * ⛔ NO `transition` ON WIDTH OR MARGIN, EVER. A chevron that animates its own
+ * space is the collapsed gutter again with a nicer name. */
+.vChev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  opacity: 0.45;
+  line-height: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE — one indent step, nothing else.
+ * ⛔ `padding-left` ON THE LABEL CELL, not a margin on the row: the row spans the
+ * stack's tracks via `subgrid`, and a margin on it would shift the VALUE column
+ * too, so a grouped indicator's numbers would stop lining up with everyone
+ * else's — which is the exact defect `.vlFull` was retired for. */
+.vRowSub .vLabel { padding-left: 7px; }
 /* ⭐⭐ THE ONLY THING A HOVER DOES NOW: a faint background behind the row.
  *
  * ⚰️⚰️ IT USED TO REVEAL A CONTROL and, before that, three. Both generations
@@ -154,7 +189,37 @@
  * a ring behind whatever the member moves to next — the same distinction the
  * retired reveal rules drew, for the same measured reason. */
 .rowLive { cursor: pointer; }
-.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+/* ⚰⚰ `background: rgba(255,255,255,.055)` STOOD HERE AND IS RETIRED (Legend V2
+   §5, owner). It was the answer to "a reveal costs layout", and on a stack of
+   eight rows it read as a lit rectangle sliding down the chart — a card, on a
+   surface whose whole brief is to be printed onto the canvas rather than boxed
+   off from it.
+   ⭐ WHAT REPLACES IT COSTS NOTHING AND MOVES NOTHING: the text brightens and
+   the chevron comes up with it. Opacity and colour only — no box, no border, no
+   underline, no padding change, no transform — so the row's rect, and every
+   value's right edge, are identical hovered and at rest.
+   ⛔ THE HORIZONTAL `.flat` ROW KEEPS THE OLD TREATMENT. It serves the
+   non-workspace inline legend (Model Book, a grid cell), which Legend V2 does not
+   touch; taking its hover away would be a change to a surface nobody asked about. */
+.flat.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+.vRow.rowLive:hover { background: none; }
+/* ⛔ AN UNDERLINE, NOT A BRIGHTNESS BUMP, AND THE REASON IS MEASURABLE: these
+   values are already `--chart-panel-text-strong` (#f8f7f3) at rest, so "slightly
+   brighter" has nowhere to go on exactly the rows a member points at most. The
+   underline reads the same on a white value and on a plot-coloured label, and it
+   takes its ink from `currentColor` so a coloured row underlines in its own
+   colour. ⛔ `text-decoration` REFLOWS NOTHING — which is the whole reason it is
+   the affordance here rather than a weight change or a border. */
+.vRow.rowLive:hover .vLabel {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 2px;
+}
+.vRow.rowLive:hover .vChev { opacity: 0.92; }
+/* The keyboard gets the same affordance the pointer does — the ring alone says
+   "focused", not "this opens something". */
+.vRow.rowLive:focus-visible .vChev { opacity: 0.92; }
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);

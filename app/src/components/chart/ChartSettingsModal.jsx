@@ -5,6 +5,7 @@ import { CHART_DEFAULTS } from './chartDefaults'
 import ChartThemesModal from './ChartThemesModal'
 import { applyThemeToSettings, themeWithAppSurface } from './chartThemes'
 import { legendModeOf, LEGEND_MODES } from './legendMode'
+import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from './barInfoFields'
 import { WM_BOX_WIDTHS, DEFAULT_BOX_W } from './watermarkPrimitive'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
@@ -145,10 +146,15 @@ const TITLE_MODES = [
   { val: 'both', label: 'Both' },
 ]
 // Shape of the on-chart OHLCV legend. Horizontal is the flat, box-less strip.
-const LEGEND_LAYOUTS = [
-  { val: 'vertical', label: 'Vertical' },
-  { val: 'horizontal', label: 'Horizontal' },
-]
+// ⚰⚰ `LEGEND_LAYOUTS` ('Vertical' / 'Horizontal') STOOD HERE AND IS RETIRED.
+// There is ONE workspace legend now — a horizontal BAR INFO strip of the candle's
+// own readings above a vertical STUDY STACK of the plots drawn in the pane — so
+// the control had nothing left to choose between. What replaced it in this
+// section is WHICH FIELDS the bar-info strip prints; see `barInfoFields.js`.
+//
+// ⛔ THE SELECTOR IS DELETED RATHER THAN DISABLED. A dead layout control that
+// still renders is a control a member will click and be confused by, and leaving
+// one is exactly what the brief refused.
 
 // Location-aware right-click "… settings" → the settings tab to open on. Watermark
 // and axis are deeper Canvas sections (scrolled to); the rest are tab-tops.
@@ -749,6 +755,15 @@ export default function ChartSettingsModal({
   // predates the mode carries only the legacy `showLegend`, and reading the field
   // directly would show them "Always" while their chart draws nothing.
   const legendMode = legendModeOf(settings)
+  // ⭐ THE BAR-INFO FIELD SET, THROUGH THE RESOLVER — same discipline as the
+  // mode above. A member who has never touched this carries no `header.barInfo`
+  // at all, and reading the field directly would show them seven unchecked boxes
+  // for a strip that is printing all seven.
+  const barInfo = barInfoFieldsOf(settings)
+  // ⛔ ONE WRITER, AND IT ALWAYS STORES THE COMPLETE EXPLICIT SET (never a
+  // patch, never an "unset" that means the default). `withBarInfoField` returns
+  // the canonical order, so the strip cannot be re-ordered by a click here.
+  const toggleBarField = (id) => setHeader({ barInfo: withBarInfoField(settings, id, !barInfo.includes(id)) })
   // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
   // lives up top with the other hooks (this code runs after the `!open` early return).
   const infoFields = headerFieldKeys(header)
@@ -1262,18 +1277,32 @@ export default function ChartSettingsModal({
                   </div>
                 </div>
               </div>
-              {/* Legend shape. Only meaningful while the legend is shown, and only the
-                  Charts workspace honors it (other surfaces keep their own inline row). */}
+              {/* ⭐⭐ BAR INFO — WHICH READINGS OF THE CANDLE THE STRIP PRINTS.
+                  ⚰ A 'Legend layout' Vertical/Horizontal segmented control stood
+                  here. Legend V2 has one layout, so the useful question moved from
+                  SHAPE to CONTENT: the horizontal strip is date + O/H/L/C + the two
+                  change figures, and a member who reads close-only wants the other
+                  five gone.
+
+                  ⛔ VOLUME IS NOT OFFERED, AND NOT BY OVERSIGHT. It is a PLOT —
+                  colour, pane, visibility, popover — so it lives in the study stack
+                  with the moving averages and is managed from its own row there.
+
+                  ⛔ PILLS, NOT SEVEN TOGGLE ROWS. Seven `.field` rows would be 336px
+                  of modal for seven booleans; this is one wrapping line that reads
+                  as the strip it configures. The whole strip still turns off through
+                  the three-way control above — that is the visibility question and
+                  it already has an answer, so this one does not get a second. */}
               {legendMode !== 'off' && (
-                <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Legend layout</span>
-                  <div className={styles.seg} role="tablist">
-                    {LEGEND_LAYOUTS.map(({ val, label }) => (
+                <div className={`${styles.field} ${styles.fieldCol}`}>
+                  <span className={styles.fieldLabel}>Bar info</span>
+                  <div className={styles.pillRow} role="group" aria-label="Bar info fields">
+                    {BAR_INFO_FIELDS.map(({ id, label }) => (
                       <button
-                        key={val} type="button" role="tab"
-                        aria-selected={(header.legendLayout || 'vertical') === val}
-                        className={`${styles.segBtn} ${(header.legendLayout || 'vertical') === val ? styles.segBtnActive : ''}`}
-                        onClick={() => setHeader({ legendLayout: val })}
+                        key={id} type="button"
+                        aria-pressed={barInfo.includes(id)}
+                        className={`${styles.pill} ${barInfo.includes(id) ? styles.pillOn : ''}`}
+                        onClick={() => toggleBarField(id)}
                       >{label}</button>
                     ))}
                   </div>
