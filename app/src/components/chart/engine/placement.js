@@ -453,7 +453,27 @@ export function resolvePlacement(instance, def, ctx) {
     : def.id
 
   // ── Overlaid into the volume pane, on its left axis ──
-  if (c.volSeparatePane && asSet(c.volOverlaySet).has(key)) {
+  // ⚰️⚰️ AND THE MODERN TARGET COUNTS, NOT ONLY THE LEGACY MIRROR.
+  // `volumeOverlayIndicators` is the OLD way of saying "this draws in the volume
+  // pane"; `placement.target === 'volume'` is the canonical one, and
+  // `resolveDisplayTarget` has already weighed provenance to produce it. Reading
+  // only the legacy list meant a blob carrying the modern answer WITHOUT the
+  // mirror fell through to the own-pane branch below, found no pane (a
+  // volume-pane guest is a FOLLOWER and the layout allocates it none), and
+  // returned null — the series bound nothing and simply disappeared.
+  //
+  // ⛔ MEASURED 2026-09-15 through the real binder and a real chart
+  // (`__tests__/volumeGuestScale.test.jsx`): `{target:'volume', targetExplicit:
+  // true}` with `volumeOverlayIndicators: []` reported `bound: 0`. Both writers
+  // can produce that shape — `setInstanceDisplayTarget` only mirrors to the legacy
+  // list for definitions whose DECLARED target is `'pane'`, so any other
+  // definition sent to Volume has always been modern-only.
+  //
+  // ⭐ THE UNITS ANSWER IS UNCHANGED, and it is the point of the branch: a guest
+  // gets the LEFT axis so Volume keeps the right one. Same pane, different ladder
+  // — a $704 security must not be read against 45M shares just because a member
+  // put them in the same rectangle.
+  if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))) {
     return {
       paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
       scaleId: 'left',

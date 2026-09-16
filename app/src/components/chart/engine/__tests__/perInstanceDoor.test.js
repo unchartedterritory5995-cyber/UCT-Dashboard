@@ -313,6 +313,33 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // nothing removed, no existing value changed — 40 keys → 41. The
       // per-DEFINITION doors this file is about (enable · input · disable) are
       // untouched; what moved is the blob each of them is embedded in.
-      .toBe('3b11206650a2c78ad34fc1cbbaa066222182f8ae66b2e94e7c36e3498db051e0')
+      // 2026-09-15: re-pinned again for `paneSizes` — the member's chosen pane
+      // heights. ⛔ INVESTIGATED, NOT REGENERATED, by the same method: the key
+      // sets were enumerated on this tree and on HEAD before the change, and the
+      // diff is exactly one ADDITIVE key, `paneSizes: {}` — 41 keys → 42, nothing
+      // removed, no existing value changed. The per-DEFINITION doors are again
+      // untouched; what moved is the blob they are embedded in.
+      // 2026-09-15: re-pinned for DISPLAY-TARGET PROVENANCE. `placementFor` no
+      // longer stamps a RESTATEMENT of the definition's declared target onto every
+      // instance it creates — that byte expressed no user intent and could not be
+      // told apart from one that did, which is the ambiguity
+      // `displayTarget.TARGET_EXPLICIT` exists to end.
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED. The corpus was dumped from
+      // BOTH trees (this one and a clean worktree at the pre-change commit) and
+      // diffed structurally. The result:
+      //
+      //     175 removed `"placement": {` blocks — 100 `"target": "pane"`,
+      //                                           75 `"target": "price"`
+      //       0 ADDED LINES OF ANY KIND
+      //
+      // Every removal is a restatement and nothing else moved: no destination
+      // changed (the resolver reaches the identical answer with the key absent,
+      // via step (3) `return declared`), no `volume` rewrite was dropped (that one
+      // is KEPT — it differs from the declaration and `presentation.availableStyles`
+      // reads the stored field), and NO marker appears anywhere in the default
+      // corpus, which is the §20 promise that a schema gaining a field must not
+      // churn every saved chart. No per-definition door changed behaviour.
+      // (Prior value: a6a030675093753839f67f0a3702b4a2bd947cd73b430119badf49787065261f)
+      .toBe('e43a0f1f2e9469941fa3b42f2a584648ad397d9c672ce5b4adc385ee96e8a3cd')
   })
 })

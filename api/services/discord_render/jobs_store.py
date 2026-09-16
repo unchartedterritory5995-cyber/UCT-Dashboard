@@ -42,6 +42,13 @@ CREATE TABLE IF NOT EXISTS discord_render_jobs (
   lease_owner TEXT, lease_until REAL,
   attempts INTEGER DEFAULT 0, resumed INTEGER DEFAULT 0,
   ack_ms REAL, queue_ms REAL, first_image_ms REAL, final_ms REAL,
+  -- ⛔⛔ D-04 4.2 — A SEPARATE FIELD ON PURPOSE. A refusal is answered in the interaction
+  -- RESPONSE, not a PATCH, so `record_ack` never fires for one (`commands.py:201`) and every
+  -- refusal row carries ack_ms = NULL. Production therefore could not observe S5c at all.
+  -- Writing the reach time into `ack_ms` would have fixed that and BROKEN S1: its population is
+  -- `a is not None` (`observe.py:121,129`), so every refusal would silently join the ack
+  -- percentiles S1 is judged on. Two questions, two columns.
+  refusal_reach_ms REAL,
   outcome TEXT, failure_class TEXT, detail TEXT, quality TEXT,
   cache_hit INTEGER, render_attempts INTEGER, renderer_status TEXT, discord_status TEXT,
   pod_boot_ts REAL, commit_sha TEXT,
@@ -54,7 +61,7 @@ CREATE TABLE IF NOT EXISTS discord_render_alerts (
 );
 """
 
-_UPDATABLE = {"ack_ms", "queue_ms", "first_image_ms", "final_ms", "outcome", "failure_class", "detail",
+_UPDATABLE = {"ack_ms", "refusal_reach_ms", "queue_ms", "first_image_ms", "final_ms", "outcome", "failure_class", "detail",
               "quality", "cache_hit", "render_attempts", "renderer_status", "discord_status", "attempts",
               "resumed", "args_json"}
 
@@ -77,6 +84,19 @@ class JobsStore:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA busy_timeout=5000")
             self._conn.executescript(_SCHEMA)
+            # ⛔⛔ `CREATE TABLE IF NOT EXISTS` DOES NOT ADD A COLUMN TO A TABLE THAT ALREADY EXISTS.
+            # A new field in `_SCHEMA` reaches a FRESH database only; every store created before it
+            # keeps the old shape and every write to the new column raises `no such column` — at
+            # runtime, on the pod, not here. Today production has no V2 store at all, so this would
+            # have worked by luck; a canary that runs and THEN takes a schema change would not.
+            # ⭐ Idempotent and additive: `PRAGMA table_info` is the only authority on what the file
+            # actually has, and an ALTER that is already applied is simply skipped.
+            have = {r[1] for r in self._conn.execute(
+                "PRAGMA table_info(discord_render_jobs)").fetchall()}
+            for col, decl in (("refusal_reach_ms", "REAL"),):
+                if col not in have:
+                    self._conn.execute(
+                        f"ALTER TABLE discord_render_jobs ADD COLUMN {col} {decl}")
             self._conn.commit()
 
     def close(self) -> None:
@@ -233,7 +253,11 @@ class JobsStore:
     def recent(self, since_s: float, limit: int = 5000) -> list[dict]:
         with self._lock:
             rows = self._conn.execute(
-                "SELECT corr_id, created_at, command, kind, lane, state, ack_ms, queue_ms, first_image_ms, "
+                # ⛔ `refusal_reach_ms` IS PROJECTED HERE OR IT DOES NOT EXIST. `recent()` is what
+                # `observe` and every instrument read; a column absent from this list is a column
+                # nothing can ever see, which is a silent way to ship a field that does nothing.
+                "SELECT corr_id, created_at, command, kind, lane, state, ack_ms, refusal_reach_ms, "
+                "queue_ms, first_image_ms, "
                 "final_ms, outcome, failure_class, quality, cache_hit, resumed, attempts, detail "
                 "FROM discord_render_jobs WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?",
                 (self._now() - since_s, limit)).fetchall()

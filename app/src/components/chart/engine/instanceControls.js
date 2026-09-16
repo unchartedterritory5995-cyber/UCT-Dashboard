@@ -69,7 +69,7 @@ import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition } from './nativeRegistry'
-import { resolveDisplayTarget, isWritableDisplayTarget } from './displayTarget'
+import { resolveDisplayTarget, isWritableDisplayTarget, TARGET_EXPLICIT } from './displayTarget'
 import { parsePaneOfTarget } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
          CANDLE_COLOR_KEYS } from './presentation'
@@ -414,7 +414,22 @@ function placementFor(def, defId, cs) {
   const target = def.placement?.target
   if (typeof target !== 'string' || !target) return null
   const overlaid = Array.isArray(cs?.volumeOverlayIndicators) && cs.volumeOverlayIndicators.includes(defId)
-  return { target: target === 'pane' && overlaid ? 'volume' : target }
+  const effective = target === 'pane' && overlaid ? 'volume' : target
+  // ⚰️⚰️ A RESTATEMENT OF THE DECLARATION IS NOT WRITTEN AT ALL (2026-09-15).
+  // This used to stamp `{ target: <the declared one> }` onto every instance it
+  // created, which expressed no user intent and could not be told apart from one
+  // that did — the ambiguity `displayTarget.TARGET_EXPLICIT` exists to end. The
+  // resolver reaches the identical answer with the key ABSENT (step (3) returns
+  // `declared`), so omitting it changes no destination; it only stops new blobs
+  // from being born ambiguous. Existing blobs keep their restatements and their
+  // legacy reading — there is no migration.
+  //
+  // ⭐ THE VOLUME REWRITE IS KEPT, because it is NOT a restatement: it differs
+  // from the declaration, `presentation.availableStyles` reads the stored field
+  // directly to clamp styles in a shared pane, and it is what the resolver's
+  // legacy-volume step recomputes anyway. Same value, both dialects, no ambiguity.
+  if (effective === target) return null
+  return { target: effective }
 }
 
 /**
@@ -769,7 +784,15 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   // the CANONICAL `placement.target` would quietly never get written and the
   // whole POC C decision would reverse itself. The default is what the definition
   // and the SOURCE say — the two things a user has not overridden.
-  const bare = { ...inst, placement: { ...(inst.placement || {}), target: undefined } }
+  // ⛔ THE AUTOMATIC ANSWER IS ASKED WITH BOTH THE TARGET **AND** THE MARKER
+  // STRIPPED. Leaving the marker on would make the resolver honour the very value
+  // this is trying to compare against, and every write would then look like a
+  // return-to-default — the key would be deleted and the member's choice lost on
+  // the second move.
+  const bare = {
+    ...inst,
+    placement: { ...(inst.placement || {}), target: undefined, [TARGET_EXPLICIT]: undefined },
+  }
   const defaultTarget = resolveDisplayTarget(bare, {
     ...cs, volumeOverlayIndicators: legacy.filter((x) => x !== defId),
   })
@@ -777,8 +800,28 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   const next = cs.indicatorInstances.map((i) => {
     if (!i || i.instanceId !== instanceId) return i
     const placement = { ...(i.placement || {}) }
-    if (target === defaultTarget) delete placement.target
-    else placement.target = target
+    // ⭐⭐ EQUAL TO THE AUTOMATIC ANSWER IS THE RETURN-TO-DEFAULT GESTURE, and it
+    // is the one the UI already has — there is no "Automatic" option in
+    // `displayTargetOptions` and none is added here, because encoding automatic as
+    // a fake target is exactly what `placement.position` refuses to do for
+    // `'below'`. Picking the destination the rules would have chosen anyway CLEARS
+    // both keys and hands the instance back to source derivation.
+    //
+    // ⛔⛔ AND ANYTHING ELSE IS STAMPED, INCLUDING A VALUE EQUAL TO `declared`.
+    // That is the case the old code could not express: `dataSeries` DECLARES
+    // `'pane'`, its automatic answer on `close` is `'price'`, so a member choosing
+    // Own pane writes the declared value — and the reader's old
+    // `explicit !== declared` guard threw it away. The marker is what makes the
+    // two distinguishable, so it is written with the target and never apart from
+    // it: a `target` without a marker is legacy state, and a marker without a
+    // target would be a claim about nothing.
+    if (target === defaultTarget) {
+      delete placement.target
+      delete placement[TARGET_EXPLICIT]
+    } else {
+      placement.target = target
+      placement[TARGET_EXPLICIT] = true
+    }
     return Object.keys(placement).length ? { ...i, placement } : (() => {
       const { placement: _drop, ...rest } = i
       return rest

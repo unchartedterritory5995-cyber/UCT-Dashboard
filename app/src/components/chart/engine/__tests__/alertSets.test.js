@@ -298,8 +298,18 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // the chart already had (Price · separate volume pane · stack) — so no pixel
   // moves on any existing chart, and nothing is migrated on read. The digest
   // shifts only by that one additive empty array.
+  // ⚰️ RE-PINNED 2026-09-15 — INVESTIGATED, and the diff is exactly one key.
+  //
+  // `paneSizes` joined `mergeChartSettings`' allow-list so a member's dragged
+  // pane separator survives a reload (see `engine/paneSizes.js`). The merged key
+  // set went 41 → 42 and the ONLY addition is `paneSizes`; every other key, and
+  // every value, is unchanged. Measured by enumerating both key sets on this tree
+  // and on HEAD before the change, not inferred from the digest moving.
+  //
+  // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
+  // investigating is the one thing you may not do. The investigation is above.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '66368f05e365b95a919aa92744809ec9ecba48d6d86352ae138cf48c32387370'
+    '65a5cb321ef40cb3021362d670dbbac195a7b255702460acd0099bcc66c08600'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

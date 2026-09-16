@@ -31,6 +31,7 @@ import { mergeChartSettings } from './chartDefaults'
 import { setIndicatorEnabled, findInstance } from './engine/instanceControls'
 import { legacyInstanceId } from './engine/instances'
 import { fieldsForInstance } from './indicatorRegistry'
+import { resolveDisplayTarget } from './engine/displayTarget'
 import { PLACEMENT_TARGETS } from './engine/defSchema'
 import * as engineRegistry from './engine/nativeRegistry'
 
@@ -194,7 +195,18 @@ describe('the Visibility tab writes both of its adjustments, on every definition
       const sel = screen.getByRole('combobox', { name: /move to/i })
       for (const target of PLACEMENT_TARGETS) {
         fireEvent.change(sel, { target: { value: target } })
-        expect(findInstance(latest(), instanceId).placement?.target,
+        // ⭐ 2026-09-15 — ASKS WHERE IT LANDS, NOT WHAT BYTE WAS STORED. "Move to"
+        // used to write `placement.target` by hand; it now goes through
+        // `setInstanceDisplayTarget`, the same writer Chart Data and the on-chart
+        // chip menu use, so all three surfaces mean one thing. That writer treats
+        // "the member picked the destination the rules would have chosen anyway"
+        // as RETURN TO AUTOMATIC and DELETES the key — there is no `automatic`
+        // option in the vocabulary and encoding one would be a fake target. So the
+        // stored byte is legitimately absent for exactly one of these choices,
+        // while the DESTINATION is what the member asked for in every case, which
+        // is the thing this rail is actually about.
+        const after = findInstance(latest(), instanceId)
+        expect(resolveDisplayTarget(after, latest()),
           `${def.id}: "Move to ${target}" did not reach the instance`).toBe(target)
       }
       cleanup()

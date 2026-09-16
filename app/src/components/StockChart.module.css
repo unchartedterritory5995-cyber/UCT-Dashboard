@@ -460,7 +460,9 @@
   column-gap: 10px;
   row-gap: 1px;
   align-content: start;
-  top: 46px;
+  /* ⚰️ THE SAME OMISSION as `.legendFlat` — a variant overriding the base
+     rule's offset with a bare number. Price-owned chrome follows Price. */
+  top: calc(46px + var(--price-pane-top, 0px));
   /* ⚰️ THIS WAS `--chart-panel-bg-soft` (0.62) AND THE CANDLES CAME THROUGH THE
      NUMBERS. Measured 2026-08-10 on the real chart: the EMA/SMA/RSI rows had
      candlesticks running straight through their values, and several readings were
@@ -568,7 +570,14 @@
   align-items: flex-start;
   flex-wrap: nowrap;
   gap: 3px;
-  top: 34px;           /* tuck just under the drawing toolbar (its bottom ≈ 30px) */
+  /* ⚰️⚰️ `+ var(--price-pane-top)` — AND ITS ABSENCE WAS THE WHOLE BUG. The
+     base `.legend` rule got this offset when Price stopped having to be the
+     first pane; this VARIANT kept a bare 34px, and it is an extra class on the
+     same element, later in the file, so it won. Measured on production (UCTA50
+     with QQQ moved above it): the drawing toolbar followed Price down while
+     this legend stayed at the top, sitting over QQQ. Identical to before when
+     Price is first — the variable is 0 then. */
+  top: calc(34px + var(--price-pane-top, 0px));   /* under the drawing toolbar */
   left: 4px;           /* align the value strip's left edge with the toolbar's (left: 4px) */
   right: 8px;          /* let the value row use the full chart width before wrapping */
   background: none;
@@ -617,7 +626,10 @@
    logo · Name · Exchange · framed-window % (0% = left edge of the visible range). */
 .compareRows {
   position: absolute;
-  top: 62px;         /* clear of the horizontal .legend (which can wrap to 2 rows) */
+  /* ⚰️ PRICE-OWNED, LIKE THE LEGEND IT IS DOCKED TO. It hard-coded `62px` and
+     so stayed at the top of the workspace when Price was arranged below another
+     pane — the same defect as `.legendFlat`, found while fixing that one. */
+  top: calc(62px + var(--price-pane-top, 0px));   /* clear of the horizontal .legend (can wrap to 2 rows) */
   left: 8px;         /* aligned with the legend's left / the date */
   z-index: 4;
   display: flex;
@@ -627,7 +639,7 @@
   font-family: var(--font-sans);
 }
 .compareRowsSide {   /* vertical legend → to the right of .legendVertical, near its top */
-  top: 46px;
+  top: calc(46px + var(--price-pane-top, 0px));
   left: 132px;
 }
 .compareRow {

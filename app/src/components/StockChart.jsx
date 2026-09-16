@@ -70,7 +70,8 @@ import ChartToolbar, { TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
-import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack } from './chart/volumePaneDrag'
+import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
+         legacyPairOwnsStack } from './chart/volumePaneDrag'
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
@@ -95,9 +96,11 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 // Flip C retired it.
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
-  defaultPaneKeys,
+  defaultPaneKeys, paneStretchPlan,
 } from './chart/engine/paneLayout'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { storedPaneSizes, setPaneSizes, sizesFromStretch } from './chart/engine/paneSizes'
+import { volumeOwnsPane } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
@@ -691,6 +694,7 @@ import {
   displayTargetOptions,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
+import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -3670,16 +3674,39 @@ export default function StockChart({
         const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
         let hi = -Infinity, lo = Infinity
         for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
-        let paneH = 0; try { paneH = chart.paneSize().height } catch { /* */ }
-        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
         const series = candleSeriesRef.current
+        // ⚰️⚰️ `chart.paneSize()` IS THE FIRST PANE, AND THIS MEANT "PRICE".
+        //
+        // `priceToCoordinate` below returns a pixel row inside the CANDLES' pane,
+        // and it was being divided by the height of whatever pane happens to be
+        // first. With a pane above Price that is the OTHER pane — a fraction of
+        // Price's height — so `yHi / paneH` saturates and `t` lands on the 0.9
+        // clamp: a stored view lock that leaves the candles 10% of their pane.
+        //
+        // ⛔⛔ AND THIS ONE PERSISTS, which is why it outlived everything. The
+        // measurement is written by `persistViewLock()` and re-applied on every
+        // load through `vertMarginsRef`, which OUTRANKS the computed margins. So
+        // one drag on a chart with QQQ above Price poisoned the saved layout, and
+        // no amount of correcting `computePaneLayout` could reach it — measured on
+        // production as NVDA ~212 against a Price scale running to ~625–880 with
+        // the candles in a bottom sliver, surviving refresh and two deploys.
+        //
+        // ⭐ ASK THE CANDLES FOR THEIR OWN PANE, so the numerator and the
+        // denominator come from the same rectangle. The container fallback had
+        // the same flaw — the whole container is not Price's pane — so it now
+        // only applies when the series cannot answer at all.
+        let paneH = 0
+        try { paneH = series?.getPane?.()?.getHeight?.() || 0 } catch { /* older API */ }
+        if (!(paneH > 0)) { try { paneH = chart.paneSize().height } catch { /* */ } }
+        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
         if (hi > lo && paneH > 8) {
           const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
           if (yHi != null && yLo != null) {
-            let t = Math.min(0.9, Math.max(0, yHi / paneH)), bt = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
-            if (t + bt > 0.95) { const k = 0.95 / (t + bt); t *= k; bt *= k }
+            const f = viewLockFractions(paneH, yHi, yLo)
             const mbase = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
-            if (!(Math.abs(t - mbase.top) < 0.03 && Math.abs(bt - mbase.bottom) < 0.03)) { top = +t.toFixed(4); bottom = +bt.toFixed(4); vLocked = true }
+            if (f && !(Math.abs(f.top - mbase.top) < 0.03 && Math.abs(f.bottom - mbase.bottom) < 0.03)) {
+              top = f.top; bottom = f.bottom; vLocked = true
+            }
           }
         }
       } catch { /* vertical optional */ }
@@ -4367,6 +4394,14 @@ export default function StockChart({
   // another; see the comment at its `stored`.
   const csRef = useRef(cs)
   csRef.current = cs
+
+  // ⚰️ THE POINTER EFFECT MOUNTS ONCE, SO IT MUST NOT CLOSE OVER `cs`.
+  // `_capturePaneSizes` runs from a listener registered at mount; reading the
+  // settings from that closure hands it the blob as it was on the FIRST render.
+  // Measured in the harness: a separator drag after adding QQQ persisted the
+  // pre-QQQ blob and wiped the instance — "persist intercepted → 0 instances".
+  // Same hazard, same remedy as `measureViewLockRef` below.
+  const updateSettingsRef = useRef(null)
   const symRef = useRef(null)
   const onCrosshairMoveRef = useRef(null)
   // The instance list the engine last drew, for the crosshair handler — which
@@ -4464,6 +4499,7 @@ export default function StockChart({
     }
     setPref('chart_settings', JSON.stringify(persisted))
   }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
+  updateSettingsRef.current = handleUpdateChartSettings
 
   // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
   //
@@ -7625,20 +7661,36 @@ export default function StockChart({
         // right after release (the "skips one more time" bug). Reading the price at
         // the inset boundaries [top·H, (1−bottom)·H] captures exactly the range that
         // maps back to these same pixels, so releasing leaves the scale untouched.
+        // ⚰️⚰️ THIS READ `panes()[0]` AND MEANT "THE PRICE PANE". It stopped
+        // being the same thing the moment a pane could sit above Price, and the
+        // consequence is not cosmetic: the captured range is PINNED by the
+        // candle series' `autoscaleInfoProvider` and PERSISTED by the view-lock,
+        // so one axis drag on a chart with QQQ above Price writes a wrong
+        // vertical range that survives every reload.
+        //
+        // ⛔ MEASURED ON PRODUCTION: NVDA ~212 with the Price scale reading
+        // 200 → 880 and the candles plus all four MAs crushed into the bottom
+        // ~8% of their pane, on a COLD LOAD, reproducing on every refresh. With
+        // QQQ above Price, `panes()[0]` is QQQ's pane — a fraction of Price's
+        // height — so `yTop`/`yBot` are pixel rows near the TOP of Price's pane,
+        // and `coordinateToPrice` maps them to prices far above the candles.
+        //
+        // ⭐ ASK THE CANDLES WHERE THEY LIVE. `coordinateToPrice` below is called
+        // on that same series, so the height and the mapping now come from ONE
+        // pane instead of two that agree only while Price is first.
         let paneH = 0
-        try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
+        try {
+          paneH = series.getPane?.()?.getHeight?.() || chart.panes?.()[0]?.getHeight?.() || 0
+        } catch { paneH = 0 }
         if (paneH <= 0) return
         let sm = { top: 0, bottom: 0 }
         try {
           const o = mainPriceScale()?.options?.()?.scaleMargins
           if (o && Number.isFinite(o.top) && Number.isFinite(o.bottom)) sm = o
         } catch { /* keep zero margins — no worse than the old full-pane capture */ }
-        const yTop = sm.top * paneH               // pixel of the highest price (maxValue)
-        const yBot = paneH - sm.bottom * paneH     // pixel of the lowest price (minValue)
-        const hi = series.coordinateToPrice(yTop)
-        const lo = series.coordinateToPrice(yBot)
-        if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) {
-          priceManualRangeRef.current = { minValue: lo, maxValue: hi }
+        const pinned = capturedPriceRange(paneH, sm, (y) => series.coordinateToPrice(y))
+        if (pinned) {
+          priceManualRangeRef.current = pinned
           priceManualRef.current = true
         }
       } catch { /* mapping unavailable — leave unpinned, no worse than before */ }
@@ -9579,7 +9631,10 @@ export default function StockChart({
     }
     if (!wmAttachedRef.current) {
       try {
-        chart.panes()[0].attachPrimitive(wmCtrlRef.current.primitive)
+        // ⭐ THE WATERMARK IS PRICE-OWNED — the same `panes()[0]` assumption as
+        // the axis-drag capture above, and it belongs on the candles' pane
+        // wherever that now sits.
+        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(wmCtrlRef.current.primitive)
         wmAttachedRef.current = true
       } catch { /* older pane API — primitive optional */ }
     }
@@ -9641,7 +9696,8 @@ export default function StockChart({
     }
     if (!sessionShadeAttachedRef.current) {
       try {
-        chart.panes()[0].attachPrimitive(sessionShadeRef.current.primitive)
+        // ⭐ AND SO IS THE SESSION SHADE — it shades the candles' own pane.
+        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionShadeRef.current.primitive)
         sessionShadeAttachedRef.current = true
       } catch { /* older pane API — primitive optional */ }
     }
@@ -10516,7 +10572,12 @@ export default function StockChart({
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
     // draggable divider; overlay mode shares pane 0 via the layout's bands.
-    const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
+    // ⭐ ONE PREDICATE, ASKED — `chartDataMap` re-derived this rule and got a
+    // different answer; see `engine/volumePresentation.js`. The renderer is the
+    // caller that CAN supply every input, so it passes all of them.
+    const volSeparatePane = volumeOwnsPane({
+      cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane,
+    })
     const hasVolumeBand = showVolume && volData.length > 0 && !volSeparatePane
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
@@ -10603,6 +10664,10 @@ export default function StockChart({
     )
     const paneLayout = computePaneLayout(engineInstances, {
       order: _paneOrder,
+      // ⭐ THE MEMBER'S OWN PANE HEIGHTS. Absent → the computed default, which is
+      // every chart that has never had a separator dragged. See
+      // `engine/paneSizes.js` for why this is a SHARE and not a pixel count.
+      paneSizes: storedPaneSizes(cs),
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
       // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
@@ -10768,7 +10833,45 @@ export default function StockChart({
           const volPane = volumeSeriesRef.current?.getPane?.()
           // Only (re)apply when the TARGET height changed — otherwise a periodic
           // data-poll re-run would snap the pane back and undo a user's drag.
-          if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
+          // ⚰️⚰️ AND IT MAY ONLY SPEAK WHEN THESE TWO PANES ARE THE WHOLE CHART.
+          // Stretch factors are RELATIVE, so the `(100 - pct, pct)` pair below only
+          // means "volume is pct% of the chart" while main and volume are the only
+          // panes. Add a third — a data series, an RSI, any own-pane indicator — and
+          // volume's real share silently becomes `pct / (100 + thirdStretch)`,
+          // because the third pane keeps the weight `computePaneLayout` gave it and
+          // that weight is on a DIFFERENT BASIS: the layout hands out PIXEL heights
+          // (463 / 154 / 81 on a 700px stack), this writer hands out PERCENTAGES.
+          // Two writers, two incompatible numbering systems, one relative field.
+          //
+          // ⛔⛔ MEASURED 2026-09-15 (`__tests__/volumeStretchThirdPane.test.js`):
+          // apply 22 with a third pane at 81 and the volume pane measures **12**,
+          // while `lastAppliedVolPctRef` still says 22. The 300ms drag sampler
+          // compares exactly those two numbers, `latchOnDrag` fires at a two-point
+          // gap, and within 1.5s of any real separator drag it latches 12 as the
+          // member's choice and PERSISTS IT GLOBALLY. The next pass applies 12
+          // against the same inflated denominator, measures ~7, latches that — the
+          // volume pane ratchets down while the third pane, which nothing writes,
+          // is left holding ~45% of the chart. That is the owner's live cluster:
+          // "Volume snaps back only when QQQ is in it" and "the new QQQ pane is
+          // enormous", one defect wearing two costumes.
+          //
+          // ⭐ SO THE CANONICAL LAYOUT OWNS THE STACK, AND IT ALREADY DID. `binder`
+          // ends EVERY sync with `applyPaneStretch(ctx.paneLayout)` — ungated by
+          // instance count — and that plan sizes volume correctly in both cases
+          // (measured: `[545, 154]` for two panes, `[463, 154, 81]` for three; 22%
+          // either way). A member's dragged height reaches it through
+          // `cs.paneSizes`, the one durable authority. This writer is redundant the
+          // moment the stack is bigger than the pair it can describe, so it stands
+          // down rather than fighting — and says it has NO OPINION, which is what
+          // makes the sampler bail (`applied == null`) instead of latching a gap
+          // that only ever existed because the two writers were counting
+          // differently.
+          const paneCount = (() => {
+            try { return (chart.panes() || []).length } catch { return 0 }
+          })()
+          if (mainPane && volPane && !legacyPairOwnsStack(paneCount, !!indexPaneSeriesRef.current)) {
+            lastAppliedVolPctRef.current = null
+          } else if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
             lastAppliedVolPctRef.current = pct
             if (indexPaneSeriesRef.current) {
               const idxPct = _idxPct
@@ -14504,6 +14607,46 @@ export default function StockChart({
         } catch { /* mid-load */ }
       })
     }
+    // ─── THE MEMBER'S OWN PANE HEIGHTS ────────────────────────────────
+    //
+    // ⚰️⚰️ A DRAGGED SEPARATOR USED TO DIE HERE. Pane height flowed one way —
+    // `computePaneLayout → paneStretchPlan → setStretchFactor` — so the gesture
+    // lived inside lightweight-charts until the next binder sync recomputed the
+    // default over it. Measured: drag QQQ 81 → 270, release, and the next plan
+    // wrote 81 back. The library had the member's intent and nothing asked it.
+    //
+    // ⭐ SO THE RENDERER IS READ BACK AND THE ANSWER BECOMES CANONICAL STATE.
+    // `sizesFromStretch` keeps only the panes that actually differ from what the
+    // layout would have computed, so one separator drag records the two panes it
+    // moved and says nothing about the rest — and a repaint that merely rounds
+    // records nothing at all.
+    //
+    // ⛔ NO GESTURE DETECTION ON THE SEPARATOR ITSELF. Hit-testing a library
+    // element would break the first time it restructured its DOM. Comparing the
+    // resulting weights to the plan asks the only question that matters — did
+    // the stack actually change — and is true however the member changed it.
+    const _capturePaneSizes = () => {
+      try {
+        const chart = chartRef.current
+        const layout = paneLayoutRef.current
+        if (!chart || !layout || !layout.keyByIndex || !layout.keyByIndex.size) return
+        const panes = chart.panes()
+        if (!Array.isArray(panes) || panes.length < 2) return
+        const observed = panes.map((pn) => {
+          try { const v = pn.getStretchFactor(); return Number.isFinite(v) ? v : 0 } catch { return 0 }
+        })
+        // ⚠️ THE DEFAULT PLAN, NOT THE APPLIED ONE. The comparison has to be
+        // against what the layout WOULD compute with no stored sizes, or a pane
+        // the member already resized would read as "unchanged" and its entry
+        // could never be updated by a second drag.
+        const base = paneStretchPlan({ ...layout, paneSizes: null }, observed.map(() => 0))
+        const next = sizesFromStretch(observed, base, layout.keyByIndex)
+        if (!Object.keys(next).length) return
+        const live = csRef.current
+        const updated = setPaneSizes(live, next)
+        if (updated !== live) updateSettingsRef.current?.(updated)
+      } catch { /* renderer cannot answer — leave the member on defaults */ }
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
@@ -14524,6 +14667,7 @@ export default function StockChart({
       // its rAF would otherwise land mid sym-switch and re-measure a transitioning
       // chart, clobbering the lock. So capture on a real drag only; wheel handles zoom.
       if (gestured) _captureUserLock()
+      if (gestured) _capturePaneSizes()
       viewPointerRef.current = null
     }
     const onWheel = () => {
@@ -14719,17 +14863,69 @@ export default function StockChart({
     const tick = () => {
       try {
         const panes = chart.panes ? chart.panes() : null
-        const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
         const H = container.clientHeight || 0
-        if (h0 > 0 && H > 0) {
+        // ─── WHO OWNS WHICH EDGE ─────────────────────────────────────
+        //
+        // ⚰️⚰️ THIS BLOCK READ `panes[0]` AND CALLED IT THE PRICE PANE. Three
+        // surfaces were positioned from that one number, and all three were the
+        // same stale assumption — `pane 0 === Price` — which stopped being true
+        // the moment a pane could be moved above Price. Measured on production by
+        // the owner (UCTA50 with QQQ moved above it): the lookback bar flew to the
+        // top of the workspace, because `H - height(QQQ)` is nearly the whole
+        // chart.
+        //
+        // ⭐ SO EACH SURFACE NOW ASKS FOR THE EDGE IT ACTUALLY BELONGS TO, and the
+        // two kinds of ownership are kept apart on purpose:
+        //
+        //   PRICE-OWNED      the OHLC legend, the drawing toolbar, the responsive
+        //     collapse — resolved from the pane the CANDLE SERIES is in, by
+        //     identity, wherever that pane currently sits.
+        //   WORKSPACE-OWNED  the 3M/6M/YTD/1Y/5Y/Origin lookback bar — it belongs
+        //     to the GLOBAL TIME AXIS, not to Price, so it is anchored to the
+        //     bottom of the whole pane stack and never moves when Price does.
+        // ⚠️ THE INDICES ARE ASKED OF THE SERIES, NEVER GUESSED. A pane's
+        // identity is "the pane my series is in"; its POSITION is whatever the
+        // member last arranged. Reading the position from the series is the only
+        // form of this question that survives a reorder.
+        const indexOfSeries = (ref) => {
+          try {
+            const i = ref?.current?.getPane?.()?.paneIndex?.()
+            return Number.isInteger(i) && i >= 0 ? i : null
+          } catch { return null }
+        }
+        const paneHeights = (panes || []).map((p) => (p?.getHeight?.() || 0))
+        let axisH = 0
+        try { axisH = chart.timeScale().height() || 0 } catch { axisH = 0 }
+        // ⭐ ONE PLAN, APPLIED. Every number below is decided in `chromePlan` and
+        // asserted per layout in its rails; this block only measures and writes.
+        const plan = chromePlan({
+          paneHeights,
+          priceIndex: indexOfSeries(candleSeriesRef) ?? 0,
+          volumeIndex: indexOfSeries(volumeSeriesRef),
+          timeAxisHeight: axisH,
+          separatorPx: SEPARATOR_PX,
+        })
+        const priceH = plan.priceHeight
+        if (priceH > 0 && H > 0) {
           const rb = rangeBarRef.current
           if (rb) {
-            const bottom = Math.round(Math.max(30, H - h0 + 8)) // 8px above the boundary
+            // ⛔ THE GLOBAL TIME AXIS, NOT ANY PANE. `timeScale().height()` is the
+            // bottom date scale; 8px above it is where this bar lives no matter how
+            // many panes exist, what order they are in, or where Price sits. Note
+            // that `lookbackBottomPx` takes no pane argument AT ALL — that is what
+            // makes "the lookback bar does not move with Price" structural rather
+            // than a number that happens to come out right today.
+            const bottom = plan.lookbackBottom
             if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
           }
           const vl = volLegendRef.current
           if (vl) {
-            const top = Math.round(h0 + 5) // just below the boundary = volume pane top
+            // The VOLUME pane's own top — asked of the volume series, for the same
+            // reason Price is asked of the candles. It used to be `h0 + 5`, i.e.
+            // "just under pane 0", which is only the volume pane on an unarranged
+            // chart. When the series cannot answer (older API), fall back to the
+            // pane immediately under Price, which is the shipped default shape.
+            const top = plan.volumeLegendTop
             if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
           }
           // …and every oscillator pane's own readout, by the same rule and in the
@@ -14757,7 +14953,9 @@ export default function StockChart({
             }
             const fullBottom = lastFullBottomRef.current
             if (fullBottom > 0) {
-              const rbTop = h0 - 34
+              // The PRICE pane's own bottom, in container coordinates — the legend
+              // lives in Price, so "does it still fit" is a question about Price.
+              const rbTop = plan.collapseThresholdPx
               const cur = compactLegendRef.current
               if (!cur && fullBottom > rbTop) setCompactLegend(true)
               else if (cur && fullBottom < rbTop - 12) setCompactLegend(false)

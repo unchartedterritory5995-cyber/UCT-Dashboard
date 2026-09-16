@@ -754,6 +754,82 @@ ancestor of master, never forced.
 
 ⚠️ **Railway still watches `master`. `production` is unwatched.** No cutover happened.
 
+# Session 8 — the label was wrong, and the read is not what it looked like
+
+## What shipped
+
+| merge | commit | what |
+|---|---|---|
+| M5 | `07cd3319c` | the Session 7 record |
+| M6 | `47e1516b5` | the cache-tier fix + the `reconstructed_fetch` split |
+
+## The label was wrong, not merely vague
+
+`_history_deep_uncached` delegates any window inside the collector range to
+`get_history`, having already noted `cache="miss"`. **`get_history` noted nothing at
+all.** So a `days=90` request served entirely from `get_history`'s own cache reported
+`cache=miss` — on every request, indefinitely, in the direction that makes a warm path
+look like work.
+
+`cache` now reports what served the request; a new **additive** `cache_tier` says which:
+`body` | `deep` | `plain` | `miss`. `cache` keeps hit/miss so every Session 5/6/7 log line
+still parses, and a rail asserts exactly that.
+
+⭐ **The rails decide "was this cached" from whether `_history_uncached` actually RAN**,
+never from the label under test — the standing rule that a harness measures what served
+the request rather than asserting a label. Mutation-proved three ways, each red, each
+naming its own rail.
+
+⚠️ And the rails read the label from the **log**, not from `breadth_timing.get()`: the
+record is per-request and the middleware clears it, so reading the contextvar from a
+test's own context returns `None` and every assertion fails for a reason that has nothing
+to do with the label. The first version did exactly that.
+
+## `reconstructed_fetch` — the static facts, before any instrument
+
+| | |
+|---|---|
+| rows / payload | **4,700** rows, 4,678,369 B of `metrics`, avg **995 B/row** |
+| file | **41,861,120 B** on the Railway volume, page_size 4096 |
+| query | `WHERE date IN (?...)` **chunked at 400** — 12 statements per deep read |
+| plan | one PK seek per date — **4,700 seeks** per deep read |
+| connection | **opened per call**; `PRAGMA journal_mode=WAL` + `busy_timeout=3000` **every time** |
+| ⛔ `cache_size` | **2 MB** against a 41.9 MB file |
+| ⛔ `mmap_size` | **0** — every page is a syscall |
+
+## The split, and what it already shows
+
+`rf_open` / `rf_pragma` / `rf_execute` / `rf_fetch` / `rf_materialise`, plus `rf_rows`,
+`rf_bytes`, `rf_busy_retries` and a per-request `/proc/self/io` delta.
+
+⭐ **`read_bytes` is the discriminator the whole diagnosis turns on**, and it is confirmed
+readable in production: bytes that came from the block device, against `rchar` which
+includes the page cache. `read_bytes` climbing = H1; flat with `rchar` climbing = served
+from cache and the time went elsewhere; both flat = it was not reading at all.
+
+| reading | `rf_open` | `rf_pragma` | `rf_execute` | `rf_fetch` | **`rf_materialise`** | total |
+|---|---|---|---|---|---|---|
+| LOCAL, warm | 0.58 | 0.62 | 3.6 | 19.4 | **234.2** | 260.0 |
+| PRODUCTION, 1 smoke | 0.1 | 0.2 | 1.7 | 7.5 | **44.7** | 54.8 |
+
+⭐ **`rf_materialise` is 75–90 % of the fetch on every reading taken so far** — 4,529
+`json.loads` over 4.5 MB. That is **H4**, not I/O.
+
+## H2 is effectively excluded
+
+A local concurrent writer committing **460,569 times** during the read window moved
+`reconstructed_fetch` by **1.9x** (44.1 → 85.3 ms). Page-cache pressure managed **1.5x**.
+Production's swing is **50.2x**. ⛔ In WAL mode a writer does not block this reader, and
+neither local mechanism comes near reproducing the band.
+
+⚠️ **Two control limits, stated rather than papered over.** A "cold" copy cannot be made
+on Windows — there is no `drop_caches` and `shutil.copy2` **writes** the file straight
+into the page cache, so that control is **INCONCLUSIVE here, not FAIL**; a FAIL would
+blame the instrument for the platform. And a held write lock **is** observable (a
+standalone probe blocked a read for **5,051 ms**), but in the route path `_ensure_init()`
+runs DDL before the instrumented region and absorbs the block first, so the split cannot
+attribute it.
+
 # Conventions this programme now runs on
 
 ⛔ **Settled := `/api/health` `uptime_seconds` >= 600.** Never `/proc/uptime`, which is
@@ -809,3 +885,194 @@ as such before its number is shown.
 ⭐ **Three of these nine were inside instruments written to catch the others, and #9 was a
 rail that failed the code for getting faster.** A threshold encodes the cost of the day it
 was written; an intent does not.
+
+### Appendix addendum — Session 7 and 8
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 10 | the `cache` label | **`miss` on a request served warm**, for every `days=90` request, indefinitely | Tracing which tier actually answered instead of reading the label. `get_history` noted nothing, so the deep reader's earlier `miss` stood. ⭐ The lesson is the standing rule it produced: **a harness never asserts a label; it measures what served the request and compares.** |
+| 11 | control (c)'s threshold | **FAIL on a 13x improvement** | It required `post_reader_ms > 50`, calibrated against a 586 ms warm path the change removed. ⭐ **A control threshold is re-derived whenever the path it was calibrated against changes**; a control that passes — or fails — because the thing it measured no longer exists is a false instrument. |
+| 12 | the `merge_rows` detector (near-miss) | would have **failed the correct code** | A text search for `__enter__`/`__exit__` matches the fix's OWN comment, which exists to explain why they are not used. Caught before shipping by writing it as an AST walk — an AST cannot see a comment. This is the seventh time this repo has met that shape. |
+| 13 | the C.2 "cold cache" control | **FAIL**, apparently blaming the instrument | It cannot create its own condition on Windows: no `drop_caches`, and copying a file **writes** it into the page cache. Re-labelled **INCONCLUSIVE**. ⭐ A control that cannot establish its precondition reports INCONCLUSIVE, never FAIL — otherwise the platform's limits are recorded as the product's. |
+| 14 | the C.2 lock control, v1 | **FAIL** — "a held write lock is invisible" | `BEGIN EXCLUSIVE` does not block a WAL reader (that is what WAL is for), and `CREATE TABLE IF NOT EXISTS` on an existing table is a no-op that takes no lock at all. With `locking_mode=EXCLUSIVE` and a real `UPDATE`, a read blocked for **5,051 ms**. The instrument was never blind; the control held nothing. |
+
+⭐ **Five of the fourteen recorded false instruments were inside instruments written to
+catch the others, and three of them failed by reporting the measurer's limits as the
+subject's.** That is the argument for INCONCLUSIVE being a first-class verdict.
+
+### Appendix addendum — Session 9
+
+Nine more, and the last one is the most expensive kind: an instrument defect **inside the
+write-up of another instrument defect**.
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 15 | `/proc/self/io` deltas (`read_bytes`, `rchar`, `syscr`) | `io_rchar` ranks request time at **Spearman +0.960**, "so D-048's two-phenomena reading is superseded" | **Dividing by a physical constant.** Block-device bytes over each sample's own `rf_fetch` implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No volume delivers 3.9 GB/s, so those bytes were another thread's — the counter is **process-wide, not request-scoped**. ⭐ Window A's 0.960 was luck: its quiet samples read *exactly* 0.00 MB, so the counter was nearly clean in that window and filthy in Session 8's. The claim was withdrawn **before it was used**. |
+| 16 | the V1 flip watcher | "no boot in ~200 s → this is the STAGED case" | `railway variables --set` **did** auto-redeploy `web` — after **~4–5 minutes**. ⚠️ CLAUDE.md's procedure ("only if no boot appears within ~3 minutes, redeploy") would *also* have fired early and stacked a redeploy on top of an auto-redeploy. The dichotomy "staged vs auto-redeploy" is partly an artifact of how long the observer waited. |
+| 17 | the Railway wrapper's non-vacuity guard | `--set` **"returned NOTHING — treat as failed"** | It had **already succeeded**; a successful `--set` prints not one byte. ⭐ *"An empty result is a failed invocation"* is a rule about **reads**. Applied to a **write** it reports failure while production has already changed — the guard failing in the safe-looking direction. |
+| 18 | the same wrapper, one run earlier | `railway redeploy` → *"No linked project found"*, **and the run carried on** to report the staged case | The CLI resolves its project from the **cwd**, and it was invoked from the scratchpad. ⭐ *"An empty result is a failed invocation"* is **necessary and not sufficient** — an **error message is also non-empty output**. Check the return code, and pin the directory. |
+| 19 | window A, 25 samples, no complaint | a clean window | A foreign deploy (`587ee51b2`) landed **mid-window**; 12 of 25 samples were taken on a pod at uptime 95–411 s, racing its own boot prewarmers. Only the **per-sample `uptime`** caught it. The analyser now drops anything under the settle floor **and counts what it dropped** — an intrusion should cost samples, not silently average a booting pod into the result. |
+| 20 | window B, first launch | started sampling immediately, at uptime **71** | The settle wait lived in window A's **wrapper command**, not in `s9_window.py`; the relaunch faithfully reproduced the script and not the wrapper. ⚠️ **A precondition enforced outside the artifact is a precondition that does not travel with it.** Killed after 2 samples and restarted. |
+| 21 | the background-task status | **exit code 0** | A `FileNotFoundError` traceback — `logs/` did not exist in the scratchpad. **Third sighting in this repo** of the wrapper's exit status being uninformative, and the second where it was cheerfully zero over a run that did nothing. |
+| 22 | the A/B analyser | died mid-report with `UnicodeEncodeError` | Windows consoles decode with cp1252 and one `⛔` in an output line kills the process — the same defect that made `tools/flag_ledger_audit.py` report *"could not enumerate the project's services"*. Fixed at the **stream** (`sys.stdout.reconfigure`), never by deleting the character: stripping the marks hides the finding. |
+| 23 | ⭐⭐ **§E.4 of this session's own report** | *"Confirmed again by an unplanned natural experiment — push 05:30:52 + a ~104 s gate → pod booted 05:32:36. Same relationship, independently."* | **The ~104 s was never measured.** It was the *median* gate duration substituted for the real one. Measured, that gate took **121 s**, moving the predicted cutover to 05:32:56 and turning the "confirmation" into an **18-second contradiction**. The conclusion it propped up — that Railway holds the cutover until CI passes — is now an OPEN QUESTION with nine observations against it and one for. |
+
+⭐⭐ **#23 is the one to carry forward.** The other twenty-two were defects in code that
+measured something. This was a defect in **prose that reasoned about measurements**: a
+plausible number, never taken, inserted into a chain of argument that had already reached
+its conclusion — and it read as corroboration precisely because it agreed. **A substituted
+median is indistinguishable from a measurement once it is written down**, which is why the
+rule has to be that every number in an argument carries its provenance, not just every
+number in a table.
+
+⚠️ And it survived a review that caught #15 in the same document, an hour apart. **Finding
+one instrument defect does not put you in a state where you are finding them.**
+
+# Session 10 — the flag becomes recordable, and the gate is finally contended
+
+No measurement windows (decision 0.1): at 37 master pushes in 10.5 h, median gap 12.1 min,
+a ~26-minute window survives about one attempt in five. Everything measured here is either
+from Session 9's two windows or from a tool run on the day.
+
+## What shipped
+
+| # | what | result |
+|---|---|---|
+| **M9** | `docs/session9-record` → master | `444f747d8`, SUCCESS. Gate included an H.1 audit of the E.4 text |
+| **M10** | `breadth/flag-rename` → master | `30fd58aef`, SUCCESS |
+| **V2** | `BREADTH_OHLC_PAGECACHE_ENABLED=1`, old name unset 09:01:51Z | **zero off-window** |
+| **E2** | contention proved from a throwaway branch | **no deploy resulted** |
+
+## The three findings
+
+**1. The rename makes the ledger rail enforce the record.** `is_gate()` matches only names
+with a gate marker or ending `_ON`, so the old name was invisible and a row for it would
+have been *rot*. After the rename `needs_declaration` is True, so the repo-wide
+`test_every_off_by_default_gate_is_declared` now **fails without the row** — mutation-proved
+(1 failed, 184 passed). The flag went from unrecordable to mandatory-to-record.
+
+**2. The `master-deploy` group serialises — first contention in 41 runs.** Run B queued
+**97 s** behind run A (baseline 3–5 s; predicted 95 s). ⭐ And unplanned: a **real master
+push** from another workstream queued **47 s**, starting 5 s after B finished — proving the
+shared queue with production traffic rather than a synthetic case. ⚠️ Cost: ~43 s of delay
+to that workstream.
+
+**3. Serialising the checks is not spacing the deploys.** Three measured deploys still show
+Railway cutting over 2 s after, 18 s before and 2 s before their own gating check. Both
+things are true at once: the queue works, and it does not currently gate anything Railway
+does. That reading is a dashboard step, and it is the last thing blocking the cutover.
+
+## Two things measured that were expected to be assumptions
+
+⭐ **`railway variable set --skip-deploys` exists**, and it turned V2 from "one redeploy, or
+a gap" into **no deploy and no gap**: staging the new variable while the rename was still
+building meant the new container started with it present. `variable delete` has no such
+flag, so the unset is the one step that must cost a deploy.
+
+⭐ **`core.hooksPath` is set in the repository's shared config**, so all ~80 worktrees on
+this machine resolve to one hooks directory and the pre-push guard is in it — by
+construction, not by luck. The first draft of that answer said the opposite, from the
+correct premise that hooks are untracked.
+
+## The reader, after the flag
+
+A deep cold read at p50 is now **CPU-bound**: `derive` 76.1 + `serialise` 66.5 +
+`encode_render` 49.7 = 192 of 282 ms, with live I/O at ~16 ms (6%). At p90 it is still
+I/O: `rf_fetch` is 607 of 986 ms. The floor no I/O fix can reach is **~235 ms**
+(measured phase medians), against an observed minimum of 243.0 ms.
+
+**H5 is confirmed by counting operations rather than bytes.** Per-read-syscall cost went
+0.591–0.597 ms (OFF) to 0.822–1.369 ms (ON) — *worse* — while the count fell 8,883–14,800 to
+551–642. The flag attacked the seek count; per-seek latency is the volume's.
+
+⚠️ **Unexplained residual:** 11 of 20 settled cold reads need **zero** extra syscalls and the
+rest need 551–642. The eviction trigger is unidentified.
+
+## And the ~1 s bar is not established at p95
+
+1 of 20 ON samples exceeds 1,000 ms. **P(true p95 above the observed max) = 0.95²⁰ = 0.358**,
+and the sample max only becomes a 95% upper bound at **n ≥ 59**. ⛔ The bar is now limited by
+**measurement opportunity, not by the reader** — n ≥ 59 is ~3 clean windows ≈ 15 attempts at
+the current push rate.
+
+### Appendix addendum — Session 10
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 24 | the window harness's **`decoded_bytes`** field | the reader's `days=365` output had changed from **69,979 → 471,689 bytes**, a 6.7× regression | `s9_window.py:90` is `rec["decoded_bytes"] = len(raw)` — **a field named `decoded_bytes` holding the GZIPPED wire bytes**, because the harness sent `Accept-Encoding: gzip` and never decompressed. Measured today: raw 69,979, decompressed 471,689 — so the output is byte-identical and the *name* invented the regression. ⭐ Nothing in Session 9 is invalidated (the field was used identically in both arms), which is exactly why it survived: **a misnamed field that is used consistently is invisible until someone reads it from outside.** |
+| 25 | my own first answer to **C.a** | *"the guard protects only the checkouts somebody put it in"* — reasoned from the **correct** premise that git hooks are untracked (`git ls-files .git/hooks` = 0) | `git config --get core.hooksPath` returns the repo's shared hooks directory, and worktrees share that config — so every worktree has it **by construction**. ⭐ **A true premise reached a false conclusion because one command was never run.** The premise "hooks are not tracked" is about *git*; the question was about *this repository's configuration*, and only the second one is answerable by measurement. |
+| 26 | `git commit -m` with backticks | a commit message that read *"a service whose custom start command is ...."* | The shell **command-substituted** `` `echo … && exit 1` `` and printed `production: command not found`. The message silently lost the one detail the probe's entire safety design rests on. ⛔ Every other commit today used a quoted heredoc (`-F -`); this was the one that did not. |
+| 27 | the four-way byte-parity run | golden/OFF, golden/ON, renamed/OFF, renamed/ON — **all four identical**, sha `7695923c…` | Correct, and **structurally unable to fail in the direction that matters**: the flag changes PRAGMAs, not results, so every arm is byte-identical *by design*. A "renamed/ON" arm that was silently OFF would produce the same sha. ⭐ Recorded as a stated limit rather than discovered as a defect — the pragma read-back and the behavioural no-fallback test are what actually cover it. **A control that cannot distinguish the two cases is not evidence about either**, even when it passes. |
+
+⭐ **#25 is the one to carry.** Session 9's #23 was a number never measured. This is its
+cousin and harder to see: **a premise that was true, a chain of reasoning that was valid, and
+a conclusion that was wrong** — because the premise answered a general question about git
+while the actual question was about one repository's config. The tell is the same in both:
+a sentence that could have been checked with one command and was not.
+
+# Session 11 — the measurement becomes unattended, and one control catches three wrong designs
+
+No measurement windows (0.1). **M11 merged; M12 and M13 built, gated and HELD** — the
+deploy cadence closed the morning push window before they were ready, which is the
+operational finding of Sessions 9 and 10 arriving as a direct cost.
+
+## What shipped, and what did not
+
+| # | what | outcome |
+|---|---|---|
+| **M11** | `docs/session10-record` → master | ✅ `4a0995a52` — **refused twice** by the pre-push guard first |
+| **M12** | `breadth/sampler` | ⛔ **HELD** — branch pushed, gate green, window closed at 09:25 ET |
+| **M13** | `breadth/resident-recon` | ⛔ **HELD** — branch pushed, parity EXACT, ledger row present |
+| **S1** | Task Scheduler registration | ⛔ blocked on M12 |
+
+⭐ **The guard refusing M11 twice is the system working, and it is worth recording as a
+success rather than a delay.** Another workstream's deploy had landed 0 s earlier; the
+guard demanded 600 s of settle and got it. Session 10 named that guard as the only thing
+standing between this repo and a repeat of the 09-14 outage.
+
+## The findings
+
+**1. The hot path is 8 files, not 169 — and that is what makes unattended pooling
+possible.** Walking imports from the route reaches 169 files because the router imports the
+engine which imports auth which imports half the app. Tracing a real deep read shows eight
+execute. Thirty-one commits landed on master in one day, changed four `api/` files, and
+**none was hot** — so the sample pool survived all of them. On the import set it would have
+shattered continuously and never reached the n = 59 that p95 needs.
+
+**2. H5 is closed by counting operations.** Per-read-syscall cost went 0.591–0.597 ms (flag
+OFF) to 0.822–1.369 ms (ON) — *worse* — while the count fell 8,883–14,800 to 551–642. The
+fix attacked the seek count; per-seek latency belongs to the volume.
+
+**3. D.2 and D.3 could not both be satisfied, and the measurement decided it.** The parse
+*is* `rf_materialise`, so skipping it means holding parsed rows at 5.06× wire against a 2×
+bound. At p90 the split is `rf_fetch` 607.1 ms against `rf_materialise` 54.4 ms — so JSON
+strings capture ~90% of the tail for 23% of the memory.
+
+**4. The p95 bar closes as an engineering question.** P(true p95 above the worst read) =
+0.95²⁰ = 0.358; n ≥ 59 is required. It is limited by measurement opportunity, not by the
+reader — which is precisely what the sampler exists to remove.
+
+### Appendix addendum — Session 11
+
+| # | instrument | what it reported | what caught it |
+|---|---|---|---|
+| 28 | the hot-path tracer, v1 | **0 files executed** during a real deep read | `sys.settrace` is **per-thread** and a plain `def` FastAPI route runs in the anyio **threadpool** — this programme's own architecture note, applied to its own instrument. `threading.settrace_all_threads` fixed it. ⭐ The non-vacuity assert (`len(hit) > 3`) is the only reason this was a failure rather than an answer. |
+| 29 | the same tracer, v2 | **0 files again** | The repo root came from a Git Bash `$PWD` — `/c/Users/...` — and never matched a Windows `co_filename` of `C:\Users\...`. ⛔ Derive the root from an **imported module**, never from an argument that crossed a shell boundary. |
+| 30 | `TZ=America/New_York date` | **12:38 ET** — while UTC was also 12:38 | `TZ=` does not apply in this Git Bash; the box is on **Central**. Real answer via `zoneinfo`: **08:41 ET**. ⭐ The push guard and the sampler's refusal window both hang off this clock, and a guard reading the wrong one refuses and permits at the wrong times **while looking correct**. |
+| 31 | the resident cache's `PRAGMA data_version` check | a 0.0034 ms invalidation that never fired | Measured directly: across two external writes a **fresh** connection returned 2, 2, 2 while a **long-lived** one returned 2, 3, 4. The pragma changes only for commits by other connections *seen from a connection already open*. |
+| 32 | the `COUNT+3×MAX` signature | a correct-looking invalidation | `built_at` has **second** resolution — a rewrite inside one second with the same count and watermarks is invisible. |
+| 33 | the two-stage check | the cheapest correct-looking design of the three | When `data_version` moved but the signature looked unchanged it concluded "another table was written" and served stale rows. ⭐⭐ **A cheap check may only ever say "definitely nothing changed". The moment it says "something changed", the expensive answer must be the rebuild — not a second guess.** |
+| 34 | `git add -A` | a clean 3-file commit | It swept **two joystick docs** in. Master's HEAD is literally *"the two raw control bytes"*, so those files deliberately contain raw `\x01`, and this Windows checkout had normalised them away — the diff showed another programme's escapes silently replaced by raw bytes. `lesson_uct_dashboard_shared_worktree` says never `git add -A` in this repo. **The rule existed, I broke it, and it bit inside one commit.** |
+| 35 | the resident-copy test fixture | an **ORDER differs** failure that read as a bug in the code under test | The fixture generated `f"2026-03-{i+1:02d}"` and produced `2026-03-100`, which sorts before `2026-03-11`. ⚠️ A fixture defect that mimics exactly the class of bug the test exists to find is the most expensive kind to read. |
+
+⭐⭐ **#31, #32 and #33 are one lesson in three acts, and the act that matters is the
+third.** Each design was cheaper and each was wrong, and **a single test caught all three**:
+`test_a_write_to_the_table_is_seen_by_the_next_read`. Every other rail — absence when off,
+reuse when unchanged, byte-identity across spans, the flag stamp, the memory shape — stayed
+green against all three broken versions, because **a cache with broken invalidation returns
+rows that are correct in every respect except being current.**
+
+⚠️ And the honest note beside it: the correct answer was reached by *elimination*, not by
+design. The first version looked free and measured nothing; the second looked rigorous and
+had a hole; the third was the cleverest and served stale rows in exactly the case the
+cleverness was for.

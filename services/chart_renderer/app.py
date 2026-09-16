@@ -103,7 +103,24 @@ def safe_cid(raw: str | None) -> str:
 
 
 _URL_QUERY = re.compile(r"((?:https?|wss?)://[^\s\"'?#<>\\]+)\?[^\s\"'#<>\\]*")
-_SECRET_PARAM = re.compile(r"\b(token|secret|key|sig|signature)=[^&\s\"'<>\\]+", re.IGNORECASE)
+# ⛔ THE PREFIX HALF MATTERS: `\b(secret)=` does NOT match `CHART_RENDERER_SECRET=`, because the
+# character before SECRET is `_`, which is a word character, so there is no boundary there. An
+# env-var-shaped name therefore slipped through. No call site in this file formats `os.environ` into
+# text today, so this is DEFENCE IN DEPTH rather than a reported leak — but the shape is one line
+# away (a config error, a startup dump) and the cost of covering it now is this comment.
+# ⚠️ Each underscore-separated segment is required, so `CHART_RENDERER_SECRET=` matches while
+# `monkey=` still does not — over-redaction is safe but it teaches people to distrust the output.
+_SECRET_PARAM = re.compile(
+    r"(?:^|[^A-Za-z0-9_])((?:[A-Za-z0-9]+_)*(?:token|secret|key|sig|signature))=[^&\s\"'<>\\]+",
+    re.IGNORECASE)
+#: HEADER and DICT shapes: `X-Render-Token: v`, `'x-chart-edge-token': 'v'`, `"authorization": "v"`.
+#: ⛔ The name may be hyphenated OR underscored and may be quoted; the separator is `:` with optional
+#: quoting and whitespace either side. Group 1 is the name as written, group 2 the separator plus any
+#: opening quote, so the redacted output stays readable as the same shape it replaced.
+_SECRET_HEADER = re.compile(
+    r"([\"']?[A-Za-z0-9][A-Za-z0-9_-]*(?:token|secret|key|sig|signature|authorization)[\"']?)"
+    r"(\s*:\s*[\"']?)[^\s\"',}{)\]]+",
+    re.IGNORECASE)
 
 app = FastAPI(title="chart-renderer")
 _pw = None
@@ -159,10 +176,20 @@ def admin_token() -> str:
 
 
 def scrub(text) -> str:
-    """Every query string, and any token=/secret=/key= pair, removed from text bound for a log
-    line or a response body. Applied to exception text, which is where the URL hides."""
+    """Every query string, any token=/secret=/key= pair, and any header- or dict-shaped credential,
+    removed from text bound for a log line or a response body. Applied to exception text, which is
+    where the URL hides.
+
+    ⛔ THE THIRD SUBSTITUTION IS NEW AND IT COVERS THE SHAPE THE TOKEN ACTUALLY TRAVELS IN. The
+    render token and the chart-edge token are **headers**, not query params, and this function only
+    knew `name=value`. `X-Render-Token: <token>` and a Playwright request-header dict
+    (`{'x-chart-edge-token': '<token>'}`) both survived it untouched. Not proven reachable — the
+    header-attaching route swallows its own exception (`:338`) — but the token's own transport is
+    the least defensible thing to leave uncovered, and `page.route` hands Playwright a dict it is
+    free to quote in any future error string."""
     s = _URL_QUERY.sub(lambda m: m.group(1) + "?[redacted]", str(text))
-    return _SECRET_PARAM.sub(lambda m: m.group(1) + "=[redacted]", s)
+    s = _SECRET_PARAM.sub(lambda m: m.group(1) + "=[redacted]", s)
+    return _SECRET_HEADER.sub(lambda m: m.group(1) + m.group(2) + "[redacted]", s)
 
 
 def url_path(url: str) -> str:

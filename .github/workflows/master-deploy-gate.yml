@@ -13,9 +13,23 @@
 # no trace, and no client-side check can close that.
 #
 # ⭐ A CLIENT HOOK ASKS EVERY SESSION TO COOPERATE. This does not ask. GitHub queues
-# runs in one concurrency group, and Railway's "Wait for CI" holds the build until
-# the run for that commit passes — so two pushes three minutes apart become two
-# builds in sequence, never a swap inside somebody's request.
+# runs in one concurrency group, so two pushes three minutes apart become two gate
+# runs in sequence.
+#
+# ⚰️ THIS PARAGRAPH USED TO CONTINUE "…and Railway's 'Wait for CI' holds the build
+# until the run for that commit passes". THAT IS FALSE AND WAS FALSE WHEN WRITTEN.
+# Measured 2026-09-15 by reading the configuration: the toggle is the `checkSuites`
+# Boolean on `Environment.deploymentTriggers`, and it is **False on all six services**.
+# Railway starts building the moment the push lands, concurrently with this run.
+# `promote-production.yml`'s own header said so — eight deploys that each started
+# 99-141 s BEFORE their check suite finished — so two files in this directory
+# contradicted each other for weeks and the wrong one was the reassuring one.
+#
+# ⛔ WHAT THIS GATE ACTUALLY DOES TODAY: it serialises master pushes, and its verdict
+# decides whether `production` is PROMOTED. It does not decide whether Railway builds.
+# Until the watched branch is repointed at `production`, a RED gate still deploys —
+# measured: `beace00e0` failed this gate on 2026-09-14T19:00:49Z and Railway created a
+# `web` deployment for it in the SAME SECOND.
 #
 # ⛔ `cancel-in-progress: false` IS THE WHOLE MECHANISM. The default (`true`) cancels
 # the older run when a newer one arrives, which is exactly backwards here: it would
@@ -98,6 +112,79 @@ jobs:
           echo "scanning: $FILES"
           python tools/secret_scrub.py --scan $FILES
 
+      # ⛔⛔ THE STEP ABOVE SCANS ONE COMMIT, AND A PUSH IS NOT ONE COMMIT.
+      #
+      # `on: push` fires ONCE per push with `head_sha` = the TIP, and the scan above reads
+      # `git diff HEAD^ HEAD` — the tip's own diff. Every other commit in a multi-commit
+      # push is never scanned by any gating run.
+      #
+      # ⚰️ MEASURED 2026-09-15, not theorised. Over the 85 first-parent commits that
+      # reached `production` after this gate existed, **66** had no gate run of their own.
+      # Seven pushes carried more than one commit; one carried **18**, another **13**.
+      # A secret in commit 3 of an 18-commit push was reviewed by nothing.
+      #
+      # ⭐ ADVISORY FIRST, AND IT HEARTBEATS. It prints a line on EVERY run — including
+      # "nothing to scan" and "clean" — because a check that speaks only when it finds
+      # something cannot be distinguished from a check that never ran, and this repository
+      # has now been bitten by that shape three times in one day (an empty warn log reading
+      # as zero false positives; a pause logged only on change; this).
+      #
+      # Promotion to GATING (SD-1.1 A2.5): >= 20 runs showing `range-scan: EXECUTED` with
+      # zero findings on green tips, or the first true finding after review. Until then it
+      # must never fail the job — `|| true` on the scan, and the step is `continue-on-error`.
+      - name: Secret scan over the whole range (ADVISORY — never gates)
+        continue-on-error: true
+        run: |
+          set +e
+          # ⛔⛔ THE CHECKOUT ABOVE IS `fetch-depth: 2`. Neither `origin/production` nor the
+          # push's `before` commit is present in that clone, so EVERY git command here
+          # would fail quietly and the step would report "nothing to scan" — meeting the
+          # 20-run promotion criterion having compared nothing. Fetch first, and treat an
+          # unreachable base as INCONCLUSIVE, never as clean.
+          git fetch --no-tags --quiet --depth=200 origin production 2>/dev/null
+          git fetch --no-tags --quiet --depth=200 origin master 2>/dev/null
+
+          BASE=""
+          if git rev-parse --verify --quiet refs/remotes/origin/production >/dev/null 2>&1; then
+            BASE=origin/production
+          else
+            # Pre-cutover fallback: the push's own range.
+            CAND="${{ github.event.before }}"
+            case "$CAND" in
+              ''|0000000*) echo "range-scan: NO RANGE (github.event.before is empty or a new ref) — nothing compared"; exit 0 ;;
+              *) BASE="$CAND" ;;
+            esac
+          fi
+
+          # ⛔ THREE STATES, NOT TWO. "We could not compare" and "there was nothing to
+          # compare" are different facts, and only one of them counts toward promotion.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "range-scan: INCONCLUSIVE — base $BASE is not reachable in this clone (shallow fetch). NOT counted as clean."
+            exit 0
+          fi
+          if git merge-base --is-ancestor HEAD "$BASE" 2>/dev/null; then
+            echo "range-scan: NOTHING AHEAD — HEAD is already contained in $BASE"
+            exit 0
+          fi
+
+          echo "range-scan: base=$BASE head=$GITHUB_SHA"
+          COMMITS=$(git rev-list --first-parent "$BASE..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+          FILES=$(git diff --name-only --diff-filter=d "$BASE" HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$FILES" ]; then
+            echo "range-scan: EXECUTED  commits=$COMMITS  files=0  verdict=NOTHING-TO-SCAN"
+            exit 0
+          fi
+          echo "range-scan: EXECUTED  commits=$COMMITS  files=$(echo $FILES | wc -w | tr -d ' ')"
+          python tools/secret_scrub.py --scan $FILES
+          RC=$?
+          if [ "$RC" = "0" ]; then
+            echo "range-scan: verdict=CLEAN"
+          else
+            echo "::warning title=range-scan finding::The whole-range secret scan reported something the per-commit scan did not. ADVISORY — this did not fail the gate. Review before promoting it to gating."
+            echo "range-scan: verdict=FINDING rc=$RC"
+          fi
+          exit 0
+
       # ⛔ Two top-level definitions of one name: Python keeps the last, and every
       # call site written against the first is silently running the other. Master
       # was RED on this for a shadowed `_tokens` in wisdom extraction that had been
@@ -124,9 +211,15 @@ jobs:
       - name: Explain a failure
         if: failure()
         run: |
-          echo "::error::The master deploy gate failed — Railway will not build this commit."
+          echo "::error::The master deploy gate failed — Railway has ALREADY built this commit; production will not be promoted."
           echo ""
-          echo "This gate is FAST and serialised: it holds the deploy queue, so fix"
+          echo "⛔ READ THAT AGAIN: a red gate does NOT stop the deploy today."
+          echo "Railway's Wait-for-CI is OFF (checkSuites=False on all six services),"
+          echo "so the build started when you pushed. What this failure prevents is the"
+          echo "promotion of \`production\`. Until the watched branch is repointed at"
+          echo "\`production\`, the code IS live and a revert is a push, not a re-run."
+          echo ""
+          echo "This gate is FAST and serialised: it holds the promotion queue, so fix"
           echo "forward rather than pushing again on top of a red run."
           echo ""
           echo "Run the same checks locally:"

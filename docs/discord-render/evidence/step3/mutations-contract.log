@@ -1,0 +1,13 @@
+captured flip_preconditions.py sha256=1567cb275299bdc2 bytes=56013
+captured evidence_contract.py sha256=2fe3bb0c42716327 bytes=19436
+  CONTROL BEFORE: exit=0  TOTALS flip_preconditions --self-check PASS cases=11 mutation_failures=0 failed=0
+  M1 a VOID artifact is judged like any other: RED (good) — 1 named case(s) failed of 1
+  M2 the renderer stops mattering to S2 latency: RED (good) — 1 named case(s) failed of 1
+  M3 an UNLABELLED load model is accepted for delivery: RED (good) — 1 named case(s) failed of 1
+  M4 a chaos RIG run counts as a real one: RED (good) — 1 named case(s) failed of 1
+  M5 an INDEX no longer has to declare itself a 3.5 smoke: RED (good) — 1 named case(s) failed of 1
+  M6 NON-VACUITY: nothing is ever admitted, so no row can ever be MET: RED (good) — 2 named case(s) failed of 7
+  CONTROL AFTER: exit=0  TOTALS flip_preconditions --self-check PASS cases=11 mutation_failures=0 failed=0
+  restore verified flip_preconditions.py sha256=1567cb275299bdc2
+  restore verified evidence_contract.py sha256=2fe3bb0c42716327
+TOTALS mutation_harness_contract PASS declared=6 evaluated=6 failed=0

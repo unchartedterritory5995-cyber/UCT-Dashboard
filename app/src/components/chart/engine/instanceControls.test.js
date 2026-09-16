@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from './instanceControls'
 import { normalizeInstances, migrateLegacyToInstances, legacyInstanceId } from './instances'
 import * as engineRegistry from './nativeRegistry'
+import { resolveDisplayTarget } from './displayTarget'
 import { mergeChartSettings } from '../chartDefaults'
 
 const R = engineRegistry
@@ -27,18 +28,47 @@ describe('setIndicatorEnabled — the instance AND the mirror, always both', () 
     expect(next.indicators.rsi.enabled).toBe(true)
   })
 
-  it('…and the instance is BYTE-IDENTICAL to the one the migrator would make', () => {
-    // The read-time migrator runs on every paint after Flip B, so a control that
-    // built a DIFFERENT instance shape would make "did the user add this or did
-    // the migrator?" observable — and `inputsSignature` keys the binder's pool on
-    // exactly these bytes, so a difference is a series churn (#2049) too.
+  it('…and the instance the migrator makes differs ONLY by the legacy restatement', () => {
+    // ⚰️ 2026-09-15 — THIS RAIL USED TO DEMAND BYTE-IDENTITY, AND THE TWO PATHS
+    // NOW LEGITIMATELY DIVERGE BY ONE KEY. `placementFor` stopped stamping a
+    // RESTATEMENT of the definition's declared target onto instances it creates
+    // (see its header): that byte expressed no user intent and could not be told
+    // apart from one that did. The MIGRATOR still writes it, deliberately —
+    // rewriting what it emits would change the merged bytes of charts already
+    // saved, which is the persistence sweep this task is forbidden to do.
+    // MEASURED: 13 restatement blocks would have vanished from the captured
+    // production fixtures, 0 lines added.
+    //
+    // ⛔ BOTH OF THE ORIGINAL CONCERNS WERE RE-MEASURED AND DO NOT APPLY:
+    //   · "a series churn, because `inputsSignature` keys the pool on these bytes"
+    //     — `binder.inputsSignature(inputs)` is handed `inputs` ALONE and never
+    //     sees `placement`, so the pool cannot notice.
+    //   · "the migrator runs on every paint, so the shape would flip" — it
+    //     CLONES the existing instances and only APPENDS what the legacy toggles
+    //     still need, so it never overwrites a control-made instance.
+    //
+    // ⭐⭐ SO THE INVARIANT IS RESTATED AS THE ONE THAT ACTUALLY MATTERS: the two
+    // paths must put the indicator in the SAME PLACE, and may differ only by the
+    // key the resolver is documented to ignore. That is strictly stronger than
+    // byte-equality for this purpose — byte-equality would pass two instances that
+    // agreed on the wrong destination.
     const cs = base()
     const viaControl = setIndicatorEnabled(cs, 'rsi', true, R).indicatorInstances
       .find(i => i.defId === 'rsi')
-    const viaMigrator = migrateLegacyToInstances(
-      { ...cs, indicators: { ...cs.indicators, rsi: { ...cs.indicators.rsi, enabled: true } } }, R,
-    ).find(i => i.defId === 'rsi')
-    expect(JSON.stringify(viaControl)).toBe(JSON.stringify(viaMigrator))
+    const enabled = { ...cs, indicators: { ...cs.indicators, rsi: { ...cs.indicators.rsi, enabled: true } } }
+    const viaMigrator = migrateLegacyToInstances(enabled, R).find(i => i.defId === 'rsi')
+
+    const { placement: pControl, ...restControl } = viaControl
+    const { placement: pMigrator, ...restMigrator } = viaMigrator
+    expect(JSON.stringify(restControl), 'the two paths disagree about something REAL')
+      .toBe(JSON.stringify(restMigrator))
+    expect(pControl, 'the control is stamping a restatement again').toBeUndefined()
+    expect(pMigrator, 'the migrator stopped restating — that rewrites saved charts')
+      .toEqual({ target: R.getDefinition('rsi').placement.target })
+
+    // ⭐ AND THEY LAND IN THE SAME PANE, which is the whole point of the pairing.
+    const where = (i) => resolveDisplayTarget(i, enabled)
+    expect(where(viaControl)).toBe(where(viaMigrator))
   })
 
   it('…including the VOLUME-OVERLAY placement, which is a placement fact in the blob', () => {

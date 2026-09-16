@@ -42,10 +42,67 @@ def _db_path() -> str:
     return local
 
 
+#: ⛔ DEFAULT OFF IN CODE, ON in production since 2026-09-15 (Session 9 V1, D-049).
+#: Unset or anything but 1/true/yes/on leaves the connection exactly as it has always been
+#: opened. It shipped as an experiment with a measurement attached; the measurement came
+#: back x9.05 on the deep-read tail, so the flag is now a live setting with a record.
+#:
+#: ⚰️ THE NAME CARRIES THE `_ENABLED` SUFFIX FOR A REASON, AND IT IS NOT STYLE.
+#: `feature_flag_index.is_gate()` matches only names containing a gate marker or ending
+#: `_ON`, so the previous name `BREADTH_OHLC_PAGECACHE` was invisible to the flag ledger:
+#: it could not be given a row (the row would have been classed as rot by
+#: `test_the_ledger_does_not_describe_gates_that_no_longer_exist` and would have turned the
+#: master deploy gate red). That is the same two-reason blindness that let
+#: `DESK_PUBLIC_SHOWS` sit on a wildcard for 25 days while it published 27 paid sessions.
+#: Renaming it is what makes `test_every_off_by_default_gate_is_declared` REQUIRE the
+#: ledger row — the rail now enforces the record instead of being unable to see it.
+#:
+#: ⛔ NO FALLBACK TO THE OLD NAME. A fallback would be a second authority over one value:
+#: two variables could disagree and the loser would be invisible. `tests/
+#: test_breadth_pagecache_flag.py` fails if the old name is read anywhere under api/.
+def _pagecache_on() -> bool:
+    return (os.environ.get("BREADTH_OHLC_PAGECACHE_ENABLED", "").strip().lower()
+            in ("1", "true", "yes", "on"))
+
+
+#: 64 MB against a 39.9 MB file. The table grows ~251 rows/yr at ~995 B/row = 0.24 MB/yr,
+#: so this is ~101 years of headroom — sized from the measured growth, not guessed.
+_MMAP_BYTES = 67108864
+#: Negative = KiB. 16 MB, for the reason in `_apply_pagecache`.
+_CACHE_KIB = -16000
+
+
+def _apply_pagecache(c: sqlite3.Connection) -> None:
+    """The H1 experiment: map the file, and give the connection a cache big enough to
+    survive its own 12 statements.
+
+    ⭐ WHAT EACH ONE CAN AND CANNOT DO, because the difference decides what the
+    measurement is allowed to claim:
+
+    `mmap_size` turns page reads into memory accesses **when the OS page cache is warm**.
+    It does NOT remove the 4,700 lookups, it does NOT stop the OS evicting those pages
+    under memory pressure, and it therefore does NOT fix the ordinary 3-12x range. It
+    attacks exactly one thing: the tail, where a request read 540,057,600 bytes — 12.9x
+    the whole file — because every evicted page came back through a syscall.
+
+    `cache_size` does NOT persist across requests: ⛔ this module opens a connection per
+    call and closes it, so the connection's cache is allocated and freed inside one
+    request. But **one request issues 12 chunked statements over ~4.5 MB**, and the
+    default is `-2000` — a 2 MB cache, ~500 pages. Pages read by chunk 1 are evicted
+    before chunk 8 needs them again. So it is expected to matter WITHIN a request and
+    not at all BETWEEN them, and the measurement should show exactly that shape.
+    """
+    if not _pagecache_on():
+        return
+    c.execute(f"PRAGMA mmap_size={_MMAP_BYTES}")
+    c.execute(f"PRAGMA cache_size={_CACHE_KIB}")
+
+
 def _conn() -> sqlite3.Connection:
     c = sqlite3.connect(_db_path(), timeout=5.0)
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA busy_timeout=3000")
+    _apply_pagecache(c)
     return c
 
 
@@ -401,12 +458,140 @@ def build_reconstructed(dates, c=None) -> int:
             return 0
 
 
+#: ⛔ DEFAULT OFF, ledger-visible from birth (the `_ENABLED` suffix is what makes
+#: feature_flag_index.is_gate() see it at all — see the note on the page-cache flag).
+def _resident_recon_on() -> bool:
+    return (os.environ.get("BREADTH_RESIDENT_RECON_ENABLED", "").strip().lower()
+            in ("1", "true", "yes", "on"))
+
+
+#: The resident copy: {date: metrics JSON STRING}, plus the signals it was built at.
+#: One per process. Module-level because the web pod is ONE uvicorn process, which is
+#: the same assumption `sync._locks` and the live-price cache already make.
+_RESIDENT: dict = {"rows": None, "built_ms": None, "data_version": None}
+_RESIDENT_LOCK = threading.Lock()
+#: ⛔ A LONG-LIVED connection used for NOTHING BUT `PRAGMA data_version`. It has to be
+#: long-lived or the pragma is meaningless (see `_resident_rows`), and it is kept
+#: separate from the per-call read connections so it never holds a read transaction.
+#: `check_same_thread=False` because a plain `def` route runs in the anyio threadpool;
+#: every use is inside `_RESIDENT_LOCK`, so it is never touched concurrently.
+_PROBE: dict = {"conn": None, "path": None}
+
+
+def _probe_data_version():
+    """The current `data_version`, or None if a probe cannot be established.
+
+    ⛔ None means "cannot tell", and the caller must then fall through to the signature
+    rather than treat it as "unchanged" — an unknown is not a match.
+    """
+    path = _db_path()
+    try:
+        if _PROBE["conn"] is None or _PROBE["path"] != path:
+            if _PROBE["conn"] is not None:
+                try:
+                    _PROBE["conn"].close()
+                except Exception:
+                    pass
+            c = sqlite3.connect(path, timeout=5.0, check_same_thread=False)
+            c.execute("PRAGMA journal_mode=WAL")
+            _PROBE.update({"conn": c, "path": path})
+        return _PROBE["conn"].execute("PRAGMA data_version").fetchone()[0]
+    except Exception:
+        _PROBE.update({"conn": None, "path": None})
+        return None
+
+
+def _resident_rows():
+    """Return {date: metrics-json} or None when the flag is off.
+
+    ⚰️ THE FIRST VERSION USED `PRAGMA data_version` AS A 0.0034 ms PRE-CHECK AND IT WAS
+    MEASURING NOTHING. That pragma only changes for commits made on OTHER connections, as
+    observed from a connection that was ALREADY OPEN — and this module opens a connection
+    per call, so a fresh one has no prior value to differ from. Measured directly: across
+    two external writes a fresh connection returned 2, 2, 2 while a long-lived one
+    returned 2, 3, 4. The cache would have served stale rows forever.
+
+    ⭐ `test_a_write_to_the_table_is_seen_by_the_next_read` is what caught it, and it is
+    the only test that would have. Every other rail here passed against the broken
+    version, because a cache with no invalidation returns correct-LOOKING rows.
+
+    ⛔ AND THE SIGNATURE ALONE IS NOT SUFFICIENT EITHER — the same test proved that too.
+    `built_at` has SECOND resolution, so a rewrite inside one second with the same row
+    count and the same watermarks is invisible to it. That is a narrow hole in production
+    and a trivial one in a test, and a stale read is a correctness fault at any width.
+
+    ⚰️ AND A TWO-STAGE VERSION WAS WRONG TOO, which the same test caught a third time.
+    It used `data_version` as a cheap pre-check and the SIGNATURE as the authority: if the
+    version moved but the signature looked unchanged, it concluded "some other table was
+    written" and kept the rows. But the signature CANNOT prove this table did not change —
+    `built_at` has second resolution — so that branch served stale rows exactly when it
+    mattered. ⭐ A cheap check may only ever say "definitely nothing changed"; the moment
+    it says "something changed", the expensive answer has to be the rebuild, not a second
+    guess.
+
+    So: `data_version` ALONE, on a long-lived probe connection.
+      - unchanged  => no connection has committed anything => the rows are current. Exact,
+                      not heuristic: the pragma cannot miss a commit.
+      - changed    => rebuild (46 ms). Sometimes unnecessary — the breadth OHLC pull
+                      writes this file every 120 s — but the amortised cost is one 46 ms
+                      rebuild per write, with every request in between at 0.0034 ms.
+      - unknown    => rebuild. An unknown is not a match.
+    """
+    if not _resident_recon_on():
+        return None
+    import time as _t
+    c = _conn()
+    try:
+        with _RESIDENT_LOCK:
+            dv = _probe_data_version()
+            if (_RESIDENT["rows"] is not None and dv is not None
+                    and _RESIDENT["data_version"] == dv):
+                return _RESIDENT["rows"]
+            t0 = _t.perf_counter()
+            rows = {d: m for d, m in
+                    c.execute("SELECT date, metrics FROM breadth_reconstructed_daily")}
+            _RESIDENT.update({"rows": rows, "data_version": dv,
+                              "built_ms": round((_t.perf_counter() - t0) * 1000.0, 1)})
+            return rows
+    finally:
+        c.close()
+
+
 def reconstructed_for_dates(dates) -> tuple:
     """`({date: row}, misses)` read from the materialised table. No derivation."""
     ds = [d for d in dates if d]
     if not ds:
         return {}, 0
     _ensure_init()
+
+    # ── the resident path ───────────────────────────────────────────────────
+    # ⛔ IT HOLDS JSON STRINGS, NOT PARSED ROWS, AND THAT IS A MEASURED TRADE, NOT AN
+    # OVERSIGHT. Parsed rows would also remove `rf_materialise`, but measured on all
+    # 4,700 rows they cost 22,909,972 B = 5.06x the wire bytes, against 5,214,625 B =
+    # 1.15x for the strings. The standing memory bound is 2x wire, so the parsed form
+    # is not available. ⭐ And it buys little where it matters: at p90 the split is
+    # rf_fetch 607.1 ms against rf_materialise 54.4 ms, so the strings capture ~90% of
+    # the tail for 23% of the memory. The parse stays on the request path.
+    res = _resident_rows()
+    if res is not None:
+        from api.services import breadth_timing as _bt
+        import time as _t
+        t0 = _t.perf_counter()
+        out = {}
+        nbytes = 0
+        for d in ds:
+            mj = res.get(d)
+            if mj is not None:
+                nbytes += len(mj)
+                out[d] = json.loads(mj)
+        _bt.add_phase("rf_materialise", (_t.perf_counter() - t0) * 1000.0)
+        _bt.note(rf_rows=len(out), rf_bytes=nbytes, rf_busy_retries=0, rf_stmts=0,
+                 rf_stmt_min=0.0, rf_stmt_max=0.0, rf_stmt_sum=0.0,
+                 rf_resident=1, rf_resident_rows=len(res),
+                 rf_resident_build_ms=_RESIDENT["built_ms"],
+                 rf_pagecache=1 if _pagecache_on() else 0)
+        return out, len(ds) - len(out)
+
     out = {}
     # ⭐ SPLIT BECAUSE "VOLUME I/O" IS A HYPOTHESIS, NOT A MEASUREMENT. Session 7
     # showed this phase moving 50.2x while `derive` (pure CPU) moved 1.0x. That
@@ -419,6 +604,10 @@ def reconstructed_for_dates(dates) -> tuple:
     rows = 0
     nbytes = 0
     busy_retries = 0
+    stmts = 0
+    st_min = None
+    st_max = None
+    st_sum = 0.0
     try:
         t0 = _t.perf_counter()
         c = _sq.connect(_db_path(), timeout=5.0)
@@ -426,7 +615,14 @@ def reconstructed_for_dates(dates) -> tuple:
         t0 = _t.perf_counter()
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA busy_timeout=3000")
+        _apply_pagecache(c)
         _bt.add_phase("rf_pragma", (_t.perf_counter() - t0) * 1000.0)
+        # ⛔ The connection is opened HERE and closed in the `finally` below — there is
+        # no pooling and no thread-local anywhere in this module. `rf_conn_reused` is
+        # therefore always 0 today; it exists so that if connection reuse ever lands,
+        # the measurement can tell the two regimes apart instead of being re-derived.
+        _bt.note(rf_conn_id=id(c) & 0xFFFFFF, rf_conn_reused=0,
+                 rf_pagecache=1 if _pagecache_on() else 0)
         try:
             for i in range(0, len(ds), 400):
                 chunk = ds[i:i + 400]
@@ -445,10 +641,21 @@ def reconstructed_for_dates(dates) -> tuple:
                     if "locked" in str(e).lower() or "busy" in str(e).lower():
                         busy_retries += 1
                     raise
-                _bt.add_phase("rf_execute", (_t.perf_counter() - t0) * 1000.0)
+                _st = (_t.perf_counter() - t0) * 1000.0
+                _bt.add_phase("rf_execute", _st)
                 t0 = _t.perf_counter()
                 got = cur.fetchall()
-                _bt.add_phase("rf_fetch", (_t.perf_counter() - t0) * 1000.0)
+                _fe = (_t.perf_counter() - t0) * 1000.0
+                _bt.add_phase("rf_fetch", _fe)
+                # ⛔ min/max/sum, NOT twelve fields. The [breadth-timing] buffer is ~500
+                # lines / ~10 minutes and a line per chunk would push the useful line out
+                # of it. Three numbers answer the question a per-chunk dump would: is one
+                # statement pathological, or are all twelve uniformly slow?
+                stmts += 1
+                _one = _st + _fe
+                st_min = _one if st_min is None else min(st_min, _one)
+                st_max = _one if st_max is None else max(st_max, _one)
+                st_sum += _one
                 t0 = _t.perf_counter()
                 for (d, mj) in got:
                     nbytes += len(mj)
@@ -458,9 +665,15 @@ def reconstructed_for_dates(dates) -> tuple:
         finally:
             c.close()
     except Exception:
-        _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries)
+        _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries,
+                 rf_stmts=stmts, rf_stmt_min=round(st_min or 0.0, 3),
+                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1),
+                 rf_resident=0)
         return {}, len(ds)
-    _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries)
+    _bt.note(rf_rows=rows, rf_bytes=nbytes, rf_busy_retries=busy_retries,
+                 rf_stmts=stmts, rf_stmt_min=round(st_min or 0.0, 3),
+                 rf_stmt_max=round(st_max or 0.0, 3), rf_stmt_sum=round(st_sum, 1),
+                 rf_resident=0)
     return out, 0
 
 

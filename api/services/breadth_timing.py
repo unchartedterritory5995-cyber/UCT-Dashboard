@@ -128,7 +128,8 @@ def finish(total_ms: float, wire_bytes: int) -> dict:
                 "[breadth-timing] span=%s rows=%s cache=%s tier=%s coalesced=%s "
                 "reader_ms=%.1f post_reader_ms=%.1f total_ms=%.1f wire_bytes=%s "
                 "rss_before_mb=%s rss_after_mb=%s | READER %s (sum=%s residual=%s) "
-                "| POST %s (sum=%s residual=%s) | FETCH %s rows=%s bytes=%s busy=%s io=%s",
+                "| POST %s (sum=%s residual=%s) | FETCH %s rows=%s bytes=%s busy=%s io=%s "
+                "stmts=%s stmt_min=%s stmt_max=%s pgcache=%s",
                 rec.get("span"), rec.get("rows"), rec.get("cache"),
                 rec.get("cache_tier") or "unset", rec.get("coalesced"),
                 reader_ms, rec["post_reader_ms"], total_ms, wire_bytes,
@@ -138,6 +139,8 @@ def finish(total_ms: float, wire_bytes: int) -> dict:
                 _phase_str(rec, FETCH_PHASES),
                 rec.get("rf_rows", "absent"), rec.get("rf_bytes", "absent"),
                 rec.get("rf_busy_retries", "absent"), _io_str(rec),
+                rec.get("rf_stmts", "absent"), rec.get("rf_stmt_min", "absent"),
+                rec.get("rf_stmt_max", "absent"), rec.get("rf_pagecache", "absent"),
             )
     except Exception:
         pass
@@ -152,9 +155,9 @@ def _io_str(rec) -> str:
     which is a claim, not a measurement.
     """
     a, b = rec.get("io_before"), rec.get("io_after")
-    if not a or not b:
+    if not a or not b or len(a) < 3 or len(b) < 3:
         return "unreadable"
-    return "rb+%d/rchar+%d" % (b[0] - a[0], b[1] - a[1])
+    return "rb+%d/rchar+%d/syscr+%d" % (b[0] - a[0], b[1] - a[1], b[2] - a[2])
 
 
 def _fmt(v):
@@ -174,14 +177,17 @@ def server_timing(rec: dict) -> str:
             v = ((rec or {}).get("phases") or {}).get(n)
             if v is not None:
                 parts.append(f"{n};dur={_phase_dur(v)}")
-        for k in ("rf_rows", "rf_bytes", "rf_busy_retries"):
+        for k in ("rf_rows", "rf_bytes", "rf_busy_retries", "rf_stmts",
+                  "rf_stmt_min", "rf_stmt_max", "rf_stmt_sum", "rf_pagecache",
+                  "rf_conn_reused"):
             v = (rec or {}).get(k)
             if v is not None:
                 parts.append(f"{k};dur={float(v):.1f}")
         a, b = (rec or {}).get("io_before"), (rec or {}).get("io_after")
-        if a and b:
+        if a and b and len(a) >= 3 and len(b) >= 3:
             parts.append(f"io_read_bytes;dur={float(b[0] - a[0]):.1f}")
             parts.append(f"io_rchar;dur={float(b[1] - a[1]):.1f}")
+            parts.append(f"io_syscr;dur={float(b[2] - a[2]):.1f}")
         return ", ".join(parts)
     except Exception:
         return ""
@@ -246,14 +252,16 @@ def io_counters() -> tuple[int, int] | None:
     false-instrument shape this programme keeps catching.
     """
     try:
-        rb = rc = None
+        rb = rc = sc = None
         with open("/proc/self/io", "r", encoding="ascii") as fh:
             for line in fh:
                 if line.startswith("read_bytes:"):
                     rb = int(line.split()[1])
                 elif line.startswith("rchar:"):
                     rc = int(line.split()[1])
-        return (rb, rc) if rb is not None and rc is not None else None
+                elif line.startswith("syscr:"):
+                    sc = int(line.split()[1])
+        return (rb, rc, sc) if None not in (rb, rc, sc) else None
     except Exception:
         return None
 
