@@ -111,9 +111,24 @@ discovery unchanged · **ingest-first-pass-only** · R50 rail still passes · R5
    yesterday's passes. This is the R56 regression, and `tests/test_wisdom_gate_runs_root.py`
    already covers the resolution half.
 
-## Status
+## Status — BUILT (2026-09-15)
 
-**NOT BUILT.** R56 (the root), R53 (the budget knob) and R52 (the force guard) are the three
-preconditions and all three are committed. What remains is the pass loop, the two new columns, and
-the tests above. ⚠️ It is not on the critical path for lighting INGEST: EXTRACT stays dark, and
-with EXTRACT dark this code never runs.
+✅ Built and committed. `npass_count()` (default 3), the pass loop in `run_daily`, the
+`extract_003` migration (`pass_index`, `run_id` — additive, nullable), `run_records.py` writing
+the R12 layout at reap time under the R56 volume root, ingest-first-pass-only, and
+`touch_segment` so a pass that keeps nothing still records the segment.
+
+⛔⛔ **THE TEST THAT MATTERS MOST EXISTS BECAUSE THE FIRST ONES WERE VACUOUS.** Dropping the real
+salt from `run_daily` and re-running the new test file gave **21 passed**: the salt tests called
+`custom_id_for` with salts they supplied themselves, so they proved the FUNCTION salts and said
+nothing about whether the CALLER does. That is exactly the silent no-op this document predicted,
+and it was live in the test suite for an hour.
+`test_run_daily_ACTUALLY_sends_three_distinct_requests_per_segment` drives the real `run_daily`
+against the real submit path and counts what reached the API. With the mutation applied, it fails.
+
+Mutation-proved twice: drop the per-pass salt → the end-to-end test reds; make every pass ingest
+→ the ingest-once test reds. Suite: **1,327 passed · 1 skipped · 0 failed**.
+
+⚠️ **Still dark.** EXTRACT is unset, so none of this executes. What remains before a first
+EXTRACT night: the budget check wired into the reservation loop (the knob exists; the per-batch
+assertion does not), and one INGEST night observed.
