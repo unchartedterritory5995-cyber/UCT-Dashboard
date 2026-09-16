@@ -167,6 +167,16 @@ def read_approval(text: str):
     if len(blanks) == 1:
         return UNSIGNED, "1 block awaiting a fingerprint (%d of %d signed)" % (
             len(ats) - 1, len(ats))
+    # ⛔ K CP6 — A SIGNED BLOCK WITH A BLANK SCOPE IS MALFORMED, NOT SIGNED.
+    # ⭐ This is the same refusal the reader already makes about a missing approver, applied
+    # to the field that says WHAT was approved. A scope-less approval reads as a full one to
+    # anything that greps for the hash — the packet says a person approved something and
+    # does not say what — and three blocks in this tree are already in that state.
+    scopes = _SCOPE_LINE.findall(text)
+    empty = [i for i, s in enumerate(scopes) if not s.strip()]
+    if len(scopes) == len(ats) and empty:
+        return MALFORMED, ("%d block(s) carry a fingerprint with a BLANK `SCOPE APPROVED:` "
+                           "- an approval that does not say what was approved" % len(empty))
     return SIGNED, "all %d block(s) carry a fingerprint" % len(ats)
 
 
@@ -246,6 +256,68 @@ def fingerprint(text: str, span=None) -> str:
     return hash_object(blank_span(text, span))[:9]
 
 
+#: A checkpoint id, in every spelling this tree actually uses: `CP1`, `E CP25`, `A-CP1`,
+#: `T2 CP1`. ⛔ Hyphen and space are the SAME character here — `packet-a` writes `A CP1` in
+#: its heading and the manifest writes `A-CP1`, and a deriver that told them apart would
+#: refuse a legitimate row and stop the signing session at it.
+_CP_ID = r"[A-Z][A-Z0-9]*[- ]?CP\d+|CP\d+"
+
+
+#: ⚠️ These use RAW STRINGS, unlike `_H` above, which is built from `chr(92)` because this
+#: file has twice been pasted through a heredoc that collapsed its backslashes. These were
+#: written with an editor that writes exact bytes; the self-check below is what proves it.
+_WS_RUN = re.compile(r"[-\s]+")
+_CP_TAIL = re.compile(r"CP\d+$")
+_CP_TABLE_ROW = re.compile(r"^\|\s*\**\s*(" + _CP_ID + r")\s*\**\s*\|", re.M)
+_UNIT_LINE = re.compile(r"^unit:[ \t]*(.+)$", re.M)
+
+
+def _norm_cp(s: str) -> str:
+    return _WS_RUN.sub(" ", s.strip().upper())
+
+
+def _cp_forms(tok: str) -> set:
+    """Both spellings a manifest row may use: the full id, and its bare `CPnn` tail.
+
+    ⛔ `E CP25` has to satisfy a row that says `CP25` (build records write the bare form)
+    AND one that says `E CP25`. Measured against all 38 rows before this shipped.
+    """
+    n = _norm_cp(tok)
+    out = {n}
+    m = _CP_TAIL.search(n)
+    if m:
+        out.add(m.group(0))
+    return out
+
+
+def declared_checkpoints(text: str):
+    """(the checkpoint ids this packet declares, which evidence said so).
+
+    ⭐ **STRONGEST AVAILABLE EVIDENCE, WITH THE WEAKER MODE NAMED.** `declared` means the
+    ids came from the packet's own `unit:` line or the first cell of its checkpoint table —
+    35 of the 38 rows. `prose` means the packet has neither and declares its checkpoint in a
+    heading or a sentence — measured, exactly 3 do (`packet-a-absent-bound-gate`,
+    `packet-t-stale-test-gate`, and packet A's sibling), and a deriver that refused them
+    would have stopped the session at its first row.
+
+    ⛔ The mode is RETURNED, never swallowed: a caller that cannot tell a table from a
+    sentence is asserting something it did not measure.
+    """
+    strong = set()
+    m = _UNIT_LINE.search(text)
+    if m:
+        for t in re.findall(_CP_ID, m.group(1)):
+            strong |= _cp_forms(t)
+    for mm in _CP_TABLE_ROW.finditer(text):
+        strong |= _cp_forms(mm.group(1))
+    if strong:
+        return strong, "declared"
+    weak = set()
+    for t in re.findall(_CP_ID, text):
+        weak |= _cp_forms(t)
+    return weak, "prose"
+
+
 def rederive_signed(text: str, span) -> str:
     """The fingerprint a SIGNED block should carry, recomputed from the file.
 
@@ -279,14 +351,68 @@ def rederive_signed(text: str, span) -> str:
     # construction, which is the property that matters.
     t = re.sub("^APPROVED BY:" + _FILLED + "$", "APPROVED BY:", t, count=1, flags=re.M)
     t = re.sub("^APPROVED ON:" + _FILLED + "$", "APPROVED ON:", t, count=1, flags=re.M)
+    # ⛔ K CP6: the SCOPE is now written by `sign()` too, and it is hashed BEFORE that write
+    # (the fingerprint pins the bytes the owner READ — an empty block). So the reader must
+    # blank all FOUR written fields, or every packet this tool signs stops re-deriving the
+    # day the scope starts being filled in.
+    # ⚠️ This is correct for a packet THIS TOOL signed. A historical packet whose scope was
+    # hand-written BEFORE signing had that text inside its hash; re-derive those with
+    # `fingerprint(text, span)` instead.
+    t = re.sub("^SCOPE APPROVED:" + _FILLED + "$", "SCOPE APPROVED:", t, count=1, flags=re.M)
     return hash_object(t)[:9]
 
 
+#: an UNSIGNED scope line — the one this signer writes into
+_SCOPE_BLANK = re.compile(r"^SCOPE APPROVED:[ \t]*$", re.M)
+#: any scope line, filled or not; group(1) is the value
+_SCOPE_LINE = re.compile(r"^SCOPE APPROVED:[ \t]*([^\n]*)$", re.M)
+
+REFUSED_BLANK_SCOPE, REFUSED_UNDECLARED_SCOPE, REFUSED_NO_SCOPE_LINE = 2, 3, 4
+
+
 def sign(path: pathlib.Path, by: str, on: str, scope: str) -> str:
+    """Write the approval block. ⛔ **THE SCOPE IS WRITTEN, AND IT IS CHECKED FIRST.**
+
+    ⚰️⚰️ **K CP6 — `scope` WAS ACCEPTED AND NEVER READ.** From this function's first
+    version until 2026-09-15 the argument was dropped on the floor: `sign_all` composed a
+    scope per row, wrote it to `.scopes/*.txt`, passed `--scope-file`, and the packet came
+    out with a **blank** `SCOPE APPROVED:` line. Proved by AST, with `by` and `on` as the
+    positive control. **Three signed blocks in this tree already look like that**, and 38
+    more were one command away.
+
+    ⭐ **A blank scope is not a small defect**: `read_approval` answers SIGNED on the AT SHA
+    line alone, so a scope-less approval reads as a full one — the packet says a person
+    approved something and does not say what.
+
+    ⛔ **REFUSALS COME BEFORE ANY READ OF A SPAN, so nothing is written on a bad scope:**
+      2  the scope is blank or whitespace
+      3  the scope names no checkpoint this packet declares (`declared_checkpoints`)
+      4  the block has no BLANK `SCOPE APPROVED:` line to write into — refusing rather than
+         letting `re.sub` no-op, which is exactly the silent drop this checkpoint removes.
+    """
     t = path.read_text(encoding="utf-8")
     if not _AT_LINE.search(t):
         raise SystemExit(f"⛔ no APPROVED AT SHA line in {path.name}")
+
+    one_line = " ".join((scope or "").split())
+    if not one_line:
+        print("⛔ %s: a signature needs a SCOPE naming a checkpoint. Nothing was written."
+              % path.name)
+        raise SystemExit(REFUSED_BLANK_SCOPE)
+    declared, mode = declared_checkpoints(t)
+    named = re.findall(_CP_ID, one_line)
+    hit = [tok for tok in named if _cp_forms(tok) & declared]
+    if not hit:
+        print("⛔ %s: the scope %r names no checkpoint this packet declares (%s: %s). "
+              "Nothing was written."
+              % (path.name, one_line[:60], mode, ", ".join(sorted(declared)) or "none"))
+        raise SystemExit(REFUSED_UNDECLARED_SCOPE)
+
     span = target_span(t)
+    if not _SCOPE_BLANK.search(t, span[0]):
+        print("⛔ %s: no BLANK `SCOPE APPROVED:` line after the block being signed, so the "
+              "scope could not be written. Nothing was written." % path.name)
+        raise SystemExit(REFUSED_NO_SCOPE_LINE)
     fp = fingerprint(t, span)
     # ⚠️ Normalise the padding rather than preserving whatever was there: an
     # UNSIGNED block has zero spaces after the colon, so preserving it produced
@@ -297,6 +423,18 @@ def sign(path: pathlib.Path, by: str, on: str, scope: str) -> str:
     t = t[:lo] + "APPROVED AT SHA:  " + fp + t[hi:]
     t = re.sub("^APPROVED BY:" + _H + "$", "APPROVED BY:      " + by, t, count=1, flags=re.M)
     t = re.sub("^APPROVED ON:" + _H + "$", "APPROVED ON:      " + on, t, count=1, flags=re.M)
+    # ⛔ THE SCOPE IS SPLICED BY SPAN, into the blank line belonging to THE BLOCK BEING
+    # SIGNED — not by `re.sub(count=1)`, which writes the FIRST blank line in the file and
+    # would put this block's scope on a different block's. Same defect as the 2026-09-13
+    # fingerprint loss, one field along.
+    # ⚠️ Anchored on the AT SHA line AS IT NOW STANDS, not on `lo`: the BY and ON writes
+    # happen EARLIER in the block and lengthen the text before it, so `lo` no longer points
+    # where it did. Re-finding the line we just wrote is the only offset that survives.
+    here = t.find("APPROVED AT SHA:  " + fp)
+    ms = _SCOPE_BLANK.search(t, here if here >= 0 else lo)
+    if ms is None:                      # pragma: no cover - guarded above, kept honest
+        raise SystemExit(REFUSED_NO_SCOPE_LINE)
+    t = t[:ms.start()] + "SCOPE APPROVED:   " + one_line + t[ms.end():]
     path.write_text(t, encoding="utf-8")
     return fp
 
@@ -339,13 +477,17 @@ def main() -> int:
         # That is the shape every real packet has, and it is the shape that lets a
         # newline-crossing character class walk BACKWARDS out of the field as well
         # as forwards. A fixture without it tests an easier document than exists.
-        empty = chr(10).join(["# packet", "", "## APPROVAL", "", "```", "",
+        # ⛔ K CP6: the fixture now DECLARES a checkpoint, because the signer refuses a
+        # scope the packet does not declare. A fixture that declared none would only ever
+        # exercise the refusal and never the write.
+        empty = chr(10).join(["---", "unit: CP1", "---", "",
+                              "# packet", "", "## APPROVAL", "", "```", "",
                               "APPROVED BY:", "APPROVED ON:", "APPROVED AT SHA:",
                               "SCOPE APPROVED:", "```", ""])
         d = tempfile.mkdtemp()
         pp = pathlib.Path(d) / "g.md"
         pp.write_text(empty, encoding="utf-8")
-        sign(pp, "SOMEBODY", "2026-01-01", "")
+        sign(pp, "SOMEBODY", "2026-01-01", "CP1 ONLY")
         out = pp.read_text(encoding="utf-8")
         for field in ("APPROVED BY:", "APPROVED ON:", "APPROVED AT SHA:",
                       "SCOPE APPROVED:"):
@@ -384,11 +526,11 @@ def main() -> int:
             "SCOPE APPROVED:   CP3", "```", "",
             "## third", "", "```",
             "APPROVED BY:", "APPROVED ON:", "APPROVED AT SHA:",
-            "SCOPE APPROVED:   CP3 discharge", "```", ""])
+            "SCOPE APPROVED:", "```", ""])
         d2 = tempfile.mkdtemp()
         f2 = pathlib.Path(d2) / "two.md"
         f2.write_text(two, encoding="utf-8")
-        newfp = sign(f2, "Patrick", "2026-09-13", "")
+        newfp = sign(f2, "Patrick", "2026-09-13", "CP3 discharge")
         after = f2.read_text(encoding="utf-8")
         if "APPROVED AT SHA:  148af5293" not in after:
             print("  ⛔ SIGNING DESTROYED THE ALREADY-SIGNED FINGERPRINT"); ok = False
@@ -398,7 +540,7 @@ def main() -> int:
             print("  ⛔ the approver did not land on the unsigned block"); ok = False
         # CONTROL 6 — re-signing a fully signed packet must REFUSE, not clobber.
         try:
-            sign(f2, "Patrick", "2026-09-13", "")
+            sign(f2, "Patrick", "2026-09-13", "CP3 discharge")
             print("  ⛔ re-signing a fully signed packet was allowed"); ok = False
         except SystemExit:
             pass
@@ -430,6 +572,76 @@ def main() -> int:
                 print("  ⚠️  CONTROL 7: fingerprint() now re-derives too — the defect "
                       "K CP5 was built for is gone; delete rederive_signed, don't keep "
                       "two authorities"); ok = False
+
+        # ── K CP6 — THE SCOPE IS WRITTEN, AND A BAD ONE WRITES NOTHING ──────────────
+        import hashlib
+
+        def _sha(p):
+            return hashlib.sha256(p.read_bytes()).hexdigest()
+
+        def _fx(scope_line="SCOPE APPROVED:"):
+            d3 = pathlib.Path(tempfile.mkdtemp()) / "p.md"
+            d3.write_text(chr(10).join(
+                ["---", "id: packet-x", "---", "", "# PACKET X", "",
+                 "| cp | what |", "|---|---|", "| **CP1** | a |", "| **CP2** | b |", "",
+                 "```", "", "APPROVED BY:", "APPROVED ON:", "APPROVED AT SHA:",
+                 scope_line, "```", ""]) + chr(10), encoding="utf-8")
+            return d3
+
+        # CONTROL 8 — a declared scope is WRITTEN, verbatim
+        f8 = _fx()
+        sign(f8, "Patrick", "2026-09-15", "CP2 ONLY — this and nothing else.")
+        line8 = [l for l in f8.read_text(encoding="utf-8").splitlines()
+                 if l.startswith("SCOPE APPROVED:")][0]
+        if "CP2 ONLY" not in line8 or "nothing else" not in line8:
+            print("  ⛔ the scope was not written: %r" % line8); ok = False
+        # ⛔ …and it lands on the block being signed, beside its own fingerprint.
+        if not re.search("^APPROVED AT SHA:[ ]+[0-9a-f]{9}$",
+                         f8.read_text(encoding="utf-8"), re.M):
+            print("  ⛔ CONTROL 8 wrote a scope without a fingerprint"); ok = False
+        # CONTROL 9 — a BLANK scope refuses, and writes NOTHING (sha256 both sides)
+        f9 = _fx()
+        b9 = _sha(f9)
+        try:
+            sign(f9, "Patrick", "2026-09-15", "   ")
+            print("  ⛔ a blank scope was accepted"); ok = False
+        except SystemExit as exc:
+            if exc.code != REFUSED_BLANK_SCOPE:
+                print("  ⛔ blank scope exited %r, not %d" % (exc.code,
+                                                             REFUSED_BLANK_SCOPE)); ok = False
+        if _sha(f9) != b9:
+            print("  ⛔ a REFUSED blank scope still changed the file"); ok = False
+        # CONTROL 10 — a scope naming a checkpoint the packet does not declare
+        f10 = _fx()
+        b10 = _sha(f10)
+        try:
+            sign(f10, "Patrick", "2026-09-15", "CP9 ONLY")
+            print("  ⛔ an undeclared checkpoint was accepted"); ok = False
+        except SystemExit as exc:
+            if exc.code != REFUSED_UNDECLARED_SCOPE:
+                print("  ⛔ undeclared scope exited %r, not %d"
+                      % (exc.code, REFUSED_UNDECLARED_SCOPE)); ok = False
+        if _sha(f10) != b10:
+            print("  ⛔ a REFUSED undeclared scope still changed the file"); ok = False
+        # CONTROL 11 — the deriver: mode, and it can say NO
+        d_tab, m_tab = declared_checkpoints(_fx().read_text(encoding="utf-8"))
+        if m_tab != "declared":
+            print("  ⛔ a packet with a checkpoint table did not read `declared`"); ok = False
+        if "CP2" not in d_tab:
+            print("  ⛔ the deriver missed a checkpoint its own table declares"); ok = False
+        if "CP9" in d_tab:
+            print("  ⛔ the deriver accepts a checkpoint nothing declares"); ok = False
+        d_pr, m_pr = declared_checkpoints("# a packet with no table" + chr(10)
+                                          + "One checkpoint: **T-CP1**." + chr(10))
+        if m_pr != "prose":
+            print("  ⛔ the weaker mode was not NAMED"); ok = False
+        if "T CP1" not in d_pr:
+            print("  ⛔ the fallback missed a checkpoint declared in a sentence"); ok = False
+        # CONTROL 12 — a scope that is written must not break re-derivation
+        t12 = f8.read_text(encoding="utf-8")
+        m12 = re.search("^APPROVED AT SHA:[ ]*([0-9a-f]{9})$", t12, re.M)
+        if m12 and rederive_signed(t12, m12.span()) != m12.group(1):
+            print("  ⛔ a packet with a WRITTEN scope no longer re-derives"); ok = False
 
         print("SELF-CHECK:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
