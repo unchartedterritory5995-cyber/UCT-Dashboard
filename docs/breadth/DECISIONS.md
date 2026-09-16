@@ -1436,3 +1436,48 @@ across worktrees**, never read from one.
 
 **Trial criterion (unchanged):** ≥20 heartbeats, ≥2 workstreams, ≥24 h, zero
 WOULD-REFUSE rows → then promote to ENFORCE. **At install: 3 heartbeats, 1 workstream.**
+
+### ✅ G4 — DONE, PASSIVELY, ON OTHER WORKSTREAMS' PUSHES (2026-09-16)
+
+The cutover verified itself before our own verification push got a turn. The prediction
+committed at `99f5044eb` **before** any of this applies unchanged; the observation is
+simply not ours, which makes it stronger evidence, not weaker — nobody involved was
+trying to make it pass.
+
+**The boundary is sharp and lands exactly where G3 was executed:**
+
+| created (UTC) | sha | `meta.branch` | status |
+|---|---|---|---|
+| 01:05:45 | `4c3c2cc82` | master | REMOVED |
+| — | — | *G3 executed here* | — |
+| **01:24:11** | `e49cf70c2` | **production** | REMOVED (superseded 9 min later) |
+| **01:33:21** | `d5f2c8d83` | **production** | **SUCCESS** |
+
+Every deployment before G3 reads `master`; every one after reads `production`. That field
+is the discriminator precisely because it varied — the ten rows above the line are the
+control.
+
+**Each production build was created AFTER its promotion started**, which is the clause
+that rules out "Railway reacted to the master push and the SHAs agreed by coincidence":
+
+| sha | promotion run created | deployment created | delta |
+|---|---|---|---|
+| `e49cf70c2` | 01:23:49 | 01:24:11 | **+22 s** |
+| `d5f2c8d83` | 01:32:56 | 01:33:21 | **+25 s** |
+
+**And every authority agrees on the live SHA:** `origin/production` = `origin/master` =
+deployed `meta.commitHash` = `last-promotion.json.promoted_sha` = `d5f2c8d83`. Trigger
+reads `{branch: production, checkSuites: false}`.
+
+⭐ **G4 DONE.** The rollback harness was disarmed rather than run; our queued landing
+(parser fix + G8) reverts to an ordinary landing with no 20-minute clock.
+
+⚠️ **The negative case is still not observed** — every gate in this window passed, so
+nothing exercised "a red gate leaves `production` where it was". SD-1.4 D2.1's passive
+capture is what will catch the first genuine one. Do not manufacture it.
+
+⭐ **Why this was found by reading rather than waiting:** the harness was queued behind a
+burst clause while foreign pushes — the very traffic that answers the question — flowed
+past it. Had those deploys instead come from `master`, the 20-minute rollback condition
+would have elapsed unobserved. **When the thing you are waiting to cause is something
+others also cause, read before you wait.**
