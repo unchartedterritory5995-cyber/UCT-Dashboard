@@ -422,3 +422,68 @@ may force is the owner's call, not this audit's.**
 is what the member-visible Ask-AI block reads. Ask-AI's own gate decides whether anything leaves,
 so the defence in depth is intact — but the LABEL under-states it on a flip checklist. **Left
 unchanged: relabelling is a judgement, not a measurement, and it is the owner's.**
+
+
+### 2026-09-15 — R52 / R53 / R56 / R57, and the merge-window rule
+
+> **R56 — the persisted-runs root is `<DATA_DIR>/wisdom/gate-runs`, override**
+> **`WISDOM_GATE_RUNS_DIR`. Never CWD-relative, and never a module-level constant.**
+
+⚰️ It was `Path("data")/"wisdom"/"gate-runs"` — a bare CWD-relative literal. On the pod the CWD
+is `/app`, so it resolved to an **ephemeral image layer**, not the volume. The consequence was not
+a wrong directory: `MIN_RUNS = 3` needs three passes to COEXIST, so a chain-side N-pass would have
+accumulated nothing forever while every step reported `ok`.
+
+⛔ TWO second-order traps, both closed and both worth carrying: a module-level constant would be a
+default ARGUMENT bound once at import, freezing the environment — the same bug in different
+clothes; and the path was defined TWICE (the module that writes runs, the module that discovers
+them), which is how a writer and a reader come to point at different directories with both
+reporting success. The PC-side tool now has an explicitly different `LOCAL_ROOT`, because on a dev
+box `<DATA_DIR>` is the live `C:\data` that `out_path` refuses outright.
+
+> **R57 — every chain step target must resolve, or be declared unbuilt by name.**
+
+⚰️ `chain.py` named `extract.run_weekly_audit`, which does not exist. `resolve()` returned None,
+the step recorded `not_available` — a SKIP, not a failure — so the weekly extraction audit had
+**never run**. Only the name was wrong; `extract.run_audit` is the specified implementation.
+
+⛔⛔ **And the rail found three more: FOUR of the seven weekly steps have never run.**
+`evals.reconcile_weekly`, `core.vocab.refresh_candidates` and `publish.adapters.refresh_voice_profile`
+are not implemented anywhere. Those three are genuinely UNBUILT rather than misspelled, so they are
+declared in `KNOWN_UNBUILT` with a reason each. ⭐ The distinction is the whole point: `not_available`
+exists so a chain can outlive an unbuilt module, and its cost is that a TYPO is indistinguishable
+from a GAP. A new typo now fails by name; a gap is a line somebody had to write.
+
+> **R52 — `force` bypasses scheduling, never the switch that spends.**
+
+`ctx.force` still bypasses the master switch, the job kill switch and the trading-day check. It no
+longer bypasses `WISDOM_EXTRACT_ENABLED`. A forced run may spend only with
+`WISDOM_EXTRACT_ACCEPT_SPEND` set to an exact literal — not a truthy value, and useless without
+`force`, so it cannot sit in a profile as a standing grant. ⛔ This mattered because `force` is a
+query parameter on an admin route, so the one switch that costs money was one request from not
+applying.
+
+> **R53 — `WISDOM_EXTRACT_DAILY_BUDGET_USD`, default 25.0. A VALUE, not a switch.**
+
+Unset takes the ruled default; **present-but-unusable REFUSES** rather than falling back, because
+`=25O` quietly becoming 25.0 is how somebody ships a night they did not authorise. Zero refuses
+too, and the message points at `WISDOM_EXTRACT_ENABLED` — zero is not a pause button. Three
+ceilings now exist and none replaces another: this one (a night), `WISDOM_EXTRACT_BUDGET_USD`
+(the programme total, default 120.0), and the PC-side ledger's own `cap_usd`.
+
+> **THE MERGE WINDOW — a session WAITS. It never attests and never bypasses.**
+
+⛔⛔ `UCT_BURST_ATTESTED_BY` / `_AT` is **never set by a session.** Master's R19 defines it as
+*"a named person at a named minute"* confirming they can see every workstream. A session cannot
+see other sessions, so setting it would be asserting something untrue. `--no-verify` is banned
+outright. The only correct response to the guard's recency and burst clauses is to wait.
+
+> **Wait-for-CI is OFF on all six services, so the gate is PRE-MERGE and LOCAL.**
+
+⛔ A merge to master deploys immediately; a red gate does not stop it (measured, master's
+`d85d22509`). Any check that finishes after the merge is a record, not a gate. So the full local
+pass — scoped suite, the four CI-parity steps, every deploy-gate check, a secret scan over **every
+file the PR adds**, and the blast-radius check — runs BEFORE the merge. ⚠️ The gate's own secret
+scan reads `HEAD^..HEAD`; a push is not one commit, so on an 86-commit PR it covers exactly one.
+
+> **A session never attempts a Railway browser login.** The CLI is the Railway path.
