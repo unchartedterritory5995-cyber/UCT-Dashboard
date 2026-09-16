@@ -21,7 +21,7 @@
     "translate": {
       "status": "UNSUPPORTED",
       "guard": "pine:reassign",
-      "message": "a name that is reassigned later cannot be folded into one expression — `resistancebroken`",
+      "message": "a name that is reassigned later cannot be folded into one expression — `resistancebroken` — and the fold stopped before it, at line 181: a Pine block spans several statements and this engine stores a single expression — `for`",
       "unsupported_constructs": []
     },
     "canonical_ast": {
@@ -57,7 +57,7 @@
     "refusal_behavior": {
       "status": "UNSUPPORTED",
       "guard": "pine:reassign",
-      "message": "a name that is reassigned later cannot be folded into one expression — `resistancebroken`"
+      "message": "a name that is reassigned later cannot be folded into one expression — `resistancebroken` — and the fold stopped before it, at line 181: a Pine block spans several statements and this engine stores a single expression — `for`"
     },
     "vendor_comparison": {
       "status": "SKIPPED_NOT_APPROPRIATE",
