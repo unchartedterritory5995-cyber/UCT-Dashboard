@@ -51,10 +51,7 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     expect(translatePine(`indicator("x")\nplot(close)\n`, { strict: true }).ok).toBe(true)
   })
 
-  // ⛔ SELF-RETIRING: `.fails` passes only while the defect stands. The fix commit
-  // deletes `.fails`, and if the fix were ever reverted this line goes red on its
-  // own rather than waiting for someone to notice.
-  it.fails('⭐⭐ each retired field is REFUSED BY NAME, carrying a reason a member can act on', () => {
+  it('⭐⭐ each retired field is REFUSED BY NAME, carrying a reason a member can act on', () => {
     for (const [field] of RETIRED) {
       const key = `syminfo.${field}`
       expect(Object.keys(BUILTIN_SYMBOL_UNSERVED), `${key} is not on the roster`)
