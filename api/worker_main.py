@@ -282,6 +282,59 @@ def _start_breadth_backfill():
     threading.Thread(target=loop, daemon=True, name="breadth_backfill").start()
 
 
+def _start_combined_pass():
+    """THE COMBINED HISTORICAL PASS, resumed on every boot (WORKER).
+
+    ⚰️ WHY THIS IS A BOOT-ARMED THREAD AND NOT A DETACHED `nohup`. The first launch
+    ran for 43 MINUTES before a routine redeploy — `c0c950fbb`, an unrelated merge —
+    restarted the pod and killed it, and nothing noticed for eleven hours. A ~40-hour
+    job on a pod that other people deploy to several times a day cannot live in a
+    process; it has to live in the pod's own startup.
+
+    ⭐ RESUME IS THE WHOLE DESIGN, so this is safe to run on every single boot:
+    completed sessions are skipped via `pass_checkpoint`, and re-running a committed
+    session is idempotent on `(universe, date, metric)`. A restart costs at most the
+    session that was in flight.
+
+    ⛔ DEFAULT OFF, and the artifact path is REQUIRED — `open_artifact` refuses an
+    absent path and refuses the production store, so arming this cannot write to live
+    breadth even if the variable is wrong.
+    """
+    if os.environ.get("BREADTH_COMBINED_PASS_ENABLED") != "1":
+        log.info("breadth combined pass not started (BREADTH_COMBINED_PASS_ENABLED=0)")
+        return
+    artifact = os.environ.get("BREADTH_COMBINED_PASS_ARTIFACT")
+    if not artifact:
+        log.warning("breadth combined pass ARMED but BREADTH_COMBINED_PASS_ARTIFACT is "
+                    "unset — refusing to guess a destination")
+        return
+
+    def run():
+        time.sleep(45)                      # let boot settle before a heavy job
+        import subprocess
+        # ⚰⚰ A SUBPROCESS, NOT A THREAD, AND THE DIFFERENCE IS 13x. The first version
+        # of this hook ran the pass in-thread and it collapsed from 13.7 s/session
+        # standalone to 180 s/session — a ~35-hour job becoming 224 hours. The worker is
+        # busy (host load average 26 when measured) and the minute-file parse is pure
+        # Python, so in-thread it holds the GIL against everything else the pod does.
+        # Its own interpreter gets the speed back; spawning from the boot hook keeps the
+        # resilience that motivated the hook in the first place.
+        cmd = [sys.executable, "-m", "api.services.breadth_combined_pass",
+               "--artifact", artifact]
+        to = os.environ.get("BREADTH_COMBINED_PASS_TO")
+        if to:
+            cmd += ["--to", to]
+        log.info(f"combined pass spawning: {' '.join(cmd)}")
+        try:
+            rc = subprocess.call(cmd)
+            log.info(f"combined pass process exited rc={rc}")
+        except Exception as e:
+            log.exception(f"combined pass could not be spawned: {e}")
+
+    threading.Thread(target=run, daemon=True, name="breadth_combined_pass").start()
+    log.info(f"breadth combined pass armed -> {artifact}")
+
+
 def _start_wick_backfill():
     """Phase-3 wick grind (WORKER): reconstruct real intraday high/low for past days
     from Massive stocks minute flat files and ship them via the R2 bridge (they upgrade
@@ -846,6 +899,7 @@ def main():
     _start_breadth_backfill()
     _probe_flatfile_access()
     _start_wick_backfill()
+    _start_combined_pass()
     _start_memwatch()
     # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
     # into a static R2 artifact so browsers pre-seed IndexedDB for instant
