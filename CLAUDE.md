@@ -2626,8 +2626,12 @@ minutes and a gate takes longer. *"The queue was clear when I started my gate"* 
 true and useless. The wait is on the DEPLOY, not on the check.
 
 ⛔⛔ **AND THE GUARD THAT ENFORCES THIS HAS A ~3.5 MINUTE BLIND WINDOW, BY CONSTRUCTION.**
-Measured 2026-09-16 across three pushes: **Railway creates the deploy record ~3m25s after
-the push.** So `tools/pre_push_guard.py`, which reads the Railway deploy list, **cannot see
+Measured 2026-09-16: **Railway creates the deploy record MINUTES after the push, and the
+delay is VARIABLE** — two independent measurements, by two sessions, 47 s apart: **3m25s**
+and **2m38s**. ⛔ **DO NOT CALIBRATE A WAIT ON THIS NUMBER.** "Just sleep 3m30s before
+reading the queue" is a rule fitted to n=1 that fails on every longer draw, and it fails
+silently — you would read a quiet queue and believe it. Two samples establish that it
+varies; they do not establish a bound (`lesson_two_points_do_not_establish_a_rate`). So `tools/pre_push_guard.py`, which reads the Railway deploy list, **cannot see
 a push that has already happened** — and during that window it answers *"master is quiet"*
 with complete confidence. It happened in both directions in one night:
 
@@ -2667,6 +2671,13 @@ not evidence that the measurement was.
 ⭐ **The test for kind 2:** read the instrument's own stated rule, then ask what it actually
 keys on. If those are two different sentences, it is a proxy, and it must be labelled as
 one or replaced.
+
+⚠️ **THE TWO KINDS ARE NOT DISJOINT, AND THE TABLE IS A CHECKLIST, NOT A FILING SYSTEM.**
+`%an` is both: it MOVED (every commit now carries one name) and it was ALWAYS a proxy
+(authorship standing in for "which session"). So ask BOTH questions of every instrument —
+*did the world move under this?* and *is this a stand-in for what I actually mean?* — rather
+than deciding which box a finding belongs in. An instrument can fail both ways at once, and
+sorting it into one box is how the other failure keeps its cover.
 
 ⚠️ **CONSEQUENCE FOR EVIDENCE, and it invalidated a published verification:** when your
 deploy is superseded mid-flight, `/api/health uptime_seconds` resolves to the SUPERSEDING
