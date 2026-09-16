@@ -8,7 +8,30 @@ a false instrument.
 The programme ends when this file reads **DONE** — that is, when D4 (`FINAL.md`) is merged.
 
 Created 2026-09-15 (Session 13, first run under SD-1).
-Last updated: **2026-09-15 16:20 ET, Session 13 (SD-1.1).**
+Last updated: **2026-09-16 01:45 ET, Session 14 (SD-1.7 final ratification).**
+
+# ✅ DONE
+
+**D4 (`FINAL.md`) merged to master in `54abdefeb`** — a master-first merge
+(`^1` = `c0c950fbb`, `^2` = `32f0d8274`), Railway `web` **SUCCESS on its own**, production
+200. Verified by artifact and ancestry, not by expectation: `32f0d8274` is an ancestor of
+`origin/production`, and the landed files byte-match the commit.
+
+**DONE carries five labels, each naming what is not finished** (SD-1.6 F0):
+
+| label | what it covers |
+|---|---|
+| `OWNER-PENDING` | **G6** branch protection on `production` — payloads in FINAL.md §14.6. The session was correctly refused a credential and attempted no other route. |
+| `TIME-GATED` | **S2** scope checker → ENFORCE: ≥20 heartbeats, ≥2 worktrees, ≥24 h, 0 WOULD-REFUSE. Installed in WARN; cannot refuse anybody's commit. |
+| `NOT-OBSERVED` | the **negative case** — a red gate publishing its own record. Passive capture armed (D2.1); never seen fire. |
+| `UNREHEARSED-WITH-PROCEDURE` | the **G6 rollback** (remove the `update` rule within one gate cycle) is written and has never been run. |
+| `RUNNER-OWNED` | **R6/R8** Pool B and the flip. R6's *criterion* is met (§14.1); executing it is the runner's. |
+
+⛔ **R7 moved from `NOT ESTIMABLE` to `ANSWERED` after ratification**, because the pool was
+never short of rows — `breadth_pool_report.py` was keying populations on the SHA rather than
+on the hot path. See FINAL.md §14.1 and §14.7 #8. **The ratified "175× conservative" figure
+is superseded by 33×** (the p95 bound); the median figure is 185×. Both are recorded, and
+the owner may keep either as the headline — but "conservative" now names the smaller one.
 
 ---
 
@@ -33,15 +56,26 @@ is not `DONE`.
 
 | Track | Where it is |
 |---|---|
-| **R** Reader | R1–R3 `READY` — in the landing queue, no clock. R4–R8 blocked behind them. |
-| **G** Deploy gate | **G1 + G5 `DONE`** (G5 on history). **G2 `RETIRED`** — the cutover is the probe. **G3 `READY`**: `deploymentTriggerUpdate` exists, so it is an **API call**, not a click. |
-| **S** Repo safety | **S1 + S3 `READY`** — `repo/git-scope` is 4th in the landing queue (A2.1). **S2 placement resolved** (prepended + heartbeat); installs once that lands. |
-| **D** Record | D1–D3 rolling (+D-053, +#40–#42). **D4 `DRAFT`** — 5 of 8 sections filled; merging it ends the programme. |
+| **R** Reader | **R1–R5 `DONE`.** **R6** criterion MET (n=79 ≥ 20 on the live reader), execution `RUNNER-OWNED`. **R7 `ANSWERED`** — p95 ≤ 1,680.6 ms at 95.6% (n=61 at the 600 s analysis floor). **R8** follows R6. |
+| **G** Deploy gate | **G1, G3, G4, G5, G7, G8 `DONE`.** **G2 `RETIRED`** — the cutover was the probe. **G6 `OWNER-PENDING`** (§14.6) — the only item needing a keyboard. |
+| **S** Repo safety | **S1 + S3 `DONE`** — landed and installed. **S2 `TIME-GATED`** in WARN on its 24 h criterion. |
+| **D** Record | **D1–D4 `DONE`** — `FINAL.md` merged in `54abdefeb`, which is what ends the programme. |
 
-**The single blocking fact right now:** none of this programme's own making. ⛔ **There is
-no market-hours window on this repo** — owner ruling SD-1.1 A0, *"we no longer have mid day
-blocks ever"*. The landing script is alive, clockless, and holds R1–R3; its only gates are a
-settled SUCCESS deploy, the lock, the pause sentinel, and the pre-push guard.
+**What is left, in one sentence:** one GitHub setting that needs the owner's keyboard (G6),
+one 24-hour clock running on its own (S2), one failure mode nobody has seen fire yet (the
+red gate), and a runner that owns the flip.
+
+⛔ **There is no market-hours window on this repo** — owner ruling SD-1.1 A0, *"we no longer
+have mid day blocks ever"*. The landing gates were the settled SUCCESS deploy, the lock, the
+pause sentinel and the pre-push guard, and those held: the branch landed on a queue reading
+2 deploys/60 min with none inside 600 s.
+
+⚠️ **And that guard reading was true and insufficient — see §14.7 #11.** A Railway deploy
+record appears ~3m25s AFTER the push that causes it, so a push already in flight is
+invisible to any guard that reads the deploy list. This landing superseded a peer's deploy
+2.3 minutes after it started building. Nothing was lost (their commit is an ancestor of the
+merge's first parent), but **"no deploy in flight" is evidence about deploys, never about
+pushes**, and only GitHub's `concurrency: master-deploy` group sees the push itself.
 
 ⚰️ **The thing to carry out of Session 13:** a red gate has already shipped to production
 once, because Railway's Wait-for-CI is off and the gate only serialises. The cutover is
