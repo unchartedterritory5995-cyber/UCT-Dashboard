@@ -102,7 +102,23 @@
  * a ring behind whatever the member moves to next — the same distinction the
  * retired reveal rules drew, for the same measured reason. */
 .rowLive { cursor: pointer; }
-.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+/* ⚰⚰ THE ROW-WIDE HOVER BACKGROUND IS RETIRED FOR THE STUDY STACK (Legend V2
+   §5, owner). See `LegendRow.module.css` for the full account: on a stack of
+   eight rows it read as a lit rectangle sliding down the chart, which is a card
+   on a surface whose brief is to be printed onto the canvas.
+   ⛔ THE INLINE CHIP KEEPS IT. `.chip` serves the non-workspace legend (Model
+   Book, a grid cell, a pop-up) where a chip is a discrete box in a wrapping row
+   and the background is what says which one the pointer is on. Only the GRID
+   variant — the study stack's row — changes. */
+.chip.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+.chipGridRow.rowLive:hover { background: none; }
+/* ⚰ THE UNDERLINE IS RETIRED HERE TOO — see `LegendRow.module.css` for the
+   owner's reason and for why the label's new resting state is what made a
+   luminance hover possible. Colour and opacity only; nothing reflows. */
+.chipGridRow.rowLive:hover .chipGridLabel,
+.chipGridRow.rowLive:focus-visible .chipGridLabel { color: var(--text-bright); opacity: 1; }
+.chipGridRow.rowLive:hover .chipGridChev,
+.chipGridRow.rowLive:focus-visible .chipGridChev { opacity: 0.65; }
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -224,6 +240,15 @@
  * of the layout AND out of the accessibility tree.
  */
 .chipFolded { display: none; }
+/* 🔴 …AND IT HAS TO OUT-SPECIFY THE ROW IT HIDES. `.chipGridRow` declares
+   `display: grid` and is DECLARED LATER IN THIS FILE, so at equal specificity it
+   won and a folded grid row rendered anyway. MEASURED IN THE BROWSER on a short
+   pane: the stack printed `Vol / EMA 9 / EMA 20 / BB(20,2)` above a `+3 more`,
+   with BB — the last chip, which the fold had supposedly taken — still on screen
+   between the visible rows and the button. Latent since the grid variant shipped:
+   the old vertical legend DROPPED every chip in compact mode, so nothing ever
+   asked this class to hide one. */
+.chipGridRow.chipFolded { display: none; }
 
 /* ⛔ `pointer-events: auto` IS LOAD-BEARING, NOT POLISH. `StockChart.module.css`
  * `.legend` is `pointer-events: none` — the legend box sits over the chart and
@@ -367,12 +392,19 @@
   font-weight: 500;
   vertical-align: baseline;
   white-space: nowrap;
+  /* ⭐ THE SAME STEP `LegendRow`'s `.vLabel` TAKES, and it has to be declared
+     here too because these are two components by design (see `LegendRow.jsx`).
+     Label recedes, value leads; a coloured chip defeats the colour with an inline
+     `inherit` and the opacity is what separates it there. */
+  color: var(--text-muted);
+  opacity: 0.8;
 }
 .chipGridVal {
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  color: var(--text-bright);
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a
@@ -380,6 +412,34 @@
    the legend out of true — and it takes no space in either state, which is what
    keeps the legend's width fixed. */
 .chipGridCtl { display: none; }
+/* ⭐⭐ THE PERMANENT CHEVRON — the twin of `LegendRow.module.css`'s `.vChev`,
+ * declared here rather than shared because the two components deliberately stay
+ * two files (see `LegendRow.jsx`'s header). Subdued at rest, brighter on hover,
+ * and OPACITY IS THE ONLY THING THAT CHANGES — the cell's box is identical in
+ * both states, which is the geometry invariant every retired reveal broke. */
+.chipGridChev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  /* Neutral and quiet — the twin of `LegendRow.module.css`'s `.vChev`; read that
+     one for the measured reason it may not inherit the plot colour. */
+  /* ⛔ PULLED IN BY 3px, AND ONLY THIS CELL. The stack is ONE grid with ONE
+     `column-gap`, and that gap is what builds the aligned value column the owner
+     asked to keep — so it cannot be narrowed just for the chevron. A negative
+     margin on the chevron cell alone takes the value→chevron distance from 10px
+     to 7px (measured), which reads as attached to the row rather than floating
+     after it, and leaves the label→value gap untouched. */
+  margin-left: -3px;
+  color: var(--text-muted);
+  opacity: 0.34;
+  line-height: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+/* One indent step for a sibling output. ⛔ ON THE LABEL CELL, not the row: the
+   row borrows the stack's tracks through `subgrid`, so indenting IT would move
+   the value column too and a grouped indicator's numbers would stop lining up
+   with everyone else's. */
+.chipGridSub .chipGridLabel { padding-left: 7px; }
 /* ⚰️ A PARAGRAPH HERE ARGUED THAT THE GRID'S STRIP COULD NOT BE
    COLLAPSED-BUT-PRESENT the way the inline chip's was, because three zero-width
    buttons on every row would still give the shared third track a permanent width.
@@ -408,4 +468,77 @@
   grid-template-columns: subgrid;
   align-items: center;
   pointer-events: auto;
+}
+
+/* ══ THE PACKED STUDY ITEM — `▪ EMA 9 605.84` ═══════════════════════
+ *
+ * ⭐⭐ THREE SPACINGS, AND THEY ARE DELIBERATELY DIFFERENT SIZES. Uniform gaps are
+ * what made the old legend feel mechanical; typesetting uses semantic rhythm:
+ *
+ *     swatch → label   3px   they are one token: "which series"
+ *     label  → value   5px   tight pair, so the eye binds them
+ *     item   → item   11px   (`.studyLine` gap) a clear field break
+ *     line   → line    1px   families stack tight
+ *
+ * ⛔ THE ITEM IS ONE BOX AND THE WHOLE BOX IS THE TARGET — gaps included. The
+ * legend is `pointer-events: none`, so anything laid out as loose siblings leaves
+ * dead columns the pointer falls through; that cost this legend four reported bugs
+ * once already. */
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
+}
+/* ⛔ THE ONLY COLOURED THING IN THE ITEM. 5×5px, square, no radius — a circle
+   reads as a bullet and a bullet reads as a list. It is nudged down 0.5px off the
+   text baseline because a square aligned ON a baseline sits optically high.
+   ⭐ THIS IS WHY THE WORDS CAN BE NEUTRAL: colour answers "which plotted series is
+   this?" in five pixels, so the label and the value do not have to, and five series
+   stop reading as a rainbow. */
+.swatch {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-right: -2px;
+  transform: translateY(-0.5px);
+}
+.itemLabel {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.itemVal {
+  color: var(--text-bright);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* A sibling output of the item before it (MACD → SIG). It is already adjacent on
+   the same line; this only softens its own label so the pair reads parent-first. */
+.itemSub .itemLabel { opacity: 0.78; }
+/* The read-only fallback (Model Book, a grid cell, the export route): the same
+   type, no door, no swatch. */
+.itemInert { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.itemLabelInert { color: var(--text-muted); font-weight: 400; }
+.itemValInert { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED (owner, seeing it beside professional
+   references). Repeated down a stack it made every study read as a navigation
+   item, and it was the single loudest piece of chrome in a legend whose brief is
+   to disappear behind its data. The ITEM is still the door — click, right-click,
+   Enter, Space — exactly as the row was; what is gone is the picture of a door.
+   ⭐ WHAT ANNOUNCES IT INSTEAD: `cursor: pointer`, and on hover the label lifts to
+   the value's own ink. That is the whole affordance, and it costs no width, no
+   column and no geometry. */
+.item.rowLive { cursor: pointer; }
+.item.rowLive:hover .itemLabel,
+.item.rowLive:focus-visible .itemLabel { color: var(--text-bright); opacity: 1; }
+.item.rowLive:hover .itemVal,
+.item.rowLive:focus-visible .itemVal { filter: brightness(1.06); }
+.item.rowLive:focus { outline: none; }
+.item.rowLive:focus-visible {
+  outline: 1px solid rgba(220, 187, 94, 0.9);
+  outline-offset: 1px;
+  border-radius: 2px;
 }

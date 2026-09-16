@@ -68,6 +68,42 @@ import styles from './LegendRow.module.css'
  */
 export default function LegendRow({
   rowId, label, value, hidden = false, vertical = false,
+  /** A SIBLING OUTPUT of the row above — MACD's `SIG`, Bollinger's lower band.
+   *
+   *  ⭐⭐ LEGEND V2 §7: a multi-output indicator must not read as several
+   *  unrelated studies stacked on top of each other. The grouping already exists
+   *  upstream — `legendChips` walks the INSTANCE list, so an instance's plots are
+   *  always consecutive — and this is the one thing the DOM was not saying about
+   *  it. A secondary row indents by one step and nothing else changes: it keeps
+   *  its own value, its own chevron and its own door, because the complaint that
+   *  produced the all-rows rule was that clicking the second value did nothing.
+   *
+   *  ⛔ IT IS NOT A NESTING CONTAINER. A wrapper around each group would break
+   *  the one-grid/`subgrid` alignment that puts every value on one right edge,
+   *  which is the whole reason these rows are shaped the way they are. */
+  /** Render as a PACKED STUDY ITEM: `▪ EMA 9 605.84`, laid out inline so a
+   *  family of related series shares one line.
+   *
+   *  ⭐⭐ THE COMPOSITION CHANGE, AND THE WHOLE POINT OF IT. One series per full
+   *  row, with the value right-aligned into a shared column, is what made the
+   *  legend read as a settings list — four moving averages cost four lines and a
+   *  column of chevrons to say four numbers. As items they cost ONE line, and
+   *  nothing about their identity or their door changes.
+   *
+   *  ⛔ COLOUR MOVES TO THE SWATCH AND OFF THE TEXT. A legend that inks the label
+   *  AND the value in the series colour is a rainbow at five series; the
+   *  professional references all answer *"which plotted series is this?"* with a
+   *  small colour anchor and then set the words neutrally. The swatch is 5×5 and
+   *  it is the only coloured thing in the item. */
+  item = false,
+  secondary = false,
+  /** Past the stack's row budget — the row keeps its DOM node and loses its box.
+   *
+   *  ⭐ FOLDED, NOT UNMOUNTED, for the reason `IndicatorChip.module.css`'s
+   *  `.chipFolded` already records: the rows stay mounted so expanding is a class
+   *  change rather than a remount, and nothing downstream sees the set of live
+   *  rows flicker as a pane is dragged. */
+  folded = false,
   /** The drawn line's colour — THE ROW WEARS IT, label and value alike.
    *
    *  ⭐⭐ RESTORED BY THE OWNER (2026-09-14, same day it went): *"every plot or
@@ -163,11 +199,32 @@ export default function LegendRow({
   const ink = color ? { color } : undefined
   const valInk = color ? { color: 'inherit' } : undefined
 
+  // ─── ITEM: `▪ label value`, inline, packable ─────────────────────
+  if (item) {
+    return (
+      <span
+        className={`${styles.item} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
+        data-legend-row={rowId}
+        data-hidden={hidden ? 'true' : 'false'}
+        {...trigger}
+      >
+        {/* ⛔ THE SWATCH IS `aria-hidden` AND CARRIES NO TEXT. It answers a
+            question the eye asks of the CHART; a screen reader already has the
+            label, and "blue square" beside "EMA 9" is noise. A row with no plot
+            colour of its own (Volume) emits none rather than a grey placeholder —
+            an anchor to nothing is just an indent. */}
+        {color ? <i className={styles.swatch} style={{ background: color }} aria-hidden="true" /> : null}
+        <span className={styles.itemLabel}>{label}</span>
+        {value ? <span className={styles.itemVal}>{value}</span> : null}
+      </span>
+    )
+  }
+
   // ─── HORIZONTAL: one inline span. The span IS the target ───────────────
   if (!vertical) {
     return (
       <span
-        className={`${styles.flat} ${tone} ${interactive ? styles.rowLive : ''}`}
+        className={`${styles.flat} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
         data-legend-row={rowId}
         data-hidden={hidden ? 'true' : 'false'}
         style={ink}
@@ -181,7 +238,7 @@ export default function LegendRow({
   // ─── VERTICAL: ONE subgrid row that spans the legend's own tracks ──────────
   return (
     <span
-      className={`${styles.vRow} ${tone} ${interactive ? styles.rowLive : ''}`}
+      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
       style={ink}
@@ -197,6 +254,11 @@ export default function LegendRow({
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the
           whole legend out of true. It holds nothing now and measures zero. */}
+      {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED (owner). It made every study read as
+          a navigation item when stacked, and it was the loudest chrome in a legend
+          whose brief is to disappear behind its data. The cell is still EMITTED and
+          still measures zero, because this grid fills by ORDER and a two-cell row
+          would let the next row's label fall into the third track. */}
       <span className={styles.vCtl} />
     </span>
   )

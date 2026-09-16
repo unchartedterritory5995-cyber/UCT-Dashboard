@@ -62,7 +62,14 @@ import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 // ⛔ MINUS `LIBRARY_HIDDEN_IDS` — the same subtraction the dialog makes, read
 // from the same constant so this expectation cannot drift from it. See
 // `IndicatorLibraryDialog.test.jsx`, which asserts the exclusion itself.
-const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
+// ⚠️ BOTH HALVES ARE SUBTRACTED (2026-09-15). The hidden list used to apply only
+// to definitions; the legacy `ma` BUILT-IN row is the first that needs it too, so
+// this mirror subtracts it from both halves or it stops describing the dialog.
+// These cases open an ORDINARY chart — no tombstoned overlay — which is exactly
+// when `hiddenLibraryIds` withholds `ma` so browse shows ONE Moving Average.
+const OFFERED = () => [
+  ...BUILT_IN_ROWS.filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
+  ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
 
 const USER_ID = 'u_a1b2c3d4e5f6'
 const OTHER_ID = 'u_ffffffffffff'

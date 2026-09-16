@@ -1,3 +1,108 @@
+# MOVING AVERAGE DISCOVERY — DEPLOYED 2026-09-15 (master b7fc0a4f8)
+
+Implementation commit 515162d3e is IN the deployed tree. Pushed 22:5x EDT (after
+the close). Two force-free reconciliations were needed mid-flight: master moved
+twice during the push (Legend V2 + Breadth), zero file overlap both times.
+
+## Confirming production reached MY commit — the method that actually works
+
+`uptime_seconds` resetting is NOT proof: a partner's deploy reset it 36s before
+mine and I nearly reported the wrong thing. The definitive check is the SERVED
+BUNDLE:
+
+    curl $BASE/ | grep -oE '/assets/index-[A-Za-z0-9._-]+\.js'
+    curl $BASE<that> | grep -c 'Moving Average (Source)'     # must be 0
+
+Polled until the old name disappeared: live after 260s, bundle
+`index-BKap67Xd.js`, old name count 0. Use this pattern whenever a change has a
+string signature — it beats every indirect signal.
+
+## Health
+
+web /api/health 200 ok · bars-api /api/health 200 · unauthenticated
+/api/bars/AAPL 401 (gate correct) · app root 200, no console errors.
+
+## ⚠️ Production click-through smoke NOT performed, deliberately
+
+`chart_settings` is ONE user-global preference row and IS the Main Trading
+fingerprint, so adding an indicator on ANY production chart writes it — and
+opening /charts at all restores that row. The brief asked for a smoke AND
+forbade touching workspace persistence / Main Trading; those conflict, and the
+owner said they would personally test. A–E were verified instead against the
+EXACT deployed code in the isolated harness (see the commit body for the
+measured results).
+
+## Shipped, unchanged from what was accepted
+
+movingAverage is the only source-capable engine definition · member-facing name
+"Moving Average" · persisted ID untouched · `cs.overlays` untouched · `ma`
+withheld from Browse only when there is nothing to revive · no migration.
+
+## Still deferred (owner will schedule)
+
+disambiguateLabels raw-ref cleanup · duplicate MA source-picker labels ·
+"Add Moving Average" from a plotted-series menu.
+
+# SOURCE-AWARE MOVING AVERAGE — ONE MEMBER-FACING ROW (2026-09-15)
+
+HEAD 515162d3e. Committed locally, NOT deployed (owner asked for a readiness
+recommendation, not a deploy).
+
+## The audit answer, which changed the plan
+
+There are NOT two MA definitions. `movingAverage` is the only ENGINE definition.
+`ma` is a BUILT_IN CATALOGUE ROW (`indicatorCatalog.BUILT_IN_ROWS`,
+`builtIn: 'overlay'`, `engineOwned: false`) standing for `cs.overlays` — a
+POSITIONAL ARRAY with its own writers and its own compute. Two different
+persistence mechanisms, so consolidating them IS a saved-chart rewrite.
+
+And the feature was already built: source input, follow-source-pane, provenance,
+dependency ordering, scale sharing, and `SourceField` wired into Chart Data.
+EVERY behavioural case in the new rail passed on the FIRST run, before any
+change. The gap was DISCOVERY only.
+
+## The change
+
+ · `movingAverage` renamed to plain "Moving Average" + search tags (ma/sma/ema/
+   average). Metadata only; the definition ID never moved.
+ · `ma` withheld from browse via `hiddenLibraryIds(settings)`.
+
+## ⚠️ THE CONDITIONAL, AND WHY IT EXISTS
+
+Two member reports pull opposite ways:
+ · EARLIER: "I removed my moving average and search finds nothing" → the `ma`
+   catalogue row exists so adding REVIVES the tombstone with the member's colour
+   and period.
+ · NOW: "I added a Moving Average but cannot put it on QQQ" → two identical names,
+   and the findable one had no source.
+
+Hiding `ma` outright answers the second by RE-BREAKING the first — a test named
+"the tombstoned MA … comes back from search" caught it. So it is withheld only
+when there is nothing to revive. A chart with a tombstoned overlay still offers
+it. No flag, no migration; it reads the same `removed` tombstone the revive path
+reads.
+
+## Deferred (reported, not done)
+
+ · `disambiguateLabels` spills raw refs into Chart Data row labels when 2+
+   instances of one definition exist — e.g. "Moving Average (color #f0b90b,
+   maType sma, period 5, source @inst:dataSeries:1::value)". PRE-EXISTING, now
+   prominent because MAs are the definition members will have several of. Fix
+   belongs in that shared helper: render a `source` input through the same
+   human-readable helpers the Source picker and Display picker already use.
+ · The Source picker labels two MAs identically ("MA (5)"). Binding is by
+   instanceId so it is CORRECT, just ambiguous. `siblingSuffixes` (already used
+   by `paneHostLabels`) is the existing helper for this.
+ · "Add Moving Average" from a plotted series' menu — not attempted; the brief
+   said only if it needs no second creation architecture.
+
+## Gate
+
+15 focused files / 233 tests green incl. all pane regression rails. Broad
+src/components + src/pages: same 5 pre-existing failing files, zero attributable.
+`stockChartWiring` re-confirmed as the load-dependent flake (fails under parallel
+load; passes isolated twice and on a repeat suite run). Build clean.
+
 # TRACK A FOLLOW-UP — PANE TRANSITION SIZING + LOOKBACK ANCHOR — DEPLOYED 2026-09-15
 
 master e49cf70c2 (merged 76 partner commits, all Breadth Library — zero file

@@ -69,10 +69,23 @@
      over this; what is left to this declaration is the rows that have none —
      O/H/L/C and `Vol`, which are readings of the instrument rather than of a
      line somebody chose a colour for. */
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  /* 🔴 — AND THE TOKEN CHANGED, BECAUSE THE OLD PAIR WAS NOT A PAIR.
+     `--chart-panel-text-strong-low` and `--chart-panel-text-strong` BOTH resolve
+     to #e2dfd6 on the chart container, so the label and the value were the same
+     ink and the only hierarchy in the row was 500 vs 600. Measured live:
+     `Vol` rgb(226,223,214) / `31.7M` rgb(226,223,214). The bar-info strip six
+     pixels up was already doing it properly with `--text-muted` / `--text-bright`
+     (#cfcac0 / #f8f7f3), which is the step the owner could see there and not
+     here — so the stack takes the SAME pair. One hierarchy, both areas. */
+  color: var(--text-muted);
+  /* ⭐ AND A TOUCH OF RECESSION FOR THE ROWS THAT WEAR A PLOT COLOUR. A coloured
+     row defeats the `color` above with an inline `inherit` (the plot's own hue is
+     the point), so luminance cannot separate label from value there — opacity
+     can, and it is the one lever that works on every hue. */
+  opacity: 0.8;
 }
 .vVal, .flatVal {
-  color: var(--chart-panel-text-strong, #f8f7f3);
+  color: var(--text-bright);
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as
@@ -123,6 +136,16 @@
    hidden RSI are the same fact and must not read as two different states. */
 .rowHidden { opacity: 0.45; }
 
+/* Past the study stack's row budget. ⛔ `display: none`, so the row leaves the
+   LAYOUT and the accessibility tree together — a visually-hidden row that a
+   screen reader still walks is a stack of phantom menu buttons. Same rule and
+   same name-shape as `IndicatorChip.module.css`'s `.chipFolded`. */
+.rowFolded { display: none; }
+/* ⛔ EXPLICIT AGAINST BOTH ROW SHAPES, not left to source order. `.vRow` and
+   `.flat` each declare their own `display`, and "which one wins" being a question
+   about line numbers is exactly how the chip's twin of this rule shipped broken. */
+.vRow.rowFolded, .flat.rowFolded { display: none; }
+
 /* ⚰️ `.controls`, `.btn` AND BOTH GUTTER CELLS STOOD HERE. The row is the
    control now — see `IndicatorChip.module.css` for the full account.
    ⛔ `.vCtl` STILL EXISTS AS A RULE because the CELL is still emitted:
@@ -130,6 +153,46 @@
    that emitted two cells would let the next row's label fall into the third
    track. */
 .vCtl { display: none; }
+
+/* ⭐⭐ THE PERMANENT CHEVRON (Legend V2 §6) — the affordance the bare row could
+ * not carry.
+ *
+ * ⛔ SUBDUED AT REST, BRIGHTER ON HOVER, AND IT NEVER MOVES. Opacity is the only
+ * thing that changes, so the cell's box is byte-identical in both states — which
+ * is the geometry invariant every retired reveal broke.
+ *
+ * ⛔ NO `transition` ON WIDTH OR MARGIN, EVER. A chevron that animates its own
+ * space is the collapsed gutter again with a nicer name. */
+.vChev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  /* 🔴 IT WAS INHERITING THE PLOT COLOUR. Measured on the live chart: an
+     EMA 9 row rendered label, value AND chevron all rgb(74,222,128) — so the
+     quietest thing in the row was drawn in the loudest ink available and
+     competed with the number. It is interaction chrome, not data: it takes the
+     muted text token and never the series colour.
+     ⛔ AND IT IS QUIETER AT REST (.45 → .30) AND SMALLER (9px → 8px, set on the
+     icon). The priority is value, then identity, then this. */
+  /* ⛔ PULLED IN BY 3px, AND ONLY THIS CELL. The stack is ONE grid with ONE
+     `column-gap`, and that gap is what builds the aligned value column the owner
+     asked to keep — so it cannot be narrowed just for the chevron. A negative
+     margin on the chevron cell alone takes the value→chevron distance from 10px
+     to 7px (measured), which reads as attached to the row rather than floating
+     after it, and leaves the label→value gap untouched. */
+  margin-left: -3px;
+  color: var(--text-muted);
+  opacity: 0.34;
+  line-height: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+/* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE — one indent step, nothing else.
+ * ⛔ `padding-left` ON THE LABEL CELL, not a margin on the row: the row spans the
+ * stack's tracks via `subgrid`, and a margin on it would shift the VALUE column
+ * too, so a grouped indicator's numbers would stop lining up with everyone
+ * else's — which is the exact defect `.vlFull` was retired for. */
+.vRowSub .vLabel { padding-left: 7px; }
 /* ⭐⭐ THE ONLY THING A HOVER DOES NOW: a faint background behind the row.
  *
  * ⚰️⚰️ IT USED TO REVEAL A CONTROL and, before that, three. Both generations
@@ -154,7 +217,40 @@
  * a ring behind whatever the member moves to next — the same distinction the
  * retired reveal rules drew, for the same measured reason. */
 .rowLive { cursor: pointer; }
-.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+/* ⚰⚰ `background: rgba(255,255,255,.055)` STOOD HERE AND IS RETIRED (Legend V2
+   §5, owner). It was the answer to "a reveal costs layout", and on a stack of
+   eight rows it read as a lit rectangle sliding down the chart — a card, on a
+   surface whose whole brief is to be printed onto the canvas rather than boxed
+   off from it.
+   ⭐ WHAT REPLACES IT COSTS NOTHING AND MOVES NOTHING: the text brightens and
+   the chevron comes up with it. Opacity and colour only — no box, no border, no
+   underline, no padding change, no transform — so the row's rect, and every
+   value's right edge, are identical hovered and at rest.
+   ⛔ THE HORIZONTAL `.flat` ROW KEEPS THE OLD TREATMENT. It serves the
+   non-workspace inline legend (Model Book, a grid cell), which Legend V2 does not
+   touch; taking its hover away would be a change to a surface nobody asked about. */
+.flat.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+.vRow.rowLive:hover { background: none; }
+/* ⚰⚰ THE HOVER UNDERLINE IS RETIRED (owner, after living with it). It was the
+   answer to "these values are already near-white, so *brighter* has nowhere to
+   go" — and seen on a real chart it made the rows read as WEB LINKS, which is
+   the one thing a typeset market-data stack must not look like.
+   ⭐ WHAT REPLACES IT IS LUMINANCE, AND THE HEADROOM CAME FROM THE HIERARCHY
+   PASS: the label now RESTS at `--text-muted` / .88 opacity, so there is somewhere
+   to go. Hover lifts the label to full and brightens the chevron. Nothing else.
+   ⛔ NO BACKGROUND, NO PILL, NO ROW FILL, NO BORDER, NO UNDERLINE, NO MOVEMENT.
+   Colour and opacity only — nothing in these rules can reflow a row, which is
+   what keeps the legend's geometry byte-identical hovered and at rest.
+   ⛔ AND THE VALUE IS LEFT ALONE. It is already the brightest token in the row;
+   lifting it too would flatten the hierarchy this pass exists to create. */
+.vRow.rowLive:hover .vLabel { color: var(--text-bright); opacity: 1; }
+.vRow.rowLive:hover .vChev { opacity: 0.65; }
+/* ⛔ KEYBOARD FOCUS IS A DIFFERENT STATE FROM HOVER AND KEEPS ITS OWN SIGNAL.
+   Taking the pointer's underline away must not take the keyboard's ring with it —
+   `.rowLive:focus-visible` above still draws it; this only brings the chevron up
+   to match, so a focused row and a hovered row read alike. */
+.vRow.rowLive:focus-visible .vLabel { color: var(--text-bright); opacity: 1; }
+.vRow.rowLive:focus-visible .vChev { opacity: 0.65; }
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -171,3 +267,76 @@
    comfortably past the 44px floor in height on touch and never in anyone's way at
    rest. The verbs arrive in `ContextPopover`'s bottom sheet, whose rows are
    pinned to that floor. */
+
+/* ══ THE PACKED STUDY ITEM — `▪ EMA 9 605.84` ═══════════════════════
+ *
+ * ⭐⭐ THREE SPACINGS, AND THEY ARE DELIBERATELY DIFFERENT SIZES. Uniform gaps are
+ * what made the old legend feel mechanical; typesetting uses semantic rhythm:
+ *
+ *     swatch → label   3px   they are one token: "which series"
+ *     label  → value   5px   tight pair, so the eye binds them
+ *     item   → item   11px   (`.studyLine` gap) a clear field break
+ *     line   → line    1px   families stack tight
+ *
+ * ⛔ THE ITEM IS ONE BOX AND THE WHOLE BOX IS THE TARGET — gaps included. The
+ * legend is `pointer-events: none`, so anything laid out as loose siblings leaves
+ * dead columns the pointer falls through; that cost this legend four reported bugs
+ * once already. */
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
+}
+/* ⛔ THE ONLY COLOURED THING IN THE ITEM. 5×5px, square, no radius — a circle
+   reads as a bullet and a bullet reads as a list. It is nudged down 0.5px off the
+   text baseline because a square aligned ON a baseline sits optically high.
+   ⭐ THIS IS WHY THE WORDS CAN BE NEUTRAL: colour answers "which plotted series is
+   this?" in five pixels, so the label and the value do not have to, and five series
+   stop reading as a rainbow. */
+.swatch {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-right: -2px;
+  transform: translateY(-0.5px);
+}
+.itemLabel {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.itemVal {
+  color: var(--text-bright);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* A sibling output of the item before it (MACD → SIG). It is already adjacent on
+   the same line; this only softens its own label so the pair reads parent-first. */
+.itemSub .itemLabel { opacity: 0.78; }
+/* The read-only fallback (Model Book, a grid cell, the export route): the same
+   type, no door, no swatch. */
+.itemInert { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.itemLabelInert { color: var(--text-muted); font-weight: 400; }
+.itemValInert { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED (owner, seeing it beside professional
+   references). Repeated down a stack it made every study read as a navigation
+   item, and it was the single loudest piece of chrome in a legend whose brief is
+   to disappear behind its data. The ITEM is still the door — click, right-click,
+   Enter, Space — exactly as the row was; what is gone is the picture of a door.
+   ⭐ WHAT ANNOUNCES IT INSTEAD: `cursor: pointer`, and on hover the label lifts to
+   the value's own ink. That is the whole affordance, and it costs no width, no
+   column and no geometry. */
+.item.rowLive { cursor: pointer; }
+.item.rowLive:hover .itemLabel,
+.item.rowLive:focus-visible .itemLabel { color: var(--text-bright); opacity: 1; }
+.item.rowLive:hover .itemVal,
+.item.rowLive:focus-visible .itemVal { filter: brightness(1.06); }
+.item.rowLive:focus { outline: none; }
+.item.rowLive:focus-visible {
+  outline: 1px solid rgba(220, 187, 94, 0.9);
+  outline-offset: 1px;
+  border-radius: 2px;
+}

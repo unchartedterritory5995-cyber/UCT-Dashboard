@@ -22,6 +22,7 @@ copy it back into `worker.js` in the same change.
 | Request | Goes to |
 | --- | --- |
 | `/api/bars/UCT*` (breadth) | `WEB_ORIGIN` — breadth lives in the web pod's tables; the tier has only bars.db |
+| `/api/bars/US:*`, `NASDAQ:*`, `NYSE:*` (namespaced breadth) | `WEB_ORIGIN` — **any ticker containing a colon**. Added 2026-09-16: the Library is one metric across universes, so `pct_above_50sma` is `UCTA50` *and* `US:A50`, and only the first starts with `UCT`. Until this, `US:A50` was forwarded to the tier — whose breadth DB is 16 KB and empty — and answered `symbol_not_carried`, while the same symbol returned a proper 401 on `WEB_ORIGIN`. |
 | `/api/bars/<symbol>` | `BARS_ORIGIN` (bars-api tier) |
 | anything else | passed through untouched to the zone's default origin (web) |
 | tier returns >= 500, or times out (8 s) | falls back to `WEB_ORIGIN` |

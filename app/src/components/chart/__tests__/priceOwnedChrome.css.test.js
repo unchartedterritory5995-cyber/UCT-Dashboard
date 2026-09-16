@@ -45,8 +45,12 @@ const SHEETS = {
  */
 const PRICE_OWNED = [
   ['stock', '.legend', 'the OHLC readout — the surface in the owner’s screenshot'],
-  ['stock', '.legendVertical', 'the vertical legend variant'],
-  ['stock', '.legendFlat', 'the flat legend variant — THIS is the one that shipped broken'],
+  // ⚰ '.legendVertical' AND '.legendFlat' WERE THE TWO ENTRIES HERE. Legend V2
+  // retired both renderers; '.legendV2' is the ONE variant class on that element
+  // now, and it is on this list for exactly the reason they were — a variant
+  // later in the file, at the same specificity, wins on source order, so a bare
+  // 'top' here would silently defeat the base rule's offset again.
+  ['stock', '.legendV2', 'the Legend V2 variant — the one class the workspace legend adds'],
   ['stock', '.compareRows', 'comparison rows, docked below the OHLC legend'],
   ['stock', '.compareRowsSide', 'comparison rows beside the vertical legend'],
   ['toolbar', '.toolbar', 'the drawing toolbar'],
