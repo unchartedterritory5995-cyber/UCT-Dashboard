@@ -28,10 +28,11 @@ function _fmtVol(v) {
   if (n >= 1e3) return `${(+v / 1e3).toFixed(1)}K`;
   return `${+v}`;
 }
-function _fmtNotional(v) {
-  if (v == null || !Number.isFinite(+v)) return '—';
-  return '$' + _fmtVol(v);
-}
+/* ⚰️ `_fmtNotional` STOOD HERE and had exactly one caller — the `$ Vol` chip this
+   file drew onto the volume pane of every branded screenshot. That reading was
+   deleted with the automatic one it mirrored (owner §16); dollar volume is a
+   definition now and travels as an ordinary series. A formatter with no caller is
+   a decision waiting to be re-made by accident. */
 
 
 /**
@@ -167,8 +168,21 @@ export async function composeScreenshot(chart, opts = {}) {
     } catch { /* overlays are best-effort */ }
   }
 
-  // ── Redraw the $Vol / Avg-vol legend on the volume pane ──
-  if (crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null)) {
+  // ── Redraw the volume pane's own readout ──
+  //
+  // ⚰️ IT DREW `$ Vol` TOO, AND THAT READING NO LONGER EXISTS (owner §16,
+  // 2026-09-16). `crosshairData.dollarVol` was `volume × close` computed inline on
+  // every crosshair frame and printed on every chart with no setting anywhere;
+  // dollar volume is a DEFINITION now (`nativeRegistry.dollarVolume`), so a member
+  // who wants it adds it and it arrives as an ordinary series with its own pane.
+  // A screenshot that still drew it would be reproducing a reading the live chart
+  // no longer has.
+  //
+  // ⚠️ THE VOLUME MA SURVIVES, because it is a real setting (`cs.volume.maPeriod`)
+  // that draws a real line — and it is labelled `SMA <period>` here for the same
+  // reason it is on the chart: a member who adds `Moving Average · Source: Volume`
+  // must not read two different phrases for one feature (§17).
+  if (crosshairData && crosshairData.volAvg != null) {
     let vx = px((volPos?.x ?? 12));
     const vy = px((volPos?.y ?? (contRect ? contRect.height * 0.78 : 500))) + HEADER_H + px(12);
     ctx.textAlign = 'left';
@@ -183,9 +197,8 @@ export async function composeScreenshot(chart, opts = {}) {
       ctx.fillStyle = textColor; ctx.fillText(val, vx, vy);
       vx += ctx.measureText(val).width + px(14);
     };
-    if (crosshairData.dollarVol != null) chip('$ Vol', _fmtNotional(crosshairData.dollarVol));
     if (crosshairData.volAvg != null && crosshairData.volMaPeriod) {
-      chip(`Avg ${crosshairData.volMaPeriod}D`, _fmtVol(crosshairData.volAvg));
+      chip(`SMA ${crosshairData.volMaPeriod}`, _fmtVol(crosshairData.volAvg));
     }
   }
 

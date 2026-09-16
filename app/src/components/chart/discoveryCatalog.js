@@ -710,6 +710,69 @@ export function hiddenLibraryIds(settings) {
     : LIBRARY_HIDDEN_IDS
 }
 
+/**
+ * ⭐⭐ THE REVIVE ROW SAYS WHAT IT RESTORES, NOT WHAT IT IS (2026-09-16).
+ *
+ * `hiddenLibraryIds` reveals the legacy `ma` row when — and only when — there is a
+ * tombstoned overlay to bring back. That answered the member who removed their
+ * EMA 9 and could not find it again; it also meant that on exactly those charts
+ * BROWSE SHOWED TWO ROWS READING "Moving Average", which is the owner's §34
+ * ("Normal Add Indicator browsing should show ONE: Moving Average") and their §2
+ * ("it looks like UCT has two completely different kinds of Moving Average").
+ *
+ * ⛔ THE CONFLICT IS ONLY IN THE WORDS. The two rows do different things — one
+ * CREATES a source-capable moving average, the other RESTORES the `EMA 9` the
+ * member already configured, with their colour and their period — so the answer is
+ * not to hide one, it is to stop them being called the same thing. A row labelled
+ * *Restore EMA 9* is unambiguous next to *Moving Average*, and it is also a better
+ * offer than the one it replaces: it names the thing coming back.
+ *
+ * ⛔ AND IT RENAMES A COPY. `BUILT_IN_ROWS` is frozen and shared; the id, the
+ * tags, `builtIn: 'overlay'` and therefore the `toggledRow` revive path are all
+ * untouched, so this is presentation over an unchanged writer. §33's requirement —
+ * *"Do NOT break removed-overlay revival"* — is met by not touching it.
+ *
+ * ⚠️ THE FIRST TOMBSTONE IS THE ONE NAMED, because it is the one `toggledRow`
+ * revives (`list.findIndex(isOverlayRemoved)`). Naming a different one would be a
+ * label that lies about what the click does.
+ *
+ * @param {object} row       a `BUILT_IN_ROWS` row
+ * @param {object} settings  the chart settings blob
+ * @returns {object} the row, renamed when it is the revealed revive row
+ */
+export function libraryRowFor(row, settings) {
+  if (!row || row.id !== 'ma' || row.builtIn !== 'overlay') return row
+  const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
+  const dead = overlays.find(isOverlayRemoved)
+  if (!dead) return row
+  // The same grammar `indicatorRegistry.listIndicators` gives a live overlay row
+  // — `EMA 9`, `SMA 200` — so the offer and the row it restores read alike.
+  const what = `${dead.type || 'SMA'} ${dead.period ?? ''}`.trim()
+  const name = what ? `Restore ${what}` : 'Restore removed moving average'
+  return {
+    ...row,
+    name,
+    shortName: 'Restore',
+    description: what
+      ? `Bring back the ${what} you removed from this chart, with the colour and period you set.`
+      : 'Bring back the moving average you removed from this chart, with its settings.',
+    // ⭐⭐ IT IS AN ADD ROW, NEVER AN "Active" ONE — and that is a statement about
+    // the VERB, not a lie about the state. `isRowOn` for the legacy MA row means
+    // "at least one moving average is live", which is true on the very chart where
+    // one is tombstoned; the row then rendered *Active* with a `＋ Add another`
+    // beside it, so the only way to get the removed EMA 9 back was a control
+    // labelled "Add another Moving Average". One restore, one click, named for what
+    // it restores.
+    //
+    // ⛔ `singleton` IS WHAT REMOVES THE SECOND CONTROL, and it is honest here for
+    // the reason it is honest on Volume: there is exactly ONE tombstone this row
+    // revives (`toggledRow` takes `findIndex(isOverlayRemoved)`). Restore it and
+    // the row disappears, because `hiddenLibraryIds` stops revealing it.
+    restores: true,
+    singleton: true,
+  }
+}
+
 export function libraryRows(registry) {
   const out = []
   for (const row of BUILT_IN_ROWS) {

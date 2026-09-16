@@ -79,7 +79,7 @@ export function displaySubmenu(options, current, onMove, instanceId) {
 /**
  * Track B V1's rows, in the declared order, from ONE source.
  *
- *   Hide/Show · Display in ▸ · ——— · Edit in Chart Data · Duplicate · Alert ·
+ *   Hide/Show · Display in ▸ · ——— · Edit in Indicators · Duplicate · Alert ·
  *   About · ——— · Delete
  *
  * ⭐ THE ORDER IS THE HIERARCHY THE OWNER APPROVED: visibility and placement are
@@ -142,7 +142,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     {
       // ⭐ THE FULL EDITOR. One channel — see `StockChart.handleChipSettings`.
       key: 'settings',
-      label: 'Edit in Chart Data…',
+      label: 'Edit in Indicators…',
       icon: 'sliders',
       onClick: () => h.onSettings(chip.instanceId),
     },

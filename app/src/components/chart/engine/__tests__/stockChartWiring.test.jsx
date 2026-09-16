@@ -1558,9 +1558,13 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
       // ⭐ `dataSeries` BEARS A CHIP LIKE ANY OTHER LINE — it draws one and prints
       // one number. What is unusual is only that the chip is NAMED FROM ITS
       // SOURCE, so a member reads `QQQ` rather than `Series`.
+      // ⭐ `dollarVolume` BEARS ONE TOO, AND THAT IS THE POINT OF IT. Its number
+      // used to be printed by hand into the volume pane's label strip, outside
+      // `legendChips` entirely; declaring a chip is what makes it readable by the
+      // same pipeline, hideable by the same eye and removable by the same ✕.
       .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries',
-        'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
-        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'dollarVolume', 'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage',
+        'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -4021,9 +4025,14 @@ describe('the Flip-B machinery, live (Task 10)', () => {
       // ⭐ EIGHTEEN AT P2.1: `dataSeries` is the first REGISTRY-NATIVE definition —
       // never a legacy block, never a `cs.indicators` section, never a toggle — so
       // the set grew again with no flip and nothing to migrate.
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+      // ⭐ NINETEEN AT 2026-09-16: `dollarVolume`. Registry-native like
+      // `dataSeries`, but with an odder ancestry than any of them — the number
+      // was already on screen, computed inline by `StockChart` and printed into
+      // the volume pane's LABEL, with no definition, no section and no toggle.
+      // The set grew again with no flip and nothing to migrate.
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
+        'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -4225,7 +4234,11 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // passthrough (a line of this chart's own close labelled "Series"). One is
     // offered, the other is subtracted, and both answers come from the same
     // constant rather than from a hand-picked list.
-    expect(items).toHaveLength(19)
+    // ⭐ TWENTY AT 2026-09-16. `dollarVolume` reaches this menu like `movingAverage`
+    // and unlike `dataSeries`: a per-DEFINITION toggle means something for it —
+    // "show the cash traded per bar" — because it computes one fixed thing rather
+    // than whatever it was pointed at.
+    expect(items).toHaveLength(20)
     expect(items).toHaveLength(offered().length)
     expect(items.map(i => i.id)).toEqual(offered().map(r => 'ind-' + r.id))
     expect(items.map(i => i.label)).toEqual(offered().map(r => r.shortName))

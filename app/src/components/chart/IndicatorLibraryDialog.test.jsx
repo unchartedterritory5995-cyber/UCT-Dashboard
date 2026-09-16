@@ -139,7 +139,12 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     open()
     type('zzzzz')
     expect(screen.queryAllByRole('option')).toHaveLength(0)
-    expect(screen.getByText(/No indicator matches/)).toBeTruthy()
+    // ⚰️ IT SAID "No indicator matches", AND THAT STOPPED BEING TRUE ON
+    // 2026-09-16. This list now holds securities and breadth measures as well as
+    // indicators (owner §7/§9), so an empty result is not a statement about
+    // indicators — it is a statement about everything the member could have asked
+    // for. The word is the only thing that changed; the behaviour is the same.
+    expect(screen.getByText(/Nothing matches/)).toBeTruthy()
   })
 
   it('adding leaves the dialog OPEN and ticks the row (spec §6 add-and-stay-open)', () => {

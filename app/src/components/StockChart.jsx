@@ -129,7 +129,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, siblingSuffixes, paneReadoutLabel } from './chart/engine/readout'
+import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -731,6 +731,11 @@ import {
   // of its three rows was a permanent refusal. Both the on-chart popover and
   // Chart Settings → Indicators now read this same function.
   displayTargetOptions,
+  // ⭐ THE UNITS QUESTION, NOT ONLY THE POSITION ONE — its own header says so:
+  // a guest whose target came from its SOURCE is reading the same numbers its
+  // host is. That is what tells `SMA 50 of Volume` (shares, formatted like
+  // volume) apart from an RSI a member happened to park on the volume pane.
+  derivedTargetOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
@@ -3634,7 +3639,7 @@ export default function StockChart({
   const axisWidthRatchetRef = useRef(0)
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
   const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
-  const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
+  const volLegendRef = useRef(null)    // the volume pane's own readout — positioned live
   const legendRef = useRef(null)       // main OHLC/MA legend — captured into the PNG screenshot
   // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
@@ -4069,8 +4074,10 @@ export default function StockChart({
   // ⚰️ `&& legendMode === 'always'` STOOD HERE FOR ONE ROUND AND WAS WRONG —
   // caught on screen, by nothing in 5,110 green tests. `crosshairData` is NOT the
   // OHLC legend; it is the shared readout payload, and the VOLUME PANE'S
-  // "$ Vol · Avg 50D" strip renders off the same object (see its render gate,
-  // which requires `crosshairData.dollarVol != null`). Suppressing the seed here
+  // strip renders off the same object (its render gate used to require
+  // `crosshairData.dollarVol != null` — that field was deleted on 2026-09-16 along
+  // with the automatic readings it fed, and the FINDING is unchanged: the gate is
+  // still this payload). Suppressing the seed here
   // therefore blanked the volume strip too, so "hide the OHLC legend" silently
   // took an unrelated readout — with its own `volume.labelVisible` setting —
   // down with it.
@@ -4414,7 +4421,6 @@ export default function StockChart({
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
       change: change.toFixed(2), changePct: changePct.toFixed(2),
-      dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
       // ⭐ THE CHIPS THE OFF-CURSOR LEGEND NOW PRINTS. This line read
@@ -4530,6 +4536,9 @@ export default function StockChart({
   // legend the RAW blob — including the records `normalizeInstances` dropped and
   // the definitions the engine is not allowed to draw.
   const engineInstancesRef = useRef(EMPTY_INSTANCES)
+  /** Does volume have a pane of its own right now? See `showVolLegend`'s block —
+   *  the legend's copy of the renderer's own `volumeOwnsPane` answer. */
+  const volumeOwnsItsPaneRef = useRef(false)
   // ── ⛔ THE LEGACY LANE'S CHIP ENTRIES ARE GONE (B5 Task 6) ──────────────────
   //
   // `legacyChipEntriesRef`, `registerLegacyChip`, `csIndicatorsRef` and the
@@ -6008,6 +6017,19 @@ export default function StockChart({
     if (!inst) return null
     const target = resolveDisplayTarget(inst, cs)
     if (target === 'pane') return id
+    // ⭐⭐ DISPLAY DESTINATION → LEGEND OWNERSHIP, AND VOLUME IS NOT AN EXCEPTION
+    // (owner §13, 2026-09-16). `parsePaneOfTarget` only understands `@host`, so a
+    // chip whose destination is the VOLUME PANE fell through to `null` — which
+    // this function's callers read as "drawn on Price". Measured consequence: an
+    // SMA of Volume, or anything a member sent to Volume through "Display in",
+    // drew its line inside the volume pane and printed its READOUT in the price
+    // legend at the top of the chart. Two panes apart, for one series.
+    //
+    // ⛔ AND IT IS GATED ON THE PANE EXISTING, not on the target alone. A BANDED
+    // volume is drawn INSIDE the candles' pane, so a guest overlaid on it really
+    // is a price-pane plot and its row really does belong in the price stack —
+    // `null` is the right answer there and is the same answer it always gave.
+    if (target === 'volume') return volumeOwnsItsPaneRef.current ? VOLUME_PANE : null
     return parsePaneOfTarget(target)
   }, [cs])
   /**
@@ -13735,7 +13757,6 @@ export default function StockChart({
         volume: vol,
         change: change.toFixed(2),
         changePct: changePct.toFixed(2),
-        dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
         volAvg,
         volMaPeriod: volMaPeriodEff || null,
         overlays: ovValues,
@@ -14941,12 +14962,167 @@ export default function StockChart({
   // (the setting only saves after the drag settles). A rAF sampler reads the actual
   // pane heights every frame and writes the offsets straight to the DOM (no React
   // re-render → no fight → smooth), so they slide with the divider in real time.
-  const showVolLegend = showVolume && volInSeparatePane
-  /** The volume-pane strip's ink — `legBase` for a block that is not inside the
-   *  legend's IIFE. Memoised so the six spans below share ONE object instead of
-   *  allocating six per crosshair frame. */
-  const legBaseVol = useMemo(
-    () => (legendColor ? { color: legendColor } : undefined), [legendColor])
+  // ⭐⭐ ONE PREDICATE FOR "VOLUME OWNS A PANE", AND THE LEGEND ASKS IT (2026-09-16).
+  //
+  // `volInSeparatePane` is the PRICE-SCALE question — "do I reserve a bottom band
+  // on pane 0?" — and it misses the one rule that can promote volume to a pane
+  // with no flag set anywhere: something OVERLAID on it. `updateChart` asks
+  // `volumeOwnsPane(…)` with every input and gets a pane; a legend reading the
+  // narrower flag would put Volume's row in the PRICE stack while its bars sit in
+  // a pane of their own six pixels below.
+  //
+  // ⚰️ THAT IS THE DEFECT `chartDataMap` ALREADY RECORDS FROM THE OTHER SIDE —
+  // two readers of one rule, one of them missing an input, and a panel describing
+  // a chart that is not on screen. This is the same rule, asked the same way.
+  //
+  // ⛔ AND IT READS THE ENGINE'S LIST FIRST, exactly as `chipPaneHost` does: a
+  // LEGACY instance is PROJECTED at read time and never stored, so asking the blob
+  // alone would miss an overlay that is really drawing.
+  const volumeOwnsItsPane = volumeOwnsPane({
+    cs,
+    instances: (engineInstancesRef.current && engineInstancesRef.current.length)
+      ? engineInstancesRef.current : cs.indicatorInstances,
+    shown: showVolume,
+    blankVolume,
+    volumeSeparatePane,
+  })
+  const showVolLegend = showVolume && volumeOwnsItsPane
+  // ⛔ MIRRORED INTO A REF BECAUSE `chipPaneHost` IS DECLARED ABOVE THIS LINE and
+  // is memoised on `cs` alone. Reading the value directly would either be a
+  // temporal-dead-zone error or a dependency that rebuilt the callback — and every
+  // crosshair frame calls it once per chip. The write happens during render, so the
+  // ref is current before any handler can read it.
+  volumeOwnsItsPaneRef.current = volumeOwnsItsPane
+
+  /**
+   * ⭐⭐ THE VOLUME PANE'S OWN ROWS — the pane-local legend, as data.
+   *
+   * ONE RULE, APPLIED HERE LIKE EVERYWHERE ELSE: a series' readout lives in the
+   * pane it is DISPLAYED in. That gives this strip exactly three kinds of row:
+   *
+   *   1. VOLUME itself, wearing its up-bar colour as a micro-rail.
+   *   2. VOLUME'S OWN MOVING AVERAGE, when the member has one. `cs.volume.maPeriod`
+   *      is a real setting that draws a real line; its default moved to 0 in the
+   *      same change, so a row here means a member chose it rather than a default
+   *      handing it to them (owner §16 vs §51 — remove the default, keep the
+   *      choice).
+   *   3. GUESTS — every chip whose display destination resolves to this pane,
+   *      which is how `Moving Average · Source: Volume` gets its number printed
+   *      next to the bars it averages rather than at the top of the price pane.
+   *
+   * ⛔ NOTHING IS COMPUTED HERE. Every value comes off `crosshairData`, which is the
+   * one payload the whole legend reads; every guest's label, colour and precision
+   * come off `legendChips`, which is the one formatting pipeline. This function
+   * decides MEMBERSHIP and nothing else — which is the only question pane ownership
+   * actually is.
+   *
+   * ⚠️ AND IT IS A MEMO, NOT A REF-READ, because it feeds JSX: it has to recompute
+   * when the crosshair payload changes, which is exactly when the chart re-renders.
+   */
+  const volPaneRows = useMemo(() => {
+    if (!crosshairData) return EMPTY_CHIPS
+    const rows = []
+    const volHidden = cs.volume?.visible === false
+    // ⭐ THE UP COLOUR IS THE SERIES' IDENTITY. Volume is drawn in two colours and
+    // a rail can only be one; the up colour is the one the pane reads as "volume"
+    // (it is what `ChartSettingsIndicators`' collapsed row shows first for the same
+    // reason). ⛔ AND IT IS `opaqueColor`, like every other rail on this chart — a
+    // translucent bar colour lifted against the canvas rather than washed out.
+    if (!isVolumeRemoved(cs) && (volHidden || crosshairData.volume != null)) {
+      rows.push({
+        key: 'volume',
+        rowId: 'volume',
+        label: 'Vol',
+        // ⛔ NAMED "Volume", NOT "Vol". This is what a screen reader and the
+        // tooltip get; an unnamed trigger announces a button called " options".
+        controlLabel: 'Volume',
+        value: volHidden ? '' : formatVolume(crosshairData.volume),
+        color: opaqueColor(cs.volume?.upColor),
+        hidden: volHidden,
+        onOpen: legendRowHandlers ? openVolumeMenu : null,
+      })
+    }
+    // ⚠️ THE PERIOD IS READ FROM `cs`, NOT FROM THE PAYLOAD, AND THAT IS A FIX.
+    //
+    // ⚰️ MEASURED IN THE PANE HARNESS 2026-09-16: setting Volume MA period to 50
+    // drew the line and printed NO row. `crosshairData.volMaPeriod` is stamped by
+    // the crosshair handler from its own closure over `volMaPeriodEff`, and that
+    // handler is subscribed once — so a period changed mid-session reached the
+    // renderer (a ref) and not the payload (a closure). It was invisible until
+    // this change, because the period used to DEFAULT to 50 and was therefore
+    // never zero at subscribe time. Removing the default is what surfaced it.
+    //
+    // ⛔ AND THE LIVE SETTING IS THE RIGHT SOURCE ANYWAY: the label must name the
+    // period of the line that is drawn NOW, which is what `cs` says and what the
+    // renderer read. The VALUE still comes from the payload, because that is the
+    // hovered bar's reading and nothing else knows it.
+    const volMaPeriod = Number(cs.volume?.maPeriod) || crosshairData.volMaPeriod || 0
+    if (crosshairData.volAvg != null && volMaPeriod) {
+      rows.push({
+        key: 'volume-ma',
+        // ⛔ THE SAME ADDRESS AS VOLUME, BECAUSE IT IS THE SAME OBJECT. The volume
+        // MA has no id of its own — it is `cs.volume.maPeriod`/`maColor`, edited in
+        // Volume's own row — so its menu is Volume's menu. A second address would
+        // be a door onto settings that do not exist.
+        rowId: 'volume',
+        // ⭐ `SMA 50`, THE SAME GRAMMAR THE ENGINE'S MOVING AVERAGE USES. A member
+        // who adds `Moving Average · SMA · 50 · Source: Volume` gets a row reading
+        // `SMA 50` in this pane; the legacy one must not read `Avg 50D` beside it,
+        // or one feature reads as two. (`smaOfSeries` is what computes it — it is
+        // a simple average, and saying SMA is the truth about it.)
+        label: `SMA ${volMaPeriod}`,
+        controlLabel: 'Volume',
+        value: formatVolume(crosshairData.volAvg),
+        color: opaqueColor(cs.volume?.maColor),
+        hidden: false,
+        onOpen: legendRowHandlers ? openVolumeMenu : null,
+      })
+    }
+    // ⭐⭐ AND THE GUESTS. `chipPaneHost` is the one authority on where a chip's
+    // readout belongs, and it answers `volume` for exactly the series the renderer
+    // drew into this pane — so this list cannot disagree with the picture.
+    for (const c of (crosshairData.chips || EMPTY_CHIPS)) {
+      if (!c || c.hidden === true) continue
+      let host = null
+      try { host = chipPaneHost(c) } catch { host = null }
+      if (host !== VOLUME_PANE) continue
+      // ⭐⭐ A GUEST THAT IS HERE BECAUSE OF ITS SOURCE IS READ IN VOLUME'S UNITS.
+      //
+      // ⚰️ MEASURED IN THE PANE HARNESS, 2026-09-16: `Moving Average · Source:
+      // Volume` printed `SMA 5 40098675.20` beside `Vol 9.0M`. Both are the same
+      // quantity in the same pane on the same ladder, written two different ways —
+      // and the eight-digit one is the one nobody can read at a glance.
+      //
+      // ⛔ AND THE TEST IS PROVENANCE, NOT POSITION, WHICH IS THE DISTINCTION
+      // `derivedTargetOf` EXISTS FOR (see its header). A series that DERIVED its
+      // way here is averaging volume and is on volume's own axis. An RSI a member
+      // PARKED here has an axis of its own — `placement.js` gives it one for
+      // exactly this reason — so its own decimals are the truth about it and
+      // `formatVolume` would be a lie with an `M` on the end.
+      let sameUnits = false
+      try {
+        const gi = (engineInstancesRef.current || []).find((i) => i && i.instanceId === c.instanceId)
+          || (cs.indicatorInstances || []).find((i) => i && i.instanceId === c.instanceId)
+        sameUnits = !!gi && derivedTargetOf(gi, cs) === 'volume'
+      } catch { sameUnits = false }
+      rows.push({
+        key: `${c.instanceId}::${c.plotKey}`,
+        rowId: c.instanceId,
+        label: c.label,
+        controlLabel: c.label,
+        value: c.value == null ? ''
+          : (sameUnits ? formatVolume(c.value) : chipValueText(c)),
+        color: c.color,
+        hidden: !!c.hidden,
+        onOpen: chipHandlers ? (_id, anchor) => chipHandlers.onMenu(c, anchor) : null,
+      })
+    }
+    return rows
+  }, [crosshairData, cs, chipPaneHost, chipHandlers, legendRowHandlers, openVolumeMenu])
+  /** ⚰️ `legBaseVol` STOOD HERE — one memoised `{color}` shared by the six hand
+   *  written spans the volume strip used to emit. The strip renders `LegendRow`s
+   *  now (one component, one ink rule, the same `baseColor` prop every other row
+   *  takes), so there is nothing left for a second `legBase` to ink. */
 
   /**
    * Put ONE oscillator pane's readout at the top-left of its pane.
@@ -16326,7 +16502,7 @@ export default function StockChart({
             { key: 'hidden', label: rowHidden ? 'Show' : 'Hide', icon: 'eye',
               onClick: () => { close(); legendRowHidden(rid) } },
             { separator: true },
-            { key: 'settings', label: 'Edit in Chart Data…', icon: 'sliders',
+            { key: 'settings', label: 'Edit in Indicators…', icon: 'sliders',
               onClick: () => { close(); legendRowSettings(rid) } },
             { separator: true },
             // ⚰️ THIS ROW USED TO ARM. One click now (owner, 2026-09-14): it is
@@ -16414,7 +16590,7 @@ export default function StockChart({
                 label={c.label}
                 hidden={!!c.hidden}
                 value={Number.isFinite(Number(c.value))
-                  ? Number(c.value).toFixed(Number.isInteger(c.decimals) ? c.decimals : 2)
+                  ? chipValueText(c)
                   : ''}
                 sub={legendMenuSubtitle(def, displayOptions, displayCurrent)}
               />
@@ -17022,8 +17198,31 @@ export default function StockChart({
         // still different from HIDDEN and still takes the row away; that is the
         // `isVolumeRemoved` half, unchanged.
         const volHidden = cs.volume?.visible === false
+        // ⭐⭐ AND THE ROW BELONGS TO WHICHEVER PANE VOLUME IS DRAWN IN (owner §15,
+        // 2026-09-16). This is the universal rule — DISPLAY DESTINATION OWNS THE
+        // READOUT — applied to the one series that was exempt from it.
+        //
+        // ⚰️ MEASURED ON SCREEN: with Volume in a pane of its own, `Vol 9.1M` was
+        // printed TWICE — once at the bottom of the PRICE pane's study stack and
+        // once in the volume pane's own strip six pixels below it. Owner: *"The
+        // current screenshot showing Price legend: EMA… EMA… Vol 9.1M while Volume
+        // is visibly in its own pane is conceptually wrong."*
+        //
+        // ⛔ THE FIX IS PANE OWNERSHIP, NOT A VOLUME-SPECIFIC HIDE RULE. A BANDED
+        // volume IS drawn inside the candles' pane and has no strip of its own, so
+        // its row keeps the price stack — which is not an exception, it is the same
+        // rule reaching the other answer. `volumeOwnsItsPane` is the one predicate
+        // both readers ask; see its block.
         const volLegendRowVisible = !isVolumeRemoved(cs)
           && (volHidden || crosshairData.volume != null)
+        // ⚠️ THE **V2 STACK** ONLY, AND THAT IS NOT A HEDGE. The flat branch below
+        // is the inline legend used by Model Book, the pop-out, the gallery cell
+        // and the phone shell — surfaces where `.volLegend` is `display:none` and
+        // this strip is the ONLY place a volume reading can appear. Taking the row
+        // out there would delete it rather than move it. The V2 stack is the one
+        // layout that sits over a real pane structure, so it is the one where
+        // "which pane owns this row" is a question with an answer.
+        const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane
         const indChips = crosshairData.chips || EMPTY_CHIPS
         // ── THE INLINE (NON-WORKSPACE) LEGEND'S FOLD — unchanged ────────────
         // Model Book, a pop-up, a gallery cell: one wrapping row of chips with a
@@ -17074,8 +17273,8 @@ export default function StockChart({
         // studies, and a banded volume (no pane of its own) keeps the head position
         // it has always had. No pane INDEX is assumed anywhere; the two indices are
         // only ever compared with each other.
-        const studyVolLast = volLegendRowVisible && volumeBelowPrice()
-        const studyHeadN = (volLegendRowVisible && !studyVolLast) ? 1 : 0
+        const studyVolLast = volRowInPriceStack && volumeBelowPrice()
+        const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0
         const studyChipAt = studyHeadN + studyOverlays.length
         const studyTailN = studyVolLast ? 1 : 0
         const studyTotal = studyChipAt + priceChips.length + studyTailN
@@ -17218,7 +17417,7 @@ export default function StockChart({
                     row only REPORTS the state: a hidden volume pane keeps a
                     dimmed, value-less row (the way back), and a REMOVED one takes
                     the row away. Same `volLegendRowVisible` rule as before. */}
-                {volLegendRowVisible && !studyVolLast && (legendRowHandlers ? (
+                {volRowInPriceStack && !studyVolLast && (legendRowHandlers ? (
                   <LegendRow
                     vertical
                     rowId="volume"
@@ -17281,7 +17480,7 @@ export default function StockChart({
                     JSX lifted out of the legend element loses its static proof of
                     containment, and the export-time hide is what keeps this strip
                     out of every branded newsletter capture. */}
-                {volLegendRowVisible && studyVolLast && (legendRowHandlers ? (
+                {volRowInPriceStack && studyVolLast && (legendRowHandlers ? (
                   <LegendRow
                     vertical
                     rowId="volume"
@@ -17332,23 +17531,29 @@ export default function StockChart({
           ) : (
             <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           ))}
-          {/* ⭐ MOB-06′ — dollar volume + average volume, for the PHONE only.
-              These already render on desktop in the volume-pane strip (.volLegend),
-              which is `display:none` on the phone shell — so on a phone the two
-              numbers existed in `crosshairData` and reached no surface at all.
-              They ride the crosshair legend (already contextual, already
-              device-verified) rather than restoring a second permanent strip.
+          {/* ⭐ MOB-06′ — the volume MA's reading, for the PHONE only. It renders on
+              desktop in the volume-pane strip (.volLegend), which is `display:none`
+              on the phone shell, so without this the number exists in
+              `crosshairData` and reaches no surface at all. It rides the crosshair
+              legend (already contextual, already device-verified) rather than
+              restoring a second permanent strip.
               ⛔ VISIBILITY IS CSS'S JOB, NOT JS'S: `.volXtra` is hidden by default
               and unhidden only by the same phone-shell + coarse query that hides
-              `.volLegend`, so exactly one surface shows them on any given device.
-              No new state, no second subscription — the same crosshairData fields
-              the volume strip reads. Each guard is independent so an unavailable
-              metric renders NOTHING rather than a misleading zero. */}
-          {crosshairData.dollarVol != null && (
-            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>$ Vol <span className={styles.legendVal} style={legBase}>{formatDpNotional(crosshairData.dollarVol)}</span></span>
-          )}
+              `.volLegend`, so exactly one surface shows it on any given device.
+
+              ⚰️⚰️ `$ Vol` STOOD BESIDE IT AND IS GONE (owner §16, 2026-09-16). It
+              was never a setting on any device — `volume × close`, computed inline
+              and printed unasked — and it is a DEFINITION now
+              (`nativeRegistry.dollarVolume`), so a member who wants it adds it and
+              gets a real plot with a colour, a pane and a ✕. A mirror of something
+              nobody chose is still something nobody chose.
+
+              ⚠️ AND THE SURVIVOR READS `SMA 50`, NOT `Avg 50D`. A member who adds
+              a Moving Average sourced from Volume gets a row reading `SMA 50`; the
+              legacy volume MA printing a different phrase for the same line is how
+              one feature reads as two (owner §17). */}
           {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
-            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>Avg {crosshairData.volMaPeriod}D <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volAvg)}</span></span>
+            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>SMA {crosshairData.volMaPeriod} <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volAvg)}</span></span>
           )}
           {/* Same Day-change colors as the header row (Chart Settings -> Header): one
               setting drives both readouts. Unset falls through to the CSS class. */}
@@ -17661,77 +17866,47 @@ export default function StockChart({
           </span>
         </div>
       )}
-      {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
-          period. Follows the crosshair (or the latest bar), pinned live to the top
-          of the volume pane. */}
-      {/* `legBase`'s twin. The legend block computes its own inside an IIFE this
-          strip is not part of, and a second `legendColor ? {...} : undefined` per
-          span would allocate six objects a frame on a surface that repaints with
-          the crosshair. */}
-      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.volume != null || crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
-        <div
-          ref={volLegendRef}
-          className={`${styles.volLegend}${legendRowHandlers ? ' ' + styles.volLegendLive : ''}`}
-          {...(legendRowHandlers ? {
-            role: 'button',
-            tabIndex: 0,
-            'aria-haspopup': 'menu',
-            'aria-label': 'Volume options',
-            title: 'Volume — click for options',
-            onClick: (e) => { e.stopPropagation(); openVolumeMenu(e) },
-            onContextMenu: (e) => { e.preventDefault(); e.stopPropagation(); openVolumeMenu(e) },
-            onKeyDown: (e) => {
-              if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
-              e.preventDefault(); e.stopPropagation(); openVolumeMenu(e)
-            },
-          } : null)}
-        >
-          {/* ⭐ THE MEMBER'S OWN LEGEND COLOUR, THE SAME WAY THE LEGEND TAKES IT.
-              `legendColor` is the Chart Settings → Header setting, and the OHLC
-              rows wear it as an INLINE style — so matching "the color in the
-              legend" with a CSS token would have matched on the default theme and
-              drifted the moment anybody changed it. Measured before this line
-              existed: the strip painted `rgb(240,239,234)` against the legend's
-              `rgb(214,216,221)`. Same reasoning, same source, as `LegendRow`'s
-              `baseColor`.
-              ⚠️ LABEL AND VALUE TAKE THE SAME COLOUR — that is not a slip. The
-              legend tells them apart by WEIGHT (500 vs 600) at one colour, which
-              is what `.volLegLabel` / `.volLegVal` now do too; the CSS tokens stay
-              as the fallback for a member who has set no colour. */}
-          {crosshairData.volume != null && (
-            <span className={styles.volLegItem}>
-              <span className={styles.volLegLabel} style={legBaseVol}>Vol</span>
-              <span className={styles.volLegVal} style={legBaseVol}>{formatVolume(crosshairData.volume)}</span>
-            </span>
-          )}
-          {crosshairData.dollarVol != null && (
-            <span className={styles.volLegItem}>
-              <span className={styles.volLegLabel} style={legBaseVol}>$ Vol</span>
-              <span className={styles.volLegVal} style={legBaseVol}>{formatDpNotional(crosshairData.dollarVol)}</span>
-            </span>
-          )}
-          {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
-            <span className={styles.volLegItem}>
-              <span className={styles.volLegLabel} style={legBaseVol}>Avg {crosshairData.volMaPeriod}D</span>
-              <span className={styles.volLegVal} style={legBaseVol}>{formatVolume(crosshairData.volAvg)}</span>
-            </span>
-          )}
-          {/* ⚰️⚰️ A CONTROL-ONLY `LegendRow` STOOD HERE. It carried no label and no
-              value — the three readings to its left are already the volume pane's
-              — and existed purely to hold the eye/gear/✕ strip, and then the
-              chevron. With the control retired it would render an empty span, so
-              the interaction moved to the STRIP, which is the thing a member
-              actually sees and points at.
+      {/* ─── THE VOLUME PANE'S OWN LEGEND ───────────────────────────────────
+          ⭐⭐ IT IS A PANE-LOCAL LEGEND NOW, NOT A VOLUME DASHBOARD (owner §15-§18,
+          2026-09-16). One rule governs every readout on this chart: **the pane a
+          series is DISPLAYED in owns its legend row**. So this strip holds Volume,
+          Volume's own moving average when the member has one, and every series
+          whose display destination is this pane — and nothing else.
 
-              ⛔ THE VERBS ARE UNCHANGED AND STILL THE ONES THIS SURFACE ALREADY
-              USED — `handleRowMenu('volume')` opens the same reduced popover
-              (Show/Hide · Edit in Chart Data… · Delete) whose rows call
-              `legendRowHidden` / `legendRowSettings` / `legendRowRemove`. No new
-              capability, no new writer.
+          ⚰️⚰️ WHAT LEFT, AND WHY IT WAS NEVER A SETTING.
+          · `$ Vol $6.48B` — `volume × close`, computed inline on every crosshair
+            frame, printed on EVERY chart, with no control anywhere in the product
+            to turn it off, move it, recolour it or plot it. It is a DEFINITION now
+            (`nativeRegistry.dollarVolume`): a member adds it, and then it has a
+            colour, a pane, a ✕ and a legend row like everything else.
+          · `Avg 50D` — this one IS a setting (`cs.volume.maPeriod`) and draws a
+            real line, so it is NOT removed: it prints whenever the member has a
+            period, which after the default moved to 0 means *whenever they chose
+            one*. Deleting a line somebody configured would be erasing intent, not
+            removing a default (§51).
 
-              ⚠️ AND `.volLegend:hover span[data-legend-ctl]` IS RETIRED WITH IT.
-              That rule existed because a row with no text has no hoverable area
-              of its own; the strip's own `:hover` is the whole mechanism now. */}
+          ⛔ AND THE DOOR MOVED FROM THE BOX TO THE ROWS. The strip used to be one
+          `role="button"` labelled "Volume options"; with guests in it, a click on
+          `SMA 50` would have opened Volume's menu. Each row carries its own door
+          now — the same `LegendRow` contract, the same popover, the same verbs —
+          which is also what makes the rail mean something: one rule, one row, one
+          series, one menu. */}
+      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady
+        && crosshairData && volPaneRows.length > 0 && (
+        <div ref={volLegendRef} className={styles.volLegend}>
+          {volPaneRows.map((r) => (
+            <LegendRow
+              key={r.key}
+              rowId={r.rowId}
+              label={r.label}
+              controlLabel={r.controlLabel}
+              value={r.value}
+              color={r.color}
+              baseColor={legendColor || undefined}
+              hidden={r.hidden}
+              {...(r.onOpen ? { onOpen: r.onOpen } : null)}
+            />
+          ))}
         </div>
       )}
       {/* ── EACH OSCILLATOR PANE'S OWN TOP-LEFT READOUT ────────────────────────
@@ -17825,7 +18000,7 @@ export default function StockChart({
                  ask and the right split: nine names share one line up there, and
                  down here one name has a whole pane to itself. */
               label={paneReadoutLabel(c, engineRegistry.getDefinition(c.defId), paneLongName(c))}
-              value={c.value != null ? c.value.toFixed(c.decimals) : ''}
+              value={chipValueText(c)}
               color={c.color}
               baseColor={legendColor || undefined}
               /* ⚠️ THE CONTROLS ARE NAMED FOR THE INDICATOR, NOT FOR THE PLOT.

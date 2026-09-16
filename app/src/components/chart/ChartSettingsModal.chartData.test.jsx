@@ -25,7 +25,13 @@ import { symbolSource, paneOfTarget } from './engine/sourceRef'
 import { primeSecondaryBars, clearSecondaryBars } from './engine/secondaryBars'
 import { addInstance, setInstanceDisplayTarget, removeInstance } from './engine/instanceControls'
 import { listAllIndicators, readEnabled } from './indicatorRegistry'
-import { paneMap } from './chartDataMap'
+import { paneMap } from './chartDataMap'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+
 import { resolvePaneOrder, storedPaneOrder, PRICE_PANE } from './engine/paneOrder'
 
 vi.mock('../../hooks/useBreadthSymbols', async (importOriginal) => {
@@ -64,7 +70,7 @@ function Host({ initial, onSeen }) {
   )
 }
 const show = (cs) => render(<Host initial={cs} />)
-const openTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
+const openTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 
 const groups = () => [...document.body.querySelectorAll('[data-pane-group]')].map((g) => ({
   id: g.getAttribute('data-pane-group'),
@@ -299,7 +305,7 @@ describe('⚰️ the Track B deep link lands on the inline editor', () => {
     // ⚠️ INSTANCE IDS CARRY COLONS. The prefix is sliced by length, never split.
     expect(r.id).toContain(':')
     render(<ChartSettingsModal open scrollTo={`data:${r.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
-    expect(screen.getByRole('tab', { name: 'Chart Data' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'Indicators' }).getAttribute('aria-selected')).toBe('true')
     const panel = document.body.querySelector('[data-inspector-for]')
     expect(panel, 'the deep link opened no editor').toBeTruthy()
     expect(panel.getAttribute('data-inspector-for')).toBe(r.id)
@@ -320,6 +326,52 @@ describe('⚰️ the Track B deep link lands on the inline editor', () => {
     expect(a.id).not.toBe(b.id)
     render(<ChartSettingsModal open scrollTo={`data:${b.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
     expect(document.body.querySelector('[data-inspector-for]').getAttribute('data-inspector-for')).toBe(b.id)
+  })
+})
+
+describe('⭐⭐ PANE REORDERING IS DISCOVERABLE (owner §23, §25)', () => {
+  // ⚰️ THE OWNER'S REPORT, 2026-09-16: *"The current pane up/down controls are
+  // only discoverable if the pointer happens to hover exactly where the invisible
+  // buttons are."* Both the ↑/↓ pair and the drag grip rested at `opacity: 0` and
+  // appeared on `:hover` — so a member who never happened to sweep the pointer
+  // across a pane heading never learned that panes move at all.
+  //
+  // ⛔ A CSS-ARTIFACT ASSERTION, AND IT HAS TO BE ONE. jsdom applies no
+  // stylesheet, so a rendered probe finds the buttons in the DOM whatever their
+  // opacity — which is precisely how this shipped invisible with the reorder suite
+  // below entirely green. The same instrument `legendV2.test.jsx` uses, for the
+  // same reason.
+  const css = readFileSync(path.resolve(HERE, 'ChartSettingsModal.module.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  /** The `opacity` a class declares in its OWN rule, defaulting to 1. */
+  const restOpacity = (re, name) => {
+    const rule = re.exec(css)
+    expect(rule, `${name} is gone — the pane heading lost its affordance`).toBeTruthy()
+    const m = /opacity:\s*([\d.]+)/.exec(rule[1])
+    return m ? Number(m[1]) : 1
+  }
+
+  it('⭐ the ↑ / ↓ pair is VISIBLE AT REST', () => {
+    const o = restOpacity(/(?:^|\n)\.cdMove\s*\{([^}]*)\}/, '.cdMove')
+    expect(o, 'the pane move controls are invisible until hover again').toBeGreaterThan(0)
+    // ⛔ AND QUIET, WHICH IS THE OTHER HALF OF THE ASK: *"They may brighten on
+    // hover. Do not make them loud."* A six-pane map must not read as twelve
+    // buttons.
+    expect(o, 'the move controls now shout').toBeLessThan(1)
+  })
+
+  it('⭐ the drag grip is visible at rest too — a handle nobody sees is no handle', () => {
+    const o = restOpacity(/(?:^|\n)\.cdGrip\s*\{([^}]*)\}/, '.cdGrip')
+    expect(o).toBeGreaterThan(0)
+    expect(o).toBeLessThan(1)
+  })
+
+  it('⛔ AND HOVER / KEYBOARD FOCUS STILL TAKE THEM TO FULL', () => {
+    expect(css, 'hover no longer emphasises the move controls')
+      .toMatch(/\.cdGroupHead:hover \.cdMove[^{]*\{[^}]*opacity:\s*1/)
+    expect(css, 'a keyboard member gets no emphasis at all')
+      .toMatch(/\.cdMove:focus-within\s*\{[^}]*opacity:\s*1/)
+    expect(css).toMatch(/\.cdGroupHead:hover \.cdGrip\s*\{[^}]*opacity:\s*1/)
   })
 })
 

@@ -1634,6 +1634,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       // its chip is NAMED FROM ITS SOURCE (`meta.labelFrom`), so a member reads
       // `QQQ` rather than `Series`. `sourceRef.instanceLabel` owns the words.
       'dataSeries::value',
+      // ⭐ `dollarVolume::dv` — 2026-09-16, AND ITS NUMBER WAS ALREADY ON SCREEN.
+      // Unlike every other id in this list it is not a chip that was ADDED to the
+      // readout; it is a chip that REPLACED a hand-formatted `$ Vol $6.48B` that
+      // `StockChart` printed into the volume pane's label on every chart, outside
+      // `legendChips` and outside every rail here. So this row is not a new number
+      // nobody decided on — it is the existing one arriving through the pipeline
+      // that can name it, hide it, colour it and remove it.
+      'dollarVolume::dv',
       'donchian::middle',
       'ichimoku::kijun', 'ichimoku::tenkan',
       'macd::macd', 'macd::signal',
@@ -1684,7 +1692,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // registering a chip for it. Registry-native means engine-lane, always.
     const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine',
       'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
-      'dataSeries', 'movingAverage']
+      // ⭐ `dollarVolume` IS ENGINE-LANE BY CONSTRUCTION TOO, and it is the one id
+      // here whose value USED to be drawn by hand — in the volume label strip,
+      // which was never the legacy CHIP lane this partition is about (no
+      // `registerLegacyChip`, no `legChips` entry). Registry-native means
+      // engine-lane, and the hand-written printing is deleted, not moved.
+      'dataSeries', 'movingAverage', 'dollarVolume']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -2634,6 +2647,14 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // ⭐ `movingAverage` — additive beside `cs.overlays`, never a migration of it,
     // so there is no deleted block whose refs this row would name.
     movingAverage: [],
+    // ⭐ `dollarVolume` — THE ONE ROW WHOSE EMPTINESS NEEDS THE MOST CARE, because
+    // its value DID have hand-written code: `StockChart` computed `volume × close`
+    // into `crosshairData.dollarVol` and printed it in the volume label strip. That
+    // was never an INDICATOR block — no `cs.indicators` section, no toggle, no
+    // `indicatorData` branch, no ref this table's vocabulary can name — and the
+    // inline arithmetic is deleted in the same change that registers this
+    // definition, so there is nothing left for a row to point at either.
+    dollarVolume: [],
   }
   /**
    * The definitions that never had a hand-written block to retire.
@@ -2646,7 +2667,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
    * fail by NAME for any definition that genuinely did have a block and has
    * quietly lost its refs or its compute.
    */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries', 'movingAverage']
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2656,6 +2677,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
     avwap: null, atrBands: null, rsLine: null, dataSeries: null, movingAverage: null,
+    dollarVolume: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2945,7 +2967,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 19,
+      flipSetSize: 20,
       mutableSets: [],
     })
   })

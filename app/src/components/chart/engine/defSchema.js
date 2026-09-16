@@ -272,7 +272,11 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
  *              draw without one today; a migration that ADDS a chip is as much a
  *              regression as one that drops it.
  */
-export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide'])
+/** ⭐ `compact` JOINED THEM 2026-09-16. It says "this output is a MAGNITUDE" —
+ *  print it the way an axis does (`4.61B`) rather than with `decimals`. The
+ *  definition is the only thing that can know that: 4,609,414,802 and 4609.41 are
+ *  the same shape to a formatter. `readout.chipValueText` is the one reader. */
+export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact'])
 
 /**
  * Line styles an AUTHOR may declare on a plot.
@@ -960,6 +964,51 @@ function validateMeta(meta, def, errors) {
             `meta.legendParams: ${fmt(k)} names no declared input — the chip would read ` +
             `"NAME(undefined)". Declared: ${list([...declared].filter(Boolean)) || 'none'}`,
           )
+        }
+      }
+    }
+  }
+  // ⭐⭐ `nameFrom` IS THE THIRD BEHAVIOURAL META FIELD, and it is checked for the
+  // same reason `legendParams` is: it names INPUT KEYS, and a key that resolves to
+  // nothing would put an undefined into the one string a member reads on five
+  // surfaces at once. `engine/semanticName.js` is its reader and its full account.
+  //
+  // ⛔ THE STEM MUST BE AN ENUM. The whole claim of the declaration is that the
+  // name is the member's own choice READ BACK FROM THE CONTROL THEY MADE IT IN —
+  // an option LABEL. A number or a colour has no label, so pointing `stem` at one
+  // is an author error whose only symptom is a reader that answers `null` forever.
+  if (meta.nameFrom !== undefined && meta.nameFrom !== null) {
+    const nfInputs = Array.isArray(def && def.inputs) ? def.inputs : []
+    const byKey = new Map(nfInputs.filter((i) => i && i.key).map((i) => [i.key, i]))
+    const spec = meta.nameFrom
+    if (typeof spec !== 'object' || Array.isArray(spec)) {
+      errors.push(`meta.nameFrom: expected {stem, params?}, got ${fmt(spec)}`)
+    } else {
+      if (typeof spec.stem !== 'string' || !spec.stem) {
+        errors.push(`meta.nameFrom.stem: required input key, got ${fmt(spec.stem)}`)
+      } else if (!byKey.has(spec.stem)) {
+        errors.push(
+          `meta.nameFrom.stem: ${fmt(spec.stem)} names no declared input. ` +
+          `Declared: ${list([...byKey.keys()]) || 'none'}`,
+        )
+      } else if (byKey.get(spec.stem).type !== 'enum') {
+        errors.push(
+          `meta.nameFrom.stem: ${fmt(spec.stem)} is a ${fmt(byKey.get(spec.stem).type)} input — ` +
+          `the stem is an enum option's LABEL, so only an enum can supply one.`,
+        )
+      }
+      if (spec.params !== undefined && spec.params !== null) {
+        if (!Array.isArray(spec.params) || spec.params.some((k) => typeof k !== 'string' || !k)) {
+          errors.push(`meta.nameFrom.params: expected an array of input keys, got ${fmt(spec.params)}`)
+        } else {
+          for (const k of spec.params) {
+            if (!byKey.has(k)) {
+              errors.push(
+                `meta.nameFrom.params: ${fmt(k)} names no declared input. ` +
+                `Declared: ${list([...byKey.keys()]) || 'none'}`,
+              )
+            }
+          }
         }
       }
     }

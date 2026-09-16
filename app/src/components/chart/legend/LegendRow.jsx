@@ -194,6 +194,18 @@ export default function LegendRow({
         style={ink}
         {...trigger}
       >
+        {/* ⭐ THE MICRO-RAIL, IN THE HORIZONTAL STRIP TOO (owner §21, 2026-09-16).
+            A rail means "this readout corresponds to a plotted series", and that
+            is a fact about the SERIES rather than about which layout names it —
+            so the volume pane's own strip reads `▏ Vol 9.1M  ▏ SMA 50 34.6M` with
+            the same rule the price stack uses.
+
+            ⛔ EMITTED ONLY WHEN THERE IS A COLOUR, which is the exact inverse of
+            the vertical variant's rule and is deliberate. Vertical is a grid and
+            reserves the width so every label starts at one x; horizontal has no
+            column to hold, so an unpainted rule would open a hole before every
+            `O`, `H`, `L` and `C` in the flat legend. See `.railFlat`. */}
+        {color ? <i className={styles.railFlat} style={{ background: color }} aria-hidden="true" /> : null}
         {label}{value ? <strong className={styles.flatVal} style={valInk}>{value}</strong> : null}
       </span>
     )

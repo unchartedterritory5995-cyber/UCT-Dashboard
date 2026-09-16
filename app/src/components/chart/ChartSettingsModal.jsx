@@ -212,18 +212,19 @@ const IND_TARGET_PREFIX = 'ind:'
 
 /** ⭐⭐ THE CHART-DATA ADDRESS (Track B, 2026-09-14).
  *
- *  The on-chart popover's **Edit in Chart Data…** sends `data:<instanceId>` down
+ *  The on-chart popover's **Edit in Indicators…** sends `data:<instanceId>` down
  *  the SAME `scrollTo` channel everything else uses, because this file's rule is
- *  that a surface has exactly one way to ask the modal for something. Track A's
- *  Chart Data tab does not exist on master yet, so today this resolves to the
- *  Indicators tab expanded on that instance's row — which is the full
- *  per-instance editor either way.
+ *  that a surface has exactly one way to ask the modal for something. It resolves
+ *  to the Indicators tab expanded on that instance's row — the full per-instance
+ *  editor.
  *
- *  ⛔ WHEN THE CHART DATA TAB LANDS, IT CLAIMS THIS PREFIX HERE — one branch in
- *  `indTargetRow` / `SETTINGS_TARGET_TAB` — and every on-chart door follows with
- *  no change to `StockChart`. That is the entire seam, and it is deliberately the
- *  smallest one: a second prop would be a second channel, which is what the
- *  paragraph above `indTargetRow` forbids.
+ *  ⚰️ THIS USED TO SAY "Track A's Chart Data tab does not exist on master yet, so
+ *  TODAY this resolves to the Indicators tab". It landed, and it landed as the
+ *  SAME tab: the pane map, the per-pane groups and the inline editor are all on
+ *  the tab this prefix already pointed at, and 2026-09-16 renamed its member-
+ *  facing label from "Chart Data" to **Indicators** (owner §5). So the prefix has
+ *  nothing left to be claimed by — both spellings address one surface, which is
+ *  why `data:` and `ind:` are two prefixes into one branch rather than two tabs.
  *
  *  ⚠️ A ROW ID CAN ITSELF CONTAIN COLONS (`legacy:rsi`, `inst:qqq`), which is why
  *  both prefixes are SLICED rather than split. */
@@ -930,7 +931,7 @@ export default function ChartSettingsModal({
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Chart Data'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"

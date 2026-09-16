@@ -256,7 +256,8 @@
  * ⛔ `flex: none` — it must never be the thing that shrinks when a row is tight.
  * ⛔ NO BACKGROUND OF ITS OWN. Unpainted it is invisible and still reserves its
  * width, which is what keeps `Vol`'s label on the same x as `EMA 9`'s. */
-.rail {
+.rail,
+.railFlat {
   flex: none;
   width: 2px;
   height: 10px;
@@ -265,3 +266,14 @@
      baseline box — a rule aligned to the baseline hangs low. */
   transform: translateY(0.5px);
 }
+
+/* ⭐⭐ THE SAME RULE, IN A HORIZONTAL STRIP — §21's *"a micro-rail means: this
+   readout corresponds to a plotted series"*, generalised off the study stack. The
+   volume pane's own strip reads `▏ Vol 9.1M  ▏ SMA 50 34.6M`, and each rule names
+   the line beside its number exactly as it does in the price pane.
+
+   ⛔ IT IS A SEPARATE CLASS BECAUSE ITS EMISSION RULE IS THE OPPOSITE ONE. `.rail`
+   is emitted ALWAYS and painted only when there is a colour, because the vertical
+   stack is a grid and every label has to start at one x. A horizontal strip has no
+   column to hold, so an unpainted rule there is a 6px hole before every `O` and
+   `H` in the flat legend. This one is emitted only when a colour exists. */

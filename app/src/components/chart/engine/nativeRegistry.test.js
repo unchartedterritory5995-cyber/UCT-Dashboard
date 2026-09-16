@@ -115,6 +115,11 @@ const TOO_SHORT = {
   // only when it is FULL of finite values, which is the same rule `computeSMA`
   // applies to bars.
   movingAverage: 4,
+  // ⭐ ZERO, LIKE VWAP AND OBV — AND THE SAME KIND OF CLAIM `dataSeries` MAKES.
+  // Dollar volume is `volume × close` on ONE bar: no window, no warm-up, nothing
+  // to accumulate. The first bar is already computable, so the only length that
+  // can be too short is none at all.
+  dollarVolume: 0,
 }
 
 const BARS = makeBars(300)
@@ -169,7 +174,7 @@ const ENGINE_REL = 'app/src/components/chart/engine'
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists 18 natives and 1 server definition — NINETEEN, across two lanes', () => {
+  it('lists 19 natives and 1 server definition — TWENTY, across two lanes', () => {
     // ⭐ `movingAverage` IS THE EIGHTEENTH, and the first whose input is a SERIES
     // rather than the bars: `MA(Close)`, `MA(Volume)` and `MA(QQQ)` are one
     // definition pointed at different sources.
@@ -180,14 +185,14 @@ describe('native registry — membership', () => {
     // next. Spelled by name here as well as in `SHIPPED_DEF_IDS` on purpose:
     // this case is the one that reads as prose.
     expect(NATIVE_DEFS.map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-      'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsi', 'sar', 'stoch',
-      'vwap', 'williamsR',
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
+      'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsi', 'sar',
+      'stoch', 'vwap', 'williamsR',
     ])
     expect(listDefinitions().map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-      'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
-      'stoch', 'vwap', 'williamsR',
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
+      'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi',
+      'sar', 'stoch', 'vwap', 'williamsR',
     ])
   })
 
@@ -303,7 +308,14 @@ const JULY_LEGACY_DEFAULTS = {
 // shipped price moving averages live in `cs.overlays` — a different legacy shape
 // with no instance id, no placement and no presentation. The engine definition is
 // ADDITIVE beside them, not a migration OF them, so it has no July row to mirror.
-const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage']
+// ⭐ `dollarVolume` JOINS THEM (2026-09-16), AND ITS REASON IS THE SHARPEST OF
+// THE SIX. It is not new maths and it is not a legacy `cs.indicators` section —
+// it is the `$ Vol $6.48B` that `StockChart` printed into the volume pane's label
+// on EVERY chart, computed inline, with no settings slice anywhere to migrate
+// from. There is no stored key, so there is no default of anybody's to move; what
+// changes is that it is now something a member ADDS rather than something the
+// chart hands them. See its definition for the owner's §16.
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume']
 
 describe('the July defaults table', () => {
   it('covers every MIGRATED definition and nothing else — a missing row is a silent no-op', () => {

@@ -144,12 +144,34 @@ export const CHART_DEFAULTS = {
     hvcEnabled: true,
     separatePane: false,
     paneHeightPct: 22,   // height of the separate volume pane, % of chart (8–45)
-    // The "$ Vol … Avg 50D …" strip at the top-left of the volume pane.
+    // The readout at the top-left of the volume pane — `▏ Vol 9.1M`, plus any
+    // series displayed in this pane. ⚰️ IT USED TO BE "$ Vol … Avg 50D …"; see
+    // `maPeriod` directly below and `StockChart`'s volume-legend block.
     labelVisible: true,
     labelColor: '#9b9684',
     // The volume moving-average line. Was a prop (volumeMa) with a hardcoded color;
     // now a real editable indicator. period 0 = off.
-    maPeriod: 50,
+    //
+    // ⭐⭐ ZERO SINCE 2026-09-16, AND THE ZERO IS THE WHOLE POINT (owner §16):
+    // *"I do NOT want Dollar Volume and Average 50-Day Volume automatically
+    // bundled into the Volume pane… If the member wants a 50-day Average Volume,
+    // they add it."* A default of 50 drew a line, and printed a reading for it, on
+    // every chart in the product without anybody choosing either.
+    //
+    // ⛔⛔ AND IT REMOVES THE DEFAULT WITHOUT ERASING A CHOICE, WHICH IS THE
+    // DISTINCTION §51 INSISTS ON. This is the MERGE BASE: a stored blob that
+    // carries `volume.maPeriod` keeps whatever it carries, and every chart whose
+    // settings have ever been saved through the modal carries it — `onChange`
+    // persists the whole merged object. So a member who has a volume MA keeps it,
+    // with their period and their colour, and nothing is rewritten. What changes
+    // is the answer for a blob that never said anything: it now means "no volume
+    // moving average" instead of "a 50-period one nobody asked for".
+    //
+    // ⚠️ THE MEMBER-FACING WAY BACK IS THE ORDINARY ONE. Add a Moving Average,
+    // set Source to Volume, and `displayTarget`'s derived rule puts it in the
+    // volume pane on volume's own scale — the same feature that averages price and
+    // RSI, which is §17's whole ask.
+    maPeriod: 0,
     maColor: 'rgba(168,162,144,0.55)',
     maLineWidth: 1,
     maLineStyle: 'solid',

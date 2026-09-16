@@ -117,6 +117,7 @@ import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
 // chip, the "Display in" menu and this tab's rows.
 import { instanceLabel } from './engine/sourceRef'
 import { disambiguateLabels } from './engine/readout'
+import { namesItselfSemantically } from './engine/semanticName'
 
 export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
@@ -164,7 +165,12 @@ export const VOLUME_FIELDS = [
   { key: 'hvcEnabled',   label: 'Highlight 52W volume highs', type: 'toggle' },
   // Visibility only — the label's COLOR is not user-editable; it tracks the range
   // buttons above it (--chart-panel-text-low) so the two always match.
-  { key: 'labelVisible', label: 'Show $ Vol / Avg label', type: 'toggle' },
+  // ⚰️ IT READ *"Show $ Vol / Avg label"* AND NAMED TWO READINGS THAT NO LONGER
+  // EXIST BY DEFAULT (owner §16, 2026-09-16). `$ Vol` is a DEFINITION now and
+  // the volume MA is off unless a member sets a period; what this toggle governs
+  // is the volume pane's own readout — Volume, its average when there is one, and
+  // every series displayed in that pane.
+  { key: 'labelVisible', label: 'Show volume pane label', type: 'toggle' },
   { key: 'maPeriod',     label: 'Volume MA period', type: 'number', min: 0, max: 200, step: 1 },
   { key: 'maColor',      label: 'Volume MA color',  type: 'color',  showIf: (v) => Number(v.maPeriod) > 0 },
   { key: 'maLineWidth',  label: 'Volume MA width',  type: 'select', options: LINE_WIDTHS, showIf: (v) => Number(v.maPeriod) > 0 },
@@ -537,7 +543,21 @@ export function listEngineIndicators(settings, registry) {
         // ⛔ GATED ON `meta.labelFrom`, NEVER ON A DEFINITION ID. Every other row
         // keeps its catalogue noun, and a future definition that names itself
         // from an input inherits this with no edit here.
-        label: `${(instance && meta.labelFrom)
+        //
+        // ⭐⭐ AND ON `meta.nameFrom` TOO (2026-09-16), WHICH IS THE SAME CLAIM
+        // WITH A DIFFERENT SOURCE. `labelFrom` says *"my name comes from what I
+        // was POINTED AT"* (`QQQ`); `nameFrom` says *"my name comes from what the
+        // member CHOSE"* (`EMA 9`). Either way the catalogue noun is the wrong
+        // string for the row, and for the same reason: it names the definition
+        // when the member is looking at an instance of it.
+        //
+        // ⚰️ MEASURED: the engine MA named itself `EMA 9` in the legend, in the
+        // destination menu and in the pane map, and this list — the ONE surface a
+        // member opens to find out which moving average is which — still read
+        // `Moving Average`, twice, with `#1` and `#2` after it. That is exactly
+        // the halfway state `listEngineIndicators`' own `labelFrom` gravestone
+        // above records for `dataSeries`: two naming surfaces, one of them fixed.
+        label: `${(instance && (meta.labelFrom || namesItselfSemantically(def)))
           ? instanceLabel(def, instance)
           : (meta.name || meta.shortName || def.id)}${sessionOnly ? ' (intraday only)' : ''}`,
         // The GROUP is the definition's short name, which is what the shipped tab
@@ -580,6 +600,10 @@ export function listEngineIndicators(settings, registry) {
       })),
       (id) => ((registry && typeof registry.getDefinition === 'function')
         ? registry.getDefinition(id) : null),
+      // ⭐ THE INSTANCE LIST, so a row told apart from its sibling by its SOURCE
+      // reads `EMA 20 · RSI (14)` rather than `EMA 20 (source @inst:rsi:1::rsi)`.
+      // §4: an engine address must never reach a member's eyes.
+      { instances: Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : [] },
     )
     engineRows.forEach((r, n) => { r.label = suffixed[n] })
   }

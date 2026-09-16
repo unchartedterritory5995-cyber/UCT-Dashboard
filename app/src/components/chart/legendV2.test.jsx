@@ -180,7 +180,12 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
     // coloured label and is a hairline: at 3px wide it becomes a bar chart down the
     // left edge, which is the "rainbow barcode" a dense stack invites.
     for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
-      const rule = /(?:^|\n)\.rail\s*\{([^}]*)\}/.exec(css)
+      // ⚠️ THE SELECTOR IS A GROUP IN `LegendRow` SINCE 2026-09-16 — `.rail,
+      // .railFlat` share one geometry block, because the horizontal strip's rule
+      // has to be the SAME rule as the stack's (§21: a micro-rail means "this
+      // readout corresponds to a plotted series", wherever it is printed). What
+      // differs between them is only WHEN each is emitted, which is a JSX fact.
+      const rule = /(?:^|\n)\.rail(?:,\s*\n?\s*\.railFlat)?\s*\{([^}]*)\}/.exec(css)
       expect(rule, `${name} has no rail rule`).toBeTruthy()
       const w = Number(/width:\s*(\d+)px/.exec(rule[1])[1])
       const h = Number(/height:\s*(\d+)px/.exec(rule[1])[1])
@@ -366,10 +371,17 @@ describe('§8 — the geometric fold', () => {
     expect(pred, 'the predicate compares against a literal pane index')
       .toMatch(/return v > p/)
     expect(pred, 'a hard-coded pane number crept in').not.toMatch(/[=<>]\s*[01]\b/)
-    // …and a BANDED volume (no pane of its own) keeps the head position, because
-    // it is drawn inside Price rather than beneath it.
-    expect(block()).toContain('const studyVolLast = volLegendRowVisible && volumeBelowPrice()')
-    expect(block()).toContain("const studyHeadN = (volLegendRowVisible && !studyVolLast) ? 1 : 0")
+    // ⭐⭐ AND SINCE 2026-09-16 THE QUESTION IS ASKED ONE STEP EARLIER (owner §15).
+    // Volume in a pane of its own has its readout in THAT pane — `volPaneRows` —
+    // so it is not in the price stack at all, and `Vol 9.1M` is printed once
+    // rather than once here and once six pixels below. `volRowInPriceStack` is the
+    // gate; it is `volLegendRowVisible && !volumeOwnsItsPane`, so a BANDED volume
+    // (drawn INSIDE Price) still keeps the head position it always had.
+    // ⚠️ AGAINST THE FILE, NOT `block()`: the gate is derived with the rest of the
+    // row inputs, ABOVE the `indChips` line this block starts at.
+    expect(STOCK_CHART).toContain('const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane')
+    expect(block()).toContain('const studyVolLast = volRowInPriceStack && volumeBelowPrice()')
+    expect(block()).toContain("const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0")
   })
 
   it('⛔ AND THE BUDGET IS BOTH A ROOM TEST AND A SHARE OF THE PANE', () => {

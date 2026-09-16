@@ -60,7 +60,7 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
     const h = handlers()
     const s = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
       .find(i => i.key === 'settings')
-    expect(s.label).toBe('Edit in Chart Data…')
+    expect(s.label).toBe('Edit in Indicators…')
     s.onClick()
     expect(h.onSettings).toHaveBeenCalledWith('legacy:rsi')
   })

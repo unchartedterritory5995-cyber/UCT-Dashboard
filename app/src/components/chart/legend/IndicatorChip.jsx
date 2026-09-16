@@ -2,6 +2,7 @@
 import UIcon from '../../ui/UIcon'
 import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
+import { chipValueText as formatChipValue } from '../engine/readout'
 
 /**
  * ONE legend chip. **The chip IS the control.**
@@ -191,8 +192,11 @@ export default function IndicatorChip({
   // hidden row simply showed `0.00` in its value cell; splitting the inline chip's
   // value out is what made the same expression reachable from the layout every
   // test reads, and turned a quiet wrong number into a red case.
-  const chipValueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
-    ? chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : 2)
+  // ⭐ THE ONE FORMATTER (`readout.chipValueText`), not a fourth copy of
+  // `toFixed(decimals)`. It honours `plots[].legend.compact`, which is what keeps
+  // Dollar Volume from printing ten digits into a chip.
+  const valueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
+    ? formatChipValue(chip)
     : ''
 
   // One sentence, both layouts.
@@ -270,8 +274,8 @@ export default function IndicatorChip({
 
   // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
   // chip prints `chip.text`, which in that case IS the bare label.
-  const body = chipValueText
-    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{chipValueText}</span></>
+  const body = valueText
+    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
     : chip.text
 
   if (grid) {
@@ -325,7 +329,7 @@ export default function IndicatorChip({
               member had picked. The label keeps the hue — it is the identity — and the
               number is always the same crisp white, so the eye lands on it first at
               every hue. */}
-        <span className={styles.chipGridVal}>{chipValueText}</span>
+        <span className={styles.chipGridVal}>{valueText}</span>
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend

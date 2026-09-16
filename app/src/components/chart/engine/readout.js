@@ -88,6 +88,13 @@
 //  by B4 Task 10 — the legend renders `crosshairData.chips` directly and there is
 //  no `crosshairData.<indicator>` field left for a slot to name.)
 
+// ⭐ THE ONE IMPORT THIS MODULE TAKES, AND IT KEEPS THE PURITY CLAIM INTACT.
+// `semanticName` is a pure read of definition metadata over resolved inputs —
+// no React, no LWC, no DOM, and crucially NO SOURCE GRAMMAR, which is the thing
+// `sourceStemOf` below refuses to import and says why. See its header for why one
+// naming rule is shared and the other is deliberately spelled twice.
+import { semanticName, namesItselfSemantically } from './semanticName'
+
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
  *  declared opinion should agree with the axis it sits above. */
@@ -131,6 +138,46 @@ function sourceStemOf(def, inputs) {
   return parts.length === 3 && parts[1] ? parts[1] : null
 }
 
+/**
+ * ⭐⭐ ONE PLACE A CHIP'S VALUE BECOMES TEXT (2026-09-16).
+ *
+ * ⚰️ THE DEFECT THAT MADE IT NECESSARY: Dollar Volume's pane printed
+ * `Dollar Volume 4609414802`. Ten digits in a readout nobody can parse at a
+ * glance, over a chart whose own axis reads `4.61B` two inches to the right.
+ *
+ * ⛔ AND THE ANSWER IS A DECLARATION, NOT A SPECIAL CASE. `plots[].legend.compact`
+ * says "this output is a MAGNITUDE — print it the way an axis would". The
+ * definition knows that about itself; the legend cannot infer it from the number,
+ * because 4,609,414,802 and 4609.41 are the same shape to a formatter.
+ *
+ * ⛔ AND IT IS NOT A CURRENCY FORMATTER. A `$` belongs to what the series IS, and
+ * that is what its LABEL says (`$ Vol`); putting one here would print `$` in front
+ * of a share count the day something else declares `compact`.
+ *
+ * ⚠️ `decimals` STILL GOVERNS THE ORDINARY PATH and is untouched for every plot
+ * that declares no `compact` — which is all of them but one.
+ */
+function compactValue(v) {
+  const n = Math.abs(v)
+  if (n >= 1e12) return `${(v / 1e12).toFixed(2)}T`
+  if (n >= 1e9) return `${(v / 1e9).toFixed(2)}B`
+  if (n >= 1e6) return `${(v / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(v / 1e3).toFixed(1)}K`
+  return `${Math.round(v)}`
+}
+
+/** A chip's VALUE as text — the one answer every legend surface reads.
+ *
+ *  ⛔ EXPORTED SO THERE IS EXACTLY ONE. Four surfaces used to write
+ *  `value.toFixed(decimals)` themselves (the strip's chip, the price stack, each
+ *  pane's readout, the volume pane's), which is four places for a format to drift
+ *  and four places a new `legend` field has to be remembered in. */
+export function chipValueText(chip) {
+  if (!chip || chip.value == null || !Number.isFinite(chip.value)) return ''
+  if (chip.compact === true) return compactValue(chip.value)
+  return chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : DEFAULT_DECIMALS)
+}
+
 function chipLabel(def, plot, inputs, displayName) {
   if (plot.legend && typeof plot.legend.label === 'string') return plot.legend.label
   // ⭐⭐ `meta.labelFrom: 'source'` — THE ONE DEFINITION WHOSE NAME IS NOT ITS OWN.
@@ -152,6 +199,14 @@ function chipLabel(def, plot, inputs, displayName) {
     const fromSource = sourceStemOf(def, inputs)
     if (fromSource) return fromSource
   }
+  // ⭐⭐ `meta.nameFrom` — THE DEFINITION NAMES ITSELF FROM THE MEMBER'S OWN
+  // CHOICE. A Moving Average is `EMA 9`, never `MA (9)` and never `Moving
+  // Average #1`. Unlike `labelFrom: 'source'` directly above, this rule needs no
+  // source grammar at all — it is definition metadata over resolved inputs — so it
+  // is spelled ONCE in `engine/semanticName.js` and both naming surfaces call that
+  // reader instead of agreeing by hand. See that module's header.
+  const semantic = semanticName(def, inputs)
+  if (semantic) return semantic
   const name = (def.meta && def.meta.shortName) || def.id
   const params = (def.meta && def.meta.legendParams) || []
   if (!params.length) return name
@@ -207,7 +262,7 @@ function resolvePlotColor(plot, inputs, def) {
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
  *        order the entries were given.
  */
-export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor) {
+export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances) {
   const get = resolveRegistry(registry)
   const out = []
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
@@ -256,6 +311,8 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor) 
     // definition default alone.
     const resolved = resolvePlotColor(plot, inputs, def)
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
+    // ⭐ THE DECLARATION TRAVELS WITH THE CHIP — see `chipValueText`.
+    const compact = plot.legend.compact === true
     const label = chipLabel(def, plot, inputs,
       typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null)
 
@@ -266,12 +323,13 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor) 
       label,
       color: resolved,
       decimals,
+      compact,
       value,
-      text: `${label} ${value.toFixed(decimals)}`,
+      text: `${label} ${chipValueText({ value, decimals, compact })}`,
     })
     inputsByChip.set(out.length - 1, inputs)
   }
-  return disambiguateSiblings(out, inputsByChip, registry)
+  return disambiguateSiblings(out, inputsByChip, registry, instances)
 }
 
 /**
@@ -303,24 +361,135 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor) 
  * ⛔ OPTIONAL, AND ABSENT MEANS SKIP NOTHING. Every existing caller passes one
  * argument and gets exactly the result it got before.
  *
+ * ─── ⛔⛔ AND A RAW REF IS NEVER, EVER PRINTED (2026-09-16) ──────────────────
+ *
+ * ⚰️ THE DEFAULT `k v` GRAMMAR IS RIGHT FOR A NUMBER AND A CATASTROPHE FOR A
+ * SOURCE. Two moving averages that differ only in what they average — one on the
+ * candles, one on a QQQ series — collided on `EMA 20`, and the suffix that told
+ * them apart read:
+ *
+ *     EMA 20 (source @inst:dataSeries:1::value)
+ *
+ * That is the engine's own address for a column, printed in a legend, in a
+ * settings row and in a destination menu. It is unreadable, it is untypeable, and
+ * it is exactly what the owner's §4 forbids.
+ *
+ * ⭐ SO A SOURCE IS DESCRIBED, NOT SPELLED. `opts.describe(key, value)` answers:
+ *
+ *     a string   — the member-facing phrase for that value (`QQQ`, `Volume`,
+ *                  `RSI (14)`). Rendered as ` · QQQ`, which is how the owner's
+ *                  §31 words it: *EMA 20 · QQQ*.
+ *     `null`     — this value HAS no member-facing name here. The key is DROPPED
+ *                  from the suffix entirely; if that leaves nothing, the ordinal
+ *                  stands. Thin, but never a lie and never an address.
+ *     `undefined`— an ordinary input; the `k v` grammar, unchanged.
+ *
+ * ⛔ AND `null` POISONS THE WHOLE KEY, not just the one row. A group where one
+ * sibling's source can be named and another's cannot would otherwise print the
+ * named half and silently omit the other — two rows reading `EMA 20 · QQQ` and
+ * `EMA 20`, the second one claiming to be the plain-price average it is not.
+ *
  * @param {object[]} inputsList one resolved-inputs object per sibling, in order
  * @param {string[]} [ignoreKeys] inputs the label already spells out
+ * @param {{describe?: (key: string, value: *) => (string|null|undefined)}} [opts]
  * @returns {string[]} one suffix per sibling, same order, each already spaced
  */
-export function siblingSuffixes(inputsList, ignoreKeys) {
+export function siblingSuffixes(inputsList, ignoreKeys, opts) {
   const rows = (Array.isArray(inputsList) ? inputsList : [])
     .map(o => (o && typeof o === 'object' ? o : {}))
   const skip = new Set(Array.isArray(ignoreKeys) ? ignoreKeys : [])
+  const describe = (opts && typeof opts.describe === 'function') ? opts.describe : null
   const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].filter(k => !skip.has(k)).sort()
   const differing = keys.filter((k) => {
     const seen = new Set(rows.map(o => JSON.stringify(o[k])))
     return seen.size > 1
   })
+
+  // ⭐ ONE PASS THAT CLASSIFIES EACH DIFFERING KEY ONCE, for the whole group, so
+  // every sibling's suffix is built from the same decision. Without `describe`
+  // every key is `plain` and this function is byte-for-byte what it always was.
+  const phrases = new Map()   // key → phrase per row index
+  const named = []
+  const plain = []
+  for (const k of differing) {
+    if (!describe) { plain.push(k); continue }
+    const per = rows.map((o) => describe(k, o[k]))
+    if (per.every((d) => d === undefined)) { plain.push(k); continue }
+    if (per.some((d) => d === null || d === undefined)) continue   // dropped — see the header
+    phrases.set(k, per)
+    named.push(k)
+  }
+
   // Identical siblings draw on top of each other; an ordinal is thin but it is
   // not a lie, and it beats two rows claiming to be the same thing.
-  return rows.map((inputs, n) => (differing.length
-    ? ` (${differing.map(k => `${k} ${inputs[k]}`).join(', ')})`
-    : ` #${n + 1}`))
+  return rows.map((inputs, n) => {
+    const parts = []
+    if (plain.length) parts.push(` (${plain.map(k => `${k} ${inputs[k]}`).join(', ')})`)
+    for (const k of named) parts.push(` · ${phrases.get(k)[n]}`)
+    return parts.length ? parts.join('') : ` #${n + 1}`
+  })
+}
+
+/**
+ * A SOURCE input's value as a member-facing phrase — `QQQ`, `Volume`, `RSI (14)`
+ * — or `null` when this module cannot honestly name it.
+ *
+ * ⛔ PARSED HERE RATHER THAN IMPORTED, for the reason `sourceStemOf` above already
+ * records at length: this module is the PURE formatting pipeline and pulling in
+ * `sourceRef` would drag the whole source grammar into it. The three shapes are
+ * `defSchema.SOURCE_BAR_FIELDS`, `sym:<SYMBOL>:<field>` and
+ * `'@' + instanceId + '::' + plotKey` — all three are fixed by writers that
+ * build them from those exact pieces.
+ *
+ * ⭐ AN INSTANCE SOURCE IS NAMED BY ITS INSTANCE, THROUGH `chipLabel` — the same
+ * function that names it in the legend. So `MA(RSI)` reads `· RSI (14)`, the words
+ * a member can find on their own chart, rather than `@inst:rsi:1::rsi`.
+ *
+ * ⚠️ AND `null` WHEN THE INSTANCE IS NOT IN THE LIST. A caller with no instances
+ * (the legend's own chip pass takes none today) gets `null` for every instance
+ * source, which drops the key and falls through to the ordinal — never an address.
+ */
+const BAR_FIELD_WORDS = Object.freeze({
+  open: 'Open', high: 'High', low: 'Low', close: 'Close',
+  hl2: 'HL2', hlc3: 'HLC3', ohlc4: 'OHLC4', volume: 'Volume',
+})
+function describeSourceValue(value, get, byId) {
+  if (typeof value !== 'string' || !value) return null
+  if (BAR_FIELD_WORDS[value]) return BAR_FIELD_WORDS[value]
+  if (value.startsWith('sym:')) {
+    const parts = value.split(':')
+    return parts.length === 3 && parts[1] ? parts[1] : null
+  }
+  if (value.startsWith('@')) {
+    const at = value.indexOf('::')
+    const id = at > 1 ? value.slice(1, at) : ''
+    const inst = (id && byId) ? byId.get(id) : null
+    const def = (inst && typeof get === 'function') ? get(inst.defId) : null
+    if (!def) return null
+    const plot = (def.plots || []).find((p) => p && p.legend && p.legend.hide !== true)
+    if (!plot) return null
+    return chipLabel(def, plot, (inst.inputs && typeof inst.inputs === 'object') ? inst.inputs : null,
+      (inst.display && inst.display.name) || null)
+  }
+  return null
+}
+
+/**
+ * The `describe` a disambiguator hands `siblingSuffixes` — source inputs become
+ * phrases, everything else keeps the `k v` grammar.
+ *
+ * ⛔ IT IS BUILT FROM THE DEFINITION'S OWN DECLARATION (`type: 'source'`), never
+ * from a key name or a value that happens to look like a ref. A user formula whose
+ * `period` input somehow held the string `sym:...` is still a period.
+ */
+function sourceDescriber(def, get, instances) {
+  const sourceKeys = new Set((def && Array.isArray(def.inputs) ? def.inputs : [])
+    .filter((i) => i && i.type === 'source').map((i) => i.key))
+  if (!sourceKeys.size) return null
+  const byId = new Map((Array.isArray(instances) ? instances : [])
+    .filter((i) => i && typeof i.instanceId === 'string' && i.deleted !== true)
+    .map((i) => [i.instanceId, i]))
+  return (key, value) => (sourceKeys.has(key) ? describeSourceValue(value, get, byId) : undefined)
 }
 
 /**
@@ -346,7 +515,7 @@ export function siblingSuffixes(inputsList, ignoreKeys) {
  * what keeps this out of the existing chart assertions, which are written against
  * single-instance legends.
  */
-function disambiguateSiblings(chips, inputsByChip, registry) {
+function disambiguateSiblings(chips, inputsByChip, registry, instances) {
   // ⛔⛔ THE LABEL IS PART OF THE GROUP KEY, AND THAT IS WHAT MAKES A MIXED GROUP
   // BEHAVE. Grouping on `defId::plotKey` alone was the same sentence while every
   // definition named itself from its own metadata: either every chip in a group
@@ -391,7 +560,14 @@ function disambiguateSiblings(chips, inputsByChip, registry) {
     const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
       ? (def0.inputs || []).filter(i => i && i.type === 'source').map(i => i.key)
       : []
-    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}), ignore)
+    // ⭐ A SOURCE IS DESCRIBED, NEVER SPELLED — see `siblingSuffixes`' header.
+    // ⚠️ THE CHIP PASS CARRIES NO INSTANCE LIST, so an instance source resolves to
+    // `null` here and the group falls through to the ordinal. That is the correct
+    // failure: thin, and never `@inst:dataSeries:1::value` in a member's legend.
+    const describe = sourceDescriber(def0, (id) => (registry && typeof registry.getDefinition === 'function'
+      ? registry.getDefinition(id) : null), instances)
+    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}), ignore,
+      describe ? { describe } : undefined)
 
     idxs.forEach((chipIdx, n) => {
       const label = `${chips[chipIdx].label}${suffixes[n]}`
@@ -402,7 +578,7 @@ function disambiguateSiblings(chips, inputsByChip, registry) {
       // place this grammar is spelled.
       chips[chipIdx].suffix = suffixes[n]
       chips[chipIdx].label = label
-      chips[chipIdx].text = `${label} ${chips[chipIdx].value.toFixed(chips[chipIdx].decimals)}`
+      chips[chipIdx].text = `${label} ${chipValueText(chips[chipIdx])}`
     })
   }
   return chips
@@ -441,7 +617,7 @@ export function engineChips(bindings, seriesData, registry, instances) {
     const inst = byId.get(instanceId)
     return (inst && inst.display && inst.display.name) || null
   }
-  return chipsFrom(entries, seriesData, registry, inputsFor, displayFor)
+  return chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances)
 }
 
 /**
@@ -529,6 +705,7 @@ export function legendChips(bindings, seriesData, registry, instances) {
         label,
         color: resolvePlotColor(plot, inputs, def),
         decimals: Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS,
+        compact: plot.legend.compact === true,
         value: null,
         hidden: isHidden,
         // ⭐⭐ DID THIS PLOT COMPUTE ANYTHING? MEASURED, A VISIBLE INDICATOR THAT
@@ -590,12 +767,20 @@ export function legendChips(bindings, seriesData, registry, instances) {
  * group is always ambiguous. Whether a group NEEDS suffixing is the caller's
  * question — which is exactly what that function's header already says.
  *
+ * ⭐ `opts.instances` IS WHAT LETS THIS SURFACE SAY `EMA 20 · RSI (14)` WHERE THE
+ * LEGEND CAN ONLY SAY `EMA 20 #2`. A source that names another INSTANCE can be
+ * turned into words only by somebody holding the instance list; the settings rows
+ * and the destination menu both do, the crosshair chip pass does not, and neither
+ * of them ever prints the raw ref. See `siblingSuffixes`.
+ *
  * @param {{defId: string, plotKey?: string, instanceId?: string, label: string,
  *          inputs?: object}[]} rows
  * @param {Function} [get] definition lookup, for the label-bearing-input rule
+ * @param {{instances?: object[]}} [opts] the chart's instances, for naming an
+ *   instance-valued source in words
  * @returns {string[]} one label per row, in order — unchanged where unambiguous
  */
-export function disambiguateLabels(rows, get) {
+export function disambiguateLabels(rows, get, opts) {
   const list = Array.isArray(rows) ? rows : []
   const out = list.map((r) => (r && typeof r.label === 'string' ? r.label : ''))
   const groups = new Map()
@@ -619,7 +804,11 @@ export function disambiguateLabels(rows, get) {
     const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
       ? (def0.inputs || []).filter((i) => i && i.type === 'source').map((i) => i.key)
       : []
-    const suffixes = siblingSuffixes(idxs.map((i) => list[i].inputs || {}), ignore)
+    // ⭐ A SOURCE IS DESCRIBED, NEVER SPELLED — `EMA 20 · QQQ`, not
+    // `EMA 20 (source sym:QQQ:close)`. See `siblingSuffixes`' header.
+    const describe = sourceDescriber(def0, get, opts && opts.instances)
+    const suffixes = siblingSuffixes(idxs.map((i) => list[i].inputs || {}), ignore,
+      describe ? { describe } : undefined)
     idxs.forEach((rowIdx, n) => { out[rowIdx] = `${out[rowIdx]}${suffixes[n]}` })
   }
   return out
@@ -675,6 +864,13 @@ export function paneReadoutLabel(chip, def, sourceName) {
   }
   const primary = (def.plots || []).find((p) => p && p.legend && p.legend.hide !== true)
   if (!primary || primary.key !== chip.plotKey) return chip.label
+  // ⭐⭐ A DEFINITION THAT NAMES ITSELF SEMANTICALLY HAS NO LONGER NAME TO GIVE.
+  // `meta.name` is the CATALOGUE noun — right for "Relative Strength Index" over
+  // an RSI pane, and wrong for a Moving Average, whose chip already reads `EMA 9`.
+  // Printing "Moving Average" over a pane holding an EMA 9 and an SMA 50 names
+  // BOTH rows the same thing, which is the exact failure `labelFrom: 'source'`
+  // already has its own branch above to avoid.
+  if (namesItselfSemantically(def)) return chip.label
   const full = def.meta && def.meta.name
   return (typeof full === 'string' && full) ? `${full}${suffix}` : chip.label
 }
