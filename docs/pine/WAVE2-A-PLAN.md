@@ -1952,6 +1952,68 @@ the ruling so nobody re-measures them: **112 of 120** files carry 2+ alertcondit
 
 ---
 
+# ✅ (e) — SHORT-CIRCUIT: **RETIRED ON ITS NUMBERS** (PA-1)
+
+Census `86244545e`. **269 scripts · 13,906 uses · 20,954 conditional operands.**
+
+## ⭐⭐ THE HEADLINE IS THAT THERE IS NO DEFECT
+
+**The engine is measurably wrong in 0 of 20,954 conditional operands**, and it already
+short-circuits **at plan time**: `pine.js:5873/5897/5914` delete the conditional operand
+in **1,836 of 13,906** uses whenever the deciding operand resolves to a literal `num`.
+
+⚰️ **PA-4 — A COMMITTED LINE MEASURED FALSE AND IS CORRECTED AT BOTH ITS SITES.**
+*"Both sides always evaluate today"* is true at **run** time (`interpret.js` lifts both;
+`vm.js:306` says so outright) and **false at plan time** — which is the only lane any of
+(e)'s three cases live in. Corrected in `SESSION-STATE.md` at both the summary table and
+item (e)'s own entry, because a sentence quoted in two places is two authorities.
+
+| case | admissible **and** reachable | verdict |
+|---|---|---|
+| **(A)** lookback / repaint | **11** | **RETIRE** — routed to `FOLD_BINARY` by name |
+| **(B)** `na` poisoning | **0** | **RETIRE** — write the semantics table |
+| **(C)** an unissued request | **0** (of 111 operands) | **ROUTE TO (c)** by name, 110/1/0 |
+
+**(A) is not an evaluation-order bug at all.** `maxLookback`'s unconditional `Math.max`
+(`interpret.js:2582`) is **correct**: it is a **static bound**, so a genuinely-series
+left operand really does need the right operand's history, and a *folded* left has
+already been deleted before it is reached. The 11 are `FOLD_BINARY`'s, not evaluation's.
+
+**(B) is zero because `TERNARY` selects.** The 2,013 `na` rows are ternary **arms**, and
+`interpret.js:2191` selects rather than propagates, so `plot(cond ? x : na)` already
+answers exactly what Pine answers.
+
+**(C) is zero at the output.** 111 operands, all refused at `pine:request`; **110 of 111
+gates already fold**, and the single one that does not
+(`liquidity-heatmap-nephew-sam__7628c72c3d.pine:132`) gates on a **UDF parameter**, so
+**item (c)'s inlining decides it** — routed by name with its number, never dropped.
+
+## ⛔ THE REAL GAP IS `FOLD_BINARY`, AND IT IS DELIBERATE
+
+`pine.js:3690` is `+ - * /` and says **"DELIBERATELY NOT THE COMPARISONS"**. So
+`len > 5 ? heavy : light` has a test every human reader calls constant while both arms
+resolve. Only string `==`/`!=` folds (`:5816`). **That is the binding constraint for all
+11 of (A)** — and it is a threshold question for a future wave, not a defect.
+
+## ⚠️ ONE FORWARD HAZARD, RECORDED BECAUSE IT IS NOT A DEFECT **YET**
+
+**The propagating `and` is v5-CORRECT and v6-INCORRECT BY SPECIFICATION.** Pine v6
+declares `bool` never `na` and `and`/`or` short-circuiting; `interpret.js:2157`
+propagates. **73 of 269 corpus scripts are already v6.** Nothing is wrong today because
+(B) measures 0 — but the *reason* it measures 0 is a v5 semantic, and the corpus is
+drifting under it. **Recorded here so the next reader finds it before a member does.**
+
+## ⚠️ AND A DEFECT IN A **SHARED** INSTRUMENT, FLAGGED TO ITS OWNERS
+
+(b)'s `strip_pine` — imported by (c), (h) and (e) — **blanks the newline inside an
+unterminated quote**, so 4 of 269 files lose up to 26 lines. It desynchronised (e)'s two
+parallel line arrays and **manufactured the only case-(B) hit an earlier pass reported**
+(B: 1 → 0). Harmless to (b)'s own census, which only counts newlines before an offset.
+⛔ But it is a property of a stripper **four censuses now share**, and a shared
+instrument's blind spot is reproduced by everything that imports it.
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
