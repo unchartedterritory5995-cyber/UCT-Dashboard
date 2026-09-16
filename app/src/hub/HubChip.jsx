@@ -1,8 +1,13 @@
 // HubChip — the mode-label chip that sits left of the pad (right when mirrored).
 // See docs/plans/joystick/00-master-spec-v1.4.md §5 (chip) and §C1/§C2 (scrub readout, live region).
 
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+
 import styles from './hub.module.css'
 import { PAD_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX } from './constants'
+import {
+  clearedCeiling, floorWidth, geometryKey, isOccluder, probePoints,
+} from './chipClearance'
 
 // The reference prototype's chip height (prototype.html `.chip{height:28px}`)
 // — used only to vertically centre the chip on the pad; the rendered chip's
@@ -77,19 +82,108 @@ export default function HubChip({
   modeColor,
   actionsWidthPx = 0,
 }) {
+  const chipRef = useRef(null)
+  const modeRef = useRef(null)
+  const hintRef = useRef(null)
+  // `null` = nothing is in the chip's way; a number = the ceiling that clears it (D-39).
+  const [clampPx, setClampPx] = useState(null)
+  // The layout identity the current clamp was decided for. See `chipClearance.js` — RELEASE is
+  // driven by this changing, never by observing that the chip now looks clear.
+  const clampedForRef = useRef(null)
+
+  const verticalOffset = PAD_PX / 2 - CHIP_HEIGHT_PX / 2
+  const clearance = actionsWidthPx > 0 ? actionsWidthPx + ACTIONS_CLEARANCE_PX : 0
+  const inset = EDGE_OFFSET_PX + PAD_PX + CHIP_GAP_PX + clearance
+
+  /**
+   * D-39 — does page-level fixed furniture stand where this chip wants to be?
+   *
+   * ⛔⛔ TWO GUARDS AGAINST THE SAME FAILURE, AND THIS COMPONENT HAS EARNED BOTH. A passive-effect
+   * loop in hub code froze navigation app-wide for ~4.5h on 2026-09-10, found by a member.
+   *   1. **Release is INPUT-driven.** Once a clamp is decided for a geometry, it is kept until that
+   *      geometry changes. Re-probing a clamped chip would find it clear and release it, which is
+   *      the oscillation this cannot have. `chipClearance.js`'s header has the full reasoning.
+   *   2. **`setClampPx` bails out.** The updater returns the PREVIOUS value when nothing changed,
+   *      so React skips the re-render entirely (Object.is) and a settled page costs zero renders.
+   *
+   * ⚠️ jsdom performs no layout: `elementFromPoint` is absent and every rect is zero. The guards
+   * below make this a no-op there, which is correct and is why the rails exercise the pure module
+   * plus a stubbed-geometry wiring test rather than pretending jsdom can answer a layout question.
+   */
+  const measure = useCallback(() => {
+    const chipEl = chipRef.current
+    const modeEl = modeRef.current
+    if (!chipEl || !modeEl) return
+    if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return
+
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0
+    if (!(viewportWidth > 0)) return
+
+    // ⛔ GUARD 1 — the clamp already answered for THIS layout. Do not re-probe: the chip is now
+    // clear precisely because the clamp worked, and reading that as "no furniture" is the loop.
+    const key = geometryKey({ viewportWidth, inset, mirrored })
+    if (clampedForRef.current === key) return
+
+    const chipRect = chipEl.getBoundingClientRect()
+    if (!(chipRect.width > 0) || !(chipRect.height > 0)) return
+
+    const floorPx = floorWidth({
+      chipRect,
+      modeRect: modeEl.getBoundingClientRect(),
+      hintRect: hintRef.current ? hintRef.current.getBoundingClientRect() : null,
+    })
+
+    const y = chipRect.top + chipRect.height / 2
+    let next = null
+    for (const x of probePoints({ chipRect, mirrored })) {
+      const el = document.elementFromPoint(x, y)
+      if (!isOccluder(el, chipEl)) continue
+      const cleared = clearedCeiling({
+        chipRect, coverRect: el.getBoundingClientRect(), mirrored, floorPx,
+      })
+      // The tightest demand wins — a sample further in may need more clearance than the first.
+      if (cleared !== null && (next === null || cleared < next)) next = cleared
+    }
+
+    clampedForRef.current = key
+    // ⛔ GUARD 2 — bail out of the render when the answer has not moved.
+    setClampPx((prev) => (prev === next ? prev : next))
+  }, [inset, mirrored])
+
+  useLayoutEffect(() => {
+    // Handedness or the Actions button's width changed: the previous answer was for a layout that
+    // no longer exists, so drop it and let `measure` decide again from the natural state.
+    clampedForRef.current = null
+    setClampPx(null)
+  }, [inset, mirrored])
+
+  useLayoutEffect(() => {
+    measure()
+    if (typeof ResizeObserver !== 'function') return undefined
+    // ⛔ `document.body` is observed, not just the chip: the chip's own box does not change when a
+    // page's furniture appears, and that is the event this needs to hear about. A viewport change
+    // resizes the body too, which is what invalidates the key above.
+    const ro = new ResizeObserver(() => {
+      clampedForRef.current = null
+      measure()
+    })
+    if (typeof document !== 'undefined' && document.body) ro.observe(document.body)
+    return () => ro.disconnect()
+  }, [measure])
+
   // While selecting, the chip becomes the ring readout instead of disappearing.
+  // ⛔ AFTER the hooks, never before — an early return above them would change the hook order
+  // between renders, which React forbids and which no rail in this directory would catch.
   if (open && !ringName) return null
 
   const hint = open && ringName
     ? ringName
     : (scrubbing ? scrubReadout || 'Scrub' : tapHint)
-  const verticalOffset = PAD_PX / 2 - CHIP_HEIGHT_PX / 2
-  const clearance = actionsWidthPx > 0 ? actionsWidthPx + ACTIONS_CLEARANCE_PX : 0
-  const inset = EDGE_OFFSET_PX + PAD_PX + CHIP_GAP_PX + clearance
   const sideStyle = mirrored ? { left: `${inset}px` } : { right: `${inset}px` }
 
   return (
     <div
+      ref={chipRef}
       className={styles.chip}
       data-testid="hub-chip"
       role="status"
@@ -107,14 +201,23 @@ export default function HubChip({
          * `EDGE_OFFSET_PX` reused as the far gutter so no new spacing constant enters the file.
          * `.chipHint` ellipsises inside it and `.chipMode` does not shrink (`hub.module.css`) —
          * the mode name is the part that must survive, the tap hint is the part that may yield. */
-        maxWidth: `calc(100vw - ${inset + EDGE_OFFSET_PX}px)`,
+        /* D-39: the clamp is a FLOOR-PROTECTED override of the ceiling above, applied only when
+         * something is actually standing in the chip's way. `null` keeps the CSS calc, so a build
+         * with no layout engine (SSR, jsdom) renders exactly what it rendered before. */
+        maxWidth: clampPx === null
+          ? `calc(100vw - ${inset + EDGE_OFFSET_PX}px)`
+          : `${clampPx}px`,
         bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + verticalOffset}px)`,
       }}
     >
-      <b className={styles.chipMode} style={{ color: modeColor ? `var(${modeColor})` : undefined }}>
+      <b
+        ref={modeRef}
+        className={styles.chipMode}
+        style={{ color: modeColor ? `var(${modeColor})` : undefined }}
+      >
         {label}
       </b>
-      <span className={styles.chipHint}>{hint}</span>
+      <span ref={hintRef} className={styles.chipHint}>{hint}</span>
     </div>
   )
 }
