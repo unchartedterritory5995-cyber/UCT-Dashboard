@@ -82,6 +82,58 @@ export function lookbackBottomPx(timeAxisHeight, gapPx = 8, fallbackAxisPx = 28)
 }
 
 /**
+ * Where the LOOKBACK BAR sits, as a distance above the container's bottom.
+ *
+ * ⭐⭐ OWNER RULE CHANGE, 2026-09-15 — AND IT DELIBERATELY REVERSES THE
+ * "no pane argument" GUARANTEE ABOVE. That guarantee existed to stop the bar
+ * following PRICE around; it did its job, and the owner has now asked for a
+ * different anchor with a different reason:
+ *
+ *     a separate VOLUME pane exists  →  sit immediately ABOVE Volume's top edge
+ *     no separate Volume pane        →  the old workspace-bottom fallback
+ *
+ * ⛔ THE OLD DEFECT IS STILL FORBIDDEN, and the shape of this function is what
+ * keeps it so: the bar is anchored to VOLUME, never to Price and never to a pane
+ * INDEX. `volumeIndex` is resolved from the volume SERIES' own pane every frame,
+ * so reordering Price cannot move it and reordering Volume carries it along —
+ * which is the behaviour asked for. A banded volume is not a pane and takes the
+ * fallback, because there is no boundary to sit above.
+ *
+ * ⚠️ MEASURED IN CONTAINER SPACE, not pane space. The caller sets `style.bottom`,
+ * so this returns a distance from the BOTTOM of the whole chart element: the time
+ * axis plus every pane below Volume's top edge, plus an inset so the buttons do
+ * not sit on the separator stroke.
+ *
+ * @param {object} m
+ * @param {number[]} m.paneHeights    every pane height, in render order
+ * @param {number|null} m.volumeIndex the pane the VOLUME series is in, or null
+ * @param {number} m.timeAxisHeight   `chart.timeScale().height()`
+ * @param {number} [m.separatorPx]
+ * @param {number} [m.insetPx]        clearance above the separator stroke
+ */
+export function lookbackBottomFor(m, insetPx = 6) {
+  const heights = heightsOf(m?.paneHeights)
+  const sep = Number.isFinite(m?.separatorPx) ? m.separatorPx : PANE_SEPARATOR_PX
+  const fallback = lookbackBottomPx(m?.timeAxisHeight)
+  const vi = m?.volumeIndex
+  // No separate volume pane (banded, hidden, or a single-pane chart) — there is
+  // no boundary to sit above, so the bar goes back to the workspace bottom.
+  if (!Number.isInteger(vi) || vi < 0 || vi >= heights.length) return fallback
+  // Volume at the very top has no pane above it to sit in; the fallback keeps the
+  // bar inside the workspace rather than off the top of the chart.
+  if (vi === 0) return fallback
+
+  const axis = Number.isFinite(m?.timeAxisHeight) && m.timeAxisHeight > 0 ? m.timeAxisHeight : 28
+  const stack = heights.reduce((a, b) => a + b, 0) + sep * Math.max(0, heights.length - 1)
+  const volTop = paneTopPx(heights, vi, sep)
+  // Distance from the container bottom up to Volume's top edge, less the inset.
+  const bottom = Math.round((stack + axis) - volTop + insetPx)
+  // ⛔ NEVER BELOW THE TIME AXIS. A degenerate measurement must not tuck the bar
+  // under the date scale where it cannot be clicked.
+  return Math.max(fallback, bottom)
+}
+
+/**
  * The top of the VOLUME pane's own readout.
  *
  * ⚠️ THE THIRD INSTANCE OF THE SAME STALE ASSUMPTION, found while tracing the
@@ -135,8 +187,13 @@ export function chromePlan(m) {
     // The band the vertical legend must stay clear of — Price's own bottom,
     // less the range-selector strip. Was `height(pane 0) - 34`.
     collapseThresholdPx: price.bottom - 34,
-    // WORKSPACE-OWNED. No pane term appears on this line, by design.
-    lookbackBottom: lookbackBottomPx(m?.timeAxisHeight),
+    // ⭐ VOLUME-ANCHORED (owner rule, 2026-09-15): immediately above the separate
+    // Volume pane's top edge, or the workspace bottom when there is no such pane.
+    // See `lookbackBottomFor` for why this may read panes when the older comment
+    // above forbids it — the forbidden dependency was PRICE, and it still is.
+    lookbackBottom: lookbackBottomFor({
+      paneHeights: heights, volumeIndex, timeAxisHeight: m?.timeAxisHeight, separatorPx: sep,
+    }),
     // The volume pane's own readout, +5 for the inset the CSS expects.
     volumeLegendTop: volumeIndex === null
       ? Math.round(price.bottom + sep + 5)
