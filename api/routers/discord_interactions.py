@@ -15,7 +15,6 @@ import os
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
-from starlette.concurrency import run_in_threadpool
 
 from api.services import discord_activity_handoff as handoff
 from api.services import discord_chart_context as chart_context
@@ -152,7 +151,10 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
     render = render_fn or buzz_image.render_board_png
     edit = edit_fn or di.edit_original
     try:
-        png = render(window)
+        # ⛔ MEMBER. This job exists because a member typed `/buzz` and is watching a
+        # deferred reply; it is background only in the sense of WHERE it runs.
+        from api.services.render_gate import MEMBER
+        png = render(window, cls=MEMBER)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[buzz] image render failed: %s", e)
         png = None
@@ -160,6 +162,52 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
         edit(app_id, token, content=content, png=png, filename="buzz.png")
     else:
         edit(app_id, token, content=content)
+
+
+def run_buzz_job(app_id: str, token: str, ticker: str, window: str, now: int,
+                 *, build_fn=None, render_fn=None, edit_fn=None) -> None:
+    """OI-36 — ALL of `/buzz`'s work, moved to AFTER the defer.
+
+    ⚰️ WHAT THIS FIXES, MEASURED. The handler used to `await run_in_threadpool(...)` to
+    build the reply text and only THEN return `{"type": 5}`. That await is bounded by the
+    shared anyio thread limiter (64 tokens, `api/main.py:2847`) — which every one of this
+    router's ten sync `background.add_task` render jobs also draws from, because Starlette
+    runs sync background tasks in that same pool. So the ack was bounded by POOL
+    AVAILABILITY, not by its own ~8.5 ms of SQLite: **1.05 ms free, 2,001 ms exhausted**,
+    against Discord's 3 s initial-ack deadline.
+
+    ⭐ THE ORDERING IS THE WHOLE FIX. Nothing here is faster than it was; the work simply
+    stopped standing between the member and the ack. This is exactly the shape V2 already
+    had — `_enqueue` offers the job and returns the defer with no work in between, measured
+    at p50 0.0023 ms with every render slot starved (C-02).
+
+    ⛔ It does NOT move the work off the threadpool — `build_board_text` still belongs
+    there. Running 8.5 ms of synchronous SQLite on the ONE shared event loop of a
+    single-process pod is the 2026-07-01 outage by name, and the comment that put it in a
+    threadpool was right. The bug was where the await sat, not that it existed.
+    """
+    from api.services import buzz_image, buzz_reply
+    build = build_fn or (lambda: buzz_reply.build_ticker_text(ticker, window, now) if ticker
+                         else buzz_reply.build_board_text(now, window))
+    edit = edit_fn or di.edit_original
+    try:
+        text = build()
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[buzz] reply failed: %s", e)
+        # ⛔ The member is already looking at a "thinking…" that only we can resolve. The
+        # pre-fix code could `return _ephemeral(...)` here because it had not acked yet;
+        # after the defer, saying nothing leaves the spinner forever.
+        try:
+            edit(app_id, token, content="Could not read the counts right now.")
+        except Exception as e2:  # noqa: BLE001
+            log.warning("[buzz] failure edit failed: %s", e2)
+        return
+    # A ticker narrows to one name's numbers — text only, exactly as before. No ticker is
+    # the board, which is worth an image.
+    if not ticker and buzz_image.image_enabled():
+        run_buzz_image_job(app_id, token, text, window, render_fn=render_fn, edit_fn=edit_fn)
+        return
+    edit(app_id, token, content=text)
 
 
 def _flow_fmt_m(v) -> str:
@@ -483,7 +531,10 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         return {"type": 5}
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
-        from api.services import buzz_image, buzz_reply
+        # ⛔ NOTHING IS IMPORTED HERE ANY MORE, AND THAT IS PART OF THE FIX. `buzz_image`
+        # and `buzz_reply` were imported at the top of this branch and used before the
+        # defer; both now live in `run_buzz_job`, past the ack. A first import of either
+        # module is disk I/O on the ack path.
         # ⛔ ON-DEMAND /buzz IS EPHEMERAL AND THROTTLED; the SCHEDULED post is
         # neither. Owner ruling 2026-09-02. The two are different doors on
         # purpose: the room gets the shared board seven times a session, and a
@@ -506,36 +557,29 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         window = (opts.get("window") or "open").strip()
         ticker = (opts.get("ticker") or "").strip().upper()
         now = int(_t.time())
-        try:
-            # ⛔ OFF THE EVENT LOOP. This handler is `async def`, and both
-            # builders do synchronous SQLite -- measured 8.5ms for
-            # build_board_text on a 36.6k-row store, growing with the number of
-            # tickers clearing MIN_CURRENT. Blocking the ONE shared loop on a
-            # single-process pod is the 2026-07-01 root cause by name, and
-            # every other heavy path in this file already defers. Cheap today;
-            # the point is that it cannot get expensive quietly.
-            text = await run_in_threadpool(
-                (lambda: buzz_reply.build_ticker_text(ticker, window, now)) if ticker
-                else (lambda: buzz_reply.build_board_text(now, window)))
-        except Exception as e:  # noqa: BLE001
-            logging.getLogger(__name__).warning("[buzz] reply failed: %s", e)
-            return _ephemeral("Could not read the counts right now.")
-        # No ticker = the board reply, which is worth an image. A ticker
-        # narrows to one name's numbers -- that stays the immediate text
-        # reply it always was (unchanged behaviour, no wait on a render).
-        if not ticker and buzz_image.image_enabled():
-            app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
-            token = str(interaction.get("token") or "")
-            if app_id and token:
-                background.add_task(run_buzz_image_job, app_id, token, text, window)
-                # ⛔ THE FLAG GOES ON THE DEFER, NOT THE FOLLOW-UP. Discord fixes
-                # a deferred reply's visibility at type 5; setting flags later on
-                # the PATCH is silently ignored and the board lands PUBLICLY.
-                # run_buzz_image_job edits via `edit_original`
-                # (PATCH /webhooks/{app}/{token}/messages/@original), which keeps
-                # whatever this response declared.
-                return {"type": 5, "data": {"flags": di.EPHEMERAL}}
-        return {"type": 4, "data": {"content": text, "flags": di.EPHEMERAL}}
+        # ⛔⛔ OI-36 — DEFER FIRST, WORK AFTER. Nothing above this line touches the
+        # threadpool, the store, or the network: the rate check and the option parse are
+        # dict reads. Everything that could block now runs in `run_buzz_job`, on the far
+        # side of the ack. See that function for the measurement (1.05 ms free vs 2,001 ms
+        # with the shared anyio pool exhausted, against a 3 s deadline).
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            # No token means no follow-up is possible, so a defer would strand the member
+            # on a spinner nothing can resolve. This is the one branch that still answers
+            # immediately, and it does no work to do so.
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_buzz_job, app_id, token, ticker, window, now)
+        # ⛔ THE FLAG GOES ON THE DEFER, NOT THE FOLLOW-UP. Discord fixes a deferred
+        # reply's visibility at type 5; setting flags later on the PATCH is silently
+        # ignored and the board lands PUBLICLY. `run_buzz_job` edits via `edit_original`
+        # (PATCH /webhooks/{app}/{token}/messages/@original), which keeps whatever this
+        # response declared.
+        # ⚠️ MEMBER-VISIBLE: the TICKER reply was a type-4 immediate text and is now a
+        # deferred one. Same words, same ephemeral visibility, one "thinking…" frame
+        # first. That is the cost of the ack never being able to miss, and it is stated
+        # here rather than discovered.
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if itype == 2 and name == di.FLOW_COMMAND:
         # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
         # (owner decision). Refused elsewhere with a pointer to that channel.

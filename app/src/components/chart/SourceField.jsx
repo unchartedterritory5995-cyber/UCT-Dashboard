@@ -128,8 +128,12 @@ export default function SourceField({
                   className={styles.sourceResult || undefined}
                   onClick={() => pick(r.id)}
                 >
-                  <strong>{r.shortName || r.id}</strong>
-                  {r.name && r.name !== r.id ? <span> · {r.name}</span> : null}
+                  {/* ⭐ THE RESULT SAYS WHICH HALF LEADS. A security leads with its
+                      ticker and glosses with the company; a breadth measure leads
+                      with the METRIC and glosses with the universe. This control
+                      renders both without knowing which it has. */}
+                  <strong>{r.lead || r.shortName || r.id}</strong>
+                  {r.sub ? <span> · {r.sub}</span> : null}
                 </button>
               </li>
             ))}

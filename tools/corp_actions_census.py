@@ -201,6 +201,19 @@ REGISTER: dict[tuple, tuple] = {
         "grouped-daily endpoint, ranked on directly. Its own header says these "
         "closes are split-adjusted; nothing downstream records which basis a "
         "scan's percentage was computed on. CP7's label."),
+    ("api/services/breadth_pit_frame.py", VENDOR_ADJUSTED): (
+        OUTSTANDING,
+        "get_grouped_daily_frame(..., adjusted=True) — the point-in-time breadth "
+        "frame builder, and the ONE site in the census that reads BOTH BASES ON "
+        "PURPOSE: the ADJUSTED frame answers 'did this security trade on this "
+        "session', and the RAW frame answers 'at what price', because a "
+        "split-adjusted 2008 close of $1.94 is not the $19.40 a low-price filter "
+        "was written about. The divergence is therefore INTENDED here and is "
+        "already pinned by tests/test_breadth_chunk_invariance.py — but it is "
+        "still an unrecorded basis at the row level (`breadth_daily_ohlc` has no "
+        "adjustment column either), so it is honest debt, not an exclusion. CP7's "
+        "label covers it with the other grouped-daily readers."),
+
     ("api/services/watchlist_prebuilt_refresh.py", VENDOR_ADJUSTED): (
         OUTSTANDING,
         "?adjusted=true on the grouped-daily aggregate that refreshes the "

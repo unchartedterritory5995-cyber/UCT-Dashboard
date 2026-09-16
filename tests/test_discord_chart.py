@@ -8,6 +8,9 @@ import random
 
 import pytest
 
+
+# C-09: produce_chart now REQUIRES a render class; these drive it directly.
+from api.services.render_gate import MEMBER
 from tests.discord_harness import UT_GUILD, _app_client, _keypair, _post, _sign
 
 from api.services import discord_chart_house as house_mod
@@ -2209,7 +2212,7 @@ def test_the_warm_matches_what_the_page_will_actually_fetch_including_comparison
     def run(req, compare=()):
         asked = []
         produce_chart(req, p.render_options(dict(p.DEFAULTS), req.tf), dict(p.DEFAULTS), compare,
-                      bars_fn=lambda tkr, tf, n: asked.append((tkr, tf, n)) or daily_bars(30),
+                      cls=MEMBER, bars_fn=lambda tkr, tf, n: asked.append((tkr, tf, n)) or daily_bars(30),
                       render_fn=lambda *a, **k: PNG_MAGIC, house_fn=lambda *a, **k: PNG_MAGIC + b"h")
         return asked
     from api.services.discord_interactions import PAGE_BARS
@@ -2246,7 +2249,7 @@ def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_renderin
             asked.append((t, n)); return daily_bars(30)
         prefs = dict(p.DEFAULTS)
         out = produce_chart(ChartRequest("WRMA", tf), p.render_options(prefs, tf), prefs,
-                            bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
+                            cls=MEMBER, bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
                             house_fn=lambda *a, **k: PNG_MAGIC + b"house")
         assert out[0] == "ok"
         from api.services.discord_interactions import PAGE_BARS
@@ -2255,7 +2258,7 @@ def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_renderin
     # without the house path there is no page to warm for
     asked = []
     produce_chart(ChartRequest("WRMB", "D"), p.render_options(dict(p.DEFAULTS), "D"), dict(p.DEFAULTS),
-                  bars_fn=lambda t, tf, n: asked.append((tf, n)) or daily_bars(30),
+                  cls=MEMBER, bars_fn=lambda t, tf, n: asked.append((tf, n)) or daily_bars(30),
                   render_fn=lambda *a, **k: PNG_MAGIC, house_fn=None)
     assert all(n < 600 or n == bars_to_request("D") for _, n in asked), asked
 
@@ -2309,7 +2312,7 @@ def test_two_charts_never_fetch_bars_at_the_same_time_but_renders_still_overlap(
         return PNG_MAGIC + ticker.encode()
     def one(sym):
         produce_chart(ChartRequest(sym, "D"), p.render_options(dict(p.DEFAULTS), "D"), dict(p.DEFAULTS),
-                      bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC, house_fn=house_fn, slot_wait=20)
+                      cls=MEMBER, bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC, house_fn=house_fn, slot_wait=20)
     threads = [threading.Thread(target=one, args=(f"GATE{i}",)) for i in range(4)]
     for t_ in threads: t_.start()
     for t_ in threads: t_.join()
@@ -2432,6 +2435,7 @@ def test_a_slow_house_render_gets_a_stand_in_and_is_still_replaced_by_the_house_
 
 def test_busy_or_failed_hands_over_a_chart_instead_of_an_apology(monkeypatch):
     from api.services.discord_interactions import run_chart_job, ChartRequest, RENDER_SLOTS
+    from api.services.render_gate import MEMBER
     from api.services import discord_chart_prefs as p, discord_chart_cache as cc
     monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "1")
     monkeypatch.setenv("DISCORD_CHART_FAST_AFTER_S", "5")
@@ -2489,6 +2493,7 @@ def test_the_warm_budget_is_greedy_only_when_a_chart_holds_for_a_quarter_hour(mo
 def test_the_fast_chart_is_a_floor_when_the_house_render_is_busy_or_fails(monkeypatch):
     """A member who already has a chart must never have it replaced by an apology."""
     from api.services.discord_interactions import run_chart_job, ChartRequest, RENDER_SLOTS
+    from api.services.render_gate import MEMBER
     from api.services import discord_chart_prefs as p, discord_chart_cache as cc
     monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "1")
     for slot in range(RENDER_SLOTS._initial_value):
@@ -2785,18 +2790,18 @@ def test_a_stand_in_is_marked_as_one_and_never_cached_for_a_session():
     args = dict(bars_fn=lambda *a: daily_bars(30), render_fn=lambda *a, **k: PNG_MAGIC + b"mpl")
 
     house = produce_chart(ChartRequest("SPCX", "D"), p.render_options(prefs, "D"), prefs,
-                          house_fn=lambda *a, **k: PNG_MAGIC + b"house", **args)
+                          cls=MEMBER, house_fn=lambda *a, **k: PNG_MAGIC + b"house", **args)
     assert house[0] == "ok" and house[1].endswith(b"house")
     # the renderer answered with nothing - the member still gets a chart, and it
     # is labelled for what it is
     stand_in = produce_chart(ChartRequest("SPCX", "D"), p.render_options(prefs, "D"), prefs,
-                             house_fn=lambda *a, **k: None, **args)
+                             cls=MEMBER, house_fn=lambda *a, **k: None, **args)
     assert stand_in[0] == "fallback" and stand_in[1].endswith(b"mpl")
     assert stand_in[0] in DELIVERED, "a stand-in is a delivered chart, not a failure"
     # …and when the house renderer is switched off entirely, mplfinance IS the
     # product, so nothing is downgraded
     off = produce_chart(ChartRequest("SPCX", "D"), p.render_options(prefs, "D"), prefs,
-                        house_fn=None, **args)
+                        cls=MEMBER, house_fn=None, **args)
     assert off[0] == "ok"
 
     # the TTL follows the result, not the timeframe alone

@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  BREADTH LIBRARY — LIVE UX HARNESS.
+
+  Mounts the REAL `searchLibrary` ranking, the REAL `discoveryCatalog` adapters and
+  the REAL `presentedPlot` / `signColorsForPlot` chain, so a browser can show what
+  the unit suites only assert: a member typing "50 day" sees the A50 family, metric
+  first, with the universe as a quiet qualifier.
+
+  Dev-server only. `vite build` takes `index.html` as its single input (no
+  `rollupOptions.input` override), so this entry never ships — the same arrangement
+  `pane-harness.html`, `device-harness.html` and `floor2.html` rely on.
+
+  ⛔ FIXTURE-BACKED, AND THE PAGE SAYS SO. The dev proxy points `/api` at the MAIN
+  CHECKOUT's :8000 backend, which predates the `library` payload.
+  ⛔ AND IT CANNOT WRITE A PREFERENCE — `window.fetch` refuses any non-GET to
+  /api/auth/preferences, the same lock the pane harness carries.
+
+  Run:  npx vite            (from app/)
+  Then: http://localhost:5173/breadth-harness.html
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Breadth Library — UX harness</title>
+    <style>
+      html, body {
+        margin: 0; background: #0e1014; color: #e6e8ec;
+        font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      code { color: #9aa3ad; font: 11px ui-monospace, Menlo, Consolas, monospace; }
+      button { font: inherit; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/breadth/breadthLibraryHarness.jsx"></script>
+  </body>
+</html>
