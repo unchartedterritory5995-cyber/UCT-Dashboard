@@ -65,9 +65,7 @@ describe('(g) — a reassign refusal carries the reason the walk already recorde
     }
   })
 
-  // ⛔ SELF-RETIRING: passes only while the defect stands; the fix commit deletes
-  // `.fails`, and a revert reds this line on its own.
-  it.fails('⭐⭐ the refusal names the REAL cause, not just the reassigned name', () => {
+  it('⭐⭐ the refusal names the REAL cause, not just the reassigned name', () => {
     for (const [label, src] of [['corpus', read(CORPUS)], ['synthetic', SYNTHETIC]]) {
       const m = msgFor(translatePine(src, { strict: true }), 'pine:reassign')
       expect(m.length, `${label}: no pine:reassign message at all`).toBeGreaterThan(0)

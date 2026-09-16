@@ -11345,8 +11345,33 @@ export function translatePine(source, opts = {}) {
       // line where the reassignment is AND carries the reason that explains it —
       // line and sentence agreeing about the same fact, which is the criterion R8
       // was decided on.
+      //
+      // ⭐⭐ (g) — AND THE SECOND FALLBACK IS `why`, WHICH THIS BRANCH HAS ALWAYS
+      // HAD AND NEVER READ. R7a closed the case where the binding was already
+      // opaque CARRYING a reason (`held.reason`). It could not close this one: when
+      // the fold stopped inside an `if` chain, the catch records the reason in
+      // `unfoldable` and does NOT write it onto `env`, so `held` has nothing and the
+      // sentence fell through to the bare name. `why` is computed four lines above
+      // and was used only in the `else if` below.
+      //
+      // ⚰️ MEASURED ON A REAL SCRIPT, NOT IMAGINED:
+      // `bolingger-bands-inside-bar-boxes__3294017d4f` declares `varip int barIndex`
+      // at :97, which goes opaque `pine:state`; `barIndex += 1` inside an `if`
+      // throws it; and the member was then told *"a name that is reassigned later
+      // cannot be folded into one expression — `boxH`"* at line 127. True about the
+      // line, silent about the cause, and the cause is thirty lines earlier.
+      //
+      // ⛔ THE LINE STILL WINS, THE SENTENCE IS WHAT GROWS. R8's criterion is that
+      // line and sentence agree about the same fact; the reassignment fact lives at
+      // `missed`, and the reason for it lives at `why`. Naming both is the only way
+      // the member can act — and `why.at` is included so the earlier line is
+      // reachable without hunting for it.
       const held = env.get(name)
-      const reason = held && held.kind === 'opaque' && held.reason ? held.reason : `\`${name}\``
+      const carried = held && held.kind === 'opaque' && held.reason ? held.reason : null
+      const fromChain = why && why.message
+        ? `\`${name}\` — and the fold stopped before it, at line ${why.line}: ${why.message}`
+        : null
+      const reason = carried || fromChain || `\`${name}\``
       forceOpaque(name, 'pine:reassign', locate(missed), reason)
     } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
       forceOpaque(name, why.guard,

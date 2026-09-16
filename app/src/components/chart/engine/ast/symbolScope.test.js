@@ -285,15 +285,26 @@ describe('⛔ THE VENDOR GATE — an unwitnessed exchange spelling is not served
 
 // ═══ the door ═══════════════════════════════════════════════════════════════
 
-describe('⛔ the six unserved fields refuse BY NAME, with their own sentences', () => {
+// ⚰️ THIS DESCRIBE SAID "THE SIX UNSERVED FIELDS" AND THE ROSTER IS NOW NINE.
+// Item (h) added `basecurrency`, `timezone` and `root` on their corpus numbers
+// (22/7, 13/6, 1/1), and this rail went red — correctly, which is the point of
+// pinning the list rather than its length. ⛔ The COUNT is out of the title for the
+// same reason the repo's nav table, COT router and setup catalog lost theirs: a
+// hand-typed number beside the list it describes drifts the moment the list moves,
+// and then reads as corroboration. The list below is kept EXACT on purpose — it is
+// the pin, so a silent removal still reds — and every name it holds is exercised by
+// the loop beneath it.
+describe('⛔ the unserved fields refuse BY NAME, with their own sentences', () => {
   it('the roster is the data file, and it is not empty', () => {
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED).sort()).toEqual([
-      'syminfo.currency', 'syminfo.description', 'syminfo.mintick',
-      'syminfo.pointvalue', 'syminfo.session', 'syminfo.type',
+      'syminfo.basecurrency', 'syminfo.currency', 'syminfo.description',
+      'syminfo.mintick', 'syminfo.pointvalue', 'syminfo.root',
+      'syminfo.session', 'syminfo.timezone', 'syminfo.type',
     ])
   })
 
-  for (const field of ['type', 'currency', 'session', 'mintick', 'pointvalue', 'description']) {
+  for (const field of ['type', 'currency', 'session', 'mintick', 'pointvalue', 'description',
+    'basecurrency', 'timezone', 'root']) {
     it(`⛔ \`syminfo.${field}\` — and the refusal does NOT say the grammar lacks it`, () => {
       const r = translatePine(`${HEAD}plot(close + str.length(syminfo.${field}))\n`)
       expect(r.ok).toBe(false)
