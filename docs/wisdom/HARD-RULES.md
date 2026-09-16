@@ -539,3 +539,17 @@ got the identical *"There was an error creating your PullRequest."* So the failu
 `feat/wisdom-loop`'s 86 commits. There are **no rulesets on master**. This is a GitHub-side repo
 or account setting, and `gh pr create` (absent on this box) is what would print the real API
 error. **A session cannot fix it; it is a desk-and-keyboard item.**
+
+⛔⛔ **MEASURED 2026-09-15: the guard's BURST clause is unsatisfiable during active development.**
+**117 window probes over 2h15m — ZERO open.** The guard needs fewer than `BURST_MIN_DEPLOYS = 3`
+web deploys in `BURST_WINDOW_SECONDS = 3600`, plus a 600 s settle. With four or five workstreams
+each deploying every 10-20 minutes, that hour is never empty. Recency cleared repeatedly — twice
+within 64 seconds of open, and later with 1,663 s settled — and the burst count never fell far
+enough for long enough.
+
+⭐ **The guard is right and the number is the point.** Its own refusal says *"it needs a human who
+can see every workstream, not a guard"*; the measurement says that is true **always, during
+working hours**. So a guarded push has three exits and a session owns none of them: an owner
+attestation (R19), a genuinely quiet period, or a change to `BURST_MIN_DEPLOYS` — a design
+decision about this repo. ⚰️ One open window was observed in session 15 and that single data
+point made a guarded landing look routine; 117 probes say otherwise.

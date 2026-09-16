@@ -105,6 +105,35 @@ at it so worktrees share it, and it invokes both the secret scrubber and `pre_pu
 person at a named minute confirming they can see every workstream; a session cannot, and other
 sessions were deploying throughout. `--no-verify` is banned.
 
+### ⛔⛔ MEASURED: the burst clause is unsatisfiable while the repo is under concurrent development
+
+**117 window probes this session. ZERO open windows.** 20:26 → 22:40, continuous.
+
+    OK/OK      (window open)        0
+    OK/REFUSE  (cadence clause)    89
+    REFUSE/REFUSE                  26
+
+The guard's own constants (`tools/pre_push_guard.py`): `BURST_MIN_DEPLOYS = 3` over
+`BURST_WINDOW_SECONDS = 3600`, plus `RECENT_PUSH_WINDOW_SECONDS = 600`. So a push needs **fewer
+than 3 web deploys in the last hour** AND the most recent one **≥10 minutes old**.
+
+⭐ **With four or five workstreams each deploying every 10–20 minutes, that 60-minute window is
+never empty.** This is not a queue that clears if you wait — it is a condition that active
+development structurally prevents. Recency cleared repeatedly (twice within 64 seconds of open,
+and later with 1,663 s settled); the burst count never fell below 3 for long enough to matter.
+
+⚠️ **The guard is not wrong** — its refusal text says exactly this: *"master is under concurrent
+development … it needs a human who can see every workstream, not a guard."* The measurement just
+puts a number on how often that is true right now: **always, during working hours.**
+
+⛔ So GUARDED_PUSH has three real exits, and two of them are yours:
+1. **an owner attestation** (R19) — a named person at a named minute, which a session must never set;
+2. **a genuinely quiet period** — nights or weekends, when the other workstreams stop;
+3. **changing `BURST_MIN_DEPLOYS`** — a design decision about this repo, not a session's to make.
+
+⚰️ Session 15 caught exactly ONE open window (19:34:19) in a comparable poll. That single data
+point is what made a guarded landing look routinely achievable; 117 probes say it is not.
+
 ## Step B — N-pass: DESIGNED, not built, and why that was the right call
 
 `docs/wisdom/NPASS-DESIGN.md`, every claim cited to code that exists today.
@@ -195,7 +224,7 @@ and I would have "proved" PR creation works for empty diffs.
 |---|---|
 | API calls / spend | **0 / $0.00** |
 | tests | 1,305 passed · 1 skipped · 0 failed (79 named files) |
-| guard attempts / probes | 0 pushes attempted / **14 window probes** logged |
+| guard attempts / probes | 0 pushes attempted / **117 window probes**, **0 open** |
 | wait minutes | ~23 in-session, loop continuing to the 240-minute ceiling |
 | commits / merges / pushes | 3 authored / 1 sync / 5, branch only |
 
