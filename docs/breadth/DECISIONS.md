@@ -1269,3 +1269,47 @@ bytes across 90/365/8000). 483 breadth + 198 ledger tests green. LOCAL warm 84.6
 
 ⛔ **Flipping it starts a NEW sampler pool**, because `rf_resident` is a pooled flag and the
 reader changes.
+
+---
+
+## SD-1.3 — C.2.i answered, INC-1, and the compensating control (2026-09-16)
+
+**C.2.i = TRIGGERED.** A `GITHUB_TOKEN` push to `production` reaches Railway: the probe
+created a deployment at 00:08:04Z, 24 s after `promote to production` started and 2 s before
+it completed, watching `production` only. ⚠️ The deployment's commit SHA was not captured
+before the service was deleted — accepted, the window is 26 s wide and no other trigger
+existed. G-3 moves to VERIFIED. No probe is rebuilt.
+
+**INC-1 — a second app instance booted on the production project**, because
+`railway.json`'s `deploy.startCommand` overrides the service-level Custom Start Command the
+runbook's safety design relies on. Contained by variable isolation (nine `RAILWAY_*` names,
+zero credentials); deleted; roster back to six. Full audit, including the boot-time
+side-effect table: `docs/breadth/INC-1-second-app-instance.md`.
+
+⭐ **The lesson inverts the emphasis.** The variables clause fired on the letter and looked
+like a false positive; the start-command clause was trusted and failed silently. **Relax the
+clause whose hazard is measured absent, never the one whose hazard is merely assumed absent.**
+
+**B4.3 — the compensating control.** `production` has no branch protection (G6 is
+OWNER-PENDING), so the gate now refuses, before any scan, if `production` is not where the
+last recorded promotion left it — naming the foreign SHA and its author.
+
+⚠️ **Two limits, verbatim and deliberate:** it is **detective, not preventive**, and its
+**cadence is tied to master pushes**, so a foreign push to `production` during a quiet period
+goes undetected until the next master push. **G6 closes both.**
+
+**C2.a — where the promotion record lives, and why.** Three placements were considered:
+
+| placement | verdict |
+|---|---|
+| a file on `master`, carried by the fast-forward | ⛔ **loop** — every promotion changes master, which re-triggers the gate, which promotes |
+| a commit on `production` | ⛔⛔ **breaks promotion outright.** `promote-production.yml` is fast-forward-only and refuses to force; a commit not on master makes `production` stop being an ancestor and the NEXT promotion hard-errors. It would also make the range scan report `NOTHING AHEAD` forever, since HEAD would be contained in the base. |
+| **an orphan `deploy-gate-state` branch** | ✅ **chosen** — anonymously readable via raw.githubusercontent, loop-free (the gate triggers only on `push: branches: [master, main]`), and it cannot disturb `production`'s ancestry. Precedent exists: `ci-results` is already an orphan branch in this repo. |
+
+It also makes the advisory range scan's six states readable **without a token** — Session 14
+could not read the CI log at all, which is why the states were invisible from outside CI.
+⛔ An unreadable log records `null`, never a verdict (`tools/promotion_record.py`).
+
+⭐ **The gate stayed read-only.** The promotion job already holds `contents: write` and
+`actions: read`, so it writes the record; giving the gate write access just to publish a
+status file would have been a real privilege escalation on a public repo.
