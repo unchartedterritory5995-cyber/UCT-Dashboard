@@ -267,3 +267,76 @@
    comfortably past the 44px floor in height on touch and never in anyone's way at
    rest. The verbs arrive in `ContextPopover`'s bottom sheet, whose rows are
    pinned to that floor. */
+
+/* ══ THE PACKED STUDY ITEM — `▪ EMA 9 605.84` ═══════════════════════
+ *
+ * ⭐⭐ THREE SPACINGS, AND THEY ARE DELIBERATELY DIFFERENT SIZES. Uniform gaps are
+ * what made the old legend feel mechanical; typesetting uses semantic rhythm:
+ *
+ *     swatch → label   3px   they are one token: "which series"
+ *     label  → value   5px   tight pair, so the eye binds them
+ *     item   → item   11px   (`.studyLine` gap) a clear field break
+ *     line   → line    1px   families stack tight
+ *
+ * ⛔ THE ITEM IS ONE BOX AND THE WHOLE BOX IS THE TARGET — gaps included. The
+ * legend is `pointer-events: none`, so anything laid out as loose siblings leaves
+ * dead columns the pointer falls through; that cost this legend four reported bugs
+ * once already. */
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
+}
+/* ⛔ THE ONLY COLOURED THING IN THE ITEM. 5×5px, square, no radius — a circle
+   reads as a bullet and a bullet reads as a list. It is nudged down 0.5px off the
+   text baseline because a square aligned ON a baseline sits optically high.
+   ⭐ THIS IS WHY THE WORDS CAN BE NEUTRAL: colour answers "which plotted series is
+   this?" in five pixels, so the label and the value do not have to, and five series
+   stop reading as a rainbow. */
+.swatch {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-right: -2px;
+  transform: translateY(-0.5px);
+}
+.itemLabel {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.itemVal {
+  color: var(--text-bright);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* A sibling output of the item before it (MACD → SIG). It is already adjacent on
+   the same line; this only softens its own label so the pair reads parent-first. */
+.itemSub .itemLabel { opacity: 0.78; }
+/* The read-only fallback (Model Book, a grid cell, the export route): the same
+   type, no door, no swatch. */
+.itemInert { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.itemLabelInert { color: var(--text-muted); font-weight: 400; }
+.itemValInert { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED (owner, seeing it beside professional
+   references). Repeated down a stack it made every study read as a navigation
+   item, and it was the single loudest piece of chrome in a legend whose brief is
+   to disappear behind its data. The ITEM is still the door — click, right-click,
+   Enter, Space — exactly as the row was; what is gone is the picture of a door.
+   ⭐ WHAT ANNOUNCES IT INSTEAD: `cursor: pointer`, and on hover the label lifts to
+   the value's own ink. That is the whole affordance, and it costs no width, no
+   column and no geometry. */
+.item.rowLive { cursor: pointer; }
+.item.rowLive:hover .itemLabel,
+.item.rowLive:focus-visible .itemLabel { color: var(--text-bright); opacity: 1; }
+.item.rowLive:hover .itemVal,
+.item.rowLive:focus-visible .itemVal { filter: brightness(1.06); }
+.item.rowLive:focus { outline: none; }
+.item.rowLive:focus-visible {
+  outline: 1px solid rgba(220, 187, 94, 0.9);
+  outline-offset: 1px;
+  border-radius: 2px;
+}

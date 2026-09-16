@@ -78,12 +78,15 @@
    "volLegend", so the export route's re-show cannot reach it. */
 .paneLegend {
   top: 0;
-  display: grid;
-  grid-template-columns: max-content max-content max-content;
-  justify-content: start;
-  column-gap: 10px;
+  /* ⭐ ONE PACKED LINE, like the price stack's. A pane holds one family, so its
+     outputs read across rather than down — which is also what keeps a short
+     oscillator pane's readout from covering the plot it describes. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 11px;
   row-gap: 1px;
-  align-content: start;
+  line-height: 14px;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
      values in the legend"). These two declarations are `.legend`'s own, and the
@@ -562,6 +565,16 @@
    reading", and a semantically-coloured number must not read as a lesser one.
    ⛔ THE COLOUR ITSELF IS UNTOUCHED — it is the member's own
    `header.colors.dayChange{Up,Down}` setting and it drives the title row too. */
+/* ⭐⭐ §11 — SEMANTIC SPACING, NOT UNIFORM SPACING. The strip has three rhythms
+   and they are different sizes on purpose: 4px binds a key to its value (`O 330.14`
+   is ONE token), 13px separates one reading from the next, and this adds 5px more
+   in front of the CHANGE pair — the one place the strip stops reporting the bar and
+   starts reporting its direction. Mechanically equal gaps are what made the line
+   read as six fields instead of a sentence with a clause in it.
+   ⛔ IT KEYS OFF THE ADJACENCY, so it survives every field toggle: with Close
+   turned off the break simply lands after whichever reading is last, and with every
+   OHLC field off there is no preceding `.barField` and no orphan indent. */
+.barField + .barChg { margin-left: 5px; }
 .barChg {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -584,30 +597,52 @@
  * readability rail `.barInfo` carries and for the same measured reason.
  */
 .studyStack {
-  display: grid;
-  grid-template-columns: max-content max-content max-content;
-  justify-content: start;
-  column-gap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* ⭐ FAMILIES STACK TIGHT. 1px between lines; the leading inside a line is what
+     gives the rows air, and a second gap on top of it is the vertical waste the
+     redesign is removing. */
   row-gap: 1px;
-  align-content: start;
   /* ⛔ AN EXPLICIT LINE-HEIGHT, BECAUSE THE ROW PITCH IS A NUMBER JS RELIES ON.
-     `STUDY_ROW_PX` in StockChart.jsx counts how many rows fit in the pane, and
-     with `line-height: normal` that pitch is whatever the font metrics happen to
-     give (measured 17px here) — a value no test could derive and a font change
-     could move without anything noticing. 15px + the 1px row gap = a 16px pitch,
-     and `legendV2.geometry.test.js` re-derives it from THIS declaration. */
-  /* ⭐ 15px → 14px (§11). Measured live at 15: five rows read as five menu
-     items rather than a typeset block. 14 on a 10px face is still 1.4 leading —
-     the row keeps a full line of clickable height, and the stack loses 5px over
-     five rows without anything getting tight.
-     ⛔ THIS NUMBER AND `row-gap` BELOW ARE WHAT `STUDY_ROW_PX` COUNTS IN. They
-     are declared in px for that reason and the rail re-derives the sum. */
+     `STUDY_ROW_PX` counts LINES into the space a pane has; with `line-height:
+     normal` that pitch is whatever the font metrics happen to give (measured 17px
+     once) — a value no test could derive. 14 + the 1px row gap = a 15px pitch, and
+     `legendV2.test.jsx` re-derives both numbers from THIS declaration. */
   line-height: 14px;
-  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
+  /* 🔴 THE SAME MEASURE AS `.studyLine`, AND IT IS NOT REDUNDANT. A flex column
+     shrink-wraps to its children's MAX-CONTENT, and a child's own `max-width` does
+     not reduce that contribution — so with fourteen moving averages the LINE wrapped
+     correctly to three rows while the STACK stayed 1318px wide, which dragged the
+     backdrop tint across the chart behind mostly-empty space. Measured in the
+     browser; the tint box is this element. */
+  max-width: min(100%, 92ch);
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 26%, transparent);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   padding: 1px 5px 2px 3px;
   border-radius: 2px;
+}
+/* One family, packed. ⛔ IT WRAPS RATHER THAN OVERFLOWS — a narrow widget breaks a
+   long moving-average family onto a second line instead of running under the price
+   axis, which is the responsive behaviour falling out of the composition rather
+   than being bolted onto it. */
+.studyLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 11px;
+  row-gap: 1px;
+  /* ⭐⭐ A TYPOGRAPHIC MEASURE, NOT A PIXEL GUESS. `ch` is the width of a `0` in
+     the legend's own mono face, so this is "about 92 characters" and it tracks the
+     type if the type ever changes. MEASURED: fourteen moving averages packed onto
+     ONE line ran 1318px — it fit inside the plot and it still looked wrong beside a
+     360px bar-info strip. A family wraps at a readable measure instead of running
+     the width of the chart.
+     ⛔ AND `100%` STILL CAPS IT ON A NARROW WIDGET, which is the responsive half:
+     the same rule that stops a long family dominating a wide chart stops it
+     overflowing a small one. No horizontal scroll, ever. */
+  max-width: min(100%, 92ch);
 }
 /* `+N more` / `Less` — the fold's disclosure. Spans all three tracks so it does
    not distort the label column it would otherwise size. */
@@ -618,8 +653,7 @@
    prevent, arriving one step later. 15 + the 1px `row-gap` = the 16px pitch
    `STUDY_ROW_PX` counts in. */
 .studyMore {
-  grid-column: 1 / -1;
-  justify-self: start;
+  align-self: flex-start;
   margin-top: 0;
   /* Exactly one stack row — 14 + the 1px `row-gap` = the 15px pitch. The fold
      RESERVES a row for this button, so a button taller than a row would overrun
@@ -631,8 +665,8 @@
   line-height: 1;
   border-radius: 3px;
 }
-/* The comparison-symbol reading rides the stack's last row, spanning it. */
-.studyCompare { grid-column: 1 / -1; white-space: nowrap; }
+/* The comparison-symbol reading rides the stack's last line. */
+.studyCompare { white-space: nowrap; }
 
 /* SHORT PANE — the last resort, and it is now genuinely last. The stack folds
    itself to the room it has (`studyRowBudget`), so this fires only when even the
@@ -646,7 +680,7 @@
 /* ⛔ THE COLUMN GAP TIGHTENS, THE ROW PITCH DOES NOT. `line-height` and
    `row-gap` are what `STUDY_ROW_PX` counts in; changing either here would make the
    budget wrong in exactly the state where space is tightest. */
-.legendCompact .studyStack { column-gap: 7px; }
+.legendCompact .studyLine { column-gap: 8px; }
 
 /* Sunrise (light canvas): the same two areas, inked for a bright background. */
 :global([data-charts-theme='sunrise']) .legendV2 { background: none; box-shadow: none; }

@@ -78,52 +78,49 @@ const chipOf = (over) => ({
 
 // ═══ 1. THE ROWS, RENDERED ═════════════════════════════════════════════════
 
-describe('§6 — the permanent chevron', () => {
-  it('a manageable LegendRow draws one, always, with no hover needed', () => {
-    render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical onOpen={vi.fn()} />)
+describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
+  // Owner, seeing the shipped legend beside professional references: repeated down
+  // a stack the chevrons made every study read as a navigation item, and they were
+  // the loudest chrome in a legend whose brief is to disappear behind its data.
+  // The ITEM is still the door; what went is the picture of one.
+  it('neither row component renders a chevron in any variant', () => {
+    for (const [name, src] of [['LegendRow', read('./legend/LegendRow.jsx')],
+      ['IndicatorChip', read('./legend/IndicatorChip.jsx')]]) {
+      expect(stripComments(src), `${name} renders a chevron again`)
+        .not.toMatch(/chevronRight|Chev\b/)
+    }
+  })
+
+  it('⛔ AND NOTHING REPLACED IT WITH ANOTHER PERMANENT ICON', () => {
+    // §4: "do NOT replace the chevron with another permanently visible
+    // button/icon". The only mark an item may carry is the 5×5 colour swatch,
+    // which is an identity anchor and not a control (it is `aria-hidden`).
+    for (const [name, src] of [['LegendRow', read('./legend/LegendRow.jsx')],
+      ['IndicatorChip', read('./legend/IndicatorChip.jsx')]]) {
+      const item = between(src, 'if (item) {', 'return (')
+        + between(src, 'if (item) {', '</span>')
+      expect(item, `${name}'s item grew an icon`).not.toMatch(/<UIcon|<svg/)
+    }
+  })
+
+  it('⭐ the item is `▪ label value` — a swatch, a neutral label, a bright value', () => {
+    render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" color="#4ade80" item onOpen={vi.fn()} />)
     const row = document.querySelector('[data-legend-row="ma:0"]')
-    expect(row.querySelector('svg'), 'the row draws no chevron at rest').toBeTruthy()
+    expect(row.querySelector('i'), 'no colour swatch').toBeTruthy()
+    expect(row.querySelector('i').getAttribute('aria-hidden')).toBe('true')
+    expect(row.textContent).toBe('EMA 9319.82')
   })
 
-  it('a manageable chip row draws one too — the two surfaces agree', () => {
-    render(<IndicatorChip chip={chipOf()} grid onMenu={vi.fn()} />)
-    expect(document.querySelector('[data-plot-key="rsi"]').closest('span[role="button"]')
-      .querySelector('svg')).toBeTruthy()
-  })
-
-  it('⛔ IT IS NOT A SECOND CONTROL — no role, no tab stop, hidden from the reader', () => {
-    // The ROW is the trigger. A chevron that announced itself would be a second
-    // control over one door, and "chevron" after "EMA 9 options" teaches nothing.
-    render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical onOpen={vi.fn()} />)
-    const chev = document.querySelector('[data-legend-row="ma:0"] svg').parentElement
-    expect(chev.getAttribute('aria-hidden')).toBe('true')
-    expect(chev.getAttribute('role')).toBeNull()
-    expect(chev.getAttribute('tabindex')).toBeNull()
-  })
-
-  it('⛔ A READ-ONLY ROW DRAWS NONE — and still emits its third cell', () => {
-    // Model Book, a grid cell, the export route. A chevron there would promise a
-    // menu that does not exist; a MISSING cell would let the next row's label fall
-    // into the chevron track and cascade the stack out of true.
-    render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical />)
-    const row = document.querySelector('[data-legend-row="ma:0"]')
-    expect(row.querySelector('svg')).toBeNull()
-    expect(row.children.length, 'a read-only row emitted fewer than three cells').toBe(3)
-  })
-
-  it('a chip row emits three cells in both states, for the same reason', () => {
-    const { unmount } = render(<IndicatorChip chip={chipOf()} grid onMenu={vi.fn()} />)
-    expect(document.querySelector('span[role="button"]').children.length).toBe(3)
-    unmount()
-    render(<IndicatorChip chip={chipOf()} grid />)
-    expect(document.querySelector('[data-plot-key="rsi"]').parentElement.children.length).toBe(3)
+  it('⛔ A ROW WITH NO PLOT COLOUR EMITS NO SWATCH — an anchor to nothing is an indent', () => {
+    render(<LegendRow rowId="volume" label="Vol" value="63.9M" item onOpen={vi.fn()} />)
+    expect(document.querySelector('[data-legend-row="volume"] i')).toBeNull()
   })
 })
 
 describe('§6 — the row is still the ONE door', () => {
   const open = () => {
     const onOpen = vi.fn()
-    render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical onOpen={onOpen} />)
+    render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" color="#4ade80" item onOpen={onOpen} />)
     return { onOpen, row: document.querySelector('[data-legend-row="ma:0"]') }
   }
 
@@ -133,13 +130,15 @@ describe('§6 — the row is still the ONE door', () => {
     expect(onOpen).toHaveBeenCalledWith('ma:0', expect.objectContaining({ x: expect.any(Number) }))
   })
 
-  it('a click on the CHEVRON opens the same one — it is inside the trigger', () => {
-    // §6: "The text portion of the row should also be clickable so the user does
-    // not have to hit a tiny chevron." Both halves are one element, so neither can
-    // be the half that does nothing.
+  it('⭐ A CLICK ANYWHERE IN THE ITEM OPENS IT — swatch, label or value', () => {
+    // The item is ONE box: there is no sub-target a member can miss and no gap
+    // inside it that does nothing. That was the whole reason the row is a single
+    // element rather than loose cells (`.legend` is `pointer-events: none`, so a
+    // gap between siblings is dead).
     const { onOpen, row } = open()
-    fireEvent.click(row.querySelector('svg').parentElement)
-    expect(onOpen).toHaveBeenCalledTimes(1)
+    fireEvent.click(row.querySelector('i'))
+    fireEvent.click(row.querySelectorAll('span')[1])
+    expect(onOpen).toHaveBeenCalledTimes(2)
   })
 
   it('right-click and Enter still open it', () => {
@@ -162,14 +161,13 @@ describe('§7 — a multi-output indicator reads as one group', () => {
     expect(sub).toMatch(/vRowSub/)
   })
 
-  it('⛔ A SIBLING KEEPS ITS OWN VALUE, CHEVRON AND DOOR', () => {
+  it('⛔ A SIBLING KEEPS ITS OWN VALUE AND ITS OWN DOOR', () => {
     // Grouping is presentation. Making only the first row of a group clickable is
     // the exact complaint that produced the all-rows rule.
     const onOpen = vi.fn()
-    render(<LegendRow rowId="inst:macd" label="SIG" value="1.6272" controlLabel="MACD" vertical secondary onOpen={onOpen} />)
+    render(<LegendRow rowId="inst:macd" label="SIG" value="1.6272" controlLabel="MACD" item secondary onOpen={onOpen} />)
     const row = document.querySelector('[data-legend-row="inst:macd"]')
     expect(row.textContent).toContain('1.6272')
-    expect(row.querySelector('svg')).toBeTruthy()
     fireEvent.click(row)
     expect(onOpen).toHaveBeenCalled()
     // ⛔ …and the control still announces the INSTANCE, not the plot.
@@ -258,11 +256,42 @@ describe('§8 — the geometric fold', () => {
     expect(more[1]).toMatch(/margin-top:\s*0/)
   })
 
-  it('⛔ THE FOLD NEVER CUTS A MULTI-OUTPUT INDICATOR IN HALF', () => {
-    // MACD's `SIG` folded away under a visible `MACD` reads as a missing plot
-    // rather than a collapsed group, so the cut walks back to the group's head.
-    expect(block()).toMatch(/while \(studyFitFrom > studyChipAt/)
-    expect(block()).toContain('studyFitFrom -= 1')
+  it('⭐⭐ THE FOLD CANNOT CUT A MULTI-OUTPUT INDICATOR IN HALF — structurally', () => {
+    // ⚰️ THIS USED TO BE A `while` LOOP walking the cut backwards off a group's
+    // tail, because the fold indexed ROWS and a group spanned several. A family IS
+    // a line now, and the fold hides whole lines — so the integrity that loop
+    // protected is a property of the composition rather than a correction applied
+    // to it. `studyFamilyLines` keys non-MA items by INSTANCE, which is what puts
+    // an instance's outputs on one line in the first place.
+    expect(stripComments(STOCK_CHART), 'the group-split guard came back — the fold '
+      + 'is indexing rows again').not.toMatch(/studyFitFrom -= 1/)
+    expect(STOCK_CHART).toContain('function studyFamilyLines(')
+    expect(block()).toContain('const studyLines = studyFamilyLines(studyItems)')
+    expect(block()).toContain('const studyTotal = studyLines.length')
+    // …and the line is what folds.
+    expect(block()).toMatch(/hidden=\{li >= studyFoldFrom\}/)
+  })
+
+  it('⛔ FAMILIES ARE USER SEMANTICS — moving averages together, everything else by INSTANCE', () => {
+    // §20: no generic "Indicators" bucket. The moving averages are the one set a
+    // member already thinks of collectively and the one set that multiplies;
+    // keying everything else by instance is what groups a multi-output study.
+    // ⛔⛔ AND THE RENDERER MAY NOT NAME AN INDICATOR TO DO IT.
+    // `enumerationSites.test.js` forbids `StockChart.jsx` from containing a
+    // definition id at all — a `defId === '<indicator>'` test in the legend block
+    // is the hand-written lane the engine flip exists to delete, and that rail
+    // caught exactly that on this pass. The definition DECLARES its family.
+    expect(block()).toContain('studyFamilyOf(c, engineRegistry.getDefinition(c.defId))')
+    expect(block()).toContain('family: MA_FAMILY')
+    expect(block()).toContain('family: VOLUME_FAMILY')
+    const fam = read('./legend/studyFamily.js')
+    expect(fam, 'the family rule stopped reading the declaration')
+      .toMatch(/def\.meta\.legendFamily/)
+    expect(fam, 'a study with no declared family stopped being its own family')
+      .toMatch(/chip\.instanceId/)
+    expect(read('../chart/engine/nativeRegistry.js'),
+      'no definition declares the moving-average family any more')
+      .toMatch(/legendFamily: 'ma'/)
   })
 
   it('⛔ AND THE BUDGET IS BOTH A ROOM TEST AND A SHARE OF THE PANE', () => {
@@ -291,7 +320,7 @@ describe('§8 — the geometric fold', () => {
   it('⛔ AND COMPACT MODE MUST NOT MOVE THAT PITCH', () => {
     // It shrinks the COLUMN gap. Changing `line-height` or `row-gap` there would
     // make the budget wrong in exactly the state where space is tightest.
-    const compact = /\.legendCompact \.studyStack\s*\{([^}]*)\}/.exec(STOCK_CSS)
+    const compact = /\.legendCompact \.studyLine\s*\{([^}]*)\}/.exec(STOCK_CSS)
     expect(compact).toBeTruthy()
     expect(compact[1]).not.toMatch(/row-gap|line-height/)
   })
@@ -336,13 +365,13 @@ describe('§5 — hover restyles nothing but text', () => {
     // the hierarchy pass moved the LABEL down to `--text-muted` at 0.8 opacity,
     // which is what created the headroom for a luminance hover instead.
     for (const [name, css, sel] of [
-      ['LegendRow', ROW_CSS, /\.vRow\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
-      ['IndicatorChip', CHIP_CSS, /\.chipGridRow\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
+      ['LegendRow', ROW_CSS, /\.item\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
+      ['IndicatorChip', CHIP_CSS, /\.item\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
     ]) {
       const bodies = [...css.matchAll(sel)].map((m) => m[1])
-      expect(bodies.length, `${name} declares no stack-row hover at all`).toBeGreaterThan(0)
+      expect(bodies.length, `${name} declares no item hover at all`).toBeGreaterThan(0)
       for (const body of bodies) {
-        expect(body, `${name}'s hover underlines the row again`)
+        expect(body, `${name}'s hover underlines the item again`)
           .not.toMatch(/text-decoration/)
       }
     }
@@ -356,37 +385,32 @@ describe('§5 — hover restyles nothing but text', () => {
     // the live chart: `Vol` rgb(226,223,214) / `31.7M` rgb(226,223,214).
     // The bar-info strip was already doing it properly with the `--text-muted` /
     // `--text-bright` pair, so the stack takes the SAME pair. One hierarchy.
-    const label = /\.vLabel\s*\{([^}]*)\}/.exec(ROW_CSS)
-    const value = /\.vVal,\s*\.flatVal\s*\{([^}]*)\}/.exec(ROW_CSS)
-    expect(label, '.vLabel is gone').toBeTruthy()
-    expect(value, '.vVal is gone').toBeTruthy()
-    expect(label[1], 'the study label went back to a token that equals the value\'s')
-      .toMatch(/color:\s*var\(--text-muted\)/)
-    expect(value[1], 'the study value no longer takes the bright ink')
-      .toMatch(/color:\s*var\(--text-bright\)/)
-    // ⛔ AND THE LABEL CARRIES A RESTING OPACITY, because a PLOT-COLOURED row
-    // defeats `color` with an inline `inherit` — opacity is the only lever that
-    // separates label from value on every hue.
-    expect(label[1], 'the coloured-row hierarchy has no lever left').toMatch(/opacity:\s*0?\.\d+/)
+    const label = /(?:^|\n)\.itemLabel\s*\{([^}]*)\}/.exec(ROW_CSS)
+    const value = /(?:^|\n)\.itemVal\s*\{([^}]*)\}/.exec(ROW_CSS)
+    expect(label, '.itemLabel is gone').toBeTruthy()
+    expect(value, '.itemVal is gone').toBeTruthy()
+    expect(label[1]).toMatch(/color:\s*var\(--text-muted\)/)
+    expect(value[1]).toMatch(/color:\s*var\(--text-bright\)/)
   })
 
-  it('⛔ THE CHEVRON IS NEUTRAL, NOT THE SERIES COLOUR', () => {
-    // \U0001f534 MEASURED LIVE: an EMA 9 row rendered label, value AND chevron all
-    // rgb(74,222,128) — the quietest element in the row was drawn in the loudest
-    // ink available and competed with the number it sits beside.
-    for (const [name, css, sel] of [['LegendRow', ROW_CSS, /(?:^|\n)\.vChev\s*\{([^}]*)\}/],
-      ['IndicatorChip', CHIP_CSS, /(?:^|\n)\.chipGridChev\s*\{([^}]*)\}/]]) {
-      const body = sel.exec(css)
-      expect(body, `${name}'s chevron rule is gone`).toBeTruthy()
-      expect(body[1], `${name}'s chevron inherits the plot colour again`)
-        .toMatch(/color:\s*var\(--text-muted\)/)
-      const rest = Number(/opacity:\s*(0?\.\d+)/.exec(body[1])[1])
-      expect(rest, 'the chevron is loud at rest').toBeLessThanOrEqual(0.4)
-    }
-    // …and it is drawn smaller than the text it sits beside.
-    for (const [name, src] of [['LegendRow', read('./legend/LegendRow.jsx')],
-      ['IndicatorChip', read('./legend/IndicatorChip.jsx')]]) {
-      expect(src, `${name}'s chevron grew`).toMatch(/name="chevronRight" size=\{8\}/)
+  it('⭐⭐ COLOUR LIVES ON THE SWATCH, NOT ON THE WORDS', () => {
+    // 🔴 THE MEASURED DEFECT: every study inked its LABEL and its VALUE in the
+    // series colour, so five series read as a rainbow and the legend looked
+    // amateur beside any professional reference. Colour answers "which plotted
+    // series is this?" — five pixels of it is enough, and it frees the type to
+    // carry the hierarchy instead.
+    for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
+      const sw = /(?:^|\n)\.swatch\s*\{([^}]*)\}/.exec(css)
+      expect(sw, `${name} has no swatch rule`).toBeTruthy()
+      const w = Number(/width:\s*(\d+)px/.exec(sw[1])[1])
+      expect(w, `${name}'s swatch is a bullet, not an anchor`).toBeLessThanOrEqual(6)
+      expect(sw[1], `${name}'s swatch went round — a circle reads as a list bullet`)
+        .not.toMatch(/border-radius/)
+      const lab = /(?:^|\n)\.itemLabel\s*\{([^}]*)\}/.exec(css)
+      const val = /(?:^|\n)\.itemVal\s*\{([^}]*)\}/.exec(css)
+      expect(lab[1], `${name}'s item label is not neutral`).toMatch(/color:\s*var\(--text-muted\)/)
+      expect(val[1], `${name}'s item value is not the bright ink`).toMatch(/color:\s*var\(--text-bright\)/)
+      expect(val[1], `${name}'s numbers are not tabular`).toMatch(/tabular-nums/)
     }
   })
 
@@ -395,8 +419,8 @@ describe('§5 — hover restyles nothing but text', () => {
     // transform, no width. The legend box, its right edge and every cell must be
     // identical hovered and at rest.
     for (const [name, css, sel] of [
-      ['LegendRow', ROW_CSS, /\.vRow\.rowLive:hover[^{]*\{([^}]*)\}/g],
-      ['IndicatorChip', CHIP_CSS, /\.chipGridRow\.rowLive:hover[^{]*\{([^}]*)\}/g],
+      ['LegendRow', ROW_CSS, /\.item\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
+      ['IndicatorChip', CHIP_CSS, /\.item\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
     ]) {
       const bodies = [...css.matchAll(sel)].map((m) => m[1])
       expect(bodies.length, `${name} declares no stack-row hover at all`).toBeGreaterThan(0)
@@ -454,9 +478,9 @@ describe('§2/§14 — the two areas, and the box that is gone', () => {
     const block = v2Block()
     const strip = between(block, '<div className={styles.barInfo}>', '</div>')
     expect(strip, 'volume crept back into the bar info strip').not.toMatch(/formatVolume|volLegendRowVisible/)
-    const stack = block.slice(block.indexOf('<div className={styles.studyStack}'))
-    expect(stack).toContain('volLegendRowVisible')
-    expect(stack).toContain('formatVolume(crosshairData.volume)')
+    expect(block, 'volume left the study stack').toContain("kind: 'vol', family: VOLUME_FAMILY")
+    expect(block, 'the volume item stopped reporting a figure')
+      .toContain('formatVolume(crosshairData.volume)')
   })
 
   it('⛔ AND THE STRIP PRINTS EXACTLY THE SEVEN RESOLVED FIELDS, through the ONE reader', () => {

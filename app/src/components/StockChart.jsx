@@ -132,6 +132,7 @@ import {
 import { legendChips, siblingSuffixes, paneReadoutLabel } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
+import { studyFamilyOf, MA_FAMILY, VOLUME_FAMILY } from './chart/legend/studyFamily'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
 // overlays and the volume pane. They became removable with `chartDefaults`'s
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
@@ -225,6 +226,52 @@ function paneReadoutRows(chips, layout, hostOf) {
     if (group && group.length) out.push({ key: pane.key, index: pane.index, chips: group })
   }
   return out.length ? out : EMPTY_CHIPS
+}
+
+/**
+ * The study stack's LINES — one per family of related series.
+ *
+ * ⭐⭐ THE COMPOSITION, AND THE REASON THE LEGEND STOPPED READING AS A LIST. One
+ * series per full row is what four moving averages cost four lines to say; every
+ * professional reference the owner supplied puts a family of related series on ONE
+ * line (`BB 125.30 92.12`, `Key Moving Averages 46.90 33.67 27.64`). So the stack
+ * is a column of LINES and each line packs the items of one family.
+ *
+ * ⛔ FAMILIES ARE USER SEMANTICS, NOT A GENERIC BUCKET. There is deliberately no
+ * "Indicators" line:
+ *
+ *   `vol`            the volume pane, which is its own idea
+ *   `ma`             THE MOVING AVERAGES — the legacy `cs.overlays` and any
+ *                    every engine instance whose definition declares that family
+ *                    (see `legend/studyFamily.js`). These are the one set a
+ *                    member already thinks of collectively (Chart Settings lists
+ *                    them under one heading), and the one set that multiplies.
+ *   `<instanceId>`   everything else, one line per INSTANCE — which is what keeps
+ *                    a multi-output study's outputs together (MACD with SIG,
+ *                    Bollinger's three bands) without a second grouping rule.
+ *
+ * ⚠ AN RSI AND A STACK OF MAs ARE NOT THE SAME THING and are not treated the
+ * same: a lone instance simply produces a line with one item on it, which is the
+ * compact individual row it always was.
+ *
+ * ⛔ ORDER IS PRESERVED EXACTLY — volume, then the moving averages, then the
+ * instances in `legendChips` order. Grouping re-flows nothing; it only decides
+ * where a line breaks.
+ *
+ * @param {object[]} items  `{kind, key, ...}` in render order
+ * @returns {{key: string, items: object[]}[]}
+ */
+function studyFamilyLines(items) {
+  const out = []
+  const byKey = new Map()
+  for (const it of items) {
+    const line = byKey.get(it.family)
+    if (line) { line.items.push(it); continue }
+    const fresh = { key: it.family, items: [it] }
+    byKey.set(it.family, fresh)
+    out.push(fresh)
+  }
+  return out
 }
 
 /** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
@@ -17032,9 +17079,30 @@ export default function StockChart({
         // the two could differ (the strip abbreviates, the pane spells out).
         const priceChips = indChips.filter((c) => chipPaneHost(c) == null)
         const studyOverlays = liveLegendOverlays(crosshairData.overlays)
-        const studyHeadN = volLegendRowVisible ? 1 : 0
-        const studyChipAt = studyHeadN + studyOverlays.length
-        const studyTotal = studyChipAt + priceChips.length
+        // ⭐ ONE FLAT LIST OF ITEMS, IN RENDER ORDER, EACH CARRYING ITS FAMILY.
+        // `studyFamilyLines` only decides where the line breaks fall; it never
+        // re-orders, so the stack still reads in Chart Settings' own order.
+        const studyItems = [
+          ...(volLegendRowVisible ? [{ kind: 'vol', family: VOLUME_FAMILY, key: 'vol' }] : []),
+          ...studyOverlays.map((ov, i) => ({
+            kind: 'ma', family: MA_FAMILY, ov, i,
+            key: ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`,
+          })),
+          ...priceChips.map((c, i) => ({
+            // ⛔⛔ THE DEFINITION SAYS WHICH FAMILY IT IS IN; THIS FILE MAY NOT.
+            // Testing a `defId` against a literal here is a hand-written lane for
+            // one indicator inside the renderer, which is precisely what
+            // `enumerationSites.test.js` forbids — and it caught exactly that, on
+            // the first run. `studyFamilyOf` reads the definition's declared
+            // `meta.legendFamily` and otherwise answers the INSTANCE, which is what
+            // keeps a multi-output study on one line with no second rule.
+            kind: 'chip', family: studyFamilyOf(c, engineRegistry.getDefinition(c.defId)), c, i,
+            key: `${c.instanceId}::${c.plotKey}`,
+            secondary: i > 0 && priceChips[i - 1].instanceId === c.instanceId,
+          })),
+        ]
+        const studyLines = studyFamilyLines(studyItems)
+        const studyTotal = studyLines.length
         // ⭐⭐ THE FOLD IS GEOMETRIC, NOT A CONSTANT. `studyRowBudget` is how many
         // rows fit between the stack's own top and the PRICE PANE'S bottom, in
         // container coordinates, measured by the same rAF sampler that pins every
@@ -17060,12 +17128,11 @@ export default function StockChart({
         // Reserving it unconditionally would fold a stack that fits.
         const studyRoom = studyTotal > studyRowBudget
           ? Math.max(0, studyRowBudget - 1) : studyRowBudget
-        let studyFitFrom = Math.max(0, Math.min(studyRoom, studyTotal))
-        while (studyFitFrom > studyChipAt && studyFitFrom < studyTotal
-          && priceChips[studyFitFrom - studyChipAt]
-          && priceChips[studyFitFrom - studyChipAt - 1]
-          && priceChips[studyFitFrom - studyChipAt].instanceId
-            === priceChips[studyFitFrom - studyChipAt - 1].instanceId) studyFitFrom -= 1
+        // ⭐ THE FOLD COUNTS LINES NOW, AND THE GROUP-SPLIT GUARD RETIRES WITH THE
+        // THING IT GUARDED. A family IS a line, so a cut between lines can no
+        // longer land inside a multi-output study — the integrity the `while` loop
+        // used to walk back for is structural. `studyFamilyLines` is the rail.
+        const studyFitFrom = Math.max(0, Math.min(studyRoom, studyTotal))
         const studyCanFold = studyFitFrom < studyTotal
         const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
         const studyMoreCount = studyTotal - studyFitFrom
@@ -17168,69 +17235,81 @@ export default function StockChart({
                   `parityGateBlindness.test.js`, which is also why this JSX is
                   inline and not hoisted into a helper. */}
               <div className={styles.studyStack} ref={studyStackRef}>
-                {/* ⭐ VOLUME IS A STUDY ROW — first, above the moving averages,
-                    exactly where the old vertical legend printed it.
-                    ⛔ ITS PANE OWNERSHIP, SIZING AND RENDERING ARE UNTOUCHED. This
-                    row only REPORTS the state: a hidden volume pane keeps a
-                    dimmed, value-less row (the way back), and a REMOVED one takes
-                    the row away. Same `volLegendRowVisible` rule as before. */}
-                {volLegendRowVisible && (legendRowHandlers ? (
-                  <LegendRow
-                    vertical
-                    rowId="volume"
-                    label="Vol"
-                    /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS — the
-                       legend abbreviates to `Vol` for width, and a trigger called
-                       "Vol options" names nothing the popover's own title says. */
-                    controlLabel="Volume"
-                    value={volHidden ? '' : formatVolume(crosshairData.volume)}
-                    baseColor={legendColor || undefined}
-                    hidden={volHidden}
-                    folded={studyHeadN - 1 >= studyFoldFrom}
-                    {...legendRowHandlers}
-                  />
-                ) : (
-                  <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-                ))}
-                {/* ⭐ THE MOVING AVERAGES, IN CHART SETTINGS' OWN ORDER.
-                    ⛔ NOT GATED ON `compactLegend` ANY MORE. Dropping every study
-                    row on a short pane was the old height fix and it took the only
-                    per-instance door with it; the fold below is geometric and
-                    leaves a `+N more` to get them back. */}
-                {studyOverlays.map((ov, i) => (
-                  <LegendRow
-                    key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
-                    vertical
-                    rowId={`ma:${ov.csIndex}`}
-                    label={ov.label}
-                    value={ov.value != null ? ov.value.toFixed(2) : ''}
-                    color={opaqueColor(ov.color)}
-                    baseColor={legendColor || undefined}
-                    hidden={!!ov.hidden}
-                    folded={studyHeadN + i >= studyFoldFrom}
-                    /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS — it is not in
-                       `cs.overlays` (`csIndex: -1`), so every verb would write
-                       nowhere. It also gets no chevron, which is the point of
-                       tying the chevron to `interactive`. */
-                    {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
-                  />
-                ))}
-                {priceChips.map((c, i) => (
-                  <IndicatorChip
-                    key={`${c.instanceId}::${c.plotKey}`}
-                    chip={c}
-                    grid
-                    /* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE (§7). `legendChips`
-                       walks the INSTANCE list, so one instance's plots are always
-                       consecutive and adjacency alone identifies the group — no
-                       second grouping pass, and no new identity. */
-                    secondary={i > 0 && priceChips[i - 1].instanceId === c.instanceId}
-                    className={studyChipAt + i >= studyFoldFrom ? chipStyles.chipFolded : undefined}
-                    /* Per (instance, plot) — a definition with one repainting
-                       column marks that column and leaves its siblings alone. */
-                    repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
-                    {...chipHandlers}
-                  />
+                {/* ⭐⭐ ONE LINE PER FAMILY, AND THE ITEMS PACK ONTO IT.
+                    ⚰️ THIS WAS THREE MAPS EMITTING ONE FULL-WIDTH ROW PER SERIES
+                    into a three-track grid — volume, then the moving averages,
+                    then the chips — with the value right-aligned into a shared
+                    column and a chevron after it. Four moving averages therefore
+                    cost four lines and four chevrons to say four numbers, and the
+                    shared column made the whole thing read as a table of settings
+                    rather than as market data. The items are unchanged; only where
+                    the line breaks fall is new.
+                    ⛔ THE THREE KINDS STILL RENDER THROUGH THEIR OWN COMPONENTS —
+                    `IndicatorChip` for an engine plot (it carries the repaint mark,
+                    the `computed` state and the long-press) and `LegendRow` for the
+                    things that are not engine instances. Track B's doors are
+                    untouched; this is a layout change around them. */}
+                {studyLines.map((line, li) => (
+                  <div key={line.key} className={styles.studyLine}
+                    /* ⛔ THE WHOLE LINE FOLDS, NEVER PART OF ONE. A family IS a
+                       line, so the fold can no longer split a multi-output study
+                       in half — the guard the old row-indexed fold needed is
+                       structural now. */
+                    hidden={li >= studyFoldFrom}
+                  >
+                    {line.items.map((it) => (
+                      it.kind === 'vol' ? (
+                        legendRowHandlers ? (
+                          <LegendRow
+                            key={it.key}
+                            item
+                            rowId="volume"
+                            label="Vol"
+                            /* ⛔ NAMED IN FULL FOR THE MENU IT OPENS — the legend
+                               abbreviates for width, and a trigger called "Vol
+                               options" names nothing the popover's title says. */
+                            controlLabel="Volume"
+                            value={volHidden ? '' : formatVolume(crosshairData.volume)}
+                            baseColor={legendColor || undefined}
+                            hidden={volHidden}
+                            {...legendRowHandlers}
+                          />
+                        ) : (
+                          <span key={it.key} className={styles.itemInert}>
+                            <span className={styles.itemLabelInert} style={legBase}>Vol</span>
+                            <span className={styles.itemValInert} style={legBase}>{formatVolume(crosshairData.volume)}</span>
+                          </span>
+                        )
+                      ) : it.kind === 'ma' ? (
+                        <LegendRow
+                          key={it.key}
+                          item
+                          rowId={`ma:${it.ov.csIndex}`}
+                          label={it.ov.label}
+                          value={it.ov.value != null ? it.ov.value.toFixed(2) : ''}
+                          color={opaqueColor(it.ov.color)}
+                          baseColor={legendColor || undefined}
+                          hidden={!!it.ov.hidden}
+                          /* ⛔ THE SYNTHETIC SMA 5 GETS NO DOOR — it is not in
+                             `cs.overlays` (`csIndex: -1`), so every verb would
+                             write nowhere. */
+                          {...(it.ov.csIndex >= 0 ? legendRowHandlers : null)}
+                        />
+                      ) : (
+                        <IndicatorChip
+                          key={it.key}
+                          chip={it.c}
+                          item
+                          /* A sibling output of the item before it on this line. */
+                          secondary={it.secondary}
+                          /* Per (instance, plot) — a definition with one repainting
+                             column marks that column and leaves its siblings alone. */
+                          repaint={plotRepaintNotice(engineRegistry.getDefinition(it.c.defId), it.c.plotKey)}
+                          {...chipHandlers}
+                        />
+                      )
+                    ))}
+                  </div>
                 ))}
                 {studyCanFold && (
                   <button type="button" className={`${chipStyles.chipMore} ${styles.studyMore}`}
@@ -17742,7 +17821,12 @@ export default function StockChart({
           {row.chips.map((c, ci) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
-              vertical
+              /* ⭐⭐ THE SAME PACKED ITEM THE PRICE STACK USES. A pane readout is one
+                 family by construction (it is one pane's plots), so its outputs
+                 belong on ONE line — `MACD 2.3999  SIG 1.6272` — rather than
+                 stacked down the pane in a second, taller idiom. One legend
+                 architecture, every pane. */
+              item
               /* ⭐ SIBLING OUTPUTS OF ONE INSTANCE READ AS A GROUP (§7) — MACD
                  and SIG stack with the second indented, rather than as two
                  unrelated studies that happen to share a pane. Adjacency is the

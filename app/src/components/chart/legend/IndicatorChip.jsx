@@ -145,6 +145,11 @@ export default function IndicatorChip({
   // the whole legend and that shared track is exactly what puts every value on
   // the same right edge.
   grid = false,
+  // ⭐⭐ `item` — THE PACKED VARIANT, the twin of `LegendRow`'s. `▪ RSI 14 57.3`,
+  // inline, so an instance's outputs share a line with each other and a family of
+  // related instances shares a line too. See `LegendRow.jsx` for why the colour
+  // moved to a 5×5 swatch and off the words.
+  item = false,
   // ⭐⭐ `secondary` — A SIBLING OUTPUT OF THE CHIP ABOVE (Legend V2 §7). MACD's
   // `SIG`, Bollinger's lower band. `legendChips` walks the INSTANCE list, so an
   // instance's plots already arrive consecutive; this is the DOM finally saying
@@ -274,6 +279,26 @@ export default function IndicatorChip({
     ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{chipValueText}</span></>
     : chip.text
 
+  if (item) {
+    return (
+      <span
+        className={`${styles.item} ${secondary ? styles.itemSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        data-instance-id={chip.instanceId}
+        data-plot-key={chip.plotKey}
+        data-hidden={chip.hidden ? 'true' : 'false'}
+        data-computed={chip.computed === false ? 'false' : undefined}
+        {...triggerProps}
+        {...(interactive ? longPress : null)}
+        onClick={onBody}
+        title={chipTitle}
+      >
+        {chip.color ? <i className={styles.swatch} style={{ background: chip.color }} aria-hidden="true" /> : null}
+        <span className={styles.itemLabel}>{chip.label}{marks}</span>
+        {chipValueText ? <span className={styles.itemVal}>{chipValueText}</span> : null}
+      </span>
+    )
+  }
+
   if (grid) {
     // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
     // the next row's label fall into the control gutter — see
@@ -318,18 +343,9 @@ export default function IndicatorChip({
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend
             out of true. It measures zero and always did. */}
-        {/* ⭐⭐ THE THIRD CELL CARRIES THE PERMANENT CHEVRON (Legend V2 §6) —
-            same element, same rules and same tombstones as `LegendRow.vChev`;
-            read that one for why a chevron that is ALWAYS drawn is not the two
-            that were retired. It still EMITS on a read-only mount, empty, because
-            the stack is one grid that fills by ORDER. */}
-        {interactive
-          ? (
-            <span className={styles.chipGridChev} aria-hidden="true">
-              <UIcon name="chevronRight" size={8} gold={false} />
-            </span>
-          )
-          : <span className={styles.chipGridCtl} />}
+        {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED — see `LegendRow.jsx`. The cell
+            is still emitted and still measures zero; this grid fills by ORDER. */}
+        <span className={styles.chipGridCtl} />
       </span>
     )
   }

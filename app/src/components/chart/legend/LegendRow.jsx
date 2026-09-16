@@ -44,7 +44,6 @@
 // every row while the ROW ITSELF is one continuous hover box from the first
 // letter of the label to the last digit of the value, gaps included. Hover is
 // plain CSS `:hover` on that box; there is no hover state in React.
-import UIcon from '../../ui/UIcon'
 import styles from './LegendRow.module.css'
 
 /**
@@ -82,6 +81,21 @@ export default function LegendRow({
    *  ⛔ IT IS NOT A NESTING CONTAINER. A wrapper around each group would break
    *  the one-grid/`subgrid` alignment that puts every value on one right edge,
    *  which is the whole reason these rows are shaped the way they are. */
+  /** Render as a PACKED STUDY ITEM: `▪ EMA 9 605.84`, laid out inline so a
+   *  family of related series shares one line.
+   *
+   *  ⭐⭐ THE COMPOSITION CHANGE, AND THE WHOLE POINT OF IT. One series per full
+   *  row, with the value right-aligned into a shared column, is what made the
+   *  legend read as a settings list — four moving averages cost four lines and a
+   *  column of chevrons to say four numbers. As items they cost ONE line, and
+   *  nothing about their identity or their door changes.
+   *
+   *  ⛔ COLOUR MOVES TO THE SWATCH AND OFF THE TEXT. A legend that inks the label
+   *  AND the value in the series colour is a rainbow at five series; the
+   *  professional references all answer *"which plotted series is this?"* with a
+   *  small colour anchor and then set the words neutrally. The swatch is 5×5 and
+   *  it is the only coloured thing in the item. */
+  item = false,
   secondary = false,
   /** Past the stack's row budget — the row keeps its DOM node and loses its box.
    *
@@ -185,6 +199,27 @@ export default function LegendRow({
   const ink = color ? { color } : undefined
   const valInk = color ? { color: 'inherit' } : undefined
 
+  // ─── ITEM: `▪ label value`, inline, packable ─────────────────────
+  if (item) {
+    return (
+      <span
+        className={`${styles.item} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
+        data-legend-row={rowId}
+        data-hidden={hidden ? 'true' : 'false'}
+        {...trigger}
+      >
+        {/* ⛔ THE SWATCH IS `aria-hidden` AND CARRIES NO TEXT. It answers a
+            question the eye asks of the CHART; a screen reader already has the
+            label, and "blue square" beside "EMA 9" is noise. A row with no plot
+            colour of its own (Volume) emits none rather than a grey placeholder —
+            an anchor to nothing is just an indent. */}
+        {color ? <i className={styles.swatch} style={{ background: color }} aria-hidden="true" /> : null}
+        <span className={styles.itemLabel}>{label}</span>
+        {value ? <span className={styles.itemVal}>{value}</span> : null}
+      </span>
+    )
+  }
+
   // ─── HORIZONTAL: one inline span. The span IS the target ───────────────
   if (!vertical) {
     return (
@@ -219,36 +254,12 @@ export default function LegendRow({
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the
           whole legend out of true. It holds nothing now and measures zero. */}
-      {/* ⭐⭐ THE THIRD CELL CARRIES A PERMANENT CHEVRON (Legend V2 §6).
-       *
-       * ⚰⚰ A CHEVRON WAS RETIRED HERE TWICE, AND THIS IS NOT THE THIRD ATTEMPT
-       * AT THE SAME THING. Both retired ones APPEARED — hidden at rest, revealed
-       * on hover — and the whole cost was in the appearing: a collapsed gutter
-       * moved the legend when it opened, and an out-of-flow one detached from its
-       * own label. A chevron that is ALWAYS drawn has neither cost, because the
-       * track it sits in is the same width in every state. That is the invariant
-       * the two retirements were protecting, and it still holds.
-       *
-       * ⛔ IT IS NOT A SECOND CONTROL. The whole row is the trigger and always
-       * was; this only SAYS SO, which is what a row of bare text could not do. It
-       * carries no handler and no role of its own — `aria-hidden`, because the
-       * row already announces itself as a menu button and a screen reader
-       * meeting "chevron" after "EMA 9 options" learns nothing.
-       *
-       * ⛔ AND IT IS NOT PUSHED TO A FAR EDGE. The track is `max-content`, so it
-       * sits one small gap after the value and the stack stays as narrow as its
-       * longest row.
-       *
-       * ⛔ A READ-ONLY ROW STILL EMITS THE CELL, EMPTY. The stack is ONE grid
-       * that fills by ORDER, so a two-cell row would let the next row's label
-       * fall into the chevron track and cascade the whole stack out of true. */}
-      {interactive
-        ? (
-          <span className={styles.vChev} aria-hidden="true">
-            <UIcon name="chevronRight" size={8} gold={false} />
-          </span>
-        )
-        : <span className={styles.vCtl} />}
+      {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED (owner). It made every study read as
+          a navigation item when stacked, and it was the loudest chrome in a legend
+          whose brief is to disappear behind its data. The cell is still EMITTED and
+          still measures zero, because this grid fills by ORDER and a two-cell row
+          would let the next row's label fall into the third track. */}
+      <span className={styles.vCtl} />
     </span>
   )
 }
