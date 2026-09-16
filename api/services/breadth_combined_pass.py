@@ -216,17 +216,31 @@ def run(artifact: str, from_date: str, to_date: str,
                 continue
             unis = resolve_universes(D, per_all, uct_tickers, ref_map)
             rows, sizes, sess_meta = [], {}, None
+            # ⭐⭐ ONE LEVELS BUILD FOR ALL FOUR UNIVERSES. `build_levels` is per-ticker —
+            # a name's 50-day average and 52-week extremes do not depend on who else is
+            # in the frame — so building it once over the UNION and restricting each
+            # universe through `members` is identical to four separate builds, and it is
+            # the single biggest cost in the session. Measured: ~37 s/session with four
+            # builds against a 27 GB bars.db.
+            union = sorted({t for u in universes for t in (unis.get(u) or [])})
+            if not union:
+                _checkpoint(c, D, "failed", detail="no universe resolved any name")
+                stats["failed"] += 1
+                continue
+            levels = wr._levels_for_day(conn_bars, union,
+                                        bl._ts_int(_d.fromisoformat(D)))
+            if levels is None:
+                _checkpoint(c, D, "missing_source", detail="no levels (bars history)")
+                stats["missing_source"] += 1
+                continue
             for u in universes:
                 names = unis.get(u) or []
                 sizes[u] = len(names)
                 if not names:
                     continue
+                member_set = set(names)
                 sub = {t: per_all[t] for t in names if t in per_all}
-                levels = wr._levels_for_day(conn_bars, names,
-                                            bl._ts_int(_d.fromisoformat(D)))
-                if levels is None:
-                    continue
-                out = wr.session_ohlc(D, sub, levels, bucket_min)
+                out = wr.session_ohlc(D, sub, levels, bucket_min, members=member_set)
                 if not out:
                     continue
                 sess_meta = sess_meta or out.get("_session")

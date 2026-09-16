@@ -200,7 +200,7 @@ def _levels_for_day(conn, tickers, day_ts):
 
 
 def session_ohlc(D: str, per_ticker: dict, levels: dict,
-                 bucket_min: int = 1) -> Optional[dict]:
+                 bucket_min: int = 1, members: Optional[set] = None) -> Optional[dict]:
     """ONE universe's OHLC from an ALREADY-DOWNLOADED session. The whole math path.
 
     ⭐⭐ EXTRACTED SO THE EXPENSIVE FILE IS READ ONCE. `recon_day` below is now a thin
@@ -210,9 +210,21 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
     domain, the carry-forward, the composites and the aggregation, and both callers run
     it. A second copy for the grind is precisely what this avoids.
 
-    `per_ticker` is the resampled minute source; `levels` is that universe's own
-    `build_levels` output (its MAs and 52-week extremes). Returns the per-metric OHLC
-    dict, or None when the session cannot be established.
+    `per_ticker` is the resampled minute source; `levels` is a `build_levels` output.
+
+    ⭐ `members` RESTRICTS THE POPULATION WITHOUT RESTRICTING THE LEVELS, which is what
+    lets ONE levels build serve four universes. The invariant is the metric engine's
+    own, stated in `recompute_from_frame`: *"a 50-day average of a member is the same
+    number whoever else is in the frame"* — `build_levels` is per-ticker, so a name's
+    MAs and 52-week extremes do not depend on the cohort. `compute_metrics` then
+    restricts every metric through its `have = ~isnan(px)` mask, so handing it only the
+    members' prices computes exactly that universe.
+
+    ⚠️ WITHOUT IT the prior-close seed would carry EVERY name in `levels` into the
+    price map and the universe would silently become the union. `members` is therefore
+    applied to the seed AND the carry-forward, not just one of them.
+
+    Returns the per-metric OHLC dict, or None when the session cannot be established.
     """
     from api.services import breadth_session as bsess
     from api.services.breadth_live import compute_metrics
@@ -237,11 +249,12 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
                 _v = float(_pc[_i])
             except Exception:
                 continue
-            if _v == _v and _v > 0.0:
+            if _v == _v and _v > 0.0 and (members is None or _tk in members):
                 last_px[_tk] = _v
     prices_by_bucket = []
+    feed = [tk for tk in per_ticker if members is None or tk in members]
     for T in buckets:
-        for tk in per_ticker:
+        for tk in feed:
             px = by_tb[tk].get(T)
             if px is not None:
                 last_px[tk] = px
