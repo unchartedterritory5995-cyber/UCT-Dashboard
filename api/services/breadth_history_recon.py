@@ -95,6 +95,7 @@ def run_deep_async(date: str, limit: int = 0) -> None:
 import glob as _glob
 import json as _json
 import os as _os
+import time as _time
 from concurrent.futures import ThreadPoolExecutor as _Pool
 from datetime import datetime as _dt, timezone as _tz
 
@@ -183,10 +184,21 @@ def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: in
 
 
 def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
-                         window: int = 320) -> dict:
+                         window: int = 320, members: Optional[set] = None) -> dict:
     """PURE recompute for one date by SLICING the pre-loaded numpy frame — no fetching, no
     per-date allocation of the whole universe. Levels from the window's sessions strictly
-    before target; target's close folded in as the price (mirrors _metrics_at_close)."""
+    before target; target's close folded in as the price (mirrors _metrics_at_close).
+
+    ⭐ `members` IS THE UNIVERSE, AND IT IS APPLIED TO `prices` ALONE. When given, only
+    those tickers get a price, and `compute_metrics`' `have = ~isnan(px)` mask does the
+    rest — every metric, from the MA family to the counts to the highs and lows, is
+    computed over exactly that set. The LEVELS are still built from the whole matrix,
+    which is correct and not wasteful: a 50-day average of a member is the same number
+    whoever else is in the frame, and rebuilding the matrix per universe would triple
+    the work to get identical columns.
+
+    ⚠️ `None` means "every priced ticker", which is the pre-universe behaviour the UCT
+    path still uses."""
     import numpy as np
     from api.services import breadth_live as bl
     dp = frame["date_pos"]
@@ -205,9 +217,11 @@ def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
     last_c = closes[:, -1]
     last_v = vols[:, -1]
     prices = {tickers[i]: float(last_c[i]) for i in range(len(tickers))
-              if not np.isnan(last_c[i]) and last_c[i] > 0}
+              if not np.isnan(last_c[i]) and last_c[i] > 0
+              and (members is None or tickers[i] in members)}
     dvols = {tickers[i]: float(last_v[i]) for i in range(len(tickers))
-             if not np.isnan(last_v[i]) and last_v[i] > 0}
+             if not np.isnan(last_v[i]) and last_v[i] > 0
+             and (members is None or tickers[i] in members)}
     if not prices:
         return {"ok": False, "reason": "no prices on target"}
     metrics = bl.compute_metrics(levels, prices, dvols)
@@ -248,38 +262,147 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
 # Rail: tests/test_breadth_recon_never_writes_new_ath.py
 _NEVER_SWEEP_STORE = frozenset({"new_ath"})
 
+
+def _applies(metric: str, universe: str) -> bool:
+    """May `universe` store `metric`? UCT: always (it is where they are measured).
+    A PIT universe: only what `breadth_metrics` marks portable.
+
+    ⚠️ Fails OPEN for UCT and CLOSED for a PIT universe, which is the safe direction
+    for each: UCT must never lose a metric it has always written, and a new universe
+    must never gain one nobody decided it should have."""
+    from api.services import breadth_universes as _bu
+    if _bu.normalize(universe) == _bu.DEFAULT_UNIVERSE:
+        return True
+    from api.services import breadth_metrics as _bm
+    return _bm.applies_to(metric, universe)
+
+def _seed_carry_in(prev: dict, full: dict, uni: str) -> None:
+    """Carry a warm-up row's values into `prev` — the close-to-close OPEN of the next
+    stored bar.
+
+    ⭐ A NAMED FUNCTION RATHER THAN FOUR INLINE LINES, so the behaviour can be DISABLED
+    in a bite-check. A rail for an invariant nothing can break is not a rail, and this
+    is the invariant BL-021's second half restored: the first stored bar of an
+    invocation must open at the previous session's close, not at its own.
+    """
+    for metric, val in full.items():
+        if metric == "date" or metric in _NEVER_SWEEP_STORE:
+            continue
+        if not _applies(metric, uni):
+            continue
+        fv = _f(val)
+        if fv is not None:
+            prev[metric] = fv
+
+
 _SWEEP_STATE: dict = {"status": "idle"}
 
 
 def sweep_history(from_date: str, to_date: Optional[str] = None,
                   tickers: Optional[list[str]] = None, window: int = 320,
-                  batch: int = 4000) -> dict:
+                  batch: int = 4000, universe: Optional[str] = None,
+                  warmup_days: int = 560) -> dict:
     """Backfill close-basis breadth history for [from_date, to_date]: load the deep frame
     ONCE, recompute every session, write close-to-close BODIES to breadth_daily_ohlc
     (source 'close_recon'). Bounded memory (numpy frame) + batched writes. This is the
-    workhorse — heavy, so run it in a background thread (run_sweep_async)."""
+    workhorse — heavy, so run it in a background thread (run_sweep_async).
+
+    ⭐⭐ `universe` IS THE ONLY THING THAT CHANGES BETWEEN UNIVERSES. Pass `us`,
+    `nasdaq` or `nyse` and the frame comes from `breadth_pit_frame` — the
+    survivorship-free grouped-daily matrix with a per-date member set — instead of
+    today's UCT ticker list. Everything after that line is IDENTICAL: the same
+    `recompute_from_frame`, the same `bl.compute_metrics`, the same
+    `derive_live_row`, the same close-to-close body construction, the same store.
+    There is no `sweep_us`, and there must never be one: four algorithms that are
+    supposed to agree are four chances to disagree.
+
+    ⛔ THE PER-DATE MEMBER SET IS APPLIED THROUGH `prices`, NOT THROUGH A SECOND
+    METRIC PATH. `compute_metrics` masks on `have = ~isnan(px)` and `px` is filled
+    only from the `prices` dict, so handing it one date's eligible members
+    restricts every metric it computes to that universe without the metric engine
+    learning that universes exist.
+
+    ⚠️ Omitting `universe` keeps the EXACT pre-universe behaviour — today's UCT
+    list, written to `universe='uct'`. Existing callers are untouched.
+
+    ⚠️ `warmup_days` IS THE PRE-ROLL, AND IT IS COMPUTATIONAL CONTEXT ONLY — never
+    output. 560 days (~1.6 yr) is the production default because the 200-day average
+    and the 52-week extreme need it. It is a PARAMETER rather than a constant for one
+    honest reason: a bounded control run whose frame cache starts later than
+    `from_date − 560d` would otherwise trip `_sessions`' consecutive-empty-day guard
+    and return "no sessions in range", which reads like a bug in the sweep rather
+    than a gap in the cache. Lowering it is only safe while the remaining window
+    still clears the metric's own lookback (221 sessions is `recompute_from_frame`'s
+    floor); the frame builder does not check that for you.
+    """
     from datetime import date as _date, timedelta as _td
     from api.services import breadth_live as bl
     from api.services import breadth_daily_ohlc, breadth_monitor
-    if tickers is None:
-        tickers, _ = bl.universe()
-    if not tickers:
-        return {"ok": False, "reason": "no universe"}
-    since = (_date.fromisoformat(from_date) - _td(days=560)).isoformat()  # ~1.6yr warmup for 200MA/52w
-    frame = load_deep_frame(tickers, since=since)
+    from api.services import breadth_universes as bu
+
+    uni = bu.normalize(universe)
+    pit_frame = None
+    if bu.is_pit(uni):
+        if tickers is not None:
+            return {"ok": False, "reason": f"{uni} builds its own universe per date; "
+                                           "an explicit ticker list is not accepted"}
+        bu.sweepable_range(uni, from_date, to_date)
+        from api.services import breadth_pit_frame as bpf
+        to_date = to_date or from_date
+        pit_frame = bpf.build_frame(uni, from_date, to_date, warmup_days=warmup_days)
+        if not pit_frame.get("ok"):
+            # ⚠️ CARRY THE DATE LIST, NOT JUST THE SENTENCE. `build_frame` names the
+            # sessions whose RAW frame is missing; dropping that leaves the caller —
+            # the forward seal, the health surface — with prose to parse. The reason
+            # is for a human, `missing_raw` is for the machine.
+            return {"ok": False, "reason": pit_frame.get("reason", "pit frame failed"),
+                    "missing_raw": pit_frame.get("missing_raw")}
+        frame, tickers = pit_frame, pit_frame["tickers"]
+    else:
+        if tickers is None:
+            tickers, _ = bl.universe()
+        if not tickers:
+            return {"ok": False, "reason": "no universe"}
+        since = (_date.fromisoformat(from_date) - _td(days=560)).isoformat()  # ~1.6yr warmup for 200MA/52w
+        frame = load_deep_frame(tickers, since=since)
     dates = frame["dates"]
     to_date = to_date or (dates[-1] if dates else from_date)
-    # Start the derived-metric buffer ~15 sessions before from_date so ratios/score aren't
-    # cold at the range start (ratio_10day needs 10 prior days).
+    # Start the derived-metric buffer `WARM_SESSIONS` before from_date so the rolling
+    # ratios aren't cold at the range start (ratio_10day needs 9 predecessors).
+    #
+    # ⛔ THE LENGTH IS `breadth_pit_frame.WARM_SESSIONS`, NOT A 15 TYPED HERE. The frame
+    # builds membership for exactly that many sessions before `from_date`; if the two
+    # numbers ever disagreed, the extra sessions would have no member set and BL-021
+    # would come back for precisely those rows.
+    from api.services import breadth_pit_frame as _bpf_const
+    _warm_n = _bpf_const.WARM_SESSIONS
     warm_start = next((d for d in dates if d >= from_date), from_date)
-    warm_idx = max(0, dates.index(warm_start) - 15) if warm_start in dates else 0
+    warm_idx = max(0, dates.index(warm_start) - _warm_n) if warm_start in dates else 0
     sweep = [d for d in dates[warm_idx:] if d <= to_date]
     prev: dict = {}
     recent: list = []          # full derived rows, NEWEST-FIRST (derive_live_row wants that)
     rows: list = []
     computed = written = 0
+    # ⭐⭐ THE WARM-UP ROWS CARRY THE SAME MEMBER SET AS AN OUTPUT DATE — BL-021.
+    #
+    # ⚰️ THIS COMMENT USED TO SAY THE OPPOSITE, and said it confidently: "the warm-up
+    # rows are never stored, and building eligibility for 560 extra sessions would
+    # double the frame's cost to refine numbers nobody reads." Two of those three
+    # clauses were true. The third was not: `ratio_5day` and `ratio_10day` ARE stored,
+    # they ARE in V1, and they are SUMS over exactly those warm rows — so a warm row
+    # measured over every priced ticker (7,835 names, against the universe's 3,073) put
+    # whole-market counts into a US series. Measured error up to 29 % on R5's first 4
+    # output sessions and 24 % on R10's first 9, at EVERY chunk boundary, and on every
+    # forward-seal tick.
+    #
+    # ⛔ AND IT WAS NEVER 560 SESSIONS. The 560-day span is the frame's per-ticker
+    # warm-up (averages, 52-week extremes) and needs no membership at all; the rolling
+    # metrics need `WARM_SESSIONS` — fifteen. `build_frame` now resolves those fifteen,
+    # which is ~2 % more raw fetches over a full grind.
+    members_of = (pit_frame or {}).get("eligible") or {}
     for ds in sweep:
-        r = recompute_from_frame(frame, tickers, ds, window)
+        r = recompute_from_frame(frame, tickers, ds, window,
+                                 members=members_of.get(ds))
         if not r.get("ok"):
             continue
         base = dict(r["metrics"])
@@ -291,10 +414,34 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         recent.insert(0, full)
         if len(recent) > 30:
             recent.pop()
-        if ds < from_date:      # warmup only — seed the buffer, don't store
+        if ds < from_date:
+            # ⭐ WARM-UP: seeds the buffer AND the close-to-close carry-in, but stores
+            # nothing. `prev` is what the next stored bar opens at, so seeding it here
+            # is the whole of BL-021's second half: without it the first stored bar of
+            # every invocation took `o = c` and rendered a doji, and "the first date of
+            # this function call" was silently standing in for "the first date of the
+            # series".
+            #
+            # ⚠️ A GENUINELY FIRST DATE STILL OPENS AT ITS OWN CLOSE, and that is
+            # correct rather than a fallback: when no earlier session exists there is no
+            # prior close for it to open at. The difference is that it is now decided by
+            # the DATA — whether a warm session exists — not by where the loop began.
+            _seed_carry_in(prev, full, uni)
             continue
         for metric, val in full.items():
             if metric == "date" or metric in _NEVER_SWEEP_STORE:
+                continue
+            # ⛔⛔ APPLICABILITY DECIDES WHAT A PIT UNIVERSE MAY STORE, and a control
+            # sweep is what proved this was missing. `derive_live_row` computes the
+            # WHOLE row — including `breadth_score`, a composite that consumes AAII,
+            # put/call and VIX — so a US sweep wrote a US `breadth_score` built from
+            # UCT's formula over a row whose sentiment inputs are absent. A number
+            # that looks plausible and means something else is precisely the failure
+            # the catalogue's `portability` column exists to prevent.
+            #
+            # ⚠️ UCT IS UNTOUCHED: it applies to every metric by definition, so this
+            # branch cannot change a single value the shipped path writes.
+            if not _applies(metric, uni):
                 continue
             fv = _f(val)
             if fv is None:
@@ -308,11 +455,14 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         import time as _time
         _time.sleep(0.02)     # yield between recomputes so the web pod stays healthy
         if len(rows) >= batch:
-            written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
+            written += breadth_daily_ohlc.write_bulk(rows, source="close_recon", universe=uni)
             rows = []
     if rows:
-        written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
-    return {"ok": True, "from": from_date, "to": to_date, "sessions": computed, "rows": written,
+        written += breadth_daily_ohlc.write_bulk(rows, source="close_recon", universe=uni)
+    coverage = {d: c for d, c in ((pit_frame or {}).get("coverage") or {}).items()}
+    return {"ok": True, "universe": uni,
+            "from": from_date, "to": to_date, "sessions": computed, "rows": written,
+            "coverage": coverage,
             "frame_names": frame.get("names"),
             "first_date": sweep[0] if sweep else None, "last_date": sweep[-1] if sweep else None}
 
@@ -1079,4 +1229,336 @@ def backfill_adv_dec_from_recon(days: int = 90, dry_run: bool = True,
              for d in val.get("per_day", []) if "advancing" in d}
     out = apply_adv_dec_counts(pairs, dry_run=dry_run, source="recon")
     out["validation"] = {k: v for k, v in val.items() if k != "per_day"}
+    return out
+
+
+# ── The PIT-universe backfill, SHIPPED DARK ──────────────────────────────────
+#
+# ⛔⛔ THIS IS THE CANNON, AND IT IS DELIBERATELY NOT LOADED. A full 2008→present
+# grind over three universes materialises hundreds of thousands of derived rows and
+# thousands of whole-market provider fetches; the owner holds that for an explicit
+# decision. Everything here exists so that decision is a flag flip against proven
+# machinery rather than a night of new code — and so the FLOOR is enforced by the
+# thing that walks history, not only by the thing that computes one chunk.
+#
+# ⚠️ SEPARATE FROM `backfill_tick`, WHICH STAYS UCT-ONLY. That function walks
+# downward from current coverage and has no floor of its own beyond its marker
+# file; giving it a universe argument would let a marker edit send it below an
+# exchange universe's approved start. `test_the_default_backfill_loop_can_only_ever
+# _sweep_uct` pins that separation by reading its source.
+
+def universe_backfill_enabled() -> bool:
+    """Ships DARK. An explicit "1" arms the PIT backfill loop.
+
+    Same shape as `BREADTH_DIVIDEND_BASIS` and for the same reason: this one
+    creates derived data at scale, so the deploy must be a no-op and the start must
+    be a deliberate flip."""
+    return _os.environ.get("BREADTH_UNIVERSE_BACKFILL_ENABLED", "0") == "1"
+
+
+def universe_backfill_plan(universe: str, target_floor: Optional[str] = None,
+                           chunk_days: int = 365) -> dict:
+    """What the next chunk WOULD be — computed, never executed.
+
+    ⭐ A PLANNER SEPARATE FROM A RUNNER, so the floor arithmetic is testable and
+    inspectable without touching a provider or a store. `blocked` is the honest
+    answer for "this universe has nothing left to sweep"; `reason` says which.
+
+    ⛔ THE FLOOR IS CLAMPED HERE AND REFUSED IN `sweep_history`. Two layers, on
+    purpose: the planner must not ASK for a pre-floor chunk (asking would make the
+    loop look stuck), and the sweep must refuse one anyway (a caller that bypasses
+    the planner is a bug, not a special case).
+    """
+    from api.services import breadth_daily_ohlc, breadth_universes as bu
+    from datetime import date as _d, timedelta as _t
+
+    row = bu.get(universe)
+    if not bu.is_pit(universe):
+        return {"ok": False, "blocked": True,
+                "reason": f"{row['label']} is not a PIT universe; this project does "
+                          "not recompute it"}
+    floor = row["floor"]
+    if target_floor:
+        # ⚠️ CLAMPED UP, never down. A caller asking for 2008 NASDAQ gets 2011 and is
+        # TOLD so; silently honouring it would publish what Phase 1 refused.
+        floor = max(floor, target_floor) if floor else target_floor
+    stats = breadth_daily_ohlc.stats(universe) or {}
+    covered_first = stats.get("first")
+    if covered_first and covered_first <= floor:
+        return {"ok": True, "blocked": True, "complete": True, "universe": row["id"],
+                "floor": floor, "coverage_first": covered_first,
+                "reason": "coverage already reaches the floor"}
+    hi = (_d.fromisoformat(covered_first) - _t(days=1)) if covered_first else _d.today()
+    lo = max(_d.fromisoformat(floor), hi - _t(days=int(chunk_days) - 1))
+    if lo > hi:
+        return {"ok": True, "blocked": True, "complete": True, "universe": row["id"],
+                "floor": floor, "reason": "nothing below current coverage"}
+    # ⛔⛔ A REMAINING WINDOW WITH NO WEEKDAY IN IT IS DONE, NOT PENDING — and this
+    # is a real infinite loop, not a tidiness point. Coverage reaching 2011-01-03
+    # against a 2011-01-01 floor leaves 1-2 Jan, a Saturday and a Sunday: the plan
+    # would ask for them forever, the sweep would return zero sessions forever,
+    # coverage would never move, and the grind would look busy while making no
+    # progress. Asking the CALENDAR is exact and costs nothing; the holiday case
+    # that survives this is caught by the `exhausted` signal in the tick below.
+    if not any((lo + _t(days=i)).weekday() < 5 for i in range((hi - lo).days + 1)):
+        return {"ok": True, "blocked": True, "complete": True, "universe": row["id"],
+                "floor": floor, "coverage_first": covered_first,
+                "reason": "no trading sessions remain above the floor"}
+    return {"ok": True, "blocked": False, "universe": row["id"], "floor": floor,
+            "coverage_first": covered_first,
+            "from": lo.isoformat(), "to": hi.isoformat(),
+            "clamped": bool(target_floor and target_floor < (row["floor"] or ""))}
+
+
+def universe_backfill_tick(universe: str, target_floor: Optional[str] = None,
+                           chunk_days: int = 365) -> dict:
+    """ONE restart-safe chunk for a PIT universe. Refuses unless armed.
+
+    Resumable by construction: the next chunk is read from the STORE's current
+    coverage each time, so a pod restart mid-grind simply picks up where the rows
+    stop — the same property `backfill_tick` has, and the reason neither needs a
+    progress file that could disagree with the data.
+    """
+    if not universe_backfill_enabled():
+        return {"ok": False, "disarmed": True,
+                "reason": "BREADTH_UNIVERSE_BACKFILL_ENABLED is not 1"}
+    plan = universe_backfill_plan(universe, target_floor, chunk_days)
+    if not plan.get("ok") or plan.get("blocked"):
+        return plan
+    if not _TICK_LOCK.acquire(blocking=False):
+        return {"ok": True, "busy": True}
+    try:
+        res = sweep_history(plan["from"], plan["to"], universe=universe)
+        # ⭐ A CHUNK THAT PRODUCED NOTHING ENDS THE GRIND. Coverage is the progress
+        # marker, so a window that yields zero sessions (a holiday-only remainder,
+        # or a range the provider has no frames for) would otherwise be re-planned
+        # identically on the next tick, forever. Reporting exhaustion lets the
+        # scheduler stop instead of spinning.
+        if res.get("ok") and not res.get("sessions"):
+            return {**plan, "result": res, "blocked": True, "exhausted": True,
+                    "reason": "the planned window produced no sessions"}
+        return {**plan, "result": res}
+    finally:
+        _TICK_LOCK.release()
+
+
+# ── THE DAILY FORWARD SEAL ─────────────────────────────────────────
+#
+# ⭐⭐ THE BACKFILL ONLY WALKS BACKWARD, AND THAT IS A PUBLICATION BLOCKER ON ITS OWN.
+# `universe_backfill_plan` computes the next chunk BELOW current coverage and stops
+# when it reaches the floor. Nothing advances the RIGHT edge — so a published PIT
+# universe would freeze on whatever day the grind happened to end, and a member would
+# be looking at a chart that simply stopped, with no error anywhere to say so.
+#
+# ⛔⛔ AND IT IS NOT A SECOND METRIC ENGINE. This orchestrates; `sweep_history` does
+# the work, which means the daily value is produced by the SAME eligibility
+# (`breadth_pit_frame.eligible_on`), the SAME computation (`breadth_live.compute_metrics`
+# via `recompute_from_frame`), the SAME applicability filter (`_applies`) and the SAME
+# writer (`breadth_daily_ohlc.write_bulk`) as every historical row beside it. A
+# separate "daily" path is how a series develops a seam at the date the backfill
+# stopped and the live job started.
+#
+# ⚠️ ONE CALL FOR THE WHOLE GAP, NOT ONE PER DATE. `sweep_history` builds a ~560-day
+# frame; asking it per date would rebuild that frame for every session. A three-day
+# catch-up is one frame and three recomputes.
+
+#: How many sessions one run may seal. A forward seal is a DAILY job; a gap wider than
+#: this is not a late tick, it is an outage, and the historical tool owns recovery.
+FORWARD_SEAL_MAX_SESSIONS = 10
+
+
+def _et_today() -> str:
+    from datetime import datetime as _dtm
+    try:
+        from zoneinfo import ZoneInfo
+        return _dtm.now(ZoneInfo("America/New_York")).date().isoformat()
+    except Exception:
+        return _dtm.utcnow().date().isoformat()
+
+
+def is_trading_session(iso: str) -> bool:
+    """Weekday AND not a NYSE full closure.
+
+    ⛔ THE HOLIDAY LIST IS NOT RESTATED HERE. `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` is
+    this repo's ONE closure table — five services already read it and it carries an
+    explicit "refresh annually from nyse.com" contract. A second copy would diverge in
+    the year nobody remembered to update it, which is this repo's most repeated defect.
+    ⚠️ Full closures only: a 1pm early close is still a session and still seals.
+    """
+    from datetime import date as _d
+    d = _d.fromisoformat(iso)
+    if d.weekday() >= 5:
+        return False
+    try:
+        from api.services.bars_fetch import _is_nyse_holiday
+        return not _is_nyse_holiday(int(iso.replace("-", "")))
+    except Exception:
+        # ⚠️ Degrade to weekday-only rather than refusing every date: a missing
+        # holiday answer must not stop the seal, and a holiday that slips through is
+        # caught downstream — `build_frame` finds no adjusted frame and refuses it.
+        return True
+
+
+def sessions_between(after_iso: str, through_iso: str, limit: int = 0) -> list:
+    """Trading sessions strictly after `after_iso`, up to and including `through_iso`."""
+    from datetime import date as _d, timedelta as _t
+    out = []
+    d = _d.fromisoformat(after_iso) + _t(days=1)
+    end = _d.fromisoformat(through_iso)
+    while d <= end:
+        iso = d.isoformat()
+        if is_trading_session(iso):
+            out.append(iso)
+            if limit and len(out) >= limit:
+                break
+        d += _t(days=1)
+    return out
+
+
+def forward_seal_plan(universe: str, through: Optional[str] = None,
+                      max_sessions: int = FORWARD_SEAL_MAX_SESSIONS) -> dict:
+    """What the next forward seal WOULD do — computed, never executed.
+
+    ⭐ A PLANNER SEPARATE FROM A RUNNER, the same split `universe_backfill_plan`
+    uses, so the calendar and bound arithmetic is testable without a provider, a store
+    write or a clock.
+
+    ⛔ `through` DEFAULTS TO YESTERDAY, NOT TODAY. Today's grouped-daily frame is not
+    settled while the session is open, and `massive.get_grouped_daily_ohlcv` only
+    writes its durable tier for settled dates. Sealing today would either fail or
+    — worse — seal a partial session as if it were final.
+    """
+    from datetime import date as _d, timedelta as _t
+    from api.services import breadth_daily_ohlc, breadth_universes as bu
+
+    if not bu.is_pit(universe):
+        return {"ok": False, "blocked": True, "universe": bu.normalize(universe),
+                "reason": "the forward seal is for PIT universes; UCT is sealed by "
+                          "the 4:15pm collector"}
+    uni = bu.normalize(universe)
+    through = through or (_d.fromisoformat(_et_today()) - _t(days=1)).isoformat()
+    stats = breadth_daily_ohlc.stats(uni) or {}
+    last = stats.get("last")
+    if not last:
+        # ⛔ AN EMPTY STORE IS NOT A ONE-DAY GAP. With no rows there is no "latest
+        # sealed session" to walk forward from, and inventing one (the floor, say)
+        # would turn this job into the historical grind it must never become.
+        return {"ok": True, "blocked": True, "universe": uni, "empty": True,
+                "last_sealed": None, "through": through,
+                "reason": "no rows for this universe — the historical backfill owns "
+                          "the first population"}
+    if last >= through:
+        return {"ok": True, "blocked": True, "universe": uni, "current": True,
+                "last_sealed": last, "through": through, "sessions": [],
+                "reason": "already sealed through the last settled session"}
+
+    pending = sessions_between(last, through)
+    if not pending:
+        return {"ok": True, "blocked": True, "universe": uni, "current": True,
+                "last_sealed": last, "through": through, "sessions": [],
+                "reason": "no trading session between the last sealed day and now"}
+    if len(pending) > int(max_sessions):
+        # ⛔⛔ REPORT GAPPED, DO NOT QUIETLY GRIND. A 200-session hole is an outage,
+        # and letting a daily job close it would be an accidental historical grind on
+        # the web pod — the exact failure `start_breadth_warm` was written around.
+        return {"ok": True, "blocked": True, "universe": uni, "gapped": True,
+                "last_sealed": last, "through": through,
+                "pending": len(pending), "max_sessions": int(max_sessions),
+                "first_missing": pending[0], "last_missing": pending[-1],
+                "sessions": [],
+                "reason": f"{len(pending)} sessions behind, over the {int(max_sessions)}-"
+                          "session bound — the historical backfill owns recovery"}
+    return {"ok": True, "blocked": False, "universe": uni, "last_sealed": last,
+            "through": through, "sessions": pending,
+            "from": pending[0], "to": pending[-1]}
+
+
+#: Last forward-seal outcome per universe, for the health surface. In-process only.
+_FORWARD_SEAL_STATE: dict = {}
+
+
+def forward_seal_state(universe: Optional[str] = None):
+    if universe is None:
+        return dict(_FORWARD_SEAL_STATE)
+    from api.services import breadth_universes as bu
+    return _FORWARD_SEAL_STATE.get(bu.normalize(universe))
+
+
+def forward_seal_tick(universe: str, through: Optional[str] = None,
+                      max_sessions: int = FORWARD_SEAL_MAX_SESSIONS) -> dict:
+    """Seal the bounded forward gap for ONE PIT universe. Idempotent.
+
+    ⭐ IDEMPOTENT BY CONSTRUCTION, not by a guard. The plan is read from the STORE's
+    own `last` every time, so a second run finds nothing pending; and even a forced
+    re-sweep of a sealed date writes the same `(universe, date, metric)` primary keys
+    with the same computed values, because the frame, the eligibility and the
+    computation are all deterministic functions of settled provider data.
+
+    ⛔ REFUSAL IS THE SUCCESS PATH WHEN INPUTS ARE MISSING. `build_frame` already
+    refuses a chunk whose sweep dates have no RAW frame rather than writing a silent
+    gap (the Phase-6 defect). This records that refusal and leaves the dates for the
+    next tick; it never writes a partial day, never fabricates a zero, and never
+    reports success over a window it did not compute.
+    """
+    from api.services import breadth_universes as bu
+    plan = forward_seal_plan(universe, through=through, max_sessions=max_sessions)
+    if not plan.get("ok") or plan.get("blocked"):
+        _FORWARD_SEAL_STATE[plan.get("universe", bu.normalize(universe))] = {
+            **{k: v for k, v in plan.items() if k != "sessions"},
+            "at": _time.time(), "sealed": 0,
+        }
+        return plan
+    uni = plan["universe"]
+    if not _TICK_LOCK.acquire(blocking=False):
+        return {**plan, "busy": True}
+    try:
+        res = sweep_history(plan["from"], plan["to"], universe=uni)
+        want = len(plan["sessions"])
+        got = int(res.get("sessions") or 0) if res.get("ok") else 0
+        out = {**plan, "result": res, "expected": want, "sealed": got}
+        if not res.get("ok"):
+            # The chunk was refused — typically a missing RAW frame. Keep the reason
+            # verbatim: "the provider had not published 2026-09-15 yet" and "the fetch
+            # failed" must not collapse into one message.
+            out["failed"] = True
+            out["reason"] = res.get("reason")
+            out["missing_raw"] = res.get("missing_raw")
+        elif got < want:
+            # ⚠️ FEWER SESSIONS THAN PLANNED IS NOT SUCCESS. The planner used the
+            # NYSE calendar; the frame used what the provider actually published. A
+            # difference means one of them is wrong, and saying so beats a green log.
+            out["partial"] = True
+            out["reason"] = (f"planned {want} sessions, sealed {got} — the calendar and "
+                             "the provider disagree about this window")
+        _FORWARD_SEAL_STATE[uni] = {
+            **{k: v for k, v in out.items() if k not in ("sessions", "result")},
+            "at": _time.time(),
+        }
+        return out
+    finally:
+        _TICK_LOCK.release()
+
+
+def forward_seal_all(through: Optional[str] = None,
+                     max_sessions: int = FORWARD_SEAL_MAX_SESSIONS) -> dict:
+    """One forward-seal pass over every PUBLISHED PIT universe.
+
+    ⛔ PUBLISHED ONLY. A dark universe's rows are not served, so sealing them daily
+    would spend provider fetches and pod CPU on data nobody can see — and would do it
+    on the web pod. The historical backfill is what populates a dark universe.
+
+    ⚠️ FAILURE IS ISOLATED PER UNIVERSE: one refusing does not stop the others.
+    """
+    from api.services import breadth_universes as bu
+    out = {}
+    published = set(bu.published_universe_ids())
+    for uni in bu.PIT_UNIVERSE_IDS:
+        if uni not in published:
+            continue
+        try:
+            out[uni] = forward_seal_tick(uni, through=through, max_sessions=max_sessions)
+        except Exception as e:  # noqa: BLE001
+            out[uni] = {"ok": False, "universe": uni,
+                        "reason": f"{type(e).__name__}: {e}"}
+            _FORWARD_SEAL_STATE[uni] = {**out[uni], "at": _time.time(), "sealed": 0}
     return out

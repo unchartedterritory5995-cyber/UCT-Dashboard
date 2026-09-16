@@ -468,11 +468,45 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
     measures is not a lesser disclosure when the data behind them is what is sold.
     """
     from api.services import breadth_symbols as bs
+    # ⭐ `library` IS ADDITIVE. The Breadth Library's richer view rides beside
+    # `symbols`/`groups` so one fetch serves both, rather than a second endpoint the
+    # client would have to join.
+    #
+    # ⛔⛔ AND `symbols` IS NOW THE PUBLISHED PROJECTION, WHICH IS THE POINT OF BL-013.
+    # It used to be a hard-wired list of the 44 shipped UCT records, so publishing a
+    # universe would have made `US:A50` chartable through `/api/bars` while leaving it
+    # OUT of the payload the client builds its breadth family map from — and
+    # `symbolFamily()` answers `'security'` for anything absent from that map, which
+    # would have let `ohlcCapabilityOf` offer CANDLES over a synthetic close-to-close
+    # body. `list_breadth_symbols()` is `published_symbol_rows()`, the one projection
+    # every public surface derives from.
+    #
+    # ⚠️ WITH NO PUBLICATION FLAGS THIS IS BYTE-IDENTICAL to what it has always
+    # returned: the same 44 rows, same order, same keys. `test_the_dark_payload_is_
+    # byte_identical_to_the_legacy_projection` pins that.
     return {
         "symbols": bs.list_breadth_symbols(),
         "groups": [{"id": g, "label": bs.LIST_META[g]["label"],
                     "list_name": bs.LIST_META[g]["list_name"]} for g in bs.GROUP_ORDER],
+        "library": bs.library_catalog(),
     }
+
+
+@router.get("/api/breadth-monitor/library-health")
+def get_library_health(_access: dict = Depends(require_bars_access)):
+    """Is the Breadth Library healthy? — per universe: publication state, coverage,
+    the last forward-seal attempt, and any sessions the calendar expects but the store
+    does not hold.
+
+    ⛔ AN EXPLICIT STATUS CALL, NEVER THE SERVE PATH. `library_health` runs a few
+    bounded aggregate queries and memoises for a minute; `build_breadth_bars` does not
+    touch it. Behind the same `require_bars_access` gate as the rest of this router.
+    """
+    from api.services import breadth_symbols as bs
+    from api.services import breadth_history_recon as recon
+    h = bs.library_health()
+    return {**h, "sweep": dict(recon._SWEEP_STATE),
+            "backfill_armed": recon.universe_backfill_enabled()}
 
 
 #: The rendered body, cached beside the row cache. ⭐ MEASURED, NOT ASSUMED: the deep

@@ -20,6 +20,9 @@ from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
 from api.services import discord_chart_hotset as hotset
+# ⛔ MEMBER / BACKGROUND are IMPORTED, never retyped as 0 and 1. A retyped constant beside the
+# module that owns it is how an inverted comparator became invisible to the D-05 race harness.
+from api.services.render_gate import BACKGROUND, MEMBER, RenderGate
 from api.services import discord_chart_prefs as prefs_mod
 from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
                                                bars_to_request, compute_stats, to_datetime)
@@ -64,7 +67,14 @@ def render_slot_count(default: int = 4) -> int:
 
 # Bounded so a burst can never pin the API's threadpool; extra callers are
 # told to retry rather than queue behind a cold Massive fetch.
-RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
+#: ⛔⛔ C-09. This was `threading.BoundedSemaphore(render_slot_count())` and a semaphore has no
+#: notion of WHO is waiting: it hands the next release to whoever the OS picks. Measured
+#: 2026-09-14, twelve races for the last free slot between a warm render and a member render —
+#: the warm cycle won ten. `RenderGate` keeps the same `acquire(blocking=, timeout=)` /
+#: `release()` shape, so every existing call site still works, and grows a REQUIRED `cls`.
+#: ⚠️ THIS CHANGES V1: the gate sits on the shared valve, so members beat the warm cycle on the
+#: pre-V2 path too. That is the member-visible improvement C-09 asks for (owner ruling R5).
+RENDER_SLOTS = RenderGate(render_slot_count())
 BARS_RETRY_DELAY_S = 1.5
 
 # ── the bars-warm gate ──────────────────────────────────────────────────────
@@ -1190,7 +1200,8 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 
 def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
-                  bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0) -> tuple:
+                  bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0,
+                  cls: int) -> tuple:
     """ONE chart: (outcome, png, filename). outcome = ok | fallback | busy |
     no_bars | render_failed. Takes a render slot for the duration; never raises.
 
@@ -1223,7 +1234,12 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
             time.sleep(BARS_RETRY_DELAY_S)
         return None
 
-    got = RENDER_SLOTS.acquire(timeout=slot_wait) if slot_wait > 0 else RENDER_SLOTS.acquire(blocking=False)
+    # ⛔ `cls` IS REQUIRED AND HAS NO DEFAULT. A default here would be the whole defect: every
+    # background caller would silently inherit MEMBER, the gate would be inert for exactly the
+    # case it exists for, and every race would stay green because the races construct their
+    # contenders directly and never come through this function.
+    got = (RENDER_SLOTS.acquire(timeout=slot_wait, cls=cls) if slot_wait > 0
+           else RENDER_SLOTS.acquire(blocking=False, cls=cls))
     if not got:
         return ("busy", None, None)
     try:
@@ -1355,7 +1371,9 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
             return (req, "ok", hit[0], hit[1])
         r = png_cache.single_flight(
             key, lambda: produce_chart(req, options, prefs, bars_fn=bars_fn, render_fn=render_fn,
-                                       house_fn=house_fn, quote_fn=quote_fn, slot_wait=MULTI_SLOT_WAIT_S),
+                                       house_fn=house_fn, quote_fn=quote_fn, slot_wait=MULTI_SLOT_WAIT_S,
+                                       # /charts — a member is watching this reply.
+                                       cls=MEMBER),
             ttl_s=cache_ttl_for(req.tf),
             cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
         return (req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None)
@@ -1627,7 +1645,11 @@ def _warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit:
             result = png_cache.single_flight(
                 key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn,
                                            render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
-                                           slot_wait=MULTI_SLOT_WAIT_S),
+                                           slot_wait=MULTI_SLOT_WAIT_S,
+                                           # ⛔ THE ADVERSARY. The warm cycle is happy to wait 25 s
+                                           # for a slot, which against a plain semaphore made it
+                                           # indistinguishable from a member. It is BACKGROUND.
+                                           cls=BACKGROUND),
                 ttl_s=cache_ttl_for(req.tf),
                 cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
             if result and result[0] == "ok":
@@ -1860,17 +1882,30 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             _context_follow_up(sent)
             return "ok"
 
-        produce = lambda: png_cache.single_flight(  # noqa: E731
-            key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
-                                       house_fn=house_fn, quote_fn=quote_fn,
+        # ⛔⛔ ONE PRODUCER, TWO CLASSES — and this is the subtlety the C-09 impact list
+        # flagged. `schedule_stand_in_heal` below is handed THIS SAME closure, so binding
+        # the class inside it would give the background self-heal MEMBER priority: a
+        # BACKGROUND path silently competing as a member, which is the defect the gate
+        # exists to remove, wearing the fix's name. The class is therefore a PARAMETER of
+        # the producer, and each caller states its own.
+        # ⚠️ `single_flight` collapses concurrent work on one key, so a member and a heal
+        # arriving together share one render — and the slot was taken under whichever
+        # class got there first. That is correct (a chart is a chart) and is noted here
+        # rather than discovered: the collapse is on the RESULT, never on the priority.
+        def _produce(cls: int):
+            return png_cache.single_flight(
+                key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
+                                           house_fn=house_fn, quote_fn=quote_fn, cls=cls,
                                        # ⛔ OI-41. 0.0 for V1 — an instant "busy, try again" is right
                                        # for a member watching one reply and nothing else has
                                        # changed for them. V2 passes its job's REMAINING budget, so
                                        # an admitted job waits for a shared V1 slot instead of being
                                        # told the queue refused it.
-                                       slot_wait=slot_wait_s),
-            ttl_s=cache_ttl_for(req.tf),
-            cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
+                                           slot_wait=slot_wait_s),
+                ttl_s=cache_ttl_for(req.tf),
+                cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
+
+        produce = lambda: _produce(MEMBER)          # noqa: E731 — a member is waiting
 
         # The house image is the product, so it gets first refusal. Only when it
         # is taking longer than a member should stare at nothing does the plain
@@ -1910,7 +1945,11 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                 # …and look again shortly: the usual cause is a deploy swap that
                 # is over within a couple of minutes, and the member should end
                 # up with the house chart without having to ask twice.
-                schedule_stand_in_heal(app_id, token, req, headline, produce=produce, edit_fn=edit_fn)
+                # ⛔ BACKGROUND, not `produce`. The member already HAS a chart — the
+                # stand-in is on screen — so this render is a quiet upgrade that must
+                # never take a slot from someone still waiting on their first one.
+                schedule_stand_in_heal(app_id, token, req, headline,
+                                       produce=lambda: _produce(BACKGROUND), edit_fn=edit_fn)
             return "ok"
         elif previewed and outcome in ("busy", "render_failed"):
             # The member already HAS a chart. Replacing it with an apology would

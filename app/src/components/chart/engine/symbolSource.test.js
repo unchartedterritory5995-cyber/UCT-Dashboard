@@ -47,10 +47,28 @@ describe('symbolSource — building the durable identity', () => {
     }
   })
 
-  it('⛔ a symbol carrying the delimiter cannot round-trip, so it is refused', () => {
-    // Never mangled into something that would parse back as a different symbol.
-    expect(symbolSource('BRK:B', 'close')).toBeNull()
-    expect(canonicalSymbol('A:B')).toBeNull()
+  it('⭐ a symbol carrying a colon DOES round-trip — the field is parsed off the end', () => {
+    // ⚰️ THIS CASE ASSERTED THE OPPOSITE, and the claim it rested on ("cannot
+    // round-trip") was a property of the PARSER, not of the symbol: `parseSource`
+    // split on the FIRST colon, so `sym:A:B:close` came back as the symbol `A`
+    // with the field `B:close`, and refusing the symbol up front was the only way
+    // to keep that honest. The split now takes the LAST colon, and the field
+    // vocabulary contains none, so the decomposition is unambiguous.
+    //
+    // ⭐ It also un-breaks a family that already ships: `$IDX:<slug>` charts fine
+    // through `/api/bars` but could never be a chart SOURCE, for this reason alone.
+    expect(symbolSource('BRK:B', 'close')).toBe('sym:BRK:B:close')
+    expect(canonicalSymbol('A:B')).toBe('A:B')
+    expect(canonicalSymbol('$idx:ai')).toBe('$IDX:AI')
+  })
+
+  it('⛔ the genuinely ambiguous colon shapes are still refused', () => {
+    // An empty segment on either side would round-trip as a DIFFERENT string, and
+    // `::` is the instance-source separator (`@inst:rsi:2::signal`).
+    for (const bad of [':B', 'A:', 'A::B', 'A B:C']) {
+      expect(canonicalSymbol(bad), bad).toBeNull()
+      expect(symbolSource(bad, 'close'), bad).toBeNull()
+    }
   })
 
   it('⛔ empty and non-string symbols are refused', () => {

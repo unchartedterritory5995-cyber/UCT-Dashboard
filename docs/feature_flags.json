@@ -245,6 +245,11 @@
       ],
       "note": ""
     },
+    "BREADTH_UNIVERSE_BACKFILL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "DARK ON PURPOSE, and it is the arming switch for the whole multi-universe Breadth Library. OFF, breadth_history_recon sweeps only the shipped UCT universe exactly as it always has; ON, it is allowed to sweep a point-in-time universe (US/NASDAQ/NYSE) and write its rows. It must stay unset on every service until, in order: every pod runs universe-keyed code, a supported database-restore path exists, and the BL-028 rollback compatibility index has been DELIBERATELY dropped (breadth_daily_ohlc.drop_compat_index) - while that index stands a non-UCT write raises CompatIndexBlocksUniverse by design. Arming it is a separate, announced phase; storing rows is still not publishing them, which is BREADTH_LIBRARY_UNIVERSES' job. Record: docs/breadth-library/DECISIONS.md BL-028/BL-030/BL-031."
+    },
     "BREADTH_WICKS_ENABLED": {
       "status": "armed",
       "where": [

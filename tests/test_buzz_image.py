@@ -16,6 +16,8 @@ import threading
 
 import pytest
 
+
+from api.services.render_gate import MEMBER, RenderGate
 from api.services import buzz_image
 
 
@@ -61,8 +63,8 @@ def _clean(monkeypatch):
 
 def test_a_second_call_inside_the_ttl_does_not_re_render():
     c = _CountingClient()
-    first = buzz_image.render_board_png("open", client=c)
-    second = buzz_image.render_board_png("open", client=c)
+    first = buzz_image.render_board_png("open", cls=MEMBER, client=c)
+    second = buzz_image.render_board_png("open", cls=MEMBER, client=c)
     assert first == second == b"\x89PNG-board"
     # THE assertion: the burst collapsed to one render.
     assert c.calls == 1
@@ -72,17 +74,17 @@ def test_each_window_caches_separately():
     """'since the open' and 'this month' are different boards; one must never
     be served for the other."""
     c = _CountingClient()
-    buzz_image.render_board_png("open", client=c)
-    buzz_image.render_board_png("month", client=c)
-    buzz_image.render_board_png("open", client=c)
+    buzz_image.render_board_png("open", cls=MEMBER, client=c)
+    buzz_image.render_board_png("month", cls=MEMBER, client=c)
+    buzz_image.render_board_png("open", cls=MEMBER, client=c)
     assert c.calls == 2
 
 
 def test_an_expired_entry_re_renders(monkeypatch):
     c = _CountingClient()
-    buzz_image.render_board_png("open", client=c)
+    buzz_image.render_board_png("open", cls=MEMBER, client=c)
     monkeypatch.setattr(buzz_image, "_CACHE_TTL_S", -1.0)  # everything is stale
-    buzz_image.render_board_png("open", client=c)
+    buzz_image.render_board_png("open", cls=MEMBER, client=c)
     assert c.calls == 2
 
 
@@ -90,8 +92,8 @@ def test_a_failed_render_is_not_cached():
     """A cached failure would mean one bad minute costs every caller the image
     for the whole TTL. Only a real PNG is worth remembering."""
     c = _CountingClient(response=_FakeResponse(status=500))
-    assert buzz_image.render_board_png("open", client=c) is None
-    assert buzz_image.render_board_png("open", client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
     assert c.calls == 2
 
 
@@ -99,8 +101,8 @@ def test_an_empty_board_is_discarded_and_not_cached():
     """probe_js says 0 rows: ready, but nothing drawn. Discard it AND leave the
     cache empty so the next caller can get a real board."""
     c = _CountingClient(response=_FakeResponse(rows=0))
-    assert buzz_image.render_board_png("open", client=c) is None
-    assert buzz_image.render_board_png("open", client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
     assert c.calls == 2
 
 
@@ -111,7 +113,7 @@ def test_concurrent_callers_produce_exactly_one_render():
     results = []
 
     def go():
-        results.append(buzz_image.render_board_png("open", client=c))
+        results.append(buzz_image.render_board_png("open", cls=MEMBER, client=c))
 
     threads = [threading.Thread(target=go) for _ in range(10)]
     for t in threads:
@@ -129,11 +131,11 @@ def test_no_render_slot_means_no_render_at_all(monkeypatch):
     None promptly (the member still gets the text board) rather than open a
     second unbounded lane at the renderer."""
     from api.services import discord_interactions as di
-    monkeypatch.setattr(di, "RENDER_SLOTS", threading.BoundedSemaphore(1))
+    monkeypatch.setattr(di, "RENDER_SLOTS", RenderGate(1))
     di.RENDER_SLOTS.acquire()  # occupy the only slot
     monkeypatch.setattr(buzz_image, "_SLOT_WAIT_S", 0.05)
     c = _CountingClient()
-    assert buzz_image.render_board_png("open", client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
     assert c.calls == 0
 
 
@@ -141,7 +143,7 @@ def test_the_slot_is_released_when_the_render_raises(monkeypatch):
     """A leaked slot is worse than a failed render: it permanently shrinks the
     valve /chart depends on."""
     from api.services import discord_interactions as di
-    sem = threading.BoundedSemaphore(1)
+    sem = RenderGate(1)
     monkeypatch.setattr(di, "RENDER_SLOTS", sem)
 
     class _Boom(_CountingClient):
@@ -149,7 +151,7 @@ def test_the_slot_is_released_when_the_render_raises(monkeypatch):
             self.calls += 1
             raise RuntimeError("renderer exploded")
 
-    assert buzz_image.render_board_png("open", client=_Boom()) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=_Boom()) is None
     # The slot came back: a second acquire must succeed immediately.
     assert sem.acquire(timeout=0.1) is True
     sem.release()
@@ -172,7 +174,7 @@ def test_a_board_drawn_at_the_wrong_width_is_discarded(caplog):
     import logging
     c = _probe(-1915)
     with caplog.at_level(logging.WARNING):
-        assert buzz_image.render_board_png("open", client=c) is None
+        assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
     # The measured width is in the log, not just "discarded" — the number is
     # what tells you WHICH geometry broke.
     assert "1915" in caplog.text
@@ -182,8 +184,8 @@ def test_a_wrong_width_board_is_not_cached():
     """Same contract as any other failure: one bad render must not cost every
     caller the image for a whole TTL."""
     c = _probe(-1915)
-    assert buzz_image.render_board_png("open", client=c) is None
-    assert buzz_image.render_board_png("open", client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) is None
     assert c.calls == 2
 
 
@@ -191,7 +193,7 @@ def test_a_correctly_sized_board_is_kept():
     """CONTROL. Without this, discarding everything would also pass the two
     tests above."""
     c = _probe(8)
-    assert buzz_image.render_board_png("open", client=c) == b"\x89PNG-board"
+    assert buzz_image.render_board_png("open", cls=MEMBER, client=c) == b"\x89PNG-board"
     assert c.calls == 1
 
 
@@ -246,7 +248,7 @@ def test_a_viewport_tall_png_is_reported_but_never_discarded(caplog):
     tall = _png(buzz_image.BOARD_W * buzz_image.SCALE, buzz_image.BOARD_H * buzz_image.SCALE)
     c = _CountingClient(response=_FakeResponse(content=tall, rows=14))
     with caplog.at_level(logging.WARNING):
-        got = buzz_image.render_board_png("open", client=c)
+        got = buzz_image.render_board_png("open", cls=MEMBER, client=c)
     assert got == tall, "a suspicious height must not cost the member the image"
     assert str(buzz_image.BOARD_H * buzz_image.SCALE) in caplog.text
 
@@ -258,7 +260,7 @@ def test_a_normally_sized_board_logs_nothing(caplog):
     ok = _png(2000, 1974)          # the real 2026-09-02 board, two columns
     c = _CountingClient(response=_FakeResponse(content=ok, rows=14))
     with caplog.at_level(logging.WARNING):
-        assert buzz_image.render_board_png("open", client=c) == ok
+        assert buzz_image.render_board_png("open", cls=MEMBER, client=c) == ok
     assert "viewport" not in caplog.text
 
 

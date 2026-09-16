@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { breadthResults, securityResults } from './discoveryCatalog'
+import { searchLibrary } from './breadthLibrary'
 
 /** The same debounce `SymbolSearch` uses. Typed here rather than imported so the
  *  two surfaces can be tuned apart if one ever needs to be; they are the same
@@ -95,8 +96,21 @@ export default function useSymbolDiscovery(query, enabled, opts = {}) {
     if (!enabled || !q) return []
     // ⭐ LOCAL BREADTH FIRST, and it needs no network: a member typing `UCTA` sees
     // the measure before the ticker search has been asked anything.
-    const all = (breadth && typeof breadth.all === 'function') ? breadth.all() : []
-    const brd = breadthResults(all.filter((r) => matchesBreadth(r, q)), { tf, bars })
+    //
+    // ⭐⭐ AND IT IS THE CANONICAL LIBRARY RANKING, not a substring test. "50 day",
+    // "above 50", "new lows" and "NASDAQ breadth" are how a member thinks about
+    // breadth; `UCTA50` is an address they should not need to know. `searchLibrary`
+    // is the same ranking `breadth_symbols.library_search` defines, pinned to it by
+    // a generated fixture — so the dialog, the search box and the server agree.
+    const lib = (breadth && typeof breadth.library === 'function') ? breadth.library() : null
+    const libRows = lib && lib.rows && lib.rows.length ? lib.rows : null
+    const matched = libRows
+      ? searchLibrary(libRows, q, { limit: 20, metricOrder: lib.metricOrder })
+      // ⚠️ The pre-library fallback, for a payload that predates the `library` block
+      // (an older backend, or a cached response). Substring over the registry rows.
+      : ((breadth && typeof breadth.all === 'function') ? breadth.all() : [])
+        .filter((r) => matchesBreadth(r, q))
+    const brd = breadthResults(matched, { tf, bars })
     // ⛔ ONLY THE REPLY TO THE QUESTION ON SCREEN. A reply to an older query is
     // not cleared, it is simply not read.
     const sec = answer.q === q ? securityResults(answer.rows, { tf, bars }) : []

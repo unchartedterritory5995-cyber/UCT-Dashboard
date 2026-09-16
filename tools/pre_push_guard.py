@@ -1,22 +1,28 @@
 #!/usr/bin/env python
-"""Refuse a push to master while the market is open, or while `web` is mid-swap.
+"""Refuse a push to master while `web` is mid-swap, or while master is busy.
 
     python tools/pre_push_guard.py            # exit 0 = safe to push, 1 = refuse
     python tools/pre_push_guard.py --json
 
 TWO GUARDS, TWO DIFFERENT FAILURES:
 
-  1. **THE CLOCK** (owner ruling A2, 2026-09-14). A master push restarts `web`
-     and `chart-renderer`. Doing that inside the session is a member-visible
-     event, so it is refused between **09:25 and 16:05 ET on trading days**
-     unless the diff is entirely within the paths `docs/runbooks/deploy-windows.md`
-     clears for daytime. ⚰️ **THE CLOCK IS ENFORCED IN THE TOOL, NOT IN ANYONE'S
-     HEAD.** On 2026-09-14 the integrator reasoned that a push should wait for
-     the 16:00 close, wrote that decision down, set a background timer to gate
-     it — and pushed at **15:49 ET** anyway, acting on a mental estimate of
-     elapsed time that had drifted ~25 minutes. `web` and `chart-renderer` both
-     restarted in the last eight minutes of RTH. A decision written down is not
-     a decision enforced.
+  1. ⚰️ **THE CLOCK — RETIRED (R18, owner ruling 2026-09-15). IT NO LONGER
+     REFUSES ANYTHING.** It once refused a master push between **09:25 and 16:05
+     ET on trading days** unless the diff was entirely within the paths
+     `docs/runbooks/deploy-windows.md` cleared for daytime. The owner's words
+     retiring it: *"we no longer have mid day blocks ever."* The constants
+     `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are
+     DELIBERATELY KEPT — `deploy-windows.md`, `tools/flow_worker_watch_coverage.py`
+     and this tool's JSON still read the Tier classification — but the clause
+     returns OK. See the R18 note beside that return before changing any of it.
+
+     The incident it was written from is kept, because the lesson outlived the
+     rule: on 2026-09-14 the integrator reasoned that a push should wait for the
+     16:00 close, wrote that decision down, set a background timer to gate it —
+     and pushed at **15:49 ET** anyway, acting on a mental estimate of elapsed
+     time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted
+     in the last eight minutes of RTH. **A decision written down is not a decision
+     enforced** — which is exactly why clauses 2 and 3 are code, not guidance.
   2. **THE QUEUE** — the one-merge-at-a-time rule, below.
 
 ⚰️ **THE RULE WAS ALREADY WRITTEN AND IT WAS NOT FOLLOWED.** `CLAUDE.md` carries

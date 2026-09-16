@@ -346,6 +346,20 @@ function Harness() {
     }, 60)
   }, [saved, say])
 
+  // ⭐ READ-ONLY STATE SEAM FOR THE PROBE. Dev-only page; writes nothing, touches
+  // no renderer state. Exists so a measurement can compare CANONICAL intent
+  // (`cs.paneSizes`, `cs.paneOrder`) against the PHYSICAL stack in one sample —
+  // the comparison every pane defect so far has turned on.
+  useEffect(() => {
+    window.__pane = {
+      cs: () => cs,
+      rows: () => [...(hostRef.current?.querySelectorAll('tr') || [])].map((tr) => {
+        const b = tr.getBoundingClientRect()
+        return { h: Math.round(b.height), top: Math.round(b.top), sep: tr.children.length === 1 }
+      }),
+    }
+  })
+
   // ── the renderer's own answer, read off the live chart ──
   const readBack = useCallback(() => {
     const el = hostRef.current

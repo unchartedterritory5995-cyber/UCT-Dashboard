@@ -79,7 +79,12 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   }, [])
 
   const addSymbol = useCallback((raw) => {
-    const s = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9.-]/g, '')
+    // ⚠️ `:` and `$` SURVIVE THE SANITISER. They were stripped, which silently
+    // turned a namespaced canonical symbol into a different one — `$IDX:AI` became
+    // `IDXAI`, a ticker we do not hold, and the comparison drew nothing with no
+    // error. Everything else is still removed: this is a paste-and-typo guard, not
+    // a grammar.
+    const s = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9.:$^-]/g, '')
     if (!s) return
     setSymbols(prev => {
       if (prev.some(x => x.sym === s)) return prev
