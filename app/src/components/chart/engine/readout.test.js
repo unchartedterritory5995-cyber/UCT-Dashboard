@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { engineChips, chipsFrom, legendChips, disambiguateLabels, siblingSuffixes } from './readout'
+import { engineChips, chipsFrom, legendChips, disambiguateLabels, siblingSuffixes, chipValueText } from './readout'
 import * as engineRegistry from './nativeRegistry'
 // ⛔ DERIVED FROM THE SHIPPED ARTIFACT, NEVER HAND-TYPED — and shared with
 // `__tests__/legendFromDefinitions.test.jsx`, which gates the same nine chips
@@ -626,5 +626,43 @@ describe('⛔⛔ siblingSuffixes — a source is DESCRIBED, never spelled', () =
     expect(siblingSuffixes([{ period: 14 }, { period: 7 }])).toEqual([' (period 14)', ' (period 7)'])
     expect(siblingSuffixes([{ period: 14 }, { period: 14 }])).toEqual([' #1', ' #2'])
     expect(MA, 'the definition this suite is about is gone').toBeTruthy()
+  })
+})
+
+
+describe('⛔⛔ `chipValueText` IS THE ONE ANSWER, INCLUDING WHEN A PANE ALREADY KNOWS IT', () => {
+  // ⚰️ MEASURED ON PRODUCTION, 2026-09-16: a Moving Average sourced from Volume
+  // read `17.2M` in its pane row and `17189110.14` in the header of the popover
+  // that row opens. The units rule — `derivedTargetOf` says this guest is
+  // averaging VOLUME, so it reads on volume's ladder — is knowledge the PANE has
+  // and this module does not. It was being applied where the row was built, and
+  // the menu re-derived a second answer from the same raw number.
+
+  it('⭐⭐ a resolved `valueText` wins, so two surfaces cannot print two numbers', () => {
+    expect(chipValueText({ value: 17189110.14, decimals: 2, valueText: '17.2M' })).toBe('17.2M')
+  })
+
+  it('⛔ AND IT WINS OVER `compact` TOO — a stated answer beats any derived one', () => {
+    // If `compact` outranked it, a definition that declares `compact` could never
+    // be read in a host pane's units, which is the whole case this exists for.
+    expect(chipValueText({ value: 4609414802, compact: true, valueText: '4,609,414,802' }))
+      .toBe('4,609,414,802')
+  })
+
+  it('⭐ an EMPTY string is an answer, not an absence', () => {
+    // `''` is falsy; a truthiness test here would silently fall through to the
+    // eight-digit number the caller was deliberately suppressing.
+    expect(chipValueText({ value: 5, decimals: 2, valueText: '' })).toBe('')
+  })
+
+  it('⛔ ABSENT MEANS ABSENT — every chip without one formats exactly as before', () => {
+    expect(chipValueText({ value: 12.345 })).toBe('12.35')
+    expect(chipValueText({ value: 12.345, decimals: 1 })).toBe('12.3')
+    expect(chipValueText({ value: 4609414802, compact: true })).toBe('4.61B')
+    expect(chipValueText({ value: null })).toBe('')
+    expect(chipValueText({ value: Number.NaN })).toBe('')
+    expect(chipValueText(null)).toBe('')
+    // ⚠️ a NON-string `valueText` is not an answer and must not be printed.
+    expect(chipValueText({ value: 12.345, valueText: 99 })).toBe('12.35')
   })
 })

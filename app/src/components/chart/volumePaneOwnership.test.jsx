@@ -257,6 +257,29 @@ describe('⭐ THE VOLUME PANE’S ROWS ARE DERIVED, NOT ENUMERATED', () => {
       .not.toMatch(/label: `SMA \$\{crosshairData\.volMaPeriod\}`/)
   })
 
+  it('⭐⭐ A GUEST’S RESOLVED UNITS TRAVEL ON THE CHIP, SO THE MENU CANNOT DISAGREE', () => {
+    // ⚰️ MEASURED ON PRODUCTION, 2026-09-16, build bfc205e3c. The row read
+    // `SMA 50 17.2M`; the header of the popover THAT ROW OPENS read
+    // `SMA 50 17189110.14`. One plot, one crosshair, two numbers — and the
+    // eight-digit one is the one nobody can read at a glance, which is the exact
+    // defect `derivedTargetOf` was threaded through here to end.
+    //
+    // ⛔ THE CAUSE IS A RESOLUTION APPLIED AT A RENDER SITE. `sameUnits` is
+    // knowledge this pane has and the menu does not, so formatting the row with it
+    // and then handing `onMenu` the RAW chip guarantees a second, different
+    // answer. Fixing the menu's own formatter would have been a third copy of the
+    // rule. The chip carries the answer instead.
+    expect(rows, 'the menu is handed the raw chip again')
+      .not.toMatch(/onMenu\(c, anchor\)/)
+    expect(rows).toContain('chipHandlers.onMenu(shown, anchor)')
+    expect(rows).toContain('valueText: formatVolume(c.value)')
+    // ⭐ AND THE ROW PRINTS THE SAME OBJECT IT HANDS ON — if these two ever read
+    // different expressions the two surfaces can drift apart again.
+    expect(rows).toContain("value: c.value == null ? '' : chipValueText(shown)")
+    expect(rows, 'the row formats volume itself instead of reading the chip')
+      .not.toMatch(/sameUnits \? formatVolume/)
+  })
+
   it('⛔⛔ the legacy volume MA reads `SMA <period>` — one Moving Average, one grammar', () => {
     // §17. A member who adds `Moving Average · SMA · 50 · Source: Volume` gets a
     // row reading `SMA 50`; the legacy one printing `Avg 50D` beside it is exactly

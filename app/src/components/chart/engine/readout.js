@@ -173,7 +173,23 @@ function compactValue(v) {
  *  pane's readout, the volume pane's), which is four places for a format to drift
  *  and four places a new `legend` field has to be remembered in. */
 export function chipValueText(chip) {
-  if (!chip || chip.value == null || !Number.isFinite(chip.value)) return ''
+  if (!chip) return ''
+  // ⭐⭐ A TEXT THE PANE ALREADY RESOLVED WINS OVER RE-DERIVING ONE.
+  //
+  // ⚰️ MEASURED ON PRODUCTION, 2026-09-16: `SMA 50` over the volume pane read
+  // `17.2M` in the legend row and `17189110.14` in the header of its own popover
+  // — one plot, one crosshair, two numbers. The units decision (`derivedTargetOf`
+  // says this guest is averaging VOLUME, so it reads on volume's ladder) was being
+  // applied where the ROW was built, and the menu was handed the raw chip and
+  // formatted it a second time from scratch.
+  //
+  // ⛔ SO THE RESOLUTION TRAVELS ON THE CHIP. A surface that knows something this
+  // module cannot — which pane a guest derived its way into — states the answer
+  // once and every reader downstream prints THAT. Without this the fix would have
+  // to be repeated at each call site, which is the drift this function exists to
+  // end.
+  if (typeof chip.valueText === 'string') return chip.valueText
+  if (chip.value == null || !Number.isFinite(chip.value)) return ''
   if (chip.compact === true) return compactValue(chip.value)
   return chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : DEFAULT_DECIMALS)
 }

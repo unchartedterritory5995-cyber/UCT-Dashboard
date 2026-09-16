@@ -15154,16 +15154,25 @@ export default function StockChart({
           || (cs.indicatorInstances || []).find((i) => i && i.instanceId === c.instanceId)
         sameUnits = !!gi && derivedTargetOf(gi, cs) === 'volume'
       } catch { sameUnits = false }
+      // ⭐⭐ AND THE UNITS TRAVEL WITH THE CHIP, NOT WITH THE ROW.
+      //
+      // ⚰️ MEASURED ON PRODUCTION, 2026-09-16: this row read `SMA 50 17.2M` and
+      // the header of the popover it opens read `SMA 50 17189110.14`. `onMenu` was
+      // handed the RAW chip, so the menu formatted the number a second time with
+      // no idea which pane the guest had derived its way into. Resolving onto the
+      // chip means the row and every surface the row can open print one number.
+      const shown = (sameUnits && c.value != null && Number.isFinite(c.value))
+        ? { ...c, valueText: formatVolume(c.value) }
+        : c
       rows.push({
         key: `${c.instanceId}::${c.plotKey}`,
         rowId: c.instanceId,
         label: c.label,
         controlLabel: c.label,
-        value: c.value == null ? ''
-          : (sameUnits ? formatVolume(c.value) : chipValueText(c)),
+        value: c.value == null ? '' : chipValueText(shown),
         color: c.color,
         hidden: !!c.hidden,
-        onOpen: chipHandlers ? (_id, anchor) => chipHandlers.onMenu(c, anchor) : null,
+        onOpen: chipHandlers ? (_id, anchor) => chipHandlers.onMenu(shown, anchor) : null,
       })
     }
     return rows
