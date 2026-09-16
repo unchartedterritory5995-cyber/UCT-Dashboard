@@ -107,7 +107,7 @@ sessions were deploying throughout. `--no-verify` is banned.
 
 ### ⛔⛔ MEASURED: the burst clause is unsatisfiable while the repo is under concurrent development
 
-**117 window probes this session. ZERO open windows.** 20:26 → 22:40, continuous.
+**197 window probes. ZERO open windows.** 20:26 → past midnight, continuous.
 
     OK/OK      (window open)        0
     OK/REFUSE  (cadence clause)    89
@@ -216,6 +216,22 @@ segment complete within one night.
 
 ---
 
+### The per-night budget, and the ordering bug in my own first version
+
+`daily_budget_usd()` is now read **before segment selection** — configuration validated before work
+is done — and the night's remaining budget shrinks as passes are submitted, so pass 3 cannot spend
+pass 1's again. A pass that would cross the ceiling submits **nothing**, because a half-submitted
+pass is the UNRECONCILED case: it costs money and scores nothing.
+
+⚰️ My first version put the check **after** selection, so an empty fixture returned
+`nothing_to_do` and the refusal was masked. Its own test caught it.
+
+⛔⛔ **The direction that matters:** the nightly cap is combined with the programme total by
+`min()`, never passed through. A per-night value sits INSIDE the programme total, so passing it
+unconditionally would let `=9999` **raise** a ceiling it exists to tighten. Mutation-proved.
+
+**Final suite: 1,331 passed · 1 skipped · 0 failed.**
+
 ## 1. MUTATION-PROOF
 
 - `git status --porcelain` clean; `origin/feat/wisdom-loop...HEAD` = 0 0.
@@ -253,7 +269,7 @@ and I would have "proved" PR creation works for empty diffs.
 |---|---|
 | API calls / spend | **0 / $0.00** |
 | tests | **1,327 passed · 1 skipped · 0 failed** (80 named files), after N-pass |
-| guard attempts / probes | 0 pushes attempted / **117 window probes**, **0 open** |
+| guard attempts / probes | 0 pushes attempted / **197 window probes**, **0 open** |
 | wait minutes | ~23 in-session, loop continuing to the 240-minute ceiling |
 | commits / merges / pushes | **7 authored** / 1 sync / 9, branch only |
 
