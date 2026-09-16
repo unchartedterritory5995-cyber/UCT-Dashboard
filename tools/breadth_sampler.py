@@ -6,9 +6,18 @@ without anyone watching. Session 11, Workstream B.
 ⛔⛔ SAMPLER LOAD IS PRODUCTION LOAD. Three refusals are enforced in code, not in a
 comment, and each one is a rail in `tests/test_breadth_sampler.py`:
 
-    1. pod settled (uptime >= 600) — Session 7 measured 17,480 ms three minutes after
-                                     boot against 224 ms settled; an unsettled sample is
-                                     not a measurement of the reader
+    1. pod settled (uptime >= MIN_UPTIME_S) — Session 7 measured 17,480 ms three minutes
+                                     after boot against 224 ms settled; an unsettled
+                                     sample is not a measurement of the reader.
+                                     ⚰️ This read "uptime >= 600" while the constant had
+                                     been 300 since SD-1.7 H0.2 — a comment asserting a
+                                     value the code did not hold, which is the defect
+                                     this programme has now found six times in its own
+                                     tools. The floor is NAMED here, never restated:
+                                     COLLECTION is 300 (more rows), and ANALYSIS
+                                     re-applies 600 in breadth_pool_report.py, which is
+                                     where the 300-600 bucket is measured to be ~23%
+                                     slower at the median (n=73, rho=-0.303).
     2. daily cap                   — a runaway loop is a self-inflicted load test
     3. kill switch file            — one file, removable by anyone, no deploy
 

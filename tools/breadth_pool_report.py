@@ -18,13 +18,20 @@ from __future__ import annotations
 
 import argparse
 import collections
+import functools
+import hashlib
 import json
 import math
 import pathlib
 import statistics
+import subprocess
 import sys
 
 DEFAULT_POOL = pathlib.Path("C:/Users/Patrick/uct-breadth-pool/breadth-samples.jsonl")
+#: The measured set of files that EXECUTE during a deep cold read. This file is the
+#: programme's definition of reader identity; see its own header for how it was traced.
+HOTPATH_LIST = pathlib.Path(__file__).resolve().parents[1] / "docs/breadth/reader-hotpath.txt"
+REPO = str(pathlib.Path(__file__).resolve().parents[1])
 P95_N_FOR_95PC_CONFIDENCE = 59
 ANALYSIS_UPTIME_FLOOR = 600
 
@@ -51,6 +58,56 @@ def load(path: pathlib.Path) -> list[dict]:
             except json.JSONDecodeError:
                 pass
     return out
+
+
+def hotpath_files() -> list[str]:
+    """Read the hot-path list. Entries must be usable verbatim as git pathspecs.
+
+    ⚠️ THIS FILE IS CRLF ON DISK (26/26 lines) AND LF IN THE STORED BLOB. Python is
+    safe here and the rail below proves the entries resolve, not that .strip() saved
+    us: str.splitlines() treats \\r\\n as one boundary and discards both bytes, so the
+    strip() guards trailing spaces, not the line ending.
+
+    ⚰️ A SHELL LOOP OVER THIS FILE IS NOT SAFE, and that is worth recording because it
+    cost a wrong answer on 2026-09-16. `while read -r f` keeps the \\r, so the pathspec
+    became 'api/main.py\\r'; with plain `git rev-parse` (no --verify) an unresolvable
+    argument is ECHOED BACK rather than failing, so the comparison diffed two literal
+    strings and reported ALL EIGHT hot-path files as different between two commits
+    whose hot path is byte-identical. Always --verify, and never parse this list in sh."""
+    if not HOTPATH_LIST.exists():
+        return []
+    return [ln.strip() for ln in HOTPATH_LIST.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.strip().startswith("#")]
+
+
+@functools.lru_cache(maxsize=None)
+def reader_fingerprint(sha: str) -> str | None:
+    """The POOL'S IDENTITY: a digest of the hot-path blobs at `sha`, or None.
+
+    ⭐ THE SHA IS NOT THE IDENTITY. This module's own contract is that rows are
+    comparable when they came from "the same deployed code on the same reader
+    configuration" — and a commit that changes a README does not change the reader.
+    Grouping by SHA is a PROXY for that rule, and a stricter one: it shatters a pool
+    every time any commit lands, which on a repo taking ~31 commits a day means a
+    pool can never reach the n that p95 needs. Measured 2026-09-16: four of the five
+    sampled SHAs were byte-identical across all eight hot-path files, so 73 rows that
+    were being reported as four separate populations of 8/12/19/34 are one.
+
+    ⛔ None IS NOT 'DIFFERENT'. If any blob cannot be resolved — a pruned object, a
+    shallow clone, a renamed file — this returns None and the caller falls back to
+    grouping by SHA and SAYS SO. An unreadable identity must never silently pool two
+    populations together; the failure direction is the stricter grouping."""
+    files = hotpath_files()
+    if not files:
+        return None
+    blobs = []
+    for f in files:
+        r = subprocess.run(["git", "-C", REPO, "rev-parse", "--verify", "-q", f"{sha}:{f}"],
+                           capture_output=True, encoding="utf-8")
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
+        blobs.append(r.stdout.strip())
+    return hashlib.sha1("|".join(blobs).encode()).hexdigest()[:12]
 
 
 def deep_ok(rows):
@@ -167,14 +224,46 @@ def main(argv=None) -> int:
         print("no usable rows -- an empty pool is a failed read until proven otherwise")
         return 2
 
+    # Group by READER IDENTITY, never by SHA. Unresolvable -> fall back to the SHA,
+    # which is the stricter grouping, and label it so nobody reads it as a reader.
     groups = collections.defaultdict(list)
+    unresolved = set()
     for r in rows:
-        groups[(r.get("sha"), r.get("flag_observed"))].append(r)
+        sha = r.get("sha")
+        fp = reader_fingerprint(sha) if sha else None
+        if fp is None and sha:
+            unresolved.add(sha)
+        groups[(fp or f"sha:{sha}", r.get("flag_observed"))].append(r)
 
     print(f"pool: {a.pool}")
-    print(f"usable deep_cold rows: {len(rows)}   groups: {len(groups)}\n")
+    print(f"usable deep_cold rows: {len(rows)}   readers: {len(groups)}")
+    print(f"identity: hot-path byte-identity over {len(hotpath_files())} files "
+          f"({HOTPATH_LIST.name})")
+    if unresolved:
+        # ASCII only: this box's stdout is cp1252 and a non-ASCII byte raises
+        # UnicodeEncodeError mid-report, killing the run after it has printed half its
+        # findings. Same trap as tools/flag_ledger_audit.py, which reported "could not
+        # enumerate the project's services" -- an encoding bug wearing an auth error's
+        # clothes. Emoji stay in comments and docstrings, which are never encoded.
+        print(f"WARNING: {len(unresolved)} sha(s) could not be fingerprinted and are "
+              f"grouped ALONE by sha (never pooled): {', '.join(sorted(unresolved))}")
+    print()
     for key, g in sorted(groups.items(), key=lambda kv: -len(kv[1])):
-        d = describe(g, f"sha={key[0]} flag={key[1]}")
+        shas = sorted({r.get("sha") for r in g if r.get("sha")})
+        d = describe(g, f"reader={key[0]} flag={key[1]}")
+        # ⛔ SHOW THE CONSTITUENTS. Pooling is only safe if the sub-populations agree,
+        # and the reader can only judge that if the per-sha medians are on the page.
+        if len(shas) > 1:
+            meds = []
+            print(f"  pooled from {len(shas)} deploys:")
+            for s in shas:
+                sub = sorted(r["timing"]["total"] for r in g if r.get("sha") == s)
+                meds.append(statistics.median(sub))
+                print(f"      {s}  n={len(sub):>3}  p50={statistics.median(sub):>7.1f} ms")
+            spread = (max(meds) - min(meds)) / min(meds) * 100
+            flag = "   <-- SUB-POPULATIONS DISAGREE: inspect before quoting a pooled p95" \
+                   if spread >= 30 else ""
+            print(f"      median spread across deploys: {spread:.1f}%{flag}")
         print(f"=== {d['label']}  n={d['n']} ===")
         print(f"  p50 {d['p50']:.1f} ms   min {d['min']:.1f}   max {d['max']:.1f}")
         p = d["p95"]
@@ -186,6 +275,24 @@ def main(argv=None) -> int:
                   f"need {p['need_more']} more rows for 95%)")
             if p.get("p95_point"):
                 print(f"      point estimate {p['p95_point']:.1f} ms -- descriptive only, not a bound")
+        # SD-1.7 H0.2: COLLECT at 300 s (more rows), ANALYSE at 600 s. The 300-600 s
+        # bucket is measurably slower (n=73, rho=-0.303, medians ~23% apart), so a
+        # headline p95 computed over it is reporting settle-state, not the reader.
+        # Reported as a SECOND line rather than replacing the first: dropping rows
+        # silently is how a number gets better without anyone deciding it should.
+        settled = [r for r in g if (r.get("uptime_s") or 0) >= ANALYSIS_UPTIME_FLOOR]
+        if settled and len(settled) != len(g):
+            sv = sorted(r["timing"]["total"] for r in settled)
+            sp = p95_with_confidence(sv)
+            line = (f"  at the >={ANALYSIS_UPTIME_FLOOR}s analysis floor: n={len(sv)}  "
+                    f"p50 {statistics.median(sv):.1f} ms  ")
+            if sp["estimable"]:
+                line += f"p95 <= {sp['max']:.1f} ms at {sp['confidence']*100:.1f}% confidence"
+            else:
+                line += (f"p95 NOT ESTIMABLE (need {sp['need_more']} more)")
+            print(line)
+            print(f"      dropped {len(g)-len(sv)} unsettled row(s) from this line only")
+
         u = d["uptime"]
         rho_s = "n/a" if u["rho"] is None else f"{u['rho']:+.2f}"
         print(f"  uptime: rho={rho_s}  n(300-600)={u['n_300_600']}  n(>=600)={u['n_ge600']}"
@@ -218,6 +325,46 @@ def self_check() -> int:
     u = uptime_effect([{"uptime_s": 900, "timing": {"total": 100.0}} for _ in range(20)])
     if u["no_effect_provable"]:
         print("FAIL: an absent 300-600 bucket must not prove absence of an effect"); ok = False
+
+    # ⛔ THE REAL PROPERTY IS "EVERY ENTRY RESOLVES AT HEAD", not "no CR". A CR check
+    # passes vacuously (splitlines already removed it) and would read as coverage while
+    # proving nothing. This asks git, which is the only thing that can answer, and so it
+    # also catches the list drifting away from the repo after a rename or a deletion.
+    files = hotpath_files()
+    if not files:
+        print("FAIL: no hot-path files read -- identity cannot be computed"); ok = False
+    elif any(f.startswith("#") for f in files):
+        print("FAIL: comment lines leaked into the hot-path file list"); ok = False
+    else:
+        bad = []
+        for f in files:
+            r = subprocess.run(["git", "-C", REPO, "rev-parse", "--verify", "-q", f"HEAD:{f}"],
+                               capture_output=True, encoding="utf-8")
+            if r.returncode != 0:
+                bad.append(f)
+        if bad:
+            print(f"FAIL: {len(bad)} hot-path entr(ies) do not resolve at HEAD: {bad}")
+            ok = False
+        # Non-vacuity: the same probe MUST fail on a path that does not exist, or it is
+        # answering 'fine' to everything and the check above is decoration.
+        probe = subprocess.run(
+            ["git", "-C", REPO, "rev-parse", "--verify", "-q", "HEAD:api/__no_such_file__.py"],
+            capture_output=True, encoding="utf-8")
+        if probe.returncode == 0:
+            print("FAIL: the resolve probe accepts a nonexistent path -- it cannot fail")
+            ok = False
+
+    # A real commit must fingerprint, and a nonexistent one must return None rather
+    # than a value that would let two populations pool on a failed read.
+    head = subprocess.run(["git", "-C", REPO, "rev-parse", "--verify", "-q", "HEAD"],
+                          capture_output=True, encoding="utf-8")
+    if head.returncode == 0:
+        if reader_fingerprint(head.stdout.strip()) is None:
+            print("FAIL: HEAD could not be fingerprinted -- the control cannot see a hit")
+            ok = False
+    if reader_fingerprint("0" * 40) is not None:
+        print("FAIL: an unresolvable sha must fingerprint to None, never to a value")
+        ok = False
     print("self-check:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

@@ -238,35 +238,69 @@ headline question and a stated, reasoned stop short of the p95 bound.
 
 **D-042 measured `/api/breadth-monitor?days=8000` at 54,923 ms cold in production.**
 
-### Four builds, four teams' pushes, one band
+### Two readers, six deployments, one band
 
-The headline is not a single pool's median — it is that **four independently deployed
-builds of the reader, shipped by other people for unrelated reasons, each land in the same
-place.** 75 deep-cold rows, production, flag OFF, every row a forced cache miss on a
-distinct span:
+⚰️ **THIS SECTION CLAIMED "FOUR INDEPENDENTLY DEPLOYED BUILDS OF THE READER" AND THAT WAS
+WRONG — corrected 2026-09-16 by measuring instead of assuming.** Four *SHAs* is not four
+*readers*. Fingerprinting the eight hot-path files at each SHA shows **three of those four
+are byte-identical across all eight**; only `d5f2c8d83` is genuinely different code. The
+overstatement came from `breadth_pool_report.py` grouping by SHA while its own docstring
+defined the rule as "the same deployed code" — the tool was reporting a property of its
+grouping key as a property of the world, which is this programme's signature defect found
+for the seventh time, this time in the instrument that produced the headline.
 
-| deployed SHA | n | p50 |
-|---|---|---|
-| `d5f2c8d83` | 14 | 271.5 ms |
-| `31d706f40` | 19 | 277.2 ms |
-| `9906a7fcd` | 8 | 307.6 ms |
-| `465b12e36` | 34 | 313.4 ms |
+**What replication actually survives as, and it is still real:** the reader lands in the
+same band across **two distinct code versions** and **six separate deployments** by other
+people for unrelated reasons.
 
-**The four medians sit 15% apart.** Against D-042's 54,923 ms that is **175× at the
-slowest of them** — the figure this report uses, because the conservative end of a
-replicated result is the one worth quoting. The fastest is 202×.
+| reader (hot-path fingerprint) | deployed SHAs | n | p50 |
+|---|---|---|---|
+| `b8873db0f2ab` | `d5f2c8d83` | 14 | 271.5 ms |
+| `7864c894526e` | `31d706f40` · `9906a7fcd` · `465b12e36` · `02328569b` · `6128705c4` | 77 | 305.5 ms |
 
-⭐ **Replication across populations is a stronger claim than a larger single pool**, and it
-arrived by accident: the hot-path churn that kept voiding the pool is what produced four
-independent measurements instead of one. The performance is a property of the design, not
-of one lucky build.
+The two readers' medians sit **12% apart**. Within the larger reader, the five deployments
+spread **33%** (277.2 → 368.5 ms) — reported, not hidden: the tool now prints every
+constituent and flags a spread ≥30% rather than letting a pooled number stand alone.
+
+⭐ **The correction strengthens the p95 result while weakening the replication claim**, and
+both directions are recorded because only reporting the favourable one is how a report
+becomes advocacy. The 77 rows that were being counted as four populations of 8/12/19/34
+are one population, and one population of 77 clears the n the p95 bound needs.
 
 Warm `days=365`: 44.1 ms.
 
-⛔ **p95 is NOT ESTIMABLE at n=14 and is not reported as a number.** The sample maximum
-bounds the true p95 at only **51%** confidence (1 − 0.95¹⁴). The first n at which the
-maximum bounds p95 at 95% is **59** — which is where that target came from, and it is now
-derived in `tools/breadth_pool_report.py` rather than asserted. 45 more rows were needed.
+### p95 — ESTIMABLE, and it is not a flattering number
+
+⚰️ **This section said "p95 is NOT ESTIMABLE at n=14".** That was true of the largest
+*SHA-keyed* group and false of the reader. At the **≥600 s analysis floor** (SD-1.7 H0.2:
+collect at 300, analyse at 600):
+
+| | |
+|---|---|
+| n | **59** — exactly the first n at which the sample max bounds p95 at 95% |
+| p50 | **297.4 ms** |
+| **p95** | **≤ 1,680.6 ms at 95.2% confidence** |
+| versus D-042 at the median | **185× faster** |
+| **versus D-042 at the p95 bound** | **33× faster** ← the conservative figure |
+
+⛔ **33×, not 175×, is the honest conservative number, and it supersedes the ratified
+one.** 175× was the slowest *median*; a median is not a conservative figure, it is the
+midpoint — half of real requests are slower than it. The p95 bound is what a member meets
+on a bad draw, and the tail is wide: **5.6× the median.** Both figures are enormous against
+a 54.9-second defect, so nothing about the programme's conclusion changes — but the number
+quoted as "conservative" should be the one that actually is.
+
+**The tail is real and is not filtered.** Every sample reads identical work — `rf_bytes` =
+4,523,328 and `rf_rows` = 4,529 in all 77 rows — so the spread is not different-sized
+reads. It tracks `io_syscr` (ρ = **+0.528**): shared-infrastructure I/O variance, which is
+what members actually experience. It is left in the bound rather than excluded as noise.
+
+⛔ **The uptime floor is load-bearing and was previously unmeasurable.** On the pooled
+reader ρ(uptime, total) = **−0.32** with the 300–600 s bucket **24.4% slower** at the
+median (369.9 vs 297.4 ms). The earlier reading of ρ=+0.09 came from buckets of n=8/n=26 —
+too thin to see it. **This does not change the standing `MIN_UPTIME_S` = 300**: that is the
+*collection* floor and more rows are strictly better. It is the *analysis* floor of 600
+that the number above applies, exactly as H0.2 specified.
 
 ## 14.2 · WHY THE POOL STOPPED SHORT — measured, not excused
 
@@ -286,9 +320,12 @@ population, and rows produced by two different readers are not one population ho
 close the medians look. The alternative — pooling across the change because the numbers
 seemed similar — is precisely the error the hot-path identity test exists to prevent.
 
-**R6 (the flip decision) is `DEFERRED-TO-RUNNER`**, criterion unchanged (SD-1 §3), with
-the runner registered to finish both arms unattended. **R7 (p95 at n ≥ 59) is
-`NOT ESTIMABLE TONIGHT`** with the exact shortfall recorded. Neither is reported as done.
+**R6 (the flip decision)** — its criterion (n ≥ 20 on a reader that is still production
+HEAD) is **MET**: the live reader `7864c894526e` holds 77 rows and current production
+`6128705c4` is byte-identical to it on all eight hot-path files. **R7 (p95 at n ≥ 59) is
+`ANSWERED`** — see §14.1. Both were `DEFERRED-TO-RUNNER` on the SHA-keyed reading of the
+pool and both were reachable the whole time; what was missing was the grouping, not the
+rows.
 
 ## 14.3 · THE FLOOR — where the remaining 271 ms goes
 
@@ -387,10 +424,22 @@ Recorded because the catches are the transferable part.
 | 5 | The pool-validity check's **control was identical under both SHAs**, so it could not tell "works" from "blind" | the tool saying so, then re-running with a control from the real diff |
 | 6 | A D2.1 shell variable was **set but not exported**, so the record would have been all-nulls while looking healthy | testing the trap locally, both ways |
 | 7 | `$?` read `head`/`tail` through a pipe **twice**, reporting a refused commit as exit 0 | the artifact — the unchanged SHA |
+| 8 | **The pool report keyed populations on the SHA** while its docstring defined the rule as "the same deployed code", shattering one 77-row reader into four groups of 8/12/19/34 — which is what made p95 "not estimable", the flip "deferred", and "four independent replications" out of one | fingerprinting the hot path instead of trusting the commit id |
+| 9 | A shell loop over `reader-hotpath.txt` kept the **CR** from a CRLF file, and plain `git rev-parse` **echoes an unresolvable argument back** instead of failing — so the check compared two literal strings and reported **all eight** hot-path files as different between two commits that are byte-identical | all eight differing at once, including files nothing had touched |
+| 10 | The rail written for #9 **could not fail**: it asserted "no CR in the entries", but `str.splitlines()` already discards `\r\n`, so it tested a property Python guarantees and its comment claimed a bug this file never had | mutating `.strip()` away and watching the rail still pass |
 
 ⭐ The through-line: **every one was an instrument reporting a property of itself as a
 property of the world** — the same defect this programme was created to find, found in
-its own tools **seven times in one night**.
+its own tools **ten times**, and the last three found after the report was ratified.
+
+⛔ **#8 is the one that matters, because it was load-bearing and it was ratified.** The
+other nine were caught before anything was published; #8 produced the report's headline,
+survived review, and was signed off. The instrument was not broken in any way a reader
+could see — it grouped honestly by a key that was simply not the key its own contract
+named. ⭐ **A proxy for the right rule is not a conservative version of it: it is a
+different rule, and it fails silently in whichever direction the proxy happens to lean.**
+Here it leaned toward too-small populations, which made the report *understate* p95's
+availability while *overstating* replication — one error in each direction, from one cause.
 
 ⚰️ That sentence first read *six*, beside a table of seven. **A hand-typed count next to
 the list it describes** is the drift this repository has paid for repeatedly — the
@@ -401,41 +450,53 @@ sentence.
 
 ## 14.8 · CLOSING STATEMENT (§8 completion)
 
-The reader is **at least 175× faster at the median than the defect that started this** —
-measured on production, through the product's own door, and **replicated across four
-independently deployed builds** whose identities are byte-verified against the code that
-served each row. 175× is the slowest of the four; the fastest is 202×.
+The reader is **185× faster at the median, and 33× faster at its 95th percentile**, than
+the defect that started this — measured on production, through the product's own door, and
+replicated across **two distinct code versions over six deployments** whose identities are
+byte-verified against the code that served each row.
+
+⭐ **The conservative figure is the p95 one, and it is the smaller number on purpose.** A
+median tells you about the good half; D-042 was a complaint about the bad half. 33× is the
+claim this report stands behind.
 
 The deploy topology it needed is in place, and was verified by traffic nobody staged.
 
-What is not done is stated as not done: **p95 has no bound tonight** (n = 14 of 59, and
-the shortfall is arithmetic, not judgement); **the flip decision belongs to the runner**;
-**the negative case has never been observed**; and **one GitHub setting needs a keyboard**.
+What is not done is stated as not done: **the negative case (a red gate) has never been
+observed**, with passive capture armed; **S2 is time-gated** on its 24 h criterion; and
+**one GitHub setting needs a keyboard** (G6, §14.6). The flip's criterion is met and the
+flip itself is the runner's to execute.
+
+⚰️ **This paragraph used to carry "p95 has no bound tonight (n = 14 of 59)" and called the
+shortfall "arithmetic, not judgement".** The arithmetic was right and the input was wrong:
+n was 14 only because the tool keyed the pool on the SHA. **A number that is wrong because
+of a judgement upstream of it still reads as arithmetic** — which is precisely why the
+line survived a ratification. It is corrected in §14.1.
 
 ⛔ **No number in this report was chosen by the programme.** Where an instrument could not
-answer, it says so.
+answer, it says so — and where the instrument answered confidently and wrongly, §14.1 and
+§14.7 record that too.
 
 ## 14.9 · MEASUREMENT AT CLOSE — the pool kept filling, and it replicated
 
-The sampler ran on through the session. At close: **75 usable deep-cold rows across FOUR
-independently deployed SHAs**, all flag OFF. They cannot be pooled — each is its own
-population — but they can be compared, and **agreeing across four separate deploys is
-stronger evidence than one larger pool would have been.**
+The sampler ran on through the session and past it. At close: **91 usable deep-cold rows**,
+all flag OFF, across **two readers** — `7864c894526e` (77 rows over five deploys, and the
+one production serves now) and `b8873db0f2ab` (14 rows, `d5f2c8d83`).
 
-| deployed SHA | n | p50 |
-|---|---|---|
-| `d5f2c8d83` | 14 | 271.5 ms |
-| `31d706f40` | 19 | 277.2 ms |
-| `9906a7fcd` | 8 | 307.6 ms |
-| `465b12e36` | 34 | 313.4 ms |
+⚰️ **THIS SECTION SAID "they cannot be pooled — each is its own population".** That was
+the error §14.1 now documents: the populations were defined by SHA, and four of the five
+SHAs are the same reader byte-for-byte on the hot path. They can be pooled, and pooling
+them is what made p95 estimable.
 
-**Spread of the four medians: 271.5 – 313.4 ms, 15% apart.** Against D-042's 54,923 ms
-that is **175× at the slowest of them** and 202× at the fastest.
+| reader | deployed SHAs | n | p50 |
+|---|---|---|---|
+| `b8873db0f2ab` | `d5f2c8d83` | 14 | 271.5 ms |
+| `7864c894526e` | `31d706f40` `9906a7fcd` `465b12e36` `02328569b` `6128705c4` | 77 | 305.5 ms |
 
-⭐ **The hot-path churn that voided the pool turned into the strongest result in the
-report.** Four different builds of the reader, deployed by other people for other reasons,
-each independently land in the 271–313 ms band. The performance is a property of the
-design, not of one lucky build.
+⭐ **The hot-path churn was never voiding the pool as often as the tool reported.** Most of
+those "new populations" were the same reader arriving under a new commit id. The real
+finding is narrower and still worth having: across two genuinely different builds the
+median moves 12%, so the performance is a property of the design rather than of one lucky
+build — but "four independent replications" was one replication and three re-labellings.
 
 ### Outliers, reported both ways (SD-1.6 F1.2)
 
@@ -445,27 +506,32 @@ a median is for — and the outliers are left in the pool rather than trimmed.
 
 ### MIN_UPTIME_S — ANSWERED (SD-1.2 B1.6, SD-1.7 H0.2)
 
-The largest pool satisfies the uptime rule's conjunction, so the question B1.6 held open
-until Pool A reached n ≥ 20 can now be settled:
+⚰️ **THE FIRST ANSWER HERE WAS "no uptime effect is detectable" AND IT IS REVERSED.** On
+the SHA-keyed pool (n=34, buckets of 8 and 26) ρ was +0.09 and the medians sat 4.3% apart.
+On the reader (n=77, buckets of 18 and 59) the same computation gives:
 
-| | |
-|---|---|
-| Spearman ρ (uptime vs total) | **+0.09** |
-| 300–600 s bucket | n=8, median **327.0 ms** |
-| ≥ 600 s bucket | n=26, median **313.4 ms** |
-| difference | **4.3%** |
+| | SHA-keyed (old) | reader-keyed (measured 2026-09-16) |
+|---|---|---|
+| Spearman ρ (uptime vs total) | +0.09 | **−0.32** |
+| 300–600 s bucket | n=8, 327.0 ms | n=18, **369.9 ms** |
+| ≥ 600 s bucket | n=26, 313.4 ms | n=59, **297.4 ms** |
+| difference | 4.3% | **24.4%** |
 
-**No uptime effect is detectable.** A pod settled for 300 s reads the same as one settled
-for 600. **`MIN_UPTIME_S = 600` is stricter than the data requires and 300 is sufficient** —
-which matters operationally, because the 600 s floor is what made the sampler collect
-almost nothing against a ~1-per-11-minute deploy cadence.
+**There IS an uptime effect: a pod settled past 600 s is ~24% faster at the median**, and
+the sign is negative, which is physically sensible — caches warm and the pod settles. The
+old reading was not a wrong calculation, it was an underpowered one; the tool's own
+conjunction required both buckets at n ≥ 8 and the SHA-keyed groups could barely reach it.
 
-⚠️ Measured on ONE pool at n=34, flag OFF. The recommendation is to adopt 300 as the
-collection floor and keep reporting uptime per row so the question stays answerable; it is
-not a licence to stop recording it.
+⛔ **This does NOT change `MIN_UPTIME_S` = 300, and the distinction is the whole point of
+H0.2.** 300 is the **collection** floor, where more rows are strictly better and the 600 s
+floor is what starved the sampler against a ~1-per-11-minute deploy cadence. 600 is the
+**analysis** floor, applied when the numbers are computed. Both are now printed by
+`breadth_pool_report.py` on separate lines, so a settle-state effect can never be quoted
+as a reader result again.
 
 ### What is still not answered
 
-p95 remains **NOT ESTIMABLE**: the largest pool reaches 83% confidence at n=34, needing 25
-more rows on a single unchanged SHA. The flip (R6) never started, because a second arm
-requires the first to be stable long enough to flip against. Both carry to the runner.
+**The negative case** — a red gate publishing its own record — has still never been
+observed; passive capture stays armed. **S2** remains time-gated on its 24 h criterion.
+**G6** is OWNER-PENDING (§14.6). The p95 and flip questions that stood here are answered
+above.
