@@ -53,7 +53,52 @@ The cutover is the act of pointing Railway at it.
 
 ## C.2 The two preconditions
 
-### C.2.i — Does a push to `production` trigger a Railway deploy? ⚠️ UNVERIFIED — OWNER
+### C.2.i — Does a push to `production` trigger a Railway deploy? ✅ **ANSWERED: YES**
+
+> **Superseded by the API method; answered 2026-09-16. The click path below is kept for
+> the reasoning, and its step 4 is WRONG for this repo — see the correction.**
+
+**The answer.** A `GITHUB_TOKEN` push to `production` DOES reach Railway. Evidence, from a
+throwaway `cutover-probe` service whose only trigger was `production` (`checkSuites=false`,
+verified by API) and whose only prior build was the connect control:
+
+| time (UTC) | event |
+|---|---|
+| 00:05:28 | `master deploy gate` starts on `7eef82ec2` |
+| 00:07:38 | gate completes success |
+| 00:07:40 | `promote to production` starts — fast-forwards with `GITHUB_TOKEN` |
+| **00:08:04** | **`cutover-probe` creates a second deployment** — 24 s into that window |
+| 00:08:06 | promotion completes; `production` 246204473 → `7eef82ec2` |
+
+⚠️ **Caveat, recorded rather than smoothed over:** the probe was deleted before that
+deployment's commit SHA was captured, so the evidence is *a new deployment at exactly the
+right moment on a service watching only `production`*, not *a deployment built from
+`7eef82ec2`*. The window is 26 s wide and no other trigger existed. Accepted (SD-1.3 C0).
+**No probe is rebuilt.**
+
+#### ⛔⛔ CORRECTION — step 4's start-command guard DOES NOT WORK ON THIS REPO
+
+**`railway.json` is config-as-code and its `deploy.startCommand` overrides the service-level
+Custom Start Command.** That command falls through to `exec uvicorn api.main:app`, so the
+probe **booted a second copy of the app** on the production project. The proof is not an
+inference: `echo … && exit 1` cannot produce a SUCCESS deployment, and the deployment
+reported SUCCESS.
+
+⭐ **What actually contained it was the VARIABLE isolation, not the guard.** The probe
+carried nine `RAILWAY_*` platform names and nothing else — no `MASSIVE_API_KEY` (so the OPRA
+tape was never at risk; `massive.py` raises at client construction without it), no
+`DISCORD_WEBHOOK_URL`, no `RESEND_*`, no volume, no domain. The clause this probe's operator
+nearly waved through as a false positive is the one that held; the clause relied on failed
+silently. Full audit: `docs/breadth/INC-1-second-app-instance.md`.
+
+**If a probe is ever rebuilt, it must fail at BUILD, not at start** — a *created deployment*
+is the whole evidence, and one that never builds cannot run anything. Verify the control
+build FAILS before driving a promotion, and **capture the deployment's commit SHA before
+deleting the service.**
+
+---
+
+#### The original click path (kept for its reasoning; step 4 is superseded above)
 
 **The question.** `promote-production.yml` fast-forwards `production` using the workflow's
 `GITHUB_TOKEN`. If Railway is later pointed at `production`, will that push actually cause

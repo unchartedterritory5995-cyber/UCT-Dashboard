@@ -1,0 +1,164 @@
+{
+ "_note": "GENERATED from breadth_symbols.library_search with all universes published. The JS matcher must agree.",
+ "queries": {
+  "50 day": [
+   "UCTA50",
+   "US:A50",
+   "NASDAQ:A50",
+   "NYSE:A50"
+  ],
+  "50 MA": [
+   "UCTA50",
+   "US:A50",
+   "NASDAQ:A50",
+   "NYSE:A50",
+   "UCTXR"
+  ],
+  "above 50": [
+   "UCTA50",
+   "US:A50",
+   "NASDAQ:A50",
+   "NYSE:A50"
+  ],
+  "A50": [
+   "UCTA50",
+   "US:A50",
+   "NASDAQ:A50",
+   "NYSE:A50"
+  ],
+  "NASDAQ breadth": [
+   "NASDAQ:A5",
+   "NASDAQ:A10",
+   "NASDAQ:A20",
+   "NASDAQ:A40",
+   "NASDAQ:A50",
+   "NASDAQ:A100",
+   "NASDAQ:A200",
+   "NASDAQ:U4",
+   "NASDAQ:D4",
+   "NASDAQ:R5",
+   "NASDAQ:R10",
+   "NASDAQ:NH"
+  ],
+  "NYSE breadth": [
+   "NYSE:A5",
+   "NYSE:A10",
+   "NYSE:A20",
+   "NYSE:A40",
+   "NYSE:A50",
+   "NYSE:A100",
+   "NYSE:A200",
+   "NYSE:U4",
+   "NYSE:D4",
+   "NYSE:R5",
+   "NYSE:R10",
+   "NYSE:NH"
+  ],
+  "US breadth": [
+   "US:A5",
+   "US:A10",
+   "US:A20",
+   "US:A40",
+   "US:A50",
+   "US:A100",
+   "US:A200",
+   "US:U4",
+   "US:D4",
+   "US:R5",
+   "US:R10",
+   "US:NH"
+  ],
+  "high low": [
+   "US:NETHL",
+   "NASDAQ:NETHL",
+   "NYSE:NETHL",
+   "UCTNH",
+   "US:NH",
+   "NASDAQ:NH",
+   "NYSE:NH",
+   "UCTNL",
+   "US:NL",
+   "NASDAQ:NL",
+   "NYSE:NL",
+   "UCTNH20"
+  ],
+  "new highs": [
+   "UCTNH",
+   "US:NH",
+   "NASDAQ:NH",
+   "NYSE:NH",
+   "US:NETHL",
+   "NASDAQ:NETHL",
+   "NYSE:NETHL",
+   "UCTNH20",
+   "UCTATH",
+   "UCTNL",
+   "US:NL",
+   "NASDAQ:NL"
+  ],
+  "new lows": [
+   "UCTNL",
+   "US:NL",
+   "NASDAQ:NL",
+   "NYSE:NL",
+   "US:NETHL",
+   "NASDAQ:NETHL",
+   "NYSE:NETHL",
+   "UCTNL20",
+   "UCTNH",
+   "US:NH",
+   "NASDAQ:NH",
+   "NYSE:NH"
+  ],
+  "net high low": [
+   "US:NETHL",
+   "NASDAQ:NETHL",
+   "NYSE:NETHL"
+  ],
+  "NETHL": [
+   "US:NETHL",
+   "NASDAQ:NETHL",
+   "NYSE:NETHL"
+  ],
+  "200 day": [
+   "UCTA200",
+   "US:A200",
+   "NASDAQ:A200",
+   "NYSE:A200"
+  ],
+  "above 200": [
+   "UCTA200",
+   "US:A200",
+   "NASDAQ:A200",
+   "NYSE:A200"
+  ],
+  "momentum": [
+   "UCTMU",
+   "UCTMD",
+   "UCTU4",
+   "US:U4",
+   "NASDAQ:U4",
+   "NYSE:U4",
+   "UCTD4",
+   "US:D4",
+   "NASDAQ:D4",
+   "NYSE:D4",
+   "UCTU20W",
+   "UCTD20W"
+  ],
+  "NASDAQ:A50": [
+   "NASDAQ:A50"
+  ],
+  "US:NETHL": [
+   "US:NETHL"
+  ],
+  "UCTA50": [
+   "UCTA50"
+  ],
+  "UCT:A50": [
+   "UCTA50"
+  ],
+  "NASDAQ:AAPL": [],
+  "FOO:BAR": []
+ }
+}

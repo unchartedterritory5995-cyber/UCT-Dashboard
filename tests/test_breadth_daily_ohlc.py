@@ -9,9 +9,28 @@ from api.services import breadth_daily_ohlc as store
 
 @pytest.fixture()
 def fresh_store(tmp_path, monkeypatch):
+    """Point the store at an empty temporary database — AND DISOWN THE SERVED CACHE.
+
+    ⛔ THE SERIES CACHE IS KEYED BY SYMBOL, NOT BY STORE. `build_breadth_bars` caches
+    a sealed per-symbol series under `breadthdaily_UCTA50` for six hours, and
+    `start_breadth_warm` runs `warm_breadth()` on a DAEMON THREAD that walks all 44
+    shipped symbols — so any test in the session that boots the app can fill that
+    cache from a COMPLETELY DIFFERENT database, and a test that then redirects the
+    store is served the other database's answer.
+
+    ⭐ This is a real consequence of BL-010, not a flake. Master keeps these series in
+    the SHARED 1,000-entry cache, where suite-wide traffic evicted them before anyone
+    noticed; breadth now has its own 512-entry instance holding ~156 identities, so
+    nothing is ever evicted and a stale entry survives the whole run. The dedicated
+    instance is still right — it stops breadth evicting hot `/api/bars` keys — but it
+    means "a fresh store" must now say so to the cache as well as to the env var.
+    """
     monkeypatch.setenv("BREADTH_OHLC_DB", str(tmp_path / "ohlc.db"))
     store._INIT_DONE = False        # force re-init against the tmp DB
+    from api.services import breadth_symbols as _bs
+    _bs._breadth_cache.delete_prefix("breadthdaily_")
     yield
+    _bs._breadth_cache.delete_prefix("breadthdaily_")
     store._INIT_DONE = False
 
 

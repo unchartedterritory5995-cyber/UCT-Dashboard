@@ -14,6 +14,7 @@ Schema:
 """
 
 import json
+import math
 import os
 import sqlite3
 from bisect import bisect_left, bisect_right
@@ -579,6 +580,41 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
     return out
 
 
+def _net_new_high_low(row: dict) -> Optional[float]:
+    """NEW HIGHS − NEW LOWS. One definition, and both derivation paths call it.
+
+    ⭐⭐ IT IS A FUNCTION RATHER THAN TWO INLINE SUBTRACTIONS FOR ONE REASON: the
+    two derivation paths beside it — `_derive_ascending` (stored + reconstructed)
+    and `derive_live_row` (intraday) — already compute `hi_ratio`/`lo_ratio`
+    INLINE, twice, from these same two inputs. That duplication is survivable for a
+    ratio nobody charts on its own. It is not survivable for a series a member
+    reads as a signal: the live value and the sealed value would be two definitions
+    wearing one name, and the disagreement would surface as a candle that changes
+    shape after the close.
+
+    ⛔ AND IT IS `None` WHEN EITHER SIDE IS MISSING, never a one-sided number. A day
+    that recorded 137 highs and no low count is a day whose NET we do not know;
+    publishing +137 would read as a strongly positive session. `None` is the honest
+    answer, and every store here already drops non-finite values.
+
+    ⚠️ SIGNED BY CONSTRUCTION (`breadth_metrics.DOMAIN_SIGNED`). Nothing may clamp
+    it at zero or onto a 0-100 axis: −663 is the entire point of the series.
+    """
+    nh, nl = row.get("new_52w_highs"), row.get("new_52w_lows")
+    if nh is None or nl is None:
+        return None
+    try:
+        v = float(nh) - float(nl)
+    except (TypeError, ValueError):
+        return None
+    # ⛔ FINITE OR NOTHING. `_render_json` serialises the history response with
+    # `allow_nan=False`, which RAISES on a NaN or an infinity — so one malformed
+    # input here would not produce a wrong cell, it would 500 the whole Monitor
+    # endpoint for every member. `inf - inf` is NaN, and this reads two values it
+    # does not own.
+    return v if math.isfinite(v) else None
+
+
 def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
     """Add the derived block to an OLDEST-FIRST list of raw-metric rows, in place.
 
@@ -613,6 +649,7 @@ def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
             row["lo_ratio"] = round(nl / uni * 100, 2)
         else:
             row["lo_ratio"] = None
+        row["net_new_high_low"] = _net_new_high_low(row)
 
         # Day-over-day % change for QQQ and SPY
         if i > 0:
@@ -1007,6 +1044,7 @@ def derive_live_row(metrics: dict, recent: list) -> dict:
     for src, dst in (("new_52w_highs", "hi_ratio"), ("new_52w_lows", "lo_ratio")):
         n = row.get(src)
         row[dst] = round(n / uni * 100, 2) if n is not None and uni else None
+    row["net_new_high_low"] = _net_new_high_low(row)
 
     prev = recent[0] if recent else {}
     for sym in ("qqq", "spy"):

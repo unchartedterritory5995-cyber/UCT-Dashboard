@@ -150,6 +150,8 @@ export const DIRECT_SERIES_DEF_ID = 'dataSeries'
  * @property {'technical'|'formula'|'breadth'|'security'} kind
  * @property {string} name
  * @property {string} shortName
+ * @property {string} lead   what a COMPACT LIST leads with
+ * @property {string} sub    the quiet qualifier after it, or ''
  * @property {string} category
  * @property {string} description
  * @property {string[]} tags
@@ -160,13 +162,30 @@ export const DIRECT_SERIES_DEF_ID = 'dataSeries'
 
 const str = (v, fallback = '') => (typeof v === 'string' && v ? v : fallback)
 
-function result({ id, kind, name, shortName, category, description, tags, capability, capabilityReason, create }) {
+/**
+ * ⭐⭐ A RESULT STATES HOW IT WANTS TO BE READ, so no view has to branch on `kind`.
+ *
+ * A compact list — the source picker's eight rows — has exactly one strong line and
+ * one quiet one, and WHICH HALF IS WHICH DIFFERS BY WHAT THE THING IS. For a
+ * security "QQQ" is the thing and "Invesco QQQ Trust" is the gloss. For a breadth
+ * measure the thing is "% of Stocks Above 50-Day MA" and "NASDAQ" is the gloss —
+ * `NASDAQ:A50` is an ADDRESS, and a list that leads with it is the ticker soup the
+ * library exists to replace.
+ *
+ * ⛔ SO THE DEFAULT IS TODAY'S BEHAVIOUR EXACTLY — `shortName` leads, the long name
+ * follows when it says something new — and only the breadth adapter overrides it.
+ * `SourceField` renders `lead` / `sub` and learns nothing about breadth.
+ */
+function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create }) {
+  const _lead = str(lead, str(shortName, id))
   return {
     key: `${kind}:${id}`,
     id,
     kind,
     name,
     shortName,
+    lead: _lead,
+    sub: typeof sub === 'string' ? sub : (name && name !== _lead ? name : ''),
     category,
     description,
     tags: Array.isArray(tags) ? tags : [],
@@ -306,22 +325,80 @@ export function breadthResults(rows, { tf, bars } = {}) {
     const sym = canonicalSymbol(row.symbol || row.ticker)
     if (!sym) continue
     const name = str(row.name, sym)
+    // ⭐⭐ THE UNIVERSE IS THE SHORT NAME WHEN THERE IS ONE, and that single line is
+    // what makes a multi-series pane readable. `shortName` becomes the instance's
+    // `display.name` (see `createFromResult`), so four A50 series in one pane read
+    //
+    //     % of Stocks Above 50-Day MA
+    //     UCT  63.2   US  54.9   NASDAQ  51.8   NYSE  57.4
+    //
+    // instead of four cryptic addresses. The metric is stated once by the pane; the
+    // universe is what actually differs between the rows.
+    //
+    // ⚠️ AND IT IS ABSENT-SAFE. A row from today's `/api/breadth-symbols` carries no
+    // `universe_label`, so a shipped UCT symbol keeps the symbol as its short name
+    // exactly as before — this is additive, not a change of the existing behaviour.
+    // ⚠️ THE BADGE IS FOR THE NAMESPACED ROWS ONLY. A legacy UCT row's symbol IS
+    // its recognisable name — `UCTA50` is what a member types, what the axis shows
+    // and what they have been reading for a year — so replacing it with "UCT" would
+    // be a regression dressed as consistency. A namespaced row has no such history
+    // and its universe is the thing that distinguishes it from its siblings.
+    const universeLabel = row.legacy ? '' : str(row.universe_label || row.universeLabel, '')
+    const pres = presentationFor(row)
     out.push(result({
       id: sym,
       kind: 'breadth',
       name,
-      // ⭐ THE SYMBOL IS THE SHORT NAME. `UCTA50` is what the member typed, what
-      // the axis shows and what the source string says; "% of Stocks Above
-      // 50-Day MA" is the sentence that explains it.
-      shortName: sym,
+      shortName: universeLabel || sym,
+      // ⭐ METRIC FIRST, UNIVERSE SECOND — in the LIST as well as in the pane. The
+      // pane legend wants `shortName` (the universe is what differs between four
+      // A50 rows); a search list wants the opposite, because the member is choosing
+      // the METRIC and the universe only qualifies it.
+      lead: name,
+      sub: universeLabel || sym,
       category: str(row.group_label || row.groupLabel || row.group, 'Breadth'),
       description: name,
       tags: ['breadth'],
       ...knownCapabilityOf(sym, tf, bars),
-      create: { via: CREATE_VIA.DATA_SERIES, source: symbolSource(sym, 'close') },
+      // ⛔ PRESENTATION COMES FROM THE CATALOGUE, NEVER FROM THE TICKER. The
+      // registry says Net New High-Low is a SIGNED COUNT drawn as a HISTOGRAM; the
+      // renderer never learns that `US:NETHL` is special. This is the metadata half
+      // of Phase 4's generic sign-colouring capability.
+      //
+      // ⚠️ THE KEY IS ABSENT WHEN THERE IS NOTHING TO SAY, rather than present and
+      // null. A row with no presentation metadata — every one of the 44 shipped UCT
+      // symbols — produces the IDENTICAL `create` object it always did, so nothing
+      // that compares the descriptor has to learn a new field.
+      create: pres
+        ? { via: CREATE_VIA.DATA_SERIES, source: symbolSource(sym, 'close'), presentation: pres }
+        : { via: CREATE_VIA.DATA_SERIES, source: symbolSource(sym, 'close') },
     }))
   }
   return out
+}
+
+/**
+ * A catalogue row's `presentation` / `domain` → the instance presentation to stamp,
+ * or `null` when the defaults are right.
+ *
+ * ⭐ ONE MAPPING, FROM DATA. `presentation: 'histogram'` asks for a histogram;
+ * `domain: 'signed'` additionally asks for sign colouring, because a series that
+ * crosses zero is exactly the one whose bars mean something above and below it.
+ * Anything else returns null and inherits the `dataSeries` default (a line), so the
+ * 44 shipped UCT symbols are untouched — none of them carries either field today.
+ *
+ * ⛔ NO TICKER, NO METRIC KEY, NO FAMILY BRANCH. `if (sym === 'US:NETHL')` in a
+ * renderer is the thing this exists to prevent.
+ */
+export function presentationFor(row) {
+  if (!row) return null
+  const style = row.presentation === 'histogram' ? 'histogram' : null
+  const signed = row.domain === 'signed'
+  if (!style && !signed) return null
+  const out = {}
+  if (style) out.plotStyle = style
+  if (signed && style) out.signColors = true
+  return Object.keys(out).length ? out : null
 }
 
 /**
@@ -417,7 +494,10 @@ export function createFromResult(cs, res, registry) {
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
-    return createDirectSeries(cs, res.create.source, registry, { name: res.shortName || res.id })
+    return createDirectSeries(cs, res.create.source, registry, {
+      name: res.shortName || res.id,
+      presentation: res.create.presentation || null,
+    })
   }
   return cs
 }
@@ -466,8 +546,19 @@ export function createDirectSeries(cs, source, registry, display) {
   const defOf = (registry && typeof registry.getDefinition === 'function')
     ? registry.getDefinition(minted.defId) : null
   const derived = derivedSourceName(defOf, findInstance(next, minted.instanceId))
-  const worthStoring = display && display.name && display.name !== derived
-  return worthStoring ? withDisplay(next, minted.instanceId, display) : next
+  const worthStoring = !!(display && display.name && display.name !== derived)
+  // ⚠️ PRESENTATION IS STAMPED EVEN WHEN THE NAME IS NOT. The name rule is about
+  // PROVENANCE — a name identical to the derived one is not a choice, so it is not
+  // recorded — and that reasoning says nothing about how the series draws. Gating
+  // both on one flag would have silently dropped a signed histogram's style
+  // whenever its label happened to match its source, which is a defect whose only
+  // symptom is a line where a histogram belonged.
+  const wantsPresentation = !!(display && display.presentation)
+  if (!worthStoring && !wantsPresentation) return next
+  return withDisplay(next, minted.instanceId, {
+    name: worthStoring ? display.name : null,
+    presentation: display.presentation || null,
+  })
 }
 
 /**
@@ -494,9 +585,17 @@ function withDisplay(cs, instanceId, display) {
   const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
   return {
     ...cs,
-    indicatorInstances: list.map((i) => (
-      i && i.instanceId === instanceId ? { ...i, display: { name: display.name } } : i
-    )),
+    indicatorInstances: list.map((i) => {
+      if (!i || i.instanceId !== instanceId) return i
+      const next = { ...i }
+      if (display.name) next.display = { name: display.name }
+      // ⚠️ A SEPARATE FIELD FROM `display`, because it is read by a different layer:
+      // `display.name` is a LABEL (`readout.chipLabel`), `presentation` is how the
+      // series DRAWS (`presentation.presentedPlot`). Folding the two together would
+      // make a rename a restyle.
+      if (display.presentation) next.presentation = { ...display.presentation }
+      return next
+    }),
   }
 }
 
@@ -606,11 +705,17 @@ export function symbolLibraryRow(res) {
     id: res.id,
     key: res.key,
     kind: res.kind,
-    name: res.id,
+    // ⭐ AND THE SAME INVERSION HERE. A security's headline is its ticker; a breadth
+    // measure's headline is its METRIC, with the universe and the address beneath.
+    // `NASDAQ:A50` as the headline and the metric as the subtitle is precisely the
+    // reading order this phase exists to reverse.
+    name: isBreadth ? (res.name || res.id) : res.id,
     // The server's own classification, upper-cased for the chip; breadth says so.
     shortName: isBreadth ? 'Breadth' : String(res.category || 'symbol').toUpperCase(),
     category: isBreadth ? BREADTH_CATEGORY : SYMBOL_CATEGORY,
-    description: long,
+    // The universe qualifies, and the address stays available without dominating.
+    description: isBreadth ? [res.shortName, res.id].filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i).join(' · ') : long,
     longName: long,
     tags: res.tags,
     capability: res.capability,

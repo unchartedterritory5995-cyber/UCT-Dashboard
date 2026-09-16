@@ -165,7 +165,7 @@ def test_buzz_image_job_attaches_the_png_when_the_render_succeeds():
     from api.routers import discord_interactions as rt
     calls = []
     rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
-                          render_fn=lambda w: b"\x89PNGdata",
+                          render_fn=lambda w, **k: b"\x89PNGdata",
                           edit_fn=lambda *a, **kw: calls.append(kw))
     assert len(calls) == 1, "the reply is resolved exactly once"
     assert calls[0]["content"] == "board text"
@@ -177,7 +177,7 @@ def test_buzz_image_job_keeps_the_text_reply_when_the_render_is_empty():
     from api.routers import discord_interactions as rt
     calls = []
     rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
-                          render_fn=lambda w: None,
+                          render_fn=lambda w, **k: None,
                           edit_fn=lambda *a, **kw: calls.append(kw))
     assert len(calls) == 1, "text-only edit still resolves the reply"
     assert calls[0]["content"] == "board text"

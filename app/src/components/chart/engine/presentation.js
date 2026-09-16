@@ -316,13 +316,73 @@ export function presentedPlot(plot, instance, ctx) {
   if (!plot) return plot
   const style = resolvePlotStyle(instance, plot, ctx)
   const defStyle = PLOT_STYLE_TO_DEF_STYLE[style]
-  if (!defStyle || defStyle === plot.style) return plot
-  const next = { ...plot, style: defStyle }
+  const effective = defStyle || plot.style
+  const sign = effective === 'histogram' ? resolveSignColors(instance, plot) : null
+  const styleChanged = !!defStyle && defStyle !== plot.style
+  // ⚠️ BOTH QUESTIONS BEFORE THE EARLY RETURN. This read `if (defStyle === plot.style)
+  // return plot`, which is correct for style alone and wrong the moment a SECOND
+  // property is resolved here: a member turning sign colours on for an output that
+  // was ALREADY a histogram would have been handed back the untouched plot and seen
+  // nothing happen.
+  if (!styleChanged && !sign) return plot
+  const next = { ...plot }
+  if (styleChanged) next.style = defStyle
   // Dots carry their size in `width`, because that is the field the `markers`
   // branch of `seriesOptionsForPlot` already reads as the point radius.
   if (defStyle === 'markers') next.width = DOT_SIZES[resolveDotSize(instance, plot)]
+  if (sign) {
+    next.colorMode = 'sign'
+    next.colorUp = sign.up
+    next.colorDown = sign.down
+  }
   return next
 }
+
+/** The two colours ONE output's sign-coloured histogram wears, or `null`.
+ *
+ * ⭐⭐ THIS IS THE WHOLE "SIGNED HISTOGRAM" CAPABILITY, AND IT IS A RESOLVER RATHER
+ * THAN A RENDERER CHANGE. `colorMode: 'sign'` already works end to end — `pool.js`
+ * `signColorsForPlot` reads it, `binder.js` `toPoints` emits a per-point `color`,
+ * and a histogram already grows from a zero base (`histogramBaseline`). What did
+ * not exist was a way for anything but a DEFINITION to ask for it: MACD declares
+ * `colorMode: 'sign'` in `nativeRegistry`, and a member's own histogram — or a
+ * `dataSeries` pointed at a signed measure like Net New High-Low — had no door.
+ * `presentedPlot` stamping the same three fields a definition would have declared
+ * IS that door, so nothing downstream learns a new concept.
+ *
+ * ⛔ HISTOGRAM ONLY, enforced by the caller. A line has no per-point colour to
+ * vary, and a candle's colour is LWC's own up/down decision from open vs close —
+ * `binder.toOhlcPoints` says exactly that and refuses sign colours there.
+ *
+ * ⛔ AND NO TICKER, NO METRIC, NO FAMILY BRANCH. A series is signed because its
+ * VALUES cross zero — a property of the data, and of what the catalogue says about
+ * it (`breadth_metrics.DOMAIN_SIGNED`) — never of a symbol string. The rendering
+ * layer must not learn that `NETHL` is special.
+ *
+ * ⚠️ Per output, over an instance fallback — the same chain `resolvePlotStyle`,
+ * `resolveDotSize` and `resolveCandleColors` already walk.
+ */
+export function resolveSignColors(instance, plot) {
+  const pres = instance && instance.presentation
+  if (!pres) return null
+  const key = plot && plot.key
+  const perOutput = (pres.plots && typeof key === 'string' && pres.plots[key]) || null
+  const on = (perOutput && perOutput.signColors !== undefined)
+    ? perOutput.signColors : pres.signColors
+  if (!on) return null
+  const ok = (v) => (typeof v === 'string' && v ? v : null)
+  const up = (perOutput && ok(perOutput.colorUp)) || ok(pres.colorUp)
+    || ok(plot && plot.colorUp) || DEFAULT_SIGN_UP
+  const down = (perOutput && ok(perOutput.colorDown)) || ok(pres.colorDown)
+    || ok(plot && plot.colorDown) || DEFAULT_SIGN_DOWN
+  return { up, down }
+}
+
+/** ⚠️ THE CHART'S ONE GREEN AND ONE RED, not a third palette — the same pair as
+ *  `DEFAULT_CANDLE_UP`/`DOWN`, so a signed histogram and a candle agree about what
+ *  "up" looks like on one screen. */
+export const DEFAULT_SIGN_UP = DEFAULT_CANDLE_UP
+export const DEFAULT_SIGN_DOWN = DEFAULT_CANDLE_DOWN
 
 /**
  * Where a histogram's bars grow FROM, and an area fills TO.

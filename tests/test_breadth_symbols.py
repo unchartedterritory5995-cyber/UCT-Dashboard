@@ -16,11 +16,17 @@ def _isolate_ohlc_store(monkeypatch):
 
     build_breadth_bars now CACHES the SEALED daily series per symbol (the instant-charts
     fix), so clear that cache before each test — otherwise the first test's mock data
-    would be served to every later test that uses the same symbol."""
+    would be served to every later test that uses the same symbol.
+
+    ⚠️ AND THE SEALED SERIES NOW LIVES IN BREADTH'S OWN CACHE INSTANCE, not the
+    shared singleton — a large value held for hours had no business competing with
+    the bars and news keys. Clearing `api.services.cache.cache` here would silently
+    clear the wrong store and serve the first test's mock data to every later one,
+    which is precisely the failure this fixture was written to prevent."""
     monkeypatch.setattr("api.services.breadth_daily_ohlc.history", lambda *a, **k: {})
     try:
-        from api.services.cache import cache
-        cache.delete_prefix("breadthdaily_")
+        from api.services import breadth_symbols as _bs
+        _bs._breadth_cache.delete_prefix("breadthdaily_")
     except Exception:
         pass
 
