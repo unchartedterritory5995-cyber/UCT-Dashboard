@@ -247,13 +247,14 @@ const CHIP_COLLAPSE_AT = 4
  * the budget that produced it. A constant converges in one frame.
  *
  * ⚠️ IT MUST TRACK `.studyStack`'s `line-height` + `row-gap`, WHICH ARE BOTH
- * DECLARED IN PX FOR THAT REASON. 14 + 1 = 15 (the polish pass tightened the
- * leading from 15 to 14). Measured first with `line-height: normal`, where the
+ * DECLARED IN PX FOR THAT REASON. 14 + 5 = 19 — the leading is unchanged and the
+ * GAP opened, which is the floating pass's rule that breathing room belongs
+ * between the rows rather than around the legend. Measured first with `line-height: normal`, where the
  * real pitch came out at 17 and no test could have derived it; `legendV2.test.jsx`
  * re-derives both numbers from the stylesheet, so a type change there fails the
  * rail rather than silently over-counting rows on a short pane.
  */
-const STUDY_ROW_PX = 15
+const STUDY_ROW_PX = 19
 
 /**
  * The most of the PRICE PANE the study stack may cover, as a fraction.

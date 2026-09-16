@@ -230,15 +230,30 @@ describe('LegendRow — the CSS artifact', () => {
       .toMatch(/pointer-events:\s*none/)
   })
 
-  it('🔴 the vertical row is a SUBGRID — that is what keeps the columns aligned', () => {
-    // Without it the row would be an ordinary grid item and its label/value would
-    // size to their OWN content, so every row's value would land on a different
-    // right edge — the alignment the owner asked for in the first place. The row
-    // has to be one box (for hover) AND share the legend's tracks (for
-    // alignment), and `subgrid` is the only thing that is both.
-    const block = ruleBlock(css(), '.vRow')
-    expect(block).toMatch(/grid-template-columns:\s*subgrid/)
-    expect(block).toMatch(/grid-column:\s*1\s*\/\s*-1/)
+  it('⚰️ the row is an INLINE PAIR — the subgrid went with the value column', () => {
+    // ⚰️⚰️ THIS ASSERTED `grid-template-columns: subgrid`, and the reason it gave
+    // was that every row's value must land on one right edge. That alignment is
+    // exactly what the owner retired: five values ruled into a column is an
+    // INVISIBLE TABLE, and it was half of why the legend read as a box. The value
+    // follows its OWN label now — `EMA 9 711.65` starts further left than
+    // `SMA 200 661.14`, deliberately — and the left edge still aligns because
+    // every row starts at the stack's own origin.
+    //
+    // ⛔ WHAT SURVIVES IS THE HALF THAT WAS NEVER ABOUT ALIGNMENT: the row is ONE
+    // element. `.legend` is `pointer-events: none`, so the gap between a label and
+    // its value is only a hit target while it lives inside the row's own box —
+    // loose siblings left dead columns and cost this legend four reported bugs.
+    // ⛔ COMMENTS OUT FIRST. The retirement is DOCUMENTED inside this very rule, so
+    // a raw read finds the tombstone and reports the thing it says was removed as
+    // still present — a gate that cannot tell a comment from a declaration fails on
+    // good work and passes on bad.
+    const block = ruleBlock(css(), '.vRow').replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(block, 'the value column came back — the legend will read as a table again')
+      .not.toMatch(/subgrid/)
+    expect(block, 'the row stopped being one inline box').toMatch(/display:\s*inline-flex/)
+    expect(block, 'the label and value lost their pair gap').toMatch(/gap:\s*\d+px/)
+    expect(block, 'the row must still take pointer events — see the note above')
+      .toMatch(/pointer-events:\s*auto/)
   })
 
   it('🔴 the keyboard ring is `:focus-visible` — NEVER `:focus`, NEVER `:focus-within`', () => {

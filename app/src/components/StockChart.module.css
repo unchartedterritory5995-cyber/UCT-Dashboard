@@ -82,8 +82,12 @@
    pane's top by the rAF sampler) and still declares no class containing
    "volLegend", so the export route's re-show cannot reach it. */
 .paneLegend {
+  /* The same natural-inline rule the price stack takes — one legend language on
+     every pane. A pane holds one family, so its rows are usually one or two. */
   top: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   /* §10 — `max-content` ON BOTH TRACKS IS WHAT ALIGNS THE NUMBERS: the label
      column is exactly as wide as the longest label (`SMA 200`), so every value
      starts at one x and the column is optical rather than arbitrary. An `auto`
@@ -97,8 +101,12 @@
   /* §11 — 9px: close enough that `EMA 9` and `711.65` read as one line, far
      enough that the numbers form a column rather than a run-on. Tightened from 10
      because the type grew; the pair should not loosen as it gets bigger. */
-  column-gap: 9px;
-  row-gap: 1px;
+  /* ⭐ §10 — ROW RHYTHM, NOT CONTAINER PADDING. The rows read as one dense block
+     at a 15px pitch; 5px of gap against a 14px line makes each line its own line
+     without turning the stack into a settings list. §11 is explicit that the space
+     belongs BETWEEN the rows and not around the legend, so the padding above got
+     SMALLER in the same pass. */
+  row-gap: 5px;
   align-content: start;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
@@ -506,7 +514,11 @@
      4px between the boxes reads as ~6px between the glyphs (each box carries 1px
      of its own padding) — a step, not a blank row, and marginally wider than the
      gap to the drawing tools so the two areas group together under them. */
-  gap: 4px;
+  /* ⭐ §15 — a small semantic break: *this is the bar* / *these are the plots*.
+     6px now the two boxes have lost their own padding, so the OPTICAL step between
+     the last bar-info glyph and the first study is unchanged while the containers
+     around them stopped existing. */
+  gap: 6px;
   /* ⚰⚰ THE SAME OMISSION BOTH RETIRED VARIANTS MADE, NOT REPEATED. A variant
      class on the same element, later in the file, wins on source order — so a
      bare `top` here would silently defeat the base rule's offset and leave the
@@ -560,11 +572,14 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   /* See `.legendV2` — blur is the readability rail, the tint is a whisper. */
-  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  padding: 1px 5px 1px 3px;
-  border-radius: 2px;
+  /* The same near-invisible wash the stack takes — see `.studyStack`. The strip
+     and the stack must disappear by the same amount or the pair reads as two
+     components again. */
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 12%, transparent);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  padding: 0 3px 0 2px;
+  border-radius: 0;
 }
 /* The date leads the strip and is the only field that is a NAME rather than a
    reading, so it carries the brighter ink and no key. */
@@ -632,21 +647,38 @@
  * readability rail `.barInfo` carries and for the same measured reason.
  */
 .studyStack {
-  display: grid;
-  grid-template-columns: max-content max-content max-content;
-  justify-content: start;
+  /* ⚰⚰ THE THREE-TRACK GRID IS RETIRED, AND IT IS THE SECOND HALF OF THE "BOX"
+     PROBLEM. `max-content` tracks put every value on one x, which is beautiful
+     arithmetic and an INVISIBLE TABLE: five values ruled into a column read as a
+     component even with no border drawn. The owner's ruling is that the value
+     follows its OWN label — `EMA 9 711.65` starts further left than
+     `SMA 200 661.14`, deliberately.
+     ⭐ THE LEFT EDGE STILL ALIGNS, and it aligns because every row starts at the
+     stack's own origin — not because a track makes it. That is the distinction the
+     brief drew and it is why this is a flex COLUMN of inline rows rather than a
+     grid with the tracks loosened. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   /* §11 — 9px: close enough that `EMA 9` and `325.97` read as one line, far enough
      that the numbers form a column rather than a run-on. Tightened from 10 when the
      type grew — a pair should not loosen as it gets bigger. The pane readouts take
      the same number so every stack on the chart is set to one rhythm. */
-  column-gap: 9px;
-  row-gap: 1px;
+  /* ⭐ §10 — ROW RHYTHM, NOT CONTAINER PADDING. The rows read as one dense block
+     at a 15px pitch; 5px of gap against a 14px line makes each line its own line
+     without turning the stack into a settings list. §11 is explicit that the space
+     belongs BETWEEN the rows and not around the legend — which is why the padding
+     got SMALLER in the same pass.
+     ⛔ NO `column-gap` ANY MORE: there are no columns. The label/value gap lives on
+     the ROW (`.vRow` / `.chipGridRow`), which is what lets a value follow its own
+     label instead of a shared track. */
+  row-gap: 5px;
   align-content: start;
   /* ⛔ AN EXPLICIT LINE-HEIGHT, BECAUSE THE ROW PITCH IS A NUMBER JS RELIES ON.
      `STUDY_ROW_PX` in StockChart.jsx counts how many rows fit in the pane, and
      with `line-height: normal` that pitch is whatever the font metrics happen to
      give (measured 17px here) — a value no test could derive and a font change
-     could move without anything noticing. 15px + the 1px row gap = a 16px pitch,
+     could move without anything noticing. 14px + the 5px row gap = a 19px pitch,
      and `legendV2.geometry.test.js` re-derives it from THIS declaration. */
   /* ⭐ 15px → 14px (§11). Measured live at 15: five rows read as five menu
      items rather than a typeset block. 14 on a 10px face is still 1.4 leading —
@@ -655,11 +687,25 @@
      ⛔ THIS NUMBER AND `row-gap` BELOW ARE WHAT `STUDY_ROW_PX` COUNTS IN. They
      are declared in px for that reason and the rail re-derives the sum. */
   line-height: 14px;
-  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  padding: 1px 5px 2px 3px;
-  border-radius: 2px;
+  /* ⭐⭐ THE BACKDROP EXISTS ONLY TO SURVIVE A CANDLE, AND IT MUST NOT BE
+     FINDABLE. Owner's squint test: *"if I can immediately point to the rectangular
+     backdrop, it is still too strong."*
+     ⚰ blur(4px) + 30% of the panel token WAS findable — the blur alone drew a soft
+     rectangle over the gridlines and the eye read a component. Lowering the alpha
+     while keeping the blur does NOT fix that, which is the trap this comment
+     exists to flag: the SMEAR is what has a silhouette, so the blur is what had to
+     come down.
+     ⭐ 1.5px is enough to turn a candle EDGE under a glyph into a wash without
+     averaging the grid into a visible panel, and 12% is a whisper of the canvas's
+     own colour rather than a tint. Tuned on screen over green candles, red
+     candles, wicks, MA lines, gridlines and empty background — not chosen. */
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 12%, transparent);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  /* ⛔ NO RADIUS AND NO PADDING TO SPEAK OF. A radius is a silhouette; padding is
+     a card's margin. The wash hugs the glyphs. */
+  padding: 0 3px 0 2px;
+  border-radius: 0;
 }
 /* `+N more` / `Less` — the fold's disclosure. Spans all three tracks so it does
    not distort the label column it would otherwise size. */
