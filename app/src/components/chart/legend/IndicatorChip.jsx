@@ -145,11 +145,6 @@ export default function IndicatorChip({
   // the whole legend and that shared track is exactly what puts every value on
   // the same right edge.
   grid = false,
-  // ⭐⭐ `item` — THE PACKED VARIANT, the twin of `LegendRow`'s. `▪ RSI 14 57.3`,
-  // inline, so an instance's outputs share a line with each other and a family of
-  // related instances shares a line too. See `LegendRow.jsx` for why the colour
-  // moved to a 5×5 swatch and off the words.
-  item = false,
   // ⭐⭐ `secondary` — A SIBLING OUTPUT OF THE CHIP ABOVE (Legend V2 §7). MACD's
   // `SIG`, Bollinger's lower band. `legendChips` walks the INSTANCE list, so an
   // instance's plots already arrive consecutive; this is the DOM finally saying
@@ -279,26 +274,6 @@ export default function IndicatorChip({
     ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{chipValueText}</span></>
     : chip.text
 
-  if (item) {
-    return (
-      <span
-        className={`${styles.item} ${secondary ? styles.itemSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
-        data-instance-id={chip.instanceId}
-        data-plot-key={chip.plotKey}
-        data-hidden={chip.hidden ? 'true' : 'false'}
-        data-computed={chip.computed === false ? 'false' : undefined}
-        {...triggerProps}
-        {...(interactive ? longPress : null)}
-        onClick={onBody}
-        title={chipTitle}
-      >
-        {chip.color ? <i className={styles.swatch} style={{ background: chip.color }} aria-hidden="true" /> : null}
-        <span className={styles.itemLabel}>{chip.label}{marks}</span>
-        {chipValueText ? <span className={styles.itemVal}>{chipValueText}</span> : null}
-      </span>
-    )
-  }
-
   if (grid) {
     // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
     // the next row's label fall into the control gutter — see
@@ -338,7 +313,15 @@ export default function IndicatorChip({
             passes here is `.chipFolded` — `display: none` — and hiding one cell
             of three would leave the value occupying a track with nothing in front
             of it. */}
-        <span className={styles.chipGridVal} style={valInk}>{chipValueText}</span>
+        {/* ⭐⭐ §3 — THE VALUE IS BRIGHT NEUTRAL, NOT THE SERIES COLOUR, and that is
+              the whole colour system: COLOUR = which series, WHITE = the market value.
+              ⚰ IT USED TO TAKE `valInk` (`color: inherit`) so label and value both wore
+              the plot's hue; on a five-series chart that read as a rainbow and, worse,
+              it made the NUMBER as easy or as hard to read as whatever colour the
+              member had picked. The label keeps the hue — it is the identity — and the
+              number is always the same crisp white, so the eye lands on it first at
+              every hue. */}
+        <span className={styles.chipGridVal}>{chipValueText}</span>
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend

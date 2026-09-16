@@ -199,10 +199,91 @@ def _levels_for_day(conn, tickers, day_ts):
     return bl.build_levels(tickers, closes, vols, prior)
 
 
+def session_ohlc(D: str, per_ticker: dict, levels: dict,
+                 bucket_min: int = 1, members: Optional[set] = None) -> Optional[dict]:
+    """ONE universe's OHLC from an ALREADY-DOWNLOADED session. The whole math path.
+
+    ⭐⭐ EXTRACTED SO THE EXPENSIVE FILE IS READ ONCE. `recon_day` below is now a thin
+    wrapper that downloads and calls this; the combined pass downloads ONE whole-market
+    minute file per session and calls this once per universe. That is the only reason
+    the extraction exists — there is still exactly ONE implementation of the session
+    domain, the carry-forward, the composites and the aggregation, and both callers run
+    it. A second copy for the grind is precisely what this avoids.
+
+    `per_ticker` is the resampled minute source; `levels` is a `build_levels` output.
+
+    ⭐ `members` RESTRICTS THE POPULATION WITHOUT RESTRICTING THE LEVELS, which is what
+    lets ONE levels build serve four universes. The invariant is the metric engine's
+    own, stated in `recompute_from_frame`: *"a 50-day average of a member is the same
+    number whoever else is in the frame"* — `build_levels` is per-ticker, so a name's
+    MAs and 52-week extremes do not depend on the cohort. `compute_metrics` then
+    restricts every metric through its `have = ~isnan(px)` mask, so handing it only the
+    members' prices computes exactly that universe.
+
+    ⚠️ WITHOUT IT the prior-close seed would carry EVERY name in `levels` into the
+    price map and the universe would silently become the union. `members` is therefore
+    applied to the seed AND the carry-forward, not just one of them.
+
+    Returns the per-metric OHLC dict, or None when the session cannot be established.
+    """
+    from api.services import breadth_session as bsess
+    from api.services.breadth_live import compute_metrics
+
+    all_buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    bounds = bsess.rth_bounds(per_ticker)
+    if bounds is None:
+        return None                      # cannot establish a session — refuse the date
+    buckets = bsess.rth_buckets(per_ticker, all_buckets)
+    if not buckets:
+        return None
+    by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
+    # Seed the carry-forward with each name's PRIOR close so breadth is always computed
+    # over the FULL universe. Without it the opening bucket sees only the handful that
+    # printed first — a biased fake-low open that becomes a garbage lower wick.
+    last_px: dict = {}
+    _lv_tk = levels.get("tickers") or []
+    _pc = levels.get("prev_close")
+    if _pc is not None:
+        for _i, _tk in enumerate(_lv_tk):
+            try:
+                _v = float(_pc[_i])
+            except Exception:
+                continue
+            if _v == _v and _v > 0.0 and (members is None or _tk in members):
+                last_px[_tk] = _v
+    prices_by_bucket = []
+    feed = [tk for tk in per_ticker if members is None or tk in members]
+    for T in buckets:
+        for tk in feed:
+            px = by_tb[tk].get(T)
+            if px is not None:
+                last_px[tk] = px
+        prices_by_bucket.append(dict(last_px))
+    if not prices_by_bucket:
+        return None
+    close_m = compute_metrics(levels, prices_by_bucket[-1]) or {}
+    _add_composites(close_m)
+    close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
+    out = aggregate_day(levels, prices_by_bucket, close_val)
+    if out:
+        ok, detail = bsess.validate_against_calendar(D, bounds[1])
+        out["_session"] = {"open_min": bounds[0], "close_min": bounds[1],
+                           "early_close": bsess.is_early_close(bounds[1]),
+                           "buckets": len(buckets), "all_hours_buckets": len(all_buckets),
+                           "bucket_min": bucket_min,
+                           "calendar_ok": ok, "calendar": detail,
+                           # ⚠️ INFERENCE IS LABELLED AS INFERENCE. Outside the repo
+                           # calendar's era the close is DERIVED and nothing confirmed
+                           # it; saying so is the difference between a record and a
+                           # claim.
+                           "close_basis": ("calendar-confirmed" if "agrees" in detail
+                                           else "derived/unverified-by-repo-calendar")}
+    return out
+
+
 def recon_day(D: str, universe: list, client=None, bucket_min: int = 1) -> Optional[dict]:
-    """Reconstruct one past day's per-metric OHLC wicks from S3 minute flat files.
-    D = 'YYYY-MM-DD'. Returns aggregate_day() output, or None if levels/intraday
-    unavailable. HEAVY (whole-market minute file) — call from a worker/bg thread."""
+    """Reconstruct one past day's per-metric OHLC from S3 minute flat files.
+    D = 'YYYY-MM-DD'. Thin wrapper: download, then `session_ohlc`. HEAVY."""
     from datetime import date as _d
     from api.services import breadth_live as bl
     from api.services import build_intraday_cache as bic
@@ -216,59 +297,7 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 1) -> Optio
     res = bic.download_and_resample(client, key, [bucket_min], set(universe))
     if not res or not res.get(bucket_min):
         return None
-    per_ticker = res[bucket_min]                     # {ticker: [{t,o,h,l,c,v}]}
-    by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
-    all_buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
-    # ⛔⛔ REGULAR SESSION ONLY. Every bucket the flat file carries used to be replayed
-    # — 4:00 to 20:00 — so Open was a premarket print and High/Low spanned both extended
-    # sessions. Measured 2026-07-23 (broad US): A20 opened 42.4 instead of 35.5 and the
-    # range inflated from 5.5 to 10.0. See `breadth_session` for why the boundary is
-    # derived from participation rather than a typed calendar that starts in 2025.
-    from api.services import breadth_session as bsess
-    bounds = bsess.rth_bounds(per_ticker)
-    if bounds is None:
-        return None                      # cannot establish a session — refuse the date
-    buckets = bsess.rth_buckets(per_ticker, all_buckets)
-    if not buckets:
-        return None
-    # Seed the carry-forward with each name's PRIOR close so breadth is always
-    # computed over the FULL universe. Without this the 9:30 bucket sees only the
-    # handful of names that printed in the first 30 min → a biased, fake-low open
-    # that becomes a garbage ~13pt lower wick. Stocks sit at prior close until they
-    # trade today; real opening gaps still show once a name prints.
-    last_px: dict = {}
-    _lv_tk = levels.get("tickers") or []
-    _pc = levels.get("prev_close")
-    if _pc is not None:
-        for _i, _tk in enumerate(_lv_tk):
-            try:
-                _v = float(_pc[_i])
-            except Exception:
-                continue
-            if _v == _v and _v > 0.0:                # finite & positive
-                last_px[_tk] = _v
-    prices_by_bucket = []
-    for T in buckets:
-        for tk in per_ticker:
-            px = by_tb[tk].get(T)
-            if px is not None:
-                last_px[tk] = px                     # carry-forward last print
-        prices_by_bucket.append(dict(last_px))
-    if not prices_by_bucket:
-        return None
-    from api.services.breadth_live import compute_metrics
-    close_m = compute_metrics(levels, prices_by_bucket[-1]) or {}
-    _add_composites(close_m)
-    close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
-    out = aggregate_day(levels, prices_by_bucket, close_val)
-    if out:
-        ok, detail = bsess.validate_against_calendar(D, bounds[1])
-        out["_session"] = {"open_min": bounds[0], "close_min": bounds[1],
-                           "early_close": bsess.is_early_close(bounds[1]),
-                           "buckets": len(buckets), "all_hours_buckets": len(all_buckets),
-                           "bucket_min": bucket_min,
-                           "calendar_ok": ok, "calendar": detail}
-    return out
+    return session_ohlc(D, res[bucket_min], levels, bucket_min)
 
 
 # ── Prototype validation: recon wicks vs the REAL live-accumulator wicks ─────
