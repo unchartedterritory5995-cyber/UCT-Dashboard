@@ -399,3 +399,58 @@ the shortfall is arithmetic, not judgement); **the flip decision belongs to the 
 
 ⛔ **No number in this report was chosen by the programme.** Where an instrument could not
 answer, it says so.
+
+## 14.9 · MEASUREMENT AT CLOSE — the pool kept filling, and it replicated
+
+The sampler ran on through the session. At close: **75 usable deep-cold rows across FOUR
+independently deployed SHAs**, all flag OFF. They cannot be pooled — each is its own
+population — but they can be compared, and **agreeing across four separate deploys is
+stronger evidence than one larger pool would have been.**
+
+| deployed SHA | n | p50 |
+|---|---|---|
+| `d5f2c8d83` | 14 | 271.5 ms |
+| `31d706f40` | 19 | 277.2 ms |
+| `9906a7fcd` | 8 | 307.6 ms |
+| `465b12e36` | 34 | 313.4 ms |
+
+**Spread of the four medians: 271.5 – 313.4 ms, 15% apart.** Against D-042's 54,923 ms
+that is **175× at the slowest of them** and 202× at the fastest.
+
+⭐ **The hot-path churn that voided the pool turned into the strongest result in the
+report.** Four different builds of the reader, deployed by other people for other reasons,
+each independently land in the 271–313 ms band. The performance is a property of the
+design, not of one lucky build.
+
+### Outliers, reported both ways (SD-1.6 F1.2)
+
+`465b12e36` carries three rows over 1,000 ms (1167.4 / 1630.0 / 1680.6). With them the p50
+is **313.4 ms**; without them, **305.5 ms** (n=31). The median barely moves — which is what
+a median is for — and the outliers are left in the pool rather than trimmed.
+
+### MIN_UPTIME_S — ANSWERED (SD-1.2 B1.6, SD-1.7 H0.2)
+
+The largest pool satisfies the uptime rule's conjunction, so the question B1.6 held open
+until Pool A reached n ≥ 20 can now be settled:
+
+| | |
+|---|---|
+| Spearman ρ (uptime vs total) | **+0.09** |
+| 300–600 s bucket | n=8, median **327.0 ms** |
+| ≥ 600 s bucket | n=26, median **313.4 ms** |
+| difference | **4.3%** |
+
+**No uptime effect is detectable.** A pod settled for 300 s reads the same as one settled
+for 600. **`MIN_UPTIME_S = 600` is stricter than the data requires and 300 is sufficient** —
+which matters operationally, because the 600 s floor is what made the sampler collect
+almost nothing against a ~1-per-11-minute deploy cadence.
+
+⚠️ Measured on ONE pool at n=34, flag OFF. The recommendation is to adopt 300 as the
+collection floor and keep reporting uptime per row so the question stays answerable; it is
+not a licence to stop recording it.
+
+### What is still not answered
+
+p95 remains **NOT ESTIMABLE**: the largest pool reaches 83% confidence at n=34, needing 25
+more rows on a single unchanged SHA. The flip (R6) never started, because a second arm
+requires the first to be stable long enough to flip against. Both carry to the runner.
