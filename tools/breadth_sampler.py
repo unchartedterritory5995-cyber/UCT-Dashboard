@@ -57,8 +57,21 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
       "Chrome/140.0 Safari/537.36")
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-LOG_PATH = REPO / "logs" / "breadth-samples.jsonl"
-KILL_SWITCH = REPO / "logs" / "STOP-BREADTH-SAMPLER"
+
+#: THE POOL LIVES OUTSIDE EVERY WORKTREE (SD-1.2 B3.1, SD-1.5 E1.1).
+#: It used to be `REPO / "logs"`, where REPO is derived from THIS FILE'S location --
+#: so the pool's identity was "whichever checkout happened to run the sampler", and a
+#: second checkout silently started a SECOND pool while both looked healthy. A pool is
+#: a population, not a directory; it must not move when the code does. Same defect the
+#: git-scope heartbeat log had, found the same night.
+POOL_DIR = pathlib.Path(os.environ.get(
+    "BREADTH_SAMPLER_DIR", "C:/Users/Patrick/uct-breadth-pool"))
+LOG_PATH = pathlib.Path(os.environ.get(
+    "BREADTH_SAMPLER_LOG", str(POOL_DIR / "breadth-samples.jsonl")))
+SUMMARY_PATH = pathlib.Path(os.environ.get(
+    "BREADTH_SAMPLER_SUMMARY", str(POOL_DIR / "breadth-summary.md")))
+KILL_SWITCH = pathlib.Path(os.environ.get(
+    "BREADTH_SAMPLER_KILL", str(POOL_DIR / "STOP-BREADTH-SAMPLER")))
 
 #: ⛔⛔ THERE IS NO SAMPLING WINDOW. Owner ruling 2026-09-15 (SD-1.1 A0): "we no longer
 #: have mid day blocks ever". A 09:25-16:05 ET refusal used to live here; it was carried
@@ -66,9 +79,37 @@ KILL_SWITCH = REPO / "logs" / "STOP-BREADTH-SAMPLER"
 #: The load bound is the CAP and the CADENCE, which bound load directly rather than by
 #: guessing when load is affordable.
 #: Session 7's settle floor. Below this the pod is racing its own prewarmers.
-MIN_UPTIME_S = 600
+#: COLLECTION floor, not the analysis floor (SD-1.7 H0.2). Lowered to 300 for the
+#: close-out night because foreign deploys were resetting the pod every ~11 min and a
+#: 600 s gate collected almost nothing. Every row carries its uptime, so the analysis
+#: re-applies 600 when the >=600 subset is large enough and falls back to >=300 only
+#: after proving no uptime effect. Loosen collection, tighten analysis -- never the
+#: reverse, which would throw away rows that cannot be re-collected.
+MIN_UPTIME_S = int(os.environ.get("BREADTH_SAMPLER_MIN_UPTIME", "600"))
 #: A runaway loop is a self-inflicted load test. 60 deep reads a day is ~1 per 24 min.
-DAILY_CAP = 60
+#: Raisable for a SUPERVISED in-session run only (SD-1.6 F1.1 lifted it to 150 for the
+#: close-out night). The default is the unattended value and must stay 60.
+DAILY_CAP = int(os.environ.get("BREADTH_SAMPLER_CAP", "60"))
+
+#: What WE believe the reader flag is set to, for this run. It is an ASSERTION, not
+#: evidence -- the pod's own phase keys are the evidence, and `flag_observed` below is
+#: derived from them. Recording both is the point: if they ever disagree, the pool is
+#: mixing two configurations and the disagreement must be visible in the row rather
+#: than reasoned about afterwards.
+FLAG_DECLARED = os.environ.get("BREADTH_SAMPLER_FLAG_DECLARED", "unknown")
+#: The phase the resident-recon reader adds. Its presence in a sample's timing is the
+#: pod telling us which reader served the request.
+RESIDENT_PHASE = "rf_resident"
+
+
+def flag_evidence(timing: dict) -> dict:
+    """Per-row flag evidence: what we declared, and what the pod's phases show."""
+    keys = sorted(k for k in (timing or {}) if isinstance(k, str))
+    observed = "on" if RESIDENT_PHASE in keys else ("off" if keys else "unknown")
+    return {"flag_declared": FLAG_DECLARED,
+            "flag_observed": observed,
+            "flag_agrees": (FLAG_DECLARED in ("unknown", observed)),
+            "phase_keys": keys}
 #: Deep reads are expensive; never faster than this.
 MIN_CADENCE_S = 35
 #: On a failure, stop hammering something that is already unwell.
@@ -277,7 +318,8 @@ def main() -> int:
         row = {"ts_utc": datetime.datetime.now(datetime.timezone.utc)
                           .strftime("%Y-%m-%dT%H:%M:%SZ"),
                "et_date": et.strftime("%Y-%m-%d"),
-               "sha": sha_cache["sha"], "uptime_s": uptime, "refused": None, **s}
+               "sha": sha_cache["sha"], "uptime_s": uptime, "refused": None,
+               **flag_evidence(s.get("timing")), **s}
         write_row(row)
         t = s["timing"]
         print(f"[sampler] {et:%H:%M:%S} ET  {'OK ' if s['ok'] else 'FAIL'} "
@@ -299,7 +341,8 @@ def main() -> int:
             write_row({"ts_utc": datetime.datetime.now(datetime.timezone.utc)
                                   .strftime("%Y-%m-%dT%H:%M:%SZ"),
                        "et_date": et.strftime("%Y-%m-%d"),
-                       "sha": sha_cache["sha"], "uptime_s": uptime, "refused": None, **w})
+                       "sha": sha_cache["sha"], "uptime_s": uptime, "refused": None,
+                       **flag_evidence(w.get("timing")), **w})
 
         if taken < want:
             time.sleep(MIN_CADENCE_S)

@@ -238,6 +238,61 @@ jobs:
           echo "DEPLOY_WAIT=not-implemented" >> "$GITHUB_ENV"
           echo "::warning title=Deploy wait not implemented::The token is present but the Railway poll is not built yet — see docs/breadth/deploy-gate-v2.md, 'Serialisation', step 3. Not claiming a wait that did not happen."
 
+      # SD-1.4 D2.1 — EVERY gate run leaves a record, not only the ones that promote.
+      #
+      # ⛔ The cutover's discriminating test is a FAILING gate: production must NOT move
+      # while master does. That case cannot be manufactured (the runbook forbids it) and
+      # had to be waited for — so when the first genuine red arrives, it must capture its
+      # own evidence rather than depend on somebody watching at the time.
+      #
+      # ⭐ It is written HERE, not in the gate, and that is the point: the gate has no
+      # `contents: write` and giving it some so it could publish a status file would be a
+      # real privilege escalation on a public repo. This job already holds the permission
+      # for the fast-forward, and it RUNS on a red gate (the "must have succeeded" step
+      # fails it, and `if: always()` still reaches this).
+      - name: Record this gate run (deploy-gate-state)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # ⛔ EXPORTED, not merely set: the python below reads os.environ, and a shell
+          # variable is invisible to it. Unexported, every field would have been null and
+          # the record would have looked like it worked -- a vacuous artifact is worse
+          # than none, because it reads as evidence.
+          export CONC="${{ github.event.workflow_run.conclusion }}"
+          export RUN_ID="${{ github.event.workflow_run.id }}"
+          export SHA="${{ steps.cand.outputs.sha }}"
+          export PROMOTED_STATE="${promoted:-no}"
+          export PROD_AFTER=$(git ls-remote origin refs/heads/production 2>/dev/null | cut -f1)
+          REC_FILE="$RUNNER_TEMP/gate-run.json"
+          python - "$REC_FILE" <<'PY'
+          import json, os, sys, datetime as dt
+          rec = {
+              "master_sha": os.environ.get("SHA") or None,
+              "gate_run_id": os.environ.get("RUN_ID") or None,
+              "gate_conclusion": os.environ.get("CONC") or None,
+              "promoted": os.environ.get("PROMOTED_STATE") or "no",
+              "production_head_after": os.environ.get("PROD_AFTER") or None,
+              "ts": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+          }
+          open(sys.argv[1], "w", encoding="utf-8").write(json.dumps(rec, indent=2) + "\n")
+          PY
+          cat "$REC_FILE"
+          OLD=$(gh api "/repos/$GITHUB_REPOSITORY/contents/last-gate-run.json?ref=deploy-gate-state" --jq .sha 2>/dev/null || echo "")
+          CONTENT=$(base64 -w0 < "$REC_FILE")
+          if [ -n "$OLD" ]; then
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/last-gate-run.json" \
+              -f message="gate run $SHA ($CONC)" -f branch=deploy-gate-state \
+              -f content="$CONTENT" -f sha="$OLD" >/dev/null && echo "gate-record: UPDATED" \
+              || echo "::warning title=gate record not written::bookkeeping only; the gate's own verdict stands."
+          else
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/last-gate-run.json" \
+              -f message="gate run $SHA ($CONC)" -f branch=deploy-gate-state \
+              -f content="$CONTENT" >/dev/null && echo "gate-record: CREATED" \
+              || echo "::warning title=gate record not written::bookkeeping only; the gate's own verdict stands."
+          fi
+
       - name: Summary
         if: always()
         run: |
