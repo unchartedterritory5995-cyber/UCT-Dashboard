@@ -2384,6 +2384,56 @@ the amendment came from the measurement, and the rails keep it honest.
 
 ---
 
+# ⏸️ j.3 — 1.1 MEASURED. THE CONTRACT IS SETTLED; THE BUILD IS NOT STARTED.
+
+## THE EVALUATOR j.3 REUSES — named, so "no second evaluator" is checkable
+
+| step | where |
+|---|---|
+| `columnColorsForPlot(plot)` — reads `colorMode` beginning `column:`, takes the key, and the two colours via `twoColoursOf` → `{key, up, down}` | `pool.js` |
+| the deciding column, via **the same `bindingKey` every column is stored under** | `binder.js:1024` |
+| `toPoints(column, bars, adjustTime, sc, cc, cond)` → per-**point** `color: c !== 0 ? up : down` | `binder.js` |
+
+⭐ And `columnColorsForPlot`'s own comment forces the fill's shape: *"`colorUp`/`colorDown`
+ARE THE SAME TWO FIELDS `sign` USES. **A third spelling for 'the two colours a per-point
+mode needs' is the second-authority defect this file already avoids once.**"*
+
+## READERS MEASURED
+
+`plots[].fill` — `binder` · `defSchema` · `fillPrimitive` · `nativeRegistry` ·
+`objectCanvas` · `paneLayout`. `colorMode` — `binder` · `defSchema` · `markerPrimitive` ·
+`nativeRegistry` · `pool` · `presentation`.
+
+⭐ **The Python lane reads no `plots` at all** — no cross-language concern (a7.3 is not
+engaged). ⭐ **`defSchema` rejects no unknown keys**, and `validateFills` checks only
+`with`; **`fillColor`/`fillOpacity` do not appear in `defSchema` at all**, so the static
+fill colour is *already* carried unvalidated. Contract (i) is **ignored, not broken**, by
+every reader but the binder.
+
+## ✅ CONTRACT (i) CHOSEN, IN THE STRONGEST FORM AVAILABLE
+
+> `fill: { with, colorMode: 'column:<key>', colorUp, colorDown }`
+
+⛔ **The same three field names a plot uses**, so `columnColorsForPlot(plot.fill)` works
+**verbatim** — no new function, no third spelling, and R10's "one colour path" is
+satisfied by *handing the fill to the same reader* rather than by a promise.
+**Contract (ii) — a fill-specific field — is recorded here as the rejected alternative**,
+and would have been written at `defSchema.js`'s `validateFills`.
+
+## ⛔ THE RENDERER HALF IS THE REAL WORK, AND 1.1 NAMES IT EXACTLY
+
+The evaluator yields per-**point** colours for a **series**. `createFillPrimitive` takes
+**one** `color` and sets `ctx.fillStyle` **once per frame, outside the polygon loop**
+(`fillPrimitive.js:169`). So j.3 must make the draw emit **runs grouped by the condition**,
+each filled with its own colour — a genuine change to the draw path, not a carriage
+change. ⭐ That is why j.3's estimate is the one to distrust, and it is now distrusted
+for a *named* reason rather than a feeling.
+
+> ### ⛔ RESUME AT j.3 §1.2 — the red acceptance. The contract above is settled;
+> do not re-derive it. The open work is `fillPolygons`/`draw` emitting per-run colour.
+
+---
+
 # ⛔⛔ STANDING RULE — **INTERMITTENT IS NOT LOAD-SENSITIVE** (owner, 2026-09-15)
 
 > Before a red is attributed to a change, it is run **alone on the CLEAN tree**
