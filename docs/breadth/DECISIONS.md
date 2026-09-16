@@ -1360,3 +1360,34 @@ SD-1.2 B1.3 authorised the cutover to proceed on the compensating control instea
 ⚠️ **Still unproven, and the runbook says so:** the discriminating test is a FAILING gate —
 the deployed SHA must stay at the old `production` while `master` moves ahead. Do not
 manufacture one; check it at the next genuine gate failure.
+
+### G4 — PREDICTED TIMELINE, written BEFORE the verification push (SD-1.4 D1.1)
+
+This landing is the first promotion after G3, so it is the verification push. The
+prediction is recorded before the push so the observation cannot be fitted to it
+afterwards.
+
+| t (from push) | predicted event | how it is read |
+|---|---|---|
+| 0 | push lands on `master` | push timestamp, captured by the runner |
+| +3–5 s | `master deploy gate` run starts | Actions API |
+| ~+2 min | gate passes | Actions API, `conclusion: success` |
+| +1–3 s | `promote to production` fast-forwards `production` | Actions API |
+| **then** | **a `web` deployment is CREATED, `meta.branch == "production"`** | `railway deployment list` |
+| ~+2 min | that deployment reaches SUCCESS | same |
+| end | deployed `meta.commitHash` == `origin/production` HEAD | both |
+
+**The discriminating field is `meta.branch`.** Every deployment before the cutover
+reads `"master"` — including `4c3c2cc82`, which is the control proving the field
+varies rather than being cosmetic. The first post-cutover deployment must read
+`"production"`.
+
+⛔ **The build must be CREATED AFTER the promotion's timestamp.** A build created
+before it would mean Railway reacted to the master push, i.e. the repoint did not take,
+and the SHAs would agree only by coincidence — the same "agrees for the wrong reason"
+trap the runbook warns about.
+
+**FAILURE ACTION, armed on an absolute 20-minute clock from the push:** if no
+production-branch build is created by then, or a build is created from `master`, or it
+does not reach SUCCESS → `deploymentTriggerUpdate(web, branch=master)`, confirm the next
+`web` deploy SUCCEEDS, mark **G3 FAILED** with every timestamp, and stop the G track.
