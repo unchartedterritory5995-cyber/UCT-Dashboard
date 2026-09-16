@@ -92,6 +92,74 @@ jobs:
       - name: Install the gate's dependencies
         run: python -m pip install --quiet pytest httpx numpy pillow
 
+      # ⛔⛔ COMPENSATING CONTROL — the DETECTIVE half of the protection `production`
+      # does not have. Branch protection (G6) is the preventive half and is still
+      # OWNER-PENDING; SD-1.2 B1.3 let the cutover proceed on this instead.
+      #
+      # It answers one question: is `production` where the last recorded promotion
+      # left it? If somebody pushed to `production` directly, this refuses BEFORE any
+      # scan runs and names the SHA and its author.
+      #
+      # ⛔ THREE STATES, NOT TWO — the same reason the range scan below has six.
+      # "The records disagree" and "there is no record yet" are different facts and
+      # only one of them is a failure. A two-state version would either fail every run
+      # before the first promotion or, far worse, read a permanently missing record as
+      # agreement — a check that cannot fail, which is this repo's most-repeated bug.
+      #
+      # ⚠️ TWO LIMITS, STATED BECAUSE THEY ARE REAL:
+      #   1. DETECTIVE, NOT PREVENTIVE. It notices a foreign push; it cannot stop one.
+      #   2. Its cadence is tied to MASTER PUSHES. A foreign push to `production`
+      #      during a quiet period goes unnoticed until the next master push.
+      # G6 closes both. Until then this is better than nothing only because it halts
+      # promotion rather than merely logging.
+      - name: Production is where the last promotion left it
+        run: |
+          set -uo pipefail
+          git fetch --no-tags --quiet --depth=1 origin "+refs/heads/deploy-gate-state:refs/remotes/origin/deploy-gate-state" 2>/dev/null || true
+          CUR=$(git ls-remote origin refs/heads/production 2>/dev/null | cut -f1)
+          if [ -z "$CUR" ]; then
+            echo "promotion-control: NO PRODUCTION BRANCH — nothing to compare (pre-cutover)"
+            exit 0
+          fi
+          REC=""
+          if git cat-file -e origin/deploy-gate-state:last-promotion.json 2>/dev/null; then
+            REC=$(git show origin/deploy-gate-state:last-promotion.json 2>/dev/null)
+          fi
+          if [ -z "$REC" ]; then
+            echo "promotion-control: NO RECORD — nothing recorded yet; production=$CUR is NOT verified"
+            exit 0
+          fi
+          PROMOTED=$(printf '%s' "$REC" | python -c 'import json,sys; print(json.load(sys.stdin).get("promoted_sha") or "")')
+          if [ -z "$PROMOTED" ]; then
+            echo "promotion-control: UNREADABLE RECORD — no promoted_sha in the record; production=$CUR is NOT verified"
+            exit 0
+          fi
+          if [ "$PROMOTED" = "$CUR" ]; then
+            echo "promotion-control: MATCH  production=$CUR"
+            exit 0
+          fi
+          # They differ. That is NOT yet a finding: a promotion whose record-write failed,
+          # and the window before the writer itself shipped, both land here legitimately.
+          # The question that actually separates a promotion from a foreign push is
+          # whether `production` holds something MASTER CONTAINS — a promotion only ever
+          # fast-forwards to a master commit.
+          git fetch --no-tags --quiet --depth=200 origin master production 2>/dev/null || true
+          if ! git cat-file -e "${CUR}^{commit}" 2>/dev/null || ! git cat-file -e "${PROMOTED}^{commit}" 2>/dev/null; then
+            echo "::warning title=promotion-control undecidable::production=$CUR differs from the recorded $PROMOTED and neither could be resolved in this shallow clone. NOT verified."
+            echo "promotion-control: UNDECIDABLE — commits unreachable in this clone; production=$CUR is NOT verified"
+            exit 0
+          fi
+          if git merge-base --is-ancestor "$PROMOTED" "$CUR" 2>/dev/null \
+             && git merge-base --is-ancestor "$CUR" origin/master 2>/dev/null; then
+            echo "::warning title=promotion record is stale::production=$CUR is ahead of the recorded $PROMOTED and is contained in master, so a promotion advanced it without recording. Not a foreign push; the next promotion re-records."
+            echo "promotion-control: AHEAD-UNRECORDED  production=$CUR  recorded=$PROMOTED"
+            exit 0
+          fi
+          WHO=$(git log -1 --format='%an <%ae>  %aI' "$CUR" 2>/dev/null || echo 'unknown — the commit could not be fetched')
+          echo "promotion-control: MISMATCH  production=$CUR  recorded=$PROMOTED"
+          echo "::error title=production diverged from the promotion record::production is at $CUR, which master does not contain (or which moved backwards from the recorded $PROMOTED). Author: $WHO. Nobody promoted it — halting before any scan."
+          exit 1
+
       # ⛔ A PUSHED SECRET IS PUBLIC EVEN IF DELETED AFTERWARDS — this repo is
       # public. This is the same scanner the pre-push hook runs, here where
       # --no-verify cannot reach it.

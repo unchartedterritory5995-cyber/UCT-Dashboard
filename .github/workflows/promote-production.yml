@@ -168,6 +168,54 @@ jobs:
           git push origin "$SHA":refs/heads/production
           echo "promoted=$SHA" >> "$GITHUB_ENV"
 
+      # SD-1.3 C2.1 — write down what was promoted, somewhere a human and the NEXT
+      # gate run can both read it WITHOUT a token. Session 14 could not read the gate
+      # log at all (no `gh` on the operator's box, and the Actions log needs auth), so
+      # the advisory range scan's six states were invisible from outside CI. The record
+      # lands on the `deploy-gate-state` orphan branch; its README says why there and
+      # nowhere else.
+      #
+      # ⛔ BEST-EFFORT, AND DELIBERATELY SO: this must never fail a promotion that has
+      # already happened. The fast-forward above is the act; this is bookkeeping about
+      # it. If the write fails, the PREVIOUS record stays, and the next gate run reports
+      # MISMATCH — wrong, but loudly and in the safe direction.
+      #
+      # ⛔ An unreadable log records `null`, never a verdict. tools/promotion_record.py
+      # owns that rule (and is tested); nothing here parses the log itself.
+      - name: Record the promotion (deploy-gate-state)
+        if: steps.exists.outputs.exists == 'yes' && env.promoted != ''
+        env:
+          SHA: ${{ steps.cand.outputs.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          GATE_RUN_ID="${{ github.event.workflow_run.id }}"
+          LOG_FILE="$RUNNER_TEMP/gate-run.log"
+          REC_FILE="$RUNNER_TEMP/promotion-record.json"
+          : > "$LOG_FILE"
+          if [ -n "$GATE_RUN_ID" ]; then
+            gh run view "$GATE_RUN_ID" --log > "$LOG_FILE" 2>/dev/null || : > "$LOG_FILE"
+          fi
+          python tools/promotion_record.py \
+            --promoted-sha "$SHA" --master-sha "$SHA" \
+            --gate-run-id "$GATE_RUN_ID" --log-file "$LOG_FILE" > "$REC_FILE"
+          cat "$REC_FILE"
+          OLD=$(gh api "/repos/$GITHUB_REPOSITORY/contents/last-promotion.json?ref=deploy-gate-state" --jq .sha 2>/dev/null || echo "")
+          CONTENT=$(base64 -w0 < "$REC_FILE")
+          if [ -n "$OLD" ]; then
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/last-promotion.json" \
+              -f message="promotion record $SHA" -f branch=deploy-gate-state \
+              -f content="$CONTENT" -f sha="$OLD" >/dev/null \
+              && echo "promotion-record: UPDATED $SHA" \
+              || echo "::warning title=promotion record not written::the fast-forward succeeded; the record did not update. The next gate run will report MISMATCH."
+          else
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/last-promotion.json" \
+              -f message="promotion record $SHA" -f branch=deploy-gate-state \
+              -f content="$CONTENT" >/dev/null \
+              && echo "promotion-record: CREATED $SHA" \
+              || echo "::warning title=promotion record not written::the fast-forward succeeded; the record was not created."
+          fi
+
       # ⛔⛔ THIS IS WHAT MAKES THE QUEUE REAL. Owner ruling: "A push is not clear until
       # its web deploy reaches SUCCESS." Holding the job until Railway finishes means
       # the NEXT queued promotion cannot start a second deploy inside the first one's

@@ -1,3 +1,61 @@
+# TRACK A FOLLOW-UP — PANE TRANSITION SIZING + LOOKBACK ANCHOR — DEPLOYED 2026-09-15
+
+master e49cf70c2 (merged 76 partner commits, all Breadth Library — zero file
+overlap). Pushed 21:21 EDT. Deploy landed (uptime reset to 39s); web /api/health
+200 ok, bars-api 200, member gate 401. Watched 3 min: uptime 75 -> 238s
+monotonically. No crash loop.
+
+## Root cause — an off-by-one in slot naming that CANCELLED ITSELF
+
+`computePaneLayout`'s no-instance-panes answer (`pane0Only`) built `keyByIndex`
+from `firstPaneIndex - (volume is a BAND ? 1 : 0) - 1`. Correct for a banded
+volume (1-1-1 = 0); off by one for the SHIPPED config, where a separate volume
+pane makes `firstPaneIndex` 2 with no band = 1. Price was named slot 1 and Volume
+slot 2 on a chart whose only panes are 0 and 1.
+
+⭐⭐ IT HID FOR A REASON WORTH REMEMBERING: `sizesFromStretch` RECORDS through that
+map and `applyPaneSizes` APPLIES through it. Store Volume's share under Price's
+name at slot 1, re-apply it to slot 1, and the pixels land exactly where the
+member left them. Two-pane resize was measured perfect, repeatedly. The lie only
+surfaces when a THIRD pane appears and the (correct) panes-mode builder takes
+over — `price` starts meaning price, so the member's Volume enlargement is handed
+to the PRICE pane while Volume and the newcomer split the rest and both inflate.
+
+MEASURED: Volume dragged to 0.511 of the stack stored `{price: 0.5109}`, no
+volume entry. After the fix: `{price: 0.4427, volume: 0.5573}`.
+
+FIX: `pinned = mainPaneIndex` — the panes ABOVE the arrangement and not in it,
+which is only ever the Model Book index pane.
+
+## Second, smaller defect on the same path
+
+A complete two-pane partition (sum 1.0) applied to a three-pane stack left the
+newcomer `1 - MIN_SHARE` — a 4% sliver. `applyPaneSizes` now reserves the UNPINNED
+panes' own canonical default from `base`, but ONLY when the pinned shares are a
+complete partition — so a member who deliberately grows ONE pane still gets
+exactly what they asked for. Pinned shares scale together, preserving their ratio.
+
+⚠️ The first attempt reserved unconditionally and broke three existing rails by
+clamping deliberate enlargements. The condition is "the stored set is a stale
+complete partition", not "the stored set is large".
+
+## Lookback anchor (owner UX request)
+
+`lookbackBottomFor`: immediately ABOVE a separate Volume pane's top edge;
+workspace-bottom fallback when volume is banded, hidden, absent, or itself the
+top pane. This relaxes the old "no pane argument" guarantee deliberately — the
+dependency that guarantee forbade was PRICE, and it still is. Buttons unchanged.
+
+## Live-verified
+
+Rail A in the harness: QQQ own -> Volume guest -> own pane returns to exactly
+0.663 / 0.221 / 0.116 with `paneSizes: {}`. Lookback renders above Volume.
+
+## Gate
+
+14 focused files / 227 tests green. Broad src/components + src/pages: same 5
+pre-existing failing files, zero attributable. Build clean.
+
 # TRACK A LIVE CLUSTER — DEPLOYED 2026-09-15 (master b5a3817c4)
 
 Pushed 64269ffe5 -> b5a3817c4 at 19:04 EDT (after the 16:00 close, market-hours

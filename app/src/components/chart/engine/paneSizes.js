@@ -173,17 +173,6 @@ export function applyPaneSizes(plan, keyByIndex, sizes) {
   }
   if (!pinned.length) return base
 
-  // ⛔ THE PINNED SHARES MAY NOT EAT THE STACK. If they sum past the ceiling the
-  // whole set is scaled down together, which keeps their RELATIVE sizes — the
-  // member's actual intent — while leaving the others something to live in.
-  const ceiling = 1 - MIN_SHARE
-  let sum = pinned.reduce((s, p) => s + p.share, 0)
-  if (sum > ceiling) {
-    const k = ceiling / sum
-    for (const p of pinned) p.share *= k
-    sum = ceiling
-  }
-
   const pinnedIdx = new Set(pinned.map((p) => p.idx))
   const others = []
   let othersTotal = 0
@@ -192,6 +181,43 @@ export function applyPaneSizes(plan, keyByIndex, sizes) {
     const v = Number.isFinite(base[i]) && base[i] > 0 ? base[i] : 0
     others.push(i)
     othersTotal += v
+  }
+
+  // ⛔ THE PINNED SHARES MAY NOT EAT THE STACK. If they sum past the ceiling the
+  // whole set is scaled down together, which keeps their RELATIVE sizes — the
+  // member's actual intent — while leaving the others something to live in.
+  //
+  // ⚰️⚰️ AND "SOMETHING TO LIVE IN" USED TO MEAN ONE MIN_SHARE FOR THE WHOLE
+  // REMAINDER, WHICH STARVED A NEW PANE. Measured live 2026-09-15: a member
+  // enlarged Volume while a QQQ series was guesting inside it (`{price .443,
+  // volume .557}` — a pinned sum of 1.0), then sent QQQ back to its own pane. The
+  // newcomer is UNPINNED, so it got `1 - 0.96` of the stack — a four-percent
+  // sliver — while the two pinned panes kept essentially everything.
+  //
+  // ⭐⭐ SO THE RESERVATION IS THE UNPINNED PANES' OWN CANONICAL DEFAULT. `base` is
+  // `paneStretchPlan`'s computed answer, which already knows an auxiliary pane is
+  // compact (~12% of a three-pane stack), so reserving THAT is what gives a new
+  // host the size the layout would have given it — no pixel constant, no "if this
+  // is a new pane", and no opinion about which pane it is. The pinned panes are
+  // scaled down together, so the member's RATIO between the panes they actually
+  // dragged is preserved exactly.
+  // ⛔ THE CONDITION IS "THE STORED SHARES ARE A COMPLETE PARTITION", not merely
+  // "they are large". A member who deliberately grows ONE pinned pane must keep
+  // what they asked for, and the unpinned panes shrinking proportionally below
+  // their default is the correct answer there. What is NOT correct is a stored
+  // set that already accounts for the WHOLE stack being applied to a stack that
+  // has since gained a pane — there is nothing left to distribute, and the
+  // newcomer is clamped to a sliver.
+  const othersBase = total > 0 ? othersTotal / total : 0
+  const pinnedSum = pinned.reduce((s, p) => s + p.share, 0)
+  const stalePartition = others.length > 0 && pinnedSum >= 1 - MIN_SHARE
+  const reserve = stalePartition ? Math.min(0.9, Math.max(MIN_SHARE * others.length, othersBase)) : MIN_SHARE
+  const ceiling = 1 - reserve
+  let sum = pinnedSum
+  if (sum > ceiling) {
+    const k = ceiling / sum
+    for (const p of pinned) p.share *= k
+    sum = ceiling
   }
 
   const out = base.slice()
