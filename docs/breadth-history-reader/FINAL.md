@@ -375,8 +375,15 @@ Recorded because the catches are the transferable part.
 | 7 | `$?` read `head`/`tail` through a pipe **twice**, reporting a refused commit as exit 0 | the artifact — the unchanged SHA |
 
 ⭐ The through-line: **every one was an instrument reporting a property of itself as a
-property of the world.** That is the same defect this programme was created to find, and
-it found six of them in its own tools in one night.
+property of the world** — the same defect this programme was created to find, found in
+its own tools **seven times in one night**.
+
+⚰️ That sentence first read *six*, beside a table of seven. **A hand-typed count next to
+the list it describes** is the drift this repository has paid for repeatedly — the
+writer-index `FOUR`, the COT router's "4 routes", the setup catalog's "24" — and it was
+committed here, in the appendix about exactly this. Corrected by deriving the count from
+the numbered rows; if a row is ever added, derive it again rather than trusting this
+sentence.
 
 ## 14.8 · CLOSING STATEMENT (§8 completion)
 
