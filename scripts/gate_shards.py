@@ -152,6 +152,32 @@ def compare_failures(observed: list[str], baseline: list[str],
     }
 
 
+def unexplained(baseline: dict) -> list[str]:
+    """`expected_red` entries with no reason beside them — the gate's own class of answer.
+
+    ⛔ ONE IMPLEMENTATION, AND IT LIVES HERE RATHER THAN IN THE TEST. It was written in
+    `tests/test_gate_shards.py` on 2026-09-14 and used by the rail, the rail's control and
+    nothing else — so the *product* never applied the predicate its own test enforced. A run
+    against a baseline carrying an unexplained entry exited 0 with "no NEW failures", because
+    `compare_failures` subtracts `expected_red` from `new` WITHOUT ASKING WHETHER ANYBODY CAN
+    VOUCH FOR THE ENTRY. Promoted, so the check the suite makes at commit time is the same
+    check the gate makes at run time (`lesson_a_guard_repeated_is_a_guard_unproved`: the test
+    now imports this, it does not restate it).
+
+    ⛔⛔ AND IT IS ITS OWN CLASS, NOT A FAILURE AND NOT A PASS. An unexplained entry is neither
+    a regression (`new`) nor a fixed defect (`expected_red_stale`): it is a waiver nobody
+    signed. Folding it into the pass/fail count would reproduce exactly the defect this repo
+    keeps paying for — an UNREADABLE layer scored as an EMPTY one. `EXIT_UNEXPLAINED_RED`
+    below carries it out to the caller intact.
+
+    ⭐ A MISSING KEY AND AN EMPTY LIST ANSWER THE SAME WAY, deliberately: a baseline that
+    declares no `expected_red` has nothing to explain, which is the honest empty answer and
+    the reason every rail over this needs a planted control beside it.
+    """
+    reasons = baseline.get("expected_red_reasons") or {}
+    return [e for e in (baseline.get("expected_red") or []) if e not in reasons]
+
+
 def sum_totals(per_shard: list[dict]) -> dict:
     """The summed line a future reader reconciles against, without re-running anything."""
     acc = {"files": {}, "tests": {}}
@@ -495,6 +521,13 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
     waived = count_waived_files(tuple(exclude))
     base = load_baseline()
     failures = sorted(set(failures))
+    vs_baseline = compare_failures(failures, base.get("failures") or [],
+                                   base.get("expected_red") or [])
+    # ⛔ COMPUTED WHERE THE BASELINE DICT IS STILL IN HAND, and published into the SAME block the
+    # exit code reads. `compare_failures` takes lists, so it cannot see the reasons map; adding
+    # the key afterwards in run_gate keeps ONE place where `vs_baseline` is assembled rather than
+    # a second authority patching it later (`lesson_a_second_authority_over_one_value`).
+    vs_baseline["expected_red_unexplained"] = unexplained(base)
     return {
         "at": _dt.datetime.now().isoformat(timespec="seconds"),
         "tree_head_start": start_head,
@@ -517,8 +550,7 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "failures": failures,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
-        "vs_baseline": compare_failures(failures, base.get("failures") or [],
-                                        base.get("expected_red") or []),
+        "vs_baseline": vs_baseline,
         "do_not_build": do_not_build_sweep(),
     }
 
@@ -579,6 +611,15 @@ def render(manifest: dict) -> str:
                      f"(fixed, or silently stopped running — check which)")
         for nf in v["no_longer_failing"]:
             lines.append(f"    - {nf}")
+    # ⛔ ITS OWN LINE, AND IT ALWAYS PRINTS. An unexplained waiver was subtracted out of the NEW
+    # count above, so the reader must be told the subtraction happened on an unsigned excuse —
+    # and on a clean baseline the explicit "0" is what distinguishes a gate that CHECKED from an
+    # older artifact whose gate could not.
+    _unx = v.get("expected_red_unexplained") or []
+    lines.append(f"- expected-red entries naming **no reason**: **{len(_unx)}**"
+                 + ("" if _unx else " — none"))
+    for ue in _unx:
+        lines.append(f"    - ⛔ {ue} (subtracted from NEW on an excuse nobody wrote down)")
     lines.append("")
     lines.append("✅ **The failing set matches the baseline exactly.**" if v.get("matches_baseline")
                  else "⛔ **The failing set DIFFERS from the baseline** — read the two lists above.")
@@ -713,6 +754,11 @@ def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
         # distinction `compare_failures` was changed to make.
         expected_red_seen=len(v.get("expected_red_seen") or []),
         expected_red_stale=len(v.get("expected_red_stale") or []),
+        # ⛔ ON THE LINE, ALWAYS, INCLUDING WHEN IT IS 0. A field that appears only on a hit makes
+        # "the gate checked and found none" indistinguishable from "this gate never checked" to
+        # anyone grepping an older artifact — the same reason the DO-NOT-BUILD section always
+        # prints. Zero here is a measurement.
+        expected_red_unexplained=len(v.get("expected_red_unexplained") or []),
         test_files=manifest["summed"]["files"]["total"],
         tests_failed=manifest["summed"]["tests"]["failed"],
         reconciles=str(bool(manifest["file_count_reconciles"])).lower(),
@@ -732,6 +778,13 @@ EXIT_INVALID = 2
 # into INVALID would make a queued run indistinguishable from a broken one, and the two call for
 # opposite responses: wait, versus go and look.
 EXIT_LOCK_HELD = 4
+# ⛔ ITS OWN CODE, for the same reason 3 and 4 have theirs. An `expected_red` entry that names no
+# reason is a WAIVER NOBODY SIGNED: `compare_failures` subtracts it out of `new`, so the run reads
+# green on the strength of an excuse that cannot be checked. That is neither a regression (1) nor
+# a broken run (2) nor a busy box (4) — and it is emphatically not a pass. A caller that cannot
+# tell it from `NEW_FAILURES` would go hunting for a regression that does not exist; one that
+# cannot tell it from `NO_NEW_FAILURES` would merge on an unaudited excuse.
+EXIT_UNEXPLAINED_RED = 5
 
 # ⛔⛔ THE VERDICT IS A LINE OF OUTPUT, BECAUSE THE EXIT CODE IS NOT TRUSTWORTHY IN TRANSIT.
 #
@@ -766,6 +819,9 @@ VERDICT_NAMES = {
     # stage-2-verification.md §2 now treats run-hub-rails.mjs's exit 2: a refusal to start is
     # "this did not run", never "this ran and was fine".
     EXIT_LOCK_HELD: "REFUSED-LOCK",
+    # ⛔ NAMED FOR THE THING THAT IS WRONG WITH THE BASELINE, not for the suite. The suite may
+    # have been perfect; what cannot be trusted is the subtraction that made it look that way.
+    EXIT_UNEXPLAINED_RED: "UNEXPLAINED_RED",
 }
 
 
@@ -849,6 +905,25 @@ def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
     stale = v.get("no_longer_failing") or []
     exp_seen = v.get("expected_red_seen") or []
     exp_stale = v.get("expected_red_stale") or []
+    # ⛔⛔ AN UNEXPLAINED WAIVER IS ANSWERED BEFORE THE THING IT WAIVES.
+    # `compare_failures` has ALREADY subtracted every `expected_red` entry out of `new` by the
+    # time this function runs, so if one of those entries names no reason, `new: 0` is not a
+    # green verdict — it is an unanswered question wearing one, the same shape as a run that
+    # did not reconcile. Reported here rather than folded into the counts above, because the
+    # correct response is different from every other code's: go and write the reason, or delete
+    # the entry. `unexplained()` is the one predicate, shared with the rail in the test suite.
+    unexplained_red = v.get("expected_red_unexplained") or []
+    if unexplained_red:
+        say("", err=True)
+        say(f"  GATE: {len(unexplained_red)} expected-red entr(ies) name NO reason — "
+            f"exit {EXIT_UNEXPLAINED_RED}.", err=True)
+        for _e in unexplained_red:
+            say("    - " + _e, err=True)
+        say("  Each was subtracted out of the NEW-failure count on the strength of an excuse", err=True)
+        say("  nobody wrote down. Give it a `why` and a `waits_on` in expected_red_reasons, or", err=True)
+        say("  remove the entry — a deliberate red nobody can explain is indistinguishable from", err=True)
+        say("  one nobody noticed.", err=True)
+        return EXIT_UNEXPLAINED_RED
     # ⛔⛔ A DELIBERATE RED THAT HAS TURNED GREEN IS A FAILURE, NOT A RELIEF. Its
     # defect is fixed, so the entry is stale — and a stale entry is a slot a real
     # failure can occupy unnoticed. Named, so the next reader knows what to delete.
