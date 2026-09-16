@@ -311,19 +311,25 @@ def _start_combined_pass():
 
     def run():
         time.sleep(45)                      # let boot settle before a heavy job
-        from api.services import breadth_combined_pass as cp
-        legs = [(("uct", "us"), "2008-01-02", "2010-12-31"),
-                (cp.ALL_UNIVERSES, "2011-01-03",
-                 os.environ.get("BREADTH_COMBINED_PASS_TO") or "2026-09-11")]
-        for unis, frm, to in legs:
-            try:
-                log.info(f"combined pass leg {frm}..{to} {unis} -> {artifact}")
-                res = cp.run(artifact, frm, to, universes=unis, progress_every=25)
-                log.info(f"combined pass leg DONE {frm}..{to}: {res}")
-            except Exception as e:
-                log.exception(f"combined pass leg {frm}..{to} failed: {e}")
-                return
-        log.info("combined pass COMPLETE (all legs)")
+        import subprocess
+        # ⚰⚰ A SUBPROCESS, NOT A THREAD, AND THE DIFFERENCE IS 13x. The first version
+        # of this hook ran the pass in-thread and it collapsed from 13.7 s/session
+        # standalone to 180 s/session — a ~35-hour job becoming 224 hours. The worker is
+        # busy (host load average 26 when measured) and the minute-file parse is pure
+        # Python, so in-thread it holds the GIL against everything else the pod does.
+        # Its own interpreter gets the speed back; spawning from the boot hook keeps the
+        # resilience that motivated the hook in the first place.
+        cmd = [sys.executable, "-m", "api.services.breadth_combined_pass",
+               "--artifact", artifact]
+        to = os.environ.get("BREADTH_COMBINED_PASS_TO")
+        if to:
+            cmd += ["--to", to]
+        log.info(f"combined pass spawning: {' '.join(cmd)}")
+        try:
+            rc = subprocess.call(cmd)
+            log.info(f"combined pass process exited rc={rc}")
+        except Exception as e:
+            log.exception(f"combined pass could not be spawned: {e}")
 
     threading.Thread(target=run, daemon=True, name="breadth_combined_pass").start()
     log.info(f"breadth combined pass armed -> {artifact}")
