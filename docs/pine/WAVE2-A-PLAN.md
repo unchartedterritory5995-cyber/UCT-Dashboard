@@ -2202,6 +2202,98 @@ server-side and **7 days in the browser**; and `heal_nameless_names` rewrites a 
 
 ---
 
+# ⛔ (j) — UNCHARTED CLOUDS: THE BUILD PLAN. **THIS IS THE ONE STOP.**
+
+Scoped by reading only (`70e3b5a9d`, 11 gaps with file:line). **Nothing below is built.**
+(j) changes the renderer, and the owner rules on its scope.
+
+## ⭐⭐ THE FINDING THAT RESHAPES THE WHOLE ESTIMATE: **IT IS TWO DROPS, NOT ONE**
+
+| | |
+|---|---|
+| **G1** | `memberPaneDefinition.js:100` — the drawable filter carries `!o.hidden`, so Clouds' **21 `display.none` anchors** never enter the pane document. **23 → 2.** |
+| **G4** | `binder.js:824` — a hidden plot is `continue`d in **pass one**, so it never enters `prepared` and never reaches the fill wiring in **pass two** (`:1000-1032`), which attaches a fill to the plot's **own series** — which a hidden plot does not have. |
+
+⛔⛔ **LIFTING G1 ALONE YIELDS 21 ROWS THE BINDER THEN ORPHANS, AND ZERO CLOUDS.**
+Different files, different layers, neither removal makes the other moot. **Planning them
+as one gap would have priced half the work** — and the symptom is identical, which is
+exactly why it would have gone unnoticed until the first render.
+
+⭐ The engine is **innocent**: `pine.js:11928-11933` explicitly keeps hidden outputs in
+strict mode, and `paneGate` never inspects the row set. Both drops are downstream.
+
+## THE SUB-STEPS, IN ORDER, WITH ESTIMATES
+
+| # | step | estimate |
+|---|---|---|
+| **j.1** | **the saved definition carries all 23.** Red on the count, then BOTH drops: G1's filter and G4's pass-one `continue`. Its acceptance must assert the count at **each** layer — translation, pane document, binder `prepared` — or a fix to one reads as a fix to both. | **90** |
+| **j.2** | **a fill draws between two hidden anchors.** G4's other half plus `fillPrimitive`. Depends entirely on j.1b's shape. | **60** |
+| **j.3** | **a series-conditional fill colour.** The four-layer contract gap below. The largest and the least certain. | **120, and it is the one to distrust** |
+| **j.4** | **acceptance = Wave 1's procedure**, both tables, two mobile tiers, against the 3B capture. | **45** |
+| **j.5** | **anything crossing beyond fills** — named as a ruling question, never assumed. | **not estimable** |
+
+**Total for j.1–j.4: ~315 min (5¼ h), stop 630.** ⛔ j.3 is the number to distrust: it is
+priced against a contract gap I have read but never driven.
+
+## j.3 — THE FILL-COLOUR CONTRACT, FOUR LAYERS, NAMED NOT CHOSEN
+
+1. **G6** — the fill note has **no field for a condition** while a plot note has three
+   (`pine.js:11287-11293`; the real field set is `{a, b, color?, opacity?}`, optional keys
+   *omitted*, not `undefined`).
+2. **G7** — ⭐ and for Clouds **the field would be empty anyway**: both branches are
+   user-function calls, and `staticColourOf` folds neither (`pine.js:12426-12428`). **So
+   adding the field first would produce a correct, empty contract and look like
+   progress.**
+3. **G8** — `defSchema`'s `plots[].fill` is `{with}` with a static colour; plots have
+   `colorMode: 'column:<key>'` and **fills have no analogue** (`defSchema.js:1580-1584`).
+4. **G5** — `fillPrimitive.js:169` sets `ctx.fillStyle` **once per frame**: there is no
+   per-run colour channel to write into.
+
+⛔ **R10 stands: no second colour path.** Whatever closes this must be the carriage the
+plots already use, not a parallel one.
+
+## ⛔⛔ AND (i) CHANGES j.4's ACCEPTANCE — DO NOT INHERIT WAVE 1's TOLERANCE BLIND
+
+Wave 1's fixture `spy-1d-bars-3000-2026-09-13.json` has **last bar `2026-09-11`** —
+**every bar sealed**, which is exactly the half where the pane and screener lanes agree
+*by construction*. **Reusing that procedure unchanged would not exercise the developing
+bar at all**, and (i) measured three live divergence points plus **four different
+renderings of today's volume inside the pane path alone**. j.4 must either capture a
+developing bar or **state in the artifact that the live half is uncovered.** ⛔ Silence
+there would be the "tolerance on a count is not tolerance" defect one level up.
+
+## ⛔⛔ OWNER-RULING TRIGGERS — (j) CANNOT START WITHOUT THESE
+
+1. **The renderer beyond fills.** `binder.js:824` is the **hidden-plot** path, not the
+   fill path. No cloud draws unless it changes behaviour or a fill attaches somewhere
+   other than its own series.
+2. **`CARRY_MAX` is shared** with the builder's own import (`memberPaneDefinition.js:48`),
+   so moving it for (j) moves it for the builder. It does not bite today (2 < 12); **it
+   bites at 23**, i.e. the moment j.1 succeeds.
+3. **Is relaxing `!o.hidden` a D2 revisit?** The filter is in `memberPaneDefinition`, not
+   `paneGate` — **routed, not decided.**
+4. **Adjacent to removing a working capability.** The filter is reinforced by ruling 1.2
+   (`pine.hiddenOnly.test.js` — the Supertrend/ohlc4 and Butterworth mistranslations).
+   Making hidden rows drawable risks re-opening what that ruling closed.
+5. **A schema addition** — no existing field can express a per-bar fill colour.
+
+⭐ Not required, measured: **no 12th `NODE_TYPES`** (still 11) and **no 42nd `REFUSALS`**
+(still 41); Clouds refuses **0** on both lanes; the block walk is not implicated.
+
+## ⚠️ WHAT THE SCOPING READ COULD **NOT** ESTABLISH
+
+The "2 rows" is read from the filter plus two written measurements, **not observed by
+running** — 3A was blocked. The fill index mapping (p1→2 … p21→22) is asserted nowhere.
+`fillRuns` behaviour on **20 stacked adjacent bands** is unmeasured. `zorder.js` has one
+importer — its own test — and **disagrees with the shipped primitive** (`'normal'` +
+`drawBackground` vs `'bottom'`), status unstated. And the `EMA(close,20)` seed residual
+of **0.02** stands UNVERIFIED and bears directly on (j)'s numbers.
+
+> ### ⛔ RESUME POINTER FOR (j)
+> **On the owner's go, starting at j.1 — and j.1 is TWO fixes, not one.**
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
