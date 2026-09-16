@@ -385,3 +385,63 @@ test("⛔ the service capability is NOT forwarded upstream", async () => {
     "the render capability was forwarded to an origin that cannot verify it");
   assert.equal(captured[0].get("cookie"), "uct_session=abc");
 });
+
+// ── namespaced breadth identities route to WEB, not the tier ────────────────
+
+const routeOf = async (path) => {
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    calls.push(typeof input === "string" ? input : input.url);
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    await worker.fetch(new Request("https://uctintelligence.com" + path), {});
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  return calls[0];
+};
+
+test("⛔ US:A50 goes to WEB — the tier's breadth database is 16 KB and EMPTY", async () => {
+  const to = await routeOf("/api/bars/US:A50?tf=D&bars=400");
+  assert.ok(to.startsWith(WEB), `US:A50 went to ${to}`);
+});
+
+test("⛔ the URL-ENCODED colon routes identically — browsers may send either", async () => {
+  const to = await routeOf("/api/bars/US%3AA50?tf=D&bars=400");
+  assert.ok(to.startsWith(WEB), `US%3AA50 went to ${to}`);
+});
+
+test("⭐ NASDAQ:/NYSE: are covered before they are ever published", async () => {
+  for (const sym of ["NASDAQ:A50", "NYSE:NETHL"]) {
+    const to = await routeOf(`/api/bars/${sym}`);
+    assert.ok(to.startsWith(WEB), `${sym} went to ${to}`);
+  }
+});
+
+test("⭐ UCT breadth still goes to WEB — the original rule is untouched", async () => {
+  const to = await routeOf("/api/bars/UCTA50");
+  assert.ok(to.startsWith(WEB), `UCTA50 went to ${to}`);
+});
+
+test("⛔⛔ ORDINARY TICKERS STILL GO TO THE TIER — the control that matters most", async () => {
+  // Widening `isBreadth` too far sends equities to web: that is the 2026-09-13
+  // outage in reverse, and it is the failure this test exists to catch.
+  for (const sym of ["AAPL", "SPY", "BRK.B", "^IXIC", "USB", "USO", "US"]) {
+    const to = await routeOf(`/api/bars/${sym}`);
+    assert.ok(to.startsWith(BARS), `${sym} went to ${to} — it must reach the tier`);
+  }
+});
+
+test("⚰️ KNOWN QUIRK, PRE-EXISTING: `UCTT` is a REAL ticker caught by the UCT prefix", async () => {
+  // ⚠️ Not introduced by the colon rule and not fixed by it. The SERVER is careful
+  // here — `is_breadth_symbol` is a membership test "NOT a bare 'UCT' prefix, so a real
+  // ticker like UCTT never collides" — but this edge check is a bare prefix, so UCTT is
+  // forwarded to WEB instead of the tier. Harmless today: web holds bars.db too and
+  // serves it normally, which is why nobody has noticed. Recorded rather than fixed,
+  // because narrowing the prefix is a routing change and belongs in its own step.
+  const to = await routeOf("/api/bars/UCTT");
+  assert.ok(to.startsWith(WEB),
+    "if UCTT now reaches the tier the prefix rule changed — re-read this note");
+});
