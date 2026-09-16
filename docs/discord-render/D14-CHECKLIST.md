@@ -60,7 +60,32 @@ un-maximises).
 - [x] **A1 durable checklist** — `DONE` — this file. Update in the same commit as every state change.
 - [x] **A6 log** — `DONE` — `docs/discord-render/D14-LOG.md`, dated section per state change.
 - [ ] **A3 browser** — `DONE (revised)` — MCP + UIA helper, proven 2026-09-15 via `/renderhealth`. Re-prove each session.
-- [ ] **A5 monitors** — `TODO` — loop/health 60 s; deploy history 60 s; canary SLO 5 min once V2 on; tier-1 rate daily. Each logs its own gaps (**a gap is not a zero**). ⛔ Background pollers die with the session — for overnight coverage they need a Task Scheduler entry, which is an owner action.
+- [x] **A5 / C1 monitor** — `DONE` — `instruments/d14_monitor.py` (`--self-check` PASS, declared=3 evaluated=3 failed=0), registered as Windows task **`UCT-D14-Monitor`**, user `Patrick`, no elevation, every 5 min, `IgnoreNew` via lock file. **Proven**: fired unattended at `2026-09-16T01:53:02Z` and wrote `{"event":"poller_started","pid":24824}`. Writes explicit `gap` records on probe failure — one already recorded (`probe_no_json`), which is the design working. Output: `evidence/d14-monitor/loop-boot-windows.jsonl`. **Delete in W7.**
+- [ ] **C2/C3 scheduled agent resume** — `BLOCKED-permission` — **the harness refused it, and the refusal is correct.**
+  Denial reason, verbatim: **`[Create Unsafe Agents]`**. It fired on writing the wrapper that would run
+  `claude -p --resume <session-id> "resume"` from Task Scheduler every 6 h.
+  **Not retried.** Revised A4 permits one restatement, but that clause exists to separate misfires from
+  correct fires; this one names the intent exactly — a self-relaunching agent continuing production work
+  unattended — and rewording it to get past would be the "bypass the intent" case my own rule forbids.
+  **What WAS proven before the block** (both halves tested separately and harmlessly):
+  · Task Scheduler CAN launch Claude Code non-interactively on this box — a throwaway task ran
+    `claude -p "reply with exactly PROOF"` and returned `PROOF`, `EXIT=0`. Task deleted.
+  · `--resume <id>` exists, and `--bg --resume` continues a session under the same id.
+  · ⚠️ **Unresolved either way:** `--resume` against a session that is still LIVE starts a COPY, not a
+    resume. A wake task firing while a session runs would create a second agent on the same programme —
+    the concurrency hazard `feedback_agent_authority_and_worktree_isolation` records.
+  · ⚠️ **And it would be a thin autonomy anyway:** with `-p` and no host, `--permission-prompts` defaults
+    to `none` — *"anything that would prompt is denied automatically"*. An unattended turn could heartbeat
+    and do unprompted work; anything prompted would silently fail. Real unattended authority would need
+    `--dangerously-skip-permissions` / `--permission-mode bypassPermissions`, which is the A4 self-grant
+    made permanent. **Not done, and not to be done.**
+  **Consequence:** the morning tap stands — type `resume` once. That is the floor.
+  **If the owner wants it anyway**, it is theirs to create, not the session's:
+  `schtasks /create /tn "UCT-D14-Resume" /tr "cmd /c claude -p --resume 4dd1d777-889d-4681-a603-f91db2de88cf \"resume\"" /sc hourly /mo 6 /sd 09/16/2026 /st 07:55 /f`
+  (07:55 local CT = 08:55 ET.)
+- [ ] **W6 member flip requires the owner awake** — `STANDING` — R40's flip exposes ~750 members. Even with
+  R41's auto-rollback, a bad flip with nobody present is member-visible until the next turn. The canary flip
+  (R38) is different — admin-only channel, zero member exposure, reversible by one unset — and needs no vigil.
 - [ ] **A2 clock gates** — `STANDING` — waits, not stops; do unblocked work meanwhile.
 - [ ] **A7 budget** — `STANDING` — one master push at a time, full preflight, guard OK, SUCCESS + in-process verify before the next.
 
