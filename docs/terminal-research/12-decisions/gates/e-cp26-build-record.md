@@ -137,6 +137,53 @@ run #27 (promotion)            gate SUCCESS, NO_NEW_FAILURES, new_flaky 1
 ⛔ **If NEW > 0 among those files, full history is not the whole story and this is
 REVERTED, not argued with** — the same rule that reverted the shard split within the hour.
 
+## 6b · SCORED — run #28
+
+```
+VERDICT: NEW_FAILURES   (run conclusion FAILURE — the promoted gate turned the check red)
+new 2 · fixed 28 · unchanged 93 · MISSING 1 · current_ran 44,414
+new_flaky 1 · flaky_size 3 · flaky_fixed 3
+```
+
+| predicted | actual | |
+|---|---|---|
+| FIXED climbs by up to 27 | **28** | ✅ |
+| NEW 0 **among those files** | **0 among them** | ✅ |
+| verdict NO_NEW_FAILURES | **NEW_FAILURES** | ❌ |
+
+⭐ **The FIXED breakdown is the predicted list, name for name:**
+
+```
+tests.test_discord_render_vintage_url                          13
+src/hub/rule12Paths.test.js                                     4
+src/hub/surfaceMatrixIsCurrent.test.js                          4
+src/components/chart/engine/readout.test.js                     3
+tests.test_alert_taxonomy_scan_membership_change_schema         1
+src/components/chart/engine/__tests__/enumerationSites.test.js  1
+tests.test_ast_math_parity                                      1   (F-CI-29, closed)
+tests.test_ticker_logos_prewarm                                 1
+```
+
+### ⛔ THE REVERT CONDITION IS NOT MET, AND ONE NEW ENTRY IS THE CHANGE WORKING
+
+**`tests.test_nb_foreign_commits::test_the_tools_own_self_check_passes`** is NEW, and it is
+**caused by this change** — its failure text is full of real commit subjects and
+`notebook_files` lists, because **it walks git history**. On a depth-1 clone it had almost
+nothing to walk and **was passing vacuously**. ⭐ **Reverting would restore a green that
+meant nothing**, which is the exact shape this programme refuses
+(`lesson_gate_that_cannot_fail`). It is a test that started working. **F-CI-39.**
+
+**`src/context/AuthContext.test.jsx`** (a 503-refetch assertion, `expected false, received
+true`) has nothing to do with clone depth. **F-CI-40**, unclassified.
+
+### ⚠️ AND ONE MISSING, WHICH IS NEVER "FIXED"
+
+**`src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx`** was in the
+git-object list and came back **MISSING**, not FIXED — 0 failure entries and not collected.
+A test that stops being collected has left coverage, and the diff refuses to count that as
+progress. **F-CI-41, owed an investigation**: most likely it now fails at IMPORT rather than
+at an assertion, which drops it from the testcase list entirely.
+
 ## 7 · Drafted ledger row — NOT written
 
 | 106 | *(this unit's two commits — named in the session report)* | 2026-09-15 | CI | 1 | E CP26: the gate job is promoted — `continue-on-error` removed, so the check's colour is the verdict's colour. The criterion was met by the published record (run #24 NEW_FAILURES, run #25 NO_NEW_FAILURES) and scored on run #27, where `new_flaky: 1` shows F-CI-30 excluding a flaky NEW entry for the first time in a real run. NO branch protection and no required check while merge_all pushes master directly — promotion means the colour is truthful, not that it blocks. And `fetch-depth: 0` on every job: 27 of 121 failure entries (22%) name a git object a depth-1 checkout does not have, which a previous session called 22 stale tests. Cost +6 s, measured on one job first. |

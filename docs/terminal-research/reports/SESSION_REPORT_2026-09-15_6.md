@@ -161,7 +161,7 @@ the control reported a resume it had not tested.
 
 ---
 
-## 5 · E26 — the gate promoted, scored on run #27
+## 5 · E26 — the gate promoted, scored on runs #27 and #28
 
 `continue-on-error` removed from the `gate` job. The criterion was met **by the record**:
 run #24 `NEW_FAILURES` (41 real entries), run #25 `NO_NEW_FAILURES`. Scored:
@@ -179,6 +179,22 @@ check is green *because* the exclusion worked.
 ⛔⛔ **NO branch protection and NO required check**, written into the workflow header: a
 required check would block the 31 pushes the signing session is built on. **Promotion means
 the colour is TRUTHFUL, not that it blocks.**
+
+**Run #28 — `fetch-depth: 0` everywhere, and the promoted gate turning a check RED:**
+
+```
+VERDICT NEW_FAILURES   new 2 · FIXED 28 · unchanged 93 · MISSING 1 · ran 44,414
+```
+
+⭐ **FIXED 28 is the predicted list name for name** — vintage-url 13, rule12Paths 4,
+surfaceMatrixIsCurrent 4, readout 3, alert_taxonomy 1, enumerationSites 1, plus
+`test_ast_math_parity` (F-CI-29, closed) and `test_ticker_logos_prewarm`.
+
+⛔ **The revert condition was "NEW > 0 AMONG THOSE FILES" and it is not met** — neither NEW
+is among them. One (`test_nb_foreign_commits`) is **caused by** the change and is a test
+that **stopped passing vacuously** on an empty history; reverting would restore a green
+that meant nothing. One MISSING (`legendFromDefinitions`) is coverage leaving and is owed an
+investigation — **MISSING is never FIXED**.
 
 ---
 
@@ -219,19 +235,24 @@ testcases collected and 0 failure entries**. The lane runs and the lanes agree. 
 | **F-CI-31** | ⚰️ **RETRACTED — empty population.** Nothing was stale; the checkout was shallow. **CLOSED by `fetch-depth: 0`.** |
 | **F-CI-32** | 27 of 121 entries (22%) are the depth-1 checkout. **FIXED — E CP26**, +6 s measured. |
 | **F-CI-35** | `tests-05` exceeds its 20-minute cap. **STILL OPEN** — the split that would fix it was reverted (see F-CI-36); the remedy is a TIME-weighted partition. |
-| **F-CI-36** | **`tests/test_voice_router.py` is order-dependent** — 52 of its tests return `402 Payment Required` when the file is shuffled into a different shard. **REPRODUCED LOCALLY AND DETERMINISTICALLY**: the 52 files that join its process at 12 buckets, then the file, → 52 failed / 939 passed. It passes alone (48 passed). Bisect in flight at session end. |
+| **F-CI-36** | ⭐ **FOUND AND FIXED.** `tests/test_thesis_reviews_router.py:33` installed `app.dependency_overrides[get_current_user] = lambda: {"id": user_id}` on the REAL shared app and never removed it — so a stub user with no plan answered for every later test: **401 became 402** (the override supplies a user) and **200 became 402** (no subscription). Found by bisecting the 52 files that join the voice file's process, both non-vacuity ends proved first. `pytest test_thesis_reviews_router.py test_voice_router.py` → **41 failed → 62 passed**; the full 52-file reproduction → **52 failed → 10 failed**, none in the voice file. The fix RESTORES prior overrides rather than clearing them. |
+| **F-CI-39** | `tests.test_nb_foreign_commits` is NEW on run #28 and **caused by `fetch-depth: 0`** — it walks git history and **was passing vacuously on a depth-1 clone**. Reverting would restore a meaningless green. A test that started working. **FILED.** |
+| **F-CI-40** | `src/context/AuthContext.test.jsx` NEW on run #28, a 503-refetch assertion, unrelated to clone depth. **FILED, unclassified.** |
+| **F-CI-41** | ⚠️ `legendFromDefinitions.test.jsx` came back **MISSING**, not FIXED — 0 failure entries and not collected. **MISSING is never FIXED.** Likely now failing at import. **OWED an investigation.** |
 | **F-CI-38** | ⚠️ **96 test files install a `dependency_overrides[...]` on the shared `app`; only 50 ever clear one.** Not the cause of F-CI-36 (measured — `test_theme_sets` + the voice file pass together, 65 passed), but a standing class. **FILED.** |
 
 ---
 
 ## 8 · OPEN QUESTIONS
 
-1. **Which of the 52 files leaks the state behind F-CI-36?** The bisect was running at
-   session end; its oracle is proved non-vacuous at both ends (full set FAILS in 343 s,
-   empty set clean in 31 s).
-2. **`tests-05`'s cap** — a finer alphabetical split is ruled out (it caused F-CI-36). A
-   time-weighted partition uses the `collect_profile` timings the workflow already gathers,
-   and does not re-shuffle neighbours. It is a real change to `pytest_shards.py`.
+1. ~~Which of the 52 files leaks the state behind F-CI-36?~~ **ANSWERED AND FIXED** —
+   `tests/test_thesis_reviews_router.py`. See §7.
+2. **`tests-05`'s cap (F-CI-35) — the blocker is now REMOVED, and the split is still not
+   re-applied.** The 41 failures had one cause and it is fixed; the 52-file reproduction is
+   clean of the voice file. ⛔ **But the standing rule for that experiment says "no second
+   attempt" after a revert**, and this session has spent its one. The next session's first
+   move: re-apply `ROOT_BUCKETS = 12`, push, score. The reproduction harness and the
+   bisect are both committed to the scratchpad method described in §4.
 3. **The two single-file product buckets** (`test_web_capture_coverage` 8 entries,
    `test_screener_wave2_analyst_store` 8) are classified but not investigated.
 4. **F-CI-38** — an autouse fixture clearing `app.dependency_overrides` after each test is a
@@ -281,8 +302,9 @@ and **86.5** minutes.
 2. **The merge script would have died on unit one**, because it cherry-picks onto whatever
    is checked out and the worktree is on the feature branch; that and a wrong
    already-merged check are both fixed and both were found by building the resume control.
-3. **The gate is promoted and green on its own terms**, and 22% of the failure list turned
-   out to be a shallow checkout rather than the twenty-two stale tests it was called.
+3. **The gate is promoted, and it has now turned a check red on its own terms** — 22% of
+   the failure list was a shallow checkout rather than the twenty-two stale tests it was
+   called, and 28 entries went green when the checkout stopped lying.
 
 ---
 
