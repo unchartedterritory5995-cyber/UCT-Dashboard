@@ -60,4 +60,20 @@ CREATE TABLE IF NOT EXISTS wisdom_extract_record_keys (
   created_at             TEXT NOT NULL
 );
 """),
+    # ⛔⛔ R53 N-pass. ADDITIVE AND NULLABLE, like every migration in this file.
+    #
+    # These two columns exist because THE REAP IS A DIFFERENT JOB. `wisdom_extract_reap` runs on
+    # its own cron minutes-to-hours after the submit, with a different JobContext and a different
+    # run_id, so anything a RESULT must know cannot be an argument — it has to survive in the row.
+    # `pass_index` decides whether that result is ingested (pass 1 only) and `run_id` decides which
+    # persisted-run directory its records are appended to.
+    #
+    # ⚠️ NULL on every pre-R53 row, and that is read as "the single-pass era": `pass_index IS NULL`
+    # is treated as pass 1 (ingest), so a request submitted before this migration still ingests
+    # exactly as it did. Absent is not zero here either — zero would mean "pass 0", which is not a
+    # pass at all.
+    ("extract_003_npass_columns", """
+ALTER TABLE wisdom_extract_requests ADD COLUMN pass_index INTEGER;
+ALTER TABLE wisdom_extract_requests ADD COLUMN run_id TEXT;
+"""),
 ]

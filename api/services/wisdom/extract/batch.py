@@ -59,10 +59,56 @@ class ExtractUnavailable(RuntimeError):
     pass
 
 
+#: ⛔⛔ THE WISDOM-SPECIFIC NAME EXISTS BECAUSE THE GENERIC ONE IS NOT FREE TO SET.
+#: `ANTHROPIC_API_KEY` in the operator's shell is the variable **Claude Code itself** reads to
+#: authenticate and bill. Exporting it to feed this gate changes how the agent session that
+#: launches the gate is authenticated — a side effect nobody asked for, on the account that pays
+#: for the session. `WISDOM_ANTHROPIC_API_KEY` lets the programme carry its own credential
+#: without touching that. Owner ruling R32, 2026-09-15. §11.3 still applies to both: the value
+#: lives in the environment, never in a file, and is never printed.
+KEY_VARS = ("WISDOM_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+
+#: Where the OS credential store keeps the gate's key (R34, 2026-09-15).
+KEYRING_SERVICE, KEYRING_USER = "uct-wisdom", "anthropic"
+
+
+def key_from_keyring():
+    """The OS credential store, as a THIRD source. Returns None on anything going wrong.
+
+    ⭐ Why it never raises: a machine with no `keyring` installed, no backend, a locked store, or
+    simply no entry must behave **exactly as it did before this existed** — fall through to the
+    same `ExtractUnavailable`. A credential lookup that turns a missing optional dependency into a
+    crash would make the gate harder to run, not easier.
+
+    ⛔ Returns the value; never logs it, never reports its length, never reports which backend
+    answered — a backend name is a small leak about the operator's machine and buys nothing.
+    """
+    try:
+        import keyring  # optional, declared in requirements.txt
+
+        value = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
+    except Exception:
+        return None
+    return (value or "").strip() or None
+
+
 def make_client():
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    key = ""
+    for name in KEY_VARS:
+        key = os.environ.get(name, "").strip()
+        if key:
+            break
     if not key:
-        raise ExtractUnavailable("ANTHROPIC_API_KEY is not set")
+        # ⛔ The ENVIRONMENT is still preferred over the store. `railway run` and a one-off export
+        # are both deliberate, visible acts scoped to one process; the store is ambient and
+        # applies to every run on the machine, so it loses a tie.
+        key = key_from_keyring() or ""
+    if not key:
+        # ⛔ Names both variables and the store, and NEITHER value — an error that quotes a key is
+        # a key in a log.
+        raise ExtractUnavailable(
+            f"no API key: set {KEY_VARS[0]} (preferred) or {KEY_VARS[1]}, "
+            f"or store one under keyring service {KEYRING_SERVICE!r} / user {KEYRING_USER!r}")
     import anthropic
 
     return anthropic.Anthropic(
@@ -261,6 +307,7 @@ def _build_items(client, segs: list[dict], retries: list[dict], *, extractor_ver
 
 
 def submit_items(items: list[dict], client, *, extractor_version: str, model: str, purpose: str,
+                 pass_index: Optional[int] = None, run_id: Optional[str] = None,
                  cap: float) -> dict:
     report: Counter = Counter()
     batch_ids: list[str] = []
@@ -276,11 +323,12 @@ def submit_items(items: list[dict], client, *, extractor_version: str, model: st
                     conn.execute(
                         "INSERT INTO wisdom_extract_requests (custom_id, batch_id, source_id, source_version, "
                         "segment_ids_json, extractor_version, attempt, status, segment_id, purpose, model, "
-                        "est_input_tokens, est_output_tokens, est_cost_usd, created_at, updated_at) "
-                        "VALUES (?, NULL, ?, ?, ?, ?, 1, 'submitting', ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "est_input_tokens, est_output_tokens, est_cost_usd, created_at, updated_at, "
+                        "pass_index, run_id) "
+                        "VALUES (?, NULL, ?, ?, ?, ?, 1, 'submitting', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (it["custom_id"], it["source_id"], it["source_version"], json.dumps([it["segment_id"]]),
                          extractor_version, it["segment_id"], purpose, model, it["est_input_tokens"],
-                         it["est_output_tokens"], it["est_cost_usd"], now, now))
+                         it["est_output_tokens"], it["est_cost_usd"], now, now, pass_index, run_id))
                 elif row["status"] == "retry":
                     conn.execute(
                         "UPDATE wisdom_extract_requests SET status = 'submitting', attempt = attempt + 1, "
@@ -335,16 +383,43 @@ def _record_batch(conn, created, live: list[dict], *, extractor_version: str, mo
                      "WHERE custom_id = ?", (created.id, now, it["custom_id"]))
 
 
+#: ⛔⛔ R53: how many independent passes the chain makes over each segment.
+#:
+#: ⭐ `floor.MIN_RUNS = 3` is what the reconciler needs to coexist before it will score anything,
+#: so this defaulting to 3 is not a coincidence — a smaller N means the floor never has enough
+#: runs and every record sits UNRECONCILED forever. Raising it above 3 silently converts the 0.8
+#: publication floor from unanimity into 80% agreement, which is a correctness change and not a
+#: throughput one (R17 = HOLD_3).
+PASSES_ENV = "WISDOM_EXTRACT_PASSES"
+DEFAULT_PASSES = 3
+
+
+def npass_count() -> int:
+    raw = (os.environ.get(PASSES_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_PASSES
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_PASSES
+    return n if n >= 1 else DEFAULT_PASSES
+
+
 def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpose: str = "extract",
                    segment_rows: Optional[list[dict]] = None, effort: Optional[str] = None, salt: str = "",
-                   out: Optional[dict] = None) -> dict:
+                   out: Optional[dict] = None, run_id: Optional[str] = None,
+                   pass_index: Optional[int] = None, include_retries: bool = True,
+                   night_cap_usd: Optional[float] = None) -> dict:
     out = dict(out or {})
     version = prompt.extractor_version()
     model = config.configured_model()
     effort = effort or config.configured_effort()
     out.setdefault("extractor_version", version)
     with store.read() as conn:
-        retries = retry_rows(conn, version, purpose, limit)
+        # ⛔ R53: passes 2..N pass include_retries=False. `retry_rows` is fetched per CALL, so an
+        # N-pass night that let every pass carry retries would re-submit each retry N times and
+        # bill for it.
+        retries = retry_rows(conn, version, purpose, limit) if include_retries else []
         segs = segment_rows if segment_rows is not None else pending_segments(conn, version, max(0, limit - len(retries)))
         out_tokens = budget.output_token_estimate(conn, model, effort)
     if not retries and not segs:
@@ -356,8 +431,13 @@ def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpos
                                  purpose=purpose, salt=salt, dry_run=ctx.dry_run, out_tokens=out_tokens)
     out["build"] = dict(counts)
     with store.read() as conn:
+        # ⛔ R53: the TIGHTEST ceiling binds. `cap=None` keeps the programme total; a night's
+        # remaining budget, when one is supplied, is passed as the cap only if it is SMALLER —
+        # a per-night value must never RAISE the programme total it sits inside.
+        programme_cap = budget.budget_cap_usd()
+        cap = programme_cap if night_cap_usd is None else min(programme_cap, float(night_cap_usd))
         decision = budget.select_within_budget(
-            conn, version, [it["est_cost_usd"] for it in items],
+            conn, version, [it["est_cost_usd"] for it in items], cap=cap,
             exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]))
     out["budget"] = decision.as_dict()
     selected = items[:decision.allowed_count]
@@ -376,11 +456,53 @@ def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpos
         out["status"] = "budget_stop"
         return out
     out["submit"] = submit_items(selected, client, extractor_version=version, model=model, purpose=purpose,
+                                 pass_index=pass_index, run_id=run_id,
                                  cap=decision.cap_usd)
     out["status"] = "budget_stop" if decision.stopped else "submitted"
     ctx.log(f"{purpose}: submitted {out['submit'].get('submitted', 0)} request(s), estimate "
             f"${out['selected_estimate_usd']:.2f}; budget remaining ${decision.remaining_usd:.2f}")
     return out
+
+
+#: ⛔⛔ R52 (owner ruling, 2026-09-15) — Q-3. `force` no longer bypasses the switch that SPENDS.
+#:
+#: ⚰️ WHAT IT WAS. Both entry points read `if not ctx.force and not flags.extract_enabled()`, so a
+#: forced run skipped the gate entirely. And `force` is not a developer-only concept: it is a query
+#: parameter on `POST /api/admin/wisdom/core/jobs/{job_id}/run?force=true&dry_run=false`
+#: (`wisdom_core.py:138-156`), whose only guard is `require_admin`. So the one switch in this
+#: programme that can cost money was one admin request away from not applying.
+#:
+#: ⭐ WHY `force` EXISTS AND WHY IT KEEPS EVERYTHING ELSE. It is for re-running a slot the
+#: scheduler swallowed, and it should still bypass the master switch, the job's own kill switch and
+#: the trading-day check — those bound WHEN work happens. `WISDOM_EXTRACT_ENABLED` bounds WHETHER
+#: MONEY IS SPENT, which is a different kind of thing, and the ruling separates them.
+#:
+#: ⛔ THE DELIBERATE DOOR. A forced run may still spend, but only when the operator says so in the
+#: same breath: `WISDOM_EXTRACT_ACCEPT_SPEND` must equal the exact literal below. Two conditions
+#: that must be met at once, neither of them a default, and the acceptance is recorded in the
+#: refusal text and the step's reason so it can never be invisible afterwards.
+ACCEPT_SPEND_ENV = "WISDOM_EXTRACT_ACCEPT_SPEND"
+ACCEPT_SPEND_VALUE = "I-ACCEPT-EXTRACTION-SPEND"
+
+
+def spend_accepted() -> bool:
+    return (os.environ.get(ACCEPT_SPEND_ENV) or "").strip() == ACCEPT_SPEND_VALUE
+
+
+def spend_allowed(ctx) -> bool:
+    """May this run spend? The flag, OR a forced run whose operator accepted the spend."""
+    if flags.extract_enabled():
+        return True
+    return bool(getattr(ctx, "force", False)) and spend_accepted()
+
+
+def spend_refusal(ctx) -> str:
+    """Why it will not spend — naming the switch, and for a forced run the missing acceptance."""
+    if getattr(ctx, "force", False) and not spend_accepted():
+        return (f"WISDOM_EXTRACT_ENABLED is off and this forced run did not accept the spend "
+                f"(set {ACCEPT_SPEND_ENV}={ACCEPT_SPEND_VALUE}). R52: force bypasses scheduling, "
+                f"never the switch that spends.")
+    return "WISDOM_EXTRACT_ENABLED is off"
 
 
 def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Optional[Callable] = None) -> dict:
@@ -390,8 +512,8 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
     model = config.configured_model()
     out = {"extractor_version": version, "model": model, "effort": config.configured_effort(),
            "dry_run": ctx.dry_run}
-    if not ctx.force and not flags.extract_enabled():
-        out.update(status="skipped", reason="WISDOM_EXTRACT_ENABLED is off")
+    if not spend_allowed(ctx):
+        out.update(status="skipped", reason=spend_refusal(ctx))
         return out
     out["segmentation"] = segment_pending_sources(dry_run=ctx.dry_run, loader=loader)
     with store.read() as conn:
@@ -401,7 +523,80 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
         out["status"] = "blocked_by_gate"
         ctx.log(f"extraction blocked by the golden gate: {gate.get('reason')}")
         return out
-    return submit_pending(ctx, client=client, limit=limit, purpose="extract", out=out)
+
+    # ── R53: N passes over the SAME segments ─────────────────────────────────
+    n = npass_count()
+    out["passes"] = n
+    if n <= 1:
+        return submit_pending(ctx, client=client, limit=limit, purpose="extract", out=out)
+
+    # ⛔⛔ R53: THE PER-NIGHT CEILING, checked BEFORE the first request of the night is sent.
+    #
+    # ⭐ It is a SEPARATE ceiling, not a replacement. `select_within_budget` enforces the PROGRAMME
+    # total (WISDOM_EXTRACT_BUDGET_USD, default 120) from the DB; this bounds ONE NIGHT. The
+    # tightest binds, and neither replaces the PC-side ledger's own cap. An unusable value REFUSES
+    # rather than defaulting — a typo'd budget silently becoming 25.0 is how somebody ships a night
+    # they did not authorise.
+    #
+    # ⚠️ Checked against the night's ESTIMATE (segments x N x the measured per-request rate), so it
+    # can only ever stop work from starting. Actuals are enforced afterwards by the same
+    # programme-total machinery the single-pass path already used.
+    try:
+        night_cap = budget.daily_budget_usd()
+    except budget.DailyBudgetUnusable as exc:
+        out.update(status="skipped", reason=f"daily budget unusable: {exc}")
+        ctx.log(out["reason"])
+        return out
+    out["daily_budget_usd"] = night_cap
+
+    # ⛔ THE THROTTLE BOUNDS REQUESTS, NOT SEGMENTS. `limit` is a request ceiling, so N passes over
+    # `limit // N` segments is what keeps a night inside it. At N=3 and limit=400 that is 133
+    # segments and 399 requests. ⭐ The nightly BILL is therefore flat in N; what N changes is
+    # coverage per night, and so total nights — not what a night costs.
+    per_night = max(0, limit // n)
+    with store.read() as conn:
+        retries = retry_rows(conn, version, "extract", limit)
+        segs = pending_segments(conn, version, max(0, per_night - len(retries)))
+    out["segments_selected"] = len(segs)
+    out["retries_carried"] = len(retries)
+    if not segs and not retries:
+        out["status"] = "nothing_to_do"
+        return out
+
+    # ⛔ ONE run id PER PASS, and they must sort oldest-first by NAME: `reconcile.discover` sorts
+    # directory names and `score_silently` takes `ids[-MIN_RUNS:]`, so a night's three passes have
+    # to sort together and after yesterday's.
+    stamp = timeutil.iso_et(ctx.now_et).replace(":", "").replace("-", "")[:15]
+
+    out["runs"] = []
+    for p in range(1, n + 1):
+        run_id = f"{stamp}Z-chain-p{p}"
+        out["runs"].append(run_id)
+        # ⛔⛔ RETRIES RIDE ON PASS 1 ONLY. `submit_pending` fetches retry rows itself on every
+        # call, so letting every pass carry them would re-submit each retry N times and bill for
+        # it. Passes 2..N are given an explicit `segment_rows` and no retry budget.
+        # ⛔ The night's ceiling shrinks as passes are submitted, so pass 3 cannot spend pass 1's
+        # budget twice. A pass that would cross it submits nothing rather than part of a pass —
+        # a half-submitted pass is the UNRECONCILED case, which costs money and scores nothing.
+        spent_so_far = sum(float(r.get("selected_estimate_usd") or 0.0)
+                           for r in out.get("pass_results") or [])
+        remaining = night_cap - spent_so_far
+        if remaining <= 0:
+            out.setdefault("pass_results", []).append(
+                {"pass_index": p, "run_id": run_id, "status": "night_budget_stop",
+                 "reason": f"the night's ${night_cap:.2f} is spent (${spent_so_far:.2f} estimated)"})
+            ctx.log(f"extract pass {p}/{n}: stopped at the nightly budget (${night_cap:.2f})")
+            continue
+        sub = submit_pending(ctx, client=client, limit=len(segs) if p > 1 else limit,
+                             purpose="extract", segment_rows=segs, salt=f"pass{p}",
+                             run_id=run_id, pass_index=p, include_retries=(p == 1),
+                             night_cap_usd=remaining,
+                             out={"pass_index": p, "run_id": run_id})
+        out.setdefault("pass_results", []).append(
+            {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index",
+                                     "run_id", "selected_estimate_usd")})
+    out["status"] = "submitted_n_passes"
+    return out
 
 
 # ── reaping ──────────────────────────────────────────────────────────────────
@@ -430,6 +625,55 @@ def _retry_or_fail(conn, req: dict, error_type: str, error: str, cost: float = 0
                                (req["custom_id"],)).fetchone()[0])
     status = "failed" if attempt >= config.MAX_ATTEMPTS else "retry"
     return _finish(conn, req, status, cost, usage, error_type=error_type, error=error)
+
+
+def _handle_extract_result(conn, req: dict, *, segment: dict, source: dict, output: dict, model: str) -> dict:
+    """R53: persist EVERY pass; ingest only the first.
+
+    ⛔⛔ INGEST EXACTLY ONCE, AND THE REASON IS NOT TIDINESS. `writer.record_id_for(segment_id,
+    extractor_version, record_hash)` is DETERMINISTIC, so ingesting all N passes would mint N rows
+    carrying the same `record_id` for the same finding — and the reconciler would then be scoring a
+    record against copies of itself and reporting perfect stability for a single observation. Pass
+    1 ingests; 2..N are persisted and nothing more.
+
+    ⚠️ `pass_index IS NULL` means the single-pass era (any request submitted before the
+    extract_003 migration) and is treated as pass 1 — absent is not zero, and zero is not a pass.
+    """
+    from api.services.wisdom.extract import run_records
+
+    pass_index = req.get("pass_index")
+    pass_index = 1 if pass_index is None else int(pass_index)
+    run_id = req.get("run_id")
+
+    if pass_index <= 1:
+        report = dict(writer.write_output(conn, segment=segment, source=source, output=output,
+                                          extractor_version=req["extractor_version"]))
+    else:
+        report = {"written": 0, "not_ingested": "pass>1"}
+
+    if run_id:
+        try:
+            # ⛔ The SAME validator and the same vocabulary every pass, so a later pass is judged by
+            # exactly the rules the first one was. Anything else makes the passes incomparable,
+            # which is the E5 confound the reconciler exists to avoid.
+            # ⚠️ `validate_output` is pure — it resolves and checks, it never writes — so calling it
+            # here for pass 1 as well (after `write_output` has already validated internally) costs
+            # CPU and changes nothing. Threading a Validation out of `write_output` instead would
+            # mean changing its signature on the one path that writes member-visible rows.
+            validation = writer.validate_output(output, segment=segment, source=source)
+            report["kept"] = len(validation.kept)
+            report["persisted"] = run_records.persist_result(
+                run_id=run_id, segment=segment, validation=validation,
+                extractor_version=req["extractor_version"], model=model,
+                effort=config.configured_effort(), pass_index=pass_index)
+            run_records.touch_segment(run_id, segment["segment_id"])
+        except Exception as exc:
+            # ⛔ The DB write above has already happened and IS the product. A failure to persist the
+            # run costs a night's reconciliation, never the extraction, so it is recorded and never
+            # raised — raising here would turn a bookkeeping problem into a lost paid result.
+            log.exception("[wisdom-extract] persisting run %s failed", run_id)
+            report["persist_error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+    return report
 
 
 def handle_result(req: dict, item, batch_row: dict) -> str:
@@ -470,8 +714,8 @@ def handle_result(req: dict, item, batch_row: dict) -> str:
                                                  extractor_version=req["extractor_version"],
                                                  custom_id=req["custom_id"])
             else:
-                report = writer.write_output(conn, segment=segment, source=source, output=output,
-                                             extractor_version=req["extractor_version"])
+                report = _handle_extract_result(conn, req, segment=segment, source=source, output=output,
+                                                model=model)
             return _finish(conn, req, "done", cost, usage, report=report)
         if rtype == "errored":
             err = getattr(result, "error", None)
@@ -619,8 +863,8 @@ def reap(ctx, *, client=None) -> dict:
     """Short tick (wisdom_extract_reap, :16/:46): advance every open batch, handle ended ones,
     reconcile orphans, and report progress, cost so far and ETA."""
     out: dict = {"dry_run": ctx.dry_run}
-    if not ctx.force and not flags.extract_enabled():
-        out.update(status="skipped", reason="WISDOM_EXTRACT_ENABLED is off")
+    if not spend_allowed(ctx):
+        out.update(status="skipped", reason=spend_refusal(ctx))
         return out
     marks = ",".join("?" for _ in BATCH_KINDS)
     with store.read() as conn:

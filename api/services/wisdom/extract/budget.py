@@ -89,6 +89,52 @@ def budget_cap_usd() -> float:
     return value if value > 0 else DEFAULT_BUDGET_USD
 
 
+#: ⛔⛔ R53 (owner ruling, 2026-09-15): the PER-NIGHT extract budget. **A VALUE, NOT A SWITCH.**
+#:
+#: ⭐ THE DISTINCTION IS THE WHOLE DESIGN. Every `WISDOM_*_ENABLED` in this programme is a gate
+#: that defaults OFF, because an unset gate must mean "not released". This is the opposite kind of
+#: variable: it is a QUANTITY, and an unset quantity must not mean "spend nothing" (which would be
+#: an invisible outage) OR "spend anything" (which would be an invisible bill). It defaults to a
+#: ruled number, and a value that is present but nonsensical REFUSES rather than falling back —
+#: because a typo'd budget silently reverting to 25.0 is how somebody ships a 10x night.
+#:
+#: ⚠️ This is NOT the ledger cap and not `WISDOM_EXTRACT_BUDGET_USD`. Three different ceilings:
+#:   * this          — one night's extraction spend
+#:   * BUDGET_USD    — the programme total the chain enforces from the DB (default 120.0)
+#:   * the ledger's `cap_usd` — the PC-side gate tool's own persisted total, owner-set
+#: The tightest one binds; none of them replaces another.
+#:
+#: Arithmetic behind the default, measured: $0.058671/segment-pass, a 400-REQUEST nightly ceiling,
+#: N=3 → 133 segments × 3 = 399 requests = $23.41 at the mean and $24.49 at p90. Rounded up to the
+#: next dollar. ⭐ The nightly bill is fixed by REQUESTS, not by N — N changes coverage per night
+#: and therefore total nights, not what a night costs.
+DAILY_BUDGET_ENV = "WISDOM_EXTRACT_DAILY_BUDGET_USD"
+DEFAULT_DAILY_BUDGET_USD = 25.0
+
+
+class DailyBudgetUnusable(ValueError):
+    """A per-night budget that is set but unusable. Refused, never silently defaulted."""
+
+
+def daily_budget_usd() -> float:
+    """One night's extraction ceiling. Raises rather than guessing when the value is unusable."""
+    raw = os.environ.get(DAILY_BUDGET_ENV)
+    if raw is None or not str(raw).strip():
+        return DEFAULT_DAILY_BUDGET_USD
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise DailyBudgetUnusable(
+            f"{DAILY_BUDGET_ENV}={str(raw)[:40]!r} is not a number. Refusing rather than falling "
+            f"back to ${DEFAULT_DAILY_BUDGET_USD} — a typo must not quietly become a budget.")
+    if value <= 0:
+        raise DailyBudgetUnusable(
+            f"{DAILY_BUDGET_ENV}={value} is not positive. Unset it to use the default "
+            f"(${DEFAULT_DAILY_BUDGET_USD}); zero is not a way to pause extraction — "
+            "WISDOM_EXTRACT_ENABLED is.")
+    return value
+
+
 def price_for(model: str) -> tuple[float, float]:
     return PRICES_PER_MTOK.get(str(model or ""), FALLBACK_PRICE_PER_MTOK)
 

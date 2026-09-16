@@ -113,6 +113,36 @@ Companion files:
 - **⭐ The back catalog is already transcribed.**
   - Sweep of ids 1–370: **320 videos, 319 with transcripts, 20,334,779 characters (≈ 5.8M tokens).**
 
+    ⭐⭐ **THIS NUMBER AND THE CATALOG ARTIFACT'S 20,238,989 DO NOT CONTRADICT EACH OTHER, AND
+    NEITHER IS STALE** (investigated 2026-09-14, session 4, R15; nothing was changed). The figure
+    above is **raw transcript characters over 319 transcript sources, no Sunday Scans HTML**.
+    `data/wisdom/extract/catalog-estimate-defaults.json` reports `sum(by_category[*].chars)`,
+    which `extract_catalog_batch.py:85` defines as `len(seg.text)` — **segment text after
+    normalisation, over all 383 sources**. The 95,790-char difference decomposes exactly:
+    segmenter normalisation removes **1,421,466** chars from the transcripts (cue timestamps and
+    the `"<speaker>: "` head are stripped, `segmenter.py:22-27`), and the 64 Sunday Scans HTML
+    issues **add 1,325,676** the sweep never counted. `1,325,676 − 1,421,466 = −95,790`. **No
+    source is missing from either count.** ⚠️ Segments overlap by design (`FALLBACK_OVERLAP_S`),
+    so segment chars are not a subset sum — the 1,421,466 is net of stripping minus overlap.
+
+    ⭐ **Likewise the "319 transcripts + 64 scans" in `extract_catalog_batch.py:4` and the
+    artifact's `Sunday Scans: 69 sources` are the same 383 counted two ways.** The docstring
+    partitions by INPUT FILE KIND; `by_category` partitions by the CATEGORY STRING. **Five
+    `edu_videos` transcripts carry the category `"Sunday Scans"`** — Zoom recordings of Sunday
+    Scans sessions (`desk_daily_session.py:37` routes a webinar named `sunday scan*` to that
+    section; `:461` writes the section into `edu_videos.category`). So `319 + 64 = 314 + 5 + 64
+    = 383`. They cannot collide downstream: scans get `stream=sunday_scans` +
+    `substack:/p/{stem}`, those transcripts get `stream=education` + `edu_videos:{id}`, and
+    `source_id = sha24(stream, ref)`.
+
+    ⛔ **`edu_videos.category` is FREE TEXT** — `TEXT NOT NULL DEFAULT 'General'`, no CHECK, no
+    enum (`education_service.py:45`), `.strip()` the only normalisation on write (`:283`). The
+    Desk auto-publish route's fallback is `return t, t, t.upper()` on the **hand-typed Zoom
+    webinar name** (`desk_daily_session.py:90`), and it collapses whitespace but **does not fold
+    case**. That is how `LIVE TRAIDNG` and two casings of `Sharpen your trading skills` became
+    three one-video categories. Folded on READ in `extract_catalog_batch.normalize_category`
+    (17 → 15 categories, 0 segments lost); the records and the artifact are untouched.
+
     | Category | Videos | Chars |
     |---|---|---|
     | Live Trading Sessions | 56 | 4.35M |
@@ -262,7 +292,7 @@ Ranked by value. D7 and D12 capture them.
 | **Desk FTS** (videos, articles) | Nothing; reused as the W4 retrieval baseline | — | — |
 | **desk_article_anchors / links** | Nothing; reused for the anchor price and cross-stream links | — | — |
 | **Setup-name lists** (6) | The ONE vocabulary (D9), with `maps_to` for each list; lists derive from it in W6 | — | No seventh list |
-| **Ask Notebook / J2 broker** | Nothing member-facing; owner-only reconciliation (D16) | Read-only service calls, owner `user_id` | Owner-private rule §0.11 |
+| **Ask Notebook / J2 broker** | **NOTHING. D16b is DEFERRED with no date (§0.12, W1 GO Part 10 §10.1): not read, not queried, not scaffolded.** | — | ⛔ Hard rule §0.4b. ⚰️ This row read "owner-only reconciliation (D16)" until 2026-09-14 — written before the split, and describing work Part 10 §10.1 removed. |
 
 **Storage (final):**
 

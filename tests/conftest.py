@@ -300,3 +300,43 @@ def _setup_j2_database():
         conn.close()
 
     yield
+
+
+# ── Wisdom scoped-run expected-failure baseline (owner ruling R21, 2026-09-14) ────────────────
+#
+# ⛔⛔ These tests are RED before any Wisdom session starts, and they live in
+# docs/discord-render/, an OFF-LIMITS path under hard rule §0.4i ("Read through their APIs; never
+# edit"). Marking them xfail here lets a Wisdom scoped run read 0 failed, so a genuinely NEW red
+# is visible the moment it appears instead of hiding behind two permanent ones.
+#
+# The full record — ids, subject, owner, introducing commits, the failing assertion in one line
+# each, and how "pre-existing" was established — is tests/wisdom/EXPECTED-FAILURES.md.
+#
+# ⭐ strict=True ON PURPOSE: if one of these starts PASSING, the run FAILS and the baseline must be
+# updated. A non-strict xfail would let a fixed test sit in the baseline forever and the list would
+# rot into things nobody has checked since.
+#
+# ⛔ SCOPED, NOT GLOBAL. The marks apply only when the same session also collected at least one
+# test_wisdom_* file. The Discord render programme running its own suite sees these exactly as it
+# always has — red and unmarked. Silencing another programme's failures inside THEIR runs would be
+# a defect, not a courtesy.
+WISDOM_EXPECTED_FAILURES = {
+    "tests/test_mutation_harness_anchors.py::"
+    "test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]":
+        "docs/discord-render harness: anchor_check extracts zero controls (a failed read)",
+    "tests/test_mutation_harness_anchors.py::"
+    "test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]":
+        "docs/discord-render harness: no recognised path from a NOT-APPLIED mutation to a non-zero exit",
+}
+
+
+def pytest_collection_modifyitems(config, items):
+    import pytest as _pytest
+
+    if not any("test_wisdom_" in item.nodeid for item in items):
+        return  # not a Wisdom run; leave everyone else's failures exactly as they are
+    for item in items:
+        nodeid = item.nodeid.replace("\\", "/")
+        reason = WISDOM_EXPECTED_FAILURES.get(nodeid)
+        if reason:
+            item.add_marker(_pytest.mark.xfail(strict=True, reason=f"R21 baseline — {reason}"))

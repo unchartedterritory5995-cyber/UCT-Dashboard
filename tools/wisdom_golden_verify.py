@@ -83,6 +83,10 @@ import unicodedata
 from html.parser import HTMLParser
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+# ⭐ R19 (2026-09-14): the category normaliser has ONE home, shared with the catalog
+# reader. It used to be duplicated as a "LIVE TRAIDNG" key in the map below.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "wisdom"))
+from category_norm import normalize_category  # noqa: E402
 DOCS = REPO / "docs" / "wisdom"
 V0_GOLDEN_REL = pathlib.Path("golden") / "golden-v0.draft.jsonl"
 PROVENANCE = DOCS / "golden" / "golden-v0.provenance.json"
@@ -123,9 +127,12 @@ TEAM_UNRESOLVED = "team-unresolved"
 TEAM_UNRESOLVED_EXCLUSIONS = ("uct_see_rate", "publish")
 #: §8a.4 — the ceiling on a ticker inferred from an adjacent line.
 INFERRED_ENTITY_CONFIDENCE_MAX = 0.5
-# transcripts/_index.json category -> wisdom stream
+# transcripts/_index.json category -> wisdom stream.
+# ⛔ Keys are CANONICAL spellings only. Every lookup goes through normalize_category()
+# first (R19), so a typo'd or differently-cased label resolves to a key already here —
+# a typo mapped in two places is two authorities over one value.
 CATEGORY_STREAM = {
-    "Live Trading Sessions": "zoom_live", "LIVE TRAIDNG": "zoom_live", "Evening Update": "zoom_live",
+    "Live Trading Sessions": "zoom_live", "Evening Update": "zoom_live",
     "Post-Market Recaps": "zoom_live", "Thoughts on the Market": "zoom_live", "Sunday Scans": "zoom_live",
     "Workshops & Fireside Chats": "workshop", "Interviews": "interview",
 }
@@ -636,7 +643,7 @@ def check_v1(records: list[dict], samples: pathlib.Path, contracts: dict,
             if loc.get("speaker_label") != spk:
                 bad(f"locator.speaker_label={loc.get('speaker_label')!r} but the cue label is {spk!r}")
             category = src.meta.get("category") or categories.get(edu)
-            want_stream = CATEGORY_STREAM.get(category, "education") if category else None
+            want_stream = CATEGORY_STREAM.get(normalize_category(category), "education") if category else None
             if want_stream and r["stream"] != want_stream:
                 bad(f"stream {r['stream']!r} but category {category!r} maps to {want_stream!r}")
             # ── §8a.2 RAIL: a label authors.json calls ambiguous is an alias of NOBODY ──
@@ -1092,7 +1099,7 @@ def check_null(records: list[dict], samples: pathlib.Path, contracts: dict,
             if loc.get("speaker_label") != spk:
                 bad(f"locator.speaker_label={loc.get('speaker_label')!r} but the cue label is {spk!r}")
             category = src.meta.get("category") or categories.get(edu)
-            want_stream = CATEGORY_STREAM.get(category, "education") if category else None
+            want_stream = CATEGORY_STREAM.get(normalize_category(category), "education") if category else None
             if want_stream and r["stream"] != want_stream:
                 bad(f"stream {r['stream']!r} but category {category!r} maps to {want_stream!r}")
         elif src.kind in ("html", "txt"):
@@ -1250,7 +1257,7 @@ def strata(records: list[dict], categories: dict[int, str], minimums: dict = STR
         ext = (r.get("locator") or {}).get("external_ref") or ""
         if ext.startswith("edu_videos:"):
             vid = int(ext.split(":", 1)[1])
-            if categories.get(vid) == LIVE_SESSION_CATEGORY:
+            if normalize_category(categories.get(vid)) == LIVE_SESSION_CATEGORY:
                 live.add(vid)
         elif ext.startswith("substack:"):
             issues.add(ext)
