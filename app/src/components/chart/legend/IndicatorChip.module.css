@@ -408,7 +408,6 @@
   color: var(--text-muted);
 }
 .chipGridVal {
-  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -448,9 +447,10 @@
    is one box. */
 .chipGridRow {
   position: relative;
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
-  align-items: center;
+  /* The twin of `LegendRow`'s `.vRow` — read that one for why `subgrid` went and
+     why the row must stay ONE element. */
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   pointer-events: auto;
 }

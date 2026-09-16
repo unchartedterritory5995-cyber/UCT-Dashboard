@@ -32,10 +32,18 @@
  * pointer. `:focus-within` comes free, which a conditionally-RENDERED control can
  * never have. */
 .vRow {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
-  align-items: center;
+  /* ⚰ `subgrid` IS RETIRED WITH THE STACK'S TRACKS. It existed to borrow the
+     legend's columns so every value landed on one x; that alignment is exactly the
+     invisible table the floating pass removes. The row is an inline pair now.
+     ⛔ IT IS STILL ONE ELEMENT, WHICH IS THE PART THAT MUST NOT CHANGE. `.legend`
+     is `pointer-events: none`, so the gap between a label and its value is only a
+     hit target while it lives INSIDE the row's own box — loose siblings left dead
+     columns and cost this legend four reported bugs once already. */
+  display: inline-flex;
+  align-items: baseline;
+  /* §8 — the label/value pair. 6px: bound enough to read as one piece of
+     information, open enough not to collide. */
+  gap: 6px;
   /* ⛔ LOAD-BEARING, NOT POLISH. `.legend` is `pointer-events: none` — the box
    * sits over the chart and must not swallow the crosshair — and that INHERITS.
    * Without this the row receives no hover, no click and no focus: the whole
@@ -103,7 +111,8 @@
    was tried and retired the same day, because pointing at a label must not
    redraw the chart. */
 .vVal {
-  text-align: right;
+  /* ⚰ `text-align: right` WENT WITH THE COLUMN. There is no column to align
+     into; the value simply follows its own label. */
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
