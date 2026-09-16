@@ -46,7 +46,20 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 DOCS_REPO = HERE.parent
-CODE_REPO = DOCS_REPO.parent / "s7-price-level"
+# ⛔⛔ K CP7 — THE CODE REPO IS AN ARGUMENT, NOT A PLACE YOU STAND.
+# ⚰️ Measured 2026-09-15: `merge_all.py --dry-run` printed a BYTE-IDENTICAL refusal from the
+# feat worktree and from the master checkout `_merge-master`, because this path is resolved
+# from `__file__` and the current working directory is never read. So the runbook sentence
+# "the first line of each sitting is `cd <the master checkout>`" was INERT — the owner would
+# have stood in the right worktree while every cherry-pick landed in the wrong one.
+# ⛔ Worse, the refusal's own remedy named the FEAT worktree, so following it would have put
+# `feat/s7-price-level` — the branch this programme's unpushed work and its in-flight CI run
+# live on — onto master. A remedy that destroys the checkout it is run from is not a remedy.
+# ⭐ `DEFAULT_CODE_REPO` keeps the old behaviour byte-for-byte when `--code-repo` is absent;
+# the flag is the ONE authority when it is present, and every message names the repo actually
+# used rather than the one this line happens to spell.
+DEFAULT_CODE_REPO = DOCS_REPO.parent / "s7-price-level"
+CODE_REPO = DEFAULT_CODE_REPO
 OK, FAIL, REFUSED, UNSIGNABLE = 0, 1, 2, 3
 
 # ⚰️ A Windows console encodes stdout as cp1252, and this file prints box-drawing and ⛔/✅
@@ -116,6 +129,7 @@ UNITS = [
     ("k-cp4-build-record", [], False),                       # docs worktree only
     ("k-cp5-build-record", [], False),                       # docs worktree only
     ("k-cp6-build-record", [], False),                       # docs worktree only
+    ("k-cp7-build-record", [], False),                       # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8", "76a3b98c2"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -302,6 +316,70 @@ def _self_check() -> int:
     show("a row with no commitHash never matches an empty sha",
          _deployment_for_sha(json.dumps([{"status": "SUCCESS", "meta": {}}]), ""), None)
 
+    # ── K CP7: the code repo is an argument ─────────────────────────────────────────────
+    # ⛔ THE FIRST ROW IS THE ONE THAT MATTERS ON A REVIEW: absent flag == the old path,
+    # byte for byte. A refactor that quietly re-aimed the default would merge 43 units into
+    # somewhere nobody named.
+    show("no --code-repo  -> the DEFAULT, unchanged",
+         resolve_code_repo(None)[0], DEFAULT_CODE_REPO)
+    show("...and that default is still the feat worktree",
+         DEFAULT_CODE_REPO.name, "s7-price-level")
+    # ⭐ NON-VACUITY: a flag that resolved to the default for every input would satisfy the
+    # row above and be completely inert. This one names a DIFFERENT real worktree and
+    # asserts the answer MOVED.
+    other = DOCS_REPO.parent / "_merge-master"
+    got, why = resolve_code_repo(str(other))
+    show("--code-repo <master checkout> -> that path", got, other)
+    show("...and it is NOT the default (the flag actually moves the target)",
+         got != DEFAULT_CODE_REPO, True)
+    show("...with no error", why, "")
+    # ⛔ A TYPO REFUSES. Without this, `--code-repo _merg-master` targets a directory that
+    # does not exist and the run dies later wearing git's wording instead of its own.
+    missing = DOCS_REPO.parent / "_merge-master-TYPO-does-not-exist"
+    got_t, why_t = resolve_code_repo(str(missing))
+    show("a path that does not exist -> REFUSED, not used", got_t, None)
+    show("...and the refusal NAMES the path it was given",
+         str(missing) in why_t, True)
+    # ⛔ A REAL DIRECTORY THAT IS NOT A WORK TREE is the nastier typo — it exists, so an
+    # `is_dir()` test passes it straight through.
+    got_d, why_d = resolve_code_repo(str(DOCS_REPO.parent))
+    show("an existing NON-worktree directory -> REFUSED", got_d, None)
+    show("...named as 'not a git work tree'", "not a git work tree" in why_d, True)
+    # ⛔ And the docs repo itself IS a work tree, so the refusal above cannot be passing for
+    # the reason "everything is refused".
+    got_ok, _ = resolve_code_repo(str(DOCS_REPO))
+    show("a real work tree is ACCEPTED (the refusal is not blanket)",
+         got_ok == DOCS_REPO.resolve(), True)
+
+    # ── K CP7: UNITS and the manifest are ONE list, and nothing was checking that ────────
+    # ⚰️ Caught by walking into it: K CP7's own row was added to `sign_manifest.txt` and NOT
+    # to `UNITS`, and every existing check stayed green. `sign_all` would have signed 44
+    # units and `merge_all` would have merged 43 — the 44th signed, approved, and silently
+    # never merged. Two hand-maintained lists of the same thing is the second-authority
+    # defect this programme has now paid for in four different shapes.
+    # ⛔ Set difference BOTH WAYS, never a count: equal lengths with one name swapped is the
+    # failure a count cannot see.
+    man = DOCS_REPO / "tools" / "sign_manifest.txt"
+    if man.is_file():
+        rows = []
+        for line in man.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            first = line.split("|")[0].strip()
+            if first.endswith(".md"):
+                rows.append(pathlib.Path(first).stem)
+        unit_stems = [u[0] for u in UNITS]
+        show("the manifest was read at all (non-vacuity)", len(rows) > 30, True)
+        show("in the manifest but NOT in UNITS -> would be signed, never merged",
+             sorted(set(rows) - set(unit_stems)), [])
+        show("in UNITS but NOT in the manifest -> would be merged, never signed",
+             sorted(set(unit_stems) - set(rows)), [])
+        show("...and the two lists are the same length",
+             (len(rows), len(unit_stems)), (len(unit_stems), len(unit_stems)))
+    else:                                                    # pragma: no cover - layout
+        show("the manifest is readable from the tool", man.is_file(), True)
+
     print("SELF-CHECK: %s" % ("PASS" if ok else "FAIL"))
     return OK if ok else FAIL
 
@@ -458,6 +536,34 @@ def _deployment_for_sha(out, sha):
     return None
 
 
+def resolve_code_repo(raw):
+    """(path, error) — K CP7. `raw` is `--code-repo` or None.
+
+    ⛔ A TYPO MUST REFUSE, NOT TARGET SOMETHING ELSE. A path that is not a git work tree is
+    rejected by name here, because every later `git -C <path>` would fail one at a time with
+    git's own wording and the run would read as a git problem rather than a wrong argument.
+    ⭐ `git rev-parse --show-toplevel` is the test rather than `(p / ".git").exists()`: in a
+    worktree `.git` is a FILE pointing elsewhere, and a subdirectory of a repo has neither —
+    so the cheap test answers "no" for a perfectly good worktree and "no" for a real typo,
+    which is a check that cannot distinguish.
+    """
+    if raw is None:
+        return DEFAULT_CODE_REPO, ""
+    path = pathlib.Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (pathlib.Path.cwd() / path)
+    try:
+        path = path.resolve()
+    except OSError as exc:                                   # pragma: no cover - OS-dependent
+        return None, "--code-repo %s cannot be resolved: %s" % (raw, exc)
+    if not path.is_dir():
+        return None, "--code-repo %s is not a directory." % path
+    rc, out = run(["git", "rev-parse", "--show-toplevel"], path, False)
+    if rc != 0:
+        return None, "--code-repo %s is not a git work tree." % path
+    return path, ""
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
@@ -465,11 +571,28 @@ def main(argv=None) -> int:
     ap.add_argument("--include-member-visible", action="store_true")
     ap.add_argument("--until", default=None,
                     help="stop AFTER this unit stem (a sitting boundary)")
+    ap.add_argument("--code-repo", default=None,
+                    help="the checkout to cherry-pick INTO; must be at "
+                         "origin/master. Default: %s" % DEFAULT_CODE_REPO)
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
 
     if a.self_check:
         return _self_check()
+
+    # ⛔ K CP7 — BIND THE TARGET BEFORE ANYTHING READS IT, AND SAY WHAT IT IS.
+    # Every helper resolves `CODE_REPO` at call time, so rebinding it here is what makes the
+    # flag reach `git cherry`, the deploy wait and the cherry-pick alike — one value, one
+    # authority. A run that does not announce its target is a run nobody can audit later.
+    global CODE_REPO
+    repo, why = resolve_code_repo(a.code_repo)
+    if repo is None:
+        print("⛔ %s" % why)
+        print("   STOPPED. Nothing was cherry-picked, nothing was pushed.")
+        return REFUSED
+    CODE_REPO = repo
+    print("[merge-all] code repo: %s%s" % (
+        CODE_REPO, "" if a.code_repo else "   (default — no --code-repo given)"))
 
     manifest = pathlib.Path(a.manifest)
     if not manifest.is_absolute():
