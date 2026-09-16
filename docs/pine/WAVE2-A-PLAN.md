@@ -2014,6 +2014,80 @@ instrument's blind spot is reproduced by everything that imports it.
 
 ---
 
+# ✅ (i) — VOLUME PROVENANCE: **ONE SOURCE SEALED, TWO LIVE**; every fix routes out
+
+Census `662ddb07c`. **346 `volume` reads in 63 of 266 scripts** — and the population is
+bigger than the token suggests.
+
+## ⭐ A SIXTH FORM CARRIES NO `volume` TOKEN AT ALL
+
+`ta.vwap` (19) · `ta.vwma` (17) · `ta.obv` (6) · `ta.mfi` (5) · `ta.nvi` (4) ·
+`ta.pvi` (4). A token-based census misses every one. **63 scripts → 77.** Of those, 7
+are host-admitted and 16 screener-admitted, **7 by both** — and one of the 7 calls
+`ta.cum`, which `_requirement_tags.window_dependent` refuses for the screener, so **the
+population a pane/screener split can bite today is 6.**
+
+## THE VERDICT
+
+**One place for every sealed bar; two places from the last sealed close onward.** Both
+lanes read one column, `bars.db::ohlcv.v`, written by one function
+(`bars_sqlite.put_bars:1182`) and read by one (`get_bars:584`), and even the vocabulary
+is single-authority (`volume → 'v'` declared once in `closedTable.json`, and
+`ast_table.py:46` opens *that same file*). **R20's class is not present in the store.**
+
+| # | divergence | where |
+|---|---|---|
+| 1 | the pane gains a bar the store does not hold, `v` from the **single-ticker** snapshot (~8s TTL); the screener never runs that line and builds its own forming bar from the **all-tickers** snapshot (30s shared) | `bars.py:464` vs `scan_evaluator.py:1011` |
+| 2 | the pane's deep history comes from the **worker's** `bars.db` via the CDN edge while its tail comes from the web pod's; the screener reads only its own process's store | `bars.py:879` / `:963` |
+| 3 | the `v` column is filled by **two vendors** (Massive aggs; yfinance on a lagging tail), Massive-wins-overlap — **both lanes inherit it** | `bars_fetch.py:1282` |
+
+## ⛔⛔ THE SHARPEST FINDING IS INSIDE THE PANE PATH, NOT BETWEEN THE LANES
+
+**On one chart, today's volume has up to FOUR values.** The member Pine pane reads raw
+`filteredBars[last].v` (`StockChart.jsx:10744`); the built-in histogram takes
+`max(b.v, livePrices[sym].volume)` (`:7861`); the built-in volume MA reads raw `b.v`
+(`:7890`); the legend recomputes the max a second time (`:4090`); and with extended
+hours on, `applySessionCandle` folds ext volume into `v` **for the built-in pane only**.
+⭐ A member comparing their Pine volume plot to the built-in one is comparing two
+different numbers, and neither is labelled.
+
+## CONSOLIDATED vs PRIMARY — **the path does not make the choice**, and that is the answer
+
+No tape, venue or trade-condition selection exists anywhere on the daily/pane path.
+Where the repo *does* choose, it chooses for **price and explicitly not volume**:
+`trade_conditions.py:1-9` filters CTA/UTP for high/low/last only, and
+`bar_broadcaster.py:292` states *"odd-lots count toward volume on the consolidated
+tape"* — the live stream, not `/api/bars`.
+
+## ⛔⛔ WHAT WAVE 1's TOLERANCE ACTUALLY COVERED — AND THE HALF IT DID NOT
+
+Wave 1 measured **the pane path** against a frozen `/api/bars` payload,
+`tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json`. **Verified rather than taken
+on trust: 3000 bars, last bar `t = 2026-09-11`** — every one of them **sealed**, which
+is precisely the half where the two lanes agree *by construction*. And **the screener
+path was never measured against anything**: no vendor capture, no `seriesCompare` row,
+no fixture comparing a screener column to TradingView or to the pane.
+
+⭐ **This lands directly on (j).** An acceptance that reuses Wave 1's procedure unchanged
+will not exercise the developing bar either, so **(j) cannot inherit a tolerance and
+call the live divergence covered.** Recorded in (j)'s plan below.
+
+## OUT OF SCOPE — RECORDED WITH ITS REPRODUCTION, **NOT CROSSED**
+
+Every fix lives outside this branch: four disagreeing renderings of today's volume →
+**UCT Terminal / charts** · two vendors in one `v` column → **bars/data platform** ·
+two physical stores composing one series → **bars / edge deep-history** · the screener's
+second snapshot endpoint → **screener** · the unmade consolidated-vs-primary choice →
+**the owner's provenance decision**, already routed out of this wave. ⛔ No engine change
+is owed, and none was made.
+
+⚠️ **UNVERIFIED AND MARKED SO:** no engine-vs-capture reproduction is possible from
+committed data — there is no screener-side bar array and **no fixture contains a
+developing bar**, which is exactly where the divergence lives. A three-step rig
+reproduction is written out in the census. No vendor API was called.
+
+---
+
 ---
 
 # a6 — CLOSED by R10. The fill contract was already met; a6.0 completed it
