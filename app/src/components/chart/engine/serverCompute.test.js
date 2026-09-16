@@ -16,6 +16,7 @@ import {
   serverInputsParam,
   columnsFromWire,
   alignColumns,
+  barTimeKey,
   cachedColumns,
   ensureColumns,
   fetchColumns,
@@ -119,6 +120,136 @@ describe('the join is BY TIME, never by index', () => {
   it('yields {} for a non-positional envelope', () => {
     expect(alignColumns({ times: [], columns: { levels: new Float64Array([1]) } }, bars([1]))).toEqual({})
     expect(alignColumns({ times: [1], columns: {} }, bars([1]))).toEqual({})
+  })
+})
+
+// ─── the two spellings of one instant ────────────────────────────
+
+describe('⛔⛔ D/W/M AND INTRADAY SPEAK DIFFERENT TIME, AND THE JOIN SPEAKS BOTH', () => {
+  // ⚰️ MEASURED ON PRODUCTION 2026-09-16, build ebffc1cd6, `SPY` vs `QQQ`:
+  //
+  //     tf   chart bar `t`     server `times`   Number(bar.t)   matches
+  //     D    '2026-09-16'      20260916         NaN             0
+  //     W    '2026-09-18'      20260918         NaN             0
+  //     M    '2026-09-01'      20260901         NaN             0
+  //     60   1789585200        1789585200       1789585200      all
+  //
+  // The join was `Number(bar.t)` inline, so every D/W/M cell resolved to NaN,
+  // `hasAnyFinite` answered false and the binder dropped the binding BEFORE
+  // creating a series. The RS line was registered, enabled, fetched, paid for
+  // and invisible — and green on 60m, which is why it read as "broken
+  // everywhere" instead of "broken on daily".
+  //
+  // ⛔ EACH TIMEFRAME IS ITS OWN CASE. Daily passing proves nothing about
+  // weekly or monthly: those carry BUCKET dates (a week-ending Friday, a
+  // month-opening 1st), and a fix that happened to special-case a trading day
+  // would pass D and fail the other two.
+
+  it('⭐ DAILY — a date-string bar joins the server’s YYYYMMDD key', () => {
+    const parsed = { times: [20260914, 20260915, 20260916],
+                     columns: { rsLine: new Float64Array([1, 2, 3]) } }
+    const out = alignColumns(parsed, bars(['2026-09-14', '2026-09-15', '2026-09-16']))
+    expect([...out.rsLine]).toEqual([1, 2, 3])
+  })
+
+  it('⭐ WEEKLY — week-ending buckets, which are not consecutive days', () => {
+    const parsed = { times: [20260828, 20260904, 20260911, 20260918],
+                     columns: { rsLine: new Float64Array([1, 2, 3, 4]) } }
+    const out = alignColumns(parsed, bars(['2026-08-28', '2026-09-04', '2026-09-11', '2026-09-18']))
+    expect([...out.rsLine]).toEqual([1, 2, 3, 4])
+  })
+
+  it('⭐ MONTHLY — month-opening buckets', () => {
+    const parsed = { times: [20260601, 20260701, 20260801, 20260901],
+                     columns: { rsLine: new Float64Array([1, 2, 3, 4]) } }
+    const out = alignColumns(parsed, bars(['2026-06-01', '2026-07-01', '2026-08-01', '2026-09-01']))
+    expect([...out.rsLine]).toEqual([1, 2, 3, 4])
+  })
+
+  it('⛔ INTRADAY IS UNCHANGED — epoch seconds on both sides, passed through', () => {
+    const parsed = { times: [1789578000, 1789581600, 1789585200],
+                     columns: { rsLine: new Float64Array([1, 2, 3]) } }
+    const out = alignColumns(parsed, bars([1789578000, 1789581600, 1789585200]))
+    expect([...out.rsLine]).toEqual([1, 2, 3])
+    // …and a gap is still a gap: the normalisation must not have become a
+    // forward fill or an index join on the way past.
+    const gappy = alignColumns(parsed, bars([1789578000, 1789581599, 1789585200]))
+    expect(Number.isNaN(gappy.rsLine[1])).toBe(true)
+  })
+
+  it('⛔ A MISSING D/W/M BAR IS STILL ABSENT, NOT FILLED', () => {
+    const parsed = { times: [20260914, 20260916], columns: { rsLine: new Float64Array([1, 3]) } }
+    const out = alignColumns(parsed, bars(['2026-09-14', '2026-09-15', '2026-09-16']))
+    expect(out.rsLine[0]).toBe(1)
+    expect(Number.isNaN(out.rsLine[1])).toBe(true)
+    expect(out.rsLine[2]).toBe(3)
+  })
+
+  it('⛔⛔ THE PRE-FIX BEHAVIOUR IS THE CONTROL — a raw Number() join finds nothing', () => {
+    // If this ever passes, the normalisation has been removed and the defect is
+    // back exactly as it shipped.
+    const times = [20260916]
+    const at = new Map(times.map((t, i) => [t, i]))
+    expect(at.get(Number('2026-09-16'))).toBeUndefined()
+    expect(Number.isNaN(Number('2026-09-16'))).toBe(true)
+  })
+})
+
+describe('⛔⛔ THE KEY IS STRING SURGERY — NO `Date`, SO NO ZONE, SO NO DRIFT', () => {
+  it('⭐⭐ CONSTRUCTS NO `Date` AT ALL — asserted by making `Date` explode', () => {
+    // ⛔ THIS IS THE WHOLE TIMEZONE ARGUMENT, AND IT IS STRUCTURAL RATHER THAN
+    // STATISTICAL. Both spellings are already CALENDAR DAYS in one store. The
+    // only way a zone can enter is if somebody invents an instant for one side
+    // and reads it back in another zone — which is precisely how
+    // `_fetch_bars_for_alert` anchored the daily VWAP in 1970-08-23. A rail that
+    // merely checked a few dates would pass under a bad implementation in the
+    // one zone CI happens to run in; this one fails the moment a `Date` appears.
+    const RealDate = globalThis.Date
+    const boom = function () { throw new Error('barTimeKey constructed a Date') }
+    boom.now = () => { throw new Error('barTimeKey read Date.now') }
+    boom.parse = () => { throw new Error('barTimeKey called Date.parse') }
+    boom.UTC = () => { throw new Error('barTimeKey called Date.UTC') }
+    globalThis.Date = boom
+    try {
+      expect(barTimeKey('2026-09-16')).toBe(20260916)
+      expect(barTimeKey(1789585200)).toBe(1789585200)
+      const out = alignColumns(
+        { times: [20260916], columns: { rsLine: new Float64Array([7]) } },
+        bars(['2026-09-16']),
+      )
+      expect([...out.rsLine]).toEqual([7])
+    } finally {
+      globalThis.Date = RealDate
+    }
+  })
+
+  it('⛔ A DAY-BOUNDARY DATE CANNOT SLIDE TO ITS NEIGHBOUR', () => {
+    // The dates a zone offset would move first: Jan 1, Dec 31, a leap day, and
+    // both US DST switches. Under any `Date`-based reading, at least one of
+    // these lands on the adjacent day for some viewer. Here none can.
+    for (const [iso, key] of [
+      ['2026-01-01', 20260101], ['2025-12-31', 20251231],
+      ['2024-02-29', 20240229], ['2026-03-08', 20260308], ['2026-11-01', 20261101],
+    ]) {
+      expect(barTimeKey(iso), iso).toBe(key)
+    }
+  })
+
+  it('⛔ AND AN INSTANT STRING IS NOT FOLDED TO A DAY', () => {
+    // `^…$`, deliberately. A string that merely STARTS with a date is an instant;
+    // folding it to a day key would collapse a whole session of intraday bars
+    // onto one slot and silently draw the last one over all of them.
+    expect(barTimeKey('2026-09-16T14:30:00Z')).toBeNaN()
+  })
+
+  it('⛔ rubbish in is NaN, never a plausible number', () => {
+    expect(barTimeKey(null)).toBeNaN()
+    expect(barTimeKey(undefined)).toBeNaN()
+    expect(barTimeKey({})).toBeNaN()
+    expect(barTimeKey('')).toBeNaN()
+    expect(barTimeKey('not-a-date')).toBeNaN()
+    // a numeric STRING is still a number — the wire has used them before
+    expect(barTimeKey('1789585200')).toBe(1789585200)
   })
 })
 
