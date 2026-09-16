@@ -150,11 +150,21 @@ def select_records(conn: sqlite3.Connection, *, types: Sequence[str], ticker: Op
                    authors: Optional[Iterable[str]] = None, since_iso: Optional[str] = None,
                    statuses: Sequence[str] = ELIGIBLE_STATUSES, extra_where: str = "",
                    extra_params: Sequence = (), order: str = "r.stated_at_et DESC",
-                   limit: Optional[int] = None) -> list[dict]:
+                   limit: Optional[int] = None, include_unstable: bool = False) -> list[dict]:
     """Team records with their segment placement and source identity.
 
     `authors` defaults to the team authors, which also excludes guests (their
-    ids are `guest:<slug>`) and attendees (NULL). Never selects a private column."""
+    ids are `guest:<slug>`) and attendees (NULL). Never selects a private column.
+
+    ⛔ **`include_unstable=False` is the Wave 1.5 item-3 publication floor, and the default is
+    fail-closed.** A PRINCIPLE or MARKET_SIGNAL whose stability is below `floor.floor_value()` —
+    or NULL, which every record is until item 2 populates it — does not come back. It is a no-op
+    for every caller that does not request those two types (badges, desk_markers, pv_examples,
+    level_alerts, lookalike all request others), so this changes nothing for them.
+
+    ⭐ **One caller opts IN, deliberately:** `brainkb._ALL_TYPES` needs a date and a locator to
+    cite a principle it is not publishing — blocking that drops a *citation*, not a publication.
+    """
     author_ids = tuple(authors) if authors is not None else team_author_ids()
     if not author_ids or not types or not statuses:
         return []
@@ -172,6 +182,12 @@ def select_records(conn: sqlite3.Connection, *, types: Sequence[str], ticker: Op
         " AND r.is_guest = 0",
     ]
     params: list = [*types, *statuses, *author_ids]
+    if not include_unstable:
+        from api.services.wisdom.publish import floor
+
+        clause, floor_params = floor.sql_clause("r")
+        sql.append(f" AND {clause}")
+        params.extend(floor_params)
     if ticker:
         sql.append(" AND UPPER(r.ticker) = ?")
         params.append(normalize_ticker(ticker))

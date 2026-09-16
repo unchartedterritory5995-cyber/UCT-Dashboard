@@ -182,8 +182,25 @@ def build_match(query: Optional[str], tickers: Iterable[str] = ()) -> str:
 
 
 def search(query: Optional[str], *, tickers: Iterable[str] = (), limit: int = 3, include_guests: bool = False,
-           for_request: bool = True) -> list[dict]:
-    """Hits for a question. Never raises: an unreadable or absent index is no hits."""
+           for_request: bool = True, include_unstable: bool = False) -> list[dict]:
+    """Hits for a question. Never raises: an unreadable or absent index is no hits.
+
+    ⛔ **`include_unstable=False` is the Wave 1.5 item-3 floor on the Ask-AI lane**, which reaches
+    PRINCIPLE through this index and NOT through `select_records`. Applied here rather than in
+    `_principle_docs` on purpose: the same index is read by `brainkb.voice_principle_candidates`,
+    an owner-sourcing lane that must keep seeing below-floor principles, and filtering at index
+    BUILD would take them away from it too.
+
+    ⛔ **`wisdom_segments_fts` is an FTS5 virtual table and FTS5 does not support
+    `ALTER TABLE … ADD COLUMN`**, so stability cannot live on the index. The principle docs carry
+    a `pr:<principle_key>` doc_id (`:107`), so the floor is applied by joining `wisdom_principles`
+    on that prefix after the MATCH.
+
+    ⚠️ **This filters principle DOCS, not segment docs**, and that gap is real: `_segment_docs`
+    (`:49-81`) indexes the full text of every authored segment, so the sentence a below-floor
+    principle was extracted from is still retrievable as a `segment` doc, attributed and dated.
+    Closing that is claim-level scope, which the owner ruled OUT of this build (R13: RECORD).
+    """
     try:
         ticks = [t for t in (tickers or ()) if t]
         match = build_match(query, ticks)
@@ -199,7 +216,27 @@ def search(query: Optional[str], *, tickers: Iterable[str] = (), limit: int = 3,
                 f"tickers, text, bm25({FTS_TABLE}) AS score FROM {FTS_TABLE} "
                 f"WHERE {FTS_TABLE} MATCH ? AND status IN ('provisional', 'confirmed'){guest_clause} "
                 f"ORDER BY {order} LIMIT ?", (match, max(1, int(limit)))).fetchall()
-        return [dict(r) for r in rows]
+            hits = [dict(r) for r in rows]
+            if not include_unstable:
+                from api.services.wisdom.publish import floor
+
+                keys = [h["doc_id"][3:] for h in hits if str(h.get("doc_id", "")).startswith("pr:")]
+                if keys:
+                    clause, params = floor.principles_clause("p")
+                    blocked = {r[0] for r in conn.execute(
+                        f"SELECT principle_key FROM wisdom_principles p "
+                        f"WHERE principle_key IN ({','.join('?' * len(keys))}) AND NOT {clause}",
+                        [*keys, *params])}
+                    # ⛔ A principle doc whose key is not in wisdom_principles at all is BLOCKED,
+                    # not passed: an unresolvable key is an unknown score, and unknown fails
+                    # closed. Passing it would make a stale index a publication channel.
+                    known = {r[0] for r in conn.execute(
+                        f"SELECT principle_key FROM wisdom_principles "
+                        f"WHERE principle_key IN ({','.join('?' * len(keys))})", keys)}
+                    hits = [h for h in hits
+                            if not str(h.get("doc_id", "")).startswith("pr:")
+                            or (h["doc_id"][3:] in known and h["doc_id"][3:] not in blocked)]
+        return hits
     except sqlite3.Error:
         log.exception("[wisdom] retrieval search failed")
         return []

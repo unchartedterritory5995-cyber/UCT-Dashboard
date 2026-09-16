@@ -20,6 +20,7 @@ import pytest
 
 from api.services import modelbook_service
 from api.services.wisdom.core import store
+from api.services.wisdom.publish import floor
 from api.services.wisdom.publish.adapters import drafts, modelbook, pv_examples, voice, voicefmt
 from tests.test_wisdom_publish_adapters_store import add_record, add_source, adapters_db, seeded  # noqa: F401
 
@@ -97,8 +98,13 @@ def test_the_missing_playbooks_are_derived_from_the_two_setup_files(seeded, monk
                      "('setupCatalog.js', 'Cup & Handle', 'v_cup')")
         conn.execute("INSERT INTO wisdom_principles(principle_key, statement, category, author_id, status) VALUES "
                      "('cup_right_side', 'Buy the handle, not the cup.', 'setup', 'tsdr', 'provisional')")
+        # ⭐ stability at the floor so this test keeps testing what it was written to test —
+        # playbook DERIVATION from the two setup files. Since 2026-09-14 a PRINCIPLE with NULL
+        # stability is withheld by the item-3 publication floor, which would empty the draft and
+        # make this read as a derivation bug. The floor's own behaviour is covered by
+        # test_a_below_floor_principle_leaves_the_playbook_awaiting_source_material below.
         add_record(conn, "recCUP", "PRINCIPLE", "segSCAN1", "srcSCAN", author_id="tsdr", vocab_id="v_cup",
-                   principle_key="cup_right_side")
+                   principle_key="cup_right_side", stability=floor.floor_value(), stability_runs=3)
     monkeypatch.setenv("WISDOM_MODELBOOK_DRAFTS_ENABLED", "1")
     modelbook.daily(_ctx())
     playbooks = {d["subject_ref"]: d for d in _drafts("modelbook_playbook")}
@@ -106,6 +112,31 @@ def test_the_missing_playbooks_are_derived_from_the_two_setup_files(seeded, monk
     cup = playbooks["setup_playbook:Cup & Handle"]
     assert '"state": "draft"' in cup["payload_json"] and "Buy the handle, not the cup." in cup["payload_json"]
     assert '"state": "awaiting_source_material"' in playbooks["setup_playbook:Go Signal"]["payload_json"]
+
+
+def test_a_below_floor_principle_leaves_the_playbook_awaiting_source_material(seeded, monkeypatch):
+    """⛔ Wave 1.5 item 3, the Model Book lane. modelbook reaches PRINCIPLE through
+    `common.select_records`, so a record whose stability is NULL — which every record is until
+    item 2 populates it — is withheld, and the draft has no source material to quote.
+
+    ⭐ This is the intended inert-then-fail-closed behaviour, pinned so nobody later reads an
+    empty playbook draft as a derivation bug. The companion above proves the SAME fixture drafts
+    normally once stability reaches the floor, so this is the floor doing it and not the fixture.
+    """
+    with store.write() as conn:
+        conn.execute("INSERT INTO wisdom_vocab(vocab_id, name, kind, status, version) VALUES "
+                     "('v_cup', 'Cup & Handle', 'setup', 'approved', 'v0')")
+        conn.execute("INSERT INTO wisdom_vocab_maps(list_name, external_name, vocab_id) VALUES "
+                     "('setupCatalog.js', 'Cup & Handle', 'v_cup')")
+        conn.execute("INSERT INTO wisdom_principles(principle_key, statement, category, author_id, status) VALUES "
+                     "('cup_right_side', 'Buy the handle, not the cup.', 'setup', 'tsdr', 'provisional')")
+        add_record(conn, "recCUP", "PRINCIPLE", "segSCAN1", "srcSCAN", author_id="tsdr", vocab_id="v_cup",
+                   principle_key="cup_right_side")          # stability deliberately left NULL
+    monkeypatch.setenv("WISDOM_MODELBOOK_DRAFTS_ENABLED", "1")
+    modelbook.daily(_ctx())
+    cup = {d["subject_ref"]: d for d in _drafts("modelbook_playbook")}["setup_playbook:Cup & Handle"]
+    assert '"state": "awaiting_source_material"' in cup["payload_json"]
+    assert "Buy the handle, not the cup." not in cup["payload_json"]
 
 
 def test_nothing_is_drafted_while_the_flag_is_off(seeded, monkeypatch):

@@ -33,8 +33,13 @@ DEFAULT_CHARS_PER_TOKEN = 3.6
 DEFAULT_SYSTEM_TOKENS = 4200
 DEFAULT_OUTPUT_P50 = 3000
 DEFAULT_OUTPUT_P90 = 6000
-CATEGORY_STREAM = {"Live Trading Sessions": "zoom_live", "LIVE TRAIDNG": "zoom_live",
+CATEGORY_STREAM = {"Live Trading Sessions": "zoom_live",
                    "Workshops & Fireside Chats": "workshop", "Interviews": "interview"}
+
+# ⭐ ONE AUTHORITY, shared with tools/wisdom_golden_verify.py since R19 (2026-09-14).
+# Re-exported here so `extract_catalog_batch.normalize_category` stays the name its callers and
+# tests already use; the rule itself lives in one place.
+from category_norm import CATEGORY_ALIASES, normalize_category  # noqa: E402,F401
 
 
 def catalog(samples: pathlib.Path):
@@ -49,10 +54,11 @@ def catalog(samples: pathlib.Path):
         data = json.loads(path.read_text(encoding="utf-8"))
         cues = _parse_timestamped_block(data.get("transcript") or "")
         segs = segmenter.segment_transcript(cues, data.get("chapters") or [])
-        stream = CATEGORY_STREAM.get(data.get("category"), "education")
+        category = normalize_category(data.get("category"))
+        stream = CATEGORY_STREAM.get(category, "education")
         ref = f"edu_videos:{data.get('id')}"
         sources.append({"kind": "transcript", "stream": stream, "external_ref": ref, "title": data.get("title"),
-                        "category": data.get("category"), "segments": segs,
+                        "category": category, "segments": segs,
                         "source_id": ids.sha24(stream, ref), "raw_sha256": ids.sha256_text(data.get("transcript") or "")})
     for path in sorted((samples / "sunday_scans_html").glob("*.html")):
         html = path.read_text(encoding="utf-8")

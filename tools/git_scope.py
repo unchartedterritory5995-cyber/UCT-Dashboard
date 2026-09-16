@@ -6,11 +6,17 @@ ANYWAY. `lesson_uct_dashboard_shared_worktree` says never `git add -A` in this r
 another programme's deliberate raw `\\x01` bytes to nothing. A rule that lives only in
 prose is a rule that survives until somebody is in a hurry.
 
-⛔⛔ THIS IS A CHECKER, NOT AN INSTALLED HOOK, AND THAT IS DELIBERATE. The shared
-`core.hooksPath` (`<repo>/.git/hooks`) already holds a `pre-commit` (the credential scan)
-and a `pre-push` (the deploy guard), both another programme's. Installing a third thing
-there would change every worktree in the repo for every programme without asking.
-`docs/breadth/git-scope-hook-proposal.md` is the proposal; wiring it is the owner's.
+✅ INSTALLED 2026-09-16, IN WARN MODE, by owner ruling (SD-1.1 A2.2 / SD-1.4 D3.4).
+⚰️ This block used to read "THIS IS A CHECKER, NOT AN INSTALLED HOOK, AND THAT IS
+DELIBERATE … wiring it is the owner's." That was true and correctly cautious — the shared
+`core.hooksPath` holds another programme's `pre-commit` (credential scan) and `pre-push`
+(deploy guard), and installing a third thing there changes every worktree for every
+programme. The owner supplied the decision; the sentence is corrected here rather than
+left to contradict the world, which is this repo's most-repeated documentation defect.
+
+It is PREPENDED to that shared `pre-commit` and wrapped in `|| true`, so it observes and
+can never refuse anybody's commit. Promotion to ENFORCE is gated on the trial criterion
+below, not on anyone's judgement that it looks fine.
 
 ⛔ AND IT IS NOT THE FIRST SCOPE MECHANISM HERE. `app/src/hub/rule12Paths.test.js` already
 does this for the joystick programme — as a TEST, identifying the change set from the DIFF
@@ -36,7 +42,14 @@ SCOPE_DIR = REPO / ".git-scope"
 OVERRIDE = "UCT_SKIP_GIT_SCOPE"
 OVERRIDE_LOG = REPO / "logs" / "git-scope-override.log"
 #: ⛔ WARN mode writes here and NEVER refuses — the 24 h trial's whole record.
-WARN_LOG = REPO / "logs" / "git-scope-warn.log"
+#: ⛔⛔ FIXED PATH, OUTSIDE EVERY WORKTREE (SD-1.5 E1.1). It was `REPO / "logs"`,
+#: where REPO is this file's own location — so each worktree kept a SEPARATE trial log
+#: and the criterion's ">=2 workstreams" had to be inferred from which files existed.
+#: Same defect as the sampler pool (SD-1.2 B3.1), found the same night. One file, and
+#: the worktree is a FIELD, so "2 workstreams" is counted from the data.
+HEARTBEAT_LOG = pathlib.Path(os.environ.get(
+    "GIT_SCOPE_HEARTBEAT", "C:/Users/Patrick/uct-git-scope/heartbeat.jsonl"))
+WARN_LOG = HEARTBEAT_LOG
 
 
 def _git(*args) -> str:
@@ -165,16 +178,27 @@ def main(argv=None) -> int:
         verdict = ("no-scope" if name is None else
                    "in-scope" if not bad else "WOULD-REFUSE")
         WARN_LOG.parent.mkdir(parents=True, exist_ok=True)
+        # ⛔ ONE SHARED FILE, so the WORKTREE IS A FIELD. The criterion asks for
+        # ">= 2 workstreams"; with a per-worktree log that had to be inferred from which
+        # files happened to exist, which is not a count of anything. JSON so the trial is
+        # counted rather than eyeballed.
         with WARN_LOG.open("a", encoding="utf-8", newline="\n") as fh:
-            fh.write(f"{datetime.datetime.now().isoformat(timespec='seconds')}\t"
-                     f"{branch or '(unborn)'}\t{len(paths)}\t{verdict}\t"
-                     f"{' '.join(bad)}\n")
+            fh.write(json.dumps({
+                "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+                "worktree": REPO.name,
+                "worktree_path": str(REPO),
+                "branch": branch or "(unborn)",
+                "scope": name or "UNMATCHED",
+                "staged": len(paths),
+                "verdict": verdict,
+                "outside": bad,
+            }, sort_keys=True) + "\n")
         if bad:
             print(f"[git-scope] ⚠️ WARN ONLY — branch '{branch}' is scoped to '{name}' and "
                   f"{len(bad)} staged path(s) fall outside it. The commit is NOT blocked.")
             for p in bad:
                 print(f"    {p}")
-            print(f"  recorded to {WARN_LOG.relative_to(REPO)}")
+            print(f"  recorded to {WARN_LOG}")
         return 0
 
     if not paths:

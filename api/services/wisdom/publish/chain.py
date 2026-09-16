@@ -70,18 +70,62 @@ DAILY: tuple = (
     Step("adapters", "publish", (("api.services.wisdom.publish.adapters", "run_daily"),)),
     Step("level_alerts", "publish", (("api.services.wisdom.publish.level_alerts", "score_silently"),)),
     Step("lookalike", "publish", (("api.services.wisdom.publish.lookalike", "score_silently"),)),
+
+    # RQ-v11-001 (owner ruling R7, 2026-09-15). Runs AFTER the gate's numbers exist and BEFORE
+    # the publication floor, so a NULL false positive on PRINCIPLE or MARKET_SIGNAL reaches the
+    # owner's queue as a question rather than being scored against the extractor as a verdict.
+    # ⛔ Not flag-gated: it writes only to the admin review queue and publishes nothing, and a
+    # queue that can be switched off is a queue nobody trusts. A no-op until a gate run exists.
+    Step("rq_v11_001", "evals", (("api.services.wisdom.evals.null_review", "score_silently"),)),
+
+    # Wave 1.5 item 2. ⛔ BEFORE publication_floor, and the order is load-bearing: the floor reads
+    # `stability` and `stability_runs`, so a reconciliation that ran AFTER it would leave the floor
+    # judging yesterday's scores — every record blocked on a NULL the reconciler had just filled in.
+    # A no-op until MIN_RUNS compatible runs are persisted, which is the state on a fresh box.
+    Step("reconcile_stability", "extract", (("api.services.wisdom.extract.reconcile", "score_silently"),)),
+    # ⛔⛔ Item 3's SECOND half, and it is not optional. The four filter sites BLOCK a below-floor
+    # PRINCIPLE or MARKET_SIGNAL; this is what makes one SURFACE. The owner's rule is "2/3 may
+    # surface only in the admin review queue", and the queue is NOT upstream of the Brain KB,
+    # Ask-AI or dossier lanes — nothing enqueues a PRINCIPLE on the publish path — so blocking
+    # alone would make a blocked record vanish rather than surface. Idempotent: review.enqueue
+    # keys on item_id_for(tab, subject_ref, new), so re-running produces one row, not a flood.
+    Step("publication_floor", "publish", (("api.services.wisdom.publish.floor", "score_silently"),)),
 )
 
 # W1 Part 7 weekly order (Sunday, after Sunday Scans publishes).
 WEEKLY: tuple = (
     Step("sunday_scans", "sources", (("api.services.wisdom.sources", "run_weekly_sunday_scans"),)),
-    Step("reconcile_outcomes", "evals", (("api.services.wisdom.evals", "reconcile_weekly"),)),
-    Step("vocab_candidates", "core", (("api.services.wisdom.core.vocab", "refresh_candidates"),)),
+    # ⚰️⚰️ R57 (owner ruling, 2026-09-15): THREE STEPS DELETED HERE, and they had never run.
+    #
+    #   reconcile_outcomes -> evals.reconcile_weekly            — not implemented anywhere
+    #   vocab_candidates   -> core.vocab.refresh_candidates     — not implemented anywhere
+    #   voice_profile      -> adapters.refresh_voice_profile    — not implemented anywhere
+    #
+    # ⛔ THE FAILURE WAS SILENT BY DESIGN. `resolve()` returns fn=None for an unresolvable target
+    # and `_run_step` records `not_available` — a SKIP, not a failure. The chain stayed green, the
+    # watchdog never paged, and three quarters of the weekly chain did nothing for the programme's
+    # whole life. `not_available` exists so a chain can outlive an unbuilt module, and its price is
+    # that an UNBUILT step is indistinguishable from a MISSPELLED one. A fourth step here was
+    # misspelled (`run_weekly_audit` for `run_audit`) and IS fixed rather than deleted.
+    #
+    # ⭐ Deleted rather than left declared, because a step that cannot run is not a plan — it is a
+    # green tick standing in for one. The intent is preserved as W2 backlog items in
+    # docs/wisdom/OVERNIGHT-CHECKPOINTS.md, where it can be scheduled instead of skipped.
+    # `tests/test_wisdom_chain_targets_resolve.py` now fails by name on any new unresolvable target.
     Step("contradictions", "publish", (("api.services.wisdom.publish.chain", "contradictions_refresh"),)),
-    Step("voice_profile", "publish", (("api.services.wisdom.publish.adapters", "refresh_voice_profile"),),
-         gate=flags.voice_profile_enabled, gate_env="WISDOM_VOICE_PROFILE_ENABLED"),
     Step("weekly_report", "publish", (("api.services.wisdom.publish.report", "run_weekly"),)),
-    Step("extract_audit", "extract", (("api.services.wisdom.extract", "run_weekly_audit"),)),
+    # ⚰️⚰️ R57 (owner ruling, 2026-09-15). This named `run_weekly_audit`, WHICH DOES NOT EXIST —
+    # not in `extract/__init__.py`, not anywhere in the repo. `resolve()` returned fn=None, the
+    # step recorded `not_available`, and nothing paged, so **the weekly extraction audit had never
+    # run once.** The step was not wrong to exist: RUNBOOK.md:108 and CONTRACTS.md:251 both specify
+    # it ("S-D weekly 50-segment audit", gated by WISDOM_EXTRACT_AUDIT_ENABLED), and
+    # `extract.run_audit` IS that implementation — it reads the flag at audit.py:54 and salts by
+    # ISO week at audit.py:70. Only the NAME was wrong, in two artifacts at once
+    # (extract/jobs.py:5 carries the same wrong name in prose).
+    # ⛔ The rail that makes this unrepeatable is `test_wisdom_chain_targets_resolve.py`: every
+    # step target in this table must import and resolve, so a typo fails by name instead of
+    # degrading to a silent `not_available`.
+    Step("extract_audit", "extract", (("api.services.wisdom.extract", "run_audit"),)),
 )
 
 # W1 Part 7 monthly (first Sunday): the recognition proposal packet, dark.
