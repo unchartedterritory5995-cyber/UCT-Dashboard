@@ -582,9 +582,15 @@ decisions: `docs/breadth/DECISIONS.md` · incident: `docs/breadth/INC-1-second-a
 
 ### The result
 
-**54,923 ms (D-042) → 271.5 ms p50 on production — ≈ 202× at the median.**
-n=14, deep cold, one deployed SHA, flag OFF, every row a forced cache miss.
-Warm `days=365`: 44.1 ms.
+**54,923 ms (D-042) → a 271–313 ms median on production — 175–202× at the median.**
+**75 deep-cold rows across FOUR independently deployed SHAs**, flag OFF, every row a
+forced cache miss on a distinct span. The four medians sit 15% apart
+(271.5 / 277.2 / 307.6 / 313.4 ms), so the result is a property of the design rather
+than of one build. Warm `days=365`: 44.1 ms.
+
+⭐ **MIN_UPTIME_S answered** (B1.6, open since Session 7): ρ=+0.09, buckets n=8 and n=26,
+medians 4.3% apart — no uptime effect detectable, so 300 s suffices and 600 s was costing
+collection for nothing.
 
 ### Every item, with its state
 
@@ -604,7 +610,7 @@ Warm `days=365`: 44.1 ms.
 | INC-1 — second app instance | **CLOSED** (audited from code; contained) |
 | the negative case (a red gate) | **NOT-OBSERVED** — passive capture armed |
 | R6 — the flip decision | **DEFERRED-TO-RUNNER** (criterion unchanged, SD-1 §3) |
-| R7 — p95 at n ≥ 59 | **NOT ESTIMABLE TONIGHT** (n=14; 45 short; arithmetic, not judgement) |
+| R7 — p95 at n ≥ 59 | **NOT ESTIMABLE TONIGHT** (best single-SHA pool n=34 → 83%; 25 short; arithmetic, not judgement) |
 | R8 — floor named, next candidate proposed | **DONE** (proposal only; no build) |
 | S2 — scope checker → ENFORCE | **TIME-GATED** (≥20 heartbeats, ≥2 worktrees, ≥24 h, 0 WOULD-REFUSE) |
 | G7 — rollback rehearsal | **UNREHEARSED-WITH-PROCEDURE** (no ≤1-in-the-hour window occurred) |
