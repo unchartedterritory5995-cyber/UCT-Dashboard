@@ -40,6 +40,13 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+
+# ⛔ UNGUARDED ON PURPOSE. A `try: import … except: lock = None` would turn a missing or broken
+# lock tool into a SILENTLY UNLOCKED gate — the swallowed-error shape this repo has paid for
+# repeatedly. The two files are committed together; if one is absent the tree is broken and
+# saying so loudly is the correct behaviour.
+sys.path.insert(0, str(REPO / "tools"))
+import gate_box_lock  # noqa: E402
 APP = REPO / "app"
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -115,13 +122,31 @@ def load_baseline() -> dict:
     return json.loads(BASELINE.read_text(encoding="utf-8"))
 
 
-def compare_failures(observed: list[str], baseline: list[str]) -> dict:
-    """What this run changed about the failing set. `new` is the only one that can block a merge."""
+def compare_failures(observed: list[str], baseline: list[str],
+                     expected_red: list[str] | None = None) -> dict:
+    """What this run changed about the failing set. `new` is the only one that can block a merge.
+
+    ⛔⛔ TWO KINDS OF KNOWN RED, AND COLLAPSING THEM LOSES THE DISTINCTION THAT
+    MATTERS. `failures` is a measurement OF MASTER — this file's own invariant is
+    "Nothing here is the hub's". `expected_red` is the opposite: a DELIBERATE
+    reproduction this branch added, red BECAUSE the defect is real, carrying the
+    fix it waits on. A reproduction filed under `failures` would corrupt the
+    baseline's meaning; one filed nowhere hands every other workstream a phantom
+    regression to chase.
+
+    ⭐ STRICT IN BOTH DIRECTIONS: an `expected_red` that is NOT observed has been
+    FIXED, and its entry is stale — that fails, because a stale entry is a slot a
+    real failure can occupy unnoticed. Same discipline the baseline already
+    applies to a `failures` row that starts passing.
+    """
     obs, base = set(observed), set(baseline)
+    exp = set(expected_red or [])
     return {
         "observed_count": len(obs),
         "baseline_count": len(base),
-        "new": sorted(obs - base),               # ⛔ regressions — the gate's actual verdict
+        "new": sorted(obs - base - exp),          # ⛔ regressions — the gate's actual verdict
+        "expected_red_seen": sorted(obs & exp),   # red on purpose, named, not blocking
+        "expected_red_stale": sorted(exp - obs),  # ⛔ GREEN now — the entry must go
         "no_longer_failing": sorted(base - obs),  # informational: fixed, or silently stopped running
         "matches_baseline": obs == base,
     }
@@ -194,12 +219,60 @@ def count_waived_files(exclude: tuple[str, ...], root=None) -> int:
     return len(hit)
 
 
-def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) -> str:
+class Captured(str):
+    """What a subprocess said, AND the code it exited with. A `str` subclass, deliberately.
+
+    ⚰⚰ THE CODE USED TO BE THROWN AWAY HERE, AND THAT IS THE BUG THIS CLASS EXISTS FOR.
+    `_capture` returned `proc.stdout + proc.stderr` and never read `proc.returncode` — so at
+    the one place this tool reads a subprocess, a process that exited 2 and a process that
+    exited 0 returned values of the same type carrying the same information. No caller could
+    tell them apart, so none reported it, and an unreported failure reads downstream as success.
+
+    ⚰ Measured 2026-09-14, and it nearly corrupted a measurement: a box-clearance waiter
+    printed `TIMEOUT - box never cleared within 25 min` and exited **2**; what reached the
+    operator was **exit 0**. Read as "clear", that would have sent a settling run into a live
+    six-shard gate and produced exactly the load-contaminated answer the procedure exists to
+    exclude. Third sighting of the family — the other two are in CLAUDE.md under
+    *"A test run without a totals line is not a run"*.
+
+    ⭐ WHY A `str` SUBCLASS AND NOT A TUPLE. This seam is SHARED: `scripts/gate_shards.py` is
+    on master and other workstreams run it, so the fix must not change what an existing caller
+    receives. Every consumer today treats the result as text (`.strip()`, `in`, `write_text`,
+    `parse_totals`) and all of it keeps working byte-for-byte; `.returncode` is simply there
+    for anyone who now asks. A tuple return would have had to touch every call site and both
+    existing capture rails to fix a bug in neither.
+
+    ⚠ The attribute does not survive string operations — `captured.strip()` is a plain `str`.
+    Read `.returncode` off the `_capture` result itself, and use `getattr(x, "returncode", None)`
+    wherever a plain `str` may arrive (an injected test seam, for instance). **`None` means NOT
+    OBSERVED, which is a different fact from `0`** and is rendered as such by `_code_text`.
+    """
+
+    def __new__(cls, text: str, returncode: int | None):
+        self = super().__new__(cls, text)
+        self.returncode = returncode
+        return self
+
+
+def _code_text(code: int | None) -> str:
+    """Render an exit code for a human, keeping "not observed" distinguishable from 0.
+
+    ⛔ `f"exited {code}"` on a `None` prints "exited None", which reads as a tool bug rather
+    than as the honest statement that nobody looked. `lesson_a_swallowed_error_becomes_a_
+    confident_finding`, in miniature.
+    """
+    return "with an UNOBSERVED code" if code is None else f"with code {code}"
+
+
+def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) -> Captured:
     """⛔ THE ONE PLACE A SUBPROCESS IS READ, so `encoding=` cannot be omitted in two places.
 
     It was omitted in one, and that is the entire reason this function exists as a seam: a rail can
     execute THIS for real, which is what rule 10 asks for. Duplicating the `subprocess.run(...)`
     call shape at another site is how the omission comes back.
+
+    ⛔ AND IT IS THE ONE PLACE AN EXIT CODE CAN BE READ, so it must not be discarded here
+    either — see `Captured`. A second `subprocess.run(...)` elsewhere loses it again.
     """
     proc = subprocess.run(
         cmd, cwd=cwd, capture_output=True, text=True,
@@ -207,7 +280,7 @@ def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) ->
         shell=(sys.platform == "win32") if shell is None else shell,
         timeout=timeout,
     )
-    return (proc.stdout or "") + (proc.stderr or "")
+    return Captured((proc.stdout or "") + (proc.stderr or ""), proc.returncode)
 
 
 # ⛔⛔ AN EXCLUSION IS A CLAIM, AND IT MUST BE VISIBLE IN THE ARTEFACT.
@@ -363,8 +436,18 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
 
     out_dir.mkdir(parents=True, exist_ok=True)
     per_shard, missing, failures = [], [], []
+    # ⛔ RECORDED, NEVER THE ARBITER. The exit code below is DIAGNOSIS: it says WHY a shard
+    # produced nothing, which "no totals line" on its own cannot. The verdict stays the
+    # failing-set comparison — vitest exits 1 on an ordinary test failure, so a non-zero shard
+    # is not a defect, and promoting this to a gate condition would fail every red run twice.
+    exit_codes: dict[int, int | None] = {}
     for i in range(1, shards + 1):
-        text = run_shard_fn(i) or ""
+        # ⛔ THE RAW VALUE FIRST. `run_shard_fn(i) or ""` collapses an empty result to a plain
+        # `str` and loses the code — precisely in the EMPTY CAPTURE case below, where the code
+        # is the only evidence of what happened.
+        captured = run_shard_fn(i)
+        exit_codes[i] = getattr(captured, "returncode", None)
+        text = captured or ""
         # ⛔ CAPTURE FAILURE IS NOT PARSE FAILURE, AND CONFLATING THEM COST SIXTEEN MINUTES OF
         # DIAGNOSIS. A shard that ran for minutes and returned NOTHING is a broken pipe between
         # this process and vitest; a shard that returned output with no totals line is a run that
@@ -375,20 +458,21 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
             raise GateError(
                 f"EMPTY CAPTURE from shard {i}: the shard was executed but its output never "
                 f"reached this process — a broken pipe, not a failed run (check the subprocess "
-                f"decoding). Aborting; the remaining shards were NOT run."
+                f"decoding). It exited {_code_text(exit_codes[i])}. "
+                f"Aborting; the remaining shards were NOT run."
             )
         totals = parse_totals(text)
         # ⛔ (b) A SHARD WITH OUTPUT BUT NO TOTALS LINE DID NOT RUN. Never the exit code.
         if totals is None:
             missing.append(i)
         else:
-            per_shard.append({"shard": i, **totals})
+            per_shard.append({"shard": i, "exit_code": exit_codes[i], **totals})
             failures.extend(parse_failures(text))
 
     if missing:
         raise GateError(
             "NO TOTALS LINE from shard(s) "
-            + ", ".join(str(i) for i in missing)
+            + ", ".join(f"{i} (exited {_code_text(exit_codes[i])})" for i in missing)
             + " — those shards did not run. A test run without a totals line is not a run."
         )
 
@@ -421,6 +505,10 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         # ⛔ PAIRED, so a pattern can never appear without the reason it was waived for.
         "excluded": list(zip(exclude, list(exclude_reasons) + ["⛔ NO REASON GIVEN"] * len(exclude))),
         "per_shard": per_shard,
+        # ⛔ PUBLISHED, so a reader of the manifest alone can see it. A shard that exited
+        # non-zero while printing a clean totals line is not a failure — but it is a fact,
+        # and it was invisible for the entire life of this tool.
+        "shard_exit_codes": {str(i): exit_codes.get(i) for i in range(1, shards + 1)},
         "summed": summed,
         "test_files_on_disk": declared,
         "test_files_waived": waived,
@@ -429,7 +517,8 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "failures": failures,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
-        "vs_baseline": compare_failures(failures, base.get("failures") or []),
+        "vs_baseline": compare_failures(failures, base.get("failures") or [],
+                                        base.get("expected_red") or []),
         "do_not_build": do_not_build_sweep(),
     }
 
@@ -533,11 +622,44 @@ def main(argv=None) -> int:
                     help="vitest workers per shard; lower it when the box is contended")
     args = ap.parse_args(argv)
     out_dir = pathlib.Path(args.out)
+
+    # ⛔ ARGUMENT ERRORS ARE SETTLED BEFORE THE LOCK IS TOUCHED. Taking a machine-wide lock to
+    # discover a typo would block another workstream's gate for nothing.
+    if len(args.exclude_reason) != len(args.exclude):
+        say('⛔ REFUSING: every --exclude needs an --exclude-reason. An unexplained '
+            'exclusion is how a suite shrinks without anyone deciding to.', err=True)
+        say(verdict_line(EXIT_INVALID, cause='MISSING_EXCLUDE_REASON'))
+        return 2
+
+    # ── the box lock (owner ruling R3) ────────────────────────────────────────────────────────
+    run_id = _dt.datetime.now().isoformat(timespec="seconds")
     try:
-        if len(args.exclude_reason) != len(args.exclude):
-            say('⛔ REFUSING: every --exclude needs an --exclude-reason. An unexplained '
-                'exclusion is how a suite shrinks without anyone deciding to.', err=True)
-            return 2
+        lock = gate_box_lock.acquire(run_id, worktree=REPO)
+    except gate_box_lock.LockHeld as e:
+        # ⛔ ONE LINE NAMING THE HOLDER. "The box is busy" sends the reader nowhere; a pid, a
+        # start time and a command line tell them whose run to wait for and who to ask.
+        say(f"\n  GATE REFUSED — the box is held: {e}\n", err=True)
+        say("  Wait for it, or re-run with "
+            f'{gate_box_lock.BYPASS_ENV}="<reason>" — but read the next line first.', err=True)
+        say("  ⛔ A BYPASS NEVER BUYS A CLEAR VERDICT: the run is still sampled and still lands "
+            "INCONCLUSIVE-CONTENDED while that holder is alive.", err=True)
+        say(verdict_line(EXIT_LOCK_HELD, holder_pid=(e.holder or {}).get("pid"),
+                         held_since=(e.holder or {}).get("started_at"),
+                         holder_workstream=(e.holder or {}).get("workstream") or "unknown"))
+        return EXIT_LOCK_HELD
+
+    # ⛔ EVERY EXIT PATH RELEASES — a normal verdict, a GateError refusal, an unexpected
+    # exception, a KeyboardInterrupt. A lock only a happy path releases is a lock that strands
+    # the box the first time anything goes wrong, which is when it matters most.
+    try:
+        return _gate_body(args, out_dir, lock)
+    finally:
+        gate_box_lock.release()
+
+
+def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
+    """The gate itself, exactly as it was before the lock existed."""
+    try:
         manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers,
                             exclude=tuple(args.exclude), exclude_reasons=tuple(args.exclude_reason))
     except GateError as e:
@@ -560,17 +682,114 @@ def main(argv=None) -> int:
                 encoding="utf-8")
         say(f"\n  GATE INVALID: {e}\n", err=True)
         say(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n", err=True)
+        say(verdict_line(EXIT_INVALID, cause=_invalid_cause(str(e))))
         return 2
+    # ⛔ THE LOCK'S STORY GOES INTO THE ARTIFACT. A bypass that is only visible in a log nobody
+    # opens is a bypass nobody reviews; and a reclaimed stale lock is how you learn some earlier
+    # gate died without anyone noticing.
+    manifest["box_lock"] = {
+        "acquired": lock.get("acquired"),
+        "path": lock.get("path"),
+        "bypass": lock.get("bypass"),
+        "bypass_reason": lock.get("bypass_reason"),
+        "overrode": lock.get("overrode"),
+        "reclaimed": lock.get("reclaimed"),
+    }
     stamp = manifest["at"].replace(":", "-")
     (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     (out_dir / f"{stamp}.md").write_text(render(manifest), encoding="utf-8")
     say(render(manifest))
-    return verdict_exit_code(manifest, say=say)
+    code = verdict_exit_code(manifest, say=say)
+    # ⛔ DERIVED FROM THE SAME MANIFEST AS THE EXIT CODE, in the same breath, so the line and
+    # the status can never disagree with each other the way the status and the report did.
+    v = manifest.get("vs_baseline") or {}
+    say(verdict_line(
+        code,
+        new=len(v.get("new") or []),
+        no_longer_failing=len(v.get("no_longer_failing") or []),
+        # ⛔ MASTER'S EXPECTED-RED DISTINCTION SURVIVES ONTO THE LINE. A deliberate
+        # reproduction that is red on purpose and a baseline row that is red by measurement
+        # are different facts; a line reporting only a total would re-collapse the very
+        # distinction `compare_failures` was changed to make.
+        expected_red_seen=len(v.get("expected_red_seen") or []),
+        expected_red_stale=len(v.get("expected_red_stale") or []),
+        test_files=manifest["summed"]["files"]["total"],
+        tests_failed=manifest["summed"]["tests"]["failed"],
+        reconciles=str(bool(manifest["file_count_reconciles"])).lower(),
+    ))
+    return code
 
 
 # Exit codes. 2 is the refused/invalid run above; these two are the verdict of a VALID run.
 EXIT_NO_NEW = 0
 EXIT_NEW_FAILURES = 1
+# ⛔ ITS OWN CODE. A suite that did not run every file and a suite that found a
+# regression are different facts, and a caller that cannot tell them apart will
+# eventually treat one as the other.
+EXIT_DID_NOT_RECONCILE = 3
+EXIT_INVALID = 2
+# ⛔ ITS OWN CODE, because "the box was busy" is not a verdict about this branch. Collapsing it
+# into INVALID would make a queued run indistinguishable from a broken one, and the two call for
+# opposite responses: wait, versus go and look.
+EXIT_LOCK_HELD = 4
+
+# ⛔⛔ THE VERDICT IS A LINE OF OUTPUT, BECAUSE THE EXIT CODE IS NOT TRUSTWORTHY IN TRANSIT.
+#
+# `verdict_exit_code` below is correct and stays correct. What is not reliable is everything
+# BETWEEN this process and the person reading the result. Measured, twice, in this repo:
+#
+#   2026-09-09  a runner died at argument parsing having executed nothing  -> reported exit 0
+#   2026-09-13  this wrapper printed "GATE EXIT: 1" on a NEW failure       -> reported exit 0
+#
+# so the background-task status is uninformative in BOTH directions — it is not merely
+# optimistic about startup. A third sighting on 2026-09-14 (a waiter exiting 2 reported as 0)
+# is what `Captured` above exists for; this is the same disease at the other end of the tool.
+#
+# ⭐ THE FIX IS NOT TO REPAIR THE CHANNEL — it is not ours — BUT TO STOP DEPENDING ON IT.
+# One unambiguous line, on stdout, derived from the SAME manifest the exit code is derived
+# from, so the two can never disagree. A reader greps `^VERDICT=` and is done.
+#
+# ⛔ ADDITIVE ONLY. This wrapper is shared — it is on master and other workstreams run it —
+# so not one existing line of output changed and not one exit code moved. A consumer that
+# has never heard of VERDICT= behaves exactly as it did before.
+VERDICT_NAMES = {
+    EXIT_NO_NEW: "NO_NEW_FAILURES",
+    EXIT_NEW_FAILURES: "NEW_FAILURES",
+    EXIT_INVALID: "INVALID",
+    # ⛔ MASTER'S, AND THE ONE THIS LINE MOST NEEDS TO CARRY. A suite that did not run every
+    # file fails in the FLATTERING direction — fewer files, fewer failures — so `exit=3` with
+    # no name is precisely the run an operator must not mistake for a quiet one. Every code
+    # `verdict_exit_code` can return must appear here, and a rail derives that set from the
+    # module rather than retyping it.
+    EXIT_DID_NOT_RECONCILE: "DID_NOT_RECONCILE",
+    # ⛔ NOT A SUITE VERDICT, and named so it cannot be read as one. Consistent with how
+    # stage-2-verification.md §2 now treats run-hub-rails.mjs's exit 2: a refusal to start is
+    # "this did not run", never "this ran and was fine".
+    EXIT_LOCK_HELD: "REFUSED-LOCK",
+}
+
+
+def verdict_line(code: int, **fields) -> str:
+    """One greppable line: `VERDICT=<NAME> exit=<n> [k=v ...]`.
+
+    ⚠ Field values must not contain spaces — the line is meant to survive `awk`/`cut` in a
+    shell that has no JSON parser. Prose belongs in the lines above it, which already carry it.
+    """
+    name = VERDICT_NAMES.get(code, "UNKNOWN")
+    extra = " ".join(f"{k}={v}" for k, v in fields.items())
+    return f"VERDICT={name} exit={code}" + (f" {extra}" if extra else "")
+
+
+def _invalid_cause(message: str) -> str:
+    """The GateError's own leading label as a space-free token, for the VERDICT line.
+
+    Every refusal in `run_gate` names itself in capitals first — DIRTY TREE, EMPTY CAPTURE,
+    NO TOTALS LINE, TREE DRIFT — precisely so a caller can tell them apart. This carries that
+    distinction onto the verdict line instead of flattening four different refusals into one
+    word, which is the failure `GateError` was given named cases to avoid.
+    """
+    m = re.match(r"^[A-Z][A-Z0-9 ]*[A-Z]", message.strip())
+    return m.group(0).replace(" ", "_") if m else "REFUSED"
 
 
 def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
@@ -595,9 +814,58 @@ def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
     disagree — a stale baseline in the harmless direction — that is said out loud rather than
     silently collapsed into either answer.
     """
+    # ⛔⛔ THE COVERAGE CHECK IS PART OF THE VERDICT, NOT DECORATION.
+    # `file_count_reconciles` was computed and RENDERED into the manifest from the
+    # day this wrapper was written, and read by NOTHING: a run whose shards
+    # executed 1,016 of 1,178 files printed 'DOES NOT RECONCILE' and still exited 0
+    # with 'no NEW failures'. That is failure mode #2 in this file's own docstring -
+    # a partial suite fails in the FLATTERING direction, because fewer files run
+    # means fewer failures found. count_waived_files() already removes the only
+    # legitimate cause of a shortfall, so this cannot cry wolf.
+    #
+    # ⭐ It runs BEFORE the baseline comparison on purpose. If the suite did not
+    # execute every file, the observed failing set is INCOMPLETE, so `new: 0` is not
+    # a green verdict - it is an unanswered question wearing one.
+    if manifest.get("file_count_reconciles") is False:
+        disk = manifest.get("test_files_on_disk")
+        waived = manifest.get("test_files_waived") or 0
+        ran = ((manifest.get("summed") or {}).get("files") or {}).get("total")
+        expected = (disk - waived) if isinstance(disk, int) else None
+        say("", err=True)
+        say(f"  GATE: DOES NOT RECONCILE - exit {EXIT_DID_NOT_RECONCILE}.", err=True)
+        say(f"  {ran} test file(s) ran; {disk} on disk minus {waived} waived = "
+            f"{expected} expected.", err=True)
+        say("  Per shard (a shortfall is usually ONE shard, not a spread):", err=True)
+        for s in manifest.get("per_shard") or []:
+            say(f"    shard {s.get('shard')}: "
+                f"{(s.get('files') or {}).get('total')} file(s)", err=True)
+        say("  No baseline comparison is reported: the failing set is incomplete,",
+            err=True)
+        say("  and a partial suite finds fewer failures and reads as a pass.", err=True)
+        return EXIT_DID_NOT_RECONCILE
+
     v = manifest.get("vs_baseline") or {}
     new = v.get("new") or []
     stale = v.get("no_longer_failing") or []
+    exp_seen = v.get("expected_red_seen") or []
+    exp_stale = v.get("expected_red_stale") or []
+    # ⛔⛔ A DELIBERATE RED THAT HAS TURNED GREEN IS A FAILURE, NOT A RELIEF. Its
+    # defect is fixed, so the entry is stale — and a stale entry is a slot a real
+    # failure can occupy unnoticed. Named, so the next reader knows what to delete.
+    if exp_stale:
+        say("", err=True)
+        say("  GATE: EXPECTED-RED entr(ies) are GREEN now, so their defect is fixed", err=True)
+        say("  and the entry must be removed, citing the fix that did it:", err=True)
+        for _e in exp_stale:
+            say("    - " + _e, err=True)
+        return EXIT_NEW_FAILURES
+    if exp_seen:
+        # ⭐ Named, never silent: a deliberate red nobody can see is
+        # indistinguishable from one nobody noticed.
+        say("", err=True)
+        say("  (expected-red, not blocking — deliberate reproductions carrying the fix "
+            "they wait on: " + ", ".join(e.split(" > ")[0] for e in exp_seen) + ")",
+            err=True)
     if new:
         say(f"\n  GATE: {len(new)} NEW failure(s) against the baseline — exit {EXIT_NEW_FAILURES}.\n"
             f"  Classify each by direction before treating it as a regression: a failure the BASE\n"

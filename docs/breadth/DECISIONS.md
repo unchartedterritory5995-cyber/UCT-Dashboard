@@ -370,3 +370,902 @@ Testing Library's budget is already 4,000 ms against a 250 ms debounce, so the r
 not a misplaced read. "Fixing" it would have meant raising a global timeout in another session's area to hide load. It is
 recorded in `gates.md` as pre-existing and load-sensitive instead. The test that gets rewritten is the one whose
 ASSERTION is in the wrong place; the test that gets recorded is the one the machine was too busy to answer.
+
+### D-037 · The R1 golden is the acceptance test for the whole of R1, and Tasks 2 and 3 may not touch it
+
+**Decision.** `app/src/pages/breadth/heatmapRegistry.golden.{test.js,json}` was written in R1 Task 1, before any
+consolidation, and pins what the heatmap registry produced at `0dd21c248`: every tile's `label`, `group`, `isHeader`,
+`drillKey`, `polarity`, `pair`, and its `getTier`/`getFmt` as source text, in registry order, plus `TREEMAP_DEF`,
+`FFILL_KEYS` and the sorted `PCTILE_KEYS` — 53 rows, 46 tiles, 16 drill keys, 5 fill keys, 29 percentile keys, 29
+treemap items, with five controls and a size floor. Tasks 2 and 3 were required to leave it **unchanged and
+unregenerated**, and did: it passed 7/7 after METRIC_META landed and again after `heatmapMetrics.js` became an adapter.
+
+⛔ **If a later task needs the golden to change, that is a finding, not a fixture update.** Regenerating it is allowed
+only for a deliberate, member-visible change, and only with its own line in this file naming what a member will now see
+that they did not see before. A fixture regenerated to make a suite green records the new behaviour as if it had always
+been correct, and the one artifact that could have reported the regression becomes the thing that certifies it.
+
+**Why this shape.** The consolidation's whole risk is silent: two registries agreeing today, one of them quietly
+re-ordered or re-labelled tomorrow, with nothing failing because both sides moved together. A golden captured BEFORE the
+refactor is the only artifact that cannot move with it. It earned that role immediately — deriving `WEEKLY_METRICS` from
+`METRIC_META` alone reordered `FFILL_KEYS` alphabetically (the catalog reads bulls → neutral → bears → spread → naaim,
+and `METRIC_META` is sorted by key). Under a "regenerate and move on" rule that would have shipped as a reordered
+forward-fill list with a green suite behind it; under this rule it was fixed at the source, in `chartMetrics.js`, with
+the reason written beside the derivation.
+
+⚠️ **A golden is a record of behaviour, not a claim that the behaviour is right.** It pins thirteen deliberate
+`label`/`short` disagreements and the picker-vs-tile group split (D-034) exactly as they are. Changing any of those
+remains a product decision; the golden only guarantees nobody makes one by accident.
+
+### D-038 · The member-smoke credential was rotated after a session cookie leaked into a log
+
+**Decision.** On 2026-09-13 the `/charts` A/B harness (`tools/breadth_widget_ab.py`) crashed during teardown and
+printed the raw Playwright exception. A Playwright error embeds the request headers of the call that failed, and one of
+those headers is `Cookie:` — so a live `MEMBER_SMOKE` session token reached a run log and the agent's tool output. The
+credential was rotated end to end, on the owner's explicit authorisation, using mechanisms the repo already has:
+
+1. `POST /api/auth/admin/reset-password` — the same admin endpoint `CLAUDE.md` names for smoke-account management. No
+   new mechanism, no raw SQL, no pod-side write.
+2. `POST /api/auth/sessions/revoke-others`, called as the member itself after signing in with the new value: **104**
+   sessions deleted. A second call returned `revoked: 0`, which is the proof that none survive.
+3. Verified: the leaked token now answers **401** on `/api/auth/me` (one read-only request, its only permitted use);
+   a member-view read with the new value answers 200.
+4. `MEMBER_SMOKE_PASSWORD` updated in the operator's user environment. **No Railway service carries it** — a key-name
+   sweep of all five services found only `SMOKE_LOGIN_LINK_ENABLED` on `web` — so nothing was redeployed and no deploy
+   was left in flight.
+
+⛔ **On this app, changing a password does NOT invalidate sessions.** `admin/reset-password` writes `password_hash`
+and nothing else; the only `DELETE FROM sessions` paths are logout, revoke-others, and expiry. Step 2 is therefore not
+belt-and-braces, it is the step that actually closed the leak. Anyone rotating a credential here and stopping at step 1
+has changed a password and left every stolen session live.
+
+⛔ **The classifier block was correct and was not bypassed.** The first instinct was to `POST /api/auth/logout` with
+the leaked cookie; the permission classifier refused it as credential exploration. That refusal was right — a script
+that reads a token out of a file and replays it is the shape of an attack whether or not the intent is remediation.
+The response was to delete the artifacts (a safer action that needed no credential), report the leak to the owner, and
+then rotate once authorised. **Rotation superseded logout**: it invalidates every session at once rather than the one
+token that happened to be legible, which is the stronger remedy the block pushed toward.
+
+⚠️ **A leaked token also lives in the conversation transcript, which cannot be deleted.** Deleting log files is
+necessary and never sufficient; rotation is what closes it. That is why the runbook's first instruction is *report
+immediately*, not *clean up*.
+
+**Why the rule is phrased as it is.** "Don't log secrets" would not have prevented this — nothing was logging a
+credential on purpose, it was logging an *error*, and the error was carrying one. The rule in
+`docs/runbooks/rig-credential-hygiene.md` is therefore **never print a raw Playwright/HTTP exception**, with one
+shared scrubber (`tools/secret_scrub.py`) and `tests/test_secret_scrub.py` as the standing rail.
+
+⚠️ **Three defects surfaced while building that rail, each recorded because each read as done:** the draft scrubber
+required a word boundary before the cookie's name, which does not exist after the `uct_` prefix, so it redacted the
+unprefixed spelling and missed the real one; the scrubber's own "this file must not contain the literal it hunts" case
+failed on the paragraph explaining that rule; and the harness's new self-check had pasted a slice of the real token in
+as a fixture, in a committed file, in a public repo — found by the scanner, which is the whole argument for having one.
+That commit reached no remote and was rewritten away. **The exempt files are now held to a stricter rule than the scan
+they are exempt from** (no long high-entropy literal), because an allowlist is exactly where a secret hides.
+
+### D-039 · The password-change session defect found by D-038 is fixed and live
+
+**Decision.** The defect D-038 recorded — on this app a password change writes `password_hash` and nothing else, so
+every stolen session survives it — shipped as its own corrective change on its own branch, gate and merge:
+`fix/password-change-revokes-sessions`, merged **`bd68c4147`**, deploy `7c380b6a` **SUCCESS** 2026-09-14T04:02:50Z.
+Member-facing: *"Security: changing your password now signs out all other devices."*
+
+`auth_service.revoke_sessions(user_id, keep_token=None)` is the one implementation, and
+`POST /api/auth/sessions/revoke-others` now calls it too so the endpoint and the password paths cannot drift.
+
+⛔ **THREE functions write a password, not two.** The one outside the original scope —
+`execute_password_reset`, the emailed forgot-password link — is the most important of the three: it is the path a
+locked-out or compromised member actually reaches for, and until this change it reset the password and left the
+attacker signed in. It revokes everything; there is no caller session to preserve. Self-service keeps only the calling
+device; admin reset keeps nothing.
+
+**Verified on the shipped build, not just in tests** (member-smoke, production): two live sessions → self-service
+change → **the device that changed it stayed 200 and the other device went 401**, with
+`other_sessions_signed_out: true` on the response. `revoke-others` through the new shared implementation: 3 alive →
+`revoked: 14` → caller 200, others 401/401.
+
+⚠️ **Two process failures on this change, both worth more than the fix.** The first commit was authored against a
+**RED run** — the last pytest before it printed `1 failed, 5 passed` and its message claimed six passing. The cause
+was a fixture domain: `AdminResetRequest.email` is an `EmailStr` and the validator refuses special-use domains, so
+`*.invalid` 422s before the endpoint is reached while `.internal` passes. **The five service-level cases never touch
+Pydantic and passed regardless — a fixture can be wrong for five tests and fatal for the sixth**, which is exactly the
+shape that makes a partial green read as a whole one. Second, the correction was `--amend`ed onto a MERGE commit
+rather than the fix, leaving the red test in history; the branch was local-only, so it was restructured into one
+commit on master. Neither reached a remote.
+
+⭐ **A backend-only change is NOT gated by the six-shard vitest gate**, which cannot see it — zero `app/` files. The
+gate that applies is the scoped backend suite: 6/6 in the new rail and **312 passed** across every auth surface it can
+reach. Flow-worker is an **INERT STRAND**, traced rather than assumed: its closure takes exactly one symbol from
+`auth_service` (`validate_session`, via `flow_gap_autofill.py:45` → `flow_admin_auth.py:24`) and this change touches
+it in zero lines, so forcing a redeploy would buy a permanent OPRA tape gap for no behavioural difference.
+
+### D-040 · `DESK_PUBLIC_SHOWS='*'` is the owner's decision, is ledgered, and must not be "fixed"
+
+**Decision.** Public YouTube publishing of live sessions, workshops and evening updates is **deliberate** — owner
+decision 2026-08-19, reaffirmed 2026-09-13. The 2026-09-13 change that unlisted them was the error and was reverted on
+the owner's confirmation. `DESK_PUBLIC_SHOWS='*'` on `web` is the intended live value.
+
+**Verified, not assumed** (2026-09-14, this tree at master): `tests/test_visibility_flag_ledger.py` → **16 passed**, and
+`python tools/flag_ledger_audit.py --visibility` → **FINDINGS: 0** with `web: DESK_PUBLIC_SHOWS='*'` read live. The
+ledger already declares it `status: armed`, `values: ['*', 'sunday scans']`, with an `owner_decision` field — and the
+rail permits a wildcard on a public-exposure flag **precisely because** that field is present. So the shape is the
+intended one, the same shape `J2_OCR_ENABLED` uses.
+
+⛔ **Do not narrow this flag, and do not file it as an exposure.** A later session reading an incident framing will be
+tempted to "fix" a wildcard on a flag named PUBLIC — that would unlist the owner's public catalogue and would look
+like diligence. The rail is the authority and it is green; a finding here means the LEDGER drifted, never that the
+flag is wrong.
+
+⚠️ **This entry exists because I got it wrong in exactly that direction** — I read the incident framing, treated a
+deliberate decision as an exposure, and reported it as one. The correction is recorded here rather than only in a
+conversation so the next reader meets it beside the flag.
+
+### D-041 · B1 ships the series endpoint dark, flag-first, cached under the existing prefix, with downsampling deferred on measurement
+
+**Decision.** `GET /api/breadth-monitor/series` is implemented to D-035's contract. Full contract, caps, defaults and
+cost table: **`docs/breadth/api-series.md`** — that file is the authority and this entry does not restate it.
+
+Four choices worth recording:
+
+**1. Flag-first is the mechanism, not a detail.** `require_series_flag` is declared before `require_paid` because
+FastAPI 0.115.6 resolves dependencies in declaration order (`fastapi/dependencies/utils.py:592`). Reversed, an
+anonymous probe gets 401/402 — which **advertises that a paid route exists** before it has shipped. The rail asserts
+the two POSITIONS rather than three status codes, because three green codes are also compatible with a route that 404s
+for an unrelated reason.
+
+**2. The row schema is the key authority, and the constraint is "a series is numbers."** D-035 allowed the chartMetrics
+registry or the row schema; the registry is JavaScript and this is Python, so citing it would mean a hand-typed copy —
+the exact second-authority defect R1 spent itself removing. The numeric test is also what keeps `*_list` ticker arrays
+out **by type**, rather than adding a second stripper beside the one already inside `get_history_deep`. ⭐ That came
+from a failing test, not from design: the first `series_known_keys` admitted any non-`date` key, and a stubbed history
+(which bypasses the real stripper) served a ticker array as a column. **A stub that bypasses a guard is how you find
+out the guard was the only thing holding a contract up.**
+
+**3. The cache key sits under `breadth_history_` deliberately.** Every snapshot write already calls
+`cache.delete_prefix("breadth_history_")`, so this needs no new invalidation path and none can be forgotten. Key order
+is normalised so a reordered `keys=` is the same cache entry.
+
+**4. Downsampling is DEFERRED, on measurement.** D-035's trigger was 2008– with 8 keys exceeding ~1 s cold. Measured:
+**30.3 ms p50 / 36.0 ms p95** over 4,530 sessions, ~33× under it. `bucket=` is not implemented.
+⚠️ **And the measurement is not the one D-035 asked for, which is why it says so.** `C:\data\breadth_monitor.db` on
+this box is **12 KB — schema only**; the real history is on Railway's volume. Timing "the local DB" would have measured
+an empty table and produced a flattering number, so the history reader was stubbed with a full-size row set to isolate
+what B1 *adds*. `get_history_deep`'s own cost is pre-existing, unchanged and separately cached.
+
+**The ledger row ships in this commit, not before it.** `test_the_ledger_does_not_describe_gates_that_no_longer_exist`
+computes `stale = ledger − (gates ∪ visibility_flags)`, so a row for a flag no code reads is rot by definition — a
+standalone "flags commit" could not have been green. The mirror rule sent `VITE_BREADTH_CHARTS_V2_ENABLED` the other
+way: `test_no_stale_build_flag_rows` asserts `declared ⊆ names_read(repo)`, so its **ledger row waits for V2-1's first
+read** while its Dockerfile `ARG`/`ENV` lands now (a spare ARG is inert, and nothing ties the ARG list to the ledger).
+
+### D-042 · The cost bound is NOT met, `bucket=` would not fix it, and the cause is the reader — B1 stays dark
+
+**Measured on production, 2026-09-14, member-smoke, off-peak**, through the existing paid monitor endpoint (same
+`get_history_deep`, heavier payload, so a strict upper bound on B1's read):
+
+| request | rows | payload | cold | warm |
+|---|---|---|---|---|
+| `days=90` (no `end`, the default Monitor view) | 90 | 146 KB | 1,018 ms | 166 ms |
+| `days=8000` (no `end`) | 4,703 | 4.96 MB | **54,923 ms** | 676 ms |
+| `days=365&end=2026-08-01` (teleport) | 365 | 455 KB | 10,498 ms | 1,912 ms |
+
+⛔ **D-035's trigger is breached by ~55×**, so by the standing rule downsampling is owed. **It is not implemented, and
+implementing it would be a fix that does not fix anything.** `bucket=` reduces the RESPONSE; the 55 s is spent in
+`get_history_deep` PRODUCING the 4,703 rows, entirely upstream of any bucketing. Every row must exist before it can be
+averaged into a week. Shipping `bucket=` here would lower the payload, leave the 55 s exactly where it is, and — worse —
+make the endpoint *look* bounded.
+
+⭐ **B1's own cost was never the problem and the two numbers should not be confused.** B1's marginal filter+project+
+encode is **30 ms** over 4,530 rows (D-041). The reader is ~1,800× that. A stubbed measurement was right about what it
+measured and silent about what dominates — which is why this second measurement was demanded, and why the answer
+inverted the decision.
+
+⚠️ **THIS IS PRE-EXISTING AND LIVE, AND IT IS NOT B1's.** `GET /api/breadth-monitor?days=8000` is a shipped, paid
+route; any member who asks the Monitor for a deep window pays 55 s on the ONE uvicorn process, which is the
+anyio-threadpool starvation class that caused the 2026-07-01 524 outage. `00-discovery` §7 already recorded the Time
+Navigator firing 32 sequential `days=150&end=…` calls and a 45 s rig timeout attributed to it — the same path, not yet
+named as a cost. **Raised, not fixed here**: a reader rewrite is not a Data Charts change and must not ride a UI branch.
+
+**Decision.** B1 **stays dark** — it is set on no service, so nothing is exposed and no member can reach it. The flag
+must NOT be enabled until the reader cost is addressed. `bucket=` is **not** implemented and is **not** the owed work;
+what is owed is one of: bound B1's span to the warm collector range, pre-warm the deep windows off the request path, or
+make `get_history_deep` cheap for a cold deep span. That choice is the owner's and is recorded as open.
+
+---
+
+### D-043 — the reader is its own programme; `/series` is span-capped until it lands (2026-09-14)
+
+**Owner ruling.** D-042 left the choice open between three ways of closing the ~55 s cold deep read. The ruling splits
+it in two: the reader gets its **own programme** (it is a backend correctness/performance problem, not a Data Charts
+change, and must not ride a UI branch), and until that programme lands, **the cost is made unreachable rather than
+tolerated**.
+
+**Three parts, and each is deliberately in a different place:**
+
+1. **`/series` is capped at 365 sessions** — `BREADTH_SERIES_MAX_SESSIONS`, enforced as `365 × 1.6 = 584` calendar
+   days, `400` naming both numbers. A cold deep read is therefore unreachable from this endpoint **regardless of the
+   flag**, which is what lets B1 stay dark safely rather than dangerously.
+2. **The V2 hook refuses a wider span by constant** — the frontend does not discover the cap by receiving a `400`; it
+   declines to ask, off a single exported max-sessions constant, and renders "range not yet available". ⭐ Two
+   enforcement points for one rule is normally the second-authority defect; here the server's is the **guard** (it must
+   hold against any caller) and the client's is the **product** (a member should not see an error for a range the app
+   knows it cannot serve). Neither is derived from the other by copying a number — the hook owns its constant and the
+   server owns its env var, and they are allowed to disagree only in the direction of the client being stricter.
+3. ⛔ **`days=` on the live monitor route is NOT capped.** Time Navigator and Views depend on deep windows; capping it
+   would break shipped surfaces to protect against a cost those surfaces are already paying. The live route gets
+   **interim containment** (single-flight on the cache key) instead, as its own item off master.
+
+**Why the cap is checked before the read.** Counting sessions requires reading them. A post-read rejection has already
+spent the 55 s it exists to prevent, so the check is on **calendar days**, which the request alone settles.
+`test_span_over_the_session_cap_is_400_and_names_the_cap` asserts the reader never ran — without that assertion the cap
+is decorative and every other test still passes.
+
+⚠️ **The cap is raised when the reader work lands, not to satisfy a wider view.** That sentence is in
+`docs/breadth/api-series.md` and in the `400` body itself, because the next person to want five years of history will
+find the constant before they find this file.
+
+---
+
+### D-044 — `json_remove()` in SQL is a MEASURED ANTI-PATTERN, not a fix (2026-09-14)
+
+**Recorded by owner ruling so nobody adopts it on plausibility.** It is the option that
+looks cheapest, needs no migration, and is the only one of the three candidates that makes
+the reader **worse**.
+
+Measured on the production copy, 105 rows (the default view's window), best of three runs:
+
+| shape | ms | vs today |
+|---|---|---|
+| **today** — `SELECT metrics` → `json.loads` → `del` each `_list` | **627.7** | — |
+| **`json_remove()` in SQLite**, then parse the remainder | **1,563.6** | ⛔ **2.49x SLOWER** |
+| **numeric-only column**, written once | **1.3** | ⭐ **485x faster** |
+
+⛔ **Why it loses, and the reason generalises past this endpoint:** `json_remove` makes
+SQLite parse the 636 KB blob and serialise a NEW one, and Python still parses the result.
+It does not remove the parse — it adds a second one in C and keeps the first. **Moving a
+cost into the database is only a win when the database can answer without materialising
+the thing you were trying to avoid materialising.**
+
+⭐ The blob shape that makes this matter: the average snapshot is **636,834 bytes**, of
+which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every history read
+parses and immediately deletes. Every numeric key the Monitor grid shows — all ~70 of
+them, across all 174 rows — totals **0.25 MB**.
+
+**Ruled shape: a numeric store written on write** — built and recorded as **D-045
+below**, never SQL-side JSON surgery. The drill endpoints keep reading the blobs by date;
+they are the only consumer that wants the lists.
+
+---
+
+### D-045 — the numeric store and the materialised reconstructed side (2026-09-14)
+
+**This is the record D-044 points at.** D-044 ruled the shape; this is what was built,
+which commits carry it, and what it measured. Every commit hash below was verified with
+`git log -1 --format=%s` before it was written down.
+
+#### What was built
+
+| # | commit | what it added |
+|---|---|---|
+| 1 | `685a19bdb` | `breadth_snapshot_numeric(date PK, metrics, source, updated_at)` + `idx_bsn_source`. `numeric_of()` drops **exactly** the `*_list` keys; `_write_numeric()` takes the **caller's connection** so the projection is written inside the snapshot's own transaction; `delete_snapshot` removes both rows. |
+| 2 | `725151fd3` | `idx_bdo_source_date(source, date, metric, c)` — the covering index that closes follow-ups (c) `closes_for_dates` and (d) `distinct_dates`. |
+| 3 | `b4c141948` | `breadth_reconstructed_daily(date PK, metrics, ohlc_watermark, sentiment_watermark, built_at)` + `idx_brd_watermark`, with `build_reconstructed()`, `reconstructed_for_dates()`, `stale_reconstructed_dates()`, `rebuild_stale()` and `_rebuild_after_write()`. |
+| 4 | `f7e09f56c` | the reconstructed migration tolerates a continuously-written input: `_recon_fingerprint(c, since)` excludes concurrently-written dates, and an already-materialised store skips the backup rather than re-taking it. |
+| 5 | `5032b44a3` | the deep window's date set comes from the materialised table; `distinct_dates_by_scan()` is kept as the parity reference and the fallback. |
+
+⛔ **A JSON column, not ~70 typed columns.** `metrics` has no fixed schema — the newest
+production row carries 92 keys and older ones carry fewer — so a column list would be a
+SECOND AUTHORITY over "which metrics exist", and its failure mode is silent: a metric the
+collector starts writing tomorrow would simply not be stored and the reader would serve a
+column of nulls that reads as a quiet market.
+
+⛔ **"Numeric" names the PURPOSE, not a type filter.** The readers drop `*_list` and keep
+everything else, strings and nulls included. Filtering to int/float would produce a store
+that is *more* numeric and *less* correct, and the difference would surface as a missing
+Monitor column rather than as an error.
+
+⛔ **Precedence is asserted, not implied.** Where a collector row and a reconstructed row
+exist for one date, the **collector row wins**. That is why they are two tables: one
+date-keyed table would have let whichever wrote last decide.
+
+#### The migration discipline
+
+`api/services/breadth_numeric_migration.py` — `backfill()`, `backfill_reconstructed()`,
+`audit()`, `audit_reconstructed()`, `_fingerprint()`, `_recon_fingerprint()`,
+`_write_marker()`. It **fingerprints its input before and after and refuses to run
+uninsured**: a `VACUUM INTO` backup is taken first (never a file copy — a plain copy of a
+WAL database omits whatever is still in the `-wal` sidecar and looks complete while
+lagging), and a marker in `DATA_DIR` makes it idempotent across boots.
+
+⚰️ **The first production run reported FAILED, and the migration was right to.** The
+fingerprint covered dates the collector was writing while the backfill ran, so input and
+output could not match by construction. The fix narrowed the fingerprint to exclude
+concurrently-written dates — **not** loosening the check.
+
+#### What it measured
+
+Bands, because a single number from one box is not a result. Local, against `VACUUM INTO`
+copies of the production databases.
+
+| read | before | after |
+|---|---|---|
+| 105 rows (the default view's window) | 627.7 ms | **1.3 ms** |
+| deep 8,000-day, reader only | 1,860 ms (Session 1, blob path) | **248–413 ms** |
+| deep 8,000-day, bytes read on the request path | 105.7 MB → 17.8 MB | **6.62 MB** |
+| the date set alone (`merged_dates`) | 11,329,088 B | **127,176 B** — 89x |
+
+⭐ **The blob shape the whole programme turns on:** the average snapshot is 636,834 bytes,
+of which **99.7 %** is `*_list` ticker arrays (7,803 tickers/row) that every history read
+parsed and immediately deleted. Every numeric key the Monitor grid shows — ~70 of them
+across all 174 rows — totals **0.25 MB**.
+
+#### Production, after
+
+`/api/breadth-monitor?days≈7900`, n=20, settled window (uptime 708→1,629 s, monotonic, no
+restart), every sample a forced cache miss on a distinct key, all 200:
+
+| | p50 | p95 | max |
+|---|---|---|---|
+| wall (client) | 980.8 ms | 1,749.7 ms | 1,897.7 ms |
+| server `total_ms` | 696.3 ms | 1,429.0 ms | 1,496.4 ms |
+
+**Against D-042's 54,923 ms cold: 56x at the median, 31x at p95.** The 95 % CI for the
+true p95 is [1,540.0, 1,897.7] ms, bounded by real observations on both sides.
+
+⚠️ **The 30x was never one thing, and this store is not what closed it.** Contention on
+the single uvicorn process is: the same read measured 224 ms settled and 17,480 ms three
+minutes after boot. The store removed the work; settling removed the queue. Both were
+needed and only the first is in this decision.
+
+#### What is still open
+
+`post_reader_ms` now exceeds `reader_ms` in **17 of 20** settled samples (median ratio
+2.09). Session 6's per-phase instrument names the dominant post-reader phase as
+`encode_render`, of which `jsonable_encoder` is the largest part — see
+`docs/breadth-history-reader/00-profile.md`, Session 6.
+
+---
+
+### D-046 · The `/series` span cap stays at 365 — the closing entry on the cap question (2026-09-14)
+
+**Owner decision, on the n=20 settled-window measurement.** D-043 capped `/series` at 365
+stored sessions (`BREADTH_SERIES_MAX_SESSIONS`) *"until the reader lands"*. The reader has
+landed (D-045). This is the entry that closes the question, and the answer is **no change**.
+
+#### The measurement the decision rests on
+
+`/api/breadth-monitor?days≈7900`, production, **n=20**, settled window (uptime 708→1,629 s,
+**monotonic — no restart**), every sample a forced cache miss on a **distinct** `days=` key,
+all `status=200`, `decoded_bytes` 681,973–681,975, logs streamed live to
+`logs/session6-sample.log` throughout.
+
+| deep, n=20 | min | p50 | p90 | **p95** | max | sd |
+|---|---|---|---|---|---|---|
+| client wall | 796.2 | **980.8** | 1,560.2 | **1,749.7** | 1,897.7 | 316.7 |
+| server `total_ms` | 526.9 | 696.3 | 1,224.5 | 1,429.0 | 1,496.4 | 281.2 |
+| `reader_ms` | 144.2 | 209.7 | 631.8 | 998.8 | 1,000.4 | 258.2 |
+| `post_reader_ms` | 377.6 | 433.0 | 549.1 | 581.5 | 742.1 | 89.4 |
+
+⭐ **p95 is estimable at this n, which is the whole reason the sample was run.** The exact
+binomial order-statistic interval places the true p95 between order statistics 18 and 20:
+**95 % CI [1,540.0 ms, 1,897.7 ms]** — bounded by real observations on *both* sides. At the
+n=6 of the previous attempt the empirical p95 *was* the maximum by construction, so quoting
+it would have been quoting the max with a statistic's name on it.
+
+#### Why the cap stays, in order of weight
+
+1. ⭐ **A lift exposes nothing anyone can request.** The UI's largest `days=` is **365**:
+   `Breadth.jsx:657` sends `MONITOR_WINDOW = 90` or one of `VIEWS_DAY_CHOICES = [90, 180,
+   365]`, and the Time Navigator (`useMonitorGrid.js:98`) sends `days=${stored.length}`
+   where `stored` is a slice of `BLOCK = 150`. Raising the cap to 1,000 changes what **no
+   member can ask for**. The deep path is reached by an `end=` teleport, not by a large span.
+2. **It would cost a master push for zero member-visible difference**, and a master push is
+   the scarce, serialising resource in this repo.
+3. ⛔ **The number that would justify a lift is not the number that improved.** The reader is
+   now cheap; the remaining cost has moved to `encode_render`, which grows linearly in rows.
+   Lifting the cap before the encoder is addressed raises the ceiling on the half that did
+   **not** get fixed.
+
+#### What would reopen it
+
+A member-facing feature that actually requests more than 365 sessions. Until one exists the
+cap is not a constraint anyone is hitting, and D-043's *"until the reader lands"* condition
+is satisfied without a change.
+
+⚠️ **Not a ratio.** Against D-042's 54,923 ms this is ~56x at the median and ~31x at p95,
+**reported as a band comparison**: D-042 is **n=1**, on a different pod state. The honest
+statement is that the two bands do not overlap — 54,923 ms against 796–1,898 ms.
+
+---
+
+### D-047 · The history response is pre-serialised, and the cache holds bytes (2026-09-15)
+
+**Shipped as `baffee6cf` (M4, Session 7).** The route renders its own JSON once and
+caches the **bytes**; FastAPI's generic JSON path never runs on this endpoint again.
+
+#### Why
+
+`fastapi.encoders.jsonable_encoder` was walking **376,240 values that are already plain
+scalars** (4,703 rows x 80 keys) on **every** request — including cache hits, because the
+cache held row dicts. Measured on the production copy at days=8000: `jsonable_encoder`
+302.7 ms + `JSONResponse.render` 209.8 ms = **512.6 ms**, of which the encoder is ~64 %.
+
+#### ⭐ The memory result INVERTED the risk it was supposed to carry
+
+Session 6 flagged that caching bytes "stores ~5 MB per span instead of a dict tree" and
+needed a measured bound. Deep-walked with an id() seen-set — ⛔ `sys.getsizeof` on a list
+of 4,703 dicts reports the pointer array and none of the dicts:
+
+| span | dict (deep) | JSON bytes | ratio |
+|---|---|---|---|
+| 90 | 630,570 | 146,173 | 4.3x |
+| 365 | 2,123,328 | 471,039 | 4.5x |
+| **8000** | **24,471,209** | **4,958,766** | **4.9x** |
+
+**The dict tree was the expensive option all along.** Peak RSS over baseline, one
+measurement per process: 61.4 MB on both sides cold (equal); including the warm request
+68.0 -> 63.4 MB, i.e. the new path peaks **lower**.
+
+#### Byte-identity is structural, not empirical
+
+`_render_json` makes the same call with the same arguments `JSONResponse.render` makes —
+`ensure_ascii=False, allow_nan=False, indent=None, separators=(",", ":")` — read off the
+installed starlette. A rail pins those four arguments so a starlette change surfaces as a
+failure rather than as drift. Parity: sha256 `7695923c...` over **5,576,278 bytes** across
+spans 90/365/8000 against a real `origin/master` worktree, with flip-one-byte and
+truncate-one-byte controls.
+
+#### ⛔ orjson: DECLINED, and the reason is recorded so it is not re-litigated
+
+| | days=8000 | byte-identical | NaN / ±Inf |
+|---|---|---|---|
+| current (encoder + render) | 512.6 ms | — | **raises** |
+| stdlib, same arguments | 113.0 ms | yes | **raises** |
+| orjson | **43.2 ms** | yes | ⛔ **emits `null`** |
+
+orjson is **already a declared dependency** (`requirements.txt:80`, in use by
+`api/routers/bars.py`) and was measured byte-identical on all three real spans, at 2.6x
+the speed of stdlib. **It is still declined**: it serialises NaN and ±Inf to `null` where
+this path raises, so a 500 silently becomes a plausible wrong number on a data edge.
+
+⭐ **The general form, which is the part worth keeping:** stdlib's byte-identity is
+**structural** — the same function with the same arguments, so it holds for values nobody
+thought to test. orjson's is **empirical** — it matches today's data and diverges on a
+known edge. A parametrised rail
+(`tests/test_breadth_preserialised.py::test_a_non_finite_float_still_refuses...`) pins the
+refusal. Reversing this is an owner decision, not a performance tweak.
+
+#### The GZip level is NOT closed by this change
+
+⚠️ The body cache holds **pre-gzip bytes only** — the route sets no `Content-Encoding`
+and `_GZipSkipSSE(minimum_size=1000, compresslevel=5)` still compresses on **every**
+request, warm included. So compression is *not* paid once per TTL and the level question
+stands. Measured on the days=8000 body (4,958,867 B uncompressed):
+
+| level | compress ms | bytes out | vs level 5 |
+|---|---|---|---|
+| 1 | 28.7 | 1,287,614 | +93.0 % size, −32.7 ms |
+| 3 | 46.4 | 800,161 | +19.9 % size, −15.0 ms |
+| **5 (production)** | **61.4** | **667,150** | — |
+| 6 | 103.1 | 654,066 | −2.0 % size, +41.7 ms |
+| 9 | 148.1 | 577,542 | −13.4 % size, +86.7 ms |
+
+⚰️ **The in-code comment justifying level 5 claims level 9 buys a "<3% size gain".
+Measured, it is −13.4 %.** The choice still looks right — +86.7 ms of shared event loop
+per deep request — but the stated reason is wrong. **Level stays at 5 pending an owner
+decision; caching the gzipped bytes would moot it and is proposed, not built.**
+
+---
+
+### D-048 · `reconstructed_fetch` — the interim record (diagnosis in progress, 2026-09-15)
+
+**Not a decision yet. An interim record so the next session does not re-derive it.**
+
+#### The finding
+
+Session 7's per-phase instrument measured, in production, inside a **settled** window:
+
+| phase | ratio across a 20.2x swing in `reader_ms` |
+|---|---|
+| `reconstructed_fetch` | **50.2x** (59.3 -> 2,974.5 ms) |
+| `numeric_fetch` | 9.8x |
+| **`derive`** | **1.0x** (76.8 -> 77.2 ms) |
+
+⛔ `derive` is pure CPU over 376,240 cells and **does not move at all**. If the single
+uvicorn worker were starved of CPU it would scale with everything else. That rules CPU
+starvation out and leaves the read itself.
+
+#### Static facts (Session 8, C.1), measured not assumed
+
+| | |
+|---|---|
+| table | `breadth_reconstructed_daily(date PK, metrics, ohlc_watermark, sentiment_watermark, built_at)` + `idx_brd_watermark` |
+| rows / payload | **4,700** rows, `SUM(LENGTH(metrics))` = **4,678,369 B**, avg **995 B/row** |
+| file | **41,861,120 B**, page_size 4096, 10,220 pages, on the Railway volume (`/data`) |
+| query | `SELECT date, metrics ... WHERE date IN (?...)` **chunked at 400** — 12 statements for a deep read |
+| plan | `SEARCH ... USING INDEX sqlite_autoindex_... (date=?)` — one PK seek per date, 4,700 per deep read |
+| reader connection | **opened per call**, `PRAGMA journal_mode=WAL` + `busy_timeout=3000` **every time** |
+| ⛔ `cache_size` | **-2000 = 2 MB** page cache against a 41.9 MB file |
+| ⛔ `mmap_size` | **0** — every page read is a syscall, never a mapped access |
+
+#### What the split shows so far
+
+`reconstructed_fetch` now splits into `rf_open` / `rf_pragma` / `rf_execute` / `rf_fetch` /
+`rf_materialise`, with row/byte/retry counters and a per-request `/proc/self/io` delta.
+
+⭐ **`rf_materialise` dominates on every reading taken so far** — 75–90 % locally, and
+**81.6 %** on the first production sample (44.7 ms of 54.8). That is `json.loads` over
+4,529 rows / 4.5 MB, i.e. **H4 (row materialisation)**, not I/O.
+
+#### What has been EXCLUDED
+
+⛔ **H2 (lock contention) is effectively excluded.** In WAL mode a writer does not block
+this reader: a local concurrent writer committing **460,569** times during the read
+window moved `reconstructed_fetch` by only **1.9x** (44.1 -> 85.3 ms). Neither that nor
+page-cache pressure (1.5x) comes near production's 50.2x.
+
+#### The production window ANSWERED it, and the answer is two phenomena
+
+n=20 settled cold samples, deployed `47e1516b5`:
+
+| i | `reconstructed_fetch` | `rf_fetch` | `rf_materialise` | **`io_read_bytes`** |
+|---|---|---|---|---|
+| 12 (fastest) | 55.1 | 6.6 | 45.7 | 1,568,768 |
+| 8 | 682.0 | 608.0 | 65.2 | 7,069,696 |
+| **13** | **31,819.8** | **21,098.5** | 319.7 | **540,057,600** |
+
+⭐ **Sample 13 read 540,057,600 bytes for a query returning 4.5 MB — 12.9x the ENTIRE
+41,861,120-byte file.** Twelve chunked statements, 4,700 PK seeks, a **2 MB** page cache
+and **mmap_size=0**: pages are read, evicted, and read again. **H1 is CONFIRMED for the
+tail.** Across that swing `rf_execute` moves 5,729x and `rf_fetch` 3,197x while
+`rf_materialise` moves 7.0x and `derive` 2.5x — the I/O halves move by thousands, the CPU
+halves barely.
+
+⚠️ **But H1 does NOT explain the ordinary range, and the two correlations say so:**
+Pearson r = **0.994**, Spearman (rank) r = **0.260**. The Pearson figure is carried
+entirely by sample 13. Fast samples (<100 ms) read a median 2,121,728 B; slow ones
+(>=100 ms) read 5,054,464 B — 2.4x, across a 3-12x time difference. One 173 ms sample read
+**77,824 bytes**.
+
+**Status: H2 EXCLUDED** (`rf_busy_retries` 0 on all 20; WAL readers do not block on
+writers). **H1 CONFIRMED for the tail, not the range. H3 open and now the leading
+candidate for the ordinary variation, by elimination. H4 owns the LEVEL** — `rf_materialise`
+is 45-110 ms on almost every sample, the floor under every read, untouched by any I/O fix.
+
+⭐ **The 50x is TWO phenomena, not one**, and a fix aimed at either alone will look like it
+failed against the other. See `docs/breadth-history-reader/00-profile.md`, Session 8.
+
+### D-049 · The H1 page-cache fix is ON in production — measured, x9.05 on the tail (2026-09-15)
+
+**Decision: `BREADTH_OHLC_PAGECACHE=1` stays set on `web`.** `PRAGMA mmap_size=67108864`
+(64 MB) + `PRAGMA cache_size=-16000` (16 MB), against the shipped `mmap_size=0` and
+`cache_size=-2000`. Shipped as M8 (`1571e2f87`) default OFF; flipped under authorisation
+V1 after the OFF window closed.
+
+#### The measurement
+
+Two production windows, same harness, same spans, settle floor uptime ≥ 640 s, the arm
+read off `rf_pagecache` **on each request** rather than from the config. **Identical work
+in both arms: `rf_rows` 4,529 and `rf_bytes` 4,523,328 on every sample.**
+
+| `deep_cold` cold reads | OFF (n=19) | ON (n=20) | |
+|---|---|---|---|
+| p50 | 309.0 ms | 281.0 ms | x1.10 |
+| **p90** | 3,052.0 ms | **842.0 ms** | **x3.62** |
+| **max** | 11,382.4 ms | **1,257.7 ms** | **x9.05** |
+| `rf_stmt_sum` max | 8,854.9 ms | 893.3 ms | x9.91 |
+| **min `syscr`** | **1,669** | **182** | **x9.17** |
+| max `read_bytes` | 187.51 MB | **0.00 MB** | |
+
+⭐ **`syscr` is the discriminator and it is the one number contamination cannot fake.**
+`mmap` serves pages by **page fault, not `read()`**, so a working mapping must collapse the
+read-syscall count; and a background thread sharing the process can only push `syscr`
+**up**, never below the floor this request needs. Every prediction above was committed to
+`docs/breadth-history-reader/session9-window-b-predictions.md` **before the flag was set**.
+
+#### ⚠️ The control moved, and it is recorded rather than explained away
+
+`warm_365` is a body-cache hit that never opens SQLite, so the flag cannot reach it — and
+it moved anyway (p50 20.1 → 16.0 ms). **A control that moves is a control that did not
+control.** Three things say the warm path is unchanged and the pod was merely quieter:
+`syscr` floor **79 in both arms**; the response byte-identical (`decoded_bytes` 69,979, and
+the priming *real* read returned `rf_rows` 205 / `rf_bytes` 185,306 in **both arms on the
+identical span**); and the OFF arm's warm outliers carry ordinary I/O counters, so they are
+event-loop contention on the single uvicorn process, not disk. That does not rescue the
+deep result — it fails to threaten it. A x1.26 drift cannot manufacture a x9.05 tail move
+whose mechanism-specific discriminator moved x9.17 in lockstep.
+
+#### What this does NOT settle
+
+- ⛔ **Which half did it.** `mmap_size` and `cache_size` ship as one flag; one A/B cannot
+  decompose two coupled changes. The evidence **leans** mmap, because `syscr` is mmap's
+  signature specifically and `cache_size` would not touch it. "Leans" is the honest word.
+- ⛔ **Memory.** `rss_mb` 2,340.6 with the flag on, and **no OFF-arm baseline was
+  captured**, so there is nothing to compare it against. 64 MB of mapping + 16 MB of cache
+  **per connection**, on a module that opens one per call, is a real question — mitigated
+  but not closed by mapped pages being file-backed and evictable rather than heap.
+- ⛔ **H5 is untouched and now isolated.** The ON tail (826 / 986 / 1,257 ms) has
+  `rf_fetch` 453 / 607 / 879 ms with **low** `syscr` — page faults still fetching cold
+  pages at the 11.6–34.1 MB/s this volume delivers. The flag was never aimed at it.
+
+#### ⛔ D-048 STANDS. The correction to it was drafted and WITHDRAWN before use
+
+A first reading of window A claimed Spearman **+0.960** on `io_rchar` superseded D-048's
+"two phenomena". It does not replicate on Session 8 (+0.504), and the reason kills the
+counter rather than the window: dividing block-device bytes by each sample's own `rf_fetch`
+implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No volume
+delivers 3.9 GB/s. **`/proc/self/io` is PROCESS-wide**, so a delta across a request collects
+every other thread's I/O. Window A's 0.960 was luck — its quiet samples read *exactly*
+0.00 MB, so the counter was nearly clean there and filthy in Session 8's.
+
+⭐ **The only per-request signals are the phase timings** (`rf_fetch`, `rf_stmt_sum`,
+`rf_stmt_max`). Where an io counter and a phase timing disagree, the phase timing wins.
+
+#### ⛔ The flag is INVISIBLE to the feature-flag ledger, and keeping it on is coupled to fixing that
+
+`BREADTH_OHLC_PAGECACHE` has no row in `docs/feature_flags.json` and **cannot be given
+one**: `feature_flag_index.is_gate()` matches only names containing a gate marker or ending
+`_ON`, so the AST derivation does not list it among its 284 gates, and a row would be
+classed as rot by `test_the_ledger_does_not_describe_gates_that_no_longer_exist` — **redding
+the master deploy gate.** `BREADTH_OHLC_FETCH_RANGE` is invisible for the same reason.
+
+⚰️ **This is the `DESK_PUBLIC_SHOWS` shape**, whose own source comment records the two
+reasons it survived 25 days and published 27 paid sessions. The blast radius here is far
+smaller — SQLite pragmas, not paid content on the open internet — which is why the ruling is
+**keep it on and rename it**, not turn it off. **`BREADTH_OHLC_PAGECACHE_ENABLED`: one
+constant, one env var, no behaviour change.** It needs an authorised merge and is the first
+item for Session 10.
+
+#### Consequence for the query-shape candidate (`breadth/fetch-shape`, built, NOT merged)
+
+The range scan existed to avoid ~9,058 b-tree descents each costing a fault. **This fix
+removed that cost by PRAGMA** — `syscr` 1,669 → 182 — so the candidate's case is largely
+gone. **Do not merge it; do not delete it.** Keep it as a parity-proved experiment for H5,
+to be measured against the ON arm rather than the OFF one it was designed for.
+
+### D-050 · The flag is recordable, the gate serialises, and the cutover is one reading away (2026-09-15)
+
+Session 10. No measurement windows (the push rate does not permit them — item 9). Everything
+here is from Session 9's two windows or from a tool run this session.
+
+#### 1. `BREADTH_OHLC_PAGECACHE` → `BREADTH_OHLC_PAGECACHE_ENABLED`
+
+**Decision: renamed, and the ledger row is now REQUIRED rather than merely permitted.**
+`feature_flag_index.is_gate()` matches only names carrying a gate marker or ending `_ON`;
+the old name matched neither, so it was absent from the AST derivation's 284 gates and a row
+for it would have been classed as rot by
+`test_the_ledger_does_not_describe_gates_that_no_longer_exist` — **reddening the master
+deploy gate**. `is_gate(NEW)` is True and `needs_declaration(NEW, "")` is True, so
+`test_every_off_by_default_gate_is_declared` now fails without the row. **Mutation-proved:
+deleting the row reds that repo-wide rail (1 failed, 184 passed).**
+
+⛔ **No fallback to the old name** — a fallback is a second authority over one value, and the
+loser is invisible. Proved two independent ways: an AST rail (`feature_flag_index.scan()`)
+and a behavioural test asserting that setting *only* the old variable leaves `mmap_size` at
+0 — which is exactly what a stale Railway variable looks like between the rename deploy and
+the unset.
+
+⛔ **The rails are AST-based deliberately.** `breadth_daily_ohlc.py` still contains the old
+string, in the comment explaining the rename. A grep rail would match its own explanation and
+demand the deletion of the reason.
+
+**Parity EXACT**: golden/OFF, golden/ON(old), renamed/OFF, renamed/ON(new) all
+`sha256 7695923c…` over 5,576,278 B. ⚠️ Recorded with its limit — every arm is byte-identical
+*by design*, so parity cannot say whether the flag was applied; the pragma read-back does.
+
+**flow-worker INERT**: neither variable is set on flow-worker, worker or bars-api — only
+`web` — so the stale service reads an unset old name and the current one reads an unset new
+name, converging on the same early return from either side of the deploy.
+
+⭐ **V2 cost no deploy of its own.** `railway variable set … --skip-deploys` staged the new
+variable **while the rename deploy was still building**, so the new container started with it
+already present: old-name-ON → new-name-ON with **zero moments off**. `variable delete` has
+no `--skip-deploys`, so the unset is the one step that must cost a deploy.
+
+#### 2. The `master-deploy` concurrency group SERIALISES — measured
+
+First contention in the workflow's 41-run history, exercised from a throwaway branch with
+**no deploy attached** (GitHub evaluates a workflow file as it exists on the pushed ref, so
+`gate-test/**` was added to the trigger on that branch only).
+
+| run | branch | created | started | queue | ended |
+|---|---|---|---|---|---|
+| A | `gate-test/contention` | 09:06:05 | 09:06:08 | **3 s** | 09:07:57 |
+| B | `gate-test/contention` | 09:06:24 | 09:08:01 | **97 s** | 09:10:06 |
+| **C** | **`master`** (another workstream) | 09:09:24 | 09:10:11 | **47 s** | — |
+
+Predicted 95 s for B; observed 97 s. ⭐ **Row C was unplanned and is the strongest evidence**:
+a real master push queued behind the test and started 5 s after it finished, proving the
+shared queue with production traffic. ⚠️ The honest cost: **~43 s of delay to another
+workstream's deploy.**
+
+⛔ **Serialising the CHECKS is not spacing the DEPLOYS**, and the two must not be conflated.
+
+#### 3. "Railway does not wait for CI" — recorded
+
+| commit | gate finished | pod booted | boot − gate |
+|---|---|---|---|
+| `6b606990c` | 05:12:53Z | 05:12:55Z | +2 s |
+| `587ee51b2` | 05:32:54Z | 05:32:36Z | **−18 s** |
+| `cb0949d8c` | 06:40:14Z | 06:40:12Z | **−2 s** |
+
+Plus Session 8's eight deploys starting 99–141 s before their checks. **Ten observations
+against, one for (by 2 s, inside the 1 s `uptime` resolution).** Working model: two unrelated
+~2-minute pipelines in parallel, finishing together by coincidence. ⚠️ **Not confirmable from
+the CLI** — `railway deployment list` carries no CI-hold field. It is a dashboard reading and
+it is the last thing blocking the cutover.
+
+#### 4. `breadth/fetch-shape` — **SHELVED**, not merged and not deleted
+
+Branch `7a79cc9d3`, parity-proved, behind `BREADTH_OHLC_FETCH_RANGE` (default OFF).
+
+**Why shelved:** it existed to avoid ~9,058 b-tree descents each costing a fault, and
+**D-049's PRAGMA removed that cost instead** — `syscr` on a deep read fell 1,669 → 182. Its
+own local number never justified it (1.19× warm at days=8000).
+
+**Revival condition, stated so it is testable:** revive it only if H5 becomes the target
+*and* a measurement shows a sequential range walk faults more efficiently than scattered
+descents **against the flag-ON arm** — not against the OFF arm it was designed for. Absent
+that measurement it is a second mechanism for a problem the first one has mostly solved.
+
+#### 5. D-048 STANDS; the withdrawal of the Spearman claim is part of the record
+
+A Session 9 draft claimed Spearman **+0.960** on `io_rchar` superseded D-048's two-phenomena
+reading. **Withdrawn before use.** It does not replicate on Session 8 (+0.504), and the
+reason kills the counter rather than the window: dividing block-device bytes by each sample's
+own `rf_fetch` implies **3,942 / 2,432 / 2,393 / 2,255 MB/s** on four Session 8 samples. No
+volume delivers 3.9 GB/s, so those bytes were another thread's — **`/proc/self/io` is
+PROCESS-wide.** Window A's 0.960 was luck: its quiet samples read *exactly* 0.00 MB, so the
+counter was nearly clean there and filthy in Session 8's.
+
+⭐ Generalised into standing rule H.2: a process-wide counter is attributed to a request only
+when the attribution passes a plausibility check; an impossible implied rate means another
+thread's work is in the number.
+
+#### 6. H5 confirmed by counting operations, not bytes
+
+Per-read-syscall cost, `rf_fetch ÷ (syscr − the arm's own syscr floor)`:
+
+| arm | slow sample | extra syscalls | `rf_fetch` | ms/syscall |
+|---|---|---|---|---|
+| OFF | i=3 | 8,883 | 5,304.1 | **0.597** |
+| OFF | i=2 | 14,800 | 8,742.7 | **0.591** |
+| ON | i=7 | 551 | 452.8 | **0.822** |
+| ON | i=8 | 642 | 879.2 | **1.369** |
+
+⭐ **The per-operation cost did not improve — the COUNT collapsed ~20×.** That is H5's model
+(time = seek count × per-seek latency) with the flag attacking the first term only.
+⚠️ The ON arm's higher per-op figure is a hypothesis, not a finding: two samples per arm.
+**Residual, unexplained:** 11 of 20 settled cold reads need **zero** extra syscalls while the
+rest need 551–642 — the eviction trigger is unidentified.
+
+#### 7. The cap stays at 365, and the ~1 s bar is NOT established at p95
+
+| | |
+|---|---|
+| samples over 1,000 ms | 1 of 20 |
+| p90 | 842.0 ms interpolated / 986.2 nearest-rank — under 1 s either way |
+| P(true p95 above the observed max) | **0.95²⁰ = 0.358** |
+| n for the sample max to be a 95% upper bound on p95 | **59** |
+
+⛔ **The bar is now limited by measurement opportunity, not by the reader.** Nothing about
+the `/series` cap changes (D-046): the UI never requests more than 365, so lifting it exposes
+nothing. **Record update, not a change.**
+
+#### 8. P-B4 remains INCONCLUSIVE
+
+The warm control moved (p50 20.1 → 16.0 ms) in Session 9's A/B. Three things say the warm
+path itself is unchanged (identical `syscr` floor 79/79; identical `decoded_bytes` 69,979;
+identical priming read 205 rows / 185,306 B), and the OFF arm's outliers carry ordinary I/O
+counters, so they are event-loop contention. ⭐ **The design flaw was consecutive arms**,
+which confound the flag with whatever else the single uvicorn process was doing.
+**Interleaved arms at matched times of day is the fix**, and it needs a quiet period.
+
+#### 9. Operational: measurement is not possible at the required n without a push pause
+
+**37 master pushes in 10.5 h; median gap 723 s (12.1 min); minimum 152 s.** A window needs
+~26 min; only **19%** of gaps are that long — roughly one window in five survives. Against
+the n ≥ 59 that p95 requires, that is ~3 clean windows ≈ **15 attempts**.
+
+### D-051 · The sampler becomes the measurement method; the resident copy is built dark (2026-09-15)
+
+Session 11. No measurement windows (decision 0.1). Two branches built and gated, **neither
+merged** — the deploy cadence closed the morning push window before they were ready.
+
+#### 1. The contention proof, recorded
+
+| run | branch | created | started | queue | ended |
+|---|---|---|---|---|---|
+| A | `gate-test/contention` | 09:06:05 | 09:06:08 | **3 s** | 09:07:57 |
+| B | `gate-test/contention` | 09:06:24 | 09:08:01 | **97 s** | 09:10:06 |
+| **C** | **`master`** (another workstream) | 09:09:24 | 09:10:11 | **47 s** | — |
+
+Predicted 95 s for B; observed 97 s. ⭐ **Row C was unplanned and is the strongest
+evidence** — a real master push queued behind the test and started 5 s after it finished,
+proving the shared queue with production traffic rather than a synthetic case.
+⚠️ Cost: **~43 s of delay to another workstream's deploy** (owner ruling 0.3: acceptable,
+recorded, no further tests that can touch master's queue without say-so).
+
+#### 2. ⛔ Checks serialised ≠ deploys spaced — stated as a record, not a nuance
+
+The `master-deploy` group serialises the **checks**. Three measured deploys still show
+Railway cutting over **+2 s after, 18 s before and 2 s before** their own gating check,
+and Session 8 found eight more starting 99–141 s before theirs. **Ten observations against
+Wait-for-CI holding anything, one for, by 2 s — inside the 1 s `uptime` resolution.**
+Both facts are true simultaneously and must not be conflated.
+
+#### 3. H5 closed by operation count
+
+Per-read-syscall cost, `rf_fetch ÷ (syscr − the arm's own floor)`: OFF **0.591 / 0.597 ms**,
+ON **0.822 / 1.369 ms** — *worse* — while the count fell **8,883–14,800 → 551–642**. The
+page-cache flag attacked the seek COUNT; per-seek latency is the volume's and is untouched.
+**H5 is closed.** ⚠️ Residual, still open: 11 of 20 settled cold reads need **zero** extra
+syscalls and the rest need 551–642 — the eviction trigger is unidentified.
+
+#### 4. The p95 bar is CLOSED as an engineering question
+
+**Limited by measurement opportunity, not by the reader.** 1 of 20 ON samples exceeded
+1,000 ms; p90 is 842.0 ms (interpolated) / 986.2 (nearest-rank); P(true p95 above the worst
+read) = 0.95²⁰ = **0.358**; the sample max becomes a 95% upper bound only at **n ≥ 59**.
+⛔ **Reopen only when the sampler reaches n ≥ 59 on one pool** (one commit-set + flag state).
+Nothing about the `/series` cap changes (D-046): the UI never requests more than 365.
+
+#### 5. The sampler is the measurement method going forward
+
+`tools/breadth_sampler.py` + `tools/breadth_sampler_report.py`. Four refusals in code, each
+a rail driven in BOTH directions: outside 09:25–16:05 ET, pod settled (uptime ≥ 600), daily
+cap 60, kill-switch file — plus `uptime_unknown`, because a failed health probe must not
+read as a settled pod. ⭐ Two refusals fired for real during the dry run, when another
+workstream's deploy swapped the pod mid-run.
+
+⛔ **The clock comes from `zoneinfo`, never `TZ=` or local time.** This box runs Central and
+`TZ=America/New_York date` in Git Bash printed the UTC hour — checked today. A guard on the
+wrong clock refuses and permits at the wrong times while looking correct.
+
+⭐ **THE HOT PATH IS MEASURED BY EXECUTION, AND THAT CHOICE IS WHAT MAKES POOLING POSSIBLE.**
+Walking imports from the route reaches **169 files**; tracing a real deep read shows
+**8** execute. Thirty-one commits landed on master in one day and changed four `api/` files,
+**none of them hot** — so the pool survived all of them. On the import-closure set it would
+have shattered continuously and never reached 59. `docs/breadth/reader-hotpath.txt`,
+regenerated by `tools/breadth_hotpath.py`.
+
+⛔ Tracing needed `threading.settrace_all_threads`: a plain `def` FastAPI route runs in the
+anyio **threadpool**, so `sys.settrace` on the calling thread recorded ZERO files. The
+non-vacuity assert caught that twice, and a third time when the repo root came from a Git
+Bash `/c/Users/...` argument that never matched a Windows `co_filename`.
+
+#### 6. The resident copy — built DARK, and the invalidation took three attempts
+
+`BREADTH_RESIDENT_RECON_ENABLED`, default OFF, set on no service, ledger row from birth.
+
+⛔⛔ **The stale-read control caught three different wrong designs**, and it is the only
+test that would have caught any of them — a cache with broken invalidation returns
+correct-**looking** rows while every other rail stays green:
+
+1. **`PRAGMA data_version` on a per-call connection.** Measured: across two external writes
+   a fresh connection returned 2, 2, 2 while a long-lived one returned 2, 3, 4. The pragma
+   changes only for commits by *other* connections seen from one already open.
+2. **The `COUNT+3×MAX` signature alone** — `built_at` has second resolution, so a rewrite
+   inside one second with the same count and watermarks is invisible.
+3. **Two-stage with the signature as the authority** — when `data_version` moved but the
+   signature looked unchanged it concluded "another table was written" and kept the rows.
+   ⭐ **A cheap check may only ever say "definitely nothing changed"; the moment it says
+   "something changed", the expensive answer must be the rebuild, not a second guess.**
+
+**Shipped:** `data_version` alone on a long-lived probe connection. Unchanged ⇒ exact.
+Changed or unknown ⇒ rebuild (46 ms), amortised at one rebuild per write to the file.
+
+⛔ **D.2 and D.3 cannot both be satisfied, and the measurement decides it.** D.2 asks to
+skip `reconstructed_fetch` *and* `rf_materialise`; D.3 caps memory at 2× wire. The parse
+**is** `rf_materialise` (44.9 ms full-table vs 48.0 measured), so removing it means holding
+parsed rows: **22,909,972 B = 5.06× wire**, against **5,214,625 B = 1.15×** for JSON
+strings. ⭐ At p90 the split is `rf_fetch` 607.1 ms against `rf_materialise` 54.4 ms, so the
+strings capture **~90% of the tail win for 23% of the memory**. Lifting the bound to get the
+remaining flat ~48 ms is an OPEN QUESTION, not a default.
+
+**Gate:** parity EXACT three ways (golden / OFF / ON, all `sha256 7695923c…` over 5,576,278
+bytes across 90/365/8000). 483 breadth + 198 ledger tests green. LOCAL warm 84.6 → 66.9 ms
+(×1.26) — ⚠️ warm is where this change matters least.
+
+⛔ **Flipping it starts a NEW sampler pool**, because `rf_resident` is a pooled flag and the
+reader changes.

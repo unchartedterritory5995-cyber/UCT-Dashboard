@@ -153,3 +153,37 @@ def test_removing_the_single_token_guard_restores_the_first_name_defect(monkeypa
     monkeypatch.setattr(authors, "declared_single_token_aliases",
                         lambda: frozenset({"patrick"}))           # guard neutered
     assert authors.author_for_alias("Patrick") == "tsdr"          # the defect returns
+
+
+# ── the §8c.3 provenance marker ──────────────────────────────────────────────
+
+def test_the_provenance_check_catches_a_planted_unmarked_consumer_write(tmp_path):
+    """CONTROL for the two mutations below. The plant is written under tmp_path rather than
+    into the tree: the checker reads FILES, so this one guard cannot be neutered in memory —
+    and a tmp_path plant needs no restore step, which is the property that matters here."""
+    from api.services.wisdom.publish import provenance_check
+
+    assert provenance_check.self_check(tmp_path)["found"] == 1
+
+
+def test_reading_every_table_as_wisdom_owned_stops_the_catch(tmp_path, monkeypatch):
+    """The derivation IS the guard: a consumer table is one Wisdom's own MIGRATIONS do not
+    create. Make the owned set swallow it and the check must go blind — which is exactly what
+    a hand-typed roster would do the day it went stale."""
+    from api.services.wisdom.publish import provenance_check
+
+    monkeypatch.setattr(provenance_check, "wisdom_owned_tables", lambda: {"knowledge_base"})
+    assert provenance_check.self_check(tmp_path)["found"] == 0
+
+
+def test_the_marker_recognizer_is_what_refuses_an_unmarked_write(monkeypatch):
+    """The runtime half. Neuter the recognizer and the refusal stops, proving the refusal is
+    a real read of the value and not a call that always succeeds."""
+    import re as _re
+
+    from api.services.wisdom.publish.adapters import provenance
+
+    with pytest.raises(provenance.UnmarkedWrite):       # CONTROL
+        provenance.assert_marked({"notes": "no marker here"})
+    monkeypatch.setattr(provenance, "MARKER_RE", _re.compile(""))   # matches everything
+    assert provenance.assert_marked({"notes": "no marker here"})

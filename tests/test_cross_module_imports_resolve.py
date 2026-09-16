@@ -73,13 +73,42 @@ KNOWN_DEAD: set[tuple[str, str]] = {
 
 
 def _bindings(tree: ast.AST) -> set[str]:
-    """Every name this module binds, anywhere — deliberately over-broad."""
+    """Every name this module binds, anywhere — deliberately over-broad.
+
+    ⚰️ IT WAS SILENTLY NARROW, AND IT CRIED WOLF FOR WEEKS. `ast.Assign` only collected
+    `ast.Name` targets, so **tuple unpacking bound nothing** — `A, B, C = ...` contributed
+    no names at all. Two real, importable modules were reported as unresolved imports:
+    `freshness.py:33` (`HOLIDAY, WEEKEND, PRE, RTH, POST, OVERNIGHT = ...`) and
+    `runtime.py:34` (`INTERACTIVE, BACKGROUND = ...`). Both resolve at runtime — proved by
+    importing them — so this rail's red was **its own blind spot reported as the codebase's
+    defect**, and it was carried in ledger rows as "a pre-existing non-Wisdom failure".
+
+    ⛔ THE DANGEROUS FIX IS THE OBVIOUS ONE. Adding those two names to `KNOWN_DEAD` makes
+    the rail green by permanently blinding it at exactly the two names it was wrong about —
+    the shape this repo has paid for repeatedly (`lesson_a_gate_list_drifts_like_any_other_artifact`).
+    The collector is what was broken, so the collector is what changed.
+
+    ⭐ A docstring claiming "deliberately over-broad" is not evidence that it is. That
+    sentence is why nobody re-derived it; `test_the_collector_sees_tuple_unpacking` below is.
+    """
     out: set[str] = set()
+
+    def _names(target: ast.AST) -> None:
+        """One target, however it is shaped — a bare name, or a (possibly nested) tuple/list."""
+        if isinstance(target, ast.Name):
+            out.add(target.id)
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            for element in target.elts:
+                _names(element)
+        elif isinstance(target, ast.Starred):
+            _names(target.value)
+
     for n in ast.walk(tree):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             out.add(n.name)
         elif isinstance(n, ast.Assign):
-            out.update(t.id for t in n.targets if isinstance(t, ast.Name))
+            for t in n.targets:
+                _names(t)
         elif isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name):
             out.add(n.target.id)
         elif isinstance(n, (ast.Import, ast.ImportFrom)):
@@ -185,3 +214,36 @@ def test_every_KNOWN_DEAD_entry_is_still_dead():
     assert not healed, (
         "these KNOWN_DEAD entries resolve now — delete them from the list "
         f"instead of leaving a false claim behind: {healed}")
+
+
+def test_the_collector_sees_tuple_unpacking_and_still_refuses_what_is_not_bound():
+    """CONTROL on `_bindings`, and it exists because the collector was wrong for weeks.
+
+    ⚰️ `A, B = ...` bound NOTHING, so two importable modules were reported as unresolved
+    imports and the red was carried as "a pre-existing failure someone else owns". A rail
+    whose subject list is silently narrow is worse than no rail: it reads as coverage while
+    accusing innocent code, and the obvious way to quiet it (KNOWN_DEAD) blinds it for good.
+
+    ⛔ The second half is the one that keeps this honest. A collector that returned every
+    identifier it ever saw would also satisfy the first half — and would make the whole rail
+    vacuous, since nothing could ever be reported missing.
+    """
+    tree = ast.parse(
+        "PLAIN = 1\n"
+        "A, B, C = 'a', 'b', 'c'\n"
+        "[D, E] = (4, 5)\n"
+        "F, *G = (6, 7, 8)\n"
+        "(H, (I, J)) = (9, (10, 11))\n"
+        "K: int = 12\n"
+        "def fn(): pass\n"
+        "class Cls: pass\n"
+        "import os\n"
+        "from pathlib import Path as P\n"
+    )
+    got = _bindings(tree)
+    for name in ("PLAIN", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
+                 "fn", "Cls", "os", "P"):
+        assert name in got, f"_bindings lost {name!r}: {sorted(got)}"
+    # ...and it is a BINDING collector, not a token scraper.
+    for never in ("int", "pathlib", "Path", "a", "b"):
+        assert never not in got, f"_bindings invented {never!r}: {sorted(got)}"

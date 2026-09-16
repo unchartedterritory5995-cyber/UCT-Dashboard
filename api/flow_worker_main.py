@@ -201,6 +201,21 @@ Invariants (mirror the web/worker deploy-survival contract):
 Required env on this service: FLOW_WORKER_ENABLED=1, MASSIVE_WS_ENABLED=1,
 MASSIVE_WS_DRY_RUN=0, FLOW_PROXY_TRUST=1 (trust web's vouched auth), PUSH_SECRET
 (shared with web), and its OWN /data volume holding flow.db.
+
+(2026-09-15 — deploy trigger, and this one is a SCHEMA trigger, not a fix.)
+The Breadth multi-universe foundation widens `breadth_daily_ohlc`'s key from
+`(date, metric)` to `(universe, date, metric)`, and this service RUNS four of the
+changed modules — `api/services/{breadth_daily_ohlc,breadth_monitor,
+breadth_universes,massive}.py` — none of which is on the watch list.
+⛔ SHIPPING THEM INERT HERE IS NOT A COSMETIC MISS. A pod still on pre-migration
+code writes `ON CONFLICT(date, metric)`, and after the migration no unique index
+matches that clause unless the BL-028 compatibility index is standing; the write
+fails outright. The compatibility index exists precisely so that window is
+survivable rather than fatal — but "every pod runs universe-keyed code" is a
+PRECONDITION of ever dropping it, so a flow-worker left on old code would silently
+block the next phase instead of announcing itself.
+`tools/flow_worker_watch_coverage.py` named the four files from the live diff;
+this touch is the fix that rail prescribes.
 """
 import os
 import asyncio

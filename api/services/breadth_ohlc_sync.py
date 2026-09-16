@@ -252,13 +252,25 @@ def _remote_latest(client, bucket) -> Optional[str]:
 # Geometry/finite gate is a rejection, never a repair: NaN fails `s.x = s.x`;
 # `l <= min(o,c) <= max(o,c) <= h` must hold. No `> 0` — breadth is legitimately
 # zero/negative (0% above a MA at a washout; McClellan / adv-decline go negative).
+#
+# ⛔⛔ THE JOIN AND THE CONFLICT TARGET BOTH CARRY `universe`, and leaving either
+# one out is silent corruption rather than an error. Keyed on (date, metric) alone,
+# a US row and the UCT row for the same date and metric are the SAME row: the merge
+# would compare their ranks, pick a winner, and write one universe's number under
+# the other's name. Nothing downstream could detect it — same shape, same metric
+# key, plausible value.
+#
+# ⚠️ `{{susrc}}` is `s.universe` against a migrated snapshot and the literal 'uct'
+# against a pre-migration one, so a worker that has not yet redeployed still merges
+# correctly instead of failing on a missing column. Resolved once, in `_merge_from`.
 _RANK = ("CASE {c}.source WHEN 'live' THEN 3 WHEN 'intraday_recon' THEN 2 "
          "WHEN 'close_recon' THEN 1 ELSE 0 END")
 _MERGE_SQL = f"""
-INSERT INTO breadth_daily_ohlc(date,metric,o,h,l,c,source,updated_at)
-SELECT s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
+INSERT INTO breadth_daily_ohlc(universe,date,metric,o,h,l,c,source,updated_at)
+SELECT {{susrc}},s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
 FROM snap.breadth_daily_ohlc s
-LEFT JOIN breadth_daily_ohlc l ON l.date = s.date AND l.metric = s.metric
+LEFT JOIN breadth_daily_ohlc l
+       ON l.universe = {{susrc}} AND l.date = s.date AND l.metric = s.metric
 WHERE s.source IN ('live','intraday_recon','close_recon')
   AND s.o IS NOT NULL AND s.h IS NOT NULL AND s.l IS NOT NULL AND s.c IS NOT NULL
   AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
@@ -268,7 +280,7 @@ WHERE s.source IN ('live','intraday_recon','close_recon')
        OR ({_RANK.format(c='s')}) > ({_RANK.format(c='l')})
        OR (({_RANK.format(c='s')}) = ({_RANK.format(c='l')})
            AND l.source <> 'live' AND s.updated_at > l.updated_at))
-ON CONFLICT(date, metric) DO UPDATE SET
+ON CONFLICT(universe, date, metric) DO UPDATE SET
   o=excluded.o, h=excluded.h, l=excluded.l, c=excluded.c,
   source=excluded.source, updated_at=excluded.updated_at
 """
@@ -285,8 +297,37 @@ def _merge_from(src_db: str) -> int:
             conn.execute("PRAGMA busy_timeout=30000")
             conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
             try:
-                cur = conn.execute(_MERGE_SQL)
+                snap_cols = {r[1] for r in conn.execute(
+                    "PRAGMA snap.table_info(breadth_daily_ohlc)").fetchall()}
+                susrc = "s.universe" if "universe" in snap_cols else "'uct'"
+                # ⛔⛔ BL-028 INTERLOCK, RESTATED AT THE OTHER DOOR. The compatibility
+                # index keeps `(date, metric)` unique so pre-migration code can still
+                # write; a snapshot carrying a second universe would violate it. SQLite
+                # would say so — as a UNIQUE constraint error from inside a merge, which
+                # is a terrible place to learn it. Refuse first, and name the step.
+                if "universe" in snap_cols and _store.compat_index_present(conn):
+                    extra = [r[0] for r in conn.execute(
+                        "SELECT DISTINCT universe FROM snap.breadth_daily_ohlc "
+                        "WHERE universe <> ?", (_store.DEFAULT_UNIVERSE,)).fetchall()]
+                    if extra:
+                        raise _store.CompatIndexBlocksUniverse(
+                            f"refusing to merge a snapshot carrying {extra}: the BL-028 "
+                            f"compatibility index {_store.COMPAT_INDEX!r} is still in "
+                            "place. Removing it is a deliberate migration step.")
+                cur = conn.execute(_MERGE_SQL.format(susrc=susrc))
                 adopted = cur.rowcount if cur.rowcount is not None else 0
+                # ⛔ THE ONE WRITER THAT BYPASSES `breadth_daily_ohlc`'s own API —
+                # it INSERTs directly over an ATTACHed snapshot — so the derived
+                # reconstructed table is kept in step by WATERMARK rather than by
+                # this function knowing which dates it adopted (`rowcount` is a
+                # count, not a date list). Same connection, so still one
+                # transaction; and the watermark would have caught a miss here even
+                # if this hook had never been added, which is exactly why the design
+                # does not rest on every writer remembering.
+                if adopted:
+                    stale = _store.stale_reconstructed_dates(c=conn)
+                    if stale:
+                        _store._rebuild_after_write(conn, stale)
                 conn.commit()
                 return adopted
             finally:

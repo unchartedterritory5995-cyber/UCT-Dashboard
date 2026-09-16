@@ -1,3 +1,7 @@
+# promotion-gate: no — it depends on BrowserStack Automate, which is NOT on this
+#   account, so it takes a clean green skip on positive proof. Gating on it would put
+#   every deploy behind a third party's availability and behind a seat nobody has
+#   bought; it is also schedule/dispatch-driven rather than per-commit.
 # P7 — the joystick device job, and the gate that decides whether it may run.
 #
 # ⛔⛔ THE ONE RULE THIS FILE IS BUILT AROUND. A skip must be a CLEAN GREEN SKIP, and a

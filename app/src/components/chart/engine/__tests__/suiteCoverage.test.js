@@ -169,6 +169,12 @@ const CHART = path.join(APP, 'src/components/chart')
  *  Measured on disk 2026-09-11; eleven rows. Adding one means somebody looked. */
 const ACKNOWLEDGED_CHART = [
   'src/components/chart',
+  // ⭐ MASTER'S, ARRIVING WITH THE 2026-09-15 MERGE (683 commits). Ten files —
+  // priceAxisPin, volumePeerPane, chromeGeometry and their neighbours. **Run
+  // green (10 files / 74 tests, EXIT 0) BEFORE this line was added**, which is
+  // the order this rail asks for and the only thing that makes the
+  // acknowledgement mean anything.
+  'src/components/chart/__tests__',
   'src/components/chart/builder',
   'src/components/chart/builder/editor',
   // T3 (2026-09-12) — the member-pane path. Run green (11/11) BEFORE this

@@ -270,13 +270,30 @@ describe('⛔ the toolbar footprint agrees with the CSS it was read from', () =>
   /** ⛔ DECLARATIONS, NOT A SUBSTRING SEARCH. `top` also appears inside this
    *  rule's own comments, and a regex over the whole block would happily read a
    *  number out of the prose explaining the number. */
+  //
+  // ⚰️ AND IT LEARNED `calc()` ON 2026-09-15, WITHOUT LEARNING TO GUESS. Master
+  // moved the toolbar onto the price pane: `top: 4px` became
+  // `top: calc(4px + var(--price-pane-top, 0px))`. The old parser read that as
+  // NaN and returned null, which the non-vacuity guard below caught exactly as it
+  // was written to — the rail did its job, so the fix is in the reader.
+  //
+  // ⛔ THE BASE LITERAL IS ONLY THE ANSWER IF THE VARIABLE'S FALLBACK IS ZERO.
+  // `calc(4px + var(--x, 8px))` is 12 by default, not 4, and quietly returning 4
+  // would make this rail assert a footprint no chart has. So a `var()` whose
+  // fallback is anything but `0px` returns null and fails loudly.
   const px = (prop) => {
     for (const decl of toolbarRule.split(';')) {
       const line = decl.replace(/\/\*[\s\S]*?\*\//g, '').trim()
-      const [k, v] = line.split(':')
-      if (!v || k.trim() !== prop) continue
-      const n = Number(v.trim().replace(/px$/, ''))
+      const idx = line.indexOf(':')
+      if (idx < 0) continue
+      const k = line.slice(0, idx)
+      const v = line.slice(idx + 1)
+      if (k.trim() !== prop) continue
+      const raw = v.trim()
+      const n = Number(raw.replace(/px$/, ''))
       if (Number.isFinite(n)) return n
+      const calc = raw.match(/^calc\(\s*(-?[\d.]+)px\s*\+\s*var\(\s*--[\w-]+\s*,\s*(-?[\d.]+)px\s*\)\s*\)$/)
+      if (calc && Number(calc[2]) === 0) return Number(calc[1])
     }
     return null
   }

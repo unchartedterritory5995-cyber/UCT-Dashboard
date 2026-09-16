@@ -33,6 +33,9 @@ WINDOWS = {"1h": 3600, "24h": 86400, "7d": 7 * 86400}          # what health rep
 ALERT_WINDOWS = {"5m": 300, "30m": 1800, "1h": 3600}           # what the alert rules read (03 §3.9)
 STUCK_AFTER_S = 60
 RENDERER_MISSES_TO_ALERT = 2
+#: One blocked second is a third of the whole 3 s acknowledgement budget (§3.9, C-02).
+LOOP_STALL_ALERT_MS = 1000.0
+LOOP_NOISE_MS = 50.0
 
 _SECRETISH = re.compile(r"(token=[^&\s]+|/webhooks/\d+/[A-Za-z0-9_\-.]+|[?&][A-Za-z_]+=[^&\s]*)")
 _FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key")
@@ -157,7 +160,61 @@ def slo_snapshot(store, now: float | None = None, windows: tuple[str, ...] | Non
 
 # ── alert rules (03 §3.9) ───────────────────────────────────────────────────
 
-def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[str, str]]:
+def _loop_alerts(loop: dict | None) -> list[tuple[str, str]]:
+    """The ONE event loop being blocked (C-02, step 2.4b P2.9).
+
+    ⛔ A STALL IS INVISIBLE TO EVERY OTHER RULE HERE. They all read the durable jobs table, and a
+    loop blocked before the ack means there is no job row to read — the outage that produced
+    C-02's 37x co-occurrence would leave this file silent.
+
+    ⛔ THE THRESHOLD IS THE MAXIMUM, NOT A PERCENTILE OF A PERCENTILE. Discord closes the request
+    at 3 s; one stall past ~1 s has already eaten a third of the whole acknowledgement budget,
+    whatever the rest of the window looked like."""
+    if not loop or not loop.get("samples"):
+        return []                          # a probe that did not run reports nothing, not "fine"
+    worst = loop.get("max_ms") or 0
+    if worst < LOOP_STALL_ALERT_MS:
+        return []
+    return [("loop_stalled",
+             f"The event loop was blocked for {worst:.0f} ms (worst of {loop['samples']} probes); "
+             f"{loop.get('stalls') or 0} reading(s) over {int(LOOP_NOISE_MS)} ms. Discord closes an "
+             "interaction at 3,000 ms, and the renderer's page load fails in the same window (C-02).")]
+
+
+def _breaker_alerts(snapshot: dict | None) -> list[tuple[str, str]]:
+    """One alert per OPEN dependency breaker (§3.8, step 2.4b P2.4).
+
+    ⛔ ONE KEY PER DEPENDENCY. A single "a breaker is open" key would let a long renderer
+    outage silence the first alert about flow-worker going down — two different outages, two
+    different people to wake, and the durable cooldown is per key.
+
+    ⛔ `half_open` IS NOT AN ALERT. It means the cooldown elapsed and the next caller gets the
+    probe — the system recovering, exactly as designed. Paging on recovery is how a channel
+    gets muted, and then it is quiet on the day it matters.
+
+    ⛔ AND THERE IS DELIBERATELY NO "RECOVERED" PUSH. Breaker state is per-process and this
+    pod's median deployment served 8.4 minutes (C-01), so a recovery computed from in-memory
+    previous state would simply never fire across a restart — the rotating-sample suppression
+    defect CLAUDE.md records, which produced pages nobody could act on. The alert repeats on
+    its durable cooldown while the breaker stays open, and SILENCE is the recovery signal. The
+    message says so, because otherwise silence reads as "the alerting broke"."""
+    out = []
+    for name, b in sorted((snapshot or {}).items()):
+        if (b or {}).get("state") != "open":
+            continue
+        held = b.get("opened_for_s")
+        out.append((f"breaker_open:{name}",
+                    f"{name} breaker OPEN"
+                    + (f" for {held:.0f}s" if isinstance(held, (int, float)) else "")
+                    + f" after {b.get('recent_failures', 0)} failure(s) in the last"
+                      f" {b.get('recent_calls', 0)} call(s); trip #{b.get('trips', 0)}."
+                    f" {b.get('short_circuits', 0)} request(s) refused without waiting."
+                    " This repeats while it stays open — silence means it closed."))
+    return out
+
+
+def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0,
+                    breakers: dict | None = None) -> list[tuple[str, str]]:
     """(alert_key, message) for every rule breached right now (03-architecture §3.9). Pure:
     sending and the durable cooldown are the caller's (`Observer`, `JobsStore.alert_due`).
 
@@ -179,6 +236,8 @@ def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[s
         alerts.append(("stuck_jobs", f"{snapshot['stuck']} job(s) still not terminal after {STUCK_AFTER_S} s."))
     if renderer_misses >= RENDERER_MISSES_TO_ALERT:
         alerts.append(("renderer_not_ready", f"chart-renderer not ready on {renderer_misses} consecutive probes."))
+    alerts += _breaker_alerts(breakers)
+    alerts += _loop_alerts(snapshot.get("loop"))
     burst = sum(five["failures_by_class"].values())
     if burst >= 5:
         classes = ", ".join(f"{k}×{v}" for k, v in sorted(five["failures_by_class"].items(), key=lambda kv: -kv[1]))
@@ -186,21 +245,55 @@ def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[s
     return alerts
 
 
+def _live_loop() -> dict:
+    """The loop-stall reading this process holds."""
+    try:
+        from api.services.discord_render import loopwatch
+        return loopwatch.snapshot()
+    except Exception:  # noqa: BLE001 — observability must never be the thing that breaks
+        return {}
+
+
+def _live_breakers() -> dict:
+    """The breakers this process holds. ⭐ ONE source for both the push and the pull, so an
+    operator reading /renderhealth cannot see something the alert disagrees with."""
+    try:
+        from api.services.discord_render import breakers as breakers_mod
+        return breakers_mod.snapshot_all()
+    except Exception:  # noqa: BLE001 — observability must never be the thing that breaks
+        return {}
+
+
 def health_payload(runtime, store, *, renderer: dict | None = None, now: float | None = None,
-                   renderer_misses: int | None = None) -> dict:
+                   renderer_misses: int | None = None, breakers: dict | None = None) -> dict:
     """What `/renderhealth` and GET /api/discord/render-health print. `renderer_misses` is the
     observer's consecutive count when there is one; a lone reading counts as one miss at most,
     so `alerts` here is exactly what the observer would page on."""
     snap = slo_snapshot(store, now=now)
+    snap["loop"] = _live_loop()
     if renderer_misses is None:
         renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
+    # ⛔⛔ THE CANARY SCOPE, READ OUT OF THE RUNNING PROCESS (A3).
+    # `railway variables --kv` shows what a service is CONFIGURED with, which is not evidence the
+    # running process has it — this project has measured a pod returning None for a variable `--kv`
+    # reported as set. `/renderhealth` runs INSIDE the process, so the list it prints is the list
+    # actually in force, and it is the only read that can settle "is the canary still admin-only?"
+    # ⚠️ An EMPTY tuple is not "off". Unset means V2 answers in EVERY channel, so the payload says
+    # `"all"` in that case rather than `[]`, which a reader would misread as "narrowed to nothing".
+    from api.services.discord_render import commands as _cmds
+    _chans = _cmds.v2_channels()
     return {
         "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12],
         "owner": getattr(runtime, "owner", None),
+        "v2_enabled": _cmds.enabled(),
+        "v2_channels": list(_chans) if _chans else "all",
         "queue": runtime.depth() if runtime is not None else None,
         "renderer": renderer,
         "slo": snap,
-        "alerts": [k for k, _ in evaluate_alerts(snap, renderer_misses=renderer_misses)],
+        "breakers": breakers if breakers is not None else _live_breakers(),
+        "alerts": [k for k, _ in evaluate_alerts(
+            snap, renderer_misses=renderer_misses,
+            breakers=breakers if breakers is not None else _live_breakers())],
     }
 
 
@@ -231,7 +324,14 @@ def format_health_text(payload: dict) -> str:
         renderer = f"NOT READY ({r.get('error') or r.get('status') or 'no answer'})"
     slo = payload.get("slo") or {}
     win = slo.get("windows") or {}
+    # ⭐ The scope line is SECOND, right under the commit, because it is the line an operator needs
+    # before they trust anything else on the screen: every number below is about whichever channels
+    # this says. "all" is spelled out rather than shown as an empty list.
+    chans = payload.get("v2_channels")
+    scope = ("every channel" if chans == "all" or not chans
+             else " ".join(f"<#{c}>" for c in chans))
     lines = [f"Render V2 · commit {payload.get('commit') or '?'} · {payload.get('owner') or 'runtime not started'}",
+             f"Scope: V2 {'ON' if payload.get('v2_enabled') else 'OFF'} · {scope}",
              (f"Queue: {q.get('interactive', 0)} waiting · {q.get('active', 0)} active of {q.get('workers', 0)} workers"
               f" · background {q.get('background', 0)}") if q else "Queue: runtime not started",
              f"Renderer: {renderer}"]
@@ -304,7 +404,9 @@ class Observer:
             self.renderer_misses = self.renderer_misses + 1 if missed else 0
         webhook = self.webhook_fn()
         snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
-        for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses):
+        snap["loop"] = _live_loop()
+        for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses,
+                                        breakers=_live_breakers()):
             out["breached"].append(key)
             if not self.store.alert_due(key, self.cooldown_s, record=False):
                 continue

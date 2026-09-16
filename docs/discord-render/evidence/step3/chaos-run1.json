@@ -1,0 +1,32 @@
+{
+  "renderer_down": {
+    "class": "C-06 / C-02",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 the chart renderer is unavailable \u00b7 id chaos001 \u00b7 retry?'",
+    "ms": 73.3
+  },
+  "flow_worker_unreachable": {
+    "class": "C-08",
+    "state": "pass",
+    "detail": "named message in 0.2s: '/flow SPY 30 failed \u2014 the options-flow service is unavailable \u00b7 id chaos002 \u00b7 retry?'",
+    "ms": 164.4
+  },
+  "bars_slow": {
+    "class": "C-10",
+    "state": "pass",
+    "detail": "named message in 2.0s: \"/chart NVDA failed \u2014 market data for this symbol couldn't be loaded \u00b7 id chaos003 \u00b7 retry?\" \u00b7 abandoned_calls[bars]=1",
+    "ms": 2017.4
+  },
+  "discord_429": {
+    "class": "C-11",
+    "state": "pass",
+    "detail": "named message in 0.0s: '/chart NVDA failed \u2014 Discord is rate-limiting us \u00b7 id chaos004 \u00b7 retry?'",
+    "ms": 3.2
+  },
+  "mid_job_restart": {
+    "class": "C-01",
+    "state": "pass",
+    "detail": "artifact in 0.0s",
+    "ms": 5.7
+  }
+}

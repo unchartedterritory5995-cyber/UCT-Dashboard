@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "gap": 1.5,
+    "pinned_now": "2026-09-13T11:00:00+00:00",
+    "fixture": {
+      "ticker": "NVDA",
+      "tf": "D",
+      "as_of": "2026-09-11"
+    }
+  },
+  "run_a": {
+    "render_request": {
+      "sha256": "48ad674a72068ec99329fcbd4412a8c3d41482e15380b978ef5f66f215c998d4",
+      "clock_fields": [],
+      "error": null
+    },
+    "freshness": {
+      "sha256": "6d0c1c48475b6b44b332815d5be52cba8332a823519ecc05a748ce574747edcc",
+      "clock_fields": [
+        "age_s"
+      ],
+      "error": null
+    },
+    "failure_copy": {
+      "sha256": "09763351a7d9bf70d5081f2cbaef0a326f86ad4caa6761f4c5a382e929110d4b",
+      "clock_fields": [],
+      "error": null
+    },
+    "components": {
+      "sha256": "52e8822a363ce06bd73606d813bb86f678a41b3da88311c41eb2a16fde409292",
+      "clock_fields": [],
+      "error": null
+    },
+    "standin_png": {
+      "sha256": "81f9ef3b6fde2a903f9f1f8dafdb42f2e954f43620bdb8c221a8414c2bcb1b1e",
+      "clock_fields": [],
+      "error": null
+    }
+  },
+  "run_b": {
+    "render_request": {
+      "sha256": "48ad674a72068ec99329fcbd4412a8c3d41482e15380b978ef5f66f215c998d4",
+      "clock_fields": [],
+      "error": null
+    },
+    "freshness": {
+      "sha256": "6d0c1c48475b6b44b332815d5be52cba8332a823519ecc05a748ce574747edcc",
+      "clock_fields": [
+        "age_s"
+      ],
+      "error": null
+    },
+    "failure_copy": {
+      "sha256": "09763351a7d9bf70d5081f2cbaef0a326f86ad4caa6761f4c5a382e929110d4b",
+      "clock_fields": [],
+      "error": null
+    },
+    "components": {
+      "sha256": "52e8822a363ce06bd73606d813bb86f678a41b3da88311c41eb2a16fde409292",
+      "clock_fields": [],
+      "error": null
+    },
+    "standin_png": {
+      "sha256": "81f9ef3b6fde2a903f9f1f8dafdb42f2e954f43620bdb8c221a8414c2bcb1b1e",
+      "clock_fields": [],
+      "error": null
+    }
+  },
+  "per_component": {
+    "render_request": "identical",
+    "freshness": "identical",
+    "failure_copy": "identical",
+    "components": "identical",
+    "standin_png": "identical"
+  }
+}

@@ -747,7 +747,26 @@ describe('three adjacent bands, three different scales', () => {
     // complement taken HERE that is inexact.
     expect(1 - bands.cci.top).toBeCloseTo(bands.williamsR.bottom, 12)
     expect(1 - bands.williamsR.top).toBeCloseTo(bands.mfi.bottom, 12)
-    expect(bands.main).toEqual({ top: 0.30, bottom: 0.45 })
+    // ⚰️ RE-PINNED 2026-09-15 — INVESTIGATED, the value changed on purpose.
+    // This read `{ top: 0.30, bottom: 0.45 }`: a flat 30% of the WHOLE plot area
+    // taken as headroom no matter how little was left under it. With this 45%
+    // stack the candles got [0.30, 0.55] — a quarter of the chart — and with the
+    // stack at its `MAX_STACK_C` ceiling they got ONE PERCENT. That is the
+    // owner's production screenshot (price ~210, scale to ~1600, candles in a
+    // bottom strip), and it was equally true in panes mode, which reproduces
+    // these numbers faithfully.
+    //
+    // The headroom is now a share of the CANDLE AREA — `MAIN_TOP * (1 - osc)` —
+    // so it degrades with the stack instead of eating it: 0.30 * 0.55 = 0.165,
+    // and the candles get [0.165, 0.55], which is 70% of what is left for them
+    // exactly as the no-stack chart gets 70% of the whole. The band edges above
+    // are UNCHANGED, which is the point: only the main rectangle's top moved.
+    expect(bands.main).toEqual({ top: 0.30 * 0.55, bottom: 0.45 })
+    // ⛔ AND THE CANDLES ALWAYS GET THE SAME SHARE OF WHAT IS THEIRS. This is
+    // the invariant the old constant could not state, and the one that makes the
+    // squish unconstructible rather than merely absent today.
+    const candleShare = (1 - bands.main.bottom - bands.main.top) / (1 - bands.main.bottom)
+    expect(candleShare).toBeCloseTo(1 - 0.30, 12)
   })
 
   it('binds all three at once, each on its OWN named scale with its OWN range', () => {

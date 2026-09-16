@@ -1,3 +1,7 @@
+# promotion-gate: yes — these are BAN rails, not style checks: a red means a Wisdom
+#   module reaches the Substack publisher or member Journal/J2/Notebook data. That is a
+#   scope breach that must not reach production. Stdlib-only and unfiltered, so it runs
+#   on every candidate and costs seconds.
 # The Wisdom Loop ban rails (W1 §0.4, Part 10; docs/wisdom/CONTRACTS.md §6.2, §8).
 #
 # Four rails, all standard-library Python, so this job installs nothing but pytest:
@@ -55,10 +59,28 @@ jobs:
           python -m pytest --noconftest -p no:cacheprovider \
             tests/test_wisdom_bans.py tests/test_wisdom_vocab_authority.py -q
 
+      # §8c.3. Standard-library only, like the rails above: it imports the Wisdom schema
+      # modules (pathlib) and the marker module (re + json) and walks the rest with `ast`.
+      # --self-check runs FIRST and plants a violation, so a check that has silently
+      # stopped being able to fail is reported before its green is believed.
+      - name: The provenance-marker check can fail (self-check)
+        run: python -m api.services.wisdom.publish.provenance_check --self-check
+
+      - name: No adapter code path writes a consumer table without a provenance marker
+        run: python -m api.services.wisdom.publish.provenance_check
+
       - name: Explain a failure
         if: failure()
         run: |
-          echo "::error::A Wisdom ban rail or the vocabulary authority check failed; the log above names the file and line."
+          echo "::error::A Wisdom ban rail, the vocabulary authority check or the §8c.3 provenance check failed; the log above names the file and line."
+          echo ""
+          echo "PROVENANCE (§8c.3): every publish-adapter write to a CONSUMER table carries a marker."
+          echo "The log names file:line and the table or call. Fix it by stamping what you write:"
+          echo "  from api.services.wisdom.publish.adapters import provenance"
+          echo "  payload = provenance.stamp(payload, consumer=CONSUMER, subject_ref=..., flag_env=FLAG_ENV)"
+          echo "or, for SQL, assert before the statement: provenance.assert_marked(row['content'])."
+          echo "Do NOT add an exemption: the consumer-table set is derived from the Wisdom migrations,"
+          echo "so a table Wisdom does not create is a consumer by definition."
           echo ""
           echo "Exit 1 is a violation: remove the import, string or path it names. Do NOT add the file to"
           echo "an allow list: the exemptions are exact sets asserted by tests/test_wisdom_bans.py."

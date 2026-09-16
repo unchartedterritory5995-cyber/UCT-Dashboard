@@ -96,7 +96,25 @@ function shippedBandMargins(enabled, hasVolume) {
     out[active[i].key] = { top: (100 - nextC) / 100, bottom: bottomC / 100 }
     bottomC = nextC
   }
-  out.main = { top: 0.30, bottom: bottomC / 100 }
+  // ⚰️⚰️ UPDATED 2026-09-15 — INVESTIGATED, and the transcription had to follow
+  // the fix it is the reference for.
+  //
+  // This read `{ top: 0.30, ... }`, faithfully transcribing the shipped rule: a
+  // flat 30% of the WHOLE plot area as headroom, with the candles getting
+  // whatever survived the stack. Faithful, and wrong — the loop above shaves the
+  // stack to a 69-hundredth ceiling precisely because the rule permits a stack
+  // that leaves the candles ONE PERCENT. That is the owner's production
+  // screenshot: a price around 210 pressed into the bottom of its pane with the
+  // scale reading to ~1600.
+  //
+  // ⛔ A GOLDEN MASTER MUST TRACK A DELIBERATE CHANGE OR IT PINS THE DEFECT. The
+  // headroom is now a share of the CANDLE AREA — `0.30 * (1 - osc)` — so it
+  // degrades with the stack instead of eating it. Everything else here is
+  // untouched: the band edges, the shave, the ceiling. The sweeps below still do
+  // their real job, which is that panes mode reproduces bands mode to the pixel
+  // across all 512 subsets and that the separators come out of the oscillators.
+  const oscC = hasVolume ? bottomC - heightsC[heightsC.length - 1] : bottomC
+  out.main = { top: 0.30 * (1 - oscC / 100), bottom: bottomC / 100 }
   return out
 }
 
@@ -197,7 +215,22 @@ describe('pane 0 keeps its rectangle, to the pixel', () => {
     for (let mask = 0; mask < 512; mask++) {
       const before = shippedBoundaries(mask, hasVolumeBand)
       const after = layoutBoundaries(computePaneLayout(INSTS[mask], OPTS({ hasVolumeBand })))
-      if (after.candleTop !== before.candleTop
+      // ⚠️ `candleTop` IS COMPARED TO THE PIXEL, ±1 — AND ONLY IT.
+      //
+      // The two sides round the headroom in different FRAMES: the layout takes
+      // `MAIN_TOP` of pane 0's own INTEGER height, the transcription above takes
+      // `0.30 * (1 - osc)` of the chart height. Those agree exactly except where
+      // the two roundings straddle a boundary — measured, 30 of the 512 subsets,
+      // every one of them off by exactly 1px and never more.
+      //
+      // ⛔ THE OTHER TWO EDGES STAY EXACT, which is what keeps this failable.
+      // `candleBottom` and `pane0Bottom` are the edges the separator budget and
+      // the band height land on, so the properties this sweep exists for — panes
+      // mode reproduces bands mode, and the separators come out of the
+      // oscillators — are still asserted to the pixel with no tolerance at all.
+      // This is the same sub-pixel argument `flipCGeometry`'s §A6 case makes
+      // explicitly for the identical reason.
+      if (Math.abs(after.candleTop - before.candleTop) > 1
           || after.candleBottom !== before.candleBottom
           || after.pane0Bottom !== before.pane0Bottom) {
         bad.push({ mask, before, after })
@@ -322,8 +355,13 @@ describe('the geometry is TOTAL — no input in the layout space produces an ill
     // Half the nine, chosen so the pair straddles both squeezed and unsqueezed
     // stacks: excluding from a full stack drops it out of the shave, and
     // excluding from a small one does not.
-    const excluded = new Set(['macd', 'atr', 'rsi', 'obv'])
-    const dropped = OSC.reduce((m, k, i) => (excluded.has(k) ? m : m | (1 << i)), 0)
+    // ⚠️ IN PANE-KEY UNITS (P2.0c). `excludeKeys` is matched against pane keys,
+    // which are HOST INSTANCE ids — `instsFor` builds `legacy:<def>`. Naming
+    // definitions here would silently exclude nothing and the property would
+    // hold vacuously, which is the one way this case could rot.
+    const excludedDefs = ['macd', 'atr', 'rsi', 'obv']
+    const excluded = new Set(excludedDefs.map((d) => `legacy:${d}`))
+    const dropped = OSC.reduce((m, k, i) => (excludedDefs.includes(k) ? m : m | (1 << i)), 0)
     const bad = []
     for (let mask = 0; mask < 512; mask++) {
       const withExclude = computePaneLayout(INSTS[mask], OPTS({ excludeKeys: excluded }))
@@ -393,7 +431,9 @@ describe('stack order is DATA, and it comes from the instance list', () => {
                    { instanceId: 'legacy:obv', defId: 'obv' },
                    { instanceId: 'legacy:atr', defId: 'atr' }]
     const out = computePaneLayout(insts, OPTS())
-    expect(out.panes.map(p => p.key)).toEqual(['adx', 'obv', 'atr'])
+    // ⚠️ READ BACK THROUGH `defByKey`: the claim is about ORDER, and pane keys
+    // are host instance ids (P2.0c). Mapping keeps the subject and the units honest.
+    expect(out.panes.map(p => out.defByKey.get(p.key))).toEqual(['adx', 'obv', 'atr'])
     // Registry order for the same three is adx, obv... no: it is atr, adx, obv
     // (rsi, macd, stoch, atr, mfi, cci, williamsR, adx, obv). Naming it here is
     // what makes "not by registry order" a claim and not a slogan.
@@ -428,7 +468,9 @@ describe('stack order is DATA, and it comes from the instance list', () => {
     const seeded = SHIPPED_STACK_ORDER.filter((id) => OSC.includes(id))
     expect(seeded).toEqual([...OSC].reverse())
     const out = computePaneLayout(seeded.map((id) => ({ instanceId: `legacy:${id}`, defId: id })), OPTS())
-    expect(out.panes.map(p => p.key)).toEqual([...OSC].reverse())
+    // ⚠️ THROUGH `defByKey` — the claim is the stack ORDER of DEFINITIONS; pane
+    // keys are host instance ids (P2.0c).
+    expect(out.panes.map(p => out.defByKey.get(p.key))).toEqual([...OSC].reverse())
     expect(out.panes.map(p => p.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
     expect(out.pane0.volumeMargins).not.toBeNull()
   })
@@ -456,7 +498,7 @@ describe('stack order is DATA, and it comes from the instance list', () => {
     const insts = [{ instanceId: 'i:rsi', defId: 'rsi' },
                    { instanceId: 'i:macd', defId: 'macd', deleted: true }]
     const out = computePaneLayout(insts, OPTS())
-    expect(out.panes.map(p => p.key)).toEqual(['rsi'])
+    expect(out.panes.map(p => p.key)).toEqual(['i:rsi'])
   })
 
   it('a PRICE overlay in the instance list reserves no pane', () => {
@@ -467,7 +509,8 @@ describe('stack order is DATA, and it comes from the instance list', () => {
 
   it('an excluded id reserves no pane even when an instance names it', () => {
     const insts = [{ instanceId: 'i:rsi', defId: 'rsi' }]
-    const out = computePaneLayout(insts, OPTS({ excludeKeys: new Set(['rsi']) }))
+    // ⚠️ THE INSTANCE, NOT THE DEFINITION — `excludeKeys` speaks pane keys.
+    const out = computePaneLayout(insts, OPTS({ excludeKeys: new Set(['i:rsi']) }))
     expect(out.panes).toEqual([])
   })
 })
@@ -551,7 +594,12 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
     // candles' pane, so both belong here and neither declares a height. The
     // claim is TOTAL — every price-target definition, whenever it was authored —
     // so it is asserted as a set plus the shipped five in their z-order.
-    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    // ⭐ `movingAverage` IS THE EIGHTH. It declares `onPrice`, so it draws inside
+    // the candles' pane and — like the seven before it — declares no height of
+    // its own. A height here would reserve vertical space for something that
+    // never has a pane.
+    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
+      'atrBands', 'movingAverage'])
     for (const id of overlays) {
       expect(getDefinition(id).placement.pane, `${id} declares a pane`).toBeUndefined()
     }
@@ -568,7 +616,12 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
    * `filter(id => OSC.includes(id))` would go on passing if one of the nine
    * disappeared, which is the whole thing this case is for.
    */
-  const NEVER_A_SHIPPED_PANE = ['rsLine']
+  // ⭐ `dataSeries` JOINS IT (P2.1) for the same reason and a different history:
+  // it is a pane definition that NEVER shipped a legacy pane, because it did not
+  // exist. It is registry-native — there is no hardcoded block, no legacy
+  // toggle and no stored blob that ever named it — so it can have no place in a
+  // stack order that already shipped.
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
     const paneDefs = listDefinitions().filter(d => d.placement.target === 'pane')
@@ -839,11 +892,11 @@ describe('a HIDDEN instance takes no pane — the layout agrees with the binder'
   it('drops the hidden one and does NOT leave a gap in the indices', () => {
     const both = [inst('rsi'), inst('macd')]
     expect(keysOf(both), 'the control — two visible oscillators, two panes')
-      .toEqual(['rsi', 'macd'])
+      .toEqual(['legacy:rsi', 'legacy:macd'])
 
     const rsiHidden = [inst('rsi', { hidden: true }), inst('macd')]
     const panes = computePaneLayout(rsiHidden, LAYOUT).panes
-    expect(panes.map((p) => p.key), 'a hidden instance still claimed a pane').toEqual(['macd'])
+    expect(panes.map((p) => p.key), 'a hidden instance still claimed a pane').toEqual(['legacy:macd'])
     // ⛔ AND MACD TAKES THE FIRST INDEX, which is the half that actually broke:
     // leaving it at the second one is the off-by-one the returning RSI collided
     // with, and it is invisible until something comes back.
@@ -854,7 +907,7 @@ describe('a HIDDEN instance takes no pane — the layout agrees with the binder'
   it('⭐ …and un-hiding restores TWO panes, in their original order', () => {
     const back = [inst('rsi'), inst('macd')]
     const panes = computePaneLayout(back, LAYOUT).panes
-    expect(panes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    expect(panes.map((p) => p.key)).toEqual(['legacy:rsi', 'legacy:macd'])
     expect(new Set(panes.map((p) => p.index)).size, 'the two oscillators share one pane index')
       .toBe(2)
   })

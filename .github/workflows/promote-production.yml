@@ -1,0 +1,209 @@
+# promotion-gate: no — this IS the promotion. Gating on itself is incoherent, and a
+#   self-reference would deadlock the poll below (it can never be `completed` while it
+#   is the thing doing the polling).
+#
+# Fast-forward `production` to a master commit whose GATING checks have passed.
+#
+# ⭐ WHY THIS REPLACES RAILWAY'S "Wait for CI", rather than sitting beside it.
+# Wait-for-CI waits on ALL checks for a commit. Two measured problems with that:
+#
+#   1. It does not gate. Eight consecutive `web` deploys on 2026-09-14 between 19:10Z
+#      and 21:30Z each started 99–141 s BEFORE their check suite finished — including
+#      `7707b2241`, which was created after the toggle was already ON.
+#   2. All-or-nothing is the wrong shape here. `flow-worker deploy coverage` exits 0
+#      on a red *specifically so it can never block a deploy* (owner ruling b9acfddbd);
+#      waiting on every check re-couples that review gate to the deploy decision, and 6
+#      of the last 50 master runs would have blocked on correctly-classified ADDITIVE
+#      merges.
+#
+# ⛔ THE GATING SET IS DERIVED FROM `.github/workflows/`, NEVER FROM THE GITHUB UI.
+# GitHub lists 9 workflows for this repo; the directory holds 8 (7 + this one). The
+# extras are ghosts with run history and no file — they cannot run on a new commit, so
+# the directory is the only honest source. `tools/promotion_gate.py` reads a
+# `# promotion-gate: yes|no` marker from each file and REFUSES on an unclassified one.
+#
+# ⛔ SAFE TO MERGE BEFORE CUTOVER. Nothing here creates `production`: if the branch does
+# not exist on origin the run finishes as a loud, explicit no-op. Once the owner creates
+# it, this promotes to a branch nobody watches until Railway is repointed — which is the
+# observation window the cutover checklist asks for.
+#
+# ⚠️ A `workflow_run` workflow only triggers from the DEFAULT branch, so this file does
+# nothing at all until it is on master. That is a property of GitHub, not a safeguard to
+# rely on.
+name: promote to production
+
+on:
+  workflow_run:
+    workflows: ["master deploy gate"]
+    types: [completed]
+    branches: [master]
+  # Deliberate manual door for the cutover rehearsal and for re-promoting after a fix.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "master commit to promote (defaults to the tip of master)"
+        required: false
+
+# ⛔ ONE QUEUE, AND `cancel-in-progress: false` IS THE WHOLE MECHANISM.
+#
+# The alternative — cancelling the older run when a newer arrives — coalesces two
+# pushes into one promotion, which sounds like exactly what the stacked-push rule
+# wants. It is not safe HERE, for a measured reason: `master deploy gate`'s secret scan
+# reads `git diff HEAD^ HEAD`, i.e. ONE commit's files. Cancelling commit A's promotion
+# and promoting B still deploys A's code, but A's changed files were never scanned by
+# any run that gated a deploy. Coalescing is only sound when every gating check is
+# cumulative over the tree, and one of ours is per-commit by construction.
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write      # the fast-forward push to `production`
+  actions: read        # reading other workflows' runs and states
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # ⛔ A FAILED GATE MUST NOT REACH THE POLL. `workflow_run` fires on completion
+      # whatever the conclusion, and the poll below would then sit waiting for a run
+      # that has already failed.
+      - name: The triggering gate must have succeeded
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success'
+        run: |
+          echo "::notice title=No promotion::master deploy gate concluded '${{ github.event.workflow_run.conclusion }}' — nothing is promoted."
+          echo "## No promotion" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`master deploy gate\` concluded **${{ github.event.workflow_run.conclusion }}**. Fix forward on master; the next green gate promotes." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      # fetch-depth 0: the ancestry check needs real history. A shallow clone makes
+      # `merge-base --is-ancestor` answer from an incomplete graph.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || inputs.sha || 'master' }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Resolve the candidate
+        id: cand
+        run: |
+          SHA=$(git rev-parse HEAD)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "candidate: $SHA"
+
+      # The decision table, proved able to fail, before it is used on a real commit.
+      - name: promotion_gate self-check
+        run: python tools/promotion_gate.py --self-check
+
+      # ⛔ POLL, DO NOT ASSUME. `master deploy gate` finishing does not mean the other
+      # gating workflows have. They started at the same time and may still be running.
+      - name: Wait for the gating checks
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.cand.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows?per_page=100" > wf.json
+          for attempt in $(seq 1 40); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" > runs.json
+            set +e
+            OUT=$(python tools/promotion_gate.py --runs runs.json --workflows wf.json)
+            CODE=$?
+            set -e
+            echo "$OUT"
+            case $CODE in
+              0) echo "verdict=PROMOTE" >> "$GITHUB_OUTPUT"
+                 echo "$OUT" > gate-detail.txt
+                 exit 0 ;;
+              3) echo "attempt ${attempt}/40 — still waiting; sleeping 30s"; sleep 30 ;;
+              *) echo "::error title=Promotion refused::$(echo "$OUT" | tail -1)"
+                 echo "$OUT" > gate-detail.txt
+                 exit 1 ;;
+            esac
+          done
+          echo "::error title=Promotion timed out::gating checks did not conclude within ~20 minutes"
+          exit 1
+
+      # ⛔ THE PRE-CUTOVER NO-OP. Creating `production` is an owner step, on purpose: a
+      # workflow that creates the branch it deploys from could point production at
+      # whatever it happened to be holding.
+      - name: Does `production` exist on origin?
+        id: exists
+        run: |
+          if git ls-remote --exit-code --heads origin production >/dev/null 2>&1; then
+            echo "exists=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=no" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Nothing promoted::origin/production does not exist yet — the gate ran and passed, but there is no branch to advance."
+          fi
+
+      # ⛔ FAST-FORWARD ONLY, AND NEVER `--force`. If `production` is not an ancestor of
+      # the candidate, somebody pushed to it directly (or it was reset by hand). Forcing
+      # past that would silently discard whatever is deployed. Fail, and say exactly
+      # what to look at.
+      - name: Fast-forward `production`
+        if: steps.exists.outputs.exists == 'yes'
+        env:
+          SHA: ${{ steps.cand.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          CUR=$(git rev-parse origin/production)
+          echo "production is at $CUR"
+          if [ "$CUR" = "$SHA" ]; then
+            echo "::notice title=Already promoted::production is already at $SHA"
+            echo "promoted=already" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "$CUR" "$SHA"; then
+            echo "::error title=production is not an ancestor::origin/production ($CUR) is not an ancestor of the candidate ($SHA). Somebody pushed to production directly, or it was reset by hand. This job will NEVER force past that — see docs/breadth/deploy-gate-v2.md, 'Rollback'."
+            exit 1
+          fi
+          git push origin "$SHA":refs/heads/production
+          echo "promoted=$SHA" >> "$GITHUB_ENV"
+
+      # ⛔⛔ THIS IS WHAT MAKES THE QUEUE REAL. Owner ruling: "A push is not clear until
+      # its web deploy reaches SUCCESS." Holding the job until Railway finishes means
+      # the NEXT queued promotion cannot start a second deploy inside the first one's
+      # swap — which is the 2026-09-12 502 and the 2026-09-14 mid-flight REMOVED, both
+      # of which a client-side hook could not prevent.
+      #
+      # ⚠️ IT DEGRADES LOUDLY, NEVER SILENTLY. Without RAILWAY_TOKEN this cannot see the
+      # deploy at all, and it says so in the summary: serialisation is then at GitHub
+      # only, and two promotions can still overlap one Railway build.
+      - name: Wait for the Railway `web` deploy
+        if: steps.exists.outputs.exists == 'yes'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "::warning title=Deploy wait skipped::RAILWAY_TOKEN is not set, so this promotion did not wait for the Railway deploy. Promotions are serialised at GitHub, but two can still overlap one Railway build."
+            echo "DEPLOY_WAIT=skipped-no-token" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "DEPLOY_WAIT=not-implemented" >> "$GITHUB_ENV"
+          echo "::warning title=Deploy wait not implemented::The token is present but the Railway poll is not built yet — see docs/breadth/deploy-gate-v2.md, 'Serialisation', step 3. Not claiming a wait that did not happen."
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## promote to production"
+            echo ""
+            echo "- candidate: \`${{ steps.cand.outputs.sha }}\`"
+            echo "- production existed: **${{ steps.exists.outputs.exists || 'unknown' }}**"
+            echo "- promoted: **${promoted:-no}**"
+            echo "- railway deploy wait: **${DEPLOY_WAIT:-not reached}**"
+            echo ""
+            if [ -f gate-detail.txt ]; then
+              echo '```'
+              cat gate-detail.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

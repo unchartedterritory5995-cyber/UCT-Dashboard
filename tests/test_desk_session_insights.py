@@ -12,6 +12,44 @@ from api.services import desk_session_insights as si
 from api.services import education_service as edu
 
 
+class _FakeR2Bucket:
+    """In-memory stand-in for the wisdom/ R2 writer (api.services.wisdom.core.r2)."""
+
+    def __init__(self):
+        self.objects: dict = {}
+
+    def head_object(self, Bucket, Key):
+        if Key not in self.objects:
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+        return {"Metadata": {"sha256": self.objects[Key][1]}}
+
+    def put_object(self, Bucket, Key, Body, ContentType, Metadata):
+        assert Key not in self.objects, "overwrite attempted"
+        self.objects[Key] = (Body, Metadata["sha256"])
+
+
+@pytest.fixture(autouse=True)
+def fake_r2(monkeypatch):
+    """⛔ HERMETIC R2, for EVERY test in this module.
+
+    The trash path archives raw VTTs to R2 before deleting a Zoom recording. This
+    box carries real DATA_SYNC_* credentials in its environment, so without this
+    fixture an orchestration test that reaches the trash writes fixture objects
+    into the REAL bucket (measured 2026-09-13 — that is how this fixture came to
+    exist). The credentials are removed AND the client is replaced, so a code path
+    that bypasses core.r2 still finds no client."""
+    for var in ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY", "DATA_SYNC_SECRET_KEY", "DATA_SYNC_BUCKET"):
+        monkeypatch.delenv(var, raising=False)
+    from api.services.wisdom.core import r2
+
+    bucket = _FakeR2Bucket()
+    monkeypatch.setattr(r2, "_client_and_bucket", lambda: (bucket, "fake-bucket"))
+    monkeypatch.setattr(si, "_COVERAGE_ALERTED", set())
+    return bucket
+
+
 def test_parse_vtt_basic():
     vtt = """WEBVTT
 
@@ -327,6 +365,21 @@ _SUMMARY_JSON = json.dumps({
 _VTT = ("WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n"
         "Good morning, let's talk NVDA today.\n")
 
+# ⛔⛔ CONTRACTS §8a.6a + reviewer R2 (2026-09-13). The trash gate refuses a recording
+# whose coverage it CANNOT MEASURE, so a fixture that wants to reach the trash has to
+# carry a real published-MP4 window and a transcript that actually covers it.
+#
+# ⚰️ Why this fixture exists at all: before R2 these tests reached the trash precisely
+# BECAUSE they were unmeasurable — `coverage is None` short-circuited the guard and read
+# as a pass. Five green tests were therefore asserting the very delete §8a.6a forbids,
+# while the new rail beside them
+# (test_expired_wait_with_no_transcript_keeps_a_measurable_recording) asserted the
+# opposite for a measurable one. Both passed; the invariant was split by a `None`.
+_MP4_HOUR = {"file_type": "MP4", "id": "mp4-hour", "file_size": 9,
+             "recording_start": "2026-06-24T13:30:00Z", "recording_end": "2026-06-24T14:30:00Z",
+             "download_url": "http://x/mp4"}
+_VTT_FULL = _VTT + "\n2\n00:59:00.000 --> 00:59:04.000\nThat's the close, see you tomorrow.\n"
+
 
 class _FakeZoom:
     """Stubbed Zoom client: get_recording_files/download_text/delete_recording
@@ -388,10 +441,11 @@ def test_zoom_summary_path_stores_chapters_without_touching_llm_client(edu_db, c
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
         {"file_type": "SUMMARY", "recording_type": "summary_next_steps", "download_url": "http://x/next"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -446,10 +500,11 @@ def test_ticker_moments_disabled_flag_skips_the_call(edu_db, chapters_enabled, m
     v = _seed_session_video()
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -482,10 +537,11 @@ def test_ticker_moments_off_without_backfill_off_still_calls_the_api(
     v = _seed_session_video()
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     si.process_pending_session_insights(zoom=zoom)
 
@@ -526,10 +582,11 @@ def test_tickers_best_effort_failure_does_not_block_chapters(edu_db, chapters_en
     v = _seed_session_video(title="Live Trading Session — June 26, 2026", meeting_uuid="UUID3")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     si.process_pending_session_insights(zoom=zoom)
 
@@ -665,17 +722,25 @@ def test_summary_only_young_video_waits_for_transcript_no_trash(edu_db, chapters
     assert zoom.deleted == []  # recording NOT trashed
 
 
-def test_summary_only_expired_wait_stores_zoom_insights_and_trashes(edu_db, chapters_enabled, monkeypatch):
-    """Same shape (summary chapters, transcript still absent) but the video
-    has exhausted DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS — proceeds exactly as
-    before the fix: store the Zoom-derived insights (transcript absent),
-    trash the recording, mark zoom_cleaned. Better than losing the chapters
-    forever, bounded by the existing backstop."""
+def test_summary_only_expired_wait_stores_zoom_insights_and_keeps_the_recording(
+        edu_db, chapters_enabled, monkeypatch, pages):
+    """Same shape (summary chapters, transcript still absent) with the video past
+    DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS: the Zoom-derived insights are stored, but
+    the recording is KEPT.
+
+    ⚰️ This test used to assert `zoom.deleted == ["UUIDW2"]` and `zoom_cleaned == 1` —
+    a delete of the only copy of a session with NO transcript at all. CONTRACTS §8a.6a
+    (owner, 2026-09-13) replaced the expiry backstop: "deletion is blocked only until
+    store-and-verify succeeds", and an expiry is not a verification. It survived S-C's
+    new guard only because its fixture had no media duration, so coverage came back
+    `None` and the guard short-circuited (reviewer R2). The fixture now carries the
+    published MP4, the guard can measure, and the assertion is the ruling's."""
     monkeypatch.setenv("DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS", "0")  # max_wait=0 -> already expired
 
     v = _seed_session_video(title="Live Trading Session — July 2, 2026", meeting_uuid="UUIDW2")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         # still no transcript file.
     ]}
     zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON})
@@ -692,8 +757,11 @@ def test_summary_only_expired_wait_stores_zoom_insights_and_trashes(edu_db, chap
     ]
     assert row["transcript"] is None
     assert json.loads(row["ticker_moments"]) == []
-    assert zoom.deleted == ["UUIDW2"]
-    assert row["zoom_cleaned"] == 1
+    # ⛔ The ruling's half: insights stored, recording KEPT, owner paged.
+    assert zoom.deleted == []
+    assert not row["zoom_cleaned"]
+    assert any(r.get("id") == v["id"] and r.get("action") == "trash_refused" for r in out)
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
 
 
 def test_videos_missing_ticker_moments_query(edu_db):
@@ -868,10 +936,11 @@ def test_zoom_path_applies_polish_when_enabled(edu_db, chapters_enabled, monkeyp
     v = _seed_session_video(title="Live Trading Session — July 7, 2026", meeting_uuid="UUIDP1")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -901,10 +970,11 @@ def test_zoom_path_polish_rewrites_chapter_titles_when_provided(edu_db, chapters
     v = _seed_session_video(title="Live Trading Session — July 9, 2026", meeting_uuid="UUIDP3")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     si.process_pending_session_insights(zoom=zoom)
 
@@ -925,10 +995,11 @@ def test_zoom_path_polish_failure_keeps_zoom_text(edu_db, chapters_enabled, monk
     v = _seed_session_video(title="Live Trading Session — July 8, 2026", meeting_uuid="UUIDP2")
     rec = {"recording_files": [
         {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _MP4_HOUR,
         {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
          "download_url": "http://x/vtt"},
     ]}
-    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT_FULL})
 
     out = si.process_pending_session_insights(zoom=zoom)
 
@@ -1339,3 +1410,465 @@ def test_capture_media_provenance_wired_into_run_one_pending(edu_db, chapters_en
         assert row["media_started_at"] == "2026-06-24T13:30:00Z"
         assert row["media_started_at_source"] == "recovered_job_metadata"
         assert row["zoom_cleaned"] == 1  # unaffected — provenance capture never blocks this
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-13 — Wisdom Loop W1 §2.2: the 356 truncation.
+# docs/wisdom/methodology/zoom-356-root-cause.md
+#
+# WHAT THESE TESTS HAVE TO BE ABLE TO SAY RED FOR
+#   1. a transcript chosen by LIST ORDER instead of by pairing to the published MP4;
+#   2. a Zoom recording trashed while the stored transcript covers < 98% of it;
+#   3. a trash that happens before every raw VTT + the metadata JSON is in R2;
+#   4. a kill switch that does not actually switch (each has a control).
+# ═════════════════════════════════════════════════════════════════════════════
+
+from api.services.wisdom.core import ids as wisdom_ids  # noqa: E402
+
+
+def _vtt_of(*cues):
+    lines = ["WEBVTT", ""]
+    for i, (s, text) in enumerate(cues, 1):
+        e = s + 3
+        lines += [str(i),
+                  f"{s // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}.000 --> "
+                  f"{e // 3600:02d}:{(e % 3600) // 60:02d}:{e % 60:02d}.000",
+                  text, ""]
+    return "\n".join(lines)
+
+
+def _rfile(ftype, fid, start, end, url, size=None, rtype=None):
+    f = {"file_type": ftype, "id": fid, "recording_start": start, "recording_end": end,
+         "download_url": url, "status": "completed"}
+    if size is not None:
+        f["file_size"] = size
+    if rtype:
+        f["recording_type"] = rtype
+    return f
+
+
+# The 356 shape: a stop/restart inside ONE meeting. A 345 s first segment is listed
+# FIRST; the published (largest) MP4 is the second, 6,830 s segment.
+_SHORT = ("2026-09-11T13:00:00Z", "2026-09-11T13:05:45Z")   # 345 s
+_LONG = ("2026-09-11T13:07:00Z", "2026-09-11T15:00:50Z")    # 6,830 s
+_VTT_SHORT = _vtt_of((5, "short segment opening"), (345, "short segment last words"))
+_VTT_LONG = _vtt_of((2, "long segment opening"), (3400, "middle of the workshop"), (6800, "closing words"))
+
+
+def _rec_356(extra=None):
+    files = [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        _rfile("MP4", "mp4-short", *_SHORT, "http://x/mp4-short", size=10),
+        _rfile("TRANSCRIPT", "vtt-short", *_SHORT, "http://x/vtt-short", rtype="audio_transcript"),
+        _rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999),
+        _rfile("TRANSCRIPT", "vtt-long", *_LONG, "http://x/vtt-long", rtype="audio_transcript"),
+    ]
+    return {"uuid": "K02BCIBPQTKxm51v+d7inQ==", "password": "hunter2", "recording_files": files + (extra or [])}
+
+
+_DL_356 = {"http://x/summary": _SUMMARY_JSON, "http://x/vtt-short": _VTT_SHORT, "http://x/vtt-long": _VTT_LONG}
+
+
+@pytest.fixture
+def pages(monkeypatch):
+    from api.services import chart_health_alerts
+
+    sent = []
+    monkeypatch.setattr(chart_health_alerts, "emit",
+                        lambda key, severity, message, metadata=None: sent.append((key, severity)) or True)
+    return sent
+
+
+@pytest.fixture
+def no_llm(monkeypatch):
+    monkeypatch.setattr(si, "generate_ticker_moments", lambda title, cues: [])
+    monkeypatch.setattr(si, "generate_setups", lambda title, cues: [])
+
+
+def _stored_max_t(vid):
+    cues = edu.get_transcript_cues(vid)
+    return max(c["t"] for c in cues) if cues else None
+
+
+def test_the_356_bug_first_in_list_transcript_is_the_short_segment():
+    """Documents the defect: the old selector returns the FIRST transcript — the
+    345 s segment — while the published MP4 is the 6,830 s one."""
+    rec = _rec_356()
+    assert si._find_transcript_file(rec)["id"] == "vtt-short"
+    assert si.select_largest_mp4(rec["recording_files"])["id"] == "mp4-long"
+
+
+def test_the_transcript_is_paired_to_the_published_mp4_by_recording_window():
+    plan = si.plan_transcript_for_mp4(_rec_356())
+    assert plan["mode"] == "paired"
+    assert [e["file"]["id"] for e in plan["files"]] == ["vtt-long"]
+    assert plan["files"][0]["offset_s"] == 0
+    assert plan["mp4_duration_s"] == 6830
+
+
+def test_multi_transcript_regression_stores_the_full_transcript_and_trashes_once(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """THE regression test: the 356 recording shape end to end."""
+    v = _seed_session_video(title="Workshop with Stockbee — September 11, 2026", meeting_uuid="UUID356")
+    zoom = _FakeZoom(_rec_356(), _DL_356)
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert any(r.get("id") == v["id"] and r.get("action") == "generated" for r in out)
+    assert _stored_max_t(v["id"]) == 6800  # NOT 345
+    assert si.transcript_coverage(edu.get_transcript_cues(v["id"]), 6830) >= si.COVERAGE_THRESHOLD
+    assert zoom.deleted == ["UUID356"]
+    assert pages == []
+    prefix = f"wisdom/sources/zoom_vtt/{wisdom_ids.sha24('UUID356')}/"
+    keys = sorted(fake_r2.objects)
+    assert f"{prefix}vtt-short.vtt" in keys and f"{prefix}vtt-long.vtt" in keys
+    assert any(k.startswith(f"{prefix}recording-") and k.endswith(".json") for k in keys)
+
+
+def test_several_overlapping_transcripts_are_stitched_with_offsets_to_the_mp4_start():
+    rec = {"recording_files": [
+        _rfile("MP4", "mp4", "2026-09-11T13:00:00Z", "2026-09-11T15:00:00Z", "http://x/mp4", size=5),
+        # listed out of time order on purpose
+        _rfile("TRANSCRIPT", "part-b", "2026-09-11T14:00:00Z", "2026-09-11T15:00:00Z", "http://x/b"),
+        _rfile("TRANSCRIPT", "part-a", "2026-09-11T13:00:00Z", "2026-09-11T14:00:00Z", "http://x/a"),
+    ]}
+    plan = si.plan_transcript_for_mp4(rec)
+    assert plan["mode"] == "stitched"
+    assert [(e["file"]["id"], e["offset_s"]) for e in plan["files"]] == [("part-a", 0), ("part-b", 3600)]
+    texts = {"http://x/a": _vtt_of((10, "a1"), (3590, "a2")), "http://x/b": _vtt_of((5, "b1"), (3500, "b2"))}
+    cues = si.build_paired_cues(plan, texts.__getitem__)
+    assert [(c["t"], c["text"]) for c in cues] == [(10, "a1"), (3590, "a2"), (3605, "b1"), (7100, "b2")]
+    assert si.transcript_coverage(cues, plan["mp4_duration_s"]) >= si.COVERAGE_THRESHOLD
+
+
+def test_a_transcript_from_another_segment_is_never_used():
+    rec = {"recording_files": [
+        _rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999),
+        _rfile("TRANSCRIPT", "vtt-short", *_SHORT, "http://x/vtt-short"),
+    ]}
+    plan = si.plan_transcript_for_mp4(rec)
+    assert plan["mode"] == "no_overlap" and plan["files"] == []
+    # control: with no timestamps anywhere the single file is still used
+    untimed = {"recording_files": [{"file_type": "TRANSCRIPT", "download_url": "http://x/v", "status": "completed"}]}
+    assert si.plan_transcript_for_mp4(untimed)["mode"] == "single_untimed"
+
+
+def _seed_truncated_356(title="Workshop with Stockbee — September 11, 2026", uuid="UUIDTRAP"):
+    v = _seed_session_video(title=title, meeting_uuid=uuid)
+    edu.set_video_insights(v["id"],
+                           transcript=si._timestamped_block([{"t": 5, "text": "a"}, {"t": 345, "text": "b"}]),
+                           chapters=[{"t": 0, "title": "Open"}])
+    return v
+
+
+def test_the_guard_keeps_the_recording_while_coverage_is_below_98_percent(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    v = _seed_truncated_356()
+    rec = {"recording_files": [  # the published MP4, and NO transcript that overlaps it
+        _rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999),
+        _rfile("TRANSCRIPT", "vtt-short", *_SHORT, "http://x/vtt-short"),
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/vtt-short": _VTT_SHORT})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("coverage ")
+    assert zoom.deleted == []
+    row = edu.get_video(v["id"])
+    assert not row["zoom_cleaned"] and row["insights_at"] is not None
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
+    assert fake_r2.objects == {}  # nothing archived for a trash that did not happen
+    # a second pass does not page again
+    si.process_pending_session_insights(zoom=zoom)
+    assert len(pages) == 1 and zoom.deleted == []
+
+
+def test_control_the_coverage_kill_switch_is_what_refused(edu_db, chapters_enabled, no_llm, fake_r2, pages,
+                                                          monkeypatch):
+    monkeypatch.setenv("DESK_TRANSCRIPT_COVERAGE_GUARD_DISABLED", "1")
+    v = _seed_truncated_356(uuid="UUIDOFF")
+    rec = {"recording_files": [_rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999)]}
+    zoom = _FakeZoom(rec, {})
+    si.process_pending_session_insights(zoom=zoom)
+    assert zoom.deleted == ["UUIDOFF"] and pages == []
+    assert edu.get_video(v["id"])["zoom_cleaned"] == 1
+
+
+def test_the_recovery_trap_repairs_from_the_paired_transcript_before_any_trash(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """A recovered recording whose row already has chapters and a 345 s transcript
+    used to be trashed on the next pass without fetching anything."""
+    v = _seed_truncated_356(uuid="UUIDREC")
+    zoom = _FakeZoom(_rec_356(), _DL_356)
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    repaired = [r for r in out if r.get("action") == "transcript_repaired"]
+    assert repaired and repaired[0]["coverage_after"] >= si.COVERAGE_THRESHOLD
+    assert _stored_max_t(v["id"]) == 6800
+    assert zoom.deleted == ["UUIDREC"] and pages == []
+
+
+def test_expired_wait_with_no_transcript_keeps_a_measurable_recording(edu_db, chapters_enabled, no_llm,
+                                                                      fake_r2, pages, monkeypatch):
+    """The owner rule over the old give-up path: no copy is deleted until the stored
+    transcript covers >= 98% — a max_wait expiry does not change that."""
+    monkeypatch.setenv("DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS", "0")
+    v = _seed_session_video(meeting_uuid="UUIDEXP")
+    rec = {"recording_files": [_rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999)]}
+    zoom = _FakeZoom(rec, {})
+    out = si.process_pending_session_insights(zoom=zoom)
+    assert any(r.get("action") == "trash_refused" for r in out)
+    assert zoom.deleted == [] and not edu.get_video(v["id"])["zoom_cleaned"]
+
+
+class _RaisingR2:
+    def head_object(self, Bucket, Key):
+        from botocore.exceptions import ClientError
+
+        raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+
+    def put_object(self, **_kw):
+        raise RuntimeError("R2 is down")
+
+
+def test_an_archive_failure_keeps_the_recording(edu_db, chapters_enabled, no_llm, pages, monkeypatch):
+    from api.services.wisdom.core import r2
+
+    monkeypatch.setattr(r2, "_client_and_bucket", lambda: (_RaisingR2(), "b"))
+    v = _seed_session_video(meeting_uuid="UUIDARC")
+    zoom = _FakeZoom(_rec_356(), _DL_356)
+    out = si.process_pending_session_insights(zoom=zoom)
+    refused = [r for r in out if r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("vtt_archive_failed")
+    assert zoom.deleted == [] and not edu.get_video(v["id"])["zoom_cleaned"]
+
+
+def test_control_the_archive_kill_switch_is_what_refused(edu_db, chapters_enabled, no_llm, pages, monkeypatch):
+    from api.services.wisdom.core import r2
+
+    monkeypatch.setattr(r2, "_client_and_bucket", lambda: (_RaisingR2(), "b"))
+    monkeypatch.setenv("DESK_VTT_ARCHIVE_DISABLED", "true")
+    _seed_session_video(meeting_uuid="UUIDARCOFF")
+    zoom = _FakeZoom(_rec_356(), _DL_356)
+    si.process_pending_session_insights(zoom=zoom)
+    assert zoom.deleted == ["UUIDARCOFF"]
+
+
+def test_the_archive_is_immutable_keyed_and_redacts_secrets(fake_r2):
+    rec = _rec_356(extra=[_rfile("CC", "cc-1", *_LONG, "http://x/cc")])
+    texts = dict(_DL_356, **{"http://x/cc": _VTT_LONG})
+    out = si.archive_recording_to_r2("MEET/1", rec, texts.__getitem__)
+    prefix = f"wisdom/sources/zoom_vtt/{wisdom_ids.sha24('MEET/1')}/"
+    assert {v["key"] for v in out["vtt"]} == {f"{prefix}vtt-short.vtt", f"{prefix}vtt-long.vtt", f"{prefix}cc-1.vtt"}
+    meta = json.loads(fake_r2.objects[out["metadata"]["key"]][0])
+    assert "password" not in meta and meta["uuid"] == "K02BCIBPQTKxm51v+d7inQ=="
+    # same bytes again: no new object, no error
+    again = si.archive_recording_to_r2("MEET/1", rec, texts.__getitem__)
+    assert all(v["created"] is False for v in again["vtt"])
+    # Zoom regenerated a VTT: kept BESIDE the first, never overwritten
+    changed = dict(texts, **{"http://x/vtt-long": _VTT_LONG + "\n\n9\n02:00:00.000 --> 02:00:03.000\nextra\n"})
+    third = si.archive_recording_to_r2("MEET/1", rec, changed.__getitem__)
+    long_keys = [v["key"] for v in third["vtt"] if "vtt-long" in v["key"]]
+    assert long_keys and long_keys[0] != f"{prefix}vtt-long.vtt"
+
+
+def test_the_kill_switches_are_read_by_literal_name_and_default_on(monkeypatch):
+    import inspect
+
+    assert 'os.environ.get("DESK_TRANSCRIPT_COVERAGE_GUARD_DISABLED", "")' in inspect.getsource(
+        si._coverage_guard_disabled)
+    assert 'os.environ.get("DESK_VTT_ARCHIVE_DISABLED", "")' in inspect.getsource(si._vtt_archive_disabled)
+    monkeypatch.delenv("DESK_TRANSCRIPT_COVERAGE_GUARD_DISABLED", raising=False)
+    monkeypatch.delenv("DESK_VTT_ARCHIVE_DISABLED", raising=False)
+    assert si._coverage_guard_disabled() is False and si._vtt_archive_disabled() is False
+    monkeypatch.setenv("DESK_VTT_ARCHIVE_DISABLED", "0")
+    assert si._vtt_archive_disabled() is False
+
+
+def test_transcript_coverage_edges():
+    assert si.transcript_coverage([], 6830) == 0.0
+    assert si.transcript_coverage([{"t": 345, "text": "x"}], None) is None
+    assert si.transcript_coverage([{"t": 345, "text": "x"}], 6830) == pytest.approx(345 / 6830)
+    assert si.transcript_coverage([{"t": 9999, "text": "x"}], 6830) == 1.0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-13 — ADVERSARIAL REVIEW (S-C). Two ways the trash gate let an
+# unrecoverable delete through, each with a mutant that reds.
+# ═════════════════════════════════════════════════════════════════════════════
+
+_CHAT_FILE = {"file_type": "CHAT", "id": "chat-1", "file_extension": "TXT",
+              "recording_type": "chat_file", "status": "completed", "download_url": "http://x/chat"}
+
+
+def test_the_chat_log_is_archived_and_a_missing_one_refuses_the_trash(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """⛔ R1. §8a.6a.1 names FOUR artifacts; the gate stored three.
+
+    `_is_vtt_file` answers False for a CHAT file, so the chat log was never fetched,
+    never stored, and the recording was deleted anyway — with no Zoom trash recovery,
+    that chat log was gone. MUTANT: drop 'chat' from `archivable_text_files`, or delete
+    the stored-vs-expected count in `archive_recording_to_r2`, and this reds."""
+    rec = _rec_356(extra=[_CHAT_FILE])
+    v = _seed_session_video(title="Workshop", meeting_uuid="UUIDCHAT")
+    texts = dict(_DL_356, **{"http://x/chat": "12:01:02 From A Member : hi"})
+    zoom = _FakeZoom(rec, texts)
+
+    si.process_pending_session_insights(zoom=zoom)
+
+    prefix = f"wisdom/sources/zoom_vtt/{wisdom_ids.sha24('UUIDCHAT')}/"
+    assert f"{prefix}chat-1.chat.txt" in fake_r2.objects, sorted(fake_r2.objects)
+    assert zoom.deleted == ["UUIDCHAT"]  # control: a COMPLETE store still trashes
+
+
+def test_a_chat_log_that_cannot_be_downloaded_keeps_the_recording(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """The other half: an artifact the recording LISTS but we could not store is a
+    reason to keep the copy. 'we did not archive it' and 'there was none' are
+    different facts and only one of them may delete anything."""
+    rec = _rec_356(extra=[_CHAT_FILE])
+    v = _seed_session_video(title="Workshop", meeting_uuid="UUIDCHATBAD")
+    zoom = _FakeZoom(rec, dict(_DL_356, **{"http://x/chat": ""}))  # empty download
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("vtt_archive_failed")
+    assert zoom.deleted == []
+
+
+def test_an_unmeasurable_coverage_refuses_the_trash(edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """⛔ R2. `coverage is None` means WE COULD NOT MEASURE IT — no MP4 window, no Zoom
+    duration, no edu_videos duration. The old gate read that as a pass and deleted the
+    only copy; §8a.6a blocks deletion until store-and-verify SUCCEEDS, and an
+    unverifiable recording has not verified. MUTANT: restore
+    `if coverage is not None and coverage < THRESHOLD` and this reds."""
+    v = _seed_session_video(meeting_uuid="UUIDNODUR")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert si._media_duration_seconds(v["id"], rec) is None  # control: genuinely unmeasurable
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and "not measurable" in refused[0]["reason"]
+    assert zoom.deleted == []
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
+
+
+def test_control_zooms_own_duration_makes_it_measurable_again(edu_db, chapters_enabled, no_llm,
+                                                              fake_r2, pages):
+    """The fallback that keeps R2's refusal from stalling the real pipeline: Zoom's
+    top-level `duration` is MINUTES, and a recording carrying it is measurable."""
+    v = _seed_session_video(meeting_uuid="UUIDMIN")
+    rec = {"duration": 1, "recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    assert si._media_duration_seconds(v["id"], rec) == 60
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON,
+                           "http://x/vtt": _vtt_of((2, "open"), (59, "close"))})
+    si.process_pending_session_insights(zoom=zoom)
+    assert zoom.deleted == ["UUIDMIN"] and pages == []
+
+
+def test_an_unclassified_text_artifact_refuses_the_trash(edu_db, chapters_enabled, no_llm,
+                                                         fake_r2, pages):
+    """⛔ The residual check (replaces a tautological count that survived its own mutant).
+
+    Zoom's poll/Q&A export is a CSV of member answers. This build does not archive it —
+    so the honest answer is to keep the cloud copy and say why, never to delete content
+    we chose not to store. MUTANT: delete the `_TEXT_EXTENSIONS` residual loop in
+    `archive_recording_to_r2` and this reds."""
+    poll = {"file_type": "POLL", "id": "poll-1", "file_extension": "CSV", "status": "completed",
+            "download_url": "http://x/poll"}
+    v = _seed_session_video(title="Workshop", meeting_uuid="UUIDPOLL")
+    zoom = _FakeZoom(_rec_356(extra=[poll]), dict(_DL_356, **{"http://x/poll": "q,a\n1,yes\n"}))
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("vtt_archive_failed")
+    assert "POLL" in refused[0]["reason"]  # it names WHICH artifact, not just "failed"
+    assert zoom.deleted == []
+    # control: the SAME recording minus the poll file is a completed store
+    # (test_multi_transcript_regression_… proves the end-to-end trash on this fixture)
+    ok = si.archive_recording_to_r2("MEET/NOPOLL", _rec_356(), _DL_356.__getitem__)
+    assert len(ok["vtt"]) == 2 and ok["metadata"]
+
+
+def test_an_mp4_can_never_trip_the_residual_check(fake_r2):
+    """Narrowness control: media extensions are not text extensions, so an ordinary
+    recording with video and audio files archives cleanly."""
+    rec = _rec_356(extra=[{"file_type": "M4A", "id": "aud", "file_extension": "M4A",
+                           "status": "completed", "download_url": "http://x/m4a"}])
+    out = si.archive_recording_to_r2("MEET/MEDIA", rec, _DL_356.__getitem__)
+    assert len(out["vtt"]) == 2 and out["chat"] == [] and out["metadata"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2026-09-14 — the owner's coverage ruling reached the AUDIT, not this gate.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_the_new_gap_rule_does_not_loosen_the_zoom_delete_gate(
+        edu_db, chapters_enabled, no_llm, fake_r2, pages):
+    """⛔⛔ THE ONE THING THIS CHANGE MUST NOT DO.
+
+    Owner ruling 2026-09-14 makes "internal gaps only" the coverage rule, and under it a
+    transcript that runs 0 s .. 2,790 s of a 6,830 s recording with no hole in it is
+    COMPLETE — that is exactly video 254's shape and it was genuinely fine. But the gap
+    rule cannot tell that from a transcript truncated at the 41 % mark, and a Zoom delete
+    has no trash and no recovery ("Workshop with Stockbee" is gone). So this gate keeps
+    the 0.98 SPAN rule and the recording stays.
+
+    MUTANT: make `_trash_gate` authorise on the gap verdict — `zoom.deleted == ["UUIDGAP"]`
+    and this reds. Loosening it is an owner decision, never a side effect."""
+    v = _seed_session_video(title="Live Trading Session — September 12, 2026", meeting_uuid="UUIDGAP")
+    dense = [{"t": t, "text": f"line {t}"} for t in range(0, 2791, 10)]
+    edu.set_video_insights(v["id"], transcript=si._timestamped_block(dense),
+                           chapters=[{"t": 0, "title": "Open"}])
+
+    # control: the NEW rule really does call this transcript complete...
+    facts = si.coverage_rule.transcript_coverage(edu.get_transcript_cues(v["id"]), 6830)
+    assert facts["verdict"] == "complete" and facts["internal_gap_count"] == 0
+    # ...and the span the gate reads is nowhere near the threshold
+    assert facts["span_ratio"] == pytest.approx(2790 / 6830)
+    assert si.transcript_coverage(edu.get_transcript_cues(v["id"]), 6830) < si.COVERAGE_THRESHOLD
+
+    rec = {"recording_files": [_rfile("MP4", "mp4-long", *_LONG, "http://x/mp4-long", size=999)]}
+    zoom = _FakeZoom(rec, {})
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    refused = [r for r in out if r.get("id") == v["id"] and r.get("action") == "trash_refused"]
+    assert refused and refused[0]["reason"].startswith("coverage ")
+    assert zoom.deleted == []
+    assert not edu.get_video(v["id"])["zoom_cleaned"]
+    assert pages == [(f"desk_transcript_coverage:{v['id']}", "critical")]
+
+
+def test_the_page_carries_the_gap_verdict_so_a_correct_alert_is_not_muted(edu_db, monkeypatch):
+    """⭐ A page that says only "covers 61.6%" is what sends an operator to re-transcribe a
+    healthy session — and then to mute the alert. It must carry the other rule's answer."""
+    from api.services import chart_health_alerts
+
+    sent = []
+    monkeypatch.setattr(chart_health_alerts, "emit",
+                        lambda key, sev, message, metadata=None: sent.append((message, metadata)) or True)
+    si._COVERAGE_ALERTED.discard(4242)
+    facts = si.coverage_rule.transcript_coverage([{"t": t} for t in range(0, 2791, 10)], 4532)
+    si._emit_coverage_alert(4242, "Live Trading Session", facts["span_ratio"], 4532, facts)
+
+    assert len(sent) == 1
+    message, meta = sent[0]
+    assert "covers 61.6%" in message                      # the span number, as before
+    assert "Internal-gap rule says COMPLETE" in message   # and the verdict that explains it
+    assert "NOT loosened" in message
+    assert meta["gap_verdict"] == "complete" and meta["largest_internal_gap_s"] == 10
+    assert meta["trailing_silence_s"] == pytest.approx(1742)

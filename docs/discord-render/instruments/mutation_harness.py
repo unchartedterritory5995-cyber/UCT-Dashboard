@@ -14,6 +14,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve()
+
+# ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
+# unproved). It refuses to run unless this tree is a sacrificed mutation sandbox, then
+# refuses to start an 18-minute run on an anchor that no longer matches its source.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_guard import guard  # noqa: E402
+
+guard(ROOT, __file__)
 CHART = "tests/test_discord_chart.py::"
 HOOKS = "tests/test_discord_render_fail_hooks.py::"
 CORE = "tests/test_discord_render_v2_core.py::"
@@ -42,7 +50,9 @@ MUTATIONS = [
      "tests": [HOOKS + "test_no_bars_goes_to_the_contract_with_its_class"]},
     {"name": "M5 runtime stays silent when a handler delivered nothing (C-11)",
      "file": "api/services/discord_render/runtime.py",
-     "old": '            told = False if cls == "ack_late" else self.send_failure(job, cls)\n',
+     # re-aimed 2026-09-14: the guard grew a `token_dead` term on master. Same intent — pin `told`
+     # False so a handler that delivered nothing is silent, and prove C-11's rails still catch it.
+     "old": '            told = False if (cls == "ack_late" or token_dead) else self.send_failure(job, cls)\n',
      "new": "            told = False\n",
      "tests": [CORE + "test_C11_a_handler_that_returns_without_replying_is_not_silent",
                CORE + "test_C11_a_handler_that_raises_still_tells_the_member"]},

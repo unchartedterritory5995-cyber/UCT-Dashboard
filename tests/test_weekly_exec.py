@@ -1,0 +1,225 @@
+"""Rail for the weekly run's constrained execution surface.
+
+⚰️ The constraint lives here rather than in the permissions profile because a
+`Bash(...)` prefix rule **cannot end mid-token** — measured against Claude Code
+2.1.270, `Bash(python -m pytest tests/test_:*)` did not match a real named-file
+invocation, while the rule that DOES match (`.../tests/:*`) also matches the bare
+`pytest tests/` that OOM-killed this box. A rule that only works by permitting the
+hazard is not a rule.
+"""
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+
+import pytest
+
+_REPO = pathlib.Path(__file__).resolve().parents[1]
+_TOOL = _REPO / "tools" / "weekly_exec.py"
+
+
+def _load():
+    spec = importlib.util.spec_from_file_location("weeklyexec", str(_TOOL))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+W = _load()
+
+#: A Windows shim path, built rather than written, so no escape can be eaten in transit.
+RAILWAY_SHIM = "C:" + chr(92) + "tools" + chr(92) + "railway.cmd"
+
+
+# ── the refusals that matter ────────────────────────────────────────────────
+
+def test_a_bare_tests_directory_is_REFUSED(capsys):
+    assert W.cmd_tests(["tests"]) == W.REFUSED
+    assert "DIRECTORY" in capsys.readouterr().err
+
+
+def test_the_dash_k_filter_is_REFUSED_because_it_does_not_scope(capsys):
+    assert W.cmd_tests(["-k", "journal"]) == W.REFUSED
+    err = capsys.readouterr().err
+    assert "does not scope" in err
+
+
+def test_no_arguments_is_REFUSED(capsys):
+    assert W.cmd_tests([]) == W.REFUSED
+    assert "never runs a directory" in capsys.readouterr().err
+
+
+def test_a_path_outside_the_repo_is_REFUSED(capsys):
+    assert W.cmd_tests(["../../../Windows/System32/drivers/etc/hosts"]) == W.REFUSED
+    assert "outside the repository" in capsys.readouterr().err
+
+
+def test_a_non_test_file_is_REFUSED(capsys):
+    assert W.cmd_tests(["tools/weekly_exec.py"]) == W.REFUSED
+    assert "not under" in capsys.readouterr().err
+
+
+def test_a_file_outside_the_declared_roots_is_REFUSED(capsys):
+    assert W.cmd_tests(["docs/test_nope.py"]) == W.REFUSED
+    assert "not under" in capsys.readouterr().err
+
+
+def test_a_missing_named_file_is_REFUSED(capsys):
+    assert W.cmd_tests(["tests/test_does_not_exist_at_all.py"]) == W.REFUSED
+    assert "does not exist" in capsys.readouterr().err
+
+
+# ── the pod surface ─────────────────────────────────────────────────────────
+
+def test_an_undeclared_pod_report_is_REFUSED(capsys):
+    assert W.cmd_pod(["rm -rf /"]) == W.REFUSED
+    assert "unknown report" in capsys.readouterr().err
+
+
+def test_more_than_one_pod_argument_is_REFUSED(capsys):
+    assert W.cmd_pod(["ticking", "extra"]) == W.REFUSED
+
+
+def test_every_declared_pod_report_is_read_only_by_construction():
+    """⛔ A DECLARED ALLOW-LIST, never a parameter."""
+    for name, argv in W.POD_REPORTS.items():
+        assert argv[0].startswith("tools/"), name
+        assert argv[0].endswith(".py"), name
+    assert set(W.POD_REPORTS) == {"ticking", "report", "gate-check"}
+
+
+def test_the_railway_binary_is_RESOLVED_not_invoked_by_bare_name(monkeypatch):
+    """Found by the weekly run itself: `railway` is a .cmd shim on Windows and a bare
+    name does not resolve from subprocess without a shell. CLAUDE.md rule 14 already
+    records the identical defect in deploy_watch.py v1."""
+    seen = {}
+    monkeypatch.setattr(W.shutil, "which", lambda n: RAILWAY_SHIM if n == "railway" else None)
+    monkeypatch.setattr(W.subprocess, "run",
+                        lambda argv, **kw: seen.update(argv=argv) or type("R", (), {"returncode": 0})())
+    assert W.cmd_pod(["ticking"]) == 0
+    assert seen["argv"][0] == RAILWAY_SHIM, "invoked by bare name again"
+
+
+def test_a_missing_railway_cli_is_REFUSED_not_reported_as_a_pod_answer(monkeypatch, capsys):
+    """UNREADABLE is not 'the pod said no'."""
+    monkeypatch.setattr(W.shutil, "which", lambda n: None)
+    assert W.cmd_pod(["ticking"]) == W.REFUSED
+    assert "not on PATH" in capsys.readouterr().err
+
+
+def test_the_pod_command_is_built_from_the_declared_argv_not_the_caller(monkeypatch):
+    """The caller's string never reaches the pod — only the table's does."""
+    seen = {}
+
+    def fake_run(argv, **kw):
+        seen["argv"] = argv
+        seen["env"] = kw.get("env") or {}
+
+        class R:
+            returncode = 0
+        return R()
+
+    monkeypatch.setattr(W.shutil, "which", lambda n: "railway")
+    monkeypatch.setattr(W.subprocess, "run", fake_run)
+    assert W.cmd_pod(["ticking"]) == 0
+    assert seen["argv"][:4] == ["railway", "ssh", "--service", "web"]
+    assert seen["argv"][4] == "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
+    # ⛔ MSYS_NO_PATHCONV or MSYS rewrites /opt/... into C:/Program Files/Git/opt/...
+    assert seen["env"].get("MSYS_NO_PATHCONV") == "1"
+
+
+# ── the memory gate, which had no runnable command at all ───────────────────
+
+def test_memory_is_measurable_and_reports_a_percent(capsys):
+    """⛔ The gate is declared CHECKED FIRST OF ALL and `systeminfo` is denied, so before
+    this there was NO allow-listed way to run it. A check that cannot run looks exactly
+    like one that passed - the F-L2-1 shape, one layer down. Found by the weekly run."""
+    rc = W.cmd_memory([])
+    out = capsys.readouterr().out
+    assert rc in (0, 1), rc
+    assert "MEMORY" in out and "% used" in out
+
+
+def test_an_impossible_ceiling_fails_so_the_gate_can_actually_stop_a_run(capsys):
+    """NON-VACUITY: a gate that always returns 0 is not a gate."""
+    assert W.cmd_memory(["1"]) == 1
+
+
+def test_a_generous_ceiling_passes():
+    assert W.cmd_memory(["100"]) == 0
+
+
+def test_a_non_numeric_ceiling_is_REFUSED(capsys):
+    assert W.cmd_memory(["lots"]) == W.REFUSED
+    assert "must be a number" in capsys.readouterr().err
+
+
+# ── the clock that lied ──────────────────────────────────────────
+
+@pytest.mark.parametrize("when,closed,why", [
+    ((2026, 9, 14, 8, 59), False, "Monday, one minute before the window"),
+    ((2026, 9, 14, 9, 0), True, "Monday 09:00 - the window opens closed"),
+    ((2026, 9, 14, 14, 26), True, "the instant three commits were actually pushed"),
+    ((2026, 9, 14, 15, 59), True, "Monday, one minute before it lifts"),
+    ((2026, 9, 14, 16, 0), False, "Monday 16:00 - open again"),
+    ((2026, 9, 12, 11, 0), False, "Saturday - no window at a weekend"),
+    ((2026, 9, 13, 11, 0), False, "Sunday"),
+])
+def test_the_push_window_is_decided_at_a_NAMED_instant(when, closed, why):
+    """⚰️ The bug was a time READING, not a time RULE: `TZ=America/New_York date` in Git
+    Bash ignores TZ and prints UTC labelled GMT, so 14:49 ET read as 18:49 and a hold
+    until 16:05 was arithmetic-ed away. A rail that reads the same clock proves nothing,
+    so every case here is a fixed instant."""
+    import datetime as _dt
+    assert W.push_window_closed(_dt.datetime(*when)) is closed, why
+
+
+def test_et_reports_and_its_exit_code_matches_its_sentence(capsys):
+    rc = W.cmd_et([])
+    out = capsys.readouterr().out
+    assert "UTC" in out and "ET" in out
+    assert (rc == 1) == ("CLOSED" in out), "the exit code and the sentence must agree"
+
+
+def test_et_takes_no_arguments(capsys):
+    assert W.cmd_et(["now"]) == W.REFUSED
+
+
+# ── the happy path still works ──────────────────────────────────────────────
+
+def test_a_named_test_file_is_accepted_and_run(monkeypatch):
+    """NON-VACUITY CONTROL: without this, every assertion above passes on a guard
+    that refuses absolutely everything, which is not the guard we want."""
+    seen = {}
+
+    def fake_run(argv, **kw):
+        seen["argv"] = argv
+
+        class R:
+            returncode = 0
+        return R()
+
+    monkeypatch.setattr(W.subprocess, "run", fake_run)
+    rc = W.cmd_tests(["tests/test_weekly_exec.py"])
+    assert rc == 0, "the guard refused a legitimately named test file"
+    assert "tests/test_weekly_exec.py" in seen["argv"]
+    assert "-q" in seen["argv"]
+
+
+def test_two_named_files_are_both_passed_through(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(W.subprocess, "run",
+                        lambda argv, **kw: seen.update(argv=argv) or type("R", (), {"returncode": 0})())
+    W.cmd_tests(["tests/test_weekly_exec.py", "tests/test_terminal_next_env_check.py"])
+    assert "tests/test_weekly_exec.py" in seen["argv"]
+    assert "tests/test_terminal_next_env_check.py" in seen["argv"]
+
+
+def test_refused_is_two_and_is_not_a_pytest_failure_code():
+    """pytest exits 1 for failures; a refusal must be distinguishable from one."""
+    assert W.REFUSED == 2
+
+
+def test_main_refuses_an_unknown_subcommand(capsys):
+    assert W.main(["danger"]) == W.REFUSED
+    assert "unknown subcommand" in capsys.readouterr().err

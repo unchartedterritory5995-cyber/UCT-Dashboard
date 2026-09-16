@@ -25,12 +25,18 @@ silent clamp: a caller that asked for 100,000 sessions should be told the answer
 is not what it asked for, not handed 3,650 dressed as it.
 """
 
+import hashlib
 import hmac
+import json
+import math
 import os
+import time
 import re
 import threading
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from api.services.cache import cache
 from api.bars_auth import require_bars_access
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import breadth_monitor as svc
@@ -462,11 +468,78 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
     measures is not a lesser disclosure when the data behind them is what is sold.
     """
     from api.services import breadth_symbols as bs
+    # ⭐ `library` IS ADDITIVE. The Breadth Library's richer view rides beside
+    # `symbols`/`groups` so one fetch serves both, rather than a second endpoint the
+    # client would have to join.
+    #
+    # ⛔⛔ AND `symbols` IS NOW THE PUBLISHED PROJECTION, WHICH IS THE POINT OF BL-013.
+    # It used to be a hard-wired list of the 44 shipped UCT records, so publishing a
+    # universe would have made `US:A50` chartable through `/api/bars` while leaving it
+    # OUT of the payload the client builds its breadth family map from — and
+    # `symbolFamily()` answers `'security'` for anything absent from that map, which
+    # would have let `ohlcCapabilityOf` offer CANDLES over a synthetic close-to-close
+    # body. `list_breadth_symbols()` is `published_symbol_rows()`, the one projection
+    # every public surface derives from.
+    #
+    # ⚠️ WITH NO PUBLICATION FLAGS THIS IS BYTE-IDENTICAL to what it has always
+    # returned: the same 44 rows, same order, same keys. `test_the_dark_payload_is_
+    # byte_identical_to_the_legacy_projection` pins that.
     return {
         "symbols": bs.list_breadth_symbols(),
         "groups": [{"id": g, "label": bs.LIST_META[g]["label"],
                     "list_name": bs.LIST_META[g]["list_name"]} for g in bs.GROUP_ORDER],
+        "library": bs.library_catalog(),
     }
+
+
+@router.get("/api/breadth-monitor/library-health")
+def get_library_health(_access: dict = Depends(require_bars_access)):
+    """Is the Breadth Library healthy? — per universe: publication state, coverage,
+    the last forward-seal attempt, and any sessions the calendar expects but the store
+    does not hold.
+
+    ⛔ AN EXPLICIT STATUS CALL, NEVER THE SERVE PATH. `library_health` runs a few
+    bounded aggregate queries and memoises for a minute; `build_breadth_bars` does not
+    touch it. Behind the same `require_bars_access` gate as the rest of this router.
+    """
+    from api.services import breadth_symbols as bs
+    from api.services import breadth_history_recon as recon
+    h = bs.library_health()
+    return {**h, "sweep": dict(recon._SWEEP_STATE),
+            "backfill_armed": recon.universe_backfill_enabled()}
+
+
+#: The rendered body, cached beside the row cache. ⭐ MEASURED, NOT ASSUMED: the deep
+#: read's rows cost **24,471,209 bytes** as live Python objects and **4,958,766** as
+#: JSON, so caching the bytes is 4.9x SMALLER than caching the dicts — it buys the
+#: encode saving and reduces the resident cost at the same time. Same TTL as the row
+#: cache and the same `breadth_history_` prefix, so every existing invalidation
+#: (`store_snapshot`, `patch_field`, `delete_snapshot`) already drops it.
+_BODY_CACHE_TTL = 300
+
+
+def _body_cache_key(days: int, end: str, anchor: str) -> str:
+    return f"breadth_history_body_{days}_{end or 'latest'}_{anchor}"
+
+
+def _render_json(payload: dict) -> bytes:
+    """The bytes starlette's `JSONResponse.render` would have produced — by making
+    the identical call, not by reproducing its output.
+
+    ⛔ BYTE-IDENTITY HERE IS STRUCTURAL, AND THAT IS THE WHOLE POINT. These are the
+    exact arguments `starlette.responses.JSONResponse.render` passes (read from the
+    installed source, not remembered): `ensure_ascii=False, allow_nan=False,
+    indent=None, separators=(",", ":")`. Matching the call means the body cannot
+    drift on a value nobody thought to test — including the non-finite floats that
+    `allow_nan=False` is there to REFUSE.
+
+    ⚠️ `orjson` is 2.6x faster again and is already a declared dependency
+    (requirements.txt:80), and it was measured byte-identical on all three spans —
+    but it serialises NaN/Inf to `null` where this RAISES. That is a silent
+    behaviour change on a data edge, so it is proposed to the owner, not taken here.
+    """
+    return json.dumps(payload, ensure_ascii=False, allow_nan=False,
+                      indent=None, separators=(",", ":")).encode("utf-8")
 
 
 @router.get("/api/breadth-monitor")
@@ -507,11 +580,36 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         breadth_self_heal.maybe_auto_heal()
     except Exception:
         pass
+    from api.services import breadth_timing
+    breadth_timing.begin(span=days)
     try:
+        from api.services.cache import cache as _cache
+        bk = _body_cache_key(days, end, anchor)
+        cached = _cache.get(bk)
+        if cached is not None:
+            # ⭐ THE WARM PATH, AND IT IS THE ONE MEMBERS ARE ON MOST. Measured before
+            # this existed: a cache HIT still cost 573.9 ms at days=8000 and 77.2 ms at
+            # days=365, because the cache held the row DICTS and FastAPI re-ran
+            # `jsonable_encoder` + `json.dumps` over 376,240 scalar cells on every
+            # single request. Nothing about that work depended on the request.
+            body, nrows = cached
+            breadth_timing.note(cache="hit", cache_tier="body", rows=nrows, body_cache="hit")
+            breadth_timing.mark("route_return")
+            return Response(content=body, media_type="application/json")
+
+        _t0 = time.perf_counter()
         rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
-        top = rows[0]["date"] if rows else None
-        bounds = svc.date_bounds()
-        return {
+        breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows),
+                            body_cache="miss")
+        # ⭐ `date_bounds()` and `next_trading_day()` run AFTER reader_ms stops and
+        # BEFORE the response exists, so they were hiding inside post_reader_ms with
+        # no name. `route_tail` is that work, measured rather than attributed to the
+        # encoder.
+        with breadth_timing.phase("route_tail"):
+            top = rows[0]["date"] if rows else None
+            bounds = svc.date_bounds()
+            _next = svc.next_trading_day(top) if end else None
+        payload = {
             "rows": rows,
             "days": days,
             "top_date": top,
@@ -519,8 +617,13 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
             "max_date": bounds.get("max"),
             # Only needed when the window is held back in time; at the latest
             # window there is nothing newer to step to.
-            "next_date": svc.next_trading_day(top) if end else None,
+            "next_date": _next,
         }
+        with breadth_timing.phase("serialise"):
+            body = _render_json(payload)
+        _cache.set(bk, (body, len(rows)), ttl=_BODY_CACHE_TTL)
+        breadth_timing.mark("route_return")
+        return Response(content=body, media_type="application/json")
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -539,6 +642,195 @@ def heal_breadth(request: Request, date: str = Query(default=""),
     if date:
         return breadth_self_heal.heal_date(date, force=force)
     return breadth_self_heal.heal_recent(days)
+
+
+# ── B1 · the dark columnar series endpoint (D-035) ────────────────────────────
+
+SERIES_FLAG = "BREADTH_SERIES_ENDPOINT_ENABLED"
+_SERIES_MAX_KEYS = 8
+#: Mirrors the monitor endpoint's own `le=8000` rather than inventing a second ceiling.
+_SERIES_DAY_CEILING = 8000
+_SERIES_DEFAULT_SESSIONS = 365
+
+
+def series_max_sessions() -> int:
+    """The span cap, in STORED SESSIONS. `BREADTH_SERIES_MAX_SESSIONS`, default 365.
+
+    ⛔ THIS EXISTS BECAUSE THE READER IS SLOW, NOT BECAUSE THE RESPONSE IS BIG (D-042).
+    A cold `get_history_deep` over a deep span costs ~55 s on the single uvicorn process —
+    measured on production — and that is spent PRODUCING rows, upstream of anything this
+    endpoint does with them. So the cap has to make a deep read UNREACHABLE, and it is
+    raised only when the reader work lands, never to satisfy a UI that wants more.
+    """
+    try:
+        v = int(os.getenv("BREADTH_SERIES_MAX_SESSIONS", "") or _SERIES_DEFAULT_SESSIONS)
+        return v if v > 0 else _SERIES_DEFAULT_SESSIONS
+    except ValueError:
+        return _SERIES_DEFAULT_SESSIONS
+
+
+def series_max_calendar_days(max_sessions: int | None = None) -> int:
+    """Calendar bound that admits `max_sessions` sessions and no deep read.
+
+    ⛔ CHECKED BEFORE THE READ, NOT AFTER. Counting sessions requires reading them, and a
+    post-read rejection has already paid the 55 s it exists to prevent — it would report
+    the problem instead of preventing it.
+
+    A year holds ~252 sessions in 365 calendar days (×1.448). ×1.6 is the conservative
+    direction: a full `max_sessions` request is NEVER rejected for being a few holidays
+    long, and the worst case admitted is ~1.1× the cap in sessions rather than the 4,703
+    that cost 55 s.
+    """
+    return int((max_sessions or series_max_sessions()) * 1.6)
+_SERIES_TTL = 300
+
+
+def require_series_flag() -> None:
+    """404 unless the flag is on — for EVERY caller class.
+
+    ⛔ THIS DEPENDENCY IS DECLARED BEFORE `require_paid` ON PURPOSE. FastAPI 0.115.6
+    resolves a route's dependencies in DECLARATION ORDER
+    (`fastapi/dependencies/utils.py:592`), so flag-first is what makes an unset flag a
+    404 for anonymous, free and paid callers alike. Put `require_paid` first and an
+    anonymous probe gets 401/402 instead — which ADVERTISES that a paid route exists
+    here before it has shipped. Do not "tidy" the order; `tests/
+    test_breadth_series_endpoint.py` asserts the positions, not just the status codes.
+    """
+    if os.getenv(SERIES_FLAG, "").strip().lower() not in ("1", "true", "yes", "on"):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _finite_or_none(v):
+    """Non-finite and absent both become null. ⛔ NEVER 0 — absence is not zero."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return v if math.isfinite(v) else None
+    return None
+
+
+def series_known_keys(rows: list) -> set:
+    """The AUTHORITY for which keys exist: the row schema as served by
+    `get_history_deep`.
+
+    ⭐ Stated explicitly because D-035 allows either this or the chartMetrics registry.
+    The registry is JavaScript and this is Python, so citing it would mean a hand-typed
+    copy — the second-authority defect this programme spent R1 removing. The served row
+    IS the set the endpoint can return, so it cannot drift from what is served.
+    """
+    out = set()
+    for r in rows:
+        for k, v in r.items():
+            if k == "date" or k.startswith("_"):
+                continue
+            # ⛔ A SERIES IS NUMBERS. A key is a series key only if some row holds a
+            # number for it — which excludes `*_list` ticker arrays by TYPE rather than
+            # by a second stripper beside `get_history_deep`'s (that would be a second
+            # authority over "what is served"). A key that never produces a number
+            # cannot be a column, so it belongs in `missing[]`, not in `series`.
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                out.add(k)
+    return out
+
+
+@router.get("/api/breadth-monitor/series")
+def get_breadth_series(
+    keys: str = Query(default=""),
+    from_: str = Query(default="", alias="from"),
+    to: str = Query(default=""),
+    _flag: None = Depends(require_series_flag),
+    _user: dict = Depends(require_paid),
+):
+    """Columnar breadth history for a few metrics over a long span (D-035).
+
+    Columns carry each date ONCE instead of once per metric, which is the whole point
+    against a bigger `days=` on the monitor route. Source of truth is
+    `svc.get_history_deep` — there is no second history reader here, so reconstructed
+    rows and rolling warm-up are whatever that function says they are.
+    """
+    t0 = time.monotonic()
+    requested = [k.strip() for k in (keys or "").split(",") if k.strip()]
+    # Dedupe, order preserved — a repeated key must not consume the budget twice.
+    seen = set()
+    requested = [k for k in requested if not (k in seen or seen.add(k))]
+    if len(requested) > _SERIES_MAX_KEYS:
+        raise HTTPException(status_code=400,
+                            detail=f"at most {_SERIES_MAX_KEYS} keys per request; got {len(requested)}")
+
+    bounds = svc.date_bounds()
+    to_date = (to or "").strip() or (bounds.get("max") or "")
+    if not to_date:
+        raise HTTPException(status_code=503, detail="no stored sessions")
+
+    from_date = (from_ or "").strip()
+    if not from_date:
+        # Documented default: the 365 most recent STORED SESSIONS ending at `to`.
+        seed = svc.get_history_deep(_SERIES_DEFAULT_SESSIONS, end=to_date, anchor="le")
+        from_date = (seed[-1]["date"] if seed else to_date)
+    if from_date > to_date:
+        raise HTTPException(status_code=400, detail=f"from ({from_date}) is after to ({to_date})")
+
+    try:
+        span_days = (date.fromisoformat(to_date) - date.fromisoformat(from_date)).days + 1
+    except ValueError:
+        raise HTTPException(status_code=400, detail="from/to must be YYYY-MM-DD")
+    max_sessions = series_max_sessions()
+    max_days = series_max_calendar_days(max_sessions)
+    if span_days > max_days:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"span {span_days} days exceeds the {max_sessions}-session cap "
+                    f"({max_days} calendar days). The cap exists because a cold deep read "
+                    f"costs ~55s on the web process (D-042); it is raised when the reader "
+                    f"work lands, not to satisfy a wider view."))
+    if span_days > _SERIES_DAY_CEILING:                  # belt: the monitor route's own ceiling
+        raise HTTPException(
+            status_code=400,
+            detail=f"span {span_days} days exceeds the {_SERIES_DAY_CEILING}-day ceiling")
+
+    ck = "breadth_history_series_" + hashlib.sha1(
+        ("|".join(sorted(requested)) + f"|{from_date}|{to_date}").encode()).hexdigest()[:16]
+    hit = cache.get(ck)
+    if hit is not None:
+        _log_series(requested, span_days, None, True, t0)
+        return Response(content=hit, media_type="application/json",
+                        headers={"Cache-Control": "private, max-age=60"})
+
+    # Over-fetch by CALENDAR days then filter: calendar days >= stored sessions, so the
+    # window always covers the span, and `sessions` below is counted from what is stored.
+    rows = [r for r in svc.get_history_deep(span_days, end=to_date, anchor="le")
+            if r.get("date", "") >= from_date]
+    rows.sort(key=lambda r: r.get("date", ""))
+
+    known = series_known_keys(rows)
+    missing = [k for k in requested if k not in known]
+    present = [k for k in requested if k in known]
+
+    payload = {
+        "from": from_date,
+        "to": to_date,
+        "sessions": len(rows),
+        "dates": [r["date"] for r in rows],
+        "series": {k: [_finite_or_none(r.get(k)) for r in rows] for k in present},
+        "reconstructed": [r["date"] for r in rows if r.get("_reconstructed")],
+        "missing": missing,
+    }
+    body = json.dumps(payload, separators=(",", ":"))
+    # ⛔ Cached under the `breadth_history_` prefix DELIBERATELY: every snapshot write
+    # already calls `cache.delete_prefix("breadth_history_")`, so this needs no new
+    # invalidation path and none can be forgotten.
+    cache.set(ck, body, ttl=_SERIES_TTL)
+    _log_series(requested, span_days, len(rows), False, t0)
+    return Response(content=body, media_type="application/json",
+                    headers={"Cache-Control": "private, max-age=60"})
+
+
+def _log_series(requested, span_days, sessions, cache_hit, t0) -> None:
+    """One structured line. No member identifier — the scrubber has nothing to redact."""
+    print(f"[breadth-series] keys={len(requested)} span_days={span_days} "
+          f"sessions={sessions if sessions is not None else '-'} "
+          f"cache={'hit' if cache_hit else 'miss'} ms={int((time.monotonic() - t0) * 1000)}",
+          flush=True)
 
 
 @router.get("/api/breadth-monitor/dates")

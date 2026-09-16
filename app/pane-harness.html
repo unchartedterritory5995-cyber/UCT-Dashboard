@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  P2.0d — PANE IDENTITY LIVE HARNESS.
+
+  Mounts the REAL StockChart against the REAL lightweight-charts renderer so the
+  browser can confirm what the unit suites assert: a pane is hosted by an
+  INSTANCE, not by a definition.
+
+  Dev-server only. `vite build` takes `index.html` as its single input (no
+  `rollupOptions.input` override in vite.config.js), so this entry never ships —
+  the same arrangement `device-harness.html` and `floor2.html` already rely on.
+
+  ⛔ IT CANNOT WRITE A PREFERENCE. Three independent locks, because this runs on
+  the machine that holds the frozen Main Trading row:
+
+    1. `settingsOverride` carries the whole isolated blob.
+    2. `onSettingsPersist` intercepts EVERY settings write before `setPref`
+       (StockChart.jsx:4375) and routes it into page state.
+    3. `window.fetch` is wrapped here and REFUSES any non-GET to
+       `/api/auth/preferences` outright, logging it in red. Lock 3 does not trust
+       locks 1 and 2 — it is what makes "cannot" a fact rather than a claim.
+
+  Run:  npx vite            (from app/, the ordinary dev server)
+  Then: http://localhost:5173/pane-harness.html
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>P2.0d — pane identity harness</title>
+    <style>
+      html, body {
+        margin: 0; background: #101216; color: #e6e8ec;
+        font: 12.5px/1.45 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+      }
+      #root { padding: 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/panes/paneHarness.jsx"></script>
+  </body>
+</html>

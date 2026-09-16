@@ -36,7 +36,11 @@ def _norm(sym: str) -> str:
     return (sym or "").strip().upper().lstrip("$")
 
 
-def mentions_for_symbol(sym: str, now: float | None = None) -> dict:
+def _desk_video_mentions(sym: str, now: float | None = None) -> dict:
+    """The Desk video rows for one symbol, behind the per-symbol TTL cache.
+
+    Unchanged body of the pre-Wisdom `mentions_for_symbol`; see that function for
+    the flag-gated provider that runs AFTER this cache."""
     now = time.time() if now is None else now
     key = _norm(sym)
     hit = _cache.get(key)
@@ -82,3 +86,24 @@ def mentions_for_symbol(sym: str, now: float | None = None) -> dict:
     }
     _cache[key] = (now + _TTL_SECS, payload)
     return payload
+
+
+def mentions_for_symbol(sym: str, now: float | None = None) -> dict:
+    """Desk video rows, plus the Wisdom Loop's team CALL/MENTION rows when its flag is on.
+
+    ⛔ The Wisdom gate sits OUTSIDE the per-symbol cache, on purpose: a flag read
+    inside it would keep serving (or withholding) Wisdom rows for up to 600 s after
+    a flip. Flag off returns the cached payload object itself — byte-identical to
+    the pre-Wisdom endpoint, no wisdom.db read. The provider never raises into this
+    route (CONTRACTS §6.6)."""
+    payload = _desk_video_mentions(sym, now)
+    try:
+        from api.services.wisdom.core import flags as _wisdom_flags
+
+        if not _wisdom_flags.desk_markers_enabled():
+            return payload
+        from api.services.wisdom.publish.adapters import desk_markers as _wisdom_markers
+
+        return _wisdom_markers.merge(payload, sym)
+    except Exception:
+        return payload

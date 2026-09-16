@@ -85,6 +85,7 @@
 
 import { IND_TOKENS } from '../designTokens'
 import { paneMode } from './paneLayout'
+import { parsePaneOfTarget } from './sourceRef'
 
 /**
  * Each preset's canvas colour. Taken from `designTokens.IND_TOKENS[p].surface`,
@@ -111,6 +112,19 @@ const LEFT_AXIS_OPTIONS = Object.freeze({
 /** `applyIndScale`'s `|| { top: 0.82, bottom: 0 }`. Reached when the layout
  *  reserved no band for this key — i.e. the legacy toggle is off while an engine
  *  instance exists, which is exactly the B3 crossover state. */
+/**
+ * Which physical pane are the candles in?
+ *
+ * ⚠️ DEFAULTS TO 0, WHICH IS WHY EVERY EXISTING CALLER AND TEST IS UNCHANGED.
+ * `computePaneLayout` publishes `priceIndex`; a context built before arrangements
+ * existed carries no layout or an older one, and 0 is exactly what this file
+ * hard-coded then.
+ */
+function priceIndexOf(c) {
+  const i = c && c.paneLayout && c.paneLayout.priceIndex
+  return Number.isInteger(i) && i >= 0 ? i : 0
+}
+
 const FALLBACK_BAND = Object.freeze({ top: 0.82, bottom: 0 })
 
 /**
@@ -358,7 +372,19 @@ export function resolvePlacement(instance, def, ctx) {
   // it resolves to nothing rather than to a guess.
   const instTarget = instance && instance.placement && instance.placement.target
   const defTarget = def.placement && def.placement.target
-  const target = (typeof instTarget === 'string' && instTarget)
+  // ⭐⭐ `c.targetOf` IS `displayTarget.resolveDisplayTarget`, AND IT OUTRANKS BOTH
+  // OF THE ABOVE. A DERIVED indicator's target is computed from its SOURCE —
+  // `MA(RSI)` belongs in RSI's pane — and neither the instance nor the definition
+  // says so. Reading the stored fields directly was correct while every target was
+  // static; it is blind to any answer that depends on the rest of the chart. This
+  // is what keeps ONE module deciding where an indicator draws, so the pane the
+  // control NAMES and the pane the series LANDS IN cannot disagree.
+  //
+  // ⚠️ THE FALLBACK KEEPS EVERY CALLER THAT PREDATES THIS WORKING UNCHANGED —
+  // a resolver called without the hook reads exactly what it always read.
+  const resolved = (typeof c.targetOf === 'function') ? c.targetOf(instance) : null
+  const target = (typeof resolved === 'string' && resolved)
+    || (typeof instTarget === 'string' && instTarget)
     || (typeof defTarget === 'string' && defTarget)
     || 'pane'
 
@@ -381,7 +407,13 @@ export function resolvePlacement(instance, def, ctx) {
   // stretching their RANGE — a Bollinger band that runs off the top of the window
   // would reframe the candles the engine is supposed to be pixel-identical to.
   if (target === 'price') {
-    return { paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
+    // ⭐⭐ THE CANDLES' PANE, WHEREVER IT IS. This was a literal `0`, which was
+    // true for as long as Price had to be the first pane — and was already a
+    // half-truth on the Model Book, whose index pane is hoisted to 0 and leaves
+    // the candles at 1. An overlay that resolved to 0 there would draw on the
+    // Nasdaq pane. The layout publishes where Price actually ended up; asking is
+    // what makes "draw with the candles" mean the candles.
+    return { paneIndex: priceIndexOf(c), scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
   }
 
   // 'volume' is the migrator's record of "this oscillator is in
@@ -390,11 +422,80 @@ export function resolvePlacement(instance, def, ctx) {
   // list, because that toolbar control is what users actually toggle and a
   // snapshot taken at migration must not outrank it. B4 flips that authority when
   // the engine owns its own placement UI.
+  // ⭐⭐ A GUEST RESOLVES TO SOMEBODY ELSE'S PANE KEY. `'@inst:dataSeries:1'`
+  // means "the pane that instance hosts" — a SEMANTIC address, resolved to an
+  // index here and never stored as one. That is what makes a guest move when its
+  // host moves: the key it names does not change, only the index that key
+  // resolves to.
+  const follows = parsePaneOfTarget(target)
+  if (follows) {
+    if (paneMode() !== 'panes') return null
+    const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
+    let pane = panes ? panes.find((p) => p && p.key === follows) : null
+    // ⚠️ LEGACY `@<defId>` READ COMPATIBILITY. Pane keys are host INSTANCE ids,
+    // so a follow target written under the old definition vocabulary names no
+    // pane. Nothing shipped stores one — a target equal to the default has its key
+    // DELETED, which is the only way a derived `@` target is produced — but
+    // interpreting it costs three lines and removes a whole silent-disappearance
+    // class. FIRST matching host in pane order, which is exactly the single pane
+    // the old model would have had. An instance id always contains ':', so the two
+    // vocabularies cannot be confused for one another.
+    if (!pane && panes && !follows.includes(':')) {
+      const byDef = c.paneLayout && c.paneLayout.defByKey
+      pane = byDef ? panes.find((p) => p && byDef.get(p.key) === follows) : null
+    }
+    // ⛔⛔ NO PANE FOR THE HOST MEANS NO BINDING, NOT A GUESS. The host may be
+    // deleted, off, or not on this chart at all. Landing the guest in pane 0 would
+    // paint it over the candles on their own scale, and — far worse — a guest
+    // that silently re-homed onto ANOTHER instance's pane would be reading against
+    // a ladder nobody chose. An orphaned target is PRESERVED and reported "Pane
+    // unavailable" by the control; here it simply draws nothing until the member
+    // repairs it.
+    if (!pane || !Number.isInteger(pane.index)) return null
+    return {
+      paneIndex: pane.index,
+      // ⭐ THE HOST'S SCALE, BY NAME. Sharing `'right'` with the pane's host is the
+      // whole point of joining it — the guest has to be read against the host's
+      // ladder, not against a second axis of its own that happens to overlap.
+      scaleId: 'right',
+      // ⛔ AND IT ASSERTS NOTHING ON THAT SCALE. The host's margins and range are
+      // the host's; a guest that re-wrote them would move the line it is drawn
+      // beside. Same reasoning as a price overlay on the candles' axis.
+      scaleOptions: null,
+      autoscale: 'default',
+      lastValue: false,
+    }
+  }
+
   if (target !== 'pane' && target !== 'volume') return null
   if (typeof def.id !== 'string' || !def.id) return null
+  // ⭐ THE DEFINITION KEY. Two of the questions below are about the DEFINITION and
+  // stay keyed by it: the legacy `volumeOverlayIndicators` list (`cs` stores defIds
+  // there, and that list is READ-ONLY), and the `'bands'`-mode named scale plus its
+  // band, which exist to be byte-identical to the retired per-definition render
+  // blocks. Widening either would RENAME a scale nothing asked to rename.
   const key = def.id
+  // ⭐⭐ BUT THE PANE KEY IS THE HOST INSTANCE (P2.0c), AND IT IS A DIFFERENT KEY.
+  // The pane lookup read `def.id`, which meant every instance of one definition
+  // found the SAME pane — fine while a definition could only ever have one, and
+  // wrong the moment two instances each own theirs. An instance that resolved to
+  // `target: 'pane'` hosts its own; a guest never reaches here (it returned above).
+  //
+  // ⛔ IT IS NOT A SCALE ID. A real pane carries its own `'right'` axis, so the
+  // panes-mode branch below names no scale after anything; only `'bands'` mode
+  // does, and `'bands'` mode has no panes to host.
+  const paneKey = (instance && typeof instance.instanceId === 'string' && instance.instanceId)
+    ? instance.instanceId
+    : def.id
 
   // ── Overlaid into the volume pane, on its left axis ──
+  //
+  // ⭐⭐ MERGED 2026-09-15 AS A UNION OF TWO INDEPENDENT CHANGES TO ONE `if`.
+  // Master widened WHICH definitions match (the modern `target === 'volume'`
+  // beside the legacy mirror); this branch added item 10's dark gate. Neither is
+  // a variant of the other: drop master's clause and a modern-only blob binds
+  // nothing again; drop this branch's and item 10 ships lit. Both comments are
+  // kept because each explains a different half of the condition below.
   //
   // ⭐ ITEM 10's GATE SITS ON THIS BRANCH AND NOWHERE ELSE. With
   // `VITE_VOLUME_NUMERIC_PANE_ENABLED=1` the overlay is SKIPPED and the
@@ -408,7 +509,27 @@ export function resolvePlacement(instance, def, ctx) {
   // module takes. A gate that turned a working overlay into a silent
   // no-render would be a capability REMOVED, so the default stays off until an
   // owner turns it on and sees a pane.
-  if (c.volSeparatePane && asSet(c.volOverlaySet).has(key)
+  // ⚰️⚰️ AND THE MODERN TARGET COUNTS, NOT ONLY THE LEGACY MIRROR.
+  // `volumeOverlayIndicators` is the OLD way of saying "this draws in the volume
+  // pane"; `placement.target === 'volume'` is the canonical one, and
+  // `resolveDisplayTarget` has already weighed provenance to produce it. Reading
+  // only the legacy list meant a blob carrying the modern answer WITHOUT the
+  // mirror fell through to the own-pane branch below, found no pane (a
+  // volume-pane guest is a FOLLOWER and the layout allocates it none), and
+  // returned null — the series bound nothing and simply disappeared.
+  //
+  // ⛔ MEASURED 2026-09-15 through the real binder and a real chart
+  // (`__tests__/volumeGuestScale.test.jsx`): `{target:'volume', targetExplicit:
+  // true}` with `volumeOverlayIndicators: []` reported `bound: 0`. Both writers
+  // can produce that shape — `setInstanceDisplayTarget` only mirrors to the legacy
+  // list for definitions whose DECLARED target is `'pane'`, so any other
+  // definition sent to Volume has always been modern-only.
+  //
+  // ⭐ THE UNITS ANSWER IS UNCHANGED, and it is the point of the branch: a guest
+  // gets the LEFT axis so Volume keeps the right one. Same pane, different ladder
+  // — a $704 security must not be read against 45M shares just because a member
+  // put them in the same rectangle.
+  if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))
       && !volumeNumericPaneEnabled()) {
     return {
       paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
@@ -470,7 +591,7 @@ export function resolvePlacement(instance, def, ctx) {
   // paint straight over the candles.
   if (paneMode() === 'panes') {
     const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
-    const pane = panes ? panes.find((p) => p && p.key === key) : null
+    const pane = panes ? panes.find((p) => p && p.key === paneKey) : null
     if (!pane || !Number.isInteger(pane.index)) return null
     return {
       paneIndex: pane.index,
@@ -499,7 +620,9 @@ export function resolvePlacement(instance, def, ctx) {
   const band = (c.paneMargins && c.paneMargins[key]) || FALLBACK_BAND
 
   return {
-    paneIndex: 0,
+    // 'bands' mode has exactly one pane, so this is the candles' own — read the
+    // same way as every other price-pane answer rather than assuming a number.
+    paneIndex: priceIndexOf(c),
     scaleId: key,
     scaleOptions: { borderVisible: false, scaleMargins: { ...band }, ...range },
     // Its own band, its own scale: it is the only thing on that axis, so it has

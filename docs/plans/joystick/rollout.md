@@ -48,7 +48,7 @@ rather than drifting between what is deployed and what is configured somewhere e
 | stage | unset preference resolves to | framing | name |
 |---|---|---|---|
 | **1** *(current)* | `isAdmin` | preview | **Admin preview** |
-| **2** *(built, **GATED**, unmerged — `640dcd8d1`)* | **`true` for every authenticated user** | preview | **Member preview** |
+| **2** *(built, **GATED**, unmerged — `2ae7e98aa`)* | **`true` for every authenticated user** | preview | **Member preview** |
 | **3** | `true` for every authenticated user | **removed** | **General availability** |
 
 **Stage 2 — member preview.** An unset preference resolves to `true` for every authenticated user.
@@ -104,12 +104,15 @@ landing with the GA flip. **Until that is answered, stage 3 cannot be written as
 
 ### 3. Sequencing — nothing here starts until boxes 1 and 2 are ticked on evidence
 
-> ✅ **READY-AND-GATED, 2026-09-13.** `launch/stage-2-member-preview` at **`640dcd8d1`** passed
+> ✅ **READY-AND-GATED, 2026-09-13.** `launch/stage-2-member-preview` at **`2ae7e98aa`** passed
 > the full six-shard gate with **zero attributable NEW** — manifest
-> `gate-runs/2026-09-13T15-55-29.md`; tree hash identical at both ends, **1318 files reconciling**,
-> **8 failed / 19,439 passed / 19,456**. The one NEW failure is **R-29** (S4's
+> `gate-runs/2026-09-13T17-57-36.md`; tree hash identical at both ends, **1325 files reconciling**,
+> **8 failed / 19,489 passed / 19,506**. ⚠️ This SUPERSEDES the `640dcd8d1` / `15-55-29` run: master
+> was merged in (never rebased), bringing 24 non-test `app/src` files and triggering the re-gate. The one NEW failure is **R-29** (S4's
 > `focusDivergence.js` orphan), classified BY DIRECTION: the rail fails identically at the merge
-> base `d6ac61816`, on a tree containing none of this branch's changes.
+> base `d6ac61816`, on a tree containing none of this branch's changes. Re-proved after the merge
+> against `origin/master` itself, where `focusDivergence.js` has **zero real importers** — its only
+> non-test mention sits inside a **comment** in `HubContext.jsx`.
 > ⛔ **Gated is not merged.** The freeze below still governs, and **Patrick merges**.
 
 **a. Stage 2 PR.** The constant change **plus** everything in §2(a), the `rollout.md` and
@@ -131,6 +134,36 @@ step is what honours that scope instead of silently inheriting it at GA.
 
 **d. Stage 3 PR** per §1, once §2(b) is answered. Patrick merges; kill switch demonstrated again;
 **box 5 ticked**.
+
+> ✅ **PRE-BUILT AND GATED, 2026-09-15 — and §2(b) IS ANSWERED.** `launch/stage-3-ga` at
+> **`3164cccac`** carries `ROLLOUT_STAGE` 2 → 3 and the Settings label dropping `(preview)`, and
+> **nothing else**: `unsetDefault()` and `cardVisible()` both threshold at `>= 2` and neither was
+> touched, so stage 3 resolves identically to stage 2 for every user. Gated on the local merge
+> result against **baseline 10** — `Test Files 1 failed | 88 passed (89)`, `Tests 1 failed | 1168
+> passed (1169)`, the one failure being `tapFloor`, baseline entry #9; sampler
+> `VERDICT=CLEAR exit=0 samples=12 min_free_gb=8.39`. Record:
+> **`harness/2026-09-15-stage3-ga-prebuild.md`**.
+>
+> ⭐ **§2(b) was answered by stage 2, not deferred to here.** It asked whether emptying
+> `PREVIEW_MODES` at stage 3 would land two full fans with the GA flip, and recommended shipping
+> `home` and `flow` first. The stage-2 branch did exactly that, one rung early — the Set is
+> **empty** at `2ae7e98aa` — so stage 3 really is copy-only and "no new behaviour" holds as
+> written. ⛔ The branch is built **off stage 2, not off master**, because master is at
+> `ROLLOUT_STAGE = 1`: a branch off master would have been a 1 → 3 diff that swallowed stage 2's
+> widening inside a commit labelled GA.
+>
+> ⛔ **Not opened, and it does not satisfy c.** D-39 is still ruled *fix before stage 3*, and it is
+> held until Patrick's bug list arrives so it can be scoped against what he actually reported. A
+> gated branch is not a met condition. **Patrick merges.**
+>
+> ⛔⛔ **TRANSPLANT BEFORE OPENING — a naive rebase reapplies stage 2 and passes every rail.**
+> This branch is based on `2ae7e98aa`; stage 2 lands on master as a **squash** commit that does not
+> contain it. Use `git rebase --onto origin/master 2ae7e98aa launch/stage-3-ga` (or cherry-pick
+> `3164cccac`'s delta onto a fresh branch off master), then read
+> `git diff --name-only origin/master...launch/stage-3-ga` **before anything else**: it must be the
+> six copy-only files and nothing more. **Any of stage 2's 26 files in that list is a STOP.**
+> Then re-gate against the baseline of record. Full procedure:
+> `harness/2026-09-15-stage3-ga-prebuild.md` §1.
 
 **e. Box 6** — rewrite `closure.md` as LAUNCHED, citing every box's evidence.
 

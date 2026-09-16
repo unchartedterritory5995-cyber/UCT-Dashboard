@@ -173,6 +173,176 @@ fires only for one that has not. `put_immutable`, `get` and `list_prefix` all fu
 ⚠️ **Scope, stated rather than implied:** this is a *pytest* rail. A bare `python tools/...` run
 still reaches the live bucket, exactly as the conftest tripwire is a test-suite rail only.
 
+### Visibility escalation — `DESK_PUBLIC_SHOWS=*`: escalated, reverted, then REAFFIRMED by the owner
+
+⭐⭐ **RESOLVED 2026-09-13: THE WILDCARD IS THE OWNER'S DELIBERATE DECISION AND IT STANDS.**
+Owner ruling, verbatim: *"that was me. All auto-recorded sessions post public was and is my
+deliberate visibility decision."* The 2026-09-13 revert was **reversed the same day**: all 28
+videos restored to public, `DESK_PUBLIC_SHOWS` set back to `*`, and the decision written into
+`docs/feature_flags.json` under `owner_decision`.
+
+⛔ **THE ESCALATION WAS STILL CORRECT, AND THE RECORD BELOW IS KEPT IN FULL.** A doc asserted a
+rule (*"Live Trading Sessions… stay unlisted"*), production did the opposite, and **nothing
+anywhere said which was intended**. Escalating that is the right behaviour; a session that sees
+paid content public and files it as a footnote is the failure mode (H14). What was actually
+missing was never a guard — it was a RECORD. That is the whole lesson and the whole fix.
+
+⭐ **The correction the owner made to the rail is the load-bearing one:** the first version
+REFUSED a wildcard outright. That would have made a legitimate business decision inexpressible,
+and a rail that forbids what the owner wants gets satisfied on Railway and never written down —
+which is precisely the state that produced 25 days of ambiguity. **The rail's job is to record
+intent, not to veto it.** A wildcard now costs one dated, attributable sentence.
+
+**Not this program's system. Found, escalated, reverted, restored and railed by this program's
+agent; the reusable part is how close it came to being a footnote.**
+
+**How it surfaced.** The P3 Track-A transcription agent ended an unrelated report with:
+*"Observed in passing, unverified as intentional: `DESK_PUBLIC_SHOWS=*` on `web`, so every show —
+including paywalled workshops — uploads public."* ⭐ That is the H14 tell verbatim — a hazard class
+demoted to a footnote. Running the H14 chain instead of filing it is the whole of this entry.
+
+**Confirmed, in three independent places before anything was changed:**
+
+| layer | evidence |
+|---|---|
+| source | `desk_daily_session.privacy_for_section:117` — `if "*" in shows: return "public"` |
+| live config | `railway variables --service web --kv` → `DESK_PUBLIC_SHOWS=*`, with `DESK_DAILY_SESSION_ENABLED=1` |
+| artifact | anonymous fetch of `rKVAkk3811Q` (a PAID Stockbee workshop) → `"isUnlisted":false` |
+
+⭐ **The artifact check carried its own control.** Two older Mental Game videos read
+`"isUnlisted":true` in the same sweep, and Sunday Scans read `false` — so the probe demonstrably
+discriminates, and "public" was a measurement rather than an inference.
+
+**The revert (owner's flag flip, executed 2026-09-13).**
+⛔ **The owner's instruction said `DESK_PUBLIC_SHOWS=sundayscans` — no space — and that value makes
+NOTHING public, including Sunday Scans.** `privacy_for_section` does a plain substring test, so
+`"sundayscans" in "sunday scans"` is False. Run against the real classifier over all six routable
+sections before touching production: `*` → 6 public · `sundayscans` → 0 public · `sunday scans` →
+exactly `Sunday Scans`. The RULING ("Public = Sunday Scans only") was executed, the typo was not,
+and it was reported the same minute. The space is load-bearing and is now pinned by a rail.
+
+| | before | after |
+|---|---|---|
+| `DESK_PUBLIC_SHOWS` on `web` | `*` | `sunday scans` |
+| sections resolving to public, **read in-process on the pod** | all 6 | `Sunday Scans` only |
+
+Verified by `railway ssh` running `privacy_for_section` in the live process — not from `--kv`,
+which shows what the service is configured with and is not evidence the running process has it.
+
+**Blast radius — 320 videos, every privacy status read from YouTube's own API with the publisher's
+token, then split by CAUSE rather than by the literal predicate:**
+
+| set | n | disposition |
+|---|---|---|
+| desk-published (`meeting_uuid`), public, non-Sunday-Scans | **28** | set unlisted, then **RESTORED to public** on the owner's reaffirmation — each verified, one field changed |
+| legacy back-catalog, public, non-Sunday-Scans | 66 | **UNTOUCHED throughout**, and the owner ruled they stay as they are. Table kept for reference only. |
+
+⛔ **The literal instruction was "any non-Sunday-Scans video with `isUnlisted:false`", which is all
+94.** Applying it as written would have unlisted 23 Interviews, 9 Scanning and 8 Setups videos that
+have been deliberately public for months and have nothing to do with this flag — a second,
+unrelated member-visible change made under cover of a fix. The 66 are reported for the owner's
+call instead. ⭐ Two of them are Live Trading Sessions and ten are Post-Market Recaps; those may be
+a separate, older exposure and are flagged as such rather than silently swept in.
+
+**Earliest affected upload 2026-07-28** — which does NOT match the commit date, and the discrepancy
+is kept rather than smoothed: `0894d7ac0` (the wildcard) is 2026-08-19, and Live Trading Sessions do
+go public from 2026-08-19 onward. Five earlier uploads (an Evening Update on 07-28, a Live Trading
+Session on 08-04, Evening Updates on 08-04/08-12/08-18) predate both the wildcard AND the per-show
+privacy feature itself (`634326923`, 2026-08-09), so they cannot have been caused by either. Their
+cause is **unattributed**; Railway exposes no variable history from the CLI.
+
+**How it got set.** `0894d7ac0`, 2026-08-19 07:51 CDT, authored by a **Claude Fable 5** session:
+
+> `feat(desk): DESK_PUBLIC_SHOWS="*" uploads every show to YouTube as public`
+> *"Owner decision 2026-08-19: all auto-recorded sessions post public."*
+
+✅ **The commit was RIGHT.** The owner confirmed on 2026-09-13 that the decision was his, made on
+2026-08-19 and unchanged since. ⚰️ The session's own first reading — recorded here as it was
+written — treated the commit message as a contradiction to be reported rather than resolved, which
+was the correct call with the information available and the wrong conclusion. **What was never in
+dispute is the only thing that actually failed: the decision was never written into
+`docs/feature_flags.json`**, so for 25 days nothing in the repo could tell a deliberate setting
+from a leak — and the flag was one the ledger's rail could not even see.
+
+**Three could not be changed**, listed with the exact reason rather than counted as done:
+`hmGZSV_axHo` and `znjo804B_0k` (Evening Update, Sep 10) and `vslaRnO9G3E` (Sunday Scans Aug 16 Pt 1)
+return **no item** from `videos.list` even to the owning token — the videos are gone from YouTube;
+their `edu_videos` rows point at nothing. One video, `ngF6_2A3L2w`, read back `public` immediately
+after its update and `unlisted` three seconds later: propagation lag, re-verified, not a failure.
+
+**Final state, re-read from YouTube after every change:** desk non-Sunday-Scans = 73 unlisted,
+1 private (pre-existing, untouched), 2 gone, **0 public**. Sunday Scans = 3 public, as intended.
+
+**The class, and why no rail could see it.** `tests/test_feature_flag_ledger.py` narrows the census
+with `is_gate()` — true only for names carrying `ENABLED`/`DISABLE`/`_ON`. `DESK_PUBLIC_SHOWS`
+carries none, so it was **absent from the gate census entirely**; and it defaults to a non-empty
+string, so even a name-agnostic version would have read it as a live decision. Two independent
+blindnesses, either sufficient alone.
+
+⭐ **A gate decides whether a feature RUNS; a visibility flag decides who can SEE what it produced.**
+The first fails loudly and reversibly; the second fails silently and **cannot be un-published**.
+They are now separate axes:
+
+- `feature_flag_index.is_visibility_flag()` / `visibility_flags()` — narrowed from `scan()`, never
+  from `gates()`, because `gates()` is the thing that was blind. Markers are decision words;
+  exclusions are the three kinds of name that carry them and decide nothing (destination,
+  credential, location). Measured: 4 flags, excluding exactly `DESK_ANNOUNCE_DB_PATH`,
+  `DISCORD_CHART_PUBLIC_KEY`, `UCT_PUBLIC_BASE`.
+- `tests/test_visibility_flag_ledger.py` — declared with `exposure`/`default`/`values`; **wildcard
+  refused**; declared values must name sections `_RULES`/`_HOST_AWARE` can actually produce; the
+  declared default must equal the code default; and the default must resolve to Sunday Scans alone
+  through the REAL classifier. Two vacuity controls, because every assertion is over a derived set.
+- `tools/flag_ledger_audit.py --visibility` — the live half, which is the only half that could have
+  caught this: **the wildcard was never in the repo.** Value reads are scoped to ledger-declared
+  `exposure: public` flags so the "names only, values are secrets" rule still holds.
+- ⚠️ `test_the_ledger_does_not_describe_gates_that_no_longer_exist` immediately demanded the
+  deletion of the two new entries — its own docstring already names this failure
+  (*"the rail was reporting its own blindness and blaming the ledger"*), now recurring one axis
+  over. Its subtrahend is the union of both axes.
+
+**Mutation-proved, 7 guards, all four files restored byte-exact:** PUBLIC marker removed (2 red) ·
+exclusions widened to swallow everything (2) · predicate narrowed to nothing (2) · narrowed from
+`gates()` instead of `scan()` (1) · the wildcard back in the ledger (4) · **the code default losing
+its space — the owner's typo, reproduced as a mutant (2)** · the live audit no longer flagging
+wildcards (1). Control: 15 passed.
+
+**Restore, 2026-09-13 (owner ruling).** All **28** desk-published videos set unlisted earlier that
+day were restored to `public` — each re-read from YouTube after the change, **exactly one field
+altered** (`privacyStatus`), 0 failures. ⛔ Driven from an **EXPLICIT id list**, not a re-derivation:
+"every desk non-Sunday-Scans video → public" would also have flipped the **46** that were already
+unlisted BEFORE the revert (pre-2026-08-19 sessions). The owner asked for a reversal of what this
+session changed, not a bulk re-publish, and an explicit list is the only way to guarantee that.
+
+**End state, verified in-process on the pod** (never from `--kv`): `DESK_PUBLIC_SHOWS = '*'`, all six
+routed sections resolve to **PUBLIC**, the 28 read `public` from YouTube, Sunday Scans untouched
+(3 public / 1 unlisted / 1 gone, unchanged), 66 legacy back-catalog left exactly as they were.
+`tools/flag_ledger_audit.py --visibility` → **0 findings** with the wildcard live, because it is
+now attributable.
+
+**Three `edu_videos` rows point at videos YouTube no longer returns — BROKEN DESK LINKS, reported
+only** (owner: report, do not act):
+
+| youtube_id | row | note |
+|---|---|---|
+| `vslaRnO9G3E` | Sunday Scans — Aug 16, 2026 (Part 1) | Part 2 (`5ARYCslLzwg`) is fine — a split upload lost half |
+| `hmGZSV_axHo` | Evening Update — September 10, 2026 | two rows for one evening, both gone |
+| `znjo804B_0k` | EVENING UPDATE — September 10, 2026 | duplicate of the above, different id |
+
+`videos.list` returns **no item** for all three even to the OWNING token, so they are deleted at
+YouTube rather than merely restricted. ⚠️ The Desk player will render three entries whose video
+cannot load. Whether the deletions were intentional is not knowable from this seat; the Sep-10 pair
+looks like one session uploaded twice and then cleaned up, which would make the surviving defect
+just the stale rows.
+
+⛔ **WISDOM-SIDE, UNCHANGED BY ANY OF THIS** (owner note, 2026-09-13): YouTube visibility does **not**
+change Wisdom's entitlement rule. Transcripts and Sunday Scans bodies served through Wisdom
+consumers remain **entitlement-checked per §0.4g** until the owner rules otherwise. A public video
+is not a licence to serve its transcript to a non-member.
+
+⚠️ **RESIDUAL, stated rather than hidden:** the predicate is a NAME test. A future flag that decides
+public exposure without one of the marker words in its name is not caught. That is a smaller hole
+than the one it closes; it is named in the source and here so the next reader inherits it.
+
 ### Open, carried deliberately — the provenance-marker gap (owner ruling, checkpoint 3 §8c.3)
 
 **The audit that says "nothing reached the member-facing tables" is shape-based.** It searches for
@@ -275,14 +445,98 @@ no adapter ran in any mode.
 | §2.1 other trade-alert channels | #volume-alerts (Scripted Trading app), #uncharted-scanners (Uncharted Scanners app) and #test-chartmaster-alerts (ChartMaster Alerts app) are OUT OF SCOPE, not granted. | Read in the owner's Discord session 2026-09-13; every visible message is app-authored. |
 | §2.2 Zoom | **Recovery DROPPED (owner correction 2026-09-13):** Zoom cloud copies are deleted on purpose after posting; the Stockbee workshop is not in trash and is not an owner task. Replaced by the desk-transcript check (Step 0) for 356 and every video under 98 %, re-transcription + diarization where no full copy exists, and store-and-verify before delete (CONTRACTS §8a.6a–6b). | Measured S2S scopes: `cloud_recording:delete:meeting_recording:admin cloud_recording:read:list_recording_files:admin cloud_recording:read:recording:admin`; `GET /meetings/{uuid}/recordings` → 404, consistent with the intentional deletion. R2 `desk_audio/rKVAkk3811Q.m4a` exists (83,057,014 bytes). |
 
+### Golden-v1 FROZEN (P4 propagation + freeze) — 2026-09-14
+
+**Frozen by** `sha256(data/wisdom/golden/golden-v1.jsonl)` =
+`db3475c814eed4f878474d9f4d10c0ce6c39d633cc027e7f49483ed7ada4ade2`
+
+The freeze is a runnable command, not a note — the verifier refuses to run against any other bytes:
+
+```sh
+python tools/wisdom_golden_verify.py --golden <data-root>/golden/golden-v1.jsonl \
+  --provenance docs/wisdom/golden/golden-v1.provenance.json --require-strata \
+  --frozen db3475c814eed4f878474d9f4d10c0ce6c39d633cc027e7f49483ed7ada4ade2
+```
+
+**All four gates green on the frozen bytes** (re-run AFTER the mutation proofs below, on the restored file):
+
+| gate | command | totals line | exit |
+|---|---|---|---|
+| 1. self-check | `--self-check` | `SELF-CHECK PASS` | 0 |
+| 2. v0 defaults | *(no args)* | `records=30 (v0=30 v1=0)` · `PASS — provenance for 30 records` | 0 |
+| 3. v1 strata | `--golden … --require-strata` | `records=125 (v0=0 v1=125)` · `PASS — provenance for 125 records matches` · `STRATA PASS` | 0 |
+| 4. leaked-quote | `tools/wisdom/golden_leak_check.py` | `9086 tracked files, 125 quotes, min_windows=2, leaks=0` · `LEAK-CHECK PASS` | 0 |
+| rail | `pytest tests/test_wisdom_golden_freeze.py` | `15 passed` | 0 |
+| adjacent rails | `pytest tests/test_wisdom_authors_aliases.py tests/test_wisdom_core_speakers.py tests/test_wisdom_vocab_authority.py tests/test_wisdom_guard_mutation.py tests/test_cross_module_imports_resolve.py` | `91 passed, 1 skipped` | 0 |
+
+#### record-type × author — the frozen set (125 records, every one `confirmed`)
+
+Derived from the file, never typed. `(was N)` is the pre-propagation backup
+`golden/pre-propagation/golden-v1.jsonl.orig`; a cell with no `(was …)` did not move.
+
+| type | bracco | chartmaster | guest:buckethead | guest:zen | manrav | ravi | team-unresolved | tsdr | **total** |
+|---|---|---|---|---|---|---|---|---|---|
+| CALL | 10 | 3 | — | — | 5 | — | — | **21** _(was 22)_ | **39** _(was 40)_ |
+| NEGATIVE_CALL | 3 | — | — | — | — | — | — | **13** _(was 14)_ | **16** _(was 17)_ |
+| MENTION | 5 | 3 | — | — | 5 | 1 | **2** _(was 0)_ | 8 | **24** _(was 22)_ |
+| PRINCIPLE | 3 | 4 | 1 | 1 | 1 | — | — | 17 | **27** |
+| LEVEL | 2 | — | — | — | — | — | — | 9 | **11** |
+| MARKET_SIGNAL | 2 | — | — | — | — | — | — | 6 | **8** |
+| **total** | 25 | 10 | 1 | 1 | 11 | 1 | **2** _(was 0)_ | **74** _(was 76)_ | **125** |
+
+**The counts moved, and §8a.2 is why.** Two records changed author AND type: `G-035`
+(AVGO pass, was `NEGATIVE_CALL`/tsdr) and `G-052` (RKLB stop-out, was `CALL`/tsdr). The owner
+answered **"unknown"** on both at checkpoint 2 — a VALID answer that CLOSES them — so each is
+`speaker=team-unresolved`, `MENTION` only, `excluded_from=["uct_see_rate","publish"]`,
+attributed to nobody. ⛔ `team-unresolved` is **not** a person and must never be counted as one:
+its two records are out of the UCT-see rate and out of every publish path by declaration, and the
+verifier fails a `team-unresolved` record that omits either exclusion.
+
+Also folded in, with no count movement: eight records went `provisional → confirmed` as their
+checkpoint-2 items were ruled (`G-002 G-018 G-028 G-035 G-052 G-055 G-057 G-065`), so the frozen
+set carries **zero** provisional records.
+
+#### The three items that were NOT ours to decide
+
+| item | encoded as | where |
+|---|---|---|
+| **006** G-030 vs the 9/06 50SMA/20EMA line | G-030 stays **non-canonical**; both statements kept with dates. The proposed "50SMA is an entry anchor only with confluence" rule is written **nowhere** — not a PRINCIPLE, not a vocabulary note. It stays in the Contradictions queue **as a recommendation**, `owner_disposition: open`. | `review-queue-v1.jsonl` `RQ-v1-006` |
+| **007** G-035 AVGO pass | `team-unresolved`, `MENTION`, excluded from the see-rate and publish, attributed to nobody. | golden `G-035` |
+| **008** G-052 RKLB stop-out | same. | golden `G-052` |
+
+A grep for `confluence` across the frozen set returns **zero** records — the recommendation exists
+only as a queue recommendation, which is what the ruling asked for.
+
+#### Mutation proofs — every guard broken once, restored byte-exact by sha256
+
+⛔ Restored by writing back bytes captured in memory, **never `git checkout`** (which restores
+from the INDEX and would have silently discarded the WIP in this tree).
+
+| # | mutant | rail | verdict | restored sha256 equal |
+|---|---|---|---|---|
+| M1 | `G-035.record_type` → `NEGATIVE_CALL` | v1 strata pass | **exit 1** — `G-035: team-unresolved may author MENTION only (§8a.2/§8b.7), not NEGATIVE_CALL` | ✅ |
+| M2 | `G-018.evidence.entity.entity_confidence` `0.5` → `0.8` | v1 strata pass | **exit 1** — `G-018: inferred ticker needs entity_confidence <= 0.5 (§8a.4), got 0.8` | ✅ |
+| M3 | verifier §8a.2 guard `if ambiguous and method == "speaker_label":` → `if False and …` | `--self-check` | **exit 1** — `SELF-CHECK FAIL (1)` | ✅ |
+| M4 | longest golden quote planted into tracked `docs/wisdom/RESUME.md` | leaked-quote check | **exit 1** — `LEAK docs/wisdom/RESUME.md: G-061 (54 matching 24-char windows)` | ✅ |
+
+⚠️ **M3's first attempt was VACUOUS and read as a pass.** It replaced `if is_ambiguous:` — a string
+that does not occur in the verifier — so the file was unchanged, the self-check returned **0**, and
+the guard looked proved while nothing had been broken. The redo asserts `count(needle) == 1` and
+`mutated != original` **before** running the rail. *An empty result is a failed invocation until
+proven otherwise* — the non-vacuity control is what caught it, not the exit code.
+
+The `--frozen` lever carries its own control: the correct sha passes, and
+`--frozen 000…0` returns `FAIL — golden-v1 is not the frozen set`.
+
 ## Section 2 — merges to master
 
 | # | branch | tip SHA | merge SHA | flow-worker classification | web SUCCESS observed |
 |---|---|---|---|---|---|
 | 1 | `wisdom/w1-b-rails` | `010fadbe2` | `e5dfb23fb` | **OK** — `reachable=154 watched=24 changed=75`, no Wisdom module in flow-worker's import closure, so web-only | **SUCCESS 2026-09-13 21:10:33Z** on `e5dfb23fb`; `/api/health` `status: ok`, `uptime_seconds: 36` (a fresh boot, not the old pod answering) |
 | 2 | `wisdom/w1-a-capture` | `7a456bcd6` | `fb62a44d9` | **OK** — `reachable=154 watched=24 changed=42`, web-only | **SUCCESS** on `fb62a44d9`; `/api/health` `uptime_seconds: 38` (fresh boot). Anonymous probes: `/capture/health`, `/capture/runs`, `/core/status` and **`POST /capture/run-family/detections?dry_run=false&as_of=2027-06-15`** each **401** |
+| 3 | `wisdom/w1-c-sources` | `9193a5aa3` | `a64336c89` | **OK** — `reachable=154 watched=24 changed=26`, web-only | **SUCCESS** on `a64336c89`; `/api/health` `uptime_seconds: 27` (fresh boot) |
 
-*(next in the §8.4 order: S-C → S-D → S-E → S-F, one at a time, web SUCCESS between)*
+*(next in the §8.4 order: S-D → S-E → S-F1 → S-F2, one at a time, web SUCCESS between)*
 
 **Merge 1 evidence.**
 - Base `89c6b12bf`. Master moved TWICE during the gate (`d623baf1d` → `834034622` → `89c6b12bf`,
@@ -496,6 +750,19 @@ no real TwitterAPI.io call was made, so `PAGE_SIZE_ESTIMATE`, the `has_next_page
 field names and `since_time`/`until_time` remain assumptions that only `smoke_test(execute=True)`
 can settle — and that needs the flag on and the owner's consent to spend.
 
+### Observed external drift — not this program's, recorded so it is not re-diagnosed
+
+| what | commit | state |
+|---|---|---|
+| `TERMINAL_NEXT_MONITOR_ENABLED` undeclared in `docs/feature_flags.json`, so `test_feature_flag_ledger::test_every_off_by_default_gate_is_declared` is RED on master | master's own `6a7a8ee73` (terminal-next-monitor) | open, theirs |
+
+Provenance from `git show origin/master:docs/feature_flags.json` (absent) and
+`git log --diff-filter=A -- api/terminal_next_monitor_main.py`, never `git status`.
+⛔ **Deliberately not fixed here** (owner ruling, 2026-09-13): the ledger records a programme's
+INTENT — `armed` / `dark` / `pending` — and only terminal-next can state theirs. Writing a verdict
+on their behalf would be inventing one. Wisdom merges proceed past it; it is counted as a known
+external red in every gate, never as a new failure.
+
 ## Section 3 — other programs' commits on paths this program created
 
 | commit | when | program-created files touched | subject |
@@ -534,3 +801,207 @@ All declared in `ca0b9b801` with their read site in `api/services/wisdom/core/fl
 | `WISDOM_DOSSIER_ENABLED` | **yes** — owner flips | dark | — |
 | `WISDOM_LEVEL_ALERTS_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
 | `WISDOM_LOOKALIKE_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
+
+---
+
+### S-D adversarial review — findings and fixes (branch `wisdom/w1-d-extract`, 2026-09-14)
+
+Reviewer ran on the branch AFTER `git merge feat/wisdom-loop` (§8b.1), i.e. with golden-v1
+frozen at `db3475c8…` and P4 landed. Six findings confirmed by EXECUTION and fixed on the
+branch; three reported and not fixed. Every fix is mutation-proved, restored byte-exact and
+verified by sha256 (never `git checkout`).
+
+| # | finding | severity | evidence | fixed |
+|---|---|---|---|---|
+| D-R1 | `extract/seams.py` trips the **private_store import-ban rail** — and the rail is RIGHT: `seam_report()` `importlib.import_module`s `core.private` from a module W1 §0.4d does not allow. Declared "pre-existing, not mine" by the merge-gate commit, but the file is S-D's and master would have taken a red rail. | blocks-merge | `tests/test_wisdom_bans.py` at HEAD: `1 failed, 378 passed` → after: `207 passed` on that file | ✅ row moved to its owner (`writer.private_seam_row`), still in `seam_report()` |
+| D-R2 | **The budget cap is per `extractor_version`, and `extractor_version` is a hash of the system prompt, which CARRIES THE SETUP VOCABULARY** — a live, DB-backed, actively-edited artifact. Approving one vocabulary name mints a version whose spend is $0 and re-arms the entire cap. §6.4 says `actual_to_date`, not "for this version". | blocks-merge (money) | executed: $14.90 of a $15 cap spent → one extra vocab name → `wx-v0-74bafea0` → `wx-v0-3637ea48`, `spent_and_pending` `(0.0, 0.0)`, **3 more $5 requests allowed** | ✅ same cap, two ceilings, whichever binds first; fails closed. ⚠️ **reverses this stream's earlier per-version-only rule and the test that pinned it — owner/integrator should confirm** |
+| D-R2 **RULING** | ⭐ **OWNER CONFIRMED THE REVERSAL, 2026-09-14.** Verbatim: *"the reviewer is right. The cap is ONE program-level total carried in the ledger across all extractor versions, models and runs; per-version and per-run spend are reported as sub-lines, never as separate budgets. Raise the program cap from $15 to $40 now that Wave 1.5 below needs multi-pass extraction; every run still prints spend-to-date against the cap and stops at it."* So the stream's earlier per-version-only rule and the test that pinned it are **superseded**, not merely overridden by a reviewer. | ruling | the reviewer's executed evidence above ($14.90 of $15 + one vocab name ⇒ 3 more $5 requests) | ✅ ONE ceiling. `select_within_budget` enforces the PROGRAM total only; `actual_usd`/`pending_estimate_usd` and the per-run ledger entries travel as REPORTED sub-lines and bind nothing; `remaining_usd` is the program remainder. Cap **$15 → $40** in `extract_golden_gate.py` and in the carried ledger ($11.6504 spent, $28.3496 headroom) |
+| D-R2 **and the ceiling was already dead code** | ⚰️ The per-version check could NEVER fire. Per-version rows are a SUBSET of the program rows (same tables, one extra `WHERE`), so `actual_v <= actual_p` and `pending_v <= pending_p`, and the per-version sum cannot cross the cap strictly before the program sum does. The rail that pinned it, `test_the_per_version_ceiling_still_binds_when_the_program_total_has_room`, passed only because it seeded **one** version — which makes the two sums EQUAL, so the fixture could not create the difference its own name asserts (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). | correctness of the record | driven with TWO versions (60+5 and 40+5, cap $120) the stop reason is the program one, every time | ✅ removing the check is **behaviour-preserving**, and that is now proved rather than hoped: the replacement rail seeds two versions, asserts the sub-lines stay visible in the stop reason, and a second rail drives the real hole — a FRESH version with $0 of its own spend against a program at its cap. Mutants: enforce per-version ⇒ **3 failed**; `remaining_usd` reports the per-version view ⇒ **3 failed**; restored byte-exact, sha256-verified, **18 passed** |
+| D-R3 | The golden gate records `golden_version` **derived from the FILE NAME** and never the sha §8a.1 froze. Changed bytes under the same name are compared against a baseline measured on different records and still read "accepted"; the freeze was enforceable only by remembering `--frozen` on an offline verifier. | before-first-use | `golden_file()` returns `"golden-v1"` for any bytes at that path; `golden_sha256` appeared nowhere in `golden.py` | ✅ `golden.golden_sha256`, required on every gate run and receipt, and `decide_gate` keys the comparison on it — changed bytes are an honest new BASELINE |
+| D-R4 | The **dry-run rail asserted one table** (`wisdom_extract_requests`), and its fixture pre-segmented its only source, so `segment_pending_sources`'s dry-run guard was unreachable by the test. | before-first-use | mutant: `if not dry_run and segments:` → `if segments:` ⇒ `tests/test_wisdom_extract_batch.py` **26 passed, GREEN** | ✅ plants an UNsegmented source, counts all six writable tables, asserts no page, and carries a control proving a real run does segment |
+| D-R5 | `writer.resolve_author` matched a speaker label to a declared guest on a **bare prefix in either direction**, so the label `"P"` resolved to `guest:patricia-kim` at confidence `medium` — and D14 then lets that "guest" author records. §8a.3 says unattributable speech in a guest session is `unresolved`; authors.json says matching is exact, no fuzzy matching. Third sighting of this class (drift #3, drift #4, S-C's guest minting). | blocks-merge | executed: `'P'`, `'Pat'`, `'patr'` → `('guest:patricia-kim', True, 'medium')` | ✅ whole-word boundary in both directions; `Qullamaggie (Guest)` and `Patricia` still resolve |
+| D-R6 | `golden.split_for`'s fallback recomputed the split with a **different function** from §6.4's (`sha24(gid)` last-digit parity vs `int(sha256(gid)[:8],16)` even) — a second authority over one value. Latent (golden-v1 records carry `split`), which is why it was wrong for months. | follow-up | executed: **1007 / 2000** synthetic gids disagree | ✅ fallback is the contract formula; rail over 500 gids |
+
+**Reported, NOT fixed — deliberately:**
+
+* **D-R7 — `ticker_is_inferred` is case-INSENSITIVE, so §8a.4 silently never fires for a ticker
+  that is also an English word.** Executed: `ticker_is_inferred("Taking it over 55 with the stop
+  at 52.", "IT", None)` is `False`; same for ALL / ON / SO. Making the test case-sensitive would
+  call nearly every ticker on a lowercase ASR transcript inferred and flood the review queue.
+  Choosing needs a measurement against golden-v1, which is gitignored and absent from a
+  reviewer's worktree. Recorded in the function's own docstring rather than patched blind.
+* **D-R8 — §8a.5's `exit_price` / `exit_text` / `exit_date` columns exist in `wisdom-db-v0.sql`
+  and NOTHING in `api/services/wisdom/` reads or writes them.** `prompt.record_fields()` has no
+  exit field, and adding one would change the contract schema, hence `extractor_version`, hence
+  the frozen golden-v1 gate — the same constraint F6 was solved around. So §8a.5's reconciliation
+  has no input in W1. Not S-D's to fix inside the freeze; flagged to the integrator.
+* **D-R9 — a DRY-RUN `reap` still builds a real Anthropic client and calls
+  `client.messages.batches.retrieve`.** A read, not a write and not a spend, and the dry-run
+  contract (no row, object, registry state, page or watermark) holds. Noted because "a dry run
+  calls nothing" is how the batch suite's own docstring describes it.
+
+**Verified, and the claim needed refining:** the merge-gate commit's note that drift #4 has TWO
+independent closures and opening only ONE keeps the rail green is **true of the end-to-end
+written-records assertion, and understates the branch's coverage.** Measured: dropping "Patrick"
+from `ambiguous_speaker_labels` alone → `4 failed` (all in `test_wisdom_authors_aliases.py`);
+re-adding it to `tsdr`'s aliases AND declaring it reviewed, leaving it ambiguous → `5 failed`,
+one of them in S-D's own file (`test_the_collision_set_is_derived_and_contains_the_measured_case`
+— the derived sweep cannot be silenced by editing the data); opening BOTH → `2 failed`, including
+`test_an_attendee_called_Patrick_writes_zero_records_for_TSDR` by name.
+
+**Runs (totals lines, scoped by named file):**
+
+```
+S-D + S-B core + hygiene rails ......... 736 passed, 2 skipped in 144.47s
+S-D extract + store + ban rails ........ 440 passed, 1 skipped in 39.28s
+repo hygiene ........................... clean (9341 tracked, no line-ending flip)
+```
+
+The 2 skips are known and recorded: §8b.9 (`test_wisdom_core_private.py:280` — the D16a
+member-facing half, unrunnable until S-F lands `publish.adapters`) and the vocabulary
+engine re-measure that needs `WISDOM_ENGINE_DB`.
+
+**Mutants, each restored byte-exact and verified by sha256 (never `git checkout`):**
+
+```
+K  private seam row put back in the SEAMS table ........... 2 failed
+L  program-wide budget ceiling removed .................... 1 failed
+M  dry run writes segments ................................ 1 failed
+N  guest matched on a bare prefix again ................... 1 failed
+O  gate compares across different golden bytes ............ 1 failed
+P  golden_sha256 no longer required on a gate run ......... 1 failed
+Q  split fallback back to the sha24 last-digit formula .... 1 failed
+R  the auto bar-range seam hands back a permissive provider  1 failed
+```
+
+**Could not measure:** no Anthropic batch was submitted and no cost was incurred (owner rule);
+`data/wisdom/golden/golden-v1.jsonl` is gitignored and absent from this worktree, so neither the
+`db3475c8…` freeze sha nor any extractor metric was re-derived here — only the mechanism that
+records and compares it; and `WISDOM_EXTRACT_BUDGET_USD`'s live value on Railway was not read
+(no variable reads or writes were performed), so the $120 code default is what the rails measure.
+
+---
+
+## Wave 1.5 — two ways a MUTATION HARNESS destroyed work in a shared worktree, 2026-09-14
+
+Both found by executing, both inside the repo's own standing rule *"restore byte-exact, never
+`git checkout`"* — which turns out to assume something nobody wrote down.
+
+### 1. Byte-exact restore is a TIME MACHINE when the tree has two writers
+
+⛔ **The standing rule assumes ONE writer.** A subagent's harness captured `golden.py`'s bytes
+once at the start of its run and restored those exact bytes after each mutant. The integrator's
+edits landed *inside that window*, so the restore silently reverted them — and the harness's own
+check passed, because the sha matched the bytes IT had captured. **The failure is invisible from
+inside the instrument: the restore succeeds, the sha agrees, and somebody else's work is gone.**
+
+Lost and re-applied: `_ANTONYMS` and `_polarity_conflict` in `extract/golden.py`.
+
+⭐ **The fix is not "don't mutate" — it is to re-read immediately before each mutant, and to
+ABORT rather than restore when the file moved under you.** Restoring is only safe when the bytes
+on disk are the bytes you mutated; otherwise the correct action is to leave the file alone and
+say so. The subagent rewrote its harness that way and named the rule better than the warning it
+was given.
+
+### 2. `write_text()` on a CRLF file re-translates the newlines, and the harness then eats itself
+
+⚰️ The integrator's own harness, ten minutes later, in the other direction. It read `writer.py`
+as BYTES, decoded to text (keeping `\r\n`), mutated, and wrote back with `write_text()` — which
+on Windows translates every `\n` to `\r\n`, turning each existing `\r\n` into `\r\r\n`. The
+read-back no longer matched what it thought it had written, so it concluded **a concurrent
+writer had touched the file** and aborted *"leaving the file as found"* — which left **the
+mutant in the working tree** and 832 doubled line endings behind it.
+
+⛔ Three lessons, and the third is the general one:
+- **Bytes in, bytes out.** A harness that mutates source must `read_bytes`/`write_bytes`
+  throughout; text mode silently rewrites the file's line endings.
+- **An abort path must restore, not merely stop.** "Leaving the file as found" is the wrong
+  default when what you found is your own mutant.
+- ⭐ **A concurrency check can fire on your own corruption.** This one reported another writer
+  when there was none — the instrument diagnosed the world for a fault in itself
+  (`lesson_an_instrument_can_reproduce_its_own_blind_spot`). It was caught only because the next
+  command grepped for the mutant instead of trusting the harness's summary.
+
+⚠️ Repaired at byte level rather than with `git checkout`, which would have destroyed the
+uncommitted Wave 1.5 item 4 work in the same file. `tools/check_repo_hygiene.py` clean afterwards.
+
+### 3. And a reformat is a correct, unreviewable edit
+
+Rewriting `extraction-output-v0.schema.json` with `json.dumps(indent=2)` to change three fields
+produced **384 added / 53 removed**. Restored and redone as a targeted text edit: **3 changed
+lines**. Same content, same tests, and a diff a human can actually review — the same defect the
+CRLF ruling (R-2) names, arrived at through formatting instead of line endings.
+
+### 4. A mutation harness whose anchors match NOTHING reports a clean sweep
+
+⛔⛔ **The most dangerous of the three, found by the golden-v1.1 subagent.** `golden.py` is
+**CRLF on disk and LF in the stored blob** (`core.autocrlf=true`). Five multi-line literal
+anchors therefore matched **0 times**, the mutations silently did not happen — and the run
+printed the same thing it prints when every rail catches every mutant.
+
+⭐ **"The anchor matched nothing" and "the rail caught the mutant" are indistinguishable in the
+output.** A harness can report nine of nine caught having changed not one byte of the subject.
+Any harness in this repo that does a literal multi-line string match against a source file has
+this latent; the fix is to match on normalised text, restore the original BYTES, and **assert the
+anchor count is exactly 1 before mutating** — an anchor that matches zero times must be a hard
+error, never a skipped mutant.
+
+### 5. And a filter tuned for one purpose silently disabled another that reused it
+
+The paraphrase lens's antonym guard was installed, tested, and dead for one of its two cases.
+`_polarity_conflict` took the token sets `_tokens` had already built, and `_tokens` drops words
+of two characters or fewer — so `up` was never in them and the (up, down) pair could not fire.
+"size down when the regime turns hostile" and "size up when the regime turns friendly" went on
+merging **with the guard in place and apparently working**, because the never/always case passed.
+
+⭐ A filter that is correct for similarity (short words are noise) is wrong for polarity (the
+short words ARE the meaning). The guard now tokenises for itself, and the docstring says why.
+
+---
+
+## ⛔ FROM ANOTHER WORKSTREAM — a shadowed `_tokens` in `extract/golden.py` (2026-09-14)
+
+**Fixed on `fix/golden-tokens-shadow` by the breadth-history-reader programme, with the
+owner's instruction, because master was RED on `test_no_shadowed_definitions` and the
+defect was silently changing this programme's own scoring. Written here so a later merge
+from the wisdom branch does not quietly undo it.**
+
+**What it was.** `api/services/wisdom/extract/golden.py` bound `_tokens` twice at module
+level — the similarity scorer's at line 329 and the fuzzy-agreement lens's at line 689.
+**Python keeps the LAST binding**, so `match_segment`'s
+`_jaccard(_tokens(...), _tokens(...))` had been running the fuzzy lens's tokenizer since
+`c9d6af653`.
+
+**Why it matters here rather than being cosmetic.** The two are not interchangeable, and
+the direction of the loss is the worst one for a trading extraction gate:
+
+```
+"Buy $NVDA above 30% on a 1.5R stop"
+  scorer intended (_WORD)      ['$nvda', '1.5r', '30%', 'a', 'above', 'buy', 'on', 'stop']
+  actually running (_KEY_WORD) ['above', 'buy', 'nvda', 'stop']
+```
+
+The cashtag loses its `$`, and the percentage and the R-multiple disappear entirely — the
+three token classes that carry the trade — plus every word of three characters or fewer.
+
+⚰️ **Same defect class as the `_parse_mdy` incident** (`api/live_massive_router.py`,
+2026-09-01): two top-level definitions, the later one winning, every call site written
+against the earlier. Both were found by a sweep, neither by review.
+
+**The fix.** The fuzzy lens's function is renamed `_key_tokens` and its two call sites
+(`_fuzzy_agreed`) follow it; the similarity scorer keeps `_tokens` and its `Optional[str]`
+behaviour. Both still accept `None` — ⚠️ correcting a claim made in a report, this pair
+never crashed; the defect was silent semantic drift, which in a scoring gate is harder to
+notice than a traceback, not easier.
+
+**Rail:** `tests/test_wisdom_golden_tokens_shadow.py` — the two tokenizers must differ,
+the trade-carrying tokens must survive the similarity one, and no top-level name in this
+module may be bound twice (with a non-vacuity control).
+
+⭐ **No frozen expectation moved.** `test_wisdom_extract_golden.py` and
+`test_wisdom_golden_freeze.py` pass unchanged (61 tests with the new rail). So this
+restores the scorer's intent without shifting any recorded golden number — but **any
+stability figure computed between `c9d6af653` and this fix was produced with the wrong
+tokenizer at the similarity step**, and that is worth knowing before those numbers are
+cited again.
+

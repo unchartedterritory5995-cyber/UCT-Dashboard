@@ -21,6 +21,7 @@ from api.services import discord_chart_hotset as hot
 from api.services import discord_chart_prefs as p
 from api.services import discord_interactions as di
 from api.services.discord_render import ids
+from api.services.render_gate import MEMBER
 from api.services.discord_render.jobs_store import JobsStore
 from api.services.discord_render.runtime import BACKGROUND, Job, JobRuntime
 
@@ -157,6 +158,10 @@ def test_the_buzz_render_sends_the_id_and_scrubs_the_error_body(renderer_env, ca
         seen.append(request)
         return httpx.Response(502, json=RENDERER_502)
     with ids.bind("0badc0de"):
-        assert buzz_image._render_uncached("open", client=httpx.Client(transport=httpx.MockTransport(handler))) is None
+        # C-09: `cls` is REQUIRED keyword-only now. This exercises the member-facing
+        # board render, so it is MEMBER — the class the /buzz command path passes.
+        assert buzz_image._render_uncached(
+            "open", cls=MEMBER,
+            client=httpx.Client(transport=httpx.MockTransport(handler))) is None
     assert seen and seen[-1].headers["x-correlation-id"] == "0badc0de"
     assert "[buzz] render HTTP 502" in caplog.text and LEAK not in caplog.text

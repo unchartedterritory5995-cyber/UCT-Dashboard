@@ -675,8 +675,16 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // …and its COLOUR is the one the shipped row printed for an untouched blob.
     const o = [...view.container.querySelectorAll('span')].find(s => /^O\s/.test(s.textContent || ''))
     const span = [...o.parentElement.children].find(el => el.textContent === expected(key, V))
-    expect(span.style.color.replace(/\s/g, ''), `${key}'s chip changed colour`)
-      .toBe(hexToRgb(SHIPPED[key].color))
+    // ⚰️ THIS READ `span.style.color`, THEN A 2×9px RAIL'S BACKGROUND. The chip
+    // wore `style={{ color: chip.color }}` on the whole box — eleven series, eleven
+    // differently-coloured NAMES at 11px — then a rail, which on a nine-row legend
+    // read as nine little coloured tabs. Both are retired; the plot colour reaches
+    // the chip as a CUSTOM PROPERTY now, which is what the phone dot paints with.
+    // ⛔ THE INVARIANT IS UNCHANGED AND IS THE POINT: the chip carries the colour
+    // the LINE carries, resolved through the instance's own inputs. Only the
+    // element it lands on has moved.
+    expect(span.style.getPropertyValue('--chip-color').replace(/\s/g, ''),
+      `${key}'s chip changed colour`).toBe(SHIPPED[key].color)
     view.unmount()
   })
 
@@ -1312,6 +1320,10 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
       + 'can see it — a headless capture has no cursor, and ChartRender hides the legend '
       + 'outright); an ADDITION is a number in the readout nobody decided on.')
       .toEqual([
+        // ⭐ the twenty-first — registry-native, and named from its SOURCE.
+        'dataSeries::value',
+        // ⭐ and the twenty-second: one definition, any numeric source.
+        'movingAverage::ma',
         // the ten Task 2 declared…
         'adx::adx', 'atrBands::middle', 'avwap::avwap', 'bb::middle', 'cci::cci',
         'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',
@@ -1369,7 +1381,19 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     (blob.indicatorInstances || []).find(i => i && i.instanceId === id) || null
   const menuRows = () => [...document.body.querySelectorAll('[role="menu"] button')]
 
-  it('the EYE hides THAT instance, through the per-INSTANCE door, and nothing else moves', async () => {
+  /** ⭐⭐ TRACK B — THE ONE DOOR. The affordance button, a click on the chip
+   *  body and a right-click all call the same handler and open the same popover,
+   *  so every case below drives the surface a member actually uses. The verbs
+   *  that used to be three 11px icons are ROWS of this menu now. */
+  const openChip = async (view, name) => {
+    await act(async () => {
+      fireEvent.contextMenu(chipFor(view, name), { clientX: 120, clientY: 60 })
+    })
+    return menuRows()
+  }
+  const rowStarting = (t) => menuRows().find(b => (b.textContent || '').startsWith(t))
+
+  it('the HIDE row hides THAT instance, through the per-INSTANCE door, and nothing else moves', async () => {
     const persist = vi.fn()
     const view = drawObserved(FOUR(), persist)
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
@@ -1377,8 +1401,9 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const id = chip.getAttribute('data-instance-id')
     expect(chip.getAttribute('data-hidden')).toBe('false')
 
-    await act(async () => { chip.querySelector('[aria-label^="Hide "]').click() })
-    expect(persist, 'the eye wrote nothing — the chip control is decorative').toHaveBeenCalledTimes(1)
+    await openChip(view, 'RSI')
+    await act(async () => { rowStarting('Hide').click() })
+    expect(persist, 'the Hide row wrote nothing — the popover is decorative').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
     expect(liveInstance(next, id).hidden,
       'the eye did not hide the instance it names').toBe(true)
@@ -1409,8 +1434,9 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'RSI')
     expect(chip.getAttribute('data-hidden'), 'the fixture did not start hidden').toBe('true')
-    const btn = chip.querySelector('[aria-label^="Show "]')
-    expect(btn, 'a hidden chip still offers "Hide" — the control lies about its direction').toBeTruthy()
+    await openChip(view, 'RSI')
+    const btn = rowStarting('Show')
+    expect(btn, 'a hidden chip still offers "Hide" — the row lies about its direction').toBeTruthy()
 
     await act(async () => { btn.click() })
     expect(persist).toHaveBeenCalledTimes(1)
@@ -1420,31 +1446,41 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     view.unmount()
   })
 
-  it('the GEAR opens the settings dialog on THAT instance', async () => {
+  it('⭐ "Edit in Chart Data…" opens the full editor on THAT instance', async () => {
     const view = drawObserved(FOUR(), vi.fn())
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'ATR')
     const id = chip.getAttribute('data-instance-id')
     expect(id, 'the ATR chip does not name an atr instance').toContain('atr')
-    await act(async () => { chip.querySelector('[aria-label$="settings"]').click() })
-    // Task 5's dialog, mounted on `settingsInstanceId`. It names the instance it
-    // opened on, which is how "RSI(7) settings" differs from "RSI(14) settings".
+    await openChip(view, 'ATR')
+    await act(async () => { rowStarting('Edit in Chart Data').click() })
+    // ⭐⭐ ONE CHANNEL. A mount that HAS the workspace modal gets
+    // `onOpenSettings('data:<instanceId>')` — the same `scrollTo` string
+    // `watermark` / `axis` / `volume` / `ind:` ride, which `ChartSettingsModal`
+    // resolves to this exact row. This mount passes none, so it falls back to the
+    // per-instance dialog, which is the only settings surface a phone shell or a
+    // bare chart has. Both doors name the instance that was clicked.
     const dialog = document.body.querySelector('[role="dialog"]')
     expect(dialog, 'the gear opened no settings dialog').toBeTruthy()
     expect(dialog.textContent, 'the dialog opened on some other indicator').toMatch(/ATR/i)
     view.unmount()
   })
 
-  it('the × removes THAT instance and leaves its siblings drawing', async () => {
+  it('⭐⭐ Delete removes THAT instance on ONE click and leaves its siblings drawing', async () => {
     const persist = vi.fn()
     const view = drawObserved(FOUR(), persist)
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'ATR')
     const id = chip.getAttribute('data-instance-id')
-    await act(async () => { chip.querySelector('[aria-label^="Remove "]').click() })
-    expect(persist).toHaveBeenCalledTimes(1)
+    await openChip(view, 'ATR')
+    // ⚰️ THE FIRST CLICK USED TO ARM — it re-labelled the row `Delete ATR?` and
+    // a second click fired it. One click now (owner, 2026-09-14): the row is red,
+    // alone below a rule and last in the menu, which is the protection a
+    // plot-management action warrants.
+    await act(async () => { rowStarting('Delete').click() })
+    expect(persist, 'Delete did not fire on the first click').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
-    expect(liveInstance(next, id).deleted, '× did not tombstone the instance').toBe(true)
+    expect(liveInstance(next, id).deleted, 'Delete did not tombstone the instance').toBe(true)
     for (const other of ['rsi', 'stoch']) {
       expect((next.indicatorInstances || []).some(i => i && i.defId === other && !i.deleted),
         `removing ATR took ${other} with it`).toBe(true)
@@ -1459,7 +1495,10 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const menu = document.body.querySelector('[role="menu"]')
     expect(menu, 'the right-click opened no menu').toBeTruthy()
     const text = menu.textContent
-    for (const row of ['Settings', 'Hide RSI', 'Move to', 'Add alert on RSI', 'About', 'Remove']) {
+    // ⚰️ THESE NAMED THE CHIP — `Hide RSI(14)`, `Add alert on RSI(14)…`. The
+    // popover's header names it now, so the rows are bare verbs (owner, density).
+    for (const row of ['Hide', 'Display in', 'Edit in Chart Data', 'Add alert…',
+      'About', 'Delete']) {
       expect(text, `${row} is missing from the chip menu`).toContain(row)
     }
     // …and it is the shipped primitive, PORTALLED: not inside the legend, which
@@ -1470,39 +1509,42 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     view.unmount()
   })
 
-  it('⛔ a REFUSED move target is disabled IN THE DOM, with the reason on screen', async () => {
-    // The whole point of a disabled REASON. `chipMenu.test.js` proves the verdict
-    // against the real `resolvePlacement`; this proves the verdict REACHES the
-    // button — a row that renders live and writes an unresolvable placement takes
-    // the indicator off the chart with its box still ticked.
+  it('⛔ a REFUSED destination is disabled IN THE DOM, with the reason on screen', async () => {
+    // The whole point of a disabled REASON. `chipMenu.test.js` proves the page is
+    // `displayTargetOptions`' answer unaltered; this proves the verdict REACHES
+    // the button — a row that renders live and writes nothing is the defect class
+    // this surface exists to retire.
+    //
+    // ⚰️ THIS CASE USED TO ASSERT THAT **Volume** WAS DEAD, because
+    // `chipMenu` refused it: the old hand-rolled move wrote `placement.target`
+    // straight onto the instance, and `resolvePlacement` reads the overlay
+    // decision from `cs.volumeOverlayIndicators` and never from that key — so the
+    // row persisted a no-op with a tick beside it. `setInstanceDisplayTarget`
+    // keeps the legacy mirror in step on an explicit move, so Volume is a real
+    // destination now and the refusal that remains is the honest one: you cannot
+    // move something to where it already is.
     const view = drawObserved(FOUR(), vi.fn())
     await settledLegend(view, crosshairWith({}))
-    fireEvent.contextMenu(chipFor(view, 'RSI'), { clientX: 120, clientY: 60 })
-    const move = menuRows().find(b => (b.textContent || '').startsWith('Move to'))
-    expect(move, 'no Move row').toBeTruthy()
-    expect(move.disabled, 'a pane oscillator has nowhere to move — re-derive the refusals').toBe(false)
+    await openChip(view, 'RSI')
+    const move = rowStarting('Display in')
+    expect(move, 'no Display-in row').toBeTruthy()
+    expect(move.disabled, 'a pane oscillator has nowhere to draw — re-derive the destinations')
+      .toBe(false)
     await act(async () => { move.click() })
 
     const rows = menuRows()
     const byLabel = (t) => rows.find(b => (b.textContent || '').startsWith(t))
-    const volume = byLabel('Volume pane')
-    expect(volume, 'the Move page does not offer the volume target at all').toBeTruthy()
-    expect(volume.disabled,
-      'the volume target is live. `resolvePlacement` reads the overlay decision from '
-      + '`cs.volumeOverlayIndicators` and NEVER from the instance target, so this row would '
-      + 'persist a placement that changes nothing — with a tick beside it')
-      .toBe(true)
-    expect(volume.textContent,
-      'the refusal reason is not on screen — the user is left clicking a grey line')
-      .toMatch(/chart-wide toggle/)
-    // The CURRENT placement is refused too, and for a different reason.
-    expect(byLabel('Its own pane').disabled, 'the CURRENT target is offered as a destination')
-      .toBe(true)
-    // ⛔ …and the control: one row on this page IS live, so "disabled" is a
-    // property of these two and not of the page.
-    expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 11)),
-      'every row on the Move page is dead, or none is — the verdict is not discriminating')
-      .toContain('Price pane')
+    // The CURRENT placement is shown, ticked, and refused.
+    const here = byLabel('Own pane')
+    expect(here, 'the page does not show where the series is now').toBeTruthy()
+    expect(here.disabled, 'the CURRENT target is offered as a destination').toBe(true)
+    expect(here.textContent, 'the refusal reason is not on screen — the user is left '
+      + 'clicking a grey line').toMatch(/already here/)
+    // ⛔ …and the control: other rows on this page ARE live, so "disabled" is a
+    // property of this one and not of the page.
+    expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 5)),
+      'every row on the Display-in page is dead, or none is — the verdict is not discriminating')
+      .toContain('Price')
     view.unmount()
   })
 
@@ -1511,13 +1553,13 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
       indicators: { rsi: { enabled: true }, bb: { enabled: true } },
     }), vi.fn())
     await settledLegend(view, crosshairWith({}))
-    fireEvent.contextMenu(chipFor(view, 'BB'), { clientX: 120, clientY: 60 })
-    const move = menuRows().find(b => (b.textContent || '').startsWith('Move to'))
-    expect(move, 'no Move row on the BB chip').toBeTruthy()
+    await openChip(view, 'BB')
+    const move = rowStarting('Display in')
+    expect(move, 'no Display-in row on the BB chip').toBeTruthy()
     expect(move.disabled,
-      'BB can be moved. `computePaneLayout` gives a PRICE-declared definition no pane, so '
-      + '`resolvePlacement` returns null and the binder binds nothing — the indicator would '
-      + 'silently vanish').toBe(true)
+      'BB can be moved. It declares a PRICE target and reads no source, so '
+      + '`displayTargetOptions` answers EMPTY — the same test Chart Settings uses to render no '
+      + 'control at all').toBe(true)
     view.unmount()
   })
 
@@ -1587,7 +1629,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     return []
   }
 
-  it('⭐ TWO RSIs at different periods draw TWO lines, in ONE pane, with TWO chips', async () => {
+  it('⭐ TWO RSIs at different periods draw TWO lines, in TWO panes, with TWO chips', async () => {
     const two = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
       settingsOverride={legendAlways(TWO_RSI())} alwaysShowLegend />)
     const labels = (await offCursorChips(two)).map(t => t.split(' ')[0])
@@ -1603,22 +1645,44 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const twoPanes = paneIndices()
     two.unmount(); cleanup(); H.reset()
 
-    // ⛔ ONE PANE, NOT TWO — `orderedPaneKeys` dedupes by `def.id`, so both land
-    // on the pane keyed 'rsi' and share its 0..100 scale. That is the v1 ruling
-    // and it is the display a fast/slow RSI trader wants; a pane-count change
-    // here is a regression, not a feature, because the pane manifest is what the
-    // pixel gate diffs.
+    // ⚰️ THE v1 RULING, REVERSED DELIBERATELY IN P2.0c — AND THIS CASE IS WHERE
+    // IT WAS ASSERTED, SO THIS IS WHERE THE REVERSAL IS RECORDED.
+    //
+    // It used to read "ONE PANE, NOT TWO": `orderedPaneKeys` deduped by `def.id`
+    // and `resolvePlacement` looked a pane up by `def.id`, so both instances
+    // landed on the pane keyed `'rsi'` and shared its 0..100 scale. Its guard
+    // below said that if this ever became two panes, the v1 premise had moved and
+    // every pane-manifest expectation in `tools/chart_parity_cases.json` had to be
+    // re-derived — STOP and report. It has moved, it was reported, and the guard
+    // did its job: nothing here changed by accident.
+    //
+    // ⭐⭐ WHY IT MOVED. A pane is now keyed by the INSTANCE that hosts it, because
+    // "Display in: <another series>" has to name a HOST, and a definition cannot be
+    // a host — two direct series over two different instruments would have shared
+    // one rectangle and one scale no matter which instruments they carried. Two
+    // own-pane instances of one definition are two panes for the same reason.
+    //
+    // ✅ AND THE GUARD'S STATED CONSEQUENCE WAS MEASURED BEFORE ACCEPTING IT, not
+    // waved away: `tools/chart_parity_cases.json` holds 52 cases, **0** of which
+    // carry two instances of one definition, and the file stores no pane keys,
+    // no pane manifests and no stretch factors at all — manifests are produced at
+    // RUNTIME by `paneLayout.paneManifest`. So no case's pane GEOMETRY changes.
+    // What a parity run would now report differently is the KEY STRING inside a
+    // runtime manifest, which is a rename, not a rectangle.
     const one = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
       settingsOverride={legendAlways(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))}
       alwaysShowLegend />)
     expect((await offCursorChips(one)).length, 'the one-RSI control drew nothing').toBe(1)
     expect(H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor),
       'the control drew more than one RSI line').toHaveLength(1)
-    expect(twoPanes, 'the duplicate created a SECOND pane. `orderedPaneKeys` dedupes by defId '
-      + '(paneLayout) and `resolvePlacement` resolves `const key = def.id`, so if this is now '
-      + 'two panes the v1 premise moved and every pane-manifest expectation in '
-      + '`tools/chart_parity_cases.json` has to be re-derived — STOP and report.')
-      .toEqual(paneIndices())
+    // ⛔⛔ AND THE ASSERTION IS INVERTED, NOT DELETED. "Two instances, two panes"
+    // is a claim with the same force as the one it replaces: the duplicate must
+    // occupy a pane the single-RSI control does NOT, or the host-key widening
+    // reached the layout and stopped short of the renderer.
+    expect(twoPanes.size, 'two own-pane instances must now occupy TWO panes — a pane is keyed '
+      + 'by its HOST INSTANCE (P2.0c), so a duplicate that still shared one rectangle would mean '
+      + '`orderedPaneKeys` widened and `resolvePlacement` did not')
+      .toBe(paneIndices().size + 1)
     expect(twoPanes.size, 'the fixture drew into a single pane — "one pane, not two" is vacuous')
       .toBeGreaterThan(1)
     one.unmount()
@@ -1667,9 +1731,11 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const chip = chipEls(view).find(e => (e.textContent || '').startsWith('RSI(7)'))
     expect(chip, 'no RSI(7) chip to remove').toBeTruthy()
     const id = chip.getAttribute('data-instance-id')
-    await act(async () => { chip.querySelector('[aria-label^="Remove "]').click() })
+    await act(async () => { fireEvent.contextMenu(chip, { clientX: 120, clientY: 60 }) })
+    const del = () => menuRows().find(b => (b.textContent || '').startsWith('Delete'))
+    await act(async () => { del().click() })      // one click, no arming
 
-    expect(persist, '× wrote nothing').toHaveBeenCalledTimes(1)
+    expect(persist, 'Delete wrote nothing').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
     const live = (next.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted)
     expect(live.map(i => i.instanceId),
@@ -1729,9 +1795,16 @@ describe('W0.1 — a colour change through the settings dialog', () => {
   }
   /** Gear → Style tab → swatch → a preset that is not the current colour → Done. */
   const recolourThroughTheDialog = async (view) => {
-    const gear = view.container.querySelector('button[aria-label="RSI(14) settings"]')
-    expect(gear, 'no gear on the RSI chip — the door this case drives does not exist').toBeTruthy()
-    await act(async () => { fireEvent.click(gear) })
+    // ⚰️ A `button[aria-label="RSI(14) settings"]` GEAR STOOD HERE. The door is
+    // the popover now, and its full-editor row is what opens the dialog.
+    const chipEl = [...view.container.querySelectorAll('[data-instance-id]')]
+      .find(e => (e.textContent || '').startsWith('RSI('))
+    expect(chipEl, 'no RSI chip — the door this case drives does not exist').toBeTruthy()
+    await act(async () => { fireEvent.contextMenu(chipEl, { clientX: 40, clientY: 40 }) })
+    const edit = [...document.body.querySelectorAll('[role="menu"] button')]
+      .find(b => (b.textContent || '').startsWith('Edit in Chart Data'))
+    expect(edit, 'the popover has no full-editor row').toBeTruthy()
+    await act(async () => { fireEvent.click(edit) })
     const dialog = screen.getByRole('dialog')
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Style' }))
     // The colour row is keyed by its input (`data-input-key`, IndicatorSettingsDialog.jsx:426);
@@ -1764,14 +1837,15 @@ describe('W0.1 — a colour change through the settings dialog', () => {
   it('🔴 recolours the OFF-CURSOR chip with NO crosshair delivered — the 8/15 symptom', async () => {
     const view = mount()
     const before = await offCursorChip(view, 'RSI')
-    expect(before.style.color.replace(/\s/g, '')).toBe(hexToRgb(RSI_DEFAULT))
+    expect(before.style.getPropertyValue('--chip-color').replace(/\s/g, ''))
+      .toBe(RSI_DEFAULT)
     const picked = await recolourThroughTheDialog(view)
     // ⛔ NO `settledLegend` HERE. A crosshair would drive the hovering path, which
     // reads `engineInstancesRef` fresh and was never the stale half.
     const after = await offCursorChip(view, 'RSI')
-    expect(after.style.color.replace(/\s/g, ''),
+    expect(after.style.getPropertyValue('--chip-color').replace(/\s/g, ''),
       'the off-cursor chip kept the OLD colour after Done — the legend payload was not re-derived')
-      .toBe(hexToRgb(picked))
+      .toBe(picked)
     view.unmount()
   })
 
@@ -1782,7 +1856,7 @@ describe('W0.1 — a colour change through the settings dialog', () => {
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.3 }))
     const chip = chipIn(view, 'RSI')
     expect(chip, 'no RSI chip under the crosshair').toBeTruthy()
-    expect(chip.style.color.replace(/\s/g, '')).toBe(hexToRgb(picked))
+    expect(chip.style.getPropertyValue('--chip-color').replace(/\s/g, '')).toBe(picked)
     view.unmount()
   })
 })
@@ -1812,17 +1886,30 @@ describe('the indicator pane prints its own name and value, top-left', () => {
   /** The pane readouts, in DOM order. Structural — read by the data attribute
    *  the rows carry, never by matching the text a case is about to assert. */
   const paneRows = (view) => [...view.container.querySelectorAll('[data-pane-legend]')]
+  /** ⚠️ BY PANE KEY, WHICH IS THE HOST INSTANCE ID (P2.0c) — not the definition.
+   *  A pane belongs to the instance that hosts it, so a chart built from a LEGACY
+   *  toggle labels its pane `legacy:rsi`, the id the migrator projected. The cases
+   *  below say so out loud rather than spelling a definition and relying on the
+   *  two having been the same string. */
   const paneRow = (view, key) => view.container.querySelector(`[data-pane-legend="${key}"]`)
 
-  it('an RSI pane carries `RSI(14)` and the hovered value', async () => {
+  it('⭐⭐ an RSI pane carries the FULL NAME and the hovered value', async () => {
+    // ⚰️ IT ASSERTED `RSI(14)` HERE, the strip's abbreviation. Owner, after
+    // living with it (2026-09-14): *"when in their own pane show the full name of
+    // the indicator … but in the legend keep all of them abbreviated"*. A pane
+    // readout has a whole rectangle to itself; the strip has nine names on one
+    // line. The next case is the other half and the two must be read together.
     const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
-    const row = paneRow(view, 'rsi')
+    const row = paneRow(view, 'legacy:rsi')
     expect(row, 'the RSI pane printed no readout at all').toBeTruthy()
-    // ⚠️ THE LABEL COMES FROM `legendParams`, NOT FROM THIS FILE. RSI declares
-    // `legendParams: ['period']`, which is what puts the 14 in parentheses — the
-    // owner asked for "RSI 14 in parentheses" and the definition already said it.
-    expect(row.textContent).toContain('RSI(14)')
+    // ⛔ THE NAME COMES FROM THE DEFINITION'S `meta.name`, NOT FROM THIS FILE —
+    // the same field the catalogue lists and the popover's `About …` titles, so a
+    // renamed indicator cannot end up with two names on one chart.
+    const rsiDef = registry.getDefinition('rsi')
+    expect(rsiDef.meta.name, 'the definition stopped carrying a long name').toBeTruthy()
+    expect(row.textContent).toContain(rsiDef.meta.name)
+    expect(row.textContent, 'the pane fell back to the strip abbreviation').not.toContain('RSI(14)')
     // ⭐ `57.3`, NOT `57.25` — and that ONE decimal is the point of the case.
     // The readout formats through the chip's own `legend.decimals`, so it cannot
     // print a number the strip six pixels above it would round differently. A
@@ -1830,6 +1917,20 @@ describe('the indicator pane prints its own name and value, top-left', () => {
     // pipeline `readout.chipsFrom` exists to prevent.
     expect(row.textContent).toContain('57.3')
     expect(row.textContent, 'the raw value leaked past the declared precision').not.toContain('57.25')
+  })
+
+  it('⛔ …and the STRIP six pixels above it keeps the abbreviation', async () => {
+    // The other half of the same ruling, and the reason it is a separate case: if
+    // the long name ever reaches `chipLabel` instead of the pane readout, the case
+    // above still passes and the legend quietly grows to the width of a sentence.
+    const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
+    const chip = [...view.container.querySelectorAll('[data-instance-id]')]
+      .find((e) => !e.closest('[data-pane-legend]'))
+    expect(chip, 'no chip in the strip at all').toBeTruthy()
+    expect(chip.textContent).toContain('RSI(14)')
+    expect(chip.textContent, 'the long name leaked into the strip')
+      .not.toContain(registry.getDefinition('rsi').meta.name)
   })
 
   it('two pane indicators get two readouts, in the LAYOUT s pane order', async () => {
@@ -1844,13 +1945,13 @@ describe('the indicator pane prints its own name and value, top-left', () => {
     // that reason and it had to come back out.
     const rows = paneRows(view).map((el) => el.dataset.paneLegend)
     expect(rows.length, 'expected one readout per indicator pane').toBe(2)
-    expect(rows).toEqual(['rsi', 'macd'])
+    expect(rows).toEqual(['legacy:rsi', 'legacy:macd'])
   })
 
   it('a pane prints EVERY chip-bearing plot and no other — MACD, SIG, no histogram', async () => {
     const view = draw(mergeChartSettings({ indicators: { macd: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'macd::macd': 2.5, 'macd::signal': 1.75 }))
-    const row = paneRow(view, 'macd')
+    const row = paneRow(view, 'legacy:macd')
     expect(row.textContent).toContain('MACD')
     expect(row.textContent).toContain('SIG')
     // ⛔ THE HISTOGRAM IS THE CONTROL. It declares `legend: { hide: true }`, so a
@@ -1945,53 +2046,93 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(volRow(view)).toBeFalsy()
   })
 
-  it('a VISIBLE volume pane prints its value, as before', async () => {
-    // The control. Without it, "the row is always there" would pass on a build
-    // that never printed a volume figure at all.
+  it('a VISIBLE volume pane prints its value — the control for the rule above', async () => {
+    // ⚰️⚰️ THIS WAS VACUOUS AND ONLY THE CHEVRON'S RETIREMENT EXPOSED IT. It
+    // read `data-hidden` off a row it found by `[data-legend-row="volume"]` — and
+    // the row it was actually finding was the STRIP's control-only `LegendRow`,
+    // which carried no label and no value, so `textContent !== 'Vol'` held for the
+    // empty string. It never saw a volume figure at all. That row is gone with
+    // the control it existed to hold, and the case only failed then.
+    //
+    // ⭐ A REAL VOLUME IS NOW DELIVERED. `volLegendRowVisible` is
+    // `hidden || crosshairData.volume != null`, so a crosshair carrying no volume
+    // legitimately prints no row — which is exactly the state this harness was
+    // in. Reading the figure off the volume SERIES is what a hovering member does.
     const view = draw(mergeChartSettings({ volume: { separatePane: true, visible: true } }))
-    await settledLegend(view, crosshairWith())
+    // ⚠️ THE VOLUME SERIES IS A HISTOGRAM ON PANE 1, NOT A `priceScaleId:
+    // 'volume'` — with `separatePane` the bars take the new pane's `right` scale
+    // and share it with the volume MA line, which is the `LineSeries` beside it.
+    const vol = H.addSeriesCalls.find(c => String(c.ctor) === 'HistogramSeries' && c.paneIndex === 1)
+    expect(vol, 'no volume series was drawn — nothing could report a figure').toBeTruthy()
+    const ev = crosshairWith()
+    ev.seriesData.set(vol.series, { value: 69800000 })
+    await settledLegend(view, ev)
+
     const row = volRow(view)
+    expect(row, 'the volume row left the legend while the pane was VISIBLE').toBeTruthy()
     expect(row.getAttribute('data-hidden')).toBe('false')
-    expect(row.textContent.replace(/\s/g, '')).not.toBe('Vol')
+    expect(row.textContent.replace(/\s/g, ''), 'the row printed no figure')
+      .toMatch(/^V(ol)?69\.8M$/)
   })
 
-  it('⭐ the pane s own strip carries the same three verbs', async () => {
-    // Owner: *"when I hover over this with my mouse the buttons should pop up on
-    // the right just like for RSI."* The strip's row carries NO label and NO value
-    // — the three readings beside it are already the volume pane's — so this
-    // asserts on the controls, and on the absence of a fourth `Vol 69.8M`.
+  it('⭐ the pane s own strip IS the door — no control cell, no button', async () => {
+    // ⚰️⚰️ THIS ASSERTED ON A CONTROL: three buttons (`Hide Volume` /
+    // `Volume settings` / `Remove Volume`), then one chevron labelled
+    // `Volume options`, carried by a `LegendRow` with no label and no value that
+    // existed only to hold them. The owner retired the revealed control after
+    // production use (2026-09-14) and the row went with it — with nothing to
+    // hold, it would have rendered an empty span.
+    //
+    // ⛔ THE STRIP ITSELF IS THE TRIGGER NOW, which is what the owner's original
+    // ask was really about: *"when I hover over this with my mouse"* — the thing
+    // being pointed at is the readings, not a cell to their right.
     const view = draw(mergeChartSettings({ volume: { separatePane: true, labelVisible: true } }))
     await settledLegend(view, crosshairWith())
     const box = strip(view)
     expect(box, 'the volume strip did not render').toBeTruthy()
-    const ctl = box.querySelector('[data-legend-ctl]')
-    expect(ctl, 'the strip has no control cell').toBeTruthy()
-    expect([...ctl.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Hide Volume', 'Volume settings', 'Remove Volume'])
-    // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". `controlLabel` is what a screen
-    // reader and the tooltip get, and a row with an empty label would otherwise
-    // announce three buttons called "Hide ", "settings" and "Remove ".
+    expect(box.querySelector('[data-legend-ctl]'), 'a control cell is back on the strip')
+      .toBeFalsy()
+    expect(box.querySelectorAll('button'), 'a control button is back on the strip')
+      .toHaveLength(0)
+    expect(box.getAttribute('role')).toBe('button')
+    expect(box.getAttribute('tabindex')).toBe('0')
+    expect(box.getAttribute('aria-haspopup')).toBe('menu')
+    // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". This is what a screen reader and
+    // the tooltip get; an unnamed trigger announces a button called " options".
+    expect(box.getAttribute('aria-label')).toBe('Volume options')
+    // …and the strip still prints no fourth `Vol 69.8M` of its own.
     expect(box.textContent).not.toMatch(/Vol\s*$/)
   })
 
-  it('⛔ the strip s reveal is keyed on the STRIP, not on its row', () => {
-    // A CSS-ARTIFACT ASSERTION, and it has to be: the row carries no text, so its
-    // own `.flat:hover` has a zero-width hover target and the controls would be
-    // unreachable with a mouse. jsdom implements no pointer-events hit-testing, so
-    // a synthetic hover would pass either way — the same trap `IndicatorChip`'s
-    // suite documents.
+  it('⛔ the strip takes the SAME hover treatment every manageable row takes', () => {
+    // A CSS-ARTIFACT ASSERTION, and it still has to be one: jsdom implements no
+    // pointer-events hit-testing, so a synthetic hover passes against a strip no
+    // mouse could reach — the same trap `IndicatorChip`'s suite documents.
+    //
+    // ⚰️ IT ASSERTED `.volLegend:hover span[data-legend-ctl]`, the rule that
+    // revealed the control. There is nothing to reveal; what the strip owes the
+    // stylesheet now is the faint background and the pointer that tell a member
+    // this box is clickable at all.
     const css = readFileSync.call(fs, path.resolve(
       path.dirname(STOCK_CHART_PATH), 'StockChart.module.css'), 'utf8')
     const rule = stripComments(css)
-    expect(rule, 'nothing reveals the strip s controls on hover')
-      .toMatch(/\.volLegend:hover\s+span\[data-legend-ctl\]/)
+    expect(rule, 'a reveal rule is back — there is no control to reveal')
+      .not.toMatch(/\.volLegend:hover\s+span\[data-legend-ctl\]/)
+    expect(rule, 'the strip does not say it is clickable')
+      .toMatch(/\.volLegendLive\s*\{[^}]*cursor:\s*pointer/)
+    expect(rule.replace(/\s+/g, ''), 'the strip hover is not the shared legend treatment')
+      .toMatch(/\.volLegendLive:hover\{background:rgba\(255,255,255,0\.055\);\}/)
+    // ⛔ THE KEYBOARD RING IS `:focus-visible`, never `:focus` — a click leaves
+    // DOM focus on the strip, and a plain `:focus` ring would sit there behind
+    // whatever the member did next.
+    expect(rule, 'the strip rings on plain :focus').toMatch(/\.volLegendLive:focus\s*\{[^}]*outline:\s*none/)
+    expect(rule, 'the strip has no keyboard ring at all').toMatch(/\.volLegendLive:focus-visible\s*\{/)
     // ⚰️ THIS ASSERTED `.volLegItem { pointer-events: auto }` WITH THE CONTAINER
     // LEFT `none`, to keep the crosshair passing through the gaps between
-    // readings. It did exactly that — and made the gaps, the padding and the space
-    // the controls expand into DEAD, so the buttons vanished under a mouse that was
-    // travelling toward them. The rail is INVERTED rather than deleted: the WHOLE
-    // BOX must take the pointer, and putting it back on the items alone fails here.
-    expect(rule, 'the strip must be ONE hover region, not one island per reading')
+    // readings. It did exactly that — and made the gaps and the padding DEAD,
+    // which now means dead parts of the TRIGGER ITSELF. The rail is INVERTED
+    // rather than deleted: the WHOLE BOX must take the pointer.
+    expect(rule, 'the strip must be ONE region, not one island per reading')
       .toMatch(/\.volLegend\s*\{\s*pointer-events:\s*auto/)
     expect(/\.volLegItem\s*\{[^}]*pointer-events/.test(rule),
       'pointer-events is back on the items — that leaves the gaps between them dead')

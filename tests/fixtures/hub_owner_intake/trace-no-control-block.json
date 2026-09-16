@@ -1,0 +1,562 @@
+{
+  "trace": "uct-joystick-g0",
+  "capturedAt": "2026-01-01T00:00:00Z",
+  "device": {
+    "ua": "synthetic",
+    "dpr": 3
+  },
+  "constants": {
+    "FLICK_MS": 120,
+    "TRAVEL_PX": 24
+  },
+  "window": {
+    "capacity": 400,
+    "recorded": 40,
+    "kept": 40,
+    "dropped": 0,
+    "firstSeq": 1,
+    "lastSeq": 50
+  },
+  "rows": [
+    {
+      "seq": 1,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 2,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-open",
+      "target": {
+        "id": "journal.close",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 3,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 4,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-open",
+      "target": {
+        "id": "journal.close",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 5,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 6,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-open",
+      "target": {
+        "id": "journal.close",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 7,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 8,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-open",
+      "target": {
+        "id": "journal.close",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 9,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 10,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.moveStop",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 11,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 12,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.moveStop",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 13,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 14,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.moveStop",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 15,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 16,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.moveStop",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 17,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 18,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.breakeven",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 19,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 20,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.breakeven",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 21,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 22,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.breakeven",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 23,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 24,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.breakeven",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 25,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 26,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.planTrade",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 27,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 28,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.planTrade",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 29,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 30,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.planTrade",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 31,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 32,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "journal.planTrade",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 33,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 34,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "scan.alert",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 35,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 36,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "scan.alert",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 37,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 38,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "scan.alert",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    },
+    {
+      "seq": 39,
+      "type": "pointerdown",
+      "pointerType": "touch",
+      "x": 300,
+      "y": 700
+    },
+    {
+      "seq": 40,
+      "type": "pointerup",
+      "pointerType": "touch",
+      "decision": "flick-fire",
+      "target": {
+        "id": "scan.alert",
+        "angle": 135
+      },
+      "elapsed": 70,
+      "flickMs": 120,
+      "travelled": 70,
+      "openThreshold": 40,
+      "sinceDownEventTs": 70,
+      "sinceDownPerfNow": 70,
+      "coalesced": 1,
+      "phase": "pushing",
+      "x": 340,
+      "y": 700
+    }
+  ]
+}

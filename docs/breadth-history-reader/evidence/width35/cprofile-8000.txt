@@ -1,0 +1,38 @@
+         700784 function calls in 0.546 seconds
+
+   Ordered by: cumulative time
+   List reduced from 93 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    0.546    0.546 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:647(get_history_deep)
+        1    0.000    0.000    0.546    0.546 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\single_flight.py:85(run)
+        1    0.005    0.005    0.546    0.546 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:673(<lambda>)
+        1    0.011    0.011    0.541    0.541 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:676(_history_deep_uncached)
+        1    0.081    0.081    0.262    0.262 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_daily_ohlc.py:250(closes_for_dates)
+       24    0.214    0.009    0.214    0.009 {method 'fetchall' of 'sqlite3.Cursor' objects}
+        1    0.029    0.029    0.185    0.185 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:464(_derive_ascending)
+     4700    0.003    0.000    0.072    0.000 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:242(_compute_breadth_score)
+     4700    0.022    0.000    0.069    0.000 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:166(_score_breakdown)
+        1    0.001    0.001    0.061    0.061 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:565(merged_dates)
+        1    0.001    0.001    0.058    0.058 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_daily_ohlc.py:232(distinct_dates)
+     9400    0.027    0.000    0.052    0.000 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:886(_ratio)
+   300283    0.039    0.000    0.039    0.000 {method 'get' of 'dict' objects}
+    37600    0.024    0.000    0.037    0.000 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:188(take)
+   158200    0.020    0.000    0.020    0.000 {method 'setdefault' of 'dict' objects}
+     4700    0.010    0.000    0.019    0.000 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:879(_rolling_avg)
+       45    0.017    0.000    0.017    0.000 {method 'execute' of 'sqlite3.Connection' objects}
+    40918    0.015    0.000    0.015    0.000 {built-in method builtins.round}
+        4    0.000    0.000    0.011    0.003 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:47(_conn)
+        1    0.000    0.000    0.009    0.009 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:603(_collector_floor)
+    32900    0.006    0.000    0.009    0.000 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_monitor.py:136(_lerp)
+    47000    0.005    0.000    0.005    0.000 {method 'append' of 'list' objects}
+    23499    0.005    0.000    0.005    0.000 {built-in method builtins.sum}
+        1    0.001    0.001    0.003    0.003 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_sentiment_history.py:157(values_asof)
+        8    0.002    0.000    0.003    0.000 {built-in method _sqlite3.connect}
+      180    0.000    0.000    0.002    0.000 C:\Python314\Lib\json\__init__.py:299(loads)
+    14101    0.002    0.000    0.002    0.000 {built-in method builtins.max}
+      180    0.000    0.000    0.002    0.000 C:\Python314\Lib\json\decoder.py:340(decode)
+        3    0.000    0.000    0.002    0.001 C:\Users\Patrick\uct-worktrees\breadth-history-reader\api\services\breadth_daily_ohlc.py:44(_conn)
+        2    0.000    0.000    0.001    0.001 {built-in method builtins.next}
+
+

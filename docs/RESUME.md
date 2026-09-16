@@ -1,109 +1,1580 @@
-# RESUME — restart checkpoint 2026-09-13 16:00 ET (Sunday), after the owner's close-out
+# TRACK A LIVE CLUSTER — DEPLOYED 2026-09-15 (master b5a3817c4)
 
-Written by the **Discord render hardening** session. One command re-verifies everything:
-`powershell -ExecutionPolicy Bypass -File C:\Users\Patrick\uct-worktrees\discord-render\scripts\resume.ps1`
+Pushed 64269ffe5 -> b5a3817c4 at 19:04 EDT (after the 16:00 close, market-hours
+rule respected). Deploy landed (uptime reset to 36s); web /api/health 200 "ok",
+bars-api /api/health 200, unauthenticated /api/bars/AAPL 401 (member gate
+correct), app root 200. Watched 4 minutes: uptime climbed 82 -> 306s
+monotonically, status ok throughout. No crash loop.
+
+## Shipped
+
+ · 6e243a887  volume stretch authority. `legacyPairOwnsStack` — the legacy
+   100-based Price+Volume pair stands down once it cannot describe the stack, and
+   records NULL so the drag sampler bails instead of latching a phantom gap.
+   Closes the ratchet/snap-back AND the oversized-third-pane/crushed-Price pair.
+ · ba1504eb2  volume-guest placement. `resolvePlacement`'s overlay branch accepts
+   the canonical `target === 'volume'`, not only the legacy
+   `volumeOverlayIndicators` mirror. Without it a modern-only blob bound NOTHING
+   (measured `bound: 0`) and the member's series vanished.
+ · 118bbe1e1  MultiChartGrid `volumeOpts` parity — the grid's shared Chart
+   Settings now gets the same volume truth its cells render with, so `movePane`
+   stops writing a paneOrder with the volume key missing.
+ · paneHarness now mirrors production (separate volume pane + volumeOpts). Its
+   absence is why earlier passes proved the WRONG topology.
+
+## Test baseline — honest version
+
+Clean current master (64269ffe5) and the deployed tree BOTH fail the same 5
+files: ChartDrawingOverlay.surfaces, ast/manifestProse, ast/pine.blindCorpus,
+screener/reachable, ThemeTrackerPage.chartmount. ZERO attributable.
+
+⚠️ A 6th, `journal-2-0/lib/iteratorGlobalFloor`, failed in the BASELINE worktree
+only because that rail reads `app/dist/assets` and no build had been run there.
+After `npm run build` it passes on master too. Not a difference — a worktree
+artifact. Remember it when baselining: that rail needs a build.
+
+## Production smoke — DELIBERATELY SKIPPED
+
+`chart_settings` is a USER-GLOBAL preference blob, so adding a Data Series,
+resizing a pane or reordering on ANY production chart writes the owner's real
+settings row — the exact persistence the harness intercepts. There is no
+disposable production workspace (see the Main Trading frozen-fingerprint note).
+Relied on the production-shaped harness instead, as the brief allows. The owner
+performs live visual acceptance.
+
+## Do not resume
+
+placement.position cleanup, pane-sizing redesign and further legacy-volume
+refactors are explicitly PARKED. Track A is closed.
+
+# TRACK A LIVE CLUSTER — ALL FOUR CLOSED (2026-09-15) — AWAITING DEPLOY REVIEW
+
+HEAD 346016210 (merged current origin/master). NOT PUSHED. NOT DEPLOYED.
+
+## The four
+
+F2 Volume snap-back / ratchet  ROOT CAUSE A   fix 6e243a887
+F3 QQQ oversized / Price crushed ROOT CAUSE A (same defect)
+F1 QQQ sharing Volume's scale  ROOT CAUSE B   fix ba1504eb2
+F4 order divergence            NO SECOND DEFECT FOUND — see below
+
+## ROOT CAUSE A — two writers, two incompatible bases
+
+`StockChart` sized the volume pane with an ABSOLUTE pair
+`setStretchFactor(100 - pct) / (pct)`. Stretch factors are RELATIVE, so that only
+means "pct% of the chart" while those two panes ARE the chart. With a third pane
+volume's real share is `pct / (100 + thirdStretch)` — the third pane holds a
+weight from `computePaneLayout`, which is on a PIXEL basis while this writer is
+on a PERCENT basis.
+
+Then the 300ms sampler measures correctly (`volPanePctOfStack`) and compares
+against `lastAppliedVolPctRef` (what the writer BELIEVED). Measured: apply 22
+with a third pane at 81 → measures 12 while the ref says 22. `latchOnDrag` fires
+at a 2-point gap → within 1.5s of a real drag it latches 12 as the member's
+choice and PERSISTS IT GLOBALLY → next pass applies 12 → measures ~7 → latches
+again. Volume ratchets down; the third pane, which nothing writes, is left
+holding ~45%. F2 and F3 are that one event seen from two sides, which is exactly
+why deleting QQQ made Volume resize normally again.
+
+FIX: `legacyPairOwnsStack(paneCount, hasIndexPane)` in `chart/volumePaneDrag.js`.
+False → the writer stands down and records NULL, so the sampler bails on its own
+`applied == null` guard, and the canonical layout owns the stack (it already did:
+`binder` ends every sync with `applyPaneStretch`, ungated).
+
+## ROOT CAUSE B — a modern target was not enough to place a guest
+
+`resolvePlacement`'s volume-overlay branch (the one granting the LEFT axis) fired
+only on the LEGACY `volumeOverlayIndicators` list. A blob with
+`{target:'volume', targetExplicit:true}` and no mirror fell through to the
+own-pane branch, found no pane (a guest is a FOLLOWER), failed closed, and the
+series BOUND NOTHING. Measured through the real binder: `bound: 0`.
+
+FIX: the branch also accepts `target === 'volume'`. No symbol or definition
+special case; the units rule (guest = left axis, Volume keeps right) unchanged.
+
+## F4 — determination, and NO fake second fix
+
+With both fixes active the exact live sequence settles at
+Chart Data [QQQ, Volume, Price] and physical [QQQ 80, volume 152, price 456] —
+agreeing, correctly sized, stable across 5s of reconciliation. Also measured:
+canonical readers agree across 8 stored-order shapes; `settleArrangement`
+realises all 6 permutations; every move click agrees.
+
+⚠️ The live screenshot's HEIGHTS are explained by root cause A. Its apparent
+ORDER cannot be re-derived by eye: SPY (757) and QQQ (704) carry near-identical
+axis ranges, so reading which pane is which off the axis is not evidence. No
+ordering mechanism was found to be wrong in any state that could be constructed.
+`paneMatrix8State` now asserts order AND compact sizing TOGETHER in all eight.
+
+## Held, still unshipped
+
+118bbe1e1 MultiChartGrid `volumeOpts` — real parity defect (grid cells render a
+separate volume pane while the shared modal asked the settings-only question, so
+`movePane` wrote an order with the volume key missing). Independent of both root
+causes. RECOMMEND shipping together: small, railed, bite-checked, no interaction.
+
+## Gate
+
+Broad `src/components` + `src/pages`: 5 pre-existing failing files, zero
+attributable. Build clean. Merged current origin/master (no file overlap, no
+deletions). Breadth untouched. Main Trading never opened.
+
+# TRACK A LIVE CLUSTER — ROOT CAUSED AND FIXED LOCALLY (2026-09-15)
+
+HEAD 6e243a887. NOT DEPLOYED, NOT PUSHED. 3 ahead / 17 behind origin/master
+(no file overlap with master's changes).
+
+## Root cause — ONE defect, two visible symptoms
+
+`StockChart`'s separate-volume block writes an ABSOLUTE pair:
+
+    mainPane.setStretchFactor(100 - pct);  volPane.setStretchFactor(pct)
+
+Stretch factors are RELATIVE. That pair means "volume is pct% of the chart" only
+while main+volume ARE the chart. With one more pane, volume's real share is
+`pct / (100 + thirdStretch)` — the third pane keeps the weight
+`computePaneLayout` gave it, and that weight is on a DIFFERENT BASIS: the layout
+hands out PIXEL heights (463/154/81 on a 700px stack), this writer hands out
+PERCENTAGES. Two writers, two numbering systems, one relative field.
+
+MEASURED: apply 22 with a third pane at 81 → the volume pane measures 12 while
+`lastAppliedVolPctRef` still says 22. The 300ms drag sampler compares exactly
+those two, `latchOnDrag` fires at a 2-point gap, and within 1.5s of a real
+separator drag it latches 12 as the member's choice and persists it GLOBALLY.
+Next pass: apply 12 against the same inflated denominator → measure ~7 → latch
+again. Volume ratchets down; the third pane, which nothing writes, is left with
+~45% of the chart.
+
+  · "Volume snaps back, but ONLY while QQQ is in the pane"  = the ratchet
+  · "the new QQQ own pane is enormous"                      = the same event
+
+Two panes → the pair is correct → neither happens. Which is exactly why deleting
+QQQ made Volume resize normally again.
+
+## The fix
+
+`legacyPairOwnsStack(paneCount, hasIndexPane)` in `chart/volumePaneDrag.js` —
+true only while the pair can describe the whole stack. Otherwise the writer
+stands down and records NULL (not a number it cannot honour), so the sampler
+bails on its own `applied == null` guard. The canonical layout then owns every
+height, which it already did: `binder` ends EVERY sync with
+`applyPaneStretch(paneLayout)`, ungated by instance count, and that plan sizes
+volume correctly in both regimes ([545,154] and [463,154,81] — 22% either way).
+
+## Browser-verified, production-shaped 3-pane harness
+
+    drag Volume larger   331 / 277 / 80   held 8s, ~26 poller ticks
+    drag Volume smaller  527 /  81 / 80   held 4s
+    QQQ stayed compact at 80px throughout
+    delete QQQ           537 / 152        canonical 2-pane 78/22
+
+## Still NOT reproduced / NOT explained
+
+⛔ Failure 1 (QQQ sharing Volume's numeric scale) is NOT explained by this.
+`placement.js` gives an overlaid series `scaleId: 'left'`, and the harness showed
+QQQ with its own axis spanning the pane. Production showed TWO tags on one axis
+(45.02M AND 704). Not reproduced; root cause unknown.
+
+⛔ Failure 4 (canonical order != physical order) is NOT explained by this either.
+Canonical readers agree across 8 stored-order shapes; `settleArrangement`
+realises all SIX permutations correctly; every Move-up click in the corrected
+harness kept canonical == Chart Data == physical. NOTE: the oversized-pane
+symptom the owner saw alongside it IS explained above, so the photographed
+"corruption" may be partly this defect — but the ORDER divergence itself is not.
+
+## Held separately, not deployed
+
+`118bbe1e1` MultiChartGrid `volumeOpts` — real, bite-checked, and it makes
+`movePane` stop writing an order with the volume key missing. Not the cluster
+root cause; owner has not authorised shipping it alone.
+
+# TRACK A — LIVE FAILURE CLUSTER: ONE FIX FOUND, ROOT CAUSE NOT YET FOUND (2026-09-15)
+
+HEAD 118bbe1e1. NOT DEPLOYED. Deployed prod is still a4e845fe7.
+
+## The measurement trap that invalidated the earlier passes
+
+The pane harness did NOT pass `volumeSeparatePane`, so it ran a TWO-PANE chart
+with BANDED volume. `ChartPane` and `GridChartCell` both pass it unconditionally,
+so every production chart is THREE panes with a separate volume pane. Every
+pane-order / pane-size conclusion reached on that page was therefore proved on
+the wrong topology, and the regime the live failures live in was unreachable.
+FIXED — the harness now mirrors production.
+
+## What IS proven and fixed
+
+`MultiChartGrid.jsx` mounts the grid's one shared `ChartSettingsModal` WITHOUT
+`volumeOpts` (ChartPane passes it and says so in a comment; the grid never got
+it). `ChartSettingsIndicators` derives its writer options from `paneMap`'s
+groups, so with Volume mis-grouped into PRICE there is no volume group and
+`movePane` stores an order with the volume key missing. MEASURED live in the
+harness: one "Move up" on a three-pane chart stored
+
+    cs.paneOrder = ["inst:dataSeries:1", "price"]
+
+Damage: the member's Volume POSITION is silently discarded (resolve re-appends
+it last) and Volume is listed in the wrong group on the grid surface.
+
+## What this does NOT explain — stated plainly
+
+`resolvePaneOrder` re-appends the missing key, so the corrupted order self-heals
+and produces the SAME layout. Measured: renderer order == Chart Data order across
+8 stored-order shapes including the corrupted one. So this is NOT the canonical/
+physical divergence the owner photographed.
+
+## The four live failures did NOT reproduce locally at HEAD
+
+Through the exact live sequence (QQQ own pane -> Volume guest -> own pane ->
+Move up x2 -> Move Volume up), on a production-shaped 3-pane harness:
+
+ · F1 scale: QQQ overlaid on Volume got its OWN left axis and spanned the pane.
+   `placement.js` gives an overlaid series `scaleId: 'left'`; only ONE right-axis
+   tag appeared. Production showed TWO tags on one axis (45.02M AND 704), i.e.
+   genuinely shared — that state was not reachable here.
+ · F3 default size: canonical plan = Price .663 / Volume .221 / QQQ .116, and the
+   PHYSICAL heights matched exactly (456/152/80). RSI identical. Not reproduced.
+ · F4 order: canonical == Chart Data == physical after EVERY move click.
+ · `settleArrangement` realised all SIX permutations of price/volume/qqq exactly.
+
+So the divergence is in canonical -> PHYSICAL realisation under some state the
+harness did not reach. Production came from a SAVED workspace with templates and
+view-lock state; the harness starts from defaults.
+
+## What to instrument next
+
+The gap is a live `chart.panes()` / `getStretchFactor()` / `series.getPane()`
+read at each realisation stage. A `window.__uctChart` hook in StockChart was
+tried and made Vite fail to serve the 500KB module (`does not provide an export
+named 'default'`); esbuild parsed the file fine, so it is a transform-cache bug —
+add the hook in a SMALL module the chart imports, not in StockChart itself.
+
+⚠️ AND CHECK THE SURFACE FIRST: production screenshot 3 shows a separate VOLUME
+group, so that session's modal DID have `volumeOpts` — i.e. the owner was on the
+ChartPane surface, not the grid. The fix above is real but is probably not their
+bug.
+
+# TRACK A PANE SYSTEM — DEPLOYED 2026-09-15 (master 263e54120)
+
+Shipped together: volume truth/order (aa7db1de9), legend-geometry rail (0c68badaf),
+add-door identity (19653ec93), display-target provenance (b28dfd568), pane rails
+(b0267016c), plus the merge of 15 partner commits (263e54120).
+
+## Pane resize — MEASURED on current code, NOT re-derived from the old report
+
+Dev pane-harness, AAPL + QQQ own pane, "preference writes refused: 0" throughout.
+
+    drag larger    QQQ 103 -> 272px   paneSizes {price .6052, inst:dataSeries:1 .3948}
+    drag smaller               46px   {…, .0435}          physical 643 / 46
+    drag larger               187px   {price .7283, … .2717}  physical 502 / 187
+    move QQQ above Price (Chart Data "Move QQQ pane up")
+                                      paneOrder ["inst:dataSeries:1","price"]
+                                      paneSizes UNCHANGED, physical 187 / 502 SWAPPED
+    resize at new index       337px   {price .5106, … .4894}  physical 337 / 352
+    save blob -> reconstruct          all three identical
+
+Each released size held after reconciliation. NO SNAP-BACK. The resize fix
+(65899a8f7) works; nothing needed changing.
+
+## Zero-height finding — CLOSED, nothing patched
+
+ResizeObserver + MutationObserver over a fresh QQQ realisation: the pane went
+from ABSENT straight to 103px. Zero pane rows of height 0 were ever observed.
+The old Control-C `getHeight()===0` is consistent with reading LWC right after
+`addPane`, before layout — a measurement-timing artifact, not a collapsed pane.
+
+⚠️ MEASUREMENT TRAP worth remembering: a BACKGROUNDED tab does not flush layout,
+so `getBoundingClientRect` returns stale geometry and `requestAnimationFrame`
+never fires. Force a paint (screenshot) before every DOM geometry read.
+
+## Axis experiment — CLOSED as LWC tick density
+
+Short pane (46px) and tall pane (337px) BOTH render `.00` labels; only the tick
+INTERVAL differs (40 units vs 10), and the current-price tag reads 704.54. The
+formatter is correct; no precision change made.
+
+## NEW FINDING (not a blocker, not fixed): `placement.position` is DEAD STATE
+
+`setInstancePanePosition` writes `placement.position: 'above'`, `instances.js`
+validates it and it persists — and NOTHING READS IT. Grepped the whole tree: the
+only pane-context occurrences are the writer and its own comment, whose header
+claims the position "IS ENFORCED". Measured in the browser: `pos=above` was
+stored and the pane did not move. Its only caller is the DEV HARNESS; no product
+UI reaches it, and the real reorder path is `paneOrder` via Chart Data's
+`movePane`/`movePaneTo`, which works. Left alone deliberately — wiring or
+removing it is a product decision outside this pass.
+
+## Bite-checks (one found a gap in my OWN rail)
+
+· removing `applyPaneSizes` from `paneStretchPlan` -> 4 paneSizes rails RED.
+· disabling `includeKeys` in `orderedPaneKeys` -> all eight matrix states stayed
+  GREEN, because `dataSeries` DECLARES 'pane' and is eligible through the
+  declared half. The resolved half only carries weight for a PRICE-declared
+  definition, so a moving-average-moved-to-its-own-pane case was added; that one
+  now goes red when the clause is removed.
+
+## Deploy hazard hit and avoided
+
+`origin/master` had moved 15 commits ahead. `git diff origin/master..HEAD` showed
+11 files as DELETIONS — breadth sampler tooling/tests and joystick docs, i.e.
+partner work, breadth being explicitly DO-NOT-TOUCH. They were never deleted;
+that is what diffing a stale branch tip against a moved origin looks like.
+Merged first (zero file overlap, no conflicts), re-ran suite + build, then pushed.
+ALWAYS `git fetch` and check `HEAD..origin/master` before concluding anything
+from a diff against origin.
+
+## Not exhaustively proven
+
+The eight-state matrix and cold reconstruction are proven at the CANONICAL layer
+(grouping == resolved order, ids/sources/targetExplicit/sizes) by
+`paneMatrix8State.test.js`, plus a substantial browser subset — not an exhaustive
+physical 8-state browser sweep. Drawing geometry and the legend invariant rest on
+their existing rails, which are green, not on a fresh browser pass this phase.
+
+# TRACK A — DISPLAY TARGET PROVENANCE (OPTION 1) — DONE LOCALLY 2026-09-15
+
+HEAD b28dfd568. Tree clean. NOT DEPLOYED, NOT PUSHED.
+
+## What was wrong
+
+`declared` did two conflicting jobs:
+  (a) the FALLBACK destination when the source derives nothing;
+  (b) the sentinel deciding whether a stored target was an override
+      (`explicit !== declared`).
+
+Measured: `derivedTargetFor` answers null for `kind: 'symbol'`, so `sym:QQQ:close`
+falls through to (a) and the declaration is the ONLY thing giving a foreign
+series its own pane. A member wants both `close -> Own pane` and
+`sym:QQQ -> Price`, which needs declared simultaneously != 'pane' and != 'price'.
+No declaration value works. Hence Option 1.
+
+## The representation
+
+`placement.targetExplicit: true` — one boolean, written ONLY when true and only
+beside the target it qualifies. Omission = legacy/automatic, matching
+`placement.position` omitting 'below'. It rides inside `placement`, which
+`mergeChartSettings`' allow-list already carries, so NO allow-list edit was
+needed and no new nested object appears on the instance.
+
+## Resolver — two dialects
+
+    marker present  -> honour `placement.target` WHATEVER it equals
+    marker absent   -> the OLD `explicit !== declared` rule, unchanged
+    then            -> legacy volume -> source-derived -> declared
+
+## Writer
+
+`setInstanceDisplayTarget` compares against the AUTOMATIC answer (bare: target
+AND marker stripped). Equal -> delete both keys (this IS the existing
+return-to-default gesture; there is no "Automatic" option and none was added).
+Different -> write target + marker, INCLUDING when it equals `declared`.
+
+## What was deliberately NOT done
+
+⛔ `instances.js` (the read-time migrator) is UNTOUCHED. Changing it was tried
+and MEASURED: 13 restatement blocks vanished from the captured production
+fixtures (39 lines removed, 0 added) and `alertSets` MERGED_BLOB_DIGEST moved.
+That is the persistence sweep the brief forbids. Reverted.
+⛔ `dataSeries` declaration UNCHANGED (still `pane` + `pane.height 0.15`).
+
+## Third writer found and closed
+
+`IndicatorSettingsDialog`'s "Move to" was hand-rolled
+(`placement: { ...(i.placement||{}), target }`), bypassing the legacy mirror, the
+return-to-default delete and the marker. Now routed through
+`setInstanceDisplayTarget`. `__tests__/displayTargetOneWriter.test.js` reads the
+SOURCE of all three surfaces and refuses a hand-rolled write; it exempts a fresh
+literal construction (StockChart's forced legacy VWAP instance) by design.
+
+## Re-pinned tripwires (investigated, not regenerated)
+
+· `perInstanceDoor` corpus digest -> e43a0f1f…8a3cd. Corpus dumped from BOTH
+  trees and diffed: 175 removed restatement blocks (100 pane / 75 price),
+  ZERO added lines, no marker anywhere in the default corpus.
+· `instanceControls` byte-identity control-vs-migrator RESTATED: the two now
+  differ by exactly the restatement key. Both original concerns were
+  re-measured and do not apply — `binder.inputsSignature(inputs)` never sees
+  `placement`, and the migrator CLONES existing instances and only appends.
+
+## Proven
+
+Unit: A–I, OLD-A..D, save/reconstruct through `normalizeInstances`, pane
+realisation, pane order. Browser (pane-harness, preference writes refused: 0,
+Main Trading never opened): all 20 steps of §22 including primary Close in its
+own pane and MA(RSI) explicitly moved to Price — both previously impossible.
+
+Broad `src/components`: 4 failures = the clean-master baseline exactly
+(ChartDrawingOverlay.surfaces, manifestProse, pine.blindCorpus, screener/
+reachable). Zero attributable regressions. Build clean.
+
+## Not done
+
+Pane RESIZE work (zero-height finding, resize-move-resize, resize persistence,
+QQQ short/tall axis) and the final 8-state matrix remain from the earlier brief.
+
+# TRACK A — OPTION 2 MEASURED AND REJECTED (2026-09-15)
+
+HEAD at measurement: 27d9d4508. Change made, measured, REVERTED. Tree clean.
+
+## The precondition Option 2 rested on is FALSE
+
+Option 2 assumed `price` is "the canonical natural destination" for a new Data
+Series on its default source `close`, so that re-declaring `pane` -> `price`
+would merely align metadata with behaviour. MEASURED: `price` is the natural
+destination for `close`, but it does NOT come from the declaration at all — it
+comes from SOURCE DERIVATION. `derivedTargetFor` by source kind:
+
+    close              kind=bar      -> 'price'
+    volume             kind=bar      -> 'volume'
+    sym:QQQ:close      kind=symbol   -> null
+    sym:UCTA50:close   kind=symbol   -> null
+    @inst:rsi:1::rsi   kind=instance -> the source instance's pane
+
+A `sym:` source derives NOTHING. It falls through to `declared`. So for
+`dataSeries` the declaration's only live job is: **the default destination of a
+FOREIGN SYMBOL**, and `pane` is the correct answer there. The declaration is
+load-bearing, not a redundant label.
+
+## Measured consequences of the change (both STOP conditions)
+
+| case | before | after |
+|---|---|---|
+| S9  new QQQ series, no override | **pane** (own pane) | **price** (guest) |
+| S12 OLD-A saved `close` + `{target:'pane'}` | **price** | **pane** |
+
+S9: a foreign data series stops getting its own pane — the product's whole
+point. S12: EVERY existing saved Data Series on the default `close` source
+carries `placement:{target:'pane'}` as a creation restatement; today the reader
+ignores it (explicit === declared) and resolves `price`. After the change that
+same byte becomes an override and every one of those series JUMPS INTO ITS OWN
+PANE on load. That is exactly the S12 hard gate: ordinary existing charts move
+unexpectedly. NOT DEPLOYED.
+
+## The general impossibility (stronger than the seam-3 note above)
+
+`declared` does two jobs that are in direct conflict:
+  (a) it is the fallback default for sources that derive nothing (symbols);
+  (b) it is the ONE value the reader refuses to honour as an explicit override
+      (`explicit !== declared`).
+
+For `dataSeries` a member legitimately wants both directions:
+  * source `close`  -> default price -> wants `pane`  => needs declared != 'pane'
+  * source `sym:*`  -> default pane  -> wants `price` => needs declared != 'price'
+
+Declared must be simultaneously != 'pane' and != 'price'. **No value of the
+declaration can work.** Option 2 is not merely risky; it is unreachable, and so
+is any re-declaration. The fix must SEPARATE the two jobs.
+
+## OPTION 4 — not previously on the list, and it needs no provenance field
+
+Delete the restatements instead of reinterpreting them:
+
+  1. `placementFor` stops writing a restatement at creation (returns null when
+     the target equals the definition's declared target).
+  2. One-time normalization: DELETE any stored `placement.target` that equals
+     the definition's declared target.
+  3. The reader then honours `explicit` UNCONDITIONALLY — the
+     `explicit !== declared` guard is removed because it has nothing left to
+     defend against.
+
+Step 2 is behaviour-preserving BY CONSTRUCTION: deleting a stored target that
+equals `declared` reproduces exactly what the reader's guard does with it today
+(ignore it and fall through). `close`+`pane` -> deleted -> derived `price` (what
+it shows today). MA(RSI) `price` -> deleted -> derived `@inst:rsi:1` (what it
+shows today). Afterwards every remaining explicit target is a genuine member
+choice, `declared` keeps its symbol-fallback job, and BOTH override directions
+become expressible — including moving MA(RSI) to Price, which is impossible now.
+
+Cost: it is a persistence migration, which the owner has not authorised, and it
+wants its own acceptance pass. Recorded, NOT implemented.
+
+# ⛔⛔ SEAM 3 IS NOT IMPLEMENTABLE AS SPECIFIED — PROVEN COLLISION (HEAD 91ec55420)
+
+The owner chose SEAM 3: make the READER compare against the same canonical
+default the WRITER uses, instead of against the declared literal. Audited both
+sides. The writer is ALREADY correct; aligning the reader reintroduces the exact
+bug the existing guard prevents. Here is the proof.
+
+## The writer is already seam-3 shaped
+
+`instanceControls.setInstanceDisplayTarget` computes
+
+    const bare = { ...inst, placement: { ...inst.placement, target: undefined } }
+    const defaultTarget = resolveDisplayTarget(bare, …)
+    if (target === defaultTarget) delete placement.target
+    else placement.target = target
+
+— the resolver's own answer with no override. Its comment says so explicitly:
+"BACK TO DEFAULT IS WHAT THE RESOLVER SAYS WITH NO OVERRIDE, not the literal
+`pane`." So the writer already means the right thing.
+
+## The reader compares against something else
+
+`displayTarget.resolveDisplayTarget`:
+
+    const explicit = instance.placement && instance.placement.target
+    if (explicit && explicit !== declared) return explicit   // DECLARED, not bare-default
+
+## ⛔ WHY ALIGNING THEM BREAKS MA(RSI)
+
+`instanceControls.placementFor` — read, not inferred — writes a RESTATEMENT on
+every created instance:
+
+    return { target: target === 'pane' && overlaid ? 'volume' : target }
+
+So every instance carries `placement.target = <declared>`. Now compare the two
+populations a seam-3 reader would have to tell apart:
+
+| case | explicit | declared | bare-default | wanted |
+|---|---|---|---|---|
+| DataSeries `close`, member chose Own Pane | `pane`  | `pane`  | `price`     | HONOUR |
+| MA(RSI), restatement from `addInstance`   | `price` | `price` | `@pane:rsi` | IGNORE |
+
+**Both satisfy `explicit === declared` AND `explicit !== bare-default`.** They are
+structurally identical on disk. No reader-only rule can separate them, so a
+seam-3 reader that honours the first necessarily honours the second — and MA(RSI)
+lands on Price, which is the documented historical failure ("computed a perfect
+average of RSI and drew it on the candles' scale").
+
+⚠️ AND §5 ALONE DOES NOT RESCUE IT. Stopping creation from writing restatements
+fixes NEW instances, but pre-existing ones still carry them; and stripping
+restatements on read (`explicit === declared` → delete) also strips the member's
+legitimate `pane` choice, because that too equals declared. Same collision.
+
+## What this means
+
+The collision is fundamental for any definition where
+
+    declared target == a value a member might legitimately choose
+    AND bare-resolved default != declared
+
+`dataSeries` + primary `close` is exactly that shape.
+
+## Three ways out — OWNER'S CALL, none taken
+
+1. **Persistence marker.** Record the override distinctly (a flag, or a distinct
+   placement shape). Cleanly separates provenance. The brief deferred this
+   ("do not add an explicitOverride persistence flag YET") — but the measurement
+   says provenance is the only thing that separates the two cases.
+
+2. **Change what `dataSeries` declares.** If its declared target were `price`
+   (matching its bare-resolved default for the default source), then choosing
+   `pane` would differ from declared and the EXISTING reader would honour it with
+   no change at all. Smallest diff; needs checking against every other
+   dataSeries behaviour that reads the declaration.
+
+3. **The unset-source ruling.** With no source there is no derived answer, so
+   declared `pane` stands and the case disappears — but only for blank instances.
+   It does NOT make "primary Close in its own pane" expressible, which the owner
+   explicitly called a legitimate combination.
+
+✅ Option 2 looks smallest and needs no new persistence, but it is a declaration
+change with its own blast radius and must not be taken without the owner.
 
 ---
 
-## a. HEAD state
+# ⛔ TRACK A ITEM 3 — ROOT CAUSE MEASURED (HEAD b3eb61b0c). ARCHITECTURE DECISION NEEDED.
 
-| Checkout | Branch | State at checkpoint |
-|---|---|---|
-| `C:\Users\Patrick\uct-worktrees\discord-render` (**this program**) | `discord-render-hardening` | clean, pushed; code identical to master `d623baf1d` + this checkpoint's docs |
-| every other checkout under `C:\Users\Patrick\uct-worktrees\*`, the main checkout `C:\Users\Patrick\uct-dashboard`, the engine repo `C:\Users\Patrick\uct-intelligence` | their own | **captured** — see §i; `scripts/resume.ps1` prints each one's live state |
+## ⚠️ FIRST, A CORRECTION OF A CORRECTION — I FLIP-FLOPPED, AND HERE IS WHY
 
-Production: master **`d623baf1d`** (master merge 4) — `web` running it, verified in-process; chart-renderer
-deployment `6090d306` (pool OFF); flow-worker untouched by this program.
+I first said the derived-source branch overrides the explicit pane target
+(unmeasured). I then "corrected" that to say it could not, because
+`resolveDisplayTarget` honours an explicit target that differs from the declared
+one. That correction rested on my reading a code comment — "DECLARED ON PRICE" —
+which belongs to `movingAverage`, NOT to `dataSeries`.
 
-## b. What we were doing
+**Measured at runtime: `dataSeries` declares `placement.target = "pane"`.**
 
-- **Discord render hardening** (this session) — Phase 2: 2.1–2.4a **merged and live, all dark** (V2 flag unset). Next: **2.4b**.
-- Every other program: its own resume doc (`docs/notebook/wave-all-RESUME-HERE.md`, `docs/plans/joystick/RESUME.md`, `docs/runbooks/indicator-ecosystem-resume.md`, `docs/wisdom/SESSION-STATE.md`); the checkouts whose sessions could not be reached now carry a **reconstructed** `docs/RESUME.md` on their captured commit (§i).
+So the ORIGINAL hypothesis was right and the correction was wrong. The lesson is
+the same one this whole track keeps teaching: measure the instance, do not read
+the neighbouring comment.
 
-### Discord render — detail
+## THE MEASUREMENT — three controls, same door, same identity path
 
-| Step | State |
+| control | source | stored placement | resolved | inPaneOwnKeys | pane |
+|---|---|---|---|---|---|
+| A (add only)      | `close`          | `{"target":"pane"}` | **price** | false | none |
+| B (chose Own Pane)| `close`          | `{"target":"pane"}` | **price** | false | none |
+| C (QQQ source)    | `sym:QQQ:close`  | `{"target":"pane"}` | **pane**  | true  | `@1` |
+
+**A and B are byte-identical.** Choosing "Own Pane" changes NOTHING on disk,
+because the value the member picked is the value creation already wrote.
+
+## THE CHAIN, proven
+
+1. `dataSeries` DECLARES `placement.target = 'pane'`.
+2. `addInstance` writes `placement: { target: <declared> }` on every instance — so
+   a brand-new one already carries `{"target":"pane"}`.
+3. A member picking Own Pane makes `setInstanceDisplayTarget` compute its default
+   from the BARE instance via `resolveDisplayTarget` → `'price'` (derived from the
+   `close` source), sees `'pane' !== 'price'`, and writes `{"target":"pane"}` —
+   identical bytes to step 2.
+4. `resolveDisplayTarget` short-circuits on an explicit target ONLY when
+   `explicit !== declared`. Here `'pane' === 'pane'`, so the short-circuit is
+   SKIPPED.
+5. Control falls to the derived-source branch: `close` → the primary → `'price'`;
+   `sym:QQQ:close` → a foreign symbol → `'pane'`.
+
+So the source decides, and the member's explicit choice is unexpressible.
+
+## ⛔ THE ACTUAL DEFECT — and why it is a DECISION, not a patch
+
+**The stored representation cannot distinguish a member's explicit override from
+creation-time restatement of the declaration.** When the chosen target equals the
+declared one, the two are the same bytes.
+
+The `explicit !== declared` guard exists ON PURPOSE — its comment records that the
+migrator AND `addInstance` both write a restating placement, and that treating
+those as overrides broke `MA(RSI)` (it "computed a perfect average of RSI and drew
+it on the candles' scale"). So the guard cannot simply be dropped.
+
+Candidate seams, NONE chosen:
+
+  · stop writing a restating placement at CREATION, so a present key means an
+    override — but legacy/migrated instances still carry restatements, so the
+    guard must survive for them, and the two populations need telling apart;
+  · record the override distinctly (an explicit flag or a distinct shape) — a
+    schema addition, with a migration story;
+  · make the reader compare against the same "bare resolved" default the WRITER
+    used, instead of the declared literal — the asymmetry between those two
+    notions of "default" is arguably the bug.
+
+⚠️ AND NOTE: the owner's "unset source" ruling would make THIS CASE work by
+accident (no source → no derived answer → declared `pane` stands). The brief
+explicitly forbids using it to hide a realization bug, and the owner states a
+member may legitimately want the PRIMARY Close in its own pane — which is exactly
+the combination that is unexpressible today. So this defect must be fixed on its
+own terms.
+
+## Also observed, unrelated but recorded
+
+Control C's realized pane reports height **0** (`physicalPanes: [691, 0]`).
+A pane with no height is the collapsed-pane shape; worth a look when pane sizing
+is next touched.
+
+---
+
+# ⚠️ TRACK A ITEM 3 — CORRECTION + TWO HARD CONSTRAINTS (HEAD 19653ec93)
+
+## ⛔ A CLAIM I MADE WAS NOT MEASURED — TREAT IT AS UNPROVEN
+
+I previously reported the remaining blank-Data-Series defect as:
+
+    "source-derived placement overrides the explicit pane target"
+
+**I did not measure that.** Reading the code contradicts it:
+
+`instanceControls.setInstanceDisplayTarget` deletes the placement key ONLY when
+`target === defaultTarget` (it computes `defaultTarget` from a `bare` copy), and
+`displayTarget.resolveDisplayTarget` returns the explicit value whenever it
+differs from the declared one:
+
+    const explicit = instance.placement && instance.placement.target
+    if (typeof explicit === 'string' && explicit && explicit !== declared) return explicit
+
+For `dataSeries`, declared = `price`, so an explicit `pane` SHOULD survive and
+SHOULD reach `paneOwnKeys`. The derived-source branch sits BELOW explicit.
+
+So the real reason a blank pane-targeted Data Series produces no pane is still
+UNKNOWN. Do not build on my earlier sentence. Re-measure with a diagnostic that
+reports, for the blank instance: stored `placement`, `resolveDisplayTarget`,
+`paneOwnKeys` membership, `paneCountRequired`, and `layout.panes`.
+
+## ⛔ CONSTRAINT 1 — `source` CANNOT SIMPLY DEFAULT TO EMPTY
+
+`engine/defSchema.js` validates `type: 'source'` defaults with
+`isNonEmptyString(d)` and rejects otherwise:
+
+    type "source" requires a non-empty string (a bar field or a "defId.plotKey" handle)
+
+So the owner's ruling ("new Data Series source is UNSET") cannot be implemented by
+changing the definition default to `''`. Options to weigh:
+
+  · allow an omitted `default` for `type: 'source'` (schema change, affects every
+    source-capable definition);
+  · leave the DEFINITION default as `close` but have `addInstance` omit the input
+    for this definition (instance-level, but needs a non-id-based rule);
+  · represent unset at the instance seam some other way.
+
+⭐ THE GOOD NEWS: `sourceRef.parseSource` already returns `null` for an absent or
+empty value, so the RESOLUTION side already understands "unset". Only the
+CREATION/validation side needs a representation.
+
+## ⛔ CONSTRAINT 2 — `close` IS GENUINELY SHARED
+
+`movingAverage` declares the same `{ key: 'source', type: 'source', default: 'close' }`.
+The owner's ruling explicitly preserves MA's Close default, so any change must be
+scoped to the generic Data Series without touching that literal's meaning — and
+an EXISTING persisted `source: 'close'` on a saved Data Series must keep meaning
+explicit primary Close, never be reinterpreted as unset.
+
+---
+
+# ⛔ TRACK A ITEM 3 — BLOCKED ON AN ARCHITECTURE DECISION (not a bug to patch)
+
+**Measured 2026-09-15. HEAD 0c68badaf. Nothing changed for this item.**
+
+## The symptom
+
+Chart Data → Data → **+ Add** a blank Data Series, set *Display in = Own Pane*.
+Canonical intent is stored correctly, but no pane is ever realised and the
+unresolved Series plots the PRIMARY close on Price.
+
+## First divergence — PROVEN, do not re-derive
+
+TWO ADD PATHS MINT TWO DIFFERENT INSTANCE IDENTITIES, and one of them is
+silently dropped by normalisation.
+
+    catalogue / scenario add  → addInstance()          → `inst:dataSeries:1`
+    Chart Data browse "+ Add" → toggledRow()
+                              → setIndicatorEnabled()  → `legacy:dataSeries`
+
+Measured side by side in the harness, same chart, same definition:
+
+    inst:dataSeries:1   storedTarget=pane  resolved=pane  inOwn=true
+       → layoutPaneKeys ["inst:dataSeries:1@1"]  paneCountRequired=2
+       → paneHeights [586, 103]        ✅ its own pane
+
+    legacy:dataSeries   storedTarget=pane  (shown in the instance panel)
+       → engineInstances []            ❌ ABSENT from the normalised list
+       → layoutPaneKeys []  paneCountRequired=1
+       → paneHeights [690]             ❌ no pane
+
+So the chain is: browse-Add mints a LEGACY-shaped id → normalisation drops it →
+`paneOwnKeys` never sees it → no pane key → `paneCountRequired` stays 1.
+
+## What is NOT the cause
+
+⛔ `paneTargetIds()` is NOT the veto. `orderedPaneKeys` already reads
+`if (!paneIds.has(id0) && !(include && include.has(id))) continue` — the
+definition-level target gate IS overridable by `paneOwnKeys`. The precedence
+rule the brief asks for already exists and works; the instance simply never
+reaches it.
+
+## Why this was not fixed here
+
+The fix is a decision with blast radius across EVERY definition row in the
+library, not a local patch:
+
+  (a) make browse-Add use `addInstance` for instance-based definitions — changes
+      the identity minted by the main library door for every technical row; or
+  (b) make normalisation keep `legacy:<defId>` for definitions that have no
+      legacy settings row — changes what a legacy id MEANS.
+
+Both are product/architecture calls. Guessing one at the end of a long session
+is how the earlier half-finished work happened.
+
+## Also worth deciding at the same time
+
+The unresolved Series plots the PRIMARY CLOSE (its `source` input defaults to
+`'close'`). The owner's brief flags this as suspicious and asks whether
+"no source → no data" is the intended semantic. That question belongs with (a)/(b)
+because it is the same instance's lifecycle.
+
+---
+
+# NEXT UP — PANE HEIGHT PERSISTENCE (root-caused, NOT implemented)
+
+**Owner-reported, 2026-09-15.** Drag the separator to make an own pane taller;
+on release it SNAPS BACK to its computed default.
+
+## Root cause — PROVEN, do not re-derive
+
+`paneStretchPlan` (`engine/paneLayout.js`) seeds from `cur.slice()` then
+UNCONDITIONALLY overwrites every pane the layout covers. Measured:
+
+    current (post-drag):      [270, 330, 100]     ← member dragged QQQ to 270
+    plan (what gets applied): [ 81, 463, 154]     ← QQQ 270 → 81
+
+`binder.js` (~line 467) then applies it: `want[i] !== current[i]` →
+`setStretchFactor`. The drag survives only until the next binder sync.
+
+**Pane-height authority today: NONE.** The flow is one-way —
+`computePaneLayout → paneStretchPlan → setStretchFactor → LWC`. The manual drag
+ends inside lightweight-charts and never becomes canonical UCT state.
+
+## Design already agreed
+
+`setStretchFactor` is a RELATIVE WEIGHT, not pixels — so persisting post-drag
+stretch factors keyed by PANE KEY (`price`, `volume`, instance host id) gives
+widget-resize correctness for free, keeps size independent of `cs.paneOrder`,
+and makes a size follow its pane across reorders. No pixel geometry.
+
+⛔ Absent size → existing computed default, unchanged. Only an explicit resize
+creates a preference. No migration.
+
+## Two acceptance items attached by the owner
+
+**1. QQQ price-axis labels (600 / 705 instead of decimals).** MEASURED: the
+series formatter is CORRECT — `{type:'price', precision:2, minMove:0.01}`,
+`format(704.69) → "704.69"`, `lastValueVisible: true`, scale `right`. So it is
+NOT a formatting bug. Hypothesis: the pane is stuck ~90–100px, and LWC picks
+coarse tick spacing for a short pane over a wide range. TEST AFTER the resize fix
+— capture labels at small height, then at a large height. If height explains it,
+add NO formatting fix. Distinguish SERIES VALUE FORMATTING from AXIS TICK
+SELECTION; do not force precision/minMove/custom formatters.
+
+**2. Secondary-symbol live ticking — ANSWERED: HISTORICAL ONLY.**
+`engine/secondaryBars.js` is a fetch-once module cache keyed by URL
+(`GET /api/bars/{ticker}`), exporting `ensureAll` / `cachedBars` / `subscribe`
+(a cache-LANDING notifier, not a feed). There is NO `livePriceStore`, no polling,
+no stream on this path. `useSecondarySources` re-runs on
+`[instances, defOf, tf, barCount, fetcher, cs]` — settings changes, never price
+ticks — and `ensure` skips anything already cached.
+
+So a charted QQQ dataSeries: (1) gets historical bars through the canonical
+shared path ✅; (2–5) does NOT subscribe, does NOT update its plotted value,
+legend or last-value label ❌; (6) has no subscription to clean up;
+(7) cannot double-subscribe — the cache is keyed by symbol/tf/bars, so
+own-pane vs Price-guest changes do not touch the data path ✅.
+
+⚠️ **A SEPARATE FOLLOW-UP, NOT PART OF THE PANE FIX.** The frontend live path
+(`/api/live-prices` → `livePriceStore`) exists, but wiring it here means topping
+the last bar of a CROSS-CHART SHARED cache for N symbols with cadence throttling.
+That is not the trivial hookup the owner carved out.
+
+---
+
+# ⚠️ WORKSPACE UX ISSUE — "NEW LAYOUT" REPLACES THE UNSAVED WORKING STATE
+
+**Recorded 2026-09-15. NOT a Track A defect and NOT to be fixed in Track A.**
+
+`LAYOUTS → New Layout` does not open an isolated scratch workspace: it REPLACES
+the current unsaved working layout. During Track A live verification this
+discarded the owner's unsaved NVDA + QQQ arrangement. The four SAVED layout tabs
+(1-Chart, Alienware, Calendar, Intraday Scan) were unaffected, and Main Trading
+was never opened.
+
+⛔ **DO NOT USE `New Layout` FOR VERIFICATION** unless the current working state
+is explicitly disposable. Prefer, in order:
+
+1. the isolated local harness (`app/pane-harness.html`) — preference writes are
+   locked there, so no workspace state can be touched at all;
+2. an existing, unquestionably disposable layout;
+3. production only where the interaction cannot destroy a working state.
+
+Worth considering later: an explicit scratch/disposable workspace, or a prompt
+before `New Layout` discards unsaved work.
+
+---
+
+# TRACK A FOLLOW-UP — PANE-ORDER CHROME OWNERSHIP · FIXED LOCALLY · AWAITING DEPLOY COMMAND
+
+> ⭐ **READ THIS BEFORE THE BLOCK BELOW.** Track A pane ordering is already on
+> `origin/master` and in production. This block is the FOLLOW-UP FIX for two visual
+> regressions the owner found by testing pane reordering on the live site. It is
+> **committed locally and NOT pushed.**
+
+**Written 2026-09-15. Local commit `84fbd7394` on `master`, ahead of `origin/master`.
+NO RAILWAY ACTION. NO PUSH. NO DEPLOY.** The owner will say when.
+
+## What was broken
+
+Repro: UCTA50 as the chart, QQQ added as a second pane, QQQ then moved ABOVE Price.
+
+| | |
 |---|---|
-| Phase 0 · Phase 1 | closed |
-| 2.1 runtime, durable jobs, failure contract | merged `740b79ad5` (dark) |
-| 2.2 observability, alerts, render-health | merged `6d779dd47` (dark) |
-| 2.3 renderer hygiene/ceiling/correlation/pool + web headers | merged `d32d14d60`; chart-renderer `6090d306` (pool OFF) |
-| 2.4a symbol resolution (D-04) + `/flow` ETF partition (C-14) | **merged `d623baf1d`** (master merge 4, dark), `web` SUCCESS 19:51:10 UTC |
-| 2.4b market clock, freshness envelope + STALE badge, per-dependency timeouts + breakers, cached flow card, deploy-swap retry | **next** |
-| 2.5 cache · 2.6 delivery · 2.7 visual spec + goldens · 2.8 regression per class · Phase 3 · Phase 4 | not started |
+| BUG 1 | the OHLC legend stayed at the TOP of the workspace, labelling QQQ with Price's readout |
+| BUG 2 | the `3M 6M YTD 1Y 5Y Origin` lookback bar flew to the TOP of the workspace |
 
-**The very next action:** start 2.4b in `C:\Users\Patrick\uct-worktrees\discord-render` (Git Bash): `git fetch origin && git merge origin/master`, then design from `docs/discord-render/03-architecture.md` §3.8 (the "*Built in 2.4a*" note lists what 2.4b holds). Gate = the 26 scoped files in `docs/discord-render/LEDGER.md` row 11; harness pattern in `docs/discord-render/instruments/`.
+Both from one stale assumption in `StockChart`'s rAF sampler — `panes[0] === the price
+pane` — which positioned THREE surfaces from that single number. Bug 2's formula was
+`containerHeight - height(pane 0) + 8`: right while pane 0 was the tall Price pane,
+nonsense when pane 0 is a 100px QQQ.
 
-## c. Open decisions (all in `docs/discord-render/LEDGER.md`)
+## ⛔⛔ THE ONE THING NOT TO UNDO
 
-OI-01..OI-18 unchanged from the ledger, proceeding on each recommendation. Changes at this close-out:
-**OI-08 done** (alerts → private `#render-alerts`); **OI-13 not done** and **OI-12 / OI-17 not done** — see §h.
+They are NOT the same bug, and fixing one by making both follow the same coordinate
+system is the trap:
 
-## d. Processes to restart
-
-**None.** Nothing of this program runs locally. The 57 `UCT *` Task Scheduler jobs are registered and resume on their own.
-
-## e. Flags and env (read live 2026-09-13)
-
-| Name | Where | Value |
+| kind | surfaces | anchored to |
 |---|---|---|
-| `DISCORD_RENDER_V2_ENABLED` | web | **unset** (in-process, 19:51 UTC) — V2 off |
-| `DISCORD_RENDER_ALERT_WEBHOOK` | web | **set** 19:53 UTC → private `#render-alerts` (Uncharted Territory › ADMIN CHAT), webhook "Captain Hook". Inert until V2 is on (the observer starts with V2); the test post used it directly. |
-| `DISCORD_RENDER_V2_{CHART,FLOW,BUZZ,CONTROLS,SYMBOLS}_ENABLED` | web | unset (on under the master) |
-| `RENDER_POOL_ENABLED` · `RENDER_WARM_URL` | chart-renderer | **unset** (setting them was refused — §h) |
-| `CHART_RENDER_TOKEN` · `VITE_CHART_RENDER_TOKEN` | web | **unchanged** (rotation not done — §h) |
-| `/renderhealth` | Discord | not registered |
+| **PRICE-OWNED** | OHLC legend, drawing toolbar, comparison rows, responsive collapse | the pane the CANDLE SERIES is in, by identity |
+| **WORKSPACE-OWNED** | the lookback bar | the GLOBAL TIME AXIS — bottom-left of the whole stack, above the date scale |
 
-## f. Gotchas
+`lookbackBottomPx` takes **no pane argument at all**. That is deliberate: it makes "the
+lookback bar does not move with Price" structural rather than a number that happens to
+come out right today. Making it Price-owned would look correct in QQQ/PRICE and wrong in
+QQQ/RSI/PRICE.
 
-- Backend pytest is SCOPED (named files); a run with no totals line is not a run.
-- One master merge at a time; other sessions push constantly — re-fetch and refuse if master moved (merge 4 was refused once, retried once, pushed).
-- This repo is **public**: WIP pushes are published; screen for secrets first (the capture did).
-- Branches that track `origin/master`: push with an explicit refspec.
-- chart-renderer has no repo source: deploy = `railway up <abs path> --path-as-root` of a `git archive`.
-- `railway ssh` from Windows: Git Bash + `MSYS_NO_PATHCONV=1`, never Python `subprocess`; never discard stderr.
-- The Claude Code permission classifier refuses: reading or checking local credential stores (`.env`), Railway feature-flag writes, and Railway service-config changes — ask the owner, never route around.
-- Cloudflare 1010: send a browser `User-Agent`. Partner files need Ravi/Manrav ack. `C:\data` is live data.
+## Where it lives
 
-## g. Verification checklist (`scripts/resume.ps1`)
+| file | what |
+|---|---|
+| `app/src/components/chart/chromeGeometry.js` | NEW. The whole chrome decision as one pure `chromePlan`. The sampler measures and applies; it decides nothing. |
+| `app/src/components/StockChart.jsx` | the sampler now applies the plan (~line 14720) |
+| `app/src/components/StockChart.module.css` | `.legendFlat` / `.legendVertical` / `.compareRows` / `.compareRowsSide` now consume `--price-pane-top` |
+| `app/src/testing/panes/paneHarness.jsx` | renders the lookback bar (`showRangeSelector` defaults OFF, so the surface under test was invisible there) |
 
-1. discord-render worktree clean · 2. HEAD contains the code tip and equals `origin/discord-render-hardening` · 3. master drift (info) · 4. `web` newest deployment SUCCESS and contains `d32d14d60` · 5. chart-renderer newest SUCCESS · 6. `/api/health` 200 · 7. bad signature 401 · 8. render-health without bearer 401.
+**Why the legend and the toolbar behaved differently** — the thing that identified the
+bug: `--price-pane-top` was working the whole time. The base `.legend` rule consumed it
+correctly, but `.legendFlat`/`.legendVertical` re-declared `top` as a bare constant and
+won on source order. The drawing toolbar lives in `ChartToolbar.module.css` and has no
+such variant, so it followed Price correctly. The asymmetry in the owner's screenshot was
+the clue.
 
-## h. Owner close-out items (2026-09-13) — outcome
+## Rails (31 new, every one bite-checked)
 
-| # | Item | Outcome |
+- `chart/__tests__/chromeGeometry.test.js` — layouts PRICE/QQQ, QQQ/PRICE, RSI/PRICE/QQQ,
+  QQQ/RSI/PRICE. Each asserts the pair TOGETHER: legend tracked Price **and** lookback did
+  not. Plus resize, degenerate pane lists, and the pre-fix formula kept as a control.
+- `chart/__tests__/priceOwnedChrome.css.test.js` — reads the stylesheets. Bug 1 was a CSS
+  bug; no JS test can see it. Fails if a Price-owned surface ever drops the offset, and
+  fails if `.rangeBar` ever gains it.
+
+## Browser proof (isolated pane harness, `preference writes refused: 0`)
+
+| layout | legend top | lookback, above container bottom |
 |---|---|---|
-| 1 | Capture other sessions' uncommitted work | **Done** — 19 dirty checkouts captured and pushed (§i); secret scan clean |
-| 2 | Declare `CANONICAL_INDICATOR_AXIS_ENABLED` | **Done by its owning session** on master `7bd9c8785`; the flag-ledger rail is green (merge 4 gate 764/0) |
-| 3 | Rotate the render token | **Not done.** The token is also read locally by Morning Wire's Substack panel renderer (`morning-wire/substack/run.py`, `panelshot.py`, `chartwidget.py`, `earnings_ahead.py` via its `.env`). The permission classifier refused even a true/false check of that file ("Credential Exploration"). Rotating only on Railway would break Monday's 7:35 AM wire panels, so the current token stays. Needs: permission to update `C:\Users\Patrick\morning-wire\.env`, then set both web variables in one change. |
-| 4 | Private `#render-alerts` + webhook + variable + test alert | **Done** — channel `1548783155354403046` (private, under ADMIN CHAT); webhook set on web 19:53 UTC (redeploy SUCCESS 19:54:16); test alert sent from the web pod 19:55:07 UTC, `sent: true`; evidence `docs/discord-render/evidence/render-alerts-test-2026-09-13.png`. ⚠️ The channel inherited ADMIN CHAT's access, which includes the **Contributor** role besides ADMIN — tighten in channel Permissions if contributors should not see it. |
-| 5 | Renderer repo connection + warm-up | **Not done.** Setting `RENDER_POOL_ENABLED`/`RENDER_WARM_URL` was refused ("Feature Flag Writes"); connecting the service to the repo was refused ("Modify Shared Resources"). Planned config, ready to apply once allowed: root `services/chart_renderer`, watch `services/chart_renderer/**`, builder Dockerfile, healthcheck `/health`, `RENDER_WARM_URL=https://uctintelligence.com/r/chart?sym=NVDA&tf=D&fixedbars=nvda-d&token=${{web.CHART_RENDER_TOKEN}}` (a Railway reference — nobody handles the value). |
-| 6 | Delete `_dr-master-506`; Railway auth | **Done** — deleted (was not a registered worktree); `railway whoami` logged in |
-| 7 | Master merge 4 | **Done** — `d623baf1d`, `web` SUCCESS 19:51:10 UTC, running SHA read in-process |
-| 8 | Re-checkpoint | this file; `scripts/resume.ps1` dry run in the commit message |
+| PRICE / QQQ | 28px | 36px |
+| QQQ / PRICE | 132px | 36px |
+| QQQ / PRICE / RSI | 131px | 36px |
+| RSI / QQQ / PRICE | 235px | 36px |
 
-## i. Captured checkouts (2026-09-13, by this session)
+Survived save/reconstruct. Under resize the Price offset tracked 206 → 136px while the
+lookback bar held 36px. 8px clearance to the date scale. One legend, one range bar
+(nothing stale). Zero console errors across load, two adds and two live reorders.
 
-| Checkout | Branch | Captured as | Pushed ref | Excluded (on disk, not pushed) |
+## Verification
+
+- broad `src/components`: **10622 passed / 4 failed** — the same four known-red files
+  (`ChartDrawingOverlay.surfaces`, `ast/manifestProse`, `ast/pine.blindCorpus`,
+  `screener/reachable`). Zero new failures. The two modules `reachable` names
+  (`lib/context/focusDivergence.js`, `surfaces/manifest.js`) are pre-existing and unrelated.
+- focused chart + engine suites: 1379 passed / 0 failed.
+- `StockChart.jsx` eslint 106 errors = baseline, `no-undef` 0. stylelint 0 errors.
+- `npm run build` clean.
+
+## ⚠️ KNOWN FLAKY RAIL — `stockChartWiring.test.jsx` "A HOVER REACHES THE RENDERER NOT AT ALL"
+
+Seen ONCE in 4 broad `src/components` runs on the Track A follow-up tree (2026-09-15).
+**Not a Track A regression.** Characterisation, so the next person does not re-derive it:
+
+| tree | runs | result |
+|---|---|---|
+| clean `origin/master` | 3 | 4 failures every time — never reproduced |
+| Track A follow-up | 4 | 3 × 4 failures, 1 × 5 failures |
+
+**Why it is not ours.** The rail clears `H.applyOptionsCalls`, fires mouseEnter/mouseLeave
+on the **RSI** chip, then asserts the array is empty. The calls it captured were
+**candlestick** options (`upColor` / `downColor` / `wickUpColor` / `borderVisible`) — not
+the RSI line series that was hovered. A hover-triggered restyle would restyle the HOVERED
+series. This is the price-style effect (master's own, unchanged by Track A) flushing inside
+`act`, inside an observation window that is racy for ANY pending async update.
+
+**And the sampler cannot reach it.** `StockChart`'s rAF chrome sampler contains no
+`applyOptions` at all; its only state effect is `setCompactLegend`, whose threshold AND
+guard are arithmetically IDENTICAL to the pre-Track-A code on every unarranged pane shape
+(verified across `[420,120]`, `[600]`, `[300,80,90]`, `[0,100]`, `[]`) — and that test
+renders an unarranged chart. The only Track A delta is extra per-frame measurement work,
+which can shift WHEN an unrelated pending update flushes, not WHETHER one exists.
+
+⛔ **The rail was left exactly as it is.** It states a true product contract (a legend
+hover must never restyle the plot) and must not be weakened to go green. If it becomes
+noisy, the fix is deterministic lifecycle synchronisation in the test's observation window
+— never relaxing the assertion.
+
+## NEXT ACTION
+
+**Wait for the owner's explicit deploy command.** Then push `84fbd7394` with the rest of
+Track A. Observe the market-hours push rule (no push to master Mon–Fri 09:00–16:00 ET).
+
+---
+
+# TRACK A — PANE ORDERING · IMPLEMENTATION COMPLETE · DEPLOYMENT PAUSED BY OWNER
+
+> ⭐ **SCOPE: TRACK A ONLY.** This block does not supersede the Discord/notebook header
+> below it; the two tracks are independent. Read this one before touching pane ordering,
+> chart panes, `ChartDrawingOverlay`, `drawingPanes`, or chart-settings pane state.
+
+**Written 2026-09-15 ~03:35 ET. Owner paused deployment; next action is to WAIT for an
+explicit owner command. Do not resume on your own.**
+
+## ⛔⛔ READ THIS FIRST — THE CODE IS ALREADY ON origin/master
+
+The owner's pause instruction arrived **after** the push had completed. Track A is not
+sitting on a branch waiting to go out — it is **merged and pushed**:
+
+| | |
+|---|---|
+| origin/master | `5e88b38c4193d705973838e17f72da8b9f4cf911` |
+| local `master` | same — `5e88b38c4`, in sync, clean tree |
+| branch `feat/pane-ordering` | `ebefae3f0` (merged into master by fast-forward; kept) |
+| accepted implementation SHA | `7da1f4ed6` — an ancestor of origin/master |
+| master reconciled through | `7ac0e0aee` (master's "Set level" drawing work) |
+| pushed at | 2026-09-15 03:25Z |
+
+**Nothing was reverted.** The pause is about DEPLOYMENT SEQUENCING, not about backing the
+code out. Do not "undo" the push to honour the pause — that would be a far riskier act than
+letting the deploy finish. If the owner wants it out of production, that is a revert
+decision to take deliberately, with them, in daylight.
+
+## DEPLOYMENT STATUS: PAUSED BY OWNER
+
+- **Reason.** A Railway deployment had been building for an unusually long time and looked
+  possibly stuck. The owner paused rather than risk interfering with a partner's deploy.
+- **Track A response.** No Railway action of any kind was taken — nothing cancelled,
+  restarted, superseded, redeployed or reconfigured. Read-only status polling only.
+- **Track A itself is NOT blocked or broken.** Implementation is accepted. The only open
+  item is deployment sequencing and Railway state.
+
+State at pause:
+
+| | |
+|---|---|
+| GitHub deployment | id `6451049321`, sha `5e88b38c4`, **`in_progress`** since 03:25Z |
+| CI on `5e88b38c4` | ✅ all three green — deploy gate (1m42s), vite build args, wisdom rails |
+| production health | `https://uctintelligence.com/api/health` → **200** |
+| production assets | still the PREVIOUS build (`index-Bi9ElRZo.js`) — Track A markers (`paneOrder`, `--price-pane-top`) **absent**, i.e. the new bundle had not gone live at pause |
+
+⚠️ So production is healthy and serving the pre-Track-A frontend. The deploy may well have
+completed on its own overnight — **check, do not assume, in either direction.**
+
+## WHAT IS ACCEPTED (do not redesign any of this)
+
+durable `cs.paneOrder` authority · visual order separated from computation/instance order ·
+Price movable above or below other panes · pane HOSTS move with their guest series ·
+independent Volume semantics · safe realization index vs final visual index ·
+cold reconstruction without pane merging · Price-owned chrome follows Price · drawing
+geometry follows Price · `paneValueAt` pixel→value via `paneTop` · `paneYForValue`
+value→pixel via `paneTop` · Track A's full-stack placement offset via `paneTop` ·
+pane-owned `fromPaneFraction` path stays non-double-offset · geometry-triggered overlay
+redraw · compact Chart Data UX · **default parity when `paneOrder` is absent**.
+
+## EVIDENCE ALREADY BANKED (do not re-run to "be sure")
+
+- **Focused:** 201 passed / 9 files — paneOrder, paneOrderLayout, paneRealization,
+  drawingPanes, paneTransform, chartData, chartDataMap, alertSets, perInstanceDoor.
+- **Broad:** 4 failed / 11568 passed. Clean-master baseline measured in a scratch worktree
+  at `7ac0e0aee`: 4 failed / 11493 passed — **the identical four files. Zero new failures.**
+- **Known baseline failures (NOT Track A):** `ChartDrawingOverlay.surfaces.test.jsx`
+  (master ships it red), `engine/ast/manifestProse.test.js`,
+  `engine/ast/pine.blindCorpus.test.js`, `screener/reachable.test.js`.
+- **Build:** clean. **Lint:** every changed file at its established baseline; `no-undef` 0.
+- **Browser (isolated `pane-harness.html`, never Main Trading):** Price TOP / MIDDLE /
+  BOTTOM each verified — drawings inside Price at correct prices, no stale ink in the pane
+  above, legend and toolbar follow Price (`--price-pane-top` 0 / 207 / 311, legend always
+  28 + that), host+guests together, no console errors. Save→reconstruct of a non-default
+  arrangement restored exact order and pane count with no merges.
+- **Tripwires:** blob key-set delta vs current master is exactly `+ paneOrder`, nothing
+  removed, 40 → 41. `alertSets` and `perInstanceDoor` re-pinned with dated notes.
+
+## SAFETY STATE AT PAUSE
+
+- **Main Trading: NOT opened.** Remains frozen; expected fingerprint
+  `ea9ebaeee302b7e1f6c68530bc3b40ab824eb765b73e836cad66be2dc40e5922`. The safe read-only
+  sqlite check is **unavailable in every local worktree** — reported honestly across
+  sessions, never worked around.
+- **Live `:8000` APScheduler backend: untouched and healthy** (200). Do not close that
+  PowerShell window.
+- Dev server on :5177 stopped; browser tabs closed; scratch baseline worktrees removed
+  (`/c/uctb2`, `/c/uctb3`) — their `node_modules` junctions were deleted *before* the
+  worktrees, so the real `node_modules` was never followed.
+
+## TOMORROW — RESUME PROCEDURE (only on explicit owner command)
+
+1. `git fetch origin master`; record the new SHA and what changed since `5e88b38c4`.
+2. **Check the Railway/GitHub deployment for `5e88b38c4` first.**
+   - completed **success** → Track A is LIVE. Verify production health + that the live
+     bundle now carries `paneOrder` / `--price-pane-top`, then report it as live.
+   - **failed** → determine whether the failure is Track A's or the partner's before
+     anything else.
+   - **still building** → STOP and report. Do not interfere with a partner deployment
+     unless the owner explicitly authorises it.
+3. Diff new master against Track A's sensitive surfaces: pane ordering, pane layout, pane
+   realization, drawing coordinates, `ChartDrawingOverlay`, `drawingPanes`, chart-settings
+   pane state.
+   - unrelated → integrate mechanically; **no new architecture review**.
+   - materially overlapping → reconcile deliberately before anything ships.
+4. Focused suites + broad suite vs a *current* clean-master baseline + `npm run build`.
+5. Verify production without opening Main Trading or `/charts`.
+
+⛔ No timer, cron, scheduled task or autonomous deploy was created for this. Resumption is
+owner-triggered, by hand.
+
+---
+
+# RESUME — restart checkpoint 2026-09-14 15:20 ET (Monday, pre-close)
+
+> ⭐ **THIS IS THE CURRENT HEADER.** Everything below it is superseded where it disagrees.
+
+## a00b. What the Discord admin pass changed, and the two flip blockers it uncovered
+
+The owner opened a browser and handed the whole Discord list over. **A1, A2 and A3 are DONE and
+verified by API read-back.** The `⛔⛔ ONE OWNER ACTION` block in §a00 below is **satisfied** —
+`MANAGE_CHANNELS` is granted — and the rest of that section's blocked rows have moved.
+
+| Was | Now |
+|---|---|
+| bot lacks `MANAGE_CHANNELS` | ✅ granted — `--whoami` says `CAN create channels` |
+| `#render-alerts` Contributor-visible | ✅ **overwrite removed**; probe says `RENDER_ALERTS_ACL ACL_OK`. Precondition row is **MET** |
+| no channel both bot-postable and not Contributor-visible | ✅ **`#render-smoke` = `1549129739048853544`** exists, private at creation, organic members exposed **0** |
+
+⛔⛔ **NEXT SESSION, READ THIS FIRST — two flip blockers, both found by executing the brief:**
+
+- **OI-34.** `/chart`, `/charts`, `/flow` were gated to **ONE** channel id. Repointing
+  `CHART_FLOW_CHANNEL_ID` MOVES the commands, it does not add — every member of a 1,558-member
+  guild loses all three. Fixed: it is now a comma-separated **allowlist**, first entry is the
+  member-facing one that the nudge names. ⭐ This is also the real answer to Gap 3: the `/chart`
+  shadow saw nothing because a member can only run `/chart` in one channel.
+- **OI-35.** There was **no per-channel V2 flag**. `commands.enabled()` is one global boolean;
+  `command_enabled()` splits by COMMAND. The flip packet said "per-channel per 2.1" and §4.0 said
+  the canary is the admin channel — both disagreed with the code, and agreed with each other.
+  Flipping as written = the member-channel flip. Fixed: `DISCORD_RENDER_V2_CHANNELS` narrows V2;
+  **unset means every channel**, so its absence is "there is no canary", never "the canary is off".
+
+⚠️ **OI-33:** `MANAGE_CHANNELS` is NOT enough to edit an existing channel's overwrites — that needs
+`MANAGE_ROLES` (403 `50013`). `MANAGE_ROLES` was deliberately **not** granted; A2 went through the
+browser instead. Do not "fix" this by granting it.
+
+⚠️ **OI-36:** `/buzz` in `#render-smoke` → **"The application did not respond"** while the renderer
+answered `200, 346 KB, ms=10738` against a 3 s ack deadline. **C-11 live, on the pre-V2 path.** The
+shadow said `outcome=agree`, so V2 would do the same — not a defect the flip fixes.
+
+### The queue as of 15:20 ET
+
+**9 commits on `discord-render-hardening`, gated and waiting for the 16:00 window.** Full scoped
+gate **798 passed / 9 skipped / 0 failed**; pre-V2 golden **0 drift**; mutations **3/3 + 4/4 RED**.
+Master moved two commits under the gate, touching only `.github/workflows/master-deploy-gate.yml` —
+**no overlap**, so the gate stands (08's no-overlap branch, not a stale green).
+
+⛔ **The canary flip is BLOCKED tonight and here is exactly why**, so nobody re-derives it:
+
+| Row | State | Can it clear tonight? |
+|---|---|---|
+| forensics **C-02** | 🟡 ack half closed; load half needs 3.1 `--real` | **yes — tonight's run** |
+| forensics **C-09** | 🔴 open; needs 3.1 `--real` to show the warm cycle yields | **yes — tonight's run** |
+| forensics **C-13** | 🟡 log hygiene shipped; **token rotation is OI-13, the owner's** | see below |
+| soak ≥ 24 h | 57/90 clean ticks, 15 min apart | **~23:40 ET** — reachable, late |
+| 3.5 smoke | 2 of 15 rows | partly |
+
+⭐ **C-13's rotation is NOT a manual owner chore — it is automated and it has been silently
+failing.** `UCT Render Token Retire` reported `lastRun=07:15, LastTaskResult=1` and had **never done
+anything**: its `.cmd` redirected stdout into `render_token_retire.run.log`, *the same file the
+Python script opens for append*, so the script died on its first `log()` call with `PermissionError`
+— and its crash handler died on the same line. The wrapper now writes to
+`render_token_retire.wrapper.log` (backup: `render_token_retire.cmd.bak-2026-09-14`). **The Morning
+Wire HAS run today** (`last_run_date = 2026-09-14`), so its precondition is satisfied and it can run
+after the close. The script itself is careful — it probes both tokens first and aborts if the
+current one is not accepted.
+
+### What the 16:00 sequence actually did — 2026-09-14, 16:45 ET
+
+**Merged and deployed `56e9d3aec`** (OI-34, OI-35, B1, B4/B5, B2, all 316 anchors green).
+`web` SUCCESS, **and `chart-renderer` SUCCESS too** — its watch path is `services/chart_renderer/**`
+and B1 touches it, so B1's lever is IN PRODUCTION but **dark** (`RENDER_ADMIN_ENDPOINTS` unset).
+
+⛔ **I pushed at 15:49, eight minutes BEFORE the close, having decided not to and having set a timer
+to prevent it.** I acted on a mental estimate that had drifted ~25 minutes. Cost: a `web` +
+`chart-renderer` restart in the last minutes of RTH; `/api/health` 200 after; no scheduler slot was
+due. Full entry in `LEDGER.md`. **Standing correction: no scheduled action fires on a remembered
+time — read the clock in the same tool call that takes the action.**
+
+### The numbers, and the rate they belong to
+
+| phase | S1 ack | S2 p50 / p95 / p99 | success | failures |
 |---|---|---|---|---|
-| `uct-dashboard` (main) | feat/catalyst-coverage-precision | `ce70861bd` | same branch | one spec doc with a credential-shaped string |
-| `uct-intelligence` (engine) | master | snapshot `b83ed5781` (HEAD/tree untouched) | `wip/checkpoint/uct-intelligence-20260913` | `data/uct_intelligence.pre_tsdr_import.bak` (75 MB) |
-| desk-sharpen-card | feat/desk-sharpen-workshop-card | `621881612` | same | — |
-| discord-chart | feat/discord-chart-command | `6bb4e4b9f` | same | — |
-| flow-nav-prefetch | perf/route-intent-prefetch | `993e6f378` | same | `app/.env.flowperf` |
-| flow-sticky-guard | fix/flow-sticky-reset-and-deploy-guard | `73a18b6e3` | same | — |
-| inc5-final | (detached) | snapshot `4a181e8f4` | `wip/checkpoint/inc5-final-20260913` | — |
-| inc5-merge | (detached) | snapshot `dd11e73e2` | `wip/checkpoint/inc5-merge-20260913` | — |
-| joystick-hub | launch/l5-launch-docs | `79e3d8d83` | same | — |
-| joystick-inc5 | feat/joystick-launch-A | `1335693e6` | same | — |
-| notebook-primary-platform | notebook-primary-platform | `99c428743` | `wip/checkpoint/notebook-primary-platform-20260913` (branch push rejected, never forced) | — |
-| options-desk | feat/options-desk | `737ea0340`, `39744d133` | same | `app/tests/fixtures/_raw_flow10.csv` (6 MB) |
-| patterns-retire | chore/patterns-page-retire | `f9599e4bc` | same | — |
-| phase-a-signature | feat/phase-a-signature | `b4b4a9a9b` | same | — |
-| s3-admin-routes | feat/s3-admin-routes | `c9e57e47d` | same | — |
-| s8-attention-freshness | feat/s8-attention-freshness-v1 | `733244c1b` | same | — |
-| single-stock-etfs | feat/single-stock-etfs | `cb7cde09b` | same | — |
-| temporal-freshness-truth | feat/temporal-freshness-truth-v1 | `e60a0aea6` | same | — |
+| 3.1a — **30 arrivals/s** | p95 63 ms, `over_3s` **0** | 14,855 / 18,117 / 18,836 ms | 35.7 % | **all `queue_full`** (81) |
+| 3.1b — 100 burst | p95 1 ms, `over_3s` **0** | 13,727 / 16,472 / 16,953 ms | 50.0 % | **all `queue_full`** (31) |
+| **3.1c — 1 arrival/s × 10 min** | p95 6 ms, `over_3s` **0** | **3.5 / 1,748 / 6,692 ms — ALL INSIDE S2** | 98.67 % | **all `queue_full`** (8) |
 
-Snapshot checkouts (engine repo, inc5-final, inc5-merge) still show their files as modified — by design,
-so running jobs and live sessions kept their exact working state; the snapshot on origin is the capture.
+⭐ **S1 held in every phase. Every single failure everywhere was `queue_full`** — never a timeout,
+never a render error, no breaker trip. 593 real charts delivered in 3.1c alone (97.6 MB).
+⚠️ **OI-37:** the brief said "30 concurrent"; `--rate 30` is 30 **per second**, so 3.1a is ~15× the
+specified load. Quote no S2 number without its arrival rate.
+
+chaos `--real` **PASS** (7 ran, 7 passed, 6 refused by name) · determinism ×20 **PASS** (6/6
+identical) · wire hop **PROVEN** (40 × HTTP 200).
+
+### ⛔⛔ THE THING TO READ FIRST IF YOU READ NOTHING ELSE
+
+**The flip gate's S2 row could not fail.** `check_s2_measured` was `MET if the --real files exist`
+and never opened them. Tonight's runs all printed FAIL — and the row flipped from NOT MEASURABLE to
+**MET** because five files now existed. **Producing failing evidence made the gate greener**, on the
+row that decides whether delivery meets its SLO, in the tool `06` §0 calls "the authority".
+Two sibling rows (chaos, 3.5) had the same shape. All three now read verdicts. **Re-read any flip
+decision taken against the old tool.**
+
+### Flip status: NOT MET, and it is not close
+
+| row | state |
+|---|---|
+| forensics | 🔴 11/14 — **C-02**, **C-09**, **C-13** open |
+| S2 | 🔴 9 named breaches at 30/s (MET at 1/s) |
+| 3.5 smoke | 🔴 **2 of 15 rows** |
+| soak | ⚪ 61/90 ticks (~23:40 ET) |
+| mutations | ⚪ needs `--run-mutations` (anchors are 316/316) |
+| cache · chaos · shadow · xfails · `#render-alerts` | ✅ MET |
+
+**Organic members exposed to V2: 0.**
+
+### Next session — in this order
+
+1. **3.5 rows 2–4, 6–7, 10–15** in `#render-smoke` (rows 1 and 9 pass; 5 and 8 need re-running).
+   ⛔ Save each screenshot to disk in the SAME action — ephemeral replies do not survive a reload.
+2. **OI-38** — the cache reported `hits 0, misses 0` under `--real`: not a poor hit rate, *not even
+   a miss*, across ~76 renders of 20 symbols. Gap 1's 80 % is a bench number, unreproduced.
+3. **Arm B1** on chart-renderer (`RENDER_ADMIN_ENDPOINTS=1` + `RENDER_ADMIN_TOKEN`) and take the
+   determinism-across-recycle row from NOT MEASURABLE to measured.
+4. **C-13** — `render_token_retire.cmd` is fixed and the Wire has run; it can go any time.
+5. Re-run `flip_preconditions.py`.
+
+---
+
+# RESUME — restart checkpoint 2026-09-14 13:50 ET (Monday, midday)
+
+## a00. The midday state, and the four things that are blocked
+
+**Master `db23f17e8` is live and verified in-process.** Two further commits (`abda0e0d0`,
+`26a88d052`) are **gated, green and queued** — master's own pre-push guard refused them because
+another session's deploy was in flight, and the override was deliberately not used.
+
+| Ruling | State |
+|---|---|
+| Gap 1 — cache wired to the hot path | ✅ **merged**, 80 % hit rate on the bench, 8 mutations red |
+| Gap 3 — `/chart` shadow | ✅ **settled**: the hook fires (mutation-proved); the absence was real traffic absence, confirmed by an EXACT pull **and** by the chart production log |
+| OI-32 — never cache a stand-in | ✅ **merged**, refused at BOTH tiers |
+| NOT-APPLIED ≠ 0 | ✅ **fails in the gate** (`tests/test_mutation_harness_anchors.py`), one second, plus per-retirement cross-references |
+| Gap 2 — S2 in `--real` | 🟡 **built and self-checked, NOT RUN.** Needs a delivery channel |
+| Gap 4 — 3.5 smoke | 🔴 **blocked**: no channel is both bot-postable and not Contributor-visible |
+| Step 1.3 — `#render-alerts` | 🔴 **measured**: `Contributor` is the channel's ONLY view-allow overwrite |
+
+⛔⛔ **THE ONE OWNER ACTION THAT UNBLOCKS THE MOST:** grant the bot's role
+(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`** — then
+`discord_channel_admin.py --create-smoke` makes `#render-smoke` with itself inside it, and 3.5 plus
+the `--real` delivery hop both unblock. ⚠️ That grant does **not** fix `#render-alerts`: 50001 there
+is *membership*, and the bot has no overwrite on that channel. Two gaps, two fixes.
+
+**Flip gate: `NOT MET`** — `python docs/discord-render/instruments/flip_preconditions.py`.
+Three rows NOT MET, five NOT MEASURABLE, **organic members exposed 0**.
+
+**Shadow at 13:39 ET: 33 records, EXACT, all `/flow`, all agree, zero divergences, zero `/chart`.**
+No member ran `/chart` today — confirmed twice over.
+
+⚠️ **Live finding worth a look:** the warm cycle is still blowing its 20 s budget continuously
+(`hot warm hit its 20s budget after 20.0–22.8s, N chart(s) deferred`, many times an hour through
+RTH). That is **C-09**, still open, and it is happening now.
+
+---
+
+# RESUME — earlier checkpoint 2026-09-14 03:50 ET (Monday, pre-RTH)
+
+> ⭐ **THIS HEADER IS THE CURRENT ONE. The sections below it were written at 2026-09-13 20:45 ET
+> and are superseded where they disagree with §a0.** They are kept because §f (standing rules),
+> §h (the rest of the machine) and §i (gotchas) have not moved and are still the fastest read.
+
+## a0. Where it actually is, 2026-09-14 03:50 ET
+
+**Master `e269f2b10`, deployed SUCCESS, verified in the RUNNING process** (not `--kv`):
+`RENDER_V2_SHADOW='1'` · `DISCORD_RENDER_V2_ENABLED` **absent** · `delivery.edit_image`,
+`bindings._fold_attachments`, `renderer._with_vintage`, `badge.render_footer(quality=…)` and
+`JobRuntime.send_failure_result` all present · `l2_root` = `/data/discord_render_cache`.
+
+**Every forensics class this programme owns now has a PASSING regression test.** C-04, C-06 and
+C-07 were `xfail(strict=True)` at the last checkpoint; all three are closed **on the V2 path**, and
+`01-failure-forensics.md` has a section explaining exactly what that qualifier costs. Zero xfails
+remain in `tests/test_discord_render_forensics.py`.
+
+| Ruling | Landed | Where |
+|---|---|---|
+| **OI-29** — the chart IMAGE through `delivery.edit_image`; C-04 closed by the attachment fold | `decd049c1` | `delivery.py`, `adapters/bindings.py`, `commands.py` |
+| **C-06** — the stand-in label, derived in the V2 wrapper; `bindings` consumes `badge.py` at last | `b5a4e1a31` | `adapters/bindings.py` |
+| **C-07** — `?stale=` end to end **and its producer** | Lane D + `b5a4e1a31` | `discord_chart_house`, `badge.py`, `ChartRender.jsx`, `adapters/renderer.py` |
+| **OI-31** — the two-tier cache, L2 on the volume | Lane B | `artifact_cache.py`, `03` §3.6 |
+| **OI-28** — the chart-renderer reds adopted and fixed | Lane C | the renderer test loaders |
+| the per-attempt budget made structural, + a SECOND overrun in the retry backoff | Lane C | `adapters/_call.py` |
+| **Step 3** — load, chaos, determinism | `a82a2493c` | `docs/discord-render/evidence/step3/` |
+
+**Step 3 results:** load p99 **102 ms** against a 1,000 ms SLO with zero acks over 3 s · chaos
+**13/13** (the harness had 5 scenarios and the brief named 12 — the other 7 were written) ·
+determinism **20 runs, 6/6 identical** including an L1→L2 round trip.
+
+⛔ **NOT DONE, and it is the one thing standing between here and a flip packet that can be acted
+on: 3.5, the real-Discord smoke.** It needs a human to type commands in the private test channel;
+no agent can do it. Everything else in Step 3 is evidence about a rig.
+
+⛔ **Three scheduled jobs are running and their logs are the next thing to read.** All three were
+fired by hand once and their output verified, so none of them is a job nobody has seen run:
+
+| Task | Cadence | Log |
+|---|---|---|
+| `UCT Render Soak` | every 15 min | `C:\Users\Patrick\uct-render-soak\soak.log` — at 02:20 ET, 5 ticks, 262 samples, **no drift** |
+| `UCT Render Alerts Access Probe` | hourly (the owner-hand item) | `render-alerts-access.log` — `STILL_BLOCKED HTTP 403 code 50001` |
+| `UCT Render Monday Shadow Line` | once, **07:45 local = 08:45 ET** | `monday-shadow-line.log` — pulls the `drender` logs and runs `shadow_report.py`, then appends every soak totals line |
+
+⭐ The third exists so the pre-09:30 line is produced **whether or not a session is alive to write
+it**. Read that log; do not re-derive it by hand.
+
+**The Monday line**, as of 05:40 UTC: **≥ 8 records, all `/flow`, all `agree`, p50/p95 0.1 ms, zero
+divergences — and zero `/chart` records**, which the tool refuses to read as clean. The `≥` is not
+decoration: `railway_env_logs.py` printed `STOPPED: no progress past …`, so the count is a FLOOR.
+
+---
+
+Written by **Lane F** of the Discord render hardening programme (`docs/discord-render/`).
+
+⛔ **Every claim below names a SHA, a `file:line`, or the command it was measured with.** Anything
+that could not be verified while writing this is marked **UNVERIFIED** and says what would settle it.
+A resume file that asserts a state nobody can re-derive is how the last restart cost an hour.
+
+One command re-runs the checklist in §g:
+`powershell -ExecutionPolicy Bypass -File C:\Users\Patrick\uct-worktrees\discord-render\scripts\resume.ps1`
+— ⚠️ but read §g first: two of its pins are stale.
+
+⚠️⚠️ **EVERY SHA IN THIS FILE IS A STAMPED READING, NOT A STANDING FACT.** Five workstreams push to
+this repository; `origin/master` moved twice and `web` deployed twice while this file was being
+written (`e659454bb` → `cda883387`). Re-derive with §g before acting on any of them. The parts that
+do not churn — the lane map, the open decisions, the standing rules — are the parts to trust on
+sight.
+
+---
+
+## a. Where the programme is
+
+**Phase 2, step 2.4b P2 — merged to master and live-DARK.** Master merge 5 (`5ca4d5db2`) shipped the
+provider adapters, the member-facing stamp, the breaker and loop-stall alerts, the event-loop probe
+and shadow mode; the merge-5 record (`954309f0f`) and the frozen cross-lane contracts
+(`e659454bb`) followed. `docs/discord-render/05-progress.md` carries the measured deploy for each.
+
+| Step | State | Evidence |
+|---|---|---|
+| Phase 0 (map, forensics, baseline) · Phase 1 (architecture) | closed | `docs/discord-render/00`–`03`, `LEDGER.md` Phase summaries |
+| 2.1 runtime · durable jobs · deadline · failure contract | merged dark | `740b79ad5` (LEDGER row 4) |
+| 2.2 observability · render-health · alerts | merged dark | `6d779dd47` (row 6) |
+| 2.3 renderer hygiene · hard ceiling · warm pool | merged; chart-renderer deployed | `d32d14d60` (row 8) + deployment `6090d306` (row 9) |
+| 2.4a symbol resolution · `/flow` ETF partition | merged dark | `d623baf1d` (row 11) |
+| 2.4b part 1 market clock + freshness envelope + breakers | on the branch | `9087bc196`, `4984e6207` (Phase 2 summary) |
+| **2.4b P2.1–P2.10 adapters, stamp, alerts, loopwatch, shadow** | **merged dark** | **`5ca4d5db2`** (row 14), gate 1,112 passed, 69/69 mutations red |
+| Cross-lane contracts frozen | **merged** | **`e659454bb`** — `api/services/discord_render/contracts.py` + `tests/test_discord_render_contracts.py` |
+| Shadow mode flipped ON + its record made interpretable | on the branch | `9a7043317` (`shadow.py`, `tests/test_discord_render_shadow.py`, `08-merge-queue.md`) |
+| P2.10 bench + wall clock + two instrument failures | on the branch | `ef8bdca06` (`05-progress.md`, `instruments/adapter_overhead_bench.py`) |
+| 2.5 cache · 2.6 delivery · 2.7 visual+goldens · 2.8 forensics regressions | **in flight, lanes B–E** | `docs/discord-render/07-execution-plan.md` §3 |
+| Phase 3 (canary, bench, RTH) · Phase 4 (the flip) | not started | — |
+
+**Shadow mode is ON in production** (`RENDER_V2_SHADOW='1'`, read in-process — §c; flipped and
+ledgered by Lane A in `9a7043317`). That was 07 §6's "live and ON before Monday 09:30 ET" target, and
+it is met.
+
+**Nothing a member can see has changed.** `DISCORD_RENDER_V2_ENABLED` is absent from the running
+process, and with it absent the interactions endpoint runs the pre-V2 path exactly
+(`api/services/discord_render/commands.py:49`, railed).
+
+---
+
+## b. The very next actions, in order, with their commands
+
+**1 — Re-establish state before touching anything** (30 seconds; run these first after any restart):
+
+```sh
+cd C:/Users/Patrick/uct-worktrees/discord-render
+git fetch origin && git status --short && git rev-list --count HEAD..origin/master
+railway deployment list --service web --json | head -40      # newest SUCCESS + its commitHash
+python docs/discord-render/instruments/verify_merge.py <expected_sha_prefix>
+```
+
+**2 — Read the shadow divergence, which is the one number the flip decision rests on.** Shadow has
+been recording since the flip of `RENDER_V2_SHADOW` earlier this session; it is worth the most
+through Monday's RTH:
+
+```sh
+python tools/railway_env_logs.py --filter drender
+# then count lines with "evt":"shadow" and "divergence":true
+```
+
+`divergence` = V2 would have refused a symbol the old path went on to draw
+(`api/services/discord_render/shadow.py:94`). ⛔ Search the bare word `drender` — Railway's log
+search silently matches nothing for a bracketed phrase (`api/services/discord_render/observe.py:9-11`).
+
+**3 — Lane A integrates whatever lands first** through `docs/discord-render/08-merge-queue.md`. On
+the programme branch at 20:45 ET that queue lists **all five lanes B–F in flight, every one gated
+against `e659454bb`** — so re-read it on `discord-render-hardening`, not on master, where it may lag:
+`git show discord-render-hardening:docs/discord-render/08-merge-queue.md`. One master merge at a
+time; `web` SUCCESS and the running SHA confirmed in-process before the next push.
+
+⛔ **A queue row is only "ready" if it names the SHA it was gated against**, and master moves under
+this branch every few minutes. Re-gate only what master's movement actually invalidates, and record
+which of the two happened (`08-merge-queue.md`'s own rules).
+
+**4 — The RTH baseline is still missing.** `02-baseline.md` is a closed-market bench and says so
+("RTH baseline pending (Monday)"). `tools/discord_render_bench.py` is the instrument.
+
+**5 — The flip, when the owner decides:** `docs/discord-render/06-flip-packet.md` — written to be
+read alone. Day-two operations: `docs/runbooks/discord-render-operations.md`.
+
+---
+
+## c. Live production state — measured 2026-09-13 20:44 ET / 2026-09-14 00:44 UTC
+
+| Fact | Value | Command |
+|---|---|---|
+| `web` newest deployment | **SUCCESS**, commit `cda883387887…`, created `2026-09-14T00:41:31.783Z` | `railway deployment list --service web --json` |
+| Running commit, **in-process** | `cda883387887` (= `origin/master` at the time of reading) | `railway ssh` probe (recipe in `06-flip-packet.md` §2.3) |
+| `DISCORD_RENDER_V2_ENABLED` | **absent** | same probe |
+| `RENDER_V2_SHADOW` | **`'1'`** | same probe |
+| `DISCORD_RENDER_V2_ADAPTERS_ENABLED` · `DISCORD_RENDER_LOOPWATCH_ENABLED` | absent (= ON; dormant while the master is off) | same probe |
+| `/data/discord_render_jobs.db` | **does not exist** — V2 has never run in production | same probe |
+| `DISCORD_RENDER_ALERT_WEBHOOK` | configured on `web` (private `#render-alerts`) | `railway variables --service web --kv`, key only |
+| `CHART_RENDER_TOKEN` + `CHART_RENDER_TOKEN_PREVIOUS` + both `VITE_` halves | all four present — **a rotation is in flight** | same |
+| chart-renderer | `RENDER_POOL_ENABLED=1`, `RENDER_WARM_URL` set | `railway variables --service chart-renderer --kv` |
+
+⭐ The **absent jobs database** is the proof that V2 has never run, and it is stronger than a zero job
+count — a zero count is also what a wrong query returns (`LEDGER.md`, post-restart close-out B).
+
+⚠️ **`--kv` is the service's CONFIG, not evidence the running process has it.** The five rows above
+marked "in-process" were read from the process; the `--kv` rows are configuration only, and are
+reported as such.
+
+**UNVERIFIED (and cheap to settle):** whether the Monday one-shot Task Scheduler job
+**`UCT Render Token Retire`** (2026-09-14 07:15 CT) is still registered and enabled. It clears only
+the `_PREVIOUS` pair, gated on Morning Wire having run that day (`LEDGER.md` step 1.1b). Settle with
+`schtasks /query /tn "UCT Render Token Retire"`.
+
+---
+
+## d. HEAD state, branches and the lanes
+
+| Checkout | Branch | State at 20:45 ET |
+|---|---|---|
+| `C:\Users\Patrick\uct-worktrees\discord-render` (**Lane A**, the programme) | `discord-render-hardening` | **`ef8bdca06`** — 1 ahead of `origin/master` (`cda883387`), which it has already merged. Two programme commits not yet on master: `9a7043317`, `ef8bdca06` |
+| `.claude/worktrees/agent-*` (**lanes B–F**) | `worktree-agent-<id>` | five branches, all created at `e659454bb` 2026-09-13 20:23 ET; **none had committed** when this was written. They are now 18 commits behind `origin/master` — re-measure with `git rev-list --count HEAD..origin/master` before gating anything |
+
+Lane ownership, and it is the rule that keeps two lanes off one file
+(`docs/discord-render/07-execution-plan.md` §3): **A** integration/merges/bench · **B** 2.5 artifact
+cache · **C** 2.6 delivery · **D** 2.7 badge + visual spec + goldens · **E** 2.8 + Step-3 harnesses
+(**no `api/**` change at all**) · **F** docs, runbook, flip packet, `docs/RESUME.md`.
+
+⛔ **A lane that needs a change in another lane's file writes a contract-change request in its ledger
+row and proceeds on its own side.** Never two lanes editing one file.
+
+⛔ The five frozen contracts are `api/services/discord_render/contracts.py` (merged at `e659454bb`);
+a change to any of them after the lanes are running is a **ledgered event with a reason**.
+
+---
+
+## e. Open decisions (OI) — the ones still open, with who owns them
+
+Full text for every row is `docs/discord-render/LEDGER.md` ("Owner decisions") and `03` §6. Closed
+since the last checkpoint: **OI-09** (`/renderhealth` registered, step 1.2b), **OI-12** +
+**OI-17** (renderer connected to the repo with watch path `services/chart_renderer/**`, pool and warm
+URL live, step 1.2), **OI-13** (token rotated, step 1.1b — see the Monday retire job),
+**OI-19** (dual-token acceptance, step 1.1a), **OI-21** / **OI-23** (built in P2.1).
+
+| OI | What is still open | Owner |
+|---|---|---|
+| OI-03 | web vs a dedicated worker service — revisit after 5 sessions of `resumed` data | programme, after the flip |
+| OI-04 | fold the context line into the image PATCH (kills the last attachment re-declaration) | **Lane C** (2.6) |
+| OI-06 | label the stand-in on the image **and** in the message | **Lane D** (2.7) |
+| OI-07 | per-class `/flow` wording shipped (2.1a); the **≤10-minute cached flow card is not built** — `grep cached api/services/discord_render/adapters/flow.py` returns nothing | Lane A / B |
+| OI-10 | D-02's 30 s RTH cache TTL vs today's 120 s — measure once 2.5 exists | **Lane B** (2.5) |
+| OI-11 | per-window `/flow` targets are set (1 → 4.4 s · 7 → 4.9 s · 30 → 8.7 s · all → 10.4 s); the RTH measurement is outstanding | Lane A, Monday |
+| OI-14 | ~77 `web` deploys/day is the root of C-01 for every feature on the pod | **recorded only — out of scope** |
+| OI-15 | flow-worker `/ticker-flow` has no internal time budget (partner file) | **flow-worker owner** — raised, not built here |
+| OI-18 | the renderer hard ceiling defaults to the request's declared budget; drop it to 20 s once web's attempts are re-budgeted inside the 15 s deadline and RTH p99 is measured | Lane A/C, after 2.6 |
+| OI-20 | the hygiene gate as an opt-in pre-commit hook (installing one reaches ~57 worktrees) | deferred, documented |
+| OI-22 | a quote failure is still indistinguishable from "no extended-hours print"; bounded now, the split needs `fetch_ext_quote` to raise (pre-V2 behaviour change) | **Lane E** (2.8) |
+| OI-24 | `discord-chart-produce` is spawned without `ids.carry`, so chart-production events are unattributable (pre-V2 file) | **Lane E** (2.8) |
+| OI-25 | the fixed 1.5 s bars retry lives in the caller; the binding passes `attempts=1` so they cannot multiply. Moving the loop is a pre-V2 change | **Lane E** (2.8) |
+| OI-26 | ⛔ the pre-push **secret scan has never run** for any worktree but one, and this is a **public repo**: `tools/secret_scrub.py` exists only on `feat/breadth-charts`. The hook prints "the secret scan did NOT run. This is not a pass." and proceeds | **`feat/breadth-charts` owner** — land the tool on master and every worktree's hook starts working |
+| OI-27 | `RENDER_V2_SHADOW` is **structurally undeclarable** in `docs/feature_flags.json` — the scanner only sees gates whose name contains `ENABLED`/`DISABLE`. Declared in `03` §3.8d + `LEDGER.md` instead | **flag-ledger programme** (widen `_GATE_MARKERS`) |
+
+⛔ **Step 1.3 is NOT done and is blocked two ways:** `#render-alerts` inherits ADMIN CHAT's access,
+which includes the **Contributor** role. The Claude browser extension is disconnected, and the bot
+token gets `403 Missing Access (50001)` on that private channel — granting access needs the very
+permission that is missing. ⚠️ Not a member-data exposure: the channel carries queue depths, latency
+percentiles, failure classes and correlation ids. Posting is unaffected (a webhook does not need read
+access), which is why the test alert landed. `LEDGER.md`, step 1.2b/1.3.
+
+---
+
+## f. Standing rules this programme runs under
+
+1. **ONE master merge at a time, repo-wide.** `web` SUCCESS **and** the running SHA confirmed
+   in-process before the next push. `python tools/pre_push_guard.py` enforces it and fails closed
+   (refuses while the newest `web` deployment is not a SUCCESS at least 150 s old).
+2. **Everything ships DARK behind a flag. The owner flips.**
+3. **Deploy tier is decided by the FILES, not the clock** — `docs/runbooks/deploy-windows.md` is the
+   single authority. Anything on flow-worker's watch list is weekend/after-hours only, because a
+   flow-worker restart drops the OPRA socket and Massive does not replay. Check with
+   `python tools/flow_worker_watch_coverage.py`; a red needs an ADDITIVE / BEHAVIOUR-CHANGING
+   classification written in the ledger row before the push.
+4. **Backend pytest is SCOPED — named files, ≤6 per lane, never `pytest tests/`, never `-k` over the
+   tree.** `-k` filters what *executes*; everything is still *collected*, and collection is where the
+   memory goes. The full gate runs in Lane A only, one at a time
+   (`07-execution-plan.md` §1). **No `npm ci` / `npx vitest` in a lane at all.**
+5. **A run with no totals line is not a run**, and the background-task exit code is not a verdict —
+   it has been measured wrong in both directions.
+6. **Write the line endings git already stores**, not what is on disk. `python tools/check_repo_hygiene.py`
+   (it was `clean: 9226 tracked file(s)` when this was written). ⛔ `git checkout -- <file>` is not
+   an undo; it discards everything uncommitted in that file.
+7. **Never `git add -A`** in a shared worktree; stage by path.
+8. ⛔⛔ **H15 — a failing post-deploy smoke is rolled back FIRST and diagnosed second**, and
+   **INCONCLUSIVE is not FAILED**.
+9. Partner-owned files (`OptionsFlow.jsx`, `live_massive_router.py`, `schwab_router.py`) are out of
+   scope for every lane; a minimal isolated diff, acked first, if ever unavoidable.
+10. **Machine constraint:** ~8.6 GB free of 31.8 GB with other sessions live. One gate at a time on
+    this box.
+
+---
+
+## g. Verification checklist — how to re-derive everything above
+
+| # | Check | Command |
+|---|---|---|
+| 1 | worktree clean; branch == `origin/discord-render-hardening` | `git status --short`, `git rev-parse HEAD origin/discord-render-hardening` |
+| 2 | master drift | `git rev-list --count HEAD..origin/master` (was **0**) |
+| 3 | `web` newest deployment SUCCESS + its commit | `railway deployment list --service web --json` |
+| 4 | the **running** commit and the flags, in-process | `06-flip-packet.md` §2.3, or `docs/discord-render/instruments/pod_env_probe.py` |
+| 5 | `/api/health` 200 + uptime · bad signature → 401 · render-health without the bearer → 401 | `docs/discord-render/instruments/verify_merge.py <sha>` |
+| 6 | chart-renderer ready | `docs/discord-render/instruments/renderer_health_probe.py` |
+| 7 | flow-worker untouched by this branch | `python tools/flow_worker_watch_coverage.py` |
+| 8 | line endings + tracked-file hygiene | `python tools/check_repo_hygiene.py` |
+
+⚠️⚠️ **`scripts/resume.ps1` HAS TWO STALE PINS AND THEY FAIL SOFT.** `scripts/resume.ps1:16-17` still
+read `$CodeTip = '3f71d5364'` and `$LastOnMaster = 'd32d14d60'`, consumed at `:66-67` and `:95-96` as
+*ancestor* checks. Both SHAs **are** ancestors of today's tip (measured), so both checks print green —
+and would keep printing green with the pod running a commit four merges old. ⭐ An ancestor test
+against a stale pin cannot detect the drift it exists to detect. Re-pin both to the current tip
+before trusting checks 2 and 4 of that script. **Lane F does not own `scripts/resume.ps1`** — this is
+recorded here and in Lane F's report as a change request for Lane A.
+
+---
+
+## h. Everything else on this machine
+
+Each programme keeps its own checkpoint; this file is the Discord render programme's:
+
+- Notebook Wave Q1 → `docs/notebook/wave-q1-RESUME-HERE.md` — **on master**
+- Joystick hub → `docs/plans/joystick/RESUME.md` — **on master** (programme CLOSED; one owner device
+  run outstanding)
+- Wisdom loop → `docs/wisdom/SESSION-STATE.md` — **on master**
+- Indicator ecosystem → `docs/runbooks/indicator-ecosystem-resume.md` — ⚠️ **NOT on master**; it
+  lives on `worktree-indicator-ecosystem` (`git show worktree-indicator-ecosystem:docs/runbooks/indicator-ecosystem-resume.md`)
+- Terminal-Next → `docs/terminal-research/00-program-control/LEDGER.md` — ⚠️ **NOT on master**; it
+  lives on `terminal-research` (`git show terminal-research:docs/terminal-research/00-program-control/LEDGER.md`),
+  and `docs/runbooks/deploy-windows.md:51-52` points at it by that path
+
+**The 2026-09-13 15:30 ET restart capture — 19 dirty checkouts captured and pushed, with the branch
+and SHA for each — is in the previous version of this file: `git show b4c9e9bcc:docs/RESUME.md`
+(§i).** It is not reproduced here because it is a completed one-off, and a stale copy of it is worse
+than a pointer to the real one.
+
+**Processes to restart: none.** Nothing in this programme runs locally. The `UCT *` Task Scheduler
+jobs resume on their own.
+
+---
+
+## i. Known gotchas that cost time last session
+
+- `railway ssh` from Windows: **Git Bash + `MSYS_NO_PATHCONV=1`**, the pipe quoted as `"|"`, and
+  `/opt/venv/bin/python` (bare `python3` in the pod is the Nix system python with no app deps).
+  Never Python `subprocess`; never discard stderr.
+- **Cloudflare 1010-blocks raw `curl`/`python` user agents** on `uctintelligence.com` — send a browser
+  `User-Agent`.
+- **A status code without a body check is not a measurement.** `GET /api/r/movers` returned 200 for a
+  made-up token because there is no such route and the SPA catch-all answered with HTML.
+- **`railway variables --set` has been measured both staging and auto-redeploying** on this project.
+  Set it, watch for a NEW BOOT by startup-line timestamp, then read the value in the process.
+- **`railway redeploy --service flow-worker` re-deploys the commit it is already on** and drops the
+  OPRA socket for nothing. The only discharge mechanism is a marker bump
+  (`docs/runbooks/deploy-windows.md`).
+- The Claude Code permission classifier refuses reading local credential stores, Railway
+  feature-flag writes and Railway service-config changes. Ask the owner; never route around.

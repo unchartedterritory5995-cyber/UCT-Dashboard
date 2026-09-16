@@ -28,6 +28,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date as _date, datetime, timedelta
 from typing import Optional
 
+from api.services.breadth_universes import DEFAULT_UNIVERSE
+
 _log = logging.getLogger("breadth_symbols")
 
 # ── Registry ────────────────────────────────────────────────────────────────
@@ -112,25 +114,347 @@ SYMBOLS = {sym.upper(): {"symbol": sym.upper(), "metric": metric, "name": name, 
 _METRIC_OF = {sym: rec["metric"] for sym, rec in SYMBOLS.items()}
 
 
+# ─── BL-008: THE REGISTRY DECIDES MEMBERSHIP. SYNTAX NEVER DOES. ─────────────
+#
+# ⭐⭐ THE ONE RULE THIS SECTION EXISTS TO ENFORCE: `NASDAQ:A50` is a Breadth
+# Library symbol because the registry CONTAINS that identity, not because it has a
+# colon in it. `NASDAQ:AAPL` has the identical shape and is not one — it is a venue
+# prefix on a third-party instrument, and nothing here may promote it.
+#
+# ⛔⛔ SO NOTHING IN THIS MODULE SPLITS A STRING ON ":" TO DECIDE WHAT IT MEANS.
+# The resolver is a dict lookup against identities minted from
+# `breadth_universes` × `breadth_metrics`. That is why the reverted TICKER_SHAPE
+# widening was the wrong fix and must not come back: a SHAPE test cannot tell those
+# two strings apart, and a registry does it without trying.
+#
+# ⚠️ SOURCE GRAMMAR AND SYMBOL VALIDITY ARE DIFFERENT LAYERS. `sourceRef.js` can
+# structurally carry `sym:NASDAQ:A50:close` — that is parsing, and it is correct
+# for it to be shape-based. Whether `NASDAQ:A50` EXISTS is this layer's answer.
+# Conflating them is how `FOO:BAR` becomes chartable.
+
+_LIBRARY_INDEX: Optional[dict] = None
+
+
+def _library_index() -> dict:
+    """`{SYMBOL: row}` over every registered identity, aliases included.
+
+    ⚠️ MEMOISED, AND IT HAS TO BE. `is_breadth_symbol` sits on the `/api/bars` hot
+    path and is asked about EVERY ticker, so an ordinary `AAPL` fell through the
+    `SYMBOLS` fast path into this function. Rebuilding the 156-row projection there
+    measured **404 µs per call** against 0.09 µs for a UCT symbol — a ~4,500x
+    regression paid on every chart request in the product, to answer "no".
+
+    ⛔ AND A MODULE-LEVEL CACHE IS CORRECT HERE rather than a shortcut, because the
+    projection is PURE: it reads `_ROWS`, `breadth_universes.UNIVERSES` and
+    `breadth_metrics.METRICS`, all of which are module constants fixed at import.
+    Nothing mutates them at runtime. If that ever stops being true — a catalogue
+    loaded from disk, a universe added by configuration — this must gain an explicit
+    invalidation, and `_LIBRARY_INDEX = None` is the whole of it.
+
+    ⚠️ The PUBLISHED gate is deliberately NOT baked in: it reads an env var that a
+    test flips per-case, so it is applied by `resolve()` on every lookup against
+    this immutable index.
+    """
+    global _LIBRARY_INDEX
+    if _LIBRARY_INDEX is not None:
+        return _LIBRARY_INDEX
+    idx = {}
+    for row in library_rows():
+        sym = row.get("symbol")
+        if sym:
+            idx[sym.upper()] = row
+    # Explicit aliases, from a TABLE. `UCT:A50` is a legal spelling of `UCTA50`
+    # because this says so, not because a rule rewrites prefixes.
+    for alias, target in library_aliases().items():
+        row = idx.get(target.upper())
+        if row:
+            idx[alias.upper()] = {**row, "symbol": target.upper(), "matched_alias": alias.upper()}
+    _LIBRARY_INDEX = idx
+    return idx
+
+
+def library_aliases() -> dict:
+    """`{alias: canonical symbol}` — EXPLICIT, never inferred.
+
+    ⭐ The namespaced spelling of a UCT metric (`UCT:A50`) resolves to the symbol
+    that has always named it (`UCTA50`). It is an alias in exactly one direction:
+    `UCTA50` stays canonical, nothing is renamed, and no stored layout, watchlist,
+    drawing or formula has to change. The brief's rule — "aliases must also be
+    explicit registry mappings" — is satisfied by this being a derived TABLE rather
+    than a prefix rewrite applied at lookup time.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    out = {}
+    for metric, legacy in LEGACY_SYMBOL_BY_METRIC.items():
+        m = _bm.get(metric)
+        if m:
+            out[f"{_bu.label(_bu.DEFAULT_UNIVERSE)}:{m['code']}"] = legacy
+    return out
+
+
+def resolve(sym: str, published_only: bool = True) -> Optional[dict]:
+    """The registry row for `sym`, or None. THE membership authority.
+
+    `published_only` (the default) restricts the answer to universes
+    `breadth_universes.published_universe_ids()` allows — UCT alone unless the
+    `BREADTH_LIBRARY_UNIVERSES` flag says otherwise. Discovery and tests pass
+    False to see the whole catalogue.
+
+    ⛔ An unregistered colon-bearing token — `NASDAQ:AAPL`, `FOO:BAR`, `US:NOPE` —
+    returns None at every setting. There is no "looks close enough".
+    """
+    from api.services import breadth_universes as _bu
+    if not sym:
+        return None
+    row = _library_index().get(str(sym).strip().upper())
+    if row is None:
+        return None
+    # ⛔ ONE PREDICATE. This used to test the universe flag alone, which made a
+    # metric outside the publication set resolvable (and therefore chartable) the
+    # moment its universe was enabled — the catalogue would hide `US:MU` while
+    # `/api/bars` served it. `is_published` is the same answer every public surface
+    # derives from.
+    if published_only and not is_published(row["universe"], row["metric"]):
+        return None
+    return row
+
+
+#: metric key → the UCT symbol that has ALWAYS named it. ⭐⭐ THE ALIAS TABLE IS
+#: DATA, DERIVED FROM `_ROWS`, AND IT IS THE ONLY THING THAT MAY ANSWER "what is
+#: UCT's symbol for this metric". The rendered symbol is never PARSED to recover
+#: `universe`/`metric` — those are carried — and a UCT symbol is never COMPUTED
+#: from a rule, because no rule produces `UCTA50`, `UCTNH20` and `UCTAAII` from
+#: their metric keys. An explicit mapping is what lets the new universes be
+#: systematic without renaming a single shipped symbol.
+LEGACY_SYMBOL_BY_METRIC = {metric: sym.upper() for (sym, metric, _n, _g) in _ROWS}
+
+
 def is_breadth_symbol(sym: str) -> bool:
-    """True when `sym` is one of our chartable breadth pseudo-tickers.
+    """True when `sym` is a chartable breadth pseudo-ticker THIS DEPLOY SERVES.
 
     Membership test (NOT a bare 'UCT' prefix) so a real ticker like UCTT never
-    collides.
+    collides — and now REGISTRY-backed rather than a fixed dict, so a namespaced
+    identity is recognised when, and only when, the registry contains it AND its
+    universe is published.
+
+    ⭐ THE 44 SHIPPED UCT SYMBOLS ANSWER EXACTLY AS BEFORE. `SYMBOLS` is consulted
+    first and unconditionally: UCT is always in the published set, so no flag, no
+    catalogue edit and no registry failure can take a shipped symbol off the air.
+    That ordering is the backward-compatibility guarantee, not a fast path.
+
+    ⛔ AND SYNTAX GRANTS NOTHING. `NASDAQ:AAPL` and `FOO:BAR` are False at every
+    setting of every flag, because `resolve()` is a dict lookup against minted
+    identities and neither string is one. See the BL-008 block above.
     """
-    return bool(sym) and sym.strip().upper() in SYMBOLS
+    if not sym:
+        return False
+    s = sym.strip().upper()
+    if s in SYMBOLS:
+        return True
+    return resolve(s) is not None
 
 
-def list_breadth_symbols() -> list[dict]:
-    """All symbols in display order, each with symbol/metric/name/group/group_label.
-    Consumed by the search injection, the /api/breadth-symbols endpoint, and the
-    prebuilt-watchlist seed."""
+def symbol_for(universe: str, metric: str) -> Optional[str]:
+    """The canonical symbol for one (universe, metric), or None if there isn't one.
+
+    ⭐ UCT READS ITS ANSWER OFF THE ALIAS TABLE; every other universe DERIVES one
+    as `<LABEL>:<CODE>`. That asymmetry is the whole backward-compatibility story:
+    the shipped symbols keep their historical spellings because they are RECORDED,
+    not because a naming rule happens to reproduce them — and a metric UCT never
+    published (`net_new_high_low`) correctly has no UCT symbol rather than a freshly
+    invented one.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    uni = _bu.normalize(universe)
+    if not _bm.applies_to(metric, uni):
+        return None
+    if uni == _bu.DEFAULT_UNIVERSE:
+        return LEGACY_SYMBOL_BY_METRIC.get(metric)
+    row = _bm.get(metric)
+    return f"{_bu.label(uni)}:{row['code']}" if row else None
+
+
+def library_rows(universes=None) -> list[dict]:
+    """`UNIVERSES × METRICS` — the Breadth Library as a projection.
+
+    ⛔⛔ NOT A SECOND CATALOGUE, AND NOT PUBLIC. Every field is read from the system
+    that owns it — `breadth_universes` for the universe and its floor,
+    `breadth_metrics` for the measurement, `LEGACY_SYMBOL_BY_METRIC` for UCT's
+    historical spelling — on every call. Nothing here is stored, so adding a metric
+    or a universe shows up without this function being edited, which is the test of
+    whether a facade is a projection or a copy.
+
+    ⚠️ NO PUBLIC SURFACE READS THIS YET. `/api/breadth-symbols`, `is_breadth_symbol`
+    and the chart routing are untouched; this exists so the shape can be proven
+    before anything is published.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    out = []
+    for uni in (universes or _bu.UNIVERSE_IDS):
+        u = _bu.get(uni)
+        for metric in _bm.metrics_for(u["id"]):
+            m = _bm.get(metric)
+            out.append({
+                "universe": u["id"], "universe_label": u["label"],
+                "metric": metric, "code": m["code"],
+                "symbol": symbol_for(u["id"], metric),
+                "name": m["name"], "short_name": m["short_name"],
+                "group": m["group"],
+                # ⚠️ The family LABEL rides along because discovery groups by it and
+                # `LIST_META` is where it already lives — a second spelling in the
+                # metric catalogue would be the copy that drifts.
+                "group_label": (LIST_META.get(m["group"]) or {}).get("label", m["group"]),
+                "unit": m["unit"], "domain": m["domain"],
+                "presentation": m["presentation"], "floor": u["floor"],
+                # ⭐ A UCT row is LEGACY: its symbol is recorded history, not a
+                # rendering of the namespace. Anything reading this list can tell
+                # "already published under an old name" from "a name we would mint".
+                "legacy": u["id"] == _bu.DEFAULT_UNIVERSE,
+            })
+    return out
+
+
+# ── THE CANONICAL PUBLICATION PROJECTION ─────────────────────────────
+#
+# ⭐⭐ ONE PRODUCER, MANY CONSUMERS. Before this, "which breadth symbols are public?"
+# was answered independently in several places and they did not agree: `/api/bars` and
+# `resolve()` asked the registry and the published-universe flag, while
+# `/api/ticker-search` and the `symbols` array read a hard-wired list of the 44 shipped
+# UCT records. Flipping `BREADTH_LIBRARY_UNIVERSES=us` would therefore have made
+# `US:A50` CHARTABLE but not SEARCHABLE — and, worse, absent from the payload the
+# client builds its family map from, so `symbolFamily()` would have called a breadth
+# identity a `'security'` and `ohlcCapabilityOf` would have offered CANDLES over a
+# synthetic close-to-close body. That is BL-013.
+#
+# ⛔⛔ THREE COLLECTIONS, THREE NAMES, AND THEY ARE NOT INTERCHANGEABLE:
+#
+#   `legacy_symbol_rows()`     the 44 SHIPPED UCT symbols. What "UCT Breadth" has
+#                              meant since the pseudo-tickers shipped. The prebuilt
+#                              watchlists and the Discord surfaces mean THIS and must
+#                              keep meaning it — pushing 54 new identities into a
+#                              member's prebuilt list because they happen to be
+#                              breadth would be a product change nobody asked for.
+#   `library_rows()`           every REGISTERED identity across every universe.
+#                              Discovery metadata; says nothing about visibility.
+#   `published_symbol_rows()`  what a member may actually reach. THE public answer.
+#
+# A row is published only when ALL SIX hold — registered universe, registered metric,
+# applicable, producible, inside the publication set, and its universe enabled.
+# `applies_to` already folds applicable+producible together (BL-012), so `is_published`
+# reads as four clauses rather than six.
+
+
+def legacy_symbol_rows() -> list[dict]:
+    """THE 44 SHIPPED UCT SYMBOLS, in display order — the legacy collection.
+
+    ⛔ THIS IS NOT "the public breadth symbols" and must not be used as though it
+    were. It is the fixed set that has been charted, watchlisted and searched since the
+    breadth pseudo-tickers shipped, and its membership does not change when a new
+    universe is published. `published_symbol_rows()` is the public answer.
+    """
     out = []
     for group in GROUP_ORDER:
         for rec in SYMBOLS.values():
             if rec["group"] == group:
                 out.append({**rec, "group_label": LIST_META[group]["label"]})
     return out
+
+
+def is_published(universe: str, metric: str) -> bool:
+    """The ONE predicate every public surface derives from.
+
+    ⚠️ NOT MEMOISED, DELIBERATELY — both gates are environment reads a test flips
+    per-case. The expensive part (the registry projection) is memoised separately in
+    `_library_index`, which is immutable and therefore safe to cache.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    uni = _bu.normalize(universe)
+    if uni not in _bu.UNIVERSES:
+        return False
+    if uni not in _bu.published_universe_ids():
+        return False
+    if not _bm.applies_to(metric, uni):            # registered + applicable + producible
+        return False
+    return _bm.is_published_metric(metric, uni)    # inside the active publication set
+
+
+def published_symbol_rows() -> list[dict]:
+    """THE canonical public projection — every identity a member may reach, in
+    catalogue order, each carrying the `/api/breadth-symbols` row shape.
+
+    ⭐ UCT'S 44 COME FIRST AND UNCONDITIONALLY, from `legacy_symbol_rows()`, so no
+    flag, no publication set and no registry change can take a shipped symbol off the
+    air. That ordering is the backward-compatibility guarantee rather than an
+    optimisation: with no publication flags set this returns exactly the 44 rows
+    `list_breadth_symbols()` has always returned, in exactly the same order, with
+    exactly the same keys.
+    """
+    from api.services import breadth_universes as _bu
+    out = list(legacy_symbol_rows())
+    seen = {r["symbol"] for r in out}
+    for uni in _bu.published_universe_ids():
+        if uni == _bu.DEFAULT_UNIVERSE:
+            continue
+        for row in library_rows([uni]):
+            sym = row.get("symbol")
+            if not sym or sym in seen or not is_published(uni, row["metric"]):
+                continue
+            seen.add(sym)
+            out.append({
+                "symbol": sym, "metric": row["metric"], "name": row["name"],
+                "group": row["group"], "group_label": row["group_label"],
+                # ⚠️ The universe rides along so no consumer has to PARSE the symbol to
+                # recover it. Absent on a legacy row, exactly as before.
+                "universe": uni, "universe_label": row["universe_label"],
+            })
+    return out
+
+
+def v1_identity_rows() -> list[dict]:
+    """`[{universe, metric, symbol}]` for the ACCEPTED V1 invariant — 18 metrics, 70
+    identities, 16 UCT + 54 new.
+
+    ⛔ THIS IS THE ACCEPTED SHAPE, NOT THE LIVE CATALOGUE. It ignores both publication
+    flags and asks only: for each V1 metric, which registered universes can carry it
+    AND have a symbol for it? An IDENTITY needs a symbol — `net_new_high_low` and
+    `universe_count` have no UCT spelling (UCT never published one), which is exactly
+    why UCT contributes 16 rather than 18.
+
+    ⚠️ The LIVE catalogue is a different and smaller thing while the universes are
+    dark: 44 legacy UCT rows and nothing else. Both numbers are correct; they answer
+    different questions, and `test_the_accepted_v1_invariant_holds` pins this one.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    out = []
+    for uni in _bu.UNIVERSE_IDS:
+        for metric in _bm.V1_METRICS:
+            if not _bm.applies_to(metric, uni):
+                continue
+            sym = symbol_for(uni, metric)
+            if not sym:
+                continue
+            out.append({"universe": uni, "metric": metric, "symbol": sym})
+    return out
+
+
+def list_breadth_symbols() -> list[dict]:
+    """The PUBLIC breadth symbols — `published_symbol_rows()` under its historical
+    name, because that is what all of its consumers have always meant.
+
+    Consumed by `/api/ticker-search`'s injection and by `/api/breadth-symbols`'
+    `symbols` array (which the client turns into its breadth family map). Both want
+    "what may a member reach", and both were silently getting "the 44 shipped UCT
+    records" instead.
+
+    ⛔ THE PREBUILT-WATCHLIST SEED DOES NOT COME THROUGH HERE. It reads
+    `symbols_by_group()`, which is legacy-only on purpose — see `legacy_symbol_rows`.
+    """
+    return published_symbol_rows()
 
 
 def search(qq: str, limit: int = 20) -> list[dict]:
@@ -164,7 +488,18 @@ def search(qq: str, limit: int = 20) -> list[dict]:
 
 
 def symbols_by_group() -> dict[str, list[str]]:
-    """group id → [symbols] in display order (drives the prebuilt lists)."""
+    """group id → [LEGACY UCT symbols] in display order (drives the prebuilt lists).
+
+    ⛔⛔ LEGACY ONLY, AND THAT IS THE POINT. `watchlist_prebuilt._breadth_lists()`
+    builds the four member-facing "UCT Breadth" prebuilt watchlists from this. Those
+    lists mean the 44 shipped UCT measures; publishing a new universe must not push 54
+    further identities into a list a member already holds. Registered breadth,
+    published breadth and legacy shipped breadth are three different collections, and
+    this function is the third one.
+
+    ⚠️ It reads `SYMBOLS` directly rather than `legacy_symbol_rows()` only because it
+    wants symbols rather than rows — same source, same 44, same order.
+    """
     out = {g: [] for g in GROUP_ORDER}
     for rec in SYMBOLS.values():
         out[rec["group"]].append(rec["symbol"])
@@ -275,7 +610,17 @@ def latest_quotes(syms: list[str]) -> dict:
 
     out = {}
     for s in wanted:
-        metric = _METRIC_OF[s]
+        # ⚠️ REGISTRY-BACKED, and `.get` first rather than `[]`: `wanted` is filtered
+        # by `is_breadth_symbol`, which now admits published namespaced identities,
+        # so a bare `_METRIC_OF[s]` would KeyError on the first `US:A50` a watchlist
+        # holds. A PIT universe has no live quote, so it is skipped rather than
+        # given UCT's.
+        metric = _METRIC_OF.get(s)
+        if metric is None:
+            row = resolve(s)
+            if not row or row["universe"] != DEFAULT_UNIVERSE:
+                continue
+            metric = row["metric"]
         dvals = []  # (date, value) newest-first, finite only
         for row in hist:
             d, fv = row.get("date"), _finite(row.get(metric))
@@ -317,15 +662,41 @@ def latest_quotes(syms: list[str]) -> dict:
 # (to keep the candle fresh) — but a full warm pass takes minutes, so entries expired
 # mid-pass and the loop rebuilt all ~40 symbols forever, a CPU-bound churn that starved
 # the single pod. Decoupling fixes both: long-lived sealed cache + always-live candle.
+# ⭐⭐ BREADTH GETS ITS OWN CACHE INSTANCE, for the reason `live_prices` already
+# has one (`cache.py`: "the instance that exists specifically to escape LRU
+# pressure"). The shared singleton is bounded at 1,000 entries and is hammered by
+# bars, news, snapshots and analyst keys; a sealed breadth series is a LARGE value
+# — thousands of candles — held for HOURS. Measured shape: ~4,700 candles per
+# series, and the library projects 156 identities across four universes.
+#
+# ⛔ SO THE HARM IS MUTUAL AND SILENT IF THEY SHARE. Breadth would evict the hot
+# bars keys it has no business touching, and bars would evict breadth series whose
+# rebuild costs seconds — each looking like the other's performance problem. An
+# instance whose working set is a KNOWN, DERIVABLE quantity states its own bound,
+# which is the rule `cache.py` writes down.
+#
+# ⚠️ ISOLATION ONLY — no routing change, no move to bars-api, no CDN change. Those
+# are architecture decisions with more than one valid answer and they are the
+# owner's.
+_BREADTH_CACHE_MAX = 512        # ~156 identities today, with room for the catalogue
+                                # to grow before the bound is the binding constraint
 _SEALED_TTL = 21600      # 6h; sealed history changes only at EOD — the warm loop's
                          # new-day check refreshes it promptly, this is just the ceiling.
+_EMPTY_SERIES_TTL = 300  # ⛔ ...but an EMPTY build is a failure to read, not a sealed
+                         # fact, so it is retried in 5 min. See `_refresh_series`.
 _WARM_GAP = 0.4          # seconds slept between warm builds so a cold pass never bursts
+
+#: The dedicated instance (see `_BREADTH_CACHE_MAX`). Module-level so every reader
+#: shares ONE store; a per-call instance would be a cache that never hits.
+from api.services.cache import TTLCache as _TTLCache   # noqa: E402
+_breadth_cache = _TTLCache(max_size=_BREADTH_CACHE_MAX)
 _bg_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="breadth-bars-refresh")
 _bg_inflight: set[str] = set()
 _bg_lock = threading.Lock()
 
 
-def _build_breadth_series(sym: str, metric: str) -> list[dict]:
+def _build_breadth_series(sym: str, metric: str,
+                          universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Compute the SEALED close-to-close DAILY candle series for `metric` — the expensive
     part (DB reads + reconstructed-OHLC merge). No live value, no resample, no slice: the
     serve fn appends the developing today candle, resamples to the requested tf, and
@@ -333,10 +704,16 @@ def _build_breadth_series(sym: str, metric: str) -> list[dict]:
     loop then converges instead of rebuilding every minute)."""
     from api.services import breadth_monitor
     want_daily = 6000   # full history (breadth starts ~2008; 6000 daily covers it)
-    try:
-        history = breadth_monitor.get_history(want_daily)  # newest-first
-    except Exception:
-        history = []
+    # ⛔ THE COLLECTOR SNAPSHOT IS UCT'S. `breadth_monitor` stores what the 4:15pm
+    # collector measured over the UCT universe, so merging it into a PIT universe's
+    # series would splice two different populations into one line. A PIT universe is
+    # its OHLC store and nothing else.
+    history = []
+    if universe == DEFAULT_UNIVERSE:
+        try:
+            history = breadth_monitor.get_history(want_daily)  # newest-first
+        except Exception:
+            history = []
 
     # Per-day OHLC store (trusted sources: 'live' intraday wicks + 'close_recon' deep
     # reconstructed history). This is where the DEEP history lives — recomputed close-basis
@@ -344,7 +721,7 @@ def _build_breadth_series(sym: str, metric: str) -> list[dict]:
     ohlc_map = {}
     try:
         from api.services import breadth_daily_ohlc
-        ohlc_map = breadth_daily_ohlc.history(metric)
+        ohlc_map = breadth_daily_ohlc.history(metric, universe=universe)
     except Exception:
         ohlc_map = {}
 
@@ -409,21 +786,43 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
                      "l": round(l, 4), "c": round(c, 4), "v": 0}]
 
 
-def _refresh_series(sym: str, metric: str) -> list[dict]:
+def _refresh_series(sym: str, metric: str,
+                    universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Recompute + cache the SEALED daily series for `sym`. Returns it ([] on failure).
     One daily build serves D/W/M (the serve fn resamples), so this is keyed per symbol."""
-    from api.services.cache import cache
+    cache = _breadth_cache
     try:
-        series = _build_breadth_series(sym, metric)
+        series = _build_breadth_series(sym, metric, universe)
     except Exception as e:
         _log.warning("[breadth_symbols] series build failed %s: %s", sym, e)
         return []
+    # ⛔ AN EMPTY SERIES IS NOT A SEALED FACT — IT IS A FAILURE TO BUILD ONE, and it
+    # must not be cached for six hours. `_build_breadth_series` returns `[]` both when
+    # an identity genuinely has no history yet and when the STORE WAS NOT THERE TO
+    # READ: the web pod pulls the breadth database from R2 at boot, and
+    # `start_breadth_warm` waits only 20 s before walking all 44 shipped symbols. A
+    # pull that is slow, or that lands after the first warm pass, therefore hands this
+    # function 44 empty builds.
+    #
+    # ⭐ THAT USED TO SELF-HEAL BY ACCIDENT AND NOW WOULD NOT. Before BL-010 these
+    # entries lived in the SHARED 1,000-key cache, where `/api/bars` traffic evicted
+    # them within minutes and the next request rebuilt. Breadth now has its own
+    # 512-entry instance holding ~156 identities, so NOTHING IS EVER EVICTED — and
+    # `warm_breadth` skips a symbol whose cache is still fresh, so an empty entry is
+    # not merely kept, it suppresses its own repair. The failure mode is every breadth
+    # chart blank for up to six hours after one unlucky boot, which is exactly the
+    # incident class `breadth-thin-snapshot-pinning` already cost this product once.
+    #
+    # ⚠️ The dedicated instance is still the right call; the eviction was never a
+    # design, it was luck. So the fix is to stop relying on it: a real series keeps the
+    # long TTL, an empty one is retried in five minutes.
     cache.set(f"breadthdaily_{sym}", {"saved_at": time.time(), "series": series},
-              ttl=_SEALED_TTL)
+              ttl=(_SEALED_TTL if series else _EMPTY_SERIES_TTL))
     return series
 
 
-def _kick_series_refresh(sym: str, metric: str) -> None:
+def _kick_series_refresh(sym: str, metric: str,
+                         universe: str = DEFAULT_UNIVERSE) -> None:
     key = sym
     with _bg_lock:
         if key in _bg_inflight or len(_bg_inflight) >= 8:
@@ -432,7 +831,7 @@ def _kick_series_refresh(sym: str, metric: str) -> None:
 
     def _job():
         try:
-            _refresh_series(sym, metric)
+            _refresh_series(sym, metric, universe)
         finally:
             with _bg_lock:
                 _bg_inflight.discard(key)
@@ -456,26 +855,42 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     tf = (tf or "D").upper()
     if tf not in ("D", "W", "M"):
         tf = "D"  # breadth is daily-basis; intraday requests collapse to daily
+    # ⭐ THE REGISTRY RESOLVES BOTH HALVES. `_METRIC_OF` answers for the 44 shipped
+    # UCT symbols on the identical fast path it always did; anything else is a
+    # registry lookup that yields a UNIVERSE as well as a metric, so a published
+    # `US:A50` reads US's rows rather than UCT's. An unregistered token resolves to
+    # nothing and serves an empty series — never another universe's numbers.
     metric = _METRIC_OF.get(sym)
+    universe = DEFAULT_UNIVERSE
     if not metric:
-        return {"ticker": sym, "tf": tf, "bars": []}
+        row = resolve(sym)
+        if not row:
+            return {"ticker": sym, "tf": tf, "bars": []}
+        metric, universe = row["metric"], row["universe"]
 
-    from api.services.cache import cache
+    cache = _breadth_cache
     now = time.time()
-    hit = cache.get(f"breadthdaily_{sym}")
+    hit = cache.get(f"breadthdaily_{sym}")   # `sym` already carries the universe
     tier = "breadth-build"
     if hit and hit.get("series") is not None:
         daily = hit["series"]
         if now - hit.get("saved_at", 0) <= _SEALED_TTL:
             tier = "breadth-cache"
         else:
-            _kick_series_refresh(sym, metric)   # stale → serve + revalidate
+            _kick_series_refresh(sym, metric, universe)   # stale → serve + revalidate
             tier = "breadth-cache-stale"
     else:
-        daily = _refresh_series(sym, metric)    # cold miss — the one slow request
+        daily = _refresh_series(sym, metric, universe)    # cold miss — the one slow request
 
     # Serve-time: append the live developing candle (cheap, cache-only) then resample.
-    series = _resample(_append_today_candle(daily or [], metric), tf)
+    # ⚠️ THE LIVE CANDLE IS UCT'S ALONE. `breadth_live` measures the collector's
+    # universe; appending its value to a US or NASDAQ series would paint one
+    # universe's intraday number on another's chart. A PIT universe therefore ends
+    # at its last sealed day, which is honest — it has no live feed.
+    body = daily or []
+    if universe == DEFAULT_UNIVERSE:
+        body = _append_today_candle(body, metric)
+    series = _resample(body, tf)
 
     try:
         from api.services.bars_fetch import _mark_serve
@@ -495,9 +910,21 @@ def warm_breadth() -> dict:
     is a cache hit. CONVERGES: a symbol is rebuilt only when its cache is missing/expired
     OR a NEW sealed day has landed (the 4:30pm EOD push), so after one boot pass this goes
     quiet instead of perpetually rebuilding. Builds are throttled (`_WARM_GAP`) so a cold
-    pass never bursts and starves the pod's bars path."""
+    pass never bursts and starves the pod's bars path.
+
+    ⚠️ UCT ONLY, KNOWINGLY. It walks `_METRIC_OF` (the 44 shipped symbols) and reads
+    its "latest sealed day" from `breadth_monitor`, which is the collector's — so a
+    PUBLISHED PIT universe would not be warmed and its first request per symbol
+    would pay a cold build of seconds.
+    ⛔ NOT EXTENDED HERE, deliberately. A per-universe sealed-date probe plus a
+    throttle that stays safe across four universes is a judgement about pod CPU, and
+    this loop's own history is a starvation incident (see `start_breadth_warm`). It
+    is INERT while the library is dark, so the honest move is to state the gap and
+    let it be designed awake rather than widen a tuned loop at the end of a session.
+    `test_the_warm_loop_is_uct_only_and_that_is_recorded` pins it so the gap cannot
+    become invisible."""
     from api.services import breadth_monitor
-    from api.services.cache import cache
+    cache = _breadth_cache
     # Latest sealed date, shared across all metrics (get_history is cached). When a new EOD
     # day lands this advances, so even a still-fresh cache is rebuilt to include it.
     latest = None
@@ -525,8 +952,93 @@ def warm_breadth() -> dict:
         _refresh_series(sym, metric)
         stats["refreshed"] += 1
         time.sleep(_WARM_GAP)   # yield between cold builds — gentle on the single pod
+    pit = _warm_published_pit(cache, stats)
+    if pit:
+        stats["pit"] = pit
     _log.info("[breadth_symbols] warm pass done: %s", stats)
     return stats
+
+
+# ── Warming a published PIT universe ─────────────────────────────────────────
+#
+# ⭐ THE SMALLEST THING THAT HELPS. Warming exists so the FIRST request after a deploy
+# is a cache hit, not so every series is resident. The family a member actually opens
+# a new universe to look at is participation — "how much of Nasdaq is above its
+# 50-day?" — so that is what is warmed, and the other twelve V1 metrics stay lazy.
+#
+# ⚰️ AND THE BOUND IS NOT TIMIDITY, IT IS THIS LOOP'S OWN HISTORY. The earlier design
+# baked the live value into the cached series, which forced a 60s TTL; a full pass
+# takes minutes, so entries expired mid-pass and the loop rebuilt ~40 symbols forever
+# — a CPU-bound churn that starved the single pod. Warming the whole V1 catalogue
+# across three universes would be 54 cold builds per pass on the same pod.
+#
+#   published PIT universes × 7 participation metrics = 7 (US) … 21 (all three)
+#
+# ⛔ NON-ESSENTIAL BY CONSTRUCTION. Every failure is swallowed per symbol: a PIT
+# universe that cannot build must not stop UCT's pass or break serving, because
+# `build_breadth_bars` already answers a cold miss by building inline. Warming is an
+# optimisation, and an optimisation that can break serving is not one.
+
+#: The families worth warming for a PIT universe. Ids from `breadth_metrics`' `group`.
+WARM_FAMILIES = ("ma",)
+
+#: A hard ceiling on cold PIT builds per pass, whatever the catalogue grows to.
+WARM_PIT_MAX = 24
+
+
+def warm_symbols_for_pit() -> list[tuple]:
+    """`[(symbol, metric, universe)]` — exactly what a warm pass should build for the
+    PUBLISHED PIT universes: published × V1 × the warm families, in catalogue order.
+
+    ⛔ IT DERIVES, IT DOES NOT LIST. Publish a universe, change the V1 set or rename a
+    family and this follows; a hard-coded `["US:A50", …]` would be a fifth place to
+    remember. Dark universes contribute nothing because `is_published` says so.
+    """
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    out = []
+    for uni in _bu.published_universe_ids():
+        if uni == DEFAULT_UNIVERSE:
+            continue                      # UCT is the loop above, unchanged
+        for row in library_rows([uni]):
+            sym = row.get("symbol")
+            if not sym or row["group"] not in WARM_FAMILIES:
+                continue
+            if not is_published(uni, row["metric"]):
+                continue
+            out.append((sym, row["metric"], uni))
+            if len(out) >= WARM_PIT_MAX:
+                return out
+    return out
+
+
+def _warm_published_pit(cache, stats: dict) -> dict:
+    """Warm the participation family of every published PIT universe. Best-effort.
+
+    ⚠️ A PIT UNIVERSE HAS NO COLLECTOR SEALED-DATE to check against, so freshness is
+    the cache TTL alone — it cannot ask `breadth_monitor.get_history` the way UCT does
+    (that is UCT's population). The forward seal advances its `last`, and a 6h TTL
+    picks the new day up within the same day. Cheap and boring, which is the brief.
+    """
+    want = warm_symbols_for_pit()
+    if not want:
+        return {}
+    out = {"refreshed": 0, "fresh": 0, "failed": 0, "symbols": len(want)}
+    now = time.time()
+    for sym, metric, uni in want:
+        try:
+            hit = cache.get(f"breadthdaily_{sym}")
+            if hit and hit.get("series") is not None \
+                    and now - hit.get("saved_at", 0) <= _SEALED_TTL:
+                out["fresh"] += 1
+                continue
+            _refresh_series(sym, metric, uni)
+            out["refreshed"] += 1
+            time.sleep(_WARM_GAP)
+        except Exception:      # noqa: BLE001 — never let a warm failure reach serving
+            out["failed"] += 1
+            _log.warning("[breadth_symbols] PIT warm failed for %s", sym)
+    return out
 
 
 def start_breadth_warm(interval_seconds: int = 90) -> None:
@@ -543,3 +1055,336 @@ def start_breadth_warm(interval_seconds: int = 90) -> None:
                 _log.exception("[breadth_symbols] warm loop error")
             time.sleep(interval_seconds)
     threading.Thread(target=_loop, name="breadth-bars-warm", daemon=True).start()
+
+
+# ─── Discovery over the library (Phase 5) ────────────────────────────────────
+#
+# ⭐⭐ HUMAN METRIC FIRST, UNIVERSE SECOND, SYMBOL AVAILABLE BUT NOT DOMINANT.
+# A member looking for Nasdaq's 50-day-MA breadth is looking for "% of Stocks Above
+# 50-Day MA" and then for "NASDAQ" — not for the string `NASDAQ:A50`, which is an
+# ADDRESS. So a result leads with `name`, carries `universe_label` as a compact
+# qualifier, and keeps `symbol` for the member who already knows it.
+#
+# ⛔ THIS IS NOT A SECOND CATALOGUE. It ranks rows from `library_rows()` and owns
+# no facts of its own — no names, no families, no units. Add a metric or a universe
+# and this function reports it without being edited.
+
+#: Query words that name the LIBRARY rather than anything in it. "NASDAQ breadth"
+#: means "Nasdaq's breadth metrics"; requiring the word to appear in a metric's own
+#: text would return the one metric with "Breadth" in its name and hide the rest.
+_LIBRARY_NOISE = frozenset({"BREADTH", "METRIC", "METRICS", "INDICATOR",
+                            "INDICATORS", "LIBRARY", "SERIES"})
+
+
+def _tokens(q: str) -> list[str]:
+    """Upper-cased alphanumeric runs. `:` is a separator here and nothing more —
+    the resolver, not the tokeniser, decides whether a colon string is an identity."""
+    out, cur = [], []
+    for ch in (q or "").upper():
+        if ch.isalnum() or ch == "%":
+            cur.append(ch)
+        elif cur:
+            out.append("".join(cur))
+            cur = []
+    if cur:
+        out.append("".join(cur))
+    return out
+
+
+def _haystack(row: dict) -> str:
+    """Everything a text query may legitimately match, normalised once."""
+    return " ".join(str(v).upper() for v in (
+        row.get("name"), row.get("short_name"), row.get("code"),
+        row.get("group_label"), row.get("symbol") or "", row.get("universe_label"),
+    ))
+
+
+def library_search(q: str, limit: int = 40, published_only: bool = False) -> list[dict]:
+    """Ranked Breadth Library results for one query.
+
+    Supports, in the owner's words: `"50 MA"` → the A50 family across universes;
+    `"NASDAQ breadth"` → Nasdaq's library; `"high low"` → New Highs, New Lows and
+    Net New High-Low with their universe variants; `"A50"` → every A50 universe;
+    `"NASDAQ:A50"` → that exact series.
+
+    ⚠️ A UNIVERSE WORD NARROWS RATHER THAN MATCHES. `NASDAQ` in a query means "only
+    Nasdaq rows", not "rows whose text contains NASDAQ" — otherwise `"NASDAQ 50 MA"`
+    would rank a UCT row that happens to mention neither.
+
+    ⛔ AND A FAMILY WORD MATCHES THE FAMILY. `"high low"` finds New Highs even
+    though its own name contains no "Low", because `group_label` ("Highs / Lows")
+    is in the haystack. Requiring every token inside one metric's NAME would return
+    only the one metric that happens to carry both words.
+    """
+    from api.services import breadth_universes as _bu
+
+    rows = [r for r in library_rows() if r.get("symbol")]
+    if published_only:
+        # ⛔ THE SAME PREDICATE AS EVERY OTHER PUBLIC SURFACE. The universe flag alone
+        # is not the gate: a published universe exposes its V1 metrics, not all 39 it
+        # can produce. Searching the wider set would surface `US:NL20` — discoverable,
+        # unservable — which is the exact incoherence BL-013 exists to remove.
+        rows = [r for r in rows if is_published(r["universe"], r["metric"])]
+    raw = (q or "").strip()
+    if not raw:
+        return []
+
+    # ── 0. an exact identity (or alias) wins outright ──────────────────────
+    hit = _library_index().get(raw.upper())
+    scored = []
+    if hit is not None and (not published_only
+                            or is_published(hit["universe"], hit["metric"])):
+        scored.append((0, hit))
+
+    toks = _tokens(raw)
+    label_to_id = {_bu.label(u).upper(): u for u in _bu.UNIVERSE_IDS}
+    want_universes = {label_to_id[t] for t in toks if t in label_to_id}
+    rest = [t for t in toks
+            if t not in label_to_id and t not in _LIBRARY_NOISE]
+
+    for row in rows:
+        if hit is not None and row is hit:
+            continue
+        if want_universes and row["universe"] not in want_universes:
+            continue
+        code = str(row["code"]).upper()
+        hay = _haystack(row)
+        # ⭐ THE METRIC'S OWN TEXT OUTRANKS ITS FAMILY'S, and that tier is what makes
+        # "new lows" answer with New Lows. Without it both NH and NL match only
+        # through the shared family label "Highs / Lows", the tie breaks on
+        # catalogue order, and the member who typed "lows" is shown "New 52-Week
+        # Highs" first — technically a family hit, and obviously the wrong answer.
+        own = f"{row['name']} {row['short_name']} {code}".upper()
+        if not rest:
+            # a bare universe query ("NASDAQ") lists that universe's library
+            score = 2 if want_universes else None
+        elif all(t == code for t in rest):
+            score = 1                                   # "A50"
+        elif all(t in own for t in rest):
+            score = 3                                   # "new lows", "above 50"
+        elif all(t in hay for t in rest):
+            score = 4                                   # family / universe context
+        else:
+            score = None
+        if score is not None:
+            scored.append((score, row))
+
+    # ⭐⭐ METRIC FIRST, UNIVERSE SECOND — the owner's UX principle, expressed as a
+    # SORT rather than as a later grouping pass. `"high low"` must read
+    #
+    #     New 52-Week Highs      UCT · US · NASDAQ · NYSE
+    #     New 52-Week Lows       UCT · US · NASDAQ · NYSE
+    #
+    # so a member sees one metric with its universe variants adjacent. Sorting by
+    # universe first produced the opposite — every UCT metric, then every US metric
+    # — which is the ticker-soup list this library exists to replace.
+    #
+    # ⚠️ And it is STABLE: score, then catalogue metric order, then universe order.
+    # A search that reorders itself between identical calls is one nobody can learn.
+    from api.services import breadth_metrics as _bm
+    metric_rank = {k: i for i, k in enumerate(_bm.METRIC_KEYS)}
+    uni_rank = {u: i for i, u in enumerate(_bu.UNIVERSE_IDS)}
+    scored.sort(key=lambda sr: (sr[0],
+                                metric_rank.get(sr[1]["metric"], 10**6),
+                                uni_rank.get(sr[1]["universe"], 99)))
+
+    out, seen = [], set()
+    for score, row in scored:
+        key = (row["universe"], row["metric"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({**row, "score": score, "symbol_hit": score <= 1})
+        if len(out) >= limit:
+            break
+    return out
+
+
+# ─── Availability (Phase 7 §11) ──────────────────────────────────────────────
+
+_AVAIL_TTL = 300
+_avail_cache: dict = {"at": 0.0, "value": None}
+
+
+def availability() -> dict:
+    """`{universe: {state, first, last, rows, floor}}` — what history ACTUALLY exists.
+
+    ⭐⭐ THE UI MUST NOT IMPLY HISTORY WE HAVE NOT POPULATED, and the only way to
+    keep that true as the backfill lands is to ASK THE STORE rather than to describe
+    it in a constant somebody has to remember to update. A universe with no rows
+    reports `not_populated`; one with rows reports the real first/last it holds.
+
+    States:
+      `available`     — rows exist and reach the universe's approved floor
+      `limited`       — rows exist but start later than the floor (a partial backfill)
+      `not_populated` — no rows at all
+    ⛔ There is no `complete`. "Reaches the floor" is the strongest claim the data
+    can support; whether every session inside it is present is `distinct_dates`'
+    question, not this one.
+    """
+    now = time.time()
+    if _avail_cache["value"] is not None and now - _avail_cache["at"] < _AVAIL_TTL:
+        return _avail_cache["value"]
+    from api.services import breadth_daily_ohlc as _store
+    from api.services import breadth_universes as _bu
+    out = {}
+    for uid in _bu.UNIVERSE_IDS:
+        floor = _bu.floor(uid)
+        try:
+            st = _store.stats(uid) or {}
+        except Exception:
+            st = {}
+        rows, first, last = st.get("rows") or 0, st.get("first"), st.get("last")
+        if not rows:
+            state = "not_populated"
+        elif floor and first and first > floor:
+            state = "limited"
+        else:
+            state = "available"
+        out[uid] = {"state": state, "rows": rows, "first": first, "last": last,
+                    "floor": floor}
+    _avail_cache.update(at=now, value=out)
+    return out
+
+
+#: Health is derived from a few aggregate queries, so it is cached briefly. It is an
+#: EXPLICIT status call, never the serve path.
+_HEALTH_TTL = 60
+_health_cache: dict = {"at": 0.0, "value": None}
+
+
+def library_health(force: bool = False) -> dict:
+    """`{universes: {...}, ok: bool}` — is the Breadth Library healthy?
+
+    ⭐⭐ ONE QUESTION, ANSWERED FROM WHAT ALREADY EXISTS. `breadth_daily_ohlc.stats`
+    knows coverage, `_FORWARD_SEAL_STATE` knows the last seal attempt, `_SWEEP_STATE`
+    knows the backfill, and `availability()` knows whether a universe reaches its
+    floor. This joins them and adds the one thing none of them could answer alone:
+    whether the sessions the CALENDAR expects are actually present.
+    ⛔ NOT A DASHBOARD, and not a new store.
+
+    ⛔⛔ AND IT NEVER RUNS ON THE SERVE PATH. The gap probe reads the recent distinct
+    dates for a universe, which is an index scan, not a table scan — but it is still
+    a query, so it is cached for a minute and only ever reached through an explicit
+    status call. `build_breadth_bars` does not call this.
+    """
+    now = time.time()
+    if not force and _health_cache["value"] is not None \
+            and now - _health_cache["at"] < _HEALTH_TTL:
+        return _health_cache["value"]
+
+    from api.services import breadth_daily_ohlc as _store
+    from api.services import breadth_history_recon as _recon
+    from api.services import breadth_universes as _bu
+
+    avail = availability()
+    published = set(_bu.published_universe_ids())
+    pubset = None
+    try:
+        from api.services import breadth_metrics as _bm
+        pubset = _bm.publication_set_name()
+    except Exception:
+        pass
+
+    out = {"publication_set": pubset, "universes": {}, "ok": True}
+    for uid in _bu.UNIVERSE_IDS:
+        a = dict(avail.get(uid) or {})
+        row = {
+            "published": uid in published,
+            "is_pit": _bu.is_pit(uid),
+            "state": a.get("state"),
+            "floor": a.get("floor"),
+            "first": a.get("first"),
+            "last": a.get("last"),
+            "rows": a.get("rows"),
+        }
+        try:
+            row["metrics_published"] = len([
+                r for r in library_rows([uid])
+                if r.get("symbol") and is_published(uid, r["metric"])])
+        except Exception:
+            row["metrics_published"] = None
+        if _bu.is_pit(uid):
+            row["forward_seal"] = _recon.forward_seal_state(uid)
+            row["expected_gap"] = _expected_session_gap(uid, a.get("last"), _store)
+            # ⚠️ UNHEALTHY IS A CLAIM ABOUT A PUBLISHED UNIVERSE ONLY. A dark universe
+            # with no rows is the normal, correct, shipped state — calling that
+            # "unhealthy" would make the signal useless on the day it matters.
+            if row["published"]:
+                seal = row["forward_seal"] or {}
+                if row["state"] == "not_populated" \
+                        or seal.get("gapped") or seal.get("failed") \
+                        or (row["expected_gap"] or {}).get("missing"):
+                    out["ok"] = False
+                    row["healthy"] = False
+                else:
+                    row["healthy"] = True
+        out["universes"][uid] = row
+
+    _health_cache.update(at=now, value=out)
+    return out
+
+
+def _expected_session_gap(universe: str, last: Optional[str], store, lookback: int = 30):
+    """Trading sessions the calendar expects in the recent window that have NO rows.
+
+    ⚠️ BOUNDED TO A SHORT WINDOW ON PURPOSE. "Is every session since 2008 present?"
+    is a real question and it is the integrity audit's, not a health probe's — asking
+    it here would put a full-history scan behind a status call somebody polls.
+    """
+    if not last:
+        return None
+    try:
+        from datetime import date as _d, timedelta as _t
+        from api.services import breadth_history_recon as _recon
+        start = (_d.fromisoformat(last) - _t(days=int(lookback) * 2)).isoformat()
+        have = set(store.dates_since(universe, since=start) or [])
+        want = [d for d in _recon.sessions_between(start, last)]
+        missing = [d for d in want if d not in have]
+        return {"since": start, "expected": len(want), "present": len(want) - len(missing),
+                "missing": missing[:20], "missing_count": len(missing)}
+    except Exception:
+        return None
+
+
+def library_catalog(published_only: bool = True) -> dict:
+    """The Breadth Library as the CLIENT consumes it: rows + families + universes.
+
+    ⛔ ONE PAYLOAD, NOT THREE ENDPOINTS. The frontend needs the metric, its family,
+    its universe, how to draw it and whether its history exists — and every one of
+    those already lives in a module here. Splitting them across calls would make the
+    client join them, which is where a second catalogue is born.
+
+    ⚠️ `published_only` keeps the library DARK by default: a universe absent from
+    `published_universe_ids()` contributes no rows, so an unpopulated NASDAQ cannot
+    appear in a menu and imply history that does not exist.
+    """
+    from api.services import breadth_universes as _bu
+    avail = availability()
+    unis = _bu.published_universe_ids() if published_only else list(_bu.UNIVERSE_IDS)
+    rows = [r for r in library_rows(unis) if r.get("symbol")]
+    # ⛔ AND THE PUBLICATION SET, NOT JUST THE UNIVERSE SET. A universe being enabled
+    # does not make every metric it could carry public — V1 is 18 of the 39 a PIT
+    # universe can produce. Filtering here keeps discovery and `/api/bars` answering
+    # the same question, which is the whole of BL-013.
+    if published_only:
+        rows = [r for r in rows if is_published(r["universe"], r["metric"])]
+    fams, seen = [], set()
+    for r in rows:
+        if r["group"] not in seen:
+            seen.add(r["group"])
+            fams.append({"id": r["group"], "label": r["group_label"]})
+    from api.services import breadth_metrics as _bm
+    return {
+        "rows": rows,
+        "families": fams,
+        "universes": [{"id": u, "label": _bu.label(u), **avail.get(u, {})}
+                      for u in unis],
+        # ⛔⛔ THE CANONICAL METRIC ORDER, SENT RATHER THAN RE-DERIVED. A client that
+        # infers it from first appearance in `rows` gets it WRONG the moment a metric
+        # has no symbol in the first universe: `net_new_high_low` has no UCT symbol
+        # (UCT never published one), so it first appears under `us` and sorts after
+        # every UCT metric instead of beside its own family. Measured as a parity
+        # failure between the two search lanes, which is exactly what that rail is for.
+        "metric_order": _bm.METRIC_KEYS,
+    }

@@ -50,7 +50,51 @@ CONFIG_SERVED = "j2:notebook_config_served"
 #
 # ⭐ A MEMBER is an opt-in from NEITHER of these. That is the only number the
 # "zero blocked-baseline events" claim may be divided by.
-NOT_A_MEMBER = ("unchartedterritory5995@gmail.com", "smoke@uctintelligence.internal")
+# =============================================================================
+# THREE POPULATIONS, NEVER ONE "members" FIGURE. Owner ruling 2026-09-13.
+# =============================================================================
+# !!!! THIS WAS TWO LISTS AND A ROW COUNT, AND IT REPORTED OUR OWN TEST ACCOUNT
+# AS SEVEN INDEPENDENT MEMBERS.
+#
+# On 2026-09-13 the 15:00 ET row read `members 7`. Every one of the seven was
+# the T-12 smoke account: `/api/auth/export-data` on that account shows exactly
+# those seven `notebook_offline_opt_in` rows, 17:51:57 -> 18:14:46 UTC, matching
+# the seven T-12 runs. Two faults let it happen:
+#   1. the exclusion list held `smoke@...` but not `member-smoke@...` -- two
+#      different accounts, 30 and 37 characters, one excluded and one not;
+#   2. the count was `indep.length` -- ROWS, not identities -- while the
+#      config-served column beside it is explicitly BY IDENTITY. One real
+#      member with seven tabs would have read as seven members too.
+#
+# * So the sampler now reports THREE numbers, every time, and never adds them:
+#
+#   ORGANIC   a person who is not us. The ONLY number the K window's "zero
+#             blocked-baseline events" claim may be divided by.
+#   SYNTHETIC an account WE provisioned. It proves the path is reachable and
+#             proves nothing about adoption, so it is counted and shown --
+#             never excluded into invisibility, never folded into organic.
+#   RIG/OWNER the instrument and the owner's own browsing. Never a member.
+RIG_AND_OWNER = ("unchartedterritory5995@gmail.com",)
+
+# !! BY FULL EMAIL, NEVER BY PREFIX. A `startswith("smoke")` test would have
+# caught `member-smoke@` only by luck, and a substring test would silently
+# swallow a real member whose address happened to contain one of these.
+SYNTHETIC_MEMBERS = (
+    "smoke@uctintelligence.internal",            # the post-deploy client smoke
+    "member-smoke@uctintelligence.internal",     # T-12's independent-member view
+)
+
+# !!!! AN UNKNOWN ADDRESS ON OUR OWN INTERNAL DOMAIN IS FLAGGED, NOT COUNTED AS
+# ORGANIC. `.internal` is reserved (RFC 8375) and unroutable, so nobody outside
+# this programme can hold one -- a new one is a synthetic account somebody
+# provisioned without telling this list. Counting it as organic would be the
+# same defect arriving from a new address, and staying silent is how it
+# arrives. It lands in its own bucket and says so.
+INTERNAL_DOMAIN = "@uctintelligence.internal"
+
+# Kept as the union, because several call sites still ask "is this a member at
+# all" -- derived, so the two can never disagree.
+NOT_A_MEMBER = RIG_AND_OWNER + SYNTHETIC_MEMBERS
 BLOCKED = "j2:notebook_blocked_no_baseline"
 
 # ⚰️ THE SUBTRACTION THAT COULD ONLY EVER SAY ZERO.
@@ -88,6 +132,25 @@ new event arrives regardless of roll-off. Every opt-in up to
 the rig never opts in during a sampler run, so a latest NEWER than that, with no
 canary running, is a REAL MEMBER.
 
+⛔⛔ **THREE POPULATIONS, NEVER ONE `members` FIGURE** (owner ruling 2026-09-13).
+Column 2 reads `organic N · synthetic M · rig/owner K`, counted **by distinct
+identity** and never summed. **ORGANIC** is a person who is not us, and is the
+only number the *zero blocked-baseline events* claim may be divided by.
+**SYNTHETIC** is an account we provisioned: it proves the path is reachable and
+says nothing about adoption. **RIG/OWNER** is the instrument and the owner's own
+browsing.
+
+⚰️ It was one number, counted by ROW, and on 2026-09-13 it reported our own T-12
+smoke account as **seven independent members** — 7 events from 1 identity, and
+that identity was not on the exclusion list because it is `member-smoke@…`, not
+`smoke@…`. ⭐ **Seven opt-ins from seven fresh browser contexts is EXPECTED, not a
+dedupe failure:** the opt-in dedupe marker is per tab/context by design.
+
+⛔ An unknown address on `@uctintelligence.internal` is **flagged as an ANOMALY**,
+never counted as organic. That domain is reserved and unroutable, so nobody
+outside this programme can hold one — a new one is a synthetic account somebody
+provisioned without declaring it.
+
 ⛔⛔ WAVE K COLUMN — `config-served (members)`. K-1 flips the compile-time
 constant to `false` so an unreachable auth payload fails to OFF; its precondition
 is a **config-served rate of 100%% over the K window, measured by identity, rig and
@@ -98,7 +161,7 @@ the opt-in column uses, because two exclusion lists over one question is how the
 drift. ⛔ `0/0` is NOT 100%%: an empty population cannot satisfy a rate, and the
 column prints `0/0` rather than a percentage so nobody can read it as one.
 
-| at (ET) | latest opt-in (UTC) | opt-in (windowed) | config-served (members) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
+| at (ET) | opt-ins by population (UTC) | opt-in (windowed) | config-served (members) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
 |---|---|---|---|---|---|---|---|---|
 """ % RIG_OPT_IN_BASELINE
 
@@ -182,7 +245,7 @@ def append(line: str) -> None:
         fh.write(line)
 
 
-OPTIN_JS = """async (excluded) => {
+OPTIN_JS = """async ({rigOwner, synthetic, internalDomain}) => {
   const r = await fetch('/api/auth/admin/activity?limit=200', {credentials:'include'});
   if (!r.ok) return {err: 'HTTP ' + r.status};
   const ct = r.headers.get('content-type') || '';
@@ -190,13 +253,41 @@ OPTIN_JS = """async (excluded) => {
   const j = await r.json();
   const rows = Array.isArray(j) ? j : (j.rows || j.activity || []);
   const hits = rows.filter(x => String(x.action).includes('notebook_offline_opt_in'));
-  const indep = hits.filter(x => !excluded.includes(String(x.email || '').toLowerCase()));
+
+  // BY IDENTITY, not by row -- the same rule the config-served column already
+  // uses. Seven opt-ins from one account is ONE account, however many browser
+  // contexts produced them.
+  const bucket = {organic: new Map(), synthetic: new Map(), rigOwner: new Map(), unknownInternal: new Map()};
+  for (const x of hits) {
+    const email = String(x.email || '').toLowerCase();
+    const when = x.created_at;
+    let key = 'organic';
+    if (rigOwner.includes(email)) key = 'rigOwner';
+    else if (synthetic.includes(email)) key = 'synthetic';
+    else if (email.endsWith(internalDomain)) key = 'unknownInternal';
+    const b = bucket[key];
+    if (!b.has(email)) b.set(email, {events: 0, latest: when});
+    const e = b.get(email);
+    e.events += 1;
+    if (!e.latest || String(when) > String(e.latest)) e.latest = when;
+  }
+  const mask = (m) => m.split('@')[0].slice(0, 12) + '@' + m.split('@')[1];
+  const summarise = (b) => ({
+    identities: b.size,
+    events: [...b.values()].reduce((a, v) => a + v.events, 0),
+    latest: [...b.values()].map(v => v.latest).sort().pop() || null,
+    who: [...b.keys()].map(mask),
+  });
   return {
     total: hits.length,
     latest: hits.length ? hits[0].created_at : null,
-    memberCount: indep.length,
-    memberLatest: indep.length ? indep[0].created_at : null,
-    memberWho: indep.length ? String(indep[0].email || '').split('@')[0] + '@…' : null,
+    // ! A FULL PAGE IS A CAP, NOT A COUNT. Say so, or "we found N" reads as
+    // "there are N" while the oldest rows sit outside the window.
+    capped: rows.length >= 200,
+    organic: summarise(bucket.organic),
+    synthetic: summarise(bucket.synthetic),
+    rigOwner: summarise(bucket.rigOwner),
+    unknownInternal: summarise(bucket.unknownInternal),
   };
 }"""
 
@@ -253,6 +344,7 @@ def main() -> int:
 
     from playwright.sync_api import sync_playwright
     errors: list[str] = []
+    http_fail: list[str] = []
     proc = endpoint = None
     try:
         proc, endpoint, _ = wc.spawn_rig()
@@ -264,18 +356,61 @@ def main() -> int:
             # evaluating is caught. A broken flipped bundle fails before the
             # offline layer would ever run, and that is the 2am case this exists
             # to notice.
+            # ⛔⛔ "2 console errors" IS NOT ACTIONABLE. Owner ruling 2026-09-14,
+            # after three consecutive ANOMALY rows whose entire content was
+            # "Failed to load resource: the server responded with a status of 401 ()".
+            # A resource-load console message does NOT carry the URL in its text --
+            # the URL is in the message's LOCATION, and the method and status are only
+            # on the response. So three listeners, not one.
+            def _on_console(m):
+                if m.type != "error":
+                    return
+                loc = m.location or {}
+                where = str(loc.get("url") or "")
+                line = loc.get("lineNumber")
+                # ⭐ the location of a resource-load error is the JS that ISSUED it,
+                # which is the closest thing to an initiator the page will give us.
+                tail = f"  [issued by {where[:110]}:{line}]" if where else "  [no location]"
+                errors.append(f"console.error: {m.text}{tail}")
+
+            def _on_response(r):
+                # ⛔ Recorded BESIDE the console count, never added to it: trigger 4
+                # reads that count and widening it would change the gate's meaning
+                # while claiming to improve its logging.
+                try:
+                    if r.status >= 400:
+                        http_fail.append(f"{r.request.method} {r.url[:120]} -> {r.status}")
+                except Exception:  # noqa: BLE001
+                    pass
+
+            def _on_requestfailed(r):
+                try:
+                    http_fail.append(f"{r.method} {r.url[:120]} -> FAILED ({r.failure})")
+                except Exception:  # noqa: BLE001
+                    pass
+
             page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
-            page.on("console", lambda m: errors.append(f"console.error: {m.text}") if m.type == "error" else None)
+            page.on("console", _on_console)
+            page.on("response", _on_response)
+            page.on("requestfailed", _on_requestfailed)
 
             page.goto(wc.PROD + "/journal/notebook", wait_until="domcontentloaded")
             page.wait_for_timeout(9000)
 
             act = page.evaluate(wc.ACTIVITY_JS, [OPT_IN, BLOCKED])
             total = (act.get(OPT_IN) or {}).get("count", "ERR")
-            oi = page.evaluate(OPTIN_JS, [e.lower() for e in NOT_A_MEMBER])
+            oi = page.evaluate(OPTIN_JS, {
+                "rigOwner": [e.lower() for e in RIG_AND_OWNER],
+                "synthetic": [e.lower() for e in SYNTHETIC_MEMBERS],
+                "internalDomain": INTERNAL_DOMAIN,
+            })
             latest = oi.get("latest") or "—"
-            members = oi.get("memberCount", "ERR")
-            member_latest = oi.get("memberLatest") or "—"
+            org = oi.get("organic") or {}
+            syn = oi.get("synthetic") or {}
+            rig = oi.get("rigOwner") or {}
+            unk = oi.get("unknownInternal") or {}
+            members = org.get("identities", "ERR")
+            member_latest = (org.get("latest") or syn.get("latest") or "—")
             blocked = (act.get(BLOCKED) or {}).get("count", "ERR")
             # ⛔ WAVE K — the same exclusion list as the opt-in column, passed to
             # the same admin feed. Two lists over one question is how they drift.
@@ -303,15 +438,52 @@ def main() -> int:
                 return 0
 
             reasons = []
-            if errors:
-                reasons.append(f"{len(errors)} console/page error(s): {errors[0][:90]}")
+            if errors or http_fail:
+                # ⭐ The COUNT stays the console/page count (trigger 4's column).
+                # The HTTP failures are named beside it so the row can be acted on
+                # without taking a rig window to reproduce it.
+                bits = []
+                if errors:
+                    bits.append(errors[0][:150])
+                if http_fail:
+                    seen, uniq = set(), []
+                    for h in http_fail:
+                        if h not in seen:
+                            seen.add(h)
+                            uniq.append(h)
+                    more = f" (+{len(uniq) - 3} more)" if len(uniq) > 3 else ""
+                    bits.append("HTTP: " + " ; ".join(uniq[:3]) + more)
+                # ⛔ NEVER EMIT THE TABLE DELIMITER INTO A CELL. This joined with "  |  "
+                # for one night and made the row UNPARSEABLE: the flag cell carried a
+                # pipe, so the row read as 10 cells under a 9-column header and the
+                # gate DROPPED it - silently losing the only row that carried the URL
+                # the whole change was made to record.
+                # ⭐ The reader was also made tolerant, but a writer that emits its
+                # own delimiter is a hazard for every other reader too.
+                reasons.append(f"{len(errors)} console/page error(s): " + "  ·  ".join(bits))
+            if unk.get("identities"):
+                reasons.append(
+                    f"UNKNOWN INTERNAL identity opted in ({unk.get('identities')}): "
+                    f"{', '.join(unk.get('who') or [])} \u2014 an unroutable .internal address "
+                    f"nobody declared. Add it to SYNTHETIC_MEMBERS or explain it; it is "
+                    f"NOT organic exposure")
             if isinstance(blocked, int) and blocked > 0:
                 reasons.append(f"blocked-baseline events = {blocked}")
             flag = "OK" if not reasons else "**ANOMALY** — " + " · ".join(reasons)
 
-            append(row(at, f"{latest} · members {members}" + ("" if members in (0, "ERR") else f" (latest {member_latest})"),
+            # THREE NUMBERS, ALWAYS, AND NEVER SUMMED. A single "members"
+            # figure is what let our own test account read as seven members.
+            who = lambda d: (" [" + ", ".join(d.get("who") or []) + "]") if d.get("identities") else ""
+            cell = (f"{latest} \u00b7 organic {org.get('identities', 'ERR')}"
+                    f"{who(org)}"
+                    f" \u00b7 synthetic {syn.get('identities', 0)}"
+                    + (f" ({syn.get('events', 0)} events{who(syn)})" if syn.get("identities") else "")
+                    + f" \u00b7 rig/owner {rig.get('identities', 0)}"
+                    + (f" \u00b7 \u26d4 UNKNOWN INTERNAL {unk.get('identities')}{who(unk)}"
+                       if unk.get("identities") else ""))
+            append(row(at, cell,
                        total, served_txt, blocked, conflicts, 0, len(errors), flag))
-            print(f"{at}  latest={latest} members={members} total={total} config-served={served_txt} "
+            print(f"{at}  organic={org.get('identities')} synthetic={syn.get('identities')} rig={rig.get('identities')} total={total} config-served={served_txt} "
                   f"blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
     except Exception as e:                                   # noqa: BLE001
         append(row(at, "—", "—", "—", "—", "—", "—", "—",

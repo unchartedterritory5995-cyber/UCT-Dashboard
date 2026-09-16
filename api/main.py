@@ -3458,6 +3458,46 @@ async def lifespan(app: FastAPI):
         readiness.mark_done("hot_tier")
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
 
+    # ⭐ The breadth numeric projection: idempotent, marker-gated, and started on a
+    # daemon thread so a 111 MB VACUUM INTO backup can never hold up a boot. It
+    # refuses to run without that backup, and asserts with a before/after
+    # fingerprint that it did not touch `breadth_snapshots`. Until it has run the
+    # reader still serves correctly off the blobs — which is what makes shipping
+    # the read path and the backfill in one deploy safe.
+    try:
+        import threading as _th
+
+        def _breadth_numeric_backfill():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import breadth_numeric_migration as _mig
+                _log.info("[startup] breadth numeric projection: %s", _mig.backfill())
+            except Exception:
+                _log.exception("[startup] breadth numeric backfill failed")
+            try:
+                from api.services import breadth_numeric_migration as _mig
+                _log.info("[startup] breadth reconstructed side: %s",
+                          _mig.backfill_reconstructed())
+            except Exception:
+                _log.exception("[startup] breadth reconstructed backfill failed")
+            # ⭐ AND THEN THE INCREMENTAL PASS, EVERY BOOT. The writer hooks keep the
+            # derived table in step in normal operation; this catches whatever
+            # happened while this pod was not running — a collector push to another
+            # instance, a sync merge, a hand-run admin recompute. It is a no-op when
+            # nothing drifted, and the watermark is what makes "nothing drifted" a
+            # measurement rather than an assumption.
+            try:
+                from api.services import breadth_daily_ohlc as _ohlc
+                _log.info("[startup] breadth reconstructed rebuild_stale: %s",
+                          _ohlc.rebuild_stale())
+            except Exception:
+                _log.exception("[startup] breadth reconstructed rebuild_stale failed")
+
+        _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
+                   daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the breadth backfill")
+
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
@@ -5760,6 +5800,52 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth history backfill tick")
 
+        # ── THE DAILY FORWARD SEAL for published PIT universes ────────────────
+        #
+        # ⭐⭐ CONVERGENCE, NOT AN APPOINTMENT. The job asks "are there settled PIT
+        # sessions that should now be sealed?" and fills the bounded gap. It does NOT
+        # depend on firing at 16:1x ET: a missed tick, a pod restart, a deploy during
+        # the close — the next run simply finds two sessions pending instead of one.
+        # Correctness lives in `forward_seal_plan` reading the store, not in cron.
+        #
+        # ⛔ INERT WHILE THE LIBRARY IS DARK. `forward_seal_all` iterates PUBLISHED PIT
+        # universes, and the default published set is UCT alone — which is not a PIT
+        # universe. So with no flag this costs one set lookup every half hour and does
+        # nothing else. No provider call, no store write, no CPU.
+        #
+        # ⚠️ REGISTERED ALWAYS, GATED INSIDE, exactly like the backfill tick above —
+        # so arming a universe never needs a code deploy to also get its daily seal.
+        try:
+            def _breadth_forward_seal_tick():
+                try:
+                    from api.services import breadth_universes as _bu
+                    published = set(_bu.published_universe_ids())
+                    if not any(u in published for u in _bu.PIT_UNIVERSE_IDS):
+                        return              # dark — the common case, and free
+                    from api.services import breadth_history_recon as _recon
+                    res = _recon.forward_seal_all()
+                    for _uni, _r in (res or {}).items():
+                        if _r.get("sealed"):
+                            logging.getLogger(__name__).info(
+                                "[breadth-seal] %s sealed %s session(s) through %s",
+                                _uni, _r.get("sealed"), _r.get("to"))
+                        elif _r.get("failed") or _r.get("gapped") or _r.get("partial"):
+                            logging.getLogger(__name__).warning(
+                                "[breadth-seal] %s NOT sealed: %s", _uni, _r.get("reason"))
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-seal] tick failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_forward_seal_tick,
+                trigger=CronTrigger(minute="7,37", timezone=_ET),
+                id="breadth_forward_seal_tick", max_instances=1,
+                coalesce=True, misfire_grace_time=1800, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth forward seal scheduled (every 30 min, inert while dark)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth forward seal")
+
 
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the
@@ -7734,10 +7820,32 @@ async def lifespan(app: FastAPI):
         # `except` below would call it non-fatal, and V2 would silently never start.
         import asyncio as _v2_boot_aio
         from api.services.discord_render import commands as _render_v2
+        # ⛔⛔ OI-43 — THE LOOP WATCH STARTS WHETHER OR NOT V2 IS ON, AND IT USED NOT TO.
+        #
+        # ⚰️ WHAT WAS WRONG, MEASURED 2026-09-15. These two lines sat INSIDE
+        # `if _render_v2.enabled():`. `loopwatch` has its own kill switch and that switch is
+        # open by default — so everything read like a live instrument. It was not: V2 is dark
+        # on every production pod, so the start was never reached and the watcher had NEVER
+        # RUN. The health payload said so the moment OI-42 made it readable:
+        # `{"running": false, "samples": 0}`, stable at +0s, +30s and +60s.
+        #
+        # ⭐ AND THE GATE WAS THE WRONG ONE IN KIND. This probe exists to explain a missed
+        # 3-second acknowledgement (C-02). That is a V1 concern on a V1 pod — the 2026-09-15
+        # `/flow` ack miss happened with V2 off and one admin user. The instrument built to
+        # explain V1 ack misses only ran when V2 was on.
+        #
+        # ⛔ ON THE LOOP, NOT IN THE THREAD. The stall probe measures THIS event loop, and a
+        # task can only be created from it — `_render_v2.start` runs in `to_thread`, where
+        # `ensure_future` has no loop to attach to and would silently give back nothing
+        # (step 2.4b P2.9; C-02, where a blocked loop failed the ack and the renderer together
+        # and no instrument could see it). This is still on the loop; it is simply no longer
+        # behind a flag that has nothing to do with it.
+        from api.services.discord_render import loopwatch as _v2_loopwatch
+        _v2_loopwatch.start()
         if _render_v2.enabled():
             _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
             print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
-                  f"abandoned={_v2_boot['abandoned']}")
+                  f"abandoned={_v2_boot['abandoned']} loopwatch={_v2_loopwatch.snapshot()['running']}")
     except Exception as _e:
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 
@@ -7888,6 +7996,13 @@ class _GZipSkipSSE(_GZipBase):
 # combined with orjson's already-smaller output the wire stays tiny. SSE + hashed
 # /assets/ keep bypassing gzip (unchanged).
 app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
+
+# ⭐ OUTERMOST ON PURPOSE, and added AFTER GZip so GZip runs INSIDE it. Compressing
+# the 5 MB deep-history payload is one of the stages this measures; a probe placed
+# inside the compressor would report the one number that is already known. Scoped to
+# the single path `/api/breadth-monitor` — see the module docstring.
+from api.services.breadth_timing import BreadthTimingMiddleware as _BreadthTiming  # noqa: E402
+app.add_middleware(_BreadthTiming)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

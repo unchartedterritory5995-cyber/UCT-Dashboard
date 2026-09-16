@@ -56,6 +56,32 @@ def command_enabled(name: str) -> bool:
     return os.environ.get(f"DISCORD_RENDER_V2_{name.upper()}_ENABLED", "1").strip().lower() not in _OFF
 
 
+def v2_channels() -> tuple:
+    """The channels V2 may answer in, or () for "every channel" (OI-35).
+
+    ⛔⛔ WITHOUT THIS THERE IS NO CANARY. `enabled()` is one global boolean and
+    `command_enabled()` splits by COMMAND, not by channel — so flipping
+    DISCORD_RENDER_V2_ENABLED sends every member's /chart in #chart-flow-requests to V2
+    in the same instant. That is the member-channel flip, which is the owner's decision
+    and not a canary. 03-architecture §2.1 specified a per-channel flag; what shipped
+    had no channel dimension at all, and the flip packet's precondition table was
+    written against the spec rather than against the code.
+
+    ⛔ UNSET MEANS EVERY CHANNEL, deliberately: this is a NARROWING control, not a kill
+    switch. If it defaulted to "none" then a deployment that set DISCORD_RENDER_V2_ENABLED
+    and forgot this one would silently render V2 to nobody while every check said it was
+    on — off-and-unset being indistinguishable from off-on-purpose is the exact defect
+    the feature-flag ledger exists to prevent."""
+    raw = os.environ.get("DISCORD_RENDER_V2_CHANNELS", "")
+    return tuple(part for part in (p.strip() for p in raw.split(",")) if part)
+
+
+def channel_allowed(interaction: dict) -> bool:
+    """True if V2 may answer this interaction's channel."""
+    allowed = v2_channels()
+    return (not allowed) or str(interaction.get("channel_id") or "") in allowed
+
+
 # ── runtime singleton ───────────────────────────────────────────────────────
 
 _runtime: JobRuntime | None = None
@@ -71,6 +97,18 @@ _symbol_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_
 
 
 def _last_edit_failure():
+    """What the last failed edit on THIS thread was.
+
+    ⛔ THE DELIVERY LAYER IS ASKED FIRST, AND IT HAS TO BE. Since OI-29 the image PATCH goes
+    through `delivery.edit_image`, which records a full `DeliveryResult` — status, Discord's error
+    code, the named class and whether it was retryable. `di.last_edit_failure()` is the pre-V2
+    recorder and knows nothing about those deliveries, so reading it first would answer `None` for
+    every V2 image failure and the member would be told nothing about a delivery that failed. It is
+    kept as the fallback because the kill switch can still route through `di.edit_original`."""
+    from api.services.discord_render.adapters import bindings
+    res = bindings.last_delivery_failure()
+    if res is not None:
+        return res
     f = di.last_edit_failure()
     if not f:
         return None
@@ -81,7 +119,13 @@ def get_runtime() -> JobRuntime:
     global _runtime
     with _runtime_lock:
         if _runtime is None:
-            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=di.edit_original,
+            # ⛔ OI-29: the image PATCH goes through `delivery.py`, not through the raw
+            # `edit_original`. `delivery_edit_fn()` keeps that function's exact signature and
+            # return contract and re-reads the adapters kill switch on every call, so
+            # `DISCORD_RENDER_V2_ADAPTERS_ENABLED=0` still routes to the raw function — a switch
+            # captured at construction would be inert for the life of the pod.
+            from api.services.discord_render.adapters.bindings import delivery_edit_fn
+            _runtime = JobRuntime(store=JobsStore(), handlers=HANDLERS, edit_fn=delivery_edit_fn(),
                                   last_edit_failure=_last_edit_failure,
                                   commit=(os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12])
             _runtime.start()
@@ -162,7 +206,14 @@ def _enqueue(job: Job, defer: dict, received: float) -> dict:
     if status == "user_busy":
         return _ephemeral(f"You already have {rt.per_user_max} requests rendering — they'll land in a moment. · id {job.corr_id}")
     rt.record_refused(job, "queue_full")
-    return _ephemeral(contract.failure_content(job.label, "queue_full", job.corr_id), contract.failure_components(job.corr_id))
+    reply = _ephemeral(contract.failure_content(job.label, "queue_full", job.corr_id),
+                       contract.failure_components(job.corr_id))
+    # ⛔ D-04 4.2 — RECORDED AFTER THE REPLY IS BUILT, so the number covers everything the member
+    # waited for on our side. It cannot include the hop to Discord, which is true of `ack_ms` too;
+    # what it buys is that PRODUCTION can finally observe S5c, which until now only a harness
+    # reading the wire could. ⛔ Never into `ack_ms` — see `record_refusal_reach`.
+    rt.record_refusal_reach(job.corr_id, (time.perf_counter() - received) * 1000.0)
+    return reply
 
 
 def _rate_limited(uid: str, n: int = 1, noun: str = "charts") -> dict | None:
@@ -261,6 +312,16 @@ async def handle(interaction: dict, received: float) -> dict | None:
     data = interaction.get("data") or {}
     name = data.get("name")
     cid_field = str(data.get("custom_id") or "")
+
+    # ⛔⛔ THE CANARY GATE (OI-35). Returning None hands the interaction back to the pre-V2
+    # branches, which is the documented fall-through contract — so a channel outside the
+    # canary behaves EXACTLY as it does today, including its autocomplete and its buttons.
+    # ⛔ /renderhealth is exempt on purpose: the router answers it whatever the master flag
+    # says, because it is a read-only admin diagnostic and it is most useful BEFORE and
+    # OUTSIDE the canary — that is how an admin watches the queue while V2 is still dark.
+    # Gating it here would silently break it in every channel the moment a canary is set.
+    if name != di.RENDERHEALTH_COMMAND and not channel_allowed(interaction):
+        return None
 
     # Autocomplete (type 4) cannot be deferred: answer inside a bounded budget, off the loop.
     if itype == 4 and command_enabled("chart") and (name in di.CHART_COMMAND_NAMES or name == di.FLOW_COMMAND):
@@ -391,25 +452,64 @@ async def handle(interaction: dict, received: float) -> dict | None:
 
 # ── worker-side handlers ────────────────────────────────────────────────────
 
+#: OI-41. How long a V2 worker may wait for one of the SHARED V1 render slots.
+#:
+#: ⛔ BOUNDED BY THE JOB'S OWN REMAINING BUDGET, NEVER BY A CONSTANT. The deadline watchdog (§3.2)
+#: answers the member when the job's time runs out; a slot wait longer than that would hold a worker
+#: past the moment the member has already been told, which is the exact shape OI-21 recorded
+#: (`RENDER_TIMEOUT_S` 60 s behind a 15 s deadline).
+#:
+#: ⛔ AND A FLOOR OF ZERO, NOT A DEFAULT OF "PLENTY". When the context cannot say how much time is
+#: left, `_remaining` returns None on purpose — a guess here would silently restore the unbounded
+#: wait this bound exists to remove. No budget means no wait, i.e. exactly the old behaviour.
+_SLOT_WAIT_HEADROOM_S = 0.5
+
+
+def _slot_wait_for(ctx: JobContext) -> float:
+    try:
+        left = float(ctx.remaining_s())
+    except Exception:  # noqa: BLE001 — a render must never fail for want of a clock
+        return 0.0
+    return max(0.0, left - _SLOT_WAIT_HEADROOM_S)
+
+
 def _chart_kwargs(ctx: JobContext, guild_id: str) -> dict:
-    from api.routers import discord_interactions as router
+    """⛔ THE UPSTREAMS COME FROM ADAPTERS, NOT FROM THE ROUTER'S RAW FUNCTIONS (P2.1, §3.8).
+
+    The callables have the same shapes `produce_chart` has always called — `(ticker, tf, n)`,
+    `(ticker)`, `(sym, tf, stats, options)`, `None` for "did not work" — so the render function is
+    unchanged and the pre-V2 path (which binds the raw functions in `discord_interactions.py`) is
+    untouched. What changes is behind them: every call is bounded by `min(the dependency's timeout,
+    the JOB's remaining time)`, behind its own breaker, and its `Result` is kept on the context so
+    the reason is available to the reply instead of being thrown away as a `None`."""
     from api.services import discord_chart_context as chart_context
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
-    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,
-                house_fn=house.render_house_chart if house.house_enabled() else None,
-                quote_fn=router.fetch_ext_quote,
+    from api.services.discord_render.adapters import bindings
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,
+                edit_fn=bindings.edit_fn(ctx),
+                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
+                quote_fn=bindings.quote_fn(ctx),
                 context_fn=chart_context.context_line if chart_context.enabled() else None,
-                components_fn=functools.partial(di.chart_components, guild_id=guild_id), fail_fn=ctx.fail)
+                components_fn=functools.partial(di.chart_components, guild_id=guild_id), fail_fn=ctx.fail,
+                # ⛔⛔ OI-41. The V1 `RENDER_SLOTS` semaphore is SHARED with the pre-V2 path, and a V2
+                # job that has already been admitted by `runtime.offer`, queued, and started on a
+                # worker could lose a race for one — and was then told "we're at capacity right now",
+                # the ADMISSION refusal, about a queue it was already inside.
+                # ⭐ Waiting is the honest behaviour for a job that is already committed: the member
+                # is watching a deferred reply, not a spinner, and the wait is bounded by the job's
+                # OWN deadline, so nothing outlives the watchdog that answers them.
+                slot_wait_s=_slot_wait_for(ctx))
 
 
 def _multi_kwargs(ctx: JobContext) -> dict:
-    from api.routers import discord_interactions as router
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
-    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,
-                house_fn=house.render_house_chart if house.house_enabled() else None,
-                quote_fn=router.fetch_ext_quote, components_fn=di.multi_components, fail_fn=ctx.fail)
+    from api.services.discord_render.adapters import bindings
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,
+                edit_fn=bindings.edit_fn(ctx),
+                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
+                quote_fn=bindings.quote_fn(ctx), components_fn=di.multi_components, fail_fn=ctx.fail)
 
 
 def _rebuilt(ctx: JobContext) -> dict:
@@ -464,11 +564,26 @@ def _handle_popup(ctx: JobContext):
 
 
 def _handle_flow(ctx: JobContext):
+    """⛔ THE FETCH GOES THROUGH THE ADAPTER; THE POSTING, THE CARD AND THE COPY DO NOT MOVE.
+
+    `run_flow_card_job` already exposes a `fetch_fn(ticker, days)` seam, so the adapter slots in
+    without touching the card render or the "no significant options flow" sentence. `fail_fn` is
+    wrapped because the router's `fail_cls` is a local a `fetch_fn` cannot set: without the wrapper
+    every flow failure would read `flow_error`, which is strictly worse than today. With it, the
+    member gets the class the adapter actually observed — the point of C-08."""
     from api.routers import discord_interactions as router
+    from api.services.discord_render.adapters import bindings
+    from api.services.discord_render.adapters.switch import adapters_enabled
     job, inter = ctx.job, _rebuilt(ctx)
     tkr, days = di.parse_flow_command(inter)
-    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit, fail_fn=ctx.fail,
-                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id, source=symbols.flow_source(tkr))
+    source = symbols.flow_source(tkr)
+    extra = {}
+    if adapters_enabled():
+        extra = {"fetch_fn": bindings.flow_fetch_fn(ctx, source=source),
+                 "fail_fn": bindings.flow_fail_fn(ctx)}
+    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=bindings.edit_fn(ctx),
+                             fail_fn=extra.pop("fail_fn", ctx.fail), timeout_s=FLOW_TIMEOUT_S,
+                             cid=job.corr_id, source=source, **extra)
     return "flow"
 
 

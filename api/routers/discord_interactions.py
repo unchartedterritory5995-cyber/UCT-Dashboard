@@ -15,7 +15,6 @@ import os
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
-from starlette.concurrency import run_in_threadpool
 
 from api.services import discord_activity_handoff as handoff
 from api.services import discord_chart_context as chart_context
@@ -152,7 +151,10 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
     render = render_fn or buzz_image.render_board_png
     edit = edit_fn or di.edit_original
     try:
-        png = render(window)
+        # ⛔ MEMBER. This job exists because a member typed `/buzz` and is watching a
+        # deferred reply; it is background only in the sense of WHERE it runs.
+        from api.services.render_gate import MEMBER
+        png = render(window, cls=MEMBER)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[buzz] image render failed: %s", e)
         png = None
@@ -160,6 +162,52 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
         edit(app_id, token, content=content, png=png, filename="buzz.png")
     else:
         edit(app_id, token, content=content)
+
+
+def run_buzz_job(app_id: str, token: str, ticker: str, window: str, now: int,
+                 *, build_fn=None, render_fn=None, edit_fn=None) -> None:
+    """OI-36 — ALL of `/buzz`'s work, moved to AFTER the defer.
+
+    ⚰️ WHAT THIS FIXES, MEASURED. The handler used to `await run_in_threadpool(...)` to
+    build the reply text and only THEN return `{"type": 5}`. That await is bounded by the
+    shared anyio thread limiter (64 tokens, `api/main.py:2847`) — which every one of this
+    router's ten sync `background.add_task` render jobs also draws from, because Starlette
+    runs sync background tasks in that same pool. So the ack was bounded by POOL
+    AVAILABILITY, not by its own ~8.5 ms of SQLite: **1.05 ms free, 2,001 ms exhausted**,
+    against Discord's 3 s initial-ack deadline.
+
+    ⭐ THE ORDERING IS THE WHOLE FIX. Nothing here is faster than it was; the work simply
+    stopped standing between the member and the ack. This is exactly the shape V2 already
+    had — `_enqueue` offers the job and returns the defer with no work in between, measured
+    at p50 0.0023 ms with every render slot starved (C-02).
+
+    ⛔ It does NOT move the work off the threadpool — `build_board_text` still belongs
+    there. Running 8.5 ms of synchronous SQLite on the ONE shared event loop of a
+    single-process pod is the 2026-07-01 outage by name, and the comment that put it in a
+    threadpool was right. The bug was where the await sat, not that it existed.
+    """
+    from api.services import buzz_image, buzz_reply
+    build = build_fn or (lambda: buzz_reply.build_ticker_text(ticker, window, now) if ticker
+                         else buzz_reply.build_board_text(now, window))
+    edit = edit_fn or di.edit_original
+    try:
+        text = build()
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[buzz] reply failed: %s", e)
+        # ⛔ The member is already looking at a "thinking…" that only we can resolve. The
+        # pre-fix code could `return _ephemeral(...)` here because it had not acked yet;
+        # after the defer, saying nothing leaves the spinner forever.
+        try:
+            edit(app_id, token, content="Could not read the counts right now.")
+        except Exception as e2:  # noqa: BLE001
+            log.warning("[buzz] failure edit failed: %s", e2)
+        return
+    # A ticker narrows to one name's numbers — text only, exactly as before. No ticker is
+    # the board, which is worth an image.
+    if not ticker and buzz_image.image_enabled():
+        run_buzz_image_job(app_id, token, text, window, render_fn=render_fn, edit_fn=edit_fn)
+        return
+    edit(app_id, token, content=text)
 
 
 def _flow_fmt_m(v) -> str:
@@ -313,8 +361,84 @@ def _channel_nudge() -> dict:
                       else "Not available in this channel.")
 
 
+def _emit_ack_timing(request) -> dict | None:
+    """OI-42 — split the 3 s ack budget into the half we owned and the half we did not.
+
+    ⚰️ WHY THIS EXISTS. 2026-09-15, `#render-smoke`, ONE admin, NO load: `/flow` answered
+    "The application did not respond." Its handler is already defer-first and does no I/O
+    before the ack (`background.add_task` then `{"type": 5}`), so nothing IN the handler
+    could explain it. The starvation was BEFORE handler entry, and nothing measured that.
+
+    Two hops, emitted as ordinary `drender` events:
+      `send_to_entry` — Discord's `X-Signature-Timestamp` to our handler entry. This is the
+                        half that was invisible: transport plus anything that kept the ONE
+                        event loop from reaching this coroutine.
+      `entry_to_ack`  — handler entry to the reply object existing. This half was already
+                        measured as the S1 SLO; it is emitted beside the other so a reader
+                        sees which half spent the budget.
+
+    ⛔⛔ `send_to_entry` HAS ONE-SECOND RESOLUTION AND UNKNOWN CLOCK SKEW, and that is
+    stated here rather than discovered by someone trusting a 400 ms reading. Discord's
+    timestamp is integer UNIX SECONDS, and our clock is not synchronised to theirs. So:
+      * it CAN separate "we got it late" from "we were slow" at the multi-second scale,
+        which is the scale a missed 3 s ack lives at -- the case it was built for;
+      * it CANNOT be read as a sub-second latency figure, and a negative value means skew,
+        not time travel. Negative readings are emitted as-is rather than clamped, because a
+        clamped -800 ms renders as a healthy 0 and hides the skew.
+    ⭐ The loop-stall reading (`loopwatch`) is the corroborating instrument: a large
+    `send_to_entry` WITH a concurrent stall is starvation; without one it is transport.
+
+    Never raises: an observability path that can break the request it observes is worse
+    than no observability at all."""
+    try:
+        stashed = getattr(request.state, "drender_ack_t", None)
+        if not stashed:
+            return None
+        ts, entry_wall, entry_perf = stashed
+        import time as _t
+        from api.services.discord_render import ids, observe
+        seen = getattr(request.state, "drender_interaction", None) or {}
+        cmd = str(((seen.get("data") or {}).get("name")) or "") or None
+        entry_to_ack_ms = (_t.perf_counter() - entry_perf) * 1000.0
+        out = {"entry_to_ack_ms": entry_to_ack_ms}
+        observe.event("ack", cid=ids.current(), cmd=cmd, hop="entry_to_ack", ms=entry_to_ack_ms)
+        try:
+            send_to_entry_ms = (entry_wall - int(ts)) * 1000.0
+        except (TypeError, ValueError):
+            send_to_entry_ms = None          # unparsable header: absent, never zero
+        if send_to_entry_ms is not None:
+            out["send_to_entry_ms"] = send_to_entry_ms
+            observe.event("ack", cid=ids.current(), cmd=cmd, hop="send_to_entry", ms=send_to_entry_ms)
+        return out
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
+    """The member's reply is produced by `_dispatch_interaction` and returned UNCHANGED.
+
+    ⛔⛔ THE SHADOW RUNS AFTER THE REPLY AND OFF THE LOOP (P2.10). With `RENDER_V2_SHADOW`
+    unset — which is every environment until the owner sets it — `shadow.enabled()` is
+    False and this wrapper is one comparison. With it set, the shadow is handed to a
+    thread AFTER the response object exists, so it cannot delay, alter, or fail the
+    member's reply: measuring the cost of measuring is the one thing a shadow must not do
+    on a pod with one event loop (C-02)."""
+    reply = await _dispatch_interaction(request, background)
+    _emit_ack_timing(request)
+    try:
+        from api.services.discord_render import shadow as _shadow
+        seen = getattr(request.state, "drender_interaction", None)
+        if seen is not None and _shadow.enabled():
+            from api.services.discord_render.commands import _io_pool as _shadow_pool
+            _shadow_pool.submit(_shadow.run_safely, seen,
+                                reply if isinstance(reply, dict) else None)
+    except Exception:  # noqa: BLE001 — a shadow that can break the request it shadows is worse than none
+        pass
+    return reply
+
+
+async def _dispatch_interaction(request: Request, background: BackgroundTasks):
     import time as _time
     received = _time.perf_counter()        # the V2 ack SLO (S1) is measured from here
     key = _public_key()
@@ -331,6 +455,12 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         return JSONResponse(status_code=400, content={"error": "malformed body"})
     if not isinstance(interaction, dict):
         return JSONResponse(status_code=400, content={"error": "malformed body"})
+    # The parsed interaction, for the shadow wrapper above — the body is already consumed
+    # by the time it runs, and re-reading a Request body is not possible.
+    request.state.drender_interaction = interaction
+    # OI-42 — the two halves of the ack budget, stashed for the wrapper to emit.
+    # `received` is already the S1 start; what was never captured is the half BEFORE it.
+    request.state.drender_ack_t = (ts, _time.time(), received)
 
     itype = interaction.get("type")
     if itype == 1:
@@ -401,7 +531,10 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         return {"type": 5}
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
-        from api.services import buzz_image, buzz_reply
+        # ⛔ NOTHING IS IMPORTED HERE ANY MORE, AND THAT IS PART OF THE FIX. `buzz_image`
+        # and `buzz_reply` were imported at the top of this branch and used before the
+        # defer; both now live in `run_buzz_job`, past the ack. A first import of either
+        # module is disk I/O on the ack path.
         # ⛔ ON-DEMAND /buzz IS EPHEMERAL AND THROTTLED; the SCHEDULED post is
         # neither. Owner ruling 2026-09-02. The two are different doors on
         # purpose: the room gets the shared board seven times a session, and a
@@ -424,36 +557,29 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         window = (opts.get("window") or "open").strip()
         ticker = (opts.get("ticker") or "").strip().upper()
         now = int(_t.time())
-        try:
-            # ⛔ OFF THE EVENT LOOP. This handler is `async def`, and both
-            # builders do synchronous SQLite -- measured 8.5ms for
-            # build_board_text on a 36.6k-row store, growing with the number of
-            # tickers clearing MIN_CURRENT. Blocking the ONE shared loop on a
-            # single-process pod is the 2026-07-01 root cause by name, and
-            # every other heavy path in this file already defers. Cheap today;
-            # the point is that it cannot get expensive quietly.
-            text = await run_in_threadpool(
-                (lambda: buzz_reply.build_ticker_text(ticker, window, now)) if ticker
-                else (lambda: buzz_reply.build_board_text(now, window)))
-        except Exception as e:  # noqa: BLE001
-            logging.getLogger(__name__).warning("[buzz] reply failed: %s", e)
-            return _ephemeral("Could not read the counts right now.")
-        # No ticker = the board reply, which is worth an image. A ticker
-        # narrows to one name's numbers -- that stays the immediate text
-        # reply it always was (unchanged behaviour, no wait on a render).
-        if not ticker and buzz_image.image_enabled():
-            app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
-            token = str(interaction.get("token") or "")
-            if app_id and token:
-                background.add_task(run_buzz_image_job, app_id, token, text, window)
-                # ⛔ THE FLAG GOES ON THE DEFER, NOT THE FOLLOW-UP. Discord fixes
-                # a deferred reply's visibility at type 5; setting flags later on
-                # the PATCH is silently ignored and the board lands PUBLICLY.
-                # run_buzz_image_job edits via `edit_original`
-                # (PATCH /webhooks/{app}/{token}/messages/@original), which keeps
-                # whatever this response declared.
-                return {"type": 5, "data": {"flags": di.EPHEMERAL}}
-        return {"type": 4, "data": {"content": text, "flags": di.EPHEMERAL}}
+        # ⛔⛔ OI-36 — DEFER FIRST, WORK AFTER. Nothing above this line touches the
+        # threadpool, the store, or the network: the rate check and the option parse are
+        # dict reads. Everything that could block now runs in `run_buzz_job`, on the far
+        # side of the ack. See that function for the measurement (1.05 ms free vs 2,001 ms
+        # with the shared anyio pool exhausted, against a 3 s deadline).
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            # No token means no follow-up is possible, so a defer would strand the member
+            # on a spinner nothing can resolve. This is the one branch that still answers
+            # immediately, and it does no work to do so.
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_buzz_job, app_id, token, ticker, window, now)
+        # ⛔ THE FLAG GOES ON THE DEFER, NOT THE FOLLOW-UP. Discord fixes a deferred
+        # reply's visibility at type 5; setting flags later on the PATCH is silently
+        # ignored and the board lands PUBLICLY. `run_buzz_job` edits via `edit_original`
+        # (PATCH /webhooks/{app}/{token}/messages/@original), which keeps whatever this
+        # response declared.
+        # ⚠️ MEMBER-VISIBLE: the TICKER reply was a type-4 immediate text and is now a
+        # deferred one. Same words, same ephemeral visibility, one "thinking…" frame
+        # first. That is the cost of the ack never being able to miss, and it is stated
+        # here rather than discovered.
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if itype == 2 and name == di.FLOW_COMMAND:
         # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
         # (owner decision). Refused elsewhere with a pointer to that channel.
@@ -763,7 +889,17 @@ def render_health(request: Request):
                "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12]}
     renderer = _renderer_health()
     if store is None:
-        return {**payload, "renderer": renderer, "slo": None, "note": "no jobs database yet (V2 has never run on this volume)"}
+        # ⛔⛔ OI-42 — THE LOOP READING MUST SURVIVE THIS EARLY RETURN. `loopwatch` is wired
+        # at boot (`api/main.py`), is a kill switch so unset means ON, and measures exactly
+        # the event-loop starvation that costs a member their 3 s ack (C-02). Its reading is
+        # carried by `observe.health_payload`, which this branch never reaches — so on a pod
+        # with V2 off and no jobs database, which is EVERY production pod today, the
+        # instrument ran and its output was thrown away at the read boundary.
+        # ⚰️ Measured 2026-09-15: `/flow` missed its ack in `#render-smoke` with one admin and
+        # no load, and the one instrument that could have explained it reported nothing,
+        # because of this line. Built, wired, live, and unreachable.
+        return {**payload, "renderer": renderer, "slo": None, "loop": observe._live_loop(),
+                "note": "no jobs database yet (V2 has never run on this volume)"}
     obs = render_v2._observer                          # its consecutive-miss count, unless this reading is ready
     misses = obs.renderer_misses if obs is not None and not (renderer or {}).get("ready") else None
     return {**payload, **observe.health_payload(runtime, store, renderer=renderer, renderer_misses=misses)}

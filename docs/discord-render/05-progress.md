@@ -141,6 +141,11 @@ is in the commit but deploys separately (row 9).
 
 ## Step 2.4a — symbol resolution and the `/flow` partition, measured on production data (branch)
 
+⛔ **Scope, recorded because the plan line said otherwise (owner ruling R-1, 2026-09-13):** 2.4a
+shipped symbol resolution and the `/flow` ETF partition. It did **not** ship the freshness
+contract — the market clock, the envelope and the STALE rule were built in **2.4b**
+(`freshness.py`, `4984e6207`), and the session rule they settle on is `03` §3.8b.
+
 **How:** the branch's `symbols.py` (sha-verified upload to `/tmp`) run by a read-only probe in the
 `web` pod as a separate process — the real ticker-search snapshot (26,624 rows), cap universe
 (3,742), liquid-ETF list (100), `bars.db`, `entity_master.db`. Cold process: an upper bound. Plus
@@ -192,3 +197,387 @@ fixed on master by its owner):
 | Running commit, read in-process | `d623baf1d836` |
 | `/api/health` · bad signature · render-health without bearer | 200 · 401 · 401 |
 | V2 flag / alert webhook in the running process | both absent |
+
+---
+
+## Step 2.4b P2.1 — the provider adapters, and the hot path wired to them (branch)
+
+**What it is:** one module per upstream under `api/services/discord_render/adapters/`, each exposing
+`fetch(request) -> Result`. Timeouts, retries, breakers, fallback and the freshness stamp live there
+and nowhere else; the V2 handlers bind adapter-backed callables through `bindings.py` with the exact
+shapes `produce_chart` already calls, so the render function is unchanged and the pre-V2 path is
+untouched. Design and the per-adapter table: `03` §3.8c.
+
+### What reading the call sites found, before a single test ran
+
+Three of these are live defects. None was found by a test — they came from reading what the code
+does at the boundary, which is the same discipline as *read the wire, not the call site*.
+
+| # | Measured | Why it matters |
+|---|---|---|
+| **OI-21** | `discord_chart_house.RENDER_TIMEOUT_S` = **60 s**, over **two** attempts, behind a **15 s** job deadline | The watchdog fires at 15 s and tells the member the render failed; the request keeps a worker for up to another **105 s**. And `breakers.DEFAULTS["renderer"]`, tuned for this exact dependency, had **zero production callers** — built, tested, green and unwired. |
+| **OI-25** | `produce_chart._fetch` already retries twice with a **fixed 1.5 s** delay | An adapter retry on top would make **four** bars fetches per chart and sleep ~2.9 s inside a 15 s deadline. Both layers are individually correct; only the composition is wrong. |
+| **OI-22** | A quote failure is indistinguishable from "no extended-hours print" — swallowed at **three** layers | A quote outage looks like a quiet overnight, so no breaker can ever see it. The call also had **no timeout of any kind**, on the path that must answer Discord in 3 s. |
+| **OI-23** | **Three** unreconciled failure vocabularies (member contract · adapter taxonomy · the `/flow` router's inline classes) | A class in one and not the others renders as a generic apology — C-08 one level up. Closed by `adapters/classes.py`: `(upstream, reason) -> contract class`, total over the cross-product, raising on an unmapped pair rather than quietly becoming `internal`. |
+| **OI-24** | `discord-chart-produce` is spawned without `ids.carry` | Every `drender` event from inside a chart production is unattributable — on the one path where a member's complaint has to be traceable to a job. Queued for 2.8 (pre-V2 file). |
+
+### The properties, and the number each one is
+
+- **The ceiling is `min(dependency timeout, the JOB's remaining time)`** — `Job.remaining_s()`,
+  measured from `created_at` (the ack), not from when a worker picked the job up, because the queue
+  wait is time the member has already spent. §3.8's per-dependency numbers are the other half:
+  bars 8 s · quote 1.5 s · flow 10 s (connect 2 s) · renderer **20 s** · entity 0.6 s.
+- **A failure is a value with a named class**, never an exception and never a bare `None`. `stale`
+  and `cached` are deliberately **not** failures, because a labelled stand-in is a delivery (S8) and
+  counting it as one would hide a renderer outage inside a green success rate.
+- ⛔⛔ **`unreachable` and `upstream_error` are separate and must stay separate.** "We could not
+  reach it" and "it answered with an error" are a different sentence to a member, a different next
+  action for us, and they decide whether `/flow`'s in-process fallback runs at all — a 5xx means
+  flow-worker *answered*, and `web`'s copy would very likely answer the same. They were one `except`
+  for two weeks, which is C-08. ⚠️ **Found by writing the wiring, not by a test:** the first version
+  of this layer had them merged and the flow tests still passed, because every case in them happened
+  to want the same outcome.
+- ⭐ **An empty `/flow` tape is an answer, not a failure** — the same mistake pointed the other way.
+  A quiet session is true and useful, the router already has the sentence for it, and classing it as
+  a failure would put a correct answer in the failure counters and lose the window phrase the
+  sentence needs. It comes back `ok` with `contract_count == 0`. An empty **bars** answer *is* a
+  failure (`no_bars`) — there is no chart to draw. Same observation, different meaning, which is why
+  `classes.py` maps a **pair** and not a reason.
+- **One bounded pool per dependency** (`renderer`/`flow`/`bars` 4, `quote`/`entity` 2). A Python
+  thread cannot be cancelled, so a timeout means *we* stopped waiting; the bound is what keeps a
+  wedged upstream from consuming anything but its own threads — C-02's lesson, where member jobs and
+  the dashboard drained one shared pool of 64. `abandoned_calls()` reports them separately, because
+  an abandoned call is not a failure and no success/failure ratio can show it.
+- **The vintage is the data's, never the wall clock.** Bars: the newest bar's `t`. Flow:
+  `window.end`, **not** `query_date` — a card built from Friday's tape at Sunday noon would otherwise
+  stamp itself Sunday and read as live. The renderer has no vintage of its own and is given the
+  bars', so the picture is exactly as old as the data drawn in it (§3.10).
+- **The `/flow` fallback is conditional and every condition is a reason**: in-process only on a
+  transport error or an open breaker; never on a timeout (the budget is gone and the local leg is the
+  slower of the two); never after the remote leg *answered*; never below `LOCAL_MIN_S`. A served
+  fallback is a **degraded** delivery and carries why the first leg failed.
+
+### Rails
+
+`tests/test_discord_render_result.py` · `tests/test_discord_render_adapters.py` ·
+`tests/test_discord_render_failure_classes.py` · `tests/test_discord_render_adapter_boundary.py` —
+the boundary rail walks an **AST**, not a grep, and carries both halves: nothing outside `adapters/`
+may hold a network client, and the exemption list for the two legitimate transports
+(`delivery.py` §3.4, `observe.py` §3.9) must be exactly the modules that still need it.
+
+⭐ **The P2 ground rule is proved STRUCTURALLY, not by a golden.**
+`test_the_pre_v2_path_cannot_reach_the_adapters` asserts that neither `discord_interactions.py`
+imports the adapters package. A golden diff proves two runs agreed on the inputs somebody chose;
+this proves there is no path at all, for every input. The companion rail asserts `commands.py`
+*does* import them, so the layer cannot quietly become unwired.
+
+**Kill switch:** `DISCORD_RENDER_V2_ADAPTERS_ENABLED` — under the V2 master, **unset = ON**, read
+per call (railed), declared `dark`. Set it to `0` and the handlers bind the raw functions again: a
+rollback of P2.1 with no deploy, and a switch rather than a delete.
+
+---
+
+## Master merge 5 — 2.4b part 2 (P2.1–P2.10), dark · 2026-09-13 (Sunday, 20:1x ET)
+
+**Shipped (dark):** the provider adapters and the hot path wired to them; the member-facing stamp;
+the breaker and loop-stall alerts; the event-loop probe; shadow mode. Design in `03` §3.8c/§3.8d,
+the member-facing surface in `04-visual-spec.md`.
+
+**Gate on the merged tree** (after merging 43 master commits, with overlap on `CLAUDE.md`,
+`api/main.py` and `docs/feature_flags.json` — merged, not rebased, per the standing rule): 44 scoped
+files, **1,112 passed, 0 failed**. Hygiene gate clean (9,219 tracked files). Watch coverage `OK`
+(changed 39, none on flow-worker's list). Mutation proofs **69/69 red**, restores sha-verified,
+controls green either side. Secret scan **0 findings** over 39 paths, run by hand because the hook
+cannot run it here (OI-26).
+
+**Deploy, measured:**
+
+| Check | Result |
+|---|---|
+| Push | fast-forward to `5ca4d5db2`; master's own pre-push guard confirmed `web` SUCCESS and 769 s settled first |
+| `web` deployment | BUILDING → DEPLOYING → **SUCCESS** on `5ca4d5db2`, ~2 min |
+| Running commit, read in-process | **`5ca4d5db2385`** |
+| `/api/health` · bad signature · render-health unauthenticated | **200** · **401** · **401** |
+| flow-worker | **SKIPPED** on both pushes — the tape was never touched |
+| `DISCORD_RENDER_V2_ENABLED` · `RENDER_V2_SHADOW` · the two kill switches | **all absent** in the running process |
+| Renderer ceiling, read in-process | **20.0 s** (was effectively 60 s over two attempts behind a 15 s deadline — OI-21) |
+| `loopwatch.snapshot()` | `running: false`, `samples: 0`, `max_ms: null` |
+
+⭐ **That last row is the design working, not a defect.** The probe starts inside the V2 lifespan
+block, which is dark — so it costs nothing today and says so. `samples: 0` with `max_ms: null` is
+deliberately distinguishable from a healthy loop: a probe that never ran must never read as "fine".
+
+**Member impact: none.** Everything new is reachable only from `commands.py`, which runs only when
+`DISCORD_RENDER_V2_ENABLED` is set, and it is absent. The one change on the pre-V2 path is the
+interactions route delegating to `_dispatch_interaction` and returning its reply **unchanged**; the
+shadow beside it is gated on `RENDER_V2_SHADOW`, also absent, and a rail asserts the reply survives
+even when the shadow setup raises.
+
+---
+
+## P2.10 bench — what the adapter layer costs, three ways (2026-09-13, 20:3x ET)
+
+`docs/discord-render/instruments/adapter_overhead_bench.py`, 300 calls per case, one upstream
+stubbed to a fixed 1 ms so the **only** variable is the layer. `--self-check` first: a deliberately
+injected 4 ms showed up as 1.54 → 5.99 ms, so the bench can see a cost before any small number from
+it is believed.
+
+| Case | p50 | p95 | max |
+|---|---|---|---|
+| **raw** (the pre-V2 binding) | 1.520 ms | 1.613 ms | 1.798 ms |
+| **adapters** (V2 default) | **1.525 ms** | 1.836 ms | 2.220 ms |
+| **switch_0** (`DISCORD_RENDER_V2_ADAPTERS_ENABLED=0`) | **1.520 ms** | 1.643 ms | 1.949 ms |
+
+**Overhead: +0.005 ms at the median, +0.42 ms at the worst** — against an 8 s bars budget and a 20 s
+render ceiling. ⭐ **`switch_0` matches `raw` to three decimals**, which is the measured proof that
+the kill switch is a real rollback and not a comment: it hands back the raw function, and a bench
+case says so rather than a docstring.
+
+⚠️ **This is not the end-to-end bench and does not replace it.** `tools/discord_render_bench.py`
+runs in the web pod against the real renderer and bars store; that is what `02-baseline.md` is made
+of. This isolates the one question the end-to-end bench cannot answer cleanly because its variance is
+dominated by the network: what does wrapping a call in a pool submit, a breaker and a `Result` add?
+
+---
+
+## Wave 2 (2026-09-14, from `4eec5e0aa`) — the rulings, and what each one cost
+
+Started **01:00 ET Monday**. The Step-3 window is overnight and closes at RTH open, so the order is
+by leverage: OI-29 first (it is the original bug), the other three in parallel lanes, Step 3 as soon
+as the tree is stable, docs last.
+
+### Scheduled, before any code — so they run whether or not the session survives
+
+| Task | Cadence | What it does | First run |
+|---|---|---|---|
+| `UCT Render Soak` | every 15 min from 00:00 local | 13-minute soak appending to one state file; drift in queue depth / threads / RSS / unclosed leases | proved by hand: `PASS samples=9 … metrics[queue_depth=ok,rss_mb=ok,stale_leases=ok,stuck_jobs=ok,threads=ok]` |
+| `UCT Render Alerts Access Probe` | hourly | the owner-hand item: can the bot see `#render-alerts` yet | `STILL_BLOCKED HTTP 403 code 50001` |
+
+⚰️ **The access probe found a defect in itself on its first real run, and its own three-way exit
+codes are the only reason.** It answered `ERROR HTTP 403 code None`, not `STILL_BLOCKED`: Discord
+requires a `User-Agent` and Cloudflare refuses the request at the edge without one, with an HTML
+body and no Discord error code — **which looks exactly like a permissions refusal.** A two-valued
+probe would have reported "still blocked" every hour forever, against a question it was not asking.
+
+⭐ Same shape as the soak's own rule and the `CoverageLine` rule: *could not measure* is a third
+answer, and collapsing it into either neighbour is how an instrument starts lying quietly.
+
+---
+
+## Wall clock (owner brief §4)
+
+| Merge | Step | Start (ET) | End | Gate | Deploy wait | Active work |
+|---|---|---|---|---|---|---|
+| 5 | 2.4b P2.1–P2.10 | ~17:10 | 20:07 | 6 m 38 s (1,112 tests) | ~2 min | the balance — authorship + 69 mutation runs |
+| 5a | merge-5 record | 20:07 | 20:12 | n/a (docs) | ~2 min | ~3 min |
+| 6 | frozen contracts + `07`/`08` | 20:12 | 20:25 | 20 s (166 tests) | ~3 min incl. **one push refused** by master's own pre-push guard (a deploy was in flight — the queue working) | ~10 min |
+| 7 | shadow ON + interpretability | 20:25 | 20:40 | 7 s (78 tests) | ~2 min | ~11 min |
+
+⭐ **Where the time actually went, and the fix already applied:** merge 5 spent more wall clock on
+gate + deploy than on authorship, which is what the lane plan (`07-execution-plan.md`) exists to
+reclaim. Merges 6 and 7 ran with five lanes working in parallel underneath them, so the deploy waits
+cost nothing.
+
+---
+
+## Master merges 6-11 — contracts, shadow ON, and five parallel lanes · 2026-09-13 evening
+
+| # | SHA | What | Gate | Running SHA |
+|---|---|---|---|---|
+| 6 | `e659454bb` | frozen cross-lane contracts + `07`/`08` | 166 passed | `e659454bb8f2` ✅ |
+| 7 | `2b3ffd637` | shadow ON; the record made interpretable | 24 passed | `2b3ffd637` ✅ |
+| 8 | `59a5b1c7a` | `resume.ps1` stale-pin fix | ran the script | — |
+| 9 | `48a73d4cc` | Lane B (2.5 cache) + Lane F (runbook, flip packet, RESUME) | 241 passed | — |
+| 11 | **`8c72dda27`** | Lanes C, D, E + the C-10 deadline fix | **973 passed, 3 xfailed, 0 failed** | **`8c72dda27bb8`** ✅ |
+| 12 | **`decd049c1`** | **OI-29** — the chart IMAGE through `delivery.edit_image`; C-04 closed by the attachment fold | **447 passed, 2 xfailed, 0 failed** (14 scoped files) · mutations **21/21 RED** | **`decd049c1c3b`** ✅ SUCCESS |
+| 13 | **`e269f2b10`** | Lanes B (two-tier cache), C (OI-28 + the budget made structural), D (C-07 end to end) · C-06 + C-07's producer · **Step 3** | **617 passed, 0 failed, 0 xfailed** (21 scoped files, chart-renderer included) · mutations **30/30** (A) + **56/56** (B) + **80/80** (C) + **38/38** (D) | **`e269f2b10464`** ✅ SUCCESS, verified in-process |
+
+### Step 3 — measured, 2026-09-14 01:30–03:40 ET
+
+| Run | Result | SLO |
+|---|---|---|
+| **3.1** load, 50/s × 20 s over 20 symbols | 1,001 samples · p50 1 ms · p95 40 ms · **p99 102 ms** · max 334 ms · **0 acks over 3 s** | S1: p99 ≤ 1,000 ms, zero over 3 s — **met** |
+| **3.1** 200-interaction burst | 200 samples · p50 0 ms · p95 2 ms · p99 5 ms · max 321 ms · 0 over 3 s | **met** |
+| **3.1** sustained 1/s × 10 min | 601 samples · p50/p95/p99 1 ms · max 296 ms · 0 over 3 s | **met** |
+| **3.2** chaos | **13/13 PASS**, 0 failed, 0 inconclusive | every scenario ends in an artifact or a NAMED message |
+| **3.3** determinism | **20 runs, 6/6 components identical**, incl. the L1→L2 round trip | §3.10 — the same closed-market input renders the same pixels |
+| **3.4** soak | registered and running every 15 min; at 03:45 ET **262 samples, no drift** on queue depth, threads, RSS, stale leases | — |
+| **3.5** real-Discord smoke | ⛔ **NOT RUN** — needs a human to type commands in the test channel | — |
+
+⛔⛔ **THE CHAOS HARNESS SHIPPED WITH FIVE SCENARIOS AND THE BRIEF NAMED TWELVE, AND NOTHING SAID
+SO.** A chaos suite running green over half its scope reports a system as exercised that is not —
+the same defect as a chunked test run quoting a total. The other seven were written; `REQUIRED` is
+now the brief's own list and `--self-check` fails if the table does not cover it.
+
+⭐ **Two runtime defects were found by scenarios written expecting to pass**, which is the whole
+argument for writing them. (1) A dead token was spoken to **twice**: `ctx.fail`'s refused delivery
+was never recorded, so `_finalize` could not tell the token was dead — 23 measured `10015`s are 46
+requests that could never land. (2) The oversized-image fallback named no class and carried no id,
+so a member quoting it back gave us nothing to look up; `_judge` asked for a NAMED message and was
+right to.
+
+⚠️ **What the load numbers are NOT.** `--symbols stub` and `--handler-ms 0` mean this measures the
+ACK PATH — parse, gates, rate check, enqueue — against S1, and nothing else. It says nothing about
+S2 (delivery), because no chart was rendered and no PATCH was sent. The end-to-end number needs
+3.5 and a real renderer.
+
+**Live, read in-process after merge 11:** `RENDER_V2_SHADOW="1"` · `shadow.enabled()` True ·
+budget 0.6 s · `DISCORD_RENDER_V2_ENABLED` **absent** · `/api/health` 200 · render-health 401.
+
+### Wall clock
+
+| Merge | Start (ET) | End | Gate | Deploy wait | Notes |
+|---|---|---|---|---|---|
+| 5 | 17:10 | 20:07 | 6 m 38 s | ~2 m | serial; more clock on gate+deploy than on authorship |
+| 6 | 20:12 | 20:25 | 20 s | ~3 m | **one push refused** by master's own guard — a swap was in flight |
+| 7 | 20:25 | 20:40 | 7 s | ~2 m | five lanes authoring underneath |
+| 9 | 21:0x | 21:2x | 38 s | ~2 m | two lanes integrated in one push |
+| 11 | 21:2x | 22:0x | 1 m 17 s | ~2 m | three lanes + a production fix |
+| 12 | 01:00 (Mon) | 01:38 | 42 s | ~4 m | OI-29 authored by the integrator while three lanes ran underneath. ⭐ **The mutation harness, not the gate, was the long pole: ~18 min per full run, and it had to run TWICE** — the first pass came back 19/21 and the two GREEN rows were real gaps in my own rails, not harness bugs |
+
+⭐ **What the lane plan actually bought.** Merges 6-11 carried five lanes' output in the same wall
+clock that merge 5 spent on one step, and every deploy wait was absorbed by work happening
+elsewhere. ⚠️ **And the honest half:** two lanes were killed by the session rate limit, so the
+parallelism had a ceiling this run — five concurrent Opus agents plus the integrator is more than
+the session budget allows, which is a fact about the environment worth planning against next time,
+not a fact about the work.
+
+### What the lanes cost to verify, which is not zero
+
+Every lane's suite and harness was re-run by the integrator. Lane E's arrived with **5 failures** it
+never saw: four were its `FakeDelivery` double drifting behind a signature the integrator had
+changed an hour earlier (the contract-arity defect in miniature — a double that RESTATES a signature
+instead of tracking it), one a self-inflicted import path. Lane D never reported at all, so its
+claims did not exist until re-measured; two of its mutations were mis-aimed and one of those named a
+real weakness in its own test. ⛔ **A lane's "done" is a claim, and the integrator's re-run is the
+measurement** — that rule earned its place three times tonight.
+
+### Gap 1 — the cache wired to the hot path (2026-09-14 05:0x ET)
+
+**2.5 was built and connected to nothing**, which meant every 3.1 number was a no-cache number and
+the flip packet described a product that did not exist. `bindings.house_fn` now goes
+L1 → L2 → render behind `RENDER_CACHE_ENABLED`.
+
+| | cache OFF | cache ON |
+|---|---|---|
+| renders for 100 asks over 20 symbols | 100 | **20** |
+| p50 | 2.49 ms | **0.02 ms** |
+| p95 | 2.64 ms | 7.04 ms |
+| hit rate | 0.0 % | **80.0 %** |
+
+⚠️ **The renderer is SIMULATED at 1.8 ms** (03 §2's p50 budget). This measures the CACHE's effect on
+the render path, not the renderer; the p95 rising is the misses plus the L2 write, which is the
+honest shape. An end-to-end number needs `--real`.
+
+⛔⛔ **THE VINTAGE IS IN THE KEY, AND THAT IS WHY A HIT CARRIES NO LABEL.** Two renders of one symbol
+at one data vintage are the same picture, so serving the stored one is not a degradation and
+labelling it would be the furniture 04 §2 forbids. The corollary is the load-bearing half: if the
+vintage ever leaves the key, the cache serves yesterday's chart under today's badge — which is why
+that is a mutation (`W2`) and not a comment.
+
+⭐ **Two instrument defects found while wiring it, both in checks I had just written.** The
+per-lookup cache tier was being derived from a process-wide counter (a global answering a
+per-request question), and the AST probe for "is the cache imported" read only `ImportFrom.module`
+— so `from … import artifact_cache`, which is the correct wiring, answered **no**. The second one
+was in `flip_preconditions.py` too: the flip gate could never have printed MET.
+
+---
+
+## 2026-09-14, 13:30–16:00 ET — the Discord admin pass, and two flip blockers
+
+The owner handed the whole Discord-side list over with a live browser. A1–A3 finished and were
+**verified by API read-back rather than by the UI's own banner** — twice the UI said something had
+changed and only the read-back said what Discord actually stored.
+
+| | |
+|---|---|
+| **A1** `MANAGE_CHANNELS` granted | `--whoami` → `CAN create channels` |
+| **A2** `#render-alerts` | `Contributor` overwrite **removed**, bot given one, `@everyone` still DENY. Probe: `ACCESS HTTP 200` + `ACL_OK`. **Precondition row MET** |
+| **A3** `#render-smoke` `1549129739048853544` | private at creation, **organic members exposed 0** |
+| **delivery hop** | `DELIVERY OK http=200 attachments=1` — a real post carrying a PNG |
+
+### The two things that would have gone wrong
+
+**OI-34.** `/chart`, `/charts`, `/flow` were gated to ONE channel id. Repointing
+`CHART_FLOW_CHANNEL_ID` MOVES the commands rather than adding a channel — 1,558 members lose all
+three. It is now an allowlist whose FIRST entry is the member-facing one the nudge names.
+
+**OI-35.** There was **no per-channel V2 flag**, though the packet said "per-channel per 2.1" and
+§4.0 said the canary is the admin channel. `commands.enabled()` is one global boolean. Flipping as
+instructed would have been the member-channel flip — the owner's decision — reached by following a
+section headed "canary". `DISCORD_RENDER_V2_CHANNELS` narrows it; **unset means every channel**, so
+its absence reads as "there is no canary", never "the canary is off".
+
+⭐ **Both were invisible from the code and from the docs, because the docs agreed with the spec and
+the spec disagreed with the code.** Neither survived thirty seconds of actually typing the command.
+That is the whole argument for 3.5 existing.
+
+### Two instruments that were lying, found the same way
+
+- **`clock_sweep.py` was in no gate at all.** The string appeared nowhere in the repo but its own
+  filename — built, CLEAN over 1,220 observations, referenced by nothing. Now
+  `tests/test_clock_sweep_in_the_gate.py`.
+- **`UCT Render Token Retire` had never run.** `lastRun=07:15, LastTaskResult=1`; its `.cmd`
+  redirected stdout into the same file the Python script opens for append, so the script died on its
+  first `log()` call and the crash handler died on the same line. C-13's rotation half has been
+  waiting on a job that could not write its own log.
+
+### Honest state at the close
+
+**3.5 is 2 rows of 15.** One pass (`/renderhealth`, which also prints the running commit — the
+product is its own SHA oracle), one real failure (`/buzz` → *"The application did not respond"*
+while the renderer answered `200, 346 KB, ms=10738`). Thirteen rows were blocked on OI-34, not on a
+decision.
+
+---
+
+## 2026-09-14, evening — the gate's own gate (lane A1)
+
+The 16:30 fix said **three** rows had the count-the-files shape (S2, chaos, 3.5) and that all three
+now read verdicts. That sentence was right about those three and wrong about the total. Re-reading
+every `check_*` against `origin/master` found **two more**, and both were measured rather than
+argued — the old module was extracted with `git show`, imported, and called.
+
+| Row | What it actually did | Measured |
+|---|---|---|
+| `/chart` is shadowed (structural) | `MET if rail.exists()` — it never opened the file | printed **MET** on the real tree; prints MET for a `touch`ed empty file |
+| mutation NOT-APPLIED = 0 | globbed the harnesses, ran each with `--dry-check` **and no root argument**, and read the absence of the string `NOT APPLIED` as success | printed **MET, "every mutation applies exactly once", having checked ZERO** |
+
+⛔ **The mutation row is the worse of the two, and not because of the false MET.** `origin/master`
+carries **11** `mutation_harness*.py`, and **9 of them declare no `--dry-check` handler at all**.
+The row invoked every one as `[python, <harness>, "--dry-check"]` with no root argument, so
+`--dry-check` *was* `sys.argv[1]` and those nine resolved a repo root literally named `--dry-check`;
+the other two fall back to `parents[3]`. All eleven then died in `harness_guard` — the calling tree
+carries no sandbox marker — printing a refusal banner, which contains no `NOT APPLIED` string, so
+silence read as success. Two of the nine — `mutation_harness_cache.py` and
+`mutation_harness_delivery.py` — take no positional root either and ignore the flag entirely, so in a
+tree carrying a `.mutation-sandbox` marker, which is precisely where anybody runs a mutation harness,
+that row would not merely have failed to check them: it would have started a full mutation run
+against the caller's working tree, from inside a precondition check.
+
+⚠️ **This paragraph first said "eleven of the thirteen", typed rather than counted, and is corrected
+here rather than quietly fixed.** Eleven is the total; nine is the count that cannot answer. A
+hand-typed count beside the list that owns it is the defect the rest of this programme keeps paying
+for, and writing one into the entry recording a counting bug is worth leaving visible.
+
+⭐ **OI-29 asked for exactly this check and it is only now answerable.** *"Every harness in
+`docs/discord-render/instruments/` should be checked for the same shape"* — the row that claimed to
+do it could not: **9 of 12 harnesses declare no `--dry-check` handler at all**, and the fixed row now
+names all nine rather than counting their silence as a pass. Against the real tree it reads
+`169 anchor(s) verified, but: 9 harness(es) answer no --dry-check: …`.
+
+The fix is structural rather than five more patches: every row reads a verdict from evidence content,
+absence is NOT MEASURABLE, unparseable evidence is NOT MEASURABLE **with the reason named**, and every
+row carries **three** mutation controls — plant a pass ⇒ MET, plant a failure ⇒ NOT MET, delete the
+evidence ⇒ NOT MEASURABLE. The third is not decoration: a row hardcoded to `return NOT_MET` satisfies
+every plant-a-failure control and is exactly as useless as the row that counted files.
+`mutation_harness_flipgate.py` (56 cases over 11 rows, planting only into `mkdtemp()`) runs inside
+`--self-check` **and** inside `tests/test_flip_gate_cannot_lie.py`, so a regression costs an ordinary
+scoped pytest run. A new **canary scope** row reads the running V2 allowlist from a read-back artifact
+and compares it to the ids 06 declares — offline, never `railway`.
+
+⚠️ **Two statements elsewhere still need the integrator's hand**, because this lane does not own
+those files: `06-flip-packet.md:51` carries `/chart is shadowed (structural) | ✅ MET`, which was the
+existence check (the *empirical* half of that cell — the first `/chart` shadow records, 19:58Z — is
+separate evidence and stands); and `06-flip-packet.md:58` reads *"Four rows NOT MET, three NOT
+MEASURABLE"* against a table holding three and two.

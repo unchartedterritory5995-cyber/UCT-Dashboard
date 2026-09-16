@@ -409,26 +409,44 @@ describe('⭐⭐ the member’s offline sentence survives every door × every or
   }
 
   // ⛔⛔ THE CONTROL. Without it, a server model that accepted everything, or an
-  // assertion that could not fail, would let all eighteen cases pass green while
-  // proving nothing. This drives the EXACT defect of 2026-09-10 — a settle that
-  // treats "no local state" as "caught up" — and requires the property to FAIL.
-  it('⭐⭐ CONTROL — the shipped defect makes this property FAIL, so it can detect one', async () => {
+  // assertion that could not fail, would let every case above pass green while
+  // proving nothing.
+  //
+  // ⚰️ It used to DRIVE the shipped 2026-09-10 defect and require the property to
+  // fail. Q1 fix 4 made that defect unreproducible — and the control broke, which
+  // is the tell: **a non-vacuity control that BORROWS a product defect expires the
+  // day that defect is fixed**, exactly when the property most needs proving. It
+  // now manufactures its own failure and checks BOTH directions.
+  it('⭐⭐ CONTROL — `assertWordsSurvived` can FAIL, so the cases above mean something', async () => {
+    // ⛔ NOTHING IS DRAINED HERE, AND THAT IS THE POINT. The work is queued and
+    // never sent, so the server demonstrably does not have the words — a state
+    // this control MANUFACTURES rather than borrows from the product.
     const server = makeServer(doc(ONLINE))
     await offlineWorkQueued(server)
-    const s = server.door('folder')
-    // The old `current: captureLocalState() || saved` — acked === current.
-    await settleLandedSave({
-      accountId: 'a1', noteId: 'n1',
-      acked: { bodyJson: s.body }, current: { bodyJson: s.body },
-      updatedAt: s.updatedAt, connect,
-    })
-    await settleIdb(4)
-    await drainOutbox(db, { send: server.send, fork: server.fork, serverCopyIsOurs: server.serverCopyIsOurs })
     await settleIdb(4)
 
-    // The queue was emptied and the words never went.
-    expect(await listOutbox(db)).toHaveLength(0)
+    // ⚔️ REWRITTEN BY Q1 FIX 4 (2026-09-14), and it is stronger for it.
+    //
+    // ⚰️ This control used to DRIVE the shipped 2026-09-10 defect and require
+    // the property to fail. Fix 4 makes that defect unreproducible, so the
+    // control could no longer borrow it - and a control that borrows a product
+    // defect EXPIRES THE DAY THAT DEFECT IS FIXED, which is precisely when the
+    // property most needs to still be proven non-vacuous.
+    //
+    // ⭐ So it manufactures its own failure instead: the words are queued and
+    // never sent, so the server plainly does not have them. If
+    // `assertWordsSurvived` cannot reject THAT, it cannot reject anything, and
+    // all eighteen cases above are decoration.
+    expect(await listOutbox(db), 'the control needs work still queued').toHaveLength(1)
     expect(text(server.state.body)).not.toContain(OFFLINE)
     await expect(assertWordsSurvived(server, 'control')).rejects.toThrow()
+
+    // ⛔ THE OTHER DIRECTION IS ALREADY PROVEN, AND NOT BY THIS TEST. An
+    // assertion that ALWAYS rejects would be as useless as one that never does -
+    // but every case above calls `assertWordsSurvived` and passes, so the
+    // resolving direction is demonstrated eighteen times over. Manufacturing it
+    // again here would mean re-satisfying its outbox-is-empty clause, i.e.
+    // draining - and a control that drains is back to depending on the product
+    // it exists to check.
   })
 })

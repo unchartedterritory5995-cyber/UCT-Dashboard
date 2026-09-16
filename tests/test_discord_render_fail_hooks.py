@@ -13,6 +13,10 @@ import threading
 import httpx
 import pytest
 
+
+# C-09: production's RENDER_SLOTS IS a RenderGate now. A stub that is a plain
+# BoundedSemaphore tests a world that no longer exists -- it cannot take a class.
+from api.services.render_gate import RenderGate
 from api.services import discord_chart_cache as png_cache
 from api.services import discord_interactions as di
 
@@ -76,15 +80,40 @@ def test_no_bars_without_the_hook_is_byte_identical_to_today():
                                           "still catching up on it - try again in a minute.")
 
 
-def test_busy_is_queue_full_through_the_hook_and_unchanged_without(monkeypatch):
-    slots = threading.BoundedSemaphore(1)
+
+def test_busy_is_DEADLINE_through_the_hook_and_unchanged_without(monkeypatch):
+    """⚰️ THIS TEST ASSERTED THE DEFECT, AND HAD BEEN RED SINCE D-04 (OI-41).
+
+    It was named `..._is_queue_full_...` and asserted `queue_full` — the mapping OI-41
+    deliberately removed. `queue_full` reads "we're at capacity right now" and is the
+    ADMISSION refusal: the answer to a request that never entered the queue. A V2 job
+    reaching this branch was ADMITTED by `runtime.offer`, waited its turn, ran on a
+    worker, and then lost a race for one of the V1 `RENDER_SLOTS` the pre-V2 path shares.
+    Two different refusals wearing one sentence, and the member can act on neither.
+
+    ⛔ THE NAME WAS HALF THE PROBLEM, which is why it changed too. A test called
+    `test_busy_is_queue_full` encodes the old contract in the one place a reader looks
+    before the body — so "fix the assertion" would have left the file still asserting
+    it in prose.
+
+    ⚰️⚰️ AND IT SURVIVED THREE PREFLIGHTS. D-04 changed the mapping in
+    `discord_interactions.py` and never ran THIS file; D-05, D-06 and D-07's own
+    preflight each ran a named list of suites that did not include it. **A file nobody
+    names is a file nobody runs** — which is the cost of "pytest by named files only",
+    stated here rather than left for the next session to rediscover."""
+    slots = RenderGate(1)
     monkeypatch.setattr(di, "RENDER_SLOTS", slots)
     slots.acquire()
     try:
         got, fail = _fails()
         di.run_chart_job("A", "T", di.ChartRequest("NVDA", "D"), bars_fn=lambda *a: _daily(),
                          render_fn=lambda *a, **k: b"PNG", edit_fn=Edits(), fail_fn=fail)
-        assert got[0][0] == "queue_full"
+        assert got[0][0] == "deadline", "OI-41: an admitted job that lost a V1 slot is not a queue refusal"
+        # ⛔ NON-VACUITY: `queue_full` must still be a REACHABLE outcome somewhere, or
+        # this assertion is just "the string changed". It is the admission refusal, and
+        # `contract.py` still declares it.
+        from api.services.discord_render import contract
+        assert "queue_full" in contract.FAILURE_CLASSES
         plain = Edits()
         di.run_chart_job("A", "T", di.ChartRequest("NVDA", "D"), bars_fn=lambda *a: _daily(),
                          render_fn=lambda *a, **k: b"PNG", edit_fn=plain)

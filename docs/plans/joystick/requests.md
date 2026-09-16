@@ -972,7 +972,159 @@ that. The joystick branch classified this as master's and merged on a measuremen
 argument: both of its own `app/src` files were reverted to the merge-base in place and the rail
 re-run, and it failed identically. Evidence: `gate-runs/2026-09-12T23-24-18.md`.
 
+### ⚰️ RECURRENCE — 2026-09-14
+
+**It was fixed, removed from the baseline, and has come back.** `gate-baseline.json`'s own
+`removals[]` records the removal, quoted:
+
+> *"removed_at": "2026-09-11", "removed_in": "Deploy B docs commit", "why": "It stopped failing in
+> the 2026-09-11T07-36-04 gate. Removed only after confirming it is FIXED and not SILENTLY
+> SKIPPED … Verified by running the file alone: 12 tests execute and all five of its own
+> planted-cut controls PASS"*
+
+**Re-verified today BY MEASUREMENT, not inherited.** The six-shard run of 2026-09-14 was on
+**master `1216958ed` itself**, with no feature branch in the tree, and this row failed there:
+
+> ⛔ src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an
+> entry point > and nothing committed is connected to nothing
+
+Manifest: `gate-runs/2026-09-14T17-48-27.md` — tree hash identical at both ends, 1350 files
+reconciling, `10 failed / 19919 passed / 19938`. Classified **rail red** (not load-sensitive) by
+`docs/breadth/gates.md:22`, which also names the owner: *"S4 context (R-29), `76c62c494`"*.
+
+⭐ **The removal was correct and is not the mistake.** It was removed on evidence that it had
+stopped failing, with an alone-run and five controls behind it. Something has since re-orphaned
+`focusDivergence.js` — at `origin/master` today its only non-test mention sits inside a **comment**
+in `HubContext.jsx`, so it has zero real importers. That a row can leave and return is the argument
+for the `AWAITING_A_DECISION` entry rather than another removal: an allow-list entry with a reason
+survives a re-orphaning; a removal does not.
+
+**Re-added to `gate-baseline.json` on 2026-09-14** under owner ruling R1, with this run as
+provenance. Still S4's, still not the hub's.
+
 **What we need:** an `AWAITING_A_DECISION` entry naming the module and why it ships unmounted, or a
 mount. Either closes it. Until then every full gate on this repo reports 1 NEW failure that belongs
 to nobody, and the next person to hit it will spend the same twenty minutes proving it is not theirs.
 
+---
+
+## R-30 — `formatPercent` is adopted by nothing, and it reds the gate for everybody
+
+**Owner:** the **S10 presentation** workstream (`de9551dd9` — *"S10 rail: walk the tree ONCE — a
+load-sensitive red is not banked as permitted breakage"*; the primitive itself lands in
+`3c539d011` — *"S10 Presentation Primitives: build the five, adopt them in S8's four, prove
+byte-identity"*).
+**Filed:** 2026-09-14, by the joystick baseline re-measure on master `1216958ed`.
+**Tagged:** *surfaced by hub gate, not hub-owned.*
+**Blocking the hub:** no. **Blocking every full gate on master:** yes, by one row.
+
+`src/lib/presentation/presentationSingleFormatter.test.js` fails on master:
+
+    > ⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, not hidden
+    > nothing outside lib/presentation imports formatPercent from S10
+
+⛔ **AND ITS CLASSIFICATION IS CONTESTED — read this before treating it as a regression.**
+`docs/breadth/gates.md:24` already records it as a **timeout**, not a rail red:
+
+> *"| `lib/presentation/presentationSingleFormatter.test.js` › nothing outside lib/presentation
+> imports formatPercent | — | S10 presentation, `de9551dd9` | **load (15 s timeout)** |"*
+
+and `:89` repeats *"(load-sensitive)"*. `gate-baseline.json`'s own rule is that **a timeout is
+never banked as permitted breakage**, because banking one leaves a slot a real failure can occupy
+unnoticed. It is nonetheless banked as of 2026-09-14 under owner ruling R1, flagged
+`provisional: true` with `what_would_settle_it` recorded beside it.
+
+⛔ **Not settled here, and the reason is the point.** The settling run is
+`npx vitest run src/lib/presentation/presentationSingleFormatter.test.js` **alone, on a quiet box**.
+On 2026-09-14 the box was carrying another workstream's six-shard gate (`notebook-k`, pid 50356),
+and an "alone" run under gate load reproduces the very condition it exists to exclude. Measuring it
+then would have produced a confident, worthless answer.
+
+**What we needed:** one alone-run on a quiet box. **Passes alone** ⇒ load-sensitive: move it to
+`load_sensitive.names` and take it OUT of `failures[]`. **Fails alone** ⇒ genuine: it stays, and
+the fix is S10's — either an adopter for `formatPercent` or the rail's own recorded decision that
+it ships unadopted.
+
+---
+
+## ⭐ UPDATE 2026-09-14 — FIVE ALONE-RUNS WERE DONE, AND THEY SETTLE IT AS NEITHER
+
+The run happened. Five times, and the answer is **INCONCLUSIVE by the two-branch rule above** —
+which is itself the finding, because it means the question was mis-framed.
+
+| run | box before | result | totals line, verbatim | test time |
+|---|---|---|---|---|
+| A | clear | ✅ | `Tests  12 passed (12)` | 2.00s |
+| B | **clear** | ⛔ | `Tests  1 failed \| 11 passed (12)` | **15.31s** |
+| 3 | clear | ✅ | `Tests  12 passed (12)` | 2.18s |
+| 4 | **gate + 6 vitest** | ✅ | `Tests  12 passed (12)` | 2.04s |
+| 5 | **gate + 6 vitest** | ✅ | `Tests  12 passed (12)` | 2.25s |
+
+Run B, verbatim:
+
+    Error: Test timed out in 15000ms.
+
+⛔ **THE `load` CLASSIFICATION IS NOT SUPPORTED, AND THAT IS THE REAL RESULT.**
+`docs/breadth/gates.md:24` calls it *"load (15 s timeout)"*. But it **failed on a verified-clear
+box** (run B) and **passed twice while a six-shard gate with six vitest workers was running**
+(runs 4, 5). Load does not predict the outcome in either direction.
+
+⭐ What the numbers show instead: the test's own *test time* swings **2.00s → 15.31s**, a 7×
+spread, against a **15s** ceiling. It is an intermittent sitting on its own timeout boundary —
+not a load artefact, and not a false assertion. **One failure in five**, never an assertion failure.
+
+**So the two-branch rule does not resolve it**, and the entry stays `provisional: true` rather than
+being moved or removed on a coin-flip.
+
+### ⛔ WHAT S10 IS ACTUALLY BEING ASKED FOR — and why the hub did not do it
+
+Raise the ceiling on that one case and see whether the **assertion** passes:
+`it(..., { timeout: 60000 })`, or a `testTimeout` override scoped to it.
+
+* **Passes with room** ⇒ a slow test with a mis-set ceiling. It belongs on
+  `load_sensitive.names`, not in `failures[]`.
+* **Fails with room** ⇒ the assertion is genuinely false and it belongs in the baseline, and the
+  fix is an adopter for `formatPercent` or a recorded decision that it ships unadopted.
+
+⛔ **NOT DONE BY THE JOYSTICK WORKSTREAM, DELIBERATELY.** It is a change to S10's own test file.
+This request already names **Owner: the S10 presentation workstream** and tags itself *"surfaced by
+hub gate, not hub-owned"*. ⚠️ `hub/rule12Paths.test.js` forbids only `app/src/pages/journal-2-0/`,
+so nothing *mechanically* stops a hub branch touching `src/lib/presentation/` — **and the absence
+of a prohibition is not a permission.** That is the same rule this programme applies to a silent
+probe and an unticked box.
+
+⭐ Evidence record: `gate-runs/2026-09-14T21-39-settling-runs.md`, which carries all five runs,
+the wrapper-exit trap that nearly corrupted two of them, and the method error (endpoint-only
+clearance checks) that invalidated the first attempt.
+
+---
+
+## R-31 — the surface manifest has an undeclared Layout-hosted route
+
+**Owner:** the **S1 surfaces** workstream (`b7e7541a0` — *"S1 CP1 — the surface manifest as INERT
+DATA, derived from App.jsx by AST"*).
+**Filed:** 2026-09-14, by the joystick baseline re-measure on master `1216958ed`.
+**Tagged:** *surfaced by hub gate, not hub-owned.*
+**Blocking the hub:** no. **Blocking every full gate on master:** yes, by one row.
+
+`src/surfaces/manifest.test.js` fails on master:
+
+    > S1 CP1 — the surface manifest is derived, not typed
+    > every Layout-hosted route has a declaration
+
+⚠️ **UNCLASSIFIED, and that is itself the finding.** Every other row in the current failing set
+carries a judgement in `docs/breadth/gates.md`'s table — rail red or load-sensitive. **This one is
+not in that table at all**, so there is no prior classification to inherit and none is invented
+here. It is recorded as observed on master, and nothing more.
+
+⭐ **The shape suggests bookkeeping rather than a broken product**, exactly as R-29's does: the rail
+derives the surface set from `App.jsx` by AST and asserts every Layout-hosted route has a
+declaration. A route added without its declaration reds it. But that is a reading of the test's
+name, not a measurement, and it is **S1's to confirm** — only its author can say whether the
+missing declaration is an oversight or a route that should not be hosted.
+
+⛔ **Not investigated further on purpose.** A passing branch adding somebody else's declaration is
+how a gap stops being visible.
+
+**What we need:** S1 to classify it (rail red or load-sensitive, via one alone-run on a quiet box),
+then either add the missing declaration or record why the route is exempt.

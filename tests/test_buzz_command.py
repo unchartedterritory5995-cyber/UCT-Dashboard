@@ -165,7 +165,7 @@ def test_buzz_image_job_attaches_the_png_when_the_render_succeeds():
     from api.routers import discord_interactions as rt
     calls = []
     rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
-                          render_fn=lambda w: b"\x89PNGdata",
+                          render_fn=lambda w, **k: b"\x89PNGdata",
                           edit_fn=lambda *a, **kw: calls.append(kw))
     assert len(calls) == 1, "the reply is resolved exactly once"
     assert calls[0]["content"] == "board text"
@@ -177,7 +177,7 @@ def test_buzz_image_job_keeps_the_text_reply_when_the_render_is_empty():
     from api.routers import discord_interactions as rt
     calls = []
     rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
-                          render_fn=lambda w: None,
+                          render_fn=lambda w, **k: None,
                           edit_fn=lambda *a, **kw: calls.append(kw))
     assert len(calls) == 1, "text-only edit still resolves the reply"
     assert calls[0]["content"] == "board text"
@@ -286,21 +286,47 @@ def test_a_bare_buzz_defers_EPHEMERALLY(route, monkeypatch):
     assert r.get("data", {}).get("flags") == EPHEMERAL, "the board would have posted publicly"
 
 
-def test_a_ticker_lookup_replies_EPHEMERALLY(route, monkeypatch):
+def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, monkeypatch):
+    """⚠️ CHANGED BY OI-36, DELIBERATELY. This was a `type: 4` carrying the text inline.
+    It is now a `type: 5` + a PATCH, because the inline form had to build the text —
+    `await run_in_threadpool(...)` — BEFORE it could answer, and that await is bounded by
+    the shared anyio pool: 1.05 ms free, 2,001 ms exhausted, against a 3 s ack deadline.
+
+    ⛔ The assertion is deliberately STRONGER than the one it replaces. The old test read
+    the content off the immediate response, which is the one place it could not go
+    missing. Deferring moves delivery to a PATCH that can fail silently, so this asserts
+    the text ACTUALLY REACHES the member — `lesson_a_swallowed_error_becomes_a_confident_finding`."""
     client, sk, rt, bi = route
     monkeypatch.setattr(bi, "image_enabled", lambda: False)
     r = _post(client, sk, _buzz(ticker="NVDA")).json()
-    assert r["type"] == 4
-    assert r["data"]["flags"] == EPHEMERAL
-    assert r["data"]["content"]
+    assert r["type"] == 5, "the ack is no longer gated on building the reply"
+    assert r.get("data", {}).get("flags") == EPHEMERAL, "a ticker lookup must stay private"
+
+    edits = []
+    rt.run_buzz_job("APP1", "TOK1", "NVDA", "open", 0,
+                    edit_fn=lambda a, t, **kw: edits.append(kw))
+    assert len(edits) == 1 and edits[0].get("content"), "the member got a spinner and nothing else"
 
 
-def test_the_text_only_board_replies_EPHEMERALLY(route, monkeypatch):
+def test_the_text_only_board_DEFERS_ephemerally(route, monkeypatch):
     """The no-image path is a separate `return` and was a separate way to leak."""
     client, sk, rt, bi = route
     monkeypatch.setattr(bi, "image_enabled", lambda: False)
     r = _post(client, sk, _buzz()).json()
+    assert r["type"] == 5 and r.get("data", {}).get("flags") == EPHEMERAL
+
+
+def test_no_reply_token_still_answers_IMMEDIATELY(route, monkeypatch):
+    """⛔ THE ONE BRANCH THAT MUST NOT DEFER. A defer promises a follow-up through
+    `/webhooks/{app}/{token}`; with no token there is no follow-up to make, so deferring
+    would strand the member on a spinner that nothing in the system can ever resolve."""
+    client, sk, rt, bi = route
+    monkeypatch.setattr(bi, "image_enabled", lambda: True)
+    body = _buzz()
+    body["token"] = ""
+    r = _post(client, sk, body).json()
     assert r["type"] == 4 and r["data"]["flags"] == EPHEMERAL
+    assert "token" in r["data"]["content"].lower()
 
 
 def test_a_member_is_throttled_and_no_render_is_scheduled(route, monkeypatch):

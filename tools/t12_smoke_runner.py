@@ -243,10 +243,38 @@ def step2_create_note(page, run, today) -> tuple[str, str]:
       // amendment substitutes for a human at the keyboard. A verdict without the
       // evidence beside it would have shipped as a product FAIL on step 2 and
       // stopped the gate at its third step.
-      const b = btns.find(x => /start a note|new note|new entry|\\+ note|create note/i.test(
+      let b = btns.find(x => /start a note|new note|new entry|\\+ note|create note/i.test(
         ((x.innerText||'') + ' ' + (x.getAttribute('aria-label')||'')).trim()));
-      if (!b) return {ok:false, why:'no new-note control in the Notebook surface',
-                      seen: btns.map(x => (x.innerText||'').trim()).filter(Boolean).slice(0,30)};
+      if (!b) {
+        // ⛔⛔ SECOND ATTEMPT, AND IT IS WHAT A MEMBER DOES.
+        //
+        // ⚰️ 2026-09-14, the admin-role run: this step FAILED on an account
+        // with 38 notes and the screenshot showed a perfectly healthy Notebook.
+        // The control is not missing and this regex is not wrong - "+ New note"
+        // matches it. It simply lives in the LIST VIEW'S TOOLBAR, and the
+        // landing view (ResearchHome) has no create control once you have notes,
+        // by deliberate design ("'All notes' itself is unchanged, one click away
+        // via the sidebar", NotebookTab.jsx:649).
+        //
+        // ⭐ So the first attempt only ever passed on an EMPTY account, whose
+        // first-run block offers "Start a note" - which is why member-smoke, empty
+        // by charter, passed this step for the life of the smoke while no
+        // established member's path was ever exercised.
+        const all = [...document.querySelectorAll('button,[role=button],a,li,div,span')]
+          .find(x => (x.innerText||'').trim() === 'All notes');
+        if (all) {
+          (all.closest('button,[role=button],a,li') || all).click();
+          await new Promise(r => setTimeout(r, 3500));
+          const again = [...document.querySelectorAll('button,[role=button],a')].find(
+            x => /start a note|new note|new entry|\\+ note|create note/i.test(
+              ((x.innerText||'') + ' ' + (x.getAttribute('aria-label')||'')).trim()));
+          if (again) { b = again; }
+        }
+      }
+      if (!b) return {ok:false,
+                      why:'no new-note control on the landing view NOR after clicking "All notes"',
+                      seen: [...document.querySelectorAll('button,[role=button],a')]
+                              .map(x => (x.innerText||'').trim()).filter(Boolean).slice(0,40)};
       b.click();
       await new Promise(r => setTimeout(r, 4500));
       return {ok:true, editor: !!document.querySelector('.ProseMirror'),
@@ -812,6 +840,17 @@ def self_check() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--identity", choices=["member-smoke", "owner-rig"], action="append")
+    # ⛔⛔ THE SHARED ERROR MESSAGE PROMISED A FLAG THIS TOOL DID NOT HAVE.
+    # `window_check.resolve_profile` refuses a missing profile with "Point the tool at
+    # the canonical rig profile (--profile <path>, or UCT_Q1_RIG_PROFILE=<path>)" - and
+    # that text is shared by every caller, while only SOME of them implemented the flag.
+    # Following the tool's own instructions here produced `error: unrecognized
+    # arguments: --profile` and exit 2 in 0.1s, twice.
+    # ⭐ A recovery path a tool NAMES must be a recovery path it ACCEPTS.
+    ap.add_argument("--profile", default=None,
+                    help="the ONE rig profile. Without it the default resolves against "
+                         "the CURRENT worktree, which usually holds no profile - and a "
+                         "fresh profile is a SIGNED-OUT profile nothing can sign back in.")
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument("--out")
     args = ap.parse_args()
@@ -840,7 +879,7 @@ def main() -> int:
                 return 3
             creds = (email, pwd)
         else:
-            rig.use_profile(rig.resolve_profile(None))
+            rig.use_profile(rig.resolve_profile(args.profile))
         print(f"\n═══ {identity} ═══")
         with sync_playwright() as pw:
             runs.append(run_identity(pw, identity, creds, stamp, rig))

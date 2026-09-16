@@ -290,8 +290,26 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // 2026-08-27: re-pinned for the owner default-chart retune — the terminal SMA5
   // overlay REMOVED (default set 5→4) + watermark sizeScale 1.0→1.25 / weight 700→500.
   // CHART_DEFAULTS value/structure edits only; per-chart scope path unchanged.
+  // 2026-09-15: re-pinned for `paneOrder` — the visual pane arrangement.
+  // ⛔ INVESTIGATED, NOT REGENERATED: the merged blob's key set was dumped on
+  // both trees and diffed. ADDED: exactly `paneOrder`. REMOVED: nothing. 40 keys
+  // → 41, every other key and value byte-identical. Its default is `[]`, which
+  // `resolvePaneOrder` reads as "no preference" and answers with the arrangement
+  // the chart already had (Price · separate volume pane · stack) — so no pixel
+  // moves on any existing chart, and nothing is migrated on read. The digest
+  // shifts only by that one additive empty array.
+  // ⚰️ RE-PINNED 2026-09-15 — INVESTIGATED, and the diff is exactly one key.
+  //
+  // `paneSizes` joined `mergeChartSettings`' allow-list so a member's dragged
+  // pane separator survives a reload (see `engine/paneSizes.js`). The merged key
+  // set went 41 → 42 and the ONLY addition is `paneSizes`; every other key, and
+  // every value, is unchanged. Measured by enumerating both key sets on this tree
+  // and on HEAD before the change, not inferred from the digest moving.
+  //
+  // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
+  // investigating is the one thing you may not do. The investigation is above.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    'b5eb05e672170c4efd5831fde856518e6dae717c2379535b189ab49221fe7e3f'
+    '65a5cb321ef40cb3021362d670dbbac195a7b255702460acd0099bcc66c08600'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

@@ -254,3 +254,98 @@ describe('pane fractions — why a volume drawing stops sliding on a resize', ()
     expect(fromPaneFraction({ x0: 0, y0: 0, x1: 1, y1: 1 }, null)).toBeNull()
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐⭐ EVERY ZONE KNOWS THE PANE IT LIVES IN — the index, and the pane's TOP
+//
+// A price scale answers in coordinates measured from the top of its PANE. A
+// drawing is dropped in a ZONE. For most zones those are the same edge, which is
+// exactly why the one case where they differ is so easy to ship broken: the
+// volume BAND starts partway down pane 0 and its series still counts from the
+// top of the candles above it.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('paneIndex / paneTop — what a drawing must be valued against', () => {
+  const zone = (g, key) => g.zones.find((z) => z.key === key)
+
+  it('⛔ the BAND volume zone names pane 0 and the CANDLE top, not its own', () => {
+    const g = band()
+    const price = zone(g, PRICE)
+    const vol = zone(g, VOLUME)
+    expect(vol.paneIndex, 'the band volume claimed a pane of its own').toBe(price.paneIndex)
+    // The zone starts at the split; the PANE starts where the candles do.
+    expect(vol.y0, 'the band is not below the price zone any more').toBeGreaterThan(price.y0)
+    expect(vol.paneTop, 'subtracting the zone y0 would offset every volume '
+      + 'reading by the height of the candles above it — in the DEFAULT layout')
+      .toBe(price.y0)
+  })
+
+  it('⭐ a zone that IS a pane has paneTop === y0', () => {
+    for (const g of [separate(), noVolume(), resolveZones({ ...base, paneHeights: [300, 80, 80] })]) {
+      for (const z of g.zones) {
+        if (z.key === VOLUME && z.paneIndex === zone(g, PRICE).paneIndex) continue  // the band case above
+        expect(z.paneTop, `${z.key} lost its pane top`).toBe(z.y0)
+      }
+    }
+  })
+
+  it('⛔ the separate-pane volume gets its OWN pane index', () => {
+    const g = separate()
+    expect(zone(g, VOLUME).paneIndex).toBe(1)
+    expect(zone(g, PRICE).paneIndex).toBe(0)
+  })
+
+  it('⭐ the oscillator panes are numbered in render order', () => {
+    const g = resolveZones({ ...base, paneHeights: [300, 80, 80], volumePaneIndex: 1 })
+    expect(g.zones.map((z) => [z.key, z.paneIndex]))
+      .toEqual([[PRICE, 0], [VOLUME, 1], ['pane1', 2]])
+  })
+
+  it('⛔ even the degraded single-zone answer carries one', () => {
+    // No usable pane measurements — the fallback every drawing lands in. It has
+    // to name a pane too, or a drawing made during that window can never be
+    // valued at all.
+    const g = resolveZones({ ...base, paneHeights: [] })
+    expect(g.zones).toHaveLength(1)
+    expect(g.zones[0].paneIndex).toBe(0)
+    expect(g.zones[0].paneTop).toBe(0)
+  })
+})
+
+// ─── PRICE IS NOT ALWAYS THE FIRST PANE ─────────────────────────────
+//
+// ⚰️⚰️ `ChartDrawingOverlay.toPixel` TAKES `series.priceToCoordinate(price)`,
+// which answers in the SERIES' PANE's coordinates, and paints onto a canvas that
+// spans the WHOLE pane stack. Those were the same number for as long as the
+// candles had to be pane 0 — so no offset was ever added, and nothing noticed.
+//
+// Measured in the pane harness the moment a pane could sit above Price: with two
+// panes moved up, a horizontal line stored at 310 rendered against ~400 on the
+// axis, and the trendline and rectangle were displaced by the same amount. The
+// drawings had not moved; the pane under them had. The overlay now adds the
+// candle zone's own top, and THIS is the number it adds — so if the zone maths
+// ever stops accounting for the panes above Price, it fails here first.
+describe('⚰️ the candle zone starts below whatever is above it', () => {
+  const m = (candlePaneIndex) => resolveZones({
+    width: 600, height: 400, axisWidth: 60, timeAxisHeight: 28,
+    paneHeights: [100, 80, 180], separatorHeight: 1, candlePaneIndex,
+  })
+
+  it('⚰️ Price third → the zone top is every pane above it, plus separators', () => {
+    const z = rectForKey(m(2), PRICE)
+    expect(z.y0, 'the offset a drawing needs when two panes sit above Price')
+      .toBe(100 + 1 + 80 + 1)
+  })
+
+  it('⭐ Price first → zero, which is why nothing changed for existing charts', () => {
+    expect(rectForKey(m(0), PRICE).y0).toBe(0)
+  })
+
+  it('⭐ Price second → exactly the one pane above it', () => {
+    expect(rectForKey(m(1), PRICE).y0).toBe(101)
+  })
+
+  it('⛔ the zone still ENDS at its own pane bottom — it is not stretched', () => {
+    const z = rectForKey(m(2), PRICE)
+    expect(z.y1 - z.y0).toBe(180)
+  })
+})

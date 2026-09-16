@@ -204,14 +204,36 @@ function UserFormulaFeed({ onLoaded }) {
 
 const IND_TARGET_PREFIX = 'ind:'
 
+/** ⭐⭐ THE CHART-DATA ADDRESS (Track B, 2026-09-14).
+ *
+ *  The on-chart popover's **Edit in Chart Data…** sends `data:<instanceId>` down
+ *  the SAME `scrollTo` channel everything else uses, because this file's rule is
+ *  that a surface has exactly one way to ask the modal for something. Track A's
+ *  Chart Data tab does not exist on master yet, so today this resolves to the
+ *  Indicators tab expanded on that instance's row — which is the full
+ *  per-instance editor either way.
+ *
+ *  ⛔ WHEN THE CHART DATA TAB LANDS, IT CLAIMS THIS PREFIX HERE — one branch in
+ *  `indTargetRow` / `SETTINGS_TARGET_TAB` — and every on-chart door follows with
+ *  no change to `StockChart`. That is the entire seam, and it is deliberately the
+ *  smallest one: a second prop would be a second channel, which is what the
+ *  paragraph above `indTargetRow` forbids.
+ *
+ *  ⚠️ A ROW ID CAN ITSELF CONTAIN COLONS (`legacy:rsi`, `inst:qqq`), which is why
+ *  both prefixes are SLICED rather than split. */
+const DATA_TARGET_PREFIX = 'data:'
+
 /** The LEGEND's spelling for a moving-average row. Its own vocabulary — see
  *  `indicatorRegistry.overlayRowId` for why the two differ and why the seam is
  *  here rather than at either end. */
 const LEGEND_MA_PREFIX = 'ma:'
 
 function indTargetRow(scrollTo) {
-  if (typeof scrollTo !== 'string' || !scrollTo.startsWith(IND_TARGET_PREFIX)) return null
-  const rowId = scrollTo.slice(IND_TARGET_PREFIX.length)
+  if (typeof scrollTo !== 'string') return null
+  const prefix = scrollTo.startsWith(IND_TARGET_PREFIX) ? IND_TARGET_PREFIX
+    : (scrollTo.startsWith(DATA_TARGET_PREFIX) ? DATA_TARGET_PREFIX : null)
+  if (!prefix) return null
+  const rowId = scrollTo.slice(prefix.length)
   // ⭐ THE ONE TRANSLATION: `ma:0` (what the legend calls it) → `overlay-0` (what
   // this tab calls it). Everything else — `volume`, `legacy:rsi`, an instance id —
   // is spelled the same on both surfaces and passes straight through.
@@ -256,6 +278,11 @@ export default function ChartSettingsModal({
   // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
   // the Charts workspace (via ChartPane); when absent, the themes gallery offers
   // only "this chart".
+  // ⚰️ FORWARDED, NOT RE-DERIVED. The volume-presentation inputs the RENDERER
+  // holds as props (`volumeSeparatePane` / `blankVolume` / `shown`); Chart Data
+  // needs the same ones or it answers a different question than the chart does.
+  // See `chartDataMap`'s note at `separateVolume`.
+  volumeOpts = null,
   onApplyThemeAll = null,
   // Optional: apply the theme to EVERY widget in the layout (chart or not).
   onApplyThemeAllWidgets = null,
@@ -791,6 +818,10 @@ export default function ChartSettingsModal({
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
+        /* ⚰️ CHART DATA USED TO WIDEN THIS TO 880 and the modal resized on the
+           way in and out of the tab. The two-column pane-map + inspector needed
+           the room; the inline editor does not, so the width goes back to the
+           one every tab shares and the jump is gone. */
         className={styles.panel}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
@@ -884,7 +915,7 @@ export default function ChartSettingsModal({
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Chart Data'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -1151,6 +1182,7 @@ export default function ChartSettingsModal({
              settings blob itself, so there is exactly one control door onto an
              indicator on this surface, the same one there has always been. */
           <ChartSettingsIndicators
+            volumeOpts={volumeOpts}
             rows={indRows}
             settings={settings}
             onChange={onChange}

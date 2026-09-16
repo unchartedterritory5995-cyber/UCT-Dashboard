@@ -240,6 +240,18 @@ absent, alert webhook present, flow-worker **SKIPPED** on both pushes.
 percentiles, failure classes, correlation ids) and no member data. The webhook is unaffected —
 posting does not require channel read access, which is why the test alert landed.
 
+### Step 2.4b P2.1 — provider adapters, and the hot path wired to them (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 13 | 2026-09-13 | *(branch)* | **2.4b P2.1** — one adapter per upstream (bars · quote · flow · renderer · entity) behind `fetch(request) → Result`; timeouts, retries, breakers, fallback and the freshness stamp live only there; the V2 handlers bind adapter-backed callables. Closes **OI-21** (a 60 s renderer timeout behind a 15 s deadline, and a tuned breaker with zero callers), **OI-23** (three unreconciled failure vocabularies), and bounds **OI-22** (an unbounded quote call). | `api/services/discord_render/adapters/{__init__,result,_call,bars,quote,flow,renderer,entity,classes,bindings,switch}.py` (new) · `api/services/discord_render/commands.py` (`_chart_kwargs`/`_multi_kwargs` bind adapters) · `api/services/discord_render/runtime.py` (`Job.remaining_s`, additive) · 4 new test files · `docs/discord-render/instruments/mutation_harness_adapters.py` (new) | `DISCORD_RENDER_V2_ADAPTERS_ENABLED` — kill switch **under** the V2 master, unset = ON, read per call (railed), declared `dark`. Set to `0` and the handlers bind the raw functions again: a rollback of P2.1 with **no deploy**, and a switch, never a delete. | none — watch coverage `reachable=154 watched=24 changed=10 **OK**` | *(filled at the merge)* | n/a — no member-visible timing change while V2 is unset; the renderer ceiling drops 60 s → `min(20 s, remaining)` on the V2 path | *(branch only)* | **None.** The adapters are reachable only from `commands.py`, which runs only when `DISCORD_RENDER_V2_ENABLED` is set — and it is absent on `web` (read live). Proved **structurally**, not by a golden: `test_the_pre_v2_path_cannot_reach_the_adapters` asserts neither `discord_interactions.py` imports the package, so there is no path at all, for every input. |
+
+### Master merge 5 — 2.4b part 2 (P2.1-P2.10), dark (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 14 | 2026-09-13 | `5ca4d5db2` | **Master merge 5**: rows 13 + P2.4/P2.6/P2.7/P2.9/P2.10 — the adapters, the member-facing stamp, the breaker and loop-stall alerts, the event-loop probe, and shadow mode | 39 files vs master, after merging **43** master commits with overlap on `CLAUDE.md`, `api/main.py`, `docs/feature_flags.json` (**merged, not rebased** — the standing rule sends an overlapping, 43-behind branch through a merge) | `DISCORD_RENDER_V2_ADAPTERS_ENABLED` · `DISCORD_RENDER_LOOPWATCH_ENABLED` (both kill switches under the V2 master, unset = ON, declared `dark`) · `RENDER_V2_SHADOW` (an ENABLEMENT gate, unset = OFF; declared here and in `03` §3.8d, **not** in `docs/feature_flags.json` — OI-27) | none — watch coverage `reachable=154 watched=24 changed=39 **OK**`; flow-worker **SKIPPED** on both pushes | 44 scoped files: **1,112 passed, 0 failed** on the merged tree. Mutation proofs **69/69 red**, restores sha-verified, controls green either side. Secret scan **0 findings** over 39 paths (run by hand — OI-26). Hygiene gate clean, 9,219 tracked files. | n/a with the flag unset; the renderer ceiling drops 60 s → `min(20 s, remaining)` on the V2 path, read in-process as **20.0** | BUILDING → DEPLOYING → **SUCCESS**; running SHA **`5ca4d5db2385`** read in-process; `/api/health` 200, bad signature 401, render-health 401 | **None.** `DISCORD_RENDER_V2_ENABLED`, `RENDER_V2_SHADOW` and both kill switches are **absent** in the running process, read in-process. The only pre-V2 change is the interactions route delegating to `_dispatch_interaction` and returning its reply **unchanged**, with a rail asserting the reply survives even when the shadow setup raises. |
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
@@ -266,6 +278,19 @@ Full context for every row is in `03-architecture.md` §6.
 | OI-17 | §3.7's boot warm renders `/r/chart?fixedbars=…`, but the page refuses a request without the render token (`ChartRender.jsx`: `TOKEN && token !== TOKEN` → "unauthorized") and chart-renderer does not hold `CHART_RENDER_TOKEN`. | Always warm with a hermetic render (Chromium launch + one canvas screenshot, no network); also render `RENDER_WARM_URL` when it is set. Recommend the owner set `RENDER_WARM_URL=https://uctintelligence.com/r/chart?sym=NVDA&tf=D&fixedbars=nvda-d&token=<render token>` on chart-renderer **after** the rotation in OI-13 — copying a credential between services is the owner's call. | hermetic warm shipped; `RENDER_WARM_URL` unset |
 | OI-18 | §3.7 sets `RENDER_HARD_TIMEOUT_S` to 20 s by default, but web budgets 15 s then 25 s of readiness per attempt (`discord_chart_house._ATTEMPTS`) on top of 21/31 s of navigation, so a 20 s ceiling would 504 renders that succeed today. | Default the ceiling to the budget the request declares (2 × readiness + 6 s navigation + settle + 10 s): only a hang is cut, and no render that succeeds today changes. Lower it to 20 s once web's attempts are re-budgeted inside the 15 s deadline (2.4/2.6) and the RTH p99 is measured. | request-declared ceiling; env unset |
 | OI-19 | The close-out plan puts dual-token acceptance on **chart-renderer**. Measured in code: chart-renderer **never validates the render token** — it navigates to whatever URL it is handed. The token is checked in two places, both on **web**: `app/src/pages/*Render.jsx` (14 pages; `ChartRender.jsx:76` reads `import.meta.env.VITE_CHART_RENDER_TOKEN`, baked at BUILD time, compared at `:778`) and `api/routers/render_panels.py:61` (`CHART_RENDER_TOKEN`, the `/api/r/*` payload gate). A `CHART_RENDER_TOKEN_PREVIOUS` on the renderer would be read by nothing. | Put dual acceptance where the check is: accept `VITE_CHART_RENDER_TOKEN` **or** `VITE_CHART_RENDER_TOKEN_PREVIOUS` in the render pages, and `CHART_RENDER_TOKEN` **or** `CHART_RENDER_TOKEN_PREVIOUS` in `render_panels.py`. Ship that first (additive, dark-safe), then one `web` rebuild flips new+previous together — no window where a sender's token is rejected, because the new bundle accepts both. Monday's job clears only the `_PREVIOUS` pair. | the recommendation (built in 1.1) |
+| OI-21 | **`discord_chart_house.RENDER_TIMEOUT_S` is 60 s, over two attempts, behind a 15 s job deadline.** So the watchdog sends the failure message at 15 s and the call runs on for up to another 105 seconds holding a worker thread. Meanwhile `breakers.DEFAULTS["renderer"]` — tuned for exactly this dependency — had **zero production callers**. (Adjacent to OI-18, which is about the renderer's own in-page ladder; this one is the web-side client timeout.) | The ceiling is `min(§3.8's 20 s, the job's REMAINING time)`, enforced in the renderer adapter, not in the module constant. A per-dependency timeout answers "how long may this upstream take"; only the job knows "how long is there left" — take both and let the smaller win. `Job.remaining_s()` is the accessor that did not exist. | built in 2.4b P2.1 |
+| OI-22 | **A quote failure is indistinguishable from "no extended-hours print".** Three layers swallow it: `massive.get_batch_rich_snapshots` returns `{}` on any exception, `fetch_ext_quote` catches `Exception` → `None`, and the call site catches again. So a quote outage looks like a quiet overnight, and no breaker can ever see it. | The adapter bounds the call (1.5 s, §3.8 — it had no timeout of any kind) and reports `EMPTY`, **with the limitation recorded on the Result itself** rather than in a comment nobody reads. Splitting the two means making `fetch_ext_quote` raise, which is a behaviour change on the pre-V2 path → 2.8, not 2.4b. | bounded now; the split deferred to 2.8 |
+| OI-23 | **Three failure taxonomies, unreconciled.** `contract.py` drives the member-facing copy; `adapters/result.py` names what an adapter saw; and the flow leg emits a third set (`flow_timeout` / `flow_unavailable` / `flow_error`). A class that exists in one and not the others renders as a generic apology — which is the state C-08 describes, one level up. | One mapping, adapter class → contract class, with a rail asserting every member of `ALL_REASONS` has copy. Do it when the handlers are rewired (P2.4/2.6), not before: a mapping written against handlers that do not use it yet is a table nobody can falsify. | queued for P2.4 |
+| OI-24 | **The correlation id is lost on the produce thread.** `api/services/discord_interactions.py:1856` spawns `discord-chart-produce` without `ids.carry(fn)`, so every `drender` event from inside a chart production is unattributable — on the one path where a member's complaint has to be traceable to a job. | One-line: wrap the target in `ids.carry`. It is a pre-V2 file, so it is a behaviour-neutral fix that helps both paths; it belongs to 2.8's "close every forensics class" rather than riding in with the adapters. | queued for 2.8 |
+| OI-25 | **The fixed 1.5 s bars retry is in the CALLER, and an adapter retry multiplies with it.** `produce_chart._fetch` (`api/services/discord_interactions.py:1186`) loops twice around `bars_fn` with `BARS_RETRY_DELAY_S = 1.5` between — the exact re-synchronising delay `breakers.retry_delay` exists to replace. With the bars adapter also retrying, one chart would make up to **four** bars fetches and sleep ~2.9 s inside a 15 s deadline. Found by reading the call site after wiring, not by a test: both layers are individually correct. | The binding passes **`attempts=1`**: the caller already retries, so the adapter must not. The capability stays on `BarsRequest` for direct callers and keeps its mutation proof. Moving the retry into the adapter means deleting the caller's loop, which is a **pre-V2 file** and therefore a member-visible change — it belongs to 2.8, with the jitter, not to P2.1. | bounded now; the loop moves in 2.8 |
+| OI-28b | ✅ **OWNER DECIDED 2026-09-14: adopt it.** `tests/test_chart_renderer_*.py` is the chart-renderer's own test file and this programme owns that service, so red on master there is **our** red. Fix the flat `edge_scope` import the way the surrounding code imports its neighbours, confirm the 6 failures go green on a clean `origin/master` checkout, and name the session that introduced it in the ledger so they know. | ⭐ This reverses the position below, which was *"a one-line conftest change from this programme would silently adopt another session's breakage."* The reversal is the owner's and the reasoning is ownership, not blame: nobody else is going to fix a test file for a service this programme is hardening, and a permanently-red suite is one nobody reads. | Lane C (`lane-c-budget`). Tiny isolated diff, one merge. |
+| OI-28 | ⛔ **`tests/test_chart_renderer_*.py` IS RED ON MASTER AND HAS BEEN FOR SOME TIME — 6 failures, not this programme's.** `services/chart_renderer/app.py:63` does a FLAT `from edge_scope import …` (correct for the renderer image, which has `WORKDIR /app` and copies modules individually), but nothing puts that directory on the test path, so every test loading the renderer app dies at import with `ModuleNotFoundError: No module named 'edge_scope'`. | **Proved inherited, not assumed:** reproduced identically — `6 failed` — on a clean detached checkout of `origin/master`, and this branch touches neither `services/chart_renderer/` nor `conftest.py`. | Lane E's two renderer tests were made self-contained (`_renderer_module()` puts the directory on `sys.path` the way the image does) rather than skipped — a skip there would have hidden the **C-13 token scrub**, the one property on that surface that must never regress. ⛔ The 6 inherited failures are NOT fixed here: the fix belongs to whoever added the flat import, and a one-line `conftest` change from this programme would silently adopt another session's breakage. |
+| OI-29 | **2.6 hardens the failure MESSAGE, not the path the forensics evidence came from** (Lane C, CCR-2). `JobContext.edit` → `runtime.edit_fn` → `di.edit_original`, so the chart IMAGE PATCH never passes through `delivery.py`. The 23 × `10015` and 23 × `ATTACHMENT_NOT_FOUND` in `01-failure-forensics.md` were image/follow-up PATCHes. | Lane C's AST walk over the callers, reported rather than assumed. | ✅ **OWNER DECIDED 2026-09-14: 2.6 is NOT done until the image PATCH goes through delivery.** Built: `delivery.edit_image` (multipart, same budget/retry/429/5xx/class table as the text path, plus the §3.4 size guard, plus a text fallback so a refused image still ends in a sentence) and `bindings.delivery_edit_fn()`, which the V2 runtime is now handed in place of `di.edit_original`, re-reading the adapters kill switch per call. ⭐ **The actual closure of C-04 is not the hardening — it is `_fold_attachments`.** The class is a SECOND PATCH re-declaring ids read off the FIRST patch's response with none of the bytes; the fold re-uploads the bytes instead, and **an id naming a part present in the same request cannot be stale**. No retry policy helps a payload that is wrong every time (0 % load correlation). Regression suite `tests/test_discord_render_image_delivery.py`, written as a DIFFERENTIAL — the same fake Discord refuses the pre-V2 shape and accepts the V2 one. Mutations: `mutation_harness_image_delivery.py`, whose `M0` is the non-vacuity control that makes the fixture stop refusing — the count is in the merge row below, and the first run was **19/21**: `M19` (a shared failure slot) and `M20` (the runtime handed the raw edit again) were GREEN, i.e. two claims the code made and no rail held. Both now have one. ⛔ **Pre-V2 untouched:** the fold lives in the V2 wrapper, so `discord_interactions.py` has no diff at all. |
+| OI-30 | **`contract.FAILURE_CLASSES` has no `too_large` or `permission`** (Lane C, CCR-3); delivery maps both to `discord_rejected`. | Lane C reading §3.4 against `contract.py`. | **Closed by decision, no code change.** Lane C's own map argues it: *"Discord refused the message" is true of all four rejections and is the only one of them a member can act on* — a member did not choose the chart's size, so a distinct sentence gives them nothing to do. Adding two classes nobody can act on is the gold-plating the execution brief forbids. |
+| OI-31b | ✅ **OWNER DECIDED 2026-09-14: build what `03` §3.6 says.** Two tiers — L1 in-memory (the 64 MiB heap, hot artifacts), L2 on the volume (512 MiB LRU **by bytes**), L1 miss → L2 → render; same key, same TTL rules, same degraded-never-fresh guard at both. ⭐ **The reason is the pod, not the spec:** this pod's median deployment serves 8.4 minutes, so an in-memory cache is empty exactly when the first render after a deploy needs it most — the argument that made in-memory look sufficient is the same measurement that makes it insufficient. | Required tests, named by the owner: L2 survives a simulated restart · an L1 eviction does not evict from L2 · a corrupt or partially-written volume entry is detected and treated as a MISS, never served. | Lane B (`lane-b-cache`). The interim in-memory-only state is recorded as a **superseded design, not deleted** — §3.6 and the code brought into agreement, one document one product. |
+| OI-31 | **`03` §3.6 and the built cache describe two different products.** §3.6 names `cache.py`, an **on-volume** LRU at `DISCORD_RENDER_CACHE_DIR` (512 MiB); `07-execution-plan` §3 and Lane B's brief specify in-memory `artifact_cache.py`, which is what exists. | Lane B, which owned neither document and said so. | The built artefact is in-memory and per-process **by design** — this pod's median deployment serves 8.4 minutes, so durability is a separate decision, not an implied one. The flag note records the 64 MiB cap as the web pod's **heap**, deliberately not §3.6's 512 MiB. ⛔ §3.6 still says the other thing; correcting it is a doc change the owner should direct, because "add an on-volume cache later" and "§3.6 was aspirational" are different answers. |
+| OI-27 | **`RENDER_V2_SHADOW` cannot be declared in `docs/feature_flags.json`, and that is a property of the ledger, not of the flag.** `feature_flag_index._GATE_MARKERS` is `("ENABLED", "DISABLE")`, so the scanner only ever sees a gate whose NAME contains one of those. A row for anything else is rejected by `test_the_ledger_does_not_describe_gates_that_no_longer_exist` as describing "a repo that does not exist" — correctly, from the scanner's point of view. Any flag named otherwise is therefore **structurally undeclarable**, which is a quiet hole in the one artifact that is supposed to make "off by accident" and "off on purpose" distinguishable. | Kept the owner's literal (`RENDER_V2_SHADOW=1`, as specified) and recorded it **here** plus `03` §3.8d and `04-visual-spec`, which is the precedent 2.4a set for `DISCORD_RENDER_V2_SYMBOLS_ENABLED` (a name built at run time, equally invisible). ⛔ **Renaming the owner's flag to suit the tool was the wrong trade** — it would have made the ledger green and the spec wrong, and the next person would have set the flag the spec names and seen nothing happen. The durable fix is widening `_GATE_MARKERS`, which belongs to the flag-ledger programme. | recorded; the marker list is another programme's |
+| OI-26 | ⛔ **THE PRE-PUSH SECRET SCAN HAS NEVER RUN FOR ANY WORKTREE BUT ONE, AND THIS IS A PUBLIC REPO.** The hook is installed in the **shared** git directory (`uct-dashboard/.git/hooks/pre-push`), so it fires for all ~57 worktrees — but `tools/secret_scrub.py` exists only on **`feat/breadth-charts`**, which is not an ancestor of master. Every push from every other checkout prints *"the secret scan did NOT run. This is not a pass."* and proceeds. ⭐ The hook is behaving impeccably: it refuses to imply a pass it did not earn, and it is the ONLY reason this was noticed at all. | Not this programme's tool to move — the fix is for that branch's owner to land `tools/secret_scrub.py` on master, at which point every worktree's hook starts working with no other change. **Meanwhile, measured rather than assumed:** the scanner was read out of that branch (`git show feat/breadth-charts:tools/secret_scrub.py`, never a copy committed here — a second copy is a second authority) and run over this branch's 36 changed paths: **0 findings**, with its own `--self-check` passing first so the zero means something. | reported; the fix belongs to another branch |
 | OI-20 | The hygiene gate can run as a **pre-commit hook** (`--staged`), which would enforce it at the moment of `git add -A` rather than at gate time. But git hooks live in the **shared** git directory: installing one reaches all ~57 worktrees and every concurrent session at once, and a hook that misfires (no `python` on that shell's PATH) blocks every session's commits. | Ship the gate as a **test rail** now (shared through git, cannot break anyone's commit), and leave the hook opt-in: `git config core.hooksPath .githooks` after copying the one-liner from the runbook. Revisit as a hook once it has a week of green in the gate. | gate rail now; hook documented, not installed |
 
 ## Loop log
@@ -302,7 +327,22 @@ is not walked into twice.
 | Step 0 | The restart capture withheld three files for "credential-shaped content". All three were **false positives**: the scanner's `sk-[A-Za-z0-9_-]{20,}` matched hyphenated slugs — `v2-ri`**`sk-register-and`**`-directives.md` and `feat/de`**`sk-sharpen-workshop-card`**. One session's reconstructed resume and a design doc were withheld for nothing. | Reading each match **in context** rather than trusting the hit count. | Verified in context, then committed and pushed (`944231be4` on `feat/catalyst-coverage-precision`). ⭐ A secret regex anchored on a two-letter prefix inside a hyphen-rich corpus is an instrument that manufactures findings; the fix for the next capture is a boundary (`(?<![A-Za-z0-9-])sk-`) plus an entropy floor, not a longer block list. |
 | 1.1a | The patch that rewired the 14 render pages detected each file's line ending **from disk** and wrote that back. Git stores these files LF; the working copies were CRLF, so every file came back as a whole-file rewrite — `918` changed lines on `ChartRender.jsx` instead of 2. A 14-file whole-file diff would have conflicted with every other session touching those pages. | `git diff --numstat` after the patch: 14 files, every line changed. | Normalised all 14 back to LF (a byte transform, never a `git checkout`), re-measured: **2 lines changed per file**. ⭐ The rule the script had wrong: an EOL-preserving patch must write the ending the **index** stores, not the one it finds on disk — on a box with `core.autocrlf=true` those differ by design. |
 | 2.4b | The SAME line-ending trap, a second time — `docs/feature_flags.json` came back as a 1,199-line whole-file diff after a 7-line edit. A Python `newline=""` round trip preserves what is ON DISK, and on this box git checks these files out CRLF while the index stores LF. | `git diff --numstat` again. | Normalised to LF; the diff became `0 7`. ⛔ **Standing rule, now that it has cost two edits:** any repo file written from Python on this box is written **LF**, matching the index — never "whatever was on disk". |
+| R-2 | Building the line-ending gate, I ran `git checkout -- docs/discord-render/LEDGER.md` to undo a one-line probe I had appended as a control. It also discarded the finished **R-1 ledger correction** in the same file — twenty minutes of writing, gone, and I only noticed because I grepped for its text afterwards. | `grep -c "owner ruling R-1"` returned `0` for LEDGER.md and `1` for the other two docs. | Re-wrote it. ⛔ `feedback_mutation_check_never_git_checkout` now has a **second** incident behind it, and this one was not a mutation harness — it was a two-second "undo". **`git checkout -- <file>` is not an undo, it is a discard of everything uncommitted in that file.** Capture the bytes and a sha first, write them back, verify the sha. The rule is in CLAUDE.md beside R-2. |
+| R-2 | The first version of the gate was **green under mutation** on both planted flips. Two independent defects: it hashed the working file with `git hash-object` (no `-w`), so `cat-file` could not read the sha back and every worktree check silently returned "nothing to look at"; and it compared an EOL *style*, which cannot see a flip on `docs/plans/joystick/deferred.md` because that file is **mixed** — 87 CRLF lines among LF ones — so both sides answer `crlf`. | The end-to-end proof: `*** GREEN UNDER MUTATION ***` on a file whose diff was visibly `87 87`. | Predicate rewritten to compare **CR-stripped content** (endings are the only difference ⇒ report), which is filter-independent and catches the mixed case; worktree mode reads the file directly. Re-proved RED on two different CRLF-stored files, with a clean control either side. ⭐ Both defects made the check answer "no" to everything — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`, and the reason the rail carries 11 quiet-cases beside its 4 firing ones. |
+| 2.8 | ⛔⛔ **THE ADAPTER SPINE OVERRAN ITS OWN DEADLINE, AND THE LAYER EXISTS TO STOP EXACTLY THAT.** `_call.guarded` computed the effective budget **once per call** and handed it to every attempt, so an N-attempt hop could spend N × the job's remaining time. The live blast radius was zero purely by luck — `bindings` passes `attempts=1` for an unrelated reason (OI-25, the caller already retries) — so the adapter's own default was unsafe the moment anybody used it. | Lane E's `chaos_scenarios.py` on its first run: **4.6 s spent against a 2 s deadline** with the bars adapter's `ATTEMPTS = 2`. Lane E could not fix it (it ships no `api/` change) and marked the test `xfail(strict=True)` naming what must land. | Budget re-read **per attempt**; an attempt with less than `MIN_USEFUL_S` left raises rather than starting. Measured after: attempts of 1, 2 and 3 against a 2 s budget all spend ~2.0 s. The strict marker then turned the pass into an `XPASS(strict)` **failure**, which is precisely its job — a plain red test would have blocked every merge in the queue, a non-strict xfail would have swallowed the fix in silence. Now a standing guard, with mutation **A76**. ⭐ The same arithmetic as OI-21 one layer down: a per-call ceiling is a per-ATTEMPT ceiling. |
+| P2.10 | ⚰️⚰️ **THE FIRST RUN OF THE ADAPTER BENCH PRINTED NUMBERS THAT WERE A LIE, AND IT TOUCHED THE OWNER'S LIVE BARS STORE TO DO IT.** `bindings.bars_fn` calls `bars.fetch(...)` with no `fetch_fn`, and the adapter then imports the REAL `fetch_bars` — so the "adapters" case never used the stub. It benched the live path against `C:\data\bars.db` (3 GB) while the "raw" case benched a 1 ms stub. | **`adapters` measured FASTER than `raw`** (0.635 ms vs 1.529 ms), which is impossible for a wrapper, plus a `bars_sanitize` warning that only a real fetch emits. | Stub pinned into `api.routers.discord_interactions.fetch_bars` so the adapter's own lookup finds it, **and `run()` now refuses to start** unless a live probe proves the adapter reached the stub. ⛔ The lesson is not "remember to stub": a bench whose cases do not provably call the SAME upstream is comparing two different programs, and a number from it is **worse than no number because it looks like evidence**. ⚠️ Second finding on the same run: a bare `python tools/...` run is outside pytest, so the conftest tripwire does not apply and `/data` resolves to the owner's live files (CLAUDE.md says so; I did it anyway). **Checked: no bars were written** — `bars_provenance` had zero rows in the window and NVDA's newest daily bar is unchanged at Friday's close. The file mtime moved because opening a WAL database **read-only still rewrites its `-shm` index**, and I very nearly reported a leak from a sidecar mtime — the exact inversion CLAUDE.md warns about. |
+| P2.10 | ⚰️⚰️ **A `railway ssh` PROBE IS A DIFFERENT PROCESS, AND ITS VERDICTS CAN BE SIMPLY WRONG.** Minutes after switching shadow mode on, an in-pod probe reported `ticker_search_index.ready() = False`, `_INDEX = 0`, and **every** symbol `unanswerable` — including obvious junk (`ZZZZQQ`) and a real typo (`NDVA`). Read at face value that says V2's headline D-04 feature (refuse an unknown symbol in <1 s with suggestions) is **inert on production**, which would have been a serious finding to report. | `pid=569` in the probe's own output. `railway ssh` spawns a fresh Python; the uvicorn server is **pid 1**. The ssh process imports every module COLD, so the index it reads is the one it just failed to build — not the server's. `/api/ticker-search?q=NV` through the real server returned real entity rows seconds later. | Nothing was wrong. ⭐ `05-progress` already said a pod probe's **timing** is "a cold process: an upper bound" — the half nobody had written down is that a **VERDICT** from one can be wrong outright, because module state changes the ANSWER and not just the latency. Now stated in `shadow._index_ready`'s docstring beside the field it produces. ⛔ The near-miss is the point: this was one report away from being published as a production defect (`lesson_verify_in_the_users_client_not_your_own`, `lesson_an_instrument_can_reproduce_its_own_blind_spot`). |
+| P2.10 | The probe artifact exposed a **real** ambiguity underneath it: the shadow recorded `would_refuse` and `divergence` but nothing to distinguish **"V2 agreed with the old path"** from **"V2 could not tell"**. Both produce zero refusals — and zero divergence is the single number the flip decision rests on. A weekend of apparent perfect agreement could have meant every symbol check failed open. | Reading the probe output and asking what a `0` would have meant. | `unanswerable` and `index_ready` added to every shadow line, the second three-valued (`None` = we could not find out, which is not `False`). Mutations A70–A72 red. ⭐ **The wrong instrument found the right defect** — the artifact was not the finding, but looking hard enough to disprove it was what surfaced one. |
+| P2.1 | Two mutations stayed **green**, and both were instrument defects rather than code defects. **A17** (`bars.ATTEMPTS` 2 → 1, so every transient bars failure becomes final) passed because the only retry test called the SPINE directly with `attempts=3` and never touched the adapter's own constant — a constant nothing reads is a setting, not a behaviour. **A33** (dropping the `if r.ok` guard in the binding) passed because `fail()` always nulls `data`, so the only case the guard defends was one no test could construct. | `34/35 mutations RED` twice, with the same two names. | A17 re-aimed at two new tests that drive `bars.fetch` and count the attempts. A33's rail now builds a `Result(ok=False, data=<partial rows>)` **by hand** — the shape an adapter returning a partial payload would produce, and exactly what must not reach the renderer. Both RED on re-run. ⭐ Neither was "the mutation was wrong": each named a real hole, and the second one showed the guard was not dead code — the test was. |
+| P2.1 | Wiring the adapters into `_handle_flow` exposed a **modelling** error the tests could not see: `unreachable` and `upstream_error` were one class, and an empty `/flow` tape was being reported as a failure. Every existing test passed, because each case happened to want the same outcome. | Reading `run_flow_card_job` to find the seam, not a red test. | `UNREACHABLE` split out (it decides whether the in-process fallback runs at all — a 5xx means flow-worker ANSWERED and `web`'s copy would answer the same); an empty tape returns `ok` with `contract_count == 0` so the router keeps its own sentence. ⭐ **The C-08 mistake has two directions** and this step committed the second one: not four causes made into one, but one non-cause made into a cause. |
+| R-2 | Widening the gate to the whole programme (39 files, not the 31 I had been running) found a red I shipped in **1.1**: `VITE_CHART_RENDER_TOKEN_PREVIOUS` is read by `app/src/lib/renderToken.js` and had **no `build_flags` row** in `docs/feature_flags.json` — the exact class the owner had already made me close once. It was invisible because `test_vite_flag_ledger.py` was outside my scoped list. | `1 failed, 939 passed` — the first run of the wider set. | Row added (`dark`, UNSET, operator, with the "set both halves or neither" note and the Monday retire job named). ⭐ **A scoped gate is a claim about the files you named, not about the branch.** The file that catches a class of defect is the one least likely to be in a list you assembled from the files you were editing. |
+| R-2 | The standing rule as written after 1.1a and 2.4b — *"always write LF"* — is **wrong in one direction**, and I only found out by measuring. With `core.autocrlf=true`, writing CRLF over an LF-stored file is cleaned on the way in: `git diff` reports nothing at all. The damaging direction is a CRLF-stored or mixed blob **flattened to LF**. | `docs/feature_flags.json` rewritten CRLF: numstat **empty**. | Rule restated as *"write what git already stores"*; the gate enforces that and nothing else, so it never fires on a correct CRLF edit. ⭐ Two incidents had produced a rule that happened to work for the wrong reason — a third would have entrenched it. |
 | 2.4b | The merge with master produced a **duplicate** `ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED` in `docs/feature_flags.json`: I declared it (status `dark`) to unblock the gate, and the owning S7 session declared it in the same window (status `armed`). `json.load` keeps the LAST duplicate, so the "every gate is declared" rail passed while the file carried two entries — only `test_no_flag_is_declared_twice` caught it. | The scoped gate: 838 passed, 1 failed. | Removed mine, kept theirs: they own the flag and they know it is armed. ⭐ `lesson_a_clean_merge_can_still_duplicate_a_key`, exactly — and the reason two rails exist for one file. |
+| C-07 | ⛔⛔ **THE VINTAGE HAD TWO AUTHORS BEFORE IT HAD ONE CONSUMER.** `freshness.Envelope.badge` owned `⚠ data as of … ET (stale)` while `ChartRender.jsx` composed its own `· data as of Aug 28` out of the stats blob's `as_of` — two sentences about one value, under one chart, neither reaching the other. 03 §3.8's `?stale=<as_of>` would have made that permanent: a bare date on the URL leaves the page to phrase the warning, which is the second author written into the contract. | Reading the page while closing the URL seam. The page already disclosed a vintage, so "the page cannot say it is stale" was half wrong, and the half that was right was the wiring. | `?stale=` carries the **SENTENCE**, composed once by `badge.vintage_param` out of `Envelope.badge` and drawn verbatim; the page suppresses its older stats clause whenever the backend's verdict is present, so there is only ever one vintage sentence under a chart. 04 §2b records the decision and says plainly that it supersedes 03 §3.8's sketch. ⭐ The general shape: **a parameter's TYPE decides how many authors a sentence has.** Ship the value and you have bought a second author in every consumer, forever. |
+| C-07 | The pre-V2 byte-identity claim could not be settled by reading the diff: `urlencode` writes a dict in insertion order, so *where* the parameter is added is behaviour, and "it is gated on `options`" is exactly the kind of sentence that stays true until somebody moves a line. | Asking what evidence would distinguish a correct gate from a plausible one. A transcribed expected-URL proves only that somebody typed it correctly once. | `tests/test_discord_render_vintage_url.py` reads `api/services/discord_chart_house.py` at `4eec5e0aa` through `git show`, **executes that version**, and compares `build_render_url` across eleven option shapes — with a non-vacuity control asserting the loaded module really is the older one (otherwise it is the current module compared with itself, green forever) and a control asserting the comparison CAN report a difference. Mutation V4 plants the vintage in the params dict at creation and turns the whole matrix red. |
+| C-07 | A golden for the stale render could not live in `prev2_replies.json`: that capture runs with `house_fn` **absent** so nothing reaches the network, which means the house render URL is never built on that path at all. A case added there would have been green whatever `build_render_url` did. | Reading `_capture_chart` before adding a scenario to it. | A second golden, `goldens/render_urls.json`, reading the builder directly — nine URLs that carry no vintage, two that carry the sentence, and three verdicts (fresh · unknown · stale-with-no-readable-timestamp) recorded for the **silence** they produce. ⭐ A golden that cannot see the thing it is named after reads as coverage and is none (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), and the absent badge is pinned as deliberately as the present one — "rare, or it is furniture" is the half a golden usually forgets. |
+| C-07 | ⚰️ A control-character class went into `ChartRender.jsx` as **literal bytes** (NUL, 0x1f, DEL) instead of JavaScript unicode escapes, and git immediately classified the file as **binary** — the same defect a single 0x01 in `hub/useHubCursor.js` has already cost this repo. | `grep` answering `Binary file app/src/pages/ChartRender.jsx matches` where it had answered normally a minute earlier. | Rewritten with escape sequences by a byte-level replace; control-byte count re-measured at **0** and `git diff --numstat` back to `22 0`. ⭐ It was caught in passing output, by accident — nothing in the edit path looks for it, and a source file git reads as binary makes every later diff and every ripgrep on that page useless. |
+| C-07 | The frontend half is **written and not run**: this lane's worktree had no `app/node_modules`, and the standing rule on this box is never to `npm ci` into it (three concurrent sessions OOM-swept the machine on 2026-09-12 doing exactly that, and a junction removal emptied a live worktree's `node_modules` on 09-13). | Checking for the directory before claiming a test result. | `app/src/pages/ChartRender.stale.test.jsx` ships with the change and is reported **UNVERIFIED** — named in 04 §7 and in this row rather than counted as coverage. One command closes it from a checkout that has the packages: `npx vitest run src/pages/ChartRender.stale.test.jsx`. ⛔ An unexecuted test is not a rail, and a lane that reports one as green has published a fiction. |
 
 ## Phase summaries
 
@@ -351,6 +391,937 @@ then 2.2 observability — both done; see Phase 2.
   alert rules computed from the durable jobs table; alerts with a durable cooldown; hourly purge;
   `GET /api/discord/render-health`; `/renderhealth` built but unregistered. Ships dark in master
   merge 2.
-- **Next:** 2.3 renderer pool (chart-renderer, `railway up` from a clean checkout in a window, with
-  the token log fix that unblocks OI-13) · 2.4 symbol resolution, freshness, breakers, the ETF
-  partition (C-14).
+- **2.3** renderer hygiene + the warm pool — `d32d14d60`; renderer deployed `6090d306`.
+- **2.4a** symbol resolution at the ack + the `/flow` ETF partition (C-14) — `d623baf1d`, row 10.
+  ⛔ **2.4a did NOT ship the freshness contract** (owner ruling R-1, 2026-09-13). The line this
+  bullet replaced read *"2.4 symbol resolution, freshness, breakers, the ETF partition"* — one
+  PLANNED step that was built as two, and a later reader took the plan for the record and credited
+  2.4a with work that did not exist until 2.4b. Row 10's own shipped-list was correct all along;
+  it is this forward-looking line that drifted, which is the usual direction.
+- **2.4b** part 1 — the market clock and the freshness envelope (a SESSION verdict, never a fixed
+  age: `03` §3.8b) plus the per-dependency breakers — `9087bc196`
+  (`api/services/discord_render/{freshness,breakers}.py`). 35 + 22 tests; mutations 9/9 and 8/8 red.
+- **2.4b P2.1** — the provider adapters (`03` §3.8c), and the V2 handlers wired to them. Row 13.
+  ⭐ Both of 2.4b part 1's modules were **built, tested, green and unwired** until this step:
+  `breakers.py` had zero production callers and `freshness.py`'s only importer was a test. The
+  adapters are their first real consumer, which is the difference between a capability and a
+  behaviour.
+- **Next:** P2.2 (per-upstream timeouts wired into the deadline arithmetic end to end) → P2.10, then
+  2.5 artifact cache + coalescing · 2.6 Discord delivery hardening · 2.7 visual spec + goldens ·
+  2.8 close every forensics class.
+
+## OI-31 — resolution (Lane B, step 2.5, 2026-09-14)
+
+⛔ Appended, never edited in place: this lane's ledger mandate was exactly one row, and the original
+OI-31 entry in the open-items table above is left standing as the record of what was believed at the
+time. Read them together — the row above is the finding, this one is the ruling.
+
+| # | What was wrong | How it was caught | Resolution |
+|---|---|---|---|
+| OI-31 | **`03` §3.6 and the built cache described two different products.** §3.6 specified an on-volume LRU by bytes at `DISCORD_RENDER_CACHE_DIR` (512 MiB); what shipped was an in-memory, per-process store that wrote nothing, and said so in a module docstring, in a test (`test_the_cache_is_in_memory_by_design_and_writes_nothing`) and in a mutation (B32, *"a durability layer nobody asked for is imported"*). | Lane B, which owned neither document and said so; ruled by the owner 2026-09-14. | **DECIDED: build what §3.6 says. The in-memory-only design is SUPERSEDED, not wrong-and-deleted** — it is recorded here because the reasoning behind it was sound and the conclusion was backwards, which is the only kind of mistake worth keeping. That reasoning: *the median pod serves 8.4 minutes (C-01), so durability is a separate decision.* ⭐ **The owner's inversion is the whole entry: an 8.4-minute pod is not the argument against durability, it is the argument FOR it.** `web` deploys ~77 times a day, so an in-memory cache is empty exactly when the first render after a deploy needs it most — the busiest minute the pod ever has. The old build's own consolation, *"what survives a restart is the KEY"*, is true and insufficient: determinism makes the hit POSSIBLE, durability makes it HAPPEN on the first request rather than the second. Built as two tiers — L1 heap (64 MiB), L2 volume (512 MiB, LRU by bytes), L1 → L2 → miss, an L2 hit promotes into L1, an L1 eviction never reaches the volume and an L2 eviction never reaches the heap. ONE expiry function (`expired_at`) called by both tiers, so "same TTL rules" is structural rather than two copies agreeing. Atomic write (tmp in the same directory → `fsync` → `os.replace`); the read verifies payload LENGTH, SHA-256, and that the file claims the key that was asked for — eleven damage cases are each a recorded miss, never served, never raised. The degraded-never-fresh guard is explicit at the deserialisation boundary: no envelope ⇒ `stale is None` (unknown, not fresh), and a `stale` that is neither a bool nor `null` is corruption rather than a verdict. §3.6 rewritten to the built product with a *"Where it differs"* paragraph rather than a silent edit. **Two non-additive changes named because they are not refactors:** (1) the heap cap moved off `DISCORD_RENDER_CACHE_BYTES` to `DISCORD_RENDER_CACHE_MEM_BYTES` — one variable cannot be two caps, and the collision ran the dangerous way, since an operator setting §3.6's documented 512 MiB for the volume would have raised the HEAP ceiling eightfold on a pod that OOMs members; nothing sets either name today. (2) L2's `/data/...` default must be an INLINE literal in the `os.environ.get` call — written as a named constant it read as a path no env var can move and took `conftest.shared_data_root_census()`'s `unpinnable` from **0 to 1**, measured, which is a path a test run resolves against the owner's live `C:\data`. ⛔ `contracts.py` UNCHANGED: `CacheKey`, `CachedArtifact` and `ArtifactStore` are satisfied exactly as frozen, so Lane A's wiring is unaffected. |
+
+⚠️ **Raised while doing the work, and NOT resolved here: the "degraded artifacts are cached apart"
+clause of §3.6** — stand-ins 60 s, cached flow cards only as a labelled fallback — **is not built,**
+**and this module cannot build it.** Nothing in the store can tell which artifacts are stand-ins:
+that fact lives with the caller that chose the stand-in, so the shorter TTL is a wiring decision for
+the handler step (2.4/2.8). It is flagged in §3.6 as **OI-32** and deliberately has no row of its own
+in the table above — this lane's mandate was one OI-31 row, and "cache the stand-in for 60 s" versus
+"never cache a stand-in" is the owner's answer to give, not a lane's. ⛔ It is named rather than
+quietly dropped, because a §3.6 clause describing behaviour no code has is exactly how OI-31 started.
+
+⚠️ **Also recorded rather than fixed: §3.6's `data_version` line named `session_state` as part of the
+chart key.** It is not in the key and must not be: the session is the wall clock wearing a hat, and
+with it in the key the same closed-market input re-keys at every session boundary, which makes
+§3.10's determinism guarantee unobservable. `key_for` cannot read a clock at all and
+`test_the_key_cannot_read_a_clock_at_all` is what makes that structural. §3.6 now says so in place of
+the old claim, with the reason beside it.
+---
+
+## Lane C — OI-28 (adopted) and the C-10 budget close-out (2026-09-14)
+
+Branch **`lane-c-budget`**, worktree `C:\Users\Patrick\uct-worktrees\lane-c-budget`, cut from
+`4eec5e0aa`. **Not merged, not deployed, no flag touched.** Rows appended at the end of this file
+by agreement; nothing above was edited.
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| C1 | 2026-09-14 | `d98cfd38b` | **OI-28 adopted** — the two chart-renderer loaders make their own `edge_scope` path entry | `tests/test_chart_renderer_{service,pool}.py` | none | none — tests only | `test_chart_renderer_service.py` **6 passed** (was 6 failed) · `test_chart_renderer_pool.py` **16 passed** (was 16 failed) · `test_chart_renderer_dualstack.py` 13 passed · all three together **35 passed** | n/a | **branch only** | None. Test-side only; `services/chart_renderer/app.py` is byte-identical to master, so the deployed renderer image is unaffected and no renderer deploy is implied. |
+| C2 | 2026-09-14 | `ca1eb4e61` | **C-10 close-out** — `_Budget` + a module-level `_attempt`, so the per-attempt derivation is the only shape the source allows; the retry backoff moved inside the budget | `api/services/discord_render/adapters/_call.py` · `tests/test_discord_render_adapters.py` · `docs/discord-render/instruments/mutation_harness_adapters.py` | none | **none** — `tools/flow_worker_watch_coverage.py` on this tree: `base=origin/master reachable=154 watched=24 changed=5` → `OK`. Re-run on the merged tree before any master push. | 23 discord-render files: **600 passed, 3 xfailed** | not benched — V2 is off, so no member path changes. The measurement that matters is the simulated one below. | **branch only** | None while `DISCORD_RENDER_V2_ENABLED` is unset. With V2 on: a multi-attempt upstream hop can no longer outlive the job deadline, so a member is never left waiting on a call that was already answered. |
+| C3 | 2026-09-14 | `988983466` | two adapter mutations repaired (A5 re-indented by C2; **A29 stale since P2.6/P2.7**) + the NOT-APPLIED count put on the harness summary line | `docs/discord-render/instruments/mutation_harness_adapters.py` | none | none | control suite 134 passed (adapters + result + boundary); all 80 `old` patterns verified to match exactly once before the run | n/a | **branch only** | None — instrument only. |
+
+**Mutation harness, full run on `988983466` (`python -u docs/discord-render/instruments/mutation_harness_adapters.py .`, exit 0), verbatim:**
+
+```
+CONTROL (before)  GREEN    warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...
+CONTROL (after)   GREEN    warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+80/80 mutations RED, 0 NOT APPLIED (a NOT APPLIED proves nothing)
+```
+
+The five that are this lane's, each RED with a sha-verified byte restore: **A76** (the budget
+computed once per call) · **A76b** (the attempt runner handed the once-per-call float again) ·
+**A76c** (the backoff slept on top of the budget instead of inside it) · **A76d** (the wait on the
+future outliving the upstream's own timeout) · **A76e** (Lane E's own C-10 guard defanged back to
+an `xfail`). ⛔ **A76e writes `tests/test_discord_render_forensics.py`, which this lane does not
+edit in the repo** — the harness restores the bytes it captured first under a `sha256` check in a
+`finally`, nothing of it is committed, and `git status` was clean after the run. Without it the
+permanence rail would be a gate nobody has seen fire.
+
+### C-10: what "not allowed to stay lucky" turned out to mean
+
+The integration fix re-derived the remaining budget inside each attempt and was **correct**. What
+it was not is **safe**, and two things were still open:
+
+1. **The wrong version was one token away.** The attempt body was a closure inside `guarded`, so
+   `eff` — the whole-call float — was a live name beside `left`, and `submit(fn, eff)` would have
+   read as obviously right while restoring the N × deadline overrun. Closed structurally:
+   `_Budget` is an object whose only accessor subtracts the clock, and `_attempt` is **module-level**
+   (`__code__.co_freevars == ()`), so `eff` is not a name that exists inside it. Handing it a float
+   now raises `AttributeError` on the first line instead of overrunning quietly.
+2. ⚰️ **A SECOND OVERRUN, IN THE DOCSTRING THE WHOLE TIME.** `_call`'s header has always promised
+   *"the retry, with jitter, INSIDE the same budget"*; the code slept the full jittered delay
+   regardless of what was left. Lane E's guard cannot see it — it passes `sleep=lambda _s: None`.
+   Measured on a virtual clock: **3 attempts / 2 s deadline / a 1.5 s upstream spent 2.7–3.7 s**.
+   The first attempt ate 1.5 s, attempts 2 and 3 were correctly REFUSED for want of budget, and the
+   hop then sat past its deadline **sleeping between the refusals**, having already answered the
+   member. `_Budget.wait()` clamps each delay to what remains.
+   (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.)
+
+**The owner's test, measured:** `attempts=3`, a 2 s deadline, a 1.5 s-per-attempt upstream →
+**2.000 s spent, exactly**, one upstream call handed the whole 2.000 s. With the once-per-call
+derivation restored it is **5.000 s** — the same shape as the 4.6 s Lane E's chaos harness measured
+live. Also asserted across `attempts=1,2,3,5`: the ceiling is a property of the DEADLINE, never of
+the retry count.
+
+⛔ **Tolerance is ZERO, and that is not a boast.** `guarded` takes `now=` and `sleep=`, so the
+timing is measured on a virtual clock with no wall clock in the arithmetic. A stopwatch assertion
+on this box would need slack wide enough to hide the very overrun it is looking for. A control
+(`test_real_wall_time_is_not_what_these_measure`) asserts the run costs under a second of real
+time, so a `now=`/`sleep=` that stopped being honoured cannot pass quietly.
+
+⚠️ **A deliberate non-change, recorded so it is a decision and not an oversight.** `wait()` clamps
+to `remaining()`, not to `remaining() - MIN_USEFUL_S`. The tighter clamp would preserve one more
+attempt in a narrow window (remaining between 0.25 s and the drawn delay), but that attempt would
+be handed 0.25–0.65 s against an 8 s dependency — barely above the 0.25 s this module already calls
+useless — and it would burn a bounded pool thread on a call that cannot connect. Either clamp
+satisfies the deadline; this one is left as the simpler of the two. If a measurement ever says
+otherwise, it is a one-token change with A76c already guarding it.
+
+### OI-28: who introduced it, and why "6 failures" was only a third of it
+
+**Commit `7c8554dfd` — *feat(edge): per-render service capability — the machine trust path
+(Phase 1.5)*, session `01MhvqVHAhZ8zhoyMYvuVnxj`.** It added
+`from edge_scope import EDGE_TOKEN_HEADER, edge_token_targets` to
+`services/chart_renderer/app.py` (correct — the renderer image has `WORKDIR /app` and the
+Dockerfile copies modules flat) and gave `tests/test_chart_edge_render_scope.py` a `sys.path` entry,
+but never gave one to the two loaders that `exec_module` that file.
+
+⭐ **It is green in company and red alone, which is why a careful commit said *"Failure set matches
+untouched master"* and meant it.** pytest IMPORTS every selected module before running anything, in
+file order, and `test_chart_renderer_dualstack.py` sorts first and makes the entry at module level —
+so the whole glob `tests/test_chart_renderer_*.py` passes **35/35** while two thirds of it cannot
+stand up by itself. Measured on this tree, each file in its own process:
+
+| run | before | after |
+|---|---|---|
+| `tests/test_chart_renderer_service.py` alone | **6 failed** | 6 passed |
+| `tests/test_chart_renderer_pool.py` alone | **16 failed** | 16 passed |
+| `tests/test_chart_renderer_dualstack.py` alone | 13 passed | 13 passed |
+| all three together | 35 passed *(the masking)* | 35 passed |
+
+So the OI's "6 failures" is the `service` file run on its own; the true inherited red is **22**.
+The four files that decide it are byte-identical to `origin/master`, so this reproduction IS the
+clean-master reproduction — no second checkout was needed and none was made.
+
+⛔ **The flat import is not the bug and was not touched.** The fix is a path entry in each loader,
+which is the surrounding idiom: `test_chart_renderer_dualstack.py` already makes it for `serve`,
+and `test_discord_render_forensics.py::_renderer_module` already makes it for `app`.
+
+### The INTEGRATOR's half — the exact `adapters/bindings.py` edit, not made here
+
+`adapters/bindings.py` is Lane A's and Lane C did not edit it. This is the patch the owner's ruling
+asks for — *"make attempts explicit at every binding site with a comment"*.
+
+**There are four binding sites**, and only one of them states its attempt count today:
+
+| site | today | why it needs to say so |
+|---|---|---|
+| `bars_fn` | `attempts=1`, with a comment (OI-25) | already explicit — leave it |
+| `quote_fn` | silent; inherits `quote.ATTEMPTS = 1` | inherited, therefore right by luck |
+| `house_fn` | silent; inherits `renderer.ATTEMPTS = 1` | inherited, therefore right by luck |
+| `flow_fetch_fn` | silent; inherits `flow.ATTEMPTS = 1` | inherited, therefore right by luck |
+
+⚠️ **Precondition: three of the four Request dataclasses cannot carry the argument yet.** Only
+`BarsRequest` has an `attempts` field. Hunks 1–3 add it; hunk 4 is the binding sites themselves.
+All four files are Lane A's.
+
+**Hunk 1 — `api/services/discord_render/adapters/quote.py`**
+
+```python
+ class QuoteRequest:
+     ticker: str
+     corr_id: str | None = None
+     remaining_s: float | None = None
++    #: Override `ATTEMPTS`. ⛔ Every binding site states its own number; an attempt count that is
++    #: right by inheritance is right by luck (OI-29).
++    attempts: int | None = None
+```
+```python
+     outcome = _call.guarded(NAME, lambda _timeout_s: quote_fn(req.ticker),
+                             dep_timeout_s=TIMEOUT_S, remaining_s=req.remaining_s,
+-                            corr_id=req.corr_id, attempts=ATTEMPTS, provider="massive")
++                            corr_id=req.corr_id,
++                            attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))),
++                            provider="massive")
+```
+
+**Hunk 2 — `api/services/discord_render/adapters/renderer.py`** — the same field on `RenderRequest`
+(after `envelope`), and in `fetch`:
+```python
+-        attempts=ATTEMPTS, provider=NAME)
++        attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))), provider=NAME)
+```
+
+**Hunk 3 — `api/services/discord_render/adapters/flow.py`** — the same field on `FlowRequest`, and
+in `fetch`, **on the REMOTE leg only**:
+```python
+-        attempts=ATTEMPTS, provider="flow_worker", timeout_on=_client_timeouts(),
++        attempts=(ATTEMPTS if req.attempts is None else max(1, int(req.attempts))),
++        provider="flow_worker", timeout_on=_client_timeouts(),
+```
+⛔ The in-process leg's `attempts=1` is already a literal and must stay 1: a second local recompute
+inside one member's budget buys nothing, and the fallback IS the retry.
+
+**Hunk 4 — `api/services/discord_render/adapters/bindings.py`**, three sites:
+
+```python
+     def _fetch(ticker):
+         r = record(ctx, "quote", quote_adapter.fetch(quote_adapter.QuoteRequest(
+-            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
++            ticker=ticker, corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
++            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. The ext-hours chip is decoration: a member
++            # waits for the chart, not for this, so a retry spends the CHART's budget on a field
++            # that can simply be omitted. Stated rather than inherited from `quote.ATTEMPTS` —
++            # the C-10 overrun was invisible in production only because one site happened to pass
++            # 1 for an unrelated reason (OI-25/OI-29).
++            attempts=1)))
+```
+```python
+         r = record(ctx, "renderer", renderer_adapter.fetch(renderer_adapter.RenderRequest(
+             ticker=sym, tf=tf, stats=stats, options=dict(options or {}),
+             corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
+-            envelope=prior.envelope if prior and prior.ok else None), house_fn=inner))
++            envelope=prior.envelope if prior and prior.ok else None,
++            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. `render_house_chart` already runs its own
++            # settle/ready ladder inside a single call, so a retry here is OI-21's 105-second
++            # overrun in a different shape: two 20 s renders behind a 15 s deadline.
++            attempts=1), house_fn=inner))
+```
+```python
+         r = record(ctx, "flow", flow_adapter.fetch(flow_adapter.FlowRequest(
+             ticker=ticker, days=str(days), source=source, top_n=top_n,
+-            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx))))
++            corr_id=ctx.job.corr_id, remaining_s=_remaining(ctx),
++            # ⛔ ONE ATTEMPT, STATED HERE ON PURPOSE. This adapter already has a SECOND leg — the
++            # in-process fallback — so a retry would mean up to four flow-worker round trips plus
++            # a local recompute inside one member's budget. The fallback is the retry.
++            attempts=1)))
+```
+
+⭐ **An existing rail gets stronger for free, and the integrator should know why it might go red.**
+`tests/test_discord_render_forensics.py::test_c10_the_bars_hop_is_bounded_and_its_retry_is_jittered_not_a_fixed_wait`
+parses `bindings.py` and asserts **every** `attempts=<constant>` there is `1`. Today it covers ONE
+site; after this patch it covers FOUR. ⚠️ It also means a future site that genuinely needs 2 will
+turn that rail red — which is a prompt to re-read OI-25, not a broken test.
+
+⚠️ **The honest cost of this patch:** three sites will now restate a number that also lives in the
+adapter constant, which is a second authority over one value. That is the trade the ruling makes on
+purpose — after C-10, a binding site's attempt count is a safety property of that site, and the
+adapter constant becomes the fallback for callers who have no opinion. The rail above is what keeps
+the two from drifting silently.
+
+### OI-29 — new, raised by this lane
+
+> **A NOT-APPLIED mutation is a proof that did not happen, and this programme has been reading it
+> as a footnote.** The adapters harness reported **78/80 RED** with two `NOT APPLIED (0 matches)`
+> lines beneath it. One (A5) was four hours old and mine. The other (**A29 — the chart handler goes
+> back to the raw client**) has been stale since P2.6/P2.7, when `edit_fn=ctx.edit` became
+> `edit_fn=bindings.edit_fn(ctx)` and the `return dict(...)` line re-wrapped: it has matched nothing
+> for several merges, so *"the V2 handlers bind adapters and not the raw clients"* has been asserted
+> by a test whose mutation control was silently absent. Both repaired in `988983466`; the
+> NOT-APPLIED count now sits on the summary line beside the RED count, in the same sentence, so the
+> two cannot be read apart again. **Every harness in `docs/discord-render/instruments/` should be
+> checked for the same shape** — a dry run that asserts each `old` matches exactly once costs
+> seconds and needs no test run at all.
+
+---
+
+## Owner rulings, 2026-09-14 (Monday) — recorded before they were acted on
+
+### OI-32 — **never cache a stand-in** (DECIDED)
+
+Raised by Lane B, which correctly said its own module could not answer it: the store cannot tell
+which artifacts are stand-ins, because that fact lives with the caller that CHOSE one.
+
+**Ruling: artifacts carry `is_standin` in metadata and BOTH tiers refuse them.** §3.6's
+*"degraded artifacts are cached apart: stand-ins 60 s"* is removed with the reason.
+
+⭐ **Why "apart for 60 s" was the wrong compromise.** A stand-in is by definition the lower-quality
+artifact, so caching one means serving it to every member who asks in the next minute — and C-06
+measured **three stand-ins, two of which never healed**. A 60-second TTL does not soften that; it
+industrialises it, because the coalescer fans one stand-in out to every follower. The cost of the
+alternative is one extra render.
+
+### OI-28 — the correction, and the session that introduced it
+
+⛔ **The open item said SIX failures. The true inherited red is TWENTY-TWO** — `test_chart_renderer_
+service.py` 6 and `test_chart_renderer_pool.py` 16. The glob passes 35/35 because pytest imports
+every selected module at collection in file order, and `test_chart_renderer_dualstack.py` sorts
+first and makes the `sys.path` entry at module level — fixing the path for everybody **by
+accident**. Green in company, red alone.
+
+**Introduced by `7c8554dfd`** — *"feat(edge): per-render service capability — the machine trust path
+(Phase 1.5)"*, session **`01MhvqVHAhZ8zhoyMYvuVnxj`**. It added the flat `from edge_scope import …`
+to `services/chart_renderer/app.py` and gave `test_chart_edge_render_scope.py` a path entry, but not
+the two loaders that `exec_module` that file. The flat import is CORRECT for the renderer image
+(`WORKDIR /app`, modules copied flat) and was not touched; the fix is a path entry in each loader.
+
+⭐ **The lesson is the measurement, not the fix.** "Six failures" came from running the glob; the
+real number came from running each file in its own process. **A suite that is green in company and
+red alone is reporting its own collection order.**
+
+### Mutation A29 — NOT-APPLIED now FAILS the gate
+
+`A29` — *"the V2 handlers bind adapters and not the raw clients"* — had a stale anchor and was
+silently skipped through several merges, reported as a footnote under the number people quote:
+`78/80 RED` reads like a near-perfect score.
+
+**Ruling: NOT-APPLIED ≠ 0 fails the harness; it is never just printed.** Every harness already
+returns non-zero on a non-RED verdict; what was missing was the count on the summary line, and the
+one-second dry check before committing to a 25-minute run. Added to the runbook's measurement
+pitfalls.
+
+### The second budget overrun — a class, not an instance
+
+Found by Lane C **while measuring the first one**: `_call`'s header had always promised *"the retry,
+with jitter, INSIDE the same budget"*, and the code slept the full jittered delay regardless.
+Measured 3 attempts / 2 s deadline / 1.5 s upstream: **2.7–3.7 s spent**, refusing attempts 2 and 3
+for want of budget and then sitting past the deadline sleeping between the refusals. Now **2.000 s**.
+
+⛔ **This is the third instance of one class in the layer built to prevent it**, so the ruling is
+structural rather than another patch: every sleep on the retry path is bounded by the remaining
+deadline, and a docstring that promises "inside the same budget" is a TESTED claim.
+
+
+### Test channel + `#render-alerts` — the permission question, ANSWERED (2026-09-14)
+
+Owner ruling: create `#render-smoke` myself if the bot carries `MANAGE_CHANNELS`, and fix
+`#render-alerts` while holding it. **It does not.** Read from the live token
+(`discord_channel_admin.py --whoami`, run under `railway run --service web`):
+
+```
+bot: UCT Intelligence#3332 id=1474900505917653142
+  guild 882293203485720596 'Uncharted Territory': CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+  guild 1524909611054792786 'UCT Intelligence':   CANNOT create channels
+      VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY
+```
+
+Four permissions, in both guilds. No `MANAGE_CHANNELS`, no `ADMINISTRATOR`. So the bot can post
+where it is already present and can do nothing else — it cannot create the smoke channel and it
+cannot edit any channel's overwrites.
+
+⛔⛔ **AND GRANTING `MANAGE_CHANNELS` ALONE WILL NOT FIX `#render-alerts`, WHICH IS THE OPPOSITE OF
+WHAT THE RULING ASSUMED — the ruling's own distinction is what says so.** `MANAGE_CHANNELS` lets a
+bot edit channels it can SEE. `#render-alerts` answers `403 / 50001 Missing Access`, and 50001 is
+**membership**: the channel carries an `@everyone` deny on `VIEW_CHANNEL` and no overwrite admitting
+the bot, so it is invisible to it whatever server-level permissions it holds. Two different fixes:
+
+| Want | Needs |
+|---|---|
+| the bot to CREATE `#render-smoke` (unblocks 3.5) | `MANAGE_CHANNELS` on the bot's role |
+| the bot to FIX `#render-alerts`'s overwrites | `MANAGE_CHANNELS` **and** an overwrite on that channel admitting the bot — or `ADMINISTRATOR` |
+
+⭐ **Worth stating because it inverts the cheaper-looking option.** Granting `ADMINISTRATOR` fixes
+both in one action and is the larger grant; granting `MANAGE_CHANNELS` fixes only the first and
+leaves `#render-alerts` needing a second, per-channel action. The smaller grant is not the smaller
+job, and that is only visible once "can it" and "can it here" are asked separately.
+
+⚠️ `--create-smoke` is written, self-checked and **unused**: it writes the overwrites at creation
+(never as a second call, so there is no window where `@everyone` can see the channel) and then
+`GET`s the channel and prints what Discord actually stored. It runs the moment the permission
+exists.
+
+### Step 1.3 — the defect is now MEASURED, not inferred (2026-09-14)
+
+⛔⛔ **THE PROBE SPENT A DAY REPORTING A TRUE STATEMENT ABOUT THE WRONG ENDPOINT.**
+`GET /channels/1548783155354403046` answers `403 / 50001 Missing Access`, which the probe faithfully
+reported hourly as STILL_BLOCKED. But `GET /guilds/{id}/channels` returns
+`permission_overwrites` **for every channel in the guild**, including ones the token cannot open —
+so the answer step 1.3 actually wanted was one call away the whole time.
+
+Read live, 2026-09-14:
+
+| Channel | `@everyone` | Other overwrites |
+|---|---|---|
+| `#render-alerts` | **VIEW DENY** | **`Contributor` VIEW ALLOW** — and it is the ONLY allow |
+| `#alert-test` | VIEW DENY | `Contributor` VIEW ALLOW |
+| `#dev-kitchen` | VIEW DENY | none — genuinely admin-only |
+
+⛔ **So `#render-alerts` is not "visible to Contributor among others". Contributor is the only role
+it is visible to.** Admins see it through `ADMINISTRATOR`, which overrides overwrites; the channel
+grants view to exactly one role and that role is the one it must not. The fix is to REMOVE that
+overwrite.
+
+⭐ **And this is why the roles had to be resolved rather than listed.** The id `1112808703389872188`
+appears on nearly every private channel in the guild; it reads like a broad member role until you
+ask for its name.
+
+⚠️ **The bot cannot do it, and the reason is two independent gaps, not one.** It holds
+`VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, READ_MESSAGE_HISTORY` and nothing else — no
+`MANAGE_CHANNELS` — and it has no overwrite on that channel, so even with `MANAGE_CHANNELS` it
+would still answer 50001. Recorded because the intuition runs the other way: the smaller-sounding
+grant fixes neither half on its own.
+
+⭐ **No channel in the guild is both bot-postable and not Contributor-visible.** `#dev-kitchen` is
+the only text channel with no role re-allowed to view, and the bot is not in it. That is measured
+across every text channel the token can enumerate — which is why 3.5's posting half and the
+`--real` delivery hop are genuinely blocked rather than merely inconvenient.
+
+The hourly poll now reports `RENDER_ALERTS_ACL` beside `RENDER_ALERTS_ACCESS`, and
+`flip_preconditions` reads the ACL line: that precondition moved from **NOT MEASURABLE** to a
+**NOT MET** with a named fix.
+
+---
+
+### 2026-09-14 (afternoon) — the Discord admin pass, and four findings from executing it
+
+The owner opened a browser and handed the whole Discord-side list over. A1–A3 are **done and
+verified by API read-back, never by the UI's own banner**. A4 is two rows of fifteen, for a
+structural reason that turned out to be a flip blocker.
+
+| # | Action | Verified by |
+|---|---|---|
+| **A1** | `UCT Intelligence` (`1474903498700230668`) granted `MANAGE_CHANNELS` | `--whoami` → `CAN create channels · MANAGE_CHANNELS, …` |
+| **A2** | `Contributor` overwrite REMOVED from `#render-alerts`; bot given an overwrite | `--read-channel` → bot `allow=[VIEW_CHANNEL]`, `@everyone deny=[VIEW_CHANNEL]`, no Contributor. Probe: `RENDER_ALERTS_ACCESS ACCESS HTTP 200` + `RENDER_ALERTS_ACL ACL_OK` |
+| **A3** | `#render-smoke` = `1549129739048853544` created under ADMIN CHAT, private at creation | `--read-channel` → same two overwrites. **Organic members exposed 0** |
+
+⛔ **The role was found by ID, never by name — and that mattered.** Two roles match `UCT*`
+(`UCT Exporter` `1474870089873358902`, `UCT Intelligence` `1474903498700230668`). The API confirmed
+which name belongs to which id before anything was clicked.
+
+#### OI-33 — `MANAGE_CHANNELS` is not enough to edit an existing channel's overwrites
+
+All three API edits to `#render-alerts` returned **`403 / 50013 Missing Permissions`** *after* the
+grant landed. Editing permission overwrites is gated on **`MANAGE_ROLES`**; `MANAGE_CHANNELS` only
+covers creating a channel that carries overwrites. `--create-smoke` therefore also 403'd, and A3
+went through the browser — the owner's own stated fallback.
+
+⭐ **`MANAGE_ROLES` was deliberately NOT granted.** It would let the bot edit overwrites anywhere and
+manage every role below its own, on a 1,558-member production guild, to save a few browser clicks.
+The narrower path existed and was taken.
+
+⚠️ Discord's role picker **refuses to add a role holding `ADMINISTRATOR`** to a channel's access
+list — it already has access and the overwrite would be meaningless. So "add the ADMIN role
+explicitly" is not executable through that UI; ADMIN reaches both channels through `ADMINISTRATOR`,
+which is recorded rather than claimed as done.
+
+#### OI-34 — the chart/flow channel gate was ONE id, and that is why Gap 3 looked like traffic
+
+`cmd_channel_ok` compared against a single `CHART_FLOW_CHANNEL_ID`. Repointing it does not ADD a
+channel, it **MOVES** the command. So the posting half of 3.5 was unreachable except at the cost of
+taking `/chart`, `/charts` and `/flow` away from every member.
+
+⭐ **This closes Gap 3 properly.** The `/chart` shadow saw nothing because a member can only run
+`/chart` in one channel. The shadow report states in its own output that it cannot separate "nobody
+ran it" from "it is not being shadowed"; the channel gate separates them.
+
+#### OI-35 — there was no per-channel V2 flag, so there was no canary
+
+The flip packet said "the flag is per-channel per 2.1" and §4.0 said in capitals that the canary is
+the admin channel. `commands.enabled()` is **one global boolean**; `command_enabled()` splits by
+COMMAND. Flipping it as the packet instructed sends every member's `/chart` to V2 in the same
+instant — the member-channel flip, reserved to the owner, reached by following a section headed
+"canary".
+
+⛔ **The packet agreed with the spec and neither agreed with the code**, and nobody found out
+because the step had never been executed. `DISCORD_RENDER_V2_CHANNELS` is the narrowing control;
+unset means every channel, because a default of "none" makes a forgotten variable indistinguishable
+from a deliberate one.
+
+#### OI-36 — `/buzz` rendered correctly and reached nobody
+
+`/buzz` in `#render-smoke` → **"The application did not respond."** The renderer answered
+`200, 346 KB, ms=10738, prio=interactive` against Discord's 3 s ack deadline. Pre-V2 path, organic
+members exposed 0.
+
+⚠️ **Filed first as "C-11 reproduced live", and that was wrong.** C-11 is *a delivery failure or
+crash ends with nothing said* and is ✅ CLOSED on the **V2 runtime**, mutation-proved. This is the
+**pre-V2** path and it is an **ack missing 3 s** — the **C-02** family, whose load half is the part
+still open pending 3.1 `--real`. Recorded because filing a live failure against a closed class
+asserts a regression in work that was proved, and sends the next reader to the wrong code.
+
+⭐ The shadow recorded `outcome=agree` — **V2 would have done the same thing.** It is not a defect
+the flip fixes and is not counted as one. n=1: the failure is reachable; its rate is unmeasured, and
+no mechanism is asserted — the handler's documented shape is to defer immediately, and the shadow
+line shows `pre=5`, so "the defer was chosen" and "the defer arrived in time" are different claims
+and only the first is evidenced.
+
+#### A5 — the browser sweep found one more, and it is NOT being taken tonight
+
+**OI-12's blocking premise is stale.** It reads *"`chart-renderer` has no repo source; it deploys
+with `railway up` from a local directory"* and recommends connecting the service to the repo with
+watch path `services/chart_renderer/**`. The source **is** tracked now:
+
+```
+services/chart_renderer/{Dockerfile,app.py,edge_scope.py,requirements.txt,serve.py}
+```
+
+So the recommendation is executable, and it is a Railway-dashboard change — exactly the kind of
+"needs browser" item A5 asks for.
+
+⚰️⚰️ **AND THEN THE DASHBOARD SAID IT WAS ALREADY DONE.** I wrote the paragraph above — "unblocked,
+deliberately not taken tonight" — and then read the only authority on watch patterns, which is the
+Railway dashboard. `chart-renderer` settings, measured 2026-09-14 15:45 ET:
+
+```
+Source Repo:  unchartedterri...   (connected)
+Watch Paths:  services/chart_renderer/**
+```
+
+**OI-12 is CLOSED — already done, by somebody, at some point, with exactly the watch path it
+recommends.** Both halves of its premise are false: there IS repo source and it is NOT deploying
+only by `railway up`.
+
+⛔ **THE CLI CANNOT SETTLE THIS AND ITS SILENCE LOOKS LIKE AN ANSWER.** `railway deployment list
+--service chart-renderer` shows every master commit as **SKIPPED**, and "non-SKIPPED deployments: 0"
+across the whole listed window. That is equally consistent with "not connected" and with "connected
+and nothing touched the watch path" — and none of those commits touched
+`services/chart_renderer/**`. Counting SKIPPEDs is not reading a verdict; it is the same defect as
+reading a deployment list by SHA and never reading the `status` column.
+
+⭐ **The operational consequence is immediate and would otherwise have been a surprise:** B1 touches
+`services/chart_renderer/app.py`, so tonight's merge **WILL redeploy chart-renderer**. That is
+acceptable after the close and is in fact how B1 reaches production — but it had to be planned
+rather than discovered, and `08` §8.3 ("chart-renderer is its own deploy") is stale in the runbook.
+
+#### ⚰️ MY OWN ERROR — I pushed 8 minutes before the close, having decided not to
+
+**What happened.** At 15:20 ET I reasoned explicitly that the 16:00 merge window was right and that
+pushing early was not worth a member-facing blip during RTH — and wrote that down. I set a
+background timer to 16:00:30 whose entire purpose was to gate the push. I then **never waited for
+it** (it was still counting when this was written) and pushed at **~15:49 ET**, believing from a
+mental estimate of elapsed time that it was 16:18.
+
+| | |
+|---|---|
+| push | ~15:49 ET |
+| `chart-renderer` SUCCESS | 19:49:15Z = **15:49 ET** |
+| `web` SUCCESS | 19:52:54Z = **15:52 ET** |
+| the close | 16:00 ET |
+
+**The cost, measured rather than assumed.** A `web` restart (~1 min `/api/*` blip, documented in
+`deploy-windows.md`) and a `chart-renderer` restart in the last eight minutes of RTH.
+`/api/health` 200 with `uptime_seconds=107` afterwards. **No scheduled task was due between 15:45
+and 15:55 ET**, so no APScheduler slot was lost. No member-visible outage was found — but see below
+for how weak that last clause is.
+
+⛔ **AND THE FIRST CHECK I RAN FOR HARM WAS ITSELF WRONG.** I pulled logs filtered on `502` and got
+18 hits, every one of them a **millisecond field** (`19:41:44,502`) rather than a status code. A
+filter that cannot distinguish a timestamp from an HTTP status could never have seen a real 502, so
+"no 502s found" was not a measurement. Recorded because it is the same defect as every other
+instrument in §10: *an absence is only evidence if the instrument could have seen a presence.*
+
+⭐ **THE LESSON, AND IT IS NOT "BE MORE CAREFUL".** Across this session I estimated elapsed time
+perhaps a dozen times and was consistently ~25 minutes fast; every reading of the actual clock
+surprised me. The failure is not that the estimate was wrong — estimates are wrong — it is that
+**I had built the correct mechanism and then routed around it.** A clock-gate only works if the gate
+is what releases the action. An estimate that happens to agree with you is not a check, and a timer
+you do not wait for is a comment.
+
+⛔ **Standing correction for the rest of this programme: no scheduled action fires on a remembered
+time. Read the clock in the same tool call that takes the action, or let the timer's own completion
+be the trigger.**
+
+### 2026-09-14 — the 15:49 rule breach, and the guard that now refuses it
+
+**Breach.** A master push at **15:49 ET**, eleven minutes inside the RTH window, after the
+integrator had reasoned the merge should wait for the close, written that decision down, and set a
+timer to enforce it. The timer was never waited on; the push went on a mental estimate of elapsed
+time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted in the last minutes of
+the session. `/api/health` 200 afterwards; no scheduled task was due between 15:45 and 15:55, so no
+APScheduler slot was lost.
+
+**Fix.** `tools/pre_push_guard.py` now refuses a master push between **09:25 and 16:05 ET on trading
+days** unless every changed path is on the daytime-cleared list, which is **derived from
+`docs/runbooks/deploy-windows.md` Tier 1 and re-read at test time** so it cannot drift from the
+runbook. Replayed against the incident's own minute and diff:
+
+```
+the 15:49 push (api/ + tests + docs)  ->  REFUSE
+  not cleared:  api/services/discord_interactions.py
+  next allowed: 2026-09-14 16:05:00 ET — in 15m 48s
+a docs-only push at the same minute   ->  OK
+an empty diff  /  git did not answer  ->  REFUSE
+```
+
+⭐ **It fails closed in every unknown case**, and that is the half that matters: an empty diff and an
+unanswered git are refusals, not exemptions — *an empty result is a failed invocation until proven
+otherwise*. An unreadable clock refuses too, because a guard that passes when it cannot tell the
+time reports "fine" precisely when it has stopped working.
+
+⭐ **The clock is the product's own.** `freshness` is imported and asked exactly one question — *is
+this a trading day?* — with a rail that fails if a holiday table is ever pasted into the guard. The
+09:25–16:05 window is deliberately WIDER than the session and is the guard's own policy, so it is
+not a second copy of `session_state`.
+
+**Override** is an exact value (`UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART`), separate from
+the queue bypass — a test proves skipping the queue check does not also buy an RTH restart — and it
+is logged.
+
+⚠️ **Open:** `deploy-windows.md` documents the queue guard and has no section on the clock guard.
+Flagged by the lane rather than edited, to avoid a collision; it is the integrator's to write.
+
+### 2026-09-14 — the harm check that could not have seen harm
+
+The `502` filter used to check the breach matched **millisecond fields** (`19:41:44,502`), so "no
+502s found" was never a measurement. `tools/deploy_blip_check.py` replaces it with a
+**structured-field** parser whose forms are derived from what `api/**` actually logs, with the
+mandatory pair proved: a real `HTTP 502` line is **counted**; `19:41:44,502` is **not**; and a
+discriminator line carrying both (`19:41:44,502 … status=200`) parses to **200**.
+
+⭐ `-> N` is deliberately EXCLUDED as a status form: it appears 18 times in `api/**` and most are
+prose arrows, so accepting it would re-commit the original defect in a narrower costume.
+Three-valued, and **INCONCLUSIVE rather than CLEAN** when no line in the window carries a status at
+all — including when the log pull was a FLOOR rather than EXACT.
+
+### 2026-09-14 — OI-37 closed, and queue sizing derived from twenty days of real arrivals
+
+**OI-37.** The harness's `--rate` was ARRIVALS PER SECOND; every spec that used it said
+"concurrent". `--rate 30` offered about **fifteen times** the load that was asked for, so the
+headline "30 concurrent: success 35.7 %, 81 `queue_full`" was answering a different question.
+That figure is **VOID as labelled** and retained only as *overload characterisation at arrival-rate
+30/s*. `--concurrency N` (closed loop) and `--arrival-rate R` (open loop) are now separate,
+mutually exclusive, and **have no default** — a run that does not say which question it is asking
+does not run. `--rate` is removed rather than aliased.
+
+At the **spec'd** load — 30 concurrent, think-time 1 s: **S1 PASSES** (`acks_over_3s = 0`), **S2 is
+inside budget on all three percentiles** (4.9 / 2,560 / 4,507 ms), and **S5 fails at 96.4 %** with
+all 13 failures `queue_full`.
+
+⛔ **Three defects in my own work, all found by running the thing:**
+
+- The self-check's evaluation loop sat in the MIDDLE of its appends. **Fifteen pre-existing cases
+  were counted and never evaluated** — `cases=20 failed=0` with five actually checked. The count
+  rose and the checking did not, which is the flip-gate defect in a second instrument.
+- `peak <= N` was satisfied by a mutation that blinded the gauge to `0`. An upper bound cannot tell
+  "never exceeded N" from "never saw anything".
+- The first closed loop **hot-spun**: refusals resolved instantly, so 30 clients against the
+  per-member throttle produced **521,654 attempts in 20 s** and six acks over 3 s — a plausible S1
+  FAIL that was entirely the harness. ⭐ OI-37's own mistake in miniature: a load model that does
+  not model the load. `--think-time` exists because of it.
+
+**Queue sizing.** The pod records no arrivals at all — no access log for the interactions endpoint,
+no jobs database in production, ~16 days of log retention. Arrivals were read instead from **Discord
+channel history**, whose `interaction_metadata.id` is Discord's own millisecond stamp and has no
+retention limit.
+
+Measured over **19.94 days** (a FLOOR — 88 channels, most `403/50001`; `#chart-flow-requests`,
+the only channel `/chart` runs in, was **EXACT**):
+
+**301 arrivals · 15.1/day · arrivals-per-second MAX 1 · busiest 60 s = 4 · busiest 10 s = 2 ·
+only 0.92 % of minutes have any arrival at all.**
+
+Design burst (3× the busiest 10 s) = **0.6 arrivals/second**. Little's Law at the conservative
+service basis gives **c = 4 workers** and a **queue depth of 0** backlog; depth ≥ 6 admits a whole
+design burst without refusing anyone.
+
+⭐⭐ **So `queue_full` at high load is CORRECT BEHAVIOUR, decisively.** The run that produced 81 of
+them offered **fifty times** the design burst; even the closed-loop 30-concurrent run offers about
+fourteen times it, and answers with an immediate honest refusal to 3.6 % while serving everyone
+else inside SLO.
+
+⛔ **What actually fails is the S5 floor, because it counts an honest refusal as a failure.** That
+is an owner question, not something to tune away: at fourteen times the design burst, is refusing
+3.6 % a breach or the system working? **Recommendation: measure S5 at the design burst and report
+overload separately as a refusal rate.**
+
+---
+
+## D-02 — the evidence selector, the S5 split, and the self-defect rails (2026-09-14, evening)
+
+### ⛔⛔ The gate was choosing its evidence by FILENAME, and it was wrong in both directions
+
+`check_s2_measured` selected with `glob("*real*.json")` minus anything named `chaos`. Measured
+against `evidence/step3` as it stood, that one expression:
+
+- **admitted `determinism-real-20runs.json`** — no load run in it at all, matched on the word
+  "real" in a filename;
+- **admitted `load-real-a-concurrent30.json`** — the artifact its own report calls VOID. Name says
+  *concurrent30*; content says `rate: 30.0` with no model, i.e. **thirty arrivals per second**,
+  ~50× the derived design burst. Its `p50` of 14,855 ms decided the row;
+- **excluded `load-closedloop-30.json`** — the run that supersedes it at the specified load, because
+  nobody typed "real" into that filename.
+
+⭐ **A filename is a claim somebody typed; an artifact's labels are what the run recorded about
+itself.** A1 found **three** such selectors, not the zero the directive expected: S2, chaos
+(`chaos*real*.json` — `chaos-full.json` is a 13/13 **rig** run, so a rename would have carried that
+row to MET on thirteen stubs) and smoke (`smoke*/INDEX.md` — a finished run in a differently-named
+directory read as NOT MEASURABLE).
+
+### What replaced it
+
+`docs/discord-render/instruments/evidence_contract.py` — **one place** deciding what an artifact IS
+and what it may be used FOR. Four dispositions, never two: **ADMIT · VOID · OUT_OF_SCOPE ·
+INCONCLUSIVE**, so a row can say *"I skipped 1 void and 7 I could not interpret, and judged 1"*
+instead of reporting a clean verdict over a set it never read.
+
+⛔ **Latency and admission are separate purposes and always were.** A run against the mplfinance
+fallback says nothing about how long a member waits and everything about whether the queue refuses
+honestly — a refusal happens at admission, upstream of every renderer.
+
+⛔ **VOID IS RETENTION, NOT DELETION.** `load_harness --mark-void` writes the label into the file and
+reports sha256 before and after (`f14d3859d7f31efa → 173370ac28219fe2`). The 30/s run is still the
+only overload characterisation this programme has.
+
+⛔ **A rejected inference, recorded so it is not re-derived:** *"cache hits + misses == 0 while
+charts were delivered ⇒ the fallback drew them"* is **unsound** — `_cached_render` returns
+`produce()` untouched when `artifact_cache.enabled()` is False, so zero counters are equally
+consistent with the house renderer running with the cache flag off. An unlabelled artifact is
+**UNKNOWN**, and unknown is not fallback.
+
+**The S2 row's verdict did not get greener.** Before: NOT MET off a void artifact's latency. After:
+NOT MET because **S5 96.4 % < 99.5 %** on the one admissible closed-loop run, with **latency
+INCONCLUSIVE** and the reason stated. Same colour, true reason.
+
+Rails: `mutation_harness_flipgate` **62 cases** (was 56), all green; `mutation_harness_contract`
+**6/6 RED for their named case**, controls green both ends, restore sha256-verified, run in a
+throwaway worktree that was deleted afterwards. ⭐ `M6` is the non-vacuity control — it stops
+`select` ever admitting anything and the suite goes red, so the green above it is known to depend on
+artifacts being genuinely admitted rather than on universal exclusion.
+
+### B1 — the three-way split, and the denominator that was hiding
+
+`served_in_slo | served_late | refused_by_admission | failed | unresolved`, **over OFFERS**.
+
+⛔ **The denominator is the finding.** The 30-concurrent run held **360 job rows against 406
+offers**: 46 requests were refused *before a job row existed*, because `status == "user_busy"`
+returns an ephemeral without calling `record_refused`. Those 46 are invisible to `success_rate` in
+**both** directions — a system that refused every member at the door would report **100 % over zero
+jobs**. The receipt must close over offers or it says so.
+
+⛔ **S5's floor and definition are UNTOUCHED.** That ruling is the owner's (B5, below). What changed
+is which artifacts may speak to it and what the failures are broken down into.
+
+### B2/B3 — the loads real traffic supports, derived and never typed
+
+`--burst design | busiest10s | busiest60s` computes the arrival rate from `arrival_census` against
+the real arrivals artifact: **0.600 · 0.200 · 0.0667 per second**, with the derivation carried in
+`meta.burst` so the next reader can re-derive it rather than trust it.
+
+**At the design burst (0.6/s, 301-arrival census, 181 offers): 180 served in SLO, 1 served late,
+ZERO refused, ZERO failed. S5 = 100 %.**
+
+### ⛔ OI-40 — `queue_full` is overloaded, and one of its two meanings is false
+
+A 13-offer shake-out at the design burst recorded **one `queue_full`** while the interactive queue
+held at most **1 of 48** slots and six workers were idle. Thirteen offers cannot fill forty-eight,
+so `q.put_nowait` cannot have raised `queue.Full` — **that row did not come from `offer()`**. The
+other producer (`runtime.py:285`) closes a restart casualty as `queue_full`, telling a member
+*"we're at capacity right now"* about a pod restart. **Not asserted**: the deciding field is
+`outcome`, and that sandbox is gone.
+
+### ⚠️ The depth gauge is SPARSE — and my first explanation of why was wrong
+
+Every "max queue depth" figure this programme has published is a **floor**, not a measurement: the
+**open** loop samples depth every **tenth arrival** (`load_harness.py:745`), so at 0.6
+arrivals/second ten arrivals span ~17 seconds and a queue that fills and drains between samples is
+invisible. The arithmetic (13 offers < 48 slots) is what carries OI-40's conclusion, not the gauge.
+
+⚰️ **RETRACTED, SAME DAY, BEFORE IT SPREAD FURTHER: I first wrote that the gauge had been STARVED to
+"21 samples where ~602 were expected — 3.5 % coverage".** That number came from applying the
+**closed** loop's 0.5 s cadence (`:655`) to an **open**-loop artifact. Measured properly, the closed
+loop's time-based gauge returns **38 of ~43** expected samples (88 %) and the open loop's
+arrival-driven gauge returns exactly what it is written to return. ⭐ **I manufactured a finding
+about event-loop starvation by reading one driver's expectation onto another driver's output** —
+the same shape as "reading the call site is not reading the request", committed inside the pass whose
+whole subject is instruments reporting properties of themselves. The limitation is real; the
+mechanism I first gave for it was not.
+
+### Part C — the three self-defects, now rails
+
+| defect | rail | proof |
+|---|---|---|
+| D1 · the evaluation loop sat mid-appends; **15 cases counted, 5 evaluated** | `selfcheck.Cases` **seals** — an `add()` after the results are read RAISES; the totals line prints `declared/evaluated/failed` as three numbers | 6/6 controls, including a late append raising, an early one still working, and an EMPTY set failing |
+| D2 · `peak <= N` satisfied by a gauge blinded to 0 | equality bound **plus** a lower bound on the mean **plus** a broken-variant control | green; and the same disease re-found in the depth gauge (above) |
+| D3 · the first closed loop hot-spun — **521,654 attempts in 20 s**, six acks over 3 s | `--think-time` explicit, recorded, and asserted: a spinning loop is **INCONCLUSIVE**, never FAIL | a spin is caught, a healthy loop at the same concurrency is not (non-vacuity) |
+
+### Part D/E — the constants, and the canary
+
+All four sizing knobs are **UNSET** on `web`, so the code defaults run: **workers 6 · queue depth 48
+· bg 2 · per-member 2 in flight · 12 per 60 s**. Against the derivation (c = 4, depth ≥ 6),
+production already exceeds every axis. ⭐ **The sizing answer is "change nothing", and that is a
+result.**
+
+⛔ **`DISCORD_RENDER_V2_ENABLED` and `DISCORD_RENDER_V2_CHANNELS` are BOTH unset, and an empty scope
+means EVERY CHANNEL.** Enabling today is the member flip, not a canary; the gate already refuses it.
+The packet must state the ORDER: narrow first, verify **in the running process**, then enable.
+
+⚠️ **`FLOW_CMD_CHANNEL_ID` holds the narrower one-id value** while `CHART_FLOW_CHANNEL_ID` holds two.
+`cmd_channel_ids()` reads the two-id one first, so the allowlist is correct today — but blanking it
+would silently narrow `/chart` back to one channel mid-canary, with no error, and the symptom would
+read as a render problem.
+
+### ⛔ B5 — BLOCKED, AWAITING OWNER
+
+The directive's B5 ruling line was **left blank**. As instructed: B1–B4 are implemented and reported,
+B5 is **not decided here**, and no threshold or semantics of S5 has been changed. The question
+standing is *"at fourteen times the design burst, is refusing 3.6 % a breach or the system
+working?"* — and the design-burst measurement above (0 refusals in 181 offers) is the new evidence
+for it.
+
+### ⛔ Three defects in my own work, again
+
+1. **A shell heredoc collapsed `\b` to a literal BACKSPACE** inside a regex, which then matched
+   nothing. **Fourth occurrence of this trap in this programme.** Caught only by a control asserting
+   the pattern matches the real document *and* not an unrelated one. Anything carrying a backslash
+   is written with the editing tools now.
+2. **Substring anchor counting cannot see indentation** — `"    if art.void:"` occurs inside
+   `"        if art.void:"`, so a dry-check reported three matches for a line appearing once. Loud
+   in that direction; silent in the other, where it mutates the wrong branch. Anchors are whole
+   lines now.
+3. **My first non-vacuity control for the split could not fail.** Passing more offers than job rows
+   still closed, because `refused_before_job` is *derived* as offers minus job rows. What genuinely
+   fails to close is a job still in flight — and rounding that into "refused" would report a member
+   who is still waiting as one who was told no.
+
+---
+
+## D-02b — the S5 ruling STOPPED on a contract conflict, and what shipped instead (2026-09-14, late)
+
+### ⛔⛔ PART 1 IS NOT IMPLEMENTED. Its definition describes a mechanism that does not exist.
+
+**The ruling as entered.** *"YES — split."* Provenance, recorded exactly as instructed and exactly as
+received: **delegated by the owner in chat on 14 Sep 2026, set by Claude (chat), not derived from
+gate evidence.** It is not an owner ruling on the merits and this ledger does not record it as one.
+
+**The stop condition it hit**, verbatim from the directive: *"If Part 1's definitions conflict with
+anything already encoded in the failure-message contract or the S1 ack semantics, STOP and report
+the conflict before implementing — do not reconcile silently."*
+
+**The conflict, from source, not inference:**
+
+> `refused_by_admission` — queue_full or user_busy, AND the failure-message contract was **PATCHed
+> within the 3 s ack window**
+
+There is no PATCH on either admission path.
+
+| fact | where |
+|---|---|
+| `_ephemeral` returns `{"type": 4, "data": …}` — **the reply to Discord's own interaction POST** | `commands.py:169-173` |
+| **both** refusal branches return `_ephemeral(...)` | `commands.py:206` (`user_busy`) and `:209` (`queue_full`) |
+| the refusal row stores `token: None`, and says why in its own docstring: *"No token is kept: the refusal was the reply."* | `runtime.py:258-264` |
+
+A PATCH to `webhooks/{app}/{token}/messages/@original` **needs that token**. With `token: None` there
+is nothing to PATCH with — the absence is **structural**, not an omission.
+
+⛔ **Implemented literally, `refused_by_admission` would be EMPTY for every artifact**, every refusal
+would fall into `failed` as "silent or late", and **S5c would FAIL on a system that answers every
+refused member in under a second.** S5b would simultaneously read *zero refusals everywhere* and be
+MET for the wrong reason. That is a gate describing a world that is not there, which is the defect
+this whole programme exists to close.
+
+⭐ **The reconciliation I did NOT apply, offered for the owner to rule on.** The ruling's intent is
+plainly *"the member was actually told, and told in time"* — that is what "honest" means in "honest
+refusal". The mechanism that carries it here is the **interaction response**, so the implementable
+form is:
+
+> `refused_by_admission` — queue_full or user_busy, AND the refusal message **reached the member
+> inside the S1 ack budget**, read from the wire or the job store. A refusal that was silent or late
+> is not in this bucket.
+
+That is measurable today, and Part 4 measured it. **One word changes — PATCHed becomes reached —
+and every other clause of the ruling survives intact.** Nothing was reconciled silently.
+
+### Part 4 — the instrument, and it answers S5c either way
+
+`load_harness.refusal_latency`. Measured on a bounded local overload (closed loop c=80, think 0.2 s,
+45 s, fallback renderer, **4,843 offers, 4,443 refusals**):
+
+**arrival → told: p50 0.04 ms · p95 0.33 ms · max 830 ms · ZERO over the 3 s ack ceiling.**
+
+⛔ **NON-VACUITY IS THE FIELD THAT MATTERS.** A run that refused nobody yields **NOT MEASURABLE**,
+never *"all inside 3 s"* — an empty set satisfies every ceiling ever written, and this programme has
+already published one *"no 502s found"* that was a filter matching millisecond fields.
+
+⛔ The two PATCH fields the directive asked for are **absent by name**, with the reason carried in
+the artifact (`patch_fields_absent_because`). A null that reads as *"the step failed"* is worse than
+an absent field that reads as *"there is no step"*.
+
+### ⛔⛔ OI-40 IDENTIFIED — `queue_full` has THREE producers, and my own split miscounted one
+
+Three probe runs, each producing **53 `queue_full` rows against 52 refusals**. The odd row, every
+time:
+
+```
+state=abandoned  outcome=busy  failure_class=queue_full  token_kept=false
+```
+
+A job that was **ADMITTED, ran, and failed downstream with a busy signal** — wearing the admission
+class.
+
+| producer | outcome | is it an admission refusal? |
+|---|---|---|
+| `commands._enqueue` → `record_refused` | `refused_at_ack` | ✅ yes — the real one |
+| `runtime.resume_pending` → `_finish_unanswerable` | `restart_recovery` | ❌ a pod restart wearing *"we're at capacity right now"* |
+| a job that ran and failed busy | `busy` | ❌ a **failure**, not a refusal |
+
+⭐ **My B1 split was counting the third as a refusal**, which is the direction that flatters: it turns
+a failure into an honest refusal. The bucket now keys on **outcome**, not class, with a rail for each
+producer and a non-vacuity case proving the genuine one still lands in the refusal bucket.
+
+⚰️ **AND MY EARLIER FRAMING IS CORRECTED.** The previous ledger entry asserted the restart path was
+telling members *"we're at capacity"* about a pod restart. That producer **exists in source** and was
+**not what fired** — 0 of 3 runs. The observed producer is the downstream busy outcome. The source
+claim was true; the attribution was inference stated as measurement.
+
+⛔ **And I had reproduced my own blind spot:** the anomaly loop inspected only rows a refusal
+*claimed*, so a row nobody refused was invisible to it — exactly OI-40's shape. It now sweeps the
+store and reports unclaimed admission rows with the rows themselves.
+
+### Part 3 — the heredoc rail, and why the rule failed four times
+
+| # | date | what collapsed | caught by |
+|---|---|---|---|
+| 1 | 2026-08-24 | `\b` in a regex → BACKSPACE | nothing — found by `cat -A` after a wrong test result |
+| 2 | 2026-08-29 | `\n` ×2 → real newlines | `ast.parse` after the patch |
+| 3 | 2026-08-31 | four in one session | `assert count(old)==1`, which aborted 3 of 4 |
+| 4 | 2026-09-14 | `\b` in the smoke-title regex → BACKSPACE | a control asserting the pattern matched the real document **and not** an unrelated one |
+
+⛔⛔ **THE FINDING: `assert text.count(old) == 1` PROTECTS THE SEARCH STRING AND SAYS NOTHING ABOUT
+THE REPLACEMENT.** On the fourth occurrence the anchor matched, the assert passed, and a corrupted
+`new` went to disk perfectly. The second attempt aborted only because that assert happened to be
+about the already-corrupted text — luck, not a rail.
+
+`patch_guard.safe_replace` now scans **both** strings for collapse signatures before any write and
+**sha256 round-trips the exact replacement slice** after it. 17 controls, including all four
+corruptions replayed, a mangling-writer mutation proving the round trip fires, and — added when it
+refused one of my own patches with an unexplained zero match — a named refusal for a **bare-LF
+multi-line anchor against a CRLF-stored file**, because *"anchor matched 0 times"* reads as *"the
+code changed"* and sends the reader to the wrong file.
+
+### ⛔ The temptation, reported rather than taken
+
+The refusal probe is ~175× the design burst and made the S2 row NOT MET on 88.3 % success. **I could
+see that labelling the 30-concurrent run as characterisation too would remove the remaining red and
+leave the row NOT MEASURABLE. I did not.** That run was produced as an SLO measurement and it stays
+one. Only the probe carries the label, and it carries it because the run that produced it passed
+`--characterisation` — not because its numbers were inconvenient.
+
+`INFORMATIONAL` is a fifth disposition with the rule beside it: **the label is set when the run is
+produced, never applied afterwards.** Its rails are a PAIR — a characterisation run carrying a breach
+is reported not judged, **and** the same breach labelled `slo` still reddens the row. Without the
+second, "characterisation" is a label that excuses any number.
+
+**The gate's colour did not change: NOT MET, on `load-closedloop-30.json`.**

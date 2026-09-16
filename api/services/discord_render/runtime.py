@@ -70,6 +70,21 @@ class Job:
     deadline_s: float = 15.0
     resumed: bool = False
 
+    def remaining_s(self, now: float | None = None) -> float:
+        """Seconds left before the deadline watchdog (§3.2) sends the failure message. Clamped at 0.
+
+        ⛔ EVERY OUTBOUND CALL IS BOUNDED BY THIS, NOT BY ITS OWN CONSTANT. Measured 2026-09-13:
+        `discord_chart_house.RENDER_TIMEOUT_S` is **60 s**, over **two** attempts, behind a **15 s**
+        deadline — so the watchdog fires, the member is told the render failed, and the request is
+        still in flight for another 105 seconds holding a worker. A per-dependency timeout answers
+        "how long is this upstream allowed to take"; only the job knows "how long is there left".
+        Take the smaller of the two, always.
+
+        ⚠️ Measured from `created_at` (the ack), not from `started` (the worker picking it up), and
+        the difference is the queue wait — which the member has already spent. A deadline measured
+        from the worker would silently grant a queued job the whole budget twice over."""
+        return max(0.0, self.deadline_s - ((now if now is not None else time.time()) - self.created_at))
+
     def row(self) -> dict:
         return {"corr_id": self.corr_id, "interaction_id": self.interaction_id, "created_at": self.created_at,
                 "command": self.command, "kind": "component" if self.interaction_type == COMPONENT_INTERACTION else "slash",
@@ -108,6 +123,10 @@ class JobContext:
         self.edit_calls = 0
         self._lock = threading.Lock()
 
+    def remaining_s(self, now: float | None = None) -> float:
+        """The job's remaining budget — what an adapter bounds its call by. See `Job.remaining_s`."""
+        return self.job.remaining_s(now)
+
     # The edit a job function receives in place of `di.edit_original`.
     def edit(self, app_id, token, **kw):
         # held_by, not owns: a stand-in heal edits 45 s / 120 s after this job's row is
@@ -133,10 +152,20 @@ class JobContext:
         return sent
 
     def fail(self, cls: str, detail: str = "") -> bool:
-        """Report a failure the member must see. Sends the contract message now."""
+        """Report a failure the member must see. Sends the contract message now.
+
+        ⛔⛔ A REFUSED FAILURE MESSAGE IS ITSELF A DELIVERY FAILURE, AND IT HAS TO BE RECORDED.
+        Without this, `_finalize` sees `last_delivery_failure is None`, cannot tell that the token
+        is dead, and sends the same message down the same dead token a second time — 23 measured
+        `10015`s become 46 requests that could never land. Found by the chaos scenario for exactly
+        this case, which reported "a dead token was spoken to 2 times"."""
         self.failure_class = contract.normalize_class(cls)
         self.failure_detail = str(detail or "")[:200]
-        ok = self.runtime.send_failure(self.job, self.failure_class)
+        res = self.runtime.send_failure_result(self.job, self.failure_class)
+        ok = bool(getattr(res, "ok", res))
+        if not ok and res is not None and not isinstance(res, bool):
+            with self._lock:
+                self.last_delivery_failure = res
         self.messaged = self.messaged or ok
         return ok
 
@@ -226,6 +255,20 @@ class JobRuntime:
     def record_ack(self, corr_id: str, ack_ms: float) -> None:
         self._writer.put(("update", corr_id, {"ack_ms": round(ack_ms, 1)}))
 
+    def record_refusal_reach(self, corr_id: str, reach_ms: float) -> None:
+        """How long the member waited to be TOLD they were refused (D-04 4.2).
+
+        ⛔⛔ A SEPARATE COLUMN FROM `ack_ms`, AND THAT IS THE WHOLE DESIGN. S1's population is
+        `ack_ms is not None` (`observe.py:121,129`); writing a refusal's timing there would silently
+        enrol every refusal into the ack percentiles S1 is judged on — changing S1's meaning to fix
+        S5c's blindness. Two questions, two columns, neither able to move the other.
+
+        ⚠️ ONLY THE `queue_full` PATH CAN BE RECORDED. A `user_busy` refusal and a per-member rate
+        limit never create a job row at all (`commands.py:206`, `_rate_limited`), so production still
+        cannot self-observe those — the wire remains the only source for them. Stated rather than
+        left for a reader to discover from a column that is mysteriously sparse."""
+        self._writer.put(("update", corr_id, {"refusal_reach_ms": round(reach_ms, 1)}))
+
     def record_refused(self, job: Job, cls: str) -> None:
         """A job refused at the ack (queue full) still gets a TERMINAL row: it is a failure
         the SLO must count, and its Retry button needs the stored args to re-run. Written
@@ -271,18 +314,43 @@ class JobRuntime:
                           outcome="restart_recovery", detail="told" if told else "token too old to answer")
 
     # ── delivery of the contract message ────────────────────────────────────
+    @staticmethod
+    def _failure_budget(job: Job) -> float:
+        """How long delivery may spend getting the failure message to the member.
+
+        ⛔⛔ IT IS **NOT** `job.remaining_s()`, AND THAT IS THE WHOLE POINT. The watchdog sends this
+        message *at* the deadline, so the job's remaining budget is ~0 at exactly the moment it is
+        needed — passing it would give delivery no time to retry, and would therefore suppress every
+        retry of the one message C-11 exists to guarantee. A member whose render failed would then
+        also not be told it failed, which is the silent failure the whole contract exists to remove.
+
+        ⭐ The right clock is the **interaction token's** remaining life: while the token lives the
+        message can still land, and once it dies no amount of budget helps. Capped at delivery's own
+        default so a fresh token cannot license an eight-minute retry loop, and floored at
+        `MIN_USEFUL_S` so a nearly-dead token still gets one honest attempt rather than none."""
+        left = TOKEN_LIFETIME_S - (time.time() - job.created_at)
+        return min(delivery_mod.DEFAULT_BUDGET_S, max(delivery_mod.MIN_USEFUL_S, left))
+
     def send_failure(self, job: Job, cls: str) -> bool:
+        """Did the failure message land? ⭐ Kept as the boolean every existing caller reads; the
+        RESULT form below is what a caller needs when the reason matters."""
+        return bool(getattr(self.send_failure_result(job, cls), "ok", False))
+
+    def send_failure_result(self, job: Job, cls: str):
         content = contract.failure_content(job.label, cls, job.corr_id)
         comps = contract.failure_components(job.corr_id)
+        budget = self._failure_budget(job)
         if job.interaction_type == COMPONENT_INTERACTION:
             # ⛔ Never PATCH @original under a control click: that message IS the chart the
             # member is looking at. Tell them privately instead.
-            res = self.delivery.followup(job.app_id, job.token, content=content, components=comps, ephemeral=True)
+            res = self.delivery.followup(job.app_id, job.token, content=content, components=comps,
+                                         ephemeral=True, deadline_s=budget, cid=job.corr_id)
         else:
-            res = self.delivery.edit_text(job.app_id, job.token, content=content, components=comps)
+            res = self.delivery.edit_text(job.app_id, job.token, content=content, components=comps,
+                                          deadline_s=budget, cid=job.corr_id)
         observe.event("failure_message", cid=job.corr_id, cmd=job.command, cls=cls,
                       outcome="sent" if res.ok else "refused", status=f"{res.status}:{res.code}")
-        return bool(res.ok)
+        return res
 
     # ── threads ─────────────────────────────────────────────────────────────
     def _writer_loop(self) -> None:
@@ -412,7 +480,18 @@ class JobRuntime:
             # Nothing reached the member and nothing said so. Say so now, if Discord will take it.
             cls = ctx.failure_class or ("ack_late" if (failure is not None and getattr(failure, "token_dead", False)) else "internal")
             fields["failure_class"] = cls
-            told = False if cls == "ack_late" else self.send_failure(job, cls)
+            # ⛔⛔ A TOKEN ALREADY MEASURED DEAD IS NOT SPOKEN TO A SECOND TIME. `10015` is terminal
+            # — `delivery.TERMINAL_CODES` says so and `edit_image` already refuses to follow one
+            # with a text fallback for the same reason. Without this, a job whose `ctx.fail` was
+            # refused by a dead token comes back here with a `failure_class` set, skips the
+            # `ack_late` branch, and spends another round trip to be told the same thing. `01` §C
+            # measured 23 of these, so it is 23 requests that could never land.
+            #
+            # ⚠️ ONLY ON A MEASURED `token_dead`, never on a generic failure: a 500 or a timeout on
+            # the first attempt is exactly the case where trying again is right, and collapsing
+            # those two would turn this into silence (C-11).
+            token_dead = failure is not None and bool(getattr(failure, "token_dead", False))
+            told = False if (cls == "ack_late" or token_dead) else self.send_failure(job, cls)
             state = "messaged" if told else "abandoned"
         self.store.finish(job.corr_id, state, owner=self.owner, **fields)
         self._release_user(job)

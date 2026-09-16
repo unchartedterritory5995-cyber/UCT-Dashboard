@@ -68,6 +68,11 @@
 import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
+import { getDefinition } from './nativeRegistry'
+import { resolveDisplayTarget, isWritableDisplayTarget, TARGET_EXPLICIT } from './displayTarget'
+import { parsePaneOfTarget } from './sourceRef'
+import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
+         CANDLE_COLOR_KEYS } from './presentation'
 
 function resolveRegistry(registry) {
   if (typeof registry === 'function') return (id) => registry(id)
@@ -409,7 +414,22 @@ function placementFor(def, defId, cs) {
   const target = def.placement?.target
   if (typeof target !== 'string' || !target) return null
   const overlaid = Array.isArray(cs?.volumeOverlayIndicators) && cs.volumeOverlayIndicators.includes(defId)
-  return { target: target === 'pane' && overlaid ? 'volume' : target }
+  const effective = target === 'pane' && overlaid ? 'volume' : target
+  // ⚰️⚰️ A RESTATEMENT OF THE DECLARATION IS NOT WRITTEN AT ALL (2026-09-15).
+  // This used to stamp `{ target: <the declared one> }` onto every instance it
+  // created, which expressed no user intent and could not be told apart from one
+  // that did — the ambiguity `displayTarget.TARGET_EXPLICIT` exists to end. The
+  // resolver reaches the identical answer with the key ABSENT (step (3) returns
+  // `declared`), so omitting it changes no destination; it only stops new blobs
+  // from being born ambiguous. Existing blobs keep their restatements and their
+  // legacy reading — there is no migration.
+  //
+  // ⭐ THE VOLUME REWRITE IS KEPT, because it is NOT a restatement: it differs
+  // from the declaration, `presentation.availableStyles` reads the stored field
+  // directly to clamp styles in a shared pane, and it is what the resolver's
+  // legacy-volume step recomputes anyway. Same value, both dialects, no ambiguity.
+  if (effective === target) return null
+  return { target: effective }
 }
 
 /**
@@ -496,4 +516,317 @@ export function isIndicatorEnabled(cs, defId, flippedIds) {
     try { return isInstanceTombstone(i) } catch { return false }
   })
   return blocked ? false : legacyOn
+}
+
+
+// ─── PART E · THE CANONICAL PRESENTATION AND PLACEMENT WRITERS ─────────────
+//
+// ⭐⭐ THESE ARE WRITERS, NOT A SECOND STATE OWNER. Every one of them goes
+// through `withInstances` exactly like the writers above it, mutates ONE
+// instance by id, and returns a new settings object — so presentation and
+// placement live in the same instance list, under the same persistence, as
+// everything else. Universal Data needs to say "this copy draws as candles" and
+// "this copy sits in QQQ's pane"; saying it anywhere but here would be a second
+// mutation path for the same state, which is how two answers to "which copy did
+// the user mean" get built.
+//
+// ⛔ NOTHING ELSE IN THIS FILE MOVED. The originating branch also rewrote
+// `removeInstance`, `setInstanceHidden` and a legacy-volume helper; those are
+// existing master behaviour with their own rails and are deliberately not taken
+// here — this addition is purely additive.
+
+/**
+ * Where this indicator's OWN pane sits relative to the candles.
+ *
+ * ⭐⭐ PURELY ADDITIVE, AND THAT IS THE WHOLE BACKWARD-COMPATIBILITY STORY.
+ * `normalizeInstances` spreads `placement` wholesale and `validateInstance`
+ * checks only `placement.target`, so `position` needs no schema change, no
+ * migration and no write-on-load. Every saved chart in production carries none,
+ * reads as `undefined`, and lands BELOW price exactly where it always did.
+ *
+ * ⛔ `'below'` IS WRITTEN AS A DELETION, not as a stored value. Storing it would
+ * make "the default" and "explicitly the default" two different blobs that mean
+ * one thing, and the first template saved from a chart that had merely been
+ * toggled back and forth would carry a key the shipped default does not. Absent
+ * IS below; that is the invariant the read side already depends on.
+ *
+ * @param {'above'|'below'} position
+ */
+export function setInstancePanePosition(cs, instanceId, position, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (position !== 'above' && position !== 'below') return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const placement = { ...(i.placement || {}) }
+    if (position === 'above') placement.position = 'above'
+    else delete placement.position
+    // An empty placement is dropped entirely, for the same reason `below` is not
+    // stored: a blob carrying `placement: {}` is not the blob a fresh chart writes.
+    return Object.keys(placement).length ? { ...i, placement } : (() => {
+      const { placement: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Set ONE instance's plot style.
+ *
+ * ⭐ PRESENTATION LIVES IN ITS OWN KEY, not in `placement`. Where an indicator
+ * draws and how it draws are separate questions with separate controls and
+ * separate defaults, and folding them into one object is how they start being
+ * changed together by accident — the exact mistake `setInstanceDisplayTarget`
+ * exists to avoid between `target` and `position`.
+ *
+ * ⛔ THE DEFAULT DELETES, like every other optional key here. `'line'` removes
+ * `presentation.plotStyle` and then `presentation` itself if nothing else is
+ * left, so a chart that has never touched the control is byte-identical to one
+ * that set the style back.
+ */
+export function setInstancePlotStyle(cs, instanceId, style, registry, plotKey) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!PLOT_STYLES.includes(style)) return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+
+  // ⭐⭐ THE DEFAULT IS THE DEFINITION'S, NOT `'line'`, AND THAT IS WHY "DELETE
+  // TO RESET" HAS TO ASK. MACD's histogram output ships as a HISTOGRAM; deleting
+  // its override must return it to a histogram, not flatten it to a line. So
+  // "back to default" is "what `resolvePlotStyle` says with this entry removed",
+  // which is the definition's shape — and the key is deleted only when the value
+  // asked for IS that shape. One representation of the default, per output,
+  // without a second table saying what each default is.
+  const defaultFor = (key) => {
+    const def = resolveRegistry(registry)(inst.defId)
+    const plots = (def && Array.isArray(def.plots)) ? def.plots : []
+    const plot = key ? plots.find((p) => p && p.key === key) : null
+    const bare = { ...inst, presentation: undefined }
+    return resolvePlotStyle(bare, plot || null)
+  }
+
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const presentation = { ...(i.presentation || {}) }
+
+    if (typeof plotKey === 'string' && plotKey) {
+      // ── ONE OUTPUT ──
+      const plots = { ...(presentation.plots || {}) }
+      const entry = { ...(plots[plotKey] || {}) }
+      if (style === defaultFor(plotKey)) delete entry.style
+      else entry.style = style
+      if (Object.keys(entry).length) plots[plotKey] = entry
+      else delete plots[plotKey]
+      if (Object.keys(plots).length) presentation.plots = plots
+      else delete presentation.plots
+    } else {
+      // ── THE WHOLE INSTANCE ── the single-output shape POC D shipped, kept so
+      // an RSI that stored `plotStyle` keeps meaning what it meant.
+      if (style === defaultFor(null)) delete presentation.plotStyle
+      else presentation.plotStyle = style
+    }
+
+    return Object.keys(presentation).length ? { ...i, presentation } : (() => {
+      const { presentation: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Set ONE output's dot size (or the instance's, with no `plotKey`).
+ *
+ * Same delete-the-default rule as every other optional key here, and the same
+ * per-output-over-instance shape as the style — one seam, two properties.
+ */
+export function setInstanceDotSize(cs, instanceId, size, registry, plotKey) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!Object.prototype.hasOwnProperty.call(DOT_SIZES, size)) return cs
+  if (!findInstance(cs, instanceId)) return cs
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const presentation = { ...(i.presentation || {}) }
+    if (typeof plotKey === 'string' && plotKey) {
+      const plots = { ...(presentation.plots || {}) }
+      const entry = { ...(plots[plotKey] || {}) }
+      if (size === DEFAULT_DOT_SIZE) delete entry.dotSize
+      else entry.dotSize = size
+      if (Object.keys(entry).length) plots[plotKey] = entry
+      else delete plots[plotKey]
+      if (Object.keys(plots).length) presentation.plots = plots
+      else delete presentation.plots
+    } else if (size === DEFAULT_DOT_SIZE) delete presentation.dotSize
+    else presentation.dotSize = size
+    return Object.keys(presentation).length ? { ...i, presentation } : (() => {
+      const { presentation: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * One candle output's up or down colour.
+ *
+ * ⭐ THE SAME SHAPE `setInstanceDotSize` WRITES, deliberately: a style-specific
+ * property lives beside the style in `presentation.plots[plotKey]`, and the
+ * writer DELETES it when the member returns to the chart's own colour. A saved
+ * chart therefore carries candle colours only where somebody changed one — the
+ * rule every other presentation key here already follows.
+ *
+ * ⛔ THE DEFAULT IS THE CALLER'S, because it is the CHART's. `cs.candles.upColor`
+ * is what the member's own candles wear, and a secondary instrument should match
+ * it until they say otherwise; a constant here would be a second palette.
+ *
+ * @param {'upColor'|'downColor'} which
+ * @param {string} color   the chosen colour
+ * @param {string} fallback the chart's colour for `which` — an equal value deletes
+ */
+export function setInstanceCandleColor(cs, instanceId, which, color, registry, plotKey, fallback) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!CANDLE_COLOR_KEYS.includes(which)) return cs
+  if (typeof color !== 'string' || !color) return cs
+  if (!findInstance(cs, instanceId)) return cs
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const presentation = { ...(i.presentation || {}) }
+    // ⚠️ ABSENT `plotKey` MEANS THE INSTANCE LEVEL, exactly as `setInstanceDotSize`
+    // and `setInstancePlotStyle` treat it — a single-output row does not name its
+    // one output, and a second convention for candle colours would put a member's
+    // style and their colours in two different places on one instance.
+    if (typeof plotKey === 'string' && plotKey) {
+      const plots = { ...(presentation.plots || {}) }
+      const entry = { ...(plots[plotKey] || {}) }
+      if (color === fallback) delete entry[which]
+      else entry[which] = color
+      if (Object.keys(entry).length) plots[plotKey] = entry
+      else delete plots[plotKey]
+      if (Object.keys(plots).length) presentation.plots = plots
+      else delete presentation.plots
+    } else if (color === fallback) delete presentation[which]
+    else presentation[which] = color
+    return Object.keys(presentation).length ? { ...i, presentation } : (() => {
+      const { presentation: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Move ONE instance to a different display target.
+ *
+ * ⭐⭐ TARGET AND OWN-PANE POSITION ARE SEPARATE CONCEPTS, AND THIS IS WHERE THAT
+ * IS ENFORCED. `placement.position` ('above' / absent) says where the indicator
+ * sits WHEN IT HAS ITS OWN PANE; `placement.target` says whether it has one at
+ * all. Overlaying RSI onto Volume must not erase the fact that the user had put
+ * it above Price, or sending it back to its own pane would silently demote it to
+ * the default — a preference destroyed by a round trip nobody thought of as
+ * destructive. So this function touches `target` and nothing else.
+ *
+ * ⛔ `'pane'` DELETES THE KEY rather than writing it, for the same reason
+ * `setInstancePanePosition` deletes `position` for `'below'`: the default must
+ * have exactly one representation, or two charts that look identical stop
+ * comparing equal.
+ *
+ * ⚠️ THE LEGACY LIST IS KEPT IN STEP — on this explicit action ONLY. The toolbar
+ * checkbox still reads and writes `cs.volumeOverlayIndicators`, so leaving it
+ * behind would give the same chart two visible controls that disagree. This is
+ * not the "migrate on load" that `displayTarget.js` forbids: nothing is written
+ * unless a user moves an indicator.
+ */
+export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!isWritableDisplayTarget(target)) return cs
+  // ⛔⛔ NOTHING MAY BE ITS OWN GUEST (P2.3). `@<self>` is a WRITABLE-looking
+  // target — the grammar cannot tell whose id it is — and storing it is not a
+  // harmless no-op that resolves back to "own pane": `paneFollowerKeys` would
+  // stop counting this instance as an owner, so `orderedPaneKeys` would allocate
+  // no pane, and `placement.js` would then fail closed on the pane it is
+  // following. The series would disappear with nothing anywhere reporting why.
+  // Refused by IDENTITY, like every other rejected write here: the caller's test
+  // is `next !== cs`.
+  if (parsePaneOfTarget(target) === instanceId) return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const defId = inst.defId
+
+  // ⛔ THE LEGACY MIRROR IS KEYED BY DEFINITION, so only a definition the legacy
+  // list could ever have named is written to it. `volumeOverlayIndicators` holds
+  // DEF ids, which means one entry moves EVERY instance of that definition — fine
+  // for the shipped oscillators it was built for (one RSI, one MFI), wrong for a
+  // definition users instantiate many times. Sending `MA(Volume)` to the volume
+  // pane must not also send `MA(RSI)` there. The canonical `placement.target`
+  // carries the whole meaning; the mirror is compatibility, not storage.
+  const lookup = resolveRegistry(registry)
+  const mirrorsLegacy = ((lookup(defId) || getDefinition(defId))?.placement?.target) === 'pane'
+  const legacy = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
+  const wantsVolume = target === 'volume'
+  const inLegacy = legacy.includes(defId)
+  let volumeOverlayIndicators = legacy
+  if (!mirrorsLegacy) volumeOverlayIndicators = legacy
+  else if (wantsVolume && !inLegacy) volumeOverlayIndicators = [...legacy, defId]
+  else if (!wantsVolume && inLegacy) volumeOverlayIndicators = legacy.filter((x) => x !== defId)
+
+  // ⭐ "BACK TO DEFAULT" IS WHAT THE RESOLVER SAYS WITH NO OVERRIDE, not the
+  // literal `'pane'`. For most definitions those are the same sentence; for a
+  // DERIVED one they are not — `MA(RSI)`'s default is RSI's PANE, so deleting the
+  // key makes it FOLLOW its source, and `'pane'` is a real override meaning "give
+  // it one of its own". Asking the resolver is what keeps one answer.
+  //
+  // ⛔⛔ ASKED WITH THIS DEFINITION OUT OF THE LEGACY LIST ENTIRELY — not with the
+  // list as it arrived, and not with the list this write leaves behind. The
+  // legacy entry is the OLD way of saying the same thing, and letting it answer
+  // here means "volume is already the default, so write nothing", which is how
+  // the CANONICAL `placement.target` would quietly never get written and the
+  // whole POC C decision would reverse itself. The default is what the definition
+  // and the SOURCE say — the two things a user has not overridden.
+  // ⛔ THE AUTOMATIC ANSWER IS ASKED WITH BOTH THE TARGET **AND** THE MARKER
+  // STRIPPED. Leaving the marker on would make the resolver honour the very value
+  // this is trying to compare against, and every write would then look like a
+  // return-to-default — the key would be deleted and the member's choice lost on
+  // the second move.
+  const bare = {
+    ...inst,
+    placement: { ...(inst.placement || {}), target: undefined, [TARGET_EXPLICIT]: undefined },
+  }
+  const defaultTarget = resolveDisplayTarget(bare, {
+    ...cs, volumeOverlayIndicators: legacy.filter((x) => x !== defId),
+  })
+
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const placement = { ...(i.placement || {}) }
+    // ⭐⭐ EQUAL TO THE AUTOMATIC ANSWER IS THE RETURN-TO-DEFAULT GESTURE, and it
+    // is the one the UI already has — there is no "Automatic" option in
+    // `displayTargetOptions` and none is added here, because encoding automatic as
+    // a fake target is exactly what `placement.position` refuses to do for
+    // `'below'`. Picking the destination the rules would have chosen anyway CLEARS
+    // both keys and hands the instance back to source derivation.
+    //
+    // ⛔⛔ AND ANYTHING ELSE IS STAMPED, INCLUDING A VALUE EQUAL TO `declared`.
+    // That is the case the old code could not express: `dataSeries` DECLARES
+    // `'pane'`, its automatic answer on `close` is `'price'`, so a member choosing
+    // Own pane writes the declared value — and the reader's old
+    // `explicit !== declared` guard threw it away. The marker is what makes the
+    // two distinguishable, so it is written with the target and never apart from
+    // it: a `target` without a marker is legacy state, and a marker without a
+    // target would be a claim about nothing.
+    if (target === defaultTarget) {
+      delete placement.target
+      delete placement[TARGET_EXPLICIT]
+    } else {
+      placement.target = target
+      placement[TARGET_EXPLICIT] = true
+    }
+    return Object.keys(placement).length ? { ...i, placement } : (() => {
+      const { placement: _drop, ...rest } = i
+      return rest
+    })()
+  })
+
+  return { ...withInstances(cs, next, registry), volumeOverlayIndicators }
 }

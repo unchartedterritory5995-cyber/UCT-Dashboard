@@ -156,9 +156,29 @@ discord_render_jobs(
   deadline; otherwise fail honestly with `rate_limited`. Per-route bucket memory.
 - **5xx / transport:** exponential backoff with jitter, 0.5 s → 1 s → 2 s, max 3 tries, bounded by
   the deadline.
-- **Size guard:** before upload, if the PNG exceeds `DISCORD_RENDER_ATTACH_MAX_BYTES` (default
-  8 MiB — the conservative floor), re-encode (optimize → 256-colour quantize → 0.75× downscale steps)
-  until it fits; record `resized`.
+- **Size guard:** before upload, if the attachments total more than `ATTACHMENT_MAX_BYTES`
+  (**25 MiB**, Discord's Tier-0 baseline), the image is **not sent** — `image_too_large` is
+  recorded with the byte count and the member gets the text edit plus *"The chart could not be
+  attached to this reply."* ⛔ It never silently ships a smaller picture.
+
+  ⚰️ **THIS SPECIFIED A RE-ENCODER — 8 MiB, then `optimize → 256-colour quantize → 0.75×
+  downscale` until it fits — AND THAT DESIGN IS SUPERSEDED (OI-29, 2026-09-14).** Three reasons,
+  in order of weight:
+
+  1. **A quantized, downscaled chart is an unlabelled stand-in**, which is the thing §4 of
+     `04-visual-spec.md` exists to forbid. A member handed a degraded picture with no label reads
+     it as the product — that is C-06, three times, two of which never healed. If we ever did
+     re-encode, it would have to carry a stand-in label, at which point it is no longer a quiet fix.
+  2. **8 MiB refuses uploads Discord would accept.** The baseline limit is 25 MiB; a floor set
+     three times lower costs a member their chart for nothing. Refusing at Discord's own number can
+     only ever refuse what Discord would also refuse.
+  3. **A measured house chart PNG is 100–500 KB**, so a re-encoder at either threshold is code
+     that never runs in production and therefore cannot be trusted the day it does. Anything within
+     two orders of magnitude of 25 MiB is a **render defect**, and `image_too_large` is the event
+     that says so — a re-encode would have hidden exactly that signal.
+
+  ⭐ The rule this leaves behind: **refusing loudly beats degrading quietly**, and the refusal is
+  only acceptable because it still ends in a sentence (C-11).
 - **Pre-flight validation of every component tree and payload**, locally, against Discord's
   rules: ≤5 rows, ≤5 buttons/row, select ≤25 options and ≤1 default, `custom_id` ≤100 and unique,
   label ≤80, placeholder ≤150, emoji drawn from an allow-list of real unicode emoji actually used
@@ -198,18 +218,96 @@ No stack trace, exception text or URL ever reaches a member (railed on the build
 
 ### 3.6 Artifact cache + coalescing (D-02, C-01)
 
-`api/services/discord_render/cache.py`, flag `RENDER_CACHE_ENABLED`.
+`api/services/discord_render/artifact_cache.py`, flag `RENDER_CACHE_ENABLED` (an **enablement
+gate**: unset means OFF).
 
-- **Key:** `sha1(command, normalized args incl. prefs signature, data_version)`. `data_version`
-  for a chart = `(last bar t, last close, session_state)`; for a flow card = `(window end,
-  contract_count, net bull/bear/unclassified)`.
+**Two tiers, one key space.** L1 is this process's heap; L2 is the Railway volume. Lookup is
+**L1 → L2 → miss**, and an **L2 hit promotes into L1**. ⭐ A cache that survives the 8-minute pod is
+a different product from one that does not: `web` deploys ~77 times a day, so an in-memory-only
+cache is empty exactly when the first render after a deploy needs it most (C-01).
+
+- **Key:** `sha1(command, normalized args incl. prefs signature, data_version)`. `data_version` is
+  the **data's vintage** — for a chart the newest bar's `t` (`freshness.Envelope.as_of_utc`, which
+  `vintage_of()` derives); for a flow card the window end. A caller may pass a richer stamp of its
+  own (`key_for(..., vintage=...)`) — the last close, a contract count, a net bull/bear/unclassified
+  split — and `key_for` is the one place a key is built.
+  ⛔ **`session_state` IS NOT PART OF THE KEY, and this line used to say it was.** The session is the
+  wall clock wearing a hat: with it in the key, the same closed-market input re-keys every time the
+  market crosses a boundary, and §3.10's determinism guarantee becomes unobservable because no two
+  runs share an entry to compare. `key_for` cannot read a clock at all, and
+  `test_the_key_cannot_read_a_clock_at_all` is what makes that structural rather than a convention.
+  The session still decides the TTL — at read time, below — which is the job it actually has.
 - **TTL by session state (D-02):** RTH 30 s · extended 120 s · closed until the next session open.
-- **On the volume:** `DISCORD_RENDER_CACHE_DIR` (default `/data/discord_render_cache/`), LRU by
-  bytes (`DISCORD_RENDER_CACHE_BYTES`, default 512 MiB). ⭐ A cache that survives the 8-minute pod
-  is a different product from one that does not.
-- **Cached reply stamp:** a hit within TTL posts with `cached 14:32:05 ET` in the message.
-- **Degraded artifacts are cached apart:** stand-ins 60 s (the 2026-08-27 lesson), cached flow
-  cards only as a labelled fallback.
+  Read off the session **at read time**, not the one the entry was stored in, and **one function
+  (`expired_at`) is called by both tiers** — "the same rules at both tiers" is a property of there
+  being one implementation, not a promise two copies make to each other.
+  ⛔ "Closed until the next session open" is enforced by the KEY, never by a timer: the next session
+  opening changes the data version, which changes the key. A number there would be a second
+  authority over a boundary the key already owns.
+- **L1, in the heap:** `DISCORD_RENDER_CACHE_MEM_BYTES` (default **64 MiB**) and
+  `DISCORD_RENDER_CACHE_MAX_ENTRIES` (default 256); eviction is oldest `stored_at` first, ties broken
+  by insertion sequence. ⛔ **Its own env name.** It read `DISCORD_RENDER_CACHE_BYTES` — the volume's
+  name — until 2026-09-14, and the collision ran in the dangerous direction: an operator setting the
+  documented 512 MiB for the volume would have raised the HEAP ceiling eightfold on a pod that OOMs
+  members when it runs out.
+- **L2, on the volume:** `DISCORD_RENDER_CACHE_DIR` (default `/data/discord_render_cache`), LRU by
+  **bytes** (`DISCORD_RENDER_CACHE_BYTES`, default 512 MiB), oldest `stored_at` first with the
+  **fingerprint** as the tie-break — L1's insertion counter restarts at zero on every pod, and an
+  eviction order that depends on who is asking is not an order. A **blank** `DISCORD_RENDER_CACHE_DIR`
+  turns L2 off and leaves L1 running: the fail direction of a missing volume is a smaller cache,
+  never a failed render.
+  ⛔ **An L1 eviction NEVER evicts L2, and an L2 eviction never evicts L1.** Two budgets over one key
+  space; the heap is 64 MiB shared with every dashboard request and fills constantly, the volume is
+  512 MiB nothing else wants. Both directions are railed.
+  ⛔ The `/data/...` default is an **inline literal in the `os.environ.get` call** and must stay one,
+  so the repo-root `conftest.py` can derive it (`shared_data_root_census`) and redirect a test run
+  away from the owner's live `C:\data`. Written as a named constant it took `unpinnable` from 0 to 1.
+- **Durability is atomic, and a damaged entry is a MISS:** the write is a tmp file in the same
+  directory, `fsync`, then `os.replace`, so a reader sees the whole previous entry or the whole new
+  one — never half of one. The read verifies the payload's **length** and **SHA-256** against the
+  header that travels with it, plus that the file claims the key that was asked for. A truncated
+  file, a flipped byte, an unparseable header, a version we cannot read, a file moved to another
+  name: every one is a recorded miss (`l2_corrupt`), **never served, never raised**, and the entry is
+  discarded rather than left holding byte budget it can never be served from.
+- **Degraded never fresh, at both tiers:** an artifact whose envelope says `stale is None` is
+  UNKNOWN, not fresh, and the round trip must preserve all three verdicts — through the heap and
+  through the file. On the L2 read path the guard is explicit: a header with no envelope
+  deserialises to `None`, and a `stale` that is neither a bool nor `null` is corruption rather than a
+  verdict (it would sail through `is None` as False and through truthiness as True).
+- **Coalescing** is part of the contract, not an optimisation (§3.2): identical work in flight shares
+  one production; a follower waits at most its **own** remaining budget and then gets a miss, never a
+  hang and never the leader's traceback. ⛔ An **L1 concern by construction** — a flight is in-process
+  work and a second pod cannot join it; pretending otherwise needs a lock on the volume, which is a
+  different product with a different failure mode (a stale lock file after a pod is killed).
+- **Cached reply stamp:** a hit within TTL posts with `cached 14:32:05 ET` in the message
+  (`Artifact.cached_stamp`, derived from `stored_at`). ⛔ `stored_at` and the envelope are **two
+  different numbers and both are kept**: a cache holding only the first hands back a week-old chart
+  stamped with the moment it was cached — true, and completely misleading.
+
+*Built in 2.5 (Lane B).* Where it differs from the text above — stated rather than quietly dropped,
+which is how §3.6 and the code came to describe two different products in the first place (OI-31):
+
+- ☠️ ~~**"Degraded artifacts are cached apart: stand-ins 60 s (the 2026-08-27 lesson)"**~~ — **STRUCK
+  2026-09-14 by owner ruling OI-32. A STAND-IN IS NEVER CACHED AT ALL.** Artifacts carry
+  `is_standin`, and **both** tiers refuse one; the refusal is counted (`refused_standin`,
+  `l2_refused_standin`) rather than silent.
+
+  ⭐ **Why "apart for 60 s" was the wrong compromise, in C-06's own numbers.** Three stand-ins went
+  out and **two never healed**. A stand-in is by definition the lower-quality picture, so caching
+  one serves it to every member who asks for the next TTL — and the coalescer fans a single
+  stand-in out to every follower at once, so the 60 seconds is not a small blast radius, it is the
+  mechanism that maximises it. The cost of refusing is **one extra render**.
+
+  ⛔ **The refusal is at BOTH tiers and not only at the door.** L2 is reachable directly — the
+  determinism runner does exactly that — so a guard living only in the tier above it would hold
+  for every caller who came the expected way and for none of the ones that matter.
+
+  ⚠️ The **cached flow card** half of the struck clause is a different question and is still open:
+  that one IS a labelled fallback by design (04 §5), and it is delivered by the `/flow` handler, not
+  by this store.
+- **`clear()` empties the heap only**; the durable tier goes only on `clear(l2=True)`. Stopping is
+  never a delete against durable data (`feedback_kill_switch_never_a_delete`), and L2 is bounded by
+  its own LRU rather than by anybody's sweep.
 
 ### 3.7 Renderer pool (C-06, C-09, C-13)
 
@@ -283,6 +381,139 @@ then symbols merely containing the input, then name matches. `/flow` reads the `
 ETF or index underlying (`massive_processor.is_index_source`, then the liquid-ETF list) — C-14, on the
 V2 path only. Kill switch: `DISCORD_RENDER_V2_SYMBOLS_ENABLED`. The market clock, the freshness
 envelope, the STALE badge, per-dependency timeouts and breakers, and the cached flow card are 2.4b.
+
+📄 **What a member actually SEES when any of this is off — the badge, the stand-in label, the
+footer — is `04-visual-spec.md`.** One home for the copy, so a new surface cannot invent a fourth
+sentence for a state that already has one.
+
+### 3.8b Freshness semantics — a SESSION verdict, never a fixed age (owner ruling R-1, 2026-09-13)
+
+⛔⛔ **DO NOT RE-INTRODUCE AN AGE BUDGET OUTSIDE RTH-INTRADAY.** The first implementation of 2.4b used
+one and its own tests caught it: Friday's 16:00 close is the correct newest bar all weekend and at
+Monday's pre-open — 65 hours old and perfectly fresh — but a 26-hour budget called it stale. A badge
+that shows every weekend is a badge everyone learns to ignore, which costs more than it saves.
+
+The rule, in full:
+
+| Case | Rule | Why |
+|---|---|---|
+| Intraday (`1/5/15/30/60`) **during RTH** | **AGE**: stale when `age > 2 × the bar interval` | A bar really should arrive every interval; one interval for the forming bar, one of slack for provider lag. |
+| Everything else — daily/weekly/monthly at any time, and any timeframe in `pre`/`post`/`overnight`/`weekend`/`holiday` | **SESSION**: stale when the newest bar's ET date is **before** `expected_session_date(now)` | "Fresh" here means *the session we should already have*, which no fixed number expresses. |
+
+- `expected_session_date()` walks back over weekends and the **imported** NYSE closure list
+  (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` — never copied; a second table drifts the first time one is
+  refreshed). RTH/POST expect today; PRE and pre-04:00 overnight expect the previous trading day;
+  after 20:00 expects today; weekend/holiday expect the last trading day.
+- `budget_s()` returns **`None`** whenever the session rule applies. It does not invent a number —
+  a number nobody uses is a number two readers will disagree about. The envelope carries
+  `rule` (`"age"` / `"session"`) so the two can never be confused after the fact.
+- **Unknown vintage is `stale=None`, never `False`.** A caller that renders `None` as "fine" is the
+  bug this exists to prevent; the badge is absent, not reassuring.
+- **A future bar is not stale** (a provider clock ahead of ours) and keeps its negative `age_s`, so
+  the caller can log it rather than have it normalised away.
+- **Vintage, not wall clock**: the stamp is the data's `as_of`, so the same closed-market input
+  renders the same pixels (§3.10).
+
+Built in 2.4b (`api/services/discord_render/freshness.py`, `4984e6207`), 35 tests, 9/9 mutations red.
+⚠️ **2.4a did NOT ship this** — 2.4a was symbol resolution and the `/flow` ETF partition only.
+
+### 3.8c Provider adapters — the only place an upstream is spoken to (P2.1, 2026-09-13)
+
+One module per upstream under `api/services/discord_render/adapters/`, each exposing
+`fetch(request) -> Result`. **Timeouts, retries, breakers, fallback and the freshness stamp live
+here and nowhere else.** A command handler asks an adapter for data; it never holds a client, a
+timeout, or a retry loop of its own. Rail: `tests/test_discord_render_adapter_boundary.py`.
+
+| adapter | wraps | ceiling | attempts | breaker | vintage from |
+|---|---|---|---|---|---|
+| `bars` | `/api/bars` in-process | 8 s | 2, jittered | `bars` | the newest bar's `t` |
+| `quote` | `massive` ext snapshot | 1.5 s | 1 | `quote` | none — `stale` stays `None` (OI-22) |
+| `flow` | flow-worker HTTP → in-process | 10 s (connect 2 s) | 1 | `flow` | `window.end`, never `query_date` |
+| `renderer` | chart-renderer `/render` | **20 s** | 1 | `renderer` | carried through from the bars call |
+| `entity` | `symbols.resolve` | 0.6 s | 1 | `entity` | none — a verdict, not data |
+
+⛔⛔ **A DEPENDENCY TIMEOUT IS NOT A DEADLINE.** The effective ceiling is
+`min(the dependency's timeout, the JOB's remaining time)` — `Job.remaining_s()`, measured from
+`created_at` (the ack), not from when a worker picked the job up, because the queue wait is time the
+member has already spent. This exists because of a measured live defect (**OI-21**):
+`discord_chart_house.RENDER_TIMEOUT_S` is **60 s** over **two** attempts behind a **15 s** deadline,
+so the watchdog fires and the request runs on for another 105 seconds holding a worker.
+
+⛔ **A FAILURE IS A VALUE WITH A NAMED CLASS**, never an exception and never a bare `None`:
+`timeout · breaker_open · unreachable · upstream_error · empty · bad_shape · not_carried ·
+deadline`, plus `stale` and `cached`, which are **not** failures — a labelled stand-in is a delivery
+(S8), and counting it as a failure would hide a renderer outage inside a green success rate. C-08
+was one `except` turning four causes into one sentence that was wrong for three of them.
+
+⛔⛔ **`unreachable` AND `upstream_error` MUST NEVER MERGE AGAIN.** "We could not reach it" and "it
+answered with an error" are a different sentence to a member, a different next action for us, and —
+in the flow adapter — they decide whether the in-process fallback is attempted at all. A 5xx means
+flow-worker *answered*, and `web`'s own copy would very likely answer the same. `adapters/classes.py`
+maps `(upstream, reason) -> contract class`, total over the cross-product and raising on an unmapped
+pair, so a new reason fails the suite until its copy exists instead of rendering as "something went
+wrong on our side" forever.
+
+⭐ **AND AN EMPTY `/flow` TAPE IS AN ANSWER, NOT A FAILURE** — the C-08 mistake pointed the other
+way. A quiet session with no significant options flow is true and useful, the router already has the
+sentence for it, and classing it as a failure would put a correct answer in the failure counters and
+lose the window phrase that sentence needs. It comes back as `ok` with `contract_count == 0`. An
+empty **bars** answer is a failure (`no_bars`), because there is no chart to draw — the same
+observation, a different meaning, which is why the mapping is a pair and not a lookup on the reason.
+
+⛔ **A PYTHON THREAD CANNOT BE CANCELLED.** Every upstream here is sync and blocking, so a timeout
+means *we stop waiting*, not *it stops running*. Each dependency therefore gets its **own bounded
+pool** (`_call.POOL_SIZE`): a wedged upstream can consume its own threads and nothing else — that is
+C-02's lesson, where member jobs and the dashboard drained one shared pool of 64 — and
+`_call.abandoned_calls()` reports the count separately, because an abandoned call is not a failure
+and no success/failure ratio can show it.
+
+⛔ **THE FALLBACK IS CONDITIONAL AND EVERY CONDITION IS A REASON.** `/flow` falls back in-process
+only on a transport error or an open breaker, never on a timeout (the budget is already gone and the
+local leg is the slower of the two), never after the remote leg *answered* (asking a second source
+for a different answer to the same question is how two callers get two truths), and never with less
+than `LOCAL_MIN_S` left (a computation abandoned halfway still costs `web` the whole thread). A
+served fallback is a **degraded** delivery and carries why the first leg failed.
+
+⭐ **The handlers are wired through `adapters/bindings.py`**, which hands `produce_chart` callables
+with the shapes it already expects (`None` still means "did not work"), so the render function is
+unchanged and the pre-V2 path is untouched — the P2 ground rule. What the path gains anyway: every
+call bounded, breakered, and its `Result` kept on the job context, so the reason survives instead of
+being discarded at three separate layers.
+
+### 3.8d Shadow mode — `RENDER_V2_SHADOW=1` (P2.10, 2026-09-13)
+
+Set it with `DISCORD_RENDER_V2_ENABLED` **still unset**. The pre-V2 path serves the member exactly
+as today; alongside it, `api/services/discord_render/shadow.py` records the acknowledgement V2
+*would* have returned, as a `drender evt=shadow` line. The flip is then a decision made on
+production traffic rather than on a bench.
+
+⛔⛔ **IT COMPARES THE ACK, AND ONLY THE ACK.** Not the chart, not the delivery, not the queue.
+Running the V2 producer in shadow would mean a second render per request on the pod that has one
+event loop and one shared thread pool — that is C-02, caused deliberately, to measure something a
+bench already answers. What a bench *cannot* answer is the ack decision on real traffic: which
+symbols members actually type, and which of them V2 would refuse where the old path drew something.
+
+⛔⛔ **IT CANNOT DELIVER, BY CONSTRUCTION.** Nothing in the module names `app_id`, the interaction
+token, the runtime, the jobs store or `edit`, and a rail asserts that from its own parse tree rather
+than from a comment. It runs **after** the reply object exists, on a thread, inside its own 0.4 s
+budget, so it cannot delay, alter or fail the member's request. Past the budget it records `budget`
+and stops — a missing sample, never a slow ack.
+
+⛔ **AND A FUTURE NOBODY READS SWALLOWS EVERYTHING.** The route submits and never calls `.result()`,
+so an exception in the shadow reaches nobody: the member is safe, and a shadow failing on *every*
+interaction would leave no trace at all — the silent-failure shape this programme exists to close,
+re-created by the mechanism that protects the member. `run_safely` is the guard that reports it.
+⚰️ Found by a mutation that stayed green: narrowing the ROUTE's `except Exception` changed nothing,
+because the route never sees that exception.
+
+The number to watch through a session is **`divergence`**: V2 would have refused a symbol the old
+path went on to draw. `UNANSWERABLE` is deliberately not counted — the symbol check fails OPEN, so
+V2 would have let it through exactly as the old path did, and counting it would inflate the one
+number the flip decision rests on.
+
+⚠️ **Declared HERE and not in `docs/feature_flags.json` (OI-27):** the ledger's scanner only sees a
+gate whose name contains `ENABLED` or `DISABLE`, so the owner's literal is structurally undeclarable
+there. Renaming the flag to suit the tool would make the ledger green and the spec wrong.
 
 ### 3.9 Observability (C-12)
 

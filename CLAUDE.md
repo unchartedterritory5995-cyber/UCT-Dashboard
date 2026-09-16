@@ -1670,6 +1670,35 @@ timeout is never banked as permitted breakage, and provenance is `git show <sha>
 
 ## Worktree Directory
 
+### ⛔⛔ AGENT CONCURRENCY — MAXIMUM 3 AGENTS PLUS THE INTEGRATOR, ON THIS ACCOUNT
+
+> **At most THREE concurrent agents plus the integrating session. Every agent commits at every
+> green checkpoint and pushes its branch. The integrator runs the scoped gate on every agent
+> branch in its OWN session before accepting it — an agent's "done" without a gate run in the
+> integrator's session is not done.**
+
+Owner ruling, 2026-09-13, from two measured losses in one session of the discord-render programme:
+
+| What happened | Cost |
+|---|---|
+| Five concurrent Opus agents plus an integrator exceeded the **session rate limit** | Two lanes were killed mid-flight |
+| One of them had **committed nothing** | Its work existed only in a dead worktree and had to be salvaged and re-verified by hand |
+| The other had committed, but arrived carrying **5 failing tests it never saw** | It reported "done"; the integrator found the reds |
+
+⭐ **The three clauses are one rule, not three, and each covers a different half of the same
+failure.** The cap stops the limit being hit. *Commit-and-push at every checkpoint* means a lane
+killed at the limit loses a checkpoint's work, not a lane's. *The integrator gates it itself*
+means a lane that never ran its own suite cannot report green on the strength of having intended
+to — which is what "5 failing tests it never saw" actually was.
+
+⛔ **A lane's self-report is evidence, never a verdict.** The integrator re-runs the scoped suite
+on the branch, in its own session, and reads the totals line. This is the same rule as
+*"a test run without a totals line is not a run"*, one level up: **a gate run in a session you
+cannot see is a gate you did not run.**
+
+⚠️ It is a cap on CONCURRENCY, not on total agents — three at a time, as many waves as the work
+needs. Dispatching a fourth because "this one is small" is how five happened.
+
 ### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
 
 > **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
@@ -1713,6 +1742,36 @@ files**.
 **The evidence of an OOM sweep is that there is no evidence** - no traceback, no error, a
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
+
+### ⛔⛔ RESOURCE RULES — AT MOST **3** AGENTS ON THIS BOX, AND THE WHISPER JOB RUNS ALONE
+
+> **Owner ruling 2026-09-13, written from three separate self-inflicted failures in two days.**
+> Any deviation is stated in the next checkpoint, never hidden.
+
+- **Concurrency cap: at most 3 agents running at once, integrator included. Never more.**
+- **Before launching ANY agent, print free memory and the count of running agents, and REFUSE the
+  launch if the cap would be exceeded.** A cap nobody measures against is a preference.
+- **The STT / whisper job runs ALONE**, or beside at most ONE light agent (reading, ledger
+  writing) — never beside a test run, a scout, or a Batch collector.
+- `pytest` **scoped by named files only**; no `npm ci`; no full vitest; frontend tests chunked.
+- **Account-limit awareness:** track the reset time in `SESSION-STATE.md`. If the limit hits,
+  pause CLEANLY — commit and push every branch, bring SESSION-STATE current, record the reset
+  time — and resume at reset.
+
+⚰️ **THE EVIDENCE, all of it measured, none of it hypothetical:**
+
+| date | what was run at once | cost |
+|---|---|---|
+| 09-12 | three concurrent gates + an **unscoped** backend pytest | 11,854 MB RSS climbing; `app/node_modules` swept to **0 entries**, then the worktree's `.git` file destroyed — the tree stopped being a repository |
+| 09-12 | `--collect-only` alone, unscoped | **6.6 GB** — collection is where the memory goes, so `-k` does not help |
+| 09-13 | **13 agents + a 5-hour local whisper job** | the STT run was **killed for low memory**, and the same fan-out **burned the account limit**: 7 of 12 agents died mid-flight |
+
+⭐ **The 09-13 failure is the instructive one, because every individual rule was followed.** Each
+agent was told to scope its pytest; none of them ran anything reckless. What was never checked was
+the **aggregate** — thirteen well-behaved agents beside a job holding ~3 GB and four cores is still
+an OOM, and thirteen concurrent contexts is still an account limit. **Scoping each job does not
+bound the sum of the jobs.** The cap is on the sum, which is why it is a number and not a
+principle.
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
@@ -2288,6 +2347,21 @@ started". It was caught only because the log had no `Test Files` / `Tests` line 
 been trusted, a green gate would have been reported for a suite that never ran
 (`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
 
+⚰️⚰️ **SECOND SIGHTING, 2026-09-13 — recorded because this is NOT fixed and the shape
+inverted.** The six-shard gate on the stage-2 merge tip printed its own verdict:
+
+```
+GATE: 1 NEW failure(s) against the baseline — exit 1.
+GATE EXIT: 1
+[exited with code 0]
+```
+
+The background-task notification said **"completed (exit code 0)"**. The first sighting was
+*runner never ran, wrapper said 0*; this one is *gate ran and said **1**, wrapper still said 0*
+— so the wrapper's status is uninformative in **both** directions, not merely optimistic about
+startup. ⛔ **Nobody may treat this as a solved trap.** Read the manifest: the totals line, the
+file-count reconciliation, and the gate's own `GATE EXIT:` line. The task status is not a verdict.
+
 **Corollary — a CHUNKED run must be diffed against the full test-file list before its total is
 quoted.** The same gate was later split by directory to survive host memory pressure, and the chunk
 list covered 1,016 of 1,178 files — missing a known baseline row. A partial suite fails in the
@@ -2296,6 +2370,53 @@ flattering direction: fewer files run, fewer failures found. Count the files, no
 ```sh
 find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
 ```
+
+### ⛔⛔ Write a file with the line endings GIT ALREADY STORES — never "whatever was on disk" (Editing)
+
+> **Every repo file written from a script on this box is written with the endings of the blob git
+> holds for that path. For a new file that is LF. Gate: `python tools/check_repo_hygiene.py`.**
+
+Owner ruling **R-2**, 2026-09-13, after the same trap bit twice in one programme: a 2-line edit came
+back as a **918-line** diff, and a 7-line edit as a **1,199-line** one. Both times the edit was
+correct and unreviewable.
+
+**The mechanism, measured rather than assumed.** `core.autocrlf=true` on this box, and 7 of the
+9,135 tracked blobs were committed CRLF (`docs/plans/joystick/deferred.md` is **mixed** — 87 CRLF
+lines among LF ones). A Python round trip opened with `newline=""` faithfully preserves what is ON
+DISK, which for those paths is the opposite of what git stores.
+
+⚠️ **The trap is one-directional, and "never write CRLF" is the wrong lesson.** Writing CRLF over an
+LF-stored file is *cleaned on the way in*: `git diff` reports nothing at all and nothing wrong can
+reach a commit (measured on `docs/feature_flags.json` — numstat empty). The direction that destroys a
+diff is a **CRLF-stored or mixed blob flattened to LF**. So the rule is *match the stored blob*, not
+*avoid CRLF*.
+
+⭐ **The gate compares CR-stripped content, not a "style".** A bare CRLF ban would go red on
+`deferred.md` the moment somebody edited it *correctly* — and a check that fires on the right answer
+is muted within a week. A style comparison is not enough either: on a mixed file both sides answer
+"crlf" and a real flip slips through. `tools/check_repo_hygiene.py` reports a path only when the two
+sides are **identical once every CR is removed**, i.e. when endings are the *only* difference.
+`--staged` compares the index blob (what a commit would record, so it works as a pre-commit hook);
+the default mode compares the working file, which fires before `git add`. Rails:
+`tests/test_repo_hygiene.py` (11 quiet-cases beside the 4 firing ones, an exact-path allowlist check,
+and a non-vacuity case — the check walks CHANGED paths, so on a clean tree it inspects nothing and a
+broken one is indistinguishable from a working one). `--self-check` proves it can fail.
+
+⚠️ **AND `git show <sha>:<file>` IS NOT HOW YOU READ WHAT ENDINGS A BLOB STORES — use
+`git cat-file blob`.** Measured 2026-09-15: a helper that decided this by running
+`git show HEAD:<path>` from a Python subprocess and testing for a CRLF pair answered **LF** for five
+files `git cat-file blob` shows are **uniformly CRLF**. The commit was correct anyway — `autocrlf`
+supplied the CRLF at `git add` time and the diff stayed at 86/13 — but it was correct **by luck**,
+and the same helper on a CRLF-stored file it had to hand-write would have flattened it.
+⭐ This **narrows** the provenance rule rather than contradicting it: `git show <sha>:<file>` remains
+the right way to ask what a committed file **says**; it is not the way to ask what bytes end its
+lines. Cheap check: `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'\r'` against the
+file's line count — equal means uniformly CRLF, zero means LF, anything between is MIXED.
+
+⚰️ **And a related one, paid for in the same hour: `git checkout -- <file>` is not a restore.** Used
+to undo a one-line probe, it discarded an unrelated finished edit to the same file that had taken
+twenty minutes to write. Restore by writing back bytes you captured first and verifying the sha —
+`feedback_mutation_check_never_git_checkout`, which now has a second incident behind it.
 
 ### ⛔ Run the suite in its OWN tool call, before `git commit` — never in the same one (Testing)
 
@@ -2542,6 +2663,27 @@ restart is expensive.
 - **Anything on flow-worker's watch list → after-hours or weekend only.** A flow-worker
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
+
+⛔⛔ **NEVER `git push --no-verify`, AND NEVER `-n`.** It skips every hook, leaves
+no trace anywhere, and is the one path that looks exactly like the 2026-09-14
+stacked push that nobody could attribute. If a hook is wrong, fix the hook or use
+the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
+`logs/pre-push-guard-bypass.log` and is therefore reviewable. ⭐ Since 2026-09-14
+this is also belt-and-braces rather than the only line: the **`master deploy gate`**
+workflow serialises master pushes at GitHub (`concurrency: master-deploy`,
+`cancel-in-progress: false`) and Railway's **Wait for CI** holds the build until
+that run passes — a client hook asks every session to cooperate, and that does not.
+
+⛔⛔ **A PUSH IS NOT CLEAR UNTIL ITS WEB DEPLOY REACHES `SUCCESS`. Any session
+seeing a deploy in BUILDING/DEPLOYING state must wait, even if the queue looked
+clear when it started its gate.** Owner ruling 2026-09-14, from a second
+occurrence: `7705c2d3b` pushed 12:29:23 UTC on a green guard, `9e2b93805` pushed
+173 s later while it was still BUILDING, marking it REMOVED mid-flight — a request
+in flight died with a 500 after 93 s and `/api/health` served 502 for ~45 s. ⭐ The
+gap is a TIME gap, not a logic gap: `tools/pre_push_guard.py` reads the queue at
+the moment of the push and is correct at that moment, but a build takes 3–5
+minutes and a gate takes longer. *"The queue was clear when I started my gate"* is
+true and useless. The wait is on the DEPLOY, not on the check.
 
 ⛔⛔ **ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the
 next push.** Owner ruling 2026-09-13. Stacked pushes are what caused the 2026-09-12
@@ -4277,11 +4419,27 @@ or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist —
 recording on the account auto-posts (titled by its webinar name); add a skip rule in
 `_route` if private/internal recordings ever need excluding.**
 
-**🔴 YouTube privacy is per-show and defaults to UNLISTED** (`privacy_for_section`,
-2026-08-09). Only a section matching `DESK_PUBLIC_SHOWS` (default `sunday scans`)
-uploads **public**; every other show — **Live Trading Sessions above all, which are
-paywalled** — stays unlisted. This is the one call that decides whether a paid session
-becomes a searchable video on the channel, so:
+**🔴 EVERY SHOW UPLOADS PUBLIC — owner decision 2026-08-19, reaffirmed 2026-09-13.**
+`DESK_PUBLIC_SHOWS=*` is live on `web`, so `privacy_for_section` returns `public` for
+every routed section: Live Trading Sessions, Workshops, Evening Updates, Thoughts on
+the Market, Post-Market Recaps and Sunday Scans alike. **The flag and its ledger entry
+govern, not this paragraph** — read `docs/feature_flags.json` → `DESK_PUBLIC_SHOWS`,
+whose `owner_decision` field carries the decision and its date.
+
+⚰️ **THIS SECTION SAID THE OPPOSITE UNTIL 2026-09-13**, and the cost of that is the
+reason the ledger entry now exists. It read *"only Sunday Scans uploads public; every
+other show — Live Trading Sessions above all, which are paywalled — stays unlisted"*,
+which had been false since 2026-08-19. An agent found the live wildcard, read this
+paragraph, and correctly escalated it as a paid-content leak; 27 videos were set
+unlisted and then restored when the owner confirmed the decision was his. ⭐ **Nothing
+was wrong with the escalation** — the doc asserted a rule, the world disagreed, and
+there was no record anywhere saying which was intended. **That is what
+`owner_decision` in the ledger is for, and why a wildcard now costs one dated
+sentence.**
+
+⛔ **The rule below is the MECHANISM, which is unchanged and still worth reading —**
+`_PUBLIC_SHOWS_DEFAULT` remains `sunday scans`, so an *unset* variable still fails
+conservative, and a blank value still makes nothing public:
 - It keys off the **routed SECTION**, not the hand-typed Zoom topic — the section is
   the canonical name `_RULES` already pins, so casing/pluralisation/double-space
   variants collapse to one answer. Keying it off the raw name would put a second
@@ -4294,6 +4452,20 @@ becomes a searchable video on the channel, so:
   it lands and defaults to unlisted. Mutation-checked three ways (guard deleted · call
   site stops passing privacy · client ignores the value it was handed) — the middle one
   is the "routing computed but never applied" failure this repo keeps rediscovering.
+- ⛔⛔ **A DOC THAT STATES A RULE NO CHECK ENFORCES IS A RULE THAT LASTS UNTIL SOMEBODY
+  CHANGES A VARIABLE.** For 25 days the live value and this file disagreed and nothing
+  could tell: the flag carries no `ENABLED`/`DISABLE` marker, so `is_gate()` is false for
+  it and the flag-ledger rail never asked about it at all. **Keep this section and the
+  two checks in step with each other:**
+  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared in
+  `docs/feature_flags.json` with `exposure`/`default`/`values`; a wildcard is refused
+  **unless** the entry carries a dated `owner_decision`; non-wildcard values must name
+  sections `_RULES`/`_HOST_AWARE` can actually produce; the declared default must equal
+  `_PUBLIC_SHOWS_DEFAULT`) and
+  **`python tools/flag_ledger_audit.py --visibility`** (the live half, and the only half
+  that can see this class at all — the wildcard was never in the repo; only the running
+  service ever had it. It applies the same authorised-wildcard rule to the live value).
+  ⭐ The rail records intent; it does not veto it. A wildcard costs one dated sentence.
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +

@@ -386,7 +386,63 @@ OPEN_PREVIEW_JS = """async () => {
 }"""
 
 
-def prepare_family(page, family, note_id, stamp, log):
+# ==============================================================================
+# the hero door has no control until the note has a hero
+# ==============================================================================
+# `NoteEditorPage.jsx:2188` renders `<HeroImagePicker>` inside
+# `note.heroImageUrl ? (...) : null`, and `HeroImagePicker` is the ONLY client
+# caller of `POST /api/j2/notes/{id}/hero`. A note with no hero therefore shows
+# no picker at all -- which is why all six `hero` cells came back INCONCLUSIVE
+# saying "the hero picker is not on the page ... the seed step must have failed"
+# about a seed step that did not exist.
+#
+# HERO_PICKER is a COPY of the selector `window_check._fire_hero_door` queries,
+# kept here only so the SETUP can wait for the member's control to render.
+# `_hero_picker_drift` asks the door's own source whether the two still agree,
+# because a hand-typed copy beside its source is the drift this programme keeps
+# paying for.
+HERO_PICKER = 'input[type="file"][data-uct-hero-input]'
+
+HERO_READ_JS = """async (id) => {
+  // A READ, not a door -- the same posture as SECOND_WRITER_REV_JS. No surface
+  // reports `heroImageUrl`, so the server is asked directly. An unreadable
+  // answer is reported as unreadable: a layer that could not be READ is not a
+  // layer that is EMPTY, and this wave has already scored one of those as a
+  // finding.
+  const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+  if (!r.ok) return {readFailed: 'HTTP ' + r.status};
+  const t = await r.text();
+  try { const j = JSON.parse(t); return {hero: (j.note || {}).heroImageUrl || null} }
+  catch { return {readFailed: 'not JSON: ' + t.slice(0, 40)} }
+}"""
+
+
+def _hero_picker_drift(rig):
+    """Does `HERO_PICKER` still name the control the DOOR actually queries?
+
+    Returns the reason to refuse, or None when the two agree. A source that
+    cannot be read is a reason too -- an unreadable source is not a matching one,
+    and an empty result is a failed invocation until proven otherwise.
+    """
+    import inspect
+    fn = getattr(rig, "_fire_hero_door", None)
+    if fn is None:
+        return ("the rig module exposes no `_fire_hero_door` -- there is no hero door "
+                "for this setup to prepare")
+    try:
+        src = inspect.getsource(fn)
+    except (OSError, TypeError) as e:  # noqa: BLE001
+        return (f"`window_check._fire_hero_door`'s source could not be read "
+                f"({type(e).__name__}), so the setup cannot prove it waits for the same "
+                f"control the door will query")
+    if HERO_PICKER not in src:
+        return (f"`HERO_PICKER` ({HERO_PICKER}) no longer appears in "
+                f"`window_check._fire_hero_door` -- the setup and the door disagree about "
+                f"which control the member uses, so waiting here would prove nothing")
+    return None
+
+
+def prepare_family(page, family, note_id, stamp, log, rig=None, base=""):
     """Whatever a family's door needs IN PLACE before the offline half starts.
 
     SETUP IS ONLINE AND IS NOT THE DOOR. Attaching a PDF needs the network, so it
@@ -394,6 +450,79 @@ def prepare_family(page, family, note_id, stamp, log):
     The DOOR is the selection and the Save-excerpt click, both driven from the
     member's own controls once the run is back online.
     """
+    if family == "hero":
+        # ======================================================================
+        # THIS IS SETUP, NOT THE DOOR. The sentence directly above -- *"SETUP IS
+        # ONLINE AND IS NOT THE DOOR"* -- is this step's whole charter, and the
+        # owner ruled on it in those words on 2026-09-14: *"Hero seed via the API
+        # -- approved; 'setup is online and is not the door' covers it."*
+        #
+        # THE POST BELOW IS NOT A SCRIPTED STAND-IN FOR A MEMBER CONTROL, and
+        # nobody may later read it as one. It is the excerpt family's PDF upload
+        # wearing a different mime type: it happens ONLINE, BEFORE the offline
+        # window opens, and it exists only to make the member's own control
+        # EXIST. The DOOR is still `rig._fire_hero_door(page)`, which drives the
+        # real `input[data-uct-hero-input]`, and it still has no fallback: a door
+        # this rig cannot open produces a row that says so.
+        # ======================================================================
+        seed = getattr(rig, "_hero_seed", None)
+        if seed is None:
+            return {"ok": False, "rig_limitation": True,
+                    "why": ("the rig module exposes no `_hero_seed`, so the note cannot be "
+                            "given the hero its picker renders for")}
+        drift = _hero_picker_drift(rig)
+        if drift:
+            return {"ok": False, "rig_limitation": True, "why": drift}
+        # ONE IMAGE, ONE AUTHORITY. `window_check._hero_seed` already POSTs a 1x1
+        # PNG from the page with `credentials:'include'` -- measured
+        # byte-identical to `window_check._HERO_PNG` (69 bytes, equal). Restating
+        # either the image or the request here would put a second authority on
+        # both, so the rig's own seeder is called rather than a copy of it.
+        seeded = seed(page, base, note_id)
+        log(f"      hero seed (SETUP, not the door): {seeded}")
+        if not (isinstance(seeded, dict) and seeded.get("ok")):
+            return {"ok": False, "rig_limitation": True,
+                    "why": f"the hero seed POST did not succeed ({seeded})"}
+
+        # AN UNVERIFIED SEED IS THE SAME SIX INCONCLUSIVE CELLS WITH A
+        # BETTER-LOOKING LOG. `_hero_seed` reports its own request's status;
+        # only the NOTE can say the note now HAS a hero.
+        got = page.evaluate(HERO_READ_JS, note_id)
+        log(f"      hero after the seed: {got}")
+        if not isinstance(got, dict) or got.get("readFailed"):
+            return {"ok": False, "rig_limitation": True,
+                    "why": (f"the note could not be re-read to confirm the hero seed "
+                            f"({(got or {}).get('readFailed')}) -- unread is not unset")}
+        if not got.get("hero"):
+            return {"ok": False, "rig_limitation": True,
+                    "why": ("the hero seed reported success but the note still carries no "
+                            "`heroImageUrl` -- the picker cannot render and the door cannot "
+                            "be driven")}
+
+        # The editor mounted BEFORE the note had a hero, so the picker is not on
+        # the page yet however well the seed went. Re-open the note and WAIT for
+        # the member's own control to appear. Poll, do not sleep a fixed span: a
+        # page still loading would hand the door an absent picker, and the door
+        # would blame the seed for it -- the exact misleading reason this step
+        # exists to remove.
+        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+        picker, editor = None, None
+        for _ in range(12):
+            page.wait_for_timeout(2000)
+            picker = page.query_selector(HERO_PICKER)
+            editor = page.query_selector(".ProseMirror")
+            if picker is not None and editor is not None:
+                break
+        log(f"      after re-opening the note: picker={picker is not None} "
+            f"editor={editor is not None}")
+        if picker is None:
+            return {"ok": False, "rig_limitation": True,
+                    "why": (f"the note carries a hero (`{str(got.get('hero'))[:60]}`) but "
+                            f"`{HERO_PICKER}` never rendered after re-opening the editor. "
+                            f"This is NOT a failed seed -- the server agrees the note has "
+                            f"one (editor mounted: {editor is not None})")}
+        return {"ok": True, "hero_seeded": got.get("hero")}
+
     if family != "append_document_excerpt":
         return {"ok": True}
     # ⛔⛔ A REAL PDF, NOT A SYNTHETIC ONE. Owner ruling 2026-09-13.
@@ -448,6 +577,37 @@ def prepare_family(page, family, note_id, stamp, log):
 # while the run was online. The door is then one click away the instant the
 # transport comes back.
 FORCE_NAV = {"on": False, "path": "/charts"}
+
+# ⛔⛔ THE CELL THAT DECIDES — navigation with NO door at all.
+#
+# Every RED so far has changed TWO things at once: it left the note AND fired an
+# append door. Four reproductions of a confounded pair is still a confounded
+# pair. This removes the door entirely: queue an offline edit, leave the note,
+# fire NOTHING, come back, reconnect, drain.
+#
+# ⭐ If the member's words are gone with no door in the picture, the finding is
+# not about append doors at all — it is that a remount with queued work
+# overwrites the dirty record and deletes its intent, on the ordinary navigation
+# path every member takes.
+NO_DOOR = {"on": False, "path": "/charts"}
+
+# ⛔⛔ THE CELL THAT ISOLATES THE VARIABLE — SECOND-WRITER-WHILE-AWAY.
+#
+# navigate-no-door came back GREEN: leaving the note and returning, with work
+# queued and NO door fired, does not cost the member their words. So navigation
+# alone is safe and the RED cells differ in something else.
+#
+# ⭐ The remaining difference is whether THE SERVER'S COPY CHANGED while the
+# member was away. This cell changes exactly that and nothing else: same queue,
+# same route away, same return, same release — but while the first context is
+# away and offline, a SECOND browser context signed in as the same account moves
+# note N's folder through the member's own door.
+#
+# ⛔ It must be a second CONTEXT, not a second tab. Measured 2026-09-13 against a
+# throwaway browser on a temp profile: two CDP browser contexts see NOTHING of
+# each other's localStorage or IndexedDB. A second tab in the same context shares
+# the durable copy and the Web Lock, which is a different experiment entirely.
+SECOND_WRITER = {"on": False, "path": "/charts", "door": "folder"}
 SPA_RETURN = {"on": False}
 
 WARM_ROUTES = {
@@ -484,19 +644,18 @@ def warm_route(page, family, base, log):
 
 
 def select_with_the_pointer(page, log):
-    """Drag a REAL selection across a rendered pdf.js text span, then click the
-    popover that selection creates.
+    """Make a REAL pointer selection across a rendered pdf.js text span.
 
-    ⛔⛔ NOT A SCRIPTED RANGE. Owner ruling 2026-09-13: *"a real pointer selection
-    over a rendered range... no synthetic selection, no scripted fetch."* And the
-    scripted version did not work anyway — `document.createRange()` +
-    `addRange()` left `sel.toString()` empty and produced no popover, so the
-    first attempt failed one step later than the fixture did and for a different
-    reason. A mouse drag is both the required evidence AND the thing that works.
+    ⛔⛔ NOT A SCRIPTED RANGE. Owner ruling: *"a real pointer selection over a
+    rendered range... no synthetic selection, no scripted fetch."*
 
-    ⛔ It picks a span by MEASURED GEOMETRY, not by index: pdf.js emits spans of
-    wildly different widths (single glyphs among whole lines), and dragging
-    across a 3px span selects nothing while looking like it did.
+    ⚰️ A drag and a double-click both left `getSelection()` EMPTY while the span
+    under the cursor reported `user-select: text` and `pointer-events: auto`. So
+    this tries the gestures in order of how much a real hand does, and — the part
+    that matters — **reports the selection's INTERNALS after each one**
+    (`rangeCount`, `isCollapsed`, the anchor and focus nodes) rather than only
+    `toString()`. "Empty string" is one observation with several causes: no
+    range at all, a collapsed caret, or a range anchored somewhere unexpected.
     """
     spans = page.query_selector_all(".textLayer span")
     best, best_box = None, None
@@ -517,68 +676,57 @@ def select_with_the_pointer(page, log):
                 "why": f"no pdf.js text span wide enough to drag across "
                        f"({len(spans)} span(s) rendered)"}
 
-    text = (best.inner_text() or "").strip()
-    y = best_box["y"] + best_box["height"] / 2
-    x0 = best_box["x"] + 2
-    x1 = best_box["x"] + best_box["width"] - 2
     best.scroll_into_view_if_needed()
     page.wait_for_timeout(400)
-    box = best.bounding_box() or best_box          # re-read: scrolling moved it
+    box = best.bounding_box() or best_box
     y = box["y"] + box["height"] / 2
     x0, x1 = box["x"] + 2, box["x"] + box["width"] - 2
 
-    # ⛔ WHAT IS ACTUALLY UNDER THE CURSOR? A drag that starts on an overlay
-    # never reaches the text layer, and "the selection was empty" cannot tell
-    # those apart. pdf.js stacks a canvas, a text layer and a highlight overlay
-    # in the same box.
-    at = page.evaluate(
-        """([x, y]) => {
-          const el = document.elementFromPoint(x, y);
-          if (!el) return {none: true};
-          const cs = getComputedStyle(el);
-          return {tag: el.tagName, cls: (el.className || '').toString().slice(0, 40),
-                  userSelect: cs.userSelect, pointerEvents: cs.pointerEvents,
-                  parentCls: (el.parentElement && el.parentElement.className || '').toString().slice(0, 40),
-                  txt: (el.textContent || '').slice(0, 30)};
-        }""", [x0, y])
-    log(f"      under the cursor at the drag start: {at}")
+    probe = """() => {
+      const s = window.getSelection();
+      const n = (x) => !x ? null : (x.nodeType === 3 ? '#text(' + (x.data||'').slice(0,18) + ')'
+                                                     : x.nodeName);
+      return {text: s ? s.toString() : null,
+              ranges: s ? s.rangeCount : -1,
+              collapsed: s ? s.isCollapsed : null,
+              anchor: n(s && s.anchorNode), focus: n(s && s.focusNode),
+              type: s ? s.type : null};
+    }"""
 
-    sel_of = lambda: page.evaluate(
-        "() => (window.getSelection() || {toString: () => ''}).toString()")
+    def attempt(name, fn):
+        page.evaluate("() => window.getSelection() && window.getSelection().removeAllRanges()")
+        page.wait_for_timeout(200)
+        fn()
+        page.wait_for_timeout(700)
+        st = page.evaluate(probe)
+        log(f"      selection after {name}: {st}")
+        return st
 
-    # ⛔ A DOUBLE-CLICK IS A REAL POINTER SELECTION, and a more reliable one than
-    # a synthetic-speed drag. Chrome decides a drag is a selection from the
-    # timing and granularity of the moves it receives; CDP delivers them far
-    # faster than a hand does, and a 598px sweep in twelve instant steps left
-    # `getSelection()` empty even though the span under the cursor reported
-    # `user-select: text` and `pointer-events: auto`. Word-select first, then a
-    # SLOW drag to widen it — both are the member's own pointer, which is the
-    # part the ruling is about.
-    page.mouse.move(x0 + 20, y)
-    page.wait_for_timeout(120)
-    page.mouse.dblclick(x0 + 20, y)
-    page.wait_for_timeout(600)
-    got = sel_of()
-    log(f"      after double-click: {got[:40]!r}")
+    # ⭐ TRIPLE-CLICK FIRST. It is the gesture a person uses to take a whole line,
+    # and Chromium implements it in the browser rather than leaving it to the
+    # page — so it survives synthetic input where a drag's move stream does not.
+    st = attempt("triple-click", lambda: page.mouse.click(x0 + 24, y, click_count=3))
+    if not (st.get("text") or "").strip():
+        st = attempt("double-click", lambda: page.mouse.dblclick(x0 + 24, y))
+    if not (st.get("text") or "").strip():
+        def slow_drag():
+            page.mouse.move(x0, y)
+            page.mouse.down()
+            for frac in (0.2, 0.4, 0.6, 0.8, 1.0):
+                page.mouse.move(x0 + (x1 - x0) * frac, y, steps=3)
+                page.wait_for_timeout(140)
+            page.mouse.up()
+        st = attempt("slow drag", slow_drag)
 
-    if not (got or "").strip():
-        page.mouse.move(x0, y)
-        page.wait_for_timeout(150)
-        page.mouse.down()
-        page.wait_for_timeout(150)
-        for frac in (0.25, 0.5, 0.75, 1.0):
-            page.mouse.move(x0 + (x1 - x0) * frac, y, steps=4)
-            page.wait_for_timeout(120)
-        page.mouse.up()
-        page.wait_for_timeout(900)
-        got = sel_of()
-        log(f"      after a slow drag: {got[:40]!r}")
-    log(f"      pointer selection: {got[:60]!r} over {text[:40]!r}")
-    if not (got or "").strip():
+    got = (st.get("text") or "").strip()
+    if not got:
         return {"ok": False, "rig_limitation": True,
-                "why": f"a real pointer drag across a {int(box['width'])}x{int(box['height'])}px "
-                       f"span selected nothing — the rig cannot make a selection this "
-                       f"renderer accepts"}
+                "why": (f"three real pointer gestures (triple-click, double-click, slow drag) "
+                        f"across a {int(box['width'])}x{int(box['height'])}px span produced no "
+                        f"selection. Last reading: ranges={st.get('ranges')} "
+                        f"collapsed={st.get('collapsed')} anchor={st.get('anchor')} "
+                        f"focus={st.get('focus')}. CDP-synthesised pointer input does not "
+                        f"produce a text selection in this renderer")}
 
     save = None
     for b in page.query_selector_all("button"):
@@ -593,7 +741,7 @@ def select_with_the_pointer(page, log):
                 "why": f"the selection took ({got[:40]!r}) but produced no "
                        f'"Save excerpt" popover'}
     save.click()
-    return {"ok": True, "via": f"pointer drag then Save excerpt", "selected": got[:60]}
+    return {"ok": True, "via": "pointer selection then Save excerpt", "selected": got[:60]}
 
 
 def drive_append(page, family, base, log):
@@ -660,6 +808,23 @@ RIG_TASKS = ("UCT-WaveQ1-Observe", "UCT-WaveQ1-Canary", "UCT Wave Q1 Window Chec
 WINDOW_MINUTES = 60
 
 
+# ⛔⛔ A TASK THAT *JUST STARTED* CAN STILL READ `Ready`.
+#
+# ⚰️ Near miss, 2026-09-14 02:00. The sampler fired at 02:00:01 and this guard
+# said CLEAR at 02:00:24 - a 24-second margin. It was right that time (the run
+# finished in ~20s and its row landed), but it was right by luck: Windows sets
+# `State=Running` a moment AFTER the trigger, so a poll inside that gap sees
+# `Ready` for a task that is about to take the profile. That is the same race
+# that cost the 10:00 observation row, surviving the fix that was supposed to
+# close it - the `Running` check only catches a task already visibly running.
+#
+# ⭐ So the clock is used as well as the state: a Q1 task that STARTED within
+# the cooldown is treated as still holding the profile, whatever the state says.
+# Cheap, conservative, and it fails in the safe direction - the cost of waiting
+# three minutes is nothing; the cost of being wrong is a hole in the K window.
+JUST_RAN_COOLDOWN_SECONDS = 180
+
+
 def rig_window_refusal(now=None, query=None):
     """The reason to refuse, or None when the window is clear.
 
@@ -677,7 +842,7 @@ def rig_window_refusal(now=None, query=None):
                 "Get-ScheduledTask | Where-Object { $_.TaskName -match 'WaveQ1|Wave Q1' } | "
                 "ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
                 "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime; "
-                "state=[string]$_.State} } | ConvertTo-Json"
+                "last=$i.LastRunTime; state=[string]$_.State} } | ConvertTo-Json"
             )
             out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                                  capture_output=True, text=True, encoding="utf-8",
@@ -711,6 +876,30 @@ def rig_window_refusal(now=None, query=None):
         #
         # ⭐ "Due soon" and "happening now" are different facts, and the second
         # one is the dangerous one.
+        started = row.get("last")
+        if started:
+            txt_s = str(started)
+            stamp_s = None
+            if txt_s.startswith("/Date("):
+                try:
+                    stamp_s = datetime.datetime.fromtimestamp(
+                        int(txt_s[6:].split(")")[0].split("+")[0]) / 1000)
+                except (ValueError, IndexError):
+                    stamp_s = None
+            else:
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%m/%d/%Y %I:%M:%S %p", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        stamp_s = datetime.datetime.strptime(txt_s.split(".")[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+            if stamp_s is not None:
+                since = (now - stamp_s).total_seconds()
+                if 0 <= since < JUST_RAN_COOLDOWN_SECONDS:
+                    return (name + " STARTED " + str(int(since)) + "s ago and may still hold the "
+                            "one signed-in profile. A task that just started can still read "
+                            "`Ready`, so the state alone is not enough. Wait "
+                            + str(int(JUST_RAN_COOLDOWN_SECONDS - since)) + "s.")
         if str(row.get("state") or "").strip().lower() == "running":
             return (name + " is RUNNING RIGHT NOW and holds the one signed-in profile. "
                     "Wait for it to finish — taking the profile from it loses that "
@@ -939,7 +1128,93 @@ def _baseline_in(body: str):
     return m.group(2) if m.group(2) is not None else None
 
 
+rig_ref = {}
+
+SECOND_WRITER_ME_JS = """async () => {
+  const r = await fetch('/api/auth/me', {credentials:'include'});
+  const ct = r.headers.get('content-type') || '';
+  // ⛔ `ok` IS NOT PROOF: this app serves an SPA catch-all, so a wrong path comes
+  // back 200 text/html. Only JSON counts as an answer.
+  return {status: r.status, json: ct.includes('application/json')};
+}"""
+
+SECOND_WRITER_REV_JS = """async (id) => {
+  // A READ, not a door. The rule against scripted fetches governs how the
+  // PRODUCT is driven; the door below is the member's own control. This only
+  // asks the server what revision it now holds, which no surface reports.
+  const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+  if (!r.ok) return null;
+  const j = await r.json().catch(() => null);
+  return j && j.note ? j.note.updatedAt : null;
+}"""
+
+
+def second_writer_door(page, base, note_id, log, door="folder"):
+    """A SECOND context, signed in as the same rig account, moves note N's folder
+    while the first context is away and offline.
+
+    ⛔⛔ EVERY FAILURE HERE IS INCONCLUSIVE, NEVER GREEN. A second writer that
+    wrote nothing leaves the cell with no variable at all, and the run would then
+    measure the navigate-no-door case a second time and report it as this one —
+    a fixture that cannot distinguish is not a rail. So the revision is read
+    before and after, and an unmoved revision refuses the cell.
+
+    ⛔ The session cookie is carried across programmatically and is never printed,
+    logged, or written to the table. It is the rig identity, which is the only
+    identity this programme is allowed to drive.
+    """
+    browser = page.context.browser
+    if browser is None:
+        return {"ok": False, "why": "no Browser handle behind this context - cannot open a second writer"}
+    cookies = page.context.cookies()
+    if not cookies:
+        return {"ok": False, "why": "the rig context carried no cookies - a signed-out second writer changes nothing"}
+    ctx2 = browser.new_context()
+    try:
+        ctx2.add_cookies(cookies)
+        p2 = ctx2.new_page()
+        p2.goto(base + "/journal/notebook?note=" + note_id, wait_until="domcontentloaded")
+        me = p2.evaluate(SECOND_WRITER_ME_JS)
+        if not (isinstance(me, dict) and me.get("status") == 200 and me.get("json")):
+            return {"ok": False,
+                    "why": ("the second context is NOT signed in (/api/auth/me " + str(me) + ") - "
+                            "it would have changed nothing and the cell would have read GREEN "
+                            "for the wrong reason")}
+        p2.wait_for_timeout(6000)
+        before = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
+        if door == "folder":
+            res = p2.evaluate(rig_ref["rig"].REAL_DOOR_JS, {"door": "folder", "value": None})
+        else:
+            # \u26d4 THE APPEND DOOR LIVES ON /charts AND TARGETS "Current note",
+            # which resolves from localStorage 'uct.jw.lastNote' - written by the
+            # EDITOR when the note is opened. Two contexts share no localStorage,
+            # so opening N above is what makes "Current note" mean N here. Without
+            # it the chooser offers no such option and the cell would fail for a
+            # reason that has nothing to do with the product.
+            p2.goto(base + "/charts", wait_until="domcontentloaded")
+            p2.wait_for_timeout(7000)
+            res = drive_append(p2, door, base, log)
+        log("      second writer door (" + door + "): " + str(res))
+        if not (isinstance(res, dict) and res.get("ok")):
+            return {"ok": False,
+                    "why": "the second context could not open the folder door: " + str((res or {}).get("why", res))}
+        p2.wait_for_timeout(6000)
+        after = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
+        if not after or after == before:
+            return {"ok": False,
+                    "why": ("the second writer fired the folder door but the server's revision did "
+                            "not move (" + str(before) + " -> " + str(after) + ") - this cell has no variable")}
+        return {"ok": True, "via": "SECOND CONTEXT - folder door (member's own control)",
+                "server_before": before, "server_after": after}
+    finally:
+        try:
+            ctx2.close()
+        except Exception:  # noqa: BLE001
+            log("      (the second context would not close cleanly)")
+
+
 def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
+    rig_ref["rig"] = rig
     from_cell = time.time()
     offline = rig._offliner(cdp)
     sentence = f"{SENTINEL} {family} {ordering.split(' (')[0]} {stamp} the member's offline words"
@@ -1026,7 +1301,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         page.wait_for_timeout(5000)
 
         # -- 2b. anything this family's door needs in place, while ONLINE --
-        prep = prepare_family(page, family, note_id, stamp, log)
+        prep = prepare_family(page, family, note_id, stamp, log, rig=rig, base=base)
         if not prep.get("ok"):
             return {"verdict": "INCONCLUSIVE",
                     "why": f"the `{family}` door could not be set up: {prep.get('why')}"}
@@ -1109,9 +1384,23 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         landed_before = [p for p in posts
                          if p.get("carries_sentence") and isinstance(p.get("status"), int)
                          and 200 <= p["status"] < 300]
-        offline(False)
+        # ⛔ THE ORDER IS THE EXPERIMENT. Every other cell reconnects here and
+        # then fires its door. Second-writer-while-away must stay OFFLINE while
+        # the other device writes — that is what "while away" means — and
+        # reconnects only after returning to the note, exactly as ruled:
+        # queue offline · navigate away · second writer moves the server ·
+        # return · reconnect · drain.
+        if not SECOND_WRITER["on"]:
+            offline(False)
         before_door = len(landed_before)
-        if family in METADATA:
+        if SECOND_WRITER["on"]:
+            res = second_writer_door(page, base, note_id, log,
+                                     door=SECOND_WRITER["door"])
+        elif NO_DOOR["on"]:
+            # ⛔ NOTHING IS FIRED. The navigation already happened above; this
+            # cell's whole content is the absence of a door.
+            res = {"ok": True, "via": "NO DOOR — navigation only"}
+        elif family in METADATA:
             if family == "hero":
                 res = rig._fire_hero_door(page)
             else:
@@ -1120,6 +1409,11 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         else:
             res = drive_append(page, family, base, log)
         log(f"      door: {res}")
+        if SECOND_WRITER["on"] and isinstance(res, dict) and res.get("ok"):
+            # the server has moved; the member's transport comes back, and only
+            # THEN do they navigate back to the note
+            offline(False)
+            log("      reconnected (server has moved; now the member returns)")
 
         if not (isinstance(res, dict) and res.get("ok")):
             why = (res or {}).get("why", res)
@@ -1130,7 +1424,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         page.wait_for_timeout(5000)
 
         # For an append family the row only counts if its OWN endpoint was hit.
-        if family in APPEND:
+        if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
             hit = [p for p in posts if ENDPOINT[family] in p["u"]]
             if not hit:
                 return {"verdict": "INCONCLUSIVE",
@@ -1163,26 +1457,94 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # the server; an SPA route change does not. `--spa-return` changes only
         # the second of those, so a colour change between the two runs names the
         # document load and nothing else.
-        if SPA_RETURN["on"]:
-            back = page.evaluate(SPA_NAV_JS, {"path": f"/journal/notebook?note={note_id}"})
-            log(f"      SPA return (no document load): {back}")
+        # ⛔⛔ ONLY RETURN IF WE LEFT. Caught before this ran, 2026-09-13:
+        # this navigation was UNCONDITIONAL, so the excerpt cell — whose whole
+        # purpose is to fire an append door WITHOUT leaving the note — would have
+        # been remounted anyway, by the instrument. It would have gone RED for
+        # the instrument's reason, and the reading would have been "both RED, so
+        # the mechanism is wider than unmount": a false widening of a real
+        # finding, produced by the tool that was measuring it.
+        #
+        # ⭐ THE TELL: a step that changes the surface must ask whether IT changed
+        # the surface. `family in WARM_ROUTES` is the same predicate that decided
+        # to leave, so the two cannot disagree.
+        navigated_away = family in WARM_ROUTES
+        if navigated_away:
+            if SPA_RETURN["on"]:
+                back = page.evaluate(SPA_NAV_JS, {"path": f"/journal/notebook?note={note_id}"})
+                log(f"      SPA return (no document load): {back}")
+            else:
+                page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+            page.wait_for_timeout(6000)
         else:
-            page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
-        page.wait_for_timeout(6000)
-        drained, waited = False, 0
-        for _ in range(12):
+            log("      stayed on the note — no return navigation (this is the variable)")
+            page.wait_for_timeout(2000)
+
+        # ⛔⛔ THE EDITOR OWNS ITS OWN NOTE, so the drain SKIPS it (`excludeNoteId`).
+        # Measured 2026-09-13: after returning to the note, nothing was sent for
+        # 120s — the entry was not stuck, it was simply not the drain's to send,
+        # and the editor does not re-save content it did not change. Sitting on
+        # the note is therefore a state in which queued words never leave.
+        #
+        # ⭐ So the cell does what a member does next: it leaves the note. That
+        # releases the entry to the drain WITHOUT firing any door, which is the
+        # only way this experiment can reach the question it is asking.
+        # ⛔ RECONNECT ONLY NOW, and only for this cell. The member came back to a
+        # note whose server copy moved while they were away, and only then did the
+        # transport return.
+        # ⛔⛔ THE EDITOR OWNS ITS OWN NOTE, so the drain SKIPS it (`excludeNoteId`)
+        # and sitting on the note is a state in which queued words never leave.
+        # Both of these cells therefore do what a member does next — leave —
+        # which releases the entry WITHOUT firing any door in this context.
+        # ⭐ Identical in both cells, so it cannot be the difference between them.
+        if NO_DOOR["on"] or SECOND_WRITER["on"]:
+            page.goto(f"{base}/journal/notebook", wait_until="domcontentloaded")
             page.wait_for_timeout(5000)
-            waited += 5
+            log("      released the note (editor closed) so the drain may take the entry")
+        # ⛔ WATCH THE STORE, NOT JUST THE CLOCK. "The outbox emptied" has two
+        # completely different causes and the same appearance:
+        #   SENT       the entry went out and the server took the words
+        #   SUPERSEDED the drain DELETED it, because a save this browser landed
+        #              later — a TIMESTAMP comparison that never asks whether
+        #              that save contains these words (`outboxDrain.js`, the
+        #              `isSupersededBaseline` branch)
+        # Polling the record's `dirty`/`baseUpdatedAt` alongside the queue catches
+        # the transition in the act, so the cell can NAME which one happened.
+        drained, waited = False, 0
+        trail = []
+        for _ in range(48):
+            page.wait_for_timeout(2500)
+            waited += 2.5
             q2 = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
+            if isinstance(q2, dict):
+                snap = (q2.get("queuedForThisNote"), q2.get("dirty"),
+                        str(q2.get("baseUpdatedAt"))[-8:],
+                        q2.get("sentenceInDurableCopy"))
+                if not trail or trail[-1] != snap:
+                    trail.append(snap)
             if isinstance(q2, dict) and q2.get("queuedForThisNote") == 0:
                 drained = True
                 break
+        log(f"      store trail (queued, dirty, base, sentence-in-record): {trail}")
         log(f"      drain: {'emptied' if drained else 'STILL QUEUED'} after {waited}s")
+        # The record going CLEAN at a newer baseline while the entry is still
+        # queued is the supersede precondition, caught as it happens.
+        went_clean = any(t[1] in (0, False) for t in trail[1:]) if len(trail) > 1 else False
+        lost_locally = any(t[3] is False for t in trail[1:]) if len(trail) > 1 else False
         if not drained:
+            # ⛔ AN INCONCLUSIVE CELL STILL OWES ITS EVIDENCE. The first version
+            # returned before computing the wire, so the one run that most needed
+            # explaining produced the least. What is queued, what went out, and
+            # what the record holds are facts whether or not the drain finished.
+            w = " · ".join(f"{q['m']} {q['u'].replace('/api/j2/notes','')[:40] or '/'}"
+                           f"{'+SENT' if q.get('carries_sentence') else ''}"
+                           f"→{q.get('status')}" for q in posts) or "no note calls"
+            log(f"      wire: {w}")
             return {"verdict": "INCONCLUSIVE",
                     "why": (f"the outbox still held this note's entry after {waited}s — the drain "
                             f"had not finished, so the server read would measure the clock rather "
-                            f"than the product. Not 'lost'; not yet delivered")}
+                            f"than the product. Not 'lost'; not yet delivered. "
+                            f"⭐ store trail: {trail} · wire: {w}")}
 
         # ── 6. read the SERVER (the editor is already open on the note) ──
         served = page.evaluate("""async (id) => {
@@ -1220,7 +1582,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
 
         # Did the door's own node survive the drain? Only an append family has one.
         node_ok, node_note = True, ""
-        if family in APPEND:
+        if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
             marks = {"append_widget_embed": "widgetEmbed",
                      "append_financial_fact": "financialFact",
                      "append_document_excerpt": "documentExcerpt"}
@@ -1253,10 +1615,14 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                         " — **the words were never put on the wire**"))
         ok = survived and node_ok and forks == 0 and (boxes or {}).get("conflicts", 0) == 0
         why = (f"offline sentence in the server body: **{survived}**{node_note} · "
-               f"{queued_note} · {sent_note} · wire: {wire} · "
+               f"{queued_note} · {sent_note} · "
+               f"record went CLEAN while queued: **{went_clean}** · "
+               f"sentence left the durable record: **{lost_locally}** · "
+               f"store trail: {trail} · wire: {wire} · "
                f"forks: {forks} · outbox left: {(boxes or {}).get('outbox')} · "
                f"conflicts: {(boxes or {}).get('conflicts')} · "
                f"door via {res.get('via', 'n/a')} · sends before the door: {before_door}"
+               f" · left the note: **{navigated_away}**"
                f"{nav_note} · {int(time.time() - from_cell)}s")
         # ⛔ And it is only a spoiled cell if the words LANDED first. A door that
         # fired after a failed attempt still met queued work, which is the case
@@ -1310,6 +1676,22 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--navigate-no-door", metavar="PATH", nargs="?", const="/charts",
+                    help="leave the note and come back WITHOUT firing any door. The "
+                         "cell that separates navigation from the append families. "
+                         "A CONTROLLED EXPERIMENT, never a table row.")
+    ap.add_argument("--second-writer", metavar="PATH", nargs="?", const="/charts",
+                    help="queue an offline edit, leave the note, have a SECOND signed-in "
+                         "browser context move the note's folder while away, return, "
+                         "reconnect, drain. Isolates 'the server moved' from 'we "
+                         "navigated'. A CONTROLLED EXPERIMENT, never a table row.")
+    ap.add_argument("--second-writer-door", default="folder",
+                    choices=["folder", "append_widget_embed"],
+                    help="which door the SECOND context fires. `folder` is the settled "
+                         "metadata door (that cell is GREEN). `append_widget_embed` is the "
+                         "DISCRIMINATING cell: if firing the append door from a second "
+                         "context is GREEN, the first context's own handling of the append "
+                         "response is the mechanism.")
     ap.add_argument("--spa-return", action="store_true",
                     help="come back to the Notebook by SPA route change instead "
                          "of a document load. A CONTROLLED EXPERIMENT, never a row.")
@@ -1322,6 +1704,24 @@ def main() -> int:
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
 
+    if args.second_writer:
+        SECOND_WRITER["door"] = args.second_writer_door
+        SECOND_WRITER["on"] = True
+        SECOND_WRITER["path"] = args.second_writer
+        WARM_ROUTES.clear()
+        for f in list(METADATA) + list(APPEND):
+            WARM_ROUTES[f] = args.second_writer
+        print(f"⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to "
+              f"{args.second_writer}, a SECOND signed-in context moves the folder, return, "
+              f"reconnect, drain. CONTROLLED EXPERIMENT, not a table row.")
+    if args.navigate_no_door:
+        NO_DOOR["on"] = True
+        NO_DOOR["path"] = args.navigate_no_door
+        WARM_ROUTES.clear()
+        for f in list(METADATA) + list(APPEND):
+            WARM_ROUTES[f] = args.navigate_no_door
+        print(f"⚠️ NAVIGATE-NO-DOOR: leave the note to {args.navigate_no_door} and come "
+              f"back, firing NOTHING. CONTROLLED EXPERIMENT, not a table row.")
     if args.spa_return:
         SPA_RETURN["on"] = True
         FORCE_NAV["on"] = FORCE_NAV["on"]  # independent switches
@@ -1507,7 +1907,8 @@ def main() -> int:
                     res = {"verdict": "INCONCLUSIVE",
                            "why": f"the cell raised {type(e).__name__}: {str(e)[:200]}"}
                 print(f"   ⇒ {res['verdict']}  {res['why'][:150]}")
-                if FORCE_NAV["on"] or SPA_RETURN["on"]:
+                if (FORCE_NAV["on"] or SPA_RETURN["on"] or NO_DOOR["on"]
+                        or SECOND_WRITER["on"]):
                     # ⛔ A FORCED-NAV CELL IS NOT A TABLE CELL. It answers a
                     # different question, and banking it would put an answer to
                     # the wrong question in the artifact the freeze lifts on.

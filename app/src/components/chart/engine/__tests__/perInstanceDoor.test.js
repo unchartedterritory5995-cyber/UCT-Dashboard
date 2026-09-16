@@ -287,6 +287,59 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // overlay was REMOVED (default set 5→4) and the watermark went sizeScale 1.0→1.25
       // + weight 700→500. Value/structure edits to CHART_DEFAULTS only; no
       // per-definition door changed behaviour. INVESTIGATED, not regenerated.
-      .toBe('a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b')
+      // 2026-09-14: re-pinned for `dataSeries` (P2.1) — a REGISTRY ADDITION, not a
+      // door change. `corpus()` walks `listDefinitions()`, so an eighteenth
+      // definition adds two elements per base and the digest necessarily moves.
+      // ⛔ INVESTIGATED, NOT REGENERATED, and here is the measurement: the corpus
+      // rebuilt with `dataSeries` SKIPPED digests to
+      // `a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b` — the
+      // previous pin, byte for byte. Every pre-existing definition's enable /
+      // input / disable blobs are therefore untouched, and the only difference is
+      // the new definition's own elements. `dataSeries` declares no `int` input,
+      // so it contributes the enable and disable elements and no third.
+      // 2026-09-14: re-pinned for `movingAverage` — a REGISTRY ADDITION, not a door
+      // change, exactly like `dataSeries` above. ⛔ INVESTIGATED, NOT REGENERATED:
+      // the corpus rebuilt with `movingAverage` SKIPPED digests to
+      // `6db73b47e8ae168b0b7fddbc718825f497a0ead6e6c98faae8b610d6e6147643` — the
+      // previous pin, byte for byte — so every pre-existing definition's
+      // enable/input/disable blobs are untouched. It contributes THREE elements
+      // per base rather than two, because unlike `dataSeries` it declares an `int`
+      // input (`period`) and the corpus exercises one.
+      // 2026-09-15: re-pinned for `paneOrder` — the visual pane arrangement.
+      // ⛔ INVESTIGATED, NOT REGENERATED: this corpus serialises whole
+      // chart-settings blobs, so it moves with any change to the canonical shape.
+      // The shape diff was taken independently on both trees (see the matching
+      // note in `alertSets.test.js`): exactly one ADDITIVE key, `paneOrder: []`,
+      // nothing removed, no existing value changed — 40 keys → 41. The
+      // per-DEFINITION doors this file is about (enable · input · disable) are
+      // untouched; what moved is the blob each of them is embedded in.
+      // 2026-09-15: re-pinned again for `paneSizes` — the member's chosen pane
+      // heights. ⛔ INVESTIGATED, NOT REGENERATED, by the same method: the key
+      // sets were enumerated on this tree and on HEAD before the change, and the
+      // diff is exactly one ADDITIVE key, `paneSizes: {}` — 41 keys → 42, nothing
+      // removed, no existing value changed. The per-DEFINITION doors are again
+      // untouched; what moved is the blob they are embedded in.
+      // 2026-09-15: re-pinned for DISPLAY-TARGET PROVENANCE. `placementFor` no
+      // longer stamps a RESTATEMENT of the definition's declared target onto every
+      // instance it creates — that byte expressed no user intent and could not be
+      // told apart from one that did, which is the ambiguity
+      // `displayTarget.TARGET_EXPLICIT` exists to end.
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED. The corpus was dumped from
+      // BOTH trees (this one and a clean worktree at the pre-change commit) and
+      // diffed structurally. The result:
+      //
+      //     175 removed `"placement": {` blocks — 100 `"target": "pane"`,
+      //                                           75 `"target": "price"`
+      //       0 ADDED LINES OF ANY KIND
+      //
+      // Every removal is a restatement and nothing else moved: no destination
+      // changed (the resolver reaches the identical answer with the key absent,
+      // via step (3) `return declared`), no `volume` rewrite was dropped (that one
+      // is KEPT — it differs from the declaration and `presentation.availableStyles`
+      // reads the stored field), and NO marker appears anywhere in the default
+      // corpus, which is the §20 promise that a schema gaining a field must not
+      // churn every saved chart. No per-definition door changed behaviour.
+      // (Prior value: a6a030675093753839f67f0a3702b4a2bd947cd73b430119badf49787065261f)
+      .toBe('e43a0f1f2e9469941fa3b42f2a584648ad397d9c672ce5b4adc385ee96e8a3cd')
   })
 })

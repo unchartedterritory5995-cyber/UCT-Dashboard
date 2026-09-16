@@ -1,0 +1,436 @@
+// app/src/components/chart/ChartSettingsModal.chartData.test.jsx
+//
+// ─── THE TAB, NOT THE DERIVATION ────────────────────────────────────────────
+//
+// `chartDataMap.test.js` pins what the pane map COMPUTES. This pins what the tab
+// DOES with it: that the groups reach the DOM in the map's order, that selecting
+// a row puts that row's form in the inspector, that the inspector survives
+// everything except its own row leaving, and that none of the engine's internal
+// vocabulary reaches a member's eyes.
+//
+// ⛔ THE LAST ONE IS A RAIL, NOT A STYLE NOTE. `@inst:dataSeries:1` is a real
+// value inside this component — it is the `value` of a Display-in option and the
+// stored placement target. It must never be TEXT. A leak here is not cosmetic:
+// it is the settings panel showing a member an identifier they cannot act on,
+// which is what the pane map exists to replace.
+
+import { useState } from 'react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import ChartSettingsModal from './ChartSettingsModal'
+import { mergeChartSettings } from './chartDefaults'
+import * as registry from './engine/nativeRegistry'
+import { createDirectSeries, lastCreatedInstance } from './discoveryCatalog'
+import { symbolSource, paneOfTarget } from './engine/sourceRef'
+import { primeSecondaryBars, clearSecondaryBars } from './engine/secondaryBars'
+import { addInstance, setInstanceDisplayTarget, removeInstance } from './engine/instanceControls'
+import { listAllIndicators, readEnabled } from './indicatorRegistry'
+import { paneMap } from './chartDataMap'
+import { resolvePaneOrder, storedPaneOrder, PRICE_PANE } from './engine/paneOrder'
+
+vi.mock('../../hooks/useBreadthSymbols', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, symbolFamily: () => 'security' }
+})
+
+function prime(symbol) {
+  primeSecondaryBars(symbol, 'D', 400, {
+    bars: Array.from({ length: 12 }, (_, i) => ({
+      t: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      o: 100 + i, h: 102 + i, l: 99 + i, c: 101 + i, v: 1000,
+    })),
+  })
+}
+function withSeries(cs, symbol) {
+  prime(symbol)
+  const next = createDirectSeries(cs, symbolSource(symbol, 'close'), registry, { name: symbol })
+  return { cs: next, id: lastCreatedInstance(cs, next).instanceId }
+}
+function withDef(cs, defId) {
+  const next = addInstance(cs, defId, registry)
+  return { cs: next, id: lastCreatedInstance(cs, next).instanceId }
+}
+
+/** ⚠️ STATEFUL: the modal is CONTROLLED, so a write is only visible once the new
+ *  settings come back in. A no-op handler makes every live case below vacuous. */
+function Host({ initial, onSeen }) {
+  const [cs, setCs] = useState(initial)
+  return (
+    <ChartSettingsModal
+      open settings={cs}
+      onChange={(next) => { if (onSeen) onSeen(next); setCs(next) }}
+      onClose={() => {}}
+    />
+  )
+}
+const show = (cs) => render(<Host initial={cs} />)
+const openTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
+
+const groups = () => [...document.body.querySelectorAll('[data-pane-group]')].map((g) => ({
+  id: g.getAttribute('data-pane-group'),
+  kind: g.getAttribute('data-pane-kind'),
+  name: g.querySelector('[class*="sectionLabel"]').textContent.trim(),
+  rows: [...g.querySelectorAll('[class*="actLabel"]')].map((n) => n.textContent.trim()),
+}))
+const rowFor = (re) => [...document.body.querySelectorAll('[data-row-id]')]
+  .find((r) => re.test((r.querySelector('[class*="actLabel"]')?.textContent || '').trim()))
+const select = (re) => fireEvent.click(rowFor(re).querySelector('[aria-expanded]'))
+const inspectorFor = () => document.body.querySelector('[data-inspector-for]')
+  ?.getAttribute('data-inspector-for')
+
+const base = () => mergeChartSettings({})
+
+beforeEach(() => { clearSecondaryBars() })
+afterEach(() => { cleanup(); clearSecondaryBars() })
+
+describe('the left column IS the pane map', () => {
+  it('⭐ renders one group per map group, in the map\'s own order', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    cs = withSeries(cs, 'QQQ').cs
+    show(cs); openTab()
+
+    const expected = paneMap(
+      listAllIndicators(cs, registry, {}).filter((r) => r.path.kind !== 'indicator' || readEnabled(r)),
+      cs,
+      (id) => registry.getDefinition(id),
+    )
+    expect(groups().map((g) => g.id)).toEqual(expected.map((g) => g.id))
+    expect(groups().map((g) => g.name)).toEqual(expected.map((g) => g.name))
+  })
+
+  it('⭐⭐ a guest is listed UNDER its host, not in a group of its own', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    show(cs); openTab()
+
+    const hostGroup = groups().find((g) => g.id === host.id)
+    expect(hostGroup.rows).toContain('QQQ')
+    expect(groups().some((g) => g.id === guest.id), 'the guest kept a pane of its own').toBe(false)
+  })
+
+  it('⛔⛔ an orphan is grouped as NEEDS ATTENTION and says why', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    cs = removeInstance(cs, host.id, registry)
+    show(cs); openTab()
+
+    const orphans = groups().find((g) => g.kind === 'orphans')
+    expect(orphans, 'the orphan was filed as an ordinary row').toBeTruthy()
+    expect(orphans.rows).toContain('QQQ')
+    expect(document.body.textContent)
+      .toMatch(/no longer on the chart/i)
+    // ⛔ AND IT WAS NOT RE-HOMED ONTO PRICE.
+    expect(groups().find((g) => g.id === 'price').rows).not.toContain('QQQ')
+  })
+})
+
+describe('⚰️ switched off is not broken', () => {
+  it('⚰️ hiding an own-pane row reads "Not shown", never "Needs attention"', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    expect(groups().some((g) => g.id === r.id), 'precondition: it has a pane').toBe(true)
+
+    fireEvent.click(rowFor(/Relative Strength/).querySelector('[role="switch"]'))
+    expect(groups().some((g) => g.id === r.id), 'a hidden, empty pane is still drawn').toBe(false)
+
+    const g = groups().find((x) => x.kind === 'hidden')
+    expect(g, 'the hidden row is in no group').toBeTruthy()
+    expect(g.rows).toContain('Relative Strength Index')
+    expect(groups().some((x) => x.kind === 'orphans'), 'switching a row off called it broken').toBe(false)
+    expect(document.body.textContent).not.toMatch(/no longer on the chart/i)
+    expect(document.body.textContent).toMatch(/Turn one back on/i)
+  })
+})
+
+describe('⛔⛔ the engine\'s vocabulary never reaches the member', () => {
+  it('no @inst, @host, source ref or instance id is rendered as TEXT', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    const orphaned = withSeries(cs, 'SPY'); cs = orphaned.cs
+    cs = setInstanceDisplayTarget(cs, orphaned.id, paneOfTarget('inst:gone:9'), registry)
+    show(cs); openTab()
+    select(/^QQQ$/)
+
+    const text = document.body.textContent
+    for (const leak of ['@inst', '@host', 'inst:rsi', 'inst:dataSeries', 'sym:QQQ', '::plot', 'legacy:']) {
+      expect(text.includes(leak), `"${leak}" is on screen`).toBe(false)
+    }
+    // …and the case is not vacuous: the identifiers really are in the DOM as
+    // option VALUES, which is the distinction being asserted.
+    const values = [...document.body.querySelectorAll('option')].map((o) => o.value)
+    expect(values.some((v) => v.startsWith('@inst:')), 'no option carries a host target — this case is asserting on nothing').toBe(true)
+  })
+})
+
+describe('the inspector holds exactly one selection', () => {
+  it('⭐ selecting a row shows THAT row\'s form', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    expect(inspectorFor(), 'something was selected before the member chose').toBeFalsy()
+
+    select(/Relative Strength/)
+    expect(inspectorFor()).toBe(r.id)
+    expect(screen.getByLabelText(/display in/i)).toBeTruthy()
+  })
+
+  it('⭐ selecting a SECOND row replaces the first — one form at a time', () => {
+    let cs = base()
+    const a = withDef(cs, 'rsi'); cs = a.cs
+    const b = withDef(cs, 'macd'); cs = b.cs
+    show(cs); openTab()
+    select(/Relative Strength/); expect(inspectorFor()).toBe(a.id)
+    select(/MACD/); expect(inspectorFor()).toBe(b.id)
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(1)
+  })
+
+  it('⛔⛔ removing ANOTHER row leaves the selection alone', () => {
+    // ⚰️ MEASURED IN THE HARNESS: `removeRow` cleared the selection
+    // unconditionally — correct for the accordion it was written for, where the
+    // ✕ and the open form were the same row. With a persistent inspector it
+    // blanked the panel the member was working in every time they tidied up an
+    // unrelated row.
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    expect(inspectorFor()).toBe(r.id)
+
+    fireEvent.click(rowFor(/^EMA 9$/).querySelector('[aria-label^="Remove"]'))
+    expect(rowFor(/^EMA 9$/), 'the other row did not actually go — this is vacuous').toBeFalsy()
+    expect(inspectorFor(), 'removing an unrelated row blanked the inspector').toBe(r.id)
+  })
+
+  it('⭐ …and removing the SELECTED row empties it', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    fireEvent.click(rowFor(/Relative Strength/).querySelector('[aria-label^="Remove"]'))
+    // ⚰️ NO "nothing selected" PLACEHOLDER ANY MORE. The permanent right-hand
+    // column had to fill itself; an inline editor is simply not rendered.
+    expect(inspectorFor()).toBeFalsy()
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
+  })
+
+  it('⛔ every row points `aria-controls` at the region that holds its form', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    const id = rowFor(/Relative Strength/).querySelector('[aria-expanded]').getAttribute('aria-controls')
+    expect(id, 'aria-expanded with nothing to point at').toBeTruthy()
+    // ⚠️ ROW IDS CARRY COLONS (`inst:rsi:1`). `getElementById` takes them
+    // literally — only a CSS selector would need escaping, and nothing here
+    // resolves it that way.
+    expect(id).toContain(':')
+    select(/Relative Strength/)
+    expect(document.getElementById(id), 'the open editor is not the region named').toBeTruthy()
+    expect(document.getElementById(id).getAttribute('data-inspector-for'))
+      .toBe(rowFor(/Relative Strength/).getAttribute('data-row-id'))
+  })
+})
+
+describe('⚰️ the editor opens INLINE, under the row that owns it', () => {
+  /** The row block an editor is rendered inside — not merely "somewhere". */
+  const editorsRow = () => document.body.querySelector('[data-inspector-for]')?.closest('[data-row-id]')
+
+  it('⚰️ the editor is a CHILD of its own row, not a second column', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    expect(editorsRow(), 'the editor is not inside any row').toBeTruthy()
+    expect(editorsRow().getAttribute('data-row-id')).toBe(r.id)
+  })
+
+  it('⭐ clicking the OPEN row closes it again', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    expect(inspectorFor()).toBeTruthy()
+    select(/Relative Strength/)
+    expect(inspectorFor(), 'the row would not close from the control that opened it').toBeFalsy()
+  })
+
+  it('⭐ a second row replaces the first — never two editors at once', () => {
+    let cs = base()
+    const a = withDef(cs, 'rsi'); cs = a.cs
+    const b = withDef(cs, 'macd'); cs = b.cs
+    show(cs); openTab()
+    select(/Relative Strength/)
+    select(/MACD/)
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(1)
+    expect(editorsRow().getAttribute('data-row-id')).toBe(b.id)
+  })
+
+  it('⭐ no selection → no editor anywhere', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
+  })
+
+  it('⭐⭐ every control the right column carried is still reachable inline', () => {
+    let cs = base()
+    const s2 = withSeries(cs, 'QQQ'); cs = s2.cs
+    show(cs); openTab()
+    select(/^QQQ$/)
+    const panel = document.body.querySelector('[data-inspector-for]')
+    // display destination, plot style, and the row's own declared inputs
+    expect([...panel.querySelectorAll('select')]
+      .some((x) => /display in/i.test(x.getAttribute('aria-label') || '')), 'no Display-in').toBe(true)
+    expect(panel.querySelectorAll('[class*="indRow"]').length, 'no field rows').toBeGreaterThan(0)
+  })
+})
+
+describe('⚰️ the Track B deep link lands on the inline editor', () => {
+  it('⚰️ `data:<instanceId>` opens Chart Data with THAT row expanded', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    // ⚠️ INSTANCE IDS CARRY COLONS. The prefix is sliced by length, never split.
+    expect(r.id).toContain(':')
+    render(<ChartSettingsModal open scrollTo={`data:${r.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
+    expect(screen.getByRole('tab', { name: 'Chart Data' }).getAttribute('aria-selected')).toBe('true')
+    const panel = document.body.querySelector('[data-inspector-for]')
+    expect(panel, 'the deep link opened no editor').toBeTruthy()
+    expect(panel.getAttribute('data-inspector-for')).toBe(r.id)
+    expect(panel.closest('[data-row-id]').getAttribute('data-row-id')).toBe(r.id)
+  })
+
+  it('⭐ `ind:<instanceId>` still works — the older spelling is not dropped', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    render(<ChartSettingsModal open scrollTo={`ind:${r.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
+    expect(document.body.querySelector('[data-inspector-for]')?.getAttribute('data-inspector-for')).toBe(r.id)
+  })
+
+  it('⭐⭐ with TWO QQQ series the link opens the one it names', () => {
+    let cs = base()
+    const a = withSeries(cs, 'QQQ'); cs = a.cs
+    const b = withSeries(cs, 'QQQ'); cs = b.cs
+    expect(a.id).not.toBe(b.id)
+    render(<ChartSettingsModal open scrollTo={`data:${b.id}`} settings={cs} onChange={() => {}} onClose={() => {}} />)
+    expect(document.body.querySelector('[data-inspector-for]').getAttribute('data-inspector-for')).toBe(b.id)
+  })
+})
+
+describe('⚰️ whole panes can be reordered from the pane map', () => {
+  const paneIds = () => [...document.body.querySelectorAll('[data-pane-group]')]
+    .filter((g) => ['price', 'volume', 'pane'].includes(g.getAttribute('data-pane-kind')))
+    .map((g) => g.getAttribute('data-pane-group'))
+  /** The Move control on ONE pane's heading, found through the group it is in.
+   *  ⚠️ SCOPED TO THE GROUP, NOT MATCHED ON THE LABEL: `[aria-label*="Move"]`
+   *  also matches every row's "Remove …" button, which is how the orphan case
+   *  below first passed against a delete control. */
+  const paneEl = (id) => document.body.querySelector(`[data-pane-group="${id}"]`)
+  const moveBtn = (id, dir) => [...paneEl(id).querySelectorAll('button')]
+    .find((b) => new RegExp(`pane ${dir}$`, 'i').test(b.getAttribute('aria-label') || ''))
+
+  it('⚰️ Move up puts a pane ABOVE Price — and Move down brings it back', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab()
+    expect(paneIds()).toEqual([PRICE_PANE, r.id])
+
+    fireEvent.click(moveBtn(r.id, 'up'))
+    expect(paneIds(), 'the pane did not move above Price').toEqual([r.id, PRICE_PANE])
+
+    fireEvent.click(moveBtn(r.id, 'down'))
+    expect(paneIds()).toEqual([PRICE_PANE, r.id])
+  })
+
+  it('⭐ Price itself is orderable — and has no Remove', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect(moveBtn(PRICE_PANE, 'down')).toBeTruthy()
+    const price = document.body.querySelector('[data-pane-group="price"]')
+    expect(price.querySelector('[aria-label^="Remove Price"]'), 'Price offered a Remove').toBeFalsy()
+  })
+
+  it('⛔ the boundaries disable rather than wrap', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect(moveBtn(PRICE_PANE, 'up').disabled, 'the top pane could move up').toBe(true)
+    const rsiId = paneIds().find((k) => k !== PRICE_PANE)
+    expect(moveBtn(rsiId, 'down').disabled, 'the bottom pane could move down').toBe(true)
+  })
+
+  it('⛔⛔ Needs attention is NOT a pane and offers no reorder', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    cs = removeInstance(cs, host.id, registry)
+    show(cs); openTab()
+    const orphans = document.body.querySelector('[data-pane-kind="orphans"]')
+    expect(orphans, 'precondition: there is an orphan group').toBeTruthy()
+    expect([...orphans.querySelectorAll('button')]
+      .some((b) => /pane (up|down)$/i.test(b.getAttribute('aria-label') || '')),
+    'an orphan list offered a pane move').toBe(false)
+    expect(orphans.querySelector('[draggable="true"]'), 'an orphan list was draggable').toBeFalsy()
+  })
+
+  it('⚰️⚰️ moving a HOST pane carries its guests and rewrites no placement', () => {
+    let cs = base()
+    const host = withDef(cs, 'rsi'); cs = host.cs
+    const guest = withSeries(cs, 'QQQ'); cs = guest.cs
+    cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
+    const before = cs.indicatorInstances.map((i) => JSON.stringify(i.placement || null))
+
+    const seen = { cs: null }
+    render(<Host initial={cs} onSeen={(next) => { seen.cs = next }} />)
+    openTab()
+    fireEvent.click(moveBtn(host.id, 'up'))
+
+    const after = seen.cs
+    expect(after, 'the move wrote nothing').toBeTruthy()
+    // the guest travelled: it is still listed under its host
+    const hostGroup = [...document.body.querySelectorAll('[data-pane-group]')]
+      .find((g) => g.getAttribute('data-pane-group') === host.id)
+    expect([...hostGroup.querySelectorAll('[class*="actLabel"]')].map((n2) => n2.textContent.trim()))
+      .toContain('QQQ')
+    // ⛔ AND NOT ONE PLACEMENT CHANGED. Pane order and Display-in are separate
+    // facts; a reorder that rewrote targets would make the two fight.
+    expect(after.indicatorInstances.map((i) => JSON.stringify(i.placement || null))).toEqual(before)
+  })
+
+  it('⭐ the writer is canonical — the UI stores `paneOrder`, nothing else', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    const seen = { cs: null }
+    render(<Host initial={cs} onSeen={(next) => { seen.cs = next }} />)
+    openTab()
+    fireEvent.click(moveBtn(r.id, 'up'))
+    expect(storedPaneOrder(seen.cs)).toEqual([r.id, PRICE_PANE])
+    expect(resolvePaneOrder(seen.cs, [r.id])).toEqual([r.id, PRICE_PANE])
+  })
+})
+
+describe('⚰️ the modal no longer resizes when you switch tabs', () => {
+  it('⚰️ Chart Data opens at the SAME width as every other tab', () => {
+    // ⚰️ IT USED TO WIDEN TO 880 for the pane map + inspector columns, and a
+    // modal that resizes on the way into one tab is the cost that bought the
+    // second column. The inline editor removed the reason for it.
+    show(base())
+    const cls = () => document.body.querySelector('[class*="panel"]').className
+    const atPrice = cls()
+    openTab()
+    expect(cls(), 'Chart Data changed the panel class — the width jumped').toBe(atPrice)
+    expect(/panelWide/.test(cls()), 'the wide modifier is still applied').toBe(false)
+    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
+    expect(cls()).toBe(atPrice)
+    openTab()
+    expect(cls()).toBe(atPrice)
+  })
+})

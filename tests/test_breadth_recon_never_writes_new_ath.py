@@ -28,14 +28,18 @@ def _drive(monkeypatch, metrics: dict) -> list:
     written: list = []
     monkeypatch.setattr(recon, "load_deep_frame",
                         lambda *a, **k: {"dates": list(_DATES)})
+    # ⚠️ `**k` so these stubs TRACK the real signatures instead of pinning them. The
+    # sweep now also passes a universe's per-date `members` set and its `universe`
+    # id; this rail is about which METRICS get written, not about how the calls are
+    # spelled, and a stub that pins a signature fails for a reason it does not test.
     monkeypatch.setattr(recon, "recompute_from_frame",
-                        lambda frame, tickers, ds, window: {
+                        lambda frame, tickers, ds, window, **k: {
                             "ok": True, "metrics": dict(metrics)})
     # Passthrough: the derived-metric step is not what this rail is about.
     monkeypatch.setattr(breadth_monitor, "derive_live_row",
                         lambda base, recent: dict(base))
     monkeypatch.setattr(breadth_daily_ohlc, "write_bulk",
-                        lambda rows, source=None: written.extend(rows) or len(rows))
+                        lambda rows, **k: written.extend(rows) or len(rows))
     out = recon.sweep_history("2026-01-05", "2026-01-06", tickers=["AAA", "BBB"])
     assert out["ok"], out
     return written

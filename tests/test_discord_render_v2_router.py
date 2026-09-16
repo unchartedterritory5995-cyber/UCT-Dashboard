@@ -37,7 +37,7 @@ class FakeStore:
 class FakeRuntime:
     def __init__(self, status="queued", rows=None):
         self.status = status
-        self.offered, self.acks, self.refused = [], [], []
+        self.offered, self.acks, self.refused, self.reach = [], [], [], []
         self.per_user_max = 2
         self.store = FakeStore(rows)
 
@@ -50,6 +50,15 @@ class FakeRuntime:
 
     def record_refused(self, job, cls):
         self.refused.append((job.corr_id, cls))
+
+    def record_refusal_reach(self, cid, ms):
+        """⚰️ MISSING SINCE D-05, AND THE TEST DIED ON AN AttributeError RATHER THAN A
+        VERDICT. S5c added `record_refusal_reach` to the runtime and `commands.py:215`
+        calls it on the refusal branch; this double was never given the method, so the
+        one test that drives a refusal through the real router raised instead of
+        asserting. ⛔ A stale test DOUBLE fails in the flattering direction: the
+        production code was right and the harness could not run it."""
+        self.reach.append((cid, ms))
 
 
 @pytest.fixture(autouse=True)
@@ -262,7 +271,14 @@ def test_the_flow_worker_gets_the_short_timeout_the_cid_and_the_contract(monkeyp
     ctx = Ctx(job)
     commands._handle_flow(ctx)
     assert (seen["tkr"], seen["days"], seen["timeout_s"], seen["cid"]) == ("DPRO", "1", commands.FLOW_TIMEOUT_S, job.corr_id)
-    assert seen["fail_fn"] == ctx.fail
+    # ⚠️ Since P2.1 this is the adapter's wrapper, not `ctx.fail` itself — the wrapper corrects the
+    # router's generic `flow_error` to the class the adapter actually observed (OI-23). The property
+    # this test was written for is unchanged and is asserted the stronger way: whatever the handler
+    # hands over must end up in the CONTRACT, not in a per-site sentence.
+    assert seen["fail_fn"] is not None
+    seen["fail_fn"]("flow_timeout", "no answer in 10s")
+    assert ctx.fails == ["flow_timeout"], (
+        "the failure reporter the handler passed did not reach the contract")
 
 
 def test_end_to_end_a_real_runtime_delivers_and_records_a_chart(tmp_path, monkeypatch):

@@ -60,9 +60,19 @@
 // placement at all.
 import { ALPHA, withAlpha } from '../designTokens'
 import { MAIN_PRICE_SCALE_ID } from './placement'
+import { presentedPlot } from './presentation'
 
 /** The four LWC series constructors any v1 plot can need. */
-export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline'])
+/**
+ * The LWC series constructors any plot can need.
+ *
+ * ⚠️ `candlestick` IS THE FIRST ONE THAT IS NOT SCALAR-SHAPED. A pool key is a
+ * series TYPE, and two series are interchangeable only when their type is — so a
+ * candlestick can never be re-purposed from a line, nor a line from a
+ * candlestick. Listing it here is what makes the pool REFUSE that swap instead
+ * of feeding four fields to a series that draws one.
+ */
+export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline', 'candlestick'])
 
 /**
  * `plots[].style` → the LWC constructor that draws it.
@@ -112,6 +122,13 @@ export function poolKey(plot) {
       return 'area'
     case 'baseline':
       return 'baseline'
+    // ⭐ THE ONLY STYLE WHOSE DATA SHAPE DIFFERS. Everything above draws one
+    // column of numbers; this draws an auction period. `presentedPlot` has
+    // already clamped it back to a line if the SOURCE cannot mean one, so by the
+    // time a plot arrives here carrying `candles` the capability question has
+    // been answered.
+    case 'candles':
+      return 'candlestick'
     default:
       return null
   }
@@ -544,6 +561,38 @@ export function seriesOptionsForPlot(plot, ctx) {
     autoscaleInfoProvider: autoscaleProvider(c.autoscale),
   }
 
+  // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
+  //
+  // ⛔⛔ NONE OF THE LINE-SHAPED OPTIONS APPLY, AND EMITTING THEM WOULD BE
+  // DESCRIBING A SERIES THAT IS NOT THERE — the same reason the histogram branch
+  // below returns early rather than falling through. A candlestick has no
+  // `color`, no `lineWidth`, no `lineStyle` and no point markers; it has four
+  // colours and a wick. `base` carries what EVERY series needs (scale id,
+  // visibility, autoscale, the axis tag) and the rest is the candle's own.
+  //
+  // ⭐ THE COLOURS ARE RESOLVED BY THE CALLER, because the default is the CHART's
+  // own candle palette and this module has never read chart settings. Absent, LWC
+  // keeps its defaults — which is what every caller written before this phase
+  // means.
+  //
+  // ⚠️ WICK AND BORDER FOLLOW THE BODY, and that is a choice worth stating: the
+  // shipped `chartDefaults.candles` sets `upBorder`/`upWick` to the same value as
+  // `upColor`, so a secondary instrument matches the member's own candles with
+  // ONE control instead of six. Splitting them is appearance work for later and
+  // would not change this seam.
+  if (pk === 'candlestick') {
+    const cc = c.candleColors
+    if (!cc || !cc.upColor || !cc.downColor) return base
+    return Object.assign(base, {
+      upColor: cc.upColor,
+      downColor: cc.downColor,
+      borderUpColor: cc.upColor,
+      borderDownColor: cc.downColor,
+      wickUpColor: cc.upColor,
+      wickDownColor: cc.downColor,
+    })
+  }
+
   if (pk === 'histogram') {
     // A histogram has no line width, no line style and no crosshair marker.
     // Passing them would be describing a series that isn't there — and since a
@@ -711,9 +760,15 @@ function guidePlots(def) {
  * thing the binder has to do extra work for (drop the previous tenant's guides,
  * re-assert the scale, force a setData), so it gets its own list.
  */
+// ⚠️ ONE-WAY: `presentation.js` imports nothing from here, so this is not a
+// cycle. The plan needs it because `poolKey` — which decides the SERIES TYPE —
+// must see the RESTYLED plot, not the definition's.
 export function planBindings(instances, registry, prevBindings, opts) {
   const get = resolveGet(registry)
   const hasData = opts && typeof opts.hasData === 'function' ? opts.hasData : null
+  // ⚠️ `(instance) => boolean`. ABSENT MEANS NOTHING IS CANDLE-CAPABLE, which is
+  // what every caller written before this phase means — and the safe direction.
+  const ohlcCapable = opts && typeof opts.ohlcCapable === 'function' ? opts.ohlcCapable : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -733,7 +788,17 @@ export function planBindings(instances, registry, prevBindings, opts) {
     let first = true
 
     for (const rawPlot of dataPlots(def)) {
-      const plot = resolvePlotForInstance(rawPlot, inst.inputs)
+      // ⭐ INPUTS FIRST, THEN PRESENTATION. `resolvePlotForInstance` answers "what
+      // did the member set for colour and width"; `presentedPlot` answers "what
+      // SHAPE did they ask this output to be". The second reads the first's
+      // output, so a restyled plot keeps the instance's colour.
+      //
+      // ⭐ AND THE CAPABILITY ANSWER TRAVELS WITH THE PLAN. `poolKey` decides the
+      // SERIES TYPE from the restyled plot, so a stored `candles` the source
+      // cannot mean has to be clamped HERE too — otherwise the plan would create
+      // a candlestick the binder then refuses to feed.
+      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst,
+        { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)) })
       const pk = poolKey(plot)
       if (!pk) continue                       // unmappable style: bind nothing
       const key = bindingKey(inst.instanceId, plot.key)

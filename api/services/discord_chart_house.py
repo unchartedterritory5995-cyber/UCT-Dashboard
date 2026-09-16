@@ -260,7 +260,32 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         # locked close, on intraday it is the one number that matters.
         sess, px = tag
         params["exttag"] = f"{sess}:{float(px):.2f}"
+    vintage = _vintage_param(opts)
+    if vintage:
+        # C-07: the picture stamps the DATA's vintage, never the wall clock — so the same
+        # closed-market input renders the same pixels (03 §3.8, §3.10). LAST, so every URL
+        # that carries no vintage is byte-for-byte the URL it was before this existed.
+        params["stale"] = vintage
     return base_url.rstrip("/") + "/r/chart?" + urlencode(params)
+
+
+def _vintage_param(opts: dict) -> str | None:
+    """`?stale=`'s value, or None — and None without importing anything on the pre-V2 path.
+
+    ⛔ **THE SENTENCE HAS ONE AUTHOR AND IT IS NOT THIS MODULE.** `discord_render.badge` composes
+    it from `freshness.Envelope.badge`; here we only decide whether the caller supplied a vintage at
+    all. Spelling the wording again here — or sending a bare `as_of` for the page to phrase — is the
+    second-authority defect that put a wall clock and a stats strip a session apart on 2026-08-31.
+
+    ⛔ **THE PRE-V2 PATH PASSES NEITHER KEY**, so it leaves with `None` before the import, and its
+    URL is unchanged down to the byte. `discord_chart_prefs.render_options` returns no `stale` and
+    no `as_of`; `tests/test_discord_render_vintage_url.py` proves the whole matrix against the
+    version of this file on master rather than asserting it.
+    """
+    if "stale" not in opts and "as_of" not in opts:
+        return None
+    from api.services.discord_render import badge
+    return badge.vintage_param(opts)
 
 
 def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | None = None, *, client=None) -> bytes | None:
@@ -282,6 +307,24 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
         except Exception as e:  # noqa: BLE001 — overlay is decoration; never break the render
             log.warning("[discord-chart] dark-pool zones failed for %s: %s", sym, e)
     page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=opts)
+
+    # ── the chart-edge render capability ────────────────────────────────────
+    # ⛔⛔ THE TRUST IS IN THIS INVOCATION, NOT IN `/r/chart`. That page is PUBLIC —
+    # anyone may load it — so the page itself is never trusted and never carries
+    # this. Only here, where the backend has already decided to render, is a
+    # short-lived capability minted. It travels to the renderer as a HEADER: never
+    # in `page_url` (which is logged and quoted back in renderer errors) and never
+    # in the JSON body (same reason).
+    #
+    # ⚠️ NONE WHEN UNCONFIGURED, WHICH IS SAFE TODAY: the edge is in SHADOW mode,
+    # so a render carrying no capability classifies MISSING and is still served.
+    # This becomes load-bearing only at Phase 2 enforcement.
+    try:
+        from api import chart_edge_token as _cet
+        edge_tok = _cet.mint_service()
+    except Exception:  # noqa: BLE001 — a render must never fail for want of a token
+        edge_tok = None
+
     try:
         import httpx
         own = client is None
@@ -296,8 +339,10 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                     "probe_js": PROBE_JS,
                 }
                 from api.services.discord_render import ids as render_ids, observe as render_observe
-                r = c.post(f"{renderer}/render", json=body,
-                           headers={"X-Render-Secret": secret, **render_ids.render_headers()})
+                _hdrs = {"X-Render-Secret": secret, **render_ids.render_headers()}
+                if edge_tok:
+                    _hdrs["X-Chart-Edge-Token"] = edge_tok
+                r = c.post(f"{renderer}/render", json=body, headers=_hdrs)
                 if not r.is_success:
                     # Scrubbed: the renderer's error body can quote the page URL, render token included (C-13).
                     log.warning("[discord-chart] house render HTTP %s for %s %s (attempt %d): %s",
