@@ -2294,6 +2294,70 @@ of **0.02** stands UNVERIFIED and bears directly on (j)'s numbers.
 
 ---
 
+# ✅ R27 – R29 + H.8 (owner, 2026-09-15), AND ONE COLLISION TO RULE ON
+
+## R28 — **ALREADY DONE**, in j.1
+
+`memberPaneDefinition.js:48`'s *"THE SAME CEILING THE BUILDER'S OWN IMPORT USES"* was
+corrected **in the same commit as the number** (`75be58693`), with the measurement beside
+it. The two constants stay separate. Nothing further owed.
+
+## R29 — the flip condition, recorded
+
+#145 flips draft → ready **only** when j.4 reports Clouds within Wave 1's tolerance on
+both tables at both tiers **and** CI is green. Otherwise it stays draft and the report
+says which condition failed. ⛔ Merging is not authorised either way.
+
+## H.8 — a report line, not a gate. Unchanged.
+
+## ⛔⛔ R27 COLLIDES WITH A MEASURED RULING, AND THE COLLISION IS NARROWER THAN IT LOOKS
+
+R27 rules that **pass one binds every plot, hidden or not**, and that a hidden plot
+contributes *"zero draw calls and one bound series"*. But
+`__tests__/hiddenIsRemovedNotParked.test.js` is an existing, **measured** ruling that
+hidden means **REMOVE, not park** — and its reason is a fact about the library, asserted
+against the real bundle:
+
+> **`visible: false` does not release the series' PANE.** Park an RSI and its pane
+> survives the toggle … Flip A's contract is pixel-identity with legacy, so parking
+> would fail `engine_rsi_toggle_off` on the parity gate. And at Flip C an oscillator's
+> band **is** a pane, so "park it" leaves an empty pane with a divider above it.
+
+### ⭐ WHY IT PROBABLY DOES NOT BITE — TWO DIFFERENT `hidden`s
+
+| flag | set by | handled at | what it means |
+|---|---|---|---|
+| **instance** `inst.hidden` | the member toggling the indicator OFF | `binder.js:447` · `:773` · `:795`, and `planBindings` — **all before pass one** | the whole indicator goes; **its pane must be released** |
+| **plot** `b.plot.hidden` | the author's `display.none` | `binder.js:1063` | one row inside an instance that is **ON** and still draws |
+
+The pane-release argument is about the **instance** path. Clouds' pane is occupied by its
+two visible plots either way, so **nothing wants that pane released** — and `:1063` is
+plot-level only. ⇒ **R27 is compatible, but only because it is scoped to plot-level
+`hidden`.** The instance path is not touched and must not be.
+
+### ⚠️ AND THE MEASUREMENT SAYS R27's MECHANISM MAY NOT BE NEEDED AT ALL
+
+- `columns.set` (`binder.js:942`) loops **every** plot key and runs **before** pass one —
+  so **a hidden plot already has its column**.
+- The fill primitive takes **COLUMNS, not series**: `fill.setOptions({upper, lower, …})`
+  is fed from `columns.get(…)` (`:1265`). The series is only the **host** whose
+  `priceToCoordinate` it borrows.
+
+⇒ A fill between two hidden anchors needs **one bound host series in the same pane** and
+**two columns** — not two bound anchor series. R27's *"one bound series"* per hidden plot
+is a stronger claim than the drawing requires.
+
+### ⛔ HOW THIS SESSION PROCEEDS
+
+**R27 is the owner's ruling and is implemented as ruled** — but the specific hazard the
+older ruling names is **railed, not argued**: j.2's acceptance carries a control that the
+**pane count and the visible plots' price scale are unmoved**, and an
+`engine_rsi_toggle_off`-shaped control that the **instance** path still REMOVES. If
+either goes red, R27 is genuinely blocked, the block stops, and the owner rules again.
+⭐ *A ruling and a measured ruling that disagree is not something to settle in prose.*
+
+---
+
 # ✅ (j) j.1 BUILT — and what j.2 – j.4 inherit
 
 ## j.1 — DONE. Red `57b5809ee` → fix `75be58693`. Estimate 90, actual ~85.
