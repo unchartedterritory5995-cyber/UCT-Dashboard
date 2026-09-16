@@ -41,15 +41,35 @@ KNOWN_VERDICTS = {"CLEAN", "FINDING", "NOTHING-TO-SCAN"}
 def parse_range_scan(log_text: str) -> tuple[str | None, str | None]:
     """(state, verdict) from a gate log, or (None, None) when it cannot be read.
 
-    Only labels the scan can actually emit are accepted. An unrecognised token is
-    reported as None rather than passed through: a record is read by a control that
-    gates promotion, so an unknown value must never look like a known-good one.
+    ⛔⛔ THE LOG CONTAINS THE STEP'S OWN SCRIPT, NOT ONLY ITS OUTPUT. GitHub echoes
+    each `run:` body into the log, so every one of the six state strings appears as a
+    LITERAL in every run, in source order, whatever actually happened. The first
+    version of this parser took the first match of each pattern and duly recorded
+    `state="NO RANGE"` with `verdict="NOTHING-TO-SCAN"` — a combination the scan
+    cannot produce, because NO RANGE never reaches a verdict. It was reading the call
+    site instead of the wire, one layer up.
+
+    So: lines carrying `echo` are the script and are skipped; only what the step
+    PRINTED is parsed. The impossible-combination check below is the backstop — if
+    these two ever disagree again, the record says unknown rather than something
+    plausible and wrong.
+
+    Only labels the scan can emit are accepted. An unrecognised token is reported as
+    None rather than passed through: a record is read by a control that gates
+    promotion, so an unknown value must never look like a known-good one.
     """
     if not log_text or not log_text.strip():
         return None, None
-    states = [s for s in STATE_RE.findall(log_text) if s in KNOWN_STATES]
-    verdicts = [v for v in VERDICT_RE.findall(log_text) if v in KNOWN_VERDICTS]
-    return (states[0] if states else None), (verdicts[0] if verdicts else None)
+    lines = [ln for ln in log_text.splitlines() if "echo" not in ln]
+    body = "\n".join(lines)
+    states = [s for s in STATE_RE.findall(body) if s in KNOWN_STATES]
+    verdicts = [v for v in VERDICT_RE.findall(body) if v in KNOWN_VERDICTS]
+    state = states[0] if states else None
+    verdict = verdicts[0] if verdicts else None
+    # A verdict only exists for a run that EXECUTED. Anything else is a misparse.
+    if verdict is not None and state != "EXECUTED":
+        return (state, None) if state else (None, None)
+    return state, verdict
 
 
 def build(promoted_sha: str, master_sha: str, gate_run_id: str | None,
@@ -112,6 +132,24 @@ def self_check() -> int:
         ("nothing relevant here at all", (None, None)),
         # A label the scan cannot emit must NOT be passed through.
         ("range-scan: TOTALLY MADE UP\nverdict=WONDERFUL", (None, None)),
+        # ⛔ THE REGRESSION CASE, shaped like a real `gh run view --log`: the echoed
+        # SCRIPT appears above the output and mentions every state. Parsing it
+        # produced ("NO RANGE", "NOTHING-TO-SCAN") in production on 2026-09-16 —
+        # a pair the scan cannot emit.
+        ("gate\tSecret scan over the whole range\t2026-09-16T01:07:01.0Z   "
+         "echo \"range-scan: NO RANGE (github.event.before is empty) — nothing compared\"\n"
+         "gate\tSecret scan over the whole range\t2026-09-16T01:07:01.1Z   "
+         "echo \"range-scan: INCONCLUSIVE — base $BASE is not reachable\"\n"
+         "gate\tSecret scan over the whole range\t2026-09-16T01:07:01.2Z   "
+         "echo \"range-scan: EXECUTED  commits=$COMMITS  files=0  verdict=NOTHING-TO-SCAN\"\n"
+         "gate\tSecret scan over the whole range\t2026-09-16T01:07:01.3Z   "
+         "echo \"range-scan: verdict=CLEAN\"\n"
+         "gate\tSecret scan over the whole range\t2026-09-16T01:07:44.0Z range-scan: base=origin/production head=4c3c2cc82\n"
+         "gate\tSecret scan over the whole range\t2026-09-16T01:07:44.1Z range-scan: EXECUTED  commits=1  files=10\n"
+         "gate\tSecret scan over the whole range\t2026-09-16T01:07:45.0Z range-scan: verdict=CLEAN\n",
+         ("EXECUTED", "CLEAN")),
+        # An impossible pair must collapse to the state alone, never a plausible lie.
+        ("range-scan: NO RANGE\nrange-scan: verdict=CLEAN", ("NO RANGE", None)),
     ]
     for text, want in cases:
         got = parse_range_scan(text)

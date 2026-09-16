@@ -1313,3 +1313,21 @@ could not read the CI log at all, which is why the states were invisible from ou
 ⭐ **The gate stayed read-only.** The promotion job already holds `contents: write` and
 `actions: read`, so it writes the record; giving the gate write access just to publish a
 status file would have been a real privilege escalation on a public repo.
+
+### ⚰️ The first record written in production was WRONG — the parser read the script
+
+`4c3c2cc82`'s row said `range_scan_state: "NO RANGE"` with
+`range_scan_verdict: "NOTHING-TO-SCAN"` — a pair the scan cannot emit, because
+NO RANGE never reaches a verdict. **`gh run view --log` includes each step's echoed
+`run:` body**, so all six state strings appear as literals in every run, in source
+order, whatever happened. Taking the first match of each read the SCRIPT, not the
+OUTPUT.
+
+⭐ It is this programme's own recurring lesson, one layer up and committed by its own
+instrument: **read the wire, not the call site.** The fix skips lines carrying `echo`
+and refuses an impossible pair (a verdict without `EXECUTED` collapses to the state
+alone) — so a future misparse records *unknown* rather than something plausible and
+wrong. Mutation-proved: reverting the filter reproduces the exact production pair.
+
+⚠️ The bad row self-corrected on the next promotion; it was never load-bearing (the
+control reads `promoted_sha`, which was correct).
