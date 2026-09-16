@@ -66,6 +66,40 @@ def sane_wick(metric: str, o: float, h: float, l: float, c: float) -> tuple[bool
     return True, "ok"
 
 
+def _add_composites(m: dict) -> None:
+    """Derive NETHL / PH / PL AT THIS TIMESTAMP, in place.
+
+    ⛔⛔ THE ORDER IS THE WHOLE POINT. A composite's High is the maximum of the
+    COMPOSITE's own path, never an arithmetic combination of its components' candles:
+
+        max_t (NH(t) - NL(t))   ≠   max_t NH(t) - min_t NL(t)
+
+    unless both extrema happen to fall on the same minute. The right-hand side is what
+    you get by deriving a composite from finished NH/NL candles, and it is wrong by
+    construction on every session where the two peaks are minutes apart. So the metric
+    is computed HERE, inside the per-bucket loop, and then aggregated like any other
+    series — `aggregate_day` cannot tell the difference, which is the point.
+
+    ⚠️ `compute_metrics` does not emit these three (measured: all three return None),
+    which is exactly why UCT stores no `net_new_high_low` rows at all and PH/PL carry no
+    intraday coverage. This closes that gap without touching the metric engine's own
+    contract.
+    """
+    nh, nl = m.get("new_52w_highs"), m.get("new_52w_lows")
+    uni = m.get("universe_count")
+    if isinstance(nh, (int, float)) and isinstance(nl, (int, float)):
+        m["net_new_high_low"] = float(nh) - float(nl)
+    # ⚠️ ZERO DENOMINATOR IS A NON-VALUE, NOT A ZERO. An empty universe means the
+    # ratio is unknown; publishing 0.0 would read as "no stock is at a 52-week high",
+    # which is a claim we did not measure. `_finite` drops None, so the minute simply
+    # does not contribute to that metric's path.
+    if isinstance(uni, (int, float)) and uni and uni > 0:
+        if isinstance(nh, (int, float)):
+            m["hi_ratio"] = round(float(nh) / float(uni) * 100.0, 4)
+        if isinstance(nl, (int, float)):
+            m["lo_ratio"] = round(float(nl) / float(uni) * 100.0, 4)
+
+
 def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metric: dict,
                   vols_by_bucket: Optional[list[dict]] = None,
                   max_pct_delta: float = MAX_PCT_INTRADAY_DELTA) -> dict:
@@ -92,6 +126,7 @@ def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metri
             m = compute_metrics(levels, prices, vols)
         except Exception:
             continue
+        _add_composites(m)
         for k, v in m.items():
             if k.startswith("_"):
                 continue
@@ -164,7 +199,7 @@ def _levels_for_day(conn, tickers, day_ts):
     return bl.build_levels(tickers, closes, vols, prior)
 
 
-def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Optional[dict]:
+def recon_day(D: str, universe: list, client=None, bucket_min: int = 1) -> Optional[dict]:
     """Reconstruct one past day's per-metric OHLC wicks from S3 minute flat files.
     D = 'YYYY-MM-DD'. Returns aggregate_day() output, or None if levels/intraday
     unavailable. HEAVY (whole-market minute file) — call from a worker/bg thread."""
@@ -183,7 +218,19 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Opti
         return None
     per_ticker = res[bucket_min]                     # {ticker: [{t,o,h,l,c,v}]}
     by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
-    buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    all_buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    # ⛔⛔ REGULAR SESSION ONLY. Every bucket the flat file carries used to be replayed
+    # — 4:00 to 20:00 — so Open was a premarket print and High/Low spanned both extended
+    # sessions. Measured 2026-07-23 (broad US): A20 opened 42.4 instead of 35.5 and the
+    # range inflated from 5.5 to 10.0. See `breadth_session` for why the boundary is
+    # derived from participation rather than a typed calendar that starts in 2025.
+    from api.services import breadth_session as bsess
+    bounds = bsess.rth_bounds(per_ticker)
+    if bounds is None:
+        return None                      # cannot establish a session — refuse the date
+    buckets = bsess.rth_buckets(per_ticker, all_buckets)
+    if not buckets:
+        return None
     # Seed the carry-forward with each name's PRIOR close so breadth is always
     # computed over the FULL universe. Without this the 9:30 bucket sees only the
     # handful of names that printed in the first 30 min → a biased, fake-low open
@@ -211,8 +258,17 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Opti
         return None
     from api.services.breadth_live import compute_metrics
     close_m = compute_metrics(levels, prices_by_bucket[-1]) or {}
+    _add_composites(close_m)
     close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
-    return aggregate_day(levels, prices_by_bucket, close_val)
+    out = aggregate_day(levels, prices_by_bucket, close_val)
+    if out:
+        ok, detail = bsess.validate_against_calendar(D, bounds[1])
+        out["_session"] = {"open_min": bounds[0], "close_min": bounds[1],
+                           "early_close": bsess.is_early_close(bounds[1]),
+                           "buckets": len(buckets), "all_hours_buckets": len(all_buckets),
+                           "bucket_min": bucket_min,
+                           "calendar_ok": ok, "calendar": detail}
+    return out
 
 
 # ── Prototype validation: recon wicks vs the REAL live-accumulator wicks ─────
@@ -221,7 +277,7 @@ _VALIDATE_METRICS = ("pct_above_10sma", "pct_above_20ema", "pct_above_50sma",
                      "new_20d_highs", "new_20d_lows")
 
 
-def validate_recent(days: int = 3, bucket_min: int = 30) -> dict:
+def validate_recent(days: int = 3, bucket_min: int = 1) -> dict:
     """The Phase-3 gate: reconstruct the last `days` COMPLETED sessions' wicks from
     S3 intraday and compare to the store's REAL 'live' wicks (same days, sampled in
     real time). If the reconstructed high/low match the live high/low within ~1-2pt,
@@ -273,7 +329,7 @@ def validate_recent(days: int = 3, bucket_min: int = 30) -> dict:
     }
 
 
-def probe_day(D: str, bucket_min: int = 30) -> dict:
+def probe_day(D: str, bucket_min: int = 1) -> dict:
     """Granular diagnostic for one day: does the LEVELS build succeed, does the S3
     get_object succeed (capturing the real exception download_and_resample swallows),
     and how many tickers come back? Pinpoints levels-vs-S3 failure."""
@@ -343,6 +399,51 @@ def _malloc_trim():
         ctypes.CDLL("libc.so.6").malloc_trim(0)
     except Exception:
         pass
+
+
+def preflight(floors: dict, bucket_min: int = 1) -> dict:
+    """⛔ REFUSE BEFORE THE EXPENSIVE WORK, not eight hours into it.
+
+    `floors` = {universe: first_iso}. Probes, for each universe's FIRST required
+    session, that the whole-market minute flat file actually exists — the one thing
+    the methodology report flagged as unverified before 2008 and the one failure that
+    is worthless to discover late.
+
+    ⚠️ A HEAD on one key per universe. This is deliberately cheap: the question is
+    "does this era exist at all", not "is every session present", and a per-session
+    audit costs the same as the job it is meant to precede.
+    """
+    from api.services import breadth_history_recon as _recon
+    out = {"ok": True, "bucket_min": bucket_min, "universes": {}}
+    tickers, udate = _recon._resolve_universe()
+    out["universe"] = {"count": len(tickers or []), "date": udate,
+                       "source": "production _resolve_universe()"}
+    if not tickers:
+        out["ok"] = False
+        out["reason"] = ("the production universe resolver returned nothing — refusing "
+                         "rather than sweeping an empty population")
+        return out
+    client = _s3_client()
+    if client is None:
+        out["ok"] = False
+        out["reason"] = "no S3 client (flat-file credentials absent on this pod)"
+        return out
+    for uni, first_iso in (floors or {}).items():
+        row = {"first_session": first_iso}
+        try:
+            key = _S3_KEY.format(y=first_iso[:4], m=first_iso[5:7], d=first_iso)
+            client.head_object(Bucket="flatfiles", Key=key)
+            row["minute_source"] = "present"
+        except Exception as e:                       # noqa: BLE001
+            row["minute_source"] = f"ABSENT ({type(e).__name__})"
+            row["ok"] = False
+            out["ok"] = False
+        row.setdefault("ok", True)
+        out["universes"][uni] = row
+    if not out["ok"]:
+        out["reason"] = ("a requested universe has no minute source at its floor — STOP "
+                         "for that universe rather than synthesising earlier history")
+    return out
 
 
 def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
