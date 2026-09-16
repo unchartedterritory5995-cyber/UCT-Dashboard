@@ -81,8 +81,16 @@ def poll_once(railway: str) -> dict:
     cmd = [railway, "ssh", "--service", "web",
            "echo %s | base64 -d > /tmp/d14m.py && /opt/venv/bin/python /tmp/d14m.py" % payload]
     try:
+        # ⛔⛔ cwd=ROOT IS LOAD-BEARING, NOT TIDINESS. The Railway CLI resolves its linked
+        # project FROM THE WORKING DIRECTORY. A scheduled task has no working directory, so it
+        # runs in C:\Windows\System32 and every call answers "No linked project found" -- rc=1,
+        # no JSON, a `gap` every poll, while the file keeps growing and the task reads healthy.
+        # Measured 2026-09-16: 8 gaps / 7 successes, the successes coming from a DIFFERENT
+        # poller that happened to still be alive in a repo cwd. Pin it here rather than in the
+        # task definition, so the fix travels with the script -- R49's rollback call depends on
+        # the same resolution and would otherwise be handless in production.
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=180,
-                           encoding="utf-8", errors="replace")
+                           encoding="utf-8", errors="replace", cwd=str(ROOT))
     except Exception as e:  # noqa: BLE001 — a probe failure is a RECORD, never a crash
         return {"t": _now(), "gap": "probe_exception", "detail": repr(e)[:120]}
     for line in (p.stdout or "").splitlines():

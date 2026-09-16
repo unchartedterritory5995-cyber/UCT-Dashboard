@@ -126,7 +126,34 @@ un-maximises).
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.
-- [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4`
+- [ ] **R49 — deterministic rollback watchdog** — `TODO, precondition for W5 and W6`
+  Extend `d14_monitor.py` (a SCRIPT, not an agent — which is why the classifier has no reason to touch it)
+  so it can itself unset `DISCORD_RENDER_V2_ENABLED` (R39) or narrow `DISCORD_RENDER_V2_CHANNELS` back to
+  `'1549129739048853544'` (R41) on its own measured triggers. 60 s polls during canary/member phases.
+  Action on trigger: the single env change, an in-process read confirming it, a **critical** page through
+  `chart_health_alerts`, an entry in `D14-LOG.md`. Never a re-flip, never a second change.
+  Fail-closed: 3 consecutive unreadable polls during a MEMBER phase is itself a rollback trigger; during
+  the CANARY phase it is a page only.
+  Rails before W5's flip: a synthetic breach at the monitor's INPUT (never production) produces exactly one
+  rollback call with the right variable and value; clean input produces none; the blindness rule fires on
+  the third gap, not the second. Mutations: threshold as infinity → RED; variable name swapped → RED;
+  blindness counter never increments → RED. Then a LIVE rehearsal in a settled window, both paths.
+  **This withdraws the "owner awake" note on W6** — the flips run on R38/R40 when their preconditions hold.
+
+  ⛔⛔ **R49'S HANDS ONLY WORK FROM THE REPO WORKING DIRECTORY — MEASURED 2026-09-16.**
+  The Railway CLI resolves its linked project from the CWD. A scheduled task has none, so it runs in
+  `C:\Windows\System32` and every call answers *"No linked project found"* — rc=1, no JSON.
+  The first scheduled poller did exactly this: **8 gaps / 7 successes**, and the successes were a
+  DIFFERENT poller that happened to still be alive in a repo cwd. The file kept growing and the task
+  read `Running` the whole time. **R49 would have been blind AND handless in production while looking
+  healthy.** Fixed by pinning `cwd=ROOT` on the subprocess inside the script (not in the task
+  definition, so it travels). Verified after the fix: 2 successes, 0 gaps.
+  ⭐ The only reason this was visible at all is that the poller writes explicit `gap` records. A silent
+  absence would have read as "no stalls observed overnight".
+  **R49's rollback call must use the same pinned cwd, and its rehearsal must prove it from the scheduled
+  context — not from an interactive shell, where it would pass for the wrong reason.**
+
+- [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4, needs-R49`
 - [ ] **W6 — member flip** per R40, monitor per R41 for >= 5 trading days — `BLOCKED-needs-W5`
 - [ ] **W7 — close-out** — `BLOCKED-needs-W6`
 
