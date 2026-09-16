@@ -1,0 +1,37 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 2,
+    "unchanged": 120,
+    "missing": 0,
+    "baseline": 122,
+    "current": 121,
+    "current_ran": 44353,
+    "new_flaky": 1,
+    "flaky_size": 6,
+    "flaky_new": 1,
+    "flaky_fixed": 0
+  },
+  "arithmetic": "baseline 122 = unchanged 120 + fixed 2 + missing 0  |  current 121 = unchanged 120 + new 0 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35008710335",
+  "current_run_id": "35040155317",
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_ast_math_parity|test_the_two_lanes_agree_everywhere",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "flaky": [
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/pages/screener/ScreensManager.test.jsx|a second attempt replaces the previous refusal rather than stacking one under it"
+  ]
+}
