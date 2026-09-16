@@ -1226,3 +1226,96 @@ rather than glossed:
 
 ⛔ **Not done, and not authorised in this session:** US ingest, dropping the compatibility
 index, publishing any universe, arming `BREADTH_UNIVERSE_BACKFILL_ENABLED`.
+
+---
+
+### BL-035 · Phase B — the restore path, the interlock removal, and US stored dark
+
+**The sequencing gate held.** A–D green before anything was dropped; the interlock
+refused the import until it was deliberately removed, and said so by name.
+
+#### The restore path does NOT replace the file, and that is the decision
+
+`data_sync.download_snapshot()` installs bars.db with `shutil.move`, and its own comment
+carries the scar: an earlier version also removed the stale `-wal`/`-shm` sidecars, and
+writers mid-transaction got **"disk I/O error"**. It now leaves them and accepts the
+opposite risk — a stale WAL beside a fresh main file reading as *"disk image is
+malformed"* — caught by `integrity_ok()` at boot.
+
+⚠️ **That trade is right for bars and wrong for breadth**, and the reason was measured
+rather than inherited. `breadth_daily_ohlc._conn()` opens a NEW connection per call and
+closes it — no pool, no thread-local, no epoch to bump (the deep reader says so itself:
+*"rf_conn_reused is therefore always 0 today"*) — and the module's one long-lived handle,
+`_PROBE`, sits behind a flag unset on every production service.
+
+⭐ So breadth has **no stale-inode problem to solve** and nothing to gain from moving a
+file, while still paying the full sidecar hazard. It replaces the CONTENT in ONE
+transaction on the live inode: `BEGIN IMMEDIATE → DELETE → INSERT..SELECT → COMMIT`. The
+sidecar hazard is not mitigated, it is **absent**; WAL gives readers snapshot isolation so
+no torn view is possible; any failure rolls back. `test_b_the_live_inode_is_the_SAME_FILE`
+pins it so nobody "simplifies" it into a move.
+
+**Proven on the real artifact** (`1789472774`, sha256 `5518974638daef7b…`): 15/15 —
+identity, pre-migration recognition, integrity, 170,545 rows, fingerprint back to
+`c7578ff928440901…`, interlock reinstated, current code boots in 1 ms, `journal_mode=wal`,
+both sidecars intact, a second universe blocked again, idempotent.
+
+⭐ `reinstate_compat_index()` is the deliberate counterpart to `drop_compat_index()`. A
+rollback leaving the store UCT-only but the interlock absent lands **strictly worse** than
+it started — old code still cannot write, and the next stray non-UCT write is unguarded.
+Teaching init to infer it would silently undo a deliberate drop on the next pod restart.
+
+#### ⚰️ The rollback artifact had a life expectancy of two uploads
+
+`breadth_ohlc_sync._KEEP = 5` prunes `snap/`, and the worker uploads on every wick-sweep
+completion — i.e. every boot. `1789472774` was already 3rd-newest. **A rollback target
+that expires on a timer nobody set is not a rollback target.** It is now copied to
+`breadth_ohlc/rollback/`, a prefix the pruner does not scan, and `stage_from_r2` takes an
+explicit `key` so the supported path can reach it. Verified restorable from there.
+
+#### The one-way door, twice
+
+| | |
+|---|---|
+| worker interlock dropped | **2026-09-16T02:02:50Z** |
+| web interlock dropped | **2026-09-16T02:04:47Z** |
+
+Both verified: index absent, `PRIMARY KEY (universe, date, metric)` intact, table DDL
+byte-unchanged, and `ON CONFLICT(date, metric)` now **fails to prepare**
+(`OperationalError: ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE
+constraint`) while `ON CONFLICT(universe, date, metric)` prepares.
+
+⛔ **Old-code write rollback is no longer valid.** The rollback path is now
+*restore a known snapshot → current code initialises it*, not *revert the code*.
+
+⚠️ **Web had to be opened too, and the design said so first.** `_merge_from` refuses a
+snapshot carrying a second universe while the index stands — fail-closed at the other
+door — so web could not have consumed the US snapshot silently.
+
+#### The import
+
+183,417 rows in **5.22 s**, RSS peak **28 MB**. BL-029's multi-GB frame cache is a GRIND
+concern; an `ATTACH` + `INSERT..SELECT` is not one. UCT fingerprint
+`c7578ff928440901…` identical either side, 170,545 rows. Re-import inserted **0**.
+
+⚰️ **A dead rail, caught before it shipped.** The idiomatic NaN test `c != c` can NEVER
+match in SQLite, which has no NaN — it stores one as NULL (`typeof(x)` → `'null'`). That
+clause would have looked like a guard, passed every test, and checked nothing. **Infinity**
+is what survives as a REAL, and the magnitude bound catches it.
+
+#### Stored ≠ published, measured
+
+All 18 V1 US identities: `resolve → None`, `is_published → False`, **0 bars**. 21 stored
+non-V1 metrics, none published; McClellan not revived by rows existing. Payload still
+byte-identical to the legacy 44. `library_health`: US `state=available`, `rows=183417`,
+`published=False`, `metrics_published=0`, overall `ok=True`.
+
+Data sanity: percentages within [0,100]; `universe_count` 2,069–4,102; `adv_decline`
+signed −3,303…+3,128; `net_new_high_low` signed −1,905…+843 — and its three deepest
+sessions are **2020-03-12, 03-16, 03-18**, which is the COVID crash showing up in the
+numbers rather than in a comment.
+
+Round trip with US present: snapshot `1789524296` (**14.9 MB**, up from 8.5 — BL-027
+predicted the roughly-doubled artifact), web merged it in under two minutes, and web now
+holds `uct 174,339 + us 183,417` with its own UCT fingerprint `6276006d94c2e13b…`
+unchanged.
