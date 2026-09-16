@@ -95,7 +95,37 @@
 > nobody re-measures: 112 of 120 files carry 2+ · 53 share a signal family (184) ·
 > tail to 38 · 26 carry no plot.
 >
-> ## ⛔ WAVE 1 PR — `wave1/indicator-r0r1` at `acdf93455`
+> ## ✅ PR #145 IS OPEN, AS A **DRAFT** — R23
+>
+> **https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/145**
+> `feat/indicator-r0r1 → master`, **522 commits**, +784,311 / −2,291.
+> ⛔ **State badge reads `Draft`** — verified by reading the created page, not
+> assumed from the form. Body = `PR-BODY-COMBINED.md`, **47,584 chars**, whose
+> SHA-256 was verified **in the page** as `7f0fb15a…` before it was submitted; all
+> four boundaries confirmed present afterwards (header · Wave 1 heading · Wave 2
+> heading · final line).
+>
+> ⛔⛔ **MERGING IS NOT AUTHORISED, AND DRAFT IS THE MECHANICAL GUARANTEE** — a
+> draft *cannot* be merged until somebody marks it ready. Flipping it to ready is
+> the owner's word, after (j).
+>
+> ⚰️ **THE OLD PINNED BRANCH `wave1/indicator-r0r1` IS DELETED**, local and remote.
+> It was 610 behind with 3 conflicts, and resolving them on a stale base would have
+> shipped Wave 1 twice. This session created that branch, so this session removed
+> it — nothing else was touched.
+>
+> ### ⚠️ How the body got there, because the obvious ways do not work
+> `navigator.clipboard.readText()` **freezes the renderer** (an unanswered
+> permission prompt that a 0×0 window could not show, and that recurs), and a
+> CDP-synthesised **`ctrl+v` pastes nothing**. The body was transferred as
+> **gzip+base64 in three chunks through `sessionStorage`**, reassembled and
+> **hash-checked in the page**. ⭐ Chunk 1 arrived **corrupt** and the per-chunk
+> hashes found it — chunks 2 and 3 were exact, so only one was resent, in halves.
+> ⛔ A tempting shortcut was **measured and rejected**: reading the file's text out
+> of GitHub's own blob DOM hashes to `9d08e3b7`, not `7f0fb15a` — **147 characters
+> different**. DOM text is a *rendering*, not the source.
+>
+> ## ⚰️ SUPERSEDED — the old Wave 1 PR plan (`wave1/indicator-r0r1` at `acdf93455`)
 >
 > ⛔⛔ **`gh pr create` stays banned; this ONE PR was authorised to be opened in the
 > BROWSER, under the owner's own GitHub session. MERGING IS NOT AUTHORISED.**
