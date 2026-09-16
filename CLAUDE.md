@@ -2648,6 +2648,26 @@ GitHub**, which sees the push itself (and Railway's *Wait for CI* holds the buil
 it); it cannot come from polling Railway. Both guards were working correctly that night;
 both were reading a state that had already moved.
 
+⭐⭐ **THE CLASS, AND IT HAS TWO KINDS — the second is the dangerous one.** Four instances
+in one night across two sessions, which is why this is filed as a class:
+
+| | the instrument was pointed at… | instances |
+|---|---|---|
+| **1** | something that **MOVED** | `%an` for authorship (every commit carries one name) · the Railway deploy list (lags the push by ~3m25s) · a `/tmp` path bash and Python resolve differently |
+| **2** | a **PROXY** for the thing it named | `uptime_seconds` standing in for *"did MY deploy ship"* · `breadth_pool_report.py` grouping populations by commit SHA while its docstring defined the rule as *"the same deployed code"* |
+
+⛔ **Kind 2 fails SILENTLY IN WHICHEVER DIRECTION IT HAPPENS TO LEAN, so the error has no
+characteristic sign.** The SHA-grouping one produced an understatement (p95 read as
+unreachable) and an overstatement ("four independent replications" where there was one)
+from a single cause, in one run. The uptime one leaned toward corroboration and would have
+produced a permanently green verification. Neither is visible from the output — which is
+what separates this class from an ordinary bug, and why "the numbers all looked right" is
+not evidence that the measurement was.
+
+⭐ **The test for kind 2:** read the instrument's own stated rule, then ask what it actually
+keys on. If those are two different sentences, it is a proxy, and it must be labelled as
+one or replaced.
+
 ⚠️ **CONSEQUENCE FOR EVIDENCE, and it invalidated a published verification:** when your
 deploy is superseded mid-flight, `/api/health uptime_seconds` resolves to the SUPERSEDING
 pod's boot, not yours. A 15-minute blip check read a clean monotonic uptime and named it as
