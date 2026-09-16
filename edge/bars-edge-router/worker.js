@@ -18,6 +18,7 @@
  *
  * ROUTING (unchanged, and its quirks are known — see README):
  *   /api/bars/UCT*  → WEB_ORIGIN   (breadth lives in the web pod's tables)
+ *   /api/bars/US:*  → WEB_ORIGIN   (and every other namespaced breadth identity)
  *   /api/bars/<sym> → BARS_ORIGIN  (the bars-api tier)
  *   anything else   → pass through to the zone's default origin (web)
  *   BARS_ORIGIN >=500 or timeout → fall back to WEB_ORIGIN
@@ -198,7 +199,20 @@ export default {
     if (!m) return fetch(request);
 
     const ticker = decodeURIComponent(m[1]).toUpperCase();
-    const isBreadth = ticker.startsWith("UCT");
+    // ⛔⛔ BREADTH IS `UCT*` **OR ANY NAMESPACED IDENTITY**, and the second half is not
+    // cosmetic. The Breadth Library is a library of metrics ACROSS UNIVERSES: the same
+    // `pct_above_50sma` is `UCTA50` in the shipped universe and `US:A50` in the
+    // point-in-time US one. Only the first spelling starts with "UCT", so a colon-bearing
+    // identity was being forwarded to the tier — whose breadth database is 16 KB and
+    // EMPTY — and every US chart came back `symbol_not_carried` while the very same
+    // symbol returned a proper 401 on WEB_ORIGIN. Measured 2026-09-16 on production.
+    //
+    // ⭐ A COLON IS THE RIGHT TEST, not a list of universe prefixes. No ordinary ticker
+    // contains one, `decodeURIComponent` above has already turned `%3A` back into `:`, and
+    // this covers `NASDAQ:*` and `NYSE:*` the day they are published without touching this
+    // file again. Syntax still grants nothing downstream — `resolve()` is a dict lookup
+    // against minted identities, so `FOO:BAR` reaches web and is answered with nothing.
+    const isBreadth = ticker.startsWith("UCT") || ticker.includes(":");
 
     const headers = new Headers(request.headers);
     headers.delete("host");
