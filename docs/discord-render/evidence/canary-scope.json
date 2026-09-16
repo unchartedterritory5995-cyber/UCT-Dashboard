@@ -1,9 +1,17 @@
 {
- "read_at": "2026-09-15T23:44:10Z",
+ "read_at": "2026-09-16T00:05:17Z",
  "source": "in-process",
  "v2_channels": [
   "1549129739048853544"
  ],
+ "channel_allowed_smoke": true,
+ "channel_allowed_member": false,
+ "v2_enabled_env_present": false,
+ "cmd_channel_id_primary": "1546563720702853280",
+ "cmd_channel_ids": [
+  "1546563720702853280",
+  "1549129739048853544"
+ ],
  "commit": "246204473d0b",
- "note": "R23, D-11. DISCORD_RENDER_V2_CHANNELS set to the single declared canary id via the Railway CLI on web -- the ONLY service that reads it (sole reader: api/services/discord_render/commands.py:75). Read back from the RUNNING process after the env redeploy reached SUCCESS, never from `railway variables --kv`. DISCORD_RENDER_V2_ENABLED remains None, read in the same pass. The load-bearing consequence: channel_allowed('1546563720702853280') is now FALSE -- V2 cannot reach the member channel even if the flag were flipped, which is what makes 'admin-only canary' different from the member flip (OI-35)."
+ "note": "D-12 Part 0.2 re-read, refreshing the D-11 (R23) recording before its 24h expiry; every field is UNCHANGED. DISCORD_RENDER_V2_CHANNELS is set to the single declared canary id on web -- the ONLY service that reads it (sole reader: api/services/discord_render/commands.py:75). Read back from the RUNNING process, never from `railway variables --kv`. The load-bearing consequence is channel_allowed({'channel_id': '1546563720702853280'}) == FALSE: V2 cannot reach the member channel even if the flag were flipped, which is what makes 'admin-only canary' different from the member flip (OI-35). DISCORD_RENDER_V2_ENABLED is ABSENT from the environment (not '0') -- recorded as presence, because off-and-unset must stay distinguishable. cmd_channel_id()'s primary is still the member channel, unchanged by the narrowing."
 }
