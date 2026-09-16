@@ -71,8 +71,20 @@ def test_b_a_half_day_derives_a_13_00_close_with_no_calendar_entry():
 
 
 def test_c_premarket_and_postmarket_are_outside_the_domain():
-    """⛔ THE REGRESSION RAIL for the exact defect found: 4:00-20:00 replay."""
-    per = _session("2026-07-23")
+    """⛔ THE REGRESSION RAIL for the exact defect found: 4:00-20:00 replay.
+
+    ⚠️ AND FOR THE OFF-BY-ONE THAT FOLLOWED IT. The first proof run produced 391
+    buckets with a last minute of 16:00, because the upper bound was inclusive. A bar
+    stamped 16:00 covers 16:00:00-16:00:59 — after the bell. The session is the 390
+    bars 09:30 through 15:59; the closing auction reaches the candle through the
+    authoritative EOD close, not through the intraday path.
+    """
+    per = _session("2026-07-23", post=True)
+    # a REAL 16:00 bar, which is what the live flat file carries and what the first
+    # proof run let through
+    for i in range(400):
+        per.setdefault(f"T{i}", []).append(
+            {"t": _ts("2026-07-23", 16, 0), "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1})
     buckets = sorted({b["t"] for bars in per.values() for b in bars})
     kept = bsess.rth_buckets(per, buckets)
     mins = {bsess.et_minute(t) for t in kept}

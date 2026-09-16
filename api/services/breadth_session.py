@@ -82,8 +82,14 @@ def rth_bounds(per_ticker: dict) -> Optional[tuple]:
     part = participation(per_ticker)
     if not part:
         return None
+    # ⛔ THE UPPER BOUND IS EXCLUSIVE, AND THIS IS THE OFF-BY-ONE TO GET RIGHT.
+    # A minute bar stamped 16:00 covers 16:00:00-16:00:59 — that is AFTER the closing
+    # bell, so letting it into the domain would hand a post-close print the power to
+    # define High or Low. The regular session is the 390 bars 09:30 through 15:59.
+    # Nothing is lost by excluding it: the closing auction is already represented by
+    # the AUTHORITATIVE EOD close, which is where C comes from.
     inside = {m: n for m, n in part.items()
-              if RTH_OPEN_MIN <= m <= RTH_MAX_CLOSE_MIN}
+              if RTH_OPEN_MIN <= m < RTH_MAX_CLOSE_MIN}
     if not inside:
         return None
     busiest = max(inside.values())
@@ -93,7 +99,7 @@ def rth_bounds(per_ticker: dict) -> Optional[tuple]:
     busy = sorted(m for m, n in inside.items() if n >= floor)
     if not busy:
         return None
-    return RTH_OPEN_MIN, busy[-1]
+    return RTH_OPEN_MIN, min(busy[-1], RTH_MAX_CLOSE_MIN - 1)
 
 
 def is_early_close(close_minute: int) -> bool:
