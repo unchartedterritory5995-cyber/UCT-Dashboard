@@ -427,10 +427,23 @@ Recorded because the catches are the transferable part.
 | 8 | **The pool report keyed populations on the SHA** while its docstring defined the rule as "the same deployed code", shattering one 77-row reader into four groups of 8/12/19/34 — which is what made p95 "not estimable", the flip "deferred", and "four independent replications" out of one | fingerprinting the hot path instead of trusting the commit id |
 | 9 | A shell loop over `reader-hotpath.txt` kept the **CR** from a CRLF file, and plain `git rev-parse` **echoes an unresolvable argument back** instead of failing — so the check compared two literal strings and reported **all eight** hot-path files as different between two commits that are byte-identical | all eight differing at once, including files nothing had touched |
 | 10 | The rail written for #9 **could not fail**: it asserted "no CR in the entries", but `str.splitlines()` already discards `\r\n`, so it tested a property Python guarantees and its comment claimed a bug this file never had | mutating `.strip()` away and watching the rail still pass |
+| 11 | **The landing guard read "master is quiet" and superseded a peer's deploy 2.3 min into its build.** All three clauses (no ACTIVE, burst < 3 distinct, newest > 600 s) were satisfied and correct at read time — the peer's *push* had happened and Railway had not yet created its *deploy record* | the peer reporting their deploy REMOVED by an unknown session, and the timestamps resolving to me |
 
 ⭐ The through-line: **every one was an instrument reporting a property of itself as a
 property of the world** — the same defect this programme was created to find, found in
-its own tools **ten times**, and the last three found after the report was ratified.
+its own tools **eleven times**, and the last four found after the report was ratified.
+
+⛔⛔ **#11 IS DIFFERENT FROM THE OTHER TEN AND IS THE ONE TO CARRY AWAY.** Every other entry
+is an instrument that was *wrong*. #11 was an instrument that was **right, and insufficient,
+and could not have known it**. The guard polls Railway's deploy list; a deploy record appears
+**~3m25s after the push that causes it** (measured on both of this session's own pushes). So
+for roughly three minutes a push exists and is invisible, and the guard answers "quiet" with
+complete and justified confidence. ⭐ **Waiting longer does not fix it** — the checker and
+the thing checked are separated by a delay the checker cannot observe, so there is no polling
+interval that closes the gap. *"No deploy in flight" is evidence about deploys, never about
+pushes.* Push-level serialisation has to come from GitHub's `concurrency: master-deploy`
+group, which observes the push itself; this is the argument for that mechanism, written from
+the failure it prevents.
 
 ⛔ **#8 is the one that matters, because it was load-bearing and it was ratified.** The
 other nine were caught before anything was published; #8 produced the report's headline,
