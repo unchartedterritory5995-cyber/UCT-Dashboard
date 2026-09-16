@@ -64,7 +64,25 @@ OK, FAIL = 0, 1
 #: cheaper than 41 failures, so this is back at 8 until the isolation defect is fixed.
 #: ⛔ And the real fix is a **time-weighted** partition, not a finer alphabetical one — the
 #: alphabet is exactly what re-shuffles neighbours.
-ROOT_BUCKETS = 8
+#:
+#: ⭐⭐ **SECOND ATTEMPT, 2026-09-15 — THE BLOCKER IS GONE.** F-CI-36's cause was ONE file:
+#: `tests/test_thesis_reviews_router.py` leaked a `get_current_user` override onto the
+#: shared app, so a stub user with no plan answered for every later test in the process.
+#: Fixed in `240bb3305`. The exact reproduction that produced 41 failures now produces
+#: **62 passed**, and the full 52-file joined set goes **52 failed -> 10**, none in the
+#: voice file. ⛔ The joined set lives entirely inside ONE bucket at 12 (`tests-11`,
+#: proved), so if it breaks again it breaks in one place.
+#:
+#: ⚠️ **THE PROJECTION IS CALIBRATED, NOT SUMMED.** junit's per-test `time` excludes
+#: COLLECTION, and collection is not evenly spread: measured on run #28, observed/projected
+#: ran **1.09 to 2.22** across the eight loose-root shards. Projecting every 12-bucket
+#: shard with the WORST of those ratios gives a worst case of **938 s against the 1,200 s
+#: cap** (headroom 262 s), with tests-07 second at 902 s. A raw sum would have said 422 s
+#: and been wrong by more than double.
+#:
+#: ⛔ ONE ATTEMPT. A NEW failure among the 52 formerly-leaking files reverts this by EDIT,
+#: in the same session, with a finding naming the shared state — no third try.
+ROOT_BUCKETS = 12
 TEST_GLOB = "test_*.py"
 
 
