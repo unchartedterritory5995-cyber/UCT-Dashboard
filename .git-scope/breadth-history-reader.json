@@ -7,7 +7,14 @@
     "Written after a breadth commit used `git add -A` and swept in two joystick docs,",
     "silently normalising another programme's deliberate raw control bytes.",
     "SD-1 (2026-09-15) authorised S1 (.gitattributes) and a second test file, so both are added to 'allow'. Widening the scope is a deliberate, reviewable act - the point of the declaration is that it says what this programme may touch, not that it never changes.",
-    "SD-1.1 A2.3 authorised a correction to .github/workflows/master-deploy-gate.yml (its failure message asserted Railway would not build a red commit; measured false). Added to 'allow' so the scope checker permits it rather than being overridden."
+    "SD-1.1 A2.3 authorised a correction to .github/workflows/master-deploy-gate.yml (its failure message asserted Railway would not build a red commit; measured false). Added to 'allow' so the scope checker permits it rather than being overridden.",
+    ".github/workflows/promote-production.yml: SD-1.3 C2.1 authorised the promotion record step",
+    "tools/promotion_record.py: SD-1.3 C2.1 - parses the gate log into the promotion record",
+    "tools/land_master_first.py: SD-1.3 C2.4 - the landing direction rail, encoded",
+    "tools/pre_push_guard.py: SD-1.2 L5 - docs-only correction; R18 retired the clock clause",
+    "tests/test_promotion_control.py: SD-1.3 C2.2 - the compensating control's rail",
+    "tests/test_land_master_first.py: SD-1.3 C2.4 - the direction rail's rail",
+    "tests/test_range_scan_states.py: SD-1.2 B2 L1 - the six-state rails"
   ],
   "branches": [
     "breadth/",
@@ -21,6 +28,7 @@
     ".git-scope/",
     ".gitattributes",
     ".github/workflows/master-deploy-gate.yml",
+    ".github/workflows/promote-production.yml",
     "api/routers/breadth_monitor.py",
     "api/services/breadth_",
     "docs/breadth-history-reader/",
@@ -30,7 +38,13 @@
     "tests/test_breadth_",
     "tests/test_git_scope.py",
     "tests/test_gitattributes_eol.py",
+    "tests/test_land_master_first.py",
+    "tests/test_promotion_control.py",
+    "tests/test_range_scan_states.py",
     "tools/breadth_",
-    "tools/git_scope.py"
+    "tools/git_scope.py",
+    "tools/land_master_first.py",
+    "tools/pre_push_guard.py",
+    "tools/promotion_record.py"
   ]
 }

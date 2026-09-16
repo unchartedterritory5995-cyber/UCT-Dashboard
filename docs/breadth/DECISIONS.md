@@ -1509,3 +1509,32 @@ proves nothing.
 ⚠️ **Operational consequence, stated plainly:** other breadth workstreams are editing the
 reader's hot path tonight. Every such change voids the pool and restarts it, so n≥59 on a
 single SHA may be unreachable in one session. SD-1.6 R-6's fallback governs.
+
+### S2 — the WARN trial found a real drift on its first night
+
+The heartbeat log recorded one **WOULD-REFUSE**, and it was correct:
+`.github/workflows/promote-production.yml` was staged while the scope declaration listed
+only `master-deploy-gate.yml`. SD-1.3 C2.1 had authorised the promotion-record step; the
+declaration was never widened to match. The same was true of four tools and three tests
+this programme was authorised to add.
+
+⭐ **This is the trial working, not failing.** A WARN-mode checker that recorded twenty
+quiet heartbeats would have proved only that the hook runs. One that names a real
+divergence between what a programme was authorised to touch and what it declared has
+proved the scoping itself is live.
+
+**Widened deliberately** (the declaration's own comment calls this "a deliberate,
+reviewable act"), each entry carrying the ruling that authorised it:
+`promote-production.yml`, `tools/promotion_record.py`, `tools/land_master_first.py`,
+`tools/pre_push_guard.py`, and the three rails' test files.
+
+⛔ **`docs/runbooks/deploy-windows.md` was deliberately NOT added.** That file belongs to
+the deploy programme and is the single authority on push timing; G8 was a one-time
+authorised edit to somebody else's document. **Widening this programme's scope to include
+it would grant standing permission for a one-off** — so it stays outside the declaration
+and rides the logged override instead. That is the distinction the two mechanisms exist to
+draw: **widen for what you own, override for what you were let into once.**
+
+⚠️ **Consequence for the ENFORCE criterion:** the trial's "0 WOULD-REFUSE" clause is not
+met, and correctly so. The count restarts from the corrected declaration. S2 stays
+TIME-GATED.
