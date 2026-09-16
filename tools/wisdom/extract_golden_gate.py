@@ -617,8 +617,10 @@ def main() -> int:
     #: so it can be skipped.
     ap.add_argument("--no-persist-records", dest="persist_records", action="store_false", default=True,
                     help="do NOT keep this run's validated records (R12); aggregates are unaffected either way")
-    ap.add_argument("--gate-runs-dir", default=str(gate_records.DEFAULT_ROOT),
-                    help="where persisted runs go; must stay inside the gitignored data/wisdom tree (§0.4f)")
+    ap.add_argument("--gate-runs-dir", default=str(gate_records.LOCAL_ROOT),
+                    help="where persisted runs go; must stay inside the gitignored data/wisdom tree (§0.4f). "
+                         "Defaults to the REPO tree, not <DATA_DIR> — see gate_records.LOCAL_ROOT for why "
+                         "the PC-side tool and the production chain resolve this differently (R56)")
     args = ap.parse_args()
 
     common.bootstrap(args.db)

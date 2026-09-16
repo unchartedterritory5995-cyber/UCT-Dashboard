@@ -36,7 +36,22 @@ import os
 import pathlib
 
 RAW_KEY = "_raw_output"
-DEFAULT_ROOT = pathlib.Path("data") / "wisdom" / "gate-runs"
+#: R56, and the distinction here is load-bearing rather than pedantic.
+#:
+#: There are TWO roots because there are two processes, and they are correct to differ:
+#:   * the CHAIN's root is `reconcile.gate_runs_root()` — `<DATA_DIR>/wisdom/gate-runs`, i.e. the
+#:     Railway VOLUME on the pod. That is the one authority for anything running in production.
+#:   * THIS tool is PC-side. It runs on a developer box where `<DATA_DIR>` resolves to the LIVE
+#:     `C:\data`, which `extract_common.out_path` refuses outright — so defaulting to the chain
+#:     root would make the gate tool refuse to start, and pointing it at `C:\data` on purpose
+#:     would be writing gate runs into the owner's production tree.
+#:
+#: ⛔ So the local default is REPO-ANCHORED and absolute (never CWD-relative, which was the
+#: original defect): `<repo>/data/wisdom/gate-runs`, the gitignored tree §0.4f already governs and
+#: where the three persisted 2026-09-15 passes actually are. `--gate-runs-dir` overrides it, and a
+#: local run of the chain-side reconciler finds them by setting `WISDOM_GATE_RUNS_DIR` to the same
+#: path. `identity_study.py:52` already anchors this way; this now matches it.
+LOCAL_ROOT = pathlib.Path(__file__).resolve().parents[2] / "data" / "wisdom" / "gate-runs"
 
 RECORDS_FILE = "records.jsonl"
 SEGMENTS_FILE = "segments.jsonl"

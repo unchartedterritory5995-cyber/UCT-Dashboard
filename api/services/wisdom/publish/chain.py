@@ -101,7 +101,18 @@ WEEKLY: tuple = (
     Step("voice_profile", "publish", (("api.services.wisdom.publish.adapters", "refresh_voice_profile"),),
          gate=flags.voice_profile_enabled, gate_env="WISDOM_VOICE_PROFILE_ENABLED"),
     Step("weekly_report", "publish", (("api.services.wisdom.publish.report", "run_weekly"),)),
-    Step("extract_audit", "extract", (("api.services.wisdom.extract", "run_weekly_audit"),)),
+    # ⚰️⚰️ R57 (owner ruling, 2026-09-15). This named `run_weekly_audit`, WHICH DOES NOT EXIST —
+    # not in `extract/__init__.py`, not anywhere in the repo. `resolve()` returned fn=None, the
+    # step recorded `not_available`, and nothing paged, so **the weekly extraction audit had never
+    # run once.** The step was not wrong to exist: RUNBOOK.md:108 and CONTRACTS.md:251 both specify
+    # it ("S-D weekly 50-segment audit", gated by WISDOM_EXTRACT_AUDIT_ENABLED), and
+    # `extract.run_audit` IS that implementation — it reads the flag at audit.py:54 and salts by
+    # ISO week at audit.py:70. Only the NAME was wrong, in two artifacts at once
+    # (extract/jobs.py:5 carries the same wrong name in prose).
+    # ⛔ The rail that makes this unrepeatable is `test_wisdom_chain_targets_resolve.py`: every
+    # step target in this table must import and resolve, so a typo fails by name instead of
+    # degrading to a silent `not_available`.
+    Step("extract_audit", "extract", (("api.services.wisdom.extract", "run_audit"),)),
 )
 
 # W1 Part 7 monthly (first Sunday): the recognition proposal packet, dark.

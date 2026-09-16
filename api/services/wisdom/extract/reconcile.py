@@ -42,13 +42,54 @@ by `principle_key`; nothing that feeds `writer._canonical_hash` is read or writt
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import sqlite3
 from typing import Iterable, Optional
 
 RECORDS_FILE = "records.jsonl"
 MANIFEST_FILE = "manifest.json"
-DEFAULT_ROOT = pathlib.Path("data") / "wisdom" / "gate-runs"
+
+#: R56 (owner ruling, 2026-09-15). The persisted-runs root, resolved ONCE, here.
+#:
+#: ⚰️⚰️ WHAT IT REPLACED, AND WHY THE REPLACEMENT IS THE WHOLE POINT. This was
+#: `pathlib.Path("data") / "wisdom" / "gate-runs"` — a BARE CWD-RELATIVE literal, with no
+#: environment override anywhere and no way for the chain to pass one (`chain.py` calls every
+#: step as `fn(ctx)` and nothing else). On a developer's box the CWD is the repo root and it
+#: happens to land on the gitignored tree. On the pod the CWD is `/app` (WORKDIR, Dockerfile.web),
+#: so it resolved to `/app/data/wisdom/gate-runs` — an EPHEMERAL IMAGE LAYER, not the Railway
+#: volume, and one that `.gitignore`'s `data/` keeps out of the image entirely.
+#:
+#: ⛔⛔ THE CONSEQUENCE WAS NOT "A WRONG DIRECTORY", IT WAS "N-PASS CAN NEVER COMPLETE". Runs
+#: written to an image layer are destroyed on every redeploy, and `MIN_RUNS = 3` needs three
+#: passes to coexist. A chain-side N-pass writing to the old default would have accumulated
+#: nothing, forever, while every step reported `ok`.
+#:
+#: ⛔ There were also TWO definitions of this constant — here and in `tools/wisdom/gate_records.py`
+#: — one writing runs and one discovering them. Two authorities over one path is how a writer and
+#: a reader come to disagree in silence. `gate_records` now imports THIS function.
+GATE_RUNS_DIR_ENV = "WISDOM_GATE_RUNS_DIR"
+
+
+def gate_runs_root() -> pathlib.Path:
+    """Where persisted extraction runs live. Never CWD-relative.
+
+    `WISDOM_GATE_RUNS_DIR` wins if set; otherwise `<DATA_DIR>/wisdom/gate-runs`, with DATA_DIR
+    defaulting to `/data` — the same resolution `entity_master/schema.py:33` uses, and the same
+    volume the wisdom store defaults onto (`core/store.py:43`).
+    """
+    override = (os.environ.get(GATE_RUNS_DIR_ENV) or "").strip()
+    if override:
+        return pathlib.Path(override)
+    return pathlib.Path(os.environ.get("DATA_DIR", "/data")) / "wisdom" / "gate-runs"
+
+
+#: ⛔ THERE IS DELIBERATELY NO MODULE-LEVEL `DEFAULT_ROOT` CONSTANT ANY MORE. It was a default
+#: ARGUMENT (`score_silently(ctx, *, root=DEFAULT_ROOT)`), and Python binds a default argument
+#: ONCE, at import. Any constant here would freeze whatever the environment said at import time,
+#: so a rehearsal or a test that pins DATA_DIR afterwards would be silently ignored — the same
+#: class of bug as the CWD-relative literal, wearing different clothes. Callers pass `root=None`
+#: and the resolution happens per call, in `gate_runs_root()`.
 
 #: Written beside the runs it reconciles, in the same gitignored tree (§0.4f).
 REPORT_FILE = "reconcile-report.json"
@@ -433,15 +474,19 @@ def discover(root) -> list:
     return sorted(p.name for p in base.iterdir() if (p / RECORDS_FILE).exists())
 
 
-def score_silently(ctx, *, root=DEFAULT_ROOT) -> dict:
+def score_silently(ctx, *, root=None) -> dict:
     """Daily-chain entry point. A no-op unless enough compatible runs are persisted.
 
     ⛔ `N` comes from the number of runs actually reconciled, never from a literal — so a
     reconciliation over four passes stores 4, and Q17 reads that real denominator.
+
+    ⛔ `root=None` resolves PER CALL via `gate_runs_root()` (R56). It is not a constant default,
+    because a default argument binds once at import — see the note beside `gate_runs_root`.
     """
     from api.services.wisdom.core import store
     from api.services.wisdom.publish import floor
 
+    root = gate_runs_root() if root is None else root
     ids = discover(root)
     if len(ids) < floor.MIN_RUNS:
         return {"skipped": f"only {len(ids)} persisted run(s); need {floor.MIN_RUNS}",
