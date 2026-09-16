@@ -32,6 +32,19 @@ import shutil
 import subprocess
 import sys
 
+# ⚰️ THE ELEVENTH cp1252 SIGHTING IN THIS PROGRAMME, and the first one inside the signer.
+# Every sibling tool carries this; `sign_all` did not, and the gap was invisible because the
+# paths that print ⛔ are the REFUSAL paths — the ones nobody exercises until something goes
+# wrong. Measured 2026-09-15: `--until` naming no row raised
+# `UnicodeEncodeError: 'charmap' codec can't encode character '⛔'` INSTEAD of the
+# refusal it was about to print, turning a clean exit 2 into a traceback and exit 1.
+# ⛔ A refusal that cannot be printed is a refusal nobody receives.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001 - a stream that cannot be reconfigured is not fatal
+        pass
+
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 OK, FAIL, REFUSED = 0, 1, 2
@@ -131,6 +144,9 @@ def main(argv=None) -> int:
     ap.add_argument("--by", default="Patrick")
     ap.add_argument("--on", default=None, help="default: the ET clock authority")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--until", default=None,
+                    help="stop AFTER this packet stem (a sitting boundary). ⛔ Everything "
+                         "before it is still verified; nothing after it is touched.")
     a = ap.parse_args(argv)
 
     man = pathlib.Path(a.manifest)
@@ -138,6 +154,20 @@ def main(argv=None) -> int:
         print("⛔ manifest not found: %s" % man)
         return REFUSED
     table = rows(man)
+    # ⛔ K CP6 — THE SITTING BOUNDARY. A three-hour run is two sittings plus the
+    # member-visible unit alone; `--until` is what makes "stop cleanly here" a command
+    # rather than a promise. It TRUNCATES the table, so every row after the boundary is
+    # not verified, not signed, and not reported as anything — the next sitting reads them.
+    # ⛔ An --until naming nothing is REFUSED. A boundary that silently matched no row
+    # would sign the whole manifest while the operator believed it had stopped.
+    if a.until:
+        stems = [pathlib.Path(r["path"]).stem for r in table]
+        if a.until not in stems:
+            print("⛔ --until %r matches no row in this manifest. Nothing was verified or "
+                  "written." % a.until)
+            print("   the last five rows are: %s" % ", ".join(stems[-5:]))
+            return REFUSED
+        table = table[:stems.index(a.until) + 1]
     on = a.on or et_today()
 
     print("[sign-all] manifest: %s" % man)

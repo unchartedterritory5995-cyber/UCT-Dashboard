@@ -17,8 +17,10 @@ APPROVED AT SHA:
 SCOPE APPROVED:
 ```
 
-> **K CP6 — a signature says what it approved, and refuses when it cannot.** Scope is
-> `tools/sign_gate.py` **as enumerated by `git show --stat` of this unit's commit.**
+> **K CP6 — a signature says what it approved, the sitting has a boundary, and the resume
+> reads master correctly.** Scope is `tools/sign_gate.py`, `tools/sign_all.py` and
+> `tools/merge_all.py` **as enumerated by `git show --stat` of this unit's TWO commits,
+> both named in `SESSION_REPORT_2026-09-15_6.md`.**
 
 ⛔ **Collision proof, three sources:** `packet-k-two-command-signing-gate.md` declares
 **CP1–CP2**; build records on disk are **k-cp3, k-cp4, k-cp5**; manifest rows are
@@ -133,6 +135,102 @@ approval block to four approved-shape documents** — an edit to the packets, no
 the signer. ⭐ What the manifest already encodes is the right thing: **one signature whose
 scope names every checkpoint in that row** — `CP1, CP2 ONLY — …`. That is what ships.
 
+
+## 6b · ⛔⛔ THREE MORE DEFECTS, EACH FOUND BY BUILDING THE CONTROL
+
+Everything below was found by writing R.3's resume control and watching it fail — not by
+reading the code, which had already been read.
+
+### (a) `merge_all` cherry-picked onto WHATEVER WAS CHECKED OUT
+
+```
+s7-price-level is on feat/s7-price-level
+git merge-base --is-ancestor 18dd13683 HEAD   -> unit 1's commit is ALREADY in that history
+```
+
+So `git cherry-pick 18dd13683` is **empty**, exits 1, leaves `.git/CHERRY_PICK_HEAD` behind
+— **the owner's very first merge command would have died on the very first unit.** It now
+REFUSES unless the worktree is at `origin/master`, and names the command. ⛔ It does not
+check master out itself: the worktree is shared, and a tool that silently moves somebody
+else's HEAD is a worse bug than the one it fixes.
+
+### (b) ⚰️ K CP5's MERGED-STATE CHECK WAS WRONG — RETRACTED
+
+K CP5 shipped `git merge-base --is-ancestor <commit> origin/master` and this report called
+it *"reading MASTER, both directions"*. **Cherry-pick REWRITES the commit**, so the original
+sha is never an ancestor of master however thoroughly the change landed. Measured in a
+throwaway repo shaped like the real one — master moved independently, so the cherry-picks
+produced new shas:
+
+```
+                     --is-ancestor        truth                git cherry
+unit 1 (merged)      exit 1 "not merged"  IS on master  WRONG  "- d0a33c45b"  right
+unit 2 (merged)      exit 1 "not merged"  IS on master  WRONG  "- a62470bcb"  right
+unit 3 (not merged)  exit 1 "not merged"  is NOT         right "+ 4326b6e7a"  right
+```
+
+A resumed run would have re-cherry-picked an already-merged unit, hit *"the previous
+cherry-pick is now empty"*, and left `CHERRY_PICK_HEAD` behind — **the exact failure K CP5
+was written to remove.** Now `git cherry`, which compares **patch ids**.
+
+⚠️ **AND THE FIRST VERSION OF THAT CONTROL SAID `--is-ancestor` WAS FINE.** Its fixture put
+the feature branch directly on master, so cherry-pick reproduced byte-identical commits and
+both primitives agreed. **A fixture that cannot distinguish is not a control** — the second
+version moves master independently first, which is the only shape that separates them.
+
+### (c) the resumed settle
+
+A run killed between unit N's push and its settle leaves master's tip mid-deploy. The next
+run skips N (correctly — it IS on master) and would push N+1 straight into the Layer-0
+guard, which refuses. `merge_all` now waits **once, on `origin/master`'s current tip**, before
+this run's first push — the same commit the guard looks at.
+
+## 6c · The R.3 control, as run
+
+```
+SITTING 1 (--until u2)      u1 merged, u2 merged, exit 0, 2 deploy waits
+THE INTERRUPT (--until u3)  u3 pushed, then killed at its OWN settle (wait #2)
+SITTING 2 (no flags)        u1 ALREADY MERGED · u2 ALREADY MERGED · u3 ALREADY MERGED
+                            ⏳ RESUMING — waiting on master's tip bd35aa76c before pushing
+                            u4 merged and deployed                       exit 0
+
+  units reported ALREADY MERGED from origin/master   -> 3   ok
+  a resumed settle happened, once, before any push   -> 1   ok
+  ...and it waited on master's TIP                   -> True ok
+  only ONE unit was actually merged this run         -> 1   ok
+  two deploy waits this run                          -> 2   ok
+  exit code                                          -> 0   ok
+  unit 4 now reads merged from master                -> True ok
+R.3 RESUME CONTROL: PASS
+```
+
+⛔ **REAL in that control:** `merged_into_master`, the cherry-picks, the pushes, the loop,
+`--until`, the branch precondition, the resumed-settle decision, and the real approval
+reader over real signed packets. **STUBBED:** `wait_for_deploy` (there is no Railway in a
+throwaway repo — the stub is what simulates the interrupt) and `enforce_order` (it checks
+the real manifest, not fake stems). ⚠️ The interrupt is keyed on the **Nth wait**, not on a
+sha: the first version keyed it on the ORIGINAL commit's sha, the deploy carries the
+CHERRY-PICKED one, so it never fired and the control reported a resume it had not tested.
+
+## 6d · `--until`, the sitting boundary
+
+```
+sign_all  --until e-cp12-build-record --dry-run   -> rows: 17,  17 commands printed
+merge_all --until e-cp12-build-record --dry-run   -> units: 17 of 39,  17 unit headers
+merge_all                              --dry-run  -> units: 39 of 39
+--until naming nothing                            -> exit 2 both tools, names the last five
+```
+
+⛔ **The order check runs over the WHOLE list before any truncation**, so a sitting boundary
+cannot hide a constraint violation that lives after it.
+
+⚰️ **The eleventh cp1252 sighting in this programme, and the first inside the signer.**
+`sign_all.py` had no `sys.stdout.reconfigure`, and the gap was invisible because the paths
+that print ⛔ are the REFUSAL paths — nobody exercises those until something goes wrong.
+`--until` naming no row raised `UnicodeEncodeError` **instead of** the refusal it was about
+to print, turning a clean exit 2 into a traceback and exit 1. **A refusal that cannot be
+printed is a refusal nobody receives.**
+
 ## 7 · Controls
 
 ```
@@ -150,6 +248,15 @@ in --self-check, permanently: CONTROL 8 write · 9 blank-refuse+sha · 10 undecl
 
 ⛔ Controls 2 and 3 are only controls because **control 1 proves the file CAN change**.
 Without it, "nothing was written" is satisfied by a signer that never writes anything.
+
+## 7b · Files
+
+```
+tools/sign_gate.py    declared_checkpoints · the three refusals · the scope write ·
+                      rederive_signed blanks four fields · MALFORMED on a blank scope
+tools/sign_all.py     --until · the cp1252 reconfigure
+tools/merge_all.py    --until · the at-master precondition · git cherry · the resumed settle
+```
 
 ## 8 · Validators
 

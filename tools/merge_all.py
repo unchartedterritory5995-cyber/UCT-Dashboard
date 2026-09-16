@@ -346,11 +346,35 @@ def merged_into_master(commits, dry):
         if rc != 0:
             return None, "could not fetch origin/master: %s" % out.strip()[:200]
         _FETCHED = True
+    # ⚰️⚰️ **K CP6 RETRACTS K CP5's PRIMITIVE HERE.** K CP5 used
+    # `git merge-base --is-ancestor <commit> origin/master`, and that is WRONG for a
+    # cherry-pick workflow: cherry-picking REWRITES the commit, so the original sha is never
+    # an ancestor of master no matter how thoroughly the change landed.
+    #
+    # ⛔ Measured in a throwaway repo shaped like the real one — master moved independently,
+    # so the cherry-picks produced new shas:
+    #     unit 1  --is-ancestor -> exit 1 "not merged"   truth: IS on master   WRONG
+    #     unit 2  --is-ancestor -> exit 1 "not merged"   truth: IS on master   WRONG
+    #     unit 3  --is-ancestor -> exit 1 "not merged"   truth: is NOT          right
+    # A resumed run would therefore re-cherry-pick an already-merged unit, hit "the previous
+    # cherry-pick is now empty", exit 1 and leave CHERRY_PICK_HEAD behind — which is the
+    # exact failure K CP5 was written to remove.
+    #
+    # ⭐ **`git cherry` compares PATCH IDS, which is the question actually being asked**:
+    #     unit 1  -> "- d0a33c45b"  EQUIVALENT UPSTREAM     right
+    #     unit 2  -> "- a62470bcb"  EQUIVALENT UPSTREAM     right
+    #     unit 3  -> "+ 4326b6e7a"  still to do             right
+    # ⚠️ The first version of that control used a fixture where feat sat directly on master,
+    # so cherry-pick reproduced IDENTICAL shas and `--is-ancestor` looked correct. A fixture
+    # that cannot distinguish is not a control.
     done = []
     for c in commits:
-        rc, _ = run(["git", "merge-base", "--is-ancestor", c, "origin/master"],
-                    CODE_REPO, False)
-        if rc == 0:
+        rc, out = run(["git", "cherry", "origin/master", c], CODE_REPO, False)
+        if rc != 0:
+            return None, "`git cherry` could not read %s: %s" % (c[:9], out.strip()[:120])
+        mine = [l for l in out.splitlines() if l[2:].startswith(c[:9])]
+        # no line for this commit at all == it is CONTAINED in upstream == merged
+        if not mine or mine[-1].startswith("-"):
             done.append(c)
     return done, ""
 
@@ -435,6 +459,8 @@ def main(argv=None) -> int:
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--include-member-visible", action="store_true")
+    ap.add_argument("--until", default=None,
+                    help="stop AFTER this unit stem (a sitting boundary)")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
 
@@ -447,16 +473,72 @@ def main(argv=None) -> int:
 
     # ⛔ K CP3: the order is checked BEFORE a single cherry-pick is attempted. Checking it
     # afterwards would be a post-mortem, not a guard.
+    # ⛔ THE ORDER IS CHECKED OVER THE **WHOLE** LIST, BEFORE ANY TRUNCATION. A sitting
+    # boundary must not be able to hide a constraint violation that lives after it.
     rc = enforce_order(manifest, [u[0] for u in UNITS])
     if rc != OK:
         return rc
     print()
 
-    print("[merge-all] units: %d   member-visible included: %s"
-          % (len(UNITS), a.include_member_visible))
+    # ⛔ K CP6 — ON A RESUME, THE INTERRUPTED SETTLE IS RE-WAITED BEFORE THE FIRST PUSH.
+    # A run killed between unit N's push and its settle leaves master's tip mid-deploy. The
+    # next run skips N as ALREADY MERGED (correctly — it IS on master) and would then push
+    # N+1 straight into the Layer-0 guard, which refuses while the last deployment is not
+    # SUCCESS or is younger than its settle. That refusal is right and it stops the session
+    # dead, which is the thing this checkpoint exists to prevent.
+    # ⭐ So the wait is on origin/master's CURRENT TIP — the same commit the guard looks at —
+    # and it happens once, before the first push of the run.
+    # ⛔⛔ K CP6 — THE CODE WORKTREE MUST BE **AT MASTER** BEFORE ANYTHING IS CHERRY-PICKED,
+    # AND IT WAS NOT. Measured 2026-09-15: `s7-price-level` sits on `feat/s7-price-level`,
+    # and unit 1's commit `18dd13683` is ALREADY IN THAT BRANCH'S HISTORY — so
+    # `git cherry-pick 18dd13683` is EMPTY, exits 1, leaves `.git/CHERRY_PICK_HEAD` behind,
+    # and the owner's very first merge command dies on the very first unit.
+    # ⭐ Reproduced in a throwaway repo before it was believed: the R.3 control failed at
+    # `── u1` with exit 1 for exactly this reason, and that is why the control exists.
+    # ⛔ It REFUSES rather than checking master out itself: this worktree is shared, and a
+    # tool that silently moves somebody else's HEAD is a worse bug than the one it fixes.
+    rc_h, head = run(["git", "rev-parse", "HEAD"], CODE_REPO, False)
+    run(["git", "fetch", "origin", "master"], CODE_REPO, False)
+    rc_m, om = run(["git", "rev-parse", "origin/master"], CODE_REPO, False)
+    if rc_h != 0 or rc_m != 0:
+        print("⛔ could not read HEAD or origin/master in %s. STOPPED." % CODE_REPO)
+        return FAIL
+    if head.strip() != om.strip():
+        rc_b, br = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], CODE_REPO, False)
+        msg = ("⛔ the code worktree is at %s (%s), not at origin/master (%s).\n"
+               "   Every cherry-pick would be applied onto that branch — and for a branch "
+               "that already CONTAINS these commits each one is EMPTY, exits 1, and leaves "
+               ".git/CHERRY_PICK_HEAD behind.\n"
+               "   Put it at master first:\n"
+               "     git -C %s checkout -B merge-run origin/master"
+               % (br.strip() or "?", head.strip()[:9], om.strip()[:9], CODE_REPO))
+        if not a.dry_run:
+            print(msg)
+            print("   STOPPED. Nothing was cherry-picked, nothing was pushed.")
+            return REFUSED
+        # ⭐ A DRY RUN THAT STOPS HERE IS NOT A PREVIEW. Same rule as an unsigned packet:
+        # report it loudly and keep printing the sequence the owner needs to read.
+        print(msg)
+        print("   ⚠️  WOULD STOP HERE (dry run continues)")
+        print()
+
+    resumed_wait_done = [False]
+    skipped_any = [False]
+    units = UNITS
+    if a.until:
+        stems = [u[0] for u in UNITS]
+        if a.until not in stems:
+            print("⛔ --until %r matches no unit. Nothing was merged." % a.until)
+            print("   the last five units are: %s" % ", ".join(stems[-5:]))
+            return REFUSED
+        units = UNITS[:stems.index(a.until) + 1]
+
+    print("[merge-all] units: %d of %d   member-visible included: %s%s"
+          % (len(units), len(UNITS), a.include_member_visible,
+             "   [--until %s]" % a.until if a.until else ""))
     print()
 
-    for stem, commits, member_visible in UNITS:
+    for stem, commits, member_visible in units:
         packet = DOCS_REPO / "docs/terminal-research/12-decisions/gates" / (stem + ".md")
         print("── %s" % stem)
         if not packet.is_file():
@@ -500,8 +582,11 @@ def main(argv=None) -> int:
                   "guessing here re-merges a unit." % why)
             return FAIL
         if done and len(done) == len(commits):
-            print("    ✅ ALREADY MERGED (all %d commit(s) are ancestors of "
-                  "origin/master) — skipping." % len(commits))
+            # ⛔ "equivalent upstream", not "an ancestor": cherry-pick rewrites the sha,
+            # so patch-id is the only thing that can answer this. See merged_into_master.
+            print("    ✅ ALREADY MERGED (all %d commit(s) are equivalent to something "
+                  "already on origin/master) — skipping." % len(commits))
+            skipped_any[0] = True
             continue
         if done:
             # ⛔ PART of a unit on master is not a state this tool may paper over: the
@@ -511,6 +596,18 @@ def main(argv=None) -> int:
             print("    ⛔ STOPPED. Finish or revert this unit by hand; a tool that "
                   "chooses for you here is choosing what lands on production.")
             return REFUSED
+        # ⛔ THE RESUMED SETTLE, once, before this run's FIRST push. See the note above.
+        if skipped_any[0] and not resumed_wait_done[0]:
+            resumed_wait_done[0] = True
+            rc, tip = run(["git", "rev-parse", "origin/master"], CODE_REPO, False)
+            tip = tip.strip() if rc == 0 else ""
+            print("    ⏳ RESUMING after a skip — waiting on master's current tip %s "
+                  "before pushing anything new." % (tip[:9] or "UNREADABLE"))
+            if not wait_for_deploy(tip, a.dry_run):
+                print("    ⛔ master's tip has not settled. STOPPED before pushing — the "
+                      "Layer-0 guard would refuse this push anyway, and stopping here says "
+                      "why.")
+                return FAIL
         for c in commits:
             rc, out = run(["git", "cherry-pick", c], CODE_REPO, a.dry_run)
             if rc != 0:
