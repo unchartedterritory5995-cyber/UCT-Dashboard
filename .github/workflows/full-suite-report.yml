@@ -6,16 +6,20 @@
 # chose to type the command. `chordCollision.test.js`, the rail that found F-S2-1,
 # appears in ZERO workflows.
 #
-# ⛔⛔ THIS JOB IS REPORT-ONLY AND MUST STAY THAT WAY UNTIL ITS PROMOTION CRITERION IS
-# MET. `continue-on-error: true` at the job level, and it is deliberately NOT added to
-# any branch protection rule. A brand-new job that can block a merge, on a suite nobody
-# has ever seen run in CI, converts an unknown number of pre-existing failures into an
-# outage of the merge queue on its first morning.
+# ⛔⛔ THE SUITE JOBS ARE REPORT-ONLY AND STAY THAT WAY. `vitest`, `pytest` and
+# `collect_profile` keep `continue-on-error: true`: they publish a RECORD, and a red test
+# in a suite with ~85 known-failing pytest entries must not read as a broken pipeline.
 #
-#   PROMOTION CRITERION (state it in the ledger, then promote in a separate unit):
-#   ≥1 GREEN run and ≥1 RED run recorded in the ledger, so the job has been observed
-#   both passing and failing. A gate nobody has seen fail is not a gate
-#   (`lesson_gate_that_cannot_fail`); a gate nobody has seen pass is worse.
+# ⭐⭐ THE `gate` JOB IS PROMOTED (E CP26, 2026-09-15) AND NO LONGER CARRIES IT.
+#   PROMOTION CRITERION — ≥1 run observed FAILING and ≥1 observed PASSING — MET by the
+#   published record, not by assertion: run #24 -> NEW_FAILURES (41, every one real),
+#   run #25 -> NO_NEW_FAILURES. A gate nobody has seen fail is not a gate; a gate nobody
+#   has seen pass is worse. Both are now on `ci-results`.
+#
+# ⛔⛔ AND STILL NO BRANCH PROTECTION AND NO REQUIRED CHECK, deliberately, for as long as
+# `tools/merge_all.py` pushes master DIRECTLY. A required check would block the 31 pushes
+# the signing session is built on. **Promotion means the check's colour is TRUTHFUL, not
+# that it blocks** — two different decisions, and only the first has been taken.
 #
 # ⛔ IT DOES NOT TOUCH THE LAYER-0 PRE-PUSH GUARD. That guard serialises master pushes
 # and is unrelated; nothing here runs on master.
@@ -752,10 +756,22 @@ jobs:
     needs: [publish]
     if: always()
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # ⭐⭐ E CP26 — PROMOTED. `continue-on-error: true` is GONE from this job, so the check's
+    # colour is now the verdict's colour: NEW_FAILURES, INVALID or DID_NOT_RECONCILE turn it
+    # red. E's criterion was met by the record itself — run #24 published NEW_FAILURES and
+    # run #25 published NO_NEW_FAILURES, so the gate has been observed answering both ways.
+    #
+    # ⛔⛔ **AND NO BRANCH PROTECTION, AND NO REQUIRED CHECK, WHILE `merge_all` PUSHES
+    # MASTER DIRECTLY.** A required check would block the 31 pushes the signing session is
+    # built on, and a merge path that cannot honour a check must not be given one. Promotion
+    # here means the colour is TRUTHFUL, not that it blocks — those are two different
+    # decisions and only the first is this checkpoint's.
     steps:
       - uses: actions/download-artifact@v4
         with: { name: ci-diff, path: d }
+        # ⛔ The DOWNLOAD may fail softly; the VERDICT step below then finds no diff.json and
+        # exits 1 saying UNREADABLE. Keeping it here means "the artifact is missing" is
+        # reported by the step that can say WHY, not by a bare action failure.
         continue-on-error: true
       - name: Read the verdict
         run: |
