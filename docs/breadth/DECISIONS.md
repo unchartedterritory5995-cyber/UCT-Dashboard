@@ -1538,3 +1538,30 @@ draw: **widen for what you own, override for what you were let into once.**
 ⚠️ **Consequence for the ENFORCE criterion:** the trial's "0 WOULD-REFUSE" clause is not
 met, and correctly so. The count restarts from the corrected declaration. S2 stays
 TIME-GATED.
+
+### ✅ MIN_UPTIME_S = 300 IS THE STANDING VALUE (SD-1.7 final ratification)
+
+Session 7 set the settle floor at 600 s on the reasoning that a fresh pod races its own
+prewarmers. That reasoning was never wrong, but it was never measured either — and at
+n=34 it is not visible in the data:
+
+| | |
+|---|---|
+| Spearman ρ (uptime vs total) | **+0.09** |
+| 300–600 s bucket | n=8, median **327.0 ms** |
+| ≥ 600 s bucket | n=26, median **313.4 ms** |
+| difference | **4.3%** |
+
+**A pod settled for 300 s reads the same as one settled for 600.** The stricter floor was
+costing collection and buying nothing — against a ~1-per-11-min foreign deploy cadence it
+is what kept the sampler idle for most of the close-out night.
+
+Changed in `tools/breadth_sampler.py` as the DEFAULT (not an env override), so the
+unattended Task Scheduler runner inherits it. `BREADTH_SAMPLER_MIN_UPTIME` still overrides.
+
+⭐ **It stays falsifiable.** Every row still records its own `uptime_s`, so if a future
+pool shows an effect the analysis can re-apply 600 to rows already collected. That is the
+whole reason collection is loosened and analysis tightened rather than the reverse: a row
+not collected can never be recovered, but a row collected can always be filtered.
+
+⚠️ Measured on ONE pool, flag OFF, at n=34. It is a standing value, not a closed question.

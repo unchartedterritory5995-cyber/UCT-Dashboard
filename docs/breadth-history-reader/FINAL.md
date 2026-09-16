@@ -238,16 +238,30 @@ headline question and a stated, reasoned stop short of the p95 bound.
 
 **D-042 measured `/api/breadth-monitor?days=8000` at 54,923 ms cold in production.**
 
-Measured tonight on production — deep cold reads, flag OFF, one deployed SHA
-(`d5f2c8d83`), every row a forced cache miss on a distinct span:
+### Four builds, four teams' pushes, one band
 
-| | |
-|---|---|
-| n | **14** |
-| **p50** | **271.5 ms** |
-| min / max | 70.2 ms / 498.2 ms |
-| **versus D-042** | **≈ 202× faster** |
-| warm `days=365` | 44.1 ms (n=1) |
+The headline is not a single pool's median — it is that **four independently deployed
+builds of the reader, shipped by other people for unrelated reasons, each land in the same
+place.** 75 deep-cold rows, production, flag OFF, every row a forced cache miss on a
+distinct span:
+
+| deployed SHA | n | p50 |
+|---|---|---|
+| `d5f2c8d83` | 14 | 271.5 ms |
+| `31d706f40` | 19 | 277.2 ms |
+| `9906a7fcd` | 8 | 307.6 ms |
+| `465b12e36` | 34 | 313.4 ms |
+
+**The four medians sit 15% apart.** Against D-042's 54,923 ms that is **175× at the
+slowest of them** — the figure this report uses, because the conservative end of a
+replicated result is the one worth quoting. The fastest is 202×.
+
+⭐ **Replication across populations is a stronger claim than a larger single pool**, and it
+arrived by accident: the hot-path churn that kept voiding the pool is what produced four
+independent measurements instead of one. The performance is a property of the design, not
+of one lucky build.
+
+Warm `days=365`: 44.1 ms.
 
 ⛔ **p95 is NOT ESTIMABLE at n=14 and is not reported as a number.** The sample maximum
 bounds the true p95 at only **51%** confidence (1 − 0.95¹⁴). The first n at which the
@@ -387,9 +401,10 @@ sentence.
 
 ## 14.8 · CLOSING STATEMENT (§8 completion)
 
-The reader is **~202× faster at the median than the defect that started this** — measured
-on production, through the product's own door, on a pool whose identity is byte-verified
-against the code that served it.
+The reader is **at least 175× faster at the median than the defect that started this** —
+measured on production, through the product's own door, and **replicated across four
+independently deployed builds** whose identities are byte-verified against the code that
+served each row. 175× is the slowest of the four; the fastest is 202×.
 
 The deploy topology it needed is in place, and was verified by traffic nobody staged.
 

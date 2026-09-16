@@ -79,13 +79,18 @@ KILL_SWITCH = pathlib.Path(os.environ.get(
 #: The load bound is the CAP and the CADENCE, which bound load directly rather than by
 #: guessing when load is affordable.
 #: Session 7's settle floor. Below this the pod is racing its own prewarmers.
-#: COLLECTION floor, not the analysis floor (SD-1.7 H0.2). Lowered to 300 for the
-#: close-out night because foreign deploys were resetting the pod every ~11 min and a
-#: 600 s gate collected almost nothing. Every row carries its uptime, so the analysis
-#: re-applies 600 when the >=600 subset is large enough and falls back to >=300 only
-#: after proving no uptime effect. Loosen collection, tighten analysis -- never the
-#: reverse, which would throw away rows that cannot be re-collected.
-MIN_UPTIME_S = int(os.environ.get("BREADTH_SAMPLER_MIN_UPTIME", "600"))
+#: 300 IS THE STANDING VALUE (SD-1.7 final ratification, 2026-09-16), and it is a
+#: MEASURED value, not a convenience. Session 7 set 600 on the reasoning that a fresh
+#: pod races its own prewarmers; at n=34 that reasoning is not visible in the data:
+#: Spearman rho(uptime, total) = +0.09, the 300-600 s bucket (n=8) medians 327.0 ms
+#: against 313.4 ms for >=600 s (n=26) -- 4.3% apart. A pod settled 300 s reads the
+#: same as one settled 600 s, and the stricter floor was costing collection for
+#: nothing against a ~1-per-11-min deploy cadence.
+#: Every row still carries its uptime, so this stays falsifiable: if a future pool
+#: shows an effect, the analysis can re-apply 600 to rows already collected. Loosen
+#: COLLECTION, tighten at ANALYSIS -- never the reverse, which discards rows that
+#: cannot be re-collected.
+MIN_UPTIME_S = int(os.environ.get("BREADTH_SAMPLER_MIN_UPTIME", "300"))
 #: A runaway loop is a self-inflicted load test. 60 deep reads a day is ~1 per 24 min.
 #: Raisable for a SUPERVISED in-session run only (SD-1.6 F1.1 lifted it to 150 for the
 #: close-out night). The default is the unattended value and must stay 60.
