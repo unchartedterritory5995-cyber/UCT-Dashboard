@@ -1593,3 +1593,45 @@ emitting one; the trailer names whose it is.
 ⚠️ Neither session touched `UCT_SKIP_PREPUSH_GUARD=1` or self-attested R19, and both said so
 unprompted. The guard refused correctly all night — a push landing inside another deploy's
 3–5 min build is what marked one REMOVED mid-flight on 09-12 and 09-14.
+
+### ⛔ THE BURST WINDOW AGES OFF DEPLOY TIME, NOT COMMIT TIME
+
+A peer session computed when the burst clause would clear by ageing the commits off their
+**commit timestamps**. The guard ages them off Railway's **deploy `createdAt`**, and build
+queueing sits between the two. Measured 2026-09-16 00:14 ET, the gap was **~3 minutes** —
+enough that a timer armed on the commit-time estimate would have pushed into a still-
+refusing guard and burned the attempt.
+
+**Compute the window from `railway deployment list --service web --json`, never from
+`git log`.** The guard reads deploys; so must anyone predicting it.
+
+⚠️ And read it from a LINKED directory. The CLI resolves the project from the current
+directory; from an unlinked one it prints `No linked project found` and exits 1. A
+forgiving parse (`json.loads(out or "[]")`) turns that into zero deployments, which reads
+as *quiet* — this session nearly pushed over a live build on exactly that path tonight,
+and was saved only by a parse that happened to crash.
+
+### ⭐ THE TRAILER METHOD, WITH ITS LIMIT (peer correction)
+
+`Claude-Session:` trailers identify which session produced a commit — positively, where
+`%an` cannot (every commit on master is `unchartedterritory5995-cyber`).
+
+⛔ **But "no trailer" must read as UNKNOWN, never as "not a session".** Merge commits do
+not inherit trailers, which is why the `feat/breadth-pit-foundation` pusher stayed
+unidentified all night. That is the same shape as this session's own error earlier —
+identifying a third party by ELIMINATION ("not my branch") is an argument from absence, and
+so is reading a missing trailer as an answer.
+
+⭐ Both sessions got the same lesson from opposite directions in one exchange: **an absence
+is only evidence when the instrument could have shown a presence.**
+
+### Cross-session courtesy, recorded because it cost something and was worth it
+
+This session held BOTH its lander and its variable flip for a peer's landing. The flip was
+the one asked about; **the lander was the real risk and the peer had not accounted for it**
+— armed and polling, it would have taken the slot the moment burst dropped below 3,
+consumed a burst slot, and reset the peer's recency clock.
+
+⭐ **The right response to "please hold X" is to check what else you are holding.** Granting
+the literal request while leaving the larger hazard running would have been technically
+responsive and practically useless.
