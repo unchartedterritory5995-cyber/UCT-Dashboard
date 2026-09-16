@@ -333,16 +333,16 @@ change to another workstream's rail. **FINDING, no unit this session.**
 | id | one line |
 |---|---|
 | **F-CI-28** | **NEW.** `extract/<run>/` is not a record until publish writes `summary.json`; the diff read it as `collected is 0`. Failed closed, named the field. **CLOSED by E CP24.** |
-| **F-CI-29** | **NEW.** Two failures newly revealed by E CP21's install — `test_ast_math_parity::test_the_two_lanes_agree_everywhere` (a JS-lane **parity** test that could not run before) and `test_ticker_logos_prewarm::…`. Filed **before** being baselined so the baseline forgives nothing silently. |
+| **F-CI-29** | ⚰️ **PARTLY RETRACTED 2026-09-15.** The parity entry did not "run and fail" — its JS lane ran NOTHING (`subprocess(LIST, shell=True)` on POSIX), so the two lanes were never compared. FIXED. The filing-before-baselining was right; the diagnosis was not. `test_ticker_logos_prewarm` stands, and is now in the derived FLAKY set. |
 | **F-CI-30** | **NEW, and it gates promotion.** 1–3 tests change state per run with no code change, across both suites; `test_ticker_logos_prewarm` flaps both ways. A strict any-NEW gate fires on noise and will be muted. **Flake policy owed before promotion.** |
-| **F-CI-31** | **NEW.** 22 failure entries cite **git objects that do not exist in this repository**, which is not shallow. They are **STALE TESTS** citing dead SHAs hard-coded in tests *and* source, and they fail on a complete checkout too. |
+| **F-CI-31** | ⚰️ **RETRACTED 2026-09-15 — the population is EMPTY.** This said 22 entries cite git objects that do not exist. They exist: `git cat-file -e 4eec5e0aa^{commit}` FINDS it, `merge-base --is-ancestor` puts it 292 commits back, and it was committed two days earlier. **CI's checkout was depth-1.** The fix is `fetch-depth: 0`, applied to every job on 2026-09-15; nothing was stale and nothing was rewritten or deleted. |
 | **F-CI-32** | **NEW.** `merge-base`-based rails need `fetch-depth: 0`; **no bounded fetch satisfies a merge-base**. 5 entries. Decision, not a defect. |
 | **F-CI-33** | **NEW.** `test_pattern_db_shared_root_guard` asserts a Windows literal and so encodes the dev box's platform. Rewrite-or-delete owed. |
 | **F-CI-27** | **CLOSED.** The JS lane: 119 ENV entries → 6; `LaneUnavailable` 109 → 0. |
 | **F-CI-20 / F-CI-21** | **CLOSED by run #19** — `shards_without_totals: []`, all twelve report. |
 
 **Retractions:** none this session. ⭐ One was **avoided**: the `invalid object name` ENV
-signature (§5) would have been a confident wrong classification of 22 stale tests.
+signature (§5) would have been a confident wrong classification. ⚰️ **AND THE OTHER HALF OF THAT SENTENCE WAS ALSO WRONG** — RETRACTED → F-CI-31: they were not 22 stale tests either, they were a shallow checkout. Refusing the ENV signature was right; the PRODUCT classification it fell back to was not.
 
 ## 8 · OPEN QUESTIONS
 
@@ -352,7 +352,7 @@ signature (§5) would have been a confident wrong classification of 22 stale tes
    across two consecutive runs** — no re-run cost, one run of latency, cannot be gamed by a
    list. **My recommendation: (c)**, because it needs no maintained artifact and this
    programme's recurring defect is the hand-kept list.
-2. **22 stale tests citing dead SHAs (F-CI-31)** — rewrite to derive the commit, or delete
+2. ⚰️ ~~**22 stale tests citing dead SHAs (F-CI-31)** — rewrite to derive the commit, or delete~~ **RETRACTED → F-CI-31.** Nothing is stale; the checkout was shallow. CLOSED by `fetch-depth: 0`, not by rewriting a single test.
    the assertions? They are spread over ≥4 files and two workstreams.
 3. **`fetch-depth: 0` for 5 entries (F-CI-32)** — worth a full clone on every run, or leave
    those rails INCONCLUSIVE in CI and rely on local runs?

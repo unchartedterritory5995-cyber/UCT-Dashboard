@@ -88,9 +88,13 @@ removing that line and adding the check to branch protection — **a separate ch
 rule). It carries **122 failure entries**, including the two that E CP21's install newly
 revealed:
 
-- `tests.test_ast_math_parity::test_the_two_lanes_agree_everywhere` — ⭐ a JS-lane **parity**
-  test that **could not run before** and now runs and **fails**: the two lanes do not agree.
-  **Fixing the environment revealed a real defect the missing install was hiding.**
+- `tests.test_ast_math_parity::test_the_two_lanes_agree_everywhere` — ⚰️⚰️ **RETRACTED →
+  F-CI-29 (2026-09-15).** This said *"now runs and fails: the two lanes do not agree …
+  fixing the environment revealed a real defect."* **The lanes were never compared.** The
+  record's own text for that entry reads `failed on setup with "the JS lane produced no
+  results, so NOTHING was compared. exit=0 stdout= stderr="` — the fixture said so in those
+  words and the reading was wrong. Root cause: `subprocess.run(LIST, shell=True)` execs
+  `/bin/sh -c LIST[0]` on POSIX, so `vitest run <spec>` never reached `npx`. FIXED.
 - `tests.test_ticker_logos_prewarm::test_run_pass_skips_warm_and_resolves_cold`
 
 ⛔ Both are **filed as findings before being baselined**, so the baseline forgives nothing

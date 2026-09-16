@@ -163,7 +163,7 @@ failed.
 
 ### R-2 · "the two lanes do not agree" (E CP23 §4) — WITHDRAWN
 
-E CP23 baselined `test_ast_math_parity::test_the_two_lanes_agree_everywhere` as *"a JS-lane
+**RETRACTED.** E CP23 baselined `test_ast_math_parity::test_the_two_lanes_agree_everywhere` as *"a JS-lane
 parity test that now runs and fails: the two lanes do not agree. Fixing the environment
 revealed a real defect."* The record says otherwise, in the fixture's own words:
 
