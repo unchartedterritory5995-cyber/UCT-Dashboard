@@ -99,6 +99,19 @@ const summaryOf = (re) => {
   return (row.querySelector('[class*="actMeta"]')?.textContent || '').trim()
 }
 
+// ⚰️⚰️ `Source: QQQ` LEFT THIS LINE ON 2026-09-16 (Hybrid 2). What a row reads is
+// a COLUMN now — printed on every row, always, in its own place — so the summary
+// went back to carrying only the thing no column can say (a destination that no
+// longer exists). The cases below therefore ask the column, not the summary; the
+// QUESTION each one asks is unchanged.
+const colOf = (re, which) => {
+  const row = rowFor(re)
+  expect(row, `no active row matching ${re}`).toBeTruthy()
+  return (row.querySelector(`[class*="actCol${which}"]`)?.textContent || '').trim()
+}
+const sourceOf = (re) => colOf(re, 'Src')
+const displayOf = (re) => colOf(re, 'Disp')
+
 const openRow = (re) => fireEvent.click(rowFor(re).querySelector('[aria-expanded]'))
 /** The INSPECTOR — the right-hand column, which is where a selected row's
  *  controls now live.
@@ -186,20 +199,25 @@ describe('what the collapsed row says', () => {
     show(cs); openIndicators()
     // ⚠️ `SMA 5`, NOT `Moving Average` — the engine MA names itself from the
     // member's own `maType` and `period` since 2026-09-16 (`engine/semanticName`).
-    const s = summaryOf(/^SMA 5$/)
-    expect(s).toBe('Source: QQQ')
+    // ⭐⭐ AND ON PRICE IT ALSO NAMES ITS SOURCE, because the band it sits in says
+    // `Price` and the source would otherwise be invisible. Inside QQQ's own pane
+    // the same instance is just `SMA 5` — `paneRowMeta.test.js` pins both halves.
+    expect(rowFor(/^SMA 5 · QQQ$/), 'the row did not name what it reads').toBeTruthy()
+    expect(sourceOf(/^SMA 5 · QQQ$/)).toBe('QQQ')
   })
 
   it('⛔ …and the SOURCE IS THE SYMBOL ALONE — not the field, not the type', () => {
     const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    const s = summaryOf(/^SMA 5$/)
-    expect(s).not.toMatch(/close|numeric|sym:/)
+    expect(sourceOf(/^SMA 5 · QQQ$/)).not.toMatch(/close|numeric|sym:/)
   })
 
   it('⛔ NO SOURCE WHEN THE NAME ALREADY IS THE SOURCE — `QQQ · Source: QQQ` says it twice', () => {
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
+    // ⭐ The name is already the source, so the NAME is not doubled…
+    expect(rowFor(/^QQQ · QQQ$/)).toBeFalsy()
+    expect(rowFor(/^QQQ$/)).toBeTruthy()
     expect(summaryOf(/^QQQ$/)).not.toMatch(/Source/)
   })
 
@@ -244,8 +262,12 @@ describe('what the collapsed row says', () => {
     // says what it reads.
     const { cs: withMa } = withMA(cs, 'QQQ')
     cleanup(); show(withMa); openIndicators()
-    expect(summaryOf(/^SMA 5$/), 'the control case lost its summary').toBe('Source: QQQ')
+    // ⚠️ THE CONTROL IS THE SOURCE COLUMN NOW. It prints on every row, so the
+    // thing that proves the tab still orients anybody is the column's CONTENT —
+    // and the summary line beside it stays empty on both rows.
+    expect(sourceOf(/^SMA 5 · QQQ$/), 'the control case lost its source').toBe('QQQ')
     expect(summaryOf(/Bollinger|^BB/), 'a plain price overlay grew furniture').toBe('')
+    expect(summaryOf(/^SMA 5 · QQQ$/), 'the summary line grew furniture back').toBe('')
   })
 })
 
@@ -281,14 +303,16 @@ describe('it follows the real controls, live', () => {
       ok: true, json: () => Promise.resolve({ results: [{ ticker: 'SPY', name: 'SPDR', type: 'etf' }] }),
     })))
     show(cs); openIndicators()
-    expect(summaryOf(/^SMA 5$/)).toMatch(/Source: QQQ/)
-    openRow(/^SMA 5$/)
-    fireEvent.change(selectIn(/^SMA 5$/, /source/i), { target: { value: '__search__' } })
+    expect(sourceOf(/^SMA 5 · QQQ$/)).toBe('QQQ')
+    openRow(/^SMA 5 · QQQ$/)
+    fireEvent.change(selectIn(/^SMA 5 · QQQ$/, /source/i), { target: { value: '__search__' } })
     fireEvent.change(screen.getByLabelText('Search symbol'), { target: { value: 'SPY' } })
     fireEvent.click(await screen.findByRole('button', { name: /SPY/ }))
-    // ⛔ NO REOPEN, NO CACHED TEXT. The summary is derived from current state.
-    expect(summaryOf(/^SMA 5$/)).toMatch(/Source: SPY/)
-    expect(summaryOf(/^SMA 5$/)).not.toMatch(/QQQ/)
+    // ⛔ NO REOPEN, NO CACHED TEXT. Both the column AND the contextual name are
+    // derived from current state, so re-pointing the instrument moves both.
+    expect(rowFor(/^SMA 5 · SPY$/), 'the name did not follow the new source').toBeTruthy()
+    expect(sourceOf(/^SMA 5 · SPY$/)).toBe('SPY')
+    expect(rowFor(/^SMA 5 · QQQ$/), 'the old source is still named').toBeFalsy()
     vi.unstubAllGlobals()
   })
 
@@ -366,18 +390,22 @@ describe('accessibility and CSS scope — the two ways this feature broke before
     // space, so their trailing controls would pack left. Scoped by explicit class
     // ownership instead: a row with no summary must not carry the modifier, which
     // is precisely the shape those two components render.
-    // ⚠️ THE SUMMARISED SUBJECT MOVED. `QQQ` used to carry `Line · Own pane` and
-    // now carries nothing at all (§30); a row that still HAS a summary is one that
-    // says what it READS, so the MA over a symbol is the honest subject here.
+    // ⚰️ AND THE MODIFIER IS UNCONDITIONAL NOW (Hybrid 2), which does NOT weaken
+    // the rule it exists for. EVERY row on this tab carries the two columns, so
+    // every row on this tab needs `.actName` to stop growing — while
+    // `ChartSettingsConditions` and `ChartSettingsInfoFields` render no
+    // `.actHeadCols` at all and are still untouched. The scoping is what matters,
+    // and the case below reads it straight out of the stylesheet.
     const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
 
     const headOf = (re) => rowFor(re).querySelector('[class*="actHead"]')
-    const hasModifier = (re) => /actHeadMeta/.test(headOf(re).className)
+    const hasModifier = (re) => /actHeadCols/.test(headOf(re).className)
 
-    expect(hasModifier(/^SMA 5$/), 'a summarised row is missing the modifier').toBe(true)
-    for (const fixture of [/^EMA 9$/, /^Volume$/, /^SMA 50$/]) {
-      expect(hasModifier(fixture), `${fixture} carries the modifier with no summary`).toBe(false)
+    for (const row of [/^SMA 5 · QQQ$/, /^EMA 9$/, /^Volume$/, /^SMA 50$/]) {
+      expect(hasModifier(row), `${row} is missing the columns modifier`).toBe(true)
+      // …and every one of them actually renders the two columns.
+      expect(rowFor(row).querySelector('[class*="actColSrc"]'), `${row} has no Source`).toBeTruthy()
     }
   })
 

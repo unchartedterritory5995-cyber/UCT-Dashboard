@@ -15,7 +15,12 @@
 }
 
 .panel {
-  width: min(560px, 94vw);
+  /* ⭐⭐ 680px, AND IT IS SPENT, NOT TAKEN. The Chart Data tab now carries a
+     name, a SOURCE and a DISPLAY on every row; measured in the prototype, the
+     same design at 560 crowds the two columns into the controls and at 760 the
+     extra 80px is dead gutter over the chart. 680 is the width at which the
+     three things a row has to say all fit without the row becoming a table. */
+  width: min(680px, 94vw);
   /* Fixed height so the modal doesn't resize between tabs — the longer Canvas
      tab scrolls inside .body instead of growing the whole modal.
 
@@ -1292,6 +1297,9 @@
    chip — while each is a separate button opening its own picker. A control that
    looks like half of something else is a control nobody clicks. */
 .actSwatch {
+  /* Two swatches wide, always — see the JSX: the slot is the alignment. */
+  width: 46px;
+  justify-content: flex-end;
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1391,7 +1399,10 @@
 /* Disabled ⇒ subdued, still fully operable (§13). Never removed. */
 .actBlockOff .actLabel,
 .actBlockOff .actBadge { color: var(--menu-text-faint, #6b6b6b); }
-.actBlockOff .actSwatch { opacity: 0.45; }
+.actBlockOff .actSwatch {
+  /* Two swatches wide, always — see the JSX: the slot is the alignment. */
+  width: 46px;
+  justify-content: flex-end; opacity: 0.45; }
 
 /* The open row gets the only surface on the list. */
 .actBlockOpen {
@@ -1521,4 +1532,184 @@
   .actHead { min-height: var(--tap-min, 44px); }
   .actChevron { min-width: 34px; min-height: 34px; }
   .indSearch, .indNewFormula, .indBack { height: 38px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HYBRID 2 — PANE CANVAS + COMPRESSED-CONTEXT ADD MODE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── THE ONE DOOR ───────────────────────────────────────────────────────────
+   ⭐ It occupies the row the search box used to sit in, and swaps places with it.
+   Gold because it is the single primary action on the tab; everything else here
+   stays in the grey ramp so this is the only thing competing for the eye. */
+.indAddDoor {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 13px;
+  cursor: pointer;
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
+  border: 1px solid rgba(220, 187, 94, 0.34);
+  border-radius: 9px;
+  color: var(--menu-accent, #dcbb5e);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.indAddDoor:hover {
+  background: rgba(220, 187, 94, 0.18);
+  border-color: rgba(220, 187, 94, 0.5);
+}
+.indAddPlus { font-size: 15px; line-height: 1; margin-top: -1px; }
+.indAddHint {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11.5px;
+  letter-spacing: 0;
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+}
+/* ⚠️ HIDDEN, NOT UNMOUNTED. `searchRef` has to survive the swap so the door can
+   focus the field on the render that reveals it. */
+.indSearchHidden { display: none; }
+
+/* ── PANE BANDS — structural layers, not cards ──────────────────────────────
+   ⭐⭐ A band is a horizontal REGION of the same surface: one hairline seam at
+   the top, a tonal step of about 4%, no side borders, no radius, no shadow. Four
+   of them read as a stack the way four chart panes do. The 4px gap between bands
+   is what stops them merging into one field — measured in the prototype, where a
+   contiguous run of bands read as a single block.
+   ⛔ THIS REPLACES THE 1px LEFT RAIL, which was right while the tab was 560px of
+   flat list and wrong the moment the pane became the primary object. */
+.cdGroup {
+  background: #15161a;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  margin: 0 -18px 4px;
+  padding: 1px 18px 4px;
+}
+.cdGroup + .cdGroup { margin-top: 0; }
+.cdGroup[data-pane-kind='price'] { background: #181920; }
+/* The two repair lists are NOT panes and must not wear a pane's skin. */
+.cdGroupOrphan, .cdGroupHidden { background: transparent; border-top-color: transparent; }
+.cdGroupRows { border-left: 0; padding-left: 0; }
+.cdGroupOrphan .cdGroupRows { border-left: 1px solid var(--menu-accent, #dcbb5e); padding-left: 12px; }
+.cdGroupHidden .cdGroupRows { border-left: 1px dashed var(--menu-divider, #202022); padding-left: 12px; }
+
+/* ── SEE IT LAND ────────────────────────────────────────────────────────────
+   ⭐ The confirmation is the structure changing. One warm-and-cool, no movement,
+   no toast. `prefers-reduced-motion` gets the same information as a static tint
+   that simply stops being applied when the timer clears. */
+@keyframes cdLand {
+  0%   { background: rgba(220, 187, 94, 0.20); }
+  100% { background: transparent; }
+}
+.cdLanded { animation: cdLand 1.5s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .cdLanded { animation: none; background: rgba(220, 187, 94, 0.14); }
+}
+
+/* ── SOURCE · DISPLAY ───────────────────────────────────────────────────────
+   ⭐ The name stays the strongest thing on the row; these sit a tier down. And
+   `Automatic` sits a tier below an explicit destination because one is the
+   engine's answer and the other is the member's — that difference IS the
+   Source ≠ Display lesson, carried by ink rather than by a legend. */
+.actHeadCols .actName { flex: 1 1 auto; min-width: 0; }
+.actCols { display: flex; align-items: center; flex: none; margin-left: auto; }
+.actColSrc, .actColDisp {
+  flex: none;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.actColSrc { width: 104px; color: #8d8e95; }
+.actColDisp { width: 92px; color: #c2c3c8; }
+.actColAuto { color: #63646b; font-style: italic; }
+
+/* ONE heading row for the whole map — never one per band. */
+.cdColBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 9px 5px;
+  /* clears the swatch + gear + ✕ cluster so the labels sit over their columns */
+  padding-right: 105px;
+}
+.cdColSrc, .cdColDisp {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4c4d53;
+  flex: none;
+}
+.cdColSrc { width: 104px; }
+.cdColDisp { width: 92px; }
+
+/* ── THE COMPRESSED MAP (add mode) ──────────────────────────────────────────
+   ⭐⭐ The same bands, reduced to a seam, a name, a count and the member's own
+   plot colours. It is context: nothing here is a control. */
+.cdMini { margin: 0 0 14px; }
+.cdMiniLabel {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4c4d53;
+  padding: 0 0 7px;
+}
+.cdMiniRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #15161a;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  margin: 0 -18px 3px;
+  padding: 7px 18px;
+}
+.cdMiniRow[data-pane-kind='price'] { background: #181920; }
+.cdMiniName {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #dcdcdf;
+}
+.cdMiniCount { font-size: 11px; color: #616268; font-variant-numeric: tabular-nums; }
+.cdMiniRails { margin-left: auto; display: flex; gap: 3px; align-items: center; }
+.cdMiniRail {
+  display: block;
+  width: 3px;
+  height: 11px;
+  border-radius: 2px;
+  background: currentColor;
+  color: #5d6b7a;
+}
+
+/* ── RESPONSIVE ─────────────────────────────────────────────────────────────
+   ⛔ ONE MODEL, PRESENTED NARROWER — never a second layout. The columns are the
+   first thing to go because they are the only part of the row that is
+   supplementary: the name, the toggle, the gear and the ✕ all survive at every
+   width, and the same two facts remain one click away inside the editor.
+   ⚠️ NO HORIZONTAL SCROLL AT ANY WIDTH. */
+@media (max-width: 620px) {
+  .actColSrc { width: 76px; }
+  .actColDisp { width: 70px; }
+  .cdColSrc { width: 76px; }
+  .cdColDisp { width: 70px; }
+  .cdColBar { padding-right: 96px; }
+}
+@media (max-width: 500px) {
+  /* The DISPLAY column goes first: a row's band already says where it draws, so
+     this column's unique contribution — chosen vs derived — is the more
+     expendable of the two. SOURCE answers "what does it read", which nothing
+     else on the collapsed row says. */
+  .actColDisp, .cdColDisp { display: none; }
+  .actColSrc, .cdColSrc { width: 66px; }
+  .cdColBar { padding-right: 92px; }
+  .indAddHint { display: none; }
+}
+@media (max-width: 400px) {
+  .actCols, .cdColBar { display: none; }
+  .cdGroup, .cdMiniRow { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
 }

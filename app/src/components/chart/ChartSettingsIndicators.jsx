@@ -91,7 +91,9 @@ import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanc
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
 // opinion about where anything draws. See that file's header for why grouping
 // from a label or a summary string would be a lie nobody notices.
-import { paneMap } from './chartDataMap'
+// ⭐ THE ROW'S OWN WORDS — name, SOURCE, DISPLAY — derived in the read model
+// beside `paneMap`, never in this file. See `chartDataMap.paneRowMeta`.
+import { paneMap, paneRowMeta } from './chartDataMap'
 // ⭐ THE ONE REORDER WRITER. Drag and Move up / Move down both end here, so the
 // two paths cannot produce different stored states — asserted in
 // `engine/__tests__/paneOrder.test.js`.
@@ -135,6 +137,21 @@ function isFixtureRow(row) {
  *  five. A definition that grows a third colour changes nothing here. */
 function mainColorFields(row) {
   return (row?.fields || []).filter((f) => f && f.type === 'color' && !f.disabled).slice(0, 2)
+}
+
+/**
+ * The colour of a row's FIRST plot, for the compressed map's rail.
+ *
+ * ⭐ IT READS THE ROW'S OWN COLOUR FIELD — the same value the swatch beside the
+ * name edits and the same one the series is drawn in — so a member recognises
+ * their own chart in the miniature. `currentColor` is the honest fallback for a
+ * row that has no colour setting at all (the volume pane has two, a user formula
+ * may have none): a neutral rail, never an invented hue.
+ */
+function railStyle(row) {
+  const f = mainColorFields(row)[0]
+  const v = f ? row?.values?.[f.key] : null
+  return (typeof v === 'string' && v) ? { background: v } : undefined
 }
 
 /** A short badge for the collapsed row, when the row has one worth showing.
@@ -210,6 +227,15 @@ export default function ChartSettingsIndicators({
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
   const [mode, setMode] = useState('active')
+  // ⭐⭐ "SEE IT LAND". The confirmation that something was added is the STRUCTURE
+  // changing, not a toast: the pane (or the row) that just appeared warms to gold
+  // and cools back. Held as a set of ids so one add can light a new pane AND the
+  // row inside it, and cleared on a timer so nothing stays highlighted.
+  const [landed, setLanded] = useState(null)
+  /** ONE definition lookup for the whole surface — the map, the rows, the editor. */
+  const defOf = useCallback((id) => registry?.getDefinition?.(id) || null, [registry])
+  const landTimer = useRef(null)
+  useEffect(() => () => { if (landTimer.current) clearTimeout(landTimer.current) }, [])
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(null)
   // ⛔ SEEDED FROM `openRowId`, AND `useState`'s INITIALISER IS THE WHOLE POINT.
@@ -366,8 +392,8 @@ export default function ChartSettingsIndicators({
   // structure arrives here; there is no grouping logic in this file to drift
   // from the renderer's.
   const paneGroups = useMemo(
-    () => paneMap(activeRows, settings, (id) => registry?.getDefinition?.(id) || null, volumeOpts),
-    [activeRows, settings, registry, volumeOpts],
+    () => paneMap(activeRows, settings, defOf, volumeOpts),
+    [activeRows, settings, defOf, volumeOpts],
   )
 
   /** Is this row's line DRAWN right now?
@@ -534,6 +560,16 @@ export default function ChartSettingsIndicators({
   const categories = useMemo(() => [...new Set(catalog.map((r) => r.category))], [catalog])
 
   const enterBrowse = useCallback(() => setMode('browse'), [])
+  // ⚠️ THE FIELD IS FOCUSED ON THE RENDER THAT REVEALS IT. Focusing inside the
+  // click handler runs while the box is still hidden behind the door, and a
+  // hidden input cannot take focus — measured as a door that opened onto a field
+  // the member then had to click a second time.
+  const wantFocus = useRef(false)
+  useEffect(() => {
+    if (mode !== 'browse' || !wantFocus.current) return
+    wantFocus.current = false
+    try { searchRef.current?.focus() } catch { /* noop */ }
+  }, [mode])
   const leaveBrowse = useCallback(() => {
     setMode('active'); setQuery(''); setCategory(null)
     try { searchRef.current?.blur() } catch { /* noop */ }
@@ -545,6 +581,32 @@ export default function ChartSettingsIndicators({
   const pickCategory = useCallback((c) => {
     setCategory(c); setMode('browse')
     try { searchRef.current?.focus() } catch { /* noop */ }
+  }, [])
+
+  /**
+   * Light whatever the write just added.
+   *
+   * ⭐⭐ IT DIFFS THE CANONICAL LISTS RATHER THAN BEING TOLD. Every add door
+   * (`createFromResult`, `addInstance`, `toggledRow`'s overlay branch) produces a
+   * different shape of change, and a caller that had to NAME its own new id would
+   * be a fourth thing to keep in step. The instance ids that were not there a
+   * moment ago are the ones that just landed — for every door, including doors
+   * added later.
+   */
+  const flashLanded = useCallback((before, after) => {
+    const ids = (cs) => new Set((Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : [])
+      .filter((i) => i && i.instanceId).map((i) => i.instanceId))
+    const was = ids(before)
+    const now = [...ids(after)].filter((id) => !was.has(id))
+    // A legacy overlay has no instance id; its arrival shows as one more slot.
+    const slots = (cs) => (Array.isArray(cs?.overlays) ? cs.overlays : []).length
+    const grew = slots(after) > slots(before)
+    if (!now.length && !grew) return
+    const mark = new Set(now)
+    if (grew) mark.add(`overlay-${slots(after) - 1}`)
+    setLanded(mark)
+    if (landTimer.current) clearTimeout(landTimer.current)
+    landTimer.current = setTimeout(() => setLanded(null), 1600)
   }, [])
 
   const addRow = useCallback((row) => {
@@ -580,7 +642,7 @@ export default function ChartSettingsIndicators({
     const res = symbolRows.byKey.get(row.key)
     if (res) {
       const created = createFromResult(settings, res, registry)
-      if (created !== settings) onChange?.({ ...created, preset: 'custom' })
+      if (created !== settings) { flashLanded(settings, created); onChange?.({ ...created, preset: 'custom' }) }
       return
     }
     const revivable = !row.builtIn && !!findInstance(settings, legacyInstanceId(row.id))
@@ -589,8 +651,8 @@ export default function ChartSettingsIndicators({
       : addInstance(settings, row.id, registry)
     // Identity, not deep equality: a REFUSED write returns `settings` itself, and
     // persisting a no-op would mark the preset custom for a click that did nothing.
-    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry, symbolRows])
+    if (next !== settings) { flashLanded(settings, next); onChange?.({ ...next, preset: 'custom' }) }
+  }, [settings, onChange, registry, symbolRows, flashLanded])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -602,8 +664,8 @@ export default function ChartSettingsIndicators({
     const next = row.builtIn
       ? toggledRow(row, settings, registry)
       : addInstance(settings, row.id, registry)
-    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry])
+    if (next !== settings) { flashLanded(settings, next); onChange?.({ ...next, preset: 'custom' }) }
+  }, [settings, onChange, registry, flashLanded])
 
   // ─── ONE ROW, COLLAPSED (§9 option B: toggle · name · colour · chevron) ────
 
@@ -735,12 +797,57 @@ export default function ChartSettingsIndicators({
           pane comes back with it.
         </p>
       )}
-      <div className={styles.cdGroupRows}>{group.rows.map(renderActiveRow)}</div>
+      <div className={styles.cdGroupRows}>{group.rows.map((r) => renderActiveRow(r, group))}</div>
     </section>
   )
 
-  const renderActiveRow = (row) => {
+  /**
+   * HYBRID 2's ADD-MODE CONTEXT — the same pane map, compressed.
+   *
+   * ⭐⭐ IT IS A RENDERING OF `paneGroups`, NOT A SECOND MODEL. Same groups, same
+   * order, same names; only the detail is dropped. That is what makes it TRUE
+   * while the member adds things: nothing has to be kept in step, because there
+   * is nothing else to keep.
+   *
+   * ⛔ AND IT IS CONTEXT, NOT AN EDITOR. No toggle, no ✕, no destination menu, no
+   * reorder — those all live on the full canvas. A compressed row that could be
+   * clicked would be a second, weaker management surface.
+   *
+   * ⭐ THE COLOUR RAILS ARE THE RECOGNITION. Four rails under `PRICE` are the
+   * member's own four averages in their own four colours; it is the legend's
+   * language, borrowed at the smallest possible size, and it is the only reason
+   * this reads as *their* chart rather than as a list of words.
+   */
+  const renderCompressedMap = () => (
+    <div className={styles.cdMini} data-testid="compressed-pane-map">
+      <div className={styles.cdMiniLabel}>On this chart</div>
+      {paneGroups.map((g) => (
+        <div
+          key={g.id}
+          className={`${styles.cdMiniRow} ${landed && landed.has(g.id) ? styles.cdLanded : ''}`}
+          data-pane-group={g.id}
+          data-pane-kind={g.kind}
+        >
+          <span className={styles.cdMiniName}>{g.name}</span>
+          <span className={styles.cdMiniCount}>{g.rows.length}</span>
+          <span className={styles.cdMiniRails}>
+            {g.rows.map((r) => (
+              <i key={r.id} style={railStyle(r)} className={styles.cdMiniRail} />
+            ))}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+
+  const renderActiveRow = (row, group) => {
     const on = rowVisible(row)
+    // ⭐⭐ NAME · SOURCE · DISPLAY, from the read model. The name is CONTEXTUAL —
+    // `EMA 20` inside QQQ's band, `EMA 20 · QQQ` on Price — and the two columns
+    // answer "what does it read" and "did the member choose where it draws".
+    // ⛔ PRESENTATION ONLY: every write below still addresses `row.id`.
+    const meta = paneRowMeta(row, group, settings, defOf, { volumeOpts })
+    const landedNow = !!(landed && (landed.has(row.instanceId) || landed.has(row.id)))
     // ⭐ SELECTED, NOT EXPANDED. The form it controls is the inspector on the
     // right rather than a region nested inside this row — which is why the
     // button carries `aria-controls`: `aria-expanded` without it would tell a
@@ -768,7 +875,7 @@ export default function ChartSettingsIndicators({
             their trailing controls would pack left. Scoped here instead: the
             modifier is applied only to a row that HAS a summary, so a component
             that never renders one can never match the rule. */}
-        <div className={`${styles.actHead} ${summary ? styles.actHeadMeta : ''}`}>
+        <div className={`${styles.actHead} ${styles.actHeadCols} ${landedNow ? styles.cdLanded : ''}`}>
           <button
             type="button" role="switch" aria-checked={on} aria-label={`Toggle ${row.label}`}
             className={`${styles.toggle} ${styles.actToggle} ${on ? styles.toggleOn : ''}`}
@@ -784,7 +891,7 @@ export default function ChartSettingsIndicators({
             aria-controls={inspectorDomId(row.id)}
             onClick={() => setSelected(isOpen ? null : row.id)}
           >
-            <span className={styles.actLabel}>{row.label}</span>
+            <span className={styles.actLabel}>{meta.name}</span>
           </button>
           {/* ⭐ INLINE, NOT A SECOND LINE. Seven rows already fill this panel; a
               subtitle on each pushes BROWSE off the bottom and turns a dense list
@@ -796,22 +903,42 @@ export default function ChartSettingsIndicators({
               that button against an anchored `/^QQQ$/` and went red the moment it
               was nested inside; they were right, and this is the fix rather than
               the rails being loosened. */}
+          {/* ⛔ THE ONE THING THAT IS NOT A COLUMN: a pane that was deleted out
+              from under this row. It is a repair notice, so it reads in the
+              accent rather than in the quiet column ink. */}
           {summary && <span className={styles.actMeta}>{summary}</span>}
+          {/* ─── SOURCE · DISPLAY ────────────────────────────────────────────
+              ⭐ TWO STANDING COLUMNS, and the hierarchy is deliberate: the NAME
+              is the strongest thing on the row, these two sit a tier below it,
+              and `Automatic` sits a tier below an explicit destination because
+              one is the engine's answer and the other is the member's.
+              ⚠️ `aria-hidden` — the same two facts are announced by the row's own
+              controls (the Source picker and Display in, inside the editor), and
+              a screen reader reading "EMA 20 QQQ Automatic" as one run turns the
+              row's name into a sentence. */}
+          <span className={styles.actCols} aria-hidden="true">
+            <span className={styles.actColSrc}>{meta.source || '—'}</span>
+            <span className={`${styles.actColDisp} ${meta.explicit ? '' : styles.actColAuto}`}>
+              {meta.display}
+            </span>
+          </span>
           {/* ⭐ THE SWATCH IS THE COLOUR PICKER, NOT A DOT. It is the modal's own
               `colorSwatch` — same target encoding (`ind:<rowId>:<field>`), same
               pop-out panel, same writer — so the most-changed setting on the tab
               is one click from collapsed. There is no event complexity to buy it:
               the swatch is a sibling of the expander, not a child, so nothing has
               to be stopped from propagating. */}
-          {colorFields.length > 0 && (
-            <span className={styles.actSwatch}>
-              {colorFields.map((f) => (
-                <span key={f.key}>
-                  {colorSwatch(indTarget(row.id, f.key), `${row.label} — ${f.label}`)}
-                </span>
-              ))}
-            </span>
-          )}
+          {/* ⚠️ THE SLOT IS ALWAYS RENDERED, EVEN EMPTY. A row with no colour
+              setting (a user formula, a carved-out section) would otherwise pull
+              its Source/Display columns 50px right of every other row's, and the
+              two columns would stop being columns. The space is the alignment. */}
+          <span className={styles.actSwatch}>
+            {colorFields.map((f) => (
+              <span key={f.key}>
+                {colorSwatch(indTarget(row.id, f.key), `${row.label} — ${f.label}`)}
+              </span>
+            ))}
+          </span>
           {/* ⚰️ A `˅` CHEVRON STOOD HERE (owner, 2026-09-10: "make it a little
               settings icon"). A chevron says "there is more below"; what is below
               is a SETTINGS FORM, and a gear says that in one glyph — which
@@ -1034,17 +1161,10 @@ export default function ChartSettingsIndicators({
     const missing = options.find((o) => o.missing) || null
     if (missing && missing.value === where && missing.label) parts.push(missing.label)
 
-    // WHAT IT READS — only when the name does not already say it.
-    if (!(def.meta && def.meta.labelFrom === 'source')) {
-      const declared = sourceInputsOf(def, inst)
-      const parsed = declared.length ? parseSource(declared[0][1]) : null
-      if (parsed && parsed.kind === 'symbol' && parsed.symbol
-          && !String(row.label || '').toUpperCase().includes(String(parsed.symbol).toUpperCase())) {
-        // ⛔ THE SYMBOL ALONE. `Source: QQQ · close · numeric` is the engine
-        // talking to itself; the field is noise in a legend-shaped line.
-        parts.push(`Source: ${parsed.symbol}`)
-      }
-    }
+    // ⚰️ `Source: QQQ` STOOD HERE AND IS RETIRED — there is a SOURCE COLUMN now,
+    // on every row, always. Printing it a second time inside the name's own line
+    // is the duplication the column exists to end. What survives is the one
+    // sentence no column can carry: a destination that no longer exists.
     return parts.length ? parts.join(' · ') : null
   }, [settings, registry])
 
@@ -1275,6 +1395,24 @@ export default function ChartSettingsIndicators({
     <div className={styles.indTab}>
       {/* ─── THE WAYS IN — search + author, on one compact row ─────────────── */}
       <div className={styles.indTop}>
+        {/* ⭐⭐ ONE DOOR, AND IT BECOMES THE FIELD IT OPENS. At rest this is a
+            single gold action that says what it does; pressing it swaps in the
+            search box IN THE SAME PLACE, so the thing the member clicked is the
+            thing they are now typing into. A separate always-present search box
+            asked them to know that "search" meant "add", which is the confusion
+            this replaces. */}
+        {mode === 'active' && (
+          <button
+            type="button"
+            className={styles.indAddDoor}
+            data-testid="add-to-chart"
+            onClick={() => { wantFocus.current = true; enterBrowse() }}
+          >
+            <span className={styles.indAddPlus} aria-hidden="true">＋</span>
+            <span>Add to Chart</span>
+            <span className={styles.indAddHint}>indicators · symbols · breadth</span>
+          </button>
+        )}
         {mode === 'browse' && (
           <button
             type="button"
@@ -1283,15 +1421,15 @@ export default function ChartSettingsIndicators({
             aria-label="Back to active indicators"
           >←</button>
         )}
-        <div className={styles.indSearchWrap}>
+        <div className={`${styles.indSearchWrap} ${mode === 'active' ? styles.indSearchHidden : ''}`}>
           <span className={styles.indSearchIcon} aria-hidden="true">⌕</span>
           <input
             ref={searchRef}
             type="search"
             role="searchbox"
             className={styles.indSearch}
-            placeholder="Search indicators"
-            aria-label="Search indicators"
+            placeholder="Search indicators, symbols, breadth…"
+            aria-label="Search indicators, symbols and breadth"
             value={query}
             onFocus={enterBrowse}
             onChange={(e) => { setQuery(e.target.value); setMode('browse') }}
@@ -1341,13 +1479,23 @@ export default function ChartSettingsIndicators({
             members to the top of the map and call it a deep link. */}
         {activeRows.length === 0 ? (
           <div className={styles.indEmpty}>
-            Nothing on this chart yet. <button type="button" className={styles.indEmptyLink} onClick={() => searchRef.current?.focus()}>Search above</button> to add something.
+            Nothing on this chart yet. Use <button type="button" className={styles.indEmptyLink} onClick={() => { wantFocus.current = true; enterBrowse() }}>Add to Chart</button> to add something.
           </div>
-        ) : paneGroups.map((g) => (
-          g.id === 'volume'
-            ? <div key={g.id} ref={volumeRef}>{renderGroup(g)}</div>
-            : renderGroup(g)
-        ))}
+        ) : (<>
+          {/* ⛔ ONE HEADING ROW, NOT ONE PER BAND. Repeating `Source / Display`
+              inside every pane turns a map into a spreadsheet — measured in the
+              prototype and rejected there. The pane headings do the dividing;
+              this says what the two right-hand columns are, once. */}
+          <div className={styles.cdColBar} aria-hidden="true">
+            <span className={styles.cdColSrc}>Source</span>
+            <span className={styles.cdColDisp}>Display</span>
+          </div>
+          {paneGroups.map((g) => (
+            g.id === 'volume'
+              ? <div key={g.id} ref={volumeRef}>{renderGroup(g)}</div>
+              : renderGroup(g)
+          ))}
+        </>)}
 
         {/* ─── BROWSE BY CATEGORY (§19) ──────────────────────────────────── */}
         <section className={styles.section}>
@@ -1364,6 +1512,10 @@ export default function ChartSettingsIndicators({
           </div>
         </section>
       </>) : (<>
+        {/* ⭐⭐ CONTEXT FIRST, THEN DISCOVERY. The map does not vanish while the
+            member adds to it; it compresses, stays in pane order, and gains a
+            line the moment something lands. See `renderCompressedMap`. */}
+        {paneGroups.length > 0 && renderCompressedMap()}
         {/* ─── DISCOVERY ─────────────────────────────────────────────────── */}
         {category && (
           <div className={styles.indCatActive}>

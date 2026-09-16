@@ -34,7 +34,9 @@
 
 import {
   resolveDisplayTarget, paneOwnerOf, paneOwnKeys, paneOwnersNeeded, paneHostLabels,
+  hasExplicitTarget, displayTargetOptions,
 } from './engine/displayTarget'
+import { describeSourceValue } from './engine/readout'
 import { isInstanceTombstone } from './instanceShape'
 
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
@@ -224,4 +226,111 @@ export function paneMap(rows, settings, defOf, volumeOpts) {
 
   return [...panes, hidden, orphans]
     .filter((g) => g.rows.length > 0 || g.kind === 'price')
+}
+
+// ─── WHAT A ROW SAYS ABOUT ITSELF — NAME, SOURCE, DISPLAY ───────────────────
+//
+// ⭐⭐ ONE HOME FOR THE THREE THINGS THE MAP PRINTS PER ROW, and it is here
+// rather than in the component because all three are answers about PLACEMENT and
+// this file is already the placement read model. A component that computed its
+// own would be a second answer to "where does this draw" — the exact drift
+// `paneMap`'s header refuses.
+//
+// ⛔ PRESENTATION ONLY. Nothing below is persisted, addressed or compared.
+// `row.id` / `row.instanceId` remain the identity for every write, so two rows
+// that come out of here wearing the SAME name are still two instances and the
+// ✕ on one cannot reach the other. The rails pin exactly that.
+
+const SRC_SEP = ' · '
+
+/** The raw value of a definition's first declared `source` input, or null. */
+function declaredSourceValue(row, defOf, instances) {
+  if (!row || !row.engineOwned || !row.instanceId) return null
+  const def = typeof defOf === 'function' ? defOf(row.defId) : null
+  if (!def || !Array.isArray(def.inputs)) return null
+  const key = (def.inputs.find((i) => i && i.type === 'source') || {}).key
+  if (!key) return null
+  const inst = (Array.isArray(instances) ? instances : [])
+    .find((i) => i && i.instanceId === row.instanceId)
+  const v = inst && inst.inputs && typeof inst.inputs === 'object' ? inst.inputs[key] : undefined
+  return typeof v === 'string' && v ? v : (typeof def.inputs.find((i) => i.key === key).default === 'string'
+    ? def.inputs.find((i) => i.key === key).default : null)
+}
+
+/**
+ * SOURCE, DISPLAY and the CONTEXTUAL NAME for one row of one group.
+ *
+ * ⭐⭐ THE NAMING RULE, WHICH IS THE ONLY NEW IDEA HERE: a row does not repeat
+ * what the band above it already says. Inside the QQQ pane an average of QQQ is
+ * `EMA 20`; sitting on Price the same instance is `EMA 20 · QQQ`, because there
+ * the pane heading says `Price` and the source would otherwise be invisible.
+ * `disambiguateLabels` may already have appended that suffix for its own reason
+ * (two rows colliding), so the suffix is STRIPPED first and re-applied by this
+ * rule — never appended twice, never left on inside its own pane.
+ *
+ * ⛔ A BAR FIELD IS NOT A FOREIGN SOURCE. `EMA 9 · Close` is noise on the price
+ * pane: close is what a moving average has always averaged. Only a SYMBOL or
+ * another INSTANCE earns the suffix.
+ *
+ * ⛔ AND A DEFINITION THAT NAMES ITSELF FROM ITS SOURCE NEVER GETS ONE — `QQQ ·
+ * QQQ`. `meta.labelFrom === 'source'` is that declaration, read, not guessed.
+ *
+ * @returns {{name: string, source: string|null, display: string, explicit: boolean}}
+ */
+export function paneRowMeta(row, group, settings, defOf, opts) {
+  const label = row && typeof row.label === 'string' ? row.label : ''
+  const instances = (opts && opts.instances)
+    || (Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : [])
+  const byId = new Map(instances.filter((i) => i && i.instanceId).map((i) => [i.instanceId, i]))
+  const def = (row && row.defId && typeof defOf === 'function') ? defOf(row.defId) : null
+
+  const raw = declaredSourceValue(row, defOf, instances)
+  const described = raw ? describeSourceValue(raw, defOf, byId) : null
+  const foreign = !!raw && (raw.startsWith('sym:') || raw.startsWith('@'))
+  const namesItselfFromSource = !!(def && def.meta && def.meta.labelFrom === 'source')
+
+  // ⚠️ THE FALLBACKS ARE THE TRUTH FOR ROWS THAT ARE NOT ENGINE INSTANCES, not a
+  // guess: a legacy `cs.overlays` average reads the close and nothing else, and
+  // the volume section reads volume. Both are facts about those two mechanisms.
+  let source = described
+  if (!source && row && !row.engineOwned) {
+    if (row.path && row.path.kind === 'section' && row.path.key === 'volume') source = 'Volume'
+    else if (row.path && row.path.kind === 'overlay') source = 'Close'
+  }
+
+  // ─── THE NAME ─────────────────────────────────────────────────────────────
+  let name = label
+  if (described && name.endsWith(SRC_SEP + described)) {
+    name = name.slice(0, -(SRC_SEP + described).length)
+  }
+  const paneSaysIt = !!(group && typeof group.name === 'string' && described
+    && group.name.trim().toLowerCase() === described.trim().toLowerCase())
+  if (foreign && described && !paneSaysIt && !namesItselfFromSource) {
+    name = `${name}${SRC_SEP}${described}`
+  }
+
+  // ─── THE DISPLAY ──────────────────────────────────────────────────────────
+  // ⭐ IT REPORTS INTENT, NOT DESTINATION. Where a row draws is already the band
+  // it is filed under; what this column adds is whether the member CHOSE that or
+  // the engine derived it — which is `targetExplicit`, the Track A provenance
+  // marker, read through its own helper and never re-derived here.
+  let display = 'Automatic'
+  let explicit = false
+  if (row && row.engineOwned && row.instanceId) {
+    const inst = byId.get(row.instanceId)
+    if (inst && hasExplicitTarget(inst)) {
+      explicit = true
+      const where = resolveDisplayTarget(inst, settings)
+      const options = displayTargetOptions(inst, settings, defOf) || []
+      const hit = options.find((o) => o.value === where)
+      display = (hit && hit.label) || (where === 'volume' ? 'Volume'
+        : where === 'price' ? 'Price' : 'Own pane')
+    }
+  } else if (row && row.path && row.path.kind === 'section' && row.path.key === 'volume') {
+    const insts = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
+    const separate = volumeOwnsPane({ cs: settings, instances: insts, ...((opts && opts.volumeOpts) || {}) })
+    display = separate ? 'Own pane' : 'Price'
+    explicit = true
+  }
+  return { name, source: source || null, display, explicit }
 }

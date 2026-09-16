@@ -469,7 +469,7 @@ const BAR_FIELD_WORDS = Object.freeze({
   open: 'Open', high: 'High', low: 'Low', close: 'Close',
   hl2: 'HL2', hlc3: 'HLC3', ohlc4: 'OHLC4', volume: 'Volume',
 })
-function describeSourceValue(value, get, byId) {
+export function describeSourceValue(value, get, byId) {
   if (typeof value !== 'string' || !value) return null
   if (BAR_FIELD_WORDS[value]) return BAR_FIELD_WORDS[value]
   if (value.startsWith('sym:')) {

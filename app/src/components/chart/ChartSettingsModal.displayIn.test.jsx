@@ -285,21 +285,33 @@ describe('an orphaned target stays honest', () => {
 })
 
 describe('a derived series places like any other', () => {
-  it('⭐ MA over a symbol can be sent to a pane and the summary follows', () => {
+  it('⭐⭐ MA over a symbol can be sent to a pane — and its NAME shortens when it arrives', () => {
     const host = withSeries(mergeChartSettings({}), 'QQQ')
     const ma = withMA(host.cs, 'QQQ')
     // ⚠️ `SMA 5` — the engine MA names itself from the member's own type and
     // period since 2026-09-16 (`engine/semanticName`), on every surface at once.
-    const MA = /^SMA 5$/
-    show(ma.cs); openIndicators(); openRow(MA)
-    const sel = displayIn(MA)
+    // ⭐⭐ ON PRICE IT ALSO NAMES ITS SOURCE. The band above it says `Price`, so
+    // `SMA 5` alone would not say what it averages.
+    const ON_PRICE = /^SMA 5 · QQQ$/
+    const IN_QQQ = /^SMA 5$/
+    show(ma.cs); openIndicators()
+    expect(rowFor(ON_PRICE), 'the row did not name its source while on Price').toBeTruthy()
+
+    openRow(ON_PRICE)
+    const sel = displayIn(ON_PRICE)
     expect(sel, 'a derived series got no Display-in control').toBeTruthy()
     fireEvent.change(sel, { target: { value: `@${host.id}` } })
-    // WHERE it went is the heading it is filed under; WHAT it reads stays on the
-    // row, because a heading cannot say that.
-    const group = rowFor(MA).closest('[data-pane-group]')
+
+    // ⭐⭐ THE WHOLE POINT OF THE RULE, END TO END THROUGH THE REAL CONTROL: the
+    // instance did not change, but the band it is filed under now SAYS `QQQ`, so
+    // the row stops repeating it.
+    const group = rowFor(IN_QQQ).closest('[data-pane-group]')
     expect((group?.querySelector('[class*="sectionLabel"]')?.textContent || '').trim())
       .toBe('QQQ')
-    expect(summaryOf(MA)).toBe('Source: QQQ')
+    expect(rowFor(ON_PRICE), 'the row still repeats what its band already says').toBeFalsy()
+    // …and the SOURCE column still says what it reads, wherever it sits.
+    expect((rowFor(IN_QQQ).querySelector('[class*="actColSrc"]')?.textContent || '').trim())
+      .toBe('QQQ')
+    expect(summaryOf(IN_QQQ), 'the summary line grew furniture').toBe('')
   })
 })
