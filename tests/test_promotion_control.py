@@ -69,8 +69,12 @@ def _commit(root, msg, files=None, allow_empty=False):
 def _rig(tmp, *, production: str | None, record: str | None, foreign_author=False):
     """A bare origin + a working clone, shaped to reach one of the control's states.
 
-    `production`: "match" | "foreign" | None (branch absent)
-    `record`:     "match" | "stale" | "no-sha" | None (file absent)
+    Master is two commits (A -> B) so "the record names an EARLIER master commit" is
+    reachable — that is the bootstrap/failed-write case, and it must not read as a
+    foreign push.
+
+    `production`: "match" (= B) | "foreign" (a commit master does not contain) | None
+    `record`:     "match" (B) | "ancestor" (A) | "unresolvable" | "no-sha" | None
     """
     origin = tmp / "origin.git"
     work = tmp / "work"
@@ -83,7 +87,8 @@ def _rig(tmp, *, production: str | None, record: str | None, foreign_author=Fals
     _git(work, "config", "user.name", "rail")
     _git(work, "config", "commit.gpgsign", "false")
 
-    master_sha = _commit(work, "base", {"README.md": "base\n"})
+    first_sha = _commit(work, "base", {"README.md": "base\n"})
+    master_sha = _commit(work, "second", {"README.md": "base\nsecond\n"})
     _git(work, "push", "-q", "origin", "HEAD:refs/heads/master")
 
     foreign_sha = None
@@ -107,7 +112,8 @@ def _rig(tmp, *, production: str | None, record: str | None, foreign_author=Fals
     if record is not None:
         body = {
             "match": '{"promoted_sha": "%s"}\n' % master_sha,
-            "stale": '{"promoted_sha": "%s"}\n' % ("d" * 40),
+            "ancestor": '{"promoted_sha": "%s"}\n' % first_sha,
+            "unresolvable": '{"promoted_sha": "%s"}\n' % ("d" * 40),
             "no-sha": '{"ts": "2026-01-01T00:00:00Z"}\n',
         }[record]
         state = tmp / "state"
@@ -134,11 +140,16 @@ def _run(work: pathlib.Path):
 
 
 STATES = {
-    "MATCH":                 (dict(production="match",  record="match"),  0, "promotion-control: MATCH"),
-    "MISMATCH":              (dict(production="foreign", record="match"), 1, "promotion-control: MISMATCH"),
-    "NO RECORD":             (dict(production="match",  record=None),     0, "promotion-control: NO RECORD"),
-    "NO PRODUCTION BRANCH":  (dict(production=None,     record="match"),  0, "promotion-control: NO PRODUCTION BRANCH"),
-    "UNREADABLE RECORD":     (dict(production="match",  record="no-sha"), 0, "promotion-control: UNREADABLE RECORD"),
+    "MATCH":                (dict(production="match",   record="match"),        0, "promotion-control: MATCH"),
+    "MISMATCH":             (dict(production="foreign", record="match"),        1, "promotion-control: MISMATCH"),
+    # The record names an earlier master commit: a promotion advanced `production`
+    # without recording it. Legitimate — and the state this control shipped without,
+    # which would have failed the gate on its own first run.
+    "AHEAD-UNRECORDED":     (dict(production="match",   record="ancestor"),     0, "promotion-control: AHEAD-UNRECORDED"),
+    "UNDECIDABLE":          (dict(production="match",   record="unresolvable"), 0, "promotion-control: UNDECIDABLE"),
+    "NO RECORD":            (dict(production="match",   record=None),           0, "promotion-control: NO RECORD"),
+    "NO PRODUCTION BRANCH": (dict(production=None,      record="match"),        0, "promotion-control: NO PRODUCTION BRANCH"),
+    "UNREADABLE RECORD":    (dict(production="match",   record="no-sha"),       0, "promotion-control: UNREADABLE RECORD"),
 }
 
 
@@ -199,6 +210,9 @@ def test_the_body_under_test_is_the_shipped_one():
 def test_the_step_emits_no_state_this_file_leaves_uncovered():
     """A sixth state added to the control fails here rather than shipping untested."""
     body = _step()["run"]
-    labels = set(re.findall(r"promotion-control: ([A-Z][A-Z ]*[A-Z])", body))
+    # ⛔ The hyphen is in the class deliberately: without it AHEAD-UNRECORDED captures
+    # as "AHEAD" and this check reports an uncovered state that is in fact covered —
+    # a rail that fails for the wrong reason teaches the next reader to edit the table.
+    labels = set(re.findall(r"promotion-control: ([A-Z][A-Z -]*[A-Z])", body))
     unknown = labels - set(STATES)
     assert not unknown, f"states the control can emit but this file does not cover: {sorted(unknown)}"

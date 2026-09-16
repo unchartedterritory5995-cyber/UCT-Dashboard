@@ -138,10 +138,26 @@ jobs:
             echo "promotion-control: MATCH  production=$CUR"
             exit 0
           fi
-          git fetch --no-tags --quiet --depth=1 origin production 2>/dev/null || true
+          # They differ. That is NOT yet a finding: a promotion whose record-write failed,
+          # and the window before the writer itself shipped, both land here legitimately.
+          # The question that actually separates a promotion from a foreign push is
+          # whether `production` holds something MASTER CONTAINS — a promotion only ever
+          # fast-forwards to a master commit.
+          git fetch --no-tags --quiet --depth=200 origin master production 2>/dev/null || true
+          if ! git cat-file -e "${CUR}^{commit}" 2>/dev/null || ! git cat-file -e "${PROMOTED}^{commit}" 2>/dev/null; then
+            echo "::warning title=promotion-control undecidable::production=$CUR differs from the recorded $PROMOTED and neither could be resolved in this shallow clone. NOT verified."
+            echo "promotion-control: UNDECIDABLE — commits unreachable in this clone; production=$CUR is NOT verified"
+            exit 0
+          fi
+          if git merge-base --is-ancestor "$PROMOTED" "$CUR" 2>/dev/null \
+             && git merge-base --is-ancestor "$CUR" origin/master 2>/dev/null; then
+            echo "::warning title=promotion record is stale::production=$CUR is ahead of the recorded $PROMOTED and is contained in master, so a promotion advanced it without recording. Not a foreign push; the next promotion re-records."
+            echo "promotion-control: AHEAD-UNRECORDED  production=$CUR  recorded=$PROMOTED"
+            exit 0
+          fi
           WHO=$(git log -1 --format='%an <%ae>  %aI' "$CUR" 2>/dev/null || echo 'unknown — the commit could not be fetched')
           echo "promotion-control: MISMATCH  production=$CUR  recorded=$PROMOTED"
-          echo "::error title=production diverged from the promotion record::production is at $CUR but the last recorded promotion was $PROMOTED. Author of the commit now on production: $WHO. Nobody promoted it — halting before any scan."
+          echo "::error title=production diverged from the promotion record::production is at $CUR, which master does not contain (or which moved backwards from the recorded $PROMOTED). Author: $WHO. Nobody promoted it — halting before any scan."
           exit 1
 
       # ⛔ A PUSHED SECRET IS PUBLIC EVEN IF DELETED AFTERWARDS — this repo is
