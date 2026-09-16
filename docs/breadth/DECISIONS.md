@@ -1391,3 +1391,48 @@ trap the runbook warns about.
 production-branch build is created by then, or a build is created from `master`, or it
 does not reach SUCCESS → `deploymentTriggerUpdate(web, branch=master)`, confirm the next
 `web` deploy SUCCEEDS, mark **G3 FAILED** with every timestamp, and stop the G track.
+
+### S2 — scope checker: WAS NOT INSTALLED; now installed in WARN mode (SD-1.4 D3.4)
+
+**Measured state before:** `docs/breadth/git-scope-hook-proposal.md` said *"Status:
+PROPOSAL. Nothing is installed"*, and it was accurate. The shared
+`core.hooksPath` (`<repo>/.git/hooks`) held a `pre-commit` running only the credential
+scan. **Zero heartbeats, zero workstreams.**
+
+⭐ The earlier session stopped deliberately: *"the shared `core.hooksPath` is another
+programme's … Coordination is an OPEN QUESTION, not something this programme may
+decide."* That was the right call to escalate rather than take. SD-1.1 A2.2, reaffirmed
+by SD-1.4 D3.4, is the owner supplying the decision.
+
+**Installed 2026-09-16**, prepended to the shared `pre-commit`, WARN ONLY:
+
+```sh
+if [ -f "$root/tools/git_scope.py" ]; then
+  python "$root/tools/git_scope.py" --warn 2>/dev/null || true
+fi
+```
+
+⛔ **`|| true` is load-bearing, not defensive habit.** This hook is shared by every
+worktree on this box; a scope checker must never be the reason somebody cannot commit.
+Absent tool, broken python, unborn branch — all pass through silently. Backup of the
+previous hook: `.git/hooks/pre-commit.bak-2026-09-16-pre-gitscope`.
+
+**Verified with two controls, because a prepend can break what it sits in front of:**
+
+1. the credential scan **still refuses** — a staged `authorization: Bearer …` shape was
+   rejected (`LEAK authorization-header`) and **HEAD did not move**;
+2. git-scope logged its heartbeat **during that refused commit**, so it runs first and
+   does not interfere.
+
+**Coverage, measured:** 3 of the 77 branches currently checked out across worktrees are
+in scope (`breadth/deploy-gate-v2`, `breadth/promotion-record`, `repo/git-scope`).
+Everything else is UNMATCHED, which the tool treats as *not a violation* by design — a
+check that refuses everybody is bypassed within a day.
+
+⚠️ **The heartbeat log is PER WORKTREE** (`WARN_LOG = REPO/logs/git-scope-warn.log`, and
+`REPO` is derived from the tool's own location). That is how "≥2 workstreams" is actually
+counted — one log per worktree — but it means the trial's total must be **aggregated
+across worktrees**, never read from one.
+
+**Trial criterion (unchanged):** ≥20 heartbeats, ≥2 workstreams, ≥24 h, zero
+WOULD-REFUSE rows → then promote to ENFORCE. **At install: 3 heartbeats, 1 workstream.**
