@@ -1565,3 +1565,31 @@ whole reason collection is loosened and analysis tightened rather than the rever
 not collected can never be recovered, but a row collected can always be filtered.
 
 ⚠️ Measured on ONE pool, flag OFF, at n=34. It is a standing value, not a closed question.
+
+### ⭐ THE OPERATIONAL FINDING THE WHOLE NIGHT KEEPS PRODUCING — one arithmetic, three victims
+
+Three sessions pushed master tonight at roughly **one deploy per 11 minutes**. Each of us
+was starved by it in a different organ, and none of us could see the others' queue:
+
+| session | what it needed | what the cadence did |
+|---|---|---|
+| this one (reader) | a pod settled long enough to sample | reset the settle before the pool could fill; voided a pool outright by changing the hot path |
+| Notebook Wave Q1 | a 600 s recency window to push | reset the countdown five times in 25 minutes — and then moved `app/src` under a finished gate, **invalidating a SOUND 20,411-test run** so it had to re-gate |
+| charts (unidentified until tonight) | — | was simply working normally |
+
+⛔ **The Notebook session's version is the sharper statement of it: `master is moving faster
+than a gate takes`.** Gate cost is coupled to other sessions' push rate, so a re-gate can be
+invalidated before it finishes. **No amount of yielding fixes that** — it is not slot
+contention, and the fix is a scheduling decision only the owner can make.
+
+⭐ **And the identification method matters.** That session first attributed the resetting
+deploys to this one on TOPIC SIMILARITY, and withdrew it when asked. `%an` cannot separate
+us — every commit on master is `unchartedterritory5995-cyber`. This session then identified
+the third pusher by ELIMINATION ("not my branch"), which is an argument from absence; the
+Notebook session identified it POSITIVELY from the `Claude-Session:` trailer the commits
+carry. **Adopt the trailer.** Elimination fails silently the moment a session stops
+emitting one; the trailer names whose it is.
+
+⚠️ Neither session touched `UCT_SKIP_PREPUSH_GUARD=1` or self-attested R19, and both said so
+unprompted. The guard refused correctly all night — a push landing inside another deploy's
+3–5 min build is what marked one REMOVED mid-flight on 09-12 and 09-14.
