@@ -163,6 +163,54 @@ describe('⛔⛔ THE LEGEND ASKS THE SAME QUESTION THE RENDERER DOES', () => {
   })
 })
 
+describe('⛔⛔ A PANE ROW ACTS ON ITS OWN INSTANCE (owner §19)', () => {
+  // ⚰️⚰️ MEASURED ON PRODUCTION 2026-09-16 and fixed the same hour. The pane
+  // readout resolved its control target as `row.chips[0]` — the pane's FIRST chip.
+  // That was right while a pane readout's rows were all plots of ONE instance
+  // (MACD's `MACD` + `SIG`). This project made a pane MULTI-INSTANCE: a host and
+  // its guests share it. So every row after the first pointed at a different
+  // indicator, both directions:
+  //
+  //   RSI pane : the `SMA 5` row announced "Relative Strength Index options"
+  //   QQQ pane : clicking **QQQ** opened the `EMA 20` menu (the MA was chip 0)
+  //
+  // Hide / Display / Duplicate / Delete each acted on the wrong series, while the
+  // popover opened on the correct ROW — `rowId` was already `c.instanceId`, so the
+  // two addresses had silently diverged. That is what makes this class of defect
+  // invisible: the surface looks right.
+  const body = STOCK_CHART.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
+
+  it('⭐ the control target is resolved PER INSTANCE, never as the pane’s first chip', () => {
+    expect(body, 'the pane readout is back to naming every row after chips[0]')
+      .not.toMatch(/chipHandlers\.onMenu\(row\.chips\[0\]/)
+    expect(body, 'the per-instance resolver is gone')
+      .toContain('chipHandlers.onMenu(paneRowPrimary(row.chips, c), anchor)')
+    expect(body, 'the label still names the pane’s first chip')
+      .not.toMatch(/controlLabel=\{paneReadoutLabel\(row\.chips\[0\]/)
+  })
+
+  it('⛔ and the resolver returns THAT chip’s own instance head — MACD’s rule intact', () => {
+    // A multi-plot instance still names its secondary rows after its primary, which
+    // is the ruling this must not regress. The function is lifted OUT OF THE SHIPPED
+    // FILE rather than re-typed here: a copy would pass while the product drifted.
+    const marker = 'function paneRowPrimary(chips, chip) {'
+    const at = body.indexOf(marker)
+    expect(at, 'paneRowPrimary is gone from StockChart').toBeGreaterThan(-1)
+    const bodyText = body.slice(at + marker.length, body.indexOf(String.fromCharCode(10) + '}', at))
+    expect(bodyText).toContain('k.instanceId === chip.instanceId')
+    // eslint-disable-next-line no-new-func
+    const paneRowPrimary = new Function('chips', 'chip', bodyText)
+    const macd = { instanceId: 'inst:macd:1', label: 'MACD' }
+    const sig = { instanceId: 'inst:macd:1', label: 'SIG' }
+    const guest = { instanceId: 'inst:movingAverage:2', label: 'SMA 5' }
+    const host = { instanceId: 'inst:rsi:1', label: 'Relative Strength Index' }
+    expect(paneRowPrimary([macd, sig], sig).label, 'MACD’s SIG stopped naming MACD').toBe('MACD')
+    expect(paneRowPrimary([host, guest], guest).label, 'a guest named its HOST').toBe('SMA 5')
+    expect(paneRowPrimary([guest, host], host).label, 'a host named its GUEST')
+      .toBe('Relative Strength Index')
+  })
+})
+
 describe('⭐ THE VOLUME PANE’S ROWS ARE DERIVED, NOT ENUMERATED', () => {
   const body = STOCK_CHART.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
   const rows = (() => {

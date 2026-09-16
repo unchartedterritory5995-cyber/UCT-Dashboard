@@ -227,6 +227,38 @@ function paneReadoutRows(chips, layout, hostOf) {
   return out.length ? out : EMPTY_CHIPS
 }
 
+/**
+ * The chip whose INSTANCE a pane-readout row acts on.
+ *
+ * ⚰️⚰️ MEASURED ON PRODUCTION 2026-09-16, and it is the defect this feature
+ * created. This was `row.chips[0]` — the pane's FIRST chip — and that was correct
+ * for exactly as long as a pane readout's rows were all plots of ONE instance:
+ * MACD prints `MACD` and `SIG`, they are one indicator, and naming the second row
+ * after the first is the right answer (see `paneReadoutLabel`'s own note).
+ *
+ * ⛔⛔ THIS PROJECT MADE A PANE MULTI-**INSTANCE**. A host and its guests share one
+ * pane now — `RSI (14)` with an `SMA 5` of RSI in it, `QQQ` with an `EMA 20` of
+ * QQQ — so `chips[0]` is a DIFFERENT INDICATOR from every row after the first.
+ * Measured consequence, both directions: the `SMA 5` row announced *"Relative
+ * Strength Index options"* and opened RSI's popover, and in the QQQ pane clicking
+ * **QQQ itself** opened the EMA's menu, because the MA happened to be chip 0.
+ * Hide / Display / Duplicate / Delete all acted on the wrong series.
+ *
+ * ⭐ SO THE GROUP IS THE INSTANCE, WHICH IS WHAT IT ALWAYS MEANT. The first chip
+ * SHARING THIS CHIP'S `instanceId` is the one the definition is named after; for a
+ * single-plot row that is the chip itself, and for MACD's `SIG` it is still
+ * `MACD` — the behaviour that ruling protected is unchanged.
+ *
+ * ⚠️ `rowId` WAS ALREADY RIGHT (`c.instanceId`), which is why the popover opened
+ * on the correct ROW and acted on the wrong INSTANCE — the two addresses had
+ * silently diverged.
+ */
+function paneRowPrimary(chips, chip) {
+  if (!chip) return chip
+  const list = Array.isArray(chips) ? chips : []
+  return list.find((k) => k && k.instanceId === chip.instanceId) || chip
+}
+
 /** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
  *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
  *  starts middle-truncating labels.
@@ -18012,8 +18044,9 @@ export default function StockChart({
                  a screen reader reads and what the tooltip says; naming the row
                  "Relative Strength Index" while its trigger announces "RSI(14)
                  options" would be two names for one control. */
-              controlLabel={paneReadoutLabel(row.chips[0],
-                engineRegistry.getDefinition(row.chips[0].defId), paneLongName(row.chips[0]))}
+              controlLabel={paneReadoutLabel(paneRowPrimary(row.chips, c),
+                engineRegistry.getDefinition(paneRowPrimary(row.chips, c).defId),
+                paneLongName(paneRowPrimary(row.chips, c)))}
               hidden={!!c.hidden}
               {...(chipHandlers ? {
                 /* ⛔⛔ THE PRIMARY CHIP, NOT THE HOVERED ONE — the same ruling
@@ -18023,7 +18056,7 @@ export default function StockChart({
                    `Hide SIG`, and then hide MACD entirely. The popover is
                    INSTANCE-oriented even though the values are plot-oriented,
                    which is exactly what the approved V1 asks for. */
-                onOpen: (_id, anchor) => chipHandlers.onMenu(row.chips[0], anchor),
+                onOpen: (_id, anchor) => chipHandlers.onMenu(paneRowPrimary(row.chips, c), anchor),
               } : null)}
             />
           ))}
