@@ -1,153 +1,152 @@
 # SIGNING SESSION — the runbook
 
-**38 units are waiting on a signature.** Two commands do the whole thing. Both are now
-**resumable**, which they were not this morning (K CP5) — so an interruption costs a
-re-run, not a manifest edit.
+**39 units.** Three sittings, two commands each. Both tools are **resumable**: an
+interruption costs a re-run, not a manifest edit.
 
 ⛔ **Read the table `sign_all` prints before it writes anything.** That table, not this
 file, is the thing you are approving.
 
 ---
 
-## The four commands, in this order
+## ⛔ ONE THING FIRST, OR EVERY MERGE FAILS
+
+The merge worktree must be **at master**. It is not:
+
+```
+git -C C:\Users\Patrick\uct-worktrees\s7-price-level checkout -B merge-run origin/master
+```
+
+`merge_all` cherry-picks onto whatever is checked out. `s7-price-level` sits on
+`feat/s7-price-level`, which already **contains** every unit commit — so each cherry-pick
+would be EMPTY, exit 1, and leave `.git/CHERRY_PICK_HEAD` behind, on unit 1. The tool now
+refuses and prints this command; it will not move your HEAD for you.
+
+---
+
+## The three sittings
+
+| | rows | ends at | commands | minutes |
+|---|---|---|---|---|
+| **1** | 1–17 | `e-cp12-build-record` | `--until e-cp12-build-record` | **86.1** |
+| **2** | 18–38 | `d3-cp2-build-record` | `--until d3-cp2-build-record` | **86.4** |
+| **3** | 39 | `s2-accelerator-chord…` | `--include-member-visible` | **5.7** |
 
 ```
 cd C:\Users\Patrick\uct-worktrees\terminal-research
 
-python tools/sign_all.py  --manifest tools/sign_manifest.txt --dry-run     # 1  read it
-python tools/sign_all.py  --manifest tools/sign_manifest.txt               # 2  sign
-python tools/merge_all.py --manifest tools/sign_manifest.txt --dry-run     # 3  read it
-python tools/merge_all.py --manifest tools/sign_manifest.txt               # 4  merge
+# SITTING 1  — 86.1 min
+python tools/sign_all.py  --manifest tools/sign_manifest.txt --dry-run --until e-cp12-build-record
+python tools/sign_all.py  --manifest tools/sign_manifest.txt           --until e-cp12-build-record
+python tools/merge_all.py --manifest tools/sign_manifest.txt --dry-run --until e-cp12-build-record
+python tools/merge_all.py --manifest tools/sign_manifest.txt           --until e-cp12-build-record
+
+# SITTING 2  — 86.4 min
+python tools/sign_all.py  --manifest tools/sign_manifest.txt --dry-run --until d3-cp2-build-record
+python tools/sign_all.py  --manifest tools/sign_manifest.txt           --until d3-cp2-build-record
+python tools/merge_all.py --manifest tools/sign_manifest.txt --dry-run --until d3-cp2-build-record
+python tools/merge_all.py --manifest tools/sign_manifest.txt           --until d3-cp2-build-record
+
+# SITTING 3  — 5.7 min, the ONE member-visible unit, alone and deliberate
+python tools/sign_all.py  --manifest tools/sign_manifest.txt
+python tools/merge_all.py --manifest tools/sign_manifest.txt --include-member-visible
 ```
 
-**Exit codes:** `0` done · `1` a failure · `2` REFUSED, nothing written · `3` a packet
-that can never be signed as it stands.
+**The arithmetic, because the split is not arbitrary.** 31 of 39 units push to master; each
+costs ~8 s of cherry-pick and push + a **186 s** build + the guard's **150 s** settle =
+**5.73 min**. Total **178.3 min**. ⛔ **Two sittings cannot both be ≤ 90 min** — the best
+possible balance is 91.9 / 86.4, and 91.9 is over. With **F-S2-1 in a sitting of its own**
+the remaining 172.5 min splits **86.1 / 86.4**, and both are under. That is why there are
+three.
 
-⛔ **Step 4 stops before `s2-accelerator-chord` on purpose.** It is the one
-member-visible unit: Ctrl/Cmd/Alt+Shift+F stops flagging tickers on three screens (plain
-Shift+F is unchanged). It goes only with `--include-member-visible`, as a separate
-decision.
+⛔ **Sitting 3 is the only member-visible change**: Ctrl/Cmd/Alt+Shift+F stops flagging
+tickers on three screens (plain Shift+F is unchanged). It is alone on purpose, and it needs
+`--include-member-visible` — without that flag `merge_all` stops before it and says so.
 
 ## If it stops — the resume
 
-**Re-run the same command.** Nothing else.
+**Re-run the same command. Nothing else.**
 
-- `sign_all` verifies each already-signed row (the manifest's value must be on the
-  packet **and** re-derive from it), prints `SIGNED-ALREADY`, and skips it.
-- `merge_all` asks **master** — `git merge-base --is-ancestor <commit> origin/master` —
-  and skips units already on it. Not the manifest, not a local branch, not a state file.
-- ⛔ **One exception that needs a hand:** a *failed* cherry-pick leaves the code worktree
-  mid-pick. The tool now says so and names the fix:
+- `sign_all` verifies each already-signed row (the manifest's value must be on the packet
+  **and** re-derive from it), prints `SIGNED-ALREADY`, and skips it.
+- `merge_all` asks **master**, by patch id (`git cherry`), and skips what is equivalent
+  upstream — not the manifest, not a local branch, not a state file. ⚠️ Cherry-pick rewrites
+  the commit, so the original sha is never an *ancestor* of master; `--is-ancestor` gets this
+  wrong and `git cherry` gets it right. Measured.
+- If the run died between a push and its settle, the next run **waits once on master's
+  current tip** before pushing anything new — otherwise the Layer-0 guard would refuse.
+- ⛔ **One case needs a hand:** a *failed* cherry-pick leaves the worktree mid-pick. The tool
+  says so and names the fix:
   `git -C C:\Users\Patrick\uct-worktrees\s7-price-level cherry-pick --abort`.
 
-## What to expect while it runs
+## If the guard REFUSES
 
-| | |
-|---|---|
-| units signed | **38** |
-| units that push to master | **31** (7 are docs-worktree only and never push) |
-| per pushing unit | build **~140–190 s** + settle **150 s** ≈ **5–5.6 min** |
-| **total, empty queue** | **2 h 30 m – 3 h 00 m** |
-| the Layer-0 guard refusing at least once | **expect it** — 8+ web deployments landed from other sessions in one 2.5 h window on 2026-09-15 |
+```
+[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.
+```
 
-The guard is the right behaviour, not a fault: it refuses while the last `web` deployment
-is not SUCCESS or is younger than 150 s. **It cannot hang** — `main()` calls
-`latest_deployment()` once and `decide()` once and returns; there is no wait loop. It
-applies to **`refs/heads/master` and `main` only**, so pushing the docs branch is never
-gated by it. And it does not care what is in your diff: a docs-only commit still builds
-the web service (measured — `a4e845fe7`, a docs commit, reached SUCCESS ~186 s after
-`createdAt`), so "no runtime change" buys no exemption and should not be given one.
+**That is the guard working.** Another session's deploy is in flight, or the last one is
+younger than its 150 s settle. **Stop, wait, re-run the same command** — do not override, do
+not `--no-verify`. Expect at least one refusal: 8+ web deployments landed from other
+sessions in one 2.5 h window on 2026-09-15.
 
-⛔ **DO NOT `git checkout` A PACKET MID-SESSION.** `core.autocrlf=true` on this box and
-`.gitattributes` says nothing about `docs/**/*.md`, so a checked-out packet comes back
-**CRLF** — and `sign_gate`'s blank-field pattern is `APPROVED AT SHA:[ \t]*$`, which
-cannot consume the `\r`. Measured: the CRLF copy of a packet that verifies fine as LF
-raises *"no UNSIGNED `APPROVED AT SHA:` line"*. It fails CLOSED, which is the right
-direction, and it would still stop you. **All 38 packets in the manifest are LF on disk
-today** (19 other gate packets in the same directory are already CRLF, which is how this
-was noticed). Proposed, not done: `docs/terminal-research/12-decisions/gates/*.md text
-eol=lf` — the same idiom, for the same reason, as the fixture rules already in that file.
-It is left for you because it rewrites the working-tree bytes of 19 already-signed
-packets on the next checkout.
+The guard **cannot hang** (one read, one decision, no loop), applies to `master`/`main`
+**only**, and does not care what is in your diff: a docs-only commit still builds the web
+service (`a4e845fe7` reached SUCCESS ~186 s after `createdAt`).
 
-## ⚠️ Two things to decide before you sign
+⛔ **DO NOT `git checkout` A PACKET MID-SESSION.** `core.autocrlf=true` and `.gitattributes`
+says nothing about `docs/**/*.md`, so a checked-out packet comes back **CRLF** and
+`sign_gate`'s blank-field pattern cannot consume the `\r` — it refuses with *"no UNSIGNED
+`APPROVED AT SHA:` line"*. It fails CLOSED, and it would still stop you. All 39 manifest
+packets are LF today; 19 other gate packets in that directory are already CRLF.
 
-1. **`SCOPE APPROVED:` will be BLANK on all 38 blocks.** `sign_gate.sign()` accepts a
-   `scope` argument and never writes it — measured by AST, with `by`/`on` as the positive
-   control. The scope text lands in an untracked `.scopes/*.txt` beside the repo and
-   influences nothing. Three signed blocks in the tree already look like this.
-   **Not fixed here on purpose:** writing the scope changes the packet's bytes, and the
-   bytes are what the 38 manifest fingerprints pin — so the fix re-fingerprints the whole
-   manifest in one commit. That is your call, not a tool's.
-2. **If the ~3 hours is too long, the only lever bends a rule.** Batching N consecutive
-   units into one push turns 31 builds into 31/N; at N=4 the session is ~45 minutes. It
-   bends *"ONE UNIT AT A TIME, AND IT WAITS"* — the rule written after 2026-09-12, when
-   two merges four minutes apart marked the first deploy REMOVED mid-flight and
-   `/api/health` served 502 for ~45 s. What you lose is the revert granularity: a bad
-   batch reverts as a batch. **The cheaper answer is two sittings** — the tools are
-   resumable now, and that costs no rule at all.
+## ⚠️ One decision left
+
+**How long is too long?** 178 min over three sittings bends no rule. Batching N consecutive
+units into one push would turn 31 builds into 31/N — at N=4 the whole thing is ~45 minutes —
+but it bends *"ONE UNIT AT A TIME, AND IT WAITS"*, written after 2026-09-12 when two merges
+four minutes apart marked the first deploy REMOVED and `/api/health` served 502 for ~45 s.
+What you lose is revert granularity: a bad batch reverts as a batch. **Three sittings costs
+no rule at all.**
+
+*(The blank-scope defect that was on this list is FIXED — K CP6. Every signature now carries
+a scope naming a checkpoint the packet declares, and refuses when it cannot.)*
 
 ---
 
-## The idempotency controls, as run (2026-09-15)
+## Controls, as run (2026-09-15)
 
 ```
-CONTROL A — the resume: two fixture packets, already signed, same command again
-  1  probe-signed.md    E CP24   SIGNED-ALREADY
-  2  probe-control.md   E CP23   SIGNED-ALREADY
-  [sign-all] 2 already signed (verified, will be skipped) · 0 to sign · 0 refusing
-  [sign-all] NOTHING TO DO — every row is already signed. This is the resume case,
-             and it is a success, not a refusal.
-  exit=0
+SCOPE (K6.2)
+  1  packet declaring CP1,CP2, scope "CP2 ONLY — …"  -> exit 0, written verbatim
+  2  a BLANK scope                                   -> exit 2, sha256 UNCHANGED
+  3  a scope naming CP9 (undeclared)                 -> exit 3, sha256 UNCHANGED
+  4  a signed block with a blank scope               -> reader MALFORMED
+  5  a signed block WITH a scope                     -> reader SIGNED (non-vacuity)
+     …and the fingerprint still re-derives after the scope is written
 
-CONTROL B — the interruption: row 1 signed, row 2 fresh
-  1  probe-signed.md    E CP24   SIGNED-ALREADY
-  2  probe-control.md   E CP23   ok
-  [sign-all] 1 already signed (verified, will be skipped) · 1 to sign · 0 refusing
-    probe-signed.md    SIGNED-ALREADY (c9904433a)
-    probe-control.md   SIGNED
-  exit=0
+SITTING BOUNDARY (R.2)
+  sign_all  --until e-cp12-build-record --dry-run  -> rows: 17, 17 commands
+  merge_all --until e-cp12-build-record --dry-run  -> units: 17 of 39
+  merge_all                             --dry-run  -> units: 39 of 39
+  --until naming nothing                           -> exit 2, names the last five
 
-CONTROL C — it can still refuse: a packet edited AFTER signing
-  1  probe-signed.md    E CP24   SIGNED-DRIFTED
-       want c9904433a
-       got  13255ffe3
-       signed with the right value, which no longer re-derives — the packet was
-       EDITED AFTER SIGNING.
-  ⛔ STOPPED at 1 row(s). NOTHING WAS WRITTEN …
-  exit=2
-
-CONTROL D — it can still refuse: the manifest naming a different value
-  1  probe-signed.md    E CP24   SIGNED-ELSEWHERE
-       want deadbeef1
-       got  c9904433a
-       the packet is signed, but not with the value this manifest names — a
-       different approval is on it.
-  exit=2
-
-merge_all — reading MASTER, both directions, in a throwaway repo
-  git merge-base --is-ancestor <merged commit>   origin/master  ->  exit 0   skip it
-  git merge-base --is-ancestor <unmerged commit> origin/master  ->  exit 1   still to do
-
-merge_all — the deploy wait, against the live list with no deploy of ours in it
-  rows returned: 20   statuses: {'SUCCESS': 1, 'REMOVED': 19}
-  OLD predicate  '"SUCCESS"' in out      ->  True     (this is why it never blocked)
-  NEW row lookup for our commit hash     ->  None     (keeps polling)
-```
-
-**Before this session both controls A and B ended the same way:**
-
-```
-⛔ no UNSIGNED `APPROVED AT SHA:` line (every block already carries a fingerprint).
-exit=1          ...raised in PASS 1, at row 1, before any row was classified.
+RESUME (R.3, on a throwaway repo, deleted afterwards)
+  SITTING 1 (--until u2)      u1 merged, u2 merged, exit 0
+  THE INTERRUPT (--until u3)  u3 pushed, then killed at its OWN settle
+  SITTING 2 (no flags)        u1/u2/u3 ALREADY MERGED (read from master, by patch id)
+                              ⏳ RESUMING — waiting on master's tip before pushing
+                              u4 merged and deployed                     exit 0
+    units reported ALREADY MERGED  -> 3    a resumed settle, once, before any push -> 1
+    only ONE unit merged this run  -> 1    exit code -> 0
 ```
 
 ## Validators, last run 2026-09-15
 
 ```
-sign_gate --self-check   PASS   exit 0
-sign_gate --read-check   PASS   exit 0
-merge_all --self-check   PASS   exit 0
-sign_all  --dry-run      38 rows, 38 ok, 0 refusing, exit 0
-merge_all --dry-run      38 units, 30 constraints, 0 already merged, exit 0
+sign_gate --self-check   PASS   sign_gate --read-check  PASS
+K6.2 controls            PASS   R.3 resume control      PASS
+sign_all  --dry-run      39 rows, 39 ok, 0 refusing, exit 0
+verify_manifest          39 OK, 0 STALE
+merge_all --self-check   PASS
+merge_all --dry-run      39 units, 31 constraints, exit 0
 ```
