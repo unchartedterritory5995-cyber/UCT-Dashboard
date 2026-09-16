@@ -2294,6 +2294,82 @@ of **0.02** stands UNVERIFIED and bears directly on (j)'s numbers.
 
 ---
 
+# ✅ R23 – R26 + H.8 (owner, 2026-09-15) — ONE DRAFT PR, AND (j) IS AUTHORISED
+
+## R23 — ONE PR, DRAFT NOW, READY WHEN (j) LANDS
+
+The pinned Wave 1 branch is **retired**: `acdf93455` is **610 behind** with **3
+conflicts**, and resolving them on a stale base ships Wave 1 twice. Instead: merge
+`origin/master` **into** `feat/indicator-r0r1` once, then **one draft PR**
+`feat/indicator-r0r1 → master`. Draft = CI runs and the owner can read it; flipped to
+ready only on the owner's word, after (j). ⛔ **Merging is still not authorised.**
+
+## R24 — A HIDDEN OUTPUT IS CARRIED, AND CARRYING ONE IS **NOT** A D2 REVISIT
+
+**D2 governs WHICH lane's saved definition a pane reads, not what a definition may
+contain.** A `display.none` plot is an **anchor a fill references**: the definition
+carries it with `hidden: true`, the renderer draws nothing for it, and a fill may
+reference it. **Both drops lift together** (`memberPaneDefinition.js:100` and
+`binder.js:824`) — the report measured that lifting either alone yields **zero clouds**.
+
+## R25 — `CARRY_MAX` IS PER SURFACE, AND HIDDEN ANCHORS DO NOT COUNT
+
+⚰️⚰️ **AND THE PREMISE OF "WHO SHARES IT" MEASURED FALSE — THERE IS NO SHARING.**
+`memberPaneDefinition.js:50` declares `const CARRY_MAX = 12` and **does not export it**;
+`BuilderSheet.jsx:2158` declares **its own** `const CARRY_MAX = 12` inline. They are
+**two independent constants with one name**. The comment at `:48-49` —
+*"⛔ THE SAME CEILING THE BUILDER'S OWN IMPORT USES"* — **asserts a wiring that does not
+exist**, which is `lesson_a_comment_claiming_agreement_is_not_agreement` exactly: *a
+comment saying "matches X" is a record that nobody wired them.*
+
+⭐ **Consequence, and it cuts both ways.** Raising the pane's cap **cannot** reach the
+builder, so R25's control is trivially satisfiable — but the comment would tell the next
+engineer the opposite, so **the comment is corrected in the same commit as the constant**
+or the trap survives the fix.
+
+⭐ **What the builder's cap protects, measured:** `BuilderSheet.jsx:2155-2167` — it is a
+**column-registration** bound (*"A script with forty plots is not a reason to register
+forty columns on somebody's chart"*), and its acceptance condition is **"no silent
+omission"** (`pickerNote` tells the member when it bites). It protects *registered
+columns*, which hidden anchors are not.
+
+## R26 — (j)'s RENDERER AUTHORISATION IS BOUNDED
+
+**Authorised:** honouring `hidden`, drawing a fill between two plots, and a
+**series-conditional** fill colour through the **smallest additive contract** (R10: no
+second colour path; no second evaluator). The schema addition is **additive** with the
+drift rail green and readers measured before the field lands.
+
+### ⛔ 0.2.4 — RULING 1.2 DOES NOT BIND (j), AND HERE IS WHY
+
+Verbatim (owner, 2026-09-12): *"a column offered under the script's title that is
+actually the author's hidden `ohlc4` fill edge is a mistranslation wearing a label."*
+Its two tests are **ANDed** — untitled **and** filled — and it governs what the door
+**OFFERS and SELECTS as a column**. **(j) carries an anchor that is never selectable**
+(`hidden: true`, `chooseOutput` already declines it). Carriage ≠ offer. ⭐ So this is
+**one of R26's three authorised things by another name**, and (j) proceeds — with a
+control asserting no hidden row is ever selected or offered.
+
+## H.8 — LIVE-BAR VOLUME DIVERGENCE (recorded, **not built**)
+
+The two live sources, by path: the pane's forming bar from
+`api/routers/bars.py:464 _augment_daily_with_today` (**single-ticker** snapshot, ~8s
+TTL) versus the screener's from `api/services/screener/scan_evaluator.py:1011`
+(**all-tickers** snapshot, 30s shared cache). Same provider field, two endpoints, two
+caches.
+
+⛔⛔ **WHICH ONE TRADINGVIEW MATCHES IS NOT MEASURED, AND I WILL NOT GUESS IT.** No
+fixture contains a developing bar and there is no screener-side bar array, so the
+comparison cannot be made from committed data. The only measured venue effects are on
+the **live** lane (`live_prices.py:207-210`, `min.av` over-states — NBIS 418k vs 330k;
+`massive.py:891`, `day.v` is RTH-only), and neither settles the question.
+
+⇒ **j.4's acceptance gains one line:** the live-bar comparison is **REPORTED per source
+against TradingView's number, never asserted within tolerance**, until H.8 is ruled.
+Wave 1's fixture is all sealed bars (last bar `2026-09-11`) and cannot cover it.
+
+---
+
 # ⭐⭐⭐ WAVE 2 GRAMMAR — CLOSE-OUT (2026-09-15)
 
 ## (a) – (j), each with its outcome and its ruling
