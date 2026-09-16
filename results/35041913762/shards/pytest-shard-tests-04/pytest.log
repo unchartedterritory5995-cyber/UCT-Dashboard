@@ -1,0 +1,511 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...................................................+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~ Stack of flow-conviction-warmer (140458464319168) ~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_summary.py", line 523, in _warm_loop
+    time.sleep(45)  # under _CACHE_TTL (60s) so the cache never expires cold
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F....................................................................... [  4%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+....................................................sss.........F....... [ 30%]
+....sss................................................................. [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+.....................................s...s................ss.....FF..FFF [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+..ssssss................FFFF...................F........................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+__________ test_a_note_that_cannot_be_written_still_posts_the_charts ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbf1c5f1730>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_note_that_cannot_be_wri0')
+
+    def test_a_note_that_cannot_be_written_still_posts_the_charts(monkeypatch, tmp_path):
+        import datetime as _dt
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
+        monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://discord.test/hook")
+        monkeypatch.setattr(idx, "pick_notable", lambda **k: [])
+        posts = []
+>       rep = idx.run_close_post(
+            bars_fn=lambda s, tf, n: [{"t": 20260827, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": 9}],
+            house_fn=lambda *a: b"png", stats_fn=lambda b: {}, name_fn=lambda s, tf, t: f"{s}.png",
+            note_fn=lambda moves: (_ for _ in ()).throw(RuntimeError("model down")),
+            post_fn=lambda url, p, f: posts.append(p["content"]) or True,
+            now_et=_dt.datetime(2026, 8, 27, 15, 45))
+
+tests/test_discord_close_note.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/discord_index_close.py:409: in run_close_post
+    return _run_close_post_locked(report, now, day, bars_fn=bars_fn, house_fn=house_fn,
+api/services/discord_index_close.py:437: in _run_close_post_locked
+    report["warm_waited_s"] = round(wait_until_warm(sleep_fn=sleep_fn), 1)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sleep_fn = None, uptime_fn = None
+
+    def wait_until_warm(sleep_fn=None, uptime_fn=None) -> float:
+        """Block until the pod has been up WARM_MIN_UPTIME_S. Returns seconds waited.
+    
+        An unknown uptime waits NOTHING: a clock we cannot read must not be able to
+        silence a scheduled public post."""
+        sleep = sleep_fn or time.sleep
+        up = (uptime_fn or uptime_seconds)()
+        if up is None or up >= WARM_MIN_UPTIME_S:
+            return 0.0
+        wait = WARM_MIN_UPTIME_S - up
+        log.info("[index-close] pod is %.0fs old; waiting %.0fs for it to warm before rendering", up, wait)
+>       sleep(wait)
+E       Failed: Timeout (>120.0s) from pytest-timeout.
+
+api/services/discord_index_close.py:170: Failed
+----------------------------- Captured stderr call -----------------------------
+2026-09-16 00:58:24,609 INFO api.services.discord_index_close: [index-close] pod is 16s old; waiting 284s for it to warm before rendering
+------------------------------ Captured log call -------------------------------
+INFO     api.services.discord_index_close:discord_index_close.py:169 [index-close] pod is 16s old; waiting 284s for it to warm before rendering
+_ TestAClaimNobodyCanServeIsNotProcessing.test_the_member_facing_chain_ends_at_a_navigable_page _
+
+self = <tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing object at 0x7fbeff92ec60>
+env = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbefc6deb40>
+
+    def test_the_member_facing_chain_ends_at_a_navigable_page(self, env, monkeypatch):
+        # ⛔⛔ A SERVICE RAIL IS NOT A ROUTE RAIL. The test above proves the
+        # pipeline; this one proves the DOOR — the member searches, and what
+        # comes back is a document at a page they can open, carrying the fact
+        # that its words were read off an image.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+>       assert tess.install_if_enabled()["active"] is True
+E       assert False is True
+
+tests/test_document_ocr.py:835: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_of1u9wvw/auth.db
+----------------------------- Captured stderr call -----------------------------
+2026-09-16 01:01:06,569 WARNING api.services.journal_two.document_ocr_tesseract: [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.journal_two.document_ocr_tesseract:document_ocr_tesseract.py:128 [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+________ test_warm_means_this_exact_version_not_merely_something_cached ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbef481dbb0>
+
+    def test_warm_means_this_exact_version_not_merely_something_cached(monkeypatch):
+        """⛔ THE CASE A STALLED WARMER WOULD HIDE BEHIND.
+    
+        An entry for a SUPERSEDED version is not warm — the next caller rebuilds.
+        Counting it as warm is how a warmer that stopped running would keep
+        reporting healthy: the cache is non-empty forever after one success.
+        """
+        monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {
+            "json_bytes": b'{"ok":true}', "stats": {}})
+        fa.get_cached_or_build(("stocks", 1, "Last1"), 5, lambda: "csv", "Last1")
+    
+>       assert fa.health(current_version=5)["warm"] is True
+E       assert False is True
+
+tests/test_flow_aggregate.py:400: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-16 01:02:58,568 INFO api.services.flow_aggregate: [flow-agg] built ('stocks', 1, 'Last1'): -1 raw rows -> -1 trades, json 0.0 MB -> gz 0.0 MB, -1 ms
+------------------------------ Captured log call -------------------------------
+INFO     api.services.flow_aggregate:flow_aggregate.py:195 [flow-agg] built ('stocks', 1, 'Last1'): -1 raw rows -> -1 trades, json 0.0 MB -> gz 0.0 MB, -1 ms
+__________________ test_cold_is_reported_but_is_not_a_failure __________________
+
+    def test_cold_is_reported_but_is_not_a_failure():
+        """A pod that just booted has an empty cache BY CONSTRUCTION."""
+        h = fa.health(current_version=1)
+>       assert h["warm"] is False and h["reason"] == "cold"
+E       AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+E         
+E         - cold
+E         + bundle_missing)
+
+tests/test_flow_aggregate.py:409: AssertionError
+__________ test_each_way_it_can_break_names_itself[env2-node_missing] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbef47afef0>
+env = {'FLOW_NODE_BIN': 'definitely-not-a-real-binary-xyz'}
+expected = 'node_missing'
+
+    @pytest.mark.parametrize("env,expected", [
+        ({"FLOW_AGGREGATE_ENABLED": "0"}, "disabled"),
+        ({"FLOW_FACTS_BUNDLE": "/nope/missing.cjs"}, "bundle_missing"),
+        ({"FLOW_NODE_BIN": "definitely-not-a-real-binary-xyz"}, "node_missing"),
+    ])
+    def test_each_way_it_can_break_names_itself(monkeypatch, env, expected):
+        """The reason string is the whole point — 'unhealthy' with no cause sends
+        someone reading code at 7am."""
+        for k, v in env.items():
+            monkeypatch.setenv(k, v)
+        h = fa.health(current_version=1)
+        assert h["available"] is False
+>       assert h["reason"] == expected
+E       AssertionError: assert 'bundle_missing' == 'node_missing'
+E         
+E         - node_missing
+E         ?  -
+E         + bundle_missing
+E         ? ++  +
+
+tests/test_flow_aggregate.py:426: AssertionError
+______________________ test_it_alerts_on_TRANSITION_only _______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbee0936ed0>
+
+    def test_it_alerts_on_TRANSITION_only(monkeypatch):
+        """⛔ A check that posts every cycle while broken gets muted inside a week,
+        and a muted alert is worse than none because it reads as coverage."""
+        posts = []
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa.alert_if_unavailable(post=posts.append)          # first observation: arm only
+        assert posts == []
+    
+        monkeypatch.setattr(fa, "available", lambda: False)
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+        fa.alert_if_unavailable(post=posts.append)          # healthy -> broken
+>       assert len(posts) == 1 and "UNAVAILABLE" in posts[0]
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_flow_aggregate.py:440: AssertionError
+________________________ test_recovery_is_announced_too ________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbef481eb10>
+
+    def test_recovery_is_announced_too(monkeypatch):
+        """Without this nobody knows whether this morning's alert still stands."""
+        posts = []
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+        fa.alert_if_unavailable(post=posts.append)          # arm as broken
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "1")
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa.alert_if_unavailable(post=posts.append)
+>       assert len(posts) == 1 and "again" in posts[0]
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_flow_aggregate.py:455: AssertionError
+__________ test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbee0b40710>
+_clean_caches = None
+
+    def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")      # whole-D warm...
+        # ...and no parts at all, which is precisely the prod reading.
+    
+        h = fa.health(current_version=7)
+    
+        assert h["warm"] is False, (
+            "health reported the fast path warm while the transport members take "
+            "was empty -- the proxy-not-artifact defect")
+>       assert h["warm_whole"] is True, "the whole-D path really was warm"
+E       KeyError: 'warm_whole'
+
+tests/test_flow_prepare.py:240: KeyError
+_________ test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbee0b43a10>
+_clean_caches = None
+
+    def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches):
+        """Without this the test above would pass on a health() that always says
+        cold, and the long-standing behaviour would be silently broken."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: False)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["reason"] is None
+E       assert (False is True)
+
+tests/test_flow_prepare.py:252: AssertionError
+_______ test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbee0b40200>
+_clean_caches = None
+
+    def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (7, b"gz")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["warm_parts"] is True
+E       assert (False is True)
+
+tests/test_flow_prepare.py:262: AssertionError
+____________ test_parts_built_for_a_SUPERSEDED_version_are_not_warm ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbee0b436e0>
+_clean_caches = None
+
+    def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches):
+        """The next caller rebuilds, so reporting warm is how a stalled preparer
+        would hide -- the same rule the whole-D path already had."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (6, b"gz")
+    
+        h = fa.health(current_version=7)
+        assert h["warm"] is False
+>       assert "stale" in (h["reason"] or "")
+E       AssertionError: assert 'stale' in (('bundle_missing'))
+
+tests/test_flow_prepare.py:274: AssertionError
+_________________ test_a_BURST_of_bumps_collapses_to_ONE_roll __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fbee0be1850>
+
+    def test_a_BURST_of_bumps_collapses_to_ONE_roll(monkeypatch):
+        """N rapid bumps must not become N rolls. If this ever fails, the burst
+        concern becomes real and `prev_version is None` stops being sufficient."""
+        monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+        monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+        monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.05)
+        base = _bumped_version()
+        state = {"v": base}
+        _stub_build(monkeypatch, base, lambda: state["v"])
+        monkeypatch.setattr(fr, "_get_cached_or_build",
+                            lambda source, days: (state["v"],
+                                                  __import__("gzip").compress(b"csv")))
+    
+        fr._PREPARE_STOP.clear()
+        t = threading.Thread(target=fr._prepare_loop, daemon=True)
+        t.start()
+        try:
+            for i in range(1, 6):        # five bumps, back to back
+                state["v"] = base + i
+            time.sleep(1.2)
+        finally:
+            fr._PREPARE_STOP.set()       # ⛔ never leak the thread into a neighbour
+            t.join(timeout=5)
+            fr._PREPARE_STOP.clear()
+    
+        rolls = list(fr._PREPARE_ROLLS)
+>       assert len(rolls) == 1, (
+            f"{len(rolls)} rolls from 5 bumps — the loop is observing intermediate "
+            "versions, so a burst CAN reach the ledger and rolls 2..N would be "
+            "misfiled as steady-state")
+E       AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+E       assert 2 == 1
+E        +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+
+tests/test_flow_prepare.py:682: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-16 01:03:03,594 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39825343 in 0ms
+2026-09-16 01:03:03,594 INFO api.flow_router: [flow-prepare] version moved during pass 1 — skipping the remainder for v=39825343
+2026-09-16 01:03:03,644 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39825348 in 0ms
+2026-09-16 01:03:03,644 INFO api.flow_router: [flow-prepare] remainder warmed v=39825348 in 0ms
+------------------------------ Captured log call -------------------------------
+INFO     api.flow_router:flow_router.py:1714 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39825343 in 0ms
+INFO     api.flow_router:flow_router.py:1725 [flow-prepare] version moved during pass 1 — skipping the remainder for v=39825343
+INFO     api.flow_router:flow_router.py:1714 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39825348 in 0ms
+INFO     api.flow_router:flow_router.py:1736 [flow-prepare] remainder warmed v=39825348 in 0ms
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1742: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1745: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:693: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:800: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_document_ocr.py:834: PytestWarning: Value of environment variable TESSERACT_BINARY type should be str, but got None (type: NoneType); converted to str implicitly
+    monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:366: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1332: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1333: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:233: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7484 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:126: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7484 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:127: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:66: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=calendar_days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:924: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:925: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:57: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour = datetime.utcfromtimestamp(in_w0 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:63: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour1 = datetime.utcfromtimestamp(in_w1 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:357: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h0 = datetime.utcfromtimestamp(t0_ns / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:358: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h1 = datetime.utcfromtimestamp(t1_ns / 1e9 + 3600).strftime("%Y%m%d-%H")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_document_ocr.py:642: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:668: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:683: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:1051: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1075: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1103: no tesseract binary on this machine
+SKIPPED [1] tests/test_flow_aggregate.py:67: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:117: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:242: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:258: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_parts_only.py:64: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:73: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:81: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:89: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:98: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:122: flow-facts bundle not built
+FAILED tests/test_discord_close_note.py::test_a_note_that_cannot_be_written_still_posts_the_charts - Failed: Timeout (>120.0s) from pytest-timeout.
+FAILED tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page - assert False is True
+FAILED tests/test_flow_aggregate.py::test_warm_means_this_exact_version_not_merely_something_cached - assert False is True
+FAILED tests/test_flow_aggregate.py::test_cold_is_reported_but_is_not_a_failure - AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+  
+  - cold
+  + bundle_missing)
+FAILED tests/test_flow_aggregate.py::test_each_way_it_can_break_names_itself[env2-node_missing] - AssertionError: assert 'bundle_missing' == 'node_missing'
+  
+  - node_missing
+  ?  -
+  + bundle_missing
+  ? ++  +
+FAILED tests/test_flow_aggregate.py::test_it_alerts_on_TRANSITION_only - assert (0 == 1)
+ +  where 0 = len([])
+FAILED tests/test_flow_aggregate.py::test_recovery_is_announced_too - assert (0 == 1)
+ +  where 0 = len([])
+FAILED tests/test_flow_prepare.py::test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold - KeyError: 'warm_whole'
+FAILED tests/test_flow_prepare.py::test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_parts_built_for_a_SUPERSEDED_version_are_not_warm - AssertionError: assert 'stale' in (('bundle_missing'))
+FAILED tests/test_flow_prepare.py::test_a_BURST_of_bumps_collapses_to_ONE_roll - AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+assert 2 == 1
+ +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+12 failed, 2932 passed, 16 skipped, 15043 warnings in 361.09s (0:06:01)

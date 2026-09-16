@@ -1,0 +1,1 @@
+ZERO — no collection errors to bucket across 12 shard log(s)
