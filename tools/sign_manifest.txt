@@ -29,7 +29,16 @@
 #   F-S2-1 LAST  - the only member-visible unit, merged alone
 #
 # Syntax: `#!after: <stem> <- <stem>` means the LEFT unit merges AFTER the right one.
-#         `#!last:  <stem>` means nothing may be ordered after it.
+#         `#!last:  <stem>` marks the LAST MEMBER-VISIBLE unit, alone in its sitting.
+#                   Rows after it must carry ZERO member-visible files, DERIVED from
+#                   their file set (a path under app/src/ that is not a test, spec,
+#                   __tests__ member or story). merge_all enforces the derivation.
+#         [STRUCK 2026-09-16, F-SIGN-5] it previously meant "nothing may be ordered
+#                   after it", an ORDINAL. That made F-SIGN-5 unresolvable by
+#                   construction: `76a3b98c2` modifies a file F-S2-1 CREATES, so the
+#                   only position it can occupy is after F-S2-1. An ordinal is not the
+#                   property anyone wanted; the property is "no member-visible change
+#                   lands after this one".
 #
 #!after: packet-d-nav-tabs-gate <- packet-c-instrument-and-claudemd-gate
 #!after: packet-v-multi-volume-gate <- packet-b-schema-resolution-gate
@@ -73,6 +82,8 @@
 #!after: k-cp6-build-record <- k-cp5-build-record
 #!after: k-cp7-build-record <- k-cp6-build-record
 #!after: k-cp8-build-record <- k-cp7-build-record
+#!after: k-cp9-build-record <- k-cp8-build-record
+#!after: t-cp2-build-record <- s2-accelerator-chord-pre-implementation-gate
 #!last: s2-accelerator-chord-pre-implementation-gate
 
 docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
@@ -121,6 +132,8 @@ docs/terminal-research/12-decisions/gates/k-cp5-build-record.md | CP5 | 13737873
 docs/terminal-research/12-decisions/gates/k-cp6-build-record.md | CP6 | 78ed615fd
 docs/terminal-research/12-decisions/gates/k-cp7-build-record.md | CP7 | ce36c1f65
 docs/terminal-research/12-decisions/gates/k-cp8-build-record.md | CP8 | 5695c7919
+docs/terminal-research/12-decisions/gates/k-cp9-build-record.md | CP9 | 439dfc4a7
 docs/terminal-research/12-decisions/gates/packet-t-stale-test-gate.md | T-CP1 | 5179b2890
 docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | CP2 | f7e851d58
 docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementation-gate.md | CP1 | 72cda4cda
+docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | T-CP2 | 21c37a3bc

@@ -138,9 +138,14 @@ UNITS = [
     ("k-cp6-build-record", [], False),                       # docs worktree only
     ("k-cp7-build-record", [], False),                       # docs worktree only
     ("k-cp8-build-record", [], False),                       # docs worktree only
-    ("packet-t-stale-test-gate", ["7041a04a8", "76a3b98c2"], False),
+    ("k-cp9-build-record", [], False),                       # docs worktree only
+    ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
+    # F-SIGN-5: `76a3b98c2` MODIFIES a file that F-S2-1 CREATES, so it cannot merge in
+    # packet-t's position — the pick fails modify/delete. It carries zero member-visible
+    # files (derived), which is what makes it legal after the redefined `#!last:`.
+    ("t-cp2-build-record", ["76a3b98c2"], False),
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
@@ -205,7 +210,56 @@ def parse_constraints(text: str) -> list:
     return out
 
 
-def check_order(order: list, constraints: list) -> list:
+def replay(base="origin/master", units=None, repo=None, verbose=True):
+    """K CP9 — PERFORM the merge on a throwaway and report the FIRST strand.
+
+    ⛔⛔ WHETHER AN ORDERED MERGE CAN RUN IS ANSWERED BY RUNNING IT. F-SIGN-4 was a
+    declared order that satisfied 36 of 36 constraints and stranded at unit 11 on a
+    content conflict; F-SIGN-5 was a second one that stranded at commit 44 on a
+    modify/delete. Neither is visible to a constraint graph, because a constraint graph
+    describes RELATIVE ORDER and a cherry-pick cares about CONTENT.
+
+    Returns (ok, text). The throwaway clone is always removed, including on a strand.
+    """
+    import shutil
+    import tempfile
+    repo = repo or CODE_REPO
+    rows = units if units is not None else UNITS
+    seq = [(stem, c) for stem, commits, _mv in rows for c in commits]
+    if not seq:
+        return True, "[merge-all] replay: ZERO units carry commits — nothing to replay."
+
+    box = pathlib.Path(tempfile.mkdtemp(prefix="merge-replay-"))
+    try:
+        clone = box / "replay"
+        rc, out = run(["git", "clone", "-q", "--no-hardlinks", "--shared", str(repo),
+                       str(clone)], box, False)
+        if rc != 0:
+            return False, ("[merge-all] ⛔ replay UNREADABLE — could not clone %s: %s"
+                           % (repo, out.strip()[:160]))
+        run(["git", "config", "user.email", "replay@local"], clone, False)
+        run(["git", "config", "user.name", "merge-replay"], clone, False)
+        rc, out = run(["git", "checkout", "-q", "-B", "merge-replay", base], clone, False)
+        if rc != 0:
+            return False, ("[merge-all] ⛔ replay UNREADABLE — %s is not checkoutable in the "
+                           "clone: %s" % (base, out.strip()[:160]))
+        for i, (stem, sha) in enumerate(seq, 1):
+            rc, out = run(["git", "cherry-pick", sha], clone, False)
+            if rc != 0:
+                _, st = run(["git", "diff", "--name-only", "--diff-filter=U"], clone, False)
+                files = [l for l in st.split() if l.strip()]
+                if not files:   # modify/delete leaves no UU entry
+                    _, st2 = run(["git", "status", "--porcelain"], clone, False)
+                    files = [l[3:] for l in st2.splitlines() if l[:2] in ("DU", "UD", "AU", "UA")]
+                run(["git", "cherry-pick", "--abort"], clone, False)
+                return False, ("[merge-all] ⛔ STRAND at #%d  %s  %s — conflicting: %s"
+                               % (i, stem, sha, ", ".join(files) or "(unnamed)"))
+        return True, "[merge-all] replay CLEAN %d of %d" % (len(seq), len(seq))
+    finally:
+        shutil.rmtree(box, ignore_errors=True)
+
+
+def check_order(order: list, constraints: list, units=None) -> list:
     """Return a list of violation sentences. Empty list = every constraint satisfied.
 
     ⛔ A constraint naming a unit that is not in `order` is itself a VIOLATION, not a
@@ -228,11 +282,56 @@ def check_order(order: list, constraints: list) -> list:
                            "%r, which is at position %d"
                            % (a, idx[a] + 1, b, idx[b] + 1))
         elif kind == "last":
-            after = order[idx[a] + 1:]
-            if after:
-                bad.append("ORDER VIOLATION: %r must be LAST but %d unit(s) follow it: %s"
-                           % (a, len(after), ", ".join(repr(x) for x in after)))
+            # ⛔⛔ REDEFINED 2026-09-16 (F-SIGN-5). This used to mean "nothing may be ordered
+            # after it" — an ORDINAL — and that made F-SIGN-5 unresolvable by construction:
+            # `76a3b98c2` MODIFIES a file that F-S2-1 CREATES, so the only position it can
+            # occupy is after F-S2-1, and the ordinal forbade every such position.
+            # ⭐ The property anyone actually wanted is "no MEMBER-VISIBLE change lands after
+            # this one", and that is derivable from each following unit's file set.
+            for stem in order[idx[a] + 1:]:
+                vis = member_visible_files(stem, units)
+                if vis is None:
+                    bad.append("UNREADABLE: %r follows %r and its file set could not be "
+                               "read, so it cannot be shown free of member-visible files"
+                               % (stem, a))
+                elif vis:
+                    bad.append("ORDER VIOLATION: %r follows the last member-visible unit "
+                               "%r and carries %d member-visible file(s): %s"
+                               % (stem, a, len(vis), ", ".join(sorted(vis))))
     return bad
+
+
+#: ⛔ DERIVED, never declared. A member-visible file is a path under `app/src/` that is not a
+#: test, spec, `__tests__` member or story. The predicate is proved non-vacuous in the
+#: self-check against F-S2-1's own commit, which carries three.
+_NOT_MEMBER_VISIBLE = (".test.", ".spec.", "__tests__/", ".stories.")
+
+
+def is_member_visible_path(path: str) -> bool:
+    p = path.replace("\\", "/")
+    if not p.startswith("app/src/"):
+        return False
+    return not any(marker in p for marker in _NOT_MEMBER_VISIBLE)
+
+
+def member_visible_files(stem: str, units=None):
+    """The member-visible files a unit's commits touch, or None if unreadable.
+
+    ⛔ UNREADABLE IS A THIRD STATE. A commit git cannot show is not a commit with no
+    member-visible files — reporting it as clean is how a member-facing change slips past
+    the rule this function exists to enforce.
+    """
+    for s, commits, _mv in (units if units is not None else UNITS):
+        if s != stem:
+            continue
+        seen = set()
+        for c in commits:
+            rc, out = run(["git", "show", "--name-only", "--format=", c], CODE_REPO, False)
+            if rc != 0:
+                return None
+            seen.update(p for p in out.split() if is_member_visible_path(p))
+        return seen
+    return set()
 
 
 def enforce_order(manifest: pathlib.Path, order: list, verbose=True) -> int:
@@ -286,10 +385,32 @@ def _self_check() -> int:
          any("packet-v-multi-volume-gate" in m and "packet-b-schema-resolution-gate" in m
              for m in v), True)
 
-    # member-visible unit no longer last -> must refuse
-    moved = [u for u in order if u != "s2-accelerator-chord-pre-implementation-gate"]
-    moved.insert(0, "s2-accelerator-chord-pre-implementation-gate")
-    show("F-S2-1 NOT LAST: refuses", len(check_order(moved, real)) >= 1, True)
+    # ── `#!last:` UNDER THE REDEFINED SEMANTICS (F-SIGN-5, 2026-09-16) ──────────────────
+    # ⚰️ THE CONTROL THAT USED TO SIT HERE NOW PASSES FOR THE WRONG REASON, AND IT WAS
+    # CAUGHT BY PROBING IT RATHER THAN RE-RUNNING IT. It moved F-S2-1 to position 0 and
+    # asserted `check_order` refused — which it still does, but on the `#!after:` clauses
+    # its fixture drags along, NOT on the `last` rule. Measured: with `last` as the ONLY
+    # constraint over synthetic stems it now returns `[]`, because synthetic stems have no
+    # file set and the rule is about FILES now, not position. A control whose subject has
+    # moved out from under it is not a control.
+    S2 = "s2-accelerator-chord-pre-implementation-gate"
+    last_only = [("last", S2, None)]
+    # a follower carrying member-visible files -> REFUSED, and the files are NAMED
+    vis_units = [(S2, ["0ef787268"], True), ("a-member-visible-follower", ["0ef787268"], False)]
+    v2 = check_order([S2, "a-member-visible-follower"], last_only, vis_units)
+    show("a row after #!last: carrying member-visible files: refuses", len(v2) == 1, True)
+    show("...and NAMES them", all(n in v2[0] for n in ("TickerPopup.jsx", "Watchlists.jsx")), True)
+    # ⭐ NON-VACUITY, and the whole point of the redefinition: a TESTS-ONLY follower is fine
+    tst_units = [(S2, ["0ef787268"], True), ("t-cp2-build-record", ["76a3b98c2"], False)]
+    show("...but a TESTS-ONLY row after it is ALLOWED (F-SIGN-5's fix)",
+         check_order([S2, "t-cp2-build-record"], last_only, tst_units), [])
+    # ⛔ UNREADABLE is a third state, never "clean"
+    bad_units = [(S2, ["0ef787268"], True), ("ghost", ["0000000000000000"], False)]
+    v3 = check_order([S2, "ghost"], last_only, bad_units)
+    show("an UNREADABLE follower is refused, not called clean",
+         len(v3) == 1 and "UNREADABLE" in v3[0], True)
+    show("the predicate can say YES (3 member-visible files in F-S2-1's own commit)",
+         len(member_visible_files(S2, [(S2, ["0ef787268"], True)])), 3)
 
     # a constraint naming an unknown unit cannot fire -> refused, never skipped
     show("a constraint naming an unknown unit is REFUSED",
@@ -610,6 +731,20 @@ def main(argv=None) -> int:
     # afterwards would be a post-mortem, not a guard.
     # ⛔ THE ORDER IS CHECKED OVER THE **WHOLE** LIST, BEFORE ANY TRUNCATION. A sitting
     # boundary must not be able to hide a constraint violation that lives after it.
+    # ⛔⛔ K CP9 — A DRY RUN IS A REPLAY. The constraint graph is checked SECOND and is
+    # subordinate, because F-SIGN-4 was a declared order that satisfied every constraint and
+    # could not execute: it stranded at unit 11 on a workflow conflict while this very tool
+    # printed "all 36 constraint(s) SATISFIED" and exit 0.
+    if a.dry_run:
+        ok_replay, detail = replay(base="origin/master")
+        if not ok_replay:
+            print(detail)
+            print("[merge-all] REFUSED — the declared order cannot run. Nothing was "
+                  "cherry-picked, nothing was pushed.")
+            return FAIL
+        print(detail)
+        print()
+
     rc = enforce_order(manifest, [u[0] for u in UNITS])
     if rc != OK:
         return rc
