@@ -245,7 +245,7 @@ export default function LegendRow({
       {interactive
         ? (
           <span className={styles.vChev} aria-hidden="true">
-            <UIcon name="chevronRight" size={9} gold={false} />
+            <UIcon name="chevronRight" size={8} gold={false} />
           </span>
         )
         : <span className={styles.vCtl} />}

@@ -254,7 +254,7 @@ describe('§8 — the geometric fold', () => {
   it('⛔ AND THE BUTTON MUST MEASURE ONE ROW, or the reservation buys nothing', () => {
     const more = /\.studyMore\s*\{([^}]*)\}/.exec(STOCK_CSS)
     expect(more, '.studyMore is gone — has the disclosure been renamed?').toBeTruthy()
-    expect(more[1]).toMatch(/height:\s*15px/)
+    expect(more[1]).toMatch(/height:\s*14px/)
     expect(more[1]).toMatch(/margin-top:\s*0/)
   })
 
@@ -297,13 +297,100 @@ describe('§8 — the geometric fold', () => {
   })
 })
 
+describe('§2/§12 — the cluster sits snug under the drawing tools', () => {
+  it('⭐ the legend consumes --price-pane-top AND comes up to meet the toolbar', () => {
+    // MEASURED ON THE LIVE CHART: the drawing toolbar occupies 4–30px of the price
+    // pane (top 4px, height 26px). At the shipped 46px the bar-info strip started
+    // 16px below it and read as having fallen into the plotting area. 34px puts it
+    // 4px under the toolbar box — 5px under its last glyph.
+    const v2 = /\.legendV2\s*\{([^}]*)\}/.exec(STOCK_CSS)
+    expect(v2, '.legendV2 is gone').toBeTruthy()
+    const top = /top:\s*calc\((\d+)px\s*\+\s*var\(--price-pane-top,\s*0px\)\)/.exec(v2[1])
+    expect(top, 'the V2 legend stopped consuming --price-pane-top — it will strand '
+      + 'on the top pane when Price is arranged below another one').toBeTruthy()
+    expect(Number(top[1]), 'the legend drifted back down into the plotting area')
+      .toBeLessThanOrEqual(38)
+    // ⛔ AND THE COMPARISON ROWS DOCK BESIDE IT, so they move with it or they
+    // detach from the thing they are docked to.
+    const side = /\.compareRowsSide\s*\{([^}]*)\}/.exec(STOCK_CSS)
+    expect(side[1]).toContain(`calc(${top[1]}px + var(--price-pane-top, 0px))`)
+  })
+
+  it('the two areas read as one cluster — a small, slightly distinct step', () => {
+    const v2 = /\.legendV2\s*\{([^}]*)\}/.exec(stripComments(STOCK_CSS))[1]
+    const gap = Number(/(?:^|;)\s*gap:\s*(\d+)px/.exec(v2)[1])
+    expect(gap, 'bar-info and the study stack drifted apart').toBeLessThanOrEqual(6)
+    expect(gap, 'bar-info and the study stack collided').toBeGreaterThanOrEqual(2)
+  })
+})
+
 describe('§5 — hover restyles nothing but text', () => {
   it('⚰️ THE ROW-WIDE HOVER BACKGROUND IS GONE FROM BOTH STACK ROWS', () => {
     expect(ROW_CSS).toMatch(/\.vRow\.rowLive:hover\s*\{[^}]*background:\s*none/)
     expect(CHIP_CSS).toMatch(/\.chipGridRow\.rowLive:hover\s*\{[^}]*background:\s*none/)
   })
 
-  it('⛔ WHAT REPLACES IT COSTS NO GEOMETRY — decoration and opacity only', () => {
+  it('⚰ THE HOVER UNDERLINE IS RETIRED — rows must not read as web links', () => {
+    // Owner, after living with Legend V2 in production. The underline existed
+    // because the values rested at near-white and "brighter" had nowhere to go;
+    // the hierarchy pass moved the LABEL down to `--text-muted` at 0.8 opacity,
+    // which is what created the headroom for a luminance hover instead.
+    for (const [name, css, sel] of [
+      ['LegendRow', ROW_CSS, /\.vRow\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
+      ['IndicatorChip', CHIP_CSS, /\.chipGridRow\.rowLive:(?:hover|focus-visible)[^{]*\{([^}]*)\}/g],
+    ]) {
+      const bodies = [...css.matchAll(sel)].map((m) => m[1])
+      expect(bodies.length, `${name} declares no stack-row hover at all`).toBeGreaterThan(0)
+      for (const body of bodies) {
+        expect(body, `${name}'s hover underlines the row again`)
+          .not.toMatch(/text-decoration/)
+      }
+    }
+  })
+
+  it('⭐ …and the LABEL rests low enough for a luminance hover to be visible', () => {
+    // \U0001f534 THE MEASURED DEFECT THIS REPLACED: `.vLabel` and `.vVal` took
+    // `--chart-panel-text-strong-low` and `--chart-panel-text-strong`, and BOTH
+    // resolve to #e2dfd6 on the chart container — so the label and the value were
+    // the same ink and the row's only hierarchy was 500 vs 600 weight. Read off
+    // the live chart: `Vol` rgb(226,223,214) / `31.7M` rgb(226,223,214).
+    // The bar-info strip was already doing it properly with the `--text-muted` /
+    // `--text-bright` pair, so the stack takes the SAME pair. One hierarchy.
+    const label = /\.vLabel\s*\{([^}]*)\}/.exec(ROW_CSS)
+    const value = /\.vVal,\s*\.flatVal\s*\{([^}]*)\}/.exec(ROW_CSS)
+    expect(label, '.vLabel is gone').toBeTruthy()
+    expect(value, '.vVal is gone').toBeTruthy()
+    expect(label[1], 'the study label went back to a token that equals the value\'s')
+      .toMatch(/color:\s*var\(--text-muted\)/)
+    expect(value[1], 'the study value no longer takes the bright ink')
+      .toMatch(/color:\s*var\(--text-bright\)/)
+    // ⛔ AND THE LABEL CARRIES A RESTING OPACITY, because a PLOT-COLOURED row
+    // defeats `color` with an inline `inherit` — opacity is the only lever that
+    // separates label from value on every hue.
+    expect(label[1], 'the coloured-row hierarchy has no lever left').toMatch(/opacity:\s*0?\.\d+/)
+  })
+
+  it('⛔ THE CHEVRON IS NEUTRAL, NOT THE SERIES COLOUR', () => {
+    // \U0001f534 MEASURED LIVE: an EMA 9 row rendered label, value AND chevron all
+    // rgb(74,222,128) — the quietest element in the row was drawn in the loudest
+    // ink available and competed with the number it sits beside.
+    for (const [name, css, sel] of [['LegendRow', ROW_CSS, /(?:^|\n)\.vChev\s*\{([^}]*)\}/],
+      ['IndicatorChip', CHIP_CSS, /(?:^|\n)\.chipGridChev\s*\{([^}]*)\}/]]) {
+      const body = sel.exec(css)
+      expect(body, `${name}'s chevron rule is gone`).toBeTruthy()
+      expect(body[1], `${name}'s chevron inherits the plot colour again`)
+        .toMatch(/color:\s*var\(--text-muted\)/)
+      const rest = Number(/opacity:\s*(0?\.\d+)/.exec(body[1])[1])
+      expect(rest, 'the chevron is loud at rest').toBeLessThanOrEqual(0.4)
+    }
+    // …and it is drawn smaller than the text it sits beside.
+    for (const [name, src] of [['LegendRow', read('./legend/LegendRow.jsx')],
+      ['IndicatorChip', read('./legend/IndicatorChip.jsx')]]) {
+      expect(src, `${name}'s chevron grew`).toMatch(/name="chevronRight" size=\{8\}/)
+    }
+  })
+
+  it('⛔ WHAT A HOVER COSTS IS NOTHING — colour and opacity only', () => {
     // Nothing that reflows: no padding, no margin, no border, no font-size, no
     // transform, no width. The legend box, its right edge and every cell must be
     // identical hovered and at rest.

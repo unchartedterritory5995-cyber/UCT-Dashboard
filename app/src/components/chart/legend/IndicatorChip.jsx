@@ -326,7 +326,7 @@ export default function IndicatorChip({
         {interactive
           ? (
             <span className={styles.chipGridChev} aria-hidden="true">
-              <UIcon name="chevronRight" size={9} gold={false} />
+              <UIcon name="chevronRight" size={8} gold={false} />
             </span>
           )
           : <span className={styles.chipGridCtl} />}

@@ -69,10 +69,23 @@
      over this; what is left to this declaration is the rows that have none —
      O/H/L/C and `Vol`, which are readings of the instrument rather than of a
      line somebody chose a colour for. */
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  /* 🔴 — AND THE TOKEN CHANGED, BECAUSE THE OLD PAIR WAS NOT A PAIR.
+     `--chart-panel-text-strong-low` and `--chart-panel-text-strong` BOTH resolve
+     to #e2dfd6 on the chart container, so the label and the value were the same
+     ink and the only hierarchy in the row was 500 vs 600. Measured live:
+     `Vol` rgb(226,223,214) / `31.7M` rgb(226,223,214). The bar-info strip six
+     pixels up was already doing it properly with `--text-muted` / `--text-bright`
+     (#cfcac0 / #f8f7f3), which is the step the owner could see there and not
+     here — so the stack takes the SAME pair. One hierarchy, both areas. */
+  color: var(--text-muted);
+  /* ⭐ AND A TOUCH OF RECESSION FOR THE ROWS THAT WEAR A PLOT COLOUR. A coloured
+     row defeats the `color` above with an inline `inherit` (the plot's own hue is
+     the point), so luminance cannot separate label from value there — opacity
+     can, and it is the one lever that works on every hue. */
+  opacity: 0.8;
 }
 .vVal, .flatVal {
-  color: var(--chart-panel-text-strong, #f8f7f3);
+  color: var(--text-bright);
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as
@@ -154,9 +167,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  opacity: 0.45;
+  /* 🔴 IT WAS INHERITING THE PLOT COLOUR. Measured on the live chart: an
+     EMA 9 row rendered label, value AND chevron all rgb(74,222,128) — so the
+     quietest thing in the row was drawn in the loudest ink available and
+     competed with the number. It is interaction chrome, not data: it takes the
+     muted text token and never the series colour.
+     ⛔ AND IT IS QUIETER AT REST (.45 → .30) AND SMALLER (9px → 8px, set on the
+     icon). The priority is value, then identity, then this. */
+  /* ⛔ PULLED IN BY 3px, AND ONLY THIS CELL. The stack is ONE grid with ONE
+     `column-gap`, and that gap is what builds the aligned value column the owner
+     asked to keep — so it cannot be narrowed just for the chevron. A negative
+     margin on the chevron cell alone takes the value→chevron distance from 10px
+     to 7px (measured), which reads as attached to the row rather than floating
+     after it, and leaves the label→value gap untouched. */
+  margin-left: -3px;
+  color: var(--text-muted);
+  opacity: 0.34;
   line-height: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.12s ease, color 0.12s ease;
 }
 
 /* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE — one indent step, nothing else.
@@ -203,23 +231,26 @@
    touch; taking its hover away would be a change to a surface nobody asked about. */
 .flat.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
 .vRow.rowLive:hover { background: none; }
-/* ⛔ AN UNDERLINE, NOT A BRIGHTNESS BUMP, AND THE REASON IS MEASURABLE: these
-   values are already `--chart-panel-text-strong` (#f8f7f3) at rest, so "slightly
-   brighter" has nowhere to go on exactly the rows a member points at most. The
-   underline reads the same on a white value and on a plot-coloured label, and it
-   takes its ink from `currentColor` so a coloured row underlines in its own
-   colour. ⛔ `text-decoration` REFLOWS NOTHING — which is the whole reason it is
-   the affordance here rather than a weight change or a border. */
-.vRow.rowLive:hover .vLabel {
-  text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: from-font;
-  text-underline-offset: 2px;
-}
-.vRow.rowLive:hover .vChev { opacity: 0.92; }
-/* The keyboard gets the same affordance the pointer does — the ring alone says
-   "focused", not "this opens something". */
-.vRow.rowLive:focus-visible .vChev { opacity: 0.92; }
+/* ⚰⚰ THE HOVER UNDERLINE IS RETIRED (owner, after living with it). It was the
+   answer to "these values are already near-white, so *brighter* has nowhere to
+   go" — and seen on a real chart it made the rows read as WEB LINKS, which is
+   the one thing a typeset market-data stack must not look like.
+   ⭐ WHAT REPLACES IT IS LUMINANCE, AND THE HEADROOM CAME FROM THE HIERARCHY
+   PASS: the label now RESTS at `--text-muted` / .88 opacity, so there is somewhere
+   to go. Hover lifts the label to full and brightens the chevron. Nothing else.
+   ⛔ NO BACKGROUND, NO PILL, NO ROW FILL, NO BORDER, NO UNDERLINE, NO MOVEMENT.
+   Colour and opacity only — nothing in these rules can reflow a row, which is
+   what keeps the legend's geometry byte-identical hovered and at rest.
+   ⛔ AND THE VALUE IS LEFT ALONE. It is already the brightest token in the row;
+   lifting it too would flatten the hierarchy this pass exists to create. */
+.vRow.rowLive:hover .vLabel { color: var(--text-bright); opacity: 1; }
+.vRow.rowLive:hover .vChev { opacity: 0.65; }
+/* ⛔ KEYBOARD FOCUS IS A DIFFERENT STATE FROM HOVER AND KEEPS ITS OWN SIGNAL.
+   Taking the pointer's underline away must not take the keyboard's ring with it —
+   `.rowLive:focus-visible` above still draws it; this only brings the chevron up
+   to match, so a focused row and a hovered row read alike. */
+.vRow.rowLive:focus-visible .vLabel { color: var(--text-bright); opacity: 1; }
+.vRow.rowLive:focus-visible .vChev { opacity: 0.65; }
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);

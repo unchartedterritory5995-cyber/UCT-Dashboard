@@ -469,7 +469,11 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  /* ⭐ ONE CLUSTER, TWO IDEAS. 4px between the boxes reads as ~6px between the
+     glyphs (each box carries 1px of its own padding) — marginally wider than the
+     5px that now separates the strip from the drawing tools, so the eye groups
+     bar-info WITH the stack while still stepping between them. */
+  gap: 4px;
   /* ⚰⚰ THE SAME OMISSION BOTH RETIRED VARIANTS MADE, NOT REPEATED. A variant
      class on the same element, later in the file, wins on source order — so a
      bare `top` here would silently defeat the base rule's offset and leave the
@@ -477,7 +481,19 @@
      drawing toolbar follows Price down. Price-owned chrome consumes
      `--price-pane-top`, always, with a `0px` fallback so an unarranged chart is
      unchanged. */
-  top: calc(46px + var(--price-pane-top, 0px));
+  /* ⭐⭐ MEASURED, NOT CHOSEN. The drawing toolbar occupies 4–30px of the
+     price pane (`.toolbar` top 4px, height 26px — read off the live chart, both
+     numbers). At 46px the bar-info strip started 16px below it and read as
+     having fallen into the plotting area; the owner's note after living with it
+     was that the cluster should sit *noticeably snugger* to the tools.
+     34px puts the strip's box 4px under the toolbar and its first glyph 5px
+     under it (the strip carries 1px of top padding).
+     ⛔ THE TOOLBAR DID NOT MOVE. This is the legend coming up to meet it, which
+     is the only half of the pair that is legend chrome.
+     ⛔ AND IT IS STILL `var(--price-pane-top)` — see `priceOwnedChrome.css.test.js`.
+     A constant here is the regression that put this legend on somebody else's
+     pane. */
+  top: calc(34px + var(--price-pane-top, 0px));
   left: 8px;
   background: none;
   padding: 0;
@@ -508,9 +524,13 @@
 }
 /* The date leads the strip and is the only field that is a NAME rather than a
    reading, so it carries the brighter ink and no key. */
+/* ⭐ §13 — THE DATE IS CONTEXT, NOT A READING. It wore the same 600/bright as
+   the O/H/L/C VALUES, which made the strip open on its loudest token and gave the
+   numbers a rival at the left edge. Same family as the keys now; the letter
+   spacing stays, because that is what keeps `SEP 15` from reading as a ticker. */
 .barDate {
-  color: var(--text-bright);
-  font-weight: 600;
+  color: var(--text-muted);
+  font-weight: 500;
   letter-spacing: 0.02em;
 }
 /* One `O 708.80` pair. The gap between key and value is deliberately TIGHTER
@@ -521,9 +541,14 @@
   align-items: baseline;
   gap: 4px;
 }
+/* ⭐⭐ §3 — THE LABEL STEPS BACK BY WEIGHT *AND* LUMINANCE, AND BY NOTHING
+   ELSE. `O` and `760.12` are the same 10px face; the hierarchy is 400 vs 600 and
+   #cfcac0 vs #f8f7f3. ⛔ NO SIZE CHANGE — two type sizes in a six-field strip is
+   the "chunky" the brief refused, and it would break the baseline the strip is
+   laid out on. */
 .barKey {
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 400;
 }
 .barVal {
   color: var(--text-bright);
@@ -531,6 +556,12 @@
 }
 /* ⛔ THE CHANGE FIGURES CARRY NO KEY AND THEIR OWN INK — the colour IS the
    label. Weight matches `.barVal` so the strip has one value weight throughout. */
+/* ⭐⭐ §4 — THE CHANGE FIGURES ARE VALUES, AND THEY WEIGH WHAT VALUES WEIGH.
+   600, identical to `.barVal`, asserted equal in `legendV2.test.jsx` so the two
+   cannot drift. Their COLOUR says up or down; their WEIGHT says "this is a
+   reading", and a semantically-coloured number must not read as a lesser one.
+   ⛔ THE COLOUR ITSELF IS UNTOUCHED — it is the member's own
+   `header.colors.dayChange{Up,Down}` setting and it drives the title row too. */
 .barChg {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -565,7 +596,13 @@
      give (measured 17px here) — a value no test could derive and a font change
      could move without anything noticing. 15px + the 1px row gap = a 16px pitch,
      and `legendV2.geometry.test.js` re-derives it from THIS declaration. */
-  line-height: 15px;
+  /* ⭐ 15px → 14px (§11). Measured live at 15: five rows read as five menu
+     items rather than a typeset block. 14 on a 10px face is still 1.4 leading —
+     the row keeps a full line of clickable height, and the stack loses 5px over
+     five rows without anything getting tight.
+     ⛔ THIS NUMBER AND `row-gap` BELOW ARE WHAT `STUDY_ROW_PX` COUNTS IN. They
+     are declared in px for that reason and the rail re-derives the sum. */
+  line-height: 14px;
   background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -584,7 +621,10 @@
   grid-column: 1 / -1;
   justify-self: start;
   margin-top: 0;
-  height: 15px;
+  /* Exactly one stack row — 14 + the 1px `row-gap` = the 15px pitch. The fold
+     RESERVES a row for this button, so a button taller than a row would overrun
+     the space that was measured and trip the responsive collapse. */
+  height: 14px;
   min-width: 0;
   padding: 0 4px;
   font: 600 9.5px var(--font-mono);
@@ -670,7 +710,8 @@
   font-family: var(--font-sans);
 }
 .compareRowsSide {   /* Legend V2 → to the right of the bar-info strip, near its top */
-  top: calc(46px + var(--price-pane-top, 0px));
+  /* Docked beside the bar-info strip, so it moves with it — 34px, not 46. */
+  top: calc(34px + var(--price-pane-top, 0px));
   left: 132px;
 }
 .compareRow {

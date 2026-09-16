@@ -112,18 +112,13 @@
    variant — the study stack's row — changes. */
 .chip.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
 .chipGridRow.rowLive:hover { background: none; }
-/* ⛔ AN UNDERLINE, NOT A BRIGHTNESS BUMP — these values are already
-   `--chart-panel-text-strong` at rest, so "brighter" has nowhere to go. It takes
-   its ink from `currentColor`, so a plot-coloured label underlines in its own
-   colour, and `text-decoration` reflows nothing. */
-.chipGridRow.rowLive:hover .chipGridLabel {
-  text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: from-font;
-  text-underline-offset: 2px;
-}
+/* ⚰ THE UNDERLINE IS RETIRED HERE TOO — see `LegendRow.module.css` for the
+   owner's reason and for why the label's new resting state is what made a
+   luminance hover possible. Colour and opacity only; nothing reflows. */
+.chipGridRow.rowLive:hover .chipGridLabel,
+.chipGridRow.rowLive:focus-visible .chipGridLabel { color: var(--text-bright); opacity: 1; }
 .chipGridRow.rowLive:hover .chipGridChev,
-.chipGridRow.rowLive:focus-visible .chipGridChev { opacity: 0.92; }
+.chipGridRow.rowLive:focus-visible .chipGridChev { opacity: 0.65; }
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -397,12 +392,19 @@
   font-weight: 500;
   vertical-align: baseline;
   white-space: nowrap;
+  /* ⭐ THE SAME STEP `LegendRow`'s `.vLabel` TAKES, and it has to be declared
+     here too because these are two components by design (see `LegendRow.jsx`).
+     Label recedes, value leads; a coloured chip defeats the colour with an inline
+     `inherit` and the opacity is what separates it there. */
+  color: var(--text-muted);
+  opacity: 0.8;
 }
 .chipGridVal {
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  color: var(--text-bright);
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a
@@ -419,9 +421,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  opacity: 0.45;
+  /* Neutral and quiet — the twin of `LegendRow.module.css`'s `.vChev`; read that
+     one for the measured reason it may not inherit the plot colour. */
+  /* ⛔ PULLED IN BY 3px, AND ONLY THIS CELL. The stack is ONE grid with ONE
+     `column-gap`, and that gap is what builds the aligned value column the owner
+     asked to keep — so it cannot be narrowed just for the chevron. A negative
+     margin on the chevron cell alone takes the value→chevron distance from 10px
+     to 7px (measured), which reads as attached to the row rather than floating
+     after it, and leaves the label→value gap untouched. */
+  margin-left: -3px;
+  color: var(--text-muted);
+  opacity: 0.34;
   line-height: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.12s ease, color 0.12s ease;
 }
 /* One indent step for a sibling output. ⛔ ON THE LABEL CELL, not the row: the
    row borrows the stack's tracks through `subgrid`, so indenting IT would move
