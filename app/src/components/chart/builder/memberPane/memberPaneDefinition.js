@@ -45,9 +45,25 @@ export const MEMBER_PANE_HEIGHT = 0.25
  *  definition: the server mints `u_` + 12 hex, and `-` is not a hex digit. */
 export const MEMBER_PANE_DEF_PREFIX = 'u_member-pane'
 
-/** ⛔ THE SAME CEILING THE BUILDER'S OWN IMPORT USES. A script with forty plots
- *  is not a reason to register forty columns on somebody's chart. */
+/** ⛔ THE PANE'S OWN CEILING. A script with forty plots is not a reason to
+ *  register forty columns on somebody's chart.
+ *
+ *  ⚰️⚰️ THIS SAID "THE SAME CEILING THE BUILDER'S OWN IMPORT USES" AND THERE IS NO
+ *  IMPORT. Measured 2026-09-15: this constant is not exported, and
+ *  `BuilderSheet.jsx` declares a SECOND `const CARRY_MAX = 12` inline. Two
+ *  independent constants with one name, and a comment asserting a wiring nobody
+ *  built — `lesson_a_comment_claiming_agreement_is_not_agreement`. The comment is
+ *  corrected in the same commit as the number, or the trap outlives the fix.
+ *
+ *  ⭐ R25 — IT IS PER SURFACE, AND HIDDEN ANCHORS DO NOT COUNT AGAINST IT. The
+ *  builder's cap bounds COLUMN REGISTRATION ("forty columns on somebody's
+ *  chart"); a `display.none` anchor registers no column and draws no series, so
+ *  it is not what that cap protects. Clouds needs **23** rows of which 21 are
+ *  anchors; the visible ceiling is unchanged at 12 and the document ceiling is
+ *  23 × 1.5 = 34, rounded to 36 for headroom, so a script one cloud larger than
+ *  Clouds still lands. */
 const CARRY_MAX = 12
+const DOC_CARRY_MAX = 36
 
 const keyAt = (i) => (i === 0 ? 'value' : `out${i + 1}`)
 
@@ -96,11 +112,33 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // four real series. `chooseOutput` already declines to SELECT one on this lane;
   // this is the same rule applied to the whole row set, because the second and
   // third conditions in a script were never the selected row anyway.
-  const drawable = (t.outputs || [])
-    .filter((o) => o && o.ast && o.formula && !o.hidden && !o.refusal
-      && o.kind !== 'alertcondition')
-    .slice(0, CARRY_MAX)
-  if (!drawable.length) return no('this script declares nothing a chart can draw', null, t)
+  // ⭐⭐ (j) j.1 / R24 — A HIDDEN OUTPUT IS CARRIED, AND CARRYING ONE IS NOT A D2
+  // REVISIT. D2 governs WHICH lane's saved definition a pane reads, not what a
+  // definition may CONTAIN. Clouds' 21 `display.none` plots are the anchors its
+  // 20 fills reference: drop them and the fills have nothing to point at, which
+  // is why the pane carried 2 of 23 rows and drew no cloud at all.
+  //
+  // ⛔ THE VISIBLE CEILING IS UNCHANGED. `CARRY_MAX` still bounds what a member
+  // sees; `DOC_CARRY_MAX` bounds the document, because an anchor costs a row and
+  // not a column. A script with forty VISIBLE plots is still cut at 12.
+  //
+  // ⛔ AND RULING 1.2 IS UNTOUCHED, WHICH IS THE WHOLE RISK HERE. That ruling is
+  // about what the door OFFERS and SELECTS — "a column offered under the script's
+  // title that is actually the author's hidden ohlc4 fill edge is a
+  // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
+  // declines a hidden row; this only decides what the document CONTAINS.
+  // Carriage is not offer, and the acceptance pins that both ways.
+  const carryable = (t.outputs || [])
+    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
+  const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
+  const visibleSet = new Set(visible)
+  const drawable = carryable
+    .filter((o) => !o.hidden ? visibleSet.has(o) : true)
+    .slice(0, DOC_CARRY_MAX)
+  // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
+  // hidden anchors draws nothing a member could look at, and saying "nothing a
+  // chart can draw" remains the honest answer for it.
+  if (!visible.length) return no('this script declares nothing a chart can draw', null, t)
 
   // ⛔⛔ THE LINT SCOPE MUST BE THE SCOPE THE DOOR WILL USE.
   // `evaluateFormula` decides the repaint mode, and it needs the DEFINITION's
@@ -135,7 +173,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       readback: (ev && ev.readback) || '',
       style: typeof p.style === 'string' ? p.style : 'line',
       color: typeof p.color === 'string' ? p.color : undefined,
-      hidden: false,
+      // ⭐ (j) j.1 — THE AUTHOR'S OWN `display.none`, CARRIED AS WRITTEN. It was
+      // hard-coded `false` because the filter above had already removed every
+      // hidden row, so the field could only ever be false and said nothing. Now
+      // it is the anchor's whole meaning: the renderer draws no series for it and
+      // a fill may still reference it.
+      hidden: !!o.hidden,
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -148,6 +191,40 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
     }
   })
+
+  // ⭐⭐ (j) j.1 — THE FILLS, CARRIED BY THE ANCHORS THEY ALREADY NAME.
+  //
+  // `presentation.fills` has shipped since a6: `{a, b, color?, opacity?}` where
+  // `a` and `b` are indices into `t.outputs`, resolved by `resolveFillHandles`
+  // from the SAME `outputPresentation` call a `plot()` makes. Nothing here
+  // invents a colour or a second path — R10 — it maps the two output indices onto
+  // the two row keys this document just assigned and copies the colour through.
+  //
+  // ⛔ A FILL WHOSE ANCHOR IS NOT CARRIED IS DROPPED, NOT HALF-WRITTEN. A
+  // `fill: {with}` pointing at a key no plot owns would be a locator into
+  // nothing, and the renderer would silently draw one less band than the document
+  // claims. Dropping it keeps the document's own arithmetic closeable.
+  //
+  // ⚠️ COLOUR IS COPIED ONLY WHERE THE ENGINE FOLDED ONE. Clouds' own fills carry
+  // NONE — their colour is `isBullish ? bull : bear` over two user functions that
+  // `staticColourOf` folds neither way — so these rows get anchors and no colour,
+  // which is the honest shape and exactly what j.3 has to close.
+  {
+    const keyOfOutput = new Map()
+    drawable.forEach((o, i) => { keyOfOutput.set((t.outputs || []).indexOf(o), keyAt(i)) })
+    const byKey = new Map(rows.map((r) => [r.key, r]))
+    for (const f of ((t.presentation || {}).fills || [])) {
+      if (!f || !Number.isInteger(f.a) || !Number.isInteger(f.b)) continue
+      const ka = keyOfOutput.get(f.a)
+      const kb = keyOfOutput.get(f.b)
+      if (!ka || !kb || ka === kb) continue
+      const row = byKey.get(ka)
+      if (!row || row.fill) continue
+      row.fill = { with: kb }
+      if (typeof f.color === 'string') row.fillColor = f.color
+      if (Number.isFinite(f.opacity)) row.fillOpacity = f.opacity
+    }
+  }
 
   // ⛔ EVERY LOCATOR NAMES ITS PLOT EXPLICITLY, INCLUDING PLOT 1 — the rule
   // `BuilderSheet`'s multi-output import already follows. `treeIndex: null`

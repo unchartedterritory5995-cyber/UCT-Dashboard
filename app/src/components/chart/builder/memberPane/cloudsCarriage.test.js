@@ -47,9 +47,7 @@ describe('(j) j.1 — the Clouds pane document carries every output', () => {
       .toBe(20)
   })
 
-  // ⛔ SELF-RETIRING ×2: these pass only while the two drops stand. The fix
-  // commit deletes both `.fails`, and restoring either drop reds them again.
-  it.fails('⭐⭐ 23 CARRIED — 21 hidden, 2 visible', () => {
+  it('⭐⭐ 23 CARRIED — 21 hidden, 2 visible', () => {
     const r = built()
     const plots = (r.definition || {}).plots || []
     expect(plots.length, 'the pane document did not carry all 23 outputs').toBe(23)
@@ -59,7 +57,7 @@ describe('(j) j.1 — the Clouds pane document carries every output', () => {
       .toBe(2)
   })
 
-  it.fails('⭐⭐ every fill names TWO anchors, and both resolve to carried plots', () => {
+  it('⭐⭐ every fill names TWO anchors, and both resolve to carried plots', () => {
     const r = built()
     const plots = (r.definition || {}).plots || []
     const keys = new Set(plots.map((p) => p.key))
