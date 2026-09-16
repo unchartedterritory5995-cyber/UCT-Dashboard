@@ -1173,6 +1173,16 @@ export function createBinder({ chart, LWC }) {
     }
 
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
+    //
+    // ⭐⭐ (j) j.2 / R27 (amended) — WHICH BINDING HOSTS A HIDDEN SIBLING'S FILL.
+    // A `display.none` anchor binds NO series (pass one orphans it, and that
+    // stays true), but it DOES have a column — `columns.set` above loops every
+    // plot key. A fill between two such anchors therefore needs a HOST: one
+    // series already bound and visible in the same instance, whose
+    // `priceToCoordinate` the primitive borrows. The FIRST prepared binding of an
+    // instance takes that job, deterministically, so two visible plots cannot
+    // both host the same band.
+    const fillHostSeen = new Set()
     const next = []
     for (const p of prepared) {
       const { b, paneIndex, scaleId, scaleOptions, series } = p
@@ -1277,6 +1287,70 @@ export function createBinder({ chart, LWC }) {
         }
       }
 
+      // ⭐⭐ (j) j.2 — THE FILLS A HIDDEN SIBLING OWNS, HOSTED HERE.
+      //
+      // ⛔ A SEPARATE SLOT, NOT A WIDENED `fill`, AND THE MEASUREMENT CHOSE IT.
+      // `from.fill` has exactly ONE reader (the line above) and one meaning —
+      // *this plot's own band* — and its re-tenant rule keys on `b.source` for
+      // THIS plot. A hosted band belongs to a DIFFERENT plot and is invalidated
+      // for different reasons, so folding both into one array would make "which
+      // element is mine?" ambiguous at the detach. Keeping `fill` untouched is
+      // what makes the single-fill case byte-identical to `fillBinding.test.js`'s
+      // two leak rails BY CONSTRUCTION rather than by re-testing.
+      //
+      // ⛔ THE SAME TWO LEAK MODES APPLY AND ARE HANDLED THE SAME WAY: attach
+      // ONCE (reuse the carried handle), and detach on a re-tenant — plus a
+      // third this path adds, an owner that stops declaring a fill.
+      let hostedFills = (b.from && b.from.hostedFills) || null
+      const isFillHost = !fillHostSeen.has(b.instanceId)
+      if (isFillHost) fillHostSeen.add(b.instanceId)
+      // ⛔ ONE GUARD, NOT TWO. A blanket `b.source !== 'same'` detach here was
+      // MEASURED REDUNDANT: disabling it left every case green, because the
+      // key-by-key cleanup below already detaches whatever `kept` no longer
+      // holds — including a re-tenant, whose new occupant declares different
+      // hidden plots (or none). `lesson_a_guard_repeated_is_a_guard_unproved`:
+      // two guards over one fact cannot be mutation-proved, so the general one
+      // stays and the blanket one is gone.
+      //
+      // ⭐ WHAT IS LEFT IS THE CASE THE CLEANUP CANNOT SEE: this binding is no
+      // longer its instance's fill host, so the loop that would have rebuilt
+      // `kept` never runs for it and every band it carries must come off.
+      if (hostedFills && !isFillHost) {
+        for (const h of hostedFills.values()) attempt(() => series.detachPrimitive(h.primitive))
+        hostedFills = null
+      }
+      if (isFillHost) {
+        const kept = new Map()
+        for (const hp of ((b.def && b.def.plots) || [])) {
+          if (!hp || hp.hidden !== true) continue
+          const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
+          if (!hw || hw === hp.key) continue
+          const upper = columns.get(bindingKey(b.instanceId, hp.key))
+          const lower = columns.get(bindingKey(b.instanceId, hw))
+          // ⛔ FAIL CLOSED, exactly as the own-fill path does for an
+          // unresolvable `with`: no band rather than a band between whatever is
+          // lying around.
+          if (!upper || !lower) continue
+          let h = (hostedFills && hostedFills.get(hp.key)) || null
+          if (!h) {
+            h = createFillPrimitive({})
+            attempt(() => series.attachPrimitive(h.primitive))
+          }
+          const hc = effectiveFillColour(hp)
+          h.setOptions({
+            upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
+            color: hc.color, opacity: hc.opacity,
+          })
+          kept.set(hp.key, h)
+        }
+        if (hostedFills) {
+          for (const [k, h] of hostedFills) {
+            if (!kept.has(k)) attempt(() => series.detachPrimitive(h.primitive))
+          }
+        }
+        hostedFills = kept.size ? kept : null
+      }
+
       // ⭐⭐ C3A — THE GLYPH, DRAWN. `plotshape`/`plotchar` already yielded their
       // condition as an ordinary 0/1 column (which is what makes them
       // screenable); what the author ALSO said — a triangle above the bar
@@ -1338,6 +1412,11 @@ export function createBinder({ chart, LWC }) {
         // ⭐ C1-B — carried so the next pass reuses it (never re-attaches) and can
         // detach it when this series changes tenant.
         fill,
+        // ⭐ (j) j.2 — the bands this series HOSTS for hidden siblings, keyed by
+        // the owning plot's key. Same lifecycle as `fill` and carried for the
+        // same reason; a separate slot because it has a different owner and a
+        // different invalidation condition.
+        hostedFills,
         guideSig: b.guideSig,
         paneIndex,
         scaleId,

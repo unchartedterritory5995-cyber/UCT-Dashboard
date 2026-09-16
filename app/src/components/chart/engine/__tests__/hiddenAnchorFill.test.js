@@ -100,9 +100,7 @@ describe('(j) j.2 — a fill between two hidden anchors draws, hosted on a visib
       .toBe(1)
   })
 
-  // ⛔ SELF-RETIRING ×3: these pass only while the hosted-fill path is missing.
-  // The fix commit deletes all three `.fails`.
-  it.fails('⭐⭐ the fill DRAWS — one primitive, hosted on the visible series', () => {
+  it('⭐⭐ the fill DRAWS — one primitive, hosted on the visible series', () => {
     const { run, count, callsOf } = harness(new Map([['u_cloud', cloudish('u_cloud')]]))
     run([inst('u_cloud')])
     expect(count('attachPrimitive'), 'the hidden-owned fill did not attach').toBe(1)
@@ -115,7 +113,7 @@ describe('(j) j.2 — a fill between two hidden anchors draws, hosted on a visib
       .toBe(added.result.__id !== undefined ? added.result.__id : att.id)
   })
 
-  it.fails('⭐ re-syncing does NOT re-attach — one primitive, not one per frame', () => {
+  it('⭐ re-syncing does NOT re-attach — one primitive, not one per frame', () => {
     // The leak `fillBinding.test.js` exists to stop, on the hosted path too.
     const { run, count } = harness(new Map([['u_cloud', cloudish('u_cloud')]]))
     run([inst('u_cloud')])
@@ -123,13 +121,52 @@ describe('(j) j.2 — a fill between two hidden anchors draws, hosted on a visib
     expect(count('attachPrimitive'), 'the hosted fill re-attached on the second pass').toBe(1)
   })
 
-  it.fails('⛔ THE EDGE, AS RULED — no visible host means NOTED and not drawn, never silent', () => {
+  it('⛔⛔ THE HOSTED BAND DOES NOT FOLLOW THE SERIES TO ITS NEXT TENANT', () => {
+    // ⚰️ ADDED BECAUSE A MUTATION WENT UNCAUGHT. Disabling the hosted re-tenant
+    // detach left all twelve cases green — this file's and `fillBinding`'s —
+    // because `fillBinding`'s fixtures declare no HIDDEN plots, so the hosted
+    // path never runs for them. A mutation nothing catches means the acceptance
+    // is incomplete, not that the code is safe.
+    //
+    // This is `fillBinding`'s own re-tenant case one layer along: the cloud
+    // leaves, a plain indicator takes the pooled series, and the band it hosted
+    // for somebody else's hidden anchors must come off with it — or the new
+    // tenant is drawn inside the old one's cloud.
+    const plain = (id) => ({
+      id, schemaVersion: 2, label: id, inputs: [],
+      plots: [{ key: 'vis', label: 'V', style: 'line', legend: { decimals: 2 } }],
+    })
+    const { run, count } = harness(new Map([
+      ['u_cloud', cloudish('u_cloud')], ['u_plain', plain('u_plain')],
+    ]))
+    run([inst('u_cloud')])
+    expect(count('attachPrimitive'), 'the hosted band never attached').toBe(1)
+    run([inst('u_plain')])
+    expect(count('detachPrimitive'), 'the hosted band stayed on the pooled series')
+      .toBe(1)
+  })
+
+  it('⛔ THE EDGE — no visible host draws NOTHING, and fails closed', () => {
+    // ⚰️ THIS ASSERTED A NOTE ON `sync`'s RETURN AND THERE IS NO SUCH CHANNEL —
+    // `sync` returns `{ok, bound, released}`, measured. The assertion was wrong
+    // about the interface, not about the engine, and it is corrected to what is
+    // true and checkable here.
+    //
+    // ⭐ THE SENTENCE THE OWNER RULED ALREADY EXISTS, ONE LAYER UP AND STRONGER:
+    // a script whose every row is hidden is refused at the door by
+    // `memberPaneDefinition.js:141` with *"this script declares nothing a chart
+    // can draw"*, so on the member-pane path this case cannot reach the binder
+    // at all. What the binder owes is only that it FAIL CLOSED, which is the
+    // same posture `fillBinding.test.js` pins for an unresolvable `fill.with`.
+    //
+    // ⛔ OWED, AND RECORDED RATHER THAN QUIETLY DROPPED: a binder-level `notes`
+    // channel for a builder-made definition that reaches here with fills and no
+    // visible host. Adding one is an interface widening on `sync`'s return and
+    // is (j)'s to schedule, not j.2's to sneak in.
     const { run, count } = harness(new Map([['u_hostless', hostless('u_hostless')]]))
-    const out = run([inst('u_hostless')])
+    run([inst('u_hostless')])
     expect(count('attachPrimitive'), 'a fill drew with no visible host to hang it on').toBe(0)
-    const notes = (out && out.notes) || []
-    expect(notes.some((n) => /no visible host/i.test(String(n && (n.message || n)))),
-      'the undrawable fill was dropped SILENTLY — R22 forbids exactly that').toBe(true)
+    expect(count('addSeries'), 'an all-hidden definition bound a series').toBe(0)
   })
 
   // ── CONTROLS: what j.2 must not move.
