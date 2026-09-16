@@ -79,7 +79,28 @@ un-maximises).
   "/data/...")`) or they land in `unpinnable` and trip the tripwire.
 - [ ] **W2 — OI-44** per R43 — `BLOCKED-needs-W1` (needs the durable record across pods)
 - [ ] **W3 — OI-13 step 6** per R42 — `BLOCKED-until-Thursday` (counter ships in W1; first qualifying weekday span begins Thu 17 Sep)
-- [ ] **W4 — gate to 11/11** — `TODO` — per non-MET row, the named mover from D-13 Part 6. Evidence contracts may accept an honest new SOURCE, **never a relaxed threshold**.
+- [ ] **W4 — gate to 11/11** — `TODO` — snapshot `20260916T014229Z-29900cedf` = **7 MET / 2 NOT MET / 2 NOT MEASURABLE**, no gate change vs `7decb0601`. The four rows and their movers:
+
+  1. **NOT MET — "every forensics class closed with a commit"** · 11/14 closed; open: **C-02, C-09, C-13**.
+     Mover: C-09 is the gate merge `ccf4fbcb6` (live) — the row likely just needs its closing commit recorded.
+     C-13 closes with OI-13 step 6 + the 11x4 control (R42, Thursday+). C-02 is the loop/ack class — OI-44/OI-45 work.
+     Owner: session. Not blocked except C-13's clock.
+  2. **NOT MET — "3.5 real-Discord smoke"** · reads *"1 FAIL mark (2/15 rows marked PASS, 10 rows no mark speaks for)"*.
+     ⛔ **THE ROW IS SCORED AGAINST A STALE ARTIFACT.** The denominator is **15**; R16 struck the fifteenth and
+     `SMOKE-3.5.md` defines **14**. It also has no knowledge of 2026-09-15's run, where rows 1, 8, 9, 11, 13
+     PASSed on the gate SHA. This is the very defect SMOKE-3.5.md was written to end — a score against a list
+     nobody can re-derive. Mover: write the 2026-09-15 marks into the evidence the gate reads, run the
+     remaining rows (W1), and move the scorer to the 14-row denominator. Never relax the threshold.
+  3. **NOT MEASURABLE — "S2 measured in --real mode and within SLO"** · zero admissible latency artifacts:
+     1 void (open-loop mislabelled as concurrency), 12 inconclusive (ack-path only / `renderer=fallback` /
+     unlabelled load model / pre-label). **S5 MET, S5b MET, S5c MET** (4,444 refusals all reached the member
+     inside 3,000 ms, read from the WIRE). Mover: the private-network harness run (R46) or, if NO-GO twice,
+     canary traffic under D2 with `source=canary`, min N=50 — an honest new SOURCE, contract updated to accept it.
+  4. **NOT MEASURABLE — "mutation NOT-APPLIED = 0"** · 15 harnesses, only 6 answer `--dry-check`.
+     Mover: `--run-mutations`, or read the merge row. Unblocked and cheap; do it early in W1.
+
+  ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
+  `#system-alerts` (OI-46). Do not conflate them.
 - [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4`
 - [ ] **W6 — member flip** per R40, monitor per R41 for >= 5 trading days — `BLOCKED-needs-W5`
 - [ ] **W7 — close-out** — `BLOCKED-needs-W6`
