@@ -1,9 +1,8 @@
 {
-  "promoted_sha": "7eef82ec2ed86b4967256c04cdae4e06593e1913",
-  "master_sha": "7eef82ec2ed86b4967256c04cdae4e06593e1913",
-  "gate_run_id": null,
-  "range_scan_state": null,
-  "range_scan_verdict": null,
-  "ts": "2026-09-16T00:37:02.035260Z",
-  "note": "seed row written by hand when the branch was created (SD-1.3 C2.1). gate_run_id and the range-scan fields are null because the gate log for this SHA was not readable without a token; the first real promotion fills them."
+  "promoted_sha": "4c3c2cc82926fd47c6b65c3d48945a9166531d44",
+  "master_sha": "4c3c2cc82926fd47c6b65c3d48945a9166531d44",
+  "gate_run_id": "35042708988",
+  "range_scan_state": "NO RANGE",
+  "range_scan_verdict": "NOTHING-TO-SCAN",
+  "ts": "2026-09-16T01:08:19.328693Z"
 }
