@@ -2,12 +2,34 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **TWO THINGS NEED THE OWNER'S HANDS, AND NOTHING ELSE IS BLOCKED.**
+> ### ⛔ NEXT: **(j) j.2 — the binder's half of the drop.** Nothing is blocked.
 >
-> 1. **Give that Chrome window a real size and dismiss the clipboard prompt** — then
->    Wave 1's PR (1.3–1.5) and the capture (Part 3) both run. Details below.
-> 2. **Rule on (j)'s five triggers** — `WAVE2-A-PLAN.md`, *"(j) — THE BUILD PLAN"*.
->    ⭐ Read one thing first: **j.1 is TWO fixes, not one.**
+> ✅ **PR #145 IS OPEN AS A DRAFT** · ✅ **master is merged in** (683 commits, 3
+> conflicts, all unions) · ✅ **j.1 IS BUILT** (`75be58693`).
+>
+> ⛔⛔ **RESUME AT j.2, AND KNOW WHAT IT INHERITS: the fills are DECLARED and do
+> not DRAW.** j.1 closed the first of two independent drops — all 23 Clouds
+> outputs now reach the pane document with their 20 fills, 21 carried
+> `hidden: true`. **The second drop is untouched**: `binder.js:824` `continue`s a
+> hidden plot in pass ONE, so it never enters `prepared` and never reaches the
+> fill wiring in pass TWO — which attaches a fill to the plot's **own series**,
+> and an orphaned plot has none.
+>
+> ⭐ **j.2's first act is a measurement, not a patch:** what does the renderer draw
+> for a hidden plot today? Then a red acceptance on a synthetic two-plot fill and
+> on Clouds' layer-0/layer-1 fill with a **static** colour (the conditional is
+> j.3). ⛔ Its control asserts the **draw-call list**, never the absence.
+>
+> ⛔ **NO H.9 / H.10 WAS RAISED, AND THAT IS A FINDING RATHER THAN AN OMISSION.**
+> R26's two escape hatches both resolve to *authorised by another name*:
+> `binder.js:824` **is** the hidden-honouring path (authorised by name), and
+> ruling 1.2 governs what the door **offers and selects**, not what a definition
+> **carries** — its two tests are ANDed and a carried anchor is never selectable.
+> Both are argued in the plan doc rather than asserted here.
+>
+> ⚠️ **j.4 IS BLOCKED ON A CAPTURE**, and when it runs, **H.8's live-bar line is
+> REPORTED, never asserted within tolerance** — Wave 1's fixture ends at the
+> sealed bar `2026-09-11` and cannot cover the live divergence.
 >
 > ✅ **THE WAVE 2 GRAMMAR IS CLOSED.** (a)–(i) all closed: **four built** (d1′, d2, g, h)
 > and **five retired on their numbers** (b, e, f, i, and c's IR half blocked). (j) is

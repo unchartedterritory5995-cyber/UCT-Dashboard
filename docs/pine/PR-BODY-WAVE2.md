@@ -110,11 +110,18 @@ times; this is the fifth.
 
 ## What is NOT in this PR
 
-- **(j) Uncharted Clouds** — scoped only, **11 gaps with file:line**, and it stops for the
-  owner. Its headline: the `23 → 2` drop is **two independent drops**
-  (`memberPaneDefinition.js:100` and `binder.js:824`), so lifting one alone yields 21
-  orphaned rows and zero clouds.
-- **The vendor capture** — blocked; the browser had no viewport this session.
+- **(j) Uncharted Clouds — j.1 IS IN, j.2–j.4 ARE NOT.** The `23 → 2` drop is **two
+  independent drops**, and **j.1 closed the first**: all 23 outputs now reach the pane
+  document with their **20 fills**, 21 carried `hidden: true`. ⛔ **The second drop is
+  still in place** — `binder.js:824` orphans a hidden plot in pass one, before the fill
+  wiring in pass two — **so the fills are declared and do not yet draw.** j.2 is the
+  resume point.
+- **A series-conditional fill colour (j.3)** — not started. Clouds' fills carry **no**
+  colour today and that is correct: `isBullish ? bull : bear` is a conditional over two
+  user functions the folder resolves neither way.
+- **The vendor capture (j.4)** — owed. And when it runs, **H.8's live-bar line is
+  REPORTED, not asserted**: Wave 1's fixture ends at a sealed bar, so it cannot cover the
+  live divergence.
 - **Alert sets (d3)** — deferred beyond Wave 2 under **H.7**.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

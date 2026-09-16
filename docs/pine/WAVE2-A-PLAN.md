@@ -2290,7 +2290,71 @@ importer — its own test — and **disagrees with the shipped primitive** (`'no
 of **0.02** stands UNVERIFIED and bears directly on (j)'s numbers.
 
 > ### ⛔ RESUME POINTER FOR (j)
-> **On the owner's go, starting at j.1 — and j.1 is TWO fixes, not one.**
+> **j.1 is BUILT (`75be58693`). Resume at j.2.**
+
+---
+
+# ✅ (j) j.1 BUILT — and what j.2 – j.4 inherit
+
+## j.1 — DONE. Red `57b5809ee` → fix `75be58693`. Estimate 90, actual ~85.
+
+**All 23 Clouds outputs reach the pane document, carrying their 20 fills.**
+21 `hidden: true`, 2 visible, every fill's two anchors resolving to carried plots.
+
+| what changed | where |
+|---|---|
+| the drawable filter no longer drops hidden rows; **the VISIBLE ceiling is unchanged** (`CARRY_MAX` 12) and a new `DOC_CARRY_MAX` (36 = 23 × 1.5, rounded) bounds the *document* | `memberPaneDefinition.js` |
+| `hidden` is carried **as the author wrote it** — it was hard-coded `false`, honest only because the filter had already removed every hidden row | same |
+| the fills are carried by the anchors they already name, from `presentation.fills` (shipped since a6) | same |
+
+⛔ **The refusal still keys off what can be SEEN** — a script whose only rows are hidden
+anchors draws nothing a member could look at, so the gate reads `visible`, not the
+document. ⛔ **A fill whose anchor is not carried is DROPPED, not half-written.**
+
+⭐ **R25's premise was measured false and the comment was corrected with the number.**
+The two `CARRY_MAX` constants were never wired: this file's is unexported and
+`BuilderSheet.jsx` declares its own inline, under a comment claiming they were "the same
+ceiling the builder's own import uses". Mutation 3 proves the surfaces are independent —
+which the comment asserted and the code never did.
+
+## ⛔ R26's TWO ESCAPE HATCHES BOTH RESOLVE TO **AUTHORISED**, SO NO H.9 / H.10 IS RAISED
+
+R26 says anything "beyond fills" or "near ruling 1.2" is recorded as H.9/H.10 *unless
+0.2 shows it is one of the three authorised things by another name.* Both are:
+
+- **"Renderer beyond fills"** — `binder.js:824` **is the hidden-honouring path**, and
+  "honouring `hidden`" is authorised by name in R26. It is not a fourth thing.
+- **"Near ruling 1.2"** — that ruling's two tests are **ANDed** (untitled AND filled) and
+  it governs what the door **OFFERS and SELECTS as a column**. (j) carries an anchor that
+  is **never selectable**; `chooseOutput` already declines a hidden row, and j.1's
+  acceptance pins that the selected row is not hidden. **Carriage is not offer.**
+
+⭐ Recorded explicitly rather than silently: an escape hatch nobody reports on reads as
+an escape hatch nobody checked.
+
+## ⏸️ j.2 — OWED. **Resume here.** Estimate 60.
+
+**The second drop is still in place:** `binder.js:824` `continue`s a hidden plot in pass
+ONE, so it never enters `prepared` and never reaches the fill wiring in pass TWO
+(`:1000-1032`), which attaches a fill to the plot's **own series** — and an orphaned plot
+has none. **So Clouds' 20 fills are now declared and still do not draw.**
+
+Precondition: none — j.1 landed. First act: measure what the renderer draws for a hidden
+plot today, then a red acceptance on a **synthetic two-plot fill** and on Clouds'
+layer-0/layer-1 fill with a **static** colour. ⛔ The control asserts the **draw-call
+list**, not the absence — the answer, never the absence.
+
+## ⏸️ j.3 — OWED. Estimate 120, **and it is the number to distrust.**
+
+Four contract layers, named in the scoping section above, and ⭐ **for Clouds the colour
+field would be EMPTY even once it exists** (`staticColourOf` folds neither branch), so
+adding the field first produces a correct, empty contract that **looks like progress**.
+
+## ⏸️ j.4 — OWED, and blocked on a capture. Estimate 45.
+
+Wave 1's procedure, both tables, two mobile tiers. ⛔ **H.8's line is REPORTED, never
+asserted within tolerance**: Wave 1's fixture ends at the sealed bar `2026-09-11`, so it
+cannot cover the live divergence (j)'s acceptance would otherwise claim to have tested.
 
 ---
 
