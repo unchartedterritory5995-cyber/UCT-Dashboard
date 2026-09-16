@@ -22,10 +22,43 @@ mkdir -p "$E" "$L"
 export RENDER_CACHE_ENABLED=1
 export PYTHONIOENCODING=utf-8
 
+# ⛔⛔ THREE STATES, NOT TWO, AND THE BANNER MUST NOT COLLAPSE THEM.
+# This used to read `DELIVER="--deliver-channel ${2:-}"` and then branch on
+# `[ -n "$DELIVER" ]`. With the flag given and the ID omitted, DELIVER is the
+# string `--deliver-channel ` — NON-EMPTY — so the banner announced
+# "delivery: a REAL Discord channel — " with nothing after the dash, and the
+# harness was handed a flag with no value. "We are about to post into a real
+# ~750-member room" and "you forgot the id" printed as the same sentence, and
+# the first of those is the one nobody may misread.
+#
+# The third state ABORTS rather than picking a default. Guessing NONE would post
+# nothing while the operator believed they had armed delivery; guessing anything
+# else would post somewhere nobody named. This step also drives the shared
+# chart-renderer for ~12 minutes, so failing before it starts is the cheap end.
 DELIVER=""
-[ "${1:-}" = "--deliver-channel" ] && DELIVER="--deliver-channel ${2:-}"
-[ -n "$DELIVER" ] && echo "delivery: a REAL Discord channel — ${2:-}" || \
-  echo "delivery: NONE (no channel). The wire hop is NOT measured; everything up to it is."
+case "${1:-}" in
+  "")
+    echo "delivery: NONE (no channel). The wire hop is NOT measured; everything up to it is."
+    ;;
+  --deliver-channel)
+    if [ -z "${2:-}" ]; then
+      echo "⛔ --deliver-channel was given with NO channel id." >&2
+      echo "   Refusing to guess. Pass the id, or drop the flag entirely for a" >&2
+      echo "   no-delivery run — those are different runs and this script will not" >&2
+      echo "   print one while performing the other." >&2
+      exit 2
+    fi
+    DELIVER="--deliver-channel $2"
+    echo "delivery: a REAL Discord channel — $2"
+    ;;
+  *)
+    # ⛔ A MISTYPED FLAG IS THE SAME DEFECT WEARING A TYPO. `--deliverchannel 123`
+    # used to fall through to the NONE banner and read as a deliberate choice.
+    echo "⛔ unrecognised argument: ${1}" >&2
+    echo "   usage: step3_real.sh [--deliver-channel <id>]" >&2
+    exit 2
+    ;;
+esac
 
 T="NVDA,AMD,SPY,AAPL,TSLA,QQQ,MSFT,META,AMZN,GOOGL,NFLX,AVGO,SMH,IWM,COIN,PLTR,MU,CRWD,SNOW,ORCL"
 declare -A RC

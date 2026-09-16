@@ -176,6 +176,148 @@ def _git(args: list[str]) -> str:
                           encoding="utf-8", errors="replace", check=True).stdout.strip()
 
 
+# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═
+# ⛔⛔ THE RE-DERIVATION RULE, codified 2026-09-14.
+#
+#   A completed gate's verdict carries to a NEW tree WITHOUT re-running when the
+#   tree hash of every path the gate READS is identical between the gated tree and
+#   the new tree. Re-derive `vs_baseline` only. Always with a planted-failure
+#   control.
+#
+# ⭐ WHY IT IS ALLOWED AT ALL: the suite is a pure function of these paths. If
+# none of them moved, the observed failing set cannot have moved either, and only
+# the BASELINE can have changed - and `compare_failures` is a pure function of
+# (observed, baseline, expected_red).
+#
+# ⛔ WHY IT NEEDS A MEASURED PRECONDITION: on 2026-09-14 this was justified twice
+# by hashing `app/src` ALONE. That is the big one but it is not the whole read set,
+# and "I checked the obvious path" is how a flattering answer gets published. The
+# precondition is now a list, and the helper below is the only thing allowed to
+# answer it.
+# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═
+
+#: Every path the gate reads. `app/src` covers the tests, the sources under test
+#: and `src/test-setup.js` (vite.config.js's `setupFiles`), because a tree hash
+#: covers everything beneath it.
+#:
+#: ⛔⛔ AND `app/src` IS NOT THE WHOLE READ SET — VERIFIED 2026-09-15, NOT ASSERTED.
+#: The runner is `npx vitest run` from `app/`, so `process.cwd()` is `app/` and a
+#: rail's `path.resolve(process.cwd(), '../…')` lands at the REPO ROOT. Read off
+#: the sources rather than assumed, the suite reaches four families of file that
+#: no `app/src` tree hash can see:
+#:
+#:   · the script CORPORA under `tests/fixtures/**` — `libraryIntake`, `dialect`,
+#:     `doorScorecard`, `productScorecard`, `criteria`, `goldenFixtures` and a
+#:     dozen more read every committed .pine/.ts/.json from there. Change one
+#:     fixture and the observed failing set can move with `app/src` untouched.
+#:   · GENERATED artifacts the rails byte-compare, and the GENERATORS they exec:
+#:     `tools/hub_surface_matrix.mjs` + the two joystick docs it writes,
+#:     `docs/formulas/GRAMMAR.md`, `tools/chart_parity_cases.json`.
+#:   · DECISION RECORDS read back as data by the ledger rails (`lint.test.js`,
+#:     `enumerationSites.test.js`, `engineEnabledMigration.test.js`,
+#:     `flipCRecord.test.js`, `indicatorCatalog.test.js`).
+#:   · PYTHON sources on the other side of the lane, read for cross-lane parity
+#:     (`enumerationSites`, `IndicatorAlertPopover`, `deferredRowClosures`,
+#:     `useGroupMeta.chunk`, `exposureGate`) — and one that is EXECUTED, by
+#:     `exportRoundtrip.test.js`.
+#:
+#: ⭐ THE GRANULARITY IS A DECISION, PER ENTRY, AND IT GOES BOTH WAYS.
+#:   · A DIRECTORY where the rails ENUMERATE the tree — `tests/fixtures` is read
+#:     with `readdirSync` and several rails assert a floor on the file count, so
+#:     an added file changes the run. It also covers a corpus dir that does not
+#:     exist yet (`tests/fixtures/pine-inbox`, `…/thinkscript-inbox` are named by
+#:     `dialect.test.js` and are absent today) — and an absent path cannot be
+#:     listed here, because `git rev-parse` fails on both sides and this helper
+#:     correctly calls that DIFFERING, which would refuse every carry-over forever.
+#:   · A FILE everywhere else. `docs/` and `api/` move on nearly every commit in
+#:     this repo; naming them whole would answer DIFFERS forever, and a check that
+#:     always refuses is one nobody runs.
+#: The drift that per-file precision costs is paid for by the derivation rail
+#: `test_the_read_set_covers_every_root_relative_path_the_suite_reads`, which
+#: re-derives this list from the test sources and fails BY NAME on the next one.
+#:
+#: ⚠️ RESIDUAL, stated rather than hidden: `rule12Paths.test.js`,
+#: `reachable.test.js`, `sourcesAreText.test.js` and `enumerationSites.test.js`
+#: shell out to `git` (`ls-files`, `status`, `diff`, `show <sha>:…`). That reads
+#: repository STATE, not a fixed path, so no tree hash can cover it. Those rails
+#: are scoped to `app/src` or to history that is immutable by SHA, which is why
+#: this is recorded as a known edge and not as a path.
+GATE_READ_PATHS = (
+    # the suite, its config, its dependency pins, and the build entry points two
+    # rails import and run (`build-cot-facts.mjs`, `build-flow-facts.mjs`).
+    "app/src",
+    "app/scripts",
+    "app/vite.config.js",
+    "app/package.json",
+    "app/package-lock.json",
+    # corpora + repo-root files the rails read with cwd = app/
+    "tests/fixtures",
+    "tests/fixtures_pm_citation_text.json",
+    "tests/test_ast_conformance.py",
+    "tests/test_the_member_loop_end_to_end.py",
+    # generators the rails execute, and the artifacts they byte-compare
+    "tools/hub_surface_matrix.mjs",
+    "tools/chart_parity_cases.json",
+    "docs/formulas/GRAMMAR.md",
+    "docs/plans/joystick/surface-matrix.md",
+    "docs/plans/joystick/glass-acceptance-steps.md",
+    # decision records and the spec section read back as data
+    "docs/decisions/2026-08-03-engine-enabled-settings-migration.md",
+    "docs/decisions/2026-08-04-engine-enabled-deleted.md",
+    "docs/decisions/2026-08-04-flip-c-pane-geometry.md",
+    "docs/decisions/2026-08-06-machine-repaint-linter.md",
+    "docs/superpowers/specs/2026-07-31-indicator-platform-design.md",
+    # python sources the cross-lane rails read — and one they EXECUTE
+    "api/routers/auth.py",
+    "api/routers/breadth_monitor.py",
+    "api/routers/definition_record.py",
+    "api/routers/indicator_alerts.py",
+    "api/services/alert_series.py",
+    "api/services/ast_interpret.py",
+    "api/services/implied_move.py",
+    "api/services/indicator_alert_evaluator.py",
+    "api/services/indicator_alert_service.py",
+    "api/services/indicator_compute.py",
+    "api/services/setup_grade.py",
+    "api/services/voice_client_action_tools.py",
+    "api/services/journal_two/roundtrip_export_fixture.py",
+)
+
+
+def gate_read_identical(sha_a: str, sha_b: str, paths=GATE_READ_PATHS, run=None):
+    """(identical, differing) for the gate's read set between two commits.
+
+    ⚰️⚰️ THIS IS NO LONGER THE SOLE CARRY-OVER TEST — owner ruling 2026-09-15. It is now
+    **C0**, a SHORT-CIRCUIT: IDENTICAL still means the gate carries with no further check,
+    but DIFFERING no longer means re-gate. `app/src` is in the read set as a WHOLE
+    DIRECTORY, so this answered DIFFERS for any frontend commit anywhere on master — and
+    with a ~25 min gate against workstreams landing in `app/src` every ~10, carry-over
+    could never hold. Two sound gates died to it in one evening.
+
+    ⛔ The full rule is `tools/gate_carry_over.py` (C0 here, then C1 file-overlap, C2 AST
+    import interaction to depth 2, C3 infra, C4 scoped run, C5 the master deploy gate on
+    the landed SHA). **Do not re-derive "DIFFERS means re-gate" from this function's
+    existence** — that is the struck rule, and this repo has had a rescinded restriction
+    reinstated from its surviving mechanism three times.
+
+    ⛔ A path that is MISSING on one side and present on the other counts as
+    DIFFERING, not as equal-because-both-unreadable. Two absent paths hashing to
+    the same "" is the vacuous answer this check exists to refuse.
+    """
+    runner = run or (lambda argv: subprocess.run(
+        argv, cwd=REPO, capture_output=True, text=True,
+        encoding="utf-8", errors="replace"))
+    differing = []
+    for rel in paths:
+        a = runner(["git", "rev-parse", f"{sha_a}:{rel}"])
+        b = runner(["git", "rev-parse", f"{sha_b}:{rel}"])
+        ha = a.stdout.strip() if a.returncode == 0 else None
+        hb = b.stdout.strip() if b.returncode == 0 else None
+        if ha is None or hb is None or ha != hb:
+            differing.append(rel)
+    return (not differing), differing
+
+
 def tree_state() -> tuple[str, list[str]]:
     """(HEAD, dirty paths). Both halves matter: a clean tree at the wrong commit is still wrong."""
     head = _git(["rev-parse", "HEAD"])

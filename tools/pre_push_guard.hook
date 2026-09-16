@@ -5,11 +5,15 @@
 # written in CLAUDE.md ("ONE MASTER MERGE AT A TIME, REPO-WIDE") and was not
 # followed: three pushes in eight minutes on 2026-09-13 served 502s.
 #
-# Also refuses a master push inside the 09:25-16:05 ET window on a trading day,
-# unless the whole diff is cleared for daytime by docs/runbooks/deploy-windows.md.
+# ⚰️ The 09:25-16:05 ET refusal is RETIRED programme-wide (R18, owner ruling
+# 2026-09-15): there are no mid-day push blocks. The guard is the one authority on
+# what replaced it — read decide_clock in tools/pre_push_guard.py, do not restate it
+# here. The CADENCE and deploy-state clauses still refuse, and still should.
 #
 # Bypass:  UCT_SKIP_PREPUSH_GUARD=1 git push ...                       (the QUEUE, logged)
 #          UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push (the CLOCK, logged)
+# ⛔ That second one is NOT dead. R18 retired the window, not the fail-closed branch:
+#    an UNREADABLE clock still refuses, and this is what gets you past it.
 # Install: python tools/pre_push_guard.py --install   (or copy this file)
 
 # Only guard pushes whose DESTINATION is master.

@@ -8,7 +8,18 @@ vi.mock('./widgetEmbedCore', () => ({
 vi.mock('./embedArchive', () => ({ kickSnapshotWarm: vi.fn() }))
 
 const runMock = vi.fn(async () => 'Saved')
-vi.mock('./captureTargets', () => ({
+// ⛔ PARTIAL MOCK, SPREAD FROM THE ORIGINAL — not a hand-written stand-in.
+// This block used to return ONLY `CAPTURE_TARGETS`, which made it a second authority
+// over this module's export surface: the moment `sendToJournal.js` began calling
+// `freshLastNote` (the Q1 door guard), every `target: 'note'` case here died with
+// "No \"freshLastNote\" export is defined on the ./captureTargets mock" — two gate
+// regressions for a product change that was correct. The `inbox` case never failed,
+// which is what made it read as a door-guard bug rather than a fixture gap.
+// ⭐ The intent stated at the top of this file is to isolate TARGET DISPATCH; it was
+// never to stub id resolution. Spreading the original keeps that true, and keeps it
+// true for the next export a consumer reaches for.
+vi.mock('./captureTargets', async (importOriginal) => ({
+  ...(await importOriginal()),
   CAPTURE_TARGETS: { note: { run: (...a) => runMock(...a) }, inbox: { run: (...a) => runMock(...a) } },
 }))
 

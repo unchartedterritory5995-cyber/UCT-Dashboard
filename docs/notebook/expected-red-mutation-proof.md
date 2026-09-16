@@ -305,19 +305,60 @@ hides that master has moved at all, and the push is then rejected as
 non-fast-forward. ⛔ I misread the two-dot form twice in one evening; the second
 time it would have inverted a classification.
 
-### 10.2 — Master pushes are time-bound (the clock guard)
+### 10.2 — ~~Master pushes are time-bound (the clock guard)~~ — **RETIRED 2026-09-15**
 
-`tools/pre_push_guard.py` refuses a master push inside **09:25–16:05 ET on a
-trading day**, unless the whole diff is cleared for daytime by
-`docs/runbooks/deploy-windows.md`. Ask it *before* you are ready to push:
+> ⚰️ **OWNER RULING, 2026-09-15: there are no mid-day push blocks, ever.**
+> The 09:25–16:05 ET refusal is retired. A push goes when its gate is sound.
 
-```python
-clock = g.read_clock(); paths = g.changed_paths(base, head)
-g.decide_clock(clock, paths)      # -> ("OK" | refusal, reason)
-```
+The clause was added to `tools/pre_push_guard.py` and `tools/pre_push_guard.hook`
+by another workstream and inherited through a master merge; the owner's standing
+ruling predates it and governs. It is removed in the same push that records this.
 
-⛔ `UCT_DEPLOY_WINDOW_OVERRIDE` exists and is logged. It is not for convenience.
+⭐ **What is KEPT from that change, because it is genuinely good:** the hook now
+captures `local_sha`/`remote_sha` and hands them to the guard, so the guard diffs
+**exactly what this push would land on master** rather than guessing from a
+possibly-stale local `origin/master`. That half stays.
 
+⛔ **`UCT_DEPLOY_WINDOW_OVERRIDE` is dead after the retirement push.** Its one
+legitimate use was the single push that carried the retirement itself, cited in the
+DEPLOY row. Reaching for it afterwards means the clause came back.
+
+⚠️ **This is the third time a rescinded restriction has been re-derived from its
+surviving rationale in this repo.** The mechanism a struck rule describes may still
+be real — a web restart does blip `/api/*`, and an APScheduler slot whose minute
+passes during a swap is lost outright — but **the mechanism is not the rule**. Do
+not reinstate it from the reasoning.
+
+### 10.2b — Restore belongs in `finally`, never after a call that can throw
+
+> **A restore that runs only on the happy path is not a restore.**
+
+⚰️ **Three instances in one day, 2026-09-15, all different causes and one shape:**
+
+| what killed it | what it left |
+|---|---|
+| a 1802s hang in the probe | nine rig chrome processes alive, opt-out ABSENT from disk |
+| my own outer `timeout 1500` SIGKILL | three rig processes alive, opt-out ABSENT again |
+| `subprocess.run(["npx", ...])` without `shutil.which` (rule 14) | `outboxDrain.js` left MUTATED in the working tree |
+
+⭐ **A SIGKILLed process cannot clean up after itself**, so an outer timeout is not
+a substitute for the tool's own bounded refusal — that is what
+`PRECONDITION_BUDGET_SECONDS` is for. And a restore placed after any call that can
+raise is one exception away from not existing.
+
+### 10.2c — The `expected_red` reasons rail is currently UNEXERCISED on the live baseline
+
+Fix 5 closed `supersedeProvesContent`, its `expected_red` entry went stale and was
+removed citing the fix, so `expected_red` is now **empty**. Stripping the
+already-empty `expected_red_reasons` key is therefore a **no-op**, and the
+parameterised harness **refuses** — *"the file did NOT change"* — rather than
+printing a passing mutated run over a vacuous subject.
+
+⭐ **The refusal is the correct behaviour and no synthetic-entry mode was added.**
+A harness that manufactures a subject to keep a proof green is proving the
+manufacture. The rail's own unit tests still cover the predicate in both
+directions; what is unexercised is the end-to-end proof against the LIVE baseline,
+and it becomes exercisable again the next time a real `expected_red` entry exists.
 ### 10.3 — Production rollback for Q1 fix 4
 
 > **Default: Lever 1. Lever 2 only on a readable signal that the failure is inside
