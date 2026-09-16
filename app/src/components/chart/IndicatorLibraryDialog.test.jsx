@@ -35,7 +35,12 @@ import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
  *  subtracted at the consumer, as a written claim. Reading the same constant the
  *  dialog reads keeps this expectation honest without re-typing the exception;
  *  the case below is what stops the constant from quietly growing. */
-const OFFERED = () => [...BUILT_IN_ROWS,
+// ⚠️ BOTH HALVES ARE SUBTRACTED (2026-09-15). `LIBRARY_HIDDEN_IDS` used to apply
+// only to definitions, because only a definition had ever needed hiding; the
+// legacy `ma` BUILT-IN row is the first that does, so this mirror has to subtract
+// it from both halves or it stops describing the dialog.
+const OFFERED = () => [
+  ...BUILT_IN_ROWS.filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
   ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
 
 // ─── THE BROWSE / ADD SURFACE (spec §6) ─────────────────────────────────────
@@ -91,7 +96,16 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // The constant is what `OFFERED()` subtracts, so an id added to it silently
     // removes a row from every count above WITHOUT failing one of them. This is
     // the case that notices.
-    expect([...LIBRARY_HIDDEN_IDS]).toEqual(['dataSeries'])
+    //
+    // ⭐ 2026-09-15 — `'ma'` JOINED, DELIBERATELY. The legacy price moving average
+    // (`cs.overlays`, a positional array) and the engine's `movingAverage` (an
+    // instance, source-capable) both read as "Moving Average" in this list, and
+    // the easier one to find was the one with NO source control — which is
+    // precisely the member report this change answers. Nothing was deleted or
+    // migrated: existing overlays keep rendering and keep their own rows in Chart
+    // Data's ACTIVE list, which is built from `listAllIndicators` and not from
+    // this catalogue. Only the second CREATION door closed.
+    expect([...LIBRARY_HIDDEN_IDS]).toEqual(['dataSeries', 'ma'])
   })
 
   it('shows the long name and the one-line blurb, not the chip abbreviation', () => {
@@ -232,7 +246,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // `cs.volume`), not definitions, so a registry that knows nothing still has
     // them to offer. Only `volumeProfile` — the carved-out row — kept that
     // property before.
-    expect(optionIds()).toEqual(['ma', 'volume', 'volumeProfile'])
+    expect(optionIds()).toEqual(['volume', 'volumeProfile'])
   })
 
   it('⭐ a REFUSED write persists nothing — the identity guard, with a real subject', () => {
@@ -251,7 +265,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // by CATEGORY in first-appearance order, so `volume` (Volume) pulls
     // `volumeProfile` (Volume) up beside it and the ghost's own category lands
     // after both.
-    expect(optionIds()).toEqual(['ma', 'volume', 'volumeProfile', 'ghost'])
+    expect(optionIds()).toEqual(['volume', 'volumeProfile', 'ghost'])
     fireEvent.click(screen.getByRole('option', { name: /Ghost Indicator/ }))
     expect(onChange, 'a refused write was persisted').not.toHaveBeenCalled()
     // …and the control half: the carved-out row on the SAME render does write, so

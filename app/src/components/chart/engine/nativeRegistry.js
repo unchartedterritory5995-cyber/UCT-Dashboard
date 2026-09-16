@@ -933,15 +933,27 @@ const RAW_DEFS = [
   // from inheriting one it has no right to.
   ({
     ...nativeDef('movingAverage', 'movingAverage',
-      // ⚠️ NAMED APART FROM THE LEGACY ROW ON PURPOSE. `cs.overlays`' price moving
-      // averages already occupy the catalogue id `ma` and the name "Moving
-      // Average", and two rows reading the same in a browse list is a control a
-      // user cannot choose between. Consolidating the two is a migration with its
-      // own backward-compatibility story (see the block comment above); until
-      // then the capability IS the distinguishing word.
-      { name: 'Moving Average (Source)', shortName: 'MA', category: 'Trend', legendParams: ['period'],
+      // ⭐⭐ THIS IS **THE** MOVING AVERAGE NOW (2026-09-15). It used to be called
+      // "Moving Average (Source)" because `cs.overlays`' price averages already
+      // occupied the name, and two rows reading the same in a browse list is a
+      // control a member cannot choose between. That was the right call while both
+      // were offered; the resolution is not to qualify this one's name but to stop
+      // offering the other, which `discoveryCatalog.LIBRARY_HIDDEN_IDS` now does.
+      //
+      // ⛔ NOTHING WAS MIGRATED, AND THE ID IS UNCHANGED. `cs.overlays` is a
+      // POSITIONAL ARRAY with its own writers and its own compute; this is an
+      // ENGINE INSTANCE. They are different persistence mechanisms, so merging them
+      // would be a saved-chart rewrite. Existing overlays keep rendering, keep
+      // their own rows in Chart Data's active list, and keep their ✕ — only the
+      // browse entry that offered a SECOND way to create one is gone.
+      //
+      // ⚠️ "MOVING AVERAGE" IS THE WHOLE NAME because the capability is no longer
+      // the distinguishing word — there is nothing left to distinguish it from. A
+      // member picks Moving Average and then picks what it averages, which is the
+      // point of the feature.
+      { name: 'Moving Average', shortName: 'MA', category: 'Trend', legendParams: ['period'],
         description: 'The average of any series — price, volume, or another indicator output.',
-        tags: ['trend', 'smoothing', 'derived'] },
+        tags: ['ma', 'sma', 'ema', 'moving average', 'average', 'trend', 'smoothing', 'derived'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.
       // `MA(Close)` belongs on the candles — it is what a moving average has
       // always been — so the STATIC declaration says so and MA-on-close needs no

@@ -33,6 +33,7 @@
 // be created — that is the whole point of `capability`. See its block below.
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
+import { isOverlayRemoved } from './chartDefaults'
 import { symbolSource, canonicalSymbol, derivedSourceName } from './engine/sourceRef'
 import { addInstance, setInstanceInput, findInstance } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
@@ -654,11 +655,65 @@ export function lastCreatedInstance(before, after) {
  * to anybody. Its member-facing rows are `QQQ` and `UCTA50`, which carry the
  * source that gives it meaning.
  */
-export const LIBRARY_HIDDEN_IDS = Object.freeze([DIRECT_SERIES_DEF_ID])
+/**
+ * Rows that exist and work, but are not OFFERED in browse.
+ *
+ * ⭐⭐ `'ma'` JOINED THIS ON 2026-09-15, AND NOTHING WAS DELETED. The legacy
+ * price moving average (`cs.overlays`, a POSITIONAL ARRAY with its own writers
+ * and its own compute) and the engine's `movingAverage` (an INSTANCE, source-
+ * capable, in the dependency and display-target architecture) are two different
+ * persistence mechanisms. Offering both read identically in a list — "Moving
+ * Average" and "Moving Average (Source)" — and the easier one to find was the
+ * one with NO source control, which is exactly the member's report: *"I added a
+ * Moving Average but I cannot see where to put it on QQQ."*
+ *
+ * ⛔ SO THE CREATION DOOR CLOSES AND NOTHING ELSE CHANGES. Existing overlays
+ * still render, still get their own rows in Chart Data's ACTIVE list (which comes
+ * from `listAllIndicators`, not from this catalogue), still carry their ✕ and
+ * their settings. No saved chart is rewritten, no id moves, and a member who
+ * wants a price MA gets one from the same door as every other indicator — it
+ * simply arrives source-capable.
+ *
+ * ⚠️ THE ONE THING IT COSTS is reviving a REMOVED overlay from the library,
+ * which was a documented recovery path. Adding a Moving Average now creates an
+ * engine instance instead of resurrecting the old row's settings.
+ */
+export const LIBRARY_HIDDEN_IDS = Object.freeze([DIRECT_SERIES_DEF_ID, 'ma'])
+
+/**
+ * The ids to hide from browse FOR THIS CHART.
+ *
+ * ⚰⚰ TWO MEMBER REPORTS PULL IN OPPOSITE DIRECTIONS, AND THIS IS THE SEAM THAT
+ * SATISFIES BOTH.
+ *
+ *   · *"I removed my moving average and searching for it finds nothing."* — fixed
+ *     by giving `cs.overlays` a catalogue row, so adding REVIVES the tombstone
+ *     with the colour and period the member chose.
+ *   · *"I added a Moving Average but I cannot see where to put it on QQQ."* — two
+ *     rows read "Moving Average" in browse and the easier one to find was the
+ *     legacy one, which has no source at all.
+ *
+ * Hiding the legacy row outright answers the second by re-breaking the first. So
+ * it is hidden only when there is NOTHING TO REVIVE: a chart with a tombstoned
+ * overlay still offers it, because there the row means "give me my EMA 9 back"
+ * rather than "here is a second Moving Average".
+ *
+ * ⛔ THE CONDITION IS STATE, NOT A FLAG. No preference, no migration, nothing
+ * persisted — it reads the same `removed` tombstone the revive path itself reads,
+ * so the offer exists exactly when the action behind it would do something.
+ */
+export function hiddenLibraryIds(settings) {
+  const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
+  const canRevive = overlays.some(isOverlayRemoved)
+  return canRevive
+    ? LIBRARY_HIDDEN_IDS.filter((id) => id !== 'ma')
+    : LIBRARY_HIDDEN_IDS
+}
 
 export function libraryRows(registry) {
   const out = []
   for (const row of BUILT_IN_ROWS) {
+    if (LIBRARY_HIDDEN_IDS.includes(row.id)) continue   // no settings here — the strict list
     out.push({ ...row, key: `builtin:${row.id}`, kind: 'builtin',
       capability: CAPABILITY.CHARTABLE, capabilityReason: null, create: null })
   }

@@ -54,6 +54,7 @@ import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
 } from './indicatorCatalog'
+import { hiddenLibraryIds } from './discoveryCatalog'
 // ⛔ THE SEARCH AND THE ADD, IMPORTED FROM THE DIALOG THAT ALREADY OWNS THEM.
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
@@ -296,10 +297,18 @@ export default function ChartSettingsIndicators({
   // a member's own formulas never appear in Browse until something else forces a
   // recompute. `IndicatorLibraryDialog`'s catalogue memo carries the identical
   // pair for the identical reason.
+  // ⚠️ THIS IS THE **BROWSE** CATALOGUE, NOT THE ACTIVE LIST. `activeRows` below
+  // comes from `listAllIndicators`, so hiding a row here removes only the offer to
+  // CREATE one — every overlay a member already has keeps its own row, its
+  // settings and its ✕. That distinction is what makes hiding the legacy `ma`
+  // row non-destructive; see `discoveryCatalog.LIBRARY_HIDDEN_IDS`.
   const catalog = useMemo(
-    () => [...BUILT_IN_ROWS, ...catalogRows(registry), ...userCatalogRows(registry)],
+    () => [
+      ...BUILT_IN_ROWS.filter((r) => !hiddenLibraryIds(settings).includes(r.id)),
+      ...catalogRows(registry), ...userCatalogRows(registry),
+    ],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; see above
-    [registry, generation],
+    [registry, generation, settings],
   )
 
   // ─── ACTIVE: WHAT THE CHART IS DRAWING ────────────────────────────────────

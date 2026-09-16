@@ -79,7 +79,7 @@ import { liveOverlays, isVolumeRemoved, isOverlayRemoved, newOverlay } from './c
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
-import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { LIBRARY_HIDDEN_IDS, hiddenLibraryIds } from './discoveryCatalog'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -277,13 +277,20 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // to anybody. Its member-facing rows are `QQQ` and `UCTA50`, which carry the
   // source that gives it meaning — and those arrive through symbol search, not
   // through this list.
+  // ⭐ THE BUILT-IN ROWS ARE SUBTRACTED TOO (2026-09-15). The hidden list used to
+  // apply only to definitions because only a definition had ever needed hiding;
+  // the legacy `ma` row is the first BUILT-IN that does. It is SETTINGS-AWARE —
+  // hidden on an ordinary chart so browse shows one Moving Average, offered again
+  // when there is a tombstoned overlay to revive. See `hiddenLibraryIds`.
+  const hidden = hiddenLibraryIds(settings)
   const all = useMemo(
     () => [
-      ...BUILT_IN_ROWS,
-      ...catalogRows(registry).filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
+      ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)),
+      ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
       ...userCatalogRows(registry),
     ],
-    [registry, generation],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version
+    [registry, generation, hidden],
   )
   const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
 
