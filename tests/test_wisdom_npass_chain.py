@@ -228,6 +228,78 @@ def test_a_persistence_failure_never_loses_an_ingested_record(env, monkeypatch):
     assert out["written"] == 2 and "OSError" in out["persist_error"]
 
 
+# ── the per-night budget ─────────────────────────────────────────────────────
+
+def test_an_unusable_nightly_budget_stops_the_night_before_any_request(env, monkeypatch):
+    """⛔ A typo'd budget must not quietly become the default and spend a night nobody authorised."""
+    monkeypatch.setenv("WISDOM_EXTRACT_DAILY_BUDGET_USD", "25O")  # letter O
+    monkeypatch.setattr(batch, "segment_pending_sources", lambda **kw: {"segmented": 0})
+    monkeypatch.setattr(batch.golden, "gate_status",
+                        lambda conn, **kw: {"accepted": True, "run_id": "g", "reason": None})
+    sent: list = []
+    monkeypatch.setattr(batch, "submit_pending", lambda *a, **k: sent.append(1) or {})
+    out = batch.run_daily(_ctx(), client=object())
+    assert out["status"] == "skipped" and "daily budget unusable" in out["reason"]
+    assert sent == [], "a request was built despite an unusable nightly budget"
+
+
+def test_the_nightly_cap_never_RAISES_the_programme_total(env, monkeypatch):
+    """⛔⛔ THE DIRECTION THAT MATTERS. A per-night value sits INSIDE the programme total; if it
+    were passed through unconditionally, setting it to 9999 would raise a ceiling it is supposed to
+    tighten. The tightest binds — always."""
+    import inspect
+
+    src = inspect.getsource(batch.submit_pending)
+    assert "min(programme_cap" in src, (
+        "the nightly cap is not combined with min() — a large nightly value could raise the "
+        "programme total instead of tightening it")
+
+
+def test_the_night_budget_shrinks_as_passes_are_submitted(env, monkeypatch):
+    """⛔ Pass 3 must not get to spend pass 1's budget again."""
+    monkeypatch.setenv("WISDOM_EXTRACT_DAILY_BUDGET_USD", "1.00")
+    monkeypatch.setenv(batch.PASSES_ENV, "3")
+    monkeypatch.setattr(batch, "segment_pending_sources", lambda **kw: {"segmented": 0})
+    monkeypatch.setattr(batch.golden, "gate_status",
+                        lambda conn, **kw: {"accepted": True, "run_id": "g", "reason": None})
+    monkeypatch.setattr(batch, "pending_segments", lambda conn, v, n: [{"segment_id": "s1"}])
+    monkeypatch.setattr(batch, "retry_rows", lambda *a, **k: [])
+    caps: list = []
+
+    def fake_submit(ctx, **kw):
+        caps.append(kw.get("night_cap_usd"))
+        return {"status": "submitted", "selected_estimate_usd": 0.40,
+                "pass_index": kw.get("pass_index"), "run_id": kw.get("run_id")}
+
+    monkeypatch.setattr(batch, "submit_pending", fake_submit)
+    out = batch.run_daily(_ctx(), client=object())
+    assert caps == [1.00, pytest.approx(0.60), pytest.approx(0.20)], caps
+    assert out["daily_budget_usd"] == 1.00
+
+
+def test_a_pass_that_would_cross_the_night_budget_submits_NOTHING(env, monkeypatch):
+    """⛔ A half-submitted pass is the UNRECONCILED case — it costs money and scores nothing."""
+    monkeypatch.setenv("WISDOM_EXTRACT_DAILY_BUDGET_USD", "1.00")
+    monkeypatch.setenv(batch.PASSES_ENV, "3")
+    monkeypatch.setattr(batch, "segment_pending_sources", lambda **kw: {"segmented": 0})
+    monkeypatch.setattr(batch.golden, "gate_status",
+                        lambda conn, **kw: {"accepted": True, "run_id": "g", "reason": None})
+    monkeypatch.setattr(batch, "pending_segments", lambda conn, v, n: [{"segment_id": "s1"}])
+    monkeypatch.setattr(batch, "retry_rows", lambda *a, **k: [])
+    calls: list = []
+
+    def fake_submit(ctx, **kw):
+        calls.append(kw.get("pass_index"))
+        return {"status": "submitted", "selected_estimate_usd": 0.60,
+                "pass_index": kw.get("pass_index"), "run_id": kw.get("run_id")}
+
+    monkeypatch.setattr(batch, "submit_pending", fake_submit)
+    out = batch.run_daily(_ctx(), client=object())
+    assert calls == [1, 2], f"pass 3 was submitted past the night's budget: {calls}"
+    stops = [r for r in out["pass_results"] if r.get("status") == "night_budget_stop"]
+    assert len(stops) == 1 and stops[0]["pass_index"] == 3
+
+
 # ── the migration ────────────────────────────────────────────────────────────
 
 def test_the_new_columns_are_additive_and_nullable(env):

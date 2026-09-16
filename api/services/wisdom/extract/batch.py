@@ -408,7 +408,8 @@ def npass_count() -> int:
 def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpose: str = "extract",
                    segment_rows: Optional[list[dict]] = None, effort: Optional[str] = None, salt: str = "",
                    out: Optional[dict] = None, run_id: Optional[str] = None,
-                   pass_index: Optional[int] = None, include_retries: bool = True) -> dict:
+                   pass_index: Optional[int] = None, include_retries: bool = True,
+                   night_cap_usd: Optional[float] = None) -> dict:
     out = dict(out or {})
     version = prompt.extractor_version()
     model = config.configured_model()
@@ -430,8 +431,13 @@ def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpos
                                  purpose=purpose, salt=salt, dry_run=ctx.dry_run, out_tokens=out_tokens)
     out["build"] = dict(counts)
     with store.read() as conn:
+        # ⛔ R53: the TIGHTEST ceiling binds. `cap=None` keeps the programme total; a night's
+        # remaining budget, when one is supplied, is passed as the cap only if it is SMALLER —
+        # a per-night value must never RAISE the programme total it sits inside.
+        programme_cap = budget.budget_cap_usd()
+        cap = programme_cap if night_cap_usd is None else min(programme_cap, float(night_cap_usd))
         decision = budget.select_within_budget(
-            conn, version, [it["est_cost_usd"] for it in items],
+            conn, version, [it["est_cost_usd"] for it in items], cap=cap,
             exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]))
     out["budget"] = decision.as_dict()
     selected = items[:decision.allowed_count]
@@ -524,6 +530,25 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
     if n <= 1:
         return submit_pending(ctx, client=client, limit=limit, purpose="extract", out=out)
 
+    # ⛔⛔ R53: THE PER-NIGHT CEILING, checked BEFORE the first request of the night is sent.
+    #
+    # ⭐ It is a SEPARATE ceiling, not a replacement. `select_within_budget` enforces the PROGRAMME
+    # total (WISDOM_EXTRACT_BUDGET_USD, default 120) from the DB; this bounds ONE NIGHT. The
+    # tightest binds, and neither replaces the PC-side ledger's own cap. An unusable value REFUSES
+    # rather than defaulting — a typo'd budget silently becoming 25.0 is how somebody ships a night
+    # they did not authorise.
+    #
+    # ⚠️ Checked against the night's ESTIMATE (segments x N x the measured per-request rate), so it
+    # can only ever stop work from starting. Actuals are enforced afterwards by the same
+    # programme-total machinery the single-pass path already used.
+    try:
+        night_cap = budget.daily_budget_usd()
+    except budget.DailyBudgetUnusable as exc:
+        out.update(status="skipped", reason=f"daily budget unusable: {exc}")
+        ctx.log(out["reason"])
+        return out
+    out["daily_budget_usd"] = night_cap
+
     # ⛔ THE THROTTLE BOUNDS REQUESTS, NOT SEGMENTS. `limit` is a request ceiling, so N passes over
     # `limit // N` segments is what keeps a night inside it. At N=3 and limit=400 that is 133
     # segments and 399 requests. ⭐ The nightly BILL is therefore flat in N; what N changes is
@@ -542,6 +567,7 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
     # directory names and `score_silently` takes `ids[-MIN_RUNS:]`, so a night's three passes have
     # to sort together and after yesterday's.
     stamp = timeutil.iso_et(ctx.now_et).replace(":", "").replace("-", "")[:15]
+
     out["runs"] = []
     for p in range(1, n + 1):
         run_id = f"{stamp}Z-chain-p{p}"
@@ -549,12 +575,26 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
         # ⛔⛔ RETRIES RIDE ON PASS 1 ONLY. `submit_pending` fetches retry rows itself on every
         # call, so letting every pass carry them would re-submit each retry N times and bill for
         # it. Passes 2..N are given an explicit `segment_rows` and no retry budget.
+        # ⛔ The night's ceiling shrinks as passes are submitted, so pass 3 cannot spend pass 1's
+        # budget twice. A pass that would cross it submits nothing rather than part of a pass —
+        # a half-submitted pass is the UNRECONCILED case, which costs money and scores nothing.
+        spent_so_far = sum(float(r.get("selected_estimate_usd") or 0.0)
+                           for r in out.get("pass_results") or [])
+        remaining = night_cap - spent_so_far
+        if remaining <= 0:
+            out.setdefault("pass_results", []).append(
+                {"pass_index": p, "run_id": run_id, "status": "night_budget_stop",
+                 "reason": f"the night's ${night_cap:.2f} is spent (${spent_so_far:.2f} estimated)"})
+            ctx.log(f"extract pass {p}/{n}: stopped at the nightly budget (${night_cap:.2f})")
+            continue
         sub = submit_pending(ctx, client=client, limit=len(segs) if p > 1 else limit,
                              purpose="extract", segment_rows=segs, salt=f"pass{p}",
                              run_id=run_id, pass_index=p, include_retries=(p == 1),
+                             night_cap_usd=remaining,
                              out={"pass_index": p, "run_id": run_id})
         out.setdefault("pass_results", []).append(
-            {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index", "run_id")})
+            {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index",
+                                     "run_id", "selected_estimate_usd")})
     out["status"] = "submitted_n_passes"
     return out
 
