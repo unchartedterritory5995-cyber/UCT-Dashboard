@@ -371,9 +371,14 @@ def run_flow_case(symbol, days, run_idx) -> dict:
 
 def run_buzz_case(window, run_idx) -> dict:
     from api.services import buzz_image
+    from api.services.render_gate import MEMBER
     tr = Trace()
     with tr.hop("buzz_render"):
-        png = buzz_image._render_uncached(window)
+        # ⛔ C-09 made `cls` REQUIRED keyword-only. A bench that raises TypeError is how a
+        # load measurement gets silently skipped, and this programme's load numbers come
+        # from this tool family — so it is fixed in the same commit as the test.
+        # MEMBER, because this case benches the /buzz COMMAND path, not the warm cycle.
+        png = buzz_image._render_uncached(window, cls=MEMBER)
     return {"hops_ms": {**tr.hops, "e2e_job": tr.since_start_ms()}, "outcome": "ok" if png else "text_only",
             "delivered": True, "png_bytes": len(png) if png else None, "png_sha": sha(png), "_png": png}
 

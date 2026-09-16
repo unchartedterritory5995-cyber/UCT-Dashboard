@@ -355,7 +355,11 @@ def run_digest(*, now: int | None = None, slot: str | None = None,
         content = buzz_reply.build_board_text(now, "open")
 
         render = render_fn or (buzz_image.render_board_png if buzz_image.image_enabled() else None)
-        png = render("open") if render else None
+        # ⛔ BACKGROUND. Nobody is waiting on this one — it is the scheduled board, on a
+        # clock, seven times a session. It must yield to any member holding a `/chart`
+        # or `/buzz` open.
+        from api.services.render_gate import BACKGROUND
+        png = render("open", cls=BACKGROUND) if render else None
 
         if post_fn is not None:
             poster = post_fn
