@@ -1,7 +1,7 @@
 ---
 id: WISDOM-SESSION-16
-title: Session 16 — weekly steps deleted, N-pass designed, PR creation proved broken repo-wide, landing gated and waiting on the burst clause
-status: complete — 3 authored commits, 1 sync merge, $0.00. See the first line for what landed.
+title: Session 16 — weekly steps deleted, N-pass BUILT, PR creation proved broken repo-wide, landing gated and waiting on the guard
+status: complete — 7 authored commits, 1 sync merge, $0.00. See the first line for what landed.
 ---
 
 # Session 16 — everything ready to land, and a diagnostic that changes who has to act
@@ -27,7 +27,7 @@ can reach it — `gh pr create` would print the real API error, and `gh` is abse
 | **R57** WEEKLY_STEPS: DELETE_ALL | ✅ three deleted, intent preserved as W2-A/B/C |
 | **R58** PR_CONTROL_TEST | ✅ run once, control branch deleted both sides — **fails repo-wide** |
 | **R58** LANDING_PATH: GUARDED_PUSH | ◐ merge verified master-first, full gate green, **waiting on the burst clause** |
-| **R53** CHAIN_NPASS: BUILD_NOW | ◐ **designed, not built** — reasoning below, stated plainly |
+| **R53** CHAIN_NPASS: BUILD_NOW | ✅ **BUILT** — scheduling AND persistence; deferred once, then reversed |
 | **R55** FLIP_INGEST | ✗ gated on the landing; preconditions proved instead |
 | **R55** FLIP_EXTRACT / ASKAI / cap | ✅ untouched, and proved UNSET on all five services |
 
@@ -252,10 +252,10 @@ and I would have "proved" PR creation works for empty diffs.
 | | |
 |---|---|
 | API calls / spend | **0 / $0.00** |
-| tests | 1,305 passed · 1 skipped · 0 failed (79 named files) |
+| tests | **1,327 passed · 1 skipped · 0 failed** (80 named files), after N-pass |
 | guard attempts / probes | 0 pushes attempted / **117 window probes**, **0 open** |
 | wait minutes | ~23 in-session, loop continuing to the 240-minute ceiling |
-| commits / merges / pushes | 3 authored / 1 sync / 5, branch only |
+| commits / merges / pushes | **7 authored** / 1 sync / 9, branch only |
 
 ## 3. QUESTIONS FOR PATRICK
 
