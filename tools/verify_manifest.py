@@ -152,18 +152,34 @@ def _units():
     return m.UNITS
 
 
-def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=True) -> int:
-    """Every commit on the branch must be claimed by exactly one unit.
+def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=True,
+                  repo=None, units=None) -> int:
+    """Every commit on the branch must be claimed by EXACTLY one unit.
 
     ⛔ NON-VACUITY: the branch commit count is PRINTED. A walk that found no commits --
     a bad ref, an unfetched base -- reports "0 unreferenced" and looks identical to full
-    coverage, which is the failure this whole file exists to refuse."""
-    raw = git(["log", "--format=%h", "%s..%s" % (base, branch)], cwd=CODE_REPO)
+    coverage, which is the failure this whole file exists to refuse.
+
+    ⛔⛔ K CP8 -- "EXACTLY one" WAS NOT CHECKED. `claimed[sha] = stem` is a dict write, so a
+    sha claimed by two rows silently kept the LAST one, `len(claimed)` under-reported by
+    one, and the run stayed green. A commit merged twice is a cherry-pick that exits 1 the
+    second time and strands the session mid-list -- the same shape as the empty-pick trap
+    K CP6 refuses. Duplicates are now collected and named as a ROW PAIR.
+
+    ⭐ `repo` and `units` are injectable SO THE CONTROLS CAN DRIVE THIS AGAINST A THROWAWAY.
+    A coverage check whose only fixture is the real repository can be proved to pass and can
+    never be proved to FAIL -- and this file's own history is a default argument binding the
+    real repo at def time and turning a search into a silence.
+    """
+    repo = repo or CODE_REPO
+    raw = git(["log", "--format=%h", "%s..%s" % (base, branch)], cwd=repo)
     commits = [l.strip() for l in raw.splitlines() if l.strip()]
 
-    claimed = {}
-    for stem, shas, _mv in _units():
+    claimed, dupes = {}, []
+    for stem, shas, _mv in (units if units is not None else _units()):
         for sha in shas:
+            if sha in claimed and claimed[sha] != stem:
+                dupes.append((sha, claimed[sha], stem))
             claimed[sha] = stem
 
     if verbose:
@@ -189,7 +205,7 @@ def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=Tr
     for sha in commits:
         stem = _match(sha)
         if stem is None:
-            subject = git(["log", "-1", "--format=%s", sha], cwd=CODE_REPO).strip()
+            subject = git(["log", "-1", "--format=%s", sha], cwd=repo).strip()
             missing.append((sha, subject))
 
     if verbose:
@@ -199,7 +215,12 @@ def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=Tr
         if missing:
             print("  ⛔ These commits are on the branch and NO unit claims them, so "
                   "merge_all.py would never merge them.")
-    return STALE_EXIT if missing else OK
+        for sha, first, second in dupes:
+            print("  ⛔ CLAIMED TWICE: %s  by `%s` AND `%s`" % (sha, first, second))
+        if dupes:
+            print("  ⛔ A commit claimed by two rows is cherry-picked twice; the second "
+                  "pick is EMPTY, exits 1, and strands the run mid-list.")
+    return STALE_EXIT if (missing or dupes) else OK
 
 
 def _self_check() -> int:
@@ -261,6 +282,58 @@ def _self_check() -> int:
         finally:
             REPO = real
 
+    # ── K CP8: the commit universe is git's, and the check can be proved to FAIL ─────────
+    # ⛔ Every row below drives a THROWAWAY repo. The real branch can only ever demonstrate
+    # the states it happens to be in; a control that cannot construct the failing state has
+    # not tested the check, it has photographed the repository.
+    import tempfile as _tf
+    box = pathlib.Path(_tf.mkdtemp(prefix="k8-"))
+    try:
+        def _g(*args):
+            return subprocess.run(["git", "-C", str(box), *args], capture_output=True,
+                                  text=True, encoding="utf-8", errors="replace")
+
+        def _commit(name):
+            (box / name).write_text(name, encoding="utf-8")
+            _g("add", name)
+            _g("commit", "-qm", name)
+            return _g("rev-parse", "--short=9", "HEAD").stdout.strip()
+
+        _g("init", "-q", "-b", "master")
+        _g("config", "user.email", "c@example.com")
+        _g("config", "user.name", "control")
+        _commit("base.txt")
+        _g("branch", "-f", "fake-master")
+        _g("checkout", "-q", "-b", "feat")
+        a1, a2 = _commit("u1.txt"), _commit("u2.txt")
+
+        full = [("unit-one", [a1], False), ("unit-two", [a2], False)]
+        rc = check_commits(branch="feat", base="fake-master", verbose=False,
+                           repo=box, units=full)
+        show("every commit claimed            -> exit 0", rc, OK)
+
+        orphan = _commit("u3.txt")
+        rc = check_commits(branch="feat", base="fake-master", verbose=False,
+                           repo=box, units=full)
+        show("ONE extra orphan commit         -> exit 1 (non-vacuity)", rc, STALE_EXIT)
+
+        full3 = full + [("unit-three", [orphan], False)]
+        rc = check_commits(branch="feat", base="fake-master", verbose=False,
+                           repo=box, units=full3)
+        show("...and claiming it              -> exit 0 again", rc, OK)
+
+        twice = full3 + [("unit-four", [a1], False)]
+        rc = check_commits(branch="feat", base="fake-master", verbose=False,
+                           repo=box, units=twice)
+        show("ONE sha claimed by TWO rows     -> exit 1", rc, STALE_EXIT)
+
+        rc = check_commits(branch="feat", base="feat", verbose=False,
+                           repo=box, units=full3)
+        show("an EMPTY range is UNREADABLE, never coverage", rc, UNREADABLE_EXIT)
+    finally:
+        import shutil
+        shutil.rmtree(box, ignore_errors=True)
+
     print("SELF-CHECK: %s" % ("PASS" if ok else "FAIL"))
     return OK if ok else 1
 
@@ -270,6 +343,11 @@ def main(argv=None) -> int:
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument("--check-commits", action="store_true")
+    # ⛔ K CP8 — the base and the tip are ARGUMENTS with the old values as defaults, so the
+    # universe can be stated at the call site and driven by a control. They were literals
+    # inside the function, which is why the only fixture this check ever had was production.
+    ap.add_argument("--base", default="origin/master")
+    ap.add_argument("--branch", default="feat/s7-price-level")
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
@@ -285,7 +363,7 @@ def main(argv=None) -> int:
           % (sum(1 for r in results if r["state"] == "OK"), bad))
     rc = STALE_EXIT if bad else OK
     if a.check_commits:
-        crc = check_commits()
+        crc = check_commits(branch=a.branch, base=a.base)
         if crc != OK:
             rc = crc if rc == OK else rc
     return rc
