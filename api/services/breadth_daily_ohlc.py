@@ -201,6 +201,41 @@ def drop_compat_index() -> bool:
     return had
 
 
+def reinstate_compat_index() -> bool:
+    """Put the BL-028 interlock BACK. ⛔ THE DELIBERATE COUNTERPART TO `drop_compat_index()`.
+
+    ⭐⭐ WHY THIS IS A FUNCTION AND NOT A RULE IN `_ensure_init`. A restore that rolls
+    the database back to a UCT-only state must leave the interlock standing — otherwise
+    the rollback lands you somewhere strictly worse than where you started: pre-migration
+    code still cannot write (no matching index), AND the next stray US write is no longer
+    blocked. But teaching INIT to notice "UCT-only, so re-create it" would silently undo
+    the deliberate drop on the very next pod restart, which is the one property BL-028
+    exists to provide. So the act that made the database UCT-only again is the act that
+    reinstates the interlock, exactly as the act that opened it for a second universe is
+    the one that removed it.
+
+    ⚠️ REFUSES on a database that already holds a non-UCT universe — a UNIQUE
+    `(date, metric)` index cannot coexist with one, and creating it there would either
+    fail or, worse, appear to succeed against a store nobody had checked.
+    """
+    _ensure_init()
+    with _conn() as c:
+        if compat_index_present(c):
+            return False
+        n = _non_uct_rows(c)
+        if n:
+            raise CompatIndexBlocksUniverse(
+                f"refusing to reinstate {COMPAT_INDEX}: the store holds {n} non-UCT "
+                f"row(s), and a UNIQUE (date, metric) index is incompatible with a "
+                f"second universe")
+        c.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS {COMPAT_INDEX} "
+                  f"ON breadth_daily_ohlc(date, metric)")
+    logging.getLogger("breadth_daily_ohlc").warning(
+        "[breadth_daily_ohlc] BL-028 compatibility index REINSTATED — the store is "
+        "UCT-only again and a pre-migration code rollback can write once more")
+    return True
+
+
 class CompatIndexBlocksUniverse(RuntimeError):
     """A non-UCT write was attempted while the BL-028 interlock is in place."""
 
