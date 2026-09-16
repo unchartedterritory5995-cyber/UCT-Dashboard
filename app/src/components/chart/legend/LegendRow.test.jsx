@@ -130,10 +130,15 @@ describe('LegendRow — the three verbs', () => {
       <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical {...h} />)
     const row = container.querySelector('[data-legend-row="ma:2"]')
     expect(row.style.color, 'the row lost its line colour').toBe('rgb(192, 123, 224)')
-    // ⛔ THE VALUE FOLLOWS THE LABEL, by inheriting rather than restating — one
-    // source of colour per row.
-    expect(screen.getByText('1').style.color, 'the value kept the bright legend ink')
-      .toBe('inherit')
+    // ⚰️⚰️ "THE VALUE FOLLOWS THE LABEL, BY INHERITING" WAS THE RULE HERE AND IT IS
+    // REVERSED. The owner's final colour system is COLOUR = which series, WHITE =
+    // the market value: the LABEL carries the hue (it is the identity) and the
+    // number is always the same bright neutral, so the eye lands on it first at
+    // every hue — including the pale ones, where a coloured value was hardest to
+    // read. The row still wears the line colour; only the value opts out.
+    expect(screen.getByText('1').style.color,
+      'the value is inheriting the series colour again — it must stay bright neutral')
+      .toBe('')
     expect(row.querySelector('i'), 'a colour rail is back in the row').toBeNull()
     const src = read('./LegendRow.jsx')
     expect(src, 'a hover handler is back in the component').not.toMatch(/onMouseEnter|onMouseLeave/)

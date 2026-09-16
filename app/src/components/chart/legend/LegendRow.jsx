@@ -81,21 +81,6 @@ export default function LegendRow({
    *  ⛔ IT IS NOT A NESTING CONTAINER. A wrapper around each group would break
    *  the one-grid/`subgrid` alignment that puts every value on one right edge,
    *  which is the whole reason these rows are shaped the way they are. */
-  /** Render as a PACKED STUDY ITEM: `▪ EMA 9 605.84`, laid out inline so a
-   *  family of related series shares one line.
-   *
-   *  ⭐⭐ THE COMPOSITION CHANGE, AND THE WHOLE POINT OF IT. One series per full
-   *  row, with the value right-aligned into a shared column, is what made the
-   *  legend read as a settings list — four moving averages cost four lines and a
-   *  column of chevrons to say four numbers. As items they cost ONE line, and
-   *  nothing about their identity or their door changes.
-   *
-   *  ⛔ COLOUR MOVES TO THE SWATCH AND OFF THE TEXT. A legend that inks the label
-   *  AND the value in the series colour is a rainbow at five series; the
-   *  professional references all answer *"which plotted series is this?"* with a
-   *  small colour anchor and then set the words neutrally. The swatch is 5×5 and
-   *  it is the only coloured thing in the item. */
-  item = false,
   secondary = false,
   /** Past the stack's row budget — the row keeps its DOM node and loses its box.
    *
@@ -199,27 +184,6 @@ export default function LegendRow({
   const ink = color ? { color } : undefined
   const valInk = color ? { color: 'inherit' } : undefined
 
-  // ─── ITEM: `▪ label value`, inline, packable ─────────────────────
-  if (item) {
-    return (
-      <span
-        className={`${styles.item} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
-        data-legend-row={rowId}
-        data-hidden={hidden ? 'true' : 'false'}
-        {...trigger}
-      >
-        {/* ⛔ THE SWATCH IS `aria-hidden` AND CARRIES NO TEXT. It answers a
-            question the eye asks of the CHART; a screen reader already has the
-            label, and "blue square" beside "EMA 9" is noise. A row with no plot
-            colour of its own (Volume) emits none rather than a grey placeholder —
-            an anchor to nothing is just an indent. */}
-        {color ? <i className={styles.swatch} style={{ background: color }} aria-hidden="true" /> : null}
-        <span className={styles.itemLabel}>{label}</span>
-        {value ? <span className={styles.itemVal}>{value}</span> : null}
-      </span>
-    )
-  }
-
   // ─── HORIZONTAL: one inline span. The span IS the target ───────────────
   if (!vertical) {
     return (
@@ -249,7 +213,15 @@ export default function LegendRow({
           CHILD beats a colour the parent only passes down. The horizontal variant
           needs nothing — its label is a bare text node, so it inherits. */}
       <span className={styles.vLabel} style={valInk}>{label}</span>
-      <span className={styles.vVal} style={valInk}>{value}</span>
+      {/* ⭐⭐ §3 — THE VALUE IS BRIGHT NEUTRAL, NOT THE SERIES COLOUR, and that is
+          the whole colour system: COLOUR = which series, WHITE = the market value.
+          ⚰ IT USED TO TAKE `valInk` (`color: inherit`) so label and value both wore
+          the plot's hue; on a five-series chart that read as a rainbow and, worse,
+          it made the NUMBER as easy or as hard to read as whatever colour the
+          member had picked. The label keeps the hue — it is the identity — and the
+          number is always the same crisp white, so the eye lands on it first at
+          every hue. */}
+      <span className={styles.vVal}>{value}</span>
       {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the

@@ -952,11 +952,6 @@ const RAW_DEFS = [
       // member picks Moving Average and then picks what it averages, which is the
       // point of the feature.
       { name: 'Moving Average', shortName: 'MA', category: 'Trend', legendParams: ['period'],
-        // ⭐ IT SHARES A LEGEND LINE WITH THE OTHER MOVING AVERAGES. Declared here,
-        // where the rest of this definition's identity lives, because the renderer
-        // is not allowed to know what a moving average is — see
-        // `legend/studyFamily.js` and `enumerationSites.test.js`.
-        legendFamily: 'ma',
         description: 'The average of any series — price, volume, or another indicator output.',
         tags: ['ma', 'sma', 'ema', 'moving average', 'average', 'trend', 'smoothing', 'derived'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.

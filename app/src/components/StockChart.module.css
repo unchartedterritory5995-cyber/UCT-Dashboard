@@ -55,12 +55,17 @@
   align-items: center;
   /* Match the main chart legend: mono font + tan/gold label + value colors. */
   font-family: var(--font-mono);
-  /* ⭐ 10.5 → 10, AND THE WEIGHTS AND COLOURS BELOW MOVED WITH IT (owner: *"make
+  /* ⭐⭐ …AND 10 → 11 WITH THE LEGEND (typography pass). These readouts are pinned
+     EQUAL to `.legend`'s type by `legendFromDefinitions.test.jsx` — the owner's
+     standing rule that a pane's labels and values read the same as the legend's —
+     so raising one and not the other is a drift that rail is there to catch. It
+     caught it.
+     ⭐ 10.5 → 10, AND THE WEIGHTS AND COLOURS BELOW MOVED WITH IT (owner: *"make
      sure in the volume pane that the labels and values are the same font size,
      thickness, and color as it is in the legend"*). `.legend` is 10px; a half
      pixel is invisible in isolation and obvious in a stack of panes where the row
      above and the row below are both 10. */
-  font-size: 10px;
+  font-size: 11px;
   pointer-events: none;
   user-select: none;
 }
@@ -78,15 +83,23 @@
    "volLegend", so the export route's re-show cannot reach it. */
 .paneLegend {
   top: 0;
-  /* ⭐ ONE PACKED LINE, like the price stack's. A pane holds one family, so its
-     outputs read across rather than down — which is also what keeps a short
-     oscillator pane's readout from covering the plot it describes. */
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 11px;
+  display: grid;
+  /* §10 — `max-content` ON BOTH TRACKS IS WHAT ALIGNS THE NUMBERS: the label
+     column is exactly as wide as the longest label (`SMA 200`), so every value
+     starts at one x and the column is optical rather than arbitrary. An `auto`
+     track would be COMPRESSIBLE and the alignment would drift with content.
+     ⛔ THE THIRD TRACK IS THE RETIRED CONTROL GUTTER. Every row still emits a
+     third cell (a grid fills by ORDER, so a two-cell row would let the next row's
+     label fall into it) and every one of them is `display: none`, so it measures
+     zero and the stack stays shrink-to-content. */
+  grid-template-columns: max-content max-content max-content;
+  justify-content: start;
+  /* §11 — 9px: close enough that `EMA 9` and `711.65` read as one line, far
+     enough that the numbers form a column rather than a run-on. Tightened from 10
+     because the type grew; the pair should not loosen as it gets bigger. */
+  column-gap: 9px;
   row-gap: 1px;
-  line-height: 14px;
+  align-content: start;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
      values in the legend"). These two declarations are `.legend`'s own, and the
@@ -104,7 +117,7 @@
      `.volLegend` shares its colour token with `.rangeBtn` on purpose (see below).
      That is why this overrides rather than the shared rule changing. */
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   /* ⛔ AND THE WEIGHTS, WHICH FAMILY AND SIZE ALONE DO NOT BUY. Measured against
      the legend after the first pass: family, size and colour matched, and the
      weights did NOT — the pane read 400/700 against the legend's 500/600, because
@@ -370,6 +383,23 @@
    series. StockChart's sampler measures the price pane's top off the RENDERER
    each frame and publishes it here. Unset — every chart that has nothing above
    Price — resolves to `calc(28px + 0px)`, which is the value it always had. */
+/* ⭐⭐ THE LEGEND'S TYPE SCALE: 10px → 11px, AND THE NUMBER CAME OFF A MEASUREMENT
+ * OF ITS NEIGHBOURS. The owner's complaint was that the market data reads as fine
+ * print under the chrome above it, and the cause is not one property: the
+ * timeframe row is `.tfBtn` at **11px SANS, weight 600, 0.6px tracking** while
+ * this was **10px MONO at 400/600 with none**. A mono face at the same nominal
+ * size already carries less visual weight than a tracked semibold sans, so
+ * matching the SIZE lands the legend at roughly 85–90% of the row above — present,
+ * and deliberately still not louder than the navigation.
+ *
+ * ⛔ SIZE ONLY. The face stays mono and the line-height does NOT scale with it
+ * (see `.studyStack`): bigger type, same footprint.
+ *
+ * ⛔ AND THE RATIONALE LIVES ABOVE THE RULE, NOT INSIDE IT. `IndicatorChip.test.jsx`
+ * reads the FIRST 400 CHARACTERS of this block to prove `.legend` still disables
+ * pointer events — the premise its own `pointer-events: auto` depends on. A long
+ * comment wedged between declarations pushed that line out of the window and the
+ * gate went red, correctly: it could no longer see what it was asserting. */
 .legend {
   position: absolute;
   top: calc(28px + var(--price-pane-top, 0px));
@@ -379,7 +409,7 @@
   flex-wrap: wrap;
   gap: 4px 10px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   pointer-events: none;
   background: var(--chart-panel-bg, rgba(26, 28, 23, 0.88));
@@ -472,10 +502,10 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  /* ⭐ ONE CLUSTER, TWO IDEAS. 4px between the boxes reads as ~6px between the
-     glyphs (each box carries 1px of its own padding) — marginally wider than the
-     5px that now separates the strip from the drawing tools, so the eye groups
-     bar-info WITH the stack while still stepping between them. */
+  /* ⭐ §19 — ONE CLUSTER, TWO IDEAS: *this is the bar* / *these are the plots*.
+     4px between the boxes reads as ~6px between the glyphs (each box carries 1px
+     of its own padding) — a step, not a blank row, and marginally wider than the
+     gap to the drawing tools so the two areas group together under them. */
   gap: 4px;
   /* ⚰⚰ THE SAME OMISSION BOTH RETIRED VARIANTS MADE, NOT REPEATED. A variant
      class on the same element, later in the file, wins on source order — so a
@@ -496,6 +526,11 @@
      ⛔ AND IT IS STILL `var(--price-pane-top)` — see `priceOwnedChrome.css.test.js`.
      A constant here is the regression that put this legend on somebody else's
      pane. */
+  /* ⭐ 34px, RE-CONFIRMED OPTICALLY AFTER THE TYPE GREW rather than kept because
+     it was already there: the strip lost 2px of height when its leading was
+     unified with the stack's, so the gap was re-measured at 33 and 34. 33 read as
+     colliding with the tools; 34 leaves a 4px box gap — 5px to the first glyph,
+     since the strip carries 1px of top padding. */
   top: calc(34px + var(--price-pane-top, 0px));
   left: 8px;
   background: none;
@@ -516,6 +551,12 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 13px;
+  /* ⭐ §6 — THE SAME LEADING THE STUDY STACK USES. The strip was running at
+     `normal` (17.6px at this size) while the stack ran at 14, so the two areas were
+     literally typeset to different rhythms — which is what made them look like two
+     systems sharing a corner of the chart. One number, both areas, and the cluster
+     loses ~4px of dead height for free. */
+  line-height: 14px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   /* See `.legendV2` — blur is the readability rail, the tint is a whisper. */
@@ -549,6 +590,10 @@
    #cfcac0 vs #f8f7f3. ⛔ NO SIZE CHANGE — two type sizes in a six-field strip is
    the "chunky" the brief refused, and it would break the baseline the strip is
    laid out on. */
+/* ⭐ §7 — THE KEYS STEP BACK, BUT THEY ARE NOT FAINT. At 400 they were pulling
+   their weight at 10px; at 11px a mono 400 against a 600 value is already a clear
+   two-level hierarchy, so the key keeps the muted ink and gains nothing else. The
+   VALUES are what got brighter here — by growing, not by changing colour. */
 .barKey {
   color: var(--text-muted);
   font-weight: 400;
@@ -565,16 +610,6 @@
    reading", and a semantically-coloured number must not read as a lesser one.
    ⛔ THE COLOUR ITSELF IS UNTOUCHED — it is the member's own
    `header.colors.dayChange{Up,Down}` setting and it drives the title row too. */
-/* ⭐⭐ §11 — SEMANTIC SPACING, NOT UNIFORM SPACING. The strip has three rhythms
-   and they are different sizes on purpose: 4px binds a key to its value (`O 330.14`
-   is ONE token), 13px separates one reading from the next, and this adds 5px more
-   in front of the CHANGE pair — the one place the strip stops reporting the bar and
-   starts reporting its direction. Mechanically equal gaps are what made the line
-   read as six fields instead of a sentence with a clause in it.
-   ⛔ IT KEYS OFF THE ADJACENCY, so it survives every field toggle: with Close
-   turned off the break simply lands after whichever reading is last, and with every
-   OHLC field off there is no preceding `.barField` and no orphan indent. */
-.barField + .barChg { margin-left: 5px; }
 .barChg {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -597,52 +632,34 @@
  * readability rail `.barInfo` carries and for the same measured reason.
  */
 .studyStack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  /* ⭐ FAMILIES STACK TIGHT. 1px between lines; the leading inside a line is what
-     gives the rows air, and a second gap on top of it is the vertical waste the
-     redesign is removing. */
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  justify-content: start;
+  /* §11 — 9px: close enough that `EMA 9` and `325.97` read as one line, far enough
+     that the numbers form a column rather than a run-on. Tightened from 10 when the
+     type grew — a pair should not loosen as it gets bigger. The pane readouts take
+     the same number so every stack on the chart is set to one rhythm. */
+  column-gap: 9px;
   row-gap: 1px;
+  align-content: start;
   /* ⛔ AN EXPLICIT LINE-HEIGHT, BECAUSE THE ROW PITCH IS A NUMBER JS RELIES ON.
-     `STUDY_ROW_PX` counts LINES into the space a pane has; with `line-height:
-     normal` that pitch is whatever the font metrics happen to give (measured 17px
-     once) — a value no test could derive. 14 + the 1px row gap = a 15px pitch, and
-     `legendV2.test.jsx` re-derives both numbers from THIS declaration. */
+     `STUDY_ROW_PX` in StockChart.jsx counts how many rows fit in the pane, and
+     with `line-height: normal` that pitch is whatever the font metrics happen to
+     give (measured 17px here) — a value no test could derive and a font change
+     could move without anything noticing. 15px + the 1px row gap = a 16px pitch,
+     and `legendV2.geometry.test.js` re-derives it from THIS declaration. */
+  /* ⭐ 15px → 14px (§11). Measured live at 15: five rows read as five menu
+     items rather than a typeset block. 14 on a 10px face is still 1.4 leading —
+     the row keeps a full line of clickable height, and the stack loses 5px over
+     five rows without anything getting tight.
+     ⛔ THIS NUMBER AND `row-gap` BELOW ARE WHAT `STUDY_ROW_PX` COUNTS IN. They
+     are declared in px for that reason and the rail re-derives the sum. */
   line-height: 14px;
-  /* 🔴 THE SAME MEASURE AS `.studyLine`, AND IT IS NOT REDUNDANT. A flex column
-     shrink-wraps to its children's MAX-CONTENT, and a child's own `max-width` does
-     not reduce that contribution — so with fourteen moving averages the LINE wrapped
-     correctly to three rows while the STACK stayed 1318px wide, which dragged the
-     backdrop tint across the chart behind mostly-empty space. Measured in the
-     browser; the tint box is this element. */
-  max-width: min(100%, 92ch);
-  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 26%, transparent);
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   padding: 1px 5px 2px 3px;
   border-radius: 2px;
-}
-/* One family, packed. ⛔ IT WRAPS RATHER THAN OVERFLOWS — a narrow widget breaks a
-   long moving-average family onto a second line instead of running under the price
-   axis, which is the responsive behaviour falling out of the composition rather
-   than being bolted onto it. */
-.studyLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 11px;
-  row-gap: 1px;
-  /* ⭐⭐ A TYPOGRAPHIC MEASURE, NOT A PIXEL GUESS. `ch` is the width of a `0` in
-     the legend's own mono face, so this is "about 92 characters" and it tracks the
-     type if the type ever changes. MEASURED: fourteen moving averages packed onto
-     ONE line ran 1318px — it fit inside the plot and it still looked wrong beside a
-     360px bar-info strip. A family wraps at a readable measure instead of running
-     the width of the chart.
-     ⛔ AND `100%` STILL CAPS IT ON A NARROW WIDGET, which is the responsive half:
-     the same rule that stops a long family dominating a wide chart stops it
-     overflowing a small one. No horizontal scroll, ever. */
-  max-width: min(100%, 92ch);
 }
 /* `+N more` / `Less` — the fold's disclosure. Spans all three tracks so it does
    not distort the label column it would otherwise size. */
@@ -653,7 +670,8 @@
    prevent, arriving one step later. 15 + the 1px `row-gap` = the 16px pitch
    `STUDY_ROW_PX` counts in. */
 .studyMore {
-  align-self: flex-start;
+  grid-column: 1 / -1;
+  justify-self: start;
   margin-top: 0;
   /* Exactly one stack row — 14 + the 1px `row-gap` = the 15px pitch. The fold
      RESERVES a row for this button, so a button taller than a row would overrun
@@ -665,8 +683,8 @@
   line-height: 1;
   border-radius: 3px;
 }
-/* The comparison-symbol reading rides the stack's last line. */
-.studyCompare { white-space: nowrap; }
+/* The comparison-symbol reading rides the stack's last row, spanning it. */
+.studyCompare { grid-column: 1 / -1; white-space: nowrap; }
 
 /* SHORT PANE — the last resort, and it is now genuinely last. The stack folds
    itself to the room it has (`studyRowBudget`), so this fires only when even the
@@ -680,7 +698,7 @@
 /* ⛔ THE COLUMN GAP TIGHTENS, THE ROW PITCH DOES NOT. `line-height` and
    `row-gap` are what `STUDY_ROW_PX` counts in; changing either here would make the
    budget wrong in exactly the state where space is tightest. */
-.legendCompact .studyLine { column-gap: 8px; }
+.legendCompact .studyStack { column-gap: 7px; }
 
 /* Sunrise (light canvas): the same two areas, inked for a bright background. */
 :global([data-charts-theme='sunrise']) .legendV2 { background: none; box-shadow: none; }

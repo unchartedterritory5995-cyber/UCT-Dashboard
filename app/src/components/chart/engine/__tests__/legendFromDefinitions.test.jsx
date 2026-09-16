@@ -2159,9 +2159,22 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(volVal.color).toBe(legVal.color)
     expect(volVal['font-weight']).toBe(legVal['font-weight'])
     // ⚠️ SIZE IS ON THE CONTAINERS, not on the label/value rules.
-    expect(decls('.legend')['font-size']).toBe('10px')
+    // ⭐⭐ DERIVED FROM `.legend`, NOT TYPED. This pair used to be pinned to the
+    // literal `10px` on both sides, so the legend's typography pass (10 → 11px)
+    // failed here — correctly, because the strip had NOT moved with it and the
+    // owner's rule is that a pane's labels and values read the same as the
+    // legend's. A typed literal makes that rail need editing on every scale
+    // change, which is the pressure that eventually loosens it; an equality does
+    // not. What it asserts is unchanged: ONE readout language on the chart.
+    const legendSize = decls('.legend')['font-size']
+    expect(legendSize, 'the legend declares no size to match').toMatch(/^\d+(\.\d+)?px$/)
     const volLegend = css.match(/\.volLegend,\s*\.paneLegend\s*\{([^}]*)\}/)
     expect(volLegend, 'the strip no longer shares the readout box rule').toBeTruthy()
-    expect(volLegend[1]).toMatch(/font-size:\s*10px/)
+    expect(volLegend[1], `the volume strip drifted from the legend's ${legendSize}`)
+      .toMatch(new RegExp(`font-size:\\s*${legendSize}`))
+    const paneLegend = css.match(/(?:^|\n)\.paneLegend\s*\{([^}]*)\}/)
+    expect(paneLegend, 'the pane readout rule is gone').toBeTruthy()
+    expect(paneLegend[1], `the pane readout drifted from the legend's ${legendSize}`)
+      .toMatch(new RegExp(`font-size:\\s*${legendSize}`))
   })
 })
