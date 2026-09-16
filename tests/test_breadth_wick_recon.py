@@ -73,7 +73,14 @@ def test_recon_day_seeds_open_bucket_with_prior_close(monkeypatch):
     from zoneinfo import ZoneInfo as _Z
     _t930 = int(_dt.datetime(2026, 7, 28, 9, 30,
                              tzinfo=_Z("America/New_York")).timestamp())
+    # ⭐ A session needs a CLOSE as well as an open: `breadth_session` treats the last
+    # busy minute as the closing auction and takes the bar before it, so a day whose
+    # only print is 9:30 has no regular-session bar at all and is refused.
+    _t1600 = int(_dt.datetime(2026, 7, 28, 16, 0,
+                              tzinfo=_Z("America/New_York")).timestamp())
     _bars = {f"T{i}": [{"t": _t930, "o": 101.0, "h": 101.0, "l": 101.0,
+                        "c": 101.0, "v": 1},
+                       {"t": _t1600, "o": 101.0, "h": 101.0, "l": 101.0,
                         "c": 101.0, "v": 1}] for i in range(55)}
     monkeypatch.setattr(bic, "download_and_resample",
                         lambda client, key, mins, uni: {30: _bars, 1: _bars})
