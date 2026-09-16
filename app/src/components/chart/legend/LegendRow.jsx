@@ -44,6 +44,7 @@
 // every row while the ROW ITSELF is one continuous hover box from the first
 // letter of the label to the last digit of the value, gaps included. Hover is
 // plain CSS `:hover` on that box; there is no hover state in React.
+import UIcon from '../../ui/UIcon'
 import styles from './LegendRow.module.css'
 
 /**
@@ -68,6 +69,27 @@ import styles from './LegendRow.module.css'
  */
 export default function LegendRow({
   rowId, label, value, hidden = false, vertical = false,
+  /** A SIBLING OUTPUT of the row above — MACD's `SIG`, Bollinger's lower band.
+   *
+   *  ⭐⭐ LEGEND V2 §7: a multi-output indicator must not read as several
+   *  unrelated studies stacked on top of each other. The grouping already exists
+   *  upstream — `legendChips` walks the INSTANCE list, so an instance's plots are
+   *  always consecutive — and this is the one thing the DOM was not saying about
+   *  it. A secondary row indents by one step and nothing else changes: it keeps
+   *  its own value, its own chevron and its own door, because the complaint that
+   *  produced the all-rows rule was that clicking the second value did nothing.
+   *
+   *  ⛔ IT IS NOT A NESTING CONTAINER. A wrapper around each group would break
+   *  the one-grid/`subgrid` alignment that puts every value on one right edge,
+   *  which is the whole reason these rows are shaped the way they are. */
+  secondary = false,
+  /** Past the stack's row budget — the row keeps its DOM node and loses its box.
+   *
+   *  ⭐ FOLDED, NOT UNMOUNTED, for the reason `IndicatorChip.module.css`'s
+   *  `.chipFolded` already records: the rows stay mounted so expanding is a class
+   *  change rather than a remount, and nothing downstream sees the set of live
+   *  rows flicker as a pane is dragged. */
+  folded = false,
   /** The drawn line's colour — THE ROW WEARS IT, label and value alike.
    *
    *  ⭐⭐ RESTORED BY THE OWNER (2026-09-14, same day it went): *"every plot or
@@ -167,7 +189,7 @@ export default function LegendRow({
   if (!vertical) {
     return (
       <span
-        className={`${styles.flat} ${tone} ${interactive ? styles.rowLive : ''}`}
+        className={`${styles.flat} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
         data-legend-row={rowId}
         data-hidden={hidden ? 'true' : 'false'}
         style={ink}
@@ -181,7 +203,7 @@ export default function LegendRow({
   // ─── VERTICAL: ONE subgrid row that spans the legend's own tracks ──────────
   return (
     <span
-      className={`${styles.vRow} ${tone} ${interactive ? styles.rowLive : ''}`}
+      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
       style={ink}
@@ -197,7 +219,36 @@ export default function LegendRow({
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the
           whole legend out of true. It holds nothing now and measures zero. */}
-      <span className={styles.vCtl} />
+      {/* ⭐⭐ THE THIRD CELL CARRIES A PERMANENT CHEVRON (Legend V2 §6).
+       *
+       * ⚰⚰ A CHEVRON WAS RETIRED HERE TWICE, AND THIS IS NOT THE THIRD ATTEMPT
+       * AT THE SAME THING. Both retired ones APPEARED — hidden at rest, revealed
+       * on hover — and the whole cost was in the appearing: a collapsed gutter
+       * moved the legend when it opened, and an out-of-flow one detached from its
+       * own label. A chevron that is ALWAYS drawn has neither cost, because the
+       * track it sits in is the same width in every state. That is the invariant
+       * the two retirements were protecting, and it still holds.
+       *
+       * ⛔ IT IS NOT A SECOND CONTROL. The whole row is the trigger and always
+       * was; this only SAYS SO, which is what a row of bare text could not do. It
+       * carries no handler and no role of its own — `aria-hidden`, because the
+       * row already announces itself as a menu button and a screen reader
+       * meeting "chevron" after "EMA 9 options" learns nothing.
+       *
+       * ⛔ AND IT IS NOT PUSHED TO A FAR EDGE. The track is `max-content`, so it
+       * sits one small gap after the value and the stack stays as narrow as its
+       * longest row.
+       *
+       * ⛔ A READ-ONLY ROW STILL EMITS THE CELL, EMPTY. The stack is ONE grid
+       * that fills by ORDER, so a two-cell row would let the next row's label
+       * fall into the chevron track and cascade the whole stack out of true. */}
+      {interactive
+        ? (
+          <span className={styles.vChev} aria-hidden="true">
+            <UIcon name="chevronRight" size={9} gold={false} />
+          </span>
+        )
+        : <span className={styles.vCtl} />}
     </span>
   )
 }

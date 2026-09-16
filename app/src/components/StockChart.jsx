@@ -24,6 +24,7 @@ import {
   liveOverlayList, isOverlayRemoved, isVolumeRemoved,
 } from './chart/chartDefaults'
 import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
+import { barInfoFieldsOf } from './chart/barInfoFields'
 import { crosshairModeOf } from './chart/crosshairMode'
 
 // Menu labels for the three legend modes. Keyed BY the enumeration, so a mode
@@ -236,6 +237,43 @@ function paneReadoutRows(chips, layout, hostOf) {
  *  layout and out of the accessibility tree, the `+N` button brings it back, and
  *  the chips stay mounted. See that class's comment for the two reasons. */
 const CHIP_COLLAPSE_AT = 4
+
+/**
+ * One study-stack row's height, in px — the unit the geometric fold counts in.
+ *
+ * ⭐ A CONSTANT AND NOT A MEASUREMENT, DELIBERATELY. Measuring a rendered row
+ * would make the budget depend on how many rows the budget allowed: with zero
+ * rows there is nothing to measure, and the first non-zero answer would change
+ * the budget that produced it. A constant converges in one frame.
+ *
+ * ⚠️ IT MUST TRACK `.studyStack`'s `line-height` + `row-gap`, WHICH ARE BOTH
+ * DECLARED IN PX FOR THAT REASON. 15 + 1 = 16. Measured first with
+ * `line-height: normal`, where the real pitch came out at 17 and no test could
+ * have derived it; `legendV2.geometry.test.js` now re-derives both numbers from
+ * the stylesheet, so a type change there fails the rail rather than silently
+ * over-counting rows on a short pane.
+ */
+const STUDY_ROW_PX = 16
+
+/**
+ * The most of the PRICE PANE the study stack may cover, as a fraction.
+ *
+ * ⭐⭐ THE BRIEF'S OWN SENTENCE, AS A NUMBER: *"the vertical stack must not
+ * consume half the chart when many indicators are present"*. Room alone is not
+ * enough of a rule — on a tall pane "everything above the lookback band" is 28
+ * rows, which is 83% of the candles behind a wall of text, and every one of those
+ * rows technically FITS.
+ *
+ * ⛔ A FRACTION, NOT A ROW COUNT, because the complaint is about PROPORTION.
+ * Four rows is nothing on a full-screen chart and is the whole pane in a grid
+ * cell; a row count that reads well in one is wrong in the other, which is how
+ * `CHIP_COLLAPSE_AT`'s hard four came to fold a legend that had room for twelve.
+ *
+ * ⚠ IT IS A CEILING, NOT THE ANSWER. The available-room test still applies and
+ * still wins when it is the smaller of the two — a short pane folds because the
+ * rows do not fit, a tall one because they would take too much of it.
+ */
+const STUDY_STACK_MAX_FRAC = 0.42
 
 /**
  * One `chipMenu` row → one `ContextPopover` row.
@@ -867,6 +905,41 @@ function opaqueColor(c) {
   const mr = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*[\d.]+\s*\)$/i.exec(s)
   if (mr) return `rgb(${mr[1]}, ${mr[2]}, ${mr[3]})`     // rgba(r,g,b,a) → rgb(r,g,b)
   return s
+}
+
+/**
+ * The BAR INFO strip's date.
+ *
+ * ⭐ `SEP 15` / `SEP 15 14:30` — a month name reads at a glance where `09-15`
+ * has to be decoded, and the strip has the width for it now that it is the only
+ * thing on its line. The daily case is the one a member is looking at most.
+ *
+ * ⛔ IT DOES NOT REPLACE `formatLegendTime`, WHICH EVERY OTHER SURFACE STILL
+ * USES. The inline (non-workspace) legend, Model Book and the pop-ups all print
+ * that one, and changing it here would restyle four surfaces nobody asked about
+ * — including the parity-pinned export route. One new format, one new reader.
+ *
+ * ⚠️ A DAILY BAR ARRIVES AS THE STRING `YYYY-MM-DD` and an intraday one as an
+ * epoch. The string form is parsed by FIELD, never through `new Date(s)`: that
+ * constructor reads a bare date as UTC and prints the day before it in New York,
+ * which is the off-by-one this repo has paid for elsewhere.
+ */
+const _BAR_INFO_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+function formatBarInfoDate(time) {
+  if (typeof time === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(time)
+    if (!m) return time
+    const mon = _BAR_INFO_MONTHS[Number(m[2]) - 1]
+    return mon ? `${mon} ${Number(m[3])}` : time
+  }
+  if (!Number.isFinite(time)) return ''
+  const d = new Date(time * 1000)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+  if (!parts.month) return ''
+  return `${String(parts.month).toUpperCase()} ${parts.day} ${parts.hour}:${parts.minute}`
 }
 
 function formatLegendTime(time) {
@@ -3162,10 +3235,26 @@ export default function StockChart({
   // Only surfaces that opt into the workspace legend (`verticalLegend`) follow the
   // user's Chart Settings → Header → Legend layout choice; everywhere else
   // (Model Book, popups, gallery charts…) keeps its own inline row untouched.
-  //   vertical   → the stacked label/value table  (.legendVertical)
-  //   horizontal → a flat, box-less two-line strip (.legendFlat)
-  const legendFlat = verticalLegend && cs.header?.legendLayout === 'horizontal'
-  const legendStacked = verticalLegend && !legendFlat
+  //
+  // ⭐⭐ LEGEND V2 — ONE PERMANENT HYBRID, NOT A CHOICE BETWEEN TWO SHAPES.
+  //
+  // ⚰⚰ `cs.header.legendLayout` ('vertical' | 'horizontal') DECIDED THIS AND IS
+  // RETIRED. Two complete renderers stood under one setting and drifted — the
+  // flat strip listed the moving averages LAST for a while, its own `top` missed
+  // the `--price-pane-top` offset that shipped for the base rule (the measured
+  // bug `priceOwnedChrome.css.test.js` exists for), and every later legend change
+  // had to be made twice. The stored key is neither read nor migrated: an old
+  // 'vertical' and an old 'horizontal' both open here.
+  //
+  // ⛔ THE TWO AREAS ARE NOT LAYOUTS OF EACH OTHER, which is why this is one
+  // flag and not two:
+  //   BAR INFO STRIP   a horizontal readout of THIS CANDLE — date, O/H/L/C and
+  //                    the two change figures. No plot, no colour of its own, no
+  //                    controls; it is a reading of the instrument.
+  //   STUDY STACK      a vertical stack of the PLOTS drawn in this pane — volume,
+  //                    the moving averages, and every engine chip whose display
+  //                    target resolves to Price. Every row is a Track B door.
+  const legendV2 = verticalLegend
   // ── WHETHER THE LEGEND SHOWS AT ALL: 'always' | 'click' | 'off' ────────────
   //
   // ⭐ DERIVED, NEVER READ OFF A FIELD. `legendModeOf` is the one reader — it
@@ -3904,6 +3993,33 @@ export default function StockChart({
   const [compactLegend, setCompactLegend] = useState(false)
   const compactLegendRef = useRef(false)
   compactLegendRef.current = compactLegend
+  /** ⭐⭐ LEGEND V2 — HOW MANY STUDY ROWS FIT, MEASURED RATHER THAN CHOSEN.
+   *
+   *  The rAF sampler below writes this from real geometry: the distance from the
+   *  study stack's own top to the PRICE pane's bottom (less the lookback band),
+   *  divided by a row. The stack folds its tail behind `+N more` at that number.
+   *
+   *  ⛔ IT IS A QUESTION ABOUT AVAILABLE SPACE, NEVER ABOUT THE LEGEND'S OWN
+   *  HEIGHT, AND THAT IS WHAT MAKES IT STABLE. Measuring the rendered legend and
+   *  shrinking it would be a feedback loop — fewer rows, shorter legend, more
+   *  room, more rows — which is exactly the flip-flop `lastFullBottomRef` had to
+   *  be invented to damp. The stack's TOP does not move when rows are folded
+   *  (the bar-info strip above it is a fixed height), so this converges in one
+   *  frame and stays there.
+   *
+   *  ⛔ AND NEVER OFF A PANE INDEX. `chromePlan` resolves Price by asking the
+   *  CANDLE SERIES which pane it is in, so a chart with QQQ arranged above Price
+   *  measures Price, not whatever is on top. Reintroducing "pane 0 is Price" here
+   *  is the 2026-09-15 regression in a new place.
+   *
+   *  ⚠️ SEEDED HIGH so the first paint — before the sampler has run — shows every
+   *  row rather than folding a legend nobody has measured yet. */
+  const [studyRowBudget, setStudyRowBudget] = useState(99)
+  const studyRowBudgetRef = useRef(99)
+  studyRowBudgetRef.current = studyRowBudget
+  /** The study stack element — read for its TOP, never repositioned. It is laid
+   *  out by the legend box's own flow; only the box is pinned. */
+  const studyStackRef = useRef(null)
   // Decisions key off the FULL legend height (recorded while NOT collapsed) so the
   // compact/hidden height can't make it flip-flop, and it survives the legend being
   // hidden (nothing to measure while hover-only + off-hover).
@@ -14947,6 +15063,27 @@ export default function StockChart({
           // HIDDEN (hover-only + off-hover → no node) using that remembered height, so
           // a growing pane can still un-collapse it.
           if (verticalLegend) {
+            // ⭐⭐ LEGEND V2 — THE STUDY STACK'S ROW BUDGET, IN THE SAME FRAME AND
+            // FROM THE SAME PLAN as every other price-owned measurement. `rbTop`
+            // below is Price's own bottom less the lookback band; the stack may
+            // occupy everything above it.
+            //
+            // ⛔ THE STACK'S TOP IS MEASURED, NOT ASSUMED. It sits under a
+            // bar-info strip that WRAPS when the pane is narrow, so a constant
+            // offset would over-count by a line exactly when space is tightest.
+            const stack = studyStackRef.current
+            if (stack) {
+              // ⛔ TWO LIMITS, AND THE SMALLER WINS. (1) THE ROOM: everything from
+              // the stack's own top down to the lookback band, which is what makes a
+              // SHORT pane fold. (2) THE SHARE: `STUDY_STACK_MAX_FRAC` of the price
+              // pane, which is what stops a TALL one printing twenty-eight rows over
+              // the candles. Neither alone is the rule the brief states.
+              const room = plan.collapseThresholdPx
+                - (stack.getBoundingClientRect().top - container.getBoundingClientRect().top)
+              const share = plan.priceHeight * STUDY_STACK_MAX_FRAC
+              const fit = Math.max(0, Math.floor(Math.min(room, share) / STUDY_ROW_PX))
+              if (fit !== studyRowBudgetRef.current) setStudyRowBudget(fit)
+            }
             const leg = legendRef.current
             if (leg && !compactLegendRef.current) {
               lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
@@ -16326,7 +16463,7 @@ export default function StockChart({
         )
       })()}
       {enabledComparisons.length > 0 && (
-        <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
+        <div className={`${styles.compareRows}${legendV2 ? ' ' + styles.compareRowsSide : ''}`}>
           {/* Groups (theme/sector/industry) — one collapsible row each */}
           {comparisonLegend.groups.map(g => {
             const open = openCmpGroups[g.name] ?? true   // expanded by default; user can collapse
@@ -16861,205 +16998,253 @@ export default function StockChart({
         const volLegendRowVisible = !isVolumeRemoved(cs)
           && (volHidden || crosshairData.volume != null)
         const indChips = crosshairData.chips || EMPTY_CHIPS
+        // ── THE INLINE (NON-WORKSPACE) LEGEND'S FOLD — unchanged ────────────
+        // Model Book, a pop-up, a gallery cell: one wrapping row of chips with a
+        // fixed threshold. Legend V2 does not touch that surface; its own fold is
+        // GEOMETRIC and is computed below.
         const overflow = !chipsExpanded && indChips.length > CHIP_COLLAPSE_AT
         const foldedFrom = overflow ? CHIP_COLLAPSE_AT : indChips.length
         const moreCount = indChips.length - CHIP_COLLAPSE_AT
+
+        // ─── LEGEND V2 — THE TWO AREAS' OWN INPUTS ─────────────────────────
+        //
+        // ⭐ WHICH BAR-INFO FIELDS PRINT. Resolved through `barInfoFieldsOf`,
+        // never read off `cs.header.barInfo` here — one reader, so a surface
+        // cannot disagree with the settings modal about what the member chose.
+        const barFields = barInfoFieldsOf(cs)
+        const barShows = (id) => barFields.indexOf(id) >= 0
+        // ⭐⭐ THE STUDY STACK IS THIS PANE'S PLOTS, NOT THE CHART'S.
+        //
+        // `chipPaneHost` answers a chip's pane in PANE-KEY units through
+        // `resolveDisplayTarget` — the same authority the layout and the placement
+        // resolver consume — and `null` means "no pane of its own", i.e. drawn on
+        // Price (or overlaid on Volume, which has no pane readout either). Those
+        // are exactly the plots this stack is the legend for. Everything else is
+        // already named at the top-left of the pane it draws in, by the pane
+        // readout block further down — the same component, the same popover.
+        //
+        // ⛔ NO PANE INDEX IS CONSULTED, HERE OR ANYWHERE IN THIS BLOCK. Price is
+        // not pane 0 and has not been since panes became movable; membership is a
+        // question about the DISPLAY TARGET and is asked as one.
+        //
+        // ⚰️ IT USED TO PRINT EVERY CHIP ON THE CHART, so an RSI in its own pane
+        // was named twice — once here and once six pixels above its own plot — and
+        // the two could differ (the strip abbreviates, the pane spells out).
+        const priceChips = indChips.filter((c) => chipPaneHost(c) == null)
+        const studyOverlays = liveLegendOverlays(crosshairData.overlays)
+        const studyHeadN = volLegendRowVisible ? 1 : 0
+        const studyChipAt = studyHeadN + studyOverlays.length
+        const studyTotal = studyChipAt + priceChips.length
+        // ⭐⭐ THE FOLD IS GEOMETRIC, NOT A CONSTANT. `studyRowBudget` is how many
+        // rows fit between the stack's own top and the PRICE PANE'S bottom, in
+        // container coordinates, measured by the same rAF sampler that pins every
+        // other piece of price-owned chrome. A hard "5 rows" would cover half a
+        // short pane and waste two thirds of a tall one.
+        //
+        // ⛔ AND IT NEVER SPLITS A MULTI-OUTPUT INDICATOR. MACD's `SIG` folded
+        // away under a visible `MACD` reads as a missing plot rather than a
+        // collapsed group, so the cut walks BACK to the group's first row. The loop
+        // is bounded by `studyChipAt` — the head rows (volume, the moving averages)
+        // are singletons and are never walked past.
+        // 🔴 THE DISCLOSURE COSTS A ROW, AND FORGETTING THAT DEFEATED THE WHOLE
+        // FOLD. `+N more` is rendered INSIDE the stack, so a budget spent entirely
+        // on study rows leaves the button hanging one row below the space that was
+        // measured — the legend's bottom crosses `collapseThresholdPx`, the
+        // responsive collapse fires, and the member gets a HOVER-ONLY legend with no
+        // rows at all instead of the four rows and a `+2 more` the budget just
+        // computed. MEASURED IN THE BROWSER: at a 190px chart the legend vanished
+        // entirely; at 250px it never folded. There was no height in between where
+        // the disclosure was reachable.
+        //
+        // ⛔ SO THE ROW IS RESERVED ONLY WHEN THERE IS SOMETHING TO DISCLOSE.
+        // Reserving it unconditionally would fold a stack that fits.
+        const studyRoom = studyTotal > studyRowBudget
+          ? Math.max(0, studyRowBudget - 1) : studyRowBudget
+        let studyFitFrom = Math.max(0, Math.min(studyRoom, studyTotal))
+        while (studyFitFrom > studyChipAt && studyFitFrom < studyTotal
+          && priceChips[studyFitFrom - studyChipAt]
+          && priceChips[studyFitFrom - studyChipAt - 1]
+          && priceChips[studyFitFrom - studyChipAt].instanceId
+            === priceChips[studyFitFrom - studyChipAt - 1].instanceId) studyFitFrom -= 1
+        const studyCanFold = studyFitFrom < studyTotal
+        const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
+        const studyMoreCount = studyTotal - studyFitFrom
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
-          /* Drop below the index pane so the OHLCV legend never covers it; reserve
-             the right price-axis width so a horizontal legend wraps before it (the
-             vertical stack is narrow + single-file, so it never needs the reserve). */
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          /* Drop below the index pane so the legend never covers it; reserve the
+             right price-axis width so the BAR INFO strip wraps before it. */
           style={{
             ...(overlayBounds ? { top: overlayBounds.top + 6 } : null),
-            // max-width (NOT right) so the legend box stays shrink-to-fit for a short
-            // row, but a long MA row wraps at the plot's right edge instead of under
-            // the axis. 100% = container width; subtract left(8)+gap(6)+axis width.
-            ...(!legendStacked && legendAxisReserve > 0
+            // max-width (NOT right) so the box stays shrink-to-fit for a short row,
+            // but a full bar-info strip wraps at the plot's right edge instead of
+            // under the axis. 100% = container width; subtract left(8)+gap(6)+axis.
+            ...(legendAxisReserve > 0
               ? { maxWidth: `calc(100% - ${14 + legendAxisReserve}px)` }
               : null),
           }}
         >
-          {legendFlat ? (
+          {legendV2 ? (
             <>
-              {/* Values only — the ticker/company/timeframe live in the widget
-                  header already, so the strip sits where that title line was. */}
-              <div className={styles.flRow}>
-                <span className={styles.legendTime} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
-                <span className={styles.legendLabel} style={legBase}>O <span className={styles.legendVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>
-                <span className={styles.legendLabel} style={legBase}>H <span className={styles.legendVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
-                <span className={styles.legendLabel} style={legBase}>L <span className={styles.legendVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
-                <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
-                <span className={styles.legendLabel} style={legBase}>Chg <span className={styles.legendVal} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.change}</span></span>
-                <span className={styles.legendLabel} style={legBase}>Chg% <span className={styles.legendVal} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.changePct}%</span></span>
-                {/* ⚰️ THIS WAS A BARE `<span>Vol 56.0M</span>` WITH NO CONTROLS, so
-                    the volume pane could be hidden, configured and removed from
-                    the vertical legend and from Chart Settings — and not from the
-                    strip a member on the horizontal layout is actually looking at.
-                    ⛔ INLINE, NOT A SHARED HELPER: `parityGateBlindness.test.js`
-                    refuses legend JSX hoisted into a const, because the proof that
-                    a row renders INSIDE the legend element (and is therefore
-                    hidden from the branded export) is lexical. */}
+              {/* ══ A. THE BAR INFO STRIP ═══════════════════════════════════
+                  ⭐ INFORMATION ABOUT THIS CANDLE, AND NOTHING ELSE. Date,
+                  O/H/L/C, net change, percent change — each printable or not by
+                  the member (Chart Settings → Chart Legend → Bar info).
+
+                  ⛔ NO VOLUME. Volume is a PLOT — it has a colour, a pane, a
+                  visibility and a popover — so it belongs in the stack below with
+                  the moving averages. That split is the whole point of V2 and it
+                  is why `BAR_INFO_FIELDS` does not list it.
+
+                  ⛔ NO BOX. No border, no radius, no card: the strip is printed
+                  onto the chart. What it does keep is a backdrop blur (see
+                  `.legendV2`), because the measured 2026-08-10 defect was
+                  candlesticks running through the numbers, and blur is what made
+                  transparency safe the last time that was fixed. */}
+              <div className={styles.barInfo}>
+                {barShows('date') && (
+                  <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                )}
+                {barShows('open') && (
+                  <span className={styles.barField} style={legBase}>
+                    <span className={styles.barKey}>O</span>
+                    <span className={styles.barVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+                  </span>
+                )}
+                {barShows('high') && (
+                  <span className={styles.barField} style={legBase}>
+                    <span className={styles.barKey}>H</span>
+                    <span className={styles.barVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+                  </span>
+                )}
+                {barShows('low') && (
+                  <span className={styles.barField} style={legBase}>
+                    <span className={styles.barKey}>L</span>
+                    <span className={styles.barVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+                  </span>
+                )}
+                {barShows('close') && (
+                  <span className={styles.barField} style={legBase}>
+                    <span className={styles.barKey}>C</span>
+                    <span className={styles.barVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
+                  </span>
+                )}
+                {/* ⭐ THE TWO CHANGE FIGURES CARRY NO LABEL AND KEEP THEIR
+                    SEMANTIC COLOUR. A signed number beside a close IS a change;
+                    `Chg −4.64` spends four characters saying what the sign already
+                    says. Same `legChgColor` the header row uses, so one setting
+                    still drives both readouts.
+                    ⛔ U+2212 MINUS, NOT A HYPHEN, and only on the negative — it is
+                    the same width as the `+` it alternates with, so the strip does
+                    not shift by a pixel when a bar flips. */}
+                {barShows('change') && (
+                  <span className={styles.barChg} style={{ color: legChgColor }}>
+                    {legUp ? '+' : '−'}{String(crosshairData.change).replace(/^-/, '')}
+                  </span>
+                )}
+                {barShows('changePct') && (
+                  <span className={styles.barChg} style={{ color: legChgColor }}>
+                    {legUp ? '+' : '−'}{String(crosshairData.changePct).replace(/^-/, '')}%
+                  </span>
+                )}
+              </div>
+
+              {/* ══ B. THE STUDY STACK ══════════════════════════════════════
+                  ⭐ ONE ROW PER PLOT DRAWN IN THIS PANE: `label · value · ›`.
+                  Every row is the Track B door — click it, right-click it, or
+                  focus it and press Enter — and the chevron is permanent, so the
+                  row SAYS it is a door without anything having to appear.
+
+                  ⛔ IT IS NOT A TABLE AND NOT A PANEL. No heading, no rails, no
+                  row containers, no surrounding card. Three content-sized tracks
+                  and a 1px row gap.
+
+                  ⛔ THE ROWS STAY INSIDE THE LEGEND ELEMENT, which is an invariant
+                  rather than a layout preference: `ChartRender.jsx` hides
+                  `[class*="legend" i]` from the branded export, so a row rendered
+                  as a SIBLING would print in every newsletter capture and move all
+                  46 pixel-parity baselines. Asserted from the AST in
+                  `parityGateBlindness.test.js`, which is also why this JSX is
+                  inline and not hoisted into a helper. */}
+              <div className={styles.studyStack} ref={studyStackRef}>
+                {/* ⭐ VOLUME IS A STUDY ROW — first, above the moving averages,
+                    exactly where the old vertical legend printed it.
+                    ⛔ ITS PANE OWNERSHIP, SIZING AND RENDERING ARE UNTOUCHED. This
+                    row only REPORTS the state: a hidden volume pane keeps a
+                    dimmed, value-less row (the way back), and a REMOVED one takes
+                    the row away. Same `volLegendRowVisible` rule as before. */}
                 {volLegendRowVisible && (legendRowHandlers ? (
                   <LegendRow
+                    vertical
                     rowId="volume"
                     label="Vol"
-                    /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS. The
-                       legend abbreviates to `V`/`Vol` for width; a trigger
-                       called "V options" names nothing a member would
-                       recognise, and the popover it opens says "Volume". */
+                    /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS — the
+                       legend abbreviates to `Vol` for width, and a trigger called
+                       "Vol options" names nothing the popover's own title says. */
                     controlLabel="Volume"
                     value={volHidden ? '' : formatVolume(crosshairData.volume)}
                     baseColor={legendColor || undefined}
                     hidden={volHidden}
+                    folded={studyHeadN - 1 >= studyFoldFrom}
                     {...legendRowHandlers}
                   />
                 ) : (
-                  <span className={styles.legendLabel} style={legBase}>Vol <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
+                  <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
                 ))}
-                {/* ⭐ MOVING AVERAGES, THEN THE ENGINE INSTANCES — Chart Settings'
-                    own order, and the same order the other two layouts print.
-                    ⚰️ THIS BRANCH USED TO PUT THE MOVING AVERAGES **LAST**, after
-                    the chips and the comparison symbol, so one set of indicators
-                    was listed three different ways on three surfaces. */}
-                {liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
+                {/* ⭐ THE MOVING AVERAGES, IN CHART SETTINGS' OWN ORDER.
+                    ⛔ NOT GATED ON `compactLegend` ANY MORE. Dropping every study
+                    row on a short pane was the old height fix and it took the only
+                    per-instance door with it; the fold below is geometric and
+                    leaves a `+N more` to get them back. */}
+                {studyOverlays.map((ov, i) => (
                   <LegendRow
                     key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
+                    vertical
                     rowId={`ma:${ov.csIndex}`}
                     label={ov.label}
                     value={ov.value != null ? ov.value.toFixed(2) : ''}
                     color={opaqueColor(ov.color)}
                     baseColor={legendColor || undefined}
                     hidden={!!ov.hidden}
+                    folded={studyHeadN + i >= studyFoldFrom}
+                    /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS — it is not in
+                       `cs.overlays` (`csIndex: -1`), so every verb would write
+                       nowhere. It also gets no chevron, which is the point of
+                       tying the chevron to `interactive`. */
                     {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
                   />
                 ))}
-                {indChips.map((c, i) => (
+                {priceChips.map((c, i) => (
                   <IndicatorChip
                     key={`${c.instanceId}::${c.plotKey}`}
                     chip={c}
-                    className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
-                    /* ⛔ RESOLVED PER CHIP, AND PER CHIP MEANS PER (INSTANCE, PLOT).
-                       `plotRepaintNotice` answers null unless the LINTER decided
-                       this exact column is not clean — so a definition with one
-                       repainting column marks that column and leaves its siblings
-                       alone, which is the owner's per-plot ruling in the DOM. It is
-                       memoised on the definition object, so this is a Map lookup
-                       per chip per crosshair move and not a tree walk. */
+                    grid
+                    /* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE (§7). `legendChips`
+                       walks the INSTANCE list, so one instance's plots are always
+                       consecutive and adjacency alone identifies the group — no
+                       second grouping pass, and no new identity. */
+                    secondary={i > 0 && priceChips[i - 1].instanceId === c.instanceId}
+                    className={studyChipAt + i >= studyFoldFrom ? chipStyles.chipFolded : undefined}
+                    /* Per (instance, plot) — a definition with one repainting
+                       column marks that column and leaves its siblings alone. */
                     repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
                     {...chipHandlers}
                   />
                 ))}
-                {overflow && (
-                  <button type="button" className={chipStyles.chipMore}
-                    onClick={() => setChipsExpanded(true)}
-                    aria-label={`Show ${moreCount} more indicators`}
-                  >+{moreCount}</button>
+                {studyCanFold && (
+                  <button type="button" className={`${chipStyles.chipMore} ${styles.studyMore}`}
+                    onClick={() => setChipsExpanded((e) => !e)}
+                    aria-expanded={chipsExpanded}
+                    aria-label={chipsExpanded ? 'Show fewer indicators' : `Show ${studyMoreCount} more indicators`}
+                  >{chipsExpanded ? 'Less' : `+${studyMoreCount} more`}</button>
                 )}
                 {crosshairData.compare != null && compareSymbol && (
-                  <span style={{ color: '#fb923c' }}>
+                  <span className={styles.studyCompare} style={{ color: '#fb923c' }}>
                     {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
                   </span>
                 )}
               </div>
-            </>
-          ) : legendStacked ? (
-            <>
-              <span className={styles.vlHead} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
-              {/* VERTICAL legend variant. All three layouts share `legChgColor` so
-                  they can't disagree about the Header day-change colors (fixing one
-                  in isolation used to look like a no-op). */}
-              <span className={styles.vlChange} style={{ color: legChgColor }}>
-                {legUp ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
-              </span>
-              {/* OHLCV stays SINGLE-COLUMN (narrow) in every density — the compact
-                  mode saves height by dropping the MA/indicator rows + shrinking the
-                  font (see .legendCompact + the overlay/chip guards below), never by
-                  going two-up (which got too wide and ate the chart). */}
-              {/* ⛔ EVERY ROW EMITS THREE CELLS, AND THE THIRD IS USUALLY EMPTY.
-                  `.legendVertical` grew a third track for the hover controls, and
-                  a CSS grid FILLS BY ORDER — so a row that emitted only two cells
-                  would let the NEXT row's label land in the control column and
-                  cascade the whole legend one cell out of true. `.vlCtlPad` is
-                  that third cell for the rows that have no controls; it measures
-                  zero and is invisible. */}
-              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'O' : 'Open'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
-              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'H' : 'High'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
-              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'L' : 'Low'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
-              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'C' : 'Close'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
-              {/* ⭐ THE VOLUME PANE'S ROW IS A `LegendRow` NOW — same three verbs
-                  as a moving average, on the row that already prints its number.
-                  It falls back to the plain pair on a read-only mount, where
-                  `legendRowHandlers` is null and a row with no controls is exactly
-                  the two cells it always was. */}
-              {/* ⛔ `isVolumeRemoved(cs)`, NOT the sampled readout — same reason as
-                  `liveLegendOverlays`: the pane leaves the chart on the click, so
-                  its row has to leave the legend on the click, not on the next
-                  500ms tick. */}
-              {volLegendRowVisible && (legendRowHandlers ? (
-                <LegendRow
-                  vertical
-                  rowId="volume"
-                  label={compactLegend ? 'V' : 'Vol'}
-                  controlLabel="Volume"
-                  value={volHidden ? '' : formatVolume(crosshairData.volume)}
-                  baseColor={legendColor || undefined}
-                  hidden={volHidden}
-                  {...legendRowHandlers}
-                />
-              ) : (
-                <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'V' : 'Vol'}</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-              ))}
-              {/* Compact mode drops the MA + indicator value rows (the tallest part —
-                  those lines are drawn on the chart anyway) so the legend stops
-                  spilling into the volume pane WITHOUT going wider. */}
-              {/* ⚰️ THESE WERE TWO BARE `<span>`s WITH NO IDENTITY AND NO CONTROLS.
-                  A moving average is removable now (`chartDefaults`'s overlay
-                  tombstone), so its legend row carries the same eye / gear / ✕ an
-                  engine chip has — in a THIRD grid column that is zero-wide until
-                  hovered, so the numbers above and below never move. */}
-              {!compactLegend && liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
-                <LegendRow
-                  key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
-                  vertical
-                  rowId={`ma:${ov.csIndex}`}
-                  label={ov.label}
-                  value={ov.value != null ? ov.value.toFixed(2) : ''}
-                  color={opaqueColor(ov.color)}
-                  baseColor={legendColor || undefined}
-                  hidden={!!ov.hidden}
-                  /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS. It is not in
-                     `cs.overlays` (`csIndex: -1`), so there is no slot to hide or
-                     tombstone and every verb would write nowhere. */
-                  {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
-                />
-              ))}
-
-              {/* ⚰️ `.vlFull` (grid-column 1 / -1) STOOD HERE and is why RSI's
-                  number never lined up with the values above it. `grid` splits the
-                  chip into the same label / value / gutter cells every other row
-                  emits, so it joins the shared tracks instead of spanning them. */}
-              {!compactLegend && indChips.map((c, i) => (
-                <IndicatorChip
-                  key={`${c.instanceId}::${c.plotKey}`}
-                  chip={c}
-                  grid
-                  className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
-                  {...chipHandlers}
-                />
-              ))}
-              {!compactLegend && overflow && (
-                <button type="button" className={chipStyles.chipMore}
-                  onClick={() => setChipsExpanded(true)}
-                  aria-label={`Show ${moreCount} more indicators`}
-                >+{moreCount}</button>
-              )}
-              {crosshairData.compare != null && compareSymbol && (
-                <span style={{ color: '#fb923c' }}>
-                  {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
-                </span>
-              )}
             </>
           ) : (
           <>
@@ -17547,9 +17732,22 @@ export default function StockChart({
           className={styles.paneLegend}
           data-pane-legend={row.key}
         >
-          {row.chips.map((c) => (
+          {/* ⭐⭐ LEGEND V2 — A PANE READOUT IS A STUDY STACK. Same component,
+              same `vertical` shape, same permanent chevron, same hover, same
+              popover as the rows in the price pane's own stack. It used to be a
+              HORIZONTAL flex strip, so a member reading down a chart met two
+              different legends: a vertical stack on Price and a running line on
+              every pane below it. One architecture means one answer to "what is
+              drawn here, and how do I manage it" wherever the plot lives. */}
+          {row.chips.map((c, ci) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
+              vertical
+              /* ⭐ SIBLING OUTPUTS OF ONE INSTANCE READ AS A GROUP (§7) — MACD
+                 and SIG stack with the second indented, rather than as two
+                 unrelated studies that happen to share a pane. Adjacency is the
+                 grouping, because `legendChips` walks the INSTANCE list. */
+              secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}
               /* ⭐⭐ THE ROW ID IS THE INSTANCE ID, and that is what wires the door
                  with no adapter: `LegendRow` calls `onOpen(rowId, anchor)` and the
                  pane readout hands it straight to `handlePaneRowMenu`, which looks

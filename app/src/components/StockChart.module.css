@@ -67,8 +67,23 @@
 /* Pinned by `pinPaneLegend` on the frame it mounts; `0` is only ever the value
    between `addSeries` and that call. `76%` would put an RSI label in the middle
    of the candles. */
+/* ⭐⭐ LEGEND V2 — A PANE READOUT IS A STUDY STACK, not a running strip.
+   ⚰ IT WAS `display: flex` WITH A 10px GAP, inherited from `.volLegend` beside
+   it, so a member reading down a chart met a vertical stack on Price and a
+   horizontal line on every pane below. Same three tracks, same subgrid rows, same
+   permanent chevron as the price pane's own stack — one legend architecture,
+   wherever a plot lives.
+   ⛔ IT STILL SHARES `.volLegend`'S POSITIONING RULE ABOVE (it is pinned to its
+   pane's top by the rAF sampler) and still declares no class containing
+   "volLegend", so the export route's re-show cannot reach it. */
 .paneLegend {
   top: 0;
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  justify-content: start;
+  column-gap: 10px;
+  row-gap: 1px;
+  align-content: start;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
      values in the legend"). These two declarations are `.legend`'s own, and the
@@ -97,9 +112,6 @@
      class in `LegendRow.module.css` and hashed, so it cannot be named from here;
      restyling it THERE would change the flat legend too, which nobody asked for. */
   font-weight: 500;
-  /* Rows are `LegendRow`s and bring their own inner spacing; this is the gap
-     BETWEEN indicators sharing one pane (MACD and SIG). */
-  gap: 10px;
 }
 .paneLegend strong { font-weight: 600; }
 /* ⚰️ `pointer-events: auto` WAS ON `.volLegItem` AND THE CONTAINER STAYED `none`,
@@ -418,139 +430,214 @@
 }
 :global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
 :global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
-/* Vertical OHLCV legend (workspace) — date + labels + values dark & bold on the bright canvas. */
-/* Sunrise (light canvas) gets the same treatment — see `.legendVertical`. */
-:global([data-charts-theme='sunrise']) .legendVertical {
-  background: rgba(255, 255, 255, 0.72);
+/* ⚰ THE SUNRISE OVERRIDES FOR THE STACKED LAYOUT WENT WITH IT. Legend V2 inks
+   its two areas beside their own rules further down, so a light-canvas fix and
+   the thing it fixes are read together rather than 200 lines apart. */
+
+/* ══ LEGEND V2 — ONE PERMANENT HYBRID ═══════════════════════════
+ *
+ * ⚰⚰ `.legendVertical` AND `.legendFlat` STOOD HERE — the stacked label/value
+ * table and the flat two-line strip, chosen between by `header.legendLayout`.
+ * Both are retired. Two complete renderers under one setting drifted repeatedly
+ * (the flat one ordered its moving averages differently for a while, and its own
+ * `top` missed the `--price-pane-top` offset the base rule had — the measured
+ * bug `priceOwnedChrome.css.test.js` exists for), and every legend change had to
+ * be made twice.
+ *
+ * ⭐⭐ WHAT REPLACES THEM IS NOT A THIRD LAYOUT. It is TWO AREAS with different
+ * jobs, stacked, and neither is an alternative to the other:
+ *
+ *     SEP 15   O 708.80  H 709.53  L 703.63  C 704.54  −4.64  −0.65%   <- .barInfo
+ *     Vol       26.7M   ›                                              <- .studyStack
+ *     EMA 9    711.65   ›
+ *     EMA 20   712.91   ›
+ *
+ * ⛔ NO BOX, NO BORDER, NO CARD, NO RADIUS. The owner's brief is information
+ * PRINTED onto the chart. What survives from the boxed legend is the BACKDROP
+ * BLUR and a whisper of tint, and that is a readability rail rather than
+ * decoration: measured 2026-08-10, a fully transparent legend had candlesticks
+ * running straight through its numbers. Blur averages a candle — high-contrast,
+ * high-frequency — into a wash the text reads against, while the grid lines the
+ * owner asked to see through survive as soft lines. The tint is a third of what
+ * the box carried, so on empty canvas there is nothing to see.
+ *
+ * ⚰ THE TINT IS NOT ON `.legend` ITSELF, deliberately: a wash spanning both
+ * areas, sized to the widest of them, is a card again. Each area carries its own,
+ * shrink-to-fit, so the blur follows the TEXT.
+ */
+.legendV2 {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  /* ⚰⚰ THE SAME OMISSION BOTH RETIRED VARIANTS MADE, NOT REPEATED. A variant
+     class on the same element, later in the file, wins on source order — so a
+     bare `top` here would silently defeat the base rule's offset and leave the
+     legend on whatever pane happens to be at the top of the stack while the
+     drawing toolbar follows Price down. Price-owned chrome consumes
+     `--price-pane-top`, always, with a `0px` fallback so an unarranged chart is
+     unchanged. */
+  top: calc(46px + var(--price-pane-top, 0px));
+  left: 8px;
+  background: none;
+  padding: 0;
+  border-radius: 0;
   box-shadow: none;
 }
-:global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
-:global([data-charts-theme='sunrise']) .vlLabel,
-:global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
-:global([data-charts-theme='sunrise']) .vlVal { color: #12202c; font-weight: 700; }
 
-/* Charts workspace: stack the OHLCV legend single-file down the left as a
-   two-column table (label left, value right-aligned), dropped below the toolbar.
-   Fixed width pushes every value to the same right edge (TC2000-style). */
-.legendVertical {
+/* ── A. THE BAR INFO STRIP — this candle, horizontally ─────────────────
+ *
+ * ⛔ IT WRAPS BEFORE IT COLLIDES, AND IT COMPRESSES BEFORE IT WRAPS. The
+ * column gap is the first thing to go on a narrow pane (see the container query
+ * below); only past that does a second line appear. The legend box carries a
+ * `max-width` that reserves the price axis, so it never slides under the scale.
+ */
+.barInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  /* See `.legendV2` — blur is the readability rail, the tint is a whisper. */
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 1px 5px 1px 3px;
+  border-radius: 2px;
+}
+/* The date leads the strip and is the only field that is a NAME rather than a
+   reading, so it carries the brighter ink and no key. */
+.barDate {
+  color: var(--text-bright);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+/* One `O 708.80` pair. The gap between key and value is deliberately TIGHTER
+   than the gap between fields (4px against 13px) — that ratio is what makes the
+   strip read as five readings rather than ten tokens. */
+.barField {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.barKey {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.barVal {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+/* ⛔ THE CHANGE FIGURES CARRY NO KEY AND THEIR OWN INK — the colour IS the
+   label. Weight matches `.barVal` so the strip has one value weight throughout. */
+.barChg {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── B. THE STUDY STACK — the plots drawn in this pane, vertically ───────
+ *
+ * ⭐⭐ THREE CONTENT-SIZED TRACKS: label · value · chevron. Every row spans all
+ * three through `subgrid`, so a row is ONE continuous box (the fix for four
+ * reported hover bugs — see `LegendRow.module.css`) while every value still lands
+ * on one right edge.
+ *
+ * ⛔ `max-content max-content max-content`, AND NONE OF THEM `auto`. An `auto`
+ * track is COMPRESSIBLE: the retired control gutter re-solved the grid when it
+ * opened and pulled 29px out of the label column, sliding every number left.
+ * There is no gutter now, but the rule is what keeps the promise structural: no
+ * track can take space from another.
+ *
+ * ⛔ NO PANEL, NO HEADING, NO ROW CONTAINERS. The tint and blur are the same
+ * readability rail `.barInfo` carries and for the same measured reason.
+ */
+.studyStack {
   display: grid;
-  /* ⭐⭐ THREE TRACKS: label · value · GUTTER — and the third is now ALWAYS
-     EMPTY. It held a control cell that filled on hover; the legend's own box grew
-     to the right while the label and value columns stayed put, which was the
-     owner's rule ("the values stay in place, the border extends"). The control is
-     retired, so the track measures 0 in every state and the rule holds by
-     construction rather than by careful sizing.
-     ⛔ EVERY ROW MUST STILL EMIT THREE CELLS. A grid fills by ORDER, so a
-     two-cell row would let the next row's label land in the gutter and cascade
-     the whole legend one cell out of true. `.vlCtlPad` is that empty third cell,
-     and `.chipGridCtl` / `.vCtl` are its `display: none` counterparts on the rows
-     that used to carry a control. */
-  /* 🔴 `max-content max-content auto` — AND THE FIRST TWO ARE NOT `auto`, WHICH
-     IS A BUG FIX, KEPT THOUGH ITS TRIGGER IS GONE. An `auto` track is
-     COMPRESSIBLE: when the control gutter opened,
-     the grid re-solved and took the space out of the label and value columns
-     instead of out of thin air. Measured — tracks went `43.7 / 32.8 / 0` to
-     `14.3 / 39.2 / 64`, and every label, every value, the date and the day-change
-     slid LEFT, which is exactly what the whole zero-width-gutter design exists to
-     prevent. `max-content` pins the first two to their own content so the only
-     track that can change is the one that is supposed to. Re-measured after: all
-     four move by 0.0px. */
-  grid-template-columns: max-content max-content auto;   /* content-sized → compact; values sit close to labels */
+  grid-template-columns: max-content max-content max-content;
   justify-content: start;
   column-gap: 10px;
   row-gap: 1px;
   align-content: start;
-  /* ⚰️ THE SAME OMISSION as `.legendFlat` — a variant overriding the base
-     rule's offset with a bare number. Price-owned chrome follows Price. */
-  top: calc(46px + var(--price-pane-top, 0px));
-  /* ⚰️ THIS WAS `--chart-panel-bg-soft` (0.62) AND THE CANDLES CAME THROUGH THE
-     NUMBERS. Measured 2026-08-10 on the real chart: the EMA/SMA/RSI rows had
-     candlesticks running straight through their values, and several readings were
-     unreadable wherever price crossed them. This legend is not decoration — it is
-     the row of numbers a trader reads while hovering.
-
-     ⛔ THE FIX IS HERE, NOT IN `panelFor`. Raising `bgSoft` itself was the first
-     attempt and `dividerColor.test.js` refused it: the RANGE-SELECTOR BAR shares
-     that token, and its appearance is pinned. So this surface takes the opaquer
-     `--chart-panel-bg` (0.88) that the horizontal legend already uses, and the
-     shared token keeps its meaning for the bar that still wants to be soft.
-
-     ⭐⭐ …AND SINCE 2026-09-10 IT IS THAT PANEL AT ~72%, OVER A BACKDROP BLUR
-     (owner: "make it more see-through so the grid lines show — TradingView
-     style"). At a flat 0.88 the grid is simply GONE behind the box, and with the
-     control gutter open the legend is wide enough that the missing lines read as
-     a hole punched in the chart.
-     ⛔ THE BLUR IS WHAT MAKES THE LOWER ALPHA SAFE, and it is why this is not
-     just a re-run of the 0.62 that failed above. `backdrop-filter` averages what
-     is behind the box: a CANDLE — high-contrast, high-frequency — smears into a
-     flat wash the numbers still read against, while the GRID — thin, straight,
-     low-contrast, and the thing the owner wants back — survives as a soft line.
-     The 2026-08-10 failure was transparency with nothing to tame the candles.
-     ⚠️ `color-mix` ON THE TOKEN, NOT A NEW LITERAL. The token carries the theme's
-     own canvas (there is a `[data-charts-theme='sunrise']` override below), so
-     mixing keeps light mode light instead of pinning one dark rgba here. */
-  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 72%, transparent);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  /* ⛔ AN EXPLICIT LINE-HEIGHT, BECAUSE THE ROW PITCH IS A NUMBER JS RELIES ON.
+     `STUDY_ROW_PX` in StockChart.jsx counts how many rows fit in the pane, and
+     with `line-height: normal` that pitch is whatever the font metrics happen to
+     give (measured 17px here) — a value no test could derive and a font change
+     could move without anything noticing. 15px + the 1px row gap = a 16px pitch,
+     and `legendV2.geometry.test.js` re-derives it from THIS declaration. */
+  line-height: 15px;
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 30%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 1px 5px 2px 3px;
+  border-radius: 2px;
 }
-.vlHead {
-  /* ⛔ `1 / 3`, NOT `1 / -1`. The legend grew a third track for the row controls,
-     and a header centred across ALL THREE re-centres the moment that track opens
-     — measured by the owner as the date and the day-change sliding right and
-     "glitching" whenever a row's buttons appeared. Spanning the label and value
-     columns only keeps them centred over the numbers they title, at every state. */
-  grid-column: 1 / 3;
-  text-align: center;
-  color: var(--text-bright);
-  font-weight: 600;
-  white-space: nowrap;
-  padding-bottom: 1px;
-}
-.vlChange {
-  grid-column: 1 / 3;   /* see .vlHead — never 1 / -1, or it drifts with the gutter */
-  text-align: center;
-  font-weight: 700;
-  white-space: nowrap;
-  padding-bottom: 3px;
-}
-.vlFull {
+/* `+N more` / `Less` — the fold's disclosure. Spans all three tracks so it does
+   not distort the label column it would otherwise size. */
+/* ⛔ IT MUST MEASURE EXACTLY ONE STACK ROW. The fold reserves a row for this
+   button (`studyRoom` in StockChart.jsx); if the button is TALLER than the row it
+   was given, the legend still overruns the space that was measured and the
+   responsive collapse fires — which is the failure the reservation exists to
+   prevent, arriving one step later. 15 + the 1px `row-gap` = the 16px pitch
+   `STUDY_ROW_PX` counts in. */
+.studyMore {
   grid-column: 1 / -1;
-  color: var(--text);
-  font-weight: 600;
-  white-space: nowrap;
+  justify-self: start;
+  margin-top: 0;
+  height: 15px;
+  min-width: 0;
+  padding: 0 4px;
+  font: 600 9.5px var(--font-mono);
+  line-height: 1;
+  border-radius: 3px;
 }
-.vlLabel {
-  color: var(--text);
-  font-weight: 500;
-  white-space: nowrap;
-}
-/* Compact vertical legend (short pane): shrink the font + tighten the rows so the
-   single-column OHLCV takes less height. Stays narrow — the MA/indicator rows are
-   dropped in the JSX rather than the legend going wider. */
+/* The comparison-symbol reading rides the stack's last row, spanning it. */
+.studyCompare { grid-column: 1 / -1; white-space: nowrap; }
+
+/* SHORT PANE — the last resort, and it is now genuinely last. The stack folds
+   itself to the room it has (`studyRowBudget`), so this fires only when even the
+   bar-info strip is fighting for space. It shrinks TYPE; it no longer drops the
+   study rows, which used to take the only per-instance door with them. */
 .legendCompact {
-  font-size: 10px;
-  column-gap: 6px;
-  row-gap: 0;
-  padding: 3px 5px;
+  font-size: 9.5px;
+  padding: 0;
 }
-/* ⭐ EVERY LEGEND LINE IS ONE ROW BOX THAT BORROWS THE LEGEND'S TRACKS.
- *
- * 🔴 THE ROWS USED TO BE LOOSE CELLS OF THIS GRID, and that is what made the
- * hover controls unusable: `.legend` is `pointer-events: none`, so the COLUMN
- * GAPS between sibling cells were not hit targets and the pointer "left the
- * legend" every time it crossed one. `subgrid` gives each line a real, continuous
- * box — first letter of the label to last digit of the value, gaps included —
- * without giving up the shared tracks that put every value on one right edge. */
+.legendCompact .barInfo { gap: 1px 9px; }
+/* ⛔ THE COLUMN GAP TIGHTENS, THE ROW PITCH DOES NOT. `line-height` and
+   `row-gap` are what `STUDY_ROW_PX` counts in; changing either here would make the
+   budget wrong in exactly the state where space is tightest. */
+.legendCompact .studyStack { column-gap: 7px; }
+
+/* Sunrise (light canvas): the same two areas, inked for a bright background. */
+:global([data-charts-theme='sunrise']) .legendV2 { background: none; box-shadow: none; }
+:global([data-charts-theme='sunrise']) .barInfo,
+:global([data-charts-theme='sunrise']) .studyStack {
+  background: rgba(255, 255, 255, 0.5);
+}
+:global([data-charts-theme='sunrise']) .barDate { color: #16212e; font-weight: 700; }
+:global([data-charts-theme='sunrise']) .barKey { color: #55606e; }
+:global([data-charts-theme='sunrise']) .barVal { color: #1c2836; font-weight: 700; }
+
+/* ⚰ `.vlHead` / `.vlChange` / `.vlFull` WENT WITH THE STACKED LAYOUT. The date
+   and the day-change are fields of the BAR INFO strip now, and a chip never
+   spans the tracks (that was `.vlFull`, and it is why RSI's number never lined
+   up with the values above it).
+   ⛔ `.vlRow` / `.vlLabel` / `.vlVal` / `.vlCtlPad` SURVIVE. They are the
+   read-only fallback the volume row takes on a mount with no handlers (Model
+   Book, a grid cell, the export route), where a row with no door is exactly the
+   two cells it always was. */
 .vlRow {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
   align-items: center;
 }
-
-/* The empty third cell. Zero-width, no ink — see `.legendVertical`. */
 .vlCtlPad { display: block; width: 0; }
-
+.vlLabel {
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
 .vlVal {
   text-align: right;
   color: var(--text-bright);
@@ -558,64 +645,8 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-
-/* Charts workspace, "Horizontal" legend layout — a flat strip that sits ON the
-   canvas with NO background box: one wrapping row of values, no ticker/company/
-   timeframe title (the widget header already carries those). Deliberately
-   overrides the shared .legend box (background/padding/radius) rather than
-   forking it, so every color/position rule the two layouts share keeps applying. */
-.legendFlat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex-wrap: nowrap;
-  gap: 3px;
-  /* ⚰️⚰️ `+ var(--price-pane-top)` — AND ITS ABSENCE WAS THE WHOLE BUG. The
-     base `.legend` rule got this offset when Price stopped having to be the
-     first pane; this VARIANT kept a bare 34px, and it is an extra class on the
-     same element, later in the file, so it won. Measured on production (UCTA50
-     with QQQ moved above it): the drawing toolbar followed Price down while
-     this legend stayed at the top, sitting over QQQ. Identical to before when
-     Price is first — the variable is 0 then. */
-  top: calc(34px + var(--price-pane-top, 0px));   /* under the drawing toolbar */
-  left: 4px;           /* align the value strip's left edge with the toolbar's (left: 4px) */
-  right: 8px;          /* let the value row use the full chart width before wrapping */
-  background: none;
-  padding: 0;
-  border-radius: 0;
-  box-shadow: none;
-  /* No text-shadow: the panel lives on .flRow (below) so the horizontal legend
-     reads exactly like the vertical one — the old shadow glowed on a light
-     canvas and made the text look like it didn't belong. */
-}
-:global([data-charts-theme='sunrise']) .legendFlat {
-  background: none;
-  box-shadow: none;
-}
-/* The value strip. Wraps only when it genuinely runs out of chart width. Carries
-   the SAME subtle panel as the vertical legend (.legendVertical) — content-sized
-   because .legendFlat doesn't stretch its child (align-items: flex-start) — so the
-   two layouts look identical, one just runs horizontally. */
-.flRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 3px 11px;
-  font-variant-numeric: tabular-nums;
-  background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
-  /* The same backdrop blur the vertical legend takes. This strip was ALREADY the
-     more transparent of the two (0.55 against the vertical's old 0.88) — which is
-     why the grid was only ever missing behind the vertical one — but the blur is
-     what lets a candle behind either of them stay a wash rather than a shape, and
-     the comment above claims the two layouts look identical. Now they do. */
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  padding: 3px 8px;
-  border-radius: 3px;
-}
-:global([data-charts-theme='sunrise']) .flRow {
-  background: rgba(255, 255, 255, 0.55);
-}
+:global([data-charts-theme='sunrise']) .vlLabel { color: #3f4a57; font-weight: 600; }
+:global([data-charts-theme='sunrise']) .vlVal { color: #12202c; font-weight: 700; }
 
 /* ── Multi-symbol comparison legend (top-left overlay) ──
    Renders one row of color-coded sym+% chips when any comparison
@@ -638,7 +669,7 @@
   pointer-events: none;
   font-family: var(--font-sans);
 }
-.compareRowsSide {   /* vertical legend → to the right of .legendVertical, near its top */
+.compareRowsSide {   /* Legend V2 → to the right of the bar-info strip, near its top */
   top: calc(46px + var(--price-pane-top, 0px));
   left: 132px;
 }

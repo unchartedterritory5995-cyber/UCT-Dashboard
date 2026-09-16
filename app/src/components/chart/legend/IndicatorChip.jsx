@@ -145,6 +145,13 @@ export default function IndicatorChip({
   // the whole legend and that shared track is exactly what puts every value on
   // the same right edge.
   grid = false,
+  // ⭐⭐ `secondary` — A SIBLING OUTPUT OF THE CHIP ABOVE (Legend V2 §7). MACD's
+  // `SIG`, Bollinger's lower band. `legendChips` walks the INSTANCE list, so an
+  // instance's plots already arrive consecutive; this is the DOM finally saying
+  // so. One indent step and nothing else — the row keeps its own value, its own
+  // chevron and its own per-PLOT popover, because a sibling whose click did
+  // nothing is the exact complaint that produced the all-rows rule.
+  secondary = false,
 }) {
   const interactive = typeof onMenu === 'function'
 
@@ -285,7 +292,7 @@ export default function IndicatorChip({
          the alignment this variant exists for — while the row is one continuous
          hover box. */
       <span
-        className={`${styles.chipGridRow} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
         style={{ '--chip-color': chip.color, ...ink }}
         {...triggerProps}
         {...(interactive ? longPress : null)}
@@ -311,7 +318,18 @@ export default function IndicatorChip({
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend
             out of true. It measures zero and always did. */}
-        <span className={styles.chipGridCtl} />
+        {/* ⭐⭐ THE THIRD CELL CARRIES THE PERMANENT CHEVRON (Legend V2 §6) —
+            same element, same rules and same tombstones as `LegendRow.vChev`;
+            read that one for why a chevron that is ALWAYS drawn is not the two
+            that were retired. It still EMITS on a read-only mount, empty, because
+            the stack is one grid that fills by ORDER. */}
+        {interactive
+          ? (
+            <span className={styles.chipGridChev} aria-hidden="true">
+              <UIcon name="chevronRight" size={9} gold={false} />
+            </span>
+          )
+          : <span className={styles.chipGridCtl} />}
       </span>
     )
   }
