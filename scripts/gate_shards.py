@@ -287,6 +287,19 @@ GATE_READ_PATHS = (
 def gate_read_identical(sha_a: str, sha_b: str, paths=GATE_READ_PATHS, run=None):
     """(identical, differing) for the gate's read set between two commits.
 
+    ⚰️⚰️ THIS IS NO LONGER THE SOLE CARRY-OVER TEST — owner ruling 2026-09-15. It is now
+    **C0**, a SHORT-CIRCUIT: IDENTICAL still means the gate carries with no further check,
+    but DIFFERING no longer means re-gate. `app/src` is in the read set as a WHOLE
+    DIRECTORY, so this answered DIFFERS for any frontend commit anywhere on master — and
+    with a ~25 min gate against workstreams landing in `app/src` every ~10, carry-over
+    could never hold. Two sound gates died to it in one evening.
+
+    ⛔ The full rule is `tools/gate_carry_over.py` (C0 here, then C1 file-overlap, C2 AST
+    import interaction to depth 2, C3 infra, C4 scoped run, C5 the master deploy gate on
+    the landed SHA). **Do not re-derive "DIFFERS means re-gate" from this function's
+    existence** — that is the struck rule, and this repo has had a rescinded restriction
+    reinstated from its surviving mechanism three times.
+
     ⛔ A path that is MISSING on one side and present on the other counts as
     DIFFERING, not as equal-because-both-unreadable. Two absent paths hashing to
     the same "" is the vacuous answer this check exists to refuse.

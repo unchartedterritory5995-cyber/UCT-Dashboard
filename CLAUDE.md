@@ -2291,6 +2291,56 @@ reading the first.
 the tree hash at start AND end rather than trusting that the caller checked. A verification that
 cannot block the thing it verifies is decoration.
 
+### ⛔ Gate carry-over is judged on INTERACTION, not on a directory
+
+> Owner ruling, 2026-09-15. `tools/gate_carry_over.py` is the implementation and
+> `tests/test_gate_carry_over.py` the rail. **Do not re-derive this from the old wording.**
+
+⚰️ **STRUCK: "a sound gate carries only while `gate_read_identical` is IDENTICAL over
+`GATE_READ_PATHS`."** That set holds `app/src` as a WHOLE DIRECTORY, so any frontend
+commit anywhere on master voided carry-over — irrelevant though a chart-legend typography
+change is to a Notebook door guard. Measured the night it was struck: a six-shard gate
+costs ~25 min and the frontend workstreams were landing in `app/src` about every 10, so
+carry-over could **never** hold while they were active. Two sound gates died to it in one
+evening; the second was superseded before it finished running. Arithmetic, not luck.
+
+⭐ **The fix is not "narrow the directory."** A shorter path list is a guess about what
+matters, re-made by hand every time the tree moves — the second-authority defect this file
+keeps paying for. Interaction is derivable, so it is derived.
+
+A sound gate on tree **G** carries to landing tree **L** when ALL hold:
+
+| | check |
+|---|---|
+| **C0** | IDENTICAL over `GATE_READ_PATHS` ⇒ **CARRIES**, short-circuit, no further check |
+| **C1** | `git diff --name-only G..L` ∩ the branch's three-dot diff == ∅ |
+| **C2** | no import edge either direction, transitively to **depth 2**, resolved by AST |
+| **C3** | incoming touches no vite/vitest config, global test setup, `package*.json`, router, `App.jsx`, surfaces manifest, **or any `api/` the branch itself touches** |
+| **C4** | on L, the branch's own test files + the door-guard rail + the incoming files' own test files, by **explicit node id**, green |
+| **C5** | the `master deploy gate` workflow on the landed SHA — **production does not move without it** |
+
+⛔⛔ **C5 IS THE WHOLE SAFETY ARGUMENT — THIS IS A DEFERRAL, NOT A SKIP.** The master gate
+runs the full suite against the **actual landed tree** before `production` advances, and
+Railway deploys from `production`. The local gate proves the branch; C1–C4 prove the
+incoming commits cannot interact with it; the master gate re-verifies merged reality.
+**Delete C5 and this becomes a skip.** A red workflow = no deploy and an immediate report.
+
+⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
+C1–C3 failures **only** — disjoint commits that carry are not supersessions.
+
+⛔ **UNKNOWN IS NEVER A PASS.** No import graph, or an empty one, ⇒ RE-GATE. A failed git
+call RAISES rather than returning `[]`: every check passes trivially over an empty set, so
+a swallowed failure would manufacture a confident CARRIES.
+
+⚰️ **Two traps this cost on day one, both railed:**
+1. **`git diff G M` is a SYMMETRIC difference.** Diffing the gated tree against
+   *origin/master* lists the branch's own files as reversals — it reported an overlap of
+   35 against a branch of exactly 35 files, i.e. "C1 fails" for a provably disjoint
+   branch. **L is the LANDING tree (the merge), never master's tip.**
+2. **A C0 MISS is the ordinary case, not a failure.** Folding it into the failed set made
+   the tool answer RE-GATE for a tree whose C1, C2 and C3 all passed — the struck
+   directory-only rule surviving inside the tool built to replace it.
+
 ### ⛔ A measured fact cites its artifact; a census never becomes a name (R-CITE / R-RAW / R-HON)
 
 > Owner rulings, 2026-09-15, written from a claim that survived **three reports**
