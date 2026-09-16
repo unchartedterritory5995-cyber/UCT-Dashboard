@@ -57,7 +57,13 @@
 #!after: e-cp24-build-record <- e-cp23-build-record
 #!after: e-cp25-build-record <- e-cp24-build-record
 #!after: e-cp26-build-record <- e-cp25-build-record
-#!after: e-cp27-build-record <- e-cp26-build-record
+#!after: e-cp30-build-record <- e-cp25-build-record
+#!after: e-cp31-build-record <- e-cp30-build-record
+#!after: e-cp26-build-record <- e-cp31-build-record
+#!after: e-cp32-build-record <- e-cp26-build-record
+#!after: e-cp33-build-record <- e-cp32-build-record
+#!after: e-cp27-build-record <- e-cp33-build-record
+#!after: e-cp5-build-record <- t2-cp1-build-record
 #!after: e-cp28-build-record <- e-cp27-build-record
 #!after: e-cp29-build-record <- e-cp28-build-record
 #!after: t2-cp1-build-record <- e-cp4-build-record
@@ -78,6 +84,7 @@ docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | CP2 | 21d6ad3
 docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | fdfc697ce
 docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | CP2 | 00eecb391
 docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | CP4 | fcb2dd9b1
+docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 42eafe314
 docs/terminal-research/12-decisions/gates/e-cp5-build-record.md | CP5 | 789e35efd
 docs/terminal-research/12-decisions/gates/e-cp6-build-record.md | CP6 | 0052e2ac6
 docs/terminal-research/12-decisions/gates/e-cp7-build-record.md | CP7 | 98b4c8786
@@ -99,11 +106,14 @@ docs/terminal-research/12-decisions/gates/e-cp22-build-record.md | CP22 | ac382d
 docs/terminal-research/12-decisions/gates/e-cp23-build-record.md | CP23 | 78583d19b
 docs/terminal-research/12-decisions/gates/e-cp24-build-record.md | CP24 | c9904433a
 docs/terminal-research/12-decisions/gates/e-cp25-build-record.md | CP25 | 768f6e2fc
+docs/terminal-research/12-decisions/gates/e-cp30-build-record.md | CP30 | 451bc7295
+docs/terminal-research/12-decisions/gates/e-cp31-build-record.md | CP31 | f4fd0651f
 docs/terminal-research/12-decisions/gates/e-cp26-build-record.md | CP26 | cff0f04a6
+docs/terminal-research/12-decisions/gates/e-cp32-build-record.md | CP32 | 604b0dc69
+docs/terminal-research/12-decisions/gates/e-cp33-build-record.md | CP33 | 0651de213
 docs/terminal-research/12-decisions/gates/e-cp27-build-record.md | CP27 | a46b03961
 docs/terminal-research/12-decisions/gates/e-cp28-build-record.md | CP28 | 72443be8b
 docs/terminal-research/12-decisions/gates/e-cp29-build-record.md | CP29 | 1d216521b
-docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 42eafe314
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
 docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | CP3 | ba5e34e79
 docs/terminal-research/12-decisions/gates/k-cp4-build-record.md | CP4 | 35237823c

@@ -98,6 +98,10 @@ UNITS = [
     ("packet-e-ci-gap-gate", ["06d5bde92"], False),
     ("e-cp2-build-record", ["e767a7aab"], False),
     ("e-cp4-build-record", ["b70a874ed"], False),
+    # F-SIGN-4: this row sat LAST and its commit is chronologically #14; E CP5 and E CP6
+    # edit the same workflow file at #15 and #16, so the declared order CONFLICTED on
+    # unit 11. Measured by replaying the sequence onto a throwaway, not by reading it.
+    ("t2-cp1-build-record", ["4ad1108d1"], False),
     ("e-cp5-build-record", ["c619ac82c"], False),
     ("e-cp6-build-record", ["0d7c55fb1"], False),
     ("e-cp7-build-record", ["dbc494828"], False),
@@ -118,12 +122,15 @@ UNITS = [
     ("e-cp22-build-record", ["03ebbd7f7"], False),
     ("e-cp23-build-record", ["953142d0b"], False),
     ("e-cp24-build-record", ["9fa4ee150"], False),
-    ("e-cp25-build-record", [], False),                     # docs worktree only
-    ("e-cp26-build-record", [], False),                     # docs worktree only
-    ("e-cp27-build-record", [], False),                     # docs worktree only
-    ("e-cp28-build-record", [], False),                     # docs worktree only
-    ("e-cp29-build-record", [], False),                     # docs worktree only
-    ("t2-cp1-build-record", ["4ad1108d1"], False),
+    ("e-cp25-build-record", ["ce615a2eb", "8c39c4c28"], False),
+    ("e-cp30-build-record", ["e02dca955"], False),           # F-CI-29
+    ("e-cp31-build-record", ["16027f239", "4feaeb86f"], False),  # split attempt 1 + revert
+    ("e-cp26-build-record", ["8a8ebe0ab"], False),
+    ("e-cp32-build-record", ["4274e26cc"], False),           # F-CI-32
+    ("e-cp33-build-record", ["240bb3305"], False),           # F-CI-36
+    ("e-cp27-build-record", ["5a58d91cf"], False),
+    ("e-cp28-build-record", ["304ac481c"], False),
+    ("e-cp29-build-record", ["e703af0a8"], False),
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
     ("k-cp4-build-record", [], False),                       # docs worktree only

@@ -61,6 +61,26 @@ def _is_sha_shaped(tok: str) -> bool:
 #: phantom-checked: if a string here stops appearing in the docs, the allowlist has
 #: rotted and the scan fails on THAT.
 QUOTED_DEAD: dict[str, str] = {
+    # ── ILLUSTRATIVE PLACEHOLDERS, never citations. Each is a made-up sha used INSIDE a
+    # worked example, and each has to stay in the text because the example is about the
+    # shape of a sha. Declared here rather than reworded, because rewording them is how a
+    # worked example stops demonstrating the thing it demonstrates.
+    # ⛔ They are NOT the historical blank-scope packets (s1 / s2 / intelligence-layer) —
+    # those are section H's finding and are a different question entirely.
+    "deadbeef": (
+        "SESSION_REPORT_2026-09-15_5's worked example of the merged-state check: the "
+        "fixture shas are deliberately fake so the reader cannot mistake the example "
+        "for a record of a real merge."),
+    "c0ffee01": (
+        "the same worked example's second fixture sha, same reason."),
+    "000000a1": (
+        "the same worked example's third fixture sha, chosen to look nothing like a "
+        "real abbreviation while still being sha-shaped."),
+    "deadbeefdeadbeef": (
+        "e-cp26-build-record's illustration of a full-length commitHash in a "
+        "`railway deployment list` payload. A 16-char fabrication on purpose: the row "
+        "lookup it demonstrates matches on prefix, and a real sha there would read as "
+        "a claim that a specific deploy was inspected."),
     "37bfe4251": (
         "D4's SUPERSEDED approval fingerprint. It was a real hash-object of the "
         "packet's single-line approval block, which the owner replaced on 2026-09-13 "
