@@ -1,0 +1,78 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 34,
+    "unchanged": 88,
+    "missing": 0,
+    "baseline": 122,
+    "current": 90,
+    "current_ran": 44414,
+    "new_flaky": 1,
+    "flaky_size": 6,
+    "flaky_new": 0,
+    "flaky_fixed": 0,
+    "file_level_resolved": 1,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 122 = unchanged 88 + fixed 34 + missing 0  |  current 90 = unchanged 88 + new 1 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35008710335",
+  "current_run_id": "35047044627",
+  "new": [
+    "pytest|tests.test_nb_foreign_commits|test_the_tools_own_self_check_passes[args0-0]"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_alert_taxonomy_scan_membership_change_schema|test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it",
+    "pytest|tests.test_ast_math_parity|test_the_two_lanes_agree_everywhere",
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_discord_render_vintage_url|test_the_base_blob_really_is_an_older_version_of_the_file",
+    "pytest|tests.test_discord_render_vintage_url|test_the_comparison_can_actually_fail",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[bare-daily]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[breadth]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[compare]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[dpzones]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[exttag]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[instances]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[intraday-30-noext]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[intraday-5-ext]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[panned]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[stats-daily]",
+    "pytest|tests.test_discord_render_vintage_url|test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from[weekly-prefs]",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_ticker_explain.TestRoute|test_requires_auth",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/components/chart/engine/__tests__/enumerationSites.test.js|the enumeration ledger \u2014 the count is a test, not a comment > \u26d4 StockChart imports no compute function at all \u2014 the lane is the ENGINE lane",
+    "vitest|src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx|src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx",
+    "vitest|src/components/chart/engine/readout.test.js|the chip declarations cannot silently lose \u2014 or gain \u2014 a chip > and the colour a chip wears is the one its shipped row wore",
+    "vitest|src/components/chart/engine/readout.test.js|the chip declarations cannot silently lose \u2014 or gain \u2014 a chip > every declared chip formats exactly as its shipped row did",
+    "vitest|src/components/chart/engine/readout.test.js|the chip declarations cannot silently lose \u2014 or gain \u2014 a chip > the NINE chips the shipped legend rendered are exactly the nine that shipped",
+    "vitest|src/hub/rule12Paths.test.js|rule 12 \u2014 the Notebook workstream owns these paths > the rail can actually see this branch's changes \u2014 the non-vacuity control",
+    "vitest|src/hub/rule12Paths.test.js|rule 12 \u2014 the Notebook workstream owns these paths > \u26d4 no file under the Notebook workstream's paths is touched, except the one permitted card",
+    "vitest|src/hub/rule12Paths.test.js|rule 12 \u2014 the Notebook workstream owns these paths > \u26d4 the on-base branch is IDENTIFIED, not guessed \u2014 the control keeps its teeth",
+    "vitest|src/hub/rule12Paths.test.js|rule 12 \u2014 the Notebook workstream owns these paths > \u26d4 the permitted file may ONLY gain the attribute \u2014 the exception is a shape, not a filename",
+    "vitest|src/hub/surfaceMatrixIsCurrent.test.js|the generated joystick artifacts are current > glass-acceptance-steps.md matches the registry as it stands",
+    "vitest|src/hub/surfaceMatrixIsCurrent.test.js|the generated joystick artifacts are current > surface-matrix.md matches the registry as it stands",
+    "vitest|src/hub/surfaceMatrixIsCurrent.test.js|the generated joystick artifacts are current > the Since-Inc-2 column DISCRIMINATES \u2014 it is computed, not decoration",
+    "vitest|src/hub/surfaceMatrixIsCurrent.test.js|the generated joystick artifacts are current > the generator produces a real table before anything is compared"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing",
+    "pytest|tests.test_ticker_explain.TestRoute|test_requires_auth",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/context/AuthContext.test.jsx|AuthContext fetchUser \u2014 transient vs definitive session-check failures > 503 on a REFETCH with a logged-in user \u2192 user and plan state PRESERVED"
+  ],
+  "file_level_resolved": [
+    "vitest|src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx|src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx"
+  ],
+  "coverage_lost": [],
+  "missing_buckets": {}
+}
