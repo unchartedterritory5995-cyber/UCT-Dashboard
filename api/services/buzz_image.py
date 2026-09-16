@@ -209,7 +209,7 @@ def _probe_rows(resp) -> int | None:
     return v if isinstance(v, int) and not isinstance(v, bool) else None
 
 
-def render_board_png(window: str = "open", *, client=None) -> bytes | None:
+def render_board_png(window: str = "open", *, cls: int, client=None) -> bytes | None:
     """Cached, single-flighted, slot-limited board render. See the valve note
     above. Returns None on every failure path -- the caller degrades to the
     text board rather than apologising."""
@@ -228,7 +228,7 @@ def render_board_png(window: str = "open", *, client=None) -> bytes | None:
         png = _cache_get(window)
         if png is not None:
             return png
-        png = _render_uncached(window, client=client)
+        png = _render_uncached(window, cls=cls, client=client)
         if png:
             _cache_put(window, png)
         return png
@@ -236,7 +236,13 @@ def render_board_png(window: str = "open", *, client=None) -> bytes | None:
         lock.release()
 
 
-def _render_uncached(window: str = "open", *, client=None) -> bytes | None:
+def _render_uncached(window: str = "open", *, cls: int, client=None) -> bytes | None:
+    """⛔⛔ `cls` IS REQUIRED AND CANNOT BE INFERRED HERE. This ONE function serves two
+    classes: a member typing `/buzz` and the scheduled board that posts seven times a
+    session. Guessing from inside — a thread name, a flag, "is a scheduler running" —
+    would put a second authority on a fact the caller already knows, and the failure is
+    silent in the dangerous direction: infer wrong and the scheduled board outranks a
+    member who is waiting, seven times a day, with nothing to notice it."""
     renderer = os.environ.get("CHART_RENDERER_URL", "").strip().rstrip("/")
     if not renderer:
         return None
@@ -249,7 +255,7 @@ def _render_uncached(window: str = "open", *, client=None) -> bytes | None:
     # lane at the same renderer. Imported lazily: discord_interactions is a
     # heavy module and nothing here needs it until a render actually happens.
     from api.services.discord_interactions import RENDER_SLOTS
-    if not RENDER_SLOTS.acquire(timeout=_SLOT_WAIT_S):
+    if not RENDER_SLOTS.acquire(timeout=_SLOT_WAIT_S, cls=cls):
         log.info("[buzz] no render slot within %.0fs -- text-only board", _SLOT_WAIT_S)
         return None
     try:

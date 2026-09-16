@@ -6,6 +6,8 @@ import datetime as dt
 
 import pytest
 
+
+from api.services.render_gate import MEMBER
 ET = dt.timezone(dt.timedelta(hours=-4))
 
 
@@ -31,7 +33,7 @@ def test_digest_refuses_to_post_while_disarmed(mods, monkeypatch):
     monkeypatch.delenv("BUZZ_DIGEST_ENABLED", raising=False)
     posts = []
     out = digest.run_digest(now=int(dt.datetime(2026, 9, 1, 16, 10, tzinfo=ET).timestamp()),
-                            render_fn=lambda w: b"\x89PNG-fake",
+                            render_fn=lambda w, **k: b"\x89PNG-fake",
                             post_fn=lambda **kw: posts.append(kw) or True)
     assert posts == []
     assert out["posted"] is False
@@ -67,9 +69,9 @@ def test_digest_posts_once_per_day(mods, monkeypatch):
         posts.append(kw)
         return True
 
-    first = digest.run_digest(now=now, render_fn=lambda w: b"\x89PNGdata", post_fn=post)
+    first = digest.run_digest(now=now, render_fn=lambda w, **k: b"\x89PNGdata", post_fn=post)
     assert first["posted"] is True and len(posts) == 1
-    second = digest.run_digest(now=now + 60, render_fn=lambda w: b"\x89PNGdata", post_fn=post)
+    second = digest.run_digest(now=now + 60, render_fn=lambda w, **k: b"\x89PNGdata", post_fn=post)
     assert second["posted"] is False, "already posted today"
     assert len(posts) == 1
 
@@ -82,7 +84,7 @@ def test_digest_posts_text_when_the_render_fails(mods, monkeypatch):
     store.record_mentions([(str(1000 + i), "CH1", f"u{i}", "NVDA", ts, "exact") for i in range(6)])
     posts = []
     out = digest.run_digest(now=int(dt.datetime(2026, 9, 1, 16, 10, tzinfo=ET).timestamp()),
-                            render_fn=lambda w: None,
+                            render_fn=lambda w, **k: None,
                             post_fn=lambda **kw: posts.append(kw) or True)
     assert out["posted"] is True
     assert posts[0]["png"] is None and "NVDA" in posts[0]["content"]
@@ -94,7 +96,7 @@ def test_digest_skips_a_day_with_nothing_to_say(mods, monkeypatch):
     monkeypatch.setenv("BUZZ_DIGEST_WEBHOOK", "https://example.invalid/hook")
     posts = []
     out = digest.run_digest(now=int(dt.datetime(2026, 9, 1, 16, 10, tzinfo=ET).timestamp()),
-                            render_fn=lambda w: b"\x89PNG",
+                            render_fn=lambda w, **k: b"\x89PNG",
                             post_fn=lambda **kw: posts.append(kw) or True)
     assert out["posted"] is False and posts == []
 
@@ -115,7 +117,7 @@ def test_a_non_png_body_is_rejected(mods, monkeypatch):
         def post(self, *a, **k):
             return FakeResp()
 
-    assert image.render_board_png("open", client=FakeClient()) is None
+    assert image.render_board_png("open", cls=MEMBER, client=FakeClient()) is None
 
 
 def test_a_ready_but_empty_board_is_rejected(mods, monkeypatch):
@@ -139,7 +141,7 @@ def test_a_ready_but_empty_board_is_rejected(mods, monkeypatch):
         def post(self, *a, **k):
             return FakeResp()
 
-    assert image.render_board_png("open", client=FakeClient()) is None
+    assert image.render_board_png("open", cls=MEMBER, client=FakeClient()) is None
 
 
 def test_a_ready_and_drawn_board_is_kept(mods, monkeypatch):
@@ -160,7 +162,7 @@ def test_a_ready_and_drawn_board_is_kept(mods, monkeypatch):
         def post(self, *a, **k):
             return FakeResp()
 
-    assert image.render_board_png("open", client=FakeClient()) == b"\x89PNGdata"
+    assert image.render_board_png("open", cls=MEMBER, client=FakeClient()) == b"\x89PNGdata"
 
 
 def _arm(monkeypatch):
@@ -191,14 +193,14 @@ def test_a_later_slot_is_NOT_blocked_by_an_earlier_one(mods, monkeypatch):
     for h, m in [(10, 0), (10, 30), (11, 30), (12, 30), (14, 0), (16, 15), (17, 30)]:
         now = int(dt.datetime(2026, 9, 1, h, m, tzinfo=ET).timestamp())
         out = digest.run_digest(now=now, slot=digest.slot_label(h, m),
-                                render_fn=lambda w: b"\x89PNGdata", post_fn=post)
+                                render_fn=lambda w, **k: b"\x89PNGdata", post_fn=post)
         assert out["posted"] is True, f"{h:02d}:{m:02d} was blocked: {out}"
     assert len(posts) == 7
 
     # ...and each one is still individually idempotent.
     now = int(dt.datetime(2026, 9, 1, 11, 30, tzinfo=ET).timestamp())
     again = digest.run_digest(now=now, slot="11:30",
-                              render_fn=lambda w: b"\x89PNGdata", post_fn=post)
+                              render_fn=lambda w, **k: b"\x89PNGdata", post_fn=post)
     assert again["posted"] is False
     assert len(posts) == 7
 
@@ -240,7 +242,7 @@ def test_a_quiet_slot_does_not_cancel_the_next_one(mods, monkeypatch):
     # The room speaks, and the SAME slot can still post later in its window.
     _seed(store)
     out2 = digest.run_digest(now=quiet + 300, slot="10:00",
-                             render_fn=lambda w: None, post_fn=lambda **kw: posts.append(kw) or True)
+                             render_fn=lambda w, **k: None, post_fn=lambda **kw: posts.append(kw) or True)
     assert out2["posted"] is True and len(posts) == 1
 
 
@@ -259,9 +261,9 @@ def test_a_late_misfire_dedups_against_the_slot_it_was_meant_to_be(mods, monkeyp
 
     on_time = int(dt.datetime(2026, 9, 1, 16, 15, tzinfo=ET).timestamp())
     assert digest.run_digest(now=on_time, slot="16:15",
-                             render_fn=lambda w: None, post_fn=post)["posted"] is True
+                             render_fn=lambda w, **k: None, post_fn=post)["posted"] is True
     late = int(dt.datetime(2026, 9, 1, 16, 18, tzinfo=ET).timestamp())
-    out = digest.run_digest(now=late, render_fn=lambda w: None, post_fn=post)  # no slot passed
+    out = digest.run_digest(now=late, render_fn=lambda w, **k: None, post_fn=post)  # no slot passed
     assert out["slot"] == "16:15", out
     assert out["posted"] is False
     assert len(posts) == 1
@@ -287,7 +289,7 @@ def test_a_channel_id_posts_as_the_bot_and_needs_no_webhook(mods, monkeypatch):
     monkeypatch.setattr(digest, "_post_as_bot", fake_bot_post)
     monkeypatch.setattr(digest, "_post", lambda *a, **k: pytest.fail("webhook path must not run"))
     now = int(dt.datetime(2026, 9, 1, 10, 0, tzinfo=ET).timestamp())
-    out = digest.run_digest(now=now, slot="10:00", render_fn=lambda w: None)
+    out = digest.run_digest(now=now, slot="10:00", render_fn=lambda w, **k: None)
     assert out["posted"] is True
     assert seen["channel"] == "1216816863313657886"
     assert "Most talked about" in seen["content"]
@@ -306,7 +308,7 @@ def test_the_channel_wins_when_both_destinations_are_set(mods, monkeypatch):
     monkeypatch.setattr(digest, "_post_as_bot", lambda c, t, p: route.append("bot") or True)
     monkeypatch.setattr(digest, "_post", lambda u, t, p: route.append("webhook") or True)
     now = int(dt.datetime(2026, 9, 1, 12, 30, tzinfo=ET).timestamp())
-    assert digest.run_digest(now=now, slot="12:30", render_fn=lambda w: None)["posted"] is True
+    assert digest.run_digest(now=now, slot="12:30", render_fn=lambda w, **k: None)["posted"] is True
     assert route == ["bot"]
 
 
@@ -322,7 +324,7 @@ def test_a_channel_without_a_bot_token_fails_loudly_instead_of_posting(mods, mon
     _seed(store)
     now = int(dt.datetime(2026, 9, 1, 14, 0, tzinfo=ET).timestamp())
     with caplog.at_level(logging.WARNING):
-        out = digest.run_digest(now=now, slot="14:00", render_fn=lambda w: None)
+        out = digest.run_digest(now=now, slot="14:00", render_fn=lambda w, **k: None)
     assert out["posted"] is False
     assert "DISCORD_BOT_TOKEN" in caplog.text
     assert digest.already_posted("2026-09-01 14:00") is False, "a failed post must not consume the slot"
@@ -347,7 +349,7 @@ def test_a_slot_the_scheduler_never_fired_is_posted_within_the_window(mods, monk
     monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
     posts = []
     out = digest.catch_up(now=_at(16, 25),          # 10m after the 16:15 slot
-                          render_fn=lambda w: None,
+                          render_fn=lambda w, **k: None,
                           post_fn=lambda **kw: posts.append(kw) or True)
     assert out["posted"] is True
     assert out["slot"] == "16:15", "it must post under the SLOT's label, not the clock's"
@@ -360,7 +362,7 @@ def test_a_caught_up_slot_is_not_posted_a_second_time(mods, monkeypatch):
     monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
     monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
     posts = []
-    kw = dict(render_fn=lambda w: None, post_fn=lambda **k: posts.append(k) or True)
+    kw = dict(render_fn=lambda w, **k: None, post_fn=lambda **k: posts.append(k) or True)
     assert digest.catch_up(now=_at(16, 20), **kw)["posted"] is True
     assert digest.catch_up(now=_at(16, 21), **kw)["posted"] is False
     assert digest.catch_up(now=_at(16, 22), **kw)["posted"] is False
@@ -379,7 +381,7 @@ def test_a_slot_missed_by_an_hour_is_recorded_and_warned_not_posted(mods, monkey
     posts = []
     with caplog.at_level(logging.WARNING):
         out = digest.catch_up(now=_at(17, 25),      # 70m after 16:15
-                              render_fn=lambda w: None,
+                              render_fn=lambda w, **k: None,
                               post_fn=lambda **k: posts.append(k) or True)
     assert out["posted"] is False
     assert posts == []
@@ -394,10 +396,10 @@ def test_a_slot_written_off_is_not_re_warned_every_minute(mods, monkeypatch, cap
     import logging
     monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
     monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
-    digest.catch_up(now=_at(17, 25), render_fn=lambda w: None, post_fn=lambda **k: True)
+    digest.catch_up(now=_at(17, 25), render_fn=lambda w, **k: None, post_fn=lambda **k: True)
     caplog.clear()
     with caplog.at_level(logging.WARNING):
-        digest.catch_up(now=_at(17, 26), render_fn=lambda w: None, post_fn=lambda **k: True)
+        digest.catch_up(now=_at(17, 26), render_fn=lambda w, **k: None, post_fn=lambda **k: True)
     assert "MISSED" not in caplog.text
 
 
@@ -409,7 +411,7 @@ def test_nothing_is_caught_up_before_the_first_slot(mods, monkeypatch):
     monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
     monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
     posts = []
-    out = digest.catch_up(now=_at(9, 45), render_fn=lambda w: None,
+    out = digest.catch_up(now=_at(9, 45), render_fn=lambda w, **k: None,
                           post_fn=lambda **k: posts.append(k) or True)
     assert out["posted"] is False and posts == []
 
@@ -424,7 +426,7 @@ def test_the_weekend_is_never_caught_up(mods, monkeypatch):
     sat = int(dt.datetime(2026, 9, 5, 16, 25, tzinfo=ET).timestamp())
     assert dt.datetime.fromtimestamp(sat, ET).weekday() == 5, "fixture must be a Saturday"
     posts = []
-    out = digest.catch_up(now=sat, render_fn=lambda w: None,
+    out = digest.catch_up(now=sat, render_fn=lambda w, **k: None,
                           post_fn=lambda **k: posts.append(k) or True)
     assert out["posted"] is False and posts == []
 
@@ -441,7 +443,7 @@ def test_a_disarmed_digest_catches_nothing_up_and_stays_quiet(mods, monkeypatch,
     monkeypatch.delenv("BUZZ_DIGEST_ENABLED", raising=False)
     posts = []
     with caplog.at_level(logging.WARNING):
-        out = digest.catch_up(now=_at(17, 25), render_fn=lambda w: None,
+        out = digest.catch_up(now=_at(17, 25), render_fn=lambda w, **k: None,
                               post_fn=lambda **k: posts.append(k) or True)
     assert out["posted"] is False and posts == []
     assert "MISSED" not in caplog.text
@@ -491,7 +493,7 @@ def test_a_missed_checkpoint_pages_a_human_not_just_the_log(mods, monkeypatch):
     _seed(store)
     monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
     monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
-    digest.catch_up(now=_at(17, 25), render_fn=lambda w: None, post_fn=lambda **k: True)
+    digest.catch_up(now=_at(17, 25), render_fn=lambda w, **k: None, post_fn=lambda **k: True)
     fired = chart_health_alerts.list_recent()
     slot_alerts = [a for a in fired if a["alert_key"].startswith("buzz_slot_missed:")]
     assert slot_alerts, "a dropped checkpoint raised no alert"
@@ -519,7 +521,7 @@ def test_a_posted_checkpoint_pages_nobody(mods, monkeypatch):
     # right reason is still not a control.)
     for h, m in [(10, 0), (10, 30), (11, 30), (12, 30), (14, 0)]:
         digest.mark_posted(f"2026-09-01 {digest.slot_label(h, m)}")
-    out = digest.catch_up(now=_at(16, 25), render_fn=lambda w: None,
+    out = digest.catch_up(now=_at(16, 25), render_fn=lambda w, **k: None,
                           post_fn=lambda **k: True)
     assert out["posted"] is True
     assert [a for a in chart_health_alerts.list_recent()
@@ -538,7 +540,7 @@ def test_an_alerting_failure_never_costs_the_room_its_ingest(mods, monkeypatch):
     def _boom(*a, **k):
         raise RuntimeError("alerting is down")
     monkeypatch.setattr(chart_health_alerts, "emit", _boom)
-    out = digest.catch_up(now=_at(17, 25), render_fn=lambda w: None,
+    out = digest.catch_up(now=_at(17, 25), render_fn=lambda w, **k: None,
                           post_fn=lambda **k: True)
     assert out["posted"] is False          # returned normally, did not propagate
     assert "2026-09-01 16:15" in digest.missed_keys()   # and still recorded the miss
@@ -578,7 +580,7 @@ def test_the_scheduled_post_is_never_ephemeral(mods, monkeypatch):
 
     import requests
     monkeypatch.setattr(requests, "post", _capture)
-    out = digest.run_digest(now=_at(16, 15), slot="16:15", render_fn=lambda w: None)
+    out = digest.run_digest(now=_at(16, 15), slot="16:15", render_fn=lambda w, **k: None)
     assert out["posted"] is True
     assert "/channels/" in sent["url"], "the digest must post as the bot, not as an interaction"
     assert "flags" not in sent["payload"], "an ephemeral scheduled board is invisible to the room"
