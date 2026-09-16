@@ -1481,3 +1481,31 @@ burst clause while foreign pushes — the very traffic that answers the question
 past it. Had those deploys instead come from `master`, the 20-minute rollback condition
 would have elapsed unobserved. **When the thing you are waiting to cause is something
 others also cause, read before you wait.**
+
+### ⚠️ POOL A VOIDED BY A FOREIGN HOT-PATH CHANGE (2026-09-16)
+
+Pool A had reached n=14 on `d5f2c8d83` (p50 271.5 ms) when a foreign promotion moved
+production to `9906a7fcd`. Pool validity is hot-path byte-identity, and one of the eight
+hot-path files changed:
+
+| file | |
+|---|---|
+| `api/services/breadth_daily_ohlc.py` | **DIFFERENT** (+35 lines, from the breadth-library workstream) |
+| the other seven | SAME |
+
+**Pool A is VOID and restarts on `9906a7fcd`.** Recorded, not argued with (SD-1.6 R-2).
+The rows are not deleted — the report groups by `(sha, flag_observed)`, so a voided pool
+simply forms its own group and can never be silently merged into the live one.
+
+⛔ **The first run of this check had a BROKEN CONTROL and I nearly accepted it.** The
+control file I picked (`docs/breadth/DECISIONS.md`) is identical between the two SHAs —
+my edits are on a branch, not on master — so it printed "IDENTICAL: comparison may be
+blind", which cannot distinguish a working comparison from a blind one. Re-run with a
+POSITIVE control taken from the actual diff (must read DIFFERENT) and a NEGATIVE control
+outside it (must read SAME), both of which behaved correctly. **A control has to be chosen
+so that it would fail if the instrument were broken** — picking one that happens to agree
+proves nothing.
+
+⚠️ **Operational consequence, stated plainly:** other breadth workstreams are editing the
+reader's hot path tonight. Every such change voids the pool and restarts it, so n≥59 on a
+single SHA may be unreachable in one session. SD-1.6 R-6's fallback governs.
