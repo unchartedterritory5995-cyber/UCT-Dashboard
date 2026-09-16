@@ -107,6 +107,7 @@ UNITS = [
     ("e-cp24-build-record", ["9fa4ee150"], False),
     ("e-cp25-build-record", [], False),                     # docs worktree only
     ("e-cp26-build-record", [], False),                     # docs worktree only
+    ("e-cp27-build-record", [], False),                     # docs worktree only
     ("t2-cp1-build-record", ["4ad1108d1"], False),
     ("packet-k-two-command-signing-gate", [], False),        # docs worktree only
     ("k-cp3-build-record", [], False),                       # docs worktree only
