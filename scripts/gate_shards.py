@@ -47,6 +47,12 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # saying so loudly is the correct behaviour.
 sys.path.insert(0, str(REPO / "tools"))
 import gate_box_lock  # noqa: E402
+# ⛔ SAME RULING, SAME REASON. The lock hands back a load reading and this file renders it; a
+# guarded import would turn a missing sampler into a gate that quietly stopped saying whether the
+# box was busy. ⚰️ It was MISSING on the first cut of C-4 — `_announce_box_load` referenced the
+# module and every path that reaches it is an exception path, so the unit tests were green and the
+# NameError only surfaced when a rail drove `main()` end to end.
+import gate_box_sampler  # noqa: E402
 APP = REPO / "app"
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -644,6 +650,38 @@ def render(manifest: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _announce_box_load(load: dict | None) -> None:
+    """Say what the box is DOING, beside what the lock says about who HOLDS it.
+
+    ⛔⛔ IT REPORTS; IT NEVER REFUSES. The lock is advisory — a queue, not a mutex — and a gate
+    that refused on observed load would deadlock behind its own vitest workers the moment the
+    exclusion logic drifted, and would be blocked by any co-resident pytest run in the meantime.
+    The operator decides; this makes sure they are not deciding on the strength of `FREE` alone,
+    which is what `gate_box_lock status` printed onto a box with fifteen live processes on it.
+
+    ⛔ AND AN UNREADABLE PROBE IS SAID OUT LOUD, not treated as a quiet box. "We could not look"
+    and "there was nothing to see" call for different responses.
+    """
+    state = (load or {}).get("state")
+    if state == gate_box_sampler.LOAD_BUSY:
+        say("", err=True)
+        say("  ⚠ THE BOX IS NOT QUIET — " + gate_box_sampler.describe_load(load), err=True)
+        for proc in (load or {}).get("processes") or []:
+            say(f"      {proc['kind']:<7} pid {proc['pid']:<7} "
+                f"{(proc.get('command_line') or '')[:110]}", err=True)
+        say("  Nothing here refuses the run: the lock is advisory and only a LIVE HOLDER "
+            "refuses it.", err=True)
+        say("  But a shard's totals line has gone missing on a contended box before, and an "
+            "INVALID", err=True)
+        say("  manifest costs 13 minutes. Consider waiting, or --max-workers 1.", err=True)
+    elif state in (gate_box_sampler.LOAD_UNREADABLE, gate_box_sampler.LOAD_NOT_PROBED):
+        say("", err=True)
+        say("  ⛔ " + gate_box_sampler.describe_load(load), err=True)
+        say("  That is NOT 'the box is quiet' — it is an unanswered question. A count of 0 from "
+            "a probe", err=True)
+        say("  that never ran is indistinguishable from a genuinely idle machine.", err=True)
+
+
 def main(argv=None) -> int:
     ap = _Parser(description=__doc__)
     ap.add_argument("--shards", type=int, default=6)
@@ -676,6 +714,7 @@ def main(argv=None) -> int:
     run_id = _dt.datetime.now().isoformat(timespec="seconds")
     try:
         lock = gate_box_lock.acquire(run_id, worktree=REPO)
+        _announce_box_load(lock.get("load"))
     except gate_box_lock.LockHeld as e:
         # ⛔ ONE LINE NAMING THE HOLDER. "The box is busy" sends the reader nowhere; a pid, a
         # start time and a command line tell them whose run to wait for and who to ask.
@@ -684,6 +723,9 @@ def main(argv=None) -> int:
             f'{gate_box_lock.BYPASS_ENV}="<reason>" — but read the next line first.', err=True)
         say("  ⛔ A BYPASS NEVER BUYS A CLEAR VERDICT: the run is still sampled and still lands "
             "INCONCLUSIVE-CONTENDED while that holder is alive.", err=True)
+        # ⛔ THE HOLDER AND THE LOAD ARE TWO SEPARATE SENTENCES. Knowing whose run holds the
+        # ticket does not tell you what the box is doing; a refused caller needs both.
+        say("  " + gate_box_sampler.describe_load(getattr(e, "load", None)), err=True)
         say(verdict_line(EXIT_LOCK_HELD, holder_pid=(e.holder or {}).get("pid"),
                          held_since=(e.holder or {}).get("started_at"),
                          holder_workstream=(e.holder or {}).get("workstream") or "unknown"))
