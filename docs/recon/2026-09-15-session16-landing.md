@@ -163,9 +163,13 @@ segment complete within one night.
 - `git status --porcelain` clean; `origin/feat/wisdom-loop...HEAD` = 0 0.
 - **3 authored commits + 1 sync merge.** Off-limits diff EMPTY on each. `app/` 0, non-wisdom
   `api/` 0.
-- **Master NOT pushed.** `is-ancestor(HEAD, origin/master)` = FALSE. No local `master` branch was
-  ever created (the tool detaches instead, and `git checkout master` is impossible here anyway) —
-  `git branch --list master` is empty.
+- **Master NOT pushed.** `is-ancestor(HEAD, origin/master)` = FALSE. **This session created no
+  local `master` branch** — the landing tool detaches at `origin/master` instead.
+  ⚠️ **A local `master` DOES exist and it is not mine**: `git branch --list master -v` shows it
+  marked `+` (checked out in another workstream's worktree, at `57113d1ac`, 137 behind). That is
+  precisely why `git checkout master` is impossible here, and it is **not mine to delete** —
+  removing it would break that worktree. An earlier draft of this report claimed
+  `git branch --list master` is empty; that was wrong and is corrected here rather than quietly.
 - **Production-state changes: NONE.** No landing, no Railway variable, no seed, no flag.
 - **Ledger byte-identical**: 5,406 bytes, sha `b182b329`, 28 entries, `31.481462 / 100.0`.
 - **EXTRACT and ASKAI proved UNSET on ALL FIVE services** by name-only probes under `railway run`
