@@ -87,6 +87,12 @@ def _do_not_shell_out_to_the_real_do_not_build_sweep(monkeypatch):
 
 from gate_shards import (  # noqa: E402
     GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
+    # ⛔ IMPORTED, NEVER RESTATED. `unexplained` lived in THIS FILE until 2026-09-15 and the
+    # product never called it, so the suite enforced a contract the gate did not. It is now
+    # `gate_shards.unexplained` and the rails below drive the SAME function the verdict does;
+    # a copy here would be a second authority agreeing with itself (R-05 / the contract test
+    # whose harness restated the contract).
+    unexplained,
 )
 # ⛔ Bound HERE, at import, so the autouse stub below cannot reach it. The one test that
 # exercises the REAL sweep calls THIS name; every other test gets the stub.
@@ -702,17 +708,11 @@ def _baseline():
     return json.loads(p.read_text(encoding='utf-8'))
 
 
-def unexplained(baseline: dict) -> list[str]:
-    """expected_red entries with no reason beside them.
-
-    ⛔ ONE implementation, shared by the rail and by its control. A control
-    that re-implements the predicate agrees with ITSELF and says nothing about
-    the thing under test — which is R-05 exactly: the contract test whose
-    harness restated the contract, so both agreed and neither matched the
-    product.
-    """
-    reasons = baseline.get('expected_red_reasons', {})
-    return [e for e in baseline.get('expected_red', []) if e not in reasons]
+# ⛔ `unexplained` USED TO BE DEFINED RIGHT HERE. It is imported at the top of this file now and
+# lives in `scripts/gate_shards.py`, because "one implementation shared by the rail and by its
+# control" was still one implementation SHORT: the product itself did not have it, so a baseline
+# carrying an unexplained waiver passed the gate and failed only the test suite. Promoting it made
+# the gate return `EXIT_UNEXPLAINED_RED`; the rails below drive that path.
 
 
 def test_every_expected_red_entry_names_a_reason_and_what_it_waits_on():
@@ -759,6 +759,115 @@ def test_the_rail_can_fail_a_non_vacuity_control():
     assert unexplained(explained) == [], (
         'the pairing check cannot tell an EXPLAINED entry apart — a check that '
         'answers no to everything passes for the wrong reason')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# C-3 — the predicate above is now part of the VERDICT, not only of the suite.
+# Until 2026-09-15 `unexplained` existed solely in this file: `compare_failures`
+# subtracted every `expected_red` entry out of `new` without asking whether the
+# entry named a reason, so a gate run against a baseline carrying an unsigned
+# waiver printed VERDICT=NO_NEW_FAILURES exit=0.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _clean_manifest(unexplained_entries: list[str]) -> dict:
+    """A manifest that is GREEN in every other direction, so the only thing under test is this.
+
+    ⛔ Deliberately reconciling and deliberately empty everywhere else: if any other field could
+    also produce a non-zero code, the rail below would pass without the new check existing.
+    """
+    return {
+        "summed": {"files": {"total": 10, "failed": 0}, "tests": {"total": 100, "failed": 0}},
+        "per_shard": [{"shard": 1, "files": {"total": 10}}],
+        "test_files_on_disk": 10, "test_files_waived": 0,
+        "file_count_reconciles": True,
+        "vs_baseline": {
+            "new": [], "no_longer_failing": [],
+            "expected_red_seen": [], "expected_red_stale": [],
+            "expected_red_unexplained": list(unexplained_entries),
+        },
+    }
+
+
+def test_an_unexplained_expected_red_entry_gets_ITS_OWN_verdict_class():
+    """⛔ NOT A PASS AND NOT A REGRESSION — the third answer.
+
+    The entry was already subtracted out of `new` by `compare_failures`, so `new: 0` here is an
+    unanswered question wearing a green. The code must be distinguishable from BOTH neighbours:
+    a caller told NEW_FAILURES goes hunting for a regression that does not exist, and a caller
+    told NO_NEW_FAILURES merges on an excuse nobody wrote down.
+    """
+    import gate_shards as gs
+    code = gs.verdict_exit_code(_clean_manifest(['app/x.test.js > a > b']),
+                                say=lambda *a, **k: None)
+    assert code == gs.EXIT_UNEXPLAINED_RED, (
+        f'an expected_red entry naming no reason exited {code}; the gate folded a waiver '
+        f'nobody signed into the pass/fail count')
+    assert code not in (gs.EXIT_NO_NEW, gs.EXIT_NEW_FAILURES), 'the class was collapsed'
+    line = gs.verdict_line(code, expected_red_unexplained=1)
+    assert line.startswith('VERDICT=UNEXPLAINED_RED exit=5'), line
+    assert 'UNKNOWN' not in line
+
+
+def test_control_the_same_run_with_the_entry_EXPLAINED_is_a_clean_pass():
+    """⭐ THE NON-VACUITY CONTROL. Without it the check above would pass just as happily if
+    `verdict_exit_code` returned 5 unconditionally, or if the manifest were malformed in a way
+    that made every run non-green. Same manifest, one field different, opposite answer."""
+    import gate_shards as gs
+    code = gs.verdict_exit_code(_clean_manifest([]), say=lambda *a, **k: None)
+    assert code == gs.EXIT_NO_NEW, (
+        f'a baseline whose every expected_red entry names a reason must exit 0, got {code} — '
+        f'a check that answers UNEXPLAINED_RED to everything proves nothing')
+
+
+def test_control_the_unexplained_class_is_answered_BEFORE_the_thing_it_waives():
+    """⛔ ORDER IS THE POINT, and it is a control in its own right.
+
+    A run that did not reconcile is ALSO not a verdict, and it outranks this one: a partial suite
+    has an incomplete failing set, so there is nothing yet to waive. Asserting both directions
+    pins the order rather than leaving it to whichever `if` happens to come first.
+    """
+    import gate_shards as gs
+    m = _clean_manifest(['app/x.test.js > a > b'])
+    m['file_count_reconciles'] = False
+    assert gs.verdict_exit_code(m, say=lambda *a, **k: None) == gs.EXIT_DID_NOT_RECONCILE, (
+        'an incomplete suite must outrank the waiver check — its failing set is not final')
+    # …and an unexplained entry outranks a STALE expected-red, which is a judgement about an
+    # entry we can at least read.
+    m2 = _clean_manifest(['app/x.test.js > a > b'])
+    m2['vs_baseline']['expected_red_stale'] = ['app/y.test.js > c > d']
+    assert gs.verdict_exit_code(m2, say=lambda *a, **k: None) == gs.EXIT_UNEXPLAINED_RED
+
+
+def test_the_gate_reads_the_promoted_predicate_from_the_REAL_baseline_file(tmp_path, monkeypatch):
+    """⛔ THE WIRING, not the predicate. `unexplained` was correct for a whole day while nothing
+    called it; this drives `run_gate` against a planted baseline and reads the manifest.
+
+    ⭐ And the control is the same run against a baseline whose entry IS explained — the manifest
+    must then publish an EMPTY list, so the key cannot be a constant.
+    """
+    import gate_shards as gs
+    planted = tmp_path / 'baseline.json'
+
+    def _manifest(reasons: dict) -> dict:
+        planted.write_text(json.dumps({
+            'sha': 'deadbeef', 'measured_at': '2026-09-15', 'failures': [],
+            'expected_red': ['app/x.test.js > a > b'], 'expected_red_reasons': reasons,
+        }), encoding='utf-8')
+        monkeypatch.setattr(gs, 'BASELINE', planted)
+        return run_gate(1, tmp_path,
+                        tree_state_fn=lambda: ('0ffe68a14', []),
+                        run_shard_fn=lambda i: REAL_ANSI_PASS,
+                        file_count_fn=lambda: 196)
+
+    bad = _manifest({})
+    assert bad['vs_baseline']['expected_red_unexplained'] == ['app/x.test.js > a > b'], (
+        'run_gate does not publish the unexplained class — the predicate is promoted but unwired')
+    assert 'no reason' in gs.render(bad), 'the rendered manifest hides the unexplained class'
+
+    good = _manifest({'app/x.test.js > a > b': {'why': 'w', 'waits_on': 'n'}})
+    assert good['vs_baseline']['expected_red_unexplained'] == [], (
+        'the manifest reports an unexplained entry that IS explained — the key is a constant')
 
 
 # ══════════════════════════════════════════════════════════════════════════

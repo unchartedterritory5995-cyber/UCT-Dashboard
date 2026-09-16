@@ -472,3 +472,165 @@ def test_every_sampler_exit_code_has_a_verdict_name():
     assert S.EXIT_UNOBSERVED in codes and S.VERDICT_NAMES[S.EXIT_UNOBSERVED] == "INCONCLUSIVE-UNOBSERVED"
     # ⭐ CONTROL: the table is not simply covering every integer.
     assert 99 not in S.VERDICT_NAMES
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# C-4 — the WIDER question: what is RUNNING on this box, not what CONTENDS with a measurement.
+#
+# ⚰ 2026-09-15 20:26: `gate_box_lock status` printed FREE while fifteen live processes were on
+# this box — two scoped pytest runs and a vitest with thirteen workers. The lock was not broken;
+# it only tracks runs that ASK for it, and only gate_shards.py asks. `classify_load` is the
+# matcher that can see the rest, and `classify_process` is now a NARROWING of it.
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+
+def _raises_snapshot():
+    """A snapshot that fails, for the UNREADABLE controls below."""
+    raise RuntimeError("the process snapshot failed (drill)")
+
+
+@pytest.mark.parametrize("label,name,cl,expected", S.LOAD_CONTROL_CASES,
+                         ids=[c[0][:44] for c in S.LOAD_CONTROL_CASES])
+def test_the_load_matcher_answers_each_control_case(label, name, cl, expected):
+    """⭐ THE TABLE IS THE TOOL'S OWN — `--self-check` and this rail read the same
+    `LOAD_CONTROL_CASES`, so the operator-facing check and the suite can never disagree about
+    what the probe is required to do."""
+    assert S.classify_load(name, cl, pid=999, self_pids=frozenset()) == expected
+
+
+def test_the_load_control_table_is_not_quietly_one_sided():
+    """⛔ NON-VACUITY ON THE TABLE ITSELF. A table whose every case expected `None` would make the
+    parametrised rail above pass while the matcher matched nothing at all — and a table carrying
+    no `None` cases would hide a matcher that says yes to everything."""
+    answers = {c[3] for c in S.LOAD_CONTROL_CASES}
+    assert {"gate", "vitest", "pytest"} <= answers, answers
+    assert None in answers, answers
+    assert sum(1 for c in S.LOAD_CONTROL_CASES if c[3] is None) >= 3, "too few negative controls"
+
+
+def test_the_contention_matcher_is_a_NARROWING_of_the_load_matcher_not_a_second_one():
+    """⛔⛔ ONE IMPLEMENTATION, ONE NARROWING (lesson_a_guard_repeated_is_a_guard_unproved).
+
+    Every case in BOTH tables must satisfy: `classify_process` equals `classify_load` except that
+    'pytest' becomes None. Two independent matchers over the same command lines would be two token
+    tables to keep in step, and the copy that drifts is the one nobody mutation-proved.
+    """
+    for label, name, cl, _expected in list(S.LOAD_CONTROL_CASES) + list(S.CONTROL_CASES):
+        load = S.classify_load(name, cl, pid=999, self_pids=frozenset())
+        contention = S.classify_process(name, cl, pid=999, self_pids=frozenset())
+        assert contention == (None if load == "pytest" else load), (
+            f"{label}: classify_process={contention!r} is not the narrowing of "
+            f"classify_load={load!r}")
+
+
+def test_a_scoped_pytest_run_is_LOAD_but_is_NOT_contention():
+    """⛔ THE NARROWING IS THE WHOLE DIFFERENCE, and it is deliberate. Promoting pytest to the
+    sampler's CONTENDED verdict would silently change the meaning of every other workstream's
+    measurement — an owner call, not a side effect of teaching the lock to see load."""
+    cl = r"C:\Python314\python.exe -m pytest tests/test_publish_caption.py"
+    assert S.classify_load("python.exe", cl, pid=1) == "pytest"
+    assert S.classify_process("python.exe", cl, pid=1) is None
+
+
+def test_the_pytest_decoy_is_still_not_a_gate_but_IS_load():
+    """⛔ THE DECOY THAT ONCE FABRICATED AN OOM EMERGENCY. `pytest tests/test_gate_shards.py` is
+    not a gate — that stays true — but it is unmistakably a python test run occupying this box,
+    and reporting it as 'nothing' is how FREE got printed onto a loaded machine."""
+    cl = r"C:\Python314\python.exe -m pytest tests/test_gate_shards.py -q"
+    assert S.classify_process("python.exe", cl, pid=1) is None
+    assert S.classify_load("python.exe", cl, pid=1) == "pytest"
+
+
+def test_box_load_never_reports_a_count_it_did_not_measure():
+    """⛔⛔ A FAILED PROBE IS NOT A QUIET BOX. `total: 0` from a snapshot that never happened is
+    indistinguishable from a genuinely idle machine — the swallowed-error-becomes-a-confident-
+    finding shape. UNREADABLE carries `total: None` and the reason it could not look.
+
+    ⭐ CONTROL beside it: the same call over a real (empty) snapshot answers QUIET with a real
+    `total: 0`, so 'no number' stays reserved for 'we could not look'. And `NOT_PROBED` is a third
+    state, because 'nobody asked me to look' is not either of the other two.
+    """
+    bad = S.box_load(snapshot=_raises_snapshot)
+    assert bad["state"] == S.LOAD_UNREADABLE
+    assert bad["readable"] is False
+    assert bad["total"] is None, "a probe that FAILED reported a count"
+    assert bad["counts"] is None
+    assert "drill" in (bad["error"] or ""), bad
+
+    quiet = S.box_load(snapshot=lambda: {"free_kb": 1024 * 1024, "total_kb": 2048 * 1024,
+                                         "procs": []})
+    assert quiet["state"] == S.LOAD_QUIET
+    assert quiet["readable"] is True
+    assert quiet["total"] == 0, "an EMPTY box must answer with a real zero, not None"
+    assert quiet["error"] is None
+
+    none = S.load_not_probed("the caller skipped it")
+    assert none["state"] == S.LOAD_NOT_PROBED
+    assert none["total"] is None and none["readable"] is False
+
+
+def test_box_load_reports_the_evidence_not_just_a_count():
+    """⛔ A COUNT IS NOT A DIAGNOSIS. "15 processes" sends a reader nowhere; this probe's own
+    history is of counting things that were not there, so every row carries its command line.
+
+    ⭐ The unmarked process in the fixture is the discriminator: a matcher that said yes to
+    everything would report four.
+    """
+    snap = {"free_kb": 8 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "procs": [
+        {"ProcessId": 4001, "ParentProcessId": 1, "Name": "python.exe", "mb": 40,
+         "cl": "python -m pytest tests/test_publishers.py"},
+        {"ProcessId": 4002, "ParentProcessId": 1, "Name": "node.exe", "mb": 900,
+         "cl": "node vitest.mjs run --shard=5/6"},
+        {"ProcessId": 4003, "ParentProcessId": 1, "Name": "python.exe", "mb": 24,
+         "cl": "python scripts/gate_shards.py --shards 6"},
+        {"ProcessId": 4004, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 300,
+         "cl": "chrome --type=renderer"},
+    ]}
+    load = S.box_load(snapshot=lambda: snap)
+    assert load["state"] == S.LOAD_BUSY
+    assert load["total"] == 3, "the unmarked process was counted, or a marked one was missed"
+    assert load["counts"] == {"gate": 1, "vitest": 1, "pytest": 1}
+    assert {p["pid"] for p in load["processes"]} == {4001, 4002, 4003}
+    for row in load["processes"]:
+        assert row["command_line"], "a row with no command line is a count wearing a diagnosis"
+    assert load["free_gb"] == 8.0, load
+    # ⭐ describe_load says the state out loud, and an unreadable probe gets NO number at all.
+    assert "BUSY" in S.describe_load(load)
+    unreadable_line = S.describe_load(S.box_load(snapshot=_raises_snapshot))
+    assert "UNREADABLE" in unreadable_line
+    assert "0 marked" not in unreadable_line, unreadable_line
+
+
+def test_box_load_excludes_a_named_process_TREE_in_both_directions():
+    """⛔ A RUNNING GATE MUST NOT SEE ITSELF. It spawns vitest workers; counting them as foreign
+    load is the instrument becoming the finding. `exclude_tree` drops the named pid, everything
+    ABOVE it (the shell whose command line quotes the gate) and everything BELOW it.
+
+    ⭐ AND THE CONTROL IS THE SAME SNAPSHOT WITH NO EXCLUSION — it must report all four, or
+    'excluded' would be indistinguishable from 'never matched'.
+    """
+    snap = {"free_kb": 4 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "procs": [
+        {"ProcessId": 10, "ParentProcessId": 1, "Name": "bash.exe", "mb": 5,
+         "cl": "bash -c python scripts/gate_shards.py --shards 6"},     # ancestor
+        {"ProcessId": 20, "ParentProcessId": 10, "Name": "python.exe", "mb": 24,
+         "cl": "python scripts/gate_shards.py --shards 6"},             # the gate itself
+        {"ProcessId": 30, "ParentProcessId": 20, "Name": "node.exe", "mb": 800,
+         "cl": "node vitest.mjs run --shard=1/6"},                      # its own worker
+        {"ProcessId": 40, "ParentProcessId": 30, "Name": "node.exe", "mb": 700,
+         "cl": "node vitest.mjs run --shard=1/6"},                      # a grandchild worker
+        {"ProcessId": 99, "ParentProcessId": 1, "Name": "node.exe", "mb": 900,
+         "cl": "node vitest.mjs run --shard=5/6"},                      # SOMEBODY ELSE'S
+    ]}
+    mine = S.box_load(exclude_tree=20, snapshot=lambda: snap)
+    assert {p["pid"] for p in mine["processes"]} == {99}, (
+        "the gate saw its own tree as foreign load — a gate that refuses on this deadlocks "
+        "behind its own vitest workers")
+    assert mine["state"] == S.LOAD_BUSY, "somebody else's vitest is still real load"
+    assert mine["excluded_tree"] == 20
+
+    everything = S.box_load(snapshot=lambda: snap)
+    # ⚠️ pid 10 is a SHELL whose command line merely quotes the gate — never a finding, with or
+    # without the exclusion. That is the name test doing its job, not the tree walk.
+    assert {p["pid"] for p in everything["processes"]} == {20, 30, 40, 99}, (
+        "the control did not see the tree at all, so the exclusion above proved nothing")
+    assert everything["excluded_tree"] is None
