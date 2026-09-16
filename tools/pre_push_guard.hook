@@ -5,11 +5,11 @@
 # written in CLAUDE.md ("ONE MASTER MERGE AT A TIME, REPO-WIDE") and was not
 # followed: three pushes in eight minutes on 2026-09-13 served 502s.
 #
-# Also refuses a master push inside the 09:25-16:05 ET window on a trading day,
-# unless the whole diff is cleared for daytime by docs/runbooks/deploy-windows.md.
+# ⚰️ The 09:25-16:05 ET refusal is RETIRED (owner ruling 2026-09-15): there are no
+# mid-day push blocks, ever. A push goes when its gate is sound.
 #
 # Bypass:  UCT_SKIP_PREPUSH_GUARD=1 git push ...                       (the QUEUE, logged)
-#          UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push (the CLOCK, logged)
+#          (the CLOCK override is dead with the clause it bypassed.)
 # Install: python tools/pre_push_guard.py --install   (or copy this file)
 
 # Only guard pushes whose DESTINATION is master.

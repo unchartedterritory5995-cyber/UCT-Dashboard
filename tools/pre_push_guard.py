@@ -407,68 +407,40 @@ def _hhmm(t) -> str:
 
 
 def decide_clock(clock: dict, paths) -> tuple[str, str]:
-    """(verdict, reason). Pure — the tests drive it directly, no git and no import."""
+    """(verdict, reason). ⚰️ THE RTH REFUSAL IS RETIRED — owner ruling 2026-09-15.
+
+    > "There are no mid-day push blocks, ever. A push goes when its gate is sound."
+
+    This clause refused a master push between 09:25 and 16:05 ET on trading days
+    unless the diff was cleared by docs/runbooks/deploy-windows.md. It was added by
+    another workstream and inherited through a master merge; the owner's standing
+    ruling predates it and governs.
+
+    ⛔ IT IS NOT DELETED WHOLESALE, AND THE REASON MATTERS. `read_clock` still
+    reports the session so the hook can PRINT what time it is, and the tests still
+    drive this function. What is gone is the REFUSAL. Ripping the machinery out
+    would also take the SHA-capture plumbing that arrived with it — and that half
+    is genuinely good: the hook hands over local_sha/remote_sha so the guard diffs
+    EXACTLY what this push would land, rather than guessing from a possibly-stale
+    local origin/master.
+
+    ⚠️ THE MECHANISM UNDER THE STRUCK RULE IS STILL REAL: a web restart does blip
+    /api/* for about a minute, and an APScheduler slot whose minute passes during
+    the swap is lost outright, not run late. That is why this docstring stays.
+    **The mechanism is not the rule.** This repo has now had a rescinded
+    restriction re-derived from its surviving rationale three times; do not make it
+    four.
+    """
     if clock.get("state") == UNREADABLE:
-        # ⛔ THE LOAD-BEARING BRANCH. A guard that passes when it cannot tell the
-        # time is not a guard — it reports "fine" precisely when it has stopped
-        # working, which is how 15:49 became 16:00 in somebody's head.
-        return REFUSE, ("cannot determine the market clock (%s). REFUSING: a guard that "
-                        "passes when it cannot tell the time is not a guard.\n"
-                        "  next allowed:   UNKNOWN — fix the clock, or override deliberately "
-                        "with %s=%s" % (clock.get("why"), CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE))
-
-    now_et = clock["now_et"]
-    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
-    if not clock.get("trading_day"):
-        return OK, ("%s is not a trading day (session=%s) — the %s-%s ET deploy window "
-                    "does not apply." % (stamp, clock.get("session"),
-                                         _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)))
-
-    hm = (now_et.hour, now_et.minute)
-    if not (RTH_GUARD_OPEN <= hm < RTH_GUARD_CLOSE):
-        return OK, ("%s is outside the %s-%s ET deploy window — safe to restart web."
-                    % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)))
-
-    # ── inside the window on a trading day: only the runbook's Tier 1 gets through
-    if paths is None:
-        why = ("the changed-path set could not be read (git did not answer), so the diff "
-               "CANNOT be shown to be cleared")
-        listed = "  not cleared:    UNKNOWN — git did not answer; an unread diff is never exempt"
-    else:
-        unclear = uncleared_paths(paths)
-        if paths and not unclear:
-            return OK, ("%s is inside the %s-%s ET window, but all %d changed path(s) are "
-                        "cleared for daytime by docs/runbooks/deploy-windows.md Tier 1 "
-                        "(docs/markdown, tests/**, tools/**, scripts/**, app/**)."
-                        % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), len(paths)))
-        if not paths:
-            why = ("the diff is EMPTY, which is a failed measurement rather than a cleared "
-                   "one — an empty result is a failed invocation until proven otherwise")
-            listed = "  not cleared:    UNKNOWN — the diff came back empty; that is not the same as clean"
-        else:
-            shown = unclear[:6]
-            more = "" if len(unclear) <= 6 else " (+%d more)" % (len(unclear) - 6)
-            why = ("%d of %d changed path(s) are NOT cleared for a daytime push"
-                   % (len(unclear), len(paths)))
-            listed = "  not cleared:    %s%s" % (", ".join(shown), more)
-
-    nxt = next_allowed_et(now_et)
-    secs = max(0, int((nxt - now_et).total_seconds()))
-    return REFUSE, "\n".join([
-        "REFUSING A MASTER PUSH — the market is open and this diff is not cleared for daytime.",
-        "  refused:        a push whose destination is master (it restarts web and chart-renderer)",
-        "  now:            %s  (session=%s, a trading day)" % (stamp, clock.get("session")),
-        "  window:         %s-%s ET on trading days" % (_hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)),
-        "  why:            %s" % why,
-        listed,
-        "  next allowed:   %s  — in %dm %02ds" % (nxt.strftime("%Y-%m-%d %H:%M:%S ET"),
-                                                  secs // 60, secs % 60),
-        "  cleared today:  docs/markdown, tests/**, tools/**, scripts/**, app/**  "
-        "(docs/runbooks/deploy-windows.md, Tier 1)",
-        "  deliberate override: %s=%s" % (CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE),
-    ])
-
-
+        # ⭐ Even unreadable no longer refuses: with no window to be inside, being
+        # unable to tell the time cannot put a push on the wrong side of one.
+        return OK, ("the market clock is unreadable (%s) — and it no longer matters: "
+                    "the RTH deploy window is RETIRED (owner ruling 2026-09-15)."
+                    % (clock.get("why"),))
+    now_et = clock.get("now_et")
+    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET") if now_et else "unknown time"
+    return OK, ("%s — the RTH deploy window is RETIRED (owner ruling 2026-09-15); "
+                "a push goes when its gate is sound." % stamp)
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--json", action="store_true")
