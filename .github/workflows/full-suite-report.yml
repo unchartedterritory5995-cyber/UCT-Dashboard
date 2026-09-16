@@ -94,6 +94,18 @@ jobs:
       profile_dirs: ${{ steps.p.outputs.profile_dirs }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -114,6 +126,18 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -164,6 +188,18 @@ jobs:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -270,6 +306,18 @@ jobs:
         include: ${{ fromJSON(needs.plan.outputs.profile_dirs) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
