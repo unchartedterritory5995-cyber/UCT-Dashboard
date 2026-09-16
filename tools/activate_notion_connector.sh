@@ -39,6 +39,42 @@ railway status >/dev/null 2>&1 || {
 echo "Target: service=$SERVICE environment=$ENVIRONMENT"
 echo
 
+# ⛔⛔ THE TWO WRITES ARE NOT ATOMIC AND THE GAP IS AN INTERACTIVE PROMPT.
+# `NOTION_CLIENT_ID` is written, then the operator is asked for the secret — which
+# is the likeliest Ctrl-C in the whole script, because it is where somebody goes
+# back to Notion to find the value. Until 2026-09-15 an abort there left
+# NOTION_CLIENT_ID set on the SERVICE with no secret beside it: invisible (the
+# connector stays inert either way, so nothing reports it), durable, and waiting
+# to be paired with whatever secret the next attempt supplies.
+#
+# The trap removes it on any non-clean exit. It removes ONLY the variable this run
+# wrote, and only when the run did not get as far as the secret.
+# ⚠️ `railway variable delete` takes no `--skip-deploys`, so the removal may
+# trigger a deploy. That is the right trade: nothing has deployed yet at this
+# point (both writes stage with --skip-deploys), so the delete returns the service
+# to the configuration it had before this script ran.
+ID_STAGED=0
+SECRET_STAGED=0
+
+cleanup() {
+  rc=$?
+  trap - EXIT INT TERM
+  if [ "$rc" -ne 0 ] && [ "$ID_STAGED" -eq 1 ] && [ "$SECRET_STAGED" -eq 0 ]; then
+    echo >&2
+    echo "!! aborted (exit $rc) with NOTION_CLIENT_ID staged and NO secret beside it." >&2
+    echo "   Removing it, so the service cannot be left half-configured." >&2
+    if timeout 60 railway variable delete NOTION_CLIENT_ID \
+         --service "$SERVICE" --environment "$ENVIRONMENT" </dev/null >/dev/null 2>&1; then
+      echo "   NOTION_CLIENT_ID removed." >&2
+    else
+      echo "!! COULD NOT remove it. NOTION_CLIENT_ID IS STILL SET. Run:" >&2
+      echo "     railway variable delete NOTION_CLIENT_ID --service $SERVICE --environment $ENVIRONMENT" >&2
+    fi
+  fi
+  exit "$rc"
+}
+trap cleanup EXIT INT TERM
+
 # -s = silent (no echo). The value is never assigned to a variable that gets
 # printed, and --skip-deploys keeps BOTH writes in one deploy rather than
 # restarting the pod twice mid-configuration.
@@ -47,6 +83,7 @@ read -rsp "Notion OAuth client ID:     " NOTION_ID; echo
 printf '%s' "$NOTION_ID" | railway variable set NOTION_CLIENT_ID --stdin \
   --service "$SERVICE" --environment "$ENVIRONMENT" --skip-deploys >/dev/null
 unset NOTION_ID
+ID_STAGED=1
 echo "  NOTION_CLIENT_ID staged."
 
 read -rsp "Notion OAuth client secret: " NOTION_SECRET; echo
@@ -54,6 +91,7 @@ read -rsp "Notion OAuth client secret: " NOTION_SECRET; echo
 printf '%s' "$NOTION_SECRET" | railway variable set NOTION_CLIENT_SECRET --stdin \
   --service "$SERVICE" --environment "$ENVIRONMENT" --skip-deploys >/dev/null
 unset NOTION_SECRET
+SECRET_STAGED=1
 echo "  NOTION_CLIENT_SECRET staged."
 
 echo
