@@ -1,5 +1,13 @@
 """Does this diff actually reach flow-worker?
 
+    python tools/flow_worker_watch_coverage.py
+
+Exit 0 judged and nothing stranded · 1 stranded files (a REVIEW GATE, see
+`docs/runbooks/deploy-windows.md`, never a block) · 2 the question could not be
+ASKED — no base ref resolved, or `git merge-base` failed. ⛔ 2 is never "clean":
+"nothing changed" and "nothing was measured" are different facts and used to
+share one sentence and one exit code.
+
 ⚰️ THE TRAP THIS EXISTS TO CLOSE. flow-worker deploys on a NARROW watch list of
 specific `api/*.py` files. A change confined to anything else — `api/services/**`,
 `api/routers/**`, or a top-level `api/*.py` that is not on the list — builds
@@ -195,15 +203,24 @@ def base_ref(root: str) -> str | None:
     return None
 
 
-def changed_files(root: str, base: str | None = None) -> list[str]:
+def changed_files(root: str, base: str | None = None) -> list[str] | None:
+    """The changed paths, or **None** when the question could not be ASKED.
+
+    ⛔ `None` and `[]` are different facts and this used to return `[]` for both.
+    An empty list means "the diff really is empty"; `None` means no base ref
+    resolved, or `git merge-base` failed — nothing was measured. Collapsing them
+    is the empty-result-read-as-a-pass defect (rule 14), and it is worse here than
+    usual: this rail's whole job is to make "this push deploys nothing to
+    flow-worker" visible, so its silent answer is its dangerous one.
+    """
     git = shutil.which("git")
     base = base or base_ref(root)
     if not base:
-        return []
+        return None
     mb = subprocess.run([git, "-C", root, "merge-base", base, "HEAD"],
                         capture_output=True, text=True, timeout=30)
     if mb.returncode != 0:
-        return []
+        return None
     out = subprocess.run([git, "-C", root, "diff", "--name-only",
                           mb.stdout.strip() + "..HEAD"],
                          capture_output=True, text=True, timeout=60)
@@ -214,12 +231,30 @@ def main() -> int:
     root = repo_root()
     reach, watch = reachable_paths(root), watched_paths(root)
     base = base_ref(root)
-    changed = set(changed_files(root, base))
+    # ⛔ THREE OUTCOMES, THREE SENTENCES, THREE EXIT CODES. "No base ref resolved"
+    # and "the diff is empty" both used to print `no diff against origin/master —
+    # nothing to judge` and exit 0, so a fetch-less CI checkout and a genuinely
+    # unchanged branch were indistinguishable — and the unmeasured one read as a
+    # clean bill of health. 0 judged · 1 stranded files · 2 could not be measured.
+    if base is None:
+        print("[watch-coverage] base=<none> reachable=%d watched=%d" % (len(reach), len(watch)))
+        print("[watch-coverage] INCONCLUSIVE — no base ref resolved (tried "
+              "FLOW_WATCH_BASE, origin/master, HEAD~1). NOTHING WAS MEASURED; this "
+              "is not 'no changes'. Fetch origin/master, or pass FLOW_WATCH_BASE.")
+        return 2
+    files = changed_files(root, base)
+    if files is None:
+        print("[watch-coverage] base=%s reachable=%d watched=%d" % (base, len(reach), len(watch)))
+        print("[watch-coverage] INCONCLUSIVE — `git merge-base %s HEAD` failed, so "
+              "no diff could be taken. NOTHING WAS MEASURED." % base)
+        return 2
+    changed = set(files)
     print("[watch-coverage] base=%s reachable=%d watched=%d changed=%d"
-          % (base or "<none>", len(reach), len(watch), len(changed)))
+          % (base, len(reach), len(watch), len(changed)))
     ok, bad = verdict(changed, reach, watch)
     if not changed:
-        print("[watch-coverage] no diff against origin/master — nothing to judge")
+        print("[watch-coverage] OK — the diff against %s is EMPTY: this branch "
+              "changes nothing, so there is nothing to strand." % base)
         return 0
     if ok and bad:
         print("[watch-coverage] OK — %d stranded file(s) ride along with a watched "
