@@ -102,6 +102,41 @@ commit. Then emptying `PREVIEW_MODES` at stage 3 really is copy-only and the rul
 behaviour" holds exactly as written. The alternative is to drop that clause and accept two fans
 landing with the GA flip. **Until that is answered, stage 3 cannot be written as a PR.**
 
+## ⛔⛔ PROGRAMME PAUSED AT STAGE 1 — 2026-09-17, ON THE OWNER'S GLASS JUDGEMENT
+
+> **The owner used the hub on his own phone and judged it unfit. §3 below does not resume until he
+> re-judges it as fit, on the same phone.**
+
+His words, verbatim (`triage/2026-09-14-owner-bug-triage.md` holds them too):
+
+> *Wow tons of bugs, need to simplify the joystick a ton imo. Too glitchy and not smooth like a proper high level highly built feature would be. Seems clunky from the 90s and not high class smooth Liquid Glass with proper sensible tools too much going on. Needs a lot of work*
+
+⭐⭐ **THIS IS THE FIRST REAL-GLASS EVIDENCE THE PROGRAMME HAS EVER HAD, AND IT OUTRANKS EVERY GREEN
+SUITE.** Boxes 1 and 2 have never been ticked — not once. Every device attempt died on transport:
+BrowserStack Live's measured **260–427 ms** floor against a **120 ms** flick window, and Automate is
+not on this account. So the hub shipped to admin preview, was gated exhaustively in jsdom, and was
+never judged by a finger until now. This is not a surprising result; it is **the measurement finally
+happening**, informally, and arriving negative.
+
+⛔ **The holds, and none of them is a judgement about the code's correctness:**
+
+| held | at | why |
+|---|---|---|
+| `launch/stage-2-member-preview` | `2ae7e98aa` | **Stage 2 turns the hub ON for every member.** It does not ship a hub the owner has called glitchy and overbuilt. Gated and green is not the question. |
+| `launch/stage-3-ga` | `3164cccac` | behind stage 2 |
+| **#146** (D-39, chip clearance) | `cd5ba1ff2` | correct and gated, but a 40×28 px occlusion fix scoped against an assumed all-clear. Likely **moot** if the chip is redesigned. Left open. |
+
+⭐ **What "fit" would look like**, so the resume condition is not a mood: the owner uses the hub on
+his phone and does **not** file a report against it — where "files a report" is now a literal, one-tap
+act in the product (`W2`, the Report affordance), not an email he has to compose.
+
+⚠️ **The pause is at stage 1, not a rollback.** The hub stays live for admins, the kill switch stays,
+and hub-only iteration continues under owner ruling **R1** (2026-09-17): stage-1 hub code is
+admin-preview surface and an agent may merge it, gated and smoke-checked. The ladder constants, the
+registry's default surface and anything member-visible remain the owner's.
+
+---
+
 ### 3. Sequencing — nothing here starts until boxes 1 and 2 are ticked on evidence
 
 > ✅ **READY-AND-GATED, 2026-09-13.** `launch/stage-2-member-preview` at **`2ae7e98aa`** passed
