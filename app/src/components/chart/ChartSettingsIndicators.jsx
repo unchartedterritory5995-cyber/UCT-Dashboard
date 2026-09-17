@@ -1238,7 +1238,81 @@ export default function ChartSettingsIndicators({
       || f.type === 'color'
       || !!(styleKeys && styleKeys.has(f.key))
     const shown = (row.fields || []).filter((f) => !(f.showIf && !f.showIf(row.values)))
-    return { core: shown.filter((f) => !isLook(f)), look: shown.filter(isLook) }
+
+    // ⚰️⚰️ AN INERT FIELD IS NEVER A CORE FIELD, and that is what finally made
+    // the two moving averages read as one product. CORE answers *what does this
+    // compute* — the things a member can actually change. A legacy overlay
+    // declares `offset` and `plotStyle` with `disabled: NOT_WIRED`: they are
+    // placeholders for capabilities the renderer does not have, and one of them
+    // (`offset`) sat in the middle of CORE, so EMA 9's primary block read
+    // `Type / Period / Offset` while the engine MA's read `Source / Period /
+    // Type / Display`. Two different editors, for one concept.
+    //
+    // ⛔ NOT DELETED — DEMOTED. They still render, still disabled, still carrying
+    // their reason to a screen reader, at the END of Appearance where an
+    // unavailable option belongs. Removing them would be a functional change made
+    // for a visual reason, and the owner asked for an audit rather than a cull.
+    const inert = shown.filter((f) => !!f.disabled)
+    const live = shown.filter((f) => !f.disabled)
+    const core = live.filter((f) => !isLook(f))
+    const look = [...live.filter(isLook), ...inert]
+
+    // ⭐⭐ AND THE ONE MEMBER CONCEPT GETS ONE ORDER. Declaration order is the
+    // definition author's, which is right for everything else and wrong here: the
+    // two MA implementations declare their inputs in different orders, so the same
+    // four controls came out as `Type, Period` on one and `Source, Period, Type` on
+    // the other. The order below is the member's reading order — what it reads,
+    // how long, which kind, where it draws — and it is applied only to rows that
+    // DECLARE themselves that concept.
+    if (row.memberConcept === 'movingAverage') {
+      const rank = { source: 0, period: 1, type: 2, maType: 2 }
+      core.sort((a, b) => (rank[a.key] ?? 9) - (rank[b.key] ?? 9))
+    }
+    return { core, look }
+  }, [])
+
+  /**
+   * The two CORE facts a LEGACY moving average has but cannot be asked.
+   *
+   * ⚰⚰ THE SPLIT THIS CLOSES. `cs.overlays` has no `source` and no placement:
+   * the renderer averages the CLOSE and draws on the PRICE pane, full stop. So the
+   * legacy editor simply had no Source and no Display row, while the engine MA had
+   * both — and a member comparing EMA 9 with the average beside it saw two
+   * unrelated forms. The facts are true of a legacy overlay; only the telling was
+   * missing.
+   *
+   * ⛔⛔ READ-ONLY, AND NOT A DISABLED SELECT. A greyed dropdown says "there are
+   * other choices you may not have"; there are none. These are VALUES — the same
+   * shape the Color swatch is — and they say what this average reads and where it
+   * draws, which is exactly what the engine MA's two controls report.
+   *
+   * ⛔ AND NOTHING HERE IS INVENTED. The source comes from `paneRowMeta`, which
+   * already declares `Close` for an overlay row and has since the read model was
+   * written; the destination comes from the pane group `chartDataMap` actually
+   * filed the row under. No new authority, no stored value, no migration — making
+   * either of them editable would need renderer and persistence work, which is the
+   * line this pass does not cross.
+   */
+  const readOnlyCore = useCallback((row, group, sourceWords) => {
+    if (row.memberConcept !== 'movingAverage') return []
+    const out = []
+    const hasSource = (row.fields || []).some((f) => f.type === 'source')
+    if (!hasSource && sourceWords) {
+      out.push({ key: '__source__', label: 'Source', value: sourceWords,
+        why: 'A moving average added before sources existed always averages the close.' })
+    }
+    // ⚠️ A REAL PANE, NOT A REPAIR LIST. `chartDataMap` files a switched-off row
+    // under "Not shown" and a stranded one under "Needs attention"; neither is a
+    // DESTINATION, and printing one as this average's Display would be the panel
+    // stating a place the chart does not draw. A legacy overlay always draws on
+    // price, so the honest answer is withheld rather than guessed when the row is
+    // not currently in a pane.
+    const inRealPane = group && ['price', 'volume', 'pane'].includes(group.kind)
+    if (!row.engineOwned && inRealPane && group.name) {
+      out.push({ key: '__where__', label: 'Display', value: group.name,
+        why: 'A moving average added before display destinations existed always draws on the price pane.' })
+    }
+    return out
   }, [])
 
   /**
@@ -1296,6 +1370,20 @@ export default function ChartSettingsIndicators({
     }
     return null
   }, [settings, registry])
+
+  /** A CORE fact that is true and not editable — see `readOnlyCore`. */
+  const renderReadOnly = (f) => (
+    <div key={f.key} className={styles.insField} data-field={f.key} data-readonly="true" title={f.why}>
+      <span className={styles.insFieldLabel}>{f.label}</span>
+      <span className={styles.insFieldCtl}>
+        {/* ⛔ NOT A CONTROL, AND IT MUST NOT LOOK LIKE ONE. No border, no chevron,
+            no focus ring — a member who clicks it should find nothing happens and
+            not feel the panel is broken. `aria-readonly` says the same thing to a
+            screen reader, and the `title` carries the one-line reason. */}
+        <span className={styles.insFieldValue} aria-readonly="true">{f.value}</span>
+      </span>
+    </div>
+  )
 
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
@@ -1363,6 +1451,7 @@ export default function ChartSettingsIndicators({
     const kind = kindLabel(row, def, rawSourceOf(row, def))
     const on = rowVisible(row)
     const { core, look } = partitionFields(row, def)
+    const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
     const plotStyle = styleControl(row)
     const duplicate = duplicateWriter(row)
@@ -1402,11 +1491,13 @@ export default function ChartSettingsIndicators({
         </div>
 
         {/* ─── CORE ─────────────────────────────────────────────────────── */}
-        {(core.length > 0 || display) && (
+        {(core.length > 0 || display || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
+            {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
             {core.map((f) => renderField(row, f))}
             {display}
+            {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
           </section>
         )}
 

@@ -166,6 +166,189 @@ describe('THE INSPECTOR HEADER — what this is, and whether it is drawing', () 
 })
 
 // ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════
+describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations', () => {
+  // ⚰️⚰️ THE SPLIT THIS CLOSES, MEASURED IN THE BROWSER ON THE RELEASED BUILD.
+  // A moving average reaches this panel two ways and they showed two editors:
+  //
+  //   legacy `cs.overlays[n]`   CORE: Average type, Period, Offset
+  //   engine `movingAverage`    CORE: Source, Period, Type, Display
+  //
+  // Same concept, different storage, and the member was shown the difference —
+  // including two vocabularies for one control (`Exponential` vs `EMA`). The
+  // locked product rule is MOVING AVERAGE = ONE USER-FACING CONCEPT.
+  //
+  // ⛔⛔ AND IT IS CLOSED WITHOUT A MIGRATION. No overlay becomes an instance, no
+  // schema changes, no stored value is rewritten or reinterpreted; the rails at
+  // the end of this block pin exactly that. What changed is the READ: an inert
+  // field is never CORE, the four CORE controls have one order, and the two facts
+  // a legacy overlay cannot be asked are stated instead of omitted.
+
+  /** The Inspector's CORE block, as a member reads it: label = value. */
+  const coreOf = () => {
+    const sec = inspector().querySelector('[data-section="core"]')
+    return [...sec.querySelectorAll('[data-field]')].map((f) => {
+      const label = f.querySelector('[class*="insFieldLabel"]').textContent.trim()
+      const sel = f.querySelector('select')
+      const num = f.querySelector('input[type="number"]')
+      const ro = f.querySelector('[class*="insFieldValue"]')
+      const value = sel ? [...sel.options].find((o) => o.value === sel.value)?.textContent
+        : num ? num.value : ro ? ro.textContent.trim() : '?'
+      return `${label} = ${value}`
+    })
+  }
+  const labelsOf = (section) => [...inspector()
+    .querySelector(`[data-section="${section}"]`).querySelectorAll('[data-field]')]
+    .map((f) => f.querySelector('[class*="insFieldLabel"]').textContent.trim())
+
+  it('⭐⭐ LEGACY AND ENGINE MOVING AVERAGES SHOW THE SAME CORE, in the same order', () => {
+    // A default chart carries four legacy overlays; this adds an engine MA beside
+    // them. The two implementations are then read from one screen.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+
+    select(/^EMA 9$/)
+    expect(coreOf()).toEqual(['Source = Close', 'Period = 9', 'Type = EMA', 'Display = Price'])
+
+    select(/^SMA 50$/)
+    expect(coreOf()).toEqual(['Source = Close', 'Period = 50', 'Type = SMA', 'Display = Price'])
+
+    select(ENGINE_MA)
+    // ⛔ THE ENGINE MA'S VALUES DIFFER — it really is sourced and placed
+    // differently. The SHAPE is what must not.
+    expect(coreOf().map((r) => r.split(' = ')[0]))
+      .toEqual(['Source', 'Period', 'Type', 'Display'])
+  })
+
+  it('⭐ ONE VOCABULARY FOR THE TYPE — never `Exponential` beside `EMA`', () => {
+    // ⚰️ `MA_TYPES` labelled its values `Simple` / `Exponential` while the engine
+    // definition labelled the same two `SMA` / `EMA`. The trading words win: they
+    // are already what the ROW is called, on the chart and in the legend.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+    for (const [row, want] of [[/^EMA 9$/, 'EMA'], [/^SMA 50$/, 'SMA'], [ENGINE_MA, 'SMA']]) {
+      select(row)
+      const sel = inspector().querySelector('[data-field="type"] select, [data-field="maType"] select')
+      expect([...sel.options].find((o) => o.value === sel.value).textContent,
+        `${row} speaks a different vocabulary`).toBe(want)
+      // ⛔ AND NO OPTION ANYWHERE SAYS THE OLD WORDS.
+      expect([...sel.options].map((o) => o.textContent).join('|')).not.toMatch(/Simple|Exponential/)
+    }
+  })
+
+  it('⛔⛔ THE LEGACY PERIOD STILL WRITES ITS OWN SLOT, and nothing else moves', () => {
+    // The normalisation is a READ. The writer under `Period` is the one it always
+    // was — `applyRowPatch` → `patchFor` → `cs.overlays[index]` — and the proof is
+    // that the OTHER overlays come back byte-identical.
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    select(/^EMA 9$/)
+    const before = JSON.parse(JSON.stringify(base().overlays))
+    fireEvent.change(inspector().querySelector('[data-field="period"] input'), { target: { value: '12' } })
+
+    const after = seen.cs.overlays
+    expect(after[0].period, 'the period did not reach the overlay slot').toBe(12)
+    expect(after[0].type, 'the write disturbed the type').toBe(before[0].type)
+    for (let i = 1; i < before.length; i += 1) {
+      expect(after[i], `overlay slot ${i} moved`).toEqual(before[i])
+    }
+    // ⛔ AND NO INSTANCE WAS MINTED. A legacy MA stays legacy.
+    expect((seen.cs.indicatorInstances || []).some((x) => x.defId === 'movingAverage'),
+      'editing a legacy overlay created an engine instance — that is a migration').toBe(false)
+  })
+
+  it('⛔⛔ THE LEGACY SOURCE AND DISPLAY ARE STATED, NOT FAKED', () => {
+    // ⚰️ THEY WERE SIMPLY ABSENT, which is why the two editors looked unrelated.
+    // `cs.overlays` has no source and no placement: the renderer averages the
+    // CLOSE and draws on the PRICE pane, and neither is writable without renderer
+    // and persistence work this pass does not do.
+    //
+    // ⛔ SO THEY ARE VALUES, NOT DISABLED CONTROLS. A greyed dropdown claims there
+    // are other choices being withheld; there are none. And they are DERIVED —
+    // the source from `paneRowMeta` (which has declared `Close` for an overlay
+    // since the read model was written) and the destination from the pane group
+    // `chartDataMap` actually filed the row under — so neither can go stale.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+    select(/^EMA 9$/)
+
+    for (const key of ['__source__', '__where__']) {
+      const f = inspector().querySelector(`[data-field="${key}"]`)
+      expect(f, `${key} is missing from the legacy MA`).toBeTruthy()
+      expect(f.getAttribute('data-readonly')).toBe('true')
+      expect(f.querySelector('select'), 'a read-only fact rendered as a select').toBeNull()
+      expect(f.querySelector('[class*="insFieldValue"]').getAttribute('aria-readonly')).toBe('true')
+      expect(f.getAttribute('title'), 'the value carries no reason').toBeTruthy()
+    }
+    // ⛔ AND THE ENGINE MA GETS NEITHER — it has real controls for both.
+    select(ENGINE_MA)
+    expect(inspector().querySelector('[data-field="__source__"]'),
+      'the engine MA grew a read-only stand-in beside its real Source control').toBeNull()
+  })
+
+  it('⛔ AN INERT FIELD IS NEVER CORE — it is demoted, not deleted', () => {
+    // ⚰️ `offset` and `plotStyle` are declared with `disabled: NOT_WIRED`: they are
+    // placeholders for capabilities the legacy renderer does not have. `offset`
+    // sat in the MIDDLE of CORE, so EMA 9's primary block read `Type / Period /
+    // Offset` against the engine MA's `Source / Period / Type / Display`.
+    //
+    // ⛔ STILL RENDERED, STILL DISABLED, STILL CARRYING ITS REASON. Deleting a
+    // control because it looks inconsistent is a functional change made for a
+    // visual reason; the owner asked for an audit, not a cull.
+    show(base()); openTab()
+    select(/^EMA 9$/)
+    expect(labelsOf('core'), 'an inert field is in CORE').not.toContain('Offset')
+
+    const look = labelsOf('appearance')
+    expect(look, 'Offset was deleted rather than demoted').toContain('Offset')
+    // …and the inert ones sort to the END, after everything that works.
+    expect(look.indexOf('Offset')).toBeGreaterThan(look.indexOf('Line width'))
+    const offset = inspector().querySelector('[data-field="offset"] input')
+    expect(offset.disabled, 'a demoted field quietly became live').toBe(true)
+    expect(offset.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('⭐ LEGACY-ONLY APPEARANCE SURVIVES, and still writes', () => {
+    // `Line style`, `Line width` and `Overlap candles` are real capabilities the
+    // engine MA does not have. Normalising CORE must not cost them.
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    select(/^EMA 9$/)
+    expect(labelsOf('appearance')).toEqual(expect.arrayContaining(
+      ['Color', 'Overlap candles', 'Line style', 'Line width']))
+
+    fireEvent.change(inspector().querySelector('[data-field="lineWidth"] select'), { target: { value: '3' } })
+    expect(seen.cs.overlays[0].lineWidth, 'the line width did not reach the slot').toBe(3)
+  })
+
+  it('⭐ DUPLICATE AND REMOVE STILL TARGET THE EXACT OBJECT, on both sides', () => {
+    const seen = { cs: null }
+    const { cs } = withMA(base(), 'close')
+    show(cs, seen); openTab()
+
+    // Removing the SECOND legacy overlay must tombstone slot 1 and move nothing.
+    select(/^EMA 20$/)
+    fireEvent.click([...inspector().querySelectorAll('button')]
+      .find((b) => /^Remove /.test(b.getAttribute('aria-label') || '')))
+    expect(seen.cs.overlays[1].removed, 'the wrong slot was tombstoned').toBe(true)
+    expect(seen.cs.overlays[0].removed, 'a neighbour was tombstoned').toBeFalsy()
+    expect(seen.cs.overlays.length, 'the array was spliced — that renumbers every later slot')
+      .toBe(cs.overlays.length)
+  })
+
+  it('⛔⛔ AND NOTHING ABOUT ANY OF THIS PERSISTS DIFFERENTLY', () => {
+    // The whole normalisation is presentation. Mounting the panel — selecting each
+    // moving average in turn, legacy and engine — must write nothing at all.
+    const seen = { cs: null }
+    const { cs } = withMA(base(), 'close')
+    const before = JSON.stringify(cs)
+    show(cs, seen); openTab()
+    for (const re of [/^EMA 9$/, /^EMA 20$/, /^SMA 50$/, /^SMA 200$/, ENGINE_MA]) select(re)
+    expect(seen.cs, 'merely reading the Inspector wrote to the blob').toBeNull()
+    expect(JSON.stringify(cs), 'the settings object was mutated in place').toBe(before)
+  })
+})
+
 describe('SEARCH → ADD → SEE IT LAND', () => {
   const TICKER_REPLY = {
     ok: true,

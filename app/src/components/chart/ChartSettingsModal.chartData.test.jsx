@@ -665,32 +665,56 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
   })
 })
 
-describe('⚰️⚰️ THE MODAL WIDENS FOR THIS TAB, AND ONLY FOR THIS TAB', () => {
-  it('⚰️⚰️ Indicators is WIDE; every other tab is not, and it goes back', () => {
-    // ⚰️⚰️ THIS CASE HAS ARGUED BOTH WAYS AND IS KEPT FOR THAT REASON. Chart
-    // Data widened the modal to 880 for a two-column pane map + inspector; the
-    // owner judged *"a modal that resizes on the way into one tab"* too high a
-    // price, the editor went inline, and this asserted the width NEVER changed.
+describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => {
+  it('⚰️⚰️⚰️ the shell does not resize when you switch tabs — any of them', () => {
+    // ⚰️⚰️⚰️ THIS CASE HAS NOW ARGUED THREE WAYS, WHICH IS WHY IT IS KEPT.
+    //   1. Chart Data widened the modal to 880 for a two-column pane map, and was
+    //      reverted — *"a modal that resizes on the way into one tab"* was judged
+    //      too high a price, and this asserted the width NEVER changed.
+    //   2. The Inspector took 720 for the same two-column shape at the owner's own
+    //      number, and this flipped to assert Indicators was WIDE and the others
+    //      were not — guarding that the widening stayed scoped to one tab.
+    //   3. The owner then USED it: *"The whole modal visibly grows/shrinks as I
+    //      click tabs. I do NOT like this. Chart Settings is ONE window."*
     //
-    // ⭐⭐ THE OWNER SET 720 FOR THE INSPECTOR (2026-09-17), which reverses the
-    // trade — 160px less than the version that was rejected, on a layout whose two
-    // regions have two different jobs. So the claim flips, and what it now guards
-    // is the part that did NOT change: the other four tabs are still 560, because
-    // widening `.panel` globally would re-lay-out four columns to solve a problem
-    // none of them has.
+    // ⭐ SO THE SHELL IS THE WINDOW'S, UNCONDITIONALLY, and what this now guards is
+    // that no tab can take it back. The width the shell settled on is the one the
+    // Inspector was accepted at; the four tabs designed to a narrower column keep
+    // that column INSIDE it rather than stretching (see `.bodyNarrow`), which is a
+    // content decision and not a shell one.
+    //
+    // ⛔ MEASURED AS A CLASS IDENTITY, NOT A PIXEL. jsdom lays nothing out, so a
+    // width read here would be 0 on every tab and the case would pass over a real
+    // regression. What CAN be pinned is that the panel's class list is byte-equal
+    // across every tab — which is exactly how the old modifier expressed itself,
+    // so a reintroduced one fails here. The rendered geometry is proved in the
+    // browser, where the seven-switch sweep reads one width and one pair of edges.
     show(base())
     const cls = () => document.body.querySelector('[class*="panel"]').className
     const atPrice = cls()
-    expect(/panelWide/.test(atPrice), 'the Price tab is wide').toBe(false)
+    expect(/panelWide/.test(atPrice), 'a width modifier is back on the panel').toBe(false)
+
+    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Indicators', 'Price Style']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      expect(cls(), `the ${name} tab changed the panel's class — the shell moved`).toBe(atPrice)
+    }
+  })
+
+  it('⭐ …and the NARROW tabs hold their own column inside the wider shell', () => {
+    // ⛔ THE SHELL GREW; FOUR TABS DID NOT GET REDESIGNED. Price Style, Canvas,
+    // Header and Markers were laid out against a 560px body and still look
+    // deliberate at that measure, so they carry a content cap instead of
+    // stretching four card groups across the full width. Indicators opts out —
+    // the Inspector's two columns ARE the shell's width.
+    show(base())
+    const body = () => document.body.querySelector('[class*="body"]')
+    expect(/bodyNarrow/.test(body().className), 'Price Style stretched to the shell').toBe(true)
 
     openTab()
-    expect(/panelWide/.test(cls()), 'the Inspector did not get its width').toBe(true)
+    expect(/bodyNarrow/.test(body().className),
+      'the Inspector was capped to the narrow column').toBe(false)
 
-    // ⛔ AND IT HANDS THE WIDTH BACK. A tab that kept it would have widened the
-    // whole modal permanently by the back door.
     fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
-    expect(cls(), 'the width did not go back on the way out').toBe(atPrice)
-    openTab()
-    expect(/panelWide/.test(cls())).toBe(true)
+    expect(/bodyNarrow/.test(body().className)).toBe(true)
   })
 })

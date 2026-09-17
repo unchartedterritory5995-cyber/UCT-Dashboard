@@ -834,14 +834,18 @@ export default function ChartSettingsModal({
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
-        /* ⚰️⚰️ TWICE NOW. Chart Data widened this to 880 for a two-column pane
-           map + inspector, and it was reverted — *"the width goes back to the one
-           every tab shares and the jump is gone"* — when the editor went inline.
-           ⭐ THE INSPECTOR WIDENS IT AGAIN, TO 720, AT THE OWNER'S NUMBER
-           (2026-09-17), and the difference from the reverted version is 160px and
-           a transition. See `.panelWide` for why the trade reads differently at
-           this width, and why it stays scoped to the one tab that spends it. */
-        className={`${styles.panel} ${activeTab === 'indicators' ? styles.panelWide : ''}`}
+        /* ⚰️⚰️⚰️ THREE TIMES, AND THE THIRD IS THE LAST. Chart Data widened
+           this modal to 880 for a two-column pane map and was reverted; the
+           Inspector took 720 for the same shape and kept it, scoped to its own
+           tab with a transition to soften the step. The owner then USED it and
+           ruled the step out: *"Chart Settings is ONE window. Its desktop shell
+           should have ONE stable width."*
+           ⭐ SO THE WIDTH IS THE PANEL'S, UNCONDITIONALLY. No modifier, no
+           per-tab class, nothing here to keep in step with the tab strip. The
+           four tabs that were designed to a 560px column keep that column
+           INSIDE the shell (`.bodyNarrow`) rather than stretching to fill it —
+           the shell is the window's decision, the content width is the tab's. */
+        className={styles.panel}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
@@ -946,7 +950,14 @@ export default function ChartSettingsModal({
           ))}
         </div>
 
-        <div className={styles.body}>
+        {/* ⭐ THE SHELL IS ONE WIDTH; THE CONTENT IS NOT OBLIGED TO FILL IT.
+            Indicators IS the shell's width — the Inspector's two columns were
+            designed to it. Price Style, Canvas, Header and Markers were laid out
+            against a 560px body and still look deliberate at that measure, so
+            they keep it and sit against the leading edge. Stretching four card
+            groups across 720px would be a redesign of four tabs nobody asked
+            for; a future project can unify them properly. */}
+        <div className={styles.body + (activeTab === 'indicators' ? '' : ' ' + styles.bodyNarrow)}>
           {activeTab === 'canvas' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Background</div>
