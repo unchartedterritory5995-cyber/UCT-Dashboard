@@ -12398,9 +12398,33 @@ function staticColourOf(node, env, depth = 0) {
     // only reason this branch is strict.
     const t = ((node.args || [])[1] || {}).value
     if (t !== undefined && numberValue(t) === null) return null
+    // ⭐⭐ R33a — THE BASE IS RESOLVED LIKE EVERY OTHER COLOUR, BY RECURSION.
+    //
+    // ⛔ THIS REMOVES AN ASYMMETRY; IT ADDS NO CAPABILITY. Two lines up, a bare
+    // `name` is already followed through its binding, and `input.color` already
+    // recurses into its default — so `color = bullColor` has always carried. Only
+    // `color.new`'s BASE asked a different, narrower question (`isColourName`: is
+    // this a Pine built-in colour NAME?) and never recursed.
+    //
+    // ⚰️ MEASURED BEFORE THE CHANGE, and the fourth row is what named the defect:
+    //     color = bullColor                 -> #00897B       carried
+    //     color = color.new(bullColor, 30)  -> colorDynamic  NOT carried
+    //     color = color.new(#123456, 30)    -> #123456       carried
+    //     color = color.new(litColor, 30)   -> colorDynamic  NOT carried
+    // `litColor` is a name bound to a PLAIN HEX LITERAL, so this was never about
+    // `input.color`. One reader for "what colour is this?", not two.
+    //
+    // ⛔ THE RECURSION SUBSUMES BOTH OLD CASES rather than sitting beside them: a
+    // built-in colour name and a literal colour node are the first two branches of
+    // the very function being called. Keeping the old checks as well would be two
+    // authorities over one question, which is the defect this file records most.
+    //
+    // ⛔ AND IT CANNOT FLATTEN A DYNAMIC COLOUR. The alpha guard above already
+    // refuses a non-literal transparency, and a base bound to a SERIES folds to
+    // null here exactly as it does anywhere else — `color.new(c, 30)` where
+    // `c = cond ? green : red` stays dynamic, which its control pins.
     const base = ((node.args || [])[0] || {}).value
-    if (isColourName(base)) return colourHexOf(base)
-    if (base && base.type === 'colour') return String(base.value)
+    return staticColourOf(base, env, depth + 1)
   }
   return null
 }
