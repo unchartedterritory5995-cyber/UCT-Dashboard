@@ -533,18 +533,35 @@ def spend_accepted() -> bool:
 
 
 def spend_allowed(ctx) -> bool:
-    """May this run spend? The flag, OR a forced run whose operator accepted the spend."""
-    if flags.extract_enabled():
-        return True
-    return bool(getattr(ctx, "force", False)) and spend_accepted()
+    """May this run spend? R64: only an UNFORCED run, and only with the switch on.
+
+    ⛔⛔ A FORCED RUN CAN NEVER SPEND, WHATEVER ANY FLAG SAYS. Measured 2026-09-17: the chain
+    runs `sources` immediately before `extract` in the SAME run, and `sources` lets `force`
+    bypass WISDOM_SOURCES_INGEST_ENABLED outright — so with the extract switch on, ONE ordinary
+    admin request (`POST /api/admin/wisdom/jobs/wisdom_daily_chain/run?force=true`, which is
+    exactly what an operator does to check a switch they just flipped) took the store from 0
+    sources to thousands of segments to three passes of up to 400 requests.
+
+    ⚰️ R52 made force require an acceptance literal WHILE THE SWITCH WAS OFF, and that was the
+    wrong half: the dangerous case is force WITH the switch ON, where this function used to
+    short-circuit to True on the flag before it ever looked at `force`. R64 removes the
+    acceptance literal from the force path entirely — it is not a key, and there is no
+    combination of environment variables that makes a forced run spend.
+
+    ⭐ Paid extraction is reachable on the SCHEDULED chain run only. A deliberate one-off has
+    its own door, which shows the projected cost and makes the operator echo it back.
+    """
+    if getattr(ctx, "force", False):
+        return False
+    return flags.extract_enabled()
 
 
 def spend_refusal(ctx) -> str:
-    """Why it will not spend — naming the switch, and for a forced run the missing acceptance."""
-    if getattr(ctx, "force", False) and not spend_accepted():
-        return (f"WISDOM_EXTRACT_ENABLED is off and this forced run did not accept the spend "
-                f"(set {ACCEPT_SPEND_ENV}={ACCEPT_SPEND_VALUE}). R52: force bypasses scheduling, "
-                f"never the switch that spends.")
+    """Why it will not spend — and for a forced run, that no flag can change the answer."""
+    if getattr(ctx, "force", False):
+        return ("R64: force never spends. A forced run bypasses SCHEDULING only; paid extraction "
+                "happens on the scheduled run, or through the dedicated paid action that shows "
+                "the projected cost. No environment variable changes this.")
     return "WISDOM_EXTRACT_ENABLED is off"
 
 

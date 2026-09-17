@@ -263,9 +263,16 @@ def test_a_forced_chain_run_no_longer_bypasses_the_extract_spend_gate():
                 pytest.fail(f"batch.py:{node.lineno} ANDs ctx.force with extract_enabled again — "
                             "R52 is undone and a forced admin run can spend with the switch off")
     # ⭐ and the replacement really is there, so this does not pass by the file being empty
-    assert "def spend_allowed(" in src and "ACCEPT_SPEND_VALUE" in src, (
-        "the R52 guard is missing — see tests/test_wisdom_forced_run_spend.py, which owns its "
-        "behaviour")
+    # ⚰️ This used to assert ACCEPT_SPEND_VALUE appeared in the file, which R64 made
+    # meaningless: the constant is still DEFINED (the paid action will use it) but it no
+    # longer gates anything, so its presence proved nothing. Check the R64 guard instead.
+    assert "def spend_allowed(" in src, "spend_allowed is gone"
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "spend_allowed")
+    body = ast.unparse(fn)
+    assert "force" in body and "return False" in body, (
+        "R64 is missing from spend_allowed — a forced run must never spend; see "
+        "tests/test_wisdom_forced_run_spend.py, which owns its behaviour")
 
 
 def test_the_rehearsal_never_forces_the_chain():

@@ -136,13 +136,23 @@ def test_a_forced_audit_no_longer_bypasses_the_switch_that_spends(env, monkeypat
 
     out = audit.run_audit(ctx(force=True), client=fake, n=3)
     assert out["status"] == "skipped"
-    assert "WISDOM_EXTRACT_ENABLED" in out["reason"]
+    # ⭐ R64 phrasing: the refusal deliberately names NO variable, because none applies.
+    assert "force never spends" in out["reason"]
     # ⭐ the load-bearing half: a refusal that still sent the batch would be no refusal at all.
     assert fake.messages.batches.created == []
 
-    # CONTROL — the acceptance string opens it, exactly as R52 rules for the daily path. Without
-    # this the test would pass just as well against a gate that refuses unconditionally.
+    # ⚰️ R64 SUPERSEDES THE CONTROL THIS TEST SHIPPED WITH. It used to set the acceptance
+    # literal and assert the FORCED run then submitted. That is now the hazard, not the
+    # control: force never spends, whatever any variable says.
     monkeypatch.setenv(batch.ACCEPT_SPEND_ENV, batch.ACCEPT_SPEND_VALUE)
     out = audit.run_audit(ctx(force=True), client=fake, n=3)
+    assert out["status"] == "skipped", "R64: no literal opens the forced door"
+    assert fake.messages.batches.created == []
+
+    # CONTROL — the UNFORCED, switched-on path still submits, so this cannot pass against a
+    # gate that refuses everything. (The audit's own scheduling flag is set by the fixture.)
+    monkeypatch.setenv("WISDOM_EXTRACT_AUDIT_ENABLED", "1")
+    monkeypatch.setenv("WISDOM_EXTRACT_ENABLED", "1")
+    out = audit.run_audit(ctx(force=False), client=fake, n=3)
     assert out["status"] == "submitted"
     assert len(fake.messages.batches.created) == 1
