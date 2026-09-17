@@ -212,3 +212,63 @@ move the sweep's CPU off the shared GIL (a process pool, or a readiness barrier 
 of the boot window), with R52's rail — a synthetic run of that work showing no loop block ≥100 ms
 on the fixed code and the block present on the pre-fix code — and a mutation that reds when the
 fix is removed.
+
+---
+
+## 5 · ⚠️⚠️ CORRECTION TO §3a/§4 — I ARGUED THE GIL, AND THE TIME IS PROBABLY I/O
+
+**What §3a and §4 got right, and it stands:** the sweep's own documented safety argument is false.
+`held_lock_ms` is **28,155–68,782 ms across n=9 receipts, median ≈ 56,000 ms**, against a comment
+claiming a **122 ms median and a ~0.2% duty cycle**. That is ~460× at the median, the duty cycle
+is ~94%, and three of nine cycles exceed the 60 s cadence (APScheduler says so: *"skipped: maximum
+number of running instances reached (1)"*). **The sweep holds `snapshot_builder._BUILD_LOCK` for
+most of every minute all session.** That is a real defect against a real claim.
+
+**What I got wrong: the mechanism, and therefore the conclusion I drew from it.** I wrote that
+this is *"the leading candidate for routine stalls"* because *"Python holds the GIL, so that CPU
+work stalls the event loop whatever thread it runs on."* That argument assumes the 56 s is CPU.
+Reading the function instead of assuming it:
+
+```
+:826   if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):     # the lock is taken here
+:873   snap = scan_volume.full_market_snapshot() or {}                  # ...and the FETCH is INSIDE it
+```
+
+`full_market_snapshot()` is *"the whole US-market snapshot"* behind a 30 s cache — and the receipt
+says `feed_symbols=13226`. The cache TTL (30 s) is **shorter than the sweep's cadence (60 s)**, so
+essentially every sweep pays a cold fetch. **A network fetch RELEASES the GIL.** So the dominant
+term in those 56 s is very likely I/O, not CPU, and I/O in a worker thread does not stall the
+event loop at all.
+
+⛔ **THE LOCK-HOLDING DEFECT AND THE LOOP-STALL CAUSE ARE TWO DIFFERENT CLAIMS, AND I MERGED
+THEM.** Holding the build lock for 56 s blocks the nightly builder and an admin `POST
+/api/screener/refresh` — the very collision the comment argues is impossible. It does **not**
+follow that it blocks the event loop. §3a's table row should read **"HIGHEST confidence as a
+LOCK-CONTENTION defect; UNESTABLISHED as a loop-stall cause"**, and §4's *"this is the right SHAPE
+for OI-44"* is withdrawn pending the join.
+
+⭐ **What the durable record actually shows now, and why it does not settle it either.** 36 events,
+**19 of them ≥3,000 ms**, all `tier=1` under R51, all `paged=False` (the 30-minute cooldown). Two
+are unambiguously settled-pod: **7,894.3 ms at uptime 627.8 s** and **3,049.0 ms at uptime
+784.9 s**. But the *distributions do not match*: the stalls cluster at **3–9 s** while the sweeps
+run **28–69 s**. One event — **33,877.9 ms** — sits within **16 ms** of a measured sweep
+`duration_ms` of 33,861.42, which is striking and is **one coincidence, not a join**.
+
+⛔ **AND A RETROSPECTIVE JOIN IS IMPOSSIBLE ON THIS POD.** 500 log lines reach back roughly three
+minutes here, so by the time a stall is read out of the record its window has already scrolled
+away. The join has to be a **forward** capture — sweep windows recorded as they happen, then
+matched against events that arrive afterwards. That is running.
+
+⭐ **The fix this points at is different, cheaper and better than the one I proposed.** Not "move
+the sweep's CPU off the GIL" — **hoist the market fetch out of the lock**. The lock exists so the
+anchors are not read from a snapshot being rewritten; a network fetch has nothing to do with that
+invariant and does not belong inside it. That alone should return `held_lock_ms` to the documented
+order of magnitude, and it is a much smaller change than a process pool.
+
+⭐ **And one thing the receipt settles for free: it is NOT a scaling bug.** The comment says the
+122 ms was measured *"on a synthetic 3,745-row universe"*; today's receipt says
+`rows_considered=3745`. **The input is the same size.** Only three commits have touched
+`live_tier.py` since 2026-08-23, so if any of the time is genuinely per-row work the bisect space
+is three commits wide — but the more likely reading is that **the 122 ms was measured against a
+synthetic feed and never described production at all**, which would make it a fixture that could
+not establish the property it was quoted for, rather than a regression.
