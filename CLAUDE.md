@@ -2739,6 +2739,48 @@ not evidence that the measurement was.
 keys on. If those are two different sentences, it is a proxy, and it must be labelled as
 one or replaced.
 
+### ⛔ A DEFAULT ARGUMENT IS BOUND AT IMPORT — late-bind every injectable seam
+
+> **`def f(..., thing_fn=None)` and resolve it in the body. NEVER `thing_fn=real_function`.**
+
+A parameter default is evaluated ONCE, when the module is imported, and captures the original
+object forever. So `monkeypatch.setattr(module, "real_function", fake)` — which is what every
+caller reasonably expects to work — **reaches nothing**, and the test silently exercises the
+real function.
+
+⚰️ **Measured 2026-09-17, and it had been eating runs for a day.** `scripts/gate_shards.py`
+carried **two conventions in one signature**:
+
+```
+tree_state_fn=tree_state          <- default argument, bound at import
+run_shard_fn=None                 <- late-bound, two lines away
+file_count_fn=count_test_files    <- default argument, bound at import
+```
+
+`test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run` patches
+`gate_shards.tree_state` to fake a dirty tree and assert the refusal releases the lock. With
+the patch inert it called the REAL `tree_state`, found the tree clean, skipped the refusal, and
+**ran a real six-shard gate inside a unit test** — real `npx vitest`, minutes of it, against a
+300 s ceiling.
+
+⭐⭐ **AND IT LOOKED LIKE FLAKINESS.** It PASSED whenever the working tree happened to be dirty
+(the real `tree_state` answered "dirty", the refusal fired, rc=2 in a second) and HUNG whenever
+it was clean. Every hang was immediately after a commit; every pass was mid-edit. **A test whose
+outcome depends on `git status` is not flaky — it is reading the wrong thing**, and from the
+outside those are indistinguishable. That is what let it survive four wrong diagnoses.
+
+⛔ **The rail must prove the patch is CALLED, not just that the default is `None`.** A signature
+assertion alone passes if the body ignores the parameter
+(`test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them`).
+
+⭐ **Class sweep (§10.35), 2026-09-17:** an AST pass over **364 files** in `scripts/` and
+`tools/` found **3** remaining `x_fn=module_level_callable` defaults —
+`deploy_watch.py:93 arm(probe_fn=probe)`, `deploy_watch.py:99 watch(probe_fn=probe)`,
+`window_check.py:883 reauthenticate(mint=mint_session_token)`. **None is monkeypatched anywhere
+in `tests/`**, so none is inert today. Left as-is with that reason recorded rather than changed
+for tidiness — but any test that starts patching `probe` or `mint_session_token` must late-bind
+the seam first, or it will be testing the real function while believing otherwise.
+
 ### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
 
 Kinds 1 and 2 are *the instrument was wrong*. Kind 3 is the nastiest, because the record is
@@ -2755,6 +2797,18 @@ independently by two sessions on the same night:
 written. The only thing that finds either is asking, of a record you already trust:
 
 > ### ⭐ **"When was this last true?"**
+
+⚰️ **AND IT CAUGHT THE AUTHORS OF THIS SECTION, WITHIN AN HOUR OF WRITING IT.** One session told
+another that a fix was "on master now"; it was **committed, not landed**, and master still
+served the command that errors. The claim was true in intent and false in fact, the other
+session accepted it without checking, and it was caught only because the owner asked whether it
+had actually shipped. ⭐ **"Committed" answers neither *is it written* nor *did it ship*.** The
+whole check is one line, and it is the same two-question discipline as the deploy rule:
+
+```sh
+git merge-base --is-ancestor <sha> origin/master   # did it SHIP
+git show origin/master:<path> | grep …             # what does master SAY today
+```
 
 ⭐⭐ **THE CLEANEST INSTANCE OF 3b, because nothing was ever red.** For two days this
 programme reported *"no rig window has been taken"* and treated it as the rig being
