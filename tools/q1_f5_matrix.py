@@ -42,6 +42,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 
@@ -95,6 +96,95 @@ ENDPOINT = {
     "append_financial_fact": "/facts/",
     "append_document_excerpt": "/excerpts",
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# W1 - THE FOURTH OUTCOME: the door guard DEFERRED
+#
+# ⛔⛔ D1 CHANGED WHAT AN ABSENT `/embeds` CALL MEANS. `noteHasUnsentWork` is
+# live on production and the capture chokepoint now DEFERS while a note has
+# unsent work, so the append cells cannot reach the loss path by design. The
+# cell's old reading of that was *"the control took the click but produced no
+# call to `/embeds` - a label is not a door"*, filed INCONCLUSIVE. That sentence
+# is a diagnosis of a BROKEN SELECTOR, and it was published as one; the owner
+# corrected it. The door was driven to completion and the guard stopped it.
+#
+# ⭐ THREE OUTCOMES WHERE THERE WAS ONE, and they are different facts:
+#
+#   DEFERRED-BY-GUARD  the member SAW the sentence, no `/embeds` call was made,
+#                      and the note still has queued work. The mitigation is
+#                      working and the member was told.
+#   RED                an `/embeds` call happened while work was unsent - the
+#                      guard did not hold, which is the defect itself.
+#   INCONCLUSIVE       no toast AND no call. A silent nothing: the click may
+#                      have missed, the toast may have shipped invisible (this
+#                      repo has shipped two of those), or the guard may have
+#                      deferred without telling anyone. All three are
+#                      unmeasured, and none of them is a pass.
+#
+# ⛔ THE COPY CONTRACT IS THE EVIDENCE, not a state flag. Two toasts have
+# shipped invisible in this repo - one passed `message` where the component
+# reads `msg`, one was owned by the branch its own action unmounts - and both
+# left every structural assertion green. So this reads RENDERED TEXT.
+
+#: ⛔ DERIVED FROM THE PRODUCT, NEVER RETYPED. A sentence typed into an
+#: instrument agrees with itself and says nothing about what a member sees; the
+#: constant is exported precisely so its one authority can be read.
+def guard_sentence(repo: pathlib.Path = REPO) -> str | None:
+    src = repo / "app" / "src" / "pages" / "journal-2-0" / "lib" / "offline" / "noteHasUnsentWork.js"
+    try:
+        text = src.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    m = re.search(r"STILL_SYNCING_MESSAGE\s*=\s*'([^']+)'", text)
+    return m.group(1) if m else None
+
+
+#: Read what the member can actually see. ⛔ `innerText`, not `textContent`:
+#: textContent returns text inside `display:none` subtrees, which is exactly how
+#: an invisible toast would read as a visible one.
+GUARD_TOAST_JS = """() => {
+  const b = document.body
+  return {text: b ? (b.innerText || '') : '', had_body: Boolean(b)}
+}"""
+
+
+def toast_in(rendered: str | None, sentence: str | None) -> bool:
+    """⛔ Pure, so the verdict can be driven without a browser.
+
+    UNKNOWN IS NOT SEEN: an unreadable page or an underivable sentence answers
+    False, which sends the cell to INCONCLUSIVE rather than to a verdict.
+    """
+    if not rendered or not sentence:
+        return False
+    return sentence in rendered
+
+
+#: The verdict's three branches, PURE. `PROCEED` means the door really fired and
+#: the ordinary RED/GREEN logic downstream owns the answer.
+DEFERRED = "DEFERRED-BY-GUARD"
+
+
+def judge_append_door(*, endpoint_hits: int, toast_seen: bool, queued_for_note: int):
+    """→ (verdict, why) for a decided cell, or (None, reason) to PROCEED."""
+    if endpoint_hits:
+        return None, "the door's own endpoint was called - the ordinary path decides"
+    if toast_seen and queued_for_note >= 1:
+        return DEFERRED, (
+            "the door was driven to completion and the capture chokepoint DEFERRED: "
+            "the member was shown the sentence, no call to the door's endpoint was "
+            f"made, and the note still holds {queued_for_note} queued entr(ies). "
+            "⭐ This is the MITIGATION working, not a broken selector - and not a "
+            "pass either: the writer is only deferred, never fixed.")
+    if toast_seen:
+        return "INCONCLUSIVE", (
+            "the deferral sentence was shown but the store reported NO queued entry, "
+            "so the guard deferred a note that had nothing to defer - the cell cannot "
+            "tell a mitigation from a false defer")
+    return "INCONCLUSIVE", (
+        "a SILENT NOTHING: no call to the door's endpoint and no deferral sentence "
+        "on screen. The click may have missed, or the toast may have shipped "
+        "invisible (two have, in this repo). Nothing was measured.")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # the six orderings
@@ -1488,11 +1578,32 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # For an append family the row only counts if its OWN endpoint was hit.
         if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
             hit = [p for p in posts if ENDPOINT[family] in p["u"]]
-            if not hit:
-                return {"verdict": "INCONCLUSIVE",
-                        "why": (f"the control took the click but produced no call to "
-                                f"`{ENDPOINT[family]}` — a label is not a door. "
-                                f"note calls this cell: {len(posts)}")}
+            # ⛔ READ THE TOAST BEFORE JUDGING THE ABSENCE OF A CALL. Since D1
+            # the chokepoint defers while a note has unsent work, so "no call"
+            # is now THREE different facts and the cell must name which.
+            rendered = None
+            try:
+                got = page.evaluate(GUARD_TOAST_JS)
+                rendered = (got or {}).get("text")
+            except Exception as e:                       # noqa: BLE001
+                log(f"      guard toast: UNREADABLE ({type(e).__name__})")
+            expected = guard_sentence()
+            if expected is None:
+                log("      guard toast: the product's sentence could not be DERIVED "
+                    "— treating the toast as unseen rather than guessing it")
+            seen = toast_in(rendered, expected)
+            q_now = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
+                                              "sentence": sentence})
+            queued_now = (q_now or {}).get("queuedForThisNote") or 0
+            log(f"      guard toast seen: {seen} · queued for this note: {queued_now} "
+                f"· {ENDPOINT[family]} calls: {len(hit)}")
+            verdict, why = judge_append_door(endpoint_hits=len(hit), toast_seen=seen,
+                                             queued_for_note=queued_now)
+            if verdict is not None:
+                return {"verdict": verdict,
+                        "why": (f"{why} · door via {res.get('via', 'n/a')} · "
+                                f"note calls this cell: {len(posts)} · "
+                                f"toast: {'\u201c' + expected + '\u201d' if seen else 'not on screen'}")}
 
         # ── 5b. WAIT FOR THE DRAIN TO ACTUALLY FINISH ──────────────────
         #
@@ -1773,6 +1884,68 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                 log(f"      ⛔ cleanup failed ({type(e).__name__}) — orphans may remain")
 
 
+def _self_check() -> int:
+    """⛔ THE FOURTH OUTCOME, DRIVEN WITHOUT A BROWSER, WITH PLANTED DOM.
+
+    `toast_in` and `judge_append_door` are pure for exactly this reason: a
+    verdict nobody has watched fail is not a verdict
+    (`lesson_gate_that_cannot_fail`).
+    """
+    fails = []
+    real = guard_sentence()
+    if not real:
+        fails.append("the product's deferral sentence could not be DERIVED from "
+                     "noteHasUnsentWork.js — the cell would treat every deferral as "
+                     "a silent nothing")
+        real = "This note is still syncing"          # keep the rest of the cases runnable
+
+    # planted DOM, in the three shapes a real page can take
+    PAGE_WITH_TOAST = f"Notebook\nMy note\n{real}\nOther chrome"
+    PAGE_SILENT = "Notebook\nMy note\nOther chrome"
+
+    cases = [
+        # (endpoint_hits, page text, queued, expected verdict, why-this-case-exists)
+        (0, PAGE_WITH_TOAST, 1, DEFERRED,
+         "toast + no call + queued work is the mitigation working"),
+        (1, PAGE_SILENT, 1, None,
+         "a real call must PROCEED to the ordinary RED/GREEN path, guard or no guard"),
+        (0, PAGE_SILENT, 1, "INCONCLUSIVE",
+         "a SILENT nothing is not a deferral — it is unmeasured"),
+        (0, PAGE_WITH_TOAST, 0, "INCONCLUSIVE",
+         "a toast with NOTHING queued cannot be told from a false defer"),
+        (0, None, 1, "INCONCLUSIVE",
+         "an UNREADABLE page is not an absent toast"),
+        (1, PAGE_WITH_TOAST, 1, None,
+         "a call PLUS a toast still proceeds — the call is what the cell is about"),
+    ]
+    for hits, page_text, queued, want, why in cases:
+        got, _ = judge_append_door(endpoint_hits=hits,
+                                   toast_seen=toast_in(page_text, real),
+                                   queued_for_note=queued)
+        if got != want:
+            fails.append(f"{why}: expected {want!r}, got {got!r}")
+
+    # ⛔⛔ THE MUTATION CONTROL, run in-process: with toast detection removed the
+    # DEFERRED case MUST NOT pass. A cell that answers DEFERRED without reading
+    # the copy contract is asserting the member saw something nobody checked.
+    blind, _ = judge_append_door(endpoint_hits=0, toast_seen=False, queued_for_note=1)
+    if blind == DEFERRED:
+        fails.append("MUTATION CONTROL: with the toast unseen the cell still answered "
+                     "DEFERRED-BY-GUARD — the copy contract is decorative")
+
+    # ⛔ and the derivation itself must be able to fail
+    if toast_in(PAGE_WITH_TOAST, None) or toast_in(None, real):
+        fails.append("toast_in must answer False when either half is missing")
+
+    for f in fails:
+        print("  \u26d4", f)
+    print("self-check:",
+          "PASS — the fourth outcome distinguishes a deferral, a real call, a silent "
+          "nothing and a false defer, and cannot answer DEFERRED without the toast"
+          if not fails else "FAIL")
+    return 1 if fails else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile")
@@ -1807,10 +1980,14 @@ def main() -> int:
                     help="apply the offline route change to EVERY family, so the "
                          "navigation can be isolated from the family. Marks the "
                          "cell so it is never mistaken for a plain row.")
+    ap.add_argument("--self-check", action="store_true",
+                    help="drive the fourth outcome against planted DOM; no browser")
     ap.add_argument("--ignore-window", action="store_true",
                     help="run anyway. Only for a window verified by hand; "
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
+    if getattr(args, "self_check", False):
+        return _self_check()
 
     if args.second_writer:
         SECOND_WRITER["door"] = args.second_writer_door
