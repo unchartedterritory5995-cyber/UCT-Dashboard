@@ -553,3 +553,121 @@ working hours**. So a guarded push has three exits and a session owns none of th
 attestation (R19), a genuinely quiet period, or a change to `BURST_MIN_DEPLOYS` — a design
 decision about this repo. ⚰️ One open window was observed in session 15 and that single data
 point made a guarded landing look routine; 117 probes say otherwise.
+
+---
+
+### 2026-09-17 — R60 / R61, the three ceilings, and what actually holds EXTRACT
+
+**R60 — WISDOM NEVER WRITES THE ENTITY MASTER, AND PRODUCTION'S COPY WAS NEVER EMPTY.**
+
+The entity master belongs to S3. The Wisdom programme is a *declared read-only consumer*:
+`api/services/wisdom/core/entities.py:4` — "through S3 Entity Master
+(`api/services/entity_master/api.py` resolve, **imported read-only**)" — and PROGRAM-MANIFEST
+lists it among the S3/S8/D2/S7/S12 dependencies "Consumed unchanged". No wisdom-owned module
+writes it. **A Wisdom session never seeds it. That is the S3 owner's act, at a keyboard.**
+
+⭐ **MEASURED 2026-09-17** through production's own surface (`GET /api/admin/entity-master/status`):
+**32,651 entities**, 32,664 aliases, 6,058 delisted, 26,593 active, `ambiguous_count` 0,
+`last_seed_at` **2026-09-07T03:12:38Z**, `db_path` **`/data/entity_master.db`**.
+**It is POPULATED. There was never anything to seed.**
+
+⚰️⚰️ **EVERY READING THAT SAID "EMPTY" WAS LOCAL, AND WAS THE SANDBOX — R42's mechanism, one
+programme-level step further.** conftest mints a fresh `mkdtemp` `DATA_DIR` per process,
+`entity_master/schema.py:33` captures `<sandbox>/entity_master.db` at import, and the store
+creates it empty. So **session 9's headline — "every CALL was demoted to MENTION by an
+unresolvable entity master" — is an artifact of the test harness, not a fact about production**,
+and the 76.8%-recovery figure measures a LOCAL corpus under a LOCAL seed.
+
+> ⛔⛔ **THE RULE. Before concluding that a production store is empty, read it THROUGH A
+> PRODUCTION SURFACE.** A local process cannot answer a question about a volume it has been
+> redirected away from, and the redirect is invisible at the call site.
+
+**H6 IS STRUCK.** Its "guards" existed only in a session brief; the string appears in no file in
+this repository. A ruling conditioned on guards nobody can read is not a ruling.
+
+---
+
+**R61 — `railway variables --set` IS PERMITTED, FOR NAMED VARIABLES ONLY.**
+
+Session 14 said *"`railway variables --set` is forbidden"*. Session 15 said *"CLI is the Railway
+path"* and *"never `railway variables` **without** `--set`"* — which only parses if `--set` is the
+permitted form and the value-printing read is the forbidden one. **Session 15 supersedes.** A
+session sets ONLY a variable its own ruling block names, once each, on the named service, each
+followed by a deploy watch. Never a member-door name. Never `--unset` without a ruling.
+
+⭐ Measured twice on `web`: `--set` **auto-redeploys** (2026-09-16: `DEPLOYING` 3 s after the set,
+reaching SUCCESS), consistent with 2026-09-09 and not with the 2026-08-30 `chart-renderer`
+reading. Expect a redeploy; verify the boot either way.
+
+---
+
+**THE THREE SPEND CEILINGS — AND THE "PER-NIGHT" ONE IS NOT PER NIGHT.**
+
+`budget.py:101-105` names them in the source. Restated because a session brief was written
+against the wrong one:
+
+| ceiling | where | default | bounds production? |
+|---|---|---|---|
+| PC-side ledger `cap_usd` | `data/wisdom/extract/spend-ledger.json` | 100.0 | ⛔ **NO** |
+| programme total | `WISDOM_EXTRACT_BUDGET_USD` | **120.0** | yes |
+| per night | `WISDOM_EXTRACT_DAILY_BUDGET_USD` | 25.0 | yes |
+
+⛔ **The ledger has no reader under `api/`** — the only readers are
+`tools/wisdom/extract_golden_gate.py` and a test, proven with a control showing the same search
+form does reach `api/`. `api/` is what production runs.
+⛔ **And `cap_usd` is WRITE-ONLY even for the PC tool**: the gate reads only `entries` from that
+file and takes its ceiling from `--max-usd` (default 40.0), writing `cap_usd` back as a record.
+**Editing that number changes nothing, anywhere, in either direction.**
+
+⛔⛔ **THE DEFECT, MEASURED BY EXECUTING THE REAL MODULE.** `select_within_budget`'s predicate
+(`budget.py:271`) compares **cumulative programme spend** — `SUM(cost_usd_actual) FROM
+wisdom_batches`, *no date filter* (`budget.py:242-248`) — against `cap = min(programme, night)`
+(`batch.py:438`). So a per-night value does not ration a night; **it clamps the whole programme to
+that number.** Seeded with $75 of night-1 actuals and ten $5 estimates: combined cap 75.0 →
+**allowed 0 of 10**, reason *"budget stop (all extractor versions): actual $75.00 + … > cap
+$75.00"*. Control, same DB, `cap=None` → 120.0 → **allowed 9 of 10**. **Night 2 gets zero while
+$45 of programme headroom sits unused**, and spend asymptotes to the night cap rather than the
+programme total.
+
+⚠️ It binds on the N-pass path only (`batch.py:530`, `n <= 1` short-circuits past `night_cap_usd`),
+and `WISDOM_EXTRACT_PASSES` is unset in production → `DEFAULT_PASSES = 3` → **it binds.**
+⛔ There is no rail on this: `test_wisdom_npass_chain.py:246` pins only the *raise* direction.
+
+⭐ **Consequence for any EXTRACT plan:** the knob that has to carry a corpus-sized budget is
+`WISDOM_EXTRACT_BUDGET_USD`, not the ledger file. At the measured $0.058671/segment-pass, one pass
+over the 9,733-segment catalog is **~$571** and three passes are **~$1,713**.
+
+---
+
+**WHAT ACTUALLY HOLDS EXTRACT IN PRODUCTION — AND IT IS NOT THE EMPTY TABLE.**
+
+Measured 2026-09-17, `GET /api/admin/wisdom/core/status`:
+
+```
+production  wisdom_sources 0 · wisdom_segments 0 · wisdom_extract_requests 0 · wisdom_eval_runs 0
+            wisdom_review_queue 36      <- non-zero: the reader works (the control)
+local store wisdom_sources 63 · wisdom_segments 83 · wisdom_records 826 · wisdom_principles 91
+            (data/wisdom/local-store/wisdom.db)
+```
+
+**Production has never held the corpus**; the programme's whole working set is local.
+
+⛔ **But "0 segments ⇒ nothing_to_do" is the WRONG mechanism, and getting it wrong would mislead
+the next session in three ways:**
+1. `run_daily` does not read segments first — it **writes** them, from `wisdom_sources`
+   (`batch.py:518` → `segment_pending_sources`, `batch.py:193-216`). The gating table is
+   **`wisdom_sources`**. A store with sources and no segments segments them and submits.
+2. The **golden gate is checked first** (`batch.py:519-524`). `golden.gate_status` reads
+   `wisdom_eval_runs`, which is **0** in production, so it returns
+   `accepted: False` and the real status is **`blocked_by_gate`**. ⭐ **The gate is holding the
+   door, not the empty table** — and no readiness list named it.
+3. **Retry rows are a second input** (`retry_rows`, `batch.py:239-242`, no join to segments): one
+   `wisdom_extract_requests` row with status `retry` defeats `nothing_to_do` entirely.
+
+So $0.00 spend requires **three** empty tables plus the gate — all four confirmed in production.
+
+> ⛔⛔ **A first "paid night" that costs nothing and writes nothing is indistinguishable, in every
+> dashboard, from one that worked.** Same well-formed-degraded-answer class as R42's demoted
+> CALLs. **EXTRACT is not the next ruling.** Segments reach production only through the `sources`
+> stream, and `WISDOM_SOURCES_INGEST_ENABLED` / `WISDOM_CAPTURE_ENABLED` are both off — and a
+> golden-gate receipt has to be imported before the extractor will accept anything at all.
