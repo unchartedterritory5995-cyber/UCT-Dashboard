@@ -93,7 +93,31 @@ un-maximises).
 
 ## 3. WORK ITEMS
 
-- [ ] **W1 — D-13 in full** — `TODO, clock-gated Wed >= 09:00 ET`
+- [x] **W1 commit A + B — MERGED 2026-09-17** — `d9455a6d6` on master, web SUCCESS, verified in-process.
+  R30 durable stall record · R34 two tiers · OI-45 page via `chart_health_alerts` at severity
+  "critical" (not V2-gated) · R29 durable per-slot token counter. 28 tests, 8/8 mutations RED,
+  zero new failures like-for-like (branch 241 / master 213 = exactly the 28 new tests).
+  **LIVE EVIDENCE ALREADY**: `token-slots.json` on the volume reads **`current: 5, previous: 0`**,
+  `since 2026-09-17T12:23:20Z`; `r29_satisfied()` correctly refuses with *"only 0.0 h of 24 h"*.
+
+- [ ] **OI-47 — the new health-payload fields are UNREACHABLE on every production pod** — `OPEN, 1-line fix, next push`
+  ⛔⛔ **THE THIRD INSTANCE OF THIS CLASS IN ONE PROGRAMME, AND THE CODE COMMENT DESCRIBES IT.**
+  `api/routers/discord_interactions.py:875 render_health` has a `store is None` EARLY RETURN —
+  taken on every pod where V2 is dark and no jobs DB exists, i.e. **all of them** — which
+  hand-builds its dict and never reaches `observe.health_payload`. I wired `stall_record` and
+  `token_slots` into `health_payload`; both fall into exactly the hole OI-42 fixed for `loop`.
+  Verified in-process on `d9455a6d64a5`: `stall_record_present: false`, `token_slots_present: false`,
+  while the constants read fine (`LOOP_STALL_PAGE_ALWAYS_MS 5000.0`) and `RENDER_SLOTS` is still
+  `RenderGate`.
+  ⭐ **The acceptance test caught it** — which is the entire reason the directive requires reading
+  the fields in-process rather than inferring them from a green merge.
+  ⚠️ **What still WORKS, verified by reading `/data` directly:** the durable record is wired with
+  `last_error: null`, the page path is live, and the token counter is writing. Only the *read
+  surface* is blocked. So the protective half shipped; the convenient half did not.
+  **Fix:** add both fields to the early-return dict beside `"loop": observe._live_loop()`.
+  **Not pushed this session — R22 allows one master push and it is spent.**
+
+- [ ] **W1 remainder — D-13's field block** — `TODO, clock-gated 10:00 ET`
   Observability merge (durable stall record on `/data`; delivery via
   `chart_health_alerts.emit` at severity **"critical"**; R34 tiers; durable cooldown;
   durable token-slot counters) · R31 traces · smoke rows incl. the 10:00 ET window ·
@@ -119,7 +143,13 @@ un-maximises).
   An 80 s loop block is a mass ack failure whatever the render path does, and R41's rollback changes
   which code serves, not whether the loop is blocked. R40's precondition list gains: OI-44 fixed and
   verified across >= 10 pods at a stall rate that cannot breach the 3 s ack budget.
-- [ ] **W3 — OI-13 step 6** per R42 — `BLOCKED-until-Thursday` (counter ships in W1; first qualifying weekday span begins Thu 17 Sep)
+- [ ] **W3 — OI-13 step 6** per R42 — `BLOCKED-until-FRIDAY 2026-09-18, ~08:23 ET at the earliest`
+  The durable counter went live at **2026-09-17T12:23:20Z = 08:23 ET**, which is AFTER today's
+  07:35 ET Morning Wire run. R29 requires a full weekday span **including** a 07:35 ET run and a
+  market session, so the first qualifying window closes no earlier than Friday ~08:23 ET.
+  Current reading: **current 5, previous 0** — zero so far, which is the direction that permits
+  the clear, but 0.0 h of 24 h observed. ⛔ Reading it early and clearing on "previous is 0"
+  would be exactly the absence-is-not-evidence error R29 exists to prevent.
 - [ ] **W4 — gate to 11/11** — `TODO` — snapshot `20260916T014229Z-29900cedf` = **7 MET / 2 NOT MET / 2 NOT MEASURABLE**, no gate change vs `7decb0601`. The four rows and their movers:
 
   1. **NOT MET — "every forensics class closed with a commit"** · 11/14 closed; open: **C-02, C-09, C-13**.
