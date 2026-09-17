@@ -2,9 +2,9 @@
   "frozen_at": "2026-09-15T14:30:00.000Z",
   "cases": {
     "off__365__1280": {
-      "png_sha256": "fc7412e3ca4fa0d652d62ca83711616dab2d3027467155f6a6f9026698d483c6",
-      "dom_sha256": "d841f0b669788aac4fa32d2eb9149139e8ad6106a9a727c0e0408222b5d96d07",
-      "load_ms": 4749,
+      "png_sha256": "a52bcb49f2f2e05780911bf206cd4f5d6104c90a258ec9e58f6775e22a2ec588",
+      "dom_sha256": "4c1e24b58aa43e1e284cadac5c0db472cc5e2218705e732fd75f3fabe4c3df0e",
+      "load_ms": 5002,
       "viewport": [
         1280,
         900
@@ -16,9 +16,9 @@
       }
     },
     "off__365__380": {
-      "png_sha256": "e68352a2f8b8a7ae077dc8bbb875275470d58d86ce2050c3598a6efa3606a1f6",
-      "dom_sha256": "624395a061bfc33882d14d2903fb4dcc545783f4324b60df44874d0e2e214804",
-      "load_ms": 4780,
+      "png_sha256": "bd3b66569752392915701dce02309668da9646b1b9cd41a8e1b2e5fa98206b24",
+      "dom_sha256": "ed91e11446bac5e2af1c31c8edaf7116eb1e964002e42499fa86b9c128f4b1cc",
+      "load_ms": 4817,
       "viewport": [
         380,
         800
@@ -30,9 +30,9 @@
       }
     },
     "off__max__1280": {
-      "png_sha256": "8a1ba4db403680fe013383ba4c3871c8180c2dd418e338c9a8cd22274debb369",
-      "dom_sha256": "0e1f0d300b647e7d761e6ce32f7e34e903e164001a8002bdf2f2d1c54bb7b33a",
-      "load_ms": 4907,
+      "png_sha256": "904c0d121c78d35d9d6a242096ec4eea5649e5222a53578a6cce32655617a666",
+      "dom_sha256": "da0816eaeac4a5d456f1603a6ed3680ae47c11543632aa610fe93152b5dc3d95",
+      "load_ms": 5149,
       "viewport": [
         1280,
         900
@@ -44,9 +44,9 @@
       }
     },
     "off__max__380": {
-      "png_sha256": "9b0cc3364db552e524d49e8c7c6b967343e222beb1714ebc2ec34c028c4e573e",
-      "dom_sha256": "06508b777a3e5613c1d4f6fb619ccfa7da130935e93efb24b583036a430f0403",
-      "load_ms": 5031,
+      "png_sha256": "08f78ef66657f729a3bc276576e6acd64ec62449569091ef3b4621b23598b86d",
+      "dom_sha256": "7e07a1af930714ee7c0a2093a9f3cdbea2fe0bb854a4a73d0639bf91b81465f3",
+      "load_ms": 5247,
       "viewport": [
         380,
         800
@@ -58,9 +58,9 @@
       }
     },
     "v22__365__1280": {
-      "png_sha256": "135abb7a912688f5e814f0b4b0a1446f838e0461aff7d437fbf4a4122a63dff2",
-      "dom_sha256": "38d51d49dd14eaa074bb24aa11fda85f8769f18f75d06082360aaaf498d07282",
-      "load_ms": 4786,
+      "png_sha256": "d2b860e9d8a7a79def2effcf8d4131fbe77e507af87610c1527078dae4a865e2",
+      "dom_sha256": "aa803382507f3ac6ccd659f51c7838fcd7048d725e547e3c7ed805ff4a2875ab",
+      "load_ms": 4874,
       "viewport": [
         1280,
         900
@@ -72,9 +72,9 @@
       }
     },
     "v22__365__380": {
-      "png_sha256": "f480265823585a614f30afbe59fe9e0ec3ff94c36ef65d80c325d793b5c1d921",
-      "dom_sha256": "46d97d95b9e769e4071c61d0490fd781227c4b4a87027c2fcea61cd6e0a1afd4",
-      "load_ms": 4732,
+      "png_sha256": "4ba9e07a3ef5ab73cd795bc719386f5e6d8600c8023f0ce09b110d032b77b933",
+      "dom_sha256": "3d214802ad19717b1a82755e4169484677979d419d489ad2e3d4034a6534a31f",
+      "load_ms": 4886,
       "viewport": [
         380,
         800
@@ -86,9 +86,9 @@
       }
     },
     "v22__max__1280": {
-      "png_sha256": "ef3685a43f887951790fa6c0ae3a66f5a77532b9b5feccfed889cc6121d15b2d",
-      "dom_sha256": "431593d4cf87ec522237fa805b455d280266edbd6c9e065d188f5a1f5ca8763c",
-      "load_ms": 4935,
+      "png_sha256": "c62f0063fc78552c6e3dda1814c6b5dcbc3bf649fbb4f94e8cc2b73707f12ea4",
+      "dom_sha256": "49d076fa28e4c7dde1640e1ae893828a18630151bb8aad2e3faf53f78d6ed446",
+      "load_ms": 5189,
       "viewport": [
         1280,
         900
@@ -100,9 +100,9 @@
       }
     },
     "v22__max__380": {
-      "png_sha256": "08115ab358d01f8582341e33df2156fb9e2a464e19d96e11048a5371cb076dc5",
-      "dom_sha256": "146cce32570c83751f55ace87ab61b0e866014d7074700b51da5d7e5fb0126ff",
-      "load_ms": 4922,
+      "png_sha256": "77f9b7b96b46936061349a99f9b9a8b15f58cd462fe8500d9eb7b7a4c904c868",
+      "dom_sha256": "6cbafd97a674909fcf9acec18477e1d0e5e849e30cf901f26ca03fc2820fa27f",
+      "load_ms": 5200,
       "viewport": [
         380,
         800
@@ -114,9 +114,9 @@
       }
     },
     "v23__365__1280": {
-      "png_sha256": "2ba48d2296b07271307afedef5f0e5720b40fbc1c6a26469f6bc23a164fbbab6",
+      "png_sha256": "75faee15048f04263dce1c520b9dd66309112db21f90d56a6885f2b37af3c8bb",
       "dom_sha256": "902de9d29c5e9a5f27d35a28e3156f26ccd084b0e194b991d3de024af766f18d",
-      "load_ms": 4729,
+      "load_ms": 4851,
       "viewport": [
         1280,
         900
@@ -128,9 +128,9 @@
       }
     },
     "v23__365__380": {
-      "png_sha256": "7c72e82707f4076047cb021a4309dd9757ac6b20b5e8b799f4a9ad0717a53b2c",
+      "png_sha256": "e7b4228e781b12a02d9a5b3bc5cd6f0cee52a86b71503cda4bfe6721e6c22954",
       "dom_sha256": "902de9d29c5e9a5f27d35a28e3156f26ccd084b0e194b991d3de024af766f18d",
-      "load_ms": 4765,
+      "load_ms": 5036,
       "viewport": [
         380,
         800
@@ -142,9 +142,9 @@
       }
     },
     "v23__max__1280": {
-      "png_sha256": "a122c26acc07e3c57bad06f28cba0c4dcf8f72f6baedd2380092d30eeb65b9a1",
+      "png_sha256": "6f5fa09d2851d736da9741c3eb49e824f8a20b98a8ec2348d278b7d024788ead",
       "dom_sha256": "1dbde19dfda41ffcb72c4cc81c0a638878bc807e94179b6135de2ef24428f1a2",
-      "load_ms": 4932,
+      "load_ms": 5404,
       "viewport": [
         1280,
         900
@@ -156,9 +156,9 @@
       }
     },
     "v23__max__380": {
-      "png_sha256": "0a2fc56ce12f74340e0fa41f32f4e97d803cea294149d97cc6489b83d3d5905c",
+      "png_sha256": "36b637bed7f8e4df015276d3415419a00e1665ca40b1dda9bfbe1df9f6cc0375",
       "dom_sha256": "1dbde19dfda41ffcb72c4cc81c0a638878bc807e94179b6135de2ef24428f1a2",
-      "load_ms": 4917,
+      "load_ms": 5408,
       "viewport": [
         380,
         800
@@ -170,9 +170,9 @@
       }
     },
     "both__365__1280": {
-      "png_sha256": "135abb7a912688f5e814f0b4b0a1446f838e0461aff7d437fbf4a4122a63dff2",
-      "dom_sha256": "8dd008c293945f5c9ddd7eca388384b076ab785a3fadbfa9bae9c46ded0250bc",
-      "load_ms": 4483,
+      "png_sha256": "d2b860e9d8a7a79def2effcf8d4131fbe77e507af87610c1527078dae4a865e2",
+      "dom_sha256": "aa803382507f3ac6ccd659f51c7838fcd7048d725e547e3c7ed805ff4a2875ab",
+      "load_ms": 4845,
       "viewport": [
         1280,
         900
@@ -184,9 +184,9 @@
       }
     },
     "both__365__380": {
-      "png_sha256": "f480265823585a614f30afbe59fe9e0ec3ff94c36ef65d80c325d793b5c1d921",
-      "dom_sha256": "b597cf41653a4fba55ef6abaae9ce201f0c30fd34107f76db3f5ef3417815753",
-      "load_ms": 4476,
+      "png_sha256": "8fa678d758c401bfb2fddf5ffbdb3d554c574a73febd14fd119462b67350b1cf",
+      "dom_sha256": "3d214802ad19717b1a82755e4169484677979d419d489ad2e3d4034a6534a31f",
+      "load_ms": 4908,
       "viewport": [
         380,
         800
@@ -198,9 +198,9 @@
       }
     },
     "both__max__1280": {
-      "png_sha256": "748e6bd36693ec3c764f29352be9e74a4b45e31381403ad0545b81cfecc9355a",
-      "dom_sha256": "53cdd8e377a966030010166fbc7f299b81b912e267657da4d69590415ce3f042",
-      "load_ms": 4565,
+      "png_sha256": "c62f0063fc78552c6e3dda1814c6b5dcbc3bf649fbb4f94e8cc2b73707f12ea4",
+      "dom_sha256": "49d076fa28e4c7dde1640e1ae893828a18630151bb8aad2e3faf53f78d6ed446",
+      "load_ms": 5036,
       "viewport": [
         1280,
         900
@@ -212,9 +212,9 @@
       }
     },
     "both__max__380": {
-      "png_sha256": "f7786b317f26d2ccd8c3fac8930d95882c757bda3f256c394e51c704ca28b6c5",
-      "dom_sha256": "eb03a229c703ac02f817a34b7a104f577faf506b6b72801b2d0000cf0af4ec2f",
-      "load_ms": 4559,
+      "png_sha256": "77f9b7b96b46936061349a99f9b9a8b15f58cd462fe8500d9eb7b7a4c904c868",
+      "dom_sha256": "6cbafd97a674909fcf9acec18477e1d0e5e849e30cf901f26ca03fc2820fa27f",
+      "load_ms": 5328,
       "viewport": [
         380,
         800

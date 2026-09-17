@@ -138,21 +138,40 @@ def test_the_fixture_member_is_NOT_an_admin():
 
 # ── The differ ───────────────────────────────────────────────────────────────────────
 
-def test_the_differ_sees_ONE_pixel_and_a_size_change(tmp_path):
-    """The smallest real regression is one pixel. A differ that cannot see it will not
-    see a shifted label either."""
+def test_the_differ_sees_ONE_pixel_past_the_tolerance_and_a_size_change(tmp_path):
+    """The smallest change the differ can honestly claim to see, and its boundary.
+
+    ⚰️ This asserted that a ONE-LEVEL change on one pixel counted. It no longer does, and
+    the reason is measured rather than convenient: Chromium rasterises the y-axis label
+    column and the tab bar's rounded pill a grey level differently per launch, so a
+    one-level sensitivity reported a diff on runs where nothing had changed. The rail was
+    updated rather than the tolerance widened — `ANTIALIAS_TOLERANCE` is 1 and both sides
+    of it are pinned here, so raising it would fail this test rather than quietly blind
+    the differ.
+    """
     from PIL import Image
-    a, b, c = tmp_path / "a.png", tmp_path / "b.png", tmp_path / "c.png"
-    img = Image.new("RGB", (30, 20), (9, 9, 9))
-    img.save(a)
-    m = img.copy()
-    m.putpixel((5, 5), (9, 9, 10))       # one pixel, one channel, by one
-    m.save(b)
-    Image.new("RGB", (31, 20), (9, 9, 9)).save(c)
+    a = tmp_path / "a.png"
+    noise = tmp_path / "noise.png"
+    real = tmp_path / "real.png"
+    sized = tmp_path / "sized.png"
+
+    base = Image.new("RGB", (30, 20), (9, 9, 9))
+    base.save(a)
+
+    n = base.copy()
+    n.putpixel((5, 5), (9, 9, 9 + H.ANTIALIAS_TOLERANCE))       # the rasterisation noise
+    n.save(noise)
+
+    r = base.copy()
+    r.putpixel((5, 5), (9, 9, 9 + H.ANTIALIAS_TOLERANCE + 1))   # one level past it
+    r.save(real)
+
+    Image.new("RGB", (31, 20), (9, 9, 9)).save(sized)
 
     assert H.pixel_diff(a, a) == 0
-    assert H.pixel_diff(a, b) == 1
-    assert H.pixel_diff(a, c) == -1, "a size change must be reported, not counted"
+    assert H.pixel_diff(a, noise) == 0, "the measured antialias noise must be absorbed"
+    assert H.pixel_diff(a, real) == 1, "one level past the tolerance must be CAUGHT"
+    assert H.pixel_diff(a, sized) == -1, "a size change must be reported, not counted"
 
 
 def test_self_check_passes():
@@ -163,41 +182,74 @@ def test_self_check_passes():
 
 # ── The checker's classification ─────────────────────────────────────────────────────
 
-def _png(path, size=(20, 12), colour=(7, 7, 7), poke=None):
+def _png(path, size=(60, 60), colour=(7, 7, 7), blot=0):
+    """A flat image, optionally with `blot` pixels changed well past the noise budget."""
     from PIL import Image
     im = Image.new("RGB", size, colour)
-    if poke:
-        im.putpixel(poke, (colour[0] ^ 1, colour[1], colour[2]))
+    for i in range(blot):
+        im.putpixel((i % size[0], i // size[0]), (240, 10, 10))
     im.save(path)
 
 
-def _pair(tmp_path, names):
+def _pair(tmp_path, names, dom=True):
     shots, gold = tmp_path / "shots", tmp_path / "gold"
-    shots.mkdir(), gold.mkdir()
+    (shots / "dom").mkdir(parents=True), (gold / "dom").mkdir(parents=True)
     for n in names:
         _png(shots / n)
         _png(gold / n)
+        if dom:
+            html = f"<div>{n}</div>"
+            (shots / "dom" / (n[:-4] + ".html")).write_text(html, encoding="utf-8")
+            (gold / "dom" / (n[:-4] + ".html")).write_text(html, encoding="utf-8")
     return shots, gold
 
 
+#: Comfortably past `PNG_NOISE_BUDGET`, so these tests are about classification and not
+#: about where the budget happens to sit.
+BIG = H.PNG_NOISE_BUDGET * 3
+
+
 def test_a_flag_OFF_change_is_a_REGRESSION_and_fails(tmp_path, capsys):
-    """⛔ `off__*` IS V1 — the product members see today. It must not move one pixel
-    while two increments are built behind a dark flag."""
+    """⛔ `off__*` IS V1 — the product members see today. A real change there fails."""
     shots, gold = _pair(tmp_path, ["off__365__1280.png", "v22__365__1280.png"])
-    _png(gold / "off__365__1280.png", poke=(3, 3))      # V1 moved
+    _png(gold / "off__365__1280.png", blot=BIG)
     assert H.check(shots, gold) == 1
     assert "REGRESSION" in capsys.readouterr().out
 
 
 def test_a_flag_ON_change_is_EXPECTED_and_does_not_fail(tmp_path, capsys):
-    """⭐ The increments changing IS the work. A checker that reds on the intended
-    change trains everyone to `--update-goldens` without looking — which is exactly how
-    a real V1 regression would then slip through."""
+    """⭐ The increments changing IS the work. A checker that reds on the intended change
+    trains everyone to `--update-goldens` without looking — which is exactly how a real
+    V1 regression would then slip through."""
     shots, gold = _pair(tmp_path, ["off__365__1280.png", "v22__365__1280.png"])
-    _png(gold / "v22__365__1280.png", poke=(3, 3))
+    _png(gold / "v22__365__1280.png", blot=BIG)
     assert H.check(shots, gold) == 0
     out = capsys.readouterr().out
     assert "EXPECTED" in out and "REGRESSION" not in out
+
+
+def test_a_sub_budget_pixel_diff_is_NOISE_on_every_case(tmp_path, capsys):
+    """⛔⛔ THE CORRECTION THAT COST A ROUND. The flag-off cases were first held to ZERO
+    pixels, on the strength of ONE run in which they came back clean. The next run moved
+    `off__365__1280` by 17 px, twice — a y-axis label rasterised at a different subpixel
+    offset. One sample does not establish determinism, so the budget applies everywhere
+    and the DOM carries exactness."""
+    shots, gold = _pair(tmp_path, ["off__365__1280.png"])
+    _png(gold / "off__365__1280.png", blot=H.PNG_NOISE_BUDGET)
+    assert H.check(shots, gold) == 0
+    out = capsys.readouterr().out
+    assert "noise only" in out and "REGRESSION" not in out
+
+
+def test_a_DOM_change_alone_is_a_REGRESSION_even_with_identical_pixels(tmp_path, capsys):
+    """⭐ THE REASON THE DOM RAIL EXISTS. Pixels carry a measured noise floor; the
+    normalised DOM does not (16/16 byte-stable across two full runs). A structural change
+    that happens to land under the pixel budget must still be caught."""
+    shots, gold = _pair(tmp_path, ["off__365__1280.png"])
+    (gold / "dom" / "off__365__1280.html").write_text("<div>something else</div>",
+                                                      encoding="utf-8")
+    assert H.check(shots, gold) == 1
+    assert "DOM changed" in capsys.readouterr().out
 
 
 def test_a_DISAPPEARED_case_is_a_regression(tmp_path):
@@ -209,11 +261,31 @@ def test_a_DISAPPEARED_case_is_a_regression(tmp_path):
 
 
 def test_the_checker_is_not_vacuous_on_a_clean_pair(tmp_path, capsys):
-    """CONTROL: if it returned 0 for everything, the three tests above would pass for
-    the wrong reason."""
+    """CONTROL: if it returned 0 for everything, the tests above would pass for the wrong
+    reason."""
     shots, gold = _pair(tmp_path, ["off__365__1280.png", "v22__365__1280.png"])
     assert H.check(shots, gold) == 0
     assert "match their goldens" in capsys.readouterr().out
+
+
+def test_the_dom_normaliser_keeps_the_product(tmp_path):
+    """⛔ A NORMALISER THAT ERASES TOO MUCH IS A GOLDEN THAT CANNOT FAIL. The id rule was
+    once written through a shell heredoc that ate its backreferences and collapsed the
+    whole match to `<ID>` — deleting `id="` itself, after which every golden would have
+    matched every other golden."""
+    out = H.normalise_dom('<div id="r7" class="keep" aria-controls="x9">Data Charts</div>')
+    assert 'id="<ID>"' in out, "the attribute NAME was destroyed, not just its value"
+    assert 'aria-controls="<ID>"' in out
+    assert 'class="keep"' in out, "an unrelated attribute was eaten"
+    assert "Data Charts" in out, "the normaliser removed visible text"
+
+
+def test_the_dom_normaliser_actually_removes_the_volatile_parts(tmp_path):
+    """CONTROL for the one above: it must still erase what it is for."""
+    before = '<div id="r7" style="background:url(#grad-42)" _echarts_instance_="ec_9">x</div>'
+    out = H.normalise_dom(before)
+    assert "r7" not in out and "grad-42" not in out and "ec_9" not in out
+    assert out != before
 
 
 # ── The identity guard ───────────────────────────────────────────────────────────────

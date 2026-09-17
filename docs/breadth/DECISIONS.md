@@ -1939,3 +1939,72 @@ programme closes. That command now errors out. It is **not corrected here** — 
 programme's file and this one has no standing to edit it — but it is recorded so whoever
 closes that programme is not surprised, and so the two halves (the new syntax, and the fact
 that a delete does not restart anything) travel together.
+
+### D-052 · The V2-2 default selection must exercise the split (2026-09-17)
+
+DC-2 §3.3. Owner ruling, given on the DC-2 confirmation: *"the default selection must
+exercise the split — if the roadmap names default metrics, use them; if it names only
+the two percentages, add the single most-used non-percentage metric from the registry to
+the default set under the V2-2 flag (V1 defaults untouched), so a member sees ≥ 2
+panels on first load."*
+
+**The roadmap names no defaults.** Searched `01-audit.md` and `02-design.md`: neither
+specifies a default metric set for the V2 tab. So the second branch of the ruling applies.
+
+#### Why it was needed
+
+V1's default is `['breadth_score', 'pct_above_50sma']` — both unit `pct`, therefore ONE
+unit family, therefore exactly ONE panel. V2-2's entire subject is the split, and it
+defaulted to the one selection that cannot show it. The feature was proved by rails and
+by nothing a person could look at; the §3.2 screenshots showed a single chart.
+
+⚠️ That is the shape this repo keeps paying for from the other side: usually a
+feature is built and connected to nothing. Here it was built, connected, and defaulted
+into invisibility — which a green suite cannot see either.
+
+#### The derivation, and the tie
+
+"Most used" is measured as **appears in the most `CHART_PRESETS`** — the firm's own
+record of what it reaches for, rather than a preference. Measured 2026-09-17 over 36
+presets, restricted to non-`pct`, chartable metrics:
+
+| metric | unit | presets |
+|---|---|---|
+| **`new_52w_highs`** | `count` | **4** |
+| **`vix`** | `vix` | **4** |
+| `new_ath` | `count` | 3 |
+| `sp500_close` | `index` | 3 |
+
+⛔ **The derivation TIED, and a tie is not a result.** Taking the alphabetical winner
+would have dressed a coin-flip as a measurement. The tiebreak is stated, and it is a
+reason rather than a taste:
+
+> ⭐ **Prefer the COUNT family, because the rest of DC-2 needs it exercised.**
+> · A-28 specifies **bars** for counts, so V2-3's mark work has something to draw.
+> · The era note attaches to **count panels** (*"Counts depend on the measured
+>   universe…"*), so V2-3's headline honest-state has a surface to appear on.
+> `vix` is a second family too, but it exercises neither.
+
+**Decision: `V2_DEFAULT_SELECTED = V1 default + `new_52w_highs`.**
+
+#### How it is held
+
+⛔ **V1's default is untouched.** `BreadthCharts.jsx::DEFAULT_SELECTED` is the shipped
+product's first view and is not this increment's to move. The V2 list applies only when
+V2-2 is ON, so a flag-off member's first load is byte-identical — which is exactly what
+`flagOff.golden.html` asserts, and it stayed unchanged through this commit.
+
+⛔ **Pinned as a literal, with a rail that re-derives it.** A default that silently
+followed the preset table would move every member's first view whenever a preset was
+added — a member-visible change nobody decided. `defaults.test.js` re-runs the
+derivation and fails if the pin stops being a legitimate winner, so a registry change is
+a REVIEWABLE red rather than a quiet drift. A second rail asserts the tie is still real,
+so this record cannot go stale without something going red.
+
+⭐ And the rails carry a **control**: V1's default must still yield exactly one panel.
+If it ever splits on its own, D-052 is solving nothing and this decision should be
+revisited rather than kept green.
+
+**Goldens:** re-recorded as an EXPECTED on-state change (`v22__*`, `both__*`). The
+`off__*` shots came back byte-identical, which is the whole point of that classification.
+
