@@ -253,6 +253,85 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
       .toMatch(/RSI/)
   })
 
+  it('⭐⭐ THE SYMBOLS REGION IS DECLARED WHILE THE NETWORK IS STILL ANSWERING', () => {
+    // ⚰️⚰️ DISCOVERY ANSWERS FROM TWO SOURCES AND ONLY ONE IS REMOTE. The
+    // catalogue and the breadth library are local and resolve on the keystroke;
+    // the ticker search is a round trip. So the list renders once without symbols
+    // and again with them, and until it does there is nothing on screen to say a
+    // second answer is coming — a query with no local match simply reads as
+    // "nothing found" for as long as the network takes.
+    //
+    // ⛔ GATED ON THE **GROUP**, NOT ON `symbolRows.rows.length`. Local BREADTH
+    // hits make that array non-empty immediately for a query like `MA` (which
+    // substring-matches `% Above 50 EMA`), so a length check suppressed the notice
+    // on exactly the queries that needed it. Measured in the browser: absent for
+    // `MA`, `RSI` and `EMA`; present only where there was no breadth hit at all.
+    let resolve
+    const fetchSpy = vi.fn(() => new Promise((r) => { resolve = r }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    show(base()); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
+      { target: { value: 'QQQ' } })
+
+    const pending = screen.getByTestId('symbols-pending')
+    expect(pending, 'nothing says the symbol search is still running').toBeTruthy()
+    expect(pending.textContent).toMatch(/Searching symbols/i)
+    // ⛔ ONE LINE, NOT A RESERVED BLOCK. It must not pretend to know how many
+    // tickers are coming — reserving a twenty-row group's height for results that
+    // may never arrive was measured and rejected.
+    expect(within(pending).queryAllByRole('option'), 'the notice reserved result rows').toHaveLength(0)
+    void resolve
+  })
+
+  it('⛔ …AND IT STANDS DOWN THE MOMENT THE REAL GROUP EXISTS', () => {
+    // The control: a notice that outlived its group would sit above the results it
+    // was standing in for.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ results: [{ ticker: 'QQQ', name: 'Invesco QQQ Trust', type: 'etf' }] }),
+    })))
+    show(base()); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
+      { target: { value: 'QQQ' } })
+
+    return waitFor(() => {
+      expect(within(screen.getByTestId('add-surface')).queryAllByRole('option')
+        .some((o) => o.dataset.resultKind === 'security'), 'the symbols never arrived').toBe(true)
+      expect(screen.queryByTestId('symbols-pending'),
+        'the loading notice outlived the group it stood in for').toBeNull()
+    })
+  })
+
+  it('⭐⭐ EVERY RESULT ROW CARRIES THE ANCHOR THE STABILISER ADDRESSES IT BY', () => {
+    // ⚰️⚰️ THE DEFECT THIS EXISTS FOR, MEASURED ON THE ACCEPTED BUILD: typing
+    // `EMA` rendered `Moving Average`, and 2.5s later nineteen tickers were
+    // inserted ABOVE it and every local row moved 1415px — under a pointer already
+    // travelling toward one of them. `MA` moved 933px, `RSI` 1098px.
+    //
+    // ⭐ THE FIX IS SCROLL ANCHORING, and it addresses rows by `data-result-key`
+    // rather than by `data-def-id`, because a TICKER and a DEFINITION can collide
+    // on `id` while `key` is what React already trusts to keep them distinct. The
+    // scroll mechanics themselves need real layout and are proved in the browser;
+    // what a unit can pin is that the address the mechanism depends on is emitted
+    // on every row, which is the part a future edit could silently drop.
+    show(base()); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
+      { target: { value: 'Relative Strength' } })
+
+    const rows = within(screen.getByTestId('add-surface')).getAllByRole('option')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const r of rows) {
+      expect(r.getAttribute('data-result-key'), `a result row has no anchor: ${r.textContent}`).toBeTruthy()
+    }
+    // …and the scroller the anchoring runs on is the one region that scrolls.
+    expect(document.body.querySelector('[class*="insAddBody"]'),
+      'the Add surface lost its scroll container').toBeTruthy()
+  })
+
   it('⛔ A REFUSED ADD CHANGES NOTHING — not the chart, and not the selection', () => {
     // Every writer here refuses by IDENTITY. A click that writes nothing must not
     // steal the selection the member is working in.

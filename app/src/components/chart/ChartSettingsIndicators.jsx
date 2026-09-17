@@ -46,7 +46,7 @@
 // 3. A VISIBILITY toggle that is not a REMOVE. See `rowVisible` below — the two
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, styleInputKeys,
 } from './indicatorRegistry'
@@ -318,6 +318,163 @@ export default function ChartSettingsIndicators({
   const searchRef = useRef(null)
   /** The row ids present at the moment an ADD was issued — see the effect below. */
   const pendingAddRef = useRef(null)
+
+  // ─── REMOTE RESULTS ARRIVE LATE, AND NOTHING THE MEMBER IS AIMING AT MAY MOVE ──
+  //
+  // ⚰️⚰️ MEASURED IN THE BROWSER, ON THE ACCEPTED BUILD. Symbol discovery is a
+  // network round trip and the catalogue is local, so the list renders TWICE:
+  // local matches at ~150ms, then the remote Symbols group ~2.5s later. An exact
+  // ticker hoists that group to the TOP (owner §9 — correct, and untouched), so
+  // everything already on screen is pushed down by the whole height of it:
+  //
+  //     query   local rows   symbol rows   every local row moved
+  //     MA          11           20              +933px
+  //     RSI          1           15             +1098px
+  //     EMA          2           19             +1415px
+  //     QQQ          1            2              +129px
+  //
+  // A member who types `EMA`, sees `Moving Average`, and starts moving the pointer
+  // at it finds nineteen tickers there instead. That is a WRONG-CLICK hazard on a
+  // surface whose every row is one click from changing the chart, and this class
+  // of defect has bitten this codebase through async symbol discovery before.
+  //
+  // ⛔⛔ AND IT IS NOT FIXED BY RESERVING SPACE. The obvious answer — render the
+  // Symbols heading with a loading line so the region exists from the first frame
+  // — buys back ONE ROW of a twenty-row insertion: ~40px of 1415. Reserving the
+  // group's real height would mean up to twenty rows of empty space on every
+  // keystroke, for results that may never come. Both were measured and rejected.
+  //
+  // ⭐⭐ SO THE LIST IS ANCHORED INSTEAD OF RESERVED. Whatever the member can
+  // already see stays exactly where it is, and the late arrivals are inserted
+  // ABOVE it — the scroll position absorbs the growth. This is the standard
+  // scroll-anchoring contract, applied by hand because the browser's own
+  // `overflow-anchor` explicitly declines to adjust a scroll offset of 0, which is
+  // precisely the case here: a fresh search always starts at the top.
+  //
+  // ⛔ IT CHANGES NO RANKING AND NO RESULT. `results`, `groups`, the exact-ticker
+  // hoist, `useSymbolDiscovery` and `createFromResult` are all untouched; this
+  // moves a scrollTop by the number of pixels the DOM grew above the anchor, and
+  // nothing else.
+  const addBodyRef = useRef(null)
+  /** The row the member is looking at, and where it sat, as of the last paint. */
+  const anchorRef = useRef(null)
+  /** The query the anchor belongs to — see `sameQuery` in the effect. */
+  const anchorQueryRef = useRef(null)
+  /** Scroll headroom added so the anchor could be held — see `needed` below. */
+  const headroomRef = useRef(0)
+
+  /**
+   * The topmost result row that is fully in view, with its viewport position.
+   *
+   * ⭐ THE FIRST ROW AT OR BELOW THE SCROLLER'S TOP EDGE, because that is the one
+   * a member reading the list is anchored on — and the one the pointer is most
+   * likely travelling toward. Anchoring on the container's first CHILD instead
+   * would pin content that has already scrolled out of sight and move everything
+   * visible by the difference.
+   */
+  const captureAnchor = useCallback(() => {
+    const box = addBodyRef.current
+    if (!box) return null
+    let top
+    try { top = box.getBoundingClientRect().top } catch { return null }
+    for (const el of box.querySelectorAll('[data-result-key]')) {
+      let t
+      try { t = el.getBoundingClientRect().top } catch { return null }
+      // ⚠️ A 1px SLACK. Sub-pixel layout puts the first row a fraction above the
+      // edge often enough that an exact `>=` picks the SECOND row instead.
+      if (t >= top - 1) return { key: el.getAttribute('data-result-key'), top: t }
+    }
+    return null
+  }, [])
+
+  /**
+   * Hold the anchor still across a render that inserted rows above it.
+   *
+   * ⚠️ IT RUNS ON EVERY COMMIT, deliberately: the thing it has to catch is a
+   * render nothing here initiated (the discovery hook resolving), so there is no
+   * dependency that names it. The work is one `querySelectorAll` over a list of at
+   * most a few dozen rows, and it exits immediately when nothing moved.
+   *
+   * ⛔⛔ AND IT REFUSES TO ACT ACROSS A QUERY CHANGE. A NEW search legitimately
+   * rebuilds the list and belongs at the top; compensating there would leave a
+   * member who just typed something scrolled into the middle of results for it.
+   * The anchor is stamped with the query it was taken under, and a mismatch resets
+   * rather than corrects.
+   *
+   * ⚠️ `useLayoutEffect`, NOT `useEffect`. The correction has to land in the same
+   * frame as the insertion; a passive effect paints the jump first and then undoes
+   * it, which is the flicker this exists to prevent.
+   */
+  useLayoutEffect(() => {
+    const box = addBodyRef.current
+    const prev = anchorRef.current
+    const sameQuery = anchorQueryRef.current === query
+    if (box && prev && sameQuery) {
+      for (const el of box.querySelectorAll('[data-result-key]')) {
+        if (el.getAttribute('data-result-key') !== prev.key) continue
+        let delta = 0
+        try { delta = el.getBoundingClientRect().top - prev.top } catch { delta = 0 }
+        // ⚠️ A WHOLE PIXEL. Sub-pixel churn from a font or a scrollbar is not a
+        // reflow and must not nudge the scroll position on every keystroke.
+        if (Math.abs(delta) >= 1) {
+          // ⚰️⚰️ THE ANCHOR ALONE WAS NOT ENOUGH, AND THE MEASUREMENT SAID SO.
+          // `MA` (11 local rows) held to 16px, but `RSI` — ONE local row under
+          // fifteen arriving tickers — still moved 229px, with `scrollTop` sitting
+          // exactly on `scrollHeight - clientHeight`. A scroll cannot hold a row
+          // that has nothing beneath it: there was no extent left to spend, so the
+          // compensation was silently clamped. Sparse local results are precisely
+          // the case where one actionable row is easiest to mis-click.
+          //
+          // ⭐ SO THE LIST GROWS EXACTLY THE HEADROOM IT IS SHORT OF, once, and
+          // never a pixel more. Not a fixed spacer: a 400px tail measured on `RSI`
+          // fixed it and left every SHORT result list (`SPY`, `QQQ`, three rows)
+          // able to scroll into blank space, which reads as a broken list. This is
+          // zero for every query that does not need it.
+          //
+          // ⚠️ AND IT IS RESET WHEN THE QUERY CHANGES, below — headroom borrowed
+          // for one search must not outlive it.
+          // ⚰️⚰️ AND ONLY WHEN THE ROW WAS PUSHED **OUT OF SIGHT**. Two gates were
+          // tried and measured before this one:
+          //
+          //   · correct ALWAYS — `QQQ` (three rows, no scrollbar, everything on
+          //     screen) borrowed 74px of headroom to hold a Breadth row still,
+          //     which pushed the EXACT TICKER the member had just typed out of
+          //     view and hung a blank tail off a three-row list. Owner §9 says an
+          //     exact ticker outranks everything; on a list that fits, letting it
+          //     land on top IS the right outcome.
+          //   · correct only when the list ALREADY SCROLLED — `RSI` regressed
+          //     straight back to 1030px, because one local row plus a one-line
+          //     notice does not overflow, and that is exactly the sparse case where
+          //     a single actionable row is easiest to mis-click.
+          //
+          // ⭐ SO THE QUESTION IS THE ONE THAT ACTUALLY DESCRIBES THE HAZARD: after
+          // the insertion, can the member still SEE the row they were looking at?
+          // A row that shifts while staying on screen is a list settling — they can
+          // see what happened and where it went. A row shoved past the bottom edge
+          // is gone, and whatever is under the pointer now is something else.
+          const edge = box.getBoundingClientRect().bottom
+          const pushedOutOfSight = el.getBoundingClientRect().top >= edge - 8
+          if (pushedOutOfSight) {
+            const want = box.scrollTop + delta
+            const max = box.scrollHeight - box.clientHeight
+            if (want > max) {
+              headroomRef.current += (want - max)
+              box.style.paddingBottom = `${headroomRef.current}px`
+            }
+            box.scrollTop = want
+          }
+        }
+        break
+      }
+    }
+    if (!sameQuery && box) {
+      // A new search is a new list: it belongs at the top, with no borrowed tail.
+      headroomRef.current = 0
+      box.style.paddingBottom = ''
+    }
+    anchorRef.current = captureAnchor()
+    anchorQueryRef.current = query
+  })
 
   // ─── A NEW SERIES LANDS, AND THE INSPECTOR IS ALREADY SHOWING IT ───────────
   //
@@ -1539,6 +1696,11 @@ export default function ChartSettingsIndicators({
         aria-selected={on}
         aria-disabled={refused ? 'true' : undefined}
         data-def-id={row.id}
+        /* ⭐ THE ANCHOR'S ADDRESS, and it is `row.key` rather than `row.id` because
+           a ticker and a definition can collide on `id` while `key` is what React
+           already trusts to keep these rows distinct. Matched by walking the list
+           rather than with an attribute selector, so no value ever needs escaping. */
+        data-result-key={row.key || row.id}
         data-result-kind={row.kind || undefined}
         data-user-defined={row.userDefined ? 'true' : 'false'}
         tabIndex={0}
@@ -1674,7 +1836,12 @@ export default function ChartSettingsIndicators({
         </div>
       </div>
 
-      <div className={styles.insAddBody}>
+      {/* ⚠️ `onScroll` RE-CAPTURES THE ANCHOR, and without it the whole mechanism
+          is wrong the moment a member scrolls. Scrolling causes no React commit, so
+          the anchor would still describe where the list was BEFORE they moved — and
+          the next insertion would "correct" to a position they had already left,
+          which is a jump rather than the absence of one. */}
+      <div className={styles.insAddBody} ref={addBodyRef} onScroll={() => { anchorRef.current = captureAnchor() }}>
         {category && (
           <div className={styles.indCatActive}>
             <span className={styles.indCatActiveName}>{category}</span>
@@ -1693,6 +1860,33 @@ export default function ChartSettingsIndicators({
                 : <>Nothing matches “{query}”.</>)
               : <>Nothing in this category.</>}
           </div>
+        )}
+        {/* ─── SYMBOLS ARE STILL COMING ──────────────────────────────────
+            ⭐ THIS IS NOT THE STABILISER — the scroll anchor above is. What this does
+            is tell the member that the list is not finished: the catalogue answers
+            instantly and the network does not, so without it a query with no local
+            match reads as "nothing found" for two and a half seconds.
+            ⛔ ONE LINE, NOT A RESERVED BLOCK. It deliberately does not pretend to know
+            how many tickers are coming; reserving twenty rows of emptiness for
+            results that may never arrive was measured and rejected.
+            ⚠️ AT THE TOP, because that is where the group lands for an exact ticker
+            — which every query measured (`MA`, `RSI`, `QQQ`, `SPY`, `EMA`) turned out
+            to be. When there is no exact hit the real group appends below instead,
+            and the anchor absorbs the difference either way. */}
+        {/* ⚠️⚠️ GATED ON THE **SYMBOLS GROUP**, NOT ON `symbolRows.rows.length`.
+            `useSymbolDiscovery` answers from TWO sources and only one of them is a
+            network call: local BREADTH matches resolve on the first keystroke, so
+            `symbolRows.rows` is already non-empty for a query like `MA` (which
+            substring-matches `% Above 50 EMA`) while the ticker search is still in
+            flight. Measured: the notice never rendered for `MA`, `RSI` or `EMA` —
+            every query that actually needed it — and only appeared for one with no
+            breadth hit at all. This stands in for the SYMBOLS group specifically,
+            so it is present exactly while that group is absent and being fetched. */}
+        {symbolsLoading && query && !groups.includes(SYMBOL_CATEGORY) && (
+          <section className={styles.insAddGroup} data-testid="symbols-pending">
+            <div className={styles.insSectionLabel}>{SYMBOL_CATEGORY}</div>
+            <div className={styles.insSearching}>Searching symbols…</div>
+          </section>
         )}
         {groups.map((c) => (
           <section key={c} className={styles.insAddGroup}>

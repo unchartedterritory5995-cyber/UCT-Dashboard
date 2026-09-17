@@ -1552,6 +1552,15 @@
   background-clip: padding-box;
 }
 .insAddGroup + .insAddGroup { margin-top: 16px; }
+/* ⭐ THE ONE LINE THAT SAYS THE NETWORK IS STILL WORKING. Quiet on purpose: it is
+   a status, not a result, and it must not read as a row a member could click. */
+.insSearching {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--menu-text-faint, #93939a);
+  opacity: 0.8;
+  padding: 7px 0;
+}
 /* ── ONE RESULT, TIGHTENED ────────────────────────────────────────────────────
    ⚰️ A RESULT ROW RAN ~60px TALL. Three of them filled the surface, which is the
    opposite of what a search list is for: the member is scanning for one name, and
