@@ -68,6 +68,27 @@ import styles from './LegendRow.module.css'
  */
 export default function LegendRow({
   rowId, label, value, hidden = false, vertical = false,
+  /** A SIBLING OUTPUT of the row above — MACD's `SIG`, Bollinger's lower band.
+   *
+   *  ⭐⭐ LEGEND V2 §7: a multi-output indicator must not read as several
+   *  unrelated studies stacked on top of each other. The grouping already exists
+   *  upstream — `legendChips` walks the INSTANCE list, so an instance's plots are
+   *  always consecutive — and this is the one thing the DOM was not saying about
+   *  it. A secondary row indents by one step and nothing else changes: it keeps
+   *  its own value, its own chevron and its own door, because the complaint that
+   *  produced the all-rows rule was that clicking the second value did nothing.
+   *
+   *  ⛔ IT IS NOT A NESTING CONTAINER. A wrapper around each group would break
+   *  the one-grid/`subgrid` alignment that puts every value on one right edge,
+   *  which is the whole reason these rows are shaped the way they are. */
+  secondary = false,
+  /** Past the stack's row budget — the row keeps its DOM node and loses its box.
+   *
+   *  ⭐ FOLDED, NOT UNMOUNTED, for the reason `IndicatorChip.module.css`'s
+   *  `.chipFolded` already records: the rows stay mounted so expanding is a class
+   *  change rather than a remount, and nothing downstream sees the set of live
+   *  rows flicker as a pane is dragged. */
+  folded = false,
   /** The drawn line's colour — THE ROW WEARS IT, label and value alike.
    *
    *  ⭐⭐ RESTORED BY THE OWNER (2026-09-14, same day it went): *"every plot or
@@ -167,12 +188,24 @@ export default function LegendRow({
   if (!vertical) {
     return (
       <span
-        className={`${styles.flat} ${tone} ${interactive ? styles.rowLive : ''}`}
+        className={`${styles.flat} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
         data-legend-row={rowId}
         data-hidden={hidden ? 'true' : 'false'}
         style={ink}
         {...trigger}
       >
+        {/* ⭐ THE MICRO-RAIL, IN THE HORIZONTAL STRIP TOO (owner §21, 2026-09-16).
+            A rail means "this readout corresponds to a plotted series", and that
+            is a fact about the SERIES rather than about which layout names it —
+            so the volume pane's own strip reads `▏ Vol 9.1M  ▏ SMA 50 34.6M` with
+            the same rule the price stack uses.
+
+            ⛔ EMITTED ONLY WHEN THERE IS A COLOUR, which is the exact inverse of
+            the vertical variant's rule and is deliberate. Vertical is a grid and
+            reserves the width so every label starts at one x; horizontal has no
+            column to hold, so an unpainted rule would open a hole before every
+            `O`, `H`, `L` and `C` in the flat legend. See `.railFlat`. */}
+        {color ? <i className={styles.railFlat} style={{ background: color }} aria-hidden="true" /> : null}
         {label}{value ? <strong className={styles.flatVal} style={valInk}>{value}</strong> : null}
       </span>
     )
@@ -181,7 +214,7 @@ export default function LegendRow({
   // ─── VERTICAL: ONE subgrid row that spans the legend's own tracks ──────────
   return (
     <span
-      className={`${styles.vRow} ${tone} ${interactive ? styles.rowLive : ''}`}
+      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
       style={ink}
@@ -191,12 +224,50 @@ export default function LegendRow({
           same reason: `.vLabel` declares its own colour, and a declaration on a
           CHILD beats a colour the parent only passes down. The horizontal variant
           needs nothing — its label is a bare text node, so it inherits. */}
+      {/* ⭐⭐ THE MICRO-RAIL — 2×10px of the series' own colour, before the label.
+       *
+       * ⚰⚰ TWO COLOURED MARKS WERE RETIRED BEFORE THIS ONE AND IT IS NEITHER.
+       * Track B's `.rail` (2×9px) REPLACED the coloured label, so nine rows read as
+       * nine little coloured tabs with neutral text beside them. The composition
+       * pass's 5×5 swatch was a SQUARE, which is DeepView's signature and read as a
+       * bullet. This is a hairline rule that ACCOMPANIES a coloured label: the rail
+       * and the label say the same thing in the same hue, so the rail reads as the
+       * start of the label rather than as a mark of its own.
+       *
+       * ⛔ IT IS ALWAYS EMITTED, AND ONLY PAINTED WHEN THERE IS A COLOUR. A row with
+       * no series colour of its own (`Vol`) keeps the indent so every label starts
+       * at one x — the owner's target prints `Vol` aligned under `EMA 9`, not
+       * hanging two pixels to its left. An unpainted rail is invisible and costs
+       * exactly the width it reserves.
+       *
+       * ⛔ NOT A CONTROL. `aria-hidden`, no handler, no hover state of its own: the
+       * ROW is the target and the rail is inside it, so pointing at the rail already
+       * hovers the row. A screen reader has the label; "blue bar" adds nothing.
+       *
+       * ⛔ AND THE COLOUR COMES FROM THE SAME PLACE THE LABEL'S DOES — the caller's
+       * already-resolved `opaqueColor(...)` / `chip.color`. No second colour source,
+       * so the rail cannot disagree with the line it names. A hidden row dims both
+       * together, because `.rowHidden` is on the ROW. */}
+      <i className={styles.rail} style={color ? { background: color } : undefined} aria-hidden="true" />
       <span className={styles.vLabel} style={valInk}>{label}</span>
-      <span className={styles.vVal} style={valInk}>{value}</span>
+      {/* ⭐⭐ §3 — THE VALUE IS BRIGHT NEUTRAL, NOT THE SERIES COLOUR, and that is
+          the whole colour system: COLOUR = which series, WHITE = the market value.
+          ⚰ IT USED TO TAKE `valInk` (`color: inherit`) so label and value both wore
+          the plot's hue; on a five-series chart that read as a rainbow and, worse,
+          it made the NUMBER as easy or as hard to read as whatever colour the
+          member had picked. The label keeps the hue — it is the identity — and the
+          number is always the same crisp white, so the eye lands on it first at
+          every hue. */}
+      <span className={styles.vVal}>{value}</span>
       {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the
           whole legend out of true. It holds nothing now and measures zero. */}
+      {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED (owner). It made every study read as
+          a navigation item when stacked, and it was the loudest chrome in a legend
+          whose brief is to disappear behind its data. The cell is still EMITTED and
+          still measures zero, because this grid fills by ORDER and a two-cell row
+          would let the next row's label fall into the third track. */}
       <span className={styles.vCtl} />
     </span>
   )

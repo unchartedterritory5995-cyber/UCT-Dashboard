@@ -196,6 +196,25 @@ class Checked:
         return (rtype, self.ticker, self.fields.get("stance"), self.fields.get("direction"))
 
 
+def record_id_for(segment_id: str, extractor_version: str, record_hash: str) -> str:
+    """The record's identity. ⛔ ONE definition — `write_output` and the golden gate both call it.
+
+    The gate persists validated records without writing them to `wisdom_records` (R12,
+    2026-09-14), so it has to derive the same id the writer would. Two copies of this expression
+    would drift silently and the persisted run would stop joining to the database it describes.
+    """
+    return ids.sha24(segment_id, extractor_version, record_hash)
+
+
+def principle_key_for(author_id: Optional[str], statement: str) -> str:
+    """A PRINCIPLE's cross-segment identity. ⛔ ONE definition, for the same reason as above.
+
+    ⚠️ Free text, deliberately: `normalize_quote_key` is what lets the same teaching stated twice
+    in different sessions land on one key.
+    """
+    return "p_" + ids.sha24("principle", author_id or "", normalize_quote_key(statement))
+
+
 @dataclass
 class Validation:
     kept: list
@@ -680,15 +699,14 @@ def write_output(conn, *, segment: dict, source: dict, output: Any, extractor_ve
         if conn.execute("SELECT 1 FROM wisdom_extract_record_keys WHERE dedupe_key = ?", (dedupe_key,)).fetchone():
             counts["dedupe_overlapping_window"] += 1
             continue
-        record_id = ids.sha24(segment_id, extractor_version, ch.record_hash)
+        record_id = record_id_for(segment_id, extractor_version, ch.record_hash)
         f = ch.fields
         t_start = segmenter.time_at(cue_map, ch.q_start - 0) if cue_map else segment.get("t_start_s")
         t_end = segmenter.time_at(cue_map, max(ch.q_start, ch.q_end - 1)) if cue_map else segment.get("t_end_s")
         stated_at, precision = _stated_at(source, segment, t_start)
         principle_key = None
         if ch.record_type == "PRINCIPLE" and isinstance(f.get("principle"), dict):
-            statement = str(f["principle"].get("statement") or "")
-            principle_key = "p_" + ids.sha24("principle", ch.author_id or "", normalize_quote_key(statement))
+            principle_key = principle_key_for(ch.author_id, str(f["principle"].get("statement") or ""))
         entity = ch.entity or {}
         zone = f.get("entry_zone") or [None, None]
         conn.execute(

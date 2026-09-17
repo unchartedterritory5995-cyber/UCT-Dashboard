@@ -71,6 +71,12 @@ export const SHIPPED_DEF_IDS = Object.freeze({
     // alphabetically.
     'movingAverage',
     'dataSeries',
+    // ⭐ THE ONLY DEFINITION THAT USED TO BE PRINTED WITHOUT BEING ADDED. Dollar
+    // volume was two lines of arithmetic inside the volume pane's label strip,
+    // on every chart, with no way to remove it. It is a definition now, which
+    // means a member chooses it — and can colour it, move it and delete it like
+    // everything else. Last, in REGISTRATION order.
+    'dollarVolume',
   ]),
   server: Object.freeze(['rsLine']),
   ast: Object.freeze([]),

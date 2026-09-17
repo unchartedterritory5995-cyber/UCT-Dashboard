@@ -824,6 +824,16 @@ WINDOW_MINUTES = 60
 # three minutes is nothing; the cost of being wrong is a hole in the K window.
 JUST_RAN_COOLDOWN_SECONDS = 180
 
+# ⛔⛔ THE PRECONDITION BUDGET. Every individual wait in this file is bounded;
+# their SUM was not. On 2026-09-15 a cell ran 1802s and produced no verdict at all
+# — a 30-minute hang that burned half a rig window AND left the rig browser alive,
+# opted in, for the next sampler to mistake for product state.
+#
+# ⭐ A CLEAN REFUSAL AND A HANG ARE NOT THE SAME FAILURE. The first is an answer
+# ("nothing was measured, here is why"); the second is the absence of one. Setup is
+# online and is not the door, so it gets a deadline and must say WHICH step ran out.
+PRECONDITION_BUDGET_SECONDS = 120
+
 
 def rig_window_refusal(now=None, query=None):
     """The reason to refuse, or None when the window is clear.
@@ -1261,7 +1271,54 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
     page.on("response", on_response)
 
     note_id = None
+    _t0 = time.monotonic()
+
+    def _expired(step):
+        """⛔ Refuse with the STEP and the elapsed time, never silently."""
+        el = time.monotonic() - _t0
+        if el < PRECONDITION_BUDGET_SECONDS:
+            return None
+        return {"verdict": "INCONCLUSIVE",
+                "why": (f"the SETUP budget of {PRECONDITION_BUDGET_SECONDS}s ran out at "
+                        f"'{step}' after {el:.0f}s — nothing was measured. Setup is online "
+                        f"and is not the door; a cell that cannot be set up must REFUSE, not "
+                        f"hang. (the 1802s hang, 2026-09-15)")}
+
     try:
+        # ── 0. AUTH. A signed-out rig makes every reading below meaningless, and a
+        #    401 here is a different fact from a 502. Ask before spending anything. ──
+        who = page.evaluate("""async () => {
+          try {
+            const r = await fetch('/api/auth/me', {credentials:'include'});
+            return {status: r.status,
+                    json: (r.headers.get('content-type') || '').includes('json')};
+          } catch (e) { return {status: 0, err: String(e)}; }
+        }""")
+        if not (isinstance(who, dict) and who.get("status") == 200 and who.get("json")):
+            # ⛔⛔ A 502 IS NOT A SIGNED-OUT RIG. The first version of this refusal said
+            # "the rig is not signed in" for EVERY non-200 — including the 502 it
+            # actually hit, which was a deploy swap. Two materially different facts
+            # rendering as one sentence is the exact ambiguity class this programme
+            # has been closing all week, committed by the check written to close it.
+            st = who.get("status") if isinstance(who, dict) else None
+            if st in (401, 403):
+                cause = ("the rig is SIGNED OUT. A sign-in is a 30-day event, not a "
+                         "session event — do NOT create a new profile; a fresh profile "
+                         "is a signed-out profile.")
+            elif st in (500, 502, 503, 504):
+                cause = ("PRODUCTION was unavailable (5xx), almost always a deploy swap. "
+                         "Nothing is wrong with the rig. Requeue and retry in a later "
+                         "window.")
+            elif not st:
+                cause = "the request never completed — no network, or the page was gone."
+            else:
+                cause = "an unexpected status; classify it before spending a window."
+            return {"verdict": "INCONCLUSIVE",
+                    "why": (f"/api/auth/me answered {st}, not 200+JSON ({who}) — "
+                            f"{cause} This is an INSTRUMENT fact, NOT a product finding.")}
+        x = _expired("auth check")
+        if x:
+            return x
         # ── 1. a probe note, created through the API. SETUP, not the door. ──
         made = page.evaluate("""async ({t}) => {
           const r = await fetch('/api/j2/notes', {method:'POST', credentials:'include',
@@ -1277,7 +1334,8 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
 
         # ── 2. open it in the editor. This is also what makes it the append
         #      families' destination: NoteEditorPage writes `uct.jw.lastNote`. ──
-        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded",
+                  timeout=45000)
         page.wait_for_timeout(7000)
         # ⛔ ONE PROBE IS NOT A VERDICT, here either. The editor is a lazy chunk
         # behind an auth gate; a slow first paint or a pod that has just swapped
@@ -1296,6 +1354,9 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             return {"verdict": "INCONCLUSIVE",
                     "why": "the editor never mounted for the probe note after 4 tries and a "
                            "reload — nothing was measured"}
+        x = _expired("editor mount")
+        if x:
+            return x
         pm.click()
         page.keyboard.type(f"{SENTINEL} baseline {stamp}.")
         page.wait_for_timeout(5000)
@@ -1635,7 +1696,30 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                     "why": ("the drain sent the queued entry BEFORE the door fired "
                             f"({before_door} send(s)) — the door never met queued work, so this "
                             f"cell measured nothing. {why}")}
-        return {"verdict": "GREEN" if ok else "RED", "why": why}
+        out = {"verdict": "GREEN" if ok else "RED", "why": why}
+        # ⛔ THE RING IS EVIDENCE, NOT A VERDICT. It is attached beside the
+        # verdict and never allowed to change it: an instrument that can move the
+        # answer it is measuring is not an instrument.
+        try:
+            import q1_write_trace as _wt
+            got = _wt.read_ring(page)
+            if got.get("ring"):
+                s = _wt.summarise(got["ring"])
+                out["write_trace"] = s
+                log(f"      write trace: {s['writes_total']} write(s), "
+                    f"{s['notes_writes']} to notes, {s['outbox_writes']} to outbox, "
+                    f"{len(s['dirty_flips_true_to_false'])} dirty flip(s) true->false")
+                for _w in s.get("sentence_lost_writes", []):
+                    log(f"      ⭐ SENTENCE LOST: {_w.get('store')}.{_w.get('method')} "
+                        f"rec={_w.get('rec')}")
+                    log(f"         stack: {str(_w.get('stack'))}")
+                for _w in s["dirty_flips_true_to_false"]:
+                    log(f"      ⭐ DIRTY FLIP: {_w.get('store')}.{_w.get('method')} "
+                        f"rec={_w.get('rec')}")
+                    log(f"         stack: {str(_w.get('stack'))}")
+        except Exception as _e:  # noqa: BLE001
+            log(f"      (write trace unavailable: {_e})")
+        return out
 
     finally:
         for evt, fn in (("request", handler), ("response", on_response)):
@@ -1676,6 +1760,8 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--trace-writes", action="store_true",
+                    help="install the rig-side IndexedDB write trace (evidence only)")
     ap.add_argument("--navigate-no-door", metavar="PATH", nargs="?", const="/charts",
                     help="leave the note and come back WITHOUT firing any door. The "
                          "cell that separates navigation from the append families. "
@@ -1795,6 +1881,12 @@ def main() -> int:
             b = pw.chromium.connect_over_cdp(endpoint)
             ctx = b.contexts[0]
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            # ⭐ RIG-SIDE WRITE TRACE, opt-in. Installed BEFORE any navigation so
+            # it is in place ahead of the bundle. Zero product code ships for it.
+            if args.trace_writes:
+                import q1_write_trace as _wt
+                _wt.install(page)
+                print("⭐ write trace installed (rig-side, add_init_script)")
             cdp = page.context.new_cdp_session(page)
             cdp.send("Network.enable")
             rig._offliner(cdp)(False)

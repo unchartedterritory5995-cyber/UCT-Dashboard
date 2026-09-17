@@ -177,20 +177,41 @@ def main() -> int:
                   "Verdict withheld.")
             results.append((label, "NOT-APPLIED"))
             continue
-        # write_bytes, never write_text: write_text translates `\n` to os.linesep
-        # and would rewrite every line ending in an LF file.
-        path.write_bytes(text.replace(old, new, 1).encode("utf-8"))
-        after = sha(path)
-        assert after != before, f"{label}: sha unchanged — the edit was a no-op"
-        purge_pycache()
+        # ⛔⛔ THE WRITE AND THE RESTORE ARE ONE try/finally, AND NOTHING MAY SIT
+        # BETWEEN THEM THAT IS NOT INSIDE IT. `run_rails()` below is a
+        # multi-minute pytest. Until 2026-09-15 the restore was a bare statement
+        # after it, so a Ctrl-C at the wrong second — or an OOM kill of pytest
+        # surfacing as an exception, or the `sha unchanged` assertion firing —
+        # left `api/schwab_router.py` or `api/live_massive_router.py` on disk
+        # WITH AN AUTH GATE DELETED, in a committable working tree whose only
+        # tell is a missing `Depends(require_flow_user)`. The mutations here are
+        # deliberately the worst edits anyone could make to those files; a
+        # harness that can leave one applied is a hazard, not a check.
+        # Pattern: tools/mutation_check.py:161-164 (finally-restore + sha verify).
+        after = code = None
+        try:
+            # write_bytes, never write_text: write_text translates `\n` to
+            # os.linesep and would rewrite every line ending in an LF file.
+            path.write_bytes(text.replace(old, new, 1).encode("utf-8"))
+            after = sha(path)
+            assert after != before, f"{label}: sha unchanged — the edit was a no-op"
+            purge_pycache()
 
-        code = run_rails()
+            code = run_rails()
+        finally:
+            path.write_bytes(original)
+            purge_pycache()
+            # ⛔ NOT an `assert`: `python -O` strips assertions, and a restore
+            # verification that silently disappears under a flag is exactly the
+            # guard that cannot fire. It also runs while another exception is
+            # propagating, which is the case it exists for.
+            if sha(path) != before:
+                print(f"!! RESTORE FAILED for {rel}: the file on disk is NOT what "
+                      f"this harness found. DO NOT COMMIT — {rel} may still carry "
+                      f"a deleted auth gate.", file=sys.stderr)
+                raise SystemExit(3)
+
         verdict = "KILLED" if code != 0 else "SURVIVED"
-
-        path.write_bytes(original)
-        purge_pycache()
-        assert sha(path) == before, f"{label}: restore did not reproduce the sha"
-
         print(f"{label}\n    applied {before[:12]} -> {after[:12]} | "
               f"pytest exit {code} | {verdict}")
         results.append((label, verdict))

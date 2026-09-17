@@ -1,3 +1,166 @@
+# MOVING AVERAGE DISCOVERY — DEPLOYED 2026-09-15 (master b7fc0a4f8)
+
+Implementation commit 515162d3e is IN the deployed tree. Pushed 22:5x EDT (after
+the close). Two force-free reconciliations were needed mid-flight: master moved
+twice during the push (Legend V2 + Breadth), zero file overlap both times.
+
+## Confirming production reached MY commit — the method that actually works
+
+`uptime_seconds` resetting is NOT proof: a partner's deploy reset it 36s before
+mine and I nearly reported the wrong thing. The definitive check is the SERVED
+BUNDLE:
+
+    curl $BASE/ | grep -oE '/assets/index-[A-Za-z0-9._-]+\.js'
+    curl $BASE<that> | grep -c 'Moving Average (Source)'     # must be 0
+
+Polled until the old name disappeared: live after 260s, bundle
+`index-BKap67Xd.js`, old name count 0. Use this pattern whenever a change has a
+string signature — it beats every indirect signal.
+
+## Health
+
+web /api/health 200 ok · bars-api /api/health 200 · unauthenticated
+/api/bars/AAPL 401 (gate correct) · app root 200, no console errors.
+
+## ⚠️ Production click-through smoke NOT performed, deliberately
+
+`chart_settings` is ONE user-global preference row and IS the Main Trading
+fingerprint, so adding an indicator on ANY production chart writes it — and
+opening /charts at all restores that row. The brief asked for a smoke AND
+forbade touching workspace persistence / Main Trading; those conflict, and the
+owner said they would personally test. A–E were verified instead against the
+EXACT deployed code in the isolated harness (see the commit body for the
+measured results).
+
+## Shipped, unchanged from what was accepted
+
+movingAverage is the only source-capable engine definition · member-facing name
+"Moving Average" · persisted ID untouched · `cs.overlays` untouched · `ma`
+withheld from Browse only when there is nothing to revive · no migration.
+
+## Still deferred (owner will schedule)
+
+disambiguateLabels raw-ref cleanup · duplicate MA source-picker labels ·
+"Add Moving Average" from a plotted-series menu.
+
+# SOURCE-AWARE MOVING AVERAGE — ONE MEMBER-FACING ROW (2026-09-15)
+
+HEAD 515162d3e. Committed locally, NOT deployed (owner asked for a readiness
+recommendation, not a deploy).
+
+## The audit answer, which changed the plan
+
+There are NOT two MA definitions. `movingAverage` is the only ENGINE definition.
+`ma` is a BUILT_IN CATALOGUE ROW (`indicatorCatalog.BUILT_IN_ROWS`,
+`builtIn: 'overlay'`, `engineOwned: false`) standing for `cs.overlays` — a
+POSITIONAL ARRAY with its own writers and its own compute. Two different
+persistence mechanisms, so consolidating them IS a saved-chart rewrite.
+
+And the feature was already built: source input, follow-source-pane, provenance,
+dependency ordering, scale sharing, and `SourceField` wired into Chart Data.
+EVERY behavioural case in the new rail passed on the FIRST run, before any
+change. The gap was DISCOVERY only.
+
+## The change
+
+ · `movingAverage` renamed to plain "Moving Average" + search tags (ma/sma/ema/
+   average). Metadata only; the definition ID never moved.
+ · `ma` withheld from browse via `hiddenLibraryIds(settings)`.
+
+## ⚠️ THE CONDITIONAL, AND WHY IT EXISTS
+
+Two member reports pull opposite ways:
+ · EARLIER: "I removed my moving average and search finds nothing" → the `ma`
+   catalogue row exists so adding REVIVES the tombstone with the member's colour
+   and period.
+ · NOW: "I added a Moving Average but cannot put it on QQQ" → two identical names,
+   and the findable one had no source.
+
+Hiding `ma` outright answers the second by RE-BREAKING the first — a test named
+"the tombstoned MA … comes back from search" caught it. So it is withheld only
+when there is nothing to revive. A chart with a tombstoned overlay still offers
+it. No flag, no migration; it reads the same `removed` tombstone the revive path
+reads.
+
+## Deferred (reported, not done)
+
+ · `disambiguateLabels` spills raw refs into Chart Data row labels when 2+
+   instances of one definition exist — e.g. "Moving Average (color #f0b90b,
+   maType sma, period 5, source @inst:dataSeries:1::value)". PRE-EXISTING, now
+   prominent because MAs are the definition members will have several of. Fix
+   belongs in that shared helper: render a `source` input through the same
+   human-readable helpers the Source picker and Display picker already use.
+ · The Source picker labels two MAs identically ("MA (5)"). Binding is by
+   instanceId so it is CORRECT, just ambiguous. `siblingSuffixes` (already used
+   by `paneHostLabels`) is the existing helper for this.
+ · "Add Moving Average" from a plotted series' menu — not attempted; the brief
+   said only if it needs no second creation architecture.
+
+## Gate
+
+15 focused files / 233 tests green incl. all pane regression rails. Broad
+src/components + src/pages: same 5 pre-existing failing files, zero attributable.
+`stockChartWiring` re-confirmed as the load-dependent flake (fails under parallel
+load; passes isolated twice and on a repeat suite run). Build clean.
+
+# TRACK A FOLLOW-UP — PANE TRANSITION SIZING + LOOKBACK ANCHOR — DEPLOYED 2026-09-15
+
+master e49cf70c2 (merged 76 partner commits, all Breadth Library — zero file
+overlap). Pushed 21:21 EDT. Deploy landed (uptime reset to 39s); web /api/health
+200 ok, bars-api 200, member gate 401. Watched 3 min: uptime 75 -> 238s
+monotonically. No crash loop.
+
+## Root cause — an off-by-one in slot naming that CANCELLED ITSELF
+
+`computePaneLayout`'s no-instance-panes answer (`pane0Only`) built `keyByIndex`
+from `firstPaneIndex - (volume is a BAND ? 1 : 0) - 1`. Correct for a banded
+volume (1-1-1 = 0); off by one for the SHIPPED config, where a separate volume
+pane makes `firstPaneIndex` 2 with no band = 1. Price was named slot 1 and Volume
+slot 2 on a chart whose only panes are 0 and 1.
+
+⭐⭐ IT HID FOR A REASON WORTH REMEMBERING: `sizesFromStretch` RECORDS through that
+map and `applyPaneSizes` APPLIES through it. Store Volume's share under Price's
+name at slot 1, re-apply it to slot 1, and the pixels land exactly where the
+member left them. Two-pane resize was measured perfect, repeatedly. The lie only
+surfaces when a THIRD pane appears and the (correct) panes-mode builder takes
+over — `price` starts meaning price, so the member's Volume enlargement is handed
+to the PRICE pane while Volume and the newcomer split the rest and both inflate.
+
+MEASURED: Volume dragged to 0.511 of the stack stored `{price: 0.5109}`, no
+volume entry. After the fix: `{price: 0.4427, volume: 0.5573}`.
+
+FIX: `pinned = mainPaneIndex` — the panes ABOVE the arrangement and not in it,
+which is only ever the Model Book index pane.
+
+## Second, smaller defect on the same path
+
+A complete two-pane partition (sum 1.0) applied to a three-pane stack left the
+newcomer `1 - MIN_SHARE` — a 4% sliver. `applyPaneSizes` now reserves the UNPINNED
+panes' own canonical default from `base`, but ONLY when the pinned shares are a
+complete partition — so a member who deliberately grows ONE pane still gets
+exactly what they asked for. Pinned shares scale together, preserving their ratio.
+
+⚠️ The first attempt reserved unconditionally and broke three existing rails by
+clamping deliberate enlargements. The condition is "the stored set is a stale
+complete partition", not "the stored set is large".
+
+## Lookback anchor (owner UX request)
+
+`lookbackBottomFor`: immediately ABOVE a separate Volume pane's top edge;
+workspace-bottom fallback when volume is banded, hidden, absent, or itself the
+top pane. This relaxes the old "no pane argument" guarantee deliberately — the
+dependency that guarantee forbade was PRICE, and it still is. Buttons unchanged.
+
+## Live-verified
+
+Rail A in the harness: QQQ own -> Volume guest -> own pane returns to exactly
+0.663 / 0.221 / 0.116 with `paneSizes: {}`. Lookback renders above Volume.
+
+## Gate
+
+14 focused files / 227 tests green. Broad src/components + src/pages: same 5
+pre-existing failing files, zero attributable. Build clean.
+
 # TRACK A LIVE CLUSTER — DEPLOYED 2026-09-15 (master b5a3817c4)
 
 Pushed 64269ffe5 -> b5a3817c4 at 19:04 EDT (after the 16:00 close, market-hours

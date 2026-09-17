@@ -78,7 +78,7 @@ function Host({ initial, seen }) {
   )
 }
 const show = (cs, seen) => render(<Host initial={cs} seen={seen} />)
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
 
 const rowFor = (re) => [...document.body.querySelectorAll('[data-row-id]')]
   .find((r) => re.test((r.querySelector('[class*="actLabel"]')?.textContent || '').trim()))
@@ -188,19 +188,28 @@ describe('the options are the canonical helper\'s, verbatim', () => {
 })
 
 describe('the live loop — editor writes, summary reports', () => {
-  it('⭐⭐ OWN PANE → QQQ → OWN PANE, with the summary following each time', () => {
+  it('⭐⭐ OWN PANE → QQQ → OWN PANE, with the PANE MAP following each time', () => {
+    // ⚰️ IT READ THE ROW'S SUMMARY (`Line · Own pane` → `Line · QQQ`). The row no
+    // longer restates its destination (owner §30) — the GROUP it is filed under
+    // says it, once, and that is the thing that has to follow the write. Same
+    // claim, read where the answer now lives: `chartDataMap` groups by the pane
+    // each row draws in, so a re-homed guest MOVES between headings.
     const a = withSeries(mergeChartSettings({}), 'QQQ')
     const b = withSeries(a.cs, 'SPY')
     show(b.cs); openIndicators()
-    expect(summaryOf(/^SPY$/)).toBe('Line · Own pane')
+    const paneOf = (re) => {
+      const g = rowFor(re).closest('[data-pane-group]')
+      return (g?.querySelector('[class*="sectionLabel"]')?.textContent || '').trim()
+    }
+    expect(paneOf(/^SPY$/)).toBe('SPY')
 
     openRow(/^SPY$/)
     fireEvent.change(displayIn(/^SPY$/), { target: { value: `@${a.id}` } })
-    // ⛔ NO REOPEN, NO REFRESH. The summary is derived from current state.
-    expect(summaryOf(/^SPY$/)).toBe('Line · QQQ')
+    // ⛔ NO REOPEN, NO REFRESH. The map is derived from current state.
+    expect(paneOf(/^SPY$/), 'the guest did not move under its new host').toBe('QQQ')
 
     fireEvent.change(displayIn(/^SPY$/), { target: { value: 'pane' } })
-    expect(summaryOf(/^SPY$/)).toBe('Line · Own pane')
+    expect(paneOf(/^SPY$/), 'the guest did not come back to a pane of its own').toBe('SPY')
   })
 
   it('⭐ the write goes through the canonical writer, into placement.target', () => {
@@ -266,7 +275,10 @@ describe('an orphaned target stays honest', () => {
     const { cs } = orphan()
     show(cs); openIndicators(); openRow(/^SPY$/)
     fireEvent.change(displayIn(/^SPY$/), { target: { value: 'pane' } })
-    expect(summaryOf(/^SPY$/)).toBe('Line · Own pane')
+    // ⭐ THE REPAIR IS VISIBLE AS THE ROW LEAVING "Needs attention": it says
+    // nothing now, because a row with a pane has nothing to explain. `Pane
+    // unavailable` is the ONE destination the summary still prints (§30).
+    expect(summaryOf(/^SPY$/), 'the row still claims its pane is unavailable').toBe('')
     // …and the unavailable option is gone, because there is nothing unavailable.
     expect([...displayIn(/^SPY$/).options].some((o) => o.disabled)).toBe(false)
   })
@@ -276,11 +288,18 @@ describe('a derived series places like any other', () => {
   it('⭐ MA over a symbol can be sent to a pane and the summary follows', () => {
     const host = withSeries(mergeChartSettings({}), 'QQQ')
     const ma = withMA(host.cs, 'QQQ')
-    show(ma.cs); openIndicators(); openRow(/Moving Average|^MA /)
-    const sel = displayIn(/Moving Average|^MA /)
+    // ⚠️ `SMA 5` — the engine MA names itself from the member's own type and
+    // period since 2026-09-16 (`engine/semanticName`), on every surface at once.
+    const MA = /^SMA 5$/
+    show(ma.cs); openIndicators(); openRow(MA)
+    const sel = displayIn(MA)
     expect(sel, 'a derived series got no Display-in control').toBeTruthy()
     fireEvent.change(sel, { target: { value: `@${host.id}` } })
-    expect(summaryOf(/Moving Average|^MA /)).toMatch(/· QQQ/)
-    expect(summaryOf(/Moving Average|^MA /)).toMatch(/Source: QQQ/)
+    // WHERE it went is the heading it is filed under; WHAT it reads stays on the
+    // row, because a heading cannot say that.
+    const group = rowFor(MA).closest('[data-pane-group]')
+    expect((group?.querySelector('[class*="sectionLabel"]')?.textContent || '').trim())
+      .toBe('QQQ')
+    expect(summaryOf(MA)).toBe('Source: QQQ')
   })
 })

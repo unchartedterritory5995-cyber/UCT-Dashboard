@@ -301,8 +301,13 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     // because it never shipped and has no pre-Flip-C picture. The loop stays a
     // transcription check for the nine that did ship and a self-consistency check
     // for the two that did not.
-    expect(checked).toBe(11)
-    expect(ids).toHaveLength(11)
+    // ⭐ TWELVE AT 2026-09-16. `dollarVolume` declares `autoPane` too, and it is a
+    // third definition with a DERIVED `before` rather than a historical one — it
+    // never shipped a band, because before this it was not a pane at all but a
+    // number printed into the volume pane's label. The loop stays a transcription
+    // check for the nine that did ship.
+    expect(checked).toBe(12)
+    expect(ids).toHaveLength(12)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {

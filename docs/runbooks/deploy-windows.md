@@ -4,6 +4,31 @@ Owner-approved 2026-09-11. Replaces the blanket RTH freeze and the "push anytime
 This is the single authority on push timing. `CLAUDE.md` points here and states no
 rule of its own.
 
+## ⛔⛔ THE CUTOVER HAPPENED — `web` DEPLOYS FROM `production`, NOT `master` (2026-09-16)
+
+Railway's `web` service watches **`production`**, which only the promotion workflow
+advances and only after `master deploy gate` passes. Three consequences, and they are
+the whole of what changed:
+
+1. **A red gate is now a NON-DEPLOY, not just a red check.** `production` does not move,
+   so the previous commit stays live. Before the cutover a red gate still deployed.
+2. **Deploys come from `production`.** To ask what is live, read `origin/production` —
+   `master` can be ahead of it by any number of commits that have not passed the gate.
+3. **The burst and settle clauses are UNCHANGED.** `tools/pre_push_guard.py` still paces
+   this repo at three landings an hour and still refuses inside a 600 s settle. The
+   cutover changed WHICH COMMITS deploy, never HOW OFTEN — do not read it as permission
+   to push faster.
+
+⚠️ `production` has **no branch protection yet** (G6, owner). The gate carries a
+compensating control instead: it refuses, before any scan, if `production` is not where
+the last promotion left it. That control is **detective, not preventive**, and only looks
+when master is pushed — a direct push to `production` in a quiet period goes unnoticed
+until the next one.
+
+Trigger state, read by API at the cutover: `web` trigger `61b50f1f-…`, `branch` master →
+production, `checkSuites` **false both before and after** — so Wait-for-CI was already OFF,
+which settles that question retrospectively. Records: `docs/breadth/DECISIONS.md`.
+
 ## The rule
 
 A master push is a production deploy. **Which services restart depends entirely on
@@ -365,6 +390,66 @@ the instant you push, not of the instant you began.
 ⚠️ **So the wait is on the DEPLOY, not on the check.** After a green guard, the pusher owns the
 queue until their deploy is `SUCCESS`; anybody else who reads `BUILDING` or `DEPLOYING` waits,
 regardless of what their own guard said earlier.
+
+#### ⛔⛔ AND THE RULE ABOVE HAS A HOLE IT CANNOT SEE — a third occurrence, 2026-09-16
+
+> **A Railway deploy record appears ~3m25s AFTER the push that creates it. For that window a
+> push exists and the deploy list does not show it, so "nothing is in flight" is true and
+> insufficient. `railway deployment list` is evidence about DEPLOYS, never about PUSHES.**
+
+⚰️ **The incident, and note that no rule above was broken.** A breadth session's lander read the
+queue at **05:39:49Z** and got *"web is SUCCESS on 95596c83c, 2400s settled"* and *"2 web deploy(s)
+in the last 60 min, none inside 600s — master is quiet."* All three of its clauses (no ACTIVE
+deploy, burst under 3 distinct commits, newest deploy older than 600 s) were satisfied **and
+correct**. It pushed. A peer had already pushed `cc5527f66` at ~05:37:33Z; **that deploy record did
+not appear until 05:40:58Z — 69 seconds after the guard had finished reading.** The breadth deploy
+`54abdefeb` was created 05:43:14Z and marked the peer's `REMOVED` 2.3 minutes into its build.
+
+⭐ **This is not the same gap as the section above, and that is why it survived it.** The 2026-09-14
+rule tells you to wait when you *see* `BUILDING`. Here there was nothing to see: the competing push
+had happened and had not yet become a row. **No polling interval closes this** — the checker and the
+thing it checks are separated by a delay the checker cannot observe, so a longer wait just moves the
+blind window, it does not shrink it.
+
+✅ **What actually closes it is already in the repo and is not a client-side guard.** The
+**`master deploy gate`** workflow serialises master pushes at GitHub
+(`concurrency: master-deploy`, `cancel-in-progress: false`) and Railway's **Wait for CI** holds the
+build behind it. That group observes **the push**, which is the only thing that can. A client hook
+asks every session to cooperate and cannot see the sessions that already have.
+
+⚠️ **Nothing was lost in this instance, and do not read that as the outcome being fine.** The peer's
+commit was an ancestor of the merge's first parent, so their work shipped inside the superseding
+deploy — luck of ordering, not design. Had the breadth branch been based on an older master, the
+peer's deploy would have been killed for a build that did not contain their change.
+
+#### ⛔⛔ THE MORE DANGEROUS HALF: A SUPERSEDED DEPLOY LEAVES A HEALTHY-LOOKING UPTIME
+
+> **Verify a deploy by its OWN record's `status` in the deploy list, and prove code is live by
+> ANCESTRY against `origin/production`. Never by an `uptime_seconds` you have not tied to a
+> named deploy.**
+
+Found by the Notebook session while checking the incident above, and it is the part that would
+have gone unnoticed indefinitely. When your deploy is superseded, the pod that answers
+`/api/health` is the **superseding** one — so `uptime_seconds` keeps climbing, monotonically and
+truthfully, and reads as proof that *your* deploy is healthy while measuring somebody else's.
+
+⭐ **Every individual number in that check is correct.** That is what makes it survive review: a
+15-minute blip check returning 30 samples, zero 5xx and uptime rising 408 → 1301 is a real
+measurement of a real pod, and nothing in it is wrong except what it is believed to be about. On
+2026-09-16 the Notebook session's verification window (05:52–06:07Z) sat **entirely inside the
+breadth deploy's pod life** (boot 05:45:23Z), and reported it as verification of a deploy that had
+been `REMOVED` at 05:40:58Z.
+
+**The two checks that actually answer it, and they answer different questions:**
+
+| question | the only thing that answers it |
+|---|---|
+| did MY deploy ship? | its own row's `status` in `railway deployment list` — `SUCCESS`, not the newest row's |
+| is my CODE live? | `git merge-base --is-ancestor <sha> origin/production` |
+
+⚠️ Both are needed. Ancestry can be true while your deploy was superseded (your commit rode
+someone else's build — exactly what happened here), and a `SUCCESS` row does not by itself say
+which commits the build contained.
 
 ### ✅ AND THE CLOCK IS MECHANICAL TOO, SINCE 2026-09-14
 

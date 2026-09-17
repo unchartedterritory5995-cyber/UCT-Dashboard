@@ -1,9 +1,304 @@
 # The five RED append cells — investigation handoff
 
 **Opened 2026-09-14, after Q1 fix 4 shipped to production and did NOT close them.**
-Written for a session with zero context. Nothing here has been investigated yet.
+**Still open 2026-09-15: fix 5 did not close them either.**
+Written for a session with zero context.
 
 ---
+
+## ⛔ THE STAKES — read this before the trail
+
+**This is a live member path, and the loss is silent.**
+
+The door is **`Send to Journal → Current note`**, reachable from `/charts` widgets
+(`AiSearchWidget.jsx`, `AlertsWidget.jsx`, `BreadthWidget.jsx`, `CalendarWidget.jsx`,
+and `pages/breadth/drill/drillWorkspace.js`). Wave Q1 is **live for every member** —
+`notebook_offline_default_on: True`, verified on production.
+
+A member types into a note while offline, then sends a widget to it. **The embed
+reaches the server. Their typed words do not.** The durable local record is then
+reconciled clean, so nothing marks the note as pending and no recovery surface
+offers the words back. **There is no error and no banner.**
+
+Q1 fix 4 and Q1 fix 5 are both live and both are real fixes. **Neither closed
+this.**
+
+---
+
+---
+
+## 0. Fix 5 shipped and mutation-proved; **NOT the cause** — 00:03 run RED 5/5
+
+> ⚰️ **This section was headed "✅ RESOLVED" for about three hours.** The
+> production re-run it was waiting on came back RED on all five cells. The heading
+> was falsified by this section's own stated precondition, which is recorded at the
+> bottom of it. **Read §0.1 Corrections before anything below.**
+
+Fix 5 is a **real defect, correctly fixed and mutation-proved**. It is **not** the
+cause of these five cells.
+
+**What fix 5 addressed: the supersede decision compared CLOCKS, not content.**
+`outboxDrain.js:466` cleared a queued entry when
+`isSupersededBaseline(entry.baseUpdatedAt, landedBaseline(noteRec))` — which is
+`ta < tb` over two timestamps and nothing more — then reported *"a save this
+browser landed is newer"*, which a reader takes to mean **the server already has
+these words**. It never asked whether that landed save contained them.
+
+```diff
+-    if (isSupersededBaseline(entry.baseUpdatedAt, landed)) {
++    if (isSupersededBaseline(entry.baseUpdatedAt, landed)
++        && sameAuthoredContent(noteRec, entry.patch)) {
+```
+
+⭐ **Why fix 4 did not cover it.** `landedBaseline` refuses a DIRTY record, so
+while the editor is mounted the invariant holds. Fix 4 keeps a record with unsent
+work dirty — **but only where fix 4 decides.** The append door reconciles the
+record clean by another path, so it arrived here with the protection already gone.
+**Fix 4 was necessary and not sufficient.**
+
+### Hypothesis status — REVISED after the 00:03 run
+
+| # | hypothesis | status |
+|---|---|---|
+| 1 | the door never enqueues the typed words | ⛔ **KILLED** — stands. The trail shows `sentenceInQueuedEntry: True` at queue time, independent of fix 5 |
+| 2 | the door settles the note from the server's post-embed copy | ⛔ **KILLED** — stands. Killed by *reading*, not by fix 5: `settleNoteWrite` only records the revision; it never touches body, dirty flag or intent |
+| 3 | the three `→None` PUTs consume the entry | 🔄 **RE-OPENED, reason: assumed fix 5 causal.** Its kill reason was *"it was cleared later, at the supersede check"* — but the 00:03 trail ends `queued 1 entry(s)`, so nothing was cleared there |
+| 4 | the `+SENT` marker is trusted as delivery | 🔄 **RE-OPENED, reason: assumed fix 5 causal.** Its kill reason was *"the clear happened on the baseline comparison, before any marker was consulted"* — that clear did not happen |
+| 5 | ordering-independent, so not a race | 🔄 **RE-OPENED, reason: assumed fix 5 causal.** The observation (all orderings fail identically) still stands; the *explanation* — "because a clock comparison is ordering-independent" — does not |
+
+⭐ **The pattern in that table is the lesson.** Every hypothesis killed by
+*reading the code* survived. Every one killed by *reasoning from the fix* had to be
+re-opened. The three re-openings share one root: I inferred what fix 5 would do
+instead of measuring what it did.
+
+---
+
+## 0.1 Corrections, 2026-09-15 03:30
+
+Three contradictions, recorded verbatim as raised.
+
+**CONTRADICTION 1 — the causal claim is contradicted by the 00:03 run.**
+The claim was that fix 5 *"was the root cause of five RED production cells on the
+append route."* Measured: the 00:03 CT window ran unattended and completed
+(`⇒ fix5-production-re-run: ok in 391.0s`, zero ANOMALY rows). The bundle carried
+fix 5 — `1cf7b8c1d` is an ancestor of `origin/master`, the content-proof line is
+present in master's copy of `outboxDrain.js`. The matrix reads
+`| append_widget_embed | — n/a | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 |`. All five still RED.
+Fix 5 is a real defect correctly fixed, but the root-cause claim is not supported.
+
+**CONTRADICTION 2 — this document contradicted itself.**
+§0 was titled *"✅ RESOLVED — Q1 fix 5"* and marked four of five hypotheses KILLED
+on reasoning that assumed fix 5 was causal, while the same section stated:
+*"⛔ The production re-run of the five cells against fix 5 has not been reported
+yet. Until it is, fix 5 is proven at unit level and on the wire-trace reasoning,
+NOT on the rig."* That run has now happened and came back RED, so the heading was
+falsified by its own stated precondition.
+
+**CONTRADICTION 3 — "the entry was cleared before any send ran" is denied by the
+trail.** The 00:03 trail ends `queued 1 entry(s)` — an entry **survived**, so it
+was not cleared. The load-bearing lines are instead `record went CLEAN while
+queued: True` and `sentence left the durable record: True`, which describe the
+**durable record** being wiped, not an outbox entry being superseded.
+
+### The 00:03 trail, verbatim — `slow PUT` (the discriminating cell)
+
+```
+offline sentence in the server body: False
+appended node present: True
+queued 1 entry(s), baseline 2026-09-15T05:07:06.634032+00:00
+3 request(s) carried the sentence (last -> None)
+record went CLEAN while queued: True
+sentence left the durable record: True
+store trail: [(1, True, '32+00:00', True), (0, False, 'None', False)]
+wire: POST /→200
+    · POST /4eb21da35ccc4f1d90f0571cb5b62684/opened→200
+    · PUT  /4eb21da35ccc4f1d90f0571cb5b62684[87+00:00]→200
+    · POST /4eb21da35ccc4f1d90f0571cb5b62684/opened→200
+```
+
+### Timing proof that fix 5 was live for this run
+
+| | |
+|---|---|
+| fix 5 deployed | ~`2026-09-15T04:31Z` (`1ceb3c5c2`, deploy `b774aaa2`) |
+| run baseline | `2026-09-15T05:07:06.634032Z` |
+| next deploy after it | `2026-09-15T05:30:52Z` |
+
+The run sits between them. ⛔ Stated as timestamps rather than "the fix was live",
+because that is the difference between a measurement and an assumption.
+
+### Q1–Q3 — the open questions, not to be answered by inference
+
+**Q1. What reconciles the durable record clean, while an entry is queued, on the
+append route?** Fix 4 covers `settleLandedSave`. Something else is doing it — the
+trail says so plainly: `record went CLEAN while queued: True`.
+
+**Q2. If an entry survives queued, why does the sentence never reach the server?**
+Either the entry's `patch` no longer contains it, or the drain never sends it. **The
+trail does not distinguish these, and that distinction is the next MEASUREMENT, not
+the next fix.**
+
+**Q3. Is the rig probe honest here?** Three instruments in this programme have
+manufactured findings already. Before any fix 6, confirm the probe reads the entry's
+`patch` **after** the record is cleaned, not before.
+
+### 0.2 The 04:03 window — 2.8b failed to MEASURE, twice (2026-09-15)
+
+2.8b is fix 4's own production proof. It has now failed to yield a verdict three
+times. **It is INCONCLUSIVE — not a pass, not a fail.**
+
+```
+=== WINDOW OPEN 04:03:03 CT · 1 staged ===
+  2.8b-second-writer-while-away  INCONCLUSIVE (attempt 1, requeued) in 541.4s
+      "could not create the probe note ({'err': 'HTTP 502'}) — nothing was measured"
+  2.8b-second-writer-while-away  exit 124 in 1802.1s   <- TIMED OUT, no verdict
+  queue empty — nothing staged
+```
+
+⭐ **The instrument behaved correctly on attempt 1** — it refused rather than
+inventing a verdict, and the runner requeued rather than banking it. **Zero ANOMALY
+rows**: the window was spent, it simply did not yield.
+
+⚠️ **UNCONFIRMED explanation for the 502.** Master was pushed repeatedly overnight;
+web deploys land at `05:10:54Z`, `05:30:52Z`, `06:00:56Z`, `06:32:54Z`, `06:38:04Z`,
+and each push marks the previous deploy REMOVED and serves 502 through the swap.
+The 04:03 attempt sits in that churn. ⛔ **I did not confirm this against logs** —
+it is a plausible cause, recorded as unconfirmed rather than asserted.
+
+⛔ **Q4, OPEN: why did attempt 2 hang for 1802s instead of refusing cleanly?**
+A clean refusal at 541s and a 30-minute hang with no verdict are **not the same
+failure**. It may be the instrument, the rig, or production. It is not diagnosed,
+and the probe should refuse within a bounded time on any unmet precondition.
+
+⚰️ **And the hang left the rig ALIVE.** Checked 2026-09-15 08:23: `SingletonLock`
+was absent — which reads as "browser down" — while **nine chrome processes carried
+the rig marker** (created 04:12, 04:41, 05:07) and leveldb `LOCK` was
+permission-denied. **The opt-out key was not on disk at all.** An opted-in rig
+gives the sampler a non-zero outbox and the Sunday gate reads that as product
+state. ⭐ `SingletonLock` alone is NOT a liveness test — count processes by marker
+and try to read the leveldb `LOCK`. Torn down by marker (9 → 0, owner's 18 Chrome
+untouched), opt-out re-set through `window_check.opt_out`, verified on disk with
+the browser dead.
+
+### ⛔ Correction to §2 below
+
+*"the door fires at call #7"* was **never a defect indicator** and should not have
+been carried as one. Call #7 is the door's own `POST /embeds`; the rig counts it to
+establish ordering, so *"sends carrying the sentence **before** the door: 0"* is
+true **by construction**. The single real symptom was **zero successful sends
+carrying the sentence at all**, which fix 5 explains completely: the entry was
+cleared before any send ran (`clearOutboxEntry` then `continue`, skipping the
+`send(entry)` block).
+
+### Rails and mutation proof
+
+`supersedeProvesContent.test.js` — written 2026-09-13, carried as the `expected_red`
+reproduction, went **1 failed → 3 passed**.
+
+⚠️ **Fix 5 shipped with no NEW rail**, because its reproduction already existed and
+predated it. Mutation-proved afterwards rather than at commit time, which is the
+weaker order and is recorded as such:
+
+```
+MUTATED  (content proof removed, clock-only restored)
+  FAIL supersedeProvesContent.test.js > ⛔⛔ DOES NOT discard the member's words
+       when the landed save lacks them
+  Tests: 1 failed | 2 passed (3)      exit 1   <- the rail FIRES
+RESTORED (captured bytes written back, byte-for-byte, never git checkout)
+  Tests: 3 passed (3)                 exit 0   <- quiet
+```
+
+⭐ The first attempt at that proof **failed to mutate at all** — the match string
+was LF-joined against a CRLF file — and printed `3 passed`, which would have read
+as a passing mutated run. Two assertions caught it (`guard not found verbatim`,
+then `nothing was mutated`). **A fixture that cannot create the failure is not a
+test**, and that is the third instance of this shape in one session.
+
+### Still outstanding
+
+- ✅ **The production re-run HAS now been reported — and it came back RED 5/5.**
+  See §0.1. Fix 5 is proven at unit level and mutation-proved; it is NOT the cause
+  of these cells. R-1a's flip stays HELD.
+- ⛔ **2.8b never ran** — the remount-with-server-moved-on scenario, fix 4's own
+  production proof. Run it FIRST in the next window.
+
+---
+
+## 0.3 RETRACTION — the flip writer was never named (2026-09-15, owner rulings R-CITE / R-RAW / R-HON)
+
+⛔⛔ **THREE REPORTS STATED THAT THE FLIP WRITER HAD BEEN NAMED. IT HAD NOT.**
+The claim as carried was *"`persist` at `useDurableNote.js:444`, site 11 of 31,
+named from the stack"*. Every part of that is wrong, and the correction is the
+point of this section.
+
+**What the evidence actually says** (agent census, this session's transcript,
+quoted rather than paraphrased):
+
+> "I censused all 8 non-test `putNoteWithIntent` callers; exactly three can
+> produce the measured `(1, True, '85', False)` shape — `useDurableNote.js:286`
+> (`settleLandedSave`, not-caught-up), `useDurableNote.js:402` (`persist`, fed by
+> `NoteEditorPage.jsx:866` whose baseline is `:715`
+> `lastSavedRef.current.updatedAt`), and `outboxDrain.js:75` (`settleSent`) — and
+> every one needs the editor or the drain, not the door."
+>
+> "**Could not determine:** which of those three actually fired (needs
+> instrumentation, not reading)."
+
+So the true state is **a census of THREE candidates**, not a name:
+
+| candidate | function | how it was reached |
+|---|---|---|
+| `useDurableNote.js:286` | `settleLandedSave` (not-caught-up) | census by reading |
+| `useDurableNote.js:402` | `persist` | census by reading |
+| `outboxDrain.js:75` | `settleSent` | census by reading |
+
+⭐ **THE MECHANISM OF THE ERROR, because it is more useful than the error.** The
+candidate set was produced by READING, correctly, and survived. What failed is
+what happened to it **in transit between reports**: a three-way narrowing was
+compressed to its most likely member, the qualifier was dropped, and a line
+number from a *different* artifact (the AST call-site enumeration, where `:444`
+is a real `putNoteWithIntent` site) was attached to it. Nobody measured anything
+new; a hedge simply evaporated across a summary boundary. That is the inverse of
+this programme's governing lesson — the reading survived, and an unmeasured
+claim got welded onto it.
+
+⛔ **2.1(b) PROBE HONESTY: NEVER RUN.** Zero mentions in the run log; the window
+went straight to the instrumented cell. The probe has never been shown to report
+a planted loss and a planted success correctly. **Every RED reading in the F5
+matrix therefore carries the label "probe unverified" until it passes** — this
+is not a caveat, it is an open gap underneath the evidence for all five cells.
+
+⛔ **NO RAW RING EXISTS ON DISK.** There is no probe log, no matrix artifact and
+no page dump holding a captured ring. The only `ring: N write` readings anywhere
+are `ring: 2 write`, which is `--self-check`'s own planted pair.
+**`sentence_lost_writes` has never been read from a real run.**
+
+⭐ What IS measured about the sentence loss comes from the **store trail**, a
+different instrument, recorded at `tools/q1_write_trace.py` (summarise()
+docstring): `[(1, True, '47', True), (1, True, '39', False), (0, False, None,
+False)]` — the words leave at t1→t2 while the record is STILL dirty and an entry
+is STILL queued, and the dirty flip at t2→t3 carries `sentence_in_body` TRUE.
+Two distinct events. That stands; the writer behind either does not.
+
+### The three rules this produced (owner, 2026-09-15) — now standing rules
+
+- **R-CITE** — any statement of a measured fact in a report or checkpoint cites
+  its artifact: file path + line/key, or a commit hash. **No citation ⇒ the
+  sentence is written as "not measured".** A census is reported as a census with
+  its candidate count; **it never becomes a name in transit.**
+- **R-RAW** — every rig run writes its raw ring and probe output to
+  `docs/notebook/evidence/<run-id>/` **before any summary is computed**, and that
+  directory is committed as evidence **before** interpretation. **A run with no
+  raw artifact on disk is INCONCLUSIVE regardless of what the console showed.**
+- **R-HON** — 2.1(b) probe honesty runs **FIRST** in the next window and is not
+  skippable. Until it passes, every RED reading carries "probe unverified" in
+  both this document and the matrix.
+
+⛔ **And a STOP condition:** a report that names a writer without an evidence
+path is itself a STOP — write the correction and end the turn. The only
+acceptable form from here is
+*"`<function>` at `<file:line>`, from `evidence/<run-id>/ring.json` entry N"*, or
+*"not named; the ring showed X"*.
 
 ## 1. The symptom, in one paragraph
 

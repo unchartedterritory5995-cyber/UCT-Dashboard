@@ -105,7 +105,23 @@ Each step calls ONE public function of the package that owns the work, as `fn(ct
 | chain | order |
 |---|---|
 | daily | `capture.run_all` → `sources.run_daily` → *(STT/alias pass, inside extraction)* → `extract.run_daily` → `evals.run_daily` (context → outcomes → replay) → `publish.retrieval.refresh` → `publish.adapters.run_daily` (Brain KB and every consumer, each flag-gated; dark previews when off) → `publish.level_alerts.score_silently` → `publish.lookalike.score_silently` → one observation-log line per stream (`wisdom_observation_log`) |
-| weekly | `sources.run_weekly_sunday_scans` → `evals.reconcile_weekly` → `core.vocab.refresh_candidates` → contradictions refresh (`publish.chain.contradictions_refresh`) → `publish.adapters.refresh_voice_profile` (skipped while `WISDOM_VOICE_PROFILE_ENABLED` is off) → `publish.report.run_weekly` → `extract.run_weekly_audit` |
+| weekly | `sources.run_weekly_sunday_scans` → `evals.reconcile_weekly` → `core.vocab.refresh_candidates` → contradictions refresh (`publish.chain.contradictions_refresh`) → `publish.adapters.refresh_voice_profile` (skipped while `WISDOM_VOICE_PROFILE_ENABLED` is off) → `publish.report.run_weekly` → `extract.run_audit` |
+
+⚰️ **R57, 2026-09-15 — this row named `extract.run_weekly_audit`, which does not exist.**
+`chain.resolve()` returned nothing, the step recorded `not_available`, and the weekly
+extraction audit had therefore **never run once**. The real function is `extract.run_audit`
+(it reads `WISDOM_EXTRACT_AUDIT_ENABLED` at `audit.py:54` and salts by ISO week at
+`audit.py:70`), so only the NAME was wrong — in this row and in `extract/jobs.py`'s prose,
+each of which read as corroboration of the other.
+
+⛔⛔ **And fixing it surfaced three MORE weekly steps that resolve to nothing:**
+`evals.reconcile_weekly`, `core.vocab.refresh_candidates` and
+`publish.adapters.refresh_voice_profile` are **not implemented anywhere in the repo**.
+Four of the seven weekly steps have never run. Unlike the audit these are genuinely
+UNBUILT rather than misspelled, so they are declared in
+`tests/test_wisdom_chain_targets_resolve.py::KNOWN_UNBUILT` — a new typo now fails by
+name, while a deliberate gap is a line somebody had to write.
+
 | monthly | `publish.report.build_monthly_packet` |
 
 Every step writes its own `wisdom_chain_steps` row: `ok` · `failed` · `not_available` (module or

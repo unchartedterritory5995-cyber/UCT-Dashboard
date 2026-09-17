@@ -488,7 +488,10 @@ export function displayTargetOptions(instance, cs, defOf) {
     try { gone = isInstanceTombstone(other) } catch { /* booby-trapped getter */ }
     if (!gone) pool.push(other)
   }
-  const labelOf = paneHostLabels(pool, lookup)
+  // ⭐ THE INSTANCE LIST TRAVELS WITH THE POOL, so a host whose SOURCE names
+  // another instance can be told apart in WORDS (`EMA 20 · RSI (14)`) rather than
+  // by an ordinal — and never by the raw ref. See `readout.siblingSuffixes`.
+  const labelOf = paneHostLabels(pool, lookup, instances)
   for (const other of instances) {
     if (!other || typeof other !== 'object') continue
     if (typeof other.instanceId !== 'string' || !other.instanceId) continue
@@ -569,12 +572,12 @@ export function displayTargetOptions(instance, cs, defOf) {
  * plain `QQQ` in the map that is supposed to explain it. One function, both
  * surfaces — the rule `readout.js` already states for the legend.
  */
-export function paneHostLabels(pool, lookup) {
+export function paneHostLabels(pool, lookup, instances) {
   const labels = disambiguateLabels(pool.map((h) => ({
     defId: h.defId,
     instanceId: h.instanceId,
     inputs: h.inputs || {},
     label: instanceLabel(lookup(h.defId), h),
-  })), lookup)
+  })), lookup, instances ? { instances } : undefined)
   return new Map(pool.map((h, i) => [h.instanceId, labels[i]]))
 }

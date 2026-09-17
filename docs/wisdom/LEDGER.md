@@ -882,7 +882,7 @@ records and compares it; and `WISDOM_EXTRACT_BUDGET_USD`'s live value on Railway
 
 ---
 
-## Wave 1.5 — two ways a MUTATION HARNESS destroyed work in a shared worktree, 2026-09-14
+## Wave 1.5 — five ways a MUTATION HARNESS destroyed or falsified work in a shared worktree, 2026-09-14
 
 Both found by executing, both inside the repo's own standing rule *"restore byte-exact, never
 `git checkout`"* — which turns out to assume something nobody wrote down.
@@ -934,7 +934,7 @@ CRLF ruling (R-2) names, arrived at through formatting instead of line endings.
 
 ### 4. A mutation harness whose anchors match NOTHING reports a clean sweep
 
-⛔⛔ **The most dangerous of the three, found by the golden-v1.1 subagent.** `golden.py` is
+⛔⛔ **The most dangerous of the five, found by the golden-v1.1 subagent.** `golden.py` is
 **CRLF on disk and LF in the stored blob** (`core.autocrlf=true`). Five multi-line literal
 anchors therefore matched **0 times**, the mutations silently did not happen — and the run
 printed the same thing it prints when every rail catches every mutant.

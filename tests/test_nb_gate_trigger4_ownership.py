@@ -27,6 +27,26 @@ parts with `"  |  "`, so the flag cell contains a PIPE and the live 2026-09-14
 `row ... has 10 cell(s) under a 9-column header`. The ownership rule would have
 had nothing to read on the one row it was written for, and trigger 4 would have
 looked unchanged while the evidence fell out of the parser. Railed here too.
+
+⛔⛔ EVERY ANSWER BELOW IS READ OFF THE RENDERED `verdict.md`, NEVER OFF A HARNESS
+THAT RESTATES THE PARTITION. That is the rule the sibling file
+`tests/test_nb_gate_trigger1_ownership.py:30-33` states and was written to, and
+this file used to break it: a `_buckets()` helper re-derived the blocking/foreign
+split with its OWN copy of the `== 'foreign'` predicate, under a comment reading
+"exactly as main() partitions them". A copy that says "exactly as" is a second
+authority over one value, and it agreed with itself. MEASURED 2026-09-15: changing
+`tools/nb_gate.py:714` from `attr['verdict'] == 'foreign'` to
+`attr['verdict'] in ('foreign','unknown')` - the one edit that clears the
+un-attributable rows this file's first section exists to protect - left the WHOLE
+FILE GREEN, 10 passed, runner exit 0. Only the foreign and the Notebook directions
+were ever driven through `main()`; the direction that would clear real rows was
+asserted solely through the restating harness.
+
+⭐ THE REPAIR COST TWO TEST FUNCTIONS, AND THAT IS THE POINT. Once the answer comes
+from `main()`, "a foreign row is not blocking" and "a foreign row reaches the
+verdict as FOREIGN" are one assertion over one render, so the duplicated pairs were
+merged rather than kept side by side - three copies of a guard cannot be
+mutation-proved, and two agreeing copies are exactly what this file just paid for.
 """
 from __future__ import annotations
 
@@ -86,8 +106,8 @@ def _log(path, rows):
     """A log carrying the given rows, plus a CLEAN row that is always present.
 
     ⭐ The clean row is the NON-VACUITY anchor: every assertion about which rows
-    landed in which bucket is satisfied by a parser that returned nothing, and a
-    row that must appear in NEITHER bucket cannot be satisfied that way.
+    the verdict NAMES is satisfied by a parser that returned nothing, and a row
+    that must be named NOWHERE cannot be satisfied that way.
     """
     path.write_text(NL.join([
         "# Wave Q1 " + DASH + " observation log",
@@ -111,16 +131,53 @@ def _gate(tmp_path, monkeypatch, rows):
     return _load("nb_gate")
 
 
-def _buckets(gate):
-    """(blocking rows, foreign rows) exactly as `main()` partitions them."""
-    recs, _ = gate.parsed_rows()
-    observed = [x for x in recs if not gate.is_skipped(x)]
-    errs = [x for x in observed if (gate.number(x, "console") or 0) > 0]
-    blocking, foreign = [], []
-    for x in errs:
-        attr = gate.console_attribution(x.get("flag"))
-        (foreign if attr["verdict"] == "foreign" else blocking).append((x, attr))
-    return blocking, foreign
+# ===========================================================================
+# READING THE VERDICT. These three helpers LOCATE text in the render. Not one of
+# them decides which half a row belongs to - `main()` does, and that is the whole
+# repair. A helper here that computed an expected answer would be `_buckets`
+# wearing a different name.
+# ===========================================================================
+WHY = "## Why this is not a clean KEEP"
+FOREIGN_HEAD = "## Foreign console errors - RECORDED, not blocking"
+_T4_PREFIX = "| 4 " + MID + " member console error | "
+
+
+def _verdict(tmp_path, monkeypatch, rows, sub="run"):
+    """Run the REAL gate over `rows`; return (module, rendered verdict.md).
+
+    Each drive gets its own directory because `nb_gate` reads every path at
+    MODULE IMPORT, and because a test that needs two renders needs two logs.
+    """
+    d = tmp_path / sub
+    d.mkdir(parents=True, exist_ok=True)
+    gate = _gate(d, monkeypatch, rows)
+    assert gate.main() == 0
+    out = (d / "verdict.md").read_text(encoding="utf-8")
+    # NON-VACUITY: a verdict that was never written, or written empty, satisfies
+    # every `not in` below and nothing else.
+    assert _T4_PREFIX in out, out
+    return gate, out
+
+
+def _t4_cell(out):
+    """The trigger-4 cell, read out of the verdict's own table."""
+    for line in out.split(NL):
+        if line.startswith(_T4_PREFIX):
+            return line[len(_T4_PREFIX):].rsplit(" " + PIPE, 1)[0].strip()
+    raise AssertionError("no trigger-4 row in the verdict" + NL + out)
+
+
+def _section(out, head):
+    """The body under one '## ' heading, or None when the heading is absent."""
+    lines = out.split(NL)
+    if head not in lines:
+        return None
+    body = []
+    for line in lines[lines.index(head) + 1:]:
+        if line.startswith("## "):
+            break
+        body.append(line)
+    return NL.join(body)
 
 
 # ===========================================================================
@@ -135,14 +192,20 @@ def test_an_old_format_row_with_no_URL_still_FAILS_trigger_4(tmp_path, monkeypat
     else. The sampler learned to record the URL the next day. A filter that reads
     "no Notebook URL here" as "not ours" clears all three.
     """
-    gate = _gate(tmp_path, monkeypatch,
-                 [_row("2026-09-14 03:00 ET", 2, LEGACY_FLAG)])
-    blocking, foreign = _buckets(gate)
-    assert [x["at"] for x, _ in blocking] == ["2026-09-14 03:00 ET"]
-    assert foreign == []
-    # ...and it says WHY, in the verdict, rather than reading as an ordinary red.
-    assert blocking[0][1]["verdict"] == "unknown"
-    assert "unknown is not clear" in blocking[0][1]["why"]
+    _, out = _verdict(tmp_path, monkeypatch,
+                      [_row("2026-09-14 03:00 ET", 2, LEGACY_FLAG)])
+    assert _t4_cell(out) == "FAIL", out
+    # ...and it is NAMED, with the reason, rather than reading as an ordinary red.
+    why = _section(out, WHY)
+    assert why is not None, out
+    assert "trigger 4: console errors at 2026-09-14 03:00 ET" in why, why
+    assert "unknown is not clear" in why, why
+    # ⛔ AND IT IS NOT IN THE FOREIGN LEDGER. This is the assertion the deleted
+    # harness could not make: there "blocking" and "recorded as cleared" were two
+    # readings of one predicate; here they are two independent renders.
+    assert FOREIGN_HEAD not in out, out
+    # NON-VACUITY: the verdict really did read this log (2 rows, not 0).
+    assert "rows read: 2 (0 skipped)" in out, out
 
 
 def test_a_truncated_or_unlocated_row_is_UNKNOWN_not_foreign(tmp_path, monkeypatch):
@@ -151,27 +214,40 @@ def test_a_truncated_or_unlocated_row_is_UNKNOWN_not_foreign(tmp_path, monkeypat
     `(+N more)` means the sampler cut the deduped failing-request list at three,
     so origins it did not print exist. `[no location]` means a console error had
     no location at all. Either way the row cannot account for its own errors.
+
+    ⭐ DRIVEN ONE AT A TIME, because the verdict names the FIRST blocking row
+    only. Both shapes in one log would have proved the truncated case and said
+    nothing whatsoever about the unlocated one - an assertion satisfied by a
+    report that never mentions the second row.
     """
-    truncated = (FOREIGN_FLAG + " ; GET https://uctintelligence.com/api/bars/AAPL "
-                 "-> 500 ; GET https://uctintelligence.com/api/live-prices -> 500 "
-                 "(+2 more)")
+    tail = (" ; GET https://uctintelligence.com/api/bars/AAPL -> 500"
+            " ; GET https://uctintelligence.com/api/live-prices -> 500")
+    truncated = FOREIGN_FLAG + tail + " (+2 more)"
     unlocated = ("**ANOMALY** " + DASH + " 2 console/page error(s): "
                  + _RESOURCE_401 + "  [no location]  " + PIPE + "  HTTP: GET "
                  + _FOREIGN_URL + " -> 401")
-    gate = _gate(tmp_path, monkeypatch, [
-        _row("2026-09-14 03:00 ET", 5, truncated),
-        _row("2026-09-14 05:00 ET", 2, unlocated),
-    ])
-    blocking, foreign = _buckets(gate)
-    assert [x["at"] for x, _ in blocking] == [
-        "2026-09-14 03:00 ET", "2026-09-14 05:00 ET"]
-    assert foreign == []
-    assert "TRUNCATED" in blocking[0][1]["why"]
-    assert "NO location" in blocking[1][1]["why"]
-    # ⭐ CONTROL: the SAME evidence without the truncation marker and without the
-    # missing location IS cleared, or the two assertions above pass because
-    # nothing is ever cleared.
-    assert gate.console_attribution(FOREIGN_FLAG)["verdict"] == "foreign"
+
+    _, out = _verdict(tmp_path, monkeypatch,
+                      [_row("2026-09-14 03:00 ET", 5, truncated)], sub="truncated")
+    assert _t4_cell(out) == "FAIL", out
+    assert "TRUNCATED" in _section(out, WHY), out
+    assert FOREIGN_HEAD not in out, out
+
+    _, out = _verdict(tmp_path, monkeypatch,
+                      [_row("2026-09-14 05:00 ET", 2, unlocated)], sub="unlocated")
+    assert _t4_cell(out) == "FAIL", out
+    assert "NO location" in _section(out, WHY), out
+    assert FOREIGN_HEAD not in out, out
+
+    # ⭐ CONTROL, DIFFERING BY EXACTLY THE TWO MARKERS: the same evidence without
+    # ` (+2 more)` and with a location IS cleared. Without this the two FAILs
+    # above pass because nothing is ever cleared.
+    _, out = _verdict(tmp_path, monkeypatch, [
+        _row("2026-09-14 03:00 ET", 5, FOREIGN_FLAG + tail),
+        _row("2026-09-14 05:00 ET", 2, FOREIGN_FLAG),
+    ], sub="control")
+    assert _t4_cell(out) == "PASS - 2 FOREIGN row(s) recorded below, not blocking", out
+    assert "trigger 4:" not in out, out
 
 
 def test_a_pageerror_is_the_Notebooks_however_clean_the_HTTP_list_is(tmp_path, monkeypatch):
@@ -181,39 +257,56 @@ def test_a_pageerror_is_the_Notebooks_however_clean_the_HTTP_list_is(tmp_path, m
     a broken bundle - the 2am case the sampler attaches its listeners before
     `goto` to catch.
     """
-    gate = _gate(tmp_path, monkeypatch, [])
     flag = ("**ANOMALY** " + DASH + " 2 console/page error(s): pageerror: "
             "TypeError: t.notes is undefined  " + PIPE + "  HTTP: GET "
             + _FOREIGN_URL + " -> 401")
-    assert gate.console_attribution(flag)["verdict"] == "notebook"
+    _, out = _verdict(tmp_path, monkeypatch,
+                      [_row("2026-09-14 03:00 ET", 2, flag)])
+    assert _t4_cell(out) == "FAIL", out
+    assert ("a pageerror is an exception thrown by the Notebook page itself"
+            in _section(out, WHY)), out
+    # ⛔ and the foreign URL sitting beside it bought the row NO clearance.
+    assert FOREIGN_HEAD not in out, out
 
 
 # ===========================================================================
-# THE TWO DIRECTIONS THE RULING NAMES.
+# THE TWO DIRECTIONS THE RULING NAMES, END TO END. The verdict file is what a
+# person acts on, so it is what both directions are asserted against.
 # ===========================================================================
 
-def test_a_Notebook_owned_401_still_FAILS_trigger_4(tmp_path, monkeypatch):
+def test_a_Notebook_owned_401_still_reaches_the_verdict_as_a_trigger(tmp_path, monkeypatch):
     """⛔ The ruling narrows trigger 4; it does not switch it off.
 
     A 401 on `/api/j2/notes/...` is the Notebook's own write being refused -
-    exactly what this trigger watches for.
+    exactly what this trigger watches for - and the verdict must NAME the URL,
+    not merely go red.
     """
-    gate = _gate(tmp_path, monkeypatch,
-                 [_row("2026-09-14 03:00 ET", 2, OWNED_FLAG)])
-    blocking, foreign = _buckets(gate)
-    assert [x["at"] for x, _ in blocking] == ["2026-09-14 03:00 ET"]
-    assert foreign == []
-    assert _OWNED_URL in blocking[0][1]["why"]
+    _, out = _verdict(tmp_path, monkeypatch,
+                      [_row("2026-09-14 03:00 ET", 2, OWNED_FLAG)])
+    assert _t4_cell(out) == "FAIL", out
+    why = _section(out, WHY)
+    assert "trigger 4: console errors at 2026-09-14 03:00 ET" in why, why
+    assert _OWNED_URL in why, why
+    assert FOREIGN_HEAD not in out, out
+    assert "rows read: 2 (0 skipped)" in out, out
 
 
-def test_a_foreign_401_does_NOT_fail_trigger_4(tmp_path, monkeypatch):
-    """⭐ The case the ruling was written for: the app shell's bars prefetch."""
-    gate = _gate(tmp_path, monkeypatch,
-                 [_row("2026-09-14 03:00 ET", 2, FOREIGN_FLAG)])
-    blocking, foreign = _buckets(gate)
-    assert blocking == []
-    assert [x["at"] for x, _ in foreign] == ["2026-09-14 03:00 ET"]
-    assert foreign[0][1]["origins"] == [_FOREIGN_URL]
+def test_a_foreign_row_is_REPORTED_as_foreign_and_does_not_block(tmp_path, monkeypatch):
+    """⭐ The case the ruling was written for: the app shell's bars prefetch.
+
+    Clearing a row from a trigger and clearing it from the record are two
+    different acts, and only the first was ruled on. The URL must survive.
+    """
+    _, out = _verdict(tmp_path, monkeypatch,
+                      [_row("2026-09-14 03:00 ET", 2, FOREIGN_FLAG)])
+    assert _t4_cell(out) == "PASS - 1 FOREIGN row(s) recorded below, not blocking", out
+    ledger = _section(out, FOREIGN_HEAD)
+    assert ledger is not None, out
+    assert "- 2026-09-14 03:00 ET - " + _FOREIGN_URL in ledger, ledger
+    # ⛔ and trigger 4 contributed NO line to the blocking list.
+    assert "trigger 4:" not in out, out
+    # NON-VACUITY: the verdict really did read this log (2 rows, not 0).
+    assert "rows read: 2 (0 skipped)" in out, out
 
 
 def test_both_directions_in_ONE_log_partition_by_name(tmp_path, monkeypatch):
@@ -221,33 +314,37 @@ def test_both_directions_in_ONE_log_partition_by_name(tmp_path, monkeypatch):
     the two tests above; it cannot pass this one.
 
     Four rows, one log: clean / foreign / Notebook-owned / un-attributable. The
-    clean row must appear in NEITHER bucket, which is the non-vacuity control -
+    clean row must be named in NEITHER half, which is the non-vacuity control -
     an empty parse satisfies every membership assertion and satisfies no
     exclusion.
     """
-    gate = _gate(tmp_path, monkeypatch, [
+    gate, out = _verdict(tmp_path, monkeypatch, [
         _row("2026-09-14 03:00 ET", 2, FOREIGN_FLAG),
         _row("2026-09-14 05:00 ET", 2, OWNED_FLAG),
         _row("2026-09-14 07:00 ET", 2, LEGACY_FLAG),
     ])
-    recs, gripes = gate.parsed_rows()
     # NON-VACUITY, BY NAME: all four rows really were read, and none was dropped
     # as unreadable by the pipe inside three of the flag cells.
-    assert [x["at"] for x in recs] == [
-        "2026-09-14 01:00 ET", "2026-09-14 03:00 ET",
-        "2026-09-14 05:00 ET", "2026-09-14 07:00 ET"]
+    assert "rows read: 4 (0 skipped)" in out, out
+    recs, gripes = gate.parsed_rows()
     assert not gripes, gripes
     # ...and the console column really carries a number on the error rows, or the
-    # partition below is over an empty set.
+    # partition the verdict reports below is over an empty set.
     assert [gate.number(x, "console") for x in recs] == [0, 2, 2, 2]
 
-    blocking, foreign = _buckets(gate)
-    assert [x["at"] for x, _ in foreign] == ["2026-09-14 03:00 ET"]
-    assert [x["at"] for x, _ in blocking] == [
-        "2026-09-14 05:00 ET", "2026-09-14 07:00 ET"]
-    # THE EXCLUSION: the clean row is in neither bucket. Nothing empty can pass.
-    everywhere = [x["at"] for x, _ in blocking + foreign]
-    assert "2026-09-14 01:00 ET" not in everywhere
+    # ONE row is cleared, and it is named with the URL it was cleared on.
+    assert _t4_cell(out) == "FAIL - 1 FOREIGN row(s) recorded below, not blocking", out
+    ledger = _section(out, FOREIGN_HEAD)
+    assert ledger is not None, out
+    assert "- 2026-09-14 03:00 ET - " + _FOREIGN_URL in ledger, ledger
+    # THE EXCLUSIONS. The Notebook-owned row, the un-attributable row and the
+    # CLEAN row are all absent from the ledger; the clean row is absent from the
+    # blocking list too. Nothing empty can pass this.
+    why = _section(out, WHY)
+    for at in ("2026-09-14 05:00 ET", "2026-09-14 07:00 ET", "2026-09-14 01:00 ET"):
+        assert at not in ledger, (at, ledger)
+    assert "trigger 4: console errors at 2026-09-14 05:00 ET" in why, why
+    assert "2026-09-14 01:00 ET" not in why, why
 
 
 # ===========================================================================
@@ -311,37 +408,3 @@ def test_a_pipe_inside_the_flag_cell_does_not_make_the_row_UNREADABLE(tmp_path, 
     # A row with no pipe is untouched either way.
     plain = _row("2026-09-14 05:00 ET", 0, "OK")
     assert gate.split_cells(plain) == gate.split_cells(plain, 9)
-
-
-# ===========================================================================
-# END TO END: the verdict file is what a person reads.
-# ===========================================================================
-
-def test_a_foreign_row_is_REPORTED_as_foreign_and_does_not_block(tmp_path, monkeypatch):
-    """⭐ Clearing a row from a trigger and clearing it from the record are two
-    different acts, and only the first was ruled on. The URL must survive."""
-    gate = _gate(tmp_path, monkeypatch,
-                 [_row("2026-09-14 03:00 ET", 2, FOREIGN_FLAG)])
-    gate.main()
-    out = (tmp_path / "verdict.md").read_text(encoding="utf-8")
-    assert "| 4 " + MID + " member console error | PASS - 1 FOREIGN row(s) " \
-           "recorded below, not blocking |" in out, out
-    assert "## Foreign console errors - RECORDED, not blocking" in out
-    assert _FOREIGN_URL in out
-    # ⛔ and trigger 4 contributed NO line to the blocking list.
-    assert "trigger 4:" not in out
-    # NON-VACUITY: the verdict really did read this log (2 rows, not 0).
-    assert "rows read: 2 (0 skipped)" in out
-
-
-def test_a_Notebook_owned_row_still_reaches_the_verdict_as_a_trigger(tmp_path, monkeypatch):
-    """⭐ THE PAIR. A filter that stays quiet either way measures nothing."""
-    gate = _gate(tmp_path, monkeypatch,
-                 [_row("2026-09-14 03:00 ET", 2, OWNED_FLAG)])
-    gate.main()
-    out = (tmp_path / "verdict.md").read_text(encoding="utf-8")
-    assert "| 4 " + MID + " member console error | FAIL |" in out, out
-    assert "trigger 4: console errors at 2026-09-14 03:00 ET" in out
-    assert _OWNED_URL in out
-    assert "## Foreign console errors" not in out
-    assert "rows read: 2 (0 skipped)" in out

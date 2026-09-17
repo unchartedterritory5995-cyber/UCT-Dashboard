@@ -575,7 +575,28 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
     keyByIndex: (() => {
       const m = new Map()
       const ord = Array.isArray(order) ? order : null
-      const pinned = Math.max(0, firstPaneIndex - (bands && bands[VOLUME_BAND_KEY] ? 1 : 0) - 1)
+      // ⚰️⚰️ THE OFFSET IS THE PANES *ABOVE THE ARRANGEMENT*, AND NOTHING ELSE.
+      // This was derived from `firstPaneIndex` minus a volume BAND, which is right
+      // for a banded chart (1 - 1 - 1 -> 0) and off by one for the shipped
+      // configuration: a SEPARATE volume pane makes `firstPaneIndex` 2 with no
+      // band, so `pinned` became 1 and this map named Price slot 1 and Volume
+      // slot 2 on a chart whose only panes are 0 and 1.
+      //
+      // ⛔⛔ AND IT HID BECAUSE THE ERROR CANCELS ITSELF. `sizesFromStretch` RECORDS
+      // through this map and `applyPaneSizes` APPLIES through it, so a Volume drag
+      // stored under Price's name at slot 1, then re-applied to slot 1, puts the
+      // pixels back exactly where the member left them — two-pane resize looks
+      // perfect. The lie only surfaces when a THIRD pane appears and the
+      // panes-mode builder (which is correct) takes over: `price` starts meaning
+      // price, so the member's Volume enlargement is handed to the PRICE pane
+      // while Volume and the newcomer split the remainder and both inflate.
+      // MEASURED LIVE 2026-09-15: Volume dragged to 0.511 of the stack stored
+      // `{price: 0.5109}` and no volume entry at all.
+      //
+      // ⭐ THE ONLY PANE THAT IS ABOVE THE ARRANGEMENT AND NOT IN IT is the Model
+      // Book index pane, and `mainPaneIndex` already counts it (1 there, 0
+      // everywhere else). `order` supplies every other position.
+      const pinned = mainPaneIndex
       const priceSlot = ord ? pinned + ord.indexOf(PRICE_PANE) : mainPaneIndex
       const volSlot = ord ? pinned + ord.indexOf(VOLUME_PANE) : (firstPaneIndex > mainPaneIndex + 1 ? mainPaneIndex + 1 : -1)
       if (Number.isInteger(priceSlot) && priceSlot >= 0) m.set(priceSlot, PRICE_PANE)

@@ -130,11 +130,24 @@ describe('LegendRow — the three verbs', () => {
       <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical {...h} />)
     const row = container.querySelector('[data-legend-row="ma:2"]')
     expect(row.style.color, 'the row lost its line colour').toBe('rgb(192, 123, 224)')
-    // ⛔ THE VALUE FOLLOWS THE LABEL, by inheriting rather than restating — one
-    // source of colour per row.
-    expect(screen.getByText('1').style.color, 'the value kept the bright legend ink')
-      .toBe('inherit')
-    expect(row.querySelector('i'), 'a colour rail is back in the row').toBeNull()
+    // ⚰️⚰️ "THE VALUE FOLLOWS THE LABEL, BY INHERITING" WAS THE RULE HERE AND IT IS
+    // REVERSED. The owner's final colour system is COLOUR = which series, WHITE =
+    // the market value: the LABEL carries the hue (it is the identity) and the
+    // number is always the same bright neutral, so the eye lands on it first at
+    // every hue — including the pale ones, where a coloured value was hardest to
+    // read. The row still wears the line colour; only the value opts out.
+    expect(screen.getByText('1').style.color,
+      'the value is inheriting the series colour again — it must stay bright neutral')
+      .toBe('')
+    // ⚰️⚰️ THIS ASSERTED `toBeNull()` — "no colour rail" — and the owner reversed it.
+    // Track B's rail REPLACED the coloured label, so nine rows read as nine little
+    // coloured tabs with neutral text beside them; the retirement was of THAT, not
+    // of colour-at-the-head-of-a-row. The micro-rail ACCOMPANIES the coloured label
+    // in the same hue, so it reads as the start of the label rather than a mark of
+    // its own. It is pinned by `legendV2.test.jsx`, which owns its dimensions.
+    expect(row.querySelector('i'), 'the micro-rail left the row').toBeTruthy()
+    expect(row.querySelector('i').style.background,
+      'the rail stopped taking the row\'s own series colour').toBe('rgb(192, 123, 224)')
     const src = read('./LegendRow.jsx')
     expect(src, 'a hover handler is back in the component').not.toMatch(/onMouseEnter|onMouseLeave/)
   })
@@ -165,17 +178,30 @@ describe('LegendRow — the three verbs', () => {
     expect(hover[1]).toBe('background:rgba(255,255,255,0.055);')
   })
 
-  it('🔴 the vertical variant is ONE row box holding THREE subgrid cells', () => {
-    // 🔴 BOTH HALVES OF THIS ARE BUG FIXES THE OWNER REPORTED.
-    // ONE BOX: three loose sibling cells left the column GAPS un-hittable
-    // (`.legend` is `pointer-events: none`), so the controls vanished mid-approach
-    // and flickered between a label and its own value.
-    // THREE CELLS: the row borrows the legend's tracks through `subgrid`, and a
-    // row that emitted two would leave the control column unclaimed on that line.
+  it('🔴 the vertical variant is ONE row box — rail, label, value', () => {
+    // 🔴 THE HALF THAT IS A BUG FIX AND STILL IS: ONE BOX. Three loose sibling
+    // cells left the column GAPS un-hittable (`.legend` is `pointer-events: none`),
+    // so the controls vanished mid-approach and flickered between a label and its
+    // own value. The row is still a single element for exactly that reason.
+    //
+    // ⚰️ THE OTHER HALF — "THREE SUBGRID CELLS" — IS GONE WITH THE SUBGRID. The row
+    // borrowed the legend's tracks so every value landed on one x; that alignment
+    // was the invisible table the floating pass removed, and the retired control
+    // gutter was the third track. The row now carries a micro-rail, a label and a
+    // value, and the count is asserted so a silently dropped cell still fails.
     const h = handlers()
     const { container } = render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical {...h} />)
     expect(container.children, 'the row is not a single box').toHaveLength(1)
-    expect(container.firstChild.children, 'the row does not claim all three tracks').toHaveLength(3)
+    const cells = [...container.firstChild.children]
+    expect(cells.map((c) => c.tagName), 'a row cell went missing')
+      .toEqual(['I', 'SPAN', 'SPAN', 'SPAN'])
+    expect(cells[0].tagName, 'the micro-rail is not first').toBe('I')
+    // ⚰️ THE FOURTH IS VESTIGIAL: `.vCtl`, `display: none`. It existed so the old
+    // subgrid filled by ORDER — a two-cell row would have let the next row's label
+    // land in the control track. There is no grid and no track, so it holds nothing
+    // and costs nothing; it is asserted here only so its removal is a deliberate
+    // edit rather than a silent one.
+    expect(cells[3].className, 'the vestigial control cell changed identity').toMatch(/vCtl/)
   })
 })
 
@@ -225,15 +251,30 @@ describe('LegendRow — the CSS artifact', () => {
       .toMatch(/pointer-events:\s*none/)
   })
 
-  it('🔴 the vertical row is a SUBGRID — that is what keeps the columns aligned', () => {
-    // Without it the row would be an ordinary grid item and its label/value would
-    // size to their OWN content, so every row's value would land on a different
-    // right edge — the alignment the owner asked for in the first place. The row
-    // has to be one box (for hover) AND share the legend's tracks (for
-    // alignment), and `subgrid` is the only thing that is both.
-    const block = ruleBlock(css(), '.vRow')
-    expect(block).toMatch(/grid-template-columns:\s*subgrid/)
-    expect(block).toMatch(/grid-column:\s*1\s*\/\s*-1/)
+  it('⚰️ the row is an INLINE PAIR — the subgrid went with the value column', () => {
+    // ⚰️⚰️ THIS ASSERTED `grid-template-columns: subgrid`, and the reason it gave
+    // was that every row's value must land on one right edge. That alignment is
+    // exactly what the owner retired: five values ruled into a column is an
+    // INVISIBLE TABLE, and it was half of why the legend read as a box. The value
+    // follows its OWN label now — `EMA 9 711.65` starts further left than
+    // `SMA 200 661.14`, deliberately — and the left edge still aligns because
+    // every row starts at the stack's own origin.
+    //
+    // ⛔ WHAT SURVIVES IS THE HALF THAT WAS NEVER ABOUT ALIGNMENT: the row is ONE
+    // element. `.legend` is `pointer-events: none`, so the gap between a label and
+    // its value is only a hit target while it lives inside the row's own box —
+    // loose siblings left dead columns and cost this legend four reported bugs.
+    // ⛔ COMMENTS OUT FIRST. The retirement is DOCUMENTED inside this very rule, so
+    // a raw read finds the tombstone and reports the thing it says was removed as
+    // still present — a gate that cannot tell a comment from a declaration fails on
+    // good work and passes on bad.
+    const block = ruleBlock(css(), '.vRow').replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(block, 'the value column came back — the legend will read as a table again')
+      .not.toMatch(/subgrid/)
+    expect(block, 'the row stopped being one inline box').toMatch(/display:\s*inline-flex/)
+    expect(block, 'the label and value lost their pair gap').toMatch(/gap:\s*\d+px/)
+    expect(block, 'the row must still take pointer events — see the note above')
+      .toMatch(/pointer-events:\s*auto/)
   })
 
   it('🔴 the keyboard ring is `:focus-visible` — NEVER `:focus`, NEVER `:focus-within`', () => {

@@ -60,7 +60,7 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
     const h = handlers()
     const s = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
       .find(i => i.key === 'settings')
-    expect(s.label).toBe('Edit in Chart Data…')
+    expect(s.label).toBe('Edit in Indicators…')
     s.onClick()
     expect(h.onSettings).toHaveBeenCalledWith('legacy:rsi')
   })
@@ -308,5 +308,43 @@ describe('⛔ the Display-in page IS `displayTargetOptions`, shaped — not a se
     ).find(i => i.key === 'move')
     expect(move.submenu).toEqual([])
     expect(move.disabled, 'every destination is refused and the ROW is still live').toBeTruthy()
+  })
+})
+
+// ─── §21 · THE SUBSTRATE'S NAME NEVER REACHES A MEMBER ──────────────────────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-09-16, on the very surface this project built.
+// A member searches `QQQ`, clicks it, then clicks its legend row — and the
+// popover offered **"About Data Series"** over a subtitle reading **"Data Series ·
+// Own pane"**. `dataSeries` is the substrate; the owner's §21 names it explicitly
+// as language a member must never encounter, and this change is what made that
+// row reachable in one click.
+describe('⛔⛔ a definition whose identity IS its source lends no noun to the member', () => {
+  const chipFor = (defId, label) => ({ defId, instanceId: `inst:${defId}:1`, plotKey: 'value', label })
+  const noop = () => {}
+  const handlers = {
+    onHide: noop, onMove: noop, onSettings: noop,
+    onDuplicate: noop, onAlerts: noop, onAbout: noop, onRemove: noop,
+  }
+  const rowsFor = (def, chip) => chipMenuItems(chip, def, handlers, {})
+
+  it('⭐⭐ `About` names the SERIES for a source-named definition', () => {
+    const def = { id: 'dataSeries', meta: { name: 'Data Series', labelFrom: 'source' } }
+    const labels = rowsFor(def, chipFor('dataSeries', 'QQQ')).filter(Boolean).map((r) => r.label || '')
+    expect(labels.join(' | '), 'the substrate name reached the member').not.toMatch(/Data Series/)
+    expect(labels.some((l) => /^About QQQ$/.test(l)), `got: ${labels.join(' | ')}`).toBe(true)
+  })
+
+  it('⛔ AND EVERY OTHER DEFINITION KEEPS ITS CATALOGUE NAME — the narrow half', () => {
+    // This row exists to explain the INDICATOR. `About Moving Average` is the
+    // right answer; `About EMA 9` would be a worse one, and MACD's `SIG` chip
+    // must never read `About SIG`.
+    const ma = { id: 'movingAverage', meta: { name: 'Moving Average' } }
+    const maLabels = rowsFor(ma, chipFor('movingAverage', 'EMA 9')).filter(Boolean).map((r) => r.label || '')
+    expect(maLabels.some((l) => /^About Moving Average$/.test(l)), maLabels.join(' | ')).toBe(true)
+
+    const macd = { id: 'macd', meta: { name: 'MACD' } }
+    const sigLabels = rowsFor(macd, chipFor('macd', 'SIG')).filter(Boolean).map((r) => r.label || '')
+    expect(sigLabels.some((l) => /^About MACD$/.test(l)), sigLabels.join(' | ')).toBe(true)
   })
 })

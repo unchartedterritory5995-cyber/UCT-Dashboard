@@ -621,7 +621,11 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
   // exist. It is registry-native — there is no hardcoded block, no legacy
   // toggle and no stored blob that ever named it — so it can have no place in a
   // stack order that already shipped.
-  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
+  // ⭐ `dollarVolume` JOINS IT (2026-09-16) with the same history as `dataSeries`:
+  // a pane definition that never shipped a legacy band, because it was never a
+  // pane at all — it was two lines of arithmetic printed into the volume pane's
+  // LABEL. There is no legacy geometry for it to match.
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume']
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
     const paneDefs = listDefinitions().filter(d => d.placement.target === 'pane')

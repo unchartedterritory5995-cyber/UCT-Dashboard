@@ -56,9 +56,41 @@ def _never_take_the_machines_real_box_lock(monkeypatch, tmp_path):
     monkeypatch.setenv("UCT_GATE_BOX_LOCK", str(tmp_path / "box.lock"))
     monkeypatch.delenv("UCT_SKIP_GATE_BOX_LOCK", raising=False)
 
+
+@pytest.fixture(autouse=True)
+def _do_not_shell_out_to_the_real_do_not_build_sweep(monkeypatch):
+    """⛔⛔ EVERY `run_gate` TEST HERE WOULD OTHERWISE SPAWN A 115-SECOND SCAN.
+
+    `run_gate` builds its manifest with `do_not_build_sweep()` and passes it NO runner, so the
+    real function shells out to `tools/q1_do_not_build_sweep.py` — measured on this tree
+    2026-09-15 at **114.7 s**. Eleven tests call `run_gate` once each, so this one file cost
+    ~21 minutes of scanning and `pytest.ini`'s `timeout = 300` killed the run outright.
+
+    ⚠ AND THE KILL IS SILENT IN THE WORST WAY. On Windows pytest-timeout has no SIGALRM and
+    falls back to `timeout_method = thread`, which kills the PROCESS — so what comes back is a
+    stack with NO summary line and a wrapper exit code of **0**. That is the repo's own
+    "a test run without a totals line is not a run" trap wearing a third face, and it is how
+    this was found: the merge looked verified and nothing had been verified.
+
+    ⭐ NOT ONE TEST IN THIS FILE ASSERTS ON `do_not_build`. The 21 minutes bought a manifest
+    field nothing reads — the same defect as the box-lock fixture above, one layer out: a suite
+    paying a real cost for a resource it never inspects.
+
+    ⛔ THE STUB IS NOT A HOLE. `test_the_do_not_build_sweep_is_still_wired_both_ways` drives the
+    REAL function through its own `run=` injection point and asserts BOTH outcomes, so a sweep
+    that stopped working still reds. A stub without that test is how a probe gets quietly retired.
+    """
+    import gate_shards as _gs
+    monkeypatch.setattr(_gs, "do_not_build_sweep",
+                        lambda *a, **k: {"ran": True, "clean": True, "hits": [],
+                                         "output": "", "stubbed_by": __name__})
+
 from gate_shards import (  # noqa: E402
     GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
 )
+# ⛔ Bound HERE, at import, so the autouse stub below cannot reach it. The one test that
+# exercises the REAL sweep calls THIS name; every other test gets the stub.
+from gate_shards import do_not_build_sweep as _REAL_SWEEP  # noqa: E402
 
 # ── Fixture (a): REAL captured bytes, not a hand-written approximation ────────────────────────
 # Copied verbatim (via repr) from shard 6 of the 2026-09-09 run at 0ffe68a14. The escapes are the
@@ -787,6 +819,233 @@ def test_the_short_run_message_names_the_counts_and_the_shards():
     assert '1016' in blob, 'must say how many ran'
     assert '1352' in blob, 'must say how many were expected'
     assert 'shard 1' in blob and 'shard 6' in blob, 'must break it down per shard'
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# The re-derivation precondition. Justifying a carry-over by hashing app/src
+# ALONE is the flattering answer; the read set is a LIST and this is the only
+# thing allowed to answer it.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_the_read_set_names_the_config_and_the_lockfile_not_just_app_src():
+    """
+    ⛔ app/src is the big one, not the whole set. A vitest config or a
+    lockfile change alters what the suite DOES without touching a single test.
+    """
+    import scripts.gate_shards as gs
+    for rel in ('app/src', 'app/vite.config.js', 'app/package.json',
+                'app/package-lock.json'):
+        assert rel in gs.GATE_READ_PATHS, rel
+
+
+def test_identical_trees_permit_re_derivation():
+    import scripts.gate_shards as gs
+    class R:
+        def __init__(s, out, rc=0): s.stdout, s.returncode = out, rc
+    ok, diff = gs.gate_read_identical('A', 'B', paths=('x', 'y'),
+                                      run=lambda argv: R('same-hash'))
+    assert ok is True and diff == []
+
+
+def test_one_differing_path_refuses_and_NAMES_it():
+    """
+    The other direction, and it must say WHICH path - a refusal nobody can act
+    on gets waived.
+    """
+    import scripts.gate_shards as gs
+    class R:
+        def __init__(s, out, rc=0): s.stdout, s.returncode = out, rc
+    def run(argv):
+        return R('hash-b') if argv[-1].endswith(':y') and argv[-1].startswith('B') else R('hash-a')
+    ok, diff = gs.gate_read_identical('A', 'B', paths=('x', 'y'), run=run)
+    assert ok is False and diff == ['y'], diff
+
+
+def test_a_path_missing_on_one_side_is_DIFFERING_not_equal():
+    """
+    ⛔ Two absent paths must not hash to the same empty string and read as
+    equal. That is the vacuous answer this check exists to refuse.
+    """
+    import scripts.gate_shards as gs
+    class R:
+        def __init__(s, out, rc): s.stdout, s.returncode = out, rc
+    ok, diff = gs.gate_read_identical('A', 'B', paths=('gone',),
+                                      run=lambda argv: R('', 128))
+    assert ok is False and diff == ['gone']
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# ⛔⛔ AND THE READ SET IS DERIVED, NOT REMEMBERED.
+#
+# The four-path list above was written when `app/src` + the config + the
+# lockfile looked like the whole story. It is not: the runner's cwd is `app/`,
+# so a rail's `path.resolve(process.cwd(), '../…')` reaches the REPO ROOT, and
+# the suite reads script corpora, generated docs, decision records and a dozen
+# PYTHON sources. Fourteen of those paths were absent from GATE_READ_PATHS on
+# 2026-09-15 — including three (`api/routers/definition_record.py`,
+# `api/services/implied_move.py`, `api/services/setup_grade.py`) that a careful
+# hand sweep of the same sources missed and this derivation found.
+#
+# ⭐ So the list is re-derived here every run. A per-file read set is precise
+# enough to keep the re-derivation USEFUL (naming `docs/` or `api/` whole would
+# answer DIFFERS forever), and this rail is what stops precision turning into
+# drift: the fifteenth path fails BY NAME rather than being silently un-hashed.
+# ══════════════════════════════════════════════════════════════════════════
+
+#: Repo-root path literals a vitest source NAMES without opening. Each is a
+#: hand-written fixture row or an ownership prefix in `rule12Paths.test.js`,
+#: which asserts on the CLASSIFIER over invented change sets. ⛔ An entry here is
+#: a CLASSIFICATION, not a waiver: a path that moves into this dict without a
+#: reason is a path nobody checked.
+NAMED_BUT_NOT_READ = {
+    'docs/plans/joystick': 'rule12Paths.test.js — an owned-prefix string in JOYSTICK_PREFIXES',
+    'docs/plans/joystick/closure.md': 'rule12Paths.test.js — a `changed` fixture row',
+    'docs/plans/joystick/deferred.md': 'rule12Paths.test.js — a `changed` fixture row',
+    'docs/plans/joystick/scope-reconciliation.md': 'rule12Paths.test.js — a `changed` fixture row',
+    'api/routers/calendar.py': 'rule12Paths.test.js — a `changed` fixture row for a NON-joystick branch',
+}
+
+_PATH_LITERAL = re.compile(r"""['"]([A-Za-z0-9_.\-/]+)['"]""")
+
+
+def _repo_root() -> pathlib.Path:
+    return pathlib.Path(__file__).resolve().parent.parent
+
+
+def _tracked_and_top_dirs():
+    """(tracked paths, top-level directory names) — DERIVED from git, never typed.
+
+    ⛔ `git -C <root>`: git resolves pathspecs against the cwd and `ls-files`
+    output against the repo, and the two disagreeing is invisible (rule 14).
+    """
+    out = subprocess.run(['git', '-C', str(_repo_root()), 'ls-files'],
+                         capture_output=True, text=True, encoding='utf-8',
+                         errors='replace', check=True).stdout.splitlines()
+    return set(out), {p.split('/')[0] for p in out if '/' in p}
+
+
+def _normalise(spec: str) -> str:
+    parts = spec.split('/')
+    while parts and parts[0] in ('.', '..'):
+        parts.pop(0)
+    return '/'.join(parts).rstrip('/')
+
+
+def root_relative_literals():
+    """{repo-root path: the vitest sources that name it}.
+
+    ⛔⛔ IT IS A DRIFT DETECTOR, NOT A CENSUS, AND THE DIFFERENCE IS THE WHOLE
+    HONESTY OF IT. A path built by concatenation, or resolved relative to the
+    TEST FILE rather than the repo root, is invisible to a literal scan —
+    `app/scripts/build-cot-facts.mjs` is imported as
+    '../../../scripts/build-cot-facts.mjs' and never appears in this result.
+    Those are covered by hand in GATE_READ_PATHS and by the explicit rail below.
+    What this catches is the shape that actually keeps appearing: a quoted
+    repo-root path handed to `readFileSync` / `existsSync` / `execFileSync`.
+
+    ⛔ A literal is kept only if it TRACKS or EXISTS. That is what separates a
+    path from prose — `'api/routers/auth.py moved — the kill switch is elsewhere
+    now'` is a failure message, not a read, and it resolves to nothing.
+    """
+    root = _repo_root()
+    tracked, top = _tracked_and_top_dirs()
+    found: dict[str, set[str]] = {}
+    for p in (root / 'app' / 'src').rglob('*'):
+        if p.suffix not in ('.js', '.jsx'):
+            continue
+        if '.test.' not in p.name and '.spec.' not in p.name:
+            continue
+        text = p.read_text(encoding='utf-8', errors='replace')
+        for m in _PATH_LITERAL.finditer(text):
+            rel = _normalise(m.group(1))
+            if '/' not in rel or rel.split('/')[0] not in top:
+                continue
+            if rel.startswith('app/src/'):          # the tree hash already covers it
+                continue
+            if rel in tracked or (root / rel).is_dir():
+                found.setdefault(rel, set()).add(p.relative_to(root).as_posix())
+    return found
+
+
+def _covered_by(rel: str, paths) -> bool:
+    return any(rel == p or rel.startswith(p + '/') for p in paths)
+
+
+def test_the_scan_that_derives_the_read_set_actually_READ_something():
+    """
+    ⛔ THE NON-VACUITY CONTROL, AND IT COMES FIRST. An empty result satisfies
+    "every path found is covered" perfectly, so a glob that matched nothing, a
+    wrong cwd, or a `git ls-files` that returned empty would publish a green
+    coverage claim over zero evidence (rule 14).
+
+    ⭐ It names MEMBERS, not only a count: a count drifts, a name fails loudly.
+    """
+    found = root_relative_literals()
+    assert len(found) >= 40, f'the scan found only {len(found)} literals — it is not reading the suite'
+    for member in ('tests/fixtures/ast/corpus.json',
+                   'api/services/indicator_alert_evaluator.py',
+                   'docs/decisions/2026-08-03-engine-enabled-settings-migration.md'):
+        assert member in found, f'{member} is read by a rail and the scan did not see it'
+    assert 'app/src/hub/registry.js' not in found, 'app/src must be filtered out, it is covered by its tree hash'
+
+
+def test_the_read_set_covers_every_root_relative_path_the_suite_reads():
+    """
+    Every repo-root path a vitest source names is either IN the read set or
+    CLASSIFIED as named-but-not-read. Nothing may be neither.
+    """
+    import scripts.gate_shards as gs
+    uncovered = sorted(rel for rel in root_relative_literals()
+                       if not _covered_by(rel, gs.GATE_READ_PATHS) and rel not in NAMED_BUT_NOT_READ)
+    assert not uncovered, (
+        'these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation '
+        'would carry a verdict across a change to them:\n  ' + '\n  '.join(uncovered))
+
+
+def test_the_coverage_predicate_can_say_NO():
+    """
+    ⛔ The control for the rail above. If `_covered_by` answered True for
+    everything, "nothing uncovered" would be a tautology over any read set.
+    """
+    import scripts.gate_shards as gs
+    assert _covered_by('app/src/hub/registry.js', gs.GATE_READ_PATHS) is True
+    assert _covered_by('api/services/__nothing_reads_this__.py', gs.GATE_READ_PATHS) is False
+    # ⛔ and a PREFIX is not a parent: `app/scripts` must not swallow `app/scriptsX`.
+    assert _covered_by('app/scriptsX/thing.mjs', gs.GATE_READ_PATHS) is False
+
+
+def test_every_path_in_the_read_set_EXISTS_in_git():
+    """
+    ⛔ A path that git cannot resolve is reported DIFFERING on both sides by
+    `gate_read_identical` — correctly — which would make the precondition refuse
+    every carry-over forever, for a typo. `tests/fixtures/pine-inbox` is named by
+    `dialect.test.js` and does not exist; that is why the read set carries the
+    PARENT `tests/fixtures` rather than the absent child.
+    """
+    import scripts.gate_shards as gs
+    root = _repo_root()
+    missing = [p for p in gs.GATE_READ_PATHS
+               if subprocess.run(['git', '-C', str(root), 'rev-parse', f'HEAD:{p}'],
+                                 capture_output=True).returncode != 0]
+    assert not missing, f'not resolvable at HEAD: {missing}'
+
+
+def test_the_read_set_names_the_corpora_the_generators_and_the_cross_lane_sources():
+    """
+    The four families `app/src` cannot see, one named member each — so a deletion
+    from the tuple fails by name instead of quietly shrinking the precondition.
+    """
+    import scripts.gate_shards as gs
+    for rel in ('tests/fixtures',                                  # the script corpora
+                'app/scripts',                                     # build entry points two rails run
+                'tools/hub_surface_matrix.mjs',                    # a generator a rail EXECUTES
+                'docs/plans/joystick/glass-acceptance-steps.md',   # an artifact a rail byte-compares
+                'docs/formulas/GRAMMAR.md',
+                'docs/decisions/2026-08-06-machine-repaint-linter.md',
+                'api/services/indicator_compute.py',               # cross-lane parity reads
+                'api/services/journal_two/roundtrip_export_fixture.py'):  # and one it EXECUTES
+        assert rel in gs.GATE_READ_PATHS, rel
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 # THE EXIT CODE IS READ, AND THE VERDICT IS A LINE OF OUTPUT
 #
@@ -1080,3 +1339,47 @@ def test_the_box_lock_path_is_overridable_and_defaults_to_a_machine_wide_locatio
     assert "uct-worktrees" not in str(default), default
     assert not str(default).lower().startswith("c:\\data"), default
     assert ".git" not in str(default), default
+
+
+# ════════════════════════════════════════════════════════════════════════
+# The sweep the autouse fixture stubs out. This is the ONE place it really runs.
+# ════════════════════════════════════════════════════════════════════════
+
+
+def test_the_do_not_build_sweep_is_still_wired_both_ways():
+    """⛔ A sweep that could not run must NOT read as a sweep that found nothing.
+
+    The autouse stub above makes the eleven `run_gate` tests affordable; without this, stubbing
+    it would also delete the only coverage the sweep had. `_REAL_SWEEP` is bound at import,
+    before the stub exists, so this drives the genuine function.
+    """
+    class _Proc:
+        stdout = "  web clipper: app/src/x.js:12  `webClipper` "
+        stderr = ""
+        returncode = 1
+
+    got = _REAL_SWEEP(run=lambda argv: _Proc())
+    assert got["ran"] is True, "a sweep that ran must say so"
+    assert got["clean"] is False, "a non-zero return means the sweep found something"
+    assert got["hits"], "a hit line matching the documented shape must be reported"
+
+    # ⭐ THE CONTROL. Without this the assertions above pass for a function that
+    # answers the same way to everything.
+    clean = _REAL_SWEEP(run=lambda argv: type("P", (), {"stdout": "", "stderr": "", "returncode": 0})())
+    assert clean["ran"] is True and clean["clean"] is True and not clean["hits"]
+
+    # ⛔ AND THE ABSENCE CASE, which is the one the docstring in gate_shards.py insists on.
+    def _boom(argv):
+        raise OSError("no interpreter")
+    missing = _REAL_SWEEP(run=_boom)
+    assert missing["ran"] is False, "a sweep that could not launch must report ran=False"
+    assert "could not be launched" in missing["why"]
+
+
+def test_the_autouse_stub_is_actually_in_force_for_run_gate():
+    """⛔ NON-VACUITY. If the stub silently stopped applying, every test in this file would
+    quietly go back to costing 115 s and this file would time out again — with no assertion
+    naming why. This one fails BY NAME instead."""
+    import gate_shards as _gs
+    assert _gs.do_not_build_sweep()["stubbed_by"] == __name__, (
+        "the autouse sweep stub is not in force; run_gate tests will shell out for ~115s each")

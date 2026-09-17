@@ -51,10 +51,31 @@ restore() {
   purge
   for f in $ARTIFACTS; do
     if [ "$(sha "$f")" != "$(cat "$WORK/orig/$f.sha")" ]; then
-      echo "!! RESTORE FAILED for $f"; exit 9
+      echo "!! RESTORE FAILED for $f — the byte copy is $WORK/orig/$f"; exit 9
     fi
   done
 }
+
+# ⛔⛔ NOTHING BOUND `restore` TO A SIGNAL UNTIL 2026-09-15, and that is the whole
+# defect: the function above is correct and was simply unreachable from the way
+# these runs actually end. It was called on three paths — a mutation script that
+# errored, a mutation that did not apply, and a completed run — and on NONE of the
+# ways a multi-minute pytest gauntlet is really interrupted. A Ctrl-C anywhere in
+# it left api/services/journal_two/coach_chat.py or one of the five compass_eval
+# artifacts mutated in the working tree, committable. A guard nothing calls is not
+# a guard.
+#
+# ⛔ `trap 'restore' INT` on its own would not close it: an INT handler that
+# RETURNS lets the script carry on and re-mutate, and a bare EXIT handler leaves
+# the status to whatever `restore`'s last comparison happened to be. So the
+# handler detaches itself first, restores, and re-raises the original status.
+on_exit() {
+  rc=$?
+  trap - EXIT INT TERM
+  restore
+  exit "$rc"
+}
+trap on_exit EXIT INT TERM
 
 # apply <file> <python-heredoc-on-stdin>; asserts the edit landed
 apply() {

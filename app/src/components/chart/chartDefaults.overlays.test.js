@@ -49,6 +49,16 @@ describe('mergeChartSettings — overlays slot stability', () => {
   it('carries the new volume fields', () => {
     const v = mergeChartSettings(JSON.stringify({ volume: { visible: true } })).volume
     expect(v.labelVisible).toBe(true)
-    expect(v.maPeriod).toBe(50)
+    // ⭐⭐ ZERO SINCE 2026-09-16, DELIBERATELY (owner §16). A default of 50 drew a
+    // volume moving average, and printed a reading for it, on every chart in the
+    // product without anybody choosing either. The member-facing way to have one
+    // is to add a Moving Average sourced from Volume, like any other indicator.
+    expect(v.maPeriod, 'a volume MA is back by default — §16 says a member adds it').toBe(0)
+    // ⛔ …AND A STORED CHOICE IS UNTOUCHED, which is the other half of the rule
+    // (§51: remove the default, never the configuration). Every chart saved
+    // through the settings modal carries this key, so this is the case that says
+    // those members keep their line.
+    const mine = mergeChartSettings(JSON.stringify({ volume: { maPeriod: 50 } })).volume
+    expect(mine.maPeriod, 'the merge overwrote a member’s own volume MA period').toBe(50)
   })
 })

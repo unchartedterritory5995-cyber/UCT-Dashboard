@@ -42,7 +42,13 @@ def _env_path(name: str, *, must_exist: bool = True) -> pathlib.Path:
 
 
 def _baseline() -> pathlib.Path:
-    return _env_path("PROOF_REPO") / os.environ["PROOF_BASELINE_REL"]
+    # ⭐ PARAMETERISED 2026-09-15. The harness was hardwired to gate-baseline.json
+    # and to one mutation, so every other fix had to be mutation-proved by hand —
+    # which is how Q1 fix 5 shipped with no proof at all. PROOF_BASELINE_REL is
+    # kept as a fallback so the ORIGINAL proof still runs unchanged, which is what
+    # makes "nothing regressed" checkable.
+    rel = os.environ.get("PROOF_TARGET_REL") or os.environ["PROOF_BASELINE_REL"]
+    return _env_path("PROOF_REPO") / rel
 
 
 def _sentinel() -> pathlib.Path:
@@ -73,19 +79,62 @@ def capture() -> int:
     return 0
 
 
+#: built from chr() so no source-level escape can collapse it. A heredoc that
+#: turned a backslash-r-backslash-n into a real newline is how this very file got
+#: written wrong twice.
+_CRLF = chr(13) + chr(10)
+
+
 def mutate() -> int:
+    """
+    Apply the mutation. TWO MODES, chosen by PROOF_MUTATION:
+
+      strip-json-key  (default) — set a top-level JSON key to {}. The original
+                      proof: strip `expected_red_reasons`, keep `expected_red`.
+      replace         — swap PROOF_MUT_OLD for PROOF_MUT_NEW, exactly once. This
+                      is what lets ANY source fix be proved: remove the guard,
+                      watch the rail redden, restore.
+
+    ⛔ BOTH MODES ASSERT THE FILE ACTUALLY CHANGED. A mutation that silently
+    applied nothing prints a passing "mutated" run — which happened on 2026-09-14
+    when an LF-joined match string met a CRLF file and reported 3 passed. A fixture
+    that cannot create the failure is not a test.
+    """
+    import hashlib
     b = _baseline()
     raw = b.read_bytes()
-    crlf = raw.count(b"\r\n")
-    doc = json.loads(raw.decode("utf-8"))
-    doc["expected_red_reasons"] = {}          # strip the reason, keep the entry
-    out = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
-    if crlf:
-        out = out.replace("\n", "\r\n")
-    b.write_bytes(out.encode("utf-8"))
-    print("reason stripped; entry left in place")
-    return 0
+    before = hashlib.sha256(raw).hexdigest()
+    mode = os.environ.get("PROOF_MUTATION", "strip-json-key")
+    has_crlf = raw.count(_CRLF.encode()) > 0
 
+    if mode == "replace":
+        old = os.environ["PROOF_MUT_OLD"]
+        new = os.environ.get("PROOF_MUT_NEW", "")
+        text = raw.decode("utf-8").replace(_CRLF, chr(10))
+        n = text.count(old)
+        if n != 1:
+            sys.exit(f"⛔ PROOF_MUT_OLD occurs {n} time(s), expected exactly 1. "
+                     f"Nothing was mutated, so nothing below would mean anything.")
+        text = text.replace(old, new)
+        out = text.replace(chr(10), _CRLF) if has_crlf else text
+        b.write_bytes(out.encode("utf-8"))
+        what = f"replaced {len(old)} chars with {len(new)}"
+    else:
+        key = os.environ.get("PROOF_JSON_KEY", "expected_red_reasons")
+        doc = json.loads(raw.decode("utf-8"))
+        doc[key] = {}
+        out = json.dumps(doc, indent=2, ensure_ascii=False) + chr(10)
+        if has_crlf:
+            out = out.replace(chr(10), _CRLF)
+        b.write_bytes(out.encode("utf-8"))
+        what = f"stripped JSON key {key!r}"
+
+    after = hashlib.sha256(b.read_bytes()).hexdigest()
+    if after == before:
+        sys.exit("⛔ the file did NOT change. A mutation that applied nothing "
+                 "produces a passing 'mutated' run, which is worse than no proof.")
+    print(f"  MUTATED: {what}  sha {before[:12]} -> {after[:12]}")
+    return 0
 
 def restore() -> int:
     s = _sentinel()
@@ -124,11 +173,56 @@ def restore() -> int:
     return 0
 
 
+def run_tests() -> int:
+    """
+    Run the rail(s) named by PROOF_NODES and return THEIR exit code.
+
+    ⛔ THE RUNNER IS RESOLVED WITH shutil.which, NEVER exec'd by bare name.
+    On Windows `npx` and `pytest` are `.cmd` shims that subprocess.run cannot
+    resolve on its own — rule 14, and it has bitten this repo twice: once in
+    scripts/deploy_watch.py (forty FileNotFoundErrors, then exit 0), and once on
+    2026-09-15 when an unresolved `npx` raised BEFORE the restore and left a
+    product file mutated in the working tree.
+
+    ⛔ AND IT ABORTS LOUDLY IF THE RUNNER IS ABSENT. A harness that cannot run
+    its rail must say so; silently reporting "no failures" over a suite that never
+    started is the exact shape of an empty result read as a pass.
+    """
+    import shutil
+    nodes = (os.environ.get("PROOF_NODES") or "").split()
+    if not nodes:
+        sys.exit("⛔ PROOF_NODES is empty — there is no rail to run, so nothing "
+                 "below could mean anything.")
+    repo = _env_path("PROOF_REPO")
+    frontend = any(n.startswith("src/") for n in nodes)
+    if frontend:
+        exe = shutil.which("npx") or shutil.which("npx.cmd")
+        if not exe:
+            sys.exit("⛔ could not resolve `npx` on PATH. The rail was NOT run. "
+                     "(shutil.which, never a bare name — rule 14.)")
+        cmd = [exe, "vitest", "run", *nodes]
+        cwd = repo / "app"
+    else:
+        exe = shutil.which("python") or sys.executable
+        if not exe:
+            sys.exit("⛔ could not resolve a python interpreter. The rail was NOT run.")
+        cmd = [exe, "-m", "pytest", *nodes, "-q"]
+        cwd = repo
+    r = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    tail = [ln for ln in (r.stdout or "").splitlines()
+            if ("Tests " in ln or "passed" in ln or "failed" in ln)]
+    for ln in tail[-3:]:
+        print("   ", ln.strip())
+    print(f"  RUNNER EXIT: {r.returncode}")
+    return r.returncode
+
+
 def verify_clean() -> int:
     """The tree must be clean for the file we touched. Informational commands
     never decide this - the caller folds the return code into its matrix."""
     repo = _env_path("PROOF_REPO")
-    rel = os.environ["PROOF_BASELINE_REL"]
+    rel = os.environ.get("PROOF_TARGET_REL") or os.environ["PROOF_BASELINE_REL"]
     out = subprocess.run(["git", "-C", str(repo), "status", "--porcelain", "--", rel],
                          capture_output=True, text=True).stdout.strip()
     if out:
@@ -139,6 +233,6 @@ def verify_clean() -> int:
 
 
 if __name__ == "__main__":
-    fn = {"capture": capture, "mutate": mutate,
+    fn = {"capture": capture, "mutate": mutate, "run_tests": run_tests,
           "restore": restore, "verify_clean": verify_clean}[sys.argv[1]]
     raise SystemExit(fn())

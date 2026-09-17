@@ -337,31 +337,52 @@ describe('the long-press context sheets — a verified UCT advantage, still inta
 
 // ─── 6-10 · THE CROSSHAIR READOUT, WHOLE ───────────────────────────────────
 
-describe('crosshair — OHLC, Vol, $ Vol, Avg ND and indicator values TOGETHER', () => {
+describe('crosshair — OHLC, Vol, the volume MA and indicator values TOGETHER', () => {
+  // ⚰️⚰️ `$ Vol` WAS IN EVERY CASE BELOW AND IS IN NONE OF THEM (owner §16,
+  // 2026-09-16). It was `volume × close` computed inline on every crosshair frame
+  // and printed on every chart with no control anywhere; dollar volume is a
+  // DEFINITION now (`nativeRegistry.dollarVolume`) and arrives as an ordinary
+  // series when a member adds one. These cases are about whether ONE hover
+  // produces every readout AT ONCE, and that claim is unchanged — what changed is
+  // which readouts a default chart has.
+  //
+  // ⭐ AND THE VOLUME MA IS NOW STATED RATHER THAN ASSUMED. Its default moved to 0
+  // (§16), so a case that wants one says so — which is also what a chart belonging
+  // to a member who chose one looks like (§51).
+  //
+  // ⚠️ THE ROW IS ADDRESSED BY ITS CLASS, NOT BY ITS TEXT. It reads `SMA 50` now
+  // rather than `Avg 50D` — one Moving Average, one grammar (§17) — and the
+  // default chart ships `SMA 50` and `SMA 200` on PRICE, so a substring test over
+  // the whole legend would match an overlay instead.
+  const WITH_MA = { settings: { volume: { maPeriod: 50 } } }
+  const volMaRow = (v) => {
+    const leg = v.container.querySelector('[class*="legend" i]')
+    const el = leg && [...leg.children].find((c) => /volXtra/.test(c.className || ''))
+    return el ? (el.textContent || '').trim() : ''
+  }
+
   it('one hover produces every readout at once', async () => {
-    const v = mountChart()
+    const v = mountChart(WITH_MA)
     await hover(v, { close: 1.5, volume: 2_000_000 })
     const t = legendText(v)
     expect(t, 'OHLC missing').toMatch(/O\s*1.*H\s*2.*L\s*0\.5.*C\s*1\.5/)
     expect(t, 'Vol missing').toMatch(/V\s*2\.0M/)
-    expect(t, '$ Vol missing').toContain('$ Vol')
-    expect(t, '$ Vol wrong').toContain('$3.0M')
-    expect(t, 'Avg ND missing').toContain('Avg 50D')
+    expect(volMaRow(v), 'the volume MA row missing').toContain('SMA 50')
     expect(t, 'indicator values missing').toMatch(/(EMA|SMA)\s*\d+/)
+    expect(t, 'the retired automatic dollar volume is back').not.toContain('$ Vol')
   })
 
   it('the readout survives a SCALE CHANGE — the pair that shares `cs`', async () => {
     // Both features read the same settings blob. A scale write that replaced
     // rather than merged would blank the volume rows, and no isolated suite for
     // either feature would see it.
-    const v = mountChart()
+    const v = mountChart(WITH_MA)
     await hover(v)
-    expect(legendText(v)).toContain('$ Vol')
+    expect(volMaRow(v)).toContain('SMA 50')
     act(() => { rowOf(scaleSec(), 'p-pct').onSelect() })
     await hover(v)
     const t = legendText(v)
-    expect(t, 'the volume rows vanished after a scale change').toContain('$ Vol')
-    expect(t).toContain('Avg 50D')
+    expect(volMaRow(v), 'the volume rows vanished after a scale change').toContain('SMA 50')
     // ⛔ RESTORED, AND THE REASON IT WAS OPENED IS GONE. This asserted `V 2.0M`
     // until it went red in company and was widened to "some number" on the
     // reading that the legend had legitimately fallen back to the DEVELOPING
@@ -377,25 +398,26 @@ describe('crosshair — OHLC, Vol, $ Vol, Avg ND and indicator values TOGETHER',
   it('crosshair + LONG indicator names — nothing is dropped when labels grow', async () => {
     // A long label can push a flex row to wrap; it must not push a chip OUT.
     const v = mountChart({
-      settings: { overlays: [
-        { type: 'SMA', period: 200, enabled: true, color: '#888' },
-        { type: 'EMA', period: 21, enabled: true, color: '#4af' },
-      ] },
+      settings: {
+        volume: { maPeriod: 50 },
+        overlays: [
+          { type: 'SMA', period: 200, enabled: true, color: '#888' },
+          { type: 'EMA', period: 21, enabled: true, color: '#4af' },
+        ],
+      },
     })
     await hover(v)
-    const t = legendText(v)
-    expect(t).toContain('$ Vol')
-    expect(t).toContain('Avg 50D')
-    expect(t).toMatch(/(SMA|EMA)\s*\d+/)
+    expect(volMaRow(v)).toContain('SMA 50')
+    expect(legendText(v)).toMatch(/(SMA|EMA)\s*\d+/)
   })
 
   it('crosshair + an unavailable metric — the others survive', async () => {
     const v = mountChart({ settings: { volume: { maPeriod: 1 } } })
     await hover(v)
     const t = legendText(v)
-    expect(t, 'an absent average printed a number').not.toMatch(/Avg\s*\d/)
-    expect(t, 'a present metric was dropped with the absent one').toContain('$ Vol')
-    expect(t).toMatch(/O\s*1/)
+    expect(volMaRow(v), 'an absent average printed a number').toBe('')
+    expect(t, 'the OHLC half was dropped with the absent one').toMatch(/O\s*1/)
+    expect(t, 'the volume row was dropped with the absent average').toMatch(/V\s*2\.0M/)
   })
 })
 
@@ -498,22 +520,29 @@ describe('desktop behaviour is unchanged by every phone repair', () => {
     expect(active).toEqual(['L'])
   })
 
-  it('the volume-pane strip still carries both numbers on desktop', async () => {
-    const v = mountChart({ volumeSeparatePane: true })
+  it('the volume pane carries its OWN readout on desktop — and only what belongs to it', async () => {
+    const v = mountChart({ volumeSeparatePane: true, settings: { volume: { maPeriod: 50 } } })
     await hover(v)
     const strip = v.container.querySelector('[class*="volLegend" i]')
     expect(strip, 'the desktop strip stopped rendering').toBeTruthy()
-    expect(strip.textContent).toContain('$ Vol')
-    expect(strip.textContent).toContain('Avg 50D')
+    // ⭐⭐ THE PANE OWNS ITS OWN SERIES' ROWS (owner §15). Volume, and the moving
+    // average the member configured for it.
+    expect(strip.textContent).toContain('Vol')
+    expect(strip.textContent).toContain('SMA 50')
+    // ⚰️ AND NOT `$ Vol`, which was `volume × close` printed unasked on every
+    // chart. It is a definition now, and a member who adds it gets a real series.
+    expect(strip.textContent, 'the retired automatic dollar volume is back').not.toContain('$ Vol')
   })
 
   it('BOTH surfaces exist on desktop, and CSS — not JS — picks between them', async () => {
     // The one-surface-per-device rule is a stylesheet pairing (MOB-06′ §5). In the
     // DOM both are present; that is by design and is what makes the CSS rail the
     // authority rather than a second JS opinion.
-    const v = mountChart({ volumeSeparatePane: true })
+    // ⚠️ ONE `.volXtra`, NOT TWO. The pair was `$ Vol` and `Avg ND`; only the
+    // volume MA survives, and only when the member has configured one.
+    const v = mountChart({ volumeSeparatePane: true, settings: { volume: { maPeriod: 50 } } })
     await hover(v)
-    expect(v.container.querySelectorAll('[class*="volXtra"]')).toHaveLength(2)
+    expect(v.container.querySelectorAll('[class*="volXtra"]')).toHaveLength(1)
     expect(v.container.querySelector('[class*="volLegend" i]')).toBeTruthy()
   })
 })

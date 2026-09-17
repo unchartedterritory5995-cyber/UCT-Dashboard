@@ -52,7 +52,14 @@ def test_recon_day_seeds_open_bucket_with_prior_close(monkeypatch):
     names sitting at prior close), not just the handful that printed in the first
     30 min — otherwise the open is a biased fake-low that becomes a garbage wick."""
     from api.services import build_intraday_cache as bic
-    tickers = [f"T{i}" for i in range(10)]
+    # ⚠⚠ FIXTURE WIDENED 2026-09-16, and the reason is the point of the change it
+    # accompanies. `recon_day` now derives the REGULAR-SESSION window from
+    # participation (`breadth_session.rth_bounds`) instead of replaying every bucket
+    # the flat file carries from 4:00 to 20:00. A synthetic day whose only print is one
+    # name at epoch second 1 has no session to find, so the reconstruction now REFUSES
+    # it — which is the new rail working, not a regression. The property under test is
+    # unchanged: untraded names must sit at prior close in the opening bucket.
+    tickers = [f"T{i}" for i in range(60)]
     levels = _levels_flat(tickers, close=100.0)      # prev_close = 100 for all
 
     monkeypatch.setattr(wr.bl if hasattr(wr, "bl") else bl, "_bars_conn",
@@ -60,10 +67,23 @@ def test_recon_day_seeds_open_bucket_with_prior_close(monkeypatch):
     monkeypatch.setattr(bl, "_bars_conn", lambda: None, raising=False)
     monkeypatch.setattr(wr, "_levels_for_day", lambda conn, u, ts: levels)
     monkeypatch.setattr(wr, "_s3_client", lambda: object())
-    # only ONE name prints in the (single) bucket; the other nine never trade
+    # A real 9:30 ET bar, with enough names printing for a session to be established.
+    # T0 trades at 101; T59 NEVER trades and must still appear, at its prior close.
+    import datetime as _dt
+    from zoneinfo import ZoneInfo as _Z
+    _t930 = int(_dt.datetime(2026, 7, 28, 9, 30,
+                             tzinfo=_Z("America/New_York")).timestamp())
+    # ⭐ A session needs a CLOSE as well as an open: `breadth_session` treats the last
+    # busy minute as the closing auction and takes the bar before it, so a day whose
+    # only print is 9:30 has no regular-session bar at all and is refused.
+    _t1600 = int(_dt.datetime(2026, 7, 28, 16, 0,
+                              tzinfo=_Z("America/New_York")).timestamp())
+    _bars = {f"T{i}": [{"t": _t930, "o": 101.0, "h": 101.0, "l": 101.0,
+                        "c": 101.0, "v": 1},
+                       {"t": _t1600, "o": 101.0, "h": 101.0, "l": 101.0,
+                        "c": 101.0, "v": 1}] for i in range(55)}
     monkeypatch.setattr(bic, "download_and_resample",
-                        lambda client, key, mins, uni: {30: {"T0": [{"t": 1, "o": 101,
-                        "h": 101, "l": 101, "c": 101, "v": 1}]}})
+                        lambda client, key, mins, uni: {30: _bars, 1: _bars})
 
     captured = {}
     real_agg = wr.aggregate_day
@@ -74,9 +94,9 @@ def test_recon_day_seeds_open_bucket_with_prior_close(monkeypatch):
 
     wr.recon_day("2026-07-28", tickers, client=object(), bucket_min=30)
     open_bucket = captured["pbb"][0]
-    assert len(open_bucket) == 10                     # full universe, not just T0
-    assert open_bucket["T0"] == 101.0                 # the name that traded
-    assert open_bucket["T5"] == 100.0                 # an untraded name → prior close
+    assert len(open_bucket) == 60                     # full universe, not just the traders
+    assert open_bucket["T0"] == 101.0                 # a name that traded
+    assert open_bucket["T59"] == 100.0                # an untraded name → prior close
 
 
 def test_sane_wick_gate():

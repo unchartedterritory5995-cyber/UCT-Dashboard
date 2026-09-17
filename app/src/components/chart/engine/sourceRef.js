@@ -1,5 +1,6 @@
 import { SOURCE_BAR_FIELDS } from './defSchema'
 import { bindingKey } from './pool'
+import { semanticName } from './semanticName'
 
 /**
  * WHAT A CALCULATION READS — the numeric series, and nothing about where it draws.
@@ -657,6 +658,13 @@ export function instanceLabel(def, instance) {
     const fromSource = sourceStem(def, instance)
     if (fromSource) return fromSource
   }
+  // ⭐⭐ `meta.nameFrom` — `EMA 9`, THE NAME THE MEMBER THEMSELVES BUILT. The other
+  // naming surface (`readout.chipLabel`) reads the SAME function, so a settings
+  // row, a legend chip, a pane readout and a destination menu cannot word one
+  // moving average four different ways. See `engine/semanticName.js` for why this
+  // rule is shared while `labelFrom` above is deliberately spelled twice.
+  const semantic = semanticName(def, (instance && instance.inputs) || null)
+  if (semantic) return semantic
   const stem = (def && (def.meta?.shortName || def.meta?.name)) || (def && def.id) || '?'
   const params = (def && def.meta && Array.isArray(def.meta.legendParams)) ? def.meta.legendParams : []
   if (!params.length) return stem

@@ -35,7 +35,8 @@
 import {
   resolveDisplayTarget, paneOwnerOf, paneOwnKeys, paneOwnersNeeded, paneHostLabels,
 } from './engine/displayTarget'
-import { isInstanceTombstone } from './instanceShape'
+import { isInstanceTombstone } from './instanceShape'
+
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
 import { volumeOwnsPane } from './engine/volumePresentation'
 
@@ -120,6 +121,10 @@ export function paneMap(rows, settings, defOf, volumeOpts) {
   const names = paneHostLabels(
     [...byId.values()].filter((i) => typeof i.defId === 'string' && i.defId),
     lookup,
+    // ⭐ AND THE WHOLE INSTANCE LIST, so a host named apart from a sibling by its
+    // SOURCE reads `EMA 20 · RSI (14)` here exactly as it does in the destination
+    // menu — never `EMA 20 (source @inst:rsi:1::rsi)`.
+    instances,
   )
 
   /** Where does this row draw? Canonical — never inferred from a string. */

@@ -292,9 +292,14 @@ describe('the blob shapes themselves — without these the cases below prove not
       // were never a migrated BLOCK; this one was never a hardcoded anything — no
       // block, no `cs.indicators` section, no toggle. Registry-native, and the set
       // grew with no flip happening.
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+      // ⭐ NINETEEN AT 2026-09-16: `dollarVolume`. Registry-native like
+      // `dataSeries`, but with an odder ancestry than any of them — the number
+      // was already on screen, computed inline by `StockChart` and printed into
+      // the volume pane's LABEL, with no definition, no section and no toggle.
+      // The set grew again with no flip and nothing to migrate.
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
+        'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
   })
 })
 

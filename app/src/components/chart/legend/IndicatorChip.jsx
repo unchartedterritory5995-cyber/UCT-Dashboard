@@ -2,6 +2,7 @@
 import UIcon from '../../ui/UIcon'
 import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
+import { chipValueText as formatChipValue } from '../engine/readout'
 
 /**
  * ONE legend chip. **The chip IS the control.**
@@ -145,6 +146,13 @@ export default function IndicatorChip({
   // the whole legend and that shared track is exactly what puts every value on
   // the same right edge.
   grid = false,
+  // ⭐⭐ `secondary` — A SIBLING OUTPUT OF THE CHIP ABOVE (Legend V2 §7). MACD's
+  // `SIG`, Bollinger's lower band. `legendChips` walks the INSTANCE list, so an
+  // instance's plots already arrive consecutive; this is the DOM finally saying
+  // so. One indent step and nothing else — the row keeps its own value, its own
+  // chevron and its own per-PLOT popover, because a sibling whose click did
+  // nothing is the exact complaint that produced the all-rows rule.
+  secondary = false,
 }) {
   const interactive = typeof onMenu === 'function'
 
@@ -184,8 +192,11 @@ export default function IndicatorChip({
   // hidden row simply showed `0.00` in its value cell; splitting the inline chip's
   // value out is what made the same expression reachable from the layout every
   // test reads, and turned a quiet wrong number into a red case.
-  const chipValueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
-    ? chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : 2)
+  // ⭐ THE ONE FORMATTER (`readout.chipValueText`), not a fourth copy of
+  // `toFixed(decimals)`. It honours `plots[].legend.compact`, which is what keeps
+  // Dollar Volume from printing ten digits into a chip.
+  const valueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
+    ? formatChipValue(chip)
     : ''
 
   // One sentence, both layouts.
@@ -263,8 +274,8 @@ export default function IndicatorChip({
 
   // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
   // chip prints `chip.text`, which in that case IS the bare label.
-  const body = chipValueText
-    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{chipValueText}</span></>
+  const body = valueText
+    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
     : chip.text
 
   if (grid) {
@@ -285,13 +296,17 @@ export default function IndicatorChip({
          the alignment this variant exists for — while the row is one continuous
          hover box. */
       <span
-        className={`${styles.chipGridRow} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
         style={{ '--chip-color': chip.color, ...ink }}
         {...triggerProps}
         {...(interactive ? longPress : null)}
         onClick={onBody}
         title={chipTitle}
       >
+        {/* The twin of `LegendRow`'s micro-rail — read that one for the two
+            retired marks it is not. Per PLOT, because `chip.color` is per plot:
+            MACD and its signal are two drawn lines and each names its own. */}
+        <i className={styles.rail} style={chip.color ? { background: chip.color } : undefined} aria-hidden="true" />
         <span
           className={`${cls} ${styles.chipGridLabel}`}
           /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a
@@ -306,11 +321,21 @@ export default function IndicatorChip({
             passes here is `.chipFolded` — `display: none` — and hiding one cell
             of three would leave the value occupying a track with nothing in front
             of it. */}
-        <span className={styles.chipGridVal} style={valInk}>{chipValueText}</span>
+        {/* ⭐⭐ §3 — THE VALUE IS BRIGHT NEUTRAL, NOT THE SERIES COLOUR, and that is
+              the whole colour system: COLOUR = which series, WHITE = the market value.
+              ⚰ IT USED TO TAKE `valInk` (`color: inherit`) so label and value both wore
+              the plot's hue; on a five-series chart that read as a rainbow and, worse,
+              it made the NUMBER as easy or as hard to read as whatever colour the
+              member had picked. The label keeps the hue — it is the identity — and the
+              number is always the same crisp white, so the eye lands on it first at
+              every hue. */}
+        <span className={styles.chipGridVal}>{valueText}</span>
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend
             out of true. It measures zero and always did. */}
+        {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED — see `LegendRow.jsx`. The cell
+            is still emitted and still measures zero; this grid fills by ORDER. */}
         <span className={styles.chipGridCtl} />
       </span>
     )

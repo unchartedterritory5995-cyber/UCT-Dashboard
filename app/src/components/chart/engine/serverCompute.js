@@ -154,6 +154,56 @@ export function columnsFromWire(wire) {
  * vocabulary cannot express as a column). It yields `{}`, which is the honest
  * answer and the one `hasAnyFinite` reads as "nothing to draw here".
  */
+/** ^YYYY-MM-DD$ — the WHOLE string, deliberately. A longer string that merely
+ *  STARTS with a date is an instant (`2026-09-16T14:30:00Z`), and folding one to
+ *  a day key would collapse every intraday bar of a session onto one slot. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * ONE bar time → the canonical key both sides of this lane join on.
+ *
+ * ⭐⭐ THE TWO SIDES ARE NOT IN THE SAME REPRESENTATION, AND NEITHER IS WRONG.
+ * `/api/bars/{sym}` hands the chart a D/W/M bar whose `t` is the STRING
+ * `'2026-09-16'` and an intraday bar whose `t` is epoch SECONDS;
+ * `/api/signature/columns` reads the same store through `bars_sqlite` and hands
+ * back `20260916` for D/W/M and the same epoch seconds for intraday. Both are
+ * the same instant in that store's own spelling.
+ *
+ * ⚰️ MEASURED ON PRODUCTION 2026-09-16, build ebffc1cd6. This function used to
+ * be `Number(bar.t)` written inline, so on D/W/M it evaluated `Number('2026-09-16')`
+ * — **NaN** — against a map keyed `20260916`. Zero matches, every cell NaN,
+ * `hasAnyFinite` false, and the binder DROPPED the binding before a series was
+ * ever created: the RS line was registered, enabled, fetched, paid for and
+ * invisible, with nothing in the console. It worked on 60m and 15m, which is
+ * exactly why it read as "broken everywhere" rather than "broken on daily".
+ *
+ * ⛔⛔ AND IT IS STRING SURGERY, NEVER A `Date`. Both spellings are already
+ * CALENDAR DAYS in one store; the only way to introduce a timezone is to invent
+ * an instant for one of them and read it back in another zone, which is how
+ * `_fetch_bars_for_alert` put the daily VWAP in 1970-08-23. Digits in, digits
+ * out: `'2026-09-16'` → `20260916` cannot drift to the 15th or the 17th for any
+ * viewer anywhere, and `readout`'s rail stubs `Date` to a throw to keep it that
+ * way.
+ *
+ * ⚠️ THE TWO NUMERIC DOMAINS CANNOT COLLIDE. A `YYYYMMDD` key is ~2.0e7 and a
+ * plausible chart instant is ~1.7e9; a series is one timeframe, so only one
+ * domain is ever in a given map. `20260916` read as seconds IS 1970-08-23 — the
+ * signature of this whole defect class, and a reason never to mix them.
+ */
+export function barTimeKey(t) {
+  if (typeof t === 'number') return t
+  if (typeof t !== 'string') return NaN
+  const m = DATE_ONLY.exec(t)
+  if (m) return Number(m[1] + m[2] + m[3])
+  // ⛔ EMPTY IS NOT ZERO. `Number('')` and `Number(' ')` are both `0` — a
+  // perfectly plausible key that would silently join an absent time to whatever
+  // sits at epoch 0. An absent time has no key.
+  const trimmed = t.trim()
+  if (!trimmed) return NaN
+  const n = Number(trimmed)
+  return Number.isFinite(n) ? n : NaN
+}
+
 export function alignColumns(parsed, bars) {
   const { times, columns } = parsed || { times: [], columns: {} }
   const series = Array.isArray(bars) ? bars : []
@@ -162,14 +212,17 @@ export function alignColumns(parsed, bars) {
   if (!times.length) return {}
 
   const at = new Map()
-  for (let i = 0; i < times.length; i++) if (!at.has(times[i])) at.set(times[i], i)
+  for (let i = 0; i < times.length; i++) {
+    const k = barTimeKey(times[i])
+    if (!at.has(k)) at.set(k, i)
+  }
 
   const out = {}
   for (const key of keys) {
     const src = columns[key]
     const col = new Float64Array(series.length)
     for (let i = 0; i < series.length; i++) {
-      const j = at.get(Number(series[i] && series[i].t))
+      const j = at.get(barTimeKey(series[i] && series[i].t))
       col[i] = j === undefined ? NaN : src[j]
     }
     out[key] = col

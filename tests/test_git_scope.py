@@ -165,23 +165,47 @@ def _warn_run(tmp_path, branch, staged, allow=("tools/breadth_",)):
     return rc, lines
 
 
+def _one_heartbeat(lines):
+    """Parse the single heartbeat record.
+
+    ⚰️ THESE ASSERTIONS USED TO BE SUBSTRING MATCHES ON A TAB-SEPARATED LINE, and they
+    went red when SD-1.5 E1.1 changed the heartbeat to JSON — a real regression this
+    branch shipped and did not notice, because the commit that changed the writer never
+    ran the reader's test. ⭐ Parsing is also the STRONGER assertion: `"\\t1\\t" in line`
+    could be satisfied by any field that happened to hold 1, whereas `rec["staged"] == 1`
+    names the field. The whole point of E1.1 was that the worktree becomes a FIELD so the
+    ">= 2 workstreams" criterion is COUNTED rather than eyeballed — and a substring test
+    cannot check that property at all."""
+    assert len(lines) == 1, f"expected exactly one heartbeat, got {lines}"
+    try:
+        return json.loads(lines[0])
+    except json.JSONDecodeError as e:  # noqa: PERF203
+        raise AssertionError(f"heartbeat is not valid JSON ({e}): {lines[0]!r}") from None
+
+
 def test_warn_mode_writes_a_heartbeat_even_when_everything_is_in_scope(tmp_path):
     """⛔ THE POINT OF THE HEARTBEAT. Without it, "ran and saw nothing" and "never ran"
     produce the identical artifact — an empty log — and the promotion criterion reads
     the second as the first."""
     rc, lines = _warn_run(tmp_path, "breadth/x", ["tools/breadth_ok.py"])
     assert rc == 0
-    assert len(lines) == 1, f"expected one heartbeat, got {lines}"
-    assert "in-scope" in lines[0], lines[0]
-    assert "breadth/x" in lines[0] and "\t1\t" in lines[0], lines[0]
+    rec = _one_heartbeat(lines)
+    assert rec["verdict"] == "in-scope", rec
+    assert rec["branch"] == "breadth/x", rec
+    assert rec["staged"] == 1, rec
+    assert rec["outside"] == [], rec
+    # The criterion counts workstreams from this field; if it is ever dropped, ">= 2
+    # workstreams" silently becomes unanswerable rather than failing.
+    assert rec["worktree"] and rec["worktree_path"], rec
 
 
 def test_warn_mode_records_a_violation_without_blocking(tmp_path):
     rc, lines = _warn_run(tmp_path, "breadth/x",
                           ["tools/breadth_ok.py", "docs/plans/joystick/theirs.md"])
     assert rc == 0, "WARN mode must never refuse a commit"
-    assert len(lines) == 1 and "WOULD-REFUSE" in lines[0], lines
-    assert "docs/plans/joystick/theirs.md" in lines[0], lines[0]
+    rec = _one_heartbeat(lines)
+    assert rec["verdict"] == "WOULD-REFUSE", rec
+    assert rec["outside"] == ["docs/plans/joystick/theirs.md"], rec
 
 
 def test_an_undeclared_branch_still_heartbeats(tmp_path):
@@ -189,4 +213,6 @@ def test_an_undeclared_branch_still_heartbeats(tmp_path):
     check ran, otherwise a repo full of undeclared branches looks like a dead hook."""
     rc, lines = _warn_run(tmp_path, "someone-elses-branch", ["docs/whatever.md"])
     assert rc == 0
-    assert len(lines) == 1 and "no-scope" in lines[0], lines
+    rec = _one_heartbeat(lines)
+    assert rec["verdict"] == "no-scope", rec
+    assert rec["scope"] == "UNMATCHED", rec

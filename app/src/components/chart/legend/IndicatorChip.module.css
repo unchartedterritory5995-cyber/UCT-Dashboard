@@ -102,7 +102,28 @@
  * a ring behind whatever the member moves to next — the same distinction the
  * retired reveal rules drew, for the same measured reason. */
 .rowLive { cursor: pointer; }
-.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+/* ⚰⚰ THE ROW-WIDE HOVER BACKGROUND IS RETIRED FOR THE STUDY STACK (Legend V2
+   §5, owner). See `LegendRow.module.css` for the full account: on a stack of
+   eight rows it read as a lit rectangle sliding down the chart, which is a card
+   on a surface whose brief is to be printed onto the canvas.
+   ⛔ THE INLINE CHIP KEEPS IT. `.chip` serves the non-workspace legend (Model
+   Book, a grid cell, a pop-up) where a chip is a discrete box in a wrapping row
+   and the background is what says which one the pointer is on. Only the GRID
+   variant — the study stack's row — changes. */
+.chip.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
+.chipGridRow.rowLive:hover { background: none; }
+/* ⭐⭐ §16 — A BRIGHTNESS FILTER, NOT A COLOUR SWAP. Re-inking the label to white
+   on hover would throw away the series identity for exactly as long as the pointer
+   is on it — the one thing the label is FOR. `brightness` lifts a blue label, a
+   gold one and a neutral `Vol` by the same perceptual step and keeps every hue.
+   ⛔ AND IT COSTS NO GEOMETRY. A filter repaints; it does not reflow. No
+   background, no underline, no border, no movement — the row's rect and every
+   value's right edge are identical hovered and at rest, and the CANVAS is
+   byte-identical, which is the permanent invariant. */
+.chipGridRow.rowLive:hover .chipGridLabel,
+.chipGridRow.rowLive:hover .chipGridVal,
+.chipGridRow.rowLive:focus-visible .chipGridLabel,
+.chipGridRow.rowLive:focus-visible .chipGridVal { filter: brightness(1.16); }
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -224,6 +245,15 @@
  * of the layout AND out of the accessibility tree.
  */
 .chipFolded { display: none; }
+/* 🔴 …AND IT HAS TO OUT-SPECIFY THE ROW IT HIDES. `.chipGridRow` declares
+   `display: grid` and is DECLARED LATER IN THIS FILE, so at equal specificity it
+   won and a folded grid row rendered anyway. MEASURED IN THE BROWSER on a short
+   pane: the stack printed `Vol / EMA 9 / EMA 20 / BB(20,2)` above a `+3 more`,
+   with BB — the last chip, which the fold had supposedly taken — still on screen
+   between the visible rows and the button. Latent since the grid variant shipped:
+   the old vertical legend DROPPED every chip in compact mode, so nothing ever
+   asked this class to hide one. */
+.chipGridRow.chipFolded { display: none; }
 
 /* ⛔ `pointer-events: auto` IS LOAD-BEARING, NOT POLISH. `StockChart.module.css`
  * `.legend` is `pointer-events: none` — the legend box sits over the chart and
@@ -367,12 +397,21 @@
   font-weight: 500;
   vertical-align: baseline;
   white-space: nowrap;
+  /* ⭐ THE SAME STEP `LegendRow`'s `.vLabel` TAKES, and it has to be declared
+     here too because these are two components by design (see `LegendRow.jsx`).
+     Label recedes, value leads; a coloured chip defeats the colour with an inline
+     `inherit`; the VALUE is bright neutral, so hue-versus-white is the separation
+     and the label needs no dimming. */
+  /* ⭐ The same two-level rule `LegendRow`'s `.vLabel` states — series colour on
+     the label (inline, from the plot), muted neutral when there is none. Declared
+     twice because these are deliberately two components (see `LegendRow.jsx`). */
+  color: var(--text-muted);
 }
 .chipGridVal {
-  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  color: var(--text-bright);
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a
@@ -380,6 +419,11 @@
    the legend out of true — and it takes no space in either state, which is what
    keeps the legend's width fixed. */
 .chipGridCtl { display: none; }
+/* One indent step for a sibling output. ⛔ ON THE LABEL CELL, not the row: the
+   row borrows the stack's tracks through `subgrid`, so indenting IT would move
+   the value column too and a grouped indicator's numbers would stop lining up
+   with everyone else's. */
+.chipGridSub .chipGridLabel { padding-left: 7px; }
 /* ⚰️ A PARAGRAPH HERE ARGUED THAT THE GRID'S STRIP COULD NOT BE
    COLLAPSED-BUT-PRESENT the way the inline chip's was, because three zero-width
    buttons on every row would still give the shared third track a permanent width.
@@ -403,9 +447,32 @@
    is one box. */
 .chipGridRow {
   position: relative;
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
-  align-items: center;
+  /* The twin of `LegendRow`'s `.vRow` — read that one for why `subgrid` went and
+     why the row must stay ONE element. */
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   pointer-events: auto;
+}
+
+/* ⭐⭐ THE MICRO-RAIL. A hairline rule of the series' colour at the head of the
+ * row — see the component for why it is neither of the two coloured marks this
+ * legend has already retired.
+ *
+ * ⛔ SUBORDINATE, BY CONSTRUCTION. The hierarchy is VALUE → LABEL → RAIL, and 2px
+ * of width is what keeps it there: at 3px it starts reading as a bar chart down
+ * the left edge, which is the "rainbow barcode" failure a dense stack invites.
+ * ⛔ A RULE, NOT A CHIP: 2×10 with a 1px radius. Square ends read as a tally mark
+ * and a full pill reads as a bullet.
+ * ⛔ `flex: none` — it must never be the thing that shrinks when a row is tight.
+ * ⛔ NO BACKGROUND OF ITS OWN. Unpainted it is invisible and still reserves its
+ * width, which is what keeps `Vol`'s label on the same x as `EMA 9`'s. */
+.rail {
+  flex: none;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  /* Nudged to sit optically centred on the text's x-height rather than on its
+     baseline box — a rule aligned to the baseline hangs low. */
+  transform: translateY(0.5px);
 }

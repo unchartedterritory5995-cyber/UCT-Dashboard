@@ -35,11 +35,13 @@ import json
 import pathlib
 import sys
 import threading
+from typing import Optional
 import time
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import extract_common as common  # noqa: E402
+import gate_records  # noqa: E402
 
 TRIAL_KIND = "extractor_trial"
 CACHE_WRITE_FACTOR = 1.25
@@ -55,6 +57,7 @@ class SpendCap:
         self.entries = data.get("entries", [])
         self.spent = sum(float(e.get("usd", 0)) for e in self.entries)
         self.reserved = 0.0
+        self.breached = False
 
     def reserve(self, usd: float) -> bool:
         with self.lock:
@@ -70,6 +73,15 @@ class SpendCap:
             self.entries.append(dict(note, usd=round(actual, 6), at=common.stamp()))
             common.write_json(self.ledger, {"entries": self.entries, "total_usd": round(self.spent, 6),
                                             "cap_usd": self.max_usd})
+            # ⛔⛔ R36's SECOND HALF, and the first half is not safe without it. A reservation
+            # derived from measured history can sit BELOW the largest real request, so the cap has
+            # to be tested against what was ACTUALLY spent, after every batch, not only against
+            # what was reserved before it.
+            self.breached = self.spent > self.max_usd
+
+    def refuses_next_batch(self) -> bool:
+        """True once ACTUALS have passed the cap. Checked before each batch is sent."""
+        return bool(getattr(self, "breached", False))
 
 
 def load_gate_segments(data_dir: pathlib.Path, split: str, golden_name: str = ""):
@@ -124,6 +136,170 @@ def worst_case_usd(params: dict, model: str, *, batch: bool) -> float:
     return budget.estimate_cost(model, tokens, int(params["max_tokens"]), batch=batch)
 
 
+# ── R36: reserve from MEASURED history, not a constant ceiling (owner ruling, 2026-09-15) ────
+#
+# ⛔⛔ THE PROBLEM IT FIXES. `worst_case_usd` is dominated by `prompt.MAX_TOKENS = 32000`, a
+# CEILING, not an estimate: the output leg alone is 32000 x $25/Mtok x 0.5 = $0.4000 per request,
+# fixed, independent of the segment. Measured over the three 2026-09-15 passes, that reservation
+# was **90% ceiling** and the actual bill was **14% of it** — so the cap throttled SCHEDULING (2,
+# then 3, then 4 batch rounds) while spending nothing extra.
+#
+# ⚰️ WHAT THIS COMMENT USED TO CLAIM, AND WHY THE CORRECTION IS RECORDED RATHER THAN QUIETLY MADE.
+# It read: "new entries now record `extractor_version` so a future run CAN filter by it." **No
+# settle call site passed it.** The ledger carried exactly `at, batch_id, collected, model, phase,
+# requests, transport, usd` — a comment claiming a fix that was never wired, which is the
+# `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run` shape. R48 (owner ruling,
+# 2026-09-15) is that wiring, so the sentence is now true of entries written from here on.
+#
+# ⛔ TWO ESTIMATORS, IN PREFERENCE ORDER, AND THE THIRD IS THE CEILING:
+#   1. `measured_token_reservation_usd` — the ruling's own form: p90 x 1.5 over MEASURED tokens
+#      per request, priced through `budget.estimate_cost`. Needs entries carrying token counts,
+#      which only exist from R48 onward.
+#   2. `measured_reservation_usd` — p90 x 1.5 over measured **cost per request**, the same
+#      quantity the cap is denominated in. Works on the 28 pre-R48 entries, which carry no tokens.
+#   3. `worst_case_usd` — the constant ceiling, for an unmeasured configuration.
+#
+# ⛔⛔ ABSENT IS UNKNOWN, NEVER ZERO. The 28 pre-R48 entries have no `input_tokens`/`output_tokens`
+# and are never to be read as having used none: estimator 1 SKIPS an entry without counts rather
+# than averaging a zero into it. An absent field read as zero would drag the p90 toward nothing and
+# reserve less than a real request costs — the exact failure the second half below exists to catch.
+#
+# ⛔ AND IT IS ONLY SAFE BECAUSE OF THE SECOND HALF. p90 x 1.5 can sit BELOW the largest real
+# request — measured: p90 x 1.5 = 15,962 output tokens against an observed max of 18,857 (0.85x).
+# A reservation under the biggest real request would let ACTUALS pass a cap that is only tested at
+# reserve time, so `SpendCap.settle` now re-checks the cap against actuals after EVERY batch and
+# refuses the next one on breach.
+RESERVE_P90_MULTIPLIER = 1.5
+RESERVE_MIN_HISTORY = 3
+RESERVE_HISTORY_ENTRIES = 24
+
+#: R48: two entries carrying token counts are enough to prefer the ruled token form over the
+#: cost-per-request fallback. Lower than RESERVE_MIN_HISTORY on purpose — a token p90 is the
+#: estimate the ruling asks for, and one clean gate phase produces one entry.
+RESERVE_MIN_TOKEN_HISTORY = 2
+
+#: The largest single-request output the three 2026-09-15 passes produced. Recorded so a future
+#: tightening that would reserve less than a request of this size really costs fails a test.
+OBSERVED_MAX_OUTPUT_TOKENS = 18857
+
+
+def _percentile(values: list, q: float) -> float:
+    ordered = sorted(values)
+    if not ordered:
+        return 0.0
+    idx = min(len(ordered) - 1, max(0, int(round(q * (len(ordered) - 1)))))
+    return ordered[idx]
+
+
+def transport_label(*, batch: bool) -> str:
+    """The `transport` string the ledger actually records.
+
+    ⛔ ONE authority, because there were two and they disagreed: `stream_call` wrote
+    `transport: "stream"` while `reservation_usd` looked up `"sync"`, so stream history could
+    never match its own entries. Inert today (only `run_batch_round` reserves), and left inert
+    rather than left wrong — a second lookup built on a mismatched key inherits the mismatch.
+    """
+    return "batch" if batch else "stream"
+
+
+#: The three keys `golden.calibration` sums into its own `input_tokens_mean` (golden.py:881-882).
+#: ⛔ Named here rather than re-typed so the ledger's input leg and the calibration row agree by
+#: construction — two definitions of "input tokens" is a second authority over one value.
+INPUT_TOKEN_KEYS = ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+
+
+def _input_tokens(usage: dict) -> int:
+    return sum(int(usage.get(k) or 0) for k in INPUT_TOKEN_KEYS)
+
+
+def token_fields(input_tokens: int, output_tokens: int, observed: int, sent: int) -> dict:
+    """The R48 token half of a ledger entry — ABSENT unless every sent request was measured.
+
+    ⛔⛔ TWO RULES, AND BOTH ARE ABOUT NOT LYING WITH A NUMBER:
+
+    1. **Absent, never zero.** A batch that timed out, failed to create, or collected nothing used
+       an unknown number of tokens, not none. Writing `output_tokens: 0` would read to an
+       estimator as a measured request that cost nothing and would pull the p90 down.
+    2. **All-or-nothing against `sent`.** The counts are summed over SUCCEEDED results while the
+       entry's own `requests` counts what was SENT, so a partially-collected batch would be
+       divided by too large a denominator and under-estimate tokens per request. Rather than add a
+       second denominator field the ruling does not name, a partial batch contributes no token
+       history at all — fewer entries, never a wrong one.
+    """
+    if observed <= 0 or observed != sent:
+        return {}
+    return {"input_tokens": int(input_tokens), "output_tokens": int(output_tokens)}
+
+
+def measured_token_reservation_usd(entries: list, model: str, *, batch: bool) -> Optional[float]:
+    """R48/R36: p90 x 1.5 of MEASURED tokens per request, priced. None when history is too thin.
+
+    ⛔ An entry WITHOUT token counts is skipped, never counted as zero — see the block above.
+    """
+    from api.services.wisdom.extract import budget
+
+    transport = transport_label(batch=batch)
+    per_in, per_out = [], []
+    for entry in reversed(entries):
+        if len(per_out) >= RESERVE_HISTORY_ENTRIES:
+            break
+        if entry.get("model") != model or entry.get("transport") != transport:
+            continue
+        got_in, got_out = entry.get("input_tokens"), entry.get("output_tokens")
+        if got_in is None or got_out is None:
+            continue  # ⛔ unknown, not zero
+        requests = entry.get("requests") or 0
+        if requests <= 0:
+            continue
+        per_in.append(float(got_in) / requests)
+        per_out.append(float(got_out) / requests)
+    if len(per_out) < RESERVE_MIN_TOKEN_HISTORY:
+        return None
+    return budget.estimate_cost(model,
+                                int(round(_percentile(per_in, 0.9) * RESERVE_P90_MULTIPLIER)),
+                                int(round(_percentile(per_out, 0.9) * RESERVE_P90_MULTIPLIER)),
+                                batch=batch)
+
+
+def measured_reservation_usd(entries: list, model: str, *, transport: str) -> Optional[float]:
+    """p90 of ACTUAL cost-per-request over recent same-model, same-transport batches, x1.5.
+
+    Returns None when there is too little history — an unmeasured configuration must fall back to
+    the worst case rather than guess, which is the whole point of having a floor.
+    """
+    per_request = []
+    for entry in reversed(entries):
+        if len(per_request) >= RESERVE_HISTORY_ENTRIES:
+            break
+        if entry.get("model") != model or entry.get("transport") != transport:
+            continue
+        requests = entry.get("requests") or 0
+        usd = float(entry.get("usd") or 0.0)
+        if requests > 0 and usd > 0:
+            per_request.append(usd / requests)
+    if len(per_request) < RESERVE_MIN_HISTORY:
+        return None
+    return _percentile(per_request, 0.9) * RESERVE_P90_MULTIPLIER
+
+
+def reservation_usd(params: dict, model: str, *, batch: bool, entries: Optional[list] = None) -> float:
+    """What to RESERVE for one request: tokens if measured, else cost-per-request, else the ceiling.
+
+    ⛔ Never above the worst case — reserving more than the ceiling would be strictly worse than
+    the rule it replaces.
+    """
+    ceiling = worst_case_usd(params, model, batch=batch)
+    entries = entries or []
+    # R48: the ruling's own form first; the pre-R48 entries carry no tokens, so this is None until
+    # two token-bearing entries exist and the cost-per-request fallback carries the run until then.
+    measured = measured_token_reservation_usd(entries, model, batch=batch)
+    if measured is None:
+        measured = measured_reservation_usd(entries, model, transport=transport_label(batch=batch))
+    if measured is None:
+        return ceiling
+    return min(ceiling, measured)
+
+
 def interpret(message, cost: float) -> dict:
     from api.services.wisdom.extract import budget
 
@@ -139,7 +315,7 @@ def interpret(message, cost: float) -> dict:
     return out
 
 
-def validate_into(result: dict, item: dict, vocab: set) -> dict:
+def validate_into(result: dict, item: dict, vocab: set, *, keep_raw: bool = False) -> dict:
     from api.services.wisdom.extract import writer
 
     if "output" in result:
@@ -151,11 +327,18 @@ def validate_into(result: dict, item: dict, vocab: set) -> dict:
         except Exception as exc:  # our validator failing is a tool bug, never a model miss
             result["error"] = f"validate: {type(exc).__name__}: {str(exc)[:300]}"
             result["transport_error"] = True
-    result.pop("output", None)
+    raw = result.pop("output", None)
+    # ⛔ R12: the raw output used to die on this line, which is why a validator bug was as
+    # undiagnosable offline as a scorer bug. It is now MOVED, not kept in place, and under a
+    # private key that `gate_records.persist_phase` strips again the moment it has written it —
+    # so nothing downstream of persistence can see it and every aggregate stays byte-identical.
+    if keep_raw and raw is not None:
+        result[gate_records.RAW_KEY] = raw
     return result
 
 
-def stream_call(client, params: dict, model: str, spend: SpendCap, phase: str) -> dict:
+def stream_call(client, params: dict, model: str, spend: SpendCap, phase: str,
+                ledger_extra: Optional[dict] = None) -> dict:
     from api.services.wisdom.extract import budget
 
     worst = worst_case_usd(params, model, batch=False)
@@ -171,21 +354,35 @@ def stream_call(client, params: dict, model: str, spend: SpendCap, phase: str) -
         # a 4xx is refused before generation; anything else may have billed part of the call
         billed = 0.0 if getattr(exc, "status_code", None) in (400, 401, 403, 404, 413, 422) else worst
     finally:
-        spend.settle(worst, billed, {"phase": phase, "model": model, "transport": "stream"})
+        note = {"phase": phase, "model": model, "transport": transport_label(batch=False),
+                "requests": 1, "rounds": 1}
+        if message is not None:
+            usage = budget.usage_dict(message.usage)
+            note.update(token_fields(_input_tokens(usage), int(usage.get("output_tokens") or 0),
+                                     observed=1, sent=1))
+        spend.settle(worst, billed, dict(ledger_extra or {}, **note))
     if message is None:
         return {"error": error, "transport_error": True, "cost": billed}
     return interpret(message, billed)
 
 
 def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: str, poll_s: float,
-                    timeout_s: float, log=print) -> dict:
+                    timeout_s: float, log=print, ledger_extra: Optional[dict] = None) -> dict:
     """work: [(key, params)]. Sends batches sized to what the cap can reserve, one at a time."""
     from api.services.wisdom.extract import budget
 
     results: dict = {}
-    queue = [(key, params, worst_case_usd(params, model, batch=True)) for key, params in work]
+    # R36: reserve from measured history where there is any, falling back to the worst case.
+    queue = [(key, params, reservation_usd(params, model, batch=True, entries=spend.entries))
+             for key, params in work]
     round_no = 0
     while queue:
+        if spend.refuses_next_batch():
+            log(f"  {phase} {model}: REFUSING the next batch — actuals have passed the cap "
+                f"(${spend.spent:.4f} of ${spend.max_usd:.2f})")
+            for key, _, _ in queue:
+                results[key] = {"skipped": "cap breached by actuals"}
+            break
         chunk, reserved = [], 0.0
         for entry in queue:
             if not spend.reserve(entry[2]):
@@ -204,14 +401,19 @@ def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: s
         try:
             created = client.messages.batches.create(requests=requests)
         except Exception as exc:
-            spend.settle(reserved, 0.0, {"phase": phase, "model": model, "transport": "batch",
-                                         "create_failed": type(exc).__name__})
+            # ⛔ No token fields: the batch was never accepted, so nothing was measured. `requests`
+            # is what was SENT, which is honest either way.
+            spend.settle(reserved, 0.0, dict(ledger_extra or {},
+                                             phase=phase, model=model, transport="batch",
+                                             requests=len(requests), rounds=round_no,
+                                             create_failed=type(exc).__name__))
             for key, _, _ in chunk:
                 results[key] = {"error": f"{type(exc).__name__}: {str(exc)[:600]}", "transport_error": True,
                                 "cost": 0.0}
             continue
         log(f"  {phase} {model}: batch {created.id} sent with {len(requests)} requests, ${reserved:.2f} reserved")
         actual, collected = 0.0, False
+        tok_in, tok_out, tok_seen = 0, 0, 0
         try:
             deadline = time.monotonic() + timeout_s
             while True:
@@ -229,6 +431,13 @@ def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: s
                 if res.type == "succeeded":
                     cost = budget.cost_from_usage(model, res.message.usage, batch=True)
                     actual += cost
+                    # R48: the only point in the round where per-result usage is visible before
+                    # the settle in `finally`. `interpret` stores it per result too, but only for
+                    # succeeded keys — accumulating here keeps the denominator honest.
+                    usage = budget.usage_dict(res.message.usage)
+                    tok_in += _input_tokens(usage)
+                    tok_out += int(usage.get("output_tokens") or 0)
+                    tok_seen += 1
                     results[key] = interpret(res.message, cost)
                 else:
                     detail = getattr(getattr(getattr(res, "error", None), "error", None), "type", None)
@@ -238,9 +447,16 @@ def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: s
             log(f"  {phase}: batch {created.id} was not collected ({type(exc).__name__}: {str(exc)[:300]}); "
                 f"charged at its reservation")
         finally:
-            spend.settle(reserved, actual if collected else reserved,
-                         {"phase": phase, "model": model, "transport": "batch", "batch_id": created.id,
-                          "requests": len(requests), "collected": collected})
+            note = {"phase": phase, "model": model, "transport": "batch", "batch_id": created.id,
+                    "requests": len(requests), "collected": collected,
+                    # ⚠️ `rounds` is the round ORDINAL, which at settle time equals the number of
+                    # rounds this phase has sent. It is NOT the phase's final total — that value
+                    # does not exist until the loop exits, by which point every entry is written.
+                    "rounds": round_no}
+            # ⛔ A timeout charges at the reservation and measured no tokens; token_fields refuses
+            # to write a zero for it (tok_seen == 0), so the entry is silent rather than wrong.
+            note.update(token_fields(tok_in, tok_out, observed=tok_seen, sent=len(requests)))
+            spend.settle(reserved, actual if collected else reserved, dict(ledger_extra or {}, **note))
         for key, _, _ in chunk:
             results.setdefault(key, {"error": "missing_result", "transport_error": True, "cost": 0.0})
         log(f"  {phase} {model}: batch {created.id} collected={collected}, ${actual:.4f}")
@@ -248,7 +464,8 @@ def run_batch_round(client, work: list, *, model: str, spend: SpendCap, phase: s
 
 
 def run_phase(client, items: list, *, model: str, effort: str, spend: SpendCap, phase: str, transport: str,
-              concurrency: int, poll_s: float, timeout_s: float) -> list:
+              concurrency: int, poll_s: float, timeout_s: float, keep_raw: bool = False,
+              ledger_extra: Optional[dict] = None) -> list:
     from api.services.wisdom.extract import config, prompt
 
     system_text = prompt.system_prompt()
@@ -267,14 +484,16 @@ def run_phase(client, items: list, *, model: str, effort: str, spend: SpendCap, 
                               "cost": 0.0}
         if transport == "batch":
             got = run_batch_round(client, work, model=model, spend=spend, phase=phase, poll_s=poll_s,
-                                  timeout_s=timeout_s)
+                                  timeout_s=timeout_s, ledger_extra=ledger_extra)
         else:
             got = {}
             if work:
-                got[work[0][0]] = stream_call(client, work[0][1], model, spend, phase)  # alone: warms the cache
+                # alone: warms the cache
+                got[work[0][0]] = stream_call(client, work[0][1], model, spend, phase, ledger_extra)
                 with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
                     for key, res in zip([k for k, _ in work[1:]],
-                                        pool.map(lambda w: stream_call(client, w[1], model, spend, phase), work[1:])):
+                                        pool.map(lambda w: stream_call(client, w[1], model, spend, phase,
+                                                                       ledger_extra), work[1:])):
                         got[key] = res
         retry = []
         for i, res in got.items():
@@ -294,7 +513,8 @@ def run_phase(client, items: list, *, model: str, effort: str, spend: SpendCap, 
         if not pending:
             break
     for i, item in enumerate(items):
-        res = validate_into(results[i] if results[i] is not None else {"skipped": "not sent"}, item, vocab)
+        res = validate_into(results[i] if results[i] is not None else {"skipped": "not sent"}, item, vocab,
+                            keep_raw=keep_raw)
         results[i] = res
         print(f"  {phase} {model} {item['segment']['segment_id'][:10]} effort={res.get('effort')} "
               f"${res.get('cost', 0.0):.4f} kept={len(res.get('kept') or [])} "
@@ -390,6 +610,17 @@ def main() -> int:
     #: which becomes golden-v1.1 the moment that file lands — so an operator who wants the
     #: OLD set back (to compare two golden versions on one extractor) has to be able to ask.
     ap.add_argument("--golden-file", default="", help="e.g. golden-v1.jsonl (default: the newest present)")
+    #: R12 (owner ruling 2026-09-14). ON by default, because the failure it prevents is silent:
+    #: a run that discards its inputs looks identical to one that kept them until the day you
+    #: need to re-score it, and by then the only remedy is paying for the run again ($4.34 for
+    #: the 57-segment gate phase). --no-persist-records exists so the cost can be measured, not
+    #: so it can be skipped.
+    ap.add_argument("--no-persist-records", dest="persist_records", action="store_false", default=True,
+                    help="do NOT keep this run's validated records (R12); aggregates are unaffected either way")
+    ap.add_argument("--gate-runs-dir", default=str(gate_records.LOCAL_ROOT),
+                    help="where persisted runs go; must stay inside the gitignored data/wisdom tree (§0.4f). "
+                         "Defaults to the REPO tree, not <DATA_DIR> — see gate_records.LOCAL_ROOT for why "
+                         "the PC-side tool and the production chain resolve this differently (R56)")
     args = ap.parse_args()
 
     common.bootstrap(args.db)
@@ -398,6 +629,14 @@ def main() -> int:
 
     out_dir = common.out_path(str(pathlib.Path(args.out_dir) / "x")).parent
     (out_dir / "receipts").mkdir(parents=True, exist_ok=True)
+    #: ⛔ Minted ONCE, at the start, and used for the persisted directory. The report's own
+    #: filename stamps at the END of the run, so it cannot serve as the run's identity — the two
+    #: are joined by `gate_run_id`, which the report carries.
+    gate_run_id = common.stamp()
+    persist_records = bool(args.persist_records) and not args.dry_run
+    #: out_path refuses anything inside the shared data root (C:\data), which is the guard that
+    #: keeps a persisted run out of the owner's live files.
+    gate_runs_root = common.out_path(str(pathlib.Path(args.gate_runs_dir) / "x")).parent
     store.init_db()
     model = args.model or config.configured_model()
     effort = args.effort or config.configured_effort()
@@ -416,7 +655,8 @@ def main() -> int:
           f"{len(items)} segments; unplaced {data['unplaced']}; missing samples {data['missing_samples']}")
     print(f"worst case per request ${worst_one:.2f}; phases {phases}; total cap ${args.max_usd:.2f}"
           f"{'; PILOT (--limit): nothing is recorded' if pilot else ''}")
-    report = {"extractor_version": version, "model": model, "effort": effort, "transport": args.transport,
+    report = {"gate_run_id": gate_run_id, "records_persisted": persist_records,
+              "extractor_version": version, "model": model, "effort": effort, "transport": args.transport,
               "split": args.split, "golden_version": data["golden_version"],
               "golden_sha256": data["golden_sha256"], "golden_records": data["records"],
               "golden_null_rows": data["null_rows"],
@@ -431,14 +671,31 @@ def main() -> int:
     print(f"spend so far ${spend.spent:.4f} of ${args.max_usd:.2f}")
     client = batch.make_client()
     receipts = []
+    # R48: what every ledger entry this run writes carries besides its own phase/transport facts.
+    # ⛔ `golden_file` is the NAME only — §0.4f keeps golden CONTENT out of anything tracked, and
+    # the ledger is tracked. `model` is set at the settle site, not here, so a note can never
+    # disagree with the call it describes.
+    ledger_extra = dict(extractor_version=version, run_id=gate_run_id, golden_file=data["golden_file"])
     phase_kw = dict(spend=spend, transport=args.transport, concurrency=args.concurrency, poll_s=args.poll_seconds,
-                    timeout_s=args.batch_timeout_seconds)
+                    timeout_s=args.batch_timeout_seconds, keep_raw=persist_records, ledger_extra=ledger_extra)
+    persist_kw = dict(extractor_version=version, model=model, effort=effort, transport=args.transport)
+    if persist_records:
+        print(f"persisting validated records to {gate_records.run_dir(gate_runs_root, gate_run_id)}"
+              f"  (R12: an E5-class scoring bug re-scores offline for $0.00)")
 
     def complete(summary, n):
         return summary["skipped_spend_cap"] == 0 and summary["transport_errors"] == 0 and summary["calls"] == n
 
     if "gate" in phases:
         results = run_phase(client, items, model=model, effort=effort, phase="gate", **phase_kw)
+        if persist_records:
+            got = gate_records.persist_phase(gate_runs_root, run_id=gate_run_id, phase="gate", items=items,
+                                             results=results, manifest_extra={
+                                                 "split": args.split, "golden_version": data["golden_version"],
+                                                 "golden_sha256": data["golden_sha256"], "pilot": pilot},
+                                             **persist_kw)
+            print(f"  persisted {got['records']} records over {got['segments']} segments "
+                  f"({got['raw_outputs']} raw outputs)")
         scores = segment_scores(items, results)
         common.write_json(out_dir / f"segment-scores-{tag}.json", scores)
         common.write_json(out_dir / f"keys-{tag}.json", keys_by_segment(items, results))
@@ -466,6 +723,12 @@ def main() -> int:
                                                   "unplaced": data["unplaced"], "segments": len(items),
                                                   "vocabulary_source": prompt.vocabulary_source()})
             entry.update(run_id=out["run_id"], gate=out["gate"])
+            if persist_records:
+                # the eval run_id only exists AFTER scoring, so it is folded in rather than
+                # used as the directory name — otherwise a pilot or an INCOMPLETE phase, which
+                # never records an eval, would have nowhere to persist to at all.
+                gate_records.note_manifest(gate_runs_root, gate_run_id, eval_run_id=out["run_id"],
+                                           gate_decision=out["gate"].get("decision"))
             print(f"  gate decision: {out['gate']['decision']} (baseline={out['gate'].get('baseline')}, "
                   f"regressions={out['gate'].get('regressions')})")
             receipt = {"kind": golden.EVAL_KIND, "run_id": out["run_id"], "extractor_version": version,
@@ -514,6 +777,10 @@ def main() -> int:
             print("\ndrift: no gate record keys for this model, effort and version; skipped")
         else:
             results = run_phase(client, drift_items, model=model, effort=effort, phase="drift", **phase_kw)
+            if persist_records:
+                got = gate_records.persist_phase(gate_runs_root, run_id=gate_run_id, phase="drift",
+                                                 items=drift_items, results=results, **persist_kw)
+                print(f"  persisted {got['records']} drift records over {got['segments']} segments")
             second = keys_by_segment(drift_items, results)
             # ⚰️ THE SECOND RUN'S KEYS USED TO BE COMPUTED AND THROWN AWAY, so the only surviving
             # evidence for a drift number was the aggregate it produced. When the 2026-09-14 run
@@ -558,6 +825,15 @@ def main() -> int:
             print("\ntrial: no gate scores for this model, effort and version; skipped")
         else:
             results = run_phase(client, trial_items, model=args.trial_model, effort=effort, phase="trial", **phase_kw)
+            if persist_records:
+                # ⚠️ the trial phase runs a DIFFERENT model, so its rows carry args.trial_model,
+                # not `model` — persisting them under the gate's model would make the run
+                # unreadable exactly where a model comparison is the question being asked.
+                got = gate_records.persist_phase(gate_runs_root, run_id=gate_run_id, phase="trial",
+                                                 items=trial_items, results=results,
+                                                 extractor_version=version, model=args.trial_model,
+                                                 effort=effort, transport=args.transport)
+                print(f"  persisted {got['records']} trial records over {got['segments']} segments")
             trial_scores = segment_scores(trial_items, results)
             ids = [it["segment"]["segment_id"] for it in trial_items]
             base = golden.score([base_scores[s] for s in ids])

@@ -1269,3 +1269,369 @@ bytes across 90/365/8000). 483 breadth + 198 ledger tests green. LOCAL warm 84.6
 
 ⛔ **Flipping it starts a NEW sampler pool**, because `rf_resident` is a pooled flag and the
 reader changes.
+
+---
+
+## SD-1.3 — C.2.i answered, INC-1, and the compensating control (2026-09-16)
+
+**C.2.i = TRIGGERED.** A `GITHUB_TOKEN` push to `production` reaches Railway: the probe
+created a deployment at 00:08:04Z, 24 s after `promote to production` started and 2 s before
+it completed, watching `production` only. ⚠️ The deployment's commit SHA was not captured
+before the service was deleted — accepted, the window is 26 s wide and no other trigger
+existed. G-3 moves to VERIFIED. No probe is rebuilt.
+
+**INC-1 — a second app instance booted on the production project**, because
+`railway.json`'s `deploy.startCommand` overrides the service-level Custom Start Command the
+runbook's safety design relies on. Contained by variable isolation (nine `RAILWAY_*` names,
+zero credentials); deleted; roster back to six. Full audit, including the boot-time
+side-effect table: `docs/breadth/INC-1-second-app-instance.md`.
+
+⭐ **The lesson inverts the emphasis.** The variables clause fired on the letter and looked
+like a false positive; the start-command clause was trusted and failed silently. **Relax the
+clause whose hazard is measured absent, never the one whose hazard is merely assumed absent.**
+
+**B4.3 — the compensating control.** `production` has no branch protection (G6 is
+OWNER-PENDING), so the gate now refuses, before any scan, if `production` is not where the
+last recorded promotion left it — naming the foreign SHA and its author.
+
+⚠️ **Two limits, verbatim and deliberate:** it is **detective, not preventive**, and its
+**cadence is tied to master pushes**, so a foreign push to `production` during a quiet period
+goes undetected until the next master push. **G6 closes both.**
+
+**C2.a — where the promotion record lives, and why.** Three placements were considered:
+
+| placement | verdict |
+|---|---|
+| a file on `master`, carried by the fast-forward | ⛔ **loop** — every promotion changes master, which re-triggers the gate, which promotes |
+| a commit on `production` | ⛔⛔ **breaks promotion outright.** `promote-production.yml` is fast-forward-only and refuses to force; a commit not on master makes `production` stop being an ancestor and the NEXT promotion hard-errors. It would also make the range scan report `NOTHING AHEAD` forever, since HEAD would be contained in the base. |
+| **an orphan `deploy-gate-state` branch** | ✅ **chosen** — anonymously readable via raw.githubusercontent, loop-free (the gate triggers only on `push: branches: [master, main]`), and it cannot disturb `production`'s ancestry. Precedent exists: `ci-results` is already an orphan branch in this repo. |
+
+It also makes the advisory range scan's six states readable **without a token** — Session 14
+could not read the CI log at all, which is why the states were invisible from outside CI.
+⛔ An unreadable log records `null`, never a verdict (`tools/promotion_record.py`).
+
+⭐ **The gate stayed read-only.** The promotion job already holds `contents: write` and
+`actions: read`, so it writes the record; giving the gate write access just to publish a
+status file would have been a real privilege escalation on a public repo.
+
+### ⚰️ The first record written in production was WRONG — the parser read the script
+
+`4c3c2cc82`'s row said `range_scan_state: "NO RANGE"` with
+`range_scan_verdict: "NOTHING-TO-SCAN"` — a pair the scan cannot emit, because
+NO RANGE never reaches a verdict. **`gh run view --log` includes each step's echoed
+`run:` body**, so all six state strings appear as literals in every run, in source
+order, whatever happened. Taking the first match of each read the SCRIPT, not the
+OUTPUT.
+
+⭐ It is this programme's own recurring lesson, one layer up and committed by its own
+instrument: **read the wire, not the call site.** The fix skips lines carrying `echo`
+and refuses an impossible pair (a verdict without `EXECUTED` collapses to the state
+alone) — so a future misparse records *unknown* rather than something plausible and
+wrong. Mutation-proved: reverting the filter reproduces the exact production pair.
+
+⚠️ The bad row self-corrected on the next promotion; it was never load-bearing (the
+control reads `promoted_sha`, which was correct).
+
+### ✅ G3 — THE CUTOVER IS DONE (2026-09-16 01:2x UTC)
+
+`web` watches `production`. Done by API (`deploymentTriggerUpdate`), not the dashboard,
+per SD-1.2 B1.5.
+
+| | before | after |
+|---|---|---|
+| trigger id | `61b50f1f-b011-42b1-82ba-77d080ad7108` | unchanged |
+| `branch` | `master` | **`production`** |
+| `checkSuites` (Wait-for-CI) | **false** | false |
+
+⭐ **`checkSuites` reads FALSE before the change, which settles the runbook's step-3
+question retrospectively** — it asked the operator to record whether Wait-for-CI was ON or
+OFF, calling it "the one reading no CLI can give". The GraphQL API gives it. Wait-for-CI was
+already off, so step 3 required no change; the promotion workflow, not Railway's toggle, is
+what gates.
+
+⭐ **Done at the safest possible moment: `master == production == 4c3c2cc82`**, so the
+repoint could not change what was deployed. Verified after: no new deployment was created
+(newest stayed `4c3c2cc82` SUCCESS) and `/api/health` returned ok. The runbook's "do not
+redeploy manually" was honoured.
+
+**Step 1 (branch protection) was SKIPPED, deliberately** — that is G6, owner-pending, and
+SD-1.2 B1.3 authorised the cutover to proceed on the compensating control instead.
+
+⚠️ **Still unproven, and the runbook says so:** the discriminating test is a FAILING gate —
+the deployed SHA must stay at the old `production` while `master` moves ahead. Do not
+manufacture one; check it at the next genuine gate failure.
+
+### G4 — PREDICTED TIMELINE, written BEFORE the verification push (SD-1.4 D1.1)
+
+This landing is the first promotion after G3, so it is the verification push. The
+prediction is recorded before the push so the observation cannot be fitted to it
+afterwards.
+
+| t (from push) | predicted event | how it is read |
+|---|---|---|
+| 0 | push lands on `master` | push timestamp, captured by the runner |
+| +3–5 s | `master deploy gate` run starts | Actions API |
+| ~+2 min | gate passes | Actions API, `conclusion: success` |
+| +1–3 s | `promote to production` fast-forwards `production` | Actions API |
+| **then** | **a `web` deployment is CREATED, `meta.branch == "production"`** | `railway deployment list` |
+| ~+2 min | that deployment reaches SUCCESS | same |
+| end | deployed `meta.commitHash` == `origin/production` HEAD | both |
+
+**The discriminating field is `meta.branch`.** Every deployment before the cutover
+reads `"master"` — including `4c3c2cc82`, which is the control proving the field
+varies rather than being cosmetic. The first post-cutover deployment must read
+`"production"`.
+
+⛔ **The build must be CREATED AFTER the promotion's timestamp.** A build created
+before it would mean Railway reacted to the master push, i.e. the repoint did not take,
+and the SHAs would agree only by coincidence — the same "agrees for the wrong reason"
+trap the runbook warns about.
+
+**FAILURE ACTION, armed on an absolute 20-minute clock from the push:** if no
+production-branch build is created by then, or a build is created from `master`, or it
+does not reach SUCCESS → `deploymentTriggerUpdate(web, branch=master)`, confirm the next
+`web` deploy SUCCEEDS, mark **G3 FAILED** with every timestamp, and stop the G track.
+
+### S2 — scope checker: WAS NOT INSTALLED; now installed in WARN mode (SD-1.4 D3.4)
+
+**Measured state before:** `docs/breadth/git-scope-hook-proposal.md` said *"Status:
+PROPOSAL. Nothing is installed"*, and it was accurate. The shared
+`core.hooksPath` (`<repo>/.git/hooks`) held a `pre-commit` running only the credential
+scan. **Zero heartbeats, zero workstreams.**
+
+⭐ The earlier session stopped deliberately: *"the shared `core.hooksPath` is another
+programme's … Coordination is an OPEN QUESTION, not something this programme may
+decide."* That was the right call to escalate rather than take. SD-1.1 A2.2, reaffirmed
+by SD-1.4 D3.4, is the owner supplying the decision.
+
+**Installed 2026-09-16**, prepended to the shared `pre-commit`, WARN ONLY:
+
+```sh
+if [ -f "$root/tools/git_scope.py" ]; then
+  python "$root/tools/git_scope.py" --warn 2>/dev/null || true
+fi
+```
+
+⛔ **`|| true` is load-bearing, not defensive habit.** This hook is shared by every
+worktree on this box; a scope checker must never be the reason somebody cannot commit.
+Absent tool, broken python, unborn branch — all pass through silently. Backup of the
+previous hook: `.git/hooks/pre-commit.bak-2026-09-16-pre-gitscope`.
+
+**Verified with two controls, because a prepend can break what it sits in front of:**
+
+1. the credential scan **still refuses** — a staged `authorization: Bearer …` shape was
+   rejected (`LEAK authorization-header`) and **HEAD did not move**;
+2. git-scope logged its heartbeat **during that refused commit**, so it runs first and
+   does not interfere.
+
+**Coverage, measured:** 3 of the 77 branches currently checked out across worktrees are
+in scope (`breadth/deploy-gate-v2`, `breadth/promotion-record`, `repo/git-scope`).
+Everything else is UNMATCHED, which the tool treats as *not a violation* by design — a
+check that refuses everybody is bypassed within a day.
+
+⚠️ **The heartbeat log is PER WORKTREE** (`WARN_LOG = REPO/logs/git-scope-warn.log`, and
+`REPO` is derived from the tool's own location). That is how "≥2 workstreams" is actually
+counted — one log per worktree — but it means the trial's total must be **aggregated
+across worktrees**, never read from one.
+
+**Trial criterion (unchanged):** ≥20 heartbeats, ≥2 workstreams, ≥24 h, zero
+WOULD-REFUSE rows → then promote to ENFORCE. **At install: 3 heartbeats, 1 workstream.**
+
+### ✅ G4 — DONE, PASSIVELY, ON OTHER WORKSTREAMS' PUSHES (2026-09-16)
+
+The cutover verified itself before our own verification push got a turn. The prediction
+committed at `99f5044eb` **before** any of this applies unchanged; the observation is
+simply not ours, which makes it stronger evidence, not weaker — nobody involved was
+trying to make it pass.
+
+**The boundary is sharp and lands exactly where G3 was executed:**
+
+| created (UTC) | sha | `meta.branch` | status |
+|---|---|---|---|
+| 01:05:45 | `4c3c2cc82` | master | REMOVED |
+| — | — | *G3 executed here* | — |
+| **01:24:11** | `e49cf70c2` | **production** | REMOVED (superseded 9 min later) |
+| **01:33:21** | `d5f2c8d83` | **production** | **SUCCESS** |
+
+Every deployment before G3 reads `master`; every one after reads `production`. That field
+is the discriminator precisely because it varied — the ten rows above the line are the
+control.
+
+**Each production build was created AFTER its promotion started**, which is the clause
+that rules out "Railway reacted to the master push and the SHAs agreed by coincidence":
+
+| sha | promotion run created | deployment created | delta |
+|---|---|---|---|
+| `e49cf70c2` | 01:23:49 | 01:24:11 | **+22 s** |
+| `d5f2c8d83` | 01:32:56 | 01:33:21 | **+25 s** |
+
+**And every authority agrees on the live SHA:** `origin/production` = `origin/master` =
+deployed `meta.commitHash` = `last-promotion.json.promoted_sha` = `d5f2c8d83`. Trigger
+reads `{branch: production, checkSuites: false}`.
+
+⭐ **G4 DONE.** The rollback harness was disarmed rather than run; our queued landing
+(parser fix + G8) reverts to an ordinary landing with no 20-minute clock.
+
+⚠️ **The negative case is still not observed** — every gate in this window passed, so
+nothing exercised "a red gate leaves `production` where it was". SD-1.4 D2.1's passive
+capture is what will catch the first genuine one. Do not manufacture it.
+
+⭐ **Why this was found by reading rather than waiting:** the harness was queued behind a
+burst clause while foreign pushes — the very traffic that answers the question — flowed
+past it. Had those deploys instead come from `master`, the 20-minute rollback condition
+would have elapsed unobserved. **When the thing you are waiting to cause is something
+others also cause, read before you wait.**
+
+### ⚠️ POOL A VOIDED BY A FOREIGN HOT-PATH CHANGE (2026-09-16)
+
+Pool A had reached n=14 on `d5f2c8d83` (p50 271.5 ms) when a foreign promotion moved
+production to `9906a7fcd`. Pool validity is hot-path byte-identity, and one of the eight
+hot-path files changed:
+
+| file | |
+|---|---|
+| `api/services/breadth_daily_ohlc.py` | **DIFFERENT** (+35 lines, from the breadth-library workstream) |
+| the other seven | SAME |
+
+**Pool A is VOID and restarts on `9906a7fcd`.** Recorded, not argued with (SD-1.6 R-2).
+The rows are not deleted — the report groups by `(sha, flag_observed)`, so a voided pool
+simply forms its own group and can never be silently merged into the live one.
+
+⛔ **The first run of this check had a BROKEN CONTROL and I nearly accepted it.** The
+control file I picked (`docs/breadth/DECISIONS.md`) is identical between the two SHAs —
+my edits are on a branch, not on master — so it printed "IDENTICAL: comparison may be
+blind", which cannot distinguish a working comparison from a blind one. Re-run with a
+POSITIVE control taken from the actual diff (must read DIFFERENT) and a NEGATIVE control
+outside it (must read SAME), both of which behaved correctly. **A control has to be chosen
+so that it would fail if the instrument were broken** — picking one that happens to agree
+proves nothing.
+
+⚠️ **Operational consequence, stated plainly:** other breadth workstreams are editing the
+reader's hot path tonight. Every such change voids the pool and restarts it, so n≥59 on a
+single SHA may be unreachable in one session. SD-1.6 R-6's fallback governs.
+
+### S2 — the WARN trial found a real drift on its first night
+
+The heartbeat log recorded one **WOULD-REFUSE**, and it was correct:
+`.github/workflows/promote-production.yml` was staged while the scope declaration listed
+only `master-deploy-gate.yml`. SD-1.3 C2.1 had authorised the promotion-record step; the
+declaration was never widened to match. The same was true of four tools and three tests
+this programme was authorised to add.
+
+⭐ **This is the trial working, not failing.** A WARN-mode checker that recorded twenty
+quiet heartbeats would have proved only that the hook runs. One that names a real
+divergence between what a programme was authorised to touch and what it declared has
+proved the scoping itself is live.
+
+**Widened deliberately** (the declaration's own comment calls this "a deliberate,
+reviewable act"), each entry carrying the ruling that authorised it:
+`promote-production.yml`, `tools/promotion_record.py`, `tools/land_master_first.py`,
+`tools/pre_push_guard.py`, and the three rails' test files.
+
+⛔ **`docs/runbooks/deploy-windows.md` was deliberately NOT added.** That file belongs to
+the deploy programme and is the single authority on push timing; G8 was a one-time
+authorised edit to somebody else's document. **Widening this programme's scope to include
+it would grant standing permission for a one-off** — so it stays outside the declaration
+and rides the logged override instead. That is the distinction the two mechanisms exist to
+draw: **widen for what you own, override for what you were let into once.**
+
+⚠️ **Consequence for the ENFORCE criterion:** the trial's "0 WOULD-REFUSE" clause is not
+met, and correctly so. The count restarts from the corrected declaration. S2 stays
+TIME-GATED.
+
+### ✅ MIN_UPTIME_S = 300 IS THE STANDING VALUE (SD-1.7 final ratification)
+
+Session 7 set the settle floor at 600 s on the reasoning that a fresh pod races its own
+prewarmers. That reasoning was never wrong, but it was never measured either — and at
+n=34 it is not visible in the data:
+
+| | |
+|---|---|
+| Spearman ρ (uptime vs total) | **+0.09** |
+| 300–600 s bucket | n=8, median **327.0 ms** |
+| ≥ 600 s bucket | n=26, median **313.4 ms** |
+| difference | **4.3%** |
+
+**A pod settled for 300 s reads the same as one settled for 600.** The stricter floor was
+costing collection and buying nothing — against a ~1-per-11-min foreign deploy cadence it
+is what kept the sampler idle for most of the close-out night.
+
+Changed in `tools/breadth_sampler.py` as the DEFAULT (not an env override), so the
+unattended Task Scheduler runner inherits it. `BREADTH_SAMPLER_MIN_UPTIME` still overrides.
+
+⭐ **It stays falsifiable.** Every row still records its own `uptime_s`, so if a future
+pool shows an effect the analysis can re-apply 600 to rows already collected. That is the
+whole reason collection is loosened and analysis tightened rather than the reverse: a row
+not collected can never be recovered, but a row collected can always be filtered.
+
+⚠️ Measured on ONE pool, flag OFF, at n=34. It is a standing value, not a closed question.
+
+### ⭐ THE OPERATIONAL FINDING THE WHOLE NIGHT KEEPS PRODUCING — one arithmetic, three victims
+
+Three sessions pushed master tonight at roughly **one deploy per 11 minutes**. Each of us
+was starved by it in a different organ, and none of us could see the others' queue:
+
+| session | what it needed | what the cadence did |
+|---|---|---|
+| this one (reader) | a pod settled long enough to sample | reset the settle before the pool could fill; voided a pool outright by changing the hot path |
+| Notebook Wave Q1 | a 600 s recency window to push | reset the countdown five times in 25 minutes — and then moved `app/src` under a finished gate, **invalidating a SOUND 20,411-test run** so it had to re-gate |
+| charts (unidentified until tonight) | — | was simply working normally |
+
+⛔ **The Notebook session's version is the sharper statement of it: `master is moving faster
+than a gate takes`.** Gate cost is coupled to other sessions' push rate, so a re-gate can be
+invalidated before it finishes. **No amount of yielding fixes that** — it is not slot
+contention, and the fix is a scheduling decision only the owner can make.
+
+⭐ **And the identification method matters.** That session first attributed the resetting
+deploys to this one on TOPIC SIMILARITY, and withdrew it when asked. `%an` cannot separate
+us — every commit on master is `unchartedterritory5995-cyber`. This session then identified
+the third pusher by ELIMINATION ("not my branch"), which is an argument from absence; the
+Notebook session identified it POSITIVELY from the `Claude-Session:` trailer the commits
+carry. **Adopt the trailer.** Elimination fails silently the moment a session stops
+emitting one; the trailer names whose it is.
+
+⚠️ Neither session touched `UCT_SKIP_PREPUSH_GUARD=1` or self-attested R19, and both said so
+unprompted. The guard refused correctly all night — a push landing inside another deploy's
+3–5 min build is what marked one REMOVED mid-flight on 09-12 and 09-14.
+
+### ⛔ THE BURST WINDOW AGES OFF DEPLOY TIME, NOT COMMIT TIME
+
+A peer session computed when the burst clause would clear by ageing the commits off their
+**commit timestamps**. The guard ages them off Railway's **deploy `createdAt`**, and build
+queueing sits between the two. Measured 2026-09-16 00:14 ET, the gap was **~3 minutes** —
+enough that a timer armed on the commit-time estimate would have pushed into a still-
+refusing guard and burned the attempt.
+
+**Compute the window from `railway deployment list --service web --json`, never from
+`git log`.** The guard reads deploys; so must anyone predicting it.
+
+⚠️ And read it from a LINKED directory. The CLI resolves the project from the current
+directory; from an unlinked one it prints `No linked project found` and exits 1. A
+forgiving parse (`json.loads(out or "[]")`) turns that into zero deployments, which reads
+as *quiet* — this session nearly pushed over a live build on exactly that path tonight,
+and was saved only by a parse that happened to crash.
+
+### ⭐ THE TRAILER METHOD, WITH ITS LIMIT (peer correction)
+
+`Claude-Session:` trailers identify which session produced a commit — positively, where
+`%an` cannot (every commit on master is `unchartedterritory5995-cyber`).
+
+⛔ **But "no trailer" must read as UNKNOWN, never as "not a session".** Merge commits do
+not inherit trailers, which is why the `feat/breadth-pit-foundation` pusher stayed
+unidentified all night. That is the same shape as this session's own error earlier —
+identifying a third party by ELIMINATION ("not my branch") is an argument from absence, and
+so is reading a missing trailer as an answer.
+
+⭐ Both sessions got the same lesson from opposite directions in one exchange: **an absence
+is only evidence when the instrument could have shown a presence.**
+
+### Cross-session courtesy, recorded because it cost something and was worth it
+
+This session held BOTH its lander and its variable flip for a peer's landing. The flip was
+the one asked about; **the lander was the real risk and the peer had not accounted for it**
+— armed and polling, it would have taken the slot the moment burst dropped below 3,
+consumed a burst slot, and reset the peer's recency clock.
+
+⭐ **The right response to "please hold X" is to check what else you are holding.** Granting
+the literal request while leaving the larger hazard running would have been technically
+responsive and practically useless.

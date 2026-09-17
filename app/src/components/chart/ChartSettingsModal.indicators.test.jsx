@@ -7,6 +7,7 @@ import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings, instanceTombstone } from './chartDefaults'
 import { getDefinition, listDefinitions } from './engine/nativeRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 // ─── THE INDICATORS TAB, END TO END ─────────────────────────────────────────
 //
@@ -39,7 +40,7 @@ import { CARVED_OUT_ROWS } from './indicatorCatalog'
 // pass over a tab whose only door was broken, which is what these exist to catch.
 
 const base = (extra) => mergeChartSettings(JSON.stringify(extra || {}))
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
 const liveVwap = (cs) => (cs.indicatorInstances || []).find(i => i.defId === 'vwap' && !i.deleted)
 
@@ -189,6 +190,17 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
     search('')
     const options = screen.getAllByRole('option').map((o) => o.getAttribute('data-def-id'))
     for (const def of listDefinitions()) {
+      // ⛔⛔ EXCEPT THE WRITTEN EXCLUSIONS, SUBTRACTED HERE AS A CLAIM.
+      // `discoveryCatalog.LIBRARY_HIDDEN_IDS` names the definitions that are
+      // REGISTERED but not BROWSABLE, and its one definition member is
+      // `dataSeries` — the substrate whose member-facing rows are `QQQ` and
+      // `UCTA50`, arriving through symbol search rather than as a row reading
+      // "Data Series". The library DIALOG has always subtracted it; until
+      // 2026-09-16 this tab did not, which is how the owner's §8 defect
+      // ("a member should not have to add something called Data Series") was
+      // reachable from Chart Settings. The sweep stays a sweep; the exclusion is
+      // read from the frozen list rather than spelled again.
+      if (LIBRARY_HIDDEN_IDS.includes(def.id)) continue
       expect(options, `${def.id} is in the registry and offered nowhere`).toContain(def.id)
     }
     for (const row of CARVED_OUT_ROWS) {
@@ -296,20 +308,23 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     // row now, and adding REVIVES the tombstone rather than minting a stranger —
     // so the colour and period the member set are still theirs.
     search('moving average')
-    // ⚠️ ADDRESSED BY `data-def-id`, BECAUSE THERE ARE TWO MOVING AVERAGES NOW
-    // AND THAT IS BY DESIGN. `cs.overlays`' price MAs occupy the catalogue id
-    // `ma` and the name "Moving Average"; the engine definition is deliberately
-    // named "Moving Average (Source)" so a browse list never shows two rows a
-    // member cannot choose between. A NAME lookup matched both and threw — and a
-    // name is a moving subject anyway, which is the lesson the library suite
+    // ⚠️ ADDRESSED BY `data-def-id`, BECAUSE THE NAME IS DELIBERATELY NOT
+    // "Moving Average" ANY MORE. `discoveryCatalog.hiddenLibraryIds` reveals the
+    // legacy `ma` row only on a chart with a tombstone to revive, and 2026-09-16
+    // renames the revealed row after the thing it brings back — *Restore EMA 9* —
+    // so browse never shows two rows reading "Moving Average" (owner §34). A NAME
+    // lookup is a moving subject anyway, which is the lesson the library suite
     // already wrote down. The subject of this case is the LEGACY row, by id.
     const row = screen.getAllByRole('option').find((o) => o.dataset.defId === 'ma')
     expect(row, 'the legacy moving-average catalogue row is gone').toBeTruthy()
-    // ⚠️ THE ROW READS "Active", AND CORRECTLY SO — three moving averages are
-    // still drawn, so the ADD verb is the ＋ beside it rather than the row body.
-    // (`isRowOn` for this row is "at least one live overlay", not "all four".)
-    expect(within(row).getByText('Active')).toBeTruthy()
-    fireEvent.click(within(row).getByRole('button', { name: /Add another Moving Average/ }))
+    expect(within(row).getByText(/Restore EMA 9/), 'the revive row does not name what it restores').toBeTruthy()
+    // ⚰️ IT USED TO READ "Active" WITH A `＋ Add another` BESIDE IT, and the only
+    // way to recover a removed EMA 9 was a control labelled "Add another Moving
+    // Average". `isRowOn` for this row means "at least one moving average is
+    // live" — true on exactly the chart where one is tombstoned — so the state was
+    // right and the VERB was wrong. A restore is one click on the row.
+    expect(within(row).queryByText('Active'), 'a restore offer must not read as Active').toBeNull()
+    fireEvent.click(row)
     const next = lastCall(onChange)
     expect(next.overlays[0].removed, 'add-back did not revive the tombstoned slot').toBe(false)
     expect(next.overlays[0].period, 'add-back replaced the member\'s EMA 9 with a stranger')
@@ -474,7 +489,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // SLICED rather than split on ':' — a split would address row `legacy`.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} scrollTo="ind:legacy:vwap" />)
     // …and it lands on the Indicators tab without being told twice.
-    expect(screen.getByRole('tab', { name: 'Chart Data' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'Indicators' }).getAttribute('aria-selected')).toBe('true')
     const row = document.body.querySelector('[data-row-id="legacy:vwap"]')
     expect(row, 'the deep-linked row is not in the active list').toBeTruthy()
     expect(row.querySelector('[aria-expanded]').getAttribute('aria-expanded'),

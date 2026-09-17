@@ -173,6 +173,15 @@ def ctx(dry_run=False, force=False):
 def env(tmp_path, monkeypatch):
     monkeypatch.setenv("WISDOM_DB_PATH", str(tmp_path / "wisdom.db"))
     monkeypatch.setenv("WISDOM_EXTRACT_ENABLED", "1")
+    # ⛔ R53, 2026-09-15: this file tests SUBMIT AND REAP MECHANICS — idempotency, retries,
+    # max_tokens back-off, orphan adoption, budget stops — none of which is about how many passes a
+    # night makes. N is pinned to 1 so every assertion here keeps meaning exactly what it meant
+    # before N-pass existed. The pass loop has its own file, `test_wisdom_npass_chain.py`, where N
+    # is the subject rather than the backdrop.
+    # ⚠️ Pinned, not deleted: with N defaulting to 3 these tests fail with `missing_result`, because
+    # three salted passes produce three custom_ids and the fake client answers one. That failure is
+    # the fixture disagreeing with the product, not the product being wrong.
+    monkeypatch.setenv("WISDOM_EXTRACT_PASSES", "1")
     monkeypatch.delenv("WISDOM_EXTRACT_BUDGET_USD", raising=False)
     monkeypatch.delenv("WISDOM_EXTRACT_MODEL", raising=False)
     monkeypatch.delenv("WISDOM_EXTRACT_EFFORT", raising=False)

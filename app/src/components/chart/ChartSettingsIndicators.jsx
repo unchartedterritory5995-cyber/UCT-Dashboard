@@ -54,6 +54,19 @@ import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
 } from './indicatorCatalog'
+// ⭐⭐ THE ONE ADD DOOR'S CATALOGUE — technical, the member's own formulas,
+// SECURITIES and BREADTH, through the facade that already owns all four. Wiring
+// the symbol half here is what retires the member-facing "Data Series" workflow
+// (owner §8): searching `QQQ` and clicking it creates the canonical
+// `dataSeries` + `sym:QQQ:close` instance, and the abstraction never surfaces.
+import {
+  hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
+  SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
+} from './discoveryCatalog'
+// ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
+// picker uses — same two endpoints, same debounce, same abort discipline, same
+// facade adapters — so "what does QQQ match" has one answer on both surfaces.
+import useSymbolDiscovery from './useSymbolDiscovery'
 // ⛔ THE SEARCH AND THE ADD, IMPORTED FROM THE DIALOG THAT ALREADY OWNS THEM.
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
@@ -128,13 +141,21 @@ function mainColorFields(row) {
  *  MA overlays carry a type (`SMA`/`EMA`) that the label already spells, so they
  *  get none; a generated row's group is its definition's short name, which the
  *  label (the LONG name) does not repeat. */
-function typeBadge(row) {
-  if (isFixtureRow(row)) return null
-  const short = row.group
-  if (!short) return null
-  const label = String(row.label || '')
-  return label.toLowerCase().includes(String(short).toLowerCase()) ? null : short
-}
+/** ⚰️⚰️ RETIRED 2026-09-16 (owner §30). It printed the definition's SHORT NAME as
+ *  a chip beside the row — `MA` next to `Moving Average`, `RSI` next to `Relative
+ *  Strength Index` — and the owner's list of what a row must not be overstuffed
+ *  with opens with exactly that: *"Do not overstuff rows with implementation
+ *  metadata such as: MA / Line · Price"*.
+ *
+ *  ⛔ IT WAS ALSO THE LAST PLACE A MOVING AVERAGE READ AS TWO THINGS. The engine
+ *  MA now names itself `EMA 9` (`engine/semanticName.js`), so the badge printed
+ *  `EMA 9` with `MA` beside it — the generic noun the whole change exists to stop
+ *  showing a member, restated as a label on the thing that had just stopped
+ *  needing it.
+ *
+ *  ⛔ THE FUNCTION IS DELETED RATHER THAN LEFT RETURNING `null`. A helper that
+ *  cannot answer anything is a control that cannot refuse; see `canRemove`'s
+ *  gravestone further down for the same ruling. */
 
 /**
  * Is this instance's source genuinely OHLC-bearing?
@@ -296,10 +317,36 @@ export default function ChartSettingsIndicators({
   // a member's own formulas never appear in Browse until something else forces a
   // recompute. `IndicatorLibraryDialog`'s catalogue memo carries the identical
   // pair for the identical reason.
+  // ⚠️ THIS IS THE **BROWSE** CATALOGUE, NOT THE ACTIVE LIST. `activeRows` below
+  // comes from `listAllIndicators`, so hiding a row here removes only the offer to
+  // CREATE one — every overlay a member already has keeps its own row, its
+  // settings and its ✕. That distinction is what makes hiding the legacy `ma`
+  // row non-destructive; see `discoveryCatalog.LIBRARY_HIDDEN_IDS`.
+  // ⚰️⚰️ AND THE HIDDEN SET APPLIES TO THE **DEFINITIONS** TOO, WHICH IT DID NOT.
+  // `hiddenLibraryIds` was filtering `BUILT_IN_ROWS` alone, so `dataSeries` — the
+  // one definition `discoveryCatalog.LIBRARY_HIDDEN_IDS` exists to keep out of
+  // browse — was offered on this tab as a row reading **"Data Series · Plots a
+  // numeric source directly"**. That is precisely the workflow the owner's §8
+  // rules out: *"a member should not have to add something called Data Series and
+  // then figure out how to transform it into QQQ"*. The library DIALOG has always
+  // filtered both lists (`IndicatorLibraryDialog`'s own catalogue memo); this tab
+  // was the surface where the substrate leaked.
+  //
+  // ⭐ AND THE REVIVE ROW IS RENAMED, NOT HIDDEN — `libraryRowFor`. On a chart
+  // with a tombstoned overlay the legacy `ma` row is revealed so the member can
+  // get their EMA 9 back; renaming it *Restore EMA 9* is what stops that being a
+  // SECOND row reading "Moving Average" (§34).
   const catalog = useMemo(
-    () => [...BUILT_IN_ROWS, ...catalogRows(registry), ...userCatalogRows(registry)],
+    () => {
+      const hidden = hiddenLibraryIds(settings)
+      return [
+        ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
+        ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
+        ...userCatalogRows(registry),
+      ]
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; see above
-    [registry, generation],
+    [registry, generation, settings],
   )
 
   // ─── ACTIVE: WHAT THE CHART IS DRAWING ────────────────────────────────────
@@ -411,10 +458,52 @@ export default function ChartSettingsIndicators({
   }, [settings, onChange, onRowPatch, registry, deselectIfRemoved])
 
   // ─── DISCOVERY ────────────────────────────────────────────────────────────
+  //
+  // ⭐⭐ SYMBOLS AND BREADTH ARE FIRST-CLASS RESULTS IN THE SAME BOX (owner §9).
+  // A member who wants QQQ under their chart types `QQQ` and clicks `QQQ`; the
+  // facade turns that row into the canonical `dataSeries` + `sym:QQQ:close`
+  // instance every other door already creates. There is no second symbol engine
+  // and no second search — see the import block.
+  //
+  // ⚠️ IT RUNS ONLY WHILE BROWSING. `enabled` is the hook's own gate: a closed
+  // catalogue makes no request and holds no state, which is the same discipline
+  // `UserFormulaFeed` follows one file up.
+  const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, mode === 'browse')
+
+  // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
+  //
+  // ⛔⛔ AND THE **RESULT** IS WHAT CREATION READS, NEVER THE ROW. A library row's
+  // `shortName` is its CHIP — `ETF`, `Breadth` — while a result's `shortName` is
+  // the series' display NAME. `createFromResult` stamps `display.name` from it, so
+  // handing it the row would have labelled a QQQ series "ETF" on the chart, in the
+  // legend and in the source picker. Same trap `symbolLibraryRow`'s own header
+  // documents from the other side: the two shapes carry different fields on
+  // purpose, and only one of them is a name.
+  const symbolRows = useMemo(() => {
+    const rows = []
+    const byKey = new Map()
+    for (const res of symbolResults) {
+      const row = symbolLibraryRow(res)
+      if (!row) continue
+      rows.push(row)
+      byKey.set(row.key, res)
+    }
+    return { rows, byKey }
+  }, [symbolResults])
+
   const results = useMemo(() => {
     const byQuery = catalog.filter((r) => matches(r, query))
-    return category ? byQuery.filter((r) => r.category === category) : byQuery
-  }, [catalog, query, category])
+    const local = category ? byQuery.filter((r) => r.category === category) : byQuery
+    // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
+    // answer to this query — `useSymbolDiscovery` asked the server and the breadth
+    // library with it — and a second substring test over a name the server ranked
+    // would drop `Invesco QQQ Trust` for the query `Invesco` on a bad day. The
+    // CATEGORY chip still applies, because that is this surface's own filter.
+    const sym = category
+      ? symbolRows.rows.filter((r) => r.category === category)
+      : symbolRows.rows
+    return [...local, ...sym]
+  }, [catalog, query, category, symbolRows])
 
   const refusals = useMemo(
     () => userRefusalRows((userDefRows || []).map((r) => r && r.definition), userDefErrors)
@@ -428,8 +517,19 @@ export default function ChartSettingsIndicators({
   const groups = useMemo(() => {
     const order = [...new Set(results.map((r) => r.category))]
     const mine = new Set(results.filter((r) => r.userDefined).map((r) => r.category))
-    return [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
-  }, [results])
+    const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+    // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (owner §9). A member who types `QQQ`
+    // means the instrument, and burying Symbols under four shipped categories is
+    // the same defect `useSymbolDiscovery` already fixed WITHIN its own list. The
+    // hook has put the exact hit first, so this only has to hoist its heading.
+    //
+    // ⛔ AND ONLY ON AN EXACT MATCH. Hoisting Symbols for every query would put a
+    // list of tickers above "Moving Average" for the query `moving average`.
+    const first = symbolRows.rows[0]
+    const exact = first && String(first.id).toUpperCase() === String(query).trim().toUpperCase()
+      ? first.category : null
+    return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
+  }, [results, symbolRows, query])
 
   const categories = useMemo(() => [...new Set(catalog.map((r) => r.category))], [catalog])
 
@@ -470,6 +570,19 @@ export default function ChartSettingsIndicators({
     // a tombstoned `legacy:<id>` WITH the member's edited period and colour; minting
     // a fresh instance instead would silently hand back a default-configured
     // indicator and leave their old one tombstoned beside it.
+    // ⭐⭐ A DISCOVERY RESULT CREATES THROUGH THE FACADE, NOT THROUGH THIS FILE.
+    // A symbol row carries a `create` descriptor and `createFromResult` is the one
+    // composition of `addInstance` + `setInstanceInput` that honours it — the same
+    // door `discoveryCatalog.test.js` rails as "creation is kind-blind", so a
+    // breadth measure and a security differ only in the string after `sym:`.
+    //
+    // ⛔ THE RESULT, NOT THE ROW — see `symbolRows` above for the measured reason.
+    const res = symbolRows.byKey.get(row.key)
+    if (res) {
+      const created = createFromResult(settings, res, registry)
+      if (created !== settings) onChange?.({ ...created, preset: 'custom' })
+      return
+    }
     const revivable = !row.builtIn && !!findInstance(settings, legacyInstanceId(row.id))
     const next = (row.builtIn || revivable)
       ? toggledRow(row, settings, registry)
@@ -477,7 +590,7 @@ export default function ChartSettingsIndicators({
     // Identity, not deep equality: a REFUSED write returns `settings` itself, and
     // persisting a no-op would mark the preset custom for a click that did nothing.
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry])
+  }, [settings, onChange, registry, symbolRows])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -634,7 +747,6 @@ export default function ChartSettingsIndicators({
     // screen reader something opened and leave it with no way to find what.
     const isOpen = selected === row.id
     const colorFields = mainColorFields(row)
-    const badge = typeBadge(row)
     const summary = placementSummary(row)
     return (
       <div
@@ -673,7 +785,6 @@ export default function ChartSettingsIndicators({
             onClick={() => setSelected(isOpen ? null : row.id)}
           >
             <span className={styles.actLabel}>{row.label}</span>
-            {badge && <span className={styles.actBadge}>{badge}</span>}
           </button>
           {/* ⭐ INLINE, NOT A SECOND LINE. Seven rows already fill this panel; a
               subtitle on each pushes BROWSE off the bottom and turns a dense list
@@ -901,23 +1012,27 @@ export default function ChartSettingsIndicators({
     const where = resolveDisplayTarget(inst, settings)
     const parts = []
 
-    // HOW — the primary plot's RESOLVED style, named exactly as the select names
-    // it, so the two cannot word the same state differently.
-    const styleCtx = { target: where, ohlcCapable: ohlcCapableFor(def, inst) }
-    const primary = (def.plots || []).find((pl) => availableStyles(pl, styleCtx).length > 0)
-    if (primary) {
-      const style = resolvePlotStyle(inst, primary, styleCtx)
-      const choice = PLOT_STYLE_CHOICES.find((c) => c.value === style)
-      if (choice) parts.push(choice.label)
-    }
-
-    // WHERE — the chosen destination's own label. ⛔ A STORED HOST THAT HAS SINCE
-    // BEEN DELETED IS CARRIED AS `missing`, and saying so is the whole point: the
-    // row must read "Pane unavailable", never silently claim somewhere it is not
-    // and never quietly fall back to Own pane.
+    // ⚰️⚰️ IT LED WITH THE PLOT STYLE AND THE DESTINATION — `Line · Price` — AND
+    // BOTH ARE RETIRED FROM THIS LINE (owner §30, 2026-09-16).
+    //
+    // `Line` is furniture: it is the same word on nearly every row, it is the one
+    // the editor directly below already offers as a control, and the owner's list
+    // of things a row must not be overstuffed with names it exactly (*"MA / Line ·
+    // Price"*). `Price` is worse than furniture — it is a SECOND statement of the
+    // thing the group HEADING this row sits under already says, so a member reads
+    // the same fact twice and the row is longer for it.
+    //
+    // ⛔ THE ROW ANSWERS TWO QUESTIONS NOW: *what is this* (its name, one line up)
+    // and *what does it read* (below). WHERE it is, is the pane it is filed under.
+    //
+    // ⛔⛔ EXCEPT WHEN THERE IS NO PANE TO FILE IT UNDER, and that exception is the
+    // whole reason the destination is still computed. A stored host that has since
+    // been deleted is carried as `missing`; the row must read "Pane unavailable",
+    // never silently claim somewhere it is not and never quietly fall back to Own
+    // pane. `chartDataMap` files those rows under "Needs attention", and this is
+    // the sentence that says what happened to this one.
     const missing = options.find((o) => o.missing) || null
-    const chosen = options.find((o) => o.value === where) || missing
-    if (chosen && chosen.label) parts.push(chosen.label)
+    if (missing && missing.value === where && missing.label) parts.push(missing.label)
 
     // WHAT IT READS — only when the name does not already say it.
     if (!(def.meta && def.meta.labelFrom === 'source')) {
@@ -1068,19 +1183,35 @@ export default function ChartSettingsIndicators({
 
   // ─── ONE CATALOGUE RESULT ─────────────────────────────────────────────────
   const renderResult = (row) => {
-    const on = isRowOn(row, settings)
+    // ⛔⛔ A SYMBOL IS NEVER "ALREADY ON". `isRowOn` answers per DEFINITION, and a
+    // symbol row's `id` is a ticker (`QQQ`), not a definition id — three QQQ series
+    // on one chart is a legitimate thing a member may want (§32), and the row that
+    // creates them must keep offering. A row carrying a `create` descriptor is
+    // asked nothing; it simply adds.
+    // ⭐ AND A RESTORE ROW IS AN ADD ROW TOO — see `discoveryCatalog.libraryRowFor`.
+    const creates = symbolRows.byKey.has(row.key) || row.restores === true
+    const on = creates ? false : isRowOn(row, settings)
+    // ⛔ DISCOVERY IS NOT CHARTABILITY. The facade reports what the SERVER already
+    // said — a delisted ticker, an index the bars route will not serve — and
+    // `createFromResult` refuses those by identity. A row that looked live and did
+    // nothing is worse than one that says why, so the reason is printed and the
+    // click is not offered.
+    const refused = row.capability === CAPABILITY.UNSUPPORTED
+    const canAdd = !on && !refused
     return (
       <li
-        key={row.id}
+        key={row.key || row.id}
         role="option"
         aria-selected={on}
+        aria-disabled={refused ? 'true' : undefined}
         data-def-id={row.id}
+        data-result-kind={row.kind || undefined}
         data-user-defined={row.userDefined ? 'true' : 'false'}
         tabIndex={0}
-        className={`${styles.resRow} ${on ? styles.resRowOn : ''}`}
-        onClick={() => { if (!on) addRow(row) }}
+        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
+        onClick={() => { if (canAdd) addRow(row) }}
         onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && !on) { e.preventDefault(); addRow(row) }
+          if ((e.key === 'Enter' || e.key === ' ') && canAdd) { e.preventDefault(); addRow(row) }
         }}
       >
         <span className={styles.resMain}>
@@ -1107,13 +1238,20 @@ export default function ChartSettingsIndicators({
             )}
           </span>
           {row.description && <span className={styles.resBlurb}>{row.description}</span>}
+          {/* The server's own words, where it gave any — `delisted 2022-10-27`,
+              `index history not served by /api/bars-history`. Never a guess. */}
+          {refused && row.capabilityReason && (
+            <span className={styles.resRefusedWhy} data-testid="result-refusal-reason">{row.capabilityReason}</span>
+          )}
         </span>
         {/* ⛔ "ACTIVE" IS PER-ROW, NOT PER-TYPE, AND IT IS NOT A DEAD END. Several
             definitions can hold more than one line (EMA-style duplicates are the
             point of `addInstance`), so an already-on row keeps offering a second
             — exactly as the library's "+ Add another" does. `volumeProfile` is
             carved out and has nothing to instantiate, so it gets the word alone. */}
-        {on ? (
+        {refused ? (
+          <span className={styles.resActive}><span className={styles.resActiveTag}>Unavailable</span></span>
+        ) : on ? (
           <span className={styles.resActive}>
             <span className={styles.resActiveTag}>Active</span>
             {!row.carvedOut && !row.singleton && (
@@ -1235,7 +1373,15 @@ export default function ChartSettingsIndicators({
         )}
         {results.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
-            {query ? <>No indicator matches “{query}”.</> : <>Nothing in this category.</>}
+            {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
+                network round trip. Telling a member their ticker does not exist
+                while the request for it is still in flight is the one message that
+                makes them stop typing. */}
+            {query
+              ? (symbolsLoading
+                ? <>Nothing matches “{query}” yet — still searching symbols…</>
+                : <>Nothing matches “{query}”.</>)
+              : <>Nothing in this category.</>}
           </div>
         )}
         {groups.map((c) => (

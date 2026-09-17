@@ -1324,6 +1324,11 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         'dataSeries::value',
         // ⭐ and the twenty-second: one definition, any numeric source.
         'movingAverage::ma',
+        // ⭐ and the twenty-third — the ONE addition here that is not a new number
+        // on screen. `$ Vol` was already printed, by hand, into the volume pane's
+        // label strip; declaring a chip is what lets a member name it, hide it,
+        // recolour it and remove it like every other line.
+        'dollarVolume::dv',
         // the ten Task 2 declared…
         'adx::adx', 'atrBands::middle', 'avwap::avwap', 'bb::middle', 'cci::cci',
         'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',
@@ -1453,7 +1458,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const id = chip.getAttribute('data-instance-id')
     expect(id, 'the ATR chip does not name an atr instance').toContain('atr')
     await openChip(view, 'ATR')
-    await act(async () => { rowStarting('Edit in Chart Data').click() })
+    await act(async () => { rowStarting('Edit in Indicators').click() })
     // ⭐⭐ ONE CHANNEL. A mount that HAS the workspace modal gets
     // `onOpenSettings('data:<instanceId>')` — the same `scrollTo` string
     // `watermark` / `axis` / `volume` / `ind:` ride, which `ChartSettingsModal`
@@ -1497,7 +1502,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const text = menu.textContent
     // ⚰️ THESE NAMED THE CHIP — `Hide RSI(14)`, `Add alert on RSI(14)…`. The
     // popover's header names it now, so the rows are bare verbs (owner, density).
-    for (const row of ['Hide', 'Display in', 'Edit in Chart Data', 'Add alert…',
+    for (const row of ['Hide', 'Display in', 'Edit in Indicators', 'Add alert…',
       'About', 'Delete']) {
       expect(text, `${row} is missing from the chip menu`).toContain(row)
     }
@@ -1802,7 +1807,7 @@ describe('W0.1 — a colour change through the settings dialog', () => {
     expect(chipEl, 'no RSI chip — the door this case drives does not exist').toBeTruthy()
     await act(async () => { fireEvent.contextMenu(chipEl, { clientX: 40, clientY: 40 }) })
     const edit = [...document.body.querySelectorAll('[role="menu"] button')]
-      .find(b => (b.textContent || '').startsWith('Edit in Chart Data'))
+      .find(b => (b.textContent || '').startsWith('Edit in Indicators'))
     expect(edit, 'the popover has no full-editor row').toBeTruthy()
     await act(async () => { fireEvent.click(edit) })
     const dialog = screen.getByRole('dialog')
@@ -2016,6 +2021,26 @@ describe('the volume pane — its legend row and its own strip', () => {
   const volRow = (view) => legendRows(view).find((r) => r.dataset.legendRow === 'volume')
   const strip = (view) => view.container.querySelector('[class*="volLegend"]')
 
+  /** A crosshair that actually carries a VOLUME reading.
+   *
+   *  ⚰️ EVERY CASE BELOW USED TO GET ONE BY ACCIDENT. The strip's old render gate
+   *  was `volume != null || dollarVol != null || volAvg != null`, and `volAvg` was
+   *  non-null on every chart because `CHART_DEFAULTS.volume.maPeriod` was 50 — so a
+   *  crosshair carrying NO volume still drew the strip, on the strength of an
+   *  average nobody had asked for. The default is 0 now (owner §16), which makes
+   *  the accident visible: a case about the volume READOUT has to deliver a volume.
+   *
+   *  ⛔ READ OFF THE SERIES THE CHART ACTUALLY DREW, by identity — the same way
+   *  *"a VISIBLE volume pane prints its value"* above does it, and for the reason
+   *  that case records: a payload built by hand proves nothing about the wiring. */
+  const crosshairWithVolume = (value = 69800000) => {
+    const vol = H.addSeriesCalls.find(c => String(c.ctor) === 'HistogramSeries')
+    if (!vol) throw new Error('no volume series was drawn — nothing could report a figure')
+    const ev = crosshairWith()
+    ev.seriesData.set(vol.series, { value })
+    return ev
+  }
+
   it('⭐ a HIDDEN volume pane KEEPS its legend row, dimmed and valueless', async () => {
     // ⚰️ THE GATE WAS `crosshairData.volume != null`. Hiding the pane stops the
     // series reporting, so the payload's `volume` went null and the row VANISHED —
@@ -2087,21 +2112,59 @@ describe('the volume pane — its legend row and its own strip', () => {
     // ask was really about: *"when I hover over this with my mouse"* — the thing
     // being pointed at is the readings, not a cell to their right.
     const view = draw(mergeChartSettings({ volume: { separatePane: true, labelVisible: true } }))
-    await settledLegend(view, crosshairWith())
+    await settledLegend(view, crosshairWithVolume())
     const box = strip(view)
     expect(box, 'the volume strip did not render').toBeTruthy()
     expect(box.querySelector('[data-legend-ctl]'), 'a control cell is back on the strip')
       .toBeFalsy()
     expect(box.querySelectorAll('button'), 'a control button is back on the strip')
       .toHaveLength(0)
-    expect(box.getAttribute('role')).toBe('button')
-    expect(box.getAttribute('tabindex')).toBe('0')
-    expect(box.getAttribute('aria-haspopup')).toBe('menu')
+    // ⚰️⚰️ THE DOOR MOVED FROM THE BOX TO THE ROWS (2026-09-16). The strip used to
+    // be ONE `role="button"` labelled "Volume options" — correct while it held
+    // three readings that were all Volume's. It is a PANE-LOCAL LEGEND now: it
+    // holds Volume, Volume's own moving average, and every series a member has
+    // DISPLAYED in this pane. A single container-level door would have opened
+    // Volume's menu for a click on somebody's `SMA 50`.
+    //
+    // ⛔ SO THE CLAIM IS UNCHANGED AND THE SUBJECT MOVED ONE LEVEL IN: there is
+    // still no control CELL and no revealed button; the readings themselves are
+    // the trigger, one row at a time, through the same `LegendRow` contract every
+    // other manageable row uses.
+    const row = box.querySelector('[data-legend-row="volume"]')
+    expect(row, 'the volume row is not in the volume pane').toBeTruthy()
+    expect(row.getAttribute('role')).toBe('button')
+    expect(row.getAttribute('tabindex')).toBe('0')
+    expect(row.getAttribute('aria-haspopup')).toBe('menu')
     // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". This is what a screen reader and
     // the tooltip get; an unnamed trigger announces a button called " options".
-    expect(box.getAttribute('aria-label')).toBe('Volume options')
-    // …and the strip still prints no fourth `Vol 69.8M` of its own.
-    expect(box.textContent).not.toMatch(/Vol\s*$/)
+    expect(row.getAttribute('aria-label')).toBe('Volume options')
+  })
+
+  it('⭐⭐ A SEPARATE VOLUME PANE OWNS ITS OWN ROW, AND A BAND HAS NO PANE TO OWN IT', async () => {
+    // ⭐ THE UNIVERSAL RULE, AT THE ONE END A UNIT SUITE CAN REACH: a series'
+    // readout lives in the pane it is DISPLAYED in. Volume in a pane of its own has
+    // a row in THAT pane's strip; a BANDED volume is drawn inside the candles' pane
+    // and has no strip at all, so its reading stays with the price legend. The
+    // second half is not an exception — it is the same rule reaching the other
+    // answer, which is why both are asserted together.
+    //
+    // ⚠️ THE PRICE STACK'S HALF IS A SOURCE RAIL, NOT A RENDER ONE, and deliberately:
+    // this harness mounts the FLAT legend (no suite in this repo mounts
+    // `verticalLegend` — see `legendV2.test.jsx`'s header for why), and in the flat
+    // layout `V` is part of the `O H L C V` bar reading rather than a study row.
+    // The V2 stack's gate — `volRowInPriceStack = volLegendRowVisible &&
+    // !volumeOwnsItsPane` — is asserted at source in `legendV2.test.jsx` and on
+    // screen in the pane harness.
+    const own = draw(mergeChartSettings({ volume: { separatePane: true, visible: true } }))
+    await settledLegend(own, crosshairWithVolume())
+    const inStrip = strip(own)?.querySelector('[data-legend-row="volume"]')
+    expect(inStrip, 'a separate volume pane has no row of its own').toBeTruthy()
+    cleanup(); H.reset()
+
+    const band = draw(mergeChartSettings({ volume: { separatePane: false, visible: true } }))
+    await settledLegend(band, crosshairWithVolume())
+    expect(strip(band), 'a banded volume grew a pane strip it has no pane for').toBeFalsy()
+    expect(volRow(band), 'a banded volume lost its reading entirely').toBeTruthy()
   })
 
   it('⛔ the strip takes the SAME hover treatment every manageable row takes', () => {
@@ -2159,9 +2222,22 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(volVal.color).toBe(legVal.color)
     expect(volVal['font-weight']).toBe(legVal['font-weight'])
     // ⚠️ SIZE IS ON THE CONTAINERS, not on the label/value rules.
-    expect(decls('.legend')['font-size']).toBe('10px')
+    // ⭐⭐ DERIVED FROM `.legend`, NOT TYPED. This pair used to be pinned to the
+    // literal `10px` on both sides, so the legend's typography pass (10 → 11px)
+    // failed here — correctly, because the strip had NOT moved with it and the
+    // owner's rule is that a pane's labels and values read the same as the
+    // legend's. A typed literal makes that rail need editing on every scale
+    // change, which is the pressure that eventually loosens it; an equality does
+    // not. What it asserts is unchanged: ONE readout language on the chart.
+    const legendSize = decls('.legend')['font-size']
+    expect(legendSize, 'the legend declares no size to match').toMatch(/^\d+(\.\d+)?px$/)
     const volLegend = css.match(/\.volLegend,\s*\.paneLegend\s*\{([^}]*)\}/)
     expect(volLegend, 'the strip no longer shares the readout box rule').toBeTruthy()
-    expect(volLegend[1]).toMatch(/font-size:\s*10px/)
+    expect(volLegend[1], `the volume strip drifted from the legend's ${legendSize}`)
+      .toMatch(new RegExp(`font-size:\\s*${legendSize}`))
+    const paneLegend = css.match(/(?:^|\n)\.paneLegend\s*\{([^}]*)\}/)
+    expect(paneLegend, 'the pane readout rule is gone').toBeTruthy()
+    expect(paneLegend[1], `the pane readout drifted from the legend's ${legendSize}`)
+      .toMatch(new RegExp(`font-size:\\s*${legendSize}`))
   })
 })

@@ -340,6 +340,26 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // corpus, which is the §20 promise that a schema gaining a field must not
       // churn every saved chart. No per-definition door changed behaviour.
       // (Prior value: a6a030675093753839f67f0a3702b4a2bd947cd73b430119badf49787065261f)
-      .toBe('e43a0f1f2e9469941fa3b42f2a584648ad397d9c672ce5b4adc385ee96e8a3cd')
+      // 2026-09-16: re-pinned for `dollarVolume` — a REGISTRY ADDITION, not a door
+      // change, exactly like `dataSeries` and `movingAverage` above.
+      // ⛔ INVESTIGATED, NOT REGENERATED, by the same measurement: the corpus
+      // rebuilt with `dollarVolume` SKIPPED digests to
+      // `e43a0f1f2e9469941fa3b42f2a584648ad397d9c672ce5b4adc385ee96e8a3cd` — the
+      // previous pin, byte for byte — so every pre-existing definition's
+      // enable/input/disable blobs are untouched. It contributes TWO elements per
+      // base (280 vs 270 over five bases), not three, because it declares no `int`
+      // input: dollar volume is `volume × close` and has nothing to parameterise.
+      // (Prior value: e43a0f1f2e9469941fa3b42f2a584648ad397d9c672ce5b4adc385ee96e8a3cd)
+      // 2026-09-16: re-pinned again, for `CHART_DEFAULTS.volume.maPeriod` 50 → 0 —
+      // the automatic 50-day volume moving average the owner's §16 removes. A
+      // DEFAULT VALUE edit, not a door change and not a key change.
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED. The corpus was rebuilt with
+      // `volume.maPeriod` forced back to 50 in every base and NOTHING else altered;
+      // it digests to
+      // `78107b0d261ec5dc0d4eaa59918be586245d044b450f89fa7d6cf9b1855d9fc7` — the
+      // previous pin, byte for byte. So the one moving part is that value: no key
+      // was added or removed, and no per-definition door behaves differently.
+      // (Prior value: 78107b0d261ec5dc0d4eaa59918be586245d044b450f89fa7d6cf9b1855d9fc7)
+      .toBe('596ff356bbd69685a073971857eb1876e6c1d9eb62ca715202dc4dffe28cea16')
   })
 })

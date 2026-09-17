@@ -79,7 +79,15 @@ import { liveOverlays, isVolumeRemoved, isOverlayRemoved, newOverlay } from './c
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
-import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+// ⭐⭐ THE SAME UNIFIED DOOR THE SETTINGS TAB OPENS. Symbols and breadth are
+// results in this list too, created through `createFromResult` — one discovery
+// facade, one creation composition, two mount points. A member who can search
+// `QQQ` from Chart Settings and not from the toolbar has two products.
+import {
+  LIBRARY_HIDDEN_IDS, hiddenLibraryIds, libraryRowFor, symbolLibraryRow,
+  createFromResult, CAPABILITY,
+} from './discoveryCatalog'
+import useSymbolDiscovery from './useSymbolDiscovery'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -277,15 +285,46 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // to anybody. Its member-facing rows are `QQQ` and `UCTA50`, which carry the
   // source that gives it meaning — and those arrive through symbol search, not
   // through this list.
+  // ⭐ THE BUILT-IN ROWS ARE SUBTRACTED TOO (2026-09-15). The hidden list used to
+  // apply only to definitions because only a definition had ever needed hiding;
+  // the legacy `ma` row is the first BUILT-IN that does. It is SETTINGS-AWARE —
+  // hidden on an ordinary chart so browse shows one Moving Average, offered again
+  // when there is a tombstoned overlay to revive. See `hiddenLibraryIds`.
+  const hidden = hiddenLibraryIds(settings)
+  // ⭐ AND THE REVEALED REVIVE ROW IS RENAMED — *Restore EMA 9*, not a second row
+  // reading "Moving Average". See `discoveryCatalog.libraryRowFor`.
   const all = useMemo(
     () => [
-      ...BUILT_IN_ROWS,
-      ...catalogRows(registry).filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
+      ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
+      ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
       ...userCatalogRows(registry),
     ],
-    [registry, generation],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version
+    [registry, generation, hidden, settings],
   )
-  const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
+  // ⛔ ONE SEARCH, SHARED WITH THE SETTINGS TAB AND THE SOURCE PICKER. Same hook,
+  // same endpoints, same debounce, same facade adapters — see the import block.
+  const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, open)
+  // ⛔⛔ THE **RESULT** IS WHAT CREATES, NOT THE ROW: a library row's `shortName`
+  // is its chip (`ETF`), a result's is the series' display NAME. Handing the row
+  // to `createFromResult` would label a QQQ series "ETF" everywhere.
+  const symbolRows = useMemo(() => {
+    const out = []
+    const byKey = new Map()
+    for (const res of symbolResults) {
+      const row = symbolLibraryRow(res)
+      if (!row) continue
+      out.push(row)
+      byKey.set(row.key, res)
+    }
+    return { rows: out, byKey }
+  }, [symbolResults])
+  // ⛔ THE REMOTE ROWS ARE ALREADY THE ANSWER TO THIS QUERY and are not re-filtered
+  // by `matches` — see the settings tab's own note for the measured reason.
+  const rows = useMemo(
+    () => [...all.filter((r) => matches(r, query)), ...symbolRows.rows],
+    [all, query, symbolRows],
+  )
 
   // ─── THE FORMULAS THAT ARE NOT ON THAT LIST, AND WHY ──────────────────────
   const refusals = useMemo(
@@ -313,17 +352,33 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   const groups = useMemo(() => {
     const order = [...new Set(rows.map((r) => r.category))]
     const mine = new Set(rows.filter((r) => r.userDefined).map((r) => r.category))
-    return [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
-  }, [rows])
+    const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+    // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (§9) — the same hoist the settings tab
+    // makes, on the same condition, because the two doors must rank alike.
+    const first = symbolRows.rows[0]
+    const exact = first && String(first.id).toUpperCase() === String(query).trim().toUpperCase()
+      ? first.category : null
+    return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
+  }, [rows, symbolRows, query])
 
   const toggle = useCallback((row) => {
+    // ⭐ A DISCOVERY RESULT CREATES THROUGH THE FACADE. `toggledRow` speaks
+    // definitions, overlays and settings slices; a SYMBOL is none of those, and
+    // `createFromResult` is the one composition that turns one into the canonical
+    // `dataSeries` instance. Refusals stay identity-based at both doors.
+    const res = symbolRows.byKey.get(row.key)
+    if (res) {
+      const created = createFromResult(settings, res, registry)
+      if (created !== settings) onChange?.({ ...created, preset: 'custom' })
+      return
+    }
     const next = toggledRow(row, settings, registry)
     // Identity, not deep-equality: a REFUSED write returns `settings` itself and
     // the caller must be able to skip persisting. Calling `onChange`
     // unconditionally would persist a no-op and mark the preset custom for a
     // click that changed nothing.
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry])
+  }, [settings, onChange, registry, symbolRows])
 
   /** ⭐ chart-UX-walls TASK 6 — "+ Add another", on a row that is already ON.
    *
@@ -392,20 +447,36 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           </button>
         )}
         {rows.length === 0 && refusals.length === 0 && (
-          <div className={styles.empty}>No indicator matches “{query}”.</div>
+          <div className={styles.empty}>
+            {/* ⚠️ A REQUEST IN FLIGHT IS NOT A FINISHED ANSWER, AND BOTH FACTS GO IN
+                ONE SENTENCE. Replacing the line with a bare "Searching…" hid the
+                only thing this box is for — saying that the local catalogue has
+                nothing — and left a member staring at a spinner-word when their
+                query was never going to match anything. Saying "nothing yet, still
+                looking" is true at every moment of the round trip. */}
+            {symbolsLoading
+              ? `Nothing matches “${query}” yet — still searching symbols…`
+              : `Nothing matches “${query}”.`}
+          </div>
         )}
         {groups.map((category) => (
           <section key={category} className={styles.group}>
             <h3 className={styles.groupHead}>{category}</h3>
             <ul className={styles.list} role="listbox" aria-label={category}>
               {rows.filter((r) => r.category === category).map((row) => {
-                const on = isRowOn(row, settings)
+                // ⛔ A SYMBOL IS NEVER "ALREADY ON" — `isRowOn` answers per
+                // DEFINITION and a symbol row's id is a ticker. Three QQQ series on
+                // one chart is legitimate (§32), so the row keeps offering.
+                // ⭐ AND SO IS A RESTORE ROW — `discoveryCatalog.libraryRowFor`.
+                const creates = symbolRows.byKey.has(row.key) || row.restores === true
+                const on = creates ? false : isRowOn(row, settings)
                 return (
                   <li
-                    key={row.id}
+                    key={row.key || row.id}
                     role="option"
                     aria-selected={on}
                     data-def-id={row.id}
+                    data-result-kind={row.kind || undefined}
                     /* ⭐ THE PROVENANCE, ON THE ROW ITSELF. A member's formula is
                        a different KIND of thing from a shipped indicator — they
                        wrote it, only they have it, and it is theirs to delete —

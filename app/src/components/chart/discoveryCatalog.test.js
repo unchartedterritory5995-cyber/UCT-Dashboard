@@ -476,9 +476,20 @@ describe('§32, §33 · a direct series is not called "Series"', () => {
     expect(instanceLabel(rsiDef, { defId: 'rsi', inputs: { period: 14 } })).toBe('RSI (14)')
     expect(instanceLabel(rsiDef, { defId: 'rsi', inputs: { period: 7 } })).toBe('RSI (7)')
     // …and `movingAverage`, which also takes a source but names itself.
+    //
+    // ⭐⭐ UPDATED 2026-09-16 — IT NAMES ITSELF `SMA 5`, NOT `MA (5)`. The
+    // definition now declares `meta.nameFrom` (`engine/semanticName.js`), so its
+    // stem is the member's own `maType` choice read back from the enum's option
+    // LABEL. The assertion this replaces was asserting that `movingAverage` took
+    // the GENERIC path — which was true and is exactly what the owner reported as
+    // "two different kinds of Moving Average", because `cs.overlays`' rows have
+    // always read `EMA 9` / `SMA 200`.
     expect(instanceLabel(registry.getDefinition('movingAverage'),
       { defId: 'movingAverage', inputs: { source: 'sym:QQQ:close', period: 5 } }))
-      .toBe('MA (5)')
+      .toBe('SMA 5')
+    expect(instanceLabel(registry.getDefinition('movingAverage'),
+      { defId: 'movingAverage', inputs: { maType: 'ema', period: 9 } }))
+      .toBe('EMA 9')
   })
 
   it('⛔ no member-facing surface calls a QQQ series "Series"', () => {

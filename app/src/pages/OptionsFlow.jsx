@@ -1901,7 +1901,12 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (!SERVER_TOPPICKS) return;
     if (!D || D.all_directional) return;      // nothing missing
-    if (servedTopPicks) return;               // the product answered
+    // The product answered, so the TOP 10 table needs no raw rows — UNLESS the
+    // member has EXPANDED a pick. The expand panel's "TOP N TRADES BY PREMIUM"
+    // reads all_directional (via `ad`), which the server-product path never
+    // ships, so an expanded row rendered blank. Expanding is the on-demand
+    // trigger that makes the ~1.9 MB raw fetch worth its cost.
+    if (servedTopPicks && !top5Detail) return;
     if (D.TOP_PICKS && etfGeneration === null) return;  // generation still in flight
     if (_rawPartsAsked.current) return;
     _rawPartsAsked.current = true;
@@ -1917,7 +1922,7 @@ export default function OptionsFlowDashboard() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [D, servedTopPicks, etfGeneration, csvFile, dateFilter]);
+  }, [D, servedTopPicks, top5Detail, etfGeneration, csvFile, dateFilter]);
 
   const FD = useMemo(() => {
     // ⛔ FD IS TRACED SEPARATELY. The last branch returns a PLAIN copy of D, and
@@ -5988,6 +5993,16 @@ export default function OptionsFlowDashboard() {
               const standoutCandidates = _picksSrc.standoutCandidates;
               const _adCount = servedTopPicks ? servedTopPicks.adCount : _local.ad.length;
               if (!_adCount) return null;
+              // ⛔ `ad` (per-ticker all_directional rows) is read by the row-expand
+              // "TOP N TRADES BY PREMIUM" panel below (~L6269). The 3b refactor
+              // dropped its top-level declaration — the note above claimed `ad` was
+              // "only ever read for ad.length", which missed that second consumer —
+              // so every pick-row click threw `ReferenceError: ad is not defined`
+              // and blanked the page. Local path carries the rows; the server-product
+              // path ships adCount only, so fall back to whatever all_directional is
+              // present (empty -> the panel's own `if(!trades.length) return null`
+              // simply hides the trade table, no crash).
+              const ad = _local ? _local.ad : (D.all_directional || []);
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Standout" ? standoutCandidates
                 : top5Filter==="Both" ? candidates
@@ -7463,7 +7478,17 @@ export default function OptionsFlowDashboard() {
                 // used `q` (lower) against lower-cased haystacks; ticker
                 // path was the odd one out.
                 const qUpper = search.toUpperCase();
-                const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(qUpper)).slice(0,8);
+                // ⛔ ALL_SYMS IS A DEFERRED PART THAT IS NEVER FETCHED on the
+                // parts path (flowBootstrap: DEFERRED_KEYS_BY_SURFACE.search lists
+                // it, but no fetch site requests it), so `D.ALL_SYMS` is undefined
+                // and a bare `.filter` threw TypeError on the FIRST keystroke —
+                // crashing the whole Search tab. Fall back to TICKER_DB (which IS
+                // loaded via INTERACTION_PARTS) so suggestions still work; the
+                // `|| []` is the final guard for the window before either lands.
+                const symUniverse = (D.ALL_SYMS && D.ALL_SYMS.length)
+                  ? D.ALL_SYMS
+                  : (tickerDb.map(t=>t.s));
+                const tickerMatches = (symUniverse || []).filter(s=>s.startsWith(qUpper)).slice(0,8);
                 const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
                 const allSectors = [...new Set(tickerDb.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
                 const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
@@ -8713,8 +8738,12 @@ export default function OptionsFlowDashboard() {
                     const isEtf = isETF(w.S, "");
                     return dataMode === "stocks" ? !isEtf : isEtf;
                   };
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
-                    : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
+                  // ⛔ WATCH is a DEFERRED part that no fetch site requests on the
+                  // parts path (same gap as ALL_SYMS), so `D.WATCH` is undefined
+                  // and a bare `.filter` crashed the OI Check tab on open. Guard so
+                  // the tab renders empty instead of throwing until WATCH is wired.
+                  const visible = oiSearch ? (D.WATCH||[]).filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
+                    : (D.WATCH||[]).filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -8731,8 +8760,11 @@ export default function OptionsFlowDashboard() {
                 const isEtf = isETF(w.S, "");
                 return dataMode === "stocks" ? !isEtf : isEtf;
               };
-              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
-                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
+              // ⛔ WATCH is never fetched on the parts path (see the button guard
+              // above) — this render-time `.filter` is what actually blanked the
+              // OI Check tab on open. Guard against the undefined deferred key.
+              const watchAll = oiSearch ? (D.WATCH||[]).filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
+                : (D.WATCH||[]).filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
               // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);

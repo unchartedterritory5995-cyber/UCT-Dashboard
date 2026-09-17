@@ -42,11 +42,22 @@ def clip_candidates(video_id: int, since: Optional[str] = None) -> dict:
         body["segments"] = [dict(r) for r in conn.execute(
             f"SELECT {', '.join(SEGMENT_KEYS)} FROM wisdom_segments WHERE source_id = ? ORDER BY ordinal",
             (src["source_id"],))]
+        # ⛔ Item 3, owner ruling R10_ITEM3_CLIPS: FLOOR (2026-09-14). This export reads ALL SIX
+        # record types with NO feature flag of its own — it is gated only by require_push_secret
+        # (routes.py:160-162) — and it emits `record_type` beside `author_id`. No quote or
+        # statement text leaves (RECORD_KEYS above), so the owner's call was whether a
+        # metadata-only internal export counts as publishing under a named author. It does: the
+        # ruling is FLOOR, so below-floor PRINCIPLE and MARKET_SIGNAL rows do not appear here
+        # either. Same predicate as every other site — floor.sql_clause, one authority.
+        from api.services.wisdom.publish import floor
+
+        floor_clause, floor_params = floor.sql_clause("r")
         sql = ("SELECT r.record_id, r.record_type, r.stance, r.hindsight, r.ticker, r.author_id, r.is_guest, "
                "r.vocab_id, r.stated_outcome, r.status, r.stated_at_et, s.t_start_s, s.t_end_s "
                "FROM wisdom_records r JOIN wisdom_segments s ON s.segment_id = r.segment_id "
-               "WHERE r.source_id = ? AND r.status IN ('provisional', 'confirmed')")
-        params: list = [src["source_id"]]
+               "WHERE r.source_id = ? AND r.status IN ('provisional', 'confirmed') "
+               f"AND {floor_clause}")
+        params: list = [src["source_id"], *floor_params]
         if since:
             sql += " AND r.created_at >= ?"
             params.append(since)

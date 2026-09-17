@@ -115,7 +115,7 @@ function mountDialog(settings, onChange) {
   }
   return render(<Harness />)
 }
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 
 /** One indicator's ROW in the dialog, OPENED.
  *
