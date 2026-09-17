@@ -119,3 +119,46 @@ observation, and a stall smaller than the window's current max is invisible.
    fixed code shows no ≥1,000 ms stall) and the mutation (fix removed → RED).
 4. Re-run this census across the next 10 pods after the fix. The number to beat is
    **29.7/day and 7.8/day**.
+
+---
+
+## Re-measured 2026-09-17 09:40 ET — 41 pods, 35.8 h, and the tier-1 class is now mostly BOOT
+
+```
+pods 41 | readings 1359 | gaps 31 | span 35.8 h
+identity coherence: 0 pod(s) with non-monotonic wall-clock (MUST be 0)
+>=1000 ms :   46 events    30.9/day   SETTLED 27
+>=5000 ms :   13 events     8.7/day   SETTLED  4   <- R34 tier-1 page rate
+pods affected: 18 of 41
+```
+
+⭐ **THE SPLIT INSIDE THE TIER-1 CLASS IS THE NEW FACT, and it is sharper than any ratio.**
+Of the **13** events ≥5,000 ms — the class R34 pages on at any uptime — only **4 are SETTLED**.
+**Nine are boot-window.** Compare the ≥1,000 ms class, where 27 of 46 are settled. So:
+
+- the ≥1 s population is **majority settled-pod** (27/46) — which is what overturned Q6's STARTUP
+  verdict, and still does;
+- the ≥5 s population, the one that actually pages, is **majority boot-window** (9/13).
+
+⛔ **Both sentences are true and they are about different populations.** Quoting either alone
+produces a wrong impression of where the pages come from. The census's own headline — *"27 of 42
+are settled"* — is about the ≥1 s class and was never a statement about tier 1.
+
+**Six of the ten largest events on record are BOOT class**, including the two measured today:
+
+```
+   29241.5 ms  uptime 0-153s   BOOT  Thu 09-17 09:22 ET  26147924dcbd
+   10469.7 ms  uptime 0-187s   BOOT  Thu 09-17 09:01 ET  d9455a6d64a5   <- PAGED
+   38869.2 ms  uptime 0-126s   BOOT  Wed 09-16 13:16 ET  792722de7386
+   25213.0 ms  uptime 0-134s   BOOT  Tue 09-15 23:00 ET  076fe5620448
+   18741.0 ms  uptime  0-71s   BOOT  Tue 09-15 22:40 ET  465b12e3601f
+```
+
+…against the single largest, which remains settled: **80,249 ms at uptime 2,510–2,838 s** on
+`fea2778d85cd`, inside the post-close cluster that is still unattributed.
+
+⚠️ **The 8.7 tier-1 events/day figure is a PAGE-ELIGIBLE rate, not a page rate.** Two of today's
+were eligible and only one paged — the durable 30-minute cooldown correctly swallowed the second,
+which happened to be the larger (29.2 s). See
+`evidence/oi44-attribution/2026-09-17-boot-storm.md` §7. **R35 still governs: the threshold moves
+after the cause is fixed, never to make a symptom louder or quieter.**
