@@ -2446,6 +2446,50 @@ itself a STOP — write the correction and end the turn. The only acceptable for
 are *"`<fn>` at `<file:line>`, from `evidence/<run-id>/ring.json` entry N"* or
 *"not named; the ring showed X"*.
 
+### ⛔⛔ A THROWAWAY PROBE GETS A CONTROL TOO — show it the OTHER answer first
+
+> **Before an ad-hoc probe's first result is reported or acted on, show it returning the OTHER
+> answer on a known case. No control, no result.**
+
+Owner ruling, 2026-09-17. The non-vacuity rule below already covers rails. This extends it to the
+five-line thing you write mid-run to check something — because that is where it keeps failing.
+
+⚰️ **FOUR IN ONE SESSION, ALL THE SAME DEFECT, ALL FLATTERING.** Each was a probe written in the
+moment, whose FIRST answer was believed because nothing had ever shown it capable of a second:
+
+| the probe | what it read | the field/behaviour that actually exists | what it reported |
+|---|---|---|---|
+| sampler intruders | `x.get("cmdline")` | `command_line` | 13 intruders with blank command lines — *"the tool is misclassifying"* (it was not) |
+| box-lock waiter | `status().get("held")` | `state` / `live` | **FREE** on a lock that was held by a live six-shard gate |
+| report sheet | `trace.recorded` | `trace.window.recorded` | *"No gesture trace"* while a trace was attached |
+| deploy watcher | `sha` never exported, so `commitHash.startswith("")` | — | another session's **SUCCESS** reported as mine |
+
+⭐ **THE COMMON SHAPE IS NOT "WRONG KEY". It is that every one of them returned a PLAUSIBLE answer
+on the first call and was never asked to produce the opposite.** A probe that can only say "no
+intruders / free / no trace / success" is indistinguishable from a probe that is right, and all four
+failed toward *"everything is fine"*, which is the direction that gets acted on.
+
+⛔ **THE CONTROL IS ONE EXTRA CALL, AGAINST A CASE YOU ALREADY KNOW THE ANSWER TO:**
+
+```python
+# BEFORE trusting a lock probe, assert it can SEE a hold you know exists:
+s = L.status(); held = s.get("state") == "HELD" and s.get("live") is True
+assert held, "the predicate cannot see a lock we independently confirmed is held"
+
+# BEFORE matching a deploy row, refuse the vacuous match outright:
+assert sha, "empty sha would match every row via startswith()"
+```
+
+⭐ **AND THE ARTIFACT IS THE BACKSTOP WHEN THE CONTROL IS MISSING.** The deploy watcher was caught
+only because `/api/health` reported `uptime_seconds: 10587` — no restart — which contradicted the
+row it had just believed. Verify a deploy by the ARTIFACT, never by the deployment row; that rule
+already exists below and it is what saved this one.
+
+⚠️ **Corollary, learned the same day:** when a probe disagrees with a tool, the tool is usually
+right. All four times the instrument under suspicion — `gate_box_sampler`, `gate_box_lock`,
+`gestureTrace` — was working correctly and the throwaway was not. Suspect the thing you wrote sixty
+seconds ago before the thing that has been mutation-proved.
+
 ### ⛔ An empty result is a failed invocation until proven otherwise (Testing)
 
 > **Any rail that shells out — git, a subprocess, the network — carries a NON-VACUITY CONTROL: a
