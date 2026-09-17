@@ -6,23 +6,16 @@
 
 TWO GUARDS, TWO DIFFERENT FAILURES:
 
-  1. ⚰️ **THE CLOCK — RETIRED (R18, owner ruling 2026-09-15). IT NO LONGER
-     REFUSES ANYTHING.** It once refused a master push between **09:25 and 16:05
-     ET on trading days** unless the diff was entirely within the paths
-     `docs/runbooks/deploy-windows.md` cleared for daytime. The owner's words
-     retiring it: *"we no longer have mid day blocks ever."* The constants
-     `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are
-     DELIBERATELY KEPT — `deploy-windows.md`, `tools/flow_worker_watch_coverage.py`
-     and this tool's JSON still read the Tier classification — but the clause
-     returns OK. See the R18 note beside that return before changing any of it.
+  1. ⚰️ **THE CLOCK — DELETED. There is no market-hours window.**
+     Owner ruling 2026-09-17: *"I am sick of the no push window during market
+     hours. Remove that from whatever is causing this every day. Remove that
+     permanently."* R18 had retired the REFUSAL in 2026-09-15 while keeping the
+     constants, the override env var and a log line that all still named
+     09:25–16:05 — so every session reading this file re-learned a rule that no
+     longer existed, and every prompt reading their output re-inherited it.
+     Presence was the problem, not the predicate. All of it is now gone, and
+     `tests/test_no_market_hours_window.py` fails the gate if it returns.
 
-     The incident it was written from is kept, because the lesson outlived the
-     rule: on 2026-09-14 the integrator reasoned that a push should wait for the
-     16:00 close, wrote that decision down, set a background timer to gate it —
-     and pushed at **15:49 ET** anyway, acting on a mental estimate of elapsed
-     time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted
-     in the last eight minutes of RTH. **A decision written down is not a decision
-     enforced** — which is exactly why clauses 2 and 3 are code, not guidance.
   2. **THE QUEUE** — the one-merge-at-a-time rule, below.
 
 ⚰️ **THE RULE WAS ALREADY WRITTEN AND IT WAS NOT FOLLOWED.** `CLAUDE.md` carries
@@ -61,13 +54,10 @@ commit still means the pod is settled, which is the property that matters for
 *your* push. Requiring your own parent would refuse every legitimate push in a
 repo five workstreams share.
 
-**Bypass** — deliberate, loud, and logged. ⛔ TWO SEPARATE OVERRIDES, ON PURPOSE:
-overriding "the pod is mid-swap" is not the same act as overriding "the market is
-open", and one variable for both would let a reflex for the cheap one silently
-buy the expensive one.
+**Bypass** — deliberate, loud, and logged. ONE override, because there is one
+thing left to override: the deploy queue.
 
     UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master                  # the QUEUE
-    UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push …         # the CLOCK
 
 Every bypass appends to `logs/pre-push-guard-bypass.log` with the user, the time
 and the state that was overridden, so a bypass is a record rather than a silence.
@@ -501,15 +491,6 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None,
 # GUARD 2 — THE CLOCK (owner ruling A2, 2026-09-14)
 # ═════════════════════════════════════════════════════════════════════════════
 
-#: The closed window, ET, on trading days. Half-open: 09:25:00 is refused,
-#: 16:05:00 is allowed. Owner ruling A2, verbatim: "refuses any master push
-#: between 09:25 and 16:05 ET on trading days".
-RTH_GUARD_OPEN = (9, 25)
-RTH_GUARD_CLOSE = (16, 5)
-
-#: ⛔ AN EXACT VALUE, NOT `=1`. Typing this is an act; typing `1` is a reflex.
-CLOCK_OVERRIDE_ENV = "UCT_DEPLOY_WINDOW_OVERRIDE"
-CLOCK_OVERRIDE_VALUE = "I-ACCEPT-AN-RTH-RESTART"
 
 # ⛔⛔ DERIVED FROM `docs/runbooks/deploy-windows.md`, NOT INVENTED. The runbook is
 # the single authority on push timing; these two lines are quoted from it verbatim
@@ -613,105 +594,6 @@ def uncleared_paths(paths) -> list[str]:
     return sorted(p for p in paths if not is_cleared(p))
 
 
-def next_allowed_et(now_et: "dt.datetime") -> "dt.datetime":
-    """The concrete instant this push stops being refused: today's 16:05 ET.
-
-    A refusal only ever happens INSIDE the window on a trading day, so the next
-    allowed instant is always the window's close on the same date."""
-    return now_et.replace(hour=RTH_GUARD_CLOSE[0], minute=RTH_GUARD_CLOSE[1],
-                          second=0, microsecond=0)
-
-
-def _hhmm(t) -> str:
-    return "%02d:%02d" % t
-
-
-def decide_clock(clock: dict, paths) -> tuple[str, str]:
-    """(verdict, reason). Pure — the tests drive it directly, no git and no import."""
-    if clock.get("state") == UNREADABLE:
-        # ⛔ THE LOAD-BEARING BRANCH. A guard that passes when it cannot tell the
-        # time is not a guard — it reports "fine" precisely when it has stopped
-        # working, which is how 15:49 became 16:00 in somebody's head.
-        return REFUSE, ("cannot determine the market clock (%s). REFUSING: a guard that "
-                        "passes when it cannot tell the time is not a guard.\n"
-                        "  next allowed:   UNKNOWN — fix the clock, or override deliberately "
-                        "with %s=%s" % (clock.get("why"), CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE))
-
-    now_et = clock["now_et"]
-    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
-
-    # ⛔⛔ R18 — THE RTH DEPLOY WINDOW IS RETIRED, PROGRAMME-WIDE.
-    # Owner ruling, stated in chat 2026-09-15, entered by Claude (chat): "there are no
-    # mid-day deploy blocks." The 09:25-16:05 ET refusal is withdrawn. This function no
-    # longer gates on the clock at all — it reads it, reports it, and returns OK.
-    #
-    # ⛔ WHAT DID **NOT** CHANGE, AND WHY THIS IS NOT A WEAKER GUARD. Every other clause
-    # stands untouched, and they are the ones that were actually load-bearing:
-    #   * the CADENCE rail (600 s recency + 3 commits/hour burst) — the clause that
-    #     catches the real failure, a push landing inside another deploy's 3-5 min build
-    #     and marking it REMOVED mid-flight (2026-09-12 and 2026-09-14, both measured);
-    #   * last web deploy SUCCESS, and no deploy in flight;
-    #   * fail-closed on an unreadable clock or unreadable deploy history.
-    # ⭐ The window was a PROXY for "do not disturb members", and it was a bad one: it
-    # blocked a docs push at 11:00 and permitted two stacked merges at 16:06. The cadence
-    # rail measures the thing the window was guessing at.
-    #
-    # ⚠️ THE UNREADABLE-CLOCK BRANCH ABOVE IS DELIBERATELY KEPT, and it is now the only
-    # consumer of the clock. R18 lists "fail-closed on unreadable clock" among the clauses
-    # to leave intact, so it stays — but a reader should know the tension: a guard that
-    # refuses on a clock it no longer gates on is stricter than it needs to be. That is the
-    # ruling's call, recorded here rather than quietly "improved".
-    #
-    # ⚠️ `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are KEPT: the
-    # Tier classification is still read by `docs/runbooks/deploy-windows.md`,
-    # `tools/flow_worker_watch_coverage.py` and the JSON output. They no longer REFUSE.
-    if not clock.get("trading_day"):
-        return OK, ("%s is not a trading day (session=%s) — and since R18 the RTH deploy "
-                    "window is retired anyway." % (stamp, clock.get("session")))
-    n_paths = "unknown" if paths is None else str(len(paths))
-    return OK, ("%s — the %s-%s ET deploy window is RETIRED (R18, owner ruling "
-                "2026-09-15). %s changed path(s); cadence and deploy-state clauses still "
-                "apply." % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), n_paths))
-
-
-def _retired_rth_refusal(clock, paths):  # pragma: no cover - retained for history
-    """⚰️ THE REFUSAL R18 RETIRED. Kept as a record of what the window used to say, and
-    deliberately unreachable: `decide_clock` no longer calls it. Deleting it outright would
-    leave the next reader unable to see what the rule WAS when they find R18 in a ledger."""
-    now_et = clock["now_et"]
-    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
-    if paths is None:
-        why = ("the changed-path set could not be read (git did not answer), so the diff "
-               "CANNOT be shown to be cleared")
-        listed = "  not cleared:    UNKNOWN — git did not answer; an unread diff is never exempt"
-    else:
-        unclear = uncleared_paths(paths)
-        if not paths:
-            why = ("the diff is EMPTY, which is a failed measurement rather than a cleared "
-                   "one — an empty result is a failed invocation until proven otherwise")
-            listed = "  not cleared:    UNKNOWN — the diff came back empty; that is not the same as clean"
-        else:
-            shown = unclear[:6]
-            more = "" if len(unclear) <= 6 else " (+%d more)" % (len(unclear) - 6)
-            why = ("%d of %d changed path(s) are NOT cleared for a daytime push"
-                   % (len(unclear), len(paths)))
-            listed = "  not cleared:    %s%s" % (", ".join(shown), more)
-
-    nxt = next_allowed_et(now_et)
-    secs = max(0, int((nxt - now_et).total_seconds()))
-    return REFUSE, "\n".join([
-        "REFUSING A MASTER PUSH — the market is open and this diff is not cleared for daytime.",
-        "  refused:        a push whose destination is master (it restarts web and chart-renderer)",
-        "  now:            %s  (session=%s, a trading day)" % (stamp, clock.get("session")),
-        "  window:         %s-%s ET on trading days" % (_hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)),
-        "  why:            %s" % why,
-        listed,
-        "  next allowed:   %s  — in %dm %02ds" % (nxt.strftime("%Y-%m-%d %H:%M:%S ET"),
-                                                  secs // 60, secs % 60),
-        "  cleared today:  docs/markdown, tests/**, tools/**, scripts/**, app/**  "
-        "(docs/runbooks/deploy-windows.md, Tier 1)",
-        "  deliberate override: %s=%s" % (CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE),
-    ])
 
 
 def main(argv=None) -> int:
@@ -737,18 +619,12 @@ def main(argv=None) -> int:
         return _audit()
 
     # ── THE CLOCK first: it costs no network, and it is the one the owner ruled on.
+    # ⛔ THERE IS NO CLOCK GATE. `read_clock` is kept for REPORTING only (the JSON's
+    # session/trading_day fields); nothing here refuses on the time of day, and nothing
+    # prints a window. Owner ruling 2026-09-17, permanent. See the module docstring.
     clock = read_clock()
     paths = changed_paths(a.base, a.head)
-    cverdict, creason = decide_clock(clock, paths)
-    clock_overridden = (cverdict != OK
-                        and os.environ.get(CLOCK_OVERRIDE_ENV, "").strip() == CLOCK_OVERRIDE_VALUE)
 
-    if cverdict != OK and not clock_overridden and not a.json:
-        # ⛔ Return BEFORE asking Railway anything. A refused push has no queue
-        # question to answer, and a guard that still spends 2s on the CLI teaches
-        # everyone that the refusal is slow rather than that it is right.
-        print("[pre-push] %s" % creason)
-        return 1
 
     dep = latest_deployment()
     verdict, reason = decide(dep)
@@ -771,7 +647,7 @@ def main(argv=None) -> int:
 
     if a.json:
         print(json.dumps({
-            "verdict": OK if (verdict == OK and cverdict == OK and kverdict == OK) else REFUSE,
+            "verdict": OK if (verdict == OK and kverdict == OK) else REFUSE,
             "cadence": {"verdict": kverdict, "reason": kreason,
                         "clause": kclause.get("name"),
                         "attestation": {k: (v.isoformat() if hasattr(v, "isoformat") else v)
@@ -779,28 +655,14 @@ def main(argv=None) -> int:
                         "recent_window_s": RECENT_PUSH_WINDOW_SECONDS,
                         "burst_window_s": BURST_WINDOW_SECONDS,
                         "burst_min": BURST_MIN_DEPLOYS},
-            "clock": {"verdict": cverdict, "reason": creason,
+            "clock": {"gate": "REMOVED (owner ruling 2026-09-17)",
                       "session": clock.get("session"), "trading_day": clock.get("trading_day"),
                       "now_et": clock["now_et"].isoformat() if clock.get("now_et") else None,
                       "changed_paths": paths,
                       "uncleared": None if paths is None else uncleared_paths(paths)},
             "queue": {"verdict": verdict, "reason": reason, "deployment": dep},
         }, indent=1))
-        return 0 if (verdict == OK and cverdict == OK and kverdict == OK) else 1
-
-    if clock_overridden:
-        # ⛔ LOUD. A window override is a member-visible restart during the session;
-        # it should never scroll past unread.
-        _log_bypass({"status": "CLOCK-WINDOW", "commit": clock.get("session")}, creason,
-                    code="CLOCK-WINDOW")
-        print("=" * 78)
-        print("[pre-push] ⚠️  DEPLOY WINDOW OVERRIDDEN via %s" % CLOCK_OVERRIDE_ENV)
-        print("[pre-push] ⚠️  RESTARTING web AND chart-renderer DURING THE SESSION.")
-        print("[pre-push] ⚠️  Logged to %s" % BYPASS_LOG)
-        print("[pre-push] what was overridden:\n%s" % creason)
-        print("=" * 78)
-    else:
-        print("[pre-push] %s" % creason)
+        return 0 if (verdict == OK and kverdict == OK) else 1
 
     if burst_attested:
         # ⛔ LOGGED VERBATIM. An attestation nobody can review afterwards is a

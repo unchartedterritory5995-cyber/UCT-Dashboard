@@ -114,7 +114,9 @@ def _quiet_clock(m, monkeypatch, *, verdict=None, reason="clock: not a trading d
     monkeypatch.setattr(m, "read_clock", lambda *a, **k: {"state": "READ", "session": "weekend",
                                                           "trading_day": False, "now_et": None})
     monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["docs/x.md"])
-    monkeypatch.setattr(m, "decide_clock", lambda *a, **k: (verdict or m.OK, reason))
+    # ⛔ `decide_clock` is GONE (owner ruling 2026-09-17). Nothing to pin out of the
+    # way any more; read_clock is reporting-only. `verdict`/`reason` are accepted and
+    # ignored so the call sites below did not all have to change in the same commit.
 
 
 def test_the_bypass_is_an_env_var_and_it_is_logged(tmp_path, monkeypatch, capsys):
@@ -230,71 +232,6 @@ def _clock(hour, minute, *, session="rth", trading=True, day=(2026, 9, 14), sec=
 
 # ─────────────────────────────── it FAILS CLOSED when it cannot tell the time
 
-def test_an_unreadable_clock_REFUSES():
-    """⛔ THE LOAD-BEARING ONE, and the twin of the deployment-state test above.
-    A guard that passes when it cannot tell the time is not a guard."""
-    v, why = G.decide_clock({"state": G.UNREADABLE, "why": "ModuleNotFoundError: api"},
-                            ["api/main.py"])
-    assert v == G.REFUSE
-    assert "cannot tell the time" in why
-    assert "ModuleNotFoundError" in why
-
-
-# ─────────────────────────────── the window, to the minute
-
-@pytest.mark.parametrize("h,m", [
-    (9, 24), (9, 25), (12, 0), (15, 49), (16, 4), (16, 5), (20, 0), (4, 30),
-])
-def test_the_window_boundaries_are_0925_to_1605_ET(h, m):
-    """⛔⛔ R18 — THE RTH WINDOW IS RETIRED. Every one of these minutes now ALLOWS.
-
-    ⚰️ This case list is kept verbatim, including 15:49 — the exact minute of the
-    2026-09-14 push the window was written for — because the point of the ruling is
-    that the window was the WRONG instrument for that failure, not that the failure
-    was imaginary. What actually caught 2026-09-14 is the cadence rail, and every
-    cadence case in this file still REFUSES.
-    """
-    v, why = G.decide_clock(_clock(h, m), ["api/main.py"])
-    assert v == G.OK, "%02d:%02d ET still refuses — R18 retired the window" % (h, m)
-    assert "RETIRED" in why or "not a trading day" in why
-
-
-def test_the_retired_refusal_is_kept_as_a_record_and_is_unreachable():
-    """⚰️ THE OLD REFUSAL, STILL TESTABLE, DELIBERATELY UNREACHABLE.
-
-    `_retired_rth_refusal` is retained so a reader who finds R18 in a ledger can see
-    what the rule actually SAID. It is not called by `decide_clock` any more, and this
-    asserts both halves: the text is intact, and nothing reaches it."""
-    import inspect
-    v, why = G._retired_rth_refusal(_clock(15, 49, sec=12),
-                                    ["api/services/discord_render/router.py", "docs/note.md"])
-    assert v == G.REFUSE
-    assert "REFUSING A MASTER PUSH" in why
-    assert "2026-09-14 15:49:12 ET" in why
-    assert "2026-09-14 16:05:00 ET" in why
-    src = inspect.getsource(G.decide_clock)
-    assert "_retired_rth_refusal" not in src, "the retired refusal is reachable again"
-
-def test_the_1549_push_is_refused_and_says_exactly_why():
-    """⚰️ RENAMED IN PLACE BY R18: 15:49 is no longer refused BY THE CLOCK.
-
-    The 2026-09-14 push this test was written for is still caught — by the cadence
-    rail, which is what was actually measuring the harm. The clock says so plainly."""
-    v, why = G.decide_clock(_clock(15, 49, sec=12),
-                            ["api/services/discord_render/router.py", "docs/note.md"])
-    assert v == G.OK
-    assert "RETIRED" in why and "R18" in why
-    assert "cadence and deploy-state clauses still apply" in why
-
-# ─────────────────────────────── weekends and holidays are not trading days
-
-def test_a_non_trading_day_is_never_refused_however_midday():
-    for session in ("weekend", "holiday"):
-        v, why = G.decide_clock(_clock(12, 0, session=session, trading=False), ["api/main.py"])
-        assert v == G.OK, session
-        assert "not a trading day" in why
-
-
 def test_the_trading_day_answer_comes_from_freshness_and_is_not_reimplemented(monkeypatch):
     """⛔ DELEGATION, PROVED. `read_clock` must ask
     `api/services/discord_render/freshness.py`; a second 'is the market open' is
@@ -395,40 +332,6 @@ def test_is_cleared_matches_the_runbook_tiers(path, cleared):
     assert G.is_cleared(path) is cleared, path
 
 
-def test_a_wholly_cleared_diff_pushes_at_noon():
-    v, why = G.decide_clock(_clock(12, 0), ["docs/a.md", "tools/x.py", "app/src/y.js"])
-    assert v == G.OK
-    assert "RETIRED" in why
-
-def test_one_uncleared_path_spoils_a_cleared_diff():
-    """⚰️ R18: an uncleared path no longer spoils anything AT THE CLOCK. The Tier
-    classification is kept and still reported; it simply does not refuse."""
-    v, why = G.decide_clock(_clock(12, 0), ["docs/a.md", "tools/x.py", "api/main.py"])
-    assert v == G.OK
-    assert "3 changed path(s)" in why
-
-def test_an_unreadable_diff_is_never_exempt():
-    """⚰️ R18: there is no exemption left to need. An unreadable diff is reported as
-    unknown and allowed, because the clock no longer gates. ⛔ The UNREADABLE CLOCK is
-    a different matter and still refuses — see the test below it."""
-    v, why = G.decide_clock(_clock(12, 0), None)
-    assert v == G.OK
-    assert "unknown changed path(s)" in why
-
-def test_an_empty_diff_is_never_exempt():
-    """⚰️ R18: likewise. An empty diff no longer decides anything at the clock."""
-    v, why = G.decide_clock(_clock(12, 0), [])
-    assert v == G.OK
-    assert "0 changed path(s)" in why
-
-def test_an_unreadable_diff_outside_the_window_is_still_fine():
-    """CONTROL. The diff only matters INSIDE the window; refusing at 21:00 because
-    git was quiet would be a guard testing the adjacent thing."""
-    assert G.decide_clock(_clock(21, 0), None)[0] == G.OK
-
-
-# ─────────────────────────────── changed_paths: None and [] are different
-
 def test_changed_paths_returns_None_when_git_cannot_answer():
     assert G.changed_paths(base="definitely-not-a-ref-zzz", head="HEAD") is None
 
@@ -443,64 +346,6 @@ def test_changed_paths_actually_reads_the_repo():
 
 # ─────────────────────────────── the override is an act, not a reflex
 
-def test_the_window_override_needs_its_EXACT_value(tmp_path, monkeypatch, capsys):
-    """⚰️ R18: THE OVERRIDE IS NO LONGER NEEDED, and that is what this now proves.
-
-    ⛔ The constants are KEPT, not deleted: `UCT_DEPLOY_WINDOW_OVERRIDE` was used on
-    2026-09-15 for the R18 merges themselves, so the value must stay resolvable for
-    anyone reading that override log entry. What changed is that a push at 15:49 no
-    longer NEEDS it."""
-    m = _load()
-    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
-    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
-    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-
-    assert m.main() == 0, "15:49 with NO override still refuses — R18 retired the window"
-    assert "DEPLOY WINDOW OVERRIDDEN" not in capsys.readouterr().out
-    assert m.CLOCK_OVERRIDE_VALUE == "I-ACCEPT-AN-RTH-RESTART", "the recorded value moved"
-
-def test_the_queue_bypass_does_NOT_also_buy_the_window(tmp_path, monkeypatch, capsys):
-    """⚰️ R18 leaves ONE override that still buys something, and this pins which.
-
-    The window is gone, so `UCT_SKIP_PREPUSH_GUARD` can no longer buy it by accident.
-    What it still buys — and must keep buying loudly and in the log — is the CADENCE
-    refusal, which is the clause that actually caught 2026-09-12 and 2026-09-14."""
-    m = _load()
-    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
-    monkeypatch.setattr(m, "read_clock", lambda *a, **k: _clock(15, 49))
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
-    monkeypatch.setattr(m, "decide", lambda dep, **k: (m.REFUSE, "a web deploy landed 60s ago"))
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-
-    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
-    assert m.main() == 1, "the cadence/queue refusal stopped refusing"
-    monkeypatch.setenv(m.BYPASS_ENV, "1")
-    assert m.main() == 0
-    assert (tmp_path / "bypass.log").exists(), "an override that leaves no trace is not reviewable"
-
-def test_a_refused_clock_never_asks_railway_anything(monkeypatch):
-    """⛔ THE FAIL-CLOSED BRANCH R18 KEPT. The window is retired, but a clock that
-    cannot be READ still refuses — and still refuses BEFORE spending 2 s on the CLI.
-
-    ⚠️ The tension is deliberate and recorded in the guard: this refuses on a clock it
-    no longer gates on. R18 lists fail-closed among the clauses to leave intact."""
-    m = _load()
-    monkeypatch.setattr(m, "read_clock",
-                        lambda *a, **k: {"state": m.UNREADABLE, "why": "tz database missing"})
-    monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py"])
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
-
-    def _boom():
-        raise AssertionError("latest_deployment() was called after a clock refusal")
-
-    monkeypatch.setattr(m, "latest_deployment", _boom)
-    assert m.main() == 1
-
 def test_json_mode_reports_both_guards(monkeypatch, capsys):
     """R18: the clock is now OK at 15:49; the queue and cadence keys must still be
     reported, because JSON consumers read all three."""
@@ -510,11 +355,15 @@ def test_json_mode_reports_both_guards(monkeypatch, capsys):
     monkeypatch.setattr(m, "changed_paths", lambda *a, **k: ["api/main.py", "docs/a.md"])
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(commit="9b1d6c537"))
     monkeypatch.setattr(m, "decide", lambda dep, **k: (m.OK, "web is SUCCESS, settled"))
-    monkeypatch.delenv(m.CLOCK_OVERRIDE_ENV, raising=False)
     assert m.main(["--json"]) == 0
     payload = _json.loads(capsys.readouterr().out)
     assert payload["verdict"] == m.OK
-    assert payload["clock"]["verdict"] == m.OK
+    # ⛔ THE CLOCK NO LONGER CARRIES A VERDICT. It reports session/trading_day for
+    # context and gates nothing (owner ruling 2026-09-17). Asserting the REMOVED marker
+    # keeps this line load-bearing: if a clock verdict ever reappears in the payload,
+    # this fails rather than silently passing on a key that came back.
+    assert payload["clock"]["gate"].startswith("REMOVED"), payload["clock"]
+    assert "verdict" not in payload["clock"], "a clock VERDICT is back in the JSON"
     assert payload["queue"]["verdict"] == m.OK
     assert "cadence" in payload, "the cadence rail vanished from the JSON"
 
@@ -692,7 +541,6 @@ def test_a_busy_cadence_refuses_through_main(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(m, "decide", lambda dep, **kw: (m.OK, "queue is fine"))
     monkeypatch.setattr(m, "read_clock", lambda now=None: {"session": "closed",
                                                            "trading_day": True, "now_et": None})
-    monkeypatch.setattr(m, "decide_clock", lambda c, p: (m.OK, "clock is fine"))
     monkeypatch.setattr(m, "changed_paths", lambda b, h: ["api/main.py"])
     # ⚰️ THE FIRST VERSION HANDED main() THE REAL 09-15 TIMESTAMPS AND IT PASSED THE
     # CADENCE. `decide_cadence` is called from `main()` with `now=None`, i.e. the

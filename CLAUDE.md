@@ -2766,6 +2766,28 @@ flow-worker case entirely, and that case is real.
 rationale.** This file has had a rescinded restriction reinstated that way twice: the
 mechanism under a struck rule explains a class of bug, it is not the rule.
 
+⛔⛔ **THE MARKET-HOURS PUSH WINDOW WAS REMOVED PERMANENTLY BY OWNER RULING, 2026-09-17.**
+Verbatim: *"I am sick of the no push window during market hours. Remove that from whatever
+is causing this every day. Remove that permanently."*
+
+⚰️ It had already been "retired" once — R18, 2026-09-15 — and it kept coming back, because
+only the REFUSAL was retired. The constants, the override env var, the docstring and a log
+line printed on **every push** all still named 09:25–16:05 ET, so every session that read
+the guard re-learned the rule and every prompt that read their output re-inherited it.
+⭐ **Presence was the problem, not the predicate.** A retired rule that prints its own name
+on every push is not retired, it is advertised.
+
+All of it is deleted from `tools/pre_push_guard.py`, its hook, its tests and
+`docs/runbooks/deploy-windows.md`. **`tests/test_no_market_hours_window.py` fails the master
+gate if it returns**, and asserts the guard is *time-of-day invariant* — identical output at
+10:00 and 22:00 ET on identical deploy state — so it cannot return under a different name.
+
+⛔ **The two live clauses are untouched and are the whole policy: recency (≥600 s settled)
+and burst (≥3 distinct web deploys in 60 min).** ⚠️ And `CLEARED_PREFIXES` exempts **nothing**
+from them — it was the *clock's* daytime-clearance list, `decide_cadence` never consulted it,
+and a docs-only push is paced exactly like an `api/**` one. Measured from the guard source
+2026-09-17, because the opposite had been assumed.
+
 ⚰️ **How the wrong version of this was nearly written into a rule:** a Wave Q1
 session read a deployment list by SHA and never read the `status` column, which
 said `SKIPPED` — concluding *"every master push restarts web, worker, bars-api
