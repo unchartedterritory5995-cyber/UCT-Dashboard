@@ -2692,6 +2692,32 @@ the moment of the push and is correct at that moment, but a build takes 3–5
 minutes and a gate takes longer. *"The queue was clear when I started my gate"* is
 true and useless. The wait is on the DEPLOY, not on the check.
 
+⛔⛔ **A REDEPLOY STORM IS INVISIBLE TO BURST AND MAXIMALLY VISIBLE TO RECENCY.** Measured
+2026-09-17, verified independently by two sessions: **ONE landing produced FIVE deploy
+records**, three of them inside 16 seconds.
+
+```
+deploy records in last 60 min : 7
+DISTINCT commits (what BURST counts) : 3     77dad414d x5 · 0ec4d52e9 x1 · e50c0552d x1
+newest record age (what RECENCY counts) : 16.1 min
+```
+
+⭐ **The two clauses disagree about the same event, and both are behaving correctly.** Burst
+dedupes by commit — deliberately, so a variable flip costs no slot — so five deploys of one
+commit look like **one** landing to it. Recency counts *records*, so the same five look like
+**five**, and each one restarts the 600 s clock. A waiting session sees a countdown that
+resets over and over while `origin/master` never moves: `541 → 431 → 320 → 516 → 398`.
+
+⛔ **THE DIAGNOSTIC RULE: watch for a NEW SHA, not for the timer moving.** A resetting
+countdown with a static `origin/master` is a redeploy storm, not a third pusher — and it is
+the shape most likely to be misread as "somebody keeps landing ahead of me". (It was, by me.)
+
+⚠️ **A storm is not automatically a fault.** Checked before concluding: `/api/health` 200 with
+`uptime_seconds` stable across three probes, `master == production`, and the change involved
+was dev tooling with no importer under `api/` or `app/`. Not a crash loop, nothing to roll
+back. **Cause not proven** — the best available reading is the promotion workflow plus the
+`production` watch double-firing, and that is recorded as unproven rather than asserted.
+
 ⛔⛔ **AND THE GUARD THAT ENFORCES THIS HAS A ~3.5 MINUTE BLIND WINDOW, BY CONSTRUCTION.**
 Measured 2026-09-16: **Railway creates the deploy record MINUTES after the push, and the
 delay is VARIABLE** — two independent measurements, by two sessions, 47 s apart: **3m25s**
