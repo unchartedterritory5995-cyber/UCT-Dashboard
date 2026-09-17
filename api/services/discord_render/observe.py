@@ -270,6 +270,17 @@ def _live_loop() -> dict:
         return {}
 
 
+def _live_token_slots() -> dict:
+    """Which render-token slot senders are presenting (R29) — the evidence OI-13 step 6 waits on.
+
+    ⛔ Slot names and counts only. Never a value, a length, or a hash of one (C-13)."""
+    try:
+        from api.services.discord_render import token_slots
+        return token_slots.snapshot()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _live_stall_record() -> dict:
     """The DURABLE stall record (R30), beside the trailing window — never instead of it.
 
@@ -301,6 +312,7 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
     snap = slo_snapshot(store, now=now)
     snap["loop"] = _live_loop()
     snap["stall_record"] = _live_stall_record()
+    snap["token_slots"] = _live_token_slots()
     if renderer_misses is None:
         renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
     # ⛔⛔ THE CANARY SCOPE, READ OUT OF THE RUNNING PROCESS (A3).
@@ -436,6 +448,7 @@ class Observer:
         snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
         snap["loop"] = _live_loop()
         snap["stall_record"] = _live_stall_record()
+        snap["token_slots"] = _live_token_slots()
         for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses,
                                         breakers=_live_breakers()):
             out["breached"].append(key)

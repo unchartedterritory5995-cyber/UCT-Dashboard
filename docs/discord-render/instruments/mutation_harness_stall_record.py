@@ -22,6 +22,11 @@ OBSERVE = ROOT / "api" / "services" / "discord_render" / "observe.py"
 TESTS = "tests/test_stall_record.py"
 
 
+TOKEN_SLOTS = ROOT / "api" / "services" / "discord_render" / "token_slots.py"
+RENDER_PANELS = ROOT / "api" / "routers" / "render_panels.py"
+TOKEN_TESTS = "tests/test_token_slots.py"
+
+
 @dataclass(frozen=True)
 class Mutation:
     name: str
@@ -29,6 +34,8 @@ class Mutation:
     old: str
     new: str
     expect_red: str
+    tests: str = TESTS       # which suite must go red; a mutation reddening a DIFFERENT
+                             # suite says nothing about the guard it deleted
 
 
 MUTATIONS = (
@@ -63,6 +70,25 @@ MUTATIONS = (
              "LOOP_STALL_PAGE_ALWAYS_MS = 5000.0",
              "LOOP_STALL_PAGE_ALWAYS_MS = 1000000.0",
              "test_tier1_pages_at_any_uptime"),
+    # ── commit B (R29): the token-slot counter ──────────────────────────────
+    # ⛔ If both slots move together the counter cannot answer R29's question at all.
+    Mutation("M6 the slot label is swapped — previous is counted as current",
+             RENDER_PANELS,
+             "            matched_slot = _slot\n",
+             "            matched_slot = token_slots.SLOT_CURRENT\n",
+             "test_a_previous_match_increments_only_previous", TOKEN_TESTS),
+    # ⛔ In memory the count means "since the last deploy" — and this pod restarts ~20x/day.
+    Mutation("M7 the counter stops being persisted",
+             TOKEN_SLOTS,
+             "            os.replace(tmp, p)      # atomic — a torn counter would read as a zero\n",
+             "            pass\n",
+             "test_counts_survive_a_process_restart", TOKEN_TESTS),
+    # ⛔ UNREADABLE IS NOT ZERO — the one way a corrupt file could authorise clearing a live token.
+    Mutation("M8 an unreadable counter reports itself as clean",
+             TOKEN_SLOTS,
+             "        d[\"unreadable\"] = True\n",
+             "        pass\n",
+             "test_an_unreadable_counter_is_not_a_zero", TOKEN_TESTS),
 )
 
 
@@ -70,8 +96,9 @@ def sha(p: pathlib.Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()[:16]
 
 
-def run_tests() -> tuple[int, str]:
-    p = subprocess.run([sys.executable, "-m", "pytest", "-q", TESTS],
+def run_tests(which: str | None = None) -> tuple[int, str]:
+    suites = [which] if which else [TESTS, TOKEN_TESTS]
+    p = subprocess.run([sys.executable, "-m", "pytest", "-q", *suites],
                        cwd=str(ROOT), capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=900)
     return p.returncode, (p.stdout or "") + (p.stderr or "")
@@ -111,7 +138,7 @@ def main() -> int:
                 failed += 1
                 continue
             m.path.write_text(src.replace(old, new), encoding="utf-8", newline="")
-            rc, out = run_tests()
+            rc, out = run_tests(m.tests)
             named_red = m.expect_red in out and rc != 0
             print(f"  {m.name}: {'RED (good)' if named_red else 'GREEN (BAD)'}"
                   f" — expected {m.expect_red}")
