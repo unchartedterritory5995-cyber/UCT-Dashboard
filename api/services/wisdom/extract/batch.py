@@ -450,7 +450,8 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
                    segment_rows: Optional[list[dict]] = None, effort: Optional[str] = None, salt: str = "",
                    out: Optional[dict] = None, run_id: Optional[str] = None,
                    pass_index: Optional[int] = None, include_retries: bool = True,
-                   night_cap_usd: Optional[float] = None) -> dict:
+                   night_cap_usd: Optional[float] = None,
+                   night_date: Optional[str] = None) -> dict:
     # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
     limit = daily_segment_limit() if limit is None else int(limit)
     out = dict(out or {})
@@ -474,14 +475,17 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
                                  purpose=purpose, salt=salt, dry_run=ctx.dry_run, out_tokens=out_tokens)
     out["build"] = dict(counts)
     with store.read() as conn:
-        # ⛔ R53: the TIGHTEST ceiling binds. `cap=None` keeps the programme total; a night's
-        # remaining budget, when one is supplied, is passed as the cap only if it is SMALLER —
-        # a per-night value must never RAISE the programme total it sits inside.
+        # ⛔⛔ R65: TWO CEILINGS, TWO SCOPES, NEVER A min() OF THE CAPS.
+        # This used to pass `min(programme_cap, night_cap)` as THE cap, which
+        # `select_within_budget` then compared against CUMULATIVE PROGRAMME spend — so a
+        # night line clamped the whole programme to that number and the SECOND night got
+        # nothing while programme headroom sat unused. The programme total is measured
+        # against programme spend; the night line against THAT NIGHT's spend.
         programme_cap = budget.budget_cap_usd()
-        cap = programme_cap if night_cap_usd is None else min(programme_cap, float(night_cap_usd))
         decision = budget.select_within_budget(
-            conn, version, [it["est_cost_usd"] for it in items], cap=cap,
-            exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]))
+            conn, version, [it["est_cost_usd"] for it in items], cap=programme_cap,
+            exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]),
+            night_cap=night_cap_usd, night_date=night_date)
     out["budget"] = decision.as_dict()
     selected = items[:decision.allowed_count]
     out["candidates"] = len(items)
@@ -640,6 +644,10 @@ def run_daily(ctx, *, client=None, limit: Optional[int] = None, loader: Optional
         # ⛔ The night's ceiling shrinks as passes are submitted, so pass 3 cannot spend pass 1's
         # budget twice. A pass that would cross it submits nothing rather than part of a pass —
         # a half-submitted pass is the UNRECONCILED case, which costs money and scores nothing.
+        # ⭐ R65: this stays as a cheap IN-RUN pre-check across passes. The authoritative
+        # rationing is now the night-scoped DB comparison inside select_within_budget, so
+        # the FULL night line is passed below — pass 1's submitted rows show up as that
+        # night's pending when pass 2 asks, which is what makes the passes share one night.
         spent_so_far = sum(float(r.get("selected_estimate_usd") or 0.0)
                            for r in out.get("pass_results") or [])
         remaining = night_cap - spent_so_far
@@ -652,7 +660,8 @@ def run_daily(ctx, *, client=None, limit: Optional[int] = None, loader: Optional
         sub = submit_pending(ctx, client=client, limit=len(segs) if p > 1 else limit,
                              purpose="extract", segment_rows=segs, salt=f"pass{p}",
                              run_id=run_id, pass_index=p, include_retries=(p == 1),
-                             night_cap_usd=remaining,
+                             night_cap_usd=night_cap,
+                             night_date=ctx.now_et.date().isoformat(),
                              out={"pass_index": p, "run_id": run_id})
         out.setdefault("pass_results", []).append(
             {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index",
