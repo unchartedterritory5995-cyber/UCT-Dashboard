@@ -146,6 +146,28 @@
 > met and #145 STAYS DRAFT**, with the failed condition named: *the per-layer fill
 > colours are not carried, because the translator cannot fold them yet.*
 >
+> ## ⚰️ AND THE POSTED PR BODY WAS TWO INCREMENTS STALE — FOUND BY REBUILDING IT
+>
+> `PR-BODY-COMBINED.md` is `header + PR-BODY.md + PR-BODY-WAVE2.md`, and that recipe
+> was VERIFIED against the committed file rather than assumed. It did not reproduce
+> it: the two diverge at exactly one point — the *"What is NOT in this PR"* section —
+> where the posted body still read **"(j) Uncharted Clouds — scoped only, 11 gaps
+> with file:line"**. That is the text from before **j.1**, so the body on #145 has
+> been describing (j) as unstarted while j.1 AND j.2 were merged.
+> ⭐ Nothing detected it because the combined file is GENERATED and nothing
+> regenerates it: `PR-BODY-WAVE2.md` was updated for j.1 and the derived artifact was
+> not. A second authority over one document, drifting exactly the way this programme
+> keeps recording.
+>
+> ✅ Regenerated: **51,433 bytes**, `sha256 390ece357ce96e69c1447fab0b7034166cabc65e2b2bedb92328fae90d6e3647`
+> (was 48,132 / `7f0fb15a…`), pure LF, matching the stored blobs.
+> ⛔ **SO 1.4's CONDITION IS NOW MET AND #145's BODY IS OWED AN UPDATE** — it changed.
+> ⚠️ That is a BROWSER operation on this repo's known-hard path (clipboard froze the
+> renderer, CDP `ctrl+v` pasted nothing, and a DOM read of the rendered blob hashed
+> differently from the file and was REJECTED — *a rendering is not the source*). The
+> working method is **gzip + base64 in chunks via `sessionStorage` with a per-chunk
+> SHA**, which caught a corrupt chunk 1 last time. It is NOT yet done.
+>
 > ✅ **j.1 and j.2 are BUILT** (`75be58693`, `8533faceb`). Clouds' 23 outputs reach
 > the pane document with their 20 fills, and **a fill between two hidden anchors
 > now draws**, hosted on the first visible bound series, fed from columns.

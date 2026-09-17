@@ -2456,6 +2456,75 @@ for a *named* reason rather than a feeling.
 > ### ⛔ RESUME AT j.3 §1.2 — the red acceptance. The contract above is settled;
 > do not re-derive it. The open work is `fillPolygons`/`draw` emitting per-run colour.
 
+## ✅ j.3a CLOSED UNDER R30 (2026-09-17, `697d67ad5`) — AND j.3 SPLIT IN TWO
+
+⭐⭐ **THE ESTIMATE'S OWN WARNING WAS RIGHT, AND FOR A REASON NOBODY HAD NAMED.**
+j.3 was written as *"120, and it is the one to distrust… the largest and the least
+certain"*, distrusted because the DRAW PATH was a real change. The draw path turned
+out to be the tractable half. What the estimate could not see is that **the colour
+never reaches the definition at all**, so the contract's second sentence — *"both
+colours through `staticColourOf`"* — was not plumbing.
+
+### ✅ j.3a — BUILT, GREEN, MUTATION-PROVEN
+
+`fillRuns` segments by colour as well as finiteness; `fillGroups` is the one
+geometry authority and `fillPolygons` delegates to it; the draw sets `fillStyle`
+once per run; `binder.fillColours` hands the fill spec to `columnColorsForPlot`
+**verbatim**, at both the own-fill and the hosted-fill site.
+
+⭐ **TWO-LEVEL SEGMENTATION** is the design point: colour decides where `fillStyle`
+changes, finiteness decides where polygons split. A static band with an `na` hole
+is therefore ONE `fillStyle` over three polygons and j.2's call list cannot move.
+Had "run" meant one thing, every shipped band with a gap would have begun assigning
+`fillStyle` three times — a change to fills nobody made dynamic.
+
+⛔ R10 is met by CONSTRUCTION, not by promise: `pointColour` is the one place a
+per-point colour is decided for a plot and a fill alike, and mutation 1 proves it —
+swapping `colorUp`/`colorDown` reds `dynamicColourColumn`, **the PLOT's own rail**,
+alongside the fill's.
+
+⚰️ **AND ONE RAIL EXISTS BECAUSE A MUTATION WAS PREDICTED TO ESCAPE AND DID.**
+Routing around `columnColorsForPlot` — reading `colorUp`/`colorDown` off the fill
+directly — left nine of ten cases green, because none declared an `opacity`.
+`twoColoursOf` is what folds a fill's alpha into BOTH colours; without it a cloud
+ships at full strength over the candles it is meant to sit behind. The alpha rail
+was added before the proof was run, and it is the only thing that catches it.
+
+### ⏸️ j.3b — NOT STARTED, AND NOT STARTED ON PURPOSE
+
+**The census, measured before building:**
+
+| | measured |
+|---|---|
+| `presentation.fills` for Clouds | `{a, b}` — 20 fills, **no colour field at all** |
+| the pane document's `fill` | `{with}` only |
+| `staticColourOf` on Clouds' own shape | **`{colorDynamic: true}`** |
+
+A three-plot probe isolates it: `color.new(#00FF00, 40)` carries, `color.green`
+carries, and `isBullish ? getBullFillColor(0) : getBearFillColor(0)` — Clouds'
+line 118 — does **not**. `staticColourOf` has no user-function branch, and
+`color.new(base, t)` returns null when `t` is not a literal (`pine.js:12359`);
+Clouds' `t` is `getAdjustedTransparency(layerIndex, …)`.
+
+⇒ j.3b needs a **constant folder over user functions** (inline `getBull(0)`, fold
+`50 + (100−50)*(20/100)`, resolve `input.int` defaults, then `color.new`). That is
+a **parser change whose re-baseline reaches the corpus**, and the owner's corollary
+governs it: *an atomic unit that cannot finish inside the remaining clock is NOT
+STARTED; half-landed atomic work is the worse outcome.*
+
+**Insertion points, pinned so the next block starts at implementation:**
+
+| site | what is wrong there |
+|---|---|
+| `pine.js:11287` | the fill's `outputPresentation` call passes `{ env }` with **no `resolver`**, so `carried` can never become true |
+| `pine.js:11288` | the `fills.push` drops `colorUp`/`colorDown`/`colorCondition` |
+| `pine.js:12309` | `staticColourOf` — no user-function branch; `color.new`'s non-literal alpha returns null at `:12359` |
+| `memberPaneDefinition.js` (the fills block) | copies `f.color` only — j.1's own comment already says this is "exactly what j.3 has to close" |
+
+⛔ **CENSUS THE BLAST RADIUS FIRST.** Every `color.new` with a non-literal-but-
+constant alpha in the corpus starts carrying the moment this folds, and each one
+changes a translation. That census is j.3b's first step, not its last.
+
 ---
 
 # ⛔⛔ STANDING RULE — **INTERMITTENT IS NOT LOAD-SENSITIVE** (owner, 2026-09-15)

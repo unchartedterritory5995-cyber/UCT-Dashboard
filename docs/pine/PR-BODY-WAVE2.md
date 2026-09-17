@@ -99,9 +99,34 @@ procedure unchanged would not exercise the developing bar at all.
 All 11 failures are attributed to the branch's **own recorded baseline**
 (`SESSION-STATE:458-466`) and the counts match it exactly.
 
+### Re-verified after master merged in (`b854e75d0`, 223 commits, **zero conflicts**)
+
+| leg | result |
+|---|---|
+| full vitest | **EXIT 1** — 1,568 files / 22,632 tests, **13 failed in 10 files**, 0 timeouts |
+| Python twin, 25 files **by name**, 2 serial scopes | **EXIT 0** — 829 passed, 5 skipped, 1 xfailed |
+| vite build, alone | **EXIT 0**, 21.25s — `dropped 36 prose keys, 99.6kB off the bundle` |
+
+⭐ **The count matched the baseline and the SET did not** — two files left it and two
+arrived, so a count comparison would have read "back to baseline" and shipped two
+unexamined reds. Every one of the 13 is attributed and **none is owned by this
+branch**: `surfaces/manifest.test.js` is **master's** (its `App.jsx` declares
+`/admin/wisdom` and its surfaces manifest carries no row for it, so master alone is
+red) and `stockChartWiring` is the known **intermittent**, re-classified by the rule
+that costs a wrong attribution — clean tree, alone, twice, 216/216.
+
+⚠️ One baseline row went green with **no commit touching it**
+(`paramSingleTranslation`, previously classed OURS-DEFECT-OWED). Recorded as **cause
+not established** rather than closed: "intermittent" and "fixed by something unnamed"
+are different facts.
+
 ⚰️ The full run's wrapper reported **exit 0** because the command ended in a `grep`. The
 verdict above is read **from the log file**. This repo has recorded that defect four
-times; this is the fifth.
+times; this is the fifth — **and the sixth happened in this session**, where a
+background wrapper again said *"exit code 0"* for a run whose own log recorded
+`VITEST EXIT: 1`, because the command ended in `echo`. A seventh variant was also
+caught: `--reporter=basic` does not exist in this vitest, so the runner died at
+reporter load **having executed nothing** and produced no totals line at all.
 
 **Moved artifacts, by name:** `27-support-resistance-channels.json`.
 **Unchanged:** `corpus_metric.json`, `lookback_agreement.json`.
@@ -110,15 +135,29 @@ times; this is the fifth.
 
 ## What is NOT in this PR
 
-- **(j) Uncharted Clouds — j.1 IS IN, j.2–j.4 ARE NOT.** The `23 → 2` drop is **two
-  independent drops**, and **j.1 closed the first**: all 23 outputs now reach the pane
-  document with their **20 fills**, 21 carried `hidden: true`. ⛔ **The second drop is
-  still in place** — `binder.js:824` orphans a hidden plot in pass one, before the fill
-  wiring in pass two — **so the fills are declared and do not yet draw.** j.2 is the
-  resume point.
-- **A series-conditional fill colour (j.3)** — not started. Clouds' fills carry **no**
-  colour today and that is correct: `isBullish ? bull : bear` is a conditional over two
-  user functions the folder resolves neither way.
+- **(j) Uncharted Clouds — j.1, j.2 and j.3a ARE IN; j.3b and j.4 ARE NOT.** The
+  `23 → 2` drop was **two independent drops** and **both are closed**: j.1 got all 23
+  outputs into the pane document with their **20 fills** (21 carried `hidden: true`),
+  and **j.2 made a fill between two hidden anchors draw**, hosted on a visible bound
+  series and fed from two columns — **R27 as AMENDED by measurement**: a hidden plot
+  binds **no** series, because the fill primitive takes columns and borrows only the
+  host's `priceToCoordinate`.
+- **j.3a — a fill is drawn as RUNS (R30)** is in: `fillStyle` once per run, a `null`
+  colour ends a run and starts no polygon, and the fill goes to `columnColorsForPlot`
+  — the **same reader a plot goes to**, so there is no second colour path.
+  ⭐ Segmentation is **two-level**: colour decides where `fillStyle` changes,
+  finiteness decides where polygons split, so a STATIC band with an `na` hole is
+  still one `fillStyle` over three polygons and the shipped call list cannot move.
+- ⛔ **j.3b — the translator half — is NOT started, and the reason is a measurement.**
+  Clouds' fills still carry **no** colour. The sentence below was written before this
+  wave and is still exactly right — what is new is that it is now *costed*:
+  `isBullish ? getBullFillColor(0) : getBearFillColor(0)` resolves to
+  `{colorDynamic: true}` because `staticColourOf` has **no user-function branch** and
+  `color.new(base, t)` refuses a non-literal `t` (`pine.js:12359`) — and Clouds' `t`
+  is `getAdjustedTransparency(layerIndex, …)`. Carrying it needs a **constant folder
+  over user functions**, which is a parser change whose re-baseline reaches the
+  corpus; the owner's standing corollary says such an atomic unit is not *started*
+  mid-block. The four insertion points are pinned in `WAVE2-A-PLAN.md`.
 - **The vendor capture (j.4)** — owed. And when it runs, **H.8's live-bar line is
   REPORTED, not asserted**: Wave 1's fixture ends at a sealed bar, so it cannot cover the
   live divergence.
