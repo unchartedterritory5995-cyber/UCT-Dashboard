@@ -452,3 +452,49 @@ def test_an_EMPTY_read_is_still_the_no_significant_flow_sentence(monkeypatch):
     txt = _reply_text(edits)
     assert "no significant options flow" in txt, f"an empty read lost its sentence: {txt!r}"
     assert "reconnecting" not in txt.lower()
+
+
+def test_the_ACK_PATH_never_calls_the_partition_classifier():
+    """⛔⛔ THE RULE THIS EXISTS FOR: NOTHING THAT CAN BLOCK BELONGS BEFORE THE DEFER.
+
+    ⚰️ W1 resolved the partition at the DISPATCH, which put a cold `flow_source` — it lazily
+    imports `api.massive_processor` and loads the ETF universe — on the ack path. Local cold
+    call 125.9 ms, warm 0.5 ms. On the live pod, the first `/flow` after that deploy measured
+    `entry_to_ack = 65,462.6 ms` with the next command at 1.4 ms, and Discord answered the member
+    "The application did not respond".
+
+    ⚠️ 65 s is ~500x the local cold cost, so the cold call is a SUSPECT, not a proven cause. The
+    rail does not depend on settling that: work whose cost you cannot bound does not go in front
+    of a 3,000 ms budget.
+
+    ⛔ THIS IS A STRUCTURAL CHECK, AND DELIBERATELY SO. A dynamic one cannot tell the difference
+    here: `TestClient` runs background tasks inside the same `client.post` call, so "the
+    classifier ran" and "the classifier ran after the response" are indistinguishable at runtime.
+    An ordering assertion written that way would pass either way — which is worse than none. So
+    the ORDER is asserted against the source: the dispatch hands the job no `source`, and the job
+    resolves it. The VALUE on the wire is pinned by the tests above.
+    """
+    import ast
+    import inspect
+    from api.routers import discord_interactions as rt
+
+    src = inspect.getsource(rt)
+    tree = ast.parse(src)
+
+    # every `background.add_task(run_flow_card_job, ...)` in the module
+    calls = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Attribute) and n.func.attr == "add_task"
+             and n.args and isinstance(n.args[0], ast.Name)
+             and n.args[0].id == "run_flow_card_job"]
+    assert calls, "the flow dispatch was not found — this rail stopped watching anything"
+    for c in calls:
+        kw = {k.arg for k in c.keywords}
+        assert "source" not in kw, (
+            "the dispatch passes `source=` again, which puts the partition classifier back on "
+            "the ack path in front of Discord's 3 s budget")
+
+    # ⛔ NON-VACUITY: the job MUST still resolve it, or the check above is satisfied by a path
+    # that never chooses a partition at all.
+    job = inspect.getsource(rt.run_flow_card_job)
+    assert "flow_source(" in job, "the job no longer resolves the partition either"

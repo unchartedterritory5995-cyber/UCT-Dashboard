@@ -242,7 +242,7 @@ def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -
 
 def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
                       *, fetch_fn=None, render_fn=None, edit_fn=None, fail_fn=None,
-                      timeout_s: float = 30.0, cid: str | None = None, source: str = "stocks") -> None:
+                      timeout_s: float = 30.0, cid: str | None = None, source: str | None = None) -> None:
     """Background job for /flow. Fetch the ticker's flow summary from the FLOW-WORKER,
     render the card, and post it PUBLICLY as the bot — the deferred interaction
     @original is app-owned, so the 'View chart' button routes back to us. Never raises;
@@ -257,6 +257,22 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     correlation id without any change to a flow-worker file.
     `source` is the flow partition: the default `stocks` is what every pre-V2 reply reads; the V2
     handler passes `etfs` for an ETF or index underlying (C-14, `discord_render.symbols.flow_source`)."""
+    # ⛔⛔ THE PARTITION IS RESOLVED HERE, IN THE BACKGROUND JOB, AND NOT AT THE DISPATCH.
+    # ⚰️ W1 shipped it at the dispatch (`background.add_task(..., source=flow_source(tkr))`) and
+    # that put a COLD FIRST CALL on the ACK PATH — `flow_source` lazily imports
+    # `api.massive_processor` and loads the ETF universe. Measured locally: first call 125.9 ms,
+    # second 0.5 ms. Measured on the live pod the same afternoon, on the first `/flow` after the
+    # deploy: `entry_to_ack = 65,462.6 ms`, with the next command at 1.4 ms — the shape of a cold
+    # start, 21x the 3,000 ms Discord budget, and the member got "The application did not respond".
+    # ⚠️ 65 s is ~500x the local cold cost, so this is a SUSPECT and not a proven cause; the pod
+    # was two minutes into its boot storm. It is moved anyway, because the rule does not depend on
+    # winning the argument: NOTHING THAT CAN BLOCK BELONGS BEFORE THE DEFER. The ack path parses
+    # and defers; everything else is the job's.
+    # ⭐ Behaviour is unchanged on the wire — V2 still passes `source` explicitly and wins; only a
+    # caller that supplies none now gets it resolved here instead of one frame earlier.
+    if source is None:
+        from api.services.discord_render import symbols as _symbols
+        source = _symbols.flow_source(ticker)
     from api.flow_ticker_card import render_ticker_flow_card
     render = render_fn or render_ticker_flow_card
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
@@ -632,9 +648,11 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # timed out`, 30.1 s after the ack, pre-market AND at 10:00 ET.
         # ⭐ V2 has always done this (`commands.py` → `symbols.flow_source`); the pre-V2 path
         # simply never learned. One classifier, both paths.
-        from api.services.discord_render import symbols as _symbols
-        background.add_task(run_flow_card_job, app_id, token, tkr, days,
-                            source=_symbols.flow_source(tkr))
+        # ⭐ NO `source=` HERE, DELIBERATELY. The job resolves it (see `run_flow_card_job`), so the
+        # ack path stays parse-and-defer. Passing it here is what put a cold `flow_source` call
+        # before the 3 s Discord budget and produced a 65,462 ms `entry_to_ack` on the first
+        # command after a deploy.
+        background.add_task(run_flow_card_job, app_id, token, tkr, days)
         # PUBLIC defer — the "thinking…" resolves into the card, posted as the bot so
         # the 'View chart' button (app-owned message) routes back to us. The bot now
         # has post + attach rights in the channel.
