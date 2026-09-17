@@ -2828,6 +2828,72 @@ in `tests/`**, so none is inert today. Left as-is with that reason recorded rath
 for tidiness — but any test that starts patching `probe` or `mint_session_token` must late-bind
 the seam first, or it will be testing the real function while believing otherwise.
 
+### ⛔⛔ TWO INSTRUMENTS AGREEING IS EVIDENCE ABOUT THEIR SHARED INPUT
+
+> **When two independent tools agree on something surprising, the thing they
+> SHARE is the first suspect — not the flaw you are about to attribute to both.**
+
+⚰️ Measured 2026-09-17, Wave Q1. A vitest spy reported a call site at
+`useDurableNote.js:957` in a **563-line file**, and an independent acorn parse
+reported `:952`. Two instruments, two languages, no shared code — so I concluded
+both were reading a transformed module, labelled the spy's output *"not a source
+line"*, and wrote that into the file as a correction.
+
+⛔ **The instruments were right. The FILE was corrupt, and I had corrupted it.**
+A patch script read the file preserving its CRLF endings and wrote it back
+through a writer that translated newlines to CRLF *again*, so 556 line endings
+became CR-CR-LF. A bare CR **is** a line terminator in ECMAScript, so both tools
+counted ~1.7× the lines — correctly.
+
+⭐ **The tell was free and I walked past it:** `wc -l` said 563 the whole time.
+**When a derived number disagrees with the artifact itself, suspect the artifact
+before the readers.** Agreement between independent instruments is the strongest
+signal available that their common input moved; reading it as corroboration of a
+shared defect inverts the one thing independence buys you.
+
+⚠️ **`tools/check_repo_hygiene.py` cannot catch this shape**, by design: it
+reports a path only when line endings are the **ONLY** difference, and a file
+you are also editing has content changes too. The byte-level check is
+`grep -c $'\r\r\n'`, or count CR against CRLF and require them equal.
+
+⛔ **And the write pattern that causes it, because it looks correct:**
+
+```python
+s = io.open(P, encoding='utf-8', newline='').read()      # PRESERVES \r\n
+io.open(P, 'w', encoding='utf-8', newline='\r\n').write(s)   # translates AGAIN
+```
+
+Normalise to `\n` in memory first, or write with `newline=''`. This is R-2's
+neighbour: R-2 is about matching the *stored blob's* endings, this is about not
+translating twice on the way there.
+
+### ⛔ A GUARD ON THE INCOMING RECORD CANNOT PROTECT THE OUTGOING ONE
+
+> **A guard keyed on the value a function is HANDED does not constrain the value
+> already in the store. If a writer can change the field the guard reads, in the
+> same write, the guard is not on that path.**
+
+⚰️ Wave Q1 fix 6, 2026-09-17. `putNoteWithIntent` carried an explicit class
+guard — *"a null intent is not permission to delete unsent work"* — written
+`else if (noteRecord.dirty)`. It reads the record being written. A writer that
+flips `dirty: 1 → 0` in the same transaction satisfies the `else` and takes the
+cursor-delete branch, deleting the member's queued words. The guard was correct,
+documented, mutation-proved at its own layer, and **structurally unable to see
+the case it was written for**.
+
+⭐ The companion guard has to read **the record already in the store**, because
+that is the only place the unsent work still exists at that moment. Both stay;
+they are complementary, and neither is redundant.
+
+⛔ **Corollary, and it is the same disease as the three-copies rule:** the
+identical invariant also lived in `settleLandedSave` and NOT in `persist`, so
+one implementation had one hole — and the hole was invisible **because the other
+copy read as coverage for both**. The fix is ONE exported predicate both writers
+ask (`discardsUnsentWork`), never a second copy
+(`lesson_a_guard_repeated_is_a_guard_unproved`). Its mutation proof is what
+demonstrates the extraction is real: killing the shared predicate reds **both**
+fixes' rails at once.
+
 ### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
 
 Kinds 1 and 2 are *the instrument was wrong*. Kind 3 is the nastiest, because the record is

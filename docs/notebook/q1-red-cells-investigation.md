@@ -2,7 +2,31 @@
 
 **Opened 2026-09-14, after Q1 fix 4 shipped to production and did NOT close them.**
 **Still open 2026-09-15: fix 5 did not close them either.**
+**✅ WRITER NAMED 2026-09-17, at the unit level. Fix 6 designed, railed and
+staged — NOT pushed (RESERVED).**
 Written for a session with zero context.
+
+> ### ⭐ THE WRITER
+>
+> **`persist` at `useDurableNote.js:480`, spy call 1** —
+> `app/src/pages/journal-2-0/lib/offline/q1AppendWriterCensus.test.jsx`.
+>
+> ```
+> n:1  writer  persist at useDurableNote.js:480
+>      intent  NULL
+>      dirty   1 -> 0
+>      sentence-in-record  true -> false
+>      queued  1 -> 0
+> ```
+>
+> The function name is the spy's answer; the line is
+> `tools/q1_clean_write_sweep.mjs`'s (an acorn parse), and `grep -n` agrees with
+> both. It was **`useDurableNote.js:402` in the three-candidate census** — the
+> census was right, and it stayed a census for two days because nothing had
+> ever watched those three sites fire.
+>
+> ⛔ It is NOT `outboxDrain.js:75`. That site proves content and settles
+> correctly; the reproduction's control case drives it and stays GREEN.
 
 ---
 
@@ -62,9 +86,9 @@ record clean by another path, so it arrived here with the protection already gon
 |---|---|---|
 | 1 | the door never enqueues the typed words | ⛔ **KILLED** — stands. The trail shows `sentenceInQueuedEntry: True` at queue time, independent of fix 5 |
 | 2 | the door settles the note from the server's post-embed copy | ⛔ **KILLED** — stands. Killed by *reading*, not by fix 5: `settleNoteWrite` only records the revision; it never touches body, dirty flag or intent |
-| 3 | the three `→None` PUTs consume the entry | 🔄 **RE-OPENED, reason: assumed fix 5 causal.** Its kill reason was *"it was cleared later, at the supersede check"* — but the 00:03 trail ends `queued 1 entry(s)`, so nothing was cleared there |
-| 4 | the `+SENT` marker is trusted as delivery | 🔄 **RE-OPENED, reason: assumed fix 5 causal.** Its kill reason was *"the clear happened on the baseline comparison, before any marker was consulted"* — that clear did not happen |
-| 5 | ordering-independent, so not a race | 🔄 **RE-OPENED, reason: assumed fix 5 causal.** The observation (all orderings fail identically) still stands; the *explanation* — "because a clock comparison is ordering-independent" — does not |
+| 3 | the three `→None` PUTs consume the entry | ⛔ **KILLED 2026-09-17, by the spy log.** The entry was still queued when the writer fired (`queuedBefore: 1`, spy call 1). One write consumes it, and it is not a PUT at all |
+| 4 | the `+SENT` marker is trusted as delivery | ⛔ **KILLED 2026-09-17, by the spy log.** `persist` reads no marker. It reads `state.synced`, set by `markSynced` from `sameAuthoredContent(acked, current)` — the ack against the EDITOR'S OWN DOCUMENT. No marker is consulted on the path that empties the queue |
+| 5 | ordering-independent, so not a race | ✅ **CONFIRMED 2026-09-17, with the right explanation at last.** It is ordering-independent because it is **not a race**: ONE transaction reconciles the record clean and takes `putNoteWithIntent`'s cursor-delete branch. Every ordering that ends with the editor settling loses the words, which is exactly what six identical orderings looked like |
 
 ⭐ **The pattern in that table is the lesson.** Every hypothesis killed by
 *reading the code* survived. Every one killed by *reasoning from the fix* had to be
@@ -127,20 +151,43 @@ wire: POST /→200
 The run sits between them. ⛔ Stated as timestamps rather than "the fix was live",
 because that is the difference between a measurement and an assumption.
 
-### Q1–Q3 — the open questions, not to be answered by inference
+### Q1–Q3 — ✅ ALL THREE ANSWERED, each from an artifact
 
 **Q1. What reconciles the durable record clean, while an entry is queued, on the
-append route?** Fix 4 covers `settleLandedSave`. Something else is doing it — the
-trail says so plainly: `record went CLEAN while queued: True`.
+append route?**
 
-**Q2. If an entry survives queued, why does the sentence never reach the server?**
-Either the entry's `patch` no longer contains it, or the drain never sends it. **The
-trail does not distinguish these, and that distinction is the next MEASUREMENT, not
-the next fix.**
+✅ **`persist` at `useDurableNote.js:480`** — `q1AppendWriterCensus.test.jsx`,
+spy call 1: `intent NULL`, `dirty 1 -> 0`, `queued 1 -> 0`,
+`sentence-in-record true -> false`.
 
-**Q3. Is the rig probe honest here?** Three instruments in this programme have
-manufactured findings already. Before any fix 6, confirm the probe reads the entry's
-`patch` **after** the record is cleaned, not before.
+Fix 4 covers `settleLandedSave`, and **`markSynced` does not go through
+`settleLandedSave` at all** — it calls `writer.schedule({...current, synced:
+caughtUp})`, which lands in `persist`. So fix 4's guard was never on this path.
+`putNoteWithIntent`'s own class guard did not fire either: it reads the record
+it is *handed* (`else if (noteRecord.dirty)`), and a writer that flips dirty
+1 → 0 in the same write walks straight past it.
+
+**Q2. If an entry survives queued, why does the sentence never reach the
+server?**
+
+✅ **Neither branch. The entry does not survive.** The two candidates were "the
+entry's `patch` no longer contains it" and "the drain never sends it"; the spy
+log shows a third thing nobody had listed — the entry is *deleted*, in the same
+transaction that marks the record clean, by `putNoteWithIntent`'s cursor-delete
+branch. `sentenceInIntent` at spy call 1 is `NULL` because there is no intent.
+
+⭐ And the drain never gets a chance: with the editor open the note is the
+editor's (`excludeNoteId`), so the drain answers `SKIPPED` — visible in the
+reproduction's own output. **Asking which of two send-path branches failed was
+the wrong question; the send path was never reached.**
+
+**Q3. Is the rig probe honest here?**
+
+✅ **PASSED 2026-09-17** —
+`docs/notebook/evidence/20260917T120331-2.1b-probe-honesty/`. It drives the REAL
+probe (`QUEUED_JS` imported from `q1_f5_matrix.py`, never restated) against a
+planted loss and a planted success, both with the record already CLEAN. The
+"probe unverified" label comes off every RED reading.
 
 ### 0.2 The 04:03 window — 2.8b failed to MEASURE, twice (2026-09-15)
 
@@ -635,3 +682,114 @@ instead. The specifications above are complete enough to work from, but **there 
 no draft code to copy**, and `docs/notebook/phase3-drafts/` is deliberately not
 created rather than created empty. Stating this rather than leaving a reader to
 discover it.
+
+
+---
+
+## ✅ FIX 6 — a clean write must prove the record had nothing left to say
+
+**Designed, railed, mutation-proved and committed on `feat/notebook-kill-switch`
+2026-09-17. ⛔ NOT PUSHED — the push is RESERVED to the owner.**
+
+### The mechanism
+
+`putNoteWithIntent` deletes every queued entry for a note when the record it is
+handed is CLEAN and the intent is null — the cursor-delete branch. That is right
+when the note really has nothing left to say, and it is the entire defect when
+it does.
+
+`persist` decided that from `state.synced` alone, and `state.synced` comes from
+`markSynced`, where `caughtUp = sameAuthoredContent(acked, current)` — **the
+server's ack compared against the editor's own in-memory document.** Words that
+live in the durable record and the queue but not in the editor's document are
+invisible to that comparison. That is exactly the state an offline session
+leaves behind, which is why the append route and only the append route showed it.
+
+### The fix is an EXTRACTION, not a second guard
+
+`discardsUnsentWork(prev, incoming)` now lives in `recoverLocalState.js` beside
+`sameAuthoredContent`, and **both `settleLandedSave` and `persist` ask it.**
+
+⛔ The same invariant previously had one implementation and one hole, and the
+hole was invisible *because* the other copy read as coverage for both. A second
+copy in `persist` would have re-created that
+(`lesson_a_guard_repeated_is_a_guard_unproved`).
+
+When a write would discard unsent work, **the durable copy wins** — the same
+resolution `settleLandedSave` already used: keep the member's body, keep
+`dirty`, keep the record's own baseline, keep an intent carrying it. The entry
+then 409s and the drain runs classify-then-rebase/merge/fork, which is the path
+**2.8b measured GREEN on production** and the path the reproduction's control
+case exercises.
+
+### What the rail proves
+
+| | |
+|---|---|
+| rail | `q1AppendWriterCensus.test.jsx` — the STEP 2 reproduction, now green |
+| non-vacuity control | the sibling case in the same file drives the SWEEP and was **green before the fix and after it**. This fixture is not always-red |
+| real modules | `openNotebookDb`, `putNoteWithIntent`, `drainOutbox`, `settleSent`, `rebaseEntry`, `settleNoteWrite`, `recordLandedRevision`, `sendNoteUpdate`, `serverCopyIsOursDefault`, `forkConflictedCopy`, `CAPTURE_TARGETS.note.run` — all unmocked |
+| mutation M1 | fix 6's own line reverted → reproduction RED, control GREEN |
+| mutation M2 | `discardsUnsentWork` always false → **3 RED**, two of them fix 4's rails (`remountNeverDiscardsUnsent`, `selfForkDoors`). One authority, one mutation, both fixes fall |
+| restore | byte-for-byte, sha256 verified both files; 29 files / 384 tests green |
+
+### §10.36 class sweep — `tools/q1_clean_write_sweep.mjs`
+
+An acorn parse, never a grep. **8 call sites; 5 can empty a queue.** Judgement
+per site, with the reason:
+
+| site | verdict |
+|---|---|
+| `outboxDrain.js:75` `settleSent` | **PROVES** — `sameAuthoredContent(rec, entry.patch)`, and the send had just succeeded |
+| `outboxDrain.js:98` `settleForked` | **SAFE** — reached only after `fork()` returned, so the words are in the conflicted sibling |
+| `outboxDrain.js:101` `settleForked` | **SAFE** — same |
+| `useDurableNote.js:335` `settleLandedSave` | **PROVES** — Q1 fix 4, now through the shared authority |
+| `useDurableNote.js:480` `persist` | ⛔ **THE DEFECT** — proved nothing. Fixed |
+
+⚰️ The sweep's first version reported `persist` as safe, because it analysed the
+argument *expression* and both arguments there are locals. A kind-2 proxy inside
+the tool written to find this class. It now resolves a local binding one hop,
+treats anything it cannot resolve as **UNRESOLVED rather than safe**, and
+`--self-check` plants that exact regression.
+
+### 3.4 — the guard release condition
+
+> **The door guard STAYS, and narrows only after fix 6 is proven on production.
+> It does not come out when fix 6 ships.**
+
+The reasoning, and the two halves are different:
+
+- **Until fix 6 ships**, the guard is the only thing standing between a member
+  and a silent loss. Not a question.
+- **After fix 6 is proven on production**, the guard should **narrow to
+  UNKNOWN-only** — defer when the store cannot be opened or read — and stop
+  deferring on `dirty` / `queued`. Reason: with fix 6 live, a dirty record with
+  a queued entry is *safe to capture into*, because the clean write can no
+  longer discard it; continuing to defer there costs the member a real capture
+  ("try again in a moment") for a hazard that no longer exists. `UNKNOWN` is
+  different — an unreadable store means the answer is genuinely not known, and
+  the cost of a wrong pass is still the member's words.
+- ⛔ **"Proven on production" is not "shipped".** It means the five append cells
+  read GREEN on the rig with fix 6 live *and the guard already narrowed* — the
+  guard cannot be released on evidence gathered while it was still deferring,
+  because that evidence is about a route nobody reached.
+
+⚠️ Belt-and-braces is NOT the recommendation here, and that is deliberate: a
+guard kept "just in case" past its cause is how a false defer becomes permanent
+furniture nobody can justify removing later.
+
+### 3.5 — the push plan (the push itself is RESERVED)
+
+| | |
+|---|---|
+| commits | `0e22baf06` (reproduction) · `acd757574` (fix 6) · `1524c39a6` (W1) · `d76556078` (W2 staged) |
+| product files | **two** — `useDurableNote.js`, `recoverLocalState.js`; 86 insertions, 6 deletions |
+| carry-over | C0–C5 per `tools/gate_carry_over.py`. ⛔ **C4-python is MANDATORY** — this branch touches `tools/` and `docs/`, and a C0 hit never short-circuits the Python half |
+| guard slot | announce before pushing; recency ≥600 s settled and burst <3 distinct web deploys in 60 min. ⛔ The guard has a ~3.5 min blind window by construction — do not calibrate a wait on it |
+| verification | own deploy record STATUS (`SUCCESS`, not someone else's pod), then `production` ancestry by `git merge-base --is-ancestor`. **Never an uptime you did not tie to a named deploy** |
+| after | the rig re-run of the five append cells with the guard narrowed — that, not the push, is what closes D3 |
+
+⛔ **Is the guard sufficient until fix 6 ships?** Yes, and it is proven six times
+on production (2.8c, `evidence/20260917T122035-2.2-ring-on-the-drivable-door/`):
+door driven to completion, unsent work present, no `/embeds` call. That is why
+fix 6 is not urgent enough to justify pushing it outside the owner's word.
