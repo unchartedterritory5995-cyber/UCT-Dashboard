@@ -135,10 +135,22 @@
 > one; the scope was CHUNKED and both chunks are above. Box was at 11.3 GB free
 > with other workstreams' python resident.
 >
-> ### ⛔ NEXT: **j.3b — the translator fold, at the four pinned sites above.**
-> It is a parser change: census the corpus blast radius FIRST (how many `color.new`
-> calls with a non-literal-but-constant alpha start carrying), because every one of
-> them changes a translation.
+> ## ✅ R31 AND R32 RULED (owner, chat, 2026-09-17)
+>
+> **R31 — `PR-BODY-COMBINED.md` IS GENERATED AND RAILED.** A rail rebuilds it from
+> `header + PR-BODY.md + PR-BODY-WAVE2.md` and byte-compares. ⛔ The recipe lives in
+> ONE tool under `tools/` that both the rail and the human call — **the test must not
+> restate it**, or the rail agrees with itself while the artifact drifts. This closes
+> the generated-artifact form of *two authorities over one value*.
+>
+> **R32 — j.3b AUTHORISED, CENSUS FIRST, NARROWEST FOLD THAT CARRIES CLOUDS.**
+> (i) NARROW: `staticColourOf` substitutes a user function's body when it is a SINGLE
+> colour expression and every argument is plan-time — colour positions only, dynamic
+> reason otherwise. (ii) GENERAL constant folder — **only if (i) provably cannot
+> carry Clouds, and then it STOPS for a go.** Re-baseline reported by artifact either
+> way, per script, predicted-vs-actual.
+>
+> ### ⛔ NEXT: **Part 1 (R31 rail) → Part 2 (census) → Part 3 (j.3b build).**
 >
 > ### ⛔ AND THE CONSEQUENCE FOR PARTS 3-4, STATED RATHER THAN DISCOVERED LATER:
 > Clouds' fills still carry **no** colour, so a capture today shows 20 bands in the

@@ -484,6 +484,55 @@ draw and not about the carriage.
 
 ---
 
+# ✅ R31 — `PR-BODY-COMBINED.md` IS **GENERATED**, AND RAILED (owner, 2026-09-17)
+
+> A rail rebuilds the combined body from its recipe — **header + `PR-BODY.md` +
+> `PR-BODY-WAVE2.md`** — and **byte-compares** it against the committed file. A
+> mismatch is **RED**.
+
+⛔⛔ **THE RECIPE LIVES IN ONE PLACE.** A small tool under `tools/` owns it, and both
+the rail and the human call that tool. ⛔ **The test must NOT restate the recipe** — a
+second copy of "how the file is built" is the very defect this ruling closes, and a
+rail carrying its own recipe would agree with itself while the artifact drifted.
+
+⚰️ **THE INCIDENT IT ENCODES.** `PR-BODY-WAVE2.md` was updated when j.1 landed and the
+derived file was not regenerated, so **#145 described (j) as "scoped only, 11 gaps with
+file:line" through both j.1 and j.2**. Nothing could detect it: the combined file is
+generated, nothing regenerated it, and no check compared the two. It was found only by
+rebuilding the file and comparing — which is now the rail.
+
+⭐ **This is `two authorities over one value`, in its GENERATED form.** The repo has
+recorded that shape for a sentence, a job and a field spelling; a generated artifact
+that nothing regenerates is the fourth, and it is the quietest, because the source of
+truth is *correct* the whole time.
+
+**Mutation proof:** edit `PR-BODY-WAVE2.md` without regenerating ⇒ **RED**.
+**Non-vacuity:** the rebuild is asserted non-empty and to contain **both** wave headings,
+so the comparison cannot pass over an empty rebuild.
+
+---
+
+# ✅ R32 — j.3b AUTHORISED: **CENSUS FIRST, NARROWEST FOLD THAT CARRIES CLOUDS** (owner, 2026-09-17)
+
+> The translator must carry a fill colour that is a **user-function call returning a
+> colour**. Two candidates; **the census decides**.
+
+| | candidate | scope |
+|---|---|---|
+| **(i)** | **NARROW.** `staticColourOf` resolves a user-function call by **substituting the function's body** when that body is a **single colour expression** (`color.new` / `color.rgb` / a colour constant, possibly with arithmetic on a plan-time argument) **and every argument at the call is plan-time**. | **Colour positions only.** Nothing outside `staticColourOf` changes. A body that is not a single colour expression returns **null with the dynamic reason**, exactly as a dynamic alpha does today. |
+| **(ii)** | **GENERAL.** A constant folder over user functions, corpus-wide. | Everything. |
+
+⛔ **CHOOSE (i)** if it carries Clouds' 20 fills **and** its blast radius stays inside
+colour positions. ⛔ **(ii) ONLY IF (i) PROVABLY CANNOT CARRY CLOUDS** — and then it
+**STOPS for a go**: a general folder is a ruling, not an implementation detail.
+
+⛔⛔ **THE CORPUS RE-BASELINE IS DONE AND REPORTED BY ARTIFACT EITHER WAY.** A colour
+that starts carrying where it was dropped before is the **INTENDED** change and is
+**listed per script**. ⭐ The census predicts which scripts move; the re-baseline
+reports predicted-vs-actual, and **predicted-and-unmoved is a finding too**.
+
+---
+
 # R11 — ITEM (j) RENDERS A CONDITIONAL FILL (owner, 2026-09-14)
 
 ⛔ **(j) must not begin by hunting a static colour. There is none, and that is correct.**
