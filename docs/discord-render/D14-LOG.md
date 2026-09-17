@@ -410,3 +410,62 @@ NOT MERGED: fix/oi-47-health-early-return @ 494b20948 -- R22 budget spent.
 master unchanged BY THIS SESSION | no env change | budget intact
 ================================================================================
 ```
+
+```
+================================================================================
+2026-09-17 12:01 ET | D-15 MERGE PUSHED | e50c0552d -> master | V2 DARK | exposure 0
+================================================================================
+OWNER-DIRECTED MERGE (D-15). One master push, four commits, in the plan's order:
+
+  ccb8f6bfd OI-47 the durable record + slot counter READABLE on BOTH health
+                  branches. The two-branch schema diff is DERIVED from
+                  observe.py's AST, not a typed key list, so a FOURTH
+                  observability key is covered the day it lands. 2/2 RED.
+  8ed544e24 R51   tier 1 = the Discord ack budget, 3,000 ms. 9/9 RED. M9 is the
+                  PLAUSIBLE regression (back to 5,000), which is the one worth
+                  railing -- M5's 1,000,000 ms nobody ships by accident.
+  769189ccb R54   interaction type in band; an autocomplete stops counting as a
+                  command arrival. Unknown is NEVER a command. 3/3 RED.
+  46504fa88 R50   the smoke row scores the LATEST index on its own SHA; earlier
+                  runs are named as history, never summed. No SHA or no run date
+                  => rejected. 3/3 RED incl. the selector non-vacuity case where
+                  filename order and the in-band date disagree.
+
+PREFLIGHT ON THE LANDING TREE (master had not moved; f86c3759e was both the
+merge-base and master's tip, so the landing tree WAS the branch tip):
+  * roster DERIVED from tests importing the two changed api modules: 47 files,
+    2 chunks, reconciled 24 + 23 = 47 -> 1,174 passed, 0 failed.
+  * Python rail floor 164 passed / 1 failed. BASELINED LIKE-FOR-LIKE at
+    f86c3759e in a detached worktree: fails there too, identically. This branch
+    adds ZERO /data literals and none of the six files it names is in the diff.
+    PRE-EXISTING, not a NEW failure.
+  * hygiene clean (9,889 files) - flow_worker_watch_coverage OK (no tape gap) -
+    guard: web SUCCESS on f86c3759e, 5,960s settled, master quiet.
+  * invariants: broker_sync count 10 (>=7); api/main.py UNTOUCHED so main.py:838
+    is untouched; RenderGate still in-process at
+    api/services/discord_interactions.py:77 (it lives in api/services/, NOT in
+    main.py -- checked rather than assumed, because it is a stop condition).
+
+⛔ TWO INSTRUMENT DEFECTS CAUGHT IN MY OWN WORK BEFORE THEY COULD MISLEAD:
+  1. R50's M2 first went RED by CRASHING (`if not sha:` -> `if False:` left the
+     accept branch dereferencing None) and printed NO TOTALS LINE. Red for the
+     wrong reason is not proof -- this repo's own totals-line rule in miniature.
+     Retargeted so the REJECTION BEHAVIOUR is what fails.
+  2. The first deploy poller would have accepted the PREVIOUS SUCCESS record
+     from its third iteration, because it keyed on STATUS and not on whether the
+     record was newer than the push. That is the "instrument pointed at something
+     that moved" class, in a tool written minutes after reading the rule about
+     it. Replaced with one that requires a timestamp after 12:01 ET.
+
+⛔⛔ THE HARDENING BRANCH NOW CONFLICTS WITH MASTER, DELIBERATELY, IN TWO FILES.
+It carries R16's SMOKE_ROWS_TOTAL = 14 and the derived needle; master carries
+R50's rewritten scorer at 15. On merge: TAKE R50's SCORER AND R16's DENOMINATOR.
+Orthogonal changes to the same files, both wanted. Recorded so the resolution is
+a decision, not a scramble.
+
+NEXT: OI-47's acceptance test on the live pod (stall_record + token_slots
+non-null). If still null -> STOP and diagnose. Then R52 (OI-44, the top item).
+================================================================================
+one master push SPENT (owner-directed) | no env change | V2 flag unset
+================================================================================
+```

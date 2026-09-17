@@ -1,4 +1,30 @@
+> **NEXT WAKE REASON:** the D-15 work order after the merge — **R52 (OI-44, the top item)**,
+> then R53 (SPY timeout, flow-worker READ-ONLY), then R55/R56. Clock-gated: **R57 / OI-13 step 6,
+> Friday 2026-09-18 ~08:23 ET (R29 span)**.
+
 # D-14 — the durable checklist. READ THIS FIRST ON RESUME.
+
+## ⚡ D-15 AMENDMENTS ARE LIVE (owner, 2026-09-17). The merge is DONE.
+
+**`e50c0552d` pushed to master 17:01:29Z** — one master merge, owner-directed, four commits:
+OI-47 (readable durable record, both branches) · R51 (tier 1 = the 3,000 ms ack budget) ·
+R54 (interaction type in band, so an autocomplete stops counting as a command) · R50 (the smoke
+row scores the LATEST index on its own SHA; earlier runs are history, never addends).
+
+⛔ **OI-47's ACCEPTANCE TEST IS AFTER THE DEPLOY:** the health payload on the live V2-dark pod
+must carry `stall_record` and `token_slots`. **If they are still null the sequence STOPS and that
+is diagnosed before anything else** — D-15 stop condition.
+
+⛔⛔ **THIS BRANCH NOW CONFLICTS WITH MASTER, DELIBERATELY, IN TWO FILES.** `discord-render-hardening`
+carries R16's `SMOKE_ROWS_TOTAL = 14` and the derived `says=` needle; master now carries R50's
+rewritten scorer at 15. When this branch merges, **take R50's scorer and R16's denominator** —
+they are orthogonal changes to the same two files (`flip_preconditions.py`,
+`mutation_harness_flipgate.py`) and both are wanted. Recorded here so the conflict is a known
+decision rather than a surprise resolved by whoever hits it first.
+
+**Work order (D-15):** R52 (OI-44) → R53 (SPY) → R55/R56 gate rows → W4 remainder → Friday R57
+→ W5 canary under R38/R39 with R49 rehearsed → W6 under R40/R41.
+
 
 **A fresh session resumes from this file alone.** Its first act: read this file,
 verify production state in-process (never from a working tree, never from a ledger),
