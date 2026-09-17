@@ -46,8 +46,13 @@ try:
     o["uptime_s"] = g("/api/health").get("uptime_seconds")
     d = g("/api/discord/render-health", True)
     o["loop"] = d.get("loop")
-    o["stall_record"] = d.get("stall_record")      # present once W1 commit A is live
-    o["token_slots"] = d.get("token_slot_counts")  # present once W1 commit B is live
+    # ⛔⛔ THE KEY IS `token_slots`, NOT `token_slot_counts`. The name here was TYPED against a
+    # payload that did not exist yet, and it matches nothing `observe.health_payload` emits — so
+    # after OI-47 is merged this probe would STILL have recorded `token_slots: null`, for a
+    # second, unrelated reason, and the null would have read as "commit B is not live". A key
+    # nobody derived is a kill switch nobody can see (the invented-env-flag class, in a reader).
+    o["stall_record"] = d.get("stall_record")
+    o["token_slots"] = d.get("token_slots")
     o["sha"] = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "?")[:12]
 except Exception as e:
     o["err"] = repr(e)[:120]
