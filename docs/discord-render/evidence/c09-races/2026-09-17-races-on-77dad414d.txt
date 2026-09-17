@@ -1,0 +1,9 @@
+  classless valve (the OLD behaviour): {'rounds': 50, 'wins': {'member': 0, 'background': 50, 'nobody': 0}}
+  RenderGate (wired): {'rounds': 50, 'wins': {'member': 50, 'background': 0, 'nobody': 0}}
+  ok   CONTROL: with a class-blind valve the warm cycle takes a large share
+  ok   the member wins EVERY one of 50 real-path races
+  ok   ...and every round resolved (nobody = 0)
+  ok   the BACKGROUND contender calls warm_hot_charts, the real warm entry
+  ok   the MEMBER contender calls produce_chart, the real render function
+  ok   neither contender calls acquire() directly (that is the unit test's job)
+TOTALS c09_real_path_races --self-check PASS declared=6 evaluated=6 failed=0
