@@ -198,9 +198,20 @@ reporter load **having executed nothing** and produced no totals line at all.
   branch at all. Census (`tools/pine_user_fn_body_census.py`, 328 files, **1,412**
   user functions): **27** return a colour, **43** calls sit in a colour position,
   **4 scripts** — and **every one is a SINGLE EXPRESSION**.
-  🛑 **R35c is PROPOSED, NOT BUILT, and stopped for a go**: one branch delegating to
-  `inlineUserFunction` + `constantValueOf`, multi-statement colour bodies refused by
-  name. Estimate 150 min.
+  🛑 **R35c was GRANTED; 1.1 measured first and the build did NOT start.** The bridge
+  turned out to be a **shipped pattern one value-kind over** — `textNodeOf`
+  (`pine.js:10041`) already inlines a user-fn call in a TEXT position, and
+  `colorNodeOf` says in-file it is *"the same shape, one branch shorter"*. The frame
+  chain composes on its own (measured: two-level → **7**, three-level → **15**).
+  ⛔ **But `color.t` refuses `pine:colour-value`, and 5 of 5 colour helpers / 43 of 43
+  call sites route through it** — so R35c alone carries **zero of four scripts**, which
+  is machinery with no consumer and the exact failure H.10's leg 4 refused. Three of the
+  four are `box`/`set_bgcolor` colours that cannot carry regardless; **Clouds is the sole
+  consumer at 40 sites**.
+  🛑 **R35d proposed:** `color.t` of a static colour folds to its transparency, as a
+  `staticAlphaOf` beside `staticColourOf` — **not** in the Resolver, which must not be
+  taught colours. The original `(i-C)` named this clause and my R35c proposal dropped
+  it. **R35c + R35d land together or neither is worth landing** (150 + 45 min).
 - ✅ **The `pine_oos` re-baseline hole is closed** — `oosMeasuredBaseline.test.js` +
   a committed 59-script artifact pinning outputs, **refusal guards in order** and
   colour-position counts, reported as a **set difference by name**, mutation-proved.
