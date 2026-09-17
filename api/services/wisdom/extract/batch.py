@@ -92,6 +92,16 @@ def key_from_keyring():
 
 
 def make_client():
+    # THE $0 BRANCH, AND IT COMES FIRST ON PURPOSE. Everything below this point reads an API
+    # key and imports the paid SDK; a local run must reach none of it. Branching here rather
+    # than inside the paid construction is what makes "the local path cannot spend" a
+    # structural property instead of a promise - tests assert the SDK is never imported.
+    from api.services.wisdom.extract import config
+
+    if config.is_local():
+        from api.services.wisdom.extract import local_backend
+
+        return local_backend.make_local_client()
     key = ""
     for name in KEY_VARS:
         key = os.environ.get(name, "").strip()

@@ -34,6 +34,7 @@ from __future__ import annotations
 import copy
 import functools
 import hashlib
+import re
 import json
 import pathlib
 from typing import Optional
@@ -243,6 +244,21 @@ def extractor_version(system_text: Optional[str] = None) -> str:
     system_text = system_prompt() if system_text is None else system_text
     digest = hashlib.sha256(
         "\n\x1e\n".join([system_text, schema_text(), TRANSPORT_REVISION]).encode("utf-8")).hexdigest()
+    # A LOCAL RUN MUST NEVER SHARE A VERSION WITH A PAID ONE. The digest hashes the PROMPT,
+    # not the model, so without this branch a local extraction and a paid one would carry the
+    # same extractor_version - and reconcile.score_silently would then compare records made by
+    # two different models as if they were repeat passes of one. That is not a stability
+    # measurement; it is a model comparison wearing stability of its name.
+    # The PAID version is untouched here, deliberately: wx-v0-fc47bc97 is pinned in the
+    # accepted golden-gate row in production, and changing it would shut the gate.
+    from api.services.wisdom.extract import config
+
+    if config.is_local():
+        from api.services.wisdom.extract import local_backend
+
+        raw = local_backend.local_model().lower()
+        slug = re.sub("[^a-z0-9]+", "-", raw).strip("-")[:24]
+        return f"wx-local-{slug}-{digest[:8]}"
     return f"{PROMPT_FAMILY}-{digest[:8]}"
 
 
