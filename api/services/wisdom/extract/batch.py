@@ -45,7 +45,6 @@ log = logging.getLogger(__name__)
 
 CUSTOM_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 MAX_REQUESTS_PER_BATCH = 2000
-DAILY_SEGMENT_LIMIT = 400
 DAILY_SOURCE_LIMIT = 50
 ORPHAN_AFTER_S = 15 * 60
 ORPHAN_GIVE_UP_S = 6 * 3600
@@ -405,11 +404,55 @@ def npass_count() -> int:
     return n if n >= 1 else DEFAULT_PASSES
 
 
-def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpose: str = "extract",
+#: ⛔⛔ THE PER-NIGHT REQUEST THROTTLE — R53's other number, and like the budget beside it
+#: **A VALUE, NOT A SWITCH**, for the reason `budget.daily_budget_usd` is written around: an unset
+#: QUANTITY must not mean "submit nothing" (an invisible outage) or "submit everything" (an
+#: invisible bill). So it defaults to the ruled number, and a value that is PRESENT but nonsensical
+#: REFUSES rather than falling back — `WISDOM_DAILY_SEGMENT_LIMIT=4OO` (letter O) quietly becoming
+#: 400 is how a night gets re-sized by nobody.
+#:
+#: ⛔ IT IS READ AT CALL TIME, AND THAT IS THE WHOLE POINT. A default argument
+#: (`limit: int = DAILY_SEGMENT_LIMIT`) is evaluated ONCE, at IMPORT, so the throttle would be
+#: frozen at whatever the environment held when this module was first imported and could only be
+#: changed by a deploy — which is exactly what making it overridable was for. `submit_pending` and
+#: `run_daily` therefore default to None and resolve through here on every call.
+#:
+#: ⭐ It bounds REQUESTS, not segments: at N=3 a 400-request night is 133 segments (`run_daily`).
+DAILY_SEGMENT_LIMIT_ENV = "WISDOM_DAILY_SEGMENT_LIMIT"
+DAILY_SEGMENT_LIMIT = 400
+
+
+class DailySegmentLimitUnusable(ValueError):
+    """A nightly request throttle that is set but unusable. Refused, never silently defaulted."""
+
+
+def daily_segment_limit() -> int:
+    """One night's request ceiling. Raises rather than guessing when the value is unusable."""
+    raw = os.environ.get(DAILY_SEGMENT_LIMIT_ENV)
+    if raw is None or not str(raw).strip():
+        return DAILY_SEGMENT_LIMIT
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        raise DailySegmentLimitUnusable(
+            f"{DAILY_SEGMENT_LIMIT_ENV}={str(raw)[:40]!r} is not a whole number of requests. Refusing "
+            f"rather than falling back to {DAILY_SEGMENT_LIMIT} — a typo must not quietly become a "
+            "throttle.")
+    if value <= 0:
+        raise DailySegmentLimitUnusable(
+            f"{DAILY_SEGMENT_LIMIT_ENV}={value} is not positive. Unset it to use the default "
+            f"({DAILY_SEGMENT_LIMIT}); zero is not a way to pause extraction — "
+            "WISDOM_EXTRACT_ENABLED is.")
+    return value
+
+
+def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: str = "extract",
                    segment_rows: Optional[list[dict]] = None, effort: Optional[str] = None, salt: str = "",
                    out: Optional[dict] = None, run_id: Optional[str] = None,
                    pass_index: Optional[int] = None, include_retries: bool = True,
                    night_cap_usd: Optional[float] = None) -> dict:
+    # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
+    limit = daily_segment_limit() if limit is None else int(limit)
     out = dict(out or {})
     version = prompt.extractor_version()
     model = config.configured_model()
@@ -505,7 +548,7 @@ def spend_refusal(ctx) -> str:
     return "WISDOM_EXTRACT_ENABLED is off"
 
 
-def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Optional[Callable] = None) -> dict:
+def run_daily(ctx, *, client=None, limit: Optional[int] = None, loader: Optional[Callable] = None) -> dict:
     """Daily chain step: segment new sources, then extract NEW segments only — gated by
     WISDOM_EXTRACT_ENABLED, the golden gate and the budget."""
     version = prompt.extractor_version()
@@ -515,6 +558,8 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
     if not spend_allowed(ctx):
         out.update(status="skipped", reason=spend_refusal(ctx))
         return out
+    # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
+    limit = daily_segment_limit() if limit is None else int(limit)
     out["segmentation"] = segment_pending_sources(dry_run=ctx.dry_run, loader=loader)
     with store.read() as conn:
         gate = golden.gate_status(conn, extractor_version=version, model=model)
