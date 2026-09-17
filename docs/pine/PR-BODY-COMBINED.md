@@ -799,7 +799,31 @@ reporter load **having executed nothing** and produced no totals line at all.
   and folds perfectly but is never read, because reading a positional colour
   argument belongs to `outputPresentation`, not `staticColourOf`. **Sizing any
   further colour ruling against that census inherits the overstatement.**
+- ⚰️⚰️ **R35 — TWO OF H.10's FIVE LEGS ARE STRUCK BY MEASUREMENT.** `Resolver.
+  inlineUserFunction` (`pine.js:7321`) already **substitutes** user-function bodies
+  into existing node kinds, so "a multi-statement body needs a 12th `NODE_TYPE`" is
+  **false**: Clouds' own two-local-binding helper folds to **84** at layer 0 and
+  **38.4** at layer 19 on the series path today. It accepts single expressions, N
+  local bindings, `:=` and `if` blocks. ⭐ The error was mine and it is named: I
+  measured the COLOUR path, found nothing, and generalised to the engine — *an
+  absence is only evidence if the instrument could have seen a presence*, which
+  applies to a code path as much as to a grep.
+  ⛔ **The gap is narrower and different: a COLOUR-VALUED function result.** The
+  Resolver refuses a colour **by name** (`pine:colour-value`) because it is a
+  numeric/series resolver by construction, and `staticColourOf` has no user-function
+  branch at all. Census (`tools/pine_user_fn_body_census.py`, 328 files, **1,412**
+  user functions): **27** return a colour, **43** calls sit in a colour position,
+  **4 scripts** — and **every one is a SINGLE EXPRESSION**.
+  🛑 **R35c is PROPOSED, NOT BUILT, and stopped for a go**: one branch delegating to
+  `inlineUserFunction` + `constantValueOf`, multi-statement colour bodies refused by
+  name. Estimate 150 min.
+- ✅ **The `pine_oos` re-baseline hole is closed** — `oosMeasuredBaseline.test.js` +
+  a committed 59-script artifact pinning outputs, **refusal guards in order** and
+  colour-position counts, reported as a **set difference by name**, mutation-proved.
+  ⛔ `pine.oosBaseline.test.js`'s own "NO RATCHET" design ruling is untouched; this
+  sits beside it and supplies the measurement it lacked.
 - ⛔⛔ **R33b STOPPED AS H.10 — `(i-C)` is `(ii)` by another name. Nothing was built.**
+  ⚠️ **Legs 1 and 2 below are struck — read R35 above.**
   Five measured legs: `NODE_TYPES` is frozen at 11 with **no statement form**, and
   Clouds' numeric helper is two local-binding **statements** plus a return, so it
   needs a 12th node type or a walker outside the tree — both named STOP conditions;

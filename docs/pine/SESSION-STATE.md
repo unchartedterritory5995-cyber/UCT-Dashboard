@@ -37,6 +37,16 @@
 > the j.3b census's §7. **EVERY ONE IS A SINGLE EXPRESSION**, and the
 > multi-statement numeric helper nested inside Clouds' is already inlined.
 >
+> ✅ **THE pine_oos HOLE IS CLOSED** — `oosMeasuredBaseline.test.js` +
+> `oos-measured-baseline.json` (59 scripts). Per script: outputs, **refusal guards
+> IN ORDER**, and the four colour-position counts; a move is a **set difference by
+> name with both readings**, never a count, and corpus membership is diffed both
+> ways. Mutation-proved (3→4 ⇒ RED naming the script; restored byte-exact to sha
+> `71f62e8a…`). ⛔ `pine.oosBaseline.test.js`'s own "NO RATCHET" ruling is
+> **untouched** — this sits beside it. The six census-named OOS scripts are named
+> in the rail; only `mid_engagement__09` moved (0 → 2), outputs and refusals moved
+> on none.
+>
 > 🛑 **R35c PROPOSED, NOT BUILT, STOPPED FOR A GO** (plan doc, R35): one branch in
 > `staticColourOf` — a user function with a SINGLE-EXPRESSION body is substituted
 > through `makeResolver()` and re-walked; the alpha delegates to
