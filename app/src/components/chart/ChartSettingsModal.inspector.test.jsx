@@ -22,6 +22,8 @@
 import { useState } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, within, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 import * as registry from './engine/nativeRegistry'
@@ -334,6 +336,59 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     expect(seen.cs.overlays[0].removed, 'a neighbour was tombstoned').toBeFalsy()
     expect(seen.cs.overlays.length, 'the array was spliced — that renumbers every later slot')
       .toBe(cs.overlays.length)
+  })
+
+  it('⚰️⚰️ A READ-ONLY CORE FACT TAKES THE CONTROL CELL, not the right margin', () => {
+    // ⚰️⚰️ THIS IS WHAT WAS STILL VISIBLY WRONG AFTER THE FIRST NORMALISATION.
+    // The labels, the order and the words all matched — and a legacy MA still read
+    // as a different form, because `.insFieldCtl` is `justify-content: flex-end`
+    // and every real control takes `width: 100%`. A select's text therefore begins
+    // 8px inside the cell's LEFT edge, while a bare span with no width hugged the
+    // RIGHT. Measured in the browser on the released build: `Close` began at
+    // x=1012, the `Type` select's text at x=828 — so `Source` and `Display` hung
+    // out at the far margin with `Period` and `Type` starting 184px to their left,
+    // and the four CORE rows read as two interleaved forms. Owner, 2026-09-17:
+    // *"show Source Close using the same field geometry, typography, and
+    // location."*
+    //
+    // ⛔ jsdom LAYS NOTHING OUT, SO THIS PINS THE TWO THINGS THAT PRODUCE THE
+    // GEOMETRY and lets the browser prove the pixels (it does: after the fix all
+    // four rows read labelX 961.7, ctlX 1064.2, ctlR 1339.6, height 23.6 on EMA 9,
+    // SMA 50 and the engine SMA 5 alike — one string, three rows).
+    //   1. THE DOM: the value is a direct child of the control cell, exactly where
+    //      a select sits, not a bare span appended after one.
+    //   2. THE RULE: `.insFieldValue` declares the control's own box.
+    show(base()); openTab()
+    select(/^EMA 9$/)
+
+    for (const key of ['__source__', '__where__']) {
+      const cell = inspector().querySelector(`[data-field="${key}"] [class*="insFieldCtl"]`)
+      expect(cell, `${key} has no control cell at all`).toBeTruthy()
+      const kids = [...cell.children]
+      expect(kids.length, `${key}'s cell holds something besides the value`).toBe(1)
+      expect(/insFieldValue/.test(kids[0].className),
+        `${key}'s value is not the class the width rule addresses`).toBe(true)
+    }
+
+    // ⛔ AND THE RULE ITSELF, READ FROM SOURCE. A class name alone would still
+    // pass if someone deleted the box from under it — which is exactly how the
+    // defect existed in the first place.
+    // ⚠️ `process.cwd()`, NOT `import.meta.url` — vitest runs the module through
+    // vite, so `import.meta.url` is an http: URL here and `readFileSync` refuses
+    // it. `tapFloor.test.js` reads stylesheets the same way, from `app/`.
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+    const block = css.slice(css.indexOf('\n.insFieldValue {'))
+    const decls = block.slice(0, block.indexOf('}'))
+    for (const decl of ['width: 100%', 'height: 24px', 'padding: 0 8px', 'font-size: 11.5px']) {
+      expect(decls, `.insFieldValue no longer declares \`${decl}\` — it has left the control cell`)
+        .toContain(decl)
+    }
+    // ...and 24px / 8px are the CONTROL's numbers, not two coincidences.
+    const ctl = css.slice(css.indexOf('.insFieldCtl .indNum {'))
+    const ctlDecls = ctl.slice(0, ctl.indexOf('}'))
+    expect(ctlDecls).toContain('height: 24px')
+    expect(ctlDecls).toContain('padding: 0 8px')
   })
 
   it('⛔⛔ AND NOTHING ABOUT ANY OF THIS PERSISTS DIFFERENTLY', () => {

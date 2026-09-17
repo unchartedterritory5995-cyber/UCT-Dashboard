@@ -20,11 +20,12 @@
      visibly grew and shrank as the member clicked along the tab strip — owner,
      2026-09-17: *"Chart Settings is ONE window."* The width is the WINDOW's now,
      at the geometry the Inspector was accepted at, and no tab may change it.
-     ⛔ THE CONTENT STILL CHOOSES ITS OWN WIDTH — see `.bodyNarrow`. A tab that
-     was designed to a 560px column keeps that column inside the wider shell
-     instead of stretching four card groups across 720px, which is a redesign
-     nobody asked for. Shell and content are two decisions; only one of them was
-     ever the tab's to make. */
+     ⚰️ AND THE 560px CONTENT CAP THAT FOLLOWED IT IS ALSO GONE. Keeping the
+     four older tabs at their old column inside the new shell was the cautious
+     read of "do not redesign", and it bought a 160px dead strip down the right
+     of Price Style, Canvas, Header and Markers — owner, 2026-09-17: *"the other
+     tabs have not been responsively adapted to the new modal width."* The shell
+     is the content width now, for every tab. See `.body`. */
   width: min(720px, 94vw);
   /* Fixed height so the modal doesn't resize between tabs — the longer Canvas
      tab scrolls inside .body instead of growing the whole modal.
@@ -267,13 +268,23 @@
   border-radius: 2px 2px 0 0;
 }
 
-/* ⭐ THE COLUMN THE NARROW TABS KEEP. Price Style, Canvas, Header and Markers
-   were laid out against a 560px body and look deliberate at that measure; the
-   shell is 720 now, so they hold their width and sit against the leading edge
-   rather than stretching. Left-aligned, not centred — centring would move every
-   control the member already knows the position of. Indicators opts out: the
-   Inspector's two columns ARE the shell's width. */
-.bodyNarrow > * { max-width: 560px; }
+/* ⚰️⚰️ `.bodyNarrow` STOOD HERE — `max-width: 560px` on every direct child of
+   `.body` for the four tabs that predate the wide shell. It was written as the
+   conservative answer to "one window, one width": leave the tabs that were drawn
+   to a 560px column at 560 and let the shell be wider than them.
+   ⛔ IT WAS THE WRONG HALF OF THE PROBLEM. What it actually produced was a tab
+   that ends 160px before its own window does, on four of five tabs — and a
+   Price Style whose THREE-ACROSS grids (`.typeGrid`, `.modeRow`, `.cGroups`) are
+   `repeat(3, 1fr)` and had been sized to fill a body they were no longer being
+   given. Nothing needed redesigning to fix it: the grids distribute across
+   whatever width they get, so deleting the cap is the whole adaptation for the
+   tab the void was most visible on.
+   ⭐ AND NOTHING WAS STRETCHED TO FILL THE GAP. The tabs are built from three
+   shapes and each already had an answer for a wider measure: the 3-across grids
+   distribute, `.card` rows keep label left / control right so a toggle or a
+   swatch stays its own size and only its travel grows, and `.chipRow` wraps less.
+   No input was widened to 663px to occupy space — the width went to the grids,
+   which is where the void was. `.body` has no cap of its own. */
 
 .body {
   flex: 1;
@@ -1387,11 +1398,30 @@
 }
 /* ⭐ A CORE FACT THAT CANNOT BE ASKED — see `readOnlyCore`. It wears the VALUE's
    ink because it IS the value; what it does not wear is a border, a chevron or a
-   focus ring, so nothing about it offers an interaction that does not exist. */
+   focus ring, so nothing about it offers an interaction that does not exist.
+   ⚰️⚰️ IT SAT ON THE RIGHT EDGE, AND THAT IS WHAT MADE ONE MOVING AVERAGE LOOK
+   LIKE TWO PRODUCTS. `.insFieldCtl` is `justify-content: flex-end` and every real
+   control takes `width: 100%`, so a select's text begins 8px inside the cell's
+   LEFT edge — while this span, having no width, hugged the right. Read down a
+   legacy MA the two facts it cannot be asked (`Close`, `Price`) hung out at the
+   far margin while `Period` and `Type` started at the control column, and the
+   panel read as two forms interleaved. Measured in the browser: `Close` began at
+   x=1012 where the `Type` select's text began at x=828.
+   ⭐ SO IT TAKES THE CELL, AT THE CONTROL'S OWN GEOMETRY — same width, same 24px
+   line, same 8px text inset, same 11.5px face. The four CORE rows of a legacy
+   overlay now line up on one left edge with the four of an engine instance, and
+   the only difference left between the two editors is that two of these do not
+   open. That is a true difference and it is the one worth showing. */
 .insFieldValue {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  line-height: 24px;
+  padding: 0 8px;
   font-size: 11.5px;
   color: var(--menu-text, #ededed);
-  padding-right: 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

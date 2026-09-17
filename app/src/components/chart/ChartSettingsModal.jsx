@@ -841,10 +841,12 @@ export default function ChartSettingsModal({
            ruled the step out: *"Chart Settings is ONE window. Its desktop shell
            should have ONE stable width."*
            ⭐ SO THE WIDTH IS THE PANEL'S, UNCONDITIONALLY. No modifier, no
-           per-tab class, nothing here to keep in step with the tab strip. The
-           four tabs that were designed to a 560px column keep that column
-           INSIDE the shell (`.bodyNarrow`) rather than stretching to fill it —
-           the shell is the window's decision, the content width is the tab's. */
+           per-tab class, nothing here to keep in step with the tab strip.
+           ⚰️ AND THE CONTENT CAP THAT USED TO SIT BESIDE IT IS GONE TOO. The four
+           older tabs were held at their original 560px column inside the wider
+           shell, which left them ending 160px short of their own window; they
+           use the shell's width now. `.body` carries no cap and no per-tab
+           class — one shell, one content width, every tab. */
         className={styles.panel}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
@@ -957,7 +959,7 @@ export default function ChartSettingsModal({
             they keep it and sit against the leading edge. Stretching four card
             groups across 720px would be a redesign of four tabs nobody asked
             for; a future project can unify them properly. */}
-        <div className={styles.body + (activeTab === 'indicators' ? '' : ' ' + styles.bodyNarrow)}>
+        <div className={styles.body}>
           {activeTab === 'canvas' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Background</div>

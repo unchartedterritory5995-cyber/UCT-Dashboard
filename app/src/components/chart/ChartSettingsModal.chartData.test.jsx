@@ -679,9 +679,9 @@ describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => 
     //
     // ⭐ SO THE SHELL IS THE WINDOW'S, UNCONDITIONALLY, and what this now guards is
     // that no tab can take it back. The width the shell settled on is the one the
-    // Inspector was accepted at; the four tabs designed to a narrower column keep
-    // that column INSIDE it rather than stretching (see `.bodyNarrow`), which is a
-    // content decision and not a shell one.
+    // Inspector was accepted at. ⚰️ THE CONTENT CAP THAT ONCE SAT BESIDE IT IS
+    // GONE TOO — see the next case; shell and content are one width now, not two
+    // decisions with a 160px gap between them.
     //
     // ⛔ MEASURED AS A CLASS IDENTITY, NOT A PIXEL. jsdom lays nothing out, so a
     // width read here would be 0 on every tab and the case would pass over a real
@@ -700,21 +700,32 @@ describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => 
     }
   })
 
-  it('⭐ …and the NARROW tabs hold their own column inside the wider shell', () => {
-    // ⛔ THE SHELL GREW; FOUR TABS DID NOT GET REDESIGNED. Price Style, Canvas,
-    // Header and Markers were laid out against a 560px body and still look
-    // deliberate at that measure, so they carry a content cap instead of
-    // stretching four card groups across the full width. Indicators opts out —
-    // the Inspector's two columns ARE the shell's width.
+  it('⚰️⚰️ …and NO TAB IS CAPPED INSIDE IT EITHER', () => {
+    // ⚰️⚰️ THE OPPOSITE OF THIS CASE STOOD HERE FOR ONE PASS. When the shell went
+    // to 720 the four older tabs were held at their original 560px column with a
+    // `.bodyNarrow` modifier, and this asserted that cap was ON for Price Style,
+    // Canvas, Header and Markers and OFF for Indicators — *"the four tabs designed
+    // to a narrower column keep that column INSIDE it rather than stretching."*
+    //
+    // ⛔ IT WAS THE WRONG HALF OF "ONE WINDOW". What the member saw was a tab that
+    // ends 160px before its own window does — owner, 2026-09-17: *"the other tabs
+    // have not been responsively adapted to the new modal width... this creates a
+    // huge dead region on the right."* Price Style made it plainest, because its
+    // three `repeat(3, 1fr)` grids were built to fill the body and were being
+    // handed less of it than the body had.
+    //
+    // ⭐ SO THE SHELL IS THE CONTENT WIDTH, ON EVERY TAB, and the class that made
+    // it otherwise may not come back. The grids do the adapting; nothing was
+    // stretched to fill the gap (see the CSS note on `.bodyNarrow`'s grave).
     show(base())
     const body = () => document.body.querySelector('[class*="body"]')
-    expect(/bodyNarrow/.test(body().className), 'Price Style stretched to the shell').toBe(true)
+    const atPrice = body().className
+    expect(/bodyNarrow/.test(atPrice), 'the 560px content cap is back on Price Style').toBe(false)
 
-    openTab()
-    expect(/bodyNarrow/.test(body().className),
-      'the Inspector was capped to the narrow column').toBe(false)
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
-    expect(/bodyNarrow/.test(body().className)).toBe(true)
+    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Price Style']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      expect(body().className, `${name} carries a content class the other tabs do not`)
+        .toBe(atPrice)
+    }
   })
 })
