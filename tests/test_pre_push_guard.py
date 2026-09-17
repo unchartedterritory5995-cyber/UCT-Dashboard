@@ -213,27 +213,26 @@ def test_a_rollback_reason_without_a_revert_commit_is_refused(tmp_path, monkeypa
     assert "This reverts commit" in capsys.readouterr().out
 
 
-def test_the_retired_window_override_is_an_ERROR_not_a_no_op(tmp_path, monkeypatch, capsys):
-    """R66: the deploy WINDOW this variable overrode was retired (R18). A lever aimed at a gate
-    that no longer exists still points at the gates that remain, so its presence REFUSES —
-    and the refusal names the scoped attestation instead."""
-    m = _load()
-    _quiet_clock(m, monkeypatch)
-    monkeypatch.setattr(m, "latest_deployment", lambda: _dep())
-    monkeypatch.setenv(m.WINDOW_OVERRIDE_ENV, "1")
-    assert m.main() == 1
-    out = capsys.readouterr().out
-    assert m.WINDOW_OVERRIDE_ENV in out and m.ATTEST_BY_ENV in out
+def test_a_clean_queue_with_no_lever_set_simply_PASSES(tmp_path, monkeypatch):
+    """⛔ The discriminator for every refusal in this section: handed a deploy state that
+    passes every clause and no lever at all, `main()` returns 0. Without it a guard that
+    refused unconditionally would satisfy all of them.
 
-
-def test_the_window_override_is_refused_even_on_a_perfectly_clean_queue(tmp_path, monkeypatch):
-    """⛔ CONTROL for the case above: the deploy state it is handed PASSES every clause, so
-    the exit 1 there can only be the override itself."""
+    ⚰️ Two tests stood here and were DELETED, not moved. They asserted that setting the
+    retired deploy-window override variable makes the guard refuse - R66's reasoning being
+    that a
+    lever aimed at a retired gate still points at the gates that remain.
+    `tests/test_no_market_hours_window.py` went red on the variable's mere NAME, and it was
+    right: the owner's permanent-removal ruling says **presence was the problem, not the
+    predicate**, and refusing a dead variable by name puts the window's vocabulary back into
+    the guard, its tests and its runbook. Nothing reads that name now, which is what retired
+    means."""
     m = _load()
     _quiet_clock(m, monkeypatch)
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(created=_SETTLED))
-    monkeypatch.delenv(m.WINDOW_OVERRIDE_ENV, raising=False)
-    assert m.main() == 0, "the fixture was not a clean queue, so the test above proved nothing"
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    monkeypatch.delenv(m.ROLLBACK_REASON_ENV, raising=False)
+    assert m.main() == 0
 
 
 def test_R67_a_deploy_that_STARTS_between_the_two_reads_refuses(tmp_path, monkeypatch, capsys):
@@ -282,14 +281,11 @@ def test_R67_an_unchanged_second_read_still_allows_the_push(tmp_path, monkeypatc
     assert m.main() == 0
 
 
-def test_R67_the_second_read_does_NOT_come_from_the_memo(tmp_path, monkeypatch):
-    """⚰ STRUCTURAL, and invisible to every test above. `latest_deployment()` reads through
-    `_ROWS_MEMO`, which exists so guard 2 and guard 3 describe ONE world in one refusal message.
-    Left in place for the second read, the memo answers from the first call's bytes: the two
-    identities are equal BY CONSTRUCTION and R67 proves nothing on a real push.
-
-    ⭐ The tests above could never have caught it — they monkeypatch `latest_deployment`
-    itself, so the memo is not in their path at all. This one drives the memo directly."""
+def test_the_memo_still_memoises_within_one_guard_run(monkeypatch):
+    """⛔ The property `_forget_rows` must not destroy. ONE CLI read per process is why guard 2
+    and guard 3 can never describe two different worlds inside one refusal message. A "fix" for
+    R67 that simply deleted the memo would pass every R67 test in this file and reintroduce
+    that."""
     m = _load()
     calls = {"n": 0}
 
@@ -302,9 +298,36 @@ def test_R67_the_second_read_does_NOT_come_from_the_memo(tmp_path, monkeypatch):
     m.latest_deployment()
     m.latest_deployment()
     assert calls["n"] == 1, "the memo stopped working — guard 2 and guard 3 can now disagree"
-    m._forget_rows()
-    m.latest_deployment()
-    assert calls["n"] == 2, "the second read was served from the memo; R67 is vacuous"
+
+
+def test_R67_MAIN_forgets_the_memo_before_its_second_read(tmp_path, monkeypatch, capsys):
+    """⚰⚰ THE RAIL THAT DID NOT HOLD, AND WHY. Its first version called `_forget_rows()`
+    itself and asserted the next read reached the CLI — so it proved the FUNCTION works and said
+    nothing about whether `main()` calls it. Deleting the call site left the suite fully green:
+    R67 was structurally vacuous on a real push and every rail agreed it was fine. That is
+    `lesson_a_guard_that_tests_the_adjacent_thing`, committed by the person who had just written
+    the paragraph warning about it.
+
+    ⭐ This drives `main()` and makes the MEMO the discriminator: `latest_deployment` is NOT
+    substituted, so both of main's reads go through `_read_rows`. The CLI layer under it answers
+    SUCCESS first and BUILDING second. With the forget in place main sees the change and refuses;
+    without it the memo replays read one and main returns 0."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    calls = {"n": 0}
+
+    def _rows():
+        calls["n"] += 1
+        settled = {"id": "first", "status": "SUCCESS", "createdAt": _SETTLED, "meta": {}}
+        started = {"id": "second", "status": "BUILDING", "createdAt": _SETTLED_LATER, "meta": {}}
+        return {"state": "READ", "rows": [settled if calls["n"] == 1 else started]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    rc = m.main()
+    out = capsys.readouterr().out
+    assert calls["n"] == 2, "main() took only %d CLI read(s) — the second one came from the memo" % calls["n"]
+    assert rc == 1 and "DEPLOY STATE CHANGED" in out, (
+        "main() passed a queue that changed under it: the memo replayed the first read")
 
 
 def test_without_the_bypass_the_same_state_exits_1(tmp_path, monkeypatch, capsys):

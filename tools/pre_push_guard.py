@@ -54,13 +54,29 @@ commit still means the pod is settled, which is the property that matters for
 *your* push. Requiring your own parent would refuse every legitimate push in a
 repo five workstreams share.
 
-**Bypass** — deliberate, loud, and logged. ONE override, because there is one
-thing left to override: the deploy queue.
+**The levers — TWO, both scoped, neither global** (R66, owner ruling D-18, 2026-09-17):
 
-    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master                  # the QUEUE
+    # a BURST-only refusal, recency and in-flight passing on their own:
+    UCT_BURST_ATTESTED_BY="<a human who can see every workstream>" \
+    UCT_BURST_ATTESTED_AT="<ISO, within 15 min>" git push origin HEAD:master
 
-Every bypass appends to `logs/pre-push-guard-bypass.log` with the user, the time
-and the state that was overridden, so a bypass is a record rather than a silence.
+    # production is serving something that must come off NOW, and HEAD reverts it:
+    UCT_ROLLBACK_REASON="<why members need this>" \
+    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master
+
+⚰️ **THIS SAID "ONE OVERRIDE … the deploy queue" AND THAT IS HOW THE 2026-09-17
+INCIDENT HAPPENED.** `UCT_SKIP_PREPUSH_GUARD=1` did override the queue — all of
+it. A session needing to pass the **burst** clause alone reached for it, and it
+waived the **in-flight** clause too; the push landed inside another workstream's
+swap. The scoped attestation that exits burst and provably cannot exit recency or
+in-flight had existed since D-10 and was not used, **because a global one existed.**
+
+⛔ Nothing here waives recency, in-flight, unreadable or unparsable. Those are
+measurements of the world, and no amount of looking changes them — you wait.
+
+Every accepted lever appends to `logs/pre-push-guard-bypass.log` with the user,
+the time, a machine-readable `reason_code` and the state that was overridden, so
+it is a record rather than a silence.
 """
 from __future__ import annotations
 
@@ -94,7 +110,19 @@ BYPASS_ENV = "UCT_SKIP_PREPUSH_GUARD"
 #: workstream's deploy was BUILDING, and a 502 was observed at 22:16:50Z.
 #: ⭐ THE FIX IS NOT MORE CARE, IT IS FEWER LEVERS. A correct scoped mechanism beside a global
 #: one is a correct mechanism nobody reaches for under time pressure.
-WINDOW_OVERRIDE_ENV = "UCT_DEPLOY_WINDOW_OVERRIDE"
+#: ⚰️⚰️ AND R66 NEARLY ADDED A SIXTH LEVER WHILE RETIRING THE FIFTH. This block first
+#: carried a `WINDOW_OVERRIDE_ENV` constant naming the retired deploy-window override
+#: variable, and refused any push that had it set, reasoning that "a lever aimed at a retired
+#: gate still points at the gates that remain". `tests/test_no_market_hours_window.py` went
+#: red on it, and the rail was right: the owner's permanent-removal ruling (2026-09-17) says
+#: **presence was the problem, not the predicate** — "a retired rule that prints its own name
+#: on every push is not retired, it is advertised". Nothing reads that variable any more, so
+#: an operator who still has it set gets exactly the retired behaviour: silence. Refusing it
+#: by name would have put the window's vocabulary back into the guard, its tests and its
+#: runbook - which is why this comment does not spell the variable out either.
+#: ⭐ The distinction that matters: `UCT_SKIP_PREPUSH_GUARD` is a LIVE lever and is scoped
+#: below; the deploy-window override is a DEAD NAME, and the right treatment for a dead name
+#: is to stop saying it.
 ROLLBACK_REASON_ENV = "UCT_ROLLBACK_REASON"
 
 
@@ -124,13 +152,6 @@ def _head_message(head: "str | None") -> str:
         return out.stdout if out.returncode == 0 else ""
     except Exception:  # noqa: BLE001
         return ""
-
-
-def window_override_present() -> bool:
-    """⛔ The deploy WINDOW it overrode was retired by owner ruling (R18, 2026-09-15). A variable
-    that overrides a gate which no longer exists is a loaded lever pointing at the gates that DO:
-    its presence is now an error, not a no-op."""
-    return bool((os.environ.get(WINDOW_OVERRIDE_ENV) or "").strip())
 
 
 def rollback_intent(head_message: str, production_commit: "str | None") -> dict:
@@ -781,15 +802,6 @@ def main(argv=None) -> int:
     elif attest.get("state") not in (None, "ABSENT"):
         print("[pre-push] attestation REJECTED (%s): %s"
               % (attest.get("state"), attest.get("why")))
-
-    # ── R66: the retired global window override is an ERROR, never a no-op ────
-    if window_override_present():
-        print("[pre-push] ⛔ %s is set. The deploy WINDOW it overrode was retired (R18, "
-              "2026-09-15), so this variable now only points at the gates that remain."
-              % WINDOW_OVERRIDE_ENV)
-        print("[pre-push]    Unset it. To pass a BURST-only refusal use the scoped attestation: "
-              "%s and %s." % (ATTEST_BY_ENV, ATTEST_AT_ENV))
-        return 1
 
     # ── R66: the global skip survives for ROLLBACK ONLY ───────────────────────
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):

@@ -2673,9 +2673,36 @@ restart is expensive.
 
 ⛔⛔ **NEVER `git push --no-verify`, AND NEVER `-n`.** It skips every hook, leaves
 no trace anywhere, and is the one path that looks exactly like the 2026-09-14
-stacked push that nobody could attribute. If a hook is wrong, fix the hook or use
-the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
-`logs/pre-push-guard-bypass.log` and is therefore reviewable. ⭐ Since 2026-09-14
+stacked push that nobody could attribute. If a hook is wrong, fix the hook.
+
+⛔⛔ **AND `UCT_SKIP_PREPUSH_GUARD=1` IS NO LONGER "the logged override" — IT IS
+ROLLBACK-ONLY (R66, owner ruling D-18, 2026-09-17).** This paragraph used to end
+*"or use the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
+`logs/pre-push-guard-bypass.log` and is therefore reviewable."* Every word of that
+was true, and it is how the wrong lever got pulled: on 2026-09-17 a session needing
+to pass the **burst** clause alone reached for the global skip, which waived the
+**in-flight** clause too, and the push landed inside another workstream's swap.
+
+⭐ **The guard already had the right lever and had had it since D-10** — R19's
+*scoped* attestation (`UCT_BURST_ATTESTED_BY` + `UCT_BURST_ATTESTED_AT`, ISO, ≤15
+min), which exits the BURST clause and provably cannot satisfy recency or
+in-flight. Nobody reached for it **because a global one existed.** The fix is fewer
+levers, not more care.
+
+- **Burst-only refusal, recency and in-flight passing on their own** → the scoped
+  attestation, by a named human at a named minute.
+- **Anything else** → wait. `tools/pre_push_guard.py` now refuses the global skip
+  unless HEAD is a real revert (`This reverts commit …`) of the commit the deploy
+  record says production is **serving**, with `UCT_ROLLBACK_REASON` set.
+
+⚰️ R66 also tried to make the *retired* deploy-window override refuse by name
+rather than be a no-op. `tests/test_no_market_hours_window.py` went red on the
+mere name and was right: **presence was the problem, not the predicate.** Nothing
+reads it, so an operator who still has it set gets exactly the retired
+behaviour — silence — and the right treatment for a dead name is to stop saying
+it. That is why only ONE variable is named above.
+
+⭐ Since 2026-09-14
 this is also belt-and-braces rather than the only line: the **`master deploy gate`**
 workflow serialises master pushes at GitHub (`concurrency: master-deploy`,
 `cancel-in-progress: false`) and Railway's **Wait for CI** holds the build until
