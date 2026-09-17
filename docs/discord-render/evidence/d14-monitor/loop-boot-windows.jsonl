@@ -1386,3 +1386,7 @@
 {"t": "2026-09-17T12:57:09Z", "uptime_s": 2075, "loop": {"running": true, "samples": 600, "max_ms": 439.7, "p95_ms": 52.5, "stalls": 32}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
 {"t": "2026-09-17T12:58:40Z", "gap": "probe_no_json", "rc": 1}
 {"t": "2026-09-17T13:00:12Z", "uptime_s": 95, "loop": {"running": true, "samples": 156, "max_ms": 1360.9, "p95_ms": 120.2, "stalls": 14}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T13:01:44Z", "uptime_s": 187, "loop": {"running": true, "samples": 293, "max_ms": 10469.7, "p95_ms": 120.2, "stalls": 34}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T13:03:16Z", "uptime_s": 279, "loop": {"running": true, "samples": 468, "max_ms": 10469.7, "p95_ms": 120.2, "stalls": 47}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T13:04:47Z", "uptime_s": 370, "loop": {"running": true, "samples": 600, "max_ms": 10469.7, "p95_ms": 107.9, "stalls": 60}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T13:06:19Z", "uptime_s": 462, "loop": {"running": true, "samples": 600, "max_ms": 594.0, "p95_ms": 66.2, "stalls": 44}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
