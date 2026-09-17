@@ -294,3 +294,22 @@ D2 (>= 3 trading days canary) + D3 (>= 5 trading days member) is **>= 8 trading 
 No single session spans that. This file is the resume point and `resume` will be needed
 roughly daily. That is the design working, not a failure — the alternative is a session
 claiming continuity it does not have.
+
+### OI-47 merge readiness — measured 2026-09-17 09:32 ET, so the next session need not re-derive it
+
+- Branch `fix/oi-47-health-early-return` @ **`494b20948`**, pushed.
+- Master moved under it to **`26147924dcbd`** (breadth workstream, 3 commits).
+- **File overlap with master's new commits: ZERO.** Master added only
+  `docs/breadth-history-reader/FINAL.md`, `docs/breadth/DECISIONS.md`,
+  `docs/runbooks/PROPOSAL-push-blind-window.md`, `tests/test_breadth_sampler.py`,
+  `tools/breadth_pool_report.py`, `tools/breadth_sampler.py`, `tools/breadth_sampler_report.py`.
+  The branch touches three files, none of them on that list. **Per the repo's rebase rule — empty
+  overlap and fewer than six behind — merge clean, do not rebase.**
+- **Trial merge performed and thrown away** (`git merge --no-ff --no-commit` … `git merge --abort`;
+  branch verified back at `494b20948`): *"Automatic merge went well"*, and the scoped suite on the
+  MERGED tree read **108 passed / 0 failed** over the branch's own rails plus master's new
+  `tests/test_breadth_sampler.py`. ⚠️ That is the branch's rails on the merged tree, not a full
+  gate — the master deploy gate is what verifies merged reality.
+- ⛔ **Still not merged, and the reason is not staleness:** R22's one master push per session is
+  spent. The next session merges it as its first act, after re-reading `/renderhealth` for the
+  live commit.
