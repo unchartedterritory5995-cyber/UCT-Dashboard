@@ -910,6 +910,93 @@ export function tabOf(res) {
   return 'technical'
 }
 
+// ═══ THE INDICATOR GLYPH ══════════════════════════════════════════
+//
+// ⛔⛔ PRESENTATION, NEVER PERSISTENCE. Nothing writes a glyph onto an instance,
+// a definition or the settings blob: this is a pure function of facts the
+// catalogue already holds, resolved at render time. A chart saved before this
+// existed and one saved after are byte-identical, and deleting this file would
+// cost a picture and nothing else.
+//
+// ⛔ AND IT READS CANONICAL METADATA, NOT THE DISPLAY STRING. Matching on a
+// NAME would break the day a definition is renamed, would give two members
+// different marks for the same study in different locales, and would make the
+// glyph a function of prose. `kind` and the registry's own `category` are the
+// facts; the only per-id entry is the one below, and it says why.
+
+/** ⚠️ OWN-PROPERTY ONLY. A bare `map[key]` would answer `constructor` and
+ *  `toString` for a definition id that happens to spell one — a prototype value
+ *  where a family key belongs. */
+const ownKey = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k)
+
+/** family key → the `UIcon` name that draws it. */
+export const GLYPH_FAMILIES = Object.freeze({
+  trend: 'ind-trend',
+  oscillator: 'ind-oscillator',
+  momentum: 'ind-momentum',
+  band: 'ind-band',
+  volume: 'ind-volume',
+  breadth: 'ind-breadth',
+  fundamental: 'ind-fundamental',
+  security: 'ind-security',
+  formula: 'ind-formula',
+  series: 'ind-series',
+})
+
+/**
+ * ⭐ THE REGISTRY'S OWN `category` IS THE FAMILY, and that is the whole mapping.
+ * `nativeRegistry` files every definition under Trend / Momentum / Volatility /
+ * Volume / Data — which is already a statement about what the study DRAWS, made
+ * by the person who wrote it. Reading it means a definition added tomorrow gets a
+ * correct mark with no edit here.
+ */
+const CATEGORY_FAMILY = Object.freeze({
+  trend: 'trend',
+  momentum: 'oscillator',
+  volatility: 'band',
+  volume: 'volume',
+  data: 'security',
+})
+
+/**
+ * ⚠️ THE ONE PER-ID EXCEPTION, AND IT IS DELIBERATE. MACD is filed under
+ * `Momentum` with RSI and Stochastic, which is correct as a CLASSIFICATION and
+ * wrong as a picture: RSI draws a wave between two bounds and MACD draws a
+ * histogram about zero. A member scanning the library reads the mark, so the mark
+ * has to be what the study looks like.
+ *
+ * ⛔ ONE ENTRY, NOT A TABLE. Every other definition is answered by its category,
+ * and this stays a single exception rather than becoming a second taxonomy — a
+ * per-id map of twenty ids would be the enumeration site `enumerationSites.test.js`
+ * exists to catch, and it would go stale the first time a definition was renamed.
+ */
+const FAMILY_BY_ID = Object.freeze({ macd: 'momentum' })
+
+/**
+ * Which family does this result belong to?
+ *
+ * @param {object} res a `DiscoveryResult` or a catalogue row
+ * @returns {string} a key of `GLYPH_FAMILIES` — always one, never null
+ */
+export function glyphFamilyOf(res) {
+  if (!res) return 'series'
+  if (ownKey(FAMILY_BY_ID, res.id)) return FAMILY_BY_ID[res.id]
+  const tab = tabOf(res)
+  if (tab === 'breadth') return 'breadth'
+  if (tab === 'formulas') return 'formula'
+  if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
+  const cat = String(res.category || '').toLowerCase()
+  // ⛔ THE FALLBACK IS NEUTRAL, NOT A GUESS. A definition whose category this
+  // file has never heard of gets a mark that says only "this draws a series",
+  // which is true of everything and wrong about nothing.
+  return ownKey(CATEGORY_FAMILY, cat) ? CATEGORY_FAMILY[cat] : 'series'
+}
+
+/** The `UIcon` name for one result. */
+export function glyphNameOf(res) {
+  return GLYPH_FAMILIES[glyphFamilyOf(res)] || GLYPH_FAMILIES.series
+}
+
 /** Is this result one of the curated few? */
 export function isPopular(res) {
   return !!res && tabOf(res) === 'technical' && POPULAR_DEF_IDS.includes(res.id)

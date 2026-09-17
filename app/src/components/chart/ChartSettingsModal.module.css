@@ -1882,70 +1882,68 @@
 }
 .insAddBtn:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
 
-/* ── THE NO-SELECTION OVERVIEW — WHAT IS ON THIS CHART ─────────────────
-   ⚰️ WHAT WAS HERE WAS THREE LINES AND ~400px OF NOTHING. The fix is not
-   decoration — it is the one thing a member opening this tab wants to know, laid
-   out quietly.
-   ⛔⛔ AND NOTHING IN IT IS A CONTROL. No hover, no cursor, no focus ring, no
-   pointer target: the LEFT column manages and this side orients. If a rule below
-   ever grows a `:hover` the two lists have started competing, which is the one
-   outcome the brief rules out by name. */
-.insOverview {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin: 6px 0 4px;
-  width: 100%;
-}
-.insOvGroup { display: flex; flex-direction: column; gap: 2px; }
-/* ⭐ THE SAME HEADING LANGUAGE THE LEFT LIST USES — uppercase, faint, letter-spaced
-   — so a member reads the two columns as one idea seen twice, not as two designs.
-   The count rides on the same line because `PRICE · 4` is one fact. */
-.insOvHead {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  margin-bottom: 2px;
-}
-.insOvName {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+/* ── THE START STATE — WHAT CAN I DO HERE? ─────────────────────────
+   ⚰️⚰️ `.insOverview` AND ITS SIX RULES STOOD HERE. They drew the chart's series,
+   pane by pane, with their micro-rails — a genuine improvement on the three lines
+   and 400px of nothing that preceded them, and a duplicate of the column four
+   inches to its left. Owner, 2026-09-17: *"the right side should not answer the
+   same question again."*
+   ⭐ WHAT REPLACES IT ANSWERS A DIFFERENT QUESTION, and is deliberately smaller:
+   a mark, a sentence, two doors and a line of examples. Nothing here is a card,
+   nothing is gold except the door that already was, and it does not try to fill
+   the column. */
+.insStartMark {
+  display: block;
+  margin-bottom: 12px;
   color: var(--menu-text-faint, #93939a);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* ⛔ QUIET. It is a piece of punctuation at the head of a sentence, not an
+     illustration — at full ink a 30px mark would be the loudest thing on a panel
+     whose job is to get out of the way. */
+  opacity: 0.55;
 }
-.insOvCount {
-  font-size: 9.5px;
+.insStartTitle {
+  font-size: 13px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--menu-text-faint, #93939a);
-  opacity: 0.75;
+  color: var(--menu-text, #ededed);
+  margin-bottom: 5px;
 }
-/* ⛔ NO PADDING, NO RADIUS, NO BACKGROUND. A row here is a LINE OF TEXT with a
-   mark in front of it; giving it the list row's box would make it look pressable
-   and there is nothing to press. */
-.insOvRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 18px;
-}
-.insOvSeries {
+.insStartNote {
+  margin: 0 0 14px;
   font-size: 11.5px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--menu-text-dim, #b3b3b9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-/* ⛔ A SENTENCE, NOT A DISCLOSURE. It says how many are not printed and stops;
-   making it expand would turn the overview into the second list this is not. */
-.insOvMore {
-  margin-left: 10px;
+.insStartActions { display: flex; align-items: center; gap: 8px; }
+/* ⛔ THE SECOND DOOR IS QUIETER THAN THE FIRST. Browse is the likely intent;
+   New Formula is the other one. Two gold buttons side by side would be two
+   primaries, which is no primary at all. */
+.insStartGhost {
+  padding: 5px 11px;
+  border: 1px solid var(--menu-border, #33333a);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--menu-text, #ededed);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+.insStartGhost:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--menu-border, #45454c);
+}
+.insStartGhost:focus-visible {
+  outline: none;
+  border-color: var(--menu-accent, #dcbb5e);
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+/* ⚠️ PROSE, NOT BUTTONS. It says what the library holds so that "add something
+   new" is not an abstraction; making each name a control would be four more doors
+   onto one workflow. */
+.insStartExamples {
+  margin-top: 16px;
   font-size: 10.5px;
+  line-height: 1.7;
   color: var(--menu-text-faint, #93939a);
 }
 
@@ -2139,7 +2137,42 @@
    as a horizontal scrollbar beneath the results.
    ⛔ NEUTRALISED HERE, NOT REDEFINED THERE. `.resRow` is the dialog's class too
    and its bleed is correct in the dialog; only this container disagrees. */
-.insAdd .resRow { margin-inline: 0; }
+/* ⚰️⚰️ THE LIBRARY WAS CRAMPED. `.resRow` inherits the library DIALOG's
+   geometry — a dense list in a surface twice this wide — and in a 340px column it
+   packed a name, a short code, a description and an action into 10px of padding.
+   Owner, 2026-09-17: *"results need substantially better breathing room... the
+   information hierarchy is there, but the breathing room is not."*
+   ⭐ ROOM, NOT CARDS. The fix is vertical padding, a glyph column and a hairline
+   between rows — NOT a stack of floating rounded surfaces, which is the
+   over-carding the brief rules out by name. A library is scanned; a card grid is
+   browsed one item at a time.
+   ⛔ AND THE MODAL DOES NOT GROW FOR IT. The room comes from the rows and the
+   scroller, both of which are inside a column whose width is already settled. */
+.insAdd .resRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-inline: 0;
+  padding: 10px 8px 11px;
+  border-radius: 6px;
+}
+/* ⛔⛔ TWO LINES OF DESCRIPTION, AND THE ROW STOPS THERE. Measured before the
+   clamp: rows came out 81, 98, 106 and 123px tall depending on how long the
+   catalogue sentence was, so the list had no rhythm at all and a three-line entry
+   pushed the next one off the fold. A library is SCANNED — a ragged column of
+   differently sized rows is the thing that stops the eye.
+   ⚠️ NOTHING IS LOST: the full sentence is on the element's `title`, and the
+   catalogue's descriptions are written as one line anyway. */
+.insAdd .resBlurb {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* A hairline BETWEEN rows, not a border around each — structure without boxes. */
+.insAdd .resRow + .resRow {
+  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.05));
+}
 /* ⭐ THE ONE LINE THAT SAYS THE NETWORK IS STILL WORKING. Quiet on purpose: it is
    a status, not a result, and it must not read as a row a member could click. */
 .insSearching {
@@ -2896,3 +2929,31 @@
   .actChevron { min-width: 34px; min-height: 34px; }
   .indSearch, .indNewFormula, .indBack { height: 38px; }
 }
+
+
+/* ── THE FAMILY MARK IN A RESULT ROW ──────────────────────────────
+   ⛔ NO BOX, NO CIRCLE, NO TINTED TILE. The brief rules out boxed icon
+   backgrounds and it is the right call: a 20px chart mark in a 28px chip reads as
+   an app icon, and these are supposed to read as notation. It sits in a fixed
+   column so every NAME on the list starts at one x — which is most of what makes
+   a list scannable — and aligns to the TITLE's line, not to the row's centre, so
+   a two-line description does not drag it down the row.
+   ⛔ AND IT INHERITS ONE INK. Colouring the families would make the list a
+   rainbow and would put the families in competition with the series colours on the
+   left, which mean something else entirely. One quiet grey; the selected row and
+   the `＋ Add` are what carry colour here. */
+.resGlyph {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--menu-text-dim, #9a9aa2);
+  opacity: 0.9;
+}
+.resRow:hover .resGlyph { color: var(--menu-text, #ededed); opacity: 1; }
+/* ⚠️ AN UNAVAILABLE ROW'S MARK DIMS WITH ITS TEXT, so a delisted ticker does not
+   advertise itself with the brightest thing in the row. */
+.resRefused .resGlyph { opacity: 0.4; }

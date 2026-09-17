@@ -68,7 +68,9 @@ import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
   securityResults, breadthResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
+  glyphNameOf, glyphFamilyOf,
 } from './discoveryCatalog'
+import UIcon from '../ui/UIcon'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
 // facade adapters — so "what does QQQ match" has one answer on both surfaces.
@@ -1839,96 +1841,65 @@ export default function ChartSettingsIndicators({
     )
   }
 
-  /** How many series one pane lists in the overview before it says `+N more`. */
-  const OVERVIEW_ROWS = 5
-
   /**
-   * NOTHING SELECTED — WHAT IS ON THIS CHART.
+   * NOTHING SELECTED — WHAT CAN I DO HERE?
    *
-   * ⚰️⚰️ IT WAS THREE LINES AND A VOID. One sentence, one count, one button,
-   * and then roughly 400px of nothing — owner, 2026-09-17: *"the no-selection
-   * state feels too empty/dry... it should feel intentionally designed, not like
-   * content failed to load."*
+   * ⚰️⚰️ IT LISTED THE CHART'S SERIES, PANE BY PANE, WITH THEIR MICRO-RAILS. That
+   * was the right fix for the state before it (three lines and 400px of nothing)
+   * and it created a worse problem: the LEFT column answers *"what is on my
+   * chart"* about four inches away, so the panel opened by saying the same thing
+   * twice. Owner, 2026-09-17: *"the right side should not answer the same question
+   * again... remove that duplicated chart inventory."*
    *
-   * ⛔ THE FIX IS NOT DECORATION. No illustration, no tutorial, no marketing
-   * copy, no cards: the space is filled with the one thing a member opening this
-   * tab wants to know, which is WHAT IS ON THE CHART AND WHERE IT DRAWS.
+   * ⭐ SO THE FOUR STATES EACH ANSWER A DIFFERENT QUESTION:
+   *     LEFT            what is already on my chart
+   *     RIGHT default   what can I do here          ← this
+   *     RIGHT add       what can I add
+   *     RIGHT selected  how is this series configured
    *
-   * ⛔⛔ AND IT IS ORIENTATION, NOT A SECOND MANAGEMENT SURFACE. No arrows, no
-   * toggles, no ✕, no menus, nothing clickable at all. The LEFT column manages;
-   * this side says what there is. Two lists that both manage is how a member
-   * learns to distrust both of them, and the brief rules it out by name.
-   *
-   * ⭐ SAME DATA, SAME ORDER, SAME RAILS. `paneGroups` IS the Indicators list's
-   * own read model — `paneMap`, already resolved through `resolvePaneOrder` and
-   * `paneSeriesOrder` — so the overview cannot disagree with the list beside it
-   * about which panes exist, what order they are in, or what is in them. Moving a
-   * pane, reordering a series or changing a Display destination all move this,
-   * because there is nothing here to keep in step. The rail is the same 2×10px
-   * series mark the list and Legend V2 use, in the series' own effective colour,
-   * which is what ties the three surfaces together visually.
+   * ⛔ AND IT IS NOT A DASHBOARD. One mark, one sentence, two doors and a line of
+   * examples. Every door here is an EXISTING one reached a second way — `Browse`
+   * is the same `enterBrowse` the left column's `＋ Add Indicator` calls, and
+   * `New Formula` is the same `onCreateFormula` the Add header offers. No second
+   * workflow, no competing primary CTA.
    */
-  const renderInspectorEmpty = () => {
-    // ⚠️ REAL PANES ONLY. `hidden` and `orphans` are not places on the chart, and
-    // an overview of where things draw must not print a heading for a rectangle
-    // that does not exist. They are still in the LEFT list, where they belong,
-    // because that is the surface a member repairs them from.
-    const panes = paneGroups.filter((g) => ['price', 'volume', 'pane'].includes(g.kind))
-    const shown = panes.filter((g) => g.rows.length > 0)
-    const total = shown.reduce((n, g) => n + g.rows.length, 0)
-    return (
-      <div className={styles.insEmpty} data-testid="inspector-empty">
-        <div className={styles.insEmptyLede}>
-          {total === 0
-            ? 'Nothing is drawn on this chart yet.'
-            : `${total} ${total === 1 ? 'series' : 'series'} across ${shown.length} ${shown.length === 1 ? 'pane' : 'panes'}`}
-        </div>
-
-        {shown.length > 0 && (
-          <div className={styles.insOverview} data-testid="inspector-overview">
-            {shown.map((g) => {
-              // ⛔ CAPPED PER PANE, NOT SCROLLED. A member with fifteen moving
-              // averages must not meet a second scrolling list here — the point is
-              // orientation, and a pane that says `PRICE · 8` with four names and
-              // `+4 more` has oriented them completely.
-              const rows = g.rows.slice(0, OVERVIEW_ROWS)
-              const rest = g.rows.length - rows.length
-              return (
-                <div key={g.id} className={styles.insOvGroup} data-ov-pane={g.id}>
-                  <div className={styles.insOvHead}>
-                    <span className={styles.insOvName}>{g.name}</span>
-                    <span className={styles.insOvCount}>{g.rows.length}</span>
-                  </div>
-                  {rows.map((r) => {
-                    const tint = rowColor(r)
-                    return (
-                      <div key={r.id} className={styles.insOvRow} data-ov-row={r.id}>
-                        <i
-                          className={styles.insRail}
-                          style={tint ? { background: tint } : undefined}
-                          aria-hidden="true"
-                        />
-                        <span className={styles.insOvSeries}>
-                          {paneRowMeta(r, g, settings, defOf).name}
-                        </span>
-                      </div>
-                    )
-                  })}
-                  {rest > 0 && <div className={styles.insOvMore}>{`+${rest} more`}</div>}
-                </div>
-              )
-            })}
-          </div>
+  const renderInspectorEmpty = () => (
+    <div className={styles.insEmpty} data-testid="inspector-empty">
+      {/* ⛔ ONE GLYPH, AT REST. The neutral `ind-series` mark rather than a family
+          one — nothing is selected, so there is no family to name. */}
+      <span className={styles.insStartMark} aria-hidden="true">
+        <UIcon name="ind-series" size={30} gold={false} strokeWidth={1.35} />
+      </span>
+      <div className={styles.insStartTitle}>Edit or add indicators</div>
+      <p className={styles.insStartNote}>
+        Select a series on the left to edit its settings, or add something new to
+        the chart.
+      </p>
+      <div className={styles.insStartActions}>
+        <button
+          type="button"
+          className={styles.insAddBtn}
+          data-testid="start-browse"
+          onClick={enterBrowse}
+        >Browse indicators</button>
+        {onCreateFormula && (
+          <button
+            type="button"
+            className={styles.insStartGhost}
+            data-testid="start-new-formula"
+            onClick={() => onCreateFormula()}
+          >New formula</button>
         )}
-
-        <div className={styles.insEmptyNote}>
-          Select a series to edit its settings, or add another indicator, symbol or
-          breadth series.
-        </div>
-        <button type="button" className={styles.insAddBtn} onClick={enterBrowse}>＋ Add to Chart</button>
       </div>
-    )
-  }
+      {/* ⚠️ EXAMPLES, NOT SHORTCUTS. They are prose — they say what the library
+          holds so "add something new" is not an abstraction. Making each one a
+          button would be four more doors onto one workflow, which is the competing
+          CTA the brief rules out. */}
+      <div className={styles.insStartExamples}>
+        Moving Average · RSI · MACD · Bollinger Bands · Volume · breadth · symbols
+      </div>
+    </div>
+  )
 
   /**
    * ARRANGE's right-hand side — deliberately almost nothing.
@@ -2173,6 +2144,17 @@ export default function ChartSettingsIndicators({
           if ((e.key === 'Enter' || e.key === ' ') && canAdd) { e.preventDefault(); addRow(row) }
         }}
       >
+        {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
+            COLOUR: the LEFT column's micro-rail says *this is the plotted line you
+            already have, in its own colour*, and this says *this is the KIND of
+            thing you are looking at*. Two visual languages, kept apart on purpose
+            — blurring them would make a catalogue row look like a chart series.
+            ⛔ `gold={false}` — `UIcon` paints gold by default and twenty gold marks
+            down a list would spend the one accent this product reserves for "you
+            are here" on furniture. `aria-hidden`: the row already says its name. */}
+        <span className={styles.resGlyph} data-glyph={glyphFamilyOf(row)} aria-hidden="true">
+          <UIcon name={glyphNameOf(row)} size={20} gold={false} strokeWidth={1.5} />
+        </span>
         <span className={styles.resMain}>
           <span className={styles.resTitleRow}>
             <span className={styles.resName}>{row.name}</span>
@@ -2196,7 +2178,7 @@ export default function ChartSettingsIndicators({
               <span className={styles.resTier}>{row.tier}</span>
             )}
           </span>
-          {row.description && <span className={styles.resBlurb}>{row.description}</span>}
+          {row.description && <span className={styles.resBlurb} title={row.description || undefined}>{row.description}</span>}
           {/* The server's own words, where it gave any — `delisted 2022-10-27`,
               `index history not served by /api/bars-history`. Never a guess. */}
           {refused && row.capabilityReason && (

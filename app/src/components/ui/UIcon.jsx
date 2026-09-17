@@ -15,6 +15,107 @@
 // to ICONS below rather than introducing a one-off emoji.
 
 const ICONS = {
+  // ── CHART NOTATION — THE INDICATOR FAMILY GLYPHS ─────────────────────
+  //
+  // ⭐⭐ THESE ARE NOT TOOLBAR ICONS, AND THAT IS THE WHOLE DESIGN. Every other
+  // glyph in this file is an OBJECT — a bell, a calendar, a lock. These are
+  // MINIATURE CHART MARKS: what the indicator draws, at 20px. A member scanning
+  // the Add Indicator library should know an oscillator from a band from a volume
+  // study before they finish reading the name.
+  //
+  // ⛔ A FAMILY VOCABULARY, NOT ONE DRAWING PER INDICATOR. There are twenty-odd
+  // shipped definitions and there will be more; drawing each one would be a
+  // hundred pieces of art that drift apart, and the member does not need a unique
+  // illustration for Williams %R. The five technical families below are the
+  // registry's OWN `category` values — Trend, Momentum, Volatility, Volume — so
+  // the mapping reads a canonical fact rather than inventing a taxonomy beside it.
+  //
+  // ⛔ AND THEY INHERIT `currentColor`. `UIcon` paints gold BY DEFAULT; every
+  // caller here passes `gold={false}`, because twenty gold marks down a list would
+  // spend the one accent this product reserves for "you are here" on furniture.
+  // Rainbow-per-family was considered and refused for the same reason: the list
+  // would read as icon soup and the families would stop being legible as families.
+
+  /** TREND — a directional line. Moving Average, SAR, Ichimoku, ADX. */
+  'ind-trend': <path d="M3 17.5l5.5-5.5 4 3L21 6" />,
+
+  /** MOMENTUM — a wave between two bounds. RSI, Stochastic, CCI, %R, RS.
+   *  The two rules ARE the overbought/oversold lines every one of these draws. */
+  'ind-oscillator': (
+    <>
+      <path d="M3 8.5h18M3 15.5h18" opacity="0.38" />
+      <path d="M3 13.5c2.4 0 2.6-7 5-7s2.6 11 5 11 2.6-7 5-7 2.6 3 5 3" />
+    </>
+  ),
+
+  /** MOMENTUM, TWO-PART — a histogram about a zero line, with its signal. MACD. */
+  'ind-momentum': (
+    <>
+      <path d="M3 12h18" opacity="0.38" />
+      <path d="M6 12V8.5M9.5 12V6M13 12v4.5M16.5 12v3M20 12V9.5" strokeWidth="1.9" />
+    </>
+  ),
+
+  /** VOLATILITY — a channel: two envelopes about a middle. BB, Donchian, ATR. */
+  'ind-band': (
+    <>
+      <path d="M3 7.5c4.5 0 5-2 9-2s5 2.5 9 2.5" />
+      <path d="M3 16.5c4.5 0 5 2 9 2s5-2.5 9-2.5" />
+      <path d="M3 12c4.5 0 5 0 9 0s5 0 9 0" opacity="0.42" />
+    </>
+  ),
+
+  /** VOLUME — bars off a baseline. Volume, OBV, VWAP, MFI, $ Vol. */
+  'ind-volume': (
+    <>
+      <path d="M3 19.5h18" opacity="0.38" />
+      <path d="M5.5 19.5V13M9 19.5V8.5M12.5 19.5v-6M16 19.5V6M19.5 19.5v-8" strokeWidth="1.9" />
+    </>
+  ),
+
+  /** BREADTH — a participation reading: bars against a midpoint rule. Every
+   *  published breadth measure is a PERCENTAGE OF A UNIVERSE, and the 50% line is
+   *  the thing a member reads it against. */
+  'ind-breadth': (
+    <>
+      <path d="M3 12h18" strokeDasharray="2.4 2.6" opacity="0.5" />
+      <path d="M5.5 18V9.5M9.5 18v-4M13.5 18V6.5M17.5 18v-6.5M21 18v-3" strokeWidth="1.9" />
+    </>
+  ),
+
+  /** FUNDAMENTAL — a reported series: stepped, because a filing is a step and
+   *  not a tick. (⚠️ The family exists; nothing is chartable through it yet — see
+   *  `discoveryCatalog.FUNDAMENTALS_STATUS`.) */
+  'ind-fundamental': (
+    <>
+      <path d="M3 19.5h18" opacity="0.38" />
+      <path d="M3.5 16h4v-4h4V8h4.5V5H21" />
+    </>
+  ),
+
+  /** SECURITY — an instrument: two candles. QQQ, SPY, an index. */
+  'ind-security': (
+    <>
+      <path d="M8 4.5v15M16 4.5v15" opacity="0.5" />
+      <rect x="5.5" y="8" width="5" height="7" rx="1" />
+      <rect x="13.5" y="6" width="5" height="9" rx="1" />
+    </>
+  ),
+
+  /** FORMULA — the member's own: an ƒ over a series. */
+  'ind-formula': (
+    <>
+      <path d="M13 19.5c3.6 0 4-3.6 7-11.5" opacity="0.45" />
+      <path d="M11 6.5a2.2 2.2 0 0 0-3.4 1.9V18" />
+      <path d="M5.2 11.2h5.2" />
+    </>
+  ),
+
+  /** THE FALLBACK — a plain plotted series. ⛔ NEUTRAL ON PURPOSE: a definition
+   *  whose family this file has never heard of gets a mark that says only "this
+   *  draws a line", which is true of everything and wrong about nothing. */
+  'ind-series': <path d="M3 16l4.5-4 3.5 2.5L15 8l6-3" />,
+
   // ── Navigation ──────────────────────────────────────────────────────────
   dashboard: (
     <>

@@ -35,7 +35,9 @@ import {
 } from './engine/instanceControls'
 import { storedPaneOrder, resolvePaneOrder, PRICE_PANE } from './engine/paneOrder'
 import { PANE_SERIES_ORDER_KEY } from './engine/paneSeriesOrder'
-import { POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf } from './discoveryCatalog'
+import {
+  POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf, glyphFamilyOf, GLYPH_FAMILIES,
+} from './discoveryCatalog'
 import { INDICES_PRESET } from './symbolSearchModel'
 
 // ⚠️ THE BREADTH REGISTRY IS A NETWORK FACT, so the family oracle is stubbed —
@@ -285,94 +287,81 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
   })
 
   // ═════════════════════════════════════════════════════════════════════
-  const overview = () => document.body.querySelector('[data-testid="inspector-overview"]')
-  const ovPanes = () => [...(overview()?.querySelectorAll('[data-ov-pane]') || [])]
-    .map((g) => ({
-      pane: g.getAttribute('data-ov-pane'),
-      name: g.querySelector('[class*="insOvName"]').textContent.trim(),
-      count: g.querySelector('[class*="insOvCount"]').textContent.trim(),
-      rows: [...g.querySelectorAll('[data-ov-row]')]
-        .map((r) => r.querySelector('[class*="insOvSeries"]').textContent.trim()),
-      more: g.querySelector('[class*="insOvMore"]')?.textContent.trim() || null,
-    }))
+  const start = () => document.body.querySelector('[data-testid="inspector-empty"]')
 
-  it('⚰️⚰️ THE EMPTY STATE IS AN OVERVIEW, NOT A VOID', () => {
-    const { cs } = withSeries(base(), 'QQQ')
+  it('⚰️⚰️ THE DEFAULT RIGHT SIDE DOES NOT REPEAT THE LEFT ONE', () => {
+    // ⚰️⚰️ AN OVERVIEW OF THE CHART'S SERIES STOOD HERE, pane by pane, with their
+    // micro-rails — and six cases asserted it followed `paneOrder`,
+    // `paneSeriesOrder` and every Display change. It was the right fix for the
+    // state before it (three lines and ≈400px of nothing) and it created a worse
+    // problem: the LEFT column answers *"what is on my chart"* four inches away,
+    // so the panel opened by saying the same thing twice. Owner, 2026-09-17:
+    // *"that is redundant... remove that duplicated chart inventory."*
+    //
+    // ⭐ SO THE FOUR STATES EACH ANSWER A DIFFERENT QUESTION, and this rail is the
+    // one that keeps them apart: LEFT = what is on my chart, RIGHT default = what
+    // can I do here, RIGHT add = what can I add, RIGHT selected = how is this
+    // configured.
+    const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    expect(overview(), 'nothing selected still renders three lines and a void').toBeTruthy()
-    // ⭐ THE SAME PANES, IN THE SAME ORDER, AS THE LIST BESIDE IT — because it is
-    // the same `paneGroups`, already resolved through `resolvePaneOrder`.
-    expect(ovPanes().map((g) => g.pane)).toEqual(paneIds())
-    const priceRows = [...document.body
-      .querySelectorAll('[data-pane-group="price"] [data-structure-row] [class*="insRowName"]')]
-      .map((e) => e.textContent.trim())
-    expect(ovPanes().find((g) => g.pane === 'price').rows).toEqual(priceRows)
-    expect(ovPanes().find((g) => g.pane === 'price').count).toBe(String(priceRows.length))
-  })
+    expect(start(), 'nothing selected renders no start state at all').toBeTruthy()
 
-  it('⛔⛔ IT ORIENTS, IT DOES NOT MANAGE — nothing in it is a control', () => {
-    // The one outcome the brief rules out by name: two competing versions of the
-    // Indicators list. The LEFT column manages; this side says what there is.
-    const { cs } = withSeries(base(), 'QQQ')
-    show(cs); openTab()
-    expect(overview().querySelectorAll('button, [role="button"], input, select, a'),
-      'the overview grew a control — that is a second management surface')
+    // ⛔ MEASURED AS "IT DOES NOT NAME THE MEMBER'S SERIES", which is the actual
+    // duplication. A generic word like `Volume` could appear in prose; the row
+    // names on THIS chart — `EMA 9`, `SMA 200`, `SMA 5` — could not.
+    const text = start().textContent
+    for (const n of ['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200']) {
+      expect(text, `the start state repeats the left column's ${n}`).not.toContain(n)
+    }
+    // …and it carries no pane structure either: no headings, no counts, no rails.
+    expect(start().querySelectorAll('[data-ov-pane], [data-ov-row]')).toHaveLength(0)
+    expect(start().querySelectorAll('[class*="insRail"]'),
+      'the start state grew series micro-rails — those mean a PLOTTED series')
       .toHaveLength(0)
-    expect(overview().querySelectorAll('[data-move], [data-row-order], [role="option"]'),
-      'the overview grew reorder arrows or selectable rows').toHaveLength(0)
-    // …and it still uses the ONE series mark the list and Legend V2 use.
-    expect(overview().querySelectorAll('[class*="insRail"]').length)
-      .toBe(overview().querySelectorAll('[data-ov-row]').length)
   })
 
-  it('⭐ IT FOLLOWS EVERY CANONICAL ORDER — pane, series, and destination', () => {
-    const seen = { cs: null }
-    show(base(), seen); openTab()
-    const ovRows = () => ovPanes().find((g) => g.pane === 'price').rows
+  it('⭐ IT SAYS WHAT CAN BE DONE, AND EVERY DOOR IS AN EXISTING ONE', () => {
+    // ⛔ NO SECOND WORKFLOW (owner §23). `Browse indicators` is the same
+    // `enterBrowse` the left column's `＋ Add Indicator` calls, so there is one Add
+    // mode reached two ways rather than two modes that can drift.
+    show(base()); openTab()
+    expect(start().textContent).toMatch(/Edit or add indicators/i)
+    fireEvent.click(screen.getByTestId('start-browse'))
+    expect(document.body.querySelector('[data-testid="add-surface"]'),
+      'Browse opened something other than the canonical Add mode').toBeTruthy()
 
-    // (1) SERIES ORDER, through `paneSeriesOrder`.
-    const before = ovRows()
-    const row = [...document.body.querySelectorAll('[data-pane-group="price"] [data-structure-row]')]
-      .find((r) => r.querySelector('[class*="insRowName"]').textContent.trim() === 'EMA 20')
-    fireEvent.click(row.querySelector('[data-move="up"]'))
-    // nothing is selected, so the overview is what re-rendered
-    expect(ovRows()[0], 'the overview did not follow paneSeriesOrder').toBe('EMA 20')
-    expect(ovRows()).not.toEqual(before)
+    // …and Back returns to the same start state.
+    fireEvent.click(screen.getByLabelText('Back to active indicators'))
+    expect(start()).toBeTruthy()
   })
 
-  it('⭐ A CHANGED DISPLAY MOVES THE SERIES TO THE OTHER PANE\'S OVERVIEW GROUP', () => {
-    const seen = { cs: null }
-    const { cs } = withMA(base(), 'volume')
-    show(cs, seen); openTab()
-    const paneOfOv = (name) => ovPanes().find((g) => g.rows.includes(name))?.pane
-    // An average OF volume derives its way into the volume pane, and the overview
-    // reads the same `chartDataMap` the list does — there is nothing to keep in
-    // step, so there is nothing that can disagree.
-    expect(paneOfOv('SMA 5'), 'the overview filed it somewhere the list did not')
-      .toBe('volume')
-  })
-
-  it('⛔ MANY SERIES DO NOT EXPLODE THE OVERVIEW — it summarises', () => {
-    // ⭐ ORIENTATION, NOT ADMINISTRATION. A member with a dozen moving averages
-    // must not meet a second scrolling list here.
-    let cs = base()
-    for (let i = 0; i < 8; i += 1) cs = withMA(cs, 'close').cs
-    show(cs); openTab()
-    const price = ovPanes().find((g) => g.pane === 'price')
-    expect(Number(price.count), 'the fixture did not build a dense pane').toBeGreaterThan(8)
-    expect(price.rows.length, 'the overview printed every series').toBeLessThanOrEqual(5)
-    expect(price.more, 'a capped pane did not say how many it left out')
-      .toMatch(/^\+\d+ more$/)
-    // ⛔ AND THE COUNT IS THE TRUTH, not the number printed.
-    expect(Number(price.count)).toBe(price.rows.length + Number(price.more.match(/\d+/)[0]))
+  it('⛔ IT IS TWO DOORS AND A SENTENCE — not a dashboard', () => {
+    // ⛔ THE BUDGET IS THE RAIL. The replacement for a too-empty state is not a
+    // too-busy one; four shortcut cards would be the dashboard the brief rules
+    // out. Prose examples are prose — making each name a control would be four
+    // more doors onto one workflow.
+    show(base()); openTab()
+    const buttons = [...start().querySelectorAll('button')]
+    expect(buttons.length, 'the start state grew more doors than Browse and New formula')
+      .toBeLessThanOrEqual(2)
+    for (const b of buttons) {
+      expect(b.getAttribute('data-testid')).toMatch(/^start-(browse|new-formula)$/)
+    }
   })
 
   it('⛔⛔ OPENING THE TAB WITH NOTHING SELECTED WRITES NOTHING', () => {
     const seen = { cs: null }
     const { cs } = withSeries(base(), 'QQQ')
     show(cs, seen); openTab()
-    expect(overview()).toBeTruthy()
-    expect(seen.cs, 'rendering the overview wrote to the blob').toBeNull()
+    expect(start()).toBeTruthy()
+    expect(seen.cs, 'rendering the start state wrote to the blob').toBeNull()
+  })
+
+  it('⛔ SELECTING A SERIES STILL OPENS THE INSPECTOR, unchanged', () => {
+    show(base()); openTab()
+    select(/^SMA 50$/)
+    expect(start(), 'the start state survived a selection').toBeNull()
+    expect(inspectorName()).toBe('SMA 50')
   })
 })
 
@@ -850,6 +839,131 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
   })
 })
 
+describe('THE INDICATOR GLYPHS — family identity, resolved and never stored', () => {
+  // ⭐⭐ THEY ARE MINIATURE CHART MARKS, NOT TOOLBAR ICONS. A member scanning the
+  // library should know an oscillator from a band from a volume study before they
+  // finish reading the name. Which means the mapping has to be RIGHT, and it has
+  // to be right for a definition nobody has written yet.
+
+  it('⭐⭐ THE REGISTRY\'S OWN `category` IS THE FAMILY', () => {
+    // ⛔ NOT A HAND-BUILT TABLE OF TWENTY IDS. `nativeRegistry` files every
+    // definition under Trend / Momentum / Volatility / Volume — already a
+    // statement about what the study DRAWS, made by whoever wrote it — so reading
+    // it means a definition added tomorrow gets a correct mark with no edit.
+    expect(glyphFamilyOf({ id: 'movingAverage', category: 'Trend' })).toBe('trend')
+    expect(glyphFamilyOf({ id: 'sar', category: 'Trend' })).toBe('trend')
+    expect(glyphFamilyOf({ id: 'rsi', category: 'Momentum' })).toBe('oscillator')
+    expect(glyphFamilyOf({ id: 'stoch', category: 'Momentum' })).toBe('oscillator')
+    expect(glyphFamilyOf({ id: 'williamsR', category: 'Momentum' })).toBe('oscillator')
+    expect(glyphFamilyOf({ id: 'bb', category: 'Volatility' })).toBe('band')
+    expect(glyphFamilyOf({ id: 'atr', category: 'Volatility' })).toBe('band')
+    expect(glyphFamilyOf({ id: 'volume', category: 'Volume' })).toBe('volume')
+    expect(glyphFamilyOf({ id: 'obv', category: 'Volume' })).toBe('volume')
+  })
+
+  it('⚠️ MACD IS THE ONE PER-ID EXCEPTION, and it is an exception on purpose', () => {
+    // It is filed under `Momentum` with RSI, which is correct as a CLASSIFICATION
+    // and wrong as a picture: RSI draws a wave between two bounds and MACD draws a
+    // histogram about zero. The member reads the mark, so the mark is the drawing.
+    expect(glyphFamilyOf({ id: 'macd', category: 'Momentum' })).toBe('momentum')
+    // ⛔ AND IT IS ONE ENTRY, NOT A SECOND TAXONOMY. Every other Momentum
+    // definition still answers `oscillator`, which is what keeps this from
+    // becoming the per-id table `enumerationSites.test.js` exists to catch.
+    for (const id of ['rsi', 'stoch', 'cci', 'williamsR', 'rsLine']) {
+      expect(glyphFamilyOf({ id, category: 'Momentum' }), `${id} grew its own glyph`)
+        .toBe('oscillator')
+    }
+  })
+
+  it('⭐ THE NON-TECHNICAL KINDS ANSWER FROM `tabOf`, not from their category', () => {
+    // A breadth row's `category` is its GROUP LABEL (`Breadth`, `Trend`,
+    // whatever the publisher chose); a security's is the server's `etf`/`index`.
+    // Both are canonical and neither is a study family, so the KIND decides.
+    expect(glyphFamilyOf({ kind: 'breadth', category: 'Trend' })).toBe('breadth')
+    expect(glyphFamilyOf({ kind: 'security', category: 'etf' })).toBe('security')
+    expect(glyphFamilyOf({ kind: 'security', category: 'index' })).toBe('security')
+    expect(glyphFamilyOf({ kind: 'security', category: 'stock' })).toBe('security')
+    expect(glyphFamilyOf({ kind: 'formula', category: 'Momentum' })).toBe('formula')
+    expect(glyphFamilyOf({ userDefined: true, category: 'Trend' })).toBe('formula')
+  })
+
+  it('⛔⛔ AN UNKNOWN DEFINITION GETS A SAFE NEUTRAL MARK, never a wrong one', () => {
+    for (const res of [null, undefined, {}, { id: 'somethingNew' },
+      { id: 'x', category: 'Astrology' }, { category: '' }]) {
+      const fam = glyphFamilyOf(res)
+      expect(fam, `${JSON.stringify(res)} resolved to nothing`).toBe('series')
+      expect(GLYPH_FAMILIES[fam], 'the fallback family has no glyph').toBeTruthy()
+    }
+    // ⚠️ AND A PROTOTYPE KEY IS NOT A FAMILY. A bare `map[key]` would answer
+    // `constructor` for a definition id that happens to spell one.
+    expect(glyphFamilyOf({ id: 'constructor', category: 'toString' })).toBe('series')
+  })
+
+  it('⛔⛔ THE GLYPH IS NEVER A FUNCTION OF THE DISPLAY NAME', () => {
+    // ⛔ MATCHING ON PROSE WOULD BREAK ON A RENAME, would give two members
+    // different marks for one study, and would make the picture a function of
+    // words. Same canonical facts, opposite names — same answer.
+    expect(glyphFamilyOf({ id: 'rsi', name: 'Volume Bars', category: 'Momentum' }))
+      .toBe('oscillator')
+    expect(glyphFamilyOf({ id: 'volume', name: 'Relative Strength Index', category: 'Volume' }))
+      .toBe('volume')
+    // …and a name alone decides nothing at all.
+    expect(glyphFamilyOf({ name: 'Bollinger Bands' })).toBe('series')
+  })
+
+  it('⛔⛔ GLYPH IDENTITY IS PRESENTATION — nothing writes it anywhere', () => {
+    // ⭐ THE CLAIM THE BRIEF MAKES EXPLICIT (§27): no `glyph: "rsi"` on an
+    // instance, no settings migration, no chart-hash churn. Browsing the whole
+    // library renders every family and writes nothing.
+    const seen = { cs: null }
+    const before = JSON.stringify(withMA(base(), 'close').cs)
+    const { cs } = withMA(base(), 'close')
+    show(cs, seen); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    for (const label of ['Technical', 'Breadth', 'Symbols', 'Formulas', 'Popular']) {
+      const t = [...document.body.querySelectorAll('[role="tab"]')]
+        .find((x) => x.textContent.trim() === label)
+      if (t) fireEvent.click(t)
+    }
+    expect(seen.cs, 'rendering glyphs wrote to the settings blob').toBeNull()
+    expect(JSON.stringify(cs), 'the settings object was mutated in place').toBe(before)
+  })
+
+  it('⭐ EVERY RESULT ROW CARRIES ITS FAMILY, AND THE MARK IS NOT A BOX', () => {
+    show(base()); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    const rows = [...document.body.querySelectorAll('[data-testid="add-surface"] [class*="resRow"]')]
+      .filter((e) => !/resRows/.test(e.className))
+    expect(rows.length, 'no results rendered — the case proves nothing').toBeGreaterThan(3)
+    for (const r of rows) {
+      const g = r.querySelector('[data-glyph]')
+      expect(g, `${r.textContent.slice(0, 20)} has no glyph`).toBeTruthy()
+      expect(Object.keys(GLYPH_FAMILIES)).toContain(g.getAttribute('data-glyph'))
+      // ⛔ ONE SVG, AND IT IS `aria-hidden` — the row already says its name, so a
+      // screen reader must not hear the picture too.
+      expect(g.querySelectorAll('svg')).toHaveLength(1)
+      expect(g.getAttribute('aria-hidden')).toBe('true')
+    }
+    // ⛔ AND THE FAMILIES ARE REALLY FAMILIES: Popular alone spans several, which
+    // is the whole point of putting a mark on the row.
+    const fams = new Set(rows.map((r) => r.querySelector('[data-glyph]').getAttribute('data-glyph')))
+    expect(fams.size, 'every Popular row drew the same mark').toBeGreaterThan(2)
+  })
+
+  it('⛔⛔ THE LEFT COLUMN KEEPS ITS MICRO-RAILS — two languages, kept apart', () => {
+    // ⭐ THE DISTINCTION IS LOAD-BEARING: a rail is the ACTUAL PLOTTED SERIES in
+    // its own colour; a glyph is the KIND of thing. Putting glyphs on the left
+    // would make a configured line look like a catalogue entry.
+    show(base()); openTab()
+    const left = document.body.querySelector('[data-testid="chart-structure"]')
+    expect(left.querySelectorAll('[class*="insRail"]').length,
+      'the left column lost its series rails').toBeGreaterThan(3)
+    expect(left.querySelectorAll('[data-glyph]'),
+      'a family glyph appeared in the current-chart list').toHaveLength(0)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
 describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no fiction', () => {
   const addBtn = () => screen.getByTestId('add-enter')
   const strip = () => document.body.querySelector('[role="tablist"][aria-label="Indicator categories"]')
