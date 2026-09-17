@@ -29,6 +29,7 @@ import HubCoachMark from './HubCoachMark'
 import HubConfirmSheet from './HubConfirmSheet'
 import { validateConfirmPayload } from './contracts'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
+import HubReportButton from './HubReportButton'
 import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
@@ -698,7 +699,7 @@ function HubToastHost({ msg, mirrored }) {
  */
 export default function HubRoot() {
   const eligible = useHubEligible()
-  const { settings } = useHubSettings()
+  const { settings, isAdmin } = useHubSettings()
   const sessionOverride = useHubSessionOverride()
   const [toastMsg, setToastMsg] = useJournalToast()
 
@@ -755,6 +756,12 @@ export default function HubRoot() {
           onRestore={() => { showForSession(); setToastMsg(restoreToast(persistent)) }}
         />
       )}
+      {/* ⛔ W2 / R2 — ADMIN ONLY, and a SIBLING of both branches above so it is reachable in
+          one tap whether the hub is showing or hidden behind the edge tab. It is deliberately NOT
+          inside HubShell: the fan is the thing under test and a Report control inside it would
+          compete for the very real estate the owner says is overcrowded, and would be unreachable
+          in the state where reporting matters most. */}
+      {isAdmin ? <HubReportButton onFiled={setToastMsg} /> : null}
       <HubToastHost msg={toastMsg} mirrored={mirrored} />
     </>
   )

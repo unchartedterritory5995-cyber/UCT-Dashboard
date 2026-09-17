@@ -120,6 +120,7 @@ from api.routers import research as research_router
 from api.routers import expected_move as expected_move_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
+from api.routers import hub_reports as hub_reports_router  # joystick hub owner reports (W2/R2)
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
@@ -8165,6 +8166,7 @@ from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
 app.include_router(terminal_next_reports.router)
 app.include_router(render_panels_router.router)
+app.include_router(hub_reports_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)
 app.include_router(engine_data.router)
