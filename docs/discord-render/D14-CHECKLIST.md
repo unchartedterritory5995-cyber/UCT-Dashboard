@@ -1,19 +1,23 @@
-> **NEXT WAKE REASON (D-16):** a DEPLOY WINDOW for the W1/R53 merge. It is preflighted and the
-> merge commit exists — `16e161f5f` on `w1-landing`, off master `f4ad45ce4`. The pre-push guard
-> refuses on its **in-flight** clause, which R58's attestation carve-out does NOT cover (that is
-> burst-only, with recency/in-flight OK). Other workstreams deployed 4× in the hour
-> (`e50c0552d`, `0ec4d52e9`, `77dad414d`, `f4ad45ce4`), so every window closes before it opens.
-> Waiter armed to ~18:40Z; push the moment recency and in-flight are both clear.
+> **NEXT WAKE REASON (D-16):** **W3** — wrap the member-reachable `async` sqlite handler
+> (`/api/oi/confirmation-map`) in `run_in_threadpool`, then the 15 admin routes in one batch with
+> a scanner self-check so the class cannot return. No blocker; it is simply the next unblocked
+> item. Then W5 (R59 hardening merge), W8 (accuracy audit).
 >
-> **BLOCKED-deploy-window** — W1/R53 merge `16e161f5f`. Ready, 1,160 passed / 0 failed on the
-> LANDING tree, mutations 3/3 RED. Not a code problem; a queue problem.
-> **BLOCKED-until-FRIDAY** — W6 / R57 / OI-13 step 6 (R29 span), ~08:23 ET.
-> **BLOCKED-permission** — C2/C3 Task Scheduler entries (owner action, unchanged).
->
+> ✅ **W1 + W1b SHIPPED AND ACCEPTED.** `16e161f5f` then `110f250b7`, both deployed, both SHA-
+> verified two ways. The failure sentence names its cause class (the catch-all is gone) and
+> `/flow NVDA` renders. **`entry_to_ack` 65,462.6 ms → 2.2 ms** after W1b moved the partition
+> classifier off the ack path — a regression I introduced in W1 and found in my own acceptance
+> evidence.
 > ✅ **W4 DONE** — C-09 re-measured on the current tip and CLOSED; forensics row 11/14 → 12/14.
 > ⛔ **W2 JOIN DONE AND IT REFUTES THE SWEEP** — 1 event inside a sweep window, 19 outside, four
 > of those in covered time including both settled-pod events. **C-02 has no named cause again.**
 > The sweep's lock defect is real (n=16, up to 790× its documented 122 ms) and is NOT C-02.
+>
+> **DEFERRED-flow-worker** — `/flow SPY` still times out because flow-worker walks **41 pages /
+> 10,000 contracts** per request. That fix lives on flow-worker; D-16 forbids deploying it from
+> here. Three candidate shapes written up in `evidence/r17-flow-rth/W1-acceptance-2026-09-17.md`.
+> **BLOCKED-until-FRIDAY** — W6 / R57 / OI-13 step 6 (R29 span), ~08:23 ET.
+> **BLOCKED-permission** — C2/C3 Task Scheduler entries (owner action, unchanged).
 
 ## ⛔ R56 — C-09 CANNOT BE CLOSED ON THE CITED EVIDENCE (BLOCKED-evidence)
 
