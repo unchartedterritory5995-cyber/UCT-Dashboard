@@ -136,6 +136,31 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_ATTACHMENTS_ON": False,       # enablement   — unset means OFF
 }
 
+# ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
+# a confusing name. Q1 fix 6 makes the append route safe at the WRITER; the door
+# guard is the mitigation that has been standing in front of it. Proving fix 6
+# on production requires letting the rig REACH that route, and the guard defers
+# every cell — so "prove it on production, then release the guard" is circular
+# unless the guard's mode can move without a deploy. This is that lever.
+#
+#   full          the shipped behaviour: defer on dirty, on queued, and on a
+#                 store that cannot be read.
+#   unknown-only  defer ONLY when the answer is genuinely not known (the store
+#                 cannot be opened or read). dirty/queued pass through to fix 6.
+#
+# ⛔ THE DEFAULT IS THE SAFE MODE, and an unparseable value takes the DEFAULT —
+# never the permissive one. A typo'd "unkown-only" must not quietly open a live
+# member path. Same rule as the kill switch's polarity, one type up.
+#
+# ⛔ READ PER REQUEST, like every key above it. This is the FIRST rollback lever
+# for fix 6 (`railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`,
+# which redeploys; `delete` does NOT). The kill switch is the second.
+DOOR_GUARD_FULL = "full"
+DOOR_GUARD_UNKNOWN_ONLY = "unknown-only"
+NOTEBOOK_MODE_FLAGS = {
+    "NOTEBOOK_DOOR_GUARD": (DOOR_GUARD_FULL, (DOOR_GUARD_FULL, DOOR_GUARD_UNKNOWN_ONLY)),
+}
+
 _TRUTHY = ("1", "true", "yes", "on")
 _FALSY = ("0", "false", "no", "off")
 
@@ -162,6 +187,15 @@ def _notebook_flags() -> dict:
             # it. A typo'd "flase" must not kill a shipped wave.
             value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
         out[_notebook_flag_key(env_name)] = value
+    # ⛔ THE MODE KEYS RIDE THE SAME PAYLOAD AND THE SAME DERIVATION. A second
+    # helper for the second name would be the drift `_notebook_flag_key` exists
+    # to prevent; only the PARSE differs, because the value is not a boolean.
+    for env_name, (default_mode, allowed) in NOTEBOOK_MODE_FLAGS.items():
+        raw = os.environ.get(env_name)
+        v = raw.strip().lower() if isinstance(raw, str) else None
+        # ⛔ UNRECOGNISED TAKES THE DEFAULT. The default is the SAFE mode, so a
+        # typo degrades to more guarding, never to less.
+        out[_notebook_flag_key(env_name)] = v if v in allowed else default_mode
     return out
 
 
