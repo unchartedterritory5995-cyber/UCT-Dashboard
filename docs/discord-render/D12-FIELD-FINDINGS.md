@@ -1,5 +1,16 @@
 # D-12 field findings — Q6, and the rotation that was already half-done
 
+> ⚰️⚰️ **SECTION 1'S VERDICT IS SUPERSEDED. READ `OI-44-STALL-CENSUS.md` INSTEAD.**
+> Q6 concluded **STARTUP-CLASS** from seven trailing windows on ONE pod over 30 minutes.
+> The D-14 monitor then collected **34 pods over 33.9 hours** and found **42 stalls ≥ 1,000 ms
+> (29.7/day), of which 27 are provably past the 900 s floor**, including blocks of 80 s, 20 s
+> and 14 s on a pod up for 40–58 minutes. **Stalls are not startup-only; they are continuous.**
+> The verdict below was applied honestly against its rule — the clean post-minute-15 window
+> really was observed — but it was a verdict about one pod, and a one-pod sample cannot
+> support a claim about a fleet that restarts ~20 times a day.
+> ⭐ Kept, not rewritten: the reasoning is sound and the correction is the point.
+> Section 2 (OI-13) is UNAFFECTED and still current.
+
 **2026-09-15 evening ET. Two findings, both of which change a premise the directive was written against.**
 
 ---

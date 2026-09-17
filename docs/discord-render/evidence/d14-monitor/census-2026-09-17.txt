@@ -1,0 +1,30 @@
+pods 34 | readings 1292 | gaps 28 | span 33.9 h
+identity coherence: 0 pod(s) with non-monotonic wall-clock (MUST be 0)
+>=1000 ms :   42 events    29.7/day   SETTLED 27
+>=5000 ms :   11 events     7.8/day   SETTLED 4   <- R34 tier-1 page rate
+pods affected: 15 of 34
+
+        ms  uptime range        class    ET observed           sha
+   80249.3  2510-2838s          SETTLED  Wed 09-16 16:53:03    fea2778d85cd#0
+   38869.2  0-126s              BOOT     Wed 09-16 13:16:04    792722de7386#0
+   25213.0  0-134s              BOOT     Tue 09-15 23:00:24    076fe5620448#0
+   20620.7  2109-2419s          SETTLED  Wed 09-16 16:46:04    fea2778d85cd#0
+   18741.0  0-71s               BOOT     Tue 09-15 22:40:04    465b12e3601f#3
+   14175.0  3173-3483s          SETTLED  Wed 09-16 17:03:44    fea2778d85cd#0
+   12108.2  303-613s            BOOT     Wed 09-16 12:48:01    8929f5bb19e5#0
+    7800.7  276-586s            BOOT     Wed 09-16 13:23:47    792722de7386#0
+    6841.7  2986-3296s          SETTLED  Wed 09-16 17:00:41    fea2778d85cd#0
+    6093.0  814-1124s           SPANS    Wed 09-16 11:26:08    ed333e386c0c#0
+    6039.2  0-146s              BOOT     Wed 09-16 12:40:22    8929f5bb19e5#0
+    4419.6  538-848s            BOOT     Wed 09-16 11:21:32    ed333e386c0c#0
+    4099.8  732-1042s           SPANS    Wed 09-16 14:00:56    aa2823fec849#0
+    3255.0  276-586s            BOOT     Wed 09-16 14:21:04    bfc205e3c7f3#0
+    3141.0  722-1041s           SPANS    Wed 09-16 16:23:06    fea2778d85cd#0
+    3042.0  1061-1371s          SETTLED  Wed 09-16 13:00:47    8929f5bb19e5#0
+    2405.8  17702-18012s        SETTLED  Thu 09-17 04:17:13    9081799f2973#0
+    2402.8  482-792s            BOOT     Wed 09-16 13:40:59    77c98c396013#0
+    2276.0  501-811s            BOOT     Wed 09-16 15:21:01    ebffc1cd65f5#0
+    2207.8  1738-2048s          SETTLED  Wed 09-16 16:39:53    fea2778d85cd#0
+
+OI-44 verdict: PER-POD AND RECURRING — 27 stall(s) >= 1000 ms provably past uptime 900 s
+TOTALS d14_stall_census PASS declared=42 evaluated=42 failed=0
