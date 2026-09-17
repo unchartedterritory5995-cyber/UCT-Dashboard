@@ -315,17 +315,40 @@ claiming continuity it does not have.
   spent. The next session merges it as its first act, after re-reading `/renderhealth` for the
   live commit.
 
-### ⚠️ One thing the denominator change is NOT yet mutation-proved against
+### ✅ The denominator change IS mutation-proved — done 2026-09-17 09:47 ET, `8b2a87207`
 
-`flip_preconditions.py --self-check` reads **`cases=11` all ok, `mutation_failures=1`, `failed=1`**
-after the `SMOKE_ROWS_TOTAL 15 → 14` change. **The one failure is not a case and not a regression:**
-`mutation_harness_flipgate.py` **refuses to run in this tree at all** — it edits real source in
-place, so it demands a `.mutation-sandbox` marker and this is the integrator's tree, not a
-throwaway. (That guard exists because a killed run once left a mutation behind in `badge.py`.)
+Run in a detached throwaway worktree carrying a `.mutation-sandbox` marker
+(`uct-worktrees/_tw-flipgate`, at `329f90379`):
 
-⛔ **So "self-check FAIL" here says nothing about the change** — the same rule as *"never read an
-INVALID manifest as a signal about your branch"*. The eleven behavioural cases all pass, including
-the smoke row.
-**Outstanding, cheap, and NOT done:** run `mutation_harness_flipgate.py` in a throwaway worktree
-carrying the marker, to prove the two cases that build fixtures from `fp.SMOKE_ROWS_TOTAL`
-(`:263`, `:593`) still fail for the right reason at 14.
+```
+TOTALS mutation_harness_flipgate PASS rows=11 cases=69 failed=0
+TOTALS flip_preconditions --self-check PASS cases=11 mutation_failures=0 failed=0
+```
+
+⚰️ **The first run was `failed=1`, and the failure is worth keeping for its SHAPE.**
+
+```
+FAIL smoke  FAIL planted  want=NOT MET  got=NOT MET
+     state ok but the evidence never says 'only 1/15'
+```
+
+**`want` and `got` AGREE.** The row read the planted partial smoke and returned NOT MET in both
+directions — the gate was never wrong. What was stale was the case's own hand-typed `says=`
+needle, which demanded the gate say *"only 1/15"* while it now correctly says *"only 1/14"*.
+⛔ **A red whose want and got agree is the one failure shape that reads as a real regression and
+is not one** — it is the harness describing a world that moved, which is precisely what this
+harness exists to catch in the gate and had not been applied to itself.
+
+⭐ **Fixed by deletion of the literal, not by retyping it at 14:** `says=f"only 1/{fp.SMOKE_ROWS_TOTAL}"`,
+derived from the constant that owns it. The case label carried the same number again and was
+wrong about a second one too (*"2 of 15 rows PASS"* — the planted tree has ONE pass mark), so it
+is derived now as well. Same defect class as the writer-index `FOUR`, the COT router's *"4
+routes"* and the setup catalog's *"24"*: **a count typed beside the list it describes**, and the
+fourth artifact in this repo to pay for it.
+
+⛔ **The earlier `mutation_failures=1` reading said nothing about the change** and is struck, not
+deleted — the harness had simply refused to run in the integrator's tree (it edits real source in
+place and demands the marker, because a killed run once left a mutation behind in `badge.py`).
+Same rule as *"never read an INVALID manifest as a signal about your branch"*. ⚠️ Nothing was ever
+planted in the repository either way: every case builds its tree under `mkdtemp()`, and the
+throwaway worktree is defence in depth rather than what makes the harness safe.
