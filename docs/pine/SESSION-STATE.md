@@ -161,12 +161,32 @@
 >
 > ✅ Regenerated: **51,433 bytes**, `sha256 390ece357ce96e69c1447fab0b7034166cabc65e2b2bedb92328fae90d6e3647`
 > (was 48,132 / `7f0fb15a…`), pure LF, matching the stored blobs.
-> ⛔ **SO 1.4's CONDITION IS NOW MET AND #145's BODY IS OWED AN UPDATE** — it changed.
-> ⚠️ That is a BROWSER operation on this repo's known-hard path (clipboard froze the
-> renderer, CDP `ctrl+v` pasted nothing, and a DOM read of the rendered blob hashed
-> differently from the file and was REJECTED — *a rendering is not the source*). The
-> working method is **gzip + base64 in chunks via `sessionStorage` with a per-chunk
-> SHA**, which caught a corrupt chunk 1 last time. It is NOT yet done.
+> ✅ **AND #145's BODY IS UPDATED** — 1.4's condition was met, so it was done.
+> Posted body measured **BEFORE**: 47,584 chars (the stale one). **AFTER**: 51,433
+> bytes, **0 CRLF**, `sha256 390ece35…` — **byte-identical to the file.**
+>
+> ⭐ **VERIFIED AT THE SOURCE, NOT THE RENDERING.** The check re-opens the edit form
+> and hashes the TEXTAREA — the raw stored markdown — because a DOM read of the
+> rendered blob is what was correctly REJECTED last time. It also asserts the stale
+> sentence is GONE and `j.3a` is present, so the check is positive and negative.
+>
+> ⛔ **NO `gh` CLI AND NO TOKEN ON THIS BOX** — measured, not assumed:
+> `gh` is absent from both the Bash and PowerShell PATH and from every standard
+> install location, and `GITHUB_PERSONAL_ACCESS_TOKEN` / `GITHUB_TOKEN` / `GH_TOKEN`
+> are all UNSET (which is also why the github MCP server fails with *"Authorization
+> header is badly formatted"* — the variable is unexpanded, exactly as `CLAUDE.md`
+> says). So the browser is the only door, and the chunked method is the method.
+>
+> ⚰️⚰️ **AND THE PER-CHUNK SHA EARNED ITS KEEP A SECOND TIME.** Chunk 2 arrived
+> CORRUPT — 9,442 chars instead of 9,440, two spaces injected mid-token. Stripping
+> whitespace fixed the length and the hash STILL disagreed, so a character had
+> changed too. ⭐ Rather than hunt a diff across 9,440 characters by eye, the chunk
+> was quartered and each quarter hashed IN THE BROWSER against the local values:
+> exactly one quarter (piece 0 of 4) was bad and only those 2,360 characters were
+> re-sent. That is the whole argument for per-chunk hashing over one end-to-end
+> hash — an end-to-end check says "wrong" and a per-piece check says "wrong HERE".
+> ⛔ **A transcription through a context window is a lossy channel. Never paste a
+> payload into a page without a hash that can fail.**
 >
 > ✅ **j.1 and j.2 are BUILT** (`75be58693`, `8533faceb`). Clouds' 23 outputs reach
 > the pane document with their 20 fills, and **a fill between two hidden anchors
