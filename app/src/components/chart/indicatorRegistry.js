@@ -138,17 +138,27 @@ const NOT_WIRED = 'Coming soon — needs renderer support'
  *  above: showing a control inert beats showing it live doing nothing. */
 export const VOLUME_PANE_SURFACE_FIXED = "Fixed by this chart's layout"
 
-/** Fields for one moving-average overlay. */
+/** Fields for one moving-average overlay.
+ *
+ *  ⭐⭐ `appearance: true` IS A DECLARATION, NOT A HINT. An engine definition
+ *  already says which of its inputs are presentation — `styleInputKeys` derives
+ *  that from `plots[].$refs`, so it can never fall out of step with the renderer.
+ *  These two field arrays have no definition and therefore no `$refs`, so the
+ *  claim has to be written somewhere; it is written HERE, at the one place the
+ *  fields are declared, rather than as a list of key names inside whichever view
+ *  happens to want the split. A view that grouped by key name would be a second
+ *  authority, and the next field added here would silently land in the wrong
+ *  group on a surface nobody thought to update. */
 export const MA_FIELDS = [
   { key: 'type',      label: 'Average type', type: 'select', options: MA_TYPES },
-  { key: 'color',     label: 'Color',        type: 'color' },
+  { key: 'color',     label: 'Color',        type: 'color', appearance: true },
   // ON = the line draws in FRONT of the candles (overlaps); OFF = behind them.
-  { key: 'onTop',     label: 'Overlap candles', type: 'toggle' },
+  { key: 'onTop',     label: 'Overlap candles', type: 'toggle', appearance: true },
   { key: 'period',    label: 'Period',       type: 'number', min: 1, max: 400, step: 1 },
   { key: 'offset',    label: 'Offset',       type: 'number', min: -100, max: 100, step: 1, disabled: NOT_WIRED },
-  { key: 'plotStyle', label: 'Plot style',   type: 'select', options: PLOT_STYLES, disabled: NOT_WIRED },
-  { key: 'lineStyle', label: 'Line style',   type: 'select', options: LINE_STYLES },
-  { key: 'lineWidth', label: 'Line width',   type: 'select', options: LINE_WIDTHS },
+  { key: 'plotStyle', label: 'Plot style',   type: 'select', options: PLOT_STYLES, disabled: NOT_WIRED, appearance: true },
+  { key: 'lineStyle', label: 'Line style',   type: 'select', options: LINE_STYLES, appearance: true },
+  { key: 'lineWidth', label: 'Line width',   type: 'select', options: LINE_WIDTHS, appearance: true },
 ]
 
 /** Bar styles for the volume pane. 'columns' = the built-in full-slot histogram
@@ -158,9 +168,9 @@ export const VOLUME_BAR_STYLES = [['columns', 'Columns'], ['histogram', 'Histogr
 
 /** Fields for the volume pane. */
 export const VOLUME_FIELDS = [
-  { key: 'barStyle',     label: 'Bar style',    type: 'select', options: VOLUME_BAR_STYLES },
-  { key: 'upColor',      label: 'Up bars',      type: 'color' },
-  { key: 'downColor',    label: 'Down bars',    type: 'color' },
+  { key: 'barStyle',     label: 'Bar style',    type: 'select', options: VOLUME_BAR_STYLES, appearance: true },
+  { key: 'upColor',      label: 'Up bars',      type: 'color', appearance: true },
+  { key: 'downColor',    label: 'Down bars',    type: 'color', appearance: true },
   { key: 'separatePane', label: 'Separate pane', type: 'toggle' },
   { key: 'hvcEnabled',   label: 'Highlight 52W volume highs', type: 'toggle' },
   // Visibility only — the label's COLOR is not user-editable; it tracks the range
@@ -172,8 +182,8 @@ export const VOLUME_FIELDS = [
   // every series displayed in that pane.
   { key: 'labelVisible', label: 'Show volume pane label', type: 'toggle' },
   { key: 'maPeriod',     label: 'Volume MA period', type: 'number', min: 0, max: 200, step: 1 },
-  { key: 'maColor',      label: 'Volume MA color',  type: 'color',  showIf: (v) => Number(v.maPeriod) > 0 },
-  { key: 'maLineWidth',  label: 'Volume MA width',  type: 'select', options: LINE_WIDTHS, showIf: (v) => Number(v.maPeriod) > 0 },
+  { key: 'maColor',      label: 'Volume MA color',  type: 'color',  showIf: (v) => Number(v.maPeriod) > 0, appearance: true },
+  { key: 'maLineWidth',  label: 'Volume MA width',  type: 'select', options: LINE_WIDTHS, showIf: (v) => Number(v.maPeriod) > 0, appearance: true },
 ]
 
 // ─── THE ENGINE-OWNED ROWS ──────────────────────────────────────────────────

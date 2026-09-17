@@ -191,13 +191,19 @@ describe('the source control', () => {
  *  control exists to find. Opened by the row whose block carries the direct
  *  series, never by position. */
 function openTheSeriesRow() {
-  const rows = [...document.body.querySelectorAll('[data-row-id]')]
+  const rows = [...document.body.querySelectorAll('[data-structure-row]')]
   const target = rows.find((r) => /qqq|series/i.test(
-    (r.querySelector('[aria-expanded]')?.textContent || '')))
+    (r.querySelector('[class*="insRowName"]')?.textContent || '')))
     || rows[rows.length - 1]
-  const btn = target && target.querySelector('[aria-expanded]')
-  if (btn) fireEvent.click(btn)
+  if (target) fireEvent.click(target)
 }
+
+/** Every structure row's NAME. ⚰️ IT WAS `.actLabel` INSIDE AN EXPANDER BUTTON,
+ *  read that way because the button also wrapped a shortName BADGE and its bare
+ *  `textContent` came out as `QQQSeries`. The badge is retired with the button;
+ *  a row is a micro-rail and a name, so the name IS the row's text. */
+const rowNames = () => [...document.body.querySelectorAll('[data-structure-row]')]
+  .map((r) => (r.querySelector('[class*="insRowName"]')?.textContent || '').trim())
 
 describe('the Indicators tab draws the control, not just the descriptor', () => {
   it('⭐⭐ a direct series row carries an operable Source control', () => {
@@ -235,14 +241,7 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
     }
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
     fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
-    // ⛔ THE NAME ELEMENT, NOT THE BUTTON'S TEXT. `actName` is the expander
-    // BUTTON and it wraps both the name (`actLabel`) and the definition's
-    // shortName badge, so its `textContent` reads `QQQSeries` — two correct
-    // things concatenated, not a name. The badge is right to keep: it says WHAT
-    // KIND of row this is, while the label says WHICH ONE.
-    const names = [...document.body.querySelectorAll('[data-row-id]')]
-      .map((r) => (r.querySelector('[class*="actLabel"]')?.textContent || '').trim())
-      .filter(Boolean)
+    const names = rowNames().filter(Boolean)
     expect(names).toContain('QQQ')
     expect(names).toContain('SPY')
     expect(names.filter((n) => /Data Series/.test(n)),
@@ -254,9 +253,7 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
     const cs = addInstance(mergeChartSettings({}), 'rsi', registry)
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
     fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
-    const names = [...document.body.querySelectorAll('[data-row-id]')]
-      .map((r) => (r.querySelector('[class*="actLabel"]')?.textContent || '').trim())
-    expect(names.some((n) => /Relative Strength/i.test(n))).toBe(true)
+    expect(rowNames().some((n) => /Relative Strength/i.test(n))).toBe(true)
   })
 
   it('⛔ …and the control the tab drew writes through the row patch', () => {

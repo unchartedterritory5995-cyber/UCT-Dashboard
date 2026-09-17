@@ -205,6 +205,48 @@ export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
  * changes when anything above it moves. A stored index would break the first time
  * RSI went above Price; a stored definition id cannot.
  */
+/**
+ * WHERE THIS INSTANCE WOULD DRAW IF THE MEMBER HAD NEVER CHOSEN — the AUTOMATIC
+ * destination, as a writable target string.
+ *
+ * ⭐⭐ IT IS THE EXACT COMPUTATION `setInstanceDisplayTarget` ALREADY MADE, LIFTED
+ * OUT SO THAT BOTH SIDES OF "Automatic" ASK ONE FUNCTION. The writer needs it to
+ * decide whether a chosen target is the return-to-default gesture (equal ⇒ delete
+ * `target` AND `targetExplicit`); the INSPECTOR needs the same answer to LABEL the
+ * Automatic option (`Automatic · QQQ`) and to know what to write when the member
+ * picks it. A second copy in the view would be a second opinion about what
+ * "automatic" means, and the two would drift the first time a derivation rule
+ * changed — which is the whole failure `resolveDisplayTarget`'s own header
+ * refuses. The writer now calls this; nothing about what it stores has changed.
+ *
+ * ⛔ ASKED WITH BOTH THE STORED TARGET **AND** THE PROVENANCE MARKER STRIPPED.
+ * Leaving the marker on makes the resolver honour the very value the caller is
+ * trying to compare against, so every write looks like a return-to-default and
+ * the member's choice is lost on their second move.
+ *
+ * ⛔ AND WITH THIS DEFINITION OUT OF THE LEGACY `volumeOverlayIndicators` LIST.
+ * That list is the OLD way of saying the same thing; letting it answer here means
+ * "volume is already the default, so write nothing", which is how the canonical
+ * `placement.target` would quietly never get written at all.
+ *
+ * @returns {string|null} 'price' | 'volume' | 'pane' | '@<hostId>', or null when
+ *   the definition declares no placement at all (⇒ there is nothing to choose).
+ */
+export function automaticTargetOf(cs, instance) {
+  if (!cs || typeof cs !== 'object') return null
+  if (!instance || typeof instance !== 'object') return null
+  const defId = instance.defId
+  const legacy = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
+  const bare = {
+    ...instance,
+    placement: { ...(instance.placement || {}), target: undefined, [TARGET_EXPLICIT]: undefined },
+  }
+  return resolveDisplayTarget(bare, {
+    ...cs,
+    volumeOverlayIndicators: legacy.filter((x) => x !== defId),
+  })
+}
+
 export function paneOwnerOf(instance, cs) {
   const target = resolveDisplayTarget(instance, cs)
   if (!target || target === 'price' || target === 'volume') return null

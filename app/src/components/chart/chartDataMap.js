@@ -35,6 +35,7 @@
 import {
   resolveDisplayTarget, paneOwnerOf, paneOwnKeys, paneOwnersNeeded, paneHostLabels,
 } from './engine/displayTarget'
+import { describeSourceValue } from './engine/readout'
 import { isInstanceTombstone } from './instanceShape'
 
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
@@ -224,4 +225,119 @@ export function paneMap(rows, settings, defOf, volumeOpts) {
 
   return [...panes, hidden, orphans]
     .filter((g) => g.rows.length > 0 || g.kind === 'price')
+}
+
+// ─── WHAT ONE ROW IS CALLED, AND WHAT IT READS ──────────────────────────────
+//
+// ⭐⭐ ONE HOME FOR BOTH, AND IT IS HERE rather than in the component because
+// both are answers about PLACEMENT — a row's name depends on the pane it is
+// filed under — and this file is already the placement read model. A component
+// that computed its own would be a second answer to "where does this draw", the
+// exact drift `paneMap`'s header refuses.
+//
+// ⛔ PRESENTATION ONLY. Nothing below is persisted, addressed or compared.
+// `row.id` / `row.instanceId` remain the identity for every write, so two rows
+// that come out of here wearing the SAME name are still two instances and the
+// Remove on one cannot reach the other.
+
+const SRC_SEP = ' · '
+
+/**
+ * The raw stored value of a definition's FIRST declared `source` input, or null.
+ *
+ * ⛔ THE DECLARATION IS THE GATE (`type: 'source'`), never a key name. A user
+ * formula whose `period` input happens to hold a string that looks like a ref is
+ * still a period.
+ *
+ * ⚠️ IT FALLS BACK TO THE INPUT'S OWN `default`, because "unset means the current
+ * default" is the rule the migrator, the binder and `drawnValues` all follow — an
+ * instance that has never been edited stores nothing and still reads `close`.
+ */
+function declaredSourceValue(row, defOf, byId) {
+  if (!row || !row.engineOwned || !row.instanceId) return null
+  const def = typeof defOf === 'function' ? defOf(row.defId) : null
+  const inputs = (def && Array.isArray(def.inputs)) ? def.inputs : []
+  const declared = inputs.find((i) => i && i.type === 'source')
+  if (!declared || typeof declared.key !== 'string' || !declared.key) return null
+  const inst = byId.get(row.instanceId)
+  const stored = (inst && inst.inputs && typeof inst.inputs === 'object')
+    ? inst.inputs[declared.key] : undefined
+  if (typeof stored === 'string' && stored) return stored
+  return typeof declared.default === 'string' && declared.default ? declared.default : null
+}
+
+/**
+ * The NAME the left structure prints for one row, and the human SOURCE the
+ * Inspector prints beneath it.
+ *
+ * ⭐⭐ THE NAMING RULE, WHICH IS THE ONE NEW IDEA HERE: a row does not repeat what
+ * the pane heading above it already says. Inside the `QQQ` pane an average of QQQ
+ * is `EMA 20`; filed under `Price` the same instance is `EMA 20 · QQQ`, because
+ * there the heading says `Price` and the source would otherwise be invisible.
+ * `disambiguateLabels` may already have appended that suffix for its own reason
+ * (two rows colliding), so the suffix is STRIPPED first and re-applied by this
+ * rule — never appended twice, never left on inside its own pane.
+ *
+ * ⛔ A BAR FIELD IS NOT A FOREIGN SOURCE. `EMA 9 · Close` is noise on the price
+ * pane: close is what a moving average has always averaged. Only a SYMBOL or
+ * another INSTANCE earns the suffix.
+ *
+ * ⛔ AND A DEFINITION THAT NAMES ITSELF FROM ITS SOURCE NEVER GETS ONE — `QQQ ·
+ * QQQ`. `meta.labelFrom === 'source'` is that declaration, READ, not guessed.
+ *
+ * ⚠️ THE FALLBACK SOURCES ARE FACTS, NOT GUESSES. A legacy `cs.overlays` average
+ * reads the close and nothing else, and the volume section reads volume. Both are
+ * properties of those two mechanisms, and `row.path.kind` is the row's own
+ * declaration of which it is.
+ *
+ * @returns {{name: string, source: string|null}}
+ */
+export function paneRowMeta(row, group, settings, defOf) {
+  const label = (row && typeof row.label === 'string') ? row.label : ''
+  const instances = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
+  const byId = new Map(instances.filter((i) => i && i.instanceId).map((i) => [i.instanceId, i]))
+  const lookup = typeof defOf === 'function' ? defOf : (() => null)
+  const def = (row && row.defId) ? lookup(row.defId) : null
+
+  const raw = declaredSourceValue(row, lookup, byId)
+  const described = raw ? describeSourceValue(raw, lookup, byId) : null
+  const foreign = !!raw && (raw.startsWith('sym:') || raw.startsWith('@'))
+  const namesItselfFromSource = !!(def && def.meta && def.meta.labelFrom === 'source')
+
+  let source = described
+  if (!source && row && !row.engineOwned && row.path) {
+    if (row.path.kind === 'section' && row.path.key === 'volume') source = 'Volume'
+    else if (row.path.kind === 'overlay') source = 'Close'
+  }
+
+  let name = label
+  if (described && name.endsWith(SRC_SEP + described)) {
+    name = name.slice(0, -(SRC_SEP + described).length)
+  }
+  // ⚠️⚠️ COMPARED WITH WHITESPACE NORMALISED, AND THAT IS NOT DEFENSIVE TIDYING —
+  // it is the difference between the rule working and not. The two strings come
+  // from two different canonical namers and SPELL THE SAME HOST DIFFERENTLY:
+  // `paneHostLabels` (the heading, the legend chip, the destination menu) says
+  // `RSI (14)`, while `readout.chipLabel` (what a source DESCRIBES as) says
+  // `RSI(14)`. One space.
+  //
+  // ⚰️ MEASURED IN THE BROWSER: an MA sourced from RSI and filed under the
+  // `RSI (14)` heading printed `SMA 5 · RSI(14)` — the suffix this rule exists to
+  // SUPPRESS, restated directly under a heading that had already said it, in a
+  // second spelling. A strict equality was silently answering "the pane does not
+  // say it" about a pane that plainly did.
+  //
+  // ⛔ AND IT NORMALISES ONLY THE **COMPARISON**. Neither label is rewritten:
+  // the suffix, when it is earned, still prints exactly what `chipLabel` produced,
+  // because that is the spelling the on-chart legend uses and the Inspector must
+  // not invent a third. Two namers may disagree about a space; this decides
+  // whether they are talking about the same pane, and nothing more.
+  const sameHost = (a, b) => a.replace(/\s+/g, '').toLowerCase() === b.replace(/\s+/g, '').toLowerCase()
+  const paneSaysIt = !!(group && typeof group.name === 'string' && described
+    && sameHost(group.name, described))
+  if (foreign && described && !paneSaysIt && !namesItselfFromSource) {
+    name = `${name}${SRC_SEP}${described}`
+  }
+
+  return { name, source: source || null }
 }
