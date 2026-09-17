@@ -52,8 +52,21 @@
 name: full suite (report-only)
 
 on:
+  # ⛔⛔ E CP34 — F-CI-43. THIS LIST USED TO BE `[feat/s7-price-level]` ALONE, AND
+  # `merge_all` PUSHES MASTER **DIRECTLY**, NOT VIA A PR. So every unit this programme
+  # merges would have reached master having run no tests at all, and the Layer-0 guard's
+  # `SUCCESS` — which is a Railway DEPLOY settling — would have been the only green anyone
+  # saw. A deploy settling says the build started; it says nothing about the suite.
+  #
+  # ⭐ `replay-preview` is the branch the merge's own cherry-pick result is pushed to, so the
+  # tree that will be deployed is the tree that was tested — BEFORE 47 commits land on
+  # master rather than after.
+  #
+  # ⚠️ `concurrency` below is `cancel-in-progress: false`, deliberately. Adding `master` here
+  # means a master push queues a run; that is one run per merge commit, and the sittings
+  # merge one unit at a time, so they do not fan out.
   push:
-    branches: [feat/s7-price-level]
+    branches: [feat/s7-price-level, master, replay-preview]
   pull_request:
     branches: [master]
   workflow_dispatch:
