@@ -1512,3 +1512,60 @@ never auto-published, never Substack — any build must keep that. |
 `extract.run_weekly_audit` → `extract.run_audit`, the implementation `RUNBOOK.md` and
 `CONTRACTS.md` both specify. The difference between the two cases is exactly what the rail now
 enforces.
+
+---
+
+## 2026-09-17 (Thu) 18:47 ET — the first INGEST night with SOURCES lit
+
+**State at arming (13:37Z):** `WISDOM_INGEST_ENABLED=1`, `WISDOM_SOURCES_INGEST_ENABLED=1`,
+everything else False including all three member doors. Production serves `3648792d5`, so R64
+(force never spends), R65 (night rationing) and R66 (honest outcomes) are live. The golden gate
+is OPEN: `wisdom_eval_runs = 1`, `gate_status.accepted = True` for `wx-v0-fc47bc97` /
+`claude-opus-5` / `high`. **EXTRACT is DARK, so tonight cannot spend.**
+
+### What to expect
+
+| step | expected |
+|---|---|
+| `capture` | `ok` — it is not gated by `WISDOM_CAPTURE_ENABLED` (the chain step is `gate=None`); ~175 s writing dataset objects to R2 |
+| `sources` | **`ok` AND ACTUALLY TRUE FOR THE FIRST TIME** — transcripts ingest runs; `discord` sub-stream still skipped, so under R66 this should read **partial:** naming discord |
+| `extract` | `skipped — WISDOM_EXTRACT_ENABLED is off` |
+| `evals` | **`skipped`** now, naming all four sub-steps (R66; it used to read `ok`) |
+| `reconcile_stability` | `skipped — only 0 persisted run(s); need 3` |
+| everything else | unchanged from 09-16 |
+
+**Counts:** `wisdom_sources` and `wisdom_segments` go from **0** to whatever `transcripts.ingest_new`
+yields (it walks `edu_videos` newest-first, limit 500). `wisdom_records` stays **0** — records come
+from extraction, which is dark. `wisdom_extract_requests` stays **0**.
+
+### How to check (the log window is ~12 minutes; use the durable table)
+
+⛔ `railway logs` returns roughly a 500-line / 12-minute window and the pod redeploys often, so it
+**cannot** reach a run from the night before. Read the artifact instead:
+
+```
+GET /api/admin/wisdom/core/status                      # store_counts, flags, job heartbeats
+GET /api/admin/wisdom/core/runs?job_id=wisdom_daily_chain&limit=3   # the run row + every step
+```
+
+(admin session in the box's browser; both 401 unauthenticated.)
+
+### Verdict rule
+
+**HEALTHY** = the run row exists for due_key 2026-09-17 with `status: ok`, `sources` did work,
+`wisdom_segments > 0`, and nothing paged.
+**DEGRADED** = it ran but sources wrote nothing, or a step failed.
+**DID NOT RUN** = no run row (check the heartbeat: a skipped slot writes a beat and NO run row).
+
+### The one-line stop
+
+`railway variables --service web --unset WISDOM_SOURCES_INGEST_ENABLED` — ingest stops; anything
+already written persists. ⚠️ That same flag also arms **Sunday's** `run_weekly_sunday_scans`
+(`sources/__init__.py:72`), so unsetting it closes both.
+
+### Friday 2026-09-18 18:47 ET — NOT YET ARMED
+
+EXTRACT is armed only if tonight is HEALTHY. At `WISDOM_DAILY_SEGMENT_LIMIT=1200` and N=3 that is
+**400 segments / 1,200 requests**, ~**$70.41** at the measured mean and ~**$73.67** at p90, inside a
+$75 night line and an $1,800 programme total (~24 nights). ⛔ Those three variables are **not set**;
+setting them is Step G2 and it happens only after tonight's verdict.
