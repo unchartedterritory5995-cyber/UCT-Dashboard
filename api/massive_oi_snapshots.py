@@ -57,11 +57,12 @@ Drop-in interface match with Schwab module:
 """
 import asyncio
 import json as _json
+import datetime as _dt
 import logging
 import os
 import urllib.parse
 import urllib.request
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from datetime import datetime
 from typing import Iterable
 
@@ -99,6 +100,96 @@ _UCT_UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
 # refetching the same chain if multiple contracts on the same ticker
 # appear in the batch.
 _PER_CALL_CACHE: dict = {}
+
+# ── R61 — THE DAILY CHAIN CACHE ───────────────────────────────────────────────
+#
+# ⚰️ MEASURED ON FLOW-WORKER, 2026-09-17: `[massive-oi] SPY: 41 pages, 10000 total
+# results, 7984 indexed with OI>0` — **per request**. `_PER_CALL_CACHE` is cleared at
+# the top of every `_fetch_oi_all_async`, so the whole 41-page walk was paid again for
+# every batch that mentioned SPY. That is the real cause of the SPY timeouts, and the
+# owner's ruling was explicit: *the fix is the daily cache, not the timeout.*
+#
+# ⭐ WHY A DAY IS THE RIGHT GRANULARITY AND NOT A STALENESS COMPROMISE. Open interest is
+# an END-OF-DAY figure: OCC computes it overnight from the day's clearing, and it does
+# not move while the market is open. A cache keyed to the ET calendar day therefore
+# serves exactly the same number a refetch would, which is why this is a cost fix with
+# no accuracy cost. ⛔ It is NOT a TTL — a TTL would expire mid-session and re-pay the
+# 41 pages for a number that had not changed.
+#
+# ⛔ THE ET CALENDAR DAY, NOT A MARKET SESSION, AND THAT IS DELIBERATE. No holiday or
+# half-day logic is wanted here: on a weekend the key rolls, the entry drops, and the
+# next call refetches the same Friday figure. That costs one walk per ticker per
+# calendar day and keeps this module from carrying a second authority over "what
+# session is it" — the defect this repo has paid for repeatedly.
+_CHAIN_CACHE: "OrderedDict[str, tuple[int, dict]]" = OrderedDict()
+CHAIN_CACHE_MAX_TICKERS = int(os.environ.get("MASSIVE_OI_CHAIN_CACHE_TICKERS", "24"))
+
+
+def _et_day() -> int:
+    """Today's ET calendar date as YYYYMMDD. Falls back to UTC if tzdata is missing —
+    ⛔ and that fallback is a CORRECTNESS-NEUTRAL degradation on purpose: a wrong-by-
+    five-hours key rolls the cache at the wrong moment, costing one extra walk, and can
+    never serve one day's OI under another day's label, because the key is compared for
+    EQUALITY and a mismatch always refetches."""
+    try:
+        from zoneinfo import ZoneInfo
+        now = _dt.datetime.now(ZoneInfo("America/New_York"))
+    except Exception:                                        # noqa: BLE001
+        now = _dt.datetime.now(_dt.timezone.utc)
+    return now.year * 10000 + now.month * 100 + now.day
+
+
+def _chain_cache_get(ticker: str) -> "dict | None":
+    hit = _CHAIN_CACHE.get(ticker)
+    if not hit:
+        return None
+    day, index = hit
+    if day != _et_day():
+        _CHAIN_CACHE.pop(ticker, None)
+        return None
+    _CHAIN_CACHE.move_to_end(ticker)
+    return index
+
+
+def _chain_cache_put(ticker: str, index: dict, *, outcome: str) -> bool:
+    """Store a chain index for the rest of the ET day. Returns whether it was stored.
+
+    ⛔⛔ THE TWO REFUSALS ARE THE WHOLE SAFETY ARGUMENT, and both fail in the direction
+    of paying again rather than serving a lie for a day:
+
+    * **an ERRORED walk is never cached.** A timeout or a 502 on page 12 yields a
+      partial index that looks exactly like a complete one. Caching it would pin
+      SPY's OI to whatever the first twelve pages held until midnight, and every
+      later request would agree with it — a wrong number that is stable, which is
+      the hardest kind to notice.
+    * **an EMPTY index is never cached.** `{}` is what every failure path returns,
+      so caching it would zero open interest for a whole session on one bad minute.
+
+    ⚠️ A TRUNCATED walk (the page cap reached with pagination still to go) IS cached,
+    and that is a deliberate, narrower call: truncation is not caused by this call and
+    is not fixed by repeating it — the uncached code already served the same truncated
+    index, 41 pages at a time. Caching it changes the cost and not the answer. It is
+    logged at WARNING so the truncation is visible as a separate problem."""
+    if outcome == "error" or not index:
+        return False
+    _CHAIN_CACHE[ticker] = (_et_day(), index)
+    _CHAIN_CACHE.move_to_end(ticker)
+    while len(_CHAIN_CACHE) > max(1, CHAIN_CACHE_MAX_TICKERS):
+        _CHAIN_CACHE.popitem(last=False)          # LRU: oldest touched leaves first
+    return True
+
+
+def chain_cache_stats() -> dict:
+    """What the cache holds right now — for a receipt or a probe, never for a decision."""
+    day = _et_day()
+    return {"et_day": day, "tickers": len(_CHAIN_CACHE),
+            "entries": {t: len(ix) for t, (d, ix) in _CHAIN_CACHE.items() if d == day},
+            "max_tickers": CHAIN_CACHE_MAX_TICKERS}
+
+
+def clear_chain_cache() -> None:
+    """Drop everything. For tests and for an operator who needs a forced refetch."""
+    _CHAIN_CACHE.clear()
 
 
 def _with_key(url: str) -> str:
@@ -203,15 +294,31 @@ def _fetch_chain_blocking(ticker: str) -> dict:
     """Blocking (run via asyncio.to_thread) full-chain snapshot for one
     underlying. Returns {(cp_letter, float_strike, 'M/D/YYYY'): oi_int}.
     Follows next_url pagination. Empty dict on any error (caller treats as
-    'unresolved'). Stdlib urllib only — no httpx dependency."""
+    'unresolved'). Stdlib urllib only — no httpx dependency.
+
+    R61: the result is cached for the rest of the ET day (`_chain_cache_put`), because
+    open interest is an end-of-day figure that does not move intraday. An ERRORED or
+    EMPTY walk is never cached — see that function for why both refusals matter."""
     if ticker in _PER_CALL_CACHE:
         return _PER_CALL_CACHE[ticker]
+
+    cached = _chain_cache_get(ticker)
+    if cached is not None:
+        _PER_CALL_CACHE[ticker] = cached
+        logger.debug("[massive-oi] %s: served from the daily chain cache (%d strikes)",
+                     ticker, len(cached))
+        return cached
 
     url = _with_key(f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
                     f"?limit={MASSIVE_PAGE_LIMIT}")
     combined: dict = {}
     page = 0
     total_results_seen = 0
+    # ⛔ WHY THE WALK ENDED, not merely that it ended. All three exits produced the same
+    # `return combined` and the same cheerful INFO line, so a walk that died on page 12
+    # was indistinguishable in the log from one that finished. R61 has to tell them
+    # apart before it can decide what is safe to keep for a day.
+    outcome = "complete"
 
     while url and page < MAX_PAGES:
         try:
@@ -221,11 +328,13 @@ def _fetch_chain_blocking(ticker: str) -> dict:
                 if status != 200:
                     logger.warning("[massive-oi] %s page %d status=%d",
                                    ticker, page, status)
+                    outcome = "error"
                     break
                 data = _json.loads(resp.read().decode("utf-8"))
         except Exception as e:
             logger.warning("[massive-oi] %s page %d request failed: %s",
                            ticker, page, e)
+            outcome = "error"
             break
 
         results = data.get("results")
@@ -240,13 +349,29 @@ def _fetch_chain_blocking(ticker: str) -> dict:
             base = next_url if next_url.startswith("http") else f"{MASSIVE_REST_BASE}{next_url}"
             url = _with_key(base)
             page += 1
+            if page >= MAX_PAGES:
+                # The cap stopped us while the provider still had more to give.
+                outcome = "truncated"
         else:
             url = None
 
-    logger.info(
-        "[massive-oi] %s: %d pages, %d total results, %d indexed with OI>0",
-        ticker, page + 1, total_results_seen, len(combined)
-    )
+    stored = _chain_cache_put(ticker, combined, outcome=outcome)
+    line = ("[massive-oi] %s: %d pages, %d total results, %d indexed with OI>0 "
+            "(walk=%s, cached_for_the_day=%s)"
+            % (ticker, page + 1, total_results_seen, len(combined), outcome, stored))
+    if outcome == "truncated":
+        # ⚰️ SPY's live line read `41 pages, 10000 total results` — exactly
+        # MAX_PAGES x MASSIVE_OI_PAGE_LIMIT — at INFO, which reads as success. A chain
+        # that is cut off at the cap is a SHORT ANSWER, and every strike past the cut
+        # resolves as "no OI" rather than as "not measured".
+        logger.warning("%s ⛔ TRUNCATED at the %d-page cap with pagination still to go — "
+                       "strikes beyond the cut are UNMEASURED, not zero. Raise "
+                       "MASSIVE_OI_MAX_PAGES or narrow the request.", line, MAX_PAGES)
+    elif outcome == "error":
+        logger.warning("%s ⛔ INCOMPLETE — the walk stopped on an error, so this index is "
+                       "partial and is deliberately NOT kept for the day.", line)
+    else:
+        logger.info("%s", line)
     _PER_CALL_CACHE[ticker] = combined
     return combined
 
@@ -278,20 +403,38 @@ def fetch_chain_price_oi(ticker: str) -> dict:
     """ONE chain snapshot → {(cp_letter, float_strike, 'M/D/YYYY'): {'oi': int|None,
     'price': float|None}} — CURRENT open interest + current mark per strike, in a
     single Massive call. Stdlib urllib (flow-worker-safe). Unlike the OI-only index
-    this KEEPS oi==0 (a real fresh strike) and carries the price. {} on any error."""
+    this KEEPS oi==0 (a real fresh strike) and carries the price. {} on any error.
+
+    ⛔⛔ **R61 DELIBERATELY DOES NOT CACHE THIS ONE, AND THE REASON IS THE PRICE.** Open
+    interest is an end-of-day figure, which is what makes a day-long cache correct for
+    the OI-only index above. This function also returns the CURRENT MARK, which moves
+    every tick — a daily cache here would freeze members' P&L at the first read of the
+    morning. Its correct remedy is a short TTL on the order of a quote's own life, and
+    that is a different change with a different acceptance test.
+
+    ⚠️ **AND IT IS A SECOND UNCACHED 40-PAGE WALK ON THE SAME SPY PATH**, called per card
+    render from `live_massive_router`. The `[massive-oi] SPY: 41 pages` line measured on
+    flow-worker belongs to the OI-only index; the cost of THIS walk has never been
+    measured, because on success it logged nothing at all. The line below exists to make
+    it measurable. ⛔ Do not add a cache here on the strength of the other function's
+    numbers — measure this one first."""
     url = _with_key(f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
                     f"?limit={MASSIVE_PAGE_LIMIT}")
     out: dict = {}
     page = 0
+    _t0 = _dt.datetime.now(_dt.timezone.utc)
+    outcome = "complete"
     while url and page < MAX_PAGES:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _UCT_UA})
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_SEC) as resp:
                 if getattr(resp, "status", 200) != 200:
+                    outcome = "error"
                     break
                 data = _json.loads(resp.read().decode("utf-8"))
         except Exception as e:  # noqa: BLE001
             logger.warning("[massive-oi] price+oi %s page %d failed: %s", ticker, page, e)
+            outcome = "error"
             break
         results = data.get("results")
         if isinstance(results, dict):
@@ -320,8 +463,25 @@ def fetch_chain_price_oi(ticker: str) -> dict:
         if nu:
             url = _with_key(nu if nu.startswith("http") else f"{MASSIVE_REST_BASE}{nu}")
             page += 1
+            if page >= MAX_PAGES:
+                outcome = "truncated"
         else:
             url = None
+
+    # ⭐ A MEASUREMENT, NOT A FIX. This walk logged nothing on success, so its cost on
+    # the SPY card path has never been a number anybody could quote. It is one line per
+    # call, at INFO, carrying the same fields as the OI-only index so the two are
+    # directly comparable — which is the whole point: the next decision about caching
+    # this one should be made against its own numbers.
+    ms = (_dt.datetime.now(_dt.timezone.utc) - _t0).total_seconds() * 1000
+    line = ("[massive-oi] price+oi %s: %d pages, %d strikes, %.0f ms (walk=%s)"
+            % (ticker, page + 1, len(out), ms, outcome))
+    if outcome == "truncated":
+        logger.warning("%s ⛔ TRUNCATED at the %d-page cap — strikes beyond the cut carry "
+                       "NO mark and NO open interest on the card, which renders as absent "
+                       "rather than as unmeasured.", line, MAX_PAGES)
+    else:
+        logger.info("%s", line)
     return out
 
 
