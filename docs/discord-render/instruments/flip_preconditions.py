@@ -929,8 +929,16 @@ def check_chaos_real(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
                 f"(refused != passed)")
 
 
-#: 3.5's script has 15 rows. A partial run is NOT MET, not MET-because-something-exists.
-SMOKE_ROWS_TOTAL = 15
+#: 3.5's script has 14 rows. A partial run is NOT MET, not MET-because-something-exists.
+#: ⚰️ THIS READ 15 UNTIL 2026-09-17, AGAINST A SCRIPT THAT HAS SAID 14 SINCE R16 (2026-09-15):
+#: "THE SMOKE IS FOURTEEN ROWS. R16 struck the fifteenth: the prior record never established one,
+#: and the '15' was approximate. Every score from B2 onward is x/14." A denominator typed here and
+#: a row list written there is a second authority over one number — the defect this programme keeps
+#: paying for — and it made every score under-read by one row's worth of credit while quoting a
+#: total no artifact supports. The gate snapshot's own mover said so: "move the scorer to the
+#: 14-row denominator. Never relax the threshold." Moving it is not relaxing it: 14 of 14 is still
+#: every row.
+SMOKE_ROWS_TOTAL = 14
 N_SMOKE = "3.5 real-Discord smoke"
 
 _SMOKE_MARKS = {"passed": r"✅\s*\*\*PASS", "failed": r"🔴\s*\*\*FAIL",

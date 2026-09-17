@@ -149,3 +149,65 @@ the clean single-pod control it was written as, and it should not be quoted as o
 ⛔ **And "The application did not respond" at 09:19 ET was the 13:17:12Z deploy's pod coming up,
 not an ack failure of the kind this programme is about.** See
 `evidence/oi44-attribution/2026-09-17-boot-storm.md` §6.
+
+---
+
+## Scorer-readable marks — the one block `flip_preconditions.check_smoke` counts
+
+⛔ **THE REST OF THIS FILE IS INVISIBLE TO THE GATE, AND THAT WAS MY BUG.** `check_smoke` counts
+four literal marks, each an emoji followed immediately by a bold verdict word (tick+PASS,
+red-circle+FAIL, no-entry+NOT RUN, yellow-circle+PARTIAL). Every verdict above is written as a
+bold word with no emoji, so a complete fourteen-row run was worth **zero** to the row that
+asks whether the smoke ran.
+
+⚠️ **AND THE FIRST DRAFT OF THIS VERY PARAGRAPH SPELLED THOSE FOUR MARKS OUT, WHICH ADDED ONE
+OF EACH TO THE SCORE** — including a FAIL this run did not have. Measured, not noticed: the file
+counted 11/1/5/1 against an intended 10/0/4/0. That is this repo's standing rule
+(*"every literal-hunting check strips comments first"*) arriving from the other side: the check
+does not strip prose, so the EVIDENCE must not contain the needle. Described in words instead. That is the scorer's own warning — *"a gate that cannot see the
+evidence it asks for teaches everyone to stop producing it"* — earned from the other side, by
+producing evidence in a shape it cannot see. One block, below, carries the marks; nothing above is
+written in the mark syntax, so nothing is double-counted.
+
+| # | row | mark |
+|---|---|---|
+| 1 | `/chart ticker:NVDA` | ✅ **PASS** |
+| 2 | STALE badge | ⛔ **NOT RUN** — unreachable by construction, V2 dark |
+| 3 | stand-in + heal | ⛔ **NOT RUN** — unreachable by construction, V2 dark (R32) |
+| 4 | footer | ✅ **PASS** |
+| 5 | `/flow SPY` ETF partition | ⛔ **NOT RUN** — unreachable by construction, `flow_source` is V2-only |
+| 6 | `/flow` equity underlying | ✅ **PASS** |
+| 7 | degraded flow card | ⛔ **NOT RUN** — unreachable by construction, §5's card is the V2 contract |
+| 8 | `/buzz` | ✅ **PASS** |
+| 9 | `/renderhealth` | ✅ **PASS** |
+| 10 | multi-chart | ✅ **PASS** |
+| 11 | control-row button | ✅ **PASS** |
+| 12 | the `⚙` control | ✅ **PASS** |
+| 13 | non-allowlisted channel | ✅ **PASS** |
+| 14 | rate-limit refusal | ✅ **PASS** |
+
+**10 PASS · 0 FAIL · 4 NOT RUN · 0 PARTIAL · 0 rows no mark speaks for.**
+
+⭐ **The four NOT RUN marks are deliberate and the row SHOULD stay NOT MET on them.** They are not
+"we did not get to it": every one is unreachable while `DISCORD_RENDER_V2_ENABLED` is unset, which
+is a fact about the flip this gate guards. A gate that read MET with four of its rows structurally
+unrunnable would be asserting exactly the thing it exists to check.
+
+### ⛔ A SCORER DEFECT FOUND WHILE DOING THIS, DELIBERATELY **NOT** FIXED
+
+`check_smoke` sums marks across **every** declared 3.5 index in the evidence tree. Two consequences,
+both real today:
+
+1. `smoke-2026-09-14/INDEX.md` carries **1 🔴 FAIL** from a run whose failures were the channel-gate
+   refusals (`CHART_FLOW_CHANNEL_ID` then carried one id). `check_smoke` short-circuits on any FAIL,
+   so **a superseded run holds this row red permanently**, whatever today's run says.
+2. In the other direction, summing PASS marks across independent runs **double-counts** them — the
+   scorer's own comment already warns that *"two partial indexes that both claim row 1 would
+   otherwise sum to 15 and carry the row to MET"*.
+
+⛔ **I have not changed the scoring semantics, and the reason is not timidity.** "Judge the newest
+index" would flip a gate verdict, and a session changing a scorer so that a gate reads better is
+the move that needs an owner's name on it — the same instinct as R35's *thresholds move after the
+cause is fixed*. **Recommended, for the owner: make `check_smoke` judge ONE index — the newest
+declared run — and report the others as history.** Until then this row is NOT MET for a reason
+printed from a three-day-old file, and that is worth knowing when reading it.
