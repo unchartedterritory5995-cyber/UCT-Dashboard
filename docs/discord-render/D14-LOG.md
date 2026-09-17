@@ -150,3 +150,52 @@ NEXT
 master unchanged | no env change | budget intact
 ================================================================================
 ```
+
+---
+
+## 2026-09-17 09:26 ET — a clock gate that opened itself, and labelled UTC as ET
+
+```
+⛔ `TZ=America/New_York date` THROUGH THE BASH TOOL ON THIS BOX RETURNS UTC.
+
+A background wait for the 10:00 ET window was written as
+
+    until [ "$(TZ=America/New_York date +%H%M)" -ge "1000" ]; do sleep 20; done
+    echo "WINDOW OPEN: $(TZ=America/New_York date +%H:%M:%S) ET"
+
+It exited IMMEDIATELY, at 09:26 ET, and printed
+
+    WINDOW OPEN: 13:26:05 ET
+
+13:26 is UTC. The TZ prefix did nothing, `%H%M` was therefore `1326`, `1326 >= 1000`
+is true, and the gate opened 34 minutes early. The word "ET" in the output is there
+because I typed it into the echo -- nothing converted a timezone and nothing
+checked that anything had.
+
+⭐ THIS IS THE THIRD INSTANCE OF ONE CLASS TODAY, and the first two were mine as
+well: an instrument stating a property it never verified.
+  1. the R31 ssh trace reporting ITS OWN process's loopwatch as the pod's;
+  2. a deploy read as a spontaneous restart because the analysis dropped the `sha`
+     column and filled the gap from a 35-minute-old reading;
+  3. this -- a clock gate whose label was an assertion, not a measurement.
+⛔ A rule written down at 08:47 was violated by its author at 09:26. Writing the
+lesson is not the same as holding it.
+
+⚠️ THE SECOND HALF OF THE TRAP IS THE NOTIFICATION. The background task reported
+"completed (exit code 0)", which is exactly what a correctly-waited gate looks
+like. The repo's standing rule -- a task status reports the WRAPPER's exit, never
+the condition -- caught it: the clock was re-read from PowerShell's own
+TimeZoneInfo conversion before acting, and the two disagreed by 34 minutes.
+
+✅ THE FIX, and it is two changes, not one:
+   - compute the gate in UTC, which needs no conversion:
+       until [ "$((10#$(date -u +%H%M)))" -ge 1400 ]; do sleep 20; done
+     (10:00 ET = 14:00 UTC while EDT holds; `10#` forces decimal so an 08xx
+     reading is not parsed as invalid octal -- a second bug waiting in the same line)
+   - NEVER label a clock reading with a zone the code did not convert to. Print the
+     offset, or print UTC and say UTC.
+
+⛔ THIS PROGRAMME HAS CLOCK-GATED DIRECTIVES (R17's 10:00 ET window, W3's Friday
+08:23 ET, D-13's "Wed >= 09:00 ET"). Any of them waited on with `TZ=` through this
+shell would open early and look like it had waited.
+```
