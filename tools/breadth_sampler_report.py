@@ -40,7 +40,35 @@ except Exception:                                         # pragma: no cover
     pass
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_LOG = REPO / "logs" / "breadth-samples.jsonl"
+
+#: ⚰️ THIS WAS `REPO / "logs" / "breadth-samples.jsonl"` AND THE POOL MOVED WITHOUT IT.
+#: SD-1.2 B3.1 moved the pool OUTSIDE every worktree, precisely because a path derived
+#: from this file's own location makes the pool's identity "whichever checkout ran the
+#: tool". The sampler was updated; its report was not — so the report has been reading a
+#: path nothing writes, finding no file, and emitting a complete-looking summary whose
+#: body is the single line "no sample file at ...".
+#:
+#: ⛔ IT FAILED IN THE FLATTERING DIRECTION: an empty pool renders as a valid report of
+#: nothing, not as an error. The cp1252 rail is what caught it, and only because that
+#: rail asserts the BODY reached the file rather than that the file exists — a
+#: file-exists check would have passed on the empty summary indefinitely.
+#:
+#: ⭐ Derived from the sampler's own constants, never re-typed, so the two cannot drift
+#: again: the sampler owns where the pool lives.
+def _pool_default() -> pathlib.Path:
+    import importlib.util as _u
+    try:
+        _spec = _u.spec_from_file_location("_bs_paths", REPO / "tools" / "breadth_sampler.py")
+        _m = _u.module_from_spec(_spec)
+        _spec.loader.exec_module(_m)
+        return _m.LOG_PATH
+    except Exception:                                    # pragma: no cover
+        # Never guess a second path. If the sampler cannot be read, say so loudly by
+        # pointing at the location it documents rather than inventing a fallback.
+        return pathlib.Path("C:/Users/Patrick/uct-breadth-pool/breadth-samples.jsonl")
+
+
+DEFAULT_LOG = _pool_default()
 HOTPATH_FILE = REPO / "docs" / "breadth" / "reader-hotpath.txt"
 #: ⛔ An override exists ONLY so the cp1252 rail can run the real tool against a temp
 #: path. Unset in every real run, which is what the default expresses.

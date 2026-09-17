@@ -35,6 +35,22 @@ STUCK_AFTER_S = 60
 RENDERER_MISSES_TO_ALERT = 2
 #: One blocked second is a third of the whole 3 s acknowledgement budget (§3.9, C-02).
 LOOP_STALL_ALERT_MS = 1000.0
+#: R34 tier 1 — a stall this large pages at ANY uptime.
+#: ⛔ NOT a backstop above the boot range. The largest stall measured to date, 20,446 ms on
+#: 2026-09-15, occurred at uptime 670-893 s — BELOW the tier-2 floor. Tier 1 is the working
+#: path for that class, and the census measured 7.8 such events a day.
+#: ⛔⛔ R35: THIS NUMBER DOES NOT MOVE TO QUIET A SYMPTOM. If tier 1 pages more than twice a
+#: day the response is to fix the cause (OI-44); raising it is permitted only in a directive
+#: that cites the fix which removed the cause.
+LOOP_STALL_PAGE_ALWAYS_MS = 5000.0
+#: R34 tier 2 — below this uptime, a >= LOOP_STALL_ALERT_MS stall is recorded and counted but
+#: never paged. Q6's startup verdict, operationalised: the last >= 1 s startup-class event
+#: observed on a settled pod was at minute 12.9.
+LOOP_STALL_PAGE_UPTIME_FLOOR_S = 900.0
+#: Per-key page cooldown. ⛔ Held on the VOLUME, not in memory: `chart_health_alerts`' own
+#: `_discord_last` is per-process and this pod restarts ~20x/day, so an in-memory cooldown
+#: cannot suppress anything across pods.
+LOOP_STALL_PAGE_COOLDOWN_S = 1800.0
 LOOP_NOISE_MS = 50.0
 
 _SECRETISH = re.compile(r"(token=[^&\s]+|/webhooks/\d+/[A-Za-z0-9_\-.]+|[?&][A-Za-z_]+=[^&\s]*)")
@@ -254,6 +270,30 @@ def _live_loop() -> dict:
         return {}
 
 
+def _live_token_slots() -> dict:
+    """Which render-token slot senders are presenting (R29) — the evidence OI-13 step 6 waits on.
+
+    ⛔ Slot names and counts only. Never a value, a length, or a hash of one (C-13)."""
+    try:
+        from api.services.discord_render import token_slots
+        return token_slots.snapshot()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _live_stall_record() -> dict:
+    """The DURABLE stall record (R30), beside the trailing window — never instead of it.
+
+    ⛔ The window answers "is the loop stalling right now"; the record answers "how often, how
+    big, and when" across a pod's whole life and across pods, which the window structurally
+    cannot (it forgets everything older than ~5 min, and this pod restarts ~20x/day)."""
+    try:
+        from api.services.discord_render import stall_record
+        return stall_record.snapshot()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _live_breakers() -> dict:
     """The breakers this process holds. ⭐ ONE source for both the push and the pull, so an
     operator reading /renderhealth cannot see something the alert disagrees with."""
@@ -271,6 +311,8 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
     so `alerts` here is exactly what the observer would page on."""
     snap = slo_snapshot(store, now=now)
     snap["loop"] = _live_loop()
+    snap["stall_record"] = _live_stall_record()
+    snap["token_slots"] = _live_token_slots()
     if renderer_misses is None:
         renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
     # ⛔⛔ THE CANARY SCOPE, READ OUT OF THE RUNNING PROCESS (A3).
@@ -405,6 +447,8 @@ class Observer:
         webhook = self.webhook_fn()
         snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
         snap["loop"] = _live_loop()
+        snap["stall_record"] = _live_stall_record()
+        snap["token_slots"] = _live_token_slots()
         for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses,
                                         breakers=_live_breakers()):
             out["breached"].append(key)

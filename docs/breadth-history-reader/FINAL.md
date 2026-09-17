@@ -1,16 +1,21 @@
 # Breadth History Reader — FINAL REPORT
 
-> ## ⛔⛔ THIS IS A DRAFT. THE PROGRAMME IS NOT DONE.
+> ## ✅ MERGED — THE PROGRAMME IS CLOSED.
 >
-> SD-1 D4 makes this the last artifact: **the checklist reads DONE when this file is
-> merged.** It is being written incrementally while the programme waits for slots and
-> samples (SD-1 §6), so that the closing session is an edit rather than a composition.
+> SD-1 D4 made this the last artifact: **the checklist reads DONE when this file is
+> merged**, and it merged in `54abdefeb` on 2026-09-16. PART 2 is the close-out; the
+> post-close addenda are in `docs/breadth/DECISIONS.md`.
 >
-> **Every section below carries its own state.** A section marked `PENDING` has no
-> number yet and must not be quoted as though it did. Do not merge this file while any
-> `PENDING` remains — merging it is the act that ends the programme.
+> ⚰️ **This banner read "THIS IS A DRAFT. THE PROGRAMME IS NOT DONE" until 2026-09-17**,
+> in a file whose own PART 2 records the merge that ended it, and whose closing statement
+> reads "the programme is closed". **The first paragraph a reader meets contradicted the
+> document's conclusion for a full day.** It also still claimed "Sections filled: 1, 2, 4,
+> 6, 7", which stopped being true the moment PART 2 landed — a hand-typed enumeration
+> beside the thing it enumerates, which is the defect §14.7 catalogues and which this file
+> has now committed three separate times.
 >
-> Draft opened 2026-09-15, Session 13. Sections filled: **1, 2, 4, 6, 7.**
+> ⛔ **Sections marked `PENDING` or `SUPERSEDED` still mean what they say** and must not be
+> quoted as current; several below are superseded by PART 2 and say so inline.
 
 ---
 
@@ -269,38 +274,40 @@ are one population, and one population of 77 clears the n the p95 bound needs.
 
 Warm `days=365`: 44.1 ms.
 
-### p95 — ESTIMABLE, and it is not a flattering number
+### THE RESULT — per deploy, because a pooled p95 characterises the deploy mix
 
-⚰️ **This section said "p95 is NOT ESTIMABLE at n=14".** That was true of the largest
-*SHA-keyed* group and false of the reader. At the **≥600 s analysis floor** (SD-1.7 H0.2:
-collect at 300, analyse at 600):
+⛔⛔ **THE 33× HEADLINE IS RETIRED. It was ratified on 2026-09-16 and superseded by data
+on 2026-09-17** — not because the reader changed, but because the pool grew onto a deploy
+that is measurably slower running the same code. Owner ruling: report the per-deploy table
+as the result, with the conservative figure the WORST deploy's bound, and no single pooled
+p95 across deploys.
 
-| | |
-|---|---|
-| n | **59** — exactly the first n at which the sample max bounds p95 at 95% |
-| p50 | **297.4 ms** |
-| **p95** | **≤ 1,680.6 ms at 95.2% confidence** |
-| versus D-042 at the median | **185× faster** |
-| **versus D-042 at the p95 bound** | **33× faster** ← the conservative figure |
+**Identical code** — one reader fingerprint across every row below — and **identical work
+per read**: `rf_rows` = 4,529 and `rf_bytes` = 4,523,328 take exactly one value each across
+the entire pool. Measured at the ≥600 s analysis floor against D-042's 54,923 ms cold:
 
-⛔ **33×, not 175×, is the honest conservative number, and it supersedes the ratified
-one.** 175× was the slowest *median*; a median is not a conservative figure, it is the
-midpoint — half of real requests are slower than it. The p95 bound is what a member meets
-on a bad draw, and the tail is wide: **5.6× the median.** Both figures are enormous against
-a 54.9-second defect, so nothing about the programme's conclusion changes — but the number
-quoted as "conservative" should be the one that actually is.
+| deployed SHA | n | p50 | max | × at p50 | × at max |
+|---|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 ms | 389.3 ms | 198× | **141×** |
+| `9906a7fcd` | 7 | 302.2 ms | 469.3 ms | 182× | **117×** |
+| `6128705c4` | 42 | 307.9 ms | 754.7 ms | 178× | **73×** |
+| `465b12e36` | 26 | 313.4 ms | 1680.6 ms | 175× | **33×** |
+| `02328569b` | 7 | 331.0 ms | 1129.2 ms | 166× | **49×** |
+| `9081799f2` | 54 | 497.2 ms | 3752.1 ms | 110× | **15×** |
 
-**The tail is real and is not filtered.** Every sample reads identical work — `rf_bytes` =
-4,523,328 and `rf_rows` = 4,529 in all 77 rows — so the spread is not different-sized
-reads. It tracks `io_syscr` (ρ = **+0.528**): shared-infrastructure I/O variance, which is
-what members actually experience. It is left in the bound rather than excluded as noise.
+**Conservative figure: 15×** — the worst deploy's p95 bound (`9081799f2`, max 3752.1 ms, n=54). **Range across deploys: 15×–141×.** p50 spans **277.2–497.2 ms** across 6 deploys.
 
-⛔ **The uptime floor is load-bearing and was previously unmeasurable.** On the pooled
-reader ρ(uptime, total) = **−0.32** with the 300–600 s bucket **24.4% slower** at the
-median (369.9 vs 297.4 ms). The earlier reading of ρ=+0.09 came from buckets of n=8/n=26 —
-too thin to see it. **This does not change the standing `MIN_UPTIME_S` = 300**: that is the
-*collection* floor and more rows are strictly better. It is the *analysis* floor of 600
-that the number above applies, exactly as H0.2 specified.
+⭐ **The spread is the host, not the reader.** `9081799f2` runs the same eight hot-path
+files as `31d706f40` and serves the same 4,529 rows, and its median is 79% higher. A p95
+pooled across these six describes **which deploys happened to be sampled**, which is why
+`tools/breadth_pool_report.py --per-deploy` is now the reporting view and every figure in
+this section is derived by it. ⛔ None of these numbers is typed: a ratio hand-carried into
+prose is a second authority, and this report has already lost one that way.
+
+⚰️ **What the retired figure was.** 33× came from `465b12e36`'s bound, which is still in the
+table and still correct — it simply stopped being the worst deploy once `9081799f2` entered
+the pool. The ratification is superseded by data, with the reason, rather than quietly
+overwritten.
 
 ## 14.2 · WHY THE POOL STOPPED SHORT — measured, not excused
 
