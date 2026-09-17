@@ -13,7 +13,7 @@
  * in time when they are not. `axisPointer.link` and `dataZoom.xAxisIndex: 'all'` are
  * what make the stack one chart rather than several.
  */
-import { UNIT_LABEL, shortOf, WEEKLY_METRICS } from '../chartMetrics'
+import { UNIT_LABEL, shortOf, markOf, MARK } from '../chartMetrics'
 import { panelsFor, gridFor, panelIndexByKey } from './panels'
 import { stickyColour } from './stickyColours'
 
@@ -21,6 +21,11 @@ import { stickyColour } from './stickyColours'
 const AXIS_INK = '#8b8578'
 const GRID_INK = 'rgba(139, 133, 120, 0.16)'
 const LABEL_INK = '#b8b2a4'
+//: V2-3's two coverage inks. ⛔ DIFFERENT ON PURPOSE: "never recorded" and
+//: "reconstructed from bars" are different claims, and one ink for both would
+//: merge them back into the single undifferentiated state A-10 is about.
+const NOT_RECORDED_INK = 'rgba(139, 133, 120, 0.10)'
+const RECONSTRUCTED_INK = 'rgba(96, 165, 250, 0.07)'
 
 /**
  * Can this panel take a log axis?
@@ -60,7 +65,7 @@ export function logEligibility(panel, valuesByKey) {
  * @param opts         { logPanels: Set<unit>, endLabels: boolean }
  */
 export function buildOption(dates, valuesByKey, selected, opts = {}) {
-  const { logPanels = new Set(), endLabels = true } = opts
+  const { logPanels = new Set(), endLabels = true, coverage = null } = opts
   const panels = panelsFor(selected)
   const grids = gridFor(panels)
   const { indexOf } = panelIndexByKey(panels)
@@ -108,15 +113,20 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
     const panelIdx = indexOf(key)
     if (panelIdx < 0) continue          // never default to panel 0 — see panels.js
     const values = valuesByKey[key] ?? []
-    const isWeekly = WEEKLY_METRICS.has(key)
+    const mark = markOf(key)
     const last = lastRealIndex(values)
     series.push({
       id: key,
       name: shortOf(key),
-      type: 'line',
-      // ⛔ A WEEKLY SURVEY IS DRAWN AS STEPS (A-10/A-28). Interpolating between two
-      // weekly readings invents daily values nobody published.
-      step: isWeekly ? 'end' : false,
+      // ⛔ A-28 · THE MARK COMES FROM THE REGISTRY, NOT FROM A TEST HERE. This read
+      // `WEEKLY_METRICS.has(key)` directly, which was a second authority over "how is
+      // this drawn" — right for weekly surveys and blind to the two metrics A-28 names
+      // for BARS. `markOf` is the one answer: bars for a signed net and a sparse spike
+      // count, steps for anything on a weekly cadence, lines elsewhere.
+      type: mark === MARK.BARS ? 'bar' : 'line',
+      // ⛔ Interpolating between two weekly readings invents daily values nobody
+      // published; drawing a curve through 26 distinct spike counts invents a shape.
+      step: mark === MARK.STEP ? 'end' : false,
       smooth: false,
       data: values,
       xAxisIndex: panelIdx,
@@ -124,6 +134,9 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
       showSymbol: false,
       lineStyle: { width: 2, color: stickyColour(key) },
       itemStyle: { color: stickyColour(key) },
+      // ⭐ Bars get a small gap so adjacent marks read as separate quantities rather
+      // than one filled area — the same surface-gap rule the stacked panels use.
+      barMaxWidth: mark === MARK.BARS ? 6 : undefined,
       // ⛔ `connectNulls: false` — a null is an ABSENT reading, and bridging it draws a
       // line through a period nobody measured.
       connectNulls: false,
@@ -134,6 +147,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
             distance: 6, valueAnimation: false }
         : { show: false },
       emphasis: { focus: 'series' },
+      ...coverageMarks(coverage, key, dates),
     })
   }
 
@@ -169,6 +183,44 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
     legend: { show: false },   // identity is carried by the end labels + the panel axis
     __refusals: refusals,      // read by the component; see the note in the component
   }
+}
+
+
+/**
+ * V2-3 (A-10) · the shaded regions for one series.
+ *
+ * ⛔⛔ RETURNS AN EMPTY OBJECT WHEN THERE IS NOTHING TO SAY, and that is load-bearing
+ * rather than tidy. The owner's rail is that with coverage absent, V2-3 renders EXACTLY
+ * what V2-2 renders — so this must contribute NO KEYS at all, not a `markArea` holding an
+ * empty array. An empty markArea is still a property on the series, still serialises, and
+ * would make the two options unequal while looking harmless.
+ *
+ * ⛔ A SPAN BEFORE A SERIES BEGINS IS SHADED, NEVER BLANK. Blank reads as "measured and
+ * flat", which is precisely the lie A-10 names: *"Series that begin 2026-01-02 simply
+ * start mid-plot."*
+ */
+function coverageMarks(coverage, key, dates) {
+  if (!coverage) return {}
+  const areas = []
+
+  const region = coverage.regions?.[key]
+  if (region) {
+    areas.push([
+      { xAxis: dates[region.fromIndex], itemStyle: { color: NOT_RECORDED_INK } },
+      { xAxis: dates[region.toIndex] },
+    ])
+  }
+  // The provenance strip: reconstructed sessions are REAL readings with a caveat, so they
+  // are tinted differently from "not recorded at all" — two different facts, two inks.
+  for (const run of coverage.runs ?? []) {
+    areas.push([
+      { xAxis: dates[run.fromIndex], itemStyle: { color: RECONSTRUCTED_INK } },
+      { xAxis: dates[run.toIndex] },
+    ])
+  }
+
+  if (!areas.length) return {}
+  return { markArea: { silent: true, animation: false, data: areas } }
 }
 
 /** Index of the last non-null value, or -1. */

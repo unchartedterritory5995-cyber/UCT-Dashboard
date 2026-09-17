@@ -340,6 +340,43 @@ export const WEEKLY_METRICS = new Set([
   ...Object.keys(METRIC_META).filter(k => cadenceOf(k) === W),
 ])
 
+// ── A-28 · how a metric is DRAWN (R1's `mark`, shipped by DC-2 §3.4) ─────────────────
+//
+// ⚰️ R1 DECLARED THIS FIELD AND NEVER SHIPPED IT. `01-audit.md:315-317` lists the
+// canonical per-metric schema as `short`, `drillKey`, `refLines`, `mark`, `cadence`,
+// `chartable`; four landed. `mark` is exactly what A-28 is built on, so a plan that
+// assumed "R1 is done, the registry has what we need" would have found out at
+// implementation time. (`refLines` is still absent — declared, not shipped, and V2-2
+// declares its lines locally as a result.)
+//
+// A-28, verbatim (`01-audit.md:245`): *"Every metric is a smoothed line: signed daily net
+// drawn as a line; weekly surveys drawn as daily; sparse spike counts (`hvc_52w`: 26
+// distinct values) as a line … Registry `mark`: bars for `adv_decline` and `hvc_52w`,
+// steps for AAII/NAAIM and distribution days, lines elsewhere."*
+//
+// ⛔ ONLY THE EXCEPTIONS ARE LISTED. The steps half is DERIVED from cadence, because
+// "weekly surveys" is already what `cadenceOf` knows and AAII/NAAIM are already in
+// `WEEKLY_METRICS`. Re-listing them here would put a second authority on "is this
+// weekly", and the two would drift the first time a survey's cadence changed.
+export const MARK = { LINE: 'line', BARS: 'bars', STEP: 'step' }
+
+/** The explicit exceptions A-28 names. Everything else follows cadence, then defaults. */
+const MARK_OVERRIDE = {
+  adv_decline: MARK.BARS,   // a signed daily NET is a bar chart; a line implies continuity
+  hvc_52w: MARK.BARS,       // a sparse spike count (26 distinct values) is not a curve
+}
+
+/**
+ * How this metric should be drawn.
+ *
+ * ⛔ A LINE THROUGH A SPARSE COUNT OR A WEEKLY SURVEY INVENTS READINGS. That is A-28's
+ * whole point and it is the same failure as bridging a null: the chart is more confident
+ * than the data.
+ */
+export function markOf(key) {
+  return MARK_OVERRIDE[key] ?? (WEEKLY_METRICS.has(key) ? MARK.STEP : MARK.LINE)
+}
+
 /** Sessions a metric's latest reading may trail the newest row before the readout dates it (A-10). */
 export function staleAllowance(key) {
   return WEEKLY_METRICS.has(key) ? 7 : 1
