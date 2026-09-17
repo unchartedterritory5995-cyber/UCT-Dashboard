@@ -1,0 +1,742 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.................F...F..F.........F..F.F.FF........F..F.F.F.....FF...... [  5%]
+..............................................F......................... [ 10%]
+..........F............................................................. [ 16%]
+...........................................................F............ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 32%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+........................................................................ [ 75%]
+....
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  store rows @ h  : 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+................................................................ [ 80%]
+........................................................F............... [ 85%]
+........................................................................ [ 91%]
+..........................F............................................. [ 96%]
+.............................................                            [100%]
+=================================== FAILURES ===================================
+_ TestRestoreGuarantee.test_the_file_is_byte_identical_after_a_detected_mutation _
+
+self = <tests.test_mutation_check.TestRestoreGuarantee object at 0x7f254296db50>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_file_is_byte_identica0')
+
+    def test_the_file_is_byte_identical_after_a_detected_mutation(self, tmp_path):
+        impl, rail = _project(tmp_path)
+        before = impl.read_bytes()
+        r = _run(impl, rail, "--replace", "'right'", "--with", "'wrong'")
+        assert impl.read_bytes() == before
+        assert "byte-identical restore verified" in r.stdout
+>       assert r.returncode == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+
+tests/test_mutation_check.py:110: AssertionError
+____________ TestVerdicts.test_a_detected_mutation_passes_the_check ____________
+
+self = <tests.test_mutation_check.TestVerdicts object at 0x7f254279b470>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0')
+
+    def test_a_detected_mutation_passes_the_check(self, tmp_path):
+        impl, rail = _project(tmp_path)
+        r = _run(impl, rail, "--replace", "'right'", "--with", "'wrong'")
+>       assert "MUTATION CHECK PASSED" in r.stdout
+E       AssertionError: assert 'MUTATION CHECK PASSED' in '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n'
+E        +  where '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n' = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').stdout
+
+tests/test_mutation_check.py:141: AssertionError
+__________ TestVerdicts.test_expect_red_naming_the_right_test_passes ___________
+
+self = <tests.test_mutation_check.TestVerdicts object at 0x7f254279b380>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_expect_red_naming_the_rig0')
+
+    def test_expect_red_naming_the_right_test_passes(self, tmp_path):
+        impl, rail = _project(tmp_path)
+        r = _run(impl, rail, "--replace", "'right'", "--with", "'wrong'",
+                 "--expect-red", "test_value")
+>       assert r.returncode == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+
+tests/test_mutation_check.py:165: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py] _
+
+harness = 'mutation_harness_contract.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_contract.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py] _
+
+harness = 'mutation_harness_flipgate.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_flipgate.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py] _
+
+harness = 'mutation_harness_load_model.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_load_model.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py] _
+
+harness = 'mutation_harness_push_guard.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_push_guard.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py] _
+
+harness = 'mutation_harness_renderer.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+        assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+    
+        bad = []
+        for c in controls:
+            if c.needle is None or c.target is None:
+                continue                      # UNREADABLE is reported by the gate step, not here
+            target = REPO / c.target
+            if not target.is_file():
+                bad.append(f"{c.name}: target {c.target} does not exist")
+                continue
+            outcome, raw, code, detail = anchor_check.classify(
+                target.read_text(encoding="utf-8", errors="replace"), c.needle)
+            if outcome != anchor_check.OK:
+                bad.append(f"{c.name}: {outcome} (raw={raw} code={code}) {detail}")
+>       assert not bad, (
+            f"{harness} has anchors that no longer match exactly once in code:\n  "
+            + "\n  ".join(bad))
+E       AssertionError: mutation_harness_renderer.py has anchors that no longer match exactly once in code:
+E           A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all
+E       assert not ['A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all']
+
+tests/test_mutation_harness_anchors.py:87: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py] _
+
+harness = 'mutation_harness_contract.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_contract.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f2543139b00>()
+E        +      where <built-in method values of dict object at 0x7f2543139b00> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py] _
+
+harness = 'mutation_harness_flipgate.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_flipgate.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f2543139140>()
+E        +      where <built-in method values of dict object at 0x7f2543139140> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py] _
+
+harness = 'mutation_harness_load_model.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_load_model.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f2542a6e100>()
+E        +      where <built-in method values of dict object at 0x7f2542a6e100> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py] _
+
+harness = 'mutation_harness_push_guard.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_push_guard.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f25432c91c0>()
+E        +      where <built-in method values of dict object at 0x7f25432c91c0> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write _
+
+    def test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write():
+        """The guard is useless if a harness forgets it, or calls it after the first write."""
+        harnesses = _harnesses()
+        # NON-VACUITY: if the glob matched nothing this test would pass by iterating zero times.
+        assert len(harnesses) >= 5, f"only {len(harnesses)} harnesses found — the glob is wrong"
+    
+        for h in harnesses:
+            src = h.read_text(encoding="utf-8")
+            tree = ast.parse(src)
+    
+            imported = any(
+                isinstance(n, ast.ImportFrom) and n.module == "harness_guard"
+                and any(a.name == "guard" for a in n.names)
+                for n in ast.walk(tree))
+>           assert imported, f"{h.name} does not import the shared guard"
+E           AssertionError: mutation_harness_contract.py does not import the shared guard
+E           assert False
+
+tests/test_mutation_harness_hygiene.py:105: AssertionError
+___ test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard ___
+
+    def test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard():
+        """B4 says "any harness that can leave a mutation in a working-tree file" — that is not
+        the same set as `mutation_harness*.py`.
+    
+        ⚰️ `prove_eol_gate.py` plants real line-ending flips in TRACKED files, and its ROOT was
+        the hard-coded literal `C:\\Users\\Patrick\\uct-worktrees\\discord-render` — the
+        integrator's tree — so running it from anywhere mutated that tree. It is guarded now.
+        """
+        writers, unguarded = [], []
+        for path in sorted(INSTRUMENTS.glob("*.py")):
+            if path.name == "harness_guard.py":
+                continue                       # it IS the guard; importing itself proves nothing
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError, OSError):
+                continue
+            if not _writes_to_a_file(tree):
+                continue
+            writers.append(path.name)
+            if path.name in NOT_MUTATORS:
+                continue
+            guarded = any(isinstance(n, ast.ImportFrom) and n.module == "harness_guard"
+                          for n in ast.walk(tree))
+            if not guarded:
+                unguarded.append(path.name)
+    
+        # NON-VACUITY: if the AST probe found no writers, it is broken, not the tree clean.
+        assert len(writers) >= 10, f"only {len(writers)} writing instruments found: {writers}"
+    
+        # The exemption list must describe reality, or it is exempting names nobody has.
+        for name in sorted(NOT_MUTATORS):
+            assert (INSTRUMENTS / name).exists(), f"{name} is exempted but does not exist"
+            assert name in writers, (
+                f"{name} is exempted from a rail it would not trip — a stale exemption")
+    
+>       assert not unguarded, (
+            "these instruments can write to a working-tree file and do not import the shared "
+            f"guard: {unguarded}. Either call guard()/require_throwaway_worktree(), or add the "
+            "file to NOT_MUTATORS with the reason it cannot leave a mutation behind.")
+E       AssertionError: these instruments can write to a working-tree file and do not import the shared guard: ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'patch_guard.py']. Either call guard()/require_throwaway_worktree(), or add the file to NOT_MUTATORS with the reason it cannot leave a mutation behind.
+E       assert not ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'patch_guard.py']
+
+tests/test_mutation_harness_hygiene.py:188: AssertionError
+________________ test_the_tools_own_self_check_passes[args0-0] _________________
+
+args = ['--self-check'], expected = 0
+
+    @pytest.mark.parametrize("args,expected", [(["--self-check"], 0)])
+    def test_the_tools_own_self_check_passes(args, expected):
+        r = subprocess.run([sys.executable, str(TOOL), *args], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", cwd=str(REPO))
+>       assert "self-check: PASS" in r.stdout, r.stdout[-2000:]
+E       AssertionError:   ok   no foreign commits -> 0
+E           ok   foreign, not the save path -> 1
+E           ok   foreign IN the save path -> 2
+E           ok   every SAVE_PATH entry is inside the Notebook tree
+E           FAIL against HEAD..origin/master there is nothing ahead  got [{'sha': 'f248deb34', 'author': 'Claude Fable 5', 'when': 'Tue Sep 15 20:54:19 2026 -0500', 'subject': "Gate fix: the Stage A mock was a SECOND AUTHORITY over captureTargets' exports", 'notebook_files': ['app/src/pages/journal-2-0/lib/sendToJournal.test.js'], 'save_path_files': []}, {'sha': '0a8010c27', 'author': 'Claude Fable 5', 'when': 'Tue Sep 15 18:28:07 2026 -0500', 'subject': 'A1/A2: the door guard is railed and mutation-proved — and the rail found two holes', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/doorDefersWhileUnsent.test.js', 'app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/doorDefersWhileUnsent.test.js', 'app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}, {'sha': 'f63f70997', 'author': 'Claude Fable 5', 'when': 'Tue Sep 15 15:53:44 2026 -0500', 'subject': 'door guard: a capture cannot reach the append route while a note has unsent work', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js', 'app/src/pages/journal-2-0/lib/sendToJournal.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}] want []
+E         self-check: FAIL
+E         
+E       assert 'self-check: PASS' in "  ok   no foreign commits -> 0\n  ok   foreign, not the save path -> 1\n  ok   foreign IN the save path -> 2\n  ok   ....js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}] want []\nself-check: FAIL\n"
+E        +  where "  ok   no foreign commits -> 0\n  ok   foreign, not the save path -> 1\n  ok   foreign IN the save path -> 2\n  ok   ....js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}] want []\nself-check: FAIL\n" = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...th_files\': [\'app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js\']}] want []\nself-check: FAIL\n', stderr='').stdout
+
+tests/test_nb_foreign_commits.py:78: AssertionError
+_________________ test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY _________________
+
+    def test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY():
+        """⛔ A reading that could not be TAKEN is not a finding. Production 502s on
+        every Tier 1 deploy; an ANOMALY row there makes the Sunday gate REVERT a
+        healthy product because another workstream deployed at 17:05."""
+        obs_src = (TOOLS / "nb_observe.py").read_text(encoding="utf-8")
+        gate_src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
+        assert "production unreachable (HTTP 5xx" in obs_src
+        assert 'not a finding, and not evidence of a clean interval either' in obs_src
+        # ...and the gate must not count a SKIPPED row as a trigger, in ANY trigger.
+        # ⚰️ THIS USED TO PIN THE STRING `'"SKIPPED" not in x[-1]'`, which was the
+        # spelling inside trigger 1 — and pinning a spelling is how a rail comes to
+        # describe one caller while the property it names is missing from the other
+        # three. It WAS missing: trigger 4 counted the 20 console errors a 5xx SKIP
+        # recorded from a page that could not load, and printed REVERT
+        # (`lesson_a_guard_repeated_is_a_guard_unproved`).
+        #
+        # ⭐ So the structural claim is now ONE AUTHORITY, and every trigger reading
+        # the partition it produces. The behavioural half lives in
+        # tests/test_nb_gate_columns.py, which drives a real SKIPPED row through.
+        assert "def is_skipped(" in gate_src
+        body = gate_src[gate_src.index("    recs, gripes = parsed_rows()"):]
+        assert "observed = [x for x in recs if not is_skipped(x)]" in body
+        for trigger in ("bad = [x for x in observed", "conf = [x for x in observed",
+                        "errs = [x for x in observed"):
+>           assert trigger in body, trigger
+E           AssertionError: bad = [x for x in observed
+E           assert 'bad = [x for x in observed' in '    recs, gripes = parsed_rows()\n    r = [x[\'_cells\'] for x in recs]\n    fails = []\n    # !! A ROW THIS GATE COU...te_text(body, encoding="utf-8")\n    print(body)\n    return 0\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+
+tests/test_nb_observe.py:143: AssertionError
+___________ test_no_tracked_text_file_is_staged_with_cr_line_endings ___________
+
+    def test_no_tracked_text_file_is_staged_with_cr_line_endings():
+        offenders = sorted(p for eol, p in _rows() if eol not in _OK_INDEX_EOL)
+>       assert not offenders, (
+            "these tracked files would be committed with CR line endings, which makes "
+            "`git blame` attribute the whole file to one commit and turns any "
+            "concurrent edit into a whole-file conflict:\n  " + "\n  ".join(offenders)
+        )
+E       AssertionError: these tracked files would be committed with CR line endings, which makes `git blame` attribute the whole file to one commit and turns any concurrent edit into a whole-file conflict:
+E           tools/wave_p_cert_corpus/manifest.json
+E       assert not ['tools/wave_p_cert_corpus/manifest.json']
+
+tests/test_no_cr_in_tracked_text_blobs.py:51: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-17 12:37:10,333 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-17 12:37:10,345 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.finnhub_client:finnhub_client.py:235 FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+WARNING  api.services.finnhub_client:finnhub_client.py:235 FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+______________ test_every_key_the_client_writes_is_still_accepted ______________
+
+client = <starlette.testclient.TestClient object at 0x7f24aa8077a0>
+
+    def test_every_key_the_client_writes_is_still_accepted(client):
+        """THE defect this endpoint's allow-list can cause, railed by derivation."""
+        keys, unresolved = derive_client_preference_keys()
+    
+        # Non-vacuity: the scan must have found a real, named set.
+        assert len(keys) >= 25, f"key scan found only {len(keys)} keys — the scan is broken"
+        for sentinel in ("chart_settings", "joystick_hub", "theme", "charts_workspace_layout"):
+            assert sentinel in keys, f"scan missed {sentinel!r} — the scan is broken"
+    
+        # Anything the scan could not resolve must be a known forwarded parameter,
+        # never a key quietly dropped from the check.
+>       assert unresolved <= _FORWARDED_PARAM_NAMES, (
+            f"unresolved key expressions: {sorted(unresolved - _FORWARDED_PARAM_NAMES)}"
+        )
+E       AssertionError: unresolved key expressions: ['same']
+E       assert {'key', 'same'} <= {'key'}
+E         
+E         Extra items in the left set:
+E         'same'
+
+tests/test_preference_key_validation.py:224: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_400mkjqz/auth.db
+________________ test_every_workflow_in_the_repo_is_classified _________________
+
+    def test_every_workflow_in_the_repo_is_classified():
+        """⛔ NON-VACUITY: the directory must actually contain workflows, or this passes
+        by inspecting nothing — the shape of defect the census rails exist to avoid."""
+        gating_map, unclassified = pg.read_workflow_dir(REPO)
+        assert len(gating_map) >= 7, f"only {len(gating_map)} workflows read — the scan found almost nothing"
+>       assert not unclassified, f"unclassified workflow(s): {unclassified}"
+E       AssertionError: unclassified workflow(s): ['full-suite-report.yml']
+E       assert not ['full-suite-report.yml']
+
+tests/test_promotion_gate.py:54: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:1311: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:608: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:501: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_paywall_gate_free_tier.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_paywall_gate_free_tier.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1311: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_mutation_check.py::TestRestoreGuarantee::test_the_file_is_byte_identical_after_a_detected_mutation - AssertionError: assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+FAILED tests/test_mutation_check.py::TestVerdicts::test_a_detected_mutation_passes_the_check - AssertionError: assert 'MUTATION CHECK PASSED' in '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n'
+ +  where '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n' = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').stdout
+FAILED tests/test_mutation_check.py::TestVerdicts::test_expect_red_naming_the_right_test_passes - AssertionError: assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py] - AssertionError: mutation_harness_contract.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py] - AssertionError: mutation_harness_flipgate.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py] - AssertionError: mutation_harness_load_model.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py] - AssertionError: mutation_harness_push_guard.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py] - AssertionError: mutation_harness_renderer.py has anchors that no longer match exactly once in code:
+    A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all
+assert not ['A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all']
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py] - AssertionError: mutation_harness_contract.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f2543139b00>()
+ +      where <built-in method values of dict object at 0x7f2543139b00> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py] - AssertionError: mutation_harness_flipgate.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f2543139140>()
+ +      where <built-in method values of dict object at 0x7f2543139140> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py] - AssertionError: mutation_harness_load_model.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f2542a6e100>()
+ +      where <built-in method values of dict object at 0x7f2542a6e100> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py] - AssertionError: mutation_harness_push_guard.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7f25432c91c0>()
+ +      where <built-in method values of dict object at 0x7f25432c91c0> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_hygiene.py::test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write - AssertionError: mutation_harness_contract.py does not import the shared guard
+assert False
+FAILED tests/test_mutation_harness_hygiene.py::test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard - AssertionError: these instruments can write to a working-tree file and do not import the shared guard: ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'patch_guard.py']. Either call guard()/require_throwaway_worktree(), or add the file to NOT_MUTATORS with the reason it cannot leave a mutation behind.
+assert not ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'patch_guard.py']
+FAILED tests/test_nb_foreign_commits.py::test_the_tools_own_self_check_passes[args0-0] - AssertionError:   ok   no foreign commits -> 0
+    ok   foreign, not the save path -> 1
+    ok   foreign IN the save path -> 2
+    ok   every SAVE_PATH entry is inside the Notebook tree
+    FAIL against HEAD..origin/master there is nothing ahead  got [{'sha': 'f248deb34', 'author': 'Claude Fable 5', 'when': 'Tue Sep 15 20:54:19 2026 -0500', 'subject': "Gate fix: the Stage A mock was a SECOND AUTHORITY over captureTargets' exports", 'notebook_files': ['app/src/pages/journal-2-0/lib/sendToJournal.test.js'], 'save_path_files': []}, {'sha': '0a8010c27', 'author': 'Claude Fable 5', 'when': 'Tue Sep 15 18:28:07 2026 -0500', 'subject': 'A1/A2: the door guard is railed and mutation-proved — and the rail found two holes', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/doorDefersWhileUnsent.test.js', 'app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/doorDefersWhileUnsent.test.js', 'app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}, {'sha': 'f63f70997', 'author': 'Claude Fable 5', 'when': 'Tue Sep 15 15:53:44 2026 -0500', 'subject': 'door guard: a capture cannot reach the append route while a note has unsent work', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js', 'app/src/pages/journal-2-0/lib/sendToJournal.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}] want []
+  self-check: FAIL
+  
+assert 'self-check: PASS' in "  ok   no foreign commits -> 0\n  ok   foreign, not the save path -> 1\n  ok   foreign IN the save path -> 2\n  ok   ....js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}] want []\nself-check: FAIL\n"
+ +  where "  ok   no foreign commits -> 0\n  ok   foreign, not the save path -> 1\n  ok   foreign IN the save path -> 2\n  ok   ....js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js']}] want []\nself-check: FAIL\n" = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...th_files\': [\'app/src/pages/journal-2-0/lib/offline/noteHasUnsentWork.js\']}] want []\nself-check: FAIL\n', stderr='').stdout
+FAILED tests/test_nb_observe.py::test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY - AssertionError: bad = [x for x in observed
+assert 'bad = [x for x in observed' in '    recs, gripes = parsed_rows()\n    r = [x[\'_cells\'] for x in recs]\n    fails = []\n    # !! A ROW THIS GATE COU...te_text(body, encoding="utf-8")\n    print(body)\n    return 0\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+FAILED tests/test_no_cr_in_tracked_text_blobs.py::test_no_tracked_text_file_is_staged_with_cr_line_endings - AssertionError: these tracked files would be committed with CR line endings, which makes `git blame` attribute the whole file to one commit and turns any concurrent edit into a whole-file conflict:
+    tools/wave_p_cert_corpus/manifest.json
+assert not ['tools/wave_p_cert_corpus/manifest.json']
+FAILED tests/test_preference_key_validation.py::test_every_key_the_client_writes_is_still_accepted - AssertionError: unresolved key expressions: ['same']
+assert {'key', 'same'} <= {'key'}
+  
+  Extra items in the left set:
+  'same'
+FAILED tests/test_promotion_gate.py::test_every_workflow_in_the_repo_is_classified - AssertionError: unclassified workflow(s): ['full-suite-report.yml']
+assert not ['full-suite-report.yml']
+19 failed, 1322 passed, 19 warnings in 296.22s (0:04:56)
