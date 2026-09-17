@@ -853,3 +853,88 @@ three never imported `api` at all.
 > `api.**` carries the shared-root sandbox instruction, or the agent is given a pinned
 > `WISDOM_DB_PATH`/`DATA_DIR` before it starts.** `prompt.extractor_version()` in particular is
 > not a read: it seeds.
+
+---
+
+### 2026-09-17 — R74: the autopilot, and the stop rules that need no judgement
+
+Once EXTRACT is lit the programme spends money on a schedule nobody watches in real time. These
+rules exist so that stopping is **mechanical**. A stop that requires somebody to weigh a night's
+numbers is a stop that happens the morning after it should have.
+
+**THE NIGHTLY VERDICT.** After every scheduled night, one line appended to the nightly table in
+`OVERNIGHT-CHECKPOINTS.md`: date · segments · passes · $ actual · $ projected · errors · records
+· floor PUBLISH/BLOCK/ENQUEUE · queue delta · verdict. Read from `wisdom_job_runs`, the ledger
+and the store counts — never from `railway logs`, which reaches about twelve minutes.
+
+**THE STOP RULES.** Any ONE of these fires `WISDOM_EXTRACT_ENABLED=0` (deploy-watched), records
+the trigger *with its numbers*, and stops:
+
+| # | trigger | why this number |
+|---|---|---|
+| 1 | night actual **> 1.5 ×** projection | a rate that moved, not a night that ran long |
+| 2 | failed requests / submitted **> 10%** | the transport or the prompt is wrong, and every retry is billed |
+| 3 | programme total **≥ budget − one night's p90** | the last night that can complete must not start |
+| 4 | any paid-path step reporting **error twice running** | one is weather; two is a fault |
+| 5 | **any member door found True** | nothing member-visible was ever ruled |
+
+⛔ **RULE 3 IS THE ONE THAT IS EASY TO GET WRONG.** Stopping when the total *reaches* the budget
+lets a night start that cannot finish inside it, and a half-submitted night is the UNRECONCILED
+case: it costs money and scores nothing. Stop one night's p90 EARLY.
+
+⛔ **RULE 5 IS NOT ABOUT SPEND.** It is in this table because the autopilot is the only thing
+looking every night. A door that turns True without a ruling is an incident whoever notices it
+first should stop, and the cheapest stop is the extractor.
+
+⭐ **RE-ARMING IS NEVER AUTOMATIC.** A stop is a ruling request, not a pause. The session records
+what fired, with numbers, and waits. ⛔ In particular a stop must never be re-armed by the same
+run of reasoning that triggered it — that is how a threshold becomes a formality.
+
+**BUDGET TRACKING**, one line beside the verdict: nights run · $ spent · $ remaining · nights
+remaining at the current rate · corpus fraction (segments with ≥ 3 passes ÷ 9,733). ⭐ The
+fraction is the only one of those that answers *are we getting anywhere*; the other four answer
+*can we keep going*, and a programme can be healthy on all four while extracting nothing.
+
+---
+
+**⛔ AND THERE IS NO SEPARATE REAP SWITCH.** `wisdom_extract_reap` is gated by
+`enabled=flags.extract_enabled` (`extract/jobs.py:25`) — the same variable as submission. So
+`WISDOM_EXTRACT_ENABLED=0` stops BOTH: no new batches, and **no reaping of batches already in
+flight**. Anything submitted before the stop stays open until it is re-armed or expires.
+⭐ That is the right default for a runaway (it stops everything) and the wrong assumption for a
+clean shutdown (it strands work you have already paid for). A stop taken mid-night should be
+followed by a decision about the open batches, not treated as finished.
+
+---
+
+### 2026-09-17 — B3: can the imported gate verdict be superseded on the pod?
+
+**NO, not by anything that runs on its own.** Nothing scheduled, chained or admin-triggerable
+writes `wisdom_eval_runs`, and nothing on the pod can evaluate a golden set: the evaluator lives
+entirely in `tools/wisdom/extract_golden_gate.py`, needs two required CLI paths, and refuses a
+`--db` under the shared root. **Friday's spend cannot shut its own gate.**
+
+⭐ The control for that absence is the part worth keeping: the same search **did** find writers —
+three of them, including one nobody was looking for (`grounding.py`, an `INSERT OR REPLACE` in a
+sibling package) and one outside `api/` (`import_eval_manifest.py`). A search that surfaces an
+unexpected writer is a search that would have surfaced a fourth.
+
+**YES through two deliberate acts, both needing PUSH_SECRET or a shell:**
+1. `POST /api/internal/wisdom/extract/eval-runs` with a receipt. A receipt matching
+   `(extractor_version, model, effort, split)` whose per-type numbers REGRESS gets
+   `decision: "blocked"`, and `gate_status` takes the NEWEST matching row — so a worse
+   evaluation silently shuts extraction.
+2. Running the gate tool **inside the container** — its own docstring advertises
+   `railway run --service web python tools/wisdom/extract_golden_gate.py …` — against a golden
+   directory with no samples.
+
+⛔⛔ **AND THE ZERO-SAMPLE PATH IS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
+`decide_gate` treats the run as same-config against the single production row and records
+**`accepted, baseline: True`** — a verdict that measured nothing, superseding one that measured
+108 segments. ⭐ `import_receipt` does NOT have this hole (`golden.py:630-631` raises on an empty
+`per_type`), which is the shape of the fix if it is ever wanted: **an evaluation that scored
+nothing must refuse, never accept.** A gate whose failure mode is *open* is not a gate.
+
+> **THE RULE. Never run the golden gate inside the container.** The golden set is quote-bearing
+> and deliberately not deployed, so the only thing it can produce there is a verdict about no
+> data — and today that verdict is `accepted`.
