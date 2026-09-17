@@ -45,6 +45,11 @@ MODEL_ENV = "WISDOM_EXTRACT_LOCAL_MODEL"
 DEFAULT_MODEL = "local-unset"
 JOBS_ENV = "WISDOM_LOCAL_JOBS_DIR"
 TIMEOUT_ENV = "WISDOM_LOCAL_LLM_TIMEOUT_SECS"
+#: How many requests to keep in flight. It must not exceed the server's own slot count
+#: (llama-server -np): beyond that the extra requests queue inside the server and the only
+#: thing that grows is latency per request, which looks like the model got slower.
+SLOTS_ENV = "WISDOM_LOCAL_LLM_SLOTS"
+DEFAULT_SLOTS = 4
 DEFAULT_TIMEOUT = 600
 
 LOOPBACK = ("127.0.0.1", "localhost", "::1", "0.0.0.0")
@@ -78,6 +83,15 @@ def jobs_root() -> pathlib.Path:
     if override:
         return pathlib.Path(override)
     return pathlib.Path(os.environ.get("DATA_DIR", "/data")) / "wisdom" / "local-jobs"
+
+
+def slots() -> int:
+    raw = (os.environ.get(SLOTS_ENV) or "").strip()
+    try:
+        n = int(raw) if raw else DEFAULT_SLOTS
+    except ValueError:
+        return DEFAULT_SLOTS
+    return n if n >= 1 else DEFAULT_SLOTS
 
 
 def _timeout() -> float:
@@ -259,26 +273,47 @@ class LocalBatches:
         return len(self._done_ids(bid))
 
     def _process(self, bid: str) -> None:
+        """⭐ CONCURRENT, BOUNDED BY THE SERVER'S SLOTS, AND STILL RESUMABLE. Each result is
+        appended under a lock the moment it lands, so a kill still loses only what was in
+        flight. Running one request at a time against a 4-slot server wastes three quarters of
+        the machine - measured, not assumed: the slots are what -np allocates."""
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+
         d = self._dir(bid)
         done = self._done_ids(bid)
         reqs = [json.loads(l) for l in (d / "requests.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
-        with (d / "results.jsonl").open("a", encoding="utf-8") as fh:
-            for r in reqs:
-                cid = r["custom_id"]
-                if cid in done:
-                    continue
-                rec: dict
-                try:
-                    msg = run_one(r["params"])
-                    rec = {"custom_id": cid, "type": "succeeded",
-                           "text": msg.content[0].text,
-                           "stop_reason": msg.stop_reason,
-                           "input_tokens": msg.usage.input_tokens,
-                           "output_tokens": msg.usage.output_tokens}
-                except LocalBackendUnavailable as exc:
-                    rec = {"custom_id": cid, "type": "errored", "error": str(exc)[:300]}
+        todo = [r for r in reqs if r["custom_id"] not in done]
+        if not todo:
+            return
+        lock = threading.Lock()
+        fh = (d / "results.jsonl").open("a", encoding="utf-8")
+
+        def one(r):
+            cid = r["custom_id"]
+            try:
+                msg = run_one(r["params"])
+                rec = {"custom_id": cid, "type": "succeeded",
+                       "text": msg.content[0].text,
+                       "stop_reason": msg.stop_reason,
+                       "input_tokens": msg.usage.input_tokens,
+                       "output_tokens": msg.usage.output_tokens}
+            except LocalBackendUnavailable as exc:
+                rec = {"custom_id": cid, "type": "errored", "error": str(exc)[:300]}
+            with lock:
                 fh.write(json.dumps(rec) + "\n")
                 fh.flush()
+
+        try:
+            n = max(1, min(slots(), len(todo)))
+            if n == 1:
+                for r in todo:
+                    one(r)
+            else:
+                with ThreadPoolExecutor(max_workers=n) as pool:
+                    list(pool.map(one, todo))
+        finally:
+            fh.close()
 
     def retrieve(self, bid: str) -> _Batch:
         d = self._dir(bid)
