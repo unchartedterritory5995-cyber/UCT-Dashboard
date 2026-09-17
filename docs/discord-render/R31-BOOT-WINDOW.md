@@ -66,6 +66,12 @@ and **that remains unattributed**. The join key is W1's durable stall record (wa
 per stall), which is live and armed but has recorded nothing yet: the current pod's window max is
 664.9 ms against a 1,000 ms threshold, so the record is honestly silent rather than broken.
 
+> ⚰️ **SUPERSEDED within the hour — the record has FIRED.** At 13:00:07–13:01:04Z it wrote four
+> events, tiered one at 1 and **paged it**, and the page is in `#system-alerts`. The sentence above
+> was true when written and is kept so the timeline reads honestly. See
+> `evidence/oi44-attribution/2026-09-17-boot-storm.md` §1 and §4 — and note that the attribution it
+> unlocked stops at a *candidate*, not a cause.
+
 ⛔ **The 11–15 minute band is NOT the tier-1 problem it was hypothesised to be.** It is elevated
 for the ≥1 s class (2.94/pod-h, 4 events) and contributes **zero** ≥5 s events. If there is a
 "minute-11-to-15 block", this dataset does not show it paging anyone.
