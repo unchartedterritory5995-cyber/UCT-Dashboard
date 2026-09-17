@@ -127,3 +127,55 @@ happen to agree.
 ⚠️ **The severity is load-bearing and it held.** `_should_page_discord` returns False for anything
 but `"critical"`, so a lower severity would have reproduced OI-45 in a new place — recorded,
 never told. It did not.
+
+---
+
+## §5 — R29's DURABILITY IS NOW OBSERVED, across TWO restarts, and the restarts are the other finding
+
+The R31 trace polls the volume every ~60 s and stamps `slots_since`. Across 33 consecutive
+readings the pod's `uptime_s` collapses twice — **the tell that a restart happened** — and the
+counter does not:
+
+```
+12:57:57Z  uptime 2122   current 200   since 12:23:20Z
+12:58:58Z  uptime   21   current 200   since 12:23:20Z   <-- RESTART, counter intact
+13:13:31Z  uptime  894   current 251   since 12:23:20Z
+13:15:34Z  uptime   39   current 255   since 12:23:20Z   <-- RESTART, counter intact
+13:17:38Z  uptime  163   current 258   since 12:23:20Z
+```
+
+⭐⭐ **`slots_since` never moved and `current` never went backwards.** That is exactly the check
+this programme wrote down in advance as the one that decides R29 — *"the tell at the next boot is
+`slots_since`: if it MOVES, the counter is not durable"* — and it passed twice without being
+touched. **The token-slot counter is durable in production, measured rather than argued**, which
+is what R29 needs before OI-13 step 6 can ever be permitted. (`previous` is still 0 throughout:
+zero senders on the old credential so far, which is the direction that permits the clear.)
+
+⚠️ The span condition is untouched by this. R29 still needs a full weekday including a 07:35 ET
+Morning Wire run, and `since` is 12:23:20Z **today**, so the earliest qualifying window still
+closes Friday ~08:23 ET.
+
+### ⛔⛔ THREE POD RESTARTS IN 55 MINUTES, ALL ON THE SAME COMMIT
+
+`12:22:35Z` · `~12:58:50Z` · `~13:14:55Z`, every one serving `d9455a6d64a5`, with no push in
+between (`/renderhealth` reports the same commit throughout, and `origin/master`'s tip has not
+moved). **That is a restart every 20–35 minutes, not a deploy.**
+
+⛔ **THIS CHANGES THE EXPOSURE ARITHMETIC THIS PROGRAMME HAS BEEN USING.** Every artifact here
+sizes against *"web deployed TWENTY times on 2026-09-15 and the longest pod life was ~45 minutes"*
+— a figure derived from deploys. If pods are also restarting on their own two to three times an
+hour, then:
+
+- the **boot storm** (§2–§3) runs far more often than the deploy count suggests, and every run of
+  it is a fresh tier-1 page opportunity — which is why R35 matters here: **the answer is to fix
+  the cause, not to widen the threshold that would otherwise fire correctly all day**;
+- every piece of **in-process state** is erased that often — which is precisely why W1 made the
+  record, the cooldown and the counters durable, and is now a stronger argument for it than the
+  one that was written at the time.
+
+⛔ **NOT EXPLAINED, and not to be guessed at here.** Candidates a future session must
+*distinguish rather than assume*: a Railway platform restart, an OOM kill, a healthcheck failure,
+or a crash-and-respawn. The discriminator is the pod's own exit — a restart with a non-zero exit
+or an OOM signature looks nothing like a graceful platform cycle, and **neither the stall record
+nor this trace can tell them apart.** That is the next measurement, and it is upstream of the
+render programme rather than inside it.
