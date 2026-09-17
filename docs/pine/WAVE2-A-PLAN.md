@@ -588,7 +588,136 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# ⚰️⚰️ R35 — H.10's LEGS 1 AND 2 ARE WRONG. MEASURED 2026-09-17, AFTER THE STOP.
+
+**The owner asked one question — "does `inlineUserFunction` already handle Clouds'
+helper bodies?" — and the answer overturns two of the five legs below.** They are
+kept, struck rather than deleted, because the reasoning read as airtight and the
+measurement took ten minutes.
+
+## ☠️ STRUCK — leg 1's conclusion, and leg 2 entirely
+
+☠️ ~~*"Representing that needs a 12th `NODE_TYPE`; evaluating it outside the tree
+needs a walker the AST does not own."*~~ — **FALSE.** The inliner **substitutes**
+rather than represents, producing a tree of node kinds that already exist. Clouds'
+own two-local-binding helper, measured on the series path:
+
+```
+plot(getAdjustedTransparency(0, 20))
+  -> call min( op+( op-(num 80, op*(num 3, num 0)), op*( … ) ), num 100 )
+  -> folds to 84          getAdjustedTransparency(19, 20) -> folds to 38.4
+```
+
+**No statement node. No new interpreter. The per-layer gradient is computable
+today.** This is Mechanism A's own spine — *"the array becomes N SLOTS, each
+holding an ordinary expression tree"* — applied to a function body.
+
+☠️ ~~*"The machinery is wholly absent, not a small delta … What is missing is
+user-function substitution entirely."*~~ — **FALSE, and this is the load-bearing
+error.** `Resolver.inlineUserFunction` (`pine.js:7321`) is a mature substitution
+mechanism with a frame protocol, arity / named-argument / cycle refusals and an
+env swap. Measured, it accepts:
+
+| body shape | probe | result |
+|---|---|---|
+| single expression | `g(x) => x * 2` | inlines ✅ |
+| **N local bindings then an expression** | Clouds' own helper | inlines, folds to 84 / 38.4 ✅ |
+| **`:=` reassignment** | `a = x*2 ; a := a+1 ; a` | inlines ✅ |
+| **`if` block** | `a = 0.0 ; if x > 0 ; a := 1.0 ; a` | inlines to a `?:` ✅ |
+
+⛔ **So "user-function bodies with local bindings" IS NOT A GRAMMAR GAP.** It is
+shipped behaviour on the series path. Leg 2 said the machinery was absent; it was
+absent **from `staticColourOf`**, which is a different and much smaller claim.
+
+⭐ **WHAT I DID WRONG, NAMED:** I measured the colour path, found nothing, and
+generalised to the engine. `staticColourOf` returning `colorDynamic` is evidence
+about `staticColourOf`. The rule this file already carries — *"an absence is only
+evidence if the instrument could have seen a presence"* — applies to a code path
+exactly as it applies to a grep.
+
+## ✅ LEGS 3, 4 AND 5 SURVIVE, REFRAMED
+
+They were about consumers and scope, not machinery, and the measurement sharpens
+them: the fold is not a new evaluator, it is a **delegation to two authorities that
+already exist** — `inlineUserFunction` for substitution and `constantValueOf`
+(`pine.js:3724`, already exported) for the numeric fold.
+
+## ⛔ BUT R35a's CONDITION IS **NOT** MET — THE INLINER REFUSES A COLOUR BY NAME
+
+The discriminator, measured:
+
+| probe | result |
+|---|---|
+| colour-returning helper in a SERIES slot | **`pine:colour-value`** — refused by name |
+| `pick(i) => bullColor` in a COLOUR slot (the trivial case) | `colorDynamic` |
+
+**The Resolver is a numeric/series resolver by construction and will not return a
+colour**, and `staticColourOf` has no user-function branch at all. Clouds' outer
+call `getBullFillColor(0)` is colour-returning, so a pure delegation cannot reach
+it. ⛔ **R35a does not apply, and neither does R35b as worded** — its premise is
+that local bindings are the gap, which is measured false.
+
+## ⭐⭐ THE ACTUAL GAP, AND IT IS SMALL: A COLOUR-VALUED FUNCTION RESULT
+
+`tools/pine_user_fn_body_census.py` (control on Clouds' two helpers; `--self-check`
+proves it can fail). **328 files, 1,412 user functions:**
+
+| | |
+|---|---|
+| body shapes | if-chain **340** · single-expression **317** · other **267** · loop **239** · reassignment **71** · N-local-bindings-then-expression **178** (12.6%) |
+| functions whose VALUE is a colour | **27** (1.9%) |
+| their calls in a colour position | **43** |
+| scripts with such a helper in a colour position | **4** |
+
+```
+uncharted-clouds.pine          getBullFillColor  single-expression  20 calls
+                               getBearFillColor  single-expression  20 calls
+smart-money-concepts-…         colorWithTransparency  single-expression  1
+supply-demand-mtf-flux-charts  colorWithTransparency  single-expression  1
+volumized-order-blocks-…       colorWithTransparency  single-expression  1
+```
+
+⭐⭐ **EVERY ONE OF THEM IS A SINGLE EXPRESSION.** The colour-returning helpers in
+the entire measured corpus need **no multi-statement support whatsoever** — and the
+multi-statement numeric helper nested inside Clouds' is already handled by the
+inliner. ⚠️ `colorWithTransparency` ×3 agrees with the j.3b census's own §7 note,
+which is a cross-check between two independently written instruments.
+
+⚠️ **THE COUNTS ARE SOURCE-TEXT UPPER BOUNDS.** The j.3b census over-predicted 20
+scripts / +139 positions against a measured 3 / 15 by counting source positions;
+this file says so at the top and only `calls_in_colour_position` forecasts anything.
+
+## 🛑 R35c — PROPOSED, NOT BUILT. STOPPED FOR A GO.
+
+> **`staticColourOf` gains ONE branch: a call to a user function whose body is a
+> SINGLE EXPRESSION is substituted and re-walked. Nothing else.**
+
+- **Substitution** reuses `inlineUserFunction`'s frame protocol through
+  `makeResolver()` — one authority, no second mechanism.
+- **The numeric alpha** delegates to `constantValueOf`, which already folds `op`,
+  pointwise `call`, and *a declared input to its own default*.
+- **Multi-statement colour bodies are REFUSED by name**, not attempted: the census
+  says zero exist, and admitting them is how (i) becomes (ii).
+- **Acceptance:** Clouds' 20 fills carry per-layer pairs with layers 0/10/19
+  asserted literally (alphas 84 / … / 38.4); a multi-statement colour body returns
+  null with the dynamic reason (control); a helper the inliner refuses returns null
+  (control); the series path's tree for the same call is byte-identical before and
+  after (the one-authority control); re-baseline over 328 scripts predicted **4
+  scripts / 43 positions**, measured, with any unpredicted move a finding.
+- **Mutation:** bypass the inliner with a local substitution → RED on the
+  one-authority control; drop the delegation → RED on Clouds; admit a
+  multi-statement body → RED on its control.
+- **Estimate 150 min, 2× stop at 300.**
+
+⛔ **NOT STARTED — extending the fold's reach is a ruling, and the disclosure below
+rides with it:** folding the alpha reads `input.color`'s **default**, so a member
+who changes the colour picker's alpha still gets the default rendering, and for
+Clouds that governs the entire cloud opacity.
+
+---
+
 ## ⛔⛔ R33b STOPS AS H.10 — (i-C) IS (ii) BY ANOTHER NAME. NOT IMPLEMENTED.
+### ⚠️ READ R35 ABOVE FIRST — LEGS 1 AND 2 ARE STRUCK BY MEASUREMENT.
 
 **The determination the ruling asked for, on five measured legs.** Nothing was
 built; `staticColourOf` is unchanged since `8e7bed1d3`.

@@ -2,6 +2,49 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 (later) — R35: H.10's LEGS 1 AND 2 ARE STRUCK BY MEASUREMENT.
+>
+> ⚰️⚰️ **THE OWNER ASKED ONE QUESTION AND IT OVERTURNED MY OWN STOP.** "Does
+> `inlineUserFunction` already handle Clouds' helper bodies?" — it does.
+>
+> ☠️ **Struck: "a multi-statement body needs a 12th NODE_TYPE."** The inliner
+> **substitutes** rather than represents. Clouds' own two-local-binding helper,
+> measured on the series path: `getAdjustedTransparency(0,20)` → **folds to 84**,
+> `(19,20)` → **38.4**. The per-layer gradient is computable TODAY, in existing
+> node kinds, with no statement form. Mechanism A's spine applied to a body.
+>
+> ☠️ **Struck: "user-function substitution is missing entirely."** `Resolver.
+> inlineUserFunction` (`pine.js:7321`) is mature and accepts single expressions,
+> **N local bindings**, **`:=` reassignment**, and **`if` blocks** (→ a `?:`).
+> ⭐ **My error, named:** I measured the COLOUR path, found nothing, and
+> generalised to the engine. *An absence is only evidence if the instrument could
+> have seen a presence* — that applies to a code path as much as to a grep.
+>
+> ✅ **Legs 3–5 survive, reframed:** the fold is a **delegation** to two existing
+> authorities — `inlineUserFunction` and `constantValueOf` (`pine.js:3724`,
+> already exported, and it folds a declared input to its own default).
+>
+> ⛔ **BUT R35a DOES NOT APPLY: the inliner REFUSES a colour by name.** A
+> colour-returning helper in a series slot → **`pine:colour-value`**; the trivial
+> `pick(i) => bullColor` in a colour slot → `colorDynamic`. The Resolver is a
+> numeric/series resolver by construction. **R35b does not apply either** — its
+> premise (local bindings are the gap) is measured false.
+>
+> ⭐⭐ **THE REAL GAP IS A COLOUR-VALUED FUNCTION RESULT, AND IT IS SMALL.**
+> `tools/pine_user_fn_body_census.py`, 328 files / **1,412 user functions**:
+> **27** return a colour (1.9%), **43** calls in a colour position, **4 scripts** —
+> Clouds (20+20) and `colorWithTransparency` ×3, which independently agrees with
+> the j.3b census's §7. **EVERY ONE IS A SINGLE EXPRESSION**, and the
+> multi-statement numeric helper nested inside Clouds' is already inlined.
+>
+> 🛑 **R35c PROPOSED, NOT BUILT, STOPPED FOR A GO** (plan doc, R35): one branch in
+> `staticColourOf` — a user function with a SINGLE-EXPRESSION body is substituted
+> through `makeResolver()` and re-walked; the alpha delegates to
+> `constantValueOf`; multi-statement colour bodies **refused by name** (zero exist,
+> and admitting them is how (i) becomes (ii)). Acceptance, controls, mutations and
+> **estimate 150 min / 2× stop 300** are in the plan doc. ⛔ The `input.color`
+> default disclosure rides with it.
+
 > ### ⏱️ 2026-09-17 — R34 AND R33a ARE IN. NEXT IS R33b, THEN PART 4.
 >
 > ✅ **j.3b(b) / R34 — the pane door** (`b730c0e07`, RED first at `d1c61e892`). A
