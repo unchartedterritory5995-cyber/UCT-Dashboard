@@ -111,6 +111,33 @@
 > measured** — blocked on the owed URL. Unmeasured is not failed; collapsing them
 > is the `CoverageLine` defect this repo already refuses.
 >
+> ⛔ **PART 5 — THE PR BODY WAS NOT POSTED: GATE v2.1 FAILED, AND IT FAILED THE
+> WAY THE PROCEDURE PREDICTS.** Read on tab `603421850` (the driving tab, #145):
+>
+> ```
+> visibilityState "hidden"   hasFocus false
+> screenY 0   outerHeight 0   availTop 0   availHeight 1032   ⇒ PASS false
+> ```
+>
+> ⭐ **BOTH GEOMETRY TERMS PASS TRIVIALLY HERE** — `0 >= 0` and `0+0 <= 0+1032` —
+> so **only the `visible` term catches it**, which is v2.1's documented trap in
+> its exact form. The gate forbids the write, so `PR-BODY-COMBINED.md`
+> (**57,202 bytes**, R31 `--check` green) is generated, committed and pushed but
+> **NOT posted**.
+>
+> ⚠️ **AND WHETHER THE POSTED BODY IS STALE IS UNDETERMINED — do not record it as
+> stale.** The rendered body read 47,739 chars with none of this session's five
+> increments, but `performance.timeOrigin` puts that render **71 minutes old**,
+> i.e. BEFORE every push today. A rendering is not the source, and a 71-minute-old
+> render cannot answer a question about the last 40 minutes. R31 `--check` proves
+> the LOCAL file is what its parts produce; only the textarea hash answers what is
+> POSTED.
+>
+> ▶️ **TO FINISH PART 5:** bring the #145 tab to the foreground (that alone flips
+> `visibilityState` to `visible` and the gate to PASS), then post
+> `PR-BODY-COMBINED.md` by minimal verified span and re-hash at the textarea.
+> ⛔ **No draft→ready flip** — R29 is decided DRAFT above.
+>
 > ▶️ **WHAT UNBLOCKS THE REST — two owner items, both small:** the scratch layout
 > URL (one paste, unblocks the whole capture lane), and the (i)/(ii) fold decision
 > behind H.10. ⚠️ Owed and unchanged: `paramSingleTranslation` (green, cause NOT
