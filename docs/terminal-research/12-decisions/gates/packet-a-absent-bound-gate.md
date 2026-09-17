@@ -42,10 +42,10 @@ says so is a completed unit, not an abandoned one.
 ## ⛔ APPROVAL — A CP1, and it covers the shipped code only
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  f6180b3da
+SCOPE APPROVED:   A-CP1 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **A CP1 — the delivered artifacts of a closed finding.** The triage instrument

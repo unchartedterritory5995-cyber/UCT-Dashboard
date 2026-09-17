@@ -53,9 +53,9 @@ docs/terminal-research/12-decisions/gates/k-cp6-build-record.md | 78ed615fdde3da
 docs/terminal-research/12-decisions/gates/k-cp7-build-record.md | ce36c1f654391ff30947c515afe7e2c8c50ad594
 docs/terminal-research/12-decisions/gates/k-cp8-build-record.md | 5695c79193be1366cae12e7e7f85ba65e31f1250
 docs/terminal-research/12-decisions/gates/k-cp9-build-record.md | 439dfc4a710842001179e6e8c33c288510176198
-docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | f6180b3da419b42cc50b4192549195b064153e68
+docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | 1b378b595cc799a59467a25fbdea398a0b336a7c
 docs/terminal-research/12-decisions/gates/packet-b-schema-resolution-gate.md | a03e0cbf55bc8b7230d9416521c81c117da10309
-docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | c443515eb64f9e26b16a94e17cbfab96c7c2221c
+docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | 0b992789eadc6fb58bad312e2701c4ad0cc71268
 docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md | e279c828ca299731f6c338fa3b6778b085b99114
 docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | fdfc697cee866210888f6ac33e431808baa58245
 docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | 36179a330507a138278d29011a1d79e9399b3cf3

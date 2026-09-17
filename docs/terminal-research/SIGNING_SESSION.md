@@ -133,15 +133,24 @@ every run; it announces its target and says when it is falling back to the defau
 
 ## 3 · The four sittings
 
-**235.1 min** total: 41 of 51 units push, each ~8 s of cherry-pick and push + a **186 s**
+**246.4 min** total: 43 of 55 rows push, each ~8 s of cherry-pick and push + a **186 s**
 build + the guard's **150 s** settle = **5.73 min**.
 
 | | rows | `--until` | minutes |
 |---|---|---|---|
 | **1** | 1–15 | `--until e-cp9-build-record` | **74.5** |
 | **2** | 16–28 | `--until e-cp22-build-record` | **74.5** |
-| **3** | 29–49 | `--until d3-cp2-build-record` | **74.5** |
-| **4** | 50–51 | `--include-member-visible` | **11.5** |
+| **3** | 29–51 | `--until d3-cp2-build-record` | **74.5** |
+| **4** | 52–55 | `--include-member-visible` | **22.9** |
+
+⚠️ **AMENDED 2026-09-17 (session 7).** This table was written when the manifest ended at
+row 51; **E CP30–CP35 have since been rowed and it now holds 55.** The `--until` row NAMES
+were and remain correct — they are what executes — but the row NUMBERS beside them had gone
+stale: Sitting 3 is rows 29–51, and Sitting 4 is rows **52–55** (4 rows, 4 commits), not
+50–51. Sitting 4's minutes move with it, 11.5 → 22.9. ⭐ Row **52**
+(`s2-accelerator-chord-pre-implementation-gate`) is the last member-visible unit and rows
+53–55 carry zero member-visible files, so the `#!last:` property still holds and Sitting 4
+is still the only sitting needing `--include-member-visible`.
 
 **cmd.exe** — `set` on its own line, and `git -C` before the first sitting only
 ```
@@ -207,10 +216,30 @@ no other worktree holds a `merge-run` branch — so `checkout -B` is safe and no
 | **`sign_all` reports STALE** | a packet's content no longer matches its recorded fingerprint | `freeze_check` will already have named the path. Re-fingerprint **only** if the change is docs-side and explained; otherwise **stop the sitting** |
 | **deploy non-SUCCESS on a merged unit** | the build failed for a commit already on master | **stop.** The rollback is a **revert commit as a new row**, never a force-push. Owner decides |
 
-⚠️ **The guard's `SUCCESS` is a DEPLOY success, not a test success** — CI does not run on
-master at all (`push.branches: [feat/s7-price-level]`, and `merge_all` pushes directly rather
-than via PR). All 46 commits reach master with zero suite runs. That is the first post-merge
-unit; see `POST_MERGE_QUEUE.md` P.1.
+⚠️ **The guard's `SUCCESS` is a DEPLOY success, not a test success.** It says a Railway build
+started and the pod came up; it says nothing whatever about the suite. That much is permanent —
+do not read guard green as test green at any point in these four sittings.
+
+⚠️ **AMENDED 2026-09-17 (session 7) — the rest of this warning had gone stale twice over.** It
+read *"CI does not run on master at all (`push.branches: [feat/s7-price-level]`) … All 46
+commits reach master with zero suite runs. That is the first post-merge unit."*
+
+- **The count is 48, not 46.**
+- **E CP34 is no longer post-merge work — it is row 54 of this manifest.** It rewrites
+  `push.branches` to `[feat/s7-price-level, master, replay-preview]`, so the fix lands *inside*
+  the merge rather than after it.
+- ⛔ **But the timing is still not what "CI runs on master" suggests, and this is the part worth
+  carrying into the sittings.** `.github/workflows/full-suite-report.yml` **does not exist on
+  master at all** — it is CREATED by unit #8 (`packet-e-ci-gap-gate`, `06d5bde92`) and only
+  gains the `master` trigger at row 54. So: **Sittings 1–3 and the first rows of Sitting 4 push
+  master with no suite run**. Measured against the commit sequence: E CP34 is **commit #47 of
+  48**, and a push event runs the workflow *as it stands at the pushed commit*, so **commits #47
+  and #48 carry the master trigger themselves and do run** — the preceding **46 do not**. The
+  honest summary is *"46 of 48 commits reach master untested; the last 2 run because #47 turns
+  the trigger on in the very commit that lands"* — which is why the pre-merge preview on
+  `replay-preview`, not the guard, is what actually measures this merge.
+
+See `POST_MERGE_QUEUE.md` P.1 for the first genuine post-merge unit.
 
 ## 3b · After each sitting
 
@@ -223,11 +252,20 @@ must be `SIGNED` **and** on master by patch id (`git cherry`); every row after i
 `UNSIGNED` and absent. `SIGNED-but-not-MERGED` and `MERGED-but-UNSIGNED` are two different
 BLOCKERs and it names both.
 
-**Why Sitting 4 holds two rows, and the arithmetic.** `t-cp2-build-record` modifies a test
-file that F-S2-1 **creates**, so it can only follow it. It carries **zero member-visible
-files** (derived), so it cannot change what a member sees. A fifth sitting would cost a whole
-session for **5.7 min** of work on a file no member can reach. ⛔ If you want F-S2-1 strictly
-alone anyway, split Sitting 4 — nothing else changes.
+**Why Sitting 4 holds FOUR rows, and the arithmetic.** ⚠️ **AMENDED 2026-09-17 (session 7):
+this read "two rows" and was written when the manifest ended at row 51.** Sitting 4 is now rows
+**52–55** — `s2-accelerator-chord-pre-implementation-gate` (F-S2-1), `t-cp2-build-record`,
+`e-cp34-build-record`, `e-cp35-build-record` — 4 rows, 4 commits, **22.9 min**.
+
+- `t-cp2-build-record` modifies a test file that F-S2-1 **creates**, so it can only follow it.
+- `e-cp34` and `e-cp35` are CI/ops units rowed after the fact (F-CI-43 and F-OPS-1).
+- ⭐ **All three followers carry zero member-visible files (derived, not asserted)**, so row 52
+  remains the LAST member-visible unit and the `#!last:` property still holds with three rows
+  sitting after it. That is precisely the case the property-based `#!last:` rule was redefined
+  to handle — an ordinal rule would have broken the moment E CP34 was appended.
+
+A fifth sitting would cost a whole session for a few minutes of work on files no member can
+reach. ⛔ If you want F-S2-1 strictly alone anyway, split Sitting 4 — nothing else changes.
 
 ⛔ **Sitting 4 is the only member-visible change**: Ctrl/Cmd/Alt+Shift+F stops flagging
 tickers on three screens (plain Shift+F is unchanged), and it needs
