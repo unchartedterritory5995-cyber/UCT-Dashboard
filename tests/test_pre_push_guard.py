@@ -34,9 +34,19 @@ def _load():
 G = _load()
 
 
-def _dep(status="SUCCESS", commit="abc123def", msg="a commit"):
-    return {"state": "READ", "status": status, "createdAt": None,
-            "commit": commit, "message": msg}
+#: ⛔ A FIXED PAST INSTANT, never "now minus something". `decide()` refuses a deploy
+#: younger than MIN_SETTLE_SECONDS, so a fixture stamped with today's date would pass or
+#: fail depending on the hour the suite happens to run — a test whose outcome depends on
+#: the clock is not flaky, it is reading the wrong thing.
+_SETTLED = "2020-01-01T00:00:00Z"
+_SETTLED_LATER = "2020-01-01T00:06:00Z"
+
+
+def _dep(status="SUCCESS", commit="abc123def", msg="a commit", dep_id=None, created=None):
+    #: ⛔ `id` and `createdAt` are what R67's `_deploy_identity` reads. They default to None
+    #: so every pre-R67 test keeps its old shape; the R67 tests set them explicitly.
+    return {"state": "READ", "status": status, "createdAt": created,
+            "id": dep_id, "commit": commit, "message": msg}
 
 
 #: ⚰️ There was an autouse fixture here doing the same job as `_load()`'s pin, and
@@ -119,17 +129,205 @@ def _quiet_clock(m, monkeypatch, *, verdict=None, reason="clock: not a trading d
     # ignored so the call sites below did not all have to change in the same commit.
 
 
-def test_the_bypass_is_an_env_var_and_it_is_logged(tmp_path, monkeypatch, capsys):
+def test_the_bypass_is_ROLLBACK_ONLY_and_refuses_an_ordinary_push(tmp_path, monkeypatch, capsys):
+    """⚰⚰ THIS ASSERTION WAS INVERTED ON PURPOSE (R66, D-18). The struck version is
+    quoted here rather than deleted, because it was a TRUE description of the tool AND a rail
+    holding a loaded gun:
+
+        def test_the_bypass_is_an_env_var_and_it_is_logged(...):
+            monkeypatch.setattr(m, "latest_deployment", lambda: _dep(status="BUILDING"))
+            monkeypatch.setenv(m.BYPASS_ENV, "1")
+            assert m.main() == 0            # <- a global lever waiving the IN-FLIGHT clause
+
+    On 2026-09-17 that exact call landed a push inside another workstream's swap, and
+    /api/health served 502 at 22:16:50Z.
+
+    ⭐ The guard already had the RIGHT lever — R19's scoped attestation, burst-only, with
+    `test_an_attestation_NEVER_satisfies_the_in_flight_clause` sitting beside it in this same
+    file. Nobody reached for it, because a global one existed. The fix is fewer levers, not
+    more care."""
     m = _load()
     _quiet_clock(m, monkeypatch)
     monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
     monkeypatch.setattr(m, "latest_deployment", lambda: _dep(status="BUILDING"))
     monkeypatch.setenv(m.BYPASS_ENV, "1")
-    assert m.main() == 0
+    monkeypatch.delenv(m.ROLLBACK_REASON_ENV, raising=False)
+    assert m.main() == 1, "the global bypass still waived an in-flight swap"
     out = capsys.readouterr().out
-    assert "BYPASSED" in out and "what was overridden" in out
+    assert "ROLLBACK-ONLY" in out
+    assert m.ATTEST_BY_ENV in out, "the refusal does not point at the lever that IS allowed"
+    assert not (tmp_path / "bypass.log").exists(), "a refusal wrote a bypass record"
+
+
+def test_the_bypass_ALLOWS_a_revert_of_what_production_is_serving(tmp_path, monkeypatch, capsys):
+    """⛔ NON-VACUITY. Without this, R66 is satisfied by a bypass that never works at all
+    — and a rollback path that cannot roll back is worse than none, because it is discovered
+    during an outage."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "latest_deployment",
+                        lambda: _dep(status="BUILDING", commit="abc123def"))
+    monkeypatch.setattr(m, "_head_message",
+                        lambda head: "Revert the thing\n\nThis reverts commit abc123def.\n")
+    monkeypatch.setenv(m.BYPASS_ENV, "1")
+    monkeypatch.setenv(m.ROLLBACK_REASON_ENV, "members are seeing 502s")
+    assert m.main() == 0
+    assert "ROLLBACK allowed" in capsys.readouterr().out
     logged = (tmp_path / "bypass.log").read_text(encoding="utf-8")
-    assert "BUILDING" in logged, "the bypass did not record WHAT it overrode"
+    assert "members are seeing 502s" in logged, "the rollback did not record WHY"
+    assert "BUILDING" in logged, "the rollback did not record WHAT it overrode"
+
+
+def test_a_revert_of_something_NOT_LIVE_is_not_a_rollback(tmp_path, monkeypatch, capsys):
+    """⛔ THE DISCRIMINATOR, and the reason this is not merely 'state a reason'. A revert is
+    urgent only when it reverts what members are being served; a revert of anything else is an
+    ordinary change and waits like one."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "latest_deployment",
+                        lambda: _dep(status="BUILDING", commit="abc123def"))
+    monkeypatch.setattr(m, "_head_message",
+                        lambda head: "Revert other\n\nThis reverts commit 999999999999.\n")
+    monkeypatch.setenv(m.BYPASS_ENV, "1")
+    monkeypatch.setenv(m.ROLLBACK_REASON_ENV, "because")
+    assert m.main() == 1
+    assert "not live" in capsys.readouterr().out
+    assert not (tmp_path / "bypass.log").exists()
+
+
+def test_a_rollback_reason_without_a_revert_commit_is_refused(tmp_path, monkeypatch, capsys):
+    """⛔ The other half of the discriminator: a stated reason is not a revert. Without this
+    the whole gate reduces to 'type something into an env var', which is the lever D-18
+    retired."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    monkeypatch.setattr(m, "BYPASS_LOG", tmp_path / "bypass.log")
+    monkeypatch.setattr(m, "latest_deployment",
+                        lambda: _dep(status="BUILDING", commit="abc123def"))
+    monkeypatch.setattr(m, "_head_message", lambda head: "fix: a perfectly ordinary commit\n")
+    monkeypatch.setenv(m.BYPASS_ENV, "1")
+    monkeypatch.setenv(m.ROLLBACK_REASON_ENV, "it is urgent, honestly")
+    assert m.main() == 1
+    assert "This reverts commit" in capsys.readouterr().out
+
+
+def test_a_clean_queue_with_no_lever_set_simply_PASSES(tmp_path, monkeypatch):
+    """⛔ The discriminator for every refusal in this section: handed a deploy state that
+    passes every clause and no lever at all, `main()` returns 0. Without it a guard that
+    refused unconditionally would satisfy all of them.
+
+    ⚰️ Two tests stood here and were DELETED, not moved. They asserted that setting the
+    retired deploy-window override variable makes the guard refuse - R66's reasoning being
+    that a
+    lever aimed at a retired gate still points at the gates that remain.
+    `tests/test_no_market_hours_window.py` went red on the variable's mere NAME, and it was
+    right: the owner's permanent-removal ruling says **presence was the problem, not the
+    predicate**, and refusing a dead variable by name puts the window's vocabulary back into
+    the guard, its tests and its runbook. Nothing reads that name now, which is what retired
+    means."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    monkeypatch.setattr(m, "latest_deployment", lambda: _dep(created=_SETTLED))
+    monkeypatch.delenv(m.BYPASS_ENV, raising=False)
+    monkeypatch.delenv(m.ROLLBACK_REASON_ENV, raising=False)
+    assert m.main() == 0
+
+
+def test_R67_a_deploy_that_STARTS_between_the_two_reads_refuses(tmp_path, monkeypatch, capsys):
+    """⚰ 2026-09-17: the guard reported '710s settled — safe to push, nothing building',
+    and by the time the push executed another workstream's deploy was BUILDING. The first read
+    was TRUE and USELESS — the world moved between the check and the act.
+
+    ⛔ Re-reading as the LAST act does not remove the race; nothing inside one process can.
+    It shrinks the window to one API round trip and REFUSES when the two reads disagree."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    reads = [_dep(status="SUCCESS", dep_id="one", created=_SETTLED),
+             _dep(status="BUILDING", dep_id="two", created=_SETTLED_LATER)]
+    monkeypatch.setattr(m, "latest_deployment", lambda: reads.pop(0) if reads else _dep())
+    assert m.main() == 1
+    out = capsys.readouterr().out
+    assert "DEPLOY STATE CHANGED" in out
+    assert "first read" in out and "second read" in out
+
+
+def test_R67_a_DIFFERENT_deploy_of_the_same_status_also_refuses(tmp_path, monkeypatch, capsys):
+    """⚰⚰ THE ONE THE FIRST DRAFT COULD NOT SEE. `_deploy_identity` read `created_at`
+    where the payload carries `createdAt`, and read an `id` the payload did not carry at all
+    — so every SUCCESS row hashed to `-|SUCCESS|-` and only a STATUS change could ever be
+    noticed. Two different settled deploys, six minutes apart, read as one unchanged world.
+
+    ⭐ That is the PROXY failure this guard exists to catch, wearing the costume of the fix:
+    the check ran, printed nothing, and proved nothing."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    reads = [_dep(status="SUCCESS", dep_id="one", created=_SETTLED, commit="aaa"),
+             _dep(status="SUCCESS", dep_id="two", created=_SETTLED_LATER, commit="bbb")]
+    monkeypatch.setattr(m, "latest_deployment", lambda: reads.pop(0) if reads else _dep())
+    assert m.main() == 1, "two DIFFERENT settled deploys read as the same world"
+    assert "DEPLOY STATE CHANGED" in capsys.readouterr().out
+
+
+def test_R67_an_unchanged_second_read_still_allows_the_push(tmp_path, monkeypatch):
+    """⛔ NON-VACUITY for R67: a second read that always refuses is a guard that never
+    passes, and it would be indistinguishable from the correct one in every test above."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    monkeypatch.setattr(
+        m, "latest_deployment",
+        lambda: _dep(status="SUCCESS", dep_id="one", created=_SETTLED))
+    assert m.main() == 0
+
+
+def test_the_memo_still_memoises_within_one_guard_run(monkeypatch):
+    """⛔ The property `_forget_rows` must not destroy. ONE CLI read per process is why guard 2
+    and guard 3 can never describe two different worlds inside one refusal message. A "fix" for
+    R67 that simply deleted the memo would pass every R67 test in this file and reintroduce
+    that."""
+    m = _load()
+    calls = {"n": 0}
+
+    def _rows():
+        calls["n"] += 1
+        return {"state": "READ", "rows": [{"id": "d%d" % calls["n"], "status": "SUCCESS",
+                                           "createdAt": _SETTLED, "meta": {}}]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    m.latest_deployment()
+    m.latest_deployment()
+    assert calls["n"] == 1, "the memo stopped working — guard 2 and guard 3 can now disagree"
+
+
+def test_R67_MAIN_forgets_the_memo_before_its_second_read(tmp_path, monkeypatch, capsys):
+    """⚰⚰ THE RAIL THAT DID NOT HOLD, AND WHY. Its first version called `_forget_rows()`
+    itself and asserted the next read reached the CLI — so it proved the FUNCTION works and said
+    nothing about whether `main()` calls it. Deleting the call site left the suite fully green:
+    R67 was structurally vacuous on a real push and every rail agreed it was fine. That is
+    `lesson_a_guard_that_tests_the_adjacent_thing`, committed by the person who had just written
+    the paragraph warning about it.
+
+    ⭐ This drives `main()` and makes the MEMO the discriminator: `latest_deployment` is NOT
+    substituted, so both of main's reads go through `_read_rows`. The CLI layer under it answers
+    SUCCESS first and BUILDING second. With the forget in place main sees the change and refuses;
+    without it the memo replays read one and main returns 0."""
+    m = _load()
+    _quiet_clock(m, monkeypatch)
+    calls = {"n": 0}
+
+    def _rows():
+        calls["n"] += 1
+        settled = {"id": "first", "status": "SUCCESS", "createdAt": _SETTLED, "meta": {}}
+        started = {"id": "second", "status": "BUILDING", "createdAt": _SETTLED_LATER, "meta": {}}
+        return {"state": "READ", "rows": [settled if calls["n"] == 1 else started]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    rc = m.main()
+    out = capsys.readouterr().out
+    assert calls["n"] == 2, "main() took only %d CLI read(s) — the second one came from the memo" % calls["n"]
+    assert rc == 1 and "DEPLOY STATE CHANGED" in out, (
+        "main() passed a queue that changed under it: the memo replayed the first read")
 
 
 def test_without_the_bypass_the_same_state_exits_1(tmp_path, monkeypatch, capsys):

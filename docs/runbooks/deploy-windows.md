@@ -358,7 +358,13 @@ refuse every legitimate push in a repo five workstreams share.
 ```sh
 python tools/pre_push_guard.py          # 0 = safe, 1 = refuse, prints the state
 python tools/pre_push_guard.py --audit  # after the fact: SUSPECTED stacked pushes
-UCT_SKIP_PREPUSH_GUARD=1 git push …     # deliberate override, APPENDED to logs/pre-push-guard-bypass.log
+
+# BURST-only refusal (recency + in-flight passing on their own) — the ONLY scoped exit:
+UCT_BURST_ATTESTED_BY="<a human who can see every workstream>" \
+UCT_BURST_ATTESTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" git push …
+
+# ROLLBACK ONLY (HEAD must revert the commit production is SERVING):
+UCT_ROLLBACK_REASON="<why members need this now>" UCT_SKIP_PREPUSH_GUARD=1 git push …
 ```
 
 ⚠️ **`--audit` is a HEURISTIC and says so in its own output.** Railway's deployment list carries
@@ -502,9 +508,27 @@ guard re-learned a rule that no longer existed. **Presence was the problem, not 
 predicate.** All of it is deleted, and `tests/test_no_market_hours_window.py` fails the gate
 if any of it returns.
 
-**There is no clock override, because there is no clock gate.** The one remaining bypass is
-`UCT_SKIP_PREPUSH_GUARD=1`, which overrides the DEPLOY QUEUE and is logged to
-`logs/pre-push-guard-bypass.log`.
+**There is no clock override, because there is no clock gate.**
+
+⛔⛔ **AND SINCE R66 (owner ruling D-18, 2026-09-17) THERE IS NO GLOBAL OVERRIDE EITHER.** This
+line used to read *"The one remaining bypass is `UCT_SKIP_PREPUSH_GUARD=1`, which overrides the
+DEPLOY QUEUE and is logged"* — accurate, and the reason the 2026-09-17 in-flight push happened:
+the operator needed to pass **burst** and the only lever in reach waived **everything**.
+
+| refusal | the only exit |
+|---|---|
+| **burst** alone, recency + in-flight passing independently | `UCT_BURST_ATTESTED_BY` + `UCT_BURST_ATTESTED_AT` (ISO, ≤15 min) — R19's scoped attestation, a named human at a named minute |
+| recency · in-flight · unreadable · unparsable | **none. Wait.** No lever this programme holds waives a measurement of the world |
+| production is serving a commit that must come off now | `UCT_ROLLBACK_REASON` + `UCT_SKIP_PREPUSH_GUARD=1`, and HEAD must actually revert **that** commit |
+
+Every accepted use of either remaining lever is appended to `logs/pre-push-guard-bypass.log`
+with a machine-readable `reason_code` (`BURST-ATTESTED` / `ROLLBACK`).
+
+⚰️ R66's first draft added a third row here: the retired deploy-window override made to **error**
+rather than be a no-op. `tests/test_no_market_hours_window.py` went red on the variable's name
+alone and was right — **presence was the problem, not the predicate.** Nothing reads it, so it is
+already inert, and naming it in order to refuse it would put the window's vocabulary back into
+this runbook. Two levers exist; the table above is the whole list.
 
 **Checking harm after a restart:** `tools/deploy_blip_check.py` reads a log pull and counts HTTP
 statuses **by structured field**. ⚰️ It replaces a check that grepped for `502` and matched the

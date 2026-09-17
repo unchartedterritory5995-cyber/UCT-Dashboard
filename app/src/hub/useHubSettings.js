@@ -203,5 +203,9 @@ export default function useHubSettings() {
     })
   ), [setPrefMerged, resolveEnabled])
 
-  return { settings, storedEnabled, updateHubSettings, loading }
+  // ⭐ `isAdmin` is RETURNED rather than re-derived by every caller. This hook already
+  // computes it for `resolveTraceGestures`; a second `user?.role === 'admin'` elsewhere
+  // would be a second authority over one value, which is the defect this repo keeps
+    // paying for. W2's Report affordance is admin-gated from here.
+  return { settings, storedEnabled, updateHubSettings, loading, isAdmin }
 }

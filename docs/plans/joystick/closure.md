@@ -95,6 +95,34 @@
       > Working: `triage/2026-09-14-d1-stage2-interaction.md`. Step: `stage-2-verification.md` §5A.
       > ⛔ **The tick still waits on Patrick's glass evidence.**
 
+> ### ⛔⛔ BOXES 1 AND 2 — THE FIRST REAL-GLASS EVIDENCE ARRIVED 2026-09-17, INFORMALLY, AND NEGATIVE
+>
+> The owner used the hub on his own phone and reported:
+>
+> > *Wow tons of bugs, need to simplify the joystick a ton imo. Too glitchy and not smooth like a proper high level highly built feature would be. Seems clunky from the 90s and not high class smooth Liquid Glass with proper sensible tools too much going on. Needs a lot of work*
+>
+> ⛔ **This does not tick either box, and it does not fail them either.** Neither box asks "does the
+> owner like it"; box 1 asks for a **flick score ≥ 8/10 measured on an iPhone 15 Pro-class device**
+> and box 2 for **`glass-acceptance.md` run on ≥ 1 notched iOS and ≥ 1 Android**. An informal verdict
+> is neither of those instruments. Recording it as a tick or a fail would be the same error in
+> opposite directions.
+>
+> ⭐ **What it DOES establish, and it is the most important fact the programme has:** the product has
+> now been touched by a real finger for the first time, and the finger's verdict was *"too glitchy …
+> clunky from the 90s … simplify a ton"*. Every green suite behind these boxes was measuring
+> something the member never experiences. The boxes were never the problem; the **absence** of any
+> instrument that could reach them was.
+>
+> **The positive form that would tick these boxes is unchanged:** `g0-flick-trace-plan.md`'s seven
+> steps producing a trace that `tools/hub_trace_analyze.py` scores **≥ 8/10**, and
+> `glass-acceptance-steps.md`'s 96 derived rows run on two real devices. ⭐ Since 2026-09-17 the
+> owner no longer has to *compose* anything to feed that: the **Report affordance** (W2) captures the
+> trace ring, the resolved-vs-fired action, and an optional one-line note in **one tap**, and
+> `tools/hub_reports_intake.py` turns the table into triage rows. The instrument that was missing is
+> being built into the product.
+>
+> ⚠️ Stage 2 is **HELD** on this evidence — see `rollout.md`'s 2026-09-17 pause block.
+
 - [x] **Post-deploy client smoke, signed in, covering every top-level route including
       `/dashboard`, and CONCLUSIVE.** ✅ **CLOSED 2026-09-12.**
       **Evidence:** `smoke-runs/2026-09-12T02-24-24Z.md` — `tools/hub_nav_smoke.py --auth`
