@@ -8,6 +8,31 @@ file, is the thing you are approving.
 
 ---
 
+## Delegation
+
+> **The owner delegates signing and merging to the running Claude Code session.**
+
+```
+prompt   docs/terminal-research/prompts/2026-09-17-delegation.md
+hash     d28cdaf0f5de901dfca930fe03dbdeb07d366bf9
+date     2026-09-17
+by-line  Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+```
+
+⛔ **The authority is a FILE, not a memory.** `sign_all` refuses with **exit 5** when this
+block is absent, or when the hash here does not match the committed prompt.
+
+⛔ **The hash is of the COMMITTED BLOB (`git rev-parse HEAD:<path>`), never of the working
+file.** `core.autocrlf=true` on this box: a checkout restores CRLF, and `git hash-object` on
+the working file would then disagree with the blob the commit records. A delegation that stops
+verifying after an ordinary checkout is not an authority.
+
+⭐ This block and the prompt file are both **outside the freeze set** (verified: zero
+occurrences of `SIGNING_SESSION` in `tools/freeze_baseline.txt`), so recording the delegation
+moves no frozen path.
+
+---
+
 ## 0 · ⛔⛔ THE SIGNING FREEZE — in force until Sitting 4 is reported complete
 
 **Frozen at 2026-09-17 07:32 EDT Thu · docs `dd8df4b47` · code `e703af0a8`.**

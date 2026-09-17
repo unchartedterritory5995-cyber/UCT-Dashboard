@@ -48,6 +48,48 @@ for _stream in (sys.stdout, sys.stderr):
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 OK, FAIL, REFUSED = 0, 1, 2
+#: ⛔⛔ NO DELEGATION, NO SIGNATURE. A session may sign only under a delegation recorded in
+#: the runbook that names a COMMITTED prompt file and its blob hash. Its own exit code, so
+#: "the owner never delegated this" can never be mistaken for "a manifest row was stale".
+NO_DELEGATION = 5
+RUNBOOK = pathlib.Path(__file__).resolve().parents[1] / "docs/terminal-research/SIGNING_SESSION.md"
+_DELEG_HASH = re.compile(r"^hash\s+([0-9a-f]{40})\s*$", re.M)
+_DELEG_PROMPT = re.compile(r"^prompt\s+(\S+)\s*$", re.M)
+
+
+def delegation_state(runbook=None, repo=None):
+    """(state, detail). SIGNED-authority states: OK / ABSENT / MISMATCH / UNREADABLE.
+
+    ⛔ THE HASH IS OF THE COMMITTED BLOB (`git rev-parse HEAD:<path>`), NEVER OF THE WORKING
+    FILE. `core.autocrlf=true` here: a checkout restores CRLF and `git hash-object` on the
+    working copy then disagrees with the blob the commit records. A delegation that stops
+    verifying after an ordinary checkout is not an authority — it is a tripwire on `git
+    checkout`, which this programme has already been bitten by twice.
+    """
+    rb = pathlib.Path(runbook) if runbook else RUNBOOK
+    # ⛔ THE REPO IS FIXED; ONLY THE RUNBOOK IS OVERRIDABLE. Deriving the root from the
+    # runbook's own location made every fixture outside the repo fail as "not a committed
+    # file" — the right verdict for the wrong reason, which a control caught and a reviewer
+    # would not have. A fixture must be able to isolate the block it is testing.
+    root = pathlib.Path(repo) if repo else pathlib.Path(__file__).resolve().parents[1]
+    if not rb.is_file():
+        return "UNREADABLE", "runbook not found: %s" % rb
+    text = rb.read_text(encoding="utf-8")
+    if "## Delegation" not in text:
+        return "ABSENT", "the runbook carries no `## Delegation` block"
+    mh, mp = _DELEG_HASH.search(text), _DELEG_PROMPT.search(text)
+    if not mh or not mp:
+        return "UNREADABLE", "the Delegation block has no `hash` and/or `prompt` line"
+    declared, rel = mh.group(1), mp.group(1)
+    r = subprocess.run(["git", "rev-parse", "HEAD:%s" % rel], cwd=str(root),
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if r.returncode != 0:
+        return "MISMATCH", "%s is not a committed file (the authority must be committed)" % rel
+    actual = r.stdout.strip()
+    if actual != declared:
+        return "MISMATCH", "%s committed as %s, runbook declares %s" % (rel, actual[:12],
+                                                                       declared[:12])
+    return "OK", "%s @ %s" % (rel, actual[:12])
 
 
 def rows(manifest: pathlib.Path) -> list:
@@ -147,7 +189,20 @@ def main(argv=None) -> int:
     ap.add_argument("--until", default=None,
                     help="stop AFTER this packet stem (a sitting boundary). ⛔ Everything "
                          "before it is still verified; nothing after it is touched.")
+    ap.add_argument("--runbook", default=None,
+                    help="the runbook carrying the Delegation block (controls only)")
     a = ap.parse_args(argv)
+
+    # ⛔⛔ THE DELEGATION IS CHECKED BEFORE THE MANIFEST IS EVEN READ. A signature written
+    # without a recorded authority cannot be un-written: the fingerprint goes into the packet
+    # and the packet is what the merge verifies.
+    dstate, ddetail = delegation_state(a.runbook)
+    if dstate != "OK":
+        print("⛔ NO DELEGATION (%s): %s" % (dstate, ddetail))
+        print("   Nothing was signed. Record the delegation in the runbook's `## Delegation` "
+              "block, naming a COMMITTED prompt file and its blob hash.")
+        return NO_DELEGATION
+    print("[sign-all] delegation OK — %s" % ddetail)
 
     man = pathlib.Path(a.manifest)
     if not man.is_file():

@@ -146,6 +146,10 @@ UNITS = [
     # packet-t's position — the pick fails modify/delete. It carries zero member-visible
     # files (derived), which is what makes it legal after the redefined `#!last:`.
     ("t-cp2-build-record", ["76a3b98c2"], False),
+    # ⛔ E CP34 LAST, ON PURPOSE. It adds `master` to the workflow's push triggers, and a
+    # push event runs the workflow AS IT STANDS AT THE PUSHED COMMIT — so only this row's
+    # own push triggers a master run. Placed first it would have queued one run per merge.
+    ("e-cp34-build-record", ["4c4ba1cb1"], False),
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
