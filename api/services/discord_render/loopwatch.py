@@ -66,6 +66,23 @@ class LoopWatch:
         self.samples.append(max(0.0, overshoot_ms))
         if len(self.samples) > self.window:
             del self.samples[:-self.window]
+        # ⛔ THE TRAILING WINDOW FORGETS. It holds `window` samples (~5 min at 0.5 s), so a stall
+        # older than that is GONE from `snapshot()`. Every "max" this programme has quoted was a
+        # window max, never a pod max, and the first census could only bracket events by watching
+        # the window rise and fall. The durable record (R30) keeps each stall with its wall-clock
+        # and uptime so it can be joined to what the pod was doing — which is what OI-44's
+        # attribution needs. It also carries the only page path that is not V2-gated (OI-45).
+        try:
+            from api.services.discord_render import stall_record
+            stall_record.note(max(0.0, overshoot_ms), uptime_s=self.uptime_s(),
+                              commit=(os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12])
+        except Exception:  # noqa: BLE001 — the probe must never be what breaks the loop
+            pass
+
+    def uptime_s(self) -> float:
+        """Seconds since this watcher started. The watcher starts in the lifespan, so this is
+        the pod's age for every practical purpose — and it is the input to R34's tier-2 floor."""
+        return (time.time() - self.started_at) if self.started_at else 0.0
 
     async def _run(self) -> None:
         while not self._stop:
