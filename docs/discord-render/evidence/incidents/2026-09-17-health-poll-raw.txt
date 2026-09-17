@@ -1,0 +1,31 @@
+# raw /api/health poll across the 2026-09-17 22:15Z swap window
+# instrument: 30 s poll, started before the push, run to completion (exit 0)
+# 24 samples, 2 non-200. UTC.
+[22:16:04] /api/health -> 200
+[22:16:50] /api/health -> 502
+  !! NON-200 DURING THE SWAP WINDOW
+[22:17:21] /api/health -> 200
+[22:17:53] /api/health -> 200
+[22:18:25] /api/health -> 200
+[22:18:56] /api/health -> 200
+[22:19:27] /api/health -> 200
+[22:19:58] /api/health -> 200
+[22:20:44] /api/health -> 502
+  !! NON-200 DURING THE SWAP WINDOW
+[22:21:15] /api/health -> 200
+[22:21:46] /api/health -> 200
+[22:22:16] /api/health -> 200
+[22:22:47] /api/health -> 200
+[22:23:19] /api/health -> 200
+[22:23:49] /api/health -> 200
+[22:24:20] /api/health -> 200
+[22:24:51] /api/health -> 200
+[22:25:22] /api/health -> 200
+[22:25:53] /api/health -> 200
+[22:26:24] /api/health -> 200
+[22:26:54] /api/health -> 200
+[22:27:25] /api/health -> 200
+[22:27:55] /api/health -> 200
+[22:28:26] /api/health -> 200
+
+[exited with code 0]
