@@ -773,3 +773,83 @@ every commit and disbelieve any count near the file's length.**
 ⭐ Count bare CRs as `data.count(bytes([13])) - data.count(bytes([13,10]))` on RAW BYTES. Escape
 sequences in shell-embedded scripts are exactly what produced the stray byte, so a check written
 with `a CR escape` in it can inject the defect it is looking for.
+
+---
+
+### 2026-09-17 (session 19) — R64/R65/R66/R67/R68, and a rule I broke by omission
+
+**R64 — A FORCED RUN CAN NEVER SPEND.** R52 guarded the wrong half: it required an acceptance
+literal for a forced run *while the switch was off*. The hazard is force **with the switch on**,
+where `spend_allowed` short-circuited to True on the flag before it ever looked at `force`. And
+the chain runs `sources` immediately before `extract` in the same run, with `sources` letting
+`force` bypass its own switch outright — so `POST /api/admin/wisdom/jobs/wisdom_daily_chain/run
+?force=true` would have taken the store from 0 sources to thousands of segments to three passes.
+The literal is now **gone from the force path**: it is not a key, and no combination of variables
+opens it.
+
+⭐ **THE OLD TEST ASSERTED THE HAZARD AS A REQUIREMENT** —
+`test_the_flag_alone_is_enough_when_it_is_on` asserted `spend_allowed(force=True)` was True with
+the switch on, and called that correct. **When a guard is wrong, its rail is usually wrong in the
+same direction**, so fixing the code without re-reading the test would have left the test to
+restore the defect on the next refactor.
+
+⛔ Every entry point now faces a **tripwire client that fails on the first attribute touch**.
+Asserting on the return value is not enough: a refusal that had already built a client, or
+already sent a batch, still returns `skipped`.
+
+**R65 — THE PER-NIGHT BUDGET RATIONS A NIGHT.** It used to be handed to `select_within_budget`
+as *the* cap and compared against cumulative programme spend, so it clamped the whole programme.
+Two ceilings, two scopes, never a `min()` of the caps. Attribution is by SUBMISSION date
+(`substr(submitted_at,1,10)`, which IS the ET date because `timeutil.iso_et` writes it) — a batch
+submitted Friday and reaped Saturday belongs to the night whose budget authorised it.
+
+**R66 — A STEP THAT DID NOTHING NO LONGER REPORTS `ok`.** And work is a **whitelist of write
+counters**, not 'any positive number': `floor=0.8`, `lookback_days=10`, `candidates=5` are
+thresholds and INPUTS, and counting them would let a step that skipped everything outvote its own
+skip markers — the same defect one level down. The mixed case stays `ok` because **status is the
+resume contract** (`_prior_ok_steps` selects `status='ok'`), so marking a partial step skipped
+would re-run the half that already wrote rows.
+
+**R67 — THE GATE VERDICT CROSSES, THE EVIDENCE DOES NOT.** An aggregates-only manifest, with a
+**whitelist** classifier: 'reject anything that looks like a quote' is a judgement about text,
+'accept only these shapes' is a judgement about structure, and only the second fails safe when
+the source format changes. It is re-classified on the way IN, because the export's guarantee is
+not inherited once a file has been through git and a human.
+
+---
+
+⛔⛔ **R68's FLAG HAS A SECOND CONSUMER, AND THE BRIEF DID NOT KNOW IT.**
+`WISDOM_SOURCES_INGEST_ENABLED` is read in **two** places in `sources/__init__.py`: line 48 (the
+daily transcripts ingest) **and line 72 (`run_weekly_sunday_scans`)**. So lighting it for a
+Thursday night also arms **Sunday's** weekly step, which writes three further tables
+(`wisdom_chart_images`, `wisdom_sunday_scans_checks`, `wisdom_source_attributions`).
+
+⭐ Measured before flipping: `sunday_scans` makes **no model call** (searched with a control that
+matches `grounding.py`, which does), and its only network call is a public unauthenticated
+Substack GET. So the expansion costs nothing — but *a flag named for one stream gating two* is
+exactly the shape that makes a flip's blast radius larger than its name.
+
+> **THE RULE. Before flipping any flag, grep every reader of it — not the one the ruling names.**
+> A ruling is written against the consumer somebody had in mind.
+
+---
+
+⚰️⚰️ **AND A SUBAGENT WROTE TO `C:\data` BECAUSE I DID NOT GIVE IT THE RULE.**
+
+An investigation agent called `prompt.extractor_version()` to answer which version the gate
+compares against. That reaches `vocab.ensure_seeded()` → `vocab.seed()` → `store.write()`, and
+`store.db_path()` defaults to `/data/wisdom.db` — the live `C:\data\wisdom.db` on this box. It
+wrote `wisdom_vocab` (32 rows, from the committed `setup-vocabulary-v1.json`) and one
+`wisdom_seed_state` row. No member data; `wisdom_eval_runs`, `sources`, `segments` and `records`
+all unchanged. **The agent disclosed it unprompted, at the top of its report.**
+
+⛔ **The cause was my prompt.** The rules block I gave those agents covered scoped pytest, line
+endings, mutation discipline and CODE-NEVER-PROSE, and contained **zero** mentions of the
+shared-data-root prohibition. Measured: 0 occurrences in the workflow script. My own eight probe
+scripts were clean — five applied `conftest.shared_data_root_census()` before importing `api.*`,
+three never imported `api` at all.
+
+> **THE RULE. A subagent inherits none of this session's context. Every prompt that can import
+> `api.**` carries the shared-root sandbox instruction, or the agent is given a pinned
+> `WISDOM_DB_PATH`/`DATA_DIR` before it starts.** `prompt.extractor_version()` in particular is
+> not a read: it seeds.
