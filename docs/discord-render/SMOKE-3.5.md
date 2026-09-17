@@ -144,7 +144,16 @@ All four assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is u
 - **Row 7 (degraded flow card).** 04-visual-spec §5's card is the V2 failure contract.
   The pre-V2 path has exactly one sentence for every non-ok read — *"the flow feed is
   reconnecting"* — which satisfies "never silence" and says nothing about §5.
-  ⇒ INCONCLUSIVE-BY-CONSTRUCTION unless the 10:00 ET run shows §5's shape.
+  ⇒ ~~INCONCLUSIVE-BY-CONSTRUCTION unless the 10:00 ET run shows §5's shape.~~
+  ✅ **THE 10:00 ET RUN HAPPENED AND DID NOT SHOW §5's SHAPE — so this is now NOT RUNNABLE on
+  EVIDENCE, not by construction.** `/flow ticker:SPY days:30` at 2026-09-17 14:00:07Z returned
+  the one-line catch-all, and the pod log carried the real cause the member never saw:
+  `[flow] fetch failed SPY (30): timed out`, exactly 30.1 s after the ack.
+  Record: `evidence/r17-flow-rth/2026-09-17-spy-rth.md`.
+  ⛔ **And the run refuted the obvious reading of row 5 as this failure's cause.** A `stocks`
+  partition miss takes the *other* branch (`ok:true`, zero contracts) and says *"no significant
+  options flow"*; we observed the `not ok` branch. The ETF partition is real, is row 5's subject,
+  and is **not** what failed here — do not merge the two rows.
 
 ⚰️ **This heading and this paragraph both said THREE while the list held FOUR** (row 5 was added
 on 2026-09-17 and neither count moved with it) — the same defect as the writer-index `FOUR`, the
