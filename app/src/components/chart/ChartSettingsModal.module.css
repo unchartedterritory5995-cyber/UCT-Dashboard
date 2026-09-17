@@ -1019,11 +1019,19 @@
    ⛔ NOT A BAND, NOT A CARD, NOT A RAIL DOWN THE GUTTER. A hairline above the
    heading is the entire treatment. Hybrid 2's 4% tonal band made four panes read
    as four containers on a busy chart; the seam groups just as unambiguously,
-   costs one pixel, and leaves every row on the same left edge as the heading. */
+   costs one pixel, and leaves every row on the same left edge as the heading.
+   ⚰️ AND THE HAIRLINE IS FAINTER AND FURTHER OFF NOW. At 6% with 12px above and
+   10px below, six panes drew six lines of the same weight as the column divider
+   beside them — the "excessive separators" the brief warns about, on the surface
+   whose whole job is to be scannable. The GAP does the grouping; the line only
+   has to confirm it, so it sits at 4% with more air above it than below.
+   ⭐ AND THE HEADING BINDS DOWNWARD. 16px above / 4px below means a heading is
+   unambiguously attached to the rows beneath it rather than floating between two
+   groups — the single cheapest thing that makes a grouped list scannable. */
 .insGroup + .insGroup {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  margin-top: 16px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 .insGroupHead {
   font-size: 9.5px;
@@ -1031,7 +1039,7 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--menu-text-faint, #93939a);
-  padding: 0 0 5px 0;
+  padding: 0 0 4px 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1058,11 +1066,20 @@
 .insRow {
   display: flex;
   align-items: center;
-  gap: 7px;
+  /* ⭐⭐ 10px, NOT 7 — AND THE GAP IS DOING A JOB. The gold selection edge and the
+     series micro-rail are two vertical marks two pixels apart, and they mean
+     COMPLETELY different things: the rail is *which plotted line this is*, the
+     gold is *what I am editing*. At 7px they read as one two-tone bracket. The
+     extra 3px is what keeps the two meanings legible as two. */
+  gap: 10px;
   width: 100%;
   box-sizing: border-box;
-  padding: 4px 7px 4px 6px;
-  border-radius: 5px;
+  padding: 4px 7px 4px 8px;
+  /* ⚰️ IT HAD A 5px RADIUS AND A 6.2% FILL, which made the selected row a
+     rounded CHIP floating in the column — the "giant glowing selected card" the
+     brief rules out, at small scale. A row is a BAND across the full width of the
+     list; square ends and a lighter fill are what make it read as one. */
+  border-radius: 3px;
   cursor: pointer;
   user-select: none;
   /* ⭐ A TRANSPARENT LEFT EDGE THAT IS ALWAYS THERE. The selected state paints
@@ -1084,11 +1101,22 @@
    a brighter label are three small signals that add up, which reads as considered
    where any one of them turned up would read as shouting. */
 .insRowSel {
-  background: rgba(255, 255, 255, 0.062);
+  /* ⚰️ 6.2% → 4.5%. Three signals were each pitched to carry the state on their
+     own — fill, gold edge, bold label — and together they shouted. They are
+     supposed to ADD UP: a tonal step you notice without looking at it, a gold
+     edge you find instantly, and a label a shade brighter. Any one of them alone
+     would be too quiet; all three at full strength is the card. */
+  background: rgba(255, 255, 255, 0.045);
   border-left-color: var(--menu-accent, #dcbb5e);
 }
-.insRowSel:hover { background: rgba(255, 255, 255, 0.075); }
+.insRowSel:hover { background: rgba(255, 255, 255, 0.062); }
+/* ⛔ 600, NOT 700, AND THE INK DOES THE REST. A weight jump big enough to see on
+   its own re-flows the row's optical width and makes the list jitter as the
+   selection moves; the brightness carries it. */
 .insRowSel .insRowName { color: var(--menu-text, #ededed); font-weight: 600; }
+/* ⭐ AND THE RAIL COMES UP TO FULL. A selected row's line is the one the member
+   is about to change, so its identity mark stops being subordinate. */
+.insRowSel .insRail { opacity: 1; }
 
 /* ⭐ THE LANDING MARK. `search → add → see it land`, held for 1.4s and then gone.
    ⛔ NOT A TOAST: the thing that landed is a row in a list the member is already
@@ -1170,13 +1198,24 @@
 .insAdd { flex: 1; }
 
 /* ── THE INSPECTOR HEADER ─────────────────────────────────────────────────── */
+/* ⭐⭐ STICKY, AND THAT IS AN ORIENTATION FIX RATHER THAN AN EFFECT. `ichimoku`
+   renders three periods and five colours; the Inspector column scrolls on its
+   own, so the NAME of the thing being edited used to leave the screen exactly
+   when the member was deepest in its settings. Two indicators of one definition
+   print similar forms, so losing the header is losing the only thing that says
+   WHICH ONE. It costs nothing when the form is short.
+   ⚠️ IT NEEDS ITS OWN BACKGROUND, or the scrolled rows show through it. */
 .insHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--menu-surface, var(--menu-bg, #0e0e10));
   display: flex;
   align-items: flex-start;
   gap: 8px;
   flex: none;
-  padding: 0 0 12px 0;
-  margin-bottom: 12px;
+  padding: 0 0 11px 0;
+  margin-bottom: 14px;
   border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
 }
 /* The header's own rail — the same rule as the row's, on the row's own hue, so
@@ -1190,9 +1229,14 @@
 }
 .insHeadText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .insHeadName {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
-  line-height: 1.3;
+  /* ⭐ SLIGHTLY TIGHT. At 14.5px a semantic name is a short phrase, not prose;
+     pulling the tracking in a hair is what makes it read as a LABEL for an object
+     rather than as a sentence, and it is the one place on this panel where the
+     type is big enough for tracking to be visible at all. */
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   color: var(--menu-text, #ededed);
   white-space: nowrap;
   overflow: hidden;
@@ -1241,52 +1285,77 @@
 .insOnOffOn { color: var(--menu-accent, #dcbb5e); border-color: rgba(220, 187, 94, 0.35); }
 .insOnOffOn .insOnDot { opacity: 1; }
 
+/* ⚰️ IT WAS A BORDERED BOX, which made the quietest control in the header — a
+   way BACK — the only one drawn as a container. It is a glyph that lights up. */
 .insBack {
   flex: none;
-  width: 24px;
+  width: 22px;
   height: 22px;
   margin-top: 1px;
   background: transparent;
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border: 1px solid transparent;
   border-radius: 6px;
-  color: var(--menu-text-dim, #b3b3b9);
-  font-size: 12px;
+  color: var(--menu-text-faint, #93939a);
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
+  transition: color 110ms, background 110ms, border-color 110ms;
 }
-.insBack:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, #dcbb5e); }
+.insBack:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.insBack:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); color: var(--menu-text, #ededed); }
 
 /* ── ONE GROUP OF CONTROLS ────────────────────────────────────────────────── */
-.insSection + .insSection {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
-}
+/* ⭐ SPACE, NOT A SECOND RULE. The header already draws a hairline under itself;
+   a second one 14px below it boxed CORE into a band and started the panel down
+   the road to the "Appearance card" the brief rules out. Sections are separated
+   by the amount of air between them and by the weight of their labels. */
+.insSection + .insSection { margin-top: 18px; }
 .insSectionLabel {
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--menu-text-faint, #93939a);
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
+/* ⛔⛔ WHAT IS IT / WHAT DOES IT READ / WHERE DOES IT GO comes FIRST, and what it
+   LOOKS LIKE comes second — and the panel has to say so without a box. One ink
+   step down on the Appearance heading is the entire mechanism: the reading order
+   is already top-to-bottom, so the hierarchy only has to be confirmed, not
+   constructed. */
+.insSection[data-section='appearance'] .insSectionLabel { opacity: 0.68; }
 
 /* ⭐ LABEL LEFT, CONTROL RIGHT, ON ONE BASELINE GRID. A fixed label column is
    what stops eight rows of different label lengths reading as eight different
    forms — and `min-width: 0` on the control cell is what lets a long source name
-   shrink instead of pushing the row wider than the panel. */
+   shrink instead of pushing the row wider than the panel.
+   ⚰️⚰️ THE LABEL COLUMN WAS 116px AND THE CONTROL WAS CAPPED AT 190px, AND THE
+   ARITHMETIC IS THE DEFECT. In a 383px Inspector that left **77px of dead air**
+   between every label and the control it names — measured in the browser, on the
+   accepted build. It is the single thing that made the right column read as a
+   generic settings form rather than as trading software: the eye has to cross a
+   gap to connect `Period` to `5`, and it has to do it eight times.
+   ⭐ SO THE LABEL COLUMN SHRANK AND THE CAP CAME OFF. 92px still holds
+   `Line width` and `Plot style` without wrapping at 11.5px, and the control now
+   takes the rest of the row — flush to the Inspector's right edge, all of them
+   on one edge, with no void to cross. The narrow layout was already doing this
+   by accident (its column is too small to leave a gap) and looked better for it,
+   which is what pointed at the fix. */
 .insField {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 26px;
-  padding: 2px 0;
+  gap: 12px;
+  min-height: 28px;
+  padding: 1px 0;
 }
-.insField + .insField { margin-top: 2px; }
+.insField + .insField { margin-top: 1px; }
 .insFieldLabel {
-  flex: 0 0 116px;
+  flex: 0 0 92px;
   font-size: 11.5px;
-  color: var(--menu-text-dim, #b3b3b9);
+  /* ⭐ THE LABEL IS THE QUIET HALF. A field says one thing — its VALUE — and the
+     label is only how you find it; at equal weight the form reads as a list of
+     words with data hidden among them. One ink tier down is the whole device. */
+  color: var(--menu-text-faint, #93939a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1303,30 +1372,125 @@
    one rule, so a select, a number box and the source picker all line up on one
    right edge without any of them knowing about the others. */
 .insFieldCtl > select,
-.insFieldCtl > input[type='number'] { width: 100%; max-width: 190px; }
-.insFieldCtl > div { min-width: 0; max-width: 190px; width: 100%; }
+.insFieldCtl > input[type='number'] { width: 100%; }
+.insFieldCtl > div { min-width: 0; width: 100%; }
+
+/* ── THE CONTROLS, RESTYLED **HERE AND ONLY HERE** ────────────────────────────
+   ⛔⛔ SCOPED UNDER `.insFieldCtl`, WHICH IS NOT A STYLE PREFERENCE. `.indSelect`
+   and `.indNum` are shared with `SourceField` and with
+   `pages/charts/mobile/MobileIndicatorSheet` — a phone sheet designed to its own
+   widths. Restyling those classes globally to suit this panel is exactly the
+   defect `.actName` cost this repo once already, and `SourceField`'s own header
+   states the rule: additive, scoped, never a redefinition of a shared class.
+   ⚠️ WHICH ALSO MEANS `SourceField`'s SELECT INHERITS THIS AUTOMATICALLY, because
+   it renders `.indSelect` INSIDE `.insFieldCtl` — and that is wanted: the source
+   picker must not be the one control on the panel that still looks native.
+   ⭐ 24px, NOT 21. A 21px control against a 28px row reads as a form field
+   floating in a gap; 24 fills the row's optical line and is still two thirds of
+   the 36px a consumer form would use. */
+.insFieldCtl > select,
+.insFieldCtl .indSelect,
+.insFieldCtl .indNum {
+  box-sizing: border-box;
+  height: 24px;
+  font-size: 11.5px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  /* ⭐ THE VALUE IS THE BRIGHT HALF — see `.insFieldLabel`. */
+  color: var(--menu-text, #ededed);
+  transition: border-color 110ms, background 110ms;
+}
+.insFieldCtl .indSelect { min-width: 0; }
+.insFieldCtl .indNum { width: 100%; }
+/* ⭐⭐ AND THE SOURCE CONTROL FILLS LIKE EVERY OTHER. `.sourceField` is a COLUMN
+   (`align-items: flex-end`) because it stacks a select over a search panel, so
+   its select sized to its content and sat at ~165px while Period, Type and
+   Display ran the full 275 — one ragged edge, on the field that matters most.
+   ⛔ THE COLUMN STAYS. Stretching the widget itself would put the search results
+   list under the wrong edge; only the select is told to fill. */
+.insFieldCtl .sourceField { width: 100%; }
+.insFieldCtl .sourceField > .indSelect { width: 100%; }
+/* ⛔ THE NATIVE ARROW IS THE TELL. A browser-default select is the one element
+   that says "web form" no matter what the rest of the panel does, so the widget
+   is stripped and the chevron is drawn — the same 10×6 mark, at the same stroke,
+   the rest of this modal's selects already use. */
+.insFieldCtl > select,
+.insFieldCtl .indSelect {
+  appearance: none;
+  padding-right: 22px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a8a8a' stroke-width='1.4'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+}
+.insFieldCtl > select:hover:not(:disabled),
+.insFieldCtl .indSelect:hover:not(:disabled),
+.insFieldCtl .indNum:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.16); }
+.insFieldCtl > select:focus-visible,
+.insFieldCtl .indSelect:focus-visible,
+.insFieldCtl .indNum:focus-visible {
+  outline: none;
+  border-color: var(--menu-accent, #dcbb5e);
+}
+/* ⭐ A COLOUR IS A VALUE, NOT A BUTTON. The swatch rendered at the modal's default
+   size was the loudest object in the Inspector — a filled 28px block of pure hue
+   beside 11.5px grey labels, on the row that matters least. At 18px with a
+   hairline ring it reads as the value of the `Color` field, which is what it is. */
+.insFieldCtl .cSwatch,
+.insFieldCtl [data-color-swatch] {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
 
 /* ── ACTIONS ──────────────────────────────────────────────────────────────── */
+/* ⭐ THE VERBS SIT APART FROM THE SETTINGS, and `margin-top: auto` is what does
+   it: on a short form they follow the last field with a generous gap, and on a
+   tall one they are simply the end of the column. Neither needs a rule above
+   them — the distance is the separation. */
 .insActions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  gap: 6px;
+  margin-top: 22px;
+  padding-top: 0;
 }
+/* ⚰️ BOTH VERBS WERE BORDERED BOXES OF EQUAL WEIGHT, so `Remove` — the one
+   destructive action on the panel — had exactly the presence of `Duplicate`, and
+   the pair read as a form's OK/Cancel. They are not a pair: one is additive and
+   occasional, the other is destructive and rare.
+   ⭐ SO NEITHER RESTS AS A BUTTON. They are quiet text that BECOMES a control
+   under the pointer, which is the treatment this modal already uses for its own
+   header actions — discoverable because they are labelled words in a fixed place,
+   restrained because nothing about them competes with a colour swatch. */
 .insAction {
   background: transparent;
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border: 1px solid transparent;
   border-radius: 6px;
-  padding: 5px 11px;
+  padding: 5px 9px;
   font-family: inherit;
   font-size: 11.5px;
-  color: var(--menu-text-dim, #b3b3b9);
+  color: var(--menu-text-faint, #93939a);
   cursor: pointer;
   transition: color 110ms, border-color 110ms, background 110ms;
 }
-.insAction:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.insAction:hover {
+  color: var(--menu-text, #ededed);
+  border-color: var(--menu-border, rgba(255, 255, 255, 0.09));
+  background: var(--menu-hover, rgba(255, 255, 255, 0.055));
+}
+.insAction:focus-visible {
+  outline: none;
+  border-color: var(--menu-accent, #dcbb5e);
+  color: var(--menu-text, #ededed);
+}
+/* ⛔ AND THE DESTRUCTIVE ONE IS PUSHED TO THE FAR EDGE, away from the additive
+   verb it used to sit shoulder-to-shoulder with. A mis-click between two
+   adjacent 11.5px words is the hazard; 40px of air is the answer, and it costs
+   no chrome at all. */
+.insActionDanger { margin-left: auto; }
 /* ⛔ RED ON HOVER, NOT AT REST. The one destructive verb on the panel should be
    findable without being the first thing the eye lands on in a form the member
    opened in order to change a period. */
@@ -1365,7 +1529,12 @@
 .insAddBtn:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
 
 /* ── THE ADD SURFACE ──────────────────────────────────────────────────────── */
-.insSearchRow { flex: none; margin-bottom: 12px; }
+/* ⭐ THE SEARCH IS THE SURFACE'S SUBJECT, so it gets the room directly under the
+   header and the results start close beneath it. This is a command palette that
+   happens to live in a panel, not a form with a filter box on top. */
+.insSearchRow { flex: none; margin-bottom: 14px; }
+.insAdd .indSearch { height: 32px; font-size: 13px; }
+.insAdd .indSearch:focus { border-color: var(--menu-accent, #dcbb5e); }
 .insAddBody {
   flex: 1;
   min-height: 0;
@@ -1382,18 +1551,49 @@
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-.insAddGroup + .insAddGroup { margin-top: 14px; }
+.insAddGroup + .insAddGroup { margin-top: 16px; }
+/* ── ONE RESULT, TIGHTENED ────────────────────────────────────────────────────
+   ⚰️ A RESULT ROW RAN ~60px TALL. Three of them filled the surface, which is the
+   opposite of what a search list is for: the member is scanning for one name, and
+   every row that does not match is a row they had to travel past.
+   ⛔ SCOPED TO `.insAdd`. `.resRow` is the library dialog's own class too. */
+.insAdd .resRow { padding-top: 7px; padding-bottom: 7px; }
+/* ⚰️⚰️ AND THE KIND BADGE WAS SHOUTING. On a symbol row `shortName` is the KIND
+   — `SECURITY`, `Breadth` — and it rendered as a bordered uppercase chip with more
+   visual weight than the TICKER beside it. A member searching `SPY` is looking
+   for `SPY`; the badge only has to be readable when they look at it. */
+.insAdd .resShort {
+  border-color: transparent;
+  background: transparent;
+  color: var(--menu-text-faint, #93939a);
+  opacity: 0.75;
+  padding-inline: 0;
+}
+/* ⭐ AND THE ADD AFFORDANCE STAYS PUT BUT STEPS BACK. It is not hidden until
+   hover — that is the discoverability mistake this project has already paid for
+   once — it simply stops being the brightest thing in a list of names. */
+.insAdd .resAdd { color: var(--menu-text-faint, #93939a); opacity: 0.8; }
+.insAdd .resRow:hover .resAdd { color: var(--menu-accent, #dcbb5e); opacity: 1; }
 
 /* ── ARRANGE ──────────────────────────────────────────────────────────────── */
+/* ⚰️ THE BANDS HAD NO SURFACE AT ALL — a name, two bordered arrows and some
+   indented text, separated by air. Nothing about that says *these are objects you
+   can pick up and move*, which is the one thing this mode exists to say. A 3%
+   fill is enough: it gives each pane an edge to grab without turning five panes
+   into five cards (the failure Hybrid 2's bands were, at 4% plus a seam).
+   ⭐ AND THE GAP CLOSED FROM 4px TO 3px WHILE THE PADDING GREW. A stack reads as
+   a stack when its members are near each other and each has room inside itself. */
 .insArrGroup {
-  padding: 7px 8px;
+  padding: 8px 9px 9px;
   border-radius: 6px;
   border-left: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
   cursor: grab;
-  transition: background 110ms;
+  transition: background 110ms, box-shadow 110ms;
 }
-.insArrGroup + .insArrGroup { margin-top: 4px; }
-.insArrGroup:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.insArrGroup + .insArrGroup { margin-top: 3px; }
+.insArrGroup:hover { background: rgba(255, 255, 255, 0.055); }
+.insArrGroup:active { cursor: grabbing; }
 .insArrGroup:not([draggable]) { cursor: default; }
 .insDragging { opacity: 0.45; }
 /* ⭐ THE INSERTION POINT IS A GOLD EDGE ON THE PANE THE DROP WOULD LAND ABOVE —
@@ -1401,7 +1601,11 @@
 .insDropBefore { box-shadow: inset 0 2px 0 0 var(--menu-accent, #dcbb5e); }
 
 .insArrHead { display: flex; align-items: center; gap: 7px; }
-.insGrip { flex: none; font-size: 11px; color: var(--menu-text-faint, #93939a); line-height: 1; }
+/* ⭐ THE GRIP IS THE AFFORDANCE, so it is not the faintest thing on the band.
+   In a mode the member ENTERED in order to move things, the handle is allowed to
+   be visible — the restraint belongs to the normal view, which has no grip at
+   all. */
+.insGrip { flex: none; font-size: 12px; color: var(--menu-text-dim, #b3b3b9); line-height: 1; }
 .insArrName {
   flex: 1 1 auto;
   min-width: 0;
@@ -1419,28 +1623,43 @@
    in the normal view: an affordance inside an explicitly-entered mode is not
    clutter, it is the mode. */
 .insArrMove { flex: none; display: inline-flex; gap: 2px; }
+/* ⚰️ TEN BORDERED BOXES OVER FIVE PANES. Each arrow carried a full hairline
+   border, so the column read as a toolbar rather than as a list of panes with a
+   nudge on each. The border arrives on hover — they are still visible at rest
+   (that was the 2026-09-16 defect and it stays fixed), just no longer drawn as
+   ten containers. */
 .insArrBtn {
   width: 20px;
   height: 20px;
   background: transparent;
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border: 1px solid transparent;
   border-radius: 5px;
-  color: var(--menu-text-dim, #b3b3b9);
+  color: var(--menu-text-faint, #93939a);
   font-size: 10px;
   line-height: 1;
   cursor: pointer;
-  transition: color 110ms, border-color 110ms;
+  transition: color 110ms, border-color 110ms, background 110ms;
 }
-.insArrBtn:hover:not(:disabled) { color: var(--menu-text, #ededed); border-color: var(--menu-accent, #dcbb5e); }
-.insArrBtn:disabled { opacity: 0.32; cursor: default; }
+.insArrBtn:hover:not(:disabled) {
+  color: var(--menu-text, #ededed);
+  border-color: var(--menu-border, rgba(255, 255, 255, 0.09));
+  background: var(--menu-hover, rgba(255, 255, 255, 0.055));
+}
+.insArrBtn:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); color: var(--menu-text, #ededed); }
+.insArrBtn:disabled { opacity: 0.28; cursor: default; }
 
 /* The guests, as inert names. They travel with the host and cannot be dragged
    out of it — placement is the Inspector's Display control, not this mode. */
-.insArrRows { display: flex; flex-direction: column; padding-left: 18px; margin-top: 2px; }
+.insArrRows { display: flex; flex-direction: column; padding-left: 19px; margin-top: 3px; }
+/* ⛔ SUBORDINATE, AND IT HAS TO STAY THAT WAY. The guests are here so the move is
+   predictable — *this is what travels* — and for no other reason. The moment they
+   look clickable, the mode starts to read as "rearrange indicators", which is the
+   one thing it is not: a pane moves, a series does not. Faint, tight, inert. */
 .insArrRow {
-  font-size: 11px;
-  line-height: 1.55;
+  font-size: 10.5px;
+  line-height: 1.5;
   color: var(--menu-text-faint, #93939a);
+  opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1452,14 +1671,41 @@
    selection model, the read model and every writer are identical. Narrowing two
    columns until a 116px label column and a 190px select share 300px is how a
    desktop panel arrives on a phone looking broken. */
+/* ⚰️⚰️ BETWEEN 620 AND 720 THE LEFT COLUMN WAS RIGID AND THE FORM STARVED.
+   `flex: 0 0 264px` never yields, so at a 658px viewport the Inspector was
+   measured at 283px — 92px of label plus a control with nowhere to go — while the
+   structure list sat at its full width showing eleven-character names. The list
+   is the side that can afford to lose room: its content is short names, and it
+   truncates gracefully. The form cannot.
+   ⭐ SO THE BASIS BECOMES A PREFERENCE WITH A FLOOR. It still WANTS 264 and still
+   gets it at 720+; below that it gives ground down to 196px, which is where
+   `Relative Strength Index` starts to truncate and the narrow layout is one step
+   away anyway. */
+@media (max-width: 719px) {
+  .insLeft { flex: 0 1 264px; min-width: 196px; }
+  /* ⚠️⚠️ AND THE FLOOR GOES ON THE **RIGHT**, WHICH IS THE NON-OBVIOUS HALF.
+     Making the left column shrinkable did nothing on its own: `.insRight` is the
+     `flex: 1 1 auto; min-width: 0` side, so it absorbed 100% of every shortfall
+     while the structure list sat at its full 264px — measured at a 658px viewport,
+     right column 283px, left untouched. A shrinkable element next to an
+     infinitely-shrinkable one never shrinks.
+     ⭐ SO THE FORM DECLARES A FLOOR AND THE LIST YIELDS TO IT. 252px holds an
+     84px label, a 12px gap and a ~156px control — enough for `Automatic · Own
+     pane`, the longest value this panel prints — and the list gives up the
+     difference, which it can afford because its content is short names that
+     ellipsize gracefully. */
+  .insRight { min-width: 252px; }
+}
+
 @media (max-width: 620px) {
   .insLeft {
     flex: 1 1 auto;
+    min-width: 0;
     border-right: none;
     padding-right: 0;
     margin-right: 0;
   }
-  .insFieldLabel { flex: 0 0 96px; }
+  .insFieldLabel { flex: 0 0 84px; }
   .insEmpty { max-width: none; }
   .insArrBtn { width: 28px; height: 28px; }
 }
@@ -1475,7 +1721,14 @@
    ⚠️ 1024 IS `breakpoints.css`'s OWN LINE for "touch", so this is the repo's
    number rather than one chosen here. The two-column layout is unaffected: it
    collapses at 620 and a roomier row above that costs nothing. */
-@media (max-width: 1024px) {
+/* ⚰️⚰️ AND IT IS GATED ON `pointer: coarse`, WHICH THE FIRST VERSION WAS NOT.
+   A width query alone gave every 1024px LAPTOP a 44px row — measured at 43px in
+   the browser, against 24px on a desktop — so a mouse user on a small screen got
+   a list a third less dense for a reason that does not apply to them. A finger
+   floor is about the FINGER. `pointer: coarse` is that question asked directly,
+   and `tapFloor.test.js` still sees the class declared inside a `max-width`
+   query at both 390px and 820px, which is the relationship it exists to enforce. */
+@media (max-width: 1024px) and (pointer: coarse) {
   .insRow { min-height: var(--tap-min, 44px); padding-top: 8px; padding-bottom: 8px; }
 }
 

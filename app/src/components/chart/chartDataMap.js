@@ -314,8 +314,27 @@ export function paneRowMeta(row, group, settings, defOf) {
   if (described && name.endsWith(SRC_SEP + described)) {
     name = name.slice(0, -(SRC_SEP + described).length)
   }
+  // ⚠️⚠️ COMPARED WITH WHITESPACE NORMALISED, AND THAT IS NOT DEFENSIVE TIDYING —
+  // it is the difference between the rule working and not. The two strings come
+  // from two different canonical namers and SPELL THE SAME HOST DIFFERENTLY:
+  // `paneHostLabels` (the heading, the legend chip, the destination menu) says
+  // `RSI (14)`, while `readout.chipLabel` (what a source DESCRIBES as) says
+  // `RSI(14)`. One space.
+  //
+  // ⚰️ MEASURED IN THE BROWSER: an MA sourced from RSI and filed under the
+  // `RSI (14)` heading printed `SMA 5 · RSI(14)` — the suffix this rule exists to
+  // SUPPRESS, restated directly under a heading that had already said it, in a
+  // second spelling. A strict equality was silently answering "the pane does not
+  // say it" about a pane that plainly did.
+  //
+  // ⛔ AND IT NORMALISES ONLY THE **COMPARISON**. Neither label is rewritten:
+  // the suffix, when it is earned, still prints exactly what `chipLabel` produced,
+  // because that is the spelling the on-chart legend uses and the Inspector must
+  // not invent a third. Two namers may disagree about a space; this decides
+  // whether they are talking about the same pane, and nothing more.
+  const sameHost = (a, b) => a.replace(/\s+/g, '').toLowerCase() === b.replace(/\s+/g, '').toLowerCase()
   const paneSaysIt = !!(group && typeof group.name === 'string' && described
-    && group.name.trim().toLowerCase() === described.trim().toLowerCase())
+    && sameHost(group.name, described))
   if (foreign && described && !paneSaysIt && !namesItselfFromSource) {
     name = `${name}${SRC_SEP}${described}`
   }

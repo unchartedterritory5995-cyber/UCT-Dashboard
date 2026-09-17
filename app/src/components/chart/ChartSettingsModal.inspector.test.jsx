@@ -508,6 +508,47 @@ describe('MA over each canonical source lands in the right pane', () => {
     expect(nameOf(rowFor(ENGINE_MA))).toBe('SMA 5')
   })
 
+  it('⚰️⚰️ MA(RSI) INSIDE THE RSI PANE DOES NOT REPEAT RSI — across two spellings', () => {
+    // ⚰️ MEASURED IN THE BROWSER, on the accepted build: an MA sourced from RSI,
+    // filed under the `RSI (14)` heading, printed `SMA 5 · RSI(14)`. The contextual
+    // rule is supposed to SUPPRESS that suffix — the heading directly above had
+    // already said it — and it did not, because the two strings come from two
+    // different canonical namers that disagree about ONE SPACE:
+    //   `paneHostLabels`   → `RSI (14)`   (heading, legend chip, destination menu)
+    //   `readout.chipLabel` → `RSI(14)`   (what a SOURCE describes as)
+    // A strict equality answered "the pane does not say it" about a pane that
+    // plainly did, so the redundancy appeared only for an INSTANCE source — a
+    // SYMBOL source spells `QQQ` identically on both sides and always worked.
+    //
+    // ⛔ THE FIX NORMALISES THE COMPARISON AND NOTHING ELSE. Neither authority was
+    // rewritten and no rendered label changed spelling; see the case below, which
+    // pins that the suffix still prints `chipLabel`'s exact wording when it IS
+    // earned — because that is the spelling the on-chart legend uses.
+    const rsi = addInstance(base(), 'rsi', registry)
+    const rsiId = lastCreatedInstance(base(), rsi).instanceId
+    const ma = withMA(rsi, `@${rsiId}::rsi`)
+    show(ma.cs); openTab()
+
+    expect(paneOf(ENGINE_MA)).toMatch(/RSI/)
+    expect(nameOf(rowFor(ENGINE_MA)), 'the row repeated the pane it is filed under')
+      .toBe('SMA 5')
+  })
+
+  it('⛔ …AND THE SUFFIX STILL PRINTS, VERBATIM, WHEN THE PANE STOPS SAYING IT', () => {
+    // The control for the case above: normalising the comparison must not turn
+    // into suppressing the suffix everywhere. On Price the heading says `Price`,
+    // so the source is invisible unless the row carries it — and it carries it in
+    // `chipLabel`'s spelling, unchanged, because the legend spells it that way.
+    const rsi = addInstance(base(), 'rsi', registry)
+    const rsiId = lastCreatedInstance(base(), rsi).instanceId
+    const ma = withMA(rsi, `@${rsiId}::rsi`)
+    const onPrice = setInstanceDisplayTarget(ma.cs, ma.id, 'price', registry)
+    show(onPrice); openTab()
+
+    expect(paneOf(ENGINE_MA)).toBe('Price')
+    expect(nameOf(rowFor(ENGINE_MA))).toBe('SMA 5 · RSI(14)')
+  })
+
   it('⭐ MA(RSI) FOLLOWS RSI — derived, with no explicit choice at all', () => {
     const rsi = addInstance(base(), 'rsi', registry)
     const rsiId = lastCreatedInstance(base(), rsi).instanceId
