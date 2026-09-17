@@ -152,6 +152,7 @@ UNITS = [
     # push event runs the workflow AS IT STANDS AT THE PUSHED COMMIT — so only this row's
     # own push triggers a master run. Placed first it would have queued one run per merge.
     ("e-cp34-build-record", ["4c4ba1cb1"], False),
+    ("e-cp35-build-record", ["d50fadadf"], False),          # F-OPS-1
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

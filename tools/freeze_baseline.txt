@@ -2,7 +2,7 @@
 # Any DIFF against this set means a fingerprint, the universe, the order
 # or the replay has moved, and the sitting must not start.
 
-@code:feat/s7-price-level | 4c4ba1cb12691e950ca514ce5c4b55f592c77bd4
+@code:feat/s7-price-level | d50fadadf7c73ad8b210abd8fa3aa542341bb64e
 docs/terminal-research/12-decisions/gates/d2-canonical-data-model-pre-implementation-gate.md | 8b5f1fa10a6fb727243a6e5bbd5a5e4c6143b216
 docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | f7e851d580e7b0d687933104c6e32c5602e82ccc
 docs/terminal-research/12-decisions/gates/d3-realtime-streaming-pre-implementation-gate.md | 9c213cfeb3e7dd28c54d729b89e7d52179e61e9d
@@ -34,6 +34,7 @@ docs/terminal-research/12-decisions/gates/e-cp31-build-record.md | f4fd0651f87f2
 docs/terminal-research/12-decisions/gates/e-cp32-build-record.md | 604b0dc69c1a3ef423fe68532f8d68d84f5abbc5
 docs/terminal-research/12-decisions/gates/e-cp33-build-record.md | 0651de2137220a17b04fff462c120a64766a7ff7
 docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | c409a19bae62bf9d667dd808b261d66b587fccc8
+docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | 922385382832fd5ad6217fb7600488d68e137549
 docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | fcb2dd9b13bab70db117fb204d489900e87c1b23
 docs/terminal-research/12-decisions/gates/e-cp5-build-record.md | 789e35efdc96104177b9c50b65ac21faf38cbe13
 docs/terminal-research/12-decisions/gates/e-cp6-build-record.md | 0052e2ac6f5b0425bece2bb48d52936a4cd36de9
@@ -79,9 +80,9 @@ docs/terminal-research/12-decisions/gates/s7-scan-membership-change-pre-implemen
 docs/terminal-research/12-decisions/gates/s9-entitlements-pre-implementation-gate.md | a0f5c77c3c039d09c513acd990f28416be7685a5
 docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | 21c37a3bc0a5c564470927bec7362a1bcdbd489b
 docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | 42eafe314c00f98bd72d2374fb0627ada79e98bf
-tools/merge_all.py | 941be737659be6ac94363745e5320aac866ce7c9
+tools/merge_all.py | e1d66c61fa557e553a645b9e5892f96f881eb15e
 tools/pre_sitting.py | 7b11f1e0520693af403bf926ecf436eb21736ead
 tools/sign_all.py | 05d28de0906016871628cc7b80a894bc64def092
 tools/sign_gate.py | d8e6194718a9b9ec41ea690012b2a6dbb6170bbe
-tools/sign_manifest.txt | 72a165c5217e5cc179f674b80bb697b04f32b48e
+tools/sign_manifest.txt | 8286edf85f6d94303a267398b398fe5d7aa35d05
 tools/verify_manifest.py | 3ddaa4798ed59187e2d1d48f1ac4f820e81ec0cd
