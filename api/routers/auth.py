@@ -174,7 +174,13 @@ BREADTH_DC_FLAGS = {
 }
 
 
-def _breadth_dc_flags() -> dict:
+#: The owner-preview value. ⭐ NOT INVENTED HERE — `COMPASS_MENTOR_MODE` already uses
+#: `0`/`1`/`admin` with exactly these semantics, so this is the repo's own idiom rather
+#: than a third spelling of the same idea.
+_ADMIN_ONLY = "admin"
+
+
+def _breadth_dc_flags(is_admin: bool = False) -> dict:
     """Data Charts V2 capability flags, read from the environment PER REQUEST.
 
     ⭐ RIDES THIS PAYLOAD RATHER THAN A NEW `/api/flags`, and that is a decision the repo
@@ -193,6 +199,21 @@ def _breadth_dc_flags() -> dict:
     ⛔ AN UNRECOGNISED VALUE TAKES THE DEFAULT, never the opposite of it — a typo'd
     "flase" must not turn a dark surface on. Copied deliberately from `_notebook_flags`
     rather than reimplemented, so the two cannot drift.
+
+    ⭐ `admin` IS THE OWNER PREVIEW, and it is the reason a build-time flag could not do
+    this job at all: one bundle cannot be on for one member and off for the rest. It is
+    the middle rung the DC-2 flip needs — look at the real surface, on production, with
+    real member data, while every member still sees the old one.
+
+    ⛔⛔ `admin` MUST READ FALSE FOR A MEMBER. That is the whole safety property, and it
+    is the ONLY direction of this flag that can cost anything: `admin` leaking to
+    everyone is an unreleased surface shipped to the whole roster by a value that was
+    supposed to be the cautious one. `test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF`
+    is the rail, and it is mutation-proved.
+
+    ⚠️ `is_admin` DEFAULTS TO FALSE so an uninstrumented caller fails CLOSED — a call
+    site that forgets to pass the role sees what a member sees, never what the owner
+    sees. The default is a safety floor, not a convenience.
     """
     out = {}
     for env_name, default_on in BREADTH_DC_FLAGS.items():
@@ -201,7 +222,10 @@ def _breadth_dc_flags() -> dict:
             value = default_on
         else:
             v = raw.strip().lower()
-            value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
+            if v == _ADMIN_ONLY:
+                value = bool(is_admin)
+            else:
+                value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
         out[env_name.lower()] = value
     return out
 
@@ -218,7 +242,10 @@ def _access_payload(user: dict, plan: str) -> dict:
     forced False for them so the banner is trial-only.
     """
     ts = trial_status(user)
-    is_paid_plan = user.get("role") == "admin" or plan in PAID_PLANS
+    # ⭐ DERIVED ONCE, read twice — the paid-equivalence verdict below and the DC-2
+    # owner preview at the bottom must never disagree about who is an admin.
+    is_admin = user.get("role") == "admin"
+    is_paid_plan = is_admin or plan in PAID_PLANS
     trial_active = bool(ts["active"]) and not is_paid_plan
     return {
         "trial": {
@@ -293,7 +320,13 @@ def _access_payload(user: dict, plan: str) -> dict:
         # polarity, and the same reason for riding this payload instead of a new
         # endpoint. See `_breadth_dc_flags` for why the VITE_ build-time flag was
         # replaced rather than extended.
-        **_breadth_dc_flags(),
+        #
+        # ⭐ THE ROLE IS PASSED because it is right here and costs nothing — the same
+        # `is_admin` the paid verdict above already derived. That is what makes the
+        # `admin` owner-preview value possible, and it is precisely what a build-time
+        # flag cannot express: one bundle cannot be on for one member and off for the
+        # rest.
+        **_breadth_dc_flags(is_admin=is_admin),
     }
 
 
