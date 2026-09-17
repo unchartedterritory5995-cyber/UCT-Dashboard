@@ -1902,3 +1902,40 @@ so the next session starts from a number rather than an expectation.
 No Pool B until the R8 change exists. The cap was not raised for the close-out and is not
 raised now; the five verification reads taken during the flip were a one-shot with the cap
 incremented for that invocation only, and are recorded as verification, not collection.
+
+### 6. ⛔⛔ THE REVERT NEEDED AN EXPLICIT REDEPLOY — and `--unset` no longer exists
+
+Executing the revert found two things about the Railway CLI (**v4.35.0**) that the runbook
+documents incorrectly:
+
+| | |
+|---|---|
+| `railway variables --service web --unset KEY` | **`error: unexpected argument '--unset' found`** — it is gone |
+| the current form | **`railway variable delete <KEY> --service web`** (note: `variable`, singular; the CLI moved to subcommands `list` / `set` / `delete`) |
+| does `--set` redeploy? | **YES** — measured; the CLI even carries `--skip-deploys` for the case where you do not want it |
+| does `delete` redeploy? | **NO** — measured: 9 minutes, no new deploy, `uptime_seconds` climbing 1,508 → 2,019 unbroken |
+
+⛔⛔ **SO THE VARIABLE WAS GONE FROM THE SERVICE AND STILL LIVE IN THE PROCESS.** `--kv`
+read 251 variables with the flag absent, the control still present — and the pod, started
+*before* the delete, was **still serving the resident reader**. Verified by the phase set:
+zero SQLite fetch phases, `rf_materialise` present.
+
+⭐ **This is the `--kv` rule paying out against the session that wrote it.** *"`--kv` shows
+what the SERVICE is configured with, which is not evidence the RUNNING process has it."* An
+operator who deleted the variable, read it back, saw it gone, and stopped there would have
+recorded a revert that had not happened — and every subsequent sample would have been
+labelled "off" while the resident reader served it. The asymmetry is the trap: **set
+applies itself, delete does not**, so the direction that looks safer is the one that
+silently fails.
+
+`railway redeploy --service web --yes` then produced a real boot (uptime 2,126 → **62**),
+its own record reached SUCCESS, and the phase set came back with all five fetch phases and
+`rf_fetch` = 5,691.3 ms. **REVERT EFFECTIVE**, confirmed from the pod.
+
+⚠️ **This invalidates a removal instruction in another programme's documentation.**
+`CLAUDE.md` tells a future operator to run
+`railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED` when the joystick
+programme closes. That command now errors out. It is **not corrected here** — it is another
+programme's file and this one has no standing to edit it — but it is recorded so whoever
+closes that programme is not surprised, and so the two halves (the new syntax, and the fact
+that a delete does not restart anything) travel together.
