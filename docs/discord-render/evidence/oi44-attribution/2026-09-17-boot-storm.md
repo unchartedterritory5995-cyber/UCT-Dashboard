@@ -250,3 +250,51 @@ a **stacked push six minutes apart**, the precise failure the repo's own deploy 
 (*"a push is not clear until its web deploy reaches SUCCESS"*). The member-visible cost of that
 stack is the "did not respond" above. Recorded here because this session observed it; it belongs
 to the workstream that pushed it.
+
+---
+
+## §7 — A 29-SECOND LOOP BLOCK, AND THE COOLDOWN CORRECTLY SWALLOWED ITS PAGE
+
+The durable record now holds **six** events across **two commits**, and it carried them through the
+deploy — which is itself the proof that making it durable was the right call:
+
+| at (UTC) | ms | uptime_s | tier | paged | commit |
+|---|---|---|---|---|---|
+| 13:00:07 | 1,360.9 | 77.8 | — | false | `d9455a6d64a5` |
+| 13:00:19 | 4,332.1 | 89.3 | — | false | `d9455a6d64a5` |
+| 13:00:33 | 10,469.7 | 103.6 | **1** | **true** | `d9455a6d64a5` |
+| 13:01:04 | 6,778.4 | 135.0 | 1 | false | `d9455a6d64a5` |
+| 13:15:39 | 1,171.8 | 33.7 | — | false | `26147924dcbd` |
+| **13:20:34** | **29,241.5** | **58.3** | **1** | **false** | `26147924dcbd` |
+
+⭐⭐ **29.2 SECONDS. At uptime 58 s. On the pod that had just booted.** That is the largest
+boot-window block this programme has measured, and it is nine times Discord's 3 s interaction
+deadline — every interaction arriving in that window is dead on arrival, which is exactly what
+`/flow SPY` hit at 13:19 (§6).
+
+### The page was suppressed, and the suppression was CORRECT
+
+`paged: false` on the worst event of the morning. The durable 30-minute cooldown was still running
+from the 13:00:33 page, so R34 refused to fire again. **That is the mechanism working as designed,
+and it is also a real tension worth stating plainly rather than discovering later:**
+
+- **without** a durable cooldown, a pod that restarts all day re-pages on every boot storm — the
+  ~8 tier-1 pages/day of noise the design was built to prevent;
+- **with** it, the single biggest event of the morning can be absorbed by a cooldown that a
+  *smaller* event opened.
+
+⭐ **The record catches it either way, and that is the whole point of having two mechanisms.** The
+page is for ATTENTION; the record is for TRUTH. A design with only the page would have logged this
+morning as "one 10.5 s stall"; the record says six events, two of them tier 1, the largest 29.2 s.
+**W1's separation of the two justified itself within four hours of merging.**
+
+⚠️ **Do NOT respond to this by shortening the cooldown.** R35 governs: the number moves after the
+cause is fixed, never to make a symptom louder. The cause is the boot storm, and the correct next
+move is the instrumented run that times the loop against named job boundaries — not a knob.
+
+### And both boot storms produced one
+
+Two deploys in twenty minutes, two boot storms, **both** carrying a ≥10 s block (10.5 s at uptime
+104 s; 29.2 s at uptime 58 s). The R31 profile said minutes 0–3 carry a ≥5 s rate ~26× the settled
+tail's; these are two more points in exactly that band, on a commit that had nothing to do with the
+render path.

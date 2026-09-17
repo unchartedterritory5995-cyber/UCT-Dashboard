@@ -1402,3 +1402,4 @@
 {"t": "2026-09-17T13:22:01Z", "uptime_s": 153, "loop": {"running": true, "samples": 224, "max_ms": 29241.5, "p95_ms": 72.1, "stalls": 18}, "stall_record": null, "token_slots": null, "sha": "26147924dcbd"}
 {"t": "2026-09-17T13:23:33Z", "uptime_s": 245, "loop": {"running": true, "samples": 403, "max_ms": 29241.5, "p95_ms": 62.6, "stalls": 26}, "stall_record": null, "token_slots": null, "sha": "26147924dcbd"}
 {"t": "2026-09-17T13:25:05Z", "uptime_s": 336, "loop": {"running": true, "samples": 581, "max_ms": 29241.5, "p95_ms": 63.5, "stalls": 41}, "stall_record": null, "token_slots": null, "sha": "26147924dcbd"}
+{"t": "2026-09-17T13:26:36Z", "uptime_s": 428, "loop": {"running": true, "samples": 600, "max_ms": 436.8, "p95_ms": 59.0, "stalls": 37}, "stall_record": null, "token_slots": null, "sha": "26147924dcbd"}
