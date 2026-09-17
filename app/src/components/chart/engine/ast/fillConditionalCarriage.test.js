@@ -115,15 +115,24 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     expect(Object.keys(p).sort()).toEqual(['colorCondition', 'colorDown', 'colorUp'])
   })
 
-  it('⛔ CONTROL — CLOUDS still carries NO fill colour, and that is still correct', () => {
-    // Its branches are `getBullFillColor(k)` / `getBearFillColor(k)`, which
+  it('⭐⭐ CLOUDS NOW CARRIES ALL 20 — the carrier was waiting for the fold', () => {
+    // ⚰️ THIS CONTROL USED TO ASSERT THE OPPOSITE, and it was right when written:
+    // "CLOUDS still carries NO fill colour, and that is still correct — its
+    // branches are `getBullFillColor(k)` / `getBearFillColor(k)`, which
     // `staticColourOf` folds neither way. The CARRIER cannot help a fold that did
-    // not happen — which is the whole content of H.9.
+    // not happen."
+    //
+    // ⭐ R35c + R35d made the fold happen, so the premise moved by RULING rather
+    // than by drift — which is exactly when a control is rewritten instead of
+    // deleted. It now pins the other side of the same fact, and the pair is the
+    // whole story of (j): j.3b(a) built a carrier with nothing to carry, and this
+    // file is where "nothing to carry" turned into twenty.
     const { fills } = translated(CLOUDS)
     expect(fills.length).toBe(20)
-    expect(fills.filter((f) => f.color).length).toBe(0)
-    expect(fills.filter((f) => f.colorUp).length,
-      'Clouds gained colours without the fold — that cannot be right').toBe(0)
+    expect(fills.filter((f) => f.color).length,
+      'a conditional fill must not collapse to ONE flat colour').toBe(0)
+    expect(fills.filter((f) => f.colorUp && f.colorDown).length,
+      'the fold landed but the carrier did not carry it').toBe(20)
   })
 
   it('⛔⛔ A CONDITIONAL FILL CARRIES ITS TWO COLOURS AND ITS CONDITION', () => {

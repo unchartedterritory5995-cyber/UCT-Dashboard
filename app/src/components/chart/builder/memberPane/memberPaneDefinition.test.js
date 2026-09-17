@@ -222,8 +222,17 @@ describe('⭐⭐ TWO DEFINITIONS with different `lookbackBarsHVE` — not two in
     // tree and NOWHERE else. Ruling D1 sends that row to Alerts, so after the
     // pane declines it the knob has no drawn series left to move. A silent
     // success here would install two identical panes and look like it worked.
+    // ⚰️⚰️ THE ID IS NO LONGER TYPED, AND THE REASON IS A MEASURED HAZARD.
+    // R35c/R35d made `Avg Vol Line Opacity` foldable, which MINTS A PARAMETER
+    // for it — so Volume v2 went from 3 declared params to 4 and `HVE lookback`
+    // MOVED FROM `__uct_param_3` TO `__uct_param_4`. A test addressing the knob
+    // by a hard-coded id silently starts testing a different knob, which is what
+    // happened here. Resolve it by LABEL, which is what the assertion is about.
+    const params = (memberPaneDefinition({ source: V2 }).translation.inputParams || [])
+    const hve = params.find((p) => /HVE lookback/i.test(p.label || p.title || ''))
+    expect(hve, 'the HVE lookback param is gone — this test is vacuous').toBeTruthy()
     const v = memberPaneVariants({
-      source: V2, paramId: '__uct_param_3', values: [2500, 500],
+      source: V2, paramId: hve.id, values: [2500, 500],
     })
     expect(v.ok).toBe(false)
     expect(v.reason).toContain('HVE lookback')

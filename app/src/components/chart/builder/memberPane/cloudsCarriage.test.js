@@ -47,14 +47,32 @@ describe('(j) j.1 — the Clouds pane document carries every output', () => {
       .toBe(20)
   })
 
-  it('⭐⭐ 23 CARRIED — 21 hidden, 2 visible', () => {
+  it('⭐⭐ 23 CARRIED — 21 hidden, 2 visible — PLUS R34\'s ONE condition row', () => {
+    // ⭐ 24, AND THE 24th IS R34 WORKING. Once R35c/R35d made Clouds' fill colours
+    // fold, all 20 fills carry a `colorCondition` over ONE `isBullish`, and the
+    // pane door mints a single hidden condition row for them — DEDUPED BY
+    // FORMULA, which is the entire content of R34. Twenty fills, one row.
+    // ⚰️ This asserted 23 and was right until the fold landed; the premise moved
+    // by RULING, so the number is re-baselined rather than the rail deleted.
     const r = built()
     const plots = (r.definition || {}).plots || []
-    expect(plots.length, 'the pane document did not carry all 23 outputs').toBe(23)
-    expect(plots.filter((p) => p.hidden === true).length, 'the hidden anchors were not carried as hidden')
-      .toBe(21)
+    expect(plots.length, 'the pane document did not carry 23 outputs + 1 condition row').toBe(24)
+    expect(plots.filter((p) => p.hidden === true).length,
+      'the 21 hidden anchors plus the hidden condition row').toBe(22)
     expect(plots.filter((p) => p.hidden !== true).length, 'the two visible plots moved')
       .toBe(2)
+    // ⛔ THE CONDITION ROW IS IDENTIFIED BY WHAT MAKES IT ONE — a key some fill's
+    // `colorMode` NAMES — not by its spelling. R34's whole ruling is that twenty
+    // fills over one `isBullish` mint exactly ONE row, so the set of named keys
+    // must have size 1 even though twenty fills reference it.
+    const named = new Set()
+    for (const p of plots) {
+      const m = /^column:(.+)$/.exec((p.fill && p.fill.colorMode) || p.colorMode || '')
+      if (m) named.add(m[1])
+    }
+    expect(named.size, 'R34 minted more than one condition row for one condition').toBe(1)
+    expect(plots.some((p) => p.key === [...named][0] && p.hidden === true),
+      'the condition row is not hidden — it would draw').toBe(true)
   })
 
   it('⭐⭐ every fill names TWO anchors, and both resolve to carried plots', () => {

@@ -12346,9 +12346,24 @@ const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
  *  colour — a named `color.x`, a `#RRGGBB` literal, and `color.new(base, t)` —
  *  factored out rather than re-typed, so the branches of a conditional and a
  *  plain `color=` can never disagree about what counts as a colour. */
-function staticColourOf(node, env, depth = 0) {
+function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
+    // ⭐⭐ R35c — A PARAMETER IS THE CALLER'S ARGUMENT, read from the frame this
+    // walk pushed. The frame entry is `{kind:'expr', node, env}` — the SAME
+    // binding shape the branch below already follows — so a parameter needs no
+    // new vocabulary here, only the frame it lives in.
+    const par = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (par && par.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[par.index]
+      const v = a && a.value !== undefined ? a.value : a
+      // ⛔ THE ARGUMENT IS EVALUATED IN THE CALLER'S SCOPE, and the frame comes
+      // OFF while it is — the same rule `resolveBinding`'s own `param` arm
+      // states, for the same reason: leaving it on reads a nested call's
+      // arguments out of the outer call's frame.
+      return staticColourOf(v, ctx.inline.callerEnv || env, depth + 1,
+        { ...ctx, inline: null })
+    }
     // ⛔⛔ A NAME IS FOLLOWED, AND THE SCRIPT'S OWN BINDING WINS.
     // ⚰️ Measured: without this, `C = #5C8E33` followed by `plot(x, color = C)`
     // — a plain STATIC colour behind a name, and one of the commonest things in
@@ -12359,7 +12374,7 @@ function staticColourOf(node, env, depth = 0) {
     // `green = ta.sma(close, 20)` must get their average, not a colour.
     const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (bound && bound.kind === 'expr') {
-      return staticColourOf(bound.node, bound.env || env, depth + 1)
+      return staticColourOf(bound.node, bound.env || env, depth + 1, ctx)
     }
     // Bound to something this door cannot open (an opaque binding) — then a bare
     // colour spelling is the member's variable, not Pine's constant.
@@ -12376,7 +12391,7 @@ function staticColourOf(node, env, depth = 0) {
     if (ch.length === 3 && ch.every((v) => v !== null && v >= 0 && v <= 255)) {
       const hex = ch.map((v) => Math.round(v).toString(16).padStart(2, '0').toUpperCase()).join('')
       const a4 = (node.args || [])[3]
-      if (a4 !== undefined && numberValue(a4.value) === null) return null
+      if (a4 !== undefined && alphaNumberOf(a4.value, env, ctx) === null) return null
       return `#${hex}`
     }
     return null
@@ -12387,7 +12402,7 @@ function staticColourOf(node, env, depth = 0) {
   // kind), and that loss is already reported by `skippedInputs` — this carries
   // the value without claiming the control.
   if (node.type === 'call' && node.name === 'input.color') {
-    return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1)
+    return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
   }
   if (node.type === 'call' && node.name === 'color.new') {
     // ⛔⛔ A DYNAMIC TRANSPARENCY MAKES THE WHOLE COLOUR DYNAMIC.
@@ -12397,7 +12412,7 @@ function staticColourOf(node, env, depth = 0) {
     // by `pine.presentation.test.js`'s own "never guessed" case, which is the
     // only reason this branch is strict.
     const t = ((node.args || [])[1] || {}).value
-    if (t !== undefined && numberValue(t) === null) return null
+    if (t !== undefined && alphaNumberOf(t, env, ctx) === null) return null
     // ⭐⭐ R33a — THE BASE IS RESOLVED LIKE EVERY OTHER COLOUR, BY RECURSION.
     //
     // ⛔ THIS REMOVES AN ASYMMETRY; IT ADDS NO CAPABILITY. Two lines up, a bare
@@ -12424,7 +12439,17 @@ function staticColourOf(node, env, depth = 0) {
     // null here exactly as it does anywhere else — `color.new(c, 30)` where
     // `c = cond ? green : red` stays dynamic, which its control pins.
     const base = ((node.args || [])[0] || {}).value
-    return staticColourOf(base, env, depth + 1)
+    return staticColourOf(base, env, depth + 1, ctx)
+  }
+  // ⭐⭐ R35c — A SINGLE-EXPRESSION USER COLOUR HELPER IS SUBSTITUTED AND RE-WALKED.
+  // The body is re-entered through THIS function, so every colour form it already
+  // understands — a name, a literal, `color.new`, `input.color`, R33a's base
+  // recursion — works inside a helper exactly as it does outside one. That is the
+  // whole branch: no second colour vocabulary, and nothing here interprets.
+  const helper = openColourHelper(node, env, ctx)
+  if (helper) {
+    return staticColourOf(helper.node, helper.env, depth + 1,
+      { ...ctx, inline: helper.inline })
   }
   return null
 }
@@ -12452,12 +12477,182 @@ function staticColourOf(node, env, depth = 0) {
  *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
  *  dropped (`memberPaneDefinition.js:139`).
  */
-function colourHelperAlpha(node) {
+function colourHelperAlpha(node, env, ctx) {
   if (!node || node.type !== 'call') return null
+  // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
+  // but whose transparency does not would render Clouds' twenty bands at one flat
+  // alpha, which is the feature inverted rather than merely missing.
+  const helper = openColourHelper(node, env, ctx)
+  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline })
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
-  const t = numberValue(((node.args || [])[arity] || {}).value)
+  const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
   return t === null ? null : Math.max(0, Math.min(1, 1 - t / 100))
+}
+
+/** ⭐⭐ R35d — THE TRANSPARENCY OF A COLOUR THAT FOLDS, 0-100, or null.
+ *
+ *  ⛔⛔ THIS LIVES BESIDE `staticColourOf` AND NOT IN THE `Resolver`, and the
+ *  reason is not tidiness. `color.` is mapped to `pine:colour-value` wholesale
+ *  (`NAMESPACE_REFUSALS`) and `Resolver.resolve` throws for a `colour` node in a
+ *  value position — *"a colour cannot be a value in a screened column"*. That
+ *  refusal is CORRECT for a screened column: a colour is not a number there.
+ *  Teaching the Resolver colours to reach one number would make it wrong about
+ *  the thing it is right about. Colour knowledge belongs to the colour authority.
+ *
+ *  ⚰️ WHY IT EXISTS AT ALL, MEASURED: of the five colour-returning helpers in the
+ *  corpus — Clouds' two and `colorWithTransparency` ×3 — **all five**, across
+ *  **43 of 43 call sites**, reach their alpha through `color.t`. Clouds binds
+ *  `bullUserTransparency = color.t(bullColor)`. Without this leaf the whole
+ *  user-function fold above carries nothing, which is machinery with no consumer.
+ *
+ *  ⛔ IT FOLDS ONLY WHAT `staticColourOf` ALREADY FOLDS. A per-bar colour has no
+ *  plan-time transparency, and inventing one paints a flat band where the author
+ *  drew a changing one — so the first thing this asks is whether the colour is
+ *  static at all, and a null there is a null here.
+ */
+function colourTransparencyOf(node, env, depth = 0) {
+  if (!node || depth > 8) return null
+  // ⛔ THE GATE: no static colour, no static transparency. Same question, one
+  // authority, so the two answers cannot disagree about what counts as a colour.
+  if (staticColourOf(node, env, depth) === null) return null
+
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') {
+      return colourTransparencyOf(bound.node, bound.env || env, depth + 1)
+    }
+    // A bare Pine colour name (`color.teal`, or v3/v4 `teal`) is OPAQUE.
+    return 0
+  }
+  if (node.type === 'colour') {
+    // ⭐ `#RRGGBBAA`'s last byte is OPACITY, not transparency — Pine's `color.t`
+    // answers the inverse, so the conversion belongs here rather than at a call
+    // site that would have to remember which way round it goes.
+    const v = String(node.value)
+    const m = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(v)
+    if (m) return Math.round((1 - parseInt(m[1], 16) / 255) * 100)
+    return 0
+  }
+  if (node.type === 'call' && node.name === 'input.color') {
+    // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
+    // moves the colour picker's alpha still gets the default rendering, and for
+    // Uncharted Clouds that governs the entire cloud opacity.
+    return colourTransparencyOf(((node.args || [])[0] || {}).value, env, depth + 1)
+  }
+  if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
+    const opacity = colourHelperAlpha(node, env, null)
+    return opacity === null ? null : (1 - opacity) * 100
+  }
+  return null
+}
+
+/** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
+ *
+ *  ⭐ ONE READER FOR EVERY ALPHA SLOT — `color.new`'s second argument,
+ *  `color.rgb`'s fourth, and `colourHelperAlpha`'s own read all come through
+ *  here, so a transparency this engine can resolve cannot be accepted by one of
+ *  them and refused by another. Three readers of one question is the defect this
+ *  file records most often. */
+function alphaNumberOf(node, env, ctx) {
+  if (node === undefined || node === null) return null
+  const lit = numberValue(node)
+  if (lit !== null) return lit
+  if (node.type === 'call' && node.name === 'color.t') {
+    return colourTransparencyOf(((node.args || [])[0] || {}).value, env, 0)
+  }
+  // ⭐⭐ R35c — ANYTHING ELSE IS ARITHMETIC, AND ARITHMETIC IS NOT OURS. The
+  // expression goes to the SAME two authorities the series path uses:
+  // `resolveInFrame`/`resolve` to substitute, `constantValueOf` to fold. This
+  // function owns no arithmetic of its own, which is why `95 - 2.5 * k` cannot
+  // mean one thing on a plot and another in a colour.
+  if (!ctx || !ctx.resolver) return null
+  const numeric = foldColourLeaves(node, env, 0)
+  if (numeric === null) return null
+  try {
+    const tree = ctx.inline
+      ? ctx.resolver.resolveInFrame(ctx.inline, numeric)
+      : ctx.resolver.resolve(numeric)
+    const v = constantValueOf(tree)
+    return v !== null && Number.isFinite(v) ? v : null
+  } catch { return null }
+}
+
+/** ⭐⭐ R35c's LEAF BRIDGE — fold the COLOUR-derived numbers before the Resolver
+ *  ever sees them.
+ *
+ *  ⛔⛔ THIS IS WHY THE RESOLVER IS NOT TAUGHT COLOURS. Clouds binds
+ *  `bullUserTransparency = color.t(bullColor)` at top level and uses that NAME
+ *  inside an arithmetic helper. Handed the expression raw, the Resolver follows
+ *  the binding, meets `color.t`, and throws `pine:colour-value` — correctly, for
+ *  a screened column. So the colour authority answers the colour question first
+ *  and hands on pure arithmetic. Each side does only what it owns.
+ *
+ *  ⛔ FAIL-CLOSED: a `color.t` that does not fold returns null for the whole
+ *  expression rather than leaving the call in the tree for the Resolver to refuse
+ *  with a message about a screened column, which is not what went wrong. */
+function foldColourLeaves(node, env, depth = 0) {
+  if (depth > 24 || node === null || typeof node !== 'object') return node
+  if (Array.isArray(node)) {
+    const out = []
+    for (const v of node) {
+      const r = foldColourLeaves(v, env, depth + 1)
+      if (r === null && v !== null) return null
+      out.push(r)
+    }
+    return out
+  }
+  if (node.type === 'call' && node.name === 'color.t') {
+    const t = colourTransparencyOf(((node.args || [])[0] || {}).value, env, 0)
+    return t === null ? null : { type: 'number', value: t }
+  }
+  // ⭐ A NAME BOUND TO `color.t(...)` IS THE SHAPE CLOUDS ACTUALLY USES — the
+  // call is in the BINDING, not in the expression, so a walk that only looked at
+  // the expression would find nothing and the Resolver would still throw.
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node
+        && b.node.type === 'call' && b.node.name === 'color.t') {
+      const t = colourTransparencyOf(((b.node.args || [])[0] || {}).value, b.env || env, 0)
+      if (t !== null) return { type: 'number', value: t }
+    }
+    return node
+  }
+  const out = {}
+  for (const k of Object.keys(node)) {
+    const r = foldColourLeaves(node[k], env, depth + 1)
+    if (r === null && node[k] !== null) return null
+    out[k] = r
+  }
+  return out
+}
+
+/** ⭐⭐ R35c — OPEN A SINGLE-EXPRESSION USER COLOUR HELPER, or null.
+ *
+ *  The branch `colorNodeOf` was missing. `textNodeOf` (`pine.js`, the TEXT lane)
+ *  already ships exactly this for a text value — recurse on `bound.value.node`
+ *  with `{bound, args, callerEnv}` — and its own comment calls the colour walker
+ *  "THE SAME SHAPE, ONE BRANCH SHORTER". This is that branch, and nothing about
+ *  the substitution is new: the frame it builds is the Resolver's own.
+ *
+ *  ⛔⛔ SINGLE EXPRESSION ONLY, AND THE REFUSAL IS THE POINT. A body that is a
+ *  statement sequence is declined here, by name, so a narrow fold cannot drift
+ *  into the general evaluator (ii) one accepted body at a time. Measured: every
+ *  colour-returning helper in the corpus — 27 of them, 43 call sites — is a
+ *  single expression, so the refusal costs nothing real today and is the only
+ *  thing keeping the boundary where the ruling put it. */
+function openColourHelper(node, env, ctx) {
+  if (!node || node.type !== 'call' || !ctx || !ctx.resolver) return null
+  const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+  if (!bound || bound.kind !== 'fn') return null
+  const args = node.args || []
+  if (args.some((a) => a && a.name)) return null
+  if (!Array.isArray(bound.params) || bound.params.length !== args.length) return null
+  // ⛔ THE BOUNDARY. `kind: 'expr'` with a `.node` IS "one expression"; a tuple,
+  // an if-chain folded into parts, anything else — declined.
+  if (!bound.value || bound.value.kind !== 'expr' || !bound.value.node) return null
+  const inline = { bound, args, callerEnv: env, bodyEnv: bound.value.env }
+  return { node: bound.value.node, env: bound.value.env || env, inline }
 }
 
 /**
@@ -12502,18 +12697,18 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
   return seen.size
 }
 
-function colourConditional(node, env, depth = 0) {
+function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
     const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (bound && bound.kind === 'expr') {
-      return colourConditional(bound.node, bound.env || env, depth + 1)
+      return colourConditional(bound.node, bound.env || env, depth + 1, ctx)
     }
     return null
   }
   if (node.type !== 'ternary') return null
-  const up = staticColourOf(node.yes, env)
-  const down = staticColourOf(node.no, env)
+  const up = staticColourOf(node.yes, env, 0, ctx)
+  const down = staticColourOf(node.no, env, 0, ctx)
   if (!up || !down) {
     // ⭐⭐ AN N-WAY COLOUR CHAIN IS MEASURED, NOT JUST DECLINED.
     // `rising ? bull : falling ? bear : neutral` and
@@ -12542,8 +12737,8 @@ function colourConditional(node, env, depth = 0) {
   // The transparency of either branch, if they agree on one. Two DIFFERENT
   // opacities are a per-point alpha this schema has no field for; carrying one of
   // them would silently apply it to both.
-  const a = colourHelperAlpha(node.yes)
-  const b = colourHelperAlpha(node.no)
+  const a = colourHelperAlpha(node.yes, env, ctx)
+  const b = colourHelperAlpha(node.no, env, ctx)
   const opacity = (a !== null && b !== null && a === b) ? a : null
   return { test: node.test, up, down, opacity }
 }
@@ -12640,10 +12835,10 @@ function outputPresentation(args, ctx) {
     // `parseArguments` returns Pine's own positional-and-named shape, so reading
     // `args[0].type` looks at the PAIR and finds nothing — the second time this
     // wave read one level too shallow and got a silent "the author said nothing".
-    const flat = staticColourOf(c.value, ctx && ctx.env)
+    const flat = staticColourOf(c.value, ctx && ctx.env, 0, ctx)
     if (flat) {
       pres.color = flat
-      const a = colourHelperAlpha(c.value)
+      const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
       if (a !== null) pres.opacity = a
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
@@ -12656,7 +12851,7 @@ function outputPresentation(args, ctx) {
       // resolved — it reaches an unsupported call, a mutable name, anything —
       // the plot still imports, and the colour falls back to the honest
       // "demanded and uncarried" marker below.
-      const cond = ctx && ctx.env ? colourConditional(c.value, ctx.env) : null
+      const cond = ctx && ctx.env ? colourConditional(c.value, ctx.env, 0, ctx) : null
       let carried = false
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
