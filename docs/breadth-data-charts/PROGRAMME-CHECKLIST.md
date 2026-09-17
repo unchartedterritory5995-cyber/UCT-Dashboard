@@ -41,7 +41,7 @@ V2-1 was already merged.
 | **DC2** harness + golden diff + perf rail | **READY** — Playwright + Chromium verified present; needs route interception |
 | **DC3** V2-2 built dark | **BLOCKED** on DC2 and on **W2-0** (see below) |
 | **DC4** V2-2 previewed | **BLOCKED** on **Q1** — a `VITE_` flag cannot be previewed per-user |
-| **DC5** V2-3 wire fields dark | **PARTIAL ALREADY** — `reconstructed[]` is on the wire today; era note `UNKNOWN` (Q3) |
+| **DC5** V2-3 wire fields dark | ✅ **NO WIRE FIELDS NEEDED** (Q3 resolved 2026-09-17). `reconstructed[]` is already on the wire; the era note is computed CLIENT-SIDE from `universe_count` (`01-audit.md:309-311`), and the start-of-data marker from the first non-null per key. The only requirement is that `universe_count` ride along in the ≤8 keys while a count panel is shown. |
 | **DC6** V2-3 UI dark, LTTB, cap raised | **BLOCKED** on Q4 (unmeasurable while `/series` is dark) |
 | **DC7** V2-3 previewed | **BLOCKED** on Q1 |
 | **DC8** flips, watches, records, FINAL | **NOT STARTED** |
@@ -100,7 +100,7 @@ new, and it will fire.
 | **W1** | harness + goldens + perf rail | `READY` — Playwright/Chromium verified; build route interception |
 | **W2-0** | V2-1 tokens + validated palette | `NOT STARTED` — prerequisite of W2 |
 | **W2** | V2-2 stacked panels, dark | `BLOCKED` on W1, W2-0 |
-| **W3** | V2-3 coverage + long history, dark | `BLOCKED` on Q3 (era note) and Q4 (measurements) |
+| **W3** | V2-3 coverage + long history, dark | ⚠️ **UNBLOCKED on Q3** (era note located, `01-audit.md:309-311`). Still gated on **Q4** — whether `/series` is fast enough at long spans is UNMEASURED, and §3.2's perf rail is what answers it. ⛔ New scope found: A-28's `mark` registry field does not exist (R1 shipped 4 of 6 declared fields), so V2-3 ADDS it. |
 | **W4** | records | rolling — `00-profile.md` open, DECISIONS entries per ruling applied |
 
 ⭐ **W3's wire half is further along than DC-1 assumed.** `reconstructed[]` already ships in
@@ -115,8 +115,8 @@ is outstanding, and its definition is `UNKNOWN`.
 | # | Question | What would answer it |
 |---|---|---|
 | **Q1** | A `VITE_` flag cannot do per-user preview or instant rollback. Move V2-2/V2-3 to an auth-payload capability? | **Owner ruling.** Precedent exists: `HUB_PREVIEW_ENABLED`, `_access_payload` |
-| **Q2** | Are C1/C2/C3/R1 done? | Resolve their A-numbers against `COVERAGE.md` and check the named components |
-| **Q3** | What is the "era note" (A-28, A-39)? | Locate those A-numbers' text in the audit; needed before V2-3's wire fields are specified |
+| **Q2** | ~~Are C1/C2/C3/R1 done?~~ | ✅ **CLOSED 2026-09-17.** C1/C2/C3 in production (ancestry-checked); **R1 PARTIAL — `mark` and `refLines` absent**. ⚠️ The instruction in this cell was itself wrong: `COVERAGE.md:35` is stale and would have given a wrong answer for two of four. Anchored to `git merge-base --is-ancestor` instead. `01-spec-v2-2-v2-3.md` §0.1-0.2 |
+| **Q3** | ~~What is the "era note" (A-28, A-39)?~~ | ✅ **CLOSED 2026-09-17.** The "Era comparability" bullet, `01-audit.md:309-311`; A-28 at `:245`, A-39 at `:256`. All quoted verbatim in `01-spec-v2-2-v2-3.md` §2.4-2.6. **No wire field required** — the guess that it was a serialiser projection was wrong. |
 | **Q4** | Is `/series` fast enough for long history? | A local backend with the flag set (preferred, no prod change), **or** an owner ruling to arm it on `web`. ⛔ The reader's numbers are for a **different route** and do not transfer |
 | **Q5** | Does the ledger's `where` mean "targets" or "is set on"? | The ledger's schema doc; `tools/flag_ledger_audit.py` |
 
