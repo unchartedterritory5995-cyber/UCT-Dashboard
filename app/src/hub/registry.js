@@ -819,8 +819,138 @@ const PREVIEW_HOME = [
  * @param {HubMode} mode
  * @returns {HubAction[]}
  */
-export function fanFor(mode) {
-  if (!mode) return [];
+/**
+ * ⭐⭐ THE STRONG CUT — the DEFAULT surface since 2026-09-17, owner ruling R4.
+ *
+ * The owner used the hub and said: *"simplify a ton … too much going on … looks like a $5
+ * project."* R4 made the cut the agent's call and the strong cut the default; the full 62-action
+ * surface is now the switchable variant, not the other way round.
+ *
+ * ⛔ FOUR TESTS, APPLIED PER ACTION. An action keeps its bubble only if it passes all four:
+ *   1. Does it act on THE THING UNDER THE CURSOR? A thumb advancing a list and acting on the
+ *      current item is the only thing this control does that a menu cannot.
+ *   2. Is it more than one tap away on the page itself, ON A PHONE? Flagging a ticker inside the
+ *      morning wire is not one tap away — the flag lives on `TickerActions`, a RIGHT-CLICK menu,
+ *      and a phone has no right click.
+ *   3. Would a member name its purpose without being told? "Note" beside "Plan trade" fails this:
+ *      two write verbs on one fan and no way to say which one files what.
+ *   4. Does it navigate AWAY? Navigating loses the place in the list, which is the one thing the
+ *      cursor exists to hold. A navigate action is a menu item wearing a bubble.
+ *
+ * ⚰️ THE FIRST DRAFT OF THIS TABLE WAS CUT TO A TARGET, NOT TO THE TESTS, AND IT WAS WRONG.
+ * `simplification-proposal.md` §4 had costed a "3 modes × 4 actions" shape, and I built that
+ * shape — which meant deleting `wire.flag`, `wire.note`, `catalysts.flag` and `catalysts.note`,
+ * four RUN actions that act on the row under the cursor and are not reachable in one tap on a
+ * phone. **All four pass all four tests.** Fitting the answer to a number I had written down
+ * earlier is the same defect as a hand-typed count beside the source that owns it, and the rails
+ * caught it: `notebook.linkTicker` (R-17) and `notebook.templates` (R-19) each ship a real
+ * end-to-end write and each went red. The count is an OUTPUT of the tests, never an input.
+ *
+ * ⭐ WHAT SURVIVED IS THE THUMB'S OWN VOCABULARY: flag the row, alert on it, note it, plan the
+ * trade, move the stop, take it to breakeven, close it, draw on the chart, start a note, tag it.
+ *
+ * ⛔ WHAT WENT, AND WHY IT IS NOT A LOSS:
+ *   · **`home`'s EIGHT navigate bubbles** — the single largest removal, and the safest. It is a
+ *     second navigation menu on a device whose own `MoreSheet` is "the SINGLE comprehensive
+ *     directory", one tap away at every width ≤1024px. 8 of the registry's 17 navigate actions
+ *     were this one menu. Nothing becomes unreachable.
+ *   · **every `*.chartIt` and `*.why`** — navigations (test 4). Every page they leave from
+ *     already opens a chart from the row you are on.
+ *   · **`calendar.macro`** — measured, not assumed: `calendarSection.js:64` builds it as a TOGGLE
+ *     ("Macro on" / "Macro off") over the calendar's event-type filter. It acts on the PAGE, not
+ *     on the day under the cursor (test 1), and the Calendar's own filter is on screen (test 2).
+ *   · **`calendar.myNames`, `notebook.dailyPlan`, `notebook.postMortem`** — navigates.
+ *   · **`scan.scans`** — a saved-screens menu (tests 1 and 3).
+ *   · **`chart.note`, `journal.note`, `journal.planTrade`** — a second write verb on a mode that
+ *     already has its verbs (test 3). Notes have a mode of their own.
+ *
+ * ⚠️ AND THREE CUTS THAT CHANGE NOTHING A MEMBER SEES, recorded so nobody counts them as
+ * savings: `chart.compare`, `chart.logTrade` and `catalysts.filter` are ALREADY dropped by their
+ * own controllers (`chartSection.js:201`, `catalystsSection.js:115`) and have never reached a fan.
+ *
+ * ⚠️ OPEN, AND DELIBERATELY NOT SETTLED FROM A TABLE: `home` is left with a ONE-BUBBLE fan
+ * (Voice — it has no `home` kind, being home already). A fan of one may well be worse than no
+ * fan, and `calendar`, `breadth` and `flow` now carry only the pair. Whether that reads as
+ * restraint or as ceremony is a question for the R8 critique loop, which looks at the rendered
+ * frame; deciding it here would be judging the artifact instead of the product.
+ *
+ * ⭐ ONE CONSEQUENCE WORTH NAMING: no mode now has more than four outer actions, so **the inner
+ * ring only ever holds Voice and Home.** The soft-drag/hard-drag ring split — a member modulating
+ * drag distance to choose a ring — was itself part of "too much going on", and the cut retires it
+ * in practice without touching `RING_SPLIT`.
+ */
+const STRONG_CUT = Object.freeze({
+  wire: [
+    { id: 'wire.flag', ring: 0 },
+    { id: 'wire.note', ring: 0 },
+  ],
+  catalysts: [
+    { id: 'catalysts.flag', ring: 0 },
+    { id: 'catalysts.note', ring: 0 },
+  ],
+  scan: [
+    { id: 'scan.flag', ring: 0 },
+    { id: 'scan.alert', ring: 0 },
+    { id: 'scan.planTrade', ring: 0 },
+  ],
+  chart: [
+    { id: 'chart.flag', ring: 0 },
+    { id: 'chart.alert', ring: 0 },
+    { id: 'chart.draw', ring: 0 },
+    { id: 'chart.planTrade', ring: 0 },
+  ],
+  journal: [
+    { id: 'journal.moveStop', ring: 0 },
+    { id: 'journal.breakeven', ring: 0 },
+    { id: 'journal.close', ring: 0 },
+  ],
+  notebook: [
+    { id: 'notebook.newNote', ring: 0 },
+    { id: 'notebook.voiceNote', ring: 0 },
+    // ⚰️ BOTH OF THESE WERE CUT IN THE FIRST DRAFT AND RESTORED BY THEIR OWN RAILS.
+    // `linkTickerWritesTheNote.test.jsx` (R-17) and `notebookTemplatesPicker.test.jsx` (R-19) each
+    // drive a real end-to-end write — the ticker goes onto THE NOTE THE CURSOR IS ON, normalised,
+    // refusing an empty one in the member's own words; the template picker's options ARE the
+    // catalog and two different picks produce two different notes. Both pass all four tests, and
+    // I had removed them as "reachable/heavy" without checking either claim.
+    { id: 'notebook.linkTicker', ring: 0 },
+    { id: 'notebook.templates', ring: 0 },
+  ],
+});
+
+/**
+ * Which surface is live. `'simplified'` is the DEFAULT (R4); `'full'` restores all 62.
+ *
+ * ⛔ MODULE-LEVEL AND SET ONCE FROM THE STORED PREFERENCE, never read per render. `fanFor` is
+ * called inside the gesture path; a preference lookup there would put a hook's value into a pure
+ * function and give this file a second authority over the surface.
+ */
+let surfaceMode = 'simplified';
+
+/** @param {'simplified'|'full'} next */
+export function setHubSurface(next) {
+  surfaceMode = next === 'full' ? 'full' : 'simplified';
+}
+
+export function hubSurface() {
+  return surfaceMode;
+}
+
+/** The universal pair, kept at every mode and in every surface: Voice, then Home. */
+function universalPair(mode) {
+  return mode.fan.filter((a) => a.id.endsWith('.voice') || a.kind === 'home');
+}
+
+/**
+ * The preview projection — "is this mode still a teaser?". A DIFFERENT question from the surface
+ * cut, and it runs first because a teaser's fan is not a design decision, it is a release gate.
+ *
+ * ⚠️ `PREVIEW_MODES` IS NOT EMPTY ON MASTER. It holds `home` and `flow`; emptying it is part of the
+ * stage-2 branch, which is HELD. A previous draft of this file's cut assumed the branch's state and
+ * silently did nothing to Home as a result — the single largest thing the cut was supposed to
+ * remove. Read the Set, never the plan.
+ */
+function previewProjection(mode) {
   if (!isPreviewMode(mode.id)) return mode.fan;
   if (mode.id === HOME_MODE_ID) {
     const byId = Object.fromEntries(mode.fan.map((a) => [a.id, a]));
@@ -830,6 +960,45 @@ export function fanFor(mode) {
   }
   return mode.fan.filter((a) => a.kind === 'run' || a.kind === 'home')
     .filter((a) => a.id.endsWith('.voice') || a.kind === 'home');
+}
+
+export function fanFor(mode) {
+  if (!mode) return [];
+
+  // ⭐ THE TWO PROJECTIONS COMPOSE, they do not race. Preview answers "may this ship at all";
+  // the cut answers "does this earn a bubble". Applying the cut to whatever preview produced is
+  // what makes the cut reach Home, whose eight navigate bubbles are the largest thing it removes.
+  const base = previewProjection(mode);
+
+  // ⛔ A MALFORMED MODE ANSWERS EXACTLY AS IT DID BEFORE R4 — `undefined`, not `[]`. A bare
+  // `HubSectionConfig` (no `fan`) is the shape `wireSection.test.jsx`'s CONTROL registers to prove
+  // a bare config does NOT produce a usable fan, and the first draft of this function turned that
+  // into a TypeError by calling `.map` on it. Widening `fanFor` to answer `[]` would be worse
+  // still: it would make "this mode is broken" and "this mode has no actions" the same answer.
+  if (!Array.isArray(base)) return base;
+
+  if (surfaceMode === 'full') return base;
+
+  // A mode with no entry keeps ONLY the universal pair — the design bar's first principle, "its
+  // job is to disappear", not an oversight.
+  //
+  // ⛔⛔ THE CUT IS A SUBSEQUENCE: IT SUBTRACTS, IT NEVER RE-RANKS. The survivors are taken in the
+  // order the REGISTRY declares them, not the order `STRONG_CUT` lists them — so the entries below
+  // are a membership SET and re-ordering one changes nothing. That is deliberate:
+  //   · a fan's order is its bubble ANGLES, which is muscle memory, and
+  //   · `full` and `simplified` are two surfaces of one control that a member switches between in
+  //     Settings. If the cut re-ranked, every surviving bubble would jump to a different angle on
+  //     the switch — punishing the member for looking at the variant.
+  // Found by `fanResolutionParity.test.js`'s subsequence rail on the first run after it was
+  // written: the first draft mapped over STRONG_CUT and silently re-ordered `chart` from
+  // (planTrade, alert, flag, draw) to (flag, alert, draw, planTrade).
+  const keep = new Set(STRONG_CUT[mode.id]?.map((k) => k.id) ?? []);
+  const rings = new Map((STRONG_CUT[mode.id] ?? []).map((k) => [k.id, k.ring]));
+  const outer = base
+    .filter((a) => keep.has(a.id))
+    .map((a) => (rings.get(a.id) === a.ring ? a : { ...a, ring: rings.get(a.id) }));
+  const pair = base.filter((a) => a.id.endsWith('.voice') || a.kind === 'home');
+  return [...outer, ...pair];
 }
 
 /**
