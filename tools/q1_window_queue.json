@@ -4,10 +4,41 @@
   "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
   "queue": [
     {
+      "id": "2.1b-probe-honesty",
+      "status": "pending",
+      "attempts": 0,
+      "why": "R-HON, NOT SKIPPABLE, AND IT RUNS FIRST. Every RED cell in the F5 matrix rests on `sentenceInQueuedEntry`, and that field has never been shown reporting correctly against a KNOWN answer. Plants a known loss and a known success into a THROWAWAY store for a synthetic account, drives the REAL QUEUED_JS (imported, never restated), and requires the probe to report each correctly while the record is already CLEAN — which is the 2.1(b) question: does it read the surviving ENTRY's patch from IndexedDB after reconciliation? If this FAILS, every RED reading is labelled 'probe unverified' and the writer hunt waits.",
+      "cmd": [
+        "python",
+        "tools/q1_probe_honesty.py",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+      ],
+      "timeout": 900
+    },
+    {
+      "id": "2.2-slow-put-instrumented",
+      "status": "pending",
+      "attempts": 0,
+      "why": "D2's whole point: the instrumented slow-PUT cell with the write tracer injected, so the RAW RING reaches docs/notebook/evidence/ BEFORE any summary (R-RAW). The reading that names the writer is a SEPARATE step taken with the artifact open — this entry only produces the artifact. Non-vacuity: the ring must contain at least one write with an app-code stack frame, else INCONCLUSIVE and the injector is the suspect, not the product.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "append_widget_embed",
+        "--ordering",
+        "slow PUT (landed, ring populated)",
+        "--trace-writes",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+      ],
+      "timeout": 1800
+    },
+    {
       "id": "2.8b-second-writer-while-away",
       "status": "failed",
       "attempts": 2,
-      "why": "2.8b \u2014 Q1 fix 4's OWN production proof, which has never run. A SECOND context moves the server revision while the first is away and offline; the first returns and its unsent words must still be present and still queued. Existing instrument, no new probe, no cells, no interpretation.",
+      "why": "2.8b — Q1 fix 4's OWN production proof, which has never run. A SECOND context moves the server revision while the first is away and offline; the first returns and its unsent words must still be present and still queued. Existing instrument, no new probe, no cells, no interpretation.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -47,7 +78,7 @@
       "result": {
         "exit": 0,
         "seconds": 227.8,
-        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` · 5 request(s) carried the sentence (la",
         "inconclusive": false,
         "declared_fail": false
       }
@@ -68,7 +99,7 @@
         "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
       ],
       "attempts": 1,
-      "blocked_on": "nothing \u2014 the owner-identity requirement was satisfied by the admin-role run",
+      "blocked_on": "nothing — the owner-identity requirement was satisfied by the admin-role run",
       "release_when": "Superseded: ruling 2026-09-14 accepted an admin-role run on the rig profile. Kept, not deleted, so the entry cannot be mistaken for work still owed."
     },
     {
@@ -111,7 +142,7 @@
       "result": {
         "exit": 0,
         "seconds": 391.0,
-        "tail": "\u21d2 RED  offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-15T05:08:14.063022+00:00` \u00b7 3",
+        "tail": "⇒ RED  offline sentence in the server body: **False** · appended node present: **True** · queued 1 entry(s), baseline `2026-09-15T05:08:14.063022+00:00` · 3",
         "inconclusive": false,
         "declared_fail": false
       }

@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import pathlib
 import sys
 import time
@@ -1704,6 +1705,27 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             import q1_write_trace as _wt
             got = _wt.read_ring(page)
             if got.get("ring"):
+                # ⛔⛔ R-RAW: THE RAW RING HITS DISK BEFORE summarise() IS CALLED.
+                # ⚰️ On 2026-09-15 this window produced the decisive ring, `summarise()`
+                # surfaced only the dirty flips, and the rest was discarded in the same
+                # breath — the one fact the window was spent to obtain was computed,
+                # displayed and destroyed. Two days later no raw ring existed anywhere on
+                # disk and `sentence_lost_writes` had never been read from a real run.
+                # The ORDER is the rule: write, then interpret.
+                try:
+                    _ev = pathlib.Path(os.environ.get("UCT_EVIDENCE_DIR")
+                                       or (REPO / "docs" / "notebook" / "evidence" / "manual"))
+                    _ev.mkdir(parents=True, exist_ok=True)
+                    _stamp = f"{family}-{str(ordering).split(' ')[0]}-{int(time.time())}"
+                    _raw = _ev / f"ring-{_stamp}.json"
+                    _raw.write_text(json.dumps(
+                        {"family": family, "ordering": ordering, "installed": got.get("installed"),
+                         "ring": got["ring"]}, indent=2), encoding="utf-8", newline=chr(10))
+                    log(f"      💾 raw ring -> {_raw.name} ({len(got['ring'])} write(s))")
+                except OSError as _e:
+                    # ⛔ A ring that could not be written is INCONCLUSIVE evidence, and
+                    # saying so beats letting the summary stand in for the artifact.
+                    log(f"      ⛔ RAW RING NOT WRITTEN ({_e}) — this reading is R-RAW INCONCLUSIVE")
                 s = _wt.summarise(got["ring"])
                 out["write_trace"] = s
                 log(f"      write trace: {s['writes_total']} write(s), "
