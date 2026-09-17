@@ -2,6 +2,49 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 (latest) — R35c GRANTED, 1.1 MEASURED, **BUILD NOT STARTED**.
+>
+> ⛔⛔ **THE GRANTED SCOPE CARRIES NOTHING, SO NOTHING WAS BUILT.** 1.1 ran first,
+> as the block requires, and it found one clause missing — **mine to have dropped**.
+>
+> ✅ **The bridge exists and is a shipped pattern one value-kind over.**
+> `textNodeOf` (`pine.js:10041`) already inlines a user-fn call in a TEXT position
+> and hands numeric parts to `makeResolver(scope).resolveInFrame(inline, node)`;
+> `colorNodeOf` (`:10060`) says in-file it is *"THE SAME SHAPE, ONE BRANCH
+> SHORTER"* — that branch is R35c. ⭐ And the param bridge is free: a frame entry
+> is `{kind:'expr', node, env}` (`:4820`), **the exact shape `staticColourOf`
+> already recurses through** (`:12362`).
+>
+> ✅ **The frame chain survives nesting — measured:** `outer(3)` over
+> `inner(x)=>x*2` → **7**; Clouds' shape → **84**, layer 19 → **38.4**; three
+> levels → **15**. Each param pop takes exactly one frame, so it composes itself.
+> The Resolver needs no change.
+>
+> ⛔⛔ **BUT `color.t` REFUSES `pine:colour-value`, AND 5 OF 5 HELPERS / 43 OF 43
+> CALL SITES ROUTE THROUGH IT** — Clouds via `bullUserTransparency =
+> color.t(bullColor)`, and `colorWithTransparency` ×3 via
+> `color.new(colorF, color.t(colorF) * x)`. `color.` is mapped to
+> `pine:colour-value` wholesale (`:581`). **So R35c alone carries ZERO of the four
+> scripts** — machinery with no consumer, the exact failure H.10's leg 4 refused.
+> ⚠️ And three of the four are `box`/`set_bgcolor` colours that cannot carry
+> anyway; **Clouds is the sole real consumer, 40 of the 43 sites.**
+>
+> ⚰️ **A CORRECTION I OWE:** the "84 / 38.4" I reported as *Clouds' own helper*
+> used a hand-substituted `bullUserTransparency = 20`. The body was verbatim, the
+> INPUT was not. Clouds' real chain starts at `color.t(bullColor)`; with
+> `color.t(color.teal) = 0` the real alphas are **95 / 70 / 47.5** (max 95, min 45,
+> 21 layers ⇒ step 2.5). The chain finding stands; the numbers were the
+> synthetic's, and an acceptance written from them would have pinned the wrong ones.
+>
+> 🛑 **R35d PROPOSED — `color.t` of a static colour folds to its transparency.**
+> The original census's `(i-C)` listed it (*"…`math.*`, `color.t` of a static
+> colour"*) and my R35c proposal dropped it. ⛔ **Not in the Resolver** (that is
+> "teaching the Resolver colours", which the grant forbids, and `pine:colour-value`
+> is correct for a screened column) — instead a small `staticAlphaOf(node, env)`
+> beside `staticColourOf`, returning the alpha byte or null. No new `NODE_TYPE`, no
+> 42nd refusal. **Estimate 45 min on top of R35c's 150. R35c and R35d land together
+> or neither is worth landing.**
+
 > ### ⏱️ 2026-09-17 (later) — R35: H.10's LEGS 1 AND 2 ARE STRUCK BY MEASUREMENT.
 >
 > ⚰️⚰️ **THE OWNER ASKED ONE QUESTION AND IT OVERTURNED MY OWN STOP.** "Does

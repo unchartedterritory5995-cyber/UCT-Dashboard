@@ -588,6 +588,111 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# 🛑 R35c — 1.1 MEASURED, BUILD **NOT** STARTED. ONE CLAUSE IS MISSING AND IT IS MINE.
+
+**Owner granted R35c as proposed. 1.1 measured first, as the block requires, and
+the measurement says the granted scope carries NOTHING. Nothing was built.**
+
+## ✅ THE BRIDGE EXISTS, AND IT IS A SHIPPED PATTERN ONE VALUE-KIND OVER
+
+`textNodeOf` (`pine.js:10041`) already inlines a user-function call in a TEXT
+position:
+
+```js
+const inlined = textNodeOf(bound.value.node, scope, depth + 1, {
+  bound, args: node.args, callerEnv: scope,
+})
+```
+
+…and hands numeric parts to `makeResolver(scopeEnv).resolveInFrame(inline, node)`
+(`:9807`). ⭐ `colorNodeOf` (`:10060`) is documented in-file as *"THE SAME SHAPE,
+ONE BRANCH SHORTER"* — **the missing branch is precisely this one.** So R35c is not
+a new mechanism; it is the text lane's own shipped pattern applied to colour.
+
+⭐ **AND THE PARAM BRIDGE IS FREE.** A frame entry is built as
+`{kind: 'expr', node, env}` (`:4820`) — **the exact binding shape
+`staticColourOf` already recurses through** (`:12362`). Nothing has to be taught a
+new vocabulary.
+
+## ✅ THE FRAME CHAIN SURVIVES NESTING — measured, three ways
+
+| probe | folds to |
+|---|---|
+| `inner(x) => x*2` · `outer(i) => inner(i)+1` · `outer(3)` | **7** |
+| Clouds' shape: outer passes its param to an inner with two local bindings | **84** |
+| the same at layer 19 | **38.4** |
+| three levels deep | **15** |
+
+Each param resolution pops exactly one frame (`:4830`), so the chain composes on
+its own. The Resolver needs no change at all.
+
+## ⛔⛔ BUT `color.t` REFUSES, AND EVERY SINGLE CONSUMER ROUTES THROUGH IT
+
+```
+color.t(input.color(color.teal,…))  ->  pine:colour-value
+color.t(#11223344)                  ->  pine:colour-value
+Clouds' real numeric chain          ->  pine:colour-value
+```
+
+`color.` is mapped to `pine:colour-value` wholesale in the Resolver's namespace
+table (`:581`), and `resolve()` throws for any `colour` node in a value position
+(`:5741`) — *"a colour cannot be a value in a screened column"*. Measured across
+all five colour-returning helpers in the census's four scripts:
+
+| script | helper | alpha reaches `color.t`? |
+|---|---|---|
+| `uncharted-clouds` | `getBullFillColor` / `getBearFillColor` | **YES** (via `bullUserTransparency = color.t(bullColor)`) |
+| `smart-money-concepts-by-welotrades` | `colorWithTransparency` | **YES** (`color.new(colorF, color.t(colorF) * x)`) |
+| `supply-demand-mtf-flux-charts` | `colorWithTransparency` | **YES** |
+| `volumized-order-blocks-flux-charts` | `colorWithTransparency` | **YES** |
+
+**5 of 5 helpers. 43 of 43 call sites.** ⛔ **So R35c as granted carries ZERO of the
+four scripts** — it would be machinery with no consumer, which is exactly the
+failure H.10's own leg 4 named and refused. Building it would be the mistake, not
+the delivery.
+
+⚠️ **AND THREE OF THE FOUR CANNOT CARRY EVEN THEN.** `colorWithTransparency`'s call
+sites are `box.new(… bgcolor=…)` and `ob.orderBox.set_bgcolor(…)` — drawing-object
+colours with no channel in the presentation layer, exactly as the j.3b census's §7
+already noted. **Clouds is the sole real consumer, at 40 of the 43 sites.**
+
+## ⚰️ A CORRECTION I OWE, AND IT IS MINE
+
+**The "84 / 38.4" I reported as *"Clouds' own helper"* used a hand-substituted
+`bullUserTransparency = 20`.** Clouds' real binding is `color.t(bullColor)`. The
+helper body was verbatim; the input to it was not, and I described the result as
+Clouds' own. ⭐ With `color.t(color.teal) = 0` the real figures would be
+**95 / 70 / 47.5** (`maxTransparency` 95, `minTransparency` 45, `numLayers` 21 ⇒
+`step` 2.5; `a = b + (100-b)·0`). The frame-chain finding stands unchanged — a
+two-level chain with local bindings does fold — but the numbers were the
+synthetic's, and an acceptance written from them would have pinned the wrong ones.
+
+## 🛑 THE MISSING CLAUSE, NAMED AND COSTED — STOPPED FOR A RULING
+
+⭐ **The original census's `(i-C)` listed it and my R35c proposal dropped it:**
+*"the alpha may be a plan-time numeric user-function call (multi-statement body,
+local bindings, `math.*`, **`color.t` of a static colour**)"*. The omission is mine.
+
+**R35d — `color.t` OF A STATIC COLOUR FOLDS TO ITS TRANSPARENCY.** Needed by all 43
+sites; without it R35c is inert.
+
+- ⛔ **NOT in the Resolver** — that is "teaching the Resolver colours", which the
+  grant forbids, and `pine:colour-value` is a correct refusal for a *screened
+  column*: a colour is not a number there.
+- ✅ **In the colour module, beside `staticColourOf`**: a small `staticAlphaOf(node,
+  env)` that resolves its argument through `staticColourOf` and returns the alpha
+  byte as a number, null otherwise. Colour knowledge stays in the colour authority;
+  the Resolver is untouched; no new `NODE_TYPE`, no 42nd refusal.
+- **Blast radius:** the same 4 scripts / 43 sites; only Clouds' 40 can carry.
+- **Disclosure, unchanged and load-bearing:** it reads `input.color`'s **default**,
+  so a member who changes the picker's alpha still gets the default rendering — and
+  for Clouds that governs the entire cloud opacity.
+- **Estimate 45 min on top of R35c's 150.**
+
+⛔ **NOT STARTED. R35c and R35d land together or neither is worth landing.**
+
+---
+
 # ✅ THE pine_oos RE-BASELINE HOLE IS CLOSED — a MEASURED sidecar, not a verdict
 
 `app/src/components/chart/engine/ast/oosMeasuredBaseline.test.js` +
