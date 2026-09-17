@@ -43,6 +43,8 @@ docs/terminal-research/12-decisions/gates/e-cp9-build-record.md | 5573bcb5258daf
 docs/terminal-research/12-decisions/gates/entity-master-pre-implementation-gate.md | be66c39e2b85797e5996342a2414a35dd0afe4f6
 docs/terminal-research/12-decisions/gates/h14-placeholder-stop-unification-gate.md | 08a39891336f4150df28a8ca292d7500fa9bcb89
 docs/terminal-research/12-decisions/gates/intelligence-layer-pre-implementation-gate.md | 852d7647db04dcc7c96a92f6904c99f9c6fc9984
+docs/terminal-research/12-decisions/gates/k-cp10-build-record.md | 65104478d13fbc7904551b61bc883417c56acd1e
+docs/terminal-research/12-decisions/gates/k-cp11-build-record.md | 6038494bd5ee44b88425d39390a915766b570092
 docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | ba5e34e7924b633dbd10f1dd9383115c7d810aab
 docs/terminal-research/12-decisions/gates/k-cp4-build-record.md | 35237823c7d14d26b4988e64b26eb5527c4217d1
 docs/terminal-research/12-decisions/gates/k-cp5-build-record.md | 137378730989f6d8f2171188a7708a90d3b5ab85
@@ -77,9 +79,9 @@ docs/terminal-research/12-decisions/gates/s7-scan-membership-change-pre-implemen
 docs/terminal-research/12-decisions/gates/s9-entitlements-pre-implementation-gate.md | a0f5c77c3c039d09c513acd990f28416be7685a5
 docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | 21c37a3bc0a5c564470927bec7362a1bcdbd489b
 docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | 42eafe314c00f98bd72d2374fb0627ada79e98bf
-tools/merge_all.py | 62ce699a981eeb30aafaeea9408eb5e55d0f2936
+tools/merge_all.py | 941be737659be6ac94363745e5320aac866ce7c9
 tools/pre_sitting.py | 9f2234f454ded32bb956bc37ec03abd14999a92a
 tools/sign_all.py | 05d28de0906016871628cc7b80a894bc64def092
 tools/sign_gate.py | d8e6194718a9b9ec41ea690012b2a6dbb6170bbe
-tools/sign_manifest.txt | 0d9985978657f45edc3bb01290281d11e99d2fac
-tools/verify_manifest.py | 2542b370556ff408c8e92dd3399e10dee4ee0468
+tools/sign_manifest.txt | 72a165c5217e5cc179f674b80bb697b04f32b48e
+tools/verify_manifest.py | 3ddaa4798ed59187e2d1d48f1ac4f820e81ec0cd

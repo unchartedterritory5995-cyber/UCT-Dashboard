@@ -139,6 +139,8 @@ UNITS = [
     ("k-cp7-build-record", [], False),                       # docs worktree only
     ("k-cp8-build-record", [], False),                       # docs worktree only
     ("k-cp9-build-record", [], False),                       # docs worktree only
+    ("k-cp10-build-record", [], False),                      # docs worktree only
+    ("k-cp11-build-record", [], False),                      # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -212,6 +214,72 @@ def parse_constraints(text: str) -> list:
         if m:
             out.append(("last", m.group(1), None))
     return out
+
+
+RESOLUTIONS = DOCS_REPO / "docs/terminal-research/resolutions"
+_RES_FIELD = re.compile(r"^(row|path|unit commit|master pre-image|unit   pre-image|"
+                        r"unit pre-image|resolved blob|content)\s+(\S+)\s*$", re.M)
+CORRUPT_RESOLUTION = 6
+
+
+def read_resolutions(folder=None):
+    """Every recorded resolution, parsed. (list, corrupt) — corrupt is never skipped.
+
+    ⛔ A resolution whose recorded `resolved blob` does not hash-match its content file is
+    CORRUPT, not absent. Silently ignoring it would apply nothing and read as "no resolution
+    recorded", which is the one state that must never be confusable with a tampered one.
+    """
+    d = pathlib.Path(folder) if folder else RESOLUTIONS
+    out, corrupt = [], []
+    if not d.is_dir():
+        return out, corrupt
+    for md in sorted(d.glob("*.md")):
+        text = md.read_text(encoding="utf-8")
+        f = {k.replace("unit   ", "unit ").strip(): v for k, v in _RES_FIELD.findall(text)}
+        need = ("row", "path", "master pre-image", "unit pre-image", "resolved blob", "content")
+        if not all(k in f for k in need):
+            corrupt.append((md.name, "missing field(s): %s"
+                            % ", ".join(k for k in need if k not in f)))
+            continue
+        blob = md.parent / f["content"]
+        if not blob.is_file():
+            corrupt.append((md.name, "content file missing: %s" % f["content"]))
+            continue
+        rc, got = run(["git", "hash-object", str(blob)], DOCS_REPO, False)
+        got = got.strip()
+        if rc != 0 or got != f["resolved blob"]:
+            corrupt.append((md.name, "resolved blob %s but content hashes to %s"
+                            % (f["resolved blob"][:12], got[:12])))
+            continue
+        f["_file"] = md
+        f["_blob_path"] = blob
+        out.append(f)
+    return out, corrupt
+
+
+def _blob_hash(repo, rev, path):
+    rc, out = run(["git", "rev-parse", "%s:%s" % (rev, path)], repo, False)
+    return out.strip() if rc == 0 else None
+
+
+def resolution_for(stem, path, base_rev, unit_sha, repo, resolutions):
+    """The recorded resolution for this (row, path), or (None, why).
+
+    ⛔ BOTH pre-images must match EXACTLY. That is the whole mechanism: it distinguishes
+    "master moved" from "master moved THIS FILE", and only the second invalidates the proof.
+    """
+    cands = [r for r in resolutions if r["row"] == stem and r["path"] == path]
+    if not cands:
+        return None, "no recorded resolution for %s :: %s" % (stem, path)
+    m_now = _blob_hash(repo, base_rev, path)
+    u_now = _blob_hash(repo, unit_sha, path)
+    for r in cands:
+        if r["master pre-image"] == m_now and r["unit pre-image"] == u_now:
+            return r, ""
+    r = cands[0]
+    return None, ("pre-images differ — master %s recorded vs %s actual; unit %s recorded vs "
+                  "%s actual" % (r["master pre-image"][:12], (m_now or "?")[:12],
+                                 r["unit pre-image"][:12], (u_now or "?")[:12]))
 
 
 def _manifest_row(stem, manifest=None):
@@ -341,6 +409,11 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
         if rc != 0:
             return False, ("[merge-all] ⛔ replay UNREADABLE — %s (%s) is not checkoutable in "
                            "the clone: %s" % (base, resolved[:9], out.strip()[:160]))
+        resolutions, corrupt = read_resolutions()
+        if corrupt:
+            return False, ("[merge-all] ⛔ REFUSED-CORRUPT-RESOLUTION: %s"
+                           % "; ".join("%s (%s)" % c for c in corrupt))
+        applied = []
         for i, (stem, sha) in enumerate(seq, 1):
             rc, out = run(["git", "cherry-pick", sha], clone, False)
             if rc != 0:
@@ -349,13 +422,38 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
                 if not files:   # modify/delete leaves no UU entry
                     _, st2 = run(["git", "status", "--porcelain"], clone, False)
                     files = [l[3:] for l in st2.splitlines() if l[:2] in ("DU", "UD", "AU", "UA")]
+                # ⛔ K CP11 — a recorded resolution, keyed by BOTH pre-images, or a stop.
+                fixed, why = [], ""
+                for path in files:
+                    r, w = resolution_for(stem, path, resolved, sha, repo, resolutions)
+                    if r is None:
+                        why = w
+                        break
+                    fixed.append((path, r))
+                if fixed and len(fixed) == len(files):
+                    for path, r in fixed:
+                        (clone / path).write_bytes(r["_blob_path"].read_bytes())
+                        run(["git", "add", path], clone, False)
+                        applied.append((stem, path, r["_file"].name))
+                    rc2, out2 = run(["git", "-c", "core.editor=true", "cherry-pick",
+                                     "--continue"], clone, False)
+                    if rc2 == 0:
+                        continue
+                    why = "cherry-pick --continue failed: %s" % out2.strip()[:120]
                 run(["git", "cherry-pick", "--abort"], clone, False)
-                return False, ("[merge-all] ⛔ STRAND at #%d  %s  %s — conflicting: %s"
-                               % (i, stem, sha, ", ".join(files) or "(unnamed)"))
+                label = "STRAND-UNRESOLVED" if why and "no recorded" not in why else "STRAND"
+                return False, ("[merge-all] ⛔ %s at #%d  %s  %s — conflicting: %s%s"
+                               % (label, i, stem, sha, ", ".join(files) or "(unnamed)",
+                                  ("\n              " + why) if why else ""))
         # ⛔ SAY WHICH BASE. A CLEAN that does not name the sha it replayed onto is the
         # sentence that hid a 370-commit-stale base for two sessions.
-        return True, ("[merge-all] replay CLEAN %d of %d  onto %s (%s)"
-                      % (len(seq), len(seq), base, resolved[:9]))
+        note = ""
+        if applied:
+            note = "  (%d resolution%s applied: %s)" % (
+                len(applied), "" if len(applied) == 1 else "s",
+                ", ".join(sorted({a[2] for a in applied})))
+        return True, ("[merge-all] replay CLEAN %d of %d  onto %s (%s)%s"
+                      % (len(seq), len(seq), base, resolved[:9], note))
     finally:
         shutil.rmtree(box, ignore_errors=True)
 

@@ -83,6 +83,8 @@
 #!after: k-cp7-build-record <- k-cp6-build-record
 #!after: k-cp8-build-record <- k-cp7-build-record
 #!after: k-cp9-build-record <- k-cp8-build-record
+#!after: k-cp10-build-record <- k-cp9-build-record
+#!after: k-cp11-build-record <- k-cp10-build-record
 #!after: t-cp2-build-record <- s2-accelerator-chord-pre-implementation-gate
 #!after: e-cp34-build-record <- t-cp2-build-record
 #!last: s2-accelerator-chord-pre-implementation-gate
@@ -134,6 +136,8 @@ docs/terminal-research/12-decisions/gates/k-cp6-build-record.md | CP6 | 78ed615f
 docs/terminal-research/12-decisions/gates/k-cp7-build-record.md | CP7 | ce36c1f65
 docs/terminal-research/12-decisions/gates/k-cp8-build-record.md | CP8 | 5695c7919
 docs/terminal-research/12-decisions/gates/k-cp9-build-record.md | CP9 | 439dfc4a7
+docs/terminal-research/12-decisions/gates/k-cp10-build-record.md | CP10 | 65104478d
+docs/terminal-research/12-decisions/gates/k-cp11-build-record.md | CP11 | 6038494bd
 docs/terminal-research/12-decisions/gates/packet-t-stale-test-gate.md | T-CP1 | 5179b2890
 docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | CP2 | f7e851d58
 docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementation-gate.md | CP1 | 72cda4cda

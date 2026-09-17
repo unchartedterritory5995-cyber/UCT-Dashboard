@@ -152,6 +152,41 @@ def _units():
     return m.UNITS
 
 
+def check_resolutions(verbose=True, folder=None) -> int:
+    """K CP11 — every recorded resolution parses, hashes, and names a real row.
+
+    ⛔ A resolution is applied at MERGE TIME to a production merge. A corrupt one that read as
+    "absent" would silently turn an applied resolution into a strand, or worse, apply content
+    nobody proved. Validated here so `pre_sitting` sees it before a sitting starts.
+    """
+    ma = _units_module()
+    # ⛔ INJECTABLE, or the control cannot construct the failing state: a fresh module is
+    # loaded per call, so redirecting the caller's copy reaches nothing.
+    res, corrupt = ma.read_resolutions(folder)
+    rows = {u[0] for u in ma.UNITS}
+    if verbose:
+        print()
+        print("[verify-manifest] resolutions: %d parsed, %d corrupt" % (len(res), len(corrupt)))
+    bad = list(corrupt)
+    for r in res:
+        if r["row"] not in rows:
+            bad.append((r["_file"].name, "names row %r, which is not in UNITS" % r["row"]))
+        if verbose and not bad:
+            print("  %-58s row=%s path=%s" % (r["_file"].name, r["row"], r["path"]))
+    if bad:
+        for name, why in bad:
+            print("  ⛔ %s — %s" % (name, why))
+        return STALE_EXIT
+    return OK
+
+
+def _units_module():
+    spec = importlib.util.spec_from_file_location("_ma2", str(HERE / "merge_all.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
 def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=True,
                   repo=None, units=None) -> int:
     """Every commit on the branch must be claimed by EXACTLY one unit.
@@ -362,6 +397,9 @@ def main(argv=None) -> int:
     print("[verify-manifest] %d OK, %d STALE"
           % (sum(1 for r in results if r["state"] == "OK"), bad))
     rc = STALE_EXIT if bad else OK
+    rrc = check_resolutions()
+    if rrc != OK and rc == OK:
+        rc = rrc
     if a.check_commits:
         crc = check_commits(branch=a.branch, base=a.base)
         if crc != OK:
