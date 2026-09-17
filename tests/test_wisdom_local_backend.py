@@ -181,6 +181,39 @@ def test_a_failing_request_is_recorded_not_raised(local, monkeypatch):
     assert len(items) == 1 and items[0].result.type == "errored"
 
 
+# ── the model's own packaging ────────────────────────────────────────────────
+
+def test_a_fenced_extraction_is_unwrapped():
+    """⚰️ Measured on a 6-segment pilot: 1 of 3 completed extractions came back wrapped in a
+    ```json fence and was scored `json_decode`, kept=0. It held four valid records — so the
+    fence reads in the per-type table as the MODEL failing. This depresses a quality number
+    instead of raising an error, which is why it is railed."""
+    body = '{"segment_id": "abc", "records": []}'
+    for fence in (f"```json\n{body}\n```", f"```JSON\n{body}\n```", f"```\n{body}\n```",
+                  f"  ```json\n{body}\n```  "):
+        assert json.loads(local_backend._unfence(fence)) == json.loads(body)
+
+
+@pytest.mark.parametrize("text, why", [
+    ('{"records": [], "note": "use ``` to fence"}', "a backtick INSIDE a valid document"),
+    ('```json\n{"records": [', "TRUNCATED: no closing fence, must stay broken"),
+    ('{"records": []}', "not fenced at all"),
+    ('```json {"records": []} ```', "no newline after the opener"),
+])
+def test_unfence_leaves_everything_else_byte_identical(text, why):
+    """⛔ The failure that matters is not 'a fence survived' — it is stripping something that was
+    never a fence, which would corrupt a valid extraction or silently REPAIR a truncated one into
+    a confident-looking result."""
+    assert local_backend._unfence(text) == text, why
+
+
+def test_CONTROL_unfence_actually_changes_a_fenced_string():
+    """⭐ Without this, every 'unchanged' assertion above passes against a function that is the
+    identity (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`)."""
+    fenced = '```json\n{"records": []}\n```'
+    assert local_backend._unfence(fenced) != fenced
+
+
 def test_count_tokens_needs_no_server_and_never_spends(local):
     c = batch.make_client()
     n = c.messages.count_tokens(model="m", system="a" * 300,

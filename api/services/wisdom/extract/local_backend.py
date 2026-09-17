@@ -210,6 +210,38 @@ def _as_text(value) -> str:
     return str(value)
 
 
+def _unfence(text: str) -> str:
+    """Unwrap a ```json ... ``` fence. Returns the text unchanged if it is not fenced.
+
+    ⭐ WHY THIS LIVES IN THE LOCAL BACKEND AND NOT IN THE SHARED PARSER. Emitting a markdown
+    fence is a property of THIS model, not of the extraction contract — the paid model does not
+    do it. Teaching the shared parser to strip fences would change the PAID path too and put a
+    second authority on "what counts as a well-formed extraction"
+    (`lesson_a_second_authority_over_one_value`). This backend already translates Anthropic's
+    request shape into OpenAI's; unwrapping the model's own packaging is the same adaptation.
+
+    ⚰️ Measured 2026-09-17: on a 6-segment pilot, 1 of 3 completed extractions came back fenced
+    and was scored `json_decode` with `kept=0`. It held four valid records. An unstripped fence
+    reads in the per-type table as the model having failed, so this silently DEPRESSES a quality
+    measurement rather than erroring — the reason it is fixed before the run, not after.
+
+    ⛔ It strips ONLY a fence that both OPENS and CLOSES the text, so a backtick inside a quoted
+    string can never truncate a valid document. A TRUNCATED fenced reply has no closing fence and
+    is deliberately left broken: repairing it would turn an incomplete extraction into a
+    confident-looking one (`lesson_a_swallowed_error_becomes_a_confident_finding`).
+    """
+    s = text.strip()
+    if not s.startswith("```") or not s.endswith("```") or len(s) < 6:
+        return text
+    nl = s.find("\n")
+    if nl == -1:
+        return text
+    opener = s[3:nl].strip()          # "json", "JSON", "" — a language tag, never punctuation
+    if opener and not opener.isalnum():
+        return text
+    return s[nl + 1:-3].strip()
+
+
 def run_one(params: dict) -> _Message:
     """One extraction, synchronously. Raises LocalBackendUnavailable; never returns a paid call."""
     data = _post(local_url(), _params_to_chat(params), _timeout())
@@ -219,6 +251,7 @@ def run_one(params: dict) -> _Message:
     if choices:
         text = (choices[0].get("message") or {}).get("content") or ""
         finish = choices[0].get("finish_reason") or "stop"
+        text = _unfence(text)
     usage = data.get("usage") or {}
     return _Message(
         content=[_Block(type="text", text=text)],
