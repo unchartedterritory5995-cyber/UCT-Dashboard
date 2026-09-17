@@ -117,3 +117,32 @@ def test_the_audit_is_gated_submits_one_level_deeper_and_reaps_into_the_queue(en
         assert conn.execute("SELECT COUNT(*) FROM wisdom_review_queue WHERE tab = 'extraction_audit'").fetchone()[0] == 3
         assert conn.execute("SELECT COUNT(*) FROM wisdom_records").fetchone()[0] == 0
         assert {r[0] for r in conn.execute("SELECT kind FROM wisdom_batches")} == {"audit"}
+
+
+def test_a_forced_audit_no_longer_bypasses_the_switch_that_spends(env, monkeypatch):
+    """⛔⛔ R52's THIRD ENTRY POINT, found 2026-09-17.
+
+    `force` may bypass the audit's own SCHEDULING flag. It may not bypass the switch that
+    SPENDS. This path reaches `batch.submit_pending`, which has no spend gate of its own — the
+    only one lives in `batch.run_daily` — so before this rail a forced weekly chain run
+    submitted PAID audit batches with WISDOM_EXTRACT_AUDIT_ENABLED *and*
+    WISDOM_EXTRACT_ENABLED both off. It was $0 only because `select_segments` needs recent
+    done requests and production had none, which is luck, not a guard.
+    """
+    monkeypatch.delenv("WISDOM_EXTRACT_AUDIT_ENABLED", raising=False)
+    monkeypatch.delenv("WISDOM_EXTRACT_ENABLED", raising=False)
+    monkeypatch.delenv(batch.ACCEPT_SPEND_ENV, raising=False)
+    fake = FakeClient()
+
+    out = audit.run_audit(ctx(force=True), client=fake, n=3)
+    assert out["status"] == "skipped"
+    assert "WISDOM_EXTRACT_ENABLED" in out["reason"]
+    # ⭐ the load-bearing half: a refusal that still sent the batch would be no refusal at all.
+    assert fake.messages.batches.created == []
+
+    # CONTROL — the acceptance string opens it, exactly as R52 rules for the daily path. Without
+    # this the test would pass just as well against a gate that refuses unconditionally.
+    monkeypatch.setenv(batch.ACCEPT_SPEND_ENV, batch.ACCEPT_SPEND_VALUE)
+    out = audit.run_audit(ctx(force=True), client=fake, n=3)
+    assert out["status"] == "submitted"
+    assert len(fake.messages.batches.created) == 1
