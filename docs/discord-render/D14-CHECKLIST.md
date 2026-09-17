@@ -102,7 +102,23 @@ un-maximises).
   V2-gated; `conftest.shared_data_root_census()` confirmed at `conftest.py:266`.
   **Both `/data` writers MUST use the `AUTH_DB_PATH` idiom** (`os.environ.get("X",
   "/data/...")`) or they land in `unpinnable` and trip the tripwire.
-- [ ] **W2 — OI-44** per R43 — `BLOCKED-needs-W1` (needs the durable record across pods)
+- [x] **W2a — OI-44 MEASURED** — `DONE 2026-09-17` — see `OI-44-STALL-CENSUS.md`.
+  **42 stalls >= 1,000 ms in 33.9 h (29.7/day) across 34 pods; 27 PROVABLY past the 900 s floor;
+  11 >= 5,000 ms (7.8/day); largest 80,249 ms at uptime 2,510-2,838 s.**
+  ⛔ **Q6's STARTUP verdict is OVERTURNED** — superseding note written into `D12-FIELD-FINDINGS.md`.
+  ⛔ **R35 FIRES**: 7.8 tier-1 pages/day vs a threshold of 2 → fix the cause, do not move the number.
+  ⛔ **Batching the other workstreams' deploys would NOT fix it** — 27 of 42 are settled-pod stalls,
+  so fewer deploys removes some of the 11 boot-class events and none of the 27. This corrects the
+  expectation D-14 was written against.
+- [ ] **W2b — OI-44 ATTRIBUTION then FIX** per R43 — `TODO, next after W1 commit A`
+  The census reads the loop, not the request log, so the cause is still unattributed. W1's durable
+  stall record is the join key (wall-clock + uptime per stall). Leading hypothesis, NOT established:
+  the post-close cluster on `fea2778d85cd` (3.1 s → 20.6 s → 80.2 s → 14.2 s between 16:23 and 17:03 ET)
+  sits where the breadth collector, the EOD updaters and `/api/push` land. Correlate before fixing.
+- [ ] **W6 member flip — GATED ON THE OI-44 FIX** — `precondition added 2026-09-17`
+  An 80 s loop block is a mass ack failure whatever the render path does, and R41's rollback changes
+  which code serves, not whether the loop is blocked. R40's precondition list gains: OI-44 fixed and
+  verified across >= 10 pods at a stall rate that cannot breach the 3 s ack budget.
 - [ ] **W3 — OI-13 step 6** per R42 — `BLOCKED-until-Thursday` (counter ships in W1; first qualifying weekday span begins Thu 17 Sep)
 - [ ] **W4 — gate to 11/11** — `TODO` — snapshot `20260916T014229Z-29900cedf` = **7 MET / 2 NOT MET / 2 NOT MEASURABLE**, no gate change vs `7decb0601`. The four rows and their movers:
 
