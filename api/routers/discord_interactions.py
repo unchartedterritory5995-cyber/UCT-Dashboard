@@ -399,16 +399,26 @@ def _emit_ack_timing(request) -> dict | None:
         from api.services.discord_render import ids, observe
         seen = getattr(request.state, "drender_interaction", None) or {}
         cmd = str(((seen.get("data") or {}).get("name")) or "") or None
+        # ⛔⛔ R54 (D-15) — THE INTERACTION TYPE RIDES IN-BAND, OR THIS STREAM LIES.
+        # An AUTOCOMPLETE carries the same `data.name` as the command it is completing, so
+        # without this every `/flow` keystroke that reaches us is indistinguishable from a
+        # member actually running `/flow`. Measured 2026-09-17: an ack for `cmd:"flow"` at
+        # 13:54:16Z with no message in the channel and no command sent for another six minutes.
+        # Consumers filter with `observe.is_command_arrival`; unknown is never a command.
+        itype = seen.get("type")
+        itype = itype if isinstance(itype, int) else None
         entry_to_ack_ms = (_t.perf_counter() - entry_perf) * 1000.0
         out = {"entry_to_ack_ms": entry_to_ack_ms}
-        observe.event("ack", cid=ids.current(), cmd=cmd, hop="entry_to_ack", ms=entry_to_ack_ms)
+        observe.event("ack", cid=ids.current(), cmd=cmd, hop="entry_to_ack", ms=entry_to_ack_ms,
+                      itype=itype)
         try:
             send_to_entry_ms = (entry_wall - int(ts)) * 1000.0
         except (TypeError, ValueError):
             send_to_entry_ms = None          # unparsable header: absent, never zero
         if send_to_entry_ms is not None:
             out["send_to_entry_ms"] = send_to_entry_ms
-            observe.event("ack", cid=ids.current(), cmd=cmd, hop="send_to_entry", ms=send_to_entry_ms)
+            observe.event("ack", cid=ids.current(), cmd=cmd, hop="send_to_entry", ms=send_to_entry_ms,
+                          itype=itype)
         return out
     except Exception:  # noqa: BLE001
         return None
@@ -898,7 +908,19 @@ def render_health(request: Request):
         # ⚰️ Measured 2026-09-15: `/flow` missed its ack in `#render-smoke` with one admin and
         # no load, and the one instrument that could have explained it reported nothing,
         # because of this line. Built, wired, live, and unreachable.
+        # ⛔⛔ OI-47 — AND THE SAME EARLY RETURN SWALLOWED THE DURABLE RECORD, ONE WAVE LATER.
+        # W1 wired `stall_record` and `token_slots` into `observe.health_payload` — the branch
+        # below this one — so on every production pod they were computed by nobody and read by
+        # nobody. ⭐ The acceptance test caught it the day it merged (`stall_record_present:
+        # false`), which is the whole reason the directive requires reading the fields
+        # IN-PROCESS rather than inferring them from a green merge.
+        # ⚠️ The protective halves shipped regardless: the page path and the counter write are
+        # not on this route. Only the READ surface was blocked — so the volume held the numbers
+        # the whole time and a `railway ssh` import could see them. That is what made this cheap
+        # to find and expensive to notice.
         return {**payload, "renderer": renderer, "slo": None, "loop": observe._live_loop(),
+                "stall_record": observe._live_stall_record(),
+                "token_slots": observe._live_token_slots(),
                 "note": "no jobs database yet (V2 has never run on this volume)"}
     obs = render_v2._observer                          # its consecutive-miss count, unless this reading is ready
     misses = obs.renderer_misses if obs is not None and not (renderer or {}).get("ready") else None

@@ -67,9 +67,19 @@ MUTATIONS = (
     # ⛔ tier 1 is the working path for the largest measured class (20,446 ms below the floor).
     Mutation("M5 tier 1 is raised out of reach — the 80 s block pages nobody",
              OBSERVE,
-             "LOOP_STALL_PAGE_ALWAYS_MS = 5000.0",
+             "LOOP_STALL_PAGE_ALWAYS_MS = 3000.0",
              "LOOP_STALL_PAGE_ALWAYS_MS = 1000000.0",
              "test_tier1_pages_at_any_uptime"),
+    # ⛔⛔ R51's OWN REGRESSION, and it is a different mutation from M5. M5 raises tier 1 so far
+    # that even an 80 s block is silent — a break nobody would ship by accident. THIS one puts
+    # it back to the 5,000 ms it was on 2026-09-17, which looks entirely reasonable and silently
+    # restores the exact hole the ruling closed: the measured 3,572 ms block that killed an ack
+    # and paged nobody. A plausible mutation is the one worth railing.
+    Mutation("M9 tier 1 goes back above the Discord ack budget — a 3.5 s ack-killer pages nobody",
+             OBSERVE,
+             "LOOP_STALL_PAGE_ALWAYS_MS = 3000.0",
+             "LOOP_STALL_PAGE_ALWAYS_MS = 5000.0",
+             "test_a_block_just_past_the_ack_budget_pages_at_low_uptime"),
     # ── commit B (R29): the token-slot counter ──────────────────────────────
     # ⛔ If both slots move together the counter cannot answer R29's question at all.
     Mutation("M6 the slot label is swapped — previous is counted as current",
