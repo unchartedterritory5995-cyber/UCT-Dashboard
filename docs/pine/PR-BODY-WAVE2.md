@@ -209,12 +209,20 @@ reporter load **having executed nothing** and produced no totals line at all.
   colour moves 3 (Clouds predicted; both Volume scripts unpredicted, explained and
   pinned — an `input.int` alpha now folds to its default, so the disclosure is wider
   than `input.color`).
-- ⛔⛔ **BUT IT MUST NOT SHIP YET: PARAMETER IDS SHIFT ON A LIVE SCRIPT.** On
-  `uncharted-volume-v2`, making the opacity input foldable mints a parameter and
-  renumbers what follows — `__uct_param_3` moves from *HVE lookback* to *Avg Vol
-  Line Opacity*. **Parameter ids address saved member definitions.** R35c/R35d are
-  complete, green and mutation-proved on this branch; whether they can land needs a
-  ruling on parameter-id stability and, if required, a migration.
+- ✅ **R36 — a presentation fold RESOLVES BUT DOES NOT MINT, and the param-id shift
+  is closed.** R35c had made an input foldable and foldability was being treated as
+  use: `uncharted-volume-v2` went 3 params → 4 and `HVE lookback` moved from
+  `__uct_param_3` to `_4`. **Parameter ids address saved member definitions**, so
+  `paramMint` is now withheld across the one site a presentation fold asks the
+  Resolver anything — the same restraint **R13** already ruled for the closing pass.
+  Volume v2 is back to **3 params with HVE at `_3`**, and its carried opacity is
+  still 0.10: R36 withholds a *parameter*, not a *value*.
+- ✅ **And the class is railed, not just the instance** — `paramIds.test.js` +
+  `docs/pine/param-ids.json` pin the ordered `id → declared title` map for **328
+  scripts / 744 parameters**, reported as a set-and-order diff naming the script,
+  the id and both titles. ⛔ Regeneration is an owner-ruled act. ⏭️ **H.11 owed:**
+  ids keyed by declared NAME rather than position, plus a migration, before any
+  presentation input may mint.
 - 🛑 **R35c's 1.1 (superseded by the build above, kept for the record).** The bridge
   turned out to be a **shipped pattern one value-kind over** — `textNodeOf`
   (`pine.js:10041`) already inlines a user-fn call in a TEXT position, and

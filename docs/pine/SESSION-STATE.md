@@ -2,6 +2,47 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 — ✅ R36 BUILT. THE PARAM-ID SHIFT IS CLOSED AND RAILED.
+>
+> ✅ **R36** (`c67668bb8`, ruling at `ef9a6de03`): a presentation fold **resolves
+> but does not mint**. `paramMint` is withheld across the ONE site where a
+> presentation fold asks the Resolver anything, restored in a `finally` — the
+> `finally` matters because `resolve` throws for anything not plan-time, which is
+> the ordinary case, and a mint left disabled would stop the output loop minting
+> for the rest of that output. Same rule R13 ruled for the closing pass.
+> **`uncharted-volume-v2` is back to 3 params with `HVE lookback (bars)` at
+> `__uct_param_3`**, and its carried opacity is still 0.10 — R36 withholds a
+> PARAMETER, not a VALUE. ⭐ Clouds' ids were measured **already stable** across
+> R35c, so the shift was confined to Volume.
+>
+> ✅ **THE RAIL** — `paramIds.test.js` + `docs/pine/param-ids.json`: **328 scripts,
+> 170 with parameters, 744 parameters**, the ordered `id → declared title` map for
+> every one. A move is a **set-and-order diff naming the script, the id, the old
+> title and the new** — never a count, because a count of 3 is also satisfied by
+> three knobs in the wrong order. ⛔ **Regeneration is an owner-ruled act:** a red
+> here asks *which ruling moved an id, and what happens to definitions saved
+> against the old one* — never "regenerate the artifact".
+>
+> Mutations: **N1** (let the fold mint again) RED×3, the diff naming Volume v2 with
+> both `_3` and `_4`; **N2** (stop reading the default) RED×7 including the opacity
+> control — which is what separates *withhold the mint* from *stop folding*.
+> Restored byte-exact to `9836d75410d9edaf…`.
+>
+> ⏭️ **H.11 OWED:** member-adjustable presentation inputs need ids keyed by declared
+> NAME rather than position, plus a migration, before any presentation input may
+> mint. Positional ids are a latent hazard independent of R35c.
+>
+> ⚠️ **A BUDGET FINDING THAT IS NOT R36's, MEASURED BEFORE ATTRIBUTING IT.**
+> `manifestProse.test.js` timed out at 15,000 ms in the full ast lane. Alone,
+> twice: green at 13.62 s / 12.64 s. Alone **at HEAD with my new files stashed
+> out: 12.70 s** — so ~10 s of test time against a 15 s ceiling *before* this
+> change. It joins `enumerationSites`, `flipCGeometry`, `stockChartWiring` and
+> `EvidenceTab.doors` as load-sensitive, but ~1.5× headroom on a rail that has
+> already tipped over is a real risk and is **owed**, not banked.
+>
+> ▶️ **NEXT: capture / j.4 / R29, on the owner's URL.** Everything else for (j) is
+> in: carrier, renderer, pane door, R33a, R35c/R35d, R36.
+
 > ### ⏱️ 2026-09-17 — ✅ R35c + R35d BUILT. CLOUDS CARRIES. ⛔ ONE FINDING BLOCKS SHIPPING.
 >
 > ⛔⛔ **PARAMETER IDS SHIFT ON A LIVE SCRIPT — read this before anything else.**
