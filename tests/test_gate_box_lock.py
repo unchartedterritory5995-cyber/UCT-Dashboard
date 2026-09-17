@@ -23,6 +23,11 @@ sys.path.insert(0, str(ROOT / "tools"))
 import gate_box_lock as L      # noqa: E402
 import gate_box_sampler as S   # noqa: E402
 
+# ⛔ CAPTURED AT IMPORT, BEFORE ANY TEST CAN MONKEYPATCH `S.box_load`. The live rails below drive
+# the REAL probe against the REAL machine; reading `S.box_load` inside them would silently pick up
+# whatever fixture a neighbouring test installed, and a stubbed "live" test proves nothing.
+_REAL_BOX_LOAD = S.box_load
+
 
 @pytest.fixture(autouse=True)
 def _never_touch_the_real_lock(monkeypatch, tmp_path):
@@ -391,3 +396,232 @@ def test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run(tmp_path, monkeypa
     assert rc == 2, "a dirty tree must still be INVALID"
     assert not lock.exists(), (
         "the lock survived a refused run — the box is now stranded until somebody notices")
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# C-4 — THE LOCK MUST SEE SCOPED SUITES, NOT JUST GATES.
+#
+# ⚰⚰ Measured 2026-09-15 20:26 by the integrator: `python tools/gate_box_lock.py status` printed
+# **FREE** while FIFTEEN live processes were running — two scoped pytest runs and a vitest with
+# thirteen workers, all from other sessions. Every word of the output was true and the reader's
+# conclusion was wrong, because "nobody holds the queue ticket" had been left to stand in for
+# "the box is free to measure". A caller who trusts that starts a six-shard gate into a loaded
+# box; that exact collision OOM-swept a worktree on 2026-09-12.
+#
+# ⛔⛔ THE FIX IS TWO FIELDS, NEVER ONE BOOLEAN. `state` answers who holds the ticket; `load`
+# answers what is running. FREE + BUSY is a real and common combination — it IS the 20:26
+# reading — and a tool that could only say one thing would have to lie about one of them.
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+
+def _quiet_snapshot():
+    return {"free_kb": 12 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "procs": []}
+
+
+def _busy_snapshot():
+    return {"free_kb": 6 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "procs": [
+        {"ProcessId": 71001, "ParentProcessId": 1, "Name": "python.exe", "mb": 40,
+         "cl": "python -m pytest tests/test_publishers.py"},
+        {"ProcessId": 71002, "ParentProcessId": 1, "Name": "node.exe", "mb": 900,
+         "cl": "node vitest.mjs run --shard=5/6 --maxWorkers=2"},
+    ]}
+
+
+def _broken_snapshot():
+    raise RuntimeError("the process snapshot failed (drill)")
+
+
+def _with_snapshot(monkeypatch, snapshot):
+    """Point the lock's probe at a fixed box, through the REAL box_load so the wiring is tested.
+
+    ⛔ It composes on `_REAL_BOX_LOAD`, never on `S.box_load` — calling this twice in one test
+    would otherwise wrap the previous wrapper and the SECOND snapshot would be ignored, which is
+    exactly the shape that makes a control silently agree with the case it is controlling for.
+    """
+    monkeypatch.setattr(S, "box_load", lambda **kw: _REAL_BOX_LOAD(snapshot=snapshot, **kw))
+
+
+def test_an_EMPTY_lock_on_a_LOADED_box_reports_FREE_and_BUSY_at_the_same_time(tmp_path,
+                                                                             monkeypatch):
+    """⛔⛔ THE 20:26 DEFECT, DRIVEN. The two facts must both survive one call, in two fields.
+
+    ⭐ THE CONTROL IS THE SECOND HALF of this test: the same empty lock on a QUIET box must read
+    FREE + QUIET. Without it, a `status` that hard-coded BUSY would satisfy the first half — and
+    a probe that answered "busy" to everything is no better than one that answered "free".
+    """
+    _with_snapshot(monkeypatch, _busy_snapshot)
+    s = L.status(path=tmp_path / "box.lock")
+    assert s["state"] == "FREE", "the holder question changed answer because the box was loaded"
+    assert s["load"]["state"] == "BUSY", s["load"]
+    assert s["load"]["total"] == 2, s["load"]
+    # ⛔ TWO KEYS. Collapsing them into one boolean is this repo's recurring defect.
+    assert "state" in s and "state" in s["load"] and s["state"] != s["load"]["state"]
+
+    _with_snapshot(monkeypatch, _quiet_snapshot)
+    q = L.status(path=tmp_path / "box.lock")
+    assert q["state"] == "FREE" and q["load"]["state"] == "QUIET", (
+        "a quiet box did not read QUIET, so BUSY above proved nothing")
+
+
+def test_a_probe_that_CANNOT_RUN_is_unreadable_and_never_a_count_of_zero(tmp_path, monkeypatch):
+    """⛔ THE SWALLOWED-ERROR SHAPE. A failed probe reporting 0 is indistinguishable from a
+    genuinely idle machine, and that is how a swallowed error becomes a confident finding.
+
+    ⭐ And the holder field is UNAFFECTED — an unreadable probe must not be able to change what
+    the lock says about who holds it.
+    """
+    _with_snapshot(monkeypatch, _broken_snapshot)
+    s = L.status(path=tmp_path / "box.lock")
+    assert s["load"]["state"] == "UNREADABLE"
+    assert s["load"]["total"] is None, "a probe that failed reported a COUNT"
+    assert s["load"]["error"], "an unreadable probe that says nothing about WHY is a silent zero"
+    assert s["state"] == "FREE", "a failed probe moved the holder answer"
+
+    # ⛔ 'nobody looked' is its own state, distinct from both of the above.
+    n = L.status(path=tmp_path / "box.lock", load=False)
+    assert n["load"]["state"] == "NOT_PROBED"
+    assert n["load"]["total"] is None
+
+
+def test_the_load_reading_NEVER_changes_the_holder_contract(tmp_path, monkeypatch):
+    """⛔⛔ OWNER RULING R1 SURVIVES C-4 INTACT: the lock is ADVISORY, has NO TTL, and is stale
+    ONLY when the bound pid is dead. "pid alive but idle" is a Live-session-in-waiting.
+
+    A busy box must not reclaim, refuse or promote anything. Driven against an IDLE LIVE holder —
+    this very pytest process, which is doing nothing the probe can call gate work — on the most
+    loaded box the fixtures can describe.
+    """
+    lock = tmp_path / "box.lock"
+    _write_lock_for(os.getpid(), lock, run_id="idle-but-live")
+
+    _with_snapshot(monkeypatch, _busy_snapshot)
+    s = L.status(path=lock)
+    assert s["state"] == "HELD", "a loaded box reclassified a LIVE holder — R1 violated"
+    assert s["live"] is True
+    assert s["load"]["state"] == "BUSY"
+
+    # ⛔ ADVISORY, NOT A MUTEX: a busy box does not become a refusal of its own.
+    free_lock = tmp_path / "free.lock"
+    rec = L.acquire("mine", path=free_lock)
+    assert rec["acquired"] is True, (
+        "the gate refused to start because the box was busy — that is a mutex, not a queue, and "
+        "it would deadlock a gate behind its own vitest workers")
+    assert rec["load"]["state"] == "BUSY", "the reading was taken but not reported to the caller"
+
+    # ⭐ CONTROL, the only refusal there is: a DEAD holder is still reclaimed on a busy box…
+    dead_lock = tmp_path / "dead.lock"
+    _write_lock_for(999_999, dead_lock)
+    assert L.acquire("mine", path=dead_lock)["acquired"] is True
+    # …and a LIVE one still refuses.
+    with pytest.raises(L.LockHeld):
+        L.acquire("second", path=free_lock)
+
+
+# ── THE NEGATIVE TEST — a probe that answers "quiet" to everything passes every assertion above ──
+
+def _spawn_marked_child(seconds: int = 30) -> subprocess.Popen:
+    """A live process carrying a PYTEST marker — the load class the lock could not see.
+
+    ⚠️ DELIBERATELY NOT a `gate_shards.py` command line. Another workstream's sampler classifies
+    that as a foreign GATE and would record a contention its measurement never actually had; the
+    instrument must not manufacture a finding in somebody else's run. A pytest marker is invisible
+    to `classify_process` (the contention matcher) by construction and visible to `classify_load`,
+    which is exactly the case under test.
+    """
+    return subprocess.Popen(
+        [sys.executable, "-c", f"import time; time.sleep({seconds})",
+         "-m", "pytest", "tests/test_track_c_box_load_marker_probe.py", "-q"],
+        cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the snapshot is a Win32_Process query")
+def test_NEGATIVE_the_probe_reports_BUSY_while_something_really_runs_and_QUIET_after_it_exits():
+    """⛔⛔ THE TEST THIS ITEM EXISTS FOR. Without a positive case the probe could return "quiet"
+    unconditionally and every other assertion in this file would still pass — the
+    `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` shape, on the one component whose
+    whole job is to notice something.
+
+    It runs against the REAL snapshot, not a fixture: the point is that the plumbing delivers a
+    Name and a CommandLine and that the classifier sees them. A marked child is spawned, must be
+    SEEN BY PID, and must STOP being seen once it exits — the two halves together are what make
+    this a measurement rather than a detection.
+    """
+    child = _spawn_marked_child()
+    try:
+        seen_pids: set[int] = set()
+        load = None
+        for _ in range(10):               # WMI can lag a freshly created process by a beat
+            load = _REAL_BOX_LOAD()
+            assert load["readable"] is True, (
+                f"the probe could not run at all, so this test measured nothing: {load['error']}")
+            seen_pids = {p["pid"] for p in load["processes"]}
+            if child.pid in seen_pids:
+                break
+            time.sleep(0.75)
+
+        assert child.pid in seen_pids, (
+            f"the probe did NOT see a live marked process (pid {child.pid}). It reported "
+            f"{[(p['pid'], p['kind'], p['command_line'][:60]) for p in load['processes']]}")
+        assert load["state"] == "BUSY", load["state"]
+        assert load["total"] >= 1
+        row = next(p for p in load["processes"] if p["pid"] == child.pid)
+        assert row["kind"] == "pytest", row
+        assert "pytest" in row["command_line"].lower(), row
+    finally:
+        child.kill()
+        child.wait(timeout=10)
+
+    # ── the other half: it must STOP being seen. A probe that latched would pass the first half.
+    gone = False
+    for _ in range(10):
+        after = _REAL_BOX_LOAD()
+        assert after["readable"] is True, after.get("error")
+        if child.pid not in {p["pid"] for p in after["processes"]}:
+            gone = True
+            break
+        time.sleep(0.75)
+    assert gone, (
+        f"pid {child.pid} is dead but the probe still reports it — the reading is a latch, not a "
+        f"measurement, and a stale BUSY is as misleading as a false FREE")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the snapshot is a Win32_Process query")
+def test_a_gate_does_not_see_ITS_OWN_children_as_foreign_load():
+    """⛔ THE DEADLOCK GUARD, against real processes rather than a fixture. A running gate spawns
+    vitest workers; if the probe counted them the gate would be reporting itself.
+
+    ⭐ THE DISCRIMINATION: the SAME live child, two calls, two answers — visible with no
+    exclusion, invisible when this process's tree is excluded. One call alone could not tell
+    'excluded' apart from 'never seen'.
+    """
+    child = _spawn_marked_child(seconds=25)
+    try:
+        visible = False
+        for _ in range(10):
+            load = _REAL_BOX_LOAD()
+            assert load["readable"] is True, load.get("error")
+            if child.pid in {p["pid"] for p in load["processes"]}:
+                visible = True
+                break
+            time.sleep(0.75)
+        assert visible, f"the child (pid {child.pid}) was never visible, so nothing is proved"
+
+        mine = _REAL_BOX_LOAD(exclude_tree=os.getpid())
+        assert mine["readable"] is True, mine.get("error")
+        assert child.pid not in {p["pid"] for p in mine["processes"]}, (
+            f"pid {child.pid} is OUR OWN CHILD and the probe called it foreign load — a gate "
+            f"doing this sees its own vitest workers and refuses to start")
+        assert mine["excluded_tree"] == os.getpid()
+        # ⛔ …and excluding our tree did NOT silence the probe altogether: this pytest process is
+        # itself a marked pytest run, so the no-exclusion call must have counted at least it too.
+        assert _REAL_BOX_LOAD()["total"] > mine["total"] - 1
+    finally:
+        child.kill()
+        child.wait(timeout=10)
+
+
+def test_the_lock_self_check_still_passes_end_to_end():
+    """⛔ A SELF-CHECK NOBODY HAS RUN IS NOT A SELF-CHECK — and it now rehearses all four load
+    states against an injected box, so each is reachable on demand rather than whenever the
+    machine happens to be loaded."""
+    assert L.self_check() == 0

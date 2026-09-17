@@ -2351,6 +2351,27 @@ A sound gate on tree **G** carries to landing tree **L** when ALL hold:
 | **C4** | on L, the branch's own test files + the door-guard rail + the incoming files' own test files, by **explicit node id**, green |
 | **C5** | the `master deploy gate` workflow on the landed SHA — **production does not move without it** |
 
+⛔⛔ **C0 COVERS THE VITEST HALF ONLY — C4-PYTHON IS NEVER SHORT-CIRCUITED** (owner ruling,
+2026-09-17). `GATE_READ_PATHS` describes what the **six-shard vitest gate** reads. It contains
+**no Python path at all**. So for any landing whose branch diff touches `scripts/`, `tools/`,
+`tests/` or `api/`, the Python rails must be run on the **final landing tree**, and a C0 hit
+does not excuse it.
+
+⚰️ **The false reassurance this replaces:** on 2026-09-16 a landing carrying **only Python**
+answered `C0 IDENTICAL — short-circuit` while master's merge had brought **32 files into
+`tests/`, including `tests/conftest.py`**. That conftest change happened to be inert — the
+tool did not know that and could not have. **A check that is silent where it looks
+authoritative is the PROXY failure**, in the tool built to prevent it.
+
+- `PY_READ_PATHS` (`tools/gate_carry_over.py`) is the Python read set: `pytest.ini`,
+  `conftest.py`, `tests/conftest.py`, the gate and guard rails, `scripts/`, `tools/`.
+- `PY_RAIL_FLOOR` is a declared **minimum**, and is labelled as one rather than derived: a
+  change to `scripts/gate_shards.py` has **no test file in its own diff**, so naming only
+  diff-local tests produced "you must run something" followed by an empty list. A landing
+  touching Python elsewhere must add that code's own rails.
+- ⛔ **Nothing owed is a fact — say it.** The tool used to print "C4 is still owed" above an
+  empty list on a C0 hit, which reads as *owed, contents unknown*: the worst of both.
+
 ⛔⛔ **C5 IS THE WHOLE SAFETY ARGUMENT — THIS IS A DEFERRAL, NOT A SKIP.** The master gate
 runs the full suite against the **actual landed tree** before `production` advances, and
 Railway deploys from `production`. The local gate proves the branch; C1–C4 prove the
@@ -2656,6 +2677,68 @@ gap is a TIME gap, not a logic gap: `tools/pre_push_guard.py` reads the queue at
 the moment of the push and is correct at that moment, but a build takes 3–5
 minutes and a gate takes longer. *"The queue was clear when I started my gate"* is
 true and useless. The wait is on the DEPLOY, not on the check.
+
+⛔⛔ **AND THE GUARD THAT ENFORCES THIS HAS A ~3.5 MINUTE BLIND WINDOW, BY CONSTRUCTION.**
+Measured 2026-09-16: **Railway creates the deploy record MINUTES after the push, and the
+delay is VARIABLE** — two independent measurements, by two sessions, 47 s apart: **3m25s**
+and **2m38s**. ⛔ **DO NOT CALIBRATE A WAIT ON THIS NUMBER.** "Just sleep 3m30s before
+reading the queue" is a rule fitted to n=1 that fails on every longer draw, and it fails
+silently — you would read a quiet queue and believe it. Two samples establish that it
+varies; they do not establish a bound (`lesson_two_points_do_not_establish_a_rate`). So `tools/pre_push_guard.py`, which reads the Railway deploy list, **cannot see
+a push that has already happened** — and during that window it answers *"master is quiet"*
+with complete confidence. It happened in both directions in one night:
+
+```
+05:37:33Z  session A pushes cc5527f66
+05:39:49Z  session B's guard reads the list -> "2 deploys in 60 min, none inside 600s
+           - master is quiet"                          <- TRUE at read time, and WRONG
+05:39:49Z  session B pushes
+05:40:58Z  session A's deploy record finally appears (3m25s later)
+05:43:14Z  session B's deploy appears, marking session A's REMOVED
+```
+
+⛔ **WAITING LONGER DOES NOT CLOSE IT.** The check and the thing it checks are separated by
+a delay the checker cannot observe, so no settle threshold fixes it — a longer wait just
+moves the hole. **"No deploy in flight" is evidence about DEPLOYS, never about PUSHES.**
+Push-level serialisation must come from the **`concurrency: master-deploy` group at
+GitHub**, which sees the push itself (and Railway's *Wait for CI* holds the build behind
+it); it cannot come from polling Railway. Both guards were working correctly that night;
+both were reading a state that had already moved.
+
+⭐⭐ **THE CLASS, AND IT HAS TWO KINDS — the second is the dangerous one.** Four instances
+in one night across two sessions, which is why this is filed as a class:
+
+| | the instrument was pointed at… | instances |
+|---|---|---|
+| **1** | something that **MOVED** | `%an` for authorship (every commit carries one name) · the Railway deploy list (lags the push by ~3m25s) · a `/tmp` path bash and Python resolve differently |
+| **2** | a **PROXY** for the thing it named | `uptime_seconds` standing in for *"did MY deploy ship"* · `breadth_pool_report.py` grouping populations by commit SHA while its docstring defined the rule as *"the same deployed code"* |
+
+⛔ **Kind 2 fails SILENTLY IN WHICHEVER DIRECTION IT HAPPENS TO LEAN, so the error has no
+characteristic sign.** The SHA-grouping one produced an understatement (p95 read as
+unreachable) and an overstatement ("four independent replications" where there was one)
+from a single cause, in one run. The uptime one leaned toward corroboration and would have
+produced a permanently green verification. Neither is visible from the output — which is
+what separates this class from an ordinary bug, and why "the numbers all looked right" is
+not evidence that the measurement was.
+
+⭐ **The test for kind 2:** read the instrument's own stated rule, then ask what it actually
+keys on. If those are two different sentences, it is a proxy, and it must be labelled as
+one or replaced.
+
+⚠️ **THE TWO KINDS ARE NOT DISJOINT, AND THE TABLE IS A CHECKLIST, NOT A FILING SYSTEM.**
+`%an` is both: it MOVED (every commit now carries one name) and it was ALWAYS a proxy
+(authorship standing in for "which session"). So ask BOTH questions of every instrument —
+*did the world move under this?* and *is this a stand-in for what I actually mean?* — rather
+than deciding which box a finding belongs in. An instrument can fail both ways at once, and
+sorting it into one box is how the other failure keeps its cover.
+
+⚠️ **CONSEQUENCE FOR EVIDENCE, and it invalidated a published verification:** when your
+deploy is superseded mid-flight, `/api/health uptime_seconds` resolves to the SUPERSEDING
+pod's boot, not yours. A 15-minute blip check read a clean monotonic uptime and named it as
+proof of its own deploy; it was measuring the other session's pod, which merely happened to
+contain the same commit. **Verify the deploy by its own record's STATUS in the deploy list
+(`SUCCESS` vs `REMOVED`), and prove your code is live by ANCESTRY against
+`origin/production` — never by an uptime you did not tie to a named deploy.**
 
 ⛔⛔ **ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the
 next push.** Owner ruling 2026-09-13. Stacked pushes are what caused the 2026-09-12
