@@ -69,7 +69,7 @@ import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar, { TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
-import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
+import { VOLUME_PANE_SURFACE_FIXED, overlayRowId } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
 import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
          legacyPairOwnsStack } from './chart/volumePaneDrag'
@@ -100,6 +100,7 @@ import {
   defaultPaneKeys, paneStretchPlan,
 } from './chart/engine/paneLayout'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
+import { orderPaneRows } from './chart/engine/paneSeriesOrder'
 import { storedPaneSizes, setPaneSizes, sizesFromStretch } from './chart/engine/paneSizes'
 import { volumeOwnsPane } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
@@ -196,11 +197,20 @@ const NO_PANE_KEYS = Object.freeze([])
  * hidden instance no pane at all, so there is no rectangle for its label to sit
  * in and nothing on screen for the value to describe.
  *
+ * ⭐⭐ AND EACH PANE'S ROWS COME OUT IN THE MEMBER'S OWN ORDER. A pane readout
+ * and the Indicators list are two views of one pane, so they read the same
+ * arrangement through the same function — measured in the harness, where moving
+ * the QQQ host above its guest in Chart Settings left the pane's own readout
+ * printing the guest first. A pane with no stored arrangement gets its group back
+ * untouched, which is every chart that exists.
+ *
  * @param {object[]} chips  `crosshairData.chips`
  * @param {object|null} layout `paneLayoutRef.current`
+ * @param {Function} hostOf  `(chip) => paneKey|null`
+ * @param {object} [cs]  chart settings, for `paneSeriesOrder`
  * @returns {{key: string, index: number, chips: object[]}[]}
  */
-function paneReadoutRows(chips, layout, hostOf) {
+function paneReadoutRows(chips, layout, hostOf, cs) {
   const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
   if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
   // ⭐⭐ GROUPED BY ACTUAL PANE MEMBERSHIP, NOT BY DEFINITION (P2.0c). This
@@ -222,7 +232,16 @@ function paneReadoutRows(chips, layout, hostOf) {
   for (const pane of panes) {
     if (!pane || typeof pane.key !== 'string' || !Number.isInteger(pane.index)) continue
     const group = byKey.get(pane.key)
-    if (group && group.length) out.push({ key: pane.key, index: pane.index, chips: group })
+    if (group && group.length) {
+      out.push({
+        key: pane.key,
+        index: pane.index,
+        // ⚠️ BY INSTANCE, so a multi-plot indicator's rows travel together — the
+        // same grouping `orderPaneRows` guarantees for the price stack, and what
+        // keeps `secondary={prev.instanceId === c.instanceId}` a sufficient test.
+        chips: orderPaneRows(cs, pane.key, group, (c) => c.instanceId),
+      })
+    }
   }
   return out.length ? out : EMPTY_CHIPS
 }
@@ -15182,7 +15201,18 @@ export default function StockChart({
         onOpen: chipHandlers ? (_id, anchor) => chipHandlers.onMenu(shown, anchor) : null,
       })
     }
-    return rows
+    // ⭐⭐ AND THE VOLUME PANE READS IN THE MEMBER'S ORDER TOO. It is the THIRD
+    // legend surface — the price stack, an own-pane readout, and this strip — and
+    // all three are views of ONE pane's membership, so all three read the same
+    // arrangement through the same function. Measured in the harness: moving
+    // `SMA 5 · Volume` above `Vol` in Chart Settings left this strip printing
+    // `Vol` first, which is the settings list and the chart disagreeing.
+    //
+    // ⚠️ VOLUME'S OWN MOVING AVERAGE TRAVELS WITH VOLUME, because it shares its
+    // `rowId`: `cs.volume.maPeriod` has no identity of its own — it is edited in
+    // Volume's row and opens Volume's menu — so the grouping `orderPaneRows`
+    // already does by id is exactly right for it, with nothing special-cased.
+    return orderPaneRows(cs, VOLUME_PANE, rows, (r) => r.rowId)
   }, [crosshairData, cs, chipPaneHost, chipHandlers, legendRowHandlers, openVolumeMenu])
   /** ⚰️ `legBaseVol` STOOD HERE — one memoised `{color}` shared by the six hand
    *  written spans the volume strip used to emit. The strip renders `LegendRow`s
@@ -17339,10 +17369,44 @@ export default function StockChart({
         // it has always had. No pane INDEX is assumed anywhere; the two indices are
         // only ever compared with each other.
         const studyVolLast = volRowInPriceStack && volumeBelowPrice()
-        const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0
-        const studyChipAt = studyHeadN + studyOverlays.length
-        const studyTailN = studyVolLast ? 1 : 0
-        const studyTotal = studyChipAt + priceChips.length + studyTailN
+        // ⭐⭐ ONE STACK, IN THE MEMBER'S OWN ORDER (owner §11, 2026-09-17).
+        //
+        // ⚰️ IT WAS THREE CONCATENATED BLOCKS — volume, then every legacy moving
+        // average, then every engine chip — and that shape was not a decision. It
+        // is `listAllIndicators`' shape (`cs.overlays` ++ `cs.indicatorInstances`)
+        // showing through, so a chart with four legacy MAs and one engine MA
+        // printed them in an order nobody chose and nobody could change.
+        //
+        // ⭐ SO THE THREE BLOCKS BECOME ONE TAGGED ARRAY, ASSEMBLED IN TODAY'S
+        // ORDER, and `orderPaneRows` applies the member's preference to it. A
+        // chart with no `paneSeriesOrder` gets the array back by identity — so
+        // DEFAULT PARITY IS STRUCTURAL HERE, not a second code path that has to be
+        // kept in step with this one.
+        //
+        // ⛔ IT ORDERS BY ROW ID, WHICH IS WHY IT SPANS BOTH IMPLEMENTATIONS. A
+        // legacy overlay's id is its STORED SLOT (`overlay-<csIndex>`, tombstoned
+        // and never renumbered); an engine row's is its instance id. `ma:<n>` —
+        // the id this legend hands `LegendRow` for its popover — is a different
+        // namespace and is deliberately NOT used: the settings list is where the
+        // order is written, so the settings list's identity is the one that reads
+        // it. The synthetic SMA 5 (`csIndex: -1`) has no slot and so no id; it
+        // sorts to the end with the other unidentifiable rows, which is where it
+        // already sat.
+        //
+        // ⚠️ VOLUME PARTICIPATES ONLY WHEN IT IS REALLY IN THIS STACK. A banded
+        // volume IS a member of the price pane and the settings list files it
+        // there too, so it can be ordered among the averages; a volume with its
+        // own pane is not in this stack at all and its `studyVolLast` placement
+        // rule — which asks the RENDERER which pane is below which — is untouched.
+        const studyItems = orderPaneRows(cs, PRICE_PANE, [
+          ...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
+          ...studyOverlays.map((ov, i) => ({
+            kind: 'ma', ov, i, id: ov.csIndex >= 0 ? overlayRowId(ov.csIndex) : null,
+          })),
+          ...priceChips.map((c) => ({ kind: 'chip', c, id: c.instanceId })),
+          ...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
+        ], (it) => it.id)
+        const studyTotal = studyItems.length
         // ⭐⭐ THE FOLD IS GEOMETRIC, NOT A CONSTANT. `studyRowBudget` is how many
         // rows fit between the stack's own top and the PRICE PANE'S bottom, in
         // container coordinates, measured by the same rAF sampler that pins every
@@ -17351,9 +17415,8 @@ export default function StockChart({
         //
         // ⛔ AND IT NEVER SPLITS A MULTI-OUTPUT INDICATOR. MACD's `SIG` folded
         // away under a visible `MACD` reads as a missing plot rather than a
-        // collapsed group, so the cut walks BACK to the group's first row. The loop
-        // is bounded by `studyChipAt` — the head rows (volume, the moving averages)
-        // are singletons and are never walked past.
+        // collapsed group, so the cut walks BACK to the group's first row. Every
+        // other row is a singleton, so the walk stops at the first one it reaches.
         // 🔴 THE DISCLOSURE COSTS A ROW, AND FORGETTING THAT DEFEATED THE WHOLE
         // FOLD. `+N more` is rendered INSIDE the stack, so a budget spent entirely
         // on study rows leaves the button hanging one row below the space that was
@@ -17369,11 +17432,19 @@ export default function StockChart({
         const studyRoom = studyTotal > studyRowBudget
           ? Math.max(0, studyRowBudget - 1) : studyRowBudget
         let studyFitFrom = Math.max(0, Math.min(studyRoom, studyTotal))
-        while (studyFitFrom > studyChipAt && studyFitFrom < studyTotal
-          && priceChips[studyFitFrom - studyChipAt]
-          && priceChips[studyFitFrom - studyChipAt - 1]
-          && priceChips[studyFitFrom - studyChipAt].instanceId
-            === priceChips[studyFitFrom - studyChipAt - 1].instanceId) studyFitFrom -= 1
+        // ⚠️ THE SAME WALK-BACK, OVER ONE ARRAY INSTEAD OF AN OFFSET INTO A SECOND.
+        // It used to index `priceChips[i - studyChipAt]`, which needed the chips to
+        // be one contiguous block at a known offset; the merged stack makes the
+        // test local — two adjacent entries of the same instance — and
+        // `orderPaneRows` keeps an instance's plots adjacent precisely so it stays
+        // true after a member reorders.
+        const sameInstanceAsPrev = (n) => {
+          const a = studyItems[n], b = studyItems[n - 1]
+          return !!(a && b && a.kind === 'chip' && b.kind === 'chip'
+            && a.c.instanceId === b.c.instanceId)
+        }
+        while (studyFitFrom > 0 && studyFitFrom < studyTotal
+          && sameInstanceAsPrev(studyFitFrom)) studyFitFrom -= 1
         const studyCanFold = studyFitFrom < studyTotal
         const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
         const studyMoreCount = studyTotal - studyFitFrom
@@ -17482,84 +17553,86 @@ export default function StockChart({
                     row only REPORTS the state: a hidden volume pane keeps a
                     dimmed, value-less row (the way back), and a REMOVED one takes
                     the row away. Same `volLegendRowVisible` rule as before. */}
-                {volRowInPriceStack && !studyVolLast && (legendRowHandlers ? (
-                  <LegendRow
-                    vertical
-                    rowId="volume"
-                    label="Vol"
-                    /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS — the
-                       legend abbreviates to `Vol` for width, and a trigger called
-                       "Vol options" names nothing the popover's own title says. */
-                    controlLabel="Volume"
-                    value={volHidden ? '' : formatVolume(crosshairData.volume)}
-                    baseColor={legendColor || undefined}
-                    hidden={volHidden}
-                    folded={studyHeadN - 1 >= studyFoldFrom}
-                    {...legendRowHandlers}
-                  />
-                ) : (
-                  <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-                ))}
-                {/* ⭐ THE MOVING AVERAGES, IN CHART SETTINGS' OWN ORDER.
-                    ⛔ NOT GATED ON `compactLegend` ANY MORE. Dropping every study
-                    row on a short pane was the old height fix and it took the only
-                    per-instance door with it; the fold below is geometric and
-                    leaves a `+N more` to get them back. */}
-                {studyOverlays.map((ov, i) => (
-                  <LegendRow
-                    key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
-                    vertical
-                    rowId={`ma:${ov.csIndex}`}
-                    label={ov.label}
-                    value={ov.value != null ? ov.value.toFixed(2) : ''}
-                    color={opaqueColor(ov.color)}
-                    baseColor={legendColor || undefined}
-                    hidden={!!ov.hidden}
-                    folded={studyHeadN + i >= studyFoldFrom}
-                    /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS — it is not in
-                       `cs.overlays` (`csIndex: -1`), so every verb would write
-                       nowhere. It also gets no chevron, which is the point of
-                       tying the chevron to `interactive`. */
-                    {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
-                  />
-                ))}
-                {priceChips.map((c, i) => (
-                  <IndicatorChip
-                    key={`${c.instanceId}::${c.plotKey}`}
-                    chip={c}
-                    grid
-                    /* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE (§7). `legendChips`
-                       walks the INSTANCE list, so one instance's plots are always
-                       consecutive and adjacency alone identifies the group — no
-                       second grouping pass, and no new identity. */
-                    secondary={i > 0 && priceChips[i - 1].instanceId === c.instanceId}
-                    className={studyChipAt + i >= studyFoldFrom ? chipStyles.chipFolded : undefined}
-                    /* Per (instance, plot) — a definition with one repainting
-                       column marks that column and leaves its siblings alone. */
-                    repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
-                    {...chipHandlers}
-                  />
-                ))}
-                {/* ⭐ THE SAME ROW, AT THE OTHER END. Inlined rather than hoisted into a
-                    const for the reason `parityGateBlindness.test.js` gives: legend
-                    JSX lifted out of the legend element loses its static proof of
-                    containment, and the export-time hide is what keeps this strip
-                    out of every branded newsletter capture. */}
-                {volRowInPriceStack && studyVolLast && (legendRowHandlers ? (
-                  <LegendRow
-                    vertical
-                    rowId="volume"
-                    label="Vol"
-                    controlLabel="Volume"
-                    value={volHidden ? '' : formatVolume(crosshairData.volume)}
-                    baseColor={legendColor || undefined}
-                    hidden={volHidden}
-                    folded={studyTotal - 1 >= studyFoldFrom}
-                    {...legendRowHandlers}
-                  />
-                ) : (
-                  <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-                ))}
+
+                {/* ⭐ THE STACK, IN THE MEMBER'S OWN ORDER — one walk over
+                    `studyItems`, which already carries volume, the legacy moving
+                    averages and the engine chips interleaved exactly as the member
+                    arranged them (see its assembly above).
+                    ⛔ NOT GATED ON `compactLegend`. Dropping every study row on a
+                    short pane was the old height fix and it took the only
+                    per-instance door with it; the fold is geometric and leaves a
+                    `+N more` to get them back.
+                    ⛔ AND IT IS STILL INLINE. `parityGateBlindness.test.js` proves
+                    from the AST that every chip is a descendant of the legend
+                    element; JSX hoisted into a helper loses that proof, and the
+                    export-time hide is the only thing keeping this strip out of
+                    every branded newsletter capture. */}
+                {studyItems.map((it, i) => {
+                  const folded = i >= studyFoldFrom
+                  if (it.kind === 'vol') {
+                    return legendRowHandlers ? (
+                      <LegendRow
+                        key="vol"
+                        vertical
+                        rowId="volume"
+                        label="Vol"
+                        /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS — the
+                           legend abbreviates to `Vol` for width, and a trigger
+                           called "Vol options" names nothing the popover's own
+                           title says. */
+                        controlLabel="Volume"
+                        value={volHidden ? '' : formatVolume(crosshairData.volume)}
+                        baseColor={legendColor || undefined}
+                        hidden={volHidden}
+                        folded={folded}
+                        {...legendRowHandlers}
+                      />
+                    ) : (
+                      <span key="vol" className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
+                    )
+                  }
+                  if (it.kind === 'ma') {
+                    const ov = it.ov
+                    return (
+                      <LegendRow
+                        key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${it.i}`}
+                        vertical
+                        rowId={`ma:${ov.csIndex}`}
+                        label={ov.label}
+                        value={ov.value != null ? ov.value.toFixed(2) : ''}
+                        color={opaqueColor(ov.color)}
+                        baseColor={legendColor || undefined}
+                        hidden={!!ov.hidden}
+                        folded={folded}
+                        /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS — it is not in
+                           `cs.overlays` (`csIndex: -1`), so every verb would write
+                           nowhere. It also gets no chevron, which is the point of
+                           tying the chevron to `interactive`. */
+                        {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
+                      />
+                    )
+                  }
+                  const c = it.c
+                  return (
+                    <IndicatorChip
+                      key={`${c.instanceId}::${c.plotKey}`}
+                      chip={c}
+                      grid
+                      /* ⭐ A SIBLING OUTPUT OF THE ROW ABOVE (§7). One instance's
+                         plots are always consecutive — `legendChips` walks the
+                         INSTANCE list and `orderPaneRows` moves them as a GROUP —
+                         so adjacency alone still identifies the group, with no
+                         second grouping pass and no new identity. */
+                      secondary={sameInstanceAsPrev(i)}
+                      className={folded ? chipStyles.chipFolded : undefined}
+                      /* Per (instance, plot) — a definition with one repainting
+                         column marks that column and leaves its siblings alone. */
+                      repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
+                      {...chipHandlers}
+                    />
+                  )
+                })}
+
                 {studyCanFold && (
                   <button type="button" className={`${chipStyles.chipMore} ${styles.studyMore}`}
                     onClick={() => setChipsExpanded((e) => !e)}
@@ -18026,7 +18099,7 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost).map((row) => (
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => (
         <div
           key={row.key}
           ref={(el) => {

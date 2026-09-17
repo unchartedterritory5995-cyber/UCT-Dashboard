@@ -279,25 +279,49 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     expect(next.indicatorInstances.some(i => i.instanceId === 'legacy:vwap' && i.deleted === true)).toBe(true)
   })
 
-  it('⛔ THE INSPECTOR IS THE ONLY REMOVE DOOR — the rows carry no verbs at all', () => {
-    // ⚰️ THREE ANSWERS, IN ORDER. A labelled "Remove indicator" inside the
+  it('⛔ THE INSPECTOR IS THE ONLY REMOVE DOOR — a row carries ORDER and nothing else', () => {
+    // ⚰️ FOUR ANSWERS, IN ORDER. A labelled "Remove indicator" inside the
     // expanded row ("accidental removal should not be one click away in a dense
     // list"); then a ✕ on every row header, which the owner asked for after
-    // looking at eleven real rows; now neither, because the row was reduced to a
-    // rail and a name and the verbs went to the right column.
+    // looking at eleven real rows; then neither, because the row was reduced to a
+    // rail and a name and the verbs went to the right column — and this case read
+    // *"the rows carry no verbs at all"* and swept for ANY button on a row.
     //
-    // ⛔ THE INVARIANT ACROSS ALL THREE IS **ONE DOOR**. Two controls for one verb
-    // is the split this tab exists to end — they drift, and a removal that took
-    // the other path would tombstone differently. So the absence is asserted
-    // rather than assumed.
+    // ⚰️ THE OWNER AMENDED THAT (2026-09-17): *"I want small Up / Down arrows at
+    // the RIGHT SIDE of indicator rows... ROW ↑ ↓ = reorder plotted series inside
+    // this pane."* A row does carry a control now.
+    //
+    // ⭐ SO THE INVARIANT IS RESTATED AS WHAT IT ALWAYS MEANT: **ONE DOOR PER
+    // VERB**, and the row is not a door for any verb the Inspector owns. Two
+    // controls for one verb is the split this tab exists to end — they drift, and
+    // a removal that took the other path would tombstone differently. Order is a
+    // NEW verb whose one and only door is these arrows; it is not in the Inspector
+    // and the Inspector is not in the row. What is swept for below is therefore
+    // "a row control that is not the order pair", which is the same absence the
+    // old sweep asserted, measured without forbidding the thing that was added.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
 
-    // Nothing selected: no Remove anywhere, and no icon on any row.
+    // Nothing selected: no Remove anywhere, and no row control except order.
     expect(screen.queryByRole('button', { name: /^Remove / }),
       'a Remove button exists before anything is selected').toBeNull()
     for (const r of rows()) {
-      expect(r.querySelector('button'), `the row ${nameOf(r)} carries a control of its own`).toBeFalsy()
+      for (const b of r.querySelectorAll('button')) {
+        expect(b.closest('[data-row-order]'),
+          `the row ${nameOf(r)} carries a control that is not the order pair`).toBeTruthy()
+      }
+      // ⛔ AND THE ORDER PAIR IS EXACTLY TWO BUTTONS THAT SAY ONLY "Move". A verb
+      // smuggled in beside them would pass the check above and fail this one.
+      const order = r.querySelector('[data-row-order]')
+      if (order) {
+        const labels = [...order.querySelectorAll('button')]
+          .map((b) => b.getAttribute('aria-label') || '')
+        expect(labels).toHaveLength(2)
+        for (const l of labels) {
+          expect(l, `the order pair on ${nameOf(r)} carries a verb: ${l}`)
+            .toMatch(/^Move |is already (first|last) in /)
+        }
+      }
     }
 
     // Selected: exactly one, and it is inside the Inspector.

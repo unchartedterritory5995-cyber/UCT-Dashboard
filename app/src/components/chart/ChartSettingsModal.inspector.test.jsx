@@ -34,6 +34,7 @@ import {
   addInstance, findInstance, setInstanceInput, setInstanceDisplayTarget,
 } from './engine/instanceControls'
 import { storedPaneOrder, resolvePaneOrder, PRICE_PANE } from './engine/paneOrder'
+import { PANE_SERIES_ORDER_KEY } from './engine/paneSeriesOrder'
 
 // ⚠️ THE BREADTH REGISTRY IS A NETWORK FACT, so the family oracle is stubbed —
 // otherwise `symbolFamily` answers `'unknown'` and the Inspector's KIND line is
@@ -169,6 +170,233 @@ describe('THE INSPECTOR HEADER — what this is, and whether it is drawing', () 
 
 // ════════════════════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════
+describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
+  // ⛔⛔ THREE ORDERS, AND THIS BLOCK EXISTS TO KEEP THEM APART.
+  //   · a ROW ARROW reorders series inside the pane they are already in
+  //   · ARRANGE reorders whole panes
+  //   · DISPLAY moves a series to another pane
+  // Every case below asserts not only that the arrow did its own job but that it
+  // did none of the other two, because the failure mode that matters is not a
+  // wrong order — it is an arrow that quietly re-homes a series or restacks the
+  // chart's panes.
+
+  const arrowsOf = (re) => [...(rowFor(re)?.querySelectorAll('[data-move]') || [])]
+  const arrow = (re, dir) => arrowsOf(re).find((b) => b.getAttribute('data-move') === dir)
+  const dead = (el) => el.getAttribute('aria-disabled') === 'true'
+  /** The rows of the pane group a row belongs to, in rendered order. */
+  const paneRowNames = (re) => {
+    const g = rowFor(re).closest('[data-pane-group]')
+    return [...g.querySelectorAll('[data-structure-row]')].map(nameOf)
+  }
+
+  it('⭐⭐ A MIDDLE ROW MOVES, IMMEDIATELY, AND STAYS IN ITS PANE', () => {
+    // The default chart's PRICE pane: EMA 9, EMA 20, SMA 50, SMA 200 — four legacy
+    // overlays — plus Volume banded in with them.
+    show(base()); openTab()
+    const before = paneRowNames(/^EMA 20$/)
+    expect(before.slice(0, 4)).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200'])
+
+    fireEvent.click(arrow(/^EMA 20$/, 'up'))
+    expect(paneRowNames(/^EMA 20$/).slice(0, 4),
+      'the list did not reorder on the click — is it waiting for a reload?')
+      .toEqual(['EMA 20', 'EMA 9', 'SMA 50', 'SMA 200'])
+    // ⛔ SAME PANE, SAME MEMBERS. A reorder is a permutation of one group.
+    expect([...paneRowNames(/^EMA 20$/)].sort()).toEqual([...before].sort())
+    expect(paneOf(/^EMA 20$/)).toBe('Price')
+
+    fireEvent.click(arrow(/^EMA 20$/, 'down'))
+    expect(paneRowNames(/^EMA 20$/).slice(0, 4)).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200'])
+  })
+
+  it('⛔ THE BOUNDARIES ARE DEAD, PRESENT, AND DO NOT WRITE', () => {
+    // ⛔ PRESENT IS HALF THE POINT. Removing a boundary arrow would shorten the
+    // first and last row of every pane by 18px and make the whole column ripple
+    // as rows move — the one thing a reorder control must not do to the list it
+    // is reordering.
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    const first = /^EMA 9$/
+    expect(arrowsOf(first), 'the top row lost an arrow').toHaveLength(2)
+    expect(dead(arrow(first, 'up')), 'the top row can still move up').toBe(true)
+    expect(dead(arrow(first, 'down'))).toBe(false)
+
+    fireEvent.click(arrow(first, 'up'))
+    expect(seen.cs, 'pressing ↑ on the top row wrote to the blob').toBeNull()
+    expect(names()[0]).toBe('EMA 9')
+
+    // …and the last row of the PRICE group, whatever it is.
+    const last = paneRowNames(first).at(-1)
+    const lastRe = new RegExp(`^${last.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+    expect(dead(arrow(lastRe, 'down')), `${last} can still move down`).toBe(true)
+    fireEvent.click(arrow(lastRe, 'down'))
+    expect(seen.cs, 'pressing ↓ on the last row wrote to the blob').toBeNull()
+  })
+
+  it('⛔⛔ AN ARROW IS NOT A SELECTOR — the Inspector does not swing', () => {
+    // ⚰️ WITHOUT `stopPropagation` THE ROW'S OWN CLICK HANDLER FIRES TOO, so a
+    // member repositioning EMA 20 would ALSO open it for editing and the right
+    // column would jump to a row they were only moving.
+    show(base()); openTab()
+    select(/^SMA 200$/)
+    expect(inspectorName()).toBe('SMA 200')
+
+    fireEvent.click(arrow(/^EMA 20$/, 'up'))
+    expect(inspectorName(), 'the arrow selected the row it moved').toBe('SMA 200')
+
+    // …and the ROW itself still selects, which is the other half of the contract.
+    select(/^EMA 20$/)
+    expect(inspectorName()).toBe('EMA 20')
+  })
+
+  it('⭐ EVERY ARROW IS A REAL BUTTON WITH A NAME — keyboard and screen reader', () => {
+    show(base()); openTab()
+    for (const b of arrowsOf(/^EMA 20$/)) {
+      expect(b.tagName, 'an arrow is not a button — it cannot be reached by keyboard').toBe('BUTTON')
+      expect(b.getAttribute('type'), 'an arrow inside a form would submit it').toBe('button')
+      expect(b.getAttribute('aria-label'), 'an arrow with no accessible name').toBeTruthy()
+      expect(b.title, 'an arrow with no tooltip').toBeTruthy()
+    }
+    expect(arrow(/^EMA 20$/, 'up').getAttribute('aria-label')).toBe('Move EMA 20 up')
+    expect(arrow(/^EMA 20$/, 'down').getAttribute('aria-label')).toBe('Move EMA 20 down')
+    // ⛔ A DEAD ARROW SAYS WHY, and it says a POSITION rather than a capability —
+    // it is not the `NOT_WIRED` kind of unavailable, and must not read as one.
+    expect(arrow(/^EMA 9$/, 'up').getAttribute('aria-label')).toBe('EMA 9 is already first in Price')
+    // A keyboard activation is the same door as a pointer one.
+    const el = arrow(/^EMA 20$/, 'up')
+    el.focus()
+    expect(document.activeElement, 'a dead-keyed arrow cannot be focused').toBe(el)
+    fireEvent.click(el)
+    expect(names()[0]).toBe('EMA 20')
+  })
+
+  it('⭐⭐ ONE ORDER ACROSS TWO PERSISTENCE IMPLEMENTATIONS', () => {
+    // ⛔ THIS IS THE CASE THE FEATURE EXISTS FOR. `EMA 9` is a slot in
+    // `cs.overlays`; `SMA 5` is an entry in `cs.indicatorInstances`. They are in
+    // one pane, and the member does not know or care that they are stored in two
+    // arrays — so there is ONE list of arrows, not `overlayOrder` and
+    // `instanceOrder`.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+    // ⚠️ THE CANONICAL ORDER IS `listAllIndicators`': every LEGACY row first —
+    // the four overlays AND the volume section — then the engine instances. That
+    // shape is exactly what the arrows exist to override.
+    expect(paneRowNames(ENGINE_MA))
+      .toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200', 'Volume', 'SMA 5'])
+
+    // The engine MA climbs past four legacy rows, one press at a time.
+    for (let i = 0; i < 4; i += 1) fireEvent.click(arrow(ENGINE_MA, 'up'))
+    expect(paneRowNames(ENGINE_MA))
+      .toEqual(['EMA 9', 'SMA 5', 'EMA 20', 'SMA 50', 'SMA 200', 'Volume'])
+  })
+
+  it('⛔⛔ IT WRITES `paneSeriesOrder` AND NOTHING ELSE', () => {
+    // ⭐ THE SEPARATION, ASSERTED AS A DIFF ON THE REAL BLOB. Display,
+    // `targetExplicit`, `paneOrder`, the overlay array and the instance array are
+    // what the OTHER controls own.
+    const seen = { cs: null }
+    const { cs } = withMA(base(), 'close')
+    show(cs, seen); openTab()
+    fireEvent.click(arrow(/^EMA 20$/, 'up'))
+
+    const next = seen.cs
+    expect(next, 'the arrow wrote nothing at all').toBeTruthy()
+    expect(next[PANE_SERIES_ORDER_KEY].price[0]).toBe('overlay-1')
+    expect(next.overlays, 'the arrow reordered `cs.overlays` — that renumbers every row id')
+      .toEqual(cs.overlays)
+    expect(next.indicatorInstances).toEqual(cs.indicatorInstances)
+    expect(storedPaneOrder(next), 'the arrow touched paneOrder').toEqual(storedPaneOrder(cs))
+    for (const inst of next.indicatorInstances || []) {
+      expect(inst.targetExplicit, `${inst.instanceId} grew a placement provenance`)
+        .toBe((cs.indicatorInstances || []).find((i) => i.instanceId === inst.instanceId)?.targetExplicit)
+    }
+  })
+
+  it('⛔⛔ A HOST PANE SURVIVES ITS GUESTS BEING REORDERED', () => {
+    // QQQ's pane holds QQQ (the host) and an average OF QQQ (a guest). Reordering
+    // them may not change which pane exists, who hosts it, or where it sits.
+    // ⚠️ THE DESTINATION IS EXPLICIT, as in every other QQQ-pane case here:
+    // Automatic for a SYMBOL source resolves to the definition's declaration, so
+    // the member's own choice is what puts the average in QQQ's pane.
+    const seeded = withSeries(base(), 'QQQ')
+    const guest = withMA(seeded.cs, symbolSource('QQQ', 'close'))
+    const withGuest = { cs: setInstanceDisplayTarget(guest.cs, guest.id, `@${seeded.id}`, registry) }
+    show(withGuest.cs); openTab()
+
+    const panesBefore = paneIds()
+    // ⚠️ THE GUEST LISTS FIRST BY DEFAULT, and that is the canonical order rather
+    // than a statement about hosting: `withInstances` sorts the instance array by
+    // DEFINITION rank, and `movingAverage` ranks ahead of `dataSeries`. It is
+    // exactly the kind of order nobody chose that these arrows exist to override.
+    expect(paneRowNames(ENGINE_MA)).toEqual(['SMA 5', 'QQQ'])
+
+    fireEvent.click(arrow(/^QQQ$/, 'up'))
+    expect(paneRowNames(ENGINE_MA)).toEqual(['QQQ', 'SMA 5'])
+    // ⛔ SAME PANES, SAME ORDER, SAME HOST. The host moved ABOVE its guest in the
+    // list and the pane is still QQQ's — hosting is an identity, not a position.
+    expect(paneIds(), 'reordering inside a pane changed the pane stack').toEqual(panesBefore)
+    expect(paneOf(ENGINE_MA)).toBe('QQQ')
+    expect(paneOf(/^QQQ$/)).toBe('QQQ')
+  })
+
+  it('⛔ ARRANGE HAS NO SERIES ARROWS — the two languages stay apart', () => {
+    // ⚠️ TWO PANES, because Arrange is only offered when there is something to
+    // restack — a default chart has one.
+    const { cs } = withSeries(base(), 'QQQ')
+    show(cs); openTab()
+    expect(document.body.querySelectorAll('[data-row-order]').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByTestId('arrange-enter'))
+    expect(document.body.querySelectorAll('[data-row-order]').length,
+      'Arrange grew per-series arrows — Arrange orders PANES').toBe(0)
+  })
+
+  it('⛔ A ROW THAT IS NOT DRAWING ANYWHERE HAS NO ORDER', () => {
+    // `Not shown` and `Needs attention` are not panes. Offering to order them
+    // would be offering to arrange a rectangle that does not exist.
+    const { cs, id } = withSeries(base(), 'QQQ')
+    const off = { ...cs, indicatorInstances: cs.indicatorInstances.map(
+      (i) => (i.instanceId === id ? { ...i, hidden: true } : i)) }
+    show(off); openTab()
+    const repair = [...document.body.querySelectorAll('[data-pane-kind="hidden"],[data-pane-kind="orphans"]')]
+    expect(repair.length, 'no repair group rendered — the case proves nothing')
+      .toBeGreaterThan(0)
+    for (const g of repair) {
+      expect(g.querySelectorAll('[data-row-order]').length,
+        `${g.getAttribute('data-pane-kind')} rows carry order arrows`).toBe(0)
+    }
+  })
+
+  it('⛔⛔ DEFAULT PARITY — a chart with no arrangement is untouched', () => {
+    // ⭐ THE WHOLE BACKWARD-COMPATIBILITY STORY. Every chart that exists has no
+    // `paneSeriesOrder`; this feature must be invisible on all of them, and
+    // OPENING the tab must not write one into existence.
+    const seen = { cs: null }
+    const { cs } = withMA(base(), 'close')
+    // ⚠️ EMPTY, NOT ABSENT. The key is declared in `CHART_DEFAULTS` and emitted by
+    // `mergeChartSettings`, because that function is a hard ALLOW-LIST and a key
+    // missing from it is destroyed on every read — measured in the harness, where
+    // save → reconstruct put the canonical order straight back. An EMPTY map is
+    // "no preference", which is what every existing chart has.
+    expect(cs[PANE_SERIES_ORDER_KEY], 'the fixture already carries an arrangement').toEqual({})
+    show(cs, seen); openTab()
+    expect(names()).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200', 'Volume', 'SMA 5'])
+    select(/^EMA 9$/); select(ENGINE_MA)
+    expect(seen.cs, 'merely reading the Inspector wrote an arrangement').toBeNull()
+  })
+
+  it('⛔ A STALE ARRANGEMENT IS HARMLESS — nothing vanishes', () => {
+    // A blob arranged when the chart held other indicators. The ids it names are
+    // gone; the rows it does not name are still on the chart.
+    const cs = { ...base(), [PANE_SERIES_ORDER_KEY]: {
+      price: ['overlay-77', 'inst:rsi:9', 'overlay-3'],
+      'inst:gone:1': ['whatever'],
+    } }
+    show(cs); openTab()
+    expect(names(), 'a stale arrangement dropped or conjured a row')
+      .toEqual(['SMA 200', 'EMA 9', 'EMA 20', 'SMA 50', 'Volume'])
+  })
+})
+
 describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations', () => {
   // ⚰️⚰️ THE SPLIT THIS CLOSES, MEASURED IN THE BROWSER ON THE RELEASED BUILD.
   // A moving average reaches this panel two ways and they showed two editors:

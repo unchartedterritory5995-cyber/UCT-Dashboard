@@ -348,14 +348,54 @@ describe('§8 — the geometric fold', () => {
     expect(more[1]).toMatch(/margin-top:\s*0/)
   })
 
+  it('⭐⭐ ONE VISUAL ORDER TRUTH — the stack reads the SETTINGS LIST authority', () => {
+    // ⛔⛔ THE DEFECT THIS FORECLOSES IS TWO ORDERS. If the legend sorted itself —
+    // by period, by definition rank, by anything — then a member who arranged
+    // PRICE in Chart Settings would see one order in the panel and another on the
+    // chart, and the legend is supposed to be the KEY to the chart. That already
+    // happened once: a `.sort((a, b) => a._period - b._period)` in
+    // `liveLegendOverlays` was removed for exactly this reason.
+    //
+    // ⭐ SO THE STACK IS BUILT BY THE SAME FUNCTION THE INDICATORS LIST USES,
+    // against the same pane key and the same row ids — not a copy of its rule.
+    expect(block()).toContain('orderPaneRows(cs, PRICE_PANE, [')
+    expect(STOCK_CHART).toContain("import { orderPaneRows } from './chart/engine/paneSeriesOrder'")
+    // ⛔ AND IT ORDERS BY THE SETTINGS LIST'S IDENTITY. `overlay-<slot>` is what
+    // `listIndicators` mints and what the arrows write; `ma:<slot>` is this
+    // legend's own popover key and is a DIFFERENT namespace. Ordering by the
+    // second would silently never match a stored arrangement.
+    expect(block()).toContain('id: ov.csIndex >= 0 ? overlayRowId(ov.csIndex) : null')
+    expect(block()).toContain('id: c.instanceId')
+    // ⛔ ONE ARRAY, ONE WALK. Three concatenated blocks cannot interleave, so a
+    // moving average could never sit between two engine chips.
+    expect(block()).toContain('const studyTotal = studyItems.length')
+    expect(block(), 'the stack still renders the overlays as their own block')
+      .not.toContain('{studyOverlays.map(')
+  })
+
   it('⛔ THE FOLD NEVER CUTS A MULTI-OUTPUT INDICATOR IN HALF', () => {
     // ⚰️ THE FAMILY-LINE COMPOSITION MADE THIS STRUCTURAL FOR ONE DAY (a family WAS
     // a line, so a cut between lines could not land inside a study) and it went
     // with the composition. Rows are per-plot again, so the cut walks BACK off a
     // group's tail: `SIG` folded away under a visible `MACD` reads as a missing
     // plot rather than a collapsed group.
-    expect(block()).toMatch(/while \(studyFitFrom > studyChipAt/)
+    //
+    // ⚰️ THE WALK USED TO READ `studyFitFrom > studyChipAt` AND INDEX INTO
+    // `priceChips`, which required the chips to be ONE CONTIGUOUS BLOCK at a known
+    // offset from the head rows. `paneSeriesOrder` interleaves the stack — a
+    // member can put a moving average between two engine indicators — so there is
+    // no such offset any more and the test is LOCAL: two adjacent entries of the
+    // same instance. `orderPaneRows` moves an instance's plots as a GROUP, which
+    // is what keeps "adjacent" a sufficient test after a reorder.
+    expect(block()).toMatch(/while \(studyFitFrom > 0 && studyFitFrom < studyTotal/)
+    expect(block()).toContain('sameInstanceAsPrev(studyFitFrom)')
     expect(block()).toContain('studyFitFrom -= 1')
+    // ⛔ AND THE PREDICATE IS ABOUT THE INSTANCE, NOT THE PLOT. Comparing plot keys
+    // would group two different indicators that happen to declare the same output
+    // name, and comparing nothing would fold a group in half again.
+    const pred = between(STOCK_CHART, 'const sameInstanceAsPrev =', '}')
+    expect(pred).toContain("a.kind === 'chip'")
+    expect(pred).toContain('a.c.instanceId === b.c.instanceId')
   })
 
   it('⭐⭐ VOLUME PRINTS WHERE ITS PANE IS, AND THE PANE IS ASKED — never an index', () => {
@@ -381,7 +421,14 @@ describe('§8 — the geometric fold', () => {
     // row inputs, ABOVE the `indChips` line this block starts at.
     expect(STOCK_CHART).toContain('const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane')
     expect(block()).toContain('const studyVolLast = volRowInPriceStack && volumeBelowPrice()')
-    expect(block()).toContain("const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0")
+    // ⚰️ IT WAS `const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0`,
+    // a row COUNT used as an offset into two concatenated blocks. The stack is one
+    // array now (`studyItems`), so the same decision is the ternary that puts the
+    // volume entry at its head or its tail — same predicate, same two positions,
+    // no arithmetic for anything downstream to get wrong.
+    expect(block()).toContain(
+      "...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    expect(block()).toContain("...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
   })
 
   it('⛔ AND THE BUDGET IS BOTH A ROOM TEST AND A SHARE OF THE PANE', () => {

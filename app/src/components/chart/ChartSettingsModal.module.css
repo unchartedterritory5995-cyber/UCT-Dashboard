@@ -1196,6 +1196,68 @@
   opacity: 0.8;
 }
 
+/* ── WHERE THIS SERIES SITS IN ITS PANE ─────────────────────────────
+   ⭐⭐ THE ROW READS: rail · name · flexible space · ↑ ↓. The name owns the
+   flexible space (`flex: 1 1 auto` with `text-overflow: ellipsis`), so a long
+   label truncates INTO the arrows instead of pushing them anywhere — the pair
+   never wraps to a second line and the left column never widens for them. */
+.insRowOrder {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  /* ⛔ THE PAIR HOLDS ITS WIDTH WHETHER OR NOT EITHER ARROW IS LIVE. A first or
+     last row that dropped its disabled arrow would be 18px shorter than its
+     neighbours, and the whole column would ripple every time a row moved — which
+     is the one thing a reorder control must not do to the list it reorders. */
+  margin-left: 2px;
+}
+.insRowArrow {
+  flex: none;
+  /* A 16×18 hit area around a 10px glyph. ⛔ NO BORDER, NO FILL, NO RADIUS AT
+     REST: the retired chevron taught this panel that a bordered control on a row
+     reads as "open me", and these mean ORDER, not disclosure. */
+  width: 16px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  /* ⭐ VISIBLE AT REST, AND QUIET. Hiding them until hover is the discoverability
+     defect this panel has already paid for once (2026-09-16, the pane arrows);
+     showing them at full ink would put twelve marks on a column whose whole job
+     is calm. One tier below the faint text is the setting that does both. */
+  color: var(--menu-text-faint, #93939a);
+  opacity: 0.55;
+  transition: opacity 110ms, color 110ms, background 110ms;
+}
+.insRow:hover .insRowArrow:not([aria-disabled='true']) { opacity: 0.8; }
+.insRowArrow:not([aria-disabled='true']):hover {
+  opacity: 1;
+  color: var(--menu-text, #ededed);
+  background: rgba(255, 255, 255, 0.08);
+}
+.insRowArrow:focus-visible {
+  outline: none;
+  opacity: 1;
+  color: var(--menu-text, #ededed);
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+/* ⛔ A BOUNDARY ARROW IS STILL THERE AND STILL ALIGNED — it simply stops
+   answering. Quiet enough to read as unavailable, present enough that the row's
+   geometry is identical to every other row's.
+   ⚠️ ADDRESSED BY `[aria-disabled]`, NOT `:disabled` — see the JSX: the button
+   is deliberately not natively disabled, so it keeps its tooltip and its place in
+   the tab order. */
+.insRowArrow[aria-disabled='true'] {
+  opacity: 0.18;
+  cursor: default;
+}
+
 /* ── THE RIGHT COLUMN ─────────────────────────────────────────────────────── */
 .insRight {
   flex: 1 1 auto;

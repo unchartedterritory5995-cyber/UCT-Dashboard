@@ -106,6 +106,7 @@ import { paneMap, paneRowMeta } from './chartDataMap'
 // two paths cannot produce different stored states — asserted in
 // `engine/__tests__/paneOrder.test.js`.
 import { movePane, movePaneTo } from './engine/paneOrder'
+import { moveSeriesWithinPane, canMoveSeries } from './engine/paneSeriesOrder'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -933,6 +934,33 @@ export default function ChartSettingsIndicators({
     if (next !== settings) onChange?.(next)
   }
 
+  // ─── SERIES REORDERING, **INSIDE** ONE PANE ────────────────────────
+  //
+  // ⛔⛔ THREE ORDERS, THREE CONTROLS, AND THEY MAY NEVER BE CONFLATED.
+  //   · these arrows          reorder SERIES inside the pane they are already in
+  //   · Arrange               reorders whole PANES
+  //   · the Inspector's Display   moves a series to ANOTHER pane
+  // A row arrow cannot reach the second or the third: it steps inside one pane's
+  // own membership list, so there is no index at either end that names anything
+  // outside it, and the only key it writes is `paneSeriesOrder`.
+  //
+  // ⚠️ ONLY REAL PANES, the same gate `arrangeable` uses. `hidden` and `orphans`
+  // are rows that are not drawing anywhere; ordering them would be ordering a
+  // rectangle that does not exist.
+  const orderable = (group) => !!group && ['price', 'volume', 'pane'].includes(group.kind)
+  const memberIds = (group) => (group && group.rows ? group.rows : []).map((r) => r.id)
+  const canNudgeRow = (group, rowId, delta) =>
+    orderable(group) && canMoveSeries(settings, group.id, memberIds(group), rowId, delta)
+  const nudgeRow = (group, rowId, delta) => {
+    if (!orderable(group)) return
+    const next = moveSeriesWithinPane(settings, group.id, memberIds(group), rowId, delta)
+    // ⛔ NO WRITE AT A BOUNDARY. `moveSeriesWithinPane` hands back the SAME object
+    // when the step would leave the pane, so a member holding ↑ on the top row
+    // never produces a settings write — which is what keeps "opening Indicators
+    // writes nothing" true for the arrows too.
+    if (next !== settings) onChange?.(next)
+  }
+
   // ─── THE LEFT COLUMN — "WHAT IS ON MY CHART" ───────────────────────────────
   //
   // ⛔⛔ IT IS NOT A TABLE, AND THAT IS THE WHOLE PRESENTATION DECISION.
@@ -1071,6 +1099,64 @@ export default function ChartSettingsIndicators({
             member scanning the column sees which lines are off without hovering
             anything, and a screen reader is told rather than shown. */}
         {!on && <span className={styles.insRowOffTag}>Off</span>}
+        {orderable(group) && (
+          /* ⭐⭐ WHERE THIS SERIES SITS **IN THIS PANE** — and nothing else. Two
+             quiet arrows at the row's far right, after the name's flexible space,
+             so a long label truncates into them rather than pushing them onto a
+             second line.
+
+             ⛔ THEY ARE NOT BOXES AND THEY ARE NOT A DISCLOSURE. The retired
+             chevron taught this panel that a control on a row reads as "open me"
+             the moment it wears a border; these carry a glyph, a hit area and no
+             chrome until the pointer or the keyboard reaches them. A chevron
+             here would also re-open the argument the row itself settled: the ROW
+             is what selects, and it still is — see the `stopPropagation` below.
+
+             ⛔ A BOUNDARY ARROW IS DISABLED, NOT REMOVED. Taking it out would
+             shorten the row by 18px on the first and last member of every pane
+             and make the whole column ripple as rows move, which is the one
+             thing a reorder control must not do to the list it is reordering. */
+          <span className={styles.insRowOrder} data-row-order="true">
+            {[[-1, 'up', '↑', 'first'], [1, 'down', '↓', 'last']].map(([delta, word, glyph, edge]) => {
+              const live = canNudgeRow(group, row.id, delta)
+              const why = `${meta.name} is already ${edge} in ${group.name}`
+              return (
+                <button
+                  key={word}
+                  type="button"
+                  className={styles.insRowArrow}
+                  data-move={word}
+                  /* ⛔⛔ `aria-disabled`, NOT THE NATIVE `disabled`, AND THE
+                     DIFFERENCE IS THE REASON. A natively disabled button fires no
+                     pointer events, so its `title` never appears — the member
+                     gets a dimmed glyph and no sentence. It also drops out of the
+                     tab order, so a keyboard member arrowing down the column
+                     loses the control mid-list and finds it again two rows later.
+                     ⚠️ AND IT KEEPS THIS OUT OF A RAIL IT WOULD FALSIFY.
+                     `ChartSettingsModal.indicators.test.jsx` sweeps every
+                     NATIVELY disabled control and demands a capability reason on
+                     each; that rail is about a control the CHART cannot honour
+                     (`NOT_WIRED`), and a top row's ↑ is not that — it is a
+                     position, it changes as the member reorders, and answering it
+                     with the same machinery would blur what the rail measures.
+                     The reason is still carried, in the two places that reach
+                     both kinds of member. */
+                  aria-disabled={live ? undefined : 'true'}
+                  aria-label={live ? `Move ${meta.name} ${word}` : why}
+                  title={live ? `Move ${meta.name} ${word}` : why}
+                  /* ⛔ THE ROW IS STILL THE SELECTOR, SO THE ARROW MUST NOT BE.
+                     Without this a press would reorder the series AND select it,
+                     and the Inspector would swing to a row the member was only
+                     repositioning. `onMouseDown` is stopped too: the row's own
+                     handler is a click, but a focus shift on mousedown is what
+                     scrolls a long list under the pointer mid-press. */
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); if (live) nudgeRow(group, row.id, delta) }}
+                >{glyph}</button>
+              )
+            })}
+          </span>
+        )}
       </div>
     )
   }

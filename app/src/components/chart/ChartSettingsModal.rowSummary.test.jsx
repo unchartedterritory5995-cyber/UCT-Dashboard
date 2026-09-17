@@ -408,15 +408,32 @@ describe('accessibility — the way this feature broke before', () => {
     expect(nameOf(/^SMA 5 ·/)).toBe('SMA 5 · QQQ')
   })
 
-  it('⛔ THE ROW IS THE TARGET — no nested control competes with it', () => {
-    // ⚰️ THE ROW USED TO HOLD FOUR: a toggle, an expander, a colour swatch, a gear
+  it('⛔ THE ROW IS THE TARGET — only ORDER competes with it, and it is two buttons', () => {
+    // ⚰️ THE ROW USED TO HOLD FIVE: a toggle, an expander, a colour swatch, a gear
     // and a ✕. A screen-reader user tabbing the list met five controls per
-    // indicator and the list stopped being a list.
+    // indicator and the list stopped being a list. This case then read *"no nested
+    // control competes with it"* and swept for ANY button.
+    //
+    // ⚰️ THE OWNER PUT ONE BACK (2026-09-17), deliberately and with a budget:
+    // *"small Up / Down arrows at the RIGHT SIDE of indicator rows"*, which are
+    // ORDER and nothing else. Two controls per row, not five, and neither of them
+    // duplicates a verb the Inspector owns — so the row is still the target for
+    // SELECTING, which is what this case is really about.
+    //
+    // ⛔ SO THE BUDGET IS ASSERTED RATHER THAN THE ABSENCE. A third control, or a
+    // second one that is not part of the order pair, fails here exactly as the
+    // gear and the ✕ would have.
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
     for (const row of document.body.querySelectorAll('[data-structure-row]')) {
       expect(row.getAttribute('role')).toBe('option')
-      expect(row.querySelector('button'), 'a row grew a control of its own again').toBeFalsy()
+      const controls = [...row.querySelectorAll('button')]
+      expect(controls.length, 'a row grew more controls than the order pair')
+        .toBeLessThanOrEqual(2)
+      for (const b of controls) {
+        expect(b.closest('[data-row-order]'),
+          'a row grew a control of its own again').toBeTruthy()
+      }
     }
   })
 })
