@@ -178,6 +178,28 @@
 > against the standing **file-tools-only** rule. Restore was byte-exact and
 > sha-verified so nothing was damaged; mutations go through file tools from here.
 >
+> ## ✅ R33 + R34 RULED, AND 0.1's READBACK NARROWED R33a TO ONE LINE
+>
+> ⭐⭐ **MEASURED: the defect is ONLY `color.new`'s BASE argument.** A plot whose
+> colour is a name bound to `input.color(...)` **carries today** (`#00897B`) — the
+> `name` branch follows the binding and the `input.color` branch recurses into the
+> default. But `color.new(bullColor, 30)` does not carry, **and neither does
+> `color.new(litColor, 30)` where `litColor` is a plain hex literal.** That fourth
+> case is the one that settles it: this was never about `input.color`.
+> `isColourName` accepts a built-in colour name or a colour literal and **never
+> recurses**, while every other colour path already does.
+> ⇒ **R33a removes an asymmetry inside `staticColourOf`; it is not a new capability**,
+> and it serves plot and fill identically (one authority, R10).
+>
+> **R33b — (i-C) verbatim:** *"(i) with exactly one relaxation — the alpha may be a
+> plan-time **numeric user-function call** (multi-statement body, local bindings,
+> `math.*`, `color.t` of a static colour)."* Clouds' four blockers are clauses 1–3
+> (i-C) and clause 4 (base). **Neither alone carries Clouds; both do.**
+> ⚠️ **DISCLOSURE THAT MUST RIDE WITH IT:** folding the alpha reads `input.color`'s
+> **default**, so a member who changes the picker's transparency still gets the
+> default rendering — and for Clouds that governs the ENTIRE cloud opacity, which is
+> the feature.
+>
 > ## ✅ j.3b CENSUS + CARRIER (`bdb6e8ef2` red → `293e0c3f2`)
 >
 > ⛔⛔ **THE CENSUS INVERTED R32's PREMISE.** Of **254 fill colour positions** across

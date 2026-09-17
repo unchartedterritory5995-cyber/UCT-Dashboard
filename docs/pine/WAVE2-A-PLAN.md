@@ -484,6 +484,98 @@ draw and not about the carriage.
 
 ---
 
+# ✅ R33 — H.9 GRANTED, SCOPED TO COLOUR POSITIONS, IN TWO SUB-STEPS (owner, 2026-09-17)
+
+## 0.1 READBACK — the definitions quoted, and one measurement that narrows R33a
+
+**(i-C), verbatim from `j3b-colour-fn-census.md`:**
+
+> **(i-C)** — (i) with exactly one relaxation — the alpha may be a plan-time
+> **numeric user-function call** (multi-statement body, local bindings, `math.*`,
+> `color.t` of a static colour). **This is the narrowest fold that resolves Clouds'
+> two colour helpers.**
+
+**(base), verbatim:**
+
+> **(base)** — no user functions at all: recurse `color.new`'s base through a name /
+> `input.color`, and allow a plan-time arithmetic alpha
+
+and its scope: *"**20 scripts, +139 positions**"*. ⛔ **`color.t(<name>)` is NOT inside
+(base)** — it is clause 3 of Clouds' four blockers and belongs to (i-C).
+
+**The condition under which "(i-C) plus base recursion resolves 40/40" holds** is the
+census's four blocking clauses, quoted:
+
+> 1. the alpha is a **nested user-function call**, which (i) forbids outright;
+> 2. that nested function's body is **multi-statement** (two local bindings plus
+>    `math.min`), so even recursing (i)'s single-expression body rule refuses it;
+> 3. its second argument `bullUserTransparency` is a name bound to
+>    `color.t(bullColor)` — a **builtin call over an input default**…;
+> 4. the base `bullColor` is a **name** bound to `input.color(color.teal, …)`, and
+>    today's `color.new` branch checks the base with `isColourName` / a colour
+>    literal and **does not recurse**.
+
+⇒ 1–3 are (i-C); 4 is (base). **Neither alone carries Clouds; both do.**
+
+## ⭐⭐ THE PLOT-PATH ANSWER, MEASURED — AND IT MAKES R33a ONE LINE
+
+A plot whose colour is a name bound to `input.color(...)` **is carried today**, and
+the machinery is already there: `staticColourOf`'s `name` branch follows the binding,
+and its `input.color` branch recurses into the DEFAULT. Measured:
+
+| shape | today |
+|---|---|
+| `color = bullColor` (name → `input.color`) | **`#00897B` — carried** |
+| `color = color.new(bullColor, 30)` | `{colorDynamic: true}` |
+| `color = color.new(#123456, 30)` | `#123456` + opacity — carried |
+| `color = color.new(litColor, 30)` — name → **plain hex literal** | `{colorDynamic: true}` |
+| `cond ? bullColor : litColor` | **both carried, as a pair** |
+
+⭐ **The fourth row settles what the defect IS.** A name bound to a plain hex literal
+also fails inside `color.new`, so this was never about `input.color`: `isColourName`
+accepts only a Pine built-in colour name or a literal colour node and **never
+recurses**, while every other colour path already does. **R33a is therefore not a new
+capability — it is removing an asymmetry**, and "the fill path must do exactly the
+same and nothing more" is satisfied because the correction lives in `staticColourOf`
+and serves plot and fill identically.
+
+## R33a — BASE RECURSION
+
+`color.new` / `color.rgb` resolve a base that is a NAME by recursing through
+`staticColourOf`, exactly as the bare-name path already does. A binding that does not
+fold returns null with the dynamic reason. **No new node type; nothing outside
+`staticColourOf`'s colour branches.** The **20 scripts / 139 positions** are the
+**INTENDED** re-baseline, listed per script, predicted-vs-actual. ⛔ **If any
+script's OUTPUT COUNT or REFUSALS move, that is a finding and the block STOPS.**
+
+## R33b — (i-C), AFTER R33a
+
+⚠️ **THE DISCLOSURE THAT MUST RIDE WITH IT**, quoted from the census:
+
+> folding the alpha reads `input.color`'s **default** (`color.t(color.teal) = 0`). A
+> member who changes the colour picker's alpha would still get the default
+> rendering… for Clouds it governs the *entire* cloud opacity, which is the feature,
+> so it should be disclosed rather than inherited quietly.
+
+⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
+outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
+
+---
+
+# ✅ R34 — THE PANE DOOR CARRIES A SYNTHETIC CONDITION COLUMN, DEDUPED BY FORMULA (owner, 2026-09-17)
+
+A conditional fill's `colorMode: 'column:<key>'` names a **hidden condition row** in
+the pane document (`source`/`ast`/`mode` via `evaluateFormula`, the existing row
+shape). ⛔ **Rows are keyed by the condition's canonical FORMULA**, so Clouds' 20
+fills over one `isBullish` produce **ONE** row — without dedup the document gains 20
+identical columns. The row is hidden (binds no series, R27 amended), is not counted
+against the pane's carry cap if that cap protects rendering (R25's measurement
+governs), and is **removed with the last fill that references it** (the re-tenant
+cleanup pattern). ⛔ **No second evaluator**: the column is evaluated by the same path
+a plot's column is.
+
+---
+
 # ✅ R31 — `PR-BODY-COMBINED.md` IS **GENERATED**, AND RAILED (owner, 2026-09-17)
 
 > A rail rebuilds the combined body from its recipe — **header + `PR-BODY.md` +
