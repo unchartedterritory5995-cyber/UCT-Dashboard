@@ -54,6 +54,27 @@ INFRA_SUBSTRINGS = (
 )
 ROUTER_SUBSTRINGS = ("app/src/router", "app/src/routes")
 
+#: ⛔⛔ THE PYTHON HALF, WHICH C0 CANNOT SEE — owner ruling 2026-09-17.
+#: `GATE_READ_PATHS` (and therefore C0) describes what the SIX-SHARD VITEST GATE reads.
+#: It says nothing about what the PYTHON suite reads. That gap shipped a false
+#: reassurance on 2026-09-16: a landing carrying only Python answered `C0 IDENTICAL —
+#: short-circuit` while master's merge had brought **32 files into `tests/`, including
+#: `tests/conftest.py`**. The conftest change happened to be inert; the tool did not know
+#: that and could not have. A check that is silent where it looks authoritative is the
+#: PROXY failure this programme catalogued the same night.
+PY_READ_PATHS = (
+    "pytest.ini",
+    "conftest.py",
+    "tests/conftest.py",
+    "tests/test_gate_shards.py",
+    "tests/test_pre_push_guard.py",
+    "scripts/",
+    "tools/",
+)
+
+#: A branch diff touching any of these makes C4-PYTHON mandatory on the landing tree.
+PY_TRIGGER_PREFIXES = ("scripts/", "tools/", "tests/", "api/")
+
 VERDICT_CARRIES = "CARRIES"
 VERDICT_REGATE = "RE-GATE"
 
@@ -149,7 +170,33 @@ def check_c2(incoming, branch, edges: dict[str, set[str]], depth: int = 2):
     return (not hits), sorted(set(hits))
 
 
-def c4_command(incoming, branch) -> list[str]:
+def python_landing(branch) -> list[str]:
+    """Which branch files make C4-PYTHON mandatory. Empty list ⇒ the vitest half suffices.
+
+    ⛔ Keyed on the BRANCH's own diff, not on master's incoming. The question is *"does this
+    landing carry Python at all"*, and if it does, no amount of agreement about the vitest
+    read set can speak for it.
+    """
+    return sorted(f for f in branch if f.startswith(PY_TRIGGER_PREFIXES))
+
+
+#: ⛔ A FLOOR, NOT A DERIVATION, and labelled as one. A change to `scripts/gate_shards.py`
+#: has NO test file in its own diff — its rails live in `tests/`. `c4_command` names test
+#: files it can see, so for a Python landing it would have emitted an EMPTY command list
+#: while reporting the obligation as mandatory: "you must run something", followed by
+#: nothing. These are the rails that cover `scripts/` and `tools/`.
+#: ⚠️ It is a MINIMUM. A landing that touches Python elsewhere must add that code's own
+#: rails; this list cannot know about them and does not pretend to.
+PY_RAIL_FLOOR = (
+    "tests/test_gate_shards.py",
+    "tests/test_gate_carry_over.py",
+    "tests/test_gate_box_lock.py",
+    "tests/test_gate_box_sampler.py",
+    "tests/test_pre_push_guard.py",
+)
+
+
+def c4_command(incoming, branch, *, python_required: bool = False) -> list[str]:
     """The scoped run the caller still owes. Named files only — never a bare `-k`.
 
     ⛔ `-k` still COLLECTS the whole tree, and collection is where the memory goes (an
@@ -161,6 +208,8 @@ def c4_command(incoming, branch) -> list[str]:
                         or f.split("/")[-1].startswith("test_"))})
     fe = [t[len("app/"):] for t in tests if t.startswith("app/src/")]
     py = [t for t in tests if t.endswith(".py")]
+    if python_required:
+        py = sorted(set(py) | set(PY_RAIL_FLOOR))
     cmds = []
     if fe:
         cmds.append("cd app && npx vitest run " + " ".join(fe))
@@ -184,8 +233,15 @@ def decide(gated, landing, base, *, edges=None, run=None, read_identical=None) -
         if identical:
             result["checks"]["C0"] = {"pass": True, "paths": []}
             result["verdict"] = VERDICT_CARRIES
-            result["reason"] = "C0: IDENTICAL over GATE_READ_PATHS — short-circuit"
-            result["c4_still_owed"] = c4_command([], [])
+            result["reason"] = "C0: IDENTICAL over GATE_READ_PATHS — short-circuit (VITEST half only)"
+            # ⛔⛔ C0 SHORT-CIRCUITS THE VITEST HALF AND NOTHING ELSE. If the branch carries
+            # Python, C4-PYTHON is still mandatory on the landing tree — C0 read a set that
+            # does not contain a single Python path, so it cannot speak for one.
+            branch = branch_files(base, gated, run=run)
+            py = python_landing(branch)
+            result["c4_python_required"] = bool(py)
+            result["c4_python_paths"] = py[:8]
+            result["c4_still_owed"] = c4_command([], branch, python_required=True) if py else []
             return result
 
     incoming = incoming_files(gated, landing, run=run)
@@ -217,7 +273,10 @@ def decide(gated, landing, base, *, edges=None, run=None, read_identical=None) -
     else:
         result["verdict"] = VERDICT_CARRIES
         result["reason"] = "C1, C2, C3 all pass — the incoming commits cannot interact"
-    result["c4_still_owed"] = c4_command(incoming, branch)
+    py = python_landing(branch)
+    result["c4_python_required"] = bool(py)
+    result["c4_python_paths"] = py[:8]
+    result["c4_still_owed"] = c4_command(incoming, branch, python_required=bool(py))
     return result
 
 
@@ -308,9 +367,22 @@ def main(argv=None) -> int:
             continue
         mark = {True: "ok  ", False: "FAIL", None: "????"}[c["pass"]]
         print(f"    {mark} {name}" + (f"  {c['paths'][:6]}" if c["paths"] else ""))
-    print("  ⛔ C4 is still owed by the caller — run exactly:")
-    for c in r["c4_still_owed"]:
-        print(f"      {c}")
+    owed = r.get("c4_still_owed") or []
+    if owed:
+        print("  ⛔ C4 is still owed by the caller — run exactly:")
+        for c in owed:
+            print(f"      {c}")
+    else:
+        # ⛔ THE WART THIS REPLACES: the tool used to print "C4 is still owed" above an
+        # EMPTY list on a C0 hit, which reads as "owed, contents unknown" — the worst of
+        # both. Nothing owed is a fact; say it.
+        print("  ✅ C4: nothing owed — C0 was identical and the branch carries no Python.")
+    if r.get("c4_python_required"):
+        print("  ⛔⛔ C4-PYTHON IS MANDATORY ON THE LANDING TREE AND IS NOT SHORT-CIRCUITED BY C0.")
+        print("     C0 reads GATE_READ_PATHS, which contains no Python path, so it cannot")
+        print("     speak for a landing that carries Python. Branch Python files:")
+        for f in r.get("c4_python_paths") or []:
+            print(f"       {f}")
     print("  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. Production does")
     print("     not move without it; a red workflow means no deploy and an immediate report.")
     return 0 if r["verdict"] == VERDICT_CARRIES else 1

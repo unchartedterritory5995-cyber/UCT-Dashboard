@@ -2351,6 +2351,27 @@ A sound gate on tree **G** carries to landing tree **L** when ALL hold:
 | **C4** | on L, the branch's own test files + the door-guard rail + the incoming files' own test files, by **explicit node id**, green |
 | **C5** | the `master deploy gate` workflow on the landed SHA — **production does not move without it** |
 
+⛔⛔ **C0 COVERS THE VITEST HALF ONLY — C4-PYTHON IS NEVER SHORT-CIRCUITED** (owner ruling,
+2026-09-17). `GATE_READ_PATHS` describes what the **six-shard vitest gate** reads. It contains
+**no Python path at all**. So for any landing whose branch diff touches `scripts/`, `tools/`,
+`tests/` or `api/`, the Python rails must be run on the **final landing tree**, and a C0 hit
+does not excuse it.
+
+⚰️ **The false reassurance this replaces:** on 2026-09-16 a landing carrying **only Python**
+answered `C0 IDENTICAL — short-circuit` while master's merge had brought **32 files into
+`tests/`, including `tests/conftest.py`**. That conftest change happened to be inert — the
+tool did not know that and could not have. **A check that is silent where it looks
+authoritative is the PROXY failure**, in the tool built to prevent it.
+
+- `PY_READ_PATHS` (`tools/gate_carry_over.py`) is the Python read set: `pytest.ini`,
+  `conftest.py`, `tests/conftest.py`, the gate and guard rails, `scripts/`, `tools/`.
+- `PY_RAIL_FLOOR` is a declared **minimum**, and is labelled as one rather than derived: a
+  change to `scripts/gate_shards.py` has **no test file in its own diff**, so naming only
+  diff-local tests produced "you must run something" followed by an empty list. A landing
+  touching Python elsewhere must add that code's own rails.
+- ⛔ **Nothing owed is a fact — say it.** The tool used to print "C4 is still owed" above an
+  empty list on a C0 hit, which reads as *owed, contents unknown*: the worst of both.
+
 ⛔⛔ **C5 IS THE WHOLE SAFETY ARGUMENT — THIS IS A DEFERRAL, NOT A SKIP.** The master gate
 runs the full suite against the **actual landed tree** before `production` advances, and
 Railway deploys from `production`. The local gate proves the branch; C1–C4 prove the

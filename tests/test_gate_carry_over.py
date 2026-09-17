@@ -16,8 +16,8 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "tools"))
 
 from gate_carry_over import (  # noqa: E402
-    GitFailed, VERDICT_CARRIES, VERDICT_REGATE, branch_files, c4_command, check_c1,
-    check_c2, check_c3, decide, incoming_files, self_check,
+    GitFailed, PY_READ_PATHS, VERDICT_CARRIES, VERDICT_REGATE, branch_files, c4_command,
+    check_c1, check_c2, check_c3, decide, incoming_files, python_landing, self_check,
 )
 
 
@@ -124,11 +124,28 @@ def test_an_ABSENT_import_graph_re_gates_and_is_never_a_pass():
     assert "could not evaluate" in r["reason"], r["reason"]
 
 
-def test_C0_short_circuits_to_CARRIES_without_touching_git():
-    def explode(argv):
-        raise AssertionError("C0 must short-circuit BEFORE any git call")
-    r = decide("G", "L", "B", edges=None, run=explode, read_identical=lambda a, b: (True, []))
+def test_C0_short_circuits_past_C1_C2_C3_but_still_reads_the_BRANCH_diff():
+    """⚰️ THE CONTRACT CHANGED ON 2026-09-17 AND THIS RAIL RECORDS WHY, rather than being
+    deleted. It used to assert C0 short-circuits before ANY git call. It cannot any more:
+    C0 covers the VITEST half only, so the tool must still ask whether the branch carries
+    PYTHON — and that question is a branch diff. What C0 still skips is the expensive part
+    and the part that would be wrong to skip silently: the INCOMING diff (C1) and the AST
+    walk (C2/C3).
+
+    ⛔ Deleting this rail instead of amending it would have removed the only statement of
+    what C0 is allowed to do."""
+    seen = []
+
+    def watch(argv):
+        seen.append(" ".join(argv[3:]))
+        return _proc("scripts/gate_shards.py" + chr(10))
+
+    r = decide("G", "L", "B", edges=None, run=watch, read_identical=lambda a, b: (True, []))
     assert r["verdict"] == VERDICT_CARRIES and "C0" in r["reason"]
+    assert all("B...G" in c for c in seen), f"C0 ran a non-branch git call: {seen}"
+    assert not any("G L" in c for c in seen), "C0 must NOT run the incoming (C1) diff"
+    for name in ("C1", "C2", "C3"):
+        assert name not in r["checks"], f"{name} ran despite the C0 short-circuit"
 
 
 # ── the failure that must never be silent ────────────────────────────────────────────
@@ -171,3 +188,67 @@ def test_a_C0_MISS_falls_through_to_C1_C3_and_is_NOT_a_failure():
     assert r["verdict"] == VERDICT_CARRIES, r
     assert r["c0"]["identical"] is False and r["c0"]["paths"] == ["app/src"]
     assert "C0" not in r["checks"], "a C0 miss must not sit in the verdict's check set"
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# C4-PYTHON — the half C0 cannot see (owner ruling 2026-09-17)
+#
+# ⚰️ THE FALSE REASSURANCE THIS EXISTS FOR. On 2026-09-16 a landing carrying ONLY Python
+# got `C0 IDENTICAL — short-circuit` while master's merge had brought 32 files into
+# `tests/`, including `tests/conftest.py`. `GATE_READ_PATHS` describes what the VITEST
+# gate reads; it contains no Python path at all. The conftest change happened to be
+# inert — the tool did not know that and could not have.
+# ══════════════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("branch,expect", [
+    (["scripts/gate_shards.py"], True),
+    (["tools/gate_box_lock.py"], True),
+    (["tests/conftest.py"], True),          # ⛔ THE PLANTED-CONFTEST CONTROL
+    (["tests/test_gate_shards.py"], True),
+    (["api/main.py"], True),
+    (["app/src/pages/x.js"], False),        # a pure frontend landing needs no python run
+    (["docs/notebook/foo.md"], False),      # docs alone likewise
+])
+def test_python_landing_fires_on_exactly_the_paths_that_carry_python(branch, expect):
+    assert bool(python_landing(branch)) is expect, (branch, python_landing(branch))
+
+
+def test_a_C0_HIT_still_makes_C4_PYTHON_MANDATORY_when_the_branch_carries_python():
+    """⛔⛔ THE WHOLE RULING IN ONE CASE. C0 short-circuits the VITEST half and nothing
+    else. A landing that carries Python must still run its Python rails on the LANDING
+    tree, because C0 read a set containing no Python path."""
+    run = _runner({"diff --name-only B...G": "scripts/gate_shards.py\n"})
+    r = decide("G", "L", "B", edges=None, run=run, read_identical=lambda a, b: (True, []))
+    assert r["verdict"] == VERDICT_CARRIES, "the vitest half does carry"
+    assert r["c4_python_required"] is True, "C0 must NOT short-circuit the python half"
+    assert r["c4_still_owed"], "the tool must name the python command it still owes"
+    assert any("pytest" in c for c in r["c4_still_owed"]), r["c4_still_owed"]
+
+
+def test_a_C0_HIT_on_a_FRONTEND_ONLY_branch_owes_NOTHING():
+    """⭐ THE CONTROL. Without it, 'mandatory' could be hard-wired true and every landing
+    would carry a python obligation it does not have — which is how a real obligation
+    stops being read."""
+    run = _runner({"diff --name-only B...G": "app/src/pages/x.js\n"})
+    r = decide("G", "L", "B", edges=None, run=run, read_identical=lambda a, b: (True, []))
+    assert r["verdict"] == VERDICT_CARRIES
+    assert r["c4_python_required"] is False
+    assert r["c4_still_owed"] == [], "nothing is owed; saying otherwise is the old wart"
+
+
+def test_the_python_obligation_survives_the_NON_short_circuit_path_too():
+    run = _runner({"diff --name-only G L": "a/x.js\n",
+                   "diff --name-only B...G": "tools/gate_box_lock.py\n"})
+    r = decide("G", "L", "B", edges={}, run=run)
+    assert r["verdict"] == VERDICT_CARRIES and r["c4_python_required"] is True
+
+
+def test_PY_READ_PATHS_names_the_files_the_python_suite_actually_reads():
+    """⛔ NON-VACUITY on the roster itself: a list that named nothing real would make the
+    rule unfalsifiable."""
+    for rel in ("pytest.ini", "tests/conftest.py", "scripts/", "tools/"):
+        assert rel in PY_READ_PATHS, rel
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for rel in ("pytest.ini", "tests/conftest.py"):
+        assert (root / rel).exists(), f"{rel} is in PY_READ_PATHS but not on disk"
