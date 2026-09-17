@@ -243,10 +243,27 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
                            % (repo, out.strip()[:160]))
         run(["git", "config", "user.email", "replay@local"], clone, False)
         run(["git", "config", "user.name", "merge-replay"], clone, False)
-        rc, out = run(["git", "checkout", "-q", "-B", "merge-replay", base], clone, False)
+        # ⛔⛔ RESOLVE THE BASE IN THE **SOURCE** REPO, THEN CHECK OUT THE SHA.
+        # ⚰️ 2026-09-17: `git clone --shared <local repo>` makes the clone's `origin` the LOCAL
+        # repo, so `origin/master` inside the clone resolves to that repo's LOCAL `master`
+        # BRANCH — which here sat at 57113d1ac, **370 commits behind** the real
+        # `origin/master` (d9455a6d6). Every "replay CLEAN" this tool had ever printed was
+        # therefore measured against a 370-commit-stale base and predicted nothing about the
+        # merge that would actually run. Re-measured against the true tip, the same sequence
+        # STRANDS at #41 on `tests/conftest.py`.
+        # ⭐ The name `origin/master` meant two different things on the two sides of a clone,
+        # and the instrument never said which one it used. `--shared` means the object is
+        # already reachable, so resolving first and checking out the SHA is both correct and
+        # cheap.
+        rc, resolved = run(["git", "rev-parse", base], repo, False)
+        resolved = resolved.strip()
+        if rc != 0 or not resolved:
+            return False, ("[merge-all] ⛔ replay UNREADABLE — %r does not resolve in %s"
+                           % (base, repo))
+        rc, out = run(["git", "checkout", "-q", "-B", "merge-replay", resolved], clone, False)
         if rc != 0:
-            return False, ("[merge-all] ⛔ replay UNREADABLE — %s is not checkoutable in the "
-                           "clone: %s" % (base, out.strip()[:160]))
+            return False, ("[merge-all] ⛔ replay UNREADABLE — %s (%s) is not checkoutable in "
+                           "the clone: %s" % (base, resolved[:9], out.strip()[:160]))
         for i, (stem, sha) in enumerate(seq, 1):
             rc, out = run(["git", "cherry-pick", sha], clone, False)
             if rc != 0:
@@ -258,7 +275,10 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
                 run(["git", "cherry-pick", "--abort"], clone, False)
                 return False, ("[merge-all] ⛔ STRAND at #%d  %s  %s — conflicting: %s"
                                % (i, stem, sha, ", ".join(files) or "(unnamed)"))
-        return True, "[merge-all] replay CLEAN %d of %d" % (len(seq), len(seq))
+        # ⛔ SAY WHICH BASE. A CLEAN that does not name the sha it replayed onto is the
+        # sentence that hid a 370-commit-stale base for two sessions.
+        return True, ("[merge-all] replay CLEAN %d of %d  onto %s (%s)"
+                      % (len(seq), len(seq), base, resolved[:9]))
     finally:
         shutil.rmtree(box, ignore_errors=True)
 

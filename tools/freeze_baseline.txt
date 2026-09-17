@@ -77,7 +77,7 @@ docs/terminal-research/12-decisions/gates/s7-scan-membership-change-pre-implemen
 docs/terminal-research/12-decisions/gates/s9-entitlements-pre-implementation-gate.md | a0f5c77c3c039d09c513acd990f28416be7685a5
 docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | 21c37a3bc0a5c564470927bec7362a1bcdbd489b
 docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | 42eafe314c00f98bd72d2374fb0627ada79e98bf
-tools/merge_all.py | d0f77d67f8f595681cd6716ff39ff049fa6e1d55
+tools/merge_all.py | 589fc77916f02f2254d9221cb9e5aded91d410ee
 tools/pre_sitting.py | 9f2234f454ded32bb956bc37ec03abd14999a92a
 tools/sign_all.py | 05d28de0906016871628cc7b80a894bc64def092
 tools/sign_gate.py | d8e6194718a9b9ec41ea690012b2a6dbb6170bbe
